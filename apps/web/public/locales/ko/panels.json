@@ -221,16 +221,20 @@
     "flipFoldedModel": "접힌 모델 뒤집기",
     "fold": "접기",
     "foldability": {
+      "closure": "여기의 접힘선이 닫히지 않습니다",
+      "closureResidual": "여기의 접힘선이 닫히지 않습니다: {{degrees}}° 차이",
       "compose": "{{lead}} — {{tail}}",
       "edgeLineConfiguration": "가장자리 선 구성이 올바르지 않음",
       "edgeLineCount": "가장자리 선이 너무 많거나 부족함",
       "equalMountainValley": "산접기와 골접기 수가 같음",
       "incorrectAngles": "각도가 올바르지 않음",
       "incorrectFoldTypes": "접기 종류가 올바르지 않음",
+      "interiorBorder": "양쪽에 종이가 있는 경계선 — 이 선을 따라서는 접힘 가능성을 검사하지 않습니다",
       "littleBigLittle": "각도를 중첩할 수 없음(작게-크게-작게)",
       "notEnoughMountain": "산접기가 부족함",
       "notEnoughValley": "골접기가 부족함",
       "oddFolds": "접는 선의 개수가 홀수",
+      "rigidVertex": "이 꼭짓점은 강체라서 여기의 모든 접힘선은 평평해야 합니다",
       "selfIntersection": "종이가 여기서 자기 자신을 통과합니다",
       "shape": {
         "circle": "각도가 올바르지 않음(가와사키 정리)",
@@ -246,9 +250,17 @@
       "line": "선 색"
     },
     "foldedDisplayStyle": "접힌 표시 스타일",
+    "foldedFigure": {
+      "windowAriaLabel": "접힌 모델, 3차원",
+      "windowFailed": "이 모델을 그릴 수 없습니다"
+    },
     "foldedModelControls": "접힌 모델 컨트롤",
     "foldedModels": "접힌 모델",
     "foldedModelSide": "접힌 모델 면",
+    "foldedModelStatus": {
+      "error": "실패",
+      "loading": "접는 중…"
+    },
     "foldedState": {
       "back": "뒷면",
       "front": "앞면"
@@ -297,8 +309,10 @@
     "none": "없음",
     "openingSharedLink": "공유된 전개도를 여는 중…",
     "optimizingScale": "배율 최적화 중",
+    "orbitFoldedForm": "접힌 도형 회전",
     "preparing": "편집기를 준비하는 중…",
     "refoldFoldedModelAction": "접힌 모델 다시 접기",
+    "resetFoldedModelView": "접힌 모델 보기 초기화",
     "resizeAnnotation": "주석 크기 조정",
     "resizeFoldedForm": "접힌 형태 크기 조정",
     "resizeSimulationWindow": "시뮬레이션 창 크기 조정",
@@ -323,10 +337,13 @@
     },
     "sendImageToBack": "이미지를 맨 뒤로 보내기",
     "shadow": "그림자",
+    "shadowUnsupported3d": "3D 접힌 모델에는 아직 그림자가 그려지지 않습니다",
     "showFoldedModelShadow": "접힌 모델 그림자 표시",
     "side": "면",
     "stale": "오래됨",
-    "viewportControls": "전개도 뷰포트 컨트롤"
+    "viewFoldedModelOtherSide": "반대편에서 보기",
+    "viewportControls": "전개도 뷰포트 컨트롤",
+    "zoomFoldedForm": "접힌 형태 확대/축소"
   },
   "design": {
     "attributionBoxPleating": "<2>Mu-Tsun Tsai's Box Pleating Studio</2> 기반",
@@ -493,6 +510,20 @@
     "viewTree": "트리",
     "viewTreeAndCp": "트리와 전개도"
   },
+  "fold3dVerdict": {
+    "localCrossing_one": "종이가 한 꼭짓점에서 자기 자신을 통과합니다.",
+    "localCrossing_other": "종이가 {{count}}개의 꼭짓점에서 자기 자신을 통과합니다.",
+    "localCrossingLabel": "종이가 자기 자신을 통과",
+    "noLayerOrderContradictorySeeds": "두 면이 서로 상대보다 위에 있어야 해서, 어떤 층 순서로도 둘 다 만족할 수 없습니다.",
+    "noLayerOrderGeneric": "이 도형의 층 순서를 정할 수 없었습니다.",
+    "noLayerOrderLabel": "층 순서 미정",
+    "selectCreases": "해당 접힘선 선택",
+    "showIssues": "문제 표시",
+    "simulateInstead": "대신 시뮬레이션",
+    "transversalCrossing_one": "접힌 접힘선 하나가 도형의 면을 통과합니다.",
+    "transversalCrossing_other": "접힌 접힘선 {{count}}개가 도형의 면을 통과합니다.",
+    "transversalCrossingLabel": "접힘선이 면을 가로지름"
+  },
   "foldedFigureActions": {
     "anotherSolution": "다른 해",
     "delete": "삭제",
@@ -504,7 +535,9 @@
     "firstSolution": "첫 번째 해로 돌아가기",
     "flip": "뒤집기",
     "label": "접힌 모델 작업",
+    "otherSide": "반대편",
     "refold": "다시 접기",
+    "resetView": "보기 초기화",
     "styleDev1": "개발 1",
     "styleDev4": "개발 4",
     "styleNone": "없음",

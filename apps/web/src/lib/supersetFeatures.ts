@@ -1,7 +1,10 @@
 import type { CpImage } from '../cp-workspace/images/cpImage';
 import type { TextAnnotation } from '../cp-workspace/annotations/textAnnotation';
 import type { InlineSimulation } from '../cp-workspace/inlineSimulation/inlineSimulation';
-import type { OristudioCpLineSegment } from '../engine/oristudioCpTypes';
+import type {
+  OristudioCpFoldedFigureEntry,
+  OristudioCpLineSegment,
+} from '../engine/oristudioCpTypes';
 import { isClassicCrease, isFoldingCrease } from './foldAngle';
 import { defaultBpDocumentSymmetry, type BpDocumentSymmetry } from './bpTreeSymmetry';
 
@@ -17,8 +20,13 @@ import { defaultBpDocumentSymmetry, type BpDocumentSymmetry } from './bpTreeSymm
  * formats, each feature simply lists the formats that drop it and the two sets
  * do not overlap.
  *
- * See `apps/web/docs/superset-features.md`. Adding the next superset feature is a
- * one-line addition here.
+ * The module is deliberately free of React and of the translator: it decides
+ * *what* is lost, never how to name it. The user-facing names live beside the
+ * other localized data labels, in `i18n/supersetFeatureLabels.ts`.
+ *
+ * See `apps/web/docs/superset-features.md`. Adding the next superset feature is
+ * a one-line addition here plus its name in that helper, which the compiler
+ * requires.
  */
 
 /**
@@ -50,15 +58,37 @@ export interface SupersetPresence {
    */
   lineSegments: readonly OristudioCpLineSegment[];
   /**
+   * Folded figures on the crease-pattern canvas, for counting the **3D** ones.
+   * A flat folded figure is not a superset feature — every format drops it and
+   * nobody expects otherwise, because it is derived from the creases and any
+   * reader can recompute it. A 3D one is different: no format carries a
+   * non-180 fold angle except `.fold`, so there is nothing to recompute it from.
+   */
+  foldedFigures: readonly OristudioCpFoldedFigureEntry[];
+  /**
    * Box-pleat mirror-draw state. Unlike the entries above this belongs to the
    * Design surface, not the crease pattern.
    */
   bpSymmetry: BpDocumentSymmetry;
 }
 
+/**
+ * Stable identifier for a superset feature. A closed union rather than `string`
+ * so `i18n/supersetFeatureLabels.ts` can name every one of them exhaustively —
+ * adding a feature here without a translation is a type error, which is what
+ * keeps these names from reaching the export dialog in English.
+ */
+export type SupersetFeatureId =
+  | 'images'
+  | 'richText'
+  | 'inlineSimulations'
+  | 'symmetry'
+  | 'foldAngles'
+  | 'foldedForm3d'
+  | 'foldedForm3dDetached';
+
 interface SupersetFeature {
-  id: string;
-  label: string;
+  id: SupersetFeatureId;
   /** How many are present (0 ⇒ absent). */
   count(presence: SupersetPresence): number;
   /** Formats that cannot store this feature. */
@@ -99,25 +129,21 @@ const FOLD_ANGLE_LOSSY_FORMATS: readonly ExportFormat[] = ['cp', 'ori', 'orh', '
 const SUPERSET_FEATURES: readonly SupersetFeature[] = [
   {
     id: 'images',
-    label: 'Images',
     count: (presence) => presence.images.length,
     droppedByFormats: ALL_LOSSY_FORMATS,
   },
   {
     id: 'richText',
-    label: 'Rich text formatting',
     count: (presence) => presence.richText.length,
     droppedByFormats: ALL_LOSSY_FORMATS,
   },
   {
     id: 'inlineSimulations',
-    label: 'Simulation windows',
     count: (presence) => presence.inlineSimulations.length,
     droppedByFormats: ALL_LOSSY_FORMATS,
   },
   {
     id: 'symmetry',
-    label: 'Mirror symmetry',
     /**
      * One feature, not a tally: `.bps` loses the pairing, the on/off state, and
      * the fold together, and they are not comparable units to add up. Zero when
@@ -134,7 +160,6 @@ const SUPERSET_FEATURES: readonly SupersetFeature[] = [
   },
   {
     id: 'foldAngles',
-    label: 'Non-flat fold angles',
     count: (presence) =>
       presence.lineSegments.filter(
         (segment) => isFoldingCrease(segment.color) && !isClassicCrease(segment)
@@ -142,11 +167,52 @@ const SUPERSET_FEATURES: readonly SupersetFeature[] = [
     droppedByFormats: FOLD_ANGLE_LOSSY_FORMATS,
     blocking: true,
   },
+  {
+    id: 'foldedForm3d',
+    count: (presence) =>
+      presence.foldedFigures.filter(
+        (figure) => (figure.folded3d ?? null) !== null && figure.handle != null
+      ).length,
+    /**
+     * `.fold` is **not** in this list: the export writes one `foldedForm` frame
+     * per 3D figure, with three-component `vertices_coords` and `faceOrders`.
+     *
+     * `.svg`/`.png` are excluded because a folded figure is a picture and those
+     * formats *are* the picture — the per-figure export writes it directly from
+     * the stored primitives. `.bps` is excluded because a crease pattern is
+     * never exported as one.
+     *
+     * Not blocking. The `foldAngles` entry above already refuses every format
+     * here, on the same documents, because losing the *angles* changes what the
+     * pattern is; losing the figure derived from them does not, and the `.osf`
+     * still has it.
+     */
+    droppedByFormats: ['cp', 'ori', 'orh', 'dxf', 'obj'],
+  },
+  {
+    id: 'foldedForm3dDetached',
+    /**
+     * The `foldedForm` frame is built in the kernel from the live
+     * `Fold3dSession` — placement rings, plane frames, the layer relation —
+     * none of which is persisted. A figure reopened from an `.osf` has no
+     * handle, so it draws from its stored primitives but cannot describe
+     * itself, and `.fold` genuinely does drop it.
+     *
+     * A separate entry rather than a caveat on the one above, because the two
+     * differ in exactly one format and merging them would have to lie about
+     * `.fold` in one direction or the other. Refold is the escape hatch, and
+     * for a 3D figure it reproduces the same solution exactly.
+     */
+    count: (presence) =>
+      presence.foldedFigures.filter(
+        (figure) => (figure.folded3d ?? null) !== null && figure.handle == null
+      ).length,
+    droppedByFormats: ['cp', 'fold', 'ori', 'orh', 'dxf', 'obj'],
+  },
 ];
 
 export interface ExportLossWarning {
-  id: string;
-  label: string;
+  id: SupersetFeatureId;
   count: number;
   /** See {@link SupersetFeature.blocking}. */
   blocking: boolean;
@@ -167,18 +233,12 @@ export function collectExportLossWarnings(
     if (count > 0) {
       warnings.push({
         id: feature.id,
-        label: feature.label,
         count,
         blocking: feature.blocking === true,
       });
     }
   }
   return warnings;
-}
-
-/** Human-readable summary of the dropped features, e.g. "Images (3)". */
-export function describeExportLoss(warnings: readonly ExportLossWarning[]): string {
-  return warnings.map((warning) => `${warning.label} (${warning.count})`).join(', ');
 }
 
 /** Uppercase label for an export format, for the warning copy. */

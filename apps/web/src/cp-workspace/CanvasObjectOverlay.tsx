@@ -380,7 +380,11 @@ export function CanvasObjectOverlay({
                   : 'var(--accent-primary, #4c9aff)'
                 : 'transparent'
             }
-            strokeWidth={isSelected ? 1.5 : 0}
+            // A focused body is inert to this overlay and its interior is taking
+            // drags — orbiting a 3D figure, running a simulation. Doubling the
+            // outline is the only thing on screen that says so, and without it
+            // "press again to focus" is a rule with no feedback.
+            strokeWidth={isSelected ? (bodyInert ? 3 : 1.5) : 0}
             strokeDasharray={cropping ? '4 3' : undefined}
             style={{
               pointerEvents: interactive && !object.locked && !bodyInert ? 'auto' : 'none',

@@ -53,6 +53,75 @@ export type FoldedFormExportFormat = 'fold' | 'obj' | 'stl';
 /** TreeMaker optimizer variants. */
 export type OptimizerKind = 'scale' | 'edges' | 'strain';
 
+/**
+ * What a press of `G` was asking for, decided from the **scoped** selection
+ * alone — never from the document.
+ *
+ * `spatial` is the selection the flat folder has no answer for: at least one
+ * selected crease carries a fold angle other than a full mountain or valley, so
+ * the fold goes to the computed 3D folder.
+ *
+ * No dashboard union is needed across the 3D change: `fold attempted` had no
+ * call site before this feature — it existed only as a name in
+ * {@link ANALYTICS_EVENTS} — so no build ever sent an earlier spelling of this
+ * value.
+ */
+export type FoldMode = 'flat' | 'spatial';
+
+/**
+ * How a fold ended. Every one of these is a terminal branch of
+ * `foldOristudioCpDocument`, so `fold attempted` and `fold completed` pair up
+ * exactly.
+ *
+ * - `folded` — a figure was produced and it draws.
+ * - `no-solutions` — the layer search ran and found no valid ordering.
+ * - `contradiction` — two faces each have to lie above the other. Not an error:
+ *   the transparent development still renders, with the pair highlighted.
+ * - `not-drawable` — the fold returned, and there was nothing to draw.
+ * - `simulated` — the user accepted the offer to simulate instead.
+ * - `cancelled` — the user declined that offer, or the CAMV warning.
+ * - `error` — the kernel refused.
+ *
+ * The last three are `spatial` only, and each says something a placed 3D figure
+ * still is: it drew, and this is what is true about it.
+ *
+ * - `local-crossing` — the paper passes through itself at some vertex.
+ * - `transversal-crossing` — a folded crease passes through a face.
+ * - `no-layer-order` — placed, but no stacking could be computed.
+ */
+export type FoldVerdict =
+  | 'folded'
+  | 'no-solutions'
+  | 'contradiction'
+  | 'not-drawable'
+  | 'simulated'
+  | 'cancelled'
+  | 'error'
+  | 'local-crossing'
+  | 'transversal-crossing'
+  | 'no-layer-order';
+
+/** Which way a press of the one solution verb moved. */
+export type FoldCycleDirection = 'next' | 'wrap';
+
+/** Where a foldability check was run from. */
+export type FoldabilityCheckSource = 'pre-fold';
+
+/**
+ * Where a simulator run was started from.
+ *
+ * `fold-3d-refused` is the *fold* offer — the 3D gate would not accept the
+ * pattern at all. `fold-3d-no-layer-order` is the *verdict* offer — a figure
+ * that placed and drew, whose layers could not be ordered — which is a
+ * different thing, and the two must not be merged.
+ *
+ * Both are new: `fold simulation run` had no call site before this feature, so
+ * nothing older is in the data to reconcile with.
+ */
+export type FoldSimulationSource =
+  | 'fold-3d-refused'
+  | 'fold-3d-no-layer-order';
+
 /** The coarse group a command id belongs to (derived from its id prefix). */
 export type CommandGroup =
   | 'file'
@@ -114,6 +183,12 @@ export const ANALYTICS_EVENTS = {
   foldedFormExported: 'folded form exported',
   foldWarningShown: 'fold warning shown',
   foldWarningAccepted: 'fold warning accepted',
+  foldAttempted: 'fold attempted',
+  foldCompleted: 'fold completed',
+  foldSolutionCycled: 'fold solution cycled',
+  foldedFigureOrbited: 'folded figure orbited',
+  foldedFigureZoomed: 'folded figure zoomed',
+  foldedFigureRehydrated: 'folded figure rehydrated',
   creasePatternShared: 'crease pattern shared',
   shareLinkCopied: 'share link copied',
   shareLinkOpened: 'share link opened',

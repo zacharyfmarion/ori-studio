@@ -27,6 +27,18 @@ pub enum IoError {
         field: &'static str,
         message: String,
     },
+    /// The file describes a folded state rather than a crease pattern.
+    ///
+    /// Distinct from [`Self::InvalidField`] on purpose: the file is well formed
+    /// and says what it means, and we decline rather than build a nearby result
+    /// out of the part of it we can read. See AGENTS.md → porting discipline.
+    ///
+    /// One variant for both of the signals in
+    /// `fold::reject_unrepresentable_geometry`, because they are one fact about
+    /// the file and want one sentence in front of the user. `what` separates
+    /// them for a log; the engine code does not, and neither does the copy.
+    #[error("folded form, not a crease pattern: {what} ({detail})")]
+    FoldedForm { what: &'static str, detail: String },
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
     #[error("line color error: {0}")]

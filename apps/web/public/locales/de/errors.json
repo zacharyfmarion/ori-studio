@@ -17,6 +17,9 @@
     "retry": "Erneut versuchen",
     "stripTitle": "Diese Symbolleiste funktioniert nicht mehr"
   },
+  "cp": {
+    "foldProducedNothing": "Diese Faltlinien haben keine flache Faltform, die sich zeichnen ließe"
+  },
   "cpDetectImport": {
     "canvasUnavailable": "Canvas 2D ist nicht verfügbar",
     "unsupportedImage": "Verwenden Sie ein PNG-, JPEG- oder WebP-Bild."
@@ -31,7 +34,12 @@
   },
   "fold": {
     "contradiction": "Dieses Faltmuster ist nicht flachfaltbar: Einige Flächen haben keine konsistente Stapelreihenfolge.",
+    "disconnected": "Diese Auswahl zerfällt in getrennte Teile, die einander nicht berühren, und lässt sich daher nicht als ein Modell falten. Wähle ein einzelnes Teil aus und falte erneut.",
+    "foldedForm": "Diese FOLD-Datei enthält ein gefaltetes Modell und kein Faltmuster, es gibt also keine Faltkanten zu öffnen. Öffne stattdessen das Faltmuster, aus dem es gefaltet wurde.",
+    "foldedFormTooLarge": "Diese gefaltete Figur ist zu groß, um in eine FOLD-Datei geschrieben zu werden. Exportiere nur das Faltmuster oder speichere das Projekt als .osf, das die Figur behält.",
+    "isFlat": "Diese Falten sind alle volle Berg- und Talfalten, sie falten daher flach statt in eine 3D-Form.",
     "layerSearch": "Dieses Faltmuster konnte nicht gefaltet werden: Seine Schichten lassen sich nicht überlappungsfrei anordnen.",
+    "needs3d": "Einige dieser Falten falten in einem anderen Winkel als einer vollen Berg- oder Talfalte und haben daher keine flach gefaltete Form. Versuchen Sie es erneut; wiederholt sich das, sind App und Muster nicht mehr synchron.",
     "sameParity": "Dieses Faltmuster lässt sich nicht flach falten: Zwei Flächen treffen mit gleicher Ausrichtung an einer Faltkante aufeinander."
   },
   "global": {

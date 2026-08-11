@@ -1,4 +1,9 @@
-import type { AnnotationBox } from '../annotations/annotationTransform';
+import type { CpOverlayView } from '../CreasePatternWebglCanvas';
+import {
+  overlayModelToCss,
+  type AnnotationBox,
+  type Vec2,
+} from '../annotations/annotationTransform';
 
 /**
  * Where a window sits on screen, split into the part that survives a camera move
@@ -10,8 +15,13 @@ import type { AnnotationBox } from '../annotations/annotationTransform';
  * windows, writing `left`/`top`/`width`/`height` per frame relaid out the whole
  * layer, and because a canvas whose box changes wakes its ResizeObserver, it
  * also made every window re-render. Measured at 640 bitmaps a second.
+ *
+ * Shared by both window kinds — inline simulations and 3D folded figures — and
+ * that sharing is the point rather than a tidiness. Its inputs are already
+ * kind-agnostic, and a second copy is how the 640-bitmaps-a-second regression
+ * comes back on one kind only.
  */
-export interface InlineSimulationPlacement {
+export interface CanvasWindowPlacement {
   /** Layout size in CSS px. Changes only when the camera settles. */
   width: number;
   height: number;
@@ -62,8 +72,9 @@ const CORNER_SHRINK_EXPONENT = 0.7;
 
 /**
  * Inset of a badge from the window's corner, in CSS px. Matches
- * `.cp-inline-simulation__badge` — repeated here because the counter-transform
- * has to undo exactly the offset the stylesheet asked for.
+ * `.cp-inline-simulation__badge` and `.cp-folded-figure-window__badge` —
+ * repeated here because the counter-transform has to undo exactly the offset the
+ * stylesheet asked for, and both classes therefore have to declare this number.
  */
 const BADGE_INSET_CSS = 6;
 
@@ -87,7 +98,7 @@ function smoothstep(edge0: number, edge1: number, x: number): number {
   return t * t * (3 - 2 * t);
 }
 
-export function inlineSimulationPlacement(options: {
+export function canvasWindowPlacement(options: {
   box: AnnotationBox;
   /** Box centre in CSS px under the live camera. */
   center: { x: number; y: number };
@@ -97,7 +108,7 @@ export function inlineSimulationPlacement(options: {
   pxPerModel: number;
   /** Camera scale the layout box — and the bitmap in it — were built for. */
   renderedPxPerModel: number;
-}): InlineSimulationPlacement {
+}): CanvasWindowPlacement {
   const { box, center, angle, pxPerModel, renderedPxPerModel } = options;
   const base = renderedPxPerModel > 0 ? renderedPxPerModel : pxPerModel;
   const scale = base > 0 ? pxPerModel / base : 1;
@@ -131,7 +142,7 @@ export function inlineSimulationPlacement(options: {
  * pins it: `1/scale` about its own anchored corner makes it the size the
  * stylesheet asked for, and the translate puts the inset back, since that was
  * scaled too. Both are transforms, so this is free — see
- * {@link InlineSimulationPlacement.badge}.
+ * {@link CanvasWindowPlacement.badge}.
  */
 function badgeChrome(
   paintedShortEdge: number,
@@ -155,10 +166,29 @@ function badgeChrome(
  * `renderedPxPerModel`, or settling would move the window rather than just
  * sharpen it.
  */
-export function paintedSize(placement: InlineSimulationPlacement): {
+export function paintedSize(placement: CanvasWindowPlacement): {
   width: number;
   height: number;
 } {
   const scale = Number(/scale\(([-\d.e]+)\)/.exec(placement.transform)?.[1] ?? 1);
   return { width: placement.width * scale, height: placement.height * scale };
+}
+
+/**
+ * Screen-space rotation (radians) of a box's local +x axis under the camera.
+ *
+ * Derived by mapping a unit step through the affine rather than by reading a
+ * camera angle, so it stays right under a flipped or non-conformal view.
+ */
+export function windowScreenAngle(
+  view: CpOverlayView,
+  center: Vec2,
+  rotation: number
+): number {
+  const origin = overlayModelToCss(view, center);
+  const tip = overlayModelToCss(view, {
+    x: center.x + Math.cos(rotation),
+    y: center.y + Math.sin(rotation),
+  });
+  return Math.atan2(tip.y - origin.y, tip.x - origin.x);
 }

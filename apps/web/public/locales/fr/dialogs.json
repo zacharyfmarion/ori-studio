@@ -102,7 +102,7 @@
     "foldedCasesFound_many": "{{count}} trouvé(s) jusqu’ici",
     "foldedCasesFound_other": "{{count}} trouvé(s) jusqu’ici",
     "foldedFigureNeedsCp": "Ouvrez un patron de plis modifiable pour le plier",
-    "foldedFigureNeedsFlat": "Ce patron comporte des plis qui ne sont pas complets ; il n'a donc pas de forme pliée à plat",
+    "foldedFigureNeedsFlat": "Cette exportation ne plie qu’à plat, et ce patron comporte des plis qui ne sont pas complets",
     "foldedFigureNeedsOnePattern": "Sélectionnez un seul patron à plier",
     "foldedFigureSection": "Figure pliée",
     "foldedFrontColor": "Recto",
@@ -127,6 +127,24 @@
     "title": "Titre",
     "titlePlaceholder": "Facultatif"
   },
+  "exportLoss": {
+    "blockedConfirm": "Exporter en FOLD à la place",
+    "blockedMessage": "Le format {{format}} ne peut pas stocker {{features}}, et à la réimportation chaque pli serait lu comme un pli complet, sans avertissement. FOLD les stocke, et .osf conserve tout.",
+    "blockedTitle": "Impossible d’exporter en {{format}}",
+    "confirm": "Exporter quand même",
+    "feature": {
+      "foldAngles": "Angles de pliage non plats",
+      "foldedForm3d": "Figures pliées en 3D",
+      "foldedForm3dDetached": "Figures pliées en 3D à replier",
+      "images": "Images",
+      "inlineSimulations": "Fenêtres de simulation",
+      "richText": "Mise en forme du texte enrichi",
+      "symmetry": "Symétrie miroir"
+    },
+    "featureCount": "{{feature}} ({{total}})",
+    "message": "Ce projet utilise des fonctionnalités que le format {{format}} ne peut pas stocker. Elles seront omises de l’exportation : {{features}}.",
+    "title": "Certaines fonctionnalités ne peuvent pas être exportées"
+  },
   "fileDrop": {
     "choiceMessage": "{{name}} est un patron de plis : il peut être fusionné avec celui que vous modifiez ou ouvert séparément.",
     "choiceTitle": "Ouvrir ou importer {{name}} ?",
@@ -136,9 +154,25 @@
     "openDescriptionDirty": "Remplace ce sur quoi vous travaillez et abandonne vos modifications non enregistrées.",
     "openLabel": "Ouvrir comme nouveau fichier"
   },
+  "fold3dRefused": {
+    "facesUnresolved": "Les faces de ce patron n’ont pas pu être déterminées. En cause, le plus souvent : des plis qui se croisent sans sommet, ou qui n’atteignent pas un sommet.",
+    "flatFoldabilityGeneric": "Un sommet de ce patron ne peut pas être plié.",
+    "loopNotClosed": "Le pliage autour d’une boucle de faces ne revient pas au point de départ : ces angles ne peuvent pas tenir tous ensemble.",
+    "message": "{{reason}} {{trailer}}",
+    "noFaces": "Ces plis n’enferment aucune face de papier à plier.",
+    "nonCreaseJoin": "Deux faces se rejoignent le long d’une arête qui n’est pas un pli.",
+    "simulate": "Simuler",
+    "simulateTrailer": "Le simulateur peut le plier de façon approximative.",
+    "title": "Ce patron ne peut pas être plié en 3D",
+    "toleranceWindowClosed": "Deux faces sont trop proches du même plan pour être distinguées.",
+    "vertexClosure": "Les plis d’un sommet ne se referment pas : il manque {{degrees}}°.",
+    "vertexUnassignedCrease": "Un pli d’un sommet n’a aucun pliage attribué, ce sommet ne peut donc pas être plié.",
+    "vertexUnsplitJunction": "Des plis se rejoignent en un point qui n’est pas un sommet, ce sommet ne peut donc pas être plié."
+  },
   "foldWarning": {
     "dontShowAgain": "Ne plus afficher",
     "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage\u00a0?",
+    "spatialMessage": "Des erreurs ont été détectées dans la façon dont ces plis se plient. Continuer le pliage\u00a0?",
     "title": "Avertissement"
   },
   "help": {
@@ -271,7 +305,7 @@
     "create": "Créer le lien",
     "creating": "Création du lien…",
     "foldedFigure": "Afficher la figure pliée",
-    "foldedFigureNeedsFlat": "Ce patron comporte des plis qui ne sont pas complets ; il n'a donc pas de forme pliée à plat",
+    "foldedFigureNeedsFlat": "Cet aperçu ne plie qu’à plat, et ce patron comporte des plis qui ne sont pas complets",
     "folding": "Pliage en cours…",
     "frontColor": "Couleur du recto",
     "linkPreview": "Aperçu du lien",

@@ -1,8 +1,9 @@
-import type {
-  FoldedSourceBounds,
-  OristudioCpDocumentSnapshot,
-  OristudioCpFoldedFigureEntry,
-  OristudioCpLineSegment,
+import {
+  isFoldedFromCurrentCpSourceKind,
+  type FoldedSourceBounds,
+  type OristudioCpDocumentSnapshot,
+  type OristudioCpFoldedFigureEntry,
+  type OristudioCpLineSegment,
 } from '../../engine/oristudioCpTypes';
 import { isOrieditaFoldableLineColor } from '../../lib/creasePatternClipboard';
 
@@ -149,6 +150,35 @@ export function reselectFoldableLineIds(
   return ids;
 }
 
+/**
+ * The same reselect **without** the folding-line filter: every crease overlapping
+ * the recorded region, whatever its colour.
+ *
+ * Not a variant of {@link reselectFoldableLineIds} for the sake of it — the two
+ * feed different machines. The kernel is handed folding lines only, so that is
+ * what provenance and staleness compare. A *region* is matched by every crease
+ * inside it, auxiliary construction lines included, so "simulate this instead"
+ * has to ask the unfiltered question or `resolveInlineSimulationRegion` refuses
+ * a region that has one Cyan3 line in it.
+ *
+ * This is the refold-time stand-in for the scoped selection a fresh fold records
+ * verbatim (`sourceScopedLineIds`): a refold has no selection to record, only a
+ * box.
+ */
+export function reselectSourceLineIds(
+  document: OristudioCpDocumentSnapshot | null | undefined,
+  bounds: FoldedSourceBounds | null
+): number[] {
+  if (!document || !bounds) return [];
+  const ids: number[] = [];
+  const lines = document.crease_pattern.line_segments;
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (line && segmentOverlapsBounds(line, bounds)) ids.push(index + 1);
+  }
+  return ids;
+}
+
 /** The lines behind 1-based ids, skipping any that no longer resolve. */
 export function cpLinesByIds(
   document: OristudioCpDocumentSnapshot | null | undefined,
@@ -270,6 +300,54 @@ export function foldedSourceFingerprint(lines: readonly OristudioCpLineSegment[]
 
 
 /**
+ * `document` + region -> the fingerprint that region's creases hash to *today*.
+ *
+ * The answer depends on nothing but those two, and computing it is the whole
+ * cost of {@link isFoldedFigureStale}: a walk over every line segment in the
+ * document, then a sort and a digest over the ones that overlap.
+ *
+ * # Why this cache exists
+ *
+ * Callers ask per *figure*, and the natural place to memoise — a `useMemo` over
+ * the figure list — is invalidated by the figure list's identity. Reopening a
+ * file with inline 3D figures adopts them one at a time, and every adoption
+ * rewrites that array, so the memo recomputed for **every** figure on **every**
+ * adoption while none of the inputs this function reads had changed.
+ *
+ * Measured on a 64-figure, 15,950-segment document: 67 ms per recompute, 64
+ * times. A trace of that load spent 71% of main-thread busy time in here and
+ * dropped 43% of frames, all of it inside those blocks.
+ *
+ * # Why keying on document identity is safe
+ *
+ * It is the *same* key the `useMemo` already used, so this is no weaker: a
+ * snapshot is decoded fresh per edit and never mutated in place, and were that
+ * untrue the memo would already have been serving stale answers. A `WeakMap`
+ * means a superseded document's entry goes when the document does, and the
+ * inner map is bounded by the number of distinct regions asked about.
+ */
+const CURRENT_FINGERPRINTS = new WeakMap<OristudioCpDocumentSnapshot, Map<string, string>>();
+
+function currentSourceFingerprint(
+  document: OristudioCpDocumentSnapshot,
+  bounds: FoldedSourceBounds
+): string {
+  let byRegion = CURRENT_FINGERPRINTS.get(document);
+  if (byRegion === undefined) {
+    byRegion = new Map();
+    CURRENT_FINGERPRINTS.set(document, byRegion);
+  }
+  const key = `${bounds.minX},${bounds.minY},${bounds.maxX},${bounds.maxY}`;
+  const cached = byRegion.get(key);
+  if (cached !== undefined) return cached;
+  const fingerprint = foldedSourceFingerprint(
+    cpLinesByIds(document, reselectFoldableLineIds(document, bounds))
+  );
+  byRegion.set(key, fingerprint);
+  return fingerprint;
+}
+
+/**
  * Whether `figure`'s source creases have changed since it was folded.
  *
  * A figure with no recorded provenance — folded before this was tracked, or
@@ -282,8 +360,10 @@ export function isFoldedFigureStale(
 ): boolean {
   if (!document) return false;
   if (figure.sourceBounds == null || figure.sourceFingerprint == null) return false;
-  // Only figures folded from this document's creases have creases to drift.
-  if (figure.sourceKind !== 'generated-from-current-cp') return false;
-  const ids = reselectFoldableLineIds(document, figure.sourceBounds);
-  return foldedSourceFingerprint(cpLinesByIds(document, ids)) !== figure.sourceFingerprint;
+  // Only figures folded from this document's creases have creases to drift —
+  // both kinds of them. This predicate fails *open*: exclude a kind here and
+  // nothing errors, its figures simply report fresh forever and the Refold verb
+  // is dropped from the menu rather than shown disabled.
+  if (!isFoldedFromCurrentCpSourceKind(figure.sourceKind)) return false;
+  return currentSourceFingerprint(document, figure.sourceBounds) !== figure.sourceFingerprint;
 }

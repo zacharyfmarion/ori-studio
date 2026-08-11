@@ -1,10 +1,16 @@
+use super::combination::CombinationGenerator;
 use super::{
     AdditionalEstimationError, EquivalenceCondition, EquivalenceConditionSet, FaceOrder,
-    HierarchyTable, InitialHierarchy, InitialHierarchyError, SubFace, SubFaceConfiguration,
-    apply_quadruple_condition, apply_triple_condition, run_additional_estimation,
-    run_additional_estimation_fast,
+    FoldGraphError, FoldSetupError, HierarchyTable, InitialHierarchy, InitialHierarchyError,
+    SubFace, SubFaceConfiguration, apply_quadruple_condition, apply_triple_condition,
+    run_additional_estimation, run_additional_estimation_fast,
 };
 use std::collections::{HashMap, HashSet};
+
+/// Oriedita's own switch point: past this many permutations,
+/// `SubFace.possible_overlapping_search` stops brute-forcing the permutation
+/// space and hands over to [`CombinationGenerator`].
+const COMBINATION_GENERATOR_THRESHOLD: usize = 2000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PermutationError {
@@ -21,7 +27,6 @@ pub struct PermutationSnapshot {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SubFaceSearchError {
     Permutation(PermutationError),
-    CombinationGeneratorRequired { permutation_count: usize },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -45,11 +50,103 @@ struct WorkerSearchEntry {
     swap_counter: usize,
 }
 
+/// Port of the generic base `SwappingAlgorithm<T>`.
+///
+/// Upstream parameterises over the element type and keys `visited`/`history` by
+/// object identity. Here the elements are stable ids and `order` is the
+/// permutation of them being swapped, so the id *is* the identity. `history`
+/// stores the visited prefix exactly rather than upstream's `Arrays.hashCode`,
+/// which can only make the loop-breaking trigger less often, never more.
 #[derive(Debug, Clone, Default)]
-pub struct SubFaceSwapper {
+pub struct SwappingAlgorithm {
     high: usize,
     history: HashSet<Vec<usize>>,
     visited: HashSet<usize>,
+}
+
+impl SwappingAlgorithm {
+    /// Records a dead-end. Port of `SwappingAlgorithm.record`.
+    pub(super) fn record(&mut self, index: usize) {
+        self.high = index;
+    }
+
+    fn visit(&mut self, item: usize) {
+        self.visited.insert(item);
+    }
+
+    fn visited_count(&self) -> usize {
+        self.visited.len()
+    }
+
+    /// Port of `SwappingAlgorithm.process`. Returns the position the dead-ended
+    /// element was moved to, or `None` when no swap happened — the two paths that
+    /// return early are exactly the ones where upstream never reaches its
+    /// `onAfterProcess` hook.
+    pub(super) fn process<SwapOver>(
+        &mut self,
+        order: &mut [usize],
+        max: usize,
+        on_swap_over: &mut SwapOver,
+    ) -> Option<usize>
+    where
+        SwapOver: FnMut(usize),
+    {
+        if self.high < 2 {
+            return None;
+        }
+
+        let mut hash = order_prefix(order, self.high);
+        if self.history.contains(&hash) {
+            // Introduce an unvisited element to break the loop.
+            let reverse_result = self.reverse_swap(order, 1, self.high, max, 1, on_swap_over);
+            if reverse_result == self.high {
+                return None;
+            }
+            self.high = reverse_result;
+            hash = order_prefix(order, self.high);
+        }
+        self.history.insert(hash);
+
+        let low = self.high / 2;
+        swap_order(order, self.high, low, on_swap_over);
+        self.high = 0;
+        Some(low)
+    }
+
+    fn reverse_swap<SwapOver>(
+        &mut self,
+        order: &mut [usize],
+        index: usize,
+        mut high: usize,
+        max: usize,
+        mut remaining: usize,
+        on_swap_over: &mut SwapOver,
+    ) -> usize
+    where
+        SwapOver: FnMut(usize),
+    {
+        let mut i = index + 1;
+        while i <= max && remaining > 0 {
+            let Some(item) = order.get(i.saturating_sub(1)).copied() else {
+                break;
+            };
+            if !self.visited.contains(&item) {
+                self.visited.insert(item);
+                swap_order(order, i, index, on_swap_over);
+                high += 1;
+                remaining -= 1;
+            }
+            i += 1;
+        }
+        high
+    }
+}
+
+/// Port of `SubFaceSwappingAlgorithm`: the base algorithm plus the subface
+/// `onAfterProcess` / `onSwapOver` hooks and `shouldEstimate`.
+#[derive(Debug, Clone, Default)]
+pub struct SubFaceSwapper {
+    base: SwappingAlgorithm,
     last_low: usize,
 }
 
@@ -59,15 +156,15 @@ impl SubFaceSwapper {
     }
 
     pub fn record(&mut self, index: usize) {
-        self.high = index;
+        self.base.record(index);
     }
 
     pub fn visit(&mut self, item: usize) {
-        self.visited.insert(item);
+        self.base.visit(item);
     }
 
     pub fn visited_count(&self) -> usize {
-        self.visited.len()
+        self.base.visited_count()
     }
 
     pub fn should_estimate(&mut self, index: usize) -> bool {
@@ -100,60 +197,19 @@ impl SubFaceSwapper {
         Counter: FnMut(usize) -> usize,
         SwapOver: FnMut(usize),
     {
-        if self.high < 2 {
+        let Some(low) = self.base.process(order, max, &mut on_swap_over) else {
             return;
-        }
+        };
 
-        let mut hash = order_prefix(order, self.high);
-        if self.history.contains(&hash) {
-            let reverse_result = self.reverse_swap(order, 1, self.high, max, 1, &mut on_swap_over);
-            if reverse_result == self.high {
-                return;
-            }
-            self.high = reverse_result;
-            hash = order_prefix(order, self.high);
-        }
-        self.history.insert(hash);
-
-        let low = self.high / 2;
-        swap_order(order, self.high, low, &mut on_swap_over);
-        self.high = 0;
-
+        // SubFaceSwappingAlgorithm.onAfterProcess
         self.last_low = low;
         let reverse_count = order
             .get(low.saturating_sub(1))
             .map(|item| swap_counter(*item))
             .unwrap_or(0)
             .saturating_sub(1);
-        self.reverse_swap(order, low, low, max, reverse_count, &mut on_swap_over);
-    }
-
-    fn reverse_swap<SwapOver>(
-        &mut self,
-        order: &mut [usize],
-        index: usize,
-        mut high: usize,
-        max: usize,
-        mut remaining: usize,
-        on_swap_over: &mut SwapOver,
-    ) -> usize
-    where
-        SwapOver: FnMut(usize),
-    {
-        let mut i = index + 1;
-        while i <= max && remaining > 0 {
-            let Some(item) = order.get(i.saturating_sub(1)).copied() else {
-                break;
-            };
-            if !self.visited.contains(&item) {
-                self.visited.insert(item);
-                swap_order(order, i, index, on_swap_over);
-                high += 1;
-                remaining -= 1;
-            }
-            i += 1;
-        }
-        high
+        self.base
+            .reverse_swap(order, low, low, max, reverse_count, &mut on_swap_over);
     }
 }
 
@@ -161,7 +217,7 @@ impl SubFaceSwapper {
 pub enum WorkerOverlapSearchError {
     SubFace(SubFaceSearchError),
     AdditionalEstimation(AdditionalEstimationError),
-    InitialHierarchy(InitialHierarchyError),
+    Setup(FoldSetupError),
     FinalAdditionalEstimationRequired {
         valid_count: usize,
         reduced_subface_count: usize,
@@ -186,9 +242,21 @@ impl From<AdditionalEstimationError> for WorkerOverlapSearchError {
     }
 }
 
+impl From<FoldSetupError> for WorkerOverlapSearchError {
+    fn from(error: FoldSetupError) -> Self {
+        Self::Setup(error)
+    }
+}
+
+impl From<FoldGraphError> for WorkerOverlapSearchError {
+    fn from(error: FoldGraphError) -> Self {
+        Self::Setup(FoldSetupError::FoldGraph(error))
+    }
+}
+
 impl From<InitialHierarchyError> for WorkerOverlapSearchError {
     fn from(error: InitialHierarchyError) -> Self {
-        Self::InitialHierarchy(error)
+        Self::Setup(FoldSetupError::InitialHierarchy(error))
     }
 }
 
@@ -701,6 +769,13 @@ pub struct SubFacePermutationSearch {
     generator: ChainPermutationGenerator,
     triple_conditions: HashMap<usize, Vec<EquivalenceCondition>>,
     quadruple_conditions: Vec<EquivalenceCondition>,
+    /// Oriedita `SubFace.cg`: the excess-permutation accelerator, created once
+    /// the generator passes 2000 permutations and retired by
+    /// [`Self::clear_temp_guide`] / [`Self::reset_permutation_generator`].
+    combination: Option<CombinationGenerator>,
+    /// Oriedita `SubFace.cgTotal`: permutations counted before each generator
+    /// reset the accelerator drives, so the reported total keeps accumulating.
+    combination_total: usize,
 }
 
 impl SubFacePermutationSearch {
@@ -712,6 +787,8 @@ impl SubFacePermutationSearch {
             generator: ChainPermutationGenerator::new(face_count),
             triple_conditions: HashMap::new(),
             quadruple_conditions: Vec::new(),
+            combination: None,
+            combination_total: 0,
         }
     }
 
@@ -719,8 +796,9 @@ impl SubFacePermutationSearch {
         &self.face_ids
     }
 
+    /// Oriedita `SubFace.getPermutationCount()`.
     pub fn permutation_count(&self) -> usize {
-        self.generator.count()
+        self.combination_total + self.generator.count()
     }
 
     pub fn current_ordering(&self) -> Vec<usize> {
@@ -735,21 +813,39 @@ impl SubFacePermutationSearch {
             .collect()
     }
 
+    /// Oriedita `SubFace.next(int k)`: advance the permutation generator, and
+    /// when it runs out with the accelerator active, let the accelerator supply
+    /// the next batch of permutations instead of reporting exhaustion.
     pub fn next(&mut self, digit: usize) -> Result<usize, PermutationError> {
-        self.generator.next(digit)
+        let changed = self.generator.next(digit)?;
+        if changed == 0 && self.combination.is_some() {
+            self.combination_total += self.generator.count();
+            self.generator.reset();
+            return self.run_combination_generator();
+        }
+        Ok(changed)
     }
 
+    /// Oriedita `SubFace.resetPermutationGenerator()`.
     pub fn reset_permutation_generator(&mut self) {
+        if self.face_ids.is_empty() {
+            return;
+        }
+        self.combination = None;
+        self.combination_total = 0;
         self.generator.reset();
     }
 
+    /// Oriedita `SubFace.clearTempGuide()`. Retiring the accelerator as well is
+    /// upstream-flagged as "very important": its guides are temporary ones, so
+    /// clearing them without retiring it would leave it believing they still
+    /// constrain the generator.
     pub fn clear_temp_guide(&mut self) {
         self.generator.clear_temp_guide();
+        self.combination = None;
     }
 
-    /// Oriedita `SubFace.possible_overlapping_search()` without the
-    /// CombinationGenerator accelerator. If that accelerator would be entered,
-    /// this returns a typed unsupported error instead of approximating it.
+    /// Oriedita `SubFace.possible_overlapping_search()`.
     pub fn possible_overlapping_search(
         &mut self,
         hierarchy: &InitialHierarchy,
@@ -764,19 +860,84 @@ impl SubFacePermutationSearch {
     ) -> Result<bool, SubFaceSearchError> {
         let mut changed = 1usize;
         while changed != 0 {
-            if self.generator.count() > 2000 {
-                return Err(SubFaceSearchError::CombinationGeneratorRequired {
-                    permutation_count: self.generator.count(),
-                });
+            // Past this many permutations, brute force is losing: the guides have
+            // stopped pruning and almost nothing the generator produces will pass
+            // the equivalence-condition checks. Switch to searching the conditions
+            // themselves.
+            if self.generator.count() > COMBINATION_GENERATOR_THRESHOLD
+                && self.combination.is_none()
+            {
+                match CombinationGenerator::new(
+                    &self.face_ids,
+                    &self.face_id_map,
+                    &self.equivalence_conditions(),
+                    &self.u_equivalence_conditions(),
+                    table,
+                ) {
+                    Ok(combination) => {
+                        self.combination = Some(combination);
+                        if self.run_combination_generator()? == 0 {
+                            return Ok(false);
+                        }
+                    }
+                    // The subface's known relations already contradict each other,
+                    // so no stacking of it exists.
+                    Err(_) => return Ok(false),
+                }
             }
 
             let inconsistent_digit = self.inconsistent_digits_request(table)?;
             if inconsistent_digit == 1000 {
                 return Ok(true);
             }
-            changed = self.generator.next(inconsistent_digit)?;
+            changed = self.next(inconsistent_digit)?;
         }
         Ok(false)
+    }
+
+    /// Oriedita `SubFace.runCombinationGenerator()`: keep asking the accelerator
+    /// for combinations until one of them admits a permutation, or until it has
+    /// no combinations left (0).
+    fn run_combination_generator(&mut self) -> Result<usize, PermutationError> {
+        loop {
+            let Some(combination) = self.combination.as_mut() else {
+                return Ok(0);
+            };
+            if !combination.process() {
+                return Ok(0);
+            }
+            let digit = combination.add_guide_and_check(&mut self.generator)?;
+            if digit == 0 {
+                return Ok(1);
+            }
+            let changed = self.generator.next(digit)?;
+            if changed != 0 {
+                return Ok(changed);
+            }
+            self.generator.reset();
+        }
+    }
+
+    /// Oriedita `SubFace.getEquivalenceConditions()`: this subface's 3ECs,
+    /// ordered by where their `a` face sits in the subface's face list.
+    fn equivalence_conditions(&self) -> Vec<EquivalenceCondition> {
+        self.face_ids
+            .iter()
+            .filter_map(|face_id| self.triple_conditions.get(face_id))
+            .flatten()
+            .copied()
+            .collect()
+    }
+
+    /// Oriedita `SubFace.getUEquivalenceConditions()`: this subface's 4ECs,
+    /// sorted by `(a, b, c, d)`. Upstream sorts the list in place on first use;
+    /// the only reader that depends on the order is the combination generator,
+    /// and the penetration check folds a minimum, so sorting a copy here is
+    /// equivalent.
+    fn u_equivalence_conditions(&self) -> Vec<EquivalenceCondition> {
+        let mut conditions = self.quadruple_conditions.clone();
+        conditions.sort_by_key(|condition| (condition.a, condition.b, condition.c, condition.d));
+        conditions
     }
 
     fn enter_stacking_into(
@@ -807,6 +968,13 @@ impl SubFacePermutationSearch {
         }
 
         self.generator = ChainPermutationGenerator::new(face_count);
+        // Upstream reuses the generator built in `setNumDigits` and only ever
+        // calls this before the subface has searched anything, so its `cg` is
+        // always null here. Rebuilding the generator makes that implicit state
+        // explicit: an accelerator holding guides for the old generator would be
+        // stale.
+        self.combination = None;
+        self.combination_total = 0;
         let table = HierarchyTable::from_initial(hierarchy);
         for face_index in 1..=face_count {
             let mut upper_face_ids = Vec::new();
@@ -875,6 +1043,13 @@ impl SubFacePermutationSearch {
         hierarchy: &HierarchyTable,
     ) -> Result<usize, PermutationError> {
         let min = self.overlapping_inconsistent_digits_request(hierarchy)?;
+        // Skipping the penetration checks while the accelerator is active is
+        // upstream's own speed-up, and is what makes the switch worth making: the
+        // accelerator only ever offers permutations that already satisfy every
+        // equivalence condition, so re-checking them here would find nothing.
+        if self.combination.is_some() {
+            return Ok(min);
+        }
         let min = self.penetration_inconsistent_digits_request(min);
         Ok(self.u_penetration_inconsistent_digits_request(min))
     }
@@ -1814,6 +1989,88 @@ impl PairGuide {
             self.is_source[upper_face_index] = true;
             self.is_source[face_index] = false;
         }
+    }
+}
+
+#[cfg(test)]
+mod combination_generator_tests {
+    use super::*;
+
+    fn triple(a: usize, b: usize, d: usize) -> EquivalenceCondition {
+        EquivalenceCondition { a, b, c: a, d }
+    }
+
+    /// The six orderings of the faces `{0, 1, 2}`, each forbidden by one 3EC.
+    fn forbidden_orderings() -> Vec<EquivalenceCondition> {
+        vec![
+            triple(0, 1, 2),
+            triple(0, 2, 1),
+            triple(1, 2, 0),
+            triple(1, 0, 2),
+            triple(2, 0, 1),
+            triple(2, 1, 0),
+        ]
+    }
+
+    fn search(
+        face_count: usize,
+        triples: Vec<EquivalenceCondition>,
+    ) -> (bool, SubFacePermutationSearch) {
+        let hierarchy = InitialHierarchy {
+            faces_total: face_count,
+            relations: Vec::new(),
+        };
+        let conditions = EquivalenceConditionSet {
+            triple_conditions: triples,
+            quadruple_conditions: Vec::new(),
+        };
+        let mut search = SubFacePermutationSearch::new((0..face_count).collect());
+        search
+            .set_guide_map(&hierarchy, Some(&conditions))
+            .expect("guide map");
+        let found = search
+            .possible_overlapping_search(&hierarchy)
+            .expect("overlap search");
+        (found, search)
+    }
+
+    /// The values here were taken from Oriedita itself, via the
+    /// `subface-overlap-search-summary` oracle. They pin the accelerator for a
+    /// plain `cargo test` with no Java available — without them, the only cover
+    /// for this path would be an oracle suite that skips silently.
+    ///
+    /// Forbidding every ordering of `{0, 1, 2}` leaves the subface unstackable,
+    /// so the search runs out of permutations, switches at 2001, and the
+    /// accelerator confirms there is nothing to find.
+    #[test]
+    fn an_unstackable_subface_is_settled_by_the_accelerator() {
+        let (found, search) = search(9, forbidden_orderings());
+        assert!(!found);
+        assert_eq!(search.permutation_count(), 2001);
+    }
+
+    /// Leaving one ordering open, the accelerator has to find it and hand it
+    /// back to the permutation generator as guides.
+    #[test]
+    fn the_accelerator_recovers_the_one_surviving_stacking() {
+        let mut triples = forbidden_orderings();
+        triples.pop();
+        let (found, search) = search(9, triples);
+        assert!(found);
+        assert_eq!(search.permutation_count(), 2002);
+        assert_eq!(search.current_ordering(), vec![1, 2, 0, 3, 4, 5, 6, 7, 8]);
+    }
+
+    /// Below the switch point nothing changes: the same subface with one fewer
+    /// face is settled by the permutation generator alone.
+    #[test]
+    fn an_easier_subface_never_reaches_the_accelerator() {
+        let mut triples = forbidden_orderings();
+        triples.pop();
+        let (found, search) = search(8, triples);
+        assert!(found);
+        assert_eq!(search.permutation_count(), 654);
+        assert_eq!(search.current_ordering(), vec![1, 2, 0, 3, 4, 5, 6, 7]);
     }
 }
 

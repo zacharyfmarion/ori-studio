@@ -12,6 +12,8 @@ interface SegmentedControlProps<T extends string> {
   options: SegmentedOption<T>[];
   value: T;
   onChange: (value: T) => void;
+  /** Greys out every option and refuses clicks — the control is still readable. */
+  disabled?: boolean;
   'aria-label'?: string;
 }
 
@@ -19,6 +21,7 @@ export function SegmentedControl<T extends string>({
   options,
   value,
   onChange,
+  disabled = false,
   'aria-label': ariaLabel,
 }: SegmentedControlProps<T>) {
   return (
@@ -32,6 +35,7 @@ export function SegmentedControl<T extends string>({
             title={option.title ?? option.label}
             aria-pressed={active}
             data-active={active || undefined}
+            disabled={disabled}
             onClick={() => onChange(option.value)}
             className="segmented__option"
           >

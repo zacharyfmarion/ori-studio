@@ -27,6 +27,7 @@ fn wireframe_folding_matches_oriedita_oracle() {
     for starting_face in [1, 0] {
         let segments = square_with_diagonal();
         let folded = estimate_wireframe_from_segments(&segments, starting_face)
+            .expect("connected fold graph")
             .expect("Rust wireframe folding should succeed");
         let mut args = vec![
             "wireframe-folding-summary".to_string(),
@@ -92,6 +93,7 @@ fn two_colored_subface_arrangement_matches_oriedita_oracle() {
     for starting_face in [1, 0] {
         let segments = two_square_strip();
         let prepared = two_colored_subface_segments_from_segments(&segments, starting_face)
+            .expect("connected fold graph")
             .expect("two-colored subface arrangement");
         let mut args = vec![
             "two-colored-subface-arrangement".to_string(),
@@ -142,6 +144,7 @@ fn subface_configuration_matches_oriedita_oracle() {
     for starting_face in [1, 0] {
         let segments = square_with_diagonal();
         let configuration = configure_subfaces_from_segments(&segments, starting_face)
+            .expect("connected fold graph")
             .expect("Rust subface configuration should succeed");
         let mut args = vec![
             "subface-configuration-summary".to_string(),
@@ -416,6 +419,75 @@ fn subface_overlap_search_matches_oriedita_oracle() {
             triple_conditions: &[(0, 1, 0, 2)],
             quadruple_conditions: &[],
         },
+        // The cases below all pass the 2000-permutation mark, which is where
+        // `SubFace.possible_overlapping_search` hands over to the
+        // CombinationGenerator. Every one of them was verified to cross it (the
+        // reported permutation count is > 2000), so this is the parity gate on
+        // the accelerator itself, not just on the brute-force path.
+        //
+        // Forbidding all six orderings of the faces {0, 1, 2} leaves the subface
+        // with no valid stacking at all, so the accelerator has to exhaust its
+        // constraint search and report that.
+        SubFaceOverlapCase {
+            faces_total: 8,
+            face_ids: &[0, 1, 2, 3, 4, 5, 6, 7],
+            relations: &[],
+            triple_conditions: &[
+                (0, 1, 0, 2),
+                (0, 2, 0, 1),
+                (1, 2, 1, 0),
+                (1, 0, 1, 2),
+                (2, 0, 2, 1),
+                (2, 1, 2, 0),
+            ],
+            quadruple_conditions: &[],
+        },
+        SubFaceOverlapCase {
+            faces_total: 9,
+            face_ids: &[0, 1, 2, 3, 4, 5, 6, 7, 8],
+            relations: &[],
+            triple_conditions: &[
+                (0, 1, 0, 2),
+                (0, 2, 0, 1),
+                (1, 2, 1, 0),
+                (1, 0, 1, 2),
+                (2, 0, 2, 1),
+                (2, 1, 2, 0),
+            ],
+            quadruple_conditions: &[],
+        },
+        // The same set minus one condition, so exactly one ordering of
+        // {0, 1, 2} survives: the accelerator has to find it and feed it back to
+        // the permutation generator as guides.
+        SubFaceOverlapCase {
+            faces_total: 9,
+            face_ids: &[0, 1, 2, 3, 4, 5, 6, 7, 8],
+            relations: &[],
+            triple_conditions: &[
+                (0, 1, 0, 2),
+                (0, 2, 0, 1),
+                (1, 2, 1, 0),
+                (1, 0, 1, 2),
+                (2, 0, 2, 1),
+            ],
+            quadruple_conditions: &[],
+        },
+        // Mixed 3EC/4EC, so the accelerator builds a QuaternaryConstraint too.
+        SubFaceOverlapCase {
+            faces_total: 9,
+            face_ids: &[0, 1, 2, 3, 4, 5, 6, 7, 8],
+            relations: &[],
+            triple_conditions: &[
+                (7, 3, 7, 0),
+                (2, 3, 2, 5),
+                (5, 0, 5, 6),
+                (3, 0, 3, 5),
+                (5, 0, 5, 3),
+                (1, 7, 1, 4),
+                (2, 8, 2, 1),
+            ],
+            quadruple_conditions: &[(5, 2, 6, 3)],
+        },
     ] {
         let hierarchy = InitialHierarchy {
             faces_total: case.faces_total,
@@ -488,6 +560,164 @@ fn subface_overlap_search_matches_oriedita_oracle() {
             subface_overlap_summary(search, &hierarchy),
             run_oracle(&oracle, &oracle_args)
         );
+    }
+}
+
+/// A fixed-seed differential sweep over subfaces hard enough to reach the
+/// CombinationGenerator.
+///
+/// The hand-picked cases above pin specific behaviours; this pins the search as
+/// a whole. Each case forbids most orderings of one triple of faces, which is
+/// what starves the permutation generator and forces the switch, and the whole
+/// summary — outcome, exact permutation count, and the exact final permutation —
+/// has to match Oriedita's.
+#[test]
+fn combination_generator_sweep_matches_oriedita_oracle() {
+    let Some(oracle) = folding_oracle() else {
+        eprintln!("skipping Oriedita folding oracle test: ORIEDITA_GEOMETRY_ORACLE is not set");
+        return;
+    };
+
+    let mut rng = SweepRng::new(0x9E37_79B9_7F4A_7C15);
+    let mut crossed = 0usize;
+
+    for _ in 0..60 {
+        let face_count = 8 + rng.below(3);
+        let face_ids = (0..face_count).collect::<Vec<_>>();
+
+        let core = rng.sample(face_count, 3);
+        let (x, y, z) = (core[0], core[1], core[2]);
+        let mut triple_conditions = vec![
+            (x, y, x, z),
+            (x, z, x, y),
+            (y, z, y, x),
+            (y, x, y, z),
+            (z, x, z, y),
+            (z, y, z, x),
+        ];
+        for _ in 0..rng.below(3) {
+            let index = rng.below(triple_conditions.len());
+            triple_conditions.remove(index);
+        }
+        for _ in 0..rng.below(4) {
+            let pick = rng.sample(face_count, 3);
+            triple_conditions.push((pick[0], pick[1], pick[0], pick[2]));
+        }
+
+        let mut quadruple_conditions = Vec::new();
+        for _ in 0..rng.below(3) {
+            let pick = rng.sample(face_count, 4);
+            quadruple_conditions.push((pick[0], pick[1], pick[2], pick[3]));
+        }
+
+        let hierarchy = InitialHierarchy {
+            faces_total: face_count,
+            relations: Vec::new(),
+        };
+        let conditions = EquivalenceConditionSet {
+            triple_conditions: triple_conditions
+                .iter()
+                .map(|(a, b, c, d)| oristudio_cp::folding::EquivalenceCondition {
+                    a: *a,
+                    b: *b,
+                    c: *c,
+                    d: *d,
+                })
+                .collect(),
+            quadruple_conditions: quadruple_conditions
+                .iter()
+                .map(|(a, b, c, d)| oristudio_cp::folding::EquivalenceCondition {
+                    a: *a,
+                    b: *b,
+                    c: *c,
+                    d: *d,
+                })
+                .collect(),
+        };
+
+        let mut search = SubFacePermutationSearch::new(face_ids.clone());
+        search
+            .set_guide_map(&hierarchy, Some(&conditions))
+            .expect("guide map");
+
+        let mut args = vec![
+            "subface-overlap-search-summary".to_string(),
+            face_count.to_string(),
+            face_count.to_string(),
+        ];
+        for face_id in &face_ids {
+            args.push(face_id.to_string());
+        }
+        args.push("0".to_string());
+        args.push(triple_conditions.len().to_string());
+        for (a, b, c, d) in &triple_conditions {
+            args.push(a.to_string());
+            args.push(b.to_string());
+            args.push(c.to_string());
+            args.push(d.to_string());
+        }
+        args.push(quadruple_conditions.len().to_string());
+        for (a, b, c, d) in &quadruple_conditions {
+            args.push(a.to_string());
+            args.push(b.to_string());
+            args.push(c.to_string());
+            args.push(d.to_string());
+        }
+        let oracle_args = args.iter().map(String::as_str).collect::<Vec<_>>();
+
+        let expected = run_oracle(&oracle, &oracle_args);
+        if expected
+            .split('|')
+            .nth(2)
+            .and_then(|count| count.parse::<usize>().ok())
+            .is_some_and(|count| count > 2000)
+        {
+            crossed += 1;
+        }
+        assert_eq!(
+            subface_overlap_summary(search, &hierarchy),
+            expected,
+            "faces {face_count}, 3EC {triple_conditions:?}, 4EC {quadruple_conditions:?}"
+        );
+    }
+
+    assert!(
+        crossed >= 10,
+        "the sweep reached the CombinationGenerator in only {crossed} of 60 cases, so it is no \
+         longer covering what it was written to cover"
+    );
+}
+
+/// xorshift64, so the sweep above is reproducible without a dependency.
+struct SweepRng(u64);
+
+impl SweepRng {
+    fn new(seed: u64) -> Self {
+        Self(seed)
+    }
+
+    fn next_value(&mut self) -> u64 {
+        let mut value = self.0;
+        value ^= value << 13;
+        value ^= value >> 7;
+        value ^= value << 17;
+        self.0 = value;
+        value
+    }
+
+    fn below(&mut self, bound: usize) -> usize {
+        (self.next_value() % bound as u64) as usize
+    }
+
+    /// `count` distinct values from `0..total`, by partial Fisher-Yates.
+    fn sample(&mut self, total: usize, count: usize) -> Vec<usize> {
+        let mut pool = (0..total).collect::<Vec<_>>();
+        for index in 0..count {
+            let pick = index + self.below(total - index);
+            pool.swap(index, pick);
+        }
+        pool.truncate(count);
+        pool
     }
 }
 

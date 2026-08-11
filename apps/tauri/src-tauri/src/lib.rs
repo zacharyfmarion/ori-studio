@@ -125,6 +125,9 @@ pub fn run() {
             cp_engine::cp_folded_figure_duplicate,
             cp_engine::cp_folded_figure_fold_another,
             cp_engine::cp_folded_figure_fold_to_case,
+            cp_engine::cp_folded_figure_fold_3d,
+            cp_engine::cp_folded_figure_3d_fold_another,
+            cp_engine::cp_folded_figure_3d_duplicate,
             cp_engine::cp_free_folded_figure,
         ])
         .build(tauri::generate_context!())

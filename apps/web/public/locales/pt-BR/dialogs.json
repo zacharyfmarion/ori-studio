@@ -102,7 +102,7 @@
     "foldedCasesFound_many": "{{count}} encontrados até agora",
     "foldedCasesFound_other": "{{count}} encontrados até agora",
     "foldedFigureNeedsCp": "Abra um padrão de vincos editável para dobrá-lo",
-    "foldedFigureNeedsFlat": "Este padrão tem vincos que não são dobras completas, portanto não possui forma dobrada plana",
+    "foldedFigureNeedsFlat": "Esta exportação só dobra plano, e este padrão tem vincos que não são dobras completas",
     "foldedFigureNeedsOnePattern": "Selecione um único padrão para dobrar",
     "foldedFigureSection": "Figura dobrada",
     "foldedFrontColor": "Frente",
@@ -127,6 +127,24 @@
     "title": "Título",
     "titlePlaceholder": "Opcional"
   },
+  "exportLoss": {
+    "blockedConfirm": "Exportar FOLD em vez disso",
+    "blockedMessage": "O formato {{format}} não consegue armazenar {{features}}, e ao reimportar cada vinco seria lido como uma dobra completa, sem aviso. O FOLD os armazena, e o .osf mantém tudo.",
+    "blockedTitle": "Não é possível exportar para {{format}}",
+    "confirm": "Exportar mesmo assim",
+    "feature": {
+      "foldAngles": "Ângulos de dobra não planos",
+      "foldedForm3d": "Figuras dobradas em 3D",
+      "foldedForm3dDetached": "Figuras dobradas em 3D que precisam ser redobradas",
+      "images": "Imagens",
+      "inlineSimulations": "Janelas de simulação",
+      "richText": "Formatação de texto rico",
+      "symmetry": "Simetria espelhada"
+    },
+    "featureCount": "{{feature}} ({{total}})",
+    "message": "Este projeto usa recursos que o formato {{format}} não consegue armazenar. Eles serão omitidos na exportação: {{features}}.",
+    "title": "Alguns recursos não podem ser exportados"
+  },
   "fileDrop": {
     "choiceMessage": "{{name}} é um padrão de vincos, então pode ser mesclado ao que você está editando ou aberto separadamente.",
     "choiceTitle": "Abrir ou importar {{name}}?",
@@ -136,9 +154,25 @@
     "openDescriptionDirty": "Substitui aquilo em que você está trabalhando e descarta as alterações não salvas.",
     "openLabel": "Abrir como novo arquivo"
   },
+  "fold3dRefused": {
+    "facesUnresolved": "Não foi possível determinar as faces deste padrão. A causa habitual são vincos que se cruzam sem um vértice, ou que não chegam até um.",
+    "flatFoldabilityGeneric": "Um vértice deste padrão não pode ser dobrado.",
+    "loopNotClosed": "Dobrar em torno de um laço de faces não retorna ao ponto de partida, então estes ângulos não podem valer todos ao mesmo tempo.",
+    "message": "{{reason}} {{trailer}}",
+    "noFaces": "Estes vincos não delimitam nenhuma face de papel a dobrar.",
+    "nonCreaseJoin": "Duas faces se encontram ao longo de uma aresta que não é um vinco.",
+    "simulate": "Simular",
+    "simulateTrailer": "O simulador pode dobrá-lo de forma aproximada.",
+    "title": "Este padrão não pode ser dobrado em 3D",
+    "toleranceWindowClosed": "Duas faces estão próximas demais do mesmo plano para serem distinguidas.",
+    "vertexClosure": "Os vincos de um vértice não fecham: faltam {{degrees}}° para se encontrarem.",
+    "vertexUnassignedCrease": "Um vinco de um vértice não tem dobra atribuída, então esse vértice não pode ser dobrado.",
+    "vertexUnsplitJunction": "Os vincos se encontram num ponto que não é um vértice, então esse vértice não pode ser dobrado."
+  },
   "foldWarning": {
     "dontShowAgain": "Não mostrar novamente",
     "message": "Foram detectados erros de dobradura plana. Continuar a dobrar?",
+    "spatialMessage": "Foram detectados erros na forma como estes vincos dobram. Continuar a dobrar?",
     "title": "Aviso"
   },
   "help": {
@@ -271,7 +305,7 @@
     "create": "Criar link",
     "creating": "Criando link…",
     "foldedFigure": "Mostrar figura dobrada",
-    "foldedFigureNeedsFlat": "Este padrão tem vincos que não são dobras completas, portanto não possui forma dobrada plana",
+    "foldedFigureNeedsFlat": "Esta prévia só dobra plano, e este padrão tem vincos que não são dobras completas",
     "folding": "Dobrando…",
     "frontColor": "Cor da frente",
     "linkPreview": "Pré-visualização do link",

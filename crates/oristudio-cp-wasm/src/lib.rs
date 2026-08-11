@@ -210,9 +210,11 @@ pub fn export_fold(handle: u32) -> Result<String, JsValue> {
     with_session(|session| session.export_fold(handle))
 }
 
+/// `folded_handles` names the 3D folded figures to write as `foldedForm`
+/// frames. Empty is the ordinary case and means "the pattern only".
 #[wasm_bindgen]
-pub fn export_fold_file(handle: u32) -> Result<String, JsValue> {
-    with_session(|session| session.export_fold_file(handle))
+pub fn export_fold_file(handle: u32, folded_handles: Vec<u32>) -> Result<String, JsValue> {
+    with_session(|session| session.export_fold_file(handle, &folded_handles))
 }
 
 #[wasm_bindgen]
@@ -339,6 +341,41 @@ pub fn folded_figure_fold_to_case(
     let result = with_session_mut(|session| {
         session.folded_figure_fold_to_case(handle, objective as usize, initial_order)
     })?;
+    to_js_value(&result)
+}
+
+// --- folding in 3D ----------------------------------------------------------
+
+/// Place, measure and order the selected creases in 3D.
+///
+/// Returns `{ status: "placed", handle, snapshot, render }` or
+/// `{ status: "refused", refusal: { code, ... } }`. A refusal is a **result**,
+/// not a thrown error: it must not reach the store's catch path, and it carries
+/// structured data the `{ code, message }` error envelope cannot.
+#[wasm_bindgen]
+pub fn folded_figure_fold_3d(
+    document_handle: u32,
+    selected_line_ids: JsValue,
+    starting_face_id: i32,
+    model: JsValue,
+) -> Result<JsValue, JsValue> {
+    let selected_line_ids: Vec<usize> = from_js(selected_line_ids)?;
+    let model = folded_figure_model_from_js(model)?;
+    let result = with_session_mut(|session| {
+        session.folded_figure_fold_3d(document_handle, &selected_line_ids, starting_face_id, model)
+    })?;
+    to_js_value(&result)
+}
+
+#[wasm_bindgen]
+pub fn folded_figure_3d_fold_another(handle: u32) -> Result<JsValue, JsValue> {
+    let result = with_session_mut(|session| session.folded_figure_3d_fold_another(handle))?;
+    to_js_value(&result)
+}
+
+#[wasm_bindgen]
+pub fn folded_figure_3d_duplicate(handle: u32) -> Result<JsValue, JsValue> {
+    let result = with_session_mut(|session| session.folded_figure_3d_duplicate(handle))?;
     to_js_value(&result)
 }
 

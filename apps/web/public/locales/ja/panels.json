@@ -221,16 +221,20 @@
     "flipFoldedModel": "折り上がり図を裏返す",
     "fold": "折る",
     "foldability": {
+      "closure": "ここの折り線が閉じません",
+      "closureResidual": "ここの折り線が閉じません：{{degrees}}° のずれ",
       "compose": "{{lead}}：{{tail}}",
       "edgeLineConfiguration": "外周線の構成が不正です",
       "edgeLineCount": "外周線が多すぎるか足りません",
       "equalMountainValley": "山折りと谷折りの数が同じ",
       "incorrectAngles": "角度が正しくありません",
       "incorrectFoldTypes": "折り線の種類が正しくありません",
+      "interiorBorder": "両側に紙がある輪郭線です。この線沿いの折り畳み可能性は検査されません",
       "littleBigLittle": "角度を入れ子にできません（小-大-小）",
       "notEnoughMountain": "山折りが足りません",
       "notEnoughValley": "谷折りが足りません",
       "oddFolds": "折り線の数が奇数です",
+      "rigidVertex": "この頂点は剛体なので、ここの折り線はすべて平坦でなければなりません",
       "selfIntersection": "紙がここで自身を貫通します",
       "shape": {
         "circle": "角度が正しくありません（川崎の定理）",
@@ -246,9 +250,17 @@
       "line": "線の色"
     },
     "foldedDisplayStyle": "折りの表示スタイル",
+    "foldedFigure": {
+      "windowAriaLabel": "折り上がり図（立体）",
+      "windowFailed": "このモデルを描画できませんでした"
+    },
     "foldedModelControls": "折りモデルの操作",
     "foldedModels": "折りモデル",
     "foldedModelSide": "折りモデルの面",
+    "foldedModelStatus": {
+      "error": "失敗",
+      "loading": "折り畳み中…"
+    },
     "foldedState": {
       "back": "裏",
       "front": "表"
@@ -297,8 +309,10 @@
     "none": "なし",
     "openingSharedLink": "共有された展開図を開いています…",
     "optimizingScale": "スケールを最適化中",
+    "orbitFoldedForm": "折り上がり図を回転",
     "preparing": "エディターを準備中…",
     "refoldFoldedModelAction": "折り上がり図を折り直す",
+    "resetFoldedModelView": "折り上がりモデルの視点をリセット",
     "resizeAnnotation": "注釈をサイズ変更",
     "resizeFoldedForm": "折り上がり図をサイズ変更",
     "resizeSimulationWindow": "シミュレーションウィンドウをサイズ変更",
@@ -323,10 +337,13 @@
     },
     "sendImageToBack": "画像を最背面へ",
     "shadow": "影",
+    "shadowUnsupported3d": "3D の折り上がりモデルにはまだ影を描画できません",
     "showFoldedModelShadow": "折りモデルの影を表示",
     "side": "面",
     "stale": "要再折り",
-    "viewportControls": "展開図のビューポート操作"
+    "viewFoldedModelOtherSide": "反対側から見る",
+    "viewportControls": "展開図のビューポート操作",
+    "zoomFoldedForm": "折り上がり図をズーム"
   },
   "design": {
     "attributionBoxPleating": "<2>Mu-Tsun Tsai's Box Pleating Studio</2> を基に",
@@ -493,6 +510,20 @@
     "viewTree": "ツリー",
     "viewTreeAndCp": "ツリーと展開図"
   },
+  "fold3dVerdict": {
+    "localCrossing_one": "1つの頂点で紙が自分自身を突き抜けています。",
+    "localCrossing_other": "{{count}}個の頂点で紙が自分自身を突き抜けています。",
+    "localCrossingLabel": "紙が自己交差",
+    "noLayerOrderContradictorySeeds": "2つの面がそれぞれ相手の上に来る必要があり、どちらの重なり順でも両立できません。",
+    "noLayerOrderGeneric": "この立体の重なり順を決められませんでした。",
+    "noLayerOrderLabel": "重なり順が未決定",
+    "selectCreases": "該当の折り線を選択",
+    "showIssues": "問題を表示",
+    "simulateInstead": "代わりにシミュレート",
+    "transversalCrossing_one": "折り線が1本、この立体の面を貫通しています。",
+    "transversalCrossing_other": "折り線が{{count}}本、この立体の面を貫通しています。",
+    "transversalCrossingLabel": "折り線が面を貫通"
+  },
   "foldedFigureActions": {
     "anotherSolution": "別の解",
     "delete": "削除",
@@ -504,7 +535,9 @@
     "firstSolution": "最初の解に戻る",
     "flip": "裏返す",
     "label": "折り上がり図の操作",
+    "otherSide": "反対側",
     "refold": "折り直す",
+    "resetView": "視点をリセット",
     "styleDev1": "開発 1",
     "styleDev4": "開発 4",
     "styleNone": "なし",

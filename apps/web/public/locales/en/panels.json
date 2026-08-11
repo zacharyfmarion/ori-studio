@@ -231,16 +231,20 @@
     "flipFoldedModel": "Flip folded model",
     "fold": "Fold",
     "foldability": {
+      "closure": "The creases here do not close up",
+      "closureResidual": "The creases here do not close up: {{degrees}}° off",
       "compose": "{{lead}} — {{tail}}",
       "edgeLineConfiguration": "Invalid configuration of edge lines",
       "edgeLineCount": "Too many or not enough edge lines",
       "equalMountainValley": "equal amount of mountain and valley folds",
       "incorrectAngles": "Incorrect angles",
       "incorrectFoldTypes": "Incorrect fold types",
+      "interiorBorder": "Edge with paper on both sides — foldability is not checked along it",
       "littleBigLittle": "Angles cannot nest (little-big-little)",
       "notEnoughMountain": "not enough mountain folds",
       "notEnoughValley": "not enough valley folds",
       "oddFolds": "Odd number of folds",
+      "rigidVertex": "This vertex is rigid, so every crease here must be flat",
       "selfIntersection": "Paper passes through itself here",
       "shape": {
         "circle": "Incorrect angles (Kawasaki's theorem)",
@@ -256,9 +260,17 @@
       "line": "Line color"
     },
     "foldedDisplayStyle": "Folded display style",
+    "foldedFigure": {
+      "windowAriaLabel": "Folded model, in three dimensions",
+      "windowFailed": "Could not draw this model"
+    },
     "foldedModelControls": "Folded model controls",
     "foldedModels": "Folded models",
     "foldedModelSide": "Folded model side",
+    "foldedModelStatus": {
+      "error": "Failed",
+      "loading": "Folding…"
+    },
     "foldedState": {
       "back": "Back",
       "front": "Front"
@@ -308,8 +320,10 @@
     "none": "None",
     "openingSharedLink": "Opening shared crease pattern…",
     "optimizingScale": "Optimizing scale",
+    "orbitFoldedForm": "Turn folded form",
     "preparing": "Preparing the editor…",
     "refoldFoldedModelAction": "Refold folded model",
+    "resetFoldedModelView": "Reset folded model view",
     "resizeAnnotation": "Resize annotation",
     "resizeFoldedForm": "Resize folded form",
     "resizeSimulationWindow": "Resize simulation window",
@@ -335,10 +349,13 @@
     },
     "sendImageToBack": "Send image to back",
     "shadow": "Shadow",
+    "shadowUnsupported3d": "Shadows are not drawn for a 3D folded model yet",
     "showFoldedModelShadow": "Show folded model shadow",
     "side": "Side",
     "stale": "Stale",
-    "viewportControls": "Crease pattern viewport controls"
+    "viewFoldedModelOtherSide": "View from the other side",
+    "viewportControls": "Crease pattern viewport controls",
+    "zoomFoldedForm": "Zoom folded form"
   },
   "design": {
     "attributionBoxPleating": "Adapted from <2>Mu-Tsun Tsai's Box Pleating Studio</2>",
@@ -507,6 +524,20 @@
     "viewTree": "Tree",
     "viewTreeAndCp": "Tree and crease pattern"
   },
+  "fold3dVerdict": {
+    "localCrossing_one": "The paper passes through itself at one vertex.",
+    "localCrossing_other": "The paper passes through itself at {{count}} vertices.",
+    "localCrossingLabel": "Passes through itself",
+    "noLayerOrderContradictorySeeds": "Two faces each have to be above the other, so no stacking can satisfy both.",
+    "noLayerOrderGeneric": "The layers of this figure could not be put in order.",
+    "noLayerOrderLabel": "Layers not ordered",
+    "selectCreases": "Select the creases",
+    "showIssues": "Show issues",
+    "simulateInstead": "Simulate instead",
+    "transversalCrossing_one": "One folded crease passes through a face of the figure.",
+    "transversalCrossing_other": "{{count}} folded creases pass through faces of the figure.",
+    "transversalCrossingLabel": "Crease cuts a face"
+  },
   "foldedFigureActions": {
     "anotherSolution": "Another solution",
     "delete": "Delete",
@@ -518,7 +549,9 @@
     "firstSolution": "Back to first solution",
     "flip": "Flip",
     "label": "Folded figure actions",
+    "otherSide": "Other side",
     "refold": "Refold",
+    "resetView": "Reset view",
     "styleDev1": "Dev 1",
     "styleDev4": "Dev 4",
     "styleNone": "None",

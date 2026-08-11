@@ -1,7 +1,12 @@
 import { transfer } from 'comlink';
 import { PreparedModelCache } from '../lib/preparedModelCache';
 import type { SimulatorExportBackground } from '../lib/simulatorSettings';
-import { MAX_CONCURRENT_SIMULATIONS } from './simulatorLimits';
+import { MAX_CONCURRENT_SIMULATIONS, MAX_LIVE_FOLDED_MESHES } from './simulatorLimits';
+import {
+  FOLDED_3D_REQUIRED_DEPTH_BITS,
+  FoldedMeshSource,
+  type Folded3dMeshPayload,
+} from './foldedMeshSource';
 import {
   OrigamiModel,
   ReferenceSolver,
@@ -13,6 +18,7 @@ import {
   meshTopologyFor,
   prepareFoldModel,
   renderMeshToSvg,
+  type CameraUniforms,
   type FoldDocument,
   type FoldProfile,
   type OrbitView,
@@ -266,6 +272,73 @@ let useCounter = 0;
  */
 const MAX_LIVE_SESSIONS = MAX_CONCURRENT_SIMULATIONS + 1;
 
+/**
+ * Every 3D folded figure the worker can draw, keyed by its own token.
+ *
+ * Deliberately **not** in {@link sessions}, and the separation is load-bearing
+ * rather than tidy. `load` seeds a new simulation's camera and render settings
+ * from `latestSession()?.view`, so a folded figure in that map would make the
+ * next simulation open at the figure's viewpoint and colours. And
+ * `evictBeyondCap` would let figures evict a live window's *solver*, which loses
+ * the fold position the user scrubbed to.
+ *
+ * The asymmetry runs the other way too, which is why a separate cap is right
+ * rather than a shared one: evicting a solver session loses state the user
+ * created, so the UI refuses past `MAX_CONCURRENT_SIMULATIONS`. Evicting a mesh
+ * loses nothing at all — it is pure derived data, rebuilt by one upload — so
+ * eviction here needs no cooperating UI constant, which is exactly the
+ * two-numbers-held-equal-by-a-comment failure the inline-simulation plan records.
+ */
+const meshes = new Map<Folded3dMeshToken, MeshSession>();
+let meshToken: Folded3dMeshToken = 0;
+
+/**
+ * Identifies one loaded folded-figure mesh. A separate space from
+ * {@link SimulatorSessionToken}: the two are never accepted by the same call, so
+ * a number from one can never be read as the other.
+ */
+export type Folded3dMeshToken = number;
+
+interface MeshSession {
+  source: FoldedMeshSource;
+  view: SessionView;
+  lastUsed: number;
+}
+
+export interface Folded3dMeshInfo {
+  token: Folded3dMeshToken;
+  /**
+   * Depth bits of the default framebuffer. The layer displacement assumes 24;
+   * reported rather than assumed so 16 fails loudly instead of as unexplained
+   * shimmer on deep stacks. See `folded3dMesh.ts`.
+   */
+  depthBits: number;
+  /** True when {@link depthBits} is below what the displacement was budgeted for. */
+  shallowDepthBuffer: boolean;
+}
+
+/** One drawn frame. `null` from a call means the token is no longer known. */
+export interface Folded3dMeshFrame {
+  bitmap: ImageBitmap | null;
+}
+
+/**
+ * Anything {@link renderGpu} can draw: a solver session, or a static folded mesh.
+ *
+ * Two members, both of which `WebglSolver` already has. Widening to this is what
+ * lets a folded figure reuse the sizing, viewport-fit and Y-flipped crop below
+ * it — every line of which is there because the inline-simulation work measured
+ * what happens without it — with no change at all to the simulation path.
+ */
+interface MeshRenderSource {
+  readonly drawingBufferSize: { width: number; height: number };
+  render(
+    camera: CameraUniforms,
+    settings: RenderSettings,
+    target?: WebGLFramebuffer | null
+  ): void;
+}
+
 /** The most recently loaded session, for callers with no token to quote. */
 function latestSession(): Session | null {
   let latest: Session | null = null;
@@ -355,6 +428,43 @@ function evictBeyondCap(): void {
 }
 
 /**
+ * Drop the least recently drawn meshes until the cap is met.
+ *
+ * Safe in a way {@link evictBeyondCap} is not: a mesh is derived entirely from a
+ * render model the main thread still holds, so losing one costs a re-upload and
+ * nothing else. The owner notices on its next draw — which answers `null` — and
+ * loads it again.
+ */
+function evictMeshesBeyondCap(): void {
+  while (meshes.size > MAX_LIVE_FOLDED_MESHES) {
+    let victim: Folded3dMeshToken | undefined;
+    let oldestUse = Infinity;
+    for (const [token, mesh] of meshes) {
+      if (mesh.lastUsed < oldestUse) {
+        oldestUse = mesh.lastUsed;
+        victim = token;
+      }
+    }
+    if (victim === undefined) break;
+    disposeMesh(victim);
+  }
+}
+
+function disposeMesh(token: Folded3dMeshToken): void {
+  const existing = meshes.get(token);
+  if (!existing) return;
+  existing.source.dispose();
+  meshes.delete(token);
+}
+
+/** The mesh behind `token`, or null once it has been released or evicted. */
+function meshFor(token: Folded3dMeshToken): MeshSession | null {
+  const mesh = meshes.get(token) ?? null;
+  if (mesh) mesh.lastUsed = ++useCounter;
+  return mesh;
+}
+
+/**
  * Prepared models kept across loads, keyed by the caller's `modelKey`.
  *
  * Bounded, because a prepared model is the triangulated mesh plus its adjacency
@@ -410,6 +520,16 @@ export interface PerfSnapshot {
   ticks: number;
   /** Models resident in the worker. Only the focused one ticks; the rest draw. */
   liveSessions: number;
+  /**
+   * Folded-figure meshes resident in the worker.
+   *
+   * A separate field rather than folded into `liveSessions`, because the two
+   * cost different things: a session is a solver, a mesh is three textures and
+   * two programs. `renders` and `renderAvgMs` above *do* count both, since they
+   * are draws on one shared context and splitting them would misreport what that
+   * context is doing.
+   */
+  liveMeshes: number;
   solveAvgMs: number;
   solveMaxMs: number;
   stepsTotal: number;
@@ -896,6 +1016,7 @@ const api = {
       backend: latestSession()?.backendId ?? 'reference',
       gpuRender: Boolean(latestSession()?.gpuRender),
       liveSessions: sessions.size,
+      liveMeshes: meshes.size,
       renders: perf.renders,
       renderAvgMs: perf.renders ? perf.renderTotalMs / perf.renders : 0,
       renderMaxMs: perf.renderMaxMs,
@@ -917,8 +1038,85 @@ const api = {
     disposeSession(token);
   },
 
+  /**
+   * Take a 3D folded figure's mesh, ready to draw. No solver, no clock, no tick
+   * loop — the geometry is final, so the whole cost is one texture upload and
+   * two program links.
+   *
+   * Returns null when there is no render surface or WebGL2 is unavailable, which
+   * is a real answer: the caller keeps drawing the figure the way it does today,
+   * from its stored snapshot.
+   */
+  loadFolded3dMesh(payload: Folded3dMeshPayload): Folded3dMeshInfo | null {
+    if (!renderCanvas) return null;
+    const source = FoldedMeshSource.create(renderCanvas, payload);
+    if (!source) return null;
+    meshToken += 1;
+    const previous = latestSession()?.view;
+    meshes.set(meshToken, {
+      source,
+      view: {
+        view: { yaw: 0, pitch: 0, zoom: 1 },
+        width: renderCanvas.width,
+        height: renderCanvas.height,
+        settings: previous?.settings ?? DEFAULT_RENDER_SETTINGS,
+        center: payload.center,
+        radius: payload.radius,
+        // A folded figure's geometry is final, so its fit is known at load: the
+        // mesh is centroid-relative and reports the same radius the figure's
+        // frame was sized from. Nothing to settle and nothing to re-fit.
+        fitted: true,
+      },
+      lastUsed: ++useCounter,
+    });
+    evictMeshesBeyondCap();
+    return {
+      token: meshToken,
+      depthBits: source.depthBits,
+      // The displacement between stacked layers is budgeted against a 24-bit
+      // buffer; at 16 the deepest real model's layers sit 1.01 units apart and
+      // start to collide. Reported so that shows up as a fact rather than as
+      // shimmer nobody can explain.
+      shallowDepthBuffer:
+        source.depthBits > 0 && source.depthBits < FOLDED_3D_REQUIRED_DEPTH_BITS,
+    };
+  },
+
+  /** Move a folded figure's camera and redraw it. Null once its mesh is gone. */
+  async setFolded3dMeshCamera(
+    token: Folded3dMeshToken,
+    camera: SimulatorCamera
+  ): Promise<Folded3dMeshFrame | null> {
+    const mesh = meshFor(token);
+    if (!mesh) return null;
+    perf.cameraCalls += 1;
+    mesh.view.view = camera.view;
+    mesh.view.width = camera.width;
+    mesh.view.height = camera.height;
+    const bitmap = await renderGpu(mesh.source, mesh.view);
+    return bitmap ? transfer({ bitmap }, [bitmap]) : { bitmap: null };
+  },
+
+  /** Change a folded figure's colours or style and redraw it. */
+  async setFolded3dMeshRenderSettings(
+    token: Folded3dMeshToken,
+    settings: RenderSettings
+  ): Promise<Folded3dMeshFrame | null> {
+    const mesh = meshFor(token);
+    if (!mesh) return null;
+    mesh.view.settings = settings;
+    const bitmap = await renderGpu(mesh.source, mesh.view);
+    return bitmap ? transfer({ bitmap }, [bitmap]) : { bitmap: null };
+  },
+
+  /** Drop one mesh, when its window unmounts or its figure is deleted. */
+  releaseFolded3dMesh(token: Folded3dMeshToken): void {
+    disposeMesh(token);
+  },
+
   dispose(): void {
     for (const token of [...sessions.keys()]) disposeSession(token);
+    for (const token of [...meshes.keys()]) disposeMesh(token);
   },
 };
 
@@ -985,7 +1183,13 @@ async function readFrame(
 
 /**
  * Draw the current GPU state. No readback in either mode: the mesh is drawn from
- * the solver's position texture, so nothing crosses to the CPU.
+ * a position texture, so nothing crosses to the CPU.
+ *
+ * Kind-agnostic by design — a running solver and a static folded mesh both
+ * satisfy {@link MeshRenderSource}, and everything below this line (the
+ * grow-only, capped and quantised canvas, the aspect-preserving viewport fit,
+ * the Y-flipped crop) is the same for both because each of those exists for a
+ * reason that has nothing to do with what is being drawn.
  *
  * Returns an ImageBitmap in bitmap-present mode and null when drawing straight
  * to a transferred canvas. This is the single fork between the two paths —
@@ -1098,7 +1302,7 @@ function sizeRenderCanvas(width: number, height: number): void {
 }
 
 async function renderGpu(
-  solver: WebglSolver,
+  source: MeshRenderSource,
   state: SessionView
 ): Promise<ImageBitmap | null> {
   // Timed as a whole. It used to start after the resize, which is exactly the
@@ -1113,10 +1317,10 @@ async function renderGpu(
   // What GL actually gave us, which is not always what the canvas was set to —
   // see {@link WebglSolver.drawingBufferSize}. Rendering or cropping past this
   // reads nothing back and shows an empty window with no error anywhere.
-  const buffer = solver.drawingBufferSize;
+  const buffer = source.drawingBufferSize;
   const { width, height } = fitRenderWithin(state, buffer);
   const camera = cameraUniforms(state.view, state.center, state.radius, width, height);
-  solver.render(camera, state.settings);
+  source.render(camera, state.settings);
   // The render fills the viewport at the buffer's bottom-left; a bitmap's origin
   // is top-left, so the crop is measured down from the top of the buffer.
   const bitmap =

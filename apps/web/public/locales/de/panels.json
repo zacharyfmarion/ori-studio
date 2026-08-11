@@ -231,16 +231,20 @@
     "flipFoldedModel": "Gefaltetes Modell umdrehen",
     "fold": "Falten",
     "foldability": {
+      "closure": "Die Falten hier schließen sich nicht",
+      "closureResidual": "Die Falten hier schließen sich nicht: {{degrees}}° Abweichung",
       "compose": "{{lead}} — {{tail}}",
       "edgeLineConfiguration": "Ungültige Anordnung der Randlinien",
       "edgeLineCount": "Zu viele oder zu wenige Randlinien",
       "equalMountainValley": "gleich viele Berg- und Talfalten",
       "incorrectAngles": "Falsche Winkel",
       "incorrectFoldTypes": "Falsche Faltentypen",
+      "interiorBorder": "Kante mit Papier auf beiden Seiten – die Faltbarkeit entlang dieser Kante wird nicht geprüft",
       "littleBigLittle": "Winkel lassen sich nicht schachteln (klein-groß-klein)",
       "notEnoughMountain": "nicht genug Bergfalten",
       "notEnoughValley": "nicht genug Talfalten",
       "oddFolds": "Ungerade Anzahl an Falten",
+      "rigidVertex": "Dieser Knotenpunkt ist starr, daher muss hier jede Falte flach bleiben",
       "selfIntersection": "Das Papier durchdringt sich hier selbst",
       "shape": {
         "circle": "Falsche Winkel (Satz von Kawasaki)",
@@ -256,9 +260,17 @@
       "line": "Linienfarbe"
     },
     "foldedDisplayStyle": "Anzeigestil des gefalteten Modells",
+    "foldedFigure": {
+      "windowAriaLabel": "Gefaltetes Modell, dreidimensional",
+      "windowFailed": "Dieses Modell konnte nicht gezeichnet werden"
+    },
     "foldedModelControls": "Steuerung des gefalteten Modells",
     "foldedModels": "Gefaltete Modelle",
     "foldedModelSide": "Seite des gefalteten Modells",
+    "foldedModelStatus": {
+      "error": "Fehlgeschlagen",
+      "loading": "Wird gefaltet …"
+    },
     "foldedState": {
       "back": "Rückseite",
       "front": "Vorderseite"
@@ -308,8 +320,10 @@
     "none": "Ohne",
     "openingSharedLink": "Geteiltes Faltmuster wird geöffnet…",
     "optimizingScale": "Skalierung wird optimiert",
+    "orbitFoldedForm": "Gefaltete Figur drehen",
     "preparing": "Editor wird vorbereitet…",
     "refoldFoldedModelAction": "Gefaltetes Modell neu falten",
+    "resetFoldedModelView": "Ansicht des gefalteten Modells zurücksetzen",
     "resizeAnnotation": "Anmerkungsgröße ändern",
     "resizeFoldedForm": "Größe der gefalteten Form ändern",
     "resizeSimulationWindow": "Größe des Simulationsfensters ändern",
@@ -335,10 +349,13 @@
     },
     "sendImageToBack": "Bild in den Hintergrund senden",
     "shadow": "Schatten",
+    "shadowUnsupported3d": "Für ein gefaltetes 3D-Modell werden noch keine Schatten gezeichnet",
     "showFoldedModelShadow": "Schatten des gefalteten Modells anzeigen",
     "side": "Seite",
     "stale": "Veraltet",
-    "viewportControls": "Ansichtssteuerung des Faltmusters"
+    "viewFoldedModelOtherSide": "Von der anderen Seite ansehen",
+    "viewportControls": "Ansichtssteuerung des Faltmusters",
+    "zoomFoldedForm": "Gefaltete Form zoomen"
   },
   "design": {
     "attributionBoxPleating": "Adaptiert von <2>Mu-Tsun Tsai's Box Pleating Studio</2>",
@@ -507,6 +524,20 @@
     "viewTree": "Baum",
     "viewTreeAndCp": "Baum und Faltmuster"
   },
+  "fold3dVerdict": {
+    "localCrossing_one": "Das Papier durchdringt sich an einem Knotenpunkt selbst.",
+    "localCrossing_other": "Das Papier durchdringt sich an {{count}} Knotenpunkten selbst.",
+    "localCrossingLabel": "Papier durchdringt sich",
+    "noLayerOrderContradictorySeeds": "Zwei Flächen müssen jeweils über der anderen liegen, sodass keine Stapelung beide erfüllt.",
+    "noLayerOrderGeneric": "Die Lagen dieser Figur konnten nicht geordnet werden.",
+    "noLayerOrderLabel": "Lagen nicht geordnet",
+    "selectCreases": "Falten auswählen",
+    "showIssues": "Probleme anzeigen",
+    "simulateInstead": "Stattdessen simulieren",
+    "transversalCrossing_one": "Eine gefaltete Falte durchdringt eine Fläche der Figur.",
+    "transversalCrossing_other": "{{count}} gefaltete Falten durchdringen Flächen der Figur.",
+    "transversalCrossingLabel": "Falte schneidet eine Fläche"
+  },
   "foldedFigureActions": {
     "anotherSolution": "Andere Lösung",
     "delete": "Löschen",
@@ -518,7 +549,9 @@
     "firstSolution": "Zurück zur ersten Lösung",
     "flip": "Umdrehen",
     "label": "Aktionen für gefaltetes Modell",
+    "otherSide": "Andere Seite",
     "refold": "Neu falten",
+    "resetView": "Ansicht zurücksetzen",
     "styleDev1": "Entwicklung 1",
     "styleDev4": "Entwicklung 4",
     "styleNone": "Keiner",

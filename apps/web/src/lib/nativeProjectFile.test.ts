@@ -82,6 +82,7 @@ function foldedFigure(): OristudioCpFoldedFigureEntry {
     sourceBounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
     sourceFingerprint: 'fingerprint-1',
     sourceLineIds: [1, 2, 3],
+    sourceScopedLineIds: [1, 2, 3, 4],
     snapshot: {
       model: {
         front_color: { red: 255, green: 255, blue: 50 },
@@ -110,6 +111,35 @@ function foldedFigure(): OristudioCpFoldedFigureEntry {
       primitives: [],
     },
     error: null,
+  };
+}
+
+/**
+ * A **3D** folded figure, which is a different shape: `snapshot` is null,
+ * `folded3d` is the witness, and it carries the viewpoint its stored picture was
+ * projected from.
+ *
+ * The `folded3d` payload is deliberately partial and cast — this file tests the
+ * reader, and what the reader promises about that field is that it survives, not
+ * that it is validated field by field.
+ */
+function folded3dFigure(): OristudioCpFoldedFigureEntry {
+  const flat = foldedFigure();
+  return {
+    ...flat,
+    id: 'generated-3d-1',
+    sourceKind: 'generated-3d',
+    snapshot: null,
+    folded3d: {
+      schema_version: 1,
+      discovered_fold_cases: 8,
+      current_fold_case: 3,
+      find_another_overlap_valid: true,
+      has_next_solution: true,
+      verdict: { verdict: 'local_crossing', vertices: 2 },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any,
+    camera: { yaw: 0.5, pitch: -0.35, zoom: 1.25 },
   };
 }
 
@@ -350,6 +380,10 @@ describe('native project file', () => {
       sourceBounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
       sourceFingerprint: 'fingerprint-1',
       sourceLineIds: [1, 2, 3],
+      // The two lists are separately recorded because neither derives from the
+      // other: the kernel indexes into the filtered one, and only the
+      // unfiltered one matches a region for "simulate instead".
+      sourceScopedLineIds: [1, 2, 3, 4],
     });
   });
 
@@ -378,6 +412,7 @@ describe('native project file', () => {
     delete entry.sourceBounds;
     delete entry.sourceFingerprint;
     delete entry.sourceLineIds;
+    delete entry.sourceScopedLineIds;
 
     const parsed = parseNativeProjectFile(JSON.stringify(serialized));
     const document = parsed.workspace.creasePattern;
@@ -386,7 +421,38 @@ describe('native project file', () => {
       sourceBounds: null,
       sourceFingerprint: null,
       sourceLineIds: [],
+      sourceScopedLineIds: [],
     });
+  });
+
+  // A file written before the scoped list existed still has one honest answer
+  // for which creases the fold covered, and reading it as empty would silently
+  // disable "simulate instead" on every reopened 3D figure.
+  it('falls back to the folded ids when a file records no scoped ids', () => {
+    const file = createNativeCreasePatternProjectFile({
+      title: 'Pre-scoping CP',
+      filename: 'pre-scoping.osf',
+      path: null,
+      document: cpDocument(),
+      source: null,
+      foldProjection: null,
+      foldArtifacts: null,
+      creaseColorMode: 'mvf',
+      selection: emptyOristudioCpSelection(),
+      viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      foldedFigures: [foldedFigure()],
+      activeFoldedFigureId: 'generated-1',
+      lineage: importedCpLineage(),
+      appVersion: '0.1.1',
+      now,
+    });
+    const serialized = JSON.parse(serializeNativeProjectFile(file));
+    delete serialized.workspace.creasePattern.viewState.foldedFigures[0].sourceScopedLineIds;
+
+    const parsed = parseNativeProjectFile(JSON.stringify(serialized));
+    const document = parsed.workspace.creasePattern;
+    if (!document) throw new Error('expected CP document');
+    expect(document.viewState.foldedFigures[0].sourceScopedLineIds).toEqual([1, 2, 3]);
   });
 
   it('drops a malformed source region rather than trusting a partial box', () => {
@@ -414,6 +480,119 @@ describe('native project file', () => {
     const document = parsed.workspace.creasePattern;
     if (!document) throw new Error('expected CP document');
     expect(document.viewState.foldedFigures[0].sourceBounds).toBeNull();
+  });
+
+  /**
+   * The writer spreads the whole entry and the reader rebuilds an explicit
+   * literal, so a field the reader forgets to name is written out and silently
+   * lost on the way back — with no type error anywhere. `contradiction` was lost
+   * that way for months before this test existed.
+   */
+  function roundTripCp(figures: OristudioCpFoldedFigureEntry[]) {
+    const file = createNativeCreasePatternProjectFile({
+      title: '3D CP',
+      filename: 'spatial.osf',
+      path: null,
+      document: cpDocument(),
+      source: null,
+      foldProjection: null,
+      foldArtifacts: null,
+      creaseColorMode: 'mvf',
+      selection: emptyOristudioCpSelection(),
+      viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      foldedFigures: figures,
+      activeFoldedFigureId: figures[0]?.id ?? null,
+      lineage: importedCpLineage(),
+      appVersion: '0.1.1',
+      now,
+    });
+    return { file, serialized: JSON.parse(serializeNativeProjectFile(file)) as LegacyShaped };
+  }
+
+  function reparse(serialized: LegacyShaped): OristudioCpFoldedFigureEntry[] {
+    const parsed = parseNativeProjectFile(JSON.stringify(serialized));
+    const document = parsed.workspace.creasePattern;
+    if (!document) throw new Error('expected CP document');
+    return document.viewState.foldedFigures;
+  }
+
+  it('round-trips a 3D folded figure: its snapshot, its kind and its viewpoint', () => {
+    const [entry] = reparse(roundTripCp([folded3dFigure()]).serialized);
+
+    // The witness the whole UI branches on. Without it a reopened 3D figure is
+    // a picture the app believes is flat.
+    expect(entry.folded3d).toMatchObject({
+      discovered_fold_cases: 8,
+      current_fold_case: 3,
+      verdict: { verdict: 'local_crossing', vertices: 2 },
+    });
+    expect(entry.snapshot).toBeNull();
+    expect(entry.sourceKind).toBe('generated-3d');
+    // Cannot be applied on load — re-projecting needs the render model, which is
+    // deliberately not persisted — but it is what a refold restores, so losing
+    // it would move the figure the first time it was refolded.
+    expect(entry.camera).toEqual({ yaw: 0.5, pitch: -0.35, zoom: 1.25 });
+    // Persisted, so a reopened figure draws immediately with `handle: null`.
+    expect(entry.renderSnapshot).not.toBeNull();
+    expect(entry.handle).toBeNull();
+  });
+
+  it('keeps the schema version where it is, so a 3D file still opens in the build before this one', () => {
+    const { serialized } = roundTripCp([folded3dFigure()]);
+    // `schemaVersion` is written unconditionally and the reader's accept list is
+    // a hardcoded enumeration, so a bump is not conditional on anything: it
+    // would strand every file this build writes, 3D or not. The figure is what
+    // gates, not the file.
+    expect(serialized.schemaVersion).toBe(NATIVE_PROJECT_SCHEMA_VERSION);
+    expect(serialized.minimumReaderSchemaVersion).toBe(1);
+  });
+
+  it('carries a fold contradiction back, which the reader used to drop', () => {
+    const contradiction = { upper_face: 3, lower_face: 7 };
+    const [entry] = reparse(roundTripCp([{ ...foldedFigure(), contradiction }]).serialized);
+    expect(entry.contradiction).toEqual(contradiction);
+  });
+
+  it('loads a figure written before any of the 3D fields existed', () => {
+    const { serialized } = roundTripCp([foldedFigure()]);
+    const stored = serialized.workspace.creasePattern.viewState.foldedFigures[0];
+    delete stored.folded3d;
+    delete stored.camera;
+    delete stored.contradiction;
+
+    const [entry] = reparse(serialized);
+    expect(entry.folded3d).toBeNull();
+    expect(entry.camera).toBeNull();
+    expect(entry.contradiction).toBeNull();
+    expect(entry.sourceKind).toBe('generated-from-current-cp');
+    expect(entry.snapshot).not.toBeNull();
+  });
+
+  it('does not read an unrecognised source kind as one folded from the current creases', () => {
+    const { serialized } = roundTripCp([foldedFigure()]);
+    serialized.workspace.creasePattern.viewState.foldedFigures[0].sourceKind =
+      'generated-in-a-later-build';
+
+    // The old fallback was `'generated-from-current-cp'` — the one value that
+    // makes a figure look refoldable — so a figure from a newer build would be
+    // handed to whichever folder this build has. `'unknown'` offers nothing.
+    expect(reparse(serialized)[0].sourceKind).toBe('unknown');
+  });
+
+  it('trusts the 3D witness over the label beside it', () => {
+    const { serialized } = roundTripCp([folded3dFigure()]);
+    const stored = serialized.workspace.creasePattern.viewState.foldedFigures[0];
+    // What a file written before `'generated-3d'` existed looks like, and what a
+    // reader that dropped `folded3d` while keeping the entry would produce if
+    // the two ever disagreed the other way.
+    stored.sourceKind = 'generated-from-current-cp';
+    stored.snapshot = foldedFigure().snapshot;
+
+    const [entry] = reparse(serialized);
+    expect(entry.sourceKind).toBe('generated-3d');
+    // Both witnesses non-null is a state nothing branches on; the flat one loses.
+    expect(entry.snapshot).toBeNull();
+    expect(entry.folded3d).not.toBeNull();
   });
 
   it('falls back to an identity placement when a folded figure carries neither shape', () => {

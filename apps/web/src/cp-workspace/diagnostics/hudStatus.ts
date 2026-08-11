@@ -25,6 +25,7 @@ import type {
   OristudioCpDiagnosticEntry,
 } from '../../engine/oristudioCpTypes';
 import { cpDiagnosticEntryMessage } from './foldabilityMessages';
+import { isCpDiagnosticError, isCpDiagnosticWarning } from './severity';
 
 const EMPTY_ENTRIES: OristudioCpDiagnosticEntry[] = [];
 
@@ -99,8 +100,8 @@ export function diagnosticHudStatusForEntries(
   entries: readonly OristudioCpDiagnosticEntry[],
   options: { issueOnly?: boolean } = {}
 ): CpDiagnosticHudStatus | null {
-  const errorCount = entries.filter((entry) => entry.severity === 'error').length;
-  const warningCount = entries.filter((entry) => entry.severity === 'warning').length;
+  const errorCount = entries.filter(isCpDiagnosticError).length;
+  const warningCount = entries.filter(isCpDiagnosticWarning).length;
   const detail = entries.length === 1 && entries[0] ? cpDiagnosticEntryMessage(t, entries[0]) : null;
 
   if (errorCount > 0) {

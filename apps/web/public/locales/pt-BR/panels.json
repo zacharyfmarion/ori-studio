@@ -241,16 +241,20 @@
     "flipFoldedModel": "Virar modelo dobrado",
     "fold": "Dobrar",
     "foldability": {
+      "closure": "Os vincos aqui não fecham",
+      "closureResidual": "Os vincos aqui não fecham: {{degrees}}° de diferença",
       "compose": "{{lead}} — {{tail}}",
       "edgeLineConfiguration": "Configuração inválida das linhas de borda",
       "edgeLineCount": "Linhas de borda demais ou de menos",
       "equalMountainValley": "quantidade igual de dobras de montanha e de vale",
       "incorrectAngles": "Ângulos incorretos",
       "incorrectFoldTypes": "Tipos de dobra incorretos",
+      "interiorBorder": "Borda com papel dos dois lados — a dobrabilidade não é verificada ao longo dela",
       "littleBigLittle": "Os ângulos não podem se aninhar (pequeno-grande-pequeno)",
       "notEnoughMountain": "não há dobras de montanha suficientes",
       "notEnoughValley": "não há dobras de vale suficientes",
       "oddFolds": "Número ímpar de dobras",
+      "rigidVertex": "Este vértice é rígido, então todos os vincos aqui devem ficar planos",
       "selfIntersection": "O papel atravessa a si mesmo aqui",
       "shape": {
         "circle": "Ângulos incorretos (teorema de Kawasaki)",
@@ -266,9 +270,17 @@
       "line": "Cor da linha"
     },
     "foldedDisplayStyle": "Estilo de exibição do dobrado",
+    "foldedFigure": {
+      "windowAriaLabel": "Modelo dobrado, em três dimensões",
+      "windowFailed": "Não foi possível desenhar este modelo"
+    },
     "foldedModelControls": "Controles do modelo dobrado",
     "foldedModels": "Modelos dobrados",
     "foldedModelSide": "Lado do modelo dobrado",
+    "foldedModelStatus": {
+      "error": "Falhou",
+      "loading": "Dobrando…"
+    },
     "foldedState": {
       "back": "Verso",
       "front": "Frente"
@@ -319,8 +331,10 @@
     "none": "Nenhum",
     "openingSharedLink": "Abrindo o padrão de vincos compartilhado…",
     "optimizingScale": "Otimizando escala",
+    "orbitFoldedForm": "Girar a figura dobrada",
     "preparing": "Preparando o editor…",
     "refoldFoldedModelAction": "Dobrar o modelo novamente",
+    "resetFoldedModelView": "Redefinir a vista do modelo dobrado",
     "resizeAnnotation": "Redimensionar anotação",
     "resizeFoldedForm": "Redimensionar forma dobrada",
     "resizeSimulationWindow": "Redimensionar janela de simulação",
@@ -347,10 +361,13 @@
     },
     "sendImageToBack": "Enviar imagem para trás",
     "shadow": "Sombra",
+    "shadowUnsupported3d": "As sombras ainda não são desenhadas para um modelo dobrado em 3D",
     "showFoldedModelShadow": "Mostrar sombra do modelo dobrado",
     "side": "Lado",
     "stale": "Desatualizado",
-    "viewportControls": "Controles da viewport do padrão de vincos"
+    "viewFoldedModelOtherSide": "Ver pelo outro lado",
+    "viewportControls": "Controles da viewport do padrão de vincos",
+    "zoomFoldedForm": "Ampliar forma dobrada"
   },
   "design": {
     "attributionBoxPleating": "Adaptado de <2>Mu-Tsun Tsai's Box Pleating Studio</2>",
@@ -523,6 +540,22 @@
     "viewTree": "Árvore",
     "viewTreeAndCp": "Árvore e padrão de vincos"
   },
+  "fold3dVerdict": {
+    "localCrossing_one": "O papel atravessa a si mesmo em um vértice.",
+    "localCrossing_many": "O papel atravessa a si mesmo em {{count}} vértices.",
+    "localCrossing_other": "O papel atravessa a si mesmo em {{count}} vértices.",
+    "localCrossingLabel": "O papel atravessa a si mesmo",
+    "noLayerOrderContradictorySeeds": "Duas faces precisam ficar cada uma acima da outra, então nenhum empilhamento satisfaz as duas.",
+    "noLayerOrderGeneric": "Não foi possível ordenar as camadas desta figura.",
+    "noLayerOrderLabel": "Camadas não ordenadas",
+    "selectCreases": "Selecionar os vincos",
+    "showIssues": "Mostrar problemas",
+    "simulateInstead": "Simular em vez disso",
+    "transversalCrossing_one": "Um vinco dobrado atravessa uma face da figura.",
+    "transversalCrossing_many": "{{count}} vincos dobrados atravessam faces da figura.",
+    "transversalCrossing_other": "{{count}} vincos dobrados atravessam faces da figura.",
+    "transversalCrossingLabel": "Um vinco corta uma face"
+  },
   "foldedFigureActions": {
     "anotherSolution": "Outra solução",
     "delete": "Excluir",
@@ -534,7 +567,9 @@
     "firstSolution": "Voltar à primeira solução",
     "flip": "Virar",
     "label": "Ações do modelo dobrado",
+    "otherSide": "Outro lado",
     "refold": "Dobrar novamente",
+    "resetView": "Redefinir vista",
     "styleDev1": "Desenvolvimento 1",
     "styleDev4": "Desenvolvimento 4",
     "styleNone": "Nenhum",

@@ -41,6 +41,7 @@ import type { CpSegment } from '../../lib/creasePatternSegmentation';
 import type { CreaseExportFoldResult } from '../../lib/creaseExportFold';
 import type { SegmentExportFormat } from '../../lib/creaseSegmentExport';
 import type { FoldedFigureExportFormat } from '../../cp-workspace/folded/foldedFigureExport';
+import type { FoldedFigureCamera } from '../../cp-workspace/folded/foldedFigure3dProjection';
 import type { FoldArtifactStatus } from './foldArtifactResource';
 import type {
   OristudioCpCommandPayload,
@@ -678,6 +679,21 @@ export interface CreasePatternSliceState {
    * worker to a single live session.
    */
   oristudioCpFocusedInlineSimulationId: string | null;
+  /**
+   * The 3D folded figure whose body is taking canvas drags as **orbit** rather
+   * than as a move.
+   *
+   * Selection and focus are two different presses, exactly as they are for an
+   * inline simulation: the first selects (so the figure can still be nudged,
+   * which is what someone who only wanted to reposition it expects), and the
+   * second focuses. Only a focused figure goes inert to the canvas-object
+   * overlay.
+   *
+   * Never holds a **flat** figure. A flat folded form has no third dimension to
+   * turn, so focusing one would be a state the user can reach and find inert —
+   * `focusOristudioCpFoldedFigure` refuses it rather than admitting it.
+   */
+  oristudioCpFocusedFoldedFigureId: string | null;
   foldArtifacts: FoldArtifacts | null;
   foldArtifactError: string | null;
   foldArtifactStatus: FoldArtifactStatus;
@@ -745,6 +761,13 @@ export interface CreasePatternSliceActions {
   removeOristudioCpInlineSimulation: (id: string) => void;
   /** Hand the solver to a window, or to none. */
   focusOristudioCpInlineSimulation: (id: string | null) => void;
+  /**
+   * Give canvas drags over a 3D folded figure to its camera, or take them back.
+   *
+   * A no-op on a figure that is not 3D, so a caller does not have to ask first
+   * — see {@link WorkspaceState.oristudioCpFocusedFoldedFigureId}.
+   */
+  focusOristudioCpFoldedFigure: (id: string | null) => void;
   /** Rebuild a stale window's fold from the current creases, keeping its placement. */
   refreshOristudioCpInlineSimulation: (id: string) => Promise<boolean>;
   /**
@@ -811,6 +834,18 @@ export interface CreasePatternSliceActions {
     id: string,
     displayStyle: OristudioCpFoldedFigureDisplayStyle
   ) => Promise<boolean>;
+  /**
+   * Move a 3D figure's eye and re-project it.
+   *
+   * Synchronous work behind an async signature, like its display-style sibling:
+   * a 3D figure's picture is made in the frontend from the render model beside
+   * its handle, so nothing is asked of the kernel. A figure reopened from a file
+   * has no render model and keeps the picture it was saved with — the camera is
+   * still recorded, so a refold shows the chosen view.
+   *
+   * Rejects a flat figure: there is no viewpoint to move.
+   */
+  setOristudioCpFolded3dCamera: (id: string, camera: FoldedFigureCamera) => Promise<boolean>;
   updateOristudioCpFoldedFigureModel: (
     id: string,
     update: Partial<OristudioCpFoldedFigureModel>
@@ -823,6 +858,31 @@ export interface CreasePatternSliceActions {
    * figure is judged out of date.
    */
   refoldOristudioCpFoldedFigure: (id: string) => Promise<boolean>;
+  /**
+   * Give a 3D figure reopened from a file its geometry back, so it can be turned
+   * again — without changing what it draws.
+   *
+   * The render model a 3D figure is re-projected from is deliberately not
+   * persisted, so a reopened figure draws its stored picture and nothing more.
+   * This refolds from the same source region and adopts the result **only if it
+   * reproduces that picture**: same solution index, same frame. It records no
+   * undo entry, sets no `dirty`, takes no selection and raises no error, because
+   * from the user's side nothing happened except that the figure became live.
+   *
+   * A **stale** figure is refused outright: refolding one would replace what is
+   * on screen with a different fold, which is what the explicit **Refold** verb
+   * is for. See `folded/folded3dRehydrate.ts` for the full set of conditions.
+   *
+   * `pending` shows the ordinary `loading` status while it runs — for the
+   * on-demand case, where someone pressed the figure and is waiting. The
+   * background pass leaves the status alone.
+   *
+   * Resolves `true` only when the figure was adopted.
+   */
+  rehydrateOristudioCpFolded3dFigure: (
+    id: string,
+    options?: { pending?: boolean }
+  ) => Promise<boolean>;
   deleteOristudioCpFoldedFigure: (id: string) => Promise<void>;
   setOristudioCpActiveFoldedFigure: (id: string | null) => void;
   /**
@@ -835,6 +895,15 @@ export interface CreasePatternSliceActions {
     id: string,
     patch: Partial<FoldedFigurePlacement>
   ) => void;
+  /**
+   * Open an inline simulation of the region these creases enclose, falling back
+   * to the Simulate panel when they are not one whole region.
+   *
+   * The store-level door onto the same helper the refused 3D fold uses, so a
+   * verdict that offers "simulate instead" reaches exactly the path a refusal
+   * does — including its region constraint and its fallback.
+   */
+  simulateOristudioCpCreaseRegion: (lineIds: readonly number[]) => Promise<void>;
   clearOristudioCpFoldedFigures: () => Promise<void>;
   clearOristudioCpSelection: () => void;
   toggleOristudioCpLineSelection: (id: number, additive?: boolean) => void;

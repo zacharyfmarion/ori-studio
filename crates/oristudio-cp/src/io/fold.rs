@@ -1,6 +1,7 @@
 use super::{IoError, Result};
 use crate::CreasePatternDocument;
 use crate::fold_graph::FoldGraph;
+use crate::folding3d::interchange;
 use crate::geometry::{
     Circle, FoldMagnitude, LineColor, LineSegment, Point, angle, point_rotate_scaled,
 };
@@ -36,6 +37,27 @@ pub fn export_folded_frames(fold: &mut FoldDocument, frames: Vec<FoldDocument>) 
     fold.file_frames = frames;
 }
 
+/// Write this build's folded-form frames beside whatever frames the file
+/// already carried.
+///
+/// Two rules, and the split between them is the whole point. A frame **we**
+/// wrote (marked by [`interchange::FOLDED_FORM_MARKER`]) is regenerated on every
+/// export: it describes a fold of the creases as they were, and keeping a stale
+/// copy beside the fresh one is how a file grows a second, contradicting folded
+/// form each time it is saved. A frame from anywhere else is preserved verbatim,
+/// including another tool's `foldedForm` — dropping a user's data to make room
+/// for ours is a worse trade than either of the alternatives.
+///
+/// Called **after** [`export_fold_file_document`], never from inside
+/// [`export_fold_document`]: [`merge_fold_file_document`] assigns `file_frames`
+/// rather than merging it, so a frame written earlier would be clobbered on
+/// every file that was imported.
+pub fn append_folded_form_frames(fold: &mut FoldDocument, frames: Vec<FoldDocument>) {
+    fold.file_frames
+        .retain(|frame| !interchange::is_ours(frame));
+    fold.file_frames.extend(frames);
+}
+
 /// Import a full FOLD file as an editable crease-pattern document while
 /// carrying the original file document for frame-preserving export.
 pub fn import_fold_file_document_json(input: &str) -> Result<CreasePatternDocument> {
@@ -56,13 +78,25 @@ fn has_usable_geometry(frame: &FoldDocument) -> bool {
 /// Mirrors the web importer's `frameScore` so a file opens to the same frame in
 /// the kernel and in the read-only view: an explicit `creasePattern` class wins,
 /// then having faces, then the earliest frame.
+///
+/// **`foldedForm` scores below an unclassified frame**, which is the one rule
+/// that is not a tie-break. A file carrying a design and its folded state is the
+/// shape the FOLD spec suggests, and without this a folded frame placed first
+/// ties with the real pattern on faces alone and wins on being earlier. The web
+/// importer would then open one frame and the kernel another — same file, two
+/// answers — and the kernel's answer is a `fold_folded_form` refusal of a file
+/// that is perfectly importable. Demoting it here is what keeps the two agreeing;
+/// the refusal at [`import_fold_document`] stays for the file whose *only*
+/// usable frame is a folded form.
 fn frame_score(frame: &FoldDocument) -> i32 {
-    let is_crease_frame = frame
-        .frame_classes
-        .iter()
-        .any(|class| class == "creasePattern");
-    let has_faces = !frame.faces_vertices.is_empty();
-    i32::from(is_crease_frame) * 100 + i32::from(has_faces) * 10
+    let has_class = |name: &str| frame.frame_classes.iter().any(|class| class == name);
+    if has_class("creasePattern") {
+        return 100 + i32::from(!frame.faces_vertices.is_empty()) * 10;
+    }
+    if has_class("foldedForm") {
+        return -100;
+    }
+    i32::from(!frame.faces_vertices.is_empty()) * 10
 }
 
 /// The frame to import from: the root when it carries geometry, otherwise the
@@ -165,7 +199,64 @@ fn imported_fold_magnitude(fold: &FoldDocument, index: usize) -> Option<FoldMagn
     (!magnitude.is_full()).then_some(magnitude)
 }
 
+/// How far off the xy plane a vertex may sit and still be read as flat.
+///
+/// Deliberately tiny. This is not a modelling tolerance — it exists only so a
+/// FOLD file that writes `[x, y, 0]` (or `0.0`, or `-0.0`) instead of `[x, y]`
+/// imports the way `[x, y]` does. Anything above it is real out-of-plane
+/// geometry and the importer has nowhere to put it.
+const FLAT_Z_TOLERANCE: f64 = 1e-9;
+
+/// Refuse geometry this importer would silently flatten.
+///
+/// [`vertex_point`] reads `coords[0]` and `coords[1]` and drops everything
+/// after, so a folded form imports as its own shadow: a plausible-looking crease
+/// pattern whose creases are wherever the projection put them. Measured on
+/// `MoosersTrainRigid-Gardner.fold`, all 246 spatial vertices fail closure after
+/// the round trip — the file is a valid folded state and the import is not a
+/// crease pattern of it in any sense.
+///
+/// Two independent signals, because either can be present without the other: a
+/// frame that *declares* `foldedForm` (which can still be flat in z — a
+/// flat-folded state is a folded state), and any vertex actually off the plane
+/// (which a file can carry without declaring a class at all).
+///
+/// Per AGENTS.md, an operation that has not been ported returns an explicit
+/// unsupported-operation error rather than a nearby result.
+fn reject_unrepresentable_geometry(fold: &FoldDocument) -> Result<()> {
+    if fold.frame_classes.iter().any(|class| class == "foldedForm") {
+        return Err(IoError::FoldedForm {
+            what: "FOLD folded-form frames",
+            detail: "this frame declares frame_classes: [\"foldedForm\"], which describes \
+                     a folded state rather than a crease pattern"
+                .to_string(),
+        });
+    }
+    if let Some((index, z)) = fold
+        .vertices_coords
+        .iter()
+        .enumerate()
+        .find_map(|(index, coords)| {
+            coords
+                .get(2)
+                .copied()
+                .filter(|z| z.abs() > FLAT_Z_TOLERANCE)
+                .map(|z| (index, z))
+        })
+    {
+        return Err(IoError::FoldedForm {
+            what: "FOLD geometry outside the paper plane",
+            detail: format!(
+                "vertex {index} has z = {z}, and a crease pattern has no third coordinate \
+                 to keep it in"
+            ),
+        });
+    }
+    Ok(())
+}
+
 pub fn import_fold_document(fold: &FoldDocument) -> Result<CreasePatternModel> {
+    reject_unrepresentable_geometry(fold)?;
     let mut model = CreasePatternModel::default();
     let edge_line_colors = line_color_array_extra(fold, ORISTUDIO_EDGES_LINE_COLORS)?;
     let edge_colors = string_array_extra(fold, "oriedita:edges_colors")?;

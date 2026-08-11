@@ -97,7 +97,7 @@
     "foldedCasesFound_one": "{{count}} found so far",
     "foldedCasesFound_other": "{{count}} found so far",
     "foldedFigureNeedsCp": "Open an editable crease pattern to fold it",
-    "foldedFigureNeedsFlat": "This pattern has creases that are not full folds, so it has no flat-folded form",
+    "foldedFigureNeedsFlat": "This export folds flat only, and this pattern has creases that are not full folds",
     "foldedFigureNeedsOnePattern": "Select a single pattern to fold",
     "foldedFigureSection": "Folded figure",
     "foldedFrontColor": "Front",
@@ -122,6 +122,24 @@
     "title": "Title",
     "titlePlaceholder": "Optional"
   },
+  "exportLoss": {
+    "blockedConfirm": "Export FOLD instead",
+    "blockedMessage": "The {{format}} format can’t store {{features}}, and re-importing would silently read every crease as a full fold. FOLD stores them, and .osf keeps everything.",
+    "blockedTitle": "Can’t export to {{format}}",
+    "confirm": "Export anyway",
+    "feature": {
+      "foldAngles": "Non-flat fold angles",
+      "foldedForm3d": "3D folded figures",
+      "foldedForm3dDetached": "3D folded figures needing a refold",
+      "images": "Images",
+      "inlineSimulations": "Simulation windows",
+      "richText": "Rich text formatting",
+      "symmetry": "Mirror symmetry"
+    },
+    "featureCount": "{{feature}} ({{total}})",
+    "message": "This project uses features the {{format}} format can’t store. They’ll be omitted from the export: {{features}}.",
+    "title": "Some features can’t be exported"
+  },
   "fileDrop": {
     "choiceMessage": "{{name}} is a crease pattern, so it can be merged into the one you are editing or opened on its own.",
     "choiceTitle": "Open or import {{name}}?",
@@ -131,9 +149,25 @@
     "openDescriptionDirty": "Replaces what you are working on and discards your unsaved changes.",
     "openLabel": "Open as a new file"
   },
+  "fold3dRefused": {
+    "facesUnresolved": "The faces of this crease pattern could not be worked out. Creases that cross without a vertex, or stop short of one, are the usual cause.",
+    "flatFoldabilityGeneric": "One vertex of this crease pattern cannot fold.",
+    "loopNotClosed": "Folding around a loop of faces does not return to where it started, so these angles cannot all hold at once.",
+    "message": "{{reason}} {{trailer}}",
+    "noFaces": "These creases enclose no piece of paper to fold.",
+    "nonCreaseJoin": "Two faces meet along an edge that is not a crease.",
+    "simulate": "Simulate",
+    "simulateTrailer": "The simulator can fold it approximately.",
+    "title": "This pattern can’t be folded in 3D",
+    "toleranceWindowClosed": "Two faces are too close to the same plane to tell apart.",
+    "vertexClosure": "The creases at one vertex do not close up: they are {{degrees}}° short of meeting.",
+    "vertexUnassignedCrease": "A crease at one vertex has no fold assigned, so the vertex cannot be folded.",
+    "vertexUnsplitJunction": "Creases meet at a point that is not a vertex, so the vertex cannot be folded."
+  },
   "foldWarning": {
     "dontShowAgain": "Don't show this again",
     "message": "Detected errors in flat foldability. Continue to fold?",
+    "spatialMessage": "Detected errors in how these creases fold. Continue to fold?",
     "title": "Warning"
   },
   "help": {
@@ -266,7 +300,7 @@
     "create": "Create link",
     "creating": "Creating link…",
     "foldedFigure": "Show folded figure",
-    "foldedFigureNeedsFlat": "This pattern has creases that are not full folds, so it has no flat-folded form",
+    "foldedFigureNeedsFlat": "This preview folds flat only, and this pattern has creases that are not full folds",
     "folding": "Folding…",
     "frontColor": "Front color",
     "linkPreview": "Link preview",

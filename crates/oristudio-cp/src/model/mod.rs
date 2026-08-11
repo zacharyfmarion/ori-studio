@@ -549,10 +549,18 @@ pub fn is_classic_crease(segment: &LineSegment) -> bool {
 /// The cheap syntactic scan behind export gating and the folded-form dialog;
 /// needs no solver and no topology.
 pub fn has_non_classic_creases(model: &CreasePatternModel) -> bool {
-    model
-        .line_segments
-        .iter()
-        .any(|segment| !is_classic_crease(segment))
+    has_non_classic_segments(&model.line_segments)
+}
+
+/// The same question over an arbitrary **slice** of segments.
+///
+/// This is the fold-routing predicate, and it must be the slice-taking one: a
+/// selection scoped to the all-classic half of a mixed document folds flat, and
+/// asking the document-wide question there sends it to the 3D folder instead.
+/// The two deliberately disagree on exactly that input — see
+/// `the_two_non_classic_predicates_disagree_on_a_scoped_selection`.
+pub fn has_non_classic_segments(segments: &[LineSegment]) -> bool {
+    segments.iter().any(|segment| !is_classic_crease(segment))
 }
 
 pub fn custom_color_hex(color: RgbColor) -> String {

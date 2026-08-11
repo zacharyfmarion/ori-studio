@@ -2,12 +2,14 @@ import { defaultBpDocumentSymmetry } from './bpTreeSymmetry';
 import { describe, expect, it } from 'vitest';
 import { createCpImage, type CpImage } from '../cp-workspace/images/cpImage';
 import { createTextAnnotation } from '../cp-workspace/annotations/textAnnotation';
-import type { OristudioCpLineSegment } from '../engine/oristudioCpTypes';
+import type {
+  OristudioCpFoldedFigureEntry,
+  OristudioCpLineSegment,
+} from '../engine/oristudioCpTypes';
 import { FOLD_MAGNITUDE_UNITS_PER_DEGREE } from './foldAngle';
 import {
   blockingExportLoss,
   collectExportLossWarnings,
-  describeExportLoss,
   exportFormatLabel,
 } from './supersetFeatures';
 
@@ -39,6 +41,7 @@ const noneElse = {
   richText: [] as [],
   inlineSimulations: [] as [],
   lineSegments: [] as [],
+  foldedFigures: [] as [],
   bpSymmetry: defaultBpDocumentSymmetry(),
 };
 
@@ -49,11 +52,12 @@ describe('collectExportLossWarnings', () => {
       richText: [],
       inlineSimulations: [],
       lineSegments: [],
+      foldedFigures: [],
       bpSymmetry: defaultBpDocumentSymmetry(),
     };
     for (const format of ['cp', 'fold', 'ori', 'orh', 'dxf', 'obj', 'svg', 'png'] as const) {
       const warnings = collectExportLossWarnings(format, presence);
-      expect(warnings).toEqual([{ id: 'images', label: 'Images', count: 2, blocking: false }]);
+      expect(warnings).toEqual([{ id: 'images', count: 2, blocking: false }]);
     }
   });
 
@@ -63,10 +67,11 @@ describe('collectExportLossWarnings', () => {
       richText: [createTextAnnotation({ center: { x: 0, y: 0 } })],
       inlineSimulations: [],
       lineSegments: [],
+      foldedFigures: [],
       bpSymmetry: defaultBpDocumentSymmetry(),
     };
     expect(collectExportLossWarnings('ori', presence)).toEqual([
-      { id: 'richText', label: 'Rich text formatting', count: 1, blocking: false },
+      { id: 'richText', count: 1, blocking: false },
     ]);
   });
 
@@ -81,11 +86,12 @@ describe('collectExportLossWarnings', () => {
       images: [],
       richText: [] as [],
       lineSegments: [] as [],
+      foldedFigures: [] as [],
       inlineSimulations: [{ id: 'a' } as never, { id: 'b' } as never],
       bpSymmetry: defaultBpDocumentSymmetry(),
     };
     expect(collectExportLossWarnings('cp', presence)).toEqual([
-      { id: 'inlineSimulations', label: 'Simulation windows', count: 2, blocking: false },
+      { id: 'inlineSimulations', count: 2, blocking: false },
     ]);
     expect(collectExportLossWarnings('fold', presence)).toHaveLength(1);
   });
@@ -97,7 +103,7 @@ describe('collectExportLossWarnings', () => {
       bpSymmetry: { enabled: true, fold: 'book' as const, pairs: [{ v1: 1, v2: 2 }] },
     };
     expect(collectExportLossWarnings('bps', presence)).toEqual([
-      { id: 'symmetry', label: 'Mirror symmetry', count: 1, blocking: false },
+      { id: 'symmetry', count: 1, blocking: false },
     ]);
     // The two surfaces do not overlap: a crease-pattern format never carries a
     // box-pleat design, so it has no symmetry to drop.
@@ -134,12 +140,15 @@ describe('collectExportLossWarnings', () => {
     expect(blockingExportLoss(warnings)).toEqual([]);
   });
 
-  it('describes and labels the loss', () => {
+  it('counts the loss and labels the format', () => {
+    // The features' own names are localized, so they live with the other
+    // translated data labels — see `i18n/supersetFeatureLabels.test.ts`. A
+    // format name is verbatim in every locale.
     const warnings = collectExportLossWarnings('cp', {
       images: [image(), image(), image()],
       ...noneElse,
     });
-    expect(describeExportLoss(warnings)).toBe('Images (3)');
+    expect(warnings).toEqual([{ id: 'images', count: 3, blocking: false }]);
     expect(exportFormatLabel('fold')).toBe('FOLD');
   });
 });
@@ -150,6 +159,7 @@ describe('non-flat fold angles block an export rather than warning', () => {
     richText: [] as [],
     inlineSimulations: [] as [],
     lineSegments: segments,
+    foldedFigures: [] as [],
     bpSymmetry: defaultBpDocumentSymmetry(),
   });
   const ninety = 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE;
@@ -160,7 +170,7 @@ describe('non-flat fold angles block an export rather than warning', () => {
     for (const format of ['cp', 'ori', 'orh', 'dxf', 'obj'] as const) {
       const warnings = collectExportLossWarnings(format, presence([crease('Red1', ninety)]));
       expect(blockingExportLoss(warnings)).toEqual([
-        { id: 'foldAngles', label: 'Non-flat fold angles', count: 1, blocking: true },
+        { id: 'foldAngles', count: 1, blocking: true },
       ]);
     }
   });
@@ -185,5 +195,85 @@ describe('non-flat fold angles block an export rather than warning', () => {
       crease('Cyan3', ninety),
     ];
     expect(collectExportLossWarnings('cp', presence(segments))).toEqual([]);
+  });
+});
+
+describe('3D folded figures survive .fold, and only while they hold a session', () => {
+  const figure = (
+    kind: 'flat' | 'spatial',
+    handle: number | null = 1
+  ): OristudioCpFoldedFigureEntry =>
+    ({
+      id: `figure-${kind}-${handle}`,
+      handle,
+      status: 'ready',
+      snapshot: kind === 'flat' ? ({} as never) : null,
+      folded3d: kind === 'spatial' ? ({} as never) : null,
+      renderSnapshot: null,
+    }) as unknown as OristudioCpFoldedFigureEntry;
+
+  const presence = (figures: OristudioCpFoldedFigureEntry[]) => ({
+    images: [],
+    richText: [] as [],
+    inlineSimulations: [] as [],
+    lineSegments: [] as [],
+    foldedFigures: figures,
+    bpSymmetry: defaultBpDocumentSymmetry(),
+  });
+
+  it('does not warn on .fold, which writes a foldedForm frame per figure', () => {
+    const warnings = collectExportLossWarnings('fold', presence([figure('spatial')]));
+    expect(warnings).toEqual([]);
+  });
+
+  it('warns, without blocking, on every format that cannot carry one', () => {
+    for (const format of ['cp', 'ori', 'orh', 'dxf', 'obj'] as const) {
+      const warnings = collectExportLossWarnings(format, presence([figure('spatial')]));
+      expect(warnings).toEqual([
+        { id: 'foldedForm3d', count: 1, blocking: false },
+      ]);
+      // The `.osf` still has the figure, so losing it is not a reason to stop.
+      expect(blockingExportLoss(warnings)).toEqual([]);
+    }
+  });
+
+  it('counts only the 3D figures', () => {
+    const warnings = collectExportLossWarnings(
+      'cp',
+      presence([figure('flat'), figure('spatial'), figure('flat', 2)])
+    );
+    expect(warnings).toEqual([
+      { id: 'foldedForm3d', count: 1, blocking: false },
+    ]);
+  });
+
+  it('warns on .fold for a figure reopened from an .osf, which has no session', () => {
+    // The `foldedForm` frame is built from the live `Fold3dSession`, and none of
+    // that is persisted — so this one genuinely is dropped, and saying nothing
+    // would be the silent loss the whole registry exists to prevent.
+    const warnings = collectExportLossWarnings('fold', presence([figure('spatial', null)]));
+    expect(warnings).toEqual([
+      {
+        id: 'foldedForm3dDetached',
+        count: 1,
+        blocking: false,
+      },
+    ]);
+    expect(blockingExportLoss(warnings)).toEqual([]);
+  });
+
+  it('files each 3D figure under exactly one of the two entries', () => {
+    const warnings = collectExportLossWarnings(
+      'cp',
+      presence([figure('spatial'), figure('spatial', null), figure('spatial', 3)])
+    );
+    expect(warnings).toEqual([
+      { id: 'foldedForm3d', count: 2, blocking: false },
+      {
+        id: 'foldedForm3dDetached',
+        count: 1,
+        blocking: false,
+      },
+    ]);
   });
 });

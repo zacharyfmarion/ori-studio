@@ -107,13 +107,13 @@ import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglC
 import type { CpOverlayView, StepKind } from '../../cp-workspace/CreasePatternWebglCanvas';
 import { cpCamera } from '../../cp-workspace/renderer/cpCameraRegistry';
 import type { CpContextMenuRequest } from '../../cp-workspace/contextMenuTarget';
-import {
-} from '../../cp-workspace/folded/foldedFigureActions';
+import { isFoldedFigureReady } from '../../cp-workspace/folded/foldedFigureActions';
+import { foldedFigureCapabilities } from '../../cp-workspace/folded/foldedFigureCapabilities';
+import { foldedFigureSubtitle } from '../../cp-workspace/folded/foldedFigureNotice';
 // Registers `__foldedStaleDebug()` in dev builds; no-op in production.
 import '../../cp-workspace/folded/foldedFigureStalenessDebug';
 // Registers `__inlineSimStaleDebug()` in dev builds; no-op in production.
 import '../../cp-workspace/inlineSimulation/inlineSimulationStalenessDebug';
-import { foldedFigureCurrentCase } from '../../cp-workspace/folded/foldedFigureState';
 import { hexToRgbColor, rgbColorToHex } from '../../lib/rgbColor';
 import { DECODABLE_IMAGE_ACCEPT } from '../../lib/imageFormats';
 import { FOLDED_FIGURE_SIDES, type FoldedFigureSide } from '../../lib/foldedFigureSides';
@@ -135,7 +135,9 @@ import { CpFoldedFigureToolbar } from '../../cp-workspace/folded/CpFoldedFigureT
 import { useFoldedFigures } from '../../cp-workspace/folded/useFoldedFigures';
 import { foldedFigureMenuItemsWith } from '../../cp-workspace/folded/foldedFigureMenuItems';
 import { selectedCanvasObjectId as selectedCanvasObjectIdOf } from '../../cp-workspace/canvasObjects/transformableObject';
+import { foldedAppearanceEnabled } from '../../cp-workspace/folded/foldedFigureAppearance';
 import { InlineSimulationLayer } from '../../cp-workspace/InlineSimulationLayer';
+import { Folded3dWindowLayer } from '../../cp-workspace/Folded3dWindowLayer';
 import { InlineSimulationInspector } from '../../cp-workspace/InlineSimulationInspector';
 import { useInlineSimulations } from '../../cp-workspace/inlineSimulation/useInlineSimulations';
 import { useSimulateSelection } from '../../cp-workspace/inlineSimulation/useSimulateSelection';
@@ -536,16 +538,28 @@ function FoldedFigureMenuButton({
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const model = activeFigure?.snapshot?.model ?? null;
-  const activeReady =
-    activeFigure?.status === 'ready' && activeFigure.handle !== null && activeFigure.snapshot !== null;
+  // A flat figure keeps its model in the kernel snapshot, a 3D one on
+  // `folded3d`. Reading only the first left every control on this menu
+  // showing its fallback for a 3D figure.
+  const model = activeFigure?.snapshot?.model ?? activeFigure?.folded3d?.model ?? null;
+  const capabilities = foldedFigureCapabilities(activeFigure);
+  // A 3D figure is "ready" without a flat snapshot — that is the kind witness,
+  // not a missing field — but its *model* controls stay off, because it keeps no
+  // appearance in the kernel to change.
+  const activeReady = activeFigure ? isFoldedFigureReady(activeFigure) : false;
+  const modelReady = activeReady && capabilities.editModel;
 
   // Keep any display style already saved on a document selectable even if it is no
   // longer offered as a fresh choice (e.g. legacy Dev/None figures).
   const currentDisplayStyle = activeFigure?.displayStyle ?? 'Paper5';
-  const foldedDisplayStyleOptions = FOLDED_DISPLAY_STYLE_OPTIONS.includes(currentDisplayStyle)
-    ? FOLDED_DISPLAY_STYLE_OPTIONS
-    : [...FOLDED_DISPLAY_STYLE_OPTIONS, currentDisplayStyle];
+  // Filtered rather than replaced, so this dropdown keeps its own order while
+  // the capability list decides membership.
+  const offeredDisplayStyles = FOLDED_DISPLAY_STYLE_OPTIONS.filter((value) =>
+    capabilities.styleChoices.includes(value)
+  );
+  const foldedDisplayStyleOptions = offeredDisplayStyles.includes(currentDisplayStyle)
+    ? offeredDisplayStyles
+    : [...offeredDisplayStyles, currentDisplayStyle];
 
   useEffect(() => {
     if (!open) return undefined;
@@ -596,13 +610,7 @@ function FoldedFigureMenuButton({
                 >
                   <span>{figure.title}</span>
                   <small data-stale={staleFigureIds.has(figure.id) || undefined}>
-                    {staleFigureIds.has(figure.id)
-                      ? t('panels:creasePattern.stale', 'Stale')
-                      : figure.status === 'ready'
-                        ? t('panels:creasePattern.case', 'Case {{count}}', {
-                            count: foldedFigureCurrentCase(figure),
-                          })
-                        : figure.status}
+                    {foldedFigureSubtitle(t, figure, staleFigureIds.has(figure.id))}
                   </small>
                 </button>
               ))}
@@ -638,6 +646,7 @@ function FoldedFigureMenuButton({
                 label: foldedStateLabel(t, value),
               }))}
               value={model?.state ?? 'Front0'}
+              disabled={!modelReady}
               onChange={(state) => onModelUpdate({ state })}
             />
           </div>
@@ -649,7 +658,7 @@ function FoldedFigureMenuButton({
               layout="inline"
               label={foldedColorLabel(t, field.key)}
               value={rgbColorToHex(model?.[field.key] ?? field.fallback)}
-              disabled={!activeReady}
+              disabled={!modelReady}
               onChange={(value) =>
                 onModelUpdate({ [field.key]: hexToRgbColor(value) }, `color:${field.key}`)
               }
@@ -663,11 +672,27 @@ function FoldedFigureMenuButton({
           ))}
           {/* No Case field: stepping through the layer-ordering solutions is
               "Another solution" on the figure's own toolbar and context menu. */}
-          <div className="folded-figure-menu__toggle-row">
+          <div
+            className="folded-figure-menu__toggle-row"
+            // Shown but disabled on a 3D figure rather than hidden: a control
+            // that disappears between figure kinds reads as a bug, and one that
+            // is enabled and does nothing is worse than either. The title says
+            // which case this is. See `foldedFigureAppearance`.
+            title={
+              activeFigure && !foldedAppearanceEnabled(activeFigure, 'shadow')
+                ? t(
+                    'panels:creasePattern.shadowUnsupported3d',
+                    'Shadows are not drawn for a 3D folded model yet'
+                  )
+                : undefined
+            }
+          >
             <span>{t('panels:creasePattern.shadow', 'Shadow')}</span>
             <Toggle
               checked={model?.display_shadows ?? false}
-              disabled={!activeReady}
+              disabled={
+                !modelReady || (activeFigure ? !foldedAppearanceEnabled(activeFigure, 'shadow') : false)
+              }
               onChange={(display_shadows) => onModelUpdate({ display_shadows })}
               aria-label={t('panels:creasePattern.showFoldedModelShadow', 'Show folded model shadow')}
             />
@@ -1058,6 +1083,17 @@ export function CreasePatternPanel() {
       inlineSimulations.transformableObjects,
     ]
   );
+  /**
+   * Every body the overlay must leave alone, from both kinds that have an
+   * interior of their own: a focused simulation window orbits its solver, a
+   * focused 3D folded figure orbits its camera. At most one of the two is ever
+   * non-empty — `takeCanvasSelection` makes the two focuses exclusive — but the
+   * overlay takes one set, so they are merged here rather than at the call site.
+   */
+  const inertBodyIds = useMemo(
+    () => new Set([...inlineSimulations.inertBodyIds, ...folded.inertBodyIds]),
+    [inlineSimulations.inertBodyIds, folded.inertBodyIds]
+  );
   const isFoldedFigureId = useCallback(
     (id: string) => folded.transformableObjects.some((object) => object.id === id),
     [folded.transformableObjects]
@@ -1084,10 +1120,29 @@ export function CreasePatternPanel() {
         return;
       }
       if (inlineSimulations.isInlineSimulationId(id)) inlineSimulations.focus(id);
-      else if (isFoldedFigureId(id)) setOristudioCpActiveFoldedFigure(id);
-      else setSelectedAnnotation(id);
+      else if (isFoldedFigureId(id)) {
+        // A press focuses, exactly as it does for an inline simulation — there
+        // is no second-press rule, and adding one made turning the model take
+        // two clicks.
+        //
+        // The press that focuses is still the press that moves: the overlay took
+        // this pointerdown while the body was live and keeps the drag, and the
+        // body only goes inert for the *next* press. So an unfocused figure
+        // drags, and the drag after it turns.
+        //
+        // `focus` is a no-op on a flat figure — the store refuses it — so the
+        // selection has to be set either way rather than left to it.
+        setOristudioCpActiveFoldedFigure(id);
+        folded.orbit.focus(id);
+      } else setSelectedAnnotation(id);
     },
-    [isFoldedFigureId, inlineSimulations, setSelectedAnnotation, setOristudioCpActiveFoldedFigure]
+    [
+      folded.orbit,
+      isFoldedFigureId,
+      inlineSimulations,
+      setSelectedAnnotation,
+      setOristudioCpActiveFoldedFigure,
+    ]
   );
 
   // Gesture dispatch: the overlay reports box updates by id, and the id decides
@@ -1516,10 +1571,12 @@ export function CreasePatternPanel() {
     (actionId: OristudioCpActionId) => {
       const action = cpActionById(actionId);
       if (!action) return;
-      // The `foldAction` (F) chord resolves to the Fold / FoldingEstimate CP
-      // commands, which are still unimplemented stubs — selecting them as a tool
-      // does nothing. Route F to the real fold path (the toolbar Fold button),
-      // matching Oriedita where F folds the model in place.
+      // The `foldAction` chord — `G` here (`keyboard/shortcuts.ts`); `F` is
+      // `colCyanAction`, the auxiliary line type — resolves to the Fold /
+      // FoldingEstimate CP commands, which are still unimplemented stubs, so
+      // selecting them as a tool does nothing. Route it to the real fold path
+      // (the toolbar Fold button), matching Oriedita where the fold chord folds
+      // the model in place.
       if (action.kind !== 'line-type') {
         const operationId = action.command.operationId;
         if (operationId === 'Fold' || operationId === 'FoldingEstimate') {
@@ -2757,6 +2814,7 @@ export function CreasePatternPanel() {
                   framingKey={`${projectLoadId}:${editableCpHandle ?? 'none'}`}
                   modelToSvg={editableModelToSvg}
                   svgToModel={editableSvgToModel}
+                  foldedOrbit={folded.orbit}
                   selectedLineIds={oristudioCpSelection.lines}
                   selectedPointIds={oristudioCpSelection.points}
                   selectedCircleIds={oristudioCpSelection.circles}
@@ -2866,6 +2924,7 @@ export function CreasePatternPanel() {
                   circleRadiusToSvg={editableCircleRadiusToSvg}
                   foldedFigures={generatedFoldedFigures}
                   staleFoldedFigureIds={staleFoldedFigureIds}
+                  windowedFoldedFigureIds={folded.windowIds}
                   importedForms={cpImportedFoldedFormsGeometry}
                   grid={editableCpVisibleGrid}
                   gridVisible={oristudioCpViewport.gridVisible}
@@ -2924,7 +2983,7 @@ export function CreasePatternPanel() {
                     objects={canvasObjects}
                     selectedId={selectedCanvasObjectId}
                     suppressedId={editingTextId}
-                    inertBodyIds={inlineSimulations.inertBodyIds}
+                    inertBodyIds={inertBodyIds}
                     interactive={annotationsInteractive}
                     onSelect={selectCanvasObject}
                     onUpdate={handleCanvasObjectUpdate}
@@ -2934,6 +2993,13 @@ export function CreasePatternPanel() {
                     canCrop={annotations.canCrop}
                     onGestureStart={beginCanvasObjectGesture}
                     onGestureCommit={commitCanvasObjectGesture}
+                  />
+                )}
+                {webglOverlayView && folded.windowFigures.length > 0 && (
+                  <Folded3dWindowLayer
+                    figures={folded.windowFigures}
+                    focusedId={folded.orbit.focusedId}
+                    staleIds={staleFoldedFigureIds}
                   />
                 )}
                 {webglOverlayView && inlineSimulations.simulations.length > 0 && (

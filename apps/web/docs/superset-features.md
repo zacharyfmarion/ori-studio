@@ -93,12 +93,27 @@ The native format and its migration live in
 - Add a **typed field** to the relevant `Native*DocumentV1` interface. Do **not**
   stuff it in the untyped `extensions` bag — that bag is reserved for
   unknown/forward-compat data (§5).
-- **Bump `NATIVE_PROJECT_SCHEMA_VERSION`** and add validation + a migration that
-  defaults the field for older files (e.g. absent → `[]`).
+- Add validation that defaults the field for older files (e.g. absent → `[]`).
+  **Name it in the reader's returned literal**: `validateFoldedFigure` and its
+  siblings rebuild an explicit object while the writer spreads the whole entry,
+  so a field the reader forgets is written out and lost on the way back in, with
+  no type error anywhere. `contradiction` was going that way for months.
+- **Do not bump `NATIVE_PROJECT_SCHEMA_VERSION`** for an additive field, and do
+  not read the next bullet as saying otherwise. `createNativeProjectFile` writes
+  `schemaVersion` *unconditionally* and `validateNativeProjectFile`'s accept list
+  is a hardcoded enumeration, so a bump is not conditional on the feature being
+  present: it strands **every** file this build writes in the build before it,
+  whether or not that file uses the feature. Bump only when the file's *shape*
+  changes, as v8 did when it split `documents` into `designs` + `creasePattern`.
 - **Keep `minimumReaderSchemaVersion` at 1** so older app builds can still *open*
-  new files (they ignore the field and drop it on re-save — the accepted
-  degradation). Only raise it if a file is genuinely unreadable without the new
-  feature, which is rarely true for an additive layer.
+  new files. What they do with them is the accepted degradation, and it is worth
+  being clear-eyed about: an older reader does not merely ignore an unknown
+  field, it **deletes** it on re-save, because its own literal never names it.
+  Raise the minimum only when that deletion is worse than refusing the file
+  outright — `unknownDesigns` is the one place we judged it so (`:588`), and note
+  it also needs `NATIVE_PROJECT_SCHEMA_VERSION` to have moved, since the check is
+  `minimumReaderSchemaVersion > NATIVE_PROJECT_SCHEMA_VERSION` and this build
+  would otherwise refuse its own output.
 
 ### 3. Register it as *lossy-on-export*
 Add the feature to the shared **superset-feature registry**
@@ -110,18 +125,45 @@ that drop it and the two sets do not overlap:
 ```ts
 {
   id: 'images',
-  label: 'Images',
   count(doc) { /* how many are present, 0 ⇒ absent */ },
   droppedByFormats: [/* every format except 'osf' */],
 }
 ```
+
+The registry carries **no English**. Its `id` is a member of the closed
+`SupersetFeatureId` union, and the user-facing name lives beside the other
+localized data labels in
+[`src/i18n/supersetFeatureLabels.ts`](../src/i18n/supersetFeatureLabels.ts), as a
+literal-key `t()` call — the only kind the i18n extractor can see. Adding an id
+without a name there is a type error, so the second line is not optional:
+
+```ts
+case 'images':
+  return t('dialogs:exportLoss.feature.images', 'Images');
+```
+
+A `label: 'Images'` string in the registry is what shipped these names in English
+to all eight locales ([#237](https://github.com/zacharyfmarion/ori-studio/issues/237)) —
+the extractor never saw them, so `i18n:check` stayed green while the dialog spoke
+English regardless of the user's language.
 
 Export/save handlers ([`src/commands/menuActions.ts`](../src/commands/menuActions.ts),
 [`src/platform/fileService.ts`](../src/platform/fileService.ts)) call
 `collectExportLossWarnings(format, doc)` before writing and show one shared
 confirm dialog: *"This project uses features the CP format can't store; they'll
 be omitted: Images (3). Continue?"* This registry **is** the pattern — a new
-feature is a one-line addition, and the user is never silently surprised.
+feature is a one-line addition plus its name, and the user is never silently
+surprised.
+
+`droppedByFormats` is a static list, so a feature a format carries **only
+sometimes** needs *two* entries rather than a caveat on one. 3D folded figures
+are the worked case: `.fold` writes a `foldedForm` frame built from the live
+`Fold3dSession`, and none of that session is persisted — so a figure reopened
+from an `.osf` draws from its stored primitives but cannot describe itself.
+`foldedForm3d` counts the figures with a live handle and excludes `fold`;
+`foldedForm3dDetached` counts the rest and includes it. Merging them would have
+to lie about `.fold` in one direction or the other, and the two counts partition
+the figures, so nothing is reported twice.
 
 ### 4. Render and edit it as its own layer
 Follow the codebase's split: **geometry on the GPU, interaction affordances in

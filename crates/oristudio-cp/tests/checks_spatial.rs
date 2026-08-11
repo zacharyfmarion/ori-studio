@@ -6,8 +6,8 @@
 //! parity failure.
 
 use oristudio_cp::checks_spatial::{
-    Indeterminate, VertexFan, VertexRegime, spatial_vertex_reports, vertex_closure_residual,
-    vertex_dof, vertex_fan, vertex_regime,
+    Indeterminate, VertexFan, VertexRegime, dispatched_camv, interior_border_segments,
+    spatial_vertex_reports, vertex_closure_residual, vertex_dof, vertex_fan, vertex_regime,
 };
 use oristudio_cp::geometry::{FoldMagnitude, LineColor, LineSegment, Point};
 use oristudio_cp::model::CreasePatternModel;
@@ -387,4 +387,266 @@ fn removing_the_border_restores_the_closure_check() {
         at_vertex.is_some(),
         "an interior vertex must still be checked"
     );
+}
+
+// --------------------------------------------------- borders inside the paper
+
+/// A 200x200 ring: an outer square of border, an inner square of border, and
+/// four radial creases joining them.
+///
+/// `calculate_faces` traces every positive-area bounded region, so the hole
+/// comes back **filled** — 5 faces, past the Euler gate — and the eight vertices
+/// where the creases meet the two borders are genuinely interior to the object
+/// that gets folded. `is_interior_vertex` declines all eight anyway, for
+/// touching a `Black0` segment, so the closure check examines nothing at all.
+fn annulus(inner_angle_degrees: f64) -> CreasePatternModel {
+    let mut model = CreasePatternModel::default();
+    let outer = [
+        (0.0, 0.0),
+        (200.0, 0.0),
+        (200.0, 200.0),
+        (0.0, 200.0),
+        (0.0, 0.0),
+    ];
+    let inner = [
+        (50.0, 50.0),
+        (150.0, 50.0),
+        (150.0, 150.0),
+        (50.0, 150.0),
+        (50.0, 50.0),
+    ];
+    for ring in [outer, inner] {
+        for pair in ring.windows(2) {
+            model.add_line_segment(crease(
+                pair[0].0,
+                pair[0].1,
+                pair[1].0,
+                pair[1].1,
+                LineColor::Black0,
+                None,
+            ));
+        }
+    }
+    for (from, to) in [
+        ((0.0, 0.0), (50.0, 50.0)),
+        ((200.0, 0.0), (150.0, 50.0)),
+        ((200.0, 200.0), (150.0, 150.0)),
+        ((0.0, 200.0), (50.0, 150.0)),
+    ] {
+        model.add_line_segment(crease(
+            from.0,
+            from.1,
+            to.0,
+            to.1,
+            LineColor::Red1,
+            Some(inner_angle_degrees),
+        ));
+    }
+    model
+}
+
+#[test]
+fn the_closure_check_examines_nothing_on_an_annulus() {
+    // Not the bug — the *reason* the bug is invisible, pinned so a later change
+    // to `is_interior_vertex` cannot quietly move it.
+    let dispatched = dispatched_camv(&annulus(90.0));
+
+    assert!(
+        dispatched.spatial.is_empty(),
+        "every vertex here touches a border, so the closure check declines all of them"
+    );
+    assert!(
+        dispatched.flat.is_empty(),
+        "and the flat branch is not reached either"
+    );
+}
+
+#[test]
+fn a_border_with_paper_on_both_sides_is_named() {
+    let borders = interior_border_segments(&annulus(90.0));
+
+    assert_eq!(
+        borders.len(),
+        4,
+        "the four inner-square segments have paper on both sides; the four outer \
+         ones are the real paper edge"
+    );
+    for border in &borders {
+        assert!(
+            (50.0..=150.0).contains(&border.point.x) && (50.0..=150.0).contains(&border.point.y),
+            "an inner-ring midpoint, not an outer one: {:?}",
+            border.point
+        );
+    }
+}
+
+#[test]
+fn a_plain_square_has_no_interior_border() {
+    let mut model = CreasePatternModel::default();
+    for pair in [
+        ((0.0, 0.0), (200.0, 0.0)),
+        ((200.0, 0.0), (200.0, 200.0)),
+        ((200.0, 200.0), (0.0, 200.0)),
+        ((0.0, 200.0), (0.0, 0.0)),
+    ] {
+        model.add_line_segment(crease(
+            pair.0.0,
+            pair.0.1,
+            pair.1.0,
+            pair.1.1,
+            LineColor::Black0,
+            None,
+        ));
+    }
+    model.add_line_segment(crease(0.0, 0.0, 200.0, 200.0, LineColor::Red1, Some(90.0)));
+
+    assert!(interior_border_segments(&model).is_empty());
+}
+
+/// The dispatch pays for the arrangement only where the spatial branch is the
+/// one making a claim. An all-classic document's `CheckCamv` output has to stay
+/// byte-identical to Oriedita's, and that is what this pins.
+#[test]
+fn an_all_classic_annulus_reports_no_interior_border_through_the_dispatch() {
+    let mut classic = annulus(90.0);
+    for segment in &mut classic.line_segments {
+        *segment = segment.clone().with_fold_magnitude(None);
+    }
+
+    let dispatched = dispatched_camv(&classic);
+
+    assert!(
+        dispatched.interior_borders.is_empty(),
+        "no non-classic crease, so nothing consults it and nothing pays for it"
+    );
+    // The borders are still there; only the dispatch declines to look.
+    assert_eq!(interior_border_segments(&classic).len(), 4);
+}
+
+/// The spatial half of `CheckCamv` speaks a fixed, four-word vocabulary of
+/// `rule` codes, and the frontend has a translated sentence for each.
+///
+/// Neither language can see the other's table. The web side has its own
+/// exhaustive switch over the same four literals
+/// (`cp-workspace/diagnostics/foldabilityMessages.ts`, `SPATIAL_RULES`); this is
+/// the other half of that pair. Renaming a code here without renaming it there
+/// ships a blank message in eight locales, which is exactly the failure a gate
+/// on one side alone cannot catch.
+///
+/// Asserted as a *superset containment plus a whitelist*: the corpus of shapes
+/// below need not reach all four, but nothing it reaches may be outside them.
+#[test]
+fn the_spatial_check_emits_only_the_four_rules_the_frontend_words() {
+    use oristudio_cp::{CreasePatternCommand, CreasePatternDocument, OperationId, execute_command};
+
+    const SPATIAL_RULES: [&str; 4] = ["Closure", "Rigid", "SelfIntersection", "InteriorBorder"];
+
+    // Every shape that has ever produced a spatial diagnostic in this suite:
+    // an annulus whose inner ring is an interior border, a vertex whose creases
+    // do not close, and a degree-3 rigid vertex.
+    let mut models = vec![annulus(90.0)];
+
+    let mut open = CreasePatternModel::default();
+    for (theta, rho) in [(0.0_f64, 90.0), (90.0, 90.0), (200.0, 90.0), (300.0, 90.0)] {
+        let radians = theta.to_radians();
+        open.add_line_segment(crease(
+            0.0,
+            0.0,
+            100.0 * radians.cos(),
+            100.0 * radians.sin(),
+            LineColor::Red1,
+            Some(rho),
+        ));
+    }
+    models.push(open);
+
+    let mut rigid = CreasePatternModel::default();
+    for theta in [0.0_f64, 120.0, 240.0] {
+        let radians = theta.to_radians();
+        rigid.add_line_segment(crease(
+            0.0,
+            0.0,
+            100.0 * radians.cos(),
+            100.0 * radians.sin(),
+            LineColor::Red1,
+            Some(45.0),
+        ));
+    }
+    models.push(rigid);
+
+    // A closed but genuinely self-intersecting degree-5 fan — the same fixture
+    // `spherical_simplicity.rs` keeps, so this test reaches all four rules
+    // rather than three. Sector widths sum to 360; the fold angles close.
+    let mut crossing = CreasePatternModel::default();
+    let sectors = [77.7_f64, 75.3, 76.3, 80.9, 49.8];
+    let rhos = [
+        143.2_f64,
+        -144.987_466_057_566,
+        139.510_617_226_054,
+        107.692_082_841_218,
+        70.045_325_473_205,
+    ];
+    let mut theta = 0.0_f64;
+    for (sector, rho) in sectors.iter().zip(rhos) {
+        let radians = theta.to_radians();
+        crossing.add_line_segment(crease(
+            0.0,
+            0.0,
+            100.0 * radians.cos(),
+            100.0 * radians.sin(),
+            if rho >= 0.0 {
+                LineColor::Red1
+            } else {
+                LineColor::Blue2
+            },
+            Some(rho.abs()),
+        ));
+        theta += sector;
+    }
+    models.push(crossing);
+
+    let mut seen: Vec<String> = Vec::new();
+    for model in models {
+        let mut document = CreasePatternDocument {
+            crease_pattern: model,
+            ..CreasePatternDocument::default()
+        };
+        let result = execute_command(
+            &mut document,
+            CreasePatternCommand::new(OperationId::CheckCamv),
+        )
+        .expect("CheckCamv is supported");
+        for entry in result.diagnostic_entries {
+            if !entry.kind.starts_with("Spatial") {
+                continue;
+            }
+            let rule = entry
+                .rule
+                .clone()
+                .expect("a spatial diagnostic names a rule");
+            assert!(
+                SPATIAL_RULES.contains(&rule.as_str()),
+                "{rule} has no sentence on the frontend; add it to SPATIAL_RULES on both sides",
+            );
+            // The closure sentence needs the residual structurally: the frontend
+            // has to word it, and a formatted string cannot be un-formatted.
+            if rule == "Closure" {
+                assert!(
+                    entry.residual_degrees.is_some(),
+                    "a closure failure must carry its residual, not only spell it",
+                );
+            } else {
+                assert!(entry.residual_degrees.is_none());
+            }
+            if !seen.contains(&rule) {
+                seen.push(rule);
+            }
+        }
+    }
+    // All four, not merely "some": a whitelist that nothing reaches asserts
+    // nothing at all.
+    seen.sort();
+    let mut expected = SPATIAL_RULES.map(String::from);
+    expected.sort();
+    assert_eq!(seen, expected);
 }

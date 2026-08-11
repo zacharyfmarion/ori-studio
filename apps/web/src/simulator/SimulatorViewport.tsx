@@ -21,7 +21,9 @@ import {
 import type { SimulatorFrameView } from "./useSimulatorRuntime";
 import type { SimulatorRenderModel } from "./renderModel";
 import {
+  clampSimulatorZoom,
   nextSimulatorOrbitView,
+  simulatorWheelZoomFactor,
   type SimulatorOrbitView as SimulatorView,
 } from "../lib/simulatorOrbit";
 import type { SimulatorSettings as SimulatorViewSettings } from "../lib/simulatorSettings";
@@ -61,16 +63,52 @@ export const DEFAULT_SIMULATOR_VIEW: SimulatorView = {
   zoom: 1.4,
 };
 
-const MIN_ZOOM = 0.45;
-const MAX_ZOOM = 4;
+/**
+ * Apply the surface's own framing to caller-supplied paper settings.
+ *
+ * The split is what the two halves each know: the caller knows how the paper
+ * looks, and this component knows what kind of surface it is — whether the frame
+ * is painted, and whether the linework shrinks with it. Leaving the framing to
+ * the caller would mean every caller repeating the props it already passed.
+ */
+function withSurfaceFraming(
+  settings: RenderSettings,
+  surface: SimulatorSurfaceOptions
+): RenderSettings {
+  return {
+    ...settings,
+    backgroundAlpha: surface.transparentBackground ? 0 : (settings.backgroundAlpha ?? 1),
+    creaseWidthReferenceEdge: surface.creaseWidthReferenceEdge,
+    creaseWidthShrinkExponent: surface.creaseWidthShrinkExponent,
+  };
+}
 
 export interface SimulatorViewportHandle {
-  /** Return the orbit camera to {@link DEFAULT_SIMULATOR_VIEW}. */
+  /** Return the orbit camera to {@link SimulatorViewportProps.initialView}. */
   resetView: () => void;
+  /**
+   * Move the orbit camera from outside, and redraw at it.
+   *
+   * For a surface whose viewpoint is owned elsewhere — a 3D folded figure's
+   * camera is document state, changed by undo, by "view from the other side",
+   * and by a drag on the crease-pattern canvas. Unused by a simulation, whose
+   * camera lives here and nowhere else.
+   */
+  setView: (view: SimulatorView) => void;
   /** Multiply the orbit zoom, clamped to the same range the wheel uses. */
   zoomBy: (factor: number) => void;
   /** Publish a solver frame. In GPU mode the worker has already drawn it. */
   showFrame: (frame: SimulatorFrameView) => void;
+  /**
+   * Publish a rendered frame that is *only* a picture.
+   *
+   * {@link showFrame} carries solver scalars — step, convergence, fold percent,
+   * peak strain — which a static folded figure has none of. Synthesising zeros
+   * for them would put a lie in the type, so the bitmap branch that already
+   * exists inside `showFrame` is offered separately instead. Ownership of the
+   * bitmap transfers to the canvas: do not retain or close it.
+   */
+  presentBitmap: (bitmap: ImageBitmap) => void;
   /** Swap the topology the CPU path rasterises. */
   setModel: (model: SimulatorRenderModel | null) => void;
 }
@@ -117,6 +155,30 @@ export interface SimulatorViewportProps {
   /** Companion to the reference edge; see `RenderSettings.creaseWidthShrinkExponent`. */
   creaseWidthShrinkExponent?: number;
   viewSettings: SimulatorViewSettings;
+  /**
+   * The camera this surface opens at, and returns to on reset. Defaults to
+   * {@link DEFAULT_SIMULATOR_VIEW}, which is what every simulation wants; a
+   * folded figure opens at the viewpoint stored on the figure.
+   *
+   * Read once, at mount. Later changes come through
+   * {@link SimulatorViewportHandle.setView}, so a caller rebuilding this object
+   * every render does not snap the camera back mid-gesture.
+   */
+  initialView?: SimulatorView;
+  /**
+   * Draw with these settings instead of resolving the simulator palette.
+   *
+   * A folded figure's colours are its own document state — they are on the
+   * kernel figure model and are already what the flat figure beside it draws
+   * with — so routing them through the app-wide simulator settings would make a
+   * figure's appearance follow the Simulate workspace's, which is both wrong for
+   * the figure and a change to what those settings mean.
+   *
+   * The framing fields ({@link transparentBackground} and the crease-width pair)
+   * are still applied on top, because they describe the *surface* rather than the
+   * paper and this component is what knows them.
+   */
+  renderSettings?: RenderSettings;
   /** Creases/faces a sequence step is emphasising. CPU path only. */
   highlights?: SimulatorHighlights;
   /** Forward the orbit camera to the worker (GPU mode). */
@@ -140,6 +202,8 @@ export function SimulatorViewport({
   creaseWidthReferenceEdge,
   creaseWidthShrinkExponent,
   viewSettings,
+  initialView,
+  renderSettings,
   highlights = EMPTY_HIGHLIGHTS,
   pushCamera,
   pushRenderSettings,
@@ -150,7 +214,11 @@ export function SimulatorViewport({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const modelRef = useRef<SimulatorRenderModel | null>(null);
   const frameRef = useRef<SimulatorFrameView | null>(null);
-  const viewRef = useRef<SimulatorView>({ ...DEFAULT_SIMULATOR_VIEW });
+  // Captured once. `resetView` reads it too, so "reset" means the view this
+  // surface was given rather than a view nobody chose.
+  const openingView = initialView ?? DEFAULT_SIMULATOR_VIEW;
+  const openingViewRef = useRef<SimulatorView>({ ...openingView });
+  const viewRef = useRef<SimulatorView>({ ...openingView });
   const dragRef = useRef<{
     pointerId: number;
     x: number;
@@ -173,6 +241,7 @@ export function SimulatorViewport({
   // getComputedStyle, and they only change when settings or the theme do. Both
   // render paths draw from this one object, which is what stops them disagreeing.
   const paintRef = useRef<SimulatorPaint | null>(null);
+  const renderSettingsRef = useRef(renderSettings);
 
   // The bitmaprenderer context, acquired once per canvas element. Acquiring it
   // is exclusive — a canvas that has one can never take a 2D or WebGL context —
@@ -224,6 +293,14 @@ export function SimulatorViewport({
   const refreshPaint = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const override = renderSettingsRef.current;
+    if (override) {
+      // Nothing here reads a theme token, so the palette resolve — and its
+      // `getComputedStyle` — is skipped entirely rather than computed and
+      // discarded. The surface framing is still ours to apply.
+      pushRenderSettings(withSurfaceFraming(override, surfaceOptionsRef.current));
+      return;
+    }
     const paint = resolveSimulatorPaint(
       getComputedStyle(canvas),
       viewSettingsRef.current,
@@ -274,6 +351,7 @@ export function SimulatorViewport({
   // either has to be pushed the same way.
   useEffect(() => {
     viewSettingsRef.current = viewSettings;
+    renderSettingsRef.current = renderSettings;
     surfaceOptionsRef.current = {
       transparentBackground,
       creaseWidthReferenceEdge,
@@ -283,6 +361,7 @@ export function SimulatorViewport({
   }, [
     refreshPaint,
     viewSettings,
+    renderSettings,
     transparentBackground,
     creaseWidthReferenceEdge,
     creaseWidthShrinkExponent,
@@ -335,7 +414,7 @@ export function SimulatorViewport({
   }, [gpuActive, refreshPaint, pushView]);
 
   const resetView = useCallback(() => {
-    viewRef.current = { ...DEFAULT_SIMULATOR_VIEW };
+    viewRef.current = { ...openingViewRef.current };
     pushView();
   }, [pushView]);
 
@@ -343,7 +422,7 @@ export function SimulatorViewport({
     (factor: number) => {
       viewRef.current = {
         ...viewRef.current,
-        zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, viewRef.current.zoom * factor)),
+        zoom: clampSimulatorZoom(viewRef.current.zoom * factor),
       };
       pushView();
     },
@@ -355,6 +434,11 @@ export function SimulatorViewport({
     () => ({
       resetView,
       zoomBy,
+      setView: (view: SimulatorView) => {
+        viewRef.current = { ...view };
+        pushView();
+      },
+      presentBitmap,
       showFrame: (frame: SimulatorFrameView) => {
         frameRef.current = frame;
         if (frame.bitmap) presentBitmap(frame.bitmap);
@@ -366,7 +450,7 @@ export function SimulatorViewport({
         drawCurrentFrame();
       },
     }),
-    [resetView, zoomBy, drawCurrentFrame, presentBitmap]
+    [resetView, zoomBy, drawCurrentFrame, presentBitmap, pushView]
   );
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -420,10 +504,7 @@ export function SimulatorViewport({
       if (!interactiveRef.current) return;
       viewRef.current = {
         ...viewRef.current,
-        zoom: Math.min(
-          MAX_ZOOM,
-          Math.max(MIN_ZOOM, viewRef.current.zoom * Math.exp(-event.deltaY * 0.001))
-        ),
+        zoom: clampSimulatorZoom(viewRef.current.zoom * simulatorWheelZoomFactor(event.deltaY)),
       };
       pushView();
     };

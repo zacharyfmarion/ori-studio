@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyFoldedPlacementToPoint,
   cpContradictionFaceFills,
   cpUserAnchorForLineIds,
   placeFoldedFigureBesideCp,
@@ -127,6 +128,83 @@ const strokeTriangle = (placement: FoldedFigurePlacement = IDENTITY_FOLDED_PLACE
     placement
   );
 
+describe('draw order as depth', () => {
+  // The canvas batches every folded fill into one draw and every folded stroke
+  // into another, which throws away the painter order the projector computed —
+  // so a crease behind a face drew over it. The depth attribute is that order
+  // made numeric, and these are the properties the depth test relies on.
+  const twoPrimitives = (): OristudioCpFoldedRenderPrimitive[] => [
+    {
+      sequence: 0,
+      kind: 'fill_polygon',
+      style: { paint: solid(255, 0, 0, 255), stroke: { kind: 'none' }, antialias: 'default' },
+      geometry: {
+        kind: 'polygon',
+        points: [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 10, y: 10 },
+        ],
+      },
+    },
+    {
+      sequence: 1,
+      kind: 'stroke_polygon',
+      style: {
+        paint: solid(0, 0, 0, 255),
+        stroke: { kind: 'basic', width: 1, end_cap: 0, line_join: 0, miter_limit: 4 },
+        antialias: 'default',
+      },
+      geometry: {
+        kind: 'polygon',
+        points: [
+          { x: 0, y: 0 },
+          { x: 10, y: 10 },
+        ],
+      },
+    },
+  ];
+
+  it('gives every primitive its own depth, increasing with sequence', () => {
+    const geo = cpFoldedToScene([figure(twoPrimitives())]);
+    const fill = geo.fills.depth!;
+    const stroke = geo.strokes.depth!;
+    expect(fill.length).toBe(geo.fills.count);
+    expect(stroke.length).toBe(geo.strokes.count);
+    // The fill is sequence 0 and the stroke sequence 1, so the stroke must be
+    // nearer — that is the whole fix, in one assertion.
+    expect(stroke[0]).toBeGreaterThan(fill[0]);
+    // Inside (0, 1]: never 0, which is where a missing depth lands, and never
+    // past the cleared value.
+    for (const d of [...fill, ...stroke]) {
+      expect(d).toBeGreaterThan(0);
+      expect(d).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('keeps two figures in their own depth bands, so they cannot interleave', () => {
+    const first = { ...figure(twoPrimitives()), id: 'first' };
+    const second = { ...figure(twoPrimitives()), id: 'second' };
+    const geo = cpFoldedToScene([first, second]);
+    const fill = geo.fills.depth!;
+    // Every vertex of the second figure is nearer than every vertex of the
+    // first, whatever their internal order — a later figure covers an earlier
+    // one, which is what painter order did before.
+    const half = fill.length / 2;
+    const firstMax = Math.max(...Array.from(fill.slice(0, half)));
+    const secondMin = Math.min(...Array.from(fill.slice(half)));
+    expect(secondMin).toBeGreaterThan(firstMax);
+  });
+
+  it('is stable under placement, which only moves the figure', () => {
+    const base = cpFoldedToScene([figure(twoPrimitives())]);
+    const moved = cpFoldedToScene([
+      figure(twoPrimitives(), { offset: { x: 40, y: 7 }, scale: 3, rotation: 1.2 }),
+    ]);
+    expect(Array.from(moved.fills.depth!)).toEqual(Array.from(base.fills.depth!));
+  });
+});
+
 describe('folded figure placement', () => {
   /** The centre of the rendered geometry, which placement pivots on. */
   const drawnCenter = (entry: OristudioCpFoldedFigureEntry) => {
@@ -240,6 +318,104 @@ describe('foldedFigureBox', () => {
   it('is null for a figure that draws nothing', () => {
     expect(foldedFigureBox(figure([]))).toBeNull();
     expect(foldedFigureBox({ ...figure([]), renderSnapshot: null })).toBeNull();
+  });
+
+  it('gives a 3D figure a square frame that does not follow its projection', () => {
+    // The bug: a 3D figure's box was the bounding box of whatever the projection
+    // produced, so turning the model resized and shifted its chrome under the
+    // cursor. A figure is a window onto the model, and a window does not change
+    // shape because you turned what is inside it.
+    const framed = (primitives: Parameters<typeof figure>[0]) => ({
+      ...figure(primitives),
+      frameRadius: 30,
+    });
+    // Two *different* projections of the same figure — as an orbit produces.
+    const wide = foldedFigureBox(framed(strokeTriangle().renderSnapshot!.primitives))!;
+    const tall = foldedFigureBox(
+      framed([
+        {
+          sequence: 0,
+          kind: 'stroke_polygon',
+          style: {
+            paint: solid(0, 0, 0, 255),
+            stroke: { kind: 'basic', width: 1, end_cap: 0, line_join: 0, miter_limit: 4 },
+            antialias: 'default',
+          },
+          geometry: {
+            kind: 'polygon',
+            points: [
+              { x: 0, y: 0 },
+              { x: 1, y: 0 },
+              { x: 1, y: 400 },
+            ],
+          },
+        },
+      ])
+    )!;
+    // Square, and the same box for two different projections — the point of the
+    // frame. The side is `2 * frameRadius` carried into user coordinates by
+    // `cpModelToSvg`, so it is asserted as square-and-stable rather than as a
+    // number that restates the conversion.
+    expect(wide.width).toBe(wide.height);
+    expect(wide.width).toBeGreaterThan(0);
+    expect(tall).toEqual(wide);
+  });
+
+  it('reports the box centre the drawing actually pivots about', () => {
+    // The regression: a framed figure's box reported the placement offset alone
+    // while `cpFoldedToScene` still pivoted on the local bbox centre, so the
+    // overlay drew its invisible click polygon displaced from the visible figure
+    // by exactly that centre — and the figure stopped responding to clicks.
+    //
+    // The contract is one point: whatever the box calls its centre, a local point
+    // at the pivot must land there under the same placement the drawing uses.
+    // `applyFoldedPlacementToPoint` is that placement, so this compares the two
+    // halves against each other rather than against a remembered number.
+    for (const placement of [
+      IDENTITY_FOLDED_PLACEMENT,
+      { offset: { x: 37, y: -11 }, scale: 1, rotation: 0 },
+      { offset: { x: 37, y: -11 }, scale: 2.5, rotation: 0.9 },
+    ]) {
+      const entry = { ...strokeTriangle(placement), frameRadius: 30 };
+      const box = foldedFigureBox(entry)!;
+      // A framed figure pivots where the projection puts the model centroid,
+      // which reaches this module through `cpModelToSvg` — so it is that point
+      // in user coordinates, not user (0, 0). Getting this wrong is what put the
+      // click polygon 380 units from the figure.
+      const pivot = cpModelToSvg({ x: 0, y: 0 });
+      const drawn = applyFoldedPlacementToPoint(pivot, placement, pivot);
+      expect(box.center.x).toBeCloseTo(drawn.x);
+      expect(box.center.y).toBeCloseTo(drawn.y);
+    }
+  });
+
+  it('leaves a figure with no frame on its projected bounds', () => {
+    // `frameRadius` is null on every flat figure, and on a 3D one written before
+    // frames existed. Both keep the old behaviour — the box follows the drawing
+    // — rather than collapsing to a square of side zero.
+    const triangle = foldedFigureBox(strokeTriangle())!;
+    const line = foldedFigureBox(
+      figure([
+        {
+          sequence: 0,
+          kind: 'stroke_polygon',
+          style: {
+            paint: solid(0, 0, 0, 255),
+            stroke: { kind: 'basic', width: 1, end_cap: 0, line_join: 0, miter_limit: 4 },
+            antialias: 'default',
+          },
+          geometry: {
+            kind: 'polygon',
+            points: [
+              { x: 0, y: 0 },
+              { x: 1, y: 0 },
+              { x: 1, y: 400 },
+            ],
+          },
+        },
+      ])
+    )!;
+    expect(line.height).toBeGreaterThan(triangle.height * 10);
   });
 });
 
@@ -363,6 +539,34 @@ describe('placeFoldedFigureBesideCp', () => {
   it('lines the figure top up with the paper top', () => {
     const figure = polygonFigureNamed('a');
     const placed = { ...figure, placement: placeFoldedFigureBesideCp(figure, [], paper) };
+    expect(foldedFigureUserBounds([placed])[0].bounds.minY).toBeCloseTo(paper.top);
+  });
+
+  it("parks a framed 3D figure by its box, not by what it draws", () => {
+    // The bug: the slot was sized from the drawing's extent and the offset
+    // measured from the drawing's centre, while `foldedFigureBox` reports the
+    // framed square about the projected centroid. Two different rectangles, so a
+    // fresh 3D fold's chrome overlapped the crease pattern it was parked beside
+    // even though the model itself sat clear of it.
+    //
+    // An inline simulation cannot have this bug: the rectangle it reserves *is*
+    // the box it is given. This asserts the same property here — the box the
+    // figure ends up with clears the paper, not merely its drawing.
+    const framed = { ...polygonFigureNamed('a'), frameRadius: 40 };
+    const placed = { ...framed, placement: placeFoldedFigureBesideCp(framed, [], paper) };
+    const box = foldedFigureBox(placed)!;
+    expect(box.center.x - box.width / 2).toBeGreaterThanOrEqual(paper.right);
+    expect(box.center.y - box.height / 2).toBeCloseTo(paper.top);
+  });
+
+  it('leaves a flat figure placed exactly where it was', () => {
+    // The framed branch must not move a figure that has no frame: for those the
+    // identity box *is* the drawing's bounds and centre, so this is a byte
+    // check that flat placement is untouched.
+    const figure = polygonFigureNamed('a');
+    const placement = placeFoldedFigureBesideCp(figure, [], paper);
+    const placed = { ...figure, placement };
+    expect(foldedFigureUserBounds([placed])[0].bounds.minX).toBeGreaterThanOrEqual(paper.right);
     expect(foldedFigureUserBounds([placed])[0].bounds.minY).toBeCloseTo(paper.top);
   });
 

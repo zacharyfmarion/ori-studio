@@ -97,7 +97,7 @@
     "foldedCasesFound_one": "Bisher {{count}} gefunden",
     "foldedCasesFound_other": "Bisher {{count}} gefunden",
     "foldedFigureNeedsCp": "Öffne ein bearbeitbares Faltmuster, um es zu falten",
-    "foldedFigureNeedsFlat": "Dieses Faltmuster enthält Falten, die keine vollen Faltungen sind, und hat daher keine flach gefaltete Form",
+    "foldedFigureNeedsFlat": "Dieser Export faltet nur flach, und dieses Faltmuster enthält Falten, die keine vollen Faltungen sind",
     "foldedFigureNeedsOnePattern": "Wähle ein einzelnes Muster zum Falten",
     "foldedFigureSection": "Gefaltete Figur",
     "foldedFrontColor": "Vorderseite",
@@ -122,6 +122,24 @@
     "title": "Titel",
     "titlePlaceholder": "Optional"
   },
+  "exportLoss": {
+    "blockedConfirm": "Stattdessen FOLD exportieren",
+    "blockedMessage": "Das Format {{format}} kann {{features}} nicht speichern, und beim erneuten Import würde jede Falte unbemerkt als volle Faltung gelesen. FOLD speichert sie, und .osf behält alles.",
+    "blockedTitle": "Export nach {{format}} nicht möglich",
+    "confirm": "Trotzdem exportieren",
+    "feature": {
+      "foldAngles": "Nicht flache Faltwinkel",
+      "foldedForm3d": "3D-Faltfiguren",
+      "foldedForm3dDetached": "3D-Faltfiguren, die neu gefaltet werden müssen",
+      "images": "Bilder",
+      "inlineSimulations": "Simulationsfenster",
+      "richText": "Rich-Text-Formatierung",
+      "symmetry": "Spiegelsymmetrie"
+    },
+    "featureCount": "{{feature}} ({{total}})",
+    "message": "Dieses Projekt verwendet Funktionen, die das Format {{format}} nicht speichern kann. Beim Export werden sie weggelassen: {{features}}.",
+    "title": "Einige Funktionen können nicht exportiert werden"
+  },
   "fileDrop": {
     "choiceMessage": "{{name}} ist ein Faltmuster und kann daher in das gerade bearbeitete Muster eingefügt oder eigenständig geöffnet werden.",
     "choiceTitle": "{{name}} öffnen oder importieren?",
@@ -131,9 +149,25 @@
     "openDescriptionDirty": "Ersetzt Ihre aktuelle Arbeit und verwirft nicht gespeicherte Änderungen.",
     "openLabel": "Als neue Datei öffnen"
   },
+  "fold3dRefused": {
+    "facesUnresolved": "Die Flächen dieses Musters konnten nicht bestimmt werden. Meist liegt es an Falten, die sich ohne Knotenpunkt kreuzen oder einen Knotenpunkt nicht erreichen.",
+    "flatFoldabilityGeneric": "Ein Knotenpunkt dieses Musters lässt sich nicht falten.",
+    "loopNotClosed": "Das Falten entlang einer Flächenschleife führt nicht zum Ausgangspunkt zurück, daher können diese Winkel nicht alle zugleich gelten.",
+    "message": "{{reason}} {{trailer}}",
+    "noFaces": "Diese Falten umschließen keine Papierfläche zum Falten.",
+    "nonCreaseJoin": "Zwei Flächen treffen entlang einer Kante zusammen, die keine Falte ist.",
+    "simulate": "Simulieren",
+    "simulateTrailer": "Der Simulator kann es näherungsweise falten.",
+    "title": "Dieses Muster lässt sich nicht in 3D falten",
+    "toleranceWindowClosed": "Zwei Flächen liegen zu nah an derselben Ebene, um unterschieden zu werden.",
+    "vertexClosure": "Die Falten an einem Knotenpunkt schließen sich nicht: {{degrees}}° fehlen.",
+    "vertexUnassignedCrease": "Eine Falte an einem Knotenpunkt hat keine Faltung zugewiesen, daher lässt sich dieser Knotenpunkt nicht falten.",
+    "vertexUnsplitJunction": "Falten treffen sich an einem Punkt, der kein Knotenpunkt ist, daher lässt sich dieser Knotenpunkt nicht falten."
+  },
   "foldWarning": {
     "dontShowAgain": "Nicht mehr anzeigen",
     "message": "Fehler bei der Flachfaltbarkeit erkannt. Trotzdem falten?",
+    "spatialMessage": "Fehler beim Falten dieser Falten erkannt. Mit dem Falten fortfahren?",
     "title": "Warnung"
   },
   "help": {
@@ -266,7 +300,7 @@
     "create": "Link erstellen",
     "creating": "Link wird erstellt…",
     "foldedFigure": "Gefaltete Figur anzeigen",
-    "foldedFigureNeedsFlat": "Dieses Faltmuster enthält Falten, die keine vollen Faltungen sind, und hat daher keine flach gefaltete Form",
+    "foldedFigureNeedsFlat": "Diese Vorschau faltet nur flach, und dieses Faltmuster enthält Falten, die keine vollen Faltungen sind",
     "folding": "Wird gefaltet…",
     "frontColor": "Vorderseitenfarbe",
     "linkPreview": "Linkvorschau",

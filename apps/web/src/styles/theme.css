@@ -3018,6 +3018,49 @@
   background: var(--border-default);
 }
 
+/* A 3D folded figure's verdict, as a chip at the head of its toolbar.
+
+   Rendered as a button when the verdict offers something to do about it and as
+   a plain span otherwise — a disabled button would read as an action that is
+   temporarily unavailable rather than as a statement of fact, so the two share
+   every rule here except the cursor. */
+.cp-folded-figure-toolbar__notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  /* The theme's own warning hue, not `--text-warning` — which is defined
+     nowhere in this app, so the fallback resolved to `--text-secondary` and a
+     "Passes through itself" chip was byte-identical to ordinary muted text.
+     `--status-warning` and `--status-danger` are written by the active theme
+     preset (`themes/applyTheme.ts`), so both tones follow light and dark. */
+  color: var(--status-warning);
+}
+
+.cp-folded-figure-toolbar__notice[data-tone='error'] {
+  color: var(--status-danger);
+}
+
+button.cp-folded-figure-toolbar__notice {
+  cursor: pointer;
+}
+
+button.cp-folded-figure-toolbar__notice:hover {
+  border-color: currentcolor;
+}
+
+.cp-folded-figure-toolbar__notice-label {
+  max-width: 16ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .floating-toolbar__opacity {
   display: flex;
   align-items: center;
@@ -3745,7 +3788,7 @@
 /* No `border-radius` here on purpose: a window is sized by the crease-pattern
    camera, and a fixed radius that reads as a rounded rectangle at full size
    reads as a lozenge on a zoomed-out thumbnail. The layer sets it per frame —
-   see `inlineSimulationPlacement`. */
+   see `canvasWindowPlacement`. */
 .cp-inline-simulation {
   border: 1px solid color-mix(in srgb, var(--text-primary) 70%, transparent);
   overflow: hidden;
@@ -3775,7 +3818,7 @@
 }
 
 /* The layer counter-scales this so it holds one size while the camera resizes
-   the window around it — see `inlineSimulationPlacement`. That transform is
+   the window around it — see `canvasWindowPlacement`. That transform is
    about the corner the badge is anchored to, so the anchor stays put. Keep
    `left`/`bottom` in step with `BADGE_INSET_CSS` there. */
 .cp-inline-simulation__badge {
@@ -3794,6 +3837,65 @@
 }
 
 .cp-inline-simulation__badge--error {
+  color: var(--status-danger);
+  border-color: var(--status-danger);
+}
+
+/* A 3D folded figure is the second window kind, so it takes the same frame. A
+   parallel block rather than a shared class: focus and staleness read
+   differently here (a figure has its own orbit focus and its own out-of-date
+   fade), and the badge inset has to be declared per class to stay in step with
+   `BADGE_INSET_CSS`.
+
+   No `border-radius` here, for the same reason as above: the radius shrinks with
+   the crease-pattern camera and the layer sets it per frame — see
+   `canvasWindowPlacement`. */
+.cp-folded-figure-window {
+  border: 1px solid color-mix(in srgb, var(--text-primary) 70%, transparent);
+  overflow: hidden;
+  background: transparent;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 55%);
+}
+
+.cp-folded-figure-window[data-focused] {
+  border-color: var(--accent-primary);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 55%),
+    0 0 0 4px color-mix(in srgb, var(--accent-primary) 22%, transparent);
+}
+
+/* The same 0.45 the scene used to fade a stale figure's primitives by, so
+   "out of date" looks identical either side of the move to a window. */
+.cp-folded-figure-window[data-stale] {
+  opacity: 0.45;
+}
+
+.cp-folded-figure-window__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  user-select: none;
+}
+
+/* Counter-scaled by the layer so it holds one size while the camera resizes the
+   window around it. Keep `left`/`bottom` in step with `BADGE_INSET_CSS`. */
+.cp-folded-figure-window__badge {
+  position: absolute;
+  transform-origin: left bottom;
+  left: 6px;
+  bottom: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  pointer-events: none;
+}
+
+.cp-folded-figure-window__badge--error {
   color: var(--status-danger);
   border-color: var(--status-danger);
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FoldDocument } from '../engine/types';
+import { parseImportedCreasePattern } from './creasePatternImport';
 import { foldedFoldDocument, foldedObj, foldedStl, type FoldedMesh } from './foldedExport';
 
 function sourceFold(): FoldDocument {
@@ -145,5 +146,40 @@ describe('foldedStl', () => {
     expect(view.getFloat32(84, true)).toBe(0);
     expect(view.getFloat32(88, true)).toBe(0);
     expect(view.getFloat32(92, true)).toBe(0);
+  });
+});
+
+describe('the folded export is not a crease pattern, and the importer agrees', () => {
+  // This export exists for other tools — the FOLD viewers, slicers and 3D
+  // pipelines that read `foldedForm`. It is not a round-trip format, and the
+  // failure mode of pretending it is would be silent: the crease-pattern
+  // importer keeps x and y and drops z, so the folded model would come back as
+  // its own flat shadow with every crease in the wrong place.
+  //
+  // Pinned in both directions. Here: the export declares itself. In the kernel:
+  // `a_declared_folded_form_frame_is_refused_rather_than_flattened` refuses it
+  // by name, under the engine code `fold_folded_form`, which
+  // `toastMessages.humanizeError` has copy for.
+  it('declares foldedForm and carries the third coordinate that makes it one', () => {
+    const folded = foldedFoldDocument(sourceFold(), mesh());
+
+    expect(folded.frame_classes).toEqual(['foldedForm']);
+    expect(folded.vertices_coords?.some((vertex) => (vertex[2] ?? 0) !== 0)).toBe(true);
+  });
+
+  it('is ranked below every crease frame by the importer', () => {
+    const folded = foldedFoldDocument(sourceFold(), mesh());
+    const bundle = {
+      ...sourceFold(),
+      file_frames: [folded],
+    };
+
+    const result = parseImportedCreasePattern(JSON.stringify(bundle), {
+      format: 'fold',
+      filename: 'bundle.fold',
+      path: null,
+    });
+
+    expect(result.document.selectedFrame?.foldedForm).toBe(false);
   });
 });

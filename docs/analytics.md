@@ -74,6 +74,13 @@ directly**:
   `executeOristudioCpCommand` (`cp tool used`) for CP editor tools. Actions that
   flow through these do **not** get a second hand-placed event.
 
+**Folding is the documented exception**, and it is worth knowing why so nobody
+"deduplicates" it later: `G` reaches neither chokepoint. `handleCpShortcutAction`
+recognizes the fold chord and calls the store action directly, *before*
+`handleCpToolAction` runs, so there is no `cp tool used`; and the toolbar button
+calls the same store action, so there is no `command invoked` either. Every
+`fold *` event is hand-placed for that reason.
+
 ## Tracked events
 
 Every event also carries the super properties `app_version`, `app_commit`,
@@ -99,6 +106,16 @@ Every event also carries the super properties `app_version`, `app_commit`,
 | `design tab reordered` | `open_count_bucket` | A design tab is dragged or moved to a new position |
 | `design tab activated` | `open_count_bucket` | The user switches to another design tab |
 | `bp pattern not found` | `stretch_count_bucket`, `max_flap_count_bucket`, `configuration_reach` (`none`/`partial`/`all`) | A BP packing shows flap overlaps with no crease pattern. Stretch ids are flap ids joined with commas, so they are a local change key only and are never sent |
+| `fold attempted` | `mode` (`flat`/`spatial`), `crease_count_bucket`, `non_classic_count_bucket` | `G`, or the Fold button, on a non-empty foldable selection. `mode` is decided from the **scoped** selection, before any dialog |
+| `fold completed` | `mode`, `verdict` (`folded`/`no-solutions`/`contradiction`/`not-drawable`/`simulated`/`cancelled`/`error`/`local-crossing`/`transversal-crossing`/`no-layer-order`), `solution_count_bucket`, optional `refusal`, optional `order_reason` | Every terminal branch of a fold, so it pairs one-to-one with `fold attempted`. `refusal` is the kernel's `Fold3dRefusal` code (ten values) and rides on the `simulated`/`cancelled` arms, which is how a refusal keeps its reason without a verdict of its own; `order_reason` is the `Fold3dOrderReason` code (eight values) on `no-layer-order` |
+| `fold solution cycled` | `direction` (`next`/`wrap`), `solution_count_bucket` | The one solution verb on a folded figure |
+| `folded figure orbited` | none | A 3D folded figure was turned by dragging it. Fired once per drag, on release, and only when the camera actually moved — never per pointer move, and never with an angle: a yaw/pitch pair is a measured value about someone's design |
+| `folded figure zoomed` | none | A 3D folded figure's window was zoomed with the wheel. Fired once per burst, when the wheel goes quiet, on the same terms as the orbit — no zoom factor, for the same reason |
+| `folded figure rehydrated` | `trigger` (`background`/`press`), `outcome` (`adopted`/`refused`) | A 3D figure reopened from a file was refolded so it can be turned again. Fired only when a fold was actually attempted — never for a figure the rules skip — and it is the only signal there is that this worked, because the whole process is deliberately invisible. `refused` means the refold did not reproduce the picture on screen, so it was discarded |
+| `foldability checked` | `source` (`pre-fold`), `had_violations`, `violation_count_bucket` | The CAMV check a fold runs before folding |
+| `fold warning shown` | `source` (`pre-fold`) | That check found violations and the warning was raised |
+| `fold warning accepted` | `source`, `accepted`, `suppressed_future_warnings` | The user answered that warning |
+| `fold simulation run` | `source` (`fold-3d-refused`/`fold-3d-no-layer-order`), `crease_count_bucket` | The simulator was opened instead of a 3D fold — because the fold was refused, or because a placed figure's layers could not be ordered |
 | `cp detect started` | — | Image→CP detection begins |
 | `cp detect completed` | `succeeded` | Detection finishes |
 | `cp detect imported` | — | A detected CP is imported |
@@ -107,6 +124,19 @@ Every event also carries the super properties `app_version`, `app_commit`,
 | `share link opened` | `succeeded`, `source` | A shared link is opened |
 | `theme changed` | `theme` | The theme is changed |
 | `locale changed` | `locale` | The language is changed |
+
+**Nothing about a 3D fold's geometry is sent.** Not the closure residual, the
+loop gap, the plane separation, the crossing points, or any face, line, plane or
+component index — all of them are measurements of the user's own design, and
+several would identify a distinctive one outright. What leaves the app is the
+bounded refusal and order-reason codes, and counts already bucketed.
+
+**Nor is the viewpoint.** Yaw, pitch and zoom describe how somebody is looking at
+their own model, which is the same class of thing as its geometry: a continuous
+measurement, unbucketable without inventing a scale, and identifying in
+aggregate. That is why `folded figure orbited` and `folded figure zoomed` carry
+no properties at all. The useful question — *does anyone turn these figures?* —
+is answered by the event existing; where they turned it to is not ours.
 
 ## Maintenance rules
 

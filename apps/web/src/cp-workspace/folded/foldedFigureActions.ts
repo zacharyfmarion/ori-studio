@@ -4,7 +4,9 @@ import type {
   OristudioCpFoldedFigureEntry,
 } from '../../engine/oristudioCpTypes';
 import type { FoldedFigureExportFormat } from './foldedFigureExport';
-import { flipFoldedState } from './foldedFigureState';
+import { flipFoldedState, foldedFigureCycling } from './foldedFigureState';
+import { foldedFigureCapabilities, isFolded3dFigure } from './foldedFigureCapabilities';
+import { foldedFigureNotice, type FoldedFigureNotice } from './foldedFigureNotice';
 
 /**
  * The verbs a folded figure offers, in the order both surfaces present them.
@@ -19,27 +21,23 @@ import { flipFoldedState } from './foldedFigureState';
  * callbacks and returns plain data, which is what makes it directly testable.
  */
 
-/** Display styles offered as quick choices, matching the viewport dropdown. */
-export const FOLDED_FIGURE_STYLE_CHOICES: readonly OristudioCpFoldedFigureDisplayStyle[] = [
-  'Paper5',
-  'Wire2',
-  'Transparent3',
-];
-
 /** Icon names, resolved to components by each surface (this module stays JSX-free). */
 export type FoldedFigureActionIcon =
   | 'flip'
+  | 'reset-view'
   | 'style'
   | 'another'
   | 'first-solution'
   | 'refold'
   | 'export'
   | 'duplicate'
-  | 'delete';
+  | 'delete'
+  | 'notice-warn'
+  | 'notice-error';
 
 export interface FoldedFigureCommand {
   kind: 'command';
-  id: 'flip' | 'another' | 'refold' | 'duplicate' | 'delete';
+  id: 'flip' | 'reset-view' | 'another' | 'refold' | 'duplicate' | 'delete';
   label: string;
   icon: FoldedFigureActionIcon;
   disabled: boolean;
@@ -88,10 +86,29 @@ export interface FoldedFigureSeparator {
   id: string;
 }
 
+/**
+ * What a 3D fold concluded about the figure, when it concluded anything.
+ *
+ * Not a command: the notice itself is a *statement*, and `action` is the one
+ * thing the user can do about it. Leading the list because a figure that passes
+ * through itself is the first thing to know about it, and rendered as a chip on
+ * the toolbar and a disabled header in the menu — the two surfaces switch
+ * exhaustively on `kind`, so adding this forced both to answer for it.
+ */
+export interface FoldedFigureNoteAction {
+  kind: 'note';
+  id: 'notice';
+  notice: FoldedFigureNotice;
+  icon: FoldedFigureActionIcon;
+  /** The notice's own action, bound. Absent when there is nothing to offer. */
+  run: (() => void) | null;
+}
+
 export type FoldedFigureAction =
   | FoldedFigureCommand
   | FoldedFigureChoice
-  | FoldedFigureSeparator;
+  | FoldedFigureSeparator
+  | FoldedFigureNoteAction;
 
 /**
  * Store bindings the actions call. Every mutating call is expected to be wrapped
@@ -101,6 +118,8 @@ export type FoldedFigureAction =
 export interface FoldedFigureActionDeps {
   t: TFunction;
   flip: (figure: OristudioCpFoldedFigureEntry) => void;
+  /** Put a 3D figure's camera back where the fold left it. */
+  resetView: (figure: OristudioCpFoldedFigureEntry) => void;
   setDisplayStyle: (
     figure: OristudioCpFoldedFigureEntry,
     style: OristudioCpFoldedFigureDisplayStyle
@@ -121,11 +140,31 @@ export interface FoldedFigureActionDeps {
     figure: OristudioCpFoldedFigureEntry,
     format: FoldedFigureExportFormat
   ) => void;
+  /**
+   * Act on a 3D figure's verdict: reveal the CAMV issues, select the creases a
+   * crossing names, or simulate a figure whose layers could not be ordered.
+   * Omitted leaves the notice as a statement with no button — which is the right
+   * shape for a surface that only reads.
+   */
+  runNoticeAction?: (
+    figure: OristudioCpFoldedFigureEntry,
+    notice: FoldedFigureNotice
+  ) => void;
 }
 
-/** A figure whose kernel handle and snapshot are both live. */
+/**
+ * A figure whose kernel handle and snapshot are both live.
+ *
+ * A 3D figure carries `folded3d` where a flat one carries `snapshot`, and one
+ * of the two is always null — so this asks for either rather than for the flat
+ * one, which would report every 3D figure as not ready.
+ */
 export function isFoldedFigureReady(figure: OristudioCpFoldedFigureEntry): boolean {
-  return figure.status === 'ready' && figure.handle !== null && figure.snapshot !== null;
+  return (
+    figure.status === 'ready' &&
+    figure.handle !== null &&
+    (figure.snapshot !== null || (figure.folded3d ?? null) !== null)
+  );
 }
 
 /** A folded figure is geometry on a page, so it exports as an image only. */
@@ -182,22 +221,62 @@ export function buildFoldedFigureActions(
   const ready = isFoldedFigureReady(figure);
   const currentStyle = figure.displayStyle;
   const canRefold = deps.refold !== undefined && deps.isStale?.(figure) === true;
-  const hasNextSolution = figure.snapshot?.find_another_overlap_valid === true;
-  // The kernel wraps by restarting the enumeration, so wrapping only makes sense
-  // once more than one solution is known to exist.
-  const wrapsToFirst = !hasNextSolution && (figure.snapshot?.discovered_fold_cases ?? 0) > 1;
+  const { hasNext: hasNextSolution, wrapsToFirst } = foldedFigureCycling(figure);
+  const capabilities = foldedFigureCapabilities(figure);
+  const notice = foldedFigureNotice(t, figure);
 
-  const actions: FoldedFigureAction[] = [
-    {
+  const actions: FoldedFigureAction[] = [];
+
+  // The verdict leads: what is wrong with a figure outranks what can be done to
+  // it. Silent on a flat figure and on a 3D one that folded cleanly.
+  if (notice) {
+    const runNoticeAction = deps.runNoticeAction;
+    actions.push(
+      {
+        kind: 'note',
+        id: 'notice',
+        notice,
+        icon: notice.tone === 'error' ? 'notice-error' : 'notice-warn',
+        run:
+          notice.action && runNoticeAction ? () => runNoticeAction(figure, notice) : null,
+      },
+      { kind: 'separator', id: 'after-notice' }
+    );
+  }
+
+  // One verb, two mechanisms, and the label says which. A flat figure turns the
+  // paper over (Front <-> Back, the viewport toolbar's "Side" control — see
+  // flipFoldedState); a 3D figure moves the eye to the antipodal camera, because
+  // in three dimensions the other side of the paper is somewhere to stand.
+  if (capabilities.flip) {
+    actions.push({
       kind: 'command',
       id: 'flip',
-      label: t('panels:foldedFigureActions.flip', 'Flip'),
+      label: isFolded3dFigure(figure)
+        ? t('panels:foldedFigureActions.otherSide', 'Other side')
+        : t('panels:foldedFigureActions.flip', 'Flip'),
       icon: 'flip',
       disabled: !ready,
-      // Turn the paper over: Front <-> Back — the same two views the viewport
-      // toolbar's "Side" control offers (see flipFoldedState).
       run: () => deps.flip(figure),
-    },
+    });
+  }
+
+  // Only a 3D figure has a viewpoint to lose. Orbit can leave the model edge-on
+  // or facing away with nothing on screen to say how you got there, and
+  // "Other side" is a half-turn from wherever you are rather than a way back —
+  // so this is the one action that always recovers a legible view.
+  if (isFolded3dFigure(figure)) {
+    actions.push({
+      kind: 'command',
+      id: 'reset-view',
+      label: t('panels:foldedFigureActions.resetView', 'Reset view'),
+      icon: 'reset-view',
+      disabled: !ready,
+      run: () => deps.resetView(figure),
+    });
+  }
+
+  actions.push(
     {
       kind: 'choice',
       id: 'display-style',
@@ -205,7 +284,7 @@ export function buildFoldedFigureActions(
       icon: 'style',
       disabled: !ready,
       exclusive: true,
-      options: FOLDED_FIGURE_STYLE_CHOICES.map((value) => ({
+      options: capabilities.styleChoices.map((value) => ({
         id: `display-style-${value}`,
         label: foldedDisplayStyleChoiceLabel(t, value),
         checked: value === currentStyle,
@@ -226,8 +305,8 @@ export function buildFoldedFigureActions(
       // would land exactly where it started.
       disabled: !ready || (!hasNextSolution && !wrapsToFirst),
       run: () => deps.foldAnother(figure),
-    },
-  ];
+    }
+  );
 
   // Refold is present only when it applies: a figure that matches its source
   // creases has nothing to refold, and a disabled button would just be noise.

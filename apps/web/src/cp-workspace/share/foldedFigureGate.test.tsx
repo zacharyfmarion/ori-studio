@@ -42,7 +42,15 @@ function square(diagonalAngle: number): FoldDocument {
   } as FoldDocument;
 }
 
-/** 180 is a full fold; 45 leaves faces out of plane, which the solver cannot order. */
+/**
+ * 180 is a full fold; 45 leaves faces out of plane, which the *flat* solver cannot order.
+ *
+ * `PARTIAL` is exactly the document `G` now folds in 3D, so these cases are also the
+ * assertion that the gate did not quietly widen: the dialogs fold through the flat door on
+ * their own ephemeral handle, and handing it a non-flat pattern is what
+ * `isFlatFoldableFold` exists to prevent. What changed with the 3D fold is the *copy* —
+ * a pattern with a 3D figure on the canvas beside it does have a folded form.
+ */
 const FLAT = square(-180);
 const PARTIAL = square(-45);
 
@@ -99,7 +107,10 @@ describe('folded-figure gate on a pattern that cannot fold flat', () => {
 
     expect(toggleIn(document)?.hasAttribute('disabled')).toBe(true);
     // The reason has to be visible: a disabled control with no explanation is a dead end.
-    expect(document.body.textContent).toContain('not full folds');
+    // And it has to be a statement about the *preview*, not about the pattern: since `G`
+    // folds a non-flat pattern in 3D, "it has no folded form" is now simply untrue, and a
+    // user who is looking at one reads a contradiction.
+    expect(document.body.textContent).toContain('folds flat only');
   });
 
   it('export dialog gates the same way, through the same predicate', async () => {
@@ -121,6 +132,6 @@ describe('folded-figure gate on a pattern that cannot fold flat', () => {
     const foldedRow = toggles.find((row) => row.textContent?.includes('folded figure'));
     expect(foldedRow).toBeDefined();
     expect(foldedRow?.querySelector('input,button')?.hasAttribute('disabled')).toBe(true);
-    expect(foldedRow?.textContent).toContain('not full folds');
+    expect(foldedRow?.textContent).toContain('folds flat only');
   });
 });

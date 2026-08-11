@@ -241,16 +241,20 @@
     "flipFoldedModel": "Retourner le modèle plié",
     "fold": "Plier",
     "foldability": {
+      "closure": "Les plis ne se referment pas ici",
+      "closureResidual": "Les plis ne se referment pas ici : {{degrees}}° d’écart",
       "compose": "{{lead}} — {{tail}}",
       "edgeLineConfiguration": "Configuration des lignes de bord non valide",
       "edgeLineCount": "Trop ou pas assez de lignes de bord",
       "equalMountainValley": "autant de plis montagne que de plis vallée",
       "incorrectAngles": "Angles incorrects",
       "incorrectFoldTypes": "Types de plis incorrects",
+      "interiorBorder": "Bord avec du papier des deux côtés — la pliabilité n’est pas vérifiée le long de ce bord",
       "littleBigLittle": "Les angles ne peuvent pas s'imbriquer (petit-grand-petit)",
       "notEnoughMountain": "pas assez de plis montagne",
       "notEnoughValley": "pas assez de plis vallée",
       "oddFolds": "Nombre impair de plis",
+      "rigidVertex": "Ce sommet est rigide : tous les plis ici doivent rester plats",
       "selfIntersection": "Le papier se traverse lui-même ici",
       "shape": {
         "circle": "Angles incorrects (théorème de Kawasaki)",
@@ -266,9 +270,17 @@
       "line": "Couleur de ligne"
     },
     "foldedDisplayStyle": "Style d'affichage du modèle plié",
+    "foldedFigure": {
+      "windowAriaLabel": "Modèle plié, en trois dimensions",
+      "windowFailed": "Impossible de dessiner ce modèle"
+    },
     "foldedModelControls": "Commandes du modèle plié",
     "foldedModels": "Modèles pliés",
     "foldedModelSide": "Face du modèle plié",
+    "foldedModelStatus": {
+      "error": "Échec",
+      "loading": "Pliage…"
+    },
     "foldedState": {
       "back": "Verso",
       "front": "Recto"
@@ -319,8 +331,10 @@
     "none": "Aucun",
     "openingSharedLink": "Ouverture du patron de pliage partagé…",
     "optimizingScale": "Optimisation de l'échelle",
+    "orbitFoldedForm": "Tourner la figure pliée",
     "preparing": "Préparation de l'éditeur…",
     "refoldFoldedModelAction": "Replier le modèle",
+    "resetFoldedModelView": "Réinitialiser la vue du modèle plié",
     "resizeAnnotation": "Redimensionner l’annotation",
     "resizeFoldedForm": "Redimensionner la forme pliée",
     "resizeSimulationWindow": "Redimensionner la fenêtre de simulation",
@@ -347,10 +361,13 @@
     },
     "sendImageToBack": "Mettre l'image à l'arrière-plan",
     "shadow": "Ombre",
+    "shadowUnsupported3d": "Les ombres ne sont pas encore dessinées pour un modèle plié en 3D",
     "showFoldedModelShadow": "Afficher l'ombre du modèle plié",
     "side": "Face",
     "stale": "Obsolète",
-    "viewportControls": "Commandes d'affichage du patron de plis"
+    "viewFoldedModelOtherSide": "Voir de l’autre côté",
+    "viewportControls": "Commandes d'affichage du patron de plis",
+    "zoomFoldedForm": "Zoomer sur la forme pliée"
   },
   "design": {
     "attributionBoxPleating": "Adapté de <2>Mu-Tsun Tsai's Box Pleating Studio</2>",
@@ -523,6 +540,22 @@
     "viewTree": "Arbre",
     "viewTreeAndCp": "Arbre et patron de pliage"
   },
+  "fold3dVerdict": {
+    "localCrossing_one": "Le papier se traverse lui-même en un sommet.",
+    "localCrossing_many": "Le papier se traverse lui-même en {{count}} sommets.",
+    "localCrossing_other": "Le papier se traverse lui-même en {{count}} sommets.",
+    "localCrossingLabel": "Le papier se traverse",
+    "noLayerOrderContradictorySeeds": "Deux faces doivent chacune se placer au-dessus de l’autre : aucun empilement ne peut satisfaire les deux.",
+    "noLayerOrderGeneric": "Les couches de cette figure n’ont pas pu être ordonnées.",
+    "noLayerOrderLabel": "Couches non ordonnées",
+    "selectCreases": "Sélectionner les plis",
+    "showIssues": "Afficher les problèmes",
+    "simulateInstead": "Simuler à la place",
+    "transversalCrossing_one": "Un pli plié traverse une face de la figure.",
+    "transversalCrossing_many": "{{count}} plis pliés traversent des faces de la figure.",
+    "transversalCrossing_other": "{{count}} plis pliés traversent des faces de la figure.",
+    "transversalCrossingLabel": "Un pli traverse une face"
+  },
   "foldedFigureActions": {
     "anotherSolution": "Autre solution",
     "delete": "Supprimer",
@@ -534,7 +567,9 @@
     "firstSolution": "Revenir à la première solution",
     "flip": "Retourner",
     "label": "Actions du modèle plié",
+    "otherSide": "Autre côté",
     "refold": "Replier",
+    "resetView": "Réinitialiser la vue",
     "styleDev1": "Développement 1",
     "styleDev4": "Développement 4",
     "styleNone": "Aucun",

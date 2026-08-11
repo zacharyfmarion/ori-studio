@@ -135,6 +135,47 @@ export function humanizeError(error: unknown, t: TFunction): string {
         'errors:fold.contradiction',
         "This crease pattern isn't flat-foldable: some faces have no consistent stacking order."
       );
+    // The walk places faces by stepping across creases, so it can only ever
+    // reach one connected piece. Two designs on one canvas is the ordinary way
+    // to get here, and it is fixable by selecting one of them.
+    case 'fold_disconnected':
+      return t(
+        'errors:fold.disconnected',
+        "This selection falls into separate pieces that don't touch, so it can't be folded as one model. Select one piece and fold again."
+      );
+    // Both of these mean the *caller* routed a fold to the wrong door, not that
+    // anything is wrong with the crease pattern — `resolveFoldRoute` decides
+    // which folder a selection goes to, and both kernel guards are assertions
+    // it holds. Worded anyway, because unreachable-by-design is not the same as
+    // unreachable, and the alternative is raw Rust English in eight locales.
+    case 'fold_needs_3d':
+      return t(
+        'errors:fold.needs3d',
+        "Some of these creases fold to an angle other than a full mountain or valley, so they have no flat folded form. Try folding again — if it keeps happening, the app and the crease pattern have got out of step."
+      );
+    case 'fold_is_flat':
+      return t(
+        'errors:fold.isFlat',
+        'These creases are all full mountain and valley folds, so they fold flat rather than into a 3D shape.'
+      );
+    // A `foldedForm` frame the export declines to write, having measured how
+    // big it would be first. The cap sits about forty times above the widest
+    // frame any admitted corpus model produces, so nothing short of a pattern
+    // far outside anything measured reaches this — but a 20 MB frame is a file
+    // nothing can open, and refusing it beats writing it.
+    case 'folded_form_too_large':
+      return t(
+        'errors:fold.foldedFormTooLarge',
+        'This folded figure is too large to write into a FOLD file. Export the crease pattern on its own, or save the project as .osf, which keeps the figure.'
+      );
+    // A FOLD file we decline to open, rather than one we failed to read. The
+    // importer keeps x and y and drops the rest, so a folded model would arrive
+    // as its own flat shadow with every crease in the wrong place.
+    case 'fold_folded_form':
+      return t(
+        'errors:fold.foldedForm',
+        'This FOLD file holds a folded model rather than a crease pattern, so there are no creases to open. Open the crease pattern it was folded from instead.'
+      );
     default:
       return formatUnknownError(error);
   }

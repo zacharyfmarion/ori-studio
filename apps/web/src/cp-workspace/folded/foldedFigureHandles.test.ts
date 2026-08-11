@@ -82,11 +82,53 @@ describe('folded figure handle ownership', () => {
     expect(free).toHaveBeenCalledExactlyOnceWith(5);
   });
 
-  it('drops bookkeeping without freeing on reset', () => {
-    // Closing a document takes the whole wasm session with it; the caller frees.
+  it('frees on reset rather than trusting the document to take its handles with it', () => {
+    // This asserted the opposite until the belief behind it was checked:
+    // "closing a document takes the whole wasm session with it; the caller
+    // frees." `CpSession::free_document` nulls the document slot and nothing
+    // else — folded figures are a separate arena — so the handles stayed.
     retainFoldedFigureHandle(9);
-    resetFoldedFigureHandles();
+    void resetFoldedFigureHandles();
     expect(foldedFigureHandleRefCount(9)).toBe(0);
+    expect(free).toHaveBeenCalledExactlyOnceWith(9);
+  });
+});
+
+describe('resetFoldedFigureHandles', () => {
+  it('frees every handle it was tracking, not only the ones a caller can still see', async () => {
+    // The leak this replaced: reset dropped its bookkeeping without freeing, on
+    // the belief that closing a document took the kernel's handles with it.
+    // `CpSession::free_document` nulls the document slot only — folded figures
+    // live in their own arena — so a handle held by an undo entry rather than a
+    // live figure stayed allocated for the tab's lifetime.
+    retainFoldedFigureHandle(3);
+    retainFoldedFigureHandle(4);
+    retainFoldedFigureHandle(4);
+
+    await resetFoldedFigureHandles();
+
+    expect(free.mock.calls.map(([handle]) => handle).sort()).toEqual([3, 4]);
+    expect(foldedFigureHandleRefCount(3)).toBe(0);
+    expect(foldedFigureHandleRefCount(4)).toBe(0);
+  });
+
+  it('frees a multiply-retained handle exactly once', () => {
+    retainFoldedFigureHandle(9);
+    retainFoldedFigureHandle(9);
+    retainFoldedFigureHandle(9);
+
+    void resetFoldedFigureHandles();
+
+    expect(free).toHaveBeenCalledExactlyOnceWith(9);
+  });
+
+  it('leaves nothing to free after a release already took the last reference', () => {
+    retainFoldedFigureHandle(5);
+    releaseFoldedFigureHandle(5);
+    free.mockClear();
+
+    void resetFoldedFigureHandles();
+
     expect(free).not.toHaveBeenCalled();
   });
 });

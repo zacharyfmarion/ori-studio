@@ -166,10 +166,10 @@ import { requestConfirmation, requestCreasePatternExportOptions } from '../../co
 import {
   blockingExportLoss,
   collectExportLossWarnings,
-  describeExportLoss,
   exportFormatLabel,
   type ExportFormat,
 } from '../../../lib/supersetFeatures';
+import { describeExportLoss } from '../../../i18n/supersetFeatureLabels';
 import { useLayoutStore } from '../../layoutStore';
 import {
   emptyFoldArtifactResourceState,
@@ -224,6 +224,7 @@ import type {
   WorkspaceState,
 } from '../types';
 import { retainFoldedFigureHandles } from '../../../cp-workspace/folded/foldedFigureHandles';
+import { folded3dExportHandles } from '../../../cp-workspace/folded/foldedFigureInterchange';
 import type { FoldDocument } from '../../../engine/types';
 import type {
   OristudioCpCommandResult,
@@ -1601,6 +1602,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       richText: get().oristudioCpAnnotations.filter(isTextAnnotation),
       inlineSimulations: get().oristudioCpInlineSimulations,
       lineSegments: get().oristudioCpDocument?.document.crease_pattern.line_segments ?? [],
+      foldedFigures: get().oristudioCpFoldedFigures,
       bpSymmetry: selectOristudioBpSymmetry(get()),
     });
     if (warnings.length === 0) return true;
@@ -1617,12 +1619,16 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // for `fold` is safe -- it is not in the blocking list, so this cannot
       // recurse.
       return requestConfirmation({
-        title: `Can’t export to ${exportFormatLabel(format)}`,
-        message: `The ${exportFormatLabel(
-          format
-        )} format can’t store ${describeExportLoss(blocking)}, and re-importing would silently read every crease as a full fold. FOLD stores them, and .osf keeps everything.`,
-        confirmLabel: 'Export FOLD instead',
-        cancelLabel: 'Cancel',
+        title: i18n.t('dialogs:exportLoss.blockedTitle', 'Can’t export to {{format}}', {
+          format: exportFormatLabel(format),
+        }),
+        message: i18n.t(
+          'dialogs:exportLoss.blockedMessage',
+          'The {{format}} format can’t store {{features}}, and re-importing would silently read every crease as a full fold. FOLD stores them, and .osf keeps everything.',
+          { format: exportFormatLabel(format), features: describeExportLoss(i18n.t, blocking) }
+        ),
+        confirmLabel: i18n.t('dialogs:exportLoss.blockedConfirm', 'Export FOLD instead'),
+        cancelLabel: i18n.t('dialogs:common.cancel', 'Cancel'),
       }).then(async (useFold) => {
         if (useFold) await get().exportFold();
         // Either way the requested format is not written.
@@ -1631,14 +1637,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     }
 
     return requestConfirmation({
-      title: 'Some features can’t be exported',
-      message: `This project uses features the ${exportFormatLabel(
-        format
-      )} format can’t store. They’ll be omitted from the export: ${describeExportLoss(
-        warnings
-      )}.`,
-      confirmLabel: 'Export anyway',
-      cancelLabel: 'Cancel',
+      title: i18n.t('dialogs:exportLoss.title', 'Some features can’t be exported'),
+      message: i18n.t(
+        'dialogs:exportLoss.message',
+        'This project uses features the {{format}} format can’t store. They’ll be omitted from the export: {{features}}.',
+        { format: exportFormatLabel(format), features: describeExportLoss(i18n.t, warnings) }
+      ),
+      confirmLabel: i18n.t('dialogs:exportLoss.confirm', 'Export anyway'),
+      cancelLabel: i18n.t('dialogs:common.cancel', 'Cancel'),
     });
   };
 
@@ -2587,7 +2593,12 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const contents =
           get().oristudioCpDocument
             ? await exportOristudioCpDocumentAsFold(
-                flattenTextAnnotations(get().oristudioCpAnnotations)
+                flattenTextAnnotations(get().oristudioCpAnnotations),
+                // Every 3D figure that still holds a kernel session rides along
+                // as a `foldedForm` frame. One reopened from an `.osf` has no
+                // session to describe it, and `guardExportLoss` above has
+                // already said so.
+                folded3dExportHandles(get().oristudioCpFoldedFigures)
               )
             : get().importedCreasePattern
             ? JSON.stringify(get().importedCreasePattern?.fold, null, 2)

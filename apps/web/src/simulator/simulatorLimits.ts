@@ -28,3 +28,23 @@
  * Raised from 6 to 20 to find where that actually starts to hurt.
  */
 export const MAX_CONCURRENT_SIMULATIONS = 20;
+
+/**
+ * How many 3D folded-figure meshes stay resident in the worker.
+ *
+ * Read by the worker's mesh registry and by nothing else — deliberately, and it
+ * is the one thing that makes a second cap safe here. `MAX_CONCURRENT_SIMULATIONS`
+ * needs a cooperating UI guard because evicting a solver session destroys state
+ * the user made: the fold they scrubbed to. A mesh is derived entirely from a
+ * render model the main thread still holds, so evicting one costs a re-upload
+ * and loses nothing, and there is nothing for a second number to be held equal
+ * to.
+ *
+ * What scales with it is memory: three RGBA32F textures at the model's texture
+ * dimension, plus two programs and three buffers, per figure. A typical figure
+ * packs into a 64–128 texel square (under a megabyte all told); a dense one into
+ * 256 (a few megabytes). Set well above the number of figures a document
+ * realistically carries so eviction stays a safety valve rather than a working
+ * mechanism — a cap that keeps being hit is a cap that is too small.
+ */
+export const MAX_LIVE_FOLDED_MESHES = 64;

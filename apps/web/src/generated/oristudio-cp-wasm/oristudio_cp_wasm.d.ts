@@ -26,7 +26,11 @@ export function export_cp(handle: number): string;
 
 export function export_fold(handle: number): string;
 
-export function export_fold_file(handle: number): string;
+/**
+ * `folded_handles` names the 3D folded figures to write as `foldedForm`
+ * frames. Empty is the ordinary case and means "the pattern only".
+ */
+export function export_fold_file(handle: number, folded_handles: Uint32Array): string;
 
 export function export_orh(handle: number): string;
 
@@ -42,9 +46,23 @@ export function export_ori(handle: number): string;
  */
 export function export_share_link(handle: number): string;
 
+export function folded_figure_3d_duplicate(handle: number): any;
+
+export function folded_figure_3d_fold_another(handle: number): any;
+
 export function folded_figure_duplicate(handle: number): any;
 
 export function folded_figure_fold(document_handle: number, starting_face_id: number, order: any, model: any): any;
+
+/**
+ * Place, measure and order the selected creases in 3D.
+ *
+ * Returns `{ status: "placed", handle, snapshot, render }` or
+ * `{ status: "refused", refusal: { code, ... } }`. A refusal is a **result**,
+ * not a thrown error: it must not reach the store's catch path, and it carries
+ * structured data the `{ code, message }` error envelope cannot.
+ */
+export function folded_figure_fold_3d(document_handle: number, selected_line_ids: any, starting_face_id: number, model: any): any;
 
 export function folded_figure_fold_another(handle: number): any;
 
@@ -133,12 +151,15 @@ export interface InitOutput {
     readonly execute_cp_command: (a: number, b: any, c: any) => [number, number, number];
     readonly export_cp: (a: number) => [number, number, number, number];
     readonly export_fold: (a: number) => [number, number, number, number];
-    readonly export_fold_file: (a: number) => [number, number, number, number];
+    readonly export_fold_file: (a: number, b: number, c: number) => [number, number, number, number];
     readonly export_orh: (a: number) => [number, number, number, number];
     readonly export_ori: (a: number) => [number, number, number, number];
     readonly export_share_link: (a: number) => [number, number, number, number];
+    readonly folded_figure_3d_duplicate: (a: number) => [number, number, number];
+    readonly folded_figure_3d_fold_another: (a: number) => [number, number, number];
     readonly folded_figure_duplicate: (a: number) => [number, number, number];
     readonly folded_figure_fold: (a: number, b: number, c: any, d: any) => [number, number, number];
+    readonly folded_figure_fold_3d: (a: number, b: any, c: number, d: any) => [number, number, number];
     readonly folded_figure_fold_another: (a: number) => [number, number, number];
     readonly folded_figure_fold_selected: (a: number, b: any, c: number, d: any, e: any) => [number, number, number];
     readonly folded_figure_fold_to_case: (a: number, b: number, c: any) => [number, number, number];

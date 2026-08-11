@@ -138,3 +138,74 @@ The scan reports per-file import results and a total rather than asserting: a
 real corpus deliberately contains invalid documents (abstract graphs, edge-less
 frames), so a nonzero failure count is information rather than a regression. The
 committed fixtures are the gate.
+
+## Non-Flat Corpus Testing (3D fold angles)
+
+Crease patterns whose creases carry non-180° fold angles are what the computed
+3D folded state reads, and there is almost none of it in the wild — every
+`.fold` in the largest public collection carries only `0` and `±180`. The
+material that does exist is a mix of the repo owner's own Ori Studio designs and
+third-party patterns, so it lives outside git for the usual reason plus a
+licence one.
+
+The **committed** subset — the owner's own designs, nine files — is
+`tests/fixtures/fold-angle-3d/` (see its README for the rule on what may go
+there, and the recorded verdict of each). It always runs and it is the gate:
+
+```sh
+cargo test -p oristudio-cp --test verify_fold_fixtures
+```
+
+The **external** corpus adds breadth plus the one asset that cannot be committed
+at all — the Mooser's Train 0%/100% pair, the only ground-truth folded state
+within reach:
+
+```sh
+ORISTUDIO_NON_FLAT_CORPUS_DIR=/path/to/non-flat \
+  cargo test -p oristudio-cp --test non_flat_corpus -- --nocapture
+```
+
+It scans `.fold` files and reads `.osf` projects directly (from
+`workspace.documents[0].creasePattern.foldProjection`), recursively.
+
+### Skipping is loud here, deliberately
+
+`grep -rn ORIEDITA .github/workflows/` returns nothing, and roughly 62 Oriedita
+parity tests print "skipping … is not set" and **pass** in every CI run because
+of it. Green there means nothing was checked and nothing says so. This harness
+is built so that cannot happen:
+
+- The load-bearing assertions are on committed fixtures and need no environment.
+  Nothing behind the variable is the only coverage of anything.
+- Every skip prints a greppable `SKIPPED:` block naming the test, the variable
+  and what was not checked. `corpus_coverage_is_stated` always runs and prints
+  the whole roster.
+- `ORISTUDIO_NON_FLAT_CORPUS_REQUIRED=1` turns every skip into a failure, which
+  is the form CI or a release check can demand. A failing test's output is never
+  captured, so the message is visible without `--nocapture`.
+- A variable that points at a missing directory, or at one holding no `.fold` or
+  `.osf`, **fails** rather than skipping. "The variable is set" and "the
+  variable points at the corpus" are different claims and only the second buys
+  coverage.
+
+The scan itself reports rather than gates: much of the corpus is converted from
+Origami Simulator SVGs whose fold angles are relaxation targets rather than
+solved states, so closure failures there are a fact about the input. The
+landmark test is what proves the harness is reading the corpus at all.
+
+### Reproducing the 3D measurements
+
+The census, the placement loop gap and the parallel-plane separation spectrum —
+the three numbers the 3D-fold plan's decisions rest on — come out of one command:
+
+```sh
+cargo run -p oristudio-cp --release --example fold3d_census -- \
+    tests/fixtures/fold-angle-3d
+ORISTUDIO_NON_FLAT_CORPUS_DIR=/path/to/non-flat \
+  cargo run -p oristudio-cp --release --example fold3d_census -- --corpus
+```
+
+Add `--csv` for machine-readable rows, `--flatcheck` to compare the placement
+against the shipped flat folder on all-classic documents, `--sweep` for the
+census under a plane-tolerance sweep, and `--selftest` for the polygon-overlap
+primitive.

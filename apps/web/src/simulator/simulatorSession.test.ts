@@ -606,3 +606,66 @@ describe('foldScaledForSolver', () => {
       .toEqual({ vertices_coords: [] });
   });
 });
+
+describe('folded-figure meshes', () => {
+  // These run in jsdom, where there is no WebGL2 at all, so what they pin is the
+  // contract around the mesh registry rather than the drawing: that a figure
+  // which cannot be meshed is told so instead of throwing, and that a token the
+  // worker no longer knows answers null — which is the signal the window's
+  // runtime reloads on, and the only thing that makes evicting a mesh safe.
+  const payload = () => ({
+    positions: new Float32Array(4 * 4 * 4).buffer,
+    textureDim: 4,
+    vertexCount: 3,
+    faceIndices: new Uint32Array([0, 1, 2]).buffer,
+    edgeIndices: new Uint32Array([0, 1]).buffer,
+    edgeAssignments: new Uint8Array([1]).buffer,
+    center: [0, 0, 0] as [number, number, number],
+    radius: 1,
+    undeterminedIndexStart: 3,
+    undeterminedFaceAlpha: 0.45,
+  });
+
+  it('refuses rather than throws when there is nothing to draw on', () => {
+    // A figure that cannot be meshed still has to draw, and the caller already
+    // has that path: the snapshot it is showing now.
+    const session = createSimulatorSession();
+    expect(session.loadFolded3dMesh(payload())).toBeNull();
+  });
+
+  it('answers null for a mesh it does not have', async () => {
+    const session = createSimulatorSession();
+    expect(await session.setFolded3dMeshCamera(9999, { view: { yaw: 0, pitch: 0, zoom: 1 }, width: 64, height: 64 })).toBeNull();
+    expect(
+      await session.setFolded3dMeshRenderSettings(9999, {
+        frontColor: [1, 1, 0],
+        backColor: [1, 1, 1],
+        mountainColor: [1, 0, 0],
+        valleyColor: [0, 0, 1],
+        borderColor: [0, 0, 0],
+        lightDir: [0, 0, 1],
+        background: [0, 0, 0],
+        showFaces: true,
+        showEdges: true,
+        lighting: true,
+        creaseWidthPx: 3,
+        faceAlpha: 1,
+      } satisfies RenderSettings)
+    ).toBeNull();
+  });
+
+  it('releases a mesh it does not have without complaint', () => {
+    // Unmount ordering is not guaranteed after an eviction, so a release of
+    // something already gone is a normal arrival rather than a fault.
+    const session = createSimulatorSession();
+    expect(() => session.releaseFolded3dMesh(9999)).not.toThrow();
+  });
+
+  it('counts meshes apart from sessions in the perf readout', () => {
+    // One shared context draws both kinds, so `renders` deliberately counts
+    // both; residency does not, because a session is a solver and a mesh is
+    // three textures.
+    const session = createSimulatorSession();
+    expect(session.getPerfStats().liveMeshes).toBe(0);
+  });
+});

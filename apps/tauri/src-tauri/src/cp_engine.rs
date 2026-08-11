@@ -23,8 +23,8 @@ use oristudio_cp::folding::{
 use oristudio_cp::geometry::LineSegment;
 use oristudio_cp::geometry_transport::CompactGeometry;
 use oristudio_cp::session::{
-    CpSession, DocumentSummary, EngineError, FoldedFigureBatchResult, FoldedFigureResult,
-    OperationInfo,
+    CpSession, DocumentSummary, EngineError, Fold3dFoldResult, Fold3dStepResult,
+    FoldedFigureBatchResult, FoldedFigureResult, OperationInfo,
 };
 use oristudio_cp::{CommandPreview, CommandResult, CreasePatternCommandPayload, OperationId};
 use tauri::State;
@@ -268,12 +268,18 @@ pub async fn cp_export_fold(
     run(state, move |session| session.export_fold(handle)).await
 }
 
+/// `folded_handles` names the 3D folded figures to write as `foldedForm`
+/// frames. Empty is the ordinary case and means "the pattern only".
 #[tauri::command]
 pub async fn cp_export_fold_file(
     handle: u32,
+    folded_handles: Vec<u32>,
     state: State<'_, CpEngine>,
 ) -> Result<String, EngineError> {
-    run(state, move |session| session.export_fold_file(handle)).await
+    run(state, move |session| {
+        session.export_fold_file(handle, &folded_handles)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -444,6 +450,47 @@ pub async fn cp_folded_figure_fold_to_case(
 }
 
 #[tauri::command]
+pub async fn cp_folded_figure_fold_3d(
+    document_handle: u32,
+    selected_line_ids: Vec<usize>,
+    starting_face_id: i32,
+    model: Option<FoldedFigureModel>,
+    state: State<'_, CpEngine>,
+) -> Result<Fold3dFoldResult, EngineError> {
+    run(state, move |session| {
+        session.folded_figure_fold_3d(
+            document_handle,
+            &selected_line_ids,
+            starting_face_id,
+            model.unwrap_or_default(),
+        )
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn cp_folded_figure_3d_fold_another(
+    handle: u32,
+    state: State<'_, CpEngine>,
+) -> Result<Fold3dStepResult, EngineError> {
+    run(state, move |session| {
+        session.folded_figure_3d_fold_another(handle)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn cp_folded_figure_3d_duplicate(
+    handle: u32,
+    state: State<'_, CpEngine>,
+) -> Result<Fold3dFoldResult, EngineError> {
+    run(state, move |session| {
+        session.folded_figure_3d_duplicate(handle)
+    })
+    .await
+}
+
+#[tauri::command]
 pub async fn cp_free_folded_figure(
     handle: u32,
     state: State<'_, CpEngine>,
@@ -494,6 +541,9 @@ const NATIVE_CP_COMMAND_NAMES: &[&str] = &[
     "cp_folded_figure_duplicate",
     "cp_folded_figure_fold_another",
     "cp_folded_figure_fold_to_case",
+    "cp_folded_figure_fold_3d",
+    "cp_folded_figure_3d_fold_another",
+    "cp_folded_figure_3d_duplicate",
     "cp_free_folded_figure",
 ];
 

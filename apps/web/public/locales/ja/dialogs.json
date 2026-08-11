@@ -92,7 +92,7 @@
     "foldedCase": "折りケース",
     "foldedCasesFound_other": "これまでに {{count}} 件",
     "foldedFigureNeedsCp": "折るには編集可能な展開図を開いてください",
-    "foldedFigureNeedsFlat": "この展開図には完全に折らない折り線が含まれているため、平坦に折りたたんだ形がありません",
+    "foldedFigureNeedsFlat": "このエクスポートは平坦折りのみに対応しており、この展開図には完全に折らない折り線があります",
     "foldedFigureNeedsOnePattern": "折るパターンを1つ選択してください",
     "foldedFigureSection": "折り上がり図",
     "foldedFrontColor": "表",
@@ -117,6 +117,24 @@
     "title": "タイトル",
     "titlePlaceholder": "任意"
   },
+  "exportLoss": {
+    "blockedConfirm": "代わりに FOLD をエクスポート",
+    "blockedMessage": "{{format}} 形式は {{features}} を保存できず、読み込み直すとすべての折り線が完全な折りとして扱われます。FOLD なら保存でき、.osf はすべてを保持します。",
+    "blockedTitle": "{{format}} にエクスポートできません",
+    "confirm": "このままエクスポート",
+    "feature": {
+      "foldAngles": "平坦でない折り角度",
+      "foldedForm3d": "3D折り上がり図",
+      "foldedForm3dDetached": "折り直しが必要な3D折り上がり図",
+      "images": "画像",
+      "inlineSimulations": "シミュレーションウィンドウ",
+      "richText": "リッチテキストの書式",
+      "symmetry": "鏡映対称"
+    },
+    "featureCount": "{{feature}}（{{total}}）",
+    "message": "このプロジェクトには {{format}} 形式では保存できない要素が含まれています。エクスポート時に次の内容が省略されます: {{features}}。",
+    "title": "一部の機能はエクスポートできません"
+  },
   "fileDrop": {
     "choiceMessage": "{{name}} は展開図です。編集中の展開図に結合することも、単独で開くこともできます。",
     "choiceTitle": "{{name}} を開きますか、インポートしますか？",
@@ -126,9 +144,25 @@
     "openDescriptionDirty": "作業中の内容を置き換え、保存していない変更を破棄します。",
     "openLabel": "新しいファイルとして開く"
   },
+  "fold3dRefused": {
+    "facesUnresolved": "この展開図の面を特定できませんでした。頂点を作らずに交差している折り線や、頂点まで届いていない折り線が主な原因です。",
+    "flatFoldabilityGeneric": "この展開図のある頂点は折ることができません。",
+    "loopNotClosed": "面のループをたどって折ると元の位置に戻らないため、これらの角度をすべて同時に満たせません。",
+    "message": "{{reason}} {{trailer}}",
+    "noFaces": "これらの折り線は、折るべき紙の面を囲んでいません。",
+    "nonCreaseJoin": "2つの面が、折り線ではない辺で接しています。",
+    "simulate": "シミュレート",
+    "simulateTrailer": "シミュレーターならおおよその形に折れます。",
+    "title": "このパターンは3Dで折れません",
+    "toleranceWindowClosed": "2つの面が同じ平面に近すぎて区別できません。",
+    "vertexClosure": "ある頂点の折り線が閉じません。{{degrees}}° 足りません。",
+    "vertexUnassignedCrease": "ある頂点の折り線に折り方が割り当てられていないため、その頂点を折れません。",
+    "vertexUnsplitJunction": "頂点ではない点で折り線が交わっているため、その頂点を折れません。"
+  },
   "foldWarning": {
     "dontShowAgain": "今後表示しない",
     "message": "平坦折りのエラーが検出されました。折りを続行しますか？",
+    "spatialMessage": "折り方にエラーが見つかりました。折り畳みを続けますか？",
     "title": "警告"
   },
   "help": {
@@ -261,7 +295,7 @@
     "create": "リンクを作成",
     "creating": "リンクを作成中…",
     "foldedFigure": "折り上がり図を表示",
-    "foldedFigureNeedsFlat": "この展開図には完全に折らない折り線が含まれているため、平坦に折りたたんだ形がありません",
+    "foldedFigureNeedsFlat": "このプレビューは平坦折りのみに対応しており、この展開図には完全に折らない折り線があります",
     "folding": "折りたたみ中…",
     "frontColor": "表面の色",
     "linkPreview": "リンクプレビュー",
