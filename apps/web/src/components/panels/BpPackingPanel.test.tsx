@@ -1,5 +1,7 @@
 import { patchBoxPleatDesign, selectOristudioBpSymmetry, singleBoxPleatDesignTab } from '../../store/workspaceStore/designTabs';
 import { selectOristudioBpSelection } from '../../store/workspaceStore/designTabs';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -371,7 +373,11 @@ describe('BP packing pane — the sheet crops what hangs over its edge', () => {
       bpPackingLayers: { ...DEFAULT_BP_PACKING_VIEW_LAYERS, outsidePaper: true },
     });
     const root = renderPacking();
-    for (const selector of ['.bp-packing-flap', '.bp-packing-flap-clearance']) {
+    for (const selector of [
+      '.bp-packing-flap',
+      '.bp-packing-flap-clearance',
+      '.bp-packing-flap-shade',
+    ]) {
       expect(isCropped(root, selector), selector).toBe(false);
     }
   });
@@ -383,9 +389,15 @@ describe('BP packing pane — the sheet crops what hangs over its edge', () => {
     }
   });
 
-  it('crops the flap body and its clearance circle', () => {
+  it('crops the flap body, its clearance circle and its shade', () => {
     const root = renderPacking();
-    for (const selector of ['.bp-packing-flap', '.bp-packing-flap-clearance']) {
+    // The shade is in upstream's masked set (`Layer.shade`), and it is the wash a
+    // selected flap wears — left unclipped it would paint past the paper edge.
+    for (const selector of [
+      '.bp-packing-flap',
+      '.bp-packing-flap-clearance',
+      '.bp-packing-flap-shade',
+    ]) {
       expect(isCropped(root, selector), selector).toBe(true);
     }
   });
@@ -431,7 +443,7 @@ describe('BP packing pane — conflict fills sit behind the geometry', () => {
     expect(conflicts).toBeGreaterThanOrEqual(0);
     // SVG paints in document order, so "behind" means "earlier". Compare against
     // whichever geometry layers this fixture actually renders.
-    const geometry = ['bp-packing-flaps', 'bp-packing-flap-hits']
+    const geometry = ['bp-packing-flaps', 'bp-packing-flap-shades']
       .map((name) => order.findIndex((c) => c.includes(name)))
       .filter((index) => index >= 0);
     expect(geometry.length).toBeGreaterThan(0);
@@ -525,19 +537,19 @@ describe('BP packing pane — the whole flap is draggable', () => {
   it('covers the drawn flap footprint, not just its centre', () => {
     const host = renderPacking();
     const drawn = [...host.querySelectorAll('.bp-packing-flap')].map(rectOf);
-    const hits = [...host.querySelectorAll('.bp-packing-flap-hit')].map(rectOf);
+    const hits = [...host.querySelectorAll('.bp-packing-flap-shade')].map(rectOf);
     expect(drawn.length).toBeGreaterThan(0);
     expect(hits).toHaveLength(drawn.length);
 
     for (const flap of drawn) {
-      // Pair by centre: the hit target is concentric with the flap it grabs.
+      // Pair by centre: the shade is concentric with the flap it grabs.
       const hit = hits.find(
         (candidate) =>
           Math.abs(candidate.cx - flap.cx) < 0.01 && Math.abs(candidate.cy - flap.cy) < 0.01
       );
       expect(hit).toBeDefined();
-      // BP Studio's hit target is the flap's filled contour — the drawn shape
-      // grown by its radius — so the target must strictly contain the flap.
+      // BP Studio hits on the flap's filled contour — the drawn shape grown by
+      // its radius — so the shade must strictly contain the flap.
       expect(hit!.width).toBeGreaterThan(flap.width);
       expect(hit!.height).toBeGreaterThan(flap.height);
       expect(hit!.x).toBeLessThanOrEqual(flap.x);
@@ -549,9 +561,126 @@ describe('BP packing pane — the whole flap is draggable', () => {
 
   it('scales the target with the flap instead of using a fixed centre dot', () => {
     const host = renderPacking();
-    const hits = [...host.querySelectorAll('.bp-packing-flap-hit')].map(rectOf);
+    const hits = [...host.querySelectorAll('.bp-packing-flap-shade')].map(rectOf);
     // 16px is the floor for a degenerate flap; a real one must beat it.
     for (const hit of hits) expect(hit.width).toBeGreaterThan(16);
+  });
+});
+
+/**
+ * A flap and a river are the same object in Box Pleating Studio: each fills one
+ * `_shade` from its own contours, hits on it (`$setupHit(this._shade)`), and
+ * moves nothing but its alpha — `style.shade.alpha` (0.3) selected,
+ * `style.shade.hover` (0.15) hovered, 0 otherwise. So a flap wears the treatment
+ * the river band already had rather than a second scheme of its own.
+ */
+describe('BP packing pane — a flap is shaded like a river band', () => {
+  const originalCapture = Element.prototype.setPointerCapture;
+
+  beforeEach(() => {
+    // jsdom has no pointer capture, and grabbing a flap asks for it.
+    Element.prototype.setPointerCapture = () => undefined;
+  });
+
+  afterEach(() => {
+    Element.prototype.setPointerCapture = originalCapture;
+    useSettingsStore.setState({ bpPackingLayers: DEFAULT_BP_PACKING_VIEW_LAYERS });
+  });
+
+  const press = (element: Element | null) => {
+    act(() => {
+      element?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+    });
+  };
+
+  it('shades the flap when it is selected', () => {
+    const host = renderPacking();
+    const shade = host.querySelector('.bp-packing-flap-shade');
+    expect(shade?.getAttribute('class')).not.toContain('--selected');
+    press(shade);
+    expect(host.querySelector('.bp-packing-flap-shade')?.getAttribute('class')).toContain(
+      'bp-packing-flap-shade--selected'
+    );
+  });
+
+  it('shades it once, not twice', () => {
+    const host = renderPacking();
+    press(host.querySelector('.bp-packing-flap-shade'));
+    // The flap used to carry a selection-shade rect of its own as well. Both at
+    // 18% compound to about 33%, which is darker than any river ever gets.
+    expect(host.querySelector('.bp-packing-selection-shade')).toBeNull();
+    expect(host.querySelectorAll('.bp-packing-flap-shade--selected')).toHaveLength(1);
+  });
+
+  it('follows the selection-shade layer for the wash, and not for the outline', () => {
+    useSettingsStore.setState({
+      bpPackingLayers: { ...DEFAULT_BP_PACKING_VIEW_LAYERS, selectionShade: false },
+    });
+    const host = renderPacking();
+    press(host.querySelector('.bp-packing-flap-shade'));
+    // The layer turns off shading, the way it does for a river band...
+    expect(host.querySelector('.bp-packing-flap-shade')?.getAttribute('class')).not.toContain(
+      '--selected'
+    );
+    // ...but the selection must still be visible somewhere, so the outline
+    // recolours regardless — as a selected river's contour does.
+    expect(host.querySelector('.bp-packing-flap--selected')).not.toBeNull();
+  });
+});
+
+/**
+ * The hover and selected states are CSS on the shade, not React state: a hover
+ * held in the store would re-render the whole pane on every pointer move across
+ * the canvas. jsdom applies no stylesheet, so the rules are read from source —
+ * they are where this behaviour actually lives.
+ */
+describe('BP packing pane — the flap shade rules', () => {
+  // Vitest's root is `apps/web`.
+  const THEME_CSS = readFileSync(resolve(process.cwd(), 'src/styles/theme.css'), 'utf8');
+
+  const rule = (selector: string): string => {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+    const match = new RegExp(`${escaped}[^{}]*\\{([^}]*)\\}`, 'u').exec(THEME_CSS);
+    expect(match, selector).not.toBeNull();
+    return match![1];
+  };
+
+  it('washes the flap on hover and harder once selected', () => {
+    expect(rule('.bp-packing-flap-shade:hover')).toContain('var(--accent-primary) 9%');
+    expect(rule('.bp-packing-flap-shade--selected')).toContain('var(--accent-primary) 18%');
+  });
+
+  it('uses the same two alphas as a river band, so both read identically', () => {
+    expect(rule('.bp-packing-river-band-group:hover')).toContain('var(--accent-primary) 9%');
+    expect(rule('.bp-packing-river-band-group--selected')).toContain('var(--accent-primary) 18%');
+  });
+
+  it('leaves a selected flap its own outline weight and its paper fill', () => {
+    const selected = rule('.bp-packing-flap--selected .bp-packing-flap');
+    // Upstream never touches `style.hinge.width` for state. Thickening the
+    // outline from 2.2 to 3 and swapping the paper fill for an opaque accent one
+    // is what made a selected flap read as a different, larger object instead of
+    // the same flap, highlighted.
+    expect(selected).not.toMatch(/stroke-width/u);
+    expect(selected).not.toMatch(/fill\s*:/u);
+    // What it does instead is exactly what a selected river's contour does.
+    expect(selected).toContain('stroke: var(--accent-primary)');
+    expect(selected).toContain('drop-shadow');
+    expect(rule('.bp-packing-primitive--selected')).toContain('drop-shadow');
+  });
+
+  it('keeps the shade the click target it has always been', () => {
+    // Upstream hits on the shade itself, so the region that lights up is exactly
+    // the region that grabs — pointing at a flap can never promise a grab the
+    // pointer would miss.
+    const shade = rule('.bp-packing-flap-shade');
+    expect(shade).toContain('pointer-events: all');
+    expect(shade).toContain('cursor: pointer');
+    expect(shade).toContain('fill: transparent');
+  });
+
+  it('leaves no second shade class behind', () => {
+    expect(THEME_CSS).not.toContain('bp-packing-selection-shade');
   });
 });
 
@@ -635,7 +764,7 @@ describe('BP packing pane — a river is grabbed by its band', () => {
     const bands = host.querySelector('.bp-packing-river-bands');
     expect(canvas).not.toBeNull();
     expect(bands).not.toBeNull();
-    for (const selector of ['.bp-packing-primitive', '.bp-packing-flaps', '.bp-packing-flap-hits']) {
+    for (const selector of ['.bp-packing-primitive', '.bp-packing-flaps', '.bp-packing-flap-shades']) {
       const later = canvas?.querySelector(selector);
       expect(later, selector).not.toBeNull();
       // SVG paints in document order, so "under" means "earlier".
@@ -646,9 +775,9 @@ describe('BP packing pane — a river is grabbed by its band', () => {
 });
 
 describe('BP packing pane — nothing in the canvas takes focus', () => {
-  it('renders flap hit targets that are not focusable', () => {
+  it('renders flap shades that are not focusable', () => {
     const host = renderPacking();
-    const hits = host.querySelectorAll('.bp-packing-flap-hit');
+    const hits = host.querySelectorAll('.bp-packing-flap-shade');
     expect(hits.length).toBeGreaterThan(0);
     for (const hit of hits) {
       expect(hit.hasAttribute('tabindex')).toBe(false);

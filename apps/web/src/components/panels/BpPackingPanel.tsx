@@ -123,9 +123,9 @@ type BpPackingNudgeDirection = 'up' | 'down' | 'left' | 'right';
 // Pointer travel before an empty-space drag becomes a rubberband selection,
 // matching Box Pleating Studio's SelectionController MOUSE_THRESHOLD.
 const BP_PACKING_DRAG_SELECT_THRESHOLD_PX = 5;
-// Minimum flap click-target size, in SVG (viewBox) units, so a zero-size point
-// flap still has a comfortable center hit region (comparable to a crease's hit
-// stroke width).
+// Minimum flap shade size, in SVG (viewBox) units, so a zero-size point flap
+// still has a comfortable center region to point at and grab (comparable to a
+// crease's hit stroke width).
 const BP_PACKING_FLAP_HIT_MIN_PX = 16;
 // A repeat click within this many screen pixels of the previous one counts as
 // the "same spot" and advances the stacked-object selection cycle.
@@ -1529,7 +1529,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
               // (Box Pleating Studio draws its `Layer.junction` above them; on
               // our canvas the fill obscured the creases, so this deviates
               // deliberately.) Clipped to the sheet and non-interactive — the
-              // hit targets are a separate group below the flap hits.
+              // hit targets are a separate group below the flap shades.
               <g className="bp-packing-conflicts" clipPath={sheetClipPath} aria-hidden="true">
                 <g clipPath={`url(#${flapsClipId})`}>
                   {conflictVisuals.map((visual) => (
@@ -1556,7 +1556,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
             )}
             {layers.conflicts && (
               // Hit targets only — the conflict graphics render above the flaps (see
-              // below), but the click targets stay under the flap hits so a flap
+              // below), but the click targets stay under the flap shades so a flap
               // stays selectable where a conflict region overlaps it.
               // Not focusable, like every other target in this canvas: the
               // browser's focus ring would sit over the geometry being grabbed.
@@ -1673,16 +1673,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                           height={rect.height}
                           rx={Math.min(6, Math.max(1, unit * 0.08))}
                         />
-                        {layers.selectionShade && active && (
-                          <rect
-                            className="bp-packing-selection-shade"
-                            x={rect.x}
-                            y={rect.y}
-                            width={rect.width}
-                            height={rect.height}
-                            rx={Math.min(6, Math.max(1, unit * 0.08))}
-                          />
-                        )}
                       </g>
                       {layers.dots && <circle className="bp-packing-flap-dot" cx={center.x} cy={center.y} r={4} />}
                       {layers.labels && (
@@ -1696,12 +1686,20 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
               </g>
             )}
             {layers.flaps && (
-              // Flap click targets, above the flap graphics/creases so a flap is
-              // selectable at its center (smaller flaps last, so an inner flap wins
-              // over an enclosing one). Rendered BELOW the device gadgets that
-              // follow: a stretch gadget sits in the river between flaps, never on
-              // a flap tip, so the gadget interior should win there.
-              <g className="bp-packing-flap-hits">
+              // A flap's shade, which is also its click target — Box Pleating
+              // Studio hits on the shade itself (`$setupHit(this._shade)`), the
+              // way a river is grabbed by its band. Above the flap
+              // graphics/creases so a flap is selectable at its center (smaller
+              // flaps last, so an inner flap wins over an enclosing one).
+              // Rendered BELOW the device gadgets that follow: a stretch gadget
+              // sits in the river between flaps, never on a flap tip, so the
+              // gadget interior should win there.
+              //
+              // Clipped like every other geometry layer: upstream masks
+              // `Layer.shade` to the sheet, and the wash this replaced was
+              // clipped too, so leaving it open would start painting past the
+              // paper edge.
+              <g className="bp-packing-flap-shades" clipPath={sheetClipPath}>
                 {[...displayPacking.flaps]
                   .sort((a, b) => b.radius - a.radius)
                   .map((flap) => {
@@ -1712,18 +1710,26 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                     );
                     const center = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
                     // Parity with BP Studio: the whole flap drags, not just its
-                    // centre. Its hit target is the filled hinge contour, which
-                    // for a box-pleat flap is the same footprint the clearance
-                    // circle draws — so take it from that one definition rather
-                    // than deriving a second. Sizing from the anchor rect alone
-                    // left only a dot to grab, since a unit flap's rect is empty.
+                    // centre. Its shade is the filled hinge contour, which for a
+                    // box-pleat flap is the same footprint the clearance circle
+                    // draws — so take it from that one definition rather than
+                    // deriving a second. Sizing from the anchor rect alone left
+                    // only a dot to grab, since a unit flap's rect is empty.
                     const footprint = bpPackingFlapClearanceRect(flap, packing.sheet, paperRect);
                     const hitWidth = Math.max(footprint.width, BP_PACKING_FLAP_HIT_MIN_PX);
                     const hitHeight = Math.max(footprint.height, BP_PACKING_FLAP_HIT_MIN_PX);
                     return (
                       <rect
                         key={flap.id}
-                        className="bp-packing-flap-hit"
+                        className={
+                          // The selected wash follows the selection-shade layer,
+                          // as a river band's does; hover is unconditional,
+                          // because it is feedback about the pointer rather than
+                          // a layer of the drawing.
+                          layers.selectionShade && linkedSelection.flaps.has(flap.id)
+                            ? 'bp-packing-flap-shade bp-packing-flap-shade--selected'
+                            : 'bp-packing-flap-shade'
+                        }
                         x={center.x - hitWidth / 2}
                         y={center.y - hitHeight / 2}
                         width={hitWidth}
@@ -1937,7 +1943,7 @@ function Primitive({
     active ? 'bp-packing-primitive--selected' : '',
   ].join(' ');
   const ariaLabel = primitiveAriaLabel(primitive, document, t);
-  // Labelled but not focusable — see the flap hit rects. A focus ring here
+  // Labelled but not focusable — see the flap shade rects. A focus ring here
   // would sit over the very geometry the user is trying to grab.
   const labelProps = ariaLabel
     ? {
