@@ -12,14 +12,34 @@
 
 use std::collections::VecDeque;
 
+/// Which subclass of `ItalianoAlgorithm` a closure behaves as when a new
+/// reachability is created.
+///
+/// Upstream these are sibling subclasses over the same base, and no instance is
+/// ever both: `AdditionalEstimationAlgorithm` uses `ReactiveItalianoAlgorithm`,
+/// while `CombinationGenerator` uses `ReductionItalianoAlgorithm` (which extends
+/// `TraceableItalianoAlgorithm`). Modelling that as a mode keeps the base `meld`
+/// single-copy, and keeps the reactive change-list from growing during the
+/// combination search, which never drains it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ClosureMode {
+    /// `ReactiveItalianoAlgorithm`: append each new reachability to a change list.
+    Reactive,
+    /// `TraceableItalianoAlgorithm`: record the depth each reachability was made at.
+    Traceable,
+}
+
 /// Incremental transitive closure over `1..=size` nodes (1-based, matching the
 /// Java source). `reaches(i, j)` is true once `i > j` has been established, and
 /// [`ItalianoClosure::add`] maintains the closure as edges are inserted.
 ///
-/// Port of `ItalianoAlgorithm` + `RestorableItalianoAlgorithm` +
-/// `ReactiveItalianoAlgorithm`. The reactive change-list is folded in directly:
-/// [`ItalianoClosure::add`] appends every newly created reachability entry to an
-/// internal buffer drained by [`ItalianoClosure::drain_changes`].
+/// Port of `ItalianoAlgorithm` + `RestorableItalianoAlgorithm` + its two leaf
+/// subclasses, selected by [`ClosureMode`]: `ReactiveItalianoAlgorithm` (the
+/// change-list drained by [`ItalianoClosure::drain_changes`]) and
+/// `TraceableItalianoAlgorithm` + `ReductionItalianoAlgorithm` (the depth history
+/// behind [`ItalianoClosure::depth_of`] and the transitive reduction from
+/// [`ItalianoClosure::reduction`]).
+#[derive(Clone)]
 pub struct ItalianoClosure {
     size: usize,
     stride: usize,
@@ -35,10 +55,28 @@ pub struct ItalianoClosure {
     // currently exercised only by unit tests.
     #[allow(dead_code)]
     backup: Vec<u32>,
+    mode: ClosureMode,
     /// Newly created reachability entries, each encoded `(x << 16) | v` meaning
     /// node `x` now reaches node `v`. Mirrors `ReactiveItalianoAlgorithm`.
     changes: Vec<u32>,
+    /// `TraceableItalianoAlgorithm.history`: `(x << 16) | v` -> the depth that was
+    /// current when `x > v` was created.
+    history: HashMap<u32, usize>,
+    /// `TraceableItalianoAlgorithm.depth`.
+    depth: usize,
     stack: VecDeque<u64>,
+}
+
+impl std::fmt::Debug for ItalianoClosure {
+    /// Elides the `size^2` matrix, which is noise in any enclosing search
+    /// struct's `{:?}`.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ItalianoClosure")
+            .field("size", &self.size)
+            .field("mode", &self.mode)
+            .field("depth", &self.depth)
+            .finish_non_exhaustive()
+    }
 }
 
 const MASK: u32 = (1 << 16) - 1;
@@ -54,6 +92,16 @@ pub const CHANGE_MASK: u32 = MASK;
 #[allow(dead_code)]
 impl ItalianoClosure {
     pub fn new(size: usize) -> Self {
+        Self::with_mode(size, ClosureMode::Reactive)
+    }
+
+    /// A `ReductionItalianoAlgorithm`: records change depths instead of a change
+    /// list, and can report its transitive reduction.
+    pub fn new_reduction(size: usize) -> Self {
+        Self::with_mode(size, ClosureMode::Traceable)
+    }
+
+    fn with_mode(size: usize, mode: ClosureMode) -> Self {
         let stride = size + 1;
         let mut matrix = vec![0u32; stride * stride];
         for i in 1..=size {
@@ -64,7 +112,10 @@ impl ItalianoClosure {
             stride,
             matrix,
             backup: Vec::new(),
+            mode,
             changes: Vec::new(),
+            history: HashMap::new(),
+            depth: 0,
             stack: VecDeque::new(),
         }
     }
@@ -114,11 +165,18 @@ impl ItalianoClosure {
         }
     }
 
-    /// Port of `ReactiveItalianoAlgorithm.meld` (records the change) composed
-    /// with the base `ItalianoAlgorithm.meld`.
+    /// Port of the base `ItalianoAlgorithm.meld`, composed with whichever
+    /// subclass override [`Self::mode`] selects.
     fn meld(&mut self, x: usize, j: usize, u: usize, v: usize) {
-        // Reactive: record that x now reaches v.
-        self.changes.push(((x as u32) << 16) | v as u32);
+        let entry = ((x as u32) << 16) | v as u32;
+        match self.mode {
+            // Reactive: record that x now reaches v.
+            ClosureMode::Reactive => self.changes.push(entry),
+            // Traceable: record the depth at which x came to reach v.
+            ClosureMode::Traceable => {
+                self.history.insert(entry, self.depth);
+            }
+        }
 
         // create new node: v as a child slot under x, sibling = u's old first child
         let x_u = self.cell(x, u);
@@ -168,10 +226,95 @@ impl ItalianoClosure {
         self.backup.extend_from_slice(&self.matrix);
     }
 
-    /// Port of `RestorableItalianoAlgorithm.restore`.
+    /// Port of `RestorableItalianoAlgorithm.restore`, plus
+    /// `TraceableItalianoAlgorithm.restore`'s history reset.
     pub fn restore(&mut self) {
+        if self.mode == ClosureMode::Traceable {
+            self.history.clear();
+            self.depth = 0;
+        }
         if self.backup.len() == self.matrix.len() {
             self.matrix.copy_from_slice(&self.backup);
+        }
+    }
+
+    /// Port of `TraceableItalianoAlgorithm.setDepth`.
+    pub fn set_depth(&mut self, depth: usize) {
+        self.depth = depth;
+    }
+
+    /// Port of `TraceableItalianoAlgorithm.getDepth`: the depth at which `a > b`
+    /// was created since the last [`Self::restore`], or 0 if it was not.
+    pub fn depth_of(&self, a: usize, b: usize) -> usize {
+        self.history
+            .get(&(((a as u32) << 16) | b as u32))
+            .copied()
+            .unwrap_or(0)
+    }
+
+    /// Port of `TraceableItalianoAlgorithm.get`. `None` is upstream's
+    /// `UNKNOWN_N50`.
+    pub fn order_of(&self, i: usize, j: usize) -> Option<FaceOrder> {
+        if self.cell(i, j) != 0 {
+            Some(FaceOrder::Above)
+        } else if self.cell(j, i) != 0 {
+            Some(FaceOrder::Below)
+        } else {
+            None
+        }
+    }
+
+    /// Port of `ReductionItalianoAlgorithm.getReduction`: every edge of the
+    /// transitive reduction, as `(upper << 16) | lower`.
+    ///
+    /// Italiano's per-source spanning trees already come close to the reduction;
+    /// collecting each node's tree parents across all of them and then dropping
+    /// any parent that reaches another parent yields the reduction exactly.
+    pub fn reduction(&self) -> Vec<u32> {
+        // parents[child] = the set of tree parents of `child` over all spanning
+        // trees. `BTreeSet` for a deterministic result order (upstream's
+        // `HashSet` order is unobservable — see `CombinationGenerator`).
+        let mut parents: Vec<BTreeSet<usize>> = vec![BTreeSet::new(); self.size + 1];
+        for source in 1..=self.size {
+            self.collect_tree_parents(source, &mut parents);
+        }
+
+        let mut results = Vec::new();
+        // Node 0 is unused, hence the skip.
+        for (child, tree_parents) in parents.iter_mut().enumerate().skip(1) {
+            // A snapshot, so removals below cannot change what the later
+            // candidates are compared against.
+            let candidates = tree_parents.iter().copied().collect::<Vec<_>>();
+            for (index, &parent) in candidates.iter().enumerate() {
+                let redundant = candidates
+                    .iter()
+                    .enumerate()
+                    .any(|(other, &via)| other != index && self.cell(parent, via) != 0);
+                if redundant {
+                    tree_parents.remove(&parent);
+                }
+            }
+            for &parent in tree_parents.iter() {
+                results.push(((parent as u32) << 16) | child as u32);
+            }
+        }
+        results
+    }
+
+    /// Port of `ReductionItalianoAlgorithm.DFS`, walking `source`'s spanning tree
+    /// with an explicit stack so a deeply stacked subface cannot overflow.
+    fn collect_tree_parents(&self, source: usize, parents: &mut [BTreeSet<usize>]) {
+        let mut stack = vec![source];
+        while let Some(cursor) = stack.pop() {
+            let mut child = (self.cell(source, cursor) >> 17) as usize;
+            while child != 0 {
+                let Some(child_parents) = parents.get_mut(child) else {
+                    break;
+                };
+                child_parents.insert(cursor);
+                stack.push(child);
+                child = (self.cell(source, child) & MASK) as usize;
+            }
         }
     }
 }
