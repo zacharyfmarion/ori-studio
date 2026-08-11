@@ -122,6 +122,22 @@
     "title": "Titel",
     "titlePlaceholder": "Optional"
   },
+  "exportLoss": {
+    "blockedConfirm": "Stattdessen FOLD exportieren",
+    "blockedMessage": "Das Format {{format}} kann {{features}} nicht speichern, und beim erneuten Import würde jede Falte unbemerkt als volle Faltung gelesen. FOLD speichert sie, und .osf behält alles.",
+    "blockedTitle": "Export nach {{format}} nicht möglich",
+    "confirm": "Trotzdem exportieren",
+    "feature": {
+      "foldAngles": "Nicht flache Faltwinkel",
+      "images": "Bilder",
+      "inlineSimulations": "Simulationsfenster",
+      "richText": "Rich-Text-Formatierung",
+      "symmetry": "Spiegelsymmetrie"
+    },
+    "featureCount": "{{feature}} ({{total}})",
+    "message": "Dieses Projekt verwendet Funktionen, die das Format {{format}} nicht speichern kann. Beim Export werden sie weggelassen: {{features}}.",
+    "title": "Einige Funktionen können nicht exportiert werden"
+  },
   "fileDrop": {
     "choiceMessage": "{{name}} ist ein Faltmuster und kann daher in das gerade bearbeitete Muster eingefügt oder eigenständig geöffnet werden.",
     "choiceTitle": "{{name}} öffnen oder importieren?",

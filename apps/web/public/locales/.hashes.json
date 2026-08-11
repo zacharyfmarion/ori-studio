@@ -2247,7 +2247,19 @@
     "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
     "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664",
     "dialogs:help.acknowledgements.explori.detail": "a43b4a1cf856",
-    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5"
+    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5",
+    "dialogs:exportLoss.blockedConfirm": "17e176493007",
+    "dialogs:exportLoss.blockedMessage": "1a7325a57676",
+    "dialogs:exportLoss.blockedTitle": "4e991781dc76",
+    "dialogs:exportLoss.confirm": "9f33a05694a8",
+    "dialogs:exportLoss.feature.foldAngles": "fa64c50a199a",
+    "dialogs:exportLoss.feature.images": "be7e2f201293",
+    "dialogs:exportLoss.feature.inlineSimulations": "2514b97d211e",
+    "dialogs:exportLoss.feature.richText": "f361758e4cc4",
+    "dialogs:exportLoss.feature.symmetry": "b907dcc0530d",
+    "dialogs:exportLoss.featureCount": "a206177ffc48",
+    "dialogs:exportLoss.message": "4aab4c37c6b8",
+    "dialogs:exportLoss.title": "b67abf17db99"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4497,7 +4509,19 @@
     "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
     "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664",
     "dialogs:help.acknowledgements.explori.detail": "a43b4a1cf856",
-    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5"
+    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5",
+    "dialogs:exportLoss.blockedConfirm": "17e176493007",
+    "dialogs:exportLoss.blockedMessage": "1a7325a57676",
+    "dialogs:exportLoss.blockedTitle": "4e991781dc76",
+    "dialogs:exportLoss.confirm": "9f33a05694a8",
+    "dialogs:exportLoss.feature.foldAngles": "fa64c50a199a",
+    "dialogs:exportLoss.feature.images": "be7e2f201293",
+    "dialogs:exportLoss.feature.inlineSimulations": "2514b97d211e",
+    "dialogs:exportLoss.feature.richText": "f361758e4cc4",
+    "dialogs:exportLoss.feature.symmetry": "b907dcc0530d",
+    "dialogs:exportLoss.featureCount": "a206177ffc48",
+    "dialogs:exportLoss.message": "4aab4c37c6b8",
+    "dialogs:exportLoss.title": "b67abf17db99"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -6747,7 +6771,19 @@
     "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
     "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664",
     "dialogs:help.acknowledgements.explori.detail": "a43b4a1cf856",
-    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5"
+    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5",
+    "dialogs:exportLoss.blockedConfirm": "17e176493007",
+    "dialogs:exportLoss.blockedMessage": "1a7325a57676",
+    "dialogs:exportLoss.blockedTitle": "4e991781dc76",
+    "dialogs:exportLoss.confirm": "9f33a05694a8",
+    "dialogs:exportLoss.feature.foldAngles": "fa64c50a199a",
+    "dialogs:exportLoss.feature.images": "be7e2f201293",
+    "dialogs:exportLoss.feature.inlineSimulations": "2514b97d211e",
+    "dialogs:exportLoss.feature.richText": "f361758e4cc4",
+    "dialogs:exportLoss.feature.symmetry": "b907dcc0530d",
+    "dialogs:exportLoss.featureCount": "a206177ffc48",
+    "dialogs:exportLoss.message": "4aab4c37c6b8",
+    "dialogs:exportLoss.title": "b67abf17db99"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -8967,7 +9003,19 @@
     "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
     "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664",
     "dialogs:help.acknowledgements.explori.detail": "a43b4a1cf856",
-    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5"
+    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5",
+    "dialogs:exportLoss.blockedConfirm": "17e176493007",
+    "dialogs:exportLoss.blockedMessage": "1a7325a57676",
+    "dialogs:exportLoss.blockedTitle": "4e991781dc76",
+    "dialogs:exportLoss.confirm": "9f33a05694a8",
+    "dialogs:exportLoss.feature.foldAngles": "fa64c50a199a",
+    "dialogs:exportLoss.feature.images": "be7e2f201293",
+    "dialogs:exportLoss.feature.inlineSimulations": "2514b97d211e",
+    "dialogs:exportLoss.feature.richText": "f361758e4cc4",
+    "dialogs:exportLoss.feature.symmetry": "b907dcc0530d",
+    "dialogs:exportLoss.featureCount": "a206177ffc48",
+    "dialogs:exportLoss.message": "4aab4c37c6b8",
+    "dialogs:exportLoss.title": "b67abf17db99"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -11187,7 +11235,19 @@
     "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
     "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664",
     "dialogs:help.acknowledgements.explori.detail": "a43b4a1cf856",
-    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5"
+    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5",
+    "dialogs:exportLoss.blockedConfirm": "17e176493007",
+    "dialogs:exportLoss.blockedMessage": "1a7325a57676",
+    "dialogs:exportLoss.blockedTitle": "4e991781dc76",
+    "dialogs:exportLoss.confirm": "9f33a05694a8",
+    "dialogs:exportLoss.feature.foldAngles": "fa64c50a199a",
+    "dialogs:exportLoss.feature.images": "be7e2f201293",
+    "dialogs:exportLoss.feature.inlineSimulations": "2514b97d211e",
+    "dialogs:exportLoss.feature.richText": "f361758e4cc4",
+    "dialogs:exportLoss.feature.symmetry": "b907dcc0530d",
+    "dialogs:exportLoss.featureCount": "a206177ffc48",
+    "dialogs:exportLoss.message": "4aab4c37c6b8",
+    "dialogs:exportLoss.title": "b67abf17db99"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -13437,7 +13497,19 @@
     "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
     "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664",
     "dialogs:help.acknowledgements.explori.detail": "a43b4a1cf856",
-    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5"
+    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5",
+    "dialogs:exportLoss.blockedConfirm": "17e176493007",
+    "dialogs:exportLoss.blockedMessage": "1a7325a57676",
+    "dialogs:exportLoss.blockedTitle": "4e991781dc76",
+    "dialogs:exportLoss.confirm": "9f33a05694a8",
+    "dialogs:exportLoss.feature.foldAngles": "fa64c50a199a",
+    "dialogs:exportLoss.feature.images": "be7e2f201293",
+    "dialogs:exportLoss.feature.inlineSimulations": "2514b97d211e",
+    "dialogs:exportLoss.feature.richText": "f361758e4cc4",
+    "dialogs:exportLoss.feature.symmetry": "b907dcc0530d",
+    "dialogs:exportLoss.featureCount": "a206177ffc48",
+    "dialogs:exportLoss.message": "4aab4c37c6b8",
+    "dialogs:exportLoss.title": "b67abf17db99"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -15687,7 +15759,19 @@
     "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
     "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664",
     "dialogs:help.acknowledgements.explori.detail": "a43b4a1cf856",
-    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5"
+    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5",
+    "dialogs:exportLoss.blockedConfirm": "17e176493007",
+    "dialogs:exportLoss.blockedMessage": "1a7325a57676",
+    "dialogs:exportLoss.blockedTitle": "4e991781dc76",
+    "dialogs:exportLoss.confirm": "9f33a05694a8",
+    "dialogs:exportLoss.feature.foldAngles": "fa64c50a199a",
+    "dialogs:exportLoss.feature.images": "be7e2f201293",
+    "dialogs:exportLoss.feature.inlineSimulations": "2514b97d211e",
+    "dialogs:exportLoss.feature.richText": "f361758e4cc4",
+    "dialogs:exportLoss.feature.symmetry": "b907dcc0530d",
+    "dialogs:exportLoss.featureCount": "a206177ffc48",
+    "dialogs:exportLoss.message": "4aab4c37c6b8",
+    "dialogs:exportLoss.title": "b67abf17db99"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -17907,6 +17991,18 @@
     "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
     "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664",
     "dialogs:help.acknowledgements.explori.detail": "a43b4a1cf856",
-    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5"
+    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5",
+    "dialogs:exportLoss.blockedConfirm": "17e176493007",
+    "dialogs:exportLoss.blockedMessage": "1a7325a57676",
+    "dialogs:exportLoss.blockedTitle": "4e991781dc76",
+    "dialogs:exportLoss.confirm": "9f33a05694a8",
+    "dialogs:exportLoss.feature.foldAngles": "fa64c50a199a",
+    "dialogs:exportLoss.feature.images": "be7e2f201293",
+    "dialogs:exportLoss.feature.inlineSimulations": "2514b97d211e",
+    "dialogs:exportLoss.feature.richText": "f361758e4cc4",
+    "dialogs:exportLoss.feature.symmetry": "b907dcc0530d",
+    "dialogs:exportLoss.featureCount": "a206177ffc48",
+    "dialogs:exportLoss.message": "4aab4c37c6b8",
+    "dialogs:exportLoss.title": "b67abf17db99"
   }
 }

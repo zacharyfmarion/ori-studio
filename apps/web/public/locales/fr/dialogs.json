@@ -127,6 +127,22 @@
     "title": "Titre",
     "titlePlaceholder": "Facultatif"
   },
+  "exportLoss": {
+    "blockedConfirm": "Exporter en FOLD à la place",
+    "blockedMessage": "Le format {{format}} ne peut pas stocker {{features}}, et à la réimportation chaque pli serait lu comme un pli complet, sans avertissement. FOLD les stocke, et .osf conserve tout.",
+    "blockedTitle": "Impossible d’exporter en {{format}}",
+    "confirm": "Exporter quand même",
+    "feature": {
+      "foldAngles": "Angles de pliage non plats",
+      "images": "Images",
+      "inlineSimulations": "Fenêtres de simulation",
+      "richText": "Mise en forme du texte enrichi",
+      "symmetry": "Symétrie miroir"
+    },
+    "featureCount": "{{feature}} ({{total}})",
+    "message": "Ce projet utilise des fonctionnalités que le format {{format}} ne peut pas stocker. Elles seront omises de l’exportation : {{features}}.",
+    "title": "Certaines fonctionnalités ne peuvent pas être exportées"
+  },
   "fileDrop": {
     "choiceMessage": "{{name}} est un patron de plis : il peut être fusionné avec celui que vous modifiez ou ouvert séparément.",
     "choiceTitle": "Ouvrir ou importer {{name}} ?",

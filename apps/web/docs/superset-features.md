@@ -110,18 +110,35 @@ that drop it and the two sets do not overlap:
 ```ts
 {
   id: 'images',
-  label: 'Images',
   count(doc) { /* how many are present, 0 ⇒ absent */ },
   droppedByFormats: [/* every format except 'osf' */],
 }
 ```
+
+The registry carries **no English**. Its `id` is a member of the closed
+`SupersetFeatureId` union, and the user-facing name lives beside the other
+localized data labels in
+[`src/i18n/supersetFeatureLabels.ts`](../src/i18n/supersetFeatureLabels.ts), as a
+literal-key `t()` call — the only kind the i18n extractor can see. Adding an id
+without a name there is a type error, so the second line is not optional:
+
+```ts
+case 'images':
+  return t('dialogs:exportLoss.feature.images', 'Images');
+```
+
+A `label: 'Images'` string in the registry is what shipped these names in English
+to all eight locales ([#237](https://github.com/zacharyfmarion/ori-studio/issues/237)) —
+the extractor never saw them, so `i18n:check` stayed green while the dialog spoke
+English regardless of the user's language.
 
 Export/save handlers ([`src/commands/menuActions.ts`](../src/commands/menuActions.ts),
 [`src/platform/fileService.ts`](../src/platform/fileService.ts)) call
 `collectExportLossWarnings(format, doc)` before writing and show one shared
 confirm dialog: *"This project uses features the CP format can't store; they'll
 be omitted: Images (3). Continue?"* This registry **is** the pattern — a new
-feature is a one-line addition, and the user is never silently surprised.
+feature is a one-line addition plus its name, and the user is never silently
+surprised.
 
 ### 4. Render and edit it as its own layer
 Follow the codebase's split: **geometry on the GPU, interaction affordances in

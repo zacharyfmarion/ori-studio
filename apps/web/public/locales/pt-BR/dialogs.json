@@ -127,6 +127,22 @@
     "title": "Título",
     "titlePlaceholder": "Opcional"
   },
+  "exportLoss": {
+    "blockedConfirm": "Exportar FOLD em vez disso",
+    "blockedMessage": "O formato {{format}} não consegue armazenar {{features}}, e ao reimportar cada vinco seria lido como uma dobra completa, sem aviso. O FOLD os armazena, e o .osf mantém tudo.",
+    "blockedTitle": "Não é possível exportar para {{format}}",
+    "confirm": "Exportar mesmo assim",
+    "feature": {
+      "foldAngles": "Ângulos de dobra não planos",
+      "images": "Imagens",
+      "inlineSimulations": "Janelas de simulação",
+      "richText": "Formatação de texto rico",
+      "symmetry": "Simetria espelhada"
+    },
+    "featureCount": "{{feature}} ({{total}})",
+    "message": "Este projeto usa recursos que o formato {{format}} não consegue armazenar. Eles serão omitidos na exportação: {{features}}.",
+    "title": "Alguns recursos não podem ser exportados"
+  },
   "fileDrop": {
     "choiceMessage": "{{name}} é um padrão de vincos, então pode ser mesclado ao que você está editando ou aberto separadamente.",
     "choiceTitle": "Abrir ou importar {{name}}?",
