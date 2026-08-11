@@ -139,6 +139,62 @@ describe('crease pattern import', () => {
     expect(result.document.stats.faces).toBe(1);
     expect(result.project.title).toBe('usable cp');
   });
+  it('never prefers a folded-form frame over the crease pattern, whatever its position', () => {
+    // Ordering is the whole point. `foldedForm` used to score 100, tied with
+    // `creasePattern`, with ties broken by frame index — so a file that wrote
+    // the folded state first handed it to an importer that keeps x and y and
+    // drops z, and the crease pattern arrived as the folded model's shadow.
+    // This is Ori Studio's own folded export's shape (`foldedFoldDocument`
+    // writes `frame_classes: ['foldedForm']` with faces and no z-free promise).
+    const fold = {
+      file_title: 'folded first',
+      // The root frame carries the folded state.
+      frame_classes: ['foldedForm'],
+      vertices_coords: [
+        [0, 0, 0],
+        [1, 0, 0],
+        [0.5, 0.5, 0.7],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 0],
+      ],
+      edges_assignment: ['B', 'B', 'B'],
+      faces_vertices: [[0, 1, 2]],
+      file_frames: [
+        {
+          frame_title: 'the crease pattern',
+          frame_classes: ['creasePattern'],
+          vertices_coords: [
+            [0, 0],
+            [1, 0],
+            [1, 1],
+            [0, 1],
+          ],
+          edges_vertices: [
+            [0, 1],
+            [1, 2],
+            [2, 3],
+            [3, 0],
+          ],
+          edges_assignment: ['B', 'B', 'B', 'B'],
+        },
+      ],
+    };
+
+    const result = parseImportedCreasePattern(JSON.stringify(fold), {
+      format: 'fold',
+      filename: 'folded-first.fold',
+      path: null,
+    });
+
+    expect(result.document.selectedFrame?.title).toBe('the crease pattern');
+    expect(result.document.selectedFrame?.foldedForm).toBe(false);
+    // Even though the folded frame is the one with faces, which is the other
+    // half of the score.
+    expect(result.document.foldedFormFrames.map((frame) => frame.faces)).toEqual([1]);
+  });
   it('splits every crossing when inferring topology (broad-phase guard)', () => {
     // splitSegments uses a swept bounding-box broad phase rather than testing all
     // pairs. These counts were verified to match the naive all-pairs

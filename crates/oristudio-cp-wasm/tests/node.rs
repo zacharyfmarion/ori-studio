@@ -117,8 +117,8 @@ fn loads_fold_file_and_exports_preserved_frames() {
     assert_eq!(summary["title"], "crease pattern");
     assert_eq!(summary["line_segments"], 1);
 
-    let exported =
-        oristudio_cp_wasm::export_fold_file(handle).expect("fold file export should succeed");
+    let exported = oristudio_cp_wasm::export_fold_file(handle, Vec::new())
+        .expect("fold file export should succeed");
     let exported: serde_json::Value = serde_json::from_str(&exported).expect("fold json");
     assert_eq!(exported["file_frames"][0]["frame_title"], "folded result");
     assert_eq!(

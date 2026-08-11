@@ -672,16 +672,29 @@ function validateFoldedFigures(value: unknown): OristudioCpFoldedFigureEntry[] {
   return value.map((entry, index) => validateFoldedFigure(entry, index));
 }
 
+/**
+ * Read one folded figure back.
+ *
+ * **This function is the drop.** The writer spreads `...entry`, so anything on a
+ * figure is written; this builds an explicit literal, so anything *not named
+ * here* silently vanishes on the way back in with no type error to show for it.
+ * `contradiction` was lost that way for months. A field added to
+ * `OristudioCpFoldedFigureEntry` has to be added here too, and the round-trip
+ * test in `nativeProjectFile.test.ts` is what says so.
+ */
 function validateFoldedFigure(value: unknown, index: number): OristudioCpFoldedFigureEntry {
   const entry = recordField(value, `document.viewState.foldedFigures[${index}]`);
   const snapshot = isRecord(entry.snapshot)
     ? (entry.snapshot as unknown as OristudioCpFoldedFigureEntry['snapshot'])
     : null;
+  const folded3d = isRecord(entry.folded3d)
+    ? (entry.folded3d as unknown as OristudioCpFoldedFigureEntry['folded3d'])
+    : null;
   return {
     id: stringField(entry.id, `document.viewState.foldedFigures[${index}].id`),
     title: stringField(entry.title, `document.viewState.foldedFigures[${index}].title`),
     handle: null,
-    sourceKind: foldedFigureSourceKind(entry.sourceKind),
+    sourceKind: foldedFigureSourceKind(entry.sourceKind, folded3d != null),
     sourceCpRevision: numberField(entry.sourceCpRevision),
     startingFaceId: numberField(entry.startingFaceId),
     displayStyle:
@@ -689,19 +702,55 @@ function validateFoldedFigure(value: unknown, index: number): OristudioCpFoldedF
       foldedFigureDisplayStyle(snapshot?.display_style) ??
       'Paper5',
     status: foldedFigureStatus(entry.status),
-    snapshot,
+    // Exactly one of the two is the witness of what kind of figure this is, and
+    // both being set is a state the rest of the app has no branch for. A file
+    // holding both is damaged rather than ambiguous, so the flat one — the older
+    // field, and the one a 3D figure never writes — loses.
+    snapshot: folded3d != null ? null : snapshot,
+    folded3d,
     renderSnapshot: isRecord(entry.renderSnapshot)
       ? (entry.renderSnapshot as unknown as OristudioCpFoldedFigureEntry['renderSnapshot'])
       : null,
     placement: foldedFigurePlacement(entry),
+    // The viewpoint the stored picture was taken at. It cannot be *applied* on
+    // load — re-projecting needs the render model, which is deliberately not
+    // persisted — but it is what a refold restores, so losing it would silently
+    // move the figure the first time it is refolded.
+    camera: foldedFigureCamera(entry.camera),
+    // The frame the figure draws inside. Persisted rather than recomputed for
+    // the same reason as the camera — it comes from the render model, which is
+    // not persisted — and a figure that lost it would fall back to the
+    // projection's own bounds and start resizing as it turns again.
+    frameRadius: positiveNumber(entry.frameRadius),
     sourceBounds: foldedSourceBoundsField(entry.sourceBounds),
     sourceFingerprint:
       typeof entry.sourceFingerprint === 'string' ? entry.sourceFingerprint : null,
     sourceLineIds: Array.isArray(entry.sourceLineIds)
       ? entry.sourceLineIds.filter((id): id is number => typeof id === 'number')
       : [],
+    // Falls back to the folded set rather than to empty: a file written before
+    // this field existed still has one honest answer for "which creases was this
+    // scoped to", and an empty list would silently disable "simulate instead".
+    sourceScopedLineIds: Array.isArray(entry.sourceScopedLineIds)
+      ? entry.sourceScopedLineIds.filter((id): id is number => typeof id === 'number')
+      : Array.isArray(entry.sourceLineIds)
+        ? entry.sourceLineIds.filter((id): id is number => typeof id === 'number')
+        : [],
     error: typeof entry.error === 'string' ? entry.error : null,
+    contradiction: isRecord(entry.contradiction)
+      ? (entry.contradiction as unknown as OristudioCpFoldedFigureEntry['contradiction'])
+      : null,
   };
+}
+
+/** The stored viewpoint of a 3D figure. Absent on every flat one. */
+function foldedFigureCamera(value: unknown): OristudioCpFoldedFigureEntry['camera'] {
+  if (!isRecord(value)) return null;
+  const yaw = finiteNumber(value.yaw);
+  const pitch = finiteNumber(value.pitch);
+  const zoom = positiveNumber(value.zoom);
+  if (yaw === null || pitch === null || zoom === null) return null;
+  return { yaw, pitch, zoom };
 }
 
 /**
@@ -749,27 +798,51 @@ function positiveNumber(value: unknown): number | null {
 }
 
 function foldedFigureStatus(value: unknown): OristudioCpFoldedFigureStatus {
-  if (
-    value === 'ready' ||
-    value === 'stale' ||
-    value === 'loading' ||
-    value === 'error' ||
-    value === 'unsupported'
-  ) {
+  if (value === 'ready' || value === 'stale' || value === 'loading' || value === 'error') {
     return value === 'loading' ? 'stale' : value;
   }
+  // Anything else — including the retired `'unsupported'` a much older build
+  // could in principle have written — reads as stale, which is the safe answer:
+  // it offers a refold rather than claiming the figure is current.
   return 'stale';
 }
 
-function foldedFigureSourceKind(value: unknown): OristudioCpFoldedFigureEntry['sourceKind'] {
+/**
+ * Where a stored figure came from.
+ *
+ * **Unknown is `'unknown'`, not `'generated-from-current-cp'`.** The old
+ * fallback was the one value that makes a figure look refoldable from the
+ * document's live creases, so a figure written by a newer build with a kind this
+ * one has never heard of would be offered a Refold — through whichever folder
+ * this build happens to have. `'unknown'` fails the
+ * `isFoldedFromCurrentCpSourceKind` test instead, so the figure draws from its
+ * stored picture and offers nothing it cannot do.
+ *
+ * `hasFolded3d` repairs the one case this build can be sure about: a file
+ * written before `'generated-3d'` existed, carrying a 3D snapshot under the flat
+ * kind. The witness on the entry outranks the label beside it.
+ */
+function foldedFigureSourceKind(
+  value: unknown,
+  hasFolded3d: boolean
+): OristudioCpFoldedFigureEntry['sourceKind'] {
+  if (hasFolded3d) return 'generated-3d';
   if (
     value === 'generated-from-current-cp' ||
+    // Kept even with no `folded3d` beside it, which means the file went through
+    // a reader that did not know the field and dropped it. The kind is still
+    // true about where the figure came from, and it is what keeps Refold on the
+    // menu — the only way to get the 3D state back.
+    value === 'generated-3d' ||
     value === 'imported-folded-form' ||
     value === 'imported-preserved-frame'
   ) {
     return value;
   }
-  return 'generated-from-current-cp';
+  // Absent, rather than unrecognised: every file written before provenance was
+  // tracked has no kind at all, and those figures really were folded from the
+  // document.
+  return value === undefined || value === null ? 'generated-from-current-cp' : 'unknown';
 }
 
 function foldedFigureDisplayStyle(

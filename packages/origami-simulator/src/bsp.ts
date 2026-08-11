@@ -32,6 +32,20 @@ export interface BspItem {
   kind: 0 | 1;
   ref: number;
   points: Vec3[];
+  /**
+   * Draw order among items the tree finds coplanar, lowest first. Optional, and
+   * treated as 0 when absent, so a caller that has no opinion gets exactly the
+   * previous behaviour.
+   *
+   * The tree cannot supply this and must not be asked to. Every candidate
+   * splitter is promoted to the head of its own coplanar list (`subdivide`), and
+   * the candidate is sampled from the middle of the array, so a caller whose
+   * coplanar items carry a meaning in their array order loses it: three coplanar
+   * faces pushed as `a, b, c` among mutually-straddling neighbours come back
+   * `b, a, c`. Where that order is a fact about the paper — the kernel's
+   * `draw_rank` within one plane — it has to travel with the item.
+   */
+  order?: number;
 }
 
 interface Plane {
@@ -63,7 +77,17 @@ const SPLITTER_SAMPLES = 5;
  */
 const MAX_DEPTH = 400;
 
-/** Distance below which a point counts as lying in the plane. */
+/**
+ * Distance below which a point counts as lying in the plane, unless a caller
+ * says otherwise.
+ *
+ * Right for a simulator mesh, whose vertices are the solver's own output and
+ * agree with each other to near machine precision. A caller whose coplanarity is
+ * decided elsewhere — the 3D folded state clusters faces into planes in the
+ * kernel, under its own tolerance — has to pass that tolerance in, or the two
+ * disagree about which faces share a plane and the tree cuts a stack the kernel
+ * already ordered. See {@link BuildBspOptions.coplanarEps}.
+ */
 const EPS = 1e-7;
 
 export interface BuildBspOptions {
@@ -89,6 +113,18 @@ export interface BuildBspOptions {
   edgeInk?: number;
   /** Which side of a plane is the near one. Defaults to the far side of `+depth`. */
   eye?: Vec3;
+  /**
+   * Distance below which a point counts as lying in a plane. Defaults to
+   * {@link EPS}.
+   *
+   * A **distance**, in the units the items' points are in — not an angle. A
+   * caller whose planes come from somewhere else derives it from that source's
+   * own tolerances: for the 3D folded state that is
+   * `distance_relative * span + angle_radians * radius`, the offset the kernel
+   * allows plus the deviation a tilt of its angle tolerance induces across the
+   * patch.
+   */
+  coplanarEps?: number;
 }
 
 const DEFAULT_EYE: Vec3 = [0, 0, Number.MAX_SAFE_INTEGER];
@@ -101,9 +137,34 @@ const DEFAULT_EYE: Vec3 = [0, 0, Number.MAX_SAFE_INTEGER];
  * normal's screen length converts a plane distance into the screen distance to
  * the plane's trace, and it is the trace that the ink can straddle.
  */
-function toleranceFor(item: BspItem, plane: Plane, edgeInk: number): number {
-  if (item.kind !== 1 || edgeInk <= 0) return EPS;
-  return Math.max(EPS, edgeInk * Math.hypot(plane.n[0], plane.n[1]));
+function toleranceFor(
+  item: BspItem,
+  plane: Plane,
+  edgeInk: number,
+  coplanarEps: number
+): number {
+  if (item.kind !== 1 || edgeInk <= 0) return coplanarEps;
+  return Math.max(coplanarEps, edgeInk * Math.hypot(plane.n[0], plane.n[1]));
+}
+
+/**
+ * Whether an item that stays within tolerance of a plane is *ink straddling it*
+ * rather than *lying in it*.
+ *
+ * Split out from the tolerance because the two used to be the same test: while
+ * the only tolerance above {@link EPS} was an edge's ink, `eps > EPS` said both.
+ * With a caller-supplied `coplanarEps` it no longer does, and reading a face's
+ * coplanarity as ink would push every face of a stack out of the coplanar list
+ * and into the children — the exact stack the caller passed a tolerance to keep
+ * together.
+ */
+function straddlesAsInk(
+  item: BspItem,
+  edgeInk: number,
+  eps: number,
+  coplanarEps: number
+): boolean {
+  return item.kind === 1 && edgeInk > 0 && eps > coplanarEps;
 }
 
 function planeOf(points: readonly Vec3[]): Plane | null {
@@ -138,11 +199,13 @@ function crossing(from: Vec3, to: Vec3, dFrom: number, dTo: number): Vec3 {
 }
 
 /** Fan-triangulate a convex polygon; a cut triangle yields a triangle and a quad. */
-function fan(points: Vec3[], kind: 0 | 1, ref: number): BspItem[] {
-  if (kind === 1) return points.length >= 2 ? [{ kind, ref, points: [points[0]!, points[1]!] }] : [];
+function fan(points: Vec3[], kind: 0 | 1, ref: number, order: number | undefined): BspItem[] {
+  if (kind === 1) {
+    return points.length >= 2 ? [{ kind, ref, order, points: [points[0]!, points[1]!] }] : [];
+  }
   const out: BspItem[] = [];
   for (let i = 1; i + 1 < points.length; i += 1) {
-    out.push({ kind, ref, points: [points[0]!, points[i]!, points[i + 1]!] });
+    out.push({ kind, ref, order, points: [points[0]!, points[i]!, points[i + 1]!] });
   }
   return out;
 }
@@ -154,7 +217,13 @@ interface Partition {
 }
 
 /** Cut one item by a plane. Faces split into polygons, edges into segments. */
-function partition(item: BspItem, plane: Plane, eps: number, nearIsFront: boolean): Partition {
+function partition(
+  item: BspItem,
+  plane: Plane,
+  eps: number,
+  nearIsFront: boolean,
+  inkStraddle: boolean
+): Partition {
   const dist = item.points.map((p) => distance(plane, p));
   const anyFront = dist.some((d) => d > eps);
   const anyBack = dist.some((d) => d < -eps);
@@ -163,7 +232,7 @@ function partition(item: BspItem, plane: Plane, eps: number, nearIsFront: boolea
     // there is genuinely in the plane and shares the node with it; an edge
     // there is ink straddling the plane, and belongs on the near side so the
     // surface it lies on is drawn under it rather than over it.
-    if (eps > EPS) {
+    if (inkStraddle) {
       return nearIsFront
         ? { front: [item], back: [], coplanar: [] }
         : { front: [], back: [item], coplanar: [] };
@@ -194,8 +263,8 @@ function partition(item: BspItem, plane: Plane, eps: number, nearIsFront: boolea
     }
   }
   return {
-    front: fan(front, item.kind, item.ref),
-    back: fan(back, item.kind, item.ref),
+    front: fan(front, item.kind, item.ref, item.order),
+    back: fan(back, item.kind, item.ref, item.order),
     coplanar: [],
   };
 }
@@ -203,7 +272,8 @@ function partition(item: BspItem, plane: Plane, eps: number, nearIsFront: boolea
 /** The candidate plane that cuts the fewest of the others. */
 function chooseSplitter(
   items: readonly BspItem[],
-  edgeInk: number
+  edgeInk: number,
+  coplanarEps: number
 ): { plane: Plane; index: number } | null {
   let best: { plane: Plane; index: number; cuts: number } | null = null;
   const faces: number[] = [];
@@ -218,7 +288,7 @@ function chooseSplitter(
     let cuts = 0;
     for (let j = 0; j < items.length; j += 1) {
       if (j === index) continue;
-      const eps = toleranceFor(items[j]!, plane, edgeInk);
+      const eps = toleranceFor(items[j]!, plane, edgeInk, coplanarEps);
       let anyFront = false;
       let anyBack = false;
       for (const point of items[j]!.points) {
@@ -238,12 +308,19 @@ function chooseSplitter(
 export function buildBsp(items: BspItem[], options: BuildBspOptions = {}): BspNode | null {
   const edgeInk = options.edgeInk ?? 0;
   const eye = options.eye ?? DEFAULT_EYE;
-  return subdivide(items, edgeInk, eye, 0);
+  const coplanarEps = options.coplanarEps ?? EPS;
+  return subdivide(items, edgeInk, eye, coplanarEps, 0);
 }
 
-function subdivide(items: BspItem[], edgeInk: number, eye: Vec3, depth: number): BspNode | null {
+function subdivide(
+  items: BspItem[],
+  edgeInk: number,
+  eye: Vec3,
+  coplanarEps: number,
+  depth: number
+): BspNode | null {
   if (items.length === 0) return null;
-  const splitter = depth < MAX_DEPTH ? chooseSplitter(items, edgeInk) : null;
+  const splitter = depth < MAX_DEPTH ? chooseSplitter(items, edgeInk, coplanarEps) : null;
   if (!splitter) {
     // No usable plane (all edges, all degenerate, or the depth guard tripped).
     return { plane: null, coplanar: sortCoplanar(items), front: null, back: null };
@@ -256,7 +333,14 @@ function subdivide(items: BspItem[], edgeInk: number, eye: Vec3, depth: number):
   for (let i = 0; i < items.length; i += 1) {
     if (i === splitter.index) continue;
     const item = items[i]!;
-    const parts = partition(item, splitter.plane, toleranceFor(item, splitter.plane, edgeInk), nearIsFront);
+    const eps = toleranceFor(item, splitter.plane, edgeInk, coplanarEps);
+    const parts = partition(
+      item,
+      splitter.plane,
+      eps,
+      nearIsFront,
+      straddlesAsInk(item, edgeInk, eps, coplanarEps)
+    );
     coplanar.push(...parts.coplanar);
     front.push(...parts.front);
     back.push(...parts.back);
@@ -265,17 +349,19 @@ function subdivide(items: BspItem[], edgeInk: number, eye: Vec3, depth: number):
   return {
     plane: splitter.plane,
     coplanar: sortCoplanar(coplanar),
-    front: subdivide(front, edgeInk, eye, depth + 1),
-    back: subdivide(back, edgeInk, eye, depth + 1),
+    front: subdivide(front, edgeInk, eye, coplanarEps, depth + 1),
+    back: subdivide(back, edgeInk, eye, coplanarEps, depth + 1),
   };
 }
 
 /**
- * Faces before edges, so a crease lying in a face's plane is drawn over it.
- * This is the vector counterpart of the depth bias the edge shader applies.
+ * Faces before edges, so a crease lying in a face's plane is drawn over it —
+ * the vector counterpart of the depth bias the edge shader applies — and then by
+ * the caller's own {@link BspItem.order}, which the splitter promotion above
+ * would otherwise destroy.
  */
 function sortCoplanar(items: BspItem[]): BspItem[] {
-  return items.slice().sort((l, r) => l.kind - r.kind);
+  return items.slice().sort((l, r) => l.kind - r.kind || (l.order ?? 0) - (r.order ?? 0));
 }
 
 /**

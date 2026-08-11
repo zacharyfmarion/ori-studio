@@ -198,6 +198,18 @@ class FoldedBuilder {
   strokeB: number[] = [];
   strokeColor: number[] = [];
   strokeWidthMul: number[] = [];
+  /**
+   * Draw order per emitted vertex / segment, in `[0, 1]` with 0 farthest.
+   *
+   * Set by the caller before each primitive via {@link depth}; the two `add*`
+   * methods just stamp whatever is current onto everything they emit. That keeps
+   * the depth alongside the geometry it belongs to without threading a parameter
+   * through every call.
+   */
+  fillDepth: number[] = [];
+  strokeDepth: number[] = [];
+  /** The order stamped onto the next primitive. */
+  depth = 0;
 
   /**
    * `colors` is either one colour for the whole ring or one per vertex, in which
@@ -214,6 +226,7 @@ class FoldedBuilder {
       const color = (perVertex ? (colors as Rgba[])[i] : colors) as Rgba;
       this.fillPos.push(flat[i * 2], flat[i * 2 + 1]);
       this.fillColor.push(color[0], color[1], color[2], color[3]);
+      this.fillDepth.push(this.depth);
     }
   }
 
@@ -230,6 +243,7 @@ class FoldedBuilder {
       this.strokeB.push(b.x, b.y);
       this.strokeColor.push(color[0], color[1], color[2], color[3]);
       this.strokeWidthMul.push(width);
+      this.strokeDepth.push(this.depth);
     }
   }
 
@@ -239,6 +253,7 @@ class FoldedBuilder {
         position: new Float32Array(this.fillPos),
         color: new Float32Array(this.fillColor),
         count: this.fillPos.length / 2,
+        depth: new Float32Array(this.fillDepth),
       },
       strokes: {
         a: new Float32Array(this.strokeA),
@@ -246,6 +261,7 @@ class FoldedBuilder {
         color: new Float32Array(this.strokeColor),
         widthMul: new Float32Array(this.strokeWidthMul),
         count: this.strokeA.length / 2,
+        depth: new Float32Array(this.strokeDepth),
       },
     };
   }
@@ -275,6 +291,8 @@ class FoldedBuilder {
       strokeB: new Float32Array(this.strokeB),
       strokeColor: new Float32Array(this.strokeColor),
       strokeWidthMul: new Float32Array(this.strokeWidthMul),
+      fillDepth: new Float32Array(this.fillDepth),
+      strokeDepth: new Float32Array(this.strokeDepth),
       bounds,
       center: bounds
         ? { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 }
@@ -299,6 +317,16 @@ export interface FoldedFigureLocalGeometry {
   strokeB: Float32Array;
   strokeColor: Float32Array;
   strokeWidthMul: Float32Array;
+  /**
+   * Draw order within this figure, `[0, 1]` with 0 farthest — one per fill
+   * vertex and one per stroke segment.
+   *
+   * The figure's primitives are emitted in `sequence` order, so this is just
+   * that order made numeric. `cpFoldedToScene` rescales it into a per-figure
+   * band so figures cannot interleave with each other.
+   */
+  fillDepth: Float32Array;
+  strokeDepth: Float32Array;
   /** Bounding box of every emitted vertex, local user coords. Null when empty. */
   bounds: Aabb | null;
   /** Centre of {@link bounds} — the pivot placement scales and rotates about. */
@@ -336,7 +364,15 @@ export function foldedFigureLocalGeometry(
     (l, r) => l.sequence - r.sequence
   );
 
-  for (const primitive of primitives) {
+  for (const [index, primitive] of primitives.entries()) {
+    // The whole point of the depth attribute: the primitives are already in
+    // painter order here, and the canvas is about to lose that by batching every
+    // fill into one draw and every stroke into another. Stamping the order on
+    // now lets the depth test put it back.
+    //
+    // Strictly increasing and strictly inside (0, 1] so no two primitives share a
+    // depth and none lands on the cleared value.
+    builder.depth = (index + 1) / (primitives.length + 1);
     const paint = primitive.style.paint;
     if (!paintDraws(paint)) continue;
     const isFill = primitive.kind.startsWith('fill_');
@@ -359,9 +395,54 @@ export function foldedFigureLocalGeometry(
 }
 
 /**
+ * The point a figure's placement pivots about, and the centre its box reports.
+ *
+ * **These two have to be the same point.** The drawing pivots here and the
+ * canvas-object overlay draws its (invisible, click-taking) polygon around the
+ * box centre — so if they disagree, the figure is visible in one place and
+ * clickable in another. That is exactly what happened when the framed box
+ * started reporting the offset alone while the drawing still pivoted on the
+ * bbox centre: the figure stopped responding to clicks entirely.
+ *
+ * A **framed** 3D figure pivots on local `(0, 0)`, which is where the projection
+ * puts the model centroid — the same point its bounding-sphere frame is centred
+ * on, and a point that does not move as the model turns. A figure with no frame
+ * keeps the local bbox centre, which is the only centre it has.
+ *
+ * At rotation 0 and scale 1 the pivot terms cancel in {@link placementAffine},
+ * so switching a figure from one to the other does not move it — only what its
+ * rotation and scale turn about.
+ */
+function foldedFigurePivot(
+  figure: OristudioCpFoldedFigureEntry,
+  local: { center: Point }
+): Point {
+  const frameRadius = figure.frameRadius ?? null;
+  return frameRadius !== null && frameRadius > 0 ? FRAMED_PIVOT : local.center;
+}
+
+/**
+ * Where a framed figure's model centroid lands, and how big a model unit is,
+ * both in the **user** coordinates a render snapshot's points already live in.
+ *
+ * The projection puts the centroid at its own local `(0, 0)`, but a snapshot
+ * reaches this module through `cpModelToSvg` — so local `(0, 0)` is *not* user
+ * `(0, 0)`, and `frameRadius` is in model units while the box is in user ones.
+ * Getting that wrong put the frame at the origin while the penguin drew around
+ * user (383, 343): the click polygon and the figure were 380 units apart, and
+ * the figure stopped responding to clicks entirely.
+ *
+ * `cpModelToSvg` is a fixed affine — paper bounds onto a fixed rect, no camera —
+ * so both constants are derived from it once rather than restated.
+ */
+const FRAMED_PIVOT: Point = cpModelToSvg({ x: 0, y: 0 });
+const USER_UNITS_PER_MODEL_UNIT: number =
+  cpModelToSvg({ x: 1, y: 0 }).x - cpModelToSvg({ x: 0, y: 0 }).x;
+
+/**
  * The affine a placement applies to local user coordinates:
- * `p ↦ c0 + offset + R(rotation) · scale · (p − c0)`, with `c0` the local bbox
- * centre. Returned in the flat form the per-vertex loops want.
+ * `p ↦ c0 + offset + R(rotation) · scale · (p − c0)`, with `c0` the pivot from
+ * {@link foldedFigurePivot}. Returned in the flat form the per-vertex loops want.
  */
 function placementAffine(
   placement: FoldedFigurePlacement,
@@ -414,13 +495,25 @@ export function cpFoldedToScene(
   const strokeB: number[] = [];
   const strokeColor: number[] = [];
   const strokeWidthMul: number[] = [];
+  const fillDepth: number[] = [];
+  const strokeDepth: number[] = [];
+
+  // Each figure gets its own band of the depth range, in draw order, so a later
+  // figure always covers an earlier one however their own primitives are
+  // ordered internally. Without this two overlapping figures would interleave.
+  const bands = Math.max(1, figures.length);
+  let bandIndex = -1;
 
   for (const figure of figures) {
     const snapshot = figure.renderSnapshot;
     if (!snapshot?.primitives.length) continue;
+    bandIndex += 1;
+    // Later figures are nearer, so their band sits closer to 1.
+    const bandBase = bandIndex / bands;
+    const bandSpan = 1 / bands;
     const local = foldedFigureLocalGeometry(snapshot);
     const opacity = figureOpacity?.(figure) ?? 1;
-    const { a, b, tx, ty } = placementAffine(figure.placement, local.center);
+    const { a, b, tx, ty } = placementAffine(figure.placement, foldedFigurePivot(figure, local));
 
     for (let i = 0; i < local.fillPos.length; i += 2) {
       const x = local.fillPos[i];
@@ -429,6 +522,9 @@ export function cpFoldedToScene(
     }
     for (let i = 0; i < local.fillColor.length; i++) {
       fillColor.push(i % 4 === 3 ? local.fillColor[i] * opacity : local.fillColor[i]);
+    }
+    for (let i = 0; i < local.fillDepth.length; i++) {
+      fillDepth.push(bandBase + local.fillDepth[i] * bandSpan);
     }
 
     for (let i = 0; i < local.strokeA.length; i += 2) {
@@ -445,6 +541,9 @@ export function cpFoldedToScene(
     for (let i = 0; i < local.strokeWidthMul.length; i++) {
       strokeWidthMul.push(local.strokeWidthMul[i]);
     }
+    for (let i = 0; i < local.strokeDepth.length; i++) {
+      strokeDepth.push(bandBase + local.strokeDepth[i] * bandSpan);
+    }
   }
 
   return {
@@ -452,6 +551,7 @@ export function cpFoldedToScene(
       position: new Float32Array(fillPos),
       color: new Float32Array(fillColor),
       count: fillPos.length / 2,
+      depth: new Float32Array(fillDepth),
     },
     strokes: {
       a: new Float32Array(strokeA),
@@ -459,6 +559,7 @@ export function cpFoldedToScene(
       color: new Float32Array(strokeColor),
       widthMul: new Float32Array(strokeWidthMul),
       count: strokeA.length / 2,
+      depth: new Float32Array(strokeDepth),
     },
   };
 }
@@ -482,8 +583,12 @@ export function foldedGeometryFromShapes(
 /**
  * Translucent red (Oriedita `(255,0,0,75)`) used to fill the two faces a fold
  * could not consistently stack — the flat-CP half of `drawSelfIntersectingSubFaces`.
+ *
+ * Exported because the 3D projector annotates an undecided arrangement cell with
+ * the same red. The two say the same thing about the same kind of failure, so
+ * they share one definition rather than two copies that can drift.
  */
-const CONTRADICTION_FILL: Rgba = [1, 0, 0, 75 / 255];
+export const CONTRADICTION_FILL: Rgba = [1, 0, 0, 75 / 255];
 
 /**
  * Build a model-space filled-triangle overlay for the contradicting faces of any
@@ -539,8 +644,32 @@ export function foldedFigureBox(figure: OristudioCpFoldedFigureEntry): {
 } | null {
   const snapshot = figure.renderSnapshot;
   if (!snapshot?.primitives.length) return null;
+
+  // A 3D figure is a window onto the model, so its frame is fixed and square:
+  // sized once at fold time from the bounding sphere, which images to the same
+  // circle at every orientation. Deriving it from the projection instead is what
+  // made the chrome resize and jump on every orbit.
+  //
+  // The centre is the placement offset alone, because the projection anchors the
+  // model centroid at local (0, 0) — so the model stays put inside its frame
+  // while it turns, rather than sliding as its bounds change.
   const local = foldedFigureLocalGeometry(snapshot);
   if (!local.bounds) return null;
+
+  const frameRadius = figure.frameRadius ?? null;
+  if (frameRadius !== null && frameRadius > 0) {
+    const pivot = foldedFigurePivot(figure, local);
+    const side = 2 * frameRadius * USER_UNITS_PER_MODEL_UNIT * figure.placement.scale;
+    return {
+      // The pivot, not the drawing's bounds — the same point `cpFoldedToScene`
+      // pivots about, so the click polygon lands exactly on the figure.
+      center: { x: pivot.x + figure.placement.offset.x, y: pivot.y + figure.placement.offset.y },
+      width: side,
+      height: side,
+      rotation: figure.placement.rotation,
+    };
+  }
+
   const { minX, minY, maxX, maxY } = local.bounds;
   return {
     // The local centre is the placement's pivot, so it only ever translates.
@@ -619,16 +748,27 @@ export function placeFoldedFigureBesideCp(
   paper: FoldedFigureAnchor,
   frameAngle = 0
 ): FoldedFigurePlacement {
-  const snapshot = figure.renderSnapshot;
-  if (!snapshot?.primitives.length) return IDENTITY_FOLDED_PLACEMENT;
-  const local = foldedFigureLocalGeometry(snapshot);
-  if (!local.bounds) return IDENTITY_FOLDED_PLACEMENT;
+  // The box this figure will *have*, at identity placement — not the extent of
+  // what it draws.
+  //
+  // Those are the same rectangle for a flat figure and a different one for a
+  // framed 3D figure, whose box is the square its bounding sphere images to and
+  // whose centre is the projected centroid rather than the drawing's bbox
+  // centre. Reserving the drawing's extent and then giving the figure a larger
+  // box centred elsewhere is what let a fresh 3D fold's chrome overlap the
+  // crease pattern it was parked beside.
+  //
+  // An inline simulation cannot have this bug because the rectangle it reserves
+  // *is* the box it is given (`inlineSimulation.ts`). This is the same property,
+  // reached the only way it can be here: ask for the box.
+  const identity = foldedFigureBox({ ...figure, placement: IDENTITY_FOLDED_PLACEMENT });
+  if (!identity) return IDENTITY_FOLDED_PLACEMENT;
 
   // Packed in the view's frame, where a figure created upright is axis-aligned —
-  // so its footprint is exactly its local extent, and the row runs across the
-  // screen. `paper` is already expressed in that frame by `cpUserAnchorForLineIds`.
-  const width = local.bounds.maxX - local.bounds.minX;
-  const height = local.bounds.maxY - local.bounds.minY;
+  // so its footprint is exactly its box, and the row runs across the screen.
+  // `paper` is already expressed in that frame by `cpUserAnchorForLineIds`.
+  const width = identity.width;
+  const height = identity.height;
   const { left, top } = firstFreeSlotBeside({
     anchor: paper,
     width,
@@ -643,11 +783,13 @@ export function placeFoldedFigureBesideCp(
       .filter((aabb): aabb is Aabb => aabb !== null),
   });
 
-  // Placement rotates about the figure's local centre, so the centre only ever
-  // translates — the offset is centre-to-centre and the rotation rides along.
+  // Placement rotates about the figure's pivot, so the centre only ever
+  // translates — the offset is box-centre to slot-centre and the rotation rides
+  // along. Measured from the identity box for the same reason it was sized from
+  // it: the two must describe one rectangle.
   const centre = pointFromFrame({ x: left + width / 2, y: top + height / 2 }, frameAngle);
   return {
-    offset: { x: centre.x - local.center.x, y: centre.y - local.center.y },
+    offset: { x: centre.x - identity.center.x, y: centre.y - identity.center.y },
     scale: 1,
     rotation: frameAngle,
   };

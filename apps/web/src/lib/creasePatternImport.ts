@@ -382,11 +382,24 @@ function foldFrameInfo(frame: ResolvedFoldFrame): ImportedFoldFrameInfo {
   };
 }
 
+/**
+ * Which frame of a multi-frame FOLD file to open as the crease pattern.
+ *
+ * `foldedForm` used to score as a crease frame, tied with `creasePattern` at
+ * 100. A file carrying both — which is the shape the FOLD spec suggests for a
+ * design and its folded state — could therefore hand the folded frame to an
+ * importer that keeps x and y and drops z, and the crease pattern would arrive
+ * as the folded model's flat shadow. It now scores *below* an unclassified
+ * frame, so it is chosen only when it is the only usable frame in the file, and
+ * then the kernel refuses it by name (`fold_folded_form`) rather than flattening
+ * it.
+ */
 function frameScore(frame: Record<string, unknown>): number {
   const classes = stringArrayField(frame.frame_classes);
-  const isCreaseFrame = classes.includes('creasePattern') || classes.includes('foldedForm');
   const hasFaces = arrayField(frame.faces_vertices).length > 0;
-  return (isCreaseFrame ? 100 : 0) + (hasFaces ? 10 : 0);
+  if (classes.includes('creasePattern')) return 100 + (hasFaces ? 10 : 0);
+  if (classes.includes('foldedForm')) return -100;
+  return hasFaces ? 10 : 0;
 }
 
 function hasUsableFoldGeometry(frame: Record<string, unknown>): boolean {

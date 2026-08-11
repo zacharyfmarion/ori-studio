@@ -3,7 +3,7 @@ mod combination;
 mod permutation;
 mod quad_tree;
 
-use crate::fold_graph::{FacePositions, FoldGraph};
+use crate::fold_graph::{FacePositions, FoldGraph, FoldGraphError};
 use crate::geometry::{
     Epsilon, LineColor, LineSegment, Point, Polygon, PolygonIntersection, RgbColor,
     determine_line_segment_intersection, equal, equal_with_radius, move_parallel,
@@ -110,6 +110,48 @@ pub enum InitialHierarchyError {
         second_face: usize,
     },
 }
+
+/// Why a fold could not be set up from a line set, before any layer ordering.
+///
+/// Both arms are refusals of the *topology*: either the dual graph of faces is
+/// not connected, so no walk describes the whole figure, or two faces adjacent
+/// across a crease came back on the same side of the paper.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FoldSetupError {
+    FoldGraph(FoldGraphError),
+    InitialHierarchy(InitialHierarchyError),
+}
+
+impl From<FoldGraphError> for FoldSetupError {
+    fn from(error: FoldGraphError) -> Self {
+        Self::FoldGraph(error)
+    }
+}
+
+impl From<InitialHierarchyError> for FoldSetupError {
+    fn from(error: InitialHierarchyError) -> Self {
+        Self::InitialHierarchy(error)
+    }
+}
+
+impl fmt::Display for FoldSetupError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::FoldGraph(error) => error.fmt(f),
+            Self::InitialHierarchy(InitialHierarchyError::SameParityAdjacentFaces {
+                line,
+                first_face,
+                second_face,
+            }) => write!(
+                f,
+                "faces {first_face} and {second_face} are adjacent across crease \
+                 {line} but folded to the same parity"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for FoldSetupError {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EquivalenceConditionSet {
@@ -296,6 +338,11 @@ pub struct FoldedFigureSnapshot {
     /// `contradiction` is), for the editor's red-fill overlay.
     #[serde(default)]
     pub contradiction_faces: Option<ContradictionFaceGeometry>,
+    /// Why the estimate stopped where it did. `#[serde(default)]` so a figure
+    /// saved before this field existed reads back as [`FoldOutcome::NotAttempted`]
+    /// rather than failing to load.
+    #[serde(default)]
+    pub outcome: FoldOutcome,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1071,6 +1118,33 @@ fn render_parse_error(line: usize, message: impl Into<String>) -> FoldedFigureRe
     }
 }
 
+/// What the layer-ordering search concluded — which the stage alone cannot say.
+///
+/// `Step3` / `Transparent3` with no solutions is the resting place of three
+/// different things: a caller who only asked for `Order3`, a search that ran to
+/// exhaustion and found no valid ordering (`folding_estimated`'s zero-solutions
+/// fallback), and a search that hit a contradiction
+/// ([`FoldingEstimateSession::conclude_with_contradiction`] rewinds it there on
+/// purpose, mirroring Oriedita). Upstream never needed to tell them apart
+/// because it drives its own UI from inside the estimate; a snapshot that
+/// crosses a wire does.
+///
+/// **Ori Studio native**, and purely additive: nothing reads it to decide
+/// anything the fold does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum FoldOutcome {
+    /// The layer search never ran — the request stopped below `Order4`, or an
+    /// earlier stage declined to produce what it needs.
+    #[default]
+    NotAttempted,
+    /// The search produced at least one valid layer ordering.
+    Solved,
+    /// The search ran and there is no valid layer ordering.
+    NoSolutions,
+    /// Inference found two faces that each have to lie above the other.
+    Contradiction,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FoldingEstimate {
     pub estimation_step: EstimationStep,
@@ -1094,6 +1168,8 @@ pub struct FoldingEstimate {
     /// development so the caller can render the crease pattern with the two
     /// offending faces highlighted, matching Oriedita's `drawSelfIntersectingSubFaces`.
     pub contradiction: Option<FoldContradiction>,
+    /// Why the estimate stopped where it did. See [`FoldOutcome`].
+    pub outcome: FoldOutcome,
 }
 
 /// The two faces the layer-ordering estimate could not consistently stack — the
@@ -1124,7 +1200,7 @@ fn contradiction_flat_faces(
     starting_face_id: i32,
     contradiction: FoldContradiction,
 ) -> Option<ContradictionFaceGeometry> {
-    let wireframe = face_position_wireframe_from_segments(segments, starting_face_id)?;
+    let wireframe = face_position_wireframe_from_segments(segments, starting_face_id).ok()??;
     let face_polygon = |index: usize| -> Option<Vec<Point>> {
         let loop_indices = wireframe.faces.get(index)?;
         Some(
@@ -1148,7 +1224,7 @@ pub struct FoldingEstimateBatch {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FoldingEstimateError {
-    InitialHierarchy(InitialHierarchyError),
+    Setup(FoldSetupError),
     WorkerOverlap(WorkerOverlapSearchError),
 }
 
@@ -1160,9 +1236,21 @@ pub struct FoldingEstimateSession {
     worker: Option<WorkerOverlapEnumerator>,
 }
 
+impl From<FoldSetupError> for FoldingEstimateError {
+    fn from(error: FoldSetupError) -> Self {
+        Self::Setup(error)
+    }
+}
+
+impl From<FoldGraphError> for FoldingEstimateError {
+    fn from(error: FoldGraphError) -> Self {
+        Self::Setup(FoldSetupError::FoldGraph(error))
+    }
+}
+
 impl From<InitialHierarchyError> for FoldingEstimateError {
     fn from(error: InitialHierarchyError) -> Self {
-        Self::InitialHierarchy(error)
+        Self::Setup(FoldSetupError::InitialHierarchy(error))
     }
 }
 
@@ -1195,23 +1283,35 @@ impl FoldingEstimateError {
     pub fn contradiction(&self) -> Option<FoldContradiction> {
         match self {
             Self::WorkerOverlap(error) => error.contradiction(),
-            Self::InitialHierarchy(_) => None,
+            Self::Setup(_) => None,
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AdditionalEstimationError {
-    InitialHierarchy(InitialHierarchyError),
+    Setup(FoldSetupError),
     Contradiction {
         upper_face: usize,
         lower_face: usize,
     },
 }
 
+impl From<FoldSetupError> for AdditionalEstimationError {
+    fn from(error: FoldSetupError) -> Self {
+        Self::Setup(error)
+    }
+}
+
+impl From<FoldGraphError> for AdditionalEstimationError {
+    fn from(error: FoldGraphError) -> Self {
+        Self::Setup(FoldSetupError::FoldGraph(error))
+    }
+}
+
 impl From<InitialHierarchyError> for AdditionalEstimationError {
     fn from(error: InitialHierarchyError) -> Self {
-        Self::InitialHierarchy(error)
+        Self::Setup(FoldSetupError::InitialHierarchy(error))
     }
 }
 
@@ -1220,9 +1320,9 @@ impl From<InitialHierarchyError> for AdditionalEstimationError {
 pub fn estimate_wireframe(
     model: &CreasePatternModel,
     starting_face_id: i32,
-) -> Option<FoldedWireframe> {
+) -> Result<Option<FoldedWireframe>, FoldGraphError> {
     if model.line_segments.is_empty() {
-        return None;
+        return Ok(None);
     }
 
     estimate_wireframe_from_segments(&model.line_segments, starting_face_id)
@@ -1231,22 +1331,22 @@ pub fn estimate_wireframe(
 pub fn estimate_wireframe_from_segments(
     segments: &[LineSegment],
     starting_face_id: i32,
-) -> Option<FoldedWireframe> {
+) -> Result<Option<FoldedWireframe>, FoldGraphError> {
     if segments.is_empty() {
-        return None;
+        return Ok(None);
     }
 
     let graph = FoldGraph::from_segments(segments, true);
     if graph.faces.is_empty() {
-        return None;
+        return Ok(None);
     }
 
-    let face_positions = graph.face_positions(starting_face_id);
-    Some(wireframe_from_graph(
+    let face_positions = graph.face_positions(starting_face_id)?;
+    Ok(Some(wireframe_from_graph(
         &graph,
         &face_positions,
         graph.folded_points(&face_positions),
-    ))
+    )))
 }
 
 /// Oriedita `WireFrame_Worker.getFacePositions()`: compute face adjacency
@@ -1255,22 +1355,22 @@ pub fn estimate_wireframe_from_segments(
 pub fn face_position_wireframe_from_segments(
     segments: &[LineSegment],
     starting_face_id: i32,
-) -> Option<FoldedWireframe> {
+) -> Result<Option<FoldedWireframe>, FoldGraphError> {
     if segments.is_empty() {
-        return None;
+        return Ok(None);
     }
 
     let graph = FoldGraph::from_segments(segments, true);
     if graph.faces.is_empty() {
-        return None;
+        return Ok(None);
     }
 
-    let face_positions = graph.face_positions(starting_face_id);
-    Some(wireframe_from_graph(
+    let face_positions = graph.face_positions(starting_face_id)?;
+    Ok(Some(wireframe_from_graph(
         &graph,
         &face_positions,
         graph.points.clone(),
-    ))
+    )))
 }
 
 /// Oriedita `LineSegmentSetWorker.split_arrangement_for_SubFace_generation()`.
@@ -1295,26 +1395,26 @@ pub fn prepare_subface_segments(segments: &[LineSegment]) -> Vec<LineSegment> {
 pub fn folded_subface_figure_from_segments(
     segments: &[LineSegment],
     starting_face_id: i32,
-) -> Option<FoldedSubfaceFigure> {
+) -> Result<Option<FoldedSubfaceFigure>, FoldGraphError> {
     if segments.is_empty() {
-        return None;
+        return Ok(None);
     }
 
     let graph = FoldGraph::from_segments(segments, true);
     if graph.faces.is_empty() {
-        return None;
+        return Ok(None);
     }
 
-    let positions = graph.face_positions(starting_face_id);
+    let positions = graph.face_positions(starting_face_id)?;
     let folded = wireframe_from_graph(&graph, &positions, graph.folded_points(&positions));
     let folded_segments = folded_wireframe_segments(&folded);
     let prepared_segments = prepare_subface_segments(&folded_segments);
     let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
     if subface_graph.faces.is_empty() {
-        return None;
+        return Ok(None);
     }
 
-    Some(FoldedSubfaceFigure {
+    Ok(Some(FoldedSubfaceFigure {
         points: subface_graph.points,
         lines: subface_graph
             .lines
@@ -1326,7 +1426,7 @@ pub fn folded_subface_figure_from_segments(
             })
             .collect(),
         faces: subface_graph.faces,
-    })
+    }))
 }
 
 /// Oriedita two-color CP preparation through
@@ -1337,10 +1437,12 @@ pub fn folded_subface_figure_from_segments(
 pub fn two_colored_subface_segments_from_segments(
     segments: &[LineSegment],
     starting_face_id: i32,
-) -> Option<Vec<LineSegment>> {
-    let wireframe = face_position_wireframe_from_segments(segments, starting_face_id)?;
+) -> Result<Option<Vec<LineSegment>>, FoldGraphError> {
+    let Some(wireframe) = face_position_wireframe_from_segments(segments, starting_face_id)? else {
+        return Ok(None);
+    };
     let wireframe_segments = folded_wireframe_segments(&wireframe);
-    Some(prepare_subface_segments(&wireframe_segments))
+    Ok(Some(prepare_subface_segments(&wireframe_segments)))
 }
 
 /// Oriedita `FoldedFigure.createTwoColorCreasePattern(...)` without UI camera
@@ -1358,6 +1460,7 @@ pub fn two_colored_folding_estimate_from_segments(
         text_result: String::new(),
         overlap: None,
         contradiction: None,
+        outcome: FoldOutcome::NotAttempted,
     };
 
     if segments.is_empty() {
@@ -1366,7 +1469,7 @@ pub fn two_colored_folding_estimate_from_segments(
 
     estimate.estimation_step = EstimationStep::Step1;
     estimate.display_style = DisplayStyle::Development1;
-    if face_position_wireframe_from_segments(segments, starting_face_id).is_some() {
+    if face_position_wireframe_from_segments(segments, starting_face_id)?.is_some() {
         estimate.estimation_step = EstimationStep::Step2;
         estimate.display_style = DisplayStyle::Wire2;
     }
@@ -1391,16 +1494,18 @@ pub fn two_colored_folding_estimate_from_segments(
 pub fn configure_subfaces_from_segments(
     segments: &[LineSegment],
     starting_face_id: i32,
-) -> Option<SubFaceConfiguration> {
-    let folded = estimate_wireframe_from_segments(segments, starting_face_id)?;
+) -> Result<Option<SubFaceConfiguration>, FoldGraphError> {
+    let Some(folded) = estimate_wireframe_from_segments(segments, starting_face_id)? else {
+        return Ok(None);
+    };
     let folded_segments = folded_wireframe_segments(&folded);
     let prepared_segments = prepare_subface_segments(&folded_segments);
     let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
     if subface_graph.faces.is_empty() {
-        return None;
+        return Ok(None);
     }
 
-    Some(configure_subfaces(&folded, &subface_graph))
+    Ok(Some(configure_subfaces(&folded, &subface_graph)))
 }
 
 /// Oriedita `FoldedFigure_Configurator.setupHierarchyList()` initial
@@ -1408,7 +1513,7 @@ pub fn configure_subfaces_from_segments(
 pub fn initial_hierarchy_from_segments(
     segments: &[LineSegment],
     starting_face_id: i32,
-) -> Result<Option<InitialHierarchy>, InitialHierarchyError> {
+) -> Result<Option<InitialHierarchy>, FoldSetupError> {
     if segments.is_empty() {
         return Ok(None);
     }
@@ -1418,8 +1523,8 @@ pub fn initial_hierarchy_from_segments(
         return Ok(None);
     }
 
-    let positions = graph.face_positions(starting_face_id);
-    initial_hierarchy_from_graph(&graph, &positions).map(Some)
+    let positions = graph.face_positions(starting_face_id)?;
+    Ok(Some(initial_hierarchy_from_graph(&graph, &positions)?))
 }
 
 /// Oriedita equivalence-condition discovery from
@@ -1428,7 +1533,7 @@ pub fn initial_hierarchy_from_segments(
 pub fn equivalence_condition_candidates_from_segments(
     segments: &[LineSegment],
     starting_face_id: i32,
-) -> Result<Option<EquivalenceConditionSet>, InitialHierarchyError> {
+) -> Result<Option<EquivalenceConditionSet>, FoldSetupError> {
     if segments.is_empty() {
         return Ok(None);
     }
@@ -1438,7 +1543,7 @@ pub fn equivalence_condition_candidates_from_segments(
         return Ok(None);
     }
 
-    let positions = graph.face_positions(starting_face_id);
+    let positions = graph.face_positions(starting_face_id)?;
     let hierarchy = initial_hierarchy_from_graph(&graph, &positions)?;
     let folded = wireframe_from_graph(&graph, &positions, graph.folded_points(&positions));
     let folded_segments = folded_wireframe_segments(&folded);
@@ -1535,7 +1640,7 @@ pub fn additional_estimation_from_segments(
         return Ok(None);
     }
 
-    let positions = graph.face_positions(starting_face_id);
+    let positions = graph.face_positions(starting_face_id)?;
     let initial = initial_hierarchy_from_graph(&graph, &positions)?;
     let folded = wireframe_from_graph(&graph, &positions, graph.folded_points(&positions));
     let folded_segments = folded_wireframe_segments(&folded);
@@ -1580,6 +1685,7 @@ impl FoldingEstimateSession {
                 text_result: String::new(),
                 overlap: None,
                 contradiction: None,
+                outcome: FoldOutcome::NotAttempted,
             },
             worker: None,
         }
@@ -1609,14 +1715,14 @@ impl FoldingEstimateSession {
         }
         if self.estimate.estimation_step == EstimationStep::Step1
             && order.is_at_least(EstimationOrder::Order2)
-            && estimate_wireframe_from_segments(&self.segments, self.starting_face_id).is_some()
+            && estimate_wireframe_from_segments(&self.segments, self.starting_face_id)?.is_some()
         {
             self.estimate.estimation_step = EstimationStep::Step2;
             self.estimate.display_style = DisplayStyle::Wire2;
         }
         if self.estimate.estimation_step == EstimationStep::Step2
             && order.is_at_least(EstimationOrder::Order3)
-            && configure_subfaces_from_segments(&self.segments, self.starting_face_id).is_some()
+            && configure_subfaces_from_segments(&self.segments, self.starting_face_id)?.is_some()
         {
             self.estimate.estimation_step = EstimationStep::Step3;
             self.estimate.display_style = DisplayStyle::Transparent3;
@@ -1652,10 +1758,17 @@ impl FoldingEstimateSession {
             }
             self.estimate.estimation_step = EstimationStep::Step5;
             self.estimate.display_style = DisplayStyle::Paper5;
+            self.estimate.outcome = FoldOutcome::Solved;
             if self.estimate.discovered_fold_cases == 0 && !self.estimate.find_another_overlap_valid
             {
+                // Upstream's own fallback: no valid layer ordering exists, so
+                // rewind to the transparent development rather than draw a paper
+                // view with nothing behind it. That lands on the same stage a
+                // contradiction lands on, and on the same stage an `Order3`
+                // request stops at, which is why `outcome` exists.
                 self.estimate.estimation_step = EstimationStep::Step3;
                 self.estimate.display_style = DisplayStyle::Transparent3;
+                self.estimate.outcome = FoldOutcome::NoSolutions;
             }
         }
         if self.estimate.estimation_step == EstimationStep::Step5
@@ -1687,6 +1800,7 @@ impl FoldingEstimateSession {
         self.estimate.current_fold_case = 0;
         self.estimate.find_another_overlap_valid = false;
         self.estimate.overlap = None;
+        self.estimate.outcome = FoldOutcome::Contradiction;
         self.estimate.clone()
     }
 
@@ -1723,6 +1837,7 @@ impl FoldingEstimateSession {
             text_result: String::new(),
             overlap: None,
             contradiction: None,
+            outcome: FoldOutcome::NotAttempted,
         };
         self.folding_estimated(EstimationOrder::Order5)
     }
@@ -1912,8 +2027,12 @@ pub fn folded_figure_snapshot_from_session(
     model: FoldedFigureModel,
 ) -> FoldedFigureSnapshot {
     let estimate = session.estimate();
+    // The session only reaches Step2 by walking this graph successfully, so the
+    // walk cannot newly fail here; a disconnected graph was already refused.
     let wireframe = if estimate.estimation_step.is_at_least(EstimationStep::Step2) {
         estimate_wireframe_from_segments(&session.segments, session.starting_face_id)
+            .ok()
+            .flatten()
     } else {
         None
     };
@@ -1931,6 +2050,7 @@ pub fn folded_figure_snapshot_from_session(
         wireframe,
         contradiction: estimate.contradiction,
         contradiction_faces,
+        outcome: estimate.outcome,
     }
 }
 
@@ -1992,7 +2112,7 @@ pub fn folded_figure_paper_render_snapshot_from_segments(
     model: FoldedFigureModel,
 ) -> Result<Option<FoldedFigureRenderSnapshot>, FoldingEstimateError> {
     let Some((graph, folded)) =
-        folded_graph_and_wireframe_from_segments(segments, starting_face_id)
+        folded_graph_and_wireframe_from_segments(segments, starting_face_id)?
     else {
         return Ok(None);
     };
@@ -2034,7 +2154,7 @@ pub fn folded_figure_wire_render_snapshot_from_segments(
     model: FoldedFigureModel,
 ) -> Result<Option<FoldedFigureRenderSnapshot>, FoldingEstimateError> {
     let Some((graph, folded)) =
-        folded_graph_and_wireframe_from_segments(segments, starting_face_id)
+        folded_graph_and_wireframe_from_segments(segments, starting_face_id)?
     else {
         return Ok(None);
     };
@@ -2053,7 +2173,7 @@ pub fn folded_figure_transparent_render_snapshot_from_segments(
     model: FoldedFigureModel,
 ) -> Result<Option<FoldedFigureRenderSnapshot>, FoldingEstimateError> {
     let Some((graph, folded)) =
-        folded_graph_and_wireframe_from_segments(segments, starting_face_id)
+        folded_graph_and_wireframe_from_segments(segments, starting_face_id)?
     else {
         return Ok(None);
     };
@@ -2105,7 +2225,7 @@ fn render_snapshot_impl(
     precomputed_hierarchy: Option<&InitialHierarchy>,
 ) -> Result<Option<FoldedFigureRenderSnapshot>, FoldingEstimateError> {
     let Some((graph, folded)) =
-        folded_graph_and_wireframe_from_segments(segments, starting_face_id)
+        folded_graph_and_wireframe_from_segments(segments, starting_face_id)?
     else {
         return Ok(None);
     };
@@ -2296,7 +2416,8 @@ pub fn folded_figure_camera_set_from_segments(
     starting_face_id: i32,
     model: FoldedFigureModel,
 ) -> Option<OrieditaFoldedFigureCameraSet> {
-    let (graph, folded) = folded_graph_and_wireframe_from_segments(segments, starting_face_id)?;
+    let (graph, folded) =
+        folded_graph_and_wireframe_from_segments(segments, starting_face_id).ok()??;
     Some(folded_figure_camera_set(
         &graph.points,
         &folded.points,
@@ -2390,7 +2511,7 @@ fn overlap_enumerator_from_segments(
     }
     fold_phase_timer!("fold graph built");
 
-    let positions = graph.face_positions(starting_face_id);
+    let positions = graph.face_positions(starting_face_id)?;
     let initial = initial_hierarchy_from_graph(&graph, &positions)?;
     let folded = wireframe_from_graph(&graph, &positions, graph.folded_points(&positions));
     let folded_segments = folded_wireframe_segments(&folded);
@@ -2443,7 +2564,7 @@ fn two_colored_overlap_enumerator_from_segments(
         return Ok(None);
     }
 
-    let positions = graph.face_positions(starting_face_id);
+    let positions = graph.face_positions(starting_face_id)?;
     let initial = initial_hierarchy_from_graph(&graph, &positions)?;
     let folded = wireframe_from_graph(&graph, &positions, graph.points.clone());
     let folded_segments = folded_wireframe_segments(&folded);
@@ -2476,19 +2597,19 @@ fn two_colored_overlap_enumerator_from_segments(
 fn folded_graph_and_wireframe_from_segments(
     segments: &[LineSegment],
     starting_face_id: i32,
-) -> Option<(FoldGraph, FoldedWireframe)> {
+) -> Result<Option<(FoldGraph, FoldedWireframe)>, FoldGraphError> {
     if segments.is_empty() {
-        return None;
+        return Ok(None);
     }
 
     let graph = FoldGraph::from_segments(segments, true);
     if graph.faces.is_empty() {
-        return None;
+        return Ok(None);
     }
 
-    let positions = graph.face_positions(starting_face_id);
+    let positions = graph.face_positions(starting_face_id)?;
     let folded = wireframe_from_graph(&graph, &positions, graph.folded_points(&positions));
-    Some((graph, folded))
+    Ok(Some((graph, folded)))
 }
 
 fn folded_subface_graph_and_config(
@@ -4313,6 +4434,32 @@ struct HierarchyTable {
 const CELL_NONE: u8 = 0;
 const CELL_ABOVE: u8 = 1;
 const CELL_BELOW: u8 = 2;
+
+/// Check that an initial hierarchy is internally consistent.
+///
+/// [`HierarchyTable::from_initial`] discards `infer_above`'s error with
+/// `let _ =`, so a pair seeded both ways silently keeps whichever relation came
+/// **first in the vector** and drops the other. On the flat path the seeds come
+/// from one pass over the creases and can never disagree, so upstream's
+/// behaviour is untouched and unobservable. The 3D path seeds from several
+/// independent geometric rules at once, where a disagreement is a real finding
+/// and a first-in-vector tie-break is a definite, silent, order-dependent wrong
+/// answer — so it asks first.
+///
+/// **Ori Studio native**, and additive: the flat path keeps calling the
+/// unchecked builder.
+pub fn validate_initial_hierarchy(
+    initial: &InitialHierarchy,
+) -> Result<(), AdditionalEstimationError> {
+    let mut table = HierarchyTable {
+        faces_total: initial.faces_total,
+        cells: vec![CELL_NONE; initial.faces_total.saturating_mul(initial.faces_total)],
+    };
+    for relation in &initial.relations {
+        table.infer_above(relation.upper_face, relation.lower_face)?;
+    }
+    Ok(())
+}
 
 impl HierarchyTable {
     fn from_initial(initial: &InitialHierarchy) -> Self {

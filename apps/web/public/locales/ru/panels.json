@@ -251,16 +251,20 @@
     "flipFoldedModel": "Перевернуть сложенную модель",
     "fold": "Сложить",
     "foldability": {
+      "closure": "Складки здесь не смыкаются",
+      "closureResidual": "Складки здесь не смыкаются: расхождение {{degrees}}°",
       "compose": "{{lead}} — {{tail}}",
       "edgeLineConfiguration": "Недопустимая конфигурация краевых линий",
       "edgeLineCount": "Слишком много или слишком мало краевых линий",
       "equalMountainValley": "одинаковое количество горных и долинных складок",
       "incorrectAngles": "Неверные углы",
       "incorrectFoldTypes": "Неверные типы складок",
+      "interiorBorder": "Край с бумагой по обе стороны — складываемость вдоль него не проверяется",
       "littleBigLittle": "Углы не вкладываются (маленький-большой-маленький)",
       "notEnoughMountain": "недостаточно горных складок",
       "notEnoughValley": "недостаточно долинных складок",
       "oddFolds": "Нечётное число складок",
+      "rigidVertex": "Эта вершина жёсткая, поэтому все складки здесь должны быть плоскими",
       "selfIntersection": "Здесь бумага проходит сквозь саму себя",
       "shape": {
         "circle": "Неверные углы (теорема Кавасаки)",
@@ -276,9 +280,17 @@
       "line": "Цвет линии"
     },
     "foldedDisplayStyle": "Стиль отображения сложенной модели",
+    "foldedFigure": {
+      "windowAriaLabel": "Сложенная модель, в трёх измерениях",
+      "windowFailed": "Не удалось отрисовать эту модель"
+    },
     "foldedModelControls": "Элементы управления сложенной моделью",
     "foldedModels": "Сложенные модели",
     "foldedModelSide": "Сторона сложенной модели",
+    "foldedModelStatus": {
+      "error": "Ошибка",
+      "loading": "Складывание…"
+    },
     "foldedState": {
       "back": "Изнанка",
       "front": "Лицо"
@@ -330,8 +342,10 @@
     "none": "Нет",
     "openingSharedLink": "Открывается общая схема складок…",
     "optimizingScale": "Оптимизация масштаба",
+    "orbitFoldedForm": "Повернуть сложенную фигуру",
     "preparing": "Подготовка редактора…",
     "refoldFoldedModelAction": "Сложить модель заново",
+    "resetFoldedModelView": "Сбросить вид сложенной модели",
     "resizeAnnotation": "Изменить размер аннотации",
     "resizeFoldedForm": "Изменить размер сложенной формы",
     "resizeSimulationWindow": "Изменить размер окна симуляции",
@@ -359,10 +373,13 @@
     },
     "sendImageToBack": "Переместить изображение на задний план",
     "shadow": "Тень",
+    "shadowUnsupported3d": "Тени пока не отрисовываются для трёхмерной сложенной модели",
     "showFoldedModelShadow": "Показывать тень сложенной модели",
     "side": "Сторона",
     "stale": "Устарело",
-    "viewportControls": "Элементы управления областью просмотра паттерна складок"
+    "viewFoldedModelOtherSide": "Посмотреть с другой стороны",
+    "viewportControls": "Элементы управления областью просмотра паттерна складок",
+    "zoomFoldedForm": "Масштабировать сложенную форму"
   },
   "design": {
     "attributionBoxPleating": "Адаптировано из <2>Mu-Tsun Tsai's Box Pleating Studio</2>",
@@ -539,6 +556,24 @@
     "viewTree": "Дерево",
     "viewTreeAndCp": "Дерево и паттерн складок"
   },
+  "fold3dVerdict": {
+    "localCrossing_one": "Бумага проходит сквозь себя в одной вершине.",
+    "localCrossing_few": "Бумага проходит сквозь себя в {{count}} вершинах.",
+    "localCrossing_many": "Бумага проходит сквозь себя в {{count}} вершинах.",
+    "localCrossing_other": "Бумага проходит сквозь себя в {{count}} вершинах.",
+    "localCrossingLabel": "Бумага проходит сквозь себя",
+    "noLayerOrderContradictorySeeds": "Две грани должны быть каждая выше другой, поэтому ни один порядок слоёв не удовлетворяет обоим требованиям.",
+    "noLayerOrderGeneric": "Не удалось упорядочить слои этой фигуры.",
+    "noLayerOrderLabel": "Слои не упорядочены",
+    "selectCreases": "Выделить складки",
+    "showIssues": "Показать проблемы",
+    "simulateInstead": "Симулировать вместо этого",
+    "transversalCrossing_one": "Одна сложенная складка проходит сквозь грань фигуры.",
+    "transversalCrossing_few": "{{count}} сложенные складки проходят сквозь грани фигуры.",
+    "transversalCrossing_many": "{{count}} сложенных складок проходят сквозь грани фигуры.",
+    "transversalCrossing_other": "{{count}} сложенных складок проходят сквозь грани фигуры.",
+    "transversalCrossingLabel": "Складка пересекает грань"
+  },
   "foldedFigureActions": {
     "anotherSolution": "Другое решение",
     "delete": "Удалить",
@@ -550,7 +585,9 @@
     "firstSolution": "Вернуться к первому решению",
     "flip": "Перевернуть",
     "label": "Действия со сложенной моделью",
+    "otherSide": "Другая сторона",
     "refold": "Сложить заново",
+    "resetView": "Сбросить вид",
     "styleDev1": "Разработка 1",
     "styleDev4": "Разработка 4",
     "styleNone": "Нет",

@@ -9,11 +9,14 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { FoldDocument as SimulatorFoldDocument } from '@treemaker/origami-simulator';
-import type { CpOverlayView } from './CreasePatternWebglCanvas';
 import { useCpOverlayView } from './cpOverlayViewStore';
 import { overlayCssPerModel, overlayModelToCss } from './annotations/annotationTransform';
 import type { InlineSimulation } from './inlineSimulation/inlineSimulation';
-import { inlineSimulationPlacement } from './inlineSimulation/inlineSimulationPlacement';
+import {
+  canvasWindowPlacement,
+  windowScreenAngle,
+} from './canvasObjects/canvasWindowPlacement';
+import { useSettledScale } from './canvasObjects/useSettledScale';
 import {
   getInlineSimulationFoldPercent,
   getInlineSimulationSource,
@@ -93,69 +96,6 @@ const CREASE_REFERENCE_EDGE = 512;
  */
 const CREASE_SHRINK_EXPONENT = 1;
 
-/**
- * How long the camera must hold still before the windows are laid out — and so
- * re-rendered — at its new scale.
- *
- * Short enough that letting go of a zoom feels like it sharpens immediately,
- * long enough that a continuous gesture never crosses it.
- */
-const SCALE_SETTLE_MS = 140;
-
-/**
- * How far the transform may stretch a window before waiting for the camera to
- * stop stops being acceptable.
- *
- * Without this, a slow continuous zoom never settles — each frame restarts the
- * timer — and the windows stay soft for as long as it lasts. With it, the worst
- * case is a single octave of upscale, and a fast zoom across the whole range
- * pays a handful of re-layouts instead of one per frame.
- *
- * Asymmetric on purpose: scaling *down* costs no sharpness (the bitmap is
- * supersampled), so only the upscale direction needs bounding.
- */
-const MAX_UNSETTLED_UPSCALE = 2;
-
-/**
- * The camera scale the windows are currently laid out at, which lags the live
- * one while the camera is moving.
- *
- * Re-rendering twenty windows on every frame of a zoom is what made this
- * expensive: each is a worker render, an ImageBitmap, a postMessage and a
- * composite, and at peak that measured 640 bitmaps a second. Holding the layout
- * still and scaling by transform costs the compositor nothing extra — it is
- * already compositing these layers — and the windows re-render once, when the
- * camera stops.
- */
-function useSettledScale(pxPerModel: number): number {
-  const [settled, setSettled] = useState(pxPerModel);
-  useEffect(() => {
-    if (pxPerModel === settled) return undefined;
-    // Past the stretch limit, do not wait for the gesture to end.
-    if (pxPerModel / settled > MAX_UNSETTLED_UPSCALE) {
-      setSettled(pxPerModel);
-      return undefined;
-    }
-    const id = window.setTimeout(() => setSettled(pxPerModel), SCALE_SETTLE_MS);
-    return () => window.clearTimeout(id);
-  }, [pxPerModel, settled]);
-  return settled;
-}
-
-/** Screen-space rotation (radians) of the box's local +x axis under the camera. */
-function screenAngle(
-  view: CpOverlayView,
-  center: { x: number; y: number },
-  rotation: number
-): number {
-  const origin = overlayModelToCss(view, center);
-  const tip = overlayModelToCss(view, {
-    x: center.x + Math.cos(rotation),
-    y: center.y + Math.sin(rotation),
-  });
-  return Math.atan2(tip.y - origin.y, tip.x - origin.x);
-}
-
 export function InlineSimulationLayer({
   simulations,
   focusedId,
@@ -210,8 +150,8 @@ export function InlineSimulationLayer({
     >
       {simulations.map((simulation) => {
         const center = overlayModelToCss(view, simulation.box.center);
-        const angle = screenAngle(view, simulation.box.center, simulation.box.rotation);
-        const placement = inlineSimulationPlacement({
+        const angle = windowScreenAngle(view, simulation.box.center, simulation.box.rotation);
+        const placement = canvasWindowPlacement({
           box: simulation.box,
           center,
           angle,
@@ -221,7 +161,7 @@ export function InlineSimulationLayer({
         const style: CSSProperties = {
           position: 'absolute',
           // Everything the camera moves lives in the transform, position as well
-          // as scale — see `inlineSimulationPlacement`.
+          // as scale — see `canvasWindowPlacement`.
           left: 0,
           top: 0,
           width: placement.width,
@@ -229,7 +169,7 @@ export function InlineSimulationLayer({
           transform: placement.transform,
           transformOrigin: '0 0',
           // Camera-dependent, so it cannot live in the stylesheet — see
-          // `inlineSimulationPlacement`. Clips the canvas too, via `overflow`.
+          // `canvasWindowPlacement`. Clips the canvas too, via `overflow`.
           borderRadius: placement.cornerRadius,
           // The focused window takes its own gestures (its interior orbits the
           // fold). An unfocused one normally defers to the selection overlay, so
@@ -286,7 +226,7 @@ function InlineSimulationWindow({
   style: CSSProperties;
   /**
    * How the badges sit under the current camera, or null once the window is too
-   * small to hold one. See `inlineSimulationPlacement`.
+   * small to hold one. See `canvasWindowPlacement`.
    */
   badgeStyle: CSSProperties | null;
   viewSettings: SimulatorSettings;

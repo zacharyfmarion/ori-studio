@@ -78,6 +78,7 @@ import {
   type FoldedFigureBounds,
 } from './adapters/cpFoldedToScene';
 import type { OristudioCpFoldedFigureEntry } from '../engine/oristudioCpTypes';
+import { useFolded3dOrbitFigures } from './folded/useFolded3dOrbitFigures';
 import type { CpContextMenuRequest } from './contextMenuTarget';
 import {
   cpGridLinesToStrokes,
@@ -402,6 +403,34 @@ export interface CreasePatternWebglCanvasProps {
   modelToSvg: (point: ModelPoint) => ModelPoint;
   /** User → model mapping (inverse of {@link modelToSvg}) for hit-testing. */
   svgToModel: (point: ModelPoint) => ModelPoint;
+  /**
+   * Turning a focused 3D folded figure.
+   *
+   * A folded figure has no element of its own — it is drawn into this surface —
+   * so when the canvas-object overlay makes a focused figure's body inert the
+   * press lands here instead, and this is how the canvas asks whether it was
+   * meant for the figure's camera. `claimsPress` takes a point in **user**
+   * space, which is where a folded figure's box lives.
+   *
+   * The decision and the maths are in `folded/foldedFigureOrbitGesture`; nothing
+   * here does more than route.
+   */
+  foldedOrbit?: {
+    /** The figure currently taking drags, or null when none is focused. */
+    focusedId: string | null;
+    claimsPress: (point: ModelPoint) => boolean;
+    begin: (point: ModelPoint) => boolean;
+    advance: (point: ModelPoint) => void;
+    commit: () => void;
+    /**
+     * Whether a wheel at this point belongs to the focused figure's camera
+     * rather than to the crease-pattern camera. Narrower than `claimsPress`:
+     * only a figure drawn as a live window can be zoomed at all.
+     */
+    claimsWheel: (point: ModelPoint) => boolean;
+    /** Zoom the focused figure by one wheel event's worth. */
+    zoom: (deltaY: number) => void;
+  } | null;
   /**
    * Reference images (superset layer), drawn above the grid and below the
    * creases. Placement is in model coordinates.
@@ -740,6 +769,16 @@ export interface CreasePatternWebglCanvasProps {
    * the folded-models list.
    */
   staleFoldedFigureIds?: ReadonlySet<string>;
+  /**
+   * Figures drawn by the folded-figure window layer instead of by this canvas.
+   *
+   * A 3D figure that can be meshed becomes a DOM window over this surface — the
+   * shared-canvas viewport an inline simulation already is — so drawing it here
+   * as well would put two copies of the same model on top of each other. Only
+   * the *drawing* is withheld: its content bounds and its pick box stay, because
+   * a window takes no pointer events and the gestures still land here.
+   */
+  windowedFoldedFigureIds?: ReadonlySet<string>;
   /** Imported `.fold` folded-form frames as fills + strokes (user coords), or null. */
   importedForms: FoldedGeometry | null;
   /** Grid parameters, or null when there is no grid. */
@@ -771,6 +810,7 @@ export function CreasePatternWebglCanvas({
   framingKey,
   modelToSvg,
   svgToModel,
+  foldedOrbit,
   selectedLineIds,
   selectedPointIds,
   selectedCircleIds,
@@ -837,6 +877,7 @@ export function CreasePatternWebglCanvas({
   circleRadiusToSvg,
   foldedFigures,
   staleFoldedFigureIds,
+  windowedFoldedFigureIds,
   importedForms,
   grid,
   gridVisible,
@@ -846,6 +887,18 @@ export function CreasePatternWebglCanvas({
   // button, Cmd+drag. State rather than a direct style write, so a re-render
   // mid-drag cannot clobber it.
   const [panDragging, setPanDragging] = useState(false);
+  /**
+   * Where the pointer stands with respect to a focused 3D folded figure.
+   *
+   * Only the cursor reads this. It is deliberately about the **pointer** and not
+   * about focus: keyed on focus alone, the whole canvas wore a grab cursor from
+   * the moment a fold completed, advertising a turn everywhere except the one
+   * place it worked.
+   */
+  const [foldedOrbitPointer, setFoldedOrbitPointer] = useState<'none' | 'over' | 'turning'>(
+    'none'
+  );
+  const foldedOrbitPointerRef = useRef<'none' | 'over' | 'turning'>('none');
   // Cmd held offers a grab before the press, so the pan affordance is visible
   // rather than something you have to already know about.
   const panModifierHeld = usePanModifierHeld();
@@ -1236,6 +1289,7 @@ export function CreasePatternWebglCanvas({
   const live = {
     modelToSvg,
     svgToModel,
+    foldedOrbit,
     lineWidth,
     grid,
     gridVisible,
@@ -1380,15 +1434,31 @@ export function CreasePatternWebglCanvas({
   // is an intentional trigger: colours are resolved from theme CSS variables, so
   // the scene must be rebuilt when the theme switches even though its value is
   // not read directly here.
-  const scene = useMemo(
-    () => ({
-      strokes: buildStrokes(),
-      points: buildPoints(),
-      folded: cpFoldedToScene(foldedFigures, (figure) =>
+  //
+  // Creases, points and folded figures are memoized apart, and uploaded through
+  // the renderer's three channels rather than as one scene. Merged, a 3D figure
+  // being turned rebuilt every crease in the document on every pointer move,
+  // because the merged memo could not tell which of its three inputs had
+  // changed.
+  const strokeGeometry = useMemo(() => buildStrokes(), [buildStrokes]);
+  const pointGeometry = useMemo(() => buildPoints(), [buildPoints]);
+  // The figures as drawn: the store's entries, with any figure the user is
+  // currently turning swapped for its live orbit frame. See
+  // `folded/folded3dRuntime.ts` for why the live camera is not in the store.
+  const sceneFoldedFigures = useMemo(
+    () =>
+      windowedFoldedFigureIds && windowedFoldedFigureIds.size > 0
+        ? foldedFigures.filter((figure) => !windowedFoldedFigureIds.has(figure.id))
+        : foldedFigures,
+    [foldedFigures, windowedFoldedFigureIds]
+  );
+  const drawnFoldedFigures = useFolded3dOrbitFigures(sceneFoldedFigures);
+  const foldedGeometry = useMemo(
+    () =>
+      cpFoldedToScene(drawnFoldedFigures, (figure) =>
         staleFoldedFigureIds?.has(figure.id) ? STALE_FOLDED_FIGURE_OPACITY : 1
       ),
-    }),
-    [buildStrokes, buildPoints, foldedFigures, staleFoldedFigureIds]
+    [drawnFoldedFigures, staleFoldedFigureIds]
   );
 
   // Red fill for the two faces of any folded figure whose fold hit a global
@@ -1626,6 +1696,30 @@ export function CreasePatternWebglCanvas({
     const clientToModel = (clientX: number, clientY: number): ModelPoint | null => {
       const userPt = clientToUser(clientX, clientY);
       return userPt ? liveRef.current.svgToModel(userPt) : null;
+    };
+
+    /**
+     * The user-space point a press should orbit at, or null if it should not.
+     *
+     * User space rather than model space because that is where a folded
+     * figure's transformable box lives, and the box consulted is the same one
+     * the overlay made inert — deriving a second notion of "inside the figure"
+     * here is how the two would drift into a band that neither moves nor turns.
+     */
+    // Set from a pointer handler, so it must not re-render per move: the state
+    // changes only when the pointer crosses the figure's edge, which is rare.
+    const setOrbitPointer = (next: 'none' | 'over' | 'turning') => {
+      if (foldedOrbitPointerRef.current === next) return;
+      foldedOrbitPointerRef.current = next;
+      setFoldedOrbitPointer(next);
+    };
+
+    const orbitPressPoint = (clientX: number, clientY: number): ModelPoint | null => {
+      const orbit = liveRef.current.foldedOrbit;
+      if (!orbit) return null;
+      const user = clientToUser(clientX, clientY);
+      if (!user || !orbit.claimsPress(user)) return null;
+      return user;
     };
 
     // Topmost folded figure whose pick box contains the cursor (draw order:
@@ -2541,6 +2635,9 @@ export function CreasePatternWebglCanvas({
       );
       renderNow();
     };
+    // Turning a focused 3D folded figure. The overlay has made its body inert,
+    // so its presses arrive here instead of moving it.
+    let orbiting = false;
     // Active selection move-drag: press point (model) and running delta (model).
     let movingSelection = false;
     let moveStart: ModelPoint | null = null;
@@ -2554,6 +2651,7 @@ export function CreasePatternWebglCanvas({
       lastY = pressY = e.clientY;
       moved = false;
       const toolMode = liveRef.current.activeToolInputMode;
+      const orbitPoint = orbitPressPoint(e.clientX, e.clientY);
       if (e.button === 2) {
         // Right button: universal erase gesture, overrides any active tool — including
         // a crease draw waiting on its second click, whose parked start it abandons.
@@ -2571,6 +2669,15 @@ export function CreasePatternWebglCanvas({
         e.preventDefault();
         panning = true;
         setPanDragging(true);
+      } else if (orbitPoint) {
+        // A focused 3D folded figure turns instead of anything else happening.
+        // Above the tool branches because a tool must not draw through a figure
+        // the user is turning, and below the right/middle-button ones because
+        // erase and pan are unclaimable by design — the same precedence the
+        // overlay gives a focused simulation window.
+        e.preventDefault();
+        orbiting = liveRef.current.foldedOrbit?.begin(orbitPoint) ?? false;
+        if (orbiting) setOrbitPointer('turning');
       } else if (e.metaKey || liveRef.current.panToolActive) {
         // Meta+drag pans, as does a plain drag while the hand tool is on. Folded
         // figures are grabbed through the canvas-object overlay now, which sits
@@ -2668,7 +2775,29 @@ export function CreasePatternWebglCanvas({
       ) {
         moved = true;
       }
-      if (erasing) {
+      if (!orbiting && !panning && !erasing && !drawing) {
+        // Asked with the gesture's own predicate, so the open hand appears
+        // exactly where a press would turn the figure and nowhere else. Skipped
+        // mid-gesture: a drag owns the cursor until it is released.
+        //
+        // Gated on something being focused first. `orbitPressPoint` measures the
+        // canvas to place the pointer, and this runs on every move over the
+        // app's hottest surface — with no focused figure there is nothing to be
+        // over, so the answer is 'none' without touching layout.
+        setOrbitPointer(
+          liveRef.current.foldedOrbit?.focusedId != null &&
+            orbitPressPoint(e.clientX, e.clientY) != null
+            ? 'over'
+            : 'none'
+        );
+      }
+      if (orbiting) {
+        // The pointer is captured, so a drag that leaves the figure keeps
+        // turning it — the same as dragging a scrollbar past its track, and what
+        // any orbit that stopped at the object's edge would get wrong.
+        const user = clientToUser(e.clientX, e.clientY);
+        if (user) liveRef.current.foldedOrbit?.advance(user);
+      } else if (erasing) {
         feedErase('move', e.clientX, e.clientY);
       } else if (drawing) {
         feedTool('move', e.clientX, e.clientY);
@@ -2756,6 +2885,21 @@ export function CreasePatternWebglCanvas({
     };
     const onPointerUp = (e: PointerEvent) => {
       const cancelled = e.type === 'pointercancel';
+      if (orbiting) {
+        // Handled before `cpPointerReleaseRoute` rather than as a case in it:
+        // orbit is claimed in the first branch of pointerdown, so no tool, erase
+        // or pan can be in flight alongside it, and the route function exists to
+        // arbitrate exactly the modes that can overlap. A cancel still commits —
+        // the figure has been drawn turned on every move, so the choice is
+        // between one undo entry and a turn the user cannot undo at all. Commit
+        // is also the only thing that writes the camera to the store, so
+        // skipping it would leave the figure drawn at a camera nothing records.
+        orbiting = false;
+        setOrbitPointer(orbitPressPoint(e.clientX, e.clientY) ? 'over' : 'none');
+        liveRef.current.foldedOrbit?.commit();
+        if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+        return;
+      }
       // Which handler owns this release. The precedence rule (erase and pan outrank
       // the active tool) lives in one pure, unit-tested function rather than in the
       // guards of each branch below, where a mode that forgot to exclude an
@@ -2894,6 +3038,17 @@ export function CreasePatternWebglCanvas({
     // reads a modifier or a raw delta.
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      // A focused 3D folded figure zooms its own camera instead, exactly as a
+      // focused inline simulation window does — there the window is a DOM
+      // element and takes the wheel itself; a folded figure is drawn into this
+      // surface, so the wheel arrives here and has to be routed. Above the
+      // camera branches for the same reason the orbit press is: what the
+      // pointer is over decides who the gesture belongs to.
+      const user = clientToUser(e.clientX, e.clientY);
+      if (user && liveRef.current.foldedOrbit?.claimsWheel(user)) {
+        liveRef.current.foldedOrbit.zoom(e.deltaY);
+        return;
+      }
       const cam = cameraRef.current;
       if (!cam) return;
       const ratio = dpr();
@@ -2917,6 +3072,7 @@ export function CreasePatternWebglCanvas({
     // start stays put — the cursor is coming back — but its rubber band goes, since
     // there is no cursor left to stretch it to.
     const onPointerLeave = () => {
+      if (!orbiting) setOrbitPointer('none');
       const mode = liveRef.current.activeToolInputMode;
       // Guarded on the mode as well as the ref, so a parked point cannot outlive the
       // tool that placed it if a reset is ever missed.
@@ -2981,11 +3137,12 @@ export function CreasePatternWebglCanvas({
     // callbacks, listed to satisfy the exhaustive-deps rule.)
   }, [rendererGeneration, clearPreview, tryLoneCandidateAutoPick]);
 
-  // Upload geometry whenever it is rebuilt, then redraw immediately.
+  // Upload creases and points whenever they are rebuilt, then redraw immediately.
   useEffect(() => {
     const renderer = rendererRef.current;
     if (!renderer) return;
-    renderer.setScene(scene);
+    renderer.setStrokes(strokeGeometry);
+    renderer.setPoints(pointGeometry);
     // A copy gesture's ghost was deliberately left up through the commit; now that
     // the document's own strokes carry the new creases, take it down. Doing it here
     // rather than at commit means the geometry never blinks out in between.
@@ -2995,7 +3152,16 @@ export function CreasePatternWebglCanvas({
       clearPreview();
     }
     renderNowRef.current();
-  }, [scene, rendererGeneration, clearPreview]);
+  }, [strokeGeometry, pointGeometry, rendererGeneration, clearPreview]);
+
+  // Folded figures on their own channel, so turning one uploads its fills and
+  // edges and leaves the crease buffers alone.
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+    renderer.setFolded(foldedGeometry);
+    renderNowRef.current();
+  }, [foldedGeometry, rendererGeneration]);
 
   // Point-sequence kernel preview: render the controller-supplied candidate
   // segments on the preview channel. Drag tools drive the same channel
@@ -3233,7 +3399,22 @@ export function CreasePatternWebglCanvas({
     renderNowRef.current();
   }, [activeToolVoronoi, toolCommandPreviewPoints]);
 
-  const cursor = cpCanvasCursor({ panToolActive, panModifierHeld, panDragging });
+  // Losing focus can happen with the pointer parked over the figure — Escape, or
+  // a selection elsewhere — and no pointer event follows to correct the cursor.
+  const focusedFigureId = foldedOrbit?.focusedId ?? null;
+  useEffect(() => {
+    if (focusedFigureId != null) return;
+    foldedOrbitPointerRef.current = 'none';
+    setFoldedOrbitPointer('none');
+  }, [focusedFigureId]);
+
+  const cursor = cpCanvasCursor({
+    panToolActive,
+    panModifierHeld,
+    panDragging,
+    foldedOrbitHovered: foldedOrbitPointer === 'over',
+    foldedOrbitDragging: foldedOrbitPointer === 'turning',
+  });
 
   return (
     <canvas

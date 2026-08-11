@@ -18,14 +18,12 @@
 //! With two directories it diffs them file by file, which is the form that
 //! catches a "fix" that quietly regressed something else.
 
+use oristudio_cp::CLOSURE_RESIDUAL_BAR_DEGREES;
 use oristudio_cp::checks_spatial::dispatched_camv;
 use oristudio_cp::io::fold::import_fold_document;
 use std::collections::BTreeMap;
 use std::path::Path;
 use treemaker_fold::FoldDocument;
-
-/// Mirrors the private bar in `lib.rs`. Kept in sync by the assertion below.
-const CLOSURE_BAR_DEGREES: f64 = 1e-6;
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
 struct Tally {
@@ -84,7 +82,7 @@ fn scan_inner(path: &Path, mut residuals: Option<&mut Vec<f64>>) -> Result<Tally
         match report.residual {
             // Indeterminate: reports nothing, same as the product.
             None => {}
-            Some(residual) if residual.to_degrees() <= CLOSURE_BAR_DEGREES => {
+            Some(residual) if residual.to_degrees() <= CLOSURE_RESIDUAL_BAR_DEGREES => {
                 tally.self_int += usize::from(crossing);
             }
             Some(residual) => {

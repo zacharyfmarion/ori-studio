@@ -1,6 +1,6 @@
 import createREGL from 'regl';
 import type { CpRenderFrame, CpRenderer } from './CpRenderer';
-import type { CpSceneData, Viewport } from './types';
+import type { Viewport } from './types';
 import type { CpImage } from '../images/cpImage';
 import { createStrokeProgram } from './programs/strokeProgram';
 import { createPointProgram } from './programs/pointProgram';
@@ -86,8 +86,13 @@ export function createReglRenderer(
   const imageLoading = new Set<string>();
   let currentImages: readonly CpImage[] = [];
   let hasImages = false;
-  const foldedFills = createFillProgram(regl);
-  const foldedStrokes = createStrokeProgram(regl);
+  // The only two depth-ordered programs on this surface. A generated folded
+  // figure's fills and creases are one painter-ordered stream that these two
+  // draws split in half, so without a depth test a crease behind a face draws
+  // over it. Everything else here is genuinely 2D, and the imported forms below
+  // are translucent, which a depth test would order wrongly.
+  const foldedFills = createFillProgram(regl, { depthOrdered: true });
+  const foldedStrokes = createStrokeProgram(regl, { depthOrdered: true });
   // Imported .fold folded-form frames: reference figures in user space, like folded.
   const importedFills = createFillProgram(regl);
   const importedStrokes = createStrokeProgram(regl);
@@ -149,14 +154,6 @@ export function createReglRenderer(
   return {
     resize(next) {
       viewport = next;
-    },
-
-    setScene(scene: CpSceneData) {
-      if (disposed) return;
-      strokes.setData(scene.strokes);
-      points.setData(scene.points);
-      foldedFills.setData(scene.folded.fills);
-      foldedStrokes.setData(scene.folded.strokes);
     },
 
     setStrokes(next) {

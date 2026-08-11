@@ -224,6 +224,7 @@ import type {
   WorkspaceState,
 } from '../types';
 import { retainFoldedFigureHandles } from '../../../cp-workspace/folded/foldedFigureHandles';
+import { folded3dExportHandles } from '../../../cp-workspace/folded/foldedFigureInterchange';
 import type { FoldDocument } from '../../../engine/types';
 import type {
   OristudioCpCommandResult,
@@ -1601,6 +1602,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       richText: get().oristudioCpAnnotations.filter(isTextAnnotation),
       inlineSimulations: get().oristudioCpInlineSimulations,
       lineSegments: get().oristudioCpDocument?.document.crease_pattern.line_segments ?? [],
+      foldedFigures: get().oristudioCpFoldedFigures,
       bpSymmetry: selectOristudioBpSymmetry(get()),
     });
     if (warnings.length === 0) return true;
@@ -2591,7 +2593,12 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const contents =
           get().oristudioCpDocument
             ? await exportOristudioCpDocumentAsFold(
-                flattenTextAnnotations(get().oristudioCpAnnotations)
+                flattenTextAnnotations(get().oristudioCpAnnotations),
+                // Every 3D figure that still holds a kernel session rides along
+                // as a `foldedForm` frame. One reopened from an `.osf` has no
+                // session to describe it, and `guardExportLoss` above has
+                // already said so.
+                folded3dExportHandles(get().oristudioCpFoldedFigures)
               )
             : get().importedCreasePattern
             ? JSON.stringify(get().importedCreasePattern?.fold, null, 2)

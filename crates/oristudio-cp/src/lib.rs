@@ -11,6 +11,7 @@ pub mod checks_spatial;
 mod fold_graph;
 pub mod fold_profiling;
 pub mod folding;
+pub mod folding3d;
 pub mod geometry;
 pub mod geometry_transport;
 pub mod io;
@@ -25,6 +26,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 pub use canonical::CanonicalCreasePattern;
+/// The fold graph itself stays crate-private; its failure mode does not, because
+/// it is carried by [`folding::FoldSetupError`] and named by a `fold_disconnected`
+/// engine error the frontend branches on.
+pub use fold_graph::FoldGraphError;
 use geometry::{
     Circle, Epsilon, LineColor, LineSegment, Point, Polygon, RgbColor,
     determine_line_segment_distance, mid_point,
@@ -246,6 +251,15 @@ pub struct CommandDiagnostic {
     pub segments: Vec<geometry::LineSegment>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rule: Option<String>,
+    /// How far a spatial vertex is from closing, in degrees.
+    ///
+    /// Carried structurally rather than only inside `message`, because the
+    /// sentence around it has to be translated and a Rust string literal cannot
+    /// reach the eight-locale gate. `None` on every diagnostic that is not a
+    /// closure failure, and skipped when serializing, so an all-classic
+    /// `CheckCamv` result is byte-identical to what it was before this existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub residual_degrees: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub violation_color: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -2581,6 +2595,10 @@ pub fn execute_command(
             let dispatched = checks_spatial::dispatched_camv(&document.crease_pattern);
             diagnostic_entries = flat_foldability_diagnostics("CheckCamv", dispatched.flat);
             diagnostic_entries.extend(spatial_closure_diagnostics(&dispatched.spatial));
+            diagnostic_entries.extend(interior_border_diagnostics(
+                &document.crease_pattern,
+                &dispatched.interior_borders,
+            ));
             0
         }
         OperationId::FlatFoldableCheck => {
@@ -2793,6 +2811,7 @@ fn line_pair_diagnostics(
             point: None,
             segments: pair.to_vec(),
             rule: Some(format!("{operation:?}")),
+            residual_degrees: None,
             violation_color: None,
             little_big_little: Vec::new(),
         })
@@ -2811,6 +2830,7 @@ fn point_marker_diagnostics(kind: &str, markers: Vec<LineSegment>) -> Vec<Comman
             point: Some(marker.a),
             segments: vec![marker],
             rule: Some("VertexFlatFoldability".to_string()),
+            residual_degrees: None,
             violation_color: None,
             little_big_little: Vec::new(),
         })
@@ -2847,6 +2867,7 @@ fn flat_foldability_diagnostics(
                 point: Some(violation.point),
                 segments,
                 rule: Some(rule.to_string()),
+                residual_degrees: None,
                 violation_color: Some(violation_color.to_string()),
                 little_big_little,
             }
@@ -2864,7 +2885,14 @@ fn flat_foldability_diagnostics(
 ///
 /// The checker itself returns a raw residual and never a verdict; the threshold
 /// lives here, applied once, so revising it stays a one-constant change.
-const CLOSURE_RESIDUAL_BAR_DEGREES: f64 = 1e-6;
+///
+/// **Public because it was being copied.** Private, it had been redeclared in
+/// five places — `examples/fold_corpus_scan.rs`, `examples/fold3d_census.rs`,
+/// the since-deleted Spike A harness, `tests/verify_fold_fixtures.rs` and
+/// `tests/non_flat_corpus.rs` — each with a comment saying so. Five copies of
+/// one policy number is exactly what the "revising it is one constant" rule
+/// above exists to prevent.
+pub const CLOSURE_RESIDUAL_BAR_DEGREES: f64 = 1e-6;
 
 /// Candidate rays for the vertex-completion tool, from whichever regime owns the
 /// vertex under the cursor.
@@ -3015,6 +3043,46 @@ fn no_completion_code(reason: solve_spatial::NoCompletion) -> String {
     .to_string()
 }
 
+/// Borders with paper on both sides.
+///
+/// Not a violation — a cut is a legitimate thing to draw, and kirigami is a real
+/// technique. What it is, is the one place the closure check's silence does not
+/// mean "this is fine": every vertex on such a loop is declined by
+/// `is_interior_vertex` for touching a border, so the check returns CLEAN having
+/// examined none of it. Saying so is the whole point of the entry.
+///
+/// A `warning`, and only on documents that carry a non-classic crease — which is
+/// where the spatial check is the thing making the claim. An all-classic
+/// document's `CheckCamv` output is unchanged, which is what the Oriedita oracle
+/// gates.
+fn interior_border_diagnostics(
+    model: &CreasePatternModel,
+    borders: &[checks_spatial::InteriorBorder],
+) -> Vec<CommandDiagnostic> {
+    borders
+        .iter()
+        .enumerate()
+        .map(|(index, border)| CommandDiagnostic {
+            id: format!("SpatialInteriorBorder-{}", index + 1),
+            kind: "SpatialInteriorBorder".to_string(),
+            severity: "warning".to_string(),
+            message: "Border with paper on both sides: the vertices on it are not checked"
+                .to_string(),
+            point: Some(border.point),
+            segments: model
+                .line_segments
+                .get(border.segment)
+                .cloned()
+                .into_iter()
+                .collect(),
+            rule: Some("InteriorBorder".to_string()),
+            residual_degrees: None,
+            violation_color: None,
+            little_big_little: Vec::new(),
+        })
+        .collect()
+}
+
 fn spatial_closure_diagnostics(
     reports: &[checks_spatial::SpatialVertexReport],
 ) -> Vec<CommandDiagnostic> {
@@ -3046,6 +3114,7 @@ fn spatial_closure_diagnostics(
                     point: Some(report.point),
                     segments: Vec::new(),
                     rule: Some("SelfIntersection".to_string()),
+                    residual_degrees: None,
                     violation_color: None,
                     little_big_little: Vec::new(),
                 });
@@ -3057,11 +3126,12 @@ fn spatial_closure_diagnostics(
         // has a unique solution and it is zero, so telling the user their angles
         // disagree would invite an adjustment that cannot help. The link of a
         // vertex is a closed spherical linkage, and a triangle is a rigid truss.
+        // Worded without the degree, so the frontend can translate it with no
+        // second structural field. The residual itself rides on
+        // `residual_degrees`, which is the one number the closure sentence
+        // genuinely needs and cannot be recovered from a formatted string.
         let message = if report.is_rigid() {
-            format!(
-                "Vertex cannot fold: degree {} is rigid, so every crease here must be 0 degrees",
-                report.degree
-            )
+            "Vertex cannot fold: it is rigid, so every crease here must be 0 degrees".to_string()
         } else {
             format!("Creases do not close: {residual_degrees:.4} degrees off")
         };
@@ -3081,6 +3151,11 @@ fn spatial_closure_diagnostics(
                 }
                 .to_string(),
             ),
+            residual_degrees: if report.is_rigid() {
+                None
+            } else {
+                Some(residual_degrees)
+            },
             violation_color: None,
             little_big_little: Vec::new(),
         });
@@ -3167,6 +3242,7 @@ fn flat_foldable_boundary_input_diagnostics(
         point: None,
         segments,
         rule: Some("BoundaryLoop".to_string()),
+        residual_degrees: None,
         violation_color: None,
         little_big_little: Vec::new(),
     }]
@@ -3195,6 +3271,7 @@ fn flat_foldable_boundary_result_diagnostics(
         point: None,
         segments,
         rule: Some("FlatFoldableBoundary".to_string()),
+        residual_degrees: None,
         violation_color: None,
         little_big_little: Vec::new(),
     }]

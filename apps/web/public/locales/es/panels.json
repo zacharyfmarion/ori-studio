@@ -241,16 +241,20 @@
     "flipFoldedModel": "Voltear modelo plegado",
     "fold": "Plegar",
     "foldability": {
+      "closure": "Los pliegues aquí no cierran",
+      "closureResidual": "Los pliegues aquí no cierran: {{degrees}}° de desfase",
       "compose": "{{lead}} — {{tail}}",
       "edgeLineConfiguration": "Configuración de líneas de borde no válida",
       "edgeLineCount": "Demasiadas o insuficientes líneas de borde",
       "equalMountainValley": "igual cantidad de pliegues de montaña y de valle",
       "incorrectAngles": "Ángulos incorrectos",
       "incorrectFoldTypes": "Tipos de pliegue incorrectos",
+      "interiorBorder": "Borde con papel a ambos lados: no se comprueba la plegabilidad a lo largo de él",
       "littleBigLittle": "Los ángulos no pueden anidarse (pequeño-grande-pequeño)",
       "notEnoughMountain": "no hay suficientes pliegues de montaña",
       "notEnoughValley": "no hay suficientes pliegues de valle",
       "oddFolds": "Número impar de pliegues",
+      "rigidVertex": "Este vértice es rígido, así que todos los pliegues aquí deben quedar planos",
       "selfIntersection": "El papel se atraviesa a sí mismo aquí",
       "shape": {
         "circle": "Ángulos incorrectos (teorema de Kawasaki)",
@@ -266,9 +270,17 @@
       "line": "Color de línea"
     },
     "foldedDisplayStyle": "Estilo de visualización del plegado",
+    "foldedFigure": {
+      "windowAriaLabel": "Modelo plegado, en tres dimensiones",
+      "windowFailed": "No se pudo dibujar este modelo"
+    },
     "foldedModelControls": "Controles del modelo plegado",
     "foldedModels": "Modelos plegados",
     "foldedModelSide": "Cara del modelo plegado",
+    "foldedModelStatus": {
+      "error": "Ha fallado",
+      "loading": "Plegando…"
+    },
     "foldedState": {
       "back": "Reverso",
       "front": "Anverso"
@@ -319,8 +331,10 @@
     "none": "Ninguno",
     "openingSharedLink": "Abriendo el patrón de pliegues compartido…",
     "optimizingScale": "Optimizando escala",
+    "orbitFoldedForm": "Girar la figura plegada",
     "preparing": "Preparando el editor…",
     "refoldFoldedModelAction": "Volver a plegar el modelo",
+    "resetFoldedModelView": "Restablecer la vista del modelo plegado",
     "resizeAnnotation": "Redimensionar anotación",
     "resizeFoldedForm": "Redimensionar forma plegada",
     "resizeSimulationWindow": "Redimensionar ventana de simulación",
@@ -347,10 +361,13 @@
     },
     "sendImageToBack": "Enviar imagen al fondo",
     "shadow": "Sombra",
+    "shadowUnsupported3d": "Todavía no se dibujan sombras para un modelo plegado en 3D",
     "showFoldedModelShadow": "Mostrar la sombra del modelo plegado",
     "side": "Cara",
     "stale": "Obsoleto",
-    "viewportControls": "Controles de la vista del patrón de pliegues"
+    "viewFoldedModelOtherSide": "Ver desde el otro lado",
+    "viewportControls": "Controles de la vista del patrón de pliegues",
+    "zoomFoldedForm": "Ampliar forma plegada"
   },
   "design": {
     "attributionBoxPleating": "Adaptado de <2>Mu-Tsun Tsai's Box Pleating Studio</2>",
@@ -523,6 +540,22 @@
     "viewTree": "Árbol",
     "viewTreeAndCp": "Árbol y patrón de pliegues"
   },
+  "fold3dVerdict": {
+    "localCrossing_one": "El papel se atraviesa a sí mismo en un vértice.",
+    "localCrossing_many": "El papel se atraviesa a sí mismo en {{count}} vértices.",
+    "localCrossing_other": "El papel se atraviesa a sí mismo en {{count}} vértices.",
+    "localCrossingLabel": "El papel se atraviesa",
+    "noLayerOrderContradictorySeeds": "Dos caras tienen que quedar cada una por encima de la otra, así que ningún apilado satisface ambas.",
+    "noLayerOrderGeneric": "No se han podido ordenar las capas de esta figura.",
+    "noLayerOrderLabel": "Capas sin ordenar",
+    "selectCreases": "Seleccionar los pliegues",
+    "showIssues": "Mostrar problemas",
+    "simulateInstead": "Simular en su lugar",
+    "transversalCrossing_one": "Un pliegue plegado atraviesa una cara de la figura.",
+    "transversalCrossing_many": "{{count}} pliegues plegados atraviesan caras de la figura.",
+    "transversalCrossing_other": "{{count}} pliegues plegados atraviesan caras de la figura.",
+    "transversalCrossingLabel": "Un pliegue corta una cara"
+  },
   "foldedFigureActions": {
     "anotherSolution": "Otra solución",
     "delete": "Eliminar",
@@ -534,7 +567,9 @@
     "firstSolution": "Volver a la primera solución",
     "flip": "Voltear",
     "label": "Acciones del modelo plegado",
+    "otherSide": "Otro lado",
     "refold": "Volver a plegar",
+    "resetView": "Restablecer vista",
     "styleDev1": "Desarrollo 1",
     "styleDev4": "Desarrollo 4",
     "styleNone": "Ninguno",

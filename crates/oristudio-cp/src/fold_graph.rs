@@ -1,8 +1,8 @@
 use crate::geometry::{
-    LineColor, LineSegment, Point, Polygon, angle, equal, find_line_symmetry_point,
+    Epsilon, LineColor, LineSegment, Point, Polygon, angle, equal, find_line_symmetry_point,
 };
 use crate::model::CreasePatternModel;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct GraphLine {
@@ -28,6 +28,42 @@ pub(crate) struct FacePositions {
     pub associated_line: Vec<Option<usize>>,
 }
 
+/// A fold graph the spanning walk cannot describe.
+///
+/// **Ori Studio native — no Oriedita counterpart.** Upstream's
+/// `WireFrame_Worker.getFacePositions()` has no exit for this at all: its
+/// `while (remaining_facesTotal > 0)` loop keeps re-scanning an empty frontier
+/// until the thread is interrupted. We already diverged by breaking out of the
+/// loop; that traded a hang for a *wrong answer*, because every face the walk
+/// never reached keeps `associated_line: None`, and [`FoldGraph::fold_movement`]
+/// then returns those faces' points unmoved — an unfolded slab inside an
+/// otherwise folded figure, with no error anywhere. See PORTING.md.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FoldGraphError {
+    /// The dual graph of faces is not connected: no walk from the starting face
+    /// reaches `unreached` of them.
+    ///
+    /// The Euler gate in [`FoldGraph::calculate_faces`] catches the small cases
+    /// (two disjoint squares score `euler == 2` and are rejected outright), but
+    /// its tolerance is `0.005 * faces.len()`, so from ~200 faces up a
+    /// disconnected line set passes the gate and reaches the walk.
+    DisconnectedFaces { reached: usize, unreached: usize },
+}
+
+impl std::fmt::Display for FoldGraphError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::DisconnectedFaces { reached, unreached } => write!(
+                f,
+                "the fold graph is disconnected: the walk reached {reached} faces \
+                 and could not reach {unreached}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for FoldGraphError {}
+
 impl FoldGraph {
     pub(crate) fn from_model_for_export(model: &CreasePatternModel) -> Self {
         let segments = if model.line_segments.is_empty() {
@@ -43,11 +79,11 @@ impl FoldGraph {
     }
 
     pub(crate) fn from_segments(segments: &[LineSegment], calculate_faces: bool) -> Self {
-        let mut points = Vec::new();
+        let mut points = VertexIndex::with_capacity(segments.len() * 2);
         let mut lines = Vec::with_capacity(segments.len());
         for segment in segments {
-            let begin = vertex_index(&mut points, segment.a);
-            let end = vertex_index(&mut points, segment.b);
+            let begin = points.index_of(segment.a);
+            let end = points.index_of(segment.b);
             lines.push(GraphLine {
                 begin,
                 end,
@@ -57,7 +93,7 @@ impl FoldGraph {
 
         let mut graph = Self {
             segments: segments.to_vec(),
-            points,
+            points: points.into_points(),
             lines,
             faces: Vec::new(),
             include_faces: false,
@@ -123,19 +159,27 @@ impl FoldGraph {
         folded
     }
 
-    pub(crate) fn face_positions(&self, starting_face: i32) -> FacePositions {
+    /// Oriedita `WireFrame_Worker.getFacePositions()`: the spanning walk over the
+    /// dual graph of faces, recording each face's depth, its parent, and the
+    /// crease it folds across.
+    ///
+    /// Fallible where upstream is not — see [`FoldGraphError`].
+    pub(crate) fn face_positions(
+        &self,
+        starting_face: i32,
+    ) -> Result<FacePositions, FoldGraphError> {
         let starting_face = self.resolve_starting_face(starting_face);
         let mut face_position = vec![0; self.faces.len()];
         let mut next_face = vec![None; self.faces.len()];
         let mut associated_line = vec![None; self.faces.len()];
 
         if self.faces.is_empty() {
-            return FacePositions {
+            return Ok(FacePositions {
                 starting_face,
                 face_position,
                 next_face,
                 associated_line,
-            };
+            });
         }
 
         face_position[starting_face] = 1;
@@ -162,19 +206,24 @@ impl FoldGraph {
             }
 
             if next_round.is_empty() {
-                break;
+                // Nothing new is reachable and faces remain. Upstream would spin
+                // here forever; breaking out would hand back an unfolded slab.
+                return Err(FoldGraphError::DisconnectedFaces {
+                    reached: self.faces.len() - remaining_faces,
+                    unreached: remaining_faces,
+                });
             }
 
             current_round = next_round;
             depth += 1;
         }
 
-        FacePositions {
+        Ok(FacePositions {
             starting_face,
             face_position,
             next_face,
             associated_line,
-        }
+        })
     }
 
     fn calculate_faces(&mut self) -> bool {
@@ -378,7 +427,22 @@ impl FoldGraph {
             .filter_map(move |(index, face)| face.contains(&point).then_some(index))
     }
 
-    fn fold_movement(&self, point: usize, face: usize, positions: &FacePositions) -> Point {
+    /// One face's own image of a point, before [`Self::folded_points`] averages
+    /// it away.
+    ///
+    /// `pub(crate)` so [`crate::folding3d`] can be diffed against it face by
+    /// face. That comparison is the only cross-check the 3D placement has
+    /// against code someone else wrote — a half-turn about an in-sheet axis
+    /// restricted to the sheet plane *is* this reflection — and it has to be
+    /// made here rather than against `folded_points`, whose averaging is a
+    /// different answer on any document the placement is not path-independent
+    /// on.
+    pub(crate) fn fold_movement(
+        &self,
+        point: usize,
+        face: usize,
+        positions: &FacePositions,
+    ) -> Point {
         let mut p = self.points[point];
         let mut destination_face = face;
         while destination_face != positions.starting_face {
@@ -412,23 +476,101 @@ fn face_contains_line(face: &[usize], begin: usize, end: usize) -> bool {
     false
 }
 
-fn vertex_index(points: &mut Vec<Point>, point: Point) -> usize {
-    if let Some(index) = points.iter().position(|candidate| equal(*candidate, point)) {
-        return index;
-    }
+/// Side of one bucket in [`VertexIndex`], in paper units.
+///
+/// Four times [`Epsilon::POINT`], so a candidate within the merge radius is
+/// never more than one bucket away on either axis and the `-1..=1` sweep below
+/// is exhaustive with three decimal orders of slack against the rounding in
+/// `coordinate / CELL`.
+const VERTEX_BUCKET: f64 = Epsilon::POINT * 4.0;
 
-    points.push(point);
-    points.len() - 1
+/// The arrangement's point set, plus a uniform grid over it.
+///
+/// **An index, not a change of rule.** [`Self::index_of`] returns the same
+/// answer as the linear `points.iter().position(|p| equal(*p, point))` it
+/// replaces — the *lowest* index within [`Epsilon::POINT`] of `point`, and a
+/// fresh index when there is none — because the bucket sweep is a superset of
+/// the candidates and the minimum is taken over it. `points_dedup_exactly_as_a_linear_scan_does`
+/// asserts that against the scan itself.
+///
+/// It exists because the scan is quadratic and every arrangement pays it.
+/// `CheckCamv` runs on the 120 ms debounced post-edit path and, on a document
+/// carrying a non-classic crease, reaches `interior_border_segments`, which
+/// builds a full arrangement: measured on the corpus's 9,162-segment
+/// `ALL-combined.fold`, that one build was 42 ms of a 53 ms check against 5.5 ms
+/// for Oriedita's `check4` alone. The work is wanted; paying `O(n^2)` for it is
+/// not.
+struct VertexIndex {
+    points: Vec<Point>,
+    buckets: HashMap<(i64, i64), Vec<usize>>,
 }
 
-fn align_face(face: &mut Vec<usize>) {
+impl VertexIndex {
+    fn with_capacity(capacity: usize) -> Self {
+        Self {
+            points: Vec::with_capacity(capacity),
+            buckets: HashMap::with_capacity(capacity),
+        }
+    }
+
+    /// Bucket coordinates. A non-finite coordinate saturates, which is harmless:
+    /// `equal` is false against a NaN either way, so such a point is pushed as
+    /// its own vertex exactly as the linear scan pushed it.
+    fn bucket(point: Point) -> (i64, i64) {
+        (
+            (point.x / VERTEX_BUCKET).floor() as i64,
+            (point.y / VERTEX_BUCKET).floor() as i64,
+        )
+    }
+
+    fn index_of(&mut self, point: Point) -> usize {
+        let (bx, by) = Self::bucket(point);
+        let mut found: Option<usize> = None;
+        for dx in -1..=1 {
+            for dy in -1..=1 {
+                // Saturating, because a coordinate far enough out (or not finite
+                // at all) saturates the cast. Such points then share one bucket
+                // and are separated by `equal` as they always were.
+                let neighbour = (bx.saturating_add(dx), by.saturating_add(dy));
+                let Some(bucket) = self.buckets.get(&neighbour) else {
+                    continue;
+                };
+                for &candidate in bucket {
+                    if equal(self.points[candidate], point) {
+                        found = Some(found.map_or(candidate, |best| best.min(candidate)));
+                    }
+                }
+            }
+        }
+        if let Some(index) = found {
+            return index;
+        }
+
+        let index = self.points.len();
+        self.points.push(point);
+        self.buckets.entry((bx, by)).or_default().push(index);
+        index
+    }
+
+    fn into_points(self) -> Vec<Point> {
+        self.points
+    }
+}
+
+/// Rotate the ring so its lowest point id comes first.
+///
+/// The `remove(0)`/`push` loop this replaces stopped after the smallest `k` with
+/// `face[k] == minimum`, which is exactly `position`, and cost `O(n^2)` getting
+/// there. Duplicate ids do not separate the two forms: both stop at the first
+/// slot holding the minimum.
+fn align_face(face: &mut [usize]) {
     let Some(minimum) = face.iter().copied().min() else {
         return;
     };
-    while face.first().copied() != Some(minimum) {
-        let first = face.remove(0);
-        face.push(first);
-    }
+    let Some(at) = face.iter().position(|point| *point == minimum) else {
+        return;
+    };
+    face.rotate_left(at);
 }
 
 fn add_face(face: Vec<usize>, faces: &mut Vec<Vec<usize>>, face_point_map: &mut [Vec<usize>]) {
@@ -447,4 +589,121 @@ fn face_area(face: &[usize], points: &[Point]) -> f64 {
         .filter_map(|index| points.get(*index).copied())
         .collect::<Vec<_>>();
     Polygon::new(vertices).calculate_area()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::geometry::LineColor;
+
+    /// The linear scan [`VertexIndex`] replaces, kept as the reference.
+    fn scanned_points(segments: &[LineSegment]) -> Vec<Point> {
+        let mut points: Vec<Point> = Vec::new();
+        let mut push = |point: Point| {
+            if points
+                .iter()
+                .position(|candidate| equal(*candidate, point))
+                .is_none()
+            {
+                points.push(point);
+            }
+        };
+        for segment in segments {
+            push(segment.a);
+            push(segment.b);
+        }
+        points
+    }
+
+    /// Deterministic points clustered around the merge radius.
+    ///
+    /// The interesting inputs are not "far apart" or "identical" — both forms
+    /// agree trivially on those. They are points a hair either side of
+    /// `Epsilon::POINT` from each other, and points that straddle a bucket
+    /// boundary, which is the only place a grid can differ from a scan.
+    fn near_coincident_segments() -> Vec<LineSegment> {
+        let mut state: u64 = 0x2545_F491_4F6C_DD1D;
+        let mut next = || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            (state >> 11) as f64 / (1u64 << 53) as f64
+        };
+        // Snap onto a lattice whose pitch is the merge radius, then jitter by up
+        // to twice it: every pair is within a bucket or two of a merge decision.
+        let pitch = Epsilon::POINT;
+        let mut segments = Vec::new();
+        for _ in 0..600 {
+            let mut point = || {
+                let cell_x = (next() * 12.0).floor();
+                let cell_y = (next() * 12.0).floor();
+                Point::new(
+                    cell_x * pitch + (next() - 0.5) * 2.0 * pitch,
+                    cell_y * pitch + (next() - 0.5) * 2.0 * pitch,
+                )
+            };
+            segments.push(LineSegment::with_color(point(), point(), LineColor::Red1));
+        }
+        segments
+    }
+
+    #[test]
+    fn points_dedup_exactly_as_a_linear_scan_does() {
+        let segments = near_coincident_segments();
+        let graph = FoldGraph::from_segments(&segments, false);
+        assert_eq!(
+            graph.points,
+            scanned_points(&segments),
+            "the grid must return the same vertex, in the same order, as the scan"
+        );
+        assert!(
+            graph.points.len() > 60,
+            "the generator has to actually merge some and keep others; got {}",
+            graph.points.len()
+        );
+    }
+
+    /// The whole arrangement, not just the point list: a differing vertex id
+    /// would move every face.
+    #[test]
+    fn the_arrangement_is_unchanged_on_a_grid_with_shared_vertices() {
+        let mut segments = Vec::new();
+        for i in 0..=8 {
+            let t = f64::from(i) * 25.0;
+            segments.push(LineSegment::with_color(
+                Point::new(t, 0.0),
+                Point::new(t, 200.0),
+                LineColor::Red1,
+            ));
+            segments.push(LineSegment::with_color(
+                Point::new(0.0, t),
+                Point::new(200.0, t),
+                LineColor::Blue2,
+            ));
+        }
+        let graph = FoldGraph::from_segments(&segments, true);
+        assert_eq!(graph.points, scanned_points(&segments));
+        assert_eq!(
+            graph.lines.len(),
+            segments.len(),
+            "one graph line per segment, in order"
+        );
+    }
+
+    /// `align_face` rotates to the first slot holding the minimum, duplicates or
+    /// not — the property the `remove(0)` loop had.
+    #[test]
+    fn a_face_ring_is_rotated_to_its_lowest_point_id() {
+        let mut ring = vec![7, 3, 9, 3, 5];
+        align_face(&mut ring);
+        assert_eq!(ring, vec![3, 9, 3, 5, 7]);
+
+        let mut already = vec![1, 4, 2];
+        align_face(&mut already);
+        assert_eq!(already, vec![1, 4, 2]);
+
+        let mut empty: Vec<usize> = Vec::new();
+        align_face(&mut empty);
+        assert!(empty.is_empty());
+    }
 }

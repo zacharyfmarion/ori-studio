@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderMeshToSvg } from '../src/svgRenderer.js';
-import { buildBsp, traverseBsp, type BspItem } from '../src/bsp.js';
+import { buildBsp, traverseBsp, type BspItem, type Vec3 } from '../src/bsp.js';
 import { cameraUniforms } from '../src/webgl/camera.js';
 import type { RenderSettings } from '../src/webgl/meshRenderer.js';
 
@@ -186,6 +186,100 @@ describe('ordering interpenetrating geometry', () => {
     ];
     // No face means no splitting plane; both edges still come out.
     expect(traverseBsp(buildBsp(edges), [0, 0, 1])).toHaveLength(2);
+  });
+
+  describe('a caller-supplied draw order among coplanar items', () => {
+    // A coplanar stack pushed bottom-first, buried among faces that every
+    // candidate plane cuts. `chooseSplitter` samples every floor(faces/5)-th
+    // face, so with twenty of them it lands on the middle member of the stack
+    // and `subdivide` promotes that one to the head of its own coplanar list.
+    const stack = (ref: number): BspItem => ({
+      kind: 0,
+      ref,
+      order: ref,
+      points: [[0, 0, 0], [10, 0, 0], [10, 10, 0]],
+    });
+    // Straddle z = 0 so a z = 0 splitter cuts them, and each other so their own
+    // planes cut plenty — which is what makes the sampled splitter interesting.
+    const decoy = (i: number): BspItem => ({
+      kind: 0,
+      ref: 100 + i,
+      points: [[1 + i * 0.1, 1, -5], [9, 1 + i * 0.1, 5], [9, 9, 5 - i * 0.1]],
+    });
+    const scene = (withOrder: boolean): BspItem[] => {
+      const items: BspItem[] = [];
+      for (let i = 0; i < 3; i += 1) items.push(decoy(i));
+      for (let ref = 0; ref < 3; ref += 1) {
+        const item = stack(ref);
+        items.push(withOrder ? item : { kind: item.kind, ref: item.ref, points: item.points });
+      }
+      for (let i = 3; i < 20; i += 1) items.push(decoy(i));
+      return items;
+    };
+    const stackOrder = (items: BspItem[]): number[] => {
+      const refs = traverseBsp(buildBsp(items), [0, 0, Number.MAX_SAFE_INTEGER])
+        .map((item) => item.ref)
+        .filter((ref) => ref < 100);
+      return [...new Set(refs)];
+    };
+
+    it('survives the splitter being promoted to the head of its own list', () => {
+      expect(stackOrder(scene(true))).toEqual([0, 1, 2]);
+    });
+
+    it('is what the array order alone does not give', () => {
+      // The measurement the option exists for: without it the same three faces
+      // come back with the sampled one first. Not a claim about which sequence
+      // is "right" — only that array order is not preserved, so a caller whose
+      // order is a fact about the model has to say so.
+      expect(stackOrder(scene(false))).not.toEqual([0, 1, 2]);
+    });
+
+    it('still puts faces before edges', () => {
+      // `order` is the tie-break under `kind`, never over it: a crease with a
+      // lower order must not jump ahead of the face it lies in.
+      const items: BspItem[] = [
+        { kind: 1, ref: 0, order: 0, points: [[-1, -1, 0], [1, -1, 0]] },
+        { kind: 0, ref: 0, order: 5, points: [[-1, -1, 0], [1, -1, 0], [0, 1, 0]] },
+      ];
+      expect(traverseBsp(buildBsp(items), [0, 0, 10]).map((i) => i.kind)).toEqual([0, 1]);
+    });
+  });
+
+  describe('a caller-supplied coplanarity tolerance', () => {
+    // Two faces a thousandth of a unit apart: one plane as far as the caller is
+    // concerned, two planes at the default epsilon.
+    const lower: BspItem = { kind: 0, ref: 0, order: 0, points: [[0, 0, 0], [10, 0, 0], [10, 10, 0]] };
+    const upper: BspItem = {
+      kind: 0,
+      ref: 1,
+      order: 1,
+      points: [[0, 0, 1e-3], [10, 0, 1e-3], [10, 10, 1e-3]],
+    };
+
+    it('keeps items inside it in one coplanar list, ordered by the caller', () => {
+      const eye: Vec3 = [0, 0, Number.MAX_SAFE_INTEGER];
+      const ordered = traverseBsp(buildBsp([upper, lower], { coplanarEps: 1e-2 }), eye);
+      expect(ordered.map((item) => item.ref)).toEqual([0, 1]);
+    });
+
+    it('does not take them for ink and push them to the children', () => {
+      // The trap this replaced: the near-side rule used to be spelled
+      // `eps > EPS`, which a raised coplanar tolerance also satisfies. Under it
+      // both faces leave the coplanar list and the caller's order is lost.
+      const eye: Vec3 = [0, 0, -Number.MAX_SAFE_INTEGER];
+      const ordered = traverseBsp(buildBsp([upper, lower], { coplanarEps: 1e-2 }), eye);
+      // Same list whichever side the eye is on, because they share a node.
+      expect(ordered.map((item) => item.ref)).toEqual([0, 1]);
+    });
+
+    it('leaves the default alone, so they separate without one', () => {
+      const eye: Vec3 = [0, 0, Number.MAX_SAFE_INTEGER];
+      expect(traverseBsp(buildBsp([upper, lower]), eye).map((item) => item.ref)).toEqual([0, 1]);
+      expect(
+        traverseBsp(buildBsp([upper, lower]), [0, 0, -Number.MAX_SAFE_INTEGER]).map((i) => i.ref)
+      ).toEqual([1, 0]);
+    });
   });
 
   it('draws a crease over the face it lies in', () => {

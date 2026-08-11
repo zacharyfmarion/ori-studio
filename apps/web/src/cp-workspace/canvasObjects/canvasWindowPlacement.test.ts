@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { inlineSimulationPlacement, paintedSize } from './inlineSimulationPlacement';
+import { canvasWindowPlacement, paintedSize } from './canvasWindowPlacement';
 
 const box = { center: { x: 0, y: 0 }, width: 120, height: 90, rotation: 0 };
 const at = (pxPerModel: number, renderedPxPerModel: number) =>
-  inlineSimulationPlacement({
+  canvasWindowPlacement({
     box,
     center: { x: 400, y: 300 },
     angle: 0.6,

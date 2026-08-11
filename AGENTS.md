@@ -240,13 +240,28 @@ npm run build:web
 npm run check:desktop
 npm run dev:desktop
 
-# WASM bridge
-wasm-pack build crates/treemaker-wasm --target bundler
+# WASM bridge — build through the npm scripts, which pin the target and out-dir
+npm --workspace @treemaker/web run build:oristudio-cp-wasm
+npm --workspace @treemaker/web run build:oristudio-bp-wasm
+npm --workspace @treemaker/web run build:treemaker-wasm
+npm --workspace @treemaker/web run build:oristudio-cp-detect-wasm
 wasm-pack test --node crates/treemaker-wasm
 ```
 
 Choose the smallest validation set that covers the files you changed, and
 report any skipped checks with the reason.
+
+**The CP and BP wasm artifacts are tracked in git.** `apps/web/src/generated/`
+carries a blanket `.gitignore`, but `oristudio-cp-wasm/` and `oristudio-bp-wasm/`
+were force-added and are what the browser and desktop bundles actually ship —
+`git ls-files apps/web/src/generated` lists them. Nothing in CI rebuilds or
+verifies them, and the `.js`/`.d.ts` glue is unchanged by a body-only kernel
+edit, so lint, typecheck and vitest all pass over a stale `.wasm` and say
+nothing. A change to `crates/oristudio-cp*` or `crates/oristudio-bp*` is not
+finished until the matching artifact is rebuilt and staged
+(`git add -f apps/web/src/generated/<pkg>/`, past the `.gitignore`).
+`treemaker-wasm/` and `oristudio-cp-detect-wasm/` are genuinely untracked build
+outputs.
 
 ## Testing
 
@@ -401,9 +416,12 @@ Two things it lacks that the primary checkout has:
 1. **`node_modules`** — npm never populates a worktree; each one needs its own
    install. Without it, `tsc` cannot resolve packages (`react-i18next`,
    `react-router-dom`, …) and the i18n scripts fail with cryptic errors.
-2. **The `.gitignore`'d generated artifacts** under `apps/web/src/generated/`
-   (the wasm bridges and generated TS). They are build outputs, not tracked in
-   git, so a new worktree starts without them and typecheck/build fail.
+2. **The untracked generated artifacts** under `apps/web/src/generated/` —
+   `treemaker-wasm/`, `oristudio-cp-detect-wasm/` and the generated TS. A new
+   worktree starts without them and typecheck/build fail. (`oristudio-cp-wasm/`
+   and `oristudio-bp-wasm/` are tracked and arrive with the checkout; see the
+   WASM bridge note above for what that obliges you to do when you change those
+   crates.)
 
 Bootstrap both in one step from the worktree root:
 

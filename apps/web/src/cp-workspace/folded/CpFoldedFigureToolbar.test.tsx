@@ -71,6 +71,7 @@ function makeDeps(
 ): Omit<FoldedFigureActionDeps, 't'> {
   return {
     flip: vi.fn(),
+    resetView: vi.fn(),
     setDisplayStyle: vi.fn(),
     foldAnother: vi.fn(),
     duplicate: vi.fn(),

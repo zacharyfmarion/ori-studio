@@ -20,6 +20,20 @@ export function foldedFigureMenuItems(
     switch (action.kind) {
       case 'separator':
         return { kind: 'separator' };
+      // The verdict, as a header. An item when it offers something to do about
+      // it and a disabled one otherwise, so the sentence is readable either way
+      // — a menu has no non-item way to say something.
+      case 'note':
+        return {
+          kind: 'action',
+          id: action.id,
+          label: action.run
+            ? `${action.notice.label} — ${action.notice.action?.label ?? ''}`.trim()
+            : action.notice.label,
+          icon: foldedFigureActionIconNode(action.icon),
+          disabled: action.run === null,
+          onSelect: action.run ?? (() => {}),
+        };
       case 'choice':
         // Grouped picks nest as a submenu rather than spending top-level slots.
         // An exclusive set (display style) becomes radio items so the current

@@ -221,16 +221,20 @@
     "flipFoldedModel": "翻转折叠模型",
     "fold": "折叠",
     "foldability": {
+      "closure": "此处的折线无法闭合",
+      "closureResidual": "此处的折线无法闭合：相差 {{degrees}}°",
       "compose": "{{lead}}：{{tail}}",
       "edgeLineConfiguration": "边界线配置无效",
       "edgeLineCount": "边界线过多或不足",
       "equalMountainValley": "山折与谷折数量相同",
       "incorrectAngles": "角度不正确",
       "incorrectFoldTypes": "折痕类型不正确",
+      "interiorBorder": "两侧都有纸的边界线 — 不检查沿此线的可折叠性",
       "littleBigLittle": "角度无法嵌套（小-大-小）",
       "notEnoughMountain": "山折数量不足",
       "notEnoughValley": "谷折数量不足",
       "oddFolds": "折痕数量为奇数",
+      "rigidVertex": "该顶点是刚性的，因此此处的折线都必须是平的",
       "selfIntersection": "纸张在此处穿过自身",
       "shape": {
         "circle": "角度不正确（川崎定理）",
@@ -246,9 +250,17 @@
       "line": "线条颜色"
     },
     "foldedDisplayStyle": "折叠显示样式",
+    "foldedFigure": {
+      "windowAriaLabel": "折叠模型（三维）",
+      "windowFailed": "无法绘制此模型"
+    },
     "foldedModelControls": "折叠模型控件",
     "foldedModels": "折叠模型",
     "foldedModelSide": "折叠模型侧面",
+    "foldedModelStatus": {
+      "error": "失败",
+      "loading": "正在折叠…"
+    },
     "foldedState": {
       "back": "背面",
       "front": "正面"
@@ -297,8 +309,10 @@
     "none": "无",
     "openingSharedLink": "正在打开分享的折痕图…",
     "optimizingScale": "正在优化比例",
+    "orbitFoldedForm": "旋转折叠图形",
     "preparing": "正在准备编辑器…",
     "refoldFoldedModelAction": "重新折叠模型",
+    "resetFoldedModelView": "重置折叠模型视角",
     "resizeAnnotation": "调整批注大小",
     "resizeFoldedForm": "调整折叠图大小",
     "resizeSimulationWindow": "调整模拟窗口大小",
@@ -323,10 +337,13 @@
     },
     "sendImageToBack": "将图像置于底层",
     "shadow": "阴影",
+    "shadowUnsupported3d": "尚不支持为 3D 折叠模型绘制阴影",
     "showFoldedModelShadow": "显示折叠模型阴影",
     "side": "侧面",
     "stale": "已过期",
-    "viewportControls": "折痕图视口控件"
+    "viewFoldedModelOtherSide": "从另一侧查看",
+    "viewportControls": "折痕图视口控件",
+    "zoomFoldedForm": "缩放折叠图"
   },
   "design": {
     "attributionBoxPleating": "改编自 <2>Mu-Tsun Tsai's Box Pleating Studio</2>",
@@ -493,6 +510,20 @@
     "viewTree": "树",
     "viewTreeAndCp": "树与折痕图"
   },
+  "fold3dVerdict": {
+    "localCrossing_one": "纸张在 1 个顶点处穿过了自身。",
+    "localCrossing_other": "纸张在 {{count}} 个顶点处穿过了自身。",
+    "localCrossingLabel": "纸张自相穿透",
+    "noLayerOrderContradictorySeeds": "两个面各自都必须位于对方之上，任何层序都无法同时满足。",
+    "noLayerOrderGeneric": "无法确定此立体各层的先后顺序。",
+    "noLayerOrderLabel": "层序未确定",
+    "selectCreases": "选中这些折线",
+    "showIssues": "显示问题",
+    "simulateInstead": "改用模拟",
+    "transversalCrossing_one": "有 1 条折线穿过了此立体的面。",
+    "transversalCrossing_other": "有 {{count}} 条折线穿过了此立体的面。",
+    "transversalCrossingLabel": "折线穿过面"
+  },
   "foldedFigureActions": {
     "anotherSolution": "另一个解",
     "delete": "删除",
@@ -504,7 +535,9 @@
     "firstSolution": "返回第一个解",
     "flip": "翻转",
     "label": "折叠模型操作",
+    "otherSide": "另一侧",
     "refold": "重新折叠",
+    "resetView": "重置视角",
     "styleDev1": "开发 1",
     "styleDev4": "开发 4",
     "styleNone": "无",

@@ -27,6 +27,7 @@ fn wireframe_folding_matches_oriedita_oracle() {
     for starting_face in [1, 0] {
         let segments = square_with_diagonal();
         let folded = estimate_wireframe_from_segments(&segments, starting_face)
+            .expect("connected fold graph")
             .expect("Rust wireframe folding should succeed");
         let mut args = vec![
             "wireframe-folding-summary".to_string(),
@@ -92,6 +93,7 @@ fn two_colored_subface_arrangement_matches_oriedita_oracle() {
     for starting_face in [1, 0] {
         let segments = two_square_strip();
         let prepared = two_colored_subface_segments_from_segments(&segments, starting_face)
+            .expect("connected fold graph")
             .expect("two-colored subface arrangement");
         let mut args = vec![
             "two-colored-subface-arrangement".to_string(),
@@ -142,6 +144,7 @@ fn subface_configuration_matches_oriedita_oracle() {
     for starting_face in [1, 0] {
         let segments = square_with_diagonal();
         let configuration = configure_subfaces_from_segments(&segments, starting_face)
+            .expect("connected fold graph")
             .expect("Rust subface configuration should succeed");
         let mut args = vec![
             "subface-configuration-summary".to_string(),

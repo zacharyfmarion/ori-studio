@@ -12,8 +12,11 @@ import init, {
   export_share_link,
   load_share_link,
   export_ori,
+  folded_figure_3d_duplicate,
+  folded_figure_3d_fold_another,
   folded_figure_duplicate,
   folded_figure_fold,
+  folded_figure_fold_3d,
   folded_figure_fold_selected,
   folded_figure_fold_another,
   folded_figure_fold_to_case,
@@ -46,6 +49,8 @@ import type {
   OristudioCpDocumentSnapshot,
   OristudioCpDocumentSummary,
   OristudioCpEstimationOrder,
+  OristudioCpFold3dFoldResult,
+  OristudioCpFold3dStepResult,
   OristudioCpFoldedFigureBatchResult,
   OristudioCpFoldedFigureModel,
   OristudioCpFoldedFigureRenderOptions,
@@ -274,6 +279,36 @@ const api = {
         ) as OristudioCpFoldedFigureBatchResult
     );
   },
+  /**
+   * Fold the selected creases in 3D.
+   *
+   * Resolves to `{ status: 'refused', refusal }` rather than rejecting when the
+   * crease pattern has no 3D folded state: a refusal is an answer, it carries
+   * structured data the `{ code, message }` envelope cannot, and it must not
+   * land in a catch path that destroys the draft figure.
+   */
+  async fold3d(
+    handle: number,
+    selectedLineIds: number[],
+    startingFaceId = 1,
+    model?: OristudioCpFoldedFigureModel
+  ): Promise<OristudioCpFold3dFoldResult> {
+    return call(
+      () =>
+        folded_figure_fold_3d(
+          handle,
+          selectedLineIds,
+          startingFaceId,
+          model ?? null
+        ) as OristudioCpFold3dFoldResult
+    );
+  },
+  async fold3dAnother(handle: number): Promise<OristudioCpFold3dStepResult> {
+    return call(() => folded_figure_3d_fold_another(handle) as OristudioCpFold3dStepResult);
+  },
+  async duplicateFolded3dFigure(handle: number): Promise<OristudioCpFold3dFoldResult> {
+    return call(() => folded_figure_3d_duplicate(handle) as OristudioCpFold3dFoldResult);
+  },
   async freeFoldedFigure(handle: number): Promise<void> {
     return call(() => free_folded_figure(handle));
   },
@@ -283,8 +318,17 @@ const api = {
   async exportFold(handle: number, texts: FlatText[] = []): Promise<string> {
     return call(() => exportWithTexts(handle, texts, () => export_fold(handle)));
   },
-  async exportFoldFile(handle: number, texts: FlatText[] = []): Promise<string> {
-    return call(() => exportWithTexts(handle, texts, () => export_fold_file(handle)));
+  /** `foldedHandles` names the 3D figures to write as `foldedForm` frames. */
+  async exportFoldFile(
+    handle: number,
+    texts: FlatText[] = [],
+    foldedHandles: number[] = []
+  ): Promise<string> {
+    return call(() =>
+      exportWithTexts(handle, texts, () =>
+        export_fold_file(handle, new Uint32Array(foldedHandles))
+      )
+    );
   },
   async exportOri(handle: number, texts: FlatText[] = []): Promise<string> {
     return call(() => exportWithTexts(handle, texts, () => export_ori(handle)));

@@ -125,25 +125,30 @@ export function export_fold(handle) {
 }
 
 /**
+ * `folded_handles` names the 3D folded figures to write as `foldedForm`
+ * frames. Empty is the ordinary case and means "the pattern only".
  * @param {number} handle
+ * @param {Uint32Array} folded_handles
  * @returns {string}
  */
-export function export_fold_file(handle) {
-    let deferred2_0;
-    let deferred2_1;
+export function export_fold_file(handle, folded_handles) {
+    let deferred3_0;
+    let deferred3_1;
     try {
-        const ret = wasm.export_fold_file(handle);
-        var ptr1 = ret[0];
-        var len1 = ret[1];
+        const ptr0 = passArray32ToWasm0(folded_handles, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.export_fold_file(handle, ptr0, len0);
+        var ptr2 = ret[0];
+        var len2 = ret[1];
         if (ret[3]) {
-            ptr1 = 0; len1 = 0;
+            ptr2 = 0; len2 = 0;
             throw takeFromExternrefTable0(ret[2]);
         }
-        deferred2_0 = ptr1;
-        deferred2_1 = len1;
-        return getStringFromWasm0(ptr1, len1);
+        deferred3_0 = ptr2;
+        deferred3_1 = len2;
+        return getStringFromWasm0(ptr2, len2);
     } finally {
-        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
     }
 }
 
@@ -226,6 +231,30 @@ export function export_share_link(handle) {
  * @param {number} handle
  * @returns {any}
  */
+export function folded_figure_3d_duplicate(handle) {
+    const ret = wasm.folded_figure_3d_duplicate(handle);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {number} handle
+ * @returns {any}
+ */
+export function folded_figure_3d_fold_another(handle) {
+    const ret = wasm.folded_figure_3d_fold_another(handle);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {number} handle
+ * @returns {any}
+ */
 export function folded_figure_duplicate(handle) {
     const ret = wasm.folded_figure_duplicate(handle);
     if (ret[2]) {
@@ -243,6 +272,27 @@ export function folded_figure_duplicate(handle) {
  */
 export function folded_figure_fold(document_handle, starting_face_id, order, model) {
     const ret = wasm.folded_figure_fold(document_handle, starting_face_id, order, model);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * Place, measure and order the selected creases in 3D.
+ *
+ * Returns `{ status: "placed", handle, snapshot, render }` or
+ * `{ status: "refused", refusal: { code, ... } }`. A refusal is a **result**,
+ * not a thrown error: it must not reach the store's catch path, and it carries
+ * structured data the `{ code, message }` error envelope cannot.
+ * @param {number} document_handle
+ * @param {any} selected_line_ids
+ * @param {number} starting_face_id
+ * @param {any} model
+ * @returns {any}
+ */
+export function folded_figure_fold_3d(document_handle, selected_line_ids, starting_face_id, model) {
+    const ret = wasm.folded_figure_fold_3d(document_handle, selected_line_ids, starting_face_id, model);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -1046,6 +1096,13 @@ function handleError(f, args) {
 
 function isLikeNone(x) {
     return x === undefined || x === null;
+}
+
+function passArray32ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 4, 4) >>> 0;
+    getUint32ArrayMemory0().set(arg, ptr / 4);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
 }
 
 function passArrayF64ToWasm0(arg, malloc) {

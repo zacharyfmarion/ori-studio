@@ -14,13 +14,55 @@
  * any live entry or any history entry still refers to it, and is freed when the
  * last reference goes (typically when the entry scrolls off the undo stack).
  *
- * Cost is small: a handle measures roughly 0.6 KiB per crease-pattern segment,
- * and only *deleted* figures are retained beyond their live entry — an ordinary
- * edit mutates the existing handle rather than allocating a second one.
+ * Cost is small for a **flat** handle: roughly 0.6 KiB per crease-pattern
+ * segment, and only *deleted* figures are retained beyond their live entry — an
+ * ordinary edit mutates the existing handle rather than allocating a second one.
+ *
+ * A **3D** handle is a different cost class, and the flat figure is not a guide
+ * to it. Measured with a counting allocator over the committed fixtures and the
+ * admitted corpus: a `Fold3dSession` is 23.7 KiB at 23 segments, 596 KiB at 420,
+ * 1.79 MiB at 941 and **10.7 MiB at 5,010** (`origamisimulator`, the largest
+ * model the gate admits). Per-segment cost climbs with size rather than holding —
+ * 885 B/segment at 5 segments, 2,237 B/segment at 5,010 — so no "N KiB per
+ * segment" rule read off a small fixture is safe to extrapolate. The flat
+ * control on the same harness reproduces the 0.6 KiB figure above (656 B/segment
+ * on `solution_sample_1.cp`).
+ *
+ * The **render model is not the bulk of it**, which is worth stating because it
+ * is the obvious thing to reach for: it is 7.8% of the session at every size
+ * measured (145 KiB of 1.79 MiB, 849 KiB of 10.7 MiB). Dropping it from history
+ * entries would recover a twelfth. The bulk is the arrangement, the census and
+ * the per-component search state, and shedding those means dropping the session
+ * and re-folding on restore — which 3D can do exactly, since its payload is
+ * bit-identical across refolds of the same segments, but which is a behaviour
+ * change rather than a bound. It is not done; the plan's Phase 8 records the
+ * measurement so the decision is takeable rather than guessed.
+ *
+ * The exposure that number bounds is narrow: only *deleted* figures are retained
+ * beyond their live entry, so it takes deleting many large 3D figures inside one
+ * undo window (`MAX_CP_HISTORY`) to accumulate, and the largest corpus files are
+ * refused by the admission gate before a session is ever allocated.
  */
+
+import { dropFolded3dRenderModel, resetFolded3dRenderModels } from './folded3dRenderModels';
+import { clearAllFolded3dOrbits } from './folded3dRuntime';
 
 /** Live reference count per handle. Entries reaching 0 are freed and dropped. */
 const counts = new Map<number, number>();
+
+/**
+ * How many times the handle space has been torn down wholesale.
+ *
+ * Bumped by {@link resetFoldedFigureHandles}, which is what closing or replacing
+ * a document calls. An async caller holding a handle it obtained earlier — a
+ * background rehydrate, say — compares this before adopting: the number changing
+ * means every handle from before, including the one it is holding, belongs to a
+ * kernel document that no longer exists.
+ *
+ * A counter rather than a flag because the question is "is this still the same
+ * space", which two loads in a row would answer wrongly with a boolean.
+ */
+let handleEpoch = 0;
 
 /**
  * The actual free. Injected so the store can supply its runtime binding without
@@ -63,6 +105,10 @@ export function releaseFoldedFigureHandle(handle: number | null | undefined): vo
     return;
   }
   counts.delete(handle);
+  // A 3D figure's geometry is reachable only through its handle, so it goes at
+  // the same moment. Keeping it alive past the session it describes would leak
+  // a quarter of a megabyte per figure that scrolled off the undo stack.
+  dropFolded3dRenderModel(handle);
   void freeHandle(handle);
 }
 
@@ -78,10 +124,41 @@ export function foldedFigureHandleRefCount(handle: number): number {
   return counts.get(handle) ?? 0;
 }
 
+/** Which teardown generation the live handles belong to. See {@link handleEpoch}. */
+export function foldedFigureHandleEpoch(): number {
+  return handleEpoch;
+}
+
 /**
- * Drop all bookkeeping without freeing — for closing a document, where the
- * session's handles go away wholesale, and for test isolation.
+ * Free every handle still held, then drop all bookkeeping — for closing or
+ * replacing a document, and for test isolation.
+ *
+ * This used to drop the bookkeeping *without* freeing, on the stated grounds
+ * that closing a document took the session's handles with it. It does not:
+ * `CpSession::free_document` nulls the document slot only, and folded figures
+ * live in their own arena that nothing else empties. So every handle reachable
+ * only from bookkeeping — which after a close is all of them, including the ones
+ * held by undo entries rather than by a live figure — stayed allocated in the
+ * wasm heap for the tab's lifetime, at up to 10.7 MiB a session.
+ *
+ * Freeing here cannot double-free: `counts` is the only record of what is
+ * outstanding, and it is cleared in the same breath, so nothing can release one
+ * of these afterwards.
  */
-export function resetFoldedFigureHandles(): void {
+export function resetFoldedFigureHandles(): Promise<void> {
+  handleEpoch += 1;
+  const freed: (Promise<void> | void)[] = [];
+  for (const handle of counts.keys()) {
+    dropFolded3dRenderModel(handle);
+    freed.push(freeHandle(handle));
+  }
   counts.clear();
+  resetFolded3dRenderModels();
+  // The other 3D side table, torn down at the same point and for the same
+  // reason: a live orbit frame outliving its document would draw a figure at a
+  // camera no entry in the store has.
+  clearAllFolded3dOrbits();
+  // Awaitable so a caller replacing a document can let the kernel settle before
+  // folding into it again; safe to ignore, which every other caller does.
+  return Promise.allSettled(freed).then(() => undefined);
 }

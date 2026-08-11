@@ -1,9 +1,9 @@
 use super::combination::CombinationGenerator;
 use super::{
     AdditionalEstimationError, EquivalenceCondition, EquivalenceConditionSet, FaceOrder,
-    HierarchyTable, InitialHierarchy, InitialHierarchyError, SubFace, SubFaceConfiguration,
-    apply_quadruple_condition, apply_triple_condition, run_additional_estimation,
-    run_additional_estimation_fast,
+    FoldGraphError, FoldSetupError, HierarchyTable, InitialHierarchy, InitialHierarchyError,
+    SubFace, SubFaceConfiguration, apply_quadruple_condition, apply_triple_condition,
+    run_additional_estimation, run_additional_estimation_fast,
 };
 use std::collections::{HashMap, HashSet};
 
@@ -217,7 +217,7 @@ impl SubFaceSwapper {
 pub enum WorkerOverlapSearchError {
     SubFace(SubFaceSearchError),
     AdditionalEstimation(AdditionalEstimationError),
-    InitialHierarchy(InitialHierarchyError),
+    Setup(FoldSetupError),
     FinalAdditionalEstimationRequired {
         valid_count: usize,
         reduced_subface_count: usize,
@@ -242,9 +242,21 @@ impl From<AdditionalEstimationError> for WorkerOverlapSearchError {
     }
 }
 
+impl From<FoldSetupError> for WorkerOverlapSearchError {
+    fn from(error: FoldSetupError) -> Self {
+        Self::Setup(error)
+    }
+}
+
+impl From<FoldGraphError> for WorkerOverlapSearchError {
+    fn from(error: FoldGraphError) -> Self {
+        Self::Setup(FoldSetupError::FoldGraph(error))
+    }
+}
+
 impl From<InitialHierarchyError> for WorkerOverlapSearchError {
     fn from(error: InitialHierarchyError) -> Self {
-        Self::InitialHierarchy(error)
+        Self::Setup(FoldSetupError::InitialHierarchy(error))
     }
 }
 

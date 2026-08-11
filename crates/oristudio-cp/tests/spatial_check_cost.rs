@@ -13,7 +13,8 @@
 
 use oristudio_cp::checks::check4;
 use oristudio_cp::checks_spatial::{dispatched_camv, spatial_vertex_reports};
-use oristudio_cp::geometry::{LineColor, LineSegment, Point};
+use oristudio_cp::folding3d::admit;
+use oristudio_cp::geometry::{FoldMagnitude, LineColor, LineSegment, Point};
 use oristudio_cp::model::CreasePatternModel;
 use std::time::Instant;
 
@@ -76,5 +77,95 @@ fn a_flat_pattern_does_not_pay_for_the_spatial_check() {
         dispatched_cost < flat_cost * 4,
         "dispatched_camv took {dispatched_cost:?} against {flat_cost:?} for check4 alone — \
          the spatial path is being built for a document that has no spatial vertices"
+    );
+}
+
+/// The same grid, with a paper border and a non-classic crease.
+///
+/// The test above cannot see any of the spatial branch's cost: an all-classic
+/// document short-circuits before `ThroughLineIndex` and before the arrangement,
+/// so a regression in either is invisible there. This is the document that pays.
+fn spatial_grid(n: usize) -> CreasePatternModel {
+    let mut model = flat_grid(n);
+    let span = n as f64 * 10.0;
+    for segment in model.line_segments.iter_mut().step_by(7) {
+        *segment = segment
+            .clone()
+            .with_fold_magnitude(FoldMagnitude::from_degrees(90.0));
+    }
+    for (a, b) in [
+        ((0.0, 0.0), (span, 0.0)),
+        ((span, 0.0), (span, span)),
+        ((span, span), (0.0, span)),
+        ((0.0, span), (0.0, 0.0)),
+    ] {
+        model.add_line_segment(LineSegment::with_color(
+            Point::new(a.0, a.1),
+            Point::new(b.0, b.1),
+            LineColor::Black0,
+        ));
+    }
+    model
+}
+
+/// A non-flat pattern pays for the spatial check, but within an order of
+/// Oriedita's own.
+///
+/// `interior_border_segments` traces the whole arrangement, and `dispatched_camv`
+/// reaches it on the 120 ms debounced post-edit path. When it landed it cost
+/// 42 ms of a 53 ms check on the corpus's 9,162-segment `ALL-combined.fold`
+/// against 5.5 ms for `check4` — a 9x check, four fifths of it in one call. The
+/// ratio below is what stops that returning unseen.
+#[test]
+fn a_non_flat_pattern_pays_a_bounded_price_for_the_spatial_check() {
+    let model = spatial_grid(40);
+
+    let start = Instant::now();
+    check4(&model);
+    let flat_cost = start.elapsed();
+
+    let start = Instant::now();
+    let dispatched = dispatched_camv(&model);
+    let dispatched_cost = start.elapsed();
+
+    assert!(
+        !dispatched.spatial.is_empty(),
+        "this document is supposed to reach the spatial branch"
+    );
+    assert!(
+        dispatched.interior_borders.is_empty(),
+        "its border is the paper's own edge, so nothing has paper on both sides"
+    );
+
+    assert!(
+        dispatched_cost < flat_cost * 8,
+        "dispatched_camv took {dispatched_cost:?} against {flat_cost:?} for check4 alone"
+    );
+}
+
+/// `admit` traces the arrangement once, not once per question that needs it.
+///
+/// Asserted as a budget rather than a call count: the gate's own closure pass
+/// and its placement each need the arrangement, and building it twice put the
+/// most expensive step in the function on the bill twice.
+#[test]
+fn the_3d_gate_traces_the_arrangement_once() {
+    let model = spatial_grid(24);
+
+    let start = Instant::now();
+    let _ = dispatched_camv(&model);
+    let checked = start.elapsed();
+
+    let start = Instant::now();
+    let _ = admit(&model.line_segments, 1);
+    let admitted = start.elapsed();
+
+    // One arrangement is already inside `dispatched_camv` here, so a gate that
+    // built a second would land near twice this. Generous, and still an order
+    // below the regression it guards.
+    assert!(
+        admitted < checked * 3,
+        "admit took {admitted:?} against {checked:?} for the check alone — \
+         the arrangement is being traced more than once"
     );
 }

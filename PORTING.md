@@ -60,6 +60,48 @@ are unchanged:
   render oracle in `crates/oristudio-cp/tests/oriedita_render_oracle.rs` remains
   a byte-for-byte gate.
 
+- **A disconnected fold graph is a typed refusal.** `FoldGraph::face_positions`
+  returns `FoldGraphError::DisconnectedFaces { reached, unreached }` instead of
+  walking off the end of a dual graph that has more than one component.
+  `WireFrame_Worker.getFacePositions()` has no exit for this at all: its
+  `while (remaining_facesTotal > 0)` loop keeps re-scanning an empty frontier
+  until the thread is interrupted, so upstream's behavior here is a hang, not a
+  result to be faithful to. Ori Studio already diverged by breaking out of that
+  loop, and the break was worse than the hang — every unreached face kept
+  `associated_line: None`, `fold_movement` reads that as "leave this point where
+  it is", and the figure came back with an *unfolded* slab in it, reporting `Ok`.
+  The Euler gate in `calculate_faces` hides the small cases (two disjoint squares
+  score `euler == 2` and are rejected), but its `0.005 * faces.len()` tolerance
+  admits a disconnected line set from ~200 faces up. The refusal reaches the
+  frontend as engine code `fold_disconnected`. Nothing about the walk itself, the
+  order it visits faces in, or any successful result changes; the folding oracle
+  in `crates/oristudio-cp/tests/oriedita_folding_oracle.rs` is the gate.
+
+- **A FOLD folded form is refused, not flattened.** `io::fold::import_fold_document`
+  returns `IoError::FoldedForm` — engine code `fold_folded_form` — for a frame
+  that declares `frame_classes: ["foldedForm"]`, and for any vertex further than
+  1e-9 off the paper plane. Oriedita's `FoldFileFormat` has no such refusal; it
+  reads the first two components of each `vertices_coords` entry and drops the
+  rest, so a folded state imports as its own shadow — a plausible-looking crease
+  pattern whose creases are wherever the projection put them. Measured on the
+  corpus's `MoosersTrainRigid-Gardner.fold`, all 246 spatial vertices fail
+  closure after that round trip. Per AGENTS.md the operation has not been
+  ported, so it errors rather than producing a nearby result. Two independent
+  signals because either can be present without the other: a declared class
+  (which a *flat*-folded state can carry while sitting entirely in z = 0) and
+  real out-of-plane geometry (which a file can carry with no class at all). An
+  explicit `z` of exactly zero still imports, because `[x, y, 0]` is how plenty
+  of writers spell a flat pattern.
+  **Consequence for our own files.** `apps/web/src/lib/foldedExport.ts` writes
+  `frame_classes: ['foldedForm']`, so Ori Studio's folded-form FOLD export is
+  refused by Ori Studio's FOLD importer, deliberately: that export is for other
+  tools, not a round trip. `creasePatternImport.ts`'s frame scoring now ranks a
+  `foldedForm` frame *below* an unclassified one, so a file carrying both frames
+  opens its crease pattern; a file carrying only the folded form reaches the
+  refusal by name. Pinned by `a_declared_folded_form_frame_is_refused_rather_than_flattened`,
+  `out_of_plane_vertices_are_refused_rather_than_projected`,
+  `an_explicit_zero_z_still_imports` and the two `foldedExport.test.ts` cases.
+
 - **Bounded lengthen extensions.** `operations::transform::lengthen_crease`
   refuses an extension longer than the diagonal of the box already containing
   every crease (`MAX_LENGTHEN_EXTENSION_DIAGONALS`). Upstream has no such limit:
@@ -143,6 +185,126 @@ A native operation is otherwise entirely ordinary: same dispatch, same payload,
 same preview path, same wasm bridge. The boundary is about provenance and what a
 future porting session owes the upstream, not about how the code runs. Nothing in
 `native/` needs an oracle, and no oracle sweep should expect to find one.
+
+Whole *modules* can be native too, and `crates/oristudio-cp/src/folding3d/` is
+one: the computed 3D folded state. Upstream folds by reflecting each face across
+its crease, which is only correct at ±180, so there is no `WireFrame_Worker`
+behaviour for a general angle to be faithful to. Everything below is a decision
+rather than a port, and each is one somebody could reasonably have made
+differently:
+
+- **The placement convention** — `M_child = M_parent ∘ Rot_paper(line, rho)`,
+  right-composed, the axis directed the way the child face's own winding
+  traverses the crease, `rho` the signed FOLD angle applied directly. It is
+  fixed by agreement with the shipped `vertex_link_polygon`
+  (`checks_spatial.rs`), not by upstream, and the two must stay in one frame or
+  the admission gate certifies states the renderer draws mirrored.
+- **`FoldGraph`'s rings are reversed once** on the way in. Upstream never asks
+  which way a face is wound, so its clockwise convention is invisible there and
+  load-bearing here.
+- **The appearance controls are shared, but only some of them reach 3D.**
+  `FoldedFigureModel` is *Oriedita's* type — its field set, defaults and wire
+  codes are parity surface, and a new upstream appearance field belongs there and
+  nowhere else. What our 3D renderer can do with those fields is a separate
+  question, answered in one place:
+  `apps/web/src/cp-workspace/folded/foldedFigureAppearance.ts`. The inspector
+  renders availability from it, so a control is never present, enabled and inert.
+  Three consequences worth knowing before porting an upstream appearance change:
+  - `transparent_transparency` is honoured in 3D, using upstream's own reading of
+    it — the value *is* the fill alpha, default `16/255`.
+  - `transparency_color` is not. It selects a Java2D *render pass*
+    (`transparent_render_pass_name`), which a projector compositing its own alpha
+    has no reading for. The field stays on the type so files round-trip.
+  - `scale` / `rotation` are not wired to any control on either kind of figure.
+    Ori Studio transforms a figure through `FoldedFigurePlacement`, driven by the
+    canvas handles and stored in the `.osf`; wiring the model fields as well would
+    give one figure two transforms that disagree. Scaling and rotating a folded
+    figure works — through the handles.
+  - Shadows are **not** drawn in 3D. Upstream's shadow is an offset band along a
+    subface boundary, derived from the subface arrangement and the layer
+    hierarchy; the 3D path keeps that machinery in the kernel and the projector
+    never sees it. The control is shown disabled rather than hidden.
+- **Two faces meeting across a segment that is not a crease is refused.** The
+  flat path mirrors across one — `find_adjacent_line` applies no colour filter,
+  so an unassigned crease or an interior cut folds the paper 180° — and that
+  behaviour stays, because it is Oriedita's. In 3D there is no angle to apply,
+  and manufacturing one would be inventing a nearby result.
+- **The layer order is solved per constraint component, and the solution stream
+  is an odometer over them.** Upstream has one global search because a flat
+  folding puts every face in one plane; in 3D the ordering variables are the
+  coplanar overlaps and the constraints over them connect into several pieces.
+  The odometer's components are ordered by variable count **descending** and its
+  first digit moves first, so the first press of "another solution" changes the
+  largest stack rather than the smallest — `treemaker-flatfold` sorts its own
+  groups ascending, so this is an inversion of the nearest thing in the
+  workspace and worth naming as one.
+- **The cross-plane coupling's cut is keyed to plane index.** Two creases folding
+  onto one line with faces in two planes constrain each other, and reading that
+  constraint off the layer table needs the two planes' slots put in a fixed
+  order. The order is arbitrary — the condition is symmetric under swapping the
+  two — but it has to be *consistently* arbitrary, because the table holds one
+  cell per face pair for the whole model. Plane index is what makes it
+  consistent; the obvious alternative, slot angle around the line, is not, since
+  a face can meet two collinear folded lines from opposite sides.
+- **`folding::validate_initial_hierarchy`** is additive beside
+  `HierarchyTable::from_initial`, which discards `infer_above`'s error. The flat
+  path keeps calling the unchecked builder and is byte-identical; only the 3D
+  path, whose seeds come from several independent geometric rules, asks.
+- **The drawable unit is the arrangement cell, not the face.** Upstream draws
+  subfaces and can, because a flat folding puts every face in one plane and the
+  ordering is global. In 3D a cyclic panel order is legal, so no per-face scalar
+  "layer" exists at all — what always exists is a winner per cell. The engine
+  boundary emits cells with a face stack each, and a face that overlaps nothing
+  becomes a one-face cell so a renderer that draws only cells never loses paper.
+- **On screen, a 3D figure is drawn by the origami simulator's mesh renderer.
+  A flat figure is not, and did not change.** A flat figure is still Oriedita's
+  primitive stream, drawn in the crease-pattern scene exactly as before; a 3D
+  figure is a GPU mesh in a window of its own, sharing the simulator worker's one
+  WebGL context. Three consequences a future porting session should know:
+  - **The layers are separated by an epsilon along the plane's normal.** A depth
+    buffer cannot draw a flat stack — the layers are exactly coplanar and
+    z-fight, which is why ORIPA keeps an overlap matrix. We do not need one,
+    because the kernel already computed the order: displacing each slot by
+    `stack index × ε` makes the z-buffer reproduce it. No global order is
+    constructed anywhere, so a cyclic panel order works by construction rather
+    than by exception.
+  - **`foldedFigure3dProjection.ts` is the vector path, not a second renderer.**
+    It makes the drawing that goes into an `.osf`, a crease-pattern export, a
+    standalone SVG/PNG, and the fallback picture for a figure with no GPU or no
+    render model. It is off the per-frame path and stays off it
+    (`projectorIsExportOnly.test.tsx`). Both paths derive from one render model
+    and a test asserts they show the same layer
+    (`folded3dMesh.test.ts`).
+  - **A 3D figure and an inline simulation disagree about which tone is
+    "front".** The simulator lifts FOLD faces with `[x, 0, y]`, a determinant −1
+    map that puts its right-hand normals on the paper's FOLD-front; a folded
+    figure winds the other way, because flat/3D parity — the same tone on the
+    same side of the paper as the flat figure beside it — is the constraint that
+    matters here. Both viewports on screen at once will disagree, by choice.
+- **The FOLD `foldedForm` frame is ours, and it does not inherit.** Oriedita
+  writes no folded-form frame, so there is nothing to be faithful to and three
+  choices had to be made. The frame restates its own vertices, edges, faces and
+  assignments with `frame_inherit: false`, because a 3D fold is walked over a
+  *selection* through its own `FoldGraph` and every per-edge array on the root is
+  numbered against the whole document's — an inheriting frame would take each of
+  them under the wrong index. `faceOrders` is signed `facing(lower_face)`,
+  translating the solver's "above along the plane's `up`" into the spec's
+  "above along **g's** normal", with `s = 0` on pairs the solver left undecided
+  and no sorting, since a cyclic relation set is legal. And `frame_attributes` is
+  `["3D"]` and never `nonSelfIntersecting`: the crossing predicate is sound but
+  not complete, so the file may not claim what the verdict does not.
+- **A folded form welds one position per vertex by choosing, not averaging.**
+  FOLD allows one `vertices_coords` entry per vertex where `Placement3d` keeps
+  one image per face — deliberately, because averaging them is what destroys the
+  evidence a loop gap is made of. The export takes the lowest-indexed carrying
+  face's image, so every emitted coordinate is a real placed point.
+- **A 3D fold has its own snapshot, its own commands and its own handle kind.**
+  `FoldedFigureSnapshot` and the six `folded_figure_*` commands stay exactly as
+  they are — `wireframe` is 2D by construction and `estimation_step` /
+  `display_style` are Oriedita enums with no 3D meaning, so filling them in
+  would be inventing a nearby result at the boundary. The two kinds share one
+  arena, and a command applied to the wrong kind is a typed
+  `folded_figure_kind_mismatch` rather than an answer.
 
 Release caveats:
 

@@ -12,6 +12,7 @@ import {
   type FoldedFigureActionDeps,
   type FoldedFigureChoice,
   type FoldedFigureCommand,
+  type FoldedFigureNoteAction,
 } from './foldedFigureActions';
 import { foldedFigureActionIconNode } from './foldedFigureActionIcons';
 import type { OristudioCpFoldedFigureEntry } from '../../engine/oristudioCpTypes';
@@ -27,6 +28,41 @@ function CommandButton({ action }: { action: FoldedFigureCommand }) {
     >
       {foldedFigureActionIconNode(action.icon)}
     </IconButton>
+  );
+}
+
+/**
+ * A 3D verdict, as a chip.
+ *
+ * A button when the verdict offers something to do about it, a plain span
+ * otherwise — rather than a disabled button, which would read as an action that
+ * is temporarily unavailable rather than as a statement of fact.
+ */
+function NoticeChip({ action }: { action: FoldedFigureNoteAction }) {
+  const { notice } = action;
+  const content = (
+    <>
+      {foldedFigureActionIconNode(action.icon)}
+      <span className="cp-folded-figure-toolbar__notice-label">{notice.label}</span>
+    </>
+  );
+  if (!action.run) {
+    return (
+      <span className="cp-folded-figure-toolbar__notice" data-tone={notice.tone} title={notice.detail}>
+        {content}
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className="cp-folded-figure-toolbar__notice"
+      data-tone={notice.tone}
+      title={`${notice.detail} — ${notice.action?.label ?? ''}`.trim()}
+      onClick={action.run}
+    >
+      {content}
+    </button>
   );
 }
 
@@ -120,6 +156,8 @@ export function CpFoldedFigureToolbar({
             return <span key={action.id} className="floating-toolbar__separator" />;
           case 'choice':
             return <ChoiceMenu key={action.id} action={action} />;
+          case 'note':
+            return <NoticeChip key={action.id} action={action} />;
           case 'command':
             return <CommandButton key={action.id} action={action} />;
         }

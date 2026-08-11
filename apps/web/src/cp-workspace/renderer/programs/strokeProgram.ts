@@ -30,6 +30,9 @@ attribute vec2 aB;       // segment end, model coords
 attribute vec4 aColor;
 attribute float aWidthMul; // per-segment width multiplier
 attribute float aDashSlot; // per-segment dash slot (0 = solid)
+// Draw order in [0, 1], 0 farthest. Zero without depth ordering, where every
+// segment lands at the same z and plain painter order survives.
+attribute float aDepth;
 uniform vec2 u_origin;   // device px of model (0,0)
 uniform vec2 u_ex;       // device delta per +1 model x
 uniform vec2 u_ey;       // device delta per +1 model y
@@ -55,7 +58,8 @@ void main() {
   vec2 pos = mix(sA, sB, corner.x) + nrm * widthPx * corner.y;
   // device (y-down) -> clip
   vec2 clip = vec2(pos.x / u_viewport.x * 2.0 - 1.0, 1.0 - pos.y / u_viewport.y * 2.0);
-  gl_Position = vec4(clip, 0.0, 1.0);
+  // Nearer segments get smaller z, which is what LEQUAL wants.
+  gl_Position = vec4(clip, 1.0 - 2.0 * aDepth, 1.0);
   vColor = aColor;
   vDist = corner.x * len;
   if (aDashSlot > 1.5) {
@@ -172,6 +176,7 @@ interface StrokeDrawParams {
   bBuf: Buffer;
   colorBuf: Buffer;
   widthMulBuf: Buffer;
+  depthBuf: Buffer;
   dashSlotBuf: Buffer;
   instanceCount: number;
 }
@@ -197,6 +202,7 @@ interface StrokeAttributes {
   aColor: unknown;
   aWidthMul: unknown;
   aDashSlot: unknown;
+  aDepth: unknown;
 }
 
 /**
@@ -209,12 +215,29 @@ function dashSlots(geometry: StrokeGeometry): Float32Array {
   return new Float32Array(geometry.count).fill(uniformSlot);
 }
 
-export function createStrokeProgram(regl: Regl): StrokeProgram {
+export interface StrokeProgramOptions {
+  /**
+   * Respect the geometry's `depth` attribute instead of drawing in call order.
+   *
+   * Set only for the *generated* folded figures. Their fills and creases are one
+   * painter-ordered stream that the canvas splits into two batched draws, so a
+   * crease behind a face otherwise draws over it. Every other user of this
+   * program — creases, grid, preview, diagnostics, imported translucent forms —
+   * is genuinely 2D and keeps plain painter order.
+   */
+  depthOrdered?: boolean;
+}
+
+export function createStrokeProgram(
+  regl: Regl,
+  options: StrokeProgramOptions = {}
+): StrokeProgram {
   const quad = regl.buffer(QUAD);
   let aBuf: Buffer | null = null;
   let bBuf: Buffer | null = null;
   let colorBuf: Buffer | null = null;
   let widthMulBuf: Buffer | null = null;
+  let depthBuf: Buffer | null = null;
   let dashSlotBuf: Buffer | null = null;
   let count = 0;
   let dashPatterns: readonly (readonly number[])[] | undefined;
@@ -228,6 +251,7 @@ export function createStrokeProgram(regl: Regl): StrokeProgram {
       aB: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.bBuf, divisor: 1 },
       aColor: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.colorBuf, divisor: 1 },
       aWidthMul: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.widthMulBuf, divisor: 1 },
+      aDepth: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.depthBuf, divisor: 1 },
       aDashSlot: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.dashSlotBuf, divisor: 1 },
     },
     uniforms: {
@@ -247,7 +271,9 @@ export function createStrokeProgram(regl: Regl): StrokeProgram {
       enable: true,
       func: { srcRGB: 1, srcAlpha: 1, dstRGB: 'one minus src alpha', dstAlpha: 'one minus src alpha' },
     },
-    depth: { enable: false },
+    depth: options.depthOrdered
+      ? { enable: true, mask: true, func: 'lequal' }
+      : { enable: false },
     count: 6,
     instances: (_ctx, props) => props.instanceCount,
   });
@@ -260,15 +286,20 @@ export function createStrokeProgram(regl: Regl): StrokeProgram {
       bBuf?.destroy();
       colorBuf?.destroy();
       widthMulBuf?.destroy();
+      depthBuf?.destroy();
       dashSlotBuf?.destroy();
       aBuf = regl.buffer(geometry.a);
       bBuf = regl.buffer(geometry.b);
       colorBuf = regl.buffer(geometry.color);
       widthMulBuf = regl.buffer(geometry.widthMul);
+      // Absent depths mean "all at the same z", which under LEQUAL degrades
+      // exactly to the painter order this program had before.
+      depthBuf = regl.buffer(geometry.depth ?? new Float32Array(geometry.count));
       dashSlotBuf = regl.buffer(dashSlots(geometry));
     },
     draw({ view, viewport, widthPx }) {
-      if (count === 0 || !aBuf || !bBuf || !colorBuf || !widthMulBuf || !dashSlotBuf) return;
+      if (count === 0 || !aBuf || !bBuf || !colorBuf || !widthMulBuf || !dashSlotBuf || !depthBuf)
+        return;
       const [slot1, slot2] = dashTableUniforms(dashPatterns, viewport.dpr);
       draw({
         originArr: [view.origin[0], view.origin[1]],
@@ -284,6 +315,7 @@ export function createStrokeProgram(regl: Regl): StrokeProgram {
         bBuf,
         colorBuf,
         widthMulBuf,
+        depthBuf,
         dashSlotBuf,
         instanceCount: count,
       });
@@ -294,6 +326,7 @@ export function createStrokeProgram(regl: Regl): StrokeProgram {
       bBuf?.destroy();
       colorBuf?.destroy();
       widthMulBuf?.destroy();
+      depthBuf?.destroy();
       dashSlotBuf?.destroy();
     },
   };

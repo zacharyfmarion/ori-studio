@@ -14,6 +14,8 @@ import type {
   OristudioCpDocumentSnapshot,
   OristudioCpDocumentSummary,
   OristudioCpEstimationOrder,
+  OristudioCpFold3dFoldResult,
+  OristudioCpFold3dStepResult,
   OristudioCpFoldedFigureBatchResult,
   OristudioCpFoldedFigureModel,
   OristudioCpFoldedFigureRenderOptions,
@@ -337,6 +339,25 @@ export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
     ): Promise<OristudioCpFoldedFigureBatchResult> {
       return call('cp_folded_figure_fold_to_case', { handle, objective, initialOrder });
     },
+    async fold3d(
+      handle: number,
+      selectedLineIds: number[],
+      startingFaceId = 1,
+      model?: OristudioCpFoldedFigureModel
+    ): Promise<OristudioCpFold3dFoldResult> {
+      return call('cp_folded_figure_fold_3d', {
+        documentHandle: handle,
+        selectedLineIds,
+        startingFaceId,
+        model: model ?? null,
+      });
+    },
+    async fold3dAnother(handle: number): Promise<OristudioCpFold3dStepResult> {
+      return call('cp_folded_figure_3d_fold_another', { handle });
+    },
+    async duplicateFolded3dFigure(handle: number): Promise<OristudioCpFold3dFoldResult> {
+      return call('cp_folded_figure_3d_duplicate', { handle });
+    },
     async freeFoldedFigure(handle: number): Promise<void> {
       return call('cp_free_folded_figure', { handle });
     },
@@ -346,8 +367,15 @@ export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
     async exportFold(handle: number, texts: FlatText[] = []): Promise<string> {
       return exportWithTexts(handle, texts, () => call('cp_export_fold', { handle }));
     },
-    async exportFoldFile(handle: number, texts: FlatText[] = []): Promise<string> {
-      return exportWithTexts(handle, texts, () => call('cp_export_fold_file', { handle }));
+    /** `foldedHandles` names the 3D figures to write as `foldedForm` frames. */
+    async exportFoldFile(
+      handle: number,
+      texts: FlatText[] = [],
+      foldedHandles: number[] = []
+    ): Promise<string> {
+      return exportWithTexts(handle, texts, () =>
+        call('cp_export_fold_file', { handle, foldedHandles })
+      );
     },
     async exportOri(handle: number, texts: FlatText[] = []): Promise<string> {
       return exportWithTexts(handle, texts, () => call('cp_export_ori', { handle }));

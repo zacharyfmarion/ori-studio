@@ -92,7 +92,7 @@
     "foldedCase": "접기 케이스",
     "foldedCasesFound_other": "지금까지 {{count}}개 발견",
     "foldedFigureNeedsCp": "접으려면 편집 가능한 전개도를 여세요",
-    "foldedFigureNeedsFlat": "이 전개도에는 완전히 접히지 않는 접는 선이 있어 평평하게 접은 형태가 없습니다",
+    "foldedFigureNeedsFlat": "이 내보내기는 평평하게만 접으며, 이 전개도에는 완전히 접히지 않는 접는 선이 있습니다",
     "foldedFigureNeedsOnePattern": "접을 전개도를 하나만 선택하세요",
     "foldedFigureSection": "접힌 도형",
     "foldedFrontColor": "앞면",
@@ -124,6 +124,8 @@
     "confirm": "그래도 내보내기",
     "feature": {
       "foldAngles": "평평하지 않은 접기 각도",
+      "foldedForm3d": "3D 접힌 도형",
+      "foldedForm3dDetached": "다시 접어야 하는 3D 접힌 도형",
       "images": "이미지",
       "inlineSimulations": "시뮬레이션 창",
       "richText": "리치 텍스트 서식",
@@ -142,9 +144,25 @@
     "openDescriptionDirty": "작업 중인 내용을 대체하고 저장하지 않은 변경 사항을 버립니다.",
     "openLabel": "새 파일로 열기"
   },
+  "fold3dRefused": {
+    "facesUnresolved": "이 전개도의 면을 확정할 수 없습니다. 꼭짓점 없이 교차하거나 꼭짓점에 닿지 않는 접힘선이 흔한 원인입니다.",
+    "flatFoldabilityGeneric": "이 전개도의 한 꼭짓점은 접을 수 없습니다.",
+    "loopNotClosed": "면들의 고리를 따라 접으면 처음 자리로 돌아오지 않아, 이 각도들이 동시에 성립할 수 없습니다.",
+    "message": "{{reason}} {{trailer}}",
+    "noFaces": "이 접힘선들은 접을 종이 면을 이루지 않습니다.",
+    "nonCreaseJoin": "두 면이 접힘선이 아닌 모서리에서 맞닿아 있습니다.",
+    "simulate": "시뮬레이션",
+    "simulateTrailer": "시뮬레이터로 근사하게 접을 수 있습니다.",
+    "title": "이 패턴은 3D로 접을 수 없습니다",
+    "toleranceWindowClosed": "두 면이 같은 평면에 너무 가까워 구분할 수 없습니다.",
+    "vertexClosure": "한 꼭짓점의 접힘선이 닫히지 않습니다: {{degrees}}° 모자랍니다.",
+    "vertexUnassignedCrease": "한 꼭짓점의 접힘선에 접기가 지정되지 않아 그 꼭짓점을 접을 수 없습니다.",
+    "vertexUnsplitJunction": "접힘선이 꼭짓점이 아닌 지점에서 만나 그 꼭짓점을 접을 수 없습니다."
+  },
   "foldWarning": {
     "dontShowAgain": "다시 표시하지 않음",
     "message": "평평접기 오류가 감지되었습니다. 계속 접으시겠습니까?",
+    "spatialMessage": "이 접힘선들이 접히는 방식에 오류가 있습니다. 계속 접을까요?",
     "title": "경고"
   },
   "help": {
@@ -277,7 +295,7 @@
     "create": "링크 만들기",
     "creating": "링크 만드는 중…",
     "foldedFigure": "접힌 도형 표시",
-    "foldedFigureNeedsFlat": "이 전개도에는 완전히 접히지 않는 접는 선이 있어 평평하게 접은 형태가 없습니다",
+    "foldedFigureNeedsFlat": "이 미리보기는 평평하게만 접으며, 이 전개도에는 완전히 접히지 않는 접는 선이 있습니다",
     "folding": "접는 중…",
     "frontColor": "앞면 색상",
     "linkPreview": "링크 미리보기",
