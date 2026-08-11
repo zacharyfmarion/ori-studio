@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Check } from 'lucide-react';
 import { FloatingToolbar } from '../../components/ui/FloatingToolbar';
+import { resolveCpViewportCanvas } from '../cpViewportCanvas';
 import { IconButton } from '../../components/ui/IconButton';
 import { MenuIconButton } from '../../components/ui/MenuIconButton';
 import { useCanvasObjectAnchor } from '../canvasObjects/useCanvasObjectAnchor';
@@ -147,6 +148,7 @@ export function CpFoldedFigureToolbar({
   return (
     <FloatingToolbar
       anchorRect={anchorRect}
+      wheelTarget={resolveCpViewportCanvas}
       className="cp-folded-figure-toolbar"
       ariaLabel={t('panels:foldedFigureActions.label', 'Folded figure actions')}
     >

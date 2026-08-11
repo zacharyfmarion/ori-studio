@@ -36,6 +36,7 @@ import type {
 } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
 import { CpDiagnosticHud } from '../../cp-workspace/diagnostics/CpDiagnosticHud';
+import { CP_VIEWPORT_CANVAS_CLASS } from '../../cp-workspace/cpViewportCanvas';
 import {
   DEFAULT_ORISTUDIO_CP_ACTION_ID,
   cpActionByOperation,
@@ -2805,7 +2806,7 @@ export function CreasePatternPanel() {
               {editableCp ? (
                 <>
                 <CreasePatternWebglCanvas
-                  className="cp-webgl-layer"
+                  className={CP_VIEWPORT_CANVAS_CLASS}
                   lineSegments={editableCp.crease_pattern.line_segments}
                   geometry={oristudioCpDocument?.geometry ?? null}
                   images={imageAnnotations}

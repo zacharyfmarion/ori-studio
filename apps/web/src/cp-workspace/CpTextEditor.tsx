@@ -31,6 +31,7 @@ import { $setBlocksType, $patchStyleText } from '@lexical/selection';
 import { $createParagraphNode } from 'lexical';
 import { Bold, Italic, Trash2, Underline } from 'lucide-react';
 import { FloatingToolbar } from '../components/ui/FloatingToolbar';
+import { resolveCpViewportCanvas } from './cpViewportCanvas';
 import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
 import type { AnnotationBox } from './annotations/annotationTransform';
 import { IconButton } from '../components/ui/IconButton';
@@ -261,6 +262,7 @@ function TextToolbar({
   return (
     <FloatingToolbar
       anchorRect={anchorRect}
+      wheelTarget={resolveCpViewportCanvas}
       className="cp-text-toolbar"
       ariaLabel={t('panels:textAnnotation.textControls', 'Text controls')}
     >

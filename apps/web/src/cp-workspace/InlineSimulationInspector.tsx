@@ -4,6 +4,7 @@ import type { TFunction } from 'i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Palette, Pause, Play, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
 import { FloatingToolbar } from '../components/ui/FloatingToolbar';
+import { resolveCpViewportCanvas } from './cpViewportCanvas';
 import { IconButton } from '../components/ui/IconButton';
 import { Slider } from '../components/ui/Slider';
 import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
@@ -140,6 +141,7 @@ export function InlineSimulationInspector({
   return (
     <FloatingToolbar
       anchorRect={anchorRect}
+      wheelTarget={resolveCpViewportCanvas}
       className="cp-inline-simulation-inspector"
       ariaLabel={t(
         'panels:creasePattern.inlineSimulation.controls',

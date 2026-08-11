@@ -7,6 +7,7 @@ import {
 } from 'react';
 import type { CpOverlayView } from './CreasePatternWebglCanvas';
 import { useCpOverlayViews } from './cpOverlayViewStore';
+import { useWheelPassthrough } from '../hooks/useWheelPassthrough';
 import { IMAGE_ROTATION_SNAP_RADIANS } from './images/cpImage';
 import {
   CORNER_RESIZE_HANDLES,
@@ -143,7 +144,9 @@ export function CanvasObjectOverlay({
   // Live camera, subscribed directly so only this overlay re-renders per frame.
   const views = useCpOverlayViews();
   const dragRef = useRef<Drag | null>(null);
-  const containerRef = useRef<SVGSVGElement | null>(null);
+  // State rather than a ref: the wheel listener below has to re-attach when this
+  // element arrives, which a ref would not tell anyone about.
+  const [overlay, setOverlay] = useState<SVGSVGElement | null>(null);
   // Crop mode (croppable objects only): handles adjust the crop rect.
   const [cropMode, setCropMode] = useState(false);
   useEffect(() => setCropMode(false), [selectedId]);
@@ -169,14 +172,14 @@ export function CanvasObjectOverlay({
 
   const pointerToObject = useCallback(
     (event: ReactPointerEvent, space: 'model' | 'user'): Vec2 | null => {
-      const rect = containerRef.current?.getBoundingClientRect();
+      const rect = overlay?.getBoundingClientRect();
       if (!rect || !views) return null;
       return overlayCssToModel(views[space], {
         x: event.clientX - rect.left,
         y: event.clientY - rect.top,
       });
     },
-    [views]
+    [overlay, views]
   );
 
   const beginCapture = (event: ReactPointerEvent<SVGElement>) => {
@@ -328,41 +331,19 @@ export function CanvasObjectOverlay({
 
   // The interactive polygons/handles capture pointer events, which would
   // otherwise swallow the wheel and stop the canvas zooming while the cursor is
-  // over an object. Forward the wheel to the sibling WebGL canvas so zoom keeps
-  // working. A native, non-passive listener is used so preventDefault actually
-  // suppresses the page scroll (React's onWheel is registered passive).
-  useEffect(() => {
-    const svg = containerRef.current;
-    if (!svg) return;
-    const onWheel = (event: WheelEvent) => {
-      const canvas = svg.parentElement?.querySelector('canvas');
-      if (!canvas) return;
-      event.preventDefault();
-      canvas.dispatchEvent(
-        new WheelEvent('wheel', {
-          deltaX: event.deltaX,
-          deltaY: event.deltaY,
-          deltaMode: event.deltaMode,
-          clientX: event.clientX,
-          clientY: event.clientY,
-          // The modifiers are what tell the canvas pan from zoom, so a copy
-          // without them turns a pinch over a folded figure into a pan.
-          ctrlKey: event.ctrlKey,
-          metaKey: event.metaKey,
-          shiftKey: event.shiftKey,
-          cancelable: true,
-        })
-      );
-    };
-    svg.addEventListener('wheel', onWheel, { passive: false });
-    return () => svg.removeEventListener('wheel', onWheel);
-  }, []);
+  // over an object. Resolved as a sibling rather than through
+  // `resolveCpViewportCanvas`, which the portaled toolbars need: this overlay is
+  // mounted next to its own canvas and can name it exactly.
+  useWheelPassthrough(
+    overlay,
+    useCallback(() => overlay?.parentElement?.querySelector('canvas'), [overlay])
+  );
 
   if (!views) return null;
 
   return (
     <svg
-      ref={containerRef}
+      ref={setOverlay}
       className="cp-annotation-overlay"
       style={{
         position: 'absolute',

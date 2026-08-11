@@ -5,7 +5,6 @@ import {
   useRef,
   type PointerEvent as ReactPointerEvent,
   type Ref,
-  type WheelEvent as ReactWheelEvent,
 } from "react";
 import type { RenderSettings } from "@treemaker/origami-simulator";
 import {
@@ -484,15 +483,35 @@ export function SimulatorViewport({
     dragRef.current = null;
   };
 
-  const handleWheel = (event: ReactWheelEvent<HTMLCanvasElement>) => {
-    if (!interactiveRef.current) return;
-    event.preventDefault();
-    viewRef.current = {
-      ...viewRef.current,
-      zoom: clampSimulatorZoom(viewRef.current.zoom * simulatorWheelZoomFactor(event.deltaY)),
+  // Zoom, as a native listener rather than an `onWheel` prop.
+  //
+  // React registers `wheel` passively at its root, so `preventDefault()` inside
+  // an `onWheel` handler is dropped and a trackpad pinch — which the browser
+  // reports as ctrl+wheel — zooms the whole page on top of zooming the fold.
+  // Every other zoom surface here attaches its own non-passive listener for the
+  // same reason; see `useViewportSurface` and `CreasePatternWebglCanvas`.
+  //
+  // Keyed on `canvasKey` because that is what replaces the element.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const onWheel = (event: WheelEvent) => {
+      // Claimed before the interactive check, not after: a wheel over a window
+      // that is loading, errored or merely unfocused still must not reach the
+      // browser's own zoom. Nothing is behind this canvas that wants the event.
+      event.preventDefault();
+      if (!interactiveRef.current) return;
+      viewRef.current = {
+        ...viewRef.current,
+        zoom: clampSimulatorZoom(viewRef.current.zoom * simulatorWheelZoomFactor(event.deltaY)),
+      };
+      pushView();
     };
-    pushView();
-  };
+
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", onWheel);
+  }, [canvasKey, pushView]);
 
   return (
     <canvas
@@ -510,7 +529,6 @@ export function SimulatorViewport({
       onPointerUp={handlePointerEnd}
       onPointerCancel={handlePointerEnd}
       onDoubleClick={resetView}
-      onWheel={handleWheel}
     />
   );
 }
