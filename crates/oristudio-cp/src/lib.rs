@@ -128,6 +128,14 @@ pub struct CreasePatternCommandPayload {
     /// Optional model-space hit tolerance for point/line tools.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub selection_distance: Option<f64>,
+    /// Optional override for what a kernel-side snap may land on.
+    ///
+    /// Oriedita gates its close-point search on grid visibility alone. Ori
+    /// Studio's viewport also has a Snapping toggle, so the frontend states the
+    /// effective policy here; absent means upstream — every vertex, and the
+    /// grid the document itself declares.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub snap_candidates: Option<model::SnapCandidates>,
     /// Optional UI-level replacement selection mode. Oriedita's primitive
     /// select operations are additive by default; callers set this when a
     /// normal click/box selection should replace the previous selected set.
@@ -2250,13 +2258,14 @@ pub fn execute_command(
         }
         OperationId::DrawCreaseAngleRestricted5 => {
             let points = required_points(&command, 2)?;
+            let snap = snap_policy(&command, &document.crease_pattern);
             usize::from(operations::construction::draw_crease_angle_restricted_5(
                 &mut document.crease_pattern,
                 points[0],
                 points[1],
                 angle_system_divider(&command),
                 angle_system_angles(&command),
-                selection_distance(&command),
+                snap,
                 active_line_color(&command),
             ))
         }
@@ -3544,19 +3553,25 @@ pub fn preview_command(
             );
         }
         OperationId::DrawCreaseAngleRestricted5 if points.len() >= 2 => {
-            let snapped = operations::construction::snap_to_close_point_in_active_angle_system(
+            let release = operations::construction::snap_to_close_point_in_active_angle_system(
                 &document.crease_pattern,
                 points[0],
                 points[1],
                 angle_system_divider(&command),
                 angle_system_angles(&command),
-                selection_distance(&command),
+                snap_policy(&command, &document.crease_pattern),
             );
             preview.segments.push(LineSegment::with_color(
                 points[0],
-                snapped,
+                release.point,
                 active_line_color(&command),
             ));
+            // Only when it landed on a real vertex or grid point: the surface
+            // rings these, and a ring on the bare projection would promise a
+            // snap that did not happen.
+            if release.snapped {
+                preview.points.push(release.point);
+            }
         }
         OperationId::VertexSolveFoldAngles => {
             // Fewer than three creases picked is the *normal* state for the
@@ -4020,6 +4035,16 @@ fn selection_distance(command: &CreasePatternCommand) -> f64 {
         .selection_distance
         .filter(|distance| distance.is_finite() && *distance > 0.0)
         .unwrap_or(DEFAULT_SELECTION_DISTANCE)
+}
+
+fn snap_policy(command: &CreasePatternCommand, model: &CreasePatternModel) -> model::SnapPolicy {
+    model::SnapPolicy {
+        selection_distance: selection_distance(command),
+        candidates: command
+            .payload
+            .snap_candidates
+            .unwrap_or_else(|| model::SnapCandidates::upstream(&model.grid)),
+    }
 }
 
 fn grid_width(command: &CreasePatternCommand, model: &CreasePatternModel) -> f64 {

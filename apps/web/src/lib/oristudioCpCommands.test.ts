@@ -4,6 +4,7 @@ import {
   ORISTUDIO_CP_COMMAND_GROUPS,
   ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS,
   cpCommandByOperation,
+  cpCommandSnapsKernelSide,
   cpCommandUsesActiveLineColor,
   cpCommandsForGroup,
   cpRailCommands,
@@ -218,6 +219,19 @@ describe('oristudio CP command registry', () => {
         expect(command.disabledReason).toContain('Not implemented');
       }
     }
+  });
+});
+
+describe('cpCommandSnapsKernelSide', () => {
+  it('covers Angle Restricted Line, whose endpoint the kernel resolves', () => {
+    expect(cpCommandSnapsKernelSide('DrawCreaseAngleRestricted5')).toBe(true);
+  });
+
+  it('excludes the draw tools whose points the canvas resolves first', () => {
+    expect(cpCommandSnapsKernelSide('DrawCreaseFree')).toBe(false);
+    expect(cpCommandSnapsKernelSide('DrawCreaseRestricted')).toBe(false);
+    expect(cpCommandSnapsKernelSide('DrawCreaseAngleRestricted3')).toBe(false);
+    expect(cpCommandSnapsKernelSide(undefined)).toBe(false);
   });
 });
 

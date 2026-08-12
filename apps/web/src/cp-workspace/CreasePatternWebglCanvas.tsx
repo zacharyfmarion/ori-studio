@@ -1861,6 +1861,16 @@ export function CreasePatternWebglCanvas({
     const snapRingFor = (point: ModelPoint, raw: ModelPoint): ModelPoint | null =>
       point.x !== raw.x || point.y !== raw.y ? point : null;
     /**
+     * Where to ring an endpoint the *kernel* resolves (Angle Restricted Line):
+     * the point it reports back, which it publishes only when the endpoint
+     * really landed on a vertex or grid point rather than on the bare
+     * angle-system projection. Ringing the cursor's nearest snap target instead
+     * would promise a snap the angle constraint may refuse. It trails the
+     * cursor by one preview round-trip, in step with the preview line itself.
+     */
+    const kernelSnapRing = (): ModelPoint | null =>
+      liveRef.current.toolCommandPreviewPoints[0] ?? null;
+    /**
      * The runtime driving the current draw. A crease-draw tool keeps one for its whole
      * activation — its click-to-place start is parked in the engine between gestures —
      * created here on first use; box/path tools get a fresh one per press. Both draw
@@ -1988,7 +1998,7 @@ export function CreasePatternWebglCanvas({
         const placed = segment ? [segment.a] : out.livePoints;
         syncArmedDrawPoint(
           out.livePoints,
-          snapRingFor(resolved.point, raw),
+          kernelPreviewed && segment ? kernelSnapRing() : snapRingFor(resolved.point, raw),
           kernelPreviewed ? (placed ?? []) : undefined
         );
       }
