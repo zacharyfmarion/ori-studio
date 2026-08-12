@@ -127,6 +127,7 @@ export default function App() {
         handleMenuAction,
         selectNone,
         getShortcutOverrides: () => useShortcutStore.getState().overrides,
+        getShortcutDefaultsSource: () => useShortcutStore.getState().defaultsSource,
       },
       document
     );

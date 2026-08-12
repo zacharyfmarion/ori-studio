@@ -1,5 +1,5 @@
 import type { MenuActionId } from '../commands/menuActions';
-import { shortcutLabelForAction, type ShortcutOverrides } from '../keyboard/shortcuts';
+import { shortcutLabelForAction, type ShortcutResolutionInput } from '../keyboard/shortcuts';
 
 /**
  * Minimal translator shape: `(key, englishDefault) => localized`. The app passes
@@ -47,20 +47,20 @@ export type MenuDef = {
   items: MenuItemDef[];
 };
 
-function shortcut(id: MenuActionId, overrides?: ShortcutOverrides): string | undefined {
-  return shortcutLabelForAction(id, overrides);
+function shortcut(id: MenuActionId, resolution?: ShortcutResolutionInput): string | undefined {
+  return shortcutLabelForAction(id, resolution);
 }
 
 export function getMenuBarDef(
-  overrides?: ShortcutOverrides,
+  resolution?: ShortcutResolutionInput,
   t: MenuTranslate = identityTranslate
 ): MenuDef[] {
   return [
     {
       label: t('menu:menubar.file', 'File'),
       items: [
-        { type: 'action', id: 'file.new', label: t('menu:file.new', 'New Project'), shortcut: shortcut('file.new', overrides) },
-        { type: 'action', id: 'file.open', label: t('menu:file.open', 'Open...'), shortcut: shortcut('file.open', overrides) },
+        { type: 'action', id: 'file.new', label: t('menu:file.new', 'New Project'), shortcut: shortcut('file.new', resolution) },
+        { type: 'action', id: 'file.open', label: t('menu:file.open', 'Open...'), shortcut: shortcut('file.open', resolution) },
         { type: 'action', id: 'file.importAdd', label: t('menu:file.importAdd', 'Import (Add)...') },
         // "Detect CP from Image..." is still experimental — dev builds only.
         ...(import.meta.env.DEV
@@ -73,8 +73,8 @@ export function getMenuBarDef(
             ]
           : []),
         { type: 'separator' },
-        { type: 'action', id: 'file.save', label: t('menu:file.save', 'Save'), shortcut: shortcut('file.save', overrides) },
-        { type: 'action', id: 'file.saveAs', label: t('menu:file.saveAs', 'Save As...'), shortcut: shortcut('file.saveAs', overrides) },
+        { type: 'action', id: 'file.save', label: t('menu:file.save', 'Save'), shortcut: shortcut('file.save', resolution) },
+        { type: 'action', id: 'file.saveAs', label: t('menu:file.saveAs', 'Save As...'), shortcut: shortcut('file.saveAs', resolution) },
         { type: 'separator' },
         {
           type: 'submenu',
@@ -94,26 +94,26 @@ export function getMenuBarDef(
           ],
         },
         { type: 'separator' },
-        { type: 'action', id: 'file.settings', label: t('menu:file.settings', 'Settings'), shortcut: shortcut('file.settings', overrides) },
+        { type: 'action', id: 'file.settings', label: t('menu:file.settings', 'Settings'), shortcut: shortcut('file.settings', resolution) },
       ],
     },
     {
       label: t('menu:menubar.edit', 'Edit'),
       items: [
-        { type: 'action', id: 'edit.undo', label: t('menu:edit.undo', 'Undo'), shortcut: shortcut('edit.undo', overrides) },
-        { type: 'action', id: 'edit.redo', label: t('menu:edit.redo', 'Redo'), shortcut: shortcut('edit.redo', overrides) },
+        { type: 'action', id: 'edit.undo', label: t('menu:edit.undo', 'Undo'), shortcut: shortcut('edit.undo', resolution) },
+        { type: 'action', id: 'edit.redo', label: t('menu:edit.redo', 'Redo'), shortcut: shortcut('edit.redo', resolution) },
         { type: 'separator' },
-        { type: 'action', id: 'edit.cut', label: t('menu:edit.cut', 'Cut'), shortcut: shortcut('edit.cut', overrides) },
-        { type: 'action', id: 'edit.copy', label: t('menu:edit.copy', 'Copy'), shortcut: shortcut('edit.copy', overrides) },
-        { type: 'action', id: 'edit.paste', label: t('menu:edit.paste', 'Paste'), shortcut: shortcut('edit.paste', overrides) },
+        { type: 'action', id: 'edit.cut', label: t('menu:edit.cut', 'Cut'), shortcut: shortcut('edit.cut', resolution) },
+        { type: 'action', id: 'edit.copy', label: t('menu:edit.copy', 'Copy'), shortcut: shortcut('edit.copy', resolution) },
+        { type: 'action', id: 'edit.paste', label: t('menu:edit.paste', 'Paste'), shortcut: shortcut('edit.paste', resolution) },
         { type: 'separator' },
-        { type: 'action', id: 'edit.delete', label: t('menu:edit.delete', 'Delete Selected'), shortcut: shortcut('edit.delete', overrides) },
+        { type: 'action', id: 'edit.delete', label: t('menu:edit.delete', 'Delete Selected'), shortcut: shortcut('edit.delete', resolution) },
         { type: 'separator' },
         {
           type: 'submenu',
           label: t('menu:edit.select', 'Select'),
           items: [
-            { type: 'action', id: 'edit.selectAll', label: t('menu:edit.selectAll', 'Select All'), shortcut: shortcut('edit.selectAll', overrides) },
+            { type: 'action', id: 'edit.selectAll', label: t('menu:edit.selectAll', 'Select All'), shortcut: shortcut('edit.selectAll', resolution) },
             { type: 'action', id: 'edit.deselectAll', label: t('menu:edit.deselectAll', 'Deselect All') },
             { type: 'action', id: 'edit.selectByIndex', label: t('menu:edit.selectByIndex', 'Select By Index...') },
             { type: 'action', id: 'edit.selectMovableParts', label: t('menu:edit.selectMovableParts', 'Select Movable Parts') },
@@ -188,11 +188,11 @@ export function getMenuBarDef(
         { type: 'action', id: 'bp.layout.subdivide', label: t('menu:bp.subdivide', 'Subdivide Grid') },
         { type: 'action', id: 'bp.layout.unsubdivide', label: t('menu:bp.unsubdivide', 'Un-subdivide Grid') },
         { type: 'separator' },
-        { type: 'action', id: 'optimize.scale', label: t('menu:optimize.scale', 'Optimize Scale'), shortcut: shortcut('optimize.scale', overrides) },
+        { type: 'action', id: 'optimize.scale', label: t('menu:optimize.scale', 'Optimize Scale'), shortcut: shortcut('optimize.scale', resolution) },
         { type: 'action', id: 'optimize.edges', label: t('menu:optimize.edges', 'Optimize Edges') },
         { type: 'action', id: 'optimize.strain', label: t('menu:optimize.strain', 'Optimize Strain') },
         { type: 'separator' },
-        { type: 'action', id: 'cp.build', label: t('menu:cp.build', 'Build Crease Pattern'), shortcut: shortcut('cp.build', overrides) },
+        { type: 'action', id: 'cp.build', label: t('menu:cp.build', 'Build Crease Pattern'), shortcut: shortcut('cp.build', resolution) },
       ],
     },
     {
@@ -232,7 +232,7 @@ export function getMenuBarDef(
           type: 'submenu',
           label: t('menu:cp.diagnostics', 'Diagnostics'),
           items: [
-            { type: 'action', id: 'cp.checkCamv', label: t('menu:cp.checkCamv', 'Check foldability'), shortcut: shortcut('cp.checkCamv', overrides) },
+            { type: 'action', id: 'cp.checkCamv', label: t('menu:cp.checkCamv', 'Check foldability'), shortcut: shortcut('cp.checkCamv', resolution) },
             { type: 'action', id: 'cp.check1', label: t('menu:cp.check1', 'Check Overlaps') },
             { type: 'action', id: 'cp.check2', label: t('menu:cp.check2', 'Check T-junctions') },
             { type: 'action', id: 'cp.check3', label: t('menu:cp.check3', 'Check Vertex Foldability') },
@@ -245,7 +245,7 @@ export function getMenuBarDef(
           items: [
             { type: 'action', id: 'cp.fix1', label: t('menu:cp.fix1', 'Repair Overlaps') },
             { type: 'action', id: 'cp.fix2', label: t('menu:cp.fix2', 'Split T-junctions') },
-            { type: 'action', id: 'cp.deleteExtraVertices', label: t('menu:cp.deleteExtraVertices', 'Delete Extra Vertices'), shortcut: shortcut('cp.deleteExtraVertices', overrides) },
+            { type: 'action', id: 'cp.deleteExtraVertices', label: t('menu:cp.deleteExtraVertices', 'Delete Extra Vertices'), shortcut: shortcut('cp.deleteExtraVertices', resolution) },
             { type: 'action', id: 'cp.deleteExtraVerticesIgnoreColor', label: t('menu:cp.deleteExtraVerticesIgnoreColor', 'Delete Extra Vertices (Ignore Type)') },
             { type: 'action', id: 'cp.fixInaccurate', label: t('menu:cp.fixInaccurate', 'Fix Inaccurate Creases...') },
           ],

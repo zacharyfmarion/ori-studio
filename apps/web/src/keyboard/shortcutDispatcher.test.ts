@@ -102,6 +102,58 @@ describe('shortcut dispatcher', () => {
   });
 });
 
+describe('defaults source', () => {
+  // The switch has to reach the dispatcher, not just the settings list: the
+  // failure it guards against is a toggle that renames the keys on screen while
+  // the ones that actually fire stay put. So these press a real key and check
+  // which action ran, rather than asking the resolver what it would say.
+  function press(key: string) {
+    return new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+  }
+
+  it.each([
+    // Ori Studio puts Mirror Line on M and Auxiliary on F; upstream puts
+    // Mountain on M and Fold on F.
+    ['m', 'cp.action.symmetric-draw', 'cp.action.line-type.mountain'],
+    ['f', 'cp.action.line-type.auxiliary', 'cp.action.folding-estimate'],
+    ['l', undefined, 'cp.action.line-type.edge'],
+  ])('sends %s to %s by default and %s under Oriedita', (key, oriStudio, oriedita) => {
+    const ours = vi.fn();
+    handleShortcutKeyDown(press(key), {
+      scopeStack: ['crease-pattern'],
+      executors: { cpAction: ours },
+    });
+    // L is unbound here and Edge upstream, so one row also covers a key the
+    // switch hands out rather than moves.
+    if (oriStudio) expect(ours).toHaveBeenCalledWith(oriStudio);
+    else expect(ours).not.toHaveBeenCalled();
+
+    const theirs = vi.fn();
+    handleShortcutKeyDown(press(key), {
+      scopeStack: ['crease-pattern'],
+      defaultsSource: 'oriedita',
+      executors: { cpAction: theirs },
+    });
+    expect(theirs).toHaveBeenCalledWith(oriedita);
+  });
+
+  it('leaves an overridden binding alone when the source changes', () => {
+    // Overrides are the user's own choice and survive the switch, so J stays on
+    // Valley whichever layout sits underneath it.
+    const overrides = { 'cp.action.line-type.valley': [{ key: 'j' }] };
+    for (const defaultsSource of ['ori-studio', 'oriedita'] as const) {
+      const cpAction = vi.fn();
+      handleShortcutKeyDown(press('j'), {
+        scopeStack: ['crease-pattern'],
+        overrides,
+        defaultsSource,
+        executors: { cpAction },
+      });
+      expect(cpAction).toHaveBeenCalledWith('cp.action.line-type.valley');
+    }
+  });
+});
+
 describe('simulator scope', () => {
   // A focused simulation and the crease-pattern tools want the same keys. The
   // scope stack is what arbitrates: `simulator` sits ahead of `crease-pattern`,

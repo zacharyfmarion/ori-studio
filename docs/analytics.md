@@ -124,6 +124,7 @@ Every event also carries the super properties `app_version`, `app_commit`,
 | `share link opened` | `succeeded`, `source` | A shared link is opened |
 | `theme changed` | `theme` | The theme is changed |
 | `locale changed` | `locale` | The language is changed |
+| `oriedita shortcuts imported` | `mode`, `applied_count`, `skipped_count` | An Oriedita `.oriconfig` keymap is applied |
 
 **Nothing about a 3D fold's geometry is sent.** Not the closure residual, the
 loop gap, the plane separation, the crossing points, or any face, line, plane or
