@@ -1,9 +1,11 @@
 import type {
   OristudioBpFlap,
   OristudioBpSheet,
+  OristudioBpSheetKind,
   OristudioBpTreeView,
 } from '../engine/oristudioBpTypes';
 import {
+  isDiagonalSymmetryAxis,
   optimizerSymmetryAxisForMirror,
   optimizerSymmetryAxisSwapsDimensions,
   type OptimizerSymmetryAxis,
@@ -88,6 +90,48 @@ export function bpPackingSymmetryAxis(
   mirror: BpMirrorOrientation
 ): OptimizerSymmetryAxis {
   return optimizerSymmetryAxisForMirror(sheet.kind, mirror);
+}
+
+/** The sheet operations that move the whole layout as one rigid piece. */
+export type BpSheetTransform = 'subdivide' | 'unsubdivide' | 'rotate' | 'flip';
+
+/**
+ * Where the mirror ends up after a sheet transform.
+ *
+ * Each of these moves the design rigidly, so a symmetric layout comes out just
+ * as symmetric — the flap geometry looks after itself. The mirror *line* moves
+ * with it though, and where it went cannot be recovered from the transformed
+ * sheet afterwards, so it is recorded instead.
+ *
+ * - Doubling and halving are uniform scales about the sheet centre, and a scale
+ *   about a point on the mirror carries the mirror onto itself.
+ * - A quarter turn maps the two book folds onto each other and the two diagonals
+ *   onto each other, so it always flips the member and never the class. Both
+ *   directions land on the same line, which is why neither is named.
+ * - A reflection leaves a mirror perpendicular to it exactly where it was — a
+ *   book-folded design flipped either way is still book-folded about the same
+ *   line — and exchanges the two diagonals with each other.
+ *
+ * Takes the kind of the sheet being transformed, which is the paper the mirror
+ * is being asked about.
+ */
+export function mirrorAfterSheetTransform(
+  sheetKind: OristudioBpSheetKind,
+  mirror: BpMirrorOrientation,
+  transform: BpSheetTransform
+): BpMirrorOrientation {
+  const turned = { ...mirror, quarterTurn: !mirror.quarterTurn };
+  switch (transform) {
+    case 'subdivide':
+    case 'unsubdivide':
+      return mirror;
+    case 'rotate':
+      return turned;
+    case 'flip':
+      return isDiagonalSymmetryAxis(optimizerSymmetryAxisForMirror(sheetKind, mirror))
+        ? turned
+        : mirror;
+  }
 }
 
 /**

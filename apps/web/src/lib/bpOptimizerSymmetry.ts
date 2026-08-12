@@ -92,6 +92,11 @@ export function optimizerSymmetryAxisForMirror(
   return base === 'verticalHalf' ? 'horizontalHalf' : 'antiDiagonal';
 }
 
+/** Whether the axis runs at 45 degrees to the grid rather than along it. */
+export function isDiagonalSymmetryAxis(axis: OptimizerSymmetryAxis): boolean {
+  return axis === 'mainDiagonal' || axis === 'antiDiagonal';
+}
+
 /**
  * Whether the mirror exchanges a flap's width and height.
  *
@@ -102,7 +107,7 @@ export function optimizerSymmetryAxisForMirror(
  * whose boxes are not mirror images.
  */
 export function optimizerSymmetryAxisSwapsDimensions(axis: OptimizerSymmetryAxis): boolean {
-  return axis === 'mainDiagonal' || axis === 'antiDiagonal';
+  return isDiagonalSymmetryAxis(axis);
 }
 
 /** Tree distance between every pair of leaves, keyed `min,max`. */

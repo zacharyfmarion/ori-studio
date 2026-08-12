@@ -7,6 +7,7 @@ import type {
 } from '../engine/oristudioBpTypes';
 import type { OptimizerSymmetryAxis } from './bpOptimizerSymmetry';
 import type { BpMirrorOrientation } from './bpTreeSymmetry';
+import type { Point } from './geometry';
 import type { SymmetryAxis } from './symmetryGeometry';
 import {
   bpFlapAxisSpan,
@@ -17,8 +18,10 @@ import {
   buildMirroredBpFlapMoves,
   constrainBpFlapMoveToAxis,
   isBpFlapOnAxis,
+  mirrorAfterSheetTransform,
   mirrorBpFlapAnchor,
   projectBpFlapAnchorOntoAxis,
+  type BpSheetTransform,
 } from './bpPackingSymmetry';
 
 /**
@@ -217,6 +220,131 @@ describe('bpPackingSymmetryAxis / bpPackingSheetSupportsAxis', () => {
     expect(bpPackingSheetSupportsAxis(sheet('rectangular', 16, 10), 'verticalHalf')).toBe(true);
     expect(bpPackingSheetSupportsAxis(sheet('rectangular', 16, 16), 'mainDiagonal')).toBe(true);
   });
+
+  it('reaches all four axes, which is the point of the quarter turn', () => {
+    const turned = (mirror: BpMirrorOrientation) => ({ ...mirror, quarterTurn: true });
+    expect(bpPackingSymmetryAxis(sheet('rectangular'), turned(BOOK))).toBe('horizontalHalf');
+    expect(bpPackingSymmetryAxis(sheet('rectangular'), turned(DIAGONAL))).toBe('antiDiagonal');
+    expect(bpPackingSymmetryAxis(sheet('diagonal'), turned(BOOK))).toBe('antiDiagonal');
+    expect(bpPackingSymmetryAxis(sheet('diagonal'), turned(DIAGONAL))).toBe('horizontalHalf');
+  });
+});
+
+describe('mirrorAfterSheetTransform', () => {
+  const axisAfter = (
+    kind: 'rectangular' | 'diagonal',
+    mirror: BpMirrorOrientation,
+    transform: BpSheetTransform
+  ) => bpPackingSymmetryAxis(sheet(kind), mirrorAfterSheetTransform(kind, mirror, transform));
+
+  it('leaves the mirror alone when the sheet only changes scale', () => {
+    // Doubling and halving are scales about a point *on* the mirror, so it comes
+    // back to itself. The flaps scale with it and stay paired.
+    for (const transform of ['subdivide', 'unsubdivide'] as const) {
+      for (const mirror of [BOOK, DIAGONAL]) {
+        for (const quarterTurn of [false, true]) {
+          expect(mirrorAfterSheetTransform('rectangular', { ...mirror, quarterTurn }, transform))
+            .toEqual({ ...mirror, quarterTurn });
+        }
+      }
+    }
+  });
+
+  it('turns every mirror a quarter turn when the sheet rotates', () => {
+    expect(axisAfter('rectangular', BOOK, 'rotate')).toBe('horizontalHalf');
+    expect(axisAfter('rectangular', { ...BOOK, quarterTurn: true }, 'rotate')).toBe('verticalHalf');
+    expect(axisAfter('rectangular', DIAGONAL, 'rotate')).toBe('antiDiagonal');
+    expect(axisAfter('rectangular', { ...DIAGONAL, quarterTurn: true }, 'rotate')).toBe(
+      'mainDiagonal'
+    );
+  });
+
+  it('keeps the class: a rotated book fold is still a book fold', () => {
+    // What moves is which of the two axes in the class, never the class itself,
+    // which is why the fold a design was drawn for never needs rewriting.
+    for (const mirror of [BOOK, DIAGONAL]) {
+      expect(mirrorAfterSheetTransform('rectangular', mirror, 'rotate').fold).toBe(mirror.fold);
+    }
+  });
+
+  it('moves only the diagonals when the sheet is flipped', () => {
+    // A reflection carries a mirror perpendicular to it onto itself, and swaps
+    // the two diagonals. Both flips do the same thing to the axis, so neither
+    // direction is named.
+    expect(axisAfter('rectangular', BOOK, 'flip')).toBe('verticalHalf');
+    expect(axisAfter('rectangular', { ...BOOK, quarterTurn: true }, 'flip')).toBe('horizontalHalf');
+    expect(axisAfter('rectangular', DIAGONAL, 'flip')).toBe('antiDiagonal');
+    expect(axisAfter('rectangular', { ...DIAGONAL, quarterTurn: true }, 'flip')).toBe(
+      'mainDiagonal'
+    );
+  });
+
+  it('reads the diagonal from the sheet, where a book fold is one', () => {
+    // On a diamond the paper is turned 45 degrees against the grid, so it is the
+    // *book* fold that runs diagonally and therefore the book fold a flip moves.
+    expect(axisAfter('diagonal', BOOK, 'flip')).toBe('antiDiagonal');
+    expect(axisAfter('diagonal', DIAGONAL, 'flip')).toBe('verticalHalf');
+  });
+
+  it('comes back to itself after four rotations and two flips', () => {
+    for (const mirror of [BOOK, DIAGONAL]) {
+      let turned = mirror as BpMirrorOrientation;
+      for (let i = 0; i < 4; i++) turned = mirrorAfterSheetTransform('rectangular', turned, 'rotate');
+      expect(turned).toEqual(mirror);
+      const flipped = mirrorAfterSheetTransform(
+        'rectangular',
+        mirrorAfterSheetTransform('rectangular', mirror, 'flip'),
+        'flip'
+      );
+      expect(flipped).toEqual(mirror);
+    }
+  });
+});
+
+describe('a transformed layout keeps its partners', () => {
+  // The assertion the quarter turn exists for. A pair sits at mirrored anchors;
+  // after the sheet moves, asking where the partner *should* go has to name
+  // where the partner actually *is* — otherwise the first drag after a rotate
+  // sends every partner somewhere its partner is not.
+  const SIZE = 16;
+  const BOX = { width: 2, height: 2 };
+
+  /** Where a rigid motion of the sheet takes a flap's lower-left corner. */
+  function moveFlap(anchor: Point, transform: BpSheetTransform): Point {
+    switch (transform) {
+      case 'rotate': // clockwise, matching `rotate_sheet` with by = 1
+        return { x: anchor.y, y: SIZE - anchor.x - BOX.width };
+      case 'flip': // horizontal
+        return { x: SIZE - anchor.x - BOX.width, y: anchor.y };
+      default:
+        return anchor;
+    }
+  }
+
+  for (const transform of ['rotate', 'flip'] as const) {
+    for (const mirror of [BOOK, DIAGONAL]) {
+      it(`survives a ${transform} of a ${mirror.fold}-folded design`, () => {
+        const layout = sheet('rectangular', SIZE, SIZE);
+        const center = bpPackingSheetCenter(layout);
+        // A pair, placed by reflecting one member so it starts exactly mirrored.
+        const first = { x: 3, y: 5 };
+        const second = mirrorBpFlapAnchor(
+          first,
+          BOX,
+          center,
+          bpPackingSymmetryAxis(layout, mirror)
+        );
+
+        const movedMirror = mirrorAfterSheetTransform('rectangular', mirror, transform);
+        const movedFirst = moveFlap(first, transform);
+        const movedSecond = moveFlap(second, transform);
+
+        expect(
+          mirrorBpFlapAnchor(movedFirst, BOX, center, bpPackingSymmetryAxis(layout, movedMirror))
+        ).toEqual(movedSecond);
+      });
+    }
+  }
 });
 
 describe('buildMirroredBpFlapMoves', () => {

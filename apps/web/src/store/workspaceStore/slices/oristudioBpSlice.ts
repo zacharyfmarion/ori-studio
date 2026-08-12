@@ -57,6 +57,8 @@ import {
   buildMirroredBpFlapMoves,
   constrainBpFlapGroupToAxisSides,
   constrainBpFlapMoveToAxis,
+  mirrorAfterSheetTransform,
+  type BpSheetTransform,
 } from '../../../lib/bpPackingSymmetry';
 import { seedBpFlapAnchor, seedBpPartnerFlapAnchor } from '../../../lib/bpFlapSeeding';
 import {
@@ -543,6 +545,47 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       set({ oristudioBpError: normalized.message, oristudioBpBusy: false, error: normalized });
       return false;
     }
+  };
+
+  /**
+   * A sheet transform, plus the mirror bookkeeping every one of them owes.
+   *
+   * Each transform moves the whole layout rigidly, so a symmetric design comes
+   * out just as symmetric and the flap geometry needs no help. What does need
+   * help is our record of *where* the mirror is: a rotation carries a vertical
+   * mirror onto the horizontal, and no amount of looking at the sheet afterwards
+   * recovers that. So the orientation is written here, inside the mutation, on
+   * the same undo entry as the geometry it describes — the two can never be left
+   * disagreeing.
+   *
+   * Written whether or not mirror draw is on. Which fold a model has is a fact
+   * about the model that outlives the toggle, so a design rotated with mirror
+   * draw off and turned on later has to come back with its mirror in the right
+   * place.
+   */
+  const transformBpLayoutSheet = (
+    label: string,
+    transform: BpSheetTransform,
+    run: () => Promise<OristudioBpDocumentState>
+  ): Promise<boolean> => {
+    // Named before the first await, like every other addressed write here: the
+    // mirror belongs to the design the transform started in.
+    const designId = get().activeDesignId;
+    return runBpTreeMutation(label, async () => {
+      const next = await run();
+      const symmetry = selectOristudioBpSymmetry(get(), designId);
+      // The sheet the transform acted on, so that a layout grid switched to
+      // diagonal is read as the diamond it is.
+      const moved = mirrorAfterSheetTransform(
+        next.snapshot.packing.sheet.kind,
+        symmetry,
+        transform
+      );
+      if (moved.quarterTurn !== symmetry.quarterTurn) {
+        set(patchBoxPleatDesign(get(), { symmetry: { ...symmetry, ...moved } }, designId));
+      }
+      return next;
+    });
   };
 
   return {
@@ -1245,7 +1288,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       ),
 
     subdivideOristudioBpLayoutSheet: async () =>
-      runBpTreeMutation('Subdivided BP sheet', () =>
+      transformBpLayoutSheet('Subdivided BP sheet', 'subdivide', () =>
         subdivideRuntimeOristudioBpLayoutSheet({
           activeSurface: 'packing',
         })
@@ -1256,26 +1299,30 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       // halve cleanly — dimensions not even, below the minimum, or a flap off an
       // even line — so the button is also disabled in those cases (see the
       // packing panel's canUnsubdivide).
-      runBpTreeMutation('Un-subdivided BP sheet', () =>
+      transformBpLayoutSheet('Un-subdivided BP sheet', 'unsubdivide', () =>
         unsubdivideRuntimeOristudioBpLayoutSheet({
           activeSurface: 'packing',
         })
       ),
 
     rotateOristudioBpLayoutSheet: async (clockwise) =>
-      runBpTreeMutation(clockwise ? 'Rotated BP sheet right' : 'Rotated BP sheet left', () =>
-        rotateRuntimeOristudioBpLayoutSheet(clockwise, {
-          activeSurface: 'packing',
-        })
+      transformBpLayoutSheet(
+        clockwise ? 'Rotated BP sheet right' : 'Rotated BP sheet left',
+        'rotate',
+        () =>
+          rotateRuntimeOristudioBpLayoutSheet(clockwise, {
+            activeSurface: 'packing',
+          })
       ),
 
     flipOristudioBpLayoutSheet: async (horizontal) =>
-      runBpTreeMutation(
+      transformBpLayoutSheet(
         horizontal ? 'Flipped BP sheet horizontal' : 'Flipped BP sheet vertical',
+        'flip',
         () =>
           flipRuntimeOristudioBpLayoutSheet(horizontal, {
             activeSurface: 'packing',
-            })
+          })
       ),
 
     optimizeOristudioBpLayout: async (options, onProgress) => {
