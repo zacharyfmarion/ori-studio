@@ -86,15 +86,17 @@ export function WelcomeRoute() {
       className="app-layout app-layout--start file-drop-region"
       {...dropTargetProps}
     >
-      <StartScreen
-        status={status}
-        errorMessage={errorText}
-        onCreateCreasePattern={() => void handleCreateCreasePattern()}
-        onCreateDesign={() => void handleCreateDesign()}
-        onOpenFile={() => void handleOpenFile()}
-        showWelcomeOnStartup={showWelcomeOnStartup}
-        onToggleShowWelcomeOnStartup={setShowWelcomeOnStartup}
-      />
+      <main className="welcome-page">
+        <StartScreen
+          status={status}
+          errorMessage={errorText}
+          onCreateCreasePattern={() => void handleCreateCreasePattern()}
+          onCreateDesign={() => void handleCreateDesign()}
+          onOpenFile={() => void handleOpenFile()}
+          showWelcomeOnStartup={showWelcomeOnStartup}
+          onToggleShowWelcomeOnStartup={setShowWelcomeOnStartup}
+        />
+      </main>
       <FileDropOverlay visible={isDragActive} policy={WELCOME_DROP_POLICY} />
     </div>
   );

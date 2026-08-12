@@ -13,13 +13,38 @@
   grid-template-rows: minmax(0, 1fr);
 }
 
-.start-screen {
-  display: grid;
+/*
+ * The welcome page's scroll container: one screenful of start screen (or, on a
+ * phone, the desktop-only notice) with the landing sections below it.
+ *
+ * The scrolling deliberately happens *here* and not on `.app-layout--start`,
+ * which stays clipped at `100vh`. `.file-drop-overlay` is absolutely positioned
+ * against that ancestor, and a scrolling positioning context would stretch it to
+ * the height of the whole document — a dashed border running past the fold with
+ * its label centered somewhere off screen.
+ */
+.welcome-page {
   min-width: 0;
   min-height: 0;
-  place-items: center;
+  overflow: hidden auto;
+  background: var(--bg-primary);
+}
+
+/*
+ * The first screenful. `safe center` rather than plain centering: when the
+ * content is taller than the viewport, centering pushes its top above the scroll
+ * origin where nothing can reach it, and `safe` falls back to flex-start instead.
+ * `dvh` because a mobile browser's collapsing URL bar makes `vh` taller than what
+ * is actually visible.
+ */
+.start-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: safe center;
+  min-width: 0;
+  min-height: 100dvh;
   padding: clamp(20px, 5vw, 56px);
-  overflow: auto;
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--bg-secondary) 88%, var(--bg-primary)), var(--bg-primary)),
     var(--bg-primary);
@@ -755,7 +780,8 @@
   }
 
   .start-screen {
-    align-items: start;
+    /* The main axis under `flex-direction: column` — top-align, don't center. */
+    justify-content: flex-start;
     padding: var(--space-4);
   }
 
