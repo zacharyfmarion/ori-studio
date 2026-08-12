@@ -1,8 +1,12 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it } from 'vitest';
-import { RELEASES_URL, REPOSITORY_URL } from '../../constants/release';
-import { FIRST_LANDING_SECTION_ID, WelcomeLanding } from './WelcomeLanding';
+import { DISCORD_URL, REPOSITORY_URL } from '../../constants/release';
+import {
+  FIRST_LANDING_SECTION_ID,
+  LANDING_SECTIONS,
+  WelcomeLanding,
+} from './WelcomeLanding';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -33,16 +37,27 @@ afterEach(() => {
 });
 
 describe('WelcomeLanding', () => {
-  it('renders the four sections in order', () => {
+  it('renders the six sections in order', () => {
     const rendered = renderLanding();
     const ids = Array.from(rendered.querySelectorAll('.landing-section')).map((s) => s.id);
 
     expect(ids).toEqual([
       'landing-what',
-      'landing-workspaces',
+      'landing-edit',
+      'landing-design',
+      'landing-simulate',
       'landing-compatibility',
       'landing-get',
     ]);
+  });
+
+  it('keeps LANDING_SECTIONS in step with what it renders', () => {
+    // The route hands this list to the scroll observer; a section whose id drifts
+    // would silently stop reporting rather than fail.
+    const rendered = renderLanding();
+    const ids = Array.from(rendered.querySelectorAll('.landing-section')).map((s) => s.id);
+
+    expect(LANDING_SECTIONS.map((s) => s.id)).toEqual(ids);
   });
 
   it('starts with the section the scroll affordance jumps to', () => {
@@ -50,13 +65,13 @@ describe('WelcomeLanding', () => {
     expect(rendered.querySelector('.landing-section')?.id).toBe(FIRST_LANDING_SECTION_ID);
   });
 
-  it('names the three workspaces', () => {
+  it('names the three design methods', () => {
     const rendered = renderLanding();
-    const titles = Array.from(rendered.querySelectorAll('.landing-card__title')).map(
-      (card) => card.textContent
-    );
+    const titles = Array.from(
+      rendered.querySelectorAll('#landing-design .landing-feature__title')
+    ).map((feature) => feature.textContent);
 
-    expect(titles).toEqual(['Design', 'Edit', 'Simulate']);
+    expect(titles).toEqual(['TreeMaker', 'Box Pleating Studio', 'ExplOri']);
   });
 
   it('credits every upstream the app is ported from', () => {
@@ -77,16 +92,74 @@ describe('WelcomeLanding', () => {
     const rendered = renderLanding();
     const formats = rendered.querySelector('.landing-formats')?.textContent ?? '';
 
-    for (const extension of ['.cp', '.fold', '.ori', '.orh', '.tmd5', '.bps']) {
+    for (const extension of ['.ori', '.cp', '.fold', '.bps', '.tmd5', '.svg']) {
       expect(formats).toContain(extension);
     }
   });
 
-  it('points its calls to action at the release and repository URLs', () => {
+  it('points its calls to action at Discord and the repository', () => {
     renderLanding();
 
-    expect(link('Download for macOS').getAttribute('href')).toBe(RELEASES_URL);
-    expect(link('View the source').getAttribute('href')).toBe(REPOSITORY_URL);
+    expect(link('Join the Discord').getAttribute('href')).toBe(DISCORD_URL);
+    expect(link('Source and issues').getAttribute('href')).toBe(REPOSITORY_URL);
+  });
+
+  it('promises no desktop download, because there is not one yet', () => {
+    const rendered = renderLanding();
+    const hrefs = Array.from(rendered.querySelectorAll('a')).map((a) => a.getAttribute('href'));
+
+    expect(rendered.textContent).not.toMatch(/download|install it|\.dmg|Apple Silicon/i);
+    expect(hrefs).not.toContain(`${REPOSITORY_URL}/releases`);
+  });
+
+  it('does not advertise CP detection, which ships only in dev builds', () => {
+    const rendered = renderLanding();
+
+    // Narrow on purpose: "T-junction detection" is a real shipped feature, so
+    // this targets the image-import claim rather than the word "detect".
+    expect(rendered.textContent).not.toMatch(/(from|out of) an image/i);
+  });
+
+  it('says it is a beta rather than letting the reader assume otherwise', () => {
+    const rendered = renderLanding();
+
+    expect(rendered.querySelector('.landing-beta')?.textContent).toContain('beta');
+  });
+
+  it('asks for a themed screenshot per figure', () => {
+    const rendered = renderLanding();
+    const sources = Array.from(rendered.querySelectorAll<HTMLImageElement>('.landing-figure__image'))
+      .map((image) => image.getAttribute('src'));
+
+    // The default theme is dark; `LandingFigure` re-resolves when it changes.
+    expect(sources).toEqual([
+      '/landing/overview-dark.png',
+      '/landing/edit-dark.png',
+      '/landing/design-dark.png',
+      '/landing/simulate-dark.png',
+    ]);
+  });
+
+  it('falls back to a placeholder naming the file it wants', () => {
+    const rendered = renderLanding();
+    // jsdom never fetches images, so the failure has to be delivered by hand —
+    // it is what a browser does for a screenshot nobody has added yet.
+    act(() => {
+      for (const image of rendered.querySelectorAll('.landing-figure__image')) {
+        image.dispatchEvent(new Event('error'));
+      }
+    });
+
+    const wanted = Array.from(
+      rendered.querySelectorAll('.landing-figure--placeholder .landing-figure__path')
+    ).map((code) => code.textContent);
+
+    expect(wanted).toEqual([
+      'landing/overview-dark.png',
+      'landing/edit-dark.png',
+      'landing/design-dark.png',
+      'landing/simulate-dark.png',
+    ]);
   });
 
   it('labels each section by its own heading', () => {

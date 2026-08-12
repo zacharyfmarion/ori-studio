@@ -41,10 +41,20 @@ export type ProjectOpenSource = 'file' | 'example' | 'new' | 'drop' | 'share';
 export type LandingSurface = 'desktop' | 'phone';
 
 /** The landing sections below the fold, in page order. */
-export type LandingSectionId = 'what' | 'workspaces' | 'compatibility' | 'get';
+export type LandingSectionId =
+  | 'what'
+  | 'edit'
+  | 'design'
+  | 'simulate'
+  | 'compatibility'
+  | 'get';
 
-/** The landing page's calls to action. */
-export type LandingCta = 'download-desktop' | 'github' | 'scroll';
+/**
+ * The landing page's calls to action.
+ *
+ * No download: the desktop build is not released, so the page does not offer one.
+ */
+export type LandingCta = 'discord' | 'github' | 'scroll';
 
 /** Export target formats (the file's kind only — never its name or contents). */
 export type ExportFormat =

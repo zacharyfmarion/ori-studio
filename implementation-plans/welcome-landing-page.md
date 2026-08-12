@@ -20,9 +20,24 @@ Decisions taken up front (asked and answered before planning):
 
 | Decision | Choice |
 | --- | --- |
-| Landing content depth | Lean — 4 sections |
+| Landing content depth | Six sections, with per-feature detail |
 | What counts as "mobile" | Phones only: `(pointer: coarse) and (max-width: 820px)` |
 | Escape hatch | Yes — a quiet "open it anyway" link, persisted |
+| Translations | English only until the copy is locked |
+
+### Two claims the page must not make
+
+Both were in the first draft and both were wrong. They are recorded here because
+each is the kind of thing that reads as a feature list and ships as a lie:
+
+- **There is no desktop download.** The desktop build is not released. The "Get
+  it" section is about the browser, and the CTA is the Discord.
+- **There is no crease-pattern detection from an image.** "Detect CP from
+  Image…" is behind `import.meta.env.DEV` in `menus/menuDefinition.ts`, so it
+  exists in dev builds only.
+
+`WelcomeLanding.test.tsx` asserts against both, so re-adding either by accident
+fails the suite rather than the reader.
 
 ## Approach
 
@@ -156,40 +171,52 @@ branch:
   drop) and the "show welcome on startup" toggle absent (it controls a route a
   phone can never take).
 
-### 6. The four sections
+### 6. The six sections
 
-1. **What it is** — one paragraph: a single workspace that goes design → edit →
-   simulate, in the browser or on the desktop.
-2. **The three workspaces** — Design (tree structures, circle packing, box
-   pleating), Edit (crease-pattern editing with reference images and CP detection
-   from an image), Simulate (fold it and look at it). Three cards; icons from
-   `lucide-react`, reusing `DraftingCompass` / `PenTool` from `StartScreen` plus
-   one for Simulate.
-3. **Built on the tools you already use** — Oriedita, TreeMaker, Box Pleating
-   Studio, Flat-Folder, and the format-compatibility promise (`.cp`, `.fold`,
-   `.ori`, `.orh`, `.tmd5`, `.bps`, `.osf`). For this audience this is the
-   strongest thing on the page and it should not be buried.
-4. **Get it** — the hosted app (which the reader is already in), the signed
-   Apple Silicon DMG on GitHub Releases, and the repository. Links come from
-   `constants/release.ts`; add a `RELEASES_URL` export beside the existing
-   `REPOSITORY_URL` / `ISSUES_URL` rather than hardcoding a URL in a component.
+Drawn from the launch announcement, in the order someone deciding about this
+would ask:
 
-No new screenshot assets. Section 2 reuses the existing
-`public/start/crease-pattern-preview.png`; anything more is a follow-up, and
-should be a follow-up, because screenshots go stale on their own schedule.
+1. **What it is** — free, open source, runs entirely in the browser with nothing
+   to install; the editor is a port of Oriedita, so it should feel familiar right
+   away. Carries the beta note rather than letting the reader assume otherwise.
+2. **Crease patterns** — the Oriedita port, then the four things worth naming
+   individually: non-180° creases, first-class images and text, foldability
+   checks, and share links.
+3. **Design** — the tabbed workspace and its three methods: TreeMaker, Box
+   Pleating Studio, and ExplOri (Brandon Wong's searchable 22.5° archive).
+4. **Simulate** — inline simulation beside the pattern you are drawing.
+5. **Built on the tools you already use** — the four upstreams, the interchange
+   formats, and the commitment to import/export interoperability, stated with the
+   caveat that interoperability is not the same as exact feature parity.
+   Acknowledgements point at Help › About rather than being duplicated here.
+6. **Get started** — the browser is the whole setup. CTAs are the Discord and
+   the repository; `constants/release.ts` owns both URLs.
 
-### 7. i18n
+**Screenshots.** One per workspace plus an overview, as `LandingFigure`: two
+files each in `public/landing/` (`<name>-light.png` / `<name>-dark.png`), chosen
+from the *app's* theme rather than `prefers-color-scheme`, since the theme is a
+preference set in the app. Until a file exists the frame renders a labelled
+placeholder naming the path it wants. Frames hold 16:9 in every state so the page
+does not reflow as screenshots arrive.
 
-A landing page is mostly copy, and `i18n:check` fails CI on any English string
-without a translation in all eight target locales. Budget for it: roughly 25–35
-new keys × 8 locales.
+### 7. i18n — deferred on purpose
 
-New `landing` namespace, registered in three places:
+The copy is still being settled, so the landing page is **English only** for now
+and there is no `public/locales/*/landing.json` at all. The inline `t('landing:…',
+'English')` defaults are the single copy of that text.
+
+That is the point: the first pass translated 25 keys into eight locales, and the
+rewrite invalidated all of them. Worse, a stale English catalog is *loaded at
+runtime and overrides the inline defaults*, so the page silently kept rendering
+the old copy — including the desktop download that had just been removed.
+
+Turning translation on is a two-line change plus the usual loop:
 
 - `apps/web/src/i18n/locales.ts` → add `'landing'` to `I18N_NAMESPACES`.
 - `apps/web/scripts/i18n/_shared.mjs` → add `'landing'` to `PARSER_NAMESPACES`.
-- `public/locales/<locale>/landing.json` × 9 — generated, never hand-authored for
-  `en`.
+- Then `i18n:extract` → translate all eight → `i18n:stamp` → `i18n:check`.
+
+Both files carry a note saying so. Budget roughly 45 keys × 8 locales.
 
 `assertInSync()` reads the namespace list back out of `locales.ts`, so keeping
 those two lists identical is enforced rather than remembered.
@@ -306,10 +333,15 @@ prerendering `/welcome` is its own piece of work.
 ### Phase 3 — landing content
 
 - [x] `LandingSection.tsx` shell
-- [x] `WelcomeLanding.tsx` with the four sections
-- [x] `RELEASES_URL` in `constants/release.ts`; CTAs link through it
+- [x] `WelcomeLanding.tsx` with the six sections
+- [x] `LandingFigure.tsx` — themed screenshot slots with a naming placeholder
+- [x] `DISCORD_URL` in `constants/release.ts`; CTAs link through it
 - [x] `WelcomeLanding.css`
-- [x] `WelcomeLanding.test.tsx` — sections render, CTAs point at the right URLs
+- [x] `WelcomeLanding.test.tsx` — sections render, CTAs point at the right URLs,
+      and neither retired claim (desktop download, CP-from-image) can come back
+- [ ] **For the author.** Drop screenshots into `apps/web/public/landing/`:
+      `overview`, `edit`, `design`, `simulate`, each as `-light.png` and
+      `-dark.png`, 16:9
 
 ### Phase 4 — phone register
 
@@ -325,12 +357,16 @@ prerendering `/welcome` is its own piece of work.
 - [x] `useLandingViewedEvent.ts`; section-viewed observer; CTA and bypass events
 - [x] `index.html` description / `og:description`
 
-### Phase 6 — i18n
+### Phase 6 — i18n (deferred until the copy is locked)
 
-- [x] `landing` namespace registered in `locales.ts` and `_shared.mjs`
-- [x] `npm run i18n:extract`
-- [x] Translate all 8 target locales
-- [x] `npm run i18n:stamp` → `npm run i18n:check` passes
+- [x] English authored inline; no landing catalog on disk, so nothing can go
+      stale and override it
+- [x] `landing` kept out of both namespace lists, each with a note saying how to
+      turn translation on
+- [x] `npm run i18n:check` passes
+- [ ] **Blocked on the copy.** Register `landing` in `locales.ts` and
+      `_shared.mjs`, then `i18n:extract` → translate all 8 → `i18n:stamp` →
+      `i18n:check`
 
 ### Phase 7 — validation
 

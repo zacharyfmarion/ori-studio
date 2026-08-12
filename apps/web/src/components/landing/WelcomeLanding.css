@@ -60,53 +60,104 @@
   line-height: 1.62;
 }
 
-/* --- The three workspace cards --- */
+/* --- Screenshots --- */
 
-.landing-cards {
+/*
+ * The frame holds 16:9 in every state — loading, loaded, or missing — so the
+ * page does not reflow as screenshots arrive and a missing one still occupies
+ * the space it will have. Capture screenshots at 16:9 for a flush fit; anything
+ * else is letterboxed rather than cropped.
+ */
+.landing-figure {
+  margin: 0;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-primary);
+}
+
+.landing-figure__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/*
+ * The stand-in until a screenshot is dropped into `public/landing/`. It names the
+ * file it wants — a missing figure should say what to add rather than show a
+ * broken-image icon or collapse the section's rhythm.
+ */
+.landing-figure--placeholder {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-4);
+  place-items: center;
+  align-content: center;
+  gap: var(--space-2);
+  border-style: dashed;
+  border-color: var(--border-default);
+  background: color-mix(in srgb, var(--bg-elevated) 40%, transparent);
+  color: var(--text-tertiary);
+}
+
+.landing-figure__missing {
+  font-size: 0.82rem;
+  font-weight: 620;
+}
+
+.landing-figure__path {
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--text-primary) 7%, transparent);
+  font-size: 0.74rem;
+}
+
+/* --- Feature lists --- */
+
+.landing-features {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5) var(--space-6);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.landing-card {
+.landing-feature {
   display: grid;
   align-content: start;
-  gap: var(--space-3);
-  padding: var(--space-5);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--bg-elevated) 88%, var(--bg-primary));
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-primary) 6%, transparent);
+  gap: var(--space-2);
+  padding-left: var(--space-4);
+  border-left: 2px solid color-mix(in srgb, var(--accent-primary) 34%, transparent);
 }
 
-.landing-card__icon {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border: 1px solid color-mix(in srgb, var(--accent-primary) 22%, var(--border-subtle));
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
-  color: color-mix(in srgb, var(--accent-primary) 78%, var(--text-primary));
-}
-
-.landing-card__title {
+.landing-feature__title {
   margin: 0;
   color: var(--text-primary);
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 760;
-  line-height: 1.25;
+  line-height: 1.3;
 }
 
-.landing-card__body {
+.landing-feature__body {
   margin: 0;
   color: var(--text-secondary);
   font-size: 0.86rem;
   font-weight: 500;
-  line-height: 1.56;
+  line-height: 1.58;
+}
+
+.landing-beta {
+  max-width: 62ch;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--accent-secondary) 30%, var(--border-subtle));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent-secondary) 8%, transparent);
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+  font-weight: 500;
+  line-height: 1.55;
 }
 
 /* --- The upstreams --- */
@@ -222,7 +273,7 @@
  * otherwise get three cards in the space of one.
  */
 @media (max-width: 720px) {
-  .landing-cards {
+  .landing-features {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -236,7 +287,7 @@
   }
 }
 
-[data-surface='phone'] .landing-cards {
+[data-surface='phone'] .landing-features {
   grid-template-columns: minmax(0, 1fr);
 }
 
