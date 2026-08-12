@@ -110,6 +110,7 @@ function setUp(
           enabled: symmetry.enabled,
           fold: symmetry.fold ?? 'book',
           quarterTurn: symmetry.quarterTurn ?? false,
+          sidesSwapped: false,
           pairs: symmetry.pairs ?? [],
         },
       }),
@@ -260,7 +261,7 @@ describe('moveOristudioBpLayoutFlapsWithSymmetry', () => {
         ...useWorkspaceStore.getInitialState(),
         ...singleBoxPleatDesignTab({
           document: bpDocument([flap(id, anchorX, 4)]),
-          symmetry: { ...TREE_AXIS, enabled, fold: 'book', quarterTurn: false, pairs: [] },
+          symmetry: { ...TREE_AXIS, enabled, fold: 'book', quarterTurn: false, sidesSwapped: false, pairs: [] },
         }),
       },
       true

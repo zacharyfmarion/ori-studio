@@ -87,6 +87,7 @@ function setUp(options: {
         enabled: options.enabled,
         fold: options.fold ?? 'book',
         quarterTurn: options.quarterTurn ?? false,
+        sidesSwapped: false,
         pairs: options.pairs ?? [],
       }
       })},

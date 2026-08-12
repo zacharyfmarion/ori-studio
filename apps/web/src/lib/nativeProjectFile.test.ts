@@ -1017,15 +1017,17 @@ describe('native project file', () => {
       const raw = bpFile({
         enabled: false,
         fold: 'diagonal',
-        // Turned, so the case would still pass if the writer dropped the field
-        // and the reader defaulted it.
+        // Turned and swapped, so the case would still pass if the writer dropped
+        // either field and the reader defaulted it.
         quarterTurn: true,
+        sidesSwapped: true,
         pairs: [{ v1: 3, v2: 7 }],
       });
       expect(bpDocumentOf(raw).symmetry).toEqual({
         enabled: false,
         fold: 'diagonal',
         quarterTurn: true,
+        sidesSwapped: true,
         pairs: [{ v1: 3, v2: 7 }],
       });
     });
@@ -1038,6 +1040,7 @@ describe('native project file', () => {
         enabled: true,
         fold: 'book' as const,
         quarterTurn: false,
+        sidesSwapped: false,
         pairs: [],
         angle: 90,
         loc: { x: 4, y: 4 },
@@ -1048,6 +1051,7 @@ describe('native project file', () => {
         'fold',
         'pairs',
         'quarterTurn',
+        'sidesSwapped',
       ]);
     });
 
@@ -1055,24 +1059,24 @@ describe('native project file', () => {
       // Off is the honest reading: nothing in a file written before symmetry
       // existed was ever mirrored, so opening it with the mirror on would put
       // a claim into the design that its author never made.
-      const raw = bpFile({ enabled: false, fold: 'diagonal', quarterTurn: false, pairs: [{ v1: 1, v2: 2 }] });
+      const raw = bpFile({ enabled: false, fold: 'diagonal', quarterTurn: false, sidesSwapped: false, pairs: [{ v1: 1, v2: 2 }] });
       raw.schemaVersion = 5;
       delete raw.workspace.documents[0].symmetry;
-      expect(bpDocumentOf(raw).symmetry).toEqual({ enabled: false, fold: 'book', quarterTurn: false, pairs: [] });
+      expect(bpDocumentOf(raw).symmetry).toEqual({ enabled: false, fold: 'book', quarterTurn: false, sidesSwapped: false, pairs: [] });
     });
 
     it('opens rather than refuses when the symmetry block is malformed', () => {
       for (const junk of [null, 42, 'book', [], { pairs: 'nope' }]) {
         const raw = bpFile();
         raw.workspace.documents[0].symmetry = junk;
-        expect(bpDocumentOf(raw).symmetry).toEqual({ enabled: false, fold: 'book', quarterTurn: false, pairs: [] });
+        expect(bpDocumentOf(raw).symmetry).toEqual({ enabled: false, fold: 'book', quarterTurn: false, sidesSwapped: false, pairs: [] });
       }
     });
 
     it('keeps the usable half of a partly malformed block', () => {
       const raw = bpFile();
       raw.workspace.documents[0].symmetry = { enabled: false, fold: 'sideways', pairs: null };
-      expect(bpDocumentOf(raw).symmetry).toEqual({ enabled: false, fold: 'book', quarterTurn: false, pairs: [] });
+      expect(bpDocumentOf(raw).symmetry).toEqual({ enabled: false, fold: 'book', quarterTurn: false, sidesSwapped: false, pairs: [] });
     });
 
     it('re-establishes one mirror per vertex, whatever the file claims', () => {

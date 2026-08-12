@@ -73,6 +73,7 @@ function symmetryState(overrides: Partial<Parameters<typeof resolveOptimizerSymm
     loc: CENTRE,
     fold: 'book' as const,
     quarterTurn: false,
+    sidesSwapped: false,
     pairs: [],
     ...overrides,
   };
@@ -80,15 +81,15 @@ function symmetryState(overrides: Partial<Parameters<typeof resolveOptimizerSymm
 
 describe('optimizerSymmetryAxisForMirror', () => {
   it('puts a book fold along the grid on a rectangular sheet', () => {
-    expect(optimizerSymmetryAxisForMirror('rectangular', { fold: 'book', quarterTurn: false })).toBe('verticalHalf');
-    expect(optimizerSymmetryAxisForMirror('rectangular', { fold: 'diagonal', quarterTurn: false })).toBe('mainDiagonal');
+    expect(optimizerSymmetryAxisForMirror('rectangular', { fold: 'book', quarterTurn: false, sidesSwapped: false })).toBe('verticalHalf');
+    expect(optimizerSymmetryAxisForMirror('rectangular', { fold: 'diagonal', quarterTurn: false, sidesSwapped: false })).toBe('mainDiagonal');
   });
 
   it('swaps them on a diamond, where the paper is turned 45 degrees', () => {
     // The paper's corners point along the grid axes there, so a corner-to-corner
     // fold runs along a grid line and a book fold cuts across at 45 degrees.
-    expect(optimizerSymmetryAxisForMirror('diagonal', { fold: 'diagonal', quarterTurn: false })).toBe('verticalHalf');
-    expect(optimizerSymmetryAxisForMirror('diagonal', { fold: 'book', quarterTurn: false })).toBe('mainDiagonal');
+    expect(optimizerSymmetryAxisForMirror('diagonal', { fold: 'diagonal', quarterTurn: false, sidesSwapped: false })).toBe('verticalHalf');
+    expect(optimizerSymmetryAxisForMirror('diagonal', { fold: 'book', quarterTurn: false, sidesSwapped: false })).toBe('mainDiagonal');
   });
 
   it('names each of the four axes exactly once across the eight inputs', () => {
@@ -100,7 +101,7 @@ describe('optimizerSymmetryAxisForMirror', () => {
       (['book', 'diagonal'] as const).flatMap((fold) =>
         [false, true].map((quarterTurn) => ({
           kind,
-          axis: optimizerSymmetryAxisForMirror(kind, { fold, quarterTurn }),
+          axis: optimizerSymmetryAxisForMirror(kind, { fold, quarterTurn, sidesSwapped: false }),
         }))
       )
     );
@@ -117,8 +118,8 @@ describe('optimizerSymmetryAxisForMirror', () => {
     const diagonalAxes = new Set(['mainDiagonal', 'antiDiagonal']);
     for (const kind of ['rectangular', 'diagonal'] as const) {
       for (const fold of ['book', 'diagonal'] as const) {
-        const straight = optimizerSymmetryAxisForMirror(kind, { fold, quarterTurn: false });
-        const turned = optimizerSymmetryAxisForMirror(kind, { fold, quarterTurn: true });
+        const straight = optimizerSymmetryAxisForMirror(kind, { fold, quarterTurn: false, sidesSwapped: false });
+        const turned = optimizerSymmetryAxisForMirror(kind, { fold, quarterTurn: true, sidesSwapped: false });
         expect(diagonalAxes.has(turned)).toBe(diagonalAxes.has(straight));
         expect(turned).not.toBe(straight);
       }

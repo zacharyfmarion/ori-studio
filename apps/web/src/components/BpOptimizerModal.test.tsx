@@ -263,6 +263,7 @@ describe('symmetry row', () => {
         enabled: true,
         fold: 'book',
         quarterTurn: false,
+        sidesSwapped: false,
         angle: 90,
         loc: { x: 10, y: 10 },
         pairs: [],

@@ -156,13 +156,10 @@ export function useBpPackingSymmetry(
   // pick does not move the mirror off it.
   const foldUnavailable = useCallback(
     (fold: SymmetryFold) =>
-      bpPackingSheetSupportsAxis(
-        sheet,
-        bpPackingSymmetryAxis(sheet, { fold, quarterTurn: symmetry.quarterTurn })
-      )
+      bpPackingSheetSupportsAxis(sheet, bpPackingSymmetryAxis(sheet, { ...symmetry, fold }))
         ? null
         : t('panels:bpPacking.symmetryNeedsSquare', 'Needs a square sheet.'),
-    [sheet, symmetry.quarterTurn, t]
+    [sheet, symmetry, t]
   );
 
   const axisLine = useMemo(() => {

@@ -581,7 +581,10 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         symmetry,
         transform
       );
-      if (moved.quarterTurn !== symmetry.quarterTurn) {
+      if (
+        moved.quarterTurn !== symmetry.quarterTurn ||
+        moved.sidesSwapped !== symmetry.sidesSwapped
+      ) {
         set(patchBoxPleatDesign(get(), { symmetry: { ...symmetry, ...moved } }, designId));
       }
       return next;
@@ -1288,7 +1291,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       ),
 
     subdivideOristudioBpLayoutSheet: async () =>
-      transformBpLayoutSheet('Subdivided BP sheet', 'subdivide', () =>
+      transformBpLayoutSheet('Subdivided BP sheet', { kind: 'subdivide' }, () =>
         subdivideRuntimeOristudioBpLayoutSheet({
           activeSurface: 'packing',
         })
@@ -1299,7 +1302,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       // halve cleanly — dimensions not even, below the minimum, or a flap off an
       // even line — so the button is also disabled in those cases (see the
       // packing panel's canUnsubdivide).
-      transformBpLayoutSheet('Un-subdivided BP sheet', 'unsubdivide', () =>
+      transformBpLayoutSheet('Un-subdivided BP sheet', { kind: 'unsubdivide' }, () =>
         unsubdivideRuntimeOristudioBpLayoutSheet({
           activeSurface: 'packing',
         })
@@ -1308,7 +1311,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     rotateOristudioBpLayoutSheet: async (clockwise) =>
       transformBpLayoutSheet(
         clockwise ? 'Rotated BP sheet right' : 'Rotated BP sheet left',
-        'rotate',
+        { kind: 'rotate', clockwise },
         () =>
           rotateRuntimeOristudioBpLayoutSheet(clockwise, {
             activeSurface: 'packing',
@@ -1318,7 +1321,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     flipOristudioBpLayoutSheet: async (horizontal) =>
       transformBpLayoutSheet(
         horizontal ? 'Flipped BP sheet horizontal' : 'Flipped BP sheet vertical',
-        'flip',
+        { kind: 'flip', horizontal },
         () =>
           flipRuntimeOristudioBpLayoutSheet(horizontal, {
             activeSurface: 'packing',

@@ -145,6 +145,7 @@ function setUp(symmetry: { enabled: boolean; fold?: 'book' | 'diagonal' }) {
           enabled: symmetry.enabled,
           fold: symmetry.fold ?? 'book',
           quarterTurn: false,
+          sidesSwapped: false,
           pairs: [],
         },
       }),

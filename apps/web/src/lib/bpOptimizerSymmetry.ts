@@ -92,11 +92,6 @@ export function optimizerSymmetryAxisForMirror(
   return base === 'verticalHalf' ? 'horizontalHalf' : 'antiDiagonal';
 }
 
-/** Whether the axis runs at 45 degrees to the grid rather than along it. */
-export function isDiagonalSymmetryAxis(axis: OptimizerSymmetryAxis): boolean {
-  return axis === 'mainDiagonal' || axis === 'antiDiagonal';
-}
-
 /**
  * Whether the mirror exchanges a flap's width and height.
  *
@@ -107,7 +102,7 @@ export function isDiagonalSymmetryAxis(axis: OptimizerSymmetryAxis): boolean {
  * whose boxes are not mirror images.
  */
 export function optimizerSymmetryAxisSwapsDimensions(axis: OptimizerSymmetryAxis): boolean {
-  return isDiagonalSymmetryAxis(axis);
+  return axis === 'mainDiagonal' || axis === 'antiDiagonal';
 }
 
 /** Tree distance between every pair of leaves, keyed `min,max`. */
@@ -247,13 +242,21 @@ export function resolveOptimizerSymmetry(
   }
 
   // Which member of each pair the user drew on the left. The tree's mirror is
-  // always vertical, so "left" is simply a smaller x; where that lands on the
-  // paper is the fold's business, and all that matters is that it is consistent.
+  // always vertical, so "left" is simply a smaller x.
+  //
+  // Where that lands on the paper is the mirror's business, and the kernel reads
+  // this list against the axis's canonical normal — so "left" has to be
+  // translated into that frame rather than handed over raw. A design the sheet
+  // transforms have turned has its drawn-left half sitting on the axis's
+  // *positive* side, and the answer is the other member of every pair.
+  // Reporting the left-drawn ones anyway is how a rotate followed by a solve
+  // came to swap every pair back.
   const negativeSide: number[] = [];
   for (const vertex of tree.vertices) {
     const mirror = partner.get(vertex.id);
     if (mirror === undefined || mirror === vertex.id) continue;
-    if (vertex.loc.x < symmetry.loc.x) negativeSide.push(vertex.id);
+    const drawnLeft = vertex.loc.x < symmetry.loc.x;
+    if (drawnLeft !== symmetry.sidesSwapped) negativeSide.push(vertex.id);
   }
 
   return {

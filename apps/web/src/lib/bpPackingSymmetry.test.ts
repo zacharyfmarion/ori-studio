@@ -201,8 +201,8 @@ describe('projectBpFlapAnchorOntoAxis', () => {
 });
 
 /** The two folds, unturned — the orientation these cases were written for. */
-const BOOK = { fold: 'book', quarterTurn: false } as const;
-const DIAGONAL = { fold: 'diagonal', quarterTurn: false } as const;
+const BOOK = { fold: 'book', quarterTurn: false, sidesSwapped: false } as const;
+const DIAGONAL = { fold: 'diagonal', quarterTurn: false, sidesSwapped: false } as const;
 
 describe('bpPackingSymmetryAxis / bpPackingSheetSupportsAxis', () => {
   it('maps a book fold to the vertical axis on a rectangular sheet', () => {
@@ -229,75 +229,136 @@ describe('bpPackingSymmetryAxis / bpPackingSheetSupportsAxis', () => {
     expect(bpPackingSymmetryAxis(sheet('diagonal'), turned(DIAGONAL))).toBe('horizontalHalf');
   });
 });
-
 describe('mirrorAfterSheetTransform', () => {
+  const CW: BpSheetTransform = { kind: 'rotate', clockwise: true };
+  const CCW: BpSheetTransform = { kind: 'rotate', clockwise: false };
+  const FLIP_H: BpSheetTransform = { kind: 'flip', horizontal: true };
+  const FLIP_V: BpSheetTransform = { kind: 'flip', horizontal: false };
+
   const axisAfter = (
     kind: 'rectangular' | 'diagonal',
     mirror: BpMirrorOrientation,
     transform: BpSheetTransform
   ) => bpPackingSymmetryAxis(sheet(kind), mirrorAfterSheetTransform(kind, mirror, transform));
 
+  const apply = (mirror: BpMirrorOrientation, ...transforms: BpSheetTransform[]) =>
+    transforms.reduce(
+      (current, transform) => mirrorAfterSheetTransform('rectangular', current, transform),
+      mirror as BpMirrorOrientation
+    );
+
   it('leaves the mirror alone when the sheet only changes scale', () => {
     // Doubling and halving are scales about a point *on* the mirror, so it comes
-    // back to itself. The flaps scale with it and stay paired.
-    for (const transform of ['subdivide', 'unsubdivide'] as const) {
-      for (const mirror of [BOOK, DIAGONAL]) {
+    // back to itself, pointing the same way. The flaps scale with it.
+    for (const transform of [{ kind: 'subdivide' }, { kind: 'unsubdivide' }] as const) {
+      for (const fold of [BOOK, DIAGONAL]) {
         for (const quarterTurn of [false, true]) {
-          expect(mirrorAfterSheetTransform('rectangular', { ...mirror, quarterTurn }, transform))
-            .toEqual({ ...mirror, quarterTurn });
+          for (const sidesSwapped of [false, true]) {
+            const mirror = { ...fold, quarterTurn, sidesSwapped };
+            expect(mirrorAfterSheetTransform('rectangular', mirror, transform)).toEqual(mirror);
+          }
         }
       }
     }
   });
 
   it('turns every mirror a quarter turn when the sheet rotates', () => {
-    expect(axisAfter('rectangular', BOOK, 'rotate')).toBe('horizontalHalf');
-    expect(axisAfter('rectangular', { ...BOOK, quarterTurn: true }, 'rotate')).toBe('verticalHalf');
-    expect(axisAfter('rectangular', DIAGONAL, 'rotate')).toBe('antiDiagonal');
-    expect(axisAfter('rectangular', { ...DIAGONAL, quarterTurn: true }, 'rotate')).toBe(
-      'mainDiagonal'
-    );
+    expect(axisAfter('rectangular', BOOK, CW)).toBe('horizontalHalf');
+    expect(axisAfter('rectangular', { ...BOOK, quarterTurn: true }, CW)).toBe('verticalHalf');
+    expect(axisAfter('rectangular', DIAGONAL, CW)).toBe('antiDiagonal');
+    expect(axisAfter('rectangular', { ...DIAGONAL, quarterTurn: true }, CW)).toBe('mainDiagonal');
+  });
+
+  it('reaches the same line whichever way it turns', () => {
+    for (const mirror of [BOOK, DIAGONAL]) {
+      expect(axisAfter('rectangular', mirror, CW)).toBe(axisAfter('rectangular', mirror, CCW));
+    }
+  });
+
+  it('but arrives at it by opposite sides, which is why direction is named', () => {
+    // The bug this exists for: a right turn and a left turn agree about the line
+    // and disagree about which half of the paper the drawing's left is now on. A
+    // rule that took only "rotate" had thrown that away.
+    expect(apply(BOOK, CW).sidesSwapped).toBe(true);
+    expect(apply(BOOK, CCW).sidesSwapped).toBe(false);
+    expect(apply(DIAGONAL, CW).sidesSwapped).toBe(true);
+    expect(apply(DIAGONAL, CCW).sidesSwapped).toBe(false);
+  });
+
+  it('swaps the sides on the period the rotation actually has', () => {
+    // Four states, not two: the axis alternates every turn while the sides go
+    // keep, swap, swap, keep. No function of `quarterTurn` alone can say this,
+    // which is the whole reason for a second bit.
+    const swapped: boolean[] = [];
+    let mirror: BpMirrorOrientation = BOOK;
+    for (let turn = 0; turn < 4; turn++) {
+      swapped.push(mirror.sidesSwapped);
+      mirror = apply(mirror, CW);
+    }
+    expect(swapped).toEqual([false, true, true, false]);
+    expect(mirror).toEqual(BOOK);
   });
 
   it('keeps the class: a rotated book fold is still a book fold', () => {
     // What moves is which of the two axes in the class, never the class itself,
     // which is why the fold a design was drawn for never needs rewriting.
     for (const mirror of [BOOK, DIAGONAL]) {
-      expect(mirrorAfterSheetTransform('rectangular', mirror, 'rotate').fold).toBe(mirror.fold);
+      for (const transform of [CW, CCW, FLIP_H, FLIP_V]) {
+        expect(mirrorAfterSheetTransform('rectangular', mirror, transform).fold).toBe(mirror.fold);
+      }
     }
   });
 
   it('moves only the diagonals when the sheet is flipped', () => {
     // A reflection carries a mirror perpendicular to it onto itself, and swaps
-    // the two diagonals. Both flips do the same thing to the axis, so neither
-    // direction is named.
-    expect(axisAfter('rectangular', BOOK, 'flip')).toBe('verticalHalf');
-    expect(axisAfter('rectangular', { ...BOOK, quarterTurn: true }, 'flip')).toBe('horizontalHalf');
-    expect(axisAfter('rectangular', DIAGONAL, 'flip')).toBe('antiDiagonal');
-    expect(axisAfter('rectangular', { ...DIAGONAL, quarterTurn: true }, 'flip')).toBe(
-      'mainDiagonal'
-    );
+    // the two diagonals.
+    expect(axisAfter('rectangular', BOOK, FLIP_H)).toBe('verticalHalf');
+    expect(axisAfter('rectangular', { ...BOOK, quarterTurn: true }, FLIP_H)).toBe('horizontalHalf');
+    expect(axisAfter('rectangular', DIAGONAL, FLIP_H)).toBe('antiDiagonal');
+    expect(axisAfter('rectangular', { ...DIAGONAL, quarterTurn: true }, FLIP_H)).toBe('mainDiagonal');
+  });
+
+  it('exchanges the halves only when the flip is across the mirror', () => {
+    // A book-folded design flipped left-to-right lands on the same line with its
+    // halves traded; flipped top-to-bottom each half slides along the mirror and
+    // stays where it was.
+    expect(apply(BOOK, FLIP_H).sidesSwapped).toBe(true);
+    expect(apply(BOOK, FLIP_V).sidesSwapped).toBe(false);
+    expect(apply({ ...BOOK, quarterTurn: true }, FLIP_H).sidesSwapped).toBe(false);
+    expect(apply({ ...BOOK, quarterTurn: true }, FLIP_V).sidesSwapped).toBe(true);
   });
 
   it('reads the diagonal from the sheet, where a book fold is one', () => {
     // On a diamond the paper is turned 45 degrees against the grid, so it is the
     // *book* fold that runs diagonally and therefore the book fold a flip moves.
-    expect(axisAfter('diagonal', BOOK, 'flip')).toBe('antiDiagonal');
-    expect(axisAfter('diagonal', DIAGONAL, 'flip')).toBe('verticalHalf');
+    expect(axisAfter('diagonal', BOOK, FLIP_H)).toBe('antiDiagonal');
+    expect(axisAfter('diagonal', DIAGONAL, FLIP_H)).toBe('verticalHalf');
   });
 
-  it('comes back to itself after four rotations and two flips', () => {
+  it('is undone by the opposite transform, in both fields', () => {
     for (const mirror of [BOOK, DIAGONAL]) {
-      let turned = mirror as BpMirrorOrientation;
-      for (let i = 0; i < 4; i++) turned = mirrorAfterSheetTransform('rectangular', turned, 'rotate');
-      expect(turned).toEqual(mirror);
-      const flipped = mirrorAfterSheetTransform(
-        'rectangular',
-        mirrorAfterSheetTransform('rectangular', mirror, 'flip'),
-        'flip'
-      );
-      expect(flipped).toEqual(mirror);
+      expect(apply(mirror, CW, CCW)).toEqual(mirror);
+      expect(apply(mirror, CCW, CW)).toEqual(mirror);
+      expect(apply(mirror, CW, CW, CW, CW)).toEqual(mirror);
+      expect(apply(mirror, FLIP_H, FLIP_H)).toEqual(mirror);
+      expect(apply(mirror, FLIP_V, FLIP_V)).toEqual(mirror);
     }
+  });
+
+  it('reaches all eight states, and no transform leaves the set', () => {
+    // The symmetries of the square acting on an oriented line through the centre.
+    // A rule that could not reach one of these would be a design nothing can
+    // express — and one that left the set would be a mirror off the paper.
+    const seen = new Set<string>();
+    const key = (m: BpMirrorOrientation) => `${m.fold}/${m.quarterTurn}/${m.sidesSwapped}`;
+    const queue: BpMirrorOrientation[] = [BOOK, DIAGONAL];
+    while (queue.length > 0) {
+      const mirror = queue.pop()!;
+      if (seen.has(key(mirror))) continue;
+      seen.add(key(mirror));
+      for (const transform of [CW, CCW, FLIP_H, FLIP_V]) queue.push(apply(mirror, transform));
+    }
+    expect(seen.size).toBe(8);
   });
 });
 
@@ -311,29 +372,42 @@ describe('a transformed layout keeps its partners', () => {
 
   /** Where a rigid motion of the sheet takes a flap's lower-left corner. */
   function moveFlap(anchor: Point, transform: BpSheetTransform): Point {
-    switch (transform) {
-      case 'rotate': // clockwise, matching `rotate_sheet` with by = 1
-        return { x: anchor.y, y: SIZE - anchor.x - BOX.width };
-      case 'flip': // horizontal
-        return { x: SIZE - anchor.x - BOX.width, y: anchor.y };
+    switch (transform.kind) {
+      case 'rotate':
+        // Matching `rotate_sheet`'s matrix: clockwise takes (u, v) to (v, -u).
+        return transform.clockwise
+          ? { x: anchor.y, y: SIZE - anchor.x - BOX.width }
+          : { x: SIZE - anchor.y - BOX.height, y: anchor.x };
+      case 'flip':
+        return transform.horizontal
+          ? { x: SIZE - anchor.x - BOX.width, y: anchor.y }
+          : { x: anchor.x, y: SIZE - anchor.y - BOX.height };
       default:
         return anchor;
     }
   }
 
-  for (const transform of ['rotate', 'flip'] as const) {
+  const TRANSFORMS: BpSheetTransform[] = [
+    { kind: 'rotate', clockwise: true },
+    { kind: 'rotate', clockwise: false },
+    { kind: 'flip', horizontal: true },
+    { kind: 'flip', horizontal: false },
+  ];
+
+  for (const transform of TRANSFORMS) {
     for (const mirror of [BOOK, DIAGONAL]) {
-      it(`survives a ${transform} of a ${mirror.fold}-folded design`, () => {
+      const name =
+        transform.kind === 'rotate'
+          ? `rotate ${transform.clockwise ? 'right' : 'left'}`
+          : transform.kind === 'flip'
+            ? `${transform.horizontal ? 'horizontal' : 'vertical'} flip`
+            : transform.kind;
+      it(`survives a ${name} of a ${mirror.fold}-folded design`, () => {
         const layout = sheet('rectangular', SIZE, SIZE);
         const center = bpPackingSheetCenter(layout);
         // A pair, placed by reflecting one member so it starts exactly mirrored.
         const first = { x: 3, y: 5 };
-        const second = mirrorBpFlapAnchor(
-          first,
-          BOX,
-          center,
-          bpPackingSymmetryAxis(layout, mirror)
-        );
+        const second = mirrorBpFlapAnchor(first, BOX, center, bpPackingSymmetryAxis(layout, mirror));
 
         const movedMirror = mirrorAfterSheetTransform('rectangular', mirror, transform);
         const movedFirst = moveFlap(first, transform);
@@ -345,6 +419,37 @@ describe('a transformed layout keeps its partners', () => {
       });
     }
   }
+
+  it('tracks which half the first member is in, across every transform', () => {
+    // Same fixture, but asking the question `negativeSide` asks: is the member
+    // that started on the mirror's negative side still there? That is what a
+    // rotation moves and what the optimizer reads back.
+    const layout = sheet('rectangular', SIZE, SIZE);
+    const center = bpPackingSheetCenter(layout);
+    const sideOf = (anchor: Point, mirror: BpMirrorOrientation) => {
+      const axis = bpPackingSymmetryAxis(layout, mirror);
+      const [nx, ny] = axis === 'verticalHalf'
+        ? [1, 0]
+        : axis === 'horizontalHalf'
+          ? [0, 1]
+          : axis === 'mainDiagonal'
+            ? [1, -1]
+            : [1, 1];
+      return Math.sign(nx * (anchor.x - center.x) + ny * (anchor.y - center.y));
+    };
+
+    for (const transform of TRANSFORMS) {
+      for (const mirror of [BOOK, DIAGONAL]) {
+        const first = { x: 3, y: 5 };
+        const before = sideOf(first, mirror);
+        const moved = mirrorAfterSheetTransform('rectangular', mirror, transform);
+        const after = sideOf(moveFlap(first, transform), moved);
+        // `sidesSwapped` says exactly whether that side flipped, which is what
+        // the optimizer payload has to compensate for.
+        expect(after === before).toBe(moved.sidesSwapped === mirror.sidesSwapped);
+      }
+    }
+  });
 });
 
 describe('buildMirroredBpFlapMoves', () => {

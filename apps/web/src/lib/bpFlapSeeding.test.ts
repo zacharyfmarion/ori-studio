@@ -12,8 +12,8 @@ import {
 } from './bpFlapSeeding';
 
 /** The two folds, unturned — the orientation a design starts and stays in here. */
-const BOOK = { fold: 'book', quarterTurn: false } as const;
-const DIAGONAL = { fold: 'diagonal', quarterTurn: false } as const;
+const BOOK = { fold: 'book', quarterTurn: false, sidesSwapped: false } as const;
+const DIAGONAL = { fold: 'diagonal', quarterTurn: false, sidesSwapped: false } as const;
 
 /**
  * The starter project's real sheets: a 20×20 tree and a 16×16 layout. They are

@@ -100,7 +100,7 @@ describe('collectExportLossWarnings', () => {
     const presence = {
       ...noneElse,
       images: [],
-      bpSymmetry: { enabled: true, fold: 'book' as const, quarterTurn: false, pairs: [{ v1: 1, v2: 2 }] },
+      bpSymmetry: { enabled: true, fold: 'book' as const, quarterTurn: false, sidesSwapped: false, pairs: [{ v1: 1, v2: 2 }] },
     };
     expect(collectExportLossWarnings('bps', presence)).toEqual([
       { id: 'symmetry', count: 1, blocking: false },
@@ -123,8 +123,8 @@ describe('collectExportLossWarnings', () => {
 
   it('warns when mirror draw was turned on, or the fold changed, with nothing paired', () => {
     for (const bpSymmetry of [
-      { enabled: true, fold: 'book' as const, quarterTurn: false, pairs: [] },
-      { enabled: false, fold: 'diagonal' as const, quarterTurn: false, pairs: [] },
+      { enabled: true, fold: 'book' as const, quarterTurn: false, sidesSwapped: false, pairs: [] },
+      { enabled: false, fold: 'diagonal' as const, quarterTurn: false, sidesSwapped: false, pairs: [] },
     ]) {
       const warnings = collectExportLossWarnings('bps', { ...noneElse, images: [], bpSymmetry });
       expect(warnings.map((warning) => warning.id)).toEqual(['symmetry']);
@@ -135,7 +135,7 @@ describe('collectExportLossWarnings', () => {
     const warnings = collectExportLossWarnings('bps', {
       ...noneElse,
       images: [],
-      bpSymmetry: { enabled: false, fold: 'diagonal' as const, quarterTurn: false, pairs: [{ v1: 1, v2: 2 }] },
+      bpSymmetry: { enabled: false, fold: 'diagonal' as const, quarterTurn: false, sidesSwapped: false, pairs: [{ v1: 1, v2: 2 }] },
     });
     expect(blockingExportLoss(warnings)).toEqual([]);
   });

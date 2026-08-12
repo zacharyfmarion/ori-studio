@@ -5,7 +5,6 @@ import type {
   OristudioBpTreeView,
 } from '../engine/oristudioBpTypes';
 import {
-  isDiagonalSymmetryAxis,
   optimizerSymmetryAxisForMirror,
   optimizerSymmetryAxisSwapsDimensions,
   type OptimizerSymmetryAxis,
@@ -92,25 +91,77 @@ export function bpPackingSymmetryAxis(
   return optimizerSymmetryAxisForMirror(sheet.kind, mirror);
 }
 
-/** The sheet operations that move the whole layout as one rigid piece. */
-export type BpSheetTransform = 'subdivide' | 'unsubdivide' | 'rotate' | 'flip';
+/**
+ * The sheet operations that move the whole layout as one rigid piece.
+ *
+ * The rotations and flips name their direction. It does not change which *line*
+ * the mirror lands on — a right turn and a left turn reach the same one — but it
+ * decides which of its two sides the design's left half ends up on, and that is
+ * half of what the mirror has to record.
+ */
+export type BpSheetTransform =
+  | { kind: 'subdivide' }
+  | { kind: 'unsubdivide' }
+  | { kind: 'rotate'; clockwise: boolean }
+  | { kind: 'flip'; horizontal: boolean };
+
+/** The axis normals the kernel measures sides against (`SymmetryAxis::grid_normal`). */
+const AXIS_NORMALS: Record<OptimizerSymmetryAxis, readonly [number, number]> = {
+  verticalHalf: [1, 0],
+  horizontalHalf: [0, 1],
+  mainDiagonal: [1, -1],
+  antiDiagonal: [1, 1],
+};
+
+/** The axis a normal is perpendicular to, whichever way it points. */
+function axisForNormal([x, y]: readonly [number, number]): OptimizerSymmetryAxis {
+  if (y === 0) return 'verticalHalf';
+  if (x === 0) return 'horizontalHalf';
+  return x === y ? 'antiDiagonal' : 'mainDiagonal';
+}
+
+/**
+ * A direction, carried through the transform.
+ *
+ * Centred on the sheet, where every one of these is linear. The rotation matches
+ * `rotate_sheet`'s matrix with `by = 1`, which takes (u, v) to (v, −u).
+ */
+function transportDirection(
+  [x, y]: readonly [number, number],
+  transform: BpSheetTransform
+): readonly [number, number] {
+  switch (transform.kind) {
+    case 'subdivide':
+    case 'unsubdivide':
+      // A uniform scale about the centre. Lengths change; directions do not.
+      return [x, y];
+    case 'rotate':
+      return transform.clockwise ? [y, -x] : [-y, x];
+    case 'flip':
+      return transform.horizontal ? [-x, y] : [x, -y];
+  }
+}
 
 /**
  * Where the mirror ends up after a sheet transform.
  *
  * Each of these moves the design rigidly, so a symmetric layout comes out just
- * as symmetric — the flap geometry looks after itself. The mirror *line* moves
- * with it though, and where it went cannot be recovered from the transformed
- * sheet afterwards, so it is recorded instead.
+ * as symmetric — the flap geometry looks after itself. The mirror moves with it
+ * though, and where it went cannot be recovered from the transformed sheet
+ * afterwards, so it is recorded instead.
  *
- * - Doubling and halving are uniform scales about the sheet centre, and a scale
- *   about a point on the mirror carries the mirror onto itself.
- * - A quarter turn maps the two book folds onto each other and the two diagonals
- *   onto each other, so it always flips the member and never the class. Both
- *   directions land on the same line, which is why neither is named.
- * - A reflection leaves a mirror perpendicular to it exactly where it was — a
- *   book-folded design flipped either way is still book-folded about the same
- *   line — and exchanges the two diagonals with each other.
+ * Rather than a table of which transform does what to which axis, the mirror's
+ * own normal is carried through the transform and read back. That settles both
+ * questions at once and neither can drift from the other: the line it ends up
+ * perpendicular to is the new axis, and whether it still points the way that
+ * axis's canonical normal does is whether the two sides have been exchanged.
+ * Composition then comes for free, which a table has to be trusted to get right
+ * — and the earlier table was wrong about the sides, because it had thrown away
+ * the direction the answer depends on.
+ *
+ * The class never changes: no transform here turns by less than a right angle,
+ * so a book fold cannot become a diagonal one. Asserted in the tests rather than
+ * assumed, since `fold` is carried through untouched.
  *
  * Takes the kind of the sheet being transformed, which is the paper the mirror
  * is being asked about.
@@ -120,18 +171,20 @@ export function mirrorAfterSheetTransform(
   mirror: BpMirrorOrientation,
   transform: BpSheetTransform
 ): BpMirrorOrientation {
-  const turned = { ...mirror, quarterTurn: !mirror.quarterTurn };
-  switch (transform) {
-    case 'subdivide':
-    case 'unsubdivide':
-      return mirror;
-    case 'rotate':
-      return turned;
-    case 'flip':
-      return isDiagonalSymmetryAxis(optimizerSymmetryAxisForMirror(sheetKind, mirror))
-        ? turned
-        : mirror;
-  }
+  const axis = optimizerSymmetryAxisForMirror(sheetKind, mirror);
+  const sign = mirror.sidesSwapped ? -1 : 1;
+  const [cx, cy] = AXIS_NORMALS[axis];
+  const moved = transportDirection([cx * sign, cy * sign], transform);
+  const nextAxis = axisForNormal(moved);
+  const [nx, ny] = AXIS_NORMALS[nextAxis];
+  // Parallel by construction, so the dot product's sign is the whole question.
+  const pointsTheSameWay = moved[0] * nx + moved[1] * ny > 0;
+  const base = optimizerSymmetryAxisForMirror(sheetKind, { ...mirror, quarterTurn: false });
+  return {
+    fold: mirror.fold,
+    quarterTurn: nextAxis !== base,
+    sidesSwapped: !pointsTheSameWay,
+  };
 }
 
 /**

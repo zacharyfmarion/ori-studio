@@ -53,6 +53,7 @@ function setUp(
   options: {
     fold?: 'book' | 'diagonal';
     quarterTurn?: boolean;
+    sidesSwapped?: boolean;
     enabled?: boolean;
     kind?: OristudioBpSheet['kind'];
   } = {}
@@ -77,6 +78,7 @@ function setUp(
           enabled: options.enabled ?? true,
           fold: options.fold ?? 'book',
           quarterTurn: options.quarterTurn ?? false,
+          sidesSwapped: options.sidesSwapped ?? false,
           pairs: [],
         },
       }),
@@ -86,8 +88,10 @@ function setUp(
 }
 
 const orientation = () => {
-  const { fold, quarterTurn } = selectOristudioBpSymmetry(useWorkspaceStore.getState());
-  return { fold, quarterTurn };
+  const { fold, quarterTurn, sidesSwapped } = selectOristudioBpSymmetry(
+    useWorkspaceStore.getState()
+  );
+  return { fold, quarterTurn, sidesSwapped };
 };
 
 beforeEach(() => setUp());
@@ -98,49 +102,65 @@ afterEach(() => {
 });
 
 describe('sheet transforms and the mirror', () => {
+  const BOOK = { fold: 'book', quarterTurn: false, sidesSwapped: false };
+
   it('turns the mirror a quarter turn on rotate', async () => {
     await useWorkspaceStore.getState().rotateOristudioBpLayoutSheet(true);
-    expect(orientation()).toEqual({ fold: 'book', quarterTurn: true });
+    expect(orientation()).toEqual({ fold: 'book', quarterTurn: true, sidesSwapped: true });
+    // A second right turn puts the line back and leaves the halves exchanged —
+    // the state a single bit cannot hold.
     await useWorkspaceStore.getState().rotateOristudioBpLayoutSheet(true);
-    expect(orientation()).toEqual({ fold: 'book', quarterTurn: false });
+    expect(orientation()).toEqual({ fold: 'book', quarterTurn: false, sidesSwapped: true });
   });
 
-  it('turns it counterclockwise too: both land on the same line', async () => {
+  it('turns it counterclockwise onto the same line by the other side', async () => {
     await useWorkspaceStore.getState().rotateOristudioBpLayoutSheet(false);
-    expect(orientation()).toEqual({ fold: 'book', quarterTurn: true });
+    expect(orientation()).toEqual({ fold: 'book', quarterTurn: true, sidesSwapped: false });
   });
 
-  it('leaves a book fold alone on a flip, which carries it onto itself', async () => {
-    for (const horizontal of [true, false]) {
-      setUp();
-      await useWorkspaceStore.getState().flipOristudioBpLayoutSheet(horizontal);
-      expect(orientation()).toEqual({ fold: 'book', quarterTurn: false });
-    }
+  it('leaves a book fold on its own line whichever way it is flipped', async () => {
+    // The line does not move. Which half is which does, but only for the flip
+    // that crosses the mirror.
+    setUp();
+    await useWorkspaceStore.getState().flipOristudioBpLayoutSheet(true);
+    expect(orientation()).toEqual({ fold: 'book', quarterTurn: false, sidesSwapped: true });
+
+    setUp();
+    await useWorkspaceStore.getState().flipOristudioBpLayoutSheet(false);
+    expect(orientation()).toEqual({ fold: 'book', quarterTurn: false, sidesSwapped: false });
   });
 
   it('swaps the two diagonals on a flip', async () => {
     setUp({ fold: 'diagonal' });
     await useWorkspaceStore.getState().flipOristudioBpLayoutSheet(true);
-    expect(orientation()).toEqual({ fold: 'diagonal', quarterTurn: true });
+    expect(orientation()).toEqual({ fold: 'diagonal', quarterTurn: true, sidesSwapped: true });
   });
 
   it('reads the diagonal from the layout sheet, not the fold name', async () => {
     // On a diamond it is the *book* fold that runs at 45 degrees, so that is the
-    // one a flip moves and the diagonal fold is the one it leaves alone.
+    // one a flip turns; the diagonal fold runs along the grid and stays put.
     setUp({ fold: 'book', kind: 'diagonal' });
     await useWorkspaceStore.getState().flipOristudioBpLayoutSheet(true);
-    expect(orientation()).toEqual({ fold: 'book', quarterTurn: true });
+    expect(orientation()).toEqual({ fold: 'book', quarterTurn: true, sidesSwapped: true });
 
     setUp({ fold: 'diagonal', kind: 'diagonal' });
     await useWorkspaceStore.getState().flipOristudioBpLayoutSheet(true);
-    expect(orientation()).toEqual({ fold: 'diagonal', quarterTurn: false });
+    expect(orientation()).toEqual({ fold: 'diagonal', quarterTurn: false, sidesSwapped: true });
   });
 
   it('leaves the mirror where it is when the sheet only changes scale', async () => {
     await useWorkspaceStore.getState().subdivideOristudioBpLayoutSheet();
-    expect(orientation()).toEqual({ fold: 'book', quarterTurn: false });
+    expect(orientation()).toEqual(BOOK);
     await useWorkspaceStore.getState().unsubdivideOristudioBpLayoutSheet();
-    expect(orientation()).toEqual({ fold: 'book', quarterTurn: false });
+    expect(orientation()).toEqual(BOOK);
+  });
+
+  it('carries a design that was already turned, rather than starting over', async () => {
+    // Loading a rotated design and rotating again has to compose with what the
+    // file said, not reset to the fold's canonical placement.
+    setUp({ quarterTurn: true, sidesSwapped: true });
+    await useWorkspaceStore.getState().rotateOristudioBpLayoutSheet(true);
+    expect(orientation()).toEqual({ fold: 'book', quarterTurn: false, sidesSwapped: true });
   });
 
   it('writes it with mirror draw off, because the fold outlives the toggle', async () => {
@@ -148,7 +168,7 @@ describe('sheet transforms and the mirror', () => {
     // rotated with the toggle off has to come back right when it is turned on.
     setUp({ enabled: false });
     await useWorkspaceStore.getState().rotateOristudioBpLayoutSheet(true);
-    expect(orientation()).toEqual({ fold: 'book', quarterTurn: true });
+    expect(orientation()).toEqual({ fold: 'book', quarterTurn: true, sidesSwapped: true });
   });
 
   it('never changes the class: a rotated book fold is still a book fold', async () => {
@@ -157,13 +177,13 @@ describe('sheet transforms and the mirror', () => {
     expect(orientation().fold).toBe('diagonal');
   });
 
-  it('puts the turn on the same undo entry as the geometry', async () => {
+  it('puts the whole orientation on the same undo entry as the geometry', async () => {
     await useWorkspaceStore.getState().rotateOristudioBpLayoutSheet(true);
     const past = selectOristudioBpHistoryPast(useWorkspaceStore.getState());
     expect(past).toHaveLength(1);
     expect(past[0].label).toBe('Rotated BP sheet right');
     // The entry restores the orientation the design had *before* the rotate, so
     // undoing puts the mirror back with the flaps rather than a step behind them.
-    expect(past[0].snapshot.symmetry).toMatchObject({ fold: 'book', quarterTurn: false });
+    expect(past[0].snapshot.symmetry).toMatchObject(BOOK);
   });
 });

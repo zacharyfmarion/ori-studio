@@ -225,6 +225,7 @@ function render(
         enabled: symmetryEnabled,
         fold: 'book',
         quarterTurn: false,
+        sidesSwapped: false,
         angle: 90,
         loc: { x: 20, y: 20 },
         pairs: [],

@@ -362,6 +362,42 @@ Browser checklist (owner: Zach):
 - [x] Validation: `tsc --noEmit`, 315 vitest files / 3476 tests, `lint:web`,
       `i18n:check` — all green. Browser checklist below is Zach's.
 
+### Correction: the mirror needed a third field
+
+Shipped with `fold` + `quarterTurn` and that was not enough. Reported from the
+app: optimize a book-symmetric design, rotate a quarter turn right, optimize
+again — every mirror pair came back exchanged.
+
+`negativeSide` names the member of each pair drawn on the left of the tree's
+mirror, and the kernel enforces it against the layout axis's canonical normal
+(`SymmetryAxis::grid_normal`). That reading is only right while left means left.
+A rotation moves the paper under the mirror, so the drawn-left half can land on
+the axis's *positive* side — and a payload still naming the left-drawn ids asks
+the solver to put every pair back the way it was before the rotation.
+
+`quarterTurn` cannot carry this, which is the interesting part: under repeated
+rotation the axis has period two and the sides have period four (keep, swap,
+swap, keep), and a right turn and a left turn reach the same axis by opposite
+sides. So the direction of the transform has to reach the rule too, which the
+first `'rotate' | 'flip'` shape had thrown away.
+
+Fixed by `sidesSwapped`, and by rewriting `mirrorAfterSheetTransform` to carry
+the mirror's oriented normal through the transform instead of consulting a
+table: the line it ends up perpendicular to is the new axis, and whether it
+still points the way that axis's canonical normal does is whether the halves
+were exchanged. Both answers from one operation, composition for free, and no
+table to be wrong about — which the first one was. The transform type gained its
+direction, and `isDiagonalSymmetryAxis` was folded back into
+`optimizerSymmetryAxisSwapsDimensions` once the transport rule stopped needing
+it.
+
+`apps/web/src/lib/bpRotationSymmetryRegression.test.ts` transcribes the reported
+design's tree, pairs and mirror from the `.osf` files, and asserts the payload
+across four right turns. Three of its five cases fail without the fix. The fault
+only shows on a design that has *been* through a symmetric solve — `negativeSide`
+is empty until a pairing resolves, and an empty one is the case the kernel skips
+— which is why the earlier suites missed it.
+
 ### Found on the way, not fixed here
 
 `resolveOptimizerSymmetry` resolves the axis from `tree.sheet.kind` while every
