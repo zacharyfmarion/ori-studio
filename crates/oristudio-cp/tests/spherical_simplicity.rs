@@ -3,7 +3,7 @@
 //! Closure says the fold angles agree; this says the paper does not pass through
 //! itself getting there. Two independent questions, and before this the second
 //! went unasked for every non-flat vertex — a coverage regression against flat
-//! vertices, which have had Oriedita's little-big-little check all along.
+//! vertices, which have had Oriedita's big-little-big check all along.
 //!
 //! There is no upstream to port from: Oriedita does not do this, and the
 //! simulator has no intersection test of any kind. So the tests carry more of

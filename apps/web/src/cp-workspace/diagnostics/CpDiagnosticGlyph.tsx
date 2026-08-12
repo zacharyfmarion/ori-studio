@@ -38,8 +38,8 @@ function shapeTitle(t: TFunction, shape: CpDiagnosticMarkerShape): string | null
         'panels:creasePattern.foldability.shape.circle',
         "Incorrect angles (Kawasaki's theorem)"
       );
-    case 'little-big-little':
-      return t('panels:creasePattern.foldability.shape.littleBigLittle', 'Little-big-little');
+    case 'big-little-big':
+      return t('panels:creasePattern.foldability.shape.bigLittleBig', 'Big-little-big');
     case 'self-intersection':
       return t(
         'panels:creasePattern.foldability.shape.selfIntersection',
@@ -59,7 +59,7 @@ function shapePath(shape: CpDiagnosticMarkerShape) {
     case 'circle':
     case 'ring':
       return <circle cx="6" cy="6" r="4.25" />;
-    case 'little-big-little':
+    case 'big-little-big':
       return <path d="M6 1.4 L10.37 4.58 L8.7 9.72 L3.3 9.72 L1.63 4.58 Z" />;
     case 'self-intersection':
     case 'generic':

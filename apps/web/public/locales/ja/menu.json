@@ -17,7 +17,7 @@
     "check1": "重なりをチェック",
     "check2": "T字接合をチェック",
     "check3": "頂点の折り可能性をチェック",
-    "check4": "Maekawa/LBL をチェック",
+    "check4": "Maekawa/BLB をチェック",
     "checkCamv": "折り可能性をチェック",
     "deleteExtraVertices": "余分な頂点を削除",
     "deleteExtraVerticesIgnoreColor": "余分な頂点を削除（種類を無視）",

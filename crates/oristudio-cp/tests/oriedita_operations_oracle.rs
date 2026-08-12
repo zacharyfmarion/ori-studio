@@ -3447,8 +3447,9 @@ fn flat_foldability_violation_summary(violations: &[FlatFoldabilityViolation]) -
             flat_foldability_rule_name(violation.rule),
             flat_foldability_color_name(violation.color)
         ));
-        output.push_str(&format!("lbl|{}\n", violation.little_big_little.len()));
-        for line in &violation.little_big_little {
+        // `lbl` is the oracle's wire tag, named after Oriedita's own class.
+        output.push_str(&format!("lbl|{}\n", violation.big_little_big.len()));
+        for line in &violation.big_little_big {
             output.push_str(&format!(
                 "lblline|{}|{}|{}|{}|{}|{}\n",
                 java_double_string(line.segment.a.x),
@@ -3463,12 +3464,15 @@ fn flat_foldability_violation_summary(violations: &[FlatFoldabilityViolation]) -
     output
 }
 
+/// The oracle prints `FlatFoldabilityViolation.Rule.name()`, so these are
+/// Oriedita's Java enum constants — including `LITTLE_BIG_LITTLE`, which we
+/// call `BigLittleBig` after the lemma's usual name.
 fn flat_foldability_rule_name(rule: FlatFoldabilityRule) -> &'static str {
     match rule {
         FlatFoldabilityRule::NumberOfFolds => "NUMBER_OF_FOLDS",
         FlatFoldabilityRule::Angles => "ANGLES",
         FlatFoldabilityRule::Maekawa => "MAEKAWA",
-        FlatFoldabilityRule::LittleBigLittle => "LITTLE_BIG_LITTLE",
+        FlatFoldabilityRule::BigLittleBig => "LITTLE_BIG_LITTLE",
         FlatFoldabilityRule::None => "NONE",
     }
 }

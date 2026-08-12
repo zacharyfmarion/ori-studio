@@ -13,7 +13,7 @@ import {
   buildCpDiagnosticWedges,
   cpDiagnosticMarkerStyle,
   cpDiagnosticMarkerTone,
-  cpHasLblWedges,
+  cpHasBlbWedges,
   diagnosticEntryBounds,
   diagnosticSegmentEndpoint,
 } from './geometry';
@@ -62,8 +62,8 @@ describe('cpDiagnosticMarkerStyle', () => {
     const base = { kind: 'Check4', point: { x: 0, y: 0 } };
     expect(cpDiagnosticMarkerStyle(entry({ ...base, rule: 'NumberOfFolds' })).shape).toBe('triangle');
     expect(cpDiagnosticMarkerStyle(entry({ ...base, rule: 'Maekawa' })).shape).toBe('square');
-    expect(cpDiagnosticMarkerStyle(entry({ ...base, rule: 'LittleBigLittle' })).shape).toBe(
-      'little-big-little'
+    expect(cpDiagnosticMarkerStyle(entry({ ...base, rule: 'BigLittleBig' })).shape).toBe(
+      'big-little-big'
     );
     expect(cpDiagnosticMarkerStyle(entry({ ...base, rule: 'None' })).shape).toBe('none');
   });
@@ -101,50 +101,50 @@ describe('buildCpDiagnosticMarkers', () => {
     expect([geo.center[0], geo.center[1]]).toEqual([1, 2]);
   });
 
-  it('skips an LBL vertex that has wedges (the wedges represent it instead)', () => {
-    const lbl = entry({
+  it('skips an BLB vertex that has wedges (the wedges represent it instead)', () => {
+    const blb = entry({
       kind: 'Check4',
-      rule: 'LittleBigLittle',
+      rule: 'BigLittleBig',
       point: { x: 0, y: 0 },
-      little_big_little: [
+      big_little_big: [
         { segment: seg({ x: 0, y: 0 }, { x: 1, y: 0 }), violating: true },
         { segment: seg({ x: 0, y: 0 }, { x: 0, y: 1 }), violating: false },
       ],
     });
-    expect(cpHasLblWedges(lbl)).toBe(true);
-    expect(buildCpDiagnosticMarkers([lbl], tones).count).toBe(0);
+    expect(cpHasBlbWedges(blb)).toBe(true);
+    expect(buildCpDiagnosticMarkers([blb], tones).count).toBe(0);
   });
 });
 
 describe('buildCpDiagnosticStrokes', () => {
-  it('emits one stroke per segment, skipping little-big-little entries', () => {
+  it('emits one stroke per segment, skipping big-little-big entries', () => {
     const normal = entry({ point: { x: 0, y: 0 }, segments: [seg({ x: 0, y: 0 }, { x: 2, y: 0 })] });
-    const lbl = entry({
+    const blb = entry({
       id: 'd2',
       kind: 'Check4',
-      rule: 'LittleBigLittle',
+      rule: 'BigLittleBig',
       point: { x: 0, y: 0 },
       segments: [seg({ x: 0, y: 0 }, { x: 1, y: 1 })],
     });
-    const geo = buildCpDiagnosticStrokes([normal, lbl], tones);
+    const geo = buildCpDiagnosticStrokes([normal, blb], tones);
     expect(geo.count).toBe(1);
     expect([geo.a[0], geo.a[1], geo.b[0], geo.b[1]]).toEqual([0, 0, 2, 0]);
   });
 });
 
 describe('buildCpDiagnosticWedges', () => {
-  const lbl = entry({
+  const blb = entry({
     kind: 'Check4',
-    rule: 'LittleBigLittle',
+    rule: 'BigLittleBig',
     point: { x: 0, y: 0 },
-    little_big_little: [
+    big_little_big: [
       { segment: seg({ x: 0, y: 0 }, { x: 1, y: 0 }), violating: true },
       { segment: seg({ x: 0, y: 0 }, { x: 0, y: 1 }), violating: false },
     ],
   });
 
   it('fans a wedge per sector with model-space directions to the far endpoint', () => {
-    const geo = buildCpDiagnosticWedges([lbl], tones);
+    const geo = buildCpDiagnosticWedges([blb], tones);
     expect(geo.count).toBe(2);
     // First wedge: dir0 toward (1,0), dir1 toward (0,1).
     expect([geo.dir0[0], geo.dir0[1]]).toEqual([1, 0]);
@@ -152,7 +152,7 @@ describe('buildCpDiagnosticWedges', () => {
   });
 
   it('the violating sector fills stronger than the quiet one', () => {
-    const geo = buildCpDiagnosticWedges([lbl], tones);
+    const geo = buildCpDiagnosticWedges([blb], tones);
     // sector 0 is violating → higher alpha than sector 1.
     expect(geo.color[3]).toBeGreaterThan(geo.color[7]);
   });
@@ -160,9 +160,9 @@ describe('buildCpDiagnosticWedges', () => {
   it('drops the wrap-around wedge when the last ray is the boundary (Black0)', () => {
     const withBoundary = entry({
       kind: 'Check4',
-      rule: 'LittleBigLittle',
+      rule: 'BigLittleBig',
       point: { x: 0, y: 0 },
-      little_big_little: [
+      big_little_big: [
         { segment: seg({ x: 0, y: 0 }, { x: 1, y: 0 }), violating: false },
         { segment: seg({ x: 0, y: 0 }, { x: 0, y: 1 }), violating: false },
         { segment: seg({ x: 0, y: 0 }, { x: -1, y: 0 }, 'Black0'), violating: false },

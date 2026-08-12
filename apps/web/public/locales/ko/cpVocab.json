@@ -976,8 +976,8 @@
       "disabledReason": "준비됨"
     },
     "cp_action_check4": {
-      "label": "Maekawa/LBL 확인",
-      "tooltip": "Maekawa, 각도, little-big-little 위반 찾기",
+      "label": "Maekawa/BLB 확인",
+      "tooltip": "Maekawa, 각도, big-little-big 위반 찾기",
       "disabledReason": "준비됨"
     },
     "cp_action_fix1": {

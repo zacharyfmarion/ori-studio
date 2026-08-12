@@ -104,7 +104,7 @@ export function createReglRenderer(
   const diagnosticStrokes = createStrokeProgram(regl);
   const diagnosticFills = createFillProgram(regl);
   const diagnosticMarkers = createMarkerProgram(regl);
-  // Little-big-little sector wedges: screen-scaled fills at a vertex.
+  // Big-little-big sector wedges: screen-scaled fills at a vertex.
   const diagnosticWedges = createWedgeProgram(regl);
   // Operation-frame outline: a dashed, screen-constant closed loop above the CP.
   const overlayFrame = createStrokeProgram(regl);
@@ -322,7 +322,7 @@ export function createReglRenderer(
       if (hasDiagnosticStrokes) {
         diagnosticStrokes.draw({ view: frame.view, viewport, widthPx: frame.strokeWidthPx });
       }
-      // LBL sector wedges scale with the markers (markerScalePx), under the shapes.
+      // BLB sector wedges scale with the markers (markerScalePx), under the shapes.
       if (hasDiagnosticWedges) {
         diagnosticWedges.draw({ view: frame.view, viewport, scalePx: frame.markerScalePx });
       }

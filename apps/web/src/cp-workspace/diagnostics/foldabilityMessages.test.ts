@@ -52,7 +52,7 @@ describe("Oriedita's vocabulary", () => {
     ['Angles', 'Equal', 'Incorrect angles — equal amount of mountain and valley folds'],
     ['Angles', 'Correct', 'Incorrect angles'],
     // No legend entry upstream — Oriedita draws this as sectors, not a marker.
-    ['LittleBigLittle', 'Correct', 'Angles cannot nest (little-big-little)'],
+    ['BigLittleBig', 'Correct', 'Angles cannot nest (big-little-big)'],
   ] as const)('%s + %s reads "%s"', (rule, color, expected) => {
     expect(foldabilityViolationMessage(t, rule, color)).toBe(expected);
   });

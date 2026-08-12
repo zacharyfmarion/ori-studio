@@ -237,7 +237,7 @@ fn assignment_cost(
 }
 
 fn assignment_error_count(diagnostics: &ConstraintDiagnostics) -> usize {
-    diagnostics.summary.maekawa_assignment_failure + diagnostics.summary.little_big_little_failure
+    diagnostics.summary.maekawa_assignment_failure + diagnostics.summary.big_little_big_failure
 }
 
 fn apply_assignment_state(

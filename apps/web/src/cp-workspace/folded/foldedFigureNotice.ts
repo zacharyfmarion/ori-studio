@@ -326,10 +326,10 @@ export function flatFoldabilityRuleMessage(
       return t('panels:creasePattern.foldability.incorrectAngles', 'Incorrect angles');
     case 'maekawa':
       return t('panels:creasePattern.foldability.incorrectFoldTypes', 'Incorrect fold types');
-    case 'little_big_little':
+    case 'big_little_big':
       return t(
-        'panels:creasePattern.foldability.littleBigLittle',
-        'Angles cannot nest (little-big-little)'
+        'panels:creasePattern.foldability.bigLittleBig',
+        'Angles cannot nest (big-little-big)'
       );
     case 'none':
       return t(

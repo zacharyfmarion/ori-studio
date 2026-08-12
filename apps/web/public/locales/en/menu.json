@@ -17,7 +17,7 @@
     "check1": "Check Overlaps",
     "check2": "Check T-junctions",
     "check3": "Check Vertex Foldability",
-    "check4": "Check Maekawa/LBL",
+    "check4": "Check Maekawa/BLB",
     "checkCamv": "Check foldability",
     "deleteExtraVertices": "Delete Extra Vertices",
     "deleteExtraVerticesIgnoreColor": "Delete Extra Vertices (Ignore Type)",

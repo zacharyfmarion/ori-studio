@@ -147,10 +147,10 @@ export interface OristudioCpDiagnosticEntry {
    */
   residual_degrees?: number | null;
   violation_color?: string | null;
-  little_big_little?: OristudioCpDiagnosticLittleBigLittleSegment[];
+  big_little_big?: OristudioCpDiagnosticBigLittleBigSegment[];
 }
 
-export interface OristudioCpDiagnosticLittleBigLittleSegment {
+export interface OristudioCpDiagnosticBigLittleBigSegment {
   segment: OristudioCpLineSegment;
   violating: boolean;
 }
@@ -426,7 +426,7 @@ export type OristudioCpFlatFoldabilityRuleCode =
   | 'number_of_folds'
   | 'angles'
   | 'maekawa'
-  | 'little_big_little'
+  | 'big_little_big'
   | 'none';
 
 /** Why a vertex could not be evaluated at all. */

@@ -976,8 +976,8 @@
       "disabledReason": "Pronto"
     },
     "cp_action_check4": {
-      "label": "Verificar Maekawa/LBL",
-      "tooltip": "Encontrar violações de Maekawa, de ângulo e little-big-little",
+      "label": "Verificar Maekawa/BLB",
+      "tooltip": "Encontrar violações de Maekawa, de ângulo e big-little-big",
       "disabledReason": "Pronto"
     },
     "cp_action_fix1": {

@@ -976,8 +976,8 @@
       "disabledReason": "準備完了"
     },
     "cp_action_check4": {
-      "label": "Maekawa/LBL をチェック",
-      "tooltip": "Maekawa、角度、およびリトル・ビッグ・リトル違反を見つけます",
+      "label": "Maekawa/BLB をチェック",
+      "tooltip": "Maekawa、角度、およびビッグ・リトル・ビッグ違反を見つけます",
       "disabledReason": "準備完了"
     },
     "cp_action_fix1": {

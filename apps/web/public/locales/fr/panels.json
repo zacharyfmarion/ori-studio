@@ -219,7 +219,7 @@
       "errorOther_one": "{{count}} erreurs {{label}}",
       "errorOther_many": "{{count}} erreurs {{label}}",
       "errorOther_other": "{{count}} erreurs {{label}}",
-      "maekawaLbl": "Maekawa/LBL",
+      "maekawaBlb": "Maekawa/BLB",
       "ok": "{{label}} OK",
       "overlap": "Chevauchement",
       "tJunction": "Jonction en T",
@@ -242,6 +242,7 @@
     "flipFoldedModel": "Retourner le modèle plié",
     "fold": "Plier",
     "foldability": {
+      "bigLittleBig": "Les angles ne peuvent pas s'imbriquer (grand-petit-grand)",
       "closure": "Les plis ne se referment pas ici",
       "closureResidual": "Les plis ne se referment pas ici : {{degrees}}° d’écart",
       "compose": "{{lead}} — {{tail}}",
@@ -251,15 +252,14 @@
       "incorrectAngles": "Angles incorrects",
       "incorrectFoldTypes": "Types de plis incorrects",
       "interiorBorder": "Bord avec du papier des deux côtés — la pliabilité n’est pas vérifiée le long de ce bord",
-      "littleBigLittle": "Les angles ne peuvent pas s'imbriquer (petit-grand-petit)",
       "notEnoughMountain": "pas assez de plis montagne",
       "notEnoughValley": "pas assez de plis vallée",
       "oddFolds": "Nombre impair de plis",
       "rigidVertex": "Ce sommet est rigide : tous les plis ici doivent rester plats",
       "selfIntersection": "Le papier se traverse lui-même ici",
       "shape": {
+        "bigLittleBig": "Grand-petit-grand",
         "circle": "Angles incorrects (théorème de Kawasaki)",
-        "littleBigLittle": "Petit-grand-petit",
         "selfIntersection": "Les angles de pliage sont cohérents, mais le papier ne peut pas y parvenir sans se traverser lui-même",
         "square": "Types de plis incorrects",
         "triangle": "Nombre de plis incorrect (impair)"

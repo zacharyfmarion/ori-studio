@@ -36,7 +36,7 @@ describe('CpDiagnosticGlyph', () => {
     // Not a restatement of cpDiagnosticMarkerStyle — the point is that the glyph
     // *defers* to it. If this component ever grows its own classification, these
     // two disagree and the list stops matching the canvas.
-    for (const rule of ['NumberOfFolds', 'Maekawa', 'Angles', 'LittleBigLittle'] as const) {
+    for (const rule of ['NumberOfFolds', 'Maekawa', 'Angles', 'BigLittleBig'] as const) {
       for (const color of ['NotEnoughMountain', 'NotEnoughValley', 'Equal', 'Correct', 'Unknown']) {
         const e = entry({ rule, violation_color: color });
         const svg = render(e);

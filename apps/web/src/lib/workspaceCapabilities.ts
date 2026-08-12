@@ -857,9 +857,9 @@ export function getWorkspaceCapabilities(
     ),
     'cp.check4': capability(
       canEditCp,
-      t('common:capability.checkMaekawaLbl', 'Check Maekawa/LBL'),
+      t('common:capability.checkMaekawaBlb', 'Check Maekawa/BLB'),
       canEditCp
-        ? t('common:capability.checkMaekawaAngleLblViolations', 'Check Maekawa, angle, and little-big-little violations')
+        ? t('common:capability.checkMaekawaAngleBlbViolations', 'Check Maekawa, angle, and big-little-big violations')
         : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
     ),
     'cp.fix1': capability(
