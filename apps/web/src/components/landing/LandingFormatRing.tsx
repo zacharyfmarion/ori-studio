@@ -27,13 +27,6 @@ const EXPORTABLE_FILE_EXTENSIONS = [
 /** Which way data moves between Ori Studio and a format. */
 export type FormatDirection = 'import' | 'export' | 'both';
 
-/** Arrow glyph each direction wears — shared by the legend and the file marks. */
-const WAY_OF: Record<FormatDirection, 'in' | 'out' | 'both'> = {
-  import: 'in',
-  export: 'out',
-  both: 'both',
-};
-
 export interface RingFormat {
   extension: string;
   direction: FormatDirection;
@@ -79,6 +72,16 @@ const WIRE_START = 18;
 /** Stops short of the file it points at, so the arrowhead is not buried. */
 const WIRE_END = 31;
 
+/**
+ * How far back from a line's end the arrowhead's base sits, in viewBox units.
+ *
+ * The marker is `markerUnits="strokeWidth"` at 5 wide with `refX="4"`, on a
+ * 0.5-wide stroke — so its base lands 4 × 0.5 = 2 units behind the endpoint. The
+ * travelling dash stops there rather than running out under the head, plus a
+ * hair of daylight.
+ */
+const HEAD_CLEARANCE = 2.6;
+
 function pointAt(index: number, count: number, radius: number) {
   const angle = ((index / count) * 360 - 90) * (Math.PI / 180);
   return {
@@ -113,97 +116,91 @@ export function LandingFormatRing() {
   const count = RING_FORMATS.length;
 
   return (
-    <div className="landing-ring-figure">
-      <div
-        ref={ringRef}
-        className="landing-ring"
-        data-flowing={flowing || undefined}
-        style={cssVars({ '--ring-count': String(count) })}
+    <div
+      ref={ringRef}
+      className="landing-ring"
+      data-flowing={flowing || undefined}
+      style={cssVars({ '--ring-count': String(count) })}
+    >
+      {/*
+        Decorative: every arrow restates what the visually-hidden direction
+        label on each file already says, so announcing the wires as well would
+        be noise.
+      */}
+      <svg className="landing-ring__wires" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+        <defs>
+          <marker
+            id={`${markerPrefix}-head`}
+            markerWidth="5"
+            markerHeight="5"
+            refX="4"
+            refY="2.5"
+            // `auto-start-reverse` is what lets one marker serve both ends:
+            // the inbound arrowhead sits at the *start* of the line and has to
+            // point back down it.
+            orient="auto-start-reverse"
+            markerUnits="strokeWidth"
+          >
+            <path d="M0 0.6 L4.4 2.5 L0 4.4 Z" className="landing-ring__arrowhead" />
+          </marker>
+        </defs>
+
+        {RING_FORMATS.map(({ extension, direction }, index) => {
+          const inboundHead = direction !== 'export';
+          const outboundHead = direction !== 'import';
+
+          const from = pointAt(index, count, WIRE_START);
+          const to = pointAt(index, count, WIRE_END);
+          const wire = { x1: from.x, y1: from.y, x2: to.x, y2: to.y };
+
+          // The dash runs between the arrowheads rather than under them: each
+          // end that carries a head is pulled in by its depth, so the dash
+          // arrives at the base of the head and stops there.
+          const flowFrom = pointAt(index, count, WIRE_START + (inboundHead ? HEAD_CLEARANCE : 0));
+          const flowTo = pointAt(index, count, WIRE_END - (outboundHead ? HEAD_CLEARANCE : 0));
+          const flow = { x1: flowFrom.x, y1: flowFrom.y, x2: flowTo.x, y2: flowTo.y };
+
+          return (
+            <g key={extension} style={cssVars({ '--slot': String(index) })}>
+              <line
+                {...wire}
+                className="landing-ring__wire"
+                markerStart={inboundHead ? `url(#${markerPrefix}-head)` : undefined}
+                markerEnd={outboundHead ? `url(#${markerPrefix}-head)` : undefined}
+              />
+              {outboundHead ? (
+                <line {...flow} className="landing-ring__flow" data-way="out" />
+              ) : null}
+              {inboundHead ? (
+                <line {...flow} className="landing-ring__flow" data-way="in" />
+              ) : null}
+            </g>
+          );
+        })}
+      </svg>
+
+      <ul
+        className="landing-ring__orbit"
+        aria-label={t('landing:formats.ringLabel', 'Supported file formats')}
       >
-        {/*
-          Decorative: every arrow restates what the visually-hidden direction
-          label on each file already says, so announcing the wires as well would
-          be noise.
-        */}
-        <svg className="landing-ring__wires" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-          <defs>
-            <marker
-              id={`${markerPrefix}-head`}
-              markerWidth="5"
-              markerHeight="5"
-              refX="4"
-              refY="2.5"
-              // `auto-start-reverse` is what lets one marker serve both ends:
-              // the inbound arrowhead sits at the *start* of the line and has to
-              // point back down it.
-              orient="auto-start-reverse"
-              markerUnits="strokeWidth"
-            >
-              <path d="M0 0.6 L4.4 2.5 L0 4.4 Z" className="landing-ring__arrowhead" />
-            </marker>
-          </defs>
-
-          {RING_FORMATS.map(({ extension, direction }, index) => {
-            const from = pointAt(index, count, WIRE_START);
-            const to = pointAt(index, count, WIRE_END);
-            const line = { x1: from.x, y1: from.y, x2: to.x, y2: to.y };
-            return (
-              <g key={extension} style={cssVars({ '--slot': String(index) })}>
-                <line
-                  {...line}
-                  className="landing-ring__wire"
-                  markerStart={direction === 'export' ? undefined : `url(#${markerPrefix}-head)`}
-                  markerEnd={direction === 'import' ? undefined : `url(#${markerPrefix}-head)`}
-                />
-                {direction !== 'import' ? (
-                  <line {...line} className="landing-ring__flow" data-way="out" />
-                ) : null}
-                {direction !== 'export' ? (
-                  <line {...line} className="landing-ring__flow" data-way="in" />
-                ) : null}
-              </g>
-            );
-          })}
-        </svg>
-
-        <ul
-          className="landing-ring__orbit"
-          aria-label={t('landing:formats.ringLabel', 'Supported file formats')}
-        >
-          {RING_FORMATS.map(({ extension, direction }, index) => (
-            <li
-              key={extension}
-              className="landing-ring__slot"
-              style={cssVars({ '--slot': String(index) })}
-            >
-              <FormatFile extension={extension} direction={direction} />
-            </li>
-          ))}
-        </ul>
-
-        <div className="landing-ring__hub">
-          <FormatFile extension={NATIVE_PROJECT_EXTENSION} native />
-          <span className="landing-ring__hub-label">
-            {t('landing:formats.hubLabel', 'Your project')}
-          </span>
-        </div>
-      </div>
-
-      <ul className="landing-ring__legend">
-        <LegendKey way="both" label={t('landing:formats.legendBoth', 'Opens and exports')} />
-        <LegendKey way="in" label={t('landing:formats.legendImport', 'Opens only')} />
-        <LegendKey way="out" label={t('landing:formats.legendExport', 'Exports only')} />
+        {RING_FORMATS.map(({ extension, direction }, index) => (
+          <li
+            key={extension}
+            className="landing-ring__slot"
+            style={cssVars({ '--slot': String(index) })}
+          >
+            <FormatFile extension={extension} direction={direction} />
+          </li>
+        ))}
       </ul>
-    </div>
-  );
-}
 
-function LegendKey({ way, label }: { way: 'in' | 'out' | 'both'; label: string }) {
-  return (
-    <li className="landing-ring__legend-key">
-      <span className="landing-ring__legend-mark" data-way={way} aria-hidden="true" />
-      {label}
-    </li>
+      <div className="landing-ring__hub">
+        <FormatFile extension={NATIVE_PROJECT_EXTENSION} native />
+        <span className="landing-ring__hub-label">
+          {t('landing:formats.hubLabel', 'Your project')}
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -229,23 +226,9 @@ function FormatFile({
       <span className="landing-file__fold" aria-hidden="true" />
       <span className="landing-file__ext">{`.${extension}`}</span>
       {direction ? (
-        <>
-          {/*
-            Shown only in the unwound layout, where the wires are gone. Without
-            it a narrow screen would keep the legend and lose the thing it
-            explains.
-          */}
-          <span
-            className="landing-file__way"
-            data-way={WAY_OF[direction]}
-            aria-hidden="true"
-          />
-          {/*
-            The arrows and the mark are both decorative, so this is where the
-            direction is actually available to a screen reader.
-          */}
-          <span className="landing-file__direction">{description[direction]}</span>
-        </>
+        // The arrows are decorative, so this is where the direction is actually
+        // available to a screen reader.
+        <span className="landing-file__direction">{description[direction]}</span>
       ) : null}
     </span>
   );
