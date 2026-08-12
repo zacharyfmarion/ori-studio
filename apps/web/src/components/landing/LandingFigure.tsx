@@ -58,10 +58,13 @@ export function LandingFigure({ name, alt }: LandingFigureProps) {
         className="landing-figure__image"
         src={src}
         alt={alt}
-        // Deliberately not `loading="lazy"`: every figure is below the fold, so
-        // a lazy one is never requested, never fails, and never falls back —
-        // the frame would just sit empty until scrolled to and then jump. Four
-        // images on the page's primary content is a fair price for that.
+        // Lazy is safe *because* the frame holds 16:9 in every state: a figure
+        // that loads late, or fails and falls back to the placeholder, does so
+        // inside a box that is already the right size, so nothing reflows. These
+        // are screenshots of a dense UI — several megabytes each — and every one
+        // of them is below the fold, so fetching them all up front would be the
+        // page's whole weight spent on what most visitors never scroll to.
+        loading="lazy"
         decoding="async"
         onError={() => setFailedSrc(src)}
       />
