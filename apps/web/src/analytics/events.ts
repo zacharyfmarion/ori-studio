@@ -34,6 +34,18 @@ export type DesignTabSource = 'strip' | 'duplicate' | 'file' | 'replace-last';
 /** Where a project came from when it was opened. */
 export type ProjectOpenSource = 'file' | 'example' | 'new' | 'drop' | 'share';
 
+/**
+ * Which register the `/welcome` landing page rendered in: the start screen, or
+ * the desktop-only notice a phone gets instead.
+ */
+export type LandingSurface = 'desktop' | 'phone';
+
+/** The landing sections below the fold, in page order. */
+export type LandingSectionId = 'what' | 'workspaces' | 'compatibility' | 'get';
+
+/** The landing page's calls to action. */
+export type LandingCta = 'download-desktop' | 'github' | 'scroll';
+
 /** Export target formats (the file's kind only — never its name or contents). */
 export type ExportFormat =
   | 'osf'
@@ -199,6 +211,11 @@ export const ANALYTICS_EVENTS = {
   designSentToEdit: 'design sent to edit',
   themeChanged: 'theme changed',
   localeChanged: 'locale changed',
+  landingViewed: 'landing viewed',
+  landingSectionViewed: 'landing section viewed',
+  landingCtaClicked: 'landing cta clicked',
+  mobileBlockShown: 'mobile block shown',
+  mobileBlockBypassed: 'mobile block bypassed',
 } as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS];

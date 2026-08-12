@@ -1,6 +1,7 @@
 import { Boxes, DraftingCompass, Github, PenTool } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { track, type LandingCta, type LandingSectionId } from '../../analytics';
 import { RELEASES_URL, REPOSITORY_URL } from '../../constants/release';
 import { ButtonLink } from '../ui/Button';
 import { LandingSection } from './LandingSection';
@@ -8,6 +9,17 @@ import './WelcomeLanding.css';
 
 /** The first section below the fold — where the scroll affordance jumps to. */
 export const FIRST_LANDING_SECTION_ID = 'landing-what';
+
+/**
+ * The sections, paired with the enum each reports as. Exported so the route can
+ * hand it to the scroll observer without re-deriving the page's own structure.
+ */
+export const LANDING_SECTIONS = [
+  { id: FIRST_LANDING_SECTION_ID, section: 'what' },
+  { id: 'landing-workspaces', section: 'workspaces' },
+  { id: 'landing-compatibility', section: 'compatibility' },
+  { id: 'landing-get', section: 'get' },
+] as const satisfies ReadonlyArray<{ id: string; section: LandingSectionId }>;
 
 /**
  * The landing page below the fold on `/welcome`.
@@ -127,10 +139,22 @@ export function WelcomeLanding() {
         )}
       >
         <div className="landing-actions">
-          <ButtonLink variant="primary" size="lg" href={RELEASES_URL} rel="noreferrer">
+          <ButtonLink
+            variant="primary"
+            size="lg"
+            href={RELEASES_URL}
+            rel="noreferrer"
+            onClick={() => trackCta('download-desktop')}
+          >
             {t('landing:get.download', 'Download for macOS')}
           </ButtonLink>
-          <ButtonLink variant="secondary" size="lg" href={REPOSITORY_URL} rel="noreferrer">
+          <ButtonLink
+            variant="secondary"
+            size="lg"
+            href={REPOSITORY_URL}
+            rel="noreferrer"
+            onClick={() => trackCta('github')}
+          >
             <Github size={15} aria-hidden="true" />
             {t('landing:get.github', 'View the source')}
           </ButtonLink>
@@ -144,6 +168,11 @@ export function WelcomeLanding() {
       </LandingSection>
     </div>
   );
+}
+
+/** Shared by the two CTA links here and by the scroll affordance in the route. */
+export function trackCta(cta: LandingCta): void {
+  track('landing cta clicked', { cta });
 }
 
 interface LandingCardProps {

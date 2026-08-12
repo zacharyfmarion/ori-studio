@@ -1,9 +1,16 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  track,
+  useLandingSectionViewedEvents,
+  useLandingViewedEvent,
+} from '../analytics';
 import { FileDropOverlay } from '../components/FileDropOverlay';
 import { DesktopOnlyNotice } from '../components/landing/DesktopOnlyNotice';
 import {
   FIRST_LANDING_SECTION_ID,
+  LANDING_SECTIONS,
+  trackCta,
   WelcomeLanding,
 } from '../components/landing/WelcomeLanding';
 import { WelcomeScrollCue } from '../components/landing/WelcomeScrollCue';
@@ -74,6 +81,20 @@ export function WelcomeRoute() {
   const setShowWelcomeOnStartup = useSettingsStore((state) => state.setShowWelcomeOnStartup);
   const { dropTargetProps, isDragActive } = useFileDropTarget({ policy: WELCOME_DROP_POLICY });
 
+  useLandingViewedEvent(blocked ? 'phone' : 'desktop');
+  useLandingSectionViewedEvents(pageRef, LANDING_SECTIONS);
+
+  useEffect(() => {
+    if (blocked) track('mobile block shown', {});
+  }, [blocked]);
+
+  const handleOpenAnyway = useCallback(() => {
+    // Ordered so the event describes the state it was fired about: the override
+    // re-renders this component the moment it lands.
+    track('mobile block bypassed', {});
+    setPhoneOverride(true);
+  }, []);
+
   useEffect(() => {
     const state = useWorkspaceStore.getState();
     useWorkspaceStore.setState({
@@ -111,7 +132,7 @@ export function WelcomeRoute() {
     >
       <main className="welcome-page" ref={pageRef}>
         {blocked ? (
-          <DesktopOnlyNotice onOpenAnyway={() => setPhoneOverride(true)} />
+          <DesktopOnlyNotice onOpenAnyway={handleOpenAnyway} />
         ) : (
           <StartScreen
             status={status}
@@ -125,7 +146,11 @@ export function WelcomeRoute() {
         )}
         <WelcomeLanding />
       </main>
-      <WelcomeScrollCue scrollerRef={pageRef} targetId={FIRST_LANDING_SECTION_ID} />
+      <WelcomeScrollCue
+        scrollerRef={pageRef}
+        targetId={FIRST_LANDING_SECTION_ID}
+        onActivate={() => trackCta('scroll')}
+      />
       {blocked ? null : <FileDropOverlay visible={isDragActive} policy={WELCOME_DROP_POLICY} />}
     </div>
   );
