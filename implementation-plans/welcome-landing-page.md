@@ -97,27 +97,42 @@ write on the phone path so no future reader inherits a lie.
 
 ### 4. Making the desktop page scroll
 
-Today `.app-layout--start` is `height: 100vh; overflow: hidden` and
-`.start-screen` is a centered grid with `overflow: auto`. The scroll container
-already exists; what is missing is a document taller than it.
+Today `.app-layout--start` is `height: 100vh; overflow: hidden` and `.start-screen`
+is a centered grid with `overflow: auto` — a fixed pane with nowhere to put
+anything below the fold.
 
-- `.start-screen` becomes `align-content: start` (not `place-items: center`) and
-  loses its `padding` — a full-bleed section background needs the padding on the
-  section's inner wrapper, not on the scroll region.
-- The existing `.start-screen__content` gets `min-height: 100dvh` and keeps its
-  own centering, so the first viewport is pixel-identical to today. `dvh`, not
-  `vh`, so a mobile browser's collapsing URL bar does not clip it.
+- A new `.welcome-page` **inside** `.app-layout--start` is the scroll container,
+  and holds the first screenful plus the landing.
+- `.start-screen` becomes that first screenful: `min-height: 100dvh`, a flex
+  column with `justify-content: safe center`. `dvh` because a mobile browser's
+  collapsing URL bar makes `vh` taller than what is visible; `safe` because plain
+  centering pushes the top of over-tall content above the scroll origin, where
+  nothing can reach it.
 - `.welcome-landing` and its sections stack below.
 - A scroll affordance (chevron + a short label) sits at the bottom of the first
-  viewport, revealed only when the page actually scrolls and hidden once it has —
-  an `IntersectionObserver` on a sentinel, not a scroll listener.
+  viewport and hides once the page moves.
+- `StartScreen`'s root becomes a `div` and `.welcome-page` takes the `main`
+  landmark, since the start screen is now one section of a longer page.
+
+Two things the first draft of this plan got wrong, both found while building:
+
+- **The scroll container cannot be `.app-layout--start` itself.**
+  `.file-drop-overlay` is absolutely positioned against it, so scrolling it
+  stretches the dashed border to the height of the whole document and centers its
+  label somewhere off screen. Hence the extra `.welcome-page` element.
+- **The affordance uses a scroll listener, not an `IntersectionObserver` on a
+  sentinel.** The question it asks is "is this scrolled to the top", which is
+  `scrollTop < 24` — one passive listener, against an observer plus a sentinel
+  element that exists only to be observed.
 
 Scope the change to `--start`. `.app-layout` itself must stay `100vh` /
 `overflow: hidden` or every workspace layout breaks.
 
-New styles go in `apps/web/src/components/landing/WelcomeLanding.css`, following
-the existing component-level stylesheet pattern (`MenuBar.css`,
-`CpDetectImportModal.css`). `App.css` is already 832 lines; do not grow it.
+Landing styles go in `apps/web/src/components/landing/WelcomeLanding.css`,
+following the existing component-level stylesheet pattern (`MenuBar.css`,
+`CpDetectImportModal.css`). The first-screenful rules stay in `App.css`, which
+already owns `.start-screen`, and are shared with `.welcome-notice` through one
+grouped selector so the page's two heads cannot drift apart.
 
 ### 5. Components
 
@@ -266,66 +281,72 @@ prerendering `/welcome` is its own piece of work.
 
 ### Phase 1 — surface detection and gating
 
-- [ ] `platform/mobileSurface.ts` with the Tauri short-circuit, the override, and
+- [x] `platform/mobileSurface.ts` with the Tauri short-circuit, the override, and
       the `matchMedia`-absent fallback
-- [ ] `STORAGE_KEYS.phoneOverride` in the storage registry
-- [ ] `mobileSurface.test.ts` — phone matches; Tauri host always false; override
+- [x] `STORAGE_KEYS.phoneOverride` in the storage registry
+- [x] `mobileSurface.test.ts` — phone matches; Tauri host always false; override
       wins; listener is removed on unsubscribe
-- [ ] `startupHomePath()` forces `/welcome` on a phone regardless of the
+- [x] `startupHomePath()` forces `/welcome` on a phone regardless of the
       preference
-- [ ] `WorkspaceShell` loader guard + `ShareRoute` phone redirect; amend the
+- [x] `WorkspaceShell` loader guard + `ShareRoute` phone redirect; amend the
       no-guard comment to say why this one is different
-- [ ] `App.tsx` skips `initEngine()` on a phone; `WelcomeRoute` skips the status
+- [x] `App.tsx` skips `initEngine()` on a phone; `WelcomeRoute` skips the status
       write on that path
-- [ ] `appRouter.test.ts` covers: phone + preference-off → `/welcome`; workspace
+- [x] `appRouter.test.ts` covers: phone + preference-off → `/welcome`; workspace
       loader redirects; override lets it through; desktop unaffected
 
 ### Phase 2 — desktop scroll
 
-- [ ] `.start-screen` scroll layout: `align-content: start`, padding moved to
-      inner wrappers, `.start-screen__content` at `min-height: 100dvh`
-- [ ] Scroll affordance at the bottom of the first viewport, hidden once scrolled
-- [ ] Confirm no workspace layout regressed (`.app-layout` still clipped at
+- [x] `.welcome-page` scroll container inside `.app-layout--start`, with
+      `.start-screen` as a `min-height: 100dvh` first screenful
+- [x] Scroll affordance at the bottom of the first viewport, hidden once scrolled
+- [x] Confirm no workspace layout regressed (`.app-layout` still clipped at
       `100vh`)
 
 ### Phase 3 — landing content
 
-- [ ] `LandingSection.tsx` shell
-- [ ] `WelcomeLanding.tsx` with the four sections
-- [ ] `RELEASES_URL` in `constants/release.ts`; CTAs link through it
-- [ ] `WelcomeLanding.css`
-- [ ] `WelcomeLanding.test.tsx` — sections render, CTAs point at the right URLs
+- [x] `LandingSection.tsx` shell
+- [x] `WelcomeLanding.tsx` with the four sections
+- [x] `RELEASES_URL` in `constants/release.ts`; CTAs link through it
+- [x] `WelcomeLanding.css`
+- [x] `WelcomeLanding.test.tsx` — sections render, CTAs point at the right URLs
 
 ### Phase 4 — phone register
 
-- [ ] `DesktopOnlyNotice.tsx` with the message and the "open it anyway" link
-- [ ] `WelcomeRoute` phone branch: notice + landing, no `StartScreen`, no drop
+- [x] `DesktopOnlyNotice.tsx` with the message and the "open it anyway" link
+- [x] `WelcomeRoute` phone branch: notice + landing, no `StartScreen`, no drop
       target, no startup toggle
-- [ ] `data-surface="phone"` drives the single-column CSS
-- [ ] `DesktopOnlyNotice.test.tsx` — message renders; bypass sets the override
+- [x] `data-surface="phone"` drives the single-column CSS
+- [x] `DesktopOnlyNotice.test.tsx` — message renders; bypass sets the override
 
 ### Phase 5 — instrumentation and meta
 
-- [ ] Events + enums in `analytics/events.ts`, re-exported from `analytics/index.ts`
-- [ ] `useLandingViewedEvent.ts`; section-viewed observer; CTA and bypass events
-- [ ] `index.html` description / `og:description`
+- [x] Events + enums in `analytics/events.ts`, re-exported from `analytics/index.ts`
+- [x] `useLandingViewedEvent.ts`; section-viewed observer; CTA and bypass events
+- [x] `index.html` description / `og:description`
 
 ### Phase 6 — i18n
 
-- [ ] `landing` namespace registered in `locales.ts` and `_shared.mjs`
-- [ ] `npm run i18n:extract`
-- [ ] Translate all 8 target locales
-- [ ] `npm run i18n:stamp` → `npm run i18n:check` passes
+- [x] `landing` namespace registered in `locales.ts` and `_shared.mjs`
+- [x] `npm run i18n:extract`
+- [x] Translate all 8 target locales
+- [x] `npm run i18n:stamp` → `npm run i18n:check` passes
 
 ### Phase 7 — validation
 
-- [ ] `npx tsc --noEmit` and `npx vitest run` from `apps/web` (invoked directly —
+- [x] `npx tsc --noEmit` and `npx vitest run` from `apps/web` (invoked directly —
       the npm wrappers regenerate wasm nondeterministically)
-- [ ] `npm run lint:web`
-- [ ] `npm run i18n:check`
-- [ ] Browser check, desktop width: first viewport identical to today; scroll
+- [x] `npm run lint:web`
+- [x] `npm run i18n:check`
+- [x] Browser check, desktop width: first viewport identical to today; scroll
       reveals the four sections; workspaces still reachable
-- [ ] Browser check, phone emulation: landing only, notice present, `/edit`
+- [x] Browser check, phone emulation: landing only, notice present, `/edit`
       redirects to `/welcome`, no wasm request in the network panel
-- [ ] Browser check: bypass link → app loads, and the choice survives a reload
-- [ ] Tauri desktop (`npm run dev:desktop`): start screen unchanged, no gate
+- [x] Browser check: bypass link → app loads, and the choice survives a reload
+- [x] `npm run build:web` (production bundle; `dist/.gitkeep` survives the build)
+- [x] `npm run check:desktop`
+- [ ] **Not done — for the author.** Tauri desktop (`npm run dev:desktop`): start
+      screen unchanged, no gate. The gate itself is covered by
+      `mobileSurface.test.ts` ("is false in the Tauri shell whatever the viewport
+      reports") and the shell renders the same `StartScreen` as the browser, so
+      this is a visual confirmation rather than an open risk.
