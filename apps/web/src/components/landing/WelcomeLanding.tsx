@@ -1,9 +1,9 @@
 import { Github, MessageCircle } from 'lucide-react';
-import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { track, type LandingCta, type LandingSectionId } from '../../analytics';
 import { DISCORD_URL, REPOSITORY_URL } from '../../constants/release';
 import { ButtonLink } from '../ui/Button';
+import { LandingFeatureCarousel } from './LandingFeatureCarousel';
 import { LandingFigure } from './LandingFigure';
 import { LandingSection } from './LandingSection';
 import './WelcomeLanding.css';
@@ -45,6 +45,7 @@ export function WelcomeLanding() {
     <div className="welcome-landing">
       <LandingSection
         id={FIRST_LANDING_SECTION_ID}
+        layout="split"
         eyebrow={t('landing:what.eyebrow', 'What it is')}
         title={t('landing:what.title', 'A free, open-source workspace for origami design')}
         lead={t(
@@ -52,19 +53,21 @@ export function WelcomeLanding() {
           'Ori Studio pulls the tools most of us already use into one place, and runs entirely in the browser — nothing to install, no account. The crease-pattern editor is a port of Oriedita, so if you have used that, this should feel familiar right away.'
         )}
       >
-        <LandingFigure
-          name="overview"
-          alt={t(
-            'landing:what.figureAlt',
-            'The Ori Studio workspace: a crease pattern on the canvas with the tool rail and inspector panels around it.'
-          )}
-        />
-        <p className="landing-beta">
-          {t(
-            'landing:what.beta',
-            'Consider it a beta: stable enough for real work, but some features are still subject to change.'
-          )}
-        </p>
+        <div className="landing-stack">
+          <LandingFigure
+            name="overview"
+            alt={t(
+              'landing:what.figureAlt',
+              'The Ori Studio workspace: a crease pattern on the canvas with the tool rail and inspector panels around it.'
+            )}
+          />
+          <p className="landing-beta">
+            {t(
+              'landing:what.beta',
+              'Consider it a beta: stable enough for real work, but some features are still subject to change.'
+            )}
+          </p>
+        </div>
       </LandingSection>
 
       <LandingSection
@@ -77,43 +80,60 @@ export function WelcomeLanding() {
           'The Edit workspace is a port of Oriedita — the same drawing operations, the same way selection and line types behave — wrapped in a modern, simplified interface.'
         )}
       >
-        <LandingFigure
-          name="edit"
-          alt={t(
-            'landing:edit.figureAlt',
-            'The Edit workspace, showing crease-pattern drawing tools and a reference image beside the paper.'
-          )}
+        <LandingFeatureCarousel
+          label={t('landing:edit.carouselLabel', 'Crease-pattern features')}
+          items={[
+            {
+              id: 'edit-angles',
+              figure: 'edit-angles',
+              title: t('landing:edit.angles.title', 'Creases that are not 180°'),
+              body: t(
+                'landing:edit.angles.body',
+                'Assign and solve real fold angles, not just mountain and valley, so models that do not fold flat are still first-class here.'
+              ),
+              figureAlt: t(
+                'landing:edit.angles.figureAlt',
+                'A crease pattern with fold-angle labels on its creases.'
+              ),
+            },
+            {
+              id: 'edit-media',
+              figure: 'edit-media',
+              title: t('landing:edit.media.title', 'Images and text, properly'),
+              body: t(
+                'landing:edit.media.body',
+                'Put a reference photo of the subject next to the paper and annotate the canvas with rich text. Both are saved with the project and dropped cleanly when you export to a format that has no room for them.'
+              ),
+              figureAlt: t(
+                'landing:edit.media.figureAlt',
+                'A reference photo and a text annotation placed beside a crease pattern.'
+              ),
+            },
+            {
+              id: 'edit-foldability',
+              figure: 'edit-foldability',
+              title: t('landing:edit.diagnostics.title', 'Foldability you can check as you go'),
+              body: t(
+                'landing:edit.diagnostics.body',
+                'Kawasaki and Maekawa checks, overlap and T-junction detection, and repairs for the ones worth fixing automatically.'
+              ),
+              figureAlt: t(
+                'landing:edit.diagnostics.figureAlt',
+                'Foldability diagnostics marking problem vertices on a crease pattern.'
+              ),
+            },
+            {
+              id: 'edit-share',
+              figure: 'edit-share',
+              title: t('landing:edit.share.title', 'Share a pattern with a link'),
+              body: t(
+                'landing:edit.share.body',
+                'Send someone a crease pattern as a URL. They open it in their browser with nothing to install and nothing to sign up for.'
+              ),
+              figureAlt: t('landing:edit.share.figureAlt', 'The share-link dialog with a copyable URL.'),
+            },
+          ]}
         />
-        <ul className="landing-features">
-          <LandingFeature
-            title={t('landing:edit.angles.title', 'Creases that are not 180°')}
-            body={t(
-              'landing:edit.angles.body',
-              'Assign and solve real fold angles, not just mountain and valley, so models that do not fold flat are still first-class here.'
-            )}
-          />
-          <LandingFeature
-            title={t('landing:edit.media.title', 'Images and text, properly')}
-            body={t(
-              'landing:edit.media.body',
-              'Put a reference photo of the subject next to the paper and annotate the canvas with rich text. Both are saved with the project and dropped cleanly when you export to a format that has no room for them.'
-            )}
-          />
-          <LandingFeature
-            title={t('landing:edit.diagnostics.title', 'Foldability you can check as you go')}
-            body={t(
-              'landing:edit.diagnostics.body',
-              'Kawasaki and Maekawa checks, overlap and T-junction detection, and repairs for the ones worth fixing automatically.'
-            )}
-          />
-          <LandingFeature
-            title={t('landing:edit.share.title', 'Share a pattern with a link')}
-            body={t(
-              'landing:edit.share.body',
-              'Send someone a crease pattern as a URL. They open it in their browser with nothing to install and nothing to sign up for.'
-            )}
-          />
-        </ul>
       </LandingSection>
 
       <LandingSection
@@ -125,41 +145,56 @@ export function WelcomeLanding() {
           'Pack your model with whichever method suits it, with several designs open side by side in tabs. Each one builds a crease pattern you can send straight to the editor.'
         )}
       >
-        <LandingFigure
-          name="design"
-          alt={t(
-            'landing:design.figureAlt',
-            'The Design workspace with a tree structure beside its circle packing.'
-          )}
+        <LandingFeatureCarousel
+          label={t('landing:design.carouselLabel', 'Design methods')}
+          items={[
+            {
+              id: 'design-treemaker',
+              figure: 'design-treemaker',
+              title: t('landing:design.treemaker.title', 'TreeMaker'),
+              body: t(
+                'landing:design.treemaker.body',
+                'Sketch a tree, set edge lengths and strain, and let the optimizer pack circles and rivers into a base.'
+              ),
+              figureAlt: t(
+                'landing:design.treemaker.figureAlt',
+                'A tree structure beside the circle packing the optimizer found for it.'
+              ),
+            },
+            {
+              id: 'design-bp',
+              figure: 'design-bp',
+              title: t('landing:design.bp.title', 'Box Pleating Studio'),
+              body: t(
+                'landing:design.bp.body',
+                'Lay flaps out on a grid, with rivers, stretch devices and symmetry constraints, and read the crease pattern off the packing.'
+              ),
+              figureAlt: t(
+                'landing:design.bp.figureAlt',
+                'Flaps packed onto a box-pleating grid with its crease pattern alongside.'
+              ),
+            },
+            {
+              id: 'design-explori',
+              figure: 'design-explori',
+              title: t('landing:design.explori.title', 'ExplOri'),
+              body: t(
+                'landing:design.explori.body',
+                "Send your tree to Brandon Wong's searchable archive of 22.5° crease patterns and browse the closest matches it returns."
+              ),
+              figureAlt: t(
+                'landing:design.explori.figureAlt',
+                'A grid of 22.5° crease patterns returned from an ExplOri search.'
+              ),
+            },
+          ]}
         />
-        <ul className="landing-features">
-          <LandingFeature
-            title={t('landing:design.treemaker.title', 'TreeMaker')}
-            body={t(
-              'landing:design.treemaker.body',
-              'Sketch a tree, set edge lengths and strain, and let the optimizer pack circles and rivers into a base.'
-            )}
-          />
-          <LandingFeature
-            title={t('landing:design.bp.title', 'Box Pleating Studio')}
-            body={t(
-              'landing:design.bp.body',
-              'Lay flaps out on a grid, with rivers, stretch devices and symmetry constraints, and read the crease pattern off the packing.'
-            )}
-          />
-          <LandingFeature
-            title={t('landing:design.explori.title', 'ExplOri')}
-            body={t(
-              'landing:design.explori.body',
-              "Send your tree to Brandon Wong's searchable archive of 22.5° crease patterns and browse the closest matches it returns."
-            )}
-          />
-        </ul>
       </LandingSection>
 
       <LandingSection
         id="landing-simulate"
         tone="raised"
+        layout="split-reverse"
         eyebrow={t('landing:simulate.eyebrow', 'Simulate')}
         title={t('landing:simulate.title', 'Fold it without leaving the pattern')}
         lead={t(
@@ -269,20 +304,6 @@ export function WelcomeLanding() {
 /** Shared by the CTA links here and by the scroll affordance in the route. */
 export function trackCta(cta: LandingCta): void {
   track('landing cta clicked', { cta });
-}
-
-interface LandingFeatureProps {
-  title: string;
-  body: string;
-}
-
-function LandingFeature({ title, body }: LandingFeatureProps): ReactNode {
-  return (
-    <li className="landing-feature">
-      <h3 className="landing-feature__title">{title}</h3>
-      <p className="landing-feature__body">{body}</p>
-    </li>
-  );
 }
 
 function LandingPort({ name, body }: { name: string; body: string }) {

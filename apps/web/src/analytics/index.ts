@@ -26,6 +26,7 @@ export type {
   FoldSimulationSource,
   FoldVerdict,
   LandingCta,
+  LandingFeatureId,
   LandingSectionId,
   LandingSurface,
   OptimizerKind,

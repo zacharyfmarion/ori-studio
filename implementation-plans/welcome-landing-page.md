@@ -192,12 +192,28 @@ would ask:
 6. **Get started** — the browser is the whole setup. CTAs are the Discord and
    the repository; `constants/release.ts` owns both URLs.
 
-**Screenshots.** One per workspace plus an overview, as `LandingFigure`: two
-files each in `public/landing/` (`<name>-light.png` / `<name>-dark.png`), chosen
-from the *app's* theme rather than `prefers-color-scheme`, since the theme is a
-preference set in the app. Until a file exists the frame renders a labelled
-placeholder naming the path it wants. Frames hold 16:9 in every state so the page
-does not reflow as screenshots arrive.
+**Layout.** Sections alternate rather than stacking everything: 1 is `split`
+(copy beside the overview), 2 and 3 are carousels, 4 is `split-reverse` (image
+left), 5 and 6 are stacked. `split-reverse` flips with `order`, not DOM position,
+so reading and tab order still reach the heading first.
+
+**The carousels** are the ARIA tabs pattern, not a slideshow — the feature list
+stays visible, so a reader can see everything on offer and jump to what they came
+for. They do **not** auto-advance: each panel carries a paragraph, and moving it
+mid-sentence on a schedule the reader did not choose is the thing WCAG 2.2.2 is
+about. Arrow keys in both orientations (the list is a column when wide, a row
+when narrow), Home/End, and one tab stop for the whole list.
+
+**Screenshots.** `LandingFigure` slots, two files each in `public/landing/`
+(`<name>-light.png` / `<name>-dark.png`), 16:9, chosen from the *app's* theme
+rather than `prefers-color-scheme` — the theme is a preference set in the app and
+can differ from the one the OS reports. Nine figures: `overview`, `simulate`,
+`edit-{angles,media,foldability,share}`, `design-{treemaker,bp,explori}`.
+
+Until a file exists the frame renders a labelled placeholder naming the path it
+wants, and holds 16:9 in every state so the page does not reflow as screenshots
+arrive. They can be added one at a time; a missing one costs nothing but its own
+placeholder.
 
 ### 7. i18n — deferred on purpose
 
@@ -339,9 +355,12 @@ prerendering `/welcome` is its own piece of work.
 - [x] `WelcomeLanding.css`
 - [x] `WelcomeLanding.test.tsx` — sections render, CTAs point at the right URLs,
       and neither retired claim (desktop download, CP-from-image) can come back
-- [ ] **For the author.** Drop screenshots into `apps/web/public/landing/`:
-      `overview`, `edit`, `design`, `simulate`, each as `-light.png` and
-      `-dark.png`, 16:9
+- [x] `LandingFeatureCarousel.tsx` + tests — tabs pattern, arrow/Home/End keys,
+      one tab stop, no autoplay
+- [ ] **For the author.** Drop screenshots into `apps/web/public/landing/`, each
+      as `-light.png` and `-dark.png` at 16:9: `overview`, `simulate`,
+      `edit-angles`, `edit-media`, `edit-foldability`, `edit-share`,
+      `design-treemaker`, `design-bp`, `design-explori`
 
 ### Phase 4 — phone register
 

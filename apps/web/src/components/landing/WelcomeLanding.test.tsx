@@ -68,8 +68,8 @@ describe('WelcomeLanding', () => {
   it('names the three design methods', () => {
     const rendered = renderLanding();
     const titles = Array.from(
-      rendered.querySelectorAll('#landing-design .landing-feature__title')
-    ).map((feature) => feature.textContent);
+      rendered.querySelectorAll('#landing-design .landing-carousel__tab-title')
+    ).map((tab) => tab.textContent);
 
     expect(titles).toEqual(['TreeMaker', 'Box Pleating Studio', 'ExplOri']);
   });
@@ -131,11 +131,12 @@ describe('WelcomeLanding', () => {
     const sources = Array.from(rendered.querySelectorAll<HTMLImageElement>('.landing-figure__image'))
       .map((image) => image.getAttribute('src'));
 
-    // The default theme is dark; `LandingFigure` re-resolves when it changes.
+    // Only the selected slide of each carousel is mounted, so this is the first
+    // of each. The default theme is dark; `LandingFigure` re-resolves on change.
     expect(sources).toEqual([
       '/landing/overview-dark.png',
-      '/landing/edit-dark.png',
-      '/landing/design-dark.png',
+      '/landing/edit-angles-dark.png',
+      '/landing/design-treemaker-dark.png',
       '/landing/simulate-dark.png',
     ]);
   });
@@ -156,8 +157,8 @@ describe('WelcomeLanding', () => {
 
     expect(wanted).toEqual([
       'landing/overview-dark.png',
-      'landing/edit-dark.png',
-      'landing/design-dark.png',
+      'landing/edit-angles-dark.png',
+      'landing/design-treemaker-dark.png',
       'landing/simulate-dark.png',
     ]);
   });

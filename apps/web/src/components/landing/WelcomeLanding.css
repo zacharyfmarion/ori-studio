@@ -24,8 +24,35 @@
 .landing-section__inner {
   display: grid;
   gap: var(--space-6);
-  width: min(1040px, 100%);
+  width: min(1120px, 100%);
   margin-inline: auto;
+}
+
+/*
+ * Heading beside its content rather than above it. The narrower column is the
+ * text: a screenshot needs the room, and a measure of ~45 characters reads
+ * better than the full 1120 anyway.
+ */
+.landing-section__inner[data-layout='split'],
+.landing-section__inner[data-layout='split-reverse'] {
+  grid-template-columns: minmax(0, 4fr) minmax(0, 6fr);
+  align-items: center;
+  gap: clamp(28px, 4vw, 64px);
+}
+
+/*
+ * Reversed by `order`, not by DOM position, so the heading is still what a
+ * screen reader and the tab sequence reach first.
+ */
+.landing-section__inner[data-layout='split-reverse'] > .landing-section__head {
+  order: 2;
+}
+
+/* Vertical grouping inside one column of a split. */
+.landing-stack {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
 }
 
 .landing-section__head {
@@ -112,37 +139,100 @@
   font-size: 0.74rem;
 }
 
-/* --- Feature lists --- */
+/* --- The feature carousel --- */
 
-.landing-features {
+/*
+ * Centered, not top-aligned: a handful of tabs against a 16:9 panel leaves a
+ * column of dead space otherwise, and the list reads as having been abandoned
+ * halfway down.
+ */
+.landing-carousel {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-5) var(--space-6);
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 6fr);
+  align-items: center;
+  gap: clamp(20px, 3vw, 40px);
 }
 
-.landing-feature {
+.landing-carousel__tabs {
   display: grid;
   align-content: start;
   gap: var(--space-2);
-  padding-left: var(--space-4);
-  border-left: 2px solid color-mix(in srgb, var(--accent-primary) 34%, transparent);
+  min-width: 0;
 }
 
-.landing-feature__title {
-  margin: 0;
+.landing-carousel__tab {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  background: none;
+  color: var(--text-secondary);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.landing-carousel__tab:hover {
+  background: color-mix(in srgb, var(--text-primary) 4%, transparent);
   color: var(--text-primary);
-  font-size: 0.95rem;
-  font-weight: 760;
-  line-height: 1.3;
 }
 
-.landing-feature__body {
+.landing-carousel__tab:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-primary) 72%, transparent);
+  outline-offset: 2px;
+}
+
+.landing-carousel__tab[aria-selected='true'] {
+  border-color: color-mix(in srgb, var(--accent-primary) 38%, var(--border-subtle));
+  background: color-mix(in srgb, var(--accent-primary) 8%, var(--bg-elevated));
+  color: var(--text-primary);
+}
+
+.landing-carousel__tab-index {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.landing-carousel__tab[aria-selected='true'] .landing-carousel__tab-index {
+  background: color-mix(in srgb, var(--accent-primary) 82%, transparent);
+  color: var(--text-inverse);
+}
+
+.landing-carousel__tab-title {
+  font-size: 0.92rem;
+  font-weight: 680;
+  line-height: 1.35;
+}
+
+.landing-carousel__panel {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.landing-carousel__panel:focus {
+  outline: none;
+}
+
+.landing-carousel__body {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 0.86rem;
+  font-size: 0.88rem;
   font-weight: 500;
   line-height: 1.58;
 }
@@ -272,9 +362,37 @@
  * pointer-coarse). A 768px tablet in portrait falls between them, and would
  * otherwise get three cards in the space of one.
  */
-@media (max-width: 720px) {
-  .landing-features {
+/*
+ * Everything side-by-side becomes one column, and the carousel's tab list turns
+ * into a scrollable row of pills above the panel — a column of four full-width
+ * buttons would push the screenshot they control off the screen entirely.
+ *
+ * Two selectors for one layout because the thresholds differ and should: the
+ * media query is about how much room a column needs, while `data-surface`
+ * follows `PHONE_MEDIA_QUERY` (820px, and pointer-coarse). A 768px tablet in
+ * portrait falls between them.
+ */
+@media (max-width: 860px) {
+  .landing-section__inner[data-layout='split'],
+  .landing-section__inner[data-layout='split-reverse'],
+  .landing-carousel {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .landing-section__inner[data-layout='split-reverse'] > .landing-section__head {
+    order: 0;
+  }
+
+  .landing-carousel__tabs {
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    overflow-x: auto;
+    padding-bottom: var(--space-1);
+    scrollbar-width: thin;
+  }
+
+  .landing-carousel__tab {
+    border-color: var(--border-subtle);
   }
 
   .landing-port {
@@ -287,8 +405,25 @@
   }
 }
 
-[data-surface='phone'] .landing-features {
+[data-surface='phone'] .landing-section__inner[data-layout='split'],
+[data-surface='phone'] .landing-section__inner[data-layout='split-reverse'],
+[data-surface='phone'] .landing-carousel {
   grid-template-columns: minmax(0, 1fr);
+}
+
+[data-surface='phone'] .landing-section__inner[data-layout='split-reverse'] > .landing-section__head {
+  order: 0;
+}
+
+[data-surface='phone'] .landing-carousel__tabs {
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  overflow-x: auto;
+  padding-bottom: var(--space-1);
+}
+
+[data-surface='phone'] .landing-carousel__tab {
+  border-color: var(--border-subtle);
 }
 
 [data-surface='phone'] .landing-port {

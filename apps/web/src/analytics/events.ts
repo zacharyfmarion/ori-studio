@@ -56,6 +56,21 @@ export type LandingSectionId =
  */
 export type LandingCta = 'discord' | 'github' | 'scroll';
 
+/**
+ * A feature slide in one of the landing carousels.
+ *
+ * Which of these people open is the page's most direct read on what the audience
+ * actually came for, so the ids are stable and deliberately specific.
+ */
+export type LandingFeatureId =
+  | 'edit-angles'
+  | 'edit-media'
+  | 'edit-foldability'
+  | 'edit-share'
+  | 'design-treemaker'
+  | 'design-bp'
+  | 'design-explori';
+
 /** Export target formats (the file's kind only — never its name or contents). */
 export type ExportFormat =
   | 'osf'
@@ -223,6 +238,7 @@ export const ANALYTICS_EVENTS = {
   localeChanged: 'locale changed',
   landingViewed: 'landing viewed',
   landingSectionViewed: 'landing section viewed',
+  landingFeatureOpened: 'landing feature opened',
   landingCtaClicked: 'landing cta clicked',
   mobileBlockShown: 'mobile block shown',
   mobileBlockBypassed: 'mobile block bypassed',
