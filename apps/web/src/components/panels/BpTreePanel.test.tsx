@@ -226,6 +226,8 @@ function render(selectedVertexId: number | null, symmetryEnabled = false) {
       symmetry: {
         enabled: symmetryEnabled,
         fold: 'book',
+        quarterTurn: false,
+        sidesSwapped: false,
         angle: 90,
         loc: { x: 10, y: 10 },
         pairs: [],
@@ -422,7 +424,7 @@ describe('BP tree pane — selecting an edge highlights the edge', () => {
         ...singleBoxPleatDesignTab({
           document: document_,
           selection: { kind: 'bp-edge', id: 1 },
-          symmetry: { enabled: false, fold: 'book', angle: 90, loc: { x: 10, y: 10 }, pairs: [] },
+          symmetry: { enabled: false, fold: 'book', quarterTurn: false, sidesSwapped: false, angle: 90, loc: { x: 10, y: 10 }, pairs: [] },
         }),
         ...actions,
       },
@@ -750,6 +752,8 @@ describe('BP tree pane — pairings survive mirror draw being off', () => {
           symmetry: {
             enabled: symmetryEnabled,
             fold: 'book',
+            quarterTurn: false,
+            sidesSwapped: false,
             angle: 90,
             loc: { x: 10, y: 10 },
             pairs: [{ v1: 1, v2: 2 }],

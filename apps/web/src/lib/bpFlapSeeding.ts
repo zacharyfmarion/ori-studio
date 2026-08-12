@@ -8,7 +8,7 @@ import {
   projectBpFlapAnchorOntoAxis,
 } from './bpPackingSymmetry';
 import { bpPackingSheetFrame, constrainBpPackingPoint } from './bpPackingViewport';
-import type { SymmetryFold } from './bpTreeSymmetry';
+import type { BpMirrorOrientation } from './bpTreeSymmetry';
 import type { Point } from './geometry';
 
 /**
@@ -65,8 +65,8 @@ export interface BpFlapSeedInput {
   treeLoc: Point;
   treeSheet: OristudioBpSheet;
   layoutSheet: OristudioBpSheet;
-  /** The design's fold, or null when mirror draw is off. */
-  fold: SymmetryFold | null;
+  /** Where the design's mirror falls on the paper, or null when mirror draw is off. */
+  mirror: BpMirrorOrientation | null;
   /**
    * Whether the leaf is its own mirror — drawn on the tree's mirror line.
    *
@@ -80,10 +80,10 @@ export interface BpFlapSeedInput {
 
 /** Where a newly drawn leaf's own flap should start. */
 export function seedBpFlapAnchor(input: BpFlapSeedInput): Point {
-  const { treeLoc, treeSheet, layoutSheet, fold, selfMirrored } = input;
+  const { treeLoc, treeSheet, layoutSheet, mirror, selfMirrored } = input;
   const anchor = bpTreePointToLayoutPoint(treeLoc, treeSheet, layoutSheet);
-  if (!selfMirrored || fold === null) return anchor;
-  const axis = bpPackingSymmetryAxis(layoutSheet, fold);
+  if (!selfMirrored || mirror === null) return anchor;
+  const axis = bpPackingSymmetryAxis(layoutSheet, mirror);
   if (!bpPackingSheetSupportsAxis(layoutSheet, axis)) return anchor;
   const center = bpPackingSheetCenter(layoutSheet);
   if (isBpFlapOnAxis(anchor, NEW_FLAP_BOX, center, axis)) return anchor;
@@ -110,9 +110,9 @@ export function seedBpFlapAnchor(input: BpFlapSeedInput): Point {
 export function seedBpPartnerFlapAnchor(
   primaryAnchor: Point,
   layoutSheet: OristudioBpSheet,
-  fold: SymmetryFold
+  mirror: BpMirrorOrientation
 ): Point | null {
-  const axis = bpPackingSymmetryAxis(layoutSheet, fold);
+  const axis = bpPackingSymmetryAxis(layoutSheet, mirror);
   if (!bpPackingSheetSupportsAxis(layoutSheet, axis)) return null;
   return mirrorBpFlapAnchor(primaryAnchor, NEW_FLAP_BOX, bpPackingSheetCenter(layoutSheet), axis);
 }

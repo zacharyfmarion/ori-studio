@@ -1,8 +1,8 @@
 import type { OristudioBpSheetKind, OristudioBpTreeView } from '../engine/oristudioBpTypes';
 import {
   mirrorBpTreeVertexId,
+  type BpMirrorOrientation,
   type BpTreeSymmetryPair,
-  type SymmetryFold,
 } from './bpTreeSymmetry';
 import { isPaperCenter } from './symmetryPresets';
 import type { SymmetryAxis } from './symmetryGeometry';
@@ -70,22 +70,26 @@ export type { SymmetryFold } from './bpTreeSymmetry';
 const DISTANCE_EPSILON = 1e-6;
 
 /**
- * Where a fold falls in the optimizer's normalized frame.
+ * Where a mirror falls in the optimizer's normalized frame.
  *
- * This is the only place the sheet matters. A diagonal-grid sheet is the paper
- * turned 45 degrees against the grid, so its corners point along the grid axes:
- * a corner-to-corner fold runs *along* a grid line there, while on a rectangular
- * sheet it cuts across at 45 degrees. The two therefore swap.
+ * The fold picks the *class* of axis, and this is the only place the sheet
+ * matters to that: a diagonal-grid sheet is the paper turned 45 degrees against
+ * the grid, so its corners point along the grid axes — a corner-to-corner fold
+ * runs *along* a grid line there, while on a rectangular sheet it cuts across at
+ * 45 degrees. The two therefore swap.
  *
- * Each fold has a second variant — the other book fold, the other diagonal — but
- * they are the same problem rotated a quarter turn, so only one is offered.
+ * `quarterTurn` then picks which of the class's two axes it is. A design is
+ * drawn against the canonical one; rotating or flipping the layout is what
+ * carries it to the other.
  */
-export function optimizerSymmetryAxisForFold(
+export function optimizerSymmetryAxisForMirror(
   sheetKind: OristudioBpSheetKind,
-  fold: SymmetryFold
+  mirror: BpMirrorOrientation
 ): OptimizerSymmetryAxis {
-  const alongGrid = sheetKind === 'diagonal' ? fold === 'diagonal' : fold === 'book';
-  return alongGrid ? 'verticalHalf' : 'mainDiagonal';
+  const alongGrid = sheetKind === 'diagonal' ? mirror.fold === 'diagonal' : mirror.fold === 'book';
+  const base = alongGrid ? 'verticalHalf' : 'mainDiagonal';
+  if (!mirror.quarterTurn) return base;
+  return base === 'verticalHalf' ? 'horizontalHalf' : 'antiDiagonal';
 }
 
 /**
@@ -138,15 +142,23 @@ function distanceKey(a: number, b: number): string {
   return a < b ? `${a},${b}` : `${b},${a}`;
 }
 
-export interface ResolveOptimizerSymmetryOptions {
-  /** Which fold of the paper the layout should be mirrored about. */
-  fold: SymmetryFold;
+/**
+ * The mirror-draw state this reads: the tree-space axis the pairing is resolved
+ * on, the pairing itself, and where the mirror falls on the paper.
+ *
+ * The orientation is part of the state rather than a separate argument because
+ * every caller asks about the design as it stands. A second way to name the fold
+ * would only be a way to ask about one the design does not have.
+ */
+export interface OptimizerSymmetryInput extends BpMirrorOrientation {
+  angle: number;
+  loc: { x: number; y: number };
+  pairs: BpTreeSymmetryPair[];
 }
 
 export function resolveOptimizerSymmetry(
   tree: OristudioBpTreeView,
-  symmetry: { angle: number; loc: { x: number; y: number }; pairs: BpTreeSymmetryPair[] },
-  options: ResolveOptimizerSymmetryOptions
+  symmetry: OptimizerSymmetryInput
 ): OptimizerSymmetryResolution {
   // Deliberately does not ask whether mirror draw is on. That toggle decides
   // whether a *new* node is drawn with a twin; whether the design is symmetric is
@@ -154,9 +166,9 @@ export function resolveOptimizerSymmetry(
   // per-run opt out.
 
   // The tree's own mirror line is an authoring aid and is always vertical — a
-  // tree is not drawn on the paper. Which fold of the paper that mirror becomes
-  // is a separate choice, made per run.
-  const axis = optimizerSymmetryAxisForFold(tree.sheet.kind, options.fold);
+  // tree is not drawn on the paper. Which of the paper's four mirrors it becomes
+  // is the design's own `fold` and `quarterTurn`.
+  const axis = optimizerSymmetryAxisForMirror(tree.sheet.kind, symmetry);
   if (!isPaperCenter(symmetry.loc, tree.sheet.width, tree.sheet.height)) {
     return {
       ok: false,
@@ -230,13 +242,21 @@ export function resolveOptimizerSymmetry(
   }
 
   // Which member of each pair the user drew on the left. The tree's mirror is
-  // always vertical, so "left" is simply a smaller x; where that lands on the
-  // paper is the fold's business, and all that matters is that it is consistent.
+  // always vertical, so "left" is simply a smaller x.
+  //
+  // Where that lands on the paper is the mirror's business, and the kernel reads
+  // this list against the axis's canonical normal — so "left" has to be
+  // translated into that frame rather than handed over raw. A design the sheet
+  // transforms have turned has its drawn-left half sitting on the axis's
+  // *positive* side, and the answer is the other member of every pair.
+  // Reporting the left-drawn ones anyway is how a rotate followed by a solve
+  // came to swap every pair back.
   const negativeSide: number[] = [];
   for (const vertex of tree.vertices) {
     const mirror = partner.get(vertex.id);
     if (mirror === undefined || mirror === vertex.id) continue;
-    if (vertex.loc.x < symmetry.loc.x) negativeSide.push(vertex.id);
+    const drawnLeft = vertex.loc.x < symmetry.loc.x;
+    if (drawnLeft !== symmetry.sidesSwapped) negativeSide.push(vertex.id);
   }
 
   return {

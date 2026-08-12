@@ -4329,7 +4329,7 @@ button.cp-folded-figure-toolbar__notice:hover {
 .cp-diagnostic-point {
   --cp-diagnostic-color: var(--status-danger);
   --cp-diagnostic-fill-opacity: 0.16;
-  --cp-diagnostic-lbl-fill-opacity: 0.2;
+  --cp-diagnostic-blb-fill-opacity: 0.2;
   --cp-diagnostic-stroke-opacity: 0.46;
   cursor: pointer;
   pointer-events: all;
@@ -4378,7 +4378,7 @@ button.cp-folded-figure-toolbar__notice:hover {
 }
 
 .cp-diagnostic-point__oriedita-shape,
-.cp-diagnostic-lbl-sector {
+.cp-diagnostic-blb-sector {
   fill: var(--cp-diagnostic-color);
   fill-opacity: var(--cp-diagnostic-fill-opacity);
   stroke: var(--cp-diagnostic-color);
@@ -4392,14 +4392,14 @@ button.cp-folded-figure-toolbar__notice:hover {
   fill: transparent;
 }
 
-.cp-diagnostic-lbl-sector {
+.cp-diagnostic-blb-sector {
   fill: transparent;
   fill-opacity: 0;
 }
 
-.cp-diagnostic-lbl-sector[data-violating='true'] {
+.cp-diagnostic-blb-sector[data-violating='true'] {
   fill: var(--cp-diagnostic-color);
-  fill-opacity: var(--cp-diagnostic-lbl-fill-opacity);
+  fill-opacity: var(--cp-diagnostic-blb-fill-opacity);
 }
 
 .cp-diagnostic-point--active {
@@ -6736,6 +6736,39 @@ button.cp-folded-figure-toolbar__notice:hover {
 
 .bp-sheet-menu__segment button:disabled:hover {
   color: var(--text-secondary);
+}
+
+/* Rotate / flip: the segment's ramp, four across and icon-only. */
+.bp-sheet-menu__transforms {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+
+.bp-sheet-menu__transforms button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+  border-radius: calc(var(--radius-sm) - 1px);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.bp-sheet-menu__transforms button:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.bp-sheet-menu__transforms button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 /* Axis fields: label left, value right, on the preset buttons' border ramp. */

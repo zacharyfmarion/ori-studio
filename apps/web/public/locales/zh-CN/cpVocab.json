@@ -976,8 +976,8 @@
       "disabledReason": "就绪"
     },
     "cp_action_check4": {
-      "label": "检查 Maekawa/LBL",
-      "tooltip": "查找 Maekawa、角度以及小大小违规",
+      "label": "检查 Maekawa/BLB",
+      "tooltip": "查找 Maekawa、角度以及大小大违规",
       "disabledReason": "就绪"
     },
     "cp_action_fix1": {

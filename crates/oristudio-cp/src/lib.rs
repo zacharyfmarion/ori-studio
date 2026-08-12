@@ -128,6 +128,14 @@ pub struct CreasePatternCommandPayload {
     /// Optional model-space hit tolerance for point/line tools.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub selection_distance: Option<f64>,
+    /// Optional override for what a kernel-side snap may land on.
+    ///
+    /// Oriedita gates its close-point search on grid visibility alone. Ori
+    /// Studio's viewport also has a Snapping toggle, so the frontend states the
+    /// effective policy here; absent means upstream — every vertex, and the
+    /// grid the document itself declares.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub snap_candidates: Option<model::SnapCandidates>,
     /// Optional UI-level replacement selection mode. Oriedita's primitive
     /// select operations are additive by default; callers set this when a
     /// normal click/box selection should replace the previous selected set.
@@ -263,11 +271,11 @@ pub struct CommandDiagnostic {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub violation_color: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub little_big_little: Vec<CommandDiagnosticLittleBigLittleSegment>,
+    pub big_little_big: Vec<CommandDiagnosticBigLittleBigSegment>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CommandDiagnosticLittleBigLittleSegment {
+pub struct CommandDiagnosticBigLittleBigSegment {
     pub segment: geometry::LineSegment,
     pub violating: bool,
 }
@@ -2250,13 +2258,14 @@ pub fn execute_command(
         }
         OperationId::DrawCreaseAngleRestricted5 => {
             let points = required_points(&command, 2)?;
+            let snap = snap_policy(&command, &document.crease_pattern);
             usize::from(operations::construction::draw_crease_angle_restricted_5(
                 &mut document.crease_pattern,
                 points[0],
                 points[1],
                 angle_system_divider(&command),
                 angle_system_angles(&command),
-                selection_distance(&command),
+                snap,
                 active_line_color(&command),
             ))
         }
@@ -2813,7 +2822,7 @@ fn line_pair_diagnostics(
             rule: Some(format!("{operation:?}")),
             residual_degrees: None,
             violation_color: None,
-            little_big_little: Vec::new(),
+            big_little_big: Vec::new(),
         })
         .collect()
 }
@@ -2832,7 +2841,7 @@ fn point_marker_diagnostics(kind: &str, markers: Vec<LineSegment>) -> Vec<Comman
             rule: Some("VertexFlatFoldability".to_string()),
             residual_degrees: None,
             violation_color: None,
-            little_big_little: Vec::new(),
+            big_little_big: Vec::new(),
         })
         .collect()
 }
@@ -2847,15 +2856,15 @@ fn flat_foldability_diagnostics(
         .map(|(index, violation)| {
             let rule = flat_foldability_rule_label(violation.rule);
             let violation_color = flat_foldability_color_label(violation.color);
-            let little_big_little = violation
-                .little_big_little
+            let big_little_big = violation
+                .big_little_big
                 .into_iter()
-                .map(|segment| CommandDiagnosticLittleBigLittleSegment {
+                .map(|segment| CommandDiagnosticBigLittleBigSegment {
                     segment: segment.segment,
                     violating: segment.violating,
                 })
                 .collect::<Vec<_>>();
-            let segments = little_big_little
+            let segments = big_little_big
                 .iter()
                 .map(|segment| segment.segment.clone())
                 .collect();
@@ -2869,7 +2878,7 @@ fn flat_foldability_diagnostics(
                 rule: Some(rule.to_string()),
                 residual_degrees: None,
                 violation_color: Some(violation_color.to_string()),
-                little_big_little,
+                big_little_big,
             }
         })
         .collect()
@@ -3078,7 +3087,7 @@ fn interior_border_diagnostics(
             rule: Some("InteriorBorder".to_string()),
             residual_degrees: None,
             violation_color: None,
-            little_big_little: Vec::new(),
+            big_little_big: Vec::new(),
         })
         .collect()
 }
@@ -3116,7 +3125,7 @@ fn spatial_closure_diagnostics(
                     rule: Some("SelfIntersection".to_string()),
                     residual_degrees: None,
                     violation_color: None,
-                    little_big_little: Vec::new(),
+                    big_little_big: Vec::new(),
                 });
             }
             continue;
@@ -3157,7 +3166,7 @@ fn spatial_closure_diagnostics(
                 Some(residual_degrees)
             },
             violation_color: None,
-            little_big_little: Vec::new(),
+            big_little_big: Vec::new(),
         });
     }
     diagnostics
@@ -3168,7 +3177,7 @@ fn flat_foldability_rule_label(rule: checks::FlatFoldabilityRule) -> &'static st
         checks::FlatFoldabilityRule::NumberOfFolds => "NumberOfFolds",
         checks::FlatFoldabilityRule::Angles => "Angles",
         checks::FlatFoldabilityRule::Maekawa => "Maekawa",
-        checks::FlatFoldabilityRule::LittleBigLittle => "LittleBigLittle",
+        checks::FlatFoldabilityRule::BigLittleBig => "BigLittleBig",
         checks::FlatFoldabilityRule::None => "None",
     }
 }
@@ -3244,7 +3253,7 @@ fn flat_foldable_boundary_input_diagnostics(
         rule: Some("BoundaryLoop".to_string()),
         residual_degrees: None,
         violation_color: None,
-        little_big_little: Vec::new(),
+        big_little_big: Vec::new(),
     }]
 }
 
@@ -3273,7 +3282,7 @@ fn flat_foldable_boundary_result_diagnostics(
         rule: Some("FlatFoldableBoundary".to_string()),
         residual_degrees: None,
         violation_color: None,
-        little_big_little: Vec::new(),
+        big_little_big: Vec::new(),
     }]
 }
 
@@ -3544,19 +3553,25 @@ pub fn preview_command(
             );
         }
         OperationId::DrawCreaseAngleRestricted5 if points.len() >= 2 => {
-            let snapped = operations::construction::snap_to_close_point_in_active_angle_system(
+            let release = operations::construction::snap_to_close_point_in_active_angle_system(
                 &document.crease_pattern,
                 points[0],
                 points[1],
                 angle_system_divider(&command),
                 angle_system_angles(&command),
-                selection_distance(&command),
+                snap_policy(&command, &document.crease_pattern),
             );
             preview.segments.push(LineSegment::with_color(
                 points[0],
-                snapped,
+                release.point,
                 active_line_color(&command),
             ));
+            // Only when it landed on a real vertex or grid point: the surface
+            // rings these, and a ring on the bare projection would promise a
+            // snap that did not happen.
+            if release.snapped {
+                preview.points.push(release.point);
+            }
         }
         OperationId::VertexSolveFoldAngles => {
             // Fewer than three creases picked is the *normal* state for the
@@ -4020,6 +4035,16 @@ fn selection_distance(command: &CreasePatternCommand) -> f64 {
         .selection_distance
         .filter(|distance| distance.is_finite() && *distance > 0.0)
         .unwrap_or(DEFAULT_SELECTION_DISTANCE)
+}
+
+fn snap_policy(command: &CreasePatternCommand, model: &CreasePatternModel) -> model::SnapPolicy {
+    model::SnapPolicy {
+        selection_distance: selection_distance(command),
+        candidates: command
+            .payload
+            .snap_candidates
+            .unwrap_or_else(|| model::SnapCandidates::upstream(&model.grid)),
+    }
 }
 
 fn grid_width(command: &CreasePatternCommand, model: &CreasePatternModel) -> f64 {
@@ -6329,7 +6354,7 @@ mod tests {
             .find(|entry| entry.rule.as_deref() == Some("Maekawa"))
             .expect("Maekawa violation should be reported");
         assert_eq!(maekawa.violation_color.as_deref(), Some("Equal"));
-        assert!(maekawa.little_big_little.is_empty());
+        assert!(maekawa.big_little_big.is_empty());
 
         document.crease_pattern.line_segments.clear();
         document.crease_pattern.add_line(
@@ -6368,22 +6393,19 @@ mod tests {
             CreasePatternCommand::new(OperationId::Check4),
         )
         .expect("Check4 should execute");
-        let little_big_little = check4
+        let big_little_big = check4
             .diagnostic_entries
             .iter()
-            .find(|entry| entry.rule.as_deref() == Some("LittleBigLittle"))
-            .expect("Little-Big-Little violation should be reported");
+            .find(|entry| entry.rule.as_deref() == Some("BigLittleBig"))
+            .expect("Big-Little-Big violation should be reported");
+        assert_eq!(big_little_big.violation_color.as_deref(), Some("Correct"));
         assert_eq!(
-            little_big_little.violation_color.as_deref(),
-            Some("Correct")
-        );
-        assert_eq!(
-            little_big_little.segments.len(),
-            little_big_little.little_big_little.len()
+            big_little_big.segments.len(),
+            big_little_big.big_little_big.len()
         );
         assert!(
-            little_big_little
-                .little_big_little
+            big_little_big
+                .big_little_big
                 .iter()
                 .any(|sector| sector.violating)
         );

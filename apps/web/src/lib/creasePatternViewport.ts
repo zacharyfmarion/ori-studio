@@ -1,7 +1,9 @@
 import type {
   OristudioCpDocumentSnapshot,
   OristudioCpGridMetadata,
+  OristudioCpGridState,
   OristudioCpLineSegment,
+  OristudioCpSnapCandidates,
 } from '../engine/oristudioCpTypes';
 import type { Point, PlotRect } from './geometry';
 import { cpPaletteEntryForColor } from './oristudioCpPalette';
@@ -355,6 +357,41 @@ export function visibleOrieditaGridMetadata(
     ...grid,
     base_state: 'Full',
   };
+}
+
+/**
+ * The snap policy for a tool whose endpoint the *kernel* resolves — Angle
+ * Restricted Line, which must project onto the angle system before it can know
+ * what to snap to.
+ *
+ * Oriedita's close-point search is gated on grid visibility alone, so this is
+ * where our Snapping toggle joins it. The grid rule is the one
+ * {@link nearestOrieditaDrawPointTarget} already applies through
+ * {@link visibleOrieditaGridMetadata}: a visible grid snaps everywhere, a
+ * hidden one falls back to whatever the document declares.
+ */
+export function cpKernelSnapCandidates(
+  grid: OristudioCpGridMetadata,
+  options: OristudioCpViewportOptions
+): OristudioCpSnapCandidates {
+  if (!options.snapToGrid) {
+    return { grid: 'Hidden', vertices: options.snapToVertices };
+  }
+  return {
+    grid: options.gridVisible ? 'Full' : cpGridStatePayload(grid.base_state),
+    vertices: options.snapToVertices,
+  };
+}
+
+function cpGridStatePayload(baseState: string): OristudioCpGridState {
+  switch (orieditaGridBaseState(baseState)) {
+    case 'hidden':
+      return 'Hidden';
+    case 'full':
+      return 'Full';
+    default:
+      return 'WithinPaper';
+  }
 }
 
 function resolveOrieditaGridBaseState(

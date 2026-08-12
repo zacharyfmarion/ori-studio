@@ -60,6 +60,21 @@ are unchanged:
   render oracle in `crates/oristudio-cp/tests/oriedita_render_oracle.rs` remains
   a byte-for-byte gate.
 
+- **Kernel-side snapping states its candidates.** `SnapCandidates` (grid state
+  plus a vertices flag) is threaded into
+  `snap_to_close_point_in_active_angle_system`, the port of
+  `CreasePattern_Worker.getClosestPoint`. Upstream reads the grid state straight
+  off the UI and always searches vertices, because grid visibility is its only
+  snapping control; Ori Studio has a Snapping toggle, so the frontend states the
+  effective policy in the command payload. Omitting it reproduces upstream
+  exactly — every vertex, and the grid the document declares — and that is what
+  headless callers and the oracle tests use. The lattice search itself
+  (`GridMetadata::closest_grid_point`, ported from `Grid.closestGridPoint`) is
+  faithful, quirks included: the cell's long diagonal bounds the window, and an
+  empty scan answers with the origin rather than with "none".
+  `closest_grid_point_matches_oriedita_oracle` and
+  `angle_restricted_5_with_grid_matches_oriedita_oracle` gate both against the
+  real `Grid` class.
 - **A disconnected fold graph is a typed refusal.** `FoldGraph::face_positions`
   returns `FoldGraphError::DisconnectedFaces { reached, unreached }` instead of
   walking off the end of a dual graph that has more than one component.

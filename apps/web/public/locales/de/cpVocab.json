@@ -976,8 +976,8 @@
       "disabledReason": "Bereit"
     },
     "cp_action_check4": {
-      "label": "Maekawa/LBL prüfen",
-      "tooltip": "Maekawa-, Winkel- und Little-Big-Little-Verletzungen finden",
+      "label": "Maekawa/BLB prüfen",
+      "tooltip": "Maekawa-, Winkel- und Big-Little-Big-Verletzungen finden",
       "disabledReason": "Bereit"
     },
     "cp_action_fix1": {

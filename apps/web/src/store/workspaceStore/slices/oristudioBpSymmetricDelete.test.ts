@@ -83,6 +83,8 @@ function setUp(symmetry: { enabled: boolean; pairs?: { v1: number; v2: number }[
         ...AXIS,
         enabled: symmetry.enabled,
         fold: 'book',
+        quarterTurn: false,
+        sidesSwapped: false,
         pairs: symmetry.pairs ?? [],
       }
       })},

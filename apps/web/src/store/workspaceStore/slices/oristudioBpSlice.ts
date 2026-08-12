@@ -45,10 +45,10 @@ import {
   mirrorBpTreeVertexId,
   BP_TREE_SYMMETRY_ANGLE,
   BP_TREE_SYMMETRY_TOLERANCE,
-  type SymmetryFold,
+  type BpMirrorOrientation,
 } from '../../../lib/bpTreeSymmetry';
 import {
-  optimizerSymmetryAxisForFold,
+  optimizerSymmetryAxisForMirror,
   optimizerSymmetryAxisSwapsDimensions,
   resolveOptimizerSymmetry,
   type OptimizerSymmetryPayload,
@@ -57,6 +57,8 @@ import {
   buildMirroredBpFlapMoves,
   constrainBpFlapGroupToAxisSides,
   constrainBpFlapMoveToAxis,
+  mirrorAfterSheetTransform,
+  type BpSheetTransform,
 } from '../../../lib/bpPackingSymmetry';
 import { seedBpFlapAnchor, seedBpPartnerFlapAnchor } from '../../../lib/bpFlapSeeding';
 import {
@@ -322,7 +324,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     document: OristudioBpDocumentState,
     leafId: number,
     treeLoc: Point,
-    fold: SymmetryFold | null,
+    mirror: BpMirrorOrientation | null,
     selfMirrored = false
   ): Promise<OristudioBpDocumentState> => {
     if (!flapAnchor(document, leafId)) return document;
@@ -332,7 +334,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         treeLoc,
         treeSheet: document.snapshot.tree.sheet,
         layoutSheet: document.snapshot.packing.sheet,
-        fold,
+        mirror,
         selfMirrored,
       }),
       { activeSurface: document.activeSurface }
@@ -361,11 +363,11 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     document: OristudioBpDocumentState,
     primaryId: number,
     partnerId: number,
-    fold: SymmetryFold
+    mirror: BpMirrorOrientation
   ): Promise<OristudioBpDocumentState> => {
     const primary = flapAnchor(document, primaryId);
     if (!primary || !flapAnchor(document, partnerId)) return document;
-    const anchor = seedBpPartnerFlapAnchor(primary, document.snapshot.packing.sheet, fold);
+    const anchor = seedBpPartnerFlapAnchor(primary, document.snapshot.packing.sheet, mirror);
     if (!anchor) return document;
     return moveRuntimeOristudioBpLayoutFlap(partnerId, anchor, {
       activeSurface: document.activeSurface,
@@ -543,6 +545,50 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       set({ oristudioBpError: normalized.message, oristudioBpBusy: false, error: normalized });
       return false;
     }
+  };
+
+  /**
+   * A sheet transform, plus the mirror bookkeeping every one of them owes.
+   *
+   * Each transform moves the whole layout rigidly, so a symmetric design comes
+   * out just as symmetric and the flap geometry needs no help. What does need
+   * help is our record of *where* the mirror is: a rotation carries a vertical
+   * mirror onto the horizontal, and no amount of looking at the sheet afterwards
+   * recovers that. So the orientation is written here, inside the mutation, on
+   * the same undo entry as the geometry it describes — the two can never be left
+   * disagreeing.
+   *
+   * Written whether or not mirror draw is on. Which fold a model has is a fact
+   * about the model that outlives the toggle, so a design rotated with mirror
+   * draw off and turned on later has to come back with its mirror in the right
+   * place.
+   */
+  const transformBpLayoutSheet = (
+    label: string,
+    transform: BpSheetTransform,
+    run: () => Promise<OristudioBpDocumentState>
+  ): Promise<boolean> => {
+    // Named before the first await, like every other addressed write here: the
+    // mirror belongs to the design the transform started in.
+    const designId = get().activeDesignId;
+    return runBpTreeMutation(label, async () => {
+      const next = await run();
+      const symmetry = selectOristudioBpSymmetry(get(), designId);
+      // The sheet the transform acted on, so that a layout grid switched to
+      // diagonal is read as the diamond it is.
+      const moved = mirrorAfterSheetTransform(
+        next.snapshot.packing.sheet.kind,
+        symmetry,
+        transform
+      );
+      if (
+        moved.quarterTurn !== symmetry.quarterTurn ||
+        moved.sidesSwapped !== symmetry.sidesSwapped
+      ) {
+        set(patchBoxPleatDesign(get(), { symmetry: { ...symmetry, ...moved } }, designId));
+      }
+      return next;
+    });
   };
 
   return {
@@ -842,7 +888,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
                 added.document,
                 added.createdId,
                 targetLoc,
-                symmetry.fold,
+                symmetry,
                 snap.snapped
               )
             : added.document;
@@ -881,7 +927,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
               designId
             )
           );
-          next = await seedPartnerFlap(next, primary.createdId, mirror.createdId, symmetry.fold);
+          next = await seedPartnerFlap(next, primary.createdId, mirror.createdId, symmetry);
         }
         return next;
       }, { selection: { kind: 'bp-vertex', id: parentId } });
@@ -1101,7 +1147,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           if (partnerId === null) return next;
           const mirrorId = partnerId;
           const swaps = optimizerSymmetryAxisSwapsDimensions(
-            optimizerSymmetryAxisForFold(document.snapshot.tree.sheet.kind, symmetry.fold)
+            optimizerSymmetryAxisForMirror(document.snapshot.tree.sheet.kind, symmetry)
           );
           return resizeRuntimeOristudioBpLayoutFlap(
             mirrorId,
@@ -1153,7 +1199,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           const reference = before.flaps.find((flap) => flap.id === ids[0]);
           const onAxis =
             reference && bpIsSelfMirrored(reference.id, designId)
-              ? constrainBpFlapMoveToAxis(reference, loc, before.sheet, symmetry.fold) ?? loc
+              ? constrainBpFlapMoveToAxis(reference, loc, before.sheet, symmetry) ?? loc
               : loc;
           // A paired flap stays in its own half: crossing the mirror would put it
           // on top of its own reflection. Only the component across the axis is
@@ -1166,7 +1212,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
             moving,
             target: onAxis,
             sheet: before.sheet,
-            fold: symmetry.fold,
+            mirror: symmetry,
             pairedIds: new Set(ids.filter((id) => bpMirrorPartnerId(id, designId) !== null)),
           });
           const moved = await moveRuntimeOristudioBpLayoutFlaps(ids, target, {
@@ -1183,7 +1229,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
             pairs: symmetry.pairs,
             treeAxis: { loc: symmetry.loc, angle: symmetry.angle },
             sheet: before.sheet,
-            fold: symmetry.fold,
+            mirror: symmetry,
             flaps: before.flaps,
             moves: ids.flatMap((id) => {
               const at = landed.get(id);
@@ -1245,7 +1291,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       ),
 
     subdivideOristudioBpLayoutSheet: async () =>
-      runBpTreeMutation('Subdivided BP sheet', () =>
+      transformBpLayoutSheet('Subdivided BP sheet', { kind: 'subdivide' }, () =>
         subdivideRuntimeOristudioBpLayoutSheet({
           activeSurface: 'packing',
         })
@@ -1256,26 +1302,30 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       // halve cleanly — dimensions not even, below the minimum, or a flap off an
       // even line — so the button is also disabled in those cases (see the
       // packing panel's canUnsubdivide).
-      runBpTreeMutation('Un-subdivided BP sheet', () =>
+      transformBpLayoutSheet('Un-subdivided BP sheet', { kind: 'unsubdivide' }, () =>
         unsubdivideRuntimeOristudioBpLayoutSheet({
           activeSurface: 'packing',
         })
       ),
 
     rotateOristudioBpLayoutSheet: async (clockwise) =>
-      runBpTreeMutation(clockwise ? 'Rotated BP sheet right' : 'Rotated BP sheet left', () =>
-        rotateRuntimeOristudioBpLayoutSheet(clockwise, {
-          activeSurface: 'packing',
-        })
+      transformBpLayoutSheet(
+        clockwise ? 'Rotated BP sheet right' : 'Rotated BP sheet left',
+        { kind: 'rotate', clockwise },
+        () =>
+          rotateRuntimeOristudioBpLayoutSheet(clockwise, {
+            activeSurface: 'packing',
+          })
       ),
 
     flipOristudioBpLayoutSheet: async (horizontal) =>
-      runBpTreeMutation(
+      transformBpLayoutSheet(
         horizontal ? 'Flipped BP sheet horizontal' : 'Flipped BP sheet vertical',
+        { kind: 'flip', horizontal },
         () =>
           flipRuntimeOristudioBpLayoutSheet(horizontal, {
             activeSurface: 'packing',
-            })
+          })
       ),
 
     optimizeOristudioBpLayout: async (options, onProgress) => {
@@ -1291,9 +1341,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       const symmetryState = selectOristudioBpSymmetry(get(), designId);
       let symmetry: OptimizerSymmetryPayload | null = null;
       if (options.respectSymmetry) {
-        const resolved = resolveOptimizerSymmetry(document.snapshot.tree, symmetryState, {
-          fold: symmetryState.fold,
-        });
+        const resolved = resolveOptimizerSymmetry(document.snapshot.tree, symmetryState);
         if (!resolved.ok) {
           // Falling back to an unconstrained solve would hand back a layout the
           // user did not ask for, so refuse and say why.

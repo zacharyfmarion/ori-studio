@@ -32,7 +32,7 @@ pub struct ConstraintDiagnosticSummary {
     pub hard_kawasaki_failure: usize,
     pub odd_degree_topology_failure: usize,
     pub maekawa_assignment_failure: usize,
-    pub little_big_little_failure: usize,
+    pub big_little_big_failure: usize,
     pub boundary_topology_failure: usize,
     pub global_flatfolder_failure: usize,
     pub hard_error_count: usize,
@@ -55,13 +55,13 @@ pub struct VertexConstraintDiagnostic {
     pub kawasaki_residual_degrees: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub maekawa_residual: Option<usize>,
-    pub little_big_little: LittleBigLittleStatus,
+    pub big_little_big: BigLittleBigStatus,
     pub severity: ConstraintSeverity,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum LittleBigLittleStatus {
+pub enum BigLittleBigStatus {
     NotEvaluated,
     Clean,
     Ambiguous,
@@ -77,7 +77,7 @@ pub enum ConstraintSeverity {
     HardKawasakiFailure,
     OddDegreeTopologyFailure,
     MaekawaAssignmentFailure,
-    LittleBigLittleFailure,
+    BigLittleBigFailure,
     BoundaryTopologyFailure,
     GlobalFlatfolderFailure,
 }
@@ -148,15 +148,15 @@ pub fn diagnose_constraints(
                 .count();
             let maekawa_residual =
                 maekawa_residual(mountain_count, valley_count, unknown_count, degree);
-            let little_big_little =
-                little_big_little_status(&rays, &sector_angles, options.angle_epsilon_degrees);
+            let big_little_big =
+                big_little_big_status(&rays, &sector_angles, options.angle_epsilon_degrees);
             let severity = classify_severity(
                 vertex.kind,
                 boundary_edge_count[index],
                 degree,
                 kawasaki_residual,
                 maekawa_residual,
-                little_big_little,
+                big_little_big,
                 options,
             );
             VertexConstraintDiagnostic {
@@ -175,7 +175,7 @@ pub fn diagnose_constraints(
                 sector_angles_degrees: sector_angles.into_iter().map(round_degrees).collect(),
                 kawasaki_residual_degrees: kawasaki_residual.map(round_degrees),
                 maekawa_residual,
-                little_big_little,
+                big_little_big,
                 severity,
             }
         })
@@ -196,7 +196,7 @@ impl ConstraintDiagnosticSummary {
             hard_kawasaki_failure: 0,
             odd_degree_topology_failure: 0,
             maekawa_assignment_failure: 0,
-            little_big_little_failure: 0,
+            big_little_big_failure: 0,
             boundary_topology_failure: 0,
             global_flatfolder_failure: 0,
             hard_error_count: 0,
@@ -214,9 +214,7 @@ impl ConstraintDiagnosticSummary {
                 ConstraintSeverity::MaekawaAssignmentFailure => {
                     summary.maekawa_assignment_failure += 1
                 }
-                ConstraintSeverity::LittleBigLittleFailure => {
-                    summary.little_big_little_failure += 1
-                }
+                ConstraintSeverity::BigLittleBigFailure => summary.big_little_big_failure += 1,
                 ConstraintSeverity::BoundaryTopologyFailure => {
                     summary.boundary_topology_failure += 1
                 }
@@ -242,7 +240,7 @@ fn classify_severity(
     degree: usize,
     kawasaki_residual: Option<f64>,
     maekawa_residual: Option<usize>,
-    little_big_little: LittleBigLittleStatus,
+    big_little_big: BigLittleBigStatus,
     options: ConstraintDiagnosticOptions,
 ) -> ConstraintSeverity {
     if kind != VertexKind::Interior {
@@ -264,8 +262,8 @@ fn classify_severity(
     if maekawa_residual.is_some_and(|residual| residual > 0) {
         return ConstraintSeverity::MaekawaAssignmentFailure;
     }
-    if little_big_little == LittleBigLittleStatus::Violation {
-        return ConstraintSeverity::LittleBigLittleFailure;
+    if big_little_big == BigLittleBigStatus::Violation {
+        return ConstraintSeverity::BigLittleBigFailure;
     }
     if kawasaki_residual.is_some_and(|residual| residual > options.tiny_residual_degrees) {
         return ConstraintSeverity::SmallGeometryResidual;
@@ -282,7 +280,7 @@ fn is_hard(severity: ConstraintSeverity) -> bool {
         ConstraintSeverity::HardKawasakiFailure
             | ConstraintSeverity::OddDegreeTopologyFailure
             | ConstraintSeverity::MaekawaAssignmentFailure
-            | ConstraintSeverity::LittleBigLittleFailure
+            | ConstraintSeverity::BigLittleBigFailure
             | ConstraintSeverity::BoundaryTopologyFailure
             | ConstraintSeverity::GlobalFlatfolderFailure
     )
@@ -331,26 +329,26 @@ fn maekawa_residual(
     Some(mountain_count.abs_diff(valley_count).abs_diff(2))
 }
 
-fn little_big_little_status(
+fn big_little_big_status(
     rays: &[IncidentRay],
     sectors: &[f64],
     epsilon: f64,
-) -> LittleBigLittleStatus {
+) -> BigLittleBigStatus {
     if rays.len() < 4 || sectors.len() != rays.len() {
-        return LittleBigLittleStatus::NotEvaluated;
+        return BigLittleBigStatus::NotEvaluated;
     }
     if rays
         .iter()
         .any(|ray| ray.assignment == AssignmentLabel::Unknown)
     {
-        return LittleBigLittleStatus::Ambiguous;
+        return BigLittleBigStatus::Ambiguous;
     }
     let min_sector = sectors.iter().copied().fold(f64::INFINITY, f64::min);
     let all_equal = sectors
         .iter()
         .all(|sector| (*sector - min_sector).abs() <= epsilon);
     if all_equal {
-        return LittleBigLittleStatus::Clean;
+        return BigLittleBigStatus::Clean;
     }
     for (index, sector) in sectors.iter().enumerate() {
         if (*sector - min_sector).abs() > epsilon {
@@ -358,10 +356,10 @@ fn little_big_little_status(
         }
         let next = (index + 1) % rays.len();
         if rays[index].assignment == rays[next].assignment {
-            return LittleBigLittleStatus::Violation;
+            return BigLittleBigStatus::Violation;
         }
     }
-    LittleBigLittleStatus::Clean
+    BigLittleBigStatus::Clean
 }
 
 fn round_degrees(value: f64) -> f64 {
@@ -462,7 +460,7 @@ mod tests {
     }
 
     #[test]
-    fn little_big_little_min_sector_with_same_labels_is_reported() {
+    fn big_little_big_min_sector_with_same_labels_is_reported() {
         let program = star(&[
             (0.0, AssignmentLabel::Mountain),
             (30.0, AssignmentLabel::Mountain),
@@ -474,8 +472,8 @@ mod tests {
         let center = &diagnostics.vertices[0];
 
         assert_eq!(center.kawasaki_residual_degrees, Some(0.0));
-        assert_eq!(center.little_big_little, LittleBigLittleStatus::Violation);
-        assert_eq!(center.severity, ConstraintSeverity::LittleBigLittleFailure);
+        assert_eq!(center.big_little_big, BigLittleBigStatus::Violation);
+        assert_eq!(center.severity, ConstraintSeverity::BigLittleBigFailure);
     }
 
     #[test]

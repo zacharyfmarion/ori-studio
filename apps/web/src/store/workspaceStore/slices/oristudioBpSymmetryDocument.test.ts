@@ -50,7 +50,13 @@ afterEach(() => {
 
 describe('symmetry is document state', () => {
   it('starts off, book-fold, with nothing paired', () => {
-    expect(defaultBpDocumentSymmetry()).toEqual({ enabled: false, fold: 'book', pairs: [] });
+    expect(defaultBpDocumentSymmetry()).toEqual({
+      enabled: false,
+      fold: 'book',
+      quarterTurn: false,
+      sidesSwapped: false,
+      pairs: [],
+    });
     const initial = selectOristudioBpSymmetry(singleBoxPleatDesignTab());
     expect(initial.enabled).toBe(false);
     expect(initial.fold).toBe('book');
@@ -68,6 +74,18 @@ describe('symmetry is document state', () => {
     useWorkspaceStore.getState().setOristudioBpSymmetry({ fold: 'diagonal' });
     expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).fold).toBe('diagonal');
     expect(useWorkspaceStore.getState().dirty).toBe(true);
+  });
+
+  it('leaves the quarter turn alone when the fold changes', () => {
+    // The four mirror axes of the square fall into two classes of two, and the
+    // fold names the class: book covers the vertical mirror and the horizontal,
+    // diagonal covers both diagonals. Which member of the class the design is on
+    // is what the sheet transforms move, so it is not the fold picker's to
+    // touch — and the menu's "Book" stays true either way.
+    useWorkspaceStore.getState().setOristudioBpSymmetry({ quarterTurn: true, sidesSwapped: true });
+    useWorkspaceStore.getState().setOristudioBpSymmetry({ fold: 'diagonal' });
+    const symmetry = selectOristudioBpSymmetry(useWorkspaceStore.getState());
+    expect(symmetry).toMatchObject({ fold: 'diagonal', quarterTurn: true, sidesSwapped: true });
   });
 
   it('marks the project dirty when a pair is broken', () => {
@@ -207,7 +225,13 @@ describe('symmetry rides the undo stack', () => {
           snapshot: {
             bps: '<before/>',
             selection: { kind: 'bp-none' },
-            symmetry: { enabled: true, fold: 'book', pairs: [{ v1: 1, v2: 2 }] },
+            symmetry: {
+              enabled: true,
+              fold: 'book',
+              quarterTurn: false,
+              sidesSwapped: false,
+              pairs: [{ v1: 1, v2: 2 }],
+            },
           },
           label: 'Delete flap',
           timestamp: '2026-01-01T00:00:00.000Z',

@@ -70,6 +70,10 @@ export type WorkspaceCapabilityId =
   | 'bp.optimize.layout'
   | 'bp.layout.subdivide'
   | 'bp.layout.unsubdivide'
+  | 'bp.layout.rotateRight'
+  | 'bp.layout.rotateLeft'
+  | 'bp.layout.flipHorizontal'
+  | 'bp.layout.flipVertical'
   | 'cp.build'
   | 'cp.deleteSelectedLines'
   | 'cp.changeCreaseType'
@@ -666,6 +670,57 @@ export function getWorkspaceCapabilities(
             'The grid can only be halved when every flap sits on an even grid line'
           )
     ),
+    // Rotating and flipping need no condition beyond having a sheet to act on.
+    // Both are isometries of it — a rotation swaps the sheet's width and height
+    // along with the design — so neither can push a flap off the paper, which is
+    // also why upstream's Edit menu gates them on nothing but an open project.
+    'bp.layout.rotateRight': commandCapability(
+      canEditBpSheet,
+      isBpContext,
+      t('common:capability.bpRotateRight', 'Rotate Right'),
+      bpSheetTransformReason(
+        canEditBpSheet,
+        t('common:capability.bpRotateRightReason', 'Turn the whole design a quarter turn clockwise'),
+        input,
+        t
+      )
+    ),
+    'bp.layout.rotateLeft': commandCapability(
+      canEditBpSheet,
+      isBpContext,
+      t('common:capability.bpRotateLeft', 'Rotate Left'),
+      bpSheetTransformReason(
+        canEditBpSheet,
+        t(
+          'common:capability.bpRotateLeftReason',
+          'Turn the whole design a quarter turn counterclockwise'
+        ),
+        input,
+        t
+      )
+    ),
+    'bp.layout.flipHorizontal': commandCapability(
+      canEditBpSheet,
+      isBpContext,
+      t('common:capability.bpFlipHorizontal', 'Horizontal Flip'),
+      bpSheetTransformReason(
+        canEditBpSheet,
+        t('common:capability.bpFlipHorizontalReason', 'Mirror the design left to right'),
+        input,
+        t
+      )
+    ),
+    'bp.layout.flipVertical': commandCapability(
+      canEditBpSheet,
+      isBpContext,
+      t('common:capability.bpFlipVertical', 'Vertical Flip'),
+      bpSheetTransformReason(
+        canEditBpSheet,
+        t('common:capability.bpFlipVerticalReason', 'Mirror the design top to bottom'),
+        input,
+        t
+      )
+    ),
     'cp.build': commandCapability(
       canBuild,
       treeMode,
@@ -802,9 +857,9 @@ export function getWorkspaceCapabilities(
     ),
     'cp.check4': capability(
       canEditCp,
-      t('common:capability.checkMaekawaLbl', 'Check Maekawa/LBL'),
+      t('common:capability.checkMaekawaBlb', 'Check Maekawa/BLB'),
       canEditCp
-        ? t('common:capability.checkMaekawaAngleLblViolations', 'Check Maekawa, angle, and little-big-little violations')
+        ? t('common:capability.checkMaekawaAngleBlbViolations', 'Check Maekawa, angle, and big-little-big violations')
         : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
     ),
     'cp.fix1': capability(
@@ -1014,6 +1069,28 @@ function disabledBpOptimizeReason(input: WorkspaceCapabilityInput, t: TFunction)
   if (input.boxPleatTreeEdgeCount === 0)
     return t('common:capability.bpOptimizeNeedsEdges', 'Add box-pleat tree edges before optimizing');
   return t('common:capability.bpOptimizeUnavailable', 'Layout optimization is unavailable');
+}
+
+/**
+ * What to say about a sheet transform: what it does, or why it cannot run.
+ *
+ * The transforms themselves are always available, so the only ways to be
+ * disabled are having no design or catching the engine mid-run — which is what
+ * `canEditBpSheet` is, spelled out.
+ */
+function bpSheetTransformReason(
+  enabled: boolean,
+  reason: string,
+  input: WorkspaceCapabilityInput,
+  t: TFunction
+): string {
+  if (enabled) return reason;
+  if (!input.hasBoxPleatDocument)
+    return t(
+      'common:capability.bpSheetNeedsDocument',
+      'Open a box-pleat design before transforming the sheet'
+    );
+  return t('common:capability.bpSheetBusy', 'The box-pleat engine is busy');
 }
 
 function disabledOptimizeReason(

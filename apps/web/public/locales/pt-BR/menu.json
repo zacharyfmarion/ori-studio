@@ -1,6 +1,10 @@
 {
   "bp": {
+    "flipHorizontal": "Espelhar horizontalmente",
+    "flipVertical": "Espelhar verticalmente",
     "optimizeLayout": "Otimizar o layout…",
+    "rotateLeft": "Girar à esquerda",
+    "rotateRight": "Girar à direita",
     "subdivide": "Subdividir grade",
     "unsubdivide": "Desfazer subdivisão"
   },
@@ -13,7 +17,7 @@
     "check1": "Verificar sobreposições",
     "check2": "Verificar junções em T",
     "check3": "Verificar dobrabilidade dos vértices",
-    "check4": "Verificar Maekawa/LBL",
+    "check4": "Verificar Maekawa/BLB",
     "checkCamv": "Verificar dobrabilidade",
     "deleteExtraVertices": "Excluir vértices extras",
     "deleteExtraVerticesIgnoreColor": "Excluir vértices extras (ignorar tipo)",

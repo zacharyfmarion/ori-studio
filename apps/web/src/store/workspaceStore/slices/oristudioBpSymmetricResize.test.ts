@@ -71,6 +71,7 @@ function bpDocument(kind: 'rectangular' | 'diagonal' = 'rectangular'): Oristudio
 function setUp(options: {
   enabled: boolean;
   fold?: 'book' | 'diagonal';
+  quarterTurn?: boolean;
   kind?: 'rectangular' | 'diagonal';
   pairs?: { v1: number; v2: number }[];
 }) {
@@ -85,6 +86,8 @@ function setUp(options: {
         ...AXIS,
         enabled: options.enabled,
         fold: options.fold ?? 'book',
+        quarterTurn: options.quarterTurn ?? false,
+        sidesSwapped: false,
         pairs: options.pairs ?? [],
       }
       })},
