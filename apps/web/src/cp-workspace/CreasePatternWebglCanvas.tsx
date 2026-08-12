@@ -690,7 +690,7 @@ export interface CreasePatternWebglCanvasProps {
   /** Diagnostic overlay geometry (CAMV / check-fix): shape markers + segment highlights. */
   diagnosticMarkers: MarkerGeometry;
   diagnosticStrokes: StrokeGeometry;
-  /** Little-big-little sector wedges (screen-scaled fills), or empty when none. */
+  /** Big-little-big sector wedges (screen-scaled fills), or empty when none. */
   diagnosticWedges: WedgeGeometry;
   /** The Oriedita operation-frame outline (dashed closed loop), or null when inactive. */
   operationFrame: StrokeGeometry | null;

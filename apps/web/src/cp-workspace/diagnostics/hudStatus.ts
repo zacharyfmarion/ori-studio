@@ -58,7 +58,7 @@ export function diagnosticOperationLabel(t: TFunction, operation: string): strin
     case 'Check3':
       return t('panels:creasePattern.diagnostic.vertexFoldability', 'Vertex foldability');
     case 'Check4':
-      return t('panels:creasePattern.diagnostic.maekawaLbl', 'Maekawa/LBL');
+      return t('panels:creasePattern.diagnostic.maekawaBlb', 'Maekawa/BLB');
     case 'FlatFoldableCheck':
       return t('panels:creasePattern.diagnostic.boundary', 'Boundary');
     default:

@@ -263,11 +263,11 @@ pub struct CommandDiagnostic {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub violation_color: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub little_big_little: Vec<CommandDiagnosticLittleBigLittleSegment>,
+    pub big_little_big: Vec<CommandDiagnosticBigLittleBigSegment>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CommandDiagnosticLittleBigLittleSegment {
+pub struct CommandDiagnosticBigLittleBigSegment {
     pub segment: geometry::LineSegment,
     pub violating: bool,
 }
@@ -2813,7 +2813,7 @@ fn line_pair_diagnostics(
             rule: Some(format!("{operation:?}")),
             residual_degrees: None,
             violation_color: None,
-            little_big_little: Vec::new(),
+            big_little_big: Vec::new(),
         })
         .collect()
 }
@@ -2832,7 +2832,7 @@ fn point_marker_diagnostics(kind: &str, markers: Vec<LineSegment>) -> Vec<Comman
             rule: Some("VertexFlatFoldability".to_string()),
             residual_degrees: None,
             violation_color: None,
-            little_big_little: Vec::new(),
+            big_little_big: Vec::new(),
         })
         .collect()
 }
@@ -2847,15 +2847,15 @@ fn flat_foldability_diagnostics(
         .map(|(index, violation)| {
             let rule = flat_foldability_rule_label(violation.rule);
             let violation_color = flat_foldability_color_label(violation.color);
-            let little_big_little = violation
-                .little_big_little
+            let big_little_big = violation
+                .big_little_big
                 .into_iter()
-                .map(|segment| CommandDiagnosticLittleBigLittleSegment {
+                .map(|segment| CommandDiagnosticBigLittleBigSegment {
                     segment: segment.segment,
                     violating: segment.violating,
                 })
                 .collect::<Vec<_>>();
-            let segments = little_big_little
+            let segments = big_little_big
                 .iter()
                 .map(|segment| segment.segment.clone())
                 .collect();
@@ -2869,7 +2869,7 @@ fn flat_foldability_diagnostics(
                 rule: Some(rule.to_string()),
                 residual_degrees: None,
                 violation_color: Some(violation_color.to_string()),
-                little_big_little,
+                big_little_big,
             }
         })
         .collect()
@@ -3078,7 +3078,7 @@ fn interior_border_diagnostics(
             rule: Some("InteriorBorder".to_string()),
             residual_degrees: None,
             violation_color: None,
-            little_big_little: Vec::new(),
+            big_little_big: Vec::new(),
         })
         .collect()
 }
@@ -3116,7 +3116,7 @@ fn spatial_closure_diagnostics(
                     rule: Some("SelfIntersection".to_string()),
                     residual_degrees: None,
                     violation_color: None,
-                    little_big_little: Vec::new(),
+                    big_little_big: Vec::new(),
                 });
             }
             continue;
@@ -3157,7 +3157,7 @@ fn spatial_closure_diagnostics(
                 Some(residual_degrees)
             },
             violation_color: None,
-            little_big_little: Vec::new(),
+            big_little_big: Vec::new(),
         });
     }
     diagnostics
@@ -3168,7 +3168,7 @@ fn flat_foldability_rule_label(rule: checks::FlatFoldabilityRule) -> &'static st
         checks::FlatFoldabilityRule::NumberOfFolds => "NumberOfFolds",
         checks::FlatFoldabilityRule::Angles => "Angles",
         checks::FlatFoldabilityRule::Maekawa => "Maekawa",
-        checks::FlatFoldabilityRule::LittleBigLittle => "LittleBigLittle",
+        checks::FlatFoldabilityRule::BigLittleBig => "BigLittleBig",
         checks::FlatFoldabilityRule::None => "None",
     }
 }
@@ -3244,7 +3244,7 @@ fn flat_foldable_boundary_input_diagnostics(
         rule: Some("BoundaryLoop".to_string()),
         residual_degrees: None,
         violation_color: None,
-        little_big_little: Vec::new(),
+        big_little_big: Vec::new(),
     }]
 }
 
@@ -3273,7 +3273,7 @@ fn flat_foldable_boundary_result_diagnostics(
         rule: Some("FlatFoldableBoundary".to_string()),
         residual_degrees: None,
         violation_color: None,
-        little_big_little: Vec::new(),
+        big_little_big: Vec::new(),
     }]
 }
 
@@ -6329,7 +6329,7 @@ mod tests {
             .find(|entry| entry.rule.as_deref() == Some("Maekawa"))
             .expect("Maekawa violation should be reported");
         assert_eq!(maekawa.violation_color.as_deref(), Some("Equal"));
-        assert!(maekawa.little_big_little.is_empty());
+        assert!(maekawa.big_little_big.is_empty());
 
         document.crease_pattern.line_segments.clear();
         document.crease_pattern.add_line(
@@ -6368,22 +6368,19 @@ mod tests {
             CreasePatternCommand::new(OperationId::Check4),
         )
         .expect("Check4 should execute");
-        let little_big_little = check4
+        let big_little_big = check4
             .diagnostic_entries
             .iter()
-            .find(|entry| entry.rule.as_deref() == Some("LittleBigLittle"))
-            .expect("Little-Big-Little violation should be reported");
+            .find(|entry| entry.rule.as_deref() == Some("BigLittleBig"))
+            .expect("Big-Little-Big violation should be reported");
+        assert_eq!(big_little_big.violation_color.as_deref(), Some("Correct"));
         assert_eq!(
-            little_big_little.violation_color.as_deref(),
-            Some("Correct")
-        );
-        assert_eq!(
-            little_big_little.segments.len(),
-            little_big_little.little_big_little.len()
+            big_little_big.segments.len(),
+            big_little_big.big_little_big.len()
         );
         assert!(
-            little_big_little
-                .little_big_little
+            big_little_big
+                .big_little_big
                 .iter()
                 .any(|sector| sector.violating)
         );

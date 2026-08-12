@@ -240,7 +240,7 @@ export function getMenuBarDef(
             { type: 'action', id: 'cp.check1', label: t('menu:cp.check1', 'Check Overlaps') },
             { type: 'action', id: 'cp.check2', label: t('menu:cp.check2', 'Check T-junctions') },
             { type: 'action', id: 'cp.check3', label: t('menu:cp.check3', 'Check Vertex Foldability') },
-            { type: 'action', id: 'cp.check4', label: t('menu:cp.check4', 'Check Maekawa/LBL') },
+            { type: 'action', id: 'cp.check4', label: t('menu:cp.check4', 'Check Maekawa/BLB') },
           ],
         },
         {

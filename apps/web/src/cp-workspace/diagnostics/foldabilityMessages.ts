@@ -45,7 +45,7 @@ export const FOLDABILITY_RULES = [
   'NumberOfFolds',
   'Angles',
   'Maekawa',
-  'LittleBigLittle',
+  'BigLittleBig',
   'None',
 ] as const;
 
@@ -175,10 +175,10 @@ export function foldabilityViolationMessage(
 
     // No legend entry upstream: Oriedita draws this as angular sectors rather
     // than a marker, so the wording is ours.
-    case 'LittleBigLittle':
+    case 'BigLittleBig':
       return t(
-        'panels:creasePattern.foldability.littleBigLittle',
-        'Angles cannot nest (little-big-little)'
+        'panels:creasePattern.foldability.bigLittleBig',
+        'Angles cannot nest (big-little-big)'
       );
 
     // A violation is never reported with no rule; the kernel's message stands.

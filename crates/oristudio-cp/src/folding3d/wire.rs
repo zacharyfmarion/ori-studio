@@ -370,7 +370,7 @@ pub enum FlatFoldabilityRuleCode {
     NumberOfFolds,
     Angles,
     Maekawa,
-    LittleBigLittle,
+    BigLittleBig,
     None,
 }
 
@@ -380,7 +380,7 @@ impl From<FlatFoldabilityRule> for FlatFoldabilityRuleCode {
             FlatFoldabilityRule::NumberOfFolds => Self::NumberOfFolds,
             FlatFoldabilityRule::Angles => Self::Angles,
             FlatFoldabilityRule::Maekawa => Self::Maekawa,
-            FlatFoldabilityRule::LittleBigLittle => Self::LittleBigLittle,
+            FlatFoldabilityRule::BigLittleBig => Self::BigLittleBig,
             FlatFoldabilityRule::None => Self::None,
         }
     }

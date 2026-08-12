@@ -287,7 +287,7 @@ pub fn score_program(
             ConstraintSeverity::HardKawasakiFailure => 200.0,
             ConstraintSeverity::OddDegreeTopologyFailure => 200.0,
             ConstraintSeverity::MaekawaAssignmentFailure => 80.0,
-            ConstraintSeverity::LittleBigLittleFailure => 60.0,
+            ConstraintSeverity::BigLittleBigFailure => 60.0,
             ConstraintSeverity::BoundaryTopologyFailure => 300.0,
             ConstraintSeverity::GlobalFlatfolderFailure => 500.0,
         })

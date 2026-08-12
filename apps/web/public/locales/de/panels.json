@@ -213,7 +213,7 @@
       "errorOne_other": "{{count}} {{label}}-Fehler",
       "errorOther_one": "{{count}} {{label}}-Fehler",
       "errorOther_other": "{{count}} {{label}}-Fehler",
-      "maekawaLbl": "Maekawa/LBL",
+      "maekawaBlb": "Maekawa/BLB",
       "ok": "{{label}} OK",
       "overlap": "Überlappung",
       "tJunction": "T-Verbindung",
@@ -232,6 +232,7 @@
     "flipFoldedModel": "Gefaltetes Modell umdrehen",
     "fold": "Falten",
     "foldability": {
+      "bigLittleBig": "Winkel lassen sich nicht schachteln (groß-klein-groß)",
       "closure": "Die Falten hier schließen sich nicht",
       "closureResidual": "Die Falten hier schließen sich nicht: {{degrees}}° Abweichung",
       "compose": "{{lead}} — {{tail}}",
@@ -241,15 +242,14 @@
       "incorrectAngles": "Falsche Winkel",
       "incorrectFoldTypes": "Falsche Faltentypen",
       "interiorBorder": "Kante mit Papier auf beiden Seiten – die Faltbarkeit entlang dieser Kante wird nicht geprüft",
-      "littleBigLittle": "Winkel lassen sich nicht schachteln (klein-groß-klein)",
       "notEnoughMountain": "nicht genug Bergfalten",
       "notEnoughValley": "nicht genug Talfalten",
       "oddFolds": "Ungerade Anzahl an Falten",
       "rigidVertex": "Dieser Knotenpunkt ist starr, daher muss hier jede Falte flach bleiben",
       "selfIntersection": "Das Papier durchdringt sich hier selbst",
       "shape": {
+        "bigLittleBig": "Groß-klein-groß",
         "circle": "Falsche Winkel (Satz von Kawasaki)",
-        "littleBigLittle": "Klein-groß-klein",
         "selfIntersection": "Die Faltwinkel passen zusammen, aber das Papier kann diesen Zustand nicht erreichen, ohne sich selbst zu durchdringen",
         "square": "Falsche Faltentypen",
         "triangle": "Falsche (ungerade) Anzahl an Falten"

@@ -792,9 +792,9 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     placement: 'menu',
     tooltip: 'Find Oriedita vertex flat-foldability markers',
   }),
-  ready('Check4', 'Check Maekawa/LBL', 'check-fix', 'badge-alert', 'Check4', {
+  ready('Check4', 'Check Maekawa/BLB', 'check-fix', 'badge-alert', 'Check4', {
     placement: 'menu',
-    tooltip: 'Find Maekawa, angle, and little-big-little violations',
+    tooltip: 'Find Maekawa, angle, and big-little-big violations',
   }),
   ready('Fix1', 'Repair overlaps', 'check-fix', 'wrench', 'Fix1', {
     placement: 'menu',

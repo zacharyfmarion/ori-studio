@@ -17,7 +17,7 @@
     "check1": "检查重叠",
     "check2": "检查 T 型交点",
     "check3": "检查顶点可折性",
-    "check4": "检查 Maekawa/LBL",
+    "check4": "检查 Maekawa/BLB",
     "checkCamv": "检查可折叠性",
     "deleteExtraVertices": "删除多余顶点",
     "deleteExtraVerticesIgnoreColor": "删除多余顶点（忽略类型）",

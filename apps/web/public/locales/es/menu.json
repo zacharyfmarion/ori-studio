@@ -17,7 +17,7 @@
     "check1": "Comprobar solapamientos",
     "check2": "Comprobar uniones en T",
     "check3": "Comprobar plegabilidad de vértices",
-    "check4": "Comprobar Maekawa/LBL",
+    "check4": "Comprobar Maekawa/BLB",
     "checkCamv": "Comprobar plegabilidad",
     "deleteExtraVertices": "Eliminar vértices sobrantes",
     "deleteExtraVerticesIgnoreColor": "Eliminar vértices sobrantes (ignorar tipo)",
