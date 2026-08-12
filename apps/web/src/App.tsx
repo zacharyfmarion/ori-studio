@@ -23,6 +23,7 @@ import { installAppKeyboardListener } from './lib/appKeyboard';
 import { registerWorkerFailureSink, workerErrorCode } from './lib/workerDiagnostics';
 import { useTauriNativeMenu } from './menus/useTauriNativeMenu';
 import { createOpenedPathFileService } from './platform/fileService';
+import { isWorkspaceBlocked } from './platform/mobileSurface';
 import { getRuntimeSurface } from './platform/runtime';
 import { navigateTo } from './routing/appRouter';
 import { currentWorkspacePath } from './routing/landing';
@@ -57,6 +58,11 @@ export default function App() {
   useTauriNativeMenu();
 
   useEffect(() => {
+    // A blocked phone never reaches a workspace, so the CP and TreeMaker wasm
+    // bridges this pulls in are pure cost on the connection least able to afford
+    // them. Skipping is the single biggest thing the landing page does for load
+    // time there.
+    if (isWorkspaceBlocked()) return;
     void initEngine();
   }, [initEngine]);
 

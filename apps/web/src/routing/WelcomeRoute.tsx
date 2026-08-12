@@ -5,6 +5,8 @@ import { StartScreen } from '../components/StartScreen';
 import { useFileDropTarget } from '../hooks/useFileDropTarget';
 import { useWorkspaceErrorText } from '../hooks/useWorkspaceErrorText';
 import type { DropTargetPolicy } from '../lib/fileDrop';
+import type { AppStatus } from '../lib/sampleProject';
+import { useIsWorkspaceBlocked } from '../platform/mobileSurface';
 import { useLayoutStore } from '../store/layoutStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -19,6 +21,17 @@ import { currentWorkspacePath } from './landing';
 const WELCOME_DROP_POLICY: DropTargetPolicy = 'open-only';
 
 /**
+ * The status to reset to on arrival.
+ *
+ * On a blocked phone the engine is never started, so writing `loading_engine`
+ * here would announce a load that never resolves — leave whatever is there.
+ */
+function resetStatus(current: AppStatus, engineReady: boolean, blocked: boolean): AppStatus {
+  if (blocked) return current;
+  return engineReady ? 'ready' : 'loading_engine';
+}
+
+/**
  * The `/welcome` route: the start screen. Creating or opening a document
  * establishes it in the store, then navigates to the workspace that owns it.
  * Arriving here clears transient project state (a discarded dirty flag, a stale
@@ -30,6 +43,7 @@ const WELCOME_DROP_POLICY: DropTargetPolicy = 'open-only';
  */
 export function WelcomeRoute() {
   const navigate = useNavigate();
+  const blocked = useIsWorkspaceBlocked();
   const status = useWorkspaceStore((state) => state.status);
   const errorText = useWorkspaceErrorText();
   const createNewCreasePattern = useWorkspaceStore((state) => state.createNewCreasePattern);
@@ -44,10 +58,10 @@ export function WelcomeRoute() {
       dirty: false,
       error: null,
       projectMessage: null,
-      status: state.engineReady ? 'ready' : 'loading_engine',
+      status: resetStatus(state.status, state.engineReady, blocked),
     });
     useLayoutStore.getState().setActiveWorkspace('design');
-  }, []);
+  }, [blocked]);
 
   const handleCreateCreasePattern = useCallback(async () => {
     await createNewCreasePattern();

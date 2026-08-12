@@ -1,0 +1,331 @@
+# Welcome Landing Page
+
+## Goal
+
+Turn `/welcome` into a page with two registers:
+
+- **On a desktop browser and on the Tauri desktop shell**, the first viewport is
+  exactly the start screen it is today — hero, three start actions, footer
+  toggle. Scrolling down reveals a lean marketing landing page describing what
+  Ori Studio is.
+- **On a phone**, there is no start screen at all. The page is the landing page,
+  led by a notice that Ori Studio is desktop-only for now, with a quiet "open it
+  anyway" link for anyone who insists. A phone can never land in a workspace,
+  even by deep link, and never pays for the wasm engine download.
+
+Nothing about the desktop start screen's behaviour changes: `StartScreen`'s props
+and semantics are untouched, and its existing tests should pass unmodified.
+
+Decisions taken up front (asked and answered before planning):
+
+| Decision | Choice |
+| --- | --- |
+| Landing content depth | Lean — 4 sections |
+| What counts as "mobile" | Phones only: `(pointer: coarse) and (max-width: 820px)` |
+| Escape hatch | Yes — a quiet "open it anyway" link, persisted |
+
+## Approach
+
+### 1. One place that decides "is this a phone"
+
+New `apps/web/src/platform/mobileSurface.ts`, beside the existing
+`platform/runtime.ts` and `platform/features.ts`:
+
+```ts
+export const PHONE_MEDIA_QUERY = '(pointer: coarse) and (max-width: 820px)';
+
+export function isPhoneSurface(): boolean;      // sync, for router loaders
+export function useIsPhoneSurface(): boolean;   // subscribes to matchMedia
+export function hasPhoneOverride(): boolean;
+export function setPhoneOverride(value: boolean): void;
+```
+
+Three rules the module owns, so no caller re-derives them:
+
+- **Tauri is never a phone.** `getRuntimeSurface() === 'desktop'` short-circuits
+  to `false` before any media query runs. The desktop shell uses a memory router
+  and has no address bar; a gate misfiring there would be unrecoverable.
+- **The override wins.** Read through `lib/storage.ts` (add
+  `STORAGE_KEYS.phoneOverride` to the registry — per the repo's one-storage-module
+  rule, never a bare `localStorage` call).
+- **`matchMedia` may be absent.** jsdom and any non-browser host get `false`.
+
+Pointer-coarse *and* a phone-width viewport, rather than width alone, so a
+desktop user who drags their window narrow still gets the working app — they just
+get the landing page's single-column layout underneath it.
+
+**CSS keys off a data attribute, not a duplicated query.** `WelcomeRoute` sets
+`data-surface="phone"` on its root element and the stylesheet targets
+`[data-surface='phone']`. The breakpoint then lives in exactly one place (the TS
+constant) instead of drifting between a stylesheet and a module.
+
+### 2. Routing: a phone cannot reach a workspace
+
+Three edits in `apps/web/src/routing/appRouter.tsx`:
+
+- `startupHomePath()` returns `WELCOME_PATH` when `isPhoneSurface()` and no
+  override, ignoring the `showWelcomeOnStartup` preference. A phone that
+  previously turned the welcome screen off must not boot into `/edit`.
+- The `WorkspaceShell` parent route gains a `loader` that redirects to
+  `WELCOME_PATH` under the same condition — one guard covering `/design`,
+  `/edit`, `/simulate` and the legacy Design sub-paths.
+- `ShareRoute` (`/s`, `/s/:shareId`) redirects to `WELCOME_PATH` on a phone
+  rather than importing a payload into a workspace nobody can see.
+
+The file currently carries a comment stating there is **deliberately no guard** on
+the workspace routes. That comment is right about what it covers and must be
+amended rather than deleted: this new guard is a device-capability gate, not the
+document-provisioning guard the comment argues against. Every workspace still
+self-provisions, and a deep link on a real desktop is still always honored.
+
+`useWelcomeDiscardGuard` needs no change. It blocks navigation *to* `/welcome`
+when the project is dirty; on a phone the engine never initializes and no
+document ever exists, so nothing is dirty.
+
+### 3. A phone never downloads the engine
+
+`App.tsx` calls `void initEngine()` unconditionally on mount, which pulls in the
+CP and TreeMaker wasm bridges. Gate it on `!isPhoneSurface() || hasPhoneOverride()`.
+This is the single largest win for phone load time and the reason the gate is a
+module rather than a media query in a stylesheet.
+
+Consequence to handle: the store's `status` stays `'loading_engine'` forever on a
+phone. Nothing on the phone path reads it (`StartScreen` is not rendered), but
+`WelcomeRoute`'s mount effect currently writes `status: engineReady ? 'ready' :
+'loading_engine'` — leave the effect's other resets in place and skip the status
+write on the phone path so no future reader inherits a lie.
+
+### 4. Making the desktop page scroll
+
+Today `.app-layout--start` is `height: 100vh; overflow: hidden` and
+`.start-screen` is a centered grid with `overflow: auto`. The scroll container
+already exists; what is missing is a document taller than it.
+
+- `.start-screen` becomes `align-content: start` (not `place-items: center`) and
+  loses its `padding` — a full-bleed section background needs the padding on the
+  section's inner wrapper, not on the scroll region.
+- The existing `.start-screen__content` gets `min-height: 100dvh` and keeps its
+  own centering, so the first viewport is pixel-identical to today. `dvh`, not
+  `vh`, so a mobile browser's collapsing URL bar does not clip it.
+- `.welcome-landing` and its sections stack below.
+- A scroll affordance (chevron + a short label) sits at the bottom of the first
+  viewport, revealed only when the page actually scrolls and hidden once it has —
+  an `IntersectionObserver` on a sentinel, not a scroll listener.
+
+Scope the change to `--start`. `.app-layout` itself must stay `100vh` /
+`overflow: hidden` or every workspace layout breaks.
+
+New styles go in `apps/web/src/components/landing/WelcomeLanding.css`, following
+the existing component-level stylesheet pattern (`MenuBar.css`,
+`CpDetectImportModal.css`). `App.css` is already 832 lines; do not grow it.
+
+### 5. Components
+
+```
+apps/web/src/components/landing/
+  WelcomeLanding.tsx        # the four sections; shared by both registers
+  LandingSection.tsx        # section shell (eyebrow / heading / body / media)
+  DesktopOnlyNotice.tsx     # phone-only message + "open it anyway"
+  WelcomeLanding.css
+  WelcomeLanding.test.tsx
+  DesktopOnlyNotice.test.tsx
+```
+
+`WelcomeRoute.tsx` stays a composition site and gets no new behaviour beyond the
+branch:
+
+- **desktop** — `<StartScreen …/>` then `<WelcomeLanding/>`, inside the existing
+  file-drop region.
+- **phone** — `<DesktopOnlyNotice/>` then `<WelcomeLanding/>`, with
+  `useFileDropTarget` and `FileDropOverlay` not mounted (a phone has nothing to
+  drop) and the "show welcome on startup" toggle absent (it controls a route a
+  phone can never take).
+
+### 6. The four sections
+
+1. **What it is** — one paragraph: a single workspace that goes design → edit →
+   simulate, in the browser or on the desktop.
+2. **The three workspaces** — Design (tree structures, circle packing, box
+   pleating), Edit (crease-pattern editing with reference images and CP detection
+   from an image), Simulate (fold it and look at it). Three cards; icons from
+   `lucide-react`, reusing `DraftingCompass` / `PenTool` from `StartScreen` plus
+   one for Simulate.
+3. **Built on the tools you already use** — Oriedita, TreeMaker, Box Pleating
+   Studio, Flat-Folder, and the format-compatibility promise (`.cp`, `.fold`,
+   `.ori`, `.orh`, `.tmd5`, `.bps`, `.osf`). For this audience this is the
+   strongest thing on the page and it should not be buried.
+4. **Get it** — the hosted app (which the reader is already in), the signed
+   Apple Silicon DMG on GitHub Releases, and the repository. Links come from
+   `constants/release.ts`; add a `RELEASES_URL` export beside the existing
+   `REPOSITORY_URL` / `ISSUES_URL` rather than hardcoding a URL in a component.
+
+No new screenshot assets. Section 2 reuses the existing
+`public/start/crease-pattern-preview.png`; anything more is a follow-up, and
+should be a follow-up, because screenshots go stale on their own schedule.
+
+### 7. i18n
+
+A landing page is mostly copy, and `i18n:check` fails CI on any English string
+without a translation in all eight target locales. Budget for it: roughly 25–35
+new keys × 8 locales.
+
+New `landing` namespace, registered in three places:
+
+- `apps/web/src/i18n/locales.ts` → add `'landing'` to `I18N_NAMESPACES`.
+- `apps/web/scripts/i18n/_shared.mjs` → add `'landing'` to `PARSER_NAMESPACES`.
+- `public/locales/<locale>/landing.json` × 9 — generated, never hand-authored for
+  `en`.
+
+`assertInSync()` reads the namespace list back out of `locales.ts`, so keeping
+those two lists identical is enforced rather than remembered.
+
+`I18N_NAMESPACES` is passed to i18next's `ns`, so `landing.json` is fetched at
+init on every surface, including inside a workspace. At a few KB that is fine; if
+it ever matters, the alternative is to drop it from the eager list and let
+`useTranslation('landing')` load it on demand.
+
+Then the standard loop: `npm run i18n:extract` → translate the eight target
+locales → `npm run i18n:stamp` → `npm run i18n:check`.
+
+### 8. Analytics
+
+Per AGENTS.md, a new user-facing surface ships with the event that tells us
+whether it gets used. None of this dispatches through `handleMenuAction`, so all
+of it is hand-placed `track(...)`, fired from the view components (not from store
+subscriptions).
+
+Add to `ANALYTICS_EVENTS` in `analytics/events.ts`:
+
+| Event | Properties |
+| --- | --- |
+| `landing viewed` | `surface: 'phone' \| 'desktop'` |
+| `landing section viewed` | `section: 'workspaces' \| 'compatibility' \| 'get-it'` — first time each scrolls in |
+| `landing cta clicked` | `cta: 'download-desktop' \| 'github' \| 'scroll'` |
+| `mobile block shown` | — |
+| `mobile block bypassed` | — |
+
+`mobile block bypassed` is the one that earns its keep: it says how many people
+want this on a phone badly enough to force it.
+
+New `analytics/useLandingViewedEvent.ts`, mirroring the existing
+`useWorkspaceViewedEvent.ts`. Enum property values only, no raw content — the
+landing page has no user data, so this stays trivially inside the privacy
+contract.
+
+### 9. Meta
+
+`/` client-redirects to `/welcome`, so the landing page becomes the effective
+homepage and `index.html`'s existing `<link rel="canonical" href=".../">` stays
+correct.
+
+Update `index.html`'s `description` and `og:description`. Both currently say
+"turning tree structures into crease patterns", which describes the TreeMaker
+port — one tool in the app — rather than the product, whose bulk is
+Oriedita-derived CP editing. Align them with the section-1 copy.
+
+Out of scope, worth knowing: this is a client-rendered SPA, so a crawler that
+does not execute JS sees an empty root. If landing-page SEO becomes a goal,
+prerendering `/welcome` is its own piece of work.
+
+## Affected Areas
+
+**New**
+
+- `apps/web/src/platform/mobileSurface.ts` (+ `.test.ts`)
+- `apps/web/src/components/landing/` — `WelcomeLanding.tsx`,
+  `LandingSection.tsx`, `DesktopOnlyNotice.tsx`, `WelcomeLanding.css`, tests
+- `apps/web/src/analytics/useLandingViewedEvent.ts`
+- `apps/web/public/locales/*/landing.json` (9 files, generated)
+
+**Modified**
+
+- `apps/web/src/routing/WelcomeRoute.tsx` — the phone/desktop branch
+- `apps/web/src/routing/appRouter.tsx` — `startupHomePath`, the `WorkspaceShell`
+  loader guard, the amended no-guard comment
+- `apps/web/src/routing/ShareRoute.tsx` — phone redirect
+- `apps/web/src/App.tsx` — skip `initEngine` on a phone
+- `apps/web/src/App.css` — `.start-screen` / `.app-layout--start` scroll layout
+- `apps/web/src/lib/storage.ts` — `STORAGE_KEYS.phoneOverride`
+- `apps/web/src/constants/release.ts` — `RELEASES_URL`
+- `apps/web/src/analytics/events.ts`, `analytics/index.ts` — event names + enums
+- `apps/web/src/i18n/locales.ts`, `apps/web/scripts/i18n/_shared.mjs` — the
+  `landing` namespace
+- `apps/web/index.html` — description / `og:description`
+- `apps/web/src/routing/appRouter.test.ts` — phone cases
+
+**Untouched**
+
+- Every Rust crate. No engine change, so no `cargo` run and **no wasm rebuild** —
+  the tracked `apps/web/src/generated/oristudio-{cp,bp}-wasm/` artifacts stay as
+  they are.
+- `apps/tauri` — the desktop shell short-circuits to "not a phone" and needs no
+  edit.
+- `StartScreen.tsx` and its test — props and behaviour unchanged.
+
+## Checklist
+
+### Phase 1 — surface detection and gating
+
+- [ ] `platform/mobileSurface.ts` with the Tauri short-circuit, the override, and
+      the `matchMedia`-absent fallback
+- [ ] `STORAGE_KEYS.phoneOverride` in the storage registry
+- [ ] `mobileSurface.test.ts` — phone matches; Tauri host always false; override
+      wins; listener is removed on unsubscribe
+- [ ] `startupHomePath()` forces `/welcome` on a phone regardless of the
+      preference
+- [ ] `WorkspaceShell` loader guard + `ShareRoute` phone redirect; amend the
+      no-guard comment to say why this one is different
+- [ ] `App.tsx` skips `initEngine()` on a phone; `WelcomeRoute` skips the status
+      write on that path
+- [ ] `appRouter.test.ts` covers: phone + preference-off → `/welcome`; workspace
+      loader redirects; override lets it through; desktop unaffected
+
+### Phase 2 — desktop scroll
+
+- [ ] `.start-screen` scroll layout: `align-content: start`, padding moved to
+      inner wrappers, `.start-screen__content` at `min-height: 100dvh`
+- [ ] Scroll affordance at the bottom of the first viewport, hidden once scrolled
+- [ ] Confirm no workspace layout regressed (`.app-layout` still clipped at
+      `100vh`)
+
+### Phase 3 — landing content
+
+- [ ] `LandingSection.tsx` shell
+- [ ] `WelcomeLanding.tsx` with the four sections
+- [ ] `RELEASES_URL` in `constants/release.ts`; CTAs link through it
+- [ ] `WelcomeLanding.css`
+- [ ] `WelcomeLanding.test.tsx` — sections render, CTAs point at the right URLs
+
+### Phase 4 — phone register
+
+- [ ] `DesktopOnlyNotice.tsx` with the message and the "open it anyway" link
+- [ ] `WelcomeRoute` phone branch: notice + landing, no `StartScreen`, no drop
+      target, no startup toggle
+- [ ] `data-surface="phone"` drives the single-column CSS
+- [ ] `DesktopOnlyNotice.test.tsx` — message renders; bypass sets the override
+
+### Phase 5 — instrumentation and meta
+
+- [ ] Events + enums in `analytics/events.ts`, re-exported from `analytics/index.ts`
+- [ ] `useLandingViewedEvent.ts`; section-viewed observer; CTA and bypass events
+- [ ] `index.html` description / `og:description`
+
+### Phase 6 — i18n
+
+- [ ] `landing` namespace registered in `locales.ts` and `_shared.mjs`
+- [ ] `npm run i18n:extract`
+- [ ] Translate all 8 target locales
+- [ ] `npm run i18n:stamp` → `npm run i18n:check` passes
+
+### Phase 7 — validation
+
+- [ ] `npx tsc --noEmit` and `npx vitest run` from `apps/web` (invoked directly —
+      the npm wrappers regenerate wasm nondeterministically)
+- [ ] `npm run lint:web`
+- [ ] `npm run i18n:check`
+- [ ] Browser check, desktop width: first viewport identical to today; scroll
+      reveals the four sections; workspaces still reachable
+- [ ] Browser check, phone emulation: landing only, notice present, `/edit`
+      redirects to `/welcome`, no wasm request in the network panel
+- [ ] Browser check: bypass link → app loads, and the choice survives a reload
+- [ ] Tauri desktop (`npm run dev:desktop`): start screen unchanged, no gate
