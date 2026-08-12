@@ -1,7 +1,9 @@
-import { useLayoutEffect, useRef, type CSSProperties } from 'react';
+import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import type { SerializedEditorState } from 'lexical';
 import type { CpOverlayView } from './CreasePatternWebglCanvas';
 import { useCpOverlayView } from './cpOverlayViewStore';
+import { useWheelPassthrough } from '../hooks/useWheelPassthrough';
+import { resolveCpViewportCanvas } from './cpViewportCanvas';
 import { overlayCssPerModel, overlayModelToCss } from './annotations/annotationTransform';
 import { isTextAnnotation, type CanvasAnnotation } from './annotations/annotation';
 import type { TextAnnotation } from './annotations/textAnnotation';
@@ -130,7 +132,9 @@ function TextBox({
   onDelete: () => void;
   onSyncHeight: (id: string, height: number) => void;
 }) {
-  const boxRef = useRef<HTMLDivElement | null>(null);
+  // State rather than a ref: the wheel listener below has to re-attach when this
+  // element arrives, which a ref would not tell anyone about.
+  const [box, setBox] = useState<HTMLDivElement | null>(null);
   // The scale and current model height change every camera frame; read them from
   // a ref so the ResizeObserver below is created once per box (on doc change),
   // not torn down and rebuilt every frame during a zoom.
@@ -139,10 +143,18 @@ function TextBox({
     measureRef.current = { pxPerModel, height: text.height };
   });
 
+  // A box under edit takes pointer events so the editor can be typed into, which
+  // also makes it swallow the wheel — and a pinch the browser reports as
+  // ctrl+wheel then zooms the whole page. Hand it to the canvas the box is
+  // floating over, as the toolbars and the selection overlay already do. Nothing
+  // is lost: the box grows with its content and never scrolls, so there is no
+  // inner scroll for the wheel to have meant.
+  useWheelPassthrough(box, resolveCpViewportCanvas);
+
   // Keep the model height tracking the content so the selection box matches.
   useLayoutEffect(() => {
     if (!text.autoHeight) return;
-    const el = boxRef.current;
+    const el = box;
     if (!el) return;
     const measure = () => {
       const { pxPerModel: px, height } = measureRef.current;
@@ -156,11 +168,11 @@ function TextBox({
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [text.id, text.autoHeight, onSyncHeight, text.doc]);
+  }, [box, text.id, text.autoHeight, onSyncHeight, text.doc]);
 
   return (
     <div
-      ref={boxRef}
+      ref={setBox}
       className={`cp-text-box${editing ? ' cp-text-box--editing' : ''}`}
       style={style}
     >
