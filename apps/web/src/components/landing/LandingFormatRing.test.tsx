@@ -44,6 +44,12 @@ function renderRing(): HTMLDivElement {
   return container;
 }
 
+/** Length of an SVG `<line>` from its own attributes. */
+function lengthOf(line: Element): number {
+  const at = (name: string) => Number(line.getAttribute(name));
+  return Math.hypot(at('x2') - at('x1'), at('y2') - at('y1'));
+}
+
 function extensionsWith(direction: string): string[] {
   return RING_FORMATS.filter((format) => format.direction === direction).map(
     (format) => format.extension
@@ -124,6 +130,39 @@ describe('LandingFormatRing', () => {
       if (direction === 'import') expect(flows).toEqual(['in']);
       if (direction === 'export') expect(flows).toEqual(['out']);
     });
+  });
+
+  it('keeps the dash clear of the arrowheads at each end that has one', () => {
+    const rendered = renderRing();
+    const groups = Array.from(rendered.querySelectorAll('.landing-ring__wires g'));
+
+    RING_FORMATS.forEach(({ direction }, index) => {
+      const wire = groups[index].querySelector('.landing-ring__wire')!;
+      const flow = groups[index].querySelector('.landing-ring__flow')!;
+      const heads = (direction === 'both' ? 2 : 1) * 2.6;
+      // The flow is the wire minus one head's depth for every end carrying one,
+      // so the dash arrives at the base of the head instead of running under it.
+      expect(lengthOf(wire) - lengthOf(flow)).toBeCloseTo(heads, 5);
+    });
+  });
+
+  it('sets each wire a dash period equal to its own length', () => {
+    const rendered = renderRing();
+    const groups = Array.from(rendered.querySelectorAll<SVGGElement>('.landing-ring__wires g'));
+
+    for (const group of groups) {
+      const declared = group.style.getPropertyValue('--flow-length');
+      // A period longer than the wire leaves the dash off the end for part of
+      // every cycle, which reads as a broken animation rather than a subtle one.
+      expect(Number.parseFloat(declared)).toBeCloseTo(
+        lengthOf(group.querySelector('.landing-ring__flow')!),
+        1
+      );
+      // `px` rather than a bare number, so the `calc()` in the stylesheet is
+      // given a real length; a unitless one is discarded by stricter engines and
+      // the animation freezes.
+      expect(declared.trim()).toMatch(/px$/);
+    }
   });
 
   it('runs the flow only while the ring is on screen', () => {

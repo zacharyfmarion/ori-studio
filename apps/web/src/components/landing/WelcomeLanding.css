@@ -307,22 +307,20 @@
 }
 
 /*
- * The travelling dash: one short glint per period, so what moves along the wire
- * reads as a packet rather than as a marching-ants border. Kept faint on
- * purpose — it should be something you notice on the second look, not the first.
+ * The travelling dash: one packet per wire, entering as the last one leaves.
  *
- * The dash and gap are custom properties because the keyframes travel exactly
- * one period; hard-coding the distance in both places is how the two drift apart
- * and the loop starts stuttering.
+ * The period is `--flow-length`, the wire's own length, set per wire in
+ * `LandingFormatRing`. That is not a detail — a fixed period longer than the
+ * wire puts the dash off the end for part of every cycle, which looks like a
+ * broken animation rather than a subtle one.
  */
 .landing-ring__flow {
-  --flow-dash: 1;
-  --flow-gap: 15;
+  --flow-dash: 1.4px;
   stroke: var(--accent-primary);
-  stroke-width: 0.65;
+  stroke-width: 0.8;
   stroke-linecap: round;
-  stroke-dasharray: var(--flow-dash) var(--flow-gap);
-  filter: drop-shadow(0 0 0.7px color-mix(in srgb, var(--accent-primary) 45%, transparent));
+  stroke-dasharray: var(--flow-dash) calc(var(--flow-length) - var(--flow-dash));
+  filter: drop-shadow(0 0 1px color-mix(in srgb, var(--accent-primary) 55%, transparent));
   opacity: 0;
 }
 
@@ -331,21 +329,26 @@
  * against a page nobody has scrolled to is battery, not polish.
  */
 .landing-ring[data-flowing] .landing-ring__flow {
-  opacity: 0.5;
-  animation: landing-flow-out 3.8s linear infinite;
+  opacity: 0.62;
+  animation: landing-flow-out 3s linear infinite;
   /* Negative delay: each wire starts mid-cycle, so they never pulse in unison. */
-  animation-delay: calc(var(--slot) * -0.44s);
+  animation-delay: calc(var(--slot) * -0.31s);
 }
 
 .landing-ring[data-flowing] .landing-ring__flow[data-way='in'] {
   animation-name: landing-flow-in;
   /* Half a period out of step with its outbound twin on two-way formats. */
-  animation-delay: calc(var(--slot) * -0.44s - 1.9s);
+  animation-delay: calc(var(--slot) * -0.31s - 1.5s);
 }
 
+/*
+ * One wire length per cycle, so the dash travels the whole segment and wraps.
+ * No `calc()` here on purpose: the keyframe is the bare custom property, which
+ * is the form least likely to be discarded by a strict engine.
+ */
 @keyframes landing-flow-out {
   from {
-    stroke-dashoffset: calc(var(--flow-dash) + var(--flow-gap));
+    stroke-dashoffset: var(--flow-length);
   }
   to {
     stroke-dashoffset: 0;
@@ -357,7 +360,7 @@
     stroke-dashoffset: 0;
   }
   to {
-    stroke-dashoffset: calc(var(--flow-dash) + var(--flow-gap));
+    stroke-dashoffset: var(--flow-length);
   }
 }
 

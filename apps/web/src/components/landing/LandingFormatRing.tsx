@@ -160,8 +160,26 @@ export function LandingFormatRing() {
           const flowTo = pointAt(index, count, WIRE_END - (outboundHead ? HEAD_CLEARANCE : 0));
           const flow = { x1: flowFrom.x, y1: flowFrom.y, x2: flowTo.x, y2: flowTo.y };
 
+          // The dash period is this wire's own length, so exactly one dash
+          // occupies it and the next enters as that one leaves. One fixed period
+          // cannot do that — these segments are 7.8 units on a two-way format
+          // and 10.4 on a one-way one, so any single number is longer than some
+          // of them, and a period longer than its wire leaves the dash off the
+          // end for part of every cycle. That reads as broken, not as subtle.
+          const flowLength = Math.hypot(flow.x2 - flow.x1, flow.y2 - flow.y1);
+
           return (
-            <g key={extension} style={cssVars({ '--slot': String(index) })}>
+            <g
+              key={extension}
+              style={cssVars({
+                '--slot': String(index),
+                // `px`, not a bare number: inside a viewBox one px *is* one user
+                // unit, and handing `calc()` a real length keeps the stricter
+                // engines from discarding the declaration and freezing the
+                // animation outright.
+                '--flow-length': `${flowLength.toFixed(2)}px`,
+              })}
+            >
               <line
                 {...wire}
                 className="landing-ring__wire"
