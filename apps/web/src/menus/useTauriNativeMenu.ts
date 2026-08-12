@@ -19,10 +19,19 @@ export function useTauriNativeMenu(): void {
   const { t } = useTranslation();
   const translate = useCallback<MenuTranslate>((key, defaultValue) => t(key, defaultValue), [t]);
   const overrides = useShortcutStore((state) => state.overrides);
+  // Accelerators come from the same resolution the canvas uses, so the native bar
+  // follows the Oriedita-defaults toggle. Subscribed, not read at build time, or
+  // the menu would keep the chords it was built with until something else
+  // happened to invalidate the signature.
+  const defaultsSource = useShortcutStore((state) => state.defaultsSource);
+  const resolution = useMemo(
+    () => ({ overrides, defaultsSource }),
+    [overrides, defaultsSource]
+  );
   const capabilities = useWorkspaceCapabilities();
   // Translated menu labels so the native macOS bar localizes with the app; the signature
   // below then includes the localized text, so switching language rebuilds the OS menu.
-  const menuDef = useMemo(() => getMenuBarDef(overrides, translate), [overrides, translate]);
+  const menuDef = useMemo(() => getMenuBarDef(resolution, translate), [resolution, translate]);
 
   // The signature collapses the frequently-churning capability object down to
   // just what changes the menu's structure/labels/enablement, so selecting a
@@ -30,8 +39,8 @@ export function useTauriNativeMenu(): void {
   // change does. The effect keys on it and reads fresh store state at build
   // time, avoiding stale closures without widening the dependency list.
   const signature = useMemo(
-    () => nativeMenuSignature(menuDef, capabilities, overrides),
-    [menuDef, capabilities, overrides]
+    () => nativeMenuSignature(menuDef, capabilities, resolution),
+    [menuDef, capabilities, resolution]
   );
   const buildToken = useRef(0);
 
@@ -39,8 +48,12 @@ export function useTauriNativeMenu(): void {
     if (!isDesktopRuntime()) return;
     const token = (buildToken.current += 1);
     const freshCapabilities = selectWorkspaceCapabilities(useWorkspaceStore.getState());
-    const freshOverrides = useShortcutStore.getState().overrides;
-    void buildNativeMenu(freshCapabilities, freshOverrides, translate)
+    const { overrides: freshOverrides, defaultsSource: freshSource } = useShortcutStore.getState();
+    void buildNativeMenu(
+      freshCapabilities,
+      { overrides: freshOverrides, defaultsSource: freshSource },
+      translate
+    )
       .then(async (menu) => {
         // A newer rebuild started while this one was in flight — drop this menu
         // so setAsAppMenu calls can't land out of order.

@@ -1,8 +1,16 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactElement,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { Check, Keyboard, LayoutDashboard, Palette, RotateCcw, X } from 'lucide-react';
-import { useAnalytics } from '../analytics';
+import { Check, Download, Keyboard, LayoutDashboard, Palette, RotateCcw, X } from 'lucide-react';
+import { OrieditaImportDialog } from './settings/OrieditaImportDialog';
+import { ANALYTICS_EVENTS, track, useAnalytics } from '../analytics';
 import { detectSystemLocale, SUPPORTED_LOCALES, SYSTEM_LOCALE } from '../i18n/locales';
 import {
   shortcutActionLabel,
@@ -13,12 +21,24 @@ import { useLocaleStore } from '../store/localeStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/Select';
 import {
   classifyReservedKey,
-  findShortcutConflict,
+  findShortcutShadowing,
   formatKeyChord,
+  getDefaultShortcutChords,
+  isShortcutBindable,
+  getResolvedShortcuts,
+  getShortcutDefinition,
+  keyChordEquals,
   keyChordFromKeyboardEvent,
+  keyChordId,
   SHORTCUT_DEFINITIONS,
+  shortcutKeepsDefaultChords,
   shortcutLabelForAction,
+  type KeyChord,
   type ShortcutActionId,
+  type ShortcutDefaultsSource,
+  type ShortcutDefinition,
+  type ShortcutOverrides,
+  type ShortcutResolution,
 } from '../keyboard/shortcuts';
 import { requestConfirmation } from '../store/commandDialogStore';
 import { useLayoutStore } from '../store/layoutStore';
@@ -28,6 +48,7 @@ import { useThemeStore } from '../store/themeStore';
 import type { TreeMakerTheme } from '../themes';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
+import { Toggle } from './ui/Toggle';
 
 const TABS: Array<{ key: SettingsTab; icon: typeof Palette }> = [
   { key: 'appearance', icon: Palette },
@@ -279,17 +300,284 @@ function WorkspaceTab() {
   );
 }
 
+/**
+ * Lets a tab tell the Settings modal that it has opened a dialog of its own.
+ *
+ * Both this modal and a nested dialog listen for Escape on `window` in the
+ * capture phase, and the modal's listener is registered first — so
+ * `stopPropagation` from the inner one cannot suppress it, and Escape in the
+ * import review was tearing down the whole Settings modal instead of returning
+ * the user to the Shortcuts list they came from.
+ */
+const NestedDialogContext = createContext<(open: boolean) => void>(() => {});
+
+/** Chords as one comparable string, so two resolutions can be diffed by value. */
+function chordListId(chords: KeyChord[]): string {
+  return chords.map((chord) => keyChordId(chord)).join(' ');
+}
+
+interface DefaultsSourceChange {
+  definition: ShortcutDefinition;
+  /** Where the shortcut lands after the switch; empty means it becomes unassigned. */
+  chords: KeyChord[];
+}
+
+interface DefaultsSourceClash {
+  definition: ShortcutDefinition;
+  chord: KeyChord;
+  blocker: ShortcutDefinition;
+}
+
+interface DefaultsSourceDiff {
+  changes: DefaultsSourceChange[];
+  unaffectedCustomized: number;
+  clashes: DefaultsSourceClash[];
+}
+
+/**
+ * The always-in-stack definition that also answers `chord` under `resolution`.
+ *
+ * {@link findShortcutShadowing} reports a `hard` shadow only when the binding you
+ * asked about is the one that *loses*. A source switch creates the collision in
+ * both directions: the user's override can outrank a binding the new layout just
+ * introduced, leaving that binding dead on arrival while the shadowing call
+ * reports `conditional` because nothing outranks the override. Same collision,
+ * same warning — so the co-claimant is looked up directly.
+ *
+ * `simulator` claimants are excluded: that scope is in the stack only while a
+ * simulation owns the keyboard, so `C`, `L` and `R` coexist with CP tools by
+ * design. Two definitions carrying one upstream action are one verb wearing two
+ * ids, so they are not a collision either.
+ */
+function findChordCoClaimant(
+  definition: ShortcutDefinition,
+  chord: KeyChord,
+  resolution: ShortcutResolution
+): ShortcutDefinition | null {
+  if (definition.scope === 'simulator') return null;
+  for (const candidate of SHORTCUT_DEFINITIONS) {
+    if (candidate.id === definition.id || candidate.scope === 'simulator') continue;
+    if (definition.upstreamAction && definition.upstreamAction === candidate.upstreamAction) {
+      continue;
+    }
+    if (
+      getResolvedShortcuts(candidate.id, resolution).some((candidateChord) =>
+        keyChordEquals(candidateChord, chord)
+      )
+    ) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+/**
+ * What switching the defaults source does to the keymap.
+ *
+ * Read back out of the resolver under each source rather than compared table to
+ * table, so the confirmation counts cannot drift from the switch that follows.
+ */
+function diffDefaultsSource(
+  overrides: ShortcutOverrides,
+  from: ShortcutDefaultsSource,
+  to: ShortcutDefaultsSource
+): DefaultsSourceDiff {
+  const before: ShortcutResolution = { overrides, defaultsSource: from };
+  const after: ShortcutResolution = { overrides, defaultsSource: to };
+  const changes: DefaultsSourceChange[] = [];
+  const clashes: DefaultsSourceClash[] = [];
+  let unaffectedCustomized = 0;
+
+  for (const definition of SHORTCUT_DEFINITIONS) {
+    const nextChords = getResolvedShortcuts(definition.id, after);
+    const changed =
+      chordListId(getResolvedShortcuts(definition.id, before)) !== chordListId(nextChords);
+    if (changed) changes.push({ definition, chords: nextChords });
+
+    if (!Object.prototype.hasOwnProperty.call(overrides, definition.id)) continue;
+    // Overrides survive the switch, so a key the user set by hand can end up
+    // sitting on a different base. That is the one thing the switch can break
+    // without being asked to, so it is named rather than resolved.
+    const clash = nextChords
+      .map((chord) => ({ chord, blocker: findChordCoClaimant(definition, chord, after) }))
+      .find(
+        (entry) =>
+          entry.blocker !== null && findChordCoClaimant(definition, entry.chord, before) === null
+      );
+    if (clash?.blocker) {
+      clashes.push({ definition, chord: clash.chord, blocker: clash.blocker });
+    }
+    // A customization the switch leaves colliding is the opposite of unaffected;
+    // counting it in both lines reports one shortcut as two.
+    if (!changed && !clash) unaffectedCustomized += 1;
+  }
+  return { changes, unaffectedCustomized, clashes };
+}
+
+/** How many moves the confirmation names before falling back to "and N others". */
+const DEFAULTS_CHANGE_EXAMPLES = 3;
+
+function describeDefaultsSourceChange(t: TFunction, change: DefaultsSourceChange): string {
+  const label = shortcutActionLabel(t, change.definition);
+  return change.chords.length > 0
+    ? t('dialogs:settings.shortcuts.defaultsMove', '{{label}} moves to {{chord}}', {
+        label,
+        chord: change.chords.map((chord) => formatKeyChord(chord)).join(' / '),
+      })
+    : t('dialogs:settings.shortcuts.defaultsUnbind', '{{label}} becomes unassigned', { label });
+}
+
+function defaultsSourceMessage(t: TFunction, diff: DefaultsSourceDiff): string {
+  const examples = diff.changes
+    .slice(0, DEFAULTS_CHANGE_EXAMPLES)
+    .map((change) => describeDefaultsSourceChange(t, change));
+  const remaining = diff.changes.length - examples.length;
+  const parts = [
+    t('dialogs:settings.shortcuts.defaultsChangeCount', {
+      count: diff.changes.length,
+      defaultValue_one: 'This changes 1 shortcut.',
+      defaultValue_other: 'This changes {{count}} shortcuts.',
+    }),
+    remaining > 0
+      ? t('dialogs:settings.shortcuts.defaultsChangeExamplesMore', {
+          count: remaining,
+          moves: examples.join(', '),
+          defaultValue_one: '{{moves}}, and 1 other.',
+          defaultValue_other: '{{moves}}, and {{count}} others.',
+        })
+      : t('dialogs:settings.shortcuts.defaultsChangeExamples', '{{moves}}.', {
+          moves: examples.join(', '),
+        }),
+  ];
+  if (diff.unaffectedCustomized > 0) {
+    parts.push(
+      t('dialogs:settings.shortcuts.defaultsChangeCustomized', {
+        count: diff.unaffectedCustomized,
+        defaultValue_one: '1 shortcut you customized is unaffected.',
+        defaultValue_other: '{{count}} shortcuts you customized are unaffected.',
+      })
+    );
+  }
+  if (diff.clashes.length > 0) {
+    const list = diff.clashes
+      .slice(0, DEFAULTS_CHANGE_EXAMPLES)
+      .map((clash) =>
+        t(
+          'dialogs:settings.shortcuts.defaultsClashItem',
+          'your {{label}} is on {{chord}}, which {{blocker}} also uses',
+          {
+            label: shortcutActionLabel(t, clash.definition),
+            chord: formatKeyChord(clash.chord),
+            blocker: shortcutActionLabel(t, clash.blocker),
+          }
+        )
+      )
+      .join('; ');
+    parts.push(
+      t('dialogs:settings.shortcuts.defaultsChangeClash', {
+        count: diff.clashes.length,
+        clashes: list,
+        defaultValue_one: '1 shortcut you customized now clashes: {{clashes}}.',
+        defaultValue_other: '{{count}} shortcuts you customized now clash: {{clashes}}.',
+      })
+    );
+  }
+  return parts.join(' ');
+}
+
+type CaptureDecision =
+  | { kind: 'assign' }
+  /** Something else owns the chord and may not be moved aside. */
+  | { kind: 'refuse'; blocker: ShortcutDefinition }
+  /** The target itself cannot hold a binding, whatever the chord is. */
+  | { kind: 'not-bindable' }
+  | { kind: 'unbind'; blocker: ShortcutDefinition };
+
+/**
+ * What capturing a chord should do about whoever already answers it.
+ *
+ * Asks {@link findShortcutShadowing}, not `findShortcutConflict`: the latter
+ * answers `null` for a crease-pattern binding shadowing a global one, which is
+ * exactly the collision a rebind creates.
+ *
+ * `kind` is not the whole answer though, because it is asked from one side: it
+ * says `hard` only when the binding being captured is the one that *loses*. A
+ * capture that outranks an always-in-stack claimant reads `conditional` — nothing
+ * beats it — while leaving that claimant holding a chord it can never answer,
+ * still displayed in this very list as though it worked. That is the same
+ * collision seen from the other end, and the import path already treats both
+ * directions alike (`blockedBy` in `importPlan.ts`: "if the import wins, the
+ * blocker's chord is dead instead ... the fix is the same"). So a `conditional`
+ * answer is re-asked as {@link findChordCoClaimant}, which ignores direction and
+ * excludes the two non-collisions — a `simulator` claimant, in the stack only
+ * while a simulation owns the keyboard, and one verb wearing two ids.
+ */
+function decideCapture(
+  definition: ShortcutDefinition,
+  chord: KeyChord,
+  resolution: ShortcutResolution
+): CaptureDecision {
+  // Asked before anything else, and shared with the importer: an action that
+  // cannot hold an override must not be assignable here either. Capture had no
+  // such check, so binding a not-implemented stub would destroy whatever held
+  // the chord and then do nothing — the import refuses the same action outright.
+  if (!isShortcutBindable(definition.id)) return { kind: 'not-bindable' };
+  const shadowing = findShortcutShadowing(definition.id, chord, resolution);
+  if (!shadowing) return { kind: 'assign' };
+  const blocker =
+    shadowing.kind === 'hard'
+      ? shadowing.definition
+      : findChordCoClaimant(definition, chord, resolution);
+  // Two definitions carrying one upstream action are one verb wearing two ids,
+  // so the chord reaches what the user meant either way.
+  //
+  // A `viewport` capture displaces nothing either: a viewport executor *declines*
+  // a chord it does not own and dispatch continues to the next scope, which is
+  // the mechanism `viewport.delete` and `edit.delete` both work through. Only the
+  // mirror of that is a real block, and `blocker.scope === 'viewport'` below is
+  // where it is answered.
+  if (
+    !blocker ||
+    (definition.upstreamAction && definition.upstreamAction === blocker.upstreamAction) ||
+    (definition.scope === 'viewport' && blocker.scope !== 'viewport')
+  ) {
+    return { kind: 'assign' };
+  }
+  // Undo/Redo merge their overrides with the defaults instead of replacing them,
+  // so unbinding them would promise a change that cannot happen; a viewport
+  // binding declines a chord it does not own and lets it fall through, so taking
+  // its key away would break a coexistence that works. Neither is offerable, and
+  // neither can be silently overwritten either.
+  if (shortcutKeepsDefaultChords(blocker.id) || blocker.scope === 'viewport') {
+    return { kind: 'refuse', blocker };
+  }
+  return { kind: 'unbind', blocker };
+}
+
 function ShortcutsTab() {
   const { t } = useTranslation();
   const overrides = useShortcutStore((state) => state.overrides);
+  const defaultsSource = useShortcutStore((state) => state.defaultsSource);
   const setShortcut = useShortcutStore((state) => state.setShortcut);
+  const assignShortcut = useShortcutStore((state) => state.assignShortcut);
   const clearShortcut = useShortcutStore((state) => state.clearShortcut);
   const resetShortcut = useShortcutStore((state) => state.resetShortcut);
   const resetAllShortcuts = useShortcutStore((state) => state.resetAllShortcuts);
+  const setDefaultsSource = useShortcutStore((state) => state.setDefaultsSource);
+  const resolution = useMemo<ShortcutResolution>(
+    () => ({ overrides, defaultsSource }),
+    [defaultsSource, overrides]
+  );
   const [search, setSearch] = useState('');
   const [assignedOnly, setAssignedOnly] = useState(false);
   const [capturingId, setCapturingId] = useState<ShortcutActionId | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const setNestedDialogOpen = useContext(NestedDialogContext);
+  useEffect(() => {
+    setNestedDialogOpen(importing);
+    return () => setNestedDialogOpen(false);
+  }, [importing, setNestedDialogOpen]);
 
   useEffect(() => {
     if (!capturingId) return undefined;
@@ -308,27 +596,67 @@ function ShortcutsTab() {
         setMessage(t('dialogs:settings.shortcuts.reserved', '{{chord}} is reserved by the browser.', { chord: formatKeyChord(chord) }));
         return;
       }
-      const conflict = findShortcutConflict(capturingId, chord, overrides);
-      if (conflict) {
-        setMessage(t('dialogs:settings.shortcuts.alreadyAssigned', '{{chord}} is already assigned to {{label}}.', { chord: formatKeyChord(chord), label: conflict.label }));
+      const definition = getShortcutDefinition(capturingId);
+      if (!definition) return;
+      const assignedMessage =
+        reserved === 'soft-reserved'
+          ? t('dialogs:settings.shortcuts.softReserved', '{{chord}} was assigned, but some browsers may reserve it.', { chord: formatKeyChord(chord) })
+          : null;
+      const decision = decideCapture(definition, chord, resolution);
+      if (decision.kind === 'not-bindable') {
+        setMessage(
+          t(
+            'dialogs:settings.shortcuts.notBindable',
+            '{{label}} cannot take a shortcut yet.',
+            { label: shortcutActionLabel(t, definition) }
+          )
+        );
+        return;
+      }
+      if (decision.kind === 'refuse') {
+        setMessage(t('dialogs:settings.shortcuts.alreadyAssigned', '{{chord}} is already assigned to {{label}}.', { chord: formatKeyChord(chord), label: shortcutActionLabel(t, decision.blocker) }));
+        return;
+      }
+      if (decision.kind === 'unbind') {
+        // Capture has to end before the confirmation opens: this listener runs in
+        // the capture phase and swallows every key, including the dialog's own.
+        const targetId = capturingId;
+        const { blocker } = decision;
+        const blockerLabel = shortcutActionLabel(t, blocker);
+        setCapturingId(null);
+        setMessage(null);
+        void requestConfirmation({
+          title: t('dialogs:settings.shortcuts.unbindTitle', 'Unbind {{label}}?', { label: blockerLabel }),
+          message: t(
+            'dialogs:settings.shortcuts.unbindMessage',
+            '{{blocker}} uses {{chord}}. Assigning it to {{label}} leaves {{blocker}} unassigned.',
+            {
+              blocker: blockerLabel,
+              chord: formatKeyChord(chord),
+              label: shortcutActionLabel(t, definition),
+            }
+          ),
+          confirmLabel: t('dialogs:settings.shortcuts.unbindConfirm', 'Unbind and assign'),
+          tone: 'danger',
+        }).then((confirmed) => {
+          if (!confirmed) return;
+          assignShortcut(targetId, chord, { unbind: [blocker.id] });
+          setMessage(assignedMessage);
+        });
         return;
       }
       setShortcut(capturingId, chord);
       setCapturingId(null);
-      setMessage(
-        reserved === 'soft-reserved'
-          ? t('dialogs:settings.shortcuts.softReserved', '{{chord}} was assigned, but some browsers may reserve it.', { chord: formatKeyChord(chord) })
-          : null
-      );
+      setMessage(assignedMessage);
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [capturingId, overrides, setShortcut, t]);
+  }, [assignShortcut, capturingId, resolution, setShortcut, t]);
 
   const rows = useMemo(() => {
     const query = search.trim().toLowerCase();
     return SHORTCUT_DEFINITIONS.filter((definition) => {
-      const currentLabel = shortcutLabelForAction(definition.id, overrides);
+      const currentLabel = shortcutLabelForAction(definition.id, resolution);
       if (assignedOnly && !currentLabel) return false;
       if (!query) return true;
       return [
@@ -342,7 +670,7 @@ function ShortcutsTab() {
         .toLowerCase()
         .includes(query);
     });
-  }, [assignedOnly, overrides, search]);
+  }, [assignedOnly, resolution, search]);
 
   const groupedRows = useMemo(() => {
     return rows.reduce<Record<string, typeof rows>>((groups, row) => {
@@ -366,8 +694,73 @@ function ShortcutsTab() {
     });
   };
 
+  const changeDefaultsSource = (next: ShortcutDefaultsSource) => {
+    setCapturingId(null);
+    setMessage(null);
+    const diff = diffDefaultsSource(overrides, defaultsSource, next);
+    // Which layout a user settles on is the one thing this feature exists to
+    // learn; the chokepoint cannot see it, since the toggle is not a menu action.
+    // An enum, and only after the switch actually happens.
+    const commit = (source: ShortcutDefaultsSource) => {
+      setDefaultsSource(source);
+      track(ANALYTICS_EVENTS.shortcutDefaultsSourceChanged, { source });
+    };
+    // Nothing to warn about, so nothing to ask about.
+    if (diff.changes.length === 0) {
+      commit(next);
+      return;
+    }
+    void requestConfirmation({
+      title:
+        next === 'oriedita'
+          ? t('dialogs:settings.shortcuts.defaultsOrieditaTitle', 'Use Oriedita defaults?')
+          : t('dialogs:settings.shortcuts.defaultsOriStudioTitle', 'Use Ori Studio defaults?'),
+      message: defaultsSourceMessage(t, diff),
+      confirmLabel:
+        next === 'oriedita'
+          ? t('dialogs:settings.shortcuts.defaultsOrieditaConfirm', 'Use Oriedita defaults')
+          : t('dialogs:settings.shortcuts.defaultsOriStudioConfirm', 'Use Ori Studio defaults'),
+    }).then((confirmed) => {
+      if (!confirmed) return;
+      commit(next);
+    });
+  };
+
   return (
     <div className="settings-tab settings-shortcuts">
+      <section className="settings-section">
+        {/*
+          Above the toolbar, and shaped like a preference rather than a chip:
+          it selects which table the whole list resolves against, so sitting it
+          beside Search and Assigned would read as a third filter.
+        */}
+        {/*
+          A `div` with a labelled switch rather than a `<label>` wrapping one:
+          the Radix switch is the control, and nesting it inside a label makes
+          the click arrive twice — once from the label, once from the switch —
+          which toggles straight back. `aria-labelledby` ties them instead.
+        */}
+        <div className="settings-toggle-row">
+          <span className="settings-toggle-row__copy">
+            <span className="settings-toggle-row__label" id="use-oriedita-defaults-label">
+              {t('dialogs:settings.shortcuts.useOrieditaDefaults', 'Use Oriedita defaults')}
+            </span>
+            <span className="settings-toggle-row__desc" id="use-oriedita-defaults-desc">
+              {t(
+                'dialogs:settings.shortcuts.useOrieditaDefaultsHint',
+                "Oriedita's crease-pattern keys: M, V and L for line types, F to fold, R to mirror. Shortcuts you set yourself are left alone."
+              )}
+            </span>
+          </span>
+          <Toggle
+            checked={defaultsSource === 'oriedita'}
+            onChange={(checked) => changeDefaultsSource(checked ? 'oriedita' : 'ori-studio')}
+            aria-labelledby="use-oriedita-defaults-label"
+            aria-describedby="use-oriedita-defaults-desc"
+          />
+        </div>
+      </section>
+
       <section className="settings-section">
         <div className="settings-shortcuts__toolbar">
           <input
@@ -377,7 +770,7 @@ function ShortcutsTab() {
             aria-label={t('dialogs:settings.shortcuts.search', 'Search shortcuts')}
             onChange={(event) => setSearch(event.target.value)}
           />
-          <label className="settings-shortcuts__assigned">
+          <label className="settings-shortcuts__filter">
             <input
               type="checkbox"
               checked={assignedOnly}
@@ -385,24 +778,50 @@ function ShortcutsTab() {
             />
             {t('dialogs:settings.shortcuts.assigned', 'Assigned')}
           </label>
-          <Button size="sm" variant="secondary" onClick={resetAll}>
-            <RotateCcw size={14} />
-            {t('dialogs:settings.shortcuts.resetAll', 'Reset All')}
-          </Button>
+          <div className="settings-shortcuts__actions">
+            <Button size="sm" variant="secondary" onClick={() => setImporting(true)}>
+              <Download size={14} />
+              {t('dialogs:settings.shortcuts.importOriedita', 'Import from Oriedita...')}
+            </Button>
+            {/*
+              Icon-only, and last. It wipes every binding, yet it was the widest
+              control here — competing with the two people actually reach for and
+              pushing them onto a second line. Rare plus destructive is what an
+              icon with a tooltip is for, and it still confirms before acting.
+            */}
+            <IconButton
+              size="sm"
+              title={t('dialogs:settings.shortcuts.resetAll', 'Reset All')}
+              aria-label={t('dialogs:settings.shortcuts.resetAll', 'Reset All')}
+              onClick={resetAll}
+            >
+              <RotateCcw size={14} />
+            </IconButton>
+          </div>
         </div>
         {message && <div className="settings-shortcuts__message">{message}</div>}
       </section>
+
+      {/*
+        Mounted only while open so the dialog starts from a clean slate each
+        time — it owns a multi-step flow (pick file, review plan, apply), and a
+        cancelled run must not leave a stale plan behind the next one.
+      */}
+      {importing && <OrieditaImportDialog onClose={() => setImporting(false)} />}
 
       {Object.entries(groupedRows).map(([category, definitions]) => (
         <section key={category} className="settings-section">
           <h3 className="settings-section__title">{shortcutCategoryLabel(t, category)}</h3>
           <div className="settings-shortcuts__table">
             {definitions.map((definition) => {
-              const currentLabel = shortcutLabelForAction(definition.id, overrides);
+              const currentLabel = shortcutLabelForAction(definition.id, resolution);
               const actionLabel = shortcutActionLabel(t, definition);
+              // The active source's defaults, so the column and the reset button
+              // beside it agree about what "default" means.
+              const defaultChords = getDefaultShortcutChords(definition.id, defaultsSource);
               const defaultLabel =
-                definition.defaultChords.length > 0
-                  ? definition.defaultChords.map((chord) => formatKeyChord(chord)).join(' / ')
+                defaultChords.length > 0
+                  ? defaultChords.map((chord) => formatKeyChord(chord)).join(' / ')
                   : '-';
               const hasOverride = Object.prototype.hasOwnProperty.call(
                 overrides,
@@ -485,18 +904,21 @@ function SettingsModalContent({
 }) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
+  const [nestedDialogOpen, setNestedDialogOpen] = useState(false);
   const ActiveTab = TAB_COMPONENTS[activeTab];
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
+      // A nested dialog owns Escape while it is open; see NestedDialogContext.
+      if (nestedDialogOpen) return;
       event.preventDefault();
       event.stopPropagation();
       closeSettings();
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [closeSettings]);
+  }, [closeSettings, nestedDialogOpen]);
 
   return (
     <div
@@ -544,7 +966,9 @@ function SettingsModalContent({
             </IconButton>
           </header>
           <div className="settings-modal__body">
-            <ActiveTab />
+            <NestedDialogContext.Provider value={setNestedDialogOpen}>
+              <ActiveTab />
+            </NestedDialogContext.Provider>
           </div>
         </section>
       </div>

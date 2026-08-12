@@ -109,10 +109,18 @@ export function MenuBar() {
   const [openMenu, setOpenMenu] = useState<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const shortcutOverrides = useShortcutStore((state) => state.overrides);
+  // Accelerators shown in the menus resolve against the active layout, the same
+  // as the canvas and the native bar. Missing it here showed Oriedita users the
+  // chords they had just switched away from.
+  const shortcutDefaultsSource = useShortcutStore((state) => state.defaultsSource);
   const { t } = useTranslation();
   const menuDef = useMemo(
-    () => getMenuBarDef(shortcutOverrides, (key, defaultValue) => t(key, defaultValue)),
-    [shortcutOverrides, t]
+    () =>
+      getMenuBarDef(
+        { overrides: shortcutOverrides, defaultsSource: shortcutDefaultsSource },
+        (key, defaultValue) => t(key, defaultValue)
+      ),
+    [shortcutOverrides, shortcutDefaultsSource, t]
   );
   const capabilities = useWorkspaceCapabilities();
   const visibleMenus = useMemo<MenuDef[]>(

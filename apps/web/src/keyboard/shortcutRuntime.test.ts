@@ -203,6 +203,27 @@ describe('shortcut runtime', () => {
     });
   });
 
+  // The runtime is where the store's answer meets the dispatcher, so the
+  // defaults source has to travel the same path the overrides do. Threading it
+  // only as far as the settings list would leave the toggle purely cosmetic.
+  it('carries the defaults source through to the executor', () => {
+    const cpAction = vi.fn();
+    const menu = vi.fn();
+    cleanupWith(registerCpActionShortcutExecutor(cpAction));
+
+    handleShortcutRuntimeKeyDown(
+      new KeyboardEvent('keydown', { key: 'f', bubbles: true, cancelable: true }),
+      {
+        context: { activeEditingContext: 'crease-pattern' },
+        defaultsSource: 'oriedita',
+        menu,
+      }
+    );
+
+    // F is Auxiliary under our layout and Fold under upstream's.
+    expect(cpAction).toHaveBeenCalledWith('cp.action.folding-estimate');
+  });
+
   it('keeps global aliases available through the central runtime', () => {
     const menu = vi.fn();
     const event = new KeyboardEvent('keydown', {

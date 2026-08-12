@@ -199,6 +199,8 @@ export const ANALYTICS_EVENTS = {
   designSentToEdit: 'design sent to edit',
   themeChanged: 'theme changed',
   localeChanged: 'locale changed',
+  orieditaShortcutsImported: 'oriedita shortcuts imported',
+  shortcutDefaultsSourceChanged: 'shortcut defaults source changed',
 } as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS];

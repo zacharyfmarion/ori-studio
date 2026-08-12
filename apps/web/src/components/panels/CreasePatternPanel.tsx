@@ -936,9 +936,15 @@ export function CreasePatternPanel() {
     (state) => state.transformOristudioCpSelection
   );
   const shortcutOverrides = useShortcutStore((state) => state.overrides);
+  const shortcutDefaultsSource = useShortcutStore((state) => state.defaultsSource);
+  // Hints must name the key that actually fires, so they read the active layout.
+  const shortcutResolution = useMemo(
+    () => ({ overrides: shortcutOverrides, defaultsSource: shortcutDefaultsSource }),
+    [shortcutOverrides, shortcutDefaultsSource]
+  );
   // The fold chord lands on FoldingEstimate (Fold is the deduped duplicate);
   // `handleCpShortcutAction` routes both to the real fold path.
-  const foldShortcutLabel = shortcutLabelForAction('cp.action.folding-estimate', shortcutOverrides);
+  const foldShortcutLabel = shortcutLabelForAction('cp.action.folding-estimate', shortcutResolution);
 
   const editableCp = oristudioCpDocument?.document ?? null;
   const editableCpHandle = oristudioCpDocument?.handle ?? null;
@@ -3115,7 +3121,7 @@ export function CreasePatternPanel() {
                 setZoomLevel={setZoomLevel}
                 panToolActive={panToolActive}
                 togglePanTool={() => setPanToolActive((active) => !active)}
-                panShortcutLabel={shortcutLabelForAction('viewport.pan', shortcutOverrides)}
+                panShortcutLabel={shortcutLabelForAction('viewport.pan', shortcutResolution)}
                 viewRotation={viewRotation}
                 rotateView={(direction) =>
                   cpCamera()?.rotateBy(direction * VIEW_ROTATION_STEP_RADIANS)
@@ -3123,8 +3129,8 @@ export function CreasePatternPanel() {
                 setViewRotation={(degrees) =>
                   cpCamera()?.rotateTo((degrees * Math.PI) / 180)
                 }
-                rotateCcwShortcutLabel={shortcutLabelForAction('viewport.rotateCcw', shortcutOverrides)}
-                rotateCwShortcutLabel={shortcutLabelForAction('viewport.rotateCw', shortcutOverrides)}
+                rotateCcwShortcutLabel={shortcutLabelForAction('viewport.rotateCcw', shortcutResolution)}
+                rotateCwShortcutLabel={shortcutLabelForAction('viewport.rotateCw', shortcutResolution)}
               >
                 {editableCp && (
                   <>
