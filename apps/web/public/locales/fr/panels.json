@@ -83,6 +83,7 @@
     "symmetryInconsistent": "Chaque rabat a un partenaire, mais certaines paires ne sont pas interchangeables dans l’arbre.",
     "symmetryNeedsSquare": "Nécessite une feuille carrée.",
     "symmetryReady": "Chaque rabat a un partenaire.",
+    "transform": "Transformer",
     "unpair": "Dissocier du miroir",
     "unsupportedOperation": "Opération BP non prise en charge",
     "upstreamGap": "Espace en amont",

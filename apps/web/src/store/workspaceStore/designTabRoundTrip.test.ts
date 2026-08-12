@@ -260,6 +260,8 @@ describe('two box-pleat designs with different mirror state', () => {
   const BOOK = {
     enabled: true,
     fold: 'book' as const,
+    quarterTurn: false,
+    sidesSwapped: false,
     angle: 90,
     loc: { x: 10, y: 10 },
     pairs: [{ v1: 3, v2: 4 }],
@@ -267,6 +269,8 @@ describe('two box-pleat designs with different mirror state', () => {
   const DIAGONAL = {
     enabled: false,
     fold: 'diagonal' as const,
+    quarterTurn: false,
+    sidesSwapped: false,
     angle: 45,
     loc: { x: 6, y: 6 },
     pairs: [],

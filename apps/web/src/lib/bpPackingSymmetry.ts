@@ -1,17 +1,18 @@
 import type {
   OristudioBpFlap,
   OristudioBpSheet,
+  OristudioBpSheetKind,
   OristudioBpTreeView,
 } from '../engine/oristudioBpTypes';
 import {
-  optimizerSymmetryAxisForFold,
+  optimizerSymmetryAxisForMirror,
   optimizerSymmetryAxisSwapsDimensions,
   type OptimizerSymmetryAxis,
 } from './bpOptimizerSymmetry';
 import {
   mirrorBpTreeVertexId,
+  type BpMirrorOrientation,
   type BpTreeSymmetryPair,
-  type SymmetryFold,
 } from './bpTreeSymmetry';
 import { bpPackingSheetFrame, snapBpPackingAnchorToGrid } from './bpPackingViewport';
 import type { SymmetryAxis } from './symmetryGeometry';
@@ -82,12 +83,108 @@ export function bpPackingSheetSupportsAxis(
   return Math.abs(frame.spanX - frame.spanY) <= BP_PACKING_SYMMETRY_TOLERANCE;
 }
 
-/** The layout-space axis a design's fold resolves to on this sheet. */
+/** The layout-space axis a design's mirror resolves to on this sheet. */
 export function bpPackingSymmetryAxis(
   sheet: OristudioBpSheet,
-  fold: SymmetryFold
+  mirror: BpMirrorOrientation
 ): OptimizerSymmetryAxis {
-  return optimizerSymmetryAxisForFold(sheet.kind, fold);
+  return optimizerSymmetryAxisForMirror(sheet.kind, mirror);
+}
+
+/**
+ * The sheet operations that move the whole layout as one rigid piece.
+ *
+ * The rotations and flips name their direction. It does not change which *line*
+ * the mirror lands on — a right turn and a left turn reach the same one — but it
+ * decides which of its two sides the design's left half ends up on, and that is
+ * half of what the mirror has to record.
+ */
+export type BpSheetTransform =
+  | { kind: 'subdivide' }
+  | { kind: 'unsubdivide' }
+  | { kind: 'rotate'; clockwise: boolean }
+  | { kind: 'flip'; horizontal: boolean };
+
+/** The axis normals the kernel measures sides against (`SymmetryAxis::grid_normal`). */
+const AXIS_NORMALS: Record<OptimizerSymmetryAxis, readonly [number, number]> = {
+  verticalHalf: [1, 0],
+  horizontalHalf: [0, 1],
+  mainDiagonal: [1, -1],
+  antiDiagonal: [1, 1],
+};
+
+/** The axis a normal is perpendicular to, whichever way it points. */
+function axisForNormal([x, y]: readonly [number, number]): OptimizerSymmetryAxis {
+  if (y === 0) return 'verticalHalf';
+  if (x === 0) return 'horizontalHalf';
+  return x === y ? 'antiDiagonal' : 'mainDiagonal';
+}
+
+/**
+ * A direction, carried through the transform.
+ *
+ * Centred on the sheet, where every one of these is linear. The rotation matches
+ * `rotate_sheet`'s matrix with `by = 1`, which takes (u, v) to (v, −u).
+ */
+function transportDirection(
+  [x, y]: readonly [number, number],
+  transform: BpSheetTransform
+): readonly [number, number] {
+  switch (transform.kind) {
+    case 'subdivide':
+    case 'unsubdivide':
+      // A uniform scale about the centre. Lengths change; directions do not.
+      return [x, y];
+    case 'rotate':
+      return transform.clockwise ? [y, -x] : [-y, x];
+    case 'flip':
+      return transform.horizontal ? [-x, y] : [x, -y];
+  }
+}
+
+/**
+ * Where the mirror ends up after a sheet transform.
+ *
+ * Each of these moves the design rigidly, so a symmetric layout comes out just
+ * as symmetric — the flap geometry looks after itself. The mirror moves with it
+ * though, and where it went cannot be recovered from the transformed sheet
+ * afterwards, so it is recorded instead.
+ *
+ * Rather than a table of which transform does what to which axis, the mirror's
+ * own normal is carried through the transform and read back. That settles both
+ * questions at once and neither can drift from the other: the line it ends up
+ * perpendicular to is the new axis, and whether it still points the way that
+ * axis's canonical normal does is whether the two sides have been exchanged.
+ * Composition then comes for free, which a table has to be trusted to get right
+ * — and the earlier table was wrong about the sides, because it had thrown away
+ * the direction the answer depends on.
+ *
+ * The class never changes: no transform here turns by less than a right angle,
+ * so a book fold cannot become a diagonal one. Asserted in the tests rather than
+ * assumed, since `fold` is carried through untouched.
+ *
+ * Takes the kind of the sheet being transformed, which is the paper the mirror
+ * is being asked about.
+ */
+export function mirrorAfterSheetTransform(
+  sheetKind: OristudioBpSheetKind,
+  mirror: BpMirrorOrientation,
+  transform: BpSheetTransform
+): BpMirrorOrientation {
+  const axis = optimizerSymmetryAxisForMirror(sheetKind, mirror);
+  const sign = mirror.sidesSwapped ? -1 : 1;
+  const [cx, cy] = AXIS_NORMALS[axis];
+  const moved = transportDirection([cx * sign, cy * sign], transform);
+  const nextAxis = axisForNormal(moved);
+  const [nx, ny] = AXIS_NORMALS[nextAxis];
+  // Parallel by construction, so the dot product's sign is the whole question.
+  const pointsTheSameWay = moved[0] * nx + moved[1] * ny > 0;
+  const base = optimizerSymmetryAxisForMirror(sheetKind, { ...mirror, quarterTurn: false });
+  return {
+    fold: mirror.fold,
+    quarterTurn: nextAxis !== base,
+    sidesSwapped: !pointsTheSameWay,
+  };
 }
 
 /**
@@ -312,7 +409,7 @@ export interface ConstrainBpFlapGroupInput {
   /** Where the gesture wants to put the first flap's anchor. */
   target: Point;
   sheet: OristudioBpSheet;
-  fold: SymmetryFold;
+  mirror: BpMirrorOrientation;
   /** Flaps that have a mirror partner, and so may not cross to its half. */
   pairedIds: ReadonlySet<number>;
 }
@@ -332,10 +429,10 @@ export interface ConstrainBpFlapGroupInput {
  * unpaired members never constrain anything.
  */
 export function constrainBpFlapGroupToAxisSides(input: ConstrainBpFlapGroupInput): Point {
-  const { moving, target, sheet, fold, pairedIds } = input;
+  const { moving, target, sheet, mirror, pairedIds } = input;
   const reference = moving[0];
   if (!reference) return target;
-  const axis = bpPackingSymmetryAxis(sheet, fold);
+  const axis = bpPackingSymmetryAxis(sheet, mirror);
   if (!bpPackingSheetSupportsAxis(sheet, axis)) return target;
   const center = bpPackingSheetCenter(sheet);
   const normal = axisUnitNormal(axis);
@@ -383,7 +480,7 @@ export interface BuildMirroredBpFlapMovesInput {
   /** The tree-space axis, used only to resolve which flap pairs with which. */
   treeAxis: SymmetryAxis;
   sheet: OristudioBpSheet;
-  fold: SymmetryFold;
+  mirror: BpMirrorOrientation;
   flaps: readonly OristudioBpFlap[];
   /** Where the gesture is putting the flaps it grabbed. */
   moves: readonly BpFlapMove[];
@@ -405,8 +502,8 @@ export interface BuildMirroredBpFlapMovesInput {
  * Returns an empty list when the fold has no valid mirror on this sheet.
  */
 export function buildMirroredBpFlapMoves(input: BuildMirroredBpFlapMovesInput): BpFlapMove[] {
-  const { tree, pairs, treeAxis, sheet, fold, flaps, moves } = input;
-  const axis = bpPackingSymmetryAxis(sheet, fold);
+  const { tree, pairs, treeAxis, sheet, mirror, flaps, moves } = input;
+  const axis = bpPackingSymmetryAxis(sheet, mirror);
   if (!bpPackingSheetSupportsAxis(sheet, axis)) return [];
   const center = bpPackingSheetCenter(sheet);
   const primaryIds = new Set(moves.map((move) => move.id));
@@ -442,9 +539,9 @@ export function constrainBpFlapMoveToAxis(
   flap: OristudioBpFlap,
   loc: Point,
   sheet: OristudioBpSheet,
-  fold: SymmetryFold
+  mirror: BpMirrorOrientation
 ): Point | null {
-  const axis = bpPackingSymmetryAxis(sheet, fold);
+  const axis = bpPackingSymmetryAxis(sheet, mirror);
   if (!bpPackingSheetSupportsAxis(sheet, axis)) return null;
   return projectBpFlapAnchorOntoAxis(loc, flap, bpPackingSheetCenter(sheet), axis);
 }

@@ -1,6 +1,10 @@
 {
   "bp": {
+    "flipHorizontal": "좌우 뒤집기",
+    "flipVertical": "상하 뒤집기",
     "optimizeLayout": "레이아웃 최적화…",
+    "rotateLeft": "왼쪽으로 회전",
+    "rotateRight": "오른쪽으로 회전",
     "subdivide": "격자 세분화",
     "unsubdivide": "격자 세분화 해제"
   },

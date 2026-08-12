@@ -1,6 +1,10 @@
 {
   "bp": {
+    "flipHorizontal": "Horizontal Flip",
+    "flipVertical": "Vertical Flip",
     "optimizeLayout": "Optimize Layout…",
+    "rotateLeft": "Rotate Left",
+    "rotateRight": "Rotate Right",
     "subdivide": "Subdivide Grid",
     "unsubdivide": "Un-subdivide Grid"
   },

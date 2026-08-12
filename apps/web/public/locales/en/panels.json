@@ -81,6 +81,7 @@
     "symmetryInconsistent": "Every flap has a partner, but some pairs are not interchangeable in the tree.",
     "symmetryNeedsSquare": "Needs a square sheet.",
     "symmetryReady": "Every flap has a partner.",
+    "transform": "Transform",
     "unpair": "Unpair from mirror",
     "unsupportedOperation": "Unsupported BP operation",
     "upstreamGap": "Upstream gap",

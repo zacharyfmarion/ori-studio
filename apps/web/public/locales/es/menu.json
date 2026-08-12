@@ -1,6 +1,10 @@
 {
   "bp": {
+    "flipHorizontal": "Voltear horizontalmente",
+    "flipVertical": "Voltear verticalmente",
     "optimizeLayout": "Optimizar el diseño…",
+    "rotateLeft": "Girar a la izquierda",
+    "rotateRight": "Girar a la derecha",
     "subdivide": "Subdividir retícula",
     "unsubdivide": "Deshacer subdivisión"
   },

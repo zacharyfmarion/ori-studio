@@ -500,6 +500,47 @@ describe('workspace capabilities', () => {
     expect(ceiling['bp.layout.subdivide'].enabled).toBe(false);
   });
 
+  it('gates rotate and flip on nothing but having a sheet to act on', () => {
+    // Both are isometries of the sheet — a rotation swaps its width and height
+    // along with the design — so neither can push a flap off the paper, and
+    // there is no third condition to check.
+    const transforms = [
+      'bp.layout.rotateRight',
+      'bp.layout.rotateLeft',
+      'bp.layout.flipHorizontal',
+      'bp.layout.flipVertical',
+    ] as const;
+
+    const ready = capabilities({
+      activeEditingContext: 'bp-packing',
+      hasBoxPleatDocument: true,
+      // Deliberately at the grid's ceiling and off an even line: what stops
+      // subdivide and un-subdivide has no bearing on turning the sheet.
+      boxPleatCanSubdivide: false,
+      boxPleatCanUnsubdivide: false,
+    });
+    for (const id of transforms) expect(ready[id].enabled).toBe(true);
+
+    const busy = capabilities({
+      activeEditingContext: 'bp-packing',
+      hasBoxPleatDocument: true,
+      boxPleatBusy: true,
+    });
+    const empty = capabilities({ activeEditingContext: 'bp-packing' });
+    for (const id of transforms) {
+      expect(busy[id].enabled).toBe(false);
+      expect(empty[id].enabled).toBe(false);
+      // Still visible, and still saying which verb it is and why it is off.
+      expect(empty[id].visible).toBe(true);
+      expect(empty[id].reason).not.toBe(ready[id].reason);
+    }
+
+    for (const context of ['treemaker-tree', 'crease-pattern', 'simulate'] as const) {
+      const other = capabilities({ activeEditingContext: context, hasBoxPleatDocument: true });
+      for (const id of transforms) expect(other[id].visible).toBe(false);
+    }
+  });
+
   it('shows the grid subdivision commands only in a Box-Pleat context', () => {
     const noDocument = capabilities({ activeEditingContext: 'bp-packing' });
     expect(noDocument['bp.layout.subdivide'].visible).toBe(true);

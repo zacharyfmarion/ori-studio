@@ -15,6 +15,8 @@ function createDeps() {
       createNewProject: vi.fn().mockResolvedValue(undefined),
       subdivideOristudioBpLayoutSheet: vi.fn().mockResolvedValue(true),
       unsubdivideOristudioBpLayoutSheet: vi.fn().mockResolvedValue(true),
+      rotateOristudioBpLayoutSheet: vi.fn().mockResolvedValue(true),
+      flipOristudioBpLayoutSheet: vi.fn().mockResolvedValue(true),
       loadExampleProject: vi.fn().mockResolvedValue(undefined),
       openProject: vi.fn().mockResolvedValue(true),
       importAddCreasePattern: vi.fn().mockResolvedValue(true),
@@ -185,6 +187,22 @@ describe('menu actions', () => {
     expect(deps.about).toHaveBeenCalledTimes(2);
     expect(deps.workspace.buildCreasePattern).toHaveBeenCalledOnce();
     expect(deps.workspace.optimizeEdges).toHaveBeenCalledOnce();
+  });
+
+  it('dispatches the four BP sheet transforms, each with its own direction', async () => {
+    const deps = createDeps();
+    const handle = createMenuActionHandler(deps);
+
+    await expect(handle('bp.layout.rotateRight')).resolves.toBe(true);
+    await expect(handle('bp.layout.rotateLeft')).resolves.toBe(true);
+    await expect(handle('bp.layout.flipHorizontal')).resolves.toBe(true);
+    await expect(handle('bp.layout.flipVertical')).resolves.toBe(true);
+
+    // Right is clockwise and horizontal is left-to-right, matching the engine's
+    // `rotate_layout_sheet(clockwise)` / `flip_layout_sheet(horizontal)`. A pair
+    // wired the same way round would pass a one-call assertion.
+    expect(deps.workspace.rotateOristudioBpLayoutSheet.mock.calls).toEqual([[true], [false]]);
+    expect(deps.workspace.flipOristudioBpLayoutSheet.mock.calls).toEqual([[true], [false]]);
   });
 
   it('dispatches data-driven Examples entries by id prefix', async () => {

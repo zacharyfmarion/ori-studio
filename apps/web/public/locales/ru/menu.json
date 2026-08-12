@@ -1,6 +1,10 @@
 {
   "bp": {
+    "flipHorizontal": "Отразить по горизонтали",
+    "flipVertical": "Отразить по вертикали",
     "optimizeLayout": "Оптимизировать раскладку…",
+    "rotateLeft": "Повернуть влево",
+    "rotateRight": "Повернуть вправо",
     "subdivide": "Разделить сетку",
     "unsubdivide": "Отменить разделение"
   },

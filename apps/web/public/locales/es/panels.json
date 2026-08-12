@@ -83,6 +83,7 @@
     "symmetryInconsistent": "Cada solapa tiene pareja, pero algunas parejas no son intercambiables en el árbol.",
     "symmetryNeedsSquare": "Necesita una hoja cuadrada.",
     "symmetryReady": "Cada solapa tiene pareja.",
+    "transform": "Transformar",
     "unpair": "Desemparejar del espejo",
     "unsupportedOperation": "Operación BP no admitida",
     "upstreamGap": "Hueco anterior",

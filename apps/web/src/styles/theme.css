@@ -6518,6 +6518,39 @@ button.cp-folded-figure-toolbar__notice:hover {
   color: var(--text-secondary);
 }
 
+/* Rotate / flip: the segment's ramp, four across and icon-only. */
+.bp-sheet-menu__transforms {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+
+.bp-sheet-menu__transforms button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+  border-radius: calc(var(--radius-sm) - 1px);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.bp-sheet-menu__transforms button:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.bp-sheet-menu__transforms button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* Axis fields: label left, value right, on the preset buttons' border ramp. */
 .symmetry-menu__field {
   display: grid;

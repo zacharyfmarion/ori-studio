@@ -1,6 +1,10 @@
 {
   "bp": {
+    "flipHorizontal": "水平翻转",
+    "flipVertical": "垂直翻转",
     "optimizeLayout": "优化布局…",
+    "rotateLeft": "向左旋转",
+    "rotateRight": "向右旋转",
     "subdivide": "细分网格",
     "unsubdivide": "取消细分网格"
   },

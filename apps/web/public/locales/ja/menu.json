@@ -1,6 +1,10 @@
 {
   "bp": {
+    "flipHorizontal": "左右反転",
+    "flipVertical": "上下反転",
     "optimizeLayout": "レイアウトの最適化…",
+    "rotateLeft": "左に回転",
+    "rotateRight": "右に回転",
     "subdivide": "グリッドを細分化",
     "unsubdivide": "グリッドの細分化を解除"
   },

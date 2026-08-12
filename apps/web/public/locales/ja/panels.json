@@ -79,6 +79,7 @@
     "symmetryInconsistent": "すべてのフラップにペアがありますが、ツリー上で交換できないペアがあります。",
     "symmetryNeedsSquare": "正方形の用紙が必要です。",
     "symmetryReady": "すべてのフラップにペアがあります。",
+    "transform": "変形",
     "unpair": "ミラーとのペアを解除",
     "unsupportedOperation": "サポートされていない BP 操作",
     "upstreamGap": "上流のギャップ",
