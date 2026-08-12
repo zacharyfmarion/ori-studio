@@ -252,51 +252,128 @@
 }
 
 
-/* --- The upstreams --- */
+/* --- The format ring --- */
 
-.landing-ports {
-  display: grid;
-  gap: 0;
+.landing-ring {
+  /*
+   * One square box. Everything inside positions from its centre, so the radius
+   * is the only number that has to move when the ring is resized.
+   */
+  position: relative;
+  aspect-ratio: 1;
+  width: min(100%, 440px);
+  margin-inline: auto;
+  --ring-radius: clamp(120px, 21vw, 176px);
+}
+
+/* The orbit line the files sit on. */
+.landing-ring::before {
+  content: '';
+  position: absolute;
+  inset: 50%;
+  width: calc(var(--ring-radius) * 2);
+  height: calc(var(--ring-radius) * 2);
+  margin: calc(var(--ring-radius) * -1);
+  border: 1px dashed color-mix(in srgb, var(--text-primary) 12%, transparent);
+  border-radius: 50%;
+}
+
+.landing-ring__orbit {
   margin: 0;
   padding: 0;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
   list-style: none;
-  overflow: hidden;
 }
 
-.landing-port {
+/*
+ * Each slot fills the box and rotates to its share of the circle; the file
+ * inside is pushed out to the radius and counter-rotated so it stays upright.
+ * Two rotations rather than trigonometry in JS, so the layout follows the
+ * radius at any viewport without recalculating anything.
+ */
+.landing-ring__slot {
+  position: absolute;
+  inset: 0;
   display: grid;
-  grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
-  align-items: baseline;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-5);
+  place-items: center;
+  transform: rotate(calc(var(--slot) * 1turn / var(--ring-count)));
+  pointer-events: none;
 }
 
-.landing-port + .landing-port {
-  border-top: 1px solid var(--border-subtle);
+.landing-ring__slot > .landing-file {
+  transform: translateY(calc(var(--ring-radius) * -1))
+    rotate(calc(var(--slot) * -1turn / var(--ring-count)));
+  pointer-events: auto;
 }
 
-.landing-port__name {
-  color: var(--text-primary);
-  font-size: 0.92rem;
-  font-weight: 720;
+.landing-ring__hub {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-2);
 }
 
-.landing-port__body {
-  color: var(--text-secondary);
-  font-size: 0.88rem;
-  font-weight: 500;
-  line-height: 1.55;
-}
-
-.landing-formats {
-  max-width: 62ch;
-  margin: 0;
+.landing-ring__hub-label {
   color: var(--text-tertiary);
-  font-size: 0.85rem;
-  font-weight: 500;
-  line-height: 1.55;
+  font-size: 0.72rem;
+  font-weight: 640;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* --- One file icon --- */
+
+.landing-file {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 56px;
+  /* The clipped top-right corner is what makes it read as a document. */
+  clip-path: polygon(0 0, 68% 0, 100% 26%, 100% 100%, 0 100%);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--bg-elevated) 92%, var(--bg-primary));
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  color: var(--text-secondary);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.landing-file:hover {
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-elevated));
+  color: var(--text-primary);
+}
+
+/* The turned-down corner, drawn over the clip. */
+.landing-file__fold {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 32%;
+  height: 26%;
+  background: color-mix(in srgb, var(--text-primary) 12%, transparent);
+  clip-path: polygon(0 0, 100% 100%, 0 100%);
+}
+
+.landing-file__ext {
+  padding-top: 12%;
+  font-size: 0.62rem;
+  font-weight: 720;
+  letter-spacing: 0.01em;
+}
+
+.landing-file[data-native] {
+  width: 62px;
+  height: 76px;
+  background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-elevated));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 42%, transparent);
+  color: var(--text-primary);
+}
+
+.landing-file[data-native] .landing-file__ext {
+  font-size: 0.78rem;
 }
 
 /* --- Get it --- */
@@ -397,13 +474,49 @@
     border-color: var(--border-subtle);
   }
 
-  .landing-port {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-1);
-  }
-
   .landing-section__title {
     max-width: none;
+  }
+}
+
+/*
+ * The ring stops being a ring on a narrow screen. Ten files around a circle that
+ * fits a phone would overlap, so the orbit unwinds into a centred wrap and the
+ * hub moves above it — the same information, laid out in the space available.
+ */
+@media (max-width: 560px) {
+  .landing-ring {
+    aspect-ratio: auto;
+    display: grid;
+    justify-items: center;
+    gap: var(--space-5);
+  }
+
+  .landing-ring::before {
+    content: none;
+  }
+
+  .landing-ring__orbit {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-3);
+    order: 2;
+  }
+
+  .landing-ring__slot {
+    position: static;
+    transform: none;
+    pointer-events: auto;
+  }
+
+  .landing-ring__slot > .landing-file {
+    transform: none;
+  }
+
+  .landing-ring__hub {
+    position: static;
+    order: 1;
   }
 }
 
@@ -426,11 +539,6 @@
 
 [data-surface='phone'] .landing-carousel__tab {
   border-color: var(--border-subtle);
-}
-
-[data-surface='phone'] .landing-port {
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-1);
 }
 
 [data-surface='phone'] .landing-section__title {

@@ -76,23 +76,20 @@ describe('WelcomeLanding', () => {
 
   it('credits every upstream the app is ported from', () => {
     const rendered = renderLanding();
-    const names = Array.from(rendered.querySelectorAll('.landing-port__name')).map(
-      (port) => port.textContent
-    );
+    const compatibility = rendered.querySelector('#landing-compatibility')?.textContent ?? '';
 
-    expect(names).toEqual([
-      'Oriedita',
-      'TreeMaker 5.0.1',
-      'Box Pleating Studio',
-      'Flat-Folder',
-    ]);
+    for (const upstream of ['Oriedita', 'TreeMaker', 'Box Pleating Studio', 'Flat-Folder']) {
+      expect(compatibility).toContain(upstream);
+    }
   });
 
-  it('lists the interchange formats, which is the claim this audience checks', () => {
+  it('shows the interchange formats, which is the claim this audience checks', () => {
     const rendered = renderLanding();
-    const formats = rendered.querySelector('.landing-formats')?.textContent ?? '';
+    const formats = Array.from(rendered.querySelectorAll('.landing-file__ext')).map(
+      (file) => file.textContent
+    );
 
-    for (const extension of ['.ori', '.cp', '.fold', '.bps', '.tmd5', '.svg']) {
+    for (const extension of ['.ori', '.cp', '.fold', '.bps', '.tmd5', '.svg', '.osf']) {
       expect(formats).toContain(extension);
     }
   });

@@ -5,6 +5,7 @@ import { DISCORD_URL, REPOSITORY_URL } from '../../constants/release';
 import { ButtonLink } from '../ui/Button';
 import { LandingFeatureCarousel } from './LandingFeatureCarousel';
 import { LandingFigure } from './LandingFigure';
+import { LandingFormatRing } from './LandingFormatRing';
 import { LandingSection } from './LandingSection';
 import './WelcomeLanding.css';
 
@@ -205,55 +206,15 @@ export function WelcomeLanding() {
 
       <LandingSection
         id="landing-compatibility"
+        layout="split"
         eyebrow={t('landing:compatibility.eyebrow', 'Compatibility')}
         title={t('landing:compatibility.title', 'Built on the tools you already use')}
         lead={t(
           'landing:compatibility.lead',
-          'Much of Ori Studio is a careful port of work the origami community already built. Import and export interoperability with those tools is something this is committed to keeping — though it is worth saying plainly that interoperability is not the same as exact feature parity.'
+          'Much of Ori Studio is a careful port of work the community already built — Oriedita, TreeMaker, Box Pleating Studio and Flat-Folder — and keeping import and export interoperability with those tools is a commitment, though it is not the same as exact feature parity. Nothing you make here is trapped here.'
         )}
       >
-        <ul className="landing-ports">
-          <LandingPort
-            name="Oriedita"
-            body={t(
-              'landing:compatibility.oriedita',
-              'The crease-pattern editor, and the bulk of what Ori Studio does.'
-            )}
-          />
-          <LandingPort
-            name="TreeMaker 5.0.1"
-            body={t(
-              'landing:compatibility.treemaker',
-              "Robert J. Lang's solver for turning a tree structure into a crease pattern."
-            )}
-          />
-          <LandingPort
-            name="Box Pleating Studio"
-            body={t(
-              'landing:compatibility.bpStudio',
-              'Box-pleated design, flap packing, and its stretch and river devices.'
-            )}
-          />
-          <LandingPort
-            name="Flat-Folder"
-            body={t(
-              'landing:compatibility.flatFolder',
-              "Jason S. Ku's flat-foldability checking and layer ordering."
-            )}
-          />
-        </ul>
-        <p className="landing-formats">
-          {t(
-            'landing:compatibility.formats',
-            'Imports and exports .ori, .cp, .fold, .bps, .tmd5 and .svg among others, so nothing you make here is trapped here.'
-          )}
-        </p>
-        <p className="landing-formats">
-          {t(
-            'landing:compatibility.credit',
-            'None of this would exist without the origami open-source community. The full list of acknowledgements is in the app, under Help › About.'
-          )}
-        </p>
+        <LandingFormatRing />
       </LandingSection>
 
       <LandingSection
@@ -298,12 +259,3 @@ export function trackCta(cta: LandingCta): void {
   track('landing cta clicked', { cta });
 }
 
-function LandingPort({ name, body }: { name: string; body: string }) {
-  return (
-    <li className="landing-port">
-      {/* Upstream project names, never translated. */}
-      <span className="landing-port__name">{name}</span>
-      <span className="landing-port__body">{body}</span>
-    </li>
-  );
-}

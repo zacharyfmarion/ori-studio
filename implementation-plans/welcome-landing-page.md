@@ -185,17 +185,24 @@ would ask:
 3. **Design** — the tabbed workspace and its three methods: TreeMaker, Box
    Pleating Studio, and ExplOri (Brandon Wong's searchable 22.5° archive).
 4. **Simulate** — inline simulation beside the pattern you are drawing.
-5. **Built on the tools you already use** — the four upstreams, the interchange
-   formats, and the commitment to import/export interoperability, stated with the
-   caveat that interoperability is not the same as exact feature parity.
-   Acknowledgements point at Help › About rather than being duplicated here.
+5. **Built on the tools you already use** — the interoperability commitment,
+   stated with the caveat that it is not the same as exact feature parity, and
+   the interchange formats as a ring of file icons orbiting the native `.osf`.
+   The four upstreams are named in the lead rather than tabulated.
+
+   The ring derives its extensions from `OPENABLE_FILE_EXTENSIONS`, the constant
+   that already exists so the Open dialog and the drop handler cannot disagree.
+   A landing page claiming a format the app will not open is the same class of
+   bug as the desktop download, and a test pins it. Image formats are added
+   separately, since they export but never open.
 6. **Get started** — the browser is the whole setup. CTAs are the Discord and
    the repository; `constants/release.ts` owns both URLs.
 
 **Layout.** Sections alternate rather than stacking everything: 1 is `split`
 (copy beside the overview), 2 and 3 are carousels, 4 is `split-reverse` (image
-left), 5 and 6 are stacked. `split-reverse` flips with `order`, not DOM position,
-so reading and tab order still reach the heading first.
+left), 5 is `split` (copy beside the format ring), 6 is stacked.
+`split-reverse` flips with `order`, not DOM position, so reading and tab order
+still reach the heading first.
 
 **The carousels** are the ARIA tabs pattern, not a slideshow — the feature list
 stays visible, so a reader can see everything on offer and jump to what they came
