@@ -39,13 +39,16 @@
 }
 
 /*
- * The first screenful. `safe center` rather than plain centering: when the
- * content is taller than the viewport, centering pushes its top above the scroll
- * origin where nothing can reach it, and `safe` falls back to flex-start instead.
- * `dvh` because a mobile browser's collapsing URL bar makes `vh` taller than what
- * is actually visible.
+ * The first screenful — the start screen, or on a phone the desktop-only notice.
+ * One rule for both, so the two heads of the welcome page cannot drift apart.
+ *
+ * `safe center` rather than plain centering: when the content is taller than the
+ * viewport, centering pushes its top above the scroll origin where nothing can
+ * reach it, and `safe` falls back to flex-start instead. `dvh` because a mobile
+ * browser's collapsing URL bar makes `vh` taller than what is actually visible.
  */
-.start-screen {
+.start-screen,
+.welcome-notice {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -787,7 +790,8 @@
     display: none;
   }
 
-  .start-screen {
+  .start-screen,
+  .welcome-notice {
     /* The main axis under `flex-direction: column` — top-align, don't center. */
     justify-content: flex-start;
     padding: var(--space-4);

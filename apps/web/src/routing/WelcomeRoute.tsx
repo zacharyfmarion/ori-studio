@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileDropOverlay } from '../components/FileDropOverlay';
+import { DesktopOnlyNotice } from '../components/landing/DesktopOnlyNotice';
 import {
   FIRST_LANDING_SECTION_ID,
   WelcomeLanding,
@@ -11,7 +12,11 @@ import { useFileDropTarget } from '../hooks/useFileDropTarget';
 import { useWorkspaceErrorText } from '../hooks/useWorkspaceErrorText';
 import type { DropTargetPolicy } from '../lib/fileDrop';
 import type { AppStatus } from '../lib/sampleProject';
-import { useIsWorkspaceBlocked } from '../platform/mobileSurface';
+import {
+  setPhoneOverride,
+  useIsPhoneSurface,
+  useIsWorkspaceBlocked,
+} from '../platform/mobileSurface';
 import { useLayoutStore } from '../store/layoutStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -37,10 +42,17 @@ function resetStatus(current: AppStatus, engineReady: boolean, blocked: boolean)
 }
 
 /**
- * The `/welcome` route: the start screen. Creating or opening a document
- * establishes it in the store, then navigates to the workspace that owns it.
- * Arriving here clears transient project state (a discarded dirty flag, a stale
- * error/message) so the start screen is a clean slate.
+ * The `/welcome` route: a landing page whose first screenful is either the start
+ * screen or, on a phone, the notice saying why there isn't one.
+ *
+ * The start screen only ever opens. Creating or opening a document establishes it
+ * in the store, then navigates to the workspace that owns it. Arriving here
+ * clears transient project state (a discarded dirty flag, a stale error/message)
+ * so the start screen is a clean slate.
+ *
+ * A phone gets no start screen, no drop target and no "show welcome on startup"
+ * toggle — every one of them offers a way into a workspace it cannot reach. The
+ * landing below the fold is the same for both.
  *
  * Whether a cold start lands here or straight in Edit is decided by the router's
  * index redirect (the "Show welcome on startup" preference), not this component —
@@ -49,7 +61,11 @@ function resetStatus(current: AppStatus, engineReady: boolean, blocked: boolean)
 export function WelcomeRoute() {
   const navigate = useNavigate();
   const pageRef = useRef<HTMLElement | null>(null);
+  // Two questions, not one: `blocked` decides what the page leads with, `phone`
+  // decides how it lays out. Taking the escape hatch changes the first and not
+  // the second — the screen is still small.
   const blocked = useIsWorkspaceBlocked();
+  const phone = useIsPhoneSurface();
   const status = useWorkspaceStore((state) => state.status);
   const errorText = useWorkspaceErrorText();
   const createNewCreasePattern = useWorkspaceStore((state) => state.createNewCreasePattern);
@@ -89,23 +105,28 @@ export function WelcomeRoute() {
 
   return (
     <div
-      className="app-layout app-layout--start file-drop-region"
-      {...dropTargetProps}
+      className={`app-layout app-layout--start${blocked ? '' : ' file-drop-region'}`}
+      data-surface={phone ? 'phone' : undefined}
+      {...(blocked ? {} : dropTargetProps)}
     >
       <main className="welcome-page" ref={pageRef}>
-        <StartScreen
-          status={status}
-          errorMessage={errorText}
-          onCreateCreasePattern={() => void handleCreateCreasePattern()}
-          onCreateDesign={() => void handleCreateDesign()}
-          onOpenFile={() => void handleOpenFile()}
-          showWelcomeOnStartup={showWelcomeOnStartup}
-          onToggleShowWelcomeOnStartup={setShowWelcomeOnStartup}
-        />
+        {blocked ? (
+          <DesktopOnlyNotice onOpenAnyway={() => setPhoneOverride(true)} />
+        ) : (
+          <StartScreen
+            status={status}
+            errorMessage={errorText}
+            onCreateCreasePattern={() => void handleCreateCreasePattern()}
+            onCreateDesign={() => void handleCreateDesign()}
+            onOpenFile={() => void handleOpenFile()}
+            showWelcomeOnStartup={showWelcomeOnStartup}
+            onToggleShowWelcomeOnStartup={setShowWelcomeOnStartup}
+          />
+        )}
         <WelcomeLanding />
       </main>
       <WelcomeScrollCue scrollerRef={pageRef} targetId={FIRST_LANDING_SECTION_ID} />
-      <FileDropOverlay visible={isDragActive} policy={WELCOME_DROP_POLICY} />
+      {blocked ? null : <FileDropOverlay visible={isDragActive} policy={WELCOME_DROP_POLICY} />}
     </div>
   );
 }

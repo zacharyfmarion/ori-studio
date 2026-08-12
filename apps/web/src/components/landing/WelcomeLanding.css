@@ -214,6 +214,13 @@
   color: var(--text-secondary);
 }
 
+/*
+ * Single column. Two selectors for one layout, because the two thresholds are
+ * not the same number and should not be: the media query is about how much room
+ * a column needs, while `data-surface` follows `PHONE_MEDIA_QUERY` (820px, and
+ * pointer-coarse). A 768px tablet in portrait falls between them, and would
+ * otherwise get three cards in the space of one.
+ */
 @media (max-width: 720px) {
   .landing-cards {
     grid-template-columns: minmax(0, 1fr);
@@ -227,4 +234,21 @@
   .landing-section__title {
     max-width: none;
   }
+}
+
+[data-surface='phone'] .landing-cards {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+[data-surface='phone'] .landing-port {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1);
+}
+
+[data-surface='phone'] .landing-section__title {
+  max-width: none;
+}
+
+[data-surface='phone'] .landing-actions > * {
+  flex: 1 1 100%;
 }

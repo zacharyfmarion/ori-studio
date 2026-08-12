@@ -1,0 +1,79 @@
+/*
+ * The phone register's first screenful. Its outer layout — one viewport tall,
+ * centered, the same gradient — is shared with `.start-screen` and lives in
+ * App.css; what is here is the notice's own content.
+ */
+
+.welcome-notice__inner {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-4);
+  width: min(560px, 100%);
+}
+
+.welcome-notice__icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 22%, var(--border-subtle));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  color: color-mix(in srgb, var(--accent-primary) 78%, var(--text-primary));
+}
+
+.welcome-notice__eyebrow {
+  padding: 4px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 760;
+}
+
+.welcome-notice__title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: clamp(1.9rem, 9vw, 2.6rem);
+  font-weight: 780;
+  line-height: 1.04;
+  text-wrap: balance;
+}
+
+.welcome-notice__body {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.98rem;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+/*
+ * A link, not a button: it is an aside from the message above it, and giving it
+ * button weight would argue with the sentence that just said not to.
+ */
+.welcome-notice__bypass {
+  margin-top: var(--space-2);
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent-primary) 50%, transparent);
+  background: none;
+  color: color-mix(in srgb, var(--accent-primary) 88%, var(--text-primary));
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 620;
+  cursor: pointer;
+}
+
+.welcome-notice__bypass:hover {
+  border-bottom-color: var(--accent-primary);
+  color: var(--accent-hover);
+}
+
+.welcome-notice__small {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
