@@ -1,0 +1,49 @@
+{
+  "compatibility": {
+    "bpStudio": "Diseño con plegado en caja, empaquetado de solapas y sus dispositivos de estiramiento y río.",
+    "eyebrow": "Compatibilidad",
+    "flatFolder": "La comprobación de plegabilidad plana y el orden de capas de Jason S. Ku.",
+    "formats": "Abre y exporta .cp, .fold, .ori, .orh, .tmd5 y .bps, así que nada de lo que hagas aquí se queda atrapado aquí.",
+    "lead": "Buena parte de Ori Studio es una adaptación cuidadosa de lo que la comunidad del origami ya había construido, y mantener la compatibilidad con ello es una prioridad, no algo añadido después.",
+    "oriedita": "El editor de patrones de plegado, y el grueso de lo que hace Ori Studio.",
+    "title": "Construido sobre las herramientas que ya usas",
+    "treemaker": "El solucionador de Robert J. Lang que convierte una estructura de árbol en un patrón de plegado."
+  },
+  "desktopOnly": {
+    "body": "Dibujar un patrón de plegado, arrastrar un árbol hasta darle forma y plegar el resultado piden un ratón, un teclado y sitio para trabajar. Nada de eso cabe todavía en un teléfono, así que esto no va a fingir lo contrario.",
+    "invitation": "Abre esta página en un ordenador y lo tendrás todo. Mientras tanto, esto es lo que hace.",
+    "openAnyway": "Abrirlo de todos modos",
+    "openAnywayNote": "Se te quedará estrecho, y las herramientas que necesitan pasar el cursor por encima o hacer clic derecho aún no tienen equivalente táctil.",
+    "title": "Solo para escritorio, por ahora"
+  },
+  "get": {
+    "download": "Descargar para macOS",
+    "eyebrow": "Consíguelo",
+    "github": "Ver el código",
+    "lead": "La aplicación web es todo: sin cuenta, y tus archivos se quedan en tu máquina salvo que decidas compartir alguno. La versión de escritorio añade menús nativos, diálogos de archivo y abrir archivos desde el Finder.",
+    "note": "Hoy hay compilaciones firmadas para Apple Silicon; otras plataformas están en camino y se agradece la ayuda.",
+    "title": "Úsalo en el navegador o instálalo"
+  },
+  "scrollCue": "Mira lo que hace",
+  "what": {
+    "eyebrow": "Qué es",
+    "lead": "Ori Studio reúne en un solo sitio las herramientas que los diseñadores de origami ya usan. Esboza una estructura de árbol y deja que encuentre una base, dibuja y edita el patrón de plegado a mano, y luego pliégalo en el simulador para ver lo que has hecho, sin exportar entre cuatro programas para conseguirlo.",
+    "title": "Un espacio de trabajo, del árbol al modelo plegado"
+  },
+  "workspaces": {
+    "design": {
+      "body": "Parte de una estructura de árbol y deja que el optimizador empaquete círculos en una base, o coloca las solapas sobre una retícula de plegado en caja. Ambos caminos te dan un patrón de plegado con el que seguir trabajando.",
+      "title": "Diseño"
+    },
+    "edit": {
+      "body": "Un editor de patrones de plegado completo: dibuja, pliega y despliega, comprueba la plegabilidad plana y ten una foto de referencia del tema junto al papel. También puede leer un patrón de plegado directamente de una imagen.",
+      "title": "Edición"
+    },
+    "eyebrow": "Los espacios de trabajo",
+    "simulate": {
+      "body": "Pliega el patrón y dale la vuelta. El simulador trabaja sobre el patrón de plegado que estás editando, así que probar una idea nunca implica salir del documento.",
+      "title": "Simulación"
+    },
+    "title": "Diseño, edición, simulación"
+  }
+}

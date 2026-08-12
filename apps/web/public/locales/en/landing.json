@@ -1,0 +1,49 @@
+{
+  "compatibility": {
+    "bpStudio": "Box-pleated design, flap packing, and its stretch and river devices.",
+    "eyebrow": "Compatibility",
+    "flatFolder": "Jason S. Ku's flat-foldability checking and layer ordering.",
+    "formats": "Opens and exports .cp, .fold, .ori, .orh, .tmd5 and .bps, so nothing you make here is trapped here.",
+    "lead": "Much of Ori Studio is a careful port of work the origami community already built, and staying compatible with it is a priority rather than an afterthought.",
+    "oriedita": "The crease-pattern editor, and the bulk of what Ori Studio does.",
+    "title": "Built on the tools you already use",
+    "treemaker": "Robert J. Lang's solver for turning a tree structure into a crease pattern."
+  },
+  "desktopOnly": {
+    "body": "Drawing a crease pattern, dragging a tree into shape and folding the result all want a mouse, a keyboard, and room to work. None of that fits a phone yet, so this is not going to pretend otherwise.",
+    "invitation": "Open this page on a computer and the whole thing is there. In the meantime, here is what it does.",
+    "openAnyway": "Open it anyway",
+    "openAnywayNote": "It will be cramped, and the tools that need a hover or a right-click have no touch equivalent yet.",
+    "title": "Desktop only, for now"
+  },
+  "get": {
+    "download": "Download for macOS",
+    "eyebrow": "Get it",
+    "github": "View the source",
+    "lead": "The web app is the whole thing — no account, and your files stay on your machine unless you choose to share one. The desktop build adds native menus, file dialogs, and opening files from Finder.",
+    "note": "Signed Apple Silicon builds today; other platforms are coming, and help with them is welcome.",
+    "title": "Run it in the browser, or install it"
+  },
+  "scrollCue": "See what it does",
+  "what": {
+    "eyebrow": "What it is",
+    "lead": "Ori Studio brings the tools origami designers already use into a single place. Sketch a tree structure and let it find a base, draw and edit the crease pattern by hand, then fold it in the simulator to see what you made — without exporting between four programs to do it.",
+    "title": "One workspace, from tree to folded model"
+  },
+  "workspaces": {
+    "design": {
+      "body": "Start from a tree structure and let the optimizer pack circles into a base, or lay flaps out on a box-pleating grid. Both hand you a crease pattern you can keep working on.",
+      "title": "Design"
+    },
+    "edit": {
+      "body": "A full crease-pattern editor: draw, fold and unfold, check flat-foldability, and keep a reference photo of the subject beside the paper. It can also read a crease pattern straight out of an image.",
+      "title": "Edit"
+    },
+    "eyebrow": "The workspaces",
+    "simulate": {
+      "body": "Fold the pattern and turn it over. The simulator runs on the crease pattern you are editing, so trying an idea never means leaving the document.",
+      "title": "Simulate"
+    },
+    "title": "Design, Edit, Simulate"
+  }
+}

@@ -47,6 +47,7 @@ export const I18N_NAMESPACES = [
   'tools',
   'toasts',
   'errors',
+  'landing',
   'cpVocab',
 ] as const;
 

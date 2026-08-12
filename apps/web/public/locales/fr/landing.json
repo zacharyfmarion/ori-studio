@@ -1,0 +1,49 @@
+{
+  "compatibility": {
+    "bpStudio": "La conception en plissé carré, le placement des pointes et ses dispositifs d'étirement et de rivière.",
+    "eyebrow": "Compatibilité",
+    "flatFolder": "La vérification de pliabilité à plat et l'ordre des couches de Jason S. Ku.",
+    "formats": "Ouvre et exporte les formats .cp, .fold, .ori, .orh, .tmd5 et .bps : rien de ce que vous faites ici n'y reste prisonnier.",
+    "lead": "Une grande partie d'Ori Studio est un portage soigneux de ce que la communauté de l'origami a déjà construit, et rester compatible avec elle est une priorité, pas une considération de dernière minute.",
+    "oriedita": "L'éditeur de patrons de pliage, et l'essentiel de ce que fait Ori Studio.",
+    "title": "Bâti sur les outils que vous utilisez déjà",
+    "treemaker": "Le solveur de Robert J. Lang, qui transforme une structure arborescente en patron de pliage."
+  },
+  "desktopOnly": {
+    "body": "Tracer un patron de pliage, faire glisser un arbre jusqu'à la bonne forme et plier le résultat réclament une souris, un clavier et de la place pour travailler. Rien de tout cela ne tient encore sur un téléphone, alors autant le dire franchement.",
+    "invitation": "Ouvrez cette page sur un ordinateur et vous aurez l'ensemble. En attendant, voici ce qu'elle fait.",
+    "openAnyway": "L'ouvrir quand même",
+    "openAnywayNote": "Ce sera à l'étroit, et les outils qui demandent un survol ou un clic droit n'ont pas encore d'équivalent tactile.",
+    "title": "Réservé au bureau, pour l'instant"
+  },
+  "get": {
+    "download": "Télécharger pour macOS",
+    "eyebrow": "L'obtenir",
+    "github": "Voir le code source",
+    "lead": "L'application web, c'est tout : pas de compte, et vos fichiers restent sur votre machine à moins que vous ne choisissiez d'en partager un. La version bureau ajoute les menus natifs, les boîtes de dialogue de fichiers et l'ouverture depuis le Finder.",
+    "note": "Aujourd'hui, des versions signées pour Apple Silicon ; les autres plateformes arrivent, et toute aide est la bienvenue.",
+    "title": "Utilisez-le dans le navigateur, ou installez-le"
+  },
+  "scrollCue": "Voir ce qu'il fait",
+  "what": {
+    "eyebrow": "De quoi s'agit-il",
+    "lead": "Ori Studio réunit en un seul endroit les outils que les créateurs d'origami utilisent déjà. Esquissez une structure arborescente et laissez-la trouver une base, tracez et modifiez le patron de pliage à la main, puis pliez-le dans le simulateur pour voir ce que vous avez fait — sans exporter entre quatre programmes pour y arriver.",
+    "title": "Un seul espace de travail, de l'arbre au modèle plié"
+  },
+  "workspaces": {
+    "design": {
+      "body": "Partez d'une structure arborescente et laissez l'optimiseur empaqueter des cercles en une base, ou disposez les pointes sur une grille de plissé carré. Les deux vous rendent un patron de pliage que vous pouvez continuer à travailler.",
+      "title": "Conception"
+    },
+    "edit": {
+      "body": "Un véritable éditeur de patrons de pliage : tracez, pliez et dépliez, vérifiez la pliabilité à plat, et gardez une photo de référence du sujet à côté du papier. Il sait aussi lire un patron de pliage directement dans une image.",
+      "title": "Édition"
+    },
+    "eyebrow": "Les espaces de travail",
+    "simulate": {
+      "body": "Pliez le patron et retournez-le. Le simulateur travaille sur le patron de pliage que vous êtes en train d'éditer : essayer une idée ne demande jamais de quitter le document.",
+      "title": "Simulation"
+    },
+    "title": "Conception, édition, simulation"
+  }
+}
