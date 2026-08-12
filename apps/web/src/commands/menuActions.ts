@@ -87,6 +87,10 @@ export const MENU_ACTION_IDS = [
   'bp.optimize.layout',
   'bp.layout.subdivide',
   'bp.layout.unsubdivide',
+  'bp.layout.rotateRight',
+  'bp.layout.rotateLeft',
+  'bp.layout.flipHorizontal',
+  'bp.layout.flipVertical',
   'cp.build',
   'cp.deleteSelectedLines',
   'cp.changeCreaseType',
@@ -123,6 +127,8 @@ export interface WorkspaceCommands {
   createNewProject(): Promise<void>;
   subdivideOristudioBpLayoutSheet(): Promise<boolean>;
   unsubdivideOristudioBpLayoutSheet(): Promise<boolean>;
+  rotateOristudioBpLayoutSheet(clockwise: boolean): Promise<boolean>;
+  flipOristudioBpLayoutSheet(horizontal: boolean): Promise<boolean>;
   loadExampleProject(id: string): Promise<void>;
   openProject(fileService?: FileService): Promise<boolean>;
   importAddCreasePattern(fileService?: FileService): Promise<boolean>;
@@ -619,6 +625,14 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         return deps.workspace.subdivideOristudioBpLayoutSheet();
       case 'bp.layout.unsubdivide':
         return deps.workspace.unsubdivideOristudioBpLayoutSheet();
+      case 'bp.layout.rotateRight':
+        return deps.workspace.rotateOristudioBpLayoutSheet(true);
+      case 'bp.layout.rotateLeft':
+        return deps.workspace.rotateOristudioBpLayoutSheet(false);
+      case 'bp.layout.flipHorizontal':
+        return deps.workspace.flipOristudioBpLayoutSheet(true);
+      case 'bp.layout.flipVertical':
+        return deps.workspace.flipOristudioBpLayoutSheet(false);
       case 'cp.build':
         await deps.workspace.buildCreasePattern();
         return true;
