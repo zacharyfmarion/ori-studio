@@ -149,7 +149,7 @@ describe('per-design isolation: box-pleat', () => {
       ...state,
       ...patchBoxPleatDesign(state, {
         historyPast: [{ label: 'Moved flap' }] as never,
-        symmetry: { enabled: true, fold: 'diagonal', angle: 90, loc: { x: 0, y: 0 }, pairs: [] },
+        symmetry: { enabled: true, fold: 'diagonal', quarterTurn: false, angle: 90, loc: { x: 0, y: 0 }, pairs: [] },
       }),
     };
 

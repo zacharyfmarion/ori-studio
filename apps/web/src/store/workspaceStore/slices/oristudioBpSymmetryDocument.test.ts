@@ -50,7 +50,12 @@ afterEach(() => {
 
 describe('symmetry is document state', () => {
   it('starts off, book-fold, with nothing paired', () => {
-    expect(defaultBpDocumentSymmetry()).toEqual({ enabled: false, fold: 'book', pairs: [] });
+    expect(defaultBpDocumentSymmetry()).toEqual({
+      enabled: false,
+      fold: 'book',
+      quarterTurn: false,
+      pairs: [],
+    });
     const initial = selectOristudioBpSymmetry(singleBoxPleatDesignTab());
     expect(initial.enabled).toBe(false);
     expect(initial.fold).toBe('book');
@@ -207,7 +212,7 @@ describe('symmetry rides the undo stack', () => {
           snapshot: {
             bps: '<before/>',
             selection: { kind: 'bp-none' },
-            symmetry: { enabled: true, fold: 'book', pairs: [{ v1: 1, v2: 2 }] },
+            symmetry: { enabled: true, fold: 'book', quarterTurn: false, pairs: [{ v1: 1, v2: 2 }] },
           },
           label: 'Delete flap',
           timestamp: '2026-01-01T00:00:00.000Z',

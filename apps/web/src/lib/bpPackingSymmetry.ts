@@ -4,14 +4,14 @@ import type {
   OristudioBpTreeView,
 } from '../engine/oristudioBpTypes';
 import {
-  optimizerSymmetryAxisForFold,
+  optimizerSymmetryAxisForMirror,
   optimizerSymmetryAxisSwapsDimensions,
   type OptimizerSymmetryAxis,
 } from './bpOptimizerSymmetry';
 import {
   mirrorBpTreeVertexId,
+  type BpMirrorOrientation,
   type BpTreeSymmetryPair,
-  type SymmetryFold,
 } from './bpTreeSymmetry';
 import { bpPackingSheetFrame, snapBpPackingAnchorToGrid } from './bpPackingViewport';
 import type { SymmetryAxis } from './symmetryGeometry';
@@ -82,12 +82,12 @@ export function bpPackingSheetSupportsAxis(
   return Math.abs(frame.spanX - frame.spanY) <= BP_PACKING_SYMMETRY_TOLERANCE;
 }
 
-/** The layout-space axis a design's fold resolves to on this sheet. */
+/** The layout-space axis a design's mirror resolves to on this sheet. */
 export function bpPackingSymmetryAxis(
   sheet: OristudioBpSheet,
-  fold: SymmetryFold
+  mirror: BpMirrorOrientation
 ): OptimizerSymmetryAxis {
-  return optimizerSymmetryAxisForFold(sheet.kind, fold);
+  return optimizerSymmetryAxisForMirror(sheet.kind, mirror);
 }
 
 /**
@@ -312,7 +312,7 @@ export interface ConstrainBpFlapGroupInput {
   /** Where the gesture wants to put the first flap's anchor. */
   target: Point;
   sheet: OristudioBpSheet;
-  fold: SymmetryFold;
+  mirror: BpMirrorOrientation;
   /** Flaps that have a mirror partner, and so may not cross to its half. */
   pairedIds: ReadonlySet<number>;
 }
@@ -332,10 +332,10 @@ export interface ConstrainBpFlapGroupInput {
  * unpaired members never constrain anything.
  */
 export function constrainBpFlapGroupToAxisSides(input: ConstrainBpFlapGroupInput): Point {
-  const { moving, target, sheet, fold, pairedIds } = input;
+  const { moving, target, sheet, mirror, pairedIds } = input;
   const reference = moving[0];
   if (!reference) return target;
-  const axis = bpPackingSymmetryAxis(sheet, fold);
+  const axis = bpPackingSymmetryAxis(sheet, mirror);
   if (!bpPackingSheetSupportsAxis(sheet, axis)) return target;
   const center = bpPackingSheetCenter(sheet);
   const normal = axisUnitNormal(axis);
@@ -383,7 +383,7 @@ export interface BuildMirroredBpFlapMovesInput {
   /** The tree-space axis, used only to resolve which flap pairs with which. */
   treeAxis: SymmetryAxis;
   sheet: OristudioBpSheet;
-  fold: SymmetryFold;
+  mirror: BpMirrorOrientation;
   flaps: readonly OristudioBpFlap[];
   /** Where the gesture is putting the flaps it grabbed. */
   moves: readonly BpFlapMove[];
@@ -405,8 +405,8 @@ export interface BuildMirroredBpFlapMovesInput {
  * Returns an empty list when the fold has no valid mirror on this sheet.
  */
 export function buildMirroredBpFlapMoves(input: BuildMirroredBpFlapMovesInput): BpFlapMove[] {
-  const { tree, pairs, treeAxis, sheet, fold, flaps, moves } = input;
-  const axis = bpPackingSymmetryAxis(sheet, fold);
+  const { tree, pairs, treeAxis, sheet, mirror, flaps, moves } = input;
+  const axis = bpPackingSymmetryAxis(sheet, mirror);
   if (!bpPackingSheetSupportsAxis(sheet, axis)) return [];
   const center = bpPackingSheetCenter(sheet);
   const primaryIds = new Set(moves.map((move) => move.id));
@@ -442,9 +442,9 @@ export function constrainBpFlapMoveToAxis(
   flap: OristudioBpFlap,
   loc: Point,
   sheet: OristudioBpSheet,
-  fold: SymmetryFold
+  mirror: BpMirrorOrientation
 ): Point | null {
-  const axis = bpPackingSymmetryAxis(sheet, fold);
+  const axis = bpPackingSymmetryAxis(sheet, mirror);
   if (!bpPackingSheetSupportsAxis(sheet, axis)) return null;
   return projectBpFlapAnchorOntoAxis(loc, flap, bpPackingSheetCenter(sheet), axis);
 }

@@ -7496,7 +7496,7 @@ describe('workspace store slices', () => {
           filename: 'crane.osf',
           path: null,
           bps: '{"title":"Crane"}',
-          symmetry: { enabled: true, fold: 'book', pairs: [{ v1: 1, v2: 99 }] },
+          symmetry: { enabled: true, fold: 'book', quarterTurn: false, pairs: [{ v1: 1, v2: 99 }] },
           appVersion: '0.0.0',
         })
       );
@@ -7749,6 +7749,7 @@ describe('workspace store slices', () => {
         symmetry: {
           enabled: true,
           fold: 'book',
+          quarterTurn: false,
           angle: 90,
           loc: { x: tree.sheet.width / 2, y: tree.sheet.height / 2 },
           pairs: [{ v1: leaves[0].id, v2: leaves[1].id }],
@@ -7807,6 +7808,7 @@ describe('workspace store slices', () => {
         symmetry: {
           enabled: true,
           fold: 'book',
+          quarterTurn: false,
           angle: 90,
           loc: { x: tree.sheet.width / 2, y: tree.sheet.height / 2 },
           pairs: [],
@@ -7837,6 +7839,7 @@ describe('workspace store slices', () => {
         symmetry: {
           enabled: true,
           fold: 'book',
+          quarterTurn: false,
           angle: 90,
           loc: { x: tree.sheet.width / 2, y: tree.sheet.height / 2 },
           pairs: [{ v1: leaves[0], v2: leaves[1] }],

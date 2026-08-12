@@ -73,6 +73,34 @@ export function addBpTreeSymmetryPair(
 export type SymmetryFold = 'book' | 'diagonal';
 
 /**
+ * Which of the square's four mirror axes the design's mirror is.
+ *
+ * Two fields, because the four fall into two classes of two — book (vertical,
+ * horizontal) and diagonal (main, anti) — and a quarter turn maps book to book
+ * and diagonal to diagonal. So the class survives a rotation while the member is
+ * exactly what a rotation changes: independent coordinates, and each operation
+ * writes only the one it actually moves.
+ */
+export interface BpMirrorOrientation {
+  /**
+   * Which fold of the paper the mirror becomes. A fact about the design, not a
+   * preference about the optimizer: "this model is book-symmetric" travels with
+   * the model.
+   */
+  fold: SymmetryFold;
+  /**
+   * Whether the mirror sits a quarter turn off the fold's canonical placement —
+   * the horizontal book fold rather than the vertical, the anti-diagonal rather
+   * than the main one.
+   *
+   * Only the sheet transforms write it: rotating or flipping the layout carries
+   * the mirror along with the design, and nothing else can move it. Choosing a
+   * fold does not, because that chooses the class.
+   */
+  quarterTurn: boolean;
+}
+
+/**
  * The part of mirror-draw state that belongs to the *design* and is saved with
  * it, as opposed to the runtime axis (`angle`/`loc`) which is derived from the
  * sheet on every load.
@@ -82,14 +110,8 @@ export type SymmetryFold = 'book' | 'diagonal';
  * the sheet it describes — a design saved at one sheet size and reopened at
  * another would carry a mirror line that no longer runs down the middle.
  */
-export interface BpDocumentSymmetry {
+export interface BpDocumentSymmetry extends BpMirrorOrientation {
   enabled: boolean;
-  /**
-   * Which fold of the paper the mirror becomes. A fact about the design, not a
-   * preference about the optimizer: "this model is book-symmetric" travels with
-   * the model.
-   */
-  fold: SymmetryFold;
   pairs: BpTreeSymmetryPair[];
 }
 
@@ -104,11 +126,17 @@ export interface BpDocumentSymmetry {
 export function bpDocumentSymmetry(state: BpDocumentSymmetry): BpDocumentSymmetry {
   // Copied, not aliased: the result outlives the call as an undo snapshot or a
   // serialized file, and sharing the live array makes those hostage to it.
-  return { enabled: state.enabled, fold: state.fold, pairs: [...state.pairs] };
+  return {
+    enabled: state.enabled,
+    fold: state.fold,
+    quarterTurn: state.quarterTurn,
+    pairs: [...state.pairs],
+  };
 }
 
 /**
- * Mirror draw as a new design starts: off, book fold, nothing paired yet.
+ * Mirror draw as a new design starts: off, book fold, unturned, nothing paired
+ * yet.
  *
  * Off, because mirroring is a decision about the model rather than a default
  * way to draw: starting on means every first stroke silently lays down a second
@@ -119,7 +147,7 @@ export function bpDocumentSymmetry(state: BpDocumentSymmetry): BpDocumentSymmetr
  * nothing in it was ever mirrored.
  */
 export function defaultBpDocumentSymmetry(): BpDocumentSymmetry {
-  return { enabled: false, fold: 'book', pairs: [] };
+  return { enabled: false, fold: 'book', quarterTurn: false, pairs: [] };
 }
 
 /**
@@ -152,6 +180,9 @@ export function validateBpDocumentSymmetry(value: unknown): BpDocumentSymmetry |
   return {
     enabled: typeof record.enabled === 'boolean' ? record.enabled : fallback.enabled,
     fold: record.fold === 'diagonal' ? 'diagonal' : fallback.fold,
+    // Absent means the file predates the sheet transforms, and a design that was
+    // never rotated is one whose mirror is still where its fold puts it.
+    quarterTurn: typeof record.quarterTurn === 'boolean' ? record.quarterTurn : fallback.quarterTurn,
     pairs,
   };
 }

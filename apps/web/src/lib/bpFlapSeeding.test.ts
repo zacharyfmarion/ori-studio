@@ -11,6 +11,10 @@ import {
   seedBpPartnerFlapAnchor,
 } from './bpFlapSeeding';
 
+/** The two folds, unturned — the orientation a design starts and stays in here. */
+const BOOK = { fold: 'book', quarterTurn: false } as const;
+const DIAGONAL = { fold: 'diagonal', quarterTurn: false } as const;
+
 /**
  * The starter project's real sheets: a 20×20 tree and a 16×16 layout. They are
  * deliberately different sizes here for the same reason the mirror tests use two
@@ -58,7 +62,7 @@ describe('seedBpFlapAnchor', () => {
         treeLoc: { x: 15, y: 5 },
         treeSheet: TREE,
         layoutSheet: LAYOUT,
-        fold: 'book',
+        mirror: BOOK,
         selfMirrored: false,
       })
     ).toEqual({ x: 12, y: 4 });
@@ -70,7 +74,7 @@ describe('seedBpFlapAnchor', () => {
         treeLoc: { x: 10, y: 6 },
         treeSheet: TREE,
         layoutSheet: LAYOUT,
-        fold: 'book',
+        mirror: BOOK,
         selfMirrored: true,
       })
       // 10 * 0.8 = 8, dead centre of a 16-wide sheet; 6 * 0.8 = 4.8 -> 5.
@@ -85,10 +89,10 @@ describe('seedBpFlapAnchor', () => {
       treeLoc: { x: 10, y: 5 },
       treeSheet: TREE,
       layoutSheet: LAYOUT,
-      fold: 'diagonal',
+      mirror: DIAGONAL,
       selfMirrored: true,
     });
-    const axis = bpPackingSymmetryAxis(LAYOUT, 'diagonal');
+    const axis = bpPackingSymmetryAxis(LAYOUT, DIAGONAL);
     expect(isBpFlapOnAxis(anchor, { width: 0, height: 0 }, bpPackingSheetCenter(LAYOUT), axis)).toBe(
       true
     );
@@ -100,7 +104,7 @@ describe('seedBpFlapAnchor', () => {
         treeLoc: { x: 10, y: 5 },
         treeSheet: TREE,
         layoutSheet: LAYOUT,
-        fold: null,
+        mirror: null,
         selfMirrored: true,
       })
     ).toEqual({ x: 8, y: 4 });
@@ -109,7 +113,7 @@ describe('seedBpFlapAnchor', () => {
 
 describe('seedBpPartnerFlapAnchor', () => {
   it('reflects the primary about the layout sheet centre', () => {
-    expect(seedBpPartnerFlapAnchor({ x: 9, y: 9 }, LAYOUT, 'book')).toEqual({ x: 7, y: 9 });
+    expect(seedBpPartnerFlapAnchor({ x: 9, y: 9 }, LAYOUT, BOOK)).toEqual({ x: 7, y: 9 });
   });
 
   it('is symmetric by construction, not by rounding luck', () => {
@@ -118,16 +122,16 @@ describe('seedBpPartnerFlapAnchor', () => {
     // pair — but 11.4 -> 9 and 8.6 -> 7 only by chance. Deriving the partner from
     // the primary makes the pair exact whatever the map rounded to.
     for (const x of [9, 10, 11, 12, 13]) {
-      const partner = seedBpPartnerFlapAnchor({ x, y: 4 }, LAYOUT, 'book');
+      const partner = seedBpPartnerFlapAnchor({ x, y: 4 }, LAYOUT, BOOK);
       expect(partner && partner.x + x).toBe(16);
     }
   });
 
   it('swaps the coordinates under a diagonal fold', () => {
-    expect(seedBpPartnerFlapAnchor({ x: 3, y: 11 }, LAYOUT, 'diagonal')).toEqual({ x: 11, y: 3 });
+    expect(seedBpPartnerFlapAnchor({ x: 3, y: 11 }, LAYOUT, DIAGONAL)).toEqual({ x: 11, y: 3 });
   });
 
   it('declines when the fold has no mirror on this sheet', () => {
-    expect(seedBpPartnerFlapAnchor({ x: 3, y: 11 }, sheet(16, 10), 'diagonal')).toBeNull();
+    expect(seedBpPartnerFlapAnchor({ x: 3, y: 11 }, sheet(16, 10), DIAGONAL)).toBeNull();
   });
 });

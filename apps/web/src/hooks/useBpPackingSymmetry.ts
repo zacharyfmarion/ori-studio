@@ -8,6 +8,7 @@ import {
   bpTreeSymmetryDefaultLoc,
   explicitBpTreePairId,
   mirrorBpTreeVertexId,
+  type BpMirrorOrientation,
   type SymmetryFold,
 } from '../lib/bpTreeSymmetry';
 import { resolveOptimizerSymmetry } from '../lib/bpOptimizerSymmetry';
@@ -74,10 +75,9 @@ export interface BpPackingSymmetryView {
 function foldStatus(
   t: TFunction,
   tree: OristudioBpTreeView,
-  symmetry: Parameters<typeof resolveOptimizerSymmetry>[1],
-  fold: SymmetryFold
+  symmetry: Parameters<typeof resolveOptimizerSymmetry>[1]
 ): string {
-  const resolved = resolveOptimizerSymmetry(tree, symmetry, { fold });
+  const resolved = resolveOptimizerSymmetry(tree, symmetry);
   if (!resolved.ok) return resolved.reason;
   if (resolved.inconsistentPairs.length > 0) {
     return t(
@@ -89,12 +89,12 @@ function foldStatus(
 }
 
 /** The mirror line across the sheet's frame, in grid coordinates. */
-function axisEndpoints(sheet: OristudioBpSheet, fold: SymmetryFold): [Point, Point] {
+function axisEndpoints(sheet: OristudioBpSheet, mirror: BpMirrorOrientation): [Point, Point] {
   const frame = bpPackingSheetFrame(sheet);
   const center = bpPackingSheetCenter(sheet);
   const right = frame.originX + frame.spanX;
   const top = frame.originY + frame.spanY;
-  switch (bpPackingSymmetryAxis(sheet, fold)) {
+  switch (bpPackingSymmetryAxis(sheet, mirror)) {
     case 'verticalHalf':
       return [
         { x: center.x, y: frame.originY },
@@ -151,26 +151,29 @@ export function useBpPackingSymmetry(
     [setOristudioBpSymmetry]
   );
 
+  // Asks about a fold the design may not have — the menu offers both — so it
+  // names one explicitly, and keeps the design's own orientation because a fold
+  // pick does not move the mirror off it.
   const foldUnavailable = useCallback(
     (fold: SymmetryFold) =>
-      bpPackingSheetSupportsAxis(sheet, bpPackingSymmetryAxis(sheet, fold))
+      bpPackingSheetSupportsAxis(
+        sheet,
+        bpPackingSymmetryAxis(sheet, { fold, quarterTurn: symmetry.quarterTurn })
+      )
         ? null
         : t('panels:bpPacking.symmetryNeedsSquare', 'Needs a square sheet.'),
-    [sheet, t]
+    [sheet, symmetry.quarterTurn, t]
   );
 
   const axisLine = useMemo(() => {
     if (!symmetry.enabled) return null;
-    const [from, to] = axisEndpoints(sheet, symmetry.fold);
+    const [from, to] = axisEndpoints(sheet, symmetry);
     const a = bpPackingPointToSvg(from, sheet, paperRect);
     const b = bpPackingPointToSvg(to, sheet, paperRect);
     return { x1: a.x, y1: a.y, x2: b.x, y2: b.y };
-  }, [symmetry.enabled, symmetry.fold, sheet, paperRect]);
+  }, [symmetry, sheet, paperRect]);
 
-  const status = useMemo(
-    () => foldStatus(t, tree, symmetry, symmetry.fold),
-    [t, tree, symmetry]
-  );
+  const status = useMemo(() => foldStatus(t, tree, symmetry), [t, tree, symmetry]);
 
   const treeAxis: SymmetryAxis = useMemo(
     () => ({ loc: symmetry.loc, angle: symmetry.angle }),

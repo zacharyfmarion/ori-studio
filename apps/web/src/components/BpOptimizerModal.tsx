@@ -118,9 +118,7 @@ export function BpOptimizerModal() {
    */
   const symmetry = useMemo(() => {
     if (!tree) return { mode: 'off' as const };
-    const resolved = resolveOptimizerSymmetry(tree, symmetryState, {
-      fold: symmetryState.fold,
-    });
+    const resolved = resolveOptimizerSymmetry(tree, symmetryState);
     if (!resolved.ok) {
       return { mode: 'unusable' as const, reason: resolved.reason };
     }

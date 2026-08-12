@@ -4,7 +4,7 @@ import type {
   OristudioBpTreeVertex,
   OristudioBpTreeView,
 } from '../engine/oristudioBpTypes';
-import { optimizerSymmetryAxisForFold, resolveOptimizerSymmetry } from './bpOptimizerSymmetry';
+import { optimizerSymmetryAxisForMirror, resolveOptimizerSymmetry } from './bpOptimizerSymmetry';
 
 const SHEET = 8;
 const CENTRE = { x: SHEET / 2, y: SHEET / 2 };
@@ -71,22 +71,24 @@ function symmetryState(overrides: Partial<Parameters<typeof resolveOptimizerSymm
   return {
     angle: 90,
     loc: CENTRE,
+    fold: 'book' as const,
+    quarterTurn: false,
     pairs: [],
     ...overrides,
   };
 }
 
-describe('optimizerSymmetryAxisForFold', () => {
+describe('optimizerSymmetryAxisForMirror', () => {
   it('puts a book fold along the grid on a rectangular sheet', () => {
-    expect(optimizerSymmetryAxisForFold('rectangular', 'book')).toBe('verticalHalf');
-    expect(optimizerSymmetryAxisForFold('rectangular', 'diagonal')).toBe('mainDiagonal');
+    expect(optimizerSymmetryAxisForMirror('rectangular', { fold: 'book', quarterTurn: false })).toBe('verticalHalf');
+    expect(optimizerSymmetryAxisForMirror('rectangular', { fold: 'diagonal', quarterTurn: false })).toBe('mainDiagonal');
   });
 
   it('swaps them on a diamond, where the paper is turned 45 degrees', () => {
     // The paper's corners point along the grid axes there, so a corner-to-corner
     // fold runs along a grid line and a book fold cuts across at 45 degrees.
-    expect(optimizerSymmetryAxisForFold('diagonal', 'diagonal')).toBe('verticalHalf');
-    expect(optimizerSymmetryAxisForFold('diagonal', 'book')).toBe('mainDiagonal');
+    expect(optimizerSymmetryAxisForMirror('diagonal', { fold: 'diagonal', quarterTurn: false })).toBe('verticalHalf');
+    expect(optimizerSymmetryAxisForMirror('diagonal', { fold: 'book', quarterTurn: false })).toBe('mainDiagonal');
   });
 });
 
@@ -94,8 +96,7 @@ describe('resolveOptimizerSymmetry', () => {
   it('builds a total involution from explicit pairs plus on-axis flaps', () => {
     const result = resolveOptimizerSymmetry(
       bugTree(),
-      symmetryState({ pairs: [{ v1: 1, v2: 2 }] }),
-      { fold: 'book' }
+      symmetryState({ pairs: [{ v1: 1, v2: 2 }] })
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -113,7 +114,7 @@ describe('resolveOptimizerSymmetry', () => {
   it('infers a partner from where the flap is drawn', () => {
     // Read from the tree drawing, which random-layout mode leaves alone — it
     // discards the packing, not the tree.
-    const result = resolveOptimizerSymmetry(bugTree(), symmetryState(), { fold: 'book' });
+    const result = resolveOptimizerSymmetry(bugTree(), symmetryState());
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(new Map(result.payload.partners).get(1)).toBe(2);
@@ -121,7 +122,7 @@ describe('resolveOptimizerSymmetry', () => {
 
   it('reads a flap drawn on the mirror line as its own mirror', () => {
     // Drawing snaps a flap onto the line, so this needs no separate declaring.
-    const result = resolveOptimizerSymmetry(bugTree(), symmetryState(), { fold: 'book' });
+    const result = resolveOptimizerSymmetry(bugTree(), symmetryState());
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(new Map(result.payload.partners).get(3)).toBe(3);
@@ -136,8 +137,7 @@ describe('resolveOptimizerSymmetry', () => {
     ]);
     const result = resolveOptimizerSymmetry(
       lopsided,
-      symmetryState({ pairs: [{ v1: 1, v2: 2 }] }),
-      { fold: 'book' }
+      symmetryState({ pairs: [{ v1: 1, v2: 2 }] })
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -145,15 +145,12 @@ describe('resolveOptimizerSymmetry', () => {
   });
 
   it('rejects an axis the optimizer cannot honour', () => {
-    const offAngle = resolveOptimizerSymmetry(bugTree(), symmetryState({ angle: 30 }), {
-      fold: 'book',
-    });
+    const offAngle = resolveOptimizerSymmetry(bugTree(), symmetryState({ angle: 30 }));
     expect(offAngle.ok).toBe(false);
 
     const offCentre = resolveOptimizerSymmetry(
       bugTree(),
-      symmetryState({ loc: { x: 3, y: 4 }, pairs: [{ v1: 1, v2: 2 }] }),
-      { fold: 'book' }
+      symmetryState({ loc: { x: 3, y: 4 }, pairs: [{ v1: 1, v2: 2 }] })
     );
     expect(offCentre.ok).toBe(false);
     if (offCentre.ok) return;
@@ -165,7 +162,7 @@ describe('resolveOptimizerSymmetry', () => {
     // design is symmetric is a property of the drawing, and the run's own
     // `respectSymmetry` option is the per-run opt out — so a design stays
     // optimizable symmetrically after the user stops drawing that way.
-    const result = resolveOptimizerSymmetry(bugTree(), symmetryState(), { fold: 'book' });
+    const result = resolveOptimizerSymmetry(bugTree(), symmetryState());
     expect(result.ok).toBe(true);
   });
 
@@ -184,8 +181,7 @@ describe('resolveOptimizerSymmetry', () => {
     );
     const result = resolveOptimizerSymmetry(
       lopsided,
-      symmetryState({ pairs: [{ v1: 1, v2: 2 }] }),
-      { fold: 'book' }
+      symmetryState({ pairs: [{ v1: 1, v2: 2 }] })
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -204,8 +200,7 @@ describe('on-axis declaration', () => {
           { v1: 1, v2: 2 },
           { v1: 3, v2: 3 },
         ],
-      }),
-      { fold: 'book' }
+      })
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -219,8 +214,7 @@ describe('the sides the tree was drawn on', () => {
     // x=6. Vertex 3 is on the axis and has no side.
     const result = resolveOptimizerSymmetry(
       bugTree(),
-      symmetryState({ pairs: [{ v1: 1, v2: 2 }] }),
-      { fold: 'book' }
+      symmetryState({ pairs: [{ v1: 1, v2: 2 }] })
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -234,8 +228,7 @@ describe('the sides the tree was drawn on', () => {
     );
     const result = resolveOptimizerSymmetry(
       mirrored,
-      symmetryState({ pairs: [{ v1: 1, v2: 2 }] }),
-      { fold: 'book' }
+      symmetryState({ pairs: [{ v1: 1, v2: 2 }] })
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -245,13 +238,11 @@ describe('the sides the tree was drawn on', () => {
   it('is unaffected by the fold, which only decides where that side lands', () => {
     const book = resolveOptimizerSymmetry(
       bugTree(),
-      symmetryState({ pairs: [{ v1: 1, v2: 2 }] }),
-      { fold: 'book' }
+      symmetryState({ pairs: [{ v1: 1, v2: 2 }] })
     );
     const diagonal = resolveOptimizerSymmetry(
       bugTree(),
-      symmetryState({ pairs: [{ v1: 1, v2: 2 }] }),
-      { fold: 'diagonal' }
+      symmetryState({ fold: 'diagonal', pairs: [{ v1: 1, v2: 2 }] })
     );
     expect(book.ok && diagonal.ok).toBe(true);
     if (!book.ok || !diagonal.ok) return;

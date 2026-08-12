@@ -6,6 +6,7 @@ import type {
   OristudioBpTreeView,
 } from '../engine/oristudioBpTypes';
 import type { OptimizerSymmetryAxis } from './bpOptimizerSymmetry';
+import type { BpMirrorOrientation } from './bpTreeSymmetry';
 import type { SymmetryAxis } from './symmetryGeometry';
 import {
   bpFlapAxisSpan,
@@ -196,15 +197,19 @@ describe('projectBpFlapAnchorOntoAxis', () => {
   });
 });
 
+/** The two folds, unturned — the orientation these cases were written for. */
+const BOOK = { fold: 'book', quarterTurn: false } as const;
+const DIAGONAL = { fold: 'diagonal', quarterTurn: false } as const;
+
 describe('bpPackingSymmetryAxis / bpPackingSheetSupportsAxis', () => {
   it('maps a book fold to the vertical axis on a rectangular sheet', () => {
-    expect(bpPackingSymmetryAxis(sheet('rectangular'), 'book')).toBe('verticalHalf');
-    expect(bpPackingSymmetryAxis(sheet('rectangular'), 'diagonal')).toBe('mainDiagonal');
+    expect(bpPackingSymmetryAxis(sheet('rectangular'), BOOK)).toBe('verticalHalf');
+    expect(bpPackingSymmetryAxis(sheet('rectangular'), DIAGONAL)).toBe('mainDiagonal');
   });
 
   it('swaps the roles on a diagonal sheet, whose paper is turned 45 degrees', () => {
-    expect(bpPackingSymmetryAxis(sheet('diagonal'), 'book')).toBe('mainDiagonal');
-    expect(bpPackingSymmetryAxis(sheet('diagonal'), 'diagonal')).toBe('verticalHalf');
+    expect(bpPackingSymmetryAxis(sheet('diagonal'), BOOK)).toBe('mainDiagonal');
+    expect(bpPackingSymmetryAxis(sheet('diagonal'), DIAGONAL)).toBe('verticalHalf');
   });
 
   it('refuses a diagonal mirror on a sheet that is not square', () => {
@@ -219,7 +224,7 @@ describe('buildMirroredBpFlapMoves', () => {
 
   function build(
     moves: { id: number; loc: { x: number; y: number } }[],
-    options: { fold?: 'book' | 'diagonal'; sheetSize?: [number, number] } = {}
+    options: { mirror?: BpMirrorOrientation; sheetSize?: [number, number] } = {}
   ) {
     const [width, height] = options.sheetSize ?? [16, 16];
     return buildMirroredBpFlapMoves({
@@ -227,7 +232,7 @@ describe('buildMirroredBpFlapMoves', () => {
       pairs: [],
       treeAxis: TREE_AXIS,
       sheet: sheet('rectangular', width, height),
-      fold: options.fold ?? 'book',
+      mirror: options.mirror ?? BOOK,
       flaps,
       moves,
     });
@@ -253,7 +258,7 @@ describe('buildMirroredBpFlapMoves', () => {
       pairs: [{ v1: 1, v2: 3 }],
       treeAxis: TREE_AXIS,
       sheet: sheet(),
-      fold: 'book',
+      mirror: BOOK,
       flaps,
       moves: [{ id: 1, loc: { x: 3, y: 9 } }],
     });
@@ -282,7 +287,7 @@ describe('buildMirroredBpFlapMoves', () => {
   });
 
   it('returns nothing when the fold has no mirror on this sheet', () => {
-    expect(build([{ id: 1, loc: { x: 3, y: 9 } }], { fold: 'diagonal', sheetSize: [16, 10] })).toEqual(
+    expect(build([{ id: 1, loc: { x: 3, y: 9 } }], { mirror: DIAGONAL, sheetSize: [16, 10] })).toEqual(
       []
     );
   });
@@ -291,7 +296,7 @@ describe('buildMirroredBpFlapMoves', () => {
 describe('constrainBpFlapMoveToAxis', () => {
   it('slides an on-axis flap along the mirror instead of off it', () => {
     const centred = flap(1, 7, 4, 2, 1);
-    expect(constrainBpFlapMoveToAxis(centred, { x: 2, y: 11 }, sheet(), 'book')).toEqual({
+    expect(constrainBpFlapMoveToAxis(centred, { x: 2, y: 11 }, sheet(), BOOK)).toEqual({
       x: 7,
       y: 11,
     });
@@ -302,7 +307,7 @@ describe('constrainBpFlapMoveToAxis', () => {
     // box centred on the line? — pinned any flap that merely drifted onto the
     // mirror, including ones with a distinct partner, and a pinned flap could
     // not be dragged off again. Who is self-mirrored is the pairing's answer.
-    expect(constrainBpFlapMoveToAxis(flap(1, 2, 4, 2, 1), { x: 3, y: 9 }, sheet(), 'book')).toEqual({
+    expect(constrainBpFlapMoveToAxis(flap(1, 2, 4, 2, 1), { x: 3, y: 9 }, sheet(), BOOK)).toEqual({
       x: 7,
       y: 9,
     });
@@ -311,7 +316,7 @@ describe('constrainBpFlapMoveToAxis', () => {
   it('leaves everything unconstrained when the fold has no mirror here', () => {
     const centred = flap(1, 7, 4, 2, 2);
     expect(
-      constrainBpFlapMoveToAxis(centred, { x: 2, y: 11 }, sheet('rectangular', 16, 10), 'diagonal')
+      constrainBpFlapMoveToAxis(centred, { x: 2, y: 11 }, sheet('rectangular', 16, 10), DIAGONAL)
     ).toBeNull();
   });
 });
@@ -330,7 +335,7 @@ describe('constrainBpFlapGroupToAxisSides', () => {
         moving: [flap1],
         target: { x: 6, y: 5 },
         sheet: sheet(),
-        fold: 'book',
+        mirror: BOOK,
         pairedIds: paired([1]),
       })
     ).toEqual({ x: 8, y: 5 });
@@ -345,7 +350,7 @@ describe('constrainBpFlapGroupToAxisSides', () => {
         moving: [flap1],
         target: { x: 2, y: 13 },
         sheet: sheet(),
-        fold: 'book',
+        mirror: BOOK,
         pairedIds: paired([1]),
       })
     ).toEqual({ x: 8, y: 13 });
@@ -358,7 +363,7 @@ describe('constrainBpFlapGroupToAxisSides', () => {
         moving: [flap1],
         target: { x: 9, y: 4 },
         sheet: sheet(),
-        fold: 'book',
+        mirror: BOOK,
         pairedIds: paired([1]),
       })
     ).toEqual({ x: 5, y: 4 });
@@ -371,7 +376,7 @@ describe('constrainBpFlapGroupToAxisSides', () => {
         moving: [flap1],
         target: { x: 2, y: 4 },
         sheet: sheet(),
-        fold: 'book',
+        mirror: BOOK,
         pairedIds: paired([]),
       })
     ).toEqual({ x: 2, y: 4 });
@@ -386,7 +391,7 @@ describe('constrainBpFlapGroupToAxisSides', () => {
         moving: [flap(1, 12, 4, 2, 2), near],
         target: { x: 8, y: 4 },
         sheet: sheet(),
-        fold: 'book',
+        mirror: BOOK,
         pairedIds: paired([1, 2]),
       })
       // Flap 2 may give up 1 cell, so the reference gives up 1 too: 12 -> 11.
@@ -399,7 +404,7 @@ describe('constrainBpFlapGroupToAxisSides', () => {
         moving: [flap(1, 8, 4, 2, 2), flap(2, 6, 4, 2, 2)],
         target: { x: 11, y: 9 },
         sheet: sheet(),
-        fold: 'book',
+        mirror: BOOK,
         pairedIds: paired([1, 2]),
       })
       // The y comes through; the x cannot, because flap 2's right edge is already
@@ -413,7 +418,7 @@ describe('constrainBpFlapGroupToAxisSides', () => {
       moving: [flap(1, 12, 2, 2, 2)],
       target: { x: 4, y: 10 },
       sheet: sheet(),
-      fold: 'diagonal',
+      mirror: DIAGONAL,
       pairedIds: paired([1]),
     });
     const span = bpFlapAxisSpan(constrained, { width: 2, height: 2 }, CENTER, 'mainDiagonal');
@@ -429,7 +434,7 @@ describe('constrainBpFlapGroupToAxisSides', () => {
         moving: [straddling],
         target: { x: 4, y: 4 },
         sheet: sheet(),
-        fold: 'book',
+        mirror: BOOK,
         pairedIds: paired([1]),
       })
     ).toEqual({ x: 4, y: 4 });
@@ -457,7 +462,7 @@ describe('constrainBpFlapGroupToAxisSides keeps flaps on the grid', () => {
         moving: [flap(3, 9, 11)],
         target: { x: targetX, y: 11 },
         sheet: sheet(),
-        fold: 'book',
+        mirror: BOOK,
         pairedIds: paired([3]),
       });
       expect(landed).toEqual({ x: 9, y: 11 });
@@ -470,7 +475,7 @@ describe('constrainBpFlapGroupToAxisSides keeps flaps on the grid', () => {
         moving: [flap(3, 12, 11)],
         target: { x: 4, y: 11 },
         sheet: sheet(),
-        fold: 'book',
+        mirror: BOOK,
         pairedIds: paired([3]),
       })
       // 9 is the closest grid position still strictly off the mirror at x = 8.
@@ -483,7 +488,7 @@ describe('constrainBpFlapGroupToAxisSides keeps flaps on the grid', () => {
         moving: [flap(4, 4, 11)],
         target: { x: 12, y: 11 },
         sheet: sheet(),
-        fold: 'book',
+        mirror: BOOK,
         pairedIds: paired([4]),
       })
     ).toEqual({ x: 7, y: 11 });
@@ -498,7 +503,7 @@ describe('constrainBpFlapGroupToAxisSides keeps flaps on the grid', () => {
         moving: [flap(3, 9, 11)],
         target: { x: 3, y: 11 },
         sheet: sheet('rectangular', 15, 15),
-        fold: 'book',
+        mirror: BOOK,
         pairedIds: paired([3]),
       })
     ).toEqual({ x: 8, y: 11 });
@@ -509,7 +514,7 @@ describe('constrainBpFlapGroupToAxisSides keeps flaps on the grid', () => {
       moving: [flap(1, 12, 2)],
       target: { x: 2, y: 12 },
       sheet: sheet(),
-      fold: 'diagonal',
+      mirror: DIAGONAL,
       pairedIds: paired([1]),
     });
     expect(Number.isInteger(landed.x)).toBe(true);
@@ -526,7 +531,7 @@ describe('constrainBpFlapGroupToAxisSides keeps flaps on the grid', () => {
       moving: [flap(1, 12, 4), flap(2, 10, 8)],
       target: { x: 6, y: 4 },
       sheet: sheet(),
-      fold: 'book',
+      mirror: BOOK,
       pairedIds: paired([1, 2]),
     });
     // Flap 2 is nearer the mirror and may give up 1 cell, so the reference does too.
@@ -541,7 +546,7 @@ describe('constrainBpFlapGroupToAxisSides keeps flaps on the grid', () => {
         moving: [flap(1, 10, 4, 3, 2)],
         target: { x: 6, y: 4 },
         sheet: sheet(),
-        fold: 'book',
+        mirror: BOOK,
         pairedIds: paired([1]),
       })
     ).toEqual({ x: 8, y: 4 });
@@ -561,7 +566,7 @@ describe('constrainBpFlapGroupToAxisSides — a paired flap may not sit on the m
       moving: [flap(1, from, 6, width, height)],
       target: { x: 0, y: 6 },
       sheet: sheet(),
-      fold: 'book',
+      mirror: BOOK,
       pairedIds: new Set([1]),
     }).x;
   }

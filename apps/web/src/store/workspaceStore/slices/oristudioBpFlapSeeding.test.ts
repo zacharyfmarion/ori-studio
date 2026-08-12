@@ -144,6 +144,7 @@ function setUp(symmetry: { enabled: boolean; fold?: 'book' | 'diagonal' }) {
           ...TREE_AXIS,
           enabled: symmetry.enabled,
           fold: symmetry.fold ?? 'book',
+          quarterTurn: false,
           pairs: [],
         },
       }),
