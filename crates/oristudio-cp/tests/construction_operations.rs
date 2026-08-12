@@ -1,5 +1,5 @@
 use oristudio_cp::geometry::{LineColor, LineSegment, Point};
-use oristudio_cp::model::CreasePatternModel;
+use oristudio_cp::model::{CreasePatternModel, GridState, SnapCandidates, SnapPolicy};
 use oristudio_cp::operations::construction::{
     DrawCreaseTarget, FoldableLineDrawOperationMode, angle_restricted_converging_candidates,
     angle_system_candidates, angle_system_draw_to_destination, axiom5_draw_to_destination,
@@ -18,7 +18,7 @@ use oristudio_cp::operations::construction::{
 };
 use oristudio_cp::{
     CreasePatternCommand, CreasePatternCommandPayload, CreasePatternDocument, OperationId,
-    execute_command,
+    execute_command, preview_command,
 };
 
 #[test]
@@ -883,7 +883,10 @@ fn angle_restricted_5_snaps_to_angle_system_and_nearby_line() {
         Point::new(2.0, 0.2),
         4,
         [40.0, 60.0, 80.0, 30.0, 50.0, 100.0],
-        0.5,
+        SnapPolicy {
+            selection_distance: 0.5,
+            candidates: vertices_only(),
+        },
         LineColor::Red1,
     ));
     assert!(contains_segment_close(
@@ -1023,4 +1026,223 @@ fn same_segment_close(segment: &LineSegment, a: Point, b: Point, color: LineColo
     segment.color == color
         && ((contains_point_close(segment.a, a) && contains_point_close(segment.b, b))
             || (contains_point_close(segment.a, b) && contains_point_close(segment.b, a)))
+}
+
+// --- Angle Restricted Line endpoint snapping ------------------------------
+//
+// The endpoint is resolved kernel-side, after the cursor has been projected
+// onto the angle system — which is why the frontend's own snapper cannot do it
+// and why these live here. The scenario throughout is the reported one: the
+// default 8-division grid (50-unit cells), a divider that includes 45 degrees,
+// and an anchor on the lattice.
+
+/// Upstream searches every vertex and whatever grid the document declares.
+fn upstream_candidates() -> SnapCandidates {
+    SnapCandidates {
+        grid: GridState::WithinPaper,
+        vertices: true,
+    }
+}
+
+fn vertices_only() -> SnapCandidates {
+    SnapCandidates {
+        grid: GridState::Hidden,
+        vertices: true,
+    }
+}
+
+fn angle_restricted_payload(
+    pointer: Point,
+    candidates: Option<SnapCandidates>,
+) -> CreasePatternCommandPayload {
+    CreasePatternCommandPayload {
+        points: vec![Point::new(0.0, 0.0), pointer],
+        angle_system_divider: Some(8),
+        selection_distance: Some(8.0),
+        line_color: Some(LineColor::Red1),
+        snap_candidates: candidates,
+        ..CreasePatternCommandPayload::default()
+    }
+}
+
+fn draw_angle_restricted(pointer: Point, candidates: Option<SnapCandidates>) -> Point {
+    let mut document = CreasePatternDocument::default();
+    let command = CreasePatternCommand {
+        operation: OperationId::DrawCreaseAngleRestricted5,
+        payload: angle_restricted_payload(pointer, candidates),
+    };
+    execute_command(&mut document, command).expect("command executes");
+    let drawn = document
+        .crease_pattern
+        .line_segments
+        .first()
+        .expect("a crease was drawn");
+    // The anchor is (0, 0); report whichever end is not it.
+    if drawn.a == Point::new(0.0, 0.0) {
+        drawn.b
+    } else {
+        drawn.a
+    }
+}
+
+#[track_caller]
+fn assert_close(found: Point, expected: Point) {
+    assert!(
+        (found.x - expected.x).abs() < 1e-9 && (found.y - expected.y).abs() < 1e-9,
+        "expected {expected:?}, got {found:?}"
+    );
+}
+
+/// The reported bug: released beside the lattice point (50, 50), which sits on
+/// the 45-degree ray, the crease used to end at the bare projection (49.5,
+/// 49.5).
+#[test]
+fn angle_restricted_5_endpoint_snaps_to_a_grid_point_on_the_ray() {
+    assert_close(
+        draw_angle_restricted(Point::new(52.0, 47.0), Some(upstream_candidates())),
+        Point::new(50.0, 50.0),
+    );
+}
+
+/// A grid point close to the release but *off* the ray must not pull the
+/// endpoint off the angle system — upstream's collinearity gate
+/// (`zure_flg`), which is the whole point of the tool.
+#[test]
+fn angle_restricted_5_ignores_a_grid_point_off_the_ray() {
+    // Release at the foot of the lattice point (100, 50) on the 22.5-degree
+    // ray: inside the 8-unit selection distance, so only the collinearity gate
+    // can reject it.
+    let ray = 22.5_f64.to_radians();
+    let target = Point::new(100.0, 50.0);
+    let reach = target.x * ray.cos() + target.y * ray.sin();
+    let pointer = Point::new(reach * ray.cos(), reach * ray.sin());
+    assert!(
+        pointer.distance(target) < 8.0,
+        "the case needs the grid point in range, not out of it"
+    );
+
+    assert_close(
+        draw_angle_restricted(pointer, Some(upstream_candidates())),
+        pointer,
+    );
+}
+
+/// Beyond the selection distance the endpoint stays on the projection, however
+/// exactly it lines up with the lattice.
+#[test]
+fn angle_restricted_5_ignores_a_grid_point_out_of_range() {
+    // On the 45-degree ray but ~14 units short of (50, 50), with a selection
+    // distance of 8.
+    let pointer = Point::new(40.0, 40.0);
+    assert_close(
+        draw_angle_restricted(pointer, Some(upstream_candidates())),
+        pointer,
+    );
+}
+
+/// Snapping off: no grid, no vertices, the bare projection.
+#[test]
+fn angle_restricted_5_honours_a_caller_that_wants_no_snapping() {
+    let candidates = SnapCandidates {
+        grid: GridState::Hidden,
+        vertices: false,
+    };
+    assert_close(
+        draw_angle_restricted(Point::new(52.0, 47.0), Some(candidates)),
+        Point::new(49.5, 49.5),
+    );
+}
+
+/// Grid off, vertices on: the two candidate sets are independent.
+#[test]
+fn angle_restricted_5_can_drop_the_grid_and_keep_vertices() {
+    assert_close(
+        draw_angle_restricted(Point::new(52.0, 47.0), Some(vertices_only())),
+        Point::new(49.5, 49.5),
+    );
+
+    let mut document = CreasePatternDocument::default();
+    document.crease_pattern.add_line(
+        Point::new(50.0, 50.0),
+        Point::new(80.0, 90.0),
+        LineColor::Black0,
+    );
+    let command = CreasePatternCommand {
+        operation: OperationId::DrawCreaseAngleRestricted5,
+        payload: angle_restricted_payload(Point::new(52.0, 47.0), Some(vertices_only())),
+    };
+    execute_command(&mut document, command).expect("command executes");
+    assert!(contains_segment_close(
+        &document.crease_pattern.line_segments,
+        Point::new(0.0, 0.0),
+        Point::new(50.0, 50.0),
+        LineColor::Red1,
+    ));
+}
+
+/// No `snap_candidates` in the payload means upstream: the document's own grid
+/// state decides, so a headless caller and the oracle keep their behaviour.
+#[test]
+fn angle_restricted_5_defaults_to_the_documents_grid_state() {
+    assert_close(
+        draw_angle_restricted(Point::new(52.0, 47.0), None),
+        Point::new(50.0, 50.0),
+    );
+
+    let mut document = CreasePatternDocument::default();
+    document.crease_pattern.grid.base_state = GridState::Hidden;
+    let command = CreasePatternCommand {
+        operation: OperationId::DrawCreaseAngleRestricted5,
+        payload: angle_restricted_payload(Point::new(52.0, 47.0), None),
+    };
+    execute_command(&mut document, command).expect("command executes");
+    assert!(contains_segment_close(
+        &document.crease_pattern.line_segments,
+        Point::new(0.0, 0.0),
+        Point::new(49.5, 49.5),
+        LineColor::Red1,
+    ));
+}
+
+/// The preview reports the endpoint as a point only when it actually landed on
+/// one, which is what the canvas rings.
+#[test]
+fn angle_restricted_5_preview_reports_only_a_real_snap() {
+    let document = CreasePatternDocument::default();
+
+    let snapped = preview_command(
+        &document,
+        CreasePatternCommand {
+            operation: OperationId::DrawCreaseAngleRestricted5,
+            payload: angle_restricted_payload(Point::new(52.0, 47.0), Some(upstream_candidates())),
+        },
+    )
+    .expect("preview runs");
+    assert_eq!(snapped.points.len(), 1);
+    assert_close(snapped.points[0], Point::new(50.0, 50.0));
+    assert_close(snapped.segments[0].b, Point::new(50.0, 50.0));
+
+    let free = preview_command(
+        &document,
+        CreasePatternCommand {
+            operation: OperationId::DrawCreaseAngleRestricted5,
+            payload: angle_restricted_payload(Point::new(40.0, 40.0), Some(upstream_candidates())),
+        },
+    )
+    .expect("preview runs");
+    assert!(free.points.is_empty());
+    assert_close(free.segments[0].b, Point::new(40.0, 40.0));
+}
+
+/// Releasing on the anchor itself: the closest point is the anchor, so the
+/// segment has no length and nothing is drawn — as upstream's length gate does.
+#[test]
+fn angle_restricted_5_draws_nothing_when_the_release_collapses_onto_the_anchor() {
+    let mut document = CreasePatternDocument::default();
+    let command = CreasePatternCommand {
+        operation: OperationId::DrawCreaseAngleRestricted5,
+        payload: angle_restricted_payload(Point::new(0.0, 0.0), Some(upstream_candidates())),
+    };
+    execute_command(&mut document, command).expect("command executes");
+    assert!(document.crease_pattern.line_segments.is_empty());
 }

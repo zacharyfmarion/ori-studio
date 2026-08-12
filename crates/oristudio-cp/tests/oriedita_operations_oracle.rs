@@ -4,7 +4,10 @@ use oristudio_cp::checks::{
     check4, fix_inaccurate_for_indices, flat_foldable_boundary_check,
 };
 use oristudio_cp::geometry::{Circle, Intersection, LineColor, LineSegment, Point, RgbColor};
-use oristudio_cp::model::{CreasePatternModel, CustomLineType, TextElement};
+use oristudio_cp::model::{
+    CreasePatternModel, CustomLineType, GridMetadata, GridState, SnapCandidates, SnapPolicy,
+    TextElement,
+};
 use oristudio_cp::operations::arrangement::{
     branch_trim, del_v_all, del_v_all_color_change, del_v_at_point, del_v_at_point_color_change,
     del_v_pair, delete_intersecting_or_overlapping_lines_along,
@@ -2940,13 +2943,22 @@ fn angle_restricted_5_matches_oriedita_oracle() {
     let segments = vec![segment(2.0, -1.0, 2.0, 1.0, LineColor::Black0)];
     let mut model = model_from_segments(&segments);
     let angles = [40.0, 60.0, 80.0, 30.0, 50.0, 100.0];
+    // The bare `foldline-angle-restricted5` oracle command searches the fold
+    // line set only, so pin the Rust side to the same candidates. The grid path
+    // has its own command below.
     let added = draw_crease_angle_restricted_5(
         &mut model,
         Point::new(0.0, 0.0),
         Point::new(2.0, 0.2),
         4,
         angles,
-        0.5,
+        SnapPolicy {
+            selection_distance: 0.5,
+            candidates: SnapCandidates {
+                grid: GridState::Hidden,
+                vertices: true,
+            },
+        },
         LineColor::Red1,
     );
 
@@ -2972,6 +2984,247 @@ fn angle_restricted_5_matches_oriedita_oracle() {
         1e-12,
         "angle-restricted-5",
     );
+}
+
+/// The grid is a snap candidate too, which is what
+/// `foldline-angle-restricted5` (fold line set only) cannot show. These cases
+/// run the real `Grid.closestGridPoint` through
+/// `CreasePattern_Worker.getClosestPoint`.
+#[test]
+fn angle_restricted_5_with_grid_matches_oriedita_oracle() {
+    let Some(oracle) = operations_oracle() else {
+        eprintln!(
+            "skipping Oriedita operations oracle test: ORIEDITA_OPERATIONS_ORACLE is not set"
+        );
+        return;
+    };
+
+    let angles = [40.0, 60.0, 80.0, 30.0, 50.0, 100.0];
+    let cases: &[(&str, Point, Point, i32, f64, GridMetadata, GridState)] = &[
+        // Beside a lattice point that sits on the 45-degree ray.
+        (
+            "grid point on the ray",
+            Point::new(0.0, 0.0),
+            Point::new(52.0, 47.0),
+            8,
+            8.0,
+            GridMetadata::default(),
+            GridState::WithinPaper,
+        ),
+        // In range of a lattice point, but off the ray.
+        (
+            "grid point off the ray",
+            Point::new(0.0, 0.0),
+            Point::new(103.03, 42.68),
+            8,
+            8.0,
+            GridMetadata::default(),
+            GridState::WithinPaper,
+        ),
+        // Out of range of every lattice point.
+        (
+            "grid point out of range",
+            Point::new(0.0, 0.0),
+            Point::new(40.0, 40.0),
+            8,
+            8.0,
+            GridMetadata::default(),
+            GridState::WithinPaper,
+        ),
+        // Hidden: the grid is not a candidate at all.
+        (
+            "hidden grid",
+            Point::new(0.0, 0.0),
+            Point::new(52.0, 47.0),
+            8,
+            8.0,
+            GridMetadata::default(),
+            GridState::Hidden,
+        ),
+        // Outside the paper, where the base state decides.
+        (
+            "outside the paper, within-paper grid",
+            Point::new(0.0, 0.0),
+            Point::new(252.0, 0.5),
+            8,
+            8.0,
+            GridMetadata::default(),
+            GridState::WithinPaper,
+        ),
+        (
+            "outside the paper, full grid",
+            Point::new(0.0, 0.0),
+            Point::new(252.0, 0.5),
+            8,
+            8.0,
+            GridMetadata::default(),
+            GridState::Full,
+        ),
+        // A rhombic cell, which upstream promotes out of within-paper.
+        (
+            "rotated cell",
+            Point::new(0.0, 0.0),
+            Point::new(60.0, -32.0),
+            8,
+            8.0,
+            rotated_grid(60.0),
+            GridState::WithinPaper,
+        ),
+        // A fine grid: many candidates inside one selection distance.
+        (
+            "fine grid",
+            Point::new(0.0, 0.0),
+            Point::new(37.4, 36.1),
+            8,
+            8.0,
+            sized_grid(64),
+            GridState::WithinPaper,
+        ),
+    ];
+
+    for (name, anchor, pointer, divider, selection_distance, grid, state) in cases {
+        let segments = vec![segment(120.0, -40.0, 120.0, 40.0, LineColor::Black0)];
+        let mut model = model_from_segments(&segments);
+        model.grid = *grid;
+        model.grid.base_state = *state;
+        let added = draw_crease_angle_restricted_5(
+            &mut model,
+            *anchor,
+            *pointer,
+            *divider,
+            angles,
+            SnapPolicy {
+                selection_distance: *selection_distance,
+                candidates: SnapCandidates {
+                    grid: *state,
+                    vertices: true,
+                },
+            },
+            LineColor::Red1,
+        );
+
+        let mut args = vec![
+            "foldline-angle-restricted5-grid".to_string(),
+            anchor.x.to_string(),
+            anchor.y.to_string(),
+            pointer.x.to_string(),
+            pointer.y.to_string(),
+            divider.to_string(),
+        ];
+        for angle in angles {
+            args.push(angle.to_string());
+        }
+        args.push(selection_distance.to_string());
+        args.push(LineColor::Red1.number().to_string());
+        push_grid_args(&mut args, grid, *state);
+        args.push(segments.len().to_string());
+        push_segment_args(&mut args, &segments);
+
+        let rust_summary = format!("added|{added}\n{}", line_segment_set_summary(&model));
+        assert_line_summary_close(
+            &rust_summary,
+            &run_oracle(&oracle, &args),
+            1e-12,
+            &format!("angle-restricted-5-grid: {name}"),
+        );
+    }
+}
+
+/// `Grid.closestGridPoint` on its own, over the cell shapes and base states the
+/// endpoint search runs on top of.
+#[test]
+fn closest_grid_point_matches_oriedita_oracle() {
+    let Some(oracle) = operations_oracle() else {
+        eprintln!(
+            "skipping Oriedita operations oracle test: ORIEDITA_OPERATIONS_ORACLE is not set"
+        );
+        return;
+    };
+
+    let probes = [
+        Point::new(52.0, 47.0),
+        Point::new(25.0, 25.0),
+        Point::new(-200.0, 200.0),
+        Point::new(0.0, 0.0),
+        Point::new(260.0, 10.0),
+        Point::new(-260.0, -260.0),
+        Point::new(1_000.0, 1_000.0),
+        Point::new(199.9, -199.9),
+        Point::new(3.7, -12.4),
+    ];
+    let grids = [
+        ("default", GridMetadata::default()),
+        ("one cell", sized_grid(1)),
+        ("fine", sized_grid(512)),
+        ("rotated 60", rotated_grid(60.0)),
+        ("rotated 30", rotated_grid(30.0)),
+        ("stretched x", stretched_grid()),
+    ];
+
+    for (name, grid) in grids {
+        for state in [GridState::Hidden, GridState::WithinPaper, GridState::Full] {
+            let mut args = vec!["grid-closest-point".to_string()];
+            push_grid_args(&mut args, &grid, state);
+            args.push(probes.len().to_string());
+            for probe in probes {
+                args.push(probe.x.to_string());
+                args.push(probe.y.to_string());
+            }
+
+            let expected = parse_oracle_points(&run_oracle(&oracle, &args));
+            assert_eq!(expected.len(), probes.len(), "{name} / {state:?}");
+            for (probe, expected) in probes.iter().zip(expected) {
+                let found = grid.closest_grid_point(*probe, state);
+                assert!(
+                    (found.x - expected.x).abs() < 1e-9 && (found.y - expected.y).abs() < 1e-9,
+                    "{name} / {state:?} / {probe:?}: expected {expected:?}, got {found:?}"
+                );
+            }
+        }
+    }
+}
+
+fn sized_grid(grid_size: i32) -> GridMetadata {
+    let mut grid = GridMetadata::default();
+    grid.set_grid_size(grid_size);
+    grid
+}
+
+fn rotated_grid(angle: f64) -> GridMetadata {
+    let mut grid = GridMetadata::default();
+    grid.set_grid_angle(angle);
+    grid
+}
+
+fn stretched_grid() -> GridMetadata {
+    let mut grid = GridMetadata::default();
+    grid.apply_grid_x(1.0, 1.0, 2.0);
+    grid
+}
+
+fn push_grid_args(args: &mut Vec<String>, grid: &GridMetadata, state: GridState) {
+    args.push(grid.grid_size.to_string());
+    args.push(grid.grid_xa.to_string());
+    args.push(grid.grid_xb.to_string());
+    args.push(grid.grid_xc.to_string());
+    args.push(grid.grid_ya.to_string());
+    args.push(grid.grid_yb.to_string());
+    args.push(grid.grid_yc.to_string());
+    args.push(grid.grid_angle.to_string());
+    args.push(state.state().to_string());
+}
+
+fn parse_oracle_points(output: &str) -> Vec<Point> {
+    output
+        .lines()
+        .filter(|line| line.starts_with("point|"))
+        .map(|line| {
+            let mut parts = line.split('|').skip(1);
+            let x = parts.next().expect("x").parse().expect("x parses");
+            let y = parts.next().expect("y").parse().expect("y parses");
+            Point::new(x, y)
+        })
+        .collect()
 }
 
 #[test]
