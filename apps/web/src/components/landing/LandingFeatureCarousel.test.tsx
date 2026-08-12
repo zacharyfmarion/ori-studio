@@ -85,8 +85,25 @@ describe('LandingFeatureCarousel', () => {
 
     expect(selected()).toContain('Share a link');
     expect(figureSrc()).toBe('/landing/edit-share-dark.png');
-    expect(rendered.querySelector('.landing-carousel__body')?.textContent).toBe(
+    expect(rendered.querySelector('.landing-carousel__body[data-active]')?.textContent).toBe(
       'Send a crease pattern as a URL.'
+    );
+  });
+
+  it('keeps every body mounted so the panel cannot change height between slides', () => {
+    // A panel that grows by a line as slides change re-centres the tab list
+    // beside it and nudges the rest of the page. All the bodies share one grid
+    // cell instead, and only the active one is visible.
+    const rendered = renderCarousel();
+    const bodies = rendered.querySelectorAll('.landing-carousel__body');
+
+    expect(bodies).toHaveLength(ITEMS.length);
+    expect(rendered.querySelectorAll('.landing-carousel__body[data-active]')).toHaveLength(1);
+
+    act(() => tabs()[1].click());
+    expect(rendered.querySelectorAll('.landing-carousel__body')).toHaveLength(ITEMS.length);
+    expect(rendered.querySelector('.landing-carousel__body[data-active]')?.textContent).toBe(
+      'A reference photo beside the paper.'
     );
   });
 

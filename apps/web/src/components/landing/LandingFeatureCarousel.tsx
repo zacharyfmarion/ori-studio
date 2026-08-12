@@ -118,7 +118,23 @@ export function LandingFeatureCarousel({ label, items }: LandingFeatureCarouselP
         tabIndex={-1}
       >
         <LandingFigure key={active.figure} name={active.figure} alt={active.figureAlt} />
-        <p className="landing-carousel__body">{active.body}</p>
+        {/*
+          Every body is rendered, stacked into one grid cell, with the inactive
+          ones hidden. That keeps the panel as tall as the longest slide instead
+          of growing and shrinking by a line as you switch — which otherwise
+          re-centres the tab list beside it and shifts everything below.
+        */}
+        <div className="landing-carousel__bodies">
+          {items.map((item, index) => (
+            <p
+              key={item.id}
+              className="landing-carousel__body"
+              data-active={index === activeIndex || undefined}
+            >
+              {item.body}
+            </p>
+          ))}
+        </div>
       </div>
     </div>
   );

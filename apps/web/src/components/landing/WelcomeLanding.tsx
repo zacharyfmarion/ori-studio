@@ -53,21 +53,13 @@ export function WelcomeLanding() {
           'Ori Studio pulls the tools most of us already use into one place, and runs entirely in the browser — nothing to install, no account. The crease-pattern editor is a port of Oriedita, so if you have used that, this should feel familiar right away.'
         )}
       >
-        <div className="landing-stack">
-          <LandingFigure
-            name="overview"
-            alt={t(
-              'landing:what.figureAlt',
-              'The Ori Studio workspace: a crease pattern on the canvas with the tool rail and inspector panels around it.'
-            )}
-          />
-          <p className="landing-beta">
-            {t(
-              'landing:what.beta',
-              'Consider it a beta: stable enough for real work, but some features are still subject to change.'
-            )}
-          </p>
-        </div>
+        <LandingFigure
+          name="overview"
+          alt={t(
+            'landing:what.figureAlt',
+            'The Ori Studio workspace: a crease pattern on the canvas with the tool rail and inspector panels around it.'
+          )}
+        />
       </LandingSection>
 
       <LandingSection

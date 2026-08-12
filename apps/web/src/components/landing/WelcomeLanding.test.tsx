@@ -120,12 +120,6 @@ describe('WelcomeLanding', () => {
     expect(rendered.textContent).not.toMatch(/(from|out of) an image/i);
   });
 
-  it('says it is a beta rather than letting the reader assume otherwise', () => {
-    const rendered = renderLanding();
-
-    expect(rendered.querySelector('.landing-beta')?.textContent).toContain('beta');
-  });
-
   it('asks for a themed screenshot per figure', () => {
     const rendered = renderLanding();
     const sources = Array.from(rendered.querySelectorAll<HTMLImageElement>('.landing-figure__image'))

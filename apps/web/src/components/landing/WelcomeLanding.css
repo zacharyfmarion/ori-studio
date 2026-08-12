@@ -48,12 +48,6 @@
   order: 2;
 }
 
-/* Vertical grouping inside one column of a split. */
-.landing-stack {
-  display: grid;
-  gap: var(--space-4);
-  min-width: 0;
-}
 
 .landing-section__head {
   display: grid;
@@ -229,26 +223,34 @@
   outline: none;
 }
 
+/*
+ * All the bodies share one grid cell, so the panel is always as tall as the
+ * longest slide. Without it the panel grows and shrinks by a line as slides
+ * change, which re-centres the tab list beside it and nudges everything below.
+ */
+.landing-carousel__bodies {
+  display: grid;
+}
+
 .landing-carousel__body {
+  grid-area: 1 / 1;
   margin: 0;
   color: var(--text-secondary);
   font-size: 0.88rem;
   font-weight: 500;
   line-height: 1.58;
+  /*
+   * `visibility`, not `display: none` — the hidden ones still have to
+   * contribute their height, which is the whole point. It also takes them out
+   * of the accessibility tree, which `opacity: 0` would not.
+   */
+  visibility: hidden;
 }
 
-.landing-beta {
-  max-width: 62ch;
-  margin: 0;
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid color-mix(in srgb, var(--accent-secondary) 30%, var(--border-subtle));
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--accent-secondary) 8%, transparent);
-  color: var(--text-secondary);
-  font-size: 0.86rem;
-  font-weight: 500;
-  line-height: 1.55;
+.landing-carousel__body[data-active] {
+  visibility: visible;
 }
+
 
 /* --- The upstreams --- */
 
