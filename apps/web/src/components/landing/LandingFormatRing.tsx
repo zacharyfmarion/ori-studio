@@ -1,28 +1,91 @@
-import type { CSSProperties } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { OPENABLE_FILE_EXTENSIONS } from '../../lib/fileDrop';
 import { NATIVE_PROJECT_EXTENSION } from '../../lib/nativeProjectFile';
 
 /**
- * Formats that leave the app but cannot come back into it. They are exports, so
- * they belong on the ring, but they are not in `OPENABLE_FILE_EXTENSIONS` —
- * nothing opens an image as a crease pattern.
+ * Everything File › Export offers, plus the two image formats the export-image
+ * modal writes.
+ *
+ * Unlike the import side there is no single constant to derive this from — the
+ * export menu builds its entries one at a time — so this is a hand-kept list and
+ * `LandingFormatRing.test.tsx` guards the half that *can* be checked.
  */
-const EXPORT_ONLY_EXTENSIONS = ['svg', 'png'] as const;
+const EXPORTABLE_FILE_EXTENSIONS = [
+  NATIVE_PROJECT_EXTENSION,
+  'tmd5',
+  'tmd4',
+  'cp',
+  'fold',
+  'bps',
+  'ori',
+  'orh',
+  'svg',
+  'png',
+] as const;
+
+/** Which way data moves between Ori Studio and a format. */
+export type FormatDirection = 'import' | 'export' | 'both';
+
+/** Arrow glyph each direction wears — shared by the legend and the file marks. */
+const WAY_OF: Record<FormatDirection, 'in' | 'out' | 'both'> = {
+  import: 'in',
+  export: 'out',
+  both: 'both',
+};
+
+export interface RingFormat {
+  extension: string;
+  direction: FormatDirection;
+}
+
+function directionFor(extension: string): FormatDirection {
+  const opens = (OPENABLE_FILE_EXTENSIONS as readonly string[]).includes(extension);
+  const writes = (EXPORTABLE_FILE_EXTENSIONS as readonly string[]).includes(extension);
+  if (opens && writes) return 'both';
+  return opens ? 'import' : 'export';
+}
 
 /**
- * Every extension on the ring, in orbit order.
+ * Every format on the ring, in orbit order, with the direction it travels.
  *
- * Derived from `OPENABLE_FILE_EXTENSIONS` rather than typed out again: that
- * constant already exists so the Open dialog and the drop handler cannot
- * disagree, and a landing page claiming a format the app does not open would be
- * the same class of bug. The native project format is not here — it sits in the
- * hub instead.
+ * The import side is derived from `OPENABLE_FILE_EXTENSIONS` rather than typed
+ * out again: that constant already exists so the Open dialog and the drop
+ * handler cannot disagree, and a landing page claiming a format the app will not
+ * open is the same class of bug. The native project format is not here — it sits
+ * in the hub, because it is the thing the others convert to and from.
  */
-export const RING_EXTENSIONS: readonly string[] = [
+export const RING_FORMATS: readonly RingFormat[] = [
   ...OPENABLE_FILE_EXTENSIONS.filter((extension) => extension !== NATIVE_PROJECT_EXTENSION),
-  ...EXPORT_ONLY_EXTENSIONS,
-];
+  // Export-only formats have no counterpart in the openable list, so they are
+  // appended rather than derived. Nothing opens an image as a crease pattern.
+  ...EXPORTABLE_FILE_EXTENSIONS.filter(
+    (extension) =>
+      extension !== NATIVE_PROJECT_EXTENSION &&
+      !(OPENABLE_FILE_EXTENSIONS as readonly string[]).includes(extension)
+  ),
+].map((extension) => ({ extension, direction: directionFor(extension) }));
+
+// --- Wire geometry ---------------------------------------------------------
+//
+// The SVG shares the ring's square box on a 0–100 viewBox, so these are
+// percentages of it. `--ring-radius` is set in `cqw` for exactly this reason:
+// the files sit at 40% of the box whatever its pixel size, so the wires can be
+// drawn against a fixed coordinate space instead of being measured at runtime.
+
+const CENTRE = 50;
+/** Clear of the hub file and its label. */
+const WIRE_START = 18;
+/** Stops short of the file it points at, so the arrowhead is not buried. */
+const WIRE_END = 31;
+
+function pointAt(index: number, count: number, radius: number) {
+  const angle = ((index / count) * 360 - 90) * (Math.PI / 180);
+  return {
+    x: CENTRE + radius * Math.cos(angle),
+    y: CENTRE + radius * Math.sin(angle),
+  };
+}
 
 /**
  * React's `CSSProperties` has no slot for custom properties, so setting one
@@ -33,52 +96,186 @@ function cssVars(vars: Record<`--${string}`, string>): CSSProperties {
 }
 
 /**
- * The interchange formats as file icons in orbit around the native project file.
+ * The interchange formats as file icons in orbit around the native project file,
+ * wired to it by arrows showing which way each one travels.
  *
- * The arrangement is the argument: `.osf` holds everything Ori Studio knows how
- * to represent, and around it sit the formats it can hand that work to. The
- * point being made is that nothing here is a one-way door, which is the question
- * anyone with an existing library of crease patterns is actually asking.
+ * The arrangement is the argument: `.osf` holds everything Ori Studio can
+ * represent, and the arrows say what can get in, what can get out, and what does
+ * both — which is the question anyone with an existing library of crease
+ * patterns is actually asking.
  */
 export function LandingFormatRing() {
   const { t } = useTranslation();
+  const ringRef = useRef<HTMLDivElement | null>(null);
+  const flowing = useInView(ringRef);
+  const markerPrefix = useId();
+
+  const count = RING_FORMATS.length;
 
   return (
-    <div
-      className="landing-ring"
-      style={cssVars({ '--ring-count': String(RING_EXTENSIONS.length) })}
-    >
-      <ul
-        className="landing-ring__orbit"
-        aria-label={t('landing:formats.ringLabel', 'Supported file formats')}
+    <div className="landing-ring-figure">
+      <div
+        ref={ringRef}
+        className="landing-ring"
+        data-flowing={flowing || undefined}
+        style={cssVars({ '--ring-count': String(count) })}
       >
-        {RING_EXTENSIONS.map((extension, index) => (
-          <li
-            key={extension}
-            className="landing-ring__slot"
-            style={cssVars({ '--slot': String(index) })}
-          >
-            <FormatFile extension={extension} />
-          </li>
-        ))}
-      </ul>
+        {/*
+          Decorative: every arrow restates what the visually-hidden direction
+          label on each file already says, so announcing the wires as well would
+          be noise.
+        */}
+        <svg className="landing-ring__wires" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+          <defs>
+            <marker
+              id={`${markerPrefix}-head`}
+              markerWidth="5"
+              markerHeight="5"
+              refX="4"
+              refY="2.5"
+              // `auto-start-reverse` is what lets one marker serve both ends:
+              // the inbound arrowhead sits at the *start* of the line and has to
+              // point back down it.
+              orient="auto-start-reverse"
+              markerUnits="strokeWidth"
+            >
+              <path d="M0 0.6 L4.4 2.5 L0 4.4 Z" className="landing-ring__arrowhead" />
+            </marker>
+          </defs>
 
-      <div className="landing-ring__hub">
-        <FormatFile extension={NATIVE_PROJECT_EXTENSION} native />
-        <span className="landing-ring__hub-label">
-          {t('landing:formats.hubLabel', 'Your project')}
-        </span>
+          {RING_FORMATS.map(({ extension, direction }, index) => {
+            const from = pointAt(index, count, WIRE_START);
+            const to = pointAt(index, count, WIRE_END);
+            const line = { x1: from.x, y1: from.y, x2: to.x, y2: to.y };
+            return (
+              <g key={extension} style={cssVars({ '--slot': String(index) })}>
+                <line
+                  {...line}
+                  className="landing-ring__wire"
+                  markerStart={direction === 'export' ? undefined : `url(#${markerPrefix}-head)`}
+                  markerEnd={direction === 'import' ? undefined : `url(#${markerPrefix}-head)`}
+                />
+                {direction !== 'import' ? (
+                  <line {...line} className="landing-ring__flow" data-way="out" />
+                ) : null}
+                {direction !== 'export' ? (
+                  <line {...line} className="landing-ring__flow" data-way="in" />
+                ) : null}
+              </g>
+            );
+          })}
+        </svg>
+
+        <ul
+          className="landing-ring__orbit"
+          aria-label={t('landing:formats.ringLabel', 'Supported file formats')}
+        >
+          {RING_FORMATS.map(({ extension, direction }, index) => (
+            <li
+              key={extension}
+              className="landing-ring__slot"
+              style={cssVars({ '--slot': String(index) })}
+            >
+              <FormatFile extension={extension} direction={direction} />
+            </li>
+          ))}
+        </ul>
+
+        <div className="landing-ring__hub">
+          <FormatFile extension={NATIVE_PROJECT_EXTENSION} native />
+          <span className="landing-ring__hub-label">
+            {t('landing:formats.hubLabel', 'Your project')}
+          </span>
+        </div>
       </div>
+
+      <ul className="landing-ring__legend">
+        <LegendKey way="both" label={t('landing:formats.legendBoth', 'Opens and exports')} />
+        <LegendKey way="in" label={t('landing:formats.legendImport', 'Opens only')} />
+        <LegendKey way="out" label={t('landing:formats.legendExport', 'Exports only')} />
+      </ul>
     </div>
   );
 }
 
+function LegendKey({ way, label }: { way: 'in' | 'out' | 'both'; label: string }) {
+  return (
+    <li className="landing-ring__legend-key">
+      <span className="landing-ring__legend-mark" data-way={way} aria-hidden="true" />
+      {label}
+    </li>
+  );
+}
+
 /** One file icon: a document silhouette with its extension across the face. */
-function FormatFile({ extension, native = false }: { extension: string; native?: boolean }) {
+function FormatFile({
+  extension,
+  direction,
+  native = false,
+}: {
+  extension: string;
+  direction?: FormatDirection;
+  native?: boolean;
+}) {
+  const { t } = useTranslation();
+  const description: Record<FormatDirection, string> = {
+    both: t('landing:formats.a11yBoth', 'opens and exports'),
+    import: t('landing:formats.a11yImport', 'opens only'),
+    export: t('landing:formats.a11yExport', 'exports only'),
+  };
+
   return (
     <span className="landing-file" data-native={native || undefined}>
       <span className="landing-file__fold" aria-hidden="true" />
       <span className="landing-file__ext">{`.${extension}`}</span>
+      {direction ? (
+        <>
+          {/*
+            Shown only in the unwound layout, where the wires are gone. Without
+            it a narrow screen would keep the legend and lose the thing it
+            explains.
+          */}
+          <span
+            className="landing-file__way"
+            data-way={WAY_OF[direction]}
+            aria-hidden="true"
+          />
+          {/*
+            The arrows and the mark are both decorative, so this is where the
+            direction is actually available to a screen reader.
+          */}
+          <span className="landing-file__direction">{description[direction]}</span>
+        </>
+      ) : null}
     </span>
   );
+}
+
+/**
+ * Whether `ref`'s element is on screen.
+ *
+ * The wires animate continuously, and the ring is far below the fold — leaving
+ * twenty animated strokes running against a page nobody is looking at is the
+ * kind of thing that shows up as battery drain rather than as a bug.
+ */
+function useInView(ref: React.RefObject<HTMLElement | null>): boolean {
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    if (typeof IntersectionObserver !== 'function') {
+      // No observer (jsdom, ancient browsers): animate rather than sit frozen.
+      setInView(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => setInView(entry?.isIntersecting ?? false),
+      { threshold: 0.15 }
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [ref]);
+
+  return inView;
 }

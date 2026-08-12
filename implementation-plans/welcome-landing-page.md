@@ -195,6 +195,18 @@ would ask:
    A landing page claiming a format the app will not open is the same class of
    bug as the desktop download, and a test pins it. Image formats are added
    separately, since they export but never open.
+
+   Each file is wired to the hub by an arrow showing which way it travels —
+   inbound, outbound, or both — with a travelling dash along the wire. The
+   direction is computed from the two format lists rather than authored, so it
+   cannot drift from what the app does. Flat-Folder is **not** credited: the
+   crate exists but nothing shipping uses it.
+
+   The animation runs only while the ring is on screen (an `IntersectionObserver`
+   sets `data-flowing`), and stops entirely under `prefers-reduced-motion`.
+   `--ring-radius` is in `cqw` so the files sit at a fixed *fraction* of the box,
+   which is what lets the wire SVG draw on a plain 0–100 viewBox instead of
+   measuring anything at runtime.
 6. **Get started** — the browser is the whole setup. CTAs are the Discord and
    the repository; `constants/release.ts` owns both URLs.
 

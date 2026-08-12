@@ -254,16 +254,27 @@
 
 /* --- The format ring --- */
 
+.landing-ring-figure {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
 .landing-ring {
   /*
-   * One square box. Everything inside positions from its centre, so the radius
-   * is the only number that has to move when the ring is resized.
+   * One square box. Everything inside positions from its centre.
+   *
+   * `container-type` + `cqw` is what makes the radius a fixed *fraction* of the
+   * box (40%) rather than a pixel clamp. That is what lets the wire SVG draw on
+   * a plain 0–100 viewBox: the files are always at radius 40 in those units, so
+   * nothing has to be measured at runtime or recomputed on resize.
    */
   position: relative;
+  container-type: inline-size;
   aspect-ratio: 1;
   width: min(100%, 440px);
-  margin-inline: auto;
-  --ring-radius: clamp(120px, 21vw, 176px);
+  --ring-radius: 40cqw;
 }
 
 /* The orbit line the files sit on. */
@@ -282,6 +293,160 @@
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* --- The wires --- */
+
+.landing-ring__wires {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.landing-ring__wire {
+  stroke: color-mix(in srgb, var(--text-primary) 16%, transparent);
+  stroke-width: 0.5;
+}
+
+.landing-ring__arrowhead {
+  fill: color-mix(in srgb, var(--accent-primary) 62%, var(--text-tertiary));
+}
+
+/*
+ * The travelling dash. One short dash per period, so what moves along the wire
+ * reads as a packet rather than as a marching-ants border.
+ */
+.landing-ring__flow {
+  stroke: var(--accent-primary);
+  stroke-width: 0.9;
+  stroke-linecap: round;
+  stroke-dasharray: 1.6 12;
+  filter: drop-shadow(0 0 1.2px color-mix(in srgb, var(--accent-primary) 70%, transparent));
+  opacity: 0;
+}
+
+/*
+ * Only while the ring is actually on screen. Twenty animated strokes running
+ * against a page nobody has scrolled to is battery, not polish.
+ */
+.landing-ring[data-flowing] .landing-ring__flow {
+  opacity: 0.9;
+  animation: landing-flow-out 2.6s linear infinite;
+  /* Negative delay: each wire starts mid-cycle, so they never pulse in unison. */
+  animation-delay: calc(var(--slot) * -0.32s);
+}
+
+.landing-ring[data-flowing] .landing-ring__flow[data-way='in'] {
+  animation-name: landing-flow-in;
+  /* Half a period out of step with its outbound twin on two-way formats. */
+  animation-delay: calc(var(--slot) * -0.32s - 1.3s);
+}
+
+@keyframes landing-flow-out {
+  from {
+    stroke-dashoffset: 13.6;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes landing-flow-in {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: 13.6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-ring[data-flowing] .landing-ring__flow {
+    animation: none;
+    opacity: 0.45;
+  }
+}
+
+/* --- Legend --- */
+
+.landing-ring__legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landing-ring__legend-key {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-tertiary);
+  font-size: 0.76rem;
+  font-weight: 560;
+}
+
+.landing-ring__legend-mark {
+  width: 26px;
+  height: 8px;
+  background: color-mix(in srgb, var(--accent-primary) 62%, var(--text-tertiary));
+  /* Arrow glyphs drawn by clipping a bar, so they match the wires' arrowheads. */
+  clip-path: polygon(0 42%, 74% 42%, 74% 12%, 100% 50%, 74% 88%, 74% 58%, 0 58%);
+}
+
+.landing-ring__legend-mark[data-way='in'] {
+  transform: scaleX(-1);
+}
+
+/*
+ * The same glyph on the file itself. Hidden while the ring is a ring — the
+ * wires say it there — and revealed by the unwound layout below.
+ */
+.landing-file__way {
+  display: none;
+  width: 20px;
+  height: 7px;
+  margin-top: 3px;
+  background: color-mix(in srgb, var(--accent-primary) 62%, var(--text-tertiary));
+  clip-path: polygon(0 42%, 74% 42%, 74% 12%, 100% 50%, 74% 88%, 74% 58%, 0 58%);
+}
+
+.landing-file__way[data-way='in'] {
+  transform: scaleX(-1);
+}
+
+.landing-file__way[data-way='both'] {
+  clip-path: polygon(
+    0 50%,
+    26% 12%,
+    26% 42%,
+    74% 42%,
+    74% 12%,
+    100% 50%,
+    74% 88%,
+    74% 58%,
+    26% 58%,
+    26% 88%
+  );
+}
+
+.landing-ring__legend-mark[data-way='both'] {
+  clip-path: polygon(
+    0 50%,
+    26% 12%,
+    26% 42%,
+    74% 42%,
+    74% 12%,
+    100% 50%,
+    74% 88%,
+    74% 58%,
+    26% 58%,
+    26% 88%
+  );
 }
 
 /*
@@ -374,6 +539,20 @@
 
 .landing-file[data-native] .landing-file__ext {
   font-size: 0.78rem;
+}
+
+/*
+ * The direction, for screen readers only. The arrows carry it visually and are
+ * marked decorative, so without this the list would read as ten bare
+ * extensions with nothing to say which way any of them goes.
+ */
+.landing-file__direction {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* --- Get it --- */
@@ -492,6 +671,12 @@
     gap: var(--space-5);
   }
 
+  .landing-ring::before,
+  /* The wires are drawn for a circle; there is no circle left to wire. */
+  .landing-ring__wires {
+    display: none;
+  }
+
   .landing-ring::before {
     content: none;
   }
@@ -517,6 +702,15 @@
   .landing-ring__hub {
     position: static;
     order: 1;
+  }
+
+  /* The wires are gone, so each file carries its own direction instead. */
+  .landing-file__way {
+    display: block;
+  }
+
+  .landing-file {
+    height: 62px;
   }
 }
 

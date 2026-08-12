@@ -211,7 +211,7 @@ export function WelcomeLanding() {
         title={t('landing:compatibility.title', 'Built on the tools you already use')}
         lead={t(
           'landing:compatibility.lead',
-          'Much of Ori Studio is a careful port of work the community already built — Oriedita, TreeMaker, Box Pleating Studio and Flat-Folder — and keeping import and export interoperability with those tools is a commitment, though it is not the same as exact feature parity. Nothing you make here is trapped here.'
+          'Much of Ori Studio is a careful port of work the community already built — Oriedita, TreeMaker and Box Pleating Studio — and keeping import and export interoperability with those tools is a commitment, though it is not the same as exact feature parity. Nothing you make here is trapped here.'
         )}
       >
         <LandingFormatRing />

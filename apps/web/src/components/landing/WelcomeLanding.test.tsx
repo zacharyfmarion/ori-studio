@@ -78,9 +78,14 @@ describe('WelcomeLanding', () => {
     const rendered = renderLanding();
     const compatibility = rendered.querySelector('#landing-compatibility')?.textContent ?? '';
 
-    for (const upstream of ['Oriedita', 'TreeMaker', 'Box Pleating Studio', 'Flat-Folder']) {
+    for (const upstream of ['Oriedita', 'TreeMaker', 'Box Pleating Studio']) {
       expect(compatibility).toContain(upstream);
     }
+  });
+
+  it('does not credit Flat-Folder, which nothing shipping uses', () => {
+    const rendered = renderLanding();
+    expect(rendered.textContent).not.toMatch(/flat[\s-]?folder/i);
   });
 
   it('shows the interchange formats, which is the claim this audience checks', () => {
