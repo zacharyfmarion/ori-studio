@@ -90,6 +90,40 @@ describe('optimizerSymmetryAxisForMirror', () => {
     expect(optimizerSymmetryAxisForMirror('diagonal', { fold: 'diagonal', quarterTurn: false })).toBe('verticalHalf');
     expect(optimizerSymmetryAxisForMirror('diagonal', { fold: 'book', quarterTurn: false })).toBe('mainDiagonal');
   });
+
+  it('names each of the four axes exactly once across the eight inputs', () => {
+    // Two sheet kinds × two folds × two turns, and the kernel has four axes. Each
+    // has to be reachable — an axis no input names is one the optimizer can be
+    // asked for and never is — and each pairing has to be one-to-one, or two
+    // different designs would resolve to the same mirror.
+    const inputs = (['rectangular', 'diagonal'] as const).flatMap((kind) =>
+      (['book', 'diagonal'] as const).flatMap((fold) =>
+        [false, true].map((quarterTurn) => ({
+          kind,
+          axis: optimizerSymmetryAxisForMirror(kind, { fold, quarterTurn }),
+        }))
+      )
+    );
+    for (const kind of ['rectangular', 'diagonal'] as const) {
+      const axes = inputs.filter((entry) => entry.kind === kind).map((entry) => entry.axis);
+      expect(new Set(axes).size).toBe(4);
+    }
+  });
+
+  it('never lets the class depend on the turn', () => {
+    // The fold decides book-versus-diagonal and the turn decides which of that
+    // pair. If a turn could change the class, "this model is book-symmetric"
+    // would stop being a fact about the model.
+    const diagonalAxes = new Set(['mainDiagonal', 'antiDiagonal']);
+    for (const kind of ['rectangular', 'diagonal'] as const) {
+      for (const fold of ['book', 'diagonal'] as const) {
+        const straight = optimizerSymmetryAxisForMirror(kind, { fold, quarterTurn: false });
+        const turned = optimizerSymmetryAxisForMirror(kind, { fold, quarterTurn: true });
+        expect(diagonalAxes.has(turned)).toBe(diagonalAxes.has(straight));
+        expect(turned).not.toBe(straight);
+      }
+    }
+  });
 });
 
 describe('resolveOptimizerSymmetry', () => {

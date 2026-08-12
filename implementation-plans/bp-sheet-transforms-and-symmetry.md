@@ -130,7 +130,8 @@ touch `quarterTurn`.** Choosing book vs diagonal is choosing the class, not the
 line, so a fold pick leaves the orientation alone — and the menu's label stays
 true either way, since a horizontal mirror is still a book fold. The existing
 one-field patch (`setOristudioBpSymmetry({ fold })`) already does the right
-thing; leave it that way.
+thing; leave it that way. Guarded by a case in
+`slices/oristudioBpSymmetryDocument.test.ts`.
 
 Take the parameter as `BpMirrorOrientation`, not as two positional arguments:
 the type change makes the compiler enumerate every call site, which is the point.
@@ -338,15 +339,33 @@ Browser checklist (owner: Zach):
 
 ## Checklist
 
-- [ ] Phase 0: `BpMirrorOrientation` + `quarterTurn` on `BpDocumentSymmetry`;
-      widened `optimizerSymmetryAxisForFold`; default, validator, `.osf` I/O.
-- [ ] Phase 1: `mirrorAfterSheetTransform`; applied inside the four sheet-transform
-      store mutations; orientation threaded through the packing entry points.
-- [ ] Phase 2: four capability ids + gates, Design-menu entries, `MENU_ACTION_IDS`
-      and dispatch, descriptor placement; optional packing-popover transform row.
-- [ ] Phase 3: inline English strings, `i18n:extract`, 8 locales, `i18n:stamp`,
+- [x] Phase 0: `BpMirrorOrientation` + `quarterTurn` on `BpDocumentSymmetry`;
+      widened derivation, renamed `optimizerSymmetryAxisForMirror`; default,
+      validator, `.osf` I/O. Also folded `resolveOptimizerSymmetry`'s separate
+      `options.fold` into the state it already took — every caller passed the
+      state's own fold, so the parameter could only ever be used to ask about a
+      fold the design does not have.
+- [x] Phase 1: `mirrorAfterSheetTransform`; applied inside the four sheet-transform
+      store mutations via `transformBpLayoutSheet`; orientation threaded through
+      the packing entry points. Split `isDiagonalSymmetryAxis` out of
+      `optimizerSymmetryAxisSwapsDimensions`, so the two questions with one
+      answer each have a name.
+- [x] Phase 2: four capability ids + gates, Design-menu entries, `MENU_ACTION_IDS`
+      and dispatch, descriptor placement; packing-popover transform row bound by
+      `hooks/useBpSheetTransforms` (line cap 2023 → 2055, reasoned in
+      `eslint.config.js`).
+- [x] Phase 3: inline English strings, `i18n:extract`, 8 locales, `i18n:stamp`,
       `i18n:check` green.
-- [ ] Phase 4: derivation table test, transform table test, the symmetric-packing
-      integration test, store/undo tests, file round-trip, capability and dispatch
-      tests.
-- [ ] Validation commands run; browser checklist handed over.
+- [x] Phase 4: derivation table test, transform table test, the symmetric-packing
+      integration test, store/undo tests, `setFold` independence, file round-trip,
+      capability and dispatch tests.
+- [x] Validation: `tsc --noEmit`, 315 vitest files / 3476 tests, `lint:web`,
+      `i18n:check` — all green. Browser checklist below is Zach's.
+
+### Found on the way, not fixed here
+
+`resolveOptimizerSymmetry` resolves the axis from `tree.sheet.kind` while every
+other consumer uses the layout sheet's. They are independent sheets — the
+kernel's `update_layout_sheet` changes only the layout's `grid_type` — so
+switching the packing grid to Diagonal makes the drawn mirror and the solved one
+disagree. Pre-existing, and its own change; spun off as a background task.

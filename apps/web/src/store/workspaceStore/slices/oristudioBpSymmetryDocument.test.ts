@@ -75,6 +75,18 @@ describe('symmetry is document state', () => {
     expect(useWorkspaceStore.getState().dirty).toBe(true);
   });
 
+  it('leaves the quarter turn alone when the fold changes', () => {
+    // The four mirror axes of the square fall into two classes of two, and the
+    // fold names the class: book covers the vertical mirror and the horizontal,
+    // diagonal covers both diagonals. Which member of the class the design is on
+    // is what the sheet transforms move, so it is not the fold picker's to
+    // touch — and the menu's "Book" stays true either way.
+    useWorkspaceStore.getState().setOristudioBpSymmetry({ quarterTurn: true });
+    useWorkspaceStore.getState().setOristudioBpSymmetry({ fold: 'diagonal' });
+    const symmetry = selectOristudioBpSymmetry(useWorkspaceStore.getState());
+    expect(symmetry).toMatchObject({ fold: 'diagonal', quarterTurn: true });
+  });
+
   it('marks the project dirty when a pair is broken', () => {
     useWorkspaceStore.setState({
       ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
