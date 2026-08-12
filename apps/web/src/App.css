@@ -27,7 +27,15 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden auto;
+  /* Applies to the scroll-affordance jump; `scrollIntoView` needs no argument. */
+  scroll-behavior: smooth;
   background: var(--bg-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-page {
+    scroll-behavior: auto;
+  }
 }
 
 /*

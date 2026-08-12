@@ -1,6 +1,11 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileDropOverlay } from '../components/FileDropOverlay';
+import {
+  FIRST_LANDING_SECTION_ID,
+  WelcomeLanding,
+} from '../components/landing/WelcomeLanding';
+import { WelcomeScrollCue } from '../components/landing/WelcomeScrollCue';
 import { StartScreen } from '../components/StartScreen';
 import { useFileDropTarget } from '../hooks/useFileDropTarget';
 import { useWorkspaceErrorText } from '../hooks/useWorkspaceErrorText';
@@ -43,6 +48,7 @@ function resetStatus(current: AppStatus, engineReady: boolean, blocked: boolean)
  */
 export function WelcomeRoute() {
   const navigate = useNavigate();
+  const pageRef = useRef<HTMLElement | null>(null);
   const blocked = useIsWorkspaceBlocked();
   const status = useWorkspaceStore((state) => state.status);
   const errorText = useWorkspaceErrorText();
@@ -86,7 +92,7 @@ export function WelcomeRoute() {
       className="app-layout app-layout--start file-drop-region"
       {...dropTargetProps}
     >
-      <main className="welcome-page">
+      <main className="welcome-page" ref={pageRef}>
         <StartScreen
           status={status}
           errorMessage={errorText}
@@ -96,7 +102,9 @@ export function WelcomeRoute() {
           showWelcomeOnStartup={showWelcomeOnStartup}
           onToggleShowWelcomeOnStartup={setShowWelcomeOnStartup}
         />
+        <WelcomeLanding />
       </main>
+      <WelcomeScrollCue scrollerRef={pageRef} targetId={FIRST_LANDING_SECTION_ID} />
       <FileDropOverlay visible={isDragActive} policy={WELCOME_DROP_POLICY} />
     </div>
   );

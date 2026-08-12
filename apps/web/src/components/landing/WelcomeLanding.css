@@ -1,0 +1,230 @@
+/*
+ * The landing page below the fold on `/welcome`.
+ *
+ * Quiet by design: the same tokens, borders and card treatment the app uses, at
+ * a larger reading size. A marketing page in a different visual language would
+ * be the first thing a visitor sees and the last thing that resembles the
+ * product.
+ */
+
+.welcome-landing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.landing-section {
+  padding: clamp(48px, 8vw, 96px) clamp(20px, 5vw, 56px);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.landing-section[data-tone='raised'] {
+  background: var(--bg-secondary);
+}
+
+.landing-section__inner {
+  display: grid;
+  gap: var(--space-6);
+  width: min(1040px, 100%);
+  margin-inline: auto;
+}
+
+.landing-section__head {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.landing-section__eyebrow {
+  color: color-mix(in srgb, var(--accent-primary) 80%, var(--text-secondary));
+  font-size: 0.7rem;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.landing-section__title {
+  max-width: 20ch;
+  margin: 0;
+  color: var(--text-primary);
+  font-size: clamp(1.5rem, 3.2vw, 2.3rem);
+  font-weight: 780;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+.landing-section__lead {
+  max-width: 62ch;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: clamp(0.95rem, 1.4vw, 1.06rem);
+  font-weight: 500;
+  line-height: 1.62;
+}
+
+/* --- The three workspace cards --- */
+
+.landing-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landing-card {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--bg-elevated) 88%, var(--bg-primary));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-primary) 6%, transparent);
+}
+
+.landing-card__icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 22%, var(--border-subtle));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  color: color-mix(in srgb, var(--accent-primary) 78%, var(--text-primary));
+}
+
+.landing-card__title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 760;
+  line-height: 1.25;
+}
+
+.landing-card__body {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+  font-weight: 500;
+  line-height: 1.56;
+}
+
+/* --- The upstreams --- */
+
+.landing-ports {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  list-style: none;
+  overflow: hidden;
+}
+
+.landing-port {
+  display: grid;
+  grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+}
+
+.landing-port + .landing-port {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.landing-port__name {
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  font-weight: 720;
+}
+
+.landing-port__body {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.55;
+}
+
+.landing-formats {
+  max-width: 62ch;
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.55;
+}
+
+/* --- Get it --- */
+
+.landing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.landing-actions__note {
+  max-width: 62ch;
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.55;
+}
+
+/* --- The scroll affordance --- */
+
+.welcome-scroll-cue {
+  position: absolute;
+  right: 0;
+  bottom: var(--space-5);
+  left: 0;
+  z-index: 30;
+  display: grid;
+  justify-items: center;
+  /* The start screen's own controls sit under this; only the button takes clicks. */
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.welcome-scroll-cue[data-hidden] {
+  opacity: 0;
+}
+
+.welcome-scroll-cue__button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 620;
+  pointer-events: auto;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+}
+
+.welcome-scroll-cue__button:hover {
+  border-color: var(--border-default);
+  color: var(--text-secondary);
+}
+
+@media (max-width: 720px) {
+  .landing-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .landing-port {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+  }
+
+  .landing-section__title {
+    max-width: none;
+  }
+}
