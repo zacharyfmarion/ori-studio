@@ -79,6 +79,7 @@
     "symmetryInconsistent": "每个襟片都有配对，但有些配对在树中不可互换。",
     "symmetryNeedsSquare": "需要正方形纸张。",
     "symmetryReady": "每个襟片都有配对。",
+    "transform": "变换",
     "unpair": "解除镜像配对",
     "unsupportedOperation": "不支持的 BP 操作",
     "upstreamGap": "上游间隙",

@@ -1,6 +1,10 @@
 {
   "bp": {
+    "flipHorizontal": "Espelhar horizontalmente",
+    "flipVertical": "Espelhar verticalmente",
     "optimizeLayout": "Otimizar o layout…",
+    "rotateLeft": "Girar à esquerda",
+    "rotateRight": "Girar à direita",
     "subdivide": "Subdividir grade",
     "unsubdivide": "Desfazer subdivisão"
   },

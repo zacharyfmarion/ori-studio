@@ -1,6 +1,10 @@
 {
   "bp": {
+    "flipHorizontal": "Horizontal spiegeln",
+    "flipVertical": "Vertikal spiegeln",
     "optimizeLayout": "Layout optimieren…",
+    "rotateLeft": "Nach links drehen",
+    "rotateRight": "Nach rechts drehen",
     "subdivide": "Raster unterteilen",
     "unsubdivide": "Unterteilung aufheben"
   },

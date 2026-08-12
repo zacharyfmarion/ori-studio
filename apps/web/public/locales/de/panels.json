@@ -81,6 +81,7 @@
     "symmetryInconsistent": "Jede Lasche hat einen Partner, aber einige Paare sind im Baum nicht austauschbar.",
     "symmetryNeedsSquare": "Benötigt ein quadratisches Blatt.",
     "symmetryReady": "Jede Lasche hat einen Partner.",
+    "transform": "Transformieren",
     "unpair": "Spiegelpaar aufheben",
     "unsupportedOperation": "Nicht unterstützte BP-Operation",
     "upstreamGap": "Vorgelagerte Lücke",

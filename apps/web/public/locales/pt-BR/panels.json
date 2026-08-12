@@ -83,6 +83,7 @@
     "symmetryInconsistent": "Cada aba tem um par, mas alguns pares não são intercambiáveis na árvore.",
     "symmetryNeedsSquare": "Precisa de uma folha quadrada.",
     "symmetryReady": "Cada aba tem um par.",
+    "transform": "Transformar",
     "unpair": "Desemparelhar do espelho",
     "unsupportedOperation": "Operação BP não suportada",
     "upstreamGap": "Lacuna a montante",

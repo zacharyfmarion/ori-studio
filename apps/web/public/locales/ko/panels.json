@@ -79,6 +79,7 @@
     "symmetryInconsistent": "모든 플랩에 짝이 있지만 트리에서 교환할 수 없는 짝이 있습니다.",
     "symmetryNeedsSquare": "정사각형 종이가 필요합니다.",
     "symmetryReady": "모든 플랩에 짝이 있습니다.",
+    "transform": "변형",
     "unpair": "미러 페어 해제",
     "unsupportedOperation": "지원되지 않는 BP 작업",
     "upstreamGap": "업스트림 간격",
