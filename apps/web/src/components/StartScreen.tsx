@@ -2,11 +2,7 @@ import { DraftingCompass, FilePlus, FolderOpen, PenTool } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AppStatus } from '../lib/sampleProject';
-
-const publicAssetBase = import.meta.env.BASE_URL.endsWith('/')
-  ? import.meta.env.BASE_URL
-  : `${import.meta.env.BASE_URL}/`;
-const creasePatternPreviewSrc = `${publicAssetBase}start/crease-pattern-preview.png`;
+import { StartFigure } from './start/StartFigure';
 
 interface StartScreenProps {
   status: AppStatus;
@@ -53,12 +49,7 @@ export function StartScreen({
           </div>
           <div className="start-screen__preview" aria-hidden="true">
             <div className="start-screen__preview-frame">
-              <img
-                className="start-screen__preview-image"
-                src={creasePatternPreviewSrc}
-                alt=""
-                decoding="async"
-              />
+              <StartFigure />
             </div>
           </div>
         </div>

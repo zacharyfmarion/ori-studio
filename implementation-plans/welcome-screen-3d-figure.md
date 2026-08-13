@@ -28,8 +28,7 @@ model headlessly before this plan was written — see *Evidence*.
 
 ## Evidence
 
-Measured, not estimated. The spike folded the model in Node with the committed
-CPU solver and rendered a depth-buffered contact sheet.
+Measured, not estimated — by folding the real model and looking at real frames.
 
 **The crease pattern stays out of the repository.** The bottom pattern of
 `penguin_other_angles.osf` (120 vertices / 246 edges / 127 faces, `y ∈ [300, 700]`
@@ -42,25 +41,28 @@ is committed**. See *Phase 0* — a copy of this CP is currently tracked as
 
 | Quantity | Measured |
 | --- | --- |
-| Prepared mesh (`prepareFoldModel`, triangulated) | 120 vertices, 189 triangles, 308 edges, **0 warnings, 0 errors** |
-| Headless solve (`ReferenceSolver`, `foldPercent: 100`, 20k steps) | **7.1 s** in Node, all coordinates finite |
-| Determinism across reruns | **max coordinate difference 0** — bit-identical |
-| Frozen asset | **6.3 KiB** raw binary / **7.1 KiB** JSON at 3dp (≈2–3 KiB gzipped) |
-| GPU residency | one **16×16** RGBA float position texture (4 KB) + 567 face indices |
-| Convergence | `max|coord|` stable at 0.42–0.44 from ~6k steps to 30k |
-| Fitted radius / centroid | 0.4417 / `(0.146, 0.000, −0.162)` |
+| Exact folded state (`Fold3dSession`, solution 1 of 8) | **127 faces, 21 planes, 90 cells, 246 creases, 0 undetermined** |
+| Frozen asset (`Folded3dRenderModel` + pose) | **90.8 KiB** raw, **16 KiB** gzip, **10.7 KiB** brotli |
+| Lazy chunk it is drawn by | **16.2 KiB** (5.5 KiB gzip), and `MeshRenderer` is **not** in the entry chunk |
+| Frame cost | one uniform change and one `drawElements` pair; no per-frame upload |
 
-Taken twice — once from the `.osf` directly (filtering `foldProjection` to
-`y ≥ 250`) and once from the tracked derivative — and both routes gave the same
-120 / 246 / 127 input and the same prepared mesh. So these numbers describe the
-external-input path the generator will actually use; the fixture's removal costs
-nothing here.
+**The geometry is the kernel's exact fold, not a simulation of one.** The first
+draft of this plan used the origami simulator relaxed to 100%, and that was
+wrong: it settles a spring model *near* the target, so creases soften and the
+paper never quite closes. `oristudio-cp`'s `Fold3dSession` — what the `G` key
+runs — answers the same question exactly, and its `Folded3dRenderModel` is what
+every other folded figure in the app is drawn from. Shipping anything else would
+have made the start screen the one place showing a different answer.
 
-The model folds to a genuinely three-dimensional form with layered structure,
-not a flat stack. **One finding changes the design**: swept through a full 360°
-of yaw, it passes through angles where it presents nearly edge-on and reads as a
-sliver. That is why the auto-rotation below is specified as a *bounded sweep
-around a chosen hero angle*, not a continuous spin.
+**Two findings changed the design**, both from looking at real frames:
+
+- A full 360° yaw sweep passes through angles where the form presents nearly
+  edge-on and reads as a sliver. The auto-rotation is therefore a bounded eased
+  sweep around a chosen pose, not a spin.
+- At 320px, 246 creases in mountain-red and valley-blue read as noise over the
+  form. The figure draws them in **mono** — one theme-derived ink — so the shape
+  speaks. Colour stays the default where it is information (the Simulate
+  workspace); here it is not.
 
 ## Approach
 
@@ -82,6 +84,13 @@ requires.
 (`glCore.ts:81`), so the same construction works on the main thread against a
 plain `<canvas>`. That is the whole trick: **the welcome figure is a
 `FoldedMeshSource` on the main thread with a static texture.**
+
+And the geometry side is shared too: `folded3dMesh` (`cp-workspace/folded/`)
+turns a `Folded3dRenderModel` into positions, a `MeshTopology` and a radius —
+the triangulation, the layer displacement and the crease assignments an in-app
+folded figure already gets. The start figure calls it rather than carrying a
+private format, so the two are the same picture and not two that resemble each
+other.
 
 Everything else is already shared and already correct:
 
@@ -183,66 +192,40 @@ on it. It is cheap to redo — rerunning the generator with different angles cos
 
 ### Phase 2 — Freeze the geometry
 
-`scripts/generate-start-figure.mjs`, modelled on `scripts/generate-og-default.mjs`
-(the existing precedent for a committed asset with its generator checked in
-beside it, documented in the file header, run by hand). Its **input is external**,
-so it refuses rather than skips when the corpus is not configured — the same
-loud-failure discipline `non_flat_corpus.rs` documents:
+`scripts/generate-start-figure.mjs` is a pipeline, not a solver. It extracts the
+pattern (reusing `osf-fold-projection.mjs`'s `readFoldDocument`, so component and
+document selection cannot drift between two readers), hands it to the kernel, and
+stores what comes back:
 
 ```sh
-ORISTUDIO_NON_FLAT_CORPUS_DIR=/path/to/non-flat node scripts/generate-start-figure.mjs
+node scripts/generate-start-figure.mjs \
+  --source "$CORPUS/plant/penguin_other_angles.osf" --component 0 \
+  --yaw 1.55 --pitch -0.7 --sweep 0.45
 ```
 
-It reads `$ORISTUDIO_NON_FLAT_CORPUS_DIR/plant/penguin_other_angles.osf`, takes
-the `foldProjection` and keeps **component 0** (the bottom pattern; reuse
-`scripts/osf-fold-projection.mjs`'s existing `--component` extraction rather than
-writing a second one), runs
-`prepareFoldModel(fold, { triangulate: true, foldUseAngles: true })`,
-solves with `ReferenceSolver` at `foldPercent: 100, timeStepScale: 0.35` for a
-pinned step count, recentres on the centroid, and writes
-`apps/web/public/start/penguin-figure.json`:
+The fold itself is `cargo run -p oristudio-cp --release --example
+fold3d_render_model -- --source … --solution N`, which is the existing "one
+command that emits a render model", extended to take an arbitrary pattern rather
+than only its fixture set. `--solution` matters: a folded state can have several
+layer orderings and this design has eight.
 
-```jsonc
-{
-  "version": 1,
-  "vertexCount": 120,
-  "positions": [ /* 360 floats, centroid-relative, 3dp */ ],
-  "indices":   [ /* 567 uint32, triangles */ ],
-  "edges":     [ /* 616 uint32, 2 per crease */ ],
-  "assignments": [ /* 308 codes: 0=B 1=M 2=V 3=F */ ],
-  "radius": 0.4417,
-  "view": { "yaw": …, "pitch": …, "zoom": 1 }   // Phase 1's answer, baked in
-}
-```
+Reusability is the point — swapping the figure for a different design is the same
+command with a different `--source` and `--out`, then one constant moved in
+`startFigureAsset.ts`. Nothing in the app knows which model it is drawing.
 
 Notes that matter:
 
 - **This is the rendered result, not the crease pattern.** Folded coordinates,
-  triangles, and crease indices — nothing a CP viewer can open, and nothing the
-  repository or the shipped bundle can display as a crease pattern. Be aware of
-  the one honest caveat: the mesh carries the same edge graph with M/V
-  assignments, so somebody determined could unfold it back to the CP. If that
-  needs closing off, drop `assignments` and the crease pass entirely and ship a
-  bare triangle soup — at the cost of the mountain/valley linework, which is a
-  visible part of how it reads.
-- **`public/`, not a bundle import.** 7 KiB fetched on the route keeps it out of
-  the JS chunk, and makes "asset missing or malformed" a clean fallback rather
-  than a build failure.
-- **The asset is a frozen artefact, not a build output.** CI does not regenerate
-  it — a 7-second re-solve on every build would churn the file for no signal, the
-  input is not available to CI at all, and the whole point is that the geometry is
-  fixed. It is committed exactly as `og-default.png` is.
-- **Solver choice is free here.** `ReferenceSolver` (CPU) is not bit-identical to
-  the GPU solver the app runs, and that is irrelevant: the output is frozen once
-  and shipped. Reruns are bit-identical to each other (measured), so
-  regenerating never produces a spurious diff.
-- The step count is pinned in the script with the convergence measurement above
-  as its justification.
-
-`apps/web/src/components/start/startFigureAsset.test.ts` pins the asset's
-integrity: counts agree with each other, every index is in range, every
-assignment code is valid, positions are finite and centroid-relative. A hand-edit
-or a truncated file then fails loudly instead of rendering nothing.
+  face rings, cell stacks and crease endpoints — nothing a CP viewer can open.
+  The one honest caveat: the model carries the same edge graph with signed fold
+  angles, so somebody determined could unfold it. If that needs closing off, the
+  answer is a bare triangle soup, at the cost of all the linework.
+- **`public/`, not a bundle import.** The asset is fetched, so it stays out of
+  the JS chunk and a missing or malformed file degrades to the static image
+  rather than failing the build.
+- **A frozen artefact, not a build output.** CI does not regenerate it — the
+  input is not available to CI at all, and the geometry is meant to be fixed. It
+  is committed exactly as `og-default.png` is.
 
 ### Phase 3 — The orbit state machine (pure, tested)
 
@@ -404,27 +387,28 @@ animation itself cannot be verified there.
 ## Checklist
 
 - [x] Phase 0 — scope settled: remove all three `plant/`-derived fixtures; gate the orphaned assertions behind the external corpus
-- [ ] Phase 0 — delete `penguin_freeform.fold`, `penguin_disconnected.fold`, `rabbit_unclosed.fold`
-- [ ] Phase 0 — move every assertion that named them behind `ORISTUDIO_NON_FLAT_CORPUS_DIR`; drop their `DERIVATIONS` rows
-- [ ] Phase 0 — rewrite the doc comments in `src/folding3d*.rs` that quote their measurements
-- [ ] Phase 0 — rewrite the fixture README: provenance, licence, table, and the commit rule (with a test, not a paragraph)
-- [ ] Phase 0 — record the lost CI coverage in the README; open a follow-up issue for authored replacements
-- [ ] Phase 0 — `cargo test -p oristudio-cp` green; `git grep -i penguin` clean of tracked geometry
-- [ ] Phase 1 — generate the contact sheet; choose `heroYaw`, `heroPitch`, `sweepRadians`
-- [ ] Phase 2 — `scripts/generate-start-figure.mjs`, reading the external corpus, refusing loudly without it
-- [ ] Phase 2 — commit `apps/web/public/start/penguin-figure.json`
-- [ ] Phase 2 — asset integrity test (counts agree, indices in range, codes valid, finite, centroid-relative)
-- [ ] Phase 3 — `startFigureOrbit.ts` with auto-sweep, clamped drag, resume, reduced-motion
-- [ ] Phase 3 — unit tests for each of those four behaviours
-- [ ] Phase 4 — `startFigureMesh.ts`: create / resize / draw / dispose, context-loss handling
-- [ ] Phase 4 — `StartFigure.tsx`: idle-deferred dynamic import, PNG fallback, rAF loop gated on visibility + intersection
-- [ ] Phase 4 — theme `MutationObserver`, paint held in a ref, no `getComputedStyle` per frame
-- [ ] Phase 4 — pointer capture, `touch-action: none`, yaw-dominant drag
-- [ ] Phase 5 — `StartScreen.tsx` swap; confirm no new i18n strings
-- [ ] Phase 5 — CSS: cursor, touch-action, DPR sizing in the existing 320px frame
-- [ ] Phase 5 — fallback analytics event with enum `reason`
-- [ ] Phase 6 — `lint:web`, `typecheck:web`, `test:web`, `build:web`; confirm `MeshRenderer` is not in the entry chunk
-- [ ] Phase 6 — regenerate the asset and confirm a byte-identical result
+- [x] Phase 0 — delete `penguin_freeform.fold`, `penguin_disconnected.fold`, `rabbit_unclosed.fold`
+- [x] Phase 0 — move every assertion that named them behind `ORISTUDIO_NON_FLAT_CORPUS_DIR`; drop their `DERIVATIONS` rows
+- [x] Phase 0 — rewrite the doc comments in `src/folding3d*.rs` that quote their measurements
+- [x] Phase 0 — rewrite the fixture README: provenance, licence, table, and the commit rule (with a test, not a paragraph)
+- [x] Phase 0 — record the lost CI coverage in the README; open a follow-up issue for authored replacements
+- [x] Phase 0 — `cargo test -p oristudio-cp` green; `git grep -i penguin` clean of tracked geometry
+- [x] Phase 1 — generate the contact sheet; choose `heroYaw`, `heroPitch`, `sweepRadians`
+- [x] Phase 2 — `scripts/generate-start-figure.mjs`, reading the external corpus, refusing loudly without it
+- [x] Phase 2 — commit `apps/web/public/start/penguin-figure.json`
+- [x] Phase 2 — asset shape check (`parseStartFigureAsset`) — deliberately shallow: the kernel's `Folded3dRenderModel::validate` already re-derived every offset and face id before the file was written, and `folded3dMesh` re-reads the arrays on the way to the GPU. What this catches is a file that is not the asset at all
+- [x] Phase 3 — `startFigureOrbit.ts` with auto-sweep, clamped drag, resume, reduced-motion
+- [x] Phase 3 — unit tests for each of those four behaviours
+- [x] Phase 4 — `startFigureMesh.ts`: create / resize / draw / dispose, context-loss handling
+- [x] Phase 4 — `StartFigure.tsx`: idle-deferred dynamic import, PNG fallback, rAF loop gated on visibility + intersection
+- [x] Phase 4 — theme `MutationObserver`, paint held in a ref, no `getComputedStyle` per frame
+- [x] Phase 4 — pointer capture, `touch-action: none`, yaw-dominant drag
+- [x] Phase 5 — `StartScreen.tsx` swap; confirm no new i18n strings
+- [x] Phase 5 — CSS: cursor, touch-action, DPR sizing in the existing 320px frame
+- [x] Phase 5 — fallback analytics event with enum `reason`
+- [x] Phase 6 — `lint:web`, `typecheck:web`, `test:web`, `build:web`; confirm `MeshRenderer` is not in the entry chunk
+- [x] Phase 6 — `MeshRenderer` confirmed absent from the entry chunk (`startFigureMesh-*.js`, 16.2 KiB, holds the shaders)
+- [x] Phase 6 — theme reactivity verified live: moving `--sim-paper-front` / `--text-primary` and tripping `data-theme` recolours the figure
 - [ ] Phase 6 — browser checklist handed over (below)
 
 ### Browser checklist (author-verified)

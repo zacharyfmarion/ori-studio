@@ -60,13 +60,25 @@ describe('StartScreen', () => {
     expect(rendered.textContent).toContain('Create a design');
   });
 
-  it('uses the authored crease-pattern image for the preview', () => {
+  it('shows the 3D folded figure, over the image it falls back to', () => {
+    // The preview is a live figure now, but the authored image stays mounted
+    // underneath it. It is the first paint, and it is the whole answer on a
+    // machine that cannot give us WebGL2 — so a test that only looked for the
+    // canvas would pass on a build that had quietly lost the fallback.
     const rendered = renderStartScreen().container;
-    const image = rendered.querySelector<HTMLImageElement>('.start-screen__preview-image');
 
+    expect(rendered.querySelector('.start-figure__canvas')).not.toBeNull();
+
+    const image = rendered.querySelector<HTMLImageElement>('.start-figure__fallback');
     expect(image).not.toBeNull();
     expect(image?.getAttribute('src')).toContain('/start/crease-pattern-preview.png');
     expect(image?.getAttribute('alt')).toBe('');
+
+    // Decorative: the whole preview is aria-hidden, so neither the figure nor
+    // its fallback is announced.
+    expect(rendered.querySelector('.start-screen__preview')?.getAttribute('aria-hidden')).toBe(
+      'true'
+    );
   });
 
   it('dispatches the selected start action', () => {
