@@ -120,7 +120,7 @@ export function createTreemakerDesignKind(
     osfKind: 'treemaker-tree',
     analyticsId: 'treemaker',
     chooser: {
-      order: 0,
+      order: 2,
       // Literal `t()` calls, so `i18n:extract` sees these strings. Same keys the
       // chooser used before the registry, so no catalog entry moves.
       copy: (t) => ({

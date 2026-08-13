@@ -59,7 +59,7 @@ export function createExploriDesignKind(): DesignKindDescriptor {
     osfKind: 'explori',
     analyticsId: 'explori',
     chooser: {
-      order: 2,
+      order: 1,
       copy: (t) => ({
         title: t('panels:design.methodChooser.explori.title', 'Search 22.5°'),
         description: t(
