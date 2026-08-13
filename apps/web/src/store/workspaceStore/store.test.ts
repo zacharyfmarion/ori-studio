@@ -39,7 +39,12 @@ import {
 import { CP_DOCUMENT_SCOPED_KEYS, discardCpDocumentState } from './cpDocumentState';
 import { registerCpCamera } from '../../cp-workspace/renderer/cpCameraRegistry';
 import { projectFromSnapshot } from '../../engine/snapshotMapper';
-import type { FileService, SaveBinaryFileOptions, SaveTextFileOptions } from '../../platform/fileService';
+import type {
+  FileService,
+  SaveBinaryFileOptions,
+  SaveProjectFileOptions,
+  SaveTextFileOptions,
+} from '../../platform/fileService';
 import { DEFAULT_CREASE_COLOR_MODE } from '../../lib/sampleProject';
 import {
   DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
@@ -1573,14 +1578,27 @@ function createFileService(
 ): FileService & {
   openTextFile: ReturnType<typeof vi.fn>;
   openBinaryFile: ReturnType<typeof vi.fn>;
+  saveProjectFile: ReturnType<typeof vi.fn>;
   saveTextFile: ReturnType<typeof vi.fn>;
   saveBinaryFile: ReturnType<typeof vi.fn>;
+  /** What each project save actually wrote, in order. */
+  savedProjectFiles: string[];
 } {
+  const savedProjectFiles: string[] = [];
   return {
     surface: 'web',
     supportsNativeDialogs: false,
     openTextFile: vi.fn(async () => file),
     openBinaryFile: vi.fn(async () => null),
+    // Settles the target first and runs the contents thunk exactly once, the way
+    // both real services do.
+    saveProjectFile: vi.fn(async (options: SaveProjectFileOptions) => {
+      savedProjectFiles.push(await options.contents());
+      return {
+        name: options.suggestedName,
+        path: options.path ?? `/tmp/${options.suggestedName}`,
+      };
+    }),
     saveTextFile: vi.fn(async (options: SaveTextFileOptions) => ({
       name: options.suggestedName,
       path: options.path ?? `/tmp/${options.suggestedName}`,
@@ -1589,6 +1607,7 @@ function createFileService(
       name: options.suggestedName,
       path: null,
     })),
+    savedProjectFiles,
   };
 }
 
@@ -1716,24 +1735,21 @@ describe('workspace store slices', () => {
     });
 
     await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
-    expect(fileService.saveTextFile).toHaveBeenCalledWith(
+    expect(fileService.saveProjectFile).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'Save Ori Studio Project',
         path: null,
         extensions: ['osf'],
       })
     );
-    const savedNativeTreeOptions = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
-      | SaveTextFileOptions
-      | undefined;
-    const savedNativeTree = parseNativeProjectFile(savedNativeTreeOptions?.contents ?? '');
+    const savedNativeTree = parseNativeProjectFile(fileService.savedProjectFiles.at(-1) ?? '');
     expect(activeNativeDesign(savedNativeTree)).toMatchObject({
       payload: { kind: 'treemaker', format: 'tmd5' },
     });
     expect(useWorkspaceStore.getState().dirty).toBe(false);
 
     await expect(useWorkspaceStore.getState().saveProjectAs(fileService)).resolves.toBe(true);
-    expect(fileService.saveTextFile).toHaveBeenLastCalledWith(
+    expect(fileService.saveProjectFile).toHaveBeenLastCalledWith(
       expect.objectContaining({
         title: 'Save Ori Studio Project As',
         path: null,
@@ -2048,7 +2064,7 @@ describe('workspace store slices', () => {
     });
 
     await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
-    expect(fileService.saveTextFile).toHaveBeenLastCalledWith(
+    expect(fileService.saveProjectFile).toHaveBeenLastCalledWith(
       expect.objectContaining({
         title: 'Save Ori Studio Project',
         suggestedName: 'native-tree.osf',
@@ -2056,6 +2072,22 @@ describe('workspace store slices', () => {
         extensions: ['osf'],
       })
     );
+  });
+
+  // A save nobody completed is not a save. `dirty` is the only thing the
+  // close-tab guard reads, so clearing it on a cancelled dialog is what let a
+  // tab with unsaved work close without a word.
+  it('leaves the project dirty when the save dialog is cancelled', async () => {
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    const fileService = createFileService();
+    fileService.saveProjectFile.mockResolvedValue(null);
+    useWorkspaceStore.setState({ dirty: true, projectMessage: null });
+
+    await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(false);
+
+    expect(useWorkspaceStore.getState()).toMatchObject({ dirty: true, projectMessage: null });
+    expect(useWorkspaceStore.getState().error).toBeNull();
   });
 
   // A file we rejected on its own terms already carries the whole reason; the
@@ -2320,7 +2352,7 @@ describe('workspace store slices', () => {
     });
     await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
     expect(oristudioCpMocks.exportOristudioCpDocumentAsCp).not.toHaveBeenCalled();
-    expect(fileService.saveTextFile).toHaveBeenLastCalledWith(
+    expect(fileService.saveProjectFile).toHaveBeenLastCalledWith(
       expect.objectContaining({
         title: 'Save Ori Studio Project',
         suggestedName: 'square.osf',
@@ -2328,10 +2360,7 @@ describe('workspace store slices', () => {
         extensions: ['osf'],
       })
     );
-    const savedNativeCpOptions = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
-      | SaveTextFileOptions
-      | undefined;
-    const savedNativeCp = parseNativeProjectFile(savedNativeCpOptions?.contents ?? '');
+    const savedNativeCp = parseNativeProjectFile(fileService.savedProjectFiles.at(-1) ?? '');
     expect(savedNativeCp.workspace.creasePattern).toMatchObject({
       creasePattern: {
         engine: 'oristudio-cp',
@@ -2557,15 +2586,15 @@ describe('workspace store slices', () => {
     await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
 
     expect(oristudioCpMocks.exportOristudioCpDocumentAsOri).toHaveBeenCalledOnce();
-    expect(fileService.saveTextFile).toHaveBeenLastCalledWith(
+    expect(fileService.saveProjectFile).toHaveBeenLastCalledWith(
       expect.objectContaining({
         title: 'Save Oriedita ORI Document',
-        contents: '{"@version":"v1.1","title":"square"}\n',
         suggestedName: 'native.ori',
         path: '/tmp/native.ori',
         extensions: ['ori'],
       })
     );
+    expect(fileService.savedProjectFiles.at(-1)).toBe('{"@version":"v1.1","title":"square"}\n');
     expect(oristudioCpMocks.setOristudioCpDocumentSource).toHaveBeenCalledWith({
       format: 'ori',
       filename: 'native.ori',
@@ -2626,10 +2655,7 @@ describe('workspace store slices', () => {
     useWorkspaceStore.setState({ dirty: true });
     await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
 
-    const savedOptions = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
-      | SaveTextFileOptions
-      | undefined;
-    const savedProject = parseNativeProjectFile(savedOptions?.contents ?? '');
+    const savedProject = parseNativeProjectFile(fileService.savedProjectFiles.at(-1) ?? '');
     expect(savedProject.workspace.creasePattern).toMatchObject({
       creasePattern: {
         source: {
@@ -2695,15 +2721,15 @@ describe('workspace store slices', () => {
     }
 
     expect(oristudioCpMocks.exportOristudioCpDocumentAsOrh).toHaveBeenCalledOnce();
-    expect(fileService.saveTextFile).toHaveBeenLastCalledWith(
+    expect(fileService.saveProjectFile).toHaveBeenLastCalledWith(
       expect.objectContaining({
         title: 'Save Oriedita ORH Document',
-        contents: '<タイトル>\nタイトル,square\n',
         suggestedName: 'legacy.orh',
         path: '/tmp/legacy.orh',
         extensions: ['orh'],
       })
     );
+    expect(fileService.savedProjectFiles.at(-1)).toBe('<タイトル>\nタイトル,square\n');
     expect(oristudioCpMocks.setOristudioCpDocumentSource).toHaveBeenCalledWith({
       format: 'orh',
       filename: 'legacy.orh',
@@ -5853,7 +5879,7 @@ describe('workspace store slices', () => {
 
     await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
 
-    expect(fileService.saveTextFile).toHaveBeenLastCalledWith(
+    expect(fileService.saveProjectFile).toHaveBeenLastCalledWith(
       expect.objectContaining({
         title: 'Save Ori Studio Project',
         suggestedName: 'line.osf',
@@ -6790,11 +6816,11 @@ describe('workspace store slices', () => {
       const fileService = createFileService();
       await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
 
-      const options = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
-        | SaveTextFileOptions
+      const options = fileService.saveProjectFile.mock.calls.at(-1)?.[0] as
+        | SaveProjectFileOptions
         | undefined;
       expect(options?.extensions).toEqual(['osf']);
-      const saved = parseNativeProjectFile(options?.contents ?? '');
+      const saved = parseNativeProjectFile(fileService.savedProjectFiles.at(-1) ?? '');
       const active = activeNativeDesign(saved);
       if (!active) throw new Error('expected a box-pleat design');
       expect(active.payload.kind).toBe('box-pleat');
@@ -6822,10 +6848,7 @@ describe('workspace store slices', () => {
       const fileService = createFileService();
       await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
 
-      const options = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
-        | SaveTextFileOptions
-        | undefined;
-      const saved = parseNativeProjectFile(options?.contents ?? '');
+      const saved = parseNativeProjectFile(fileService.savedProjectFiles.at(-1) ?? '');
       expect(saved.workspace.designs.map((design) => design.payload.kind)).toEqual(['box-pleat']);
       expect(saved.workspace.creasePattern).not.toBeNull();
       const active = activeNativeDesign(saved);
@@ -6845,10 +6868,7 @@ describe('workspace store slices', () => {
       const fileService = createFileService();
       await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
 
-      const options = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
-        | SaveTextFileOptions
-        | undefined;
-      const saved = parseNativeProjectFile(options?.contents ?? '');
+      const saved = parseNativeProjectFile(fileService.savedProjectFiles.at(-1) ?? '');
       expect(saved.workspace.designs.map((design) => design.payload.kind)).toEqual(['box-pleat']);
       expect(saved.workspace.creasePattern).not.toBeNull();
     });
@@ -7463,9 +7483,7 @@ describe('workspace store slices', () => {
 
       const saveService = createFileService();
       await expect(useWorkspaceStore.getState().saveProject(saveService)).resolves.toBe(true);
-      const saved = (
-        saveService.saveTextFile.mock.calls.at(-1)?.[0] as SaveTextFileOptions | undefined
-      )?.contents;
+      const saved = saveService.savedProjectFiles.at(-1);
       expect(saved).toBeDefined();
 
       // A fresh store, so nothing can be carried over in memory.

@@ -1456,55 +1456,69 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       return selectOristudioBpDocument(get()) ? exportOristudioBpProjectAsBps() : null;
     };
 
-    const designs = (
-      await Promise.all(
-        tabs.map(async (tab) => {
-          if (tab.kind === null) return null;
-          const text =
-            (await serializeDesign(tab.id, tab.kind)) ??
-            (tab.id === activeId ? await serializeActiveDesign(tab.kind) : null);
-          if (text === null) return null;
-          return {
-            id: tab.id,
-            title: tab.title,
-            kind: tab.kind,
-            text,
-            format: designPayloadFormat(tab.kind),
-            viewState: {
-              // How this design was being looked at. Per design rather than per
-              // workspace, so reopening a project restores each tab's own pane
-              // arrangement — including one whose kind lays out differently.
-              ...(tab.paneLayout ? { paneLayout: tab.paneLayout } : {}),
-              ...(tab.kind === 'box-pleat'
-                ? { symmetry: bpDocumentSymmetry(tab.boxPleat.symmetry) }
-                : {}),
-            },
-          };
+    // Everything below runs only once a save target is settled — the dialog comes
+    // first, so serializing a large workspace cannot outlive the transient
+    // activation a browser save picker needs, and a cancelled dialog costs
+    // nothing. `tabs` and `activeId` are still read before it, so the file is
+    // written from the design set the user was looking at when they asked.
+    const serializeWorkspace = async () => {
+      const designs = (
+        await Promise.all(
+          tabs.map(async (tab) => {
+            if (tab.kind === null) return null;
+            const text =
+              (await serializeDesign(tab.id, tab.kind)) ??
+              (tab.id === activeId ? await serializeActiveDesign(tab.kind) : null);
+            if (text === null) return null;
+            return {
+              id: tab.id,
+              title: tab.title,
+              kind: tab.kind,
+              text,
+              format: designPayloadFormat(tab.kind),
+              viewState: {
+                // How this design was being looked at. Per design rather than per
+                // workspace, so reopening a project restores each tab's own pane
+                // arrangement — including one whose kind lays out differently.
+                ...(tab.paneLayout ? { paneLayout: tab.paneLayout } : {}),
+                ...(tab.kind === 'box-pleat'
+                  ? { symmetry: bpDocumentSymmetry(tab.boxPleat.symmetry) }
+                  : {}),
+              },
+            };
+          })
+        )
+      ).filter((design): design is NonNullable<typeof design> => design !== null);
+
+      const creasePatternCompanion = get().oristudioCpDocument
+        ? await currentEditableCreasePatternProjectInput(
+            get().currentFileName,
+            get().currentFilePath
+          )
+        : null;
+
+      return serializeNativeProjectFile(
+        createNativeProjectFile({
+          workspaceTitle: get().workspaceTitle,
+          filename: get().currentFileName,
+          path: get().currentFilePath,
+          designs,
+          // The captured id, like everything else here: with the dialog settled
+          // first, a tab switched to while it was up must not become the file's
+          // active document.
+          activeDesignId: activeId,
+          unknownDesigns: get().nativeUnknownDesigns,
+          creasePattern: creasePatternCompanion,
+          extensions: get().nativeProjectExtensions,
+          appVersion: APP_VERSION,
         })
-      )
-    ).filter((design): design is NonNullable<typeof design> => design !== null);
+      );
+    };
 
-    const creasePatternCompanion = get().oristudioCpDocument
-      ? await currentEditableCreasePatternProjectInput(get().currentFileName, get().currentFilePath)
-      : null;
-
-    const contents = serializeNativeProjectFile(
-      createNativeProjectFile({
-        workspaceTitle: get().workspaceTitle,
-        filename: get().currentFileName,
-        path: get().currentFilePath,
-        designs,
-        activeDesignId: get().activeDesignId,
-        unknownDesigns: get().nativeUnknownDesigns,
-        creasePattern: creasePatternCompanion,
-        extensions: get().nativeProjectExtensions,
-        appVersion: APP_VERSION,
-      })
-    );
     const target = nativeSaveTarget();
-    const result = await fileService.saveTextFile({
+    const result = await fileService.saveProjectFile({
       title: forceSaveAs ? 'Save Ori Studio Project As' : 'Save Ori Studio Project',
-      contents,
+      contents: serializeWorkspace,
       suggestedName: target.suggestedName,
       path: forceSaveAs ? null : target.path,
       extensions: [NATIVE_PROJECT_EXTENSION],
@@ -1651,13 +1665,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   const saveEditableCreasePatternAsOri = async (fileService: FileService) => {
     const documentState = get().oristudioCpDocument;
     if (!documentState) return false;
-    const contents = await exportOristudioCpDocumentAsOri(
-      flattenTextAnnotations(get().oristudioCpAnnotations)
-    );
     const importedCreasePattern = get().importedCreasePattern;
-    const result = await fileService.saveTextFile({
+    const result = await fileService.saveProjectFile({
       title: 'Save Oriedita ORI Document',
-      contents,
+      contents: () =>
+        exportOristudioCpDocumentAsOri(flattenTextAnnotations(get().oristudioCpAnnotations)),
       suggestedName: ensureExtension(get().currentFileName, 'ori'),
       path: get().currentFilePath,
       extensions: ['ori'],
@@ -1693,13 +1705,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const documentState = get().oristudioCpDocument;
     if (!documentState) return false;
     if (!(await confirmLossyOrhWrite())) return false;
-    const contents = await exportOristudioCpDocumentAsOrh(
-      flattenTextAnnotations(get().oristudioCpAnnotations)
-    );
     const importedCreasePattern = get().importedCreasePattern;
-    const result = await fileService.saveTextFile({
+    const result = await fileService.saveProjectFile({
       title: 'Save Oriedita ORH Document',
-      contents,
+      contents: () =>
+        exportOristudioCpDocumentAsOrh(flattenTextAnnotations(get().oristudioCpAnnotations)),
       suggestedName: ensureExtension(get().currentFileName, 'orh'),
       path: get().currentFilePath,
       extensions: ['orh'],
@@ -1753,18 +1763,20 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       return saveEditableCreasePatternAsOrh(fileService);
     }
 
-    const input = await currentEditableCreasePatternProjectInput(
-      get().currentFileName,
-      get().currentFilePath
-    );
-    if (!input) return false;
-    const contents = serializeNativeProjectFile(
-      createNativeCreasePatternProjectFile(input)
-    );
     const target = nativeSaveTarget();
-    const result = await fileService.saveTextFile({
+    const result = await fileService.saveProjectFile({
       title: forceSaveAs ? 'Save Ori Studio Project As' : 'Save Ori Studio Project',
-      contents,
+      // Serialized only once the target is settled — see `SaveProjectFileOptions`.
+      // The document was checked above, so a null input here means it was released
+      // while the dialog was open; that is a failed save, not an empty one.
+      contents: async () => {
+        const input = await currentEditableCreasePatternProjectInput(
+          get().currentFileName,
+          get().currentFilePath
+        );
+        if (!input) throw new Error('No editable crease-pattern document is loaded');
+        return serializeNativeProjectFile(createNativeCreasePatternProjectFile(input));
+      },
       suggestedName: target.suggestedName,
       path: forceSaveAs ? null : target.path,
       extensions: [NATIVE_PROJECT_EXTENSION],

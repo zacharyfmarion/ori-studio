@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { SaveTextFileOptions } from '../../platform/fileService';
+import type { SaveProjectFileOptions, SaveTextFileOptions } from '../../platform/fileService';
 import type { FileService } from '../../platform/fileService';
 
 /**
@@ -68,6 +68,10 @@ function recordingFileService(): FileService & { written: string | null } {
       state.written === null ? null : { text: state.written, name: 'studio.osf', path: null }
     ),
     openBinaryFile: vi.fn(async () => null),
+    saveProjectFile: vi.fn(async (options: SaveProjectFileOptions) => {
+      state.written = await options.contents();
+      return { name: options.suggestedName, path: `/tmp/${options.suggestedName}` };
+    }),
     saveTextFile: vi.fn(async (options: SaveTextFileOptions) => {
       state.written = options.contents;
       return { name: options.suggestedName, path: `/tmp/${options.suggestedName}` };
@@ -409,9 +413,14 @@ describe('saving while the user switches tabs', () => {
     });
 
     const fileService = recordingFileService();
-    const realSave = fileService.saveTextFile as unknown as (o: SaveTextFileOptions) => Promise<unknown>;
-    (fileService as { saveTextFile: unknown }).saveTextFile = async (options: SaveTextFileOptions) => {
-      // The click lands while the dialog is up.
+    const realSave = fileService.saveProjectFile as unknown as (
+      o: SaveProjectFileOptions
+    ) => Promise<unknown>;
+    (fileService as { saveProjectFile: unknown }).saveProjectFile = async (
+      options: SaveProjectFileOptions
+    ) => {
+      // The click lands while the dialog is up — which is now also before the
+      // project is serialized, so the switch has to survive both halves.
       useWorkspaceStore.setState({ activeDesignId: other.id });
       return realSave(options);
     };

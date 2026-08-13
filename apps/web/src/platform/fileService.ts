@@ -63,11 +63,38 @@ export interface SaveBinaryFileOptions {
   mimeType: string;
 }
 
+export interface SaveProjectFileOptions {
+  title: string;
+  /**
+   * The file's contents, produced only once a target is settled.
+   *
+   * A thunk rather than a string because the target has to be chosen first.
+   * Serializing a whole workspace means wasm exports, base64 images, and a large
+   * stringify — on a big project that outruns the ~5s of transient activation a
+   * browser save picker needs, and the picker is then refused. It also means a
+   * cancelled dialog no longer costs a full serialize, on either surface.
+   */
+  contents: () => Promise<string>;
+  suggestedName: string;
+  path?: string | null;
+  extensions: string[];
+}
+
 export interface FileService {
   surface: RuntimeSurface;
   supportsNativeDialogs: boolean;
   openTextFile(options: OpenTextFileOptions): Promise<OpenTextFileResult | null>;
   openBinaryFile(options: OpenBinaryFileOptions): Promise<OpenBinaryFileResult | null>;
+  /**
+   * Write the project's own save — the one whose success clears `dirty`.
+   *
+   * Separate from {@link FileService.saveTextFile} because the two need
+   * different things from the surface. A project save has to report a
+   * cancellation truthfully, which on the web means a save picker rather than a
+   * download; an export is a copy going out the door, where a download is both
+   * unambiguous and the friendlier behavior.
+   */
+  saveProjectFile(options: SaveProjectFileOptions): Promise<SaveFileResult | null>;
   saveTextFile(options: SaveTextFileOptions): Promise<SaveFileResult | null>;
   saveBinaryFile(options: SaveBinaryFileOptions): Promise<SaveFileResult | null>;
 }
@@ -93,6 +120,108 @@ function downloadBlob(blob: Blob, filename: string): void {
   anchor.click();
   anchor.remove();
   URL.revokeObjectURL(url);
+}
+
+interface SaveFilePickerOptions {
+  suggestedName?: string;
+  types?: { description?: string; accept: Record<string, string[]> }[];
+}
+
+type SaveFilePicker = (options?: SaveFilePickerOptions) => Promise<FileSystemFileHandle>;
+
+function saveFilePicker(): SaveFilePicker | null {
+  if (typeof window === 'undefined') return null;
+  const picker = (window as Window & { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker;
+  return typeof picker === 'function' ? picker.bind(window) : null;
+}
+
+/**
+ * What asking the browser for a save location turned into.
+ *
+ * `cancelled` and `unavailable` both end with no file picked, but only the
+ * second may fall through to a download: the user having said no is an answer,
+ * and re-asking as a download would ignore it.
+ */
+type SaveTargetOutcome =
+  | { status: 'picked'; handle: FileSystemFileHandle }
+  | { status: 'cancelled' }
+  | { status: 'unavailable' };
+
+/** The rejections that mean the user refused, rather than the API being unusable. */
+function isUserRefusal(error: unknown): boolean {
+  const name = (error as { name?: unknown } | null)?.name;
+  return name === 'AbortError' || name === 'NotAllowedError';
+}
+
+/**
+ * Ask for a save location through the File System Access API, the only browser
+ * save that reports whether it happened.
+ *
+ * `<a download>` cannot: the click returns the same way whether the file is
+ * written, queued behind a "where do you want to save this?" prompt, or
+ * dismissed at that prompt. A project save reads a returned
+ * {@link SaveFileResult} as "the write happened" and clears `dirty` — so a
+ * cancelled download used to mark the project clean and take the close-tab
+ * warning with it.
+ *
+ * Unavailable covers more than an old browser: no `showSaveFilePicker` at all
+ * (Firefox, Safari, Chrome on Android), an insecure context or cross-origin
+ * frame, and a `suggestedName` the picker rejects. Those keep the download,
+ * where a cancel stays undetectable because nothing can detect it.
+ */
+async function pickSaveTarget(
+  suggestedName: string,
+  extensions: string[]
+): Promise<SaveTargetOutcome> {
+  const picker = saveFilePicker();
+  if (!picker) return { status: 'unavailable' };
+
+  try {
+    const handle = await picker({
+      suggestedName,
+      types:
+        extensions.length > 0
+          ? [
+              {
+                description: 'Ori Studio',
+                accept: { 'text/plain': extensions.map((extension) => `.${extension}`) },
+              },
+            ]
+          : undefined,
+    });
+    return { status: 'picked', handle };
+  } catch (error) {
+    return isUserRefusal(error) ? { status: 'cancelled' } : { status: 'unavailable' };
+  }
+}
+
+/**
+ * Write to a picked file, leaving it untouched if the write fails.
+ *
+ * `createWritable` stages into a swap file, so aborting before close is what
+ * keeps a failed save from truncating the file the user chose.
+ *
+ * Returns false when the user denied the write permission prompt — still an
+ * answer, not a failure. Anything else throws: a save that genuinely failed has
+ * to surface as an error rather than turn into a download nobody asked for.
+ */
+async function writePickedFile(handle: FileSystemFileHandle, blob: Blob): Promise<boolean> {
+  let writable: FileSystemWritableFileStream;
+  try {
+    writable = await handle.createWritable();
+  } catch (error) {
+    if (isUserRefusal(error)) return false;
+    throw error;
+  }
+
+  try {
+    await writable.write(blob);
+    await writable.close();
+  } catch (error) {
+    await writable.abort().catch(() => undefined);
+    throw error;
+  }
+  return true;
 }
 
 function openBrowserTextFile(options: OpenTextFileOptions): Promise<OpenTextFileResult | null> {
@@ -175,6 +304,21 @@ class BrowserFileService implements FileService {
     return openBrowserBinaryFile(options);
   }
 
+  async saveProjectFile(options: SaveProjectFileOptions): Promise<SaveFileResult | null> {
+    const name = ensureExtension(options.suggestedName, options.extensions[0] ?? 'osf');
+    const target = await pickSaveTarget(name, options.extensions);
+    if (target.status === 'cancelled') return null;
+
+    const blob = new Blob([await options.contents()], { type: 'text/plain;charset=utf-8' });
+    if (target.status === 'unavailable') {
+      downloadBlob(blob, name);
+      return { name, path: null };
+    }
+    if (!(await writePickedFile(target.handle, blob))) return null;
+    // The name the file was written under, which the picker lets the user change.
+    return { name: target.handle.name, path: null };
+  }
+
   async saveTextFile(options: SaveTextFileOptions): Promise<SaveFileResult | null> {
     const name = ensureExtension(options.suggestedName, options.extensions[0] ?? 'txt');
     downloadBlob(new Blob([options.contents], { type: 'text/plain;charset=utf-8' }), name);
@@ -220,6 +364,15 @@ class TauriFileService implements FileService {
       path: selected,
       mimeType: mimeTypeFromFilename(selected),
     };
+  }
+
+  async saveProjectFile(options: SaveProjectFileOptions): Promise<SaveFileResult | null> {
+    const path =
+      options.path ??
+      (await this.chooseSavePath(options.title, options.suggestedName, options.extensions));
+    if (!path) return null;
+    await invoke('write_text_file', { path, contents: await options.contents() });
+    return { name: filenameFromPath(path), path };
   }
 
   async saveTextFile(options: SaveTextFileOptions): Promise<SaveFileResult | null> {
@@ -282,6 +435,11 @@ function withExportTracking(service: FileService): FileService {
     supportsNativeDialogs: service.supportsNativeDialogs,
     openTextFile: (options) => service.openTextFile(options),
     openBinaryFile: (options) => service.openBinaryFile(options),
+    async saveProjectFile(options) {
+      const result = await service.saveProjectFile(options);
+      trackExport(options.extensions, result);
+      return result;
+    },
     async saveTextFile(options) {
       const result = await service.saveTextFile(options);
       trackExport(options.extensions, result);
@@ -328,6 +486,7 @@ export function createDroppedFileService(file: File): FileService {
         mimeType: file.type || mimeTypeFromFilename(file.name),
       };
     },
+    saveProjectFile: (options) => base.saveProjectFile(options),
     saveTextFile: (options) => base.saveTextFile(options),
     saveBinaryFile: (options) => base.saveBinaryFile(options),
   };
@@ -351,6 +510,7 @@ export function createOpenedPathFileService(path: string): FileService {
         mimeType: mimeTypeFromFilename(path),
       };
     },
+    saveProjectFile: (options) => desktopService.saveProjectFile(options),
     saveTextFile: (options) => desktopService.saveTextFile(options),
     saveBinaryFile: (options) => desktopService.saveBinaryFile(options),
   };
