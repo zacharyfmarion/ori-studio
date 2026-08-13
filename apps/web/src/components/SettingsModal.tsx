@@ -273,13 +273,22 @@ function WorkspaceTab() {
             'Pinch and Cmd/Ctrl+scroll always zoom, whichever you choose.'
           )}
         </p>
-        {/* Two elements rather than a wrapping <label>, so a click on a step
-            button lands on the button alone. */}
-        <div className="control-row">
-          <label className="control-row__label" htmlFor={snapRadiusId}>
-            {snapRadiusLabel}
-          </label>
-          <span className="control-row__value">
+        {/* The modal's own row: copy on the left, control on the right, no box.
+            `.control-row` is the inspector-panel idiom — indented, with a bottom
+            divider — and reads as foreign in here. */}
+        <div className="settings-toggle-row settings-toggle-row--field">
+          <span className="settings-toggle-row__copy">
+            <label className="settings-toggle-row__label" htmlFor={snapRadiusId}>
+              {snapRadiusLabel}
+            </label>
+            <span className="settings-toggle-row__desc">
+              {t(
+                'dialogs:settings.workspace.snapRadiusHint',
+                'How close the pointer has to come to a vertex, crease or grid point to snap to it, in paper units — the paper is 400 across, so this is the same number as Oriedita uses.'
+              )}
+            </span>
+          </span>
+          <span className="settings-toggle-row__field">
             <NumberField
               id={snapRadiusId}
               label={snapRadiusLabel}
@@ -292,12 +301,6 @@ function WorkspaceTab() {
             />
           </span>
         </div>
-        <p className="settings-toggle-row__desc">
-          {t(
-            'dialogs:settings.workspace.snapRadiusHint',
-            'How close the pointer has to come to a vertex, crease or grid point to snap to it, in paper units — the paper is 400 across, so this is the same number as Oriedita uses.'
-          )}
-        </p>
       </section>
       <section className="settings-section">
         <h3 className="settings-section__title">{t('dialogs:settings.workspace.layout', 'Layout')}</h3>

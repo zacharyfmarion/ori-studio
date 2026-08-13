@@ -365,6 +365,22 @@ describe('SettingsModal', () => {
     expect(useSettingsStore.getState().cpWheelGesture).toBe('pan');
   });
 
+  it('dresses the snap radius as a settings row, not as an inspector-panel row', () => {
+    // `.control-row` is the panel idiom — indented, with a bottom divider and a
+    // smaller secondary label — and it reads as foreign inside this modal, which
+    // deliberately keeps its rows unboxed and flush with the section title.
+    const rendered = renderModal('workspace');
+    const input = rendered.querySelector<HTMLInputElement>('input[aria-label="Snap radius"]');
+    const row = input?.closest('.settings-toggle-row');
+
+    expect(row).toBeTruthy();
+    expect(input?.closest('.control-row')).toBeNull();
+    expect(row?.querySelector('.settings-toggle-row__label')?.textContent).toBe('Snap radius');
+    // The description belongs to the control, so it lives in the row rather than
+    // trailing after it where it reads as the next section's preamble.
+    expect(row?.querySelector('.settings-toggle-row__desc')?.textContent).toContain('400 across');
+  });
+
   it('edits the crease-pattern snap radius and persists it', () => {
     const rendered = renderModal('workspace');
 
