@@ -216,6 +216,7 @@ Every event also carries the super properties `app_version`, `app_commit`,
 | `theme changed` | `theme` | The theme is changed |
 | `locale changed` | `locale` | The language is changed |
 | `oriedita shortcuts imported` | `mode`, `applied_count`, `skipped_count` | An Oriedita `.oriconfig` keymap is applied |
+| `cp snap radius changed` | `snap_radius` (bucketed) | The crease-pattern snap radius is changed in Settings. Bucketed, never the number: it is a continuous per-user value, and the question it answers — tighter than the default, or more forgiving — is a bucket already. Fires only on an actual change, so the event existing already means the default was left |
 
 **Nothing about a 3D fold's geometry is sent.** Not the closure residual, the
 loop gap, the plane separation, the crossing points, or any face, line, plane or

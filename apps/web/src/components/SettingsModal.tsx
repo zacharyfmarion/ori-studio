@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useId,
   useMemo,
   useState,
   type ReactElement,
@@ -13,12 +14,14 @@ import { OrieditaImportDialog } from './settings/OrieditaImportDialog';
 import { SettingsToggleRow } from './settings/SettingsToggleRow';
 import { ANALYTICS_EVENTS, track, useAnalytics } from '../analytics';
 import { detectSystemLocale, SUPPORTED_LOCALES, SYSTEM_LOCALE } from '../i18n/locales';
+import { clampCpSnapRadius, CP_MAX_SNAP_RADIUS, CP_MIN_SNAP_RADIUS } from '../lib/cpSnapRadiusSetting';
 import {
   shortcutActionLabel,
   shortcutCategoryLabel,
   shortcutScopeLabel,
 } from '../i18n/shortcutLabels';
 import { useLocaleStore } from '../store/localeStore';
+import { NumberField } from './ui/NumberField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/Select';
 import {
   classifyReservedKey,
@@ -191,7 +194,11 @@ function WorkspaceTab() {
   const setAnalyticsEnabled = useSettingsStore((state) => state.setAnalyticsEnabled);
   const cpWheelGesture = useSettingsStore((state) => state.cpWheelGesture);
   const setCpWheelGesture = useSettingsStore((state) => state.setCpWheelGesture);
+  const cpSnapRadius = useSettingsStore((state) => state.cpSnapRadius);
+  const setCpSnapRadius = useSettingsStore((state) => state.setCpSnapRadius);
   const analytics = useAnalytics();
+  const snapRadiusId = useId();
+  const snapRadiusLabel = t('dialogs:settings.workspace.snapRadius', 'Snap radius');
 
   return (
     <div className="settings-tab">
@@ -266,6 +273,34 @@ function WorkspaceTab() {
             'Pinch and Cmd/Ctrl+scroll always zoom, whichever you choose.'
           )}
         </p>
+        {/* The modal's own row: copy on the left, control on the right, no box.
+            `.control-row` is the inspector-panel idiom — indented, with a bottom
+            divider — and reads as foreign in here. */}
+        <div className="settings-toggle-row settings-toggle-row--field">
+          <span className="settings-toggle-row__copy">
+            <label className="settings-toggle-row__label" htmlFor={snapRadiusId}>
+              {snapRadiusLabel}
+            </label>
+            <span className="settings-toggle-row__desc">
+              {t(
+                'dialogs:settings.workspace.snapRadiusHint',
+                'How close the pointer has to come to a vertex, crease or grid point to snap to it, in paper units — the paper is 400 across, so this is the same number as Oriedita uses.'
+              )}
+            </span>
+          </span>
+          <span className="settings-toggle-row__field">
+            <NumberField
+              id={snapRadiusId}
+              label={snapRadiusLabel}
+              value={cpSnapRadius}
+              min={CP_MIN_SNAP_RADIUS}
+              max={CP_MAX_SNAP_RADIUS}
+              step={1}
+              normalize={clampCpSnapRadius}
+              onCommit={setCpSnapRadius}
+            />
+          </span>
+        </div>
       </section>
       <section className="settings-section">
         <h3 className="settings-section__title">{t('dialogs:settings.workspace.layout', 'Layout')}</h3>

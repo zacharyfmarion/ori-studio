@@ -57,6 +57,7 @@ import {
   squareCommandPayload,
 } from '../../cp-workspace/tools/squareTool';
 import { toolPreviewSegments } from '../../cp-workspace/tools/toolPreviewSegments';
+import { cpKernelSnapRadiusModel } from '../../cp-workspace/snapRadius';
 import {
   cpToolSelectionForMouseMode,
   cpVariantHostAction,
@@ -322,25 +323,11 @@ function measureSnapLabel(t: TFunction, kind: CpSnapTarget['kind'] | null): stri
 }
 
 
-function modelSelectionDistance(
-  bounds: CpModelBounds,
-  zoomScale = 1
-): number {
-  const baseDistance =
-    (Math.max(bounds.spanX, bounds.spanY) / CP_PAPER_RECT.width) * 8;
-  const zoomAdjustedDistance = zoomScale > 1 ? baseDistance / zoomScale : baseDistance;
-  return Math.max(
-    1e-6,
-    zoomAdjustedDistance
-  );
-}
-
 function cpCommandPayloadDefaults(
   command: OristudioCpCommandDefinition,
-  bounds: CpModelBounds,
   gridWidth: number | undefined,
   lineColor: OristudioCpLineColor,
-  zoomScale: number,
+  snapDistance: number,
   toolOptions: OristudioCpToolOptions,
   snapCandidates: OristudioCpSnapCandidates | undefined
 ): OristudioCpCommandPayload {
@@ -348,13 +335,22 @@ function cpCommandPayloadDefaults(
   const operationId = command.operationId;
 
   if ((command.toolSteps?.length ?? 0) > 0 || command.inputMode === 'drag-path') {
-    payload.selection_distance = modelSelectionDistance(bounds, zoomScale);
+    payload.selection_distance = snapDistance;
   }
 
   // Only the tools that snap inside the kernel; everything else arrives with a
   // point the canvas already resolved.
   if (snapCandidates && cpCommandSnapsKernelSide(operationId)) {
     payload.snap_candidates = snapCandidates;
+  }
+
+  // Upstream closes this loop at the release point, against the pointer radius
+  // (`MouseHandlerFlatFoldableCheck.java:68`). Our kernel instead re-derives
+  // closure from the finished point list, so the radius has to be stated: its own
+  // fallback is a 1e-6 geometry epsilon, seven orders tighter, which no hand-drawn
+  // path would ever satisfy.
+  if (operationId === 'FlatFoldableCheck') {
+    payload.boundary_close_distance = snapDistance;
   }
 
   if (cpCommandUsesActiveLineColor(operationId)) {
@@ -731,6 +727,7 @@ export function CreasePatternPanel() {
   // tool. Accel-drag pan stays available whether or not this is on.
   const [panToolActive, setPanToolActive] = useState(false);
   const cpWheelGesture = useSettingsStore((state) => state.cpWheelGesture);
+  const cpSnapRadius = useSettingsStore((state) => state.cpSnapRadius);
   // Mirrors the canvas camera's rotation so the toolbar can show the angle and
   // offer a reset; the camera itself remains the source of truth.
   const [viewRotation, setViewRotation] = useState(0);
@@ -1420,10 +1417,17 @@ export function CreasePatternPanel() {
   }, [editableCp?.operation_frame, currentTheme]);
   // The `selection_distance` every tool command carries, exposed to the canvas so a
   // destination pick is gated on the same radius the kernel searches.
-  const cpToolSelectionDistance = useMemo(
-    () => modelSelectionDistance(editableCpBounds, zoomPercent / 100),
-    [editableCpBounds, zoomPercent]
-  );
+  /**
+   * The radius the canvas last resolved *for the kernel*, in model units. The
+   * canvas owns it because it holds the live camera; the panel only forwards it.
+   * It is upstream's bounded law rather than the on-screen radius — the screen
+   * floor exists to keep targets clickable when zoomed out, and the kernel reuses
+   * this scalar for decisions that are not pointer proximity.
+   */
+  const cpSnapDistanceRef = useRef(cpKernelSnapRadiusModel(cpSnapRadius, 1));
+  const handleCpSnapDistanceChange = useCallback((distance: number) => {
+    cpSnapDistanceRef.current = distance;
+  }, []);
   // What a kernel-side snap may land on. The viewport owns snapping, so the
   // policy is stated once here and the kernel searches by it — see
   // `cpKernelSnapCandidates`.
@@ -1441,23 +1445,17 @@ export function CreasePatternPanel() {
     ): OristudioCpCommandPayload => ({
       ...cpCommandPayloadDefaults(
         command,
-        editableCpBounds,
         editableCpGridWidth,
         effectiveCpLineColor,
-        zoomPercent / 100,
+        // The canvas publishes the radius it actually snapped with; re-deriving it
+        // here from the rounded zoom percent would skew the kernel's search.
+        cpSnapDistanceRef.current,
         cpToolOptions,
         cpKernelSnapPolicy
       ),
       ...payload,
     }),
-    [
-      cpKernelSnapPolicy,
-      effectiveCpLineColor,
-      cpToolOptions,
-      editableCpBounds,
-      editableCpGridWidth,
-      zoomPercent,
-    ]
+    [cpKernelSnapPolicy, effectiveCpLineColor, cpToolOptions, editableCpGridWidth]
   );
 
   const [cpToolUnavailable, setCpToolUnavailable] = useState<string | null>(null);
@@ -2898,7 +2896,8 @@ export function CreasePatternPanel() {
                   activeToolCommitsLoneCandidate={
                     cpInputModel(activeCpCommand?.operationId)?.commitOnLoneCandidate ?? false
                   }
-                  activeToolSelectionDistance={cpToolSelectionDistance}
+                  snapRadius={cpSnapRadius}
+                  onSnapDistanceChange={handleCpSnapDistanceChange}
                   activeToolLineCount={webglActiveTool.lineCount}
                   activeToolDualMirror={webglActiveTool.dualMirror}
                   activeToolMeasureCreasePick={cpMeasureKind === 'distance'}

@@ -245,6 +245,7 @@ export const ANALYTICS_EVENTS = {
   orieditaShortcutsImported: 'oriedita shortcuts imported',
   orieditaShortcutsOverrideAll: 'oriedita shortcuts override all',
   shortcutDefaultsSourceChanged: 'shortcut defaults source changed',
+  cpSnapRadiusChanged: 'cp snap radius changed',
 } as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS];
@@ -301,6 +302,18 @@ export const BP_PATTERNLESS_STRETCH_BUCKETS = [1, 2, 4, 8] as const;
  * common the action needs to say so rather than appearing to do nothing.
  */
 export const PACKING_CIRCLE_COUNT_BUCKETS = [0, 2, 4, 8, 16, 32] as const;
+
+/**
+ * Threshold ladder for the crease-pattern snap radius, in Oriedita model units.
+ *
+ * Spans the slider (2-100) rather than any element count, and the interesting
+ * reading is *direction*: `<=2` / `<=5` is someone asking for a tighter radius
+ * than the default 10, `<=20` and above someone asking for a more forgiving one
+ * — the touch case the setting was requested for. The default sits at the top of
+ * `<=10`, which costs nothing, because the event fires only when the value
+ * actually changes: it existing at all already means the default was left.
+ */
+export const CP_SNAP_RADIUS_BUCKETS = [2, 5, 10, 20, 50] as const;
 
 /** Default threshold ladder for durations, in milliseconds. */
 /**
