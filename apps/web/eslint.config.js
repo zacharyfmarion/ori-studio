@@ -190,7 +190,13 @@ const OVERSIZED_PANELS = {
   // `handleMenuAction`. What is here is a child component mapping those
   // descriptors to buttons, plus the icon each one draws — composition, and the
   // shape the panel table asks for.
-  'BpPackingPanel.tsx': 2055,
+  //
+  // 2055 -> 2057: flap resize handles reach the engine. Two lines — one store
+  // binding, and the verb handed to `useBpPackingDragRequests` beside the two
+  // move verbs already there. The rule that turns a dragged edge into a
+  // footprint is `lib/bpFlapReshape`, the transport is that hook, and the
+  // mirroring is in the store action; this is the wire between them.
+  'BpPackingPanel.tsx': 2057,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
   'BpTreePanel.tsx': 890,

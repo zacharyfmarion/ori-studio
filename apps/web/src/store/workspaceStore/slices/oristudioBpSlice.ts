@@ -18,6 +18,7 @@ import {
   moveOristudioBpTreeVertex as moveRuntimeOristudioBpTreeVertex,
   optimizeOristudioBpLayout as optimizeRuntimeOristudioBpLayout,
   renameOristudioBpTreeVertex as renameRuntimeOristudioBpTreeVertex,
+  reshapeOristudioBpLayoutFlap as reshapeRuntimeOristudioBpLayoutFlap,
   resizeOristudioBpLayoutFlap as resizeRuntimeOristudioBpLayoutFlap,
   oristudioBpError,
   rotateOristudioBpLayoutSheet as rotateRuntimeOristudioBpLayoutSheet,
@@ -58,9 +59,11 @@ import {
   constrainBpFlapGroupToAxisSides,
   constrainBpFlapMoveToAxis,
   mirrorAfterSheetTransform,
+  mirrorBpFlapFootprint,
   type BpSheetTransform,
 } from '../../../lib/bpPackingSymmetry';
 import { seedBpFlapAnchor, seedBpPartnerFlapAnchor } from '../../../lib/bpFlapSeeding';
+import { leafLocationAt } from '../../../tree-editor/dragRule';
 import {
   reflectPointAcrossSymmetryAxis,
   snapPointToSymmetryAxis,
@@ -308,6 +311,37 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         BP_TREE_SYMMETRY_TOLERANCE
       ) === vertexId
     );
+  };
+
+  /**
+   * Where a flap's leaf vertex belongs once its radius is `radius`.
+   *
+   * A flap's radius *is* the length of the leaf edge that reaches it, and this
+   * editor draws the tree length-faithfully — the distance between two vertices
+   * is the length of the edge between them. So setting a radius from the packing
+   * pane has to re-place the leaf, out along the direction it already points.
+   *
+   * The same computation `edgeLengthRepositions` does for a typed edge length,
+   * with the subtree walk dropped: a leaf's subtree is the leaf.
+   *
+   * Null when the flap has no leaf edge, or the radius is unchanged — either way
+   * there is nothing to move.
+   */
+  const leafVertexLocationForRadius = (
+    document: OristudioBpDocumentState,
+    flapId: number,
+    radius: number
+  ): Point | undefined => {
+    const tree = document.snapshot.tree;
+    const edge = tree.edges.find(
+      (candidate) => candidate.vertices[0] === flapId || candidate.vertices[1] === flapId
+    );
+    if (!edge || edge.length === radius) return undefined;
+    const parentId = edge.vertices[0] === flapId ? edge.vertices[1] : edge.vertices[0];
+    const leaf = tree.vertices.find((vertex) => vertex.id === flapId);
+    const parent = tree.vertices.find((vertex) => vertex.id === parentId);
+    if (!leaf || !parent) return undefined;
+    return leafLocationAt(parent.loc, leaf.loc, radius);
   };
 
   /**
@@ -1157,6 +1191,70 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           );
         },
         { selection: { kind: 'bp-flap', id } }
+      );
+    },
+
+    reshapeOristudioBpFlap: async (id, footprint, dragging = false) => {
+      const designId = get().activeDesignId;
+      // What a resize *gesture* commits, as opposed to the typed fields above: a
+      // flap draws as its box grown by its radius, so dragging one of its edges
+      // generally moves the anchor and the box and the radius at once.
+      //
+      // The partner carries the whole footprint, not just the size. Its anchor is
+      // mirrored from the primary's **new** box — the reflection of a lower-left
+      // corner picks up the size term, so mirroring against the old box would land
+      // the partner off by exactly the amount the flap grew.
+      const symmetry = selectOristudioBpSymmetry(get(), designId);
+      const partnerId = bpMirrorPartnerId(id, designId);
+      const label = partnerId === null ? 'Resized BP flap' : 'Resized mirrored BP flaps';
+      return runBpTreeMutation(
+        label,
+        async (document) => {
+          // The radius is a tree edge length, so keeping the tree drawing
+          // length-faithful means repositioning the flap's leaf. That is a
+          // *drawing* correction, and doing it on every step of a drag would buy
+          // a per-frame round trip for something nobody is looking at — so it
+          // waits for the release.
+          const vertex = dragging
+            ? undefined
+            : leafVertexLocationForRadius(document, id, footprint.radius);
+          const next = await reshapeRuntimeOristudioBpLayoutFlap(
+            id,
+            {
+              x: footprint.anchor.x,
+              y: footprint.anchor.y,
+              width: footprint.width,
+              height: footprint.height,
+              radius: footprint.radius,
+              vertex,
+            },
+            { activeSurface: 'packing', dragging }
+          );
+          if (partnerId === null) return next;
+          const mirrored = mirrorBpFlapFootprint(footprint, next.snapshot.packing.sheet, symmetry);
+          // No mirror on this sheet — a diagonal fold on a sheet that is no longer
+          // square, reachable only from a file. Leave the partner alone rather
+          // than send it somewhere off the paper.
+          if (!mirrored) return next;
+          const partnerVertex = dragging
+            ? undefined
+            : leafVertexLocationForRadius(next, partnerId, footprint.radius);
+          return reshapeRuntimeOristudioBpLayoutFlap(
+            partnerId,
+            {
+              x: mirrored.anchor.x,
+              y: mirrored.anchor.y,
+              width: mirrored.width,
+              height: mirrored.height,
+              // A reflection preserves length, so the partner's radius is the
+              // same number — it is the dimensions that swap on a diagonal.
+              radius: footprint.radius,
+              vertex: partnerVertex,
+            },
+            { activeSurface: 'packing', dragging }
+          );
+        },
+        { dragging, selection: { kind: 'bp-flap', id } }
       );
     },
 

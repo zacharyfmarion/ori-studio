@@ -736,6 +736,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   const resizeOristudioBpLayoutFlap = useWorkspaceStore(
     (state) => state.resizeOristudioBpLayoutFlap
   );
+  const reshapeOristudioBpFlap = useWorkspaceStore((state) => state.reshapeOristudioBpFlap);
   const setOristudioBpTreeEdgeLength = useWorkspaceStore(
     (state) => state.setOristudioBpTreeEdgeLength
   );
@@ -1027,6 +1028,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     moveFlap,
     moveFlaps,
     moveDevice: moveOristudioBpDevice,
+    reshapeFlap: reshapeOristudioBpFlap,
   });
 
 

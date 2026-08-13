@@ -221,6 +221,43 @@ export function mirrorBpFlapAnchor(
   }
 }
 
+/** A flap's whole footprint, as a reshape writes it. */
+export interface BpFlapFootprintLike {
+  anchor: Point;
+  width: number;
+  height: number;
+}
+
+/**
+ * The partner's whole footprint for a primary that has just been reshaped.
+ *
+ * Distinct from {@link buildMirroredBpFlapMoves}, which reads each flap's box off
+ * the *current* snapshot. That is right for a move, where the box does not
+ * change, and wrong for a reshape: the anchor's reflection carries the size term,
+ * so mirroring a new anchor against the old box lands the partner off by exactly
+ * the amount the flap grew. Plausible on a small flap; obvious on a large one.
+ *
+ * The diagonals exchange width for height, which is the same swap the typed
+ * resize already applies — and which the optimizer requires, since it rejects a
+ * pair whose boxes are not mirror images (`validate_dimensions`).
+ *
+ * Null when the fold has no mirror on this sheet.
+ */
+export function mirrorBpFlapFootprint(
+  footprint: BpFlapFootprintLike,
+  sheet: OristudioBpSheet,
+  mirror: BpMirrorOrientation
+): BpFlapFootprintLike | null {
+  const axis = bpPackingSymmetryAxis(sheet, mirror);
+  if (!bpPackingSheetSupportsAxis(sheet, axis)) return null;
+  const swaps = optimizerSymmetryAxisSwapsDimensions(axis);
+  return {
+    anchor: mirrorBpFlapAnchor(footprint.anchor, footprint, bpPackingSheetCenter(sheet), axis),
+    width: swaps ? footprint.height : footprint.width,
+    height: swaps ? footprint.width : footprint.height,
+  };
+}
+
 /**
  * The nearest anchor that leaves this flap centred on the axis — its own mirror.
  *

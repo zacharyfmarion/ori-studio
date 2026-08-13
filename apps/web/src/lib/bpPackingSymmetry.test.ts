@@ -20,6 +20,7 @@ import {
   isBpFlapOnAxis,
   mirrorAfterSheetTransform,
   mirrorBpFlapAnchor,
+  mirrorBpFlapFootprint,
   projectBpFlapAnchorOntoAxis,
   type BpSheetTransform,
 } from './bpPackingSymmetry';
@@ -149,6 +150,43 @@ describe('mirrorBpFlapAnchor', () => {
       const once = mirrorBpFlapAnchor({ x: 2, y: 5 }, box, CENTER, axis);
       expect(mirrorBpFlapAnchor(once, mirroredBox, CENTER, axis)).toEqual({ x: 2, y: 5 });
     }
+  });
+});
+
+describe('mirrorBpFlapFootprint', () => {
+  // A reshape changes the box, and the anchor's reflection carries the size term
+  // — so the partner has to be mirrored against the *new* box. Every case here
+  // uses a non-square flap, where mirroring against the old one would be off by
+  // exactly the amount it grew.
+  const grown = { anchor: { x: 2, y: 5 }, width: 3, height: 1 };
+
+  it('mirrors a book fold across the vertical, keeping the dimensions', () => {
+    expect(mirrorBpFlapFootprint(grown, sheet(), BOOK)).toEqual({
+      anchor: { x: 16 - 2 - 3, y: 5 },
+      width: 3,
+      height: 1,
+    });
+  });
+
+  it('exchanges the dimensions when the fold lands on a diagonal', () => {
+    expect(mirrorBpFlapFootprint(grown, sheet(), DIAGONAL)).toEqual({
+      anchor: { x: 5, y: 2 },
+      width: 1,
+      height: 3,
+    });
+  });
+
+  it('is an involution: mirroring the partner gives the primary back', () => {
+    for (const fold of [BOOK, DIAGONAL]) {
+      const once = mirrorBpFlapFootprint(grown, sheet(), fold);
+      expect(mirrorBpFlapFootprint(once!, sheet(), fold)).toEqual(grown);
+    }
+  });
+
+  it('declines a diagonal fold the sheet cannot carry', () => {
+    // Reachable only from a file: a design saved square and reopened after a
+    // resize. Better to leave the partner alone than to send it off the paper.
+    expect(mirrorBpFlapFootprint(grown, sheet('rectangular', 16, 10), DIAGONAL)).toBeNull();
   });
 });
 
