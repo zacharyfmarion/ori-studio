@@ -50,12 +50,13 @@
       <p>
         Drag the figure until it stands the way it should — this drag is
         unclamped, unlike the real one. <b>Bake</b> folds the current view into
-        the orientation, so the figure then sits upright at yaw&nbsp;0 and turns
-        around that axis. Then run the printed command.
+        the orientation, so the figure sits at yaw&nbsp;0 with its up on the
+        axis the turn goes around — which is what makes it circle rather than
+        swing. Then run the printed command.
       </p>
 
       <div class="row"><label for="pitch">pitch</label><span class="val" id="pitchVal"></span></div>
-      <input type="range" id="pitch" min="-1.57" max="1.57" step="0.01" />
+      <input type="range" id="pitch" min="-3.14" max="0" step="0.01" />
       <div class="row"><label for="yaw">yaw</label><span class="val" id="yawVal"></span></div>
       <input type="range" id="yaw" min="-3.15" max="3.15" step="0.01" />
       <div class="row"><label for="roll">roll — spin the picture upright</label><span class="val" id="rollVal"></span></div>
@@ -87,8 +88,19 @@
       const base = await fetch(ASSET).then((r) => r.json());
 
       // Baked orientation, plus the live view on top of it.
+      /**
+       * The pitch the shipped figure is rendered at, and the pitch Bake targets.
+       *
+       * Not a taste setting. Yaw rotates the model about its own Y axis, and
+       * screen-up is model Y at exactly this pitch — so this is the only camera
+       * at which the figure turns like a turntable rather than swinging its up
+       * axis around. Baking against pitch 0, as the first version did, produced
+       * an orientation whose up was perpendicular to the rotation axis.
+       */
+      const TURNTABLE_PITCH = -Math.PI / 2;
+
       let orient = [...(base.view.orient ?? [0, 0, 0])];
-      let view = { yaw: 0, pitch: 0 };
+      let view = { yaw: 0, pitch: TURNTABLE_PITCH };
       // Roll spins the picture in its own plane. It is a rotation of the *model*
       // about the view axis, not a camera the renderer has, so it is composed
       // into `orient` on every change rather than passed to `render`.
@@ -121,12 +133,12 @@
         }
         document.getElementById('rollVal').textContent = roll.toFixed(3);
         const o = effectiveOrient().map((v) => Number(v.toFixed(4)));
-        document.getElementById('orient').textContent = `--orient ${o.join(',')}  --yaw ${view.yaw.toFixed(3)} --pitch ${view.pitch.toFixed(3)}`;
+        document.getElementById('orient').textContent = `--orient ${o.join(',')}  --yaw ${view.yaw.toFixed(3)} --pitch ${view.pitch.toFixed(4)}`;
         document.getElementById('cmd').textContent =
           `node scripts/generate-start-figure.mjs \\\n` +
           `  --source "$ORISTUDIO_NON_FLAT_CORPUS_DIR/plant/penguin_other_angles.osf" \\\n` +
           `  --component 0 --orient ${o.join(',')} \\\n` +
-          `  --yaw ${view.yaw.toFixed(3)} --pitch ${view.pitch.toFixed(3)} --sweep ${base.view.sweep ?? 0.5} \\\n` +
+          `  --yaw ${view.yaw.toFixed(3)} --pitch ${view.pitch.toFixed(4)} \\\n` +
           `  --out apps/web/public/start/penguin-figure.json`;
       };
 
@@ -135,7 +147,7 @@
       const bake = () => {
         orient = composeIntoOrient(effectiveOrient(), view);
         roll = 0;
-        view = { yaw: 0, pitch: 0 };
+        view = { yaw: 0, pitch: TURNTABLE_PITCH };
         document.getElementById('roll').value = 0;
         rebuild();
         draw();
@@ -176,12 +188,12 @@
        * unchanged but the view becomes yaw 0 / pitch 0 — which is what makes the
        * axis now pointing up the axis the shipped figure turns about.
        *
-       * `cameraRotation(0, 0)` is *not* the identity (it maps model Y to depth),
-       * so its inverse has to come back out, or baking at rest would tip the
-       * figure a quarter turn.
+       * The target is `TURNTABLE_PITCH`, not 0. Baking against 0 leaves the
+       * figure's up on model **Z** while yaw turns about model **Y**, so it
+       * swings instead of turning — which is exactly the bug that shipped once.
        */
       function composeIntoOrient(current, v) {
-        const rest = transpose(cameraRotation(0, 0));
+        const rest = transpose(cameraRotation(0, TURNTABLE_PITCH));
         const R = mul(mul(rest, cameraRotation(v.yaw, v.pitch)), eulerZYX(current));
         return eulerFromMatrix(R);
       }
@@ -218,7 +230,7 @@
       document.getElementById('reset').addEventListener('click', () => {
         orient = [...(base.view.orient ?? [0, 0, 0])];
         roll = 0;
-        view = { yaw: 0, pitch: 0 };
+        view = { yaw: 0, pitch: TURNTABLE_PITCH };
         document.getElementById('roll').value = 0;
         rebuild();
         draw();

@@ -5,9 +5,21 @@ import { SIMULATOR_ORBIT_SENSITIVITY, normalizeAngle } from '../../lib/simulator
  *
  * Pure: no React, no GL, no DOM, no clock of its own. Every transition is a
  * function of the state and an elapsed time, which is what lets the whole
- * behaviour — the sweep, the clamp, the resume, reduced motion — be tested
+ * behaviour — the turn, the clamp, the resume, reduced motion — be tested
  * without a canvas. `StartFigure` owns the `requestAnimationFrame` loop and
  * feeds this; it holds no rotation logic itself.
+ *
+ * # It is a turntable, and that is a fact about the geometry
+ *
+ * Yaw always rotates the model about **its own Y axis** (`webgl/camera.ts`). The
+ * figure only reads as "standing still while turning" if its upright axis *is*
+ * that axis — and screen-up equals model Y at exactly one pitch, −π/2. So the
+ * asset is baked with the design's up on model Y and shipped at that pitch;
+ * `apps/web/start-figure-tuner.html` is what produces such an orientation.
+ *
+ * Get that wrong and the figure swings instead of turning, which is not
+ * something this module can correct for: at any other alignment the up axis is
+ * carried around the rotation and no camera can hold it still.
  */
 
 export type StartFigureMode = 'auto' | 'dragging' | 'resuming';
@@ -16,13 +28,7 @@ export interface StartFigureOrbitState {
   yaw: number;
   pitch: number;
   mode: StartFigureMode;
-  /**
-   * Position along the sweep, in radians of phase. Held rather than derived from
-   * the yaw because the sweep is a sine: a given yaw occurs twice per cycle, so
-   * yaw alone cannot say which way the figure is currently travelling.
-   */
-  phase: number;
-  /** Milliseconds left to hold before easing back to the sweep. */
+  /** Milliseconds left to hold before the turn resumes. */
   holdMs: number;
 }
 
@@ -30,96 +36,53 @@ export interface StartFigureOrbitConfig {
   /** The resting pose, baked into the asset by `generate-start-figure.mjs`. */
   yaw: number;
   pitch: number;
-  /** Half-width of the auto sweep, in radians. */
-  sweep: number;
-  /** Freeze the sweep. Drag still works — see {@link advanceStartFigureOrbit}. */
+  /** Freeze the turn. Drag still works — see {@link advanceStartFigureOrbit}. */
   reducedMotion: boolean;
 }
 
 /**
- * A full there-and-back sweep, in milliseconds.
+ * One full revolution, in milliseconds.
  *
  * Slow on purpose. This is ambient motion beside text somebody is reading, and
  * anything brisk enough to look deliberate is fast enough to pull the eye off
- * the three buttons that are the point of the screen.
+ * the three buttons that are the point of the screen. At 24 seconds a glance
+ * lands on a still figure and a second glance finds it somewhere else.
  */
-export const START_FIGURE_SWEEP_PERIOD_MS = 14_000;
+export const START_FIGURE_TURN_PERIOD_MS = 24_000;
 
-/** How long a released drag rests before the sweep reclaims the figure. */
+/** How long a released drag rests before the turn reclaims the figure. */
 export const START_FIGURE_HOLD_MS = 2_500;
 
-/** How fast a released drag eases back, in radians per second. */
+/** How fast a released drag eases its pitch back, in radians per second. */
 const RESUME_RADIANS_PER_SECOND = 0.35;
 
 /**
  * How far the pitch may leave its resting value, in radians.
  *
  * This is the whole of "rotate around the sides of it, not in all directions".
- * The figure is a turntable: yaw is free, and vertical movement tilts it just
- * enough that a drag feels like it grabbed a real object rather than a control
- * that ignores half its input. Unclamped, a folded form can be dragged onto its
- * own axis and become an unreadable sliver, which no amount of dragging back
- * quite undoes.
+ * The figure is a turntable: yaw is free — a drag can carry it right around to
+ * the back — and vertical movement tilts the camera just enough that the drag
+ * feels like it grabbed a real object rather than a control that ignores half
+ * its input. Unclamped, the view can be dragged onto the model's own axis, where
+ * a folded form becomes an unreadable sliver.
  */
 export const START_FIGURE_PITCH_BAND = 0.25;
 
 export function initialStartFigureOrbit(
   config: StartFigureOrbitConfig
 ): StartFigureOrbitState {
-  return { yaw: config.yaw, pitch: config.pitch, mode: 'auto', phase: 0, holdMs: 0 };
+  return { yaw: config.yaw, pitch: config.pitch, mode: 'auto', holdMs: 0 };
 }
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-/** Where the sweep is at a given phase. */
-function sweptYaw(config: StartFigureOrbitConfig, phase: number): number {
-  return config.yaw + Math.sin(phase) * config.sweep;
-}
-
-/**
- * The phase whose swept yaw is closest to where a drag left the figure, so the
- * resume rejoins the sweep at the nearest point of its travel rather than
- * snapping back to the middle.
- *
- * `asin` is only defined on the sweep's own range, so a yaw dragged outside it
- * clamps to the nearer end. Both branches of `asin` are candidates — the sweep
- * passes through each yaw once travelling each way — and the one nearer the
- * current phase wins, which is what stops the resume from reversing direction at
- * the moment it takes over.
- *
- * The offset is the **normalized** difference, not `yaw - config.yaw`. A drag
- * normalizes its yaw into (−π, π], so a resting pose near ±π — which is exactly
- * where the shipped figure sits — puts the two on opposite sides of the wrap and
- * a raw subtraction reads a few degrees of travel as a half-turn. Clamped, that
- * lands on the wrong end of the sweep, and the figure eases the long way round.
- */
-function nearestPhase(
-  config: StartFigureOrbitConfig,
-  yaw: number,
-  phase: number
-): number {
-  if (config.sweep <= 1e-6) return phase;
-  const offset = clamp(normalizeAngle(yaw - config.yaw) / config.sweep, -1, 1);
-  const rising = Math.asin(offset);
-  const falling = Math.PI - rising;
-  const cycle = Math.PI * 2;
-  const wrap = (value: number) => {
-    const turns = Math.round((phase - value) / cycle);
-    return value + turns * cycle;
-  };
-  const candidates = [wrap(rising), wrap(falling)];
-  return candidates.reduce((best, candidate) =>
-    Math.abs(candidate - phase) < Math.abs(best - phase) ? candidate : best
-  );
-}
-
 /**
  * Advance one frame.
  *
  * `dragging` is deliberately inert here: while a pointer is down the figure is
- * the user's, and a sweep running underneath would fight them.
+ * the user's, and a turn running underneath would fight them.
  */
 export function advanceStartFigureOrbit(
   state: StartFigureOrbitState,
@@ -137,26 +100,24 @@ export function advanceStartFigureOrbit(
     const holdMs = Math.max(0, state.holdMs - elapsedMs);
     if (holdMs > 0) return { ...state, holdMs };
 
-    const phase = nearestPhase(config, state.yaw, state.phase);
-    const targetYaw = sweptYaw(config, phase);
+    // Only the pitch eases back. The yaw does not: every yaw is a legitimate
+    // view of a turntable, so there is nothing to return to, and travelling
+    // back to some canonical angle would undo the user's drag in front of them.
     const step = (RESUME_RADIANS_PER_SECOND * elapsedMs) / 1000;
-    const toYaw = normalizeAngle(targetYaw - state.yaw);
     const toPitch = config.pitch - state.pitch;
-    const arrived = Math.abs(toYaw) <= step && Math.abs(toPitch) <= step;
-    if (arrived) {
-      return { yaw: targetYaw, pitch: config.pitch, mode: 'auto', phase, holdMs: 0 };
+    if (Math.abs(toPitch) <= step) {
+      return { ...state, pitch: config.pitch, mode: 'auto', holdMs: 0 };
     }
-    return {
-      ...state,
-      yaw: state.yaw + clamp(toYaw, -step, step),
-      pitch: state.pitch + clamp(toPitch, -step, step),
-      phase,
-      holdMs: 0,
-    };
+    return { ...state, pitch: state.pitch + clamp(toPitch, -step, step), holdMs: 0 };
   }
 
-  const phase = state.phase + (elapsedMs / START_FIGURE_SWEEP_PERIOD_MS) * Math.PI * 2;
-  return { ...state, yaw: sweptYaw(config, phase), phase, holdMs: 0 };
+  return {
+    ...state,
+    yaw: normalizeAngle(
+      state.yaw + (elapsedMs / START_FIGURE_TURN_PERIOD_MS) * Math.PI * 2
+    ),
+    holdMs: 0,
+  };
 }
 
 export function beginStartFigureDrag(

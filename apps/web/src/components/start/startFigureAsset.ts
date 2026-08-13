@@ -15,7 +15,8 @@ import type { OristudioCpFolded3dRenderModel } from '../../engine/oristudioCpTyp
  *
  * **To swap the figure**, run the generator against a different crease pattern
  * and point {@link START_FIGURE} at what it wrote. Nothing else here knows which
- * model it is drawing — the pose and the sweep travel with the geometry.
+ * model it is drawing — the pose and the upright orientation travel with the
+ * geometry.
  */
 
 const publicAssetBase = import.meta.env.BASE_URL.endsWith('/')
@@ -37,11 +38,16 @@ export interface StartFigureAsset {
   solution: number;
   view: {
     yaw: number;
+    /**
+     * Must be −π/2 for the figure to read as a turntable: that is the one pitch
+     * at which screen-up is the model's Y axis, which is the axis yaw turns
+     * about. See the header of `startFigureOrbit.ts`.
+     */
     pitch: number;
-    sweep: number;
     /**
      * Fixed model-space rotation, radians, applied before the camera — see
-     * `orient` in `startFigureMesh.ts`. This is what stands the figure up.
+     * `orient` in `startFigureMesh.ts`. This is what stands the figure up, by
+     * putting the design's own upright axis on model Y.
      */
     orient?: [number, number, number];
   };
@@ -49,7 +55,7 @@ export interface StartFigureAsset {
 }
 
 /** The schema this reader understands. Bumped when the shape changes. */
-const ASSET_VERSION = 2;
+const ASSET_VERSION = 3;
 
 /**
  * Parse and shape-check an asset.
@@ -70,13 +76,7 @@ export function parseStartFigureAsset(value: unknown): StartFigureAsset | null {
 
   const { view, model } = asset;
   if (typeof view !== 'object' || view === null) return null;
-  if (
-    typeof view.yaw !== 'number' ||
-    typeof view.pitch !== 'number' ||
-    typeof view.sweep !== 'number'
-  ) {
-    return null;
-  }
+  if (typeof view.yaw !== 'number' || typeof view.pitch !== 'number') return null;
   if (view.orient !== undefined) {
     if (!Array.isArray(view.orient) || view.orient.length !== 3) return null;
     if (!view.orient.every((angle) => typeof angle === 'number' && Number.isFinite(angle))) {

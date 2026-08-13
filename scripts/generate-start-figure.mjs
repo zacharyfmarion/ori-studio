@@ -32,11 +32,12 @@
  * # The shipped figure. CORPUS is $ORISTUDIO_NON_FLAT_CORPUS_DIR.
  * node scripts/generate-start-figure.mjs \
  *   --source "$CORPUS/plant/penguin_other_angles.osf" --component 0 \
- *   --yaw 3.1416 --pitch -0.55
+ *   --orient 3.1236,1.2208,1.5708 --yaw 0 --pitch -1.5708
  *
- * # Swap in a different design: same command, different source.
+ * # Swap in a different design: same command, different source. Get `--orient`
+ * # from apps/web/start-figure-tuner.html rather than guessing it.
  * node scripts/generate-start-figure.mjs --source ~/designs/crane.fold \
- *   --out apps/web/public/start/crane-figure.json --yaw 0.8 --pitch -0.4
+ *   --out apps/web/public/start/crane-figure.json --orient 0,0,0 --pitch -1.5708
  * ```
  *
  * Then point the app at it: `START_FIGURE` in
@@ -52,7 +53,10 @@
  *   several; the penguin has eight, and `G` shows this one first.
  * - `--out PATH` — where to write the asset. Defaults to
  *   `apps/web/public/start/<source stem>-figure.json`.
- * - `--yaw R` / `--pitch R` — the resting view, in radians.
+ * - `--yaw R` / `--pitch R` — the resting view, in radians. `--pitch` should be
+ *   −1.5708: that is the one pitch at which screen-up is the model's Y axis,
+ *   which is the axis yaw turns about, so it is the only one where the figure
+ *   turns like a turntable instead of swinging. The tuner emits it.
  * - `--orient RX,RY,RZ` — a fixed model-space rotation in radians, applied
  *   before the camera. This is what stands the figure up: the kernel hands back
  *   a figure in the paper's frame, where the paper normal is vertical, and a
@@ -60,9 +64,6 @@
  *   is no way to derive it — for a folded form with no dominant long axis, which
  *   end is "up" is a fact about the design, not about the point cloud — so it is
  *   chosen by eye and recorded here.
- * - `--sweep R` — half-width of the auto-rotation, in radians (default 0.45).
- *   A full turn is deliberately not the default: most folded forms present
- *   nearly edge-on somewhere in a 360 degree sweep and read as a sliver there.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -76,7 +77,7 @@ const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 const USAGE = `usage: generate-start-figure.mjs --source <input.osf|input.fold>
   [--component N] [--document N] [--solution N] [--out PATH]
-  [--yaw R] [--pitch R] [--sweep R] [--orient RX,RY,RZ]`;
+  [--yaw R] [--pitch R] [--orient RX,RY,RZ]`;
 
 function parseArgs(argv) {
   const options = {
@@ -86,8 +87,7 @@ function parseArgs(argv) {
     solution: 1,
     out: null,
     yaw: 0,
-    pitch: -0.5,
-    sweep: 0.45,
+    pitch: -Math.PI / 2,
     orient: [0, 0, 0],
   };
   const numeric = {
@@ -96,7 +96,6 @@ function parseArgs(argv) {
     '--solution': 'solution',
     '--yaw': 'yaw',
     '--pitch': 'pitch',
-    '--sweep': 'sweep',
   };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -177,7 +176,7 @@ function main(argv) {
   );
 
   const asset = {
-    version: 2,
+    version: 3,
     // Provenance, not decoration: the asset is the only thing committed, so if
     // nobody can tell what produced it, nobody can regenerate it.
     source: basename(options.source),
@@ -185,7 +184,6 @@ function main(argv) {
     view: {
       yaw: options.yaw,
       pitch: options.pitch,
-      sweep: options.sweep,
       orient: options.orient,
     },
     model,

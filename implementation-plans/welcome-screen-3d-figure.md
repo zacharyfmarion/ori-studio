@@ -56,9 +56,13 @@ have made the start screen the one place showing a different answer.
 
 **Two findings changed the design**, both from looking at real frames:
 
-- A full 360° yaw sweep passes through angles where the form presents nearly
-  edge-on and reads as a sliver. The auto-rotation is therefore a bounded eased
-  sweep around a chosen pose, not a spin.
+- **The turn only works at one pitch, and that is geometry, not taste.** Yaw
+  rotates the model about its own Y axis, and screen-up equals model Y at
+  exactly `pitch = −π/2`. Anywhere else the figure's upright axis is carried
+  around the rotation and it swings instead of turning — no camera can correct
+  for it. So the asset bakes the design's up onto model Y and ships at that
+  pitch. An earlier bounded "sweep" existed only to hide this: with the axis
+  wrong, a small excursion was the most that stayed legible.
 - At 320px, 246 creases in mountain-red and valley-blue read as noise over the
   form. The figure draws them in **mono** — one theme-derived ink — so the shape
   speaks. Colour stays the default where it is information (the Simulate
