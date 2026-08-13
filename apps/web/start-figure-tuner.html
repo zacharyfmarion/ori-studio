@@ -1,0 +1,232 @@
+<!doctype html>
+<!--
+  Dev-only tuner for the start screen's 3D figure: http://localhost:5224/start-figure-tuner.html
+
+  Which way a folded design stands up is a fact about the design, not about its
+  point cloud — three automatic derivations (principal axis, most-protruding
+  vertex, a search over screen aspect) all disagreed with the eye. So the
+  orientation is chosen here, by dragging, and the page prints the exact command
+  that bakes the result in.
+
+  Not part of the build. Vite's production entry is `index.html` alone, so this
+  file is served in dev and never shipped; `npm run build:web` does not emit it.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Start figure tuner</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0; display: grid; grid-template-columns: 1fr 380px; height: 100vh;
+        font: 13px ui-monospace, SFMono-Regular, Menlo, monospace;
+        background: #14181d; color: #cdd6e0;
+      }
+      #stage { display: grid; place-items: center; }
+      canvas { width: min(70vh, 100%); aspect-ratio: 1; cursor: grab; touch-action: none; }
+      canvas:active { cursor: grabbing; }
+      aside { padding: 20px; border-left: 1px solid #2a3038; overflow: auto; }
+      h1 { font-size: 15px; margin: 0 0 4px; }
+      p { color: #8b95a3; line-height: 1.5; }
+      label { display: block; margin: 14px 0 4px; color: #8b95a3; }
+      input[type=range] { width: 100%; }
+      code, pre {
+        background: #0e1216; border: 1px solid #2a3038; border-radius: 6px;
+        padding: 10px; display: block; white-space: pre-wrap; word-break: break-all;
+        color: #9ece6a; user-select: all;
+      }
+      button {
+        margin-top: 12px; padding: 8px 12px; border-radius: 6px; cursor: pointer;
+        background: #2a3038; color: #cdd6e0; border: 1px solid #3a424c;
+      }
+      .row { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; }
+      .val { color: #cdd6e0; }
+    </style>
+  </head>
+  <body>
+    <div id="stage"><canvas id="figure"></canvas></div>
+    <aside>
+      <h1>Start figure tuner</h1>
+      <p>
+        Drag the figure until it stands the way it should — this drag is
+        unclamped, unlike the real one. <b>Bake</b> folds the current view into
+        the orientation, so the figure then sits upright at yaw&nbsp;0 and turns
+        around that axis. Then run the printed command.
+      </p>
+
+      <div class="row"><label for="pitch">pitch</label><span class="val" id="pitchVal"></span></div>
+      <input type="range" id="pitch" min="-1.57" max="1.57" step="0.01" />
+      <div class="row"><label for="yaw">yaw</label><span class="val" id="yawVal"></span></div>
+      <input type="range" id="yaw" min="-3.15" max="3.15" step="0.01" />
+      <div class="row"><label for="roll">roll — spin the picture upright</label><span class="val" id="rollVal"></span></div>
+      <input type="range" id="roll" min="-3.15" max="3.15" step="0.01" value="0" />
+
+      <button id="bake">Bake this view into the orientation</button>
+      <button id="reset">Reset</button>
+
+      <label>Command</label>
+      <pre id="cmd"></pre>
+      <label>Or just send this back</label>
+      <code id="orient"></code>
+    </aside>
+
+    <script type="module">
+      import { StartFigureMesh } from '/src/components/start/startFigureMesh.ts';
+      import { resolveRenderSettings } from '/src/simulator/simulatorPalette.ts';
+      import { DEFAULT_SIMULATOR_SETTINGS } from '/src/lib/simulatorSettings.ts';
+      import { startFigurePaperSettings } from '/src/components/start/startFigurePaper.ts';
+      import { applyTheme, DEFAULT_DARK_THEME } from '/src/themes/index.ts';
+
+      // This page is outside the app, so nothing has written the theme tokens the
+      // figure's colours come from. Without this it renders the fallback palette
+      // and the paper looks nothing like it does on the start screen.
+      applyTheme(DEFAULT_DARK_THEME);
+
+      const ASSET = '/start/penguin-figure.json';
+      const canvas = document.getElementById('figure');
+      const base = await fetch(ASSET).then((r) => r.json());
+
+      // Baked orientation, plus the live view on top of it.
+      let orient = [...(base.view.orient ?? [0, 0, 0])];
+      let view = { yaw: 0, pitch: 0 };
+      // Roll spins the picture in its own plane. It is a rotation of the *model*
+      // about the view axis, not a camera the renderer has, so it is composed
+      // into `orient` on every change rather than passed to `render`.
+      let roll = 0;
+      let mesh = null;
+
+      const effectiveOrient = () =>
+        roll === 0 ? orient : eulerFromMatrix(mul(rotZ(roll), eulerZYX(orient)));
+
+      const rebuild = () => {
+        mesh?.dispose();
+        mesh = StartFigureMesh.create(canvas, {
+          ...base,
+          view: { ...base.view, orient: effectiveOrient() },
+        });
+        const dpr = Math.max(1, devicePixelRatio || 1);
+        mesh.resize(canvas.clientWidth, canvas.clientHeight, dpr);
+      };
+
+      const draw = () => {
+        const settings = resolveRenderSettings(
+          getComputedStyle(document.documentElement),
+          { ...DEFAULT_SIMULATOR_SETTINGS, creaseStyle: 'mono', ...startFigurePaperSettings(getComputedStyle(document.documentElement)) },
+          { transparentBackground: true, creaseWidthReferenceEdge: 640 }
+        );
+        mesh.render({ yaw: view.yaw, pitch: view.pitch }, settings);
+        for (const k of ['yaw', 'pitch']) {
+          document.getElementById(k).value = view[k];
+          document.getElementById(`${k}Val`).textContent = view[k].toFixed(3);
+        }
+        document.getElementById('rollVal').textContent = roll.toFixed(3);
+        const o = effectiveOrient().map((v) => Number(v.toFixed(4)));
+        document.getElementById('orient').textContent = `--orient ${o.join(',')}  --yaw ${view.yaw.toFixed(3)} --pitch ${view.pitch.toFixed(3)}`;
+        document.getElementById('cmd').textContent =
+          `node scripts/generate-start-figure.mjs \\\n` +
+          `  --source "$ORISTUDIO_NON_FLAT_CORPUS_DIR/plant/penguin_other_angles.osf" \\\n` +
+          `  --component 0 --orient ${o.join(',')} \\\n` +
+          `  --yaw ${view.yaw.toFixed(3)} --pitch ${view.pitch.toFixed(3)} --sweep ${base.view.sweep ?? 0.5} \\\n` +
+          `  --out apps/web/public/start/penguin-figure.json`;
+      };
+
+      // Compose the live view into the baked orientation, so "what I see" becomes
+      // "yaw 0, pitch 0" and the figure turns about the axis now pointing up.
+      const bake = () => {
+        orient = composeIntoOrient(effectiveOrient(), view);
+        roll = 0;
+        view = { yaw: 0, pitch: 0 };
+        document.getElementById('roll').value = 0;
+        rebuild();
+        draw();
+      };
+
+      const rotX = (a) => [[1,0,0],[0,Math.cos(a),-Math.sin(a)],[0,Math.sin(a),Math.cos(a)]];
+      const rotY = (a) => [[Math.cos(a),0,Math.sin(a)],[0,1,0],[-Math.sin(a),0,Math.cos(a)]];
+      const rotZ = (a) => [[Math.cos(a),-Math.sin(a),0],[Math.sin(a),Math.cos(a),0],[0,0,1]];
+      const mul = (A,B) => A.map((r,i)=>B[0].map((_,j)=>r.reduce((s,_v,k)=>s+A[i][k]*B[k][j],0)));
+      const transpose = (A) => A[0].map((_, j) => A.map((r) => r[j]));
+      // Matches `orient()` in startFigureMesh.ts: Rz·Ry·Rx.
+      const eulerZYX = ([rx,ry,rz]) => mul(mul(rotZ(rz), rotY(ry)), rotX(rx));
+      /** Inverse of {@link eulerZYX}, for R = Rz(rz)·Ry(ry)·Rx(rx). */
+      function eulerFromMatrix(R) {
+        const ry = Math.asin(Math.max(-1, Math.min(1, -R[2][0])));
+        const rz = Math.atan2(R[1][0], R[0][0]);
+        const rx = Math.atan2(R[2][1], R[2][2]);
+        return [rx, ry, rz];
+      }
+
+      /**
+       * The camera's own rotation, read off the projection in `webgl/camera.ts`:
+       * yaw about Y, then a pitch that mixes the yawed Z into screen-Y.
+       *
+       * The renderer's third row is *depth*, and it is left-handed — the literal
+       * 3x3 has determinant −1. Negating that row gives a proper rotation with
+       * the identical screen x/y, which is all this needs; using the literal
+       * matrix would bake in a mirror and quietly swap the paper's two sides.
+       */
+      const cameraRotation = (yaw, pitch) => {
+        const [cp, sp] = [Math.cos(pitch), Math.sin(pitch)];
+        const pitchPart = [[1,0,0],[0,-sp,cp],[0,-cp,-sp]];
+        return mul(pitchPart, rotY(yaw));
+      };
+
+      /**
+       * Fold the current camera into the model's own rotation, so the picture is
+       * unchanged but the view becomes yaw 0 / pitch 0 — which is what makes the
+       * axis now pointing up the axis the shipped figure turns about.
+       *
+       * `cameraRotation(0, 0)` is *not* the identity (it maps model Y to depth),
+       * so its inverse has to come back out, or baking at rest would tip the
+       * figure a quarter turn.
+       */
+      function composeIntoOrient(current, v) {
+        const rest = transpose(cameraRotation(0, 0));
+        const R = mul(mul(rest, cameraRotation(v.yaw, v.pitch)), eulerZYX(current));
+        return eulerFromMatrix(R);
+      }
+
+      // Free orbit — deliberately unclamped, unlike the shipped figure.
+      let drag = null;
+      canvas.addEventListener('pointerdown', (e) => {
+        canvas.setPointerCapture(e.pointerId);
+        drag = { x: e.clientX, y: e.clientY };
+      });
+      canvas.addEventListener('pointermove', (e) => {
+        if (!drag) return;
+        view.yaw -= (e.clientX - drag.x) * 0.01;
+        view.pitch += (e.clientY - drag.y) * 0.01;
+        drag = { x: e.clientX, y: e.clientY };
+        draw();
+      });
+      const stop = () => { drag = null; };
+      canvas.addEventListener('pointerup', stop);
+      canvas.addEventListener('pointercancel', stop);
+
+      for (const k of ['yaw', 'pitch']) {
+        document.getElementById(k).addEventListener('input', (e) => {
+          view[k] = Number(e.target.value);
+          draw();
+        });
+      }
+      document.getElementById('roll').addEventListener('input', (e) => {
+        roll = Number(e.target.value);
+        rebuild();
+        draw();
+      });
+      document.getElementById('bake').addEventListener('click', bake);
+      document.getElementById('reset').addEventListener('click', () => {
+        orient = [...(base.view.orient ?? [0, 0, 0])];
+        roll = 0;
+        view = { yaw: 0, pitch: 0 };
+        document.getElementById('roll').value = 0;
+        rebuild();
+        draw();
+      });
+      addEventListener('resize', () => { rebuild(); draw(); });
+
+      rebuild();
+      draw();
+    </script>
+  </body>
+</html>

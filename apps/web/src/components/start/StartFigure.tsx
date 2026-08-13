@@ -5,6 +5,7 @@ import { useThemeStore } from '../../store/themeStore';
 import { resolveRenderSettings } from '../../simulator/simulatorPalette';
 import { ANALYTICS_EVENTS, track } from '../../analytics';
 import { START_FIGURE, loadStartFigureAsset, type StartFigureAsset } from './startFigureAsset';
+import { startFigurePaperSettings } from './startFigurePaper';
 import {
   advanceStartFigureOrbit,
   beginStartFigureDrag,
@@ -89,9 +90,14 @@ export function StartFigure() {
   const refreshPaint = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const styles = getComputedStyle(canvas);
     settingsRef.current = resolveRenderSettings(
-      getComputedStyle(canvas),
-      { ...DEFAULT_SIMULATOR_SETTINGS, creaseStyle: FIGURE_CREASE_STYLE },
+      styles,
+      {
+        ...DEFAULT_SIMULATOR_SETTINGS,
+        creaseStyle: FIGURE_CREASE_STYLE,
+        ...startFigurePaperSettings(styles),
+      },
       {
         // The start screen owns the backdrop; the figure composites onto it.
         transparentBackground: true,
