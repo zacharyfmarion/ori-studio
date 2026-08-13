@@ -309,9 +309,53 @@ const SIMULATOR_SHORTCUTS: ShortcutDefinition[] = [
   simulatorShortcut('simulator.toggleLighting', 'Toggle Lighting', { key: 'l' }),
 ];
 
+/**
+ * The viewport verbs whose executor can answer `false` and let the chord fall
+ * through to the next scope.
+ *
+ * This is the property the conflict rules actually care about, and for a long
+ * time they asked `scope === 'viewport'` instead. Those are not the same
+ * question: `viewport.zoomOut` claims its chord every single time, so a
+ * crease-pattern tool bound to the same key is dead — but it was exempted from
+ * eviction anyway, on the reasoning that only holds for the four below. That
+ * made eleven chords (`Mod+=` `6` `Mod+-` `5` `Mod+0` `Mod+1` `1` `3` `4`
+ * `Escape` `Shift+S`) permanently unassignable in both Settings and the Oriedita
+ * import.
+ *
+ * Membership is read off the *crease-pattern* executor's switch, because that is
+ * the surface live in the same context as the bindings these collide with. It
+ * cannot be read off every surface at once: `tree` and `bp-editor` implement
+ * only the four camera verbs and decline the rest outright, so "declines
+ * somewhere" would sweep in nearly everything.
+ *
+ * Declared here while the truth lives in `CreasePatternPanel`'s switch, so the
+ * two can drift. The set is typed to `ViewportShortcutId`, which stops a
+ * non-viewport id being added at all — the dispatcher ignores every other
+ * target's return value, so the claim would be a lie anywhere else.
+ */
+const DECLINING_VIEWPORT_SHORTCUTS: ReadonlySet<ViewportShortcutId> = new Set([
+  'viewport.delete',
+  'viewport.solveAnglesPrevious',
+  'viewport.solveAnglesNext',
+  'viewport.solveAnglesApply',
+]);
+
+/**
+ * Whether this binding may hand its chord back instead of claiming it.
+ *
+ * A claimant that may decline does not make a lower-scope binding dead, so it is
+ * not a blocker — it is *transparent*, and whatever claims the chord beneath it
+ * is the thing a conflict warning should name.
+ */
+export function shortcutMayDecline(id: ShortcutActionId): boolean {
+  return (DECLINING_VIEWPORT_SHORTCUTS as ReadonlySet<string>).has(id);
+}
+
 const VIEWPORT_SHORTCUTS: ShortcutDefinition[] = [
-  // The bare 6/5 chords come from the Oriedita layout, so the left hand can
-  // zoom without reaching for a modifier.
+  // Ori Studio's own defaults, not Oriedita's: upstream ships both zoom actions
+  // unbound (`hotkey.properties` has empty `creasePatternZoomOutAction=` /
+  // `creasePatternZoomInAction=`, and no Java source hardcodes a digit handler).
+  // The bare 6/5 chords let the left hand zoom without reaching for a modifier.
   viewportShortcut(
     'viewport.zoomIn',
     'Zoom In',
@@ -841,11 +885,14 @@ export interface ShortcutShadowing {
   /**
    * Whether the loser is dead outright, or merely deferred.
    *
-   * `simulator` is the one scope that is not always in the stack —
-   * `shortcutScopeStackForContext` pushes it only while a simulation owns the
-   * keyboard. So a simulator binding over a non-simulator one takes the chord
-   * *while a simulation is focused* and gives it back otherwise, which is the
-   * documented intent at the top of this file rather than a collision.
+   * Two claimants defer rather than kill. `simulator` is the one scope that is
+   * not always in the stack — `shortcutScopeStackForContext` pushes it only while
+   * a simulation owns the keyboard. So a simulator binding over a non-simulator
+   * one takes the chord *while a simulation is focused* and gives it back
+   * otherwise, which is the documented intent at the top of this file rather than
+   * a collision. A viewport binding that {@link shortcutMayDecline} is the same
+   * story by a different mechanism: always in the stack, but it answers `false`
+   * when it does not apply and dispatch continues past it.
    *
    * The shipped defaults already depend on it: `colCyanAction` F, `senbun_henkan2Action`
    * C and `deg2Action` R coexist with `simulator.toggleFaces`/`toggleCreases`/`replay`,
@@ -918,13 +965,26 @@ export function findShortcutShadowing(
   // type instead, because `cp.action.line-type.auxiliary` also holds `F` in the
   // crease-pattern scope.
   let alwaysPresentLeader = definition;
-  // "Always present" is relative to `asked`. `simulator` is the scope that comes
-  // and goes -- but only for someone else's binding. A simulator binding is never
-  // dispatched from a stack without the simulator scope, so from its point of
-  // view its own scope is always there and a sibling simulator claim is an
-  // ordinary same-scope collision, not a deferral.
-  const conditionalScope: ShortcutScope | null =
-    definition.scope === 'simulator' ? null : 'simulator';
+  /**
+   * A claimant that may not answer the chord, and so does not make `definition`
+   * dead. Two kinds, for two different reasons:
+   *
+   * - **`simulator` scope**, which is in the stack only while a simulation owns
+   *   the keyboard. This one is relative to `asked`: a simulator binding is never
+   *   dispatched from a stack without its own scope, so from its point of view
+   *   its own scope is always there and a sibling simulator claim is an ordinary
+   *   same-scope collision, not a deferral.
+   * - **A declining viewport binding**, which is always in the stack but hands
+   *   the chord on when it does not apply. Not relative to anything — it is a
+   *   property of the candidate alone, so no `asked`-side exemption applies.
+   *
+   * Both were once a single hard-coded scope check, which is why `Delete` used to
+   * read as a collision with `viewport.delete` when the binding it really costs
+   * is `edit.delete` underneath.
+   */
+  const mayNotAnswer = (candidate: ShortcutDefinition): boolean =>
+    (definition.scope !== 'simulator' && candidate.scope === 'simulator') ||
+    shortcutMayDecline(candidate.id);
 
   for (const candidate of SHORTCUT_DEFINITIONS) {
     if (candidate.id === actionId) continue;
@@ -937,10 +997,7 @@ export function findShortcutShadowing(
     }
     if (!shadowed || shortcutDispatchPrecedes(candidate, shadowed)) shadowed = candidate;
     if (shortcutDispatchPrecedes(candidate, leader)) leader = candidate;
-    if (
-      candidate.scope !== conditionalScope &&
-      shortcutDispatchPrecedes(candidate, alwaysPresentLeader)
-    ) {
+    if (!mayNotAnswer(candidate) && shortcutDispatchPrecedes(candidate, alwaysPresentLeader)) {
       alwaysPresentLeader = candidate;
     }
   }
@@ -960,10 +1017,11 @@ export function findShortcutShadowing(
 }
 
 /**
- * A loss to the `simulator` scope is a deferral, not a death — see
- * {@link ShortcutShadowing.kind}. Anything else is hard: `viewport` and `global`
- * are always in the stack, and `crease-pattern` is whenever the CP canvas is the
- * editing context, which is the context these bindings exist to serve.
+ * A loss to a claimant that may not answer is a deferral, not a death — see
+ * {@link ShortcutShadowing.kind} and {@link shortcutMayDecline}. Anything else is
+ * hard: `global` is always in the stack, `viewport` is too unless the binding
+ * declines, and `crease-pattern` is whenever the CP canvas is the editing
+ * context, which is the context these bindings exist to serve.
  */
 function shortcutShadowingKind(
   asked: ShortcutDefinition,

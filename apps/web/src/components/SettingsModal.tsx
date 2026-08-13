@@ -33,6 +33,7 @@ import {
   keyChordId,
   SHORTCUT_DEFINITIONS,
   shortcutKeepsDefaultChords,
+  shortcutMayDecline,
   shortcutLabelForAction,
   type KeyChord,
   type ShortcutActionId,
@@ -334,10 +335,16 @@ interface DefaultsSourceDiff {
  * reports `conditional` because nothing outranks the override. Same collision,
  * same warning — so the co-claimant is looked up directly.
  *
- * `simulator` claimants are excluded: that scope is in the stack only while a
- * simulation owns the keyboard, so `C`, `L` and `R` coexist with CP tools by
- * design. Two definitions carrying one upstream action are one verb wearing two
- * ids, so they are not a collision either.
+ * Claimants that may not answer the chord are excluded, because they leave
+ * nothing dead: `simulator` is in the stack only while a simulation owns the
+ * keyboard, so `C`, `L` and `R` coexist with CP tools by design, and a viewport
+ * binding that {@link shortcutMayDecline} hands the chord on when it does not
+ * apply. Skipping the latter is what makes `Delete` name `edit.delete` — the
+ * global binding a crease-pattern capture really costs — instead of
+ * `viewport.delete`, which was never going to fight for it.
+ *
+ * Two definitions carrying one upstream action are one verb wearing two ids, so
+ * they are not a collision either.
  */
 function findChordCoClaimant(
   definition: ShortcutDefinition,
@@ -347,6 +354,7 @@ function findChordCoClaimant(
   if (definition.scope === 'simulator') return null;
   for (const candidate of SHORTCUT_DEFINITIONS) {
     if (candidate.id === definition.id || candidate.scope === 'simulator') continue;
+    if (shortcutMayDecline(candidate.id)) continue;
     if (definition.upstreamAction && definition.upstreamAction === candidate.upstreamAction) {
       continue;
     }
