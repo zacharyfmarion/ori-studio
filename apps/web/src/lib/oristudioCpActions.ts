@@ -620,6 +620,32 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
     upstreamMouseMode: 'CREASE_DELETE_INTERSECTING_65',
     railOrder: 40,
   },
+
+  // Operations that need nothing from this table but their Oriedita action id.
+  //
+  // `commandAction` defaults `upstreamAction` to `command.upstream`, which is the
+  // Java *mouse handler class* — never an Oriedita action id, so never a match
+  // for anything that looks one up. These twelve were left on that fallback,
+  // which made them invisible to the Oriedita import: a user whose
+  // `hotkey.properties` said `toMountainAction=shift M` was told "Ori Studio has
+  // no matching action" for a tool we have had all along.
+  //
+  // Every pairing below is upstream's own, from the `ActionType` → `MouseMode`
+  // maps in `ActionRegistrationService.java`. Seven of them also revive entries
+  // in `CpToolRail`'s `ORIEDITA_ICON_GLYPHS`, which were keyed on these ids and
+  // dead for exactly the same reason.
+  MoveCreasePattern: { upstreamAction: 'moveCreasePatternAction' },
+  ChangeCreaseType: { upstreamAction: 'senbun_henkanAction' },
+  CreaseMakeMountain: { upstreamAction: 'toMountainAction' },
+  CreaseMakeValley: { upstreamAction: 'toValleyAction' },
+  CreaseMakeEdge: { upstreamAction: 'toEdgeAction' },
+  CreaseMakeAux: { upstreamAction: 'toAuxAction' },
+  CreaseAdvanceType: { upstreamAction: 'senbun_yoke_henkanAction' },
+  CircleChangeColor: { upstreamAction: 'sen_tokutyuu_color_henkouAction' },
+  ReplaceLineTypeSelect: { upstreamAction: 'replace_lineAction' },
+  DeleteLineTypeSelect: { upstreamAction: 'del_l_typeAction' },
+  FixInaccurate: { upstreamAction: 'fixInaccurateAction' },
+  BackgroundChangePosition: { upstreamAction: 'backgroundSetPositionAction' },
 };
 
 export const ORISTUDIO_CP_ACTIONS: OristudioCpActionDefinition[] = [

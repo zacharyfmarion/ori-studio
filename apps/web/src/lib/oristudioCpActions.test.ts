@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_ORISTUDIO_CP_ACTION_ID,
+  ORISTUDIO_CP_ACTIONS,
   ORISTUDIO_CP_ACTION_GROUPS,
   ORISTUDIO_CP_LINE_TYPE_ACTIONS,
   cpActionById,
@@ -8,6 +9,7 @@ import {
   cpActionByUpstreamMouseMode,
   cpRailActions,
 } from './oristudioCpActions';
+import { shortcutIdForOrieditaAction } from '../keyboard/shortcuts';
 import { ORISTUDIO_CP_COMMANDS } from './oristudioCpCommands';
 
 describe('oristudio CP action registry', () => {
@@ -221,6 +223,38 @@ describe('oristudio CP action registry', () => {
     expect(cpActionByUpstreamMouseMode('CONTINUOUS_SYMMETRIC_DRAW_52')).toMatchObject({
       operationId: 'ContinuousSymmetricDraw',
     });
+  });
+
+  it('never leaves a Java handler class standing in for an Oriedita action id', () => {
+    // `commandAction` defaults `upstreamAction` to `command.upstream`, the mouse
+    // handler class. That is never an Oriedita action id, so every lookup keyed
+    // on one silently misses: the import reported "no matching action" for
+    // twelve tools we already had, and seven glyph entries in `CpToolRail` sat
+    // dead because they were keyed on the ids nothing carried.
+    //
+    // Deliberately narrower than "must be a real upstream id". Thirty-one
+    // actions legitimately carry something else — Ori Studio natives with no
+    // upstream counterpart (`squareGenerateAction`,
+    // `solveVertexFoldAnglesAction`) and the importer/exporter services
+    // (`CpImporter`, `FoldExporter`). A `MouseHandler*` value is the one kind
+    // that is always wrong, because the operation always has a real action id
+    // available — all twelve did.
+    const handlerBacked = ORISTUDIO_CP_ACTIONS.filter((action) =>
+      action.upstreamAction.startsWith('MouseHandler')
+    ).map((action) => `${action.id} -> ${action.upstreamAction}`);
+
+    expect(handlerBacked).toEqual([]);
+  });
+
+  it('maps the Oriedita actions a hotkey import arrives with', () => {
+    // The reported case: `toMountainAction=shift M` and `toValleyAction=shift V`
+    // in a real user's `hotkey.properties`. Asserted through the same lookup the
+    // importer uses, so a regression shows up here rather than as a skipped row.
+    expect(shortcutIdForOrieditaAction('toMountainAction')).toBe('cp.action.crease-make-mountain');
+    expect(shortcutIdForOrieditaAction('toValleyAction')).toBe('cp.action.crease-make-valley');
+    expect(shortcutIdForOrieditaAction('replace_lineAction')).toBe(
+      'cp.action.replace-line-type-select'
+    );
   });
 
   it('resolves persisted Oriedita mouse modes to the matching command action', () => {
