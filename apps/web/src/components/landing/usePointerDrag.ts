@@ -32,7 +32,7 @@ export interface PointerDragHandlers {
  */
 export function usePointerDrag(
   ref: RefObject<HTMLElement | null>,
-  options: { onSettle?: () => void } = {}
+  options: { onSettle?: (startScroll: number) => void } = {}
 ): PointerDragHandlers {
   const { onSettle } = options;
   const drag = useRef<{ id: number; startX: number; startScroll: number; moved: boolean } | null>(
@@ -95,8 +95,10 @@ export function usePointerDrag(
       suppressClick.current = true;
       // `onSettle` reads the resting position to pick a slide, so it has to run
       // while snapping is still suspended — restoring first would let the
-      // browser snap the value out from under it.
-      onSettle?.();
+      // browser snap the value out from under it. It gets where the drag began,
+      // because "how far did this gesture travel" is a different question from
+      // "where did it stop", and only the caller knows which one it wants.
+      onSettle?.(state.startScroll);
       element?.removeAttribute(DRAGGING_ATTR);
     },
     [onSettle, ref]

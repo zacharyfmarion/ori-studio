@@ -9,6 +9,18 @@ import { usePointerDrag } from './usePointerDrag';
 /** How long the track must sit still before the landed-on slide is reported. */
 const SETTLE_MS = 350;
 
+/**
+ * How far a drag has to travel to commit to the next slide: the smaller of this
+ * fraction of the track and {@link COMMIT_MAX_PX}.
+ *
+ * The cap is what matters on a desktop. A fraction alone scales with the track,
+ * so a 1120px carousel would want 168px of drag at 15% — a long way to move a
+ * mouse for one step. The cap keeps it to a flick on any width, while the
+ * fraction keeps it proportionate on a phone.
+ */
+const COMMIT_FRACTION = 0.15;
+const COMMIT_MAX_PX = 64;
+
 export interface LandingSwipeItem {
   /** Reported to analytics, so keep it stable. */
   id: LandingFeatureId;
@@ -123,13 +135,34 @@ export function LandingSwipeCarousel({
   }, [active, items]);
 
   // Where a mouse drag lets go, land on a slide rather than between two.
-  const snapToNearest = useCallback(() => {
-    const element = trackRef.current;
-    if (!element || element.clientWidth <= 0) return;
-    goTo(Math.round(element.scrollLeft / element.clientWidth));
-  }, [goTo]);
+  //
+  // Measured from where the gesture *started*, not from the nearest slide to
+  // where it stopped. Rounding to nearest means a drag has to cross half a
+  // slide to count — 560px on a 1120px track — which feels like the carousel is
+  // refusing to move. A short, decisive flick should commit.
+  const settleFromDrag = useCallback(
+    (startScroll: number) => {
+      const element = trackRef.current;
+      const width = element?.clientWidth ?? 0;
+      if (!element || width <= 0) return;
 
-  const dragHandlers = usePointerDrag(trackRef, { onSettle: snapToNearest });
+      const from = Math.round(startScroll / width);
+      const travelled = element.scrollLeft - startScroll;
+      const threshold = Math.min(width * COMMIT_FRACTION, COMMIT_MAX_PX);
+
+      // Past the threshold, move at least one slide — more if the drag actually
+      // covered more, so a long drag is not throttled to a single step.
+      const steps =
+        Math.abs(travelled) < threshold
+          ? 0
+          : Math.sign(travelled) * Math.max(1, Math.round(Math.abs(travelled) / width));
+
+      goTo(Math.min(Math.max(from + steps, 0), items.length - 1));
+    },
+    [goTo, items.length]
+  );
+
+  const dragHandlers = usePointerDrag(trackRef, { onSettle: settleFromDrag });
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const next = carouselKeyTarget(event.key, active, items.length);

@@ -244,6 +244,58 @@ describe('LandingSwipeCarousel', () => {
     expect(scrollTo).toHaveBeenLastCalledWith({ left: 2 * SLIDE_WIDTH, behavior: 'smooth' });
   });
 
+  it('commits on a short flick, well short of half a slide', () => {
+    // The threshold is min(15% of the track, 64px) measured from where the drag
+    // began — not "round to the nearest slide", which on a 600px track would
+    // have needed 300px of travel before anything moved.
+    const { track, scrollTo } = renderCarousel();
+
+    act(() => {
+      track.dispatchEvent(pointer('pointerdown', { x: 500 }));
+      track.dispatchEvent(pointer('pointermove', { x: 430 })); // 70px, over the 64px threshold
+      track.dispatchEvent(pointer('pointerup', { x: 430 }));
+    });
+
+    expect(selectedTitle()).toBe('Circle Packing');
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: SLIDE_WIDTH, behavior: 'smooth' });
+  });
+
+  it('returns to where it started when the drag is smaller than that', () => {
+    const { track } = renderCarousel();
+
+    act(() => {
+      track.dispatchEvent(pointer('pointerdown', { x: 500 }));
+      track.dispatchEvent(pointer('pointermove', { x: 460 })); // 40px, under the threshold
+      track.dispatchEvent(pointer('pointerup', { x: 460 }));
+    });
+
+    expect(selectedTitle()).toBe('Box Pleating');
+  });
+
+  it('takes more than one slide when the drag covers more than one', () => {
+    const { track } = renderCarousel();
+
+    act(() => {
+      track.dispatchEvent(pointer('pointerdown', { x: 1400 }));
+      track.dispatchEvent(pointer('pointermove', { x: 200 })); // 1200px == two slides
+      track.dispatchEvent(pointer('pointerup', { x: 200 }));
+    });
+
+    expect(selectedTitle()).toBe('ExplOri');
+  });
+
+  it('does not run off the end of the track', () => {
+    const { track } = renderCarousel();
+
+    act(() => {
+      track.dispatchEvent(pointer('pointerdown', { x: 5000 }));
+      track.dispatchEvent(pointer('pointermove', { x: 0 })); // far past the last slide
+      track.dispatchEvent(pointer('pointerup', { x: 0 }));
+    });
+
+    expect(selectedTitle()).toBe('ExplOri');
+  });
+
   it('leaves a click alone when the pointer barely moved', () => {
     const { track, scrollTo } = renderCarousel();
 
