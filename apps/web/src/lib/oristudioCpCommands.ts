@@ -482,13 +482,16 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick source crease', 'Pick width point'],
   }),
   ready('ContinuousSymmetricDraw', 'Continuous symmetric draw', 'construct', 'repeat', 'MouseHandlerContinuousSymmetricDraw', {
-    // Unlike the other hidden tools, this one *is* in Oriedita's UI (the
-    // "reflectThroughLines" button in DrawingTab) — hiding it is an Ori Studio
-    // product decision, not upstream alignment. It stays `ready` so the kernel,
-    // menus, and `.cp` mouse modes keep parity; only the rail button goes away.
-    // Its upstream Ctrl+R chord is dropped with it: a hidden tool that keeps a
-    // default chord is reachable with nothing on screen to show it is active.
-    placement: 'hidden-ui-only',
+    // On the rail, like upstream. This was hidden as an Ori Studio product
+    // decision while every other hidden tool is hidden for upstream alignment —
+    // Oriedita ships a "reflectThroughLines" button in DrawingTab. Hiding it
+    // made the tool unreachable by every route at once: no button, no default
+    // chord, and `isShortcutBindable` refuses a hidden action, so neither the
+    // Oriedita import nor a manual capture could give it one either. A user
+    // arriving with it bound in Oriedita had nowhere to land.
+    //
+    // Its upstream Ctrl+R chord comes back with it, per the note left on
+    // `continuousSymmetricDrawAction` in `keyboard/shortcuts.ts`.
     toolSteps: ['Pick start point', 'Pick through point'],
   }),
   // The two Measure tools. Upstream splits measuring across five operations that

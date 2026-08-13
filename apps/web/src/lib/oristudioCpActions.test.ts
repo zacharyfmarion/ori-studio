@@ -205,16 +205,19 @@ describe('oristudio CP action registry', () => {
     });
   });
 
-  it('hides Reflect Through Lines without dropping it from the registry', () => {
-    // A product decision rather than upstream alignment: the tool has a button
-    // in Oriedita's DrawingTab. It stays `ready` and keeps its mouse mode so a
-    // `.cp` saved with it selected still round-trips; only the rail entry goes.
+  it('puts Reflect Through Lines on the rail, like upstream', () => {
+    // This was hidden as a product decision rather than upstream alignment — the
+    // tool has a button in Oriedita's DrawingTab — and hiding it turned out to
+    // close every route at once: no button, no default chord, and
+    // `isShortcutBindable` refuses a hidden action, so neither the Oriedita
+    // import nor a manual capture could give it one. It keeps its mouse mode
+    // either way, so a `.cp` saved with it selected still round-trips.
     expect(cpActionByOperation('ContinuousSymmetricDraw')).toMatchObject({
       label: 'Reflect Through Lines',
-      placement: 'hidden-ui-only',
+      placement: 'left-rail',
       uiStatus: 'ready',
     });
-    expect(cpRailActions().map((action) => action.label)).not.toContain('Reflect Through Lines');
+    expect(cpRailActions().map((action) => action.label)).toContain('Reflect Through Lines');
     expect(cpActionByUpstreamMouseMode('CONTINUOUS_SYMMETRIC_DRAW_52')).toMatchObject({
       operationId: 'ContinuousSymmetricDraw',
     });
