@@ -34,6 +34,43 @@ export type DesignTabSource = 'strip' | 'duplicate' | 'file' | 'replace-last';
 /** Where a project came from when it was opened. */
 export type ProjectOpenSource = 'file' | 'example' | 'new' | 'drop' | 'share';
 
+/**
+ * Which register the `/welcome` landing page rendered in: the start screen, or
+ * the desktop-only notice a phone gets instead.
+ */
+export type LandingSurface = 'desktop' | 'phone';
+
+/** The landing sections below the fold, in page order. */
+export type LandingSectionId =
+  | 'what'
+  | 'edit'
+  | 'design'
+  | 'simulate'
+  | 'compatibility'
+  | 'get';
+
+/**
+ * The landing page's calls to action.
+ *
+ * No download: the desktop build is not released, so the page does not offer one.
+ */
+export type LandingCta = 'discord' | 'github' | 'scroll';
+
+/**
+ * A feature slide in one of the landing carousels.
+ *
+ * Which of these people open is the page's most direct read on what the audience
+ * actually came for, so the ids are stable and deliberately specific.
+ */
+export type LandingFeatureId =
+  | 'edit-angles'
+  | 'edit-media'
+  | 'edit-foldability'
+  | 'edit-share'
+  | 'design-treemaker'
+  | 'design-bp'
+  | 'design-explori';
+
 /** Export target formats (the file's kind only — never its name or contents). */
 export type ExportFormat =
   | 'osf'
@@ -199,6 +236,12 @@ export const ANALYTICS_EVENTS = {
   designSentToEdit: 'design sent to edit',
   themeChanged: 'theme changed',
   localeChanged: 'locale changed',
+  landingViewed: 'landing viewed',
+  landingSectionViewed: 'landing section viewed',
+  landingFeatureOpened: 'landing feature opened',
+  landingCtaClicked: 'landing cta clicked',
+  mobileBlockShown: 'mobile block shown',
+  mobileBlockBypassed: 'mobile block bypassed',
   orieditaShortcutsImported: 'oriedita shortcuts imported',
   orieditaShortcutsOverrideAll: 'oriedita shortcuts override all',
   shortcutDefaultsSourceChanged: 'shortcut defaults source changed',
