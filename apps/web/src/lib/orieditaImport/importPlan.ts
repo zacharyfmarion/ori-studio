@@ -578,11 +578,18 @@ function canEvict(
  * Two kinds, both of which `findShortcutShadowing` reports as conflicts because
  * it compares chords and cannot see intent:
  *
- * - **A `viewport` binding.** Viewport executors *decline* a chord they do not
- *   own and let it fall through — that is the documented mechanism behind
+ * - **A binding that {@link shortcutMayDecline}.** It answers `false` when it does
+ *   not apply and the chord falls through — the documented mechanism behind
  *   `viewport.delete` sharing Delete with `edit.delete`. Both work today;
  *   unbinding the viewport half would break deleting a selected canvas object to
- *   "fix" a conflict that never fires.
+ *   "fix" a conflict that never fires. Defensive by now, since a declining
+ *   binding is silenced before the shadow check and so is no longer reported as
+ *   a blocker at all — but the contract belongs here, not only at the call site
+ *   that currently makes it unreachable.
+ *
+ *   This read `blocker.scope === 'viewport'`, which also covered Zoom Out and the
+ *   other nine chords no viewport executor ever hands back, and left them with no
+ *   "Use anyway" offer and therefore no way through the import at all.
  * - **The same verb twice.** `cp.deleteExtraVertices` and
  *   `cp.action.delete-extra-vertices` both carry `v_del_allAction` and run the
  *   same sweep, so removing either changes nothing except the user's confidence
@@ -591,7 +598,7 @@ function canEvict(
 function isSharedByDesign(blockerId: ShortcutActionId, takenById: ShortcutActionId): boolean {
   const blocker = getShortcutDefinition(blockerId);
   if (!blocker) return false;
-  if (blocker.scope === 'viewport') return true;
+  if (shortcutMayDecline(blockerId)) return true;
   const taker = getShortcutDefinition(takenById);
   return Boolean(
     blocker.upstreamAction && taker?.upstreamAction === blocker.upstreamAction
