@@ -71,7 +71,7 @@ describe('WelcomeLanding', () => {
       rendered.querySelectorAll('#landing-design .landing-carousel__tab-title')
     ).map((tab) => tab.textContent);
 
-    expect(titles).toEqual(['TreeMaker', 'Box Pleating Studio', 'ExplOri']);
+    expect(titles).toEqual(['Box Pleating', 'Circle Packing', 'ExplOri']);
   });
 
   it('credits every upstream the app is ported from', () => {
@@ -132,7 +132,7 @@ describe('WelcomeLanding', () => {
     expect(sources).toEqual([
       '/landing/overview-dark.webp',
       '/landing/edit-angles-dark.webp',
-      '/landing/design-treemaker-dark.webp',
+      '/landing/design-bp-dark.webp',
       '/landing/simulate-dark.webp',
     ]);
   });
@@ -154,7 +154,7 @@ describe('WelcomeLanding', () => {
     expect(wanted).toEqual([
       'landing/overview-dark.webp',
       'landing/edit-angles-dark.webp',
-      'landing/design-treemaker-dark.webp',
+      'landing/design-bp-dark.webp',
       'landing/simulate-dark.webp',
     ]);
   });

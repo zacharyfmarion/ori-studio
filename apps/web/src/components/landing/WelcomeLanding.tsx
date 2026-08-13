@@ -141,23 +141,16 @@ export function WelcomeLanding() {
         <LandingFeatureCarousel
           label={t('landing:design.carouselLabel', 'Design methods')}
           items={[
-            {
-              id: 'design-treemaker',
-              figure: 'design-treemaker',
-              title: t('landing:design.treemaker.title', 'TreeMaker'),
-              body: t(
-                'landing:design.treemaker.body',
-                'Sketch a tree, set edge lengths and strain, and let the optimizer pack circles and rivers into a base.'
-              ),
-              figureAlt: t(
-                'landing:design.treemaker.figureAlt',
-                'A tree structure beside the circle packing the optimizer found for it.'
-              ),
-            },
+            // Ordered and titled by the *method*, not by the tool it came from:
+            // someone choosing how to pack a model is picking box pleating or
+            // circle packing, and only then cares which port implements it. The
+            // ids and figure names still say `design-bp` / `design-treemaker`,
+            // because those are what analytics reports and what the screenshots
+            // on disk are called.
             {
               id: 'design-bp',
               figure: 'design-bp',
-              title: t('landing:design.bp.title', 'Box Pleating Studio'),
+              title: t('landing:design.bp.title', 'Box Pleating'),
               body: t(
                 'landing:design.bp.body',
                 'Lay flaps out on a grid, with rivers, stretch devices and symmetry constraints, and read the crease pattern off the packing.'
@@ -165,6 +158,19 @@ export function WelcomeLanding() {
               figureAlt: t(
                 'landing:design.bp.figureAlt',
                 'Flaps packed onto a box-pleating grid with its crease pattern alongside.'
+              ),
+            },
+            {
+              id: 'design-treemaker',
+              figure: 'design-treemaker',
+              title: t('landing:design.treemaker.title', 'Circle Packing'),
+              body: t(
+                'landing:design.treemaker.body',
+                'Sketch a tree, set edge lengths and strain, and let the optimizer pack circles and rivers into a base.'
+              ),
+              figureAlt: t(
+                'landing:design.treemaker.figureAlt',
+                'A tree structure beside the circle packing the optimizer found for it.'
               ),
             },
             {
