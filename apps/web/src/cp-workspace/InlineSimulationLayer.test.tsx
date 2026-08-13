@@ -6,6 +6,7 @@ import { cpOverlayViewStore } from './cpOverlayViewStore';
 import { CP_VIEWPORT_CANVAS_CLASS } from './cpViewportCanvas';
 import type { InlineSimulation } from './inlineSimulation/inlineSimulation';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../lib/simulatorSettings';
+import { claimWheelBurst, endWheelBurst, forwardWheel } from '../lib/wheelBurst';
 import type { SimulatorStatus } from '../simulator/useSimulatorRuntime';
 
 /**
@@ -23,6 +24,8 @@ import type { SimulatorStatus } from '../simulator/useSimulatorRuntime';
  */
 
 const status = vi.hoisted(() => ({ current: 'ready' as SimulatorStatus }));
+/** Cameras the window pushed to its worker — one per zoom of its own fold. */
+const cameras = vi.hoisted(() => [] as { zoom: number }[]);
 
 // The worker runtime is stubbed: what is under test is which element the wheel
 // reaches, and a real solver session would only sit between the two.
@@ -39,7 +42,9 @@ vi.mock('../simulator/useSimulatorRuntime', () => ({
     settleTo: () => {},
     reset: () => {},
     setMaterial: () => {},
-    setCamera: () => {},
+    setCamera: (view: { zoom: number }) => {
+      cameras.push(view);
+    },
     setRenderSettings: () => {},
     exportSvg: async () => null,
   }),
@@ -90,6 +95,9 @@ function renderLayer(options: { focused: boolean; overlayInteractive: boolean })
       />
     );
   });
+  // Mounting pushes the window's opening camera; the assertions are about what
+  // a gesture adds to that.
+  cameras.length = 0;
 }
 
 /** The window's own canvas — where a wheel over a window actually lands. */
@@ -115,6 +123,7 @@ function scroll(): WheelEvent {
 
 beforeEach(() => {
   status.current = 'ready';
+  endWheelBurst();
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
@@ -122,11 +131,13 @@ beforeEach(() => {
   cpCanvas.className = CP_VIEWPORT_CANVAS_CLASS;
   document.body.appendChild(cpCanvas);
   forwarded = [];
+  cameras.length = 0;
   cpCanvas.addEventListener('wheel', (event) => forwarded.push(event as WheelEvent));
   act(() => cpOverlayViewStore.set({ model: VIEW, user: VIEW }));
 });
 
 afterEach(() => {
+  endWheelBurst();
   act(() => root?.unmount());
   container?.remove();
   cpCanvas?.remove();
@@ -168,6 +179,39 @@ describe('InlineSimulationLayer wheel', () => {
     const event = scroll();
 
     expect(forwarded).toHaveLength(0);
+    expect(cameras).toHaveLength(1);
     expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('lets a pan that began on the crease pattern cross a focused window', () => {
+    renderLayer({ focused: true, overlayInteractive: true });
+    // The gesture in flight: the canvas claimed it when the user started
+    // scrolling out on open paper, before the cursor got here.
+    if (cpCanvas) claimWheelBurst(cpCanvas);
+
+    scroll();
+
+    expect(forwarded).toHaveLength(1);
+    // And it stays a pan, rather than zooming the window it is passing over.
+    expect(cameras).toHaveLength(0);
+  });
+
+  it('keeps a zoom on the window it began on once the cursor moves away', () => {
+    renderLayer({ focused: true, overlayInteractive: true });
+
+    // Started here, so this window owns the gesture.
+    scroll();
+
+    // What the crease-pattern canvas asks when the cursor strays onto it
+    // mid-gesture, and what it does with the answer — the two lines of its
+    // `onWheel`, replayed here because mounting that canvas needs a GPU.
+    const owner = cpCanvas ? claimWheelBurst(cpCanvas).owner : null;
+    expect(owner).toBe(windowCanvas());
+    act(() => {
+      if (owner) forwardWheel(owner, new WheelEvent('wheel', { deltaY: 40 }));
+    });
+
+    expect(cameras).toHaveLength(2);
+    expect(forwarded).toHaveLength(0);
   });
 });

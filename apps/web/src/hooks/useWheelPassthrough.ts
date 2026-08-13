@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { forwardWheel } from '../lib/wheelBurst';
 
 /**
  * Hand a wheel gesture over a piece of floating chrome to the surface underneath.
@@ -45,33 +46,10 @@ export function useWheelPassthrough(
       // `contains` covers itself, so chrome that resolves to something within
       // its own subtree drops the gesture rather than re-entering this handler.
       if (!target || element.contains(target)) return;
-      target.dispatchEvent(clonedWheel(event));
+      forwardWheel(target, event);
     };
 
     element.addEventListener('wheel', onWheel, { passive: false });
     return () => element.removeEventListener('wheel', onWheel);
   }, [element, enabled]);
-}
-
-/**
- * A copy of a wheel event for re-dispatch.
- *
- * Deliberately non-bubbling (the `WheelEvent` default): the clone is delivered
- * straight to the surface that should act on it, and letting it bubble would
- * walk it back up through the chrome that just forwarded it.
- */
-function clonedWheel(event: WheelEvent): WheelEvent {
-  return new WheelEvent('wheel', {
-    deltaX: event.deltaX,
-    deltaY: event.deltaY,
-    deltaMode: event.deltaMode,
-    clientX: event.clientX,
-    clientY: event.clientY,
-    // The modifiers are what tell a canvas pan from zoom, so a copy without
-    // them turns a pinch over the chrome into a pan.
-    ctrlKey: event.ctrlKey,
-    metaKey: event.metaKey,
-    shiftKey: event.shiftKey,
-    cancelable: true,
-  });
 }

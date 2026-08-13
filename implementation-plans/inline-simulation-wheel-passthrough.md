@@ -38,15 +38,45 @@ matches the folded-figure window (`foldedOrbit.claimsWheel` in
 `CreasePatternWebglCanvas`), so it is left alone; passing `undefined` to the hook
 is its documented "leave the wheel alone" input.
 
-Not changed: a wheel over a *focused, ready* window still zooms that window's
-fold rather than panning the canvas, for either wheel-gesture preference. That is
-existing intended behavior shared with folded figures, and changing it is a
-product decision rather than part of this bug.
+### Second pass: whose gesture is it
+
+The first pass fixed the silent stall, and left the *focused* window claiming any
+wheel that crossed it — matching the folded-figure window. In use that is the
+same bug with a different symptom: a pan begun out on the paper turns into a zoom
+of a window the cursor was only passing over.
+
+The missing idea is gesture ownership. A drag gets it free from pointer capture;
+the wheel is the one input that cannot be captured, because it has no start and
+no end — so every event goes to whatever is under the cursor at that instant.
+
+`lib/wheelBurst.ts` supplies it: the first event of a burst fixes the owner, later
+events are routed there regardless of the cursor, and the burst ends after the
+wheel goes quiet (220ms — the idle bound `useFoldedFigures` already uses for its
+zoom-commit, and the only end a wheel has). Three surfaces consult it:
+
+- **The crease-pattern canvas** claims the burst, and forwards to the owner when
+  that is someone else — so a zoom begun on a window survives the cursor leaving
+  it, the mirror of the case that started this.
+- **A focused window's viewport** asks before zooming, through a new optional
+  `claimsWheel` prop on `SimulatorViewport` (the Simulate workspace fills its own
+  pane, omits it, and is unchanged).
+- **The window's passthrough** forwards to whichever surface owns the burst —
+  including *another* window, which is why the owner token is the window's canvas
+  rather than its frame.
+
+Two things fall out for free. The folded figure's `claimsWheel` hit test is now
+decided once per burst, so a pan crossing a focused folded figure keeps panning —
+the same complaint, on the other window kind. And `forwardWheel` is one function:
+`useWheelPassthrough`'s private wheel-clone moved into the module beside it.
 
 ## Affected Areas
 
+- `apps/web/src/lib/wheelBurst.ts` (new) and its test
+- `apps/web/src/hooks/useWheelPassthrough.ts` — forwards through the shared helper
 - `apps/web/src/cp-workspace/InlineSimulationLayer.tsx`
 - `apps/web/src/cp-workspace/InlineSimulationLayer.test.tsx` (new)
+- `apps/web/src/cp-workspace/CreasePatternWebglCanvas.tsx` — `onWheel` routing
+- `apps/web/src/simulator/SimulatorViewport.tsx` — optional `claimsWheel`
 
 ## Checklist
 
@@ -54,5 +84,10 @@ product decision rather than part of this bug.
 - [x] Attach `useWheelPassthrough` to the window, gated on the window's own claim
 - [x] Regression test: wheel over an unclaimed window reaches the CP canvas; over
       a focused ready one it does not
+- [x] Wheel-burst ownership so an in-flight gesture keeps its owner
+- [x] Route the CP canvas, the window's viewport and the window's passthrough
+      through it; decide the folded-figure claim once per burst
+- [x] Tests: ownership primitive, pan crossing a focused window, zoom surviving
+      the cursor leaving one
 - [x] `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`
 - [x] Draft PR
