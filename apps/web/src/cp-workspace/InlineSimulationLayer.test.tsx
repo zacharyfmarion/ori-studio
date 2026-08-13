@@ -1,0 +1,173 @@
+import { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { InlineSimulationLayer } from './InlineSimulationLayer';
+import { cpOverlayViewStore } from './cpOverlayViewStore';
+import { CP_VIEWPORT_CANVAS_CLASS } from './cpViewportCanvas';
+import type { InlineSimulation } from './inlineSimulation/inlineSimulation';
+import { DEFAULT_SIMULATOR_SETTINGS } from '../lib/simulatorSettings';
+import type { SimulatorStatus } from '../simulator/useSimulatorRuntime';
+
+/**
+ * Wheel handling for an inline simulation window.
+ *
+ * A window takes pointer events whenever it is focused *or* the shared selection
+ * overlay is inert — which is any time a drawing tool is armed — and that also
+ * makes it swallow the wheel: the crease-pattern canvas listens on the canvas
+ * element, which is no ancestor of a window, so a pan crossing one simply
+ * stopped. The window claims the gesture either way (nothing behind it wants a
+ * browser page zoom), so the stall was silent.
+ *
+ * What is asserted is therefore *where the gesture ends up*: the canvas, unless
+ * this window is the one entitled to it.
+ */
+
+const status = vi.hoisted(() => ({ current: 'ready' as SimulatorStatus }));
+
+// The worker runtime is stubbed: what is under test is which element the wheel
+// reaches, and a real solver session would only sit between the two.
+vi.mock('../simulator/useSimulatorRuntime', () => ({
+  webglRenderSupported: () => true,
+  useSimulatorRuntime: () => ({
+    status: status.current,
+    error: null,
+    model: null,
+    playing: false,
+    gpuActive: true,
+    setPlaying: () => {},
+    setFoldPercent: () => {},
+    settleTo: () => {},
+    reset: () => {},
+    setMaterial: () => {},
+    setCamera: () => {},
+    setRenderSettings: () => {},
+    exportSvg: async () => null,
+  }),
+}));
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+// The viewport observes its own canvas for resizes; jsdom has no ResizeObserver.
+class ResizeObserverStub {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+
+/** An identity-ish camera, which is all the layer needs to place a window. */
+const VIEW = { origin: [0, 0] as const, ex: [1, 0] as const, ey: [0, 1] as const };
+
+const SIMULATION: InlineSimulation = {
+  id: 'sim-1',
+  box: { center: { x: 0, y: 0 }, width: 120, height: 120, rotation: 0 },
+  z: 1,
+  view: { yaw: 0, pitch: 0, zoom: 1 },
+  sourceBoundary: null,
+  sourceBounds: null,
+  sourceFingerprint: null,
+  segmentIdHint: null,
+};
+
+let root: Root | null = null;
+let container: HTMLDivElement | null = null;
+let cpCanvas: HTMLCanvasElement | null = null;
+let forwarded: WheelEvent[] = [];
+
+function renderLayer(options: { focused: boolean; overlayInteractive: boolean }): void {
+  act(() => {
+    root?.render(
+      <InlineSimulationLayer
+        simulations={[SIMULATION]}
+        focusedId={options.focused ? SIMULATION.id : null}
+        staleIds={new Set()}
+        viewSettings={DEFAULT_SIMULATOR_SETTINGS}
+        playing={false}
+        overlayInteractive={options.overlayInteractive}
+        replayRequest={0}
+        onFocus={() => {}}
+        onPlayingChange={() => {}}
+      />
+    );
+  });
+}
+
+/** The window's own canvas — where a wheel over a window actually lands. */
+function windowCanvas(): HTMLCanvasElement {
+  const element = container?.querySelector<HTMLCanvasElement>('.cp-inline-simulation__canvas');
+  if (!element) throw new Error('inline simulation window did not render');
+  return element;
+}
+
+/** Two-finger scroll: a pan on the crease-pattern canvas, under either preference. */
+function scroll(): WheelEvent {
+  const event = new WheelEvent('wheel', {
+    deltaX: 12,
+    deltaY: 40,
+    bubbles: true,
+    cancelable: true,
+  });
+  act(() => {
+    windowCanvas().dispatchEvent(event);
+  });
+  return event;
+}
+
+beforeEach(() => {
+  status.current = 'ready';
+  container = document.createElement('div');
+  document.body.appendChild(container);
+  root = createRoot(container);
+  cpCanvas = document.createElement('canvas');
+  cpCanvas.className = CP_VIEWPORT_CANVAS_CLASS;
+  document.body.appendChild(cpCanvas);
+  forwarded = [];
+  cpCanvas.addEventListener('wheel', (event) => forwarded.push(event as WheelEvent));
+  act(() => cpOverlayViewStore.set({ model: VIEW, user: VIEW }));
+});
+
+afterEach(() => {
+  act(() => root?.unmount());
+  container?.remove();
+  cpCanvas?.remove();
+  root = null;
+  container = null;
+  cpCanvas = null;
+});
+
+describe('InlineSimulationLayer wheel', () => {
+  it('hands a pan over an unfocused window to the crease-pattern canvas', () => {
+    // The overlay goes inert the moment a drawing tool is armed, which is what
+    // makes every window on the canvas take pointer events.
+    renderLayer({ focused: false, overlayInteractive: false });
+
+    const event = scroll();
+
+    expect(forwarded).toHaveLength(1);
+    expect(forwarded[0]?.deltaX).toBe(12);
+    expect(forwarded[0]?.deltaY).toBe(40);
+    // Claimed rather than left to the browser: an unhandled ctrl+wheel here
+    // would zoom the whole page.
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('hands a pan over a focused window that is still loading to the canvas', () => {
+    // The viewport claims the wheel and then drops it while it is not
+    // interactive, so this is the same silent stall by another route.
+    status.current = 'loading';
+    renderLayer({ focused: true, overlayInteractive: true });
+
+    scroll();
+
+    expect(forwarded).toHaveLength(1);
+  });
+
+  it('keeps the wheel when the focused window is ready to zoom its own fold', () => {
+    renderLayer({ focused: true, overlayInteractive: true });
+
+    const event = scroll();
+
+    expect(forwarded).toHaveLength(0);
+    expect(event.defaultPrevented).toBe(true);
+  });
+});

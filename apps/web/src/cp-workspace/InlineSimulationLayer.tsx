@@ -10,6 +10,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { FoldDocument as SimulatorFoldDocument } from '@treemaker/origami-simulator';
 import { useCpOverlayView } from './cpOverlayViewStore';
+import { resolveCpViewportCanvas } from './cpViewportCanvas';
+import { useWheelPassthrough } from '../hooks/useWheelPassthrough';
 import { overlayCssPerModel, overlayModelToCss } from './annotations/annotationTransform';
 import type { InlineSimulation } from './inlineSimulation/inlineSimulation';
 import {
@@ -236,6 +238,9 @@ function InlineSimulationWindow({
   const { t } = useTranslation();
   const viewportRef = useRef<SimulatorViewportHandle | null>(null);
   const [, setCanvasEl] = useState<HTMLCanvasElement | null>(null);
+  // State rather than a ref: the wheel listener below has to re-attach when this
+  // element arrives, which a ref would not tell anyone about.
+  const [windowEl, setWindowEl] = useState<HTMLDivElement | null>(null);
   // Subscribed, not read: a window restored from a file gets its fold rebuilt
   // *after* the descriptors reach the store, and that rebuild deliberately does
   // not write to the store. A plain read found nothing and never looked again.
@@ -338,6 +343,32 @@ function InlineSimulationWindow({
     onFrame: handleFrame,
   });
 
+  /**
+   * Whether this window's interior takes gestures of its own — drags orbit the
+   * fold, and the wheel zooms it.
+   */
+  const interactive = focused && runtime.status === 'ready';
+
+  /**
+   * Hand the wheel back to the crease pattern when this window is not the one
+   * claiming it.
+   *
+   * A window takes pointer events while focused *and* while the shared selection
+   * overlay is inert — which is any time a drawing tool is armed — and that also
+   * makes it swallow the wheel: the canvas's listener is on the canvas element,
+   * which is no ancestor of this one, so a pan crossing a window simply stopped.
+   * The viewport inside claims the gesture either way (nothing behind it wants a
+   * browser page zoom) and then drops it when it is not interactive, so there was
+   * nothing on screen to explain the stall.
+   *
+   * The same hook and the same resolver every other overlay over this canvas uses
+   * — see `CpTextAnnotationLayer`, which sits at this exact spot in the tree.
+   * `undefined` while interactive is the hook's "leave the wheel alone": there the
+   * viewport's own listener zooms the fold, exactly as a focused folded-figure
+   * window does through `foldedOrbit.claimsWheel`.
+   */
+  useWheelPassthrough(windowEl, interactive ? undefined : resolveCpViewportCanvas);
+
   // A scrub or replay from the toolbar moves the solver's target.
   //
   // Subscribed rather than read from a prop, so a fold advancing does not
@@ -400,7 +431,7 @@ function InlineSimulationWindow({
   // focus. The `simulator` scope it pushes sits ahead of `crease-pattern`, so
   // Space plays the fold here and still pans the canvas everywhere else.
   useSimulatorShortcuts({
-    active: focused && runtimeStatus === 'ready',
+    active: interactive,
     foldStepPercent: FOLD_STEP_PERCENT,
     handlers: {
       playPause: () => onPlayingChange(!playing),
@@ -483,6 +514,7 @@ function InlineSimulationWindow({
 
   return (
     <div
+      ref={setWindowEl}
       className="cp-inline-simulation"
       data-focused={focused || undefined}
       data-stale={stale || undefined}
@@ -505,7 +537,7 @@ function InlineSimulationWindow({
         ref={viewportRef}
         canvasKey="bitmap"
         onCanvasChange={setCanvasEl}
-        interactive={focused && runtime.status === 'ready'}
+        interactive={interactive}
         gpuActive={runtime.gpuActive}
         bitmapPresent
         minDeviceSize={64}
