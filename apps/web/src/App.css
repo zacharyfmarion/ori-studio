@@ -14,8 +14,9 @@
 }
 
 /*
- * The welcome page's scroll container: one screenful of start screen (or, on a
- * phone, the desktop-only notice) with the landing sections below it.
+ * The welcome page's scroll container: on a desktop, one screenful of start
+ * screen with the landing sections below it; on a phone, the landing straight
+ * away.
  *
  * The scrolling deliberately happens *here* and not on `.app-layout--start`,
  * which stays clipped at `100vh`. `.file-drop-overlay` is absolutely positioned
@@ -39,16 +40,15 @@
 }
 
 /*
- * The first screenful — the start screen, or on a phone the desktop-only notice.
- * One rule for both, so the two heads of the welcome page cannot drift apart.
+ * The first screenful, on a device that gets one. A phone has no hero at all —
+ * the landing is the top of the page there — so this is the start screen only.
  *
  * `safe center` rather than plain centering: when the content is taller than the
  * viewport, centering pushes its top above the scroll origin where nothing can
  * reach it, and `safe` falls back to flex-start instead. `dvh` because a mobile
  * browser's collapsing URL bar makes `vh` taller than what is actually visible.
  */
-.start-screen,
-.welcome-notice {
+.start-screen {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -59,6 +59,36 @@
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--bg-secondary) 88%, var(--bg-primary)), var(--bg-primary)),
     var(--bg-primary);
+}
+
+/*
+ * The phone's only way into the app: a corner button above the landing rather
+ * than a screen explaining itself. The caveat rides in the label, which is where
+ * the decision is actually made.
+ */
+.welcome-open-app {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-3) var(--space-4) 0;
+}
+
+.welcome-open-app__button {
+  padding: 8px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 640;
+  line-height: 1.2;
+  text-align: right;
+  cursor: pointer;
+}
+
+.welcome-open-app__button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-primary) 72%, transparent);
+  outline-offset: 2px;
 }
 
 .start-screen__content {
@@ -790,8 +820,7 @@
     display: none;
   }
 
-  .start-screen,
-  .welcome-notice {
+  .start-screen {
     /* The main axis under `flex-direction: column` — top-align, don't center. */
     justify-content: flex-start;
     padding: var(--space-4);

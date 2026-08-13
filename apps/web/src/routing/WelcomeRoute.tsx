@@ -6,7 +6,7 @@ import {
   useLandingViewedEvent,
 } from '../analytics';
 import { FileDropOverlay } from '../components/FileDropOverlay';
-import { DesktopOnlyNotice } from '../components/landing/DesktopOnlyNotice';
+import { MobileOpenAppLink } from '../components/landing/MobileOpenAppLink';
 import {
   FIRST_LANDING_SECTION_ID,
   LANDING_SECTIONS,
@@ -49,17 +49,18 @@ function resetStatus(current: AppStatus, engineReady: boolean, blocked: boolean)
 }
 
 /**
- * The `/welcome` route: a landing page whose first screenful is either the start
- * screen or, on a phone, the notice saying why there isn't one.
+ * The `/welcome` route: a landing page led by the start screen, or on a phone by
+ * nothing at all.
  *
  * The start screen only ever opens. Creating or opening a document establishes it
  * in the store, then navigates to the workspace that owns it. Arriving here
  * clears transient project state (a discarded dirty flag, a stale error/message)
  * so the start screen is a clean slate.
  *
- * A phone gets no start screen, no drop target and no "show welcome on startup"
- * toggle — every one of them offers a way into a workspace it cannot reach. The
- * landing below the fold is the same for both.
+ * A phone gets no start screen, no drop target, no "show welcome on startup"
+ * toggle and no scroll cue — every one of them is about a workspace it cannot
+ * reach, or a fold that is not there. It gets the landing straight away and one
+ * corner button out. The landing itself is the same on both.
  *
  * Whether a cold start lands here or straight in Edit is decided by the router's
  * index redirect (the "Show welcome on startup" preference), not this component —
@@ -132,7 +133,11 @@ export function WelcomeRoute() {
     >
       <main className="welcome-page" ref={pageRef}>
         {blocked ? (
-          <DesktopOnlyNotice onOpenAnyway={handleOpenAnyway} />
+          // No hero on a phone: the landing starts at the top and the only
+          // affordance is a corner button. A full-screen "desktop only" notice
+          // spent every pixel above the fold explaining what you cannot do, and
+          // pushed what you came to read out of sight.
+          <MobileOpenAppLink onOpenAnyway={handleOpenAnyway} />
         ) : (
           <StartScreen
             status={status}
@@ -146,11 +151,18 @@ export function WelcomeRoute() {
         )}
         <WelcomeLanding />
       </main>
-      <WelcomeScrollCue
-        scrollerRef={pageRef}
-        targetId={FIRST_LANDING_SECTION_ID}
-        onActivate={() => trackCta('scroll')}
-      />
+      {/*
+        The cue exists to say "there is more below the first screenful". With no
+        hero there is no first screenful to get past — the landing is already
+        the top of the page — so on a phone it would point at what is on screen.
+      */}
+      {blocked ? null : (
+        <WelcomeScrollCue
+          scrollerRef={pageRef}
+          targetId={FIRST_LANDING_SECTION_ID}
+          onActivate={() => trackCta('scroll')}
+        />
+      )}
       {blocked ? null : <FileDropOverlay visible={isDragActive} policy={WELCOME_DROP_POLICY} />}
     </div>
   );
