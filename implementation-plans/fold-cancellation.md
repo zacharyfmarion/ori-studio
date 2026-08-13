@@ -209,11 +209,13 @@ whose interior is already covered by finer sites. They cost nothing and they are
 what makes the parity accounting complete; they are not what meets the 100 ms
 bar.
 
-Site 9 was demoted to tier 2 in an earlier draft. It is promoted because it calls
-the same `line_face_border` full-face scan the [Aside](#what-actually-takes-the-time)
-identifies as the ~88% asymptotic regression, once per line, twice per Order 4
-(`folding.rs:2515`, `:4163`). Leaving it conditional risks shipping a multi-second
-uninterruptible stretch on exactly the models this feature exists for. While
+Site 9 was demoted to tier 2 in an earlier draft, then promoted because it called
+the full-face `line_face_border` scan once per line, twice per Order 4
+(`folding.rs:2515`, `:4163`). **PR #251 removed that scan**, so its body is now an
+array read and the `O(F·k)` estimate in the table is stale — re-measure it in
+Phase 1 before deciding its tier. It is left in tier 1 pending that number, on the
+principle that an over-covered site costs a poll and an under-covered one costs
+the bar. While
 there, check the sibling scans at `folding.rs:1565` and `:1592`/`:1602` for
 fold-reachability and tier them the same way.
 
@@ -1375,12 +1377,12 @@ and the background CAMV refresh come in now or later.
 
 ## Out of scope
 
-- **The `line_face_border` linear scan** (`fold_graph.rs:120`). The single
-  highest-value perf fix and probably ~88% of a long fold, but it is a
-  behaviour-preserving change to a parity-sensitive path and needs its own oracle
-  run. File it; do not merge it here. Doing it first would be defensible and
-  would change which checkpoints are load-bearing — that is a scheduling call for
-  the author, not a design one.
+- ~~**The `line_face_border` linear scan.**~~ **Done first, in PR #251**, on the
+  reasoning below — it was the one open item that could have invalidated the
+  checkpoint ranking, so leaving it pending would have meant building a budget on
+  a hot path about to be reshaped. It did not change the ranking. Numbers and
+  correctness evidence are
+  [above](#line_face_border--done-first-and-it-did-not-change-the-answer).
 - **The desktop `Arc<Mutex<CpSession>>`-for-the-whole-fold design.** Every other
   CP command still queues behind a running fold for its full duration.
   Cancellation makes that survivable; it does not fix it. Separate, larger.
@@ -1465,6 +1467,24 @@ corrections only).
 **Docs** — `PORTING.md`; this file.
 
 ## Checklist
+
+**Landed in PR #251 — prerequisites, not a phase**
+
+- [x] Resolve open question 1: do the `line_face_border` fix first. Done, and it
+      did **not** change the checkpoint ranking — condition generation is still
+      85 % of setup after it. See
+      [the section above](#line_face_border--done-first-and-it-did-not-change-the-answer).
+- [x] `fold_profile` reads `.osf` and `.cp`, takes `--max-order N` and `--csv`,
+      and survives a refusing fold — the plumbing every Phase-1 measurement needs
+- [x] Identify slow inputs: `slow_tiling_fold.osf` (19 652 segments; Order1–4 in
+      26.4 s, Order5 > 1 h) and the 563-file `cpoogle` corpus (30 files ≥ 1 600
+      segments). Neither is committed; see
+      [Measuring the latency claim](#measuring-the-latency-claim).
+- [x] Establish the phase split on a genuinely slow model
+
+Phase 1 proper is still **open**: nothing below has been done, because
+`max_check_gap_ms` measures the gap *between checkpoints* and no checkpoint
+exists yet.
 
 **Phase 1 — instrumentation**
 
@@ -1666,9 +1686,9 @@ corrections only).
 - [ ] `PORTING.md`: record the CAMV narrowing (we cancel the fold, not the
       background CAMV recompute, in V1)
 - [ ] Update the budget table in this file with Phase 1's measured numbers
-- [ ] File the two out-of-scope findings as issues:
-      `FoldGraph::line_face_border` linear scan;
+- [ ] File the remaining out-of-scope finding as an issue:
       `infer_final_subface_transitivity` O(S·k³) rescan
+      (`FoldGraph::line_face_border` is done — PR #251)
 - [ ] Browser checklist for the author: cancel a long fold in the browser and in
       a **packaged** desktop build (`tauri build` — `npm run dev:desktop` is not a
       valid witness: its `devUrl` is vite, which sets COOP/COEP that the packaged
