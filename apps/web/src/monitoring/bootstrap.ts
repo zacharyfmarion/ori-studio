@@ -11,6 +11,7 @@
  * thing we asked Sentry for.
  */
 
+import { getOrCreateStableId } from '../analytics/stableId';
 import { appBuildInfo } from '../lib/appBuildInfo';
 import { getRuntimeSurface } from '../platform/runtime';
 import { isMonitoringConsented, setMonitoringEnabled } from './runtime';
@@ -128,6 +129,21 @@ export function initializeSentry(
         app_version: build.version,
         app_commit: build.commit,
       },
+      // The anonymous id PostHog identifies with, so a crash can be joined to
+      // the session that produced it.
+      //
+      // It has to be set *here* rather than only in `setMonitoringEnabled`.
+      // That function needs a live client, and the client is bound later, by
+      // `MonitoringRuntimeProvider`'s layout effect — so between `init` and
+      // first render there is no user on the scope at all. That window is the
+      // whole of startup: PostHog init, router construction, i18n, and the
+      // first render of the tree. A crash there is exactly the kind you most
+      // want to correlate, and it was arriving with no way to join on.
+      //
+      // Gated on consent because `getOrCreateStableId` *creates and persists*
+      // an id as a side effect: calling it while opted out would mint an
+      // identifier for someone who asked us not to.
+      user: options.monitoringEnabled ? { id: getOrCreateStableId() } : undefined,
     },
   });
 
