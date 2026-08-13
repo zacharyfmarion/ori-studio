@@ -1,5 +1,6 @@
 import type createREGL from 'regl';
 import type { PointGeometry, ViewTransform, Viewport } from '../types';
+import { disposeOnce } from './disposeOnce';
 
 type Regl = ReturnType<typeof createREGL>;
 type Buffer = ReturnType<Regl['buffer']>;
@@ -270,13 +271,13 @@ export function createPointProgram(regl: Regl): PointProgram {
         instanceCount: count,
       });
     },
-    dispose() {
+    dispose: disposeOnce(() => {
       quad.destroy();
       centerBuf?.destroy();
       radiusBuf?.destroy();
       screenSpaceBuf?.destroy();
       fillBuf?.destroy();
       strokeBuf?.destroy();
-    },
+    }),
   };
 }

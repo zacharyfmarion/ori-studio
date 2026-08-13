@@ -58,6 +58,28 @@ describe('createAnalyticsApi', () => {
     expect(client.capture).toHaveBeenCalledTimes(2);
   });
 
+  // One failure mode can break several surfaces at once — a DOM teardown bug
+  // fingerprints identically whether it hits the dock or a dialog. Keying the
+  // window on the fingerprint alone collapsed those into one event, which hid
+  // that it was happening in more than one place.
+  it('dedupes per surface, so the same error on two surfaces is two events', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 0, 1, 0, 0, 0));
+    const client = makeFakeClient();
+    const api = createAnalyticsApi(client);
+
+    api.trackError({ error: new Error('boom'), sourceComponent: 'shell:dockview' });
+    api.trackError({ error: new Error('boom'), sourceComponent: 'overlay:settings' });
+    expect(client.capture).toHaveBeenCalledTimes(2);
+
+    // Still deduped within a surface.
+    api.trackError({ error: new Error('boom'), sourceComponent: 'shell:dockview' });
+    expect(client.capture).toHaveBeenCalledTimes(2);
+
+    const surfaces = client.capture.mock.calls.map(([, props]) => props.source_component);
+    expect(surfaces).toEqual(['shell:dockview', 'overlay:settings']);
+  });
+
   it('attaches domain, fingerprint, and handled to error events', () => {
     const client = makeFakeClient();
     const api = createAnalyticsApi(client);
