@@ -196,6 +196,30 @@ Unifying the *candidate sets* (kernel: crease endpoints + circle centres + grid;
 frontend: also standalone points, paper corners, line interiors) is the larger
 follow-up. This plan unifies the radius only.
 
+## Implementation notes
+
+- **The floor is `min(R·k, 10 CSS px)`, not a flat 10.** A flat floor tested
+  cleanly and was wrong in the browser: every radius below ~7 resolved to the
+  same 10 CSS px, so the bottom third of the slider did nothing and "less grabby
+  snapping" — a thing this setting exists to offer — was unreachable. The floor
+  now means "never decay below what this setting gives at 100% zoom, and never
+  ask for more than 10 px", which leaves every value distinguishable at every
+  zoom: `R = 2` holds 2.94 px throughout, `R = 10` gives 14.7 px zoomed in and
+  floors at 10, `R = 100` decays 147 → 14.7 rather than to nothing.
+- **The five non-radius reuses of `selection_distance` are upstream-faithful.**
+  Audited against the Java line by line (Fishbone's `del_V`, Voronoi's seed
+  toggle including its asymmetric comparisons, Foldable Line's drag gate, and the
+  endpoint redirect/abort gates): upstream reuses `selectionDistance` for exactly
+  those decisions, so the slider moves them exactly as Oriedita's does. Documented,
+  not changed.
+- **The Delete path's `selection_distance: 1` must never follow the setting.**
+  Those points are exact stored coordinates of an already-selected point, so the
+  tolerance only has to cover float noise; at a wide radius it would delete a
+  *neighbouring* point. Left alone, with a comment saying why.
+- **`DEFAULT_SELECTION_DISTANCE = 1.0` stays.** It is the fallback for callers
+  with no cursor at all — CLI, headless wasm, the CP-detect import path — where
+  upstream's 10 would be a large tolerance chosen for a mouse that isn't there.
+
 ## Risks and edge cases
 
 - **Nothing in CI covers any of these laws.** The canvas constants have no test

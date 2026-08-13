@@ -36,13 +36,29 @@ describe('cpSnapRadiusModel', () => {
     expect(cpSnapRadiusModel(10, crossover - 0.05)).toBeGreaterThan(10);
   });
 
-  it('never resolves to a smaller on-screen radius than the app shipped before', () => {
+  it('stops the zoomed-out decay at the floor', () => {
     // The floor exists because our canvas is ~10 paper widths and fit-zoom opens
     // large documents far out, where upstream's law alone decays to a pixel or two.
     for (const zoom of [0.5, 0.25, 0.1, 0.05, 0.01]) {
       expect(screenPx(cpSnapRadiusModel(10, zoom), zoom)).toBeGreaterThanOrEqual(
         CP_MIN_SNAP_RADIUS_CSS - 1e-9
       );
+    }
+  });
+
+  it('lets a tight setting stay tight — the floor never overrides the user', () => {
+    // A flat floor would resolve every radius below ~7 to the same 10 CSS px,
+    // so the bottom of the slider would do nothing and "less grabby snapping",
+    // the thing this setting exists for, would be unreachable.
+    const tightAt100 = screenPx(cpSnapRadiusModel(2, 1), 1);
+    expect(tightAt100).toBeCloseTo(2 * CP_MODEL_TO_CSS, 9);
+    expect(tightAt100).toBeLessThan(CP_MIN_SNAP_RADIUS_CSS);
+    expect(cpSnapRadiusModel(2, 1)).toBeLessThan(cpSnapRadiusModel(5, 1));
+    expect(cpSnapRadiusModel(5, 1)).toBeLessThan(cpSnapRadiusModel(10, 1));
+
+    // ...and it still stops decaying when zoomed out, at its own 100% feel.
+    for (const zoom of [0.25, 0.05]) {
+      expect(screenPx(cpSnapRadiusModel(2, zoom), zoom)).toBeCloseTo(tightAt100, 9);
     }
   });
 
@@ -61,7 +77,7 @@ describe('cpSnapRadiusModel', () => {
   });
 
   it('scales with the user setting', () => {
-    expect(cpSnapRadiusModel(2, 1)).toBeCloseTo(Math.max(2, CP_MIN_SNAP_RADIUS_CSS / CP_MODEL_TO_CSS), 12);
+    expect(cpSnapRadiusModel(2, 1)).toBeCloseTo(2, 12);
     expect(cpSnapRadiusModel(100, 1)).toBeCloseTo(100, 12);
     expect(cpSnapRadiusModel(100, 4)).toBeCloseTo(25, 12);
   });

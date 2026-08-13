@@ -36,13 +36,18 @@ export const CP_LINE_HIT_RATIO = 0.8;
 export const CP_POINT_HIT_RATIO = 0.6;
 
 /**
- * The smallest on-screen radius we will resolve to, in CSS px, before ratios.
+ * Ceiling on the zoomed-out floor, in CSS px, before ratios. Today's
+ * `SNAP_TOLERANCE_CSS`.
  *
- * This is today's `SNAP_TOLERANCE_CSS`, chosen so the floor means exactly "never
- * less forgiving on screen than the app already was". Upstream needs no such
- * floor: its world *is* the 400-unit paper, while our editable canvas is about
- * ten paper widths, so `fitUserCamera` opens large documents far enough out that
- * upstream's law alone would decay the radius to a pixel or two.
+ * The floor itself is the smaller of this and what the user's own radius gives at
+ * 100% zoom, which matters at the tight end of the slider: a flat 10 px floor
+ * would quietly ignore every setting below ~7, so a user asking for *less*
+ * grabby snapping would get today's behaviour and no explanation.
+ *
+ * A floor is needed at all only because our editable canvas is about ten paper
+ * widths where upstream's world *is* the 400-unit paper, so `fitUserCamera`
+ * opens large documents far enough out that upstream's law alone decays the
+ * radius to a pixel or two.
  */
 export const CP_MIN_SNAP_RADIUS_CSS = 10;
 
@@ -63,8 +68,11 @@ export function cpSnapRadiusModel(radius: number, zoom: number, ratio: number = 
   const safeZoom = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
   const safeRadius = Number.isFinite(radius) && radius > 0 ? radius : CP_DEFAULT_SNAP_RADIUS;
   const upstream = (safeRadius * ratio) / Math.max(1, safeZoom);
-  // The floor carries the ratio too: flattening the spread at low zoom would
-  // break the vertex-vs-crease priority the ratios exist to express.
-  const floor = (CP_MIN_SNAP_RADIUS_CSS * ratio) / (CP_MODEL_TO_CSS * safeZoom);
+  // Never decay below what this setting already gives at 100% zoom, and never
+  // demand more than `CP_MIN_SNAP_RADIUS_CSS`. The floor carries the ratio too:
+  // flattening the spread at low zoom would break the vertex-vs-crease priority
+  // the ratios exist to express.
+  const floorCss = Math.min(safeRadius * CP_MODEL_TO_CSS, CP_MIN_SNAP_RADIUS_CSS) * ratio;
+  const floor = floorCss / (CP_MODEL_TO_CSS * safeZoom);
   return Math.max(upstream, floor);
 }
