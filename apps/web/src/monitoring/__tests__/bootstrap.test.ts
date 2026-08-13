@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { peekStableId } from '../../analytics/stableId';
 import { initializeSentry } from '../bootstrap';
 import { isMonitoringConsented, setMonitoringEnabled } from '../runtime';
 import type { SentryClientLike } from '../types';
@@ -73,6 +74,30 @@ describe('initializeSentry', () => {
     expect(config.initialScope).toMatchObject({
       tags: { runtime_surface: expect.stringMatching(/^(web|desktop)$/) },
     });
+  });
+
+  it('attaches the anonymous id at init, not at first render', () => {
+    const client = makeFakeClient();
+    initializeSentry(client, { monitoringEnabled: true }, DSN_ENV);
+
+    // `setMonitoringEnabled` cannot do this on its own: it needs a live client,
+    // and the client is not bound until MonitoringRuntimeProvider mounts. An
+    // error thrown during startup would otherwise carry no id to join on.
+    expect(initConfig(client).initialScope).toMatchObject({
+      user: { id: peekStableId() },
+    });
+    expect(peekStableId()).toBeTruthy();
+  });
+
+  it('mints no id at all while opted out', () => {
+    const client = makeFakeClient();
+    initializeSentry(client, { monitoringEnabled: false }, DSN_ENV);
+
+    const scope = initConfig(client).initialScope as { user?: unknown };
+    expect(scope.user).toBeUndefined();
+    // The stronger claim: reading the id creates and persists one, so an
+    // opted-out user must not even reach that call.
+    expect(peekStableId()).toBeNull();
   });
 
   it('seeds consent from the passed option, so beforeSend is correct immediately', () => {
