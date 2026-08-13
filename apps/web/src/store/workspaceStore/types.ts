@@ -410,7 +410,12 @@ export interface ProjectSliceActions {
     figureId: string,
     fileService?: FileService
   ) => Promise<boolean>;
-  loadExampleProject: (id: string) => Promise<void>;
+  /**
+   * Load a bundled example. False when nothing was established — an unknown id, a
+   * declined discard prompt, or a load that failed — so the caller can tell an
+   * opened project from a no-op, the way {@link openProject} does.
+   */
+  loadExampleProject: (id: string) => Promise<boolean>;
   clearProjectMessage: () => void;
   setActivePanelId: (id: string | null) => void;
   /** Enter the Design workspace on the method chooser without creating a document. */

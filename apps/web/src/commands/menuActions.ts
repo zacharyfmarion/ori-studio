@@ -12,6 +12,7 @@ import { useWorkspaceStore } from '../store/workspaceStore';
 import { selectWorkspaceCapabilities } from '../store/workspaceStore/capabilities';
 import type { WorkspaceCapabilities, WorkspaceCapabilityId } from '../lib/workspaceCapabilities';
 import { requestPositiveNumber, type NumberDialogOptions } from '../store/commandDialogStore';
+import { showActiveWorkspace } from '../routing/workspaceUrlSync';
 import { requestStartScreen } from './startScreenController';
 import type {
   OristudioCpCommandPayload,
@@ -129,7 +130,7 @@ export interface WorkspaceCommands {
   unsubdivideOristudioBpLayoutSheet(): Promise<boolean>;
   rotateOristudioBpLayoutSheet(clockwise: boolean): Promise<boolean>;
   flipOristudioBpLayoutSheet(horizontal: boolean): Promise<boolean>;
-  loadExampleProject(id: string): Promise<void>;
+  loadExampleProject(id: string): Promise<boolean>;
   openProject(fileService?: FileService): Promise<boolean>;
   importAddCreasePattern(fileService?: FileService): Promise<boolean>;
   saveProject(fileService?: FileService): Promise<boolean>;
@@ -225,6 +226,12 @@ export interface MenuActionDependencies {
   fileService: FileService;
   capabilities?: () => WorkspaceCapabilities;
   showStartScreen?: () => Promise<boolean>;
+  /**
+   * Point the app at the workspace the store is on. Defaults to the real router,
+   * so this cannot be a wiring line someone forgets to pass — see
+   * {@link showActiveWorkspace} for why the actions below need it at all.
+   */
+  showWorkspace?: () => void;
   quit?: () => void;
   about?: () => void;
   settings?: () => void;
@@ -285,6 +292,22 @@ const CP_SELECTION_TRANSFORM_ACTIONS: Partial<Record<MenuActionId, CpSelectionTr
   'cp.transformRotateRight': { kind: 'rotate', angleDegrees: -90 },
 };
 
+/**
+ * View entries, by the pane each one shows. A table rather than four switch arms
+ * because they share the part that was missing: activating a pane moves the app
+ * to that pane's workspace, and the move has to reach the URL. One dispatch point
+ * is one place to say so. `view.resetLayout` is not here — it rearranges the
+ * workspace you are already in.
+ */
+const VIEW_PANEL_ACTIONS: Partial<Record<MenuActionId, string>> = {
+  'view.design': 'design',
+  'view.edit': 'crease-pattern',
+  'view.creasePattern': 'crease-pattern',
+  'view.simulate': 'simulator',
+  'view.simulator': 'simulator',
+  'view.conditions': 'conditions',
+};
+
 export function isMenuActionId(id: string): id is MenuActionId {
   return (MENU_ACTION_IDS as readonly string[]).includes(id);
 }
@@ -292,14 +315,17 @@ export function isMenuActionId(id: string): id is MenuActionId {
 const OPEN_EXAMPLE_PREFIX = 'file.openExample:';
 
 export function createMenuActionHandler(deps: MenuActionDependencies) {
+  const showWorkspace = () => (deps.showWorkspace ?? showActiveWorkspace)();
+
   return async (id: string): Promise<boolean> => {
     // Data-driven File menu entries (examples) carry their target in the id;
     // they are dispatched by prefix rather than the static id union.
     if (id.startsWith(OPEN_EXAMPLE_PREFIX)) {
       const exampleId = id.slice(OPEN_EXAMPLE_PREFIX.length);
       if (!exampleId) return false;
-      await deps.workspace.loadExampleProject(exampleId);
-      return true;
+      const opened = await deps.workspace.loadExampleProject(exampleId);
+      if (opened) showWorkspace();
+      return opened;
     }
     if (!isMenuActionId(id)) {
       console.warn(`Unknown menu action: ${id}`);
@@ -315,8 +341,14 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
     const fileCommand = FILE_ACTIONS[id];
     if (fileCommand) {
       switch (fileCommand) {
-        case 'openProject':
-          return deps.workspace.openProject(deps.fileService);
+        case 'openProject': {
+          const opened = await deps.workspace.openProject(deps.fileService);
+          // The load picked its own landing workspace; until this, nothing told
+          // the router — so opening from the start screen filled the store and
+          // left the start screen on screen.
+          if (opened) showWorkspace();
+          return opened;
+        }
         case 'importAddCreasePattern':
           return deps.workspace.importAddCreasePattern(deps.fileService);
         case 'saveProject':
@@ -388,6 +420,13 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
     const cpSelectionTransform = CP_SELECTION_TRANSFORM_ACTIONS[id];
     if (cpSelectionTransform) {
       return deps.workspace.transformOristudioCpSelection(cpSelectionTransform);
+    }
+
+    const viewPanel = VIEW_PANEL_ACTIONS[id];
+    if (viewPanel) {
+      deps.layout.activatePanel(viewPanel);
+      showWorkspace();
+      return true;
     }
 
     switch (id) {
@@ -590,20 +629,6 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         return true;
       case 'edit.triangulateTree':
         await deps.workspace.triangulateTree();
-        return true;
-      case 'view.design':
-        deps.layout.activatePanel('design');
-        return true;
-      case 'view.edit':
-      case 'view.creasePattern':
-        deps.layout.activatePanel('crease-pattern');
-        return true;
-      case 'view.simulate':
-      case 'view.simulator':
-        deps.layout.activatePanel('simulator');
-        return true;
-      case 'view.conditions':
-        deps.layout.activatePanel('conditions');
         return true;
       case 'view.resetLayout':
         deps.layout.resetLayout();

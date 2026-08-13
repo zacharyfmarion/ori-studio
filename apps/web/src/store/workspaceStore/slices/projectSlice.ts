@@ -3039,15 +3039,19 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     },
 
     loadExampleProject: async (id) => {
-      if (!(await confirmDiscardDirty(get().dirty))) return;
+      if (!(await confirmDiscardDirty(get().dirty))) return false;
       const example = getExampleProject(id);
-      if (!example) return;
+      if (!example) return false;
       await get().loadProjectText(example.text, {
         title: example.title,
         filename: example.filename,
       });
       // The example's id/title is not sent — only that an example was opened.
       track('project opened', { source: 'example' });
+      // `loadProjectText` turns a failed load into `status: 'error'` rather than
+      // throwing, so the status is what says whether this landed anywhere. The
+      // caller needs that answer to decide whether to show the workspace.
+      return get().status !== 'error';
     },
 
     clearProjectMessage: () => set({ projectMessage: null }),
