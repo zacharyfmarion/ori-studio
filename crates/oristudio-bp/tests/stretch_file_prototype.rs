@@ -189,6 +189,15 @@ fn a_restored_prototype_can_still_be_switched() {
 
 const PINNING: &str =
     include_str!("../../../tests/fixtures/bp-studio/pythagorean-stretch-pinning.sample.json");
+/// A file Ori Studio itself saved, in the file form: `{id, configuration,
+/// pattern}`, no `repo`, no `history`.
+const SAVED_FILE: &str =
+    include_str!("../../../tests/fixtures/bp-studio/pythagorean-stretch-saved-file.sample.json");
+
+/// BP Studio's device ridges after loading the file form and dragging flap 1 to
+/// (13,4) — the junction overlap regenerates from (3,1) to (2,2). Captured
+/// through the edit path with `tools/bp-studio-oracle/layout-graphics.ts`.
+const ORACLE_RIDGES_MOVED_TO_13_4: &str = "[[[12,7],[14,5]],[[12,7],[8,9]],[[13,4],[12,7]],[[13,4],[13,4]],[[8,9],[8,9]],[[8,9],[9,6]],[[9,6],[12,3]],[[9,6],[13,4]]]";
 
 /// The session form keeps what only makes sense while running; the file form
 /// keeps what upstream's `Project.toJSON()` keeps.
@@ -277,21 +286,44 @@ fn a_reopened_file_does_not_pin_on_a_flap_move() {
         .move_flap(1, oristudio_bp::model::Point { x: 13.0, y: 4.0 }, false)
         .expect("move flap 1");
 
-    // Same expectation as the in-session case: the (2,2) overlap, regenerated.
-    let overlaps = reopened
-        .project()
-        .design
-        .layout
-        .stretches
-        .iter()
-        .filter_map(|stretch| stretch.repo.as_ref())
-        .flat_map(|repo| repo.configurations.iter())
-        .flat_map(|config| config.partitions.iter())
-        .flat_map(|partition| partition.overlaps.iter())
-        .map(|overlap| (overlap.ox, overlap.oy))
-        .collect::<Vec<_>>();
-    assert!(
-        !overlaps.contains(&(3.0, 1.0)),
-        "the reopened stretch is still pinned to the saved (3,1) overlap"
+    // Assert on what is drawn. An earlier version of this test read the
+    // overlaps out of `stretch.repo`, which a reopened file does not have — so
+    // it compared an empty list and passed while the stretch was still pinned.
+    assert_eq!(
+        sorted_ridges(&reopened),
+        without_degenerate(ORACLE_RIDGES_MOVED_TO_13_4),
+        "the reopened stretch is still pinned to the saved (3,1) configuration"
+    );
+}
+
+/// The same thing, from a file Ori Studio actually wrote, opened cold.
+///
+/// This is the shape the bug was reported in: save, reload, drag — no
+/// select-and-switch in the reopened session at all.
+#[test]
+fn a_saved_file_opened_cold_regenerates_on_a_flap_move() {
+    let mut session = session(SAVED_FILE);
+    // Whatever was saved, it is a prototype for the (3,1) structure at (12,3).
+    assert_eq!(
+        session.project().design.layout.stretches[0]
+            .configuration
+            .as_ref()
+            .map(|config| config
+                .partitions
+                .iter()
+                .flat_map(|partition| partition.overlaps.iter().map(|o| (o.ox, o.oy)))
+                .collect::<Vec<_>>()),
+        Some(vec![(3.0, 1.0)])
+    );
+
+    session
+        .move_flap(1, oristudio_bp::model::Point { x: 13.0, y: 4.0 }, false)
+        .expect("move flap 1");
+
+    assert_eq!(
+        sorted_ridges(&session),
+        without_degenerate(ORACLE_RIDGES_MOVED_TO_13_4),
+        "a prototype describing junctions that no longer exist must be dropped, \
+         not translated onto the new geometry"
     );
 }
