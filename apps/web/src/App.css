@@ -62,17 +62,23 @@
 }
 
 /*
- * The phone's only way into the app: a corner button above the landing rather
- * than a screen explaining itself. The caveat rides in the label, which is where
- * the decision is actually made.
+ * The phone's page header: a way into the app, then the masthead.
+ *
+ * The bar has real space under it. The button used to sit flush on the first
+ * section's top border, which read as a rendering mistake rather than a divider.
  */
-.welcome-open-app {
-  display: flex;
-  justify-content: flex-end;
-  padding: var(--space-3) var(--space-4) 0;
+.welcome-mobile-header {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-3) var(--space-5) var(--space-6);
 }
 
-.welcome-open-app__button {
+.welcome-mobile-header__bar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.welcome-mobile-header__open {
   padding: 8px 14px;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-full);
@@ -82,13 +88,35 @@
   font-size: 0.78rem;
   font-weight: 640;
   line-height: 1.2;
-  text-align: right;
   cursor: pointer;
 }
 
-.welcome-open-app__button:focus-visible {
+.welcome-mobile-header__open:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--accent-primary) 72%, transparent);
   outline-offset: 2px;
+}
+
+.welcome-mobile-header__brand {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.welcome-mobile-header__title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: clamp(2.4rem, 12vw, 3.2rem);
+  font-weight: 780;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.welcome-mobile-header__tagline {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  font-weight: 520;
+  line-height: 1.5;
+  text-wrap: balance;
 }
 
 .start-screen__content {

@@ -6,7 +6,7 @@ import {
   useLandingViewedEvent,
 } from '../analytics';
 import { FileDropOverlay } from '../components/FileDropOverlay';
-import { MobileOpenAppLink } from '../components/landing/MobileOpenAppLink';
+import { MobileLandingHeader } from '../components/landing/MobileLandingHeader';
 import {
   FIRST_LANDING_SECTION_ID,
   LANDING_SECTIONS,
@@ -50,7 +50,7 @@ function resetStatus(current: AppStatus, engineReady: boolean, blocked: boolean)
 
 /**
  * The `/welcome` route: a landing page led by the start screen, or on a phone by
- * nothing at all.
+ * a compact masthead.
  *
  * The start screen only ever opens. Creating or opening a document establishes it
  * in the store, then navigates to the workspace that owns it. Arriving here
@@ -59,8 +59,8 @@ function resetStatus(current: AppStatus, engineReady: boolean, blocked: boolean)
  *
  * A phone gets no start screen, no drop target, no "show welcome on startup"
  * toggle and no scroll cue — every one of them is about a workspace it cannot
- * reach, or a fold that is not there. It gets the landing straight away and one
- * corner button out. The landing itself is the same on both.
+ * reach, or a fold that is not there. It gets a masthead, one button out, and
+ * then the landing. The landing itself is the same on both.
  *
  * Whether a cold start lands here or straight in Edit is decided by the router's
  * index redirect (the "Show welcome on startup" preference), not this component —
@@ -133,11 +133,11 @@ export function WelcomeRoute() {
     >
       <main className="welcome-page" ref={pageRef}>
         {blocked ? (
-          // No hero on a phone: the landing starts at the top and the only
-          // affordance is a corner button. A full-screen "desktop only" notice
-          // spent every pixel above the fold explaining what you cannot do, and
-          // pushed what you came to read out of sight.
-          <MobileOpenAppLink onOpenAnyway={handleOpenAnyway} />
+          // A phone gets a masthead and a way in, not a screenful of apology:
+          // the landing starts right under it. The full-screen "desktop only"
+          // notice this replaced spent every pixel above the fold explaining
+          // what you could not do.
+          <MobileLandingHeader onOpenAnyway={handleOpenAnyway} />
         ) : (
           <StartScreen
             status={status}
