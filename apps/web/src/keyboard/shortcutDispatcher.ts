@@ -4,6 +4,7 @@ import {
   keyChordFromKeyboardEvent,
   SHORTCUT_DEFINITIONS,
   type ShortcutActionId,
+  type ShortcutDefaultsSource,
   type ShortcutOverrides,
   type ShortcutScope,
   type ShortcutTarget,
@@ -50,6 +51,12 @@ export interface ShortcutExecutors {
 export interface ShortcutDispatchOptions {
   scopeStack: ShortcutScope[];
   overrides?: ShortcutOverrides;
+  /**
+   * Which defaults the unoverridden bindings resolve against. It has to reach
+   * the dispatcher, not just the settings list, or the toggle would rename the
+   * keys on screen without moving the ones that actually fire.
+   */
+  defaultsSource?: ShortcutDefaultsSource;
   executors: ShortcutExecutors;
 }
 
@@ -74,10 +81,15 @@ export function handleShortcutKeyDown(
   const chord = keyChordFromKeyboardEvent(event);
   if (!chord) return false;
 
+  const resolution = {
+    overrides: options.overrides,
+    defaultsSource: options.defaultsSource,
+  };
+
   for (const scope of options.scopeStack) {
     const definition = SHORTCUT_DEFINITIONS.find((candidate) => {
       if (candidate.scope !== scope) return false;
-      return getResolvedShortcuts(candidate.id, options.overrides).some((shortcut) =>
+      return getResolvedShortcuts(candidate.id, resolution).some((shortcut) =>
         keyChordEquals(shortcut, chord)
       );
     });

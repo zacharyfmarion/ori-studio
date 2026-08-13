@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EditingContext } from '../workspaces/editingContext';
-import { registerViewportShortcutExecutor } from '../keyboard/shortcutRuntime';
+import {
+  registerCpActionShortcutExecutor,
+  registerViewportShortcutExecutor,
+} from '../keyboard/shortcutRuntime';
+import type { ShortcutDefaultsSource } from '../keyboard/shortcuts';
 import { handleAppKeyDown, installAppKeyboardListener } from './appKeyboard';
 import { createSampleProject, type Selection } from './sampleProject';
 import { selectEverything } from './selection';
@@ -325,5 +329,36 @@ describe('app keyboard — Escape reaches the surface that owns it', () => {
 
     expect(handleAppKeyDown(event, actions)).toBe(true);
     expect(actions.selectNone).toHaveBeenCalledOnce();
+  });
+});
+
+describe('the defaults source reaches a real keypress', () => {
+  // The one path a keypress actually takes. Everything else — the Settings list,
+  // the "Default" column, the native menu — reads the source through its own
+  // call, so all of them can be right while this one is wrong, and the toggle
+  // then looks like it worked and changes nothing you can press.
+  function pressM(defaultsSource: ShortcutDefaultsSource | undefined) {
+    const fired: string[] = [];
+    cleanups.push(registerCpActionShortcutExecutor((id) => fired.push(id)));
+    const actions = {
+      ...createActions(selectEverything(createSampleProject()), {
+        activeEditingContext: 'crease-pattern',
+      }),
+      getShortcutDefaultsSource: () => defaultsSource,
+    } as Parameters<typeof handleAppKeyDown>[1];
+    handleAppKeyDown(new KeyboardEvent('keydown', { key: 'm', cancelable: true }), actions);
+    return fired;
+  }
+
+  it('fires Mirror Line on the Ori Studio layout', () => {
+    expect(pressM('ori-studio')).toEqual(['cp.action.symmetric-draw']);
+  });
+
+  it('fires Mountain on the Oriedita layout', () => {
+    expect(pressM('oriedita')).toEqual(['cp.action.line-type.mountain']);
+  });
+
+  it('treats an absent source as Ori Studio', () => {
+    expect(pressM(undefined)).toEqual(['cp.action.symmetric-draw']);
   });
 });

@@ -1101,6 +1101,26 @@ export function cpCommandCandidatesCarryCrease(
   return operationId ? CP_KERNEL_DECIDED_CANDIDATE_OPERATIONS.has(operationId) : false;
 }
 
+/**
+ * Tools that resolve an endpoint *inside* the kernel and so do their own
+ * close-point search.
+ *
+ * Angle Restricted Line has to: the point it snaps is the cursor projected onto
+ * the angle system, which only the kernel knows. Every other draw tool snaps on
+ * the canvas before the command is built, and the kernel sees a resolved point.
+ * These are the commands whose payload therefore has to carry the snap policy.
+ */
+const CP_KERNEL_SNAPPED_OPERATIONS = new Set<OristudioCpOperationId>([
+  'DrawCreaseAngleRestricted5',
+]);
+
+/** Whether `operationId` snaps its own endpoint kernel-side. */
+export function cpCommandSnapsKernelSide(
+  operationId: OristudioCpOperationId | undefined
+): boolean {
+  return operationId ? CP_KERNEL_SNAPPED_OPERATIONS.has(operationId) : false;
+}
+
 export function cpRailCommands(): OristudioCpCommandDefinition[] {
   return ORISTUDIO_CP_COMMANDS.filter(
     (command) => command.placement === 'left-rail' || command.placement === 'left-rail-overflow'

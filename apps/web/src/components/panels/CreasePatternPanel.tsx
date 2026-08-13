@@ -33,6 +33,7 @@ import type {
   OristudioCpRgbColor,
   OristudioCpLineColor,
   OristudioCpLineSegment,
+  OristudioCpSnapCandidates,
 } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
 import { CpDiagnosticHud } from '../../cp-workspace/diagnostics/CpDiagnosticHud';
@@ -46,6 +47,7 @@ import {
   type OristudioCpCommandActionDefinition,
 } from '../../lib/oristudioCpActions';
 import {
+  cpCommandSnapsKernelSide,
   cpCommandUsesActiveLineColor,
   type OristudioCpCommandDefinition,
 } from '../../lib/oristudioCpCommands';
@@ -80,6 +82,7 @@ import {
 } from '../../lib/orieditaNativeMetadata';
 import {
   CP_PAPER_RECT,
+  cpKernelSnapCandidates,
   cpModelToSvg,
   cpSelectionSize,
   cpSvgToModel,
@@ -338,13 +341,20 @@ function cpCommandPayloadDefaults(
   gridWidth: number | undefined,
   lineColor: OristudioCpLineColor,
   zoomScale: number,
-  toolOptions: OristudioCpToolOptions
+  toolOptions: OristudioCpToolOptions,
+  snapCandidates: OristudioCpSnapCandidates | undefined
 ): OristudioCpCommandPayload {
   const payload: OristudioCpCommandPayload = {};
   const operationId = command.operationId;
 
   if ((command.toolSteps?.length ?? 0) > 0 || command.inputMode === 'drag-path') {
     payload.selection_distance = modelSelectionDistance(bounds, zoomScale);
+  }
+
+  // Only the tools that snap inside the kernel; everything else arrives with a
+  // point the canvas already resolved.
+  if (snapCandidates && cpCommandSnapsKernelSide(operationId)) {
+    payload.snap_candidates = snapCandidates;
   }
 
   if (cpCommandUsesActiveLineColor(operationId)) {
@@ -926,9 +936,15 @@ export function CreasePatternPanel() {
     (state) => state.transformOristudioCpSelection
   );
   const shortcutOverrides = useShortcutStore((state) => state.overrides);
+  const shortcutDefaultsSource = useShortcutStore((state) => state.defaultsSource);
+  // Hints must name the key that actually fires, so they read the active layout.
+  const shortcutResolution = useMemo(
+    () => ({ overrides: shortcutOverrides, defaultsSource: shortcutDefaultsSource }),
+    [shortcutOverrides, shortcutDefaultsSource]
+  );
   // The fold chord lands on FoldingEstimate (Fold is the deduped duplicate);
   // `handleCpShortcutAction` routes both to the real fold path.
-  const foldShortcutLabel = shortcutLabelForAction('cp.action.folding-estimate', shortcutOverrides);
+  const foldShortcutLabel = shortcutLabelForAction('cp.action.folding-estimate', shortcutResolution);
 
   const editableCp = oristudioCpDocument?.document ?? null;
   const editableCpHandle = oristudioCpDocument?.handle ?? null;
@@ -1408,6 +1424,16 @@ export function CreasePatternPanel() {
     () => modelSelectionDistance(editableCpBounds, zoomPercent / 100),
     [editableCpBounds, zoomPercent]
   );
+  // What a kernel-side snap may land on. The viewport owns snapping, so the
+  // policy is stated once here and the kernel searches by it — see
+  // `cpKernelSnapCandidates`.
+  const cpKernelSnapPolicy = useMemo(
+    () =>
+      editableCp
+        ? cpKernelSnapCandidates(editableCp.crease_pattern.grid, oristudioCpViewport)
+        : undefined,
+    [editableCp, oristudioCpViewport]
+  );
   const buildCpCommandPayload = useCallback(
     (
       command: OristudioCpCommandDefinition,
@@ -1419,11 +1445,19 @@ export function CreasePatternPanel() {
         editableCpGridWidth,
         effectiveCpLineColor,
         zoomPercent / 100,
-        cpToolOptions
+        cpToolOptions,
+        cpKernelSnapPolicy
       ),
       ...payload,
     }),
-    [effectiveCpLineColor, cpToolOptions, editableCpBounds, editableCpGridWidth, zoomPercent]
+    [
+      cpKernelSnapPolicy,
+      effectiveCpLineColor,
+      cpToolOptions,
+      editableCpBounds,
+      editableCpGridWidth,
+      zoomPercent,
+    ]
   );
 
   const [cpToolUnavailable, setCpToolUnavailable] = useState<string | null>(null);
@@ -3087,7 +3121,7 @@ export function CreasePatternPanel() {
                 setZoomLevel={setZoomLevel}
                 panToolActive={panToolActive}
                 togglePanTool={() => setPanToolActive((active) => !active)}
-                panShortcutLabel={shortcutLabelForAction('viewport.pan', shortcutOverrides)}
+                panShortcutLabel={shortcutLabelForAction('viewport.pan', shortcutResolution)}
                 viewRotation={viewRotation}
                 rotateView={(direction) =>
                   cpCamera()?.rotateBy(direction * VIEW_ROTATION_STEP_RADIANS)
@@ -3095,8 +3129,8 @@ export function CreasePatternPanel() {
                 setViewRotation={(degrees) =>
                   cpCamera()?.rotateTo((degrees * Math.PI) / 180)
                 }
-                rotateCcwShortcutLabel={shortcutLabelForAction('viewport.rotateCcw', shortcutOverrides)}
-                rotateCwShortcutLabel={shortcutLabelForAction('viewport.rotateCw', shortcutOverrides)}
+                rotateCcwShortcutLabel={shortcutLabelForAction('viewport.rotateCcw', shortcutResolution)}
+                rotateCwShortcutLabel={shortcutLabelForAction('viewport.rotateCw', shortcutResolution)}
               >
                 {editableCp && (
                   <>

@@ -114,6 +114,52 @@ describe('CpFoldAngleLayer', () => {
     expect((badges[0] as HTMLElement).style.transform).toContain('translate(50px, 40px)');
   });
 
+  describe('camera', () => {
+    const setView = (origin: [number, number], ex: [number, number], ey: [number, number]) => {
+      act(() => {
+        cpOverlayViewStore.set({ model: { origin, ex, ey }, user: { origin, ex, ey } });
+      });
+    };
+    const layer = () => host.querySelector('.cp-fold-angle-layer') as HTMLElement;
+
+    it('translates the whole layer on a pan, leaving the badges untouched', () => {
+      // The optimisation this layer exists on: a pan moves `origin` only, so one
+      // transform on the container reproduces every badge position exactly. If
+      // this ever regresses to re-projecting per badge, panning a dense pattern
+      // costs a React render and 300 style writes per frame.
+      const badges = render([crease('Red1', 10, deg(90)), crease('Blue2', 20, deg(45))]);
+      const before = badges.map((badge) => (badge as HTMLElement).style.transform);
+
+      setView([30, -12], [1, 0], [0, 1]);
+
+      const after = [...host.querySelectorAll('.cp-fold-angle-layer__badge')];
+      expect(after[0]).toBe(badges[0]);
+      expect(after[1]).toBe(badges[1]);
+      expect(after.map((badge) => (badge as HTMLElement).style.transform)).toEqual(before);
+      expect(layer().style.transform).toBe('translate(30px, -12px)');
+    });
+
+    it('re-projects on a zoom, because screen lengths decide the plan', () => {
+      render([crease('Blue2', 40, deg(60), 100)]);
+
+      setView([0, 0], [2, 0], [0, 2]);
+
+      // Midpoint (50, 40) through a 2x basis, and the accumulated pan offset is
+      // back to zero because the badges carry their own new positions again.
+      expect((host.querySelector('.cp-fold-angle-layer__badge') as HTMLElement).style.transform)
+        .toContain('translate(100px, 80px)');
+      expect(layer().style.transform).toBe('');
+    });
+
+    it('keeps panning correctly after a zoom re-plan', () => {
+      render([crease('Blue2', 40, deg(60), 100)]);
+      setView([0, 0], [2, 0], [0, 2]);
+      // The delta is measured from the re-planned view, not the original one.
+      setView([15, 25], [2, 0], [0, 2]);
+      expect(layer().style.transform).toBe('translate(15px, 25px)');
+    });
+  });
+
   describe('tool candidates', () => {
     const candidate = (
       color: string,

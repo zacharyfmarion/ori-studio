@@ -943,6 +943,16 @@ export interface OristudioCpFoldedFigureEntry {
   contradiction?: OristudioCpFoldContradiction | null;
 }
 
+/** Mirrors the kernel's `model::SnapCandidates`. */
+export interface OristudioCpSnapCandidates {
+  /** Grid state to search; `'Hidden'` means no grid points. */
+  grid: OristudioCpGridState;
+  /** Whether crease endpoints and circle centres are candidates. */
+  vertices: boolean;
+}
+
+export type OristudioCpGridState = 'Hidden' | 'WithinPaper' | 'Full';
+
 export interface OristudioCpCommandPayload {
   line_ids?: number[];
   line_segments?: OristudioCpLineSegment[];
@@ -956,6 +966,13 @@ export interface OristudioCpCommandPayload {
    */
   fold_magnitude_degrees?: number;
   selection_distance?: number;
+  /**
+   * What a kernel-side snap may land on. Oriedita gates its close-point search
+   * on grid visibility alone; this carries our Snapping toggle as well, so the
+   * kernel and the canvas snap by one policy. Omitted means upstream — every
+   * vertex, and the grid the document declares.
+   */
+  snap_candidates?: OristudioCpSnapCandidates;
   replace_selection?: boolean;
   grid_width?: number;
   /** Whether a completion candidate may end on an auxiliary line. */

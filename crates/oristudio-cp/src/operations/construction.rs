@@ -10,7 +10,7 @@ use crate::geometry::{
     is_line_segment_parallel, is_line_segment_parallel_with_precision, is_point_within_line_span,
     line_segment_rotate, line_segment_rotate_scaled, mid_point, move_parallel, point_rotate,
 };
-use crate::model::CreasePatternModel;
+use crate::model::{CreasePatternModel, GridState, SnapCandidates, SnapPolicy};
 use crate::operations::arrangement::{
     add_line_segment_like_worker, del_v_at_point, divide_line_segment_with_new_lines,
 };
@@ -89,7 +89,7 @@ pub fn draw_crease_angle_restricted_5(
     pointer: Point,
     angle_system_divider: i32,
     angles: [f64; 6],
-    selection_distance: f64,
+    snap: SnapPolicy,
     color: LineColor,
 ) -> bool {
     let release = snap_to_close_point_in_active_angle_system(
@@ -98,11 +98,11 @@ pub fn draw_crease_angle_restricted_5(
         pointer,
         angle_system_divider,
         angles,
-        selection_distance,
+        snap,
     );
     draw_crease_segment(
         model,
-        &LineSegment::with_color(anchor, release, color),
+        &LineSegment::with_color(anchor, release.point, color),
         DrawCreaseTarget::FoldLine,
     )
 }
@@ -426,31 +426,47 @@ pub fn snap_to_active_angle_system(
     result
 }
 
-/// Oriedita `SnappingUtil.snapToClosePointInActiveAngleSystem` without UI grid candidates.
+/// Where an angle-restricted drag ends up, and whether that was a snap.
+///
+/// The flag is what lets the surface ring the endpoint honestly: it means the
+/// point sits on a real vertex or grid point, not on the bare projection.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AngleSystemEndpoint {
+    pub point: Point,
+    pub snapped: bool,
+}
+
+/// Oriedita `SnappingUtil.snapToClosePointInActiveAngleSystem`.
 pub fn snap_to_close_point_in_active_angle_system(
     model: &CreasePatternModel,
     start: Point,
     point: Point,
     angle_system_divider: i32,
     angles: [f64; 6],
-    selection_distance: f64,
-) -> Point {
+    snap: SnapPolicy,
+) -> AngleSystemEndpoint {
     let snapped = snap_to_active_angle_system(
         model,
         start,
         point,
         angle_system_divider,
         angles,
-        selection_distance,
+        snap.selection_distance,
     );
-    let closest_point = closest_model_point(model, snapped);
+    let closest_point = closest_point_like_worker(model, snapped, snap.candidates);
     let offset_angle = angle((start, snapped, start, closest_point));
     let offset =
         Epsilon::UNKNOWN_1EN5 < offset_angle && offset_angle <= 360.0 - Epsilon::UNKNOWN_1EN5;
-    if offset || snapped.distance(closest_point) > selection_distance {
-        snapped
+    if offset || snapped.distance(closest_point) > snap.selection_distance {
+        AngleSystemEndpoint {
+            point: snapped,
+            snapped: false,
+        }
     } else {
-        closest_point
+        AngleSystemEndpoint {
+            point: closest_point,
+            snapped: true,
+        }
     }
 }
 
@@ -1751,8 +1767,44 @@ fn closest_line_segment_or_sentinel(model: &CreasePatternModel, point: Point) ->
     closest
 }
 
+/// Oriedita `CreasePattern_Worker.getClosestPoint`: the nearest reference point
+/// to `point` — crease endpoints and circle centres, plus the grid, which is a
+/// candidate whenever the grid state is not hidden.
+///
+/// Upstream reads that state straight off the UI grid; `candidates` carries it
+/// here, along with Ori Studio's own Snapping toggle, so a caller can search a
+/// subset without the document knowing anything about the viewport.
+fn closest_point_like_worker(
+    model: &CreasePatternModel,
+    point: Point,
+    candidates: SnapCandidates,
+) -> Point {
+    let vertex = if candidates.vertices {
+        closest_model_point(model, point)
+    } else {
+        NO_CLOSE_POINT
+    };
+    if candidates.grid == GridState::Hidden {
+        return vertex;
+    }
+    let grid_point = model.grid.closest_grid_point(point, candidates.grid);
+    if point.distance_squared(vertex) > point.distance_squared(grid_point) {
+        grid_point
+    } else {
+        vertex
+    }
+}
+
+/// Oriedita's "no close point" answer: `FoldLineSet.closestPoint` returns this
+/// when the set is empty, and every caller gates on a selection distance rather
+/// than testing for it.
+const NO_CLOSE_POINT: Point = Point {
+    x: 100_000.0,
+    y: 100_000.0,
+};
+
 fn closest_model_point(model: &CreasePatternModel, point: Point) -> Point {
-    let mut closest = Point::new(100_000.0, 100_000.0);
+    let mut closest = NO_CLOSE_POINT;
     for segment in &model.line_segments {
         for endpoint in [segment.a, segment.b] {
             if point.distance_squared(endpoint) < point.distance_squared(closest) {

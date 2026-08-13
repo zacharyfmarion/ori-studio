@@ -11,7 +11,7 @@ import {
   getResolvedShortcut,
   type KeyChord,
   type ShortcutActionId,
-  type ShortcutOverrides,
+  type ShortcutResolutionInput,
 } from '../keyboard/shortcuts';
 import type { WorkspaceCapabilities, WorkspaceCapabilityId } from '../lib/workspaceCapabilities';
 
@@ -64,11 +64,11 @@ function acceleratorKey(key: string): string {
 
 function acceleratorForAction(
   id: string,
-  overrides: ShortcutOverrides | undefined
+  resolution: ShortcutResolutionInput | undefined
 ): string | undefined {
   // getResolvedShortcut returns null for ids without a shortcut definition, so
   // this is safe to call for every action id.
-  const chord = getResolvedShortcut(id as ShortcutActionId, overrides);
+  const chord = getResolvedShortcut(id as ShortcutActionId, resolution);
   return chord ? keyChordToAccelerator(chord) : undefined;
 }
 
@@ -79,7 +79,7 @@ function acceleratorForAction(
 function toNativeOption(
   item: MenuItemDef,
   capabilities: WorkspaceCapabilities,
-  overrides: ShortcutOverrides | undefined
+  resolution: ShortcutResolutionInput | undefined
 ): NativeItemOption | null {
   switch (item.type) {
     case 'separator':
@@ -94,7 +94,7 @@ function toNativeOption(
         },
       };
     case 'submenu': {
-      const children = buildItemOptions(item.items, capabilities, overrides);
+      const children = buildItemOptions(item.items, capabilities, resolution);
       if (children.length === 0) return null;
       return { text: item.label, items: children };
     }
@@ -104,7 +104,7 @@ function toNativeOption(
         id: item.id,
         text: capability?.label ?? item.label,
         enabled: capability ? capability.enabled : true,
-        accelerator: acceleratorForAction(item.id, overrides),
+        accelerator: acceleratorForAction(item.id, resolution),
         action: () => {
           void handleMenuAction(item.id);
         },
@@ -116,10 +116,10 @@ function toNativeOption(
 function buildItemOptions(
   items: MenuItemDef[],
   capabilities: WorkspaceCapabilities,
-  overrides: ShortcutOverrides | undefined
+  resolution: ShortcutResolutionInput | undefined
 ): NativeItemOption[] {
   return pruneMenuItems(items, capabilities)
-    .map((item) => toNativeOption(item, capabilities, overrides))
+    .map((item) => toNativeOption(item, capabilities, resolution))
     .filter((option): option is NativeItemOption => option !== null);
 }
 
@@ -156,12 +156,12 @@ function appSubmenu(): SubmenuOptions {
 export function nativeMenuOptions(
   menuDef: MenuDef[],
   capabilities: WorkspaceCapabilities,
-  overrides: ShortcutOverrides | undefined
+  resolution: ShortcutResolutionInput | undefined
 ): SubmenuOptions[] {
   const menus: SubmenuOptions[] = [appSubmenu()];
   for (const menu of menuDef) {
     if (!menuHasVisibleItems(menu, capabilities)) continue;
-    const items = buildItemOptions(menu.items, capabilities, overrides);
+    const items = buildItemOptions(menu.items, capabilities, resolution);
     if (items.length === 0) continue;
     menus.push({ text: menu.label, items });
   }
@@ -176,9 +176,11 @@ export function nativeMenuOptions(
 export function nativeMenuSignature(
   menuDef: MenuDef[],
   capabilities: WorkspaceCapabilities,
-  overrides: ShortcutOverrides | undefined
+  resolution: ShortcutResolutionInput | undefined
 ): string {
-  const parts: string[] = [JSON.stringify(overrides ?? {})];
+  // Carries the whole resolution, not just the overrides: switching the defaults
+  // source moves accelerators the same way a rebind does.
+  const parts: string[] = [JSON.stringify(resolution ?? {})];
   const walk = (items: MenuItemDef[]) => {
     for (const item of items) {
       switch (item.type) {
@@ -213,9 +215,9 @@ export function nativeMenuSignature(
 /** Build a fresh {@link Menu} for the current context. */
 export async function buildNativeMenu(
   capabilities: WorkspaceCapabilities,
-  overrides: ShortcutOverrides | undefined,
+  resolution: ShortcutResolutionInput | undefined,
   translate?: MenuTranslate
 ): Promise<Menu> {
-  const options = nativeMenuOptions(getMenuBarDef(overrides, translate), capabilities, overrides);
+  const options = nativeMenuOptions(getMenuBarDef(resolution, translate), capabilities, resolution);
   return Menu.new({ items: options });
 }

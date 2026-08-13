@@ -3,7 +3,7 @@ import type { Selection } from './sampleProject';
 import type { EditingContext } from '../workspaces/editingContext';
 import { isShortcutEditingTarget } from '../keyboard/shortcutDispatcher';
 import { handleShortcutRuntimeKeyDown } from '../keyboard/shortcutRuntime';
-import type { ShortcutOverrides } from '../keyboard/shortcuts';
+import type { ShortcutDefaultsSource, ShortcutOverrides } from '../keyboard/shortcuts';
 
 export interface AppKeyboardActions {
   getActiveEditingContext: () => EditingContext;
@@ -11,6 +11,16 @@ export interface AppKeyboardActions {
   handleMenuAction: (id: string) => unknown;
   selectNone: () => void;
   getShortcutOverrides?: () => ShortcutOverrides;
+  /**
+   * Which defaults table the dispatcher resolves against. Read here rather than
+   * captured, for the same reason the overrides are: this handler outlives any
+   * one render.
+   *
+   * Without it the toggle is a lie — the Settings list and the menu bar would
+   * show Oriedita's keys while the canvas kept firing Ori Studio's, because this
+   * is the only path a real keypress takes.
+   */
+  getShortcutDefaultsSource?: () => ShortcutDefaultsSource;
 }
 
 export function handleAppKeyDown(event: KeyboardEvent, actions: AppKeyboardActions): boolean {
@@ -28,6 +38,7 @@ export function handleAppKeyDown(event: KeyboardEvent, actions: AppKeyboardActio
         activeEditingContext: actions.getActiveEditingContext(),
       },
       overrides: actions.getShortcutOverrides?.(),
+      defaultsSource: actions.getShortcutDefaultsSource?.(),
       menu: actions.handleMenuAction,
     })
   ) {

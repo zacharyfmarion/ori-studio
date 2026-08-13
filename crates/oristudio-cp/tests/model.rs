@@ -265,3 +265,194 @@ fn document_snapshot_round_trips_fold_magnitudes() {
     // The classic crease must not have leaked a key into the snapshot.
     assert_eq!(json.matches("fold_magnitude").count(), 1);
 }
+
+/// Lattice points are built as `origin + a*i + b*j`, and `b` comes out of a
+/// `cos`/`sin` pair — so a 90-degree grid's points carry the same ~1e-15 dust
+/// upstream's do. Compare them the way every consumer does.
+#[track_caller]
+fn assert_lattice_point(found: Point, expected: Point) {
+    assert!(
+        (found.x - expected.x).abs() < 1e-9 && (found.y - expected.y).abs() < 1e-9,
+        "expected lattice point {expected:?}, got {found:?}"
+    );
+}
+
+/// Oriedita `Grid.closestGridPoint` (`Grid.java:543`). The default paper is
+/// 400 wide, so grid size 8 puts lattice points on every multiple of 50.
+#[test]
+fn closest_grid_point_finds_the_nearest_lattice_point() {
+    let grid = GridMetadata::default();
+
+    assert_lattice_point(
+        grid.closest_grid_point(Point::new(52.0, 47.0), GridState::WithinPaper),
+        Point::new(50.0, 50.0),
+    );
+    // Exactly on a lattice point stays put, including the lattice origin.
+    assert_lattice_point(
+        grid.closest_grid_point(Point::new(-200.0, 200.0), GridState::WithinPaper),
+        Point::new(-200.0, 200.0),
+    );
+    // Dead centre of a cell is equidistant from four corners; upstream keeps the
+    // last one it scans rather than reporting no answer.
+    let centred = grid.closest_grid_point(Point::new(25.0, 25.0), GridState::WithinPaper);
+    let corners = [
+        Point::new(0.0, 0.0),
+        Point::new(50.0, 0.0),
+        Point::new(0.0, 50.0),
+        Point::new(50.0, 50.0),
+    ];
+    assert!(
+        corners.iter().any(|corner| corner.distance(centred) < 1e-9),
+        "{centred:?}"
+    );
+}
+
+#[test]
+fn closest_grid_point_honours_the_base_state() {
+    let grid = GridMetadata::default();
+    let outside = Point::new(260.0, 10.0);
+
+    // Hidden: no candidates at all, so the caller sees upstream's origin
+    // fallback and rejects it on distance.
+    assert_eq!(
+        grid.closest_grid_point(outside, GridState::Hidden),
+        Point::new(0.0, 0.0)
+    );
+    // Within paper: the lattice stops at the paper edge.
+    assert_lattice_point(
+        grid.closest_grid_point(outside, GridState::WithinPaper),
+        Point::new(200.0, 0.0),
+    );
+    // Full: it keeps going.
+    assert_lattice_point(
+        grid.closest_grid_point(outside, GridState::Full),
+        Point::new(250.0, 0.0),
+    );
+}
+
+/// Upstream's `new Point()` fallback: outside the paper by more than a cell
+/// diagonal, a within-paper grid answers with the origin rather than with a
+/// nearest point. Callers gate on their selection distance, which is what keeps
+/// that harmless.
+#[test]
+fn closest_grid_point_far_outside_a_within_paper_grid_falls_back_to_the_origin() {
+    let grid = GridMetadata::default();
+    assert_eq!(
+        grid.closest_grid_point(Point::new(1_000.0, 1_000.0), GridState::WithinPaper),
+        Point::new(0.0, 0.0)
+    );
+}
+
+/// Oriedita `Grid.resetGrid`: a within-paper grid whose cell is not the unit
+/// square is promoted to full-area, so its lattice runs past the paper.
+#[test]
+fn a_non_square_cell_promotes_a_within_paper_grid_to_full() {
+    let mut grid = GridMetadata::default();
+    grid.set_grid_angle(60.0);
+    assert_eq!(
+        grid.effective_base_state(GridState::WithinPaper),
+        GridState::Full
+    );
+
+    let mut stretched = GridMetadata::default();
+    stretched.apply_grid_x(2.0, 0.0, 1.0);
+    assert_eq!(
+        stretched.effective_base_state(GridState::WithinPaper),
+        GridState::Full
+    );
+    assert_eq!(
+        stretched.effective_base_state(GridState::Hidden),
+        GridState::Hidden
+    );
+
+    // The plain square grid keeps its paper bound.
+    assert_eq!(
+        GridMetadata::default().effective_base_state(GridState::WithinPaper),
+        GridState::WithinPaper
+    );
+}
+
+/// A rhombic grid: `b` is rotated by the configured angle, which Oriedita
+/// stores negated (`Grid.setGrid`), and `a` stays on the x axis.
+#[test]
+fn closest_grid_point_follows_a_rotated_cell() {
+    let mut grid = GridMetadata::default();
+    grid.set_grid_size(4); // 100-unit cells
+    grid.set_grid_angle(60.0);
+
+    // Lattice point (1, 1): origin + a + b, where a = (100, 0) and
+    // b = 100 * (cos -60deg, sin -60deg).
+    let radians = (-60.0_f64).to_radians();
+    let expected = Point::new(
+        -200.0 + 100.0 + 100.0 * radians.cos(),
+        200.0 + 100.0 * radians.sin(),
+    );
+    assert_lattice_point(
+        grid.closest_grid_point(
+            Point::new(expected.x + 3.0, expected.y - 2.0),
+            GridState::WithinPaper,
+        ),
+        expected,
+    );
+}
+
+/// A one-cell grid still has the paper corners as lattice points, and a huge
+/// one still resolves in constant time because the search window is the cell.
+#[test]
+fn closest_grid_point_handles_extreme_grid_sizes() {
+    let mut coarse = GridMetadata::default();
+    coarse.set_grid_size(1);
+    assert_lattice_point(
+        coarse.closest_grid_point(Point::new(150.0, 150.0), GridState::WithinPaper),
+        Point::new(200.0, 200.0),
+    );
+
+    let mut fine = GridMetadata::default();
+    fine.set_grid_size(512);
+    let cell = 400.0 / 512.0;
+    assert_lattice_point(
+        fine.closest_grid_point(
+            Point::new(cell * 3.4 - 200.0, 200.0 - cell * 2.6),
+            GridState::WithinPaper,
+        ),
+        Point::new(cell * 3.0 - 200.0, 200.0 - cell * 3.0),
+    );
+}
+
+/// A degenerate cell has no lattice to search. Upstream cannot store one
+/// (`GridModel` validates the lengths and clamps the angle), so this is about a
+/// file that carries one anyway, not about parity.
+#[test]
+fn closest_grid_point_refuses_a_degenerate_cell() {
+    let zero_size = GridMetadata {
+        grid_size: 0,
+        ..GridMetadata::default()
+    };
+    assert_eq!(
+        zero_size.closest_grid_point(Point::new(10.0, 10.0), GridState::Full),
+        Point::new(0.0, 0.0)
+    );
+
+    let zero_length = GridMetadata {
+        grid_xa: 0.0,
+        grid_xb: 0.0,
+        ..GridMetadata::default()
+    };
+    assert_eq!(
+        zero_length.closest_grid_point(Point::new(10.0, 10.0), GridState::Full),
+        Point::new(0.0, 0.0)
+    );
+}
+
+#[test]
+fn closest_grid_point_survives_a_non_finite_pointer() {
+    let grid = GridMetadata::default();
+    assert_eq!(
+        grid.closest_grid_point(Point::new(f64::INFINITY, 0.0), GridState::Full),
+        Point::new(0.0, 0.0)
+    );
+    assert_eq!(
+        grid.closest_grid_point(Point::new(f64::NAN, f64::NAN), GridState::Full),
+        Point::new(0.0, 0.0)
+    );
+}

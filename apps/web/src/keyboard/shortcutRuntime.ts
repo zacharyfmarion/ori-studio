@@ -7,6 +7,7 @@ import {
   type ShortcutExecutors,
 } from './shortcutDispatcher';
 import type {
+  ShortcutDefaultsSource,
   ShortcutOverrides,
   ShortcutScope,
   SimulatorShortcutId,
@@ -56,6 +57,8 @@ function viewportSurfaceForContext(context: EditingContext): ViewportSurface {
 export interface ShortcutRuntimeOptions {
   context: ShortcutRuntimeContext;
   overrides?: ShortcutOverrides;
+  /** The active keyboard layout; both come from the same store subscription. */
+  defaultsSource?: ShortcutDefaultsSource;
   menu: (id: MenuActionId) => unknown;
 }
 
@@ -143,6 +146,7 @@ export function handleShortcutRuntimeKeyDown(
   return handleShortcutKeyDown(event, {
     scopeStack: shortcutScopeStackForContext(options.context),
     overrides: options.overrides,
+    defaultsSource: options.defaultsSource,
     executors,
   });
 }

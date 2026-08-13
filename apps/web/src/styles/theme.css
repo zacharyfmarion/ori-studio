@@ -1356,6 +1356,121 @@
   padding: var(--space-3);
 }
 
+/*
+ * Oriedita import dialog.
+ *
+ * It had no styles of its own, so it inherited the 360px `.simple-modal__document`
+ * box meant for a confirm prompt — a review table of shortcut rows squeezed into
+ * a third of the width it needs, with nothing capping its height. Sized and
+ * scrolled like the export dialog next door, which solves the same problem.
+ */
+.oriedita-import {
+  display: flex;
+  flex-direction: column;
+  /*
+   * Sized to the stage. Only the review step has a table to show; before a file
+   * is chosen this is a sentence and two buttons, and wearing the review width
+   * left it looking like a dialog waiting for content that never arrives.
+   */
+  width: min(440px, calc(100vw - var(--space-6)));
+  max-height: calc(100vh - var(--space-6));
+}
+
+.oriedita-import[data-stage='review'] {
+  width: min(680px, calc(100vw - var(--space-6)));
+}
+
+
+/* The body is the only part that scrolls, so the header and the action row stay
+   put while a long plan moves under them. */
+.oriedita-import__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+/* Actions right-aligned as one group: `space-between` pushed Cancel to the far
+   left, which read as two unrelated controls rather than a choice. */
+.oriedita-import .simple-modal__footer {
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border-default);
+}
+
+.oriedita-import .simple-modal__header {
+  padding: var(--space-3) var(--space-4);
+}
+
+/* Narrower than the settings table: no clear/reset controls to leave room for.
+   Scoped by the dialog so it outranks `.settings-shortcuts__row` — the same element
+   carries both classes, and at equal specificity the settings table's five-column
+   template won on source order, stranding the chord in column 2 with three empty
+   columns after it. */
+.oriedita-import .oriedita-import__row {
+  grid-template-columns: minmax(0, 1fr) minmax(96px, auto);
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+}
+
+.oriedita-import__copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.oriedita-import__action {
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.oriedita-import__note {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+/*
+ * The way through, at the end of the sentence that explains the block.
+ *
+ * Accent-coloured against the muted note so it is findable at a glance, but
+ * inline and text-sized so it stays part of the explanation rather than becoming
+ * a second row of buttons. The previous ghost button sat under the note in the
+ * copy column, which read as neither.
+ */
+.oriedita-import__use-anyway {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  /* Keeps the label whole when the note wraps. */
+  white-space: nowrap;
+}
+
+.oriedita-import__use-anyway:hover {
+  text-decoration: underline;
+}
+
+.oriedita-import__use-anyway:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.oriedita-import__chord {
+  justify-self: end;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
 /* Share-link dialog: controls on the left, the link preview on its own lit surface to
    the right. The preview is the thing being judged, so it holds still while the controls
    beside it change, and it never has to compete with them for width.
@@ -1693,6 +1808,14 @@
   color: var(--text-secondary);
   font-size: 0.78rem;
   line-height: 1.5;
+  /*
+   * Confirmations here list things — the shortcuts an import would unbind, one
+   * per line. Those messages are built with newlines and were collapsing into a
+   * single run-on paragraph, which is the least readable possible form for the
+   * one screen whose whole job is "read this before you agree". `pre-line`
+   * honours the breaks while still wrapping long lines.
+   */
+  white-space: pre-line;
 }
 
 .simple-modal__error {
@@ -2155,15 +2278,23 @@
   cursor: pointer;
 }
 
+/*
+ * Deliberately unboxed. Each row already sits under a `.settings-section__title`
+ * that does the grouping, so a border and a surface around a single row was a
+ * second frame saying the same thing. The copy stays flush with that title, as
+ * the `<label>` checkboxes this replaced were.
+ *
+ * No focus rule either: the row is a mouse hit target, not a tab stop. Every row
+ * holds a Radix switch — a `button`, never an `input` — and that switch carries
+ * its own ring via `.toggle-switch:focus-visible`.
+ */
 .settings-toggle-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  padding: var(--space-3);
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  background: var(--bg-surface);
+  /* Vertical only, so the row keeps a comfortable hit target without indenting. */
+  padding: var(--space-1) 0;
   cursor: pointer;
 }
 
@@ -2274,16 +2405,31 @@
   gap: var(--space-3);
 }
 
+/*
+ * Filters on the left, actions on the right, one row wherever there is room.
+ *
+ * Flex rather than a fixed column count: this was a three-column grid, so adding
+ * a fourth control dropped it onto an implicit row where it stretched the full
+ * width — a rarely-used destructive action ended up the largest thing here. The
+ * search field is the only flexible item, so it absorbs the squeeze and the
+ * action labels never truncate.
+ */
 .settings-shortcuts__toolbar {
-  display: grid;
-  grid-template-columns: minmax(160px, 1fr) auto auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
 }
 
 .settings-shortcuts__toolbar input[type='search'] {
-  width: 100%;
-  min-width: 0;
+  /*
+   * A small basis on purpose: wrapping is decided from flex-basis, before any
+   * growing happens, so a generous basis here pushed the actions onto a second
+   * line by a few pixels and then let the search expand into the space it had
+   * just vacated. Small basis, then grow.
+   */
+  flex: 1 1 8rem;
+  min-width: 6rem;
   height: 32px;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
@@ -2294,13 +2440,74 @@
   padding: 0 var(--space-2);
 }
 
-.settings-shortcuts__assigned {
+/*
+ * The "Assigned" filter, as a toggle chip rather than a bare checkbox.
+ *
+ * It sits in a row of 32px controls, so a raw checkbox read as an unfinished
+ * form field wedged between a search box and two buttons. Same height, same
+ * radius, and a lit border when active, so it reads as the filter it is. The
+ * native input stays in the DOM for keyboard and screen-reader behaviour.
+ */
+.settings-shortcuts__filter {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
+  height: 32px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
   color: var(--text-secondary);
   font-size: 0.74rem;
   font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+
+.settings-shortcuts__filter:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.settings-shortcuts__filter:has(input:checked) {
+  border-color: var(--accent-primary);
+  /*
+   * Mixed rather than `--accent-soft`, which is not defined in every theme —
+   * the one other unguarded use of it in this file renders as transparent.
+   */
+  background: color-mix(in srgb, var(--accent-primary) 14%, var(--bg-primary));
+  color: var(--text-primary);
+}
+
+/* The label is the control, so the ring belongs on it, not the hidden input. */
+.settings-shortcuts__filter:has(input:focus-visible) {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+
+.settings-shortcuts__filter input {
+  cursor: pointer;
+  margin: 0;
+  /* Scaled to the 0.74rem label beside it; the default box dwarfed the text. */
+  width: 13px;
+  height: 13px;
+  accent-color: var(--accent-primary);
+}
+
+/*
+ * Kept together so they wrap as one block on a narrow modal instead of the
+ * destructive action peeling off onto its own line.
+ */
+.settings-shortcuts__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.settings-shortcuts__actions > * {
   white-space: nowrap;
 }
 
@@ -2451,9 +2658,13 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .settings-shortcuts__toolbar,
   .settings-shortcuts__row {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Narrow: search takes its own line, filter and actions share the next. */
+  .settings-shortcuts__toolbar input[type='search'] {
+    flex-basis: 100%;
   }
 
   .settings-shortcuts__default {
@@ -3639,28 +3850,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   overflow: visible;
   touch-action: none;
   user-select: none;
-}
-
-/* Promote the panned crease-pattern layer to its own compositor layer. Without
-   this, panning re-rasterizes the entire (large) crease-pattern SVG every frame
-   even though it's only being translated; with it, the pan is a cheap GPU
-   composite of a cached raster. Scoped to the CP viewport so other
-   react-zoom-pan-pinch surfaces are unaffected. */
-.cp-panel__viewport .react-transform-component {
-  will-change: transform;
-}
-
-/* Isolate the grid onto its own compositor layer so regenerating its lines
-   (on pan-stop / zoom) re-rasters only the grid, not the crease geometry. */
-.cp-grid-layer {
-  will-change: transform;
-}
-
-.cp-grid-line {
-  stroke: color-mix(in srgb, var(--border-default) 82%, transparent);
-  stroke-width: 0.95;
-  vector-effect: non-scaling-stroke;
-  pointer-events: none;
 }
 
 .cp-point {
@@ -5483,6 +5672,20 @@ button.cp-folded-figure-toolbar__notice:hover {
 
 /* Fold-angle quick-pick chips. Keeps typing off the common path: a box is 90
    everywhere, a prism 60/120. */
+/* Promote the badge layer to its own compositor layer, for the same reason the
+   SVG crease-pattern layer above is promoted: a pan only translates it, and
+   without this the whole layer re-rasterizes every frame — 300 text nodes'
+   worth — where a promoted layer is a cheap GPU composite of a cached raster.
+   Only correct in company with `usePannedOverlayView`, which is what stops the
+   badges themselves being rewritten per frame; a promoted layer whose contents
+   change every frame repaints anyway.
+
+   The cost is that the text is rasterized once and resampled while moving, so
+   digits can soften mid-motion and snap crisp on settle. */
+.cp-fold-angle-layer {
+  will-change: transform;
+}
+
 /* Fold-angle readouts drawn at crease midpoints. The lightness ramp is a gist
    channel; this is the readout, and its dot form is the low-zoom degradation of
    the same badge rather than a separate affordance. */

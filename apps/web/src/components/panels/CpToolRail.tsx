@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -87,7 +87,7 @@ import {
   type OristudioCpActionId,
 } from '../../lib/oristudioCpActions';
 import type { OristudioCpLineColor } from '../../engine/oristudioCpTypes';
-import { shortcutLabelForAction, type ShortcutOverrides } from '../../keyboard/shortcuts';
+import { shortcutLabelForAction, type ShortcutResolution } from '../../keyboard/shortcuts';
 import { readJson, storageKey, writeJson, STORAGE_KEYS } from '../../lib/storage';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import { useShortcutStore } from '../../store/shortcutStore';
@@ -365,6 +365,13 @@ export const CpToolRail = memo(function CpToolRail({
 }: CpToolRailProps) {
   const { t } = useTranslation();
   const shortcutOverrides = useShortcutStore((state) => state.overrides);
+  const shortcutDefaultsSource = useShortcutStore((state) => state.defaultsSource);
+  // The rail's hints have to name the key that actually fires, so they resolve
+  // against the active layout rather than the shipped table.
+  const shortcutResolution = useMemo<ShortcutResolution>(
+    () => ({ overrides: shortcutOverrides, defaultsSource: shortcutDefaultsSource }),
+    [shortcutOverrides, shortcutDefaultsSource]
+  );
 
   return (
     <aside className="cp-tool-rail" aria-label={t('tools:cpRail.ariaLabel', 'Crease pattern tools')}>
@@ -387,7 +394,7 @@ export const CpToolRail = memo(function CpToolRail({
               activeLineColor={activeLineColor}
               editable={editable}
               onSelectAction={onSelectAction}
-              shortcutOverrides={shortcutOverrides}
+              shortcutResolution={shortcutResolution}
             />
           );
         })}
@@ -404,7 +411,7 @@ function CpToolRailGroup({
   activeLineColor,
   editable,
   onSelectAction,
-  shortcutOverrides,
+  shortcutResolution,
 }: {
   group: OristudioCpActionGroupDefinition;
   actions: OristudioCpActionDefinition[];
@@ -413,7 +420,7 @@ function CpToolRailGroup({
   activeLineColor: OristudioCpLineColor;
   editable: boolean;
   onSelectAction: (action: OristudioCpActionDefinition) => void;
-  shortcutOverrides: ShortcutOverrides;
+  shortcutResolution: ShortcutResolution;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(
@@ -458,7 +465,7 @@ function CpToolRailGroup({
                 isActive={isActive}
                 glyphOperationId={isActive ? activeOperationId : null}
                 onSelectAction={onSelectAction}
-                shortcutLabel={shortcutLabelForAction(action.id, shortcutOverrides)}
+                shortcutLabel={shortcutLabelForAction(action.id, shortcutResolution)}
               />
             );
           })}
