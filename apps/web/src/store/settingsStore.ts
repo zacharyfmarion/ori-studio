@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import { ANALYTICS_EVENTS, bucketCount, CP_SNAP_RADIUS_BUCKETS, track } from '../analytics';
+import { clampCpSnapRadius, CP_DEFAULT_SNAP_RADIUS } from '../lib/cpSnapRadiusSetting';
 import {
   DEFAULT_BP_PACKING_VIEW_LAYERS,
   DEFAULT_BP_TREE_VIEW_LAYERS,
@@ -12,10 +14,12 @@ import {
 } from '../lib/oristudioBpViewportSettings';
 import {
   readBoolean,
+  readNumber,
   readString,
   storageKey,
   STORAGE_KEYS,
   writeBoolean,
+  writeNumber,
   writeString,
 } from '../lib/storage';
 import type { WheelGesturePreference } from '../lib/wheelGesture';
@@ -26,10 +30,16 @@ const SHOW_WELCOME_ON_STARTUP_KEY = storageKey(STORAGE_KEYS.showWelcomeOnStartup
 const FOLD_WARNING_KEY = storageKey(STORAGE_KEYS.foldWarning);
 const ANALYTICS_ENABLED_KEY = storageKey(STORAGE_KEYS.analyticsEnabled);
 const CP_WHEEL_GESTURE_KEY = storageKey(STORAGE_KEYS.cpWheelGesture);
+const CP_SNAP_RADIUS_KEY = storageKey(STORAGE_KEYS.cpSnapRadius);
 
 /** Anything unrecognised — absent, stale, hand-edited — reads as the default. */
 function readCpWheelGesture(): WheelGesturePreference {
   return readString(CP_WHEEL_GESTURE_KEY) === 'zoom' ? 'zoom' : 'pan';
+}
+
+/** Same contract, on a number: unreadable degrades, out-of-range clamps in. */
+function readCpSnapRadius(): number {
+  return clampCpSnapRadius(readNumber(CP_SNAP_RADIUS_KEY, CP_DEFAULT_SNAP_RADIUS));
 }
 
 interface SettingsState {
@@ -58,6 +68,13 @@ interface SettingsState {
    * so this only ever changes the unmodified gesture.
    */
   cpWheelGesture: WheelGesturePreference;
+  /**
+   * How close the pointer has to come to a vertex, crease or grid point before
+   * drawing snaps to it, in Oriedita model units — the paper is 400 across.
+   * Upstream's `mouseRadius`, same unit and same bounds, so the number means the
+   * same thing in both apps.
+   */
+  cpSnapRadius: number;
   openSettings: (tab?: SettingsTab) => void;
   closeSettings: () => void;
   setBpTreeLayer: (layer: BpTreeViewLayerKey, visible: boolean) => void;
@@ -66,6 +83,7 @@ interface SettingsState {
   setFoldWarningEnabled: (value: boolean) => void;
   setAnalyticsEnabled: (value: boolean) => void;
   setCpWheelGesture: (value: WheelGesturePreference) => void;
+  setCpSnapRadius: (value: number) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -79,6 +97,7 @@ export const useSettingsStore = create<SettingsState>()(
       foldWarningEnabled: readBoolean(FOLD_WARNING_KEY, true),
       analyticsEnabled: readBoolean(ANALYTICS_ENABLED_KEY, true),
       cpWheelGesture: readCpWheelGesture(),
+      cpSnapRadius: readCpSnapRadius(),
       openSettings: (tab) => set({ isSettingsOpen: true, settingsInitialTab: tab ?? null }),
       closeSettings: () => set({ isSettingsOpen: false, settingsInitialTab: null }),
       setBpTreeLayer: (layer, visible) =>
@@ -104,6 +123,17 @@ export const useSettingsStore = create<SettingsState>()(
       setCpWheelGesture: (value) => {
         writeString(CP_WHEEL_GESTURE_KEY, value);
         set({ cpWheelGesture: value });
+      },
+      setCpSnapRadius: (value) => {
+        const radius = clampCpSnapRadius(value);
+        writeNumber(CP_SNAP_RADIUS_KEY, radius);
+        set({ cpSnapRadius: radius });
+        // Hand-placed because no chokepoint sees a preference change. Bucketed
+        // because the raw number is a continuous per-user value; the bucket is
+        // the whole question anyway — tighter than the default, or wider.
+        track(ANALYTICS_EVENTS.cpSnapRadiusChanged, {
+          snap_radius: bucketCount(radius, CP_SNAP_RADIUS_BUCKETS),
+        });
       },
     }),
     { name: 'SettingsStore' }

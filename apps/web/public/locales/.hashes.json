@@ -2325,6 +2325,8 @@
     "panels:creasePattern.diagnostic.maekawaBlb": "53313b817734",
     "panels:creasePattern.foldability.bigLittleBig": "ff502c0ace07",
     "panels:creasePattern.foldability.shape.bigLittleBig": "d46e5d8b85cc",
+    "dialogs:settings.workspace.snapRadius": "bfcafe228c0b",
+    "dialogs:settings.workspace.snapRadiusHint": "6e4057da3b87",
     "dialogs:orieditaImport.alreadyMatches_one": "28b6eae6d4fe",
     "dialogs:orieditaImport.alreadyMatches_other": "28b6eae6d4fe",
     "dialogs:orieditaImport.apply_one": "319c36fd8e63",
@@ -2366,6 +2368,8 @@
     "dialogs:orieditaImport.summary": "aff214dcc7aa",
     "dialogs:orieditaImport.title": "8856bcfd2df1",
     "dialogs:orieditaImport.unbindNote": "f703a814f8d6",
+    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
+    "dialogs:orieditaImport.useAllLabel": "f52174549432",
     "dialogs:orieditaImport.useAnyway": "aa19f9e0d83b",
     "dialogs:orieditaImport.useAnywayLabel": "7ee72df4359a",
     "dialogs:orieditaImport.willChange_one": "b574fbfd2695",
@@ -2394,9 +2398,7 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
-    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
-    "dialogs:orieditaImport.useAllLabel": "f52174549432"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4724,6 +4726,8 @@
     "panels:creasePattern.diagnostic.maekawaBlb": "53313b817734",
     "panels:creasePattern.foldability.bigLittleBig": "ff502c0ace07",
     "panels:creasePattern.foldability.shape.bigLittleBig": "d46e5d8b85cc",
+    "dialogs:settings.workspace.snapRadius": "bfcafe228c0b",
+    "dialogs:settings.workspace.snapRadiusHint": "6e4057da3b87",
     "dialogs:orieditaImport.alreadyMatches_one": "28b6eae6d4fe",
     "dialogs:orieditaImport.alreadyMatches_other": "28b6eae6d4fe",
     "dialogs:orieditaImport.apply_one": "319c36fd8e63",
@@ -4765,6 +4769,8 @@
     "dialogs:orieditaImport.summary": "aff214dcc7aa",
     "dialogs:orieditaImport.title": "8856bcfd2df1",
     "dialogs:orieditaImport.unbindNote": "f703a814f8d6",
+    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
+    "dialogs:orieditaImport.useAllLabel": "f52174549432",
     "dialogs:orieditaImport.useAnyway": "aa19f9e0d83b",
     "dialogs:orieditaImport.useAnywayLabel": "7ee72df4359a",
     "dialogs:orieditaImport.willChange_one": "b574fbfd2695",
@@ -4793,9 +4799,7 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
-    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
-    "dialogs:orieditaImport.useAllLabel": "f52174549432"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7123,6 +7127,8 @@
     "panels:creasePattern.diagnostic.maekawaBlb": "53313b817734",
     "panels:creasePattern.foldability.bigLittleBig": "ff502c0ace07",
     "panels:creasePattern.foldability.shape.bigLittleBig": "d46e5d8b85cc",
+    "dialogs:settings.workspace.snapRadius": "bfcafe228c0b",
+    "dialogs:settings.workspace.snapRadiusHint": "6e4057da3b87",
     "dialogs:orieditaImport.alreadyMatches_one": "28b6eae6d4fe",
     "dialogs:orieditaImport.alreadyMatches_other": "28b6eae6d4fe",
     "dialogs:orieditaImport.apply_one": "319c36fd8e63",
@@ -7164,6 +7170,8 @@
     "dialogs:orieditaImport.summary": "aff214dcc7aa",
     "dialogs:orieditaImport.title": "8856bcfd2df1",
     "dialogs:orieditaImport.unbindNote": "f703a814f8d6",
+    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
+    "dialogs:orieditaImport.useAllLabel": "f52174549432",
     "dialogs:orieditaImport.useAnyway": "aa19f9e0d83b",
     "dialogs:orieditaImport.useAnywayLabel": "7ee72df4359a",
     "dialogs:orieditaImport.willChange_one": "b574fbfd2695",
@@ -7192,9 +7200,7 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
-    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
-    "dialogs:orieditaImport.useAllLabel": "f52174549432"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9492,6 +9498,8 @@
     "panels:creasePattern.diagnostic.maekawaBlb": "53313b817734",
     "panels:creasePattern.foldability.bigLittleBig": "ff502c0ace07",
     "panels:creasePattern.foldability.shape.bigLittleBig": "d46e5d8b85cc",
+    "dialogs:settings.workspace.snapRadius": "bfcafe228c0b",
+    "dialogs:settings.workspace.snapRadiusHint": "6e4057da3b87",
     "dialogs:orieditaImport.alreadyMatches_other": "28b6eae6d4fe",
     "dialogs:orieditaImport.apply_other": "b7cb8365a206",
     "dialogs:orieditaImport.choose": "c6cefe2314e5",
@@ -9530,6 +9538,8 @@
     "dialogs:orieditaImport.summary": "aff214dcc7aa",
     "dialogs:orieditaImport.title": "8856bcfd2df1",
     "dialogs:orieditaImport.unbindNote": "f703a814f8d6",
+    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
+    "dialogs:orieditaImport.useAllLabel": "f52174549432",
     "dialogs:orieditaImport.useAnyway": "aa19f9e0d83b",
     "dialogs:orieditaImport.useAnywayLabel": "7ee72df4359a",
     "dialogs:orieditaImport.willChange_other": "b574fbfd2695",
@@ -9552,9 +9562,7 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
-    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
-    "dialogs:orieditaImport.useAllLabel": "f52174549432"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -11852,6 +11860,8 @@
     "panels:creasePattern.diagnostic.maekawaBlb": "53313b817734",
     "panels:creasePattern.foldability.bigLittleBig": "ff502c0ace07",
     "panels:creasePattern.foldability.shape.bigLittleBig": "d46e5d8b85cc",
+    "dialogs:settings.workspace.snapRadius": "bfcafe228c0b",
+    "dialogs:settings.workspace.snapRadiusHint": "6e4057da3b87",
     "dialogs:orieditaImport.alreadyMatches_other": "28b6eae6d4fe",
     "dialogs:orieditaImport.apply_other": "b7cb8365a206",
     "dialogs:orieditaImport.choose": "c6cefe2314e5",
@@ -11890,6 +11900,8 @@
     "dialogs:orieditaImport.summary": "aff214dcc7aa",
     "dialogs:orieditaImport.title": "8856bcfd2df1",
     "dialogs:orieditaImport.unbindNote": "f703a814f8d6",
+    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
+    "dialogs:orieditaImport.useAllLabel": "f52174549432",
     "dialogs:orieditaImport.useAnyway": "aa19f9e0d83b",
     "dialogs:orieditaImport.useAnywayLabel": "7ee72df4359a",
     "dialogs:orieditaImport.willChange_other": "b574fbfd2695",
@@ -11912,9 +11924,7 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
-    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
-    "dialogs:orieditaImport.useAllLabel": "f52174549432"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -14242,6 +14252,8 @@
     "panels:creasePattern.diagnostic.maekawaBlb": "53313b817734",
     "panels:creasePattern.foldability.bigLittleBig": "ff502c0ace07",
     "panels:creasePattern.foldability.shape.bigLittleBig": "d46e5d8b85cc",
+    "dialogs:settings.workspace.snapRadius": "bfcafe228c0b",
+    "dialogs:settings.workspace.snapRadiusHint": "6e4057da3b87",
     "dialogs:orieditaImport.alreadyMatches_one": "28b6eae6d4fe",
     "dialogs:orieditaImport.alreadyMatches_other": "28b6eae6d4fe",
     "dialogs:orieditaImport.apply_one": "319c36fd8e63",
@@ -14283,6 +14295,8 @@
     "dialogs:orieditaImport.summary": "aff214dcc7aa",
     "dialogs:orieditaImport.title": "8856bcfd2df1",
     "dialogs:orieditaImport.unbindNote": "f703a814f8d6",
+    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
+    "dialogs:orieditaImport.useAllLabel": "f52174549432",
     "dialogs:orieditaImport.useAnyway": "aa19f9e0d83b",
     "dialogs:orieditaImport.useAnywayLabel": "7ee72df4359a",
     "dialogs:orieditaImport.willChange_one": "b574fbfd2695",
@@ -14311,9 +14325,7 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
-    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
-    "dialogs:orieditaImport.useAllLabel": "f52174549432"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -16641,6 +16653,8 @@
     "panels:creasePattern.diagnostic.maekawaBlb": "53313b817734",
     "panels:creasePattern.foldability.bigLittleBig": "ff502c0ace07",
     "panels:creasePattern.foldability.shape.bigLittleBig": "d46e5d8b85cc",
+    "dialogs:settings.workspace.snapRadius": "bfcafe228c0b",
+    "dialogs:settings.workspace.snapRadiusHint": "6e4057da3b87",
     "dialogs:orieditaImport.alreadyMatches_one": "28b6eae6d4fe",
     "dialogs:orieditaImport.alreadyMatches_other": "28b6eae6d4fe",
     "dialogs:orieditaImport.apply_one": "319c36fd8e63",
@@ -16682,6 +16696,8 @@
     "dialogs:orieditaImport.summary": "aff214dcc7aa",
     "dialogs:orieditaImport.title": "8856bcfd2df1",
     "dialogs:orieditaImport.unbindNote": "f703a814f8d6",
+    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
+    "dialogs:orieditaImport.useAllLabel": "f52174549432",
     "dialogs:orieditaImport.useAnyway": "aa19f9e0d83b",
     "dialogs:orieditaImport.useAnywayLabel": "7ee72df4359a",
     "dialogs:orieditaImport.willChange_one": "b574fbfd2695",
@@ -16710,9 +16726,7 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
-    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
-    "dialogs:orieditaImport.useAllLabel": "f52174549432"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -19010,6 +19024,8 @@
     "panels:creasePattern.diagnostic.maekawaBlb": "53313b817734",
     "panels:creasePattern.foldability.bigLittleBig": "ff502c0ace07",
     "panels:creasePattern.foldability.shape.bigLittleBig": "d46e5d8b85cc",
+    "dialogs:settings.workspace.snapRadius": "bfcafe228c0b",
+    "dialogs:settings.workspace.snapRadiusHint": "6e4057da3b87",
     "dialogs:orieditaImport.alreadyMatches_other": "28b6eae6d4fe",
     "dialogs:orieditaImport.apply_other": "b7cb8365a206",
     "dialogs:orieditaImport.choose": "c6cefe2314e5",
@@ -19048,6 +19064,8 @@
     "dialogs:orieditaImport.summary": "aff214dcc7aa",
     "dialogs:orieditaImport.title": "8856bcfd2df1",
     "dialogs:orieditaImport.unbindNote": "f703a814f8d6",
+    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
+    "dialogs:orieditaImport.useAllLabel": "f52174549432",
     "dialogs:orieditaImport.useAnyway": "aa19f9e0d83b",
     "dialogs:orieditaImport.useAnywayLabel": "7ee72df4359a",
     "dialogs:orieditaImport.willChange_other": "b574fbfd2695",
@@ -19070,8 +19088,6 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
-    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
-    "dialogs:orieditaImport.useAllLabel": "f52174549432"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
   }
 }
