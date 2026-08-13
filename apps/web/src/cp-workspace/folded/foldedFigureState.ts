@@ -107,3 +107,24 @@ export function foldedModelsEqual(
 function rgbEqual(a: OristudioCpRgbColor, b: OristudioCpRgbColor): boolean {
   return a.red === b.red && a.green === b.green && a.blue === b.blue;
 }
+
+/**
+ * Whether a folded-figure list is untouched — the same entries, in the same
+ * order.
+ *
+ * Reference equality, deliberately: every verb that changes a figure rebuilds
+ * the entry it changes, so "same objects" is exactly "nothing happened". A
+ * structural comparison would be slower and would answer a different, weaker
+ * question.
+ *
+ * Used by the gesture bracket to decide whether a verb earned an undo entry. A
+ * fold that was refused, failed, or stopped leaves this list as it found it, and
+ * the entry it would otherwise push undoes nothing while marking the project
+ * dirty.
+ */
+export function foldedFigureListsEqual(
+  before: readonly OristudioCpFoldedFigureEntry[],
+  after: readonly OristudioCpFoldedFigureEntry[]
+): boolean {
+  return before.length === after.length && before.every((entry, index) => entry === after[index]);
+}

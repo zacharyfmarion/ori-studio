@@ -176,3 +176,26 @@ describe('desktop transport', () => {
     expect(client.setCancelBuffer).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * The predicate every fold catch consults. It lives beside the other runtime
+ * error helpers rather than here, but its contract belongs to this feature: the
+ * kernel converts a cancel to `fold_cancelled` on every fold error path, and
+ * `EngineError` crosses both bridges verbatim.
+ */
+describe('isFoldCancellation', () => {
+  it('recognises the kernel code, and nothing that merely looks like it', async () => {
+    const { isFoldCancellation } = await import('./oristudioCpRuntime');
+
+    expect(isFoldCancellation({ code: 'fold_cancelled', message: 'fold cancelled' })).toBe(true);
+    // The optimizer's own cancel, which is a different feature with a different
+    // recovery — mistaking one for the other would silently swallow the wrong
+    // failure.
+    expect(isFoldCancellation({ code: 'optimization_cancelled', message: '' })).toBe(false);
+    expect(isFoldCancellation({ code: 'fold_contradiction', message: '' })).toBe(false);
+    expect(isFoldCancellation(new Error('fold_cancelled'))).toBe(false);
+    expect(isFoldCancellation('fold_cancelled')).toBe(false);
+    expect(isFoldCancellation(null)).toBe(false);
+    expect(isFoldCancellation(undefined)).toBe(false);
+  });
+});

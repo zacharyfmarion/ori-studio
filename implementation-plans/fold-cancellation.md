@@ -1511,6 +1511,42 @@ unavailable rather than pretending. The 3D rehydrate and the export-dialog fold
 pass `BACKGROUND`. The store still passes no run id anywhere the user can press
 — that is Phase 5.
 
+**Phase 5 — store and affordance: DONE.** `oristudioCpFoldsInFlight` is now
+`oristudioCpFoldRuns`, a map keyed by run id carrying `{ kind, startedAt,
+cancellable, stopping }`; `withFoldInFlight(kind, run)` mints the id and all
+seven call sites pass it through. `stopOristudioCpFolds()` stops every
+addressable run and answers whether there was one, which is how Escape knows to
+fall through. Quiet discard/restore on every fold catch, behind
+`isFoldCancellation`; the flat path also hands back the crease selection the
+draft entry took.
+
+Two decisions the plan left open:
+
+- **The surface is the toast, not a modal or a second persistent element.** A
+  fold is computation the user started and the app stays usable during it, so a
+  modal ten seconds in would claim a block that is not there and steal focus —
+  BP's optimizer earns its modal because the run is launched *from* it. What the
+  toast owes an hour-long run is persistence, so while a Stop is on offer it is
+  `dismissible: false, closeButton: false` (the global `closeButton` in
+  `App.tsx` would otherwise let the user throw away the only indicator), and it
+  escalates its own wording past `FOLD_LONG_RUN_MS`. Without a Stop — an
+  un-isolated browser — it stays dismissable and shows no button, rather than a
+  dead one.
+- **R8 is fixed at the bracket, not in `pushOverlayHistoryEntry`.** Half that
+  function's callers record before mutating and half after, so a guard there
+  suppresses the entries of the first half — three tests said so. The sound place
+  is `commitFoldedFigureGesture`, which owns both ends: an unchanged figure list
+  and active id record nothing, so a stopped fold leaves neither a no-op undo
+  step nor a dirty project.
+
+Analytics gained a `'halted'` verdict distinct from `'cancelled'`, and
+`elapsed_ms_bucket` on **every** `fold completed` against a new
+`FOLD_DURATION_MS_BUCKETS` ladder. Four `toasts:global.*` strings, nine locales.
+Escape joins `cancelActiveCpInput` above its `if (!editableCp) return;`, and the
+test for it mounts the real panel, installs the real document listener and
+dispatches a real key — the isolated-unit version of that test would pass with
+the wiring deleted.
+
 Phase 1 proper remains **open**, and is no longer blocking: `max_check_gap_ms`
 measures the gap *between* checkpoints, so it could only be written after Phase
 2. It is now writable and should be done before the strides are called final.
@@ -1679,44 +1715,47 @@ measures the gap *between* checkpoints, so it could only be written after Phase
 
 **Phase 5 — store and affordance**
 
-- [ ] Replace `oristudioCpFoldsInFlight` with a **map** of live runs keyed by
-      `runId`, each `{ kind, startedAt }` (`creasePatternSlice.ts:902`,
-      `types.ts:648`, `GlobalToasts.tsx:28`) — a single record cannot represent
-      the >1 case the counter was written for
-- [ ] Add `isFoldCancellation` beside `isOptimizerCancellation`
-      (`oristudioBpRuntime.ts:238`)
-- [ ] Add quiet `discardFoldedFigureDraftQuietly` / `restorePreviousFigureQuietly`
-      (or a `notify` flag) — the existing helpers at `creasePatternSlice.ts:866`
-      and `:883` unconditionally write the error envelope
-- [ ] Add the cancel branch **before** the generic catch at
-      `creasePatternSlice.ts:2220`: remove the draft, restore
-      `previousActiveId` (captured at `:1927`), refresh selection markers, write
-      neither `oristudioCpError` nor `error`
-- [ ] Restore the scoped crease selection on cancel (ids at
-      `creasePatternSlice.ts:1810-1815`)
+- [x] Replace `oristudioCpFoldsInFlight` with a **map** of live runs keyed by
+      `runId`, each `{ kind, startedAt, cancellable, stopping }` — a single
+      record cannot represent the >1 case the counter was written for
+- [x] Add `isFoldCancellation` beside `isOptimizerCancellation`
+      (`oristudioBpRuntime.ts:238`) — it lives in `oristudioCpRuntime.ts`, with
+      the code spelled once
+- [x] Add quiet `discardFoldedFigureDraftQuietly` / `restorePreviousFigureQuietly`
+      — the existing helpers now delegate to them and add the error envelope
+- [x] Add the cancel branch **before** the generic catch in every fold action:
+      the flat first fold, the 3D first fold, both `fold_another` arms,
+      `fold_to_case`, and both refold arms
+- [x] Restore the scoped crease selection on cancel, through
+      `applyCreaseSelection` so the canvas-selection invariant holds
 - [ ] Move `createDelayedProgress.start()` so it covers the pre-fold CAMV check
-      (`creasePatternSlice.ts:1873`), not just `withFoldInFlight`
-- [ ] Add the toast Stop action and the persistent long-run element; confirm the
-      Stop action and sonner's global `closeButton` (`App.tsx:177`) do not fight
-- [ ] Add the halt to `cancelActiveCpInput` (`CreasePatternPanel.tsx:2578`)
-      **above** its `if (!editableCp) return;` first statement — **not** a new
-      `escape` shortcut definition, which `viewport.cancel` (`shortcuts.ts:288` /
-      `CreasePatternPanel.tsx:2661`) would silently swallow
-- [ ] Store test: Escape stops a fold while the active document is **not**
-      editable
-- [ ] Put the binding in `cp-workspace/folded/useFoldCancellation.ts`, or raise
-      the `CreasePatternPanel.tsx` cap in `apps/web/eslint.config.js:142` with a
-      written reason in the PR
-- [ ] Add the `'halted'` `FoldVerdict` and a fold-specific duration ladder to
-      `apps/web/src/analytics/events.ts`; put `elapsed_ms_bucket` on
-      `fold completed` for every verdict
-- [ ] Add `toasts:global.foldStop`, `toasts:global.foldStopped`,
-      `panels:creasePattern.stopFolding`; run `i18n:extract`, translate all nine
-      locales, `i18n:stamp`, `i18n:check`. **No `errors:` key.**
-- [ ] Store tests: counter returns to 0 after a cancel; `state.error` stays null;
+      (`creasePatternSlice.ts:1873`), not just `withFoldInFlight` — **not done.**
+      The CAMV pre-check is deliberately not cancellable in V1, so an indicator
+      raised over it would be one with no Stop on it, appearing and then growing
+      a button. Worth doing when the CAMV recompute itself becomes cancellable
+- [x] Add the toast Stop action; confirm it and sonner's global `closeButton`
+      (`App.tsx:177`) do not fight — the toast turns both `closeButton` and
+      `dismissible` off while a Stop is on offer, which is also the persistence
+      the long band needs; the escalation is the wording, not a second element
+- [x] Add the halt to `cancelActiveCpInput` **above** its
+      `if (!editableCp) return;` first statement — not a new `escape` definition
+- [x] Test: Escape stops a fold while the active document is **not** editable —
+      and it mounts the real panel and dispatches a real key, because the
+      isolated version passes with the wiring deleted
+- [x] Neither `useFoldCancellation.ts` nor a raised cap was needed: the rung is
+      one store binding and one guarded call, and `max-lines` still passes
+- [x] Add the `'halted'` `FoldVerdict` and `FOLD_DURATION_MS_BUCKETS`; put
+      `elapsed_ms_bucket` on `fold completed` for every verdict
+- [x] Add `toasts:global.foldStop` / `foldStopped` / `foldStopping` /
+      `foldingLong`; `i18n:extract`, nine locales, `i18n:stamp`, `i18n:check`.
+      No `errors:` key, and no `panels:creasePattern.stopFolding` — the
+      affordance is the toast action, so there is no panel label to name
+- [x] Store tests: the run map empties after a cancel; `state.error` stays null;
       the previous figure entry is unchanged
-- [ ] Decide R8 (no-op undo entry / dirty flag on a cancelled fold)
-- [ ] `npm run lint:web && npm run i18n:check && npm run typecheck:web && npm run test:web`
+- [x] Decide R8: fixed in `commitFoldedFigureGesture`, not in
+      `pushOverlayHistoryEntry` — see the Phase 5 note above for why the broader
+      guard is unsound
+- [x] `npm run lint:web && npm run i18n:check && npm run typecheck:web && npm run test:web`
 
 **Phase 6 — docs and close-out**
 

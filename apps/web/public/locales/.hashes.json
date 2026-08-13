@@ -2394,7 +2394,11 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
+    "toasts:global.foldingLong": "6784996a2bcc",
+    "toasts:global.foldStop": "cae7d57bc067",
+    "toasts:global.foldStopped": "7def6c0f2bfb",
+    "toasts:global.foldStopping": "bbe8574175ab"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4791,7 +4795,11 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
+    "toasts:global.foldingLong": "6784996a2bcc",
+    "toasts:global.foldStop": "cae7d57bc067",
+    "toasts:global.foldStopped": "7def6c0f2bfb",
+    "toasts:global.foldStopping": "bbe8574175ab"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7188,7 +7196,11 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
+    "toasts:global.foldingLong": "6784996a2bcc",
+    "toasts:global.foldStop": "cae7d57bc067",
+    "toasts:global.foldStopped": "7def6c0f2bfb",
+    "toasts:global.foldStopping": "bbe8574175ab"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9546,7 +9558,11 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
+    "toasts:global.foldingLong": "6784996a2bcc",
+    "toasts:global.foldStop": "cae7d57bc067",
+    "toasts:global.foldStopped": "7def6c0f2bfb",
+    "toasts:global.foldStopping": "bbe8574175ab"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -11904,7 +11920,11 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
+    "toasts:global.foldingLong": "6784996a2bcc",
+    "toasts:global.foldStop": "cae7d57bc067",
+    "toasts:global.foldStopped": "7def6c0f2bfb",
+    "toasts:global.foldStopping": "bbe8574175ab"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -14301,7 +14321,11 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
+    "toasts:global.foldingLong": "6784996a2bcc",
+    "toasts:global.foldStop": "cae7d57bc067",
+    "toasts:global.foldStopped": "7def6c0f2bfb",
+    "toasts:global.foldStopping": "bbe8574175ab"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -16698,7 +16722,11 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
+    "toasts:global.foldingLong": "6784996a2bcc",
+    "toasts:global.foldStop": "cae7d57bc067",
+    "toasts:global.foldStopped": "7def6c0f2bfb",
+    "toasts:global.foldStopping": "bbe8574175ab"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -19056,6 +19084,10 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
+    "toasts:global.foldingLong": "6784996a2bcc",
+    "toasts:global.foldStop": "cae7d57bc067",
+    "toasts:global.foldStopped": "7def6c0f2bfb",
+    "toasts:global.foldStopping": "bbe8574175ab"
   }
 }

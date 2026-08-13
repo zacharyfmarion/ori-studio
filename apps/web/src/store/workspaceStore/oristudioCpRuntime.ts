@@ -62,6 +62,29 @@ export function oristudioCpError(error: unknown): WasmErrorEnvelope {
   };
 }
 
+/**
+ * `session::FOLD_CANCELLED_CODE`. Every fold error path in the kernel converts a
+ * cancel to this code, and `EngineError` crosses both bridges verbatim, so it is
+ * the same string on web and on desktop.
+ */
+const FOLD_CANCELLED = 'fold_cancelled';
+
+/**
+ * Whether a rejected fold was stopped by the user rather than failing.
+ *
+ * The mirror of `isOptimizerCancellation`, and the one place that spells the
+ * code — every catch on the fold path asks this rather than matching the string
+ * itself, so a stop cannot become an error toast in whichever branch forgot.
+ */
+export function isFoldCancellation(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: unknown }).code === FOLD_CANCELLED
+  );
+}
+
 export async function getOristudioCpClient(): Promise<OristudioCpClient> {
   return connectEngine('oristudio-cp');
 }

@@ -11,7 +11,11 @@
   },
   "global": {
     "error": "Error de Ori Studio",
-    "folding": "Plegando…"
+    "folding": "Plegando…",
+    "foldingLong": "Sigue plegando: esto puede tardar un rato",
+    "foldStop": "Detener",
+    "foldStopped": "Plegado detenido",
+    "foldStopping": "Deteniendo…"
   },
   "simulatorExport": {
     "empty": "Esta simulación aún no tiene nada que exportar",

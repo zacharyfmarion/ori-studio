@@ -37,6 +37,7 @@ import {
   setInlineSimulationSource,
 } from '../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
 import { CP_DOCUMENT_SCOPED_KEYS, discardCpDocumentState } from './cpDocumentState';
+import { foldCancellationBuffer } from './foldCancellation';
 import { registerCpCamera } from '../../cp-workspace/renderer/cpCameraRegistry';
 import { projectFromSnapshot } from '../../engine/snapshotMapper';
 import type { FileService, SaveBinaryFileOptions, SaveTextFileOptions } from '../../platform/fileService';
@@ -185,6 +186,13 @@ vi.mock('./oristudioBpRuntime', async (importOriginal) => {
     optimizeOristudioBpLayout: bpMocks.optimizeOristudioBpLayout,
   };
 });
+
+/**
+ * The run id every fold wrapper now carries. Its *value* is the store's business
+ * — minted per fold, never reused — so these assertions check that one was
+ * passed at all, and `foldStop.test.ts` checks that it is the one a Stop names.
+ */
+const A_RUN_ID = expect.any(Number);
 
 vi.mock('./oristudioCpRuntime', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./oristudioCpRuntime')>();
@@ -2892,7 +2900,8 @@ describe('workspace store slices', () => {
       1,
       'Order5',
       undefined,
-      [1]
+      [1],
+      A_RUN_ID
     );
     // A fresh fold is neither selected on the canvas nor marked selected by the
     // kernel renderer, so it doesn't steal delete-key focus the moment it lands.
@@ -3080,7 +3089,8 @@ describe('workspace store slices', () => {
         1,
         'Order5',
         undefined,
-        [1, 2, 3, 4]
+        [1, 2, 3, 4],
+        A_RUN_ID
       );
       expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.folded3d ?? null).toBeNull();
     });
@@ -3097,7 +3107,8 @@ describe('workspace store slices', () => {
       expect(oristudioCpMocks.fold3dOristudioCpDocument).toHaveBeenCalledWith(
         WHOLE_REGION,
         1,
-        undefined
+        undefined,
+        A_RUN_ID
       );
       const figure = useWorkspaceStore.getState().oristudioCpFoldedFigures[0];
       // Exactly one witness. Both non-null is the state the whole UI would then
@@ -3264,7 +3275,7 @@ describe('workspace store slices', () => {
         useWorkspaceStore.getState().foldAnotherOristudioCpFigure(figure.id)
       ).resolves.toBe(true);
 
-      expect(oristudioCpMocks.fold3dOristudioCpFigureAnother).toHaveBeenCalledWith(11);
+      expect(oristudioCpMocks.fold3dOristudioCpFigureAnother).toHaveBeenCalledWith(11, A_RUN_ID);
       expect(oristudioCpMocks.foldOristudioCpFigureAnother).not.toHaveBeenCalled();
       const advanced = useWorkspaceStore.getState().oristudioCpFoldedFigures[0];
       expect(advanced?.folded3d?.current_fold_case).toBe(2);
@@ -3976,6 +3987,209 @@ describe('workspace store slices', () => {
   });
 
   /**
+   * Stopping a fold, from the store's side.
+   *
+   * The kernel is mocked here, so what these prove is the half a mocked kernel
+   * can prove and the half that has been wrong before: that a live run is
+   * *nameable*, that a Stop reaches the transport with the right id, and that
+   * when the fold comes back rejected with `fold_cancelled` nothing on screen
+   * calls it a failure. The kernel's own half — that a bound run actually
+   * unwinds — is `crates/oristudio-cp`'s and the wasm bridge's.
+   */
+  describe('stopping a fold', () => {
+    /** A fold whose promise the test decides when, and how, to settle. */
+    function pendingFold() {
+      let settle!: (result: unknown) => void;
+      let fail!: (error: unknown) => void;
+      oristudioCpMocks.foldOristudioCpDocument.mockImplementationOnce(
+        () =>
+          new Promise((resolve, reject) => {
+            settle = resolve;
+            fail = reject;
+          })
+      );
+      return {
+        finish: (result: unknown) => settle(result),
+        cancel: () => fail({ code: 'fold_cancelled', message: 'fold cancelled' }),
+      };
+    }
+
+    function seedFoldableCp(lines = [1]) {
+      useWorkspaceStore.setState({
+        activePanelId: 'crease-pattern',
+        oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+        oristudioCpSelection: { ...emptyOristudioCpSelection(), lines },
+      });
+    }
+
+    /** Drain the microtasks between the store's `await`s. */
+    async function settle() {
+      for (let attempt = 0; attempt < 20; attempt += 1) await Promise.resolve();
+    }
+
+    beforeEach(() => {
+      // Cancellation is a property of the transport: in a browser it needs
+      // shared memory, which needs cross-origin isolation. jsdom reports neither
+      // by default, and without this every run would be born un-stoppable and
+      // every assertion below would pass for the wrong reason.
+      Object.defineProperty(globalThis, 'crossOriginIsolated', {
+        value: true,
+        configurable: true,
+      });
+    });
+
+    it('names the live run, so a Stop has something to aim at', async () => {
+      resetStores(seedSnapshot());
+      seedFoldableCp();
+      const fold = pendingFold();
+
+      const folding = useWorkspaceStore.getState().foldOristudioCpDocument();
+      await settle();
+
+      const runs = Object.values(useWorkspaceStore.getState().oristudioCpFoldRuns);
+      expect(runs).toHaveLength(1);
+      expect(runs[0]).toMatchObject({ kind: 'fold', cancellable: true, stopping: false });
+      expect(runs[0]!.runId).toBeGreaterThan(0);
+      expect(runs[0]!.startedAt).toBeGreaterThan(0);
+      // The id the kernel was handed is the id the map records — otherwise a
+      // Stop names a run nothing is folding under.
+      expect(oristudioCpMocks.foldOristudioCpDocument).toHaveBeenCalledWith(
+        1,
+        'Order5',
+        undefined,
+        [1],
+        runs[0]!.runId
+      );
+
+      fold.finish({ handle: 7, snapshot: foldedFigureSnapshot() });
+      await expect(folding).resolves.toBe(true);
+      expect(useWorkspaceStore.getState().oristudioCpFoldRuns).toEqual({});
+    });
+
+    it('writes the exact run id where the running kernel reads it', async () => {
+      resetStores(seedSnapshot());
+      seedFoldableCp();
+      const fold = pendingFold();
+      const folding = useWorkspaceStore.getState().foldOristudioCpDocument();
+      await settle();
+      const runId = Object.values(useWorkspaceStore.getState().oristudioCpFoldRuns)[0]!.runId;
+
+      expect(useWorkspaceStore.getState().stopOristudioCpFolds()).toBe(true);
+
+      // Slot 0 of the real shared buffer, which is what the worker polls.
+      const view = new Int32Array(foldCancellationBuffer()!);
+      expect(Atomics.load(view, 0)).toBe(runId);
+      // Still listed, and now saying so: the fold is in the kernel until it
+      // unwinds, and an indicator that vanished at the press would lie.
+      expect(
+        Object.values(useWorkspaceStore.getState().oristudioCpFoldRuns)[0]
+      ).toMatchObject({ runId, stopping: true });
+
+      fold.cancel();
+      await expect(folding).resolves.toBe(false);
+      expect(useWorkspaceStore.getState().oristudioCpFoldRuns).toEqual({});
+    });
+
+    it('declines when nothing stoppable is running, so Escape falls through', () => {
+      resetStores(seedSnapshot());
+      expect(useWorkspaceStore.getState().stopOristudioCpFolds()).toBe(false);
+    });
+
+    it('offers nothing to stop for a run the transport cannot reach', () => {
+      // The un-isolated browser: the CP engine runs fine there (its memory is
+      // unshared) but there is nowhere to write a stop. Which pages that is, is
+      // `foldCancellation.test.ts`'s question — it can reload the module, and
+      // the buffer is deliberately allocated once per session. What matters here
+      // is that the store honours the answer instead of offering a dead button.
+      resetStores(seedSnapshot());
+      useWorkspaceStore.setState({
+        oristudioCpFoldRuns: {
+          5: { runId: 5, kind: 'fold', startedAt: Date.now(), cancellable: false, stopping: false },
+        },
+      });
+
+      expect(useWorkspaceStore.getState().stopOristudioCpFolds()).toBe(false);
+      expect(
+        Object.values(useWorkspaceStore.getState().oristudioCpFoldRuns)[0]
+      ).toMatchObject({ stopping: false });
+    });
+
+    it('leaves no error, no debris and the selection intact', async () => {
+      resetStores(seedSnapshot());
+      seedFoldableCp();
+      const fold = pendingFold();
+      const folding = useWorkspaceStore.getState().foldOristudioCpDocument();
+      await settle();
+      // The draft figure is on the canvas and has taken the selection, which is
+      // exactly the state a stop has to unwind.
+      expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toHaveLength(1);
+
+      useWorkspaceStore.getState().stopOristudioCpFolds();
+      fold.cancel();
+      await expect(folding).resolves.toBe(false);
+
+      const state = useWorkspaceStore.getState();
+      // `error` is what `GlobalToasts` turns into an error toast; a stop is not
+      // a failure and must reach neither.
+      expect(state.error).toBeNull();
+      expect(state.oristudioCpError).toBeNull();
+      expect(state.oristudioCpFoldedFigures).toEqual([]);
+      expect(state.oristudioCpActiveFoldedFigureId).toBeNull();
+      // Handed back, so the user can press G again rather than reselect.
+      // Upstream drops the selection at dispatch; keeping it is deliberate.
+      expect(state.oristudioCpSelection.lines).toEqual([1]);
+    });
+
+    it('leaves a refold showing the figure it already had', async () => {
+      resetStores(seedSnapshot());
+      seedFoldableCp();
+      await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+      const before = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+
+      const fold = pendingFold();
+      const refolding = useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(before.id);
+      await settle();
+      useWorkspaceStore.getState().stopOristudioCpFolds();
+      fold.cancel();
+      await expect(refolding).resolves.toBe(false);
+
+      const state = useWorkspaceStore.getState();
+      expect(state.oristudioCpFoldedFigures[0]).toEqual(before);
+      expect(state.oristudioCpFoldedFigures[0]?.status).toBe('ready');
+      expect(state.error).toBeNull();
+      expect(state.oristudioCpError).toBeNull();
+    });
+
+    it('reports a halt as its own verdict, with how long it ran', async () => {
+      resetStores(seedSnapshot());
+      seedFoldableCp();
+      const fold = pendingFold();
+      const folding = useWorkspaceStore.getState().foldOristudioCpDocument();
+      await settle();
+      useWorkspaceStore.getState().stopOristudioCpFolds();
+      fold.cancel();
+      await expect(folding).resolves.toBe(false);
+
+      // Not `cancelled`: that means the user declined a dialog before any work
+      // happened, and merging the two destroys the only signal this feature
+      // exists to produce.
+      expect(
+        analyticsMocks.track.mock.calls
+          .filter(([name]) => name === 'fold completed')
+          .map(([, properties]) => properties)
+      ).toEqual([
+        {
+          mode: 'flat',
+          verdict: 'halted',
+          solution_count_bucket: '<=1',
+          elapsed_ms_bucket: '<=1000',
+        },
+      ]);
+    });
+
+  });
+
+  /**
    * The fold events, which are hand-placed because `G` reaches neither
    * chokepoint: `handleCpShortcutAction` short-circuits to the fold before
    * `handleCpToolAction` (so no `cp tool used`), and the toolbar button calls
@@ -4019,7 +4233,14 @@ describe('workspace store slices', () => {
         { mode: 'flat', crease_count_bucket: '<=1', non_classic_count_bucket: '<=1' },
       ]);
       expect(foldEvents('fold completed')).toEqual([
-        { mode: 'flat', verdict: 'folded', solution_count_bucket: '<=1' },
+        {
+          mode: 'flat',
+          verdict: 'folded',
+          solution_count_bucket: '<=1',
+          // On its own ladder, which starts at a second: the shared duration one
+          // tops out at ten, where a fold is only starting to be interesting.
+          elapsed_ms_bucket: '<=1000',
+        },
       ]);
     });
 
@@ -4142,6 +4363,7 @@ describe('workspace store slices', () => {
           mode: 'spatial',
           verdict: 'cancelled',
           solution_count_bucket: '<=1',
+          elapsed_ms_bucket: '<=1000',
           refusal: 'faces_unresolved',
         },
       ]);
@@ -4159,7 +4381,12 @@ describe('workspace store slices', () => {
       await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(false);
 
       expect(foldEvents('fold completed')).toEqual([
-        { mode: 'flat', verdict: 'error', solution_count_bucket: '<=1' },
+        {
+          mode: 'flat',
+          verdict: 'error',
+          solution_count_bucket: '<=1',
+          elapsed_ms_bucket: '<=1000',
+        },
       ]);
     });
 
@@ -4192,6 +4419,7 @@ describe('workspace store slices', () => {
         'not-drawable',
         'simulated',
         'cancelled',
+        'halted',
         'error',
         'local-crossing',
         'transversal-crossing',
@@ -4268,7 +4496,8 @@ describe('workspace store slices', () => {
       1,
       'Order5',
       undefined,
-      [2, 1]
+      [2, 1],
+      A_RUN_ID
     );
   });
 
@@ -4309,7 +4538,8 @@ describe('workspace store slices', () => {
         scale: 2,
         rotation: 90,
       }),
-      [1]
+      [1],
+      A_RUN_ID
     );
   });
 
@@ -4344,7 +4574,8 @@ describe('workspace store slices', () => {
         'Order5',
         // Appearance still carries over; only the side is reset.
         expect.objectContaining({ front_color: { red: 1, green: 2, blue: 3 }, state: 'Front0' }),
-        [1]
+        [1],
+        A_RUN_ID
       );
     }
   );

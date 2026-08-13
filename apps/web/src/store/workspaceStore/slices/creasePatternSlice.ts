@@ -3,6 +3,7 @@ import {
   ANALYTICS_EVENTS,
   bucketCount,
   COUNT_BUCKETS,
+  FOLD_DURATION_MS_BUCKETS,
   track,
   trackDesignSentToEdit,
 } from '../../../analytics';
@@ -114,13 +115,25 @@ import {
   foldOristudioCpFigureToCase as foldRuntimeOristudioCpFigureToCase,
   freeOristudioCpFoldedFigure,
   getOristudioCpFoldedFigureRenderSnapshot as getRuntimeOristudioCpFoldedFigureRenderSnapshot,
+  isFoldCancellation,
   loadOristudioCpDocumentFromText,
   releaseOristudioCpDocument,
   runOristudioCpCheckCommand,
   setOristudioCpFoldedFigureModel as setRuntimeOristudioCpFoldedFigureModel,
 } from '../oristudioCpRuntime';
-import { FOLD_RUN_BACKGROUND } from '../foldCancellation';
-import type { CreasePatternSlice, WorkspaceSliceCreator, WorkspaceState } from '../types';
+import {
+  beginFoldRun,
+  cancelFoldRun,
+  foldCancellationAvailable,
+  FOLD_RUN_BACKGROUND,
+} from '../foldCancellation';
+import type {
+  CreasePatternSlice,
+  OristudioCpFoldRun,
+  OristudioCpFoldRunKind,
+  WorkspaceSliceCreator,
+  WorkspaceState,
+} from '../types';
 import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
 import {
   foldedFigureHandleEpoch,
@@ -531,6 +544,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
    * Push one overlay-layer undo entry: the state *before* an action that touched
    * only annotations and/or folded figures, never the wasm document. Shared by
    * both overlay layers so the entry shape and the redo-stack clear can't drift.
+   *
+   * Deliberately unconditional. A "did anything change?" guard belongs to the
+   * *bracket* that snapshots and records around a verb, not here: half this
+   * function's callers record before mutating and half after, so comparing the
+   * entry against live state here would suppress the entries of the first half.
+   * See `commitFoldedFigureGesture`, which owns both ends and can therefore ask
+   * the question soundly.
    */
   function pushOverlayHistoryEntry(input: {
     annotations: CanvasAnnotation[];
@@ -865,14 +885,36 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
    * errored one would just be a different piece of debris on the canvas.
    */
   function discardFoldedFigureDraft(figureId: string, message: string): false {
+    discardFoldedFigureDraftQuietly(figureId);
+    set({ oristudioCpError: message, error: { code: 'invalid_operation', message } });
+    return false;
+  }
+
+  /**
+   * The same discard, with nothing to report.
+   *
+   * A stopped fold is not a failed one, and the two helpers above both write an
+   * `error` envelope unconditionally — which `GlobalToasts` turns into an error
+   * toast. Restoring the crease selection is the other half: the draft entry took
+   * the canvas selection when it was inserted, and putting it back leaves the
+   * user exactly where they pressed `G`. Upstream drops the selection at dispatch
+   * (`FoldAction.foldCreasePattern` calls `unselect_all`), so keeping it is a
+   * deliberate improvement rather than parity.
+   */
+  function discardFoldedFigureDraftQuietly(
+    figureId: string,
+    selection?: OristudioCpSelection
+  ): false {
     set({
       oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.filter(
         (candidate) => candidate.id !== figureId
       ),
       oristudioCpActiveFoldedFigureId: null,
-      oristudioCpError: message,
-      error: { code: 'invalid_operation', message },
     });
+    // Through the canonical path rather than a field write: handing the canvas
+    // selection back to the creases is an ordinary claim, and the invariant that
+    // one thing is selected at a time is `takeCanvasSelection`'s to keep.
+    if (selection) applyCreaseSelection(selection);
     return false;
   }
 
@@ -885,27 +927,66 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     previous: OristudioCpFoldedFigureEntry,
     message: string
   ): boolean {
+    restorePreviousFigureQuietly(previous);
+    set({ oristudioCpError: message, error: { code: 'invalid_operation', message } });
+    return false;
+  }
+
+  /** The same restore, for a fold the user stopped. See {@link discardFoldedFigureDraftQuietly}. */
+  function restorePreviousFigureQuietly(previous: OristudioCpFoldedFigureEntry): false {
     set({
       oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
         candidate.id === previous.id ? previous : candidate
       ),
-      oristudioCpError: message,
-      error: { code: 'invalid_operation', message },
     });
     return false;
   }
 
+  /** The run map without `runId`, for the `finally` that ends every fold. */
+  function foldRunsWithout(runId: number): Record<number, OristudioCpFoldRun> {
+    const remaining: Record<number, OristudioCpFoldRun> = {};
+    for (const run of Object.values(get().oristudioCpFoldRuns)) {
+      if (run.runId !== runId) remaining[run.runId] = run;
+    }
+    return remaining;
+  }
+
   /**
-   * Mark a fold as in flight for as long as `run` takes, so the UI can show
-   * progress for a slow one. Folding happens in the CP worker, so the main
-   * thread stays free to actually paint that indicator.
+   * Record a fold as live for as long as `run` takes, under an id a Stop can
+   * name, so the UI can both show progress for a slow one and offer a way out of
+   * it. Folding happens in the CP worker, so the main thread stays free to paint
+   * that indicator and to write the stop.
+   *
+   * The id is minted here rather than by the caller: a run is live exactly while
+   * it is in the map, and the two must not be able to disagree. The `finally`
+   * clears it on **every** exit — including a cancel, which a cooperative stop
+   * makes an ordinary rejection rather than a promise that never settles (the
+   * stuck-flag failure recorded in `bp-optimizer-cancellation.md`).
    */
-  async function withFoldInFlight<T>(run: () => Promise<T>): Promise<T> {
-    set({ oristudioCpFoldsInFlight: get().oristudioCpFoldsInFlight + 1 });
+  async function withFoldInFlight<T>(
+    kind: OristudioCpFoldRunKind,
+    run: (runId: number) => Promise<T>
+  ): Promise<T> {
+    const runId = beginFoldRun();
+    set({
+      oristudioCpFoldRuns: {
+        ...get().oristudioCpFoldRuns,
+        [runId]: {
+          runId,
+          kind,
+          startedAt: Date.now(),
+          // Asked once, at dispatch, because that is when the binding is made:
+          // a run started in a browser that cannot share memory stays
+          // un-stoppable for its whole life, however the page changes later.
+          cancellable: foldCancellationAvailable(),
+          stopping: false,
+        },
+      },
+    });
     try {
-      return await run();
+      return await run(runId);
     } finally {
-      set({ oristudioCpFoldsInFlight: Math.max(0, get().oristudioCpFoldsInFlight - 1) });
+      set({ oristudioCpFoldRuns: foldRunsWithout(runId) });
     }
   }
 
@@ -1100,7 +1181,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     oristudioCpRevision: 0,
     oristudioCpFoldedFigures: [],
     oristudioCpActiveFoldedFigureId: null,
-    oristudioCpFoldsInFlight: 0,
+    oristudioCpFoldRuns: {},
     oristudioCpViewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
     oristudioCpCamera: null,
     oristudioCpAnnotations: [],
@@ -1849,6 +1930,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         crease_count_bucket: bucketCount(selectedLineIds.length, COUNT_BUCKETS),
         non_classic_count_bucket: bucketCount(nonClassicCount, COUNT_BUCKETS),
       });
+      // Measured from the press, not from the kernel call: the CAMV pre-check and
+      // its dialog are part of what the user waits through, and a `halted` verdict
+      // is only interesting against how long the folds that *finish* take.
+      const attemptedAt = Date.now();
       const completed = (
         verdict: FoldVerdict,
         solutionCount?: number,
@@ -1858,6 +1943,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           mode,
           verdict,
           solution_count_bucket: bucketCount(solutionCount ?? 0, COUNT_BUCKETS),
+          elapsed_ms_bucket: bucketCount(Date.now() - attemptedAt, FOLD_DURATION_MS_BUCKETS),
           ...extra,
         });
       };
@@ -1938,11 +2024,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         // shown, because `withFoldInFlight` drives the global "Folding…"
         // indicator.
         try {
-          const result = await withFoldInFlight(() =>
+          const result = await withFoldInFlight('fold-3d', (runId) =>
             fold3dRuntimeOristudioCpDocument(
               selectedLineIds,
               options.startingFaceId ?? 1,
-              options.model
+              options.model,
+              runId
             )
           );
 
@@ -2073,6 +2160,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           );
           return true;
         } catch (error) {
+          // A stop is neither a failure nor a result. Nothing to undo here: this
+          // branch deliberately inserts no draft entry, so the canvas is already
+          // exactly as the user left it.
+          if (isFoldCancellation(error)) {
+            completed('halted');
+            return false;
+          }
           // Only a genuine engine failure reaches here: a refusal is a result.
           const normalized = engineError(error);
           set({ oristudioCpError: normalized.message, error: normalized });
@@ -2099,6 +2193,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         error: null,
       };
 
+      // What the crease selection was before the draft entry took the canvas, so
+      // a stopped fold can hand it back rather than making the user reselect the
+      // creases they were about to fold.
+      const selectionBeforeFold = get().oristudioCpSelection;
       takeCanvasSelection('folded-figure', {
         oristudioCpFoldedFigures: [...get().oristudioCpFoldedFigures, loadingEntry],
         oristudioCpActiveFoldedFigureId: figureId,
@@ -2114,12 +2212,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         const model =
           options.model ??
           (savedModel ? { ...savedModel, state: NEW_FOLDED_FIGURE_SIDE } : undefined);
-        const result = await withFoldInFlight(() =>
+        const result = await withFoldInFlight('fold', (runId) =>
           foldRuntimeOristudioCpDocument(
             options.startingFaceId ?? 1,
             options.order ?? 'Order5',
             model,
-            selectedLineIds
+            selectedLineIds,
+            runId
           )
         );
         const displayStyle = result.snapshot.display_style;
@@ -2219,6 +2318,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         );
         return true;
       } catch (error) {
+        if (isFoldCancellation(error)) {
+          // The draft goes, quietly. Left as an `error` entry it would be debris
+          // on the canvas *and* an error toast, for something the user asked for.
+          completed('halted');
+          return discardFoldedFigureDraftQuietly(figureId, selectionBeforeFold);
+        }
         const normalized = engineError(error);
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) =>
@@ -2236,6 +2341,30 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         completed('error');
         return false;
       }
+    },
+
+    stopOristudioCpFolds: () => {
+      // Only the runs that can actually be stopped. Answering `true` for a run
+      // the transport cannot reach would let Escape swallow the key on behalf of
+      // a fold that then keeps going — and the affordance is hidden in that case
+      // for the same reason.
+      const stoppable = Object.values(get().oristudioCpFoldRuns).filter((run) => run.cancellable);
+      if (stoppable.length === 0) return false;
+      for (const run of stoppable) cancelFoldRun(run.runId);
+      // Marked, not removed: the run is still in the kernel until it unwinds at
+      // its next checkpoint, and its own `finally` is what clears it. Removing it
+      // here would leave the indicator lying in the other direction — gone while
+      // the fold is still going — and would leak an untracked run if the stop
+      // raced the checkpoint.
+      set({
+        oristudioCpFoldRuns: Object.fromEntries(
+          Object.values(get().oristudioCpFoldRuns).map((run) => [
+            run.runId,
+            run.cancellable ? { ...run, stopping: true } : run,
+          ])
+        ),
+      });
+      return true;
     },
 
     foldAnotherOristudioCpFigure: async (id) => {
@@ -2284,7 +2413,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         // write a flat snapshot onto an entry that already has `folded3d`,
         // leaving both witnesses non-null.
         if (spatial) {
-          const step = await withFoldInFlight(() => fold3dRuntimeOristudioCpFigureAnother(handle));
+          const step = await withFoldInFlight('another-3d', (runId) =>
+            fold3dRuntimeOristudioCpFigureAnother(handle, runId)
+          );
           track(ANALYTICS_EVENTS.foldSolutionCycled, {
             direction: cycleDirection,
             solution_count_bucket: bucketCount(
@@ -2321,8 +2452,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           });
           return true;
         }
-        const snapshot = await withFoldInFlight(() =>
-          foldRuntimeOristudioCpFigureAnother(handle)
+        const snapshot = await withFoldInFlight('another', (runId) =>
+          foldRuntimeOristudioCpFigureAnother(handle, runId)
         );
         track(ANALYTICS_EVENTS.foldSolutionCycled, {
           direction: cycleDirection,
@@ -2347,6 +2478,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         });
         return true;
       } catch (error) {
+        // Stopped: the figure never changed, so it goes back to `ready` showing
+        // the solution it already was. The kernel rolled its session back for the
+        // same reason (Phase 3's transaction), so the two agree.
+        if (isFoldCancellation(error)) return restorePreviousFigureQuietly(figure);
         const normalized = engineError(error);
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
@@ -2399,8 +2534,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
       try {
         const handle = figure.handle;
-        const result = await withFoldInFlight(() =>
-          foldRuntimeOristudioCpFigureToCase(handle, objective, 'Order5')
+        const result = await withFoldInFlight('to-case', (runId) =>
+          foldRuntimeOristudioCpFigureToCase(handle, objective, 'Order5', runId)
         );
         const renderSnapshot = await renderSnapshotForFoldedFigure(
           figure.handle,
@@ -2427,6 +2562,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         });
         return true;
       } catch (error) {
+        // A batch is the run most worth stopping — it folds towards a numbered
+        // case and can walk a long way to get there. Stopped, the figure keeps
+        // the case it was already showing.
+        if (isFoldCancellation(error)) return restorePreviousFigureQuietly(figure);
         const normalized = engineError(error);
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
@@ -2718,11 +2857,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       }
       if (refoldRoute.kind === 'spatial') {
         try {
-          const result = await withFoldInFlight(() =>
+          const result = await withFoldInFlight('refold-3d', (runId) =>
             fold3dRuntimeOristudioCpDocument(
               refoldRoute.lineIds,
               figure.startingFaceId ?? 1,
-              figure.folded3d?.model
+              figure.folded3d?.model,
+              runId
             )
           );
           if (result.status === 'refused') {
@@ -2784,17 +2924,19 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           releaseFoldedFigureHandle(previousHandle);
           return true;
         } catch (error) {
+          if (isFoldCancellation(error)) return restorePreviousFigureQuietly(figure);
           return restorePreviousFigure(figure, engineError(error).message);
         }
       }
 
       try {
-        const result = await withFoldInFlight(() =>
+        const result = await withFoldInFlight('refold', (runId) =>
           foldRuntimeOristudioCpDocument(
             figure.startingFaceId ?? 1,
             'Order5',
             figure.snapshot?.model,
-            refoldRoute.lineIds
+            refoldRoute.lineIds,
+            runId
           )
         );
         const renderSnapshot = await renderSnapshotForFoldedFigure(
@@ -2858,6 +3000,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         // A refold is a no-op when it fails. The figure on the canvas is still
         // valid — it is the *crease pattern* that cannot be folded — and the old
         // kernel handle is untouched, since it is released only after a success.
+        // Stopping one is the same no-op with nothing to say about it.
+        if (isFoldCancellation(error)) return restorePreviousFigureQuietly(figure);
         return restorePreviousFigure(figure, engineError(error).message);
       }
     },

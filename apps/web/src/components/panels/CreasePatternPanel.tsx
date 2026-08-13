@@ -926,6 +926,7 @@ export function CreasePatternPanel() {
     (state) => state.setOristudioCpActiveFoldedFigure
   );
   const clearOristudioCpSelection = useWorkspaceStore((state) => state.clearOristudioCpSelection);
+  const stopOristudioCpFolds = useWorkspaceStore((state) => state.stopOristudioCpFolds);
   const executeOristudioCpCommand = useWorkspaceStore(
     (state) => state.executeOristudioCpCommand
   );
@@ -2601,15 +2602,22 @@ export function CreasePatternPanel() {
   );
 
   /**
-   * Escape, as a layered cancel: leave the hand tool, else drop the selection,
-   * else deactivate the tool. Matches Oriedita, and fixes "select-all, Escape,
-   * select-one ⇒ everything selected again" for Polygon/Lasso and friends.
+   * Escape, as a layered cancel: stop a running fold, else leave the hand tool,
+   * else drop the selection, else deactivate the tool. Matches Oriedita, and
+   * fixes "select-all, Escape, select-one ⇒ everything selected again" for
+   * Polygon/Lasso and friends.
    *
    * Reached through the shortcut runtime rather than a listener on this panel,
    * so it fires wherever focus happens to be — including the floating toolbars,
    * which are the surfaces a container-scoped listener silently loses.
    */
   const cancelActiveCpInput = useCallback(() => {
+    // Above the editable guard, and nothing else in this ladder is. Upstream's
+    // Escape *is* `haltAction`, and a fold takes minutes: a rung below the guard
+    // would be dead whenever the panel is showing a crease pattern that is not
+    // editable, which a long fold can perfectly well be running in. Every other
+    // rung acts on the editable document and so keeps the guard's meaning.
+    if (stopOristudioCpFolds()) return;
     if (!editableCp) return;
     // An open text editor owns Escape: leave the edit rather than the tool. The
     // editor itself claims the key while it holds focus (its Lexical command),
@@ -2654,6 +2662,7 @@ export function CreasePatternPanel() {
     if (editableSelectionSize > 0) clearOristudioCpSelection();
   }, [
     clearOristudioCpSelection,
+    stopOristudioCpFolds,
     cpToolPath.length,
     cpToolPoints.length,
     cpToolState,
