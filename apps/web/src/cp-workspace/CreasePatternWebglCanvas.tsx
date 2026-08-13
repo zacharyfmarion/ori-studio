@@ -104,9 +104,13 @@ import { createStepSequenceTool } from './tools/stepSequenceTool';
 import { createLinePickTool } from './tools/linePickTool';
 import type { ToolCommit, ToolPreviewSegment } from './tools/types';
 import {
+  CP_LINE_HIT_MIN_CSS,
   CP_LINE_HIT_RATIO,
+  CP_POINT_HIT_MIN_CSS,
   CP_POINT_HIT_RATIO,
   CP_SNAP_RATIO,
+  cpHitRadiusModel,
+  cpKernelSnapRadiusModel,
   cpSnapRadiusModel,
 } from './snapRadius';
 import type { ToolClickAction } from './tools/predicates';
@@ -1623,11 +1627,7 @@ export function CreasePatternWebglCanvas({
       // radius this surface snapped with rather than a re-derivation from the
       // rounded percent above. Every prop change re-runs the render effect, so a
       // change to the setting republishes without its own listener.
-      const snapDistance = cpSnapRadiusModel(
-        liveRef.current.snapRadius,
-        cam.zoom / ratio,
-        CP_SNAP_RATIO
-      );
+      const snapDistance = cpKernelSnapRadiusModel(liveRef.current.snapRadius, cam.zoom / ratio);
       if (snapDistance !== lastReportedSnapDistanceRef.current) {
         lastReportedSnapDistanceRef.current = snapDistance;
         liveRef.current.onSnapDistanceChange(snapDistance);
@@ -1786,10 +1786,22 @@ export function CreasePatternWebglCanvas({
      */
     const snapTolerance = (): number =>
       cpSnapRadiusModel(liveRef.current.snapRadius, zoomOf(), CP_SNAP_RATIO);
+    // Hit radii never tighten below pointer precision — see `cpHitRadiusModel`.
     const lineHitTolerance = (): number =>
-      cpSnapRadiusModel(liveRef.current.snapRadius, zoomOf(), CP_LINE_HIT_RATIO);
+      cpHitRadiusModel(liveRef.current.snapRadius, zoomOf(), CP_LINE_HIT_RATIO, CP_LINE_HIT_MIN_CSS);
     const pointHitTolerance = (): number =>
-      cpSnapRadiusModel(liveRef.current.snapRadius, zoomOf(), CP_POINT_HIT_RATIO);
+      cpHitRadiusModel(
+        liveRef.current.snapRadius,
+        zoomOf(),
+        CP_POINT_HIT_RATIO,
+        CP_POINT_HIT_MIN_CSS
+      );
+    /**
+     * What the kernel will search. Bounded by the setting, unlike the on-screen
+     * radius, so a `crease-required` step gates on the kernel's own number.
+     */
+    const kernelSnapTolerance = (): number =>
+      cpKernelSnapRadiusModel(liveRef.current.snapRadius, zoomOf());
 
     // The id of the diagnostic marker under a model point, if any (nearest within a
     // screen-constant radius). Markers are screen-sized, so the tolerance is CSS px.
@@ -2223,7 +2235,7 @@ export function CreasePatternWebglCanvas({
           liveRef.current.hitIndex.query(
             point.x,
             point.y,
-            snapTolerance()
+            kernelSnapTolerance()
           ) <= 0
         ) {
           return;

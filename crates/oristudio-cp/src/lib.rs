@@ -129,14 +129,17 @@ pub struct CreasePatternCommandPayload {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub selection_distance: Option<f64>,
     /// Optional model-space tolerance for closing `FlatFoldableCheck`'s boundary
-    /// loop. Absent means `Epsilon::UNKNOWN_1EN4`.
+    /// loop. Absent means `Epsilon::UNKNOWN_1EN4` (which is `FACTOR * 1e-4`, so
+    /// 1e-6 — a geometric epsilon, not a pointer radius).
     ///
-    /// Upstream decides closure at the mouse release, so it reuses
-    /// `selectionDistance` there. We decide it from a finished point list, where
-    /// the two numbers stop meaning the same thing: `selection_distance` is a
-    /// pointer radius the user is free to widen, and this is the geometric
-    /// epsilon that says whether a loop is a loop. Sharing one field would let
-    /// the snap radius weld boundaries the drag never joined.
+    /// Upstream closes the loop at the mouse release, against the pointer radius
+    /// (`MouseHandlerFlatFoldableCheck.java:68`), and a UI caller should send
+    /// that same radius here: our last path sample *is* the release point, so the
+    /// two tests are the same test. The field exists because we decide closure
+    /// from a finished point list, which a caller with no cursor can also produce
+    /// — the CLI, headless wasm, a detector import — and those must not inherit
+    /// whatever radius a mouse happened to have. Stating it beats defaulting to
+    /// a pointer radius seven orders of magnitude away from the epsilon.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub boundary_close_distance: Option<f64>,
     /// Optional override for what a kernel-side snap may land on.

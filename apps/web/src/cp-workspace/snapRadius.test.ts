@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CP_LINE_HIT_MIN_CSS,
   CP_LINE_HIT_RATIO,
   CP_MIN_SNAP_RADIUS_CSS,
   CP_MODEL_TO_CSS,
+  CP_POINT_HIT_MIN_CSS,
   CP_POINT_HIT_RATIO,
   CP_SNAP_RATIO,
+  cpHitRadiusModel,
+  cpKernelSnapRadiusModel,
   cpSnapRadiusModel,
 } from './snapRadius';
 import { CP_DEFAULT_SNAP_RADIUS } from '../lib/cpSnapRadiusSetting';
@@ -89,5 +93,63 @@ describe('cpSnapRadiusModel', () => {
     expect(cpSnapRadiusModel(Number.NaN, 1)).toBeCloseTo(cpSnapRadiusModel(CP_DEFAULT_SNAP_RADIUS, 1), 12);
     expect(cpSnapRadiusModel(0, 1)).toBeCloseTo(cpSnapRadiusModel(CP_DEFAULT_SNAP_RADIUS, 1), 12);
     expect(Number.isFinite(cpSnapRadiusModel(10, Number.POSITIVE_INFINITY))).toBe(true);
+  });
+});
+
+describe('cpHitRadiusModel', () => {
+  const lineHit = (r: number, z: number) =>
+    cpHitRadiusModel(r, z, CP_LINE_HIT_RATIO, CP_LINE_HIT_MIN_CSS);
+  const pointHit = (r: number, z: number) =>
+    cpHitRadiusModel(r, z, CP_POINT_HIT_RATIO, CP_POINT_HIT_MIN_CSS);
+
+  it('never makes picking tighter than the app already was', () => {
+    // Letting the hit radii follow the setting all the way down put a 2.35 px
+    // target on a crease at the slider minimum — under CLICK_MOVE_THRESHOLD = 4,
+    // the app's own "the pointer did not really move" distance.
+    for (const zoom of [4, 1, 0.5, 0.1]) {
+      expect(screenPx(lineHit(2, zoom), zoom)).toBeCloseTo(CP_LINE_HIT_MIN_CSS, 9);
+      expect(screenPx(pointHit(2, zoom), zoom)).toBeCloseTo(CP_POINT_HIT_MIN_CSS, 9);
+    }
+  });
+
+  it('still widens picking when the user widens the radius', () => {
+    expect(screenPx(lineHit(10, 1), 1)).toBeCloseTo(10 * CP_MODEL_TO_CSS * CP_LINE_HIT_RATIO, 9);
+    expect(lineHit(100, 1)).toBeGreaterThan(lineHit(10, 1));
+    expect(lineHit(10, 1)).toBeGreaterThan(lineHit(2, 1));
+  });
+
+  it('keeps a point target tighter than a line target, which is what makes vertices grabbable', () => {
+    for (const radius of [2, 10, 100]) {
+      for (const zoom of [4, 1, 0.25]) {
+        expect(pointHit(radius, zoom)).toBeLessThan(lineHit(radius, zoom));
+      }
+    }
+  });
+});
+
+describe('cpKernelSnapRadiusModel', () => {
+  it('is upstream\'s law with no floor, so it never exceeds the setting', () => {
+    // The screen floor keeps a target clickable when zoomed out; the kernel has no
+    // screen, and reuses this scalar for decisions that are not pointer proximity
+    // (Voronoi's seed toggle deletes within it). Sending the floored value made it
+    // 75 model units at a 9% fit zoom and 680 at the camera minimum.
+    for (const zoom of [1, 0.25, 0.09, 0.01]) {
+      expect(cpKernelSnapRadiusModel(10, zoom)).toBeLessThanOrEqual(10 + 1e-9);
+    }
+    expect(cpKernelSnapRadiusModel(10, 1)).toBeCloseTo(10, 12);
+    expect(cpKernelSnapRadiusModel(10, 4)).toBeCloseTo(2.5, 12);
+    expect(cpKernelSnapRadiusModel(10, 0.09)).toBeCloseTo(10, 12);
+  });
+
+  it('parts company with the on-screen radius only below 100% zoom', () => {
+    for (const zoom of [4, 2, 1]) {
+      expect(cpKernelSnapRadiusModel(10, zoom)).toBeCloseTo(cpSnapRadiusModel(10, zoom), 9);
+    }
+    expect(cpKernelSnapRadiusModel(10, 0.25)).toBeLessThan(cpSnapRadiusModel(10, 0.25));
+  });
+
+  it('falls back like the others', () => {
+    expect(cpKernelSnapRadiusModel(Number.NaN, 1)).toBeCloseTo(10, 12);
+    expect(cpKernelSnapRadiusModel(10, 0)).toBeCloseTo(10, 12);
   });
 });

@@ -95,16 +95,24 @@ scopes in one panel; putting it in Settings is consistent but buries it. My lean
 is Settings, beside `cpWheelGesture`, with upstream as precedent (its slider is
 in the Preferences dialog).
 
-**D4 — One base radius, existing ratios preserved, and the kernel is promoted to
-the snap radius.** The 10/8/6 spread is load-bearing: a crease's nearest point is
+**D4 — One base radius and three frames, ratios preserved.** *(Amended during
+implementation, after review.)* One law, but three answers, because the same
+number cannot serve three questions: the **screen** radius (floored, so a target
+stays clickable when zoomed out), the **hit** radii (floored *and* never tighter
+than the pointer-precision minimums the surface already shipped — 8 px for
+creases, 6 px for points), and the **kernel** radius (upstream's law with no
+floor, so it never exceeds the setting). The kernel is promoted from the hit
+tolerance to the snap radius. The 10/8/6 spread is load-bearing: a crease's nearest point is
 its perpendicular foot, which sits on top of its own endpoint, so an equal point
 radius makes vertices nearly unpickable (`CreasePatternPanel.tsx:1806-1815`).
 Express them as ratios of one base `R` (1.0 / 0.8 / 0.6) and note the
 consequence: the kernel payload moves from `0.8R` to `1.0R`, a 25% widening of
-every kernel-side selection distance. **Caveat that constrains D6:** the
-vertex-priority failure is governed by the *absolute* point radius, not the
-ratio, so at `R = 2` the point radius is 1.2 model units ≈ 1.8 CSS px at 100%
-zoom — below usable pointer precision. That is what the D1 floor has to cover.
+every kernel-side selection distance. **What the ratios must not do** is govern
+picking on their own: at `R = 2` the ratios alone put a 2.35 px target on a
+crease and 1.76 px on a vertex, under the surface's own `CLICK_MOVE_THRESHOLD`
+of 4 px — so the setting would quietly break click-select and the eraser. Hence
+the hit minimums above: the setting may make picking *more* forgiving, never
+less.
 
 **D5 — `CLICK_MOVE_THRESHOLD` does not scale.** It is the click-vs-drag gesture
 threshold, not a radius. A proportional threshold at `R = 100` would be 40 CSS
@@ -113,10 +121,10 @@ compares snapped-to-snapped points (`angle-drag-shared-engine.md`), which makes
 that worse, not better.
 
 **D6 — Default 10, range 2–100, integer step — upstream's slider verbatim**, now
-that D2 puts us in the same unit. The low end still needs care: at `R = 2` the
-0.6 point ratio gives 1.2 model units ≈ 1.8 CSS px at 100% zoom, below usable
-pointer precision, so the derived radii need a CSS-px floor (the same mechanism
-D1 needs below 100% zoom, which is one floor serving both).
+that D2 puts us in the same unit. The whole range is usable because D4 splits the
+frames: the tight end genuinely tightens *snapping* (2.94 CSS px at `R = 2`)
+while picking holds at the 8/6 px minimums, so "less grabby" is reachable without
+making creases unclickable.
 
 **D7 — `POINT_SNAP_DISTANCE_MULTIPLIER = 1.75` is multiplicative, not
 orthogonal.** Both snappers compute `pointSnapDistance = maxDistance × 1.75`, so
@@ -198,6 +206,18 @@ follow-up. This plan unifies the radius only.
 
 ## Implementation notes
 
+- **Three frames, not one number.** Review caught the cost of conflating them:
+  the on-screen radius must *grow* when zoomed out to keep targets clickable,
+  while the kernel radius must stay *bounded* because the kernel reuses that
+  scalar for decisions that are not pointer proximity. Publishing the floored
+  value sent `selection_distance` to 75 model units at a 9% fit zoom and 680 at
+  the camera minimum, where Voronoi's seed toggle *deletes* a seed within that
+  distance — a zoomed-out click 60 units from the last one would have removed it.
+  The kernel now gets `R / max(1, z)`, which never exceeds the setting.
+- **Hit radii have their own minimums.** Letting them follow the setting down put
+  a 2.35 px target on a crease at `R = 2`, under the app's own 4 px pointer-noise
+  threshold; click-select and the eraser would have broken at the slider setting
+  a user reaches for when they want *less* grabby snapping.
 - **The floor is `min(R·k, 10 CSS px)`, not a flat 10.** A flat floor tested
   cleanly and was wrong in the browser: every radius below ~7 resolved to the
   same 10 CSS px, so the bottom third of the slider did nothing and "less grabby

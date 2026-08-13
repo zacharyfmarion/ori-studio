@@ -57,7 +57,7 @@ import {
   squareCommandPayload,
 } from '../../cp-workspace/tools/squareTool';
 import { toolPreviewSegments } from '../../cp-workspace/tools/toolPreviewSegments';
-import { cpSnapRadiusModel } from '../../cp-workspace/snapRadius';
+import { cpKernelSnapRadiusModel } from '../../cp-workspace/snapRadius';
 import {
   cpToolSelectionForMouseMode,
   cpVariantHostAction,
@@ -1418,11 +1418,13 @@ export function CreasePatternPanel() {
   // The `selection_distance` every tool command carries, exposed to the canvas so a
   // destination pick is gated on the same radius the kernel searches.
   /**
-   * The snap distance the canvas last resolved, in model units. It owns the number
-   * because it holds the live camera; the panel only forwards it to the kernel, so
-   * a command searches exactly the radius the cursor snapped with.
+   * The radius the canvas last resolved *for the kernel*, in model units. The
+   * canvas owns it because it holds the live camera; the panel only forwards it.
+   * It is upstream's bounded law rather than the on-screen radius — the screen
+   * floor exists to keep targets clickable when zoomed out, and the kernel reuses
+   * this scalar for decisions that are not pointer proximity.
    */
-  const cpSnapDistanceRef = useRef(cpSnapRadiusModel(cpSnapRadius, 1));
+  const cpSnapDistanceRef = useRef(cpKernelSnapRadiusModel(cpSnapRadius, 1));
   const handleCpSnapDistanceChange = useCallback((distance: number) => {
     cpSnapDistanceRef.current = distance;
   }, []);

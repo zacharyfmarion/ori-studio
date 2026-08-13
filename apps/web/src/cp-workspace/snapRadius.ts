@@ -52,13 +52,16 @@ export const CP_POINT_HIT_RATIO = 0.6;
 export const CP_MIN_SNAP_RADIUS_CSS = 10;
 
 /**
- * Resolve the snap radius in model units at a given zoom.
+ * Resolve the on-screen snap radius in model units.
  *
  * The body is Oriedita's `CreasePattern_Worker_Impl.calculateDecisionWidth()` —
  * `mouseRadius / max(1, zoom)` — which holds the radius constant *on screen*
- * while zoomed in and constant *in model units* while zoomed out, so it can
- * swallow neither the pixels nor the geometry. The floor is ours, and only ever
- * widens the result.
+ * while zoomed in and constant *in model units* while zoomed out. The floor is
+ * ours, and only ever widens the result.
+ *
+ * This is the *screen* answer. What the kernel is told is
+ * {@link cpKernelSnapRadiusModel}, and the two deliberately part company when
+ * zoomed out — see that function.
  *
  * @param radius base radius in model units (the user's setting)
  * @param zoom   `zoomPercent / 100`, i.e. CSS px per SVG user unit
@@ -75,4 +78,52 @@ export function cpSnapRadiusModel(radius: number, zoom: number, ratio: number = 
   const floorCss = Math.min(safeRadius * CP_MODEL_TO_CSS, CP_MIN_SNAP_RADIUS_CSS) * ratio;
   const floor = floorCss / (CP_MODEL_TO_CSS * safeZoom);
   return Math.max(upstream, floor);
+}
+
+/**
+ * Pointer-precision minimums for the two *hit* radii, in CSS px: the fixed
+ * values this surface shipped before the radius became a setting.
+ *
+ * Hit-testing answers "what did the user click", which is a question about the
+ * pointer, not about snapping. Letting it follow the setting all the way down
+ * put a 2.35 px target on a crease at the slider's minimum — under the app's own
+ * `CLICK_MOVE_THRESHOLD = 4`, the distance it calls "the pointer did not really
+ * move". So the setting may make picking *more* forgiving and never less.
+ */
+export const CP_LINE_HIT_MIN_CSS = 8;
+export const CP_POINT_HIT_MIN_CSS = 6;
+
+/**
+ * Resolve a hit-test radius in model units: the snap law, but never tighter than
+ * the pointer-precision minimum for that kind of target.
+ */
+export function cpHitRadiusModel(
+  radius: number,
+  zoom: number,
+  ratio: number,
+  minCss: number
+): number {
+  const safeZoom = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+  return Math.max(
+    cpSnapRadiusModel(radius, zoom, ratio),
+    minCss / (CP_MODEL_TO_CSS * safeZoom)
+  );
+}
+
+/**
+ * The radius the *kernel* is told to search, in model units — upstream's law
+ * with no floor: `mouseRadius / max(1, zoom)`, so it never exceeds the setting.
+ *
+ * The floor above exists to keep a target clickable on a zoomed-out screen, and
+ * the kernel has no screen. Sending it the floored value instead made
+ * `selection_distance` grow as 1/zoom — 75 model units at a 9% fit zoom, 680 at
+ * the camera's minimum — and the kernel reuses that scalar for decisions that
+ * are not pointer proximity at all. Voronoi is the sharpest: a seed within it of
+ * an existing one *removes* that seed, so a zoomed-out click 60 units from the
+ * last one would have deleted it instead of adding.
+ */
+export function cpKernelSnapRadiusModel(radius: number, zoom: number): number {
+  const safeZoom = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+  const safeRadius = Number.isFinite(radius) && radius > 0 ? radius : CP_DEFAULT_SNAP_RADIUS;
+  return safeRadius / Math.max(1, safeZoom);
 }
