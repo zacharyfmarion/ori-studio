@@ -88,6 +88,7 @@ import { edgeLengthRepositions } from '../../tree-editor/dragRule';
 import { treeTopology } from '../../tree-editor/model';
 import { hasPassedDragThreshold } from '../../lib/pointerGesture';
 import { useBpPackingDragRequests } from '../../hooks/useBpPackingDragRequests';
+import { useBpFlapResize } from '../../hooks/useBpFlapResize';
 import {
   useBpPackingSymmetry,
   type BpPackingSymmetryView,
@@ -118,6 +119,7 @@ import { IconButton } from '../ui/IconButton';
 import { BpPackingEmptySpaceLayer } from './BpPackingEmptySpaceLayer';
 import { BpPackingRiverBandLayer } from './BpPackingRiverBandLayer';
 import { BpFlapEditor } from './BpFlapEditor';
+import { BpFlapResizeHandles } from './BpFlapResizeHandles';
 import { BpRiverEditor } from './BpRiverEditor';
 import {
   isViewportInteractiveTarget,
@@ -1031,6 +1033,23 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     reshapeFlap: reshapeOristudioBpFlap,
   });
 
+  const flapResize = useBpFlapResize({
+    // A flap that is its own mirror is deliberately left out. Resizing one has to
+    // grow it symmetrically about the axis to stay centred, and the anchor that
+    // keeps it there is `centre - width/2` — a half cell for the wrong parity,
+    // which is a fractional flap coordinate, which fails device generation for
+    // the whole design. Its R/W/H fields still work.
+    flap: singleSelectedFlap && !symmetry.selfMirrored ? singleSelectedFlap : null,
+    sheet: packing.sheet,
+    radiusRange: singleSelectedFlapEdge
+      ? { min: 1, max: singleSelectedFlapEdge.maxLength ?? flapMaxDimension }
+      : null,
+    unit,
+    disabled: flapDragging !== null || deviceDragging !== null,
+    eventToPackingPoint,
+    dragRequests,
+  });
+
 
   useEffect(() => {
     const container = containerRef.current;
@@ -1826,6 +1845,16 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                 ) : null
               )}
             </g>
+            {/* Selection chrome, so above every geometry layer and outside the
+                sheet clip — a corner flap's handles must not be masked away. */}
+            {flapResize.flap && (
+              <BpFlapResizeHandles
+                flap={flapResize.flap}
+                sheet={packing.sheet}
+                paperRect={paperRect}
+                resize={flapResize}
+              />
+            )}
             {marquee?.active && (
               <rect
                 className="bp-packing-marquee"

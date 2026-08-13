@@ -67,6 +67,15 @@ export interface BpPackingSymmetryView {
   status: string;
   /** Flaps that mirror the selection — marked, so a mirrored move is no surprise. */
   partnerIds: ReadonlySet<number>;
+  /**
+   * Whether the one selected flap is its *own* mirror, sitting on the line.
+   *
+   * Such a flap has to stay centred on the axis, and the anchor that keeps it
+   * there is `centre - width/2` — half a cell for the wrong parity, which is a
+   * fractional flap coordinate, which fails device generation for the entire
+   * design. So the resize handles decline it; its R/W/H fields still work.
+   */
+  selfMirrored: boolean;
   /** The selected flap's explicit partner, if any. Null means nothing to unpair. */
   unpairableId: number | null;
   unpair: (vertexId: number) => void;
@@ -197,6 +206,15 @@ export function useBpPackingSymmetry(
     return explicitBpTreePairId(symmetry.pairs, id) === null ? null : id;
   }, [symmetry.pairs, selectedFlapIds]);
 
+  // Gated on mirror draw, unlike the partner mark above, and for the reason the
+  // store's own `bpIsSelfMirrored` gives: a *pair* is a fact the user recorded
+  // and outlives the toggle, while sitting on the line never is.
+  const selfMirrored = useMemo(() => {
+    if (!symmetry.enabled || selectedFlapIds.length !== 1) return false;
+    const id = selectedFlapIds[0];
+    return mirrorBpTreeVertexId(tree, symmetry.pairs, treeAxis, id) === id;
+  }, [symmetry.enabled, symmetry.pairs, selectedFlapIds, tree, treeAxis]);
+
   return {
     enabled: symmetry.enabled,
     toggle,
@@ -206,6 +224,7 @@ export function useBpPackingSymmetry(
     axisLine,
     status,
     partnerIds,
+    selfMirrored,
     unpairableId,
     unpair: unpairOristudioBpTreeSymmetry,
   };

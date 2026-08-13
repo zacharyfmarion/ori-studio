@@ -2396,7 +2396,15 @@
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
     "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
     "dialogs:orieditaImport.useAll": "7309d57d7ab0",
-    "dialogs:orieditaImport.useAllLabel": "f52174549432"
+    "dialogs:orieditaImport.useAllLabel": "f52174549432",
+    "panels:bpPacking.resizeFlapBottom": "897f6e5ddd54",
+    "panels:bpPacking.resizeFlapBottomLeft": "f0b277dd41c0",
+    "panels:bpPacking.resizeFlapBottomRight": "c7d0f77c48b1",
+    "panels:bpPacking.resizeFlapLeft": "259a9d2382d1",
+    "panels:bpPacking.resizeFlapRight": "784404c041f8",
+    "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
+    "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4795,7 +4803,15 @@
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
     "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
     "dialogs:orieditaImport.useAll": "7309d57d7ab0",
-    "dialogs:orieditaImport.useAllLabel": "f52174549432"
+    "dialogs:orieditaImport.useAllLabel": "f52174549432",
+    "panels:bpPacking.resizeFlapBottom": "897f6e5ddd54",
+    "panels:bpPacking.resizeFlapBottomLeft": "f0b277dd41c0",
+    "panels:bpPacking.resizeFlapBottomRight": "c7d0f77c48b1",
+    "panels:bpPacking.resizeFlapLeft": "259a9d2382d1",
+    "panels:bpPacking.resizeFlapRight": "784404c041f8",
+    "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
+    "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7194,7 +7210,15 @@
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
     "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
     "dialogs:orieditaImport.useAll": "7309d57d7ab0",
-    "dialogs:orieditaImport.useAllLabel": "f52174549432"
+    "dialogs:orieditaImport.useAllLabel": "f52174549432",
+    "panels:bpPacking.resizeFlapBottom": "897f6e5ddd54",
+    "panels:bpPacking.resizeFlapBottomLeft": "f0b277dd41c0",
+    "panels:bpPacking.resizeFlapBottomRight": "c7d0f77c48b1",
+    "panels:bpPacking.resizeFlapLeft": "259a9d2382d1",
+    "panels:bpPacking.resizeFlapRight": "784404c041f8",
+    "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
+    "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9554,7 +9578,15 @@
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
     "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
     "dialogs:orieditaImport.useAll": "7309d57d7ab0",
-    "dialogs:orieditaImport.useAllLabel": "f52174549432"
+    "dialogs:orieditaImport.useAllLabel": "f52174549432",
+    "panels:bpPacking.resizeFlapBottom": "897f6e5ddd54",
+    "panels:bpPacking.resizeFlapBottomLeft": "f0b277dd41c0",
+    "panels:bpPacking.resizeFlapBottomRight": "c7d0f77c48b1",
+    "panels:bpPacking.resizeFlapLeft": "259a9d2382d1",
+    "panels:bpPacking.resizeFlapRight": "784404c041f8",
+    "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
+    "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -11914,7 +11946,15 @@
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
     "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
     "dialogs:orieditaImport.useAll": "7309d57d7ab0",
-    "dialogs:orieditaImport.useAllLabel": "f52174549432"
+    "dialogs:orieditaImport.useAllLabel": "f52174549432",
+    "panels:bpPacking.resizeFlapBottom": "897f6e5ddd54",
+    "panels:bpPacking.resizeFlapBottomLeft": "f0b277dd41c0",
+    "panels:bpPacking.resizeFlapBottomRight": "c7d0f77c48b1",
+    "panels:bpPacking.resizeFlapLeft": "259a9d2382d1",
+    "panels:bpPacking.resizeFlapRight": "784404c041f8",
+    "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
+    "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -14313,7 +14353,15 @@
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
     "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
     "dialogs:orieditaImport.useAll": "7309d57d7ab0",
-    "dialogs:orieditaImport.useAllLabel": "f52174549432"
+    "dialogs:orieditaImport.useAllLabel": "f52174549432",
+    "panels:bpPacking.resizeFlapBottom": "897f6e5ddd54",
+    "panels:bpPacking.resizeFlapBottomLeft": "f0b277dd41c0",
+    "panels:bpPacking.resizeFlapBottomRight": "c7d0f77c48b1",
+    "panels:bpPacking.resizeFlapLeft": "259a9d2382d1",
+    "panels:bpPacking.resizeFlapRight": "784404c041f8",
+    "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
+    "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -16712,7 +16760,15 @@
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
     "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
     "dialogs:orieditaImport.useAll": "7309d57d7ab0",
-    "dialogs:orieditaImport.useAllLabel": "f52174549432"
+    "dialogs:orieditaImport.useAllLabel": "f52174549432",
+    "panels:bpPacking.resizeFlapBottom": "897f6e5ddd54",
+    "panels:bpPacking.resizeFlapBottomLeft": "f0b277dd41c0",
+    "panels:bpPacking.resizeFlapBottomRight": "c7d0f77c48b1",
+    "panels:bpPacking.resizeFlapLeft": "259a9d2382d1",
+    "panels:bpPacking.resizeFlapRight": "784404c041f8",
+    "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
+    "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -19072,6 +19128,14 @@
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
     "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
     "dialogs:orieditaImport.useAll": "7309d57d7ab0",
-    "dialogs:orieditaImport.useAllLabel": "f52174549432"
+    "dialogs:orieditaImport.useAllLabel": "f52174549432",
+    "panels:bpPacking.resizeFlapBottom": "897f6e5ddd54",
+    "panels:bpPacking.resizeFlapBottomLeft": "f0b277dd41c0",
+    "panels:bpPacking.resizeFlapBottomRight": "c7d0f77c48b1",
+    "panels:bpPacking.resizeFlapLeft": "259a9d2382d1",
+    "panels:bpPacking.resizeFlapRight": "784404c041f8",
+    "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
+    "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
   }
 }

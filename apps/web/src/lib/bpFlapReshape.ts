@@ -136,6 +136,24 @@ export function bpFlapOuterBox(
 }
 
 /**
+ * Where a handle sits on a flap's drawn extent, in grid coordinates: on the
+ * corner it names, or the middle of the edge it drives.
+ */
+export function bpFlapHandlePoint(
+  flap: Pick<OristudioBpFlap, 'anchor' | 'width' | 'height' | 'radius'>,
+  handle: BpFlapResizeHandle
+): Point {
+  const box = bpFlapOuterBox(flap);
+  const { sx, sy } = BP_FLAP_HANDLE_SIGNS[handle];
+  const along = (sign: -1 | 0 | 1, low: number, span: number): number =>
+    sign === -1 ? low : sign === 1 ? low + span : low + span / 2;
+  return {
+    x: along(sx, box.x, box.width),
+    y: along(sy, box.y, box.height),
+  };
+}
+
+/**
  * The footprint a handle drag asks for, or `null` when it asks for nothing this
  * flap can be.
  *

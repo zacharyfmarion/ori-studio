@@ -7367,6 +7367,45 @@ button.cp-folded-figure-toolbar__notice:hover {
   fill: color-mix(in srgb, var(--accent-primary) 18%, transparent);
 }
 
+/*
+ * Resize handles on the selected flap's drawn extent.
+ *
+ * The accent, like the selected outline they sit on, so they read as part of the
+ * selection rather than as another piece of geometry. Filled with the canvas
+ * colour rather than left hollow: a hollow square over a flap's own fill is hard
+ * to see, and the handles have to be found before they can be used.
+ *
+ * `non-scaling-stroke` keeps the outline one pixel at every zoom, matching the
+ * flap outline and the clearance circle beside them.
+ */
+.bp-packing-flap-handle {
+  fill: var(--bg-canvas);
+  stroke: var(--accent-primary);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  pointer-events: all;
+}
+
+.bp-packing-flap-handle:hover,
+.bp-packing-flap-handle--active {
+  fill: var(--accent-primary);
+}
+
+/*
+ * The extent being dragged, drawn only during a gesture.
+ *
+ * The clearance circle normally shows where a flap's edges are, but it is a
+ * layer the user can switch off — and with it off the handles would sit in empty
+ * space with nothing between them to explain what they are moving.
+ */
+.bp-packing-flap-resize-outline {
+  fill: none;
+  stroke: var(--accent-primary);
+  stroke-dasharray: 4 3;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
 .bp-packing-flap-dot {
   fill: var(--text-primary);
   stroke: var(--bg-primary);
