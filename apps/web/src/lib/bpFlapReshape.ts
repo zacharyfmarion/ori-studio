@@ -34,6 +34,11 @@ import type { Point } from './geometry';
  * Choosing `δ` is therefore a free choice about meaning, not a compromise on
  * geometry.
  *
+ * That holds while `w′` and `h′` stay non-negative. The one case that breaks it
+ * is a corner drag whose two axes differ, where the shorter axis runs out of
+ * dimension to trade — see {@link radiusCeilingFor} for why the radius wins
+ * there and what it costs.
+ *
  * Note `x′ = x + δ` even when `Δx = 0`: growing the radius on a north drag has to
  * walk the anchor east to hold the left and right edges still. **A resize moves
  * the flap**, which is why the result carries an anchor and why the kernel takes
@@ -211,8 +216,12 @@ function requestedOuterDelta(
 }
 
 /**
- * The footprint for one exact outer-box delta, or `null` when no integer radius
+ * The footprint for one outer-box delta, or `null` when no integer radius
  * satisfies it.
+ *
+ * A dimension the drag is actively *growing* may be squeezed to nothing — see
+ * {@link solveRadiusDelta}. Everywhere else the bound there keeps it
+ * non-negative on its own, so this clamp only ever bites where it was meant to.
  */
 function footprintFor(
   flap: OristudioBpFlap,
@@ -223,9 +232,8 @@ function footprintFor(
   const { width: w, height: h, radius: r } = flap;
   const radiusDelta = solveRadiusDelta(w, h, r, signs, delta, radiusRange);
   if (radiusDelta === null) return null;
-  const width = w + delta.x - 2 * radiusDelta;
-  const height = h + delta.y - 2 * radiusDelta;
-  if (width < 0 || height < 0) return null;
+  const width = Math.max(0, w + delta.x - 2 * radiusDelta);
+  const height = Math.max(0, h + delta.y - 2 * radiusDelta);
   const anchor = {
     x: flap.anchor.x + radiusDelta - (signs.sx === -1 ? delta.x : 0),
     y: flap.anchor.y + radiusDelta - (signs.sy === -1 ? delta.y : 0),
@@ -244,15 +252,10 @@ function footprintFor(
  *   outright would canonicalise the flap: grabbing a handle and moving a single
  *   cell would snap a `4×4 r2` flap straight to `r4`. `δwant` rounds toward zero
  *   so a drag can only ever move the radius in the direction it is going.
- * - **Only what the other dimension can pay.** `floor((h + Δy) / 2)` is the
- *   slack the *un-dragged* axis has to give up in exchange, and it is where the
- *   "if it can" lives: an east drag on an ordinary circular flap (`h = 0`) gets
- *   no radius at all, and the whole delta goes to the width — correctly, because
- *   making a circle wider without making it taller is exactly what a width is
- *   for.
- * - The driving deltas are the ones this **handle** controls. A corner drag
- *   grows the radius; an edge drag can only spend what the opposite dimension
- *   has.
+ * - **Only what a dimension can pay** — but which dimensions those are is the
+ *   whole design of this feature, so see {@link radiusCeilingFor} below.
+ * - The driving deltas are the ones this **handle** controls, so an edge drag
+ *   reads only its own axis and a corner drag reads both.
  */
 function solveRadiusDelta(
   w: number,
@@ -269,13 +272,45 @@ function solveRadiusDelta(
   const drive = driven.length === 0 ? 0 : Math.max(...driven);
   const want = drive >= 0 ? Math.floor(drive / 2) : Math.ceil(drive / 2);
   const high = Math.min(
-    Math.floor((w + delta.x) / 2),
-    Math.floor((h + delta.y) / 2),
+    radiusCeilingFor(signs.sx, w, delta.x),
+    radiusCeilingFor(signs.sy, h, delta.y),
     radiusRange.max - r
   );
   const low = radiusRange.min - r;
   if (low > high) return null;
   return Math.min(Math.max(want, low), high);
+}
+
+/**
+ * How much radius growth one dimension will fund, from `w′ = w + Δ − 2δ ≥ 0`.
+ *
+ * **A dimension the drag is actively growing does not bound the radius at all.**
+ * That is the one place this rule lets the outer box miss the pointer, and it is
+ * deliberate: the bound is per-axis, so without this exception the axis that
+ * moved *less* caps the radius, and a single odd cell on either axis caps it at
+ * zero. A hand-dragged corner almost never lands both axes on the same even
+ * count, so "the radius never moves" was the ordinary outcome of the gesture
+ * that most obviously means *make this flap bigger*. Dragging a circle's corner
+ * out has to give a bigger circle.
+ *
+ * What it costs: when the two axes differ, the shorter one runs out of dimension
+ * to trade and its edge lands up to a cell past the pointer. The pinned edges
+ * never move — the anchor is derived from `δ` alone — so only the corner being
+ * dragged overshoots, and only on its lesser axis.
+ *
+ * Every other case keeps the hard bound, which is what preserves the rest of the
+ * rule:
+ *
+ * - **An un-driven axis**, so an edge drag still cannot move the extent nobody
+ *   grabbed. An east drag on a circular flap (`h = 0`) gets no radius and spends
+ *   the whole delta on width — correct, because making a circle wider *without*
+ *   making it taller is exactly what a width is for.
+ * - **A shrinking axis**, so a corner dragged in stays exact, and a drag that
+ *   grows one way while shrinking the other lands on both pointers.
+ */
+function radiusCeilingFor(sign: -1 | 0 | 1, dimension: number, delta: number): number {
+  if (sign !== 0 && delta > 0) return Number.POSITIVE_INFINITY;
+  return Math.floor((dimension + delta) / 2);
 }
 
 /**

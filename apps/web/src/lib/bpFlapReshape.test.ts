@@ -90,7 +90,80 @@ describe('solveBpFlapReshape', () => {
     });
   });
 
+  describe('a corner drag grows the radius even when its two axes differ', () => {
+    // The reported bug. `δ` is bounded per axis by `w + Δx ≥ 2δ`, so before this
+    // the axis that moved *less* capped the radius and one odd cell capped it at
+    // zero — which a hand-dragged corner produces nearly every time. Dragging a
+    // circle's corner out has to give a bigger circle.
+    it('spends the drag on the radius when one axis lands a cell short', () => {
+      expect(sizes(drag(flap(0, 0, 2), 'ne', 2, 1))).toEqual([0, 0, 3]);
+    });
+
+    it('still grows it from a flap that has a box', () => {
+      expect(sizes(drag(flap(2, 2, 1), 'ne', 3, 1))).toEqual([3, 1, 2]);
+    });
+
+    it('pays for it by overshooting the shorter axis, never the pinned edges', () => {
+      const source = flap(0, 0, 2);
+      const before = bpFlapOuterBox(source);
+      const result = drag(source, 'ne', 2, 1)!;
+      const after = bpFlapOuterBox(result);
+      // The axis that drove the radius is exact.
+      expect(after.x + after.width).toBe(before.x + before.width + 2);
+      // The shorter one lands one cell past the pointer — the whole cost.
+      expect(after.y + after.height).toBe(before.y + before.height + 2);
+      // And the corner opposite the one being dragged has not moved at all.
+      expect(after.x).toBe(before.x);
+      expect(after.y).toBe(before.y);
+    });
+
+    it('overshoots by less than the cell the radius had to take', () => {
+      // The squeeze can only ever swallow what one dimension had left, so the
+      // miss is bounded by the radius step — never a runaway.
+      for (let dy = 0; dy <= 6; dy++) {
+        const source = flap(1, 1, 3);
+        const result = drag(source, 'ne', 6, dy);
+        if (!result) continue;
+        const asked = bpFlapOuterBox(source).height + dy;
+        const got = bpFlapOuterBox(result).height;
+        expect(got - asked).toBeLessThanOrEqual(2 * (result.radius - source.radius));
+        expect(got).toBeGreaterThanOrEqual(asked);
+      }
+    });
+  });
+
+  describe('the squeeze is scoped to axes the drag is growing', () => {
+    it('leaves an edge drag unable to make the flap taller', () => {
+      // The un-dragged extent is still a hard bound: an east drag on a circular
+      // flap has no height to trade, so the width takes all of it.
+      const source = flap(0, 0, 5);
+      const before = bpFlapOuterBox(source);
+      const result = drag(source, 'e', 4, 0)!;
+      expect(sizes(result)).toEqual([4, 0, 5]);
+      expect(bpFlapOuterBox(result).height).toBe(before.height);
+    });
+
+    it('keeps a corner that grows one way and shrinks the other exact on both', () => {
+      const source = flap(0, 0, 4);
+      const before = bpFlapOuterBox(source);
+      const result = drag(source, 'ne', 2, -2)!;
+      const after = bpFlapOuterBox(result);
+      expect(after.width).toBe(before.width + 2);
+      expect(after.height).toBe(before.height - 2);
+    });
+
+    it('keeps a corner dragged inward exact', () => {
+      const source = flap(0, 0, 5);
+      const before = bpFlapOuterBox(source);
+      const result = drag(source, 'ne', -2, -2)!;
+      expect(sizes(result)).toEqual([0, 0, 4]);
+      expect(bpFlapOuterBox(result).width).toBe(before.width - 2);
+    });
+  });
+
   describe('the outer box lands exactly where the pointer asked', () => {
+    // While both dimensions have room to trade, which the fixture below does.
+    // The one exception is the corner squeeze above.
     it.each(BP_FLAP_RESIZE_HANDLES)('holds for the %s handle', (handle) => {
       const source = flap(3, 5, 4);
       const before = bpFlapOuterBox(source);

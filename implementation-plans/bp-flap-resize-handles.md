@@ -122,20 +122,29 @@ that drifts.
 driven  = [Δx if sx ≠ 0] ++ [Δy if sy ≠ 0]        // only the axes this handle drives
 Δdrive  = max(driven)
 δwant   = Δdrive ≥ 0 ? floor(Δdrive / 2) : ceil(Δdrive / 2)   // toward zero
-δhi     = min( floor((w + Δx) / 2), floor((h + Δy) / 2), rMax − r )
+δhi     = min( ceiling(sx, w, Δx), ceiling(sy, h, Δy), rMax − r )
 δlo     = 1 − r
 δ       = clamp(δwant, δlo, δhi)
+
+ceiling(sign, dim, Δ) = sign ≠ 0 && Δ > 0 ? +∞ : floor((dim + Δ) / 2)
 ```
 
 - `δwant` spends the drag on the radius, **and no more than the drag paid for**.
   Maximising `δ` outright would canonicalise the flap — grabbing a handle and
   moving one cell would jump a `4×4 r2` flap straight to `r4`. Rounding toward
   zero is what stops that.
-- `δhi` is where *"if it can"* lives. `floor((h + Δy)/2)` is the slack the
-  **other** dimension has to pay with. For a plain circular flap (`w = h = 0`) an
-  east drag gets `δhi = 0`: there is no height to spend, so the whole delta goes
-  to `w` and the circle becomes a horizontal capsule at unchanged radius. That is
-  the correct reading of "if it can", not a failure of the rule.
+- `δhi` is where *"if it can"* lives: `floor((h + Δy)/2)` is the slack a dimension
+  has to pay with, from `h′ = h + Δy − 2δ ≥ 0`.
+- **A dimension the drag is actively growing does not bound the radius at all**,
+  and that exception is the whole reason a corner drag works. The bound is
+  per-axis, so without it the axis that moved *less* caps the radius and a single
+  odd cell caps it at zero — and a hand-dragged corner almost never lands both
+  axes on the same even count. Dragging a circle's corner out has to give a
+  bigger circle. See "The corner squeeze" below for what it costs.
+- Everywhere else the bound stays hard, which is what preserves the rest of the
+  rule: an **un-driven** axis (so an east drag still cannot make a flap taller)
+  and a **shrinking** axis (so dragging a corner in, or growing one way while
+  shrinking the other, stays exact on both).
 - `δlo` is `r ≥ 1`, the engine's floor
   ([project_session.rs:201](../crates/oristudio-bp/src/engine/project_session.rs:201)).
   `rMax` is `edge.maxLength`, already on the snapshot and already used by the
@@ -147,11 +156,35 @@ Worked examples, all integral:
 | Start `(w,h,r)` | Handle | Δ | Result | Reads as |
 | --- | --- | --- | --- | --- |
 | `(0,0,5)` circle | `ne` | `+2,+2` | `(0,0,6)` | the circle grows — pure radius |
+| `(0,0,2)` circle | `ne` | `+2,+1` | `(0,0,3)` | off-square corner: still pure radius, `H` overshoots by 1 |
+| `(0,0,4)` circle | `ne` | `+2,−2` | `(4,0,3)` | mixed signs stay exact on both axes |
 | `(0,0,5)` circle | `e` | `+2,0` | `(2,0,5)` | horizontal capsule, radius held |
 | `(4,4,2)` | `e` | `+2,0` | `(4,2,3)` | radius takes it, height pays |
 | `(4,2,3)` | `e` | `−2,0` | `(4,4,2)` | exact inverse of the row above |
 | `(0,0,5)` circle | `e` | `−2,0` | `(0,2,4)` | vertical capsule: outer height was pinned |
 | `(0,0,1)` | `e` | `−1,0` | refused | outer box floor is `2×2` at `r = 1` |
+
+### The corner squeeze, and what it costs
+
+The exception above is the one place the outer box misses the pointer. When a
+corner drag's two axes differ, the shorter one runs out of dimension to trade and
+its edge lands up to a cell past where it was dropped — measured: a drag asking
+for `7 × 5` produced `7 × 6`.
+
+Three things bound the cost, and each has a test:
+
+- **Only the dragged corner moves.** The anchor is derived from `δ` alone, so the
+  pinned edges are unaffected by the clamp.
+- **Only the lesser axis.** Whichever axis set `δwant` lands exactly.
+- **Never more than the radius took.** The squeeze can only swallow what one
+  dimension had left, so the miss is bounded by `2δ`.
+
+This was chosen over the alternatives after the first build shipped without it
+and the radius turned out to be effectively unreachable by corner drag. Rejected:
+forcing both axes of a corner to one delta (loses free-form non-square corner
+resize, and needs a carve-out for grow-one-shrink-the-other), and leaving it
+exact (keeps the box honest but makes the handles a width/height tool rather than
+a radius one, which is not what was asked for).
 
 ### Parity, and why the odd cell goes to width
 
