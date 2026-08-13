@@ -122,7 +122,8 @@ function rowChecked(label: string): boolean {
 const ORIEDITA_DEFAULTS_LABEL = 'Use Oriedita defaults';
 const WELCOME_LABEL = 'Show welcome screen on startup';
 const FOLD_WARNING_LABEL = 'Warn before folding a crease pattern with flat-foldability errors';
-const ANALYTICS_LABEL = 'Send anonymous usage analytics to help improve Ori Studio';
+const ANALYTICS_LABEL =
+  'Send anonymous usage analytics and crash reports to help improve Ori Studio';
 
 function defaultsToggle(): HTMLButtonElement {
   return rowSwitch(ORIEDITA_DEFAULTS_LABEL);

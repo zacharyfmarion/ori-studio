@@ -367,7 +367,7 @@
     },
     "title": "Configurações",
     "workspace": {
-      "analytics": "Enviar análises de uso anônimas para ajudar a melhorar o Ori Studio",
+      "analytics": "Enviar análises de uso anônimas e relatórios de falhas para ajudar a melhorar o Ori Studio",
       "creasePatternCanvas": "Tela do padrão de vincos",
       "folding": "Dobra",
       "foldWarning": "Avisar antes de dobrar um padrão de vincos com erros de dobradura plana",

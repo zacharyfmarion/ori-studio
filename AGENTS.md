@@ -352,6 +352,25 @@ text, filenames or paths, geometry / coordinates / measured values, node/edge
 data, or image data. Analytics must be a no-op when the user has opted out;
 never gate product behavior on it.
 
+### Crash reporting
+
+Sentry covers errors, in the same browser + desktop renderer. It lives in
+`apps/web/src/monitoring/` — never call `@sentry/react` directly, and never add
+a Sentry import outside that layer.
+
+You almost never need to do anything: unhandled errors are captured by Sentry's
+global handlers, and every `ErrorBoundary` catch is already reported. Reach for
+`reportError(error, { surface })` only for an error you deliberately swallow and
+still want to see. If the question is *how often*, that is a PostHog event
+instead.
+
+The same privacy contract applies, with one documented exception: **stack traces
+are sent to Sentry**, because a frame names our code rather than the user's work.
+Everything else is redacted through `lib/redact.ts` — the single shared
+implementation, also used by the analytics fingerprint. If you need different
+redaction, add an option there rather than writing a second copy. Consent is the
+same switch as analytics; `beforeSend` drops every event while opted out.
+
 ### CP detector eval work
 
 The `create-pattern-detector` ML repo owns deterministic dataset selection for

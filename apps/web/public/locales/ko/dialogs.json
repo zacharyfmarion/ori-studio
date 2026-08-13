@@ -339,7 +339,7 @@
     },
     "title": "설정",
     "workspace": {
-      "analytics": "Ori Studio 개선에 도움이 되도록 익명 사용 통계 보내기",
+      "analytics": "Ori Studio 개선에 도움이 되도록 익명 사용 통계와 오류 보고서 보내기",
       "creasePatternCanvas": "전개도 캔버스",
       "folding": "접기",
       "foldWarning": "평평접기 오류가 있는 전개도를 접기 전에 경고",

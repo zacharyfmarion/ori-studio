@@ -7,6 +7,7 @@
  */
 
 import { appBuildInfo } from '../lib/appBuildInfo';
+import { redactSensitiveText } from '../lib/redact';
 import { getRuntimeSurface } from '../platform/runtime';
 import type { AnalyticsErrorDomain } from './events';
 import { getOrCreateStableId } from './stableId';
@@ -110,23 +111,14 @@ export function initializePostHog(
  * of the same failure. Built from the error's name + a normalized message with
  * volatile bits (numbers, quoted strings, URLs, hex) stripped — never the raw
  * message, which could contain a filename or path.
+ *
+ * The normalization itself lives in `lib/redact.ts`, shared with the monitoring
+ * layer so the two never disagree about what counts as user content.
  */
 export function fingerprintError(error: unknown): string {
   const name = error instanceof Error ? error.name : 'Error';
   const raw = error instanceof Error ? error.message : String(error ?? '');
-  const normalized = raw
-    .replace(/https?:\/\/\S+/g, '<url>')
-    // Filesystem paths first (Windows drive paths, then any token with a slash),
-    // so a filename or absolute path can never survive into the fingerprint.
-    .replace(/[A-Za-z]:\\[^\s]+/g, '<path>')
-    .replace(/\S*\/\S*/g, '<path>')
-    // Bare filenames (name.ext) that weren't part of a path.
-    .replace(/\b[\w-]+\.[A-Za-z0-9]{1,6}\b/g, '<file>')
-    .replace(/["'`][^"'`]*["'`]/g, '<str>')
-    .replace(/0x[0-9a-f]+/gi, '<hex>')
-    .replace(/\d+/g, '<n>')
-    .slice(0, 80);
-  return `${name}:${normalized}`;
+  return `${name}:${redactSensitiveText(raw, { maxLength: 80 })}`;
 }
 
 /** Best-effort domain classification for an error, defaulting to `runtime`. */

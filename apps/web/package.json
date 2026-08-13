@@ -40,6 +40,7 @@
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.21",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "@sentry/react": "^10.70.0",
     "@tanstack/react-virtual": "^3.14.9",
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-dialog": "^2.0.0",
@@ -64,6 +65,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@sentry/vite-plugin": "^5.4.0",
     "@types/earcut": "^3.0.0",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",

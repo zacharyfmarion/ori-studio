@@ -7,6 +7,8 @@
  * only the accessor knows to tolerate that.
  */
 declare const __APP_COMMIT__: string;
+/** `ori-studio@<version>+<commit>` — the key Sentry symbolication joins on. */
+declare const __SENTRY_RELEASE__: string;
 
 /**
  * Build-time PostHog config, inlined by Vite from the CI env (see

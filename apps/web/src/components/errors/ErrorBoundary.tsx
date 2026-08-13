@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { trackAnalyticsError } from '../../analytics';
+import { reportError } from '../../monitoring';
 import { collectErrorContext } from './errorContext';
 import { ErrorFallback, type ErrorFallbackVariant } from './ErrorFallback';
 import type { ErrorReportContext } from '../../lib/errorReport';
@@ -71,6 +72,18 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     // analytics is disabled or absent.
     try {
       trackAnalyticsError({ error, sourceComponent: this.props.surface, handled: true });
+    } catch {
+      // Reporting must never mask the error it was reporting.
+    }
+
+    // And to Sentry, with the stack and the component stack that the analytics
+    // event deliberately does not carry. The two are not redundant: PostHog
+    // answers "how often, and does it correlate with anything", Sentry answers
+    // "where". Unhandled errors need no call like this — Sentry's global
+    // handlers already see those — but a boundary catch is invisible to them by
+    // construction, which is exactly why it is reported here.
+    try {
+      reportError(error, { surface: this.props.surface, componentStack, handled: true });
     } catch {
       // Reporting must never mask the error it was reporting.
     }

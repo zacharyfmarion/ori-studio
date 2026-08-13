@@ -224,12 +224,14 @@ function WorkspaceTab() {
         <SettingsToggleRow
           label={t(
             'dialogs:settings.workspace.analytics',
-            'Send anonymous usage analytics to help improve Ori Studio'
+            'Send anonymous usage analytics and crash reports to help improve Ori Studio'
           )}
           checked={analyticsEnabled}
           onChange={(enabled) => {
             // Persist the preference, then apply it to the analytics client:
             // opt in/out, (re)identify or reset, and record the change itself.
+            // Crash reporting rides the same switch, but needs no call here —
+            // `MonitoringRuntimeProvider` reacts to the store value directly.
             setAnalyticsEnabled(enabled);
             analytics.setAnalyticsEnabled(enabled, { capturePreferenceChange: true });
           }}
