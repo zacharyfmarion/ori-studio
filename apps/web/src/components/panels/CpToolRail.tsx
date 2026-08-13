@@ -242,6 +242,11 @@ const ORIEDITA_ICON_GLYPHS: Partial<Record<string, string>> = {
   angleBisectorAction: '\uE006',
   axiom5Action: '\uE076',
   axiom7Action: '\uE078',
+  // Sits between `symmetricDrawAction` (E009) and `doubleSymmetricDrawAction`
+  // (E010) in upstream's `icons.properties`, exactly as the three tools sit
+  // together in Oriedita's drawing tab. Missing until now only because the tool
+  // was hidden from the rail and nothing rendered an icon for it.
+  continuousSymmetricDrawAction: '\uE00A',
   copy2p2pAction: '\uE064',
   copyAction: '\uE063',
   deg1Action: '\uE04A',

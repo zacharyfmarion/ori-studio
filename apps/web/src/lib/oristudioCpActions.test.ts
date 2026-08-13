@@ -205,7 +205,7 @@ describe('oristudio CP action registry', () => {
     });
   });
 
-  it('puts Reflect Through Lines on the rail, like upstream', () => {
+  it('puts Crease Through Layers on the rail, like upstream', () => {
     // This was hidden as a product decision rather than upstream alignment — the
     // tool has a button in Oriedita's DrawingTab — and hiding it turned out to
     // close every route at once: no button, no default chord, and
@@ -213,11 +213,11 @@ describe('oristudio CP action registry', () => {
     // import nor a manual capture could give it one. It keeps its mouse mode
     // either way, so a `.cp` saved with it selected still round-trips.
     expect(cpActionByOperation('ContinuousSymmetricDraw')).toMatchObject({
-      label: 'Reflect Through Lines',
+      label: 'Crease Through Layers',
       placement: 'left-rail',
       uiStatus: 'ready',
     });
-    expect(cpRailActions().map((action) => action.label)).toContain('Reflect Through Lines');
+    expect(cpRailActions().map((action) => action.label)).toContain('Crease Through Layers');
     expect(cpActionByUpstreamMouseMode('CONTINUOUS_SYMMETRIC_DRAW_52')).toMatchObject({
       operationId: 'ContinuousSymmetricDraw',
     });

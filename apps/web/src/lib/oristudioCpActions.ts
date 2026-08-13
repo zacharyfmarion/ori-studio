@@ -275,7 +275,20 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
     railOrder: 160,
   },
   ContinuousSymmetricDraw: {
-    label: 'Reflect Through Lines',
+    // Upstream ships two `name.properties`, and they disagree here: the app
+    // module says "Reflect Through Lines", `oriedita-ui` says this. Both are
+    // loaded by a bare `ResourceBundle.getBundle("name")`, so which one wins is
+    // whichever module lands first on the classpath — undecidable from the
+    // source, and settled by looking at a running Oriedita, where the tooltip on
+    // this button reads "Crease Through Layers".
+    //
+    // Our labels otherwise follow the app module (19 of the 66 keys the two
+    // tables disagree on, against 0 from `oriedita-ui`, the rest our own
+    // wording) because the ui table is mostly tooltip-length prose — "Delete
+    // lines included in a line" — that makes a poor button label. This key is
+    // the exception worth making: the ui value is a short name, and it is the
+    // one an arriving Oriedita user recognizes.
+    label: 'Crease Through Layers',
     group: 'draw',
     upstreamAction: 'continuousSymmetricDrawAction',
     upstreamMouseMode: 'CONTINUOUS_SYMMETRIC_DRAW_52',

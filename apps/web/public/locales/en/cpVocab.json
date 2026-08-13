@@ -521,7 +521,7 @@
       }
     },
     "cp_action_continuous_symmetric_draw": {
-      "label": "Reflect Through Lines",
+      "label": "Crease Through Layers",
       "tooltip": "Continuous symmetric draw",
       "disabledReason": "Ready",
       "steps": {

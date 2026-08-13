@@ -521,7 +521,7 @@
       }
     },
     "cp_action_continuous_symmetric_draw": {
-      "label": "線を通して反転",
+      "label": "層を貫く折り線",
       "tooltip": "連続対称に描画",
       "disabledReason": "準備完了",
       "steps": {
