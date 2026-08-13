@@ -144,6 +144,22 @@ pub struct Stretch {
 pub struct Repository {
     pub configurations: Vec<Configuration>,
     pub index: usize,
+    /// Structure signature of the junctions this repository was generated for.
+    ///
+    /// Not an upstream field. BP Studio keeps a live `Repository` object per
+    /// stretch and discards it when `getStructureSignature(junctions)` changes
+    /// (`core/design/layout/stretch.ts#$update`); this port is stateless per
+    /// call and rebuilds repositories from the persisted JSON, so the signature
+    /// has to travel with it or a stale configuration set survives a flap move.
+    ///
+    /// `None` means "not trusted": a repository written before this field
+    /// existed, or a session blob from BP Studio itself. Such a repository is
+    /// ignored and the configurations are regenerated.
+    ///
+    /// Sound to add because `JRepository` is session-only upstream and never
+    /// appears in a `.bps` file — see `shared/json/pattern.ts`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signature: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

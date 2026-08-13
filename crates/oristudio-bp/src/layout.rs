@@ -683,7 +683,18 @@ impl LayoutRepository {
             .iter()
             .map(ValidJunction::rect)
             .collect::<Vec<_>>();
-        let stored_repo = prototype.and_then(|prototype| prototype.repo.clone());
+        // BP Studio keeps a live `Repository` per stretch and throws it away the
+        // moment `getStructureSignature(junctions)` changes, rebuilding from
+        // index 0 (`layout/stretch.ts#$update`). This port rebuilds from the
+        // persisted JSON instead, so the equivalent check happens here: a stored
+        // repository describes the junction structure it was generated for, and
+        // reusing it under a different structure freezes the old configuration
+        // set and rigidly translates its gadget onto the new geometry. An
+        // absent signature is untrusted for the same reason.
+        let stored_repo = prototype
+            .and_then(|prototype| prototype.repo.as_ref())
+            .filter(|repo| repo.signature.as_deref() == Some(signature.as_str()))
+            .cloned();
         let configurations = stored_repo
             .as_ref()
             .map(|repo| {
@@ -695,6 +706,7 @@ impl LayoutRepository {
             })
             .unwrap_or_default();
         let configurations_done = stored_repo.is_some();
+        let index = stored_repo.as_ref().map_or(0, |repo| repo.index);
         let mut repository = Self {
             stretch_id,
             signature,
@@ -710,9 +722,7 @@ impl LayoutRepository {
             node_set,
             configurations,
             configurations_done,
-            index: prototype
-                .and_then(|prototype| prototype.repo.as_ref())
-                .map_or(0, |repo| repo.index),
+            index,
             stored_repo,
         };
         repository.is_valid = prototype
@@ -754,6 +764,7 @@ impl LayoutRepository {
                 .map(|config| config.to_json(true))
                 .collect(),
             index: self.index,
+            signature: Some(self.signature.clone()),
         })
     }
 

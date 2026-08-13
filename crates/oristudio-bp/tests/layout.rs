@@ -549,6 +549,9 @@ fn grouping_repository_and_stretch_shell_preserve_lifecycle_boundaries() {
     stored.repo = Some(Repository {
         configurations: Vec::new(),
         index: 2,
+        // A stored repository is only honoured when its signature matches the
+        // junctions it is being reused for.
+        signature: Some(get_structure_signature(&junctions).unwrap()),
     });
     let mut stored_repo = LayoutRepository::new(&tree, "1,2,3", &junctions, Some(&stored)).unwrap();
     assert_eq!(stored_repo.configuration_count(), Some(0));
@@ -573,6 +576,7 @@ fn repository_config_generator_recovers_stored_configs_and_searches_single_junct
             index: Some(0),
         }],
         index: 0,
+        signature: Some(get_structure_signature(&sample_junctions(&tree)[..1]).unwrap()),
     });
     let stored_repo = LayoutRepository::new(
         &tree,
