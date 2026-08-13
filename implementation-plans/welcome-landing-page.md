@@ -224,7 +224,7 @@ about. Arrow keys in both orientations (the list is a column when wide, a row
 when narrow), Home/End, and one tab stop for the whole list.
 
 **Screenshots.** `LandingFigure` slots, two files each in `public/landing/`
-(`<name>-light.png` / `<name>-dark.png`), 16:9, chosen from the *app's* theme
+(`<name>-light.webp` / `<name>-dark.webp`), 16:9, chosen from the *app's* theme
 rather than `prefers-color-scheme` — the theme is a preference set in the app and
 can differ from the one the OS reports. Nine figures: `overview`, `simulate`,
 `edit-{angles,media,foldability,share}`, `design-{treemaker,bp,explori}`.
@@ -377,7 +377,7 @@ prerendering `/welcome` is its own piece of work.
 - [x] `LandingFeatureCarousel.tsx` + tests — tabs pattern, arrow/Home/End keys,
       one tab stop, no autoplay
 - [ ] **For the author.** Drop screenshots into `apps/web/public/landing/`, each
-      as `-light.png` and `-dark.png` at 16:9: `overview`, `simulate`,
+      as `-light.webp` and `-dark.webp` at 16:9: `overview`, `simulate`,
       `edit-angles`, `edit-media`, `edit-foldability`, `edit-share`,
       `design-treemaker`, `design-bp`, `design-explori`
 

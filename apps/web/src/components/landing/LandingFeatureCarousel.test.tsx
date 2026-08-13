@@ -75,7 +75,7 @@ describe('LandingFeatureCarousel', () => {
     renderCarousel();
 
     expect(selected()).toContain('Creases that are not 180°');
-    expect(figureSrc()).toBe('/landing/edit-angles-dark.png');
+    expect(figureSrc()).toBe('/landing/edit-angles-dark.webp');
   });
 
   it('swaps the figure and the body when another feature is chosen', () => {
@@ -84,7 +84,7 @@ describe('LandingFeatureCarousel', () => {
     act(() => tabs()[2].click());
 
     expect(selected()).toContain('Share a link');
-    expect(figureSrc()).toBe('/landing/edit-share-dark.png');
+    expect(figureSrc()).toBe('/landing/edit-share-dark.webp');
     expect(rendered.querySelector('.landing-carousel__body[data-active]')?.textContent).toBe(
       'Send a crease pattern as a URL.'
     );

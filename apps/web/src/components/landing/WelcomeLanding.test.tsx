@@ -130,10 +130,10 @@ describe('WelcomeLanding', () => {
     // Only the selected slide of each carousel is mounted, so this is the first
     // of each. The default theme is dark; `LandingFigure` re-resolves on change.
     expect(sources).toEqual([
-      '/landing/overview-dark.png',
-      '/landing/edit-angles-dark.png',
-      '/landing/design-treemaker-dark.png',
-      '/landing/simulate-dark.png',
+      '/landing/overview-dark.webp',
+      '/landing/edit-angles-dark.webp',
+      '/landing/design-treemaker-dark.webp',
+      '/landing/simulate-dark.webp',
     ]);
   });
 
@@ -152,10 +152,10 @@ describe('WelcomeLanding', () => {
     ).map((code) => code.textContent);
 
     expect(wanted).toEqual([
-      'landing/overview-dark.png',
-      'landing/edit-angles-dark.png',
-      'landing/design-treemaker-dark.png',
-      'landing/simulate-dark.png',
+      'landing/overview-dark.webp',
+      'landing/edit-angles-dark.webp',
+      'landing/design-treemaker-dark.webp',
+      'landing/simulate-dark.webp',
     ]);
   });
 

@@ -7,9 +7,16 @@ const publicAssetBase = import.meta.env.BASE_URL.endsWith('/')
   ? import.meta.env.BASE_URL
   : `${import.meta.env.BASE_URL}/`;
 
-/** Where a landing screenshot for `name` in `theme` is expected to live. */
+/**
+ * Where a landing screenshot for `name` in `theme` is expected to live.
+ *
+ * WebP, not PNG. These are 3456px screenshots of a dense UI and there are
+ * eighteen of them; as PNG one theme's worth was 12MB, and at `-q 92` it is
+ * 2.2MB with no visible difference on the thin crease lines and small type that
+ * would show it first. Every browser that can run the app can decode WebP.
+ */
 export function landingFigureSrc(name: string, theme: 'light' | 'dark'): string {
-  return `${publicAssetBase}landing/${name}-${theme}.png`;
+  return `${publicAssetBase}landing/${name}-${theme}.webp`;
 }
 
 export interface LandingFigureProps {
@@ -22,7 +29,7 @@ export interface LandingFigureProps {
 /**
  * A screenshot on the landing page, in the theme the reader is actually using.
  *
- * Two files per figure — `<name>-light.png` and `<name>-dark.png` in
+ * Two files per figure — `<name>-light.webp` and `<name>-dark.webp` in
  * `public/landing/` — chosen from the *app's* theme rather than a
  * `prefers-color-scheme` media query, because the theme is a preference the user
  * sets in the app and can differ from the one the OS reports.
@@ -47,7 +54,7 @@ export function LandingFigure({ name, alt }: LandingFigureProps) {
         <span className="landing-figure__missing">
           {t('landing:figureMissing', 'Screenshot goes here')}
         </span>
-        <code className="landing-figure__path">{`landing/${name}-${theme}.png`}</code>
+        <code className="landing-figure__path">{`landing/${name}-${theme}.webp`}</code>
       </div>
     );
   }
