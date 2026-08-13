@@ -339,7 +339,7 @@
     },
     "title": "設定",
     "workspace": {
-      "analytics": "Ori Studio の改善に役立てるため、匿名の利用状況データを送信する",
+      "analytics": "Ori Studio の改善に役立てるため、匿名の利用状況データとクラッシュレポートを送信する",
       "creasePatternCanvas": "展開図キャンバス",
       "folding": "折り",
       "foldWarning": "平坦折りエラーのある展開図を折る前に警告する",

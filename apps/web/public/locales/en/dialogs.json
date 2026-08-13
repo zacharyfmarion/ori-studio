@@ -353,7 +353,7 @@
     },
     "title": "Settings",
     "workspace": {
-      "analytics": "Send anonymous usage analytics to help improve Ori Studio",
+      "analytics": "Send anonymous usage analytics and crash reports to help improve Ori Studio",
       "creasePatternCanvas": "Crease pattern canvas",
       "folding": "Folding",
       "foldWarning": "Warn before folding a crease pattern with flat-foldability errors",

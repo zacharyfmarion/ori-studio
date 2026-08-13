@@ -367,7 +367,7 @@
     },
     "title": "Configuración",
     "workspace": {
-      "analytics": "Enviar analíticas de uso anónimas para ayudar a mejorar Ori Studio",
+      "analytics": "Enviar analíticas de uso anónimas e informes de fallos para ayudar a mejorar Ori Studio",
       "creasePatternCanvas": "Lienzo del patrón de pliegues",
       "folding": "Plegado",
       "foldWarning": "Avisar antes de plegar un patrón de pliegues con errores de plegado plano",

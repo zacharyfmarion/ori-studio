@@ -367,7 +367,7 @@
     },
     "title": "Paramètres",
     "workspace": {
-      "analytics": "Envoyer des statistiques d'utilisation anonymes pour améliorer Ori Studio",
+      "analytics": "Envoyer des statistiques d’utilisation anonymes et des rapports de plantage pour améliorer Ori Studio",
       "creasePatternCanvas": "Zone de dessin du patron de plis",
       "folding": "Pliage",
       "foldWarning": "Avertir avant de plier un patron de plis comportant des erreurs de pliabilité à plat",

@@ -353,7 +353,7 @@
     },
     "title": "Einstellungen",
     "workspace": {
-      "analytics": "Anonyme Nutzungsstatistiken senden, um Ori Studio zu verbessern",
+      "analytics": "Anonyme Nutzungsstatistiken und Absturzberichte senden, um Ori Studio zu verbessern",
       "creasePatternCanvas": "Faltmuster-Zeichenfläche",
       "folding": "Falten",
       "foldWarning": "Vor dem Falten eines Faltmusters mit Flachfaltbarkeitsfehlern warnen",

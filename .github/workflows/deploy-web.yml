@@ -62,12 +62,24 @@ jobs:
           # silently, and that alone is enough to disable analytics entirely.
           VITE_PUBLIC_POSTHOG_KEY: ${{ secrets.VITE_PUBLIC_POSTHOG_KEY }}
           VITE_PUBLIC_POSTHOG_HOST: https://us.i.posthog.com
+          # Sentry crash reporting, same firewall and same reasoning. A DSN is a
+          # public value by design — it ships in the bundle and only permits
+          # writes — but it lives in secrets to match the PostHog key above, so
+          # there is one rule for "telemetry credentials" rather than two.
+          VITE_PUBLIC_SENTRY_DSN: ${{ secrets.VITE_PUBLIC_SENTRY_DSN }}
+          # Enables sourcemap generation *and* upload, so production stacks are
+          # un-minified. Its absence disables both — which is deliberate, and is
+          # what keeps PR-preview builds from publishing readable sourcemaps to
+          # their public URL. The plugin deletes the maps from `dist` after
+          # uploading, so they are never served from here either.
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
-      # `initializePostHog` treats a missing key or host as "disabled" by design,
-      # so a misconfigured prod build deploys green and captures nothing. This is
-      # the only place that difference is observable — assert it here rather than
-      # discovering it in an empty PostHog dashboard weeks later.
-      - name: Verify analytics config was inlined
+      # `initializePostHog` and `initializeSentry` both treat a missing config as
+      # "disabled" by design, so a misconfigured prod build deploys green and
+      # reports nothing. This is the only place that difference is observable —
+      # assert it here rather than discovering it in an empty dashboard weeks
+      # later.
+      - name: Verify telemetry config was inlined
         run: node scripts/verify-analytics-build.mjs apps/web/dist
 
       # Run from apps/web so Wrangler discovers `functions/` and `wrangler.toml`, which it
