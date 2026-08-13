@@ -37,7 +37,7 @@ import {
   setInlineSimulationSource,
 } from '../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
 import { CP_DOCUMENT_SCOPED_KEYS, discardCpDocumentState } from './cpDocumentState';
-import { foldCancellationBuffer } from './foldCancellation';
+import { foldCancellationBuffer } from '../../lib/foldCancellation';
 import { registerCpCamera } from '../../cp-workspace/renderer/cpCameraRegistry';
 import { projectFromSnapshot } from '../../engine/snapshotMapper';
 import type { FileService, SaveBinaryFileOptions, SaveTextFileOptions } from '../../platform/fileService';
@@ -4087,6 +4087,47 @@ describe('workspace store slices', () => {
 
       fold.cancel();
       await expect(folding).resolves.toBe(false);
+      expect(useWorkspaceStore.getState().oristudioCpFoldRuns).toEqual({});
+    });
+
+    it('aims the one cancel slot at the fold that is actually running', async () => {
+      resetStores(seedSnapshot());
+      seedFoldableCp();
+      const first = pendingFold();
+      const firstFolding = useWorkspaceStore.getState().foldOristudioCpDocument();
+      await settle();
+      seedFoldableCp();
+      const second = pendingFold();
+      const secondFolding = useWorkspaceStore.getState().foldOristudioCpDocument();
+      await settle();
+
+      const runIds = Object.values(useWorkspaceStore.getState().oristudioCpFoldRuns)
+        .map((run) => run.runId)
+        .sort((a, b) => a - b);
+      expect(runIds).toHaveLength(2);
+      const [older, newer] = runIds as [number, number];
+
+      expect(useWorkspaceStore.getState().stopOristudioCpFolds()).toBe(true);
+
+      // One slot, matched exactly. Writing both ids would leave the *newer*
+      // standing — while the CP worker is single-threaded and executing the
+      // older, which would then run to completion with its Stop already spent.
+      const view = new Int32Array(foldCancellationBuffer()!);
+      expect(Atomics.load(view, 0)).toBe(older);
+
+      first.cancel();
+      await expect(firstFolding).resolves.toBe(false);
+      await settle();
+
+      // Re-aimed as the executing run left, so a single press really does stop
+      // every run it claimed to.
+      expect(Atomics.load(view, 0)).toBe(newer);
+      expect(
+        Object.values(useWorkspaceStore.getState().oristudioCpFoldRuns)[0]
+      ).toMatchObject({ runId: newer, stopping: true });
+
+      second.cancel();
+      await expect(secondFolding).resolves.toBe(false);
       expect(useWorkspaceStore.getState().oristudioCpFoldRuns).toEqual({});
     });
 

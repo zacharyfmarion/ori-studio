@@ -18,7 +18,6 @@ interface LoadingToast {
   message: string;
   options: {
     dismissible?: boolean;
-    closeButton?: boolean;
     action?: { label: string; onClick: () => void };
   };
 }
@@ -95,11 +94,11 @@ describe('the folding toast', () => {
     const toast = latestToast();
     expect(toast?.message).toBe('Folding…');
     expect(toast?.options.action?.label).toBe('Stop');
-    // Persistent while there is a way out of it: `App.tsx` sets `closeButton`
-    // globally, and the only indicator of an hour-long run must not be
-    // dismissable out from under the button that ends it.
+    // Persistent while there is a way out of it: the only indicator of an
+    // hour-long run must not be dismissable out from under the button that ends
+    // it. `dismissible` is the whole mechanism — sonner ignores `closeButton`
+    // on a `loading` toast — so that is what is asserted.
     expect(toast?.options.dismissible).toBe(false);
-    expect(toast?.options.closeButton).toBe(false);
 
     act(() => toast?.options.action?.onClick());
     expect(stop).toHaveBeenCalled();
@@ -144,6 +143,19 @@ describe('the folding toast', () => {
 
     expect(latestToast()?.options.action).toBeUndefined();
     expect(latestToast()?.options.dismissible).toBe(true);
-    expect(latestToast()?.options.closeButton).toBe(true);
+    // And it must read as an ordinary fold. "Have all the stoppable runs been
+    // stopped" is vacuously true when none of them can be stopped, which had
+    // every un-isolated fold showing "Stopping…" from the moment it appeared.
+    expect(latestToast()?.message).toBe('Folding…');
+  });
+
+  it('says nothing when an unstoppable fold succeeds', () => {
+    setRuns(run({ cancellable: false }));
+    act(() => vi.advanceTimersByTime(600));
+    setRuns();
+
+    // The other half of the vacuous predicate: it latched `stopRequested`, so a
+    // fold nobody stopped announced that it had been stopped.
+    expect(messageToasts).not.toContain('Folding stopped');
   });
 });

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { useFoldRunIndicator } from '../cp-workspace/folded/useFoldRunIndicator';
 import { formatUnknownError, humanizeError } from '../lib/toastMessages';
 import { createDelayedProgress } from '../lib/delayedProgress';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -20,19 +21,13 @@ function errorKey(error: unknown): string {
 const FOLD_TOAST_DELAY_MS = 500;
 /** And once shown it stays this long, so it cannot pop and vanish. */
 const FOLD_TOAST_MIN_VISIBLE_MS = 1000;
-/**
- * When "Folding…" stops being reassuring and starts looking stuck. A guess, and
- * the `elapsed_ms_bucket` on `fold completed` is what will replace it with data.
- */
-const FOLD_LONG_RUN_MS = 10_000;
 const FOLD_TOAST_ID = 'oristudio-folding';
 const FOLD_STOPPED_TOAST_ID = 'oristudio-folding-stopped';
 
 export function GlobalToasts() {
   const { t } = useTranslation();
   const error = useWorkspaceStore((state) => state.error);
-  const foldRuns = useWorkspaceStore((state) => state.oristudioCpFoldRuns);
-  const stopFolds = useWorkspaceStore((state) => state.stopOristudioCpFolds);
+  const { folding, stoppable, stopping, longRun, stop: stopFolds } = useFoldRunIndicator();
   const projectMessage = useWorkspaceStore((state) => state.projectMessage);
   const clearProjectMessage = useWorkspaceStore((state) => state.clearProjectMessage);
   const lastErrorKey = useRef<string | null>(null);
@@ -59,12 +54,6 @@ export function GlobalToasts() {
     clearProjectMessage();
   }, [clearProjectMessage, projectMessage]);
 
-  const runs = useMemo(() => Object.values(foldRuns), [foldRuns]);
-  const folding = runs.length > 0;
-  const stoppable = runs.some((run) => run.cancellable);
-  const stopping = folding && runs.every((run) => !run.cancellable || run.stopping);
-  const oldestStartedAt = folding ? Math.min(...runs.map((run) => run.startedAt)) : null;
-
   // Folding runs in the CP worker, so the main thread is free to paint this and
   // to take the Stop — which is a synchronous write into memory the running
   // kernel already reads, not a message that would queue behind the fold.
@@ -76,10 +65,12 @@ export function GlobalToasts() {
   // throwing one up ten seconds into a fold would claim the app is blocked when
   // it is not, and steal focus from someone who may be perfectly happy to wait.
   // What the toast owes a run that can last an hour is persistence, so while a
-  // Stop is on offer this one refuses to be dismissed: `closeButton` is set
-  // globally in `App.tsx`, and the only indicator of a 60-minute run must not be
-  // swipeable. Without a Stop it stays dismissable — an indicator you cannot act
-  // on is better gone.
+  // Stop is on offer this one refuses to be dismissed: the only indicator of a
+  // 60-minute run must not be swipeable. `dismissible: false` is the whole
+  // mechanism — sonner never renders a close button on a `loading` toast, so
+  // App.tsx's global `closeButton` is already inert here and passing it either
+  // way would be a lie about what keeps this on screen. Without a Stop the toast
+  // stays dismissable: an indicator you cannot act on is better gone.
   const [visible, setVisible] = useState(false);
   const foldProgress = useMemo(
     () =>
@@ -102,24 +93,6 @@ export function GlobalToasts() {
 
   useEffect(() => () => foldProgress.dispose(), [foldProgress]);
 
-  // Escalated wording for a run that has outlasted the point where "Folding…"
-  // reassures. Timed from the *oldest* live run, so overlapping folds do not
-  // reset the clock on the one the user is actually waiting for.
-  const [longRun, setLongRun] = useState(false);
-  useEffect(() => {
-    if (oldestStartedAt === null) {
-      setLongRun(false);
-      return;
-    }
-    const remaining = oldestStartedAt + FOLD_LONG_RUN_MS - Date.now();
-    if (remaining <= 0) {
-      setLongRun(true);
-      return;
-    }
-    const timer = setTimeout(() => setLongRun(true), remaining);
-    return () => clearTimeout(timer);
-  }, [oldestStartedAt]);
-
   useEffect(() => {
     if (!visible) return;
     const message = stopping
@@ -131,7 +104,6 @@ export function GlobalToasts() {
       id: FOLD_TOAST_ID,
       duration: Infinity,
       dismissible: !stoppable,
-      closeButton: !stoppable,
       // Dropped once the stop is written: pressing it again would name runs that
       // are already unwinding, and a button that repeats is a button that looks
       // like it did not work.

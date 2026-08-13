@@ -124,8 +124,21 @@ impl From<crate::cancel::Cancelled> for Fold3dOrderError {
 }
 
 impl Fold3dOrderError {
+    /// Whether this is the user stopping, **at any depth**.
+    ///
+    /// `Cells(CellError::Cancelled)` is a real route here — `wire.rs` maps it —
+    /// and a shallow `matches!` missed it, so a cancel arriving through the
+    /// arrangement was classified as a 3D failure and reached the user as an
+    /// error toast about their crease pattern instead of a stop.
     pub fn is_cancelled(&self) -> bool {
-        matches!(self, Self::Cancelled)
+        match self {
+            Self::Cancelled => true,
+            Self::Cells(cells) => cells.is_cancelled(),
+            Self::ContradictorySeeds { .. }
+            | Self::NoLayerOrder { .. }
+            | Self::FaceIdOutOfRange { .. }
+            | Self::SearchFailed { .. } => false,
+        }
     }
 }
 
@@ -1095,6 +1108,33 @@ mod tests {
                 first: (SeedKind::Wall, 8),
                 second: (SeedKind::FullFold, 3),
             })
+        );
+    }
+
+    /// A cancel must be recognisable through the `Cells` nesting, which is a real
+    /// route (`wire.rs` maps it) and which the shallow predicate missed. Missing
+    /// it sends a stop to the user as `fold_3d_failed` — an error toast about
+    /// their crease pattern — because `is_cancelled` is the sole guard on the two
+    /// hand-built `EngineError` sites in `session.rs`.
+    #[test]
+    fn a_cancel_is_recognised_through_the_cells_nesting() {
+        assert!(Fold3dOrderError::Cancelled.is_cancelled());
+        assert!(Fold3dOrderError::Cells(CellError::Cancelled).is_cancelled());
+        assert!(
+            !Fold3dOrderError::Cells(CellError::ArrangementRefused {
+                plane: 0,
+                first_face: 0,
+                faces: 2,
+            })
+            .is_cancelled()
+        );
+        assert!(
+            !Fold3dOrderError::NoLayerOrder {
+                component: 0,
+                faces: 2,
+                variables: 1,
+            }
+            .is_cancelled()
         );
     }
 }

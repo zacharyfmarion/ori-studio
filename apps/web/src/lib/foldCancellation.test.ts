@@ -175,6 +175,26 @@ describe('desktop transport', () => {
     installFoldCancellation(client);
     expect(client.setCancelBuffer).not.toHaveBeenCalled();
   });
+
+  it('clears the native flag where it starts minting ids again', async () => {
+    // The flag lives in the Tauri process and nothing clears it; `nextRunId`
+    // lives in this module and restarts at 1 on every reload — which the error
+    // boundaries offer as a recovery path. Stop run 3, reload, and the third
+    // fold afterwards binds an id the flag already names: cancelled at its first
+    // checkpoint, with no figure, no error and not even a "Folding stopped",
+    // because nothing on this side asked for it. Clearing where the counter
+    // begins is what gives the two halves one lifetime.
+    const { beginFoldRun, cancelFoldRun, installFoldCancellation } = await loadModule({
+      desktop: true,
+    });
+    const previousSession = beginFoldRun();
+    cancelFoldRun(previousSession);
+    invoke.mockClear();
+
+    installFoldCancellation(fakeClient());
+
+    expect(invoke).toHaveBeenCalledWith('cp_fold_cancel', { runId: 0 });
+  });
 });
 
 /**
@@ -185,7 +205,7 @@ describe('desktop transport', () => {
  */
 describe('isFoldCancellation', () => {
   it('recognises the kernel code, and nothing that merely looks like it', async () => {
-    const { isFoldCancellation } = await import('./oristudioCpRuntime');
+    const { isFoldCancellation } = await import('../store/workspaceStore/oristudioCpRuntime');
 
     expect(isFoldCancellation({ code: 'fold_cancelled', message: 'fold cancelled' })).toBe(true);
     // The optimizer's own cancel, which is a different feature with a different

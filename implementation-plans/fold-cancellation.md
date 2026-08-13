@@ -1524,7 +1524,8 @@ committed.
 | 3 — transaction | `9d665960` | done |
 | 4 — transports | `1755010b` | done |
 | 5 — store and affordance | `f57f067d` | done |
-| 6 — docs and close-out | this commit | done bar the two items left open below |
+| 6 — docs and close-out | `b2ff777d` | done bar the two items left open below |
+| 7 — review fixes | this commit | done bar one deferred item, below |
 
 **Landed in PR #251 — prerequisites, not a phase**
 
@@ -1570,8 +1571,8 @@ six fold commands on `run_cancellable` — enforced by a test over the source, n
 by discipline. Cancellation is derived from the resolved client, so a packaged
 Tauri build (no COOP/COEP) has it and an un-isolated browser reports it
 unavailable rather than pretending. The 3D rehydrate and the export-dialog fold
-pass `BACKGROUND`. The store still passes no run id anywhere the user can press
-— that is Phase 5.
+pass `FOLD_RUN_NONE` — **not** `BACKGROUND`, as the review pass below explains.
+The store still passes no run id anywhere the user can press — that is Phase 5.
 
 **Phase 5 — store and affordance: DONE.** `oristudioCpFoldsInFlight` is now
 `oristudioCpFoldRuns`, a map keyed by run id carrying `{ kind, startedAt,
@@ -1589,9 +1590,10 @@ Two decisions the plan left open:
   modal ten seconds in would claim a block that is not there and steal focus —
   BP's optimizer earns its modal because the run is launched *from* it. What the
   toast owes an hour-long run is persistence, so while a Stop is on offer it is
-  `dismissible: false, closeButton: false` (the global `closeButton` in
-  `App.tsx` would otherwise let the user throw away the only indicator), and it
-  escalates its own wording past `FOLD_LONG_RUN_MS`. Without a Stop — an
+  `dismissible: false`, and it escalates its own wording past
+  `FOLD_LONG_RUN_MS`. (`closeButton: false` was also passed and was inert:
+  sonner never renders one on a `loading` toast. Dropped in the review pass, so
+  the code does not imply a mechanism that is not doing the work.) Without a Stop — an
   un-isolated browser — it stays dismissable and shows no button, rather than a
   dead one.
 - **R8 is fixed at the bracket, not in `pushOverlayHistoryEntry`.** Half that
@@ -1867,3 +1869,75 @@ measures the gap *between* checkpoints, so it could only be written after Phase
       second fold starts cleanly afterwards, and `cp_fold_cancel` actually fires
       (not merely that it is registered)
 - [ ] Open a draft PR against `main`
+
+**Phase 7 — review fixes**
+
+Three blocking findings, all of them the same shape: a *stop* turning into an
+*answer*, or a stop that does not reach what it names.
+
+- [x] `Fold3dSession::with_tolerances` tests the cancel **before** degrading an
+      arrangement failure into a `NoLayerOrder` verdict, on both arms. Cancelling
+      during the arrangement stage previously placed a figure asserting "no layer
+      order — cancelled" about the user's crease pattern, plus a kernel handle, a
+      canvas entry, an undo step and a dirty project; the frontend has no
+      `cancelled` arm for that reason, so the explanation sentence was
+      `undefined`. Swept over `box_90` / `spikes_small` / `spikes_large` at twelve
+      cancel depths, verified to fail without the fix
+- [x] `Fold3dOrderError::is_cancelled` recurses into
+      `Cells(CellError::Cancelled)`, which `wire.rs` already handled and this did
+      not — so a cancel through the arrangement reached the user as
+      `fold_3d_failed`, i.e. an error toast. `CellError::is_cancelled` added so
+      the wrapper delegates rather than hand-matching
+- [x] `restart_inner` moves its worker aside and puts it back on a cancel.
+      `transactional`'s snapshot is narrow by design (R3) and cannot restore a
+      worker replaced wholesale, so a cancelled **backwards seek** or a cancelled
+      **wrap** committed `worker: None` under a restored estimate that still
+      advertised another solution — `find another solution` then did nothing, in
+      silence, for the rest of the session. These are the two rollback tests
+      Phase 3 left open
+- [x] `stopOristudioCpFolds` writes the **oldest** stoppable run rather than
+      looping over every one. Both transports carry a single exact-match slot, so
+      a loop left the *newest* id standing while the serial engine executed the
+      oldest — the fold the user wanted stopped ran to completion while the one
+      they had just started died. Every stoppable run is still marked `stopping`
+      (the intent covers all of them) and `withFoldInFlight` re-aims the slot at
+      the next as each run leaves
+- [x] The desktop cancel flag is cleared where this webview starts minting ids
+      (`installFoldCancellation`, now called on the desktop branch of the
+      connector too). The flag is process-lifetime and `nextRunId` is
+      webview-lifetime; reload is a shipped recovery path, so a Stop on run N
+      followed by a reload made the Nth fold afterwards cancelled from birth and
+      completely silent. R4's "ids are never reused" only ever held where the
+      generator and the flag share a lifetime
+- [x] A lost CP engine clears `oristudioCpFoldRuns`. A Comlink call on a dead
+      client never settles, so a worker crash mid-fold leaked the run — and with
+      it Escape, permanently, under a non-dismissible toast
+- [x] `useFoldRunIndicator`'s `stopping` is gated on `stoppable`, not on
+      `folding`. "Have all the stoppable runs been stopped" is vacuously true
+      when none can be, so every fold in an un-isolated browser read "Stopping…"
+      from the moment it appeared and then announced "Folding stopped" on success
+- [x] Background folds pass `FOLD_RUN_NONE` instead of `RunId::BACKGROUND`.
+      Nothing could ever cancel them either way, and a bound id costs them
+      `transactional`'s snapshot per step — per replay step of the 3D rehydrate,
+      on the platform with the recorded large-CP OOM. It also makes the comment
+      on `transactional` true again
+- [x] `check_every_polls_on_the_stride_and_not_before` asserts the iteration it
+      trips on, at two strides, and honours its `bits` parameter. It previously
+      hardcoded the stride and asserted only `Err(Cancelled)`, so it would have
+      passed with a poll on every iteration
+- [x] `foldCancellation.ts` moved to `src/lib/` (store-free transport, imported
+      by `engines/`), and the fold-run state machine moved out of
+      `GlobalToasts.tsx` into `cp-workspace/folded/useFoldRunIndicator.ts`
+- [x] The Escape ladder's comment names the three bubble-phase `window` listeners
+      that still fire alongside it, one of which discards in-progress tool input.
+      Not fixed — folding them into the rungs is a separate change — but no longer
+      claimed to be otherwise
+- [ ] **Deferred: the web-side overhead number.** The measured +0.77 % wall /
+      +1.2 % peak RSS is native + rayon + `AtomicU32`; web is sequential and pays
+      a catch-annotated `js_sys::Atomics::load` at an unstrided site. A Node
+      measurement against the built artifact suggested ~3 % with ±40 % run-to-run
+      spread, which supports "not catastrophic" and nothing stronger, and Safari
+      is unmeasured. This is the Phase 1 item above (a dev-only wasm export for
+      `max_check_gap_ms`, run in Chrome and Safari, **or** an explicit derating
+      factor with a ≤25 ms native target) and it stays there rather than being
+      answered by assertion here

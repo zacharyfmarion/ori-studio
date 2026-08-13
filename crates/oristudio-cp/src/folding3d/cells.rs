@@ -165,6 +165,18 @@ impl From<crate::cancel::Cancelled> for CellError {
     }
 }
 
+impl CellError {
+    /// Whether this is the user stopping rather than a statement about the model.
+    ///
+    /// Exists so the enums that wrap this one can delegate instead of matching
+    /// `CellError::Cancelled` by hand: one predicate per question, and the
+    /// hand-written version is what let a nested cancel be classified as a 3D
+    /// failure and reach the user as an error toast.
+    pub fn is_cancelled(&self) -> bool {
+        matches!(self, Self::Cancelled)
+    }
+}
+
 impl std::fmt::Display for CellError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

@@ -45,12 +45,26 @@ pub fn new_state() -> CpEngine {
 /// the whole design: [`run`] holds the `CpSession` mutex for a fold's entire
 /// duration, so a cancel that touched the session would queue behind the fold it
 /// is trying to stop and arrive only once the stop was pointless.
+///
+/// It is also process-lifetime state fed by webview-lifetime ids, and those two
+/// are only safe together because the frontend clears it where it mints its
+/// first id — see [`FoldCancel::request`] and `run_id_zero_returns_the_flag_to_rest`.
 #[derive(Default)]
 pub struct FoldCancel(AtomicU32);
 
 impl CancelSource for FoldCancel {
     fn cancelled_run(&self) -> u32 {
         self.0.load(Ordering::Relaxed)
+    }
+}
+
+impl FoldCancel {
+    /// Record which run the user asked to stop; `0` returns the flag to rest.
+    ///
+    /// Split out of the command so it can be exercised without a Tauri `State`,
+    /// which is the only reason the clearing behaviour has a test at all.
+    fn request(&self, run_id: u32) {
+        self.0.store(run_id, Ordering::Relaxed);
     }
 }
 
@@ -75,7 +89,7 @@ pub fn new_cancel_state() -> FoldCancelState {
 /// the visible fold cannot collaterally kill a lower-numbered background one.
 #[tauri::command]
 pub fn cp_fold_cancel(state: State<'_, FoldCancelState>, run_id: u32) {
-    state.0.store(run_id, Ordering::Relaxed);
+    state.request(run_id);
 }
 
 /// Run engine work off the UI thread: clone the `Arc`, then lock and run the
@@ -663,7 +677,7 @@ mod tests {
     use super::{
         CANCELLABLE_FOLD_COMMANDS, FoldCancel, NATIVE_CP_COMMAND_NAMES, new_cancel_state, new_state,
     };
-    use oristudio_cp::cancel::CancelSource;
+    use oristudio_cp::cancel::{CancelSource, RunId};
     use oristudio_cp::session::CP_ENGINE_COMMANDS;
     use std::sync::atomic::Ordering;
 
@@ -739,6 +753,35 @@ mod tests {
         assert_eq!(state.cancelled_run(), 3);
 
         assert_eq!(FoldCancel::default().cancelled_run(), 0);
+    }
+
+    /// Run id 0 is how the frontend hands this flag back its "nothing is
+    /// cancelled" state, and it must actually be inert.
+    ///
+    /// This flag lives for the whole Tauri **process**; the run-id counter that
+    /// feeds it lives in the webview's JS module state and restarts at 1 on every
+    /// reload — and reload is a shipped recovery path (the error boundaries offer
+    /// it). Without a clear, a Stop on run 3 followed by a reload leaves the flag
+    /// naming 3 while the counter walks back up to it, and the third fold
+    /// afterwards is cancelled from birth: no figure, no error, not even the
+    /// "Folding stopped" toast, because nothing on the frontend asked for it. The
+    /// clear is issued where the counter begins — `installFoldCancellation`, in
+    /// the `oristudio-cp` connector — so the two halves share one lifetime.
+    #[test]
+    fn run_id_zero_returns_the_flag_to_rest() {
+        let state = new_cancel_state();
+        state.0.store(3, Ordering::Relaxed);
+        assert_eq!(state.cancelled_run(), 3);
+
+        state.request(0);
+        assert_eq!(
+            state.cancelled_run(),
+            0,
+            "a stale id survived the clear, and would cancel a later fold that reuses it"
+        );
+        // And a cleared flag cancels nothing: `RunId::new(0)` is `None`, so a
+        // fold bound to 0 has no binding at all.
+        assert!(RunId::new(0).is_none());
     }
 
     /// A command actually round-trips through the managed session state.

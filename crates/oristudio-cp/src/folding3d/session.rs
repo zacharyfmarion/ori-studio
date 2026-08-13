@@ -169,6 +169,13 @@ impl Fold3dSession {
             tolerances,
         ) {
             Ok(cells) => (cells, None),
+            // Ahead of the degrade, on both arms below: a stop is not an
+            // ordering verdict. Carried in `order_error` it would place the
+            // figure anyway and label it "no layer order — cancelled", which
+            // mints a kernel handle, a canvas entry, an undo step and a dirty
+            // project, and tells the user something about their crease pattern
+            // that is not true. A cancel unwinds; it never concludes.
+            Err(error) if error.is_cancelled() => return Err(Fold3dSessionError::Cancelled),
             Err(error) => (empty_cells(), Some(Fold3dOrderError::from(error))),
         };
         let enumerator = if order_error.is_some() {
@@ -182,6 +189,7 @@ impl Fold3dSession {
                 tolerances,
             ) {
                 Ok(enumerator) => Some(enumerator),
+                Err(error) if error.is_cancelled() => return Err(Fold3dSessionError::Cancelled),
                 Err(error) => {
                     order_error = Some(error);
                     None

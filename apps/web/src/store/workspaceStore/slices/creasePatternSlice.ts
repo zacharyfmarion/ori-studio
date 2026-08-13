@@ -86,6 +86,7 @@ import {
   type EngineClient,
 } from '../engineRuntime';
 import { withDesignHandle } from '../../../engines/designHandles';
+import { onEngineLost } from '../../../engines/engineHost';
 import { fetchCpShareWithRetry } from '../../../cp-workspace/share/cpShareService';
 
 /**
@@ -125,8 +126,8 @@ import {
   beginFoldRun,
   cancelFoldRun,
   foldCancellationAvailable,
-  FOLD_RUN_BACKGROUND,
-} from '../foldCancellation';
+  FOLD_RUN_NONE,
+} from '../../../lib/foldCancellation';
 import type {
   CreasePatternSlice,
   OristudioCpFoldRun,
@@ -269,10 +270,31 @@ function inlineSimulationRevision(id: string): number {
   return next;
 }
 
+/**
+ * Torn down when the slice is rebuilt, so a recreated store does not leave a
+ * listener writing into the old one.
+ */
+let stopListeningForCpEngineLoss: (() => void) | null = null;
+
 export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice> = (
   set,
   get
 ) => {
+  // A fold run is cleared by the `finally` of the call that started it, and a
+  // Comlink call on a dead client never settles — so a CP worker that crashes
+  // mid-fold (the large-CP case this feature exists for) leaves its run in the
+  // map forever. That is not cosmetic: `stopOristudioCpFolds` answers `true`
+  // while any cancellable run is listed, so Escape would be swallowed by a fold
+  // that no longer exists for the rest of the session — no deselect, no
+  // tool-input cancel, no leaving the text editor — under a non-dismissible
+  // "Folding…" toast whose Stop writes into a dead worker's buffer.
+  stopListeningForCpEngineLoss?.();
+  stopListeningForCpEngineLoss = onEngineLost(({ engine }) => {
+    if (engine !== 'oristudio-cp') return;
+    if (Object.keys(get().oristudioCpFoldRuns).length === 0) return;
+    set({ oristudioCpFoldRuns: {} });
+  });
+
   // Handles are owned by reachability (live list + history), not by the delete
   // action — see cp-workspace/foldedFigureHandles.
   setFoldedFigureHandleFree((handle) => {
@@ -952,6 +974,38 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   }
 
   /**
+   * Live stoppable runs, **oldest first** — which is executing order.
+   *
+   * One CP worker on web and one engine mutex on desktop, so folds run strictly
+   * serially in the order they were dispatched, and run ids are minted at
+   * dispatch. `startedAt` leads because it is what "oldest" means; the id breaks
+   * its millisecond ties.
+   */
+  function stoppableFoldRuns(
+    runs: Record<number, OristudioCpFoldRun> = get().oristudioCpFoldRuns
+  ): OristudioCpFoldRun[] {
+    return Object.values(runs)
+      .filter((run) => run.cancellable)
+      .sort((a, b) => a.startedAt - b.startedAt || a.runId - b.runId);
+  }
+
+  /**
+   * Point the cancel slot at the oldest run still waiting to be stopped.
+   *
+   * The transport names **one** run: a single `SharedArrayBuffer` slot on web, a
+   * single `AtomicU32` on desktop, matched exactly. So a Stop over several live
+   * runs cannot be a loop of writes — the last write would win, and since ids
+   * ascend that is the *newest* run while the engine is busy with the oldest.
+   * Instead the stop intent is recorded on every run (`stopping`) and the slot is
+   * re-aimed here, as each run leaves and the next becomes the one executing.
+   * Re-writing an id already in the slot is harmless.
+   */
+  function aimFoldStopAtOldestPending(runs: Record<number, OristudioCpFoldRun>): void {
+    const pending = stoppableFoldRuns(runs).find((run) => run.stopping);
+    if (pending) cancelFoldRun(pending.runId);
+  }
+
+  /**
    * Record a fold as live for as long as `run` takes, under an id a Stop can
    * name, so the UI can both show progress for a slow one and offer a way out of
    * it. Folding happens in the CP worker, so the main thread stays free to paint
@@ -986,7 +1040,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     try {
       return await run(runId);
     } finally {
-      set({ oristudioCpFoldRuns: foldRunsWithout(runId) });
+      const remaining = foldRunsWithout(runId);
+      set({ oristudioCpFoldRuns: remaining });
+      aimFoldStopAtOldestPending(remaining);
     }
   }
 
@@ -2348,22 +2404,26 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // the transport cannot reach would let Escape swallow the key on behalf of
       // a fold that then keeps going — and the affordance is hidden in that case
       // for the same reason.
-      const stoppable = Object.values(get().oristudioCpFoldRuns).filter((run) => run.cancellable);
+      const stoppable = stoppableFoldRuns();
       if (stoppable.length === 0) return false;
-      for (const run of stoppable) cancelFoldRun(run.runId);
       // Marked, not removed: the run is still in the kernel until it unwinds at
       // its next checkpoint, and its own `finally` is what clears it. Removing it
       // here would leave the indicator lying in the other direction — gone while
       // the fold is still going — and would leak an untracked run if the stop
       // raced the checkpoint.
-      set({
-        oristudioCpFoldRuns: Object.fromEntries(
-          Object.values(get().oristudioCpFoldRuns).map((run) => [
-            run.runId,
-            run.cancellable ? { ...run, stopping: true } : run,
-          ])
-        ),
-      });
+      //
+      // Every stoppable run is marked, because Stop means all of them; only the
+      // oldest is written to the transport, because the transport names one run
+      // and the oldest is the one the engine is executing. `withFoldInFlight`
+      // re-aims at the next as each finishes.
+      const stopped = Object.fromEntries(
+        Object.values(get().oristudioCpFoldRuns).map((run) => [
+          run.runId,
+          run.cancellable ? { ...run, stopping: true } : run,
+        ])
+      );
+      set({ oristudioCpFoldRuns: stopped });
+      aimFoldStopAtOldestPending(stopped);
       return true;
     },
 
@@ -3094,15 +3154,17 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       try {
         // Deliberately not wrapped in `withFoldInFlight`: that drives the global
         // "Folding…" indicator, and a background pass on load must not raise one.
-        // `FOLD_RUN_BACKGROUND`: the rehydrate is unindicated by design, so the
-        // user has nothing to press and nothing to aim at — and a Stop meant for
-        // the fold they *can* see must not reach in here and abandon a figure
-        // that was about to come back.
+        // `FOLD_RUN_NONE`: the rehydrate is unindicated by design, so the user
+        // has nothing to press and nothing to aim at — and a Stop meant for the
+        // fold they *can* see must not reach in here and abandon a figure that
+        // was about to come back. Unbound rather than `BACKGROUND`, because the
+        // kernel skips its rollback snapshot only when nothing is bound, and
+        // this loop takes one per replay step on load.
         const result = await fold3dRuntimeOristudioCpDocument(
           route.lineIds,
           figure.startingFaceId ?? 1,
           figure.folded3d?.model,
-          FOLD_RUN_BACKGROUND
+          FOLD_RUN_NONE
         );
         if (result.status === 'refused') return await abandon(null);
         handle = result.handle;
@@ -3112,7 +3174,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         for (let step = 0; step < replaySteps; step += 1) {
           const advanced = await fold3dRuntimeOristudioCpFigureAnother(
             result.handle,
-            FOLD_RUN_BACKGROUND
+            FOLD_RUN_NONE
           );
           snapshot = advanced.snapshot;
           render = advanced.render;

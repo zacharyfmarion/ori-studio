@@ -2610,6 +2610,16 @@ export function CreasePatternPanel() {
    * Reached through the shortcut runtime rather than a listener on this panel,
    * so it fires wherever focus happens to be — including the floating toolbars,
    * which are the surfaces a container-scoped listener silently loses.
+   *
+   * **This ladder is not the only Escape handler.** The dispatcher calls
+   * `preventDefault` and not `stopPropagation`, so three bubble-phase `window`
+   * listeners still run alongside it: `CreasePatternWebglCanvas` (cancels a
+   * sequence tool, a line-entity pick, a lengthen, an armed draw),
+   * `CanvasObjectOverlay` (leaves crop mode, else deselects the canvas object)
+   * and `MenuBar`. So an Escape pressed to stop a fold also discards a
+   * half-drawn polygon and deselects a reference image. Stated rather than
+   * discovered — folding them into the rungs above would make the order
+   * explicit, and is the direction to go if they start to matter.
    */
   const cancelActiveCpInput = useCallback(() => {
     // Above the editable guard, and nothing else in this ladder is. Upstream's

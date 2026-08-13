@@ -1830,7 +1830,13 @@ impl FoldingEstimateSession {
         f: impl FnOnce(&mut Self) -> Result<T, FoldingEstimateError>,
     ) -> Result<T, FoldingEstimateError> {
         // No binding means no cancel can arrive, so no caller pays for the
-        // snapshot: every oracle test, the CLI, and every background fold.
+        // snapshot: every oracle test, the CLI, a browser without cross-origin
+        // isolation (no transport, so nothing to bind), and every background
+        // fold — the 3D rehydrate and the export-dialog fold pass
+        // `FOLD_RUN_NONE` rather than `RunId::BACKGROUND` for exactly this
+        // reason. Nothing can stop them either way, and binding them would pay
+        // the snapshot per replay step on the platform with the recorded
+        // large-CP OOM.
         if crate::cancel::current().is_none() {
             return f(self);
         }
@@ -1979,7 +1985,16 @@ impl FoldingEstimateSession {
     }
 
     fn restart_inner(&mut self) -> Result<FoldingEstimate, FoldingEstimateError> {
-        self.worker = None;
+        // Moved out, not dropped. [`Self::transactional`]'s snapshot is narrow —
+        // it restores the *mutable* fields of whatever worker is present — and
+        // it cannot put back a worker that was replaced wholesale. Every setup
+        // checkpoint fires before Step 4 reassigns `self.worker`, so a cancelled
+        // restart used to land with `worker: None` under a restored estimate
+        // whose `find_another_overlap_valid` was still true: `find another
+        // solution` then silently did nothing, for the rest of the session,
+        // while the UI kept offering it. A move costs nothing, so this is
+        // unconditional rather than gated on a binding.
+        let previous_worker = self.worker.take();
         self.estimate = FoldingEstimate {
             estimation_step: EstimationStep::Step0,
             display_style: DisplayStyle::None0,
@@ -1993,7 +2008,14 @@ impl FoldingEstimateSession {
         };
         // `_inner`, not the public method: `restart` is already inside the
         // transaction its own caller opened.
-        self.folding_estimated_inner(EstimationOrder::Order5)
+        let outcome = self.folding_estimated_inner(EstimationOrder::Order5);
+        if matches!(&outcome, Err(error) if error.is_cancelled()) {
+            // The original worker, not the half-rebuilt one: the enclosing
+            // transaction's snapshot was taken from *this* object, so restoring
+            // it is what makes that snapshot apply to the thing it came from.
+            self.worker = previous_worker;
+        }
+        outcome
     }
 }
 

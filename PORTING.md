@@ -197,10 +197,16 @@ not faithful.
   same reason; the worst of them turned any error into `Ok(false)`, which means
   "no stacking of this subface exists".
 - **`check()` matches the cancelled run id exactly, not by watermark.** Ori
-  Studio runs folds the user cannot address — the 3D rehydrate on project load,
-  the export-dialog fold — concurrently with one they can. A watermark cancels
-  every live run with a lower id, so a Stop would silently abandon those.
-  Upstream has one folding executor and no such case.
+  Studio can have several folds live at once — seven call sites dispatch one, and
+  a stale figure's refold can start while the user folds something else — plus
+  work the user cannot address at all (the 3D rehydrate on project load, the
+  export-dialog fold, both of which run *unbound*). A watermark cancels every
+  live run with a lower id, so a Stop aimed at the visible fold would take a
+  sibling with it. Upstream has one folding executor and no such case. The cost
+  of exactness is that the transport names **one** run: both bridges carry a
+  single slot, so a Stop over several live runs writes the oldest — the engine is
+  serial, so that is the one executing — and the store re-aims at the next as
+  each finishes.
 - **A cancelled fold is rolled back, not discarded.** `FoldingEstimateTask.java:44-49`
   catches the interrupt and calls `estimated_initialize()`
   (`FoldedFigure.java:58-72`), which resets `displayStyle` to `NONE_0` and leaves
@@ -277,7 +283,15 @@ Three consequences worth knowing before touching adjacent code:
   A cancel is not a verdict, so it could not be one of its arms; the placement
   path returns `Fold3dPlacementError`, which is either a refusal or a cancel.
   3D is cancellable at all because sites in `fold_graph.rs` and
-  `operations/arrangement.rs` are shared with the flat path.
+  `operations/arrangement.rs` are shared with the flat path. The same rule binds
+  the *third* arm of the 3D answer: `Fold3dSession::with_tolerances` ordinarily
+  degrades an arrangement failure into a `NoLayerOrder` verdict and places the
+  figure anyway, and a cancel must be tested **before** that degrade — otherwise
+  a stop becomes a placed figure asserting "no layer order" about a crease
+  pattern nobody finished analysing, complete with a kernel handle, an undo step
+  and a dirty project. `Fold3dOrderError::is_cancelled` recurses into
+  `Cells(CellError::Cancelled)` for the same reason: it is the sole guard on the
+  two hand-built `EngineError` sites in `session.rs`.
 - **We cancel the fold; we do not cancel the CAMV recompute.** Upstream's
   `HaltAction` stops *two* executors (`HaltAction.java:26-29`), and the second is
   `CheckCAMVTask` — the debounced background flat-foldability recompute, whose

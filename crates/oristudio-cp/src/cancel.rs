@@ -332,37 +332,55 @@ mod tests {
         }
     }
 
-    /// Returns the iteration the loop reached before unwinding, so the stride
-    /// itself is asserted rather than just the fact that it eventually trips.
-    fn count_iterations_until_cancelled(bits: u32) -> Result<u32, Cancelled> {
+    /// A loop polling on a `1 << bits` stride, writing the last index whose body
+    /// completed into `reached`.
+    ///
+    /// The index is reported through a `Cell` rather than the return value
+    /// because the interesting number is the one on the *cancelled* path, which
+    /// `?` unwinds past. An earlier version returned it only on `Ok`, hardcoded
+    /// the stride, and asserted nothing but `Err(Cancelled)` — so it would have
+    /// passed just as happily with a poll on every single iteration, which is
+    /// the one thing it is named after ruling out.
+    fn run_strided_loop(bits: u32, reached: &Cell<u32>) -> Result<(), Cancelled> {
         let mut counter = 0u32;
-        let mut reached = 0u32;
         for iteration in 0..10_000u32 {
-            check_every!(counter, 4);
-            reached = iteration;
-            let _ = bits;
+            check_every!(counter, bits);
+            reached.set(iteration);
         }
-        Ok(reached)
+        Ok(())
     }
 
     #[test]
     fn check_every_polls_on_the_stride_and_not_before() {
-        // `1 << 4` is 16 iterations per poll. A source that is already cancelled
-        // therefore trips on the 16th iteration, index 15 — proving both that it
-        // polls and that it does not poll every time.
+        let reached = Cell::new(u32::MAX);
+
+        // `1 << 4` is 16 iterations per poll, and the poll sits at the top of
+        // the body: an already-cancelled source therefore unwinds on index 15,
+        // leaving 14 as the last body to run. Anything smaller than 14 means it
+        // polled early; the stride is what keeps the checkpoint affordable.
         let _bound = bind(Some(handle(CancelAfter::new(1, 0), 1)));
-        assert_eq!(count_iterations_until_cancelled(4), Err(Cancelled));
+        assert_eq!(run_strided_loop(4, &reached), Err(Cancelled));
+        assert_eq!(reached.get(), 14);
+
+        // A second stride, because the parameter has to mean something: 4
+        // iterations per poll trips on index 3.
+        assert_eq!(run_strided_loop(2, &reached), Err(Cancelled));
+        assert_eq!(reached.get(), 2);
 
         // 8 whole strides of grace, then the trip: the counter is the caller's,
-        // so a fresh loop starts its stride from zero.
+        // so a fresh loop starts its stride from zero. Poll 9 is index
+        // 16 * 9 - 1 = 143.
         let _unused = bind(Some(handle(CancelAfter::new(1, 8), 1)));
-        assert_eq!(count_iterations_until_cancelled(4), Err(Cancelled));
+        assert_eq!(run_strided_loop(4, &reached), Err(Cancelled));
+        assert_eq!(reached.get(), 142);
     }
 
     /// An unbound loop must never pay more than the `Cell` read, and must run to
     /// completion — this is every oracle test and every CLI caller.
     #[test]
     fn check_every_is_inert_when_unbound() {
-        assert_eq!(count_iterations_until_cancelled(4), Ok(9_999));
+        let reached = Cell::new(u32::MAX);
+        assert_eq!(run_strided_loop(4, &reached), Ok(()));
+        assert_eq!(reached.get(), 9_999);
     }
 }

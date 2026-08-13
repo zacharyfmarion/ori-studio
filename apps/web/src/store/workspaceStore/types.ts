@@ -675,7 +675,7 @@ export interface CreasePatternSliceState {
   oristudioCpFoldedFigures: OristudioCpFoldedFigureEntry[];
   /**
    * The layer-ordering searches currently running, keyed by the run id a Stop
-   * names (see `foldCancellation.ts`).
+   * names (see `lib/foldCancellation.ts`).
    *
    * This used to be a count, which was enough to drive an indicator and not
    * enough to offer a way out of one: a number cannot say *which* run to stop,
@@ -685,7 +685,7 @@ export interface CreasePatternSliceState {
    * is folding something else.
    *
    * Background work (the 3D rehydrate, the export-dialog fold) is deliberately
-   * absent: it runs under `RunId::BACKGROUND`, raises no indicator, and must not
+   * absent: it runs unbound (`FOLD_RUN_NONE`), raises no indicator, and must not
    * be reachable by a Stop meant for the fold the user can see.
    */
   oristudioCpFoldRuns: Record<number, OristudioCpFoldRun>;

@@ -189,7 +189,7 @@ import {
   syncTreemakerProject,
   statusFromSnapshot,
 } from '../engineRuntime';
-import { FOLD_RUN_BACKGROUND } from '../foldCancellation';
+import { FOLD_RUN_NONE } from '../../../lib/foldCancellation';
 import {
   executeOristudioCpCommand as executeRuntimeOristudioCpCommand,
   runOristudioCpCheckCommand,
@@ -518,16 +518,18 @@ async function foldExportSegment(
   try {
     return await foldSegmentForExport(
       {
-        // `FOLD_RUN_BACKGROUND` on both: an export-preview fold is not something
-        // the user can see or point at, so it must not be addressable by a Stop
-        // aimed at the fold on the canvas. It runs to completion or fails.
+        // `FOLD_RUN_NONE` on both: an export-preview fold is not something the
+        // user can see or point at, so it must not be addressable by a Stop
+        // aimed at the fold on the canvas. It runs to completion or fails —
+        // and unbound rather than `BACKGROUND`, because the kernel skips its
+        // rollback snapshot only when nothing at all is bound.
         fold: async (startingFaceId, order, model, lineIds) => {
           const result = await foldOristudioCpDocument(
             startingFaceId,
             order,
             model,
             lineIds,
-            FOLD_RUN_BACKGROUND
+            FOLD_RUN_NONE
           );
           return {
             handle: result.handle,
@@ -540,7 +542,7 @@ async function foldExportSegment(
             handle,
             objective,
             'Order5',
-            FOLD_RUN_BACKGROUND
+            FOLD_RUN_NONE
           );
           return {
             discoveredCases: result.snapshot.discovered_fold_cases,

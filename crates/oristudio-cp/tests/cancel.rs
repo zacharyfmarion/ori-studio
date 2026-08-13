@@ -7,15 +7,17 @@
 //! arrives as `fold_cancelled` rather than as a verdict about the crease
 //! pattern.
 
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use oristudio_cp::CreasePatternDocument;
 use oristudio_cp::cancel::{CancelHandle, CancelSource, RunId, bind};
-use oristudio_cp::folding::{EstimationOrder, FoldingEstimateSession};
+use oristudio_cp::folding::{EstimationOrder, FoldedFigureModel, FoldingEstimateSession};
+use oristudio_cp::folding3d::wire::{Fold3dOrderWire, Fold3dVerdict};
 use oristudio_cp::geometry::{LineColor, LineSegment, Point};
 use oristudio_cp::model::CreasePatternModel;
-use oristudio_cp::session::CpSession;
+use oristudio_cp::session::{CpSession, Fold3dFoldResult};
 
 /// Reports `run` as cancelled once it has been read `reads` times.
 ///
@@ -262,4 +264,198 @@ fn a_cancelled_fold_does_not_touch_the_document() {
         format!("{after:?}"),
         "a cancelled fold modified the crease pattern"
     );
+}
+
+fn repo(relative: &str) -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join(relative)
+}
+
+fn load_3d_fixture(session: &mut CpSession, name: &str) -> u32 {
+    let path = repo(&format!("tests/fixtures/fold-angle-3d/{name}.fold"));
+    let raw = std::fs::read_to_string(&path)
+        .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
+    session
+        .load_fold(&raw, name)
+        .unwrap_or_else(|error| panic!("load {name}: {error}"))
+}
+
+fn every_line(session: &CpSession, document: u32) -> Vec<usize> {
+    let count = session
+        .document_snapshot(document)
+        .expect("document")
+        .crease_pattern
+        .line_segments
+        .len();
+    (1..=count).collect()
+}
+
+/// A stopped 3D fold must **stop**, not conclude.
+///
+/// The arrangement stage is the expensive half and its failures are ordinarily
+/// recoverable — the figure still draws, only the stacking is unknown. A cancel
+/// arriving there was swallowed into that same "no layer order" verdict, so
+/// pressing Stop produced a *placed figure* asserting something false about the
+/// crease pattern, plus a kernel handle, a canvas entry, an undo step and a
+/// dirty project. It is the R1 failure class in its purest form: a stop
+/// converted into an answer.
+#[test]
+fn a_cancelled_3d_fold_never_concludes_about_the_pattern() {
+    for name in ["box_90", "spikes_small", "spikes_large"] {
+        for reads in [0u32, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024] {
+            let mut session = CpSession::new();
+            let document = load_3d_fixture(&mut session, name);
+            let lines = every_line(&session, document);
+
+            let _bound = bind(Some(handle(reads)));
+            match session.folded_figure_fold_3d(document, &lines, 1, FoldedFigureModel::default()) {
+                Err(error) => assert_eq!(
+                    error.code, "fold_cancelled",
+                    "{name}: cancel after {reads} reads reached the frontend as {:?}",
+                    error.code
+                ),
+                // Completing is fine — the cancel landed past the end of the
+                // fold. Completing with a verdict *derived from the stop* is the
+                // bug, and it is visible as the cancellation reason travelling
+                // in a `NoLayerOrder`.
+                Ok(Fold3dFoldResult::Placed { snapshot, .. }) => assert_ne!(
+                    snapshot.verdict,
+                    Fold3dVerdict::NoLayerOrder {
+                        reason: Fold3dOrderWire::Cancelled
+                    },
+                    "{name}: cancel after {reads} reads was placed as a verdict"
+                ),
+                Ok(Fold3dFoldResult::Refused { refusal }) => {
+                    panic!("{name}: cancel after {reads} reads became a refusal: {refusal:?}")
+                }
+            }
+        }
+    }
+}
+
+/// The fixture the rollback tests need: a document with more than one solution,
+/// so seeking has somewhere to go.
+fn multi_solution_session() -> FoldingEstimateSession {
+    let segments = oristudio_cp::io::cp::import_cp_str(include_str!(
+        "../../../tests/fixtures/oriedita/solution_sample_1.cp"
+    ))
+    .expect("solution sample cp")
+    .line_segments;
+    let mut session = FoldingEstimateSession::new(&segments, 1);
+    session
+        .folding_estimated(EstimationOrder::Order5)
+        .expect("the unbound fold should succeed");
+    assert!(
+        session.estimate().discovered_fold_cases > 0,
+        "the fixture must actually fold, or these tests prove nothing"
+    );
+    session
+}
+
+/// A cancelled **backwards** seek must leave the session usable.
+///
+/// Seeking back restarts the enumeration, and a restart replaces the worker
+/// wholesale. The transaction's snapshot is narrow — it restores the mutable
+/// fields of whatever worker is *there* — so a cancel during the rebuild used to
+/// commit `worker: None` under a restored estimate that still advertised another
+/// solution. `find another solution` then did nothing at all, silently, for the
+/// rest of the session, while the UI went on offering it. `Debug` equality is
+/// the assertion because the failure is a missing field, not a wrong value.
+#[test]
+fn a_cancelled_backwards_seek_restores_the_session() {
+    let mut session = multi_solution_session();
+    for _ in 0..2 {
+        oristudio_cp::folding::fold_another(&mut session).expect("step forward");
+    }
+    let at_case = session.estimate().current_fold_case;
+    assert!(at_case >= 3, "need a case to seek back from, got {at_case}");
+    let before = format!("{session:?}");
+
+    for reads in [0u32, 1, 2, 4, 8, 16, 32, 64, 128, 512] {
+        let mut candidate = session.clone();
+        {
+            let _bound = bind(Some(handle(reads)));
+            match oristudio_cp::folding::folding_estimate_to_case(
+                &mut candidate,
+                1,
+                EstimationOrder::Order6,
+            ) {
+                Err(error) => {
+                    assert!(error.is_cancelled(), "unexpected error {error:?}");
+                    assert_eq!(
+                        format!("{candidate:?}"),
+                        before,
+                        "a cancel after {reads} reads left the session changed"
+                    );
+                }
+                // The seek completed before the cancel landed; it legitimately moved.
+                Ok(_) => continue,
+            }
+        }
+        // Unbound, as the next user action would be: the session must still be
+        // able to advance. A restored estimate over a dropped worker passes the
+        // `Debug` comparison above and fails right here.
+        let advanced = oristudio_cp::folding::fold_another(&mut candidate)
+            .expect("a rolled-back session must still fold another");
+        assert!(
+            advanced.current_fold_case != candidate_case_before(&before),
+            "after a cancel at {reads} reads the session stopped advancing"
+        );
+    }
+}
+
+/// The `current_fold_case` recorded in a `Debug` rendering, for the assertion
+/// that a rolled-back session actually moves when asked to.
+fn candidate_case_before(debug: &str) -> usize {
+    let marker = "current_fold_case: ";
+    let start = debug.find(marker).expect("current_fold_case in Debug") + marker.len();
+    let rest = &debug[start..];
+    let end = rest
+        .find(|c: char| !c.is_ascii_digit())
+        .unwrap_or(rest.len());
+    rest[..end].parse().expect("a case number")
+}
+
+/// The same hazard through `fold_another`'s **wrap**, which is the other caller
+/// of `restart`. At the last solution the step wraps by restarting, so a cancel
+/// there hits exactly the path above — and the existing guard test, which runs
+/// at case 1, never crosses it.
+#[test]
+fn a_cancelled_wrap_restores_the_session() {
+    let mut session = multi_solution_session();
+    // Walk to the last solution, where the next step is a wrap rather than a
+    // search. Bounded so a fixture change cannot spin here.
+    for _ in 0..64 {
+        if !session.estimate().find_another_overlap_valid {
+            break;
+        }
+        oristudio_cp::folding::fold_another(&mut session).expect("step forward");
+    }
+    assert!(
+        !session.estimate().find_another_overlap_valid
+            && session.estimate().discovered_fold_cases > 1,
+        "the walk must end on a wrap, or this test proves nothing"
+    );
+    let before = format!("{session:?}");
+
+    for reads in [0u32, 1, 2, 4, 8, 16, 32, 64, 128, 512] {
+        let mut candidate = session.clone();
+        {
+            let _bound = bind(Some(handle(reads)));
+            match oristudio_cp::folding::fold_another(&mut candidate) {
+                Err(error) => {
+                    assert!(error.is_cancelled(), "unexpected error {error:?}");
+                    assert_eq!(
+                        format!("{candidate:?}"),
+                        before,
+                        "a cancel after {reads} reads left the session changed"
+                    );
+                }
+                Ok(_) => continue,
+            }
+        }
+        oristudio_cp::folding::fold_another(&mut candidate)
+            .expect("a rolled-back session must still wrap");
+    }
 }

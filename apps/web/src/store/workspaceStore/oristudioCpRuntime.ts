@@ -1,5 +1,5 @@
 import { connectEngine, isEngineConnected } from '../../engines/engineHost';
-import { FOLD_RUN_NONE } from './foldCancellation';
+import { FOLD_RUN_NONE } from '../../lib/foldCancellation';
 import type { Remote } from 'comlink';
 import type { FlatText } from '../../cp-workspace/annotations/annotation';
 import type {
@@ -424,7 +424,7 @@ export async function replaceOristudioCpLineSegments(
 
 /**
  * Every wrapper below that runs a layer-ordering search takes a `runId` — the id
- * a Stop would name (see `foldCancellation.ts`). It defaults to
+ * a Stop would name (see `lib/foldCancellation.ts`). It defaults to
  * {@link FOLD_RUN_NONE}, which is inert in the kernel and is what an
  * unattributed call has always meant. The duplicate wrappers take none: they
  * copy a figure rather than fold one.

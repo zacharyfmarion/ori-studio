@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
-import { isDesktopRuntime } from '../../platform/runtime';
-import type { OristudioCpWorkerApi } from '../../workers/oristudioCpWorker';
+import { isDesktopRuntime } from '../platform/runtime';
+import type { OristudioCpWorkerApi } from '../workers/oristudioCpWorker';
 
 /**
  * Stopping a running fold, on both transports.
@@ -28,9 +28,14 @@ const SLOT_CANCELLED_RUN = 0;
 const SLOT_COUNT = 4;
 
 /**
- * `RunId::BACKGROUND` — work the user cannot address (the 3D rehydrate on load,
- * the export-dialog fold). {@link beginFoldRun} never issues it, so it can never
- * match a stop request and such a fold simply runs to completion.
+ * `RunId::BACKGROUND` — reserved for work the user cannot address.
+ *
+ * Nothing binds it. The two callers it was written for — the 3D rehydrate on
+ * load and the export-dialog fold — pass {@link FOLD_RUN_NONE} instead: neither
+ * can be stopped either way, and an id the kernel treats as bound costs them the
+ * rollback snapshot on every step, per replay, on the platform with the recorded
+ * large-CP OOM. It stays here as the id `beginFoldRun` must never mint and
+ * {@link cancelFoldRun} must never write.
  */
 export const FOLD_RUN_BACKGROUND = 0xffff_ffff;
 
@@ -132,9 +137,18 @@ type FoldCancellationClient = Pick<OristudioCpWorkerApi, 'setCancelBuffer'>;
  * any fold the client is later asked for.
  */
 export function installFoldCancellation(client: FoldCancellationClient): void {
-  // Desktop carries the run id on the fold command itself; there is no worker
-  // and no shared memory to install.
-  if (isDesktopRuntime()) return;
+  if (isDesktopRuntime()) {
+    // Desktop carries the run id on the fold command itself, so there is no
+    // buffer to install — but there *is* a flag to reset. It lives in the Tauri
+    // process and nothing clears it; `nextRunId` lives in this webview's module
+    // state and restarts at 1 on every reload, which the error boundaries offer
+    // as a recovery path. Stop run 3, reload, fold three times, and the third
+    // fold binds an id the flag already names: cancelled from birth and
+    // completely silent, because no part of the UI asked for it. Clearing where
+    // the counter begins gives the two halves one lifetime.
+    void invoke('cp_fold_cancel', { runId: FOLD_RUN_NONE }).catch(() => undefined);
+    return;
+  }
   const shared = foldCancellationBuffer();
   if (!shared) return;
   void Promise.resolve(client.setCancelBuffer(shared)).catch(() => undefined);
