@@ -53,7 +53,8 @@ export class StartFigureMesh {
   static create(canvas: HTMLCanvasElement, asset: StartFigureAsset): StartFigureMesh | null {
     const built = folded3dMesh(asset.model);
     if (built.kind !== 'mesh') return null;
-    const { positions, topology, radius } = built.mesh;
+    const { topology, radius } = built.mesh;
+    const positions = orient(built.mesh.positions, asset.view.orient);
 
     let core: GlCore | null = null;
     try {
@@ -175,6 +176,53 @@ export class StartFigureMesh {
     this.mesh.dispose();
     this.core.dispose();
   }
+}
+
+/**
+ * Stand the model up, once, in model space.
+ *
+ * `folded3dMesh` hands back a figure in the *paper's* frame: `toSimBasis` puts
+ * the paper normal on the renderer's vertical, which is right for a folded
+ * figure in the editor, where the reader is looking down at a stack. A hero
+ * figure wants the opposite — the design's own line of symmetry vertical, so it
+ * stands up and so the orbit's yaw turns it like a turntable rather than
+ * tumbling it about an axis that means nothing to the shape.
+ *
+ * Applied to the finished mesh rather than to the render model, and after the
+ * layer displacement rather than before, because a rigid rotation of the whole
+ * figure cannot disturb an ordering that is already baked into the positions.
+ * Rotating the kernel's `ring_points` instead would have meant rotating
+ * `face_normals` and `plane_frames` in step, with three chances to disagree.
+ *
+ * Intrinsic Z-Y-X, which is only a convention; the angles come from the
+ * generator and are chosen by eye against the real render.
+ */
+function orient(
+  positions: Float32Array,
+  angles: readonly [number, number, number] | undefined
+): Float32Array {
+  if (!angles || angles.every((angle) => angle === 0)) return positions;
+  const [rx, ry, rz] = angles;
+  const [cx, sx] = [Math.cos(rx), Math.sin(rx)];
+  const [cy, sy] = [Math.cos(ry), Math.sin(ry)];
+  const [cz, sz] = [Math.cos(rz), Math.sin(rz)];
+  const out = new Float32Array(positions.length);
+  for (let i = 0; i < positions.length; i += 3) {
+    const x0 = positions[i]!;
+    const y0 = positions[i + 1]!;
+    const z0 = positions[i + 2]!;
+    // Rx
+    const y1 = cx * y0 - sx * z0;
+    const z1 = sx * y0 + cx * z0;
+    // Ry
+    const x2 = cy * x0 + sy * z1;
+    const z2 = -sy * x0 + cy * z1;
+    // Rz
+    out[i] = cz * x2 - sz * y1;
+    out[i + 1] = sz * x2 + cz * y1;
+    out[i + 2] = z2;
+  }
+  return out;
 }
 
 /**

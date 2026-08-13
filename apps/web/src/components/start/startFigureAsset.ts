@@ -35,7 +35,16 @@ export interface StartFigureAsset {
   version: number;
   source: string;
   solution: number;
-  view: { yaw: number; pitch: number; sweep: number };
+  view: {
+    yaw: number;
+    pitch: number;
+    sweep: number;
+    /**
+     * Fixed model-space rotation, radians, applied before the camera — see
+     * `orient` in `startFigureMesh.ts`. This is what stands the figure up.
+     */
+    orient?: [number, number, number];
+  };
   model: OristudioCpFolded3dRenderModel;
 }
 
@@ -67,6 +76,12 @@ export function parseStartFigureAsset(value: unknown): StartFigureAsset | null {
     typeof view.sweep !== 'number'
   ) {
     return null;
+  }
+  if (view.orient !== undefined) {
+    if (!Array.isArray(view.orient) || view.orient.length !== 3) return null;
+    if (!view.orient.every((angle) => typeof angle === 'number' && Number.isFinite(angle))) {
+      return null;
+    }
   }
   if (typeof model !== 'object' || model === null) return null;
   if (

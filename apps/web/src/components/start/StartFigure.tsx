@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RenderSettings } from '@treemaker/origami-simulator';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../../lib/simulatorSettings';
+import { useThemeStore } from '../../store/themeStore';
 import { resolveRenderSettings } from '../../simulator/simulatorPalette';
 import { ANALYTICS_EVENTS, track } from '../../analytics';
 import { START_FIGURE, loadStartFigureAsset, type StartFigureAsset } from './startFigureAsset';
@@ -200,22 +201,22 @@ export function StartFigure() {
     };
   }, [draw, refreshPaint, startLoop, teardown]);
 
-  // The palette lives in CSS custom properties, so it has to be re-read when the
-  // theme flips. Watching the documentElement's attributes covers both the app's
-  // own toggle and an OS-level change — the same observer `SimulatorViewport`
-  // uses, for the same reason.
+  // The palette lives in CSS custom properties, so it has to be re-read whenever
+  // the theme moves. Driven off the **store**, not a DOM observer: `applyTheme`
+  // writes `root.style` and `data-theme-type` / `data-theme-name`, and never
+  // touches `class` or `data-theme` — so the attribute observer this first used
+  // (copied from `SimulatorViewport`, which still has it) fired for nothing a
+  // real theme switch does. The store is the thing that actually changed.
+  //
+  // `currentTheme` is a new object per change and `applyTheme` runs inside the
+  // store's setter, so by the time this effect re-runs the custom properties are
+  // already the new ones.
+  const currentTheme = useThemeStore((state) => state.currentTheme);
   useEffect(() => {
-    if (!live || typeof MutationObserver === 'undefined') return;
-    const observer = new MutationObserver(() => {
-      refreshPaint();
-      draw();
-    });
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class', 'data-theme'],
-    });
-    return () => observer.disconnect();
-  }, [live, refreshPaint, draw]);
+    if (!live) return;
+    refreshPaint();
+    draw();
+  }, [live, currentTheme, refreshPaint, draw]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

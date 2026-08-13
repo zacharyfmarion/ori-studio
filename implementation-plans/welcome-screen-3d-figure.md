@@ -63,6 +63,16 @@ have made the start screen the one place showing a different answer.
   form. The figure draws them in **mono** — one theme-derived ink — so the shape
   speaks. Colour stays the default where it is information (the Simulate
   workspace); here it is not.
+- **Which way is up cannot be derived.** `folded3dMesh` hands back the figure in
+  the paper's frame, where the paper normal is vertical — right for an editor
+  figure being looked down at, wrong for a hero that should stand. Three
+  automatic guesses at the upright axis all failed against the eye: the
+  principal axis (the model is a 110x106x52 slab with no dominant elongation),
+  the most-protruding vertex, and a screen-aspect search over orientations. The
+  mirror plane *is* computable (normal on the renderer's Y, 1.9% reflection
+  mismatch), but it does not say which end is the head. So the orientation is a
+  `--orient` argument chosen by eye and recorded, not something the script
+  infers.
 
 ## Approach
 
