@@ -18,6 +18,17 @@ pub(crate) struct FoldGraph {
     pub lines: Vec<GraphLine>,
     pub faces: Vec<Vec<usize>>,
     pub include_faces: bool,
+    /// Per line, the lowest and highest face index having that line on its
+    /// border — Oriedita's `lineInFaceBorder_min` / `_max` arrays, built once by
+    /// `PointSet.findLineInFaceBorder()`
+    /// (`third_party/oriedita/.../crease_pattern/PointSet.java:454-490`) and
+    /// read through `lineInFaceBorder_min_lookup` (`:494`).
+    ///
+    /// Derived purely from `lines` and `faces`, and only ever written by
+    /// [`FoldGraph::calculate_faces`], which is the sole writer of `faces`
+    /// (`:251`). Empty whenever `faces` is, so an uncalculated graph answers
+    /// `None` for every line exactly as the scan it replaces did.
+    line_face_borders: Vec<Option<(usize, usize)>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -97,6 +108,7 @@ impl FoldGraph {
             lines,
             faces: Vec::new(),
             include_faces: false,
+            line_face_borders: Vec::new(),
         };
 
         if calculate_faces {
@@ -120,21 +132,15 @@ impl FoldGraph {
             .collect()
     }
 
+    /// The lowest and highest face index carrying `line_index` on its border.
+    ///
+    /// An array read. It used to be a scan over every face, run from inside the
+    /// equivalence-condition loops (`folding.rs:4210`, `:4243`, `:4253`), which
+    /// made condition generation `O(lines x candidates x faces)` — the dominant
+    /// cost of a large fold. Upstream never paid it: `PointSet` precomputes the
+    /// same answer once and looks it up (`PointSet.java:454-494`).
     pub(crate) fn line_face_border(&self, line_index: usize) -> Option<(usize, usize)> {
-        let line = self.lines.get(line_index)?;
-        let mut min = usize::MAX;
-        let mut max = 0usize;
-        let mut found = false;
-
-        for (face_index, face) in self.faces.iter().enumerate() {
-            if face_contains_line(face, line.begin, line.end) {
-                min = min.min(face_index);
-                max = max.max(face_index);
-                found = true;
-            }
-        }
-
-        found.then_some((min, max))
+        self.line_face_borders.get(line_index).copied().flatten()
     }
 
     pub(crate) fn folded_points(&self, positions: &FacePositions) -> Vec<Point> {
@@ -249,7 +255,47 @@ impl FoldGraph {
         let euler = faces.len() as isize - self.lines.len() as isize + self.points.len() as isize;
         let include_faces = euler == 1 || (euler - 1).abs() as f64 <= 0.005 * faces.len() as f64;
         self.faces = if include_faces { faces } else { Vec::new() };
+        self.line_face_borders = if include_faces {
+            self.line_face_borders_from_incidence(&face_point_map)
+        } else {
+            Vec::new()
+        };
         include_faces
+    }
+
+    /// Oriedita `PointSet.findLineInFaceBorder()`: resolve every line's border
+    /// faces in one pass, consulting only the faces incident to that line's
+    /// `begin` point instead of all of them.
+    ///
+    /// `incidence[point]` is the face list [`Self::calculate_faces`] already
+    /// accumulates while building the faces, so the index this needs costs
+    /// nothing extra. Narrowing the scan to `begin` loses no answer: a face
+    /// carrying the line on its border contains both of its endpoints, so it is
+    /// always in that bucket — the same reasoning that lets upstream walk only
+    /// `head[lines[i].getBegin()]` (`PointSet.java:474`).
+    fn line_face_borders_from_incidence(
+        &self,
+        incidence: &[Vec<usize>],
+    ) -> Vec<Option<(usize, usize)>> {
+        self.lines
+            .iter()
+            .map(|line| {
+                let mut min = usize::MAX;
+                let mut max = 0usize;
+                let mut found = false;
+                for &face_index in incidence.get(line.begin)? {
+                    let Some(face) = self.faces.get(face_index) else {
+                        continue;
+                    };
+                    if face_contains_line(face, line.begin, line.end) {
+                        min = min.min(face_index);
+                        max = max.max(face_index);
+                        found = true;
+                    }
+                }
+                found.then_some((min, max))
+            })
+            .collect()
     }
 
     fn point_linking(&self) -> Vec<Vec<usize>> {
@@ -595,6 +641,87 @@ fn face_area(face: &[usize], points: &[Point]) -> f64 {
 mod tests {
     use super::*;
     use crate::geometry::LineColor;
+
+    /// The all-faces scan [`FoldGraph::line_face_border`] replaces, kept as the
+    /// reference the cache is checked against.
+    fn scanned_line_face_border(graph: &FoldGraph, line_index: usize) -> Option<(usize, usize)> {
+        let line = graph.lines.get(line_index)?;
+        let mut min = usize::MAX;
+        let mut max = 0usize;
+        let mut found = false;
+        for (face_index, face) in graph.faces.iter().enumerate() {
+            if face_contains_line(face, line.begin, line.end) {
+                min = min.min(face_index);
+                max = max.max(face_index);
+                found = true;
+            }
+        }
+        found.then_some((min, max))
+    }
+
+    fn assert_line_face_borders_match_scan(segments: &[LineSegment]) {
+        let graph = FoldGraph::from_segments(segments, true);
+        // Guard the guard: a graph whose faces were rejected answers `None`
+        // everywhere, which would make the comparison below vacuous.
+        assert!(graph.include_faces, "fixture produced no faces");
+        assert!(!graph.faces.is_empty(), "fixture produced no faces");
+        for line_index in 0..graph.lines.len() {
+            assert_eq!(
+                graph.line_face_border(line_index),
+                scanned_line_face_border(&graph, line_index),
+                "line {line_index} disagrees with the all-faces scan"
+            );
+        }
+    }
+
+    /// An `n` x `n` grid emitted one cell edge at a time.
+    ///
+    /// Full-length crossing lines would not do: `from_segments` takes its points
+    /// from segment *endpoints*, so undivided crossings contribute no vertex and
+    /// the graph comes back with no faces at all. Callers in `folding.rs` reach
+    /// the graph only after `divide_intersections`; this is the same shape.
+    fn grid_segments(n: usize) -> Vec<LineSegment> {
+        let step = 400.0 / n as f64;
+        let at = |i: usize| i as f64 * step;
+        let mut segments = Vec::new();
+        for i in 0..=n {
+            for j in 0..n {
+                segments.push(LineSegment::with_color(
+                    Point::new(at(i), at(j)),
+                    Point::new(at(i), at(j + 1)),
+                    LineColor::Black0,
+                ));
+                segments.push(LineSegment::with_color(
+                    Point::new(at(j), at(i)),
+                    Point::new(at(j + 1), at(i)),
+                    LineColor::Black0,
+                ));
+            }
+        }
+        segments
+    }
+
+    /// The cache is only a faster way to compute the scan, so it must agree with
+    /// it line for line — including the `None`s, which are what the callers in
+    /// `folding.rs` branch on.
+    #[test]
+    fn line_face_border_matches_the_all_faces_scan() {
+        assert_line_face_borders_match_scan(&grid_segments(1));
+        assert_line_face_borders_match_scan(&grid_segments(4));
+        assert_line_face_borders_match_scan(&grid_segments(9));
+    }
+
+    /// A graph built without faces has no borders to report, and must say so
+    /// rather than index into an empty cache.
+    #[test]
+    fn line_face_border_is_empty_without_faces() {
+        let graph = FoldGraph::from_segments(&grid_segments(2), false);
+        assert!(graph.faces.is_empty());
+        for line_index in 0..graph.lines.len() {
+            assert_eq!(graph.line_face_border(line_index), None);
+        }
+        assert_eq!(graph.line_face_border(usize::MAX), None);
+    }
 
     /// The linear scan [`VertexIndex`] replaces, kept as the reference.
     fn scanned_points(segments: &[LineSegment]) -> Vec<Point> {

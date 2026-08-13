@@ -275,7 +275,20 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
     railOrder: 160,
   },
   ContinuousSymmetricDraw: {
-    label: 'Reflect Through Lines',
+    // Upstream ships two `name.properties`, and they disagree here: the app
+    // module says "Reflect Through Lines", `oriedita-ui` says this. Both are
+    // loaded by a bare `ResourceBundle.getBundle("name")`, so which one wins is
+    // whichever module lands first on the classpath — undecidable from the
+    // source, and settled by looking at a running Oriedita, where the tooltip on
+    // this button reads "Crease Through Layers".
+    //
+    // Our labels otherwise follow the app module (19 of the 66 keys the two
+    // tables disagree on, against 0 from `oriedita-ui`, the rest our own
+    // wording) because the ui table is mostly tooltip-length prose — "Delete
+    // lines included in a line" — that makes a poor button label. This key is
+    // the exception worth making: the ui value is a short name, and it is the
+    // one an arriving Oriedita user recognizes.
+    label: 'Crease Through Layers',
     group: 'draw',
     upstreamAction: 'continuousSymmetricDrawAction',
     upstreamMouseMode: 'CONTINUOUS_SYMMETRIC_DRAW_52',
@@ -607,6 +620,32 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
     upstreamMouseMode: 'CREASE_DELETE_INTERSECTING_65',
     railOrder: 40,
   },
+
+  // Operations that need nothing from this table but their Oriedita action id.
+  //
+  // `commandAction` defaults `upstreamAction` to `command.upstream`, which is the
+  // Java *mouse handler class* — never an Oriedita action id, so never a match
+  // for anything that looks one up. These twelve were left on that fallback,
+  // which made them invisible to the Oriedita import: a user whose
+  // `hotkey.properties` said `toMountainAction=shift M` was told "Ori Studio has
+  // no matching action" for a tool we have had all along.
+  //
+  // Every pairing below is upstream's own, from the `ActionType` → `MouseMode`
+  // maps in `ActionRegistrationService.java`. Seven of them also revive entries
+  // in `CpToolRail`'s `ORIEDITA_ICON_GLYPHS`, which were keyed on these ids and
+  // dead for exactly the same reason.
+  MoveCreasePattern: { upstreamAction: 'moveCreasePatternAction' },
+  ChangeCreaseType: { upstreamAction: 'senbun_henkanAction' },
+  CreaseMakeMountain: { upstreamAction: 'toMountainAction' },
+  CreaseMakeValley: { upstreamAction: 'toValleyAction' },
+  CreaseMakeEdge: { upstreamAction: 'toEdgeAction' },
+  CreaseMakeAux: { upstreamAction: 'toAuxAction' },
+  CreaseAdvanceType: { upstreamAction: 'senbun_yoke_henkanAction' },
+  CircleChangeColor: { upstreamAction: 'sen_tokutyuu_color_henkouAction' },
+  ReplaceLineTypeSelect: { upstreamAction: 'replace_lineAction' },
+  DeleteLineTypeSelect: { upstreamAction: 'del_l_typeAction' },
+  FixInaccurate: { upstreamAction: 'fixInaccurateAction' },
+  BackgroundChangePosition: { upstreamAction: 'backgroundSetPositionAction' },
 };
 
 export const ORISTUDIO_CP_ACTIONS: OristudioCpActionDefinition[] = [

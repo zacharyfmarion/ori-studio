@@ -1,6 +1,10 @@
 {
   "bp": {
+    "flipHorizontal": "Horizontal spiegeln",
+    "flipVertical": "Vertikal spiegeln",
     "optimizeLayout": "Layout optimieren…",
+    "rotateLeft": "Nach links drehen",
+    "rotateRight": "Nach rechts drehen",
     "subdivide": "Raster unterteilen",
     "unsubdivide": "Unterteilung aufheben"
   },
@@ -13,7 +17,7 @@
     "check1": "Überlappungen prüfen",
     "check2": "T-Verbindungen prüfen",
     "check3": "Faltbarkeit der Ecken prüfen",
-    "check4": "Maekawa/LBL prüfen",
+    "check4": "Maekawa/BLB prüfen",
     "checkCamv": "Faltbarkeit prüfen",
     "deleteExtraVertices": "Überflüssige Knoten löschen",
     "deleteExtraVerticesIgnoreColor": "Überflüssige Knoten löschen (Typ ignorieren)",

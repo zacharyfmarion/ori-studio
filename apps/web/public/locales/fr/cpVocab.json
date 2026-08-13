@@ -521,7 +521,7 @@
       }
     },
     "cp_action_continuous_symmetric_draw": {
-      "label": "Refléter à travers les lignes",
+      "label": "Pli à travers les couches",
       "tooltip": "Tracé symétrique continu",
       "disabledReason": "Prêt",
       "steps": {
@@ -976,8 +976,8 @@
       "disabledReason": "Prêt"
     },
     "cp_action_check4": {
-      "label": "Vérifier Maekawa/LBL",
-      "tooltip": "Trouver les violations de Maekawa, d'angle et petit-grand-petit",
+      "label": "Vérifier Maekawa/BLB",
+      "tooltip": "Trouver les violations de Maekawa, d'angle et grand-petit-grand",
       "disabledReason": "Prêt"
     },
     "cp_action_fix1": {

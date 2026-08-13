@@ -251,17 +251,27 @@ wasm-pack test --node crates/treemaker-wasm
 Choose the smallest validation set that covers the files you changed, and
 report any skipped checks with the reason.
 
-**The CP and BP wasm artifacts are tracked in git.** `apps/web/src/generated/`
-carries a blanket `.gitignore`, but `oristudio-cp-wasm/` and `oristudio-bp-wasm/`
-were force-added and are what the browser and desktop bundles actually ship —
-`git ls-files apps/web/src/generated` lists them. Nothing in CI rebuilds or
-verifies them, and the `.js`/`.d.ts` glue is unchanged by a body-only kernel
-edit, so lint, typecheck and vitest all pass over a stale `.wasm` and say
-nothing. A change to `crates/oristudio-cp*` or `crates/oristudio-bp*` is not
-finished until the matching artifact is rebuilt and staged
-(`git add -f apps/web/src/generated/<pkg>/`, past the `.gitignore`).
-`treemaker-wasm/` and `oristudio-cp-detect-wasm/` are genuinely untracked build
-outputs.
+**Every wasm artifact under `apps/web/src/generated/` is a build output, and
+none of them are tracked.** Everything that ships rebuilds them from the Rust
+source first: both CI jobs, both deploy workflows, and Tauri's
+`beforeBuildCommand` all install `wasm-pack` and run `build:wasm`, and the
+`predev` / `pretypecheck` / `pretest` / `prebuild` hooks do the same for any
+local npm entry point. So a kernel change reaches the browser through the
+build, not through a committed binary.
+
+What this costs you locally: a bare `npx tsc --noEmit` or `npx vitest` skips
+those hooks, and the `.js`/`.d.ts` glue is unchanged by a body-only kernel edit
+— so lint, typecheck and vitest all pass over a stale `.wasm` and say nothing.
+After changing `crates/oristudio-cp*` or `crates/oristudio-bp*`, rebuild the
+matching bridge before you trust anything you see in the browser:
+
+```bash
+npm --workspace @treemaker/web run build:oristudio-cp-wasm
+```
+
+(CP and BP were tracked until they weren't: they predated CI building wasm, and
+the tracked copies then sat there stale with nothing to catch it. The history is
+in `implementation-plans/angle-restricted-endpoint-snap.md`.)
 
 ## Testing
 
@@ -281,8 +291,12 @@ outputs.
 
 GitHub Actions runs two main jobs:
 
-- `web-client`: installs Rust and Node, installs `wasm-pack`, runs web lint,
-  typecheck, and unit tests.
+- `web-client`: first asserts nothing under `apps/web/src/generated/` is tracked
+  (see the wasm note above — a committed artifact passes every other check in
+  this job), then installs Rust and Node, installs `wasm-pack`, builds the
+  simulator and all four wasm bridges, and runs web lint, i18n check, typecheck,
+  and unit tests (the latter with `--ignore-scripts`, so they do not rebuild what
+  the dedicated step just built).
 - `native-oracle`: installs Tauri Linux dependencies, runs Rust format, clippy,
   workspace tests, builds the C++ oracle, and runs oracle parity tests.
 
@@ -339,6 +353,25 @@ bucketed numbers** as property values. Never send raw user content — text-tool
 text, filenames or paths, geometry / coordinates / measured values, node/edge
 data, or image data. Analytics must be a no-op when the user has opted out;
 never gate product behavior on it.
+
+### Crash reporting
+
+Sentry covers errors, in the same browser + desktop renderer. It lives in
+`apps/web/src/monitoring/` — never call `@sentry/react` directly, and never add
+a Sentry import outside that layer.
+
+You almost never need to do anything: unhandled errors are captured by Sentry's
+global handlers, and every `ErrorBoundary` catch is already reported. Reach for
+`reportError(error, { surface })` only for an error you deliberately swallow and
+still want to see. If the question is *how often*, that is a PostHog event
+instead.
+
+The same privacy contract applies, with one documented exception: **stack traces
+are sent to Sentry**, because a frame names our code rather than the user's work.
+Everything else is redacted through `lib/redact.ts` — the single shared
+implementation, also used by the analytics fingerprint. If you need different
+redaction, add an option there rather than writing a second copy. Consent is the
+same switch as analytics; `beforeSend` drops every event while opted out.
 
 ### CP detector eval work
 
@@ -416,12 +449,9 @@ Two things it lacks that the primary checkout has:
 1. **`node_modules`** — npm never populates a worktree; each one needs its own
    install. Without it, `tsc` cannot resolve packages (`react-i18next`,
    `react-router-dom`, …) and the i18n scripts fail with cryptic errors.
-2. **The untracked generated artifacts** under `apps/web/src/generated/` —
-   `treemaker-wasm/`, `oristudio-cp-detect-wasm/` and the generated TS. A new
-   worktree starts without them and typecheck/build fail. (`oristudio-cp-wasm/`
-   and `oristudio-bp-wasm/` are tracked and arrive with the checkout; see the
-   WASM bridge note above for what that obliges you to do when you change those
-   crates.)
+2. **The generated artifacts** under `apps/web/src/generated/` — all four wasm
+   bridges and the generated TS. None of them are tracked, so a new worktree
+   starts without them and typecheck/build fail.
 
 Bootstrap both in one step from the worktree root:
 

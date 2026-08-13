@@ -183,7 +183,14 @@ const OVERSIZED_PANELS = {
   // flap-radius geometry *left* — both radius and width now go through
   // `edgeLengthRepositions` in `tree-editor/dragRule`, so the panel holds one
   // commit path where it used to hold a leaf-only copy of the geometry.
-  'BpPackingPanel.tsx': 2023,
+  //
+  // 2023 -> 2055: rotate / flip in the sheet popover. The verbs are the Design
+  // menu's own commands and the binding is in `hooks/useBpSheetTransforms`,
+  // which reads the same capability gates and dispatches through
+  // `handleMenuAction`. What is here is a child component mapping those
+  // descriptors to buttons, plus the icon each one draws — composition, and the
+  // shape the panel table asks for.
+  'BpPackingPanel.tsx': 2055,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
   'BpTreePanel.tsx': 890,

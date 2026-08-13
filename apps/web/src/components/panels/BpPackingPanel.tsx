@@ -21,9 +21,13 @@ import {
   Blend,
   Circle,
   CircleDot,
+  FlipHorizontal,
+  FlipVertical,
   Grid2X2,
   Minus,
   Plus,
+  RotateCcw,
+  RotateCw,
   Route,
   Ruler,
   SquareDashed,
@@ -99,6 +103,10 @@ import {
 import { clientPointToDesignWorld } from '../../lib/designViewport';
 import { setActiveShortcutViewportSurface } from '../../keyboard/shortcutRuntime';
 import { useBpLongPressInspector } from '../../hooks/useBpLongPressInspector';
+import {
+  useBpSheetTransforms,
+  type BpSheetTransformIcon,
+} from '../../hooks/useBpSheetTransforms';
 import {
   useViewportSurface,
   VIEWPORT_PINCH_ZOOM,
@@ -296,6 +304,44 @@ function selectedNudgeDevice(
   }
   return null;
 }
+
+/**
+ * Rotate and flip, alongside the sheet's size and grid because they are the same
+ * kind of thing: whole-sheet operations that move the design with the paper.
+ *
+ * Every button is the Design menu's own command — see `useBpSheetTransforms`,
+ * which is where the binding lives.
+ */
+function BpSheetTransformRow() {
+  const { t } = useTranslation();
+  const transforms = useBpSheetTransforms();
+  return (
+    <div className="bp-sheet-menu__row">
+      <span className="bp-sheet-menu__label">{t('panels:bpPacking.transform', 'Transform')}</span>
+      <div className="bp-sheet-menu__transforms">
+        {transforms.map((action) => (
+          <button
+            key={action.id}
+            type="button"
+            title={action.title}
+            aria-label={action.title}
+            disabled={action.disabled}
+            onClick={action.run}
+          >
+            {BP_SHEET_TRANSFORM_ICONS[action.icon]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const BP_SHEET_TRANSFORM_ICONS: Record<BpSheetTransformIcon, ReactNode> = {
+  'rotate-right': <RotateCw size={13} />,
+  'rotate-left': <RotateCcw size={13} />,
+  'flip-h': <FlipHorizontal size={13} />,
+  'flip-v': <FlipVertical size={13} />,
+};
 
 /**
  * One sheet dimension.
@@ -513,6 +559,7 @@ function BpPackingViewportToolbar({
                 />
               </>
             )}
+            <BpSheetTransformRow />
           </div>
         )}
       </div>

@@ -482,13 +482,16 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick source crease', 'Pick width point'],
   }),
   ready('ContinuousSymmetricDraw', 'Continuous symmetric draw', 'construct', 'repeat', 'MouseHandlerContinuousSymmetricDraw', {
-    // Unlike the other hidden tools, this one *is* in Oriedita's UI (the
-    // "reflectThroughLines" button in DrawingTab) — hiding it is an Ori Studio
-    // product decision, not upstream alignment. It stays `ready` so the kernel,
-    // menus, and `.cp` mouse modes keep parity; only the rail button goes away.
-    // Its upstream Ctrl+R chord is dropped with it: a hidden tool that keeps a
-    // default chord is reachable with nothing on screen to show it is active.
-    placement: 'hidden-ui-only',
+    // On the rail, like upstream. This was hidden as an Ori Studio product
+    // decision while every other hidden tool is hidden for upstream alignment —
+    // Oriedita ships a "reflectThroughLines" button in DrawingTab. Hiding it
+    // made the tool unreachable by every route at once: no button, no default
+    // chord, and `isShortcutBindable` refuses a hidden action, so neither the
+    // Oriedita import nor a manual capture could give it one either. A user
+    // arriving with it bound in Oriedita had nowhere to land.
+    //
+    // Its upstream Ctrl+R chord comes back with it, per the note left on
+    // `continuousSymmetricDrawAction` in `keyboard/shortcuts.ts`.
     toolSteps: ['Pick start point', 'Pick through point'],
   }),
   // The two Measure tools. Upstream splits measuring across five operations that
@@ -792,9 +795,9 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     placement: 'menu',
     tooltip: 'Find Oriedita vertex flat-foldability markers',
   }),
-  ready('Check4', 'Check Maekawa/LBL', 'check-fix', 'badge-alert', 'Check4', {
+  ready('Check4', 'Check Maekawa/BLB', 'check-fix', 'badge-alert', 'Check4', {
     placement: 'menu',
-    tooltip: 'Find Maekawa, angle, and little-big-little violations',
+    tooltip: 'Find Maekawa, angle, and big-little-big violations',
   }),
   ready('Fix1', 'Repair overlaps', 'check-fix', 'wrench', 'Fix1', {
     placement: 'menu',
@@ -1099,6 +1102,26 @@ export function cpCommandCandidatesCarryCrease(
   operationId: OristudioCpOperationId | undefined
 ): boolean {
   return operationId ? CP_KERNEL_DECIDED_CANDIDATE_OPERATIONS.has(operationId) : false;
+}
+
+/**
+ * Tools that resolve an endpoint *inside* the kernel and so do their own
+ * close-point search.
+ *
+ * Angle Restricted Line has to: the point it snaps is the cursor projected onto
+ * the angle system, which only the kernel knows. Every other draw tool snaps on
+ * the canvas before the command is built, and the kernel sees a resolved point.
+ * These are the commands whose payload therefore has to carry the snap policy.
+ */
+const CP_KERNEL_SNAPPED_OPERATIONS = new Set<OristudioCpOperationId>([
+  'DrawCreaseAngleRestricted5',
+]);
+
+/** Whether `operationId` snaps its own endpoint kernel-side. */
+export function cpCommandSnapsKernelSide(
+  operationId: OristudioCpOperationId | undefined
+): boolean {
+  return operationId ? CP_KERNEL_SNAPPED_OPERATIONS.has(operationId) : false;
 }
 
 export function cpRailCommands(): OristudioCpCommandDefinition[] {

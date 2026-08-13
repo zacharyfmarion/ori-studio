@@ -124,6 +124,17 @@ export interface SimulatorViewportProps {
   canvasKey: string;
   /** Whether orbit/zoom gestures are accepted (false while loading or errored). */
   interactive: boolean;
+  /**
+   * Whether the wheel gesture in flight is this surface's to zoom, asked once
+   * per event and only when the surface would otherwise act on it.
+   *
+   * A viewport that fills its own pane has no one to share the wheel with and
+   * omits this. One floating over another scrollable surface does: an inline
+   * simulation window hands a gesture that began on the crease pattern back to
+   * it rather than treating the cursor's arrival as a new zoom. The claim is
+   * still made either way, so an unclaimed pinch never reaches the browser.
+   */
+  claimsWheel?: () => boolean;
   /** True when the worker owns this canvas and draws on the GPU. */
   gpuActive: boolean;
   /**
@@ -195,6 +206,7 @@ export function SimulatorViewport({
   onCanvasChange,
   canvasKey,
   interactive,
+  claimsWheel,
   gpuActive,
   bitmapPresent = false,
   minDeviceSize = 360,
@@ -232,6 +244,7 @@ export function SimulatorViewport({
   const viewSettingsRef = useRef(viewSettings);
   const highlightsRef = useRef(highlights);
   const interactiveRef = useRef(interactive);
+  const claimsWheelRef = useRef(claimsWheel);
   const surfaceOptionsRef = useRef<SimulatorSurfaceOptions>({
     transparentBackground,
     creaseWidthReferenceEdge,
@@ -345,7 +358,8 @@ export function SimulatorViewport({
 
   useEffect(() => {
     interactiveRef.current = interactive;
-  }, [interactive]);
+    claimsWheelRef.current = claimsWheel;
+  }, [interactive, claimsWheel]);
 
   // Framing and view settings both end up in one RenderSettings, so a change to
   // either has to be pushed the same way.
@@ -502,6 +516,10 @@ export function SimulatorViewport({
       // browser's own zoom. Nothing is behind this canvas that wants the event.
       event.preventDefault();
       if (!interactiveRef.current) return;
+      // Asked after the claim and before the zoom: a surface that shares the
+      // wheel with something behind it lets that owner have the gesture, and the
+      // event carries on to whatever forwards it.
+      if (claimsWheelRef.current?.() === false) return;
       viewRef.current = {
         ...viewRef.current,
         zoom: clampSimulatorZoom(viewRef.current.zoom * simulatorWheelZoomFactor(event.deltaY)),

@@ -521,7 +521,7 @@
       }
     },
     "cp_action_continuous_symmetric_draw": {
-      "label": "Отразить через линии",
+      "label": "Складка сквозь слои",
       "tooltip": "Непрерывное симметричное рисование",
       "disabledReason": "Готово",
       "steps": {
@@ -976,8 +976,8 @@
       "disabledReason": "Готово"
     },
     "cp_action_check4": {
-      "label": "Проверить Maekawa/LBL",
-      "tooltip": "Найти нарушения Maekawa, углов и little-big-little",
+      "label": "Проверить Maekawa/BLB",
+      "tooltip": "Найти нарушения Maekawa, углов и big-little-big",
       "disabledReason": "Готово"
     },
     "cp_action_fix1": {

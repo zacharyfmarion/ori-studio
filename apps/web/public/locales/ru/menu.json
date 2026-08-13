@@ -1,6 +1,10 @@
 {
   "bp": {
+    "flipHorizontal": "Отразить по горизонтали",
+    "flipVertical": "Отразить по вертикали",
     "optimizeLayout": "Оптимизировать раскладку…",
+    "rotateLeft": "Повернуть влево",
+    "rotateRight": "Повернуть вправо",
     "subdivide": "Разделить сетку",
     "unsubdivide": "Отменить разделение"
   },
@@ -13,7 +17,7 @@
     "check1": "Проверить перекрытия",
     "check2": "Проверить T-образные соединения",
     "check3": "Проверить складываемость вершин",
-    "check4": "Проверить Maekawa/LBL",
+    "check4": "Проверить Maekawa/BLB",
     "checkCamv": "Проверить складываемость",
     "deleteExtraVertices": "Удалить лишние вершины",
     "deleteExtraVerticesIgnoreColor": "Удалить лишние вершины (без учёта типа)",

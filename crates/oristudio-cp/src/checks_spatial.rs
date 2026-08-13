@@ -87,7 +87,7 @@ impl VertexFan {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VertexRegime {
     /// Every incident folding crease is a full +/-180. Oriedita's flat check
-    /// applies unchanged, including little-big-little and the Fushimi rules.
+    /// applies unchanged, including big-little-big and the Fushimi rules.
     Flat,
     /// At least one incident crease carries an explicit non-180 angle.
     Spatial,
@@ -1035,7 +1035,7 @@ fn point_on_segment(point: Point, segment: &LineSegment) -> bool {
 ///
 /// A vertex whose incident creases are all classic goes to Oriedita's
 /// [`crate::checks::find_flat_foldability_violation`] unchanged — including
-/// little-big-little and the Fushimi rules, which the spatial check has no
+/// big-little-big and the Fushimi rules, which the spatial check has no
 /// equivalent for. Only a vertex touching a non-classic crease takes the
 /// closure path.
 ///

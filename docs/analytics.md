@@ -1,29 +1,44 @@
 # Analytics & privacy
 
-Ori Studio uses [PostHog](https://posthog.com) for product analytics — to learn
-which features get used, so we can decide what to improve. This document is the
-**privacy contract**: what we collect, what we will never collect, and the
-safeguards that keep it that way. It is the authoritative reference; the code
-under `apps/web/src/analytics/` is the source of truth for the exact event set.
+Ori Studio sends two kinds of telemetry, and this document is the **privacy
+contract** for both: what we collect, what we will never collect, and the
+safeguards that keep it that way.
+
+- **[PostHog](https://posthog.com) — product analytics.** Which features get
+  used, so we can decide what to improve. Code under
+  `apps/web/src/analytics/`, which is the source of truth for the exact event
+  set.
+- **[Sentry](https://sentry.io) — crash reporting.** Where the app broke, so we
+  can fix it. Code under `apps/web/src/monitoring/`. Errors only: no tracing, no
+  profiling, no session replay.
+
+**One switch governs both.** Settings → Workspace → Privacy is a single toggle;
+opting out of usage analytics also stops crash reports.
 
 The browser build and the Tauri desktop build share the same renderer code, so
-one implementation covers both. A `runtime_surface` property (`web` | `desktop`)
-distinguishes them.
+one implementation covers both. A `runtime_surface` property/tag (`web` |
+`desktop`) distinguishes them.
 
 ## Principles
 
 - **Off by default in development.** Analytics initializes only when both
   `VITE_PUBLIC_POSTHOG_KEY` and `VITE_PUBLIC_POSTHOG_HOST` are present at build
-  time. Local and PR-preview builds don't set them, so nothing is ever captured
-  there. This "absence = disabled" firewall is deliberate — see
+  time; Sentry only when `VITE_PUBLIC_SENTRY_DSN` is. Local and PR-preview
+  builds don't set them, so nothing is ever captured there. This "absence =
+  disabled" firewall is deliberate — see
   `implementation-plans/posthog-analytics.md`.
 - **Anonymous.** We `identify()` with a random UUID generated and stored only in
   this browser (`localStorage`, key `oristudio:analytics-id`). It is never
   derived from anything about the user. Opting out deletes it; opting back in
-  mints a new one, so the two sessions are not linkable.
+  mints a new one, so the two sessions are not linkable. Sentry uses the *same*
+  id as its `user.id`, so a crash and a session are correlatable without either
+  system knowing who the user is.
 - **Opt-out, honored immediately.** Settings → Workspace → Privacy has a toggle
   (default on). Turning it off sends a final `analytics preference changed`
-  event, then resets identity and stops all capture — including autocapture.
+  event, then resets identity and stops all capture — including autocapture. For
+  Sentry it flips the `beforeSend` gate to drop every event, clears the identity,
+  and clears the breadcrumb buffer so activity from before the opt-out cannot
+  ride along on a later report.
 - **No product behavior depends on analytics.** Every event is a no-op when
   disabled or uninitialized; nothing is gated on it.
 
@@ -43,10 +58,24 @@ autocapture:
 - **Image data** — the CP-from-image flow never sends the source image; it
   renders to a `<canvas>`, which autocapture cannot read.
 - **Share-link URLs** — the URL encodes the pattern geometry, so it is
-  `ph-no-capture` and never a property value.
-- **Raw error messages or stack traces** — only a normalized, path-scrubbed
-  fingerprint and a coarse domain.
-- **Session replay / recordings and surveys** — disabled at init.
+  `ph-no-capture` and never a property value. Sentry reduces every URL it would
+  send to origin + path, dropping the query and hash; `blob:` and `data:` URLs
+  collapse to just the scheme, since either can inline a whole image.
+- **Raw error messages** — PostHog gets only a normalized, path-scrubbed
+  fingerprint and a coarse domain. Sentry gets the exception *type* and a
+  message run through the same redaction, so a message reads `cannot open
+  <file>` rather than naming the model.
+- **Session replay / recordings and surveys** — disabled at init in PostHog;
+  never installed in Sentry.
+
+**Stack traces are the one exception, and they are sent — to Sentry only.** This
+is the deliberate trade the crash reporting exists to make: a stack frame names
+*our* function, module and line, not the user's work, and without it a crash
+report says only that something broke somewhere. The rule the code enforces is
+**stack frames are ours, free text is theirs** — frames travel intact, anything a
+message or breadcrumb interpolated is redacted. If a message ever needs to be
+readable, add the specific fact as a bounded tag rather than loosening the
+redaction.
 
 More generally, custom event properties are restricted to **enums and bucketed
 numbers**. Raw strings from user content are never a property value.
@@ -58,9 +87,15 @@ numbers**. Raw strings from user content are never a property value.
 | `mask_all_text` + `mask_all_element_attributes` on autocapture | `analytics/bootstrap.ts` init |
 | Session recording + surveys disabled | `analytics/bootstrap.ts` init |
 | `ph-no-capture` on the text editor + share-link URL | `cp-workspace/CpTextEditor.tsx`, `cp-workspace/share/ShareLinkModal.tsx` |
-| Error fingerprints strip URLs / paths / filenames / numbers | `fingerprintError` in `analytics/bootstrap.ts` |
+| Redaction of URLs / paths / filenames / quoted text / numbers | `redactSensitiveText` in `lib/redact.ts` — one implementation, shared |
+| Error fingerprints built from that redaction | `fingerprintError` in `analytics/bootstrap.ts` |
 | Enum + bucketed properties only | `bucketCount` in `analytics/events.ts`; call-site discipline |
-| Consent gating (no-op when off/absent) | `analytics/runtime.ts` |
+| Consent gating (no-op when off/absent) | `analytics/runtime.tsx` |
+| Every Sentry event scrubbed before send | `scrubEvent` / `scrubBreadcrumb` in `monitoring/scrub.ts` |
+| Sentry consent gate (`beforeSend` returns null when off) | `isMonitoringConsented` in `monitoring/runtime.tsx` |
+| `sendDefaultPii: false`, no tracing, no replay | `monitoring/bootstrap.ts` init |
+| `BrowserSession` integration removed | `monitoring/bootstrap.ts` — session pings bypass `beforeSend`, so consent could not stop them |
+| `sendClientReports: false` | `monitoring/bootstrap.ts` — drop-count reports are still traffic from an opted-out user |
 
 ## How it's wired
 
@@ -81,6 +116,62 @@ recognizes the fold chord and calls the store action directly, *before*
 calls the same store action, so there is no `command invoked` either. Every
 `fold *` event is hand-placed for that reason.
 
+## Crash reporting (Sentry)
+
+Project `ori-studio` in the `zachary-marion` org. All of it goes through
+`apps/web/src/monitoring/` — **never import `@sentry/react` directly.**
+
+**What reaches Sentry.** Unhandled errors and promise rejections, via Sentry's
+own global handlers; plus every error an `ErrorBoundary` catches, reported
+explicitly from the one boundary implementation. Those two are not redundant:
+a boundary catch is invisible to the global handlers precisely because the
+boundary did its job, so without the explicit report the app's *contained*
+crashes — the ones a user actually survives and keeps using — would never be
+seen.
+
+The same boundary also fires PostHog's `app error`. That is deliberate, and not
+double-counting: PostHog answers *how often, and does it correlate with
+anything*; Sentry answers *where*.
+
+**Every event carries** the `release` (`ori-studio@<version>+<commit>`, matching
+the "Copy details" build string in the error fallback) and the tags
+`runtime_surface`, `app_version`, `app_commit`, and `surface` (the boundary's
+stable id, e.g. `panel:crease-pattern`). Boundary reports also carry the React
+component stack.
+
+**Sourcemaps.** Production stacks are un-minified, via `@sentry/vite-plugin` in
+`apps/web/vite.config.ts`. Three things about that setup are load-bearing:
+
+- **The release name is the join key.** Sentry symbolicates only when the release
+  an event reports matches the release the maps were uploaded under, so
+  `vite.config.ts` computes `ori-studio@<version>+<commit>` once and stamps it
+  into both the upload and the bundle (via `__SENTRY_RELEASE__`). Don't
+  reintroduce a second copy of that format string.
+- **`SENTRY_AUTH_TOKEN` gates generation, not just upload.** Without it no maps
+  are emitted at all. That is what stops a PR-preview build from publishing a
+  readable copy of the source to its public URL — Cloudflare Pages serves
+  whatever is in `dist`. The plugin also deletes the maps after uploading, which
+  it does even when the upload fails.
+- **Upload failure fails the build**, via an `errorHandler` that rethrows. The
+  default logs a 401 and exits 0, which would deploy green with every production
+  stack minified and nothing to indicate why.
+
+**Known gap:** this covers the main thread only. Errors inside the CP, BP,
+detector and simulator workers are not captured — each worker would need its own
+SDK instance. Worth doing if worker crashes turn out to matter; not done here.
+
+**Adding a report.** Only for errors you deliberately swallow and want to see:
+
+```ts
+import { reportError } from '../monitoring';
+
+reportError(error, { surface: 'panel:crease-pattern', handled: true });
+```
+
+Don't reach for it after a `captureException`-shaped thought — unhandled errors
+are already covered, and a `try`/`catch` that recovers cleanly is usually not a
+crash. If you want *frequency*, that is a PostHog event, not a Sentry one.
+
 ## Tracked events
 
 Every event also carries the super properties `app_version`, `app_commit`,
@@ -89,7 +180,7 @@ Every event also carries the super properties `app_version`, `app_commit`,
 | Event | Properties | Fires when |
 | --- | --- | --- |
 | `app opened` | — | App launch |
-| `app error` | `error_domain`, `operation`, `source_component`, `handled`, `fingerprint` | An error boundary catches (deduped over 30s) |
+| `app error` | `error_domain`, `operation`, `source_component`, `handled`, `fingerprint` | An error boundary catches (`handled: true`), or an uncaught window error / unhandled rejection reaches `GlobalErrorReporter` (`handled: false`, `source_component` `global:error` / `global:unhandledrejection`). Deduped over 30s **per surface** |
 | `analytics preference changed` | `enabled` | The privacy toggle changes |
 | `command invoked` | `command_id`, `command_group` | A menu / keyboard / palette action (recognized ids only; data suffixes stripped) |
 | `cp tool used` | `operation`, `group` | A CP editor operation executes |
@@ -124,6 +215,7 @@ Every event also carries the super properties `app_version`, `app_commit`,
 | `share link opened` | `succeeded`, `source` | A shared link is opened |
 | `theme changed` | `theme` | The theme is changed |
 | `locale changed` | `locale` | The language is changed |
+| `oriedita shortcuts imported` | `mode`, `applied_count`, `skipped_count` | An Oriedita `.oriconfig` keymap is applied |
 
 **Nothing about a 3D fold's geometry is sent.** Not the closure residual, the
 loop gap, the plane separation, the crossing points, or any face, line, plane or
@@ -148,3 +240,9 @@ is answered by the event existing; where they turned it to is not ours.
   values: enums and bucketed numbers only.
 - Never send raw user content. When in doubt, bucket it or leave it out.
 - Keep this table and the never-collect list current with the code.
+- **Redaction has one implementation** (`lib/redact.ts`), shared by the
+  fingerprint and the Sentry scrubber. If you need different behavior, add an
+  option there rather than writing a second near-copy — the two must never
+  disagree about what counts as user content.
+- **Sentry tags are enums too.** A tag value is as visible as a property value;
+  the same "no raw user content" rule applies.

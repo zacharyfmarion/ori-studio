@@ -10,8 +10,22 @@
  * no glyph atlas, and the badge count is bounded well below the crease count.
  * It subscribes to the live camera directly so it stays crisp while panning
  * without re-rendering the panel.
+ *
+ * That subscription goes through {@link usePannedOverlayView} rather than the
+ * raw view, because "without re-rendering the panel" was not enough: at
+ * `MAX_BADGES` the layer alone re-rendered and restyled 300 elements per camera
+ * frame. A pan only translates, so it is applied as one transform on the
+ * container and the badges are re-projected only on zoom and rotation — which is
+ * also the only time the plan can change, since every decision it makes is made
+ * on screen length.
+ *
+ * The pair matters more than either half. Panning a badged pattern was visibly
+ * rough, and profiling found ~200ms of React per 3.5s pan — but removing all of
+ * it changed nothing perceptible, because the real cost was repainting 300 text
+ * nodes every frame. Promoting the container (below) is what fixed it; not
+ * re-rendering is what lets a promoted layer stay promoted.
  */
-import { useCpOverlayView } from '../cpOverlayViewStore';
+import { usePannedOverlayView } from '../camera/usePannedOverlayView';
 import { useWorkspaceStore } from '../../store/workspaceStore/store';
 import { overlayModelToCss } from '../annotations/annotationTransform';
 import type { OristudioCpLineSegment } from '../../engine/oristudioCpTypes';
@@ -45,7 +59,7 @@ export function CpFoldAngleLayer({
    */
   toolCandidates?: readonly ToolPreviewSegment[];
 }) {
-  const view = useCpOverlayView();
+  const { view, containerRef } = usePannedOverlayView();
   // The layer owns its own visibility rather than the panel deciding for it.
   // Note this gates the *badges* only — crease colour is unconditional, and
   // lives in the stroke builders where no visibility flag reaches it.
@@ -99,6 +113,7 @@ export function CpFoldAngleLayer({
 
   return (
     <div
+      ref={containerRef}
       className="cp-fold-angle-layer"
       style={{
         position: 'absolute',
@@ -108,6 +123,9 @@ export function CpFoldAngleLayer({
         // Same band as the measure and text layers: above the WebGL canvas and
         // grid, below the annotation overlay.
         zIndex: 7,
+        // The `will-change: transform` that makes the pan above a compositor
+        // move rather than a repaint is in the stylesheet, beside the other
+        // layer promotions — see `.cp-fold-angle-layer`.
       }}
       aria-hidden="true"
     >

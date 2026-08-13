@@ -92,7 +92,12 @@ function bpDocument(flaps: OristudioBpFlap[], layout = sheet()): OristudioBpDocu
 const FLAPS = [flap(1, 2, 6), flap(2, 12, 6), flap(3, 1, 3)];
 
 function setUp(
-  symmetry: { enabled: boolean; fold?: 'book' | 'diagonal'; pairs?: { v1: number; v2: number }[] },
+  symmetry: {
+    enabled: boolean;
+    fold?: 'book' | 'diagonal';
+    quarterTurn?: boolean;
+    pairs?: { v1: number; v2: number }[];
+  },
   layout = sheet()
 ) {
   useWorkspaceStore.setState(
@@ -104,6 +109,8 @@ function setUp(
           ...TREE_AXIS,
           enabled: symmetry.enabled,
           fold: symmetry.fold ?? 'book',
+          quarterTurn: symmetry.quarterTurn ?? false,
+          sidesSwapped: false,
           pairs: symmetry.pairs ?? [],
         },
       }),
@@ -254,7 +261,7 @@ describe('moveOristudioBpLayoutFlapsWithSymmetry', () => {
         ...useWorkspaceStore.getInitialState(),
         ...singleBoxPleatDesignTab({
           document: bpDocument([flap(id, anchorX, 4)]),
-          symmetry: { ...TREE_AXIS, enabled, fold: 'book', pairs: [] },
+          symmetry: { ...TREE_AXIS, enabled, fold: 'book', quarterTurn: false, sidesSwapped: false, pairs: [] },
         }),
       },
       true

@@ -145,7 +145,7 @@ export interface MarkerGeometry {
 }
 
 /**
- * Instanced little-big-little sector wedges: a filled triangle per instance from a
+ * Instanced big-little-big sector wedges: a filled triangle per instance from a
  * vertex (model coords) out to two rim points placed a fixed *screen* radius along
  * two crease directions. Screen-scaled like {@link MarkerGeometry} (via markerScalePx)
  * so the wedges track the other diagnostic markers as the camera zooms.

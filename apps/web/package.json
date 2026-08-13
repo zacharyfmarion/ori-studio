@@ -24,6 +24,7 @@
     "i18n:extract": "node scripts/i18n/extract.mjs",
     "i18n:stamp": "node scripts/i18n/stamp.mjs",
     "i18n:check": "node scripts/i18n/check.mjs",
+    "generate:oriedita-defaults": "node scripts/generate-oriedita-defaults.mjs",
     "typecheck:functions": "tsc --noEmit --project tsconfig.functions.json",
     "share:build": "VITE_SHARE_API_URL=http://localhost:8788 vite build",
     "share:dev": "npm run share:build && npx -y wrangler@4 pages dev dist --port 8788 --kv SHARE_KV --r2 SHARE_R2 --persist-to .wrangler/state/share-dev"
@@ -39,6 +40,7 @@
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.21",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "@sentry/react": "^10.70.0",
     "@tanstack/react-virtual": "^3.14.9",
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-dialog": "^2.0.0",
@@ -63,6 +65,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@sentry/vite-plugin": "^5.4.0",
     "@types/earcut": "^3.0.0",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",

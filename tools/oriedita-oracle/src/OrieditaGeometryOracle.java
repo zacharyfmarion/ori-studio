@@ -41,6 +41,7 @@ import origami.folding.util.SortingBox;
 
 import oriedita.editor.databinding.ApplicationModel;
 import oriedita.editor.databinding.GridModel;
+import oriedita.editor.drawing.Grid;
 import oriedita.editor.databinding.FoldedFigureModel;
 import oriedita.editor.drawing.FoldedFigure_Drawer;
 import oriedita.editor.drawing.tools.Camera;
@@ -299,6 +300,8 @@ public class OrieditaGeometryOracle {
             case "foldline-inward" -> foldLineInward(args);
             case "foldline-fishbone" -> foldLineFishbone(args);
             case "foldline-angle-restricted5" -> foldLineAngleRestricted5(args);
+            case "foldline-angle-restricted5-grid" -> foldLineAngleRestricted5Grid(args);
+            case "grid-closest-point" -> gridClosestPoint(args);
             case "foldline-angle-restricted3-candidates" -> foldLineAngleRestricted3Candidates(args);
             case "foldline-angle-restricted3-draw" -> foldLineAngleRestricted3Draw(args);
             case "foldline-angle-restricted-converging-candidates" -> foldLineAngleRestrictedConvergingCandidates(args);
@@ -3843,6 +3846,115 @@ public class OrieditaGeometryOracle {
 
         System.out.println("added|" + added);
         printFoldLineSet(set);
+    }
+
+    /**
+     * {@code Grid.closestGridPoint} on its own, so the port's lattice search can
+     * be compared against the real one cell by cell. Takes a batch of probes
+     * because one grid is worth many of them and each run is a JVM.
+     */
+    private static void gridClosestPoint(String[] args) {
+        if (args.length < 11) {
+            usage("grid-closest-point expects nine grid arguments, a probe count, and that many points");
+        }
+
+        Grid grid = buildGrid(args, 1);
+        int count = Integer.parseInt(args[10]);
+        if (args.length != 11 + count * 2) {
+            usage("grid-closest-point expects " + count + " probe points");
+        }
+
+        System.out.println("points|" + count);
+        for (int index = 0; index < count; index++) {
+            Point probe = new Point(parse(args[11 + index * 2]), parse(args[12 + index * 2]));
+            Point closest = grid.closestGridPoint(probe);
+            System.out.println("point|" + closest.getX() + "|" + closest.getY());
+        }
+    }
+
+    /**
+     * {@code MouseHandlerDrawCreaseAngleRestricted5}'s release with the grid in
+     * play — the close-point search is {@code CreasePattern_Worker.getClosestPoint},
+     * which searches the fold line set, the circle centres, and the grid.
+     */
+    private static void foldLineAngleRestricted5Grid(String[] args) {
+        if (args.length < 24) {
+            usage("foldline-angle-restricted5-grid expects anchor, pointer, divider, six angles, selection distance, color, nine grid arguments, count, and segment payload");
+        }
+
+        Point anchor = new Point(parse(args[1]), parse(args[2]));
+        Point pointer = new Point(parse(args[3]), parse(args[4]));
+        int divider = Integer.parseInt(args[5]);
+        double[] angles = new double[] {
+                parse(args[6]),
+                parse(args[7]),
+                parse(args[8]),
+                parse(args[9]),
+                parse(args[10]),
+                parse(args[11]),
+        };
+        double selectionDistance = parse(args[12]);
+        LineColor color = LineColor.fromNumber(Integer.parseInt(args[13]));
+        Grid grid = buildGrid(args, 14);
+        GridModel.State baseState = GridModel.State.from(args[22]);
+        int count = Integer.parseInt(args[23]);
+        FoldLineSet set = foldLineSet(args, 24, count);
+
+        Point snapped = snapToActiveAngleSystem(set, anchor, pointer, divider, angles, selectionDistance);
+        Point closestPoint = closestPointLikeWorker(set, grid, baseState, snapped);
+        double offsetAngle = OritaCalc.angle(anchor, snapped, anchor, closestPoint);
+        boolean offset = (Epsilon.UNKNOWN_1EN5 < offsetAngle) && (offsetAngle <= 360.0 - Epsilon.UNKNOWN_1EN5);
+        Point release = (offset || snapped.distance(closestPoint) > selectionDistance)
+                ? snapped
+                : closestPoint;
+
+        LineSegment result = new LineSegment(anchor, release, color);
+        boolean added = Epsilon.high.gt0(result.determineLength());
+        if (added) {
+            addLineSegmentLikeWorker(set, result);
+        }
+
+        System.out.println("added|" + added);
+        printFoldLineSet(set);
+    }
+
+    /** {@code CreasePattern_Worker_Impl.getClosestPoint}. */
+    private static Point closestPointLikeWorker(
+            FoldLineSet set,
+            Grid grid,
+            GridModel.State baseState,
+            Point point) {
+        Point closest = set.closestPoint(point);
+        Point center = set.closestCenter(point);
+        if (point.distanceSquared(closest) > point.distanceSquared(center)) {
+            closest = center;
+        }
+        if (baseState == GridModel.State.HIDDEN) {
+            return closest;
+        }
+        Point gridPoint = grid.closestGridPoint(point);
+        if (point.distanceSquared(closest) > point.distanceSquared(gridPoint)) {
+            return gridPoint;
+        }
+        return closest;
+    }
+
+    /** Nine arguments: size, the three x terms, the three y terms, angle, base state. */
+    private static Grid buildGrid(String[] args, int offset) {
+        GridModel gridModel = new GridModel();
+        gridModel.setGridSize(Integer.parseInt(args[offset]));
+        gridModel.setGridXA(parse(args[offset + 1]));
+        gridModel.setGridXB(parse(args[offset + 2]));
+        gridModel.setGridXC(parse(args[offset + 3]));
+        gridModel.setGridYA(parse(args[offset + 4]));
+        gridModel.setGridYB(parse(args[offset + 5]));
+        gridModel.setGridYC(parse(args[offset + 6]));
+        gridModel.setGridAngle(parse(args[offset + 7]));
+        gridModel.setBaseState(GridModel.State.from(args[offset + 8]));
+
+        Grid grid = new Grid();
+        grid.setGridConfigurationData(gridModel);
+        return grid;
     }
 
     private static void foldLineAngleRestricted3Candidates(String[] args) {

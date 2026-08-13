@@ -1,11 +1,12 @@
 import type createREGL from 'regl';
 import type { WedgeGeometry, ViewTransform, Viewport } from '../types';
+import { disposeOnce } from './disposeOnce';
 
 type Regl = ReturnType<typeof createREGL>;
 type Buffer = ReturnType<Regl['buffer']>;
 
 /**
- * Instanced little-big-little sector wedges. Each instance is a filled triangle: a
+ * Instanced big-little-big sector wedges. Each instance is a filled triangle: a
  * vertex (fan apex, model coords) plus two rim points placed a fixed *screen* radius
  * along two crease directions. The rim radius scales by `u_scalePx` (markerScalePx),
  * so the wedges track the other diagnostic markers as the camera zooms rather than
@@ -182,13 +183,13 @@ export function createWedgeProgram(regl: Regl): WedgeProgram {
       drawFill(params);
       drawOutline(params);
     },
-    dispose() {
+    dispose: disposeOnce(() => {
       corners.destroy();
       centerBuf?.destroy();
       dir0Buf?.destroy();
       dir1Buf?.destroy();
       radiusBuf?.destroy();
       colorBuf?.destroy();
-    },
+    }),
   };
 }

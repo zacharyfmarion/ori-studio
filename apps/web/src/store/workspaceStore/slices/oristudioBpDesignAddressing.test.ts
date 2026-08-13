@@ -122,7 +122,7 @@ function twoDesigns() {
         kind: 'box-pleat',
         boxPleat: createBoxPleatDesignState({
           document: bpDocument(1),
-          symmetry: { ...AXIS, enabled: true, fold: 'book', pairs: [{ v1: 1, v2: 2 }] },
+          symmetry: { ...AXIS, enabled: true, fold: 'book', quarterTurn: false, sidesSwapped: false, pairs: [{ v1: 1, v2: 2 }] },
         }),
       },
       {
@@ -130,7 +130,7 @@ function twoDesigns() {
         kind: 'box-pleat',
         boxPleat: createBoxPleatDesignState({
           document: bpDocument(99),
-          symmetry: { ...AXIS, enabled: false, fold: 'diagonal', pairs: [{ v1: 1, v2: 2 }] },
+          symmetry: { ...AXIS, enabled: false, fold: 'diagonal', quarterTurn: false, sidesSwapped: false, pairs: [{ v1: 1, v2: 2 }] },
         }),
       },
     ],

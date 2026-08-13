@@ -1,6 +1,10 @@
 {
   "bp": {
+    "flipHorizontal": "좌우 뒤집기",
+    "flipVertical": "상하 뒤집기",
     "optimizeLayout": "레이아웃 최적화…",
+    "rotateLeft": "왼쪽으로 회전",
+    "rotateRight": "오른쪽으로 회전",
     "subdivide": "격자 세분화",
     "unsubdivide": "격자 세분화 해제"
   },
@@ -13,7 +17,7 @@
     "check1": "겹침 확인",
     "check2": "T자 접합 확인",
     "check3": "정점 접힘 가능성 확인",
-    "check4": "Maekawa/LBL 확인",
+    "check4": "Maekawa/BLB 확인",
     "checkCamv": "접힘 가능성 검사",
     "deleteExtraVertices": "불필요한 정점 삭제",
     "deleteExtraVerticesIgnoreColor": "불필요한 정점 삭제(유형 무시)",

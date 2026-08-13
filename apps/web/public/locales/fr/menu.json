@@ -1,6 +1,10 @@
 {
   "bp": {
+    "flipHorizontal": "Retourner horizontalement",
+    "flipVertical": "Retourner verticalement",
     "optimizeLayout": "Optimiser la disposition…",
+    "rotateLeft": "Pivoter à gauche",
+    "rotateRight": "Pivoter à droite",
     "subdivide": "Subdiviser la grille",
     "unsubdivide": "Annuler la subdivision"
   },
@@ -13,7 +17,7 @@
     "check1": "Vérifier les chevauchements",
     "check2": "Vérifier les jonctions en T",
     "check3": "Vérifier la pliabilité des sommets",
-    "check4": "Vérifier Maekawa/LBL",
+    "check4": "Vérifier Maekawa/BLB",
     "checkCamv": "Vérifier la pliabilité",
     "deleteExtraVertices": "Supprimer les sommets superflus",
     "deleteExtraVerticesIgnoreColor": "Supprimer les sommets superflus (ignorer le type)",

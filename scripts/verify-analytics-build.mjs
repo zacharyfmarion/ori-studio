@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 /**
- * Build-time assertion that the PostHog config actually made it into the bundle.
+ * Build-time assertion that the telemetry config actually made it into the
+ * bundle — PostHog's key and host, and Sentry's DSN.
  *
- * `initializePostHog` returns false — no init, no capture, no network request —
- * when either build-time var is missing, and that is deliberate: it is the
- * dev/prod firewall that keeps local and preview builds out of the production
- * project. The cost of that design is that a *production* build with a misnamed
- * or empty secret is indistinguishable from a correct one. It deploys green and
- * captures nothing, and the only symptom is a dashboard that stays empty.
+ * `initializePostHog` and `initializeSentry` both return false — no init, no
+ * capture, no network request — when their build-time vars are missing, and
+ * that is deliberate: it is the dev/prod firewall that keeps local and preview
+ * builds out of the production projects. The cost of that design is that a
+ * *production* build with a misnamed or empty secret is indistinguishable from
+ * a correct one. It deploys green and reports nothing, and the only symptom is
+ * a dashboard that stays empty.
  *
  * That is not hypothetical: the first prod deploy shipped with
  * `VITE_PUBLIC_POSTHOG_HOST:""` because the repo secret was named
@@ -54,6 +56,7 @@ if (scripts.length === 0) {
 const patterns = {
   VITE_PUBLIC_POSTHOG_KEY: /VITE_PUBLIC_POSTHOG_KEY:\s*"phc_[^"]+"/,
   VITE_PUBLIC_POSTHOG_HOST: /VITE_PUBLIC_POSTHOG_HOST:\s*"https:\/\/[^"]+"/,
+  VITE_PUBLIC_SENTRY_DSN: /VITE_PUBLIC_SENTRY_DSN:\s*"https:\/\/[^"]+@[^"]+"/,
 };
 
 const found = new Set();
@@ -69,14 +72,15 @@ for (const name of scripts) {
 const missing = Object.keys(patterns).filter((key) => !found.has(key));
 
 if (missing.length > 0) {
-  console.error('Analytics config missing from the built bundle:');
+  console.error('Telemetry config missing from the built bundle:');
   for (const key of missing) console.error(`  - ${key} is absent or empty`);
   console.error(
-    '\nPostHog will never initialize in this build. Check the `env:` block on the\n' +
-      'build step in .github/workflows/deploy-web.yml, and that any secret it\n' +
-      'references exists under exactly that name (a missing secret is silently empty).'
+    '\nThe corresponding SDK will never initialize in this build. Check the `env:`\n' +
+      'block on the build step in .github/workflows/deploy-web.yml, and that any\n' +
+      'secret it references exists under exactly that name (a missing secret is\n' +
+      'silently empty).'
   );
   process.exit(1);
 }
 
-console.log('ok   PostHog key and host are inlined in the production bundle');
+console.log('ok   PostHog key and host, and the Sentry DSN, are inlined in the production bundle');

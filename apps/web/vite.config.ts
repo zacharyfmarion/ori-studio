@@ -1,8 +1,9 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 
 const DIST_PLACEHOLDER = 'apps/web/dist/.gitkeep';
 const DIST_PLACEHOLDER_TEXT =
@@ -58,10 +59,67 @@ function appCommit(): string {
 // real performance.
 const profiling = process.env.PROFILE === '1';
 
+/**
+ * The release identity, defined here and used in exactly two places: the
+ * sourcemap upload below, and `monitoring/bootstrap.ts` via `__SENTRY_RELEASE__`.
+ *
+ * It has to be one string, because it is the *join key*. Sentry symbolicates a
+ * stack by matching the release an event reports against the release the
+ * sourcemaps were uploaded under. Computing it twice — once here, once in the
+ * app — is how that quietly breaks: the two agree until someone edits one
+ * format string, and the symptom is minified stacks with no error anywhere.
+ */
+function sentryRelease(): string {
+  const { version } = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8')) as {
+    version: string;
+  };
+  return `ori-studio@${version}+${appCommit()}`;
+}
+
+/**
+ * Sourcemap upload is gated on the auth token, matching the "absence = disabled"
+ * firewall the rest of the telemetry uses.
+ *
+ * The gate does double duty. Without a token we don't just skip the upload — we
+ * don't *generate* sourcemaps at all, which is what stops them being deployed.
+ * Cloudflare Pages serves whatever is in `dist`, so a generated-but-unuploaded
+ * map is a public copy of the app's source. Belt and braces: the plugin also
+ * deletes them after a successful upload.
+ */
+const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
+const uploadSourcemaps = Boolean(sentryAuthToken);
+
 export default defineConfig({
-  plugins: [react(), keepTauriFrontendDistPath()],
+  plugins: [
+    react(),
+    keepTauriFrontendDistPath(),
+    ...(uploadSourcemaps
+      ? [
+          sentryVitePlugin({
+            // Not secrets, and already named in docs/analytics.md — a literal
+            // here beats another env var nobody remembers to set.
+            org: 'zachary-marion',
+            project: 'ori-studio',
+            authToken: sentryAuthToken,
+            release: { name: sentryRelease() },
+            sourcemaps: { filesToDeleteAfterUpload: ['./dist/**/*.js.map'] },
+            // The plugin reports its own usage to Sentry by default. Off, for
+            // the same reason the SDK's session pings are.
+            telemetry: false,
+            // Measured, not assumed: with the default handler an expired or
+            // wrong token logs a 401 and the build still exits 0, so the deploy
+            // goes out green and every production stack is minified with nothing
+            // to say why. Rethrowing turns that back into a failed build.
+            errorHandler: (err) => {
+              throw err;
+            },
+          }),
+        ]
+      : []),
+  ],
   define: {
     __APP_COMMIT__: JSON.stringify(appCommit()),
+    __SENTRY_RELEASE__: JSON.stringify(sentryRelease()),
   },
   server: {
     headers: crossOriginIsolationHeaders,
@@ -96,7 +154,11 @@ export default defineConfig({
     headers: crossOriginIsolationHeaders,
   },
   build: {
-    sourcemap: profiling,
+    // `'hidden'` emits the maps but no `//# sourceMappingURL` comment: the
+    // plugin matches them to the bundle by injected debug ID, not by that
+    // comment, so the reference would only produce 404s in devtools for files
+    // we are about to delete anyway.
+    sourcemap: profiling ? true : uploadSourcemaps ? 'hidden' : false,
   },
   esbuild: {
     // esbuild strips function/class names during minify; keep them when

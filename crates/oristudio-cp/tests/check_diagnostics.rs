@@ -72,11 +72,11 @@ fn check4_reports_structured_maekawa_violation() {
         .expect("shared vertex should have a structured violation");
     assert_eq!(origin.rule, FlatFoldabilityRule::Maekawa);
     assert_eq!(origin.color, FlatFoldabilityColor::Equal);
-    assert!(origin.little_big_little.is_empty());
+    assert!(origin.big_little_big.is_empty());
 }
 
 #[test]
-fn check4_reports_little_big_little_payloads() {
+fn check4_reports_big_little_big_payloads() {
     let mut model = CreasePatternModel::default();
     model.add_line_segment(segment(0.0, 0.0, 10.0, 0.0, LineColor::Red1));
     model.add_line_segment(segment(0.0, 0.0, 8.660254037844386, 5.0, LineColor::Red1));
@@ -88,11 +88,8 @@ fn check4_reports_little_big_little_payloads() {
     let violations = check4(&model);
 
     assert!(violations.iter().any(|violation| {
-        violation.rule == FlatFoldabilityRule::LittleBigLittle
-            && violation
-                .little_big_little
-                .iter()
-                .any(|line| line.violating)
+        violation.rule == FlatFoldabilityRule::BigLittleBig
+            && violation.big_little_big.iter().any(|line| line.violating)
     }));
 }
 

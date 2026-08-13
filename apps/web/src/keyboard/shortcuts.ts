@@ -1,8 +1,12 @@
 import type { MenuActionId } from '../commands/menuActions';
+import { cpVariantHostAction } from '../lib/cpToolVariants';
 import {
+  cpActionById,
   ORISTUDIO_CP_ACTIONS,
   type OristudioCpActionId,
 } from '../lib/oristudioCpActions';
+import { ORIEDITA_DEFAULT_HOTKEYS } from '../lib/orieditaImport/orieditaDefaultHotkeys.generated';
+import { parseOrieditaKeyStrokeStrict } from '../lib/orieditaImport/parseKeyStroke';
 import { isApplePlatform } from '../lib/platform';
 
 /**
@@ -73,6 +77,35 @@ export interface ShortcutDefinition {
 
 export type ShortcutOverrides = Partial<Record<ShortcutActionId, KeyChord[] | null>>;
 
+/**
+ * Which keyboard layout `defaultChords` resolves against. A standing preference,
+ * not a per-lookup detail: `oriedita` puts M/V/L on the line types, F on fold and
+ * R on mirror, the way upstream ships them.
+ */
+export type ShortcutDefaultsSource = 'ori-studio' | 'oriedita';
+
+/** Everything a lookup needs: the active layout, and what the user changed on it. */
+export interface ShortcutResolution {
+  overrides?: ShortcutOverrides;
+  /** Defaults to `'ori-studio'`. */
+  defaultsSource?: ShortcutDefaultsSource;
+}
+
+/**
+ * A bare overrides map is still accepted, because the render sites that only
+ * ever had overrides read worse wrapped in `{ overrides }`. The two shapes never
+ * collide: neither key is a {@link ShortcutActionId}.
+ */
+export type ShortcutResolutionInput = ShortcutOverrides | ShortcutResolution;
+
+function resolutionOf(input: ShortcutResolutionInput): ShortcutResolution {
+  if ('overrides' in input) return input;
+  if ('defaultsSource' in input) return input;
+  // `ShortcutActionId` includes a `cp.action.${string}` pattern, so TypeScript
+  // cannot rule the resolution shape out of the remaining branch on its own.
+  return { overrides: input as ShortcutOverrides };
+}
+
 const ALWAYS_AVAILABLE_DEFAULT_SHORTCUTS = new Set<ShortcutActionId>([
   'edit.undo',
   'edit.redo',
@@ -135,10 +168,13 @@ const ORIEDITA_DEFAULTS: Record<string, string> = {
   deg2Action: 'R', // radial / angle-restricted snapping (22.5, 30, 15 deg)
   fishBoneDrawAction: 'H', // Oriedita labels this button "gridFill"
   rabbitEarAction: 'ctrl B',
-  // Ori Studio deviation: upstream binds `continuousSymmetricDrawAction` to
-  // Ctrl+R, but Reflect Through Lines is hidden from the UI here, and a hidden
-  // tool must not keep a chord — see `cpHiddenActions` in
-  // oristudioCpActions.ts. Restore this line if the tool returns to the rail.
+  // Upstream's chord, restored when Reflect Through Lines returned to the rail.
+  // `primary+r` is soft-reserved — browsers reload on it — so on the web build
+  // this is a chord the user may well have to move. It is upstream's, the rail
+  // button reaches the tool without it, and the alternative is inventing a
+  // different default for an action Oriedita users already have muscle memory
+  // for; `classifyReservedKey` is what warns them if they capture it by hand.
+  continuousSymmetricDrawAction: 'ctrl R',
   doubleSymmetricDrawAction: 'ctrl G',
   reflectAction: 'ctrl M',
   // Brandon's layout claims R for radial snapping, so Mirror Line takes M —
@@ -188,10 +224,16 @@ const ORIEDITA_DEFAULTS: Record<string, string> = {
 };
 
 const MENU_SHORTCUTS: ShortcutDefinition[] = [
-  menuShortcut('file.new', 'New', 'File', { primary: true, key: 'n' }),
-  menuShortcut('file.open', 'Open...', 'File', { primary: true, key: 'o' }),
-  menuShortcut('file.save', 'Save', 'File', { primary: true, key: 's' }),
-  menuShortcut('file.saveAs', 'Save As...', 'File', { primary: true, shift: true, key: 's' }),
+  menuShortcut('file.new', 'New', 'File', { primary: true, key: 'n' }, 'newAction'),
+  menuShortcut('file.open', 'Open...', 'File', { primary: true, key: 'o' }, 'openAction'),
+  menuShortcut('file.save', 'Save', 'File', { primary: true, key: 's' }, 'saveAction'),
+  menuShortcut(
+    'file.saveAs',
+    'Save As...',
+    'File',
+    { primary: true, shift: true, key: 's' },
+    'saveAsAction'
+  ),
   menuShortcut('file.settings', 'Settings', 'File', { primary: true, key: ',' }, 'prefAction'),
   menuShortcut('edit.undo', 'Undo', 'Edit', { primary: true, key: 'z' }, 'undoAction'),
   menuShortcut('edit.redo', 'Redo', 'Edit', { primary: true, shift: true, key: 'z' }, 'redoAction'),
@@ -270,21 +312,84 @@ const SIMULATOR_SHORTCUTS: ShortcutDefinition[] = [
   simulatorShortcut('simulator.toggleLighting', 'Toggle Lighting', { key: 'l' }),
 ];
 
+/**
+ * The viewport verbs whose executor can answer `false` and let the chord fall
+ * through to the next scope.
+ *
+ * This is the property the conflict rules actually care about, and for a long
+ * time they asked `scope === 'viewport'` instead. Those are not the same
+ * question: `viewport.zoomOut` claims its chord every single time, so a
+ * crease-pattern tool bound to the same key is dead — but it was exempted from
+ * eviction anyway, on the reasoning that only holds for the four below. That
+ * made eleven chords (`Mod+=` `6` `Mod+-` `5` `Mod+0` `Mod+1` `1` `3` `4`
+ * `Escape` `Shift+S`) permanently unassignable in both Settings and the Oriedita
+ * import.
+ *
+ * Membership is read off the *crease-pattern* executor's switch, because that is
+ * the surface live in the same context as the bindings these collide with. It
+ * cannot be read off every surface at once: `tree` and `bp-editor` implement
+ * only the four camera verbs and decline the rest outright, so "declines
+ * somewhere" would sweep in nearly everything.
+ *
+ * Declared here while the truth lives in `CreasePatternPanel`'s switch, so the
+ * two can drift. The set is typed to `ViewportShortcutId`, which stops a
+ * non-viewport id being added at all — the dispatcher ignores every other
+ * target's return value, so the claim would be a lie anywhere else.
+ */
+const DECLINING_VIEWPORT_SHORTCUTS: ReadonlySet<ViewportShortcutId> = new Set([
+  'viewport.delete',
+  'viewport.solveAnglesPrevious',
+  'viewport.solveAnglesNext',
+  'viewport.solveAnglesApply',
+]);
+
+/**
+ * Whether this binding may hand its chord back instead of claiming it.
+ *
+ * A claimant that may decline does not make a lower-scope binding dead, so it is
+ * not a blocker — it is *transparent*, and whatever claims the chord beneath it
+ * is the thing a conflict warning should name.
+ */
+export function shortcutMayDecline(id: ShortcutActionId): boolean {
+  return (DECLINING_VIEWPORT_SHORTCUTS as ReadonlySet<string>).has(id);
+}
+
 const VIEWPORT_SHORTCUTS: ShortcutDefinition[] = [
-  // The bare 6/5 chords come from the Oriedita layout, so the left hand can
-  // zoom without reaching for a modifier.
-  viewportShortcut('viewport.zoomIn', 'Zoom In', [{ primary: true, key: '=' }, { key: '6' }]),
-  viewportShortcut('viewport.zoomOut', 'Zoom Out', [{ primary: true, key: '-' }, { key: '5' }]),
+  // Ori Studio's own defaults, not Oriedita's: upstream ships both zoom actions
+  // unbound (`hotkey.properties` has empty `creasePatternZoomOutAction=` /
+  // `creasePatternZoomInAction=`, and no Java source hardcodes a digit handler).
+  // The bare 6/5 chords let the left hand zoom without reaching for a modifier.
+  viewportShortcut(
+    'viewport.zoomIn',
+    'Zoom In',
+    [{ primary: true, key: '=' }, { key: '6' }],
+    'creasePatternZoomInAction'
+  ),
+  viewportShortcut(
+    'viewport.zoomOut',
+    'Zoom Out',
+    [{ primary: true, key: '-' }, { key: '5' }],
+    'creasePatternZoomOutAction'
+  ),
   viewportShortcut('viewport.fit', 'Fit To View', { primary: true, key: '0' }),
   viewportShortcut('viewport.actualSize', 'Actual Size', { primary: true, key: '1' }),
   viewportShortcut('viewport.pan', 'Pan (hand tool)', { key: '1' }),
-  viewportShortcut('viewport.rotateCcw', 'Rotate View Left', { key: '3' }),
-  viewportShortcut('viewport.rotateCw', 'Rotate View Right', { key: '4' }),
+  // Upstream turns the camera by `angleSystemModel.getAngleStep()` per press
+  // rather than our fixed step, so the two agree on the verb and not on the
+  // amount. The chord is what an import carries, and the verb is what it names.
+  viewportShortcut('viewport.rotateCcw', 'Rotate View Left', { key: '3' }, 'rotateAnticlockwiseAction'),
+  viewportShortcut('viewport.rotateCw', 'Rotate View Right', { key: '4' }, 'rotateClockwiseAction'),
   viewportShortcut('viewport.resetRotation', 'Reset View Rotation', null),
   // Escape is a viewport shortcut like any other, so it dispatches
   // focus-independently. A viewport that scopes it to its own container instead
   // loses it to whatever floating editor, toolbar, or portalled menu took focus
   // last — see AGENTS.md > "Panel components".
+  //
+  // Deliberately carries no `upstreamAction`. Oriedita's Escape is `haltAction`,
+  // which stops the CAMV and folding task executors and nothing else
+  // (`HaltAction.java`); this cancels in-progress canvas input and clears the
+  // selection. Claiming the pair would let an Oriedita user who moved "stop the
+  // running fold" silently move "cancel what I am drawing" instead.
   viewportShortcut('viewport.cancel', 'Cancel / Deselect', { key: 'escape' }),
   // Delete is shared with `edit.delete` at global scope, which deletes creases.
   // Viewport scope resolves first, so this one is asked whether the *viewport*
@@ -332,6 +437,223 @@ const SHORTCUT_DEFINITION_BY_ID = new Map(
   SHORTCUT_DEFINITIONS.map((definition) => [definition.id, definition])
 );
 
+/**
+ * Where an imported Oriedita binding lands when more than one definition claims
+ * the same `upstreamAction`.
+ *
+ * `upstreamAction` is a label, not a key: the inverse is not a function. Four
+ * upstream actions are claimed twice, so an importer that walked the registry
+ * would bind whichever happened to come first in `SHORTCUT_DEFINITIONS` — an
+ * ordering nobody chose. Naming the winner here makes the choice reviewable, and
+ * `shortcuts.test.ts` asserts this table covers *exactly* the duplicate set, so
+ * a fifth collision fails CI rather than picking a target by accident.
+ *
+ * Only duplicates belong here. Anything claimed once resolves through the
+ * inverse index below.
+ */
+export const ORIEDITA_ACTION_TARGETS: Readonly<Record<string, ShortcutActionId>> = {
+  // `cp.action.fold` is a hidden not-implemented stub; folding-estimate is the
+  // one carrying G and the one `handleCpShortcutAction` routes to the real fold.
+  foldAction: 'cp.action.folding-estimate',
+  // The direct port of upstream's MOVE_CALCULATED_SHAPE_102 mouse mode.
+  // `folded-figure-move-camera` is our own re-expression of it as a camera verb,
+  // marked out-of-scope because the grid viewport already owns that.
+  foldedFigureMoveAction: 'cp.action.move-calculated-shape',
+  // Likewise CHANGE_STANDARD_FACE_103: `change-standard-face` is the mouse mode,
+  // `folded-figure-set-starting-face` the folded-figure-model wrapper over it.
+  koteimen_siteiAction: 'cp.action.change-standard-face',
+  // Global scope, so the chord answers from every context the way Oriedita's
+  // single keymap does; the crease-pattern sibling only answers on the CP
+  // canvas. Both run the same sweep, and both ship Mod+Shift+V by default.
+  v_del_allAction: 'cp.deleteExtraVertices',
+};
+
+const SHORTCUT_ID_BY_UNIQUE_UPSTREAM_ACTION = buildUniqueUpstreamActionIndex();
+
+function buildUniqueUpstreamActionIndex(): Map<string, ShortcutActionId> {
+  const claims = new Map<string, ShortcutActionId[]>();
+  for (const definition of SHORTCUT_DEFINITIONS) {
+    if (!definition.upstreamAction) continue;
+    claims.set(definition.upstreamAction, [
+      ...(claims.get(definition.upstreamAction) ?? []),
+      definition.id,
+    ]);
+  }
+  const unique = new Map<string, ShortcutActionId>();
+  for (const [upstreamAction, ids] of claims) {
+    const [only] = ids;
+    if (ids.length === 1 && only) unique.set(upstreamAction, only);
+  }
+  return unique;
+}
+
+/**
+ * The action an Oriedita hotkey key names here, or `null` when we have no
+ * counterpart — which is the common case, since 198 of upstream's 232 actions
+ * ship unbound and many have no Ori Studio equivalent at all.
+ *
+ * `hasOwnProperty` rather than a bare index because `action` comes from a parsed
+ * `hotkey.properties`, where `constructor` is as valid a key as any other.
+ */
+export function shortcutIdForOrieditaAction(action: string): ShortcutActionId | null {
+  if (Object.prototype.hasOwnProperty.call(ORIEDITA_ACTION_TARGETS, action)) {
+    return ORIEDITA_ACTION_TARGETS[action] ?? null;
+  }
+  return SHORTCUT_ID_BY_UNIQUE_UPSTREAM_ACTION.get(action) ?? null;
+}
+
+/**
+ * Hidden crease-pattern stubs that may still hold a chord: `handleCpShortcutAction`
+ * intercepts them and drives the real fold path, so the key lands on something
+ * visible after all. The same exemption `shortcutRegistry.test.ts` and
+ * `importPlan.ts` grant, for the same reason.
+ */
+export const ROUTED_CP_SHORTCUT_ACTIONS: ReadonlySet<ShortcutActionId> =
+  new Set<ShortcutActionId>(['cp.action.folding-estimate', 'cp.action.fold']);
+
+/**
+ * Whether a definition may carry a *default* chord at all.
+ *
+ * The shipped table is curated, so `shortcutRegistry.test.ts` can enforce this
+ * from the outside; the Oriedita layout below is derived from upstream, so the
+ * rule has to be applied on the way in. A chord on a not-yet-implemented action
+ * does nothing, and a chord on a hidden action arms a tool the rail cannot show
+ * as active — unless it is a merged tool's non-host variant, which arms its host.
+ */
+function acceptsDerivedDefaultChord(definition: ShortcutDefinition): boolean {
+  if (definition.target !== 'cp-action' || !isCpActionId(definition.id)) return true;
+  if (ROUTED_CP_SHORTCUT_ACTIONS.has(definition.id)) return true;
+  const action = cpActionById(definition.id);
+  if (!action || action.uiStatus !== 'ready') return false;
+  if (action.placement !== 'hidden-ui-only') return true;
+  return action.kind === 'command' && cpVariantHostAction(action).id !== action.id;
+}
+
+/**
+ * Upstream's layout, derived from the vendored `hotkey.properties` snapshot
+ * rather than hand-written, so the drift guard on that snapshot protects this
+ * too. Entries that name no Ori Studio action, do not parse, or name an action
+ * that cannot hold a default are dropped — the predicates the importer already
+ * uses, so the two cannot disagree about a key.
+ *
+ * Ori Studio-only tools (radial snapping, the measure tools, the inline
+ * simulator) keep their own default where it does not collide, since upstream
+ * has no opinion about them and unbinding forty tools to be "pure" would be
+ * worse than the half-migration this exists to fix. Where one *does* collide,
+ * Oriedita wins: its keys being where the user expects them is the whole point.
+ *
+ * Collisions are judged within a scope, matching the duplicate-free invariant
+ * `getShortcutRegistryDiagnostics` reports. Across scopes a shared chord is
+ * ordinary — `viewport.delete` shares Delete with `edit.delete` by design.
+ */
+function buildOrieditaDefaultChords(): Map<ShortcutActionId, KeyChord[]> {
+  const assigned = new Map<ShortcutActionId, KeyChord[]>();
+  const claimed = new Set<string>();
+
+  for (const [orieditaAction, keyStroke] of Object.entries(ORIEDITA_DEFAULT_HOTKEYS)) {
+    const id = shortcutIdForOrieditaAction(orieditaAction);
+    if (!id || assigned.has(id)) continue;
+    const definition = getShortcutDefinition(id);
+    if (!definition || !acceptsDerivedDefaultChord(definition)) continue;
+    if (!ORIEDITA_LAYOUT_SCOPES.has(definition.scope)) continue;
+    const parsed = parseOrieditaKeyStrokeStrict(keyStroke);
+    if (!parsed.ok) continue;
+    // Upstream binds `ctrl shift V` twice; first claimant in file order wins, so
+    // the derived table stays duplicate-free the way the shipped one is.
+    const claim = scopedChordId(definition.scope, parsed.chord);
+    if (claimed.has(claim)) continue;
+    claimed.add(claim);
+    assigned.set(id, [parsed.chord]);
+  }
+
+  for (const definition of SHORTCUT_DEFINITIONS) {
+    if (assigned.has(definition.id)) continue;
+    assigned.set(
+      definition.id,
+      definition.defaultChords.filter(
+        (chord) => !claimed.has(scopedChordId(definition.scope, chord))
+      )
+    );
+  }
+  return assigned;
+}
+
+/**
+ * The layout swap covers the drawing surface only.
+ *
+ * What a user coming from Oriedita has in their hands is M/V/L, F, R — the tools.
+ * Their app chrome is the platform's, not Oriedita's, and taking that over does
+ * real damage for no muscle-memory gain: upstream's `prefAction` is Ctrl+Shift+P,
+ * which would move Settings off the macOS-standard Cmd+comma, and its
+ * `deleteSelectedLineSegmentAction` is DELETE alone, which would drop Backspace —
+ * the only delete key most Mac laptops have.
+ *
+ * So `global` (menus), `viewport` (canvas navigation) and `simulator` keep Ori
+ * Studio's chords under either source. In practice only `global` differs;
+ * upstream ships no binding for the viewport verbs at all.
+ */
+const ORIEDITA_LAYOUT_SCOPES: ReadonlySet<ShortcutScope> = new Set(['crease-pattern']);
+
+function scopedChordId(scope: ShortcutScope, chord: KeyChord): string {
+  return `${scope}:${keyChordId(chord)}`;
+}
+
+function isCpActionId(id: ShortcutActionId): id is OristudioCpActionId {
+  return id.startsWith('cp.action.');
+}
+
+/**
+ * Built on first use rather than at module load: `parseKeyStroke` imports back
+ * from this module, and calling into it while this module's body is still
+ * running would read its tables before they exist.
+ */
+let orieditaDefaultChords: Map<ShortcutActionId, KeyChord[]> | null = null;
+
+export function getDefaultShortcutChords(
+  id: ShortcutActionId,
+  defaultsSource: ShortcutDefaultsSource = 'ori-studio'
+): KeyChord[] {
+  const definition = getShortcutDefinition(id);
+  if (!definition) return [];
+  if (defaultsSource !== 'oriedita') return definition.defaultChords;
+  orieditaDefaultChords ??= buildOrieditaDefaultChords();
+  return orieditaDefaultChords.get(id) ?? definition.defaultChords;
+}
+
+/**
+ * Whether an override may name this action at all.
+ *
+ * Lives here rather than beside either caller, because the two ways a user
+ * assigns a key — the Oriedita import and capturing a chord in Settings — must
+ * not disagree about it. They did: the import refused a not-implemented stub
+ * while capture happily bound one, destroying a working default to do it.
+ *
+ * Overrides bypass every invariant `shortcutRegistry.test.ts` enforces on the
+ * *default* table, so the rules that table encodes have to be re-applied: a
+ * chord on a not-yet-implemented action does nothing, and a chord on an action
+ * with no button arms a tool the rail cannot show as active.
+ *
+ * `edit.undo` / `edit.redo` are unbindable for a different reason —
+ * {@link getResolvedShortcuts} *merges* their overrides with the defaults rather
+ * than replacing, so an override there can only ever add a second chord. Any UI
+ * claiming to move or clear them would be promising something that cannot happen.
+ */
+export function isShortcutBindable(id: ShortcutActionId): boolean {
+  const definition = getShortcutDefinition(id);
+  if (!definition) return false;
+  if (shortcutKeepsDefaultChords(id)) return false;
+  if (ROUTED_CP_SHORTCUT_ACTIONS.has(id)) return true;
+  if (definition.target !== 'cp-action' || !isCpActionId(id)) return true;
+  const action = cpActionById(id);
+  if (!action) return true;
+  if (action.uiStatus !== 'ready') return false;
+  // A merged tool's non-host variant is hidden only because it has no button of
+  // its own; `handleCpToolAction` arms its host, so the rail does light up. That
+  // exemption is how `lengthenCrease2Action` keeps E.
+  if (action.placement !== 'hidden-ui-only') return true;
+  return action.kind === 'command' && cpVariantHostAction(action).id !== action.id;
+}
+
 function menuShortcut(
   id: MenuActionId,
   label: string,
@@ -355,7 +677,8 @@ function menuShortcut(
 function viewportShortcut(
   id: ViewportShortcutId,
   label: string,
-  defaultChord: KeyChord | KeyChord[] | null
+  defaultChord: KeyChord | KeyChord[] | null,
+  upstreamAction?: string
 ): ShortcutDefinition {
   const defaultChords = normalizeDefaultChords(defaultChord);
   return {
@@ -366,6 +689,7 @@ function viewportShortcut(
     target: 'viewport',
     defaultChord: defaultChords[0] ?? null,
     defaultChords,
+    upstreamAction,
   };
 }
 
@@ -475,26 +799,30 @@ export function getShortcutRegistryDiagnostics(): ShortcutRegistryDiagnostics {
 
 export function getResolvedShortcut(
   id: ShortcutActionId,
-  overrides: ShortcutOverrides = {}
+  resolution: ShortcutResolutionInput = {}
 ): KeyChord | null {
-  return getResolvedShortcuts(id, overrides)[0] ?? null;
+  return getResolvedShortcuts(id, resolution)[0] ?? null;
 }
 
 export function getResolvedShortcuts(
   id: ShortcutActionId,
-  overrides: ShortcutOverrides = {}
+  resolution: ShortcutResolutionInput = {}
 ): KeyChord[] {
+  const { overrides = {}, defaultsSource } = resolutionOf(resolution);
   const definition = getShortcutDefinition(id);
   if (!definition) return [];
+  const defaultChords = getDefaultShortcutChords(id, defaultsSource);
   if (Object.prototype.hasOwnProperty.call(overrides, id)) {
     const overrideChords = (overrides[id] ?? [])
       .map(normalizeKeyChord)
       .filter((chord) => chord.key);
+    // Merging against the *active* source's defaults, so Undo never picks up a
+    // chord from the layout the user is not on.
     return shortcutKeepsDefaultChords(id)
-      ? mergeKeyChords(definition.defaultChords, overrideChords)
+      ? mergeKeyChords(defaultChords, overrideChords)
       : overrideChords;
   }
-  return definition.defaultChords;
+  return defaultChords;
 }
 
 export function shortcutKeepsDefaultChords(id: ShortcutActionId): boolean {
@@ -515,16 +843,16 @@ function mergeKeyChords(defaultChords: KeyChord[], overrideChords: KeyChord[]): 
 
 export function shortcutLabelForAction(
   id: ShortcutActionId,
-  overrides: ShortcutOverrides = {}
+  resolution: ShortcutResolutionInput = {}
 ): string | undefined {
-  const chords = getResolvedShortcuts(id, overrides);
+  const chords = getResolvedShortcuts(id, resolution);
   return chords.length > 0 ? chords.map((chord) => formatKeyChord(chord)).join(' / ') : undefined;
 }
 
 export function findShortcutConflict(
   actionId: ShortcutActionId,
   chord: KeyChord,
-  overrides: ShortcutOverrides = {}
+  resolution: ShortcutResolutionInput = {}
 ): ShortcutDefinition | null {
   const definition = getShortcutDefinition(actionId);
   if (!definition) return null;
@@ -533,7 +861,7 @@ export function findShortcutConflict(
     if (candidate.id === actionId) continue;
     if (!shortcutScopesOverlap(definition.scope, candidate.scope)) continue;
     if (
-      getResolvedShortcuts(candidate.id, overrides).some((candidateChord) =>
+      getResolvedShortcuts(candidate.id, resolution).some((candidateChord) =>
         keyChordEquals(candidateChord, chord)
       )
     ) {
@@ -547,6 +875,166 @@ function shortcutScopesOverlap(a: ShortcutScope, b: ShortcutScope): boolean {
   if (a === b) return true;
   if (a === 'global' || b === 'global') return false;
   return a === 'viewport' || b === 'viewport';
+}
+
+export interface ShortcutShadowing {
+  /** The other definition resolving to the same chord. */
+  definition: ShortcutDefinition;
+  /**
+   * Which of the two the dispatcher actually reaches. Compare against the id you
+   * asked about: not equal means that binding is dead while the other is live.
+   */
+  winnerId: ShortcutActionId;
+  /**
+   * Whether the loser is dead outright, or merely deferred.
+   *
+   * Two claimants defer rather than kill. `simulator` is the one scope that is
+   * not always in the stack — `shortcutScopeStackForContext` pushes it only while
+   * a simulation owns the keyboard. So a simulator binding over a non-simulator
+   * one takes the chord *while a simulation is focused* and gives it back
+   * otherwise, which is the documented intent at the top of this file rather than
+   * a collision. A viewport binding that {@link shortcutMayDecline} is the same
+   * story by a different mechanism: always in the stack, but it answers `false`
+   * when it does not apply and dispatch continues past it.
+   *
+   * The shipped defaults already depend on it: `colCyanAction` F, `senbun_henkan2Action`
+   * C and `deg2Action` R coexist with `simulator.toggleFaces`/`toggleCreases`/`replay`,
+   * and the duplicate-chord test passes because they sit in different scopes.
+   * A caller that refuses every shadowed chord — the Oriedita import did — throws
+   * away keys over a conflict that does not exist; measured on that import, `C`
+   * and `L` are recovered by drawing this distinction. (`F` and `R` are *not*:
+   * each has a second crease-pattern claimant underneath the simulator one, which
+   * is exactly why `kind` is computed from the highest-precedence *always-present*
+   * claimant rather than from the top one.)
+   */
+  kind: 'hard' | 'conditional';
+}
+
+/**
+ * Scope precedence exactly as the dispatcher sees it — the order
+ * `shortcutScopeStackForContext` builds, with every optional scope present at
+ * once, which is the arrangement in which shadowing actually happens.
+ */
+const SHORTCUT_SCOPE_PRECEDENCE: Record<ShortcutScope, number> = {
+  simulator: 0,
+  viewport: 1,
+  'crease-pattern': 2,
+  global: 3,
+};
+
+/** True when `a` is the definition `handleShortcutKeyDown` reaches first. */
+function shortcutDispatchPrecedes(a: ShortcutDefinition, b: ShortcutDefinition): boolean {
+  const scopeDelta = SHORTCUT_SCOPE_PRECEDENCE[a.scope] - SHORTCUT_SCOPE_PRECEDENCE[b.scope];
+  if (scopeDelta !== 0) return scopeDelta < 0;
+  // Within one scope the dispatcher takes `SHORTCUT_DEFINITIONS.find`'s answer,
+  // so registry order decides.
+  return SHORTCUT_DEFINITIONS.indexOf(a) < SHORTCUT_DEFINITIONS.indexOf(b);
+}
+
+/**
+ * Conflict detection for bulk imports, modelling the resolution
+ * {@link findShortcutConflict} deliberately does not.
+ *
+ * `findShortcutConflict` asks `shortcutScopesOverlap`, which answers `false` for
+ * global↔crease-pattern. That is right for the manual capture UI — a CP tool
+ * chord and a menu chord genuinely coexist most of the time, and warning on
+ * every one of them would be noise. It is wrong for an import, because
+ * `handleShortcutKeyDown` walks the scope stack and takes the *first* match: a
+ * crease-pattern binding on Mod+S does not coexist with Save, it replaces it
+ * whenever the CP canvas is the editing context. An Oriedita keymap is
+ * single-scope and full of bare letters, so it produces exactly that collision
+ * in bulk.
+ *
+ * Returns the other definition *and* the winner, because the two outcomes need
+ * different words in the preview: an import that loses its own chord, and an
+ * import that quietly takes one away from something else.
+ */
+export function findShortcutShadowing(
+  actionId: ShortcutActionId,
+  chord: KeyChord,
+  resolution: ShortcutResolutionInput = {}
+): ShortcutShadowing | null {
+  const definition = getShortcutDefinition(actionId);
+  if (!definition) return null;
+
+  let leader = definition;
+  let shadowed: ShortcutDefinition | null = null;
+  // Tracked separately from `leader` on purpose. Classifying from the single
+  // highest-precedence claimant is wrong whenever a `simulator` binding sits on
+  // top of an always-in-stack one: the simulator claim reads "conditional" and
+  // hides the collision underneath, so a caller that tolerates conditional
+  // shadows applies a chord that is dead whenever no simulation is focused.
+  // That shipped Oriedita's Fold key onto `F` and had it run the Auxiliary line
+  // type instead, because `cp.action.line-type.auxiliary` also holds `F` in the
+  // crease-pattern scope.
+  let alwaysPresentLeader = definition;
+  /**
+   * A claimant that may not answer the chord, and so does not make `definition`
+   * dead. Two kinds, for two different reasons:
+   *
+   * - **`simulator` scope**, which is in the stack only while a simulation owns
+   *   the keyboard. This one is relative to `asked`: a simulator binding is never
+   *   dispatched from a stack without its own scope, so from its point of view
+   *   its own scope is always there and a sibling simulator claim is an ordinary
+   *   same-scope collision, not a deferral.
+   * - **A declining viewport binding**, which is always in the stack but hands
+   *   the chord on when it does not apply. Not relative to anything — it is a
+   *   property of the candidate alone, so no `asked`-side exemption applies.
+   *
+   * Both were once a single hard-coded scope check, which is why `Delete` used to
+   * read as a collision with `viewport.delete` when the binding it really costs
+   * is `edit.delete` underneath.
+   */
+  const mayNotAnswer = (candidate: ShortcutDefinition): boolean =>
+    (definition.scope !== 'simulator' && candidate.scope === 'simulator') ||
+    shortcutMayDecline(candidate.id);
+
+  for (const candidate of SHORTCUT_DEFINITIONS) {
+    if (candidate.id === actionId) continue;
+    if (
+      !getResolvedShortcuts(candidate.id, resolution).some((candidateChord) =>
+        keyChordEquals(candidateChord, chord)
+      )
+    ) {
+      continue;
+    }
+    if (!shadowed || shortcutDispatchPrecedes(candidate, shadowed)) shadowed = candidate;
+    if (shortcutDispatchPrecedes(candidate, leader)) leader = candidate;
+    if (!mayNotAnswer(candidate) && shortcutDispatchPrecedes(candidate, alwaysPresentLeader)) {
+      alwaysPresentLeader = candidate;
+    }
+  }
+
+  if (!shadowed) return null;
+  const kind = shortcutShadowingKind(definition, alwaysPresentLeader);
+
+  // Report the claimant that *explains the classification*, which is not always
+  // the top one. On a hard shadow the caller needs the always-in-stack blocker —
+  // naming the simulator binding sitting above it points the user at something
+  // that is not the reason their key is dead. On a conditional shadow the
+  // simulator binding is the whole story, so the top claimant is right.
+  if (kind === 'hard' && alwaysPresentLeader.id !== actionId) {
+    return { definition: alwaysPresentLeader, winnerId: alwaysPresentLeader.id, kind };
+  }
+  return { definition: shadowed, winnerId: leader.id, kind };
+}
+
+/**
+ * A loss to a claimant that may not answer is a deferral, not a death — see
+ * {@link ShortcutShadowing.kind} and {@link shortcutMayDecline}. Anything else is
+ * hard: `global` is always in the stack, `viewport` is too unless the binding
+ * declines, and `crease-pattern` is whenever the CP canvas is the editing
+ * context, which is the context these bindings exist to serve.
+ */
+function shortcutShadowingKind(
+  asked: ShortcutDefinition,
+  alwaysPresentLeader: ShortcutDefinition
+): 'hard' | 'conditional' {
+  // Conditional only when nothing that shares every stack with `asked` beats it —
+  // i.e. the chord reaches `asked` in every stack its own scope appears in. Any
+  // such winner makes it hard, however many simulator claimants happen to
+  // outrank that winner.
+  return alwaysPresentLeader.id !== asked.id ? 'hard' : 'conditional';
 }
 
 export function parseOrieditaKeyStroke(

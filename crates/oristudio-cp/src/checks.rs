@@ -25,7 +25,7 @@ pub enum FlatFoldabilityRule {
     NumberOfFolds,
     Angles,
     Maekawa,
-    LittleBigLittle,
+    BigLittleBig,
     None,
 }
 
@@ -39,7 +39,7 @@ pub enum FlatFoldabilityColor {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LittleBigLittleSegment {
+pub struct BigLittleBigSegment {
     pub segment: LineSegment,
     pub violating: bool,
 }
@@ -49,7 +49,7 @@ pub struct FlatFoldabilityViolation {
     pub point: Point,
     pub rule: FlatFoldabilityRule,
     pub color: FlatFoldabilityColor,
-    pub little_big_little: Vec<LittleBigLittleSegment>,
+    pub big_little_big: Vec<BigLittleBigSegment>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -110,16 +110,16 @@ impl FlatFoldabilityViolation {
             point,
             rule,
             color,
-            little_big_little: Vec::new(),
+            big_little_big: Vec::new(),
         }
     }
 
-    pub fn little_big_little(point: Point, little_big_little: Vec<LittleBigLittleSegment>) -> Self {
+    pub fn big_little_big(point: Point, big_little_big: Vec<BigLittleBigSegment>) -> Self {
         Self {
             point,
-            rule: FlatFoldabilityRule::LittleBigLittle,
+            rule: FlatFoldabilityRule::BigLittleBig,
             color: FlatFoldabilityColor::Correct,
-            little_big_little,
+            big_little_big,
         }
     }
 }
@@ -220,7 +220,7 @@ pub fn check3(model: &CreasePatternModel) -> Vec<LineSegment> {
     diagnostics
 }
 
-/// Oriedita `Check4.apply`: collect CAMV and little-big-little violations.
+/// Oriedita `Check4.apply`: collect CAMV and big-little-big violations.
 pub fn check4(model: &CreasePatternModel) -> Vec<FlatFoldabilityViolation> {
     point_line_map(model)
         .into_iter()
@@ -335,7 +335,7 @@ pub fn find_flat_foldability_violation(
         if red.abs_diff(blue) != 2 {
             if matches!(
                 rule,
-                FlatFoldabilityRule::LittleBigLittle | FlatFoldabilityRule::None
+                FlatFoldabilityRule::BigLittleBig | FlatFoldabilityRule::None
             ) {
                 rule = FlatFoldabilityRule::Maekawa;
             }
@@ -357,7 +357,7 @@ pub fn find_flat_foldability_violation(
                     FlatFoldabilityColor::Equal,
                 ));
             }
-            if rule == FlatFoldabilityRule::LittleBigLittle {
+            if rule == FlatFoldabilityRule::BigLittleBig {
                 return angle_or_lbl;
             }
             return Some(FlatFoldabilityViolation::new(
@@ -370,7 +370,7 @@ pub fn find_flat_foldability_violation(
         return None;
     }
 
-    find_little_big_little_violation_on_sides(point, nbox)
+    find_big_little_big_violation_on_sides(point, nbox)
 }
 
 /// Oriedita `FLAT_FOLDABLE_CHECK_63` result coloring once the boundary loop is resolved.
@@ -907,7 +907,7 @@ fn find_flat_foldability_violation_inside(
     }
 
     let mut max_angle = 360.0;
-    let mut little_big_little = initial_little_big_little_segments(point, &nbox);
+    let mut big_little_big = initial_big_little_big_segments(point, &nbox);
 
     while nbox.total() > 2 {
         let mut result = None;
@@ -948,16 +948,16 @@ fn find_flat_foldability_violation_inside(
                     break;
                 }
 
-                mark_little_big_little(point, nbox.value(1), &mut little_big_little);
+                mark_big_little_big(point, nbox.value(1), &mut big_little_big);
             }
             nbox.shift();
         }
 
         let next = result.unwrap_or_else(|| nbox.clone());
         if next.total() == nbox.total() {
-            return Some(FlatFoldabilityViolation::little_big_little(
+            return Some(FlatFoldabilityViolation::big_little_big(
                 point,
-                little_big_little,
+                big_little_big,
             ));
         }
         nbox = next;
@@ -979,7 +979,7 @@ fn find_flat_foldability_violation_inside(
     }
 }
 
-fn find_little_big_little_violation_on_sides(
+fn find_big_little_big_violation_on_sides(
     point: Point,
     mut nbox: SortingBox,
 ) -> Option<FlatFoldabilityViolation> {
@@ -1037,13 +1037,13 @@ fn find_little_big_little_violation_on_sides(
     }
     nbox = normalized;
 
-    let mut little_big_little = initial_little_big_little_segments(point, &nbox);
+    let mut big_little_big = initial_big_little_big_segments(point, &nbox);
     while nbox.total() > 2 {
-        let next = little_big_little_single_step(&nbox, &mut little_big_little, point);
+        let next = big_little_big_single_step(&nbox, &mut big_little_big, point);
         if next.total() == nbox.total() {
-            return Some(FlatFoldabilityViolation::little_big_little(
+            return Some(FlatFoldabilityViolation::big_little_big(
                 point,
-                little_big_little,
+                big_little_big,
             ));
         }
         nbox = next;
@@ -1052,9 +1052,9 @@ fn find_little_big_little_violation_on_sides(
     None
 }
 
-fn little_big_little_single_step(
+fn big_little_big_single_step(
     nbox: &SortingBox,
-    little_big_little: &mut Vec<LittleBigLittleSegment>,
+    big_little_big: &mut Vec<BigLittleBigSegment>,
     point: Point,
 ) -> SortingBox {
     let mut min_angle = 10000.0;
@@ -1100,7 +1100,7 @@ fn little_big_little_single_step(
                 return reduced;
             }
 
-            mark_little_big_little(point, nbox.value(k), little_big_little);
+            mark_big_little_big(point, nbox.value(k), big_little_big);
         }
     }
 
@@ -1123,38 +1123,35 @@ fn angularly_flatfoldable(lines: &SortingBox) -> bool {
     (even.abs() - odd.abs()).abs() < Epsilon::FLAT
 }
 
-fn initial_little_big_little_segments(
-    point: Point,
-    nbox: &SortingBox,
-) -> Vec<LittleBigLittleSegment> {
+fn initial_big_little_big_segments(point: Point, nbox: &SortingBox) -> Vec<BigLittleBigSegment> {
     nbox.iter()
-        .map(|weighted| LittleBigLittleSegment {
-            segment: orient_little_big_little_segment(point, &weighted.segment),
+        .map(|weighted| BigLittleBigSegment {
+            segment: orient_big_little_big_segment(point, &weighted.segment),
             violating: false,
         })
         .collect()
 }
 
-fn mark_little_big_little(
+fn mark_big_little_big(
     point: Point,
     segment: &LineSegment,
-    little_big_little: &mut Vec<LittleBigLittleSegment>,
+    big_little_big: &mut Vec<BigLittleBigSegment>,
 ) {
-    let segment = orient_little_big_little_segment(point, segment);
-    if let Some(entry) = little_big_little
+    let segment = orient_big_little_big_segment(point, segment);
+    if let Some(entry) = big_little_big
         .iter_mut()
         .find(|entry| entry.segment == segment)
     {
         entry.violating = true;
     } else {
-        little_big_little.push(LittleBigLittleSegment {
+        big_little_big.push(BigLittleBigSegment {
             segment,
             violating: true,
         });
     }
 }
 
-fn orient_little_big_little_segment(point: Point, segment: &LineSegment) -> LineSegment {
+fn orient_big_little_big_segment(point: Point, segment: &LineSegment) -> LineSegment {
     if segment.a.distance(point) > Epsilon::UNKNOWN_1EN6 {
         segment.with_swapped_coordinates()
     } else {

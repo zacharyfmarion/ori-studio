@@ -4,6 +4,7 @@ import type { CpRenderer } from './renderer/CpRenderer';
 import { readCssVarColor } from './renderer/cssColor';
 import { syncHeldModifiersFromEvent } from '../keyboard/heldModifiers';
 import { resolveWheelGesture, type WheelGesturePreference } from '../lib/wheelGesture';
+import { claimWheelBurst, forwardWheel } from '../lib/wheelBurst';
 import { cpCanvasCursor, usePanModifierHeld } from './cpCanvasCursor';
 import {
   cameraZoomForPercent,
@@ -690,7 +691,7 @@ export interface CreasePatternWebglCanvasProps {
   /** Diagnostic overlay geometry (CAMV / check-fix): shape markers + segment highlights. */
   diagnosticMarkers: MarkerGeometry;
   diagnosticStrokes: StrokeGeometry;
-  /** Little-big-little sector wedges (screen-scaled fills), or empty when none. */
+  /** Big-little-big sector wedges (screen-scaled fills), or empty when none. */
   diagnosticWedges: WedgeGeometry;
   /** The Oriedita operation-frame outline (dashed closed loop), or null when inactive. */
   operationFrame: StrokeGeometry | null;
@@ -1861,6 +1862,16 @@ export function CreasePatternWebglCanvas({
     const snapRingFor = (point: ModelPoint, raw: ModelPoint): ModelPoint | null =>
       point.x !== raw.x || point.y !== raw.y ? point : null;
     /**
+     * Where to ring an endpoint the *kernel* resolves (Angle Restricted Line):
+     * the point it reports back, which it publishes only when the endpoint
+     * really landed on a vertex or grid point rather than on the bare
+     * angle-system projection. Ringing the cursor's nearest snap target instead
+     * would promise a snap the angle constraint may refuse. It trails the
+     * cursor by one preview round-trip, in step with the preview line itself.
+     */
+    const kernelSnapRing = (): ModelPoint | null =>
+      liveRef.current.toolCommandPreviewPoints[0] ?? null;
+    /**
      * The runtime driving the current draw. A crease-draw tool keeps one for its whole
      * activation — its click-to-place start is parked in the engine between gestures —
      * created here on first use; box/path tools get a fresh one per press. Both draw
@@ -1988,7 +1999,7 @@ export function CreasePatternWebglCanvas({
         const placed = segment ? [segment.a] : out.livePoints;
         syncArmedDrawPoint(
           out.livePoints,
-          snapRingFor(resolved.point, raw),
+          kernelPreviewed && segment ? kernelSnapRing() : snapRingFor(resolved.point, raw),
           kernelPreviewed ? (placed ?? []) : undefined
         );
       }
@@ -2638,6 +2649,9 @@ export function CreasePatternWebglCanvas({
     // Turning a focused 3D folded figure. The overlay has made its body inert,
     // so its presses arrive here instead of moving it.
     let orbiting = false;
+    // Whether the wheel gesture in flight is turning a focused folded figure,
+    // and which gesture that answer was worked out for. See `onWheel`.
+    let foldedWheelBurst: { id: number; claimed: boolean } | null = null;
     // Active selection move-drag: press point (model) and running delta (model).
     let movingSelection = false;
     let moveStart: ModelPoint | null = null;
@@ -3038,15 +3052,36 @@ export function CreasePatternWebglCanvas({
     // reads a modifier or a raw delta.
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      // Whose gesture this is was settled by its first event, and a cursor that
+      // has since wandered over an inline simulation window does not change the
+      // answer — see `claimWheelBurst`. An owner elsewhere gets the event
+      // delivered rather than dropped, so a zoom begun on a window survives the
+      // cursor leaving it just as a pan survives crossing one.
+      const burst = claimWheelBurst(canvas);
+      if (burst.owner !== canvas) {
+        forwardWheel(burst.owner, e);
+        return;
+      }
       // A focused 3D folded figure zooms its own camera instead, exactly as a
       // focused inline simulation window does — there the window is a DOM
       // element and takes the wheel itself; a folded figure is drawn into this
       // surface, so the wheel arrives here and has to be routed. Above the
       // camera branches for the same reason the orbit press is: what the
       // pointer is over decides who the gesture belongs to.
-      const user = clientToUser(e.clientX, e.clientY);
-      if (user && liveRef.current.foldedOrbit?.claimsWheel(user)) {
-        liveRef.current.foldedOrbit.zoom(e.deltaY);
+      //
+      // Decided once per burst, and keyed on the burst's identity rather than on
+      // "was I the first handler": when the event was forwarded from a window
+      // this handler is the *second* claim of that event, so a bare first-event
+      // flag would leave the previous gesture's answer standing.
+      if (foldedWheelBurst?.id !== burst.id) {
+        const user = clientToUser(e.clientX, e.clientY);
+        foldedWheelBurst = {
+          id: burst.id,
+          claimed: !!(user && liveRef.current.foldedOrbit?.claimsWheel(user)),
+        };
+      }
+      if (foldedWheelBurst.claimed) {
+        liveRef.current.foldedOrbit?.zoom(e.deltaY);
         return;
       }
       const cam = cameraRef.current;

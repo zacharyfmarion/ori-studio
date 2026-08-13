@@ -521,7 +521,7 @@
       }
     },
     "cp_action_continuous_symmetric_draw": {
-      "label": "Reflect Through Lines",
+      "label": "Crease Through Layers",
       "tooltip": "Continuous symmetric draw",
       "disabledReason": "Ready",
       "steps": {
@@ -976,8 +976,8 @@
       "disabledReason": "Ready"
     },
     "cp_action_check4": {
-      "label": "Check Maekawa/LBL",
-      "tooltip": "Find Maekawa, angle, and little-big-little violations",
+      "label": "Check Maekawa/BLB",
+      "tooltip": "Find Maekawa, angle, and big-little-big violations",
       "disabledReason": "Ready"
     },
     "cp_action_fix1": {

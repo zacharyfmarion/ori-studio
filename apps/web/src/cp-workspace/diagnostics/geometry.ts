@@ -9,7 +9,7 @@ import type { MarkerGeometry, Rgba, StrokeGeometry, WedgeGeometry } from '../ren
 
 /**
  * Pure builders that turn CAMV / check-fix diagnostic entries into the WebGL surface's
- * GPU geometry — shape markers, segment highlights, and little-big-little sector wedges
+ * GPU geometry — shape markers, segment highlights, and big-little-big sector wedges
  * — plus the shared style/tone/bounds derivation. No DOM/React: colours are resolved
  * from the theme root once and injected, so these stay unit-testable. Extracted from
  * `CreasePatternPanel` (Phase 8 decompose).
@@ -29,7 +29,7 @@ export type CpDiagnosticMarkerShape =
   | 'square'
   | 'circle'
   | 'ring'
-  | 'little-big-little'
+  | 'big-little-big'
   | 'self-intersection'
   | 'none';
 
@@ -46,15 +46,15 @@ export interface CpDiagnosticMarkerStyle {
   tone: CpDiagnosticMarkerTone;
 }
 
-/** Rim radius (CSS px) of the little-big-little sector wedges; shared with the SVG. */
-export const CP_DIAGNOSTIC_LBL_RADIUS = 18;
+/** Rim radius (CSS px) of the big-little-big sector wedges; shared with the SVG. */
+export const CP_DIAGNOSTIC_BLB_RADIUS = 18;
 
 const CP_DIAGNOSTIC_MARKER_SHAPE_ID: Record<CpDiagnosticMarkerShape, number | null> = {
   triangle: MARKER_SHAPE.triangle,
   square: MARKER_SHAPE.square,
   circle: MARKER_SHAPE.disc,
   ring: MARKER_SHAPE.ring,
-  'little-big-little': MARKER_SHAPE.pentagon,
+  'big-little-big': MARKER_SHAPE.pentagon,
   // Self-intersection has no Oriedita marker to inherit — it is a check the
   // upstream does not have. The cross reads as "these cross", which is the
   // thing being reported.
@@ -64,11 +64,11 @@ const CP_DIAGNOSTIC_MARKER_SHAPE_ID: Record<CpDiagnosticMarkerShape, number | nu
 };
 const CP_DIAGNOSTIC_MARKER_PX = 10;
 
-// Fill opacity for the little-big-little sectors: the violating sectors read strongly,
+// Fill opacity for the big-little-big sectors: the violating sectors read strongly,
 // the rest stay lighter (but still legible) so the angular breakdown reads without
 // dominating. The wedge program also strokes every sector edge for definition.
-const CP_DIAGNOSTIC_LBL_VIOLATING_ALPHA = 0.48;
-const CP_DIAGNOSTIC_LBL_QUIET_ALPHA = 0.16;
+const CP_DIAGNOSTIC_BLB_VIOLATING_ALPHA = 0.48;
+const CP_DIAGNOSTIC_BLB_QUIET_ALPHA = 0.16;
 
 export function diagnosticEntryPoints(entry: OristudioCpDiagnosticEntry): Point[] {
   const points: Point[] = [];
@@ -76,7 +76,7 @@ export function diagnosticEntryPoints(entry: OristudioCpDiagnosticEntry): Point[
   for (const segment of entry.segments ?? []) {
     points.push(segment.a, segment.b);
   }
-  for (const sector of entry.little_big_little ?? []) {
+  for (const sector of entry.big_little_big ?? []) {
     points.push(sector.segment.a, sector.segment.b);
   }
   return points;
@@ -108,7 +108,7 @@ function isFlatFoldabilityDiagnostic(entry: OristudioCpDiagnosticEntry): boolean
     entry.rule === 'NumberOfFolds' ||
     entry.rule === 'Angles' ||
     entry.rule === 'Maekawa' ||
-    entry.rule === 'LittleBigLittle'
+    entry.rule === 'BigLittleBig'
   );
 }
 
@@ -152,8 +152,8 @@ export function cpDiagnosticMarkerStyle(entry: OristudioCpDiagnosticEntry): CpDi
       };
     case 'Maekawa':
       return { shape: 'square', tone: cpDiagnosticMarkerTone(entry) };
-    case 'LittleBigLittle':
-      return { shape: 'little-big-little', tone: cpDiagnosticMarkerTone(entry) };
+    case 'BigLittleBig':
+      return { shape: 'big-little-big', tone: cpDiagnosticMarkerTone(entry) };
     case 'None':
       return { shape: 'none', tone: cpDiagnosticMarkerTone(entry) };
     default:
@@ -177,19 +177,19 @@ function withAlpha(color: Rgba, alpha: number): Rgba {
   return [color[0], color[1], color[2], color[3] * alpha];
 }
 
-/** The angular sectors around a little-big-little vertex (or a segment fallback). */
-export function cpLblSectors(
+/** The angular sectors around a big-little-big vertex (or a segment fallback). */
+export function cpBlbSectors(
   entry: OristudioCpDiagnosticEntry
 ): { segment: OristudioCpLineSegment; violating: boolean }[] {
-  return entry.little_big_little && entry.little_big_little.length > 0
-    ? entry.little_big_little
+  return entry.big_little_big && entry.big_little_big.length > 0
+    ? entry.big_little_big
     : (entry.segments ?? []).map((segment) => ({ segment, violating: false }));
 }
 
-/** True when an LBL entry has enough sectors to draw wedges (else it falls back to a marker). */
-export function cpHasLblWedges(entry: OristudioCpDiagnosticEntry): boolean {
+/** True when an BLB entry has enough sectors to draw wedges (else it falls back to a marker). */
+export function cpHasBlbWedges(entry: OristudioCpDiagnosticEntry): boolean {
   return (
-    cpDiagnosticMarkerStyle(entry).shape === 'little-big-little' && cpLblSectors(entry).length >= 2
+    cpDiagnosticMarkerStyle(entry).shape === 'big-little-big' && cpBlbSectors(entry).length >= 2
   );
 }
 
@@ -201,8 +201,8 @@ export function buildCpDiagnosticMarkers(
   const markers: { center: Point; shape: number; fill: Rgba; stroke: Rgba }[] = [];
   for (const entry of entries) {
     if (!entry.point) continue;
-    // LBL vertices with real sectors render as wedges, not the pentagon fallback.
-    if (cpHasLblWedges(entry)) continue;
+    // BLB vertices with real sectors render as wedges, not the pentagon fallback.
+    if (cpHasBlbWedges(entry)) continue;
     const style = cpDiagnosticMarkerStyle(entry);
     const shape = CP_DIAGNOSTIC_MARKER_SHAPE_ID[style.shape];
     if (shape === null) continue;
@@ -238,7 +238,7 @@ export function buildCpDiagnosticStrokes(
 ): StrokeGeometry {
   const segs: { a: Point; b: Point; color: Rgba }[] = [];
   for (const entry of entries) {
-    if (cpDiagnosticMarkerStyle(entry).shape === 'little-big-little') continue;
+    if (cpDiagnosticMarkerStyle(entry).shape === 'big-little-big') continue;
     const color = withAlpha(toneColors[cpDiagnosticMarkerTone(entry)], 0.85);
     for (const segment of entry.segments ?? []) segs.push({ a: segment.a, b: segment.b, color });
   }
@@ -258,7 +258,7 @@ export function buildCpDiagnosticStrokes(
 }
 
 /**
- * Build little-big-little sector wedges: for each pair of consecutive crease rays
+ * Build big-little-big sector wedges: for each pair of consecutive crease rays
  * around the vertex, a filled triangle out to a screen-radius rim (the boundary edge
  * closing the loop is skipped, matching the SVG). The renderer scales the rim by
  * markerScalePx so the wedges track the other diagnostic markers as the camera zooms.
@@ -269,10 +269,10 @@ export function buildCpDiagnosticWedges(
 ): WedgeGeometry {
   const wedges: { center: Point; dir0: Point; dir1: Point; color: Rgba }[] = [];
   for (const entry of entries) {
-    if (!entry.point || !cpHasLblWedges(entry)) continue;
+    if (!entry.point || !cpHasBlbWedges(entry)) continue;
     const vertex = entry.point;
     const base = toneColors[cpDiagnosticMarkerTone(entry)];
-    const sectors = cpLblSectors(entry);
+    const sectors = cpBlbSectors(entry);
     for (let i = 0; i < sectors.length; i += 1) {
       const sector = sectors[i];
       // The wrap-around wedge from the last ray is dropped when it is the boundary.
@@ -286,7 +286,7 @@ export function buildCpDiagnosticWedges(
         dir1: { x: e1.x - vertex.x, y: e1.y - vertex.y },
         color: withAlpha(
           base,
-          sector.violating ? CP_DIAGNOSTIC_LBL_VIOLATING_ALPHA : CP_DIAGNOSTIC_LBL_QUIET_ALPHA
+          sector.violating ? CP_DIAGNOSTIC_BLB_VIOLATING_ALPHA : CP_DIAGNOSTIC_BLB_QUIET_ALPHA
         ),
       });
     }
@@ -295,7 +295,7 @@ export function buildCpDiagnosticWedges(
   const center = new Float32Array(count * 2);
   const dir0 = new Float32Array(count * 2);
   const dir1 = new Float32Array(count * 2);
-  const radiusPx = new Float32Array(count).fill(CP_DIAGNOSTIC_LBL_RADIUS);
+  const radiusPx = new Float32Array(count).fill(CP_DIAGNOSTIC_BLB_RADIUS);
   const color = new Float32Array(count * 4);
   wedges.forEach((w, i) => {
     center[i * 2] = w.center.x;

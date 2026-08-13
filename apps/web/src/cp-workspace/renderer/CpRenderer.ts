@@ -76,7 +76,7 @@ export interface CpRenderer {
   setDiagnosticFills(fills: FillGeometry | null): void;
   setDiagnosticMarkers(markers: MarkerGeometry | null): void;
   /**
-   * Little-big-little sector wedges (screen-scaled fills at a vertex), drawn under
+   * Big-little-big sector wedges (screen-scaled fills at a vertex), drawn under
    * the shape markers. `null` clears them.
    */
   setDiagnosticWedges(wedges: WedgeGeometry | null): void;

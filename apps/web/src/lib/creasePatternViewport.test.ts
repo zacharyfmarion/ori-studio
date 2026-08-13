@@ -20,6 +20,7 @@ import {
   getOrieditaGridBasis,
   modelPointToCpSvg,
   nearestCpSnapTarget,
+  cpKernelSnapCandidates,
   nearestOrieditaDrawPointTarget,
   normalizeOrieditaGridSize,
   ORIEDITA_PAPER_BOUNDS,
@@ -436,6 +437,64 @@ describe('crease pattern viewport helpers', () => {
     expect(cpLineColorClass('Red1', 'agrh')).toBe('crease crease--kind-axial');
     expect(cpLineAssignmentLabel('Black0')).toBe('edge');
     expect(cpLineAssignmentLabel('Purple8')).toBe('purple');
+  });
+});
+
+describe('kernel-side snap policy', () => {
+  const grid = { ...document.crease_pattern.grid, base_state: 'WithinPaper' };
+  const allOn = {
+    gridVisible: true,
+    snapToGrid: true,
+    snapToVertices: true,
+    snapToLines: true,
+  };
+
+  it('lets a visible grid snap everywhere, as the canvas snapper does', () => {
+    expect(cpKernelSnapCandidates(grid, allOn)).toEqual({ grid: 'Full', vertices: true });
+  });
+
+  it('falls back to the document grid state when the grid is hidden from view', () => {
+    expect(cpKernelSnapCandidates(grid, { ...allOn, gridVisible: false })).toEqual({
+      grid: 'WithinPaper',
+      vertices: true,
+    });
+    expect(
+      cpKernelSnapCandidates({ ...grid, base_state: 'Hidden' }, { ...allOn, gridVisible: false })
+    ).toEqual({ grid: 'Hidden', vertices: true });
+    expect(
+      cpKernelSnapCandidates({ ...grid, base_state: 'Full' }, { ...allOn, gridVisible: false })
+    ).toEqual({ grid: 'Full', vertices: true });
+  });
+
+  it('drops the grid when snapping to it is off, however the grid is displayed', () => {
+    expect(cpKernelSnapCandidates(grid, { ...allOn, snapToGrid: false })).toEqual({
+      grid: 'Hidden',
+      vertices: true,
+    });
+    expect(
+      cpKernelSnapCandidates(grid, { ...allOn, snapToGrid: false, gridVisible: false })
+    ).toEqual({ grid: 'Hidden', vertices: true });
+  });
+
+  it('carries vertex snapping independently, so Snapping off means neither', () => {
+    expect(cpKernelSnapCandidates(grid, { ...allOn, snapToVertices: false })).toEqual({
+      grid: 'Full',
+      vertices: false,
+    });
+    expect(
+      cpKernelSnapCandidates(grid, {
+        gridVisible: true,
+        snapToGrid: false,
+        snapToVertices: false,
+        snapToLines: false,
+      })
+    ).toEqual({ grid: 'Hidden', vertices: false });
+  });
+
+  it('reads an unknown stored grid state the way the rest of the viewport does', () => {
+    expect(
+      cpKernelSnapCandidates({ ...grid, base_state: 'within_paper' }, { ...allOn, gridVisible: false })
+    ).toEqual({ grid: 'WithinPaper', vertices: true });
   });
 });
 

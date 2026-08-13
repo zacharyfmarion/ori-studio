@@ -120,6 +120,19 @@ function openBrowserTextFile(options: OpenTextFileOptions): Promise<OpenTextFile
       { once: true }
     );
 
+    // Dismissing the picker fires `cancel`, never `change`, so without this the
+    // promise never settles: callers that showed a "reading…" state stayed in it
+    // forever, and the detached input leaked. Supported in every browser we
+    // target; where it is not, the old behaviour is what remains.
+    input.addEventListener(
+      'cancel',
+      () => {
+        input.remove();
+        resolve(null);
+      },
+      { once: true }
+    );
+
     input.click();
   });
 }
@@ -155,6 +168,19 @@ function openBrowserBinaryFile(
             })
           )
           .catch(() => resolve(null));
+      },
+      { once: true }
+    );
+
+    // Dismissing the picker fires `cancel`, never `change`, so without this the
+    // promise never settles: callers that showed a "reading…" state stayed in it
+    // forever, and the detached input leaked. Supported in every browser we
+    // target; where it is not, the old behaviour is what remains.
+    input.addEventListener(
+      'cancel',
+      () => {
+        input.remove();
+        resolve(null);
       },
       { once: true }
     );

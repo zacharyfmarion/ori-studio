@@ -242,6 +242,9 @@ export const ANALYTICS_EVENTS = {
   landingCtaClicked: 'landing cta clicked',
   mobileBlockShown: 'mobile block shown',
   mobileBlockBypassed: 'mobile block bypassed',
+  orieditaShortcutsImported: 'oriedita shortcuts imported',
+  orieditaShortcutsOverrideAll: 'oriedita shortcuts override all',
+  shortcutDefaultsSourceChanged: 'shortcut defaults source changed',
 } as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS];
