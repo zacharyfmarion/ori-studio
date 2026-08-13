@@ -318,6 +318,12 @@
  * `LandingFigure` puts them on the screenshot's centre line; centering on the
  * track instead would drag them down by however many lines the body ran to.
  */
+/*
+ * The nav box stays exactly the figure — full width at 16:9 — because that is
+ * what puts the arrows on the screenshot's centre line. Moving them *out* is
+ * done with margins on the buttons, not by widening this: widening it would
+ * make its 16:9 height taller than the figure and drop the arrows below centre.
+ */
 .landing-swipe__nav {
   position: absolute;
   inset: 0 0 auto 0;
@@ -325,12 +331,21 @@
   align-items: center;
   justify-content: space-between;
   aspect-ratio: 16 / 9;
-  padding: 0 var(--space-3);
   /* Only the buttons take clicks; the rest of the figure stays draggable. */
   pointer-events: none;
 }
 
+/*
+ * Pulled out into the page's margin where there is one, so the arrows stop
+ * covering the middle of the screenshot they are there to help you look at.
+ *
+ * The outset is whatever the gutter can spare: half the space either side of the
+ * 1120px column, less a margin, capped at 56px — enough to clear a 40px button
+ * with room to spare. It collapses to 0 on the way down, so a narrow window puts
+ * them back on the figure's edge rather than off the side of the page.
+ */
 .landing-swipe__arrow {
+  --swipe-nav-outset: clamp(0px, (100vw - 1120px) / 2 - 24px, 56px);
   display: grid;
   width: 40px;
   height: 40px;
@@ -346,6 +361,14 @@
     background-color 0.15s ease,
     border-color 0.15s ease,
     opacity 0.15s ease;
+}
+
+.landing-swipe__arrow:first-child {
+  margin-left: calc(-1 * var(--swipe-nav-outset));
+}
+
+.landing-swipe__arrow:last-child {
+  margin-right: calc(-1 * var(--swipe-nav-outset));
 }
 
 .landing-swipe__arrow:hover:not(:disabled) {
@@ -816,11 +839,6 @@
 }
 
 /*
- * The ring stops being a ring on a narrow screen. Ten files around a circle that
- * fits a phone would overlap, so the orbit unwinds into a centred wrap and the
- * hub moves above it — the same information, laid out in the space available.
- */
-/*
  * No arrows on a narrow screen. Swipe is the native affordance there, the dots
  * already say where you are, and two 40px buttons over a ~340px figure cover the
  * thing they are meant to help you look at.
@@ -835,49 +853,33 @@
   display: none;
 }
 
+/*
+ * The ring stays a ring on a phone; it just gets smaller.
+ *
+ * It used to unwind into a wrapped grid, on the assumption that ten files around
+ * a circle narrow enough for a phone would collide. They do not: at a ~327px
+ * container the radius is 131px, so the arc between neighbours is 82px against a
+ * 40px file. The arrangement is the whole point of the graphic — `.osf` in the
+ * middle with everything it converts to and from around it — and a grid of icons
+ * says none of that.
+ */
 @media (max-width: 560px) {
-  .landing-ring {
-    aspect-ratio: auto;
-    display: grid;
-    justify-items: center;
-    gap: var(--space-5);
-  }
-
-  .landing-ring::before,
-  /* The wires are drawn for a circle; there is no circle left to wire. */
-  .landing-ring__wires {
-    display: none;
-  }
-
-  .landing-ring::before {
-    content: none;
-  }
-
-  .landing-ring__orbit {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: var(--space-3);
-    order: 2;
-  }
-
-  .landing-ring__slot {
-    position: static;
-    transform: none;
-    pointer-events: auto;
-  }
-
-  .landing-ring__slot > .landing-file {
-    transform: none;
-  }
-
-  .landing-ring__hub {
-    position: static;
-    order: 1;
-  }
-
   .landing-file {
-    height: 62px;
+    width: 40px;
+    height: 48px;
+  }
+
+  .landing-file[data-native] {
+    width: 52px;
+    height: 64px;
+  }
+
+  .landing-file[data-native] .landing-file__ext {
+    font-size: 0.7rem;
+  }
+
+  .landing-ring__hub-label {
+    font-size: 0.62rem;
   }
 }
 
