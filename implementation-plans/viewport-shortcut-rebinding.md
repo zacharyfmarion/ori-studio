@@ -153,41 +153,60 @@ only, so an unmodified keymap must dispatch identically before and after.
 ## Checklist
 
 ### Phase 1 — the property
-- [ ] `mayDecline?: true` on `ShortcutDefinition`; set on `viewport.delete` and
-      the three `viewport.solveAngles*`; export `shortcutMayDecline`.
-- [ ] Registry test: flag only on `target: 'viewport'`, and the flagged set is
-      exactly those four.
-- [ ] Comment on the CP viewport switch naming the flag as the thing its
+- [x] `DECLINING_VIEWPORT_SHORTCUTS` + exported `shortcutMayDecline`, covering
+      `viewport.delete` and the three `viewport.solveAngles*`.
+- [x] Registry test pinning the flagged set to exactly those four.
+- [x] Comment on the CP viewport switch naming the set as the thing its
       conditionals have to stay in step with.
 
 ### Phase 2 — generalize the conditional claimant
-- [ ] `findShortcutShadowing`: `conditionalScope` becomes a predicate over
-      simulator scope *or* `mayDecline`.
-- [ ] `findChordCoClaimant`: same exclusion, and handle the asked binding
-      declining (the mirror row in the case table).
-- [ ] Importer: rename to `CONDITIONAL_CLAIMANTS_SILENCED` /
-      `shadowingWithoutConditionalClaimants` and silence both kinds.
-- [ ] Test: a CP binding on `Delete` reads as conditional, not hard-shadowed.
+- [x] `findShortcutShadowing`: `conditionalScope` replaced by a `mayNotAnswer`
+      predicate over simulator scope *or* `shortcutMayDecline`.
+- [x] `findChordCoClaimant`: skips may-decline candidates.
+- [x] Importer: `CONDITIONAL_CLAIMANTS_SILENCED` /
+      `shadowingWithoutConditionalClaimants`, silencing both kinds.
+- [x] Tests: the two import rows a declining claimant used to block now apply.
 
 ### Phase 3 — drop the scope checks
-- [ ] `decideCapture`: refuse branch keeps only `shortcutKeepsDefaultChords`.
-- [ ] `isSharedByDesign`: `shortcutMayDecline(blockerId)`.
-- [ ] Test every row of the case table, asserting through the real dispatcher and
-      not only the store — a binding can be written and dead.
-- [ ] Test: import of `makeFlatFoldableAction=pressed 5` offers to evict Zoom Out,
-      and capture reaches the same decision about the same chord.
-- [ ] Regression: with no overrides, `Delete` still deletes a selected canvas
-      object and otherwise falls through to `edit.delete`.
+- [x] `decideCapture`: refuse branch keeps only `shortcutKeepsDefaultChords`; the
+      assign clause's `definition.scope === 'viewport'` becomes
+      `shortcutMayDecline(definition.id)`.
+- [x] `isSharedByDesign`: `shortcutMayDecline(blockerId)`.
+- [x] Case-table tests, asserted through the real dispatcher.
+- [x] Import of `makeFlatFoldableAction=pressed 5` offers to evict Zoom Out, and
+      capture reaches the same decision about the same chord.
+- [x] Regression: the full suite (3774 tests) green, including the existing
+      `Delete` coexistence tests.
 
 ### Phase 4 — finish
-- [ ] Correct the `shortcuts.ts:314` provenance comment.
-- [ ] `npm run i18n:extract`, translate any changed strings for all 8 locales,
-      `npm run i18n:stamp`, `npm run i18n:check`. The refusal message becomes
-      unreachable for viewport blockers but stays for Undo/Redo, so check whether
-      any string is now orphaned rather than assuming none changed.
-- [ ] `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`.
-- [ ] Browser check: bind `5` to a CP tool, confirm the prompt names Zoom Out,
-      confirm `5` draws and `Mod+-` still zooms out.
+- [x] Correct the provenance comment (landed in Phase 1 — same lines).
+- [x] `i18n:check` passes with no catalog change: the unbind path reuses the
+      existing `unbindTitle` / `unbindMessage`, and `alreadyAssigned` is still
+      reachable for Undo/Redo, so no string was added or orphaned.
+- [x] `lint:web`, `tsc --noEmit`, and the full `vitest` suite green.
+- [ ] Browser check (author): bind `5` to a CP tool, confirm the prompt names
+      Zoom Out, confirm `5` then draws.
+
+## What changed during implementation
+
+- **The property is a `Set` + predicate, not a field on `ShortcutDefinition`.**
+  Every consumer has an id, and typing the set to `ViewportShortcutId` makes
+  "viewport targets only" a compile error rather than a runtime test — strictly
+  stronger than the guard the plan proposed, and it leaves one source of truth
+  instead of a field and a set that can disagree.
+- **The assign clause needed the same fix as the refuse clause.** The plan only
+  named the refuse branch. `decideCapture` also waved through any *viewport*
+  capture over a non-viewport blocker, on the same bad reasoning — so moving Fit
+  To View onto Mountain's key killed Mountain silently. Now gated on
+  `shortcutMayDecline` too.
+- **Eviction unbinds the whole action, not the colliding chord.**
+  `assignShortcut` writes `null` for the displaced id (`shortcutStore.ts:121`),
+  so taking `5` from Zoom Out costs it `Mod+-` as well. Pre-existing behaviour,
+  stated by the confirmation, and a user who wants to keep the accelerator can
+  instead move Zoom Out to `Mod+-` alone — which frees the digit with nothing
+  evicted. Asserted in `SettingsModal.test.tsx` so per-chord eviction would be a
+  deliberate change; worth considering as one, since Zoom Out is the eviction
+  target this feature will hit most often.
 
 ## Out of scope
 
