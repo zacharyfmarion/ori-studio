@@ -1212,7 +1212,7 @@ profile), and what is the largest plausible `faces_total` (it sets the
 | R2 | The cancel silently no-ops on desktop only | The folding oracle builds **without** `parallel`; the Tauri crate builds **with** it (`cargo tree` verified). Rayon workers do not inherit thread-locals. | `flat_map_conditions` is the one bridge, with its own test. Every cancellation test runs twice: `cargo test -p oristudio-cp` and `cargo test -p oristudio-cp --features parallel`. |
 | R3 | The transaction snapshot is too expensive on a large model — **on the hot path, not just on cancel** | Both bridges bind unconditionally, so `transactional`'s short-circuit never fires in a shipped build: the snapshot is paid on **every** successful `folding_estimated`, `fold_another` (a per-click operation) and `folding_estimate_to_case`. A full `self.clone()` would transiently double `hierarchy.relations` (120 825 @ F=850) and `conditions` (46 784 + 92 454 × 4 `usize`) — on a platform with a recorded WKWebView OOM on large CPs. | Narrow snapshot is the **default**, not a fallback: `estimate` + `entries` / `order` / `valid_count` only. Phase 3 measures **peak RSS**, not only wall time — the risk here is memory. Full clone stays available if a mutated field is missed; the byte-identical-after-cancel test is what would catch that. |
 | R4 | A stale cancel kills the next fold, **or a live one kills a sibling** | On desktop a "clear the flag" command would go through `run()` and block on the fold's mutex. Separately, the watermark this plan originally used (`cancelled_through >= run_id`, `fetch_max`) cancels every live run with a *lower* id — a user Stop would silently abandon an in-flight 3D rehydrate (`creasePatternSlice.ts:2950`, catch → `abandon(handle)`, `outcome: 'refused'`, no message) — and made `run_id = 0` cancelled from birth. | Exact-id match (`cancelled_run == run_id`), `store` not `fetch_max`, `RunId(NonZeroU32)` with no `Default`, `RunId::BACKGROUND = u32::MAX` for work the user cannot address. No clearing anywhere, and ids are never reused, so there is no ordering to get wrong on either platform. Tests: an entry point invoked with no run id runs to completion; cancelling a foreground fold leaves a concurrent rehydrate untouched. |
-| R5 | The stale `.wasm` trap | `apps/web/src/generated/` is blanket-ignored (`.gitignore:10`) and `oristudio-cp-wasm/` is force-added; nothing in CI rebuilds or diffs it, and lint/typecheck/vitest all pass over a stale artifact | The new `cp_set_cancel_buffer` export changes the `.js`/`.d.ts` glue too, so this one would at least fail typecheck — do not rely on that. Explicit checklist step: rebuild and `git add -f`. |
+| R5 | The stale `.wasm` trap — **local only** | Nothing under `apps/web/src/generated/` is tracked as of `12cb505f`; CI, both deploy workflows and Tauri's `beforeBuildCommand` all run `build:wasm`, so no committed binary can ship stale. What remains is local: a bare `npx tsc --noEmit` / `npx vitest` skips the `pre*` hooks, and a body-only kernel edit leaves the `.js`/`.d.ts` glue identical, so they pass over a stale `.wasm` in silence. | Rebuild before trusting anything seen in a browser. The new `cp_set_cancel_buffer` export changes the glue too, so typecheck would catch *that* one — do not generalise from it to body-only edits. **Never `git add -f` the artifact**: it is a build output, and tracking it is what let a checkout rot before. |
 | R6 | Desktop cancel silently does nothing | Three independent ways: (a) `generate_handler!` (`lib.rs:91`) has **no** test behind it and `cp_fold_cancel` is deliberately outside the parity manifest, so a miss compiles and fails at runtime with "command not found"; (b) `run_cancellable` can be added and never called by the six fold commands — every check stays green; (c) a page-level `SharedArrayBuffer && crossOriginIsolated` predicate disables Stop in the **packaged** app, and `dev:desktop` cannot show it because vite sets the headers | (a) checklist item, verified in a packaged build; (b) name all six commands in the checklist plus a test asserting no fold command body calls `run(`; (c) `foldCancellationAvailable()` branches on `isDesktopRuntime()` first. **`npm run dev:desktop` is not a valid witness for any of this** — verify in `tauri build`. |
 | R7 | Cancel reported as an error toast | `GlobalToasts.tsx:44` turns any `state.error` into `toast.error`; `creasePatternSlice.ts:2220` writes it | `isFoldCancellation` consulted in every catch, quiet discard/restore helpers, and a store test asserting `state.error` is null and the previous figure entry is unchanged after a cancel. |
 | R8 | A cancelled fold leaves a no-op undo entry and a dirty project | `runFoldedFigureAction` (`useFoldedFigures.ts:267`) commits the gesture in a `finally`; `pushOverlayHistoryEntry` (`creasePatternSlice.ts:534-575`) pushes unconditionally and sets `dirty: true` with no comparison | Pre-existing for *failed* folds too; cancellation makes it routine. Either guard `pushOverlayHistoryEntry` against an unchanged figure list (broader, fixes more) or let the fold action report cancellation back. Decide in Phase 5. |
@@ -1462,7 +1462,9 @@ enums, `transactional`, the `_inner` split, `clear`, `prepare_subface_segments`)
 `apps/web/functions/s/[[shareId]].ts` and `scripts/share-smoke.mjs` (comment
 corrections only).
 
-**Generated, tracked** — `apps/web/src/generated/oristudio-cp-wasm/`.
+**Generated, untracked** — `apps/web/src/generated/oristudio-cp-wasm/`. A build
+output since `12cb505f`; rebuilt by CI and by the npm `pre*` hooks, never
+committed.
 
 **Docs** — `PORTING.md`; this file.
 
@@ -1624,9 +1626,9 @@ exists yet.
       untouched
 - [ ] Correct the two false COI comments
       (`apps/web/functions/s/[[shareId]].ts:85`, `scripts/share-smoke.mjs:17,145`)
-- [ ] `npm --workspace @treemaker/web run build:oristudio-cp-wasm`
-- [ ] `git add -f apps/web/src/generated/oristudio-cp-wasm/` — the directory is
-      blanket-ignored and nothing in CI rebuilds or diffs it
+- [ ] `npm --workspace @treemaker/web run build:oristudio-cp-wasm` — to verify
+      locally. **Do not commit the artifact**: it is untracked as of `12cb505f`,
+      and CI, both deploy workflows and Tauri all rebuild it.
 - [ ] `cargo test --workspace --all-targets && npm run check:desktop`
 
 **Phase 5 — store and affordance**
