@@ -297,14 +297,14 @@ and parity stayed green.)
 - [x] Phase 3: round-trip test — save with pattern 1, reload, matches the oracle
       (including the 3-pattern quirk)
 - [x] Phase 3: web snapshot mapper handles the non-session shape
-- [ ] Phase 4: `layout-graphics.ts` sends `stretches: []` and reports the edit
+- [x] Phase 4: `layout-graphics.ts` sends `stretches: []` and reports the edit
       path
-- [ ] Phase 4: oracle commands for both sequences, fresh-process requirement
+- [x] Phase 4: oracle commands for both sequences, fresh-process requirement
       documented
-- [ ] `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
+- [x] `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
       `cargo test --workspace`
-- [ ] `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`
-- [ ] Rebuild the BP wasm bridge before browser checks:
+- [x] `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`
+- [x] Rebuild the BP wasm bridge before browser checks:
       `npm --workspace @treemaker/web run build:oristudio-bp-wasm`
 - [ ] Browser check: open the repro, switch pattern, drag a flap — the device
       regenerates instead of translating
