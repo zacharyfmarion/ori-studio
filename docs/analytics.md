@@ -180,7 +180,7 @@ Every event also carries the super properties `app_version`, `app_commit`,
 | Event | Properties | Fires when |
 | --- | --- | --- |
 | `app opened` | — | App launch |
-| `app error` | `error_domain`, `operation`, `source_component`, `handled`, `fingerprint` | An error boundary catches (deduped over 30s) |
+| `app error` | `error_domain`, `operation`, `source_component`, `handled`, `fingerprint` | An error boundary catches (`handled: true`), or an uncaught window error / unhandled rejection reaches `GlobalErrorReporter` (`handled: false`, `source_component` `global:error` / `global:unhandledrejection`). Deduped over 30s **per surface** |
 | `analytics preference changed` | `enabled` | The privacy toggle changes |
 | `command invoked` | `command_id`, `command_group` | A menu / keyboard / palette action (recognized ids only; data suffixes stripped) |
 | `cp tool used` | `operation`, `group` | A CP editor operation executes |

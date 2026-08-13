@@ -1,5 +1,6 @@
 import type createREGL from 'regl';
 import type { WedgeGeometry, ViewTransform, Viewport } from '../types';
+import { disposeOnce } from './disposeOnce';
 
 type Regl = ReturnType<typeof createREGL>;
 type Buffer = ReturnType<Regl['buffer']>;
@@ -182,13 +183,13 @@ export function createWedgeProgram(regl: Regl): WedgeProgram {
       drawFill(params);
       drawOutline(params);
     },
-    dispose() {
+    dispose: disposeOnce(() => {
       corners.destroy();
       centerBuf?.destroy();
       dir0Buf?.destroy();
       dir1Buf?.destroy();
       radiusBuf?.destroy();
       colorBuf?.destroy();
-    },
+    }),
   };
 }

@@ -73,13 +73,21 @@ export function createAnalyticsApi(client: PostHogClientLike | null): AnalyticsA
       const fingerprint = context.fingerprint ?? fingerprintError(context.error);
       const now = Date.now();
 
+      // Dedupe per surface, not per error. One failure mode can break several
+      // surfaces at once — a DOM teardown bug fingerprints identically whether
+      // it hits the dock or a dialog — and keying on the fingerprint alone
+      // collapsed those into a single event, hiding that it was happening in
+      // more than one place. The fingerprint stays the reported property; only
+      // the dedupe key is narrower.
+      const dedupeKey = `${context.sourceComponent ?? ''}\u0000${fingerprint}`;
+
       // Drop a repeat of the same error inside the dedupe window; prune stale keys.
-      const last = recentErrors.get(fingerprint);
+      const last = recentErrors.get(dedupeKey);
       if (last !== undefined && now - last < ERROR_DEDUPE_WINDOW_MS) return;
       for (const [key, ts] of recentErrors) {
         if (now - ts >= ERROR_DEDUPE_WINDOW_MS) recentErrors.delete(key);
       }
-      recentErrors.set(fingerprint, now);
+      recentErrors.set(dedupeKey, now);
 
       client.capture('app error', {
         error_domain: context.domain ?? inferErrorDomain(context.sourceComponent),
