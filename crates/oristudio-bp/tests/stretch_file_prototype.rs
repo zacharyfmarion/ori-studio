@@ -186,3 +186,112 @@ fn a_restored_prototype_can_still_be_switched() {
         "a stretch restored from a file must still offer its other patterns"
     );
 }
+
+const PINNING: &str =
+    include_str!("../../../tests/fixtures/bp-studio/pythagorean-stretch-pinning.sample.json");
+
+/// The session form keeps what only makes sense while running; the file form
+/// keeps what upstream's `Project.toJSON()` keeps.
+#[test]
+fn the_file_form_drops_session_state() {
+    let project = bps::load_project_str(PINNING).expect("fixture loads");
+    let mut session = BpProjectSession::new(project).expect("session builds");
+    session.complete_stretch("1,2").expect("complete stretch");
+
+    let session_form = session.project_for_export();
+    let stretch = &session_form.design.layout.stretches[0];
+    assert!(stretch.repo.is_some(), "session form keeps the repository");
+    assert!(session_form.history.is_some(), "session form keeps history");
+
+    let file_form = session.project_for_file().expect("file form builds");
+    let stretch = &file_form.design.layout.stretches[0];
+    assert!(stretch.repo.is_none(), "a file must not carry a repository");
+    assert!(stretch.configuration.is_some());
+    assert!(stretch.pattern.is_some());
+    assert!(file_form.history.is_none(), "a file must not carry history");
+    assert!(file_form.state.is_none(), "a file must not carry state");
+    assert!(
+        stretch
+            .configuration
+            .as_ref()
+            .is_some_and(|config| config.patterns.is_none() && config.index.is_none()),
+        "`patterns` and `index` are session-only in JConfiguration"
+    );
+
+    let text = oristudio_bp::io::bps::save_project_string(&file_form).expect("serializes");
+    for session_only in ["\"repo\"", "\"history\"", "\"state\""] {
+        assert!(
+            !text.contains(session_only),
+            "exported .bps still contains {session_only}"
+        );
+    }
+}
+
+/// Save with a chosen pattern, reopen, and get that pattern back — the whole
+/// point of the file form.
+#[test]
+fn a_switched_pattern_survives_a_save_and_reload() {
+    let project = bps::load_project_str(PINNING).expect("fixture loads");
+    let mut saving = BpProjectSession::new(project).expect("session builds");
+    saving.complete_stretch("1,2").expect("complete stretch");
+    saving
+        .switch_stretch_pattern("1,2", 1)
+        .expect("switch to pattern 1");
+    let before = sorted_ridges(&saving);
+
+    let file_form = saving.project_for_file().expect("file form builds");
+    let text = oristudio_bp::io::bps::save_project_string(&file_form).expect("serializes");
+
+    let reopened = BpProjectSession::new(bps::load_project_str(&text).expect("reloads"))
+        .expect("session builds");
+    assert_eq!(
+        sorted_ridges(&reopened),
+        before,
+        "reopening must show the pattern that was saved"
+    );
+    assert_eq!(
+        sorted_ridges(&reopened),
+        without_degenerate(ORACLE_RIDGES_PATTERN_1),
+        "and it must be the pattern BP Studio shows for the same file"
+    );
+}
+
+/// A file written today must not re-pin: the reopened stretch has to regenerate
+/// when a flap moves, which is the bug this whole change is about.
+#[test]
+fn a_reopened_file_does_not_pin_on_a_flap_move() {
+    let project = bps::load_project_str(PINNING).expect("fixture loads");
+    let mut saving = BpProjectSession::new(project).expect("session builds");
+    saving.complete_stretch("1,2").expect("complete stretch");
+    saving
+        .switch_stretch_pattern("1,2", 1)
+        .expect("switch to pattern 1");
+    let text = oristudio_bp::io::bps::save_project_string(
+        &saving.project_for_file().expect("file form builds"),
+    )
+    .expect("serializes");
+
+    let mut reopened = BpProjectSession::new(bps::load_project_str(&text).expect("reloads"))
+        .expect("session builds");
+    reopened
+        .move_flap(1, oristudio_bp::model::Point { x: 13.0, y: 4.0 }, false)
+        .expect("move flap 1");
+
+    // Same expectation as the in-session case: the (2,2) overlap, regenerated.
+    let overlaps = reopened
+        .project()
+        .design
+        .layout
+        .stretches
+        .iter()
+        .filter_map(|stretch| stretch.repo.as_ref())
+        .flat_map(|repo| repo.configurations.iter())
+        .flat_map(|config| config.partitions.iter())
+        .flat_map(|partition| partition.overlaps.iter())
+        .map(|overlap| (overlap.ox, overlap.oy))
+        .collect::<Vec<_>>();
+    assert!(
+        !overlaps.contains(&(3.0, 1.0)),
+        "the reopened stretch is still pinned to the saved (3,1) overlap"
+    );
+}

@@ -288,15 +288,15 @@ and parity stayed green.)
 - [x] Phase 2: `init_with_tree` / `complete_with_tree` pass it to the generator
 - [x] Phase 2: test — a `{id, configuration, pattern}` design restores the saved
       pattern (fails today for pattern 1)
-- [ ] Phase 3: session vs file serialization split, wired through wasm
-- [ ] Phase 3: file form emits `configuration` + `pattern`, no `repo`
-- [ ] Phase 3: file form omits `history` and `state`; the `History` reader and
+- [x] Phase 3: session vs file serialization split, wired through wasm
+- [x] Phase 3: file form emits `configuration` + `pattern`, no `repo`
+- [x] Phase 3: file form omits `history` and `state`; the `History` reader and
       the v0.6 migrations stay
-- [ ] Phase 3: test — an exported `.bps` has no `history`, `state`, or `repo`,
+- [x] Phase 3: test — an exported `.bps` has no `history`, `state`, or `repo`,
       and a file that still has them loads unchanged
-- [ ] Phase 3: round-trip test — save with pattern 1, reload, matches the oracle
+- [x] Phase 3: round-trip test — save with pattern 1, reload, matches the oracle
       (including the 3-pattern quirk)
-- [ ] Phase 3: web snapshot mapper handles the non-session shape
+- [x] Phase 3: web snapshot mapper handles the non-session shape
 - [ ] Phase 4: `layout-graphics.ts` sends `stretches: []` and reports the edit
       path
 - [ ] Phase 4: oracle commands for both sequences, fresh-process requirement

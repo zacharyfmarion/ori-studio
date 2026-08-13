@@ -18,6 +18,7 @@ import type { OristudioBpDocumentState, OristudioBpTreeView } from '../../../eng
 const runtimeMocks = vi.hoisted(() => ({
   resizeOristudioBpLayoutFlap: vi.fn(),
   exportOristudioBpProjectAsBps: vi.fn(async () => '<bps/>'),
+  exportOristudioBpProjectAsSessionBps: vi.fn(async () => '<bps/>'),
 }));
 
 vi.mock('../oristudioBpRuntime', async (importOriginal) => {
@@ -26,6 +27,7 @@ vi.mock('../oristudioBpRuntime', async (importOriginal) => {
     ...actual,
     resizeOristudioBpLayoutFlap: runtimeMocks.resizeOristudioBpLayoutFlap,
     exportOristudioBpProjectAsBps: runtimeMocks.exportOristudioBpProjectAsBps,
+    exportOristudioBpProjectAsSessionBps: runtimeMocks.exportOristudioBpProjectAsSessionBps,
   };
 });
 

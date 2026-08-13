@@ -13,7 +13,7 @@ import {
   restoreOristudioCpDocumentInPlace,
 } from '../oristudioCpRuntime';
 import {
-  exportOristudioBpProjectAsBps,
+  exportOristudioBpProjectAsSessionBps,
   oristudioBpError,
   restoreOristudioBpProjectSnapshot,
 } from '../oristudioBpRuntime';
@@ -173,7 +173,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
     };
     set({ oristudioBpHistoryBusy: true, error: null, oristudioBpError: null });
     try {
-      const currentBps = await exportOristudioBpProjectAsBps();
+      const currentBps = await exportOristudioBpProjectAsSessionBps();
       const current = snapshotEntry(
         {
           bps: currentBps,
