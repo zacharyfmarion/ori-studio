@@ -1499,6 +1499,18 @@ public/`_inner` split on `FoldingEstimateSession`; the same wrapper on
 (a grid folds to zero solutions) and now uses `solution_sample_1.cp`, verified
 to fail with the transaction removed.
 
+**Phase 4 — transports: DONE.** Both bind a token now. Web:
+`foldCancellation.ts`, `cp_set_cancel_buffer` + `with_fold` in the wasm bridge's
+own `cancel` module, the buffer installed inside the `oristudio-cp` connector,
+run ids on the five runtime wrappers and the six wasm entry points. Desktop:
+`FoldCancel` in separate managed state, a synchronous `cp_fold_cancel`, and all
+six fold commands on `run_cancellable` — enforced by a test over the source, not
+by discipline. Cancellation is derived from the resolved client, so a packaged
+Tauri build (no COOP/COEP) has it and an un-isolated browser reports it
+unavailable rather than pretending. The 3D rehydrate and the export-dialog fold
+pass `BACKGROUND`. The store still passes no run id anywhere the user can press
+— that is Phase 5.
+
 Phase 1 proper remains **open**, and is no longer blocking: `max_check_gap_ms`
 measures the gap *between* checkpoints, so it could only be written after Phase
 2. It is now writable and should be done before the strides are called final.
@@ -1604,47 +1616,66 @@ measures the gap *between* checkpoints, so it could only be written after Phase
 
 **Phase 4 — transports**
 
-- [ ] `apps/web/src/store/workspaceStore/foldCancellation.ts` with
+- [x] `apps/web/src/store/workspaceStore/foldCancellation.ts` with
       `foldCancellationAvailable()` (**branches on `isDesktopRuntime()` first**),
       `foldCancellationBuffer`, `beginFoldRun` (never 0, never `BACKGROUND`), and
       a transport-dispatching `cancelFoldRun` (web: `Atomics.store` of the exact
       id; desktop: `invoke('cp_fold_cancel', { runId })`)
-- [ ] Add `setCancelBuffer` to `OristudioCpWorkerApi` and install it **inside the
+- [x] Add `setCancelBuffer` to `OristudioCpWorkerApi` and install it **inside the
       `oristudio-cp` connector** (`engineHost.ts:63-77`), not at a call site; no-op
       on the native client. `cancelFoldRun` is **not** a Comlink method — the
       worker loop is blocked
-- [ ] Add `runId` to the **five** fold runtime wrappers
+- [x] Add `runId` to the **five** fold runtime wrappers
       (`oristudioCpRuntime.ts:401`, `:445`, `:452`, `:474`, `:486`); `:438`/`:493`
       are clones and take none
-- [ ] Add `runId` to `CreaseExportFoldRuntime` (`lib/creaseExportFold.ts:27-41`),
-      its wiring (`projectSlice.ts:518`) and its test fakes; the export dialog
-      passes `RunId::BACKGROUND`
-- [ ] Give the 3D rehydrate (`creasePatternSlice.ts:2950`) `RunId::BACKGROUND`
-- [ ] `cp_set_cancel_buffer` + `SabCancel` + `with_fold` in
-      `crates/oristudio-cp-wasm/src/lib.rs`; wrap every fold entry point
-- [ ] `FoldCancel` / `FoldCancelState` / `cp_fold_cancel` / `run_cancellable` in
+- [x] ~~Add `runId` to `CreaseExportFoldRuntime`~~ — **deviation**: the interface
+      is unchanged. A run id is a property of the transport binding, and the
+      export dialog has no way to choose one, so `projectSlice.ts:518` passes
+      `FOLD_RUN_BACKGROUND` where it wires the runtime. Same effect, and the
+      injected interface and its test fakes stay free of the concept.
+- [x] Give the 3D rehydrate (`creasePatternSlice.ts:2950`) `RunId::BACKGROUND`
+- [x] `cp_set_cancel_buffer` + `SabCancel` + `with_fold` in
+      `crates/oristudio-cp-wasm/src/cancel.rs` (its own module, not `lib.rs`);
+      all six search entry points wrapped, the two duplicates deliberately not.
+      `SabCancel` is `cfg(target_arch = "wasm32")`: `cargo test --workspace` also
+      builds this crate for the host, where feature unification hands
+      `oristudio-cp` its `parallel` feature and `CancelSource` therefore demands
+      `Send + Sync` that an `Int32Array` cannot honestly give.
+- [x] `FoldCancel` / `FoldCancelState` / `cp_fold_cancel` / `run_cancellable` in
       `apps/tauri/src-tauri/src/cp_engine.rs`; `cp_fold_cancel` is **synchronous**,
       uses `store` not `fetch_max`, and never calls `run()`
-- [ ] Convert **all six** fold commands to `run_cancellable` with a `run_id`:
+- [x] Convert **all six** fold commands to `run_cancellable` with a `run_id`:
       `cp_folded_figure_fold` (`:345`), `_fold_selected` (`:364`), `_fold_another`
       (`:429`), `_fold_to_case` (`:440`), `_fold_3d` (`:453`), `_3d_fold_another`
       (`:472`) — and add a test asserting no fold command body calls `run(`
-- [ ] `.manage(FoldCancelState::default())` in `apps/tauri/src-tauri/src/lib.rs:82`
-- [ ] Register `cp_fold_cancel` **only** in `generate_handler!` (`lib.rs:91`).
-      Do **not** add it to `CP_ENGINE_COMMANDS` or `NATIVE_CP_COMMAND_NAMES`;
-      filter it in `native_commands_match_the_shared_manifest`
-      (`cp_engine.rs:558-569`) with a comment naming the exception
-- [ ] Vitest: a `SharedArrayBuffer` posted to a worker via Comlink survives
-      structured clone and a main-thread `Atomics.store` is visible inside it
-- [ ] Vitest: a simulated worker loss + reconnect leaves cancellation working
-- [ ] Test: cancelling a foreground fold leaves a concurrent `BACKGROUND` run
+- [x] `.manage(FoldCancelState::default())` in `apps/tauri/src-tauri/src/lib.rs:82`
+- [x] Register `cp_fold_cancel` **only** in `generate_handler!` (`lib.rs:91`).
+      Not in `CP_ENGINE_COMMANDS` or `NATIVE_CP_COMMAND_NAMES`; the exception is
+      named by its own test (`the_cancel_command_is_deliberately_outside_the_manifest`)
+      rather than by a filter, because the hand-written manifest list never
+      contained it and a filter over an empty case documents nothing.
+- [x] Vitest: a `SharedArrayBuffer` posted to a worker via Comlink survives
+      structured clone and a main-thread `Atomics.store` is visible inside it.
+      The hop is `structuredClone` — the same serialization `postMessage`
+      performs — because jsdom cannot spawn the bundler-emitted worker. Backed by
+      a wasm32 test (`wasm-pack test --node crates/oristudio-cp-wasm`) that folds
+      with a cancelled run id set from *outside* the module and asserts
+      `fold_cancelled`, which is the only place `Atomics.load` through `js-sys`
+      is actually exercised.
+- [x] Vitest: a simulated worker loss + reconnect leaves cancellation working
+      (asserted at `installFoldCancellation`, the connector's collaborator —
+      `connectEngine` itself cannot construct a worker under jsdom)
+- [x] Test: cancelling a foreground fold leaves a concurrent `BACKGROUND` run
       untouched
-- [ ] Correct the two false COI comments
-      (`apps/web/functions/s/[[shareId]].ts:85`, `scripts/share-smoke.mjs:17,145`)
-- [ ] `npm --workspace @treemaker/web run build:oristudio-cp-wasm` — to verify
+- [x] Correct the two false COI comments
+      (`apps/web/functions/s/[[shareId]].ts:85`, `scripts/share-smoke.mjs:17,145`).
+      Re-verified against the freshly built artifact: memory section `count 1
+      flags 0x00`, exported not imported — unshared, so the engine boots without
+      isolation and cancellation is what degrades.
+- [x] `npm --workspace @treemaker/web run build:oristudio-cp-wasm` — to verify
       locally. **Do not commit the artifact**: it is untracked as of `12cb505f`,
       and CI, both deploy workflows and Tauri all rebuild it.
-- [ ] `cargo test --workspace --all-targets && npm run check:desktop`
+- [x] `cargo test --workspace --all-targets && npm run check:desktop`
 
 **Phase 5 — store and affordance**
 

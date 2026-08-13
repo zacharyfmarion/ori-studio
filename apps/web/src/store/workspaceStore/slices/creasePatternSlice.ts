@@ -119,6 +119,7 @@ import {
   runOristudioCpCheckCommand,
   setOristudioCpFoldedFigureModel as setRuntimeOristudioCpFoldedFigureModel,
 } from '../oristudioCpRuntime';
+import { FOLD_RUN_BACKGROUND } from '../foldCancellation';
 import type { CreasePatternSlice, WorkspaceSliceCreator, WorkspaceState } from '../types';
 import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
 import {
@@ -2949,10 +2950,15 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       try {
         // Deliberately not wrapped in `withFoldInFlight`: that drives the global
         // "Folding…" indicator, and a background pass on load must not raise one.
+        // `FOLD_RUN_BACKGROUND`: the rehydrate is unindicated by design, so the
+        // user has nothing to press and nothing to aim at — and a Stop meant for
+        // the fold they *can* see must not reach in here and abandon a figure
+        // that was about to come back.
         const result = await fold3dRuntimeOristudioCpDocument(
           route.lineIds,
           figure.startingFaceId ?? 1,
-          figure.folded3d?.model
+          figure.folded3d?.model,
+          FOLD_RUN_BACKGROUND
         );
         if (result.status === 'refused') return await abandon(null);
         handle = result.handle;
@@ -2960,7 +2966,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         let snapshot = result.snapshot;
         let render = result.render;
         for (let step = 0; step < replaySteps; step += 1) {
-          const advanced = await fold3dRuntimeOristudioCpFigureAnother(result.handle);
+          const advanced = await fold3dRuntimeOristudioCpFigureAnother(
+            result.handle,
+            FOLD_RUN_BACKGROUND
+          );
           snapshot = advanced.snapshot;
           render = advanced.render;
         }

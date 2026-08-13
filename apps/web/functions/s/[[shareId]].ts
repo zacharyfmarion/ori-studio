@@ -82,8 +82,14 @@ async function handleShare(context: CpShareContext, includeBody: boolean): Promi
  *
  * `public/_headers` sets COOP/COEP for static assets, but Cloudflare Pages does not apply
  * `_headers` to Function responses. Without this, `/s/<id>` would be the one entry path
- * where `SharedArrayBuffer` is unavailable and the wasm engine fails to boot — a bug that
- * would only ever reproduce for people arriving from a shared link.
+ * where `SharedArrayBuffer` is unavailable — a bug that would only ever reproduce for
+ * people arriving from a shared link.
+ *
+ * The CP wasm module's memory is **not** shared (`flags 0x0`), so the engine boots without
+ * isolation; the earlier claim here that it "fails to boot" was wrong. What actually
+ * depends on `SharedArrayBuffer` is stopping a running fold — the only channel that reaches
+ * a worker blocked inside the kernel. Lose these headers and folds still run, but the Stop
+ * button reports itself unavailable (see `store/workspaceStore/foldCancellation.ts`).
  */
 function withIsolationHeaders(response: Response): Response {
   const headers = withSecurityHeaders(new Headers(response.headers));

@@ -2,6 +2,7 @@ import { wrap, type Remote } from 'comlink';
 import { createOristudioCpNativeClient } from '../engine/oristudioCpNativeClient';
 import { attachWorkerDiagnostics, type WorkerFailure } from '../lib/workerDiagnostics';
 import { isDesktopRuntime } from '../platform/runtime';
+import { installFoldCancellation } from '../store/workspaceStore/foldCancellation';
 import type { OristudioBpWorkerApi } from '../workers/oristudioBpWorker';
 import type { OristudioCpWorkerApi } from '../workers/oristudioCpWorker';
 import type { TreemakerWorkerApi } from '../workers/treemakerWorker';
@@ -73,7 +74,12 @@ const CONNECTORS: { [E in EngineId]: () => Connection<E> } = {
     const worker = new Worker(new URL('../workers/oristudioCpWorker.ts', import.meta.url), {
       type: 'module',
     });
-    return { worker, client: wrap<OristudioCpWorkerApi>(worker) };
+    const client = wrap<OristudioCpWorkerApi>(worker);
+    // Here rather than at a fold call site: this runs exactly once per live
+    // client and so also on the respawn after a crash, which is the case where a
+    // fold-time install would silently leave Stop dead with its button enabled.
+    installFoldCancellation(client);
+    return { worker, client };
   },
   'oristudio-bp': () => {
     const worker = new Worker(new URL('../workers/oristudioBpWorker.ts', import.meta.url), {

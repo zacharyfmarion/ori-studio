@@ -20,6 +20,11 @@ use std::cell::RefCell;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 
+mod cancel;
+
+pub use cancel::cp_set_cancel_buffer;
+use cancel::with_fold;
+
 thread_local! {
     static SESSION: RefCell<CpSession> = RefCell::new(CpSession::new());
 }
@@ -248,6 +253,11 @@ pub fn place_circles(
 }
 
 // --- folding ----------------------------------------------------------------
+//
+// Every entry point that runs a *search* takes a `run_id` and goes through
+// [`with_fold`]; the duplicate entry points below do not, because they copy an
+// existing figure rather than fold one. A `run_id` of 0 means "not cancellable",
+// which is what every caller passed before this parameter existed.
 
 #[wasm_bindgen]
 pub fn folded_figure_fold(
@@ -255,10 +265,11 @@ pub fn folded_figure_fold(
     starting_face_id: i32,
     order: JsValue,
     model: JsValue,
+    run_id: u32,
 ) -> Result<JsValue, JsValue> {
     let order: EstimationOrder = from_js(order)?;
     let model = folded_figure_model_from_js(model)?;
-    let result = with_session_mut(|session| {
+    let result = with_fold(run_id, |session| {
         session.folded_figure_fold(document_handle, starting_face_id, order, model)
     })?;
     to_js_value(&result)
@@ -271,11 +282,12 @@ pub fn folded_figure_fold_selected(
     starting_face_id: i32,
     order: JsValue,
     model: JsValue,
+    run_id: u32,
 ) -> Result<JsValue, JsValue> {
     let selected_line_ids: Vec<usize> = from_js(selected_line_ids)?;
     let order: EstimationOrder = from_js(order)?;
     let model = folded_figure_model_from_js(model)?;
-    let result = with_session_mut(|session| {
+    let result = with_fold(run_id, |session| {
         session.folded_figure_fold_selected(
             document_handle,
             &selected_line_ids,
@@ -326,8 +338,8 @@ pub fn folded_figure_duplicate(handle: u32) -> Result<JsValue, JsValue> {
 }
 
 #[wasm_bindgen]
-pub fn folded_figure_fold_another(handle: u32) -> Result<JsValue, JsValue> {
-    let snapshot = with_session_mut(|session| session.folded_figure_fold_another(handle))?;
+pub fn folded_figure_fold_another(handle: u32, run_id: u32) -> Result<JsValue, JsValue> {
+    let snapshot = with_fold(run_id, |session| session.folded_figure_fold_another(handle))?;
     to_js_value(&snapshot)
 }
 
@@ -336,9 +348,10 @@ pub fn folded_figure_fold_to_case(
     handle: u32,
     objective: u32,
     initial_order: JsValue,
+    run_id: u32,
 ) -> Result<JsValue, JsValue> {
     let initial_order: EstimationOrder = from_js(initial_order)?;
-    let result = with_session_mut(|session| {
+    let result = with_fold(run_id, |session| {
         session.folded_figure_fold_to_case(handle, objective as usize, initial_order)
     })?;
     to_js_value(&result)
@@ -358,18 +371,21 @@ pub fn folded_figure_fold_3d(
     selected_line_ids: JsValue,
     starting_face_id: i32,
     model: JsValue,
+    run_id: u32,
 ) -> Result<JsValue, JsValue> {
     let selected_line_ids: Vec<usize> = from_js(selected_line_ids)?;
     let model = folded_figure_model_from_js(model)?;
-    let result = with_session_mut(|session| {
+    let result = with_fold(run_id, |session| {
         session.folded_figure_fold_3d(document_handle, &selected_line_ids, starting_face_id, model)
     })?;
     to_js_value(&result)
 }
 
 #[wasm_bindgen]
-pub fn folded_figure_3d_fold_another(handle: u32) -> Result<JsValue, JsValue> {
-    let result = with_session_mut(|session| session.folded_figure_3d_fold_another(handle))?;
+pub fn folded_figure_3d_fold_another(handle: u32, run_id: u32) -> Result<JsValue, JsValue> {
+    let result = with_fold(run_id, |session| {
+        session.folded_figure_3d_fold_another(handle)
+    })?;
     to_js_value(&result)
 }
 

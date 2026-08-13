@@ -189,6 +189,7 @@ import {
   syncTreemakerProject,
   statusFromSnapshot,
 } from '../engineRuntime';
+import { FOLD_RUN_BACKGROUND } from '../foldCancellation';
 import {
   executeOristudioCpCommand as executeRuntimeOristudioCpCommand,
   runOristudioCpCheckCommand,
@@ -517,8 +518,17 @@ async function foldExportSegment(
   try {
     return await foldSegmentForExport(
       {
+        // `FOLD_RUN_BACKGROUND` on both: an export-preview fold is not something
+        // the user can see or point at, so it must not be addressable by a Stop
+        // aimed at the fold on the canvas. It runs to completion or fails.
         fold: async (startingFaceId, order, model, lineIds) => {
-          const result = await foldOristudioCpDocument(startingFaceId, order, model, lineIds);
+          const result = await foldOristudioCpDocument(
+            startingFaceId,
+            order,
+            model,
+            lineIds,
+            FOLD_RUN_BACKGROUND
+          );
           return {
             handle: result.handle,
             discoveredCases: result.snapshot.discovered_fold_cases,
@@ -526,7 +536,12 @@ async function foldExportSegment(
           };
         },
         foldToCase: async (handle, objective) => {
-          const result = await foldOristudioCpFigureToCase(handle, objective);
+          const result = await foldOristudioCpFigureToCase(
+            handle,
+            objective,
+            'Order5',
+            FOLD_RUN_BACKGROUND
+          );
           return {
             discoveredCases: result.snapshot.discovered_fold_cases,
             displayStyle: result.snapshot.display_style,
