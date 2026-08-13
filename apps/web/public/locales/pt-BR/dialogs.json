@@ -379,6 +379,8 @@
       "resetMessage": "Restaurar o layout padrão do workspace atual?",
       "resetTitle": "Redefinir layout do workspace",
       "showWelcome": "Mostrar a tela de boas-vindas ao iniciar",
+      "snapRadius": "Raio de ajuste",
+      "snapRadiusHint": "A que distância o ponteiro precisa chegar de um vértice, de uma dobra ou de um ponto da grade para se ajustar a ele, em unidades de papel: o papel tem 400 de largura, então é o mesmo número que o Oriedita usa.",
       "startup": "Inicialização",
       "wheelGestureHint": "A pinça e Cmd/Ctrl+rolagem sempre ampliam, independentemente da escolha.",
       "wheelPans": "Rolagem move, pinça amplia",

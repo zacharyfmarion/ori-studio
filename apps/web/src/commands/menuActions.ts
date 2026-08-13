@@ -461,6 +461,10 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
             succeeded =
               (await deps.workspace.executeOristudioCpCommand('DeletePoint', {
                 points: [point],
+                // Not the snap radius, and it must never become it: these are the
+                // exact stored coordinates of an already-selected point, so this
+                // only has to cover float noise. At the user's snap radius a wide
+                // setting would delete a *neighbouring* point instead.
                 selection_distance: 1,
               })) || succeeded;
           }

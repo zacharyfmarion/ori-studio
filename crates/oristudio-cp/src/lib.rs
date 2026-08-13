@@ -128,6 +128,20 @@ pub struct CreasePatternCommandPayload {
     /// Optional model-space hit tolerance for point/line tools.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub selection_distance: Option<f64>,
+    /// Optional model-space tolerance for closing `FlatFoldableCheck`'s boundary
+    /// loop. Absent means `Epsilon::UNKNOWN_1EN4` (which is `FACTOR * 1e-4`, so
+    /// 1e-6 — a geometric epsilon, not a pointer radius).
+    ///
+    /// Upstream closes the loop at the mouse release, against the pointer radius
+    /// (`MouseHandlerFlatFoldableCheck.java:68`), and a UI caller should send
+    /// that same radius here: our last path sample *is* the release point, so the
+    /// two tests are the same test. The field exists because we decide closure
+    /// from a finished point list, which a caller with no cursor can also produce
+    /// — the CLI, headless wasm, a detector import — and those must not inherit
+    /// whatever radius a mouse happened to have. Stating it beats defaulting to
+    /// a pointer radius seven orders of magnitude away from the epsilon.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub boundary_close_distance: Option<f64>,
     /// Optional override for what a kernel-side snap may land on.
     ///
     /// Oriedita gates its close-point search on grid visibility alone. Ori
@@ -2615,7 +2629,7 @@ pub fn execute_command(
                 &command.payload.points,
                 command
                     .payload
-                    .selection_distance
+                    .boundary_close_distance
                     .unwrap_or(Epsilon::UNKNOWN_1EN4),
             );
             if !closed {
@@ -6218,7 +6232,7 @@ mod tests {
                         Point::new(0.0, 1.0),
                         Point::new(-1.0, -1.0),
                     ],
-                    selection_distance: Some(0.01),
+                    boundary_close_distance: Some(0.01),
                     ..CreasePatternCommandPayload::default()
                 },
             ),
@@ -6241,7 +6255,7 @@ mod tests {
             CreasePatternCommand::new(OperationId::FlatFoldableCheck).with_payload(
                 CreasePatternCommandPayload {
                     points: vec![Point::new(-1.0, -1.0), Point::new(1.0, -1.0)],
-                    selection_distance: Some(0.01),
+                    boundary_close_distance: Some(0.01),
                     ..CreasePatternCommandPayload::default()
                 },
             ),
@@ -6252,6 +6266,53 @@ mod tests {
             vec!["Flat-foldable boundary check needs a closed loop"]
         );
         assert_eq!(open_check.diagnostic_entries[0].severity, "warning");
+    }
+
+    #[test]
+    fn flat_foldable_check_closes_on_its_own_tolerance_not_the_pointer_radius() {
+        // The frontend puts its pointer radius on every tool command, so the
+        // triangle below arrives with a `selection_distance` wide enough to span
+        // the 5-unit gap in its loop. Closure is a geometric question, so only
+        // `boundary_close_distance` may answer it.
+        let mut document = CreasePatternDocument::default();
+        let almost_closed = vec![
+            Point::new(-100.0, -100.0),
+            Point::new(100.0, -100.0),
+            Point::new(0.0, 100.0),
+            Point::new(-95.0, -100.0),
+        ];
+
+        let pointer_radius = execute_command(
+            &mut document,
+            CreasePatternCommand::new(OperationId::FlatFoldableCheck).with_payload(
+                CreasePatternCommandPayload {
+                    points: almost_closed.clone(),
+                    selection_distance: Some(5.442177),
+                    ..CreasePatternCommandPayload::default()
+                },
+            ),
+        )
+        .expect("FlatFoldableCheck should execute");
+        assert_eq!(
+            pointer_radius.diagnostics,
+            vec!["Flat-foldable boundary check needs a closed loop"]
+        );
+
+        let stated_tolerance = execute_command(
+            &mut document,
+            CreasePatternCommand::new(OperationId::FlatFoldableCheck).with_payload(
+                CreasePatternCommandPayload {
+                    points: almost_closed,
+                    boundary_close_distance: Some(5.442177),
+                    ..CreasePatternCommandPayload::default()
+                },
+            ),
+        )
+        .expect("FlatFoldableCheck should execute");
+        assert_eq!(
+            stated_tolerance.diagnostics,
+            vec!["Flat-foldable boundary check passed"]
+        );
     }
 
     #[test]
