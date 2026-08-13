@@ -47,6 +47,15 @@ const DEFAULT_SPAN = 1;
 const MAX_GRID_LINES = 80;
 const MAX_ORIEDITA_GRID_LINES = 460;
 const GRID_EPSILON = 1e-9;
+/**
+ * Vertices and bare points win from further away than grid points and line
+ * interiors do, because they are the targets a user aims *at* rather than falls
+ * back to.
+ *
+ * It multiplies the radius it is given, so the widest live reach on this surface
+ * is 1.75x the snap radius, not the radius — worth remembering when reading the
+ * user's setting as if it were the maximum. See `cp-workspace/snapRadius.ts`.
+ */
 const POINT_SNAP_DISTANCE_MULTIPLIER = 1.75;
 
 export interface OristudioCpSelection {
