@@ -301,9 +301,12 @@
  * browser, tuned per platform. A transform-driven slider would have to
  * reimplement each of them.
  *
- * `touch-action: pan-y pinch-zoom` is what keeps that from costing the page its
- * vertical scroll — horizontal drags drive the carousel, vertical ones still
- * move the page underneath it.
+ * `touch-action` must allow **both** axes. It reads like a way to say "vertical
+ * scrolling still belongs to the page", and `pan-y` was written here for exactly
+ * that reason — but it declares which pans this element accepts, so `pan-y`
+ * forbade the horizontal one and the carousel could not be swiped at all. The
+ * browser already picks an axis once a gesture commits; this only has to not
+ * take that choice away.
  */
 .landing-swipe__viewport {
   position: relative;
@@ -372,7 +375,7 @@
   overflow-x: auto;
   overflow-y: hidden;
   scroll-snap-type: x mandatory;
-  touch-action: pan-y pinch-zoom;
+  touch-action: pan-x pan-y pinch-zoom;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
   cursor: grab;
@@ -399,6 +402,15 @@
 .landing-swipe__slide img {
   -webkit-user-drag: none;
   user-select: none;
+}
+
+/* Only in the tabless (phone) shape, where it replaces the pill row. */
+.landing-swipe__slide-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.05rem;
+  font-weight: 760;
+  line-height: 1.3;
 }
 
 .landing-swipe__body {

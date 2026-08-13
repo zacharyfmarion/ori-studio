@@ -20,9 +20,17 @@ export interface LandingSwipeItem {
 }
 
 export interface LandingSwipeCarouselProps {
-  /** Names the tab list for screen readers, e.g. "Design methods". */
+  /** Names the control for screen readers, e.g. "Design methods". */
   label: string;
   items: readonly LandingSwipeItem[];
+  /**
+   * Whether to show the row of title buttons above the track.
+   *
+   * Off on a phone, where they cost a row (sometimes two) of vertical space to
+   * duplicate what a swipe already does, and where the dots plus each slide's
+   * own heading say the same thing in less room.
+   */
+  showTabs?: boolean;
 }
 
 function prefersReducedMotion(): boolean {
@@ -52,7 +60,11 @@ function prefersReducedMotion(): boolean {
  * three are short and benefit from being swiped. The two share the parts worth
  * sharing — `carouselKeyTarget`, `LandingFigure` — and nothing else.
  */
-export function LandingSwipeCarousel({ label, items }: LandingSwipeCarouselProps) {
+export function LandingSwipeCarousel({
+  label,
+  items,
+  showTabs = true,
+}: LandingSwipeCarouselProps) {
   const { t } = useTranslation();
   const baseId = useId();
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -128,41 +140,62 @@ export function LandingSwipeCarousel({ label, items }: LandingSwipeCarouselProps
 
   return (
     <div className="landing-swipe">
-      <div className="landing-swipe__tabs" role="tablist" aria-label={label} onKeyDown={onKeyDown}>
-        {items.map((item, index) => (
-          <button
-            key={item.id}
-            ref={(element) => {
-              tabRefs.current[index] = element;
-            }}
-            type="button"
-            role="tab"
-            id={tabId(index)}
-            className="landing-swipe__tab"
-            aria-selected={index === active}
-            aria-controls={slideId(index)}
-            tabIndex={index === active ? 0 : -1}
-            onClick={() => goTo(index)}
-          >
-            {item.title}
-          </button>
-        ))}
-      </div>
+      {showTabs ? (
+        <div
+          className="landing-swipe__tabs"
+          role="tablist"
+          aria-label={label}
+          onKeyDown={onKeyDown}
+        >
+          {items.map((item, index) => (
+            <button
+              key={item.id}
+              ref={(element) => {
+                tabRefs.current[index] = element;
+              }}
+              type="button"
+              role="tab"
+              id={tabId(index)}
+              className="landing-swipe__tab"
+              aria-selected={index === active}
+              aria-controls={slideId(index)}
+              tabIndex={index === active ? 0 : -1}
+              onClick={() => goTo(index)}
+            >
+              {item.title}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <div className="landing-swipe__viewport">
-        <div className="landing-swipe__track" ref={trackRef} {...dragHandlers}>
+        <div
+          className="landing-swipe__track"
+          ref={trackRef}
+          {...dragHandlers}
+          // Without the tab list there is nothing to describe the track, and it
+          // is a scroll container a keyboard can land on — so it names itself.
+          {...(showTabs ? {} : { role: 'group', 'aria-label': label, tabIndex: 0 })}
+        >
           {items.map((item, index) => (
             <div
               key={item.id}
               className="landing-swipe__slide"
-              role="tabpanel"
               id={slideId(index)}
-              aria-labelledby={tabId(index)}
+              // With tabs this is the panel they control. Without them there is
+              // no tablist, so calling it a tabpanel would be a lie — it is one
+              // slide of a group, and it carries its own heading instead.
+              {...(showTabs
+                ? { role: 'tabpanel', 'aria-labelledby': tabId(index) }
+                : { role: 'group', 'aria-roledescription': 'slide' })}
               // The off-screen slides stay in the DOM — that is what makes the
               // track scrollable — but they are not content anyone is shown.
               aria-hidden={index === active ? undefined : true}
             >
               <LandingFigure name={item.figure} alt={item.figureAlt} />
+              {showTabs ? null : (
+                <h3 className="landing-swipe__slide-title">{item.title}</h3>
+              )}
               <p className="landing-swipe__body">{item.body}</p>
             </div>
           ))}

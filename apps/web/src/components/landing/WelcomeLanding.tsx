@@ -4,10 +4,11 @@ import { track, type LandingCta, type LandingSectionId } from '../../analytics';
 import { DISCORD_URL, REPOSITORY_URL } from '../../constants/release';
 import { ButtonLink } from '../ui/Button';
 import { LandingFeatureCarousel } from './LandingFeatureCarousel';
-import { LandingSwipeCarousel } from './LandingSwipeCarousel';
+import { LandingSwipeCarousel, type LandingSwipeItem } from './LandingSwipeCarousel';
 import { LandingFigure } from './LandingFigure';
 import { LandingFormatRing } from './LandingFormatRing';
 import { LandingSection } from './LandingSection';
+import { useIsPhoneSurface } from '../../platform/mobileSurface';
 import './WelcomeLanding.css';
 
 /** The first section below the fold — where the scroll affordance jumps to. */
@@ -42,6 +43,7 @@ export const LANDING_SECTIONS = [
  */
 export function WelcomeLanding() {
   const { t } = useTranslation();
+  const phone = useIsPhoneSurface();
 
   return (
     <div className="welcome-landing">
@@ -74,7 +76,7 @@ export function WelcomeLanding() {
           'The Edit workspace is a port of Oriedita — the same drawing operations, the same way selection and line types behave — wrapped in a modern, simplified interface.'
         )}
       >
-        <LandingFeatureCarousel
+        <EditFeatures
           label={t('landing:edit.carouselLabel', 'Crease-pattern features')}
           items={[
             {
@@ -140,6 +142,7 @@ export function WelcomeLanding() {
         )}
       >
         <LandingSwipeCarousel
+          showTabs={!phone}
           label={t('landing:design.carouselLabel', 'Design methods')}
           items={[
             // Ordered and titled by the *method*, not by the tool it came from:
@@ -259,6 +262,20 @@ export function WelcomeLanding() {
       </LandingSection>
     </div>
   );
+}
+
+/**
+ * The Edit section's four features: a vertical list beside a panel where there
+ * is room for one, a swipe carousel on a phone where there is not.
+ *
+ * Two components rather than one that does both, because they are different
+ * controls — a list you scan against a track you swipe — and the seam between
+ * them belongs here, at the one call site that has to choose.
+ */
+function EditFeatures({ label, items }: { label: string; items: readonly LandingSwipeItem[] }) {
+  const phone = useIsPhoneSurface();
+  if (phone) return <LandingSwipeCarousel showTabs={false} label={label} items={items} />;
+  return <LandingFeatureCarousel label={label} items={items} />;
 }
 
 /** Shared by the CTA links here and by the scroll affordance in the route. */

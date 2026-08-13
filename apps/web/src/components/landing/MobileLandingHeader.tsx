@@ -1,5 +1,18 @@
 import { useTranslation } from 'react-i18next';
 
+const publicAssetBase = import.meta.env.BASE_URL.endsWith('/')
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`;
+
+/**
+ * A 256px copy of the app icon, not `favicon.png`.
+ *
+ * The favicon is a 1024px PNG weighing 2.2MB — fine as a tab icon a browser
+ * fetches once and scales to 16px, absurd as a 56px image on the page. This is
+ * 18K.
+ */
+const appIconSrc = `${publicAssetBase}landing/app-icon.webp`;
+
 export interface MobileLandingHeaderProps {
   /** Take the escape hatch: the caller opens the gate and lets the app load. */
   onOpenAnyway: () => void;
@@ -36,6 +49,16 @@ export function MobileLandingHeader({ onOpenAnyway }: MobileLandingHeaderProps) 
       </div>
 
       <div className="welcome-mobile-header__brand">
+        <img
+          className="welcome-mobile-header__icon"
+          src={appIconSrc}
+          // Decorative: the wordmark right beside it already says the name, so
+          // announcing it again would just be the same word twice.
+          alt=""
+          width={56}
+          height={56}
+          decoding="async"
+        />
         {/* eslint-disable-next-line i18next/no-literal-string -- brand name, never translated */}
         <h1 className="welcome-mobile-header__title">Ori Studio</h1>
         <p className="welcome-mobile-header__tagline">

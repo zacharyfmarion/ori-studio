@@ -259,6 +259,30 @@ describe('LandingSwipeCarousel', () => {
     expect(labels).toEqual(['Previous', 'Next']);
   });
 
+  it('drops the tabs and titles each slide instead when asked', () => {
+    // The phone shape. The pill row costs a row or two of vertical space to
+    // duplicate what a swipe already does, so the title moves onto the slide,
+    // under its own screenshot.
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    act(() =>
+      root?.render(<LandingSwipeCarousel label="Design methods" items={ITEMS} showTabs={false} />)
+    );
+
+    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(0);
+    expect(container.querySelectorAll('[role="tablist"]')).toHaveLength(0);
+    expect(
+      Array.from(container.querySelectorAll('.landing-swipe__slide-title')).map((h) => h.textContent)
+    ).toEqual(['Box Pleating', 'Circle Packing', 'ExplOri']);
+
+    // No tablist means no tabpanels either; calling them that would be a lie.
+    expect(container.querySelectorAll('[role="tabpanel"]')).toHaveLength(0);
+    const track = container.querySelector('.landing-swipe__track')!;
+    expect(track.getAttribute('role')).toBe('group');
+    expect(track.getAttribute('aria-label')).toBe('Design methods');
+  });
+
   it('reports where it came to rest, not every slide it passed', () => {
     vi.useFakeTimers();
     const { track } = renderCarousel();

@@ -98,7 +98,15 @@
 
 .welcome-mobile-header__brand {
   display: grid;
+  justify-items: start;
   gap: var(--space-3);
+}
+
+.welcome-mobile-header__icon {
+  display: block;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
 }
 
 .welcome-mobile-header__title {
