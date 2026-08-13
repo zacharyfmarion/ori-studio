@@ -108,7 +108,7 @@ export function WelcomeLanding() {
               title: t('landing:edit.diagnostics.title', 'Foldability you can check as you go'),
               body: t(
                 'landing:edit.diagnostics.body',
-                'Kawasaki and Maekawa checks, overlap and T-junction detection, and repairs for the ones worth fixing automatically.'
+                'Kawasaki and Maekawa where the paper folds flat, plus overlap and T-junction detection. Where it does not fold flat, each vertex is checked in three dimensions instead — walking the creases around it to see whether the folds close back up, and telling you how many degrees off they are when they do not.'
               ),
               figureAlt: t(
                 'landing:edit.diagnostics.figureAlt',
