@@ -92,7 +92,7 @@ export function WelcomeLanding() {
             {
               id: 'edit-media',
               figure: 'edit-media',
-              title: t('landing:edit.media.title', 'Images and text, properly'),
+              title: t('landing:edit.media.title', 'Rich Images and Text'),
               body: t(
                 'landing:edit.media.body',
                 'Put a reference photo of the subject next to the paper and annotate the canvas with rich text. Both are saved with the project and dropped cleanly when you export to a format that has no room for them.'
