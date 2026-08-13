@@ -138,6 +138,13 @@ const BP_STARTER_PROJECT = JSON.stringify({
  */
 const ensureBpInFlight = new Map<string, Promise<void>>();
 
+/**
+ * How far a leaf has to be off its length before repositioning it is worth an
+ * engine call. Tree positions are floats carrying a direction, so a leaf placed
+ * by an earlier edit lands within rounding of where this one wants it.
+ */
+const BP_LEAF_REPOSITION_EPSILON = 1e-6;
+
 export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (set, get) => {
   const confirmDiscardDirty = async (dirty: boolean): Promise<boolean> => {
     if (!dirty) return true;
@@ -324,8 +331,13 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
    * The same computation `edgeLengthRepositions` does for a typed edge length,
    * with the subtree walk dropped: a leaf's subtree is the leaf.
    *
-   * Null when the flap has no leaf edge, or the radius is unchanged — either way
-   * there is nothing to move.
+   * **"Nothing to move" is a question about the drawing, not about the number.**
+   * A resize drag sets the edge length on every step and defers the reposition to
+   * the release, so by the time the release runs the length already *is* the
+   * radius — a guard that compared the two would skip the one reposition the
+   * whole gesture was saving up for, and leave a leaf drawn one cell from its
+   * parent under a label reading 3. Ask instead whether the leaf is already the
+   * right distance out, which is the invariant this is here to restore.
    */
   const leafVertexLocationForRadius = (
     document: OristudioBpDocumentState,
@@ -336,12 +348,14 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     const edge = tree.edges.find(
       (candidate) => candidate.vertices[0] === flapId || candidate.vertices[1] === flapId
     );
-    if (!edge || edge.length === radius) return undefined;
+    if (!edge) return undefined;
     const parentId = edge.vertices[0] === flapId ? edge.vertices[1] : edge.vertices[0];
     const leaf = tree.vertices.find((vertex) => vertex.id === flapId);
     const parent = tree.vertices.find((vertex) => vertex.id === parentId);
     if (!leaf || !parent) return undefined;
-    return leafLocationAt(parent.loc, leaf.loc, radius);
+    const target = leafLocationAt(parent.loc, leaf.loc, radius);
+    const moved = Math.hypot(target.x - leaf.loc.x, target.y - leaf.loc.y);
+    return moved < BP_LEAF_REPOSITION_EPSILON ? undefined : target;
   };
 
   /**

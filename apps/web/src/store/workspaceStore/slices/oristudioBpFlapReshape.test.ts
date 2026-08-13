@@ -183,12 +183,59 @@ describe('reshapeOristudioBpFlap', () => {
     expect(reshapes()[0][1].vertex).toEqual({ x: -1, y: 4 });
   });
 
-  it('does not move the leaf when the radius is unchanged', async () => {
+  it('does not move the leaf when it is already the right distance out', async () => {
     setUp();
+    // Leaf 1 is at (2,4), two cells from the root at (4,4), under an edge of
+    // length 2. The drawing is already faithful, so there is nothing to do.
     await useWorkspaceStore
       .getState()
       .reshapeOristudioBpFlap(1, { ...FOOTPRINT, radius: 2 }, false);
     expect(reshapes()[0][1].vertex).toBeUndefined();
+  });
+
+  /**
+   * The release of a drag has to reposition the leaf even though the edge length
+   * already says what it will be.
+   *
+   * Every mid-drag step sets the length and skips the reposition, so by the
+   * release the length *is* the radius. A "has the length changed" guard would
+   * skip the one reposition the whole gesture was saving up for, leaving the leaf
+   * drawn one cell from its parent under a label reading 3. The question is about
+   * the drawing, not the number.
+   */
+  it('repositions the leaf on release even after the drag already set the length', async () => {
+    setUp();
+    // What a mid-gesture step does: length committed, drawing left alone.
+    await useWorkspaceStore.getState().reshapeOristudioBpFlap(1, FOOTPRINT, true);
+    expect(reshapes()[0][1].vertex).toBeUndefined();
+
+    // The snapshot the release reads now carries the new length already. The
+    // fixture stands in for that: edge 0-1 reads 5 while leaf 1 is still two
+    // cells out.
+    runtimeMocks.reshapeOristudioBpLayoutFlap.mockClear();
+    const settled = bpDocument();
+    settled.snapshot.tree.edges[0].length = 5;
+    runtimeMocks.reshapeOristudioBpLayoutFlap.mockImplementation(async () => settled);
+    useWorkspaceStore.setState(
+      {
+        ...useWorkspaceStore.getInitialState(),
+        ...singleBoxPleatDesignTab({
+          document: settled,
+          symmetry: {
+            ...AXIS,
+            enabled: true,
+            fold: 'book',
+            quarterTurn: false,
+            sidesSwapped: false,
+            pairs: [],
+          },
+        }),
+      },
+      true
+    );
+
+    await useWorkspaceStore.getState().reshapeOristudioBpFlap(1, FOOTPRINT, false);
+    expect(reshapes()[0][1].vertex).toEqual({ x: -1, y: 4 });
   });
 
   it('leaves the partner alone when the sheet cannot carry the fold', async () => {
