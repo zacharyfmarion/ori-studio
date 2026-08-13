@@ -1,4 +1,6 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { track, type LandingFeatureId } from '../../analytics';
 import { carouselKeyTarget } from './carouselKeys';
 import { LandingFigure } from './LandingFigure';
@@ -51,6 +53,7 @@ function prefersReducedMotion(): boolean {
  * sharing — `carouselKeyTarget`, `LandingFigure` — and nothing else.
  */
 export function LandingSwipeCarousel({ label, items }: LandingSwipeCarouselProps) {
+  const { t } = useTranslation();
   const baseId = useId();
   const trackRef = useRef<HTMLDivElement | null>(null);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -146,22 +149,55 @@ export function LandingSwipeCarousel({ label, items }: LandingSwipeCarouselProps
         ))}
       </div>
 
-      <div className="landing-swipe__track" ref={trackRef} {...dragHandlers}>
-        {items.map((item, index) => (
-          <div
-            key={item.id}
-            className="landing-swipe__slide"
-            role="tabpanel"
-            id={slideId(index)}
-            aria-labelledby={tabId(index)}
-            // The off-screen slides stay in the DOM — that is what makes the
-            // track scrollable — but they are not content anyone is being shown.
-            aria-hidden={index === active ? undefined : true}
+      <div className="landing-swipe__viewport">
+        <div className="landing-swipe__track" ref={trackRef} {...dragHandlers}>
+          {items.map((item, index) => (
+            <div
+              key={item.id}
+              className="landing-swipe__slide"
+              role="tabpanel"
+              id={slideId(index)}
+              aria-labelledby={tabId(index)}
+              // The off-screen slides stay in the DOM — that is what makes the
+              // track scrollable — but they are not content anyone is shown.
+              aria-hidden={index === active ? undefined : true}
+            >
+              <LandingFigure name={item.figure} alt={item.figureAlt} />
+              <p className="landing-swipe__body">{item.body}</p>
+            </div>
+          ))}
+        </div>
+
+        {/*
+          Overlaid on the figure, not the whole slide: the wrapper carries the
+          same 16:9 as `LandingFigure`, so the arrows sit on the screenshot's
+          centre line rather than being dragged low by the paragraph under it.
+
+          They clamp at the ends rather than wrapping, because the track has real
+          ends — it is a scroll container, not a loop, and a "next" that scrolls
+          the whole way back is a jump, not a step. The arrow *keys* still wrap;
+          that is the tab-list convention and costs no visible travel.
+        */}
+        <div className="landing-swipe__nav">
+          <button
+            type="button"
+            className="landing-swipe__arrow"
+            aria-label={t('landing:carousel.previous', 'Previous')}
+            disabled={active === 0}
+            onClick={() => goTo(active - 1)}
           >
-            <LandingFigure name={item.figure} alt={item.figureAlt} />
-            <p className="landing-swipe__body">{item.body}</p>
-          </div>
-        ))}
+            <ChevronLeft size={20} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="landing-swipe__arrow"
+            aria-label={t('landing:carousel.next', 'Next')}
+            disabled={active === items.length - 1}
+            onClick={() => goTo(active + 1)}
+          >
+            <ChevronRight size={20} aria-hidden="true" />
+          </button>
+        </div>
       </div>
 
       <div className="landing-swipe__dots" aria-hidden="true">

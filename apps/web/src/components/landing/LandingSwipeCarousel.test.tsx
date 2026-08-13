@@ -218,6 +218,47 @@ describe('LandingSwipeCarousel', () => {
     expect(track.scrollLeft).toBe(0);
   });
 
+  it('steps with the arrow buttons', () => {
+    const { scrollTo } = renderCarousel();
+    const arrows = () =>
+      Array.from(container!.querySelectorAll<HTMLButtonElement>('.landing-swipe__arrow'));
+    const [prev, next] = arrows();
+
+    act(() => next.click());
+    expect(selectedTitle()).toBe('Circle Packing');
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: SLIDE_WIDTH, behavior: 'smooth' });
+
+    act(() => prev.click());
+    expect(selectedTitle()).toBe('Box Pleating');
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, behavior: 'smooth' });
+  });
+
+  it('clamps the arrows at the ends rather than wrapping', () => {
+    // The track is a scroll container, not a loop: a "next" that scrolls all the
+    // way back to the start is a jump, not a step.
+    renderCarousel();
+    const arrows = () =>
+      Array.from(container!.querySelectorAll<HTMLButtonElement>('.landing-swipe__arrow'));
+
+    expect(arrows().map((a) => a.disabled)).toEqual([true, false]);
+
+    act(() => arrows()[1].click());
+    expect(arrows().map((a) => a.disabled)).toEqual([false, false]);
+
+    act(() => arrows()[1].click());
+    expect(selectedTitle()).toBe('ExplOri');
+    expect(arrows().map((a) => a.disabled)).toEqual([false, true]);
+  });
+
+  it('names the arrows, since a chevron alone says nothing', () => {
+    renderCarousel();
+    const labels = Array.from(
+      container!.querySelectorAll('.landing-swipe__arrow')
+    ).map((a) => a.getAttribute('aria-label'));
+
+    expect(labels).toEqual(['Previous', 'Next']);
+  });
+
   it('reports where it came to rest, not every slide it passed', () => {
     vi.useFakeTimers();
     const { track } = renderCarousel();

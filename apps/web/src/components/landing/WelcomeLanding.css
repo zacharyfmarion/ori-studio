@@ -305,6 +305,65 @@
  * vertical scroll — horizontal drags drive the carousel, vertical ones still
  * move the page underneath it.
  */
+.landing-swipe__viewport {
+  position: relative;
+  min-width: 0;
+}
+
+/*
+ * The arrows overlay the *figure*, not the slide. Carrying the same 16:9 as
+ * `LandingFigure` puts them on the screenshot's centre line; centering on the
+ * track instead would drag them down by however many lines the body ran to.
+ */
+.landing-swipe__nav {
+  position: absolute;
+  inset: 0 0 auto 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  aspect-ratio: 16 / 9;
+  padding: 0 var(--space-3);
+  /* Only the buttons take clicks; the rest of the figure stays draggable. */
+  pointer-events: none;
+}
+
+.landing-swipe__arrow {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--bg-elevated) 88%, transparent);
+  color: var(--text-primary);
+  pointer-events: auto;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.landing-swipe__arrow:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent-primary) 62%, var(--border-default));
+  background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-elevated));
+}
+
+.landing-swipe__arrow:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-primary) 72%, transparent);
+  outline-offset: 2px;
+}
+
+/*
+ * Kept in place when there is nowhere to go, rather than removed: an arrow that
+ * disappears at the ends makes the figure jump sideways as you page through.
+ */
+.landing-swipe__arrow:disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+
 .landing-swipe__track {
   display: grid;
   grid-auto-flow: column;
@@ -749,6 +808,21 @@
  * fits a phone would overlap, so the orbit unwinds into a centred wrap and the
  * hub moves above it — the same information, laid out in the space available.
  */
+/*
+ * No arrows on a narrow screen. Swipe is the native affordance there, the dots
+ * already say where you are, and two 40px buttons over a ~340px figure cover the
+ * thing they are meant to help you look at.
+ */
+@media (max-width: 560px) {
+  .landing-swipe__nav {
+    display: none;
+  }
+}
+
+[data-surface='phone'] .landing-swipe__nav {
+  display: none;
+}
+
 @media (max-width: 560px) {
   .landing-ring {
     aspect-ratio: auto;
