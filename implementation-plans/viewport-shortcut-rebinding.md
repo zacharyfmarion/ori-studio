@@ -184,8 +184,13 @@ only, so an unmodified keymap must dispatch identically before and after.
       existing `unbindTitle` / `unbindMessage`, and `alreadyAssigned` is still
       reachable for Undo/Redo, so no string was added or orphaned.
 - [x] `lint:web`, `tsc --noEmit`, and the full `vitest` suite green.
-- [ ] Browser check (author): bind `5` to a CP tool, confirm the prompt names
-      Zoom Out, confirm `5` then draws.
+- [x] Browser check on the dev server: capturing `5` on a crease-pattern row
+      prompts "Unbind Zoom Out?" rather than refusing, the eviction persists as
+      `viewport.zoomOut: null`, and a *trusted* `5` keypress then reaches the CP
+      action — the Type rail moves M → V and the status bar reads "Line V".
+      Note for anyone repeating this: a synthetic `window` keydown reaches the
+      Settings capture listener but **not** `handleAppKeyDown`, so dispatch has to
+      be checked with a real key press, not `dispatchEvent`.
 
 ## What changed during implementation
 
