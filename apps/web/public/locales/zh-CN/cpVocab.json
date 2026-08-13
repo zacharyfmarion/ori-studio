@@ -521,7 +521,7 @@
       }
     },
     "cp_action_continuous_symmetric_draw": {
-      "label": "穿线反射",
+      "label": "穿层折线",
       "tooltip": "连续对称绘制",
       "disabledReason": "就绪",
       "steps": {

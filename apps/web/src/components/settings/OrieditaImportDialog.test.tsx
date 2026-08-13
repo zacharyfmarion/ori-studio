@@ -5,6 +5,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { handleShortcutKeyDown } from '../../keyboard/shortcutDispatcher';
+import { buildZip } from '../../lib/orieditaImport/__fixtures__/buildZip';
 import { shortcutScopeStackForContext } from '../../keyboard/shortcutRuntime';
 import type { ShortcutActionId } from '../../keyboard/shortcuts';
 import { SHORTCUT_STORAGE_KEY, useShortcutStore } from '../../store/shortcutStore';
@@ -196,6 +197,36 @@ async function openSample(name = 'sample'): Promise<void> {
   await clickAndSettle(button('Choose Settings Export'));
 }
 
+/**
+ * An archive built on demand, for the cases the committed fixture cannot reach.
+ *
+ * `sample.oriconfig` yields exactly one offer, which is the right shape for the
+ * single-row tests and the wrong one for anything about doing several at once.
+ * Built rather than committed so the collisions it relies on are readable here,
+ * beside the assertions that depend on them.
+ */
+async function openBuilt(hotkeys: string): Promise<void> {
+  openBinaryFile.mockResolvedValue(
+    openedFile(buildZip([{ name: 'hotkey.properties', data: hotkeys }]))
+  );
+  render();
+  await clickAndSettle(button('Choose Settings Export'));
+}
+
+/**
+ * Three rows: two that collide with a binding the user may evict, and one with no
+ * counterpart at all — so "override all" has more than one offer to take, and
+ * something it must leave alone.
+ */
+const TWO_OFFERS_AND_A_DEAD_ROW = [
+  // Shift+A is Measure Angle's.
+  'colRedAction=shift pressed A',
+  // 5 is Zoom Out's second chord, which claims it unconditionally.
+  'makeFlatFoldableAction=pressed 5',
+  // Nothing here answers to it, so no approval can rescue it.
+  'spacedAction=shift ctrl pressed V',
+].join('\n');
+
 beforeEach(() => {
   localStorage.clear();
   useShortcutStore.setState(initialShortcutState, true);
@@ -289,6 +320,43 @@ describe('OrieditaImportDialog', () => {
     expect(button('Apply').disabled).toBe(false);
     // Still nothing written: consent to unbind is not consent to import.
     expect(useShortcutStore.getState().overrides).toEqual({});
+  });
+
+  it('takes every offer at once, and leaves the unrescuable rows alone', async () => {
+    await openBuilt(TWO_OFFERS_AND_A_DEAD_ROW);
+    const rescuable = rowsUnder('Skipped').filter((row) => row.includes('Use anyway')).length;
+    expect(rescuable).toBe(2);
+
+    await click(button('Override all'));
+
+    // Every offer taken, and each one still shown as a cost before Apply — the
+    // bulk control is a shortcut through the clicking, not around the review.
+    expect(rowsUnder('Will change').length).toBe(rescuable);
+    expect(rowsUnder('Will be unbound').length).toBe(rescuable);
+    expect(rowsUnder('Skipped').some((row) => row.includes('Use anyway'))).toBe(false);
+    // The rows no approval reaches are untouched: an unmapped action has no
+    // blocker to unbind, so "all" must not quietly mean "all of them".
+    expect(rowsUnder('Skipped')).toContain(
+      'spacedAction | no matching action — Ori Studio has no matching action. | shift ctrl pressed V'
+    );
+    // Still nothing written until Apply.
+    expect(useShortcutStore.getState().overrides).toEqual({});
+  });
+
+  it('withholds the bulk control when a single click would do', async () => {
+    // One offer is one click already sitting in the row, and a header button
+    // beside it is a second way to do the same thing.
+    await openSample();
+    await click(useAnywayOn('Mountain') as HTMLButtonElement);
+
+    expect(
+      rowsUnder('Skipped').filter((row) => row.includes('Use anyway')).length
+    ).toBeLessThan(2);
+    expect(
+      Array.from(container?.querySelectorAll('button') ?? []).some(
+        (element) => element.textContent === 'Override all'
+      )
+    ).toBe(false);
   });
 
   it('takes the offer back when the displaced binding is kept', async () => {

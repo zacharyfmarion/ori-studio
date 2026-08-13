@@ -1457,6 +1457,17 @@
   text-decoration: underline;
 }
 
+/*
+ * The bulk variant in the section header. `font: inherit` is right inside a row,
+ * where it keeps the link part of the sentence around it, and wrong here — the
+ * header has no body text to match, so it inherited the dialog's base size and
+ * came out louder than the rows it acts on. Sized to the row's action instead,
+ * which is the thing it is a shorthand for.
+ */
+.oriedita-import__use-anyway--all {
+  font-size: 0.78rem;
+}
+
 .oriedita-import__use-anyway:focus-visible {
   outline: 2px solid var(--accent-primary);
   outline-offset: 2px;
@@ -2251,6 +2262,19 @@
 .settings-section {
   display: grid;
   gap: var(--space-2);
+  min-width: 0;
+}
+
+/*
+ * Title on the left, an optional bulk control on the right. Baseline-aligned
+ * rather than centred: the control is text, and centring it against an uppercase
+ * micro-heading leaves it sitting visibly low.
+ */
+.settings-section__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
   min-width: 0;
 }
 

@@ -521,7 +521,7 @@
       }
     },
     "cp_action_continuous_symmetric_draw": {
-      "label": "Refletir através das linhas",
+      "label": "Vinco através das camadas",
       "tooltip": "Desenho simétrico contínuo",
       "disabledReason": "Pronto",
       "steps": {

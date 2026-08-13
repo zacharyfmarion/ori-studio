@@ -2689,6 +2689,15 @@ export function CreasePatternPanel() {
   // No `default`: the switch is exhaustive over `ViewportShortcutId`, so a new
   // viewport verb fails to compile here until this surface says whether it
   // claims the chord or hands it on.
+  //
+  // Which arms below can answer `false` is mirrored by
+  // `DECLINING_VIEWPORT_SHORTCUTS` in `keyboard/shortcuts.ts`, which is what the
+  // conflict rules read: a verb listed there is treated as transparent when
+  // something else wants its chord, and one not listed is an ordinary blocker a
+  // user may evict. Adding or removing a condition here without updating that
+  // set makes the Settings capture UI and the Oriedita import lie about who owns
+  // a key. This surface is the one the set is read from, because it is the one
+  // live in the same context as the crease-pattern bindings these collide with.
   const handleViewportShortcut = useCallback(
     (id: ViewportShortcutId): boolean => {
       switch (id) {

@@ -331,11 +331,25 @@ describe('shadowing', () => {
     expect(built.overrides).toEqual({});
   });
 
-  it('skips a menu chord that a viewport binding would swallow', () => {
+  it('applies a menu chord a declining viewport binding only shares', () => {
+    // `viewport.delete` holds Delete too and precedes global scope, but it
+    // answers `false` when nothing is selected and the chord falls through —
+    // the coexistence `edit.delete` has relied on all along. This row used to be
+    // skipped on the strength of the very mechanism that makes it safe.
     const built = plan({ deleteSelectedLineSegmentAction: 'pressed DELETE' });
-    expect(outcomeOf(built, 'deleteSelectedLineSegmentAction')).toBe('skip:shadowed');
-    expect(rowFor(built, 'deleteSelectedLineSegmentAction').detail.shadowing?.winnerId).toBe(
-      'viewport.delete'
+    expect(outcomeOf(built, 'deleteSelectedLineSegmentAction')).toBe('apply:delete');
+    expect(built.overrides['edit.delete']).toEqual([{ key: 'delete' }]);
+  });
+
+  it('still skips a chord an always-claiming viewport binding owns', () => {
+    // The other half of the same distinction, and the bug a user hit: `5` is a
+    // default second chord on Zoom Out, which claims it unconditionally, so a
+    // crease-pattern tool bound there would simply never fire. Skipped — but now
+    // with an offer to displace it, asserted below.
+    const built = plan({ makeFlatFoldableAction: 'pressed 5' });
+    expect(outcomeOf(built, 'makeFlatFoldableAction')).toBe('skip:shadowed');
+    expect(rowFor(built, 'makeFlatFoldableAction').detail.shadowing?.actionId).toBe(
+      'viewport.zoomOut'
     );
   });
 
@@ -379,14 +393,17 @@ describe('a simulator collision must not hide a real one', () => {
     );
   });
 
-  it('skips a crease-pattern chord a viewport binding owns beneath the simulator', () => {
-    // Left is claimed by `simulator.foldBackward` *and* `viewport.solveAnglesPrevious`,
-    // and viewport always precedes crease-pattern.
+  it('applies a chord whose claimants above it may all decline', () => {
+    // The counterpart to the case above, and the reason "look beneath the
+    // simulator claim" is not the same rule as "reject what you find there".
+    // Left is claimed by `simulator.foldBackward` *and*
+    // `viewport.solveAnglesPrevious`. Viewport does always precede
+    // crease-pattern, but that binding answers `false` unless a fold-angle solve
+    // is holding answers, so Mountain gets the key the rest of the time — the
+    // same deferral the simulator claim above it is already forgiven for.
     const built = plan({ colRedAction: 'pressed LEFT' });
-    expect(outcomeOf(built, 'colRedAction')).toBe('skip:shadowed');
-    expect(rowFor(built, 'colRedAction').detail.shadowing?.actionId).toBe(
-      'viewport.solveAnglesPrevious'
-    );
+    expect(outcomeOf(built, 'colRedAction')).toBe('apply:arrowleft');
+    expect(built.overrides['cp.action.line-type.mountain']).toEqual([{ key: 'arrowleft' }]);
   });
 
   it('still applies a chord only a simulator binding shares', () => {
@@ -714,9 +731,10 @@ describe('every eviction has a surviving taker', () => {
  */
 describe('blockers that are never offered', () => {
   const cases: Array<[name: string, entries: Record<string, string | null>, action: string, id: ShortcutActionId]> = [
-    // `viewport.delete` shares Delete with `edit.delete` by design: the viewport
-    // executor declines when nothing is selected and the chord falls through.
-    ['a viewport binding, which declines rather than blocks', { deleteSelectedLineSegmentAction: 'pressed DELETE' }, 'deleteSelectedLineSegmentAction', 'edit.delete'],
+    // A declining viewport binding is deliberately absent: it no longer blocks a
+    // row at all, so there is nothing here to withhold an offer from. That case
+    // now lives in `shadowing` above, as an applied row.
+    //
     // Undo merges its overrides with the defaults, so the `null` would not take.
     ['undo, which cannot honour a null override', { colRedAction: 'ctrl pressed Z' }, 'colRedAction', 'cp.action.line-type.mountain'],
     // `cp.deleteExtraVertices` and `cp.action.delete-extra-vertices` both carry

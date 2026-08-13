@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Keyboard, Upload, X } from 'lucide-react';
@@ -273,15 +273,21 @@ function PlanSection({
   title,
   rows,
   onUseAnyway,
+  action,
 }: {
   title: string;
   rows: OrieditaImportRow[];
   onUseAnyway: (shortcutId: ShortcutActionId) => void;
+  /** Optional control in the header, opposite the title. */
+  action?: ReactNode;
 }) {
   if (rows.length === 0) return null;
   return (
     <section className="settings-section">
-      <h3 className="settings-section__title">{title}</h3>
+      <div className="settings-section__header">
+        <h3 className="settings-section__title">{title}</h3>
+        {action}
+      </div>
       <div className="settings-shortcuts__table">
         {rows.map((row) => (
           <PlanRow key={row.orieditaAction} row={row} onUseAnyway={onUseAnyway} />
@@ -388,6 +394,55 @@ export function OrieditaImportDialog({ onClose }: { onClose: () => void }) {
     });
   }, []);
 
+  /**
+   * Take every offer at once, for an archive whose keymap collides with ours in
+   * bulk — clicking through them one at a time is the same decision fifteen
+   * times.
+   *
+   * Approves offers rather than rows: the skipped list also holds rows nothing
+   * can rescue (no matching action, not bindable, the browser owns the chord),
+   * and this must not pretend otherwise. Each eviction it approves still appears
+   * under "will be unbound" before Apply, and `revokeEviction` still takes any
+   * single one back, so this is a shortcut through the clicking and not a way
+   * around the review.
+   *
+   * A fixpoint rather than one pass over what is on screen. `offersFor` derives
+   * its offers from the *settled* plan, so a row queued behind a second
+   * always-present claimant carries no offer until that claimant is evicted —
+   * the measured chain being radial snapping holding `R`, which keeps Mirror Line
+   * on `M`, which keeps Mountain off it. One pass would approve the front of such
+   * a chain and leave the rows behind it skipped, which is the dead end this
+   * button exists to remove. Re-planning terminates because the set only grows
+   * and is bounded by the number of rows.
+   */
+  const allowEveryEviction = useCallback(() => {
+    if (stage.kind !== 'review') return;
+    const next = new Set(allowEvictionFor);
+    for (;;) {
+      const settled = buildOrieditaImportPlan({
+        hotkeys: stage.hotkeys,
+        currentOverrides: overrides,
+        defaultsSource,
+        allowEvictionFor: next,
+      });
+      const fresh = settled.rows.flatMap((row) => {
+        const id = row.detail.evictionOffer?.takenById;
+        return id && !next.has(id) ? [id] : [];
+      });
+      if (fresh.length === 0) break;
+      for (const id of fresh) next.add(id);
+    }
+    const approved = next.size - allowEvictionFor.size;
+    if (approved === 0) return;
+    setAllowEvictionFor(next);
+    // Worth its own event rather than left to the Apply counts: those say how
+    // many bindings an import displaced, not whether anyone could face doing it
+    // one row at a time. Bucketed, like every count this dialog sends.
+    track('oriedita shortcuts override all', {
+      overridden_count: bucketCount(approved, IMPORT_COUNT_BUCKETS),
+    });
+  }, [allowEvictionFor, defaultsSource, overrides, stage]);
+
   const chooseArchive = useCallback(async () => {
     setStage({ kind: 'reading' });
     // Consent belongs to the archive it was given for, not to the dialog.
@@ -451,6 +506,11 @@ export function OrieditaImportDialog({ onClose }: { onClose: () => void }) {
   const changing = applied.filter((row) => !row.detail.alreadyMatches);
   const unchanged = applied.filter((row) => row.detail.alreadyMatches);
   const skipped = plan?.rows.filter((row) => row.outcome.kind === 'skip') ?? [];
+  // Skipped rows something can actually be done about. The rest of the list is
+  // rows no approval reaches — unmapped actions, unbindable targets, chords the
+  // browser owns — so it is this count, not `skipped.length`, that decides
+  // whether a bulk control has anything to offer.
+  const offered = skipped.filter((row) => row.detail.evictionOffer);
 
   const applyPlan = () => {
     if (!plan) return;
@@ -552,6 +612,27 @@ export function OrieditaImportDialog({ onClose }: { onClose: () => void }) {
                 })}
                 rows={skipped}
                 onUseAnyway={allowEviction}
+                action={
+                  /* Only worth a header control when it saves more than the one
+                     click already sitting in the row. With a single offer the
+                     inline "Use anyway" is both nearer and clearer. */
+                  offered.length > 1 ? (
+                    <button
+                      type="button"
+                      className="oriedita-import__use-anyway oriedita-import__use-anyway--all"
+                      onClick={allowEveryEviction}
+                      /* The visible label carries no count on purpose: a chain of
+                         offers can free more rows than are showing one right now,
+                         so a number here would undercount its own effect. */
+                      aria-label={t(
+                        'dialogs:orieditaImport.useAllLabel',
+                        'Use every skipped key that can override what holds it'
+                      )}
+                    >
+                      {t('dialogs:orieditaImport.useAll', 'Override all')}
+                    </button>
+                  ) : null
+                }
               />
             </>
           )}

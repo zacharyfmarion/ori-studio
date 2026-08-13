@@ -8,6 +8,7 @@ import {
   isShortcutBindable,
   shortcutIdForOrieditaAction,
   shortcutKeepsDefaultChords,
+  shortcutMayDecline,
   type KeyChord,
   type ShortcutActionId,
   type ShortcutDefaultsSource,
@@ -357,15 +358,18 @@ function shadowingRecord(shadowing: ShortcutShadowing): OrieditaImportShadowing 
 }
 
 /**
- * Every `simulator` binding silenced, so a shadow check can ask what a chord does
- * in the stack the user is in the rest of the time.
+ * Every claimant that may not answer a chord silenced, so a shadow check can ask
+ * what the chord does in the stack the user is in the rest of the time. Two
+ * kinds: `simulator` bindings, in the stack only while a simulation owns the
+ * keyboard, and viewport bindings that {@link shortcutMayDecline}, in the stack
+ * always but handing the chord on when they do not apply.
  *
  * `findShortcutShadowing` reports the single highest-precedence other claimant.
- * When that is a `simulator` binding it answers `conditional` and stops — and
- * anything claiming the same chord *below* it is invisible. That hidden claimant
- * is not conditional at all: `viewport` always precedes `crease-pattern`, and
- * within one scope registry order decides, so it swallows the chord whenever no
- * simulation owns the keyboard, which is nearly always.
+ * When that is one of these it answers `conditional` and stops — and anything
+ * claiming the same chord *below* it is invisible. That hidden claimant is not
+ * conditional at all: `viewport` always precedes `crease-pattern`, and within one
+ * scope registry order decides, so it swallows the chord whenever no simulation
+ * owns the keyboard, which is nearly always.
  *
  * Concretely, `foldAction=F` resolves to `cp.action.folding-estimate`, where
  * `simulator.toggleFaces` masks `cp.action.line-type.auxiliary` — which still
@@ -373,27 +377,29 @@ function shadowingRecord(shadowing: ShortcutShadowing): OrieditaImportShadowing 
  * `conditional` alone applied the row and labelled the result "shares the key
  * with the simulator", when in fact Fold never fired.
  */
-const SIMULATOR_SCOPE_SILENCED: ShortcutOverrides = Object.fromEntries(
-  SHORTCUT_DEFINITIONS.filter((definition) => definition.scope === 'simulator').map(
-    (definition) => [definition.id, []]
-  )
+const CONDITIONAL_CLAIMANTS_SILENCED: ShortcutOverrides = Object.fromEntries(
+  SHORTCUT_DEFINITIONS.filter(
+    (definition) => definition.scope === 'simulator' || shortcutMayDecline(definition.id)
+  ).map((definition) => [definition.id, []])
 );
 
 /**
- * The shadowing that survives with the `simulator` scope out of the stack, i.e.
- * the one that is real regardless of what the simulator is doing. Null means the
- * chord is genuinely only shared with a simulation.
+ * The shadowing that survives with every may-not-answer claimant out of the
+ * stack, i.e. the one that is real regardless of what the simulator is doing or
+ * what the viewport happens to have selected. Null means the chord is genuinely
+ * only shared with one of those.
  */
-function shadowingWithoutSimulator(
+function shadowingWithoutConditionalClaimants(
   id: ShortcutActionId,
   chord: KeyChord,
   resolution: PlanResolution
 ): ShortcutShadowing | null {
-  // Silencing the scope an action lives in would ask a meaningless question.
-  if (getShortcutDefinition(id)?.scope === 'simulator') return null;
+  // Silencing the binding being asked about would ask a meaningless question.
+  const definition = getShortcutDefinition(id);
+  if (definition?.scope === 'simulator' || shortcutMayDecline(id)) return null;
   return findShortcutShadowing(id, chord, {
     ...resolution,
-    overrides: { ...resolution.overrides, ...SIMULATOR_SCOPE_SILENCED },
+    overrides: { ...resolution.overrides, ...CONDITIONAL_CLAIMANTS_SILENCED },
   });
 }
 
@@ -461,7 +467,7 @@ function resolveShadowing(
       // simulator was sitting on top of a crease-pattern binding that takes the
       // chord whenever no simulation is focused.
       if (shadowing.kind === 'conditional') {
-        const beneath = shadowingWithoutSimulator(id, chord, resolution);
+        const beneath = shadowingWithoutConditionalClaimants(id, chord, resolution);
         if (!beneath) {
           deferred.set(id, shadowingRecord(shadowing));
           continue;
@@ -572,11 +578,18 @@ function canEvict(
  * Two kinds, both of which `findShortcutShadowing` reports as conflicts because
  * it compares chords and cannot see intent:
  *
- * - **A `viewport` binding.** Viewport executors *decline* a chord they do not
- *   own and let it fall through — that is the documented mechanism behind
+ * - **A binding that {@link shortcutMayDecline}.** It answers `false` when it does
+ *   not apply and the chord falls through — the documented mechanism behind
  *   `viewport.delete` sharing Delete with `edit.delete`. Both work today;
  *   unbinding the viewport half would break deleting a selected canvas object to
- *   "fix" a conflict that never fires.
+ *   "fix" a conflict that never fires. Defensive by now, since a declining
+ *   binding is silenced before the shadow check and so is no longer reported as
+ *   a blocker at all — but the contract belongs here, not only at the call site
+ *   that currently makes it unreachable.
+ *
+ *   This read `blocker.scope === 'viewport'`, which also covered Zoom Out and the
+ *   other nine chords no viewport executor ever hands back, and left them with no
+ *   "Use anyway" offer and therefore no way through the import at all.
  * - **The same verb twice.** `cp.deleteExtraVertices` and
  *   `cp.action.delete-extra-vertices` both carry `v_del_allAction` and run the
  *   same sweep, so removing either changes nothing except the user's confidence
@@ -585,7 +598,7 @@ function canEvict(
 function isSharedByDesign(blockerId: ShortcutActionId, takenById: ShortcutActionId): boolean {
   const blocker = getShortcutDefinition(blockerId);
   if (!blocker) return false;
-  if (blocker.scope === 'viewport') return true;
+  if (shortcutMayDecline(blockerId)) return true;
   const taker = getShortcutDefinition(takenById);
   return Boolean(
     blocker.upstreamAction && taker?.upstreamAction === blocker.upstreamAction
@@ -624,7 +637,7 @@ function offersFor(
     // the resolver will refuse. Any remaining always-present claimant blocks the
     // row whichever way the contest goes — a binding that loses its chord is as
     // dead as one that never got it — while a simulator claimant is fine, since
-    // those coexist by design. That is exactly `shadowingWithoutSimulator`.
+    // those coexist by design. That is exactly `shadowingWithoutConditionalClaimants`.
     //
     // Without this, `Mod+B` advertised removing Rabbit Ear while Build Crease
     // Pattern sat behind it: one approval spends itself on one binding, so the
@@ -633,7 +646,7 @@ function offersFor(
       overrides: { ...current.overrides, [blockerId]: null, [id]: [chord] },
       defaultsSource: current.defaultsSource,
     };
-    if (shadowingWithoutSimulator(id, chord, withBlockerGone)) continue;
+    if (shadowingWithoutConditionalClaimants(id, chord, withBlockerGone)) continue;
     offers.set(id, {
       evictedId: blockerId,
       evictedLabel: definition.label,
