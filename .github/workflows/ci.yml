@@ -28,6 +28,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Everything under apps/web/src/generated/ is a build output: this job, the
+      # deploy workflows and Tauri's beforeBuildCommand all run `build:wasm`.
+      # Nothing else here would notice one being committed again — a stale
+      # `.wasm` still lints, typechecks and passes vitest, because a body-only
+      # kernel edit leaves the `.js`/`.d.ts` glue identical. That is exactly the
+      # rot 12cb505f removed. The directory is gitignored, so plain `git add`
+      # cannot trip this; only a deliberate `-f` (or an edit to the ignore rule)
+      # can. Runs before any toolchain setup, so it costs nothing and fails fast.
+      - name: No tracked build outputs
+        run: |
+          tracked=$(git ls-files apps/web/src/generated)
+          if [ -n "$tracked" ]; then
+            echo "::error::apps/web/src/generated/ must stay untracked; these are committed:"
+            echo "$tracked" | sed 's/^/  /'
+            echo "Fix: git rm --cached -r apps/web/src/generated"
+            exit 1
+          fi
+
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:

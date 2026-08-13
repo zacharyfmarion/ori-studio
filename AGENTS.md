@@ -291,10 +291,12 @@ in `implementation-plans/angle-restricted-endpoint-snap.md`.)
 
 GitHub Actions runs two main jobs:
 
-- `web-client`: installs Rust and Node, installs `wasm-pack`, builds the
-  simulator and all four wasm bridges, then runs web lint, i18n check,
-  typecheck, and unit tests (the latter with `--ignore-scripts`, so they do not
-  rebuild what the dedicated step just built).
+- `web-client`: first asserts nothing under `apps/web/src/generated/` is tracked
+  (see the wasm note above — a committed artifact passes every other check in
+  this job), then installs Rust and Node, installs `wasm-pack`, builds the
+  simulator and all four wasm bridges, and runs web lint, i18n check, typecheck,
+  and unit tests (the latter with `--ignore-scripts`, so they do not rebuild what
+  the dedicated step just built).
 - `native-oracle`: installs Tauri Linux dependencies, runs Rust format, clippy,
   workspace tests, builds the C++ oracle, and runs oracle parity tests.
 
