@@ -69,7 +69,7 @@ have made the start screen the one place showing a different answer.
   --yaw 0 --pitch 0 --sweep 0.5`. `folded3dMesh` hands back the figure in
   the paper's frame, where the paper normal is vertical — right for an editor
   figure being looked down at, wrong for a hero that should stand. Three
-  Three automatic guesses at the upright axis all failed against the eye: the
+  automatic guesses at the upright axis all failed against the eye: the
   principal axis (the model is a 110x106x52 slab with no dominant elongation),
   the most-protruding vertex, and a screen-aspect search over orientations. The
   mirror plane *is* computable (normal on the renderer's Y, 1.9% reflection
