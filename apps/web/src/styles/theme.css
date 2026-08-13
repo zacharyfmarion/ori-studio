@@ -2278,34 +2278,25 @@
   cursor: pointer;
 }
 
+/*
+ * Deliberately unboxed. Each row already sits under a `.settings-section__title`
+ * that does the grouping, so a border and a surface around a single row was a
+ * second frame saying the same thing. The copy stays flush with that title, as
+ * the `<label>` checkboxes this replaced were.
+ *
+ * No focus rule either: the row is a mouse hit target, not a tab stop. Every row
+ * holds a Radix switch — a `button`, never an `input` — and that switch carries
+ * its own ring via `.toggle-switch:focus-visible`.
+ */
 .settings-toggle-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  padding: var(--space-3);
-  /*
-   * `--border-default`, not `--border-strong`. The latter maps from the theme
-   * preset's `border.active` — the focus blue, #528bff in the default dark theme
-   * — so an idle row wearing it reads as permanently selected. This rule
-   * predates any full-row consumer, so nothing had ever rendered it until the
-   * Oriedita-defaults toggle arrived.
-   */
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  background: var(--bg-surface);
+  /* Vertical only, so the row keeps a comfortable hit target without indenting. */
+  padding: var(--space-1) 0;
   cursor: pointer;
 }
-
-.settings-toggle-row:hover {
-  border-color: var(--border-strong);
-}
-
-/*
- * No focus rule here: the row is a mouse hit target, not a tab stop. Every row
- * holds a Radix switch — a `button`, never an `input` — and that switch carries
- * its own ring via `.toggle-switch:focus-visible`.
- */
 
 .settings-toggle-row__copy {
   display: grid;

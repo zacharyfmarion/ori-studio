@@ -28,6 +28,15 @@ wiring that must not be re-derived per call site.
 
 Copy is reused verbatim, so no new i18n keys and no translation work.
 
+The row is **unboxed**. `.settings-toggle-row` shipped as a bordered card on a
+raised surface, which was fine for the one row that used it but wrong once every
+preference did: each row already sits under a `.settings-section__title` doing
+the grouping, so the border was a second frame saying the same thing, and it
+indented the copy away from the title above it and the radios below it. Dropping
+the border, radius and background puts every control on the tab back on one left
+edge. `cursor: pointer` and vertical padding stay, because the row is still the
+hit target.
+
 ### Deliberately left as-is
 
 - **Crease-pattern scroll gesture** (`cpWheelGesture`) — a two-way *named*
