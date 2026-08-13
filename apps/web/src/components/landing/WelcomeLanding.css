@@ -385,6 +385,18 @@
   cursor: grabbing;
 }
 
+/*
+ * Snapping off for the length of a drag.
+ *
+ * `mandatory` re-snaps after every scroll write, so each intermediate position
+ * a drag sets is undone the moment it lands and the gesture does nothing — the
+ * cursor changes and nothing moves. It is restored on release, after the
+ * resting position has been read.
+ */
+.landing-swipe__track[data-dragging] {
+  scroll-snap-type: none;
+}
+
 .landing-swipe__slide {
   display: grid;
   align-content: start;
@@ -423,7 +435,23 @@
   gap: var(--space-2);
 }
 
+/*
+ * Real buttons. They looked like controls and did nothing, which is worse than
+ * not having them — a dot that cannot be tapped is a broken affordance.
+ */
 .landing-swipe__dot {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.landing-swipe__dot::before {
+  content: '';
   width: 6px;
   height: 6px;
   border-radius: var(--radius-full);
@@ -433,13 +461,23 @@
     width 0.2s ease;
 }
 
-.landing-swipe__dot[data-active] {
+.landing-swipe__dot:hover::before {
+  background: color-mix(in srgb, var(--text-primary) 34%, transparent);
+}
+
+.landing-swipe__dot:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-primary) 72%, transparent);
+  outline-offset: 1px;
+  border-radius: var(--radius-full);
+}
+
+.landing-swipe__dot[data-active]::before {
   width: 18px;
   background: var(--accent-primary);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .landing-swipe__dot {
+  .landing-swipe__dot::before {
     transition: none;
   }
 }

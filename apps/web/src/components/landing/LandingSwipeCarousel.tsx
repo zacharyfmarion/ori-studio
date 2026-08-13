@@ -233,9 +233,21 @@ export function LandingSwipeCarousel({
         </div>
       </div>
 
-      <div className="landing-swipe__dots" aria-hidden="true">
+      {/*
+        Buttons, not decoration. They read as controls, so they have to behave
+        like them — a dot you can point at and cannot press is worse than no dot.
+      */}
+      <div className="landing-swipe__dots">
         {items.map((item, index) => (
-          <span key={item.id} className="landing-swipe__dot" data-active={index === active || undefined} />
+          <button
+            key={item.id}
+            type="button"
+            className="landing-swipe__dot"
+            data-active={index === active || undefined}
+            aria-label={item.title}
+            aria-current={index === active || undefined}
+            onClick={() => goTo(index)}
+          />
         ))}
       </div>
     </div>

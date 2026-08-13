@@ -3,6 +3,9 @@ import { useCallback, useRef, type PointerEvent as ReactPointerEvent, type RefOb
 /** Movement before a press becomes a drag. Below this it is still a click. */
 const DRAG_THRESHOLD_PX = 6;
 
+/** Marks the element mid-drag; the stylesheet turns scroll snapping off on it. */
+const DRAGGING_ATTR = 'data-dragging';
+
 export interface PointerDragHandlers {
   onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void;
   onPointerMove: (event: ReactPointerEvent<HTMLElement>) => void;
@@ -66,6 +69,13 @@ export function usePointerDrag(
         state.moved = true;
         // Capture only once it is a real drag, so a plain click never retargets.
         element.setPointerCapture?.(state.id);
+        // Suspend scroll snapping for the duration. Under `scroll-snap-type:
+        // mandatory` the browser re-snaps after *every* scroll write, so each
+        // intermediate position of a drag is undone the instant it is set and
+        // the whole gesture does nothing at all. Verified directly: writing a
+        // mid-slide `scrollLeft` of 200 read back as 0, while an exact snap
+        // point stuck.
+        element.setAttribute(DRAGGING_ATTR, '');
       }
       element.scrollLeft = state.startScroll - dx;
     },
@@ -83,7 +93,11 @@ export function usePointerDrag(
       if (!state.moved) return;
 
       suppressClick.current = true;
+      // `onSettle` reads the resting position to pick a slide, so it has to run
+      // while snapping is still suspended — restoring first would let the
+      // browser snap the value out from under it.
       onSettle?.();
+      element?.removeAttribute(DRAGGING_ATTR);
     },
     [onSettle, ref]
   );

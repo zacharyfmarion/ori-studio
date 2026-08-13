@@ -70,7 +70,7 @@ export function WelcomeLanding() {
         id="landing-edit"
         tone="raised"
         eyebrow={t('landing:edit.eyebrow', 'Crease patterns')}
-        title={t('landing:edit.title', 'A crease-pattern editor that keeps up')}
+        title={t('landing:edit.title', 'An editor that keeps up')}
         lead={t(
           'landing:edit.lead',
           'Draw with a full set of construction and transform tools, snapped to the grid and to angles, and see foldability problems the moment you make them. Reference photos, notes and a folded preview all live on the same canvas.'

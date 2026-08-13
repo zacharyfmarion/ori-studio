@@ -194,6 +194,56 @@ describe('LandingSwipeCarousel', () => {
     expect(scrollTo).toHaveBeenCalledWith({ left: SLIDE_WIDTH, behavior: 'smooth' });
   });
 
+  it('suspends scroll snapping for the length of a drag', () => {
+    // Without this the drag does nothing at all: under `scroll-snap-type:
+    // mandatory` the browser re-snaps after every scroll write, so each
+    // intermediate position is undone as it is set. jsdom has no snapping, so
+    // the only thing a test can check is that the flag the stylesheet keys on
+    // goes on for the drag and comes off after.
+    const { track } = renderCarousel();
+
+    act(() => {
+      track.dispatchEvent(pointer('pointerdown', { x: 500 }));
+      track.dispatchEvent(pointer('pointermove', { x: 480 }));
+    });
+    expect(track.hasAttribute('data-dragging')).toBe(true);
+
+    act(() => track.dispatchEvent(pointer('pointerup', { x: 480 })));
+    expect(track.hasAttribute('data-dragging')).toBe(false);
+  });
+
+  it('never flags a drag that never started', () => {
+    const { track } = renderCarousel();
+
+    act(() => {
+      track.dispatchEvent(pointer('pointerdown', { x: 500 }));
+      track.dispatchEvent(pointer('pointermove', { x: 497 }));
+      track.dispatchEvent(pointer('pointerup', { x: 497 }));
+    });
+
+    expect(track.hasAttribute('data-dragging')).toBe(false);
+  });
+
+  it('jumps to a slide when its dot is pressed', () => {
+    // They read as controls, so they have to be controls.
+    const { scrollTo } = renderCarousel();
+    const dots = Array.from(
+      container!.querySelectorAll<HTMLButtonElement>('.landing-swipe__dot')
+    );
+
+    expect(dots.map((d) => d.tagName)).toEqual(['BUTTON', 'BUTTON', 'BUTTON']);
+    expect(dots.map((d) => d.getAttribute('aria-label'))).toEqual([
+      'Box Pleating',
+      'Circle Packing',
+      'ExplOri',
+    ]);
+
+    act(() => dots[2].click());
+
+    expect(selectedTitle()).toBe('ExplOri');
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 2 * SLIDE_WIDTH, behavior: 'smooth' });
+  });
+
   it('leaves a click alone when the pointer barely moved', () => {
     const { track, scrollTo } = renderCarousel();
 
