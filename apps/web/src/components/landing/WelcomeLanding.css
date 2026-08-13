@@ -250,6 +250,133 @@
   visibility: visible;
 }
 
+/* --- The swipeable carousel (Design) --- */
+
+.landing-swipe {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.landing-swipe__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.landing-swipe__tab {
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 660;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.landing-swipe__tab:hover {
+  color: var(--text-primary);
+}
+
+.landing-swipe__tab:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-primary) 72%, transparent);
+  outline-offset: 2px;
+}
+
+.landing-swipe__tab[aria-selected='true'] {
+  border-color: color-mix(in srgb, var(--accent-primary) 38%, var(--border-subtle));
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-elevated));
+  color: var(--text-primary);
+}
+
+/*
+ * The track. `scroll-snap-type` plus one-track-wide slides is the entire gesture
+ * layer on touch: swipe, fling, momentum, over-scroll and snap all come from the
+ * browser, tuned per platform. A transform-driven slider would have to
+ * reimplement each of them.
+ *
+ * `touch-action: pan-y pinch-zoom` is what keeps that from costing the page its
+ * vertical scroll — horizontal drags drive the carousel, vertical ones still
+ * move the page underneath it.
+ */
+.landing-swipe__track {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  touch-action: pan-y pinch-zoom;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  cursor: grab;
+}
+
+.landing-swipe__track::-webkit-scrollbar {
+  display: none;
+}
+
+.landing-swipe__track:active {
+  cursor: grabbing;
+}
+
+.landing-swipe__slide {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-width: 0;
+  scroll-snap-align: center;
+}
+
+/* The figure is the drag handle; letting it start a native image drag would
+   cancel the gesture partway through. */
+.landing-swipe__slide img {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+.landing-swipe__body {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.58;
+}
+
+.landing-swipe__dots {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.landing-swipe__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--text-primary) 18%, transparent);
+  transition:
+    background-color 0.2s ease,
+    width 0.2s ease;
+}
+
+.landing-swipe__dot[data-active] {
+  width: 18px;
+  background: var(--accent-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-swipe__dot {
+    transition: none;
+  }
+}
+
 /* --- The format ring --- */
 
 .landing-ring {

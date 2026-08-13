@@ -67,9 +67,9 @@ describe('WelcomeLanding', () => {
 
   it('names the three design methods', () => {
     const rendered = renderLanding();
-    const titles = Array.from(
-      rendered.querySelectorAll('#landing-design .landing-carousel__tab-title')
-    ).map((tab) => tab.textContent);
+    const titles = Array.from(rendered.querySelectorAll('#landing-design [role="tab"]')).map(
+      (tab) => tab.textContent
+    );
 
     expect(titles).toEqual(['Box Pleating', 'Circle Packing', 'ExplOri']);
   });
@@ -127,12 +127,16 @@ describe('WelcomeLanding', () => {
     const sources = Array.from(rendered.querySelectorAll<HTMLImageElement>('.landing-figure__image'))
       .map((image) => image.getAttribute('src'));
 
-    // Only the selected slide of each carousel is mounted, so this is the first
-    // of each. The default theme is dark; `LandingFigure` re-resolves on change.
+    // The Edit carousel mounts only its selected slide; the Design one is a
+    // scroll track, so all three of its slides are present — that is what there
+    // is to scroll. The default theme is dark; `LandingFigure` re-resolves on
+    // change.
     expect(sources).toEqual([
       '/landing/overview-dark.webp',
       '/landing/edit-angles-dark.webp',
       '/landing/design-bp-dark.webp',
+      '/landing/design-treemaker-dark.webp',
+      '/landing/design-explori-dark.webp',
       '/landing/simulate-dark.webp',
     ]);
   });
@@ -155,6 +159,8 @@ describe('WelcomeLanding', () => {
       'landing/overview-dark.webp',
       'landing/edit-angles-dark.webp',
       'landing/design-bp-dark.webp',
+      'landing/design-treemaker-dark.webp',
+      'landing/design-explori-dark.webp',
       'landing/simulate-dark.webp',
     ]);
   });

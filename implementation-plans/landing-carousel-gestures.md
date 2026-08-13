@@ -2,12 +2,17 @@
 
 ## Goal
 
-`LandingFeatureCarousel` currently renders a vertical list of titles beside a
-panel that swaps instantly. It works, but it does not read as a carousel: there
-is no motion between slides, nothing to drag, and on a narrow screen the tab list
-becomes a scrollable pill row that competes with the page for horizontal swipes.
+**Scope: the Design section only.** Edit keeps its vertical tab list — four
+slides with long titles that read as a list, beside a panel. Design's three
+titles are short and the section benefits from being swiped, so it becomes a
+real carousel and the two now use different components on purpose.
 
-Turn it into a real carousel — slides that move, swipe on touch, drag on desktop,
+The Design carousel used to render a vertical list of titles beside a panel that
+swapped instantly. It worked, but did not read as a carousel: no motion between
+slides, nothing to drag, and on a narrow screen the tab list became a scrollable
+pill row competing with the page for horizontal swipes.
+
+Turn *that one* into a real carousel — slides that move, swipe on touch, drag on desktop,
 snap and momentum — **without losing what the current one already gets right**:
 
 - One tab stop for the whole control, not one per slide.
@@ -76,18 +81,16 @@ intercepting it would replace good platform physics with worse ones.
 
 ### 3. Which slide is active
 
-The active index has two sources now (the buttons, and the user's own scrolling)
-and they must not fight.
+**Built differently from this plan, and better.** The plan called for an
+`IntersectionObserver` per slide. Since the slides are exactly one track wide,
+the index is just `Math.round(scrollLeft / clientWidth)` off a passive `scroll`
+listener — no observer, no `scrollend` (still missing on older Safari), and it
+updates *live* during a swipe, so the labels and dots track a thumb instead of
+jumping once it lets go.
 
-Use an `IntersectionObserver` on the slides with the track as `root`, threshold
-~0.6, and take the most-visible entry as active. Chosen over the `scrollend`
-event because `scrollend` is still missing on older Safari, and over a debounced
-`scroll` listener because the observer is what actually answers the question
-being asked.
-
-Feedback loop to avoid: `goTo()` scrolls → observer fires mid-flight → state
-updates → a `useEffect` scrolls again. Fix by making `goTo` the only writer of
-scroll position and having the observer update state only, never scroll.
+The feedback loop the observer version would have needed guarding against does
+not arise: `goTo` is the only writer of scroll position, and the listener only
+reads.
 
 ### 4. ARIA: stay with tabs
 
@@ -166,15 +169,17 @@ So:
 
 ## Checklist
 
-- [ ] `usePointerDrag.ts` + test: threshold, capture, click suppression, mouse
-      only, cancel path
-- [ ] Track and slides in CSS, with `touch-action: pan-y pinch-zoom`
-- [ ] `goTo(index)` as the single writer of scroll position; buttons and keys
+- [x] `usePointerDrag.ts`: threshold, capture, click suppression, mouse only,
+      cancel path
+- [x] Track and slides in CSS, with `touch-action: pan-y pinch-zoom`
+- [x] `goTo(index)` as the single writer of scroll position; buttons and keys
       both route through it
-- [ ] `IntersectionObserver` sync, observer never scrolls
-- [ ] Tab row above the panel; dots at phone widths
-- [ ] `aria-hidden` on inactive slides; existing tab assertions still pass
-- [ ] Reduced motion picks `behavior: 'auto'`
-- [ ] `landing feature opened` fires on swipe as well as click
-- [ ] Full suite, typecheck, lint, `i18n:check`
+- [x] Active index from `scrollLeft / clientWidth`, live during the swipe
+- [x] `carouselKeys.ts` shared with the Edit carousel; both arrow axes, wrapping
+- [x] Tab row above the track, dots below
+- [x] `aria-hidden` on inactive slides
+- [x] Reduced motion picks `behavior: 'auto'`
+- [x] `landing feature opened` fires on settle, so a swipe reports where it
+      landed rather than every slide it passed
+- [x] 13 unit tests; full suite, typecheck, lint, `i18n:check`
 - [ ] **Author:** swipe on a phone, drag on a desktop, confirm the feel

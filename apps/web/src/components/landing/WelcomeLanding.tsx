@@ -4,6 +4,7 @@ import { track, type LandingCta, type LandingSectionId } from '../../analytics';
 import { DISCORD_URL, REPOSITORY_URL } from '../../constants/release';
 import { ButtonLink } from '../ui/Button';
 import { LandingFeatureCarousel } from './LandingFeatureCarousel';
+import { LandingSwipeCarousel } from './LandingSwipeCarousel';
 import { LandingFigure } from './LandingFigure';
 import { LandingFormatRing } from './LandingFormatRing';
 import { LandingSection } from './LandingSection';
@@ -138,7 +139,7 @@ export function WelcomeLanding() {
           'Pack your model with whichever method suits it, with several designs open side by side in tabs. Each one builds a crease pattern you can send straight to the editor.'
         )}
       >
-        <LandingFeatureCarousel
+        <LandingSwipeCarousel
           label={t('landing:design.carouselLabel', 'Design methods')}
           items={[
             // Ordered and titled by the *method*, not by the tool it came from:
@@ -217,7 +218,7 @@ export function WelcomeLanding() {
         title={t('landing:compatibility.title', 'Built on the tools you already use')}
         lead={t(
           'landing:compatibility.lead',
-          'Much of Ori Studio is a careful port of work the community already built — Oriedita, TreeMaker and Box Pleating Studio — and keeping import and export interoperability with those tools is a commitment, though it is not the same as exact feature parity. Nothing you make here is trapped here.'
+          'Much of Ori Studio is a careful port of work the community already built — Oriedita, TreeMaker and Box Pleating Studio — and keeping import and export interoperability with those tools is a commitment, though it is not the same as exact feature parity.'
         )}
       >
         <LandingFormatRing />

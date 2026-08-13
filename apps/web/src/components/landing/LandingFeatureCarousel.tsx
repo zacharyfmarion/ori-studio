@@ -1,5 +1,6 @@
 import { useId, useRef, useState, type KeyboardEvent } from 'react';
 import { track, type LandingFeatureId } from '../../analytics';
+import { carouselKeyTarget } from './carouselKeys';
 import { LandingFigure } from './LandingFigure';
 
 export interface LandingCarouselItem {
@@ -49,32 +50,15 @@ export function LandingFeatureCarousel({ label, items }: LandingFeatureCarouselP
     track('landing feature opened', { feature: items[index].id });
   };
 
-  // Roving tabindex: arrows move selection, Home/End jump to the ends. Both
-  // orientations are handled because the list is a column on a wide screen and a
-  // row on a narrow one, and the keys should match what the user sees.
+  // Roving tabindex. The mapping itself is `carouselKeyTarget`, shared with the
+  // Design carousel: the two look nothing alike, but "which slide does this key
+  // mean" has the same answer in both, and having it in one place is what stops
+  // them drifting into different arrow behaviour.
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const last = items.length - 1;
-    const step = (delta: number) => {
-      event.preventDefault();
-      select((activeIndex + delta + items.length) % items.length, true);
-    };
-
-    switch (event.key) {
-      case 'ArrowDown':
-      case 'ArrowRight':
-        return step(1);
-      case 'ArrowUp':
-      case 'ArrowLeft':
-        return step(-1);
-      case 'Home':
-        event.preventDefault();
-        return select(0, true);
-      case 'End':
-        event.preventDefault();
-        return select(last, true);
-      default:
-        return;
-    }
+    const next = carouselKeyTarget(event.key, activeIndex, items.length);
+    if (next === null) return;
+    event.preventDefault();
+    select(next, true);
   };
 
   return (
