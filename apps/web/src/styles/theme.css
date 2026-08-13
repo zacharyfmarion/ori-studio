@@ -3852,28 +3852,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   user-select: none;
 }
 
-/* Promote the panned crease-pattern layer to its own compositor layer. Without
-   this, panning re-rasterizes the entire (large) crease-pattern SVG every frame
-   even though it's only being translated; with it, the pan is a cheap GPU
-   composite of a cached raster. Scoped to the CP viewport so other
-   react-zoom-pan-pinch surfaces are unaffected. */
-.cp-panel__viewport .react-transform-component {
-  will-change: transform;
-}
-
-/* Isolate the grid onto its own compositor layer so regenerating its lines
-   (on pan-stop / zoom) re-rasters only the grid, not the crease geometry. */
-.cp-grid-layer {
-  will-change: transform;
-}
-
-.cp-grid-line {
-  stroke: color-mix(in srgb, var(--border-default) 82%, transparent);
-  stroke-width: 0.95;
-  vector-effect: non-scaling-stroke;
-  pointer-events: none;
-}
-
 .cp-point {
   fill: var(--accent-primary);
   stroke: var(--bg-primary);

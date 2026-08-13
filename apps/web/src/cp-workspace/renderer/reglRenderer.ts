@@ -123,7 +123,8 @@ export function createReglRenderer(
   // Operation-frame outline width: SVG `.cp-operation-frame` is 1.5px non-scaling.
   const FRAME_WIDTH_CSS = 1.5;
 
-  // SVG `.cp-grid-line` is 0.95px, non-scaling — constant device px per dpr.
+  // Matches the pre-WebGL SVG grid stroke: 0.95px, non-scaling — constant
+  // device px per dpr.
   const GRID_WIDTH_CSS = 0.95;
 
   // Build the per-frame image draw list from the current layer: skip hidden
