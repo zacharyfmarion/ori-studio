@@ -5483,6 +5483,20 @@ button.cp-folded-figure-toolbar__notice:hover {
 
 /* Fold-angle quick-pick chips. Keeps typing off the common path: a box is 90
    everywhere, a prism 60/120. */
+/* Promote the badge layer to its own compositor layer, for the same reason the
+   SVG crease-pattern layer above is promoted: a pan only translates it, and
+   without this the whole layer re-rasterizes every frame — 300 text nodes'
+   worth — where a promoted layer is a cheap GPU composite of a cached raster.
+   Only correct in company with `usePannedOverlayView`, which is what stops the
+   badges themselves being rewritten per frame; a promoted layer whose contents
+   change every frame repaints anyway.
+
+   The cost is that the text is rasterized once and resampled while moving, so
+   digits can soften mid-motion and snap crisp on settle. */
+.cp-fold-angle-layer {
+  will-change: transform;
+}
+
 /* Fold-angle readouts drawn at crease midpoints. The lightness ramp is a gist
    channel; this is the readout, and its dot form is the low-zoom degradation of
    the same badge rather than a separate affordance. */

@@ -51,6 +51,27 @@ Two changes, and only the pair works:
 (2) is what fixed it. (1) is what makes (2) possible: a promoted layer whose
 children are rewritten every frame repaints regardless.
 
+### Prior art — this is not a new conclusion here
+
+The repo reached the same answer once before, for the SVG crease-pattern era.
+`theme.css` still carries it:
+
+> Promote the panned crease-pattern layer to its own compositor layer. Without
+> this, panning re-rasterizes the entire (large) crease-pattern SVG every frame
+> even though it's only being translated; with it, the pan is a cheap GPU
+> composite of a cached raster.
+
+…alongside the same trick for the grid layer. So the new rule lives in
+`theme.css` beside those rather than as an inline style, where anyone auditing
+what this app composites will find all of them together.
+
+`useSettledScale` is the same idea along the other axis — hold the layout still
+while the camera moves, let a transform carry the change, re-lay-out on settle —
+for the window layers under zoom. It is a sibling, not a duplicate: scale has no
+exact factoring, so it waits out a timer and bounds its stretch, where a
+translation is exact and re-projects precisely when the basis changes. The two
+hooks now point at each other.
+
 Known trade: a promoted layer rasterises its text once and resamples it while
 moving, so badge digits can soften mid-motion and snap crisp on settle. Judged
 acceptable against the smoothness. The escape hatch, if it ever isn't, is
@@ -96,3 +117,13 @@ drawing badges in the renderer instead — see below.
   viewport-sized composited layer alive whenever badges are shown. Adding it on
   the first pan frame and dropping it on settle would reclaim that, at the cost
   of another timer.
+- **`Folded3dWindowLayer` and `InlineSimulationLayer` are half-done.** Both use
+  `useSettledScale`, so a zoom no longer re-lays-them-out per frame — but both
+  still subscribe with `useCpOverlayViews()` and so re-render on every *pan*
+  frame. They measured cheap in this trace (3.1ms and less) because the window
+  count is small, but they are the same shape of problem and
+  `usePannedOverlayView` is the missing half.
+- **Two probably-dead CSS rules.** `.cp-panel__viewport .react-transform-component`
+  and `.cp-grid-layer` promote SVG-era layers that the WebGL migration replaced;
+  neither class appears in any component now. Left alone here rather than
+  widening this change.

@@ -14,6 +14,12 @@ import { useEffect, useState } from 'react';
  * Kept per layer rather than shared between them. The two window layers pass the
  * identical `pxPerModel` and the ratio is scale-invariant, so both settle on the
  * same frame anyway; a shared instance would only add a subscription.
+ *
+ * Sibling of `usePannedOverlayView`, which holds the layout still along the
+ * other axis. A pan is an exact factoring — one container translate reproduces
+ * every projected point — so that one re-projects on a basis change rather than
+ * on a timer, and is lossless where this is deliberately approximate. A layer
+ * that uses this still re-renders on every pan frame unless it uses that too.
  */
 
 /**

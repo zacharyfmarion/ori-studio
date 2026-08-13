@@ -123,15 +123,9 @@ export function CpFoldAngleLayer({
         // Same band as the measure and text layers: above the WebGL canvas and
         // grid, below the annotation overlay.
         zIndex: 7,
-        // Give the layer its own compositor layer, so the pan above is a
-        // compositor translate and not a repaint of every badge. This is the
-        // half of the fix that was actually load-bearing: not re-rendering
-        // through React saved ~200ms of a 3.5s pan and changed nothing you
-        // could feel, because the cost was paint, not script.
-        //
-        // Only works in company with that change, though — a promoted layer
-        // whose children get rewritten every frame repaints anyway.
-        willChange: 'transform',
+        // The `will-change: transform` that makes the pan above a compositor
+        // move rather than a repaint is in the stylesheet, beside the other
+        // layer promotions — see `.cp-fold-angle-layer`.
       }}
       aria-hidden="true"
     >

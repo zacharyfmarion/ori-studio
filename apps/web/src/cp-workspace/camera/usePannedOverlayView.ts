@@ -29,6 +29,17 @@ import { cpOverlayViewStore } from '../cpOverlayViewStore';
  * The offset is written synchronously from the store notification, and the
  * canvas publishes its view synchronously just before it draws, so the overlay
  * stays in lockstep with the GL surface rather than trailing it by a frame.
+ *
+ * Sibling of `useSettledScale`, which does the same thing along the other axis:
+ * hold the layout still while the camera moves and let a transform carry the
+ * change. The two differ where the axes differ. Scale has no exact factoring —
+ * a stretched raster is a lossy stand-in for a re-layout — so that one waits out
+ * a settle timer and bounds how far it will stretch first. Translation *is*
+ * exact, so this one needs neither: it re-projects precisely when the basis
+ * changes, and never merely because time passed.
+ *
+ * They compose, and the window layers are the case for it: they defuse zoom with
+ * `useSettledScale` but still re-render on every pan frame.
  */
 
 /** True when two views differ by at most a translation. */
