@@ -82,7 +82,10 @@ export function WelcomeLanding() {
             {
               id: 'edit-angles',
               figure: 'edit-angles',
-              title: t('landing:edit.angles.title', 'Support for non-flat creases'),
+              title: t(
+                'landing:edit.angles.title',
+                'Draw, simulate, and solve origami models with non-flat creases'
+              ),
               body: t(
                 'landing:edit.angles.body',
                 'Assign and solve real fold angles, not just mountain and valley, so models that do not fold flat are still first-class here.'
@@ -111,7 +114,7 @@ export function WelcomeLanding() {
               title: t('landing:edit.diagnostics.title', 'Foldability you can check as you go'),
               body: t(
                 'landing:edit.diagnostics.body',
-                'Kawasaki and Maekawa where the paper folds flat, plus overlap and T-junction detection. Where it does not fold flat, each vertex is checked in three dimensions instead — walking the creases around it to see whether the folds close back up, and telling you how many degrees off they are when they do not.'
+                'Kawasaki and Maekawa where the paper folds flat. Where it does not, each vertex is checked in three dimensions — walking its creases around to see whether the folds close back up, and by how far they miss.'
               ),
               figureAlt: t(
                 'landing:edit.diagnostics.figureAlt',
