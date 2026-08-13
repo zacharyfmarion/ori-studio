@@ -109,6 +109,15 @@ pub enum InitialHierarchyError {
         first_face: usize,
         second_face: usize,
     },
+    /// The user stopped the fold. Never a statement about the crease pattern —
+    /// see [`crate::cancel`].
+    Cancelled,
+}
+
+impl From<crate::cancel::Cancelled> for InitialHierarchyError {
+    fn from(_: crate::cancel::Cancelled) -> Self {
+        Self::Cancelled
+    }
 }
 
 /// Why a fold could not be set up from a line set, before any layer ordering.
@@ -120,6 +129,30 @@ pub enum InitialHierarchyError {
 pub enum FoldSetupError {
     FoldGraph(FoldGraphError),
     InitialHierarchy(InitialHierarchyError),
+    /// The user stopped the fold during setup.
+    ///
+    /// Its own arm rather than being folded into the two above, because
+    /// `setup_code` maps those to `"fold_disconnected"` and `"fold_same_parity"`
+    /// — verdicts about the crease pattern that a cancel must never produce.
+    Cancelled,
+}
+
+impl From<crate::cancel::Cancelled> for FoldSetupError {
+    fn from(_: crate::cancel::Cancelled) -> Self {
+        Self::Cancelled
+    }
+}
+
+impl FoldSetupError {
+    /// Whether this is the user stopping, at any depth.
+    pub fn is_cancelled(&self) -> bool {
+        matches!(
+            self,
+            Self::Cancelled
+                | Self::FoldGraph(FoldGraphError::Cancelled)
+                | Self::InitialHierarchy(InitialHierarchyError::Cancelled)
+        )
+    }
 }
 
 impl From<FoldGraphError> for FoldSetupError {
@@ -137,6 +170,9 @@ impl From<InitialHierarchyError> for FoldSetupError {
 impl fmt::Display for FoldSetupError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Cancelled | Self::InitialHierarchy(InitialHierarchyError::Cancelled) => {
+                write!(f, "the fold was cancelled")
+            }
             Self::FoldGraph(error) => error.fmt(f),
             Self::InitialHierarchy(InitialHierarchyError::SameParityAdjacentFaces {
                 line,
@@ -1226,6 +1262,33 @@ pub struct FoldingEstimateBatch {
 pub enum FoldingEstimateError {
     Setup(FoldSetupError),
     WorkerOverlap(WorkerOverlapSearchError),
+    /// The user stopped the fold.
+    Cancelled,
+}
+
+impl From<crate::cancel::Cancelled> for FoldingEstimateError {
+    fn from(_: crate::cancel::Cancelled) -> Self {
+        Self::Cancelled
+    }
+}
+
+impl FoldingEstimateError {
+    /// Whether this is the user stopping, at **any** depth.
+    ///
+    /// Recursive on purpose, and it must be tested *before* any classification
+    /// by cause: a checkpoint deep in the search unwinds through whichever
+    /// domain enum its enclosing function returns, so a cancel arrives wrapped
+    /// in `WorkerOverlap(AdditionalEstimation(Cancelled))` rather than as the
+    /// top-level `Cancelled` arm. `From<FoldingEstimateError> for EngineError`
+    /// (`session.rs`) has a wildcard that would otherwise read that as
+    /// `"fold_contradiction"`.
+    pub fn is_cancelled(&self) -> bool {
+        match self {
+            Self::Cancelled => true,
+            Self::Setup(setup) => setup.is_cancelled(),
+            Self::WorkerOverlap(worker) => worker.is_cancelled(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -1281,9 +1344,16 @@ impl FoldingEstimateError {
     /// The offending face pair when this error is a layer-ordering contradiction,
     /// otherwise `None` (structural errors stay fatal).
     pub fn contradiction(&self) -> Option<FoldContradiction> {
+        // A cancel is never a contradiction. Callers use this to decide whether
+        // to *conclude* the figure with a highlighted face pair rather than
+        // surface an error, so a wrong `Some` here would draw a fabricated
+        // verdict for a fold the user stopped.
+        if self.is_cancelled() {
+            return None;
+        }
         match self {
             Self::WorkerOverlap(error) => error.contradiction(),
-            Self::Setup(_) => None,
+            Self::Setup(_) | Self::Cancelled => None,
         }
     }
 }
@@ -1295,6 +1365,31 @@ pub enum AdditionalEstimationError {
         upper_face: usize,
         lower_face: usize,
     },
+    /// The user stopped the fold inside additional estimation.
+    ///
+    /// This arm is the single most important one in the taxonomy. Without it a
+    /// cancel here converts into `Contradiction` to satisfy `?`, and
+    /// `From<FoldingEstimateError> for EngineError` reports
+    /// `"fold_contradiction"` — telling a user who pressed Stop that their
+    /// crease pattern cannot be folded.
+    Cancelled,
+}
+
+impl From<crate::cancel::Cancelled> for AdditionalEstimationError {
+    fn from(_: crate::cancel::Cancelled) -> Self {
+        Self::Cancelled
+    }
+}
+
+impl AdditionalEstimationError {
+    /// Whether this is the user stopping, at any depth.
+    pub fn is_cancelled(&self) -> bool {
+        match self {
+            Self::Cancelled => true,
+            Self::Setup(setup) => setup.is_cancelled(),
+            Self::Contradiction { .. } => false,
+        }
+    }
 }
 
 impl From<FoldSetupError> for AdditionalEstimationError {
@@ -1379,17 +1474,21 @@ pub fn face_position_wireframe_from_segments(
 /// remove point-like line segments, remove duplicate endpoint-identical
 /// segments with Oriedita's `UNKNOWN_001` tolerance, divide all intersections,
 /// and run the point/duplicate cleanup again.
-pub fn prepare_subface_segments(segments: &[LineSegment]) -> Vec<LineSegment> {
+/// Fallible only to carry a cancel out of [`divide_intersections`]; the
+/// preparation itself cannot fail.
+pub fn prepare_subface_segments(
+    segments: &[LineSegment],
+) -> Result<Vec<LineSegment>, crate::cancel::Cancelled> {
     let mut model = CreasePatternModel {
         line_segments: segments.to_vec(),
         ..CreasePatternModel::default()
     };
     remove_point_segments(&mut model.line_segments);
     remove_line_segment_set_duplicates(&mut model.line_segments);
-    divide_intersections(&mut model);
+    divide_intersections(&mut model)?;
     remove_point_segments(&mut model.line_segments);
     remove_line_segment_set_duplicates(&mut model.line_segments);
-    model.line_segments
+    Ok(model.line_segments)
 }
 
 pub fn folded_subface_figure_from_segments(
@@ -1408,7 +1507,7 @@ pub fn folded_subface_figure_from_segments(
     let positions = graph.face_positions(starting_face_id)?;
     let folded = wireframe_from_graph(&graph, &positions, graph.folded_points(&positions));
     let folded_segments = folded_wireframe_segments(&folded);
-    let prepared_segments = prepare_subface_segments(&folded_segments);
+    let prepared_segments = prepare_subface_segments(&folded_segments)?;
     let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
     if subface_graph.faces.is_empty() {
         return Ok(None);
@@ -1442,7 +1541,7 @@ pub fn two_colored_subface_segments_from_segments(
         return Ok(None);
     };
     let wireframe_segments = folded_wireframe_segments(&wireframe);
-    Ok(Some(prepare_subface_segments(&wireframe_segments)))
+    Ok(Some(prepare_subface_segments(&wireframe_segments)?))
 }
 
 /// Oriedita `FoldedFigure.createTwoColorCreasePattern(...)` without UI camera
@@ -1499,13 +1598,13 @@ pub fn configure_subfaces_from_segments(
         return Ok(None);
     };
     let folded_segments = folded_wireframe_segments(&folded);
-    let prepared_segments = prepare_subface_segments(&folded_segments);
+    let prepared_segments = prepare_subface_segments(&folded_segments)?;
     let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
     if subface_graph.faces.is_empty() {
         return Ok(None);
     }
 
-    Ok(Some(configure_subfaces(&folded, &subface_graph)))
+    Ok(Some(configure_subfaces(&folded, &subface_graph)?))
 }
 
 /// Oriedita `FoldedFigure_Configurator.setupHierarchyList()` initial
@@ -1547,7 +1646,7 @@ pub fn equivalence_condition_candidates_from_segments(
     let hierarchy = initial_hierarchy_from_graph(&graph, &positions)?;
     let folded = wireframe_from_graph(&graph, &positions, graph.folded_points(&positions));
     let folded_segments = folded_wireframe_segments(&folded);
-    let prepared_segments = prepare_subface_segments(&folded_segments);
+    let prepared_segments = prepare_subface_segments(&folded_segments)?;
     let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
     let subfaces = if subface_graph.faces.is_empty() {
         SubFaceConfiguration {
@@ -1556,7 +1655,7 @@ pub fn equivalence_condition_candidates_from_segments(
             face_id_count_max: 0,
         }
     } else {
-        configure_subfaces(&folded, &subface_graph)
+        configure_subfaces(&folded, &subface_graph)?
     };
 
     let face_polygons = folded_face_polygons(&folded);
@@ -1644,7 +1743,7 @@ pub fn additional_estimation_from_segments(
     let initial = initial_hierarchy_from_graph(&graph, &positions)?;
     let folded = wireframe_from_graph(&graph, &positions, graph.folded_points(&positions));
     let folded_segments = folded_wireframe_segments(&folded);
-    let prepared_segments = prepare_subface_segments(&folded_segments);
+    let prepared_segments = prepare_subface_segments(&folded_segments)?;
     let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
     if subface_graph.faces.is_empty() {
         return Ok(Some(AdditionalEstimation {
@@ -1654,7 +1753,7 @@ pub fn additional_estimation_from_segments(
         }));
     }
 
-    let subfaces = configure_subfaces(&folded, &subface_graph);
+    let subfaces = configure_subfaces(&folded, &subface_graph)?;
     let conditions = equivalence_condition_candidates_from_parts(&graph, &folded, &subfaces)?;
     let mut table = HierarchyTable::from_initial(&initial);
     run_additional_estimation(
@@ -2116,7 +2215,7 @@ pub fn folded_figure_paper_render_snapshot_from_segments(
     else {
         return Ok(None);
     };
-    let Some((subface_graph, subfaces)) = folded_subface_graph_and_config(&folded) else {
+    let Some((subface_graph, subfaces)) = folded_subface_graph_and_config(&folded)? else {
         return Ok(None);
     };
 
@@ -2177,7 +2276,7 @@ pub fn folded_figure_transparent_render_snapshot_from_segments(
     else {
         return Ok(None);
     };
-    let Some((subface_graph, subfaces)) = folded_subface_graph_and_config(&folded) else {
+    let Some((subface_graph, subfaces)) = folded_subface_graph_and_config(&folded)? else {
         return Ok(None);
     };
 
@@ -2235,7 +2334,7 @@ fn render_snapshot_impl(
         DisplayStyle::Transparent3 | DisplayStyle::Paper5
     );
     let subface_data = if needs_subfaces {
-        let Some(data) = folded_subface_graph_and_config(&folded) else {
+        let Some(data) = folded_subface_graph_and_config(&folded)? else {
             return Ok(None);
         };
         Some(data)
@@ -2515,7 +2614,7 @@ fn overlap_enumerator_from_segments(
     let initial = initial_hierarchy_from_graph(&graph, &positions)?;
     let folded = wireframe_from_graph(&graph, &positions, graph.folded_points(&positions));
     let folded_segments = folded_wireframe_segments(&folded);
-    let prepared_segments = prepare_subface_segments(&folded_segments);
+    let prepared_segments = prepare_subface_segments(&folded_segments)?;
     let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
     if subface_graph.faces.is_empty() {
         return WorkerOverlapEnumerator::from_ordered_subfaces(&[], &[], 0, &initial, None)
@@ -2523,7 +2622,7 @@ fn overlap_enumerator_from_segments(
     }
     fold_phase_timer!("subface graph built");
 
-    let subfaces = configure_subfaces(&folded, &subface_graph);
+    let subfaces = configure_subfaces(&folded, &subface_graph)?;
     fold_phase_timer!("subface config done");
     let mut conditions = equivalence_condition_candidates_from_parts(&graph, &folded, &subfaces)?;
     fold_phase_timer!("equivalence conditions built");
@@ -2568,14 +2667,14 @@ fn two_colored_overlap_enumerator_from_segments(
     let initial = initial_hierarchy_from_graph(&graph, &positions)?;
     let folded = wireframe_from_graph(&graph, &positions, graph.points.clone());
     let folded_segments = folded_wireframe_segments(&folded);
-    let prepared_segments = prepare_subface_segments(&folded_segments);
+    let prepared_segments = prepare_subface_segments(&folded_segments)?;
     let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
     if subface_graph.faces.is_empty() {
         return WorkerOverlapEnumerator::from_ordered_subfaces(&[], &[], 0, &initial, None)
             .map(Some);
     }
 
-    let subfaces = configure_subfaces(&folded, &subface_graph);
+    let subfaces = configure_subfaces(&folded, &subface_graph)?;
     let conditions = equivalence_condition_candidates_from_parts(&graph, &folded, &subfaces)?;
     let mut table = HierarchyTable::from_initial(&initial);
     run_additional_estimation(
@@ -2612,17 +2711,20 @@ fn folded_graph_and_wireframe_from_segments(
     Ok(Some((graph, folded)))
 }
 
+/// `Ok(None)` means "this wireframe has no subfaces", which is a result;
+/// `Err(Cancelled)` means the user stopped. Conflating them into a bare `None`
+/// would silently render an empty figure for a cancelled fold.
 fn folded_subface_graph_and_config(
     folded: &FoldedWireframe,
-) -> Option<(FoldGraph, SubFaceConfiguration)> {
+) -> Result<Option<(FoldGraph, SubFaceConfiguration)>, crate::cancel::Cancelled> {
     let folded_segments = folded_wireframe_segments(folded);
-    let prepared_segments = prepare_subface_segments(&folded_segments);
+    let prepared_segments = prepare_subface_segments(&folded_segments)?;
     let subface_graph = FoldGraph::from_segments(&prepared_segments, true);
     if subface_graph.faces.is_empty() {
-        return None;
+        return Ok(None);
     }
-    let subfaces = configure_subfaces(folded, &subface_graph);
-    Some((subface_graph, subfaces))
+    let subfaces = configure_subfaces(folded, &subface_graph)?;
+    Ok(Some((subface_graph, subfaces)))
 }
 
 impl OrieditaFoldedFigureCameraSet {
@@ -4109,7 +4211,12 @@ fn initial_hierarchy_from_graph(
     positions: &FacePositions,
 ) -> Result<InitialHierarchy, InitialHierarchyError> {
     let mut relations = Vec::new();
+    let mut polled = 0u32;
     for (line_index, line) in graph.lines.iter().enumerate() {
+        // Site 9. `line_face_border` is an array read since the incidence index
+        // landed, so the body is cheap and this polls on a stride. It runs twice
+        // per Order 4 over every line.
+        crate::check_every!(polled, 8);
         let Some((first_face, second_face)) = graph.line_face_border(line_index) else {
             continue;
         };
@@ -4217,7 +4324,17 @@ fn equivalence_condition_candidates_from_parts(
             return out;
         };
         let query = quad_tree::BBox::from_segment(segment.a, segment.b);
+        // Site 2. The closure returns `Vec`, not `Result`, so `check()?` does not
+        // typecheck here — hence a latch and a `break`. A partial `out` is safe
+        // at this one site *only* because the caller discards the entire collect
+        // at the `check()?` below it, and nothing clears the signal mid-run. Do
+        // not copy this shape anywhere the partial result is returned.
+        let mut polled = 0u32;
         for face_index in face_tree.collect_rectangle(query) {
+            polled = polled.wrapping_add(1);
+            if polled & 0xFF == 0 && crate::cancel::check().is_err() {
+                break;
+            }
             let Some(polygon) = face_polygons.get(face_index) else {
                 continue;
             };
@@ -4249,7 +4366,14 @@ fn equivalence_condition_candidates_from_parts(
             let Some(first_segment) = folded_segments.get(first_line) else {
                 return out;
             };
+            // Site 1 — the single most important checkpoint in the fold. This
+            // loop carries ~85% of setup on a large crease pattern, so a design
+            // that polls only the outer search would leave it uninterruptible.
+            // Same latch-and-break shape, and same caveat, as site 2 above.
             for second_line in line_tree.collect_potential_collision(first_line) {
+                if crate::cancel::check().is_err() {
+                    break;
+                }
                 let Some((second_a, second_b)) = graph.line_face_border(second_line) else {
                     continue;
                 };
@@ -4271,6 +4395,11 @@ fn equivalence_condition_candidates_from_parts(
             out
         });
 
+    // The unwind for sites 1 and 2. Their `break` leaves a partial condition
+    // list, and this is what guarantees it is never returned: nothing clears the
+    // signal during a run, so a `break` above is always followed by this `Err`.
+    crate::cancel::check()?;
+
     Ok(EquivalenceConditionSet {
         triple_conditions,
         quadruple_conditions,
@@ -4288,7 +4417,22 @@ where
     F: Fn(usize) -> Vec<EquivalenceCondition> + Sync + Send,
 {
     use rayon::prelude::*;
-    range.into_par_iter().flat_map_iter(f).collect()
+    // The ONE place a cancel binding crosses a thread boundary. Rayon workers do
+    // not inherit thread-locals, so without this the checkpoints inside `f` are
+    // silently inert on desktop — in the phase that dominates a long fold. The
+    // folding oracle builds *without* `parallel`, so nothing else would catch
+    // it; `cargo test -p oristudio-cp --features parallel` is the gate.
+    //
+    // Captured here, on the thread that owns it, and re-installed per item on
+    // whichever worker runs it.
+    let handle = crate::cancel::current();
+    range
+        .into_par_iter()
+        .flat_map_iter(|index| {
+            let _bound = crate::cancel::bind(handle.clone());
+            f(index)
+        })
+        .collect()
 }
 
 #[cfg(not(all(feature = "parallel", not(target_arch = "wasm32"))))]
@@ -4323,12 +4467,17 @@ fn wireframe_from_graph(
     }
 }
 
-fn configure_subfaces(folded: &FoldedWireframe, subface_graph: &FoldGraph) -> SubFaceConfiguration {
+fn configure_subfaces(
+    folded: &FoldedWireframe,
+    subface_graph: &FoldGraph,
+) -> Result<SubFaceConfiguration, crate::cancel::Cancelled> {
     let face_polygons = folded_face_polygons(folded);
 
     let mut frequency = vec![0usize; face_polygons.len()];
     let mut subfaces = Vec::with_capacity(subface_graph.faces.len());
     for subface in &subface_graph.faces {
+        // Site 11. The inner scan is over every face, per subface.
+        crate::cancel::check()?;
         let inside_point = subface_polygon(subface_graph, subface).inside_point_find();
         let mut face_ids = Vec::new();
         for (face_index, polygon) in face_polygons.iter().enumerate() {
@@ -4347,11 +4496,11 @@ fn configure_subfaces(folded: &FoldedWireframe, subface_graph: &FoldGraph) -> Su
         .unwrap_or(0);
     let reduced_subface_indices = reduce_subface_set(&subfaces, &frequency);
 
-    SubFaceConfiguration {
+    Ok(SubFaceConfiguration {
         subfaces,
         reduced_subface_indices,
         face_id_count_max,
-    }
+    })
 }
 
 fn folded_face_polygons(folded: &FoldedWireframe) -> Vec<Polygon> {

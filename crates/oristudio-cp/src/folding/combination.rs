@@ -21,10 +21,22 @@ use std::collections::HashMap;
 /// other, so no combination exists. The two local face indices are upstream's
 /// exception payload; `possible_overlapping_search` catches it and reports "no
 /// possible overlap" without inspecting them.
+///
+/// An enum rather than a bare payload struct because the constructor is also a
+/// checkpoint, and its caller absorbs `Err` into `Ok(false)` — "no stacking of
+/// this subface exists". A cancel reaching that arm would be reported as an
+/// algorithmic verdict, so the two outcomes have to be distinguishable at the
+/// type level rather than by convention.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct CombinationInferenceFailure {
-    pub upper: usize,
-    pub lower: usize,
+pub(super) enum CombinationInferenceFailure {
+    Contradiction { upper: usize, lower: usize },
+    Cancelled,
+}
+
+impl From<crate::cancel::Cancelled> for CombinationInferenceFailure {
+    fn from(_: crate::cancel::Cancelled) -> Self {
+        Self::Cancelled
+    }
 }
 
 /// Which equivalence condition a [`Constraint`] came from, and therefore which
@@ -204,7 +216,7 @@ impl CombinationGenerator {
                     None => true,
                 };
                 if !added {
-                    return Err(CombinationInferenceFailure { upper: i, lower: j });
+                    return Err(CombinationInferenceFailure::Contradiction { upper: i, lower: j });
                 }
             }
         }
@@ -443,7 +455,10 @@ mod tests {
                 .expect_err("cyclic hierarchy should fail inference");
         // The local pair the seeding loop was on when it found the cycle, which
         // is upstream's `InferenceFailureException(i, j)` payload.
-        assert_eq!((failure.upper, failure.lower), (2, 3));
+        assert_eq!(
+            failure,
+            CombinationInferenceFailure::Contradiction { upper: 2, lower: 3 }
+        );
     }
 
     /// A ternary constraint has two combinations, so the generator produces two

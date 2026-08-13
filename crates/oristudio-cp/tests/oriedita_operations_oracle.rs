@@ -143,7 +143,7 @@ fn divide_intersections_matches_oriedita_operations_oracle_for_crossing_fixture(
         segment(5.0, -5.0, 5.0, 5.0, LineColor::Blue2),
     ];
     let mut model = model_from_segments(&segments);
-    divide_intersections(&mut model);
+    divide_intersections(&mut model).expect("not cancellable in a test");
 
     let mut args = vec!["intersect-divide".to_string(), segments.len().to_string()];
     push_segment_args(&mut args, &segments);

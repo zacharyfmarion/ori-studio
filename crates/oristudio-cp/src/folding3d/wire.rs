@@ -188,11 +188,23 @@ pub enum Fold3dOrderWire {
     SearchFailed {
         component: usize,
     },
+    /// The user stopped the fold.
+    ///
+    /// Mirrors `Fold3dOrderError::Cancelled`. Unlike `Fold3dRefusalWire`, this
+    /// enum is the wire form of an *error*, not of a verdict about the model, so
+    /// carrying a cancel here is consistent rather than a category error. In
+    /// practice the entry points convert a cancel into `fold_cancelled` before a
+    /// wire value is built, so this arm should not be observed.
+    Cancelled,
 }
 
 impl From<Fold3dOrderError> for Fold3dOrderWire {
     fn from(error: Fold3dOrderError) -> Self {
         match error {
+            // Both routes to the same wire arm; see `Fold3dOrderWire::Cancelled`.
+            Fold3dOrderError::Cancelled | Fold3dOrderError::Cells(CellError::Cancelled) => {
+                Self::Cancelled
+            }
             Fold3dOrderError::Cells(CellError::OverlapWithoutCell { plane, faces }) => {
                 Self::OverlapWithoutCell {
                     plane,

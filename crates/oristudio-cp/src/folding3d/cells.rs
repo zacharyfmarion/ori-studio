@@ -129,6 +129,8 @@ pub struct CellIndex {
 /// was invented over faces that never touch.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CellError {
+    /// The user stopped the fold. Never a statement about the model.
+    Cancelled,
     /// Two faces the census calls overlapping are in no common subface.
     OverlapWithoutCell {
         plane: PlaneId,
@@ -157,9 +159,16 @@ pub enum CellError {
     },
 }
 
+impl From<crate::cancel::Cancelled> for CellError {
+    fn from(_: crate::cancel::Cancelled) -> Self {
+        Self::Cancelled
+    }
+}
+
 impl std::fmt::Display for CellError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Cancelled => write!(f, "the fold was cancelled"),
             Self::OverlapWithoutCell { plane, faces } => write!(
                 f,
                 "faces {} and {} overlap in plane {plane} but share no arrangement cell",
@@ -227,7 +236,7 @@ pub fn cell_index(
                 segments.push(LineSegment::with_color(a, b, LineColor::Black0));
             }
         }
-        let segments = prepare_subface_segments(&segments);
+        let segments = prepare_subface_segments(&segments)?;
 
         let mut covering: BTreeSet<Vec<usize>> = BTreeSet::new();
         for component in connected_components(&segments) {
@@ -476,7 +485,7 @@ mod tests {
     fn a_nested_pair_only_traces_once_it_is_split() {
         let mut both = square(0.0, 0.0, 100.0);
         both.extend(square(20.0, 20.0, 10.0));
-        let both = prepare_subface_segments(&both);
+        let both = prepare_subface_segments(&both).expect("not cancellable in a test");
         assert!(
             !FoldGraph::from_segments(&both, true).include_faces,
             "the nested pair was expected to close the Euler gate"
@@ -494,12 +503,12 @@ mod tests {
     fn two_touching_squares_are_one_component_and_two_nested_are_two() {
         let mut crossing = square(0.0, 0.0, 10.0);
         crossing.extend(square(5.0, 5.0, 10.0));
-        let crossing = prepare_subface_segments(&crossing);
+        let crossing = prepare_subface_segments(&crossing).expect("not cancellable in a test");
         assert_eq!(connected_components(&crossing).len(), 1);
 
         let mut nested = square(0.0, 0.0, 100.0);
         nested.extend(square(20.0, 20.0, 10.0));
-        let nested = prepare_subface_segments(&nested);
+        let nested = prepare_subface_segments(&nested).expect("not cancellable in a test");
         assert_eq!(connected_components(&nested).len(), 2);
     }
 }

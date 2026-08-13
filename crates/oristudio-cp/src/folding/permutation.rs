@@ -1,4 +1,4 @@
-use super::combination::CombinationGenerator;
+use super::combination::{CombinationGenerator, CombinationInferenceFailure};
 use super::{
     AdditionalEstimationError, EquivalenceCondition, EquivalenceConditionSet, FaceOrder,
     FoldGraphError, FoldSetupError, HierarchyTable, InitialHierarchy, InitialHierarchyError,
@@ -14,7 +14,18 @@ const COMBINATION_GENERATOR_THRESHOLD: usize = 2000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PermutationError {
-    InvalidDigit { digit: usize, num_digits: usize },
+    InvalidDigit {
+        digit: usize,
+        num_digits: usize,
+    },
+    /// The user stopped the fold. See [`crate::cancel`].
+    Cancelled,
+}
+
+impl From<crate::cancel::Cancelled> for PermutationError {
+    fn from(_: crate::cancel::Cancelled) -> Self {
+        Self::Cancelled
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -27,6 +38,23 @@ pub struct PermutationSnapshot {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SubFaceSearchError {
     Permutation(PermutationError),
+    /// The user stopped the fold. See [`crate::cancel`].
+    Cancelled,
+}
+
+impl From<crate::cancel::Cancelled> for SubFaceSearchError {
+    fn from(_: crate::cancel::Cancelled) -> Self {
+        Self::Cancelled
+    }
+}
+
+impl SubFaceSearchError {
+    pub fn is_cancelled(&self) -> bool {
+        matches!(
+            self,
+            Self::Cancelled | Self::Permutation(PermutationError::Cancelled)
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -222,6 +250,32 @@ pub enum WorkerOverlapSearchError {
         valid_count: usize,
         reduced_subface_count: usize,
     },
+    /// The user stopped the fold. See [`crate::cancel`].
+    Cancelled,
+}
+
+impl From<crate::cancel::Cancelled> for WorkerOverlapSearchError {
+    fn from(_: crate::cancel::Cancelled) -> Self {
+        Self::Cancelled
+    }
+}
+
+impl WorkerOverlapSearchError {
+    /// Whether this is the user stopping, at any depth.
+    ///
+    /// The `AdditionalEstimation` arm is why this cannot be a `matches!`:
+    /// `From<FoldingEstimateError> for EngineError` maps that arm through a
+    /// wildcard to `"fold_contradiction"`, so a cancel nested inside it has to
+    /// be visible from here.
+    pub fn is_cancelled(&self) -> bool {
+        match self {
+            Self::Cancelled => true,
+            Self::SubFace(subface) => subface.is_cancelled(),
+            Self::AdditionalEstimation(estimation) => estimation.is_cancelled(),
+            Self::Setup(setup) => setup.is_cancelled(),
+            Self::FinalAdditionalEstimationRequired { .. } => false,
+        }
+    }
 }
 
 impl From<SubFaceSearchError> for WorkerOverlapSearchError {
@@ -437,6 +491,9 @@ impl WorkerOverlapEnumerator {
         let mut valid_count = initial_valid_count.min(ordered_subface_indices.len());
         let mut entries = Vec::with_capacity(ordered_subface_indices.len());
         for subface_index in ordered_subface_indices {
+            // Site 8. `set_guide_map` below is ~10ms per subface on a large
+            // model, and this loop runs once per subface at setup.
+            crate::cancel::check()?;
             let Some(subface) = subfaces.get(*subface_index) else {
                 continue;
             };
@@ -526,8 +583,19 @@ impl WorkerOverlapEnumerator {
                         self.valid_count,
                         conditions,
                     ) {
+                        // Matched before the recovery below, which promotes a
+                        // subface and keeps searching: a cancel must stop, not be
+                        // converted into more work.
+                        let error_position = match failure {
+                            FinalAdditionalEstimationFailure::Cancelled => {
+                                return Err(crate::cancel::Cancelled.into());
+                            }
+                            FinalAdditionalEstimationFailure::Contradiction { error_position } => {
+                                error_position
+                            }
+                        };
                         let mut recovered_missing_subface = false;
-                        if let Some(error_position) = failure.error_position
+                        if let Some(error_position) = error_position
                             && self.valid_count < self.order.len()
                         {
                             recovered_missing_subface = true;
@@ -612,14 +680,14 @@ fn run_final_additional_estimation(
         changes += infer_final_subface_transitivity(table, &configuration, completed_subfaces)?;
         for condition in &conditions.triple_conditions {
             changes += apply_triple_condition(table, *condition).map_err(|_| {
-                FinalAdditionalEstimationFailure {
+                FinalAdditionalEstimationFailure::Contradiction {
                     error_position: None,
                 }
             })?;
         }
         for condition in &conditions.quadruple_conditions {
             changes += apply_quadruple_condition(table, *condition).map_err(|_| {
-                FinalAdditionalEstimationFailure {
+                FinalAdditionalEstimationFailure::Contradiction {
                     error_position: None,
                 }
             })?;
@@ -630,9 +698,26 @@ fn run_final_additional_estimation(
     }
 }
 
+/// Why the final additional-estimation pass did not complete.
+///
+/// An enum rather than a bare `error_position` because its caller *recovers*
+/// from failure — promoting a subface and continuing the search. A cancel
+/// reaching that recovery would be silently converted into more searching, so
+/// the two have to be distinguishable at the type level.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct FinalAdditionalEstimationFailure {
-    error_position: Option<usize>,
+enum FinalAdditionalEstimationFailure {
+    /// The pass found the hierarchy inconsistent. `error_position` is the
+    /// 1-based position the caller promotes, when it knows one.
+    Contradiction {
+        error_position: Option<usize>,
+    },
+    Cancelled,
+}
+
+impl From<crate::cancel::Cancelled> for FinalAdditionalEstimationFailure {
+    fn from(_: crate::cancel::Cancelled) -> Self {
+        Self::Cancelled
+    }
 }
 
 fn infer_final_subface_transitivity(
@@ -651,6 +736,10 @@ fn infer_final_subface_transitivity(
             continue;
         };
         for upper in &subface.face_ids {
+            // Site 7. `face_ids` reaches ~250, so the two loops below are a k^2
+            // sweep per `upper` — a poll here bounds the gap without paying one
+            // per face triple.
+            crate::cancel::check()?;
             for middle in &subface.face_ids {
                 if table.get(*upper, *middle) != Some(FaceOrder::Above) {
                     continue;
@@ -659,7 +748,7 @@ fn infer_final_subface_transitivity(
                     if table.get(*middle, *lower) == Some(FaceOrder::Above) {
                         changes +=
                             usize::from(table.infer_above(*upper, *lower).map_err(|_| {
-                                FinalAdditionalEstimationFailure {
+                                FinalAdditionalEstimationFailure::Contradiction {
                                     error_position: Some(position + 1),
                                 }
                             })?);
@@ -859,7 +948,11 @@ impl SubFacePermutationSearch {
         table: &HierarchyTable,
     ) -> Result<bool, SubFaceSearchError> {
         let mut changed = 1usize;
+        let mut polled = 0u32;
         while changed != 0 {
+            // Site 5. One iteration tests a single permutation, so the stride
+            // keeps the poll well under a percent of the loop's own cost.
+            crate::check_every!(polled, 6);
             // Past this many permutations, brute force is losing: the guides have
             // stopped pruning and almost nothing the generator produces will pass
             // the equivalence-condition checks. Switch to searching the conditions
@@ -880,9 +973,16 @@ impl SubFacePermutationSearch {
                             return Ok(false);
                         }
                     }
+                    // A cancel here must NOT become `Ok(false)`: that value means
+                    // "no stacking of this subface exists", so absorbing it would
+                    // report a fabricated algorithmic verdict for a fold the user
+                    // merely stopped.
+                    Err(CombinationInferenceFailure::Cancelled) => {
+                        return Err(crate::cancel::Cancelled.into());
+                    }
                     // The subface's known relations already contradict each other,
                     // so no stacking of it exists.
-                    Err(_) => return Ok(false),
+                    Err(CombinationInferenceFailure::Contradiction { .. }) => return Ok(false),
                 }
             }
 
@@ -900,6 +1000,11 @@ impl SubFacePermutationSearch {
     /// no combinations left (0).
     fn run_combination_generator(&mut self) -> Result<usize, PermutationError> {
         loop {
+            // Site 6. `CombinationGenerator::process` returns `bool`, where
+            // `false` means "no combinations left" — so its own body must not be
+            // made fallible, or a cancel becomes that answer. The checkpoint
+            // lives here instead, in the caller that already returns `Result`.
+            crate::cancel::check()?;
             let Some(combination) = self.combination.as_mut() else {
                 return Ok(0);
             };
@@ -1237,6 +1342,15 @@ fn inconsistent_subface_request(
             } else {
                 Ok(())
             };
+            // A cancel is not a reason to give up on realtime estimation — it is
+            // a reason to stop. Tested before the domain handling below, which
+            // would otherwise swallow the two per-outer-iteration checkpoints
+            // *and* permanently disable the AEA for the rest of the search.
+            if let Err(error) = &success
+                && error.is_cancelled()
+            {
+                return Err(WorkerOverlapSearchError::from(*error));
+            }
             if success.is_err() {
                 *realtime_additional_estimation = false;
                 return Ok(WorkerSearchStep::RetryWithoutRealtimeAdditionalEstimation);

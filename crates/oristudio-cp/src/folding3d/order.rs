@@ -112,11 +112,27 @@ pub enum Fold3dOrderError {
     },
     /// The search failed for a reason that is neither of the above.
     SearchFailed { component: usize },
+    /// The user stopped the fold. Never a statement about the model — see
+    /// [`crate::cancel`].
+    Cancelled,
+}
+
+impl From<crate::cancel::Cancelled> for Fold3dOrderError {
+    fn from(_: crate::cancel::Cancelled) -> Self {
+        Self::Cancelled
+    }
+}
+
+impl Fold3dOrderError {
+    pub fn is_cancelled(&self) -> bool {
+        matches!(self, Self::Cancelled)
+    }
 }
 
 impl std::fmt::Display for Fold3dOrderError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Cancelled => write!(f, "the fold was cancelled"),
             Self::Cells(error) => error.fmt(f),
             Self::ContradictorySeeds {
                 upper,
@@ -882,6 +898,9 @@ impl Builder {
         // determination, and neither names a geometric rule, so this arm reports
         // the pair alone.
         validate_initial_hierarchy(&hierarchy).map_err(|error| match error {
+            // Kept off the `ContradictorySeeds` path: that arm reports two faces
+            // as geometrically irreconcilable, which a cancel is not.
+            AdditionalEstimationError::Cancelled => Fold3dOrderError::Cancelled,
             AdditionalEstimationError::Contradiction {
                 upper_face,
                 lower_face,

@@ -124,7 +124,7 @@ fn divide_intersections_arranges_crossing_segments() {
         LineColor::Blue2,
     );
 
-    divide_intersections(&mut model);
+    divide_intersections(&mut model).expect("not cancellable in a test");
 
     assert_eq!(model.line_segments.len(), 4);
     assert!(contains_segment(

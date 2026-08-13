@@ -59,11 +59,24 @@ pub enum FoldGraphError {
     /// its tolerance is `0.005 * faces.len()`, so from ~200 faces up a
     /// disconnected line set passes the gate and reaches the walk.
     DisconnectedFaces { reached: usize, unreached: usize },
+    /// The user stopped the fold part-way through the walk.
+    ///
+    /// Distinct from every other arm on purpose: this one is not a statement
+    /// about the crease pattern, and `From<FoldingEstimateError> for EngineError`
+    /// must not classify it as one. See [`crate::cancel`].
+    Cancelled,
+}
+
+impl From<crate::cancel::Cancelled> for FoldGraphError {
+    fn from(_: crate::cancel::Cancelled) -> Self {
+        Self::Cancelled
+    }
 }
 
 impl std::fmt::Display for FoldGraphError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Cancelled => write!(f, "the fold was cancelled"),
             Self::DisconnectedFaces { reached, unreached } => write!(
                 f,
                 "the fold graph is disconnected: the walk reached {reached} faces \
@@ -197,6 +210,9 @@ impl FoldGraph {
         while remaining_faces > 0 {
             let mut next_round = BTreeSet::new();
             for face in &current_round {
+                // Site 10. The body below is a scan over every face, so one
+                // round is F*k work — poll per face in the round, not per round.
+                crate::cancel::check()?;
                 for candidate in 0..self.faces.len() {
                     if face_position[candidate] != 0 {
                         continue;

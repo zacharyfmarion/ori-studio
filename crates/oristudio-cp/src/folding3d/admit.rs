@@ -11,7 +11,7 @@
 use crate::checks_spatial::{Indeterminate, Vec3, cross, dispatched_camv_in, dot, norm};
 use crate::fold_graph::FoldGraph;
 use crate::folding3d::placement::{Placement3d, place_faces};
-use crate::folding3d::{Fold3dRefusal, Fold3dTolerances};
+use crate::folding3d::{Fold3dPlacementError, Fold3dRefusal, Fold3dTolerances};
 use crate::geometry::{LineSegment, Point};
 use crate::model::CreasePatternModel;
 
@@ -101,7 +101,10 @@ impl Admission {
 /// slice of it could have the two disagree about what is being folded, which is
 /// the whole shape of the bug where an all-classic selection inside a mixed
 /// document takes the 3D path.
-pub fn admit(segments: &[LineSegment], starting_face_id: i32) -> Result<Admission, Fold3dRefusal> {
+pub fn admit(
+    segments: &[LineSegment],
+    starting_face_id: i32,
+) -> Result<Admission, Fold3dPlacementError> {
     admit_with(segments, starting_face_id, Fold3dTolerances::DEFAULT)
 }
 
@@ -109,7 +112,7 @@ pub fn admit_with(
     segments: &[LineSegment],
     starting_face_id: i32,
     tolerances: Fold3dTolerances,
-) -> Result<Admission, Fold3dRefusal> {
+) -> Result<Admission, Fold3dPlacementError> {
     // 1. Flat snap, into our own copy. Snapping a user's 179.9 to 180 in the
     //    document would silently destroy their angle; doing it here is sound
     //    because a half-turn about a line in a plane maps that plane to itself
@@ -141,13 +144,15 @@ pub fn admit_with(
         return Err(Fold3dRefusal::InteriorCut {
             line: border.segment,
             point: border.point,
-        });
+        }
+        .into());
     }
     if let Some(violation) = camv.flat.first() {
         return Err(Fold3dRefusal::FlatFoldability {
             point: violation.point,
             rule: violation.rule,
-        });
+        }
+        .into());
     }
 
     let mut spatial_vertices = 0usize;
@@ -166,7 +171,8 @@ pub fn admit_with(
                 cause: report
                     .indeterminate
                     .unwrap_or(Indeterminate::UnassignedCrease),
-            });
+            }
+            .into());
         };
         spatial_vertices += 1;
         let residual_degrees = residual.to_degrees();
@@ -175,7 +181,8 @@ pub fn admit_with(
             return Err(Fold3dRefusal::VertexClosure {
                 point: report.point,
                 residual_degrees,
-            });
+            }
+            .into());
         }
         if report.link.is_some_and(|link| link.self_intersects()) {
             local_crossings.push(report.point);
@@ -195,7 +202,8 @@ pub fn admit_with(
             worst_edge: placement.loop_gap.worst_edge,
             gap_radians: placement.loop_gap.rotation_radians,
             gap_offset: placement.loop_gap.offset,
-        });
+        }
+        .into());
     }
 
     // 6. The separation spectrum, measured and reported.

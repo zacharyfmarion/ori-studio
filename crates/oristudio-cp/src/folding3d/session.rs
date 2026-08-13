@@ -53,6 +53,38 @@ pub enum Fold3dSessionError {
     Refused(Fold3dRefusal),
     Order(Fold3dOrderError),
     Render(RenderModelError),
+    /// The user stopped the fold.
+    ///
+    /// Separate from `Refused` because the entry point turns a refusal into an
+    /// `Ok(Refused)` *result* — the "can't fold this in 3D, simulate instead?"
+    /// dialog — and a cancel must not open that.
+    Cancelled,
+}
+
+impl From<crate::folding3d::Fold3dPlacementError> for Fold3dSessionError {
+    fn from(error: crate::folding3d::Fold3dPlacementError) -> Self {
+        match error {
+            crate::folding3d::Fold3dPlacementError::Refused(refusal) => Self::Refused(refusal),
+            crate::folding3d::Fold3dPlacementError::Cancelled => Self::Cancelled,
+        }
+    }
+}
+
+impl From<crate::cancel::Cancelled> for Fold3dSessionError {
+    fn from(_: crate::cancel::Cancelled) -> Self {
+        Self::Cancelled
+    }
+}
+
+impl Fold3dSessionError {
+    /// Whether this is the user stopping, at any depth.
+    pub fn is_cancelled(&self) -> bool {
+        match self {
+            Self::Cancelled => true,
+            Self::Order(order) => order.is_cancelled(),
+            Self::Refused(_) | Self::Render(_) => false,
+        }
+    }
 }
 
 impl std::fmt::Display for Fold3dSessionError {
@@ -61,6 +93,7 @@ impl std::fmt::Display for Fold3dSessionError {
             Self::Refused(refusal) => refusal.fmt(f),
             Self::Order(error) => error.fmt(f),
             Self::Render(error) => error.fmt(f),
+            Self::Cancelled => write!(f, "the fold was cancelled"),
         }
     }
 }
