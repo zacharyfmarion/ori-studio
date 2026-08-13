@@ -23,13 +23,14 @@ let root: Root | null = null;
 let host: HTMLDivElement | null = null;
 let pushCamera: Mock<PushCamera>;
 
-function render(interactive: boolean) {
+function render(interactive: boolean, claimsWheel?: () => boolean) {
   act(() => {
     root?.render(
       <SimulatorViewport
         canvasKey="gl"
         onCanvasChange={() => {}}
         interactive={interactive}
+        claimsWheel={claimsWheel}
         gpuActive
         viewSettings={DEFAULT_SIMULATOR_SETTINGS}
         pushCamera={pushCamera}
@@ -108,6 +109,19 @@ describe('SimulatorViewport wheel gestures', () => {
     // Prevented even though nothing was zoomed: a window that is loading,
     // errored or unfocused still sits over the crease pattern, and the
     // browser's own zoom is never the right answer there.
+    expect(event.defaultPrevented).toBe(true);
+    expect(pushCamera).not.toHaveBeenCalled();
+  });
+
+  it('leaves the gesture to its owner when it does not claim it', () => {
+    // An inline simulation window shares the wheel with the crease pattern it
+    // floats over: a pan that began out on the paper stays a pan while the
+    // cursor crosses the window.
+    render(true, () => false);
+
+    const event = pinch(-100);
+
+    // Still claimed from the browser — whoever does act on it is on this page.
     expect(event.defaultPrevented).toBe(true);
     expect(pushCamera).not.toHaveBeenCalled();
   });
