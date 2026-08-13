@@ -79,7 +79,7 @@ export function WelcomeLanding() {
             {
               id: 'edit-angles',
               figure: 'edit-angles',
-              title: t('landing:edit.angles.title', 'Creases that are not 180°'),
+              title: t('landing:edit.angles.title', 'Support for non-flat creases'),
               body: t(
                 'landing:edit.angles.body',
                 'Assign and solve real fold angles, not just mountain and valley, so models that do not fold flat are still first-class here.'
