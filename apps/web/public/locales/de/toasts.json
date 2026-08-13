@@ -13,9 +13,9 @@
     "error": "Ori Studio-Fehler",
     "folding": "Wird gefaltet…",
     "foldingLong": "Wird noch gefaltet – das kann eine Weile dauern",
-    "foldStop": "Stoppen",
-    "foldStopped": "Falten gestoppt",
-    "foldStopping": "Wird gestoppt…"
+    "foldStop": "Abbrechen",
+    "foldStopped": "Falten abgebrochen",
+    "foldStopping": "Wird abgebrochen…"
   },
   "simulatorExport": {
     "empty": "Diese Simulation hat noch nichts zu exportieren",

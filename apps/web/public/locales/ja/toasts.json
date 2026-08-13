@@ -13,9 +13,9 @@
     "error": "Ori Studio エラー",
     "folding": "折り上げ中…",
     "foldingLong": "折り上げ中です — しばらく時間がかかる場合があります",
-    "foldStop": "停止",
-    "foldStopped": "折り上げを停止しました",
-    "foldStopping": "停止中…"
+    "foldStop": "キャンセル",
+    "foldStopped": "折り上げをキャンセルしました",
+    "foldStopping": "キャンセル中…"
   },
   "simulatorExport": {
     "empty": "このシミュレーションには書き出せるものがまだありません",

@@ -39,8 +39,8 @@ export function useFoldRunIndicator(): FoldRunIndicator {
   const stoppable = runs.some((run) => run.cancellable);
   // Gated on `stoppable`, not on `folding`. Asking "have all the runs that can
   // be stopped been stopped" of a set containing none is vacuously *yes*, which
-  // is exactly the un-isolated browser: every fold there would read "Stopping…"
-  // from the moment its indicator appeared and then announce "Folding stopped"
+  // is exactly the un-isolated browser: every fold there would read "Cancelling…"
+  // from the moment its indicator appeared and then announce "Fold cancelled"
   // when it succeeded.
   const stopping = stoppable && runs.every((run) => !run.cancellable || run.stopping);
   const oldestStartedAt = folding ? Math.min(...runs.map((run) => run.startedAt)) : null;

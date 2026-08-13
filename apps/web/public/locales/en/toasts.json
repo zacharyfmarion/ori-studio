@@ -13,9 +13,9 @@
     "error": "Ori Studio error",
     "folding": "Folding…",
     "foldingLong": "Still folding — this can take a while",
-    "foldStop": "Stop",
-    "foldStopped": "Folding stopped",
-    "foldStopping": "Stopping…"
+    "foldStop": "Cancel",
+    "foldStopped": "Fold cancelled",
+    "foldStopping": "Cancelling…"
   },
   "simulatorExport": {
     "empty": "This simulation has nothing to export yet",

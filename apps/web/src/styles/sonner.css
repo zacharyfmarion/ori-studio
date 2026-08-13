@@ -1,4 +1,32 @@
-[data-sonner-toaster] {
+/*
+ * Sonner, in the app's theme tokens.
+ *
+ * # Why every selector here carries a `:root` prefix
+ *
+ * Sonner ships a full palette of its own, scoped to the theme attribute it puts
+ * on the toaster: `[data-sonner-toaster][data-sonner-theme='dark']` sets
+ * `--normal-bg: #000` and a near-white `--normal-text` (its `styles.css:496`).
+ * That selector is specificity (0,2,0). This file used to declare the same
+ * variables at a bare `[data-sonner-toaster]` — (0,1,0) — and so **lost to it on
+ * every themed toast**: what shipped was sonner's black-and-white, not the app's
+ * surfaces, and the action button rendered as a white pill because sonner styles
+ * it `background: var(--normal-text)`.
+ *
+ * Nothing surfaced that, because a toast is transient and the palette is
+ * plausible on its own. It only became obvious once a toast gained a button.
+ *
+ * So each rule below is written one step *above* the sonner rule it overrides,
+ * and the `:root ` prefix (a pseudo-class, +0,1,0) is what buys that step
+ * without depending on stylesheet order — sonner injects its CSS at runtime, so
+ * an equal-specificity tie would be decided by whichever happened to land last.
+ * The comment on each block names the sonner selector it has to beat; keep them
+ * in step if sonner is upgraded.
+ */
+
+/* Beats `[data-sonner-toaster][data-sonner-theme='dark']` (0,2,0). Matching on
+ * the bare attribute rather than each value means a new sonner theme name
+ * cannot silently fall back to its palette. */
+:root [data-sonner-toaster][data-sonner-theme] {
   --normal-bg: var(--bg-elevated);
   --normal-border: var(--border-default);
   --normal-text: var(--text-primary);
@@ -16,17 +44,64 @@
   --info-text: var(--text-primary);
 }
 
-[data-sonner-toaster] [data-sonner-toast] {
+/* Beats `[data-sonner-toast][data-styled='true']` (0,2,0). */
+:root [data-sonner-toaster] [data-sonner-toast] {
   border-radius: var(--radius-md);
   box-shadow: 0 14px 38px var(--shadow-overlay);
 }
 
-[data-sonner-toaster] [data-description] {
+/* Beats `[data-sonner-toaster][data-sonner-theme='dark'] [data-description]`
+ * (0,3,0). */
+:root [data-sonner-toaster][data-sonner-theme] [data-description] {
   color: var(--text-secondary);
 }
 
-[data-sonner-toaster] [data-close-button] {
+/* The action button.
+ *
+ * Sonner's own rule inverts the toast — `color: var(--normal-bg); background:
+ * var(--normal-text)` — which is how a Cancel button on a dark toast came out
+ * white. Dropped in favour of the app's secondary button, so a control inside a
+ * toast reads like every other control in the app.
+ *
+ * `--bg-surface` rather than the secondary button's `--bg-elevated`: the toast
+ * itself is already `--bg-elevated`, and a button the same colour as its own
+ * background is a button only its border admits to. This is the one place the
+ * two-token step matters.
+ *
+ * Beats `[data-sonner-toast][data-styled='true'] [data-button]` (0,3,0).
+ */
+:root [data-sonner-toaster][data-sonner-theme] [data-sonner-toast] [data-button] {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-weight: 600;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+:root [data-sonner-toaster][data-sonner-theme] [data-sonner-toast] [data-button]:hover {
+  background: color-mix(in srgb, var(--text-primary) 12%, var(--bg-surface));
+  border-color: var(--border-strong);
+}
+
+/* `--accent-primary`, matching `.ui-button:focus-visible`, rather than sonner's
+ * `rgba(0, 0, 0, 0.4)` — which is invisible on a dark toast. */
+:root [data-sonner-toaster][data-sonner-theme] [data-sonner-toast] [data-button]:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent-primary);
+  outline: none;
+}
+
+/* Beats `[data-sonner-toaster][data-sonner-theme='dark'] [data-sonner-toast]
+ * [data-close-button]` (0,4,0). */
+:root [data-sonner-toaster][data-sonner-theme] [data-sonner-toast] [data-close-button] {
   color: var(--text-secondary);
   background: var(--bg-surface);
   border-color: var(--border-default);
+}
+
+:root [data-sonner-toaster][data-sonner-theme] [data-sonner-toast] [data-close-button]:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--text-primary) 12%, var(--bg-surface));
 }

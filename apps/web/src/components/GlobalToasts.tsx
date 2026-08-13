@@ -96,7 +96,7 @@ export function GlobalToasts() {
   useEffect(() => {
     if (!visible) return;
     const message = stopping
-      ? t('toasts:global.foldStopping', 'Stopping…')
+      ? t('toasts:global.foldStopping', 'Cancelling…')
       : longRun
         ? t('toasts:global.foldingLong', 'Still folding — this can take a while')
         : t('toasts:global.folding', 'Folding…');
@@ -110,7 +110,7 @@ export function GlobalToasts() {
       action:
         stoppable && !stopping
           ? {
-              label: t('toasts:global.foldStop', 'Stop'),
+              label: t('toasts:global.foldStop', 'Cancel'),
               onClick: () => stopFolds(),
             }
           : undefined,
@@ -119,7 +119,7 @@ export function GlobalToasts() {
 
   // Say so when a stop lands, once the run has actually left. Announced here
   // rather than at the press because until the kernel unwinds at its next
-  // checkpoint the fold is still running, and "Folding stopped" would be a
+  // checkpoint the fold is still running, and "Fold cancelled" would be a
   // guess. Upstream says nothing at all on a halt (`FoldingEstimateTask` logs to
   // a file), so one quiet line is already more than parity.
   const stopRequested = useRef(false);
@@ -127,7 +127,7 @@ export function GlobalToasts() {
     if (stopping) stopRequested.current = true;
     if (folding || !stopRequested.current) return;
     stopRequested.current = false;
-    toast.message(t('toasts:global.foldStopped', 'Folding stopped'), {
+    toast.message(t('toasts:global.foldStopped', 'Fold cancelled'), {
       id: FOLD_STOPPED_TOAST_ID,
     });
   }, [folding, stopping, t]);

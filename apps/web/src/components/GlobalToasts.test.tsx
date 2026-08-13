@@ -93,7 +93,7 @@ describe('the folding toast', () => {
 
     const toast = latestToast();
     expect(toast?.message).toBe('Folding…');
-    expect(toast?.options.action?.label).toBe('Stop');
+    expect(toast?.options.action?.label).toBe('Cancel');
     // Persistent while there is a way out of it: the only indicator of an
     // hour-long run must not be dismissable out from under the button that ends
     // it. `dismissible` is the whole mechanism — sonner ignores `closeButton`
@@ -111,11 +111,11 @@ describe('the folding toast', () => {
     setRuns(run({ stopping: true }));
     // No second Stop: the run is already unwinding, and a button that repeats is
     // a button that looks like it did nothing.
-    expect(latestToast()?.message).toBe('Stopping…');
+    expect(latestToast()?.message).toBe('Cancelling…');
     expect(latestToast()?.options.action).toBeUndefined();
 
     setRuns();
-    expect(messageToasts).toContain('Folding stopped');
+    expect(messageToasts).toContain('Fold cancelled');
   });
 
   it('says nothing when a fold simply finishes', () => {
@@ -123,7 +123,7 @@ describe('the folding toast', () => {
     act(() => vi.advanceTimersByTime(600));
     setRuns();
 
-    expect(messageToasts).not.toContain('Folding stopped');
+    expect(messageToasts).not.toContain('Fold cancelled');
   });
 
   it('escalates its wording for a run that has outlasted reassurance', () => {
@@ -145,7 +145,7 @@ describe('the folding toast', () => {
     expect(latestToast()?.options.dismissible).toBe(true);
     // And it must read as an ordinary fold. "Have all the stoppable runs been
     // stopped" is vacuously true when none of them can be stopped, which had
-    // every un-isolated fold showing "Stopping…" from the moment it appeared.
+    // every un-isolated fold showing "Cancelling…" from the moment it appeared.
     expect(latestToast()?.message).toBe('Folding…');
   });
 
@@ -156,6 +156,6 @@ describe('the folding toast', () => {
 
     // The other half of the vacuous predicate: it latched `stopRequested`, so a
     // fold nobody stopped announced that it had been stopped.
-    expect(messageToasts).not.toContain('Folding stopped');
+    expect(messageToasts).not.toContain('Fold cancelled');
   });
 });
