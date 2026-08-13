@@ -172,6 +172,126 @@ Not ported, and refused rather than approximated:
   sets one yet; the constraints reach the port only as
   `FoldedFigureRenderOptions::custom_constraints`, which is render-only.
 
+### Fold cancellation
+
+Upstream can stop a running fold and, until this landed, we could not.
+`HaltAction` — Escape, `hotkey.properties:95` — calls `stopTask()` on the
+folding executor, and 32 `Thread.interrupted()` sites inside the fold answer it.
+Our fold ran to completion no matter what, which on an hour-scale crease pattern
+took the whole CP worker with it.
+
+The **mechanism** is a faithful port and could not have been anything else: a
+fold is one long synchronous call, so the only thing that can stop it is the
+running code asking whether it should. Three things about it are deliberately
+not faithful.
+
+- **The signal is not consumed by reading.** `Thread.interrupted()` clears the
+  flag. `FoldedFigure_Worker.java:216` calls `SubFace.setGuideMap` on the search
+  thread, and `SubFace.java:389/429/439/445` merely `return` on the interrupt
+  without rethrowing — so a cancel that lands inside the guide map is swallowed,
+  the map is left half-built, the search carries on over corrupted guides, and
+  the user's Escape is silently lost. `cancel::check()` reads an atomic and
+  `crates/oristudio-cp/src/cancel.rs` exposes no taking variant, so that failure
+  is unrepresentable rather than merely avoided. The three `Err`-absorbing arms
+  on the search path (`folding/permutation.rs`) match `Cancelled` first for the
+  same reason; the worst of them turned any error into `Ok(false)`, which means
+  "no stacking of this subface exists".
+- **`check()` matches the cancelled run id exactly, not by watermark.** Ori
+  Studio runs folds the user cannot address — the 3D rehydrate on project load,
+  the export-dialog fold — concurrently with one they can. A watermark cancels
+  every live run with a lower id, so a Stop would silently abandon those.
+  Upstream has one folding executor and no such case.
+- **A cancelled fold is rolled back, not discarded.** `FoldingEstimateTask.java:44-49`
+  catches the interrupt and calls `estimated_initialize()`
+  (`FoldedFigure.java:58-72`), which resets `displayStyle` to `NONE_0` and leaves
+  an empty, still-selectable entry in `foldedFiguresList` — so cancelling a *find
+  another* throws away the solution that was already on screen. Ori Studio
+  snapshots the session's mutable state and restores it, leaving the figure
+  exactly as it was before the call. Upstream structurally cannot do this: it has
+  no backwards solution navigation (the first divergence in this section), so
+  "the solution before this search" is not a state it can return to. Upstream's
+  behaviour remains available here as a user verb, because `restart()` already is
+  that reset.
+
+**Where the checkpoint sets differ, and why they are allowed to.** Upstream's
+criterion is stated in a comment at `PointSet.java:424`: "No need for
+InterruptedException here since this algorithm is now way too fast even for
+Ryujin." Ours is a latency bound — no uninterrupted stretch over 100 ms — so the
+two sets differ in both directions, and a difference is not by itself a porting
+defect. Below is the accounting for all 32 of upstream's sites
+(`rg -c 'Thread\.interrupted\(\)' third_party/oriedita`), row by row, so that the
+next `upstream-drift` sweep reads the real gaps instead of an all-clear:
+
+| Upstream | # | Ori Studio |
+| --- | --- | --- |
+| `FoldedFigure_Configurator.java:126`, `:137` | 2 | `folding.rs` `configure_subfaces`, per subface. `:137` only stops *submitting* to a `newWorkStealingPool`; a sequential port has no queue to stop feeding. |
+| `Configurator.java:388` | 1 | `folding.rs` `initial_hierarchy_from_graph`, on a stride of 8 — its body became an array read when the line/face incidence index landed. |
+| `Configurator.java:416`, `:430` | 2 | `folding.rs` `equivalence_condition_candidates_from_parts`, the 3EC face scan, stride 256. `:430` is a submit loop. |
+| `Configurator.java:458`, `:466`, `:481` | 3 | Same function, the 4EC collision scan — every iteration, because it carries ~85 % of setup on a large model. `:466` guards upstream's `synchronized (AEA)` block and `:481` is a submit loop; neither has a sequential counterpart. |
+| `Configurator.java:276` | 1 | **Not mapped.** `reduce_subface_set` (`folding.rs`) has no poll. |
+| `Configurator.java:510` | 1 | **Declined.** `prioritize_subfaces` (`folding/permutation.rs`) is public, infallible, asserted infallibly in two test files, ~40 µs, and called once from a site already covered. 40 µs against a 100 ms bar does not buy a public API break. |
+| `FoldedFigure.java:148,164,179,207,230,261` | 6 | **Not mapped.** These are the stage boundaries of `folding_estimated`. A boundary poll only shortens the tail of a stage whose interior is already polled, and the expensive stages — the fold graph, the hierarchy setup, the condition generation, the layer-order search — all carry interior sites. |
+| `SubFace.java:389` | 1 | `from_ordered_subfaces`, the loop whose body is `set_guide_map` (~10 ms per subface). |
+| `SubFace.java:429`, `:439`, `:445` | 3 | **Not mapped, deliberately.** These are the `return`-on-interrupt sites named above. Polling the enclosing loop instead means a cancel is taken *before* a guide map is started, never inside one. |
+| `AdditionalEstimationAlgorithm.java:99` | 1 | `additional_estimation.rs` `run_transitivity`, every iteration — one iteration is a whole subface's transitive closure. The "fast" variant carries the same polls. |
+| `AEA.java:115`, `:130` | 2 | The triple / quadruple condition sweeps, stride 1024 — bodies are nanoseconds and the lists reach ~10⁵ entries. |
+| `WireFrame_Worker.java:168` | 1 | `FoldGraph::face_positions` — **finer than upstream**, which polls per BFS *round*; one round is F·k work, so we poll per face in the round. |
+| `WireFrame_Worker.java:245`, `:291` | 2 | **Not mapped.** Point-set construction from a line-segment set. |
+| `ChainPermutationGenerator.java:165` | 1 | `SubFacePermutationSearch`'s `while changed != 0`, stride 64 — deliberately one level *above* upstream's site. A mid-loop return from `next_core` leaves `PairGuide::score` elevated for the confirmed prefix while the next call retracts from `num_digits` downwards, so `is_not_ready` lies. |
+| `CombinationGenerator.java:120` | 1 | `run_combination_generator`, the caller. `CombinationGenerator::process` returns `bool` where `false` means "no combinations left", so a cancelled `false` would be a fabricated algorithmic verdict. |
+| `FoldedFigure_Worker.java:134` | 1 | **Not mapped.** |
+| `IntersectDivide.java:26` | 1 | `operations::arrangement::divide_intersections`, which became fallible solely to carry a cancel. |
+| `PointLineMap.java:39` | 1 | **Not mapped.** `PointLineMap` has no counterpart on our fold path. |
+| `PointSet.java:490` | 1 | **Not mapped.** The `lineInFaceBorder` index build; our `line_face_borders_from_incidence` has no poll. |
+
+Twelve mapped, four with no sequential counterpart, one declined, **fifteen not
+mapped** — three of those by choice and twelve because the latency bound did not
+demand them. That last number is the point of this table: it is the honest
+account, and adding a site is a one-line change if a measurement ever asks for
+one.
+
+One of our checkpoints has no upstream counterpart at all:
+`infer_final_subface_transitivity` (`folding/permutation.rs`), which upstream
+does not need because it reaches the same result through its incremental AEA.
+
+Two sites poll on a **latch and `break`** rather than `?`, because they sit in
+closures returning `Vec` where `check()?` does not typecheck. That is safe only
+because the caller discards the whole collect at a `check()?` immediately after
+it, and only because nothing ever clears the signal — so a `break` above is
+always followed by that `Err`. Do not copy the shape anywhere a partial result
+can reach a caller; a cancel that becomes a short list is exactly the class of
+failure the `getFacePositions` note above calls "worse than the hang".
+
+Three consequences worth knowing before touching adjacent code:
+
+- **`fold_disconnected` is now "disconnected *or* cancelled".** `FoldGraphError`
+  carries `Cancelled` beside `DisconnectedFaces`, so the pinned code above is
+  reached only after `is_cancelled()` has been tested. Every conversion into
+  `EngineError` short-circuits on that predicate *before* classifying by cause —
+  without it, a checkpoint in additional estimation would arrive inside the
+  `AdditionalEstimation(_)` arm and tell a user who pressed Stop that their
+  crease pattern is unfoldable.
+- **`Fold3dPlacementError` is Ori Studio's, with no upstream counterpart.** 3D
+  folding is a native module (see below), and `Fold3dRefusal` is a *verdict about
+  the crease pattern* — it reaches the user as "this cannot be folded in 3D".
+  A cancel is not a verdict, so it could not be one of its arms; the placement
+  path returns `Fold3dPlacementError`, which is either a refusal or a cancel.
+  3D is cancellable at all because sites in `fold_graph.rs` and
+  `operations/arrangement.rs` are shared with the flat path.
+- **We cancel the fold; we do not cancel the CAMV recompute.** Upstream's
+  `HaltAction` stops *two* executors (`HaltAction.java:26-29`), and the second is
+  `CheckCAMVTask` — the debounced background flat-foldability recompute, whose
+  analogue is `scheduleOristudioCamvRefresh`. That one is not cancellable here
+  yet, and the pre-fold CAMV check is a different thing again: upstream's runs
+  synchronously on the EDT inside `FoldAction.actionPerformed`, where `HaltAction`
+  cannot reach it either.
+
+One frontend divergence rides along: **a cancelled scoped fold hands the crease
+selection back.** `FoldAction.foldCreasePattern` calls `unselect_all(false)`
+immediately after dispatching, so upstream drops the selection whatever the fold
+does and a user who stops one has to reselect. We restore it, so pressing G again
+is enough.
+
 ### Ori Studio native operations
 
 Not every CP operation is a port. Some exist only here — fold-angle editing has
