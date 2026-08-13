@@ -2301,11 +2301,11 @@
   border-color: var(--border-strong);
 }
 
-/* The row is the control, so the ring belongs on it, not the bare checkbox. */
-.settings-toggle-row:has(input:focus-visible) {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 1px;
-}
+/*
+ * No focus rule here: the row is a mouse hit target, not a tab stop. Every row
+ * holds a Radix switch — a `button`, never an `input` — and that switch carries
+ * its own ring via `.toggle-switch:focus-visible`.
+ */
 
 .settings-toggle-row__copy {
   display: grid;

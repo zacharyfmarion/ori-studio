@@ -1,6 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AnalyticsRuntimeProvider, type PostHogClientLike } from '../analytics';
 import {
   formatKeyChord,
   getResolvedShortcuts,
@@ -94,22 +95,53 @@ function changedBindings(
   return [...after.keys()].filter((id) => before.get(id) !== after.get(id));
 }
 
+function toggleRowFor(label: string): HTMLElement {
+  const row = Array.from(container?.querySelectorAll('.settings-toggle-row') ?? []).find(
+    (element) => element.querySelector('.settings-toggle-row__label')?.textContent === label
+  );
+  expect(row).toBeDefined();
+  return row as HTMLElement;
+}
+
 /**
- * The defaults switch. It is the shared `Toggle` (a Radix switch), so it renders
- * a `button[role="switch"]` with `aria-checked` rather than a checkbox — reading
+ * A row's switch. It is the shared `Toggle` (a Radix switch), so it renders a
+ * `button[role="switch"]` with `aria-checked` rather than a checkbox — reading
  * `.checked` off it would be `undefined`, which is falsy and would let an
  * assertion pass for the wrong reason.
  */
-function defaultsToggle(): HTMLButtonElement {
-  const button = container?.querySelector<HTMLButtonElement>(
-    '.settings-toggle-row [role="switch"]'
-  );
+function rowSwitch(label: string): HTMLButtonElement {
+  const button = toggleRowFor(label).querySelector<HTMLButtonElement>('[role="switch"]');
   expect(button).not.toBeNull();
   return button as HTMLButtonElement;
 }
 
+function rowChecked(label: string): boolean {
+  return rowSwitch(label).getAttribute('aria-checked') === 'true';
+}
+
+const ORIEDITA_DEFAULTS_LABEL = 'Use Oriedita defaults';
+const WELCOME_LABEL = 'Show welcome screen on startup';
+const FOLD_WARNING_LABEL = 'Warn before folding a crease pattern with flat-foldability errors';
+const ANALYTICS_LABEL = 'Send anonymous usage analytics to help improve Ori Studio';
+
+function defaultsToggle(): HTMLButtonElement {
+  return rowSwitch(ORIEDITA_DEFAULTS_LABEL);
+}
+
 function defaultsToggleChecked(): boolean {
-  return defaultsToggle().getAttribute('aria-checked') === 'true';
+  return rowChecked(ORIEDITA_DEFAULTS_LABEL);
+}
+
+function stubPostHogClient() {
+  return {
+    init: vi.fn(),
+    register: vi.fn(),
+    opt_in_capturing: vi.fn(),
+    opt_out_capturing: vi.fn(),
+    identify: vi.fn(),
+    capture: vi.fn(),
+    reset: vi.fn(),
+  } satisfies PostHogClientLike;
 }
 
 /**
@@ -144,17 +176,19 @@ function pressChord(init: KeyboardEventInit) {
   });
 }
 
-function renderModal(tab?: SettingsTab) {
+function renderModal(tab?: SettingsTab, analyticsClient: PostHogClientLike | null = null) {
   useSettingsStore.getState().openSettings(tab);
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
   act(() => {
     root?.render(
-      <TooltipProvider delayDuration={0}>
-        <SettingsModal />
-        <CommandDialogModal />
-      </TooltipProvider>
+      <AnalyticsRuntimeProvider client={analyticsClient}>
+        <TooltipProvider delayDuration={0}>
+          <SettingsModal />
+          <CommandDialogModal />
+        </TooltipProvider>
+      </AnalyticsRuntimeProvider>
     );
   });
   return container;
@@ -223,6 +257,76 @@ describe('SettingsModal', () => {
     });
 
     expect(resetLayout).toHaveBeenCalledOnce();
+  });
+
+  it('presents the workspace booleans as switches, each naming its own row copy', () => {
+    const rendered = renderModal('workspace');
+
+    // The three preferences that apply the moment they are flipped. The scroll
+    // gesture below them is a two-way *named* choice, so it stays a radio group
+    // — a switch would have to drop one of the two labels.
+    expect(rendered.querySelectorAll('.settings-toggle-row [role="switch"]')).toHaveLength(3);
+    expect(rendered.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
+    expect(rendered.querySelectorAll('input[type="radio"]')).toHaveLength(2);
+
+    for (const label of [WELCOME_LABEL, FOLD_WARNING_LABEL, ANALYTICS_LABEL]) {
+      // Named by the row copy rather than wrapped in a `<label>`, which is what
+      // keeps a click on the copy from also reaching the switch directly.
+      const labelId = toggleRowFor(label).querySelector('.settings-toggle-row__label')?.id;
+      expect(labelId).toBeTruthy();
+      expect(rowSwitch(label).getAttribute('aria-labelledby')).toBe(labelId);
+      // All three default to on, so the pane must open showing that.
+      expect(rowChecked(label)).toBe(true);
+    }
+  });
+
+  it('flips a workspace preference from the switch and from the row copy', () => {
+    renderModal('workspace');
+
+    act(() => {
+      rowSwitch(FOLD_WARNING_LABEL).click();
+    });
+
+    // Once, not twice. The row forwards its own clicks, so a hit on the switch
+    // that also reached the row handler would toggle back to true and this
+    // assertion is the guard on that.
+    expect(useSettingsStore.getState().foldWarningEnabled).toBe(false);
+    expect(rowChecked(FOLD_WARNING_LABEL)).toBe(false);
+
+    // And the copy is still a hit target, which is what the `<label>` checkbox
+    // this replaced gave for free.
+    act(() => {
+      (
+        toggleRowFor(FOLD_WARNING_LABEL).querySelector(
+          '.settings-toggle-row__label'
+        ) as HTMLElement
+      ).click();
+    });
+
+    expect(useSettingsStore.getState().foldWarningEnabled).toBe(true);
+    expect(rowChecked(FOLD_WARNING_LABEL)).toBe(true);
+  });
+
+  it('still drives the analytics client when the privacy switch is flipped', () => {
+    // The one preference whose switch does more than write the store, so the
+    // control swap had to carry the side effect across with it.
+    const client = stubPostHogClient();
+    renderModal('workspace', client);
+    client.capture.mockClear();
+
+    act(() => {
+      rowSwitch(ANALYTICS_LABEL).click();
+    });
+
+    expect(useSettingsStore.getState().analyticsEnabled).toBe(false);
+    // The preference-change event belongs to this switch alone — the provider's
+    // reactive sync calls `setAnalyticsEnabled` without the option — so seeing
+    // it is what proves the client was reached from here.
+    expect(client.capture).toHaveBeenCalledWith('analytics preference changed', {
+      analytics_enabled: true,
+      enabled: false,
+    });
+    expect(client.opt_out_capturing).toHaveBeenCalled();
   });
 
   it('reflects and updates the crease-pattern scroll preference', () => {

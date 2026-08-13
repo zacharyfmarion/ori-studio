@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Check, Download, Keyboard, LayoutDashboard, Palette, RotateCcw, X } from 'lucide-react';
 import { OrieditaImportDialog } from './settings/OrieditaImportDialog';
+import { SettingsToggleRow } from './settings/SettingsToggleRow';
 import { ANALYTICS_EVENTS, track, useAnalytics } from '../analytics';
 import { detectSystemLocale, SUPPORTED_LOCALES, SYSTEM_LOCALE } from '../i18n/locales';
 import {
@@ -48,7 +49,6 @@ import { useThemeStore } from '../store/themeStore';
 import type { TreeMakerTheme } from '../themes';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
-import { Toggle } from './ui/Toggle';
 
 const TABS: Array<{ key: SettingsTab; icon: typeof Palette }> = [
   { key: 'appearance', icon: Palette },
@@ -198,52 +198,42 @@ function WorkspaceTab() {
         <h3 className="settings-section__title">
           {t('dialogs:settings.workspace.startup', 'Startup')}
         </h3>
-        <label className="settings-checkbox">
-          <input
-            type="checkbox"
-            checked={showWelcomeOnStartup}
-            onChange={(event) => setShowWelcomeOnStartup(event.target.checked)}
-          />
-          {t('dialogs:settings.workspace.showWelcome', 'Show welcome screen on startup')}
-        </label>
+        <SettingsToggleRow
+          label={t('dialogs:settings.workspace.showWelcome', 'Show welcome screen on startup')}
+          checked={showWelcomeOnStartup}
+          onChange={setShowWelcomeOnStartup}
+        />
       </section>
       <section className="settings-section">
         <h3 className="settings-section__title">
           {t('dialogs:settings.workspace.folding', 'Folding')}
         </h3>
-        <label className="settings-checkbox">
-          <input
-            type="checkbox"
-            checked={foldWarningEnabled}
-            onChange={(event) => setFoldWarningEnabled(event.target.checked)}
-          />
-          {t(
+        <SettingsToggleRow
+          label={t(
             'dialogs:settings.workspace.foldWarning',
             'Warn before folding a crease pattern with flat-foldability errors'
           )}
-        </label>
+          checked={foldWarningEnabled}
+          onChange={setFoldWarningEnabled}
+        />
       </section>
       <section className="settings-section">
         <h3 className="settings-section__title">
           {t('dialogs:settings.workspace.privacy', 'Privacy')}
         </h3>
-        <label className="settings-checkbox">
-          <input
-            type="checkbox"
-            checked={analyticsEnabled}
-            onChange={(event) => {
-              const enabled = event.target.checked;
-              // Persist the preference, then apply it to the analytics client:
-              // opt in/out, (re)identify or reset, and record the change itself.
-              setAnalyticsEnabled(enabled);
-              analytics.setAnalyticsEnabled(enabled, { capturePreferenceChange: true });
-            }}
-          />
-          {t(
+        <SettingsToggleRow
+          label={t(
             'dialogs:settings.workspace.analytics',
             'Send anonymous usage analytics to help improve Ori Studio'
           )}
-        </label>
+          checked={analyticsEnabled}
+          onChange={(enabled) => {
+            // Persist the preference, then apply it to the analytics client:
+            // opt in/out, (re)identify or reset, and record the change itself.
+            setAnalyticsEnabled(enabled);
+            analytics.setAnalyticsEnabled(enabled, { capturePreferenceChange: true });
+          }}
+        />
       </section>
       <section className="settings-section">
         <h3 className="settings-section__title">
@@ -734,31 +724,15 @@ function ShortcutsTab() {
           it selects which table the whole list resolves against, so sitting it
           beside Search and Assigned would read as a third filter.
         */}
-        {/*
-          A `div` with a labelled switch rather than a `<label>` wrapping one:
-          the Radix switch is the control, and nesting it inside a label makes
-          the click arrive twice — once from the label, once from the switch —
-          which toggles straight back. `aria-labelledby` ties them instead.
-        */}
-        <div className="settings-toggle-row">
-          <span className="settings-toggle-row__copy">
-            <span className="settings-toggle-row__label" id="use-oriedita-defaults-label">
-              {t('dialogs:settings.shortcuts.useOrieditaDefaults', 'Use Oriedita defaults')}
-            </span>
-            <span className="settings-toggle-row__desc" id="use-oriedita-defaults-desc">
-              {t(
-                'dialogs:settings.shortcuts.useOrieditaDefaultsHint',
-                "Oriedita's crease-pattern keys: M, V and L for line types, F to fold, R to mirror. Shortcuts you set yourself are left alone."
-              )}
-            </span>
-          </span>
-          <Toggle
-            checked={defaultsSource === 'oriedita'}
-            onChange={(checked) => changeDefaultsSource(checked ? 'oriedita' : 'ori-studio')}
-            aria-labelledby="use-oriedita-defaults-label"
-            aria-describedby="use-oriedita-defaults-desc"
-          />
-        </div>
+        <SettingsToggleRow
+          label={t('dialogs:settings.shortcuts.useOrieditaDefaults', 'Use Oriedita defaults')}
+          description={t(
+            'dialogs:settings.shortcuts.useOrieditaDefaultsHint',
+            "Oriedita's crease-pattern keys: M, V and L for line types, F to fold, R to mirror. Shortcuts you set yourself are left alone."
+          )}
+          checked={defaultsSource === 'oriedita'}
+          onChange={(checked) => changeDefaultsSource(checked ? 'oriedita' : 'ori-studio')}
+        />
       </section>
 
       <section className="settings-section">
