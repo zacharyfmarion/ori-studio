@@ -19,6 +19,39 @@ const MIN_VERTICES: usize = 3;
 const X_DISPLACEMENT: f64 = 0.125;
 const Y_DISPLACEMENT: f64 = 0.0625;
 
+/// Everything a flap's footprint is made of, for [`BpProjectSession::reshape_flap`].
+///
+/// A flap draws as its box grown by its radius on every side, so a gesture that
+/// resizes what is on screen generally moves the anchor *and* the box *and* the
+/// leaf-edge length. Passing them together is what lets the engine apply them as
+/// one solve and one history step.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FlapReshape {
+    pub anchor: Point,
+    pub width: f64,
+    pub height: f64,
+    /// The flap's leaf-edge length. `None` leaves the radius alone.
+    pub radius: Option<f64>,
+    /// Where the flap's own tree vertex should sit, for callers that keep the
+    /// tree drawing length-faithful. `None` leaves the drawing alone.
+    pub vertex: Option<Point>,
+}
+
+/// A resolved, validated leaf-edge length change.
+#[derive(Debug, Clone, PartialEq)]
+struct ReshapeEdgeChange {
+    index: usize,
+    edge: Edge,
+    length: f64,
+}
+
+/// A resolved tree-vertex reposition, already constrained to the tree sheet.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct ReshapeVertexChange {
+    old: Point,
+    next: Point,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct BpProjectSession {
     project: Project,
@@ -530,6 +563,227 @@ impl BpProjectSession {
         }
         self.history.flush(self.project.design.mode, vec![tag]);
         Ok(update)
+    }
+
+    /// A flap's whole footprint — where it sits, how big its box is, and how long
+    /// its leaf edge is — committed as one edit.
+    ///
+    /// Box Pleating Studio has the same shape in `Flap.$manipulate(x, y, width,
+    /// height)`, which exists because position and size belong together whenever
+    /// something other than a panel field is driving them. Ours adds the radius,
+    /// because a flap's drawn extent is its box grown by its leaf-edge length
+    /// (`Flap.$drawCircle`) and a gesture that resizes that extent moves all
+    /// three.
+    ///
+    /// Doing it in one call is not only cheaper than three. `resize_flap` does
+    /// not move the flap and `move_flaps` constrains its target against the
+    /// sheet using the flap's *current* box, so any sequence of the granular ops
+    /// passes through an intermediate state — the new box at the old anchor, or
+    /// the reverse — that `validate_flap_with_sheet` can reject even when the
+    /// final state is legal. There is no such state here.
+    pub fn reshape_flap(
+        &mut self,
+        id: NodeId,
+        reshape: FlapReshape,
+        dragging: bool,
+    ) -> BpResult<UpdateModel> {
+        let FlapReshape {
+            anchor,
+            width,
+            height,
+            radius,
+            vertex,
+        } = reshape;
+        if !width.is_finite() || !height.is_finite() || width < 0.0 || height < 0.0 {
+            return Err(BpError::InvalidInput(format!(
+                "BP flap dimensions must be finite and non-negative: {width} x {height}"
+            )));
+        }
+        if !anchor.x.is_finite() || !anchor.y.is_finite() {
+            return Err(BpError::InvalidInput(format!(
+                "BP flap anchor must be finite: {}, {}",
+                anchor.x, anchor.y
+            )));
+        }
+        let flap_index = self.flap_index(id)?;
+        let old_flap = self.project.design.layout.flaps[flap_index].clone();
+        let mut next_flap = old_flap.clone();
+        next_flap.x = anchor.x;
+        next_flap.y = anchor.y;
+        next_flap.width = width;
+        next_flap.height = height;
+
+        // Everything is resolved and validated before anything is applied, so a
+        // rejected reshape leaves the project exactly as it was rather than
+        // half-edited.
+        self.validate_flap(&next_flap)?;
+        let edge_change = self.resolve_reshape_edge(id, radius)?;
+        let vertex_change = self.resolve_reshape_vertex(id, vertex)?;
+
+        let flap_changed = old_flap != next_flap;
+        if !flap_changed && edge_change.is_none() && vertex_change.is_none() {
+            return self.empty_tree_update();
+        }
+
+        let mut session = self.core_session()?;
+        let update = session.update_design(crate::engine::DesignUpdateRequest {
+            flaps: if flap_changed {
+                vec![next_flap.clone()]
+            } else {
+                Vec::new()
+            },
+            edges: edge_change
+                .as_ref()
+                .map(|change| {
+                    vec![Edge {
+                        length: change.length,
+                        ..change.edge.clone()
+                    }]
+                })
+                .unwrap_or_default(),
+            stretches: self.project.design.layout.stretches.clone(),
+            dragging,
+        })?;
+
+        self.project.design.layout.flaps[flap_index] = next_flap.clone();
+        if let Some(change) = &edge_change {
+            self.project.design.tree.edges[change.index].length = change.length;
+        }
+        self.apply_tree_update(&update);
+        if let Some(change) = &vertex_change {
+            let target = self.vertex_mut(id)?;
+            target.x = change.next.x;
+            target.y = change.next.y;
+        }
+
+        let tag = flap_tag(id);
+        self.history.set_dragging(dragging);
+        if old_flap.width != next_flap.width {
+            self.history.field_change(
+                tag.clone(),
+                "width",
+                json!(old_flap.width),
+                json!(next_flap.width),
+            );
+        }
+        if old_flap.height != next_flap.height {
+            self.history.field_change(
+                tag.clone(),
+                "height",
+                json!(old_flap.height),
+                json!(next_flap.height),
+            );
+        }
+        if old_flap.x != next_flap.x || old_flap.y != next_flap.y {
+            self.history.move_command(
+                tag.clone(),
+                Point {
+                    x: old_flap.x,
+                    y: old_flap.y,
+                },
+                Point {
+                    x: next_flap.x,
+                    y: next_flap.y,
+                },
+            );
+        }
+        if let Some(change) = &edge_change {
+            self.history.field_change(
+                edge_tag(change.edge.n1, change.edge.n2),
+                "length",
+                json!(change.edge.length),
+                json!(change.length),
+            );
+        }
+        if let Some(change) = &vertex_change {
+            self.history
+                .move_command(format!("v{id}"), change.old, change.next);
+        }
+        // Selected by the flap tag whichever fields moved: the gesture that drives
+        // this grabs a flap, and undoing it should hand that flap back.
+        self.history.flush(self.project.design.mode, vec![tag]);
+        self.history.set_dragging(false);
+        Ok(update)
+    }
+
+    /// The leaf-edge length change a reshape asks for, validated, or `None` when
+    /// it asks for none or the edge already has that length.
+    fn resolve_reshape_edge(
+        &self,
+        id: NodeId,
+        radius: Option<f64>,
+    ) -> BpResult<Option<ReshapeEdgeChange>> {
+        let Some(length) = radius else {
+            return Ok(None);
+        };
+        if !length.is_finite() || length < 1.0 {
+            return Err(BpError::InvalidInput(format!(
+                "BP edge length must be at least 1: {length}"
+            )));
+        }
+        let index = self.leaf_edge_index(id)?;
+        let edge = self.project.design.tree.edges[index].clone();
+        let max_length = self.edge_max_length(&edge)?;
+        if length > max_length {
+            return Err(BpError::InvalidInput(format!(
+                "BP edge length {length} exceeds max {max_length}"
+            )));
+        }
+        Ok((edge.length != length).then_some(ReshapeEdgeChange {
+            index,
+            edge,
+            length,
+        }))
+    }
+
+    /// Where a reshape wants the flap's own tree vertex, constrained to the tree
+    /// sheet exactly as `move_vertex` constrains a dragged one.
+    ///
+    /// Optional because keeping the tree drawing length-faithful is a *drawing*
+    /// correction: a gesture that changes the radius many times a second can
+    /// leave it for the release without anything going out of sync.
+    fn resolve_reshape_vertex(
+        &self,
+        id: NodeId,
+        vertex: Option<Point>,
+    ) -> BpResult<Option<ReshapeVertexChange>> {
+        let Some(target) = vertex else {
+            return Ok(None);
+        };
+        if !target.x.is_finite() || !target.y.is_finite() {
+            return Err(BpError::InvalidInput(format!(
+                "BP tree vertex target must be finite: {}, {}",
+                target.x, target.y
+            )));
+        }
+        let grid = BpGrid::new(self.project.design.tree.sheet.clone());
+        let next = grid.constrain(target);
+        let current = self.vertex(id)?;
+        let old = Point {
+            x: current.x,
+            y: current.y,
+        };
+        Ok((old != next).then_some(ReshapeVertexChange { old, next }))
+    }
+
+    /// The single tree edge that reaches a flap's vertex.
+    ///
+    /// A flap *is* a leaf — Box Pleating Studio's flap ⟺ leaf invariant, which
+    /// `add_leaf` / `remove_leaf` uphold here — so a flap that has anything other
+    /// than exactly one incident edge is a broken design, not a case to guess at.
+    fn leaf_edge_index(&self, id: NodeId) -> BpResult<usize> {
+        let mut found = None;
+        for (index, edge) in self.project.design.tree.edges.iter().enumerate() {
+            if edge.n1 == id || edge.n2 == id {
+                if found.is_some() {
+                    return Err(BpError::InvalidInput(format!(
+                        "BP flap {id} is not a leaf: its vertex has more than one edge"
+                    )));
+                }
+                found = Some(index);
+            }
+        }
+        found.ok_or_else(|| BpError::InvalidInput(format!("missing BP tree edge for flap {id}")))
     }
 
     pub fn subdivide_layout_sheet(&mut self) -> BpResult<UpdateModel> {

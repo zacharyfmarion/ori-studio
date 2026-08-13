@@ -15,6 +15,7 @@ import type {
   OristudioBpDocumentState,
   OristudioBpEditingSurface,
   OristudioBpExportOptions,
+  OristudioBpFlapReshape,
   OristudioBpOptimizerEvent,
   OristudioBpOptimizerOptions,
   OristudioBpOptimizerProgress,
@@ -486,6 +487,31 @@ export async function resizeOristudioBpLayoutFlap(
 ): Promise<OristudioBpDocumentState> {
   return mutateActiveOristudioBpProject(options, (api, handle) =>
     api.resizeLayoutFlap(handle, id, width, height)
+  );
+}
+
+/**
+ * A flap's anchor, box and leaf-edge length in one kernel call — what a resize
+ * *gesture* commits, as opposed to the typed panel fields above.
+ *
+ * Guard the payload here rather than trusting the caller: a non-finite number
+ * reaching wasm-bindgen surfaces as a bare "memory access out of bounds" with
+ * nothing naming the argument that caused it, so the only place it can be caught
+ * legibly is on this side of the bridge.
+ */
+export async function reshapeOristudioBpLayoutFlap(
+  id: number,
+  reshape: OristudioBpFlapReshape,
+  options: OristudioBpMutationOptions = {}
+): Promise<OristudioBpDocumentState> {
+  const finite = [reshape.x, reshape.y, reshape.width, reshape.height];
+  if (reshape.radius !== undefined) finite.push(reshape.radius);
+  if (reshape.vertex) finite.push(reshape.vertex.x, reshape.vertex.y);
+  if (finite.some((value) => !Number.isFinite(value))) {
+    throw new Error(`BP flap reshape must be finite: ${JSON.stringify(reshape)}`);
+  }
+  return mutateActiveOristudioBpProject(options, (api, handle) =>
+    api.reshapeLayoutFlap(handle, id, reshape, options.dragging ?? false)
   );
 }
 
