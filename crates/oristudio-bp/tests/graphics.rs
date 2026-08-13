@@ -233,6 +233,9 @@ fn stored_repository_selected_pattern_can_be_initialized_for_graphics() {
         repo: Some(RepositoryModel {
             configurations: vec![stored_config],
             index: 0,
+            // Same junction below, so the stored repository is still valid and
+            // is reused rather than regenerated.
+            signature: Some(repo.signature.clone()),
         }),
     };
     let junction = repo_valid_junction(&tree);

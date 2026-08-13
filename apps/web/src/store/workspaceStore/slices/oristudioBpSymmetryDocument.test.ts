@@ -14,6 +14,7 @@ import type { OristudioBpDocumentState } from '../../../engine/oristudioBpTypes'
 
 const runtimeMocks = vi.hoisted(() => ({
   exportOristudioBpProjectAsBps: vi.fn(async () => '<bps/>'),
+  exportOristudioBpProjectAsSessionBps: vi.fn(async () => '<bps/>'),
   restoreOristudioBpProjectSnapshot: vi.fn(),
 }));
 
@@ -22,6 +23,7 @@ vi.mock('../oristudioBpRuntime', async (importOriginal) => {
   return {
     ...actual,
     exportOristudioBpProjectAsBps: runtimeMocks.exportOristudioBpProjectAsBps,
+    exportOristudioBpProjectAsSessionBps: runtimeMocks.exportOristudioBpProjectAsSessionBps,
     restoreOristudioBpProjectSnapshot: runtimeMocks.restoreOristudioBpProjectSnapshot,
   };
 });
