@@ -498,7 +498,10 @@ pub fn create_config_filter(
     context: &ConfigGeneratorContext,
     signature: Option<&str>,
 ) -> BpResult<Option<bool>> {
-    if config.patterns().is_empty() {
+    // Not `patterns().is_empty()`: a configuration restored from a file
+    // prototype arrives holding exactly that one pattern and still has to be
+    // searched, or the user loses every other option for it.
+    if !config.patterns_done() {
         config.generate_patterns(context.junctions(), context.factor())?;
     }
     if let Some(signature) = signature
@@ -522,7 +525,7 @@ pub fn create_config_filter_with_repo(
     tree: &crate::tree::BpTree,
     signature: Option<&str>,
 ) -> BpResult<Option<bool>> {
-    if config.patterns().is_empty() {
+    if !config.patterns_done() {
         config.generate_patterns_with_repo(repo, tree)?;
     }
     if let Some(signature) = signature

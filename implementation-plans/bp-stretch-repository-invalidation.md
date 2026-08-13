@@ -284,9 +284,9 @@ and parity stayed green.)
       assert device ridges equal the oracle's (and equal the no-stored-repo path)
 - [x] Phase 1: regression test — opening the existing `invalid_pytha_bug`
       payload regenerates rather than reusing the stale (3,1) configuration
-- [ ] Phase 2: `LayoutRepository` retains `configuration`/`pattern` prototype
-- [ ] Phase 2: `init_with_tree` / `complete_with_tree` pass it to the generator
-- [ ] Phase 2: test — a `{id, configuration, pattern}` design restores the saved
+- [x] Phase 2: `LayoutRepository` retains `configuration`/`pattern` prototype
+- [x] Phase 2: `init_with_tree` / `complete_with_tree` pass it to the generator
+- [x] Phase 2: test — a `{id, configuration, pattern}` design restores the saved
       pattern (fails today for pattern 1)
 - [ ] Phase 3: session vs file serialization split, wired through wasm
 - [ ] Phase 3: file form emits `configuration` + `pattern`, no `repo`
