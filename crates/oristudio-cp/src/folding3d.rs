@@ -134,8 +134,9 @@ impl Fold3dTolerances {
     /// - `angle_radians` is far above the 1e-8 conditioning floor of the naive
     ///   `acos` form and far below any real design angle.
     /// - `distance_relative` sits in an empty band. The worst loop gap over
-    ///   every admitted committed fixture is 2.0e-10 of span
-    ///   (`penguin_freeform`) and over the whole external corpus 6.8e-10
+    ///   every admitted fixture is 2.0e-10 of span (`penguin_freeform`, which
+    ///   is one of the three held outside the repository — see
+    ///   `tests/common/mod.rs`) and over the whole external corpus 6.8e-10
     ///   (`self-intersecting-vertex`, a hand-rounded toy); the smallest refused
     ///   is 1.1e-1 (`rabbit_unclosed`). Three decades of headroom either side,
     ///   asserted by `the_loop_gap_bar_sits_in_an_empty_band`.

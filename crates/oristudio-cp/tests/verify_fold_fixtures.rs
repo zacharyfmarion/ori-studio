@@ -23,6 +23,8 @@ use oristudio_cp::model::is_classic_crease;
 use std::path::{Path, PathBuf};
 use treemaker_fold::FoldDocument;
 
+mod common;
+
 // Fixtures are held to a tenth of `CLOSURE_RESIDUAL_BAR_DEGREES` rather than to
 // the bar itself: one sitting just under it would be a rounding change away from
 // reporting a closure failure instead of the thing it exists to demonstrate.
@@ -237,7 +239,12 @@ fn is_non_classic(angle: f64) -> bool {
 fn fold_angle_3d_fixtures_carry_the_angles_they_claim() {
     for fixture in FOLD_ANGLE_3D {
         let name = fixture.name;
-        let fold = read(&fixture_root().join(format!("fold-angle-3d/{name}.fold")));
+        let Some(path) =
+            common::fixture_path("fold_angle_3d_fixtures_carry_the_angles_they_claim", name)
+        else {
+            continue;
+        };
+        let fold = read(&path);
 
         assert_eq!(fold.vertices_coords.len(), fixture.vertices, "{name}: V");
         assert_eq!(fold.edges_vertices.len(), fixture.edges, "{name}: E");
@@ -301,7 +308,12 @@ fn fold_angle_3d_fixtures_carry_the_angles_they_claim() {
 fn fold_angle_3d_fixtures_reach_their_recorded_verdicts() {
     for fixture in FOLD_ANGLE_3D {
         let name = fixture.name;
-        let fold = read(&fixture_root().join(format!("fold-angle-3d/{name}.fold")));
+        let Some(path) =
+            common::fixture_path("fold_angle_3d_fixtures_reach_their_recorded_verdicts", name)
+        else {
+            continue;
+        };
+        let fold = read(&path);
         let model = import_fold_document(&fold).unwrap_or_else(|error| panic!("{name}: {error:?}"));
 
         // `dispatched_camv` and not `spatial_vertex_reports`: it is the call
@@ -385,6 +397,7 @@ fn the_3d_fixture_corpus_is_not_empty_and_covers_more_than_ninety_degrees() {
     on_disk.sort();
     let mut listed: Vec<String> = FOLD_ANGLE_3D
         .iter()
+        .filter(|fixture| !common::is_external(fixture.name))
         .map(|fixture| fixture.name.to_string())
         .collect();
     listed.sort();
@@ -394,6 +407,19 @@ fn the_3d_fixture_corpus_is_not_empty_and_covers_more_than_ninety_degrees() {
          every pinned fixture must exist. An unpinned fixture is a file nobody \
          checks; a pinned missing one is a test that cannot run"
     );
+
+    // The commit rule, as a test rather than a paragraph in the README. Three of
+    // the models this corpus was built around turned out to be third-party
+    // designs and were tracked here for months on the strength of a README
+    // sentence asserting otherwise. A sentence cannot fail; this can.
+    for name in common::EXTERNAL_FIXTURES {
+        assert!(
+            !on_disk.iter().any(|found| found == name),
+            "{name} is a third-party design and must not be committed. It is read \
+             from {} — see tests/common/mod.rs",
+            common::CORPUS_ENV
+        );
+    }
 
     // Spike B measured that at (90, 90) a placement sign fault leaves the
     // obvious probe vertex fixed to 6.7e-16 while moving the rest of the face
@@ -408,6 +434,9 @@ fn the_3d_fixture_corpus_is_not_empty_and_covers_more_than_ninety_degrees() {
          90 degrees is the angle that discriminates least"
     );
 
+    // Over the whole table, committed and external alike: the denominator is a
+    // property of the corpus the verdicts were recorded against, not of what
+    // happens to be checked out.
     let spatial: usize = FOLD_ANGLE_3D
         .iter()
         .map(|fixture| fixture.spatial_vertices)

@@ -26,6 +26,8 @@ use oristudio_cp::model::CreasePatternModel;
 use std::path::{Path, PathBuf};
 use treemaker_fold::FoldDocument;
 
+mod common;
+
 fn repo(relative: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
@@ -42,8 +44,28 @@ fn read_model(relative: &str) -> CreasePatternModel {
         .unwrap_or_else(|error| panic!("import {}: {error:?}", path.display()))
 }
 
+/// A committed fixture. Panics on a name held outside the repository — use
+/// `try_fixture` for those.
 fn fixture(name: &str) -> CreasePatternModel {
+    assert!(
+        !common::is_external(name),
+        "{name} is held outside the repository; use try_fixture"
+    );
     read_model(&format!("tests/fixtures/fold-angle-3d/{name}.fold"))
+}
+
+/// A fixture, or `None` when it is one of the third-party models held outside
+/// the repository and the corpus is not configured. See `tests/common/mod.rs`.
+fn try_fixture(test: &str, name: &str) -> Option<CreasePatternModel> {
+    let path = common::fixture_path(test, name)?;
+    let raw = std::fs::read_to_string(&path)
+        .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
+    let document: FoldDocument = serde_json::from_str(&raw)
+        .unwrap_or_else(|error| panic!("parse {}: {error}", path.display()));
+    Some(
+        import_fold_document(&document)
+            .unwrap_or_else(|error| panic!("import {}: {error:?}", path.display())),
+    )
 }
 
 fn border(a: Point, b: Point) -> LineSegment {
@@ -232,7 +254,13 @@ const ROWS: [Row; 7] = [
 #[test]
 fn the_committed_fixtures_reach_their_recorded_census() {
     for row in &ROWS {
-        let measured = measure(&fixture(row.name));
+        let Some(model) = try_fixture(
+            "the_committed_fixtures_reach_their_recorded_census",
+            row.name,
+        ) else {
+            continue;
+        };
+        let measured = measure(&model);
         assert_eq!(measured.faces, row.faces, "{}: faces", row.name);
         assert!(
             measured.patches >= measured.planes,
@@ -280,7 +308,13 @@ fn the_committed_fixtures_reach_their_recorded_census() {
 fn the_census_is_at_least_the_number_of_full_folded_face_pairs() {
     let mut tight = 0usize;
     for row in &ROWS {
-        let measured = measure(&fixture(row.name));
+        let Some(model) = try_fixture(
+            "the_census_is_at_least_the_number_of_full_folded_face_pairs",
+            row.name,
+        ) else {
+            continue;
+        };
+        let measured = measure(&model);
         assert!(
             measured.census >= measured.full_fold_pairs,
             "{}: census {} is below its {} full-folded face pairs",
@@ -795,7 +829,10 @@ fn the_overlap_area_bar_sits_in_an_empty_band() {
         if row.name == "rabbit_unclosed" || row.name == "box_90_unangled" {
             continue;
         }
-        let model = fixture(row.name);
+        let Some(model) = try_fixture("the_overlap_area_bar_sits_in_an_empty_band", row.name)
+        else {
+            continue;
+        };
         let placement = place_segments(&model.line_segments, 1).expect("placed");
         let (_, census) = census_placement(&placement, Fold3dTolerances::DEFAULT);
         worst_rejected = worst_rejected.max(census.max_rejected_area_relative);
@@ -835,8 +872,15 @@ fn the_plane_tolerances_have_the_headroom_they_are_claimed_to() {
     let mut worst_normal = 0.0_f64;
     let mut worst_offset = 0.0_f64;
     let mut separations = Vec::new();
+    let mut measured = Vec::new();
     for row in &ROWS {
-        let model = fixture(row.name);
+        let Some(model) = try_fixture(
+            "the_plane_tolerances_have_the_headroom_they_are_claimed_to",
+            row.name,
+        ) else {
+            continue;
+        };
+        measured.push(row.name);
         let placement = place_segments(&model.line_segments, 1).expect("placed");
         let index = plane_index(&placement, tolerances);
         worst_normal = worst_normal.max(index.worst_intra_normal_radians);
@@ -862,7 +906,18 @@ fn the_plane_tolerances_have_the_headroom_they_are_claimed_to() {
     // three of seven fixtures and is `None` on the rest, which is a real answer
     // and not an infinity — a gate keyed on it would certify nothing on more
     // than half the set.
-    assert_eq!(separations.len(), 3, "{separations:?}");
+    //
+    // Named rather than counted, because one of the three is held outside the
+    // repository: a bare count would silently become "two of six" when the
+    // corpus is absent, which is exactly the drift the assertion exists to
+    // catch. This still fails if a fixture gains or loses its separation.
+    const SEPARATED: [&str; 3] = ["box_90", "spikes_large", "rabbit_unclosed"];
+    let expected: Vec<&str> = SEPARATED
+        .into_iter()
+        .filter(|name| measured.contains(name))
+        .collect();
+    let found: Vec<&str> = separations.iter().map(|(name, _)| *name).collect();
+    assert_eq!(found, expected, "{separations:?}");
     for (name, separation) in separations {
         assert!(
             separation > tolerances.distance_relative * 1e3,
@@ -990,7 +1045,12 @@ fn a_normal_ladder_inside_the_tolerance_window_is_reported() {
 fn a_closed_tolerance_window_refuses_the_census_rather_than_measuring_it() {
     // Every admitted fixture has an open window, so `census` returns.
     for row in &ROWS {
-        let model = fixture(row.name);
+        let Some(model) = try_fixture(
+            "a_closed_tolerance_window_refuses_the_census_rather_than_measuring_it",
+            row.name,
+        ) else {
+            continue;
+        };
         let Ok(admission) = admit(&model.line_segments, 1) else {
             continue;
         };
@@ -1096,7 +1156,13 @@ fn the_partition_is_closed_under_the_coplanarity_relation() {
     let mut related_pairs = 0usize;
     let mut cases: Vec<(String, Vec<LineSegment>)> = ROWS
         .iter()
-        .map(|row| (row.name.to_string(), fixture(row.name).line_segments))
+        .filter_map(|row| {
+            let model = try_fixture(
+                "the_partition_is_closed_under_the_coplanarity_relation",
+                row.name,
+            )?;
+            Some((row.name.to_string(), model.line_segments))
+        })
         .collect();
     cases.push((
         "offset ladder".to_string(),
@@ -1160,7 +1226,12 @@ fn the_partition_is_closed_under_the_coplanarity_relation() {
 #[test]
 fn the_plane_orientation_reference_is_fixed_and_reproducible() {
     for row in &ROWS {
-        let model = fixture(row.name);
+        let Some(model) = try_fixture(
+            "the_plane_orientation_reference_is_fixed_and_reproducible",
+            row.name,
+        ) else {
+            continue;
+        };
         let placement = place_segments(&model.line_segments, 1).expect("placed");
         let index = plane_index(&placement, Fold3dTolerances::DEFAULT);
         for (id, plane) in index.planes.iter().enumerate() {
@@ -1200,7 +1271,10 @@ fn the_plane_orientation_reference_is_fixed_and_reproducible() {
 #[test]
 fn the_projection_preserves_area_in_every_plane() {
     for row in &ROWS {
-        let model = fixture(row.name);
+        let Some(model) = try_fixture("the_projection_preserves_area_in_every_plane", row.name)
+        else {
+            continue;
+        };
         let placement = place_segments(&model.line_segments, 1).expect("placed");
         let index = plane_index(&placement, Fold3dTolerances::DEFAULT);
         for face in 0..placement.rings.len() {

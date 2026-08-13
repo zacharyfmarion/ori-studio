@@ -14,18 +14,30 @@ use oristudio_cp::folding3d::{
 use oristudio_cp::geometry::{FoldMagnitude, LineColor, LineSegment, Point};
 use oristudio_cp::io::fold::import_fold_document;
 use oristudio_cp::model::CreasePatternModel;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use treemaker_fold::FoldDocument;
 
-fn repo(relative: &str) -> PathBuf {
+mod common;
+
+/// Test names, quoted verbatim in the `SKIPPED:` block a missing fixture prints.
+const TEST_VERDICTS: &str = "the_committed_fixtures_reach_their_recorded_verdicts";
+const TEST_REFUSALS: &str = "the_refusing_fixtures_refuse_for_the_reason_they_were_chosen_for";
+const TEST_LOOP_GAP_BAND: &str = "the_loop_gap_bar_sits_in_an_empty_band";
+const TEST_BFS_ROOT: &str = "the_placement_is_independent_of_the_bfs_root";
+const TEST_DIHEDRAL: &str = "the_declared_fold_angles_come_back_out_of_the_placement";
+const TEST_BOTH_DIRECTIONS: &str =
+    "the_unclosed_fixture_reports_the_same_error_from_both_directions";
+const TEST_LOOP_GAP_REFUSAL: &str =
+    "the_loop_gap_refusal_fires_when_the_measured_gap_exceeds_the_bar";
+
+fn repo(relative: &str) -> std::path::PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .join(relative)
 }
 
-fn read_model(relative: &str) -> CreasePatternModel {
-    let path = repo(relative);
-    let raw = std::fs::read_to_string(&path)
+fn read_model(path: &Path) -> CreasePatternModel {
+    let raw = std::fs::read_to_string(path)
         .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
     let document: FoldDocument = serde_json::from_str(&raw)
         .unwrap_or_else(|error| panic!("parse {}: {error}", path.display()));
@@ -33,8 +45,10 @@ fn read_model(relative: &str) -> CreasePatternModel {
         .unwrap_or_else(|error| panic!("import {}: {error:?}", path.display()))
 }
 
-fn fixture(name: &str) -> CreasePatternModel {
-    read_model(&format!("tests/fixtures/fold-angle-3d/{name}.fold"))
+/// A fixture, or `None` when it is one of the third-party models held outside
+/// the repository and the corpus is not configured. See `tests/common/mod.rs`.
+fn try_fixture(test: &str, name: &str) -> Option<CreasePatternModel> {
+    common::fixture_path(test, name).map(|path| read_model(&path))
 }
 
 /// Every committed 3D fixture, and what the gate must say about it.
@@ -93,7 +107,9 @@ const ADMITTED: [Expected; 5] = [
 #[test]
 fn the_committed_fixtures_reach_their_recorded_verdicts() {
     for expected in &ADMITTED {
-        let model = fixture(expected.name);
+        let Some(model) = try_fixture(TEST_VERDICTS, expected.name) else {
+            continue;
+        };
         let admission = admit(&model.line_segments, 1)
             .unwrap_or_else(|refusal| panic!("{}: {refusal}", expected.name));
         assert_eq!(
@@ -132,35 +148,37 @@ fn the_refusing_fixtures_refuse_for_the_reason_they_were_chosen_for() {
     // spatial vertices all closing. Placement is the only thing that notices,
     // because the closure check is per vertex and never asks about
     // connectivity.
-    let model = fixture("penguin_disconnected");
-    match admit(&model.line_segments, 1) {
-        Err(Fold3dRefusal::Disconnected { reached, unreached }) => {
-            // Which component the walk starts in is a fact about the trace
-            // order, not about the file; the two sizes are the README's.
-            assert_eq!((reached, unreached), (103, 127));
+    if let Some(model) = try_fixture(TEST_REFUSALS, "penguin_disconnected") {
+        match admit(&model.line_segments, 1) {
+            Err(Fold3dRefusal::Disconnected { reached, unreached }) => {
+                // Which component the walk starts in is a fact about the trace
+                // order, not about the file; the two sizes are the README's.
+                assert_eq!((reached, unreached), (103, 127));
+            }
+            other => panic!("penguin_disconnected: {other:?}"),
         }
-        other => panic!("penguin_disconnected: {other:?}"),
     }
 
     // Exactly one closure failure out of 32 spatial vertices — a near miss, so a
     // checker broken in almost any way would still pass it.
-    let model = fixture("rabbit_unclosed");
-    match admit(&model.line_segments, 1) {
-        Err(Fold3dRefusal::VertexClosure {
-            residual_degrees, ..
-        }) => {
-            assert!(
-                (residual_degrees - 70.53).abs() < 0.01,
-                "rabbit_unclosed closes to {residual_degrees} degrees, expected 70.53"
-            );
+    if let Some(model) = try_fixture(TEST_REFUSALS, "rabbit_unclosed") {
+        match admit(&model.line_segments, 1) {
+            Err(Fold3dRefusal::VertexClosure {
+                residual_degrees, ..
+            }) => {
+                assert!(
+                    (residual_degrees - 70.53).abs() < 0.01,
+                    "rabbit_unclosed closes to {residual_degrees} degrees, expected 70.53"
+                );
+            }
+            other => panic!("rabbit_unclosed: {other:?}"),
         }
-        other => panic!("rabbit_unclosed: {other:?}"),
     }
 
     // The matched all-classic control: the same box saved before its angles were
     // set. It carries two flat-foldability violations, so it is a negative for
     // the flat path too.
-    let model = fixture("box_90_unangled");
+    let model = try_fixture(TEST_REFUSALS, "box_90_unangled").expect("committed");
     assert!(matches!(
         admit(&model.line_segments, 1),
         Err(Fold3dRefusal::FlatFoldability { .. })
@@ -172,12 +190,16 @@ fn the_refusing_fixtures_refuse_for_the_reason_they_were_chosen_for() {
 /// computed and drawable.
 #[test]
 fn a_self_intersecting_vertex_is_named_rather_than_refused() {
-    let model = read_model("tests/fixtures/fold-angle/self-intersecting-vertex.fold");
+    let model = read_model(&repo(
+        "tests/fixtures/fold-angle/self-intersecting-vertex.fold",
+    ));
     let admission = admit(&model.line_segments, 1).expect("the placement is still computable");
     assert_eq!(admission.outcome(), Fold3dOutcome::LocalCrossing);
     assert_eq!(admission.diagnostics.local_crossings.len(), 1);
 
-    let model = read_model("tests/fixtures/fold-angle/valid-waterbomb-vertex.fold");
+    let model = read_model(&repo(
+        "tests/fixtures/fold-angle/valid-waterbomb-vertex.fold",
+    ));
     let admission = admit(&model.line_segments, 1).expect("admitted");
     assert_eq!(admission.outcome(), Fold3dOutcome::Folded);
     assert!(admission.diagnostics.local_crossings.is_empty());
@@ -194,7 +216,9 @@ fn the_loop_gap_bar_sits_in_an_empty_band() {
     let bar = oristudio_cp::folding3d::Fold3dTolerances::DEFAULT.distance_relative;
     let mut worst_admitted = 0.0_f64;
     for expected in &ADMITTED {
-        let model = fixture(expected.name);
+        let Some(model) = try_fixture(TEST_LOOP_GAP_BAND, expected.name) else {
+            continue;
+        };
         let admission = admit(&model.line_segments, 1).expect("admitted");
         worst_admitted =
             worst_admitted.max(admission.placement.loop_gap.offset / admission.placement.span);
@@ -209,7 +233,9 @@ fn the_loop_gap_bar_sits_in_an_empty_band() {
     // because the gate stops at the first thing wrong and for these two that is
     // not the loop gap.
     for (name, floor) in [("rabbit_unclosed", 1e-2), ("box_90_unangled", 1e-1)] {
-        let model = fixture(name);
+        let Some(model) = try_fixture(TEST_LOOP_GAP_BAND, name) else {
+            continue;
+        };
         let placement = place_segments(&model.line_segments, 1).expect("placed");
         let relative = placement.loop_gap.offset / placement.span;
         assert!(
@@ -234,7 +260,9 @@ fn the_loop_gap_bar_sits_in_an_empty_band() {
 #[test]
 fn the_placement_is_independent_of_the_bfs_root() {
     for name in ["box_90", "spikes_small", "spikes_large", "penguin_freeform"] {
-        let model = fixture(name);
+        let Some(model) = try_fixture(TEST_BFS_ROOT, name) else {
+            continue;
+        };
         let reference = place_segments(&model.line_segments, 1).expect("placed");
         let anchor = reference.face_transforms[0].inverse();
         let faces = reference.rings.len();
@@ -276,7 +304,9 @@ fn the_placement_is_independent_of_the_bfs_root() {
 #[test]
 fn the_declared_fold_angles_come_back_out_of_the_placement() {
     for name in ["box_90", "spikes_small", "spikes_large", "penguin_freeform"] {
-        let model = fixture(name);
+        let Some(model) = try_fixture(TEST_DIHEDRAL, name) else {
+            continue;
+        };
         let placement = place_segments(&model.line_segments, 1).expect("placed");
         let (worst, general_angle_joins) = worst_dihedral_error(&model, &placement);
         assert!(
@@ -299,7 +329,9 @@ fn the_declared_fold_angles_come_back_out_of_the_placement() {
 /// non-tree join. Nothing connects the two but the geometry being right.
 #[test]
 fn the_unclosed_fixture_reports_the_same_error_from_both_directions() {
-    let model = fixture("rabbit_unclosed");
+    let Some(model) = try_fixture(TEST_BOTH_DIRECTIONS, "rabbit_unclosed") else {
+        return;
+    };
     let Err(Fold3dRefusal::VertexClosure {
         residual_degrees, ..
     }) = admit(&model.line_segments, 1)
@@ -481,7 +513,9 @@ fn a_cut_drawn_inside_the_sheet_is_refused_before_the_placement_is_attempted() {
 /// numbers the placement measured.
 #[test]
 fn the_loop_gap_refusal_fires_when_the_measured_gap_exceeds_the_bar() {
-    let model = fixture("penguin_freeform");
+    let Some(model) = try_fixture(TEST_LOOP_GAP_REFUSAL, "penguin_freeform") else {
+        return;
+    };
     let admitted = admit(&model.line_segments, 1).expect("penguin_freeform is admitted by default");
     let relative = admitted.placement.loop_gap.offset / admitted.placement.span;
     assert!(

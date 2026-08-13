@@ -16,6 +16,8 @@ use oristudio_cp::model::{has_non_classic_creases, has_non_classic_segments};
 use oristudio_cp::session::{CpSession, Fold3dFoldResult};
 use std::path::{Path, PathBuf};
 
+mod common;
+
 fn repo(relative: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
@@ -23,6 +25,10 @@ fn repo(relative: &str) -> PathBuf {
 }
 
 fn load_fixture(session: &mut CpSession, name: &str) -> u32 {
+    assert!(
+        !common::is_external(name),
+        "{name} is held outside the repository; use try_fold_3d"
+    );
     let path = repo(&format!("tests/fixtures/fold-angle-3d/{name}.fold"));
     let raw = std::fs::read_to_string(&path)
         .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
@@ -54,6 +60,23 @@ fn placed(result: Fold3dFoldResult) -> (u32, oristudio_cp::folding3d::Fold3dSnap
 
 fn fold_3d(session: &mut CpSession, name: &str) -> Fold3dFoldResult {
     let document = load_fixture(session, name);
+    fold_loaded(session, document, name)
+}
+
+/// Fold a fixture, or `None` when it is one of the third-party models held
+/// outside the repository and the corpus is not configured. See
+/// `tests/common/mod.rs`.
+fn try_fold_3d(test: &str, session: &mut CpSession, name: &str) -> Option<Fold3dFoldResult> {
+    let path = common::fixture_path(test, name)?;
+    let raw = std::fs::read_to_string(&path)
+        .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
+    let document = session
+        .load_fold(&raw, name)
+        .unwrap_or_else(|error| panic!("load {name}: {error}"));
+    Some(fold_loaded(session, document, name))
+}
+
+fn fold_loaded(session: &mut CpSession, document: u32, name: &str) -> Fold3dFoldResult {
     let lines = every_line(session, document);
     session
         .folded_figure_fold_3d(document, &lines, 1, FoldedFigureModel::default())
@@ -283,7 +306,13 @@ fn free_folded_figure_releases_a_spatial_handle() {
 #[test]
 fn a_refusal_is_a_result_with_a_code_and_no_handle() {
     let mut session = CpSession::new();
-    let result = fold_3d(&mut session, "rabbit_unclosed");
+    let Some(result) = try_fold_3d(
+        "a_refusal_is_a_result_with_a_code_and_no_handle",
+        &mut session,
+        "rabbit_unclosed",
+    ) else {
+        return;
+    };
     let Fold3dFoldResult::Refused { refusal } = result else {
         panic!("rabbit_unclosed does not close and must refuse");
     };
@@ -296,8 +325,14 @@ fn a_refusal_is_a_result_with_a_code_and_no_handle() {
 #[test]
 fn a_disconnected_document_refuses_with_both_counts() {
     let mut session = CpSession::new();
-    let Fold3dFoldResult::Refused { refusal } = fold_3d(&mut session, "penguin_disconnected")
-    else {
+    let Some(result) = try_fold_3d(
+        "a_disconnected_document_refuses_with_both_counts",
+        &mut session,
+        "penguin_disconnected",
+    ) else {
+        return;
+    };
+    let Fold3dFoldResult::Refused { refusal } = result else {
         panic!("penguin_disconnected has two components and must refuse");
     };
     let json = serde_json::to_value(refusal).expect("serializes");
@@ -326,7 +361,14 @@ fn an_admitted_verdict_carries_the_residual_of_every_bar_the_gate_applied() {
     let mut checked_a_real_loop = false;
     for name in ADMITTED {
         let mut session = CpSession::new();
-        let (_, snapshot) = placed(fold_3d(&mut session, name));
+        let Some(result) = try_fold_3d(
+            "an_admitted_verdict_carries_the_residual_of_every_bar_the_gate_applied",
+            &mut session,
+            name,
+        ) else {
+            continue;
+        };
+        let (_, snapshot) = placed(result);
         let diagnostics = &snapshot.diagnostics;
         let tolerances = &diagnostics.tolerances;
 
@@ -390,9 +432,16 @@ fn an_admitted_verdict_carries_the_residual_of_every_bar_the_gate_applied() {
 fn every_admitted_fixture_produces_a_self_describing_render_model() {
     for name in ADMITTED {
         let mut session = CpSession::new();
+        let Some(result) = try_fold_3d(
+            "every_admitted_fixture_produces_a_self_describing_render_model",
+            &mut session,
+            name,
+        ) else {
+            continue;
+        };
         let Fold3dFoldResult::Placed {
             snapshot, render, ..
-        } = fold_3d(&mut session, name)
+        } = result
         else {
             panic!("{name} is an admitted fixture and must place");
         };
@@ -472,9 +521,16 @@ fn cells_are_grouped_by_plane_and_ranked_within_it() {
 fn plane_up_is_the_placed_normal_of_its_lowest_face() {
     for name in ADMITTED {
         let mut session = CpSession::new();
+        let Some(result) = try_fold_3d(
+            "plane_up_is_the_placed_normal_of_its_lowest_face",
+            &mut session,
+            name,
+        ) else {
+            continue;
+        };
         let Fold3dFoldResult::Placed {
             snapshot, render, ..
-        } = fold_3d(&mut session, name)
+        } = result
         else {
             panic!("{name} is admitted");
         };
@@ -552,11 +608,18 @@ fn a_refold_of_the_same_document_is_bit_identical() {
     for name in ADMITTED {
         let mut first = CpSession::new();
         let mut second = CpSession::new();
+        const TEST: &str = "a_refold_of_the_same_document_is_bit_identical";
+        let (Some(one), Some(two)) = (
+            try_fold_3d(TEST, &mut first, name),
+            try_fold_3d(TEST, &mut second, name),
+        ) else {
+            continue;
+        };
         let Fold3dFoldResult::Placed {
             snapshot: a,
             render: model_a,
             ..
-        } = fold_3d(&mut first, name)
+        } = one
         else {
             panic!("{name} is admitted");
         };
@@ -564,7 +627,7 @@ fn a_refold_of_the_same_document_is_bit_identical() {
             snapshot: b,
             render: model_b,
             ..
-        } = fold_3d(&mut second, name)
+        } = two
         else {
             panic!("{name} is admitted");
         };
@@ -585,6 +648,10 @@ fn a_refold_of_the_same_document_is_bit_identical() {
 /// file survived a mutation that made the duplicate restart its stream.
 const MULTI_SOLUTION: &str = "penguin_freeform";
 
+/// One name for the whole cycling group, which stands or falls together on
+/// whether `MULTI_SOLUTION` is reachable.
+const TEST_MULTI_SOLUTION: &str = "the cycling suite (every test over MULTI_SOLUTION)";
+
 /// Cycling reports the wrap explicitly, and the wrap repeats.
 ///
 /// Two full laps: no existing test in the repo presses a fold stream past its
@@ -593,7 +660,10 @@ const MULTI_SOLUTION: &str = "penguin_freeform";
 #[test]
 fn the_solution_stream_wraps_and_keeps_wrapping() {
     let mut session = CpSession::new();
-    let (handle, first) = placed(fold_3d(&mut session, MULTI_SOLUTION));
+    let Some(result) = try_fold_3d(TEST_MULTI_SOLUTION, &mut session, MULTI_SOLUTION) else {
+        return;
+    };
+    let (handle, first) = placed(result);
     assert!(
         first.find_another_overlap_valid,
         "{MULTI_SOLUTION} must have more than one solution, or nothing below is tested"
@@ -716,7 +786,10 @@ fn a_3d_stream_ends_the_way_a_flat_stream_ends() {
 
     // --- 3D, on the one committed multi-solution fixture ----------------------
     let mut session = CpSession::new();
-    let (handle, first) = placed(fold_3d(&mut session, MULTI_SOLUTION));
+    let Some(result) = try_fold_3d(TEST_MULTI_SOLUTION, &mut session, MULTI_SOLUTION) else {
+        return;
+    };
+    let (handle, first) = placed(result);
     let mut spatial = Shape {
         cases: vec![first.current_fold_case],
         last_reports_next: first.find_another_overlap_valid,
@@ -785,7 +858,10 @@ fn a_single_solution_stream_wraps_on_every_press() {
 #[test]
 fn a_duplicate_starts_where_the_original_was_and_then_diverges() {
     let mut session = CpSession::new();
-    let (original, _) = placed(fold_3d(&mut session, MULTI_SOLUTION));
+    let Some(result) = try_fold_3d(TEST_MULTI_SOLUTION, &mut session, MULTI_SOLUTION) else {
+        return;
+    };
+    let (original, _) = placed(result);
     let advanced = session
         .folded_figure_3d_fold_another(original)
         .expect("step the original");
@@ -857,7 +933,11 @@ fn the_snapshot_carries_the_kernel_tolerances() {
 fn the_snapshot_census_keeps_its_theorem() {
     for name in ADMITTED {
         let mut session = CpSession::new();
-        let (_, snapshot) = placed(fold_3d(&mut session, name));
+        let Some(result) = try_fold_3d("the_snapshot_census_keeps_its_theorem", &mut session, name)
+        else {
+            continue;
+        };
+        let (_, snapshot) = placed(result);
         assert!(
             snapshot.census.overlapping_pair_count >= snapshot.census.full_fold_pairs,
             "{name}: census {} < full-fold pairs {}",
@@ -893,9 +973,16 @@ fn a_folded_verdict_leaves_nothing_undetermined() {
     let mut checked = 0;
     for name in ADMITTED {
         let mut session = CpSession::new();
+        let Some(result) = try_fold_3d(
+            "a_folded_verdict_leaves_nothing_undetermined",
+            &mut session,
+            name,
+        ) else {
+            continue;
+        };
         let Fold3dFoldResult::Placed {
             snapshot, render, ..
-        } = fold_3d(&mut session, name)
+        } = result
         else {
             panic!("{name} is an admitted fixture and must place");
         };
