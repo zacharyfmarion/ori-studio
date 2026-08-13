@@ -185,3 +185,81 @@ fn a_cancelled_session_fold_yields_no_handle() {
         "a cancelled fold left a figure behind"
     );
 }
+
+/// The state-integrity invariant, stated as a test.
+///
+/// A cancelled `fold_another` must leave the session **exactly** as it was. The
+/// comparison is over the whole `Debug` rendering rather than a chosen set of
+/// fields, so a field added later and mutated by the search — but forgotten in
+/// `snapshot_mutable` — fails here rather than silently returning solution N
+/// labelled N+1.
+#[test]
+fn a_cancelled_fold_another_restores_the_session() {
+    // A grid folds to *zero* solutions, so `fold_another` has nothing to
+    // advance and the rollback would never be exercised — the first version of
+    // this test passed with the transaction disabled for exactly that reason.
+    // `solution_sample_1.cp` yields 15.
+    let segments = oristudio_cp::io::cp::import_cp_str(include_str!(
+        "../../../tests/fixtures/oriedita/solution_sample_1.cp"
+    ))
+    .expect("solution sample cp")
+    .line_segments;
+    let mut session = FoldingEstimateSession::new(&segments, 1);
+    session
+        .folding_estimated(EstimationOrder::Order5)
+        .expect("the unbound fold should succeed");
+    assert!(
+        session.estimate().discovered_fold_cases > 0,
+        "the fixture must actually fold, or this test proves nothing"
+    );
+
+    let before = format!("{session:?}");
+
+    // Every stride from "cancel immediately" to "cancel deep in the search", so
+    // the rollback is exercised at more than one checkpoint.
+    for reads in [0u32, 1, 2, 4, 8, 16, 32, 64, 128, 512] {
+        let mut candidate = session.clone();
+        let _bound = bind(Some(handle(reads)));
+        // An `Ok` means the fold completed before the cancel landed, and the
+        // session legitimately moved; only the cancelled case must roll back.
+        if let Err(error) = oristudio_cp::folding::fold_another(&mut candidate) {
+            assert!(error.is_cancelled(), "unexpected error {error:?}");
+            assert_eq!(
+                format!("{candidate:?}"),
+                before,
+                "a cancel after {reads} reads left the session changed"
+            );
+        }
+    }
+}
+
+/// The document is never at risk, on any path.
+///
+/// `folded_figure_fold` takes an immutable borrow and clones the segments, so
+/// this holds by construction — but it is the single fact that makes aggressive
+/// checkpointing safe to ship, and it should fail loudly if that ever changes.
+#[test]
+fn a_cancelled_fold_does_not_touch_the_document() {
+    let segments = grid(5);
+    let mut session = CpSession::new();
+    let document = session.load_document(CreasePatternDocument {
+        crease_pattern: CreasePatternModel {
+            line_segments: segments,
+            ..CreasePatternModel::default()
+        },
+        ..CreasePatternDocument::default()
+    });
+    let before = session.document_snapshot(document).expect("snapshot");
+
+    let _bound = bind(Some(handle(0)));
+    session
+        .folded_figure_fold(document, 1, EstimationOrder::Order5, Default::default())
+        .expect_err("the fold should have been cancelled");
+
+    let after = session.document_snapshot(document).expect("snapshot");
+    assert_eq!(
+        format!("{before:?}"),
+        format!("{after:?}"),
+        "a cancelled fold modified the crease pattern"
+    );
+}

@@ -282,7 +282,31 @@ impl Fold3dSession {
     /// [`Advance::WrappedToFirst`] without doing anything — the same answer a
     /// one-solution model gives, which is what keeps the cycling UI from
     /// needing to know the difference.
+    /// Step to the next stacking, rolling back if the user cancels.
+    ///
+    /// The rollback is not optional: `enumerator.advance()` moves the search and
+    /// `render_model` then redraws from it, so a cancel landing between the two
+    /// leaves the figure drawing a stacking the enumerator has already moved
+    /// past — and the next `advance()` skips a solution. Both failures are
+    /// silent.
     pub fn advance(&mut self) -> Result<Advance, Fold3dSessionError> {
+        if self.enumerator.is_none() {
+            return Ok(Advance::WrappedToFirst);
+        }
+        // Same reasoning as `FoldingEstimateSession::transactional`: an unbound
+        // caller cannot be cancelled, so it pays nothing.
+        if crate::cancel::current().is_none() {
+            return self.advance_inner();
+        }
+        let enumerator = self.enumerator.clone();
+        let outcome = self.advance_inner();
+        if matches!(&outcome, Err(error) if error.is_cancelled()) {
+            self.enumerator = enumerator;
+        }
+        outcome
+    }
+
+    fn advance_inner(&mut self) -> Result<Advance, Fold3dSessionError> {
         let Some(enumerator) = self.enumerator.as_mut() else {
             return Ok(Advance::WrappedToFirst);
         };

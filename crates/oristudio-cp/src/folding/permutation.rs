@@ -462,7 +462,38 @@ pub struct WorkerOverlapEnumerator {
     conditions: Option<EquivalenceConditionSet>,
 }
 
+/// The mutable part of a [`WorkerOverlapEnumerator`], for rollback.
+///
+/// Deliberately not the whole struct: `hierarchy` and `conditions` are read-only
+/// for the whole search and are the two large fields (120k relations and ~139k
+/// conditions on a large model), so cloning them per fold would put a
+/// multi-megabyte allocation on the `fold_another` click path.
+pub struct WorkerRestore {
+    entries: Vec<WorkerSearchEntry>,
+    order: Vec<usize>,
+    valid_count: usize,
+}
+
 impl WorkerOverlapEnumerator {
+    /// Snapshot everything the search mutates.
+    ///
+    /// If a field is ever added to this struct and mutated by the search without
+    /// being added here, `a_cancelled_fold_another_restores_the_session` is what
+    /// catches it: it compares the whole enumerator, not just these fields.
+    pub fn snapshot_mutable(&self) -> WorkerRestore {
+        WorkerRestore {
+            entries: self.entries.clone(),
+            order: self.order.clone(),
+            valid_count: self.valid_count,
+        }
+    }
+
+    pub fn restore_mutable(&mut self, restore: WorkerRestore) {
+        self.entries = restore.entries;
+        self.order = restore.order;
+        self.valid_count = restore.valid_count;
+    }
+
     pub fn from_subfaces(
         subfaces: &[SubFace],
         reduced_subface_indices: &[usize],

@@ -1797,7 +1797,56 @@ impl FoldingEstimateSession {
     /// Oriedita `FoldedFigure.folding_estimated(...)` on a reusable folded
     /// figure. Repeated calls preserve the worker permutation state required by
     /// `ORDER_6` and `foldAnother`.
+    /// Run the estimate to `order`, rolling back if the user cancels.
+    ///
+    /// The public entry point is the transaction boundary; the recursive and
+    /// looping paths call [`Self::folding_estimated_inner`] so a nested call can
+    /// never take a second snapshot.
     pub fn folding_estimated(
+        &mut self,
+        order: EstimationOrder,
+    ) -> Result<FoldingEstimate, FoldingEstimateError> {
+        self.transactional(|session| session.folding_estimated_inner(order))
+    }
+
+    /// Snapshot the mutable state, run `f`, and restore it if `f` was cancelled.
+    ///
+    /// > **Invariant.** A cancelled fold leaves the session exactly as it was
+    /// > before the call — no partial solution, no advanced enumerator, no stale
+    /// > case counter.
+    ///
+    /// Three commit sequences in the search tear badly and all three fail
+    /// silently: `valid_count += 1` before `set_guide_map` leaves a subface
+    /// counted valid whose generator was never initialised; `set_guide_map`
+    /// clears its conditions before refilling them; and
+    /// `discovered_fold_cases += 1` lands before `estimate.overlap` is replaced.
+    /// Upstream survives all three only by throwing the whole figure away
+    /// (`FoldingEstimateTask.java:44-49`). Rolling back is strictly better for
+    /// the user — a cancelled *find another* keeps the solution already on
+    /// screen, which upstream structurally cannot do — and cheaper to reason
+    /// about than making each sequence atomic.
+    fn transactional<T>(
+        &mut self,
+        f: impl FnOnce(&mut Self) -> Result<T, FoldingEstimateError>,
+    ) -> Result<T, FoldingEstimateError> {
+        // No binding means no cancel can arrive, so no caller pays for the
+        // snapshot: every oracle test, the CLI, and every background fold.
+        if crate::cancel::current().is_none() {
+            return f(self);
+        }
+        let estimate = self.estimate.clone();
+        let worker = self.worker.as_ref().map(|worker| worker.snapshot_mutable());
+        let outcome = f(self);
+        if matches!(&outcome, Err(error) if error.is_cancelled()) {
+            self.estimate = estimate;
+            if let (Some(worker), Some(restore)) = (self.worker.as_mut(), worker) {
+                worker.restore_mutable(restore);
+            }
+        }
+        outcome
+    }
+
+    fn folding_estimated_inner(
         &mut self,
         order: EstimationOrder,
     ) -> Result<FoldingEstimate, FoldingEstimateError> {
@@ -1926,6 +1975,10 @@ impl FoldingEstimateSession {
     /// capability that leaves the search algorithm and its solution order
     /// untouched. See PORTING.md.
     pub fn restart(&mut self) -> Result<FoldingEstimate, FoldingEstimateError> {
+        self.transactional(Self::restart_inner)
+    }
+
+    fn restart_inner(&mut self) -> Result<FoldingEstimate, FoldingEstimateError> {
         self.worker = None;
         self.estimate = FoldingEstimate {
             estimation_step: EstimationStep::Step0,
@@ -1938,7 +1991,9 @@ impl FoldingEstimateSession {
             contradiction: None,
             outcome: FoldOutcome::NotAttempted,
         };
-        self.folding_estimated(EstimationOrder::Order5)
+        // `_inner`, not the public method: `restart` is already inside the
+        // transaction its own caller opened.
+        self.folding_estimated_inner(EstimationOrder::Order5)
     }
 }
 
@@ -2009,6 +2064,18 @@ pub fn folding_estimate_to_case(
     objective: usize,
     initial_order: EstimationOrder,
 ) -> Result<FoldingEstimateBatch, FoldingEstimateError> {
+    // A *loop* of searches, so the transaction has to wrap the whole seek. Roll
+    // back to before the first step, not to whichever step the cancel landed on
+    // — a half-completed seek is exactly the "solution N labelled N+1" tear.
+    session
+        .transactional(|session| folding_estimate_to_case_inner(session, objective, initial_order))
+}
+
+fn folding_estimate_to_case_inner(
+    session: &mut FoldingEstimateSession,
+    objective: usize,
+    initial_order: EstimationOrder,
+) -> Result<FoldingEstimateBatch, FoldingEstimateError> {
     if objective == session.estimate.current_fold_case {
         session.estimate.text_result = format!(
             "Number of found solutions = {}  ",
@@ -2024,7 +2091,7 @@ pub fn folding_estimate_to_case(
     // deterministic, so the objective's solution is byte-identical to the one it
     // produced on the way out.
     if objective < session.estimate.current_fold_case && objective >= 1 {
-        let restarted = session.restart()?;
+        let restarted = session.restart_inner()?;
         discovered_case_numbers.push(restarted.discovered_fold_cases);
         let can_continue = restarted.find_another_overlap_valid;
         estimates.push(restarted);
@@ -2038,7 +2105,7 @@ pub fn folding_estimate_to_case(
     }
 
     while objective > session.estimate.current_fold_case {
-        let estimate = session.folding_estimated(order)?;
+        let estimate = session.folding_estimated_inner(order)?;
         discovered_case_numbers.push(estimate.discovered_fold_cases);
         let can_continue = estimate.find_another_overlap_valid;
         estimates.push(estimate);
@@ -2066,7 +2133,7 @@ pub fn folding_estimate_save_batch(
     let mut objective = limit;
     let mut index = 1usize;
     while index <= objective {
-        let estimate = session.folding_estimated(EstimationOrder::Order6)?;
+        let estimate = session.folding_estimated_inner(EstimationOrder::Order6)?;
         discovered_case_numbers.push(estimate.discovered_fold_cases);
         if !estimate.find_another_overlap_valid {
             objective = estimate.discovered_fold_cases;
