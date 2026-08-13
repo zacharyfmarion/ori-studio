@@ -517,22 +517,59 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 6px 12px;
-  border: 1px solid var(--border-subtle);
+  padding: 9px 18px;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 34%, var(--border-default));
   border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
-  color: var(--text-tertiary);
+  background: color-mix(in srgb, var(--bg-elevated) 94%, var(--accent-primary));
+  color: var(--text-primary);
   font-family: inherit;
-  font-size: 0.74rem;
-  font-weight: 620;
+  font-size: 0.82rem;
+  font-weight: 660;
   pointer-events: auto;
   cursor: pointer;
+  /* Lifts it off whatever start-screen content happens to sit behind it. */
+  box-shadow: 0 6px 18px color-mix(in srgb, #000 34%, transparent);
   backdrop-filter: blur(6px);
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
 }
 
 .welcome-scroll-cue__button:hover {
-  border-color: var(--border-default);
-  color: var(--text-secondary);
+  border-color: color-mix(in srgb, var(--accent-primary) 62%, var(--border-default));
+  background: color-mix(in srgb, var(--bg-elevated) 84%, var(--accent-primary));
+  transform: translateY(1px);
+}
+
+.welcome-scroll-cue__button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-primary) 72%, transparent);
+  outline-offset: 3px;
+}
+
+/*
+ * A small bob on the chevron alone. This is the one thing on the first screen
+ * whose job is to say "there is more below", and a static pill was reading as
+ * decoration — motion is what makes it register as an invitation.
+ */
+.welcome-scroll-cue__chevron {
+  animation: welcome-scroll-bob 2.4s ease-in-out infinite;
+}
+
+@keyframes welcome-scroll-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-scroll-cue__chevron {
+    animation: none;
+  }
 }
 
 /*

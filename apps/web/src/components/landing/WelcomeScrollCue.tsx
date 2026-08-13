@@ -21,6 +21,13 @@ interface WelcomeScrollCueProps {
  * stays put over the visible viewport instead of riding the document down. It
  * hides as soon as the page moves, because past that point it is telling the user
  * something they have already worked out.
+ *
+ * It is a real button in the tab order. An earlier version was `aria-hidden` on
+ * the grounds that the same content is a scroll away — defensible while it was a
+ * faint pill, but not once it is the most prominent thing on the first screen.
+ * Showing an obvious control to sighted users and hiding it from everyone else
+ * is the wrong side of that trade. It sits after `<main>`, so it lands at the end
+ * of the sequence rather than in front of the start actions.
  */
 export function WelcomeScrollCue({ scrollerRef, targetId, onActivate }: WelcomeScrollCueProps) {
   const { t } = useTranslation();
@@ -31,18 +38,13 @@ export function WelcomeScrollCue({ scrollerRef, targetId, onActivate }: WelcomeS
       <button
         type="button"
         className="welcome-scroll-cue__button"
-        // Nothing is lost by not reaching it — the same content is a scroll away
-        // — and a cue that steals a tab stop ahead of the start actions is worse
-        // than one a keyboard user never sees.
-        tabIndex={-1}
-        aria-hidden="true"
         onClick={() => {
           document.getElementById(targetId)?.scrollIntoView({ block: 'start' });
           onActivate?.();
         }}
       >
         <span>{t('landing:scrollCue', 'See what it does')}</span>
-        <ChevronDown size={14} aria-hidden="true" />
+        <ChevronDown className="welcome-scroll-cue__chevron" size={15} aria-hidden="true" />
       </button>
     </div>
   );
