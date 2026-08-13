@@ -55,10 +55,10 @@ function prefersReducedMotion(): boolean {
  * once you let go — and needs neither `scrollend` (still missing on older
  * Safari) nor an `IntersectionObserver` per slide.
  *
- * Kept separate from `LandingFeatureCarousel`, which stays a vertical tab list
- * beside its panel. Its four slides have long titles that read as a list; these
- * three are short and benefit from being swiped. The two share the parts worth
- * sharing — `carouselKeyTarget`, `LandingFigure` — and nothing else.
+ * Kept separate from `LandingFeatureList`, which stays a disclosure list beside
+ * its figure. Its four items have long titles and descriptions that read as a
+ * list; these three are short and benefit from being swiped. The two share the
+ * parts worth sharing — `LandingFigure` — and nothing else.
  */
 export function LandingSwipeCarousel({
   label,

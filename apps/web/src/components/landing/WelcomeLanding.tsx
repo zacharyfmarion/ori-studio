@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { track, type LandingCta, type LandingSectionId } from '../../analytics';
 import { DISCORD_URL, REPOSITORY_URL } from '../../constants/release';
 import { ButtonLink } from '../ui/Button';
-import { LandingFeatureCarousel } from './LandingFeatureCarousel';
+import { LandingFeatureList } from './LandingFeatureList';
 import { LandingSwipeCarousel, type LandingSwipeItem } from './LandingSwipeCarousel';
 import { LandingFigure } from './LandingFigure';
 import { LandingFormatRing } from './LandingFormatRing';
@@ -54,7 +54,7 @@ export function WelcomeLanding() {
         title={t('landing:what.title', 'A free, open-source workspace for origami design')}
         lead={t(
           'landing:what.lead',
-          'Ori Studio pulls the tools most of us already use into one place, and runs entirely in the browser — nothing to install, no account. The crease-pattern editor is a port of Oriedita, so if you have used that, this should feel familiar right away.'
+          'Sketch a base, draw the crease pattern, and fold it to see whether it works — in one place, in the browser, with nothing to install and no account.'
         )}
       >
         <LandingFigure
@@ -70,10 +70,10 @@ export function WelcomeLanding() {
         id="landing-edit"
         tone="raised"
         eyebrow={t('landing:edit.eyebrow', 'Crease patterns')}
-        title={t('landing:edit.title', 'An editor you already know how to use')}
+        title={t('landing:edit.title', 'A crease-pattern editor that keeps up')}
         lead={t(
           'landing:edit.lead',
-          'The Edit workspace is a port of Oriedita — the same drawing operations, the same way selection and line types behave — wrapped in a modern, simplified interface.'
+          'Draw with a full set of construction and transform tools, snapped to the grid and to angles, and see foldability problems the moment you make them. Reference photos, notes and a folded preview all live on the same canvas.'
         )}
       >
         <EditFeatures
@@ -275,7 +275,7 @@ export function WelcomeLanding() {
 function EditFeatures({ label, items }: { label: string; items: readonly LandingSwipeItem[] }) {
   const phone = useIsPhoneSurface();
   if (phone) return <LandingSwipeCarousel showTabs={false} label={label} items={items} />;
-  return <LandingFeatureCarousel label={label} items={items} />;
+  return <LandingFeatureList label={label} items={items} />;
 }
 
 /** Shared by the CTA links here and by the scroll affordance in the route. */
