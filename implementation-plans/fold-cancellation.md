@@ -1484,9 +1484,24 @@ committed.
       [Measuring the latency claim](#measuring-the-latency-claim).
 - [x] Establish the phase split on a genuinely slow model
 
-Phase 1 proper is still **open**: nothing below has been done, because
-`max_check_gap_ms` measures the gap *between checkpoints* and no checkpoint
-exists yet.
+**Phase 2 — kernel signal: DONE** (commit `a6894324`). `cancel.rs`; `Cancelled`
+on all 12 error enums with a recursive `is_cancelled()` tested *before*
+classification; the wildcard in `From<FoldingEstimateError> for EngineError`
+replaced with named arms; all three absorbers fixed; 15 tier-1 checkpoints; the
+rayon bridge; `Fold3dPlacementError` so a cancel is never a `Fold3dRefusal`.
+854 tests under both feature sets.
+
+**Phase 3 — transaction: DONE** (commit `9d665960`). `transactional` +
+public/`_inner` split on `FoldingEstimateSession`; the same wrapper on
+`Fold3dSession::advance`; narrow snapshot. Measured on `slow_tiling_fold.osf`:
+**+0.77% wall, +1.2% peak RSS** for checkpoints and snapshot combined
+(`fold_profile --bind-cancel`). The rollback test was vacuous on first writing
+(a grid folds to zero solutions) and now uses `solution_sample_1.cp`, verified
+to fail with the transaction removed.
+
+Phase 1 proper remains **open**, and is no longer blocking: `max_check_gap_ms`
+measures the gap *between* checkpoints, so it could only be written after Phase
+2. It is now writable and should be done before the strides are called final.
 
 **Phase 1 — instrumentation**
 
