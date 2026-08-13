@@ -27,14 +27,7 @@ export const PARSER_NAMESPACES = [
   'tools',
   'toasts',
   'errors',
-  // NOTE: `landing` is deliberately absent while the landing-page copy is still
-  // being settled, and there is no landing catalog on disk either — its inline
-  // English defaults are the only copy of that text, so a rewrite cannot leave a
-  // stale catalog behind that would then override the source at runtime. The
-  // matching note is on `I18N_NAMESPACES` in src/i18n/locales.ts.
-  //
-  // Adding it to both lists is what turns translation on. Do that once the
-  // wording is locked, then i18n:extract → translate → i18n:stamp → i18n:check.
+  'landing',
 ];
 // `cpVocab` is generated from the CP tool data module (not parser-managed) but is still a
 // first-class namespace for translation parity.

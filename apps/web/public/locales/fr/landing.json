@@ -1,0 +1,90 @@
+{
+  "carousel": {
+    "next": "Suivant",
+    "previous": "Précédent"
+  },
+  "compatibility": {
+    "eyebrow": "Compatibilité",
+    "lead": "Une grande partie d'Ori Studio est un portage soigneux de ce que la communauté a déjà construit — Oriedita, TreeMaker et Box Pleating Studio — et préserver l'interopérabilité en import et en export avec ces outils est un engagement.",
+    "title": "Bâti sur les outils que vous utilisez déjà"
+  },
+  "design": {
+    "bp": {
+      "body": "Disposez les pointes sur une grille, avec rivières, dispositifs d’étirement et contraintes de symétrie, puis lisez le patron de pliage à partir du placement.",
+      "figureAlt": "Des pointes placées sur une grille de plissé carré, avec son patron de pliage à côté.",
+      "title": "Plissé carré"
+    },
+    "carouselLabel": "Méthodes de conception",
+    "explori": {
+      "body": "Envoyez votre arbre à l’archive consultable de patrons à 22,5° de Brandon Wong et parcourez les correspondances les plus proches qu’elle renvoie.",
+      "figureAlt": "Une grille de patrons de pliage à 22,5° renvoyés par une recherche ExplOri.",
+      "title": "ExplOri"
+    },
+    "eyebrow": "Conception",
+    "lead": "Placez votre modèle avec la méthode qui lui convient, plusieurs conceptions ouvertes côte à côte dans des onglets. Chacune produit un patron de pliage que vous pouvez envoyer directement à l’éditeur.",
+    "title": "Un espace de conception à onglets",
+    "treemaker": {
+      "body": "Esquissez un arbre, réglez les longueurs d’arête et la tension, et laissez l’optimiseur placer cercles et rivières dans une base.",
+      "figureAlt": "Une structure arborescente à côté du placement de cercles trouvé par l’optimiseur.",
+      "title": "Placement de cercles"
+    }
+  },
+  "edit": {
+    "angles": {
+      "body": "Dessinez, simulez et résolvez des modèles d’origami dont les plis ne sont pas à plat.",
+      "figureAlt": "Un patron de pliage dont les plis portent des étiquettes d’angle.",
+      "title": "Prise en charge des plis non plats"
+    },
+    "carouselLabel": "Fonctions du patron de pliage",
+    "diagnostics": {
+      "body": "Kawasaki et Maekawa là où le papier se plie à plat. Ailleurs, chaque sommet est vérifié en trois dimensions : en parcourant ses plis pour voir si le pliage se referme, et de combien il s’en écarte.",
+      "figureAlt": "Des diagnostics de pliabilité signalant les sommets problématiques sur un patron de pliage.",
+      "title": "Une pliabilité vérifiable au fil du travail"
+    },
+    "eyebrow": "Patrons de pliage",
+    "lead": "Dessinez avec un jeu complet d’outils de construction et de transformation, avec aimantation à la grille et aux angles, et voyez les problèmes de pliabilité au moment où vous les créez. Photos de référence, notes et aperçu plié vivent tous sur le même plan de travail.",
+    "media": {
+      "body": "Placez une photo de référence du sujet à côté du papier et annotez le plan de travail en texte enrichi. Les deux sont enregistrés avec le projet et proprement écartés à l’export vers un format qui n’a pas de place pour eux.",
+      "figureAlt": "Une photo de référence et une annotation de texte placées à côté d’un patron de pliage.",
+      "title": "Images et texte, pour de bon"
+    },
+    "share": {
+      "body": "Envoyez un patron de pliage sous forme d’URL. Le destinataire l’ouvre dans son navigateur, sans rien installer.",
+      "figureAlt": "La boîte de dialogue du lien de partage, avec une URL copiable.",
+      "title": "Partager un patron par un lien"
+    },
+    "title": "Un éditeur qui suit le rythme"
+  },
+  "figureMissing": "Capture d’écran à placer ici",
+  "formats": {
+    "a11yBoth": "ouvre et exporte",
+    "a11yExport": "exporte seulement",
+    "a11yImport": "ouvre seulement",
+    "hubLabel": "Votre projet",
+    "ringLabel": "Formats de fichier pris en charge"
+  },
+  "get": {
+    "discord": "Rejoindre le Discord",
+    "eyebrow": "Commencer",
+    "github": "Code source et tickets",
+    "lead": "Remontez et commencez un patron de pliage : voilà toute la mise en route. Discord est le meilleur endroit pour signaler un bug ou proposer une idée, et c’est là que les nouveautés sont annoncées en premier.",
+    "title": "Ça tourne dans le navigateur. Rien à installer."
+  },
+  "mobileHero": {
+    "tagline": "Concevez, modifiez et pliez de l’origami, entièrement dans le navigateur."
+  },
+  "openApp": "Ouvrir l’app (non optimisée sur mobile)",
+  "scrollCue": "Voir ce qu’il fait",
+  "simulate": {
+    "eyebrow": "Simuler",
+    "figureAlt": "Un modèle 3D plié simulé juste à côté de son patron de pliage.",
+    "lead": "Ouvrez une simulation dans une fenêtre juste à côté du patron que vous dessinez : vérifier une idée ne coûte qu’un coup d’œil au lieu d’un aller-retour par un autre logiciel. Et quand vous voulez le modèle seul, l’espace Simulate complet est là.",
+    "title": "Pliez sans quitter le patron"
+  },
+  "what": {
+    "eyebrow": "De quoi s’agit-il",
+    "figureAlt": "L’espace de travail d’Ori Studio : un patron de pliage sur le plan de travail, entouré de la barre d’outils et des panneaux d’inspection.",
+    "lead": "Esquissez une base, dessinez le patron de pliage, puis pliez-le pour voir s’il fonctionne — au même endroit, dans le navigateur, sans rien à installer ni compte à créer.",
+    "title": "Un espace de travail libre et open source pour la conception d’origami"
+  }
+}

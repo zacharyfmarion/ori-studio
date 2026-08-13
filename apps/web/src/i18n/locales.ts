@@ -39,19 +39,6 @@ export const SUPPORTED_LOCALE_CODES: string[] = SUPPORTED_LOCALES.map((l) => l.c
  * crease-pattern tool data module (see src/i18n/cpVocab.ts) rather than extracted from
  * inline `t()` calls.
  */
-/*
- * NOTE: `landing` is intentionally not here yet.
- *
- * The landing-page copy still uses the `landing:` prefix, and its inline English
- * defaults render fine without a catalog — that is the point. While the wording
- * is being settled there is no `public/locales/*∕landing.json` at all, so the
- * source is the only place the English lives and cannot drift from a stale
- * catalog that would silently override it at runtime.
- *
- * Turning translation on means adding `'landing'` here *and* to
- * `PARSER_NAMESPACES` in scripts/i18n/_shared.mjs, then running
- * i18n:extract → translate → i18n:stamp → i18n:check.
- */
 export const I18N_NAMESPACES = [
   'common',
   'menu',
@@ -60,6 +47,7 @@ export const I18N_NAMESPACES = [
   'tools',
   'toasts',
   'errors',
+  'landing',
   'cpVocab',
 ] as const;
 
