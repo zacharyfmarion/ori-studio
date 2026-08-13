@@ -242,6 +242,8 @@
     "summary": "Oriedita에서 변경한 단축키를 적용합니다. 나머지 단축키는 지금의 키를 그대로 유지합니다. 키보드 전체를 바꾸려면 설정 ▸ 단축키에서 ‘Oriedita 기본값 사용’을 켜세요.",
     "title": "Oriedita 단축키 가져오기",
     "unbindNote": "이 키를 {{takenBy}}에 넘기고 할당 해제됩니다.",
+    "useAll": "모두 덮어쓰기",
+    "useAllLabel": "건너뛴 키 중 차지하고 있는 할당을 덮어쓸 수 있는 키를 모두 사용",
     "useAnyway": "그래도 사용",
     "useAnywayLabel": "이 키를 그대로 사용하고 {{action}}을(를) 할당 해제합니다",
     "willChange_other": "변경될 항목 ({{count}})",

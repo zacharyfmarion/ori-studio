@@ -200,6 +200,7 @@ export const ANALYTICS_EVENTS = {
   themeChanged: 'theme changed',
   localeChanged: 'locale changed',
   orieditaShortcutsImported: 'oriedita shortcuts imported',
+  orieditaShortcutsOverrideAll: 'oriedita shortcuts override all',
   shortcutDefaultsSourceChanged: 'shortcut defaults source changed',
 } as const;
 

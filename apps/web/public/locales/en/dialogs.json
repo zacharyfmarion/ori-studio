@@ -250,6 +250,8 @@
     "summary": "This applies the hotkeys you changed in Oriedita. Every other shortcut keeps the key it has now — to move the whole keyboard, turn on Oriedita defaults in Settings ▸ Shortcuts.",
     "title": "Import Oriedita Shortcuts",
     "unbindNote": "Gives up this key to {{takenBy}}, and is left unassigned.",
+    "useAll": "Override all",
+    "useAllLabel": "Use every skipped key that can override what holds it",
     "useAnyway": "Use anyway",
     "useAnywayLabel": "Use this key anyway, leaving {{action}} unassigned",
     "willChange_one": "Will change ({{count}})",

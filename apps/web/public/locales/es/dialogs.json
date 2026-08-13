@@ -258,6 +258,8 @@
     "summary": "Esto aplica los atajos que cambiaste en Oriedita. El resto conserva la tecla que tiene ahora; para mover todo el teclado, activa los valores predeterminados de Oriedita en Ajustes ▸ Atajos.",
     "title": "Importar atajos de Oriedita",
     "unbindNote": "Cede esta tecla a {{takenBy}} y queda sin asignar.",
+    "useAll": "Anular todo",
+    "useAllLabel": "Usar todas las teclas omitidas que puedan anular lo que las ocupa",
     "useAnyway": "Usar de todos modos",
     "useAnywayLabel": "Usar esta tecla de todos modos y dejar {{action}} sin asignar",
     "willChange_one": "Cambiará ({{count}})",

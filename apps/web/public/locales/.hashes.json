@@ -2394,7 +2394,9 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
+    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
+    "dialogs:orieditaImport.useAllLabel": "f52174549432"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4791,7 +4793,9 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
+    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
+    "dialogs:orieditaImport.useAllLabel": "f52174549432"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7188,7 +7192,9 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
+    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
+    "dialogs:orieditaImport.useAllLabel": "f52174549432"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9546,7 +9552,9 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
+    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
+    "dialogs:orieditaImport.useAllLabel": "f52174549432"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -11904,7 +11912,9 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
+    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
+    "dialogs:orieditaImport.useAllLabel": "f52174549432"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -14301,7 +14311,9 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
+    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
+    "dialogs:orieditaImport.useAllLabel": "f52174549432"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -16698,7 +16710,9 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
+    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
+    "dialogs:orieditaImport.useAllLabel": "f52174549432"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -19056,6 +19070,8 @@
     "dialogs:settings.shortcuts.unbindMessage": "6d68891f16b0",
     "dialogs:settings.shortcuts.unbindTitle": "d5db998ef88d",
     "dialogs:settings.shortcuts.useOrieditaDefaults": "8695b2b399f2",
-    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5"
+    "dialogs:settings.shortcuts.useOrieditaDefaultsHint": "e0abb99c0cd5",
+    "dialogs:orieditaImport.useAll": "7309d57d7ab0",
+    "dialogs:orieditaImport.useAllLabel": "f52174549432"
   }
 }

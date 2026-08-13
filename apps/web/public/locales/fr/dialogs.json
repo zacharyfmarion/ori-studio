@@ -258,6 +258,8 @@
     "summary": "Ceci applique les raccourcis que vous avez modifiés dans Oriedita. Les autres gardent leur touche actuelle ; pour déplacer tout le clavier, activez les valeurs par défaut d’Oriedita dans Réglages ▸ Raccourcis.",
     "title": "Importer les raccourcis Oriedita",
     "unbindNote": "Cède cette touche à {{takenBy}} et reste non assigné.",
+    "useAll": "Tout remplacer",
+    "useAllLabel": "Utiliser toutes les touches ignorées pouvant remplacer ce qui les occupe",
     "useAnyway": "Utiliser quand même",
     "useAnywayLabel": "Utiliser cette touche quand même et laisser {{action}} non assigné",
     "willChange_one": "Changera ({{count}})",
