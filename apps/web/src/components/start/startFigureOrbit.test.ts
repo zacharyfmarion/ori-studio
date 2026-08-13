@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { normalizeAngle } from '../../lib/simulatorOrbit';
 import {
   START_FIGURE_HOLD_MS,
-  START_FIGURE_PITCH_BAND,
   START_FIGURE_TURN_PERIOD_MS,
   advanceStartFigureOrbit,
   beginStartFigureDrag,
@@ -13,13 +12,7 @@ import {
   type StartFigureOrbitState,
 } from './startFigureOrbit';
 
-const CONFIG: StartFigureOrbitConfig = {
-  yaw: 0,
-  // The pitch the turntable requires: screen-up equals the model's Y axis, which
-  // is the axis yaw turns about, only here. See the module header.
-  pitch: -Math.PI / 2,
-  reducedMotion: false,
-};
+const CONFIG: StartFigureOrbitConfig = { yaw: 0, reducedMotion: false };
 
 /** Run the loop the component runs, at a fixed frame time. */
 function run(
@@ -47,17 +40,32 @@ function travel(from: StartFigureOrbitState, ms: number, config = CONFIG): numbe
   return total;
 }
 
+describe('one axis', () => {
+  it('has no state but the yaw and the mode', () => {
+    // The point of the module, asserted structurally: pitch is not
+    // representable here, so nothing can drift it. A change that reintroduces
+    // it has to change this test, which is the intent.
+    expect(Object.keys(initialStartFigureOrbit(CONFIG)).sort()).toEqual([
+      'holdMs',
+      'mode',
+      'yaw',
+    ]);
+  });
+
+  it('takes no vertical delta at all', () => {
+    // Not "ignores it" — there is no parameter to pass one to.
+    expect(dragStartFigureOrbit.length).toBe(2);
+  });
+});
+
 describe('the turn', () => {
   it('starts at the pose the asset chose', () => {
     const state = initialStartFigureOrbit(CONFIG);
     expect(state.yaw).toBe(CONFIG.yaw);
-    expect(state.pitch).toBe(CONFIG.pitch);
     expect(state.mode).toBe('auto');
   });
 
   it('goes all the way round, so the side and the back are seen', () => {
-    // The behaviour this replaced was a bounded sweep, which only ever showed
-    // the front. A full revolution per period is the difference.
     const travelled = travel(initialStartFigureOrbit(CONFIG), START_FIGURE_TURN_PERIOD_MS);
     expect(travelled).toBeCloseTo(Math.PI * 2, 1);
   });
@@ -82,11 +90,6 @@ describe('the turn', () => {
     expect(seen).toEqual({ side: true, back: true });
   });
 
-  it('never moves the pitch, which is what keeps up pointing up', () => {
-    const state = run(initialStartFigureOrbit(CONFIG), START_FIGURE_TURN_PERIOD_MS);
-    expect(state.pitch).toBe(CONFIG.pitch);
-  });
-
   it('stays bounded rather than accumulating turns without limit', () => {
     // A yaw that grew forever would lose float precision on a page left open,
     // and `normalizeAngle` is what keeps it in (-pi, pi].
@@ -99,9 +102,8 @@ describe('the turn', () => {
 describe('dragging', () => {
   it('turns the figure about its vertical axis', () => {
     const start = beginStartFigureDrag(initialStartFigureOrbit(CONFIG));
-    const dragged = dragStartFigureOrbit(start, -100, 0, CONFIG);
+    const dragged = dragStartFigureOrbit(start, -100);
     expect(normalizeAngle(dragged.yaw - start.yaw)).toBeCloseTo(1, 6);
-    expect(dragged.pitch).toBe(start.pitch);
   });
 
   it('lets a drag carry the figure all the way round', () => {
@@ -110,30 +112,17 @@ describe('dragging', () => {
     let state = beginStartFigureDrag(initialStartFigureOrbit(CONFIG));
     let travelled = 0;
     for (let i = 0; i < 20; i += 1) {
-      const next = dragStartFigureOrbit(state, -40, 0, CONFIG);
+      const next = dragStartFigureOrbit(state, -40);
       travelled += normalizeAngle(next.yaw - state.yaw);
       state = next;
     }
     expect(Math.abs(travelled)).toBeGreaterThan(Math.PI * 2);
   });
 
-  it('clamps the pitch to a narrow band however far it is dragged', () => {
-    // "Not in all directions": a hard vertical drag must not put the camera on
-    // the model's own axis, where a folded form becomes an unreadable sliver.
-    let state = beginStartFigureDrag(initialStartFigureOrbit(CONFIG));
-    for (let i = 0; i < 50; i += 1) state = dragStartFigureOrbit(state, 0, 200, CONFIG);
-    expect(state.pitch).toBeCloseTo(CONFIG.pitch + START_FIGURE_PITCH_BAND, 6);
-
-    for (let i = 0; i < 100; i += 1) state = dragStartFigureOrbit(state, 0, -200, CONFIG);
-    expect(state.pitch).toBeCloseTo(CONFIG.pitch - START_FIGURE_PITCH_BAND, 6);
-  });
-
   it('is not overridden by the turn while the pointer is down', () => {
     const dragged = dragStartFigureOrbit(
       beginStartFigureDrag(initialStartFigureOrbit(CONFIG)),
-      -220,
-      0,
-      CONFIG
+      -220
     );
     expect(run(dragged, 3_000)).toEqual(dragged);
   });
@@ -142,12 +131,7 @@ describe('dragging', () => {
 describe('resuming after a release', () => {
   function released(): StartFigureOrbitState {
     return endStartFigureDrag(
-      dragStartFigureOrbit(
-        beginStartFigureDrag(initialStartFigureOrbit(CONFIG)),
-        -180,
-        90,
-        CONFIG
-      )
+      dragStartFigureOrbit(beginStartFigureDrag(initialStartFigureOrbit(CONFIG)), -180)
     );
   }
 
@@ -156,45 +140,30 @@ describe('resuming after a release', () => {
     const held = run(state, START_FIGURE_HOLD_MS - 500);
     expect(held.mode).toBe('resuming');
     expect(held.yaw).toBeCloseTo(state.yaw, 9);
-    expect(held.pitch).toBeCloseTo(state.pitch, 9);
-  });
-
-  it('eases the pitch back without snapping', () => {
-    const state = released();
-    const nudged = run(state, START_FIGURE_HOLD_MS + 16);
-    expect(nudged.mode).toBe('resuming');
-    expect(nudged.pitch).not.toBeCloseTo(CONFIG.pitch, 3);
-
-    const settled = run(state, START_FIGURE_HOLD_MS + 20_000);
-    expect(settled.mode).toBe('auto');
-    expect(settled.pitch).toBeCloseTo(CONFIG.pitch, 6);
   });
 
   it('keeps the yaw the user chose rather than travelling back to the front', () => {
     // Every yaw is a legitimate view, so there is no canonical angle to return
     // to — and returning to one would undo the drag in front of the user.
     const state = released();
-    const settled = advanceStartFigureOrbit(
-      { ...state, holdMs: 0 },
-      16,
-      CONFIG
-    );
-    expect(settled.yaw).toBeCloseTo(state.yaw, 9);
+    const resumed = run(state, START_FIGURE_HOLD_MS + 16);
+    expect(resumed.mode).toBe('auto');
+    expect(normalizeAngle(resumed.yaw - state.yaw)).toBeLessThan(0.02);
   });
 
   it('picks the turn back up from wherever it was left', () => {
-    const state = released();
-    const settled = run(state, START_FIGURE_HOLD_MS + 20_000);
+    const settled = run(released(), START_FIGURE_HOLD_MS + 100);
     expect(settled.mode).toBe('auto');
     const after = advanceStartFigureOrbit(settled, 16, CONFIG);
     expect(normalizeAngle(after.yaw - settled.yaw)).toBeGreaterThan(0);
   });
 
-  it('settles even under reduced motion, because a drag was asked for', () => {
+  it('hands the figure back even under reduced motion, rather than sticking', () => {
+    // The `auto` early-return must not swallow the hold, or a released drag
+    // would leave the state in `resuming` forever.
     const config = { ...CONFIG, reducedMotion: true };
-    const settled = run(released(), START_FIGURE_HOLD_MS + 20_000, config);
+    const settled = run(released(), START_FIGURE_HOLD_MS + 100, config);
     expect(settled.mode).toBe('auto');
-    expect(settled.pitch).toBeCloseTo(CONFIG.pitch, 6);
   });
 });
 
@@ -203,16 +172,12 @@ describe('reduced motion', () => {
     const config = { ...CONFIG, reducedMotion: true };
     const state = run(initialStartFigureOrbit(config), 60_000, config);
     expect(state.yaw).toBe(CONFIG.yaw);
-    expect(state.pitch).toBe(CONFIG.pitch);
   });
 
   it('still lets the figure be dragged', () => {
-    const config = { ...CONFIG, reducedMotion: true };
     const dragged = dragStartFigureOrbit(
-      beginStartFigureDrag(initialStartFigureOrbit(config)),
-      -100,
-      0,
-      config
+      beginStartFigureDrag(initialStartFigureOrbit({ ...CONFIG, reducedMotion: true })),
+      -100
     );
     expect(dragged.yaw).not.toBe(CONFIG.yaw);
   });

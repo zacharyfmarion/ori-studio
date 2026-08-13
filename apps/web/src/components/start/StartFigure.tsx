@@ -78,12 +78,13 @@ export function StartFigure() {
   const meshRef = useRef<StartFigureMesh | null>(null);
   const orbitRef = useRef<StartFigureOrbitState | null>(null);
   const configRef = useRef<StartFigureOrbitConfig | null>(null);
+  const pitchRef = useRef<number | null>(null);
   // Resolved once per theme change, never inside the frame loop: reading it is a
   // getComputedStyle, and it only moves when the theme does.
   const settingsRef = useRef<RenderSettings | null>(null);
   const frameRef = useRef<number | null>(null);
   const lastFrameMsRef = useRef<number>(0);
-  const dragRef = useRef<{ pointerId: number; x: number; y: number } | null>(null);
+  const dragRef = useRef<{ pointerId: number; x: number } | null>(null);
   const [live, setLive] = useState(false);
 
   /** Re-read the theme tokens and redraw. */
@@ -110,8 +111,12 @@ export function StartFigure() {
     const mesh = meshRef.current;
     const orbit = orbitRef.current;
     const settings = settingsRef.current;
-    if (!mesh || !orbit || !settings) return;
-    mesh.render({ yaw: orbit.yaw, pitch: orbit.pitch }, settings);
+    const pitch = pitchRef.current;
+    if (!mesh || !orbit || !settings || pitch === null) return;
+    // Pitch is read from the asset and never from the orbit, because nothing can
+    // change it — see the header of `startFigureOrbit.ts` for why it must be
+    // exactly what the asset says.
+    mesh.render({ yaw: orbit.yaw, pitch }, settings);
   }, []);
 
   const stopLoop = useCallback(() => {
@@ -178,7 +183,8 @@ export function StartFigure() {
         teardown();
       });
 
-      configRef.current = { ...asset.view, reducedMotion: prefersReducedMotion() };
+      configRef.current = { yaw: asset.view.yaw, reducedMotion: prefersReducedMotion() };
+      pitchRef.current = asset.view.pitch;
       orbitRef.current = initialStartFigureOrbit(configRef.current);
       meshRef.current = mesh;
       const rect = canvas.getBoundingClientRect();
@@ -271,25 +277,26 @@ export function StartFigure() {
 
   const onPointerDown = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
     if (!meshRef.current || !orbitRef.current) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+    dragRef.current = { pointerId: event.pointerId, x: event.clientX };
     orbitRef.current = beginStartFigureDrag(orbitRef.current);
+    // Capture last, and allowed to fail. It only buys tracking once the pointer
+    // leaves the canvas; letting it throw first would abort the handler and lose
+    // the drag entirely, which is a much worse trade than a drag that stops at
+    // the edge.
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      /* no capture: the drag still works while the pointer is over the canvas */
+    }
   }, []);
 
   const onPointerMove = useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>) => {
       const drag = dragRef.current;
       const orbit = orbitRef.current;
-      const config = configRef.current;
-      if (!drag || drag.pointerId !== event.pointerId || !orbit || !config) return;
-      orbitRef.current = dragStartFigureOrbit(
-        orbit,
-        event.clientX - drag.x,
-        event.clientY - drag.y,
-        config
-      );
+      if (!drag || drag.pointerId !== event.pointerId || !orbit) return;
+      orbitRef.current = dragStartFigureOrbit(orbit, event.clientX - drag.x);
       drag.x = event.clientX;
-      drag.y = event.clientY;
       // Drawn here rather than left to the loop: under reduced motion the loop is
       // running but `advance` is a no-op, so a drag would not otherwise repaint.
       draw();

@@ -112,9 +112,10 @@
      stealing a drag from the page underneath. */
   opacity: 0;
   pointer-events: none;
-  /* The canvas owns the drag, so the browser must not also read it as a scroll
-     or a pinch. */
-  touch-action: none;
+  /* The canvas owns *horizontal* drags only, so `pan-y` rather than `none`: a
+     vertical swipe still scrolls the page instead of being swallowed by a
+     gesture the figure does not have. */
+  touch-action: pan-y;
 }
 
 .start-figure[data-live] .start-figure__canvas {
