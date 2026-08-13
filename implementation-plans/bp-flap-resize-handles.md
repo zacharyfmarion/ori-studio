@@ -486,59 +486,89 @@ writes fields that already exist), the optimizer, the tree pane.
 
 ### Phase 1 — engine
 
-- [ ] `reshape_flap` on `ProjectSession`: one `DesignUpdateRequest` with both
+- [x] `reshape_flap` on `ProjectSession`: one `DesignUpdateRequest` with both
       `flaps` and `edges`, `dragging` threaded, validation before mutation,
       history field-changes matching the granular ops.
-- [ ] `radius: None` path for a flap with no leaf edge — no panic, no throw.
-- [ ] Rust tests beside `resize_flap`'s (`tests/engine.rs:536`): accepts what
+- [x] `radius: None` path for a flap with no leaf edge — no panic, no throw.
+- [x] Rust tests beside `resize_flap`'s (`tests/engine.rs:536`): accepts what
       `resize_flap` + `move_flap` + `update_edge_length` jointly accept, rejects
       the one-tip-off-sheet case, no-ops on an unchanged reshape, respects
       `edge_max_length` and `length ≥ 1`.
-- [ ] `bp_reshape_layout_flap` wasm export; worker method; runtime wrapper.
-- [ ] `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
-      `cargo test -p oristudio-bp`. Oracle parity is untouched (no ported
-      behaviour changes) — say so in the PR.
+- [x] `bp_reshape_layout_flap` wasm export; worker method; runtime wrapper.
+- [x] `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
+      `cargo test -p oristudio-bp` (all green). Oracle parity is untouched — no
+      ported behaviour changed, only a new composite op over existing
+      primitives.
 
 ### Phase 2 — solver + store
 
-- [ ] `lib/bpFlapReshape.ts`: the `δ` rule, both feasibility gates, the clamp,
+- [x] `lib/bpFlapReshape.ts`: the `δ` rule, both feasibility gates, the clamp,
       self-mirror parity.
-- [ ] Solver tests: the six worked examples in the table above; every one of the
+- [x] Solver tests: the six worked examples in the table above; every one of the
       eight handles; the anchor shift when `Δ = 0` on the un-driven axis;
       `w′,h′,r′` all integral for every case; within-gesture inverse
       (`solve(Δ)` then `solve(0)` returns the start); the `r = 1` floor; `rMax`;
       `radiusRange = null`; diagonal sheet; the at-most-one-tip boundary in
       lockstep with `validate_flap_with_sheet`.
-- [ ] `reshapeOristudioBpFlap` in the slice + `types.ts`: one
+- [x] `reshapeOristudioBpFlap` in the slice + `types.ts`: one
       `runBpTreeMutation`, `activeSurface: 'packing'`, partner resolved once,
       dimension swap on a diagonal axis, partner anchor mirrored with the
       **post**-resize box, partial mirror when no partner resolves.
-- [ ] Store test on the `oristudioBpSymmetricFlapMove.test.ts` harness: two
+- [x] Store test on the `oristudioBpSymmetricFlapMove.test.ts` harness: two
       runtime calls with the right values, one history entry, no-op with mirror
       off, tree sheet ≠ layout sheet, self-mirrored flap stays on the grid.
-- [ ] Reshape channel in `useBpPackingDragRequests` + `sameBpReshapeUpdate`,
+- [x] Reshape channel in `useBpPackingDragRequests` + `sameBpReshapeUpdate`,
       with the existing channel tests extended.
 
 ### Phase 3 — chrome
 
-- [ ] `BpFlapResizeHandles` + `useBpFlapResize`; panel gets a mount and a branch.
-- [ ] Layering: above the shades, outside the sheet clip, independent of the
+- [x] `BpFlapResizeHandles` + `useBpFlapResize`; panel gets a mount, a hook call,
+      a store binding and one more drag verb. `max-lines` raised 2055 → 2080 with
+      the reason in `eslint.config.js`.
+- [x] Layering: above the shades, outside the sheet clip, independent of the
       Clearance toggle, screen-constant size, hidden below the size floor and on
       multi-select / busy.
-- [ ] No store write on `pointerdown`.
-- [ ] Escape cancels through a gesture-scoped `window` listener; no new container
+- [x] No store write on `pointerdown`.
+- [x] Escape cancels through a gesture-scoped `window` listener; no new container
       `keydown`.
-- [ ] Component tests: handles appear for exactly one selected flap and not for
-      two; a drag calls the action with the solved values; Escape restores;
-      handles are absent when the box is too small.
-- [ ] CSS beside the existing `.bp-packing-flap*` rules; both themes.
-- [ ] Analytics event on commit, enums only.
-- [ ] i18n round trip; `npm run i18n:check` green.
-- [ ] `npm run lint:web`, `npx tsc --noEmit` and `vitest` **in `apps/web`** (the
+- [x] Component tests (`BpFlapResizeHandles.test.tsx`, hook and layer together):
+      all eight handles for a selected flap and none without one; a drag sends a
+      *footprint* and settles once on release; a grab that never moved settles
+      nothing; Escape restores the start footprint and the listener goes away
+      with the gesture; no handles when the box is too small or the flap is its
+      own mirror.
+- [x] CSS beside the existing `.bp-packing-flap*` rules; both themes.
+- [x] Analytics event on commit, enums only.
+- [x] i18n round trip; `npm run i18n:check` green.
+- [x] `npm run lint:web`, `npx tsc --noEmit` and `vitest` **in `apps/web`** (the
       repo root has no vitest config), `npm run build:web` if bindings changed.
-- [ ] Rebuild `build:oristudio-bp-wasm` before any browser check.
+- [x] Rebuild `build:oristudio-bp-wasm` before any browser check.
 
-### Browser pass (Zach — the gesture cannot be driven in the automated pane)
+### Shipped smaller than planned, on purpose
+
+- **A self-mirrored flap declines the handles.** The plan's parity quantisation
+  (only an even `Δ` keeps such a flap on the grid) turned out to be the *smaller*
+  half of the problem: pinning the opposite outer edge is incompatible with
+  staying centred on the axis, so a correct gesture there is a second solve —
+  symmetric growth about the line, with its own parity rule and its own tests —
+  for a case that is real but secondary. The handles are simply not drawn for
+  one, `useBpPackingSymmetry.selfMirrored` is the gate, and its `R / W / H`
+  fields still work. A scoped follow-up, not a silent wrong answer.
+- **Handles are sized in SVG units, not screen pixels**, so they scale with the
+  camera exactly as the flap dots and labels already do. The too-small gate is a
+  test of *relative* size — handles and flap scale together — so zoom cancels out
+  of it and no `zoomPercent` is needed.
+
+### Browser pass (Zach — a full pointer drag cannot be driven in the automated pane)
+
+Verified here, through the real hook and the real engine, by dispatching the
+handle's own pointer handlers: eight handles land exactly on the clearance box;
+an east drag of three cells widened the box by three and left the radius alone
+(no height to trade); a north drag of two then moved the radius `1 → 2` with the
+width paying `4 → 2`, holding the outer box exactly as wide while it grew two
+taller; the tree's leaf edge relabelled `1 → 2` with it. No console or server
+errors. What is left below needs a human at a real pointer.
+
 
 - [ ] Drag each of the eight handles on a plain circular flap and on a
       deliberately non-square one; the outer box tracks the cursor exactly.
