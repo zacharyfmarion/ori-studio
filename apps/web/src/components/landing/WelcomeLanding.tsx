@@ -124,7 +124,7 @@ export function WelcomeLanding() {
               title: t('landing:edit.share.title', 'Share a pattern with a link'),
               body: t(
                 'landing:edit.share.body',
-                'Send someone a crease pattern as a URL. They open it in their browser with nothing to install and nothing to sign up for.'
+                'Send someone a crease pattern as a URL. They open it in their browser with nothing to install.'
               ),
               figureAlt: t('landing:edit.share.figureAlt', 'The share-link dialog with a copyable URL.'),
             },
@@ -234,7 +234,7 @@ export function WelcomeLanding() {
         title={t('landing:get.title', 'It runs in the browser. Nothing to install.')}
         lead={t(
           'landing:get.lead',
-          'Scroll back up and start a crease pattern — that is the whole setup. If you hit a bug or have an idea, the Discord is the best place to reach me, and it is where I post what I am working on next.'
+          'Scroll back up and start a crease pattern — that is the whole setup. Discord is the best place to report a bug or suggest something, and where new work is announced first.'
         )}
       >
         <div className="landing-actions">
