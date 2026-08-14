@@ -21,6 +21,8 @@
         "title": "Ori Studio",
         "width": 1400,
         "height": 900,
+        "minWidth": 900,
+        "minHeight": 640,
         "resizable": true,
         "fullscreen": false,
         "dragDropEnabled": false
