@@ -62,4 +62,25 @@ describe('MobileLandingHeader', () => {
     expect(rendered.querySelectorAll('button')).toHaveLength(1);
     expect(rendered.querySelectorAll('p')).toHaveLength(1);
   });
+
+  it('leads with the folded figure, above the masthead', () => {
+    // The phone gets no start screen, so this is the only place the product's
+    // own artefact appears above the fold. Order matters as much as presence: a
+    // figure under the tagline is a figure most visitors scroll past.
+    const { container } = renderLink();
+
+    const figure = container.querySelector('.welcome-mobile-header__figure');
+    const brand = container.querySelector('.welcome-mobile-header__brand');
+    expect(figure).not.toBeNull();
+    expect(brand).not.toBeNull();
+    expect(figure?.querySelector('.start-figure')).not.toBeNull();
+    const brandFollowsFigure =
+      (figure?.compareDocumentPosition(brand as Node) ?? 0) &
+      Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(brandFollowsFigure).toBeTruthy();
+
+    // Decorative: the masthead beside it already names the product, and the
+    // figure carries no information a screen reader could use.
+    expect(figure?.getAttribute('aria-hidden')).toBe('true');
+  });
 });

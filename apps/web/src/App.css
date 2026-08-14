@@ -62,15 +62,51 @@
 }
 
 /*
- * The phone's page header: a way into the app, then the masthead.
+ * The phone's page header: a way into the app, the folded figure, then the
+ * masthead.
  *
  * The bar has real space under it. The button used to sit flush on the first
  * section's top border, which read as a rendering mistake rather than a divider.
+ *
+ * The whole header is bounded to the viewport so its three parts land above the
+ * fold together. `100svh` and not `100vh`: on a phone the large viewport unit
+ * measures the screen with the browser's own chrome retracted, which it is not
+ * on arrival, so `vh` here would push the tagline under the address bar on the
+ * one visit that matters.
  */
 .welcome-mobile-header {
   display: grid;
-  gap: var(--space-5);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: var(--space-4);
+  max-height: 100svh;
   padding: var(--space-3) var(--space-5) var(--space-6);
+}
+
+/*
+ * The figure's share of the header.
+ *
+ * The third term is what keeps the masthead above the fold: the figure is
+ * square, so capping its *width* by the height left over after everything else
+ * caps its height too. Without it `aspect-ratio` sizes purely from width and the
+ * header runs past the bottom of a short phone, taking the tagline with it —
+ * a grid row of `1fr` does not help, because the aspect ratio wins over it.
+ *
+ * 300px is measured, not guessed: the bar, the masthead and this element's own
+ * gaps and padding come to just under it at the type sizes above.
+ *
+ * `svh` and not `vh`: the large viewport unit measures the screen with the
+ * browser's chrome retracted, which it is not on arrival — the one visit where
+ * being above the fold matters.
+ */
+.welcome-mobile-header__figure {
+  justify-self: center;
+  align-self: center;
+  width: min(100%, 320px, calc(100svh - 300px));
+  /* A floor, so the figure stays a folded object rather than a mark on a very
+     short screen. Below this it is allowed to push the tagline down: unreadable
+     and above the fold is worse than readable and just under it. */
+  min-width: 150px;
+  aspect-ratio: 1;
 }
 
 .welcome-mobile-header__bar {

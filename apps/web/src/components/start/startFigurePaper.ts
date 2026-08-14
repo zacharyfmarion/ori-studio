@@ -44,19 +44,31 @@ function darken(color: string, factor: number): string {
  * accent — in which case everything falls back to the simulator's own tokens,
  * which is the honest answer rather than a guess.
  *
- * Only the paper's *front* is recoloured. `--sim-paper-back` is already a pale
- * theme-derived tone and is what makes the two-tone read as folded-over paper;
- * replacing it as well would flatten the figure into one colour.
+ * The accent is on the **back** of the paper, not the front. Which side is which
+ * is arbitrary here — the figure is a decoration, not a fold anyone is reading —
+ * and this way round the pale side leads. On the penguin that puts the light
+ * tone on the face and belly with the accent behind it, which reads as a
+ * subject on a background rather than as a coloured object outlined in white.
  *
- * `borderColor` is the crease ink here because the figure draws in `mono`, and
+ * Both sides are set explicitly. Overriding one and letting the other fall
+ * through to `--sim-paper-back` would leave the two tones deciding themselves
+ * from different places, so a theme that moved one would tilt the figure's
+ * balance without anyone touching this file.
+ *
+ * `borderColor` is the crease ink because the figure draws in `mono`, and
  * `resolveRenderSettings` feeds that one colour to mountains, valleys and the
  * paper edge alike — so setting it is setting all three, and setting
  * `mountainColor` / `valleyColor` alongside it would be dead weight.
  */
 export function startFigurePaperSettings(
   styles: CSSStyleDeclaration
-): Partial<Pick<SimulatorSettings, 'paperFront' | 'borderColor'>> {
+): Partial<Pick<SimulatorSettings, 'paperFront' | 'paperBack' | 'borderColor'>> {
   const accent = styles.getPropertyValue('--accent-primary').trim();
   if (accent === '') return {};
-  return { paperFront: accent, borderColor: darken(accent, CREASE_DARKEN) };
+  const pale = styles.getPropertyValue('--sim-paper-back').trim();
+  return {
+    paperFront: pale === '' ? null : pale,
+    paperBack: accent,
+    borderColor: darken(accent, CREASE_DARKEN),
+  };
 }
