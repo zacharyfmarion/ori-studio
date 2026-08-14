@@ -1,7 +1,15 @@
+import type { Mat3 } from '@treemaker/origami-simulator';
+
 export interface SimulatorOrbitView {
   yaw: number;
   pitch: number;
   zoom: number;
+  /**
+   * Model rotation applied before the camera, so yaw spins about the model's own
+   * up rather than about the paper's normal. Absent means identity — the
+   * turntable both surfaces have always been.
+   */
+  orient?: Mat3;
 }
 
 export interface SimulatorOrbitDrag {

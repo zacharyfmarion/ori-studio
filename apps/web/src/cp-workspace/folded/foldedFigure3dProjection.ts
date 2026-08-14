@@ -78,6 +78,8 @@ import {
   projectViewPoint,
   toViewSpace,
   traverseBsp,
+  viewDepthAxis,
+  viewRotation,
   type BspItem,
   type CameraUniforms,
   type DrawnPiece,
@@ -356,12 +358,9 @@ function cameraUniformsFor(camera: FoldedFigureCamera, centre: Vec3): CameraUnif
   const sim = toSimBasis(centre);
   return {
     center: sim,
-    cosYaw: Math.cos(camera.yaw),
-    sinYaw: Math.sin(camera.yaw),
     // `pitch` is measured from face-on; the simulator's own zero is face-on too,
     // so the two agree and no offset is applied.
-    cosPitch: Math.cos(camera.pitch),
-    sinPitch: Math.sin(camera.pitch),
+    rotation: viewRotation(camera.yaw, camera.pitch),
     // Not `camera.zoom`: this projection is drawn unclipped, so a zoomed-in
     // model would spill outside the frame its chrome is anchored to instead of
     // being cropped by it. Zoom is a window setting — see `FoldedFigureCamera`.
@@ -409,11 +408,14 @@ export function folded3dFrameRadius(model: OristudioCpFolded3dRenderModel): numb
 /**
  * World direction the eye lies in. Unit length.
  *
- * The third row of the view rotation, carried back through {@link toSimBasis}.
- * `toViewSpace` writes `depth = sinP·(−sinY·sx + cosY·sz) + cosP·sy`, so in the
- * simulator's axes the eye is `(−sinP·sinY, cosP, sinP·cosY)`; undoing
- * `(x, z, −y)` gives the components below. Getting it wrong by a sign draws the
- * figure near-to-far, which is a picture, just the wrong one.
+ * Literally the third row of the view rotation, carried back through
+ * {@link toSimBasis}. It used to be re-derived here in trigonometry, with the
+ * note that getting a sign wrong "draws the figure near-to-far, which is a
+ * picture, just the wrong one" — now the row is read from the same matrix the
+ * projection uses, so the two cannot disagree and the sign trap is gone.
+ *
+ * `toSimBasis` is `(x, y, z) → (x, z, −y)`, so a simulator-space `(a, b, c)`
+ * comes back as `(a, −c, b)`.
  *
  * Exported because "which side of a plane is the viewer on" is a question the
  * projector answers for every stacked cell and a caller has to be able to ask
@@ -421,9 +423,8 @@ export function folded3dFrameRadius(model: OristudioCpFolded3dRenderModel): numb
  * way to say which one that is.
  */
 export function folded3dEyeDirection(camera: FoldedFigureCamera): Vec3 {
-  const sp = Math.sin(camera.pitch);
-  const cp = Math.cos(camera.pitch);
-  return [-sp * Math.sin(camera.yaw), -sp * Math.cos(camera.yaw), cp];
+  const [a, b, c] = viewDepthAxis(viewRotation(camera.yaw, camera.pitch));
+  return [a, -c, b];
 }
 
 /**
