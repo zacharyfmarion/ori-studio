@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   emptyOristudioBpSelection,
+  type OristudioBpDevice,
   type OristudioBpDocumentState,
+  type OristudioBpStretch,
 } from '../engine/oristudioBpTypes';
 import {
   bpLinkedSelection,
@@ -20,6 +22,31 @@ import {
 } from './oristudioBpSelection';
 
 describe('oristudio BP selection helpers', () => {
+  /**
+   * Typed rather than inlined into the document literal below: that literal is
+   * cast from a structural subset of the real state, which only holds while
+   * every property it does list widens to the real one. An inline `regions: []`
+   * or `rangeScalar: null` narrows to `never[]` / `null` and breaks the cast.
+   */
+  const stretches: OristudioBpStretch[] = [
+    {
+      id: '2,3',
+      flapIds: [2, 3],
+      riverIds: [],
+      completed: true,
+      configIndex: 0,
+      configCount: 1,
+      patternIndex: 0,
+      patternCount: 1,
+      patternFound: true,
+      regions: [],
+    },
+  ];
+  const devices: OristudioBpDevice[] = [
+    { id: '2,3:device:0', stretchId: '2,3', position: { x: 0, y: 0 }, rangeScalar: null, forward: null },
+    { id: '2,3:device:1', stretchId: '2,3', position: { x: 1, y: 1 }, rangeScalar: null, forward: null },
+    { id: '4,5:device:0', stretchId: '4,5', position: { x: 2, y: 2 }, rangeScalar: null, forward: null },
+  ];
   const linkedDocument = {
     snapshot: {
       tree: {
@@ -40,6 +67,8 @@ describe('oristudio BP selection helpers', () => {
         ],
         rivers: [{ id: 9, edgeId: 4 }],
         invalidJunctions: [{ id: '2,3', flapIds: [2, 3], riverIds: [9] }],
+        stretches,
+        devices,
       },
     },
   } as OristudioBpDocumentState;
@@ -115,5 +144,31 @@ describe('oristudio BP selection helpers', () => {
 
     const river = bpLinkedSelection({ kind: 'bp-river', id: 9 }, linkedDocument);
     expect([...river.edges]).toEqual([4]);
+  });
+
+  /**
+   * A stretch marks its own gadgets, not the flaps it spans.
+   *
+   * Box Pleating Studio shades a `Device` when it or its stretch is selected
+   * (`layout/device.ts` `_drawShade`) and shades a `Flap` only for itself
+   * (`layout/flap.ts`). Linking the flaps washed the two largest shapes on the
+   * sheet — and their creases, and their tree leaves — to point at the small
+   * region between them.
+   */
+  it('links a stretch to its devices and nothing else', () => {
+    const stretch = bpLinkedSelection({ kind: 'bp-stretch', id: '2,3' }, linkedDocument);
+    expect([...stretch.stretches]).toEqual(['2,3']);
+    expect([...stretch.devices]).toEqual(['2,3:device:0', '2,3:device:1']);
+    expect([...stretch.flaps]).toEqual([]);
+    expect([...stretch.rivers]).toEqual([]);
+    expect([...stretch.vertices]).toEqual([]);
+    expect([...stretch.edges]).toEqual([]);
+  });
+
+  it('links a device to its stretch, and through it to its sibling devices', () => {
+    const device = bpLinkedSelection({ kind: 'bp-device', id: '2,3:device:0' }, linkedDocument);
+    expect([...device.stretches]).toEqual(['2,3']);
+    expect([...device.devices]).toEqual(['2,3:device:0', '2,3:device:1']);
+    expect([...device.flaps]).toEqual([]);
   });
 });
