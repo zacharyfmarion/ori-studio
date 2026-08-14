@@ -9,8 +9,7 @@ import type { InlineSimulation } from './inlineSimulation';
 import { exportInlineSimulation, requestInlineSimulationFold } from './inlineSimulationRuntime';
 import type { SimulatorViewExportFormat } from '../../simulator/simulatorViewExport';
 import { simulatorView } from '../../simulator/simulatorViewRegistry';
-import { track } from '../../analytics';
-import { ANALYTICS_EVENTS } from '../../analytics/events';
+import { announceUprightSet } from '../../lib/uprightFeedback';
 
 export interface UseInlineSimulationsOptions {
   /** The live CP document, for the staleness check. */
@@ -216,8 +215,8 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
    */
   const setUpright = useCallback(() => {
     simulatorView()?.setUpright();
-    track(ANALYTICS_EVENTS.modelUprightSet);
-  }, []);
+    announceUprightSet(t);
+  }, [t]);
 
   const replay = useCallback(() => setReplayRequest((nonce) => nonce + 1), []);
   const togglePlay = useCallback(() => setPlaying((current) => !current), []);

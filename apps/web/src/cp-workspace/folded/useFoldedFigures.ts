@@ -53,6 +53,7 @@ import {
   type SimulatorOrbitPoint,
 } from '../../lib/simulatorOrbit';
 import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
+import { announceUprightSet } from '../../lib/uprightFeedback';
 import { ANALYTICS_EVENTS, COUNT_BUCKETS, bucketCount } from '../../analytics/events';
 import { track } from '../../analytics';
 
@@ -785,9 +786,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
           () =>
             setOristudioCpFolded3dCamera(figure.id, setUprightView(liveFigureCamera(figure)))
         );
-        // No properties: the orientation is a measured value about someone's
-        // design, which the privacy contract keeps out of analytics.
-        track(ANALYTICS_EVENTS.modelUprightSet);
+        announceUprightSet(t);
       },
       flip: (figure) =>
         isFolded3dFigure(figure)

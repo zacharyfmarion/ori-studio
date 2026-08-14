@@ -13,8 +13,7 @@ import {
 } from '../../lib/simulatorSettings';
 import { simulatorStyleDefaults } from '../../simulator/simulatorPalette';
 import { simulatorView } from '../../simulator/simulatorViewRegistry';
-import { track } from '../../analytics';
-import { ANALYTICS_EVENTS } from '../../analytics/events';
+import { announceUprightSet } from '../../lib/uprightFeedback';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useThemeStore } from '../../store/themeStore';
 import { ColorField } from '../ui/ColorField';
@@ -107,7 +106,7 @@ export function SimulatorViewControlsPanel() {
               className="simulator-view-controls-panel__action"
               onClick={() => {
                 simulatorView()?.setUpright();
-                track(ANALYTICS_EVENTS.modelUprightSet);
+                announceUprightSet(t);
               }}
             >
               {t('panels:simulatorViewControls.setUpright', 'Set upright')}

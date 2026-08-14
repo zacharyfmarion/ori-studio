@@ -2464,7 +2464,8 @@
     "panels:foldedFigureActions.setUpright": "86e47d266ac9",
     "panels:simulatorViewControls.setUpright": "86e47d266ac9",
     "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7",
-    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9"
+    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
+    "toasts:upright.set": "a8108f3358e8"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4931,7 +4932,8 @@
     "panels:foldedFigureActions.setUpright": "86e47d266ac9",
     "panels:simulatorViewControls.setUpright": "86e47d266ac9",
     "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7",
-    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9"
+    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
+    "toasts:upright.set": "a8108f3358e8"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7398,7 +7400,8 @@
     "panels:foldedFigureActions.setUpright": "86e47d266ac9",
     "panels:simulatorViewControls.setUpright": "86e47d266ac9",
     "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7",
-    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9"
+    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
+    "toasts:upright.set": "a8108f3358e8"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9826,7 +9829,8 @@
     "panels:foldedFigureActions.setUpright": "86e47d266ac9",
     "panels:simulatorViewControls.setUpright": "86e47d266ac9",
     "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7",
-    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9"
+    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
+    "toasts:upright.set": "a8108f3358e8"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12254,7 +12258,8 @@
     "panels:foldedFigureActions.setUpright": "86e47d266ac9",
     "panels:simulatorViewControls.setUpright": "86e47d266ac9",
     "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7",
-    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9"
+    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
+    "toasts:upright.set": "a8108f3358e8"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -14721,7 +14726,8 @@
     "panels:foldedFigureActions.setUpright": "86e47d266ac9",
     "panels:simulatorViewControls.setUpright": "86e47d266ac9",
     "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7",
-    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9"
+    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
+    "toasts:upright.set": "a8108f3358e8"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17188,7 +17194,8 @@
     "panels:foldedFigureActions.setUpright": "86e47d266ac9",
     "panels:simulatorViewControls.setUpright": "86e47d266ac9",
     "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7",
-    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9"
+    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
+    "toasts:upright.set": "a8108f3358e8"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -19616,6 +19623,7 @@
     "panels:foldedFigureActions.setUpright": "86e47d266ac9",
     "panels:simulatorViewControls.setUpright": "86e47d266ac9",
     "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7",
-    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9"
+    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
+    "toasts:upright.set": "a8108f3358e8"
   }
 }

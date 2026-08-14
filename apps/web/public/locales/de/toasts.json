@@ -21,5 +21,8 @@
     "empty": "Diese Simulation hat noch nichts zu exportieren",
     "failed": "Diese Ansicht konnte nicht exportiert werden",
     "saved": "{{name}} exportiert"
+  },
+  "upright": {
+    "set": "Oben-Richtung festgelegt — zum Drehen darum ziehen"
   }
 }
