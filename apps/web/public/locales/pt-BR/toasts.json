@@ -11,12 +11,14 @@
   },
   "global": {
     "error": "Erro do Ori Studio",
-    "folding": "Dobrando…",
-    "foldingLong": "Ainda dobrando — isso pode demorar um pouco",
     "foldStop": "Cancelar",
     "foldStopped": "Dobra cancelada",
     "foldStopping": "Cancelando…",
-    "saved": "{{name}} salvo"
+    "folding": "Dobrando…",
+    "foldingLong": "Ainda dobrando — isso pode demorar um pouco",
+    "saved": "{{name}} salvo",
+    "saving": "Salvando {{name}}…",
+    "savingLong": "Ainda salvando {{name}} — projetos grandes demoram um pouco"
   },
   "simulatorExport": {
     "empty": "Esta simulação ainda não tem nada para exportar",

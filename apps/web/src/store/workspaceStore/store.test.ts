@@ -40,6 +40,7 @@ import { CP_DOCUMENT_SCOPED_KEYS, discardCpDocumentState } from './cpDocumentSta
 import { foldCancellationBuffer } from '../../lib/foldCancellation';
 import { registerCpCamera } from '../../cp-workspace/renderer/cpCameraRegistry';
 import { projectFromSnapshot } from '../../engine/snapshotMapper';
+import { resolveSaveContents } from '../../platform/fileService';
 import type { FileService, SaveBinaryFileOptions, SaveTextFileOptions } from '../../platform/fileService';
 import { DEFAULT_CREASE_COLOR_MODE } from '../../lib/sampleProject';
 import {
@@ -1581,6 +1582,19 @@ function camvErrorResult(id = 'CheckCamv-1'): OristudioCpCommandResult {
   };
 }
 
+/**
+ * What a save actually wrote, keyed by the options it was called with.
+ *
+ * `contents` is a string for an export and a thunk for a document save, so the
+ * bytes only exist once the service has resolved it.
+ */
+const savedTexts = new WeakMap<SaveTextFileOptions, string>();
+
+function savedText(options: SaveTextFileOptions | undefined): string {
+  if (!options) return '';
+  return savedTexts.get(options) ?? (typeof options.contents === 'string' ? options.contents : '');
+}
+
 function createFileService(
   file: { text: string; name: string; path: string | null } | null = null
 ): FileService & {
@@ -1594,10 +1608,19 @@ function createFileService(
     supportsNativeDialogs: false,
     openTextFile: vi.fn(async () => file),
     openBinaryFile: vi.fn(async () => null),
-    saveTextFile: vi.fn(async (options: SaveTextFileOptions) => ({
-      name: options.suggestedName,
-      path: options.path ?? `/tmp/${options.suggestedName}`,
-    })),
+    saveTextFile: vi.fn(async (options: SaveTextFileOptions) => {
+      // Document saves now hand over a thunk, and the service is what invokes it
+      // — the real one only after the save target is settled. A mock that did not
+      // call it would silently skip every serialization under test.
+      savedTexts.set(
+        options,
+        await resolveSaveContents(options.contents, { name: options.suggestedName })
+      );
+      return {
+        name: options.suggestedName,
+        path: options.path ?? `/tmp/${options.suggestedName}`,
+      };
+    }),
     saveBinaryFile: vi.fn(async (options: SaveBinaryFileOptions) => ({
       name: options.suggestedName,
       path: null,
@@ -1739,7 +1762,7 @@ describe('workspace store slices', () => {
     const savedNativeTreeOptions = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
       | SaveTextFileOptions
       | undefined;
-    const savedNativeTree = parseNativeProjectFile(savedNativeTreeOptions?.contents ?? '');
+    const savedNativeTree = parseNativeProjectFile(savedText(savedNativeTreeOptions));
     expect(activeNativeDesign(savedNativeTree)).toMatchObject({
       payload: { kind: 'treemaker', format: 'tmd5' },
     });
@@ -2117,7 +2140,7 @@ describe('workspace store slices', () => {
     expect(secondSave.path).toBe('web-save:1');
     expect(secondSave.reusableTarget).toBe(true);
     // ...but absent from the bytes that land on disk.
-    expect(secondSave.contents).not.toContain('web-save:');
+    expect(savedText(secondSave)).not.toContain('web-save:');
   });
 
   /**
@@ -2202,6 +2225,48 @@ describe('workspace store slices', () => {
     expect(after.dirty).toBe(true);
     // ...and the save is still recorded, so the next Save overwrites.
     expect(after.currentFilePath).toBe('web-save:1');
+  });
+
+  /**
+   * The indicator must never appear underneath the OS save dialog, which is the
+   * whole reason serialization moved after the picker. `saveRun` is the signal
+   * it renders from, so it has to be unset while the target is being settled and
+   * set only once the contents are actually being produced.
+   */
+  it('marks a save as running only once the target is settled', async () => {
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText(
+      JSON.stringify({
+        file_spec: 1.1,
+        vertices_coords: [
+          [0, 0],
+          [1, 0],
+        ],
+        edges_vertices: [[0, 1]],
+        edges_assignment: ['B'],
+      }),
+      { filename: 'line.fold', path: null }
+    );
+    const fileService = createFileService();
+    let whileSettlingTarget: unknown = 'never ran';
+    let whileSerializing: unknown = 'never ran';
+    fileService.saveTextFile.mockImplementation(async (options: SaveTextFileOptions) => {
+      // Standing in for the dialog: no target yet, so nothing may be showing.
+      whileSettlingTarget = useWorkspaceStore.getState().saveRun;
+      const text = await resolveSaveContents(options.contents, { name: 'line.osf' });
+      // Read after the thunk body has run and before the service returns: the
+      // window the indicator is meant to cover.
+      whileSerializing = useWorkspaceStore.getState().saveRun;
+      expect(text).not.toBe('');
+      return { name: options.suggestedName, path: 'web-save:1' };
+    });
+
+    await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+
+    expect(whileSettlingTarget).toBeNull();
+    expect(whileSerializing).toMatchObject({ name: 'line.osf' });
+    // Cleared again once the save is done, however it ended.
+    expect(useWorkspaceStore.getState().saveRun).toBeNull();
   });
 
   /**
@@ -2575,7 +2640,7 @@ describe('workspace store slices', () => {
     const savedNativeCpOptions = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
       | SaveTextFileOptions
       | undefined;
-    const savedNativeCp = parseNativeProjectFile(savedNativeCpOptions?.contents ?? '');
+    const savedNativeCp = parseNativeProjectFile(savedText(savedNativeCpOptions));
     expect(savedNativeCp.workspace.creasePattern).toMatchObject({
       creasePattern: {
         engine: 'oristudio-cp',
@@ -2801,10 +2866,15 @@ describe('workspace store slices', () => {
     await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
 
     expect(oristudioCpMocks.exportOristudioCpDocumentAsOri).toHaveBeenCalledOnce();
+    // The bytes are asserted through `savedText`, not as a `contents` literal: a
+    // document save hands the service a thunk, and the string only exists once
+    // the service has settled the save target and invoked it.
+    expect(savedText(fileService.saveTextFile.mock.lastCall?.[0])).toBe(
+      '{"@version":"v1.1","title":"square"}\n'
+    );
     expect(fileService.saveTextFile).toHaveBeenLastCalledWith(
       expect.objectContaining({
         title: 'Save Oriedita ORI Document',
-        contents: '{"@version":"v1.1","title":"square"}\n',
         suggestedName: 'native.ori',
         path: '/tmp/native.ori',
         extensions: ['ori'],
@@ -2873,7 +2943,7 @@ describe('workspace store slices', () => {
     const savedOptions = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
       | SaveTextFileOptions
       | undefined;
-    const savedProject = parseNativeProjectFile(savedOptions?.contents ?? '');
+    const savedProject = parseNativeProjectFile(savedText(savedOptions));
     expect(savedProject.workspace.creasePattern).toMatchObject({
       creasePattern: {
         source: {
@@ -2939,10 +3009,12 @@ describe('workspace store slices', () => {
     }
 
     expect(oristudioCpMocks.exportOristudioCpDocumentAsOrh).toHaveBeenCalledOnce();
+    expect(savedText(fileService.saveTextFile.mock.lastCall?.[0])).toBe(
+      '<タイトル>\nタイトル,square\n'
+    );
     expect(fileService.saveTextFile).toHaveBeenLastCalledWith(
       expect.objectContaining({
         title: 'Save Oriedita ORH Document',
-        contents: '<タイトル>\nタイトル,square\n',
         suggestedName: 'legacy.orh',
         path: '/tmp/legacy.orh',
         extensions: ['orh'],
@@ -7302,7 +7374,7 @@ describe('workspace store slices', () => {
         | SaveTextFileOptions
         | undefined;
       expect(options?.extensions).toEqual(['osf']);
-      const saved = parseNativeProjectFile(options?.contents ?? '');
+      const saved = parseNativeProjectFile(savedText(options));
       const active = activeNativeDesign(saved);
       if (!active) throw new Error('expected a box-pleat design');
       expect(active.payload.kind).toBe('box-pleat');
@@ -7333,7 +7405,7 @@ describe('workspace store slices', () => {
       const options = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
         | SaveTextFileOptions
         | undefined;
-      const saved = parseNativeProjectFile(options?.contents ?? '');
+      const saved = parseNativeProjectFile(savedText(options));
       expect(saved.workspace.designs.map((design) => design.payload.kind)).toEqual(['box-pleat']);
       expect(saved.workspace.creasePattern).not.toBeNull();
       const active = activeNativeDesign(saved);
@@ -7356,7 +7428,7 @@ describe('workspace store slices', () => {
       const options = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
         | SaveTextFileOptions
         | undefined;
-      const saved = parseNativeProjectFile(options?.contents ?? '');
+      const saved = parseNativeProjectFile(savedText(options));
       expect(saved.workspace.designs.map((design) => design.payload.kind)).toEqual(['box-pleat']);
       expect(saved.workspace.creasePattern).not.toBeNull();
     });
@@ -7375,7 +7447,7 @@ describe('workspace store slices', () => {
       const options = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
         | SaveTextFileOptions
         | undefined;
-      expect(options?.contents).toBe('{"exported":true}');
+      expect(savedText(options)).toBe('{"exported":true}');
       expect(options?.extensions).toEqual(['bps']);
       expect(options?.suggestedName.endsWith('.bps')).toBe(true);
     });
@@ -7971,10 +8043,10 @@ describe('workspace store slices', () => {
 
       const saveService = createFileService();
       await expect(useWorkspaceStore.getState().saveProject(saveService)).resolves.toBe(true);
-      const saved = (
+      const saved = savedText(
         saveService.saveTextFile.mock.calls.at(-1)?.[0] as SaveTextFileOptions | undefined
-      )?.contents;
-      expect(saved).toBeDefined();
+      );
+      expect(saved).not.toBe('');
 
       // A fresh store, so nothing can be carried over in memory.
       useWorkspaceStore.setState(initialWorkspaceState, true);

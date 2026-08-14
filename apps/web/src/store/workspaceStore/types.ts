@@ -275,6 +275,15 @@ export interface ProjectSliceState {
    */
   savedNotice: string | null;
   /**
+   * The save that is currently writing, if one has got that far.
+   *
+   * Set only once the save target is settled — the dialog has been answered, or
+   * a remembered handle has been confirmed writable — so an indicator driven by
+   * this can never appear underneath the OS dialog. Null the rest of the time,
+   * including while that dialog is open.
+   */
+  saveRun: { name: string; startedAt: number } | null;
+  /**
    * The generated share link, while the share modal is open.
    *
    * Held in the store rather than in the toolbar because every toolbar action

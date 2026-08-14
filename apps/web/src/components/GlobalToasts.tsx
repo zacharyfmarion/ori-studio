@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useFoldRunIndicator } from '../cp-workspace/folded/useFoldRunIndicator';
+import { useSaveRunIndicator } from '../hooks/useSaveRunIndicator';
 import { formatUnknownError, humanizeError } from '../lib/toastMessages';
 import { createDelayedProgress } from '../lib/delayedProgress';
+import { SAVE_TOAST_DELAY_MS, SAVE_TOAST_MIN_VISIBLE_MS } from '../lib/saveProgressTiming';
 import { useWorkspaceStore } from '../store/workspaceStore';
 
 function errorKey(error: unknown): string {
@@ -23,7 +25,10 @@ const FOLD_TOAST_DELAY_MS = 500;
 const FOLD_TOAST_MIN_VISIBLE_MS = 1000;
 const FOLD_TOAST_ID = 'oristudio-folding';
 const FOLD_STOPPED_TOAST_ID = 'oristudio-folding-stopped';
-/** One id, so saving repeatedly replaces the notice rather than stacking it. */
+/**
+ * One id for the whole save, so the confirmation *replaces* the spinner in place
+ * rather than stacking underneath it.
+ */
 const SAVED_TOAST_ID = 'oristudio-saved';
 
 export function GlobalToasts() {
@@ -34,6 +39,8 @@ export function GlobalToasts() {
   const clearProjectMessage = useWorkspaceStore((state) => state.clearProjectMessage);
   const savedNotice = useWorkspaceStore((state) => state.savedNotice);
   const clearSavedNotice = useWorkspaceStore((state) => state.clearSavedNotice);
+  const { saving, name: savingName, longRun: saveLongRun } = useSaveRunIndicator();
+  const [savingVisible, setSavingVisible] = useState(false);
   const lastErrorKey = useRef<string | null>(null);
 
   useEffect(() => {
@@ -70,6 +77,48 @@ export function GlobalToasts() {
     });
     clearSavedNotice();
   }, [clearSavedNotice, savedNotice, t]);
+
+  /**
+   * A save big enough to notice. Pressing ⌘S on a project carrying megabytes of
+   * embedded images used to be seconds of silence; the work now happens *after*
+   * the save target is settled, so this can cover it without ever sitting behind
+   * the OS dialog.
+   *
+   * No Cancel, unlike folding: by the time this appears the file has been chosen
+   * and is being written, and a half-written document is not something to offer
+   * as an out.
+   */
+  const saveProgress = useMemo(
+    () =>
+      createDelayedProgress({
+        delayMs: SAVE_TOAST_DELAY_MS,
+        minVisibleMs: SAVE_TOAST_MIN_VISIBLE_MS,
+        show: () => setSavingVisible(true),
+        // Not dismissed here: the success toast reuses this id and replaces it.
+        // Dismissing would race that and flash the spinner away first.
+        hide: () => setSavingVisible(false),
+      }),
+    []
+  );
+
+  useEffect(() => {
+    if (saving) saveProgress.start();
+    else saveProgress.stop();
+  }, [saveProgress, saving]);
+
+  useEffect(() => () => saveProgress.dispose(), [saveProgress]);
+
+  useEffect(() => {
+    if (!savingVisible || !savingName) return;
+    toast.loading(
+      saveLongRun
+        ? t('toasts:global.savingLong', 'Still saving {{name}} — large projects take a moment', {
+            name: savingName,
+          })
+        : t('toasts:global.saving', 'Saving {{name}}…', { name: savingName }),
+      { id: SAVED_TOAST_ID, duration: Infinity }
+    );
+  }, [saveLongRun, savingName, savingVisible, t]);
 
   // Folding runs in the CP worker, so the main thread is free to paint this and
   // to take the Stop — which is a synchronous write into memory the running

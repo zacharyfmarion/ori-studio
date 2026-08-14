@@ -11,12 +11,14 @@
   },
   "global": {
     "error": "Ori Studio-Fehler",
-    "folding": "Wird gefaltet…",
-    "foldingLong": "Wird noch gefaltet – das kann eine Weile dauern",
     "foldStop": "Abbrechen",
     "foldStopped": "Falten abgebrochen",
     "foldStopping": "Wird abgebrochen…",
-    "saved": "{{name}} gespeichert"
+    "folding": "Wird gefaltet…",
+    "foldingLong": "Wird noch gefaltet – das kann eine Weile dauern",
+    "saved": "{{name}} gespeichert",
+    "saving": "{{name}} wird gespeichert…",
+    "savingLong": "{{name}} wird noch gespeichert — große Projekte dauern einen Moment"
   },
   "simulatorExport": {
     "empty": "Diese Simulation hat noch nichts zu exportieren",
