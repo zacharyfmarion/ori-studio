@@ -460,6 +460,31 @@ pub struct WorkerOverlapEnumerator {
     subface_total: usize,
     hierarchy: InitialHierarchy,
     conditions: Option<EquivalenceConditionSet>,
+    /// Whether a final-pass contradiction raised by an *equivalence condition*
+    /// may promote the subface that carries it into the valid set.
+    ///
+    /// **Off by default, and it must stay off for the flat path.** Upstream sets
+    /// `AEA.errorIndex` only in the `CONTRADICTED_2` (transitivity) catch and
+    /// leaves it `0` for `CONTRADICTED_3`/`CONTRADICTED_4`, so a condition
+    /// contradiction there returns `SubFace_valid_number` and promotes nothing.
+    /// Turning that on unconditionally would change which solution the flat
+    /// search reaches first, which the Oriedita folding oracle pins.
+    ///
+    /// The 3D path turns it on because its conditions are not upstream's. It
+    /// adds one quadruple condition per cross-plane coupling, over four faces
+    /// that live in a *synthetic* subface it also invents — and
+    /// `prioritize_subfaces` leaves that subface outside the valid prefix,
+    /// because its pairs are already covered. So the condition is binding, no
+    /// guide map encodes it, and every candidate the search produces dies on it
+    /// with nothing learned. Measured on `hex pleated pangolin`: 3,344 of 3,344
+    /// final checks rejected, all on the same condition, `valid_count` frozen at
+    /// 66 of 266 forever.
+    ///
+    /// Upstream's own comment describes the remedy exactly — *"typically it
+    /// means the solution contradicts some of the SubFace not counted as valid
+    /// previously. In that case, adding it to the valid set will solve the
+    /// problem."* — for a branch its code cannot reach from this error class.
+    promote_on_condition_contradiction: bool,
 }
 
 /// The mutable part of a [`WorkerOverlapEnumerator`], for rollback.
@@ -546,7 +571,15 @@ impl WorkerOverlapEnumerator {
             subface_total: ordered_subface_indices.len(),
             hierarchy: hierarchy.clone(),
             conditions: conditions.cloned(),
+            promote_on_condition_contradiction: false,
         })
+    }
+
+    /// Opt in to condition-driven promotion. See the field's own documentation
+    /// for why this is not the default.
+    pub fn promoting_on_condition_contradiction(mut self) -> Self {
+        self.promote_on_condition_contradiction = true;
+        self
     }
 
     pub fn valid_count(&self) -> usize {
@@ -613,6 +646,7 @@ impl WorkerOverlapEnumerator {
                         &self.order,
                         self.valid_count,
                         conditions,
+                        self.promote_on_condition_contradiction,
                     ) {
                         // Matched before the recovery below, which promotes a
                         // subface and keeps searching: a cancel must stop, not be
@@ -702,24 +736,34 @@ fn run_final_additional_estimation(
     order: &[usize],
     completed_subfaces: usize,
     conditions: Option<&EquivalenceConditionSet>,
+    promote_on_condition_contradiction: bool,
 ) -> Result<(), FinalAdditionalEstimationFailure> {
     let configuration = subface_configuration_from_entries(entries, order, entries.len());
     let empty_conditions = empty_conditions();
     let conditions = conditions.unwrap_or(&empty_conditions);
+    // A condition names its own faces, so when one contradicts, the subface that
+    // holds all of them is the one whose stacking could have satisfied it. That
+    // is the position to promote — but only when the caller has opted in; see
+    // `promote_on_condition_contradiction`.
+    let carrier = |condition: EquivalenceCondition| {
+        promote_on_condition_contradiction
+            .then(|| condition_carrier_position(&configuration, condition, completed_subfaces))
+            .flatten()
+    };
     loop {
         let mut changes = 0usize;
         changes += infer_final_subface_transitivity(table, &configuration, completed_subfaces)?;
         for condition in &conditions.triple_conditions {
             changes += apply_triple_condition(table, *condition).map_err(|_| {
                 FinalAdditionalEstimationFailure::Contradiction {
-                    error_position: None,
+                    error_position: carrier(*condition),
                 }
             })?;
         }
         for condition in &conditions.quadruple_conditions {
             changes += apply_quadruple_condition(table, *condition).map_err(|_| {
                 FinalAdditionalEstimationFailure::Contradiction {
-                    error_position: None,
+                    error_position: carrier(*condition),
                 }
             })?;
         }
@@ -727,6 +771,46 @@ fn run_final_additional_estimation(
             return Ok(());
         }
     }
+}
+
+/// The 1-based position of the tightest subface outside the valid prefix that
+/// holds every face `condition` names.
+///
+/// **The index space is `order`, not `entries`.** The caller's recovery swaps
+/// within `self.order`, and `infer_final_subface_transitivity` reports positions
+/// in `configuration.reduced_subface_indices`, which is `0..n` over the subfaces
+/// taken from `order`. Returning an entry index here would promote an unrelated
+/// subface and silently do nothing for the one that contradicted.
+///
+/// Tightest first, ties broken by earliest position: a small subface's guide map
+/// constrains the condition most directly, and nothing here may depend on hash
+/// iteration order.
+fn condition_carrier_position(
+    configuration: &SubFaceConfiguration,
+    condition: EquivalenceCondition,
+    completed_subfaces: usize,
+) -> Option<usize> {
+    let mut faces = [condition.a, condition.b, condition.c, condition.d];
+    faces.sort_unstable();
+    let distinct = {
+        let mut distinct = faces.to_vec();
+        distinct.dedup();
+        distinct
+    };
+    configuration
+        .reduced_subface_indices
+        .iter()
+        .enumerate()
+        .skip(completed_subfaces)
+        .filter_map(|(position, subface_index)| {
+            let subface = configuration.subfaces.get(*subface_index)?;
+            distinct
+                .iter()
+                .all(|face| subface.face_ids.contains(face))
+                .then_some((subface.face_ids.len(), position + 1))
+        })
+        .min()
+        .map(|(_, position)| position)
 }
 
 /// Why the final additional-estimation pass did not complete.
@@ -1826,36 +1910,57 @@ impl PairStateTable {
     }
 }
 
+/// The next subface to place, and how much new pair information it carries.
+///
+/// **The candidate is tracked as an `Option`, and that is the whole point.**
+/// Upstream seeds `found = 0` over 1-based arrays, so `0` is its "nothing found"
+/// sentinel and `subFaces[0]` is the unused slot; the loop below is 0-based, so
+/// the same seed names a *real, already-processed* subface. Once every remaining
+/// candidate carries no new information — which is the normal end of the sweep —
+/// nothing beats the seed, and the caller pushes that already-placed subface
+/// again. The result is not an ordering at all: measured on `hex pleated
+/// pangolin`, 266 subfaces came back as 266 slots holding only **66 distinct**
+/// ones, and the 200 that were dropped included every subface the 3D path
+/// invents to carry a cross-plane coupling. The search then cannot see those
+/// conditions, and no candidate it produces can satisfy them.
+///
+/// Comparing against the seed is wrong for the same reason: `found_face_count`
+/// read a processed subface's size, so the tie-break measured against something
+/// that was never a candidate.
 fn max_priority_subface(
     subfaces: &[SubFace],
     reduced_subface_indices: &[usize],
     new_info_count: &[usize],
     processed: &[bool],
 ) -> (usize, usize) {
-    let mut max_new_info = 0usize;
-    let mut found = 0usize;
+    let face_count = |index: usize| {
+        reduced_subface_indices
+            .get(index)
+            .and_then(|subface_index| subfaces.get(*subface_index))
+            .map(|subface| subface.face_ids.len())
+            .unwrap_or(0)
+    };
+    let mut best: Option<(usize, usize, usize)> = None;
     for index in 0..new_info_count.len() {
         if processed[index] {
             continue;
         }
-        let found_face_count = reduced_subface_indices
-            .get(found)
-            .and_then(|subface_index| subfaces.get(*subface_index))
-            .map(|subface| subface.face_ids.len())
-            .unwrap_or(0);
-        let face_count = reduced_subface_indices
-            .get(index)
-            .and_then(|subface_index| subfaces.get(*subface_index))
-            .map(|subface| subface.face_ids.len())
-            .unwrap_or(0);
-        if new_info_count[index] > max_new_info
-            || (new_info_count[index] == max_new_info && face_count > found_face_count)
-        {
-            max_new_info = new_info_count[index];
-            found = index;
+        let candidate = (new_info_count[index], face_count(index), index);
+        let better = match best {
+            // The first unprocessed subface is the candidate to beat, rather
+            // than index 0 whether or not it is still available.
+            None => true,
+            Some((best_info, best_faces, _)) => {
+                candidate.0 > best_info || (candidate.0 == best_info && candidate.1 > best_faces)
+            }
+        };
+        if better {
+            best = Some(candidate);
         }
     }
-    (found, max_new_info)
+    // Ascending index order makes the "nothing scores" tail deterministic, which
+    // the solution-stream contract requires.
+    best.map_or((0, 0), |(info, _, index)| (index, info))
 }
 
 fn pair_key(first: usize, second: usize) -> (usize, usize) {

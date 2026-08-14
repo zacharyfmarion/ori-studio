@@ -570,6 +570,13 @@ fn build_enumerator(
         &input.hierarchy,
         Some(&input.conditions),
     )
+    // The 3D path's own conditions are what make this necessary: a coupling
+    // contributes a quadruple condition over four faces that only its synthetic
+    // subface holds, and `prioritize_subfaces` leaves that subface outside the
+    // valid prefix. Without promotion the condition is binding, unseen by every
+    // guide map, and rejects every candidate forever. Flat callers do not set
+    // this — see the field's documentation.
+    .map(WorkerOverlapEnumerator::promoting_on_condition_contradiction)
     .map_err(|error| search_error(position, error))
 }
 
