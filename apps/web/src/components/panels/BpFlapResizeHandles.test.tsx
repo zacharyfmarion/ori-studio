@@ -191,6 +191,52 @@ describe('BpFlapResizeHandles', () => {
     ]);
   });
 
+  it('gives each handle a hit target larger than itself, but never overlapping', () => {
+    // A 10px square is a small thing to hit, and missing one grabs the flap and
+    // moves it instead. The target can only grow so far though: handles sit at
+    // the ends and middle of each edge, so a target more than a quarter of the
+    // flap's extent across would reach its neighbour and make the miss worse.
+    for (const outer of [2, 4, 8, 20]) {
+      const radius = outer / 2;
+      render({ source: flap({ width: 0, height: 0, radius }) });
+      const hits = handles();
+      if (hits.length === 0) continue;
+      const box = (el: Element) => ({
+        x: Number(el.getAttribute('x')),
+        y: Number(el.getAttribute('y')),
+        w: Number(el.getAttribute('width')),
+        h: Number(el.getAttribute('height')),
+      });
+      const visual = [...container.querySelectorAll('.bp-packing-flap-handle')];
+      for (const [index, hit] of hits.entries()) {
+        const target = box(hit);
+        const drawn = box(visual[index]);
+        expect(
+          target.w >= drawn.w && target.h >= drawn.h,
+          `r${radius} handle ${index}: target ${target.w}x${target.h} vs drawn ${drawn.w}x${drawn.h}`
+        ).toBe(true);
+      }
+      // Every pair on the box, so nothing depends on guessing which two are
+      // closest. Targets are axis-aligned squares, so they miss each other as
+      // soon as they are apart on either axis.
+      for (const a of hits) {
+        for (const b of hits) {
+          if (a === b) continue;
+          const [p, q] = [box(a), box(b)];
+          const apart =
+            p.x + p.w <= q.x + 1e-9 ||
+            q.x + q.w <= p.x + 1e-9 ||
+            p.y + p.h <= q.y + 1e-9 ||
+            q.y + q.h <= p.y + 1e-9;
+          expect(
+            apart,
+            `r${radius}: ${(a as HTMLElement).dataset.bpFlapHandle} overlaps ${(b as HTMLElement).dataset.bpFlapHandle}`
+          ).toBe(true);
+        }
+      }
+    }
+  });
+
   it('draws none when nothing is selected', () => {
     render({ source: null });
     expect(handles()).toHaveLength(0);

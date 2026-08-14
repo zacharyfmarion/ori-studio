@@ -7415,12 +7415,24 @@ button.cp-folded-figure-toolbar__notice:hover {
  * `non-scaling-stroke` keeps the outline one pixel at every zoom, matching the
  * flap outline and the clearance circle beside them.
  */
+/*
+ * The hit target, which is deliberately larger than the handle drawn over it: a
+ * 10px square is a small thing to hit, and missing one grabs the flap and moves
+ * it instead. Its size is computed rather than fixed, so it can never reach the
+ * neighbouring handle — see BP_FLAP_HANDLE_HIT_PX.
+ */
+.bp-packing-flap-handle-hit {
+  fill: transparent;
+  pointer-events: all;
+}
+
 .bp-packing-flap-handle {
   fill: var(--bg-canvas);
   stroke: var(--accent-primary);
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
-  pointer-events: all;
+  /* The target above takes the pointer, so hover has to arrive by sibling. */
+  pointer-events: none;
 }
 
 /*
@@ -7435,12 +7447,12 @@ button.cp-folded-figure-toolbar__notice:hover {
   stroke-width: 1;
 }
 
-.bp-packing-flap-handle:hover,
+.bp-packing-flap-handle-hit:hover + .bp-packing-flap-handle,
 .bp-packing-flap-handle--active {
   fill: var(--accent-primary);
 }
 
-.bp-packing-flap-handle--edge:hover,
+.bp-packing-flap-handle-hit:hover + .bp-packing-flap-handle--edge,
 .bp-packing-flap-handle--edge.bp-packing-flap-handle--active {
   fill: var(--text-primary);
 }

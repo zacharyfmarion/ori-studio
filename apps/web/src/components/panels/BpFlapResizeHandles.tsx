@@ -33,6 +33,19 @@ import type { PlotRect } from '../../lib/geometry';
  * camera scale makes zoom do what the user expects.
  */
 
+/**
+ * Half the side of a handle's **hit** target, in screen pixels — bigger than the
+ * handle it belongs to, because a 10px square is a small thing to hit with a
+ * mouse and missing one grabs the flap and moves it instead.
+ *
+ * It cannot simply be large. Handles sit at the two ends and the middle of each
+ * edge, so adjacent centres are half the flap's extent apart, and a target more
+ * than a quarter of that extent across would overlap its neighbour and make the
+ * miss worse rather than better. The size below is therefore a ceiling, not a
+ * fixed value — see `hitHalf`.
+ */
+const BP_FLAP_HANDLE_HIT_PX = 11;
+
 /** Cursor per handle. Grid north is screen up, so the names map straight across. */
 const HANDLE_CURSORS: Record<BpFlapResizeHandle, string> = {
   n: 'ns-resize',
@@ -62,6 +75,14 @@ export function BpFlapResizeHandles({
   const { t } = useTranslation();
   const half = BP_FLAP_HANDLE_RADIUS_PX / cameraScale;
   const outline = bpPackingRectToSvg(bpFlapOuterBox(flap), sheet, paperRect);
+  // Adjacent handle centres are half the flap's shorter extent apart, so half of
+  // *that* is the largest target that cannot reach its neighbour. Never smaller
+  // than the handle it covers, and capped so a large flap does not get an
+  // absurdly wide one.
+  const spacingPx = (Math.min(outline.width, outline.height) * cameraScale) / 2;
+  const hitHalf =
+    Math.min(BP_FLAP_HANDLE_HIT_PX, Math.max(BP_FLAP_HANDLE_RADIUS_PX, spacingPx / 2)) /
+    cameraScale;
   const labels: Record<BpFlapResizeHandle, string> = {
     n: t('panels:bpPacking.resizeFlapTop', 'Resize flap from the top'),
     s: t('panels:bpPacking.resizeFlapBottom', 'Resize flap from the bottom'),
@@ -101,30 +122,42 @@ export function BpFlapResizeHandles({
           ? { w: half * 2, h: half * 2 }
           : { w: signs.sx !== 0 ? half : half * 2.4, h: signs.sx !== 0 ? half * 2.4 : half };
         return (
-          <rect
-            key={handle}
-            className={
-              [
-                'bp-packing-flap-handle',
-                corner ? 'bp-packing-flap-handle--corner' : 'bp-packing-flap-handle--edge',
-                resize.active === handle ? 'bp-packing-flap-handle--active' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')
-            }
-            x={at.x - size.w / 2}
-            y={at.y - size.h / 2}
-            width={size.w}
-            height={size.h}
-            rx={corner ? half : half / 2}
-            style={{ cursor: HANDLE_CURSORS[handle] }}
-            data-bp-flap-handle={handle}
-            aria-label={labels[handle]}
-            onPointerDown={(event) => resize.onHandlePointerDown(event, handle)}
-            onPointerMove={resize.onHandlePointerMove}
-            onPointerUp={resize.onHandlePointerUp}
-            onPointerCancel={resize.onHandlePointerUp}
-          />
+          // The hit target comes first so the handle it belongs to paints over it,
+          // and so the hover rule can reach that handle as its next sibling — the
+          // handle takes no pointer events itself, so it can never be hovered.
+          <g key={handle}>
+            <rect
+              className="bp-packing-flap-handle-hit"
+              x={at.x - hitHalf}
+              y={at.y - hitHalf}
+              width={hitHalf * 2}
+              height={hitHalf * 2}
+              style={{ cursor: HANDLE_CURSORS[handle] }}
+              data-bp-flap-handle={handle}
+              aria-label={labels[handle]}
+              onPointerDown={(event) => resize.onHandlePointerDown(event, handle)}
+              onPointerMove={resize.onHandlePointerMove}
+              onPointerUp={resize.onHandlePointerUp}
+              onPointerCancel={resize.onHandlePointerUp}
+            />
+            <rect
+              className={
+                [
+                  'bp-packing-flap-handle',
+                  corner ? 'bp-packing-flap-handle--corner' : 'bp-packing-flap-handle--edge',
+                  resize.active === handle ? 'bp-packing-flap-handle--active' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')
+              }
+              x={at.x - size.w / 2}
+              y={at.y - size.h / 2}
+              width={size.w}
+              height={size.h}
+              rx={corner ? half : half / 2}
+              aria-hidden="true"
+            />
+          </g>
         );
       })}
     </g>
