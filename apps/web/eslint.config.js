@@ -202,7 +202,16 @@ const OVERSIZED_PANELS = {
   // 2080 -> 2081: one prop. The resize handles are sized in screen pixels rather
   // than SVG units, so the layer needs the camera scale the panel already holds
   // for the conflict-stroke width.
-  'BpPackingPanel.tsx': 2081,
+  //
+  // 2081 -> 2082: a flap that is its own mirror keeps its resize handles, growing
+  // symmetrically about the line instead. Which coordinate is pinned comes from
+  // `useBpPackingSymmetry`, whether the flap is actually on it is decided in
+  // `useBpFlapResize` (which has the flap), and the arithmetic is in
+  // `lib/bpFlapReshape`. Four lines landed here: two fields on the hook call —
+  // the centre constraint, and the guard that keeps a *paired* flap out of its
+  // own reflection the way the move path already does — and the branch that
+  // stops hiding the handles for a self-mirrored flap.
+  'BpPackingPanel.tsx': 2085,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
   'BpTreePanel.tsx': 890,

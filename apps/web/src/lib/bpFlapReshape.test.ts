@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BP_FLAP_HANDLE_SIGNS,
   BP_FLAP_RESIZE_HANDLES,
+  bpFlapHandlePoint,
   bpFlapOuterBox,
   solveBpFlapReshape,
   type BpFlapFootprint,
@@ -149,6 +150,106 @@ describe('solveBpFlapReshape', () => {
     });
   });
 
+  describe('a flap that is its own mirror stays centred on the line', () => {
+    // Such a flap IS its own partner, so an edge that moved on one side alone
+    // would leave the design asymmetric. The box therefore grows from the line
+    // both ways, which also happens to be what keeps the recentred anchor on the
+    // integer lattice: the extent moves by an even number, so its parity - and
+    // with it `centre - w/2` - never changes.
+    const CENTRE = { axis: 'x', at: 20 } as const;
+
+    function centred(source: OristudioBpFlap, handle: BpFlapResizeHandle, to: number) {
+      return solveBpFlapReshape({
+        flap: source,
+        handle,
+        pointer: { x: to, y: bpFlapHandlePoint(source, handle).y },
+        radiusRange: RADIUS,
+        sheet: SHEET,
+        centre: CENTRE,
+      });
+    }
+
+    it('grows both ways from the line when an edge is dragged', () => {
+      // A circle r3 centred on x = 20 spans 17..23. Dragging the east edge to 25
+      // makes it 15..25 - eight wide, not seven.
+      const result = centred(flap(0, 0, 3, { x: 20, y: 20 }), 'e', 25);
+      expect(result).not.toBeNull();
+      const box = bpFlapOuterBox(result!);
+      expect(box.width).toBe(10);
+      expect(box.x + box.width / 2).toBe(20);
+    });
+
+    it('keeps the anchor integral on an odd-width flap', () => {
+      // The trap that made this case get declined once. `x = centre - w/2` is
+      // only whole for one parity of w, and growing by twos is what preserves it.
+      const source = flap(1, 0, 3, { x: 19.5, y: 20 });
+      for (const to of [24, 25, 26, 27, 28]) {
+        const result = centred(source, 'e', to);
+        if (!result) continue;
+        expect(Number.isInteger(result.anchor.x * 2), `east to ${to}`).toBe(true);
+        expect(bpFlapOuterBox(result).x + bpFlapOuterBox(result).width / 2).toBe(20);
+      }
+    });
+
+    it('leaves the unconstrained axis alone', () => {
+      // A vertical mirror says nothing about y, so a north drag behaves exactly
+      // as it does on any other flap.
+      const source = flap(0, 0, 3, { x: 20, y: 20 });
+      const result = solveBpFlapReshape({
+        flap: source,
+        handle: 'n',
+        pointer: { x: bpFlapHandlePoint(source, 'n').x, y: 25 },
+        radiusRange: RADIUS,
+        sheet: SHEET,
+        centre: CENTRE,
+      });
+      expect(sizes(result)).toEqual([0, 2, 3]);
+    });
+
+    it('still refuses a drag that would take it below the minimum radius', () => {
+      expect(centred(flap(0, 0, 1, { x: 20, y: 20 }), 'e', 20)).toBeNull();
+    });
+  });
+
+  describe('a paired flap cannot be resized across the mirror', () => {
+    // The agent-found case: a flap one cell right of the axis at x = 8, its west
+    // handle dragged three cells west, came back with its box on the same cells
+    // as its partner's. The move path already refuses this; the resize path now
+    // clamps to it, so the handle stops at the line.
+    const guard = (candidate: { anchor: { x: number }; width: number }) =>
+      candidate.anchor.x >= 8 - 1e-9;
+
+    it('clamps the drag at the line instead of crossing it', () => {
+      const source = flap(0, 0, 1, { x: 9, y: 8 });
+      for (const to of [7, 6, 5, 4, 3, 2]) {
+        const result = solveBpFlapReshape({
+          flap: source,
+          handle: 'w',
+          pointer: { x: to, y: 8 },
+          radiusRange: RADIUS,
+          sheet: SHEET,
+          accepts: guard,
+        });
+        if (!result) continue;
+        expect(result.anchor.x, `west to ${to}`).toBeGreaterThanOrEqual(8);
+      }
+    });
+
+    it('still allows a drag that stays on its own side', () => {
+      const source = flap(0, 0, 1, { x: 12, y: 8 });
+      const result = solveBpFlapReshape({
+        flap: source,
+        handle: 'w',
+        pointer: { x: 9, y: 8 },
+        radiusRange: RADIUS,
+        sheet: SHEET,
+        accepts: guard,
+      });
+      expect(result).not.toBeNull();
+      expect(result!.anchor.x).toBeGreaterThanOrEqual(8);
+    });
+  });
+
   describe('the same box always gives the same flap', () => {
     it('returns to the start when a later gesture drags back', () => {
       // Reversible across gestures, not just within one, because the answer is a
@@ -243,6 +344,13 @@ describe('solveBpFlapReshape', () => {
   describe('limits', () => {
     it('holds the radius fixed when the flap has no leaf edge to set', () => {
       expect(sizes(drag(flap(4, 4, 2), 'ne', 2, 2, null))).toEqual([6, 6, 2]);
+    });
+
+    it('keeps the radius above its floor even if the range contradicts itself', () => {
+      // A max below the min should never yield a radius the engine will reject:
+      // a rejected mid-drag step is a stuck gesture, not a visible error.
+      const result = drag(flap(0, 0, 5), 'ne', 2, 2, { min: 3, max: 1 });
+      expect(result?.radius ?? Infinity).toBeGreaterThanOrEqual(3);
     });
 
     it('respects the radius ceiling and spills the rest into the box', () => {

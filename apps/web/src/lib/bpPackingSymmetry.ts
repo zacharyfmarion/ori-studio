@@ -259,6 +259,40 @@ export function mirrorBpFlapFootprint(
 }
 
 /**
+ * Whether a reshaped flap still sits entirely on its own side of the mirror.
+ *
+ * The same rule `constrainBpFlapGroupToAxisSides` enforces for a move, asked of
+ * a resize: a paired flap that crosses the line lands on top of its own
+ * reflection. A resize can cross it just as easily as a move — dragging the west
+ * handle of a flap one cell right of the axis three cells west puts its box and
+ * its partner's box on the same cells — so the same rule has to hold here.
+ *
+ * `side` comes from where the flap is **now**, and 0 means it already straddles
+ * the line — there is no side to keep it on, so the guard steps aside rather than
+ * freezing it. A flap that is its own mirror never reaches here at all: it has no
+ * distinct partner, so the caller does not build a guard for it, and the centre
+ * constraint handles it instead.
+ */
+export function bpFlapKeepsMirrorSide(
+  current: OristudioBpFlap,
+  candidate: BpFlapFootprintLike,
+  sheet: OristudioBpSheet,
+  mirror: BpMirrorOrientation
+): boolean {
+  const axis = bpPackingSymmetryAxis(sheet, mirror);
+  if (!bpPackingSheetSupportsAxis(sheet, axis)) return true;
+  const center = bpPackingSheetCenter(sheet);
+  const side = bpFlapAxisSide(current.anchor, current, center, axis);
+  if (side === 0) return true;
+  const span = bpFlapAxisSpan(candidate.anchor, candidate, center, axis);
+  // A flap with no extent across the mirror may not even come to rest on it,
+  // matching the move path's `strict` case.
+  const zeroExtent = span.max - span.min <= BP_PACKING_SYMMETRY_TOLERANCE;
+  const clearance = zeroExtent ? BP_PACKING_SYMMETRY_TOLERANCE : -BP_PACKING_SYMMETRY_TOLERANCE;
+  return side > 0 ? span.min >= clearance : span.max <= -clearance;
+}
+
+/**
  * The nearest anchor that leaves this flap centred on the axis — its own mirror.
  *
  * An on-axis flap is not frozen the way an on-axis *tree vertex* is: a vertex on

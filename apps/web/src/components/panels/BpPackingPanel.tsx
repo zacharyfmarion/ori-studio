@@ -1034,12 +1034,15 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   });
 
   const flapResize = useBpFlapResize({
-    // A flap that is its own mirror is deliberately left out. Resizing one has to
-    // grow it symmetrically about the axis to stay centred, and the anchor that
-    // keeps it there is `centre - width/2` — a half cell for the wrong parity,
-    // which is a fractional flap coordinate, which fails device generation for
-    // the whole design. Its R/W/H fields still work.
-    flap: singleSelectedFlap && !symmetry.selfMirrored ? singleSelectedFlap : null,
+    // A flap that is its own mirror resizes symmetrically about the line rather
+    // than losing its handles: `selfMirrorCentre` says which coordinate is pinned.
+    // It is null for a diagonal fold, which pins both at once — that one still
+    // declines, and its R/W/H fields still work.
+    flap: singleSelectedFlap && !(symmetry.selfMirrored && !symmetry.selfMirrorCentre)
+      ? singleSelectedFlap
+      : null,
+    centre: symmetry.selfMirrorCentre,
+    mirrorSideGuard: symmetry.mirrorSideGuard,
     sheet: packing.sheet,
     radiusRange: singleSelectedFlapEdge
       ? { min: 1, max: singleSelectedFlapEdge.maxLength ?? flapMaxDimension }

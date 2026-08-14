@@ -117,6 +117,20 @@ export interface BpFlapRadiusRange {
   max: number;
 }
 
+/**
+ * The axis a flap is pinned to the middle of, when it is its own mirror.
+ *
+ * A flap sitting on the mirror line has to stay centred on it: it *is* its own
+ * partner, so an edge that moved on one side alone would leave it asymmetric and
+ * the design no longer mirror-symmetric. `x` pins the horizontal centre (a
+ * vertical mirror), `y` the vertical one.
+ */
+export interface BpFlapCentreConstraint {
+  axis: 'x' | 'y';
+  /** Where the mirror line is, in grid coordinates. */
+  at: number;
+}
+
 export interface SolveBpFlapReshapeInput {
   /** The flap as it was when the gesture began, never mid-gesture. */
   flap: OristudioBpFlap;
@@ -125,6 +139,15 @@ export interface SolveBpFlapReshapeInput {
   pointer: Point;
   radiusRange: BpFlapRadiusRange | null;
   sheet: OristudioBpSheet;
+  /** Set when the flap is its own mirror. Null for every ordinary flap. */
+  centre?: BpFlapCentreConstraint | null;
+  /**
+   * A last veto on a candidate footprint, clamped like the sheet rule rather
+   * than refused. Opaque on purpose: the only caller uses it to keep a paired
+   * flap out of its own reflection, and this module has no business knowing what
+   * a mirror is.
+   */
+  accepts?: (footprint: BpFlapFootprint) => boolean;
 }
 
 interface OuterDelta {
@@ -179,16 +202,17 @@ export function bpFlapHandlePoint(
  * announced.
  */
 export function solveBpFlapReshape(input: SolveBpFlapReshapeInput): BpFlapFootprint | null {
-  const { flap, handle, pointer, radiusRange, sheet } = input;
+  const { flap, handle, pointer, radiusRange, sheet, centre = null, accepts } = input;
   const signs = BP_FLAP_HANDLE_SIGNS[handle];
-  const requested = requestedOuterDelta(flap, signs, pointer);
+  const requested = requestedOuterDelta(flap, signs, pointer, centre);
 
-  for (const candidate of shrinkingDeltas(requested)) {
-    const footprint = footprintFor(flap, signs, candidate, radiusRange);
+  for (const candidate of shrinkingDeltas(requested, centre, signs)) {
+    const footprint = footprintFor(flap, signs, candidate, radiusRange, centre);
     if (!footprint) continue;
     if (!bpPackingCanResizeFlap(footprint.anchor, footprint.width, footprint.height, sheet)) {
       continue;
     }
+    if (accepts && !accepts(footprint)) continue;
     return sameFootprint(flap, footprint) ? null : footprint;
   }
   return null;
@@ -206,22 +230,29 @@ export function solveBpFlapReshape(input: SolveBpFlapReshapeInput): BpFlapFootpr
 function requestedOuterDelta(
   flap: OristudioBpFlap,
   signs: { sx: -1 | 0 | 1; sy: -1 | 0 | 1 },
-  pointer: Point
+  pointer: Point,
+  centre: BpFlapCentreConstraint | null
 ): OuterDelta {
   const outer = bpFlapOuterBox(flap);
   const along = (
     sign: -1 | 0 | 1,
     low: number,
-    high: number,
-    at: number
+    span: number,
+    at: number,
+    pinned: number | null
   ): number => {
-    if (sign === 1) return Math.round(at - high);
-    if (sign === -1) return Math.round(low - at);
-    return 0;
+    if (sign === 0) return 0;
+    // Pinned to the mirror: the opposite edge cannot stay put, so the box grows
+    // from the line in both directions and the pointer sets the half-extent.
+    // The extent therefore changes by an even number, which is exactly what
+    // keeps the recentred anchor on the integer lattice.
+    if (pinned !== null) return Math.round(2 * Math.abs(at - pinned)) - span;
+    if (sign === 1) return Math.round(at - (low + span));
+    return Math.round(low - at);
   };
   return {
-    x: along(signs.sx, outer.x, outer.x + outer.width, pointer.x),
-    y: along(signs.sy, outer.y, outer.y + outer.height, pointer.y),
+    x: along(signs.sx, outer.x, outer.width, pointer.x, centre?.axis === 'x' ? centre.at : null),
+    y: along(signs.sy, outer.y, outer.height, pointer.y, centre?.axis === 'y' ? centre.at : null),
   };
 }
 
@@ -266,30 +297,51 @@ function footprintFor(
   flap: OristudioBpFlap,
   signs: { sx: -1 | 0 | 1; sy: -1 | 0 | 1 },
   delta: OuterDelta,
-  radiusRange: BpFlapRadiusRange | null
+  radiusRange: BpFlapRadiusRange | null,
+  centre: BpFlapCentreConstraint | null
 ): BpFlapFootprint | null {
   // A gesture that asks for the box the flap already has asks for nothing. Said
   // here rather than left to fall out of the arithmetic, so that merely pressing
   // a handle cannot rewrite a flap that was never dragged.
   if (delta.x === 0 && delta.y === 0) return null;
 
+  // `outerWidth`/`outerHeight` are the DRAWN extent the pointer asked for;
+  // `box` is the flap's own rectangle inside it. Naming both `width` invites the
+  // one substitution that would be silently wrong everywhere.
   const outer = bpFlapOuterBox(flap);
-  const width = outer.width + delta.x;
-  const height = outer.height + delta.y;
-  const radius = radiusFor(flap, signs, width, height, radiusRange);
-  const box = { width: width - 2 * radius, height: height - 2 * radius };
+  const outerWidth = outer.width + delta.x;
+  const outerHeight = outer.height + delta.y;
+  const radius = radiusFor(flap, signs, outerWidth, outerHeight, radiusRange);
+  const box = { width: outerWidth - 2 * radius, height: outerHeight - 2 * radius };
   // An edge drag pushed in past the flap's own circle, or a box below the 2x2
   // floor a radius of 1 needs. Either way the caller walks the delta back.
   if (box.width < 0 || box.height < 0) return null;
 
   // The pinned edge is the one the handle is not dragging, so the new outer box
   // hangs off it; the anchor is then that edge plus the radius.
-  const origin = (sign: -1 | 0 | 1, low: number, was: number, now: number): number =>
-    sign === -1 ? low + was - now : low;
+  const origin = (
+    sign: -1 | 0 | 1,
+    low: number,
+    was: number,
+    now: number,
+    pinned: number | null
+  ): number => {
+    if (pinned !== null) return pinned - now / 2;
+    return sign === -1 ? low + was - now : low;
+  };
   const footprint = {
     anchor: {
-      x: origin(signs.sx, outer.x, outer.width, width) + radius,
-      y: origin(signs.sy, outer.y, outer.height, height) + radius,
+      x:
+        origin(signs.sx, outer.x, outer.width, outerWidth, centre?.axis === 'x' ? centre.at : null) +
+        radius,
+      y:
+        origin(
+          signs.sy,
+          outer.y,
+          outer.height,
+          outerHeight,
+          centre?.axis === 'y' ? centre.at : null
+        ) + radius,
     },
     ...box,
     radius,
@@ -311,13 +363,16 @@ function footprintFor(
 function radiusFor(
   flap: OristudioBpFlap,
   signs: { sx: -1 | 0 | 1; sy: -1 | 0 | 1 },
-  width: number,
-  height: number,
+  outerWidth: number,
+  outerHeight: number,
   radiusRange: BpFlapRadiusRange | null
 ): number {
   if (!radiusRange || signs.sx === 0 || signs.sy === 0) return flap.radius;
-  const largest = Math.floor(Math.min(width, height) / 2);
-  return Math.min(Math.max(largest, radiusRange.min), radiusRange.max);
+  // `min` wins a contradictory range. Clamping the other way round would hand
+  // back a radius below the engine's floor of 1, which it rejects — and a
+  // rejected mid-drag step is a stuck gesture rather than a visible error.
+  const largest = Math.floor(Math.min(outerWidth, outerHeight) / 2);
+  return Math.max(Math.min(largest, radiusRange.max), radiusRange.min);
 }
 
 /**
@@ -325,12 +380,24 @@ function radiusFor(
  * time — the larger axis first, so a corner drag gives up its excess before its
  * shorter side.
  */
-function* shrinkingDeltas(delta: OuterDelta): Generator<OuterDelta> {
+function* shrinkingDeltas(
+  delta: OuterDelta,
+  centre: BpFlapCentreConstraint | null,
+  signs: { sx: -1 | 0 | 1; sy: -1 | 0 | 1 }
+): Generator<OuterDelta> {
+  // A pinned axis only ever moves in twos — its extent grows from the line in
+  // both directions — so walking it back one at a time would offer half-steps
+  // the flap cannot take, and land on an anchor off the lattice.
+  const stepX = centre?.axis === 'x' && signs.sx !== 0 ? 2 : 1;
+  const stepY = centre?.axis === 'y' && signs.sy !== 0 ? 2 : 1;
   let { x, y } = delta;
   yield { x, y };
   while (x !== 0 || y !== 0) {
-    if (x !== 0 && (Math.abs(x) >= Math.abs(y) || y === 0)) x -= Math.sign(x);
-    else y -= Math.sign(y);
+    if (x !== 0 && (Math.abs(x) >= Math.abs(y) || y === 0)) {
+      x -= Math.sign(x) * Math.min(stepX, Math.abs(x));
+    } else {
+      y -= Math.sign(y) * Math.min(stepY, Math.abs(y));
+    }
     yield { x, y };
   }
 }

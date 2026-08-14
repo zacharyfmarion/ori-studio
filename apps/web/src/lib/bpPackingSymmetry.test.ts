@@ -14,6 +14,7 @@ import {
   constrainBpFlapGroupToAxisSides,
   bpPackingSheetCenter,
   bpPackingSheetSupportsAxis,
+  bpFlapKeepsMirrorSide,
   bpPackingSymmetryAxis,
   buildMirroredBpFlapMoves,
   constrainBpFlapMoveToAxis,
@@ -150,6 +151,43 @@ describe('mirrorBpFlapAnchor', () => {
       const once = mirrorBpFlapAnchor({ x: 2, y: 5 }, box, CENTER, axis);
       expect(mirrorBpFlapAnchor(once, mirroredBox, CENTER, axis)).toEqual({ x: 2, y: 5 });
     }
+  });
+});
+
+describe('bpFlapKeepsMirrorSide', () => {
+  // The move path already refuses to walk a paired flap across the mirror, on the
+  // grounds that it would land on its own reflection. A resize can cross just as
+  // easily: dragging the west handle of a flap one cell right of the axis three
+  // cells west put its box and its partner's box on the same cells.
+  const paired = flap(1, 9, 8, 0, 0); // one cell right of the axis at x = 8
+
+  it('accepts a candidate that stays on its own side', () => {
+    expect(
+      bpFlapKeepsMirrorSide(paired, { anchor: { x: 9, y: 8 }, width: 3, height: 0 }, sheet('rectangular', 16, 16), BOOK)
+    ).toBe(true);
+  });
+
+  it('refuses one that reaches across the line', () => {
+    expect(
+      bpFlapKeepsMirrorSide(paired, { anchor: { x: 6, y: 8 }, width: 3, height: 0 }, sheet('rectangular', 16, 16), BOOK)
+    ).toBe(false);
+  });
+
+  it('refuses one that merely comes to rest on the line', () => {
+    // A zero-extent flap sitting exactly on the mirror *is* its own reflection.
+    expect(
+      bpFlapKeepsMirrorSide(paired, { anchor: { x: 8, y: 8 }, width: 0, height: 0 }, sheet('rectangular', 16, 16), BOOK)
+    ).toBe(false);
+  });
+
+  it('leaves a flap that already straddles the line unconstrained', () => {
+    // `side` is which half a flap is in, and 0 means neither — it is across the
+    // mirror already. There is no side to keep it on, so the guard steps aside
+    // rather than freezing it where it is.
+    const straddling = flap(1, 6, 8, 4, 0);
+    expect(
+      bpFlapKeepsMirrorSide(straddling, { anchor: { x: 5, y: 8 }, width: 6, height: 0 }, sheet('rectangular', 16, 16), BOOK)
+    ).toBe(true);
   });
 });
 

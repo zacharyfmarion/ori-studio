@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import type { OristudioBpFlap, OristudioBpSheet } from '../engine/oristudioBpTypes';
 import {
   bpFlapFootprint,
@@ -6,6 +6,7 @@ import {
   bpFlapOuterBox,
   sameBpFlapFootprint,
   solveBpFlapReshape,
+  type BpFlapCentreConstraint,
   type BpFlapFootprint,
   type BpFlapRadiusRange,
   type BpFlapResizeHandle,
@@ -79,15 +80,45 @@ export interface UseBpFlapResizeInput {
   pixelsPerCell: number;
   /** True while the gesture should not start: another drag, or a busy engine. */
   disabled: boolean;
+  /**
+   * The line this flap must stay centred on, when it is its own mirror. Applied
+   * only if the flap is *already* on it — see below.
+   */
+  centre?: BpFlapCentreConstraint | null;
+  /** Keeps a paired flap out of its own reflection. Null when it has no partner. */
+  mirrorSideGuard?: ((flap: OristudioBpFlap, candidate: BpFlapFootprint) => boolean) | null;
   /** Grid-space pointer position, already rounded to the integer grid. */
   eventToPackingPoint: (event: PointerEvent<SVGElement>) => Point;
   dragRequests: BpPackingDragRequests;
 }
 
 export function useBpFlapResize(input: UseBpFlapResizeInput): BpFlapResize {
-  const { flap, sheet, radiusRange, pixelsPerCell, disabled, eventToPackingPoint, dragRequests } = input;
+  const {
+    flap,
+    sheet,
+    radiusRange,
+    pixelsPerCell,
+    centre: requestedCentre = null,
+    mirrorSideGuard = null,
+    disabled,
+    eventToPackingPoint,
+    dragRequests,
+  } = input;
   const gesture = useRef<Gesture | null>(null);
   const [active, setActive] = useState<BpFlapResizeHandle | null>(null);
+
+  // Pin the flap to the mirror only when it is genuinely sitting on it. A flap
+  // whose *vertex* is on the tree's mirror but whose box is not on the paper's is
+  // a design that is already asymmetric, and a resize is the wrong place to fix
+  // that: honouring the constraint there would fling the flap across the sheet on
+  // the first drag. Moving it onto the axis is the move path's job.
+  const centre = useMemo(() => {
+    if (!requestedCentre || !flap) return null;
+    const box = bpFlapOuterBox(flap);
+    const middle =
+      requestedCentre.axis === 'x' ? box.x + box.width / 2 : box.y + box.height / 2;
+    return Math.abs(middle - requestedCentre.at) < 1e-6 ? requestedCentre : null;
+  }, [requestedCentre, flap]);
 
   const finish = useCallback(
     (footprint: BpFlapFootprint | null, id: number, handle: BpFlapResizeHandle, radius: number) => {
@@ -170,6 +201,10 @@ export function useBpFlapResize(input: UseBpFlapResizeInput): BpFlapResize {
         pointer: { x: pointer.x - current.grab.x, y: pointer.y - current.grab.y },
         radiusRange,
         sheet,
+        centre,
+        accepts: mirrorSideGuard
+          ? (candidate) => mirrorSideGuard(current.start, candidate)
+          : undefined,
       });
       // A pointer back at the box it started from asks for the flap it started
       // as. Sending that rather than nothing is what makes an overshoot
@@ -180,7 +215,7 @@ export function useBpFlapResize(input: UseBpFlapResizeInput): BpFlapResize {
       current.sent = footprint;
       dragRequests.queueFlapReshape({ id: current.start.id, footprint });
     },
-    [eventToPackingPoint, radiusRange, sheet, dragRequests]
+    [eventToPackingPoint, radiusRange, sheet, centre, mirrorSideGuard, dragRequests]
   );
 
   const onHandlePointerUp = useCallback(
