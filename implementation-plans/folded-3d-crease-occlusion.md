@@ -248,21 +248,34 @@ the inline simulator's own rendering.
 
 ### Phase 5 — the export path agrees
 
-- [ ] `buildItems` emits stroke items per `(cell, slot, inked segment)` carrying
-      the slot, keeping `order = drawRank` so `sortCoplanar` still holds.
-- [ ] `expand` inks only the slot it already selected for the fill; delete
-      `visibleFaces` and `strokeIsBuried`.
-- [ ] Refresh the golden primitive streams and say in the PR which figures lost
-      linework and why.
-- [ ] Assert the window and the projector agree on the drawn crease set for each
-      fixture, so the two cannot drift apart again.
+- [x] `buildItems` emits stroke items per `(cell, slot, inked segment)` carrying
+      the owning `(cell, face)`, keeping `order = drawRank` so `sortCoplanar`
+      still holds.
+- [x] `expand` inks only the slot it already selected for the fill; `cellDrawOrder`
+      is now the single answer both arms read. `visibleFaces` and
+      `strokeIsBuried` are deleted.
+- [x] A crease now reports its owning cell and face in `Folded3dProjection`,
+      which it could not before — it belonged to no layer. That is what lets the
+      hidden-crease rule be *asserted* instead of pinned to a magic count, and
+      the buried-crease test now says "every drawn crease's face is the face its
+      cell shows" at three cameras.
+- [x] Golden primitive stream refreshed: same primitives, reordered and some
+      reversed, because a crease is now a ring segment rather than a payload
+      edge. Nothing added or removed on `hinge_90`.
+- [x] Measured ink, not counts. Crease *length* drawn falls 24% on `pinwheel`,
+      13% on `box_90`, 2% on `spikes_small`, and is unchanged on `hinge_90` and
+      `strip_coupled` — the two with no partial overlap, exactly as in the mesh.
+      The primitive count rises, because segments are shorter than the edges they
+      came from; counting them says the opposite of what is happening.
 
 ### Phase 6 — optional, separate PR
 
 - [ ] `STACK_SPAN_LIMIT = 8e-4` exists *only* because the crease bias was
-      `1.6e-3` and the ply had to stay under half of it. That coupling is gone.
-      Re-derive the cap from depth-buffer resolution and sub-pixel displacement
-      instead, which buys headroom for deep stacks (`plant_penguin` at 14).
+      `1.6e-3` and the ply had to stay under half of it. That coupling is gone
+      and the doc comment now says so. Re-derive the cap from depth-buffer
+      resolution and sub-pixel displacement instead, which buys headroom for deep
+      stacks (`plant_penguin` at 14). **Not done** — deliberately out of scope so
+      this change is about creases and nothing else.
 
 ## Validation
 

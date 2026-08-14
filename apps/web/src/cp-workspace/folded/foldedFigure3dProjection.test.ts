@@ -41,7 +41,6 @@ import { foldedFigureBox, foldedFigureLocalGeometry } from '../adapters/cpFolded
 import {
   IDENTITY_FOLDED_PLACEMENT,
   FOLDED_3D_CELL_ATTR_STRIDE,
-  FOLDED_3D_EDGE_ATTR_STRIDE,
   FOLDED_3D_CELL_UNDETERMINED,
   FOLDED_3D_PLANE_FRAME_STRIDE,
   type OristudioCpFold3dTolerances,
@@ -281,44 +280,44 @@ describe('projecting the 3D folded state', () => {
   });
 
   it('does not draw the creases of layers buried under opaque paper', () => {
-    // The bug this pins: inside a coplanar stack no piece is *in front of*
-    // another, so `findVisiblePieces` cannot cull any of them and correctly does
-    // not. Fills escape it because one slot per cell is taken separately — but
-    // that selection was never applied to strokes, so every buried layer's
-    // creases drew over the one visible fill and the figure read as see-through.
-    // Measured on the model that reported it, `plant_penguin.osf` (136 of its 206
-    // creases are +/-180, so most of it is one flat stack): 79 strokes against 56
-    // visible fills, dropping to 30 once buried creases go.
+    // Inside a coplanar stack no piece is *in front of* another, so
+    // `findVisiblePieces` cannot cull any of them and correctly does not. Fills
+    // escape it because one slot per cell is taken separately, and for a long
+    // time that selection was simply never applied to strokes — every buried
+    // layer's creases drew over the one visible fill and the figure read as
+    // see-through.
+    //
+    // This is now stated directly rather than pinned to a count, because a
+    // crease carries the layer it belongs to: every drawn crease's own face must
+    // be the face its own cell shows. A count could only ever say "something
+    // changed"; this says which rule holds.
     const model = fixture('spikes_small');
-    // Derived from the payload rather than from the projector, so this is a
-    // second opinion and not a restatement: a crease is buried when *neither*
-    // incident face is the layer its cell shows.
-    const shown = new Set<number>();
-    for (let cell = 0; cell < model.cell_count; cell += 1) {
-      const base = cell * FOLDED_3D_CELL_ATTR_STRIDE;
-      const start = model.cell_attr[base + 3]!;
-      const stack = model.cell_stack.slice(start, start + model.cell_attr[base + 4]!);
-      // Both ends: which one the camera shows is the projector's business, and
-      // taking both keeps this test camera-agnostic and conservative — it can
-      // only under-count what is buriable, never over-count.
-      if (stack.length > 0) shown.add(stack[stack.length - 1]!).add(stack[0]!);
+    for (const camera of [
+      DEFAULT_FOLDED_3D_CAMERA,
+      antipodalCamera(DEFAULT_FOLDED_3D_CAMERA),
+      { yaw: 2.1, pitch: -1.9, zoom: 1 },
+    ]) {
+      const projection = projectFolded3dModel(model, options({ camera }));
+      let checked = 0;
+      projection.snapshot.primitives.forEach((primitive, index) => {
+        if (primitive.kind !== 'stroke_path') return;
+        const cell = projection.cells[index]!;
+        // `-1` is a crease no layer owns — a wireframe style or the ink
+        // fallback. `spikes_small` under `Paper5` has neither, which this pins.
+        expect(cell).toBeGreaterThanOrEqual(0);
+        // `cellFarToNear` is derived from the payload and the eye rather than
+        // from the projector, so this is a second opinion and not a restatement
+        // of the code under test. Its last element is the layer an opaque render
+        // shows, and it is the only layer whose creases may be drawn.
+        const order = cellFarToNear(model, cell, camera);
+        expect(projection.faces[index]).toBe(order[order.length - 1]);
+        checked += 1;
+      });
+      // Non-vacuous: the fixture must actually draw creases, and must actually
+      // have stacked cells for a crease to be buried in.
+      expect(checked).toBeGreaterThan(0);
+      expect(stackedCells(model).length).toBeGreaterThan(0);
     }
-    const buriable = [...Array(model.edge_count).keys()].filter((edge) => {
-      const a = model.edge_attr[edge * FOLDED_3D_EDGE_ATTR_STRIDE]!;
-      const b = model.edge_attr[edge * FOLDED_3D_EDGE_ATTR_STRIDE + 1]!;
-      return (a < 0 || !shown.has(a)) && (b < 0 || !shown.has(b));
-    });
-    // Non-vacuous: the fixture must actually have creases that can be buried,
-    // or this passes against a projector that buries nothing.
-    expect(buriable.length).toBeGreaterThan(0);
-
-    // The count, because it is the thing that changed: 26 strokes before the
-    // burial test existed, 20 after. A bound rather than a count passes either
-    // way — `findVisiblePieces` already removes enough on its own to satisfy any
-    // inequality worth writing — so this is pinned exactly, and a projector that
-    // stops burying creases fails here rather than quietly going back to 26.
-    const drawn = strokes(projectFolded3dModel(model, options()).snapshot.primitives).length;
-    expect(drawn).toBe(20);
   });
 
   it('draws every crease and every cell', () => {
@@ -442,15 +441,22 @@ describe('the layer order the kernel computed', () => {
     // list, and `sortCoplanar` only ever governs the case where they are.
     for (const name of ['box_90', 'spikes_small', 'pinwheel_cyclic']) {
       const model = fixture(name);
-      const items = folded3dBspItems(model, 'Paper5');
+      const { items, strokes: strokeRefs } = folded3dBspItems(model, 'Paper5');
       const faces = items.filter((item) => item.kind === 0);
       const edges = items.filter((item) => item.kind === 1);
       expect(faces.length).toBeGreaterThanOrEqual(model.cell_count);
-      expect(edges).toHaveLength(model.edge_count);
       for (const item of faces) {
         expect(item.ref).toBeLessThan(model.cell_count);
         expect(item.order).toBe(cellAttr(model, item.ref, 6));
       }
+      // A crease is a segment of one cell's ring drawn at one layer, not a whole
+      // model edge, so there are more of them than the payload has edges — a
+      // crease crossing several cells is one item per cell, and one per layer
+      // that ends there. Each still names every model edge at least once, which
+      // is the property that matters: no linework is lost.
+      expect(edges.length).toBeGreaterThan(0);
+      const covered = new Set(edges.map((item) => strokeRefs[item.ref]!.edge));
+      expect(covered.size).toBe(model.edge_count);
       // One triangle per ear, for every cell: `ring_len - 2`.
       let expectedTriangles = 0;
       for (let cell = 0; cell < model.cell_count; cell += 1) {
