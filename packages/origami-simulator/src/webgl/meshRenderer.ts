@@ -187,6 +187,9 @@ export function creaseFrameScale(
  */
 const MIN_RASTER_CREASE_WIDTH_PX = 1;
 
+/** The colour a fully transparent frame clears to — see the clear in `render`. */
+const TRANSPARENT: readonly [number, number, number] = [0, 0, 0];
+
 /**
  * The width and opacity a rasterizing renderer should draw creases at.
  *
@@ -616,13 +619,24 @@ export class MeshRenderer {
     gl.depthFunc(gl.LEQUAL);
     if (options.clear ?? true) {
       // Straight (non-premultiplied) alpha, matching the context GlCore requests,
-      // so the colour is left alone and only the alpha decides what shows through.
-      gl.clearColor(
-        settings.background[0],
-        settings.background[1],
-        settings.background[2],
-        settings.backgroundAlpha ?? 1
-      );
+      // so the colour is left alone and only the alpha decides what shows through
+      // — except at zero alpha, which clears to transparent *black* rather than to
+      // the background colour nothing is going to show.
+      //
+      // Under straight alpha the two are the same picture, because the colour of a
+      // fully transparent pixel is never read. WebKit reads it anyway: it
+      // composites the drawing buffer as premultiplied whatever the context
+      // attribute asked for, so `(r, g, b, 0)` reaches the page as `r, g, b`
+      // *added* to whatever is behind the canvas. That is what put a grey
+      // rectangle behind the welcome screen's figure on iOS Safari — `--bg-canvas`
+      // #1b1f27 summed with the page's #282c34, measured as exactly #434b5b, and a
+      // white one under the light theme, where the sum clips.
+      //
+      // Zeroing the colour is a no-op wherever the attribute is honoured, and the
+      // only spelling that reads as "nothing here" under both interpretations.
+      const backgroundAlpha = settings.backgroundAlpha ?? 1;
+      const background = backgroundAlpha > 0 ? settings.background : TRANSPARENT;
+      gl.clearColor(background[0], background[1], background[2], backgroundAlpha);
       gl.clearDepth(1);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     }
