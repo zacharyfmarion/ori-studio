@@ -21,6 +21,8 @@ const FOLD_TOAST_DELAY_MS = 500;
 /** And once shown it stays this long, so it cannot pop and vanish. */
 const FOLD_TOAST_MIN_VISIBLE_MS = 1000;
 const FOLD_TOAST_ID = 'oristudio-folding';
+/** One id, so saving repeatedly replaces the notice rather than stacking it. */
+const SAVED_TOAST_ID = 'oristudio-saved';
 
 export function GlobalToasts() {
   const { t } = useTranslation();
@@ -28,6 +30,8 @@ export function GlobalToasts() {
   const foldsInFlight = useWorkspaceStore((state) => state.oristudioCpFoldsInFlight);
   const projectMessage = useWorkspaceStore((state) => state.projectMessage);
   const clearProjectMessage = useWorkspaceStore((state) => state.clearProjectMessage);
+  const savedNotice = useWorkspaceStore((state) => state.savedNotice);
+  const clearSavedNotice = useWorkspaceStore((state) => state.clearSavedNotice);
   const lastErrorKey = useRef<string | null>(null);
 
   useEffect(() => {
@@ -51,6 +55,19 @@ export function GlobalToasts() {
     if (!projectMessage) return;
     clearProjectMessage();
   }, [clearProjectMessage, projectMessage]);
+
+  // The one save that leaves no trace of itself: the browser's File System
+  // Access path writes the file straight through its handle, with no download
+  // for the browser to announce. Shown once and cleared, so a later save that
+  // lands on the same filename still gets its own toast.
+  useEffect(() => {
+    if (!savedNotice) return;
+    toast.success(t('toasts:global.saved', '{{name}} saved', { name: savedNotice }), {
+      id: SAVED_TOAST_ID,
+      duration: 3000,
+    });
+    clearSavedNotice();
+  }, [clearSavedNotice, savedNotice, t]);
 
   // Folding runs in the CP worker, so the main thread is free to paint this.
   // No cancel affordance: the toast reports, it does not offer a way out.

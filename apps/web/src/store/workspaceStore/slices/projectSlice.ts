@@ -163,6 +163,7 @@ import {
   filesystemPathOrNull,
   getFileService,
   type FileService,
+  type SaveFileResult,
 } from '../../../platform/fileService';
 import { exportFilename as defaultFilename } from '../../../platform/exportFilename';
 import { getRuntimeSurface } from '../../../platform/runtime';
@@ -1450,7 +1451,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
    * first. A tab that has chosen no method contributes nothing; it is a chooser,
    * not a design.
    */
-  const saveNativeWorkspaceProject = async (fileService: FileService, forceSaveAs: boolean) => {
+  const saveNativeWorkspaceProject = async (
+    fileService: FileService,
+    forceSaveAs: boolean
+  ): Promise<SaveFileResult | null> => {
     const tabs = get().designTabs;
     const activeId = get().activeDesignId;
 
@@ -1525,7 +1529,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       extensions: [NATIVE_PROJECT_EXTENSION],
       reusableTarget: true,
     });
-    if (!result) return false;
+    if (!result) return null;
     // `activeId`, captured before any of this: saving goes through a file dialog
     // the user can leave open, and stamping the saved filename onto whichever
     // design is in front when it returns would mark a *different* design clean
@@ -1564,7 +1568,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           }
         : {}),
     });
-    return true;
+    return result;
   };
 
   const currentEditableCreasePatternProjectInput = async (
@@ -1668,9 +1672,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     });
   };
 
-  const saveEditableCreasePatternAsOri = async (fileService: FileService) => {
+  const saveEditableCreasePatternAsOri = async (
+    fileService: FileService
+  ): Promise<SaveFileResult | null> => {
     const documentState = get().oristudioCpDocument;
-    if (!documentState) return false;
+    if (!documentState) return null;
     const contents = await exportOristudioCpDocumentAsOri(
       flattenTextAnnotations(get().oristudioCpAnnotations)
     );
@@ -1683,7 +1689,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       extensions: ['ori'],
       reusableTarget: true,
     });
-    if (!result) return false;
+    if (!result) return null;
 
     const source = {
       format: 'ori' as const,
@@ -1710,13 +1716,15 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         source,
       },
     });
-    return true;
+    return result;
   };
 
-  const saveEditableCreasePatternAsOrh = async (fileService: FileService) => {
+  const saveEditableCreasePatternAsOrh = async (
+    fileService: FileService
+  ): Promise<SaveFileResult | null> => {
     const documentState = get().oristudioCpDocument;
-    if (!documentState) return false;
-    if (!(await confirmLossyOrhWrite())) return false;
+    if (!documentState) return null;
+    if (!(await confirmLossyOrhWrite())) return null;
     const contents = await exportOristudioCpDocumentAsOrh(
       flattenTextAnnotations(get().oristudioCpAnnotations)
     );
@@ -1729,7 +1737,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       extensions: ['orh'],
       reusableTarget: true,
     });
-    if (!result) return false;
+    if (!result) return null;
 
     const source = {
       format: 'orh' as const,
@@ -1753,13 +1761,13 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         source,
       },
     });
-    return true;
+    return result;
   };
 
   const saveEditableCreasePattern = async (
     fileService: FileService,
     forceSaveAs: boolean
-  ) => {
+  ): Promise<SaveFileResult | null> => {
     const documentState = get().oristudioCpDocument;
     if (!documentState) {
       set({
@@ -1769,7 +1777,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         },
         projectMessage: null,
       });
-      return false;
+      return null;
     }
     if (!forceSaveAs && isOrieditaOriFilename(get().currentFileName)) {
       return saveEditableCreasePatternAsOri(fileService);
@@ -1782,7 +1790,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       get().currentFileName,
       nativeSourcePath()
     );
-    if (!input) return false;
+    if (!input) return null;
     const contents = serializeNativeProjectFile(
       createNativeCreasePatternProjectFile(input)
     );
@@ -1795,7 +1803,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       extensions: [NATIVE_PROJECT_EXTENSION],
       reusableTarget: true,
     });
-    if (!result) return false;
+    if (!result) return null;
 
     const source = {
       format: 'osf' as const,
@@ -1813,7 +1821,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         source,
       },
     });
-    return true;
+    return result;
   };
 
   // Land every successful open in the same workspace, whatever the file format.
@@ -1863,6 +1871,21 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     return resetDesignTabs(state);
   };
 
+  /**
+   * Whether the save left the user nothing to see.
+   *
+   * A download hands the file to the browser, which announces it in its own
+   * download UI. The File System Access API writes the file directly, with
+   * nothing at all to show for it — which is the point of it, and also why the
+   * toast is the only confirmation there is. A null path is the download
+   * fallback: nothing to write to a second time, nothing to confirm.
+   *
+   * Desktop saves silently too. It is deliberately not included: it has always
+   * behaved this way, and this is scoped to the browser change.
+   */
+  const savedWithoutTrace = (fileService: FileService, result: SaveFileResult) =>
+    fileService.surface === 'web' && result.path !== null;
+
   const saveActiveProject = async (fileService: FileService, forceSaveAs: boolean) => {
     // "Is there a design" is a question about the **tabs**, not about the active
     // one's content. It used to ask whether the active design had nodes or a BP
@@ -1874,10 +1897,12 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const result = hasDesign
       ? await saveNativeWorkspaceProject(fileService, forceSaveAs)
       : await saveEditableCreasePattern(fileService, forceSaveAs);
-    // Both branches write the native .osf; a falsy result means the user
+    // Both branches write the native .osf; a null result means the user
     // cancelled the save dialog. `file exported` deliberately skips osf.
-    if (result) track('project saved', { format: 'osf' });
-    return result;
+    if (!result) return false;
+    track('project saved', { format: 'osf' });
+    if (savedWithoutTrace(fileService, result)) set({ savedNotice: result.name });
+    return true;
   };
 
   /**
@@ -1926,6 +1951,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     currentFilePath: null,
     currentFileName: defaultNativeFilename('Untitled'),
     projectMessage: null,
+    savedNotice: null,
     oristudioCpShareDraft: null,
     pendingSharedCp: null,
     openingSharedCp: false,
@@ -3081,6 +3107,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     },
 
     clearProjectMessage: () => set({ projectMessage: null }),
+    clearSavedNotice: () => set({ savedNotice: null }),
     setActivePanelId: (id) => set({ activePanelId: id }),
 
     addDesignTab: () => {

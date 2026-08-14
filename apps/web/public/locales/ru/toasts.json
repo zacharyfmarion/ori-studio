@@ -11,7 +11,8 @@
   },
   "global": {
     "error": "Ошибка Ori Studio",
-    "folding": "Складывание…"
+    "folding": "Складывание…",
+    "saved": "{{name}} сохранён"
   },
   "simulatorExport": {
     "empty": "В этой симуляции пока нечего экспортировать",

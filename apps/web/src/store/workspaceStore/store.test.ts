@@ -2107,6 +2107,62 @@ describe('workspace store slices', () => {
     expect(secondSave.contents).not.toContain('web-save:');
   });
 
+  /**
+   * A save through the File System Access API writes the file and shows the user
+   * nothing — no dialog on the repeat, no download for the browser to announce.
+   * The toast is the only confirmation, so the store has to raise one.
+   */
+  it('announces a save the user has no other way of noticing', async () => {
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText(
+      JSON.stringify({
+        file_spec: 1.1,
+        vertices_coords: [
+          [0, 0],
+          [1, 0],
+        ],
+        edges_vertices: [[0, 1]],
+        edges_assignment: ['B'],
+      }),
+      { filename: 'line.fold', path: null }
+    );
+    const fileService = createFileService();
+    fileService.saveTextFile.mockImplementation(async (options: SaveTextFileOptions) => ({
+      name: options.suggestedName,
+      path: options.path ?? 'web-save:1',
+    }));
+
+    await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+
+    expect(useWorkspaceStore.getState().savedNotice).toBe('line.osf');
+  });
+
+  it('says nothing about a download, which the browser reports itself', async () => {
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText(
+      JSON.stringify({
+        file_spec: 1.1,
+        vertices_coords: [
+          [0, 0],
+          [1, 0],
+        ],
+        edges_vertices: [[0, 1]],
+        edges_assignment: ['B'],
+      }),
+      { filename: 'line.fold', path: null }
+    );
+    const fileService = createFileService();
+    // The Firefox/Safari fallback: a download, with no target to write to again.
+    fileService.saveTextFile.mockImplementation(async (options: SaveTextFileOptions) => ({
+      name: options.suggestedName,
+      path: null,
+    }));
+
+    await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+
+    expect(useWorkspaceStore.getState().savedNotice).toBeNull();
+  });
+
   // A file we rejected on its own terms already carries the whole reason; the
   // size hint would send the user chasing a memory problem they do not have.
   it('does not blame file size for a project the reader definitively rejected', async () => {

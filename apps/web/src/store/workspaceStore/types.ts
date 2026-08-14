@@ -265,6 +265,15 @@ export interface ProjectSliceState {
   currentFileName: string;
   projectMessage: string | null;
   /**
+   * The filename of a save the user has no other way of noticing, waiting to be
+   * shown once and cleared.
+   *
+   * Set only where the save wrote the file with nothing to show for it — the
+   * browser's File System Access path, where there is no download to announce
+   * it. A download is left alone: the browser reports that itself.
+   */
+  savedNotice: string | null;
+  /**
    * The generated share link, while the share modal is open.
    *
    * Held in the store rather than in the toolbar because every toolbar action
@@ -417,6 +426,7 @@ export interface ProjectSliceActions {
    */
   loadExampleProject: (id: string) => Promise<boolean>;
   clearProjectMessage: () => void;
+  clearSavedNotice: () => void;
   setActivePanelId: (id: string | null) => void;
   /** Enter the Design workspace on the method chooser without creating a document. */
   startNewDesign: () => void;

@@ -11,7 +11,8 @@
   },
   "global": {
     "error": "Erreur Ori Studio",
-    "folding": "Pliage…"
+    "folding": "Pliage…",
+    "saved": "{{name}} enregistré"
   },
   "simulatorExport": {
     "empty": "Cette simulation n'a encore rien à exporter",

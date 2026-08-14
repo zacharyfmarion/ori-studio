@@ -11,7 +11,8 @@
   },
   "global": {
     "error": "Ori Studio エラー",
-    "folding": "折り上げ中…"
+    "folding": "折り上げ中…",
+    "saved": "{{name}} を保存しました"
   },
   "simulatorExport": {
     "empty": "このシミュレーションには書き出せるものがまだありません",
