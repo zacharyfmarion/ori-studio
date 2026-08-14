@@ -191,33 +191,24 @@ const OVERSIZED_PANELS = {
   // descriptors to buttons, plus the icon each one draws — composition, and the
   // shape the panel table asks for.
   //
-  // 2055 -> 2080: flap resize handles. The rule that turns a dragged edge into a
-  // footprint is `lib/bpFlapReshape`, the gesture and its Escape are
+  // 2055 -> 1851: the primitive renderer moved out, whole. Everything about one
+  // engine graphic — the SVG each kind draws, the id grammar that says which
+  // flap, river or device owns it, its label, its select token, and the three
+  // predicates that decide whether the selection covers it — is one concern, and
+  // it is now `BpPackingPrimitive`. The panel imports the component and the four
+  // id helpers its own pointer handlers need; it no longer knows the grammar.
+  // Prompted by a four-line change (threading the selection-shade layer in so a
+  // selected device washes its gadget), which is what the number is for.
+  //
+  // 1851 -> 1885: flap resize handles. The rule that turns a dragged edge
+  // into a footprint is `lib/bpFlapReshape`, the gesture and its Escape are
   // `hooks/useBpFlapResize`, the chrome is `BpFlapResizeHandles`, and the
-  // mirroring is in the store action — so what landed here is a store binding,
-  // one more verb handed to `useBpPackingDragRequests` beside the two move verbs
-  // already there, the hook call, and the layer's mount. Composition, which is
-  // what a panel is for.
-  //
-  // 2080 -> 2081: one prop. The resize handles are sized in screen pixels rather
-  // than SVG units, so the layer needs the camera scale the panel already holds
-  // for the conflict-stroke width.
-  //
-  // 2081 -> 2082: a flap that is its own mirror keeps its resize handles, growing
-  // symmetrically about the line instead. Which coordinate is pinned comes from
-  // `useBpPackingSymmetry`, whether the flap is actually on it is decided in
-  // `useBpFlapResize` (which has the flap), and the arithmetic is in
-  // `lib/bpFlapReshape`. Four lines landed here: two fields on the hook call —
-  // the centre constraint, and the guard that keeps a *paired* flap out of its
-  // own reflection the way the move path already does — and the branch that
-  // stops hiding the handles for a self-mirrored flap.
-  //
-  // 2085 -> 2089: adversarial-audit fixes that land in the panel. A pan gesture
-  // beginning over a handle used to pan *and* resize, so `spacePressed` joins the
-  // hook's disabled gate; and a click whose pointerdown was on a handle used to
-  // feed the stacked-selection cycle and could deselect the flap being resized,
-  // so `onSelectionCycleClick` now ignores one.
-  'BpPackingPanel.tsx': 2089,
+  // mirroring is in the store action. What landed here is composition: a store
+  // binding, one more verb handed to `useBpPackingDragRequests` beside the two
+  // move verbs already there, the hook call with its camera scale and its two
+  // symmetry fields, the layer's mount, and one guard so a click that began on a
+  // handle does not feed the stacked-selection cycle.
+  'BpPackingPanel.tsx': 1885,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
   'BpTreePanel.tsx': 890,

@@ -304,8 +304,9 @@ afterEach(() => {
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
 });
 
-function renderPacking() {
+function renderPacking(customize?: (document_: OristudioBpDocumentState) => void) {
   const document_ = packingDocument();
+  customize?.(document_);
   useWorkspaceStore.setState(
     {
       ...useWorkspaceStore.getInitialState(),
@@ -750,9 +751,9 @@ describe('BP packing pane — a river is grabbed by its band', () => {
    */
   it('leaves closed hinge contours stroke-only', () => {
     const host = renderPacking();
-    const inner = host.querySelector('[aria-label*="river"] .bp-packing-primitive-hit-area');
+    const inner = host.querySelector('[aria-label*="river"] .bp-packing-device-shade');
     expect(inner).toBeNull();
-    expect(host.querySelectorAll('.bp-packing-primitive-hit-area')).toHaveLength(0);
+    expect(host.querySelectorAll('.bp-packing-device-shade')).toHaveLength(0);
     expect(
       host.querySelectorAll('.bp-packing-primitive-hit-polyline').length
     ).toBeGreaterThan(0);
@@ -771,6 +772,118 @@ describe('BP packing pane — a river is grabbed by its band', () => {
       const order = bands!.compareDocumentPosition(later as Node);
       expect(Boolean(order & Node.DOCUMENT_POSITION_FOLLOWING), selector).toBe(true);
     }
+  });
+});
+
+/**
+ * Selecting a stretch marks the stretch, not the flaps it spans.
+ *
+ * Box Pleating Studio's `Device._drawShade` fills the gadget's own contour when
+ * the device or its stretch is selected, while `Flap._drawShade` reacts to
+ * nothing but the flap itself. Ours used to expand a stretch into both flaps,
+ * which washed the two largest shapes on the sheet to point at the gadget
+ * between them.
+ */
+describe('BP packing pane — a stretch selection shades its gadget', () => {
+  /** Adds a one-device stretch over the fixture's two flaps. */
+  const withStretch = (document_: OristudioBpDocumentState) => {
+    const packing = document_.snapshot.packing;
+    packing.stretches = [
+      {
+        id: '5,7',
+        flapIds: [5, 7],
+        riverIds: [],
+        completed: true,
+        configIndex: 0,
+        configCount: 1,
+        patternIndex: 0,
+        patternCount: 1,
+        patternFound: true,
+        regions: [{ x: 9, y: 7, width: 2, height: 2 }],
+      },
+    ];
+    packing.devices = [
+      {
+        id: '5,7:device:0',
+        stretchId: '5,7',
+        position: { x: 10, y: 7 },
+        rangeScalar: [-1, 1],
+        forward: true,
+      },
+    ];
+    packing.graphics = [
+      ...packing.graphics,
+      {
+        kind: 'polyline' as const,
+        id: 's5,7.0:contour:0',
+        layer: 'device' as const,
+        points: [
+          { x: 9, y: 7 },
+          { x: 11, y: 7 },
+          { x: 11, y: 9 },
+          { x: 9, y: 9 },
+        ],
+        stroke: '#888888',
+        width: 1,
+        closed: true,
+      },
+    ];
+  };
+
+  const selectDevice = (host: HTMLElement) => {
+    const gadget = host.querySelector('[data-bp-select="device:5,7:device:0"]');
+    expect(gadget).not.toBeNull();
+    act(() => {
+      gadget?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+    });
+  };
+
+  // A slidable device arms a drag on press, and jsdom implements none of the
+  // pointer-capture API. Selection is what these check; the capture is noise.
+  const pointerCapture = {
+    setPointerCapture: vi.fn(),
+    releasePointerCapture: vi.fn(),
+    hasPointerCapture: vi.fn(() => false),
+  };
+
+  beforeEach(() => {
+    Object.assign(Element.prototype, pointerCapture);
+  });
+
+  afterEach(() => {
+    for (const name of Object.keys(pointerCapture)) {
+      delete (Element.prototype as unknown as Record<string, unknown>)[name];
+    }
+  });
+
+  it('shades the gadget interior and leaves the two flaps unmarked', () => {
+    const host = renderPacking(withStretch);
+    expect(host.querySelectorAll('.bp-packing-device-shade--selected')).toHaveLength(0);
+
+    selectDevice(host);
+
+    expect(host.querySelectorAll('.bp-packing-device-shade--selected')).toHaveLength(1);
+    // The two flaps the stretch spans: neither washed nor outlined.
+    expect(host.querySelectorAll('.bp-packing-flap-shade--selected')).toHaveLength(0);
+    expect(host.querySelectorAll('.bp-packing-flap--selected')).toHaveLength(0);
+  });
+
+  it('follows the selection-shade layer, as the flap and river washes do', () => {
+    useSettingsStore.setState({
+      bpPackingLayers: { ...DEFAULT_BP_PACKING_VIEW_LAYERS, selectionShade: false },
+    });
+    const host = renderPacking(withStretch);
+    selectDevice(host);
+
+    // No wash, but still selected: the outline recolours either way.
+    expect(host.querySelectorAll('.bp-packing-device-shade--selected')).toHaveLength(0);
+    expect(
+      host.querySelectorAll('[data-bp-select="device:5,7:device:0"].bp-packing-primitive--selected')
+    ).toHaveLength(1);
+  });
+
+  afterEach(() => {
+    useSettingsStore.setState({ bpPackingLayers: DEFAULT_BP_PACKING_VIEW_LAYERS });
   });
 });
 

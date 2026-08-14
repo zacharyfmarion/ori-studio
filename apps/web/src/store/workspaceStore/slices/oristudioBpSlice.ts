@@ -8,7 +8,7 @@ import {
   addOristudioBpTreeLeaf as addRuntimeOristudioBpTreeLeaf,
   completeOristudioBpStretch as completeRuntimeOristudioBpStretch,
   deleteOristudioBpTreeLeaves as deleteRuntimeOristudioBpTreeLeaves,
-  exportOristudioBpProjectAsBps,
+  exportOristudioBpProjectAsSessionBps,
   flipOristudioBpLayoutSheet as flipRuntimeOristudioBpLayoutSheet,
   isOptimizerCancellation,
   loadOristudioBpProjectFromText,
@@ -531,7 +531,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     const designId = get().activeDesignId;
     try {
       if (!pendingHistory.has(designId)) {
-        const bps = await exportOristudioBpProjectAsBps();
+        const bps = await exportOristudioBpProjectAsSessionBps();
         pendingHistory.set(designId, snapshotEntry(
           {
             bps,

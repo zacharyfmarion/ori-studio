@@ -47,6 +47,15 @@ const DEFAULT_SPAN = 1;
 const MAX_GRID_LINES = 80;
 const MAX_ORIEDITA_GRID_LINES = 460;
 const GRID_EPSILON = 1e-9;
+/**
+ * Vertices and bare points win from further away than grid points and line
+ * interiors do, because they are the targets a user aims *at* rather than falls
+ * back to.
+ *
+ * It multiplies the radius it is given, so the widest live reach on this surface
+ * is 1.75x the snap radius, not the radius — worth remembering when reading the
+ * user's setting as if it were the maximum. See `cp-workspace/snapRadius.ts`.
+ */
 const POINT_SNAP_DISTANCE_MULTIPLIER = 1.75;
 
 export interface OristudioCpSelection {
@@ -350,48 +359,59 @@ export function isValidOrieditaGridScale(a: number, b: number, c: number): boole
 
 export const ORIEDITA_GRID_SCALE_DEFAULTS = { a: 1, b: 0, c: 1 } as const;
 
+/**
+ * The state a grid the viewport is *showing* snaps and draws at. Displaying the
+ * grid overrides the document's own state, so what you see extends past the
+ * paper even when the document says `WITHIN_PAPER` — and snapping has to follow
+ * the drawing or the two disagree about points the user can see.
+ */
+const VISIBLE_GRID_STATE: OristudioCpGridState = 'Full';
+
 export function visibleOrieditaGridMetadata(
   grid: OristudioCpGridMetadata
 ): OristudioCpGridMetadata {
   return {
     ...grid,
-    base_state: 'Full',
+    base_state: VISIBLE_GRID_STATE,
   };
+}
+
+/**
+ * The grid a snap may land on, or `null` when the grid is not a candidate.
+ *
+ * **You can snap to exactly the grid points you can see.** Upstream has no
+ * separate visibility flag: `Grid` carries a single tri-state and
+ * `CreasePattern_Worker.getClosestPoint` searches the lattice whenever that
+ * state is not `HIDDEN`, so gating our grid snapping on the Grid toggle is
+ * upstream's own rule rather than a departure from it. Ori Studio's extra
+ * Snapping toggle joins it here.
+ *
+ * Every snapper asks this one question — the canvas ring, the draw-tool anchor,
+ * and (through {@link cpKernelSnapCandidates}) the kernel-resolved endpoint —
+ * so a hidden grid cannot go on capturing one of them.
+ */
+export function snappableOrieditaGrid(
+  grid: OristudioCpGridMetadata,
+  options: OristudioCpViewportOptions
+): OristudioCpGridMetadata | null {
+  if (!options.snapToGrid || !options.gridVisible) return null;
+  return visibleOrieditaGridMetadata(grid);
 }
 
 /**
  * The snap policy for a tool whose endpoint the *kernel* resolves — Angle
  * Restricted Line, which must project onto the angle system before it can know
- * what to snap to.
- *
- * Oriedita's close-point search is gated on grid visibility alone, so this is
- * where our Snapping toggle joins it. The grid rule is the one
- * {@link nearestOrieditaDrawPointTarget} already applies through
- * {@link visibleOrieditaGridMetadata}: a visible grid snaps everywhere, a
- * hidden one falls back to whatever the document declares.
+ * what to snap to. The same question {@link snappableOrieditaGrid} answers,
+ * in the command payload's vocabulary.
  */
 export function cpKernelSnapCandidates(
   grid: OristudioCpGridMetadata,
   options: OristudioCpViewportOptions
 ): OristudioCpSnapCandidates {
-  if (!options.snapToGrid) {
-    return { grid: 'Hidden', vertices: options.snapToVertices };
-  }
   return {
-    grid: options.gridVisible ? 'Full' : cpGridStatePayload(grid.base_state),
+    grid: snappableOrieditaGrid(grid, options) ? VISIBLE_GRID_STATE : 'Hidden',
     vertices: options.snapToVertices,
   };
-}
-
-function cpGridStatePayload(baseState: string): OristudioCpGridState {
-  switch (orieditaGridBaseState(baseState)) {
-    case 'hidden':
-      return 'Hidden';
-    case 'full':
-      return 'Full';
-    default:
-      return 'WithinPaper';
-  }
 }
 
 function resolveOrieditaGridBaseState(
@@ -798,11 +818,9 @@ export function nearestCpSnapTarget(
     });
   }
 
-  if (options.snapToGrid) {
-    const grid = options.gridVisible
-      ? visibleOrieditaGridMetadata(document.crease_pattern.grid)
-      : document.crease_pattern.grid;
-    const gridPoint = closestOrieditaGridPoint(point, grid);
+  const snapGrid = snappableOrieditaGrid(document.crease_pattern.grid, options);
+  if (snapGrid) {
+    const gridPoint = closestOrieditaGridPoint(point, snapGrid);
     if (gridPoint) {
       consider(pointTarget(gridPoint, point, 'grid', 'grid'));
     }
@@ -850,11 +868,9 @@ export function nearestOrieditaDrawPointTarget(
     });
   }
 
-  if (options.snapToGrid) {
-    const grid = options.gridVisible
-      ? visibleOrieditaGridMetadata(document.crease_pattern.grid)
-      : document.crease_pattern.grid;
-    const gridPoint = closestOrieditaGridPoint(point, grid);
+  const snapGrid = snappableOrieditaGrid(document.crease_pattern.grid, options);
+  if (snapGrid) {
+    const gridPoint = closestOrieditaGridPoint(point, snapGrid);
     if (gridPoint) {
       consider(pointTarget(gridPoint, point, 'grid', 'grid'));
     }

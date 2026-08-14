@@ -11,7 +11,11 @@
   },
   "global": {
     "error": "Ori Studio error",
-    "folding": "Folding…"
+    "folding": "Folding…",
+    "foldingLong": "Still folding — this can take a while",
+    "foldStop": "Cancel",
+    "foldStopped": "Fold cancelled",
+    "foldStopping": "Cancelling…"
   },
   "simulatorExport": {
     "empty": "This simulation has nothing to export yet",

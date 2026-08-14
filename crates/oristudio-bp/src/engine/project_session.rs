@@ -6,7 +6,9 @@ use crate::grid::{
     BpGrid, DiagonalGrid, RectangularGrid, TransformationMatrix, constrain_flap, flip_sheet,
     get_dots, rotate_sheet, subdivide_sheet, unsubdivide_sheet,
 };
-use crate::layout::{LayoutRepository, active_layout_repositories};
+use crate::layout::{
+    LayoutConfiguration, LayoutRepository, active_layout_repositories, pattern::LayoutPattern,
+};
 use crate::model::{
     Edge, Flap, GridType, Memento, NodeId, Point, Project, Repository, Sheet, Stretch, Vertex,
 };
@@ -90,6 +92,11 @@ impl BpProjectSession {
         Ok(())
     }
 
+    /// The session form of the project — upstream `Project.toJSON(true)`.
+    ///
+    /// Keeps the state that only makes sense while the app is running: each
+    /// stretch's `repo`, and the undo history. This is what the wasm bridge
+    /// hands back to the frontend after every mutation.
     pub fn project_for_export(&self) -> Project {
         let mut project = self.project.clone();
         for vertex in &mut project.design.tree.nodes {
@@ -97,6 +104,62 @@ impl BpProjectSession {
         }
         project.history = self.history.to_history().ok();
         project
+    }
+
+    /// The file form of the project — upstream `Project.toJSON()` with no
+    /// `session` flag.
+    ///
+    /// Upstream gates three things on that flag: `history: session && ...`,
+    /// `state: session && ...`, and, per stretch,
+    /// `if(!session) delete result.repo`
+    /// (`client/project/components/layout/stretch.ts`). A saved stretch keeps
+    /// `{id, configuration, pattern}` — the selected configuration's partitions
+    /// and the selected pattern — which reloads as a prototype the generator
+    /// yields first and then searches past, so the pattern list stays live.
+    /// Writing `repo` instead freezes it.
+    ///
+    /// The stretch list is rebuilt from the currently active repositories
+    /// rather than copied, so entries for stretches that no longer exist do not
+    /// reach the file.
+    pub fn project_for_file(&self) -> BpResult<Project> {
+        let mut project = self.project.clone();
+        for vertex in &mut project.design.tree.nodes {
+            vertex.is_new = None;
+        }
+        project.history = None;
+        project.state = None;
+        project.design.layout.stretches = self.file_stretches()?;
+        Ok(project)
+    }
+
+    /// Each active stretch as `{id, configuration, pattern}`.
+    fn file_stretches(&self) -> BpResult<Vec<Stretch>> {
+        if self.project.design.tree.edges.is_empty() {
+            return Ok(Vec::new());
+        }
+        let tree = self.layout_tree()?;
+        let mut result = Vec::new();
+        for mut repository in
+            active_layout_repositories(&tree, &self.project.design.layout.stretches)?
+        {
+            if repository.configuration().is_none() {
+                repository.init_with_tree(&tree)?;
+            }
+            repository.initialize_selected_pattern_with_tree(&tree)?;
+            let id = repository.stretch_id.clone();
+            let configuration = repository.configuration();
+            result.push(Stretch {
+                id,
+                // `to_json(false)`: partitions only. `patterns` and `index` are
+                // session-only in `JConfiguration`.
+                configuration: configuration.map(|config| config.to_json(false)),
+                pattern: configuration
+                    .and_then(LayoutConfiguration::pattern)
+                    .map(LayoutPattern::to_json),
+                repo: None,
+            });
+        }
+        Ok(result)
     }
 
     pub fn history(&self) -> &HistoryManager {

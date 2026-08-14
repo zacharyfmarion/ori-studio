@@ -1,6 +1,7 @@
 import { expose, transfer } from 'comlink';
 import init, {
   cp_operation_descriptors,
+  cp_set_cancel_buffer,
   document_geometry,
   document_snapshot,
   document_summary,
@@ -140,6 +141,17 @@ async function call<T>(fn: () => T): Promise<T> {
 }
 
 const api = {
+  /**
+   * Adopt the main thread's shared cancel buffer.
+   *
+   * The buffer crosses as a `SharedArrayBuffer`, so structured clone shares the
+   * memory rather than copying it — which is the only reason a `Atomics.store`
+   * on the main thread is visible to a fold that has this thread blocked. Called
+   * once per connect by the `oristudio-cp` connector, never per fold.
+   */
+  async setCancelBuffer(sharedBuffer: SharedArrayBuffer): Promise<void> {
+    return call(() => cp_set_cancel_buffer(new Int32Array(sharedBuffer)));
+  },
   async operationDescriptors(): Promise<OristudioCpOperationDescriptor[]> {
     return call(() => cp_operation_descriptors() as OristudioCpOperationDescriptor[]);
   },
@@ -211,12 +223,19 @@ const api = {
   ): Promise<number> {
     return call(() => replace_line_segments(handle, lineIds, segments));
   },
+  /**
+   * `runId` names the cancellable run this fold belongs to; 0 means "not
+   * cancellable", which is what every caller meant before run ids existed. Every
+   * search entry point below carries one — the duplicate ones do not, because
+   * they copy a figure rather than fold it.
+   */
   async foldFigure(
     handle: number,
     startingFaceId = 1,
     order: OristudioCpEstimationOrder = 'Order5',
     model?: OristudioCpFoldedFigureModel,
-    selectedLineIds: number[] = []
+    selectedLineIds: number[] = [],
+    runId = 0
   ): Promise<OristudioCpFoldedFigureResult> {
     return call(
       () =>
@@ -226,13 +245,15 @@ const api = {
               selectedLineIds,
               startingFaceId,
               order,
-              model ?? null
+              model ?? null,
+              runId
             ) as OristudioCpFoldedFigureResult)
           : (folded_figure_fold(
               handle,
               startingFaceId,
               order,
-              model ?? null
+              model ?? null,
+              runId
             ) as OristudioCpFoldedFigureResult)
     );
   },
@@ -262,20 +283,25 @@ const api = {
   async duplicateFoldedFigure(handle: number): Promise<OristudioCpFoldedFigureResult> {
     return call(() => folded_figure_duplicate(handle) as OristudioCpFoldedFigureResult);
   },
-  async foldFigureAnother(handle: number): Promise<OristudioCpFoldedFigureSnapshot> {
-    return call(() => folded_figure_fold_another(handle) as OristudioCpFoldedFigureSnapshot);
+  async foldFigureAnother(
+    handle: number,
+    runId = 0
+  ): Promise<OristudioCpFoldedFigureSnapshot> {
+    return call(() => folded_figure_fold_another(handle, runId) as OristudioCpFoldedFigureSnapshot);
   },
   async foldFigureToCase(
     handle: number,
     objective: number,
-    initialOrder: OristudioCpEstimationOrder = 'Order5'
+    initialOrder: OristudioCpEstimationOrder = 'Order5',
+    runId = 0
   ): Promise<OristudioCpFoldedFigureBatchResult> {
     return call(
       () =>
         folded_figure_fold_to_case(
           handle,
           objective,
-          initialOrder
+          initialOrder,
+          runId
         ) as OristudioCpFoldedFigureBatchResult
     );
   },
@@ -291,7 +317,8 @@ const api = {
     handle: number,
     selectedLineIds: number[],
     startingFaceId = 1,
-    model?: OristudioCpFoldedFigureModel
+    model?: OristudioCpFoldedFigureModel,
+    runId = 0
   ): Promise<OristudioCpFold3dFoldResult> {
     return call(
       () =>
@@ -299,12 +326,13 @@ const api = {
           handle,
           selectedLineIds,
           startingFaceId,
-          model ?? null
+          model ?? null,
+          runId
         ) as OristudioCpFold3dFoldResult
     );
   },
-  async fold3dAnother(handle: number): Promise<OristudioCpFold3dStepResult> {
-    return call(() => folded_figure_3d_fold_another(handle) as OristudioCpFold3dStepResult);
+  async fold3dAnother(handle: number, runId = 0): Promise<OristudioCpFold3dStepResult> {
+    return call(() => folded_figure_3d_fold_another(handle, runId) as OristudioCpFold3dStepResult);
   },
   async duplicateFolded3dFigure(handle: number): Promise<OristudioCpFold3dFoldResult> {
     return call(() => folded_figure_3d_duplicate(handle) as OristudioCpFold3dFoldResult);

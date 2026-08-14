@@ -34,6 +34,43 @@ export type DesignTabSource = 'strip' | 'duplicate' | 'file' | 'replace-last';
 /** Where a project came from when it was opened. */
 export type ProjectOpenSource = 'file' | 'example' | 'new' | 'drop' | 'share';
 
+/**
+ * Which register the `/welcome` landing page rendered in: the start screen, or
+ * the desktop-only notice a phone gets instead.
+ */
+export type LandingSurface = 'desktop' | 'phone';
+
+/** The landing sections below the fold, in page order. */
+export type LandingSectionId =
+  | 'what'
+  | 'edit'
+  | 'design'
+  | 'simulate'
+  | 'compatibility'
+  | 'get';
+
+/**
+ * The landing page's calls to action.
+ *
+ * No download: the desktop build is not released, so the page does not offer one.
+ */
+export type LandingCta = 'discord' | 'github' | 'scroll';
+
+/**
+ * A feature slide in one of the landing carousels.
+ *
+ * Which of these people open is the page's most direct read on what the audience
+ * actually came for, so the ids are stable and deliberately specific.
+ */
+export type LandingFeatureId =
+  | 'edit-angles'
+  | 'edit-media'
+  | 'edit-foldability'
+  | 'edit-share'
+  | 'design-treemaker'
+  | 'design-bp'
+  | 'design-explori';
+
 /** Export target formats (the file's kind only — never its name or contents). */
 export type ExportFormat =
   | 'osf'
@@ -80,7 +117,14 @@ export type FoldMode = 'flat' | 'spatial';
  * - `not-drawable` — the fold returned, and there was nothing to draw.
  * - `simulated` — the user accepted the offer to simulate instead.
  * - `cancelled` — the user declined that offer, or the CAMV warning.
+ * - `halted` — the user stopped a fold that was already running.
  * - `error` — the kernel refused.
+ *
+ * `halted` is deliberately **not** merged into `cancelled`. Declining a dialog
+ * takes a couple of hundred milliseconds and says the user changed their mind
+ * before any work happened; halting says they waited — possibly for many minutes
+ * — and gave up. Those are the two things this feature exists to tell apart, and
+ * one value cannot.
  *
  * The last three are `spatial` only, and each says something a placed 3D figure
  * still is: it drew, and this is what is true about it.
@@ -96,6 +140,7 @@ export type FoldVerdict =
   | 'not-drawable'
   | 'simulated'
   | 'cancelled'
+  | 'halted'
   | 'error'
   | 'local-crossing'
   | 'transversal-crossing'
@@ -200,9 +245,17 @@ export const ANALYTICS_EVENTS = {
   designSentToEdit: 'design sent to edit',
   themeChanged: 'theme changed',
   localeChanged: 'locale changed',
+  landingViewed: 'landing viewed',
+  landingSectionViewed: 'landing section viewed',
+  landingFeatureOpened: 'landing feature opened',
+  landingCtaClicked: 'landing cta clicked',
+  mobileBlockShown: 'mobile block shown',
+  mobileBlockBypassed: 'mobile block bypassed',
   orieditaShortcutsImported: 'oriedita shortcuts imported',
   orieditaShortcutsOverrideAll: 'oriedita shortcuts override all',
   shortcutDefaultsSourceChanged: 'shortcut defaults source changed',
+  cpSnapRadiusChanged: 'cp snap radius changed',
+  cpWheelGestureChanged: 'cp wheel gesture changed',
 } as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS];
@@ -260,6 +313,18 @@ export const BP_PATTERNLESS_STRETCH_BUCKETS = [1, 2, 4, 8] as const;
  */
 export const PACKING_CIRCLE_COUNT_BUCKETS = [0, 2, 4, 8, 16, 32] as const;
 
+/**
+ * Threshold ladder for the crease-pattern snap radius, in Oriedita model units.
+ *
+ * Spans the slider (2-100) rather than any element count, and the interesting
+ * reading is *direction*: `<=2` / `<=5` is someone asking for a tighter radius
+ * than the default 10, `<=20` and above someone asking for a more forgiving one
+ * — the touch case the setting was requested for. The default sits at the top of
+ * `<=10`, which costs nothing, because the event fires only when the value
+ * actually changes: it existing at all already means the default was left.
+ */
+export const CP_SNAP_RADIUS_BUCKETS = [2, 5, 10, 20, 50] as const;
+
 /** Default threshold ladder for durations, in milliseconds. */
 /**
  * Where a Send to Edit came from.
@@ -279,3 +344,17 @@ export type ExploriFailureReason =
   | 'unknown';
 
 export const DURATION_MS_BUCKETS = [50, 100, 250, 500, 1000, 2500, 5000, 10000] as const;
+
+/**
+ * Threshold ladder for how long a fold ran, in milliseconds.
+ *
+ * {@link DURATION_MS_BUCKETS} tops out at ten seconds, which is where a fold
+ * starts being interesting rather than where it stops: the runs worth knowing
+ * about are the ones people sit through for minutes and then give up on. This
+ * ladder is the only way to answer "how long do people tolerate", and it is put
+ * on **every** verdict rather than only on `halted`, because that question is
+ * meaningless without "how long do folds take when they finish".
+ */
+export const FOLD_DURATION_MS_BUCKETS = [
+  1000, 5000, 15000, 60000, 300000, 900000, 3600000,
+] as const;

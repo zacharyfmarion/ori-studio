@@ -131,7 +131,7 @@ export function createBoxPleatDesignKind(
     osfKind: 'box-pleat',
     analyticsId: 'box-pleat',
     chooser: {
-      order: 1,
+      order: 0,
       copy: (t) => ({
         title: t('panels:design.methodChooser.boxPleated.title', 'Box-pleated'),
         description: t(

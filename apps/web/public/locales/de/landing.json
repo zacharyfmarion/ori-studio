@@ -1,0 +1,90 @@
+{
+  "carousel": {
+    "next": "Weiter",
+    "previous": "Zurück"
+  },
+  "compatibility": {
+    "eyebrow": "Kompatibilität",
+    "lead": "Ein großer Teil von Ori Studio ist eine sorgfältige Portierung dessen, was die Community bereits gebaut hat — Oriedita, TreeMaker und Box Pleating Studio — und die Interoperabilität beim Import und Export mit diesen Werkzeugen zu erhalten, ist eine Zusage.",
+    "title": "Aufgebaut auf den Werkzeugen, die du schon nutzt"
+  },
+  "design": {
+    "bp": {
+      "body": "Ordne die Zipfel auf einem Raster an, mit Flüssen, Streckelementen und Symmetriebedingungen, und lies das Faltmuster aus der Packung ab.",
+      "figureAlt": "Zipfel auf einem Box-Pleating-Raster gepackt, daneben das zugehörige Faltmuster.",
+      "title": "Box Pleating"
+    },
+    "carouselLabel": "Entwurfsmethoden",
+    "explori": {
+      "body": "Schicke deinen Baum an Brandon Wongs durchsuchbares Archiv von 22,5°-Faltmustern und sieh dir die ähnlichsten Treffer an.",
+      "figureAlt": "Ein Raster von 22,5°-Faltmustern, die eine ExplOri-Suche zurückgegeben hat.",
+      "title": "ExplOri"
+    },
+    "eyebrow": "Entwurf",
+    "lead": "Packe dein Modell mit der Methode, die dazu passt, mit mehreren Entwürfen nebeneinander in Tabs. Jeder erzeugt ein Faltmuster, das du direkt in den Editor schicken kannst.",
+    "title": "Ein Entwurfsbereich mit Tabs",
+    "treemaker": {
+      "body": "Zeichne einen Baum, lege Kantenlängen und Spannung fest, und lass den Optimierer Kreise und Flüsse zu einer Basis packen.",
+      "figureAlt": "Eine Baumstruktur neben der Kreispackung, die der Optimierer dafür gefunden hat.",
+      "title": "Kreispackung"
+    }
+  },
+  "edit": {
+    "angles": {
+      "body": "Zeichne, simuliere und löse Origami-Modelle mit nicht flachen Falten.",
+      "figureAlt": "Ein Faltmuster mit Faltwinkel-Beschriftungen an den Falten.",
+      "title": "Unterstützung für nicht flache Falten"
+    },
+    "carouselLabel": "Funktionen für Faltmuster",
+    "diagnostics": {
+      "body": "Kawasaki und Maekawa dort, wo das Papier flach faltet. Wo nicht, wird jeder Knoten dreidimensional geprüft — einmal um seine Falten herum, ob sich die Faltung schließt und um wie viel sie danebenliegt.",
+      "figureAlt": "Faltbarkeitsdiagnosen, die problematische Knoten in einem Faltmuster markieren.",
+      "title": "Faltbarkeit, die du nebenbei prüfst"
+    },
+    "eyebrow": "Faltmuster",
+    "lead": "Zeichne mit einem vollständigen Satz an Konstruktions- und Transformationswerkzeugen, eingerastet auf Raster und Winkel, und sieh Faltbarkeitsprobleme in dem Moment, in dem du sie erzeugst. Referenzfotos, Notizen und eine gefaltete Vorschau liegen alle auf derselben Fläche.",
+    "media": {
+      "body": "Lege ein Referenzfoto des Motivs neben das Papier und versieh die Fläche mit formatiertem Text. Beides wird mit dem Projekt gespeichert und beim Export in ein Format ohne Platz dafür sauber weggelassen.",
+      "figureAlt": "Ein Referenzfoto und eine Textnotiz neben einem Faltmuster.",
+      "title": "Bilder und Text, richtig gemacht"
+    },
+    "share": {
+      "body": "Schicke jemandem ein Faltmuster als URL. Er öffnet es im Browser, ohne etwas zu installieren.",
+      "figureAlt": "Der Dialog für den Freigabelink mit einer kopierbaren URL.",
+      "title": "Ein Muster per Link teilen"
+    },
+    "title": "Ein Editor, der mitkommt"
+  },
+  "figureMissing": "Hier kommt ein Screenshot hin",
+  "formats": {
+    "a11yBoth": "öffnet und exportiert",
+    "a11yExport": "exportiert nur",
+    "a11yImport": "öffnet nur",
+    "hubLabel": "Dein Projekt",
+    "ringLabel": "Unterstützte Dateiformate"
+  },
+  "get": {
+    "discord": "Discord beitreten",
+    "eyebrow": "Loslegen",
+    "github": "Quellcode und Issues",
+    "lead": "Scrolle nach oben und fang ein Faltmuster an — mehr Einrichtung gibt es nicht. Discord ist der beste Ort, um einen Fehler zu melden oder etwas vorzuschlagen, und dort werden Neuigkeiten zuerst angekündigt.",
+    "title": "Läuft im Browser. Nichts zu installieren."
+  },
+  "mobileHero": {
+    "tagline": "Origami entwerfen, bearbeiten und falten — alles im Browser."
+  },
+  "openApp": "App öffnen (auf Mobilgeräten nicht optimiert)",
+  "scrollCue": "Sieh, was es kann",
+  "simulate": {
+    "eyebrow": "Simulieren",
+    "figureAlt": "Ein gefaltetes 3D-Modell, das direkt neben seinem Faltmuster simuliert wird.",
+    "lead": "Öffne eine Simulation in einem Fenster direkt neben dem Faltmuster, an dem du zeichnest — eine Idee zu prüfen kostet dann einen Blick statt eines Umwegs über ein anderes Programm. Wenn du das Modell für sich sehen willst, gibt es den vollen Simulate-Bereich.",
+    "title": "Falte, ohne das Muster zu verlassen"
+  },
+  "what": {
+    "eyebrow": "Was es ist",
+    "figureAlt": "Der Ori-Studio-Arbeitsbereich: ein Faltmuster auf der Fläche, darum herum die Werkzeugleiste und die Inspektor-Panels.",
+    "lead": "Skizziere eine Basis, zeichne das Faltmuster und falte es, um zu sehen, ob es aufgeht — an einem Ort, im Browser, ohne Installation und ohne Konto.",
+    "title": "Ein freier, quelloffener Arbeitsbereich für Origami-Entwurf"
+  }
+}

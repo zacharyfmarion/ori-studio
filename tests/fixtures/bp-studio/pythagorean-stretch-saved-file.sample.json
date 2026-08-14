@@ -1,0 +1,166 @@
+{
+  "version": "0.7",
+  "design": {
+    "title": "Pythagorean stretch saved in file form",
+    "mode": "tree",
+    "layout": {
+      "sheet": {
+        "type": "rect",
+        "width": 16,
+        "height": 16
+      },
+      "flaps": [
+        {
+          "id": 1,
+          "x": 12,
+          "y": 3,
+          "width": 0,
+          "height": 0
+        },
+        {
+          "id": 2,
+          "x": 8,
+          "y": 9,
+          "width": 0,
+          "height": 0
+        }
+      ],
+      "stretches": [
+        {
+          "id": "1,2",
+          "configuration": {
+            "partitions": [
+              {
+                "overlaps": [
+                  {
+                    "c": [
+                      {
+                        "type": 4,
+                        "e": 1,
+                        "q": 1
+                      },
+                      {
+                        "type": 2
+                      },
+                      {
+                        "type": 4,
+                        "e": 2,
+                        "q": 3
+                      },
+                      {
+                        "type": 2
+                      }
+                    ],
+                    "ox": 3,
+                    "oy": 1,
+                    "parent": 0
+                  }
+                ],
+                "strategy": "HALFINTEGRAL"
+              }
+            ]
+          },
+          "pattern": {
+            "devices": [
+              {
+                "gadgets": [
+                  {
+                    "pieces": [
+                      {
+                        "ox": 3,
+                        "oy": 1,
+                        "u": 1.5,
+                        "v": 1,
+                        "detours": [
+                          [
+                            {
+                              "x": 1,
+                              "y": 3
+                            },
+                            {
+                              "x": 3.5,
+                              "y": 5.5
+                            }
+                          ]
+                        ]
+                      },
+                      {
+                        "ox": 1,
+                        "oy": 1,
+                        "u": 1,
+                        "v": 0.5,
+                        "detours": [
+                          [
+                            {
+                              "x": 2.5,
+                              "y": 2.5
+                            },
+                            {
+                              "x": 0,
+                              "y": 0
+                            }
+                          ]
+                        ],
+                        "shift": {
+                          "x": 1,
+                          "y": 3
+                        }
+                      }
+                    ],
+                    "anchors": [
+                      null,
+                      null,
+                      {
+                        "slack": 0.5
+                      }
+                    ]
+                  }
+                ],
+                "offset": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "tree": {
+      "sheet": {
+        "type": "rect",
+        "width": 20,
+        "height": 20
+      },
+      "nodes": [
+        {
+          "id": 0,
+          "x": 10,
+          "y": 10,
+          "name": ""
+        },
+        {
+          "id": 1,
+          "x": 10,
+          "y": 9,
+          "name": ""
+        },
+        {
+          "id": 2,
+          "x": 10,
+          "y": 16,
+          "name": ""
+        }
+      ],
+      "edges": [
+        {
+          "n1": 0,
+          "n2": 1,
+          "length": 1
+        },
+        {
+          "n1": 0,
+          "n2": 2,
+          "length": 6
+        }
+      ]
+    }
+  }
+}

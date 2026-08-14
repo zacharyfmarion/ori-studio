@@ -351,6 +351,8 @@
       "resetMessage": "为当前工作区恢复默认布局吗？",
       "resetTitle": "重置工作区布局",
       "showWelcome": "启动时显示欢迎屏幕",
+      "snapRadius": "吸附半径",
+      "snapRadiusHint": "指针需要靠近顶点、折痕或网格点多少才会吸附，以纸张单位计。纸张宽度为 400，因此这个数值与 Oriedita 中的相同。",
       "startup": "启动",
       "wheelGestureHint": "无论选择哪一项，捏合和 Cmd/Ctrl+滚动始终缩放。",
       "wheelPans": "滚动平移，捏合缩放",

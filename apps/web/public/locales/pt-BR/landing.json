@@ -1,0 +1,90 @@
+{
+  "carousel": {
+    "next": "Próximo",
+    "previous": "Anterior"
+  },
+  "compatibility": {
+    "eyebrow": "Compatibilidade",
+    "lead": "Boa parte do Ori Studio é uma adaptação cuidadosa do que a comunidade já construiu — Oriedita, TreeMaker e Box Pleating Studio — e manter a interoperabilidade de importação e exportação com essas ferramentas é um compromisso.",
+    "title": "Construído sobre as ferramentas que você já usa"
+  },
+  "design": {
+    "bp": {
+      "body": "Distribua as pontas sobre uma grade, com rios, dispositivos de estiramento e restrições de simetria, e leia o padrão de vinco a partir do empacotamento.",
+      "figureAlt": "Pontas empacotadas numa grade de box pleating, com o padrão de vinco ao lado.",
+      "title": "Box pleating"
+    },
+    "carouselLabel": "Métodos de projeto",
+    "explori": {
+      "body": "Envie sua árvore ao arquivo pesquisável de padrões de vinco a 22,5° de Brandon Wong e percorra as correspondências mais próximas que ele devolve.",
+      "figureAlt": "Uma grade de padrões de vinco a 22,5° devolvidos por uma busca no ExplOri.",
+      "title": "ExplOri"
+    },
+    "eyebrow": "Projeto",
+    "lead": "Empacote seu modelo com o método que fizer mais sentido, com vários projetos abertos lado a lado em abas. Cada um gera um padrão de vinco que você pode mandar direto para o editor.",
+    "title": "Um espaço de projeto com abas",
+    "treemaker": {
+      "body": "Esboce uma árvore, defina comprimentos de aresta e tensão, e deixe o otimizador empacotar círculos e rios em uma base.",
+      "figureAlt": "Uma estrutura em árvore ao lado do empacotamento de círculos que o otimizador encontrou para ela.",
+      "title": "Empacotamento de círculos"
+    }
+  },
+  "edit": {
+    "angles": {
+      "body": "Desenhe, simule e resolva modelos de origami com vincos que não ficam planos.",
+      "figureAlt": "Um padrão de vinco com rótulos de ângulo de dobra nos vincos.",
+      "title": "Suporte a vincos não planos"
+    },
+    "carouselLabel": "Recursos do padrão de vinco",
+    "diagnostics": {
+      "body": "Kawasaki e Maekawa onde o papel dobra plano. Onde não dobra, cada vértice é verificado em três dimensões — percorrendo seus vincos para ver se a dobra se fecha, e por quanto ela erra.",
+      "figureAlt": "Diagnósticos de dobrabilidade marcando vértices problemáticos num padrão de vinco.",
+      "title": "Dobrabilidade que você confere enquanto trabalha"
+    },
+    "eyebrow": "Padrões de vinco",
+    "lead": "Desenhe com um conjunto completo de ferramentas de construção e transformação, com encaixe na grade e nos ângulos, e veja os problemas de dobrabilidade no instante em que os cria. Fotos de referência, anotações e uma prévia dobrada ficam todas na mesma tela.",
+    "media": {
+      "body": "Coloque uma foto de referência do tema ao lado do papel e anote a tela com texto formatado. Os dois são salvos junto com o projeto e descartados de forma limpa ao exportar para um formato que não tem espaço para eles.",
+      "figureAlt": "Uma foto de referência e uma anotação de texto ao lado de um padrão de vinco.",
+      "title": "Imagens e texto de verdade"
+    },
+    "share": {
+      "body": "Envie um padrão de vinco como URL. A pessoa abre no navegador, sem instalar nada.",
+      "figureAlt": "A caixa de diálogo do link de compartilhamento, com uma URL que dá para copiar.",
+      "title": "Compartilhe um padrão por link"
+    },
+    "title": "Um editor que acompanha o ritmo"
+  },
+  "figureMissing": "A captura de tela entra aqui",
+  "formats": {
+    "a11yBoth": "abre e exporta",
+    "a11yExport": "só exporta",
+    "a11yImport": "só abre",
+    "hubLabel": "Seu projeto",
+    "ringLabel": "Formatos de arquivo suportados"
+  },
+  "get": {
+    "discord": "Entrar no Discord",
+    "eyebrow": "Começar",
+    "github": "Código e issues",
+    "lead": "Volte ao topo e comece um padrão de vinco — a preparação é essa. O Discord é o melhor lugar para relatar um problema ou sugerir algo, e é onde as novidades são anunciadas primeiro.",
+    "title": "Roda no navegador. Nada para instalar."
+  },
+  "mobileHero": {
+    "tagline": "Projete, edite e dobre origami, tudo no navegador."
+  },
+  "openApp": "Abrir o app (sem otimização para celular)",
+  "scrollCue": "Veja o que ele faz",
+  "simulate": {
+    "eyebrow": "Simular",
+    "figureAlt": "Um modelo 3D dobrado sendo simulado ao lado do seu padrão de vinco.",
+    "lead": "Abra uma simulação numa janela bem ao lado do padrão de vinco que você está desenhando, de modo que conferir uma ideia custe um olhar em vez de uma ida e volta por outro programa. Quando quiser o modelo sozinho, o espaço Simulate completo está ali.",
+    "title": "Dobre sem sair do padrão"
+  },
+  "what": {
+    "eyebrow": "O que é",
+    "figureAlt": "O espaço de trabalho do Ori Studio: um padrão de vinco na tela, com a barra de ferramentas e os painéis de inspeção ao redor.",
+    "lead": "Esboce uma base, desenhe o padrão de vinco e dobre para ver se funciona — tudo num lugar só, no navegador, sem nada para instalar e sem conta.",
+    "title": "Um espaço de trabalho livre e de código aberto para projeto de origami"
+  }
+}

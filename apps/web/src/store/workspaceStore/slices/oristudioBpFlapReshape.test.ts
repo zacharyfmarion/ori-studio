@@ -27,6 +27,10 @@ import type {
 const runtimeMocks = vi.hoisted(() => ({
   reshapeOristudioBpLayoutFlap: vi.fn(),
   exportOristudioBpProjectAsBps: vi.fn(async () => '<bps/>'),
+  // History snapshots take the *session* form, which keeps the stretch
+  // repository and the config/pattern indices — undo has to land back on the
+  // exact selection, not on a prototype that regenerates at index 0.
+  exportOristudioBpProjectAsSessionBps: vi.fn(async () => '<bps/>'),
 }));
 
 vi.mock('../oristudioBpRuntime', async (importOriginal) => {
@@ -35,6 +39,7 @@ vi.mock('../oristudioBpRuntime', async (importOriginal) => {
     ...actual,
     reshapeOristudioBpLayoutFlap: runtimeMocks.reshapeOristudioBpLayoutFlap,
     exportOristudioBpProjectAsBps: runtimeMocks.exportOristudioBpProjectAsBps,
+    exportOristudioBpProjectAsSessionBps: runtimeMocks.exportOristudioBpProjectAsSessionBps,
   };
 });
 
@@ -121,6 +126,7 @@ const FOOTPRINT = { anchor: { x: 2, y: 5 }, width: 3, height: 1, radius: 5 };
 beforeEach(() => {
   runtimeMocks.reshapeOristudioBpLayoutFlap.mockReset();
   runtimeMocks.exportOristudioBpProjectAsBps.mockClear();
+  runtimeMocks.exportOristudioBpProjectAsSessionBps.mockClear();
 });
 
 afterEach(() => {

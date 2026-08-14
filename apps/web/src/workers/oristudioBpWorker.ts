@@ -5,6 +5,7 @@ import init, {
   bp_complete_stretch,
   bp_delete_tree_leaves,
   bp_export_bps,
+  bp_export_session_bps,
   bp_export_cp,
   bp_export_fold,
   bp_export_workspace,
@@ -279,6 +280,9 @@ const api = {
   },
   async exportBps(handle: number): Promise<string> {
     return call(() => bp_export_bps(handle));
+  },
+  async exportSessionBps(handle: number): Promise<string> {
+    return call(() => bp_export_session_bps(handle));
   },
   async exportCp(
     handle: number,

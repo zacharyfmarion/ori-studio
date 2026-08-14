@@ -15,8 +15,9 @@
  *   - a well-formed but absent id 404s only if SHARE_KV is bound (an unbound binding throws)
  *   - the thumbnail fallback needs SHARE_R2 bound *and* og-default.png in the deploy
  *   - /s/<id> proves the meta-injection Function ran, that cross-origin isolation survives it
- *     (the wasm engine needs SharedArrayBuffer), and that the SPA fallback still resolves —
- *     adding a custom 404.html would break exactly this
+ *     (fold cancellation needs SharedArrayBuffer — the engine itself does not, its wasm
+ *     memory is unshared), and that the SPA fallback still resolves — adding a custom
+ *     404.html would break exactly this
  *
  * Point it at the **immutable per-deployment host** `wrangler pages deploy` prints
  * (`Take a peek over at https://<hash>.oristudio.pages.dev`), not at a branch alias or the
@@ -142,8 +143,9 @@ async function runChecks(target) {
       response.headers.get('cross-origin-opener-policy') === 'same-origin' &&
         response.headers.get('cross-origin-embedder-policy') === 'require-corp',
       served
-        ? 'COOP/COEP missing — the wasm engine cannot start on this entry path. Pages does not ' +
-          'apply _headers to Function responses, so the Function must set them itself'
+        ? 'COOP/COEP missing — no SharedArrayBuffer, so a fold started from this entry path ' +
+          'cannot be stopped. Pages does not apply _headers to Function responses, so the ' +
+          'Function must set them itself'
         : 'the route did not serve, so its headers say nothing — see the check above'
     );
   }

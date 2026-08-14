@@ -748,6 +748,21 @@ export async function exportOristudioBpProjectAsBps(): Promise<string> {
   return api.exportBps(handle);
 }
 
+/**
+ * The session form, for undo snapshots.
+ *
+ * Upstream backs history with `toJSON(true)`, so a snapshot keeps each
+ * stretch's repository and its config/pattern indices and undo lands back on
+ * the exact selection. `exportOristudioBpProjectAsBps` is the file form — it
+ * drops the repository by design, so using it here would make undo regenerate
+ * the stretch at index 0.
+ */
+export async function exportOristudioBpProjectAsSessionBps(): Promise<string> {
+  const handle = await requireActiveBpHandle();
+  const api = await getOristudioBpClient();
+  return api.exportSessionBps(handle);
+}
+
 export async function exportOristudioBpProjectAsCp(
   options: Pick<OristudioBpExportOptions, 'reorient' | 'includeAuxiliaryHinges'> & {
     // Multiplier on the exported full width. "Send to Edit" passes

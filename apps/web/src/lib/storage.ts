@@ -22,9 +22,18 @@ export const STORAGE_KEYS = {
   shortcuts: 'shortcuts',
   locale: 'locale',
   showWelcomeOnStartup: 'show-welcome-on-startup',
+  /**
+   * Set when someone on a phone takes the "open it anyway" link past the
+   * desktop-only notice. Persisted so the choice survives a reload — being sent
+   * back to the landing page on every refresh would make the escape hatch
+   * useless.
+   */
+  phoneOverride: 'phone-override',
   foldWarning: 'fold-warning',
   /** What an unmodified scroll does on the crease-pattern canvas: pan or zoom. */
   cpWheelGesture: 'cp-wheel-gesture',
+  /** How far the pointer may sit from a snap target, in Oriedita model units. */
+  cpSnapRadius: 'cp-snap-radius',
   cpToolRailGroups: 'cp-tool-rail-groups',
   cpMeasure: 'cp-measure',
   cpToolOptions: 'cp-tool-options',
@@ -113,4 +122,24 @@ export function readBoolean(key: string, fallback: boolean): boolean {
 
 export function writeBoolean(key: string, value: boolean): void {
   writeString(key, value ? 'true' : 'false');
+}
+
+/**
+ * Read a number, returning `fallback` when the key is absent or holds anything
+ * that is not a finite number. Range is the caller's business — a preference
+ * clamps what it reads, so a hand-edited key degrades instead of escaping its
+ * own bounds.
+ *
+ * The empty-string guard is not redundant: `Number('')` and `Number(' ')` are
+ * both `0`, which is a plausible-looking value for most of these keys.
+ */
+export function readNumber(key: string, fallback: number): number {
+  const raw = readString(key);
+  if (raw === null || raw.trim() === '') return fallback;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+export function writeNumber(key: string, value: number): void {
+  writeString(key, String(value));
 }

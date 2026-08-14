@@ -177,6 +177,16 @@ function pressChord(init: KeyboardEventInit) {
   });
 }
 
+/** React listens for the native input event, so the value goes in through the setter. */
+function typeInto(input: HTMLInputElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+  act(() => {
+    input.focus();
+    setter?.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+
 function renderModal(tab?: SettingsTab, analyticsClient: PostHogClientLike | null = null) {
   useSettingsStore.getState().openSettings(tab);
   container = document.createElement('div');
@@ -337,22 +347,64 @@ describe('SettingsModal', () => {
       rendered.querySelectorAll<HTMLInputElement>('input[name="cp-wheel-gesture"]')
     );
     expect(radios).toHaveLength(2);
-    // Scroll-pans is the default, and the pane must open showing that.
-    expect(radios[0].checked).toBe(true);
-    expect(radios[1].checked).toBe(false);
+    const zoomRadio = radios.find((radio) => radio.value === 'zoom');
+    const panRadio = radios.find((radio) => radio.value === 'pan');
+    // Scroll-zooms is the default, and the pane must open showing that.
+    expect(zoomRadio?.checked).toBe(true);
+    expect(panRadio?.checked).toBe(false);
+    // The default leads the list rather than sitting under the alternative.
+    expect(radios[0]).toBe(zoomRadio);
 
     act(() => {
-      radios[1].click();
-    });
-
-    expect(useSettingsStore.getState().cpWheelGesture).toBe('zoom');
-    expect(radios[1].checked).toBe(true);
-
-    act(() => {
-      radios[0].click();
+      panRadio?.click();
     });
 
     expect(useSettingsStore.getState().cpWheelGesture).toBe('pan');
+    expect(panRadio?.checked).toBe(true);
+
+    act(() => {
+      zoomRadio?.click();
+    });
+
+    expect(useSettingsStore.getState().cpWheelGesture).toBe('zoom');
+  });
+
+  it('dresses the snap radius as a settings row, not as an inspector-panel row', () => {
+    // `.control-row` is the panel idiom — indented, with a bottom divider and a
+    // smaller secondary label — and it reads as foreign inside this modal, which
+    // deliberately keeps its rows unboxed and flush with the section title.
+    const rendered = renderModal('workspace');
+    const input = rendered.querySelector<HTMLInputElement>('input[aria-label="Snap radius"]');
+    const row = input?.closest('.settings-toggle-row');
+
+    expect(row).toBeTruthy();
+    expect(input?.closest('.control-row')).toBeNull();
+    expect(row?.querySelector('.settings-toggle-row__label')?.textContent).toBe('Snap radius');
+    // The description belongs to the control, so it lives in the row rather than
+    // trailing after it where it reads as the next section's preamble.
+    expect(row?.querySelector('.settings-toggle-row__desc')?.textContent).toContain('400 across');
+  });
+
+  it('edits the crease-pattern snap radius and persists it', () => {
+    const rendered = renderModal('workspace');
+
+    const input = rendered.querySelector<HTMLInputElement>('input[aria-label="Snap radius"]');
+    expect(input).not.toBeNull();
+    expect(input?.value).toBe('10');
+    // The unit is the reason the number is not pixels, so the row has to say it.
+    expect(rendered.textContent).toContain('the paper is 400 across');
+
+    typeInto(input as HTMLInputElement, '24');
+    act(() => (input as HTMLInputElement).blur());
+
+    expect(useSettingsStore.getState().cpSnapRadius).toBe(24);
+    expect(localStorage.getItem('oristudio:cp-snap-radius')).toBe('24');
+
+    // Upstream's slider stops at 100, and so does a typed value.
+    typeInto(input as HTMLInputElement, '900');
+    act(() => (input as HTMLInputElement).blur());
+
+    expect(useSettingsStore.getState().cpSnapRadius).toBe(100);
   });
 
   it('captures, clears, and resets shortcuts', async () => {
