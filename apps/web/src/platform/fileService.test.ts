@@ -302,6 +302,76 @@ describe('browser document saves', () => {
     expect(replacement.written).toEqual(['second']);
   });
 
+  /**
+   * The floor: a save the user asked for always produces a file. Both pickers
+   * and the permission upgrade need transient user activation, which expires
+   * about five seconds after the keystroke — serializing a large project can
+   * outlast it, and Chrome then rejects with SecurityError rather than a
+   * cancellation. A sandboxed frame, an enterprise policy, a locked file and a
+   * full disk all land here too. Before this file used the API, a browser save
+   * was an unconditional download and could not fail.
+   */
+  it('downloads rather than losing the save when the picker fails for a non-cancel reason', async () => {
+    window.showSaveFilePicker = vi.fn(async () => {
+      throw new DOMException('Must be handling a user gesture to show a file picker.', 'SecurityError');
+    });
+    const service = createFileService('web');
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    const result = await service.saveTextFile(saveOptions());
+
+    expect(click).toHaveBeenCalledOnce();
+    expect(result).toEqual({ name: 'project.osf', path: null });
+  });
+
+  it('downloads rather than losing the save when the write itself fails', async () => {
+    const handle = fakeHandle('project.osf');
+    handle.failNextWrite = true;
+    window.showSaveFilePicker = vi.fn(async () => handle as unknown as FileSystemFileHandle);
+    const service = createFileService('web');
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    const result = await service.saveTextFile(saveOptions());
+
+    expect(handle.written).toEqual([]);
+    expect(click).toHaveBeenCalledOnce();
+    expect(result?.path).toBeNull();
+  });
+
+  it('falls back to a download when the overwrite is refused and the replacement picker fails', async () => {
+    const handle = fakeHandle('opened.osf');
+    handle.getFile = async () => new File(['{}'], 'opened.osf');
+    handle.queryPermission = vi.fn(async () => 'prompt' as PermissionState);
+    handle.requestPermission = vi.fn(async () => 'denied' as PermissionState);
+    window.showOpenFilePicker = vi.fn(async () => [handle as unknown as FileSystemFileHandle]);
+    // Answering the permission prompt consumed the activation, so the picker
+    // that would have asked where to put it instead cannot open.
+    window.showSaveFilePicker = vi.fn(async () => {
+      throw new DOMException('no activation', 'SecurityError');
+    });
+    const service = createFileService('web');
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    const opened = await service.openTextFile({ title: 'Open', extensions: ['osf'] });
+    const result = await service.saveTextFile(saveOptions({ path: opened?.path }));
+
+    expect(click).toHaveBeenCalledOnce();
+    expect(result?.path).toBeNull();
+  });
+
+  // A cancel is the user saying no. Leaving a file in Downloads anyway would be
+  // the one outcome worse than not saving.
+  it('leaves nothing behind when a cross-realm cancellation is not a DOMException', async () => {
+    window.showSaveFilePicker = vi.fn(async () => {
+      throw Object.assign(new Error('The user aborted a request.'), { name: 'AbortError' });
+    });
+    const service = createFileService('web');
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    await expect(service.saveTextFile(saveOptions())).resolves.toBeNull();
+    expect(click).not.toHaveBeenCalled();
+  });
+
   it('downloads, as before, where the browser has no File System Access API', async () => {
     // Firefox and Safari. `showSaveFilePicker` is left undefined.
     const service = createFileService('web');

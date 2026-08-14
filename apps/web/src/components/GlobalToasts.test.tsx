@@ -24,6 +24,7 @@ interface LoadingToast {
 
 const loadingToasts: LoadingToast[] = [];
 const messageToasts: string[] = [];
+const successToasts: string[] = [];
 
 vi.mock('sonner', () => ({
   toast: Object.assign(
@@ -33,6 +34,7 @@ vi.mock('sonner', () => ({
         loadingToasts.push({ message, options: options ?? {} });
       },
       message: (message: string) => messageToasts.push(message),
+      success: (message: string) => successToasts.push(message),
       error: () => undefined,
       dismiss: () => undefined,
     }
@@ -70,7 +72,8 @@ beforeEach(() => {
   vi.useFakeTimers();
   loadingToasts.length = 0;
   messageToasts.length = 0;
-  useWorkspaceStore.setState({ oristudioCpFoldRuns: {}, error: null });
+  successToasts.length = 0;
+  useWorkspaceStore.setState({ oristudioCpFoldRuns: {}, error: null, savedNotice: null });
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -83,6 +86,31 @@ afterEach(() => {
   root = null;
   container = null;
   vi.useRealTimers();
+});
+
+/**
+ * A browser save that writes through its handle shows the user nothing at all —
+ * no dialog on the repeat, no download for the browser to announce — so this
+ * toast is the only confirmation the save happened. Mounted against the real
+ * store for the reason the folding tests are: a store field nobody reads is a
+ * dead feature, and the store-level tests only assert that `savedNotice` is set.
+ */
+describe('the saved toast', () => {
+  it('announces the filename, and clears the notice so the next save can announce too', () => {
+    act(() => useWorkspaceStore.setState({ savedNotice: 'project.osf' }));
+
+    expect(successToasts).toEqual(['project.osf saved']);
+    // Cleared, or a second save of the same file would set an unchanged value
+    // and never re-render.
+    expect(useWorkspaceStore.getState().savedNotice).toBeNull();
+
+    act(() => useWorkspaceStore.setState({ savedNotice: 'project.osf' }));
+    expect(successToasts).toEqual(['project.osf saved', 'project.osf saved']);
+  });
+
+  it('says nothing until a save sets one', () => {
+    expect(successToasts).toEqual([]);
+  });
 });
 
 describe('the folding toast', () => {
