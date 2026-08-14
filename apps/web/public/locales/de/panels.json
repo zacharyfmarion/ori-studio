@@ -530,6 +530,7 @@
     "localCrossing_other": "Das Papier durchdringt sich an {{count}} Knotenpunkten selbst.",
     "localCrossingLabel": "Papier durchdringt sich",
     "noLayerOrderContradictorySeeds": "Zwei Flächen müssen jeweils über der anderen liegen, sodass keine Stapelung beide erfüllt.",
+    "noLayerOrderExhausted": "Ori Studio hat die Suche abgebrochen, bevor eine Lagenordnung für diese Figur gefunden wurde.",
     "noLayerOrderGeneric": "Die Lagen dieser Figur konnten nicht geordnet werden.",
     "noLayerOrderLabel": "Lagen nicht geordnet",
     "selectCreases": "Falten auswählen",

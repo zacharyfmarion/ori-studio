@@ -285,6 +285,27 @@ outcome.
 - Rebuild the CP wasm bridge before trusting anything in the browser:
   `npm --workspace @treemaker/web run build:oristudio-cp-wasm`.
 
+## Amendment, found during Phase 2: the priority pass was losing subfaces
+
+The plan above assumed the coupling carrier subface was *present but outside the
+valid prefix*. It was not present at all.
+
+`max_priority_subface` seeds "best so far" with index 0. Upstream's arrays are
+1-based, so `0` is its nothing-found sentinel; this port is 0-based, so `0` names
+a real subface that has usually already been placed. Once the sweep reaches the
+tail where nothing carries new pair information — which is every sweep — no
+candidate beats the seed and the already-placed subface is selected again. The
+returned list is the right length and the wrong contents: 266 subfaces came back
+as 266 slots holding **66 distinct** ones, and the 200 that vanished were every
+subface the 3D path invents for a coupling. `condition_carrier_position`
+therefore returned `None` for the very condition it was written to find.
+
+With that fixed, promotion fires as designed — 10 promotions, `valid_count` 66 ->
+76 — and the model orders in 299 ms. The lesson for the next reader is that
+"outside the valid prefix" and "absent from the search" look identical from every
+symptom the plan was written from; only `distinct_subface_indices` told them
+apart.
+
 ## Notes for whoever picks this up
 
 The diagnostic harness was an `examples/fold3d_profile.rs` in `oristudio-cp` that
@@ -309,19 +330,21 @@ lever is the number of calls, not their cost.
 
 ## Checklist
 
-- [ ] Phase 1: route `search_error` through `WorkerOverlapSearchError::is_cancelled()`
-- [ ] Phase 1: `ComponentSolver::step` maps `PermutationError::Cancelled` to `Cancelled`
-- [ ] Phase 1: `Builder::localise` maps `Setup(FoldSetupError::Cancelled)` to `Cancelled`
-- [ ] Phase 1: tighten the cancel test to reject `NoLayerOrder { .. }` for any reason
-- [ ] Phase 1: add a fixture whose cancel lands inside `possible_overlapping_search`
-- [ ] Phase 2: derive an `error_position` for condition-driven final-check contradictions
-- [ ] Phase 2: add the `promote_on_condition_contradiction` opt-in; 3D on, flat off
-- [ ] Phase 2: `oriedita_folding_oracle` confirms the flat path is unchanged
-- [ ] Phase 2: pangolin timing recorded before/after
-- [ ] Phase 3: decide from Phase 2's measurement whether this phase is needed at all
-- [ ] Phase 3 (if taken): AEA contradiction becomes a backtrack on the 3D path only
-- [ ] Phase 4: deterministic outer-iteration budget per component
-- [ ] Phase 4: `SearchExhausted` error arm, wire arm, and `From` mapping
-- [ ] Phase 4: `orderReasonDetail` sentence + all locales + `i18n:check`
-- [ ] Every fixture and the non-flat corpus finish well inside the budget
+- [x] Phase 1: route `search_error` through `WorkerOverlapSearchError::is_cancelled()`
+- [x] Phase 1: `ComponentSolver::step` maps `PermutationError::Cancelled` to `Cancelled`
+- [x] Phase 1: `Builder::localise` maps `Setup(FoldSetupError::Cancelled)` to `Cancelled`
+- [x] Phase 1: tighten the cancel test — it now compares against the unbound
+      baseline verdict, so a cancel wearing *any* reason code fails it
+- [x] Phase 1: add a test whose cancel lands inside `possible_overlapping_search`
+- [x] Phase 2: derive an `error_position` for condition-driven final-check contradictions
+- [x] Phase 2: add the `promote_on_condition_contradiction` opt-in; 3D on, flat off
+- [x] Phase 2: **the priority pass was losing subfaces** — see the amendment above
+- [x] Phase 2: `oriedita_folding_oracle` confirms the flat path is unchanged
+- [x] Phase 2: pangolin — never terminated -> 299 ms, `Folded`, nothing undetermined
+- [x] Phase 3: decided — **not needed**; Phase 2 alone brought the pangolin to 299 ms
+- [x] Phase 4: deterministic outer-iteration budget per component
+- [x] Phase 4: `SearchExhausted` error arm, wire arm, and `From` mapping
+- [x] Phase 4: `orderReasonDetail` sentence + all 9 locales + `i18n:check`
+- [x] Every committed fixture finishes well inside the budget (0-1 iterations;
+      worst real model 2,248 against a budget of 1,000,000)
 - [ ] Rebuild the CP wasm bridge and confirm the pangolin in the browser

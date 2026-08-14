@@ -46,11 +46,11 @@ macro_rules! fold_phase_timer {
 }
 
 pub use permutation::{
-    ChainPermutationGenerator, PermutationError, PermutationSnapshot, SubFacePermutationSearch,
-    SubFacePriority, SubFaceSearchError, SubFaceSwapper, WorkerOverlapEnumerator,
-    WorkerOverlapSearch, WorkerOverlapSearchError, possible_overlap_search_for_ordered_subfaces,
-    possible_overlap_search_for_subfaces, possible_overlap_search_for_subfaces_with_swap,
-    prioritize_subfaces,
+    ChainPermutationGenerator, FOLD_3D_ITERATION_BUDGET, PermutationError, PermutationSnapshot,
+    SubFacePermutationSearch, SubFacePriority, SubFaceSearchError, SubFaceSwapper,
+    WorkerOverlapEnumerator, WorkerOverlapSearch, WorkerOverlapSearchError,
+    possible_overlap_search_for_ordered_subfaces, possible_overlap_search_for_subfaces,
+    possible_overlap_search_for_subfaces_with_swap, prioritize_subfaces,
 };
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

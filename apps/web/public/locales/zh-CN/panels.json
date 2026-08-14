@@ -516,6 +516,7 @@
     "localCrossing_other": "纸张在 {{count}} 个顶点处穿过了自身。",
     "localCrossingLabel": "纸张自相穿透",
     "noLayerOrderContradictorySeeds": "两个面各自都必须位于对方之上，任何层序都无法同时满足。",
+    "noLayerOrderExhausted": "Ori Studio 在找到此立体的层序之前停止了搜索。",
     "noLayerOrderGeneric": "无法确定此立体各层的先后顺序。",
     "noLayerOrderLabel": "层序未确定",
     "selectCreases": "选中这些折线",

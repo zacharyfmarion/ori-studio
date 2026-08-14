@@ -1134,3 +1134,104 @@ fn a_cycle_across_stacks_survives_the_search() {
         "a cycle inside one stack must not be accepted"
     );
 }
+
+/// The search gives up on a budget, and says so as its own outcome.
+///
+/// The budget exists because the alternative was not slowness but non-
+/// termination: before the subface-loss fix, `hex pleated pangolin` produced
+/// candidate stackings forever and the only way out was the Stop button. What
+/// this pins is the *shape* of giving up, which is the part a later change can
+/// quietly get wrong — `Exhausted` must not arrive as a cancel, because the
+/// frontend unwinds those silently, and it must not arrive as "no layer order",
+/// because that is a claim about the user's crease pattern.
+///
+/// Both directions are asserted. A budget the search fits inside must not fire,
+/// or the test would pass just as happily against a build that gave up on
+/// everything.
+#[test]
+fn an_exhausted_search_is_its_own_outcome_not_a_verdict_or_a_cancel() {
+    // Three faces, one stack, and a cycle among the seeds: unsatisfiable, and
+    // cheap enough that its whole search fits in a single outer iteration.
+    let subfaces = vec![SubFace {
+        face_ids: vec![0, 1, 2],
+    }];
+    let hierarchy = InitialHierarchy {
+        faces_total: 3,
+        relations: vec![
+            HierarchyRelation {
+                upper_face: 0,
+                lower_face: 1,
+            },
+            HierarchyRelation {
+                upper_face: 1,
+                lower_face: 2,
+            },
+            HierarchyRelation {
+                upper_face: 2,
+                lower_face: 0,
+            },
+        ],
+    };
+    let build = || {
+        oristudio_cp::folding::WorkerOverlapEnumerator::from_subfaces(
+            &subfaces,
+            &[0usize],
+            &hierarchy,
+            None,
+        )
+        .expect("build")
+    };
+
+    // Unbounded it settles on "no stacking exists" rather than running away, so
+    // the budget below is the only thing under test.
+    let unbounded = build()
+        .possible_overlapping_search(true)
+        .expect("unbounded search");
+    assert!(!unbounded.found, "the fixture is meant to be unsatisfiable");
+
+    // One iteration is all this search needs, so a budget of one is room to
+    // spare and must leave the answer untouched.
+    let within = build()
+        .within_iteration_budget(1)
+        .possible_overlapping_search(true)
+        .expect("a budget the search fits inside must not fire");
+    assert_eq!(within.found, unbounded.found);
+
+    // Zero is the only budget this fixture can exceed. On a model that needs
+    // thousands the same branch is reached the same way.
+    let error = build()
+        .within_iteration_budget(0)
+        .possible_overlapping_search(true)
+        .expect_err("a zero budget must stop before the first iteration");
+
+    assert!(
+        matches!(
+            error,
+            oristudio_cp::folding::WorkerOverlapSearchError::Exhausted { iterations: 1 }
+        ),
+        "giving up reported as {error:?}"
+    );
+    assert!(
+        !error.is_cancelled(),
+        "an exhausted search must not read as the user pressing Stop"
+    );
+}
+
+/// The flat path keeps upstream's unbounded loop.
+///
+/// The budget is opt-in for a reason: `WorkerOverlapEnumerator` is shared, and
+/// upstream's `while (Sid != 0)` has no bound at all. A default budget would
+/// change the flat path's answer on a hard model without anyone asking for it.
+#[test]
+fn the_flat_path_sets_no_iteration_budget() {
+    let subfaces = vec![SubFace {
+        face_ids: vec![0, 1, 2],
+    }];
+    let hierarchy = InitialHierarchy {
+        faces_total: 3,
+        relations: Vec::new(),
+    };
+    let search = possible_overlap_search_for_subfaces(&subfaces, &[0usize], &hierarchy, None)
+        .expect("the flat entry point must not be bounded");
+    assert!(search.found);
+}

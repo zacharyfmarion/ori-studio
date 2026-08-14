@@ -250,6 +250,15 @@ pub enum WorkerOverlapSearchError {
         valid_count: usize,
         reduced_subface_count: usize,
     },
+    /// The search ran past its iteration budget without settling.
+    ///
+    /// **Not a statement about the model.** It means the search gave up, which
+    /// is a different claim from "no stacking exists" and has to stay
+    /// distinguishable from it all the way to the user — the same reason a
+    /// cancel has its own arm.
+    Exhausted {
+        iterations: u64,
+    },
     /// The user stopped the fold. See [`crate::cancel`].
     Cancelled,
 }
@@ -273,7 +282,7 @@ impl WorkerOverlapSearchError {
             Self::SubFace(subface) => subface.is_cancelled(),
             Self::AdditionalEstimation(estimation) => estimation.is_cancelled(),
             Self::Setup(setup) => setup.is_cancelled(),
-            Self::FinalAdditionalEstimationRequired { .. } => false,
+            Self::FinalAdditionalEstimationRequired { .. } | Self::Exhausted { .. } => false,
         }
     }
 }
@@ -485,7 +494,31 @@ pub struct WorkerOverlapEnumerator {
     /// previously. In that case, adding it to the valid set will solve the
     /// problem."* — for a branch its code cannot reach from this error class.
     promote_on_condition_contradiction: bool,
+    /// Outer iterations this search may spend before giving up, or `None` for
+    /// upstream's unbounded loop.
+    ///
+    /// **Iterations, never wall clock.** `Fold3dSession` promises solution *N*
+    /// is the same solution on every run of the same segments, and a clock makes
+    /// that depend on the machine, the build and the load.
+    ///
+    /// Off for the flat path, which keeps upstream's `while (Sid != 0)` exactly.
+    iteration_budget: Option<u64>,
 }
+
+/// Outer iterations a 3D component's layer-order search may spend.
+///
+/// Sized from measurement, not from taste. The committed 3D fixtures settle in
+/// 0 or 1 iterations; the worst real model that converges is `hex pleated
+/// pangolin` at **2,248**, so this leaves a factor of ~445 before a genuine
+/// solve could be cut short.
+///
+/// It exists because the alternative is not "slow" but "never": before the
+/// subface-loss and promotion fixes, that same model produced ~1,500 iterations
+/// a second forever, and the only way out was the Stop button. A budget turns
+/// the worst case into a bounded wait ending in an honest verdict. It is a
+/// backstop, not a scheduling policy — anything that routinely approaches it is
+/// a bug to fix rather than a number to raise.
+pub const FOLD_3D_ITERATION_BUDGET: u64 = 1_000_000;
 
 /// The mutable part of a [`WorkerOverlapEnumerator`], for rollback.
 ///
@@ -572,6 +605,7 @@ impl WorkerOverlapEnumerator {
             hierarchy: hierarchy.clone(),
             conditions: conditions.cloned(),
             promote_on_condition_contradiction: false,
+            iteration_budget: None,
         })
     }
 
@@ -579,6 +613,12 @@ impl WorkerOverlapEnumerator {
     /// for why this is not the default.
     pub fn promoting_on_condition_contradiction(mut self) -> Self {
         self.promote_on_condition_contradiction = true;
+        self
+    }
+
+    /// Bound the outer search loop. See [`FOLD_3D_ITERATION_BUDGET`].
+    pub fn within_iteration_budget(mut self, budget: u64) -> Self {
+        self.iteration_budget = Some(budget);
         self
     }
 
@@ -627,7 +667,15 @@ impl WorkerOverlapEnumerator {
         let mut changed_subface = 1usize;
         let conditions = self.conditions.clone();
         let conditions = conditions.as_ref();
+        let mut iterations = 0u64;
         while changed_subface != 0 {
+            iterations += 1;
+            if self
+                .iteration_budget
+                .is_some_and(|budget| iterations > budget)
+            {
+                return Err(WorkerOverlapSearchError::Exhausted { iterations });
+            }
             crate::fold_profiling::bump_outer_iter();
             match inconsistent_subface_request(
                 &mut self.entries,

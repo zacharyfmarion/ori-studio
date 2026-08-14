@@ -488,7 +488,12 @@ export type OristudioCpFold3dOrderReason =
     }
   | { code: 'no_layer_order'; component: number; faces: number; variables: number }
   | { code: 'face_id_out_of_range'; component: number; face: number; faces_total: number }
-  | { code: 'search_failed'; component: number };
+  | { code: 'search_failed'; component: number }
+  /**
+   * The search ran out of its iteration budget. Its own code because it is its
+   * own claim — not "this pattern has no layer order" but "we stopped looking".
+   */
+  | { code: 'search_exhausted'; component: number; iterations: number };
 
 /** A self-intersection no layer order repairs. */
 export type OristudioCpFold3dCrossing =

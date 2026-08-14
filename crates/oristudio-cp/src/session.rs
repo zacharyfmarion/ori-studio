@@ -298,6 +298,12 @@ impl From<FoldingEstimateError> for EngineError {
                 | WorkerOverlapSearchError::FinalAdditionalEstimationRequired { .. } => {
                     "fold_layer_search"
                 }
+                // Unreachable on this path: only the 3D enumerator sets a
+                // budget, and it reports exhaustion as its own verdict rather
+                // than through this envelope. Named rather than folded into
+                // `fold_layer_search` so that if a flat caller ever does set
+                // one, it does not read as a failed search.
+                WorkerOverlapSearchError::Exhausted { .. } => "fold_search_exhausted",
                 // Both unreachable for the same reason as above, and both named
                 // for the same reason.
                 WorkerOverlapSearchError::AdditionalEstimation(

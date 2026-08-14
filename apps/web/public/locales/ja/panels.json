@@ -516,6 +516,7 @@
     "localCrossing_other": "{{count}}個の頂点で紙が自分自身を突き抜けています。",
     "localCrossingLabel": "紙が自己交差",
     "noLayerOrderContradictorySeeds": "2つの面がそれぞれ相手の上に来る必要があり、どちらの重なり順でも両立できません。",
+    "noLayerOrderExhausted": "Ori Studio はこの立体の重なり順を見つける前に探索を打ち切りました。",
     "noLayerOrderGeneric": "この立体の重なり順を決められませんでした。",
     "noLayerOrderLabel": "重なり順が未決定",
     "selectCreases": "該当の折り線を選択",
