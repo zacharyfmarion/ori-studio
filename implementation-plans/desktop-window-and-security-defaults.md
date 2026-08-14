@@ -266,10 +266,12 @@ No capability change is required by any item in this plan; the existing
       offscreen. **Already handled upstream** — the plugin restores a position
       only if some currently-available monitor intersects the saved rect, and
       otherwise leaves placement to the OS.
-- [ ] Save-on-quit is **unverified**: it runs on `RunEvent::Exit`, which a
-      `SIGTERM` does not trigger, and driving a real Cmd+Q needs UI automation
-      this environment does not have. The restore half is proven (it read a
-      seeded file). Confirm by quitting normally and reopening.
+- [x] Save-on-quit. Initially unverifiable here — it runs on `RunEvent::Exit`,
+      which `SIGTERM` does not trigger — but a real quit during testing produced
+      it: the state file was written as `2800x1800` physical, exactly the
+      1400x900 logical window at 2x, with its position. Relaunching restored the
+      window to 1400x900. Round trip closed: save, restore, and clamp are all
+      confirmed end to end.
 
 ### Window title
 - [x] Extend `formatWindowTitle` to prefer the filename, gated on
