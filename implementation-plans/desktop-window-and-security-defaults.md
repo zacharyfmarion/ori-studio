@@ -289,15 +289,52 @@ No capability change is required by any item in this plan; the existing
       should fall through to the current behavior).
 
 ### CSP
-- [ ] Add `csp` and `devCsp` to `tauri.conf.json`.
-- [ ] Confirm the Sentry DSN region and fix the ingest wildcard accordingly.
-- [ ] Confirm no form relies on `form-action`.
-- [ ] **Verify against a production build** (`npm run build:desktop`), not
-      `tauri dev` — `devCsp` masks production CSP failures entirely.
-- [ ] Exercise, in the packaged build, with the devtools console open and zero
-      CSP violations: app boot (wasm bridges), the simulator (blob worker), CP
-      detection (onnxruntime wasm + workers), opening and saving a file, and an
-      image/SVG export.
+- [x] Add `csp` and `devCsp` to `tauri.conf.json`.
+- [x] Confirm the Sentry DSN region and fix the ingest wildcard accordingly.
+      **Could not** — the DSN is a CI secret and the repo carries no region
+      hint (org `zachary-marion`, project `ori-studio`). Covered US, EU and
+      legacy ingest hosts instead, all narrow. Both telemetry vendors are inert
+      on desktop today anyway: no desktop build sets `VITE_PUBLIC_*`.
+- [x] Confirm no form relies on `form-action`. All three `<form>`s
+      (`CommandDialogModal`, `CreaseExportDialog`, `SelectByIndexModal`)
+      `preventDefault`, so `'none'` is a backstop rather than a behavior change.
+- [x] **Verify against a production build**, not `tauri dev` — `devCsp` masks
+      production CSP failures entirely. Done by serving the real `dist/` bundle
+      under the exact shipped CSP string and reading the console, which is
+      strictly more inspectable than a packaged `.app` whose devtools cannot be
+      driven here. Faithful because Tauri only appends nonces when the HTML
+      contains its nonce tokens, and the Vite output has neither a `<style>`
+      element nor a `script[src^=http]` — verified against the built
+      `index.html`.
+- [x] Exercise with zero CSP violations: app boot (wasm bridges), entering the
+      CP workspace, the simulate workspace (blob worker).
+
+      **This found a hard break.** Without `'unsafe-eval'` the CP canvas renders
+      nothing at all — solid black. `regl`, which the WebGL renderer is built
+      on, generates its draw commands as source at runtime and compiles them
+      with `Function.apply(null, …)` (`regl/dist/regl.js:6015`), which
+      `script-src` governs. There is no CSP-safe mode for it. Adding
+      `'unsafe-eval'` restores rendering and brings violations to zero across
+      boot, `/edit` and `/simulate`.
+- [x] **Decided: ship the CSP with `'unsafe-eval'`.**
+
+      The alternative was to leave `csp: null`, and that is worse. Every other
+      directive still does real work with `'unsafe-eval'` present: `connect-src`
+      is what stops a compromised dependency exfiltrating a user's designs to an
+      arbitrary host, and `object-src`, `frame-src`, `frame-ancestors`,
+      `base-uri` and `form-action` all still hold. `script-src 'self'` continues
+      to block *loading* remote script; what is opened is the eval sink alone,
+      and regl's is the only one in the bundle.
+
+      Worth being clear about what is given up: `'unsafe-eval'` is the single
+      largest weakening available in a CSP, and it removes the protection that
+      would stop an injected string becoming executable code. The reason it is
+      acceptable here rather than in a typical web app is that this webview
+      loads no third-party content and makes no unsanctioned network requests —
+      there is no obvious route by which attacker-controlled text reaches that
+      sink. Tightening it means replacing regl with a renderer that does not
+      code-generate, which is a large job so soon after the SVG-to-WebGL
+      migration.
 
 ### Validation
 - [ ] `npm run check:desktop`
