@@ -542,8 +542,16 @@ export function SimulatorPanel() {
               double-click the canvas), which drops the orientation with the
               angles. See `SimulatorViewport.resetView`.
             */}
+            {/*
+              `toolbar` to match the export control beside it. Omitting the
+              variant gives the ghost look, which sat next to the export button's
+              filled one and read as two different kinds of control rather than
+              two actions. `SimulatorExportMenu` defaults to `toolbar` and this
+              panel does not override it, so that is the look this header has.
+            */}
             <IconButton
               size="sm"
+              variant="toolbar"
               title={t("panels:simulator.setUpright", "Set upright")}
               disabled={loadState !== "ready"}
               onClick={() => {
