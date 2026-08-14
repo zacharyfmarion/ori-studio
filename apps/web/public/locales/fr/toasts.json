@@ -11,11 +11,11 @@
   },
   "global": {
     "error": "Erreur Ori Studio",
+    "folding": "Pliage…",
+    "foldingLong": "Pliage toujours en cours — cela peut prendre du temps",
     "foldStop": "Annuler",
     "foldStopped": "Pliage annulé",
     "foldStopping": "Annulation…",
-    "folding": "Pliage…",
-    "foldingLong": "Pliage toujours en cours — cela peut prendre du temps",
     "saved": "{{name}} enregistré",
     "saving": "Enregistrement de {{name}}…",
     "savingLong": "Enregistrement de {{name}} — les grands projets prennent un moment"

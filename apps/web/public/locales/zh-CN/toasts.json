@@ -11,11 +11,11 @@
   },
   "global": {
     "error": "Ori Studio 错误",
+    "folding": "正在折叠…",
+    "foldingLong": "仍在折叠 — 这可能需要一段时间",
     "foldStop": "取消",
     "foldStopped": "已取消折叠",
     "foldStopping": "正在取消…",
-    "folding": "正在折叠…",
-    "foldingLong": "仍在折叠 — 这可能需要一段时间",
     "saved": "已保存 {{name}}",
     "saving": "正在保存 {{name}}…",
     "savingLong": "仍在保存 {{name}} — 大型项目需要一些时间"

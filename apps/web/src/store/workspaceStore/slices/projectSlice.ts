@@ -170,7 +170,11 @@ import {
 import { exportFilename as defaultFilename } from '../../../platform/exportFilename';
 import { getRuntimeSurface } from '../../../platform/runtime';
 import i18n from '../../../i18n';
-import { requestConfirmation, requestCreasePatternExportOptions } from '../../commandDialogStore';
+import {
+  requestChoice,
+  requestConfirmation,
+  requestCreasePatternExportOptions,
+} from '../../commandDialogStore';
 import {
   blockingExportLoss,
   collectExportLossWarnings,
@@ -722,6 +726,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     return resolved ? { ...resolved, fold, segments } : null;
   };
 
+  /**
+   * The extra notice File › Export ORH shows on top of the feature-specific
+   * warning. Left exactly as it was: this change is about saving back over an
+   * opened file, and the export path is not its business.
+   */
   const confirmLossyOrhWrite = () =>
     requestConfirmation({
       title: 'Export legacy ORH?',
@@ -1734,6 +1743,116 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   // nothing to lose, so a lossless export keeps whatever confirm timing it had;
   // otherwise returns a Promise resolving to the user's choice. Callers use the
   // `gate !== true && !(await gate)` idiom so the no-loss path never awaits.
+  /** Option ids of the lossy-save choice. */
+  const LOSSY_SAVE_AS_PROJECT = 'save-as-project';
+  const LOSSY_SAVE_KEEP_FORMAT = 'keep-format';
+
+  /**
+   * Saving back over the file that was opened, in a format that cannot hold
+   * everything the document now has.
+   *
+   * Opening a `.ori`, adding a reference image and pressing ⌘S wrote Oriedita's
+   * format straight back and dropped the image without a word — while File ›
+   * Export ORI, which writes the *same bytes*, warned about it. Same question,
+   * so the same answer: the loss is described feature by feature.
+   *
+   * What differs from an export is the way out. An export's alternative is FOLD,
+   * the interchange format that carries a fold angle; a save's alternative is
+   * `.osf`, because someone pressing ⌘S wants to keep working with everything
+   * they have, and that is the format that keeps it.
+   */
+  const guardLossySaveBack = (
+    format: ExportFormat,
+    fileService: FileService
+  ): true | Promise<boolean> => {
+    const warnings = supersetLossWarnings(format);
+    if (warnings.length === 0) return true;
+    // Asked once per document, not per keystroke: ⌘S is a reflex, and a modal on
+    // every one of them is a modal people learn to dismiss unread. Keyed on the
+    // filename so it invalidates itself — opening anything else asks again
+    // without any load path having to remember to clear a flag.
+    if (get().acknowledgedLossySave === get().currentFileName) return true;
+
+    const blocking = blockingExportLoss(warnings);
+    const label = exportFormatLabel(format);
+
+    // A fold angle is not merely dropped: reopening the file reads every crease
+    // as a full fold, so the pattern comes back meaning something else and
+    // nothing in it says so. There is no "save anyway" for that.
+    if (blocking.length > 0) {
+      return requestConfirmation({
+        title: i18n.t('dialogs:lossySave.blockedTitle', 'Saving as {{format}} would change this pattern', {
+          format: label,
+        }),
+        message: i18n.t(
+          'dialogs:lossySave.blockedMessage',
+          '{{format}} can’t store {{features}}, and reopening the file would read every crease as a full fold. Saving as an Ori Studio project keeps everything.',
+          { format: label, features: describeExportLoss(i18n.t, blocking) }
+        ),
+        confirmLabel: i18n.t('dialogs:lossySave.saveAsProject', 'Save as Ori Studio project'),
+        cancelLabel: i18n.t('dialogs:common.cancel', 'Cancel'),
+      }).then(async (saveAsProject) => {
+        if (saveAsProject) await get().saveProjectAs(fileService);
+        // Either way this format is not written.
+        return false;
+      });
+    }
+
+    // Three outcomes, so a choice rather than a confirm: keeping the lossy
+    // format must be a button the user picks, never what dismissing the dialog
+    // does. Escape cancels the save.
+    return requestChoice({
+      title: i18n.t('dialogs:lossySave.title', 'Saving as {{format}} will drop some features', {
+        format: label,
+      }),
+      message: i18n.t(
+        'dialogs:lossySave.message',
+        'This document uses features {{format}} can’t store, and they will be left out of the saved file: {{features}}.',
+        { format: label, features: describeExportLoss(i18n.t, warnings) }
+      ),
+      options: [
+        {
+          id: LOSSY_SAVE_AS_PROJECT,
+          label: i18n.t('dialogs:lossySave.saveAsProject', 'Save as Ori Studio project'),
+          description: i18n.t(
+            'dialogs:lossySave.saveAsProjectDescription',
+            'Keeps everything, in Ori Studio’s own .osf format.'
+          ),
+        },
+        {
+          id: LOSSY_SAVE_KEEP_FORMAT,
+          label: i18n.t('dialogs:lossySave.keepFormat', 'Save as {{format}} anyway', {
+            format: label,
+          }),
+          description: i18n.t(
+            'dialogs:lossySave.keepFormatDescription',
+            'Writes the file you opened, without those features. Not asked again for this document.'
+          ),
+          tone: 'danger',
+        },
+      ],
+    }).then(async (choice) => {
+      if (choice === LOSSY_SAVE_AS_PROJECT) {
+        await get().saveProjectAs(fileService);
+        return false;
+      }
+      if (choice !== LOSSY_SAVE_KEEP_FORMAT) return false;
+      set({ acknowledgedLossySave: get().currentFileName });
+      return true;
+    });
+  };
+
+  /** The features `format` cannot carry, of those this document actually has. */
+  const supersetLossWarnings = (format: ExportFormat) =>
+    collectExportLossWarnings(format, {
+      images: get().oristudioCpAnnotations.filter(isImageAnnotation),
+      richText: get().oristudioCpAnnotations.filter(isTextAnnotation),
+      inlineSimulations: get().oristudioCpInlineSimulations,
+      lineSegments: get().oristudioCpDocument?.document.crease_pattern.line_segments ?? [],
+      foldedFigures: get().oristudioCpFoldedFigures,
+      bpSymmetry: selectOristudioBpSymmetry(get()),
+    });
+
   const guardExportLoss = (format: ExportFormat): true | Promise<boolean> => {
     const warnings = collectExportLossWarnings(format, {
       images: get().oristudioCpAnnotations.filter(isImageAnnotation),
@@ -1791,6 +1910,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   ): Promise<SaveFileResult | null> => {
     const documentState = get().oristudioCpDocument;
     if (!documentState) return null;
+    const oriLoss = guardLossySaveBack('ori', fileService);
+    if (oriLoss !== true && !(await oriLoss)) return null;
     const revisionAtSave = get().oristudioCpRevision;
     const importedCreasePattern = get().importedCreasePattern;
     const result = await saveDocumentFile(fileService, {
@@ -1834,8 +1955,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   ): Promise<SaveFileResult | null> => {
     const documentState = get().oristudioCpDocument;
     if (!documentState) return null;
+    // Was a generic "ORH is a legacy format" notice that never said what this
+    // document would actually lose.
+    const orhLoss = guardLossySaveBack('orh', fileService);
+    if (orhLoss !== true && !(await orhLoss)) return null;
     const revisionAtSave = get().oristudioCpRevision;
-    if (!(await confirmLossyOrhWrite())) return null;
     const importedCreasePattern = get().importedCreasePattern;
     const result = await saveDocumentFile(fileService, {
       title: 'Save Oriedita ORH Document',
@@ -2059,6 +2183,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     projectMessage: null,
     savedNotice: null,
     saveRun: null,
+    acknowledgedLossySave: null,
     oristudioCpShareDraft: null,
     pendingSharedCp: null,
     openingSharedCp: false,

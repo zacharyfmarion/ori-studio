@@ -284,6 +284,14 @@ export interface ProjectSliceState {
    */
   saveRun: { name: string; startedAt: number } | null;
   /**
+   * The filename whose lossy save-back format the user has already accepted.
+   *
+   * Keyed on the name rather than a boolean so it invalidates itself: opening or
+   * creating anything else changes `currentFileName` and the warning returns,
+   * without any of the load paths having to remember to clear a flag.
+   */
+  acknowledgedLossySave: string | null;
+  /**
    * The generated share link, while the share modal is open.
    *
    * Held in the store rather than in the toolbar because every toolbar action

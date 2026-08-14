@@ -206,6 +206,16 @@
     },
     "closeLabel": "Fechar {{title}}"
   },
+  "lossySave": {
+    "blockedMessage": "{{format}} não armazena {{features}}, e ao reabrir o arquivo cada vinco seria lido como uma dobra completa. Salvar como projeto do Ori Studio preserva tudo.",
+    "blockedTitle": "Salvar como {{format}} mudaria este padrão",
+    "keepFormat": "Salvar como {{format}} mesmo assim",
+    "keepFormatDescription": "Grava o arquivo que você abriu, sem esses recursos. Não perguntaremos de novo para este documento.",
+    "message": "Este documento usa recursos que {{format}} não armazena e que ficarão de fora do arquivo salvo: {{features}}.",
+    "saveAsProject": "Salvar como projeto do Ori Studio",
+    "saveAsProjectDescription": "Preserva tudo, no formato .osf do próprio Ori Studio.",
+    "title": "Salvar como {{format}} descartará alguns recursos"
+  },
   "number": {
     "tooSmall": "Insira um número maior que {{minimum}}."
   },

@@ -11,11 +11,11 @@
   },
   "global": {
     "error": "Ori Studio エラー",
+    "folding": "折り上げ中…",
+    "foldingLong": "折り上げ中です — しばらく時間がかかる場合があります",
     "foldStop": "キャンセル",
     "foldStopped": "折り上げをキャンセルしました",
     "foldStopping": "キャンセル中…",
-    "folding": "折り上げ中…",
-    "foldingLong": "折り上げ中です — しばらく時間がかかる場合があります",
     "saved": "{{name}} を保存しました",
     "saving": "{{name}} を保存中…",
     "savingLong": "{{name}} を保存中 — 大きなプロジェクトは時間がかかります"

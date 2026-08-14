@@ -196,6 +196,16 @@
     },
     "closeLabel": "关闭 {{title}}"
   },
+  "lossySave": {
+    "blockedMessage": "{{format}} 无法存储 {{features}}，重新打开文件时每条折痕都会被读作完全折叠。另存为 Ori Studio 项目可保留全部内容。",
+    "blockedTitle": "另存为 {{format}} 会改变此折痕图",
+    "keepFormat": "仍然保存为 {{format}}",
+    "keepFormatDescription": "写入你打开的文件，不包含这些功能。此文档不再询问。",
+    "message": "此文档使用了 {{format}} 无法存储的功能，保存的文件中将不包含：{{features}}。",
+    "saveAsProject": "另存为 Ori Studio 项目",
+    "saveAsProjectDescription": "以 Ori Studio 自有的 .osf 格式保留全部内容。",
+    "title": "另存为 {{format}} 将丢失部分功能"
+  },
   "number": {
     "tooSmall": "请输入大于 {{minimum}} 的数字。"
   },

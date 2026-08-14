@@ -196,6 +196,16 @@
     },
     "closeLabel": "{{title}} 닫기"
   },
+  "lossySave": {
+    "blockedMessage": "{{format}}는 {{features}}을(를) 저장할 수 없으며, 파일을 다시 열면 모든 접힘이 완전한 접힘으로 읽힙니다. Ori Studio 프로젝트로 저장하면 모두 보존됩니다.",
+    "blockedTitle": "{{format}}로 저장하면 이 전개도가 달라집니다",
+    "keepFormat": "그래도 {{format}}로 저장",
+    "keepFormatDescription": "연 파일을 그대로 기록하며 해당 기능은 빠집니다. 이 문서에서는 다시 묻지 않습니다.",
+    "message": "이 문서에는 {{format}}가 저장할 수 없는 기능이 있어 저장 파일에서 제외됩니다: {{features}}.",
+    "saveAsProject": "Ori Studio 프로젝트로 저장",
+    "saveAsProjectDescription": "Ori Studio 고유의 .osf 형식으로 모두 보존합니다.",
+    "title": "{{format}}로 저장하면 일부 기능이 사라집니다"
+  },
   "number": {
     "tooSmall": "{{minimum}}보다 큰 숫자를 입력하세요."
   },

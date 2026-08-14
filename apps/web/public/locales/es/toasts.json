@@ -11,11 +11,11 @@
   },
   "global": {
     "error": "Error de Ori Studio",
+    "folding": "Plegando…",
+    "foldingLong": "Sigue plegando: esto puede tardar un rato",
     "foldStop": "Cancelar",
     "foldStopped": "Plegado cancelado",
     "foldStopping": "Cancelando…",
-    "folding": "Plegando…",
-    "foldingLong": "Sigue plegando: esto puede tardar un rato",
     "saved": "{{name}} guardado",
     "saving": "Guardando {{name}}…",
     "savingLong": "Guardando {{name}} — los proyectos grandes tardan un momento"

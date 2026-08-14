@@ -2270,6 +2270,101 @@ describe('workspace store slices', () => {
   });
 
   /**
+   * Opening a `.ori`, adding a reference image and pressing ⌘S wrote Oriedita's
+   * format straight back and dropped the image without a word — while File ›
+   * Export ORI, which writes the same bytes, warned about it. Same loss, so the
+   * same question, and the alternative offered is `.osf` rather than FOLD:
+   * someone pressing ⌘S wants to keep working with everything they have.
+   */
+  describe('saving back over a file whose format cannot hold everything', () => {
+    const openOri = async () => {
+      resetStores(seedSnapshot());
+      await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0\n', {
+        filename: 'legacy.ori',
+        path: null,
+      });
+      useWorkspaceStore.setState({
+        oristudioCpAnnotations: [
+          {
+            kind: 'image' as const,
+            id: 'image-1',
+            src: 'data:image/png;base64,AAAA',
+            naturalWidth: 100,
+            naturalHeight: 80,
+            center: { x: 0.5, y: 0.5 },
+            width: 0.8,
+            height: 0.64,
+            rotation: 0,
+            crop: { x: 0, y: 0, w: 1, h: 1 },
+            opacity: 1,
+            locked: false,
+            hidden: false,
+            z: 1,
+          },
+        ],
+      });
+    };
+
+    it('names what will be dropped, and writes nothing when the save is dismissed', async () => {
+      await openOri();
+      const fileService = createFileService();
+      const unregisterDialogHost = registerCommandDialogHost();
+      try {
+        const save = useWorkspaceStore.getState().saveProject(fileService);
+        await vi.waitFor(() => expect(useCommandDialogStore.getState().dialog).not.toBeNull());
+        const dialog = useCommandDialogStore.getState().dialog;
+        expect(dialog?.type).toBe('choice');
+        // It must say what *this* document loses, not that the format is legacy.
+        expect(dialog && 'message' in dialog ? dialog.message : '').toContain('Images');
+        // Dismissing must cancel the save outright — never fall through to the
+        // lossy write, which is what a confirm dialog's cancel button would do.
+        resolveCommandDialog(dialog!.id, null);
+        await expect(save).resolves.toBe(false);
+      } finally {
+        unregisterDialogHost();
+      }
+      expect(fileService.saveTextFile).not.toHaveBeenCalled();
+    });
+
+    it('asks once, then saves that document without asking again', async () => {
+      await openOri();
+      const fileService = createFileService();
+      const unregisterDialogHost = registerCommandDialogHost();
+      try {
+        const first = useWorkspaceStore.getState().saveProject(fileService);
+        await vi.waitFor(() => expect(useCommandDialogStore.getState().dialog).not.toBeNull());
+        resolveCommandDialog(useCommandDialogStore.getState().dialog!.id, 'keep-format');
+        await expect(first).resolves.toBe(true);
+
+        // ⌘S is a reflex; a modal on every one of them is a modal people learn
+        // to dismiss unread.
+        await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+        expect(useCommandDialogStore.getState().dialog).toBeNull();
+      } finally {
+        unregisterDialogHost();
+      }
+      expect(fileService.saveTextFile).toHaveBeenCalledTimes(2);
+      expect(fileService.saveTextFile.mock.lastCall?.[0].extensions).toEqual(['ori']);
+    });
+
+    it('says nothing when the document has nothing the format would drop', async () => {
+      resetStores(seedSnapshot());
+      await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0\n', {
+        filename: 'plain.ori',
+        path: null,
+      });
+      const fileService = createFileService();
+      const unregisterDialogHost = registerCommandDialogHost();
+      try {
+        await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+        expect(useCommandDialogStore.getState().dialog).toBeNull();
+      } finally {
+        unregisterDialogHost();
+      }
+    });
+  });
+
+  /**
    * Not every loader throws. The box-pleat loader catches its own parse failure,
    * sets `status: 'error'` and returns false, so `openProject` used to report
    * success for a file that established nothing — and the caller now navigates
@@ -2994,16 +3089,12 @@ describe('workspace store slices', () => {
     useWorkspaceStore.setState({ dirty: true });
     const unregisterDialogHost = registerCommandDialogHost();
     try {
-      const saveOrh = useWorkspaceStore.getState().saveProject(fileService);
-      const dialog = useCommandDialogStore.getState().dialog;
-      expect(dialog).toMatchObject({
-        type: 'confirm',
-        title: 'Export legacy ORH?',
-        confirmLabel: 'Export ORH',
-      });
-      if (!dialog) throw new Error('expected ORH save confirmation');
-      resolveCommandDialog(dialog.id, true);
-      await expect(saveOrh).resolves.toBe(true);
+      // No prompt: this document has nothing ORH would drop. The old notice
+      // fired on every ORH save to say the format was legacy, which told the
+      // user nothing actionable — the warning is now about what *this* document
+      // would actually lose, and is covered by its own tests above.
+      await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+      expect(useCommandDialogStore.getState().dialog).toBeNull();
     } finally {
       unregisterDialogHost();
     }

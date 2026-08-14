@@ -201,6 +201,16 @@
     },
     "closeLabel": "{{title}} schließen"
   },
+  "lossySave": {
+    "blockedMessage": "{{format}} kann {{features}} nicht speichern, und beim erneuten Öffnen würde jede Faltung als vollständige Faltung gelesen. Als Ori-Studio-Projekt zu speichern erhält alles.",
+    "blockedTitle": "Speichern als {{format}} würde dieses Muster verändern",
+    "keepFormat": "Trotzdem als {{format}} speichern",
+    "keepFormatDescription": "Schreibt die geöffnete Datei ohne diese Funktionen. Für dieses Dokument wird nicht erneut gefragt.",
+    "message": "Dieses Dokument nutzt Funktionen, die {{format}} nicht speichern kann; sie fehlen in der gespeicherten Datei: {{features}}.",
+    "saveAsProject": "Als Ori-Studio-Projekt speichern",
+    "saveAsProjectDescription": "Erhält alles, im eigenen .osf-Format von Ori Studio.",
+    "title": "Speichern als {{format}} verwirft einige Funktionen"
+  },
   "number": {
     "tooSmall": "Geben Sie eine Zahl größer als {{minimum}} ein."
   },

@@ -206,6 +206,16 @@
     },
     "closeLabel": "Cerrar {{title}}"
   },
+  "lossySave": {
+    "blockedMessage": "{{format}} no puede almacenar {{features}}, y al reabrir el archivo cada pliegue se leería como un pliegue completo. Guardar como proyecto de Ori Studio lo conserva todo.",
+    "blockedTitle": "Guardar como {{format}} cambiaría este patrón",
+    "keepFormat": "Guardar como {{format}} de todos modos",
+    "keepFormatDescription": "Escribe el archivo que abriste, sin esas funciones. No se preguntará de nuevo para este documento.",
+    "message": "Este documento usa funciones que {{format}} no puede almacenar y se omitirán del archivo guardado: {{features}}.",
+    "saveAsProject": "Guardar como proyecto de Ori Studio",
+    "saveAsProjectDescription": "Conserva todo, en el formato .osf propio de Ori Studio.",
+    "title": "Guardar como {{format}} descartará algunas funciones"
+  },
   "number": {
     "tooSmall": "Introduce un número mayor que {{minimum}}."
   },
