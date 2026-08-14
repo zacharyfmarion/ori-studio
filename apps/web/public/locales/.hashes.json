@@ -2460,7 +2460,15 @@
     "toasts:global.foldStopped": "93f951528c80",
     "toasts:global.foldStopping": "91b104db05da",
     "common:startFigure.credit": "4dee822eeee6",
-    "toasts:global.saved": "241456ddec42"
+    "toasts:global.saved": "241456ddec42",
+    "panels:bpPacking.resizeFlapBottom": "897f6e5ddd54",
+    "panels:bpPacking.resizeFlapBottomLeft": "f0b277dd41c0",
+    "panels:bpPacking.resizeFlapBottomRight": "c7d0f77c48b1",
+    "panels:bpPacking.resizeFlapLeft": "259a9d2382d1",
+    "panels:bpPacking.resizeFlapRight": "784404c041f8",
+    "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
+    "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4923,7 +4931,15 @@
     "toasts:global.foldStopped": "93f951528c80",
     "toasts:global.foldStopping": "91b104db05da",
     "common:startFigure.credit": "4dee822eeee6",
-    "toasts:global.saved": "241456ddec42"
+    "toasts:global.saved": "241456ddec42",
+    "panels:bpPacking.resizeFlapBottom": "897f6e5ddd54",
+    "panels:bpPacking.resizeFlapBottomLeft": "f0b277dd41c0",
+    "panels:bpPacking.resizeFlapBottomRight": "c7d0f77c48b1",
+    "panels:bpPacking.resizeFlapLeft": "259a9d2382d1",
+    "panels:bpPacking.resizeFlapRight": "784404c041f8",
+    "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
+    "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7386,7 +7402,15 @@
     "toasts:global.foldStopped": "93f951528c80",
     "toasts:global.foldStopping": "91b104db05da",
     "common:startFigure.credit": "4dee822eeee6",
-    "toasts:global.saved": "241456ddec42"
+    "toasts:global.saved": "241456ddec42",
+    "panels:bpPacking.resizeFlapBottom": "897f6e5ddd54",
+    "panels:bpPacking.resizeFlapBottomLeft": "f0b277dd41c0",
+    "panels:bpPacking.resizeFlapBottomRight": "c7d0f77c48b1",
+    "panels:bpPacking.resizeFlapLeft": "259a9d2382d1",
+    "panels:bpPacking.resizeFlapRight": "784404c041f8",
+    "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
+    "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9810,7 +9834,15 @@
     "toasts:global.foldStopped": "93f951528c80",
     "toasts:global.foldStopping": "91b104db05da",
     "common:startFigure.credit": "4dee822eeee6",
-    "toasts:global.saved": "241456ddec42"
+    "toasts:global.saved": "241456ddec42",
+    "panels:bpPacking.resizeFlapBottom": "897f6e5ddd54",
+    "panels:bpPacking.resizeFlapBottomLeft": "f0b277dd41c0",
+    "panels:bpPacking.resizeFlapBottomRight": "c7d0f77c48b1",
+    "panels:bpPacking.resizeFlapLeft": "259a9d2382d1",
+    "panels:bpPacking.resizeFlapRight": "784404c041f8",
+    "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
+    "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12234,7 +12266,15 @@
     "toasts:global.foldStopped": "93f951528c80",
     "toasts:global.foldStopping": "91b104db05da",
     "common:startFigure.credit": "4dee822eeee6",
-    "toasts:global.saved": "241456ddec42"
+    "toasts:global.saved": "241456ddec42",
+    "panels:bpPacking.resizeFlapBottom": "897f6e5ddd54",
+    "panels:bpPacking.resizeFlapBottomLeft": "f0b277dd41c0",
+    "panels:bpPacking.resizeFlapBottomRight": "c7d0f77c48b1",
+    "panels:bpPacking.resizeFlapLeft": "259a9d2382d1",
+    "panels:bpPacking.resizeFlapRight": "784404c041f8",
+    "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
+    "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -14697,7 +14737,15 @@
     "toasts:global.foldStopped": "93f951528c80",
     "toasts:global.foldStopping": "91b104db05da",
     "common:startFigure.credit": "4dee822eeee6",
-    "toasts:global.saved": "241456ddec42"
+    "toasts:global.saved": "241456ddec42",
+    "panels:bpPacking.resizeFlapBottom": "897f6e5ddd54",
+    "panels:bpPacking.resizeFlapBottomLeft": "f0b277dd41c0",
+    "panels:bpPacking.resizeFlapBottomRight": "c7d0f77c48b1",
+    "panels:bpPacking.resizeFlapLeft": "259a9d2382d1",
+    "panels:bpPacking.resizeFlapRight": "784404c041f8",
+    "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
+    "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17160,7 +17208,15 @@
     "toasts:global.foldStopped": "93f951528c80",
     "toasts:global.foldStopping": "91b104db05da",
     "common:startFigure.credit": "4dee822eeee6",
-    "toasts:global.saved": "241456ddec42"
+    "toasts:global.saved": "241456ddec42",
+    "panels:bpPacking.resizeFlapBottom": "897f6e5ddd54",
+    "panels:bpPacking.resizeFlapBottomLeft": "f0b277dd41c0",
+    "panels:bpPacking.resizeFlapBottomRight": "c7d0f77c48b1",
+    "panels:bpPacking.resizeFlapLeft": "259a9d2382d1",
+    "panels:bpPacking.resizeFlapRight": "784404c041f8",
+    "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
+    "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -19584,6 +19640,14 @@
     "toasts:global.foldStopped": "93f951528c80",
     "toasts:global.foldStopping": "91b104db05da",
     "common:startFigure.credit": "4dee822eeee6",
-    "toasts:global.saved": "241456ddec42"
+    "toasts:global.saved": "241456ddec42",
+    "panels:bpPacking.resizeFlapBottom": "897f6e5ddd54",
+    "panels:bpPacking.resizeFlapBottomLeft": "f0b277dd41c0",
+    "panels:bpPacking.resizeFlapBottomRight": "c7d0f77c48b1",
+    "panels:bpPacking.resizeFlapLeft": "259a9d2382d1",
+    "panels:bpPacking.resizeFlapRight": "784404c041f8",
+    "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
+    "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
   }
 }

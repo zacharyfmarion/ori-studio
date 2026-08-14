@@ -660,6 +660,31 @@ export interface OristudioBpWasmTreeData {
   nodes: OristudioBpWasmTreeNode[];
 }
 
+/**
+ * A flap's whole footprint, for the kernel's `reshape_flap`.
+ *
+ * A flap draws as its box grown by its radius on every side, so a gesture that
+ * resizes what is on screen generally moves the anchor *and* the box *and* the
+ * leaf-edge length. They travel together because the kernel applies them as one
+ * solve and one history step — and because no intermediate state (a grown box
+ * still at the old anchor, say) has to pass the sheet's at-most-one-tip rule.
+ */
+export interface OristudioBpFlapReshape {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** The flap's leaf-edge length. Omitted leaves the radius alone. */
+  radius?: number;
+  /**
+   * Where the flap's own tree vertex should sit, keeping the tree drawing
+   * length-faithful. Omitted leaves the drawing alone, which is what a mid-drag
+   * step wants — the correction is a drawing concern and can wait for the
+   * release.
+   */
+  vertex?: Point;
+}
+
 export interface OristudioBpWasmTreeNode {
   id: number;
   dist: number;

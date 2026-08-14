@@ -1,6 +1,6 @@
 //! `wasm-bindgen` wrapper around `oristudio-bp`.
 
-use oristudio_bp::engine::{BpProjectSession, BpSession};
+use oristudio_bp::engine::{BpProjectSession, BpSession, FlapReshape};
 use oristudio_bp::io::cp::{
     CpExportOptions, CpFormat, project_crease_pattern_snapshot, project_graphics_snapshot,
 };
@@ -336,6 +336,56 @@ pub fn bp_resize_layout_flap(
     with_session_mut(handle, |session| {
         session
             .resize_flap(id, width, height)
+            .map_err(to_js_bp_error)?;
+        to_js_value(&session.project_for_export())
+    })
+}
+
+/// A flap reshape, as the browser sends it.
+///
+/// Carried as one JSON payload rather than eight positional numbers: a
+/// wrong-typed or mis-ordered scalar argument surfaces as a bare "memory access
+/// out of bounds" from wasm-bindgen with nothing pointing at the caller, while a
+/// mistyped field here fails as a named deserialization error.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FlapReshapePayload {
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    /// The flap's leaf-edge length; absent leaves the radius alone.
+    #[serde(default)]
+    radius: Option<f64>,
+    /// Where the flap's tree vertex should sit; absent leaves the drawing alone.
+    #[serde(default)]
+    vertex: Option<Point>,
+}
+
+#[wasm_bindgen]
+pub fn bp_reshape_layout_flap(
+    handle: u32,
+    id: u32,
+    reshape: JsValue,
+    dragging: bool,
+) -> Result<JsValue, JsValue> {
+    let reshape = from_js_value::<FlapReshapePayload>(reshape)?;
+    with_session_mut(handle, |session| {
+        session
+            .reshape_flap(
+                id,
+                FlapReshape {
+                    anchor: Point {
+                        x: reshape.x,
+                        y: reshape.y,
+                    },
+                    width: reshape.width,
+                    height: reshape.height,
+                    radius: reshape.radius,
+                    vertex: reshape.vertex,
+                },
+                dragging,
+            )
             .map_err(to_js_bp_error)?;
         to_js_value(&session.project_for_export())
     })
