@@ -347,4 +347,7 @@ lever is the number of calls, not their cost.
 - [x] Phase 4: `orderReasonDetail` sentence + all 9 locales + `i18n:check`
 - [x] Every committed fixture finishes well inside the budget (0-1 iterations;
       worst real model 2,248 against a budget of 1,000,000)
-- [ ] Rebuild the CP wasm bridge and confirm the pangolin in the browser
+- [x] Rebuild the CP wasm bridge and confirm the pangolin in the browser —
+      folds through the real bridge in 435-593 ms, `verdict: folded`,
+      `undetermined_cells: 0`; `hex head 2` reports a genuine `no_layer_order`
+      in 552 ms, so the budget does not fire on it
