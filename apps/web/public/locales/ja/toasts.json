@@ -12,6 +12,10 @@
   "global": {
     "error": "Ori Studio エラー",
     "folding": "折り上げ中…",
+    "foldingLong": "折り上げ中です — しばらく時間がかかる場合があります",
+    "foldStop": "キャンセル",
+    "foldStopped": "折り上げをキャンセルしました",
+    "foldStopping": "キャンセル中…",
     "saved": "{{name}} を保存しました"
   },
   "simulatorExport": {

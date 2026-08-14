@@ -60,13 +60,28 @@ describe('StartScreen', () => {
     expect(rendered.textContent).toContain('Create a design');
   });
 
-  it('uses the authored crease-pattern image for the preview', () => {
+  it('shows the 3D folded figure, and no image while it loads', () => {
+    // The frame starts empty. Rendering the crease-pattern image here and
+    // swapping it for the figure a moment later is what made the start screen
+    // flash, so its absence is the assertion — a test that only looked for the
+    // canvas would pass on a build that had put the flash back.
     const rendered = renderStartScreen().container;
-    const image = rendered.querySelector<HTMLImageElement>('.start-screen__preview-image');
 
-    expect(image).not.toBeNull();
-    expect(image?.getAttribute('src')).toContain('/start/crease-pattern-preview.png');
-    expect(image?.getAttribute('alt')).toBe('');
+    expect(rendered.querySelector('.start-figure__canvas')).not.toBeNull();
+    expect(rendered.querySelector('.start-figure__fallback')).toBeNull();
+    expect(rendered.querySelector('.start-figure')?.getAttribute('data-status')).toBe(
+      'loading'
+    );
+
+    // The decorative half hides itself, and the preview around it does not —
+    // it carries the designer credit, and a link inside an `aria-hidden`
+    // subtree is focusable but never announced.
+    expect(
+      rendered.querySelector('.start-figure__stage')?.getAttribute('aria-hidden')
+    ).toBe('true');
+    expect(
+      rendered.querySelector('.start-screen__preview')?.getAttribute('aria-hidden')
+    ).toBeNull();
   });
 
   it('dispatches the selected start action', () => {

@@ -124,6 +124,13 @@ fn is_measurable(path: &Path) -> bool {
     path.extension().is_some_and(|e| e == "fold" || e == "osf")
 }
 
+/// Derivatives, not models: `fold-angle-3d/` holds the FOLD projections the
+/// fixture tests read (see `tests/common/mod.rs`), and every one of them comes
+/// out of an `.osf` this walk already counts. Descending into it would measure
+/// the same designs twice and move the census denominator by however many
+/// derivations happen to be checked out.
+const DERIVED_SUBDIR: &str = "fold-angle-3d";
+
 fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
@@ -131,6 +138,9 @@ fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
+            if path.file_name().is_some_and(|name| name == DERIVED_SUBDIR) {
+                continue;
+            }
             walk(&path, out);
         } else if is_measurable(&path) {
             out.push(path);
@@ -183,17 +193,6 @@ const DERIVATIONS: &[(&str, &str, &[&str])] = &[
     ("box_90_unangled.fold", "tooling/base.osf", &[]),
     ("spikes_small.fold", "non-flat-test.osf", &[]),
     ("spikes_large.fold", "spikes_better.fold", &[]),
-    (
-        "penguin_freeform.fold",
-        "plant/penguin_other_angles.osf",
-        &["--component", "0"],
-    ),
-    (
-        "penguin_disconnected.fold",
-        "plant/penguin_other_angles.osf",
-        &[],
-    ),
-    ("rabbit_unclosed.fold", "plant/rabbit.osf", &[]),
 ];
 
 /// A derived fixture that cannot be re-derived is a fixture nobody can trust.
@@ -345,7 +344,7 @@ fn corpus_scan_reports_every_model() {
 /// that can say whether anything reaches it.
 #[test]
 fn corpus_admission_reports_every_verdict() {
-    use oristudio_cp::folding3d::{Fold3dOutcome, Fold3dRefusal, admit};
+    use oristudio_cp::folding3d::{Fold3dOutcome, Fold3dPlacementError, Fold3dRefusal, admit};
     use std::collections::BTreeMap;
 
     let Some(root) = corpus("corpus_admission_reports_every_verdict") else {
@@ -382,7 +381,11 @@ fn corpus_admission_reports_every_verdict() {
                     Fold3dOutcome::LocalCrossing => "admitted with a local crossing",
                 }
             }
-            Err(refusal) => {
+            // A corpus scan binds no cancel, so the placement error is always a
+            // refusal here; naming the arm keeps that assumption checked rather
+            // than assumed.
+            Err(Fold3dPlacementError::Cancelled) => "Cancelled",
+            Err(Fold3dPlacementError::Refused(refusal)) => {
                 println!("{name:<52}  {refusal}");
                 match refusal {
                     Fold3dRefusal::NoFaces => "NoFaces",
@@ -751,6 +754,9 @@ fn corpus_ordering_reports_every_model() {
                     Fold3dOrderError::NoLayerOrder { .. } => "no-order".to_string(),
                     Fold3dOrderError::FaceIdOutOfRange { .. } => "out-of-range".to_string(),
                     Fold3dOrderError::SearchFailed { .. } => "search-failed".to_string(),
+                    // A corpus scan binds no cancel; named so the assumption is
+                    // checked rather than assumed.
+                    Fold3dOrderError::Cancelled => "cancelled".to_string(),
                 };
             }
         }
@@ -1495,8 +1501,12 @@ fn corpus_coverage_is_stated() {
         .filter_map(Result::ok)
         .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "fold"))
         .count();
+    // Five, not eight. `penguin_freeform`, `penguin_disconnected` and
+    // `rabbit_unclosed` were third-party designs and are now read from the
+    // corpus like everything else here; `tests/common/mod.rs` records what that
+    // cost and `verify_fold_fixtures.rs` asserts they stay out.
     assert!(
-        committed >= 8,
+        committed >= 5,
         "the committed 3D fixture corpus is the gate and it has shrunk to \
          {committed} files"
     );

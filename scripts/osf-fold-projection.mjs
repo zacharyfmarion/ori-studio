@@ -140,6 +140,42 @@ export function selectComponent(fold, index) {
   return out;
 }
 
+/**
+ * The FOLD document a path holds: a `.fold` as-is, or an `.osf` project's
+ * `foldProjection`, optionally narrowed to one connected component.
+ *
+ * Exported because reading "the crease pattern in this file" is not specific to
+ * emitting a fixture — `generate-start-figure.mjs` folds one — and two readers
+ * that disagreed about which document or component they took would silently
+ * produce different geometry from the same command line.
+ */
+export function readFoldDocument(path, { document = 0, component = null } = {}) {
+  const parsed = JSON.parse(readFileSync(path, 'utf8'));
+
+  let fold;
+  if (parsed.format === 'oristudio-project' || parsed.workspace) {
+    const entry = parsed.workspace?.documents?.[document];
+    if (!entry) {
+      throw new Error(`no workspace.documents[${document}] in this .osf`);
+    }
+    fold = entry.creasePattern?.foldProjection;
+    if (!fold) {
+      // A project saved before its pattern was ever folded has no projection.
+      // Saying so beats emitting an empty FOLD document.
+      throw new Error(
+        'this .osf carries no creasePattern.foldProjection — open it in Ori ' +
+          'Studio, fold it, and save before extracting'
+      );
+    }
+  } else if (parsed.vertices_coords || parsed.edges_vertices) {
+    fold = parsed;
+  } else {
+    throw new Error('input is neither an .osf project nor a FOLD document');
+  }
+
+  return component === null ? fold : selectComponent(fold, component);
+}
+
 function main(argv) {
   const positional = [];
   const options = { component: null, document: 0, precision: null, pretty: false };
@@ -156,31 +192,10 @@ function main(argv) {
   }
   if (positional.length !== 1) throw new Error(USAGE);
 
-  const raw = readFileSync(positional[0], 'utf8');
-  const parsed = JSON.parse(raw);
-
-  let fold;
-  if (parsed.format === 'oristudio-project' || parsed.workspace) {
-    const document = parsed.workspace?.documents?.[options.document];
-    if (!document) {
-      throw new Error(`no workspace.documents[${options.document}] in this .osf`);
-    }
-    fold = document.creasePattern?.foldProjection;
-    if (!fold) {
-      // A project saved before its pattern was ever folded has no projection.
-      // Saying so beats emitting an empty FOLD document.
-      throw new Error(
-        'this .osf carries no creasePattern.foldProjection — open it in Ori ' +
-          'Studio, fold it, and save before extracting'
-      );
-    }
-  } else if (parsed.vertices_coords || parsed.edges_vertices) {
-    fold = parsed;
-  } else {
-    throw new Error('input is neither an .osf project nor a FOLD document');
-  }
-
-  if (options.component !== null) fold = selectComponent(fold, options.component);
+  const fold = readFoldDocument(positional[0], {
+    document: options.document,
+    component: options.component,
+  });
 
   const out = { ...fold };
   if (Array.isArray(fold.vertices_coords)) {

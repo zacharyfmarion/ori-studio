@@ -2,11 +2,7 @@ import { DraftingCompass, FilePlus, FolderOpen, PenTool } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AppStatus } from '../lib/sampleProject';
-
-const publicAssetBase = import.meta.env.BASE_URL.endsWith('/')
-  ? import.meta.env.BASE_URL
-  : `${import.meta.env.BASE_URL}/`;
-const creasePatternPreviewSrc = `${publicAssetBase}start/crease-pattern-preview.png`;
+import { StartFigure } from './start/StartFigure';
 
 interface StartScreenProps {
   status: AppStatus;
@@ -37,7 +33,10 @@ export function StartScreen({
       : t('dialogs:startScreen.chooseBegin', 'Choose how you want to begin.');
 
   return (
-    <main className="start-screen" aria-busy={preparing || undefined}>
+    // A div, not the page's `main`: the start screen is the first screenful of
+    // the welcome page, which owns the landmark and the landing below it. The
+    // labelled region inside is still the section.
+    <div className="start-screen" aria-busy={preparing || undefined}>
       <section className="start-screen__content" aria-labelledby="start-screen-title">
         <div className="start-screen__hero">
           <div className="start-screen__copy">
@@ -51,14 +50,11 @@ export function StartScreen({
               )}
             </p>
           </div>
-          <div className="start-screen__preview" aria-hidden="true">
+          {/* Not `aria-hidden`: the figure carries a designer credit, and the
+              decorative half marks itself hidden from inside. */}
+          <div className="start-screen__preview">
             <div className="start-screen__preview-frame">
-              <img
-                className="start-screen__preview-image"
-                src={creasePatternPreviewSrc}
-                alt=""
-                decoding="async"
-              />
+              <StartFigure />
             </div>
           </div>
         </div>
@@ -111,7 +107,7 @@ export function StartScreen({
           </label>
         </div>
       </section>
-    </main>
+    </div>
   );
 }
 

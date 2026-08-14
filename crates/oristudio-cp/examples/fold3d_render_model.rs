@@ -13,6 +13,16 @@
 //!     --out apps/web/src/cp-workspace/folded/__fixtures__
 //! ```
 //!
+//! With `--source`, it folds one arbitrary `.fold` instead of the fixture set
+//! and writes that model to stdout. That is how `scripts/generate-start-figure.mjs`
+//! gets the start screen's figure: the same `Fold3dSession` the `G` key drives,
+//! so what ships is the kernel's exact folded state and not a relaxation of it.
+//!
+//! ```bash
+//! cargo run -p oristudio-cp --release --example fold3d_render_model -- \
+//!     --source pattern.fold --solution 1 > model.json
+//! ```
+//!
 //! Two of the cases are built here rather than read from a file, because no
 //! naturally authored design has their shape and neither belongs in
 //! `tests/fixtures/fold-angle-3d/` (which is owner-authored material only — see
@@ -39,10 +49,22 @@ use treemaker_fold::FoldDocument;
 
 fn main() {
     let mut out: Option<PathBuf> = None;
+    let mut source: Option<PathBuf> = None;
+    let mut solution: usize = 1;
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--out" => out = args.next().map(PathBuf::from),
+            "--source" => source = args.next().map(PathBuf::from),
+            "--solution" => {
+                solution = args
+                    .next()
+                    .and_then(|value| value.parse().ok())
+                    .unwrap_or_else(|| {
+                        eprintln!("--solution needs a 1-based number");
+                        std::process::exit(2);
+                    });
+            }
             other => {
                 eprintln!("unknown argument {other}");
                 std::process::exit(2);
@@ -50,7 +72,12 @@ fn main() {
         }
     }
 
-    for (name, segments, case) in cases() {
+    let work = match &source {
+        Some(path) => vec![(path.display().to_string(), read_fold(path), solution)],
+        None => cases(),
+    };
+
+    for (name, segments, case) in work {
         let mut session = match Fold3dSession::new(&segments, 1, FoldedFigureModel::default()) {
             Ok(session) => session,
             Err(error) => {
@@ -77,6 +104,10 @@ fn main() {
             }
         };
         match &out {
+            // `--source` names one model, so `--out` would have to invent a file
+            // name for it. stdout is the honest answer and the one a shell
+            // redirect already handles.
+            Some(_) if source.is_some() => println!("{json}"),
             Some(directory) => {
                 let path = directory.join(format!("{name}.rendermodel.json"));
                 if let Err(error) = std::fs::write(&path, format!("{json}\n")) {
@@ -113,11 +144,17 @@ fn cases() -> Vec<(String, Vec<LineSegment>, usize)> {
 /// The committed `.fold` fixtures, read through the same importer the editor
 /// uses, so the segments are the ones `G` would fold.
 fn fixture(name: &str) -> Vec<LineSegment> {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .join("tests/fixtures/fold-angle-3d")
-        .join(format!("{name}.fold"));
-    let raw = std::fs::read_to_string(&path)
+    read_fold(
+        &Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join("tests/fixtures/fold-angle-3d")
+            .join(format!("{name}.fold")),
+    )
+}
+
+fn read_fold(path: &Path) -> Vec<LineSegment> {
+    let name = path.display();
+    let raw = std::fs::read_to_string(path)
         .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
     let document: FoldDocument =
         serde_json::from_str(&raw).unwrap_or_else(|error| panic!("parse {name}: {error}"));

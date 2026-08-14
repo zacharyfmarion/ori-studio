@@ -80,6 +80,10 @@ pub fn run() {
     tauri::Builder::default()
         .manage(OpenedFiles::default())
         .manage(cp_engine::new_state())
+        // Separate state, not a field on the engine: a fold holds the engine
+        // mutex for its whole duration, so the cancel flag has to live somewhere
+        // the stop command can reach without waiting for it.
+        .manage(cp_engine::new_cancel_state())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             platform_ping,
@@ -129,6 +133,10 @@ pub fn run() {
             cp_engine::cp_folded_figure_3d_fold_another,
             cp_engine::cp_folded_figure_3d_duplicate,
             cp_engine::cp_free_folded_figure,
+            // Deliberately *not* in NATIVE_CP_COMMAND_NAMES: it maps to no
+            // CpSession operation and never takes the engine mutex, which is the
+            // only reason it can answer while a fold is running.
+            cp_engine::cp_fold_cancel,
         ])
         .build(tauri::generate_context!())
         .expect("error while building Ori Studio")

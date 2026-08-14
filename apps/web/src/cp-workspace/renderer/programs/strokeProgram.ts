@@ -6,6 +6,7 @@ import {
   type ViewTransform,
   type Viewport,
 } from '../types';
+import { disposeOnce } from './disposeOnce';
 
 type Regl = ReturnType<typeof createREGL>;
 type Buffer = ReturnType<Regl['buffer']>;
@@ -320,7 +321,7 @@ export function createStrokeProgram(
         instanceCount: count,
       });
     },
-    dispose() {
+    dispose: disposeOnce(() => {
       quad.destroy();
       aBuf?.destroy();
       bBuf?.destroy();
@@ -328,6 +329,6 @@ export function createStrokeProgram(
       widthMulBuf?.destroy();
       depthBuf?.destroy();
       dashSlotBuf?.destroy();
-    },
+    }),
   };
 }

@@ -521,7 +521,7 @@
       }
     },
     "cp_action_continuous_symmetric_draw": {
-      "label": "Отразить через линии",
+      "label": "Складка сквозь слои",
       "tooltip": "Непрерывное симметричное рисование",
       "disabledReason": "Готово",
       "steps": {

@@ -250,6 +250,9 @@
     "decrease": "Уменьшить {{label}}",
     "increase": "Увеличить {{label}}"
   },
+  "startFigure": {
+    "credit": "Дизайн: <2>Brandon Wong</2>"
+  },
   "toolbar": {
     "new": "Создать",
     "open": "Открыть",

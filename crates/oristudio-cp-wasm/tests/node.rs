@@ -206,11 +206,13 @@ fn folded_figure_session_exports_fold_and_followup_commands() {
     )
     .expect("document load should succeed");
 
+    // Run id 0: no cancellable run, which is what an unattributed fold means.
     let result = oristudio_cp_wasm::folded_figure_fold(
         handle,
         1,
         serde_wasm_bindgen::to_value("Order5").expect("order serializes"),
         JsValue::UNDEFINED,
+        0,
     )
     .expect("folded figure should fold");
     let result: serde_json::Value =
@@ -297,6 +299,7 @@ fn folded_figure_session_exports_fold_and_followup_commands() {
         folded_handle,
         3,
         serde_wasm_bindgen::to_value("Order5").expect("order serializes"),
+        0,
     )
     .expect("fold-to-case should run");
     let specific: serde_json::Value =
@@ -304,7 +307,7 @@ fn folded_figure_session_exports_fold_and_followup_commands() {
     assert_eq!(specific["snapshot"]["display_style"], "Paper5");
     assert_eq!(specific["discovered_case_numbers"], serde_json::json!([1]));
 
-    let another = oristudio_cp_wasm::folded_figure_fold_another(folded_handle)
+    let another = oristudio_cp_wasm::folded_figure_fold_another(folded_handle, 0)
         .expect("fold another should run");
     let another: serde_json::Value =
         serde_wasm_bindgen::from_value(another).expect("fold another deserializes");
@@ -329,6 +332,7 @@ fn folded_figure_selected_fold_uses_selected_folding_line_subset() {
         1,
         serde_wasm_bindgen::to_value("Order5").expect("order serializes"),
         JsValue::UNDEFINED,
+        0,
     )
     .expect("selected folded figure should fold");
     let result: serde_json::Value =
@@ -375,6 +379,59 @@ fn command_dispatch_accepts_resolved_line_payloads() {
 
     assert_eq!(result["operation"], "CreaseMakeMountain");
     assert!(exported.lines().all(|line| line.starts_with("3 ")));
+    oristudio_cp_wasm::free_document(handle).expect("document handle should free");
+}
+
+/// The web transport, end to end on the target that actually runs it: a slot in
+/// shared memory written from outside the module reaches the kernel's
+/// checkpoints and comes back as a `fold_cancelled` error envelope.
+///
+/// Everything else about this path is testable only in pieces — the buffer hop
+/// in vitest, the kernel's unwinding in `oristudio-cp` — and neither piece can
+/// tell whether `Atomics.load` through `js_sys` actually observes the write.
+#[wasm_bindgen_test]
+fn a_cancelled_run_stops_the_fold_through_the_shared_buffer() {
+    let handle = oristudio_cp_wasm::load_document(
+        serde_wasm_bindgen::to_value(&foldable_square_document()).expect("document serializes"),
+    )
+    .expect("document load should succeed");
+
+    let buffer = js_sys::SharedArrayBuffer::new(16);
+    let view = js_sys::Int32Array::new(&buffer);
+    oristudio_cp_wasm::cp_set_cancel_buffer(view.clone());
+
+    // Slot 0, exactly as `cancelFoldRun` writes it on the main thread.
+    js_sys::Atomics::store(&view, 0, 7).expect("cancel slot should be writable");
+
+    let error = oristudio_cp_wasm::folded_figure_fold(
+        handle,
+        1,
+        serde_wasm_bindgen::to_value("Order5").expect("order serializes"),
+        JsValue::UNDEFINED,
+        7,
+    )
+    .expect_err("a cancelled run must not return a figure");
+    let error: serde_json::Value =
+        serde_wasm_bindgen::from_value(error).expect("error envelope deserializes");
+    assert_eq!(error["code"], "fold_cancelled");
+
+    // A different run must be untouched by that stop — the kernel matches ids
+    // exactly, so the same standing signal cannot kill run 8.
+    let result = oristudio_cp_wasm::folded_figure_fold(
+        handle,
+        1,
+        serde_wasm_bindgen::to_value("Order5").expect("order serializes"),
+        JsValue::UNDEFINED,
+        8,
+    )
+    .expect("an unaddressed run folds to completion");
+    let result: serde_json::Value =
+        serde_wasm_bindgen::from_value(result).expect("fold result deserializes");
+    let folded_handle = result["handle"].as_u64().expect("folded figure handle") as u32;
+
+    // Leave the module without a standing cancel, so test order cannot matter.
+    js_sys::Atomics::store(&view, 0, 0).expect("cancel slot should be writable");
+    oristudio_cp_wasm::free_folded_figure(folded_handle).expect("folded handle should free");
     oristudio_cp_wasm::free_document(handle).expect("document handle should free");
 }
 

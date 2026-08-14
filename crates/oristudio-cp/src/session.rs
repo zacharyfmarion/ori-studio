@@ -18,8 +18,8 @@ use crate::fold_graph::FoldGraphError;
 use crate::folding::{
     AdditionalEstimationError, DisplayStyle, EstimationOrder, FoldSetupError, FoldedFigureModel,
     FoldedFigureRenderOptions, FoldedFigureRenderSnapshot, FoldedFigureSnapshot,
-    FoldingEstimateError, FoldingEstimateSession, WorkerOverlapSearchError, fold_another,
-    folded_figure_render_snapshot_from_session, folded_figure_snapshot_from_session,
+    FoldingEstimateError, FoldingEstimateSession, InitialHierarchyError, WorkerOverlapSearchError,
+    fold_another, folded_figure_render_snapshot_from_session, folded_figure_snapshot_from_session,
     folding_estimate_to_case,
 };
 use crate::folding3d::model::Folded3dRenderModel;
@@ -247,15 +247,41 @@ fn line_segment_bounds(model: &CreasePatternModel) -> Option<(Point, Point)> {
     }))
 }
 
+/// The engine code a cancelled fold reaches the frontend with.
+///
+/// `EngineError { code, message }` is serialised verbatim across both bridges,
+/// so this string is the whole contract: the store's `isFoldCancellation`
+/// matches on it to keep a cancel out of the error toast.
+pub const FOLD_CANCELLED_CODE: &str = "fold_cancelled";
+
 impl From<FoldingEstimateError> for EngineError {
     fn from(error: FoldingEstimateError) -> Self {
+        // **Before** any classification by cause. A checkpoint deep in the search
+        // unwinds through whichever domain enum its enclosing function returns,
+        // so a cancel arrives *inside* one of the arms below — and the
+        // `AdditionalEstimation(_)` arm is a wildcard mapping to
+        // "fold_contradiction". Classifying first would tell a user who pressed
+        // Stop that their crease pattern cannot be folded.
+        if error.is_cancelled() {
+            return Self::new(FOLD_CANCELLED_CODE, format!("{error:?}"));
+        }
         // Stable per-cause code for the UI; Debug string carries the detail.
         fn setup_code(setup: &FoldSetupError) -> &'static str {
             match setup {
                 FoldSetupError::FoldGraph(FoldGraphError::DisconnectedFaces { .. }) => {
                     "fold_disconnected"
                 }
-                FoldSetupError::InitialHierarchy(_) => "fold_same_parity",
+                FoldSetupError::InitialHierarchy(
+                    InitialHierarchyError::SameParityAdjacentFaces { .. },
+                ) => "fold_same_parity",
+                // All three unreachable: `is_cancelled` returned above. Named
+                // rather than wildcarded so a future arm cannot silently land
+                // here — a wildcard is exactly how the bug above was possible.
+                FoldSetupError::Cancelled
+                | FoldSetupError::FoldGraph(FoldGraphError::Cancelled)
+                | FoldSetupError::InitialHierarchy(InitialHierarchyError::Cancelled) => {
+                    FOLD_CANCELLED_CODE
+                }
             }
         }
         let code = match &error {
@@ -265,12 +291,21 @@ impl From<FoldingEstimateError> for EngineError {
                 WorkerOverlapSearchError::AdditionalEstimation(
                     AdditionalEstimationError::Setup(setup),
                 ) => setup_code(setup),
-                WorkerOverlapSearchError::AdditionalEstimation(_) => "fold_contradiction",
+                WorkerOverlapSearchError::AdditionalEstimation(
+                    AdditionalEstimationError::Contradiction { .. },
+                ) => "fold_contradiction",
                 WorkerOverlapSearchError::SubFace(_)
                 | WorkerOverlapSearchError::FinalAdditionalEstimationRequired { .. } => {
                     "fold_layer_search"
                 }
+                // Both unreachable for the same reason as above, and both named
+                // for the same reason.
+                WorkerOverlapSearchError::AdditionalEstimation(
+                    AdditionalEstimationError::Cancelled,
+                )
+                | WorkerOverlapSearchError::Cancelled => FOLD_CANCELLED_CODE,
             },
+            FoldingEstimateError::Cancelled => FOLD_CANCELLED_CODE,
         };
         Self::new(code, format!("{error:?}"))
     }
@@ -1002,6 +1037,14 @@ impl CpSession {
             Err(Fold3dSessionError::Refused(refusal)) => Ok(Fold3dFoldResult::Refused {
                 refusal: refusal.into(),
             }),
+            // Before the generic arm: this site builds its `EngineError` by hand
+            // and so never reaches `From<FoldingEstimateError>`, where the
+            // cancellation short-circuit lives. Without this the frontend's
+            // `isFoldCancellation` would miss a cancelled 3D fold and show it as
+            // a failure.
+            Err(error) if error.is_cancelled() => {
+                Err(EngineError::new(FOLD_CANCELLED_CODE, error.to_string()))
+            }
             Err(error) => Err(EngineError::new("fold_3d_failed", error.to_string())),
         }
     }
@@ -1012,9 +1055,16 @@ impl CpSession {
         handle: u32,
     ) -> Result<Fold3dStepResult, EngineError> {
         let session = self.spatial_mut(handle)?;
-        let advance = session
-            .advance()
-            .map_err(|error| EngineError::new("fold_3d_failed", error.to_string()))?;
+        let advance = session.advance().map_err(|error| {
+            // Same reason as `folded_figure_fold_3d`: hand-built, so the
+            // cancellation short-circuit has to be repeated here.
+            let code = if error.is_cancelled() {
+                FOLD_CANCELLED_CODE
+            } else {
+                "fold_3d_failed"
+            };
+            EngineError::new(code, error.to_string())
+        })?;
         Ok(Fold3dStepResult {
             snapshot: Box::new(session.snapshot()),
             render: Box::new(session.render_model().clone()),

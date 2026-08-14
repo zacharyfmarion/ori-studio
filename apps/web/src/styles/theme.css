@@ -1457,6 +1457,17 @@
   text-decoration: underline;
 }
 
+/*
+ * The bulk variant in the section header. `font: inherit` is right inside a row,
+ * where it keeps the link part of the sentence around it, and wrong here — the
+ * header has no body text to match, so it inherited the dialog's base size and
+ * came out louder than the rows it acts on. Sized to the row's action instead,
+ * which is the thing it is a shorthand for.
+ */
+.oriedita-import__use-anyway--all {
+  font-size: 0.78rem;
+}
+
 .oriedita-import__use-anyway:focus-visible {
   outline: 2px solid var(--accent-primary);
   outline-offset: 2px;
@@ -2254,6 +2265,19 @@
   min-width: 0;
 }
 
+/*
+ * Title on the left, an optional bulk control on the right. Baseline-aligned
+ * rather than centred: the control is text, and centring it against an uppercase
+ * micro-heading leaves it sitting visibly low.
+ */
+.settings-section__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
 .settings-section__title {
   margin: 0;
   color: var(--text-tertiary);
@@ -2284,9 +2308,10 @@
  * second frame saying the same thing. The copy stays flush with that title, as
  * the `<label>` checkboxes this replaced were.
  *
- * No focus rule either: the row is a mouse hit target, not a tab stop. Every row
- * holds a Radix switch — a `button`, never an `input` — and that switch carries
- * its own ring via `.toggle-switch:focus-visible`.
+ * No focus rule either: the row is a mouse hit target, not a tab stop. A switch
+ * row holds a Radix switch — a `button`, never an `input` — and that switch
+ * carries its own ring via `.toggle-switch:focus-visible`. A `--field` row holds
+ * a real input instead, which owns both the click and the ring; see below.
  */
 .settings-toggle-row {
   display: flex;
@@ -2296,6 +2321,21 @@
   /* Vertical only, so the row keeps a comfortable hit target without indenting. */
   padding: var(--space-1) 0;
   cursor: pointer;
+}
+
+/*
+ * A row whose control is a field rather than a switch. The input owns the click,
+ * so the row must not claim the pointer cursor the way a switch row does, and the
+ * field gets a column of its own so a long description cannot squeeze it.
+ */
+.settings-toggle-row--field {
+  cursor: default;
+  align-items: start;
+}
+
+.settings-toggle-row__field {
+  flex: 0 0 auto;
+  width: 132px;
 }
 
 .settings-toggle-row__copy {
@@ -7197,15 +7237,36 @@ button.cp-folded-figure-toolbar__notice:hover {
   cursor: pointer;
 }
 
-/* Closed device contours are clickable across their whole interior, not just the
-   outline, so the gadget can be selected by clicking anywhere inside it. */
-.bp-packing-primitive-hit-area {
+/*
+ * A device's shade: the interior of its gadget, which is also its click target —
+ * clickable across the whole interior, not just the outline, so the gadget can
+ * be selected by pressing anywhere inside it. Box Pleating Studio's `Device`
+ * fills one `_shade` from its contours and hits on it (`$setupHit(this._shade)`),
+ * exactly as `Flap` and `River` do, and moves only its alpha: `style.shade.alpha`
+ * (0.3) when the device *or its stretch* is selected, `style.shade.hover` (0.15)
+ * hovered, 0 otherwise. Those are the 18% and 9% the flap shade above documents,
+ * so a shaded gadget reads at the same strength as a shaded flap or river.
+ *
+ * This is what a stretch selection marks. It deliberately does not wash the two
+ * flaps the stretch spans — upstream's `Flap._drawShade` reacts to nothing but
+ * the flap itself, and those flaps are usually the largest on the sheet.
+ */
+.bp-packing-device-shade {
   fill: transparent;
   pointer-events: all;
   stroke: transparent;
   stroke-linejoin: round;
   stroke-width: 14;
   cursor: pointer;
+}
+
+.bp-packing-device-shade:hover {
+  fill: color-mix(in srgb, var(--accent-primary) 9%, transparent);
+}
+
+.bp-packing-device-shade--selected,
+.bp-packing-device-shade--selected:hover {
+  fill: color-mix(in srgb, var(--accent-primary) 18%, transparent);
 }
 
 /* Box Pleating Studio's junction layer: one solid colour for both fill and stroke,

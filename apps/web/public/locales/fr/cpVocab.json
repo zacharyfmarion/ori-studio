@@ -521,7 +521,7 @@
       }
     },
     "cp_action_continuous_symmetric_draw": {
-      "label": "Refléter à travers les lignes",
+      "label": "Pli à travers les couches",
       "tooltip": "Tracé symétrique continu",
       "disabledReason": "Prêt",
       "steps": {

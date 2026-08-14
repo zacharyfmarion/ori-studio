@@ -216,6 +216,14 @@ async function exportWithTexts(
 
 export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
   return {
+    /**
+     * No-op: the native transport carries the run id on the fold command itself
+     * and stops it through `cp_fold_cancel`, so there is no shared buffer to
+     * adopt. Present because `OristudioCpWorkerApi` is the lockstep contract
+     * between the two clients — a cancellation surface on one and not the other
+     * is exactly the drift that type is there to catch.
+     */
+    async setCancelBuffer(): Promise<void> {},
     async operationDescriptors(): Promise<OristudioCpOperationDescriptor[]> {
       return call('cp_operation_descriptors');
     },
@@ -283,12 +291,14 @@ export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
     ): Promise<number> {
       return call('cp_replace_line_segments', { handle, lineIds, segments });
     },
+    /** `runId` names the cancellable run; 0 means "not cancellable". */
     async foldFigure(
       handle: number,
       startingFaceId = 1,
       order: OristudioCpEstimationOrder = 'Order5',
       model?: OristudioCpFoldedFigureModel,
-      selectedLineIds: number[] = []
+      selectedLineIds: number[] = [],
+      runId = 0
     ): Promise<OristudioCpFoldedFigureResult> {
       if (selectedLineIds.length > 0) {
         return call('cp_folded_figure_fold_selected', {
@@ -297,6 +307,7 @@ export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
           startingFaceId,
           order,
           model: model ?? null,
+          runId,
         });
       }
       return call('cp_folded_figure_fold', {
@@ -304,6 +315,7 @@ export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
         startingFaceId,
         order,
         model: model ?? null,
+        runId,
       });
     },
     async foldedFigureSnapshot(handle: number): Promise<OristudioCpFoldedFigureSnapshot> {
@@ -329,31 +341,37 @@ export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
     async duplicateFoldedFigure(handle: number): Promise<OristudioCpFoldedFigureResult> {
       return call('cp_folded_figure_duplicate', { handle });
     },
-    async foldFigureAnother(handle: number): Promise<OristudioCpFoldedFigureSnapshot> {
-      return call('cp_folded_figure_fold_another', { handle });
+    async foldFigureAnother(
+      handle: number,
+      runId = 0
+    ): Promise<OristudioCpFoldedFigureSnapshot> {
+      return call('cp_folded_figure_fold_another', { handle, runId });
     },
     async foldFigureToCase(
       handle: number,
       objective: number,
-      initialOrder: OristudioCpEstimationOrder = 'Order5'
+      initialOrder: OristudioCpEstimationOrder = 'Order5',
+      runId = 0
     ): Promise<OristudioCpFoldedFigureBatchResult> {
-      return call('cp_folded_figure_fold_to_case', { handle, objective, initialOrder });
+      return call('cp_folded_figure_fold_to_case', { handle, objective, initialOrder, runId });
     },
     async fold3d(
       handle: number,
       selectedLineIds: number[],
       startingFaceId = 1,
-      model?: OristudioCpFoldedFigureModel
+      model?: OristudioCpFoldedFigureModel,
+      runId = 0
     ): Promise<OristudioCpFold3dFoldResult> {
       return call('cp_folded_figure_fold_3d', {
         documentHandle: handle,
         selectedLineIds,
         startingFaceId,
         model: model ?? null,
+        runId,
       });
     },
-    async fold3dAnother(handle: number): Promise<OristudioCpFold3dStepResult> {
-      return call('cp_folded_figure_3d_fold_another', { handle });
+    async fold3dAnother(handle: number, runId = 0): Promise<OristudioCpFold3dStepResult> {
+      return call('cp_folded_figure_3d_fold_another', { handle, runId });
     },
     async duplicateFolded3dFigure(handle: number): Promise<OristudioCpFold3dFoldResult> {
       return call('cp_folded_figure_3d_duplicate', { handle });

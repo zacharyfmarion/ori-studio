@@ -171,8 +171,8 @@
   },
   "foldWarning": {
     "dontShowAgain": "Ne plus afficher",
-    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage ?",
-    "spatialMessage": "Des erreurs ont été détectées dans la façon dont ces plis se plient. Continuer le pliage ?",
+    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage\u00a0?",
+    "spatialMessage": "Des erreurs ont été détectées dans la façon dont ces plis se plient. Continuer le pliage\u00a0?",
     "title": "Avertissement"
   },
   "help": {
@@ -258,6 +258,8 @@
     "summary": "Ceci applique les raccourcis que vous avez modifiés dans Oriedita. Les autres gardent leur touche actuelle ; pour déplacer tout le clavier, activez les valeurs par défaut d’Oriedita dans Réglages ▸ Raccourcis.",
     "title": "Importer les raccourcis Oriedita",
     "unbindNote": "Cède cette touche à {{takenBy}} et reste non assigné.",
+    "useAll": "Tout remplacer",
+    "useAllLabel": "Utiliser toutes les touches ignorées pouvant remplacer ce qui les occupe",
     "useAnyway": "Utiliser quand même",
     "useAnywayLabel": "Utiliser cette touche quand même et laisser {{action}} non assigné",
     "willChange_one": "Changera ({{count}})",
@@ -377,6 +379,8 @@
       "resetMessage": "Restaurer la disposition par défaut de l'espace de travail actuel ?",
       "resetTitle": "Réinitialiser la disposition de l'espace de travail",
       "showWelcome": "Afficher l'écran d'accueil au démarrage",
+      "snapRadius": "Rayon d'aimantation",
+      "snapRadiusHint": "À quelle distance le pointeur doit arriver d'un sommet, d'un pli ou d'un point de grille pour s'y aimanter, en unités de papier\u00a0: le papier fait 400 de large, c'est donc le même nombre que dans Oriedita.",
       "startup": "Démarrage",
       "wheelGestureHint": "Le pincement et Cmd/Ctrl+défilement zooment toujours, quel que soit votre choix.",
       "wheelPans": "Le défilement déplace, le pincement zoome",

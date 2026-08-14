@@ -1,5 +1,6 @@
 import type createREGL from 'regl';
 import type { FillGeometry, ViewTransform, Viewport } from '../types';
+import { disposeOnce } from './disposeOnce';
 
 type Regl = ReturnType<typeof createREGL>;
 type Buffer = ReturnType<Regl['buffer']>;
@@ -141,10 +142,10 @@ export function createFillProgram(regl: Regl, options: FillProgramOptions = {}):
         vertexCount: count,
       });
     },
-    dispose() {
+    dispose: disposeOnce(() => {
       positionBuf?.destroy();
       colorBuf?.destroy();
       depthBuf?.destroy();
-    },
+    }),
   };
 }

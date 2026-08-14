@@ -123,9 +123,13 @@ fn transpose_overlap(overlap: &Overlap) -> Overlap {
 }
 
 /// Reflect a repository about the line `y = x`.
+///
+/// The structure signature is not geometry this can reflect; callers compare
+/// signature-free repositories (see `mirrored_stretch_pair`).
 fn transpose_repository(repo: &Repository) -> Repository {
     Repository {
         index: repo.index,
+        signature: None,
         configurations: repo
             .configurations
             .iter()
@@ -274,6 +278,12 @@ fn mirrored_stretch_pair(
 
     strip_labels(&mut first);
     strip_labels(&mut second);
+    // These tests compare pattern *geometry*. The structure signature identifies
+    // the junctions a repository was generated for, so mirror images necessarily
+    // carry different ones — it is not geometry, and comparing it would only
+    // assert that the two stretches are distinct, which they are by construction.
+    first.signature = None;
+    second.signature = None;
     (first_id, first, second_id, second)
 }
 

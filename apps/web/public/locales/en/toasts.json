@@ -12,6 +12,10 @@
   "global": {
     "error": "Ori Studio error",
     "folding": "Folding…",
+    "foldingLong": "Still folding — this can take a while",
+    "foldStop": "Cancel",
+    "foldStopped": "Fold cancelled",
+    "foldStopping": "Cancelling…",
     "saved": "{{name}} saved"
   },
   "simulatorExport": {

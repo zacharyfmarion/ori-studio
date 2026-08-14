@@ -521,7 +521,7 @@
       }
     },
     "cp_action_continuous_symmetric_draw": {
-      "label": "선을 통한 반사",
+      "label": "층을 관통하는 주름",
       "tooltip": "연속 대칭 그리기",
       "disabledReason": "준비됨",
       "steps": {

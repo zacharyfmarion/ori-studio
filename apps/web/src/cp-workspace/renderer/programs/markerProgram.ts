@@ -1,5 +1,6 @@
 import type createREGL from 'regl';
 import type { MarkerGeometry, ViewTransform, Viewport } from '../types';
+import { disposeOnce } from './disposeOnce';
 
 type Regl = ReturnType<typeof createREGL>;
 type Buffer = ReturnType<Regl['buffer']>;
@@ -242,13 +243,13 @@ export function createMarkerProgram(regl: Regl): MarkerProgram {
         instanceCount: count,
       });
     },
-    dispose() {
+    dispose: disposeOnce(() => {
       quad.destroy();
       centerBuf?.destroy();
       sizeBuf?.destroy();
       shapeBuf?.destroy();
       fillBuf?.destroy();
       strokeBuf?.destroy();
-    },
+    }),
   };
 }

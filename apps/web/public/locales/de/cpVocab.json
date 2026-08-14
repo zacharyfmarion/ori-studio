@@ -521,7 +521,7 @@
       }
     },
     "cp_action_continuous_symmetric_draw": {
-      "label": "Durch Linien spiegeln",
+      "label": "Falte durch Lagen",
       "tooltip": "Kontinuierlich symmetrisch zeichnen",
       "disabledReason": "Bereit",
       "steps": {

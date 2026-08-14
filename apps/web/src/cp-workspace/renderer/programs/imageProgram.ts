@@ -1,5 +1,6 @@
 import type createREGL from 'regl';
 import type { ViewTransform, Viewport } from '../types';
+import { disposeOnce } from './disposeOnce';
 
 type Regl = ReturnType<typeof createREGL>;
 type Buffer = ReturnType<Regl['buffer']>;
@@ -171,8 +172,8 @@ export function createImageProgram(regl: Regl): ImageProgram {
         });
       }
     },
-    dispose() {
+    dispose: disposeOnce(() => {
       cornerBuf.destroy();
-    },
+    }),
   };
 }

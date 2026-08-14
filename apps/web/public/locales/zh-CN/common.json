@@ -250,6 +250,9 @@
     "decrease": "减小{{label}}",
     "increase": "增大{{label}}"
   },
+  "startFigure": {
+    "credit": "设计者：<2>Brandon Wong</2>"
+  },
   "toolbar": {
     "new": "新建",
     "open": "打开",

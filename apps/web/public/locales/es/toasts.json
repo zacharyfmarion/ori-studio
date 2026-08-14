@@ -12,6 +12,10 @@
   "global": {
     "error": "Error de Ori Studio",
     "folding": "Plegando…",
+    "foldingLong": "Sigue plegando: esto puede tardar un rato",
+    "foldStop": "Cancelar",
+    "foldStopped": "Plegado cancelado",
+    "foldStopping": "Cancelando…",
     "saved": "{{name}} guardado"
   },
   "simulatorExport": {

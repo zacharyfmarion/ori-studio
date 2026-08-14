@@ -1,0 +1,901 @@
+/*
+ * The landing page below the fold on `/welcome`.
+ *
+ * Quiet by design: the same tokens, borders and card treatment the app uses, at
+ * a larger reading size. A marketing page in a different visual language would
+ * be the first thing a visitor sees and the last thing that resembles the
+ * product.
+ */
+
+.welcome-landing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.landing-section {
+  padding: clamp(48px, 8vw, 96px) clamp(20px, 5vw, 56px);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.landing-section[data-tone='raised'] {
+  background: var(--bg-secondary);
+}
+
+.landing-section__inner {
+  display: grid;
+  gap: var(--space-6);
+  width: min(1120px, 100%);
+  margin-inline: auto;
+}
+
+/*
+ * Heading beside its content rather than above it. The narrower column is the
+ * text: a screenshot needs the room, and a measure of ~45 characters reads
+ * better than the full 1120 anyway.
+ */
+.landing-section__inner[data-layout='split'],
+.landing-section__inner[data-layout='split-reverse'] {
+  grid-template-columns: minmax(0, 4fr) minmax(0, 6fr);
+  align-items: center;
+  gap: clamp(28px, 4vw, 64px);
+}
+
+/*
+ * Reversed by `order`, not by DOM position, so the heading is still what a
+ * screen reader and the tab sequence reach first.
+ */
+.landing-section__inner[data-layout='split-reverse'] > .landing-section__head {
+  order: 2;
+}
+
+.landing-section__head {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.landing-section__eyebrow {
+  color: color-mix(in srgb, var(--accent-primary) 80%, var(--text-secondary));
+  font-size: 0.7rem;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.landing-section__title {
+  max-width: 20ch;
+  margin: 0;
+  color: var(--text-primary);
+  font-size: clamp(1.5rem, 3.2vw, 2.3rem);
+  font-weight: 780;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+.landing-section__lead {
+  max-width: 62ch;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: clamp(0.95rem, 1.4vw, 1.06rem);
+  font-weight: 500;
+  line-height: 1.62;
+}
+
+/* --- Screenshots --- */
+
+/*
+ * The frame holds 16:9 in every state — loading, loaded, or missing — so the
+ * page does not reflow as screenshots arrive and a missing one still occupies
+ * the space it will have. Capture screenshots at 16:9 for a flush fit; anything
+ * else is letterboxed rather than cropped.
+ */
+.landing-figure {
+  margin: 0;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-primary);
+}
+
+.landing-figure__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/*
+ * The stand-in until a screenshot is dropped into `public/landing/`. It names the
+ * file it wants — a missing figure should say what to add rather than show a
+ * broken-image icon or collapse the section's rhythm.
+ */
+.landing-figure--placeholder {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--space-2);
+  border-style: dashed;
+  border-color: var(--border-default);
+  background: color-mix(in srgb, var(--bg-elevated) 40%, transparent);
+  color: var(--text-tertiary);
+}
+
+.landing-figure__missing {
+  font-size: 0.82rem;
+  font-weight: 620;
+}
+
+.landing-figure__path {
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--text-primary) 7%, transparent);
+  font-size: 0.74rem;
+}
+
+/* --- The feature list (Edit) --- */
+
+/*
+ * Top-aligned, not centred. Centring was there to hide a third of the column
+ * being empty; with the descriptions inline the list is nearly as tall as the
+ * panel, and aligning their tops is what makes the two columns read as one
+ * block instead of two things floating near each other.
+ */
+.landing-features {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  align-items: start;
+  gap: clamp(24px, 4vw, 56px);
+}
+
+.landing-features__list {
+  display: grid;
+  align-content: start;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * A rule between items rather than a card each: four boxes stacked in a column
+ * is a lot of border for a list that is mostly text, and the open item already
+ * has an accent marking it.
+ */
+.landing-features__item {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.landing-features__item:last-child {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.landing-features__heading {
+  margin: 0;
+}
+
+.landing-features__trigger {
+  display: block;
+  width: 100%;
+  padding: var(--space-4) 0 var(--space-4) var(--space-4);
+  /* The accent bar lives on the trigger's left edge, transparent until open. */
+  border: 0;
+  border-left: 2px solid transparent;
+  background: none;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.landing-features__trigger:hover {
+  color: var(--text-primary);
+}
+
+.landing-features__trigger:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-primary) 72%, transparent);
+  outline-offset: -2px;
+}
+
+.landing-features__item[data-open] .landing-features__trigger {
+  border-left-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.landing-features__body {
+  padding: 0 var(--space-5) var(--space-5) var(--space-4);
+  border-left: 2px solid var(--accent-primary);
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.landing-features__body p {
+  margin: 0;
+}
+
+.landing-features__figure {
+  min-width: 0;
+}
+
+/* --- The swipeable carousel (Design) --- */
+
+.landing-swipe {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.landing-swipe__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.landing-swipe__tab {
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 660;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.landing-swipe__tab:hover {
+  color: var(--text-primary);
+}
+
+.landing-swipe__tab:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-primary) 72%, transparent);
+  outline-offset: 2px;
+}
+
+.landing-swipe__tab[aria-selected='true'] {
+  border-color: color-mix(in srgb, var(--accent-primary) 38%, var(--border-subtle));
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-elevated));
+  color: var(--text-primary);
+}
+
+/*
+ * The track. `scroll-snap-type` plus one-track-wide slides is the entire gesture
+ * layer on touch: swipe, fling, momentum, over-scroll and snap all come from the
+ * browser, tuned per platform. A transform-driven slider would have to
+ * reimplement each of them.
+ *
+ * `touch-action` must allow **both** axes. It reads like a way to say "vertical
+ * scrolling still belongs to the page", and `pan-y` was written here for exactly
+ * that reason — but it declares which pans this element accepts, so `pan-y`
+ * forbade the horizontal one and the carousel could not be swiped at all. The
+ * browser already picks an axis once a gesture commits; this only has to not
+ * take that choice away.
+ */
+.landing-swipe__viewport {
+  position: relative;
+  min-width: 0;
+}
+
+/*
+ * The arrows overlay the *figure*, not the slide. Carrying the same 16:9 as
+ * `LandingFigure` puts them on the screenshot's centre line; centering on the
+ * track instead would drag them down by however many lines the body ran to.
+ */
+/*
+ * The nav box stays exactly the figure — full width at 16:9 — because that is
+ * what puts the arrows on the screenshot's centre line. Moving them *out* is
+ * done with margins on the buttons, not by widening this: widening it would
+ * make its 16:9 height taller than the figure and drop the arrows below centre.
+ */
+.landing-swipe__nav {
+  position: absolute;
+  inset: 0 0 auto 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  aspect-ratio: 16 / 9;
+  /* Only the buttons take clicks; the rest of the figure stays draggable. */
+  pointer-events: none;
+}
+
+/*
+ * Pulled out into the page's margin where there is one, so the arrows stop
+ * covering the middle of the screenshot they are there to help you look at.
+ *
+ * The outset is whatever the gutter can spare: half the space either side of the
+ * 1120px column, less a margin, capped at 56px — enough to clear a 40px button
+ * with room to spare. It collapses to 0 on the way down, so a narrow window puts
+ * them back on the figure's edge rather than off the side of the page.
+ */
+.landing-swipe__arrow {
+  --swipe-nav-outset: clamp(0px, (100vw - 1120px) / 2 - 24px, 56px);
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--bg-elevated) 88%, transparent);
+  color: var(--text-primary);
+  pointer-events: auto;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.landing-swipe__arrow:first-child {
+  margin-left: calc(-1 * var(--swipe-nav-outset));
+}
+
+.landing-swipe__arrow:last-child {
+  margin-right: calc(-1 * var(--swipe-nav-outset));
+}
+
+.landing-swipe__arrow:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent-primary) 62%, var(--border-default));
+  background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-elevated));
+}
+
+.landing-swipe__arrow:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-primary) 72%, transparent);
+  outline-offset: 2px;
+}
+
+/*
+ * Kept in place when there is nowhere to go, rather than removed: an arrow that
+ * disappears at the ends makes the figure jump sideways as you page through.
+ */
+.landing-swipe__arrow:disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+
+.landing-swipe__track {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  touch-action: pan-x pan-y pinch-zoom;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  cursor: grab;
+}
+
+.landing-swipe__track::-webkit-scrollbar {
+  display: none;
+}
+
+.landing-swipe__track:active {
+  cursor: grabbing;
+}
+
+/*
+ * Snapping off for the length of a drag.
+ *
+ * `mandatory` re-snaps after every scroll write, so each intermediate position
+ * a drag sets is undone the moment it lands and the gesture does nothing — the
+ * cursor changes and nothing moves. It is restored on release, after the
+ * resting position has been read.
+ */
+.landing-swipe__track[data-dragging] {
+  scroll-snap-type: none;
+}
+
+.landing-swipe__slide {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-width: 0;
+  scroll-snap-align: center;
+}
+
+/* The figure is the drag handle; letting it start a native image drag would
+   cancel the gesture partway through. */
+.landing-swipe__slide img {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+/* Only in the tabless (phone) shape, where it replaces the pill row. */
+.landing-swipe__slide-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.05rem;
+  font-weight: 760;
+  line-height: 1.3;
+}
+
+.landing-swipe__body {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.58;
+}
+
+.landing-swipe__dots {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+/*
+ * Real buttons. They looked like controls and did nothing, which is worse than
+ * not having them — a dot that cannot be tapped is a broken affordance.
+ */
+.landing-swipe__dot {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.landing-swipe__dot::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--text-primary) 18%, transparent);
+  transition:
+    background-color 0.2s ease,
+    width 0.2s ease;
+}
+
+.landing-swipe__dot:hover::before {
+  background: color-mix(in srgb, var(--text-primary) 34%, transparent);
+}
+
+.landing-swipe__dot:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-primary) 72%, transparent);
+  outline-offset: 1px;
+  border-radius: var(--radius-full);
+}
+
+.landing-swipe__dot[data-active]::before {
+  width: 18px;
+  background: var(--accent-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-swipe__dot::before {
+    transition: none;
+  }
+}
+
+/* --- The format ring --- */
+
+.landing-ring {
+  /*
+   * One square box. Everything inside positions from its centre.
+   *
+   * `container-type` + `cqw` is what makes the radius a fixed *fraction* of the
+   * box (40%) rather than a pixel clamp. That is what lets the wire SVG draw on
+   * a plain 0–100 viewBox: the files are always at radius 40 in those units, so
+   * nothing has to be measured at runtime or recomputed on resize.
+   */
+  position: relative;
+  container-type: inline-size;
+  aspect-ratio: 1;
+  width: min(100%, 440px);
+  margin-inline: auto;
+  --ring-radius: 40cqw;
+}
+
+/* The orbit line the files sit on. */
+.landing-ring::before {
+  content: '';
+  position: absolute;
+  inset: 50%;
+  width: calc(var(--ring-radius) * 2);
+  height: calc(var(--ring-radius) * 2);
+  margin: calc(var(--ring-radius) * -1);
+  border: 1px dashed color-mix(in srgb, var(--text-primary) 12%, transparent);
+  border-radius: 50%;
+}
+
+.landing-ring__orbit {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* --- The wires --- */
+
+.landing-ring__wires {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.landing-ring__wire {
+  stroke: color-mix(in srgb, var(--text-primary) 16%, transparent);
+  stroke-width: 0.5;
+}
+
+.landing-ring__arrowhead {
+  fill: color-mix(in srgb, var(--accent-primary) 62%, var(--text-tertiary));
+}
+
+/*
+ * The travelling dash: one packet per wire, entering as the last one leaves.
+ *
+ * The period is `--flow-length`, the wire's own length, set per wire in
+ * `LandingFormatRing`. That is not a detail — a fixed period longer than the
+ * wire puts the dash off the end for part of every cycle, which looks like a
+ * broken animation rather than a subtle one.
+ */
+.landing-ring__flow {
+  --flow-dash: 1.4px;
+  stroke: var(--accent-primary);
+  stroke-width: 0.8;
+  stroke-linecap: round;
+  stroke-dasharray: var(--flow-dash) calc(var(--flow-length) - var(--flow-dash));
+  filter: drop-shadow(0 0 1px color-mix(in srgb, var(--accent-primary) 55%, transparent));
+  opacity: 0;
+}
+
+/*
+ * Only while the ring is actually on screen. Twenty animated strokes running
+ * against a page nobody has scrolled to is battery, not polish.
+ */
+.landing-ring[data-flowing] .landing-ring__flow {
+  opacity: 0.62;
+  animation: landing-flow-out 3s linear infinite;
+  /* Negative delay: each wire starts mid-cycle, so they never pulse in unison. */
+  animation-delay: calc(var(--slot) * -0.31s);
+}
+
+.landing-ring[data-flowing] .landing-ring__flow[data-way='in'] {
+  animation-name: landing-flow-in;
+  /* Half a period out of step with its outbound twin on two-way formats. */
+  animation-delay: calc(var(--slot) * -0.31s - 1.5s);
+}
+
+/*
+ * One wire length per cycle, so the dash travels the whole segment and wraps.
+ * No `calc()` here on purpose: the keyframe is the bare custom property, which
+ * is the form least likely to be discarded by a strict engine.
+ */
+@keyframes landing-flow-out {
+  from {
+    stroke-dashoffset: var(--flow-length);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes landing-flow-in {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: var(--flow-length);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-ring[data-flowing] .landing-ring__flow {
+    animation: none;
+    opacity: 0.3;
+  }
+}
+
+/*
+ * Each slot fills the box and rotates to its share of the circle; the file
+ * inside is pushed out to the radius and counter-rotated so it stays upright.
+ * Two rotations rather than trigonometry in JS, so the layout follows the
+ * radius at any viewport without recalculating anything.
+ */
+.landing-ring__slot {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  transform: rotate(calc(var(--slot) * 1turn / var(--ring-count)));
+  pointer-events: none;
+}
+
+.landing-ring__slot > .landing-file {
+  transform: translateY(calc(var(--ring-radius) * -1))
+    rotate(calc(var(--slot) * -1turn / var(--ring-count)));
+  pointer-events: auto;
+}
+
+.landing-ring__hub {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-2);
+}
+
+.landing-ring__hub-label {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 640;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* --- One file icon --- */
+
+.landing-file {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 56px;
+  /* The clipped top-right corner is what makes it read as a document. */
+  clip-path: polygon(0 0, 68% 0, 100% 26%, 100% 100%, 0 100%);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--bg-elevated) 92%, var(--bg-primary));
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  color: var(--text-secondary);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.landing-file:hover {
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-elevated));
+  color: var(--text-primary);
+}
+
+/* The turned-down corner, drawn over the clip. */
+.landing-file__fold {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 32%;
+  height: 26%;
+  background: color-mix(in srgb, var(--text-primary) 12%, transparent);
+  clip-path: polygon(0 0, 100% 100%, 0 100%);
+}
+
+.landing-file__ext {
+  padding-top: 12%;
+  font-size: 0.62rem;
+  font-weight: 720;
+  letter-spacing: 0.01em;
+}
+
+.landing-file[data-native] {
+  width: 62px;
+  height: 76px;
+  background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-elevated));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 42%, transparent);
+  color: var(--text-primary);
+}
+
+.landing-file[data-native] .landing-file__ext {
+  font-size: 0.78rem;
+}
+
+/*
+ * The direction, for screen readers only. The arrows carry it visually and are
+ * marked decorative, so without this the list would read as ten bare
+ * extensions with nothing to say which way any of them goes.
+ */
+.landing-file__direction {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --- Get it --- */
+
+.landing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.landing-actions__note {
+  max-width: 62ch;
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.55;
+}
+
+/* --- The scroll affordance --- */
+
+.welcome-scroll-cue {
+  position: absolute;
+  right: 0;
+  bottom: var(--space-5);
+  left: 0;
+  z-index: 30;
+  display: grid;
+  justify-items: center;
+  /* The start screen's own controls sit under this; only the button takes clicks. */
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.welcome-scroll-cue[data-hidden] {
+  opacity: 0;
+}
+
+.welcome-scroll-cue__button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 9px 18px;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 34%, var(--border-default));
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--bg-elevated) 94%, var(--accent-primary));
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 660;
+  pointer-events: auto;
+  cursor: pointer;
+  /* Lifts it off whatever start-screen content happens to sit behind it. */
+  box-shadow: 0 6px 18px color-mix(in srgb, #000 34%, transparent);
+  backdrop-filter: blur(6px);
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.welcome-scroll-cue__button:hover {
+  border-color: color-mix(in srgb, var(--accent-primary) 62%, var(--border-default));
+  background: color-mix(in srgb, var(--bg-elevated) 84%, var(--accent-primary));
+  transform: translateY(1px);
+}
+
+.welcome-scroll-cue__button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-primary) 72%, transparent);
+  outline-offset: 3px;
+}
+
+/*
+ * A small bob on the chevron alone. This is the one thing on the first screen
+ * whose job is to say "there is more below", and a static pill was reading as
+ * decoration — motion is what makes it register as an invitation.
+ */
+.welcome-scroll-cue__chevron {
+  animation: welcome-scroll-bob 2.4s ease-in-out infinite;
+}
+
+@keyframes welcome-scroll-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-scroll-cue__chevron {
+    animation: none;
+  }
+}
+
+/*
+ * Single column. Two selectors for one layout, because the two thresholds are
+ * not the same number and should not be: the media query is about how much room
+ * a column needs, while `data-surface` follows `PHONE_MEDIA_QUERY` (820px, and
+ * pointer-coarse). A 768px tablet in portrait falls between them, and would
+ * otherwise get three cards in the space of one.
+ */
+/*
+ * Everything side-by-side becomes one column, and the carousel's tab list turns
+ * into a scrollable row of pills above the panel — a column of four full-width
+ * buttons would push the screenshot they control off the screen entirely.
+ *
+ * Two selectors for one layout because the thresholds differ and should: the
+ * media query is about how much room a column needs, while `data-surface`
+ * follows `PHONE_MEDIA_QUERY` (820px, and pointer-coarse). A 768px tablet in
+ * portrait falls between them.
+ */
+@media (max-width: 860px) {
+  .landing-section__inner[data-layout='split'],
+  .landing-section__inner[data-layout='split-reverse'],
+  .landing-features {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .landing-section__inner[data-layout='split-reverse'] > .landing-section__head {
+    order: 0;
+  }
+
+  .landing-section__title {
+    max-width: none;
+  }
+}
+
+/*
+ * No arrows on a narrow screen. Swipe is the native affordance there, the dots
+ * already say where you are, and two 40px buttons over a ~340px figure cover the
+ * thing they are meant to help you look at.
+ */
+@media (max-width: 560px) {
+  .landing-swipe__nav {
+    display: none;
+  }
+}
+
+[data-surface='phone'] .landing-swipe__nav {
+  display: none;
+}
+
+/*
+ * The ring stays a ring on a phone; it just gets smaller.
+ *
+ * It used to unwind into a wrapped grid, on the assumption that ten files around
+ * a circle narrow enough for a phone would collide. They do not: at a ~327px
+ * container the radius is 131px, so the arc between neighbours is 82px against a
+ * 40px file. The arrangement is the whole point of the graphic — `.osf` in the
+ * middle with everything it converts to and from around it — and a grid of icons
+ * says none of that.
+ */
+@media (max-width: 560px) {
+  .landing-file {
+    width: 40px;
+    height: 48px;
+  }
+
+  .landing-file[data-native] {
+    width: 52px;
+    height: 64px;
+  }
+
+  .landing-file[data-native] .landing-file__ext {
+    font-size: 0.7rem;
+  }
+
+  .landing-ring__hub-label {
+    font-size: 0.62rem;
+  }
+}
+
+[data-surface='phone'] .landing-section__inner[data-layout='split'],
+[data-surface='phone'] .landing-section__inner[data-layout='split-reverse'],
+[data-surface='phone'] .landing-features {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+[data-surface='phone'] .landing-section__inner[data-layout='split-reverse'] > .landing-section__head {
+  order: 0;
+}
+
+[data-surface='phone'] .landing-section__title {
+  max-width: none;
+}
+
+[data-surface='phone'] .landing-actions > * {
+  flex: 1 1 100%;
+}

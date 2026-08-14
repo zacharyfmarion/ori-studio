@@ -441,10 +441,25 @@ pub fn bp_move_device(
     })
 }
 
+/// The session form, for the frontend's undo snapshots.
+///
+/// Upstream backs history with `this._project.toJSON(true)` and its stretch
+/// mementos are `toJSON(true)` too, so a snapshot keeps the repository and the
+/// config/pattern indices — undo must land back on the exact selection, not on
+/// a prototype that regenerates at index 0. `bp_export_bps` is the file form
+/// and must not be used for this.
+#[wasm_bindgen]
+pub fn bp_export_session_bps(handle: u32) -> Result<String, JsValue> {
+    with_session(handle, |session| {
+        io::bps::save_project_string(&session.project_for_export()).map_err(to_js_bp_error)
+    })
+}
+
 #[wasm_bindgen]
 pub fn bp_export_bps(handle: u32) -> Result<String, JsValue> {
     with_session(handle, |session| {
-        io::bps::save_project_string(&session.project_for_export()).map_err(to_js_bp_error)
+        let project = session.project_for_file().map_err(to_js_bp_error)?;
+        io::bps::save_project_string(&project).map_err(to_js_bp_error)
     })
 }
 
@@ -711,8 +726,12 @@ fn with_session_mut<T>(
     })
 }
 
+/// The file form: `bp_export_workspace` writes these into a `.bpz`, so they
+/// must not carry session state (see `BpProjectSession::project_for_file`).
 fn clone_project(handle: u32) -> Result<Project, JsValue> {
-    with_session(handle, |session| Ok(session.project_for_export()))
+    with_session(handle, |session| {
+        session.project_for_file().map_err(to_js_bp_error)
+    })
 }
 
 fn free_handles(handles: &[u32]) {

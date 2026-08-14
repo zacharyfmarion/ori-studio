@@ -4,6 +4,7 @@ import {
   classifyReservedKey,
   getShortcutRegistryDiagnostics,
   keyChordId,
+  shortcutMayDecline,
   type ShortcutDefinition,
 } from './shortcuts';
 import { ORISTUDIO_CP_ACTIONS, cpHiddenActions } from '../lib/oristudioCpActions';
@@ -187,6 +188,23 @@ describe('adopted single-key layout', () => {
     for (const freed of ['v', 'l', 'p', 'n']) {
       expect(byChord.get(freed)).toBeUndefined();
     }
+  });
+
+  it('marks exactly the viewport verbs whose CP executor can decline', () => {
+    // Pinned rather than spot-checked, so widening the set is a deliberate edit
+    // with a test to update. The conflict rules read this: a verb in here is
+    // transparent when something else wants its chord, and one outside it is an
+    // ordinary blocker the user may evict. Membership mirrors the arms of
+    // `CreasePatternPanel`'s viewport switch that can answer `false`.
+    const declining = SHORTCUT_DEFINITIONS.filter((definition) =>
+      shortcutMayDecline(definition.id)
+    ).map((definition) => definition.id);
+    expect(declining).toEqual([
+      'viewport.solveAnglesPrevious',
+      'viewport.solveAnglesNext',
+      'viewport.solveAnglesApply',
+      'viewport.delete',
+    ]);
   });
 
   it('leaves reset-rotation available but unbound by default', () => {

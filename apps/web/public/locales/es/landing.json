@@ -1,0 +1,90 @@
+{
+  "carousel": {
+    "next": "Siguiente",
+    "previous": "Anterior"
+  },
+  "compatibility": {
+    "eyebrow": "Compatibilidad",
+    "lead": "Buena parte de Ori Studio es una adaptación cuidadosa de lo que la comunidad ya había construido —Oriedita, TreeMaker y Box Pleating Studio— y mantener la interoperabilidad de importación y exportación con esas herramientas es un compromiso.",
+    "title": "Construido sobre las herramientas que ya usas"
+  },
+  "design": {
+    "bp": {
+      "body": "Distribuye las puntas sobre una cuadrícula, con ríos, dispositivos de estiramiento y restricciones de simetría, y lee el patrón de pliegues a partir del empaquetado.",
+      "figureAlt": "Puntas empaquetadas sobre una cuadrícula de plegado en caja, con su patrón de pliegues al lado.",
+      "title": "Plegado en caja"
+    },
+    "carouselLabel": "Métodos de diseño",
+    "explori": {
+      "body": "Envía tu árbol al archivo consultable de patrones de pliegues a 22,5° de Brandon Wong y explora las coincidencias más cercanas que devuelve.",
+      "figureAlt": "Una cuadrícula de patrones de pliegues a 22,5° devueltos por una búsqueda en ExplOri.",
+      "title": "ExplOri"
+    },
+    "eyebrow": "Diseño",
+    "lead": "Empaqueta tu modelo con el método que mejor le venga, con varios diseños abiertos a la vez en pestañas. Cada uno genera un patrón de pliegues que puedes enviar directamente al editor.",
+    "title": "Un espacio de diseño con pestañas",
+    "treemaker": {
+      "body": "Dibuja un árbol, define longitudes de arista y tensión, y deja que el optimizador empaquete círculos y ríos en una base.",
+      "figureAlt": "Una estructura de árbol junto al empaquetado de círculos que el optimizador encontró para ella.",
+      "title": "Empaquetado de círculos"
+    }
+  },
+  "edit": {
+    "angles": {
+      "body": "Dibuja, simula y resuelve modelos de origami con pliegues que no quedan planos.",
+      "figureAlt": "Un patrón de pliegues con etiquetas de ángulo en sus pliegues.",
+      "title": "Compatible con pliegues no planos"
+    },
+    "carouselLabel": "Funciones del patrón de pliegues",
+    "diagnostics": {
+      "body": "Kawasaki y Maekawa donde el papel se pliega plano. Donde no, cada vértice se comprueba en tres dimensiones: recorriendo sus pliegues para ver si el plegado se cierra, y por cuánto se desvía.",
+      "figureAlt": "Diagnósticos de plegabilidad marcando vértices problemáticos en un patrón de pliegues.",
+      "title": "Plegabilidad que compruebas sobre la marcha"
+    },
+    "eyebrow": "Patrones de pliegues",
+    "lead": "Dibuja con un conjunto completo de herramientas de construcción y transformación, con ajuste a la cuadrícula y a los ángulos, y ve los problemas de plegabilidad en el momento en que los creas. Las fotos de referencia, las notas y una vista previa plegada conviven en el mismo lienzo.",
+    "media": {
+      "body": "Coloca una foto de referencia del motivo junto al papel y anota el lienzo con texto enriquecido. Ambos se guardan con el proyecto y se omiten limpiamente al exportar a un formato que no tiene sitio para ellos.",
+      "figureAlt": "Una foto de referencia y una anotación de texto junto a un patrón de pliegues.",
+      "title": "Imágenes y texto de verdad"
+    },
+    "share": {
+      "body": "Envía a alguien un patrón de pliegues como una URL. Lo abre en su navegador sin instalar nada.",
+      "figureAlt": "El cuadro de diálogo del enlace para compartir, con una URL que se puede copiar.",
+      "title": "Comparte un patrón con un enlace"
+    },
+    "title": "Un editor que te sigue el ritmo"
+  },
+  "figureMissing": "Aquí va una captura",
+  "formats": {
+    "a11yBoth": "abre y exporta",
+    "a11yExport": "solo exporta",
+    "a11yImport": "solo abre",
+    "hubLabel": "Tu proyecto",
+    "ringLabel": "Formatos de archivo compatibles"
+  },
+  "get": {
+    "discord": "Únete al Discord",
+    "eyebrow": "Empezar",
+    "github": "Código y incidencias",
+    "lead": "Vuelve arriba y empieza un patrón de pliegues: esa es toda la preparación. Discord es el mejor sitio para informar de un error o proponer algo, y donde primero se anuncian las novedades.",
+    "title": "Funciona en el navegador. Nada que instalar."
+  },
+  "mobileHero": {
+    "tagline": "Diseña, edita y pliega origami, todo en el navegador."
+  },
+  "openApp": "Abrir la app (sin optimizar para móvil)",
+  "scrollCue": "Mira lo que hace",
+  "simulate": {
+    "eyebrow": "Simular",
+    "figureAlt": "Un modelo 3D plegado simulándose junto a su patrón de pliegues.",
+    "lead": "Abre una simulación en una ventana justo al lado del patrón de pliegues que estás dibujando, de modo que comprobar una idea cuesta un vistazo en lugar de una ida y vuelta por otro programa. Cuando quieras el modelo a solas, ahí está el espacio Simulate completo.",
+    "title": "Pliégalo sin salir del patrón"
+  },
+  "what": {
+    "eyebrow": "Qué es",
+    "figureAlt": "El espacio de trabajo de Ori Studio: un patrón de pliegues en el lienzo, con la barra de herramientas y los paneles del inspector alrededor.",
+    "lead": "Esboza una base, dibuja el patrón de pliegues y pliégalo para ver si funciona: todo en un mismo sitio, en el navegador, sin nada que instalar y sin cuenta.",
+    "title": "Un espacio de trabajo libre y de código abierto para el diseño de origami"
+  }
+}

@@ -25,12 +25,18 @@ console.time = () => {};
 console.timeEnd = () => {};
 
 import { DesignController } from "core/controller/designController";
+import { LayoutController } from "core/controller/layoutController";
+import { State } from "core/service/state";
 import { UpdateResult } from "core/service/updateResult";
 import { readFileSync } from "node:fs";
 
 interface JFlap { id: number; x: number; y: number; width: number; height: number }
 interface MoveFlapEdit { op: "moveFlap"; id: number; x: number; y: number }
-type Edit = MoveFlapEdit;
+/** Selecting a stretch in the app calls `LayoutController.completeStretch`. */
+interface CompleteStretchEdit { op: "completeStretch"; id: string }
+interface SwitchConfigEdit { op: "switchConfig"; id: string; to: number }
+interface SwitchPatternEdit { op: "switchPattern"; id: string; to: number }
+type Edit = MoveFlapEdit | CompleteStretchEdit | SwitchConfigEdit | SwitchPatternEdit;
 
 function sortKeys(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sortKeys);
@@ -51,28 +57,49 @@ function main(): void {
     process.exit(2);
   }
   const design = JSON.parse(readFileSync(designPath, "utf8"));
-  const stretches = design.layout.stretches ?? [];
   // Track the current flap set so each edit sends the full array (as the app does).
   const flaps: JFlap[] = (design.layout.flaps ?? []).map((f: JFlap) => ({ ...f }));
 
   DesignController.init(design);
   const edits: Edit[] = editsPath ? JSON.parse(readFileSync(editsPath, "utf8")) : [];
   for (const edit of edits) {
-    if (edit.op !== "moveFlap") throw new Error(`unknown edit op: ${(edit as Edit).op}`);
-    let flap = flaps.find(f => f.id === edit.id);
-    if (!flap) {
-      // A leaf with no explicit flap: BP Studio seeds it a default at the origin.
-      flap = { id: edit.id, x: 0, y: 0, width: 0, height: 0 };
-      flaps.push(flap);
+    switch (edit.op) {
+      case "moveFlap": {
+        let flap = flaps.find(f => f.id === edit.id);
+        if (!flap) {
+          // A leaf with no explicit flap: BP Studio seeds it a default at the origin.
+          flap = { id: edit.id, x: 0, y: 0, width: 0, height: 0 };
+          flaps.push(flap);
+        }
+        flap.x = edit.x;
+        flap.y = edit.y;
+        // `stretches: []`, not the design's — the client sends
+        // `design.$prototype.layout.stretches`, and `$resetPrototype()` empties
+        // that after every core response, so an edit carries no prototype.
+        // Sending the design's stretches here would keep feeding the loaded
+        // repository back in and reproduce, inside the oracle, exactly the
+        // staleness the port is being checked for.
+        DesignController.update({ flaps, edges: [], stretches: [], dragging: false });
+        break;
+      }
+      case "completeStretch":
+        LayoutController.completeStretch(edit.id);
+        break;
+      case "switchConfig":
+        LayoutController.switchConfig(edit.id, edit.to);
+        break;
+      case "switchPattern":
+        LayoutController.switchPattern(edit.id, edit.to);
+        break;
+      default:
+        throw new Error(`unknown edit op: ${(edit as Edit).op}`);
     }
-    flap.x = edit.x;
-    flap.y = edit.y;
-    DesignController.update({ flaps, edges: [], stretches, dragging: false });
   }
 
-  // Re-derive the full graphics snapshot from a clean init at the final flaps so
-  // the output is the complete state (not just the last edit's delta).
-  DesignController.init({ ...design, layout: { ...design.layout, flaps } });
+  // The accumulated model covers the initial state plus every edit's delta, so
+  // it is the complete graphics *as reached by the edit path*. Do not re-init
+  // here to "complete" it: a fresh init recomputes every stretch from scratch
+  // and overwrites exactly the state an edit sequence is meant to expose.
   const model = UpdateResult.$flush();
   const out = {
     flaps: [...flaps].sort((a, b) => a.id - b.id),
@@ -80,6 +107,18 @@ function main(): void {
     // Invalid-junction outlines (ArcPolygon per "a,b" tag) — the ground truth for
     // the conflict regions the packing canvas draws.
     junctions: model.add?.junctions ?? {},
+    // Per-stretch selection state, so config/pattern navigation can be diffed
+    // against the port's layout snapshot and not just the drawn geometry.
+    stretches: Object.fromEntries(
+      [...State.$stretches].map(([id, stretch]) => {
+        const repo = (stretch as unknown as { $repo: { $configurations: unknown[]; $configuration: { $index: number; $patterns: unknown[] } | null } }).$repo;
+        return [id, {
+          configCount: repo.$configurations.length,
+          patternCount: repo.$configuration?.$patterns.length ?? null,
+          patternIndex: repo.$configuration?.$index ?? null,
+        }];
+      })
+    ),
   };
   console.log(JSON.stringify(sortKeys(out), null, 2));
 }

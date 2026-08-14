@@ -12,6 +12,10 @@
   "global": {
     "error": "Ошибка Ori Studio",
     "folding": "Складывание…",
+    "foldingLong": "Складывание продолжается — это может занять некоторое время",
+    "foldStop": "Отмена",
+    "foldStopped": "Складывание отменено",
+    "foldStopping": "Отмена…",
     "saved": "{{name}} сохранён"
   },
   "simulatorExport": {

@@ -38,6 +38,7 @@ import type {
 const runtimeMocks = vi.hoisted(() => ({
   moveOristudioBpLayoutFlap: vi.fn(),
   exportOristudioBpProjectAsBps: vi.fn(async () => '<bps/>'),
+  exportOristudioBpProjectAsSessionBps: vi.fn(async () => '<bps/>'),
   restoreOristudioBpProjectSnapshot: vi.fn(),
   loadOristudioBpProjectFromText: vi.fn(),
 }));
@@ -48,6 +49,7 @@ vi.mock('../oristudioBpRuntime', async (importOriginal) => {
     ...actual,
     moveOristudioBpLayoutFlap: runtimeMocks.moveOristudioBpLayoutFlap,
     exportOristudioBpProjectAsBps: runtimeMocks.exportOristudioBpProjectAsBps,
+    exportOristudioBpProjectAsSessionBps: runtimeMocks.exportOristudioBpProjectAsSessionBps,
     restoreOristudioBpProjectSnapshot: runtimeMocks.restoreOristudioBpProjectSnapshot,
     loadOristudioBpProjectFromText: runtimeMocks.loadOristudioBpProjectFromText,
   };
@@ -155,7 +157,7 @@ function deferred<T>() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  runtimeMocks.exportOristudioBpProjectAsBps.mockImplementation(async () => '<bps/>');
+  runtimeMocks.exportOristudioBpProjectAsSessionBps.mockImplementation(async () => '<bps/>');
 });
 
 afterEach(() => {
@@ -279,7 +281,7 @@ describe('an open gesture in another design', () => {
     // the undo step goes back to, by giving every export a distinct body.
     const ids = twoDesigns();
     let exportCount = 0;
-    runtimeMocks.exportOristudioBpProjectAsBps.mockImplementation(async () => {
+    runtimeMocks.exportOristudioBpProjectAsSessionBps.mockImplementation(async () => {
       exportCount += 1;
       return `<bps#${exportCount}/>`;
     });
