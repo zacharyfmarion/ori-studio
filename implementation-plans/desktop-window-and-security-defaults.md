@@ -245,14 +245,31 @@ No capability change is required by any item in this plan; the existing
 - [x] Add `minWidth`/`minHeight` to `tauri.conf.json`.
 
 ### Window state persistence
-- [ ] Add `tauri-plugin-window-state` to `Cargo.toml`.
-- [ ] Register it in `lib.rs` with `SIZE | POSITION | MAXIMIZED`.
-- [ ] Confirm no capability entry is required; add the plugin default set only
-      if a denial appears.
-- [ ] Verify a saved size below the new minimum is clamped on restore, not
-      reopened undersized.
-- [ ] Verify restore after the saved monitor is disconnected does not open
-      offscreen.
+- [x] Add `tauri-plugin-window-state` to `Cargo.toml`.
+- [x] Register it in `lib.rs` with `SIZE | POSITION | MAXIMIZED`.
+- [x] Confirm no capability entry is required; add the plugin default set only
+      if a denial appears. **No denial — the plugin restores from Rust.**
+- [x] Verify a saved size below the new minimum is clamped on restore, not
+      reopened undersized. **It was not.** Seeding a 400x300 state file reopened
+      the window at 200x150 against a 900x640 minimum, because the plugin
+      replays a saved *physical* size with `set_size`, which does not consult
+      the configured minimum. Fixed with `clamp_window_to_min`; re-seeding the
+      same file now reopens at exactly 900x640.
+
+      Two dead ends worth recording, because both *look* right: a clamp in the
+      app's `setup` hook runs before the plugin's restore (which happens in its
+      `on_window_ready`), and a clamp in a plugin registered behind it still
+      reads the pre-restore size, because `set_size` reaches the platform window
+      asynchronously. Only the `Resized` event carries a size that cannot be
+      read too early.
+- [x] Verify restore after the saved monitor is disconnected does not open
+      offscreen. **Already handled upstream** — the plugin restores a position
+      only if some currently-available monitor intersects the saved rect, and
+      otherwise leaves placement to the OS.
+- [ ] Save-on-quit is **unverified**: it runs on `RunEvent::Exit`, which a
+      `SIGTERM` does not trigger, and driving a real Cmd+Q needs UI automation
+      this environment does not have. The restore half is proven (it read a
+      seeded file). Confirm by quitting normally and reopening.
 
 ### Window title
 - [ ] Extend `formatWindowTitle` to prefer the filename, gated on
