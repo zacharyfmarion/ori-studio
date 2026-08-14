@@ -235,7 +235,11 @@
   /* The stage takes what is left after the credit, so adding the credit shrinks
      the figure rather than overflowing whatever box the caller sized. */
   grid-template-rows: minmax(0, 1fr) auto;
-  gap: var(--space-2);
+  /* The renderer already pads the model to 8% of the frame's short edge
+     (`fitExtent`), so the visible gap is that plus this one. Kept at 4px so the
+     credit reads as a caption belonging to the figure rather than as a line of
+     page copy that happens to sit under it. */
+  gap: var(--space-1);
   width: 100%;
   height: 100%;
 }
@@ -258,11 +262,16 @@
 
 /* The credit fades with the figure it credits: naming a designer above an empty
    frame, before anything has been drawn, credits them for nothing. */
-.start-figure__credit {
+/* Selector doubled deliberately. `.start-screen p` is (0,1,1) and outranks a
+   lone class, so on the desktop start screen the credit rendered at the page's
+   1rem body size while the same element on the phone header — which has no
+   `.start-screen` ancestor — took this rule. The two surfaces disagreed, and
+   the smaller of them was the one nobody was looking at. */
+.start-figure .start-figure__credit {
   margin: 0;
   color: var(--text-muted);
-  font-size: 0.78rem;
-  line-height: 1.4;
+  font-size: 0.7rem;
+  line-height: 1.3;
   text-align: center;
   opacity: 0;
   transition: opacity 420ms ease-out;
