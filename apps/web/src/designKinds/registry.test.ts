@@ -81,7 +81,7 @@ describe('design kind registry', () => {
 
   it('orders chooser cards by their declared order', () => {
     const order = designKindRegistry().chooserOrder.map((kind) => kind.id);
-    expect(order).toEqual(['treemaker', 'box-pleat', 'explori']);
+    expect(order).toEqual(['box-pleat', 'explori', 'treemaker']);
   });
 
 });
@@ -218,9 +218,9 @@ describe('extensibility: a third design kind', () => {
 
   it('appears in the chooser in its declared position', () => {
     expect(designKindRegistry(kinds).chooserOrder.map((kind) => kind.id)).toEqual([
-      'treemaker',
       'box-pleat',
       'explori',
+      'treemaker',
       'stub',
     ]);
   });
