@@ -172,6 +172,19 @@ export function SimulatorViewControlsPanel() {
           />
         </Section>
 
+        {/*
+          Which way the model is up. The orbit is a turntable about the paper's
+          *normal*, which is up for a flat sheet and is not for a model that
+          stands — so a standing figure tumbles rather than turning, and dragging
+          cannot fix it because yaw and pitch only move the eye on a sphere whose
+          pole is fixed. These two verbs pick the pole.
+
+          Both are offered unconditionally. Whether an upright is set lives in
+          the viewport's own ref (it is session-only for a simulation), so this
+          store-driven pane has nothing to gate on — and clearing when none is
+          set is simply a reset, which is harmless. The folded figure's copy of
+          this verb *can* gate, because its upright is document state.
+        */}
         <Section
           title={t('panels:simulatorViewControls.paper', 'Paper')}
           collapsible

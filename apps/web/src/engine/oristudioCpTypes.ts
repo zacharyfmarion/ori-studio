@@ -887,7 +887,31 @@ export interface OristudioCpFoldedFigureEntry {
    * owns its meaning; it is restated structurally here so this module keeps no
    * dependency on the projector.
    */
-  camera?: { yaw: number; pitch: number; zoom: number } | null;
+  camera?: {
+    yaw: number;
+    pitch: number;
+    zoom: number;
+    /**
+     * The model's own up, if one was set. Row-major.
+     *
+     * Optional because every figure written before the verb existed has none,
+     * and "absent" means identity rather than an error. Spelled out as nine
+     * slots rather than `number[]` for the same reason the rest of this record
+     * is restated here: it has to stay assignable to the projector's `Mat3`
+     * without importing it, and a bare array is not.
+     */
+    orient?: readonly [
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+    ];
+  } | null;
   /**
    * Half the side of the square frame a 3D figure draws inside, in the local
    * units its primitives land in — `folded3dFrameRadius`, recorded once at fold

@@ -297,7 +297,8 @@
       "play": "再生",
       "refresh": "現在の折り線から作り直す",
       "refreshAction": "シミュレーション領域を再構築",
-      "replay": "平らに戻す"
+      "replay": "平らに戻す",
+      "setUpright": "上方向を設定"
     },
     "insertImage": "画像を挿入...",
     "linesCount_other": "{{count}} 本の線",
@@ -345,6 +346,7 @@
       "simulateInline": "インラインでシミュレート"
     },
     "sendImageToBack": "画像を最背面へ",
+    "setFoldedModelUpright": "折り上がりモデルの上方向を設定",
     "shadow": "影",
     "shadowUnsupported3d": "3D の折り上がりモデルにはまだ影を描画できません",
     "showFoldedModelShadow": "折りモデルの影を表示",
@@ -548,6 +550,7 @@
     "otherSide": "反対側",
     "refold": "折り直す",
     "resetView": "視点をリセット",
+    "setUpright": "上方向を設定",
     "styleDev1": "開発 1",
     "styleDev4": "開発 4",
     "styleNone": "なし",
@@ -678,6 +681,7 @@
     "scopeStepTitle": "選択した手順ステップをシミュレート",
     "scopeWhole": "全体",
     "scopeWholeTitle": "展開図全体をシミュレート",
+    "setUpright": "上方向を設定",
     "stats": "{{vertices}} 頂点 | {{triangles}} 三角形",
     "step": "ステップ",
     "stepAccuracy": "ステップシミュレーションの精度",

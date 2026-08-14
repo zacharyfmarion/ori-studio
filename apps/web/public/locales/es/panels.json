@@ -317,7 +317,8 @@
       "play": "Reproducir",
       "refresh": "Regenerar a partir de los pliegues actuales",
       "refreshAction": "Reconstruir región de simulación",
-      "replay": "Volver a plano"
+      "replay": "Volver a plano",
+      "setUpright": "Definir vertical"
     },
     "insertImage": "Insertar imagen...",
     "linesCount_one": "{{count}} línea",
@@ -369,6 +370,7 @@
       "simulateInline": "Simular incrustado"
     },
     "sendImageToBack": "Enviar imagen al fondo",
+    "setFoldedModelUpright": "Definir la vertical del modelo plegado",
     "shadow": "Sombra",
     "shadowUnsupported3d": "Todavía no se dibujan sombras para un modelo plegado en 3D",
     "showFoldedModelShadow": "Mostrar la sombra del modelo plegado",
@@ -580,6 +582,7 @@
     "otherSide": "Otro lado",
     "refold": "Volver a plegar",
     "resetView": "Restablecer vista",
+    "setUpright": "Definir vertical",
     "styleDev1": "Desarrollo 1",
     "styleDev4": "Desarrollo 4",
     "styleNone": "Ninguno",
@@ -714,6 +717,7 @@
     "scopeStepTitle": "Simular el paso de secuencia seleccionado",
     "scopeWhole": "Completo",
     "scopeWholeTitle": "Simular todo el patrón de pliegues",
+    "setUpright": "Definir vertical",
     "stats": "{{vertices}} vértices | {{triangles}} triángulos",
     "step": "Paso",
     "stepAccuracy": "Precisión de la simulación del paso",

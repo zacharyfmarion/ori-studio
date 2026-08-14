@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import {
+  ArrowUpToLine,
   ChevronFirst,
   ChevronRight,
   Copy,
@@ -34,6 +35,11 @@ export function foldedFigureActionIconNode(
     // than undoing anything the user did to the paper.
     case 'reset-view':
       return <Focus size={size} />;
+    // An upward arrow to a line: this declares which way is up, so the glyph is
+    // about the axis rather than about rotating — nothing here turns the model,
+    // it renames the pole the turntable spins on.
+    case 'set-upright':
+      return <ArrowUpToLine size={size} />;
     case 'style':
       return <Layers size={size} />;
     case 'another':

@@ -317,7 +317,8 @@
       "play": "Lecture",
       "refresh": "Reconstruire à partir des plis actuels",
       "refreshAction": "Reconstruire la région de simulation",
-      "replay": "Revenir à plat"
+      "replay": "Revenir à plat",
+      "setUpright": "Définir la verticale"
     },
     "insertImage": "Insérer une image...",
     "linesCount_one": "{{count}} ligne",
@@ -369,6 +370,7 @@
       "simulateInline": "Simuler sur place"
     },
     "sendImageToBack": "Mettre l'image à l'arrière-plan",
+    "setFoldedModelUpright": "Définir la verticale du modèle plié",
     "shadow": "Ombre",
     "shadowUnsupported3d": "Les ombres ne sont pas encore dessinées pour un modèle plié en 3D",
     "showFoldedModelShadow": "Afficher l'ombre du modèle plié",
@@ -580,6 +582,7 @@
     "otherSide": "Autre côté",
     "refold": "Replier",
     "resetView": "Réinitialiser la vue",
+    "setUpright": "Définir la verticale",
     "styleDev1": "Développement 1",
     "styleDev4": "Développement 4",
     "styleNone": "Aucun",
@@ -714,6 +717,7 @@
     "scopeStepTitle": "Simuler l'étape de séquence sélectionnée",
     "scopeWhole": "Complet",
     "scopeWholeTitle": "Simuler l'ensemble du patron de plis",
+    "setUpright": "Définir la verticale",
     "stats": "{{vertices}} sommets | {{triangles}} triangles",
     "step": "Étape",
     "stepAccuracy": "Précision de la simulation de l'étape",

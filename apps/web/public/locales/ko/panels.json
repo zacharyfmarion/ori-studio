@@ -297,7 +297,8 @@
       "play": "재생",
       "refresh": "현재 주름선으로 다시 만들기",
       "refreshAction": "시뮬레이션 영역 재구성",
-      "replay": "평평하게 되돌리기"
+      "replay": "평평하게 되돌리기",
+      "setUpright": "위쪽 방향 설정"
     },
     "insertImage": "이미지 삽입...",
     "linesCount_other": "선 {{count}}개",
@@ -345,6 +346,7 @@
       "simulateInline": "인라인 시뮬레이션"
     },
     "sendImageToBack": "이미지를 맨 뒤로 보내기",
+    "setFoldedModelUpright": "접힌 모델의 위쪽 방향 설정",
     "shadow": "그림자",
     "shadowUnsupported3d": "3D 접힌 모델에는 아직 그림자가 그려지지 않습니다",
     "showFoldedModelShadow": "접힌 모델 그림자 표시",
@@ -548,6 +550,7 @@
     "otherSide": "반대편",
     "refold": "다시 접기",
     "resetView": "보기 초기화",
+    "setUpright": "위쪽 방향 설정",
     "styleDev1": "개발 1",
     "styleDev4": "개발 4",
     "styleNone": "없음",
@@ -678,6 +681,7 @@
     "scopeStepTitle": "선택한 순서 단계 시뮬레이션",
     "scopeWhole": "전체",
     "scopeWholeTitle": "전체 전개도 시뮬레이션",
+    "setUpright": "위쪽 방향 설정",
     "stats": "정점 {{vertices}}개 | 삼각형 {{triangles}}개",
     "step": "단계",
     "stepAccuracy": "단계 시뮬레이션 정확도",

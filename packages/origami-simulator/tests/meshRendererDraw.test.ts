@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MeshRenderer, type MeshTopology, type RenderSettings } from '../src/webgl/meshRenderer.js';
 import type { GlCore } from '../src/webgl/glCore.js';
-import type { CameraUniforms } from '../src/webgl/camera.js';
+import { viewRotation, type CameraUniforms } from '../src/webgl/camera.js';
 
 // WebGL2 does not exist in Node, so this covers the *command stream* the renderer
 // issues rather than the pixels it produces: which clears happen, and which slice
@@ -96,6 +96,7 @@ function recorder(): Recorder {
     uniform3f: () => {},
     uniform1fv: () => {},
     uniform1iv: () => {},
+    uniformMatrix3fv: () => {},
     drawElements: (_mode: number, count: number, _type: number, offset: number) =>
       draws.push({ count, offset }),
     drawArrays: () => {},
@@ -123,10 +124,7 @@ function topology(): MeshTopology {
 
 const CAMERA: CameraUniforms = {
   center: [0, 0, 0],
-  cosYaw: 1,
-  sinYaw: 0,
-  cosPitch: 1,
-  sinPitch: 0,
+  rotation: viewRotation(0, 0),
   scale: 1,
   width: 256,
   height: 256,
