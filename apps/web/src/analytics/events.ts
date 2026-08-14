@@ -207,6 +207,7 @@ export const ANALYTICS_EVENTS = {
   optimizerRun: 'optimizer run',
   projectOpened: 'project opened',
   projectSaved: 'project saved',
+  projectSaveTarget: 'project save target',
   fileExported: 'file exported',
   foldabilityChecked: 'foldability checked',
   foldabilityFixApplied: 'foldability fix applied',

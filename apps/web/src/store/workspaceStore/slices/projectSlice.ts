@@ -1459,6 +1459,35 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
    */
   const nativeSourcePath = () => filesystemPathOrNull(get().currentFilePath);
 
+  /**
+   * Stamp a save's source onto the crease pattern, without undoing edits made
+   * while the write was in flight.
+   *
+   * Each save helper captures `oristudioCpDocument` on entry and needs to record
+   * where it was saved to. Writing the *captured* snapshot back is what makes
+   * that lossy: the browser's File System Access write is real wall-clock work
+   * against disk with no modal over it, so a line drawn during it lands in the
+   * store and is then reverted by the save — visible geometry loss, and the
+   * kernel and the undo baseline left disagreeing with the store. The browser
+   * only reached this window now that `saveTextFile` no longer ends in a
+   * synchronous download, so the current document is what to stamp.
+   */
+  const stampSavedSource = (
+    fallback: OristudioCpDocumentState,
+    source: OristudioCpDocumentState['source']
+  ): OristudioCpDocumentState => ({ ...(get().oristudioCpDocument ?? fallback), source });
+
+  /**
+   * Whether the crease pattern changed while a save was in flight.
+   *
+   * Every kernel mutation bumps `oristudioCpRevision`, so a moved revision means
+   * the file just written is already out of date and the project is still
+   * unsaved. Design edits are not covered — nothing carries a revision across
+   * the 61 sites that set `dirty` — so this narrows the window the browser save
+   * opened rather than closing a pre-existing one.
+   */
+  const cpChangedSince = (revision: number) => get().oristudioCpRevision !== revision;
+
   /** The same guard, for a source object being written into a file. */
   const sourceWithoutSaveTarget = <T extends { path: string | null } | null | undefined>(
     source: T
@@ -1480,6 +1509,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   ): Promise<SaveFileResult | null> => {
     const tabs = get().designTabs;
     const activeId = get().activeDesignId;
+    // The `.osf` bundles the Edit crease pattern, so an edit to it during the
+    // write leaves the file that was just written already out of date.
+    const revisionAtSave = get().oristudioCpRevision;
 
     /**
      * Serialize the design the user is looking at, straight from the live engine.
@@ -1569,7 +1601,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     set({
       currentFileName: result.name,
       currentFilePath: result.path,
-      dirty: false,
+      dirty: cpChangedSince(revisionAtSave),
       projectMessage: savedMessage,
       ...(document
         ? {
@@ -1705,6 +1737,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   ): Promise<SaveFileResult | null> => {
     const documentState = get().oristudioCpDocument;
     if (!documentState) return null;
+    const revisionAtSave = get().oristudioCpRevision;
     const contents = await exportOristudioCpDocumentAsOri(
       flattenTextAnnotations(get().oristudioCpAnnotations)
     );
@@ -1731,7 +1764,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     set({
       currentFileName: result.name,
       currentFilePath: result.path,
-      dirty: false,
+      dirty: cpChangedSince(revisionAtSave),
       projectMessage: `Saved ${result.name}`,
       importedCreasePattern: importedCreasePattern
         ? {
@@ -1739,10 +1772,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
             source,
           }
         : null,
-      oristudioCpDocument: {
-        ...documentState,
-        source,
-      },
+      oristudioCpDocument: stampSavedSource(documentState, source),
     });
     return result;
   };
@@ -1752,6 +1782,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   ): Promise<SaveFileResult | null> => {
     const documentState = get().oristudioCpDocument;
     if (!documentState) return null;
+    const revisionAtSave = get().oristudioCpRevision;
     if (!(await confirmLossyOrhWrite())) return null;
     const contents = await exportOristudioCpDocumentAsOrh(
       flattenTextAnnotations(get().oristudioCpAnnotations)
@@ -1776,7 +1807,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     set({
       currentFileName: result.name,
       currentFilePath: result.path,
-      dirty: false,
+      dirty: cpChangedSince(revisionAtSave),
       projectMessage: `Saved ${result.name}`,
       importedCreasePattern: importedCreasePattern
         ? {
@@ -1784,10 +1815,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
             source,
           }
         : null,
-      oristudioCpDocument: {
-        ...documentState,
-        source,
-      },
+      oristudioCpDocument: stampSavedSource(documentState, source),
     });
     return result;
   };
@@ -1807,6 +1835,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       });
       return null;
     }
+    const revisionAtSave = get().oristudioCpRevision;
     if (!forceSaveAs && isOrieditaOriFilename(get().currentFileName)) {
       return saveEditableCreasePatternAsOri(fileService);
     }
@@ -1842,12 +1871,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     set({
       currentFileName: result.name,
       currentFilePath: result.path,
-      dirty: false,
+      dirty: cpChangedSince(revisionAtSave),
       projectMessage: `Saved ${result.name}`,
-      oristudioCpDocument: {
-        ...documentState,
-        source,
-      },
+      oristudioCpDocument: stampSavedSource(documentState, source),
     });
     return result;
   };
@@ -2539,7 +2565,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         }
         applyLandingWorkspace();
         track('project opened', { source: 'file' });
-        return true;
+        // Not every loader throws. `loadOristudioBpProjectFromFile` catches its
+        // own parse failure, sets `status: 'error'` and returns false, so a
+        // malformed `.bps` reached this `return true` — and the caller, which
+        // now navigates on success, would leave the start screen for an empty
+        // workspace and take the error message with it. The status is what says
+        // whether anything was established, the same test `loadExampleProject`
+        // uses.
+        return get().status !== 'error';
       } catch (error) {
         set({ status: 'error', error: annotateLargeSourceError(error, openedSourceLength) });
         return false;

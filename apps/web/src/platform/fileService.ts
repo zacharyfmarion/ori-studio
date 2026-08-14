@@ -195,9 +195,14 @@ export function resetWebSaveTargets(): void {
 /**
  * Dismissing a file dialog rejects rather than resolving. That is a cancelled
  * save, not a failure — the store already reads a null result as "cancelled".
+ *
+ * Read off `name` rather than testing `instanceof DOMException`: an exception
+ * that crossed a realm (an iframe, a worker) fails that test while still being
+ * the same cancellation, and mistaking a cancel for a failure would download a
+ * file the user just declined to save.
  */
 function isAbortError(error: unknown): boolean {
-  return error instanceof DOMException && error.name === 'AbortError';
+  return (error as { name?: unknown } | null)?.name === 'AbortError';
 }
 
 /**
@@ -230,6 +235,26 @@ async function saveBrowserTextFile(
 ): Promise<SaveFileResult | null> {
   const name = ensureExtension(options.suggestedName, options.extensions[0] ?? 'txt');
 
+  /**
+   * The floor this function guarantees: a save the user asked for always
+   * produces a file.
+   *
+   * Every File System Access call can fail for reasons that have nothing to do
+   * with the user's intent — the picker and the permission upgrade both require
+   * transient activation and it expires about five seconds after the keystroke,
+   * which serializing a large project can outlast; a sandboxed frame or an
+   * enterprise policy raises SecurityError; a locked file or a full disk raises
+   * on the write. Before this file used the API at all, a browser save was an
+   * unconditional download and could not fail. Falling back here keeps that
+   * promise, so the worst outcome is a save that lands in Downloads instead of
+   * over the original — never a save that silently does not happen.
+   */
+  const download = (): SaveFileResult => {
+    downloadBlob(new Blob([options.contents], { type: 'text/plain;charset=utf-8' }), name);
+    if (options.reusableTarget) trackWebSave('download');
+    return { name, path: null };
+  };
+
   const existing = options.path ? webSaveTargets.get(options.path) : undefined;
   if (existing && options.path) {
     try {
@@ -250,29 +275,22 @@ async function saveBrowserTextFile(
   }
 
   const showSaveFilePicker = options.reusableTarget ? window.showSaveFilePicker : undefined;
-  if (!showSaveFilePicker) {
-    // An export, or a browser with no File System Access API (Firefox, Safari).
-    // A download is still a save; it just cannot be written to again, so the
-    // next one makes a copy.
-    downloadBlob(new Blob([options.contents], { type: 'text/plain;charset=utf-8' }), name);
-    if (options.reusableTarget) trackWebSave('download');
-    return { name, path: null };
-  }
+  // An export, or a browser with no File System Access API (Firefox, Safari).
+  if (!showSaveFilePicker) return download();
 
-  let handle: FileSystemFileHandle;
   try {
-    handle = await showSaveFilePicker({
+    const handle = await showSaveFilePicker({
       suggestedName: name,
       types: pickerTypes(options.extensions),
     });
+    await writeWebSaveTarget(handle, options.contents);
+    trackWebSave('picker');
+    return { name: handle.name, path: rememberWebSaveTarget(handle) };
   } catch (error) {
+    // A dismissed dialog is the user saying no, and must not leave a file behind.
     if (isAbortError(error)) return null;
-    throw error;
+    return download();
   }
-
-  await writeWebSaveTarget(handle, options.contents);
-  trackWebSave('picker');
-  return { name: handle.name, path: rememberWebSaveTarget(handle) };
 }
 
 function downloadBlob(blob: Blob, filename: string): void {
