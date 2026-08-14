@@ -231,9 +231,18 @@
    nothing having happened yet. The crease-pattern image appears only when the
    3D figure cannot run at all. */
 .start-figure {
-  position: relative;
+  display: grid;
+  /* The stage takes what is left after the credit, so adding the credit shrinks
+     the figure rather than overflowing whatever box the caller sized. */
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: var(--space-2);
   width: 100%;
   height: 100%;
+}
+
+.start-figure__stage {
+  position: relative;
+  min-height: 0;
 }
 
 .start-figure__fallback,
@@ -245,6 +254,41 @@
   height: 100%;
   opacity: 0;
   transition: opacity 420ms ease-out;
+}
+
+/* The credit fades with the figure it credits: naming a designer above an empty
+   frame, before anything has been drawn, credits them for nothing. */
+.start-figure__credit {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 420ms ease-out;
+}
+
+.start-figure[data-status='live'] .start-figure__credit,
+.start-figure[data-status='fallback'] .start-figure__credit {
+  opacity: 1;
+}
+
+.start-figure__credit-link {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--text-secondary) 40%, transparent);
+  text-underline-offset: 2px;
+}
+
+.start-figure__credit-link:hover {
+  color: var(--accent-primary);
+  text-decoration-color: currentcolor;
+}
+
+.start-figure__credit-link:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-primary) 72%, transparent);
+  outline-offset: 2px;
+  border-radius: 3px;
 }
 
 .start-figure__fallback {
@@ -278,7 +322,8 @@
 @media (prefers-reduced-motion: reduce) {
   /* The fade is motion nobody asked for; the figure itself still appears. */
   .start-figure__fallback,
-  .start-figure__canvas {
+  .start-figure__canvas,
+  .start-figure__credit {
     transition: none;
   }
 }

@@ -50,7 +50,9 @@ export function StartScreen({
               )}
             </p>
           </div>
-          <div className="start-screen__preview" aria-hidden="true">
+          {/* Not `aria-hidden`: the figure carries a designer credit, and the
+              decorative half marks itself hidden from inside. */}
+          <div className="start-screen__preview">
             <div className="start-screen__preview-frame">
               <StartFigure />
             </div>

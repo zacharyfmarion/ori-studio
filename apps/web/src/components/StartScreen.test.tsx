@@ -73,11 +73,15 @@ describe('StartScreen', () => {
       'loading'
     );
 
-    // Decorative: the whole preview is aria-hidden, so the figure is not
-    // announced.
-    expect(rendered.querySelector('.start-screen__preview')?.getAttribute('aria-hidden')).toBe(
-      'true'
-    );
+    // The decorative half hides itself, and the preview around it does not —
+    // it carries the designer credit, and a link inside an `aria-hidden`
+    // subtree is focusable but never announced.
+    expect(
+      rendered.querySelector('.start-figure__stage')?.getAttribute('aria-hidden')
+    ).toBe('true');
+    expect(
+      rendered.querySelector('.start-screen__preview')?.getAttribute('aria-hidden')
+    ).toBeNull();
   });
 
   it('dispatches the selected start action', () => {

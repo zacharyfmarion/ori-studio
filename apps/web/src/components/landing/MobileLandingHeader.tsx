@@ -56,7 +56,7 @@ export function MobileLandingHeader({ onOpenAnyway }: MobileLandingHeaderProps) 
         </button>
       </div>
 
-      <div className="welcome-mobile-header__figure" aria-hidden="true">
+      <div className="welcome-mobile-header__figure">
         <StartFigure />
       </div>
 

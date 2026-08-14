@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Trans } from 'react-i18next';
 import type { RenderSettings } from '@treemaker/origami-simulator';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../../lib/simulatorSettings';
 import { useThemeStore } from '../../store/themeStore';
@@ -40,6 +41,12 @@ import type { StartFigureMesh } from './startFigureMesh';
  *
  * That image is now only the *failure* state — a machine with no WebGL2 — and it
  * is not even fetched otherwise.
+ *
+ * The credit under it is not decoration and is deliberately outside the
+ * `aria-hidden` stage: the model is somebody else's design, which is the same
+ * reason its crease pattern is not in this repository. A link inside an
+ * `aria-hidden` subtree is also focusable-but-unannounced, so it could not have
+ * gone in there anyway.
  */
 
 /**
@@ -324,24 +331,39 @@ export function StartFigure() {
 
   return (
     <div className="start-figure" data-status={status}>
-      {/* Rendered only when the 3D figure cannot run, so the 71 KiB image is not
-          fetched by the visitors who never see it. */}
-      {status === 'fallback' && (
-        <img
-          className="start-figure__fallback"
-          src={START_FIGURE.fallbackUrl}
-          alt=""
-          decoding="async"
+      <div className="start-figure__stage" aria-hidden="true">
+        {/* Rendered only when the 3D figure cannot run, so the 71 KiB image is
+            not fetched by the visitors who never see it. */}
+        {status === 'fallback' && (
+          <img
+            className="start-figure__fallback"
+            src={START_FIGURE.fallbackUrl}
+            alt=""
+            decoding="async"
+          />
+        )}
+        <canvas
+          ref={canvasRef}
+          className="start-figure__canvas"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
         />
-      )}
-      <canvas
-        ref={canvasRef}
-        className="start-figure__canvas"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-      />
+      </div>
+      <p className="start-figure__credit">
+        <Trans i18nKey="common:startFigure.credit">
+          Designed by{' '}
+          <a
+            className="start-figure__credit-link"
+            href="https://www.instagram.com/theplantpsychologist"
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            Brandon Wong
+          </a>
+        </Trans>
+      </p>
     </div>
   );
 }

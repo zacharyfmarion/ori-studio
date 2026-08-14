@@ -60,7 +60,14 @@ describe('MobileLandingHeader', () => {
     const { container: rendered } = renderLink();
 
     expect(rendered.querySelectorAll('button')).toHaveLength(1);
-    expect(rendered.querySelectorAll('p')).toHaveLength(1);
+    // The header's own prose, which is the tagline and nothing else. The
+    // figure's designer credit is excluded rather than counted: raising the
+    // number to two would turn a guard against creeping copy into a guard
+    // against the number two.
+    const prose = [...rendered.querySelectorAll('p')].filter(
+      (node) => !node.closest('.start-figure')
+    );
+    expect(prose).toHaveLength(1);
   });
 
   it('leads with the folded figure, above the masthead', () => {
@@ -79,8 +86,12 @@ describe('MobileLandingHeader', () => {
       Node.DOCUMENT_POSITION_FOLLOWING;
     expect(brandFollowsFigure).toBeTruthy();
 
-    // Decorative: the masthead beside it already names the product, and the
-    // figure carries no information a screen reader could use.
-    expect(figure?.getAttribute('aria-hidden')).toBe('true');
+    // The *stage* is decorative and hides itself; the wrapper must not, or the
+    // designer credit inside would be a focusable link a screen reader never
+    // announces.
+    expect(figure?.getAttribute('aria-hidden')).toBeNull();
+    expect(
+      figure?.querySelector('.start-figure__stage')?.getAttribute('aria-hidden')
+    ).toBe('true');
   });
 });
