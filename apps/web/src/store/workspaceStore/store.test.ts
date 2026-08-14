@@ -2071,6 +2071,111 @@ describe('workspace store slices', () => {
     );
   });
 
+  /**
+   * In the browser the save target is a handle token, not a path. It has to
+   * survive in the store — that is what lets the next ⌘S overwrite instead of
+   * downloading a second copy — but it must never be written *into* the file,
+   * because it resolves nowhere outside the page that minted it.
+   */
+  it('round-trips a web save target without writing it into the saved file', async () => {
+    resetStores(seedSnapshot());
+    // Opened in a browser, so the file arrived with no path — the save target is
+    // whatever the first save establishes.
+    await useWorkspaceStore.getState().loadCreasePatternText(
+      JSON.stringify({
+        file_spec: 1.1,
+        vertices_coords: [
+          [0, 0],
+          [1, 0],
+        ],
+        edges_vertices: [[0, 1]],
+        edges_assignment: ['B'],
+      }),
+      { filename: 'line.fold', path: null }
+    );
+    const fileService = createFileService();
+    fileService.saveTextFile.mockImplementation(async (options: SaveTextFileOptions) => ({
+      name: options.suggestedName,
+      path: options.path ?? 'web-save:1',
+    }));
+
+    await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+    expect(useWorkspaceStore.getState().currentFilePath).toBe('web-save:1');
+    // The document's own source is the other half, and the one a browser run
+    // caught: it is written into the file and read back, so it records a real
+    // path or nothing. Only `currentFilePath` carries the token.
+    expect(useWorkspaceStore.getState().oristudioCpDocument?.source).toEqual({
+      format: 'osf',
+      filename: 'line.osf',
+      path: null,
+    });
+
+    await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+
+    const secondSave = fileService.saveTextFile.mock.lastCall?.[0] as SaveTextFileOptions;
+    // Handed back to the service, so it can write over the same file...
+    expect(secondSave.path).toBe('web-save:1');
+    expect(secondSave.reusableTarget).toBe(true);
+    // ...but absent from the bytes that land on disk.
+    expect(secondSave.contents).not.toContain('web-save:');
+  });
+
+  /**
+   * A save through the File System Access API writes the file and shows the user
+   * nothing — no dialog on the repeat, no download for the browser to announce.
+   * The toast is the only confirmation, so the store has to raise one.
+   */
+  it('announces a save the user has no other way of noticing', async () => {
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText(
+      JSON.stringify({
+        file_spec: 1.1,
+        vertices_coords: [
+          [0, 0],
+          [1, 0],
+        ],
+        edges_vertices: [[0, 1]],
+        edges_assignment: ['B'],
+      }),
+      { filename: 'line.fold', path: null }
+    );
+    const fileService = createFileService();
+    fileService.saveTextFile.mockImplementation(async (options: SaveTextFileOptions) => ({
+      name: options.suggestedName,
+      path: options.path ?? 'web-save:1',
+    }));
+
+    await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+
+    expect(useWorkspaceStore.getState().savedNotice).toBe('line.osf');
+  });
+
+  it('says nothing about a download, which the browser reports itself', async () => {
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText(
+      JSON.stringify({
+        file_spec: 1.1,
+        vertices_coords: [
+          [0, 0],
+          [1, 0],
+        ],
+        edges_vertices: [[0, 1]],
+        edges_assignment: ['B'],
+      }),
+      { filename: 'line.fold', path: null }
+    );
+    const fileService = createFileService();
+    // The Firefox/Safari fallback: a download, with no target to write to again.
+    fileService.saveTextFile.mockImplementation(async (options: SaveTextFileOptions) => ({
+      name: options.suggestedName,
+      path: null,
+    }));
+
+    await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+
+    expect(useWorkspaceStore.getState().savedNotice).toBeNull();
+  });
+
   // A file we rejected on its own terms already carries the whole reason; the
   // size hint would send the user chasing a memory problem they do not have.
   it('does not blame file size for a project the reader definitively rejected', async () => {

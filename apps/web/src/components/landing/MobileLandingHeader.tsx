@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { StartFigure } from '../start/StartFigure';
 
 const publicAssetBase = import.meta.env.BASE_URL.endsWith('/')
   ? import.meta.env.BASE_URL
@@ -32,6 +33,14 @@ export interface MobileLandingHeaderProps {
  * "WHAT IT IS" with nothing having said *what* it is, and there was no `h1` on
  * the phone at all — the sections are all `h2`, so the document outline started
  * a level down.
+ *
+ * The folded figure closes the header, under the masthead rather than above it.
+ * It is the only origami above the fold and the reason the header is laid out
+ * as a column bounded to the screen — but it reads as the header's payoff, not
+ * its opening: a figure before the wordmark is a picture of nothing in
+ * particular, since the reader does not yet know what they are looking at. It
+ * is the same component the desktop start screen uses, so a phone gets the real
+ * turning figure and not a screenshot of one.
  */
 export function MobileLandingHeader({ onOpenAnyway }: MobileLandingHeaderProps) {
   const { t } = useTranslation();
@@ -67,6 +76,10 @@ export function MobileLandingHeader({ onOpenAnyway }: MobileLandingHeaderProps) 
             'Design, edit and fold origami, all in the browser.'
           )}
         </p>
+      </div>
+
+      <div className="welcome-mobile-header__figure">
+        <StartFigure />
       </div>
     </header>
   );

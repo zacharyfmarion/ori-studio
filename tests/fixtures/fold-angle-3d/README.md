@@ -19,12 +19,12 @@ the external corpus is available.
 
 A file goes in this directory **iff all four hold**:
 
-1. **The repo owner authored it in Ori Studio**, so it is his to license under
-   the repository's terms. Third-party material stays out, however convenient —
-   AGENTS.md's "real-world user corpus files are not committed" governs it, and
-   licence terms govern it twice. The precedent for the owner's own test designs
-   is `tests/fixtures/simulation/iguana_24.osf` (3.53 MB, committed;
-   `apps/web/src/lib/simulationCorpus.test.ts:14-17`).
+1. **The repository owner authored it in Ori Studio**, so it is his to license
+   under the repository's terms. Third-party material stays out, however
+   convenient — AGENTS.md's "real-world user corpus files are not committed"
+   governs it, and licence terms govern it twice. The precedent for the owner's
+   own test designs is `tests/fixtures/simulation/iguana_24.osf` (3.53 MB,
+   committed; `apps/web/src/lib/simulationCorpus.test.ts:14-17`).
 2. **It carries at least one non-classic fold angle**, or it is the matched
    all-classic control for one that does (`box_90_unangled`).
 3. **It carries `faces_vertices`.** Note the kernel does *not* read them —
@@ -33,9 +33,44 @@ A file goes in this directory **iff all four hold**:
    running the kernel cannot be checked by hand.
 4. **Its verdict is recorded below**, and a test asserts it.
 
-Everything third-party — the 36 `origami-simulator-corpus` patterns, the 10
-`known-good` models, both Mooser's Train states — stays external, behind
-`ORISTUDIO_NON_FLAT_CORPUS_DIR`. See `tests/corpus/README.md`.
+Rule 1 is now **enforced rather than asserted**. An earlier version of this file
+claimed all nine files here were owner-authored; three of them were not, and the
+claim sat here for months because a sentence in a README cannot fail. The names
+live in `crates/oristudio-cp/tests/common/mod.rs::EXTERNAL_FIXTURES`, and
+`verify_fold_fixtures.rs::the_3d_fixture_corpus_is_not_empty_and_covers_more_than_ninety_degrees`
+fails if one of them reappears on disk. A prose rule with no test is how this
+happened; do not add another.
+
+## What went external, and what that cost
+
+Three fixtures were removed from this directory as third-party designs:
+
+| fixture | source | role it was the only fixture for |
+| --- | --- | --- |
+| `penguin_freeform` | `plant/penguin_other_angles.osf`, component 0 | the only genuinely free-form-angle clean positive; the only multi-solution figure (8 orders) |
+| `penguin_disconnected` | `plant/penguin_other_angles.osf` | the only naturally-authored clean-yet-unplaceable model (`Disconnected`) |
+| `rabbit_unclosed` | `plant/rabbit.osf` | the only closure refusal, and the 70.53° two-directions cross-check |
+
+Their rows stay in the tables below, because the recorded verdicts are still what
+the tests assert — they are simply read from
+`$ORISTUDIO_NON_FLAT_CORPUS_DIR/fold-angle-3d/` instead of from git. Derive them
+once with the commands in `crates/oristudio-cp/tests/common/mod.rs` and every
+assertion that named them runs again, unchanged; the derived files are
+byte-identical to what was tracked here.
+
+**CI does not set that variable, so CI no longer checks any of the three roles
+above.** That is a licensing decision overriding a testing one, which is the
+right order, but it is a real loss and it is recorded here rather than absorbed
+silently. Authoring owner-made replacements — a free-form-angle positive, a
+disconnected negative, a near-miss closure failure — is the way to get the
+coverage back, and is tracked separately from the removal.
+
+One assertion was not gated but narrowed:
+`folding3d/placement.rs::a_placement_that_succeeds_has_a_crease_on_every_dual_adjacency`
+is a unit test inside the crate, where the integration tests' skip machinery is
+not reachable, so it simply dropped `penguin_freeform` from its list of three.
+`spikes_small` and `box_90` both carry non-tree dual graphs, so it still asserts
+something.
 
 ## How these files were produced
 
@@ -53,9 +88,8 @@ node scripts/osf-fold-projection.mjs "$CORPUS/tooling/base_fixed.osf"           
 node scripts/osf-fold-projection.mjs "$CORPUS/tooling/base.osf"                             > $OUT/box_90_unangled.fold
 node scripts/osf-fold-projection.mjs "$CORPUS/non-flat-test.osf"                            > $OUT/spikes_small.fold
 node scripts/osf-fold-projection.mjs "$CORPUS/spikes_better.fold"                           > $OUT/spikes_large.fold
-node scripts/osf-fold-projection.mjs "$CORPUS/plant/penguin_other_angles.osf" --component 0 > $OUT/penguin_freeform.fold
-node scripts/osf-fold-projection.mjs "$CORPUS/plant/penguin_other_angles.osf"               > $OUT/penguin_disconnected.fold
-node scripts/osf-fold-projection.mjs "$CORPUS/plant/rabbit.osf"                             > $OUT/rabbit_unclosed.fold
+# The three plant/ designs are NOT committed; they derive into the corpus itself.
+# See crates/oristudio-cp/tests/common/mod.rs.
 cp "$CORPUS/tooling/base_fixed.osf" $OUT/box_90.osf
 ```
 
@@ -71,20 +105,22 @@ So: emit what the author saved. Minifying the JSON already recovers most of the
 size (`spikes_large` 58.7 KB → 18.2 KB), and rounding on top of that buys under
 7 KB across the whole set.
 
-Total: **68.8 KB** of `.fold` (against 144.8 KB of `.fold` already tracked) plus
-one 30.5 KB `.osf`. Largest single fixture 23.6 KB, about a third of the largest
-already-tracked `.fold` (`lamprey-segment.fold`, 64 KB).
+Total: **23.1 KB** of `.fold` across the five committed fixtures (against 144.8 KB of `.fold` already tracked elsewhere) plus one 30.5 KB `.osf`. The three external files are a further 45.6 KB that used to be here and is not.
 
 ## Licence and provenance
 
-All nine files were authored by the repository owner in Ori Studio and are
-contributed for this purpose under the repository's licence. `box_90.osf`
-carries `images: []`, `textAnnotations: []` and `inlineSimulations: []`, so
-unlike `iguana_24.osf` nothing had to be stripped from it.
+The **six** files now in this directory — `hinge_90`, `box_90`, `box_90_unangled`,
+`spikes_small`, `spikes_large` and `box_90.osf` — were authored by the repository
+owner in Ori Studio and are contributed for this purpose under the repository's
+licence. `box_90.osf` carries `images: []`, `textAnnotations: []` and
+`inlineSimulations: []`, so unlike `iguana_24.osf` nothing had to be stripped
+from it.
 
-The three `.osf` sources that carry inline simulations — `rabbit.osf` (277 KB)
-and `penguin_other_angles.osf` (884 KB) — are deliberately **not** committed in
-`.osf` form. Only their `foldProjection` is taken.
+The `plant/` designs — `penguin_other_angles.osf` and `rabbit.osf` — are **not**
+the owner's, and neither their `.osf` nor any projection of them belongs in this
+repository. See *What went external* above. An earlier version of this section
+said all nine files here were owner-authored; that was wrong, and it is the
+reason rule 1 now has a test behind it.
 
 ## The fixtures
 
@@ -151,9 +187,13 @@ and the reason having both is worth it.
 | `box_90_unangled` | 13 / 23 / 11 | 13 | 0 | **2** | 0 | 0 | 0 | 0 | 4.00e2 | 3 | 1.80e2 | — | 10/0/0/0/0 | 1 | 27 | n/a (flat path) |
 | `spikes_small` | 24 / 48 / 25 | 20 | 16 | 0 | 0 | 0 | 0 | 8 | 7.00e-14 | 12 | 2.54e-14 | — | 22/0/0/0/0 | 3 | 36 | admit |
 | `spikes_large` | 207 / 420 / 214 | 224 | 144 | 0 | 0 | 0 | 0 | 114 | 3.83e-13 | 137 | 1.27e-13 | 5.000e1 | 206/0/0/0/5 | 8 | 543 | admit |
-| `penguin_freeform` | 120 / 246 / 127 | 133 | 64 | 0 | 0 | 0 | 0 | 36 | 7.88e-8 | 71 | 5.49e-8 | 6.623e-10 | 94/12/0/0/0 | 21 | 457 | admit |
-| `penguin_disconnected` | 224 / 452 / 230 | 269 | 90 | 0 | 0 | 0 | 0 | 53 | 3.50e-8 | 131 | 5.49e-8 | 4.048e-9 | 191/11/0/0/5 | 29 | 1001 | **refuse — 2 components** |
-| `rabbit_unclosed` | 78 / 164 / 87 | 70 | 62 | 0 | **1** | 0 | 0 | 32 | 4.23e1 | 44 | 7.05e1 | 8.383e-10 | 53/8/0/0/2 | 26 | 306 | **refuse — closure** |
+| `penguin_freeform` † | 120 / 246 / 127 | 133 | 64 | 0 | 0 | 0 | 0 | 36 | 7.88e-8 | 71 | 5.49e-8 | 6.623e-10 | 94/12/0/0/0 | 21 | 457 | admit |
+| `penguin_disconnected` † | 224 / 452 / 230 | 269 | 90 | 0 | 0 | 0 | 0 | 53 | 3.50e-8 | 131 | 5.49e-8 | 4.048e-9 | 191/11/0/0/5 | 29 | 1001 | **refuse — 2 components** |
+| `rabbit_unclosed` † | 78 / 164 / 87 | 70 | 62 | 0 | **1** | 0 | 0 | 32 | 4.23e1 | 44 | 7.05e1 | 8.383e-10 | 53/8/0/0/2 | 26 | 306 | **refuse — closure** |
+
+† Held outside the repository — read from
+`$ORISTUDIO_NON_FLAT_CORPUS_DIR/fold-angle-3d/`, not from git. The numbers are
+unchanged; only where the file lives is. See *What went external* above.
 
 ### What each one is for
 

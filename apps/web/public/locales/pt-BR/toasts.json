@@ -15,7 +15,8 @@
     "foldingLong": "Ainda dobrando — isso pode demorar um pouco",
     "foldStop": "Cancelar",
     "foldStopped": "Dobra cancelada",
-    "foldStopping": "Cancelando…"
+    "foldStopping": "Cancelando…",
+    "saved": "{{name}} salvo"
   },
   "simulatorExport": {
     "empty": "Esta simulação ainda não tem nada para exportar",

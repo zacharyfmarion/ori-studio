@@ -43,6 +43,16 @@ export interface OpenBinaryFileResult {
 
 export interface SaveFileResult {
   name: string;
+  /**
+   * Where this document is now saved, in whatever terms the platform can save to
+   * it *again*: an absolute filesystem path on desktop, a
+   * {@link WEB_SAVE_TARGET_PREFIX} token in the browser, or null when the save
+   * produced something that cannot be written to a second time (a download).
+   *
+   * Passed straight back as {@link SaveTextFileOptions.path} on the next save,
+   * which is what makes a repeat Save overwrite rather than duplicate. Use
+   * {@link filesystemPathOrNull} before recording it anywhere durable.
+   */
   path: string | null;
 }
 
@@ -52,6 +62,15 @@ export interface SaveTextFileOptions {
   suggestedName: string;
   path?: string | null;
   extensions: string[];
+  /**
+   * Whether this save establishes a target the *next* save can overwrite.
+   *
+   * True for saving the document (File › Save / Save As). False for exports,
+   * which produce a fresh artifact each time rather than a file you keep saving
+   * over. In the browser this is also what chooses a save dialog over a
+   * download, so leaving it off keeps an export the one-click download it is.
+   */
+  reusableTarget?: boolean;
 }
 
 export interface SaveBinaryFileOptions {
@@ -83,6 +102,179 @@ export function ensureExtension(filename: string, extension: string): string {
     : `${filename}${normalized}`;
 }
 
+declare global {
+  interface Window {
+    /**
+     * File System Access API. Chromium only — absent in Firefox and Safari, and
+     * in any non-secure context, which is why every use is guarded.
+     */
+    showSaveFilePicker?: (options?: {
+      suggestedName?: string;
+      types?: { description?: string; accept: Record<string, string[]> }[];
+    }) => Promise<FileSystemFileHandle>;
+    showOpenFilePicker?: (options?: {
+      multiple?: boolean;
+      types?: { description?: string; accept: Record<string, string[]> }[];
+    }) => Promise<FileSystemFileHandle[]>;
+  }
+  interface FileSystemHandle {
+    // Opening a file grants read only; writing back to it needs an explicit
+    // upgrade, which is a prompt the user answers once per file.
+    queryPermission?: (descriptor?: { mode?: 'read' | 'readwrite' }) => Promise<PermissionState>;
+    requestPermission?: (descriptor?: { mode?: 'read' | 'readwrite' }) => Promise<PermissionState>;
+  }
+}
+
+/** The picker's file-type filter, from the extensions a caller accepts. */
+function pickerTypes(extensions: string[]) {
+  return [
+    {
+      description: 'Ori Studio',
+      accept: { 'application/octet-stream': extensions.map((extension) => `.${extension}`) },
+    },
+  ];
+}
+
+/**
+ * Save targets the browser can write to a second time, by the token handed back
+ * as {@link SaveFileResult.path}.
+ *
+ * A download has no way back to the file it produced, so a browser save could
+ * only ever make another copy — `project.osf`, `project (1).osf`, and so on. The
+ * File System Access API does have a way back: the handle from the save dialog
+ * stays writable for the life of the page, so a later Save can overwrite the file
+ * the first one created.
+ *
+ * The token is namespaced so it can never be mistaken for a filesystem path;
+ * {@link filesystemPathOrNull} is what keeps it out of saved files. The store
+ * round-trips it in `currentFilePath`, which is also what invalidates it: every
+ * load and every new document already writes that field, and on the web they all
+ * write null, so a handle cannot outlive the document it belongs to.
+ */
+const WEB_SAVE_TARGET_PREFIX = 'web-save:';
+const webSaveTargets = new Map<string, FileSystemFileHandle>();
+let nextWebSaveTargetId = 1;
+
+/** Remember a handle as a save target, and return the token that names it. */
+function rememberWebSaveTarget(handle: FileSystemFileHandle): string {
+  const token = `${WEB_SAVE_TARGET_PREFIX}${nextWebSaveTargetId++}`;
+  webSaveTargets.set(token, handle);
+  return token;
+}
+
+/**
+ * Upgrade a handle to writable.
+ *
+ * A handle from the *open* dialog carries read permission only, so saving back
+ * to the file the user opened needs this — a one-time prompt per file. A handle
+ * from the save dialog is already writable and answers `granted` outright.
+ */
+async function ensureWritable(handle: FileSystemFileHandle): Promise<boolean> {
+  if (!handle.queryPermission) return true;
+  if ((await handle.queryPermission({ mode: 'readwrite' })) === 'granted') return true;
+  return (await handle.requestPermission?.({ mode: 'readwrite' })) === 'granted';
+}
+
+/**
+ * The path to record *inside a saved file*: a real filesystem path, or nothing.
+ *
+ * A web save-target token is meaningful only to the page that minted it, so
+ * writing one into a portable `.osf` would persist a reference that resolves
+ * nowhere — including on the machine that wrote it, after a reload.
+ */
+export function filesystemPathOrNull(path: string | null): string | null {
+  return path?.startsWith(WEB_SAVE_TARGET_PREFIX) ? null : path;
+}
+
+/** Test seam: drop every remembered handle. */
+export function resetWebSaveTargets(): void {
+  webSaveTargets.clear();
+  nextWebSaveTargetId = 1;
+}
+
+/**
+ * Dismissing a file dialog rejects rather than resolving. That is a cancelled
+ * save, not a failure — the store already reads a null result as "cancelled".
+ */
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError';
+}
+
+/**
+ * Replace the file's contents through its handle.
+ *
+ * `createWritable` writes to a swap file and only replaces the original on
+ * `close()`, so a failure part-way through leaves the file that is already on
+ * disk intact rather than truncated.
+ */
+async function writeWebSaveTarget(handle: FileSystemFileHandle, contents: string): Promise<void> {
+  const writable = await handle.createWritable();
+  await writable.write(contents);
+  await writable.close();
+}
+
+/**
+ * How a browser save found its file. Reported separately from `project saved`
+ * rather than as a property of it, because the distinction exists only here —
+ * the store cannot see which of the three happened, and a second `project saved`
+ * would double-count every save.
+ */
+type WebSaveMode = 'overwrite' | 'picker' | 'download';
+
+function trackWebSave(mode: WebSaveMode): void {
+  track('project save target', { mode });
+}
+
+async function saveBrowserTextFile(
+  options: SaveTextFileOptions
+): Promise<SaveFileResult | null> {
+  const name = ensureExtension(options.suggestedName, options.extensions[0] ?? 'txt');
+
+  const existing = options.path ? webSaveTargets.get(options.path) : undefined;
+  if (existing && options.path) {
+    try {
+      if (await ensureWritable(existing)) {
+        await writeWebSaveTarget(existing, options.contents);
+        trackWebSave('overwrite');
+        return { name: existing.name, path: options.path };
+      }
+      // Permission refused. Asking where to put it instead is a better answer
+      // than failing the save outright.
+      webSaveTargets.delete(options.path);
+    } catch (error) {
+      if (isAbortError(error)) return null;
+      // The page can lose permission on a handle (a revoked grant, a file moved
+      // out from under it). Forget it and ask again rather than failing the save.
+      webSaveTargets.delete(options.path);
+    }
+  }
+
+  const showSaveFilePicker = options.reusableTarget ? window.showSaveFilePicker : undefined;
+  if (!showSaveFilePicker) {
+    // An export, or a browser with no File System Access API (Firefox, Safari).
+    // A download is still a save; it just cannot be written to again, so the
+    // next one makes a copy.
+    downloadBlob(new Blob([options.contents], { type: 'text/plain;charset=utf-8' }), name);
+    if (options.reusableTarget) trackWebSave('download');
+    return { name, path: null };
+  }
+
+  let handle: FileSystemFileHandle;
+  try {
+    handle = await showSaveFilePicker({
+      suggestedName: name,
+      types: pickerTypes(options.extensions),
+    });
+  } catch (error) {
+    if (isAbortError(error)) return null;
+    throw error;
+  }
+
+  await writeWebSaveTarget(handle, options.contents);
+  trackWebSave('picker');
+  return { name: handle.name, path: rememberWebSaveTarget(handle) };
+}
+
 function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
@@ -95,7 +287,51 @@ function downloadBlob(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-function openBrowserTextFile(options: OpenTextFileOptions): Promise<OpenTextFileResult | null> {
+/**
+ * Open a file the app can later save back to.
+ *
+ * The `<input type=file>` fallback below hands over the file's *contents* and
+ * nothing else — no way back to the file on disk. So opening a document, editing
+ * it and pressing Save had to ask where to put it, every time, even though the
+ * user had just said which file they meant. The open dialog's handle is that way
+ * back: it is remembered as the save target, so Save writes to the file that was
+ * opened. Chromium grants it read permission only; {@link ensureWritable}
+ * upgrades it at the first save.
+ */
+async function openBrowserTextFile(
+  options: OpenTextFileOptions
+): Promise<OpenTextFileResult | null> {
+  const showOpenFilePicker = window.showOpenFilePicker;
+  if (!showOpenFilePicker) return openBrowserTextFileInput(options);
+
+  let handle: FileSystemFileHandle | undefined;
+  try {
+    [handle] = await showOpenFilePicker({
+      multiple: false,
+      types: pickerTypes(options.extensions),
+    });
+  } catch (error) {
+    if (isAbortError(error)) return null;
+    // Rejected for a reason other than a dismissal — a sandboxed frame, a
+    // policy block. The input still opens the file; it just cannot save back.
+    return openBrowserTextFileInput(options);
+  }
+  if (!handle) return null;
+
+  // Deliberately *not* upgrading to write access here. Chrome's guidance is to
+  // fold that request into the open, and the API gives no way to ask for it in
+  // the dialog itself (`showOpenFilePicker` takes no permission mode), so the
+  // request has to be a second prompt either way. Raised at open it reads as
+  // nonsense — Chrome words it "Save changes to <file>?", asked of someone who
+  // has just opened a file and changed nothing. {@link ensureWritable} asks at
+  // the first save instead, where the question matches what is happening.
+  const file = await handle.getFile();
+  return { text: await file.text(), name: file.name, path: rememberWebSaveTarget(handle) };
+}
+
+function openBrowserTextFileInput(
+  options: OpenTextFileOptions
+): Promise<OpenTextFileResult | null> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -202,12 +438,13 @@ class BrowserFileService implements FileService {
   }
 
   async saveTextFile(options: SaveTextFileOptions): Promise<SaveFileResult | null> {
-    const name = ensureExtension(options.suggestedName, options.extensions[0] ?? 'txt');
-    downloadBlob(new Blob([options.contents], { type: 'text/plain;charset=utf-8' }), name);
-    return { name, path: null };
+    return saveBrowserTextFile(options);
   }
 
   async saveBinaryFile(options: SaveBinaryFileOptions): Promise<SaveFileResult | null> {
+    // Deliberately still a download. The binary saves are all *exports* (SVG,
+    // PNG, a foreign format), and an export is a new artifact each time rather
+    // than a document you keep saving over.
     const name = ensureExtension(options.suggestedName, options.extensions[0] ?? 'bin');
     const bytes = new Uint8Array(options.bytes);
     downloadBlob(new Blob([bytes.buffer], { type: options.mimeType }), name);

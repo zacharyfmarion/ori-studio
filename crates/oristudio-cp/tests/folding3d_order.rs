@@ -35,6 +35,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use treemaker_fold::FoldDocument;
 
+mod common;
+
 fn repo(relative: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
@@ -51,8 +53,28 @@ fn read_model(relative: &str) -> CreasePatternModel {
         .unwrap_or_else(|error| panic!("import {}: {error:?}", path.display()))
 }
 
+/// A committed fixture. Panics on a name held outside the repository — use
+/// `try_fixture` for those.
 fn fixture(name: &str) -> CreasePatternModel {
+    assert!(
+        !common::is_external(name),
+        "{name} is held outside the repository; use try_fixture"
+    );
     read_model(&format!("tests/fixtures/fold-angle-3d/{name}.fold"))
+}
+
+/// A fixture, or `None` when it is one of the third-party models held outside
+/// the repository and the corpus is not configured. See `tests/common/mod.rs`.
+fn try_fixture(test: &str, name: &str) -> Option<CreasePatternModel> {
+    let path = common::fixture_path(test, name)?;
+    let raw = std::fs::read_to_string(&path)
+        .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
+    let document: FoldDocument = serde_json::from_str(&raw)
+        .unwrap_or_else(|error| panic!("parse {}: {error}", path.display()));
+    Some(
+        import_fold_document(&document)
+            .unwrap_or_else(|error| panic!("import {}: {error:?}", path.display())),
+    )
 }
 
 fn border(a: Point, b: Point) -> LineSegment {
@@ -761,7 +783,9 @@ fn the_committed_fixtures_order_completely() {
         ("penguin_freeform", 457, 4, 52, 0),
     ];
     for (name, variables, components, couplings, crossings) in expected {
-        let model = fixture(name);
+        let Some(model) = try_fixture("the_committed_fixtures_order_completely", name) else {
+            continue;
+        };
         let solved = solve(&model.line_segments)
             .unwrap_or_else(|error| panic!("{name} did not order: {error}"));
         assert_eq!(solved.variables, variables, "{name} variables");
@@ -783,7 +807,12 @@ fn the_committed_fixtures_order_completely() {
 /// ordering convention that produces it.
 #[test]
 fn the_first_press_changes_the_largest_component() {
-    let model = fixture("penguin_freeform");
+    let Some(model) = try_fixture(
+        "the_first_press_changes_the_largest_component",
+        "penguin_freeform",
+    ) else {
+        return;
+    };
     let placement = place_segments(&model.line_segments, 1).expect("placed");
     let (index, census) = census_placement(&placement, Fold3dTolerances::DEFAULT);
     let mut enumerator =
