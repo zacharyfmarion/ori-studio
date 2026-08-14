@@ -27,19 +27,26 @@
  * the bare attribute rather than each value means a new sonner theme name
  * cannot silently fall back to its palette. */
 :root [data-sonner-toaster][data-sonner-theme] {
-  --normal-bg: var(--bg-elevated);
+  /* `--bg-secondary`, not the `--bg-elevated` every other floating surface uses.
+   * A toast is the only overlay in the app that carries a control, and
+   * `.ui-button--secondary` is itself `--bg-elevated` — so an elevated toast put
+   * the container and its own button on the same step of the ladder, one unit
+   * apart in this preset (#2c313a against #2d323b) and flat to the eye. Dropping
+   * the toast to the recessed surface restores the relationship the app's
+   * buttons are designed for: container darker, control above it. */
+  --normal-bg: var(--bg-secondary);
   --normal-border: var(--border-default);
   --normal-text: var(--text-primary);
-  --success-bg: var(--bg-elevated);
+  --success-bg: var(--bg-secondary);
   --success-border: var(--border-default);
   --success-text: var(--text-primary);
-  --error-bg: var(--bg-elevated);
+  --error-bg: var(--bg-secondary);
   --error-border: var(--border-default);
   --error-text: var(--text-primary);
-  --warning-bg: var(--bg-elevated);
+  --warning-bg: var(--bg-secondary);
   --warning-border: var(--border-default);
   --warning-text: var(--text-primary);
-  --info-bg: var(--bg-elevated);
+  --info-bg: var(--bg-secondary);
   --info-border: var(--border-default);
   --info-text: var(--text-primary);
 }
@@ -63,27 +70,36 @@
  * white. Dropped in favour of the app's secondary button, so a control inside a
  * toast reads like every other control in the app.
  *
- * `--bg-surface` rather than the secondary button's `--bg-elevated`: the toast
- * itself is already `--bg-elevated`, and a button the same colour as its own
- * background is a button only its border admits to. This is the one place the
- * two-token step matters.
- *
  * Beats `[data-sonner-toast][data-styled='true'] [data-button]` (0,3,0).
  */
 :root [data-sonner-toaster][data-sonner-theme] [data-sonner-toast] [data-button] {
-  background: var(--bg-surface);
+  /* `.ui-button--secondary` verbatim, which is the point of moving the toast to
+   * `--bg-secondary` above: the control can now use the app's own recipe rather
+   * than a one-off mix invented to claw contrast out of two adjacent tokens. */
+  background: var(--bg-elevated);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-weight: 600;
+
+  /* Sonner hard-codes `height: 24px`, below `.ui-control--sm`'s 28px and so
+   * smaller than any other control in the app. `stretch` lets it match the
+   * message block instead — on the two-line wrap this toast usually shows, that
+   * is the full content height — with the `sm` metrics as the floor for a
+   * one-line message. */
+  align-self: stretch;
+  height: auto;
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 0.75rem;
   transition:
     background-color 0.15s ease,
     border-color 0.15s ease;
 }
 
 :root [data-sonner-toaster][data-sonner-theme] [data-sonner-toast] [data-button]:hover {
-  background: color-mix(in srgb, var(--text-primary) 12%, var(--bg-surface));
-  border-color: var(--border-strong);
+  /* `.ui-button--secondary:hover`. */
+  background: var(--bg-surface);
 }
 
 /* `--accent-primary`, matching `.ui-button:focus-visible`, rather than sonner's
@@ -97,11 +113,11 @@
  * [data-close-button]` (0,4,0). */
 :root [data-sonner-toaster][data-sonner-theme] [data-sonner-toast] [data-close-button] {
   color: var(--text-secondary);
-  background: var(--bg-surface);
+  background: var(--bg-elevated);
   border-color: var(--border-default);
 }
 
 :root [data-sonner-toaster][data-sonner-theme] [data-sonner-toast] [data-close-button]:hover {
   color: var(--text-primary);
-  background: color-mix(in srgb, var(--text-primary) 12%, var(--bg-surface));
+  background: var(--bg-surface);
 }
