@@ -207,12 +207,13 @@ describe('BpFlapResizeHandles', () => {
   it('sends a footprint, not a position, and settles on release', () => {
     render();
     // Outer box is 12 x 12 at (16,16); dragging the east edge two cells out
-    // spends them on the radius, and the height pays for it.
+    // makes it 14 x 12, and the radius fills that as far as the short side
+    // allows (6), leaving the two extra cells as width.
     dragTo('e', { x: 30, y: 20 });
     expect(dragRequests.beginFlapReshape).toHaveBeenCalled();
     expect(dragRequests.queueFlapReshape).toHaveBeenCalledWith({
       id: 1,
-      footprint: { anchor: { x: 21, y: 21 }, width: 4, height: 2, radius: 5 },
+      footprint: { anchor: { x: 22, y: 22 }, width: 2, height: 0, radius: 6 },
     });
     expect(dragRequests.flushFlapReshape).toHaveBeenCalledTimes(1);
   });

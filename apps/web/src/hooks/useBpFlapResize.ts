@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'react';
 import type { OristudioBpFlap, OristudioBpSheet } from '../engine/oristudioBpTypes';
 import {
+  bpFlapFootprint,
   bpFlapHandlePoint,
   bpFlapOuterBox,
+  sameBpFlapFootprint,
   solveBpFlapReshape,
   type BpFlapFootprint,
   type BpFlapRadiusRange,
@@ -107,12 +109,7 @@ export function useBpFlapResize(input: UseBpFlapResizeInput): BpFlapResize {
     // of cancelling through the same commit path everything else uses.
     dragRequests.flushFlapReshape({
       id: current.start.id,
-      footprint: {
-        anchor: current.start.anchor,
-        width: current.start.width,
-        height: current.start.height,
-        radius: current.start.radius,
-      },
+      footprint: bpFlapFootprint(current.start),
     });
   }, [dragRequests]);
 
@@ -159,14 +156,19 @@ export function useBpFlapResize(input: UseBpFlapResizeInput): BpFlapResize {
       if (!current) return;
       event.stopPropagation();
       const pointer = eventToPackingPoint(event);
-      const footprint = solveBpFlapReshape({
+      const solved = solveBpFlapReshape({
         flap: current.start,
         handle: current.handle,
         pointer: { x: pointer.x - current.grab.x, y: pointer.y - current.grab.y },
         radiusRange,
         sheet,
       });
-      if (!footprint) return;
+      // A pointer back at the box it started from asks for the flap it started
+      // as. Sending that rather than nothing is what makes an overshoot
+      // recoverable *during* the drag: skipping it would leave the flap wherever
+      // the furthest step put it, with no way back short of undo.
+      const footprint = solved ?? bpFlapFootprint(current.start);
+      if (!current.sent && sameBpFlapFootprint(bpFlapFootprint(current.start), footprint)) return;
       current.sent = footprint;
       dragRequests.queueFlapReshape({ id: current.start.id, footprint });
     },

@@ -55,109 +55,104 @@ function drag(
   return solveBpFlapReshape({ flap: source, handle, pointer, radiusRange, sheet });
 }
 
+/** A solved footprint, as the flap a later gesture starts from. */
+function asFlap(footprint: BpFlapFootprint): OristudioBpFlap {
+  return flap(footprint.width, footprint.height, footprint.radius, footprint.anchor);
+}
+
 function sizes(footprint: BpFlapFootprint | null): [number, number, number] | null {
   return footprint ? [footprint.width, footprint.height, footprint.radius] : null;
 }
 
 describe('solveBpFlapReshape', () => {
-  describe('the radius takes the drag where it can', () => {
-    it('grows a circular flap on a corner drag as pure radius', () => {
+  describe('the radius is as large as the box allows', () => {
+    it('makes a square box of even side a pure circle', () => {
+      // The rule in one case: 6 x 6 is r3, not r2 around a 2 x 2 base.
+      expect(sizes(drag(flap(0, 0, 1), 'ne', 4, 4))).toEqual([0, 0, 3]);
+    });
+
+    it('reaches the same circle from a flap that was carrying a box', () => {
+      // The answer depends on the outer box and nothing else, so a 6 x 6 box is
+      // r3 however the flap that filled it was shaped.
+      expect(sizes(drag(flap(2, 2, 1), 'ne', 2, 2))).toEqual([0, 0, 3]);
+    });
+
+    it('leaves the parity cell in the box when the side is odd', () => {
+      // W = w + 2r, so an odd side cannot be a circle. That is the only reason a
+      // square box keeps a box at all.
+      expect(sizes(drag(flap(0, 0, 1), 'ne', 5, 5))).toEqual([1, 1, 3]);
+    });
+
+    it('fills a non-square box with the roundest flap that fits', () => {
+      // 7 x 5: the short side caps the radius at 2, the rest is box.
+      expect(sizes(drag(flap(0, 0, 2), 'ne', 3, 1))).toEqual([3, 1, 2]);
+    });
+
+    it('grows a circle on a corner drag', () => {
       expect(sizes(drag(flap(0, 0, 5), 'ne', 2, 2))).toEqual([0, 0, 6]);
     });
 
-    it('leaves the radius alone on an edge drag with no slack to pay with', () => {
-      // h = 0, so there is no height to trade for radius: a circle made wider and
-      // not taller is a capsule, which is exactly what a width is for.
+    it('makes a capsule when only one axis is dragged', () => {
+      // The un-dragged extent is held, so the radius is capped by it and the
+      // width takes the rest: a circle made wider and not taller is a capsule.
       expect(sizes(drag(flap(0, 0, 5), 'e', 2, 0))).toEqual([2, 0, 5]);
-    });
-
-    it('spends the height on the radius when the height has slack', () => {
-      expect(sizes(drag(flap(4, 4, 2), 'e', 2, 0))).toEqual([4, 2, 3]);
-    });
-
-    it('shrinks the radius first, so a drag reverses exactly', () => {
-      expect(sizes(drag(flap(4, 2, 3), 'e', -2, 0))).toEqual([4, 4, 2]);
-    });
-
-    it('turns a squeezed circle into a capsule on the pinned axis', () => {
-      // The outer height was not dragged, so it is held: the circle narrows into
-      // a vertical stadium rather than simply becoming a smaller circle.
       expect(sizes(drag(flap(0, 0, 5), 'e', -2, 0))).toEqual([0, 2, 4]);
     });
 
     it('refuses to shrink the outer box below the minimum radius', () => {
       expect(drag(flap(0, 0, 1), 'e', -1, 0)).toBeNull();
     });
+
+    it('changes nothing when the pointer asks for the box it started from', () => {
+      // Pressing a handle without moving must not rewrite the flap, which a rule
+      // that answers from the box alone would otherwise do.
+      expect(drag(flap(4, 4, 2), 'ne', 0, 0)).toBeNull();
+      expect(drag(flap(4, 4, 2), 'e', 0, 0)).toBeNull();
+    });
   });
 
-  describe('a corner drag grows the radius even when its two axes differ', () => {
-    // The reported bug. `δ` is bounded per axis by `w + Δx ≥ 2δ`, so before this
-    // the axis that moved *less* capped the radius and one odd cell capped it at
-    // zero — which a hand-dragged corner produces nearly every time. Dragging a
-    // circle's corner out has to give a bigger circle.
-    it('spends the drag on the radius when one axis lands a cell short', () => {
-      expect(sizes(drag(flap(0, 0, 2), 'ne', 2, 1))).toEqual([0, 0, 3]);
-    });
-
-    it('still grows it from a flap that has a box', () => {
-      expect(sizes(drag(flap(2, 2, 1), 'ne', 3, 1))).toEqual([3, 1, 2]);
-    });
-
-    it('pays for it by overshooting the shorter axis, never the pinned edges', () => {
+  describe('an off-square corner drag is exact on both axes', () => {
+    // This is what the delta-spending rule could not do: there, the axis that
+    // moved less capped the radius, so one odd cell stopped it moving at all.
+    it('grows the radius and still lands both edges on the pointer', () => {
       const source = flap(0, 0, 2);
       const before = bpFlapOuterBox(source);
       const result = drag(source, 'ne', 2, 1)!;
       const after = bpFlapOuterBox(result);
-      // The axis that drove the radius is exact.
-      expect(after.x + after.width).toBe(before.x + before.width + 2);
-      // The shorter one lands one cell past the pointer — the whole cost.
-      expect(after.y + after.height).toBe(before.y + before.height + 2);
-      // And the corner opposite the one being dragged has not moved at all.
+      expect(after.width).toBe(before.width + 2);
+      expect(after.height).toBe(before.height + 1);
+      // And the corner opposite the one dragged has not moved.
       expect(after.x).toBe(before.x);
       expect(after.y).toBe(before.y);
     });
 
-    it('overshoots by less than the cell the radius had to take', () => {
-      // The squeeze can only ever swallow what one dimension had left, so the
-      // miss is bounded by the radius step — never a runaway.
-      for (let dy = 0; dy <= 6; dy++) {
-        const source = flap(1, 1, 3);
-        const result = drag(source, 'ne', 6, dy);
-        if (!result) continue;
-        const asked = bpFlapOuterBox(source).height + dy;
-        const got = bpFlapOuterBox(result).height;
-        expect(got - asked).toBeLessThanOrEqual(2 * (result.radius - source.radius));
-        expect(got).toBeGreaterThanOrEqual(asked);
+    it('holds across a sweep of mismatched corner drags', () => {
+      for (let dx = -2; dx <= 6; dx++) {
+        for (let dy = -2; dy <= 6; dy++) {
+          const source = flap(1, 1, 3);
+          const result = drag(source, 'ne', dx, dy);
+          if (!result) continue;
+          const before = bpFlapOuterBox(source);
+          const after = bpFlapOuterBox(result);
+          expect(after.width).toBe(before.width + dx);
+          expect(after.height).toBe(before.height + dy);
+        }
       }
     });
   });
 
-  describe('the squeeze is scoped to axes the drag is growing', () => {
-    it('leaves an edge drag unable to make the flap taller', () => {
-      // The un-dragged extent is still a hard bound: an east drag on a circular
-      // flap has no height to trade, so the width takes all of it.
-      const source = flap(0, 0, 5);
-      const before = bpFlapOuterBox(source);
-      const result = drag(source, 'e', 4, 0)!;
-      expect(sizes(result)).toEqual([4, 0, 5]);
-      expect(bpFlapOuterBox(result).height).toBe(before.height);
-    });
-
-    it('keeps a corner that grows one way and shrinks the other exact on both', () => {
+  describe('the same box always gives the same flap', () => {
+    it('returns to the start when a later gesture drags back', () => {
+      // Reversible across gestures, not just within one, because the answer is a
+      // function of the outer box. The delta-spending rule was not.
       const source = flap(0, 0, 4);
-      const before = bpFlapOuterBox(source);
-      const result = drag(source, 'ne', 2, -2)!;
-      const after = bpFlapOuterBox(result);
-      expect(after.width).toBe(before.width + 2);
-      expect(after.height).toBe(before.height - 2);
+      const out = asFlap(drag(source, 'ne', 3, 3)!);
+      expect(sizes(drag(out, 'ne', -3, -3))).toEqual([0, 0, 4]);
     });
 
-    it('keeps a corner dragged inward exact', () => {
-      const source = flap(0, 0, 5);
-      const before = bpFlapOuterBox(source);
-      const result = drag(source, 'ne', -2, -2)!;
-      expect(sizes(result)).toEqual([0, 0, 4]);
-      expect(bpFlapOuterBox(result).width).toBe(before.width - 2);
+    it('is idempotent: a flap it produced is already its own answer', () => {
+      const once = asFlap(drag(flap(3, 5, 4), 'ne', 2, 2)!);
+      expect(drag(once, 'ne', 0, 0)).toBeNull();
     });
   });
 
@@ -182,11 +177,12 @@ describe('solveBpFlapReshape', () => {
     });
 
     it('moves the anchor when the radius grows on an axis the handle does not drive', () => {
-      // The north handle drives only y, so Δx is zero — but the radius still
-      // grows, and the anchor has to walk east to hold the x edges still.
+      // The north handle drives only y, so the outer width is unchanged — but the
+      // radius still grows into it, and the anchor has to walk east to hold the x
+      // edges still. A resize moves the flap.
       const result = drag(flap(4, 4, 2), 'n', 0, 2);
-      expect(sizes(result)).toEqual([2, 4, 3]);
-      expect(result?.anchor).toEqual({ x: 21, y: 21 });
+      expect(sizes(result)).toEqual([0, 2, 4]);
+      expect(result?.anchor).toEqual({ x: 22, y: 22 });
     });
   });
 
@@ -216,12 +212,12 @@ describe('solveBpFlapReshape', () => {
       expect(drag(flap(3, 0, 1.5), 'ne', 2, 2)).toBeNull();
     });
 
-    it('puts the odd cell in the box rather than moving the radius against the drag', () => {
-      // W = w + 2r, so the radius can only absorb an even change. One cell out
-      // widens the box; two cells out moves the radius and the height pays.
-      expect(sizes(drag(flap(4, 4, 2), 'e', 1, 0))).toEqual([5, 4, 2]);
-      expect(sizes(drag(flap(4, 4, 2), 'e', 2, 0))).toEqual([4, 2, 3]);
-      expect(sizes(drag(flap(4, 4, 2), 'e', 3, 0))).toEqual([5, 2, 3]);
+    it('leaves the odd cell in the box, since the radius can only take even ones', () => {
+      // The un-dragged height caps the radius at 4 here, so every extra cell of
+      // width lands in the box and the outer edge tracks the pointer one for one.
+      expect(sizes(drag(flap(4, 4, 2), 'e', 1, 0))).toEqual([1, 0, 4]);
+      expect(sizes(drag(flap(4, 4, 2), 'e', 2, 0))).toEqual([2, 0, 4]);
+      expect(sizes(drag(flap(4, 4, 2), 'e', 3, 0))).toEqual([3, 0, 4]);
     });
   });
 

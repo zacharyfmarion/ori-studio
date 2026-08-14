@@ -8,14 +8,16 @@ into the `R / W / H` pill.
 
 The point is not "a second way to set width". A flap's drawn extent is governed
 by **three** numbers — radius, width, height — and only one of them (the radius)
-is the origami-meaningful one. So a handle drag states *where the edge should
-land* and the feature solves for the three numbers behind it, **spending the
-change on the radius wherever it can** and using width/height only to make the
-result land where the pointer asked.
+is the origami-meaningful one. So a handle drag states *where the edges should
+land*, and the feature then makes the **radius as large as that box allows**,
+leaving width and height as whatever is left over.
 
-Requested behaviour, verbatim: *"it should essentially default to increasing the
-radius if it can, and then just adding or subtracting the width or height
-necessary to make the flap come out to look the way it should."*
+Requested behaviour, in the author's words: *"default to increasing the radius if
+it can, and then just adding or subtracting the width or height necessary to make
+the flap come out to look the way it should"* — and, on seeing the first build
+get this wrong: *"if the width and height of the flap bounds are the same, and
+divisible by 2, then just set radius and the width and height properties should
+be 0."*
 
 ## Background — the geometry this rests on
 
@@ -89,131 +91,114 @@ and the outer edges are integers because `x`, `w`, `r` are — so the requested
 deltas `Δx`, `Δy` (signed change in outer **width** and outer **height**) are
 integers for free.
 
-### The one equation
+### Where the flap ends up
 
-Pinning the three untouched outer edges determines everything from `δ = r′ − r`:
-
-```
-w′ = w + Δx − 2δ
-h′ = h + Δy − 2δ
-r′ = r + δ
-x′ = x + δ − (sx === -1 ? Δx : 0)
-y′ = y + δ − (sy === -1 ? Δy : 0)
-```
-
-and then, identically for any `δ`,
+The pinned edge is the one the handle is *not* dragging, so the new outer box
+hangs off it and the anchor is that edge plus the new radius:
 
 ```
-W′ = w′ + 2r′ = W + Δx        H′ = h′ + 2r′ = H + Δy
+outerX′ = sx === -1 ? outerX + W − W′ : outerX          x′ = outerX′ + r′
+outerY′ = sy === -1 ? outerY + H − H′ : outerY          y′ = outerY′ + r′
 ```
 
-— the outer box tracks the pointer **exactly**, whatever `δ` we pick. So `δ` is a
-free integer parameter and "prefer the radius" is a choice of `δ`, not a
-compromise on where the edge lands. That is the whole feature in one line.
+**A resize gesture moves the flap.** The anchor is the box's lower-left corner,
+not a centre, so growing the radius walks it outward even on an axis the handle is
+not dragging — a north drag that grows the radius moves the anchor east to hold
+the left and right edges still. Forgetting this is the most likely way to ship a
+flap that drifts, and it is why the result carries an anchor and why the kernel
+takes the whole footprint in one call.
 
-Note `x′ = x + δ` even when `Δx = 0`: a north drag that grows the radius must
-walk the anchor right to keep the left and right outer edges still. **A resize
-gesture moves the anchor.** Forgetting this is the most likely way to ship a flap
-that drifts.
-
-### Choosing δ
+### Choosing the radius
 
 ```
-driven  = [Δx if sx ≠ 0] ++ [Δy if sy ≠ 0]        // only the axes this handle drives
-Δdrive  = max(driven)
-δwant   = Δdrive ≥ 0 ? floor(Δdrive / 2) : ceil(Δdrive / 2)   // toward zero
-δhi     = min( ceiling(sx, w, Δx), ceiling(sy, h, Δy), rMax − r )
-δlo     = 1 − r
-δ       = clamp(δwant, δlo, δhi)
-
-ceiling(sign, dim, Δ) = sign ≠ 0 && Δ > 0 ? +∞ : floor((dim + Δ) / 2)
+W′ = W + Δx        H′ = H + Δy
+r′ = clamp(floor(min(W′, H′) / 2), rMin, rMax)
+w′ = W′ − 2r′      h′ = H′ − 2r′
 ```
 
-- `δwant` spends the drag on the radius, **and no more than the drag paid for**.
-  Maximising `δ` outright would canonicalise the flap — grabbing a handle and
-  moving one cell would jump a `4×4 r2` flap straight to `r4`. Rounding toward
-  zero is what stops that.
-- `δhi` is where *"if it can"* lives: `floor((h + Δy)/2)` is the slack a dimension
-  has to pay with, from `h′ = h + Δy − 2δ ≥ 0`.
-- **A dimension the drag is actively growing does not bound the radius at all**,
-  and that exception is the whole reason a corner drag works. The bound is
-  per-axis, so without it the axis that moved *less* caps the radius and a single
-  odd cell caps it at zero — and a hand-dragged corner almost never lands both
-  axes on the same even count. Dragging a circle's corner out has to give a
-  bigger circle. See "The corner squeeze" below for what it costs.
-- Everywhere else the bound stays hard, which is what preserves the rest of the
-  rule: an **un-driven** axis (so an east drag still cannot make a flap taller)
-  and a **shrinking** axis (so dragging a corner in, or growing one way while
-  shrinking the other, stays exact on both).
-- `δlo` is `r ≥ 1`, the engine's floor
-  ([project_session.rs:201](../crates/oristudio-bp/src/engine/project_session.rs:201)).
-  `rMax` is `edge.maxLength`, already on the snapshot and already used by the
-  pill's radius field — a tree-height cap (`MAX_TREE_HEIGHT − branchHeight +
-  length`), not a sheet cap.
+**The drag sets the outer box; the radius is then as large as that box allows.**
+The radius is the only one of the three numbers that means anything in the folded
+model — it is the flap's length, and its leaf edge's — so it takes everything it
+can hold and `w`/`h` are the leftovers.
+
+A square box of even side is therefore a pure circle: `6 × 6` is `r3`, not `r2`
+around a `2 × 2` base. That is the rule stated in the user's own words, and the
+generalisation of it.
+
+Two properties fall out of the answer depending on nothing but the outer box:
+
+- **The dragged edge always lands exactly on the pointer.** This `r′` can never
+  drive `w′` or `h′` negative, so there is nothing to clamp against and nothing
+  to overshoot — on any handle, at any delta, square or not.
+- **The same box always gives the same flap**, so a drag out and back returns to
+  where it started, across separate gestures as well as within one.
+
+`rMin` is `1`, the engine's floor
+([project_session.rs:201](../crates/oristudio-bp/src/engine/project_session.rs:201)),
+and it is what makes the outer box's own floor `2 × 2`. `rMax` is
+`edge.maxLength` — a tree-height cap, not a sheet cap — and a flap with no leaf
+edge has no radius to set at all, so its radius is pinned and `w`/`h` take
+everything.
+
+One case is special-cased rather than left to the arithmetic: a delta of `(0, 0)`
+returns "no change" even when the flap is not in canonical form, so that merely
+*pressing* a handle cannot rewrite a flap nobody dragged.
+
+**The cost, and it is real.** A flap carrying a deliberate `w × h` base is
+rewritten the first time a handle moves it. `(4,4,r2)` and `(0,0,r4)` fill the
+same paper but are different models — a rectangular-tipped flap of length 2
+against a point flap of length 4 — and this rule always picks the second. The
+`W`/`H` fields in the pill are how you get the first back.
 
 Worked examples, all integral:
 
 | Start `(w,h,r)` | Handle | Δ | Result | Reads as |
 | --- | --- | --- | --- | --- |
-| `(0,0,5)` circle | `ne` | `+2,+2` | `(0,0,6)` | the circle grows — pure radius |
-| `(0,0,2)` circle | `ne` | `+2,+1` | `(0,0,3)` | off-square corner: still pure radius, `H` overshoots by 1 |
-| `(0,0,4)` circle | `ne` | `+2,−2` | `(4,0,3)` | mixed signs stay exact on both axes |
-| `(0,0,5)` circle | `e` | `+2,0` | `(2,0,5)` | horizontal capsule, radius held |
-| `(4,4,2)` | `e` | `+2,0` | `(4,2,3)` | radius takes it, height pays |
-| `(4,2,3)` | `e` | `−2,0` | `(4,4,2)` | exact inverse of the row above |
-| `(0,0,5)` circle | `e` | `−2,0` | `(0,2,4)` | vertical capsule: outer height was pinned |
-| `(0,0,1)` | `e` | `−1,0` | refused | outer box floor is `2×2` at `r = 1` |
+| `(0,0,1)` | `ne` | `+4,+4` | `(0,0,3)` | a `6 × 6` box is a circle |
+| `(2,2,1)` | `ne` | `+2,+2` | `(0,0,3)` | the same `6 × 6` box from a different flap |
+| `(0,0,1)` | `ne` | `+5,+5` | `(1,1,3)` | odd side: parity leaves one cell in the box |
+| `(0,0,2)` | `ne` | `+3,+1` | `(3,1,2)` | non-square: the short side caps the radius |
+| `(0,0,5)` | `e` | `+2,0` | `(2,0,5)` | horizontal capsule — the height is held |
+| `(0,0,5)` | `e` | `−2,0` | `(0,2,4)` | vertical capsule, its mirror image |
+| `(4,4,2)` | `n` | `0,+2` | `(0,2,4)` | the anchor walks east; a resize moves the flap |
+| `(0,0,1)` | `e` | `−1,0` | refused | the outer box floor is `2 × 2` at `r = 1` |
 
-### The corner squeeze, and what it costs
+### An earlier rule, and why it went
 
-The exception above is the one place the outer box misses the pointer. When a
-corner drag's two axes differ, the shorter one runs out of dimension to trade and
-its edge lands up to a cell past where it was dropped — measured: a drag asking
-for `7 × 5` produced `7 × 6`.
+The first build spent the *delta* on the radius rather than maximising it:
+`δ = clamp(floor(Δdrive / 2), 1 − r, min(floor((w + Δx)/2), floor((h + Δy)/2)))`.
+It was chosen to avoid rewriting a flap's deliberate `w × h`, and it was wrong on
+its own terms:
 
-Three things bound the cost, and each has a test:
+- The bound is per-axis, so the axis that moved *less* capped the radius and one
+  odd cell capped it at zero. A hand-dragged corner almost never lands both axes
+  on the same even count, so the radius was effectively unreachable by the
+  gesture that most obviously means *make this flap bigger*.
+- Relaxing that for growing axes fixed the reachability but bought an overshoot:
+  the shorter axis of an off-square corner drag landed up to a cell past the
+  pointer.
+- And it was not reversible across gestures, because the answer depended on the
+  flap as well as the box.
 
-- **Only the dragged corner moves.** The anchor is derived from `δ` alone, so the
-  pinned edges are unaffected by the clamp.
-- **Only the lesser axis.** Whichever axis set `δwant` lands exactly.
-- **Never more than the radius took.** The squeeze can only swallow what one
-  dimension had left, so the miss is bounded by `2δ`.
+Maximising the radius is better on all three counts at once. The one thing it
+gives up is the `w × h` it was protecting — which was never the thing being
+asked for.
 
-This was chosen over the alternatives after the first build shipped without it
-and the radius turned out to be effectively unreachable by corner drag. Rejected:
-forcing both axes of a corner to one delta (loses free-form non-square corner
-resize, and needs a carve-out for grow-one-shrink-the-other), and leaving it
-exact (keeps the box honest but makes the handles a width/height tool rather than
-a radius one, which is not what was asked for).
+### Parity
 
-### Parity, and why the odd cell goes to width
-
-`W = w + 2r`, so **the radius can only ever absorb an even change in the outer
-extent**. An odd `Δ` necessarily leaves ±1 in `w` (or `h`). Under `δwant =
-floor(Δ/2)`, dragging east one cell at a time gives `w` a `+1, 0, +1, 0…`
-wobble while `h` steps down by 2 every second cell. The **outer box — the thing
-the handle is attached to and the thing the user is watching — moves smoothly by
-one cell every time.** Only the inner `w × h` rectangle wobbles, and only by one
-cell.
-
-Rejected alternatives, so they are not re-litigated:
-
-- `ceil` instead of `floor`: absorbs the odd cell by *shrinking* `w` while the
-  user drags outward. A field moving against the gesture is worse than a wobble.
-- Snapping the handle to every second cell while the radius has slack: kills the
-  wobble, but makes the handle lag the cursor by up to a full cell and changes
-  snap granularity mid-drag depending on invisible state.
-
-If the wobble reads badly in the browser pass, the fix is the second option
-above, scoped to `sx`/`sy`-driven axes only. Do not reach for it first.
+`W = w + 2r`, so a box of odd side cannot be a circle — the `floor` leaves that
+one cell in `w` or `h`. It is the only reason a square box ever keeps a box at
+all, and it is why `5 × 5` comes out as `r2` with a `1 × 1` base rather than
+`r2.5`.
 
 ### Feasibility and clamping
 
-A step is admissible when `δlo ≤ δhi` **and** the resulting flap passes the
-sheet rule. Two gates, in this order:
+A step is admissible when the box it implies is non-negative **and** the
+resulting flap passes the sheet rule. Two gates, in this order:
 
-1. `w′ ≥ 0`, `h′ ≥ 0`, `1 ≤ r′ ≤ rMax` — encoded in the clamp above; when
-   `δlo > δhi` the requested `Δ` is simply not reachable.
+1. `w′ ≥ 0` and `h′ ≥ 0`. Maximising the radius satisfies these on its own
+   unless `rMin` forces the radius up — an outer box below `2 × 2` — or the flap
+   has no leaf edge, so its radius is pinned and cannot make room.
 2. `bpPackingCanResizeFlap(anchor′, w′, h′, sheet)`
    ([bpPackingViewport.ts:459](../apps/web/src/lib/bpPackingViewport.ts:459)) —
    the client mirror of `validate_flap_with_sheet`
@@ -323,7 +308,7 @@ Implementation notes:
   path `dragging` unlocks). Leave `resize_flap` alone — the pill is a discrete
   commit and wants exactly that.
 - `radius: None` covers a flap whose leaf edge is missing (`bpFlapRadius`'s
-  `max(w,h)/2` fallback). Then `δ` is pinned to 0 and the gesture is a plain
+  `max(w,h)/2` fallback). Then the radius is pinned and the gesture is a plain
   `w`/`h` resize; the outer-box promise does not hold for such a flap because its
   drawn radius is derived from its box. Rare — the engine keeps flap ⟺ leaf — but
   it must not throw.
@@ -356,8 +341,8 @@ export function solveBpFlapReshape(input: {
 }): BpFlapReshape | null;
 ```
 
-Everything above lives here: the `δ` choice, both feasibility gates, the clamp,
-the self-mirror parity quantisation. It returns `null` for a step that reduces to
+Everything above lives here: the radius choice, both feasibility gates, the
+clamp, the self-mirror parity quantisation. It returns `null` for a step that reduces to
 a no-op. Sibling of `annotationTransform.ts`, which is the shape to copy —
 camera-agnostic maths with its own tests, no knowledge of the gesture.
 
@@ -454,8 +439,8 @@ another one.
   ([flap.vue:17](../third_party/box-pleating-studio/src/app/vue/panel/flap.vue:17)).
   Still worth having; they belong in `keyboard/`, not here.
 - **Alt-to-resize-about-centre and a modifier that suppresses the radius
-  preference.** Both are cheap once the solver exists (`δwant = 0` is the whole
-  second one). Hold them until the browser pass says the default rule needs an
+  preference.** Both are cheap once the solver exists (pinning `r′` to the flap's
+  current radius is the whole second one). Hold them until the browser pass says the default rule needs an
   escape hatch.
 - Optimizer behaviour, which stays out of scope for BP Editor work.
 
@@ -535,7 +520,7 @@ writes fields that already exist), the optimizer, the tree pane.
 
 ### Phase 2 — solver + store
 
-- [x] `lib/bpFlapReshape.ts`: the `δ` rule, both feasibility gates, the clamp,
+- [x] `lib/bpFlapReshape.ts`: the radius rule, both feasibility gates, the clamp,
       self-mirror parity.
 - [x] Solver tests: the six worked examples in the table above; every one of the
       eight handles; the anchor shift when `Δ = 0` on the un-driven axis;

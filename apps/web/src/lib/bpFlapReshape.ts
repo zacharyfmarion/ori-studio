@@ -13,50 +13,41 @@ import type { Point } from './geometry';
  * [x - r, x + w + r] × [y - r, y + h + r]     W = w + 2r    H = h + 2r
  * ```
  *
- * So three numbers govern one drawn box, and a handle drag says where one of its
- * edges should land without saying which of the three should move. This module
- * answers that, preferring the **radius** — the only one of the three that means
- * something in the folded model, the others being the flap's rectangular base.
- *
- * ## Why the radius is free to prefer
- *
- * Pin the three outer edges the handle does not drag, let `δ = r′ − r`, and
- * every unknown falls out of it:
+ * So three numbers govern one drawn box, and a handle drag says where its edges
+ * should land without saying which of the three should move. This module answers
+ * that: **the drag sets the outer box, and the radius is then made as large as
+ * that box allows.**
  *
  * ```
- * w′ = w + Δx − 2δ      h′ = h + Δy − 2δ      r′ = r + δ
- * x′ = x + δ − (west handle ? Δx : 0)         y′ = y + δ − (south handle ? Δy : 0)
+ * r′ = floor(min(W′, H′) / 2)        w′ = W′ − 2r′        h′ = H′ − 2r′
  * ```
  *
- * where `Δx`, `Δy` are the requested changes in the **outer** width and height.
- * Substituting back gives `W′ = W + Δx` and `H′ = H + Δy` for *every* `δ` — the
- * dragged edge lands exactly where the pointer asked whatever the radius does.
- * Choosing `δ` is therefore a free choice about meaning, not a compromise on
- * geometry.
+ * The radius is the only one of the three that means anything in the folded model
+ * — it is the flap's length, and the leaf edge's — so it gets everything it can
+ * hold, and `w`/`h` are what is left over. A square box of even side is therefore
+ * a pure circle: `6 × 6` gives `r3`, not `r2` around a `2 × 2` base.
  *
- * That holds while `w′` and `h′` stay non-negative. The one case that breaks it
- * is a corner drag whose two axes differ, where the shorter axis runs out of
- * dimension to trade — see {@link radiusCeilingFor} for why the radius wins
- * there and what it costs.
+ * Two properties follow from the answer depending on nothing but the outer box.
+ * The dragged edge lands exactly where the pointer asked, always — this choice of
+ * `r′` can never drive `w′` or `h′` negative, so there is never anything to clamp
+ * against. And the same box always yields the same flap, so a drag out and back
+ * returns to where it started, across separate gestures as well as within one.
  *
- * Note `x′ = x + δ` even when `Δx = 0`: growing the radius on a north drag has to
- * walk the anchor east to hold the left and right edges still. **A resize moves
- * the flap**, which is why the result carries an anchor and why the kernel takes
- * the whole footprint in one call.
+ * ## Three facts that shape it
  *
- * ## Two facts that shape the rule
+ * **A resize moves the flap.** The anchor is the *lower-left corner of the box*,
+ * not a centre, so growing the radius walks it outward even on an axis the handle
+ * is not dragging. That is why the result carries an anchor, and why the kernel
+ * takes the whole footprint in one call.
  *
  * **Integrality.** `create_junction` derives the device overlap from flap AABBs
  * and tree distances, and BP's gadget generation hard-errors on a fractional
  * one — taking the whole graphics snapshot with it, not just that gadget. Every
  * number here is an integer in and an integer out.
  *
- * **Parity.** `W = w + 2r`, so the radius can only ever absorb an *even* change
- * in the outer extent; an odd `Δ` necessarily leaves ±1 in the box. Rounding `δ`
- * toward zero is what decides where that cell goes, and it means the box wobbles
- * by one while the outer edge — the thing under the cursor — tracks it exactly.
- * Rounding away from zero would instead shrink the box while the user drags
- * outward, which is worse: a number moving against the gesture.
+ * **Parity.** `W = w + 2r`, so a box of odd side cannot be a circle; the `floor`
+ * leaves that one cell in `w` or `h`. It is the only reason a square box ever
+ * keeps a box at all.
  */
 
 export type BpFlapResizeHandle = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
@@ -216,12 +207,32 @@ function requestedOuterDelta(
 }
 
 /**
- * The footprint for one outer-box delta, or `null` when no integer radius
- * satisfies it.
+ * The footprint for one outer-box delta, or `null` when the flap cannot be it.
  *
- * A dimension the drag is actively *growing* may be squeezed to nothing — see
- * {@link solveRadiusDelta}. Everywhere else the bound there keeps it
- * non-negative on its own, so this clamp only ever bites where it was meant to.
+ * **The radius is made as large as the box allows**, and whatever is left over
+ * becomes the width and height:
+ *
+ * ```
+ * r′ = floor(min(W′, H′) / 2)        w′ = W′ − 2r′        h′ = H′ − 2r′
+ * ```
+ *
+ * That is the whole rule. A square box of even side comes out as a pure circle —
+ * `6 × 6` is `r3`, not `r2` with a `2 × 2` box — and every other box comes out as
+ * the roundest flap that fills it, with at most one of `w′`, `h′` left over on
+ * each axis beyond the parity cell.
+ *
+ * Two properties fall out of it being a pure function of the outer box, and both
+ * were missing from the delta-spending rule this replaced. The box lands exactly
+ * where the pointer asked, **always** — `r′` chosen this way can never make `w′`
+ * or `h′` negative, so there is nothing to clamp and nothing to overshoot. And
+ * the same box always gives the same flap, so a drag out and back returns to
+ * where it started even across separate gestures.
+ *
+ * The cost, which is real: a flap carrying a deliberate `w × h` base is rewritten
+ * the first time a handle moves it. `(4,4,r2)` and `(0,0,r4)` fill the same paper
+ * but are different models — a rectangular-tipped flap of length 2 against a
+ * point flap of length 4 — and this rule always picks the second. The `W`/`H`
+ * fields in the pill are how you get the first back.
  */
 function footprintFor(
   flap: OristudioBpFlap,
@@ -229,88 +240,39 @@ function footprintFor(
   delta: OuterDelta,
   radiusRange: BpFlapRadiusRange | null
 ): BpFlapFootprint | null {
-  const { width: w, height: h, radius: r } = flap;
-  const radiusDelta = solveRadiusDelta(w, h, r, signs, delta, radiusRange);
-  if (radiusDelta === null) return null;
-  const width = Math.max(0, w + delta.x - 2 * radiusDelta);
-  const height = Math.max(0, h + delta.y - 2 * radiusDelta);
-  const anchor = {
-    x: flap.anchor.x + radiusDelta - (signs.sx === -1 ? delta.x : 0),
-    y: flap.anchor.y + radiusDelta - (signs.sy === -1 ? delta.y : 0),
+  // A gesture that asks for the box the flap already has asks for nothing. Said
+  // here rather than left to fall out of the arithmetic, so that merely pressing
+  // a handle cannot rewrite a flap that was never dragged.
+  if (delta.x === 0 && delta.y === 0) return null;
+
+  const outer = bpFlapOuterBox(flap);
+  const width = outer.width + delta.x;
+  const height = outer.height + delta.y;
+  const radius = radiusRange
+    ? Math.min(Math.max(Math.floor(Math.min(width, height) / 2), radiusRange.min), radiusRange.max)
+    : flap.radius;
+  const box = { width: width - 2 * radius, height: height - 2 * radius };
+  // Only reachable when the radius could not be lowered far enough — a box below
+  // the 2x2 floor that a radius of 1 needs, or a flap whose radius is pinned
+  // because it has no leaf edge.
+  if (box.width < 0 || box.height < 0) return null;
+
+  // The pinned edge is the one the handle is not dragging, so the new outer box
+  // hangs off it; the anchor is then that edge plus the radius.
+  const origin = (sign: -1 | 0 | 1, low: number, was: number, now: number): number =>
+    sign === -1 ? low + was - now : low;
+  const footprint = {
+    anchor: {
+      x: origin(signs.sx, outer.x, outer.width, width) + radius,
+      y: origin(signs.sy, outer.y, outer.height, height) + radius,
+    },
+    ...box,
+    radius,
   };
-  const footprint = { anchor, width, height, radius: r + radiusDelta };
   // A flap that arrived off the integer lattice must not be nudged further along
   // it. Refusing is the safe answer: a fractional flap coordinate fails device
   // generation for the entire design, not just this flap.
   return isIntegralFootprint(footprint) ? footprint : null;
-}
-
-/**
- * How much of the drag the radius takes.
- *
- * - **As much as the drag paid for, and no more.** Maximising the radius
- *   outright would canonicalise the flap: grabbing a handle and moving a single
- *   cell would snap a `4×4 r2` flap straight to `r4`. `δwant` rounds toward zero
- *   so a drag can only ever move the radius in the direction it is going.
- * - **Only what a dimension can pay** — but which dimensions those are is the
- *   whole design of this feature, so see {@link radiusCeilingFor} below.
- * - The driving deltas are the ones this **handle** controls, so an edge drag
- *   reads only its own axis and a corner drag reads both.
- */
-function solveRadiusDelta(
-  w: number,
-  h: number,
-  r: number,
-  signs: { sx: -1 | 0 | 1; sy: -1 | 0 | 1 },
-  delta: OuterDelta,
-  radiusRange: BpFlapRadiusRange | null
-): number | null {
-  if (!radiusRange) return 0;
-  const driven: number[] = [];
-  if (signs.sx !== 0) driven.push(delta.x);
-  if (signs.sy !== 0) driven.push(delta.y);
-  const drive = driven.length === 0 ? 0 : Math.max(...driven);
-  const want = drive >= 0 ? Math.floor(drive / 2) : Math.ceil(drive / 2);
-  const high = Math.min(
-    radiusCeilingFor(signs.sx, w, delta.x),
-    radiusCeilingFor(signs.sy, h, delta.y),
-    radiusRange.max - r
-  );
-  const low = radiusRange.min - r;
-  if (low > high) return null;
-  return Math.min(Math.max(want, low), high);
-}
-
-/**
- * How much radius growth one dimension will fund, from `w′ = w + Δ − 2δ ≥ 0`.
- *
- * **A dimension the drag is actively growing does not bound the radius at all.**
- * That is the one place this rule lets the outer box miss the pointer, and it is
- * deliberate: the bound is per-axis, so without this exception the axis that
- * moved *less* caps the radius, and a single odd cell on either axis caps it at
- * zero. A hand-dragged corner almost never lands both axes on the same even
- * count, so "the radius never moves" was the ordinary outcome of the gesture
- * that most obviously means *make this flap bigger*. Dragging a circle's corner
- * out has to give a bigger circle.
- *
- * What it costs: when the two axes differ, the shorter one runs out of dimension
- * to trade and its edge lands up to a cell past the pointer. The pinned edges
- * never move — the anchor is derived from `δ` alone — so only the corner being
- * dragged overshoots, and only on its lesser axis.
- *
- * Every other case keeps the hard bound, which is what preserves the rest of the
- * rule:
- *
- * - **An un-driven axis**, so an edge drag still cannot move the extent nobody
- *   grabbed. An east drag on a circular flap (`h = 0`) gets no radius and spends
- *   the whole delta on width — correct, because making a circle wider *without*
- *   making it taller is exactly what a width is for.
- * - **A shrinking axis**, so a corner dragged in stays exact, and a drag that
- *   grows one way while shrinking the other lands on both pointers.
- */
-function radiusCeilingFor(sign: -1 | 0 | 1, dimension: number, delta: number): number {
-  if (sign !== 0 && delta > 0) return Number.POSITIVE_INFINITY;
-  return Math.floor((dimension + delta) / 2);
 }
 
 /**
@@ -338,12 +300,26 @@ function isIntegralFootprint(footprint: BpFlapFootprint): boolean {
   ].every((value) => Number.isInteger(value));
 }
 
-function sameFootprint(flap: OristudioBpFlap, footprint: BpFlapFootprint): boolean {
+/** The footprint a flap already has, for restoring one a gesture moved. */
+export function bpFlapFootprint(flap: OristudioBpFlap): BpFlapFootprint {
+  return {
+    anchor: flap.anchor,
+    width: flap.width,
+    height: flap.height,
+    radius: flap.radius,
+  };
+}
+
+export function sameBpFlapFootprint(a: BpFlapFootprint, b: BpFlapFootprint): boolean {
   return (
-    flap.anchor.x === footprint.anchor.x &&
-    flap.anchor.y === footprint.anchor.y &&
-    flap.width === footprint.width &&
-    flap.height === footprint.height &&
-    flap.radius === footprint.radius
+    a.anchor.x === b.anchor.x &&
+    a.anchor.y === b.anchor.y &&
+    a.width === b.width &&
+    a.height === b.height &&
+    a.radius === b.radius
   );
+}
+
+function sameFootprint(flap: OristudioBpFlap, footprint: BpFlapFootprint): boolean {
+  return sameBpFlapFootprint(bpFlapFootprint(flap), footprint);
 }
