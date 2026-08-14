@@ -571,20 +571,63 @@ writes fields that already exist), the optimizer, the tree pane.
       repo root has no vitest config), `npm run build:web` if bindings changed.
 - [x] Rebuild `build:oristudio-bp-wasm` before any browser check.
 
-### Shipped smaller than planned, on purpose
+### What the first three builds got wrong, and how it was found
 
-- **A self-mirrored flap declines the handles.** The plan's parity quantisation
-  (only an even `Δ` keeps such a flap on the grid) turned out to be the *smaller*
-  half of the problem: pinning the opposite outer edge is incompatible with
-  staying centred on the axis, so a correct gesture there is a second solve —
-  symmetric growth about the line, with its own parity rule and its own tests —
-  for a case that is real but secondary. The handles are simply not drawn for
-  one, `useBpPackingSymmetry.selfMirrored` is the gate, and its `R / W / H`
-  fields still work. A scoped follow-up, not a silent wrong answer.
-- **Handles are sized in SVG units, not screen pixels**, so they scale with the
-  camera exactly as the flap dots and labels already do. The too-small gate is a
-  test of *relative* size — handles and flap scale together — so zoom cancels out
-  of it and no `zoomPercent` is needed.
+Three rules shipped before this one behaved. The pattern is worth keeping,
+because none of the three were caught by reading the code:
+
+1. **v1, spend the delta on the radius.** The per-axis feasibility bound meant
+   whichever axis moved *less* capped the radius, so one odd cell capped it at
+   zero and a hand-dragged corner essentially never moved it.
+2. **v2, v1 without the bound on a growing axis.** Fixed the reachability, bought
+   an overshoot: the shorter axis of an off-square corner drag landed a cell past
+   the pointer.
+3. **v3, maximise the radius everywhere.** Exact and reversible, but every edge
+   drag then restructured the perpendicular axis — the reported complaint.
+
+Each was found by *measuring*, not reasoning: a sweep of the solver over eleven
+flap shapes, every handle and eleven deltas, which found 173 drags that did
+nothing and 69 that swapped radius for box. That sweep is now
+`bpFlapReshapeInvariants.test.ts`, and the property it asserts — the box moves by
+at most one cell per cell of drag — is exactly the defect stated formally. It was
+red before v4 and is green after.
+
+### Symmetry, and two holes that swallowed the handles
+
+- **A self-mirrored flap now resizes about the line** rather than losing its
+  handles. It was declined at first on the grounds that keeping it centred needs
+  `centre − width/2` to stay whole and the wrong parity is a fractional
+  coordinate. The fix falls out once the constraint is stated properly: the box
+  grows from the line in *both* directions, so its extent changes by an even
+  number and that parity never changes. It matters because both leaves of the
+  starter design sit on the axis, so turning mirror draw on used to remove the
+  handles from every flap in a fresh document, silently.
+- **Only a flap already on the line is pinned.** One whose tree vertex is on the
+  mirror but whose box is not on the paper's is a design that is already
+  asymmetric, and honouring the constraint there flung the flap across the sheet
+  on the first drag.
+- **A paired flap cannot be resized across the mirror.** It could: dragging the
+  west handle of a flap one cell right of the axis three cells west put its box
+  on the same cells as its partner's. The move path already refuses this in
+  `constrainBpFlapGroupToAxisSides`; the resize path now clamps to the same rule.
+  The solver takes it as an opaque predicate, so it keeps knowing only about
+  boxes.
+
+### Chrome: screen pixels, not SVG units
+
+Handles are sized in **screen pixels** and the too-small gate measures the same
+way. Sizing them in SVG units — as the flap dots and labels are — looked
+consistent and was wrong: SVG units per grid cell is `612 / sheetSpan`, so on a
+64-cell sheet an ordinary radius-1 flap is 19 units across against a 10-unit
+handle, under the gate, with no handles at all. And because the camera scales
+handles and flap together, zooming in could never fix it.
+
+The gesture also survives its own chrome disappearing. If the layer unmounted
+mid-drag no pointerup could reach the handler, so the gesture stayed active, the
+Escape listener stayed armed, and the undo entry stayed open for the next
+unrelated edit to fold into. A flap that goes away now cancels and restores; a
+flap that merely shrinks past the gate keeps its handles for the rest of the
+gesture.
 
 ### Browser pass (Zach — a full pointer drag cannot be driven in the automated pane)
 
