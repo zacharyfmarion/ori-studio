@@ -9,6 +9,7 @@ export { GlCore, WebGlContextLostError, textureSizeFor } from './webgl/glCore.js
 export {
   MeshRenderer,
   meshTopologyFor,
+  DEFAULT_CREASE_DEPTH_BIAS,
   MAX_DASH_RUNS,
   packCreaseDash,
   creaseFrameScale,

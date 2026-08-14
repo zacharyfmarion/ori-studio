@@ -5,6 +5,7 @@ import {
   type RenderSettings,
 } from '@treemaker/origami-simulator';
 import { folded3dMesh, packFolded3dPositionTexture } from '../../cp-workspace/folded/folded3dMesh';
+import { folded3dCreaseDepthBias } from '../../cp-workspace/folded/folded3dWindow';
 import { UNDETERMINED_FACE_ALPHA } from '../../cp-workspace/folded/folded3dStyle';
 import { folded3dDrawPasses } from '../../simulator/foldedMeshSource';
 import type { StartFigureAsset } from './startFigureAsset';
@@ -39,7 +40,10 @@ export class StartFigureMesh {
     private readonly radius: number,
     private readonly faceIndexCount: number,
     private readonly undeterminedIndexStart: number,
-    private readonly undeterminedFaceAlpha: number
+    private readonly edgeCount: number,
+    private readonly undeterminedEdgeStart: number,
+    private readonly undeterminedFaceAlpha: number,
+    private readonly creaseDepthBias: number
   ) {}
 
   /**
@@ -92,7 +96,10 @@ export class StartFigureMesh {
         radius,
         topology.faceIndices.length,
         built.mesh.undeterminedIndexStart,
-        UNDETERMINED_FACE_ALPHA
+        topology.edgeAssignments.length,
+        built.mesh.undeterminedEdgeStart,
+        UNDETERMINED_FACE_ALPHA,
+        folded3dCreaseDepthBias(built.mesh)
       );
     } catch {
       core?.dispose();
@@ -153,15 +160,28 @@ export class StartFigureMesh {
       {
         faceIndexCount: this.faceIndexCount,
         undeterminedIndexStart: this.undeterminedIndexStart,
+        edgeCount: this.edgeCount,
+        undeterminedEdgeStart: this.undeterminedEdgeStart,
         undeterminedFaceAlpha: this.undeterminedFaceAlpha,
       },
       settings
     )) {
       this.mesh.render(
         orthographic,
-        { ...settings, showEdges: pass.showEdges, faceAlpha: pass.faceAlpha },
+        {
+          ...settings,
+          showEdges: pass.showEdges,
+          faceAlpha: pass.faceAlpha,
+          // A folded figure's layers are a hair apart, so the renderer's own
+          // bias would draw the buried ones. Same rule as the figure window.
+          creaseDepthBias: this.creaseDepthBias,
+        },
         null,
-        { clear: pass.clear, faceRange: pass.faceRange ?? undefined }
+        {
+          clear: pass.clear,
+          faceRange: pass.faceRange ?? undefined,
+          edgeRange: pass.edgeRange ?? undefined,
+        }
       );
     }
   }

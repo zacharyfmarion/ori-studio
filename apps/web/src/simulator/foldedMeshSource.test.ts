@@ -3,20 +3,25 @@ import { folded3dDrawPasses } from './foldedMeshSource';
 
 const OPAQUE = { showFaces: true, showEdges: true, faceAlpha: 1 };
 
-/** 30 face indices, the last 9 of them cells the layer solver could not order. */
+/**
+ * 30 face indices, the last 9 of them cells the layer solver could not order,
+ * and 12 creases of which the last 4 belong to those cells.
+ */
 const MIXED = {
   faceIndexCount: 30,
   undeterminedIndexStart: 21,
+  edgeCount: 12,
+  undeterminedEdgeStart: 8,
   undeterminedFaceAlpha: 0.45,
 };
 
 /** The same figure with every cell resolved — the ordinary case. */
-const DETERMINED = { ...MIXED, undeterminedIndexStart: 30 };
+const DETERMINED = { ...MIXED, undeterminedIndexStart: 30, undeterminedEdgeStart: 12 };
 
 describe('breaking a folded figure into draws', () => {
   it('draws a fully determined figure in one clearing pass over everything', () => {
     expect(folded3dDrawPasses(DETERMINED, OPAQUE)).toEqual([
-      { clear: true, showEdges: true, faceAlpha: 1, faceRange: null },
+      { clear: true, showEdges: true, faceAlpha: 1, faceRange: null, edgeRange: null },
     ]);
   });
 
@@ -28,6 +33,15 @@ describe('breaking a folded figure into draws', () => {
     expect(passes).toHaveLength(2);
     expect(passes[0]!.faceRange).toEqual({ start: 0, count: 21 });
     expect(passes[1]!.faceRange).toEqual({ start: 21, count: 9 });
+  });
+
+  it('tiles the creases across the two passes as well', () => {
+    // A crease belongs to a layer now, so it has to be drawn with that layer's
+    // paper. The two runs partition the creases for the same reason the face
+    // ranges do: a gap loses linework, an overlap doubles its ink.
+    const passes = folded3dDrawPasses(MIXED, OPAQUE);
+    expect(passes[0]!.edgeRange).toEqual({ start: 0, count: 8 });
+    expect(passes[1]!.edgeRange).toEqual({ start: 8, count: 4 });
   });
 
   it('clears once, on the first pass only', () => {
@@ -42,9 +56,17 @@ describe('breaking a folded figure into draws', () => {
     expect(folded3dDrawPasses(MIXED, OPAQUE).map((pass) => pass.faceAlpha)).toEqual([1, 0.45]);
   });
 
-  it('draws the creases once, in the first pass', () => {
-    // Both passes drawing them would double their ink wherever the ranges meet.
-    expect(folded3dDrawPasses(MIXED, OPAQUE).map((pass) => pass.showEdges)).toEqual([true, false]);
+  it('lets each pass draw its own creases', () => {
+    // Not "creases in the first pass only", which is what this said while a
+    // crease was one undisplaced line belonging to no layer: an undetermined
+    // cell's linework would then be drawn against the resolved stack's depth and
+    // at the wrong opacity. The ranges above are what keep the ink single.
+    expect(folded3dDrawPasses(MIXED, OPAQUE).map((pass) => pass.showEdges)).toEqual([true, true]);
+  });
+
+  it('draws no creases in either pass when the caller asked for none', () => {
+    const passes = folded3dDrawPasses(MIXED, { ...OPAQUE, showEdges: false });
+    expect(passes.map((pass) => pass.showEdges)).toEqual([false, false]);
   });
 
   it('stays one pass when the style has already made everything translucent', () => {

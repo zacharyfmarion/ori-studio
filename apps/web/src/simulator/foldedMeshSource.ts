@@ -43,6 +43,8 @@ export interface Folded3dMeshPayload {
    * separately; see {@link FoldedMeshSource.render}.
    */
   undeterminedIndexStart: number;
+  /** The same cut through the creases, counted in **edges**. */
+  undeterminedEdgeStart: number;
   /** Face opacity for that second pass. */
   undeterminedFaceAlpha: number;
 }
@@ -53,6 +55,8 @@ export class FoldedMeshSource {
     private readonly mesh: MeshRenderer,
     private readonly faceIndexCount: number,
     private readonly undeterminedIndexStart: number,
+    private readonly edgeCount: number,
+    private readonly undeterminedEdgeStart: number,
     private readonly undeterminedFaceAlpha: number,
     /**
      * Depth bits of the *default* framebuffer, which is what the layer
@@ -98,6 +102,8 @@ export class FoldedMeshSource {
         mesh,
         payload.faceIndices.byteLength / 4,
         payload.undeterminedIndexStart,
+        payload.edgeAssignments.byteLength,
+        payload.undeterminedEdgeStart,
         payload.undeterminedFaceAlpha,
         readDepthBits(core)
       );
@@ -134,6 +140,8 @@ export class FoldedMeshSource {
       {
         faceIndexCount: this.faceIndexCount,
         undeterminedIndexStart: this.undeterminedIndexStart,
+        edgeCount: this.edgeCount,
+        undeterminedEdgeStart: this.undeterminedEdgeStart,
         undeterminedFaceAlpha: this.undeterminedFaceAlpha,
       },
       settings
@@ -143,7 +151,11 @@ export class FoldedMeshSource {
         orthographic,
         { ...settings, showEdges: pass.showEdges, faceAlpha: pass.faceAlpha },
         target,
-        { clear: pass.clear, faceRange: pass.faceRange ?? undefined }
+        {
+          clear: pass.clear,
+          faceRange: pass.faceRange ?? undefined,
+          edgeRange: pass.edgeRange ?? undefined,
+        }
       );
     }
   }
@@ -191,6 +203,8 @@ export interface Folded3dDrawPass {
   faceAlpha: number;
   /** A run of `faceIndices`, or null for all of them. */
   faceRange: { start: number; count: number } | null;
+  /** A run of the creases, in **edges**, or null for all of them. */
+  edgeRange: { start: number; count: number } | null;
 }
 
 /**
@@ -217,6 +231,8 @@ export function folded3dDrawPasses(
   mesh: {
     faceIndexCount: number;
     undeterminedIndexStart: number;
+    edgeCount: number;
+    undeterminedEdgeStart: number;
     undeterminedFaceAlpha: number;
   },
   settings: Pick<RenderSettings, 'showFaces' | 'showEdges' | 'faceAlpha'>
@@ -228,19 +244,28 @@ export function folded3dDrawPasses(
     showEdges: settings.showEdges,
     faceAlpha: settings.faceAlpha,
     faceRange: null,
+    edgeRange: null,
   };
   if (undeterminedCount <= 0 || !settings.showFaces || settings.faceAlpha < 1) {
     return [single];
   }
+  const edgeStart = mesh.undeterminedEdgeStart;
   return [
-    { ...single, faceRange: { start: 0, count: start } },
+    {
+      ...single,
+      faceRange: { start: 0, count: start },
+      edgeRange: { start: 0, count: edgeStart },
+    },
     {
       clear: false,
-      // Creases were drawn by the pass above; drawing them again would double
-      // their ink everywhere the two passes overlap.
-      showEdges: false,
+      // Each pass brings its own creases now that a crease belongs to a layer:
+      // an undetermined cell's linework is drawn here, with its own paper and at
+      // its opacity. Splitting the range is what keeps the ink single — the two
+      // runs partition the creases, so nothing is drawn twice.
+      showEdges: settings.showEdges,
       faceAlpha: mesh.undeterminedFaceAlpha,
       faceRange: { start, count: undeterminedCount },
+      edgeRange: { start: edgeStart, count: mesh.edgeCount - edgeStart },
     },
   ];
 }

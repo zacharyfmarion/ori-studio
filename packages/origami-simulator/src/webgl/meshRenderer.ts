@@ -147,7 +147,37 @@ export interface RenderSettings {
    * `strainClip`, default 5%.
    */
   strainClip?: number;
+  /**
+   * How far toward the viewer a crease is pushed, in NDC z, so it draws over the
+   * face it lies on instead of z-fighting with it. Defaults to
+   * {@link DEFAULT_CREASE_DEPTH_BIAS}.
+   *
+   * A caller only needs to set this when its model has **coplanar layers**,
+   * because then the bias is not just a tie-break — it is also how far *behind*
+   * the visible surface a crease may be and still be drawn. A folded figure
+   * separates its layers by a hair (`folded3dMesh.ts`), so the default is
+   * roughly a dozen layers deep and every buried layer's creases ride it to the
+   * front; that is what {@link folded3dCreaseDepthBias} exists to replace. A
+   * mass-spring simulation has no coincident layers at all and wants the
+   * default.
+   *
+   * In world depth this is `bias · depthRange`, and `cameraUniforms` sets
+   * `depthRange = 2 · radius` — so a value chosen as a fraction of a model's
+   * layer gap is camera-independent.
+   */
+  creaseDepthBias?: number;
 }
+
+/**
+ * The crease depth bias a caller gets without asking.
+ *
+ * Sized for a model whose surfaces are never coincident, which is every
+ * mass-spring simulation: it only has to beat the z-fight between a crease and
+ * the one face it lies on, and `1.6e-3 · radius` of world depth does that with
+ * room to spare at any frame size. It is *not* sized for coplanar layers — see
+ * {@link RenderSettings.creaseDepthBias}.
+ */
+export const DEFAULT_CREASE_DEPTH_BIAS = 0.0008;
 
 /** Full lockstep with the frame — see {@link RenderSettings.creaseWidthShrinkExponent}. */
 const DEFAULT_CREASE_SHRINK_EXPONENT = 1;
@@ -265,20 +295,33 @@ const EDGE_ATTRS: ReadonlyArray<readonly [string, number]> = [
   ['a_assignment', 4],
 ];
 
+/** Ribbon vertices per drawn crease: two triangles. */
+const EDGE_QUAD_VERTICES = 6;
+
 /**
  * Expand each drawn crease into a 2-triangle screen-space ribbon. Only border,
  * mountain and valley edges are drawn (codes 0/1/2); facet edges from
  * triangulation and unassigned edges are skipped. Returns the interleaved
- * vertex buffer.
+ * vertex buffer, and where each *source* edge's ribbon starts in it.
+ *
+ * The second half is what lets {@link MeshDrawOptions.edgeRange} be expressed in
+ * the caller's own edge numbering: skipped edges make the mapping from an edge
+ * index to a vertex offset non-linear, and a caller that assumed `6 · index`
+ * would draw the wrong creases on any model with a facet edge in it. `start` is
+ * `edgeCount + 1` long, so edges `[i, j)` own vertices `[start[i], start[j])`.
  */
-function buildEdgeQuads(topology: MeshTopology): Float32Array {
+function buildEdgeQuads(topology: MeshTopology): {
+  interleaved: Float32Array;
+  vertexStart: Uint32Array;
+} {
   const edgeCount = topology.edgeAssignments.length;
   let drawn = 0;
   for (let e = 0; e < edgeCount; e += 1) {
     if (topology.edgeAssignments[e]! <= 2) drawn += 1;
   }
 
-  const out = new Float32Array(drawn * 6 * EDGE_STRIDE);
+  const out = new Float32Array(drawn * EDGE_QUAD_VERTICES * EDGE_STRIDE);
+  const vertexStart = new Uint32Array(edgeCount + 1);
   let v = 0;
   const emit = (thisIndex: number, a: number, b: number, side: number, assignment: number) => {
     out[v] = thisIndex;
@@ -290,6 +333,7 @@ function buildEdgeQuads(topology: MeshTopology): Float32Array {
   };
 
   for (let e = 0; e < edgeCount; e += 1) {
+    vertexStart[e] = v / EDGE_STRIDE;
     const assignment = topology.edgeAssignments[e]!;
     if (assignment > 2) continue;
     const a = topology.edgeIndices[e * 2]!;
@@ -302,7 +346,8 @@ function buildEdgeQuads(topology: MeshTopology): Float32Array {
     emit(b, a, b, -1, assignment);
     emit(b, a, b, 1, assignment);
   }
-  return out;
+  vertexStart[edgeCount] = v / EDGE_STRIDE;
+  return { interleaved: out, vertexStart };
 }
 
 const FACE_VERT = `#version 300 es
@@ -415,6 +460,7 @@ uniform vec2 u_viewport;
 uniform float u_depthRange;
 uniform float u_camDist;
 uniform float u_halfWidthPx;
+uniform float u_depthBias;
 flat out int v_assignment;
 // Distance along the edge in pixels, for dashing. Exact across a straight
 // two-triangle ribbon, so the fragment stage can measure the run it is in.
@@ -458,8 +504,10 @@ void main(){
   v_alongPx = int(a_this + 0.5) == int(a_a + 0.5) ? 0.0 : len;
   vec2 perpPx = len > 0.0001 ? vec2(-dirPx.y, dirPx.x) / len : vec2(0.0);
   vec2 offsetNdc = (perpPx * u_halfWidthPx * a_side) / (u_viewport * 0.5);
-  // Bias toward the viewer so creases sit on top of the faces they lie on.
-  float depth = projectDepth(int(a_this + 0.5)) - 0.0008;
+  // Bias toward the viewer so a crease sits on top of the face it lies on —
+  // and, where the model has coplanar layers, on top of *that* face and nothing
+  // behind it. See RenderSettings.creaseDepthBias.
+  float depth = projectDepth(int(a_this + 0.5)) - u_depthBias;
   gl_Position = vec4(ndcThis + offsetNdc, depth, 1.0);
 }`;
 
@@ -537,6 +585,20 @@ export interface MeshDrawOptions {
    * rather than reading past the end.
    */
   faceRange?: { start: number; count: number };
+  /**
+   * A contiguous run of `topology.edgeAssignments` to draw, in **edges**.
+   *
+   * The crease half of `faceRange`, and it exists for the same reason: a folded
+   * figure draws its determined cells opaque and its undetermined ones
+   * translucent in a second pass, and each pass has to bring its own creases or
+   * they are drawn at the wrong opacity — or, if the second pass simply omitted
+   * them, not at all.
+   *
+   * Expressed in the caller's edge numbering rather than in ribbon vertices,
+   * because facet and unassigned edges are skipped by `buildEdgeQuads` and the
+   * mapping is therefore not `6 · index`.
+   */
+  edgeRange?: { start: number; count: number };
 }
 
 /** Clamp a face-index count or offset into `[0, limit]`. */
@@ -555,6 +617,8 @@ export class MeshRenderer {
   private readonly edgeVao: WebGLVertexArrayObject;
   private readonly faceCount: number;
   private readonly edgeVertexCount: number;
+  /** Ribbon vertex offset per source edge — see {@link buildEdgeQuads}. */
+  private readonly edgeVertexStart: Uint32Array;
   private readonly textureDim: number;
   private readonly faceUniforms: Map<string, WebGLUniformLocation | null> = new Map();
   private readonly edgeUniforms: Map<string, WebGLUniformLocation | null> = new Map();
@@ -582,8 +646,9 @@ export class MeshRenderer {
     // vertices), interleaved as [this, a, b, side, assignment]. Facet edges (the
     // triangulation diagonals, assignment 3) are skipped -- they are not fold
     // lines and only clutter the view; so are unassigned/other (>2).
-    const interleaved = buildEdgeQuads(topology);
+    const { interleaved, vertexStart } = buildEdgeQuads(topology);
     this.edgeVertexCount = interleaved.length / EDGE_STRIDE;
+    this.edgeVertexStart = vertexStart;
     this.edgeVao = createVao(gl);
     gl.bindVertexArray(this.edgeVao);
     this.edgeBuffer = uploadFloats(gl, interleaved);
@@ -692,11 +757,22 @@ export class MeshRenderer {
       this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_borderColor', settings.borderColor);
       this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_halfWidthPx', ink.widthPx * 0.5);
       this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_alpha', ink.alpha);
+      this.setFloat(
+        this.edgeProgram,
+        this.edgeUniforms,
+        'u_depthBias',
+        settings.creaseDepthBias ?? DEFAULT_CREASE_DEPTH_BIAS
+      );
       // Dash runs are lengths along the crease in the same device pixels, so a
       // shrinking crease has to take its pattern with it or a thumbnail reads as
       // two long dashes rather than as a dashed line.
       this.setDash(settings.creaseDash, creaseFrameScale(settings, camera.width, camera.height));
-      gl.drawArrays(gl.TRIANGLES, 0, this.edgeVertexCount);
+      const edges = this.edgeVertexStart.length - 1;
+      const firstEdge = clampRange(options.edgeRange?.start ?? 0, edges);
+      const edgeCount = clampRange(options.edgeRange?.count ?? edges - firstEdge, edges - firstEdge);
+      const firstVertex = this.edgeVertexStart[firstEdge]!;
+      const vertexCount = this.edgeVertexStart[firstEdge + edgeCount]! - firstVertex;
+      if (vertexCount > 0) gl.drawArrays(gl.TRIANGLES, firstVertex, vertexCount);
     }
 
     gl.depthMask(true);

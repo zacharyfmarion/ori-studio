@@ -210,11 +210,19 @@ the inline simulator's own rendering.
 
 ### Phase 3 — the bias
 
-- [ ] `u_creaseDepthBias` uniform; `RenderSettings.creaseDepthBias` optional,
-      default `0.0008`. Test that the simulator's default is unchanged.
-- [ ] `folded3dCreaseDepthBias(mesh) = 0.25 · eps / (2 · radius)`, wired through
-      `folded3dWindowRenderSettings`.
-- [ ] `MeshDrawOptions.edgeRange` + `folded3dDrawPasses` split.
+- [x] `u_creaseDepthBias` uniform; `RenderSettings.creaseDepthBias` optional,
+      default `DEFAULT_CREASE_DEPTH_BIAS` = `0.0008`, so the inline simulator is
+      untouched.
+- [x] `folded3dCreaseDepthBias(mesh) = 0.25 · eps / (2 · radius)`, wired through
+      `folded3dWindowRenderSettings` and the start-screen figure.
+- [x] `MeshDrawOptions.edgeRange` + `folded3dDrawPasses` split. `buildEdgeQuads`
+      now also returns a per-source-edge vertex offset, because facet edges are
+      skipped and a caller assuming `6 · index` would draw the wrong creases.
+- [x] Measured, over six fixtures x three cameras plus the reported model: the
+      worst depth a drawn crease sits behind the surface covering it is **0.25
+      layer gaps**, against 12 before, and bias-only ink on `540-level-0` falls
+      from 43% to 1.3% — the remainder being the coplanar tie-break the bias
+      exists for.
 
 ### Phase 4 — the test that would have caught this
 

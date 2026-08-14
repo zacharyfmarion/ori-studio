@@ -17,6 +17,7 @@
  */
 
 import {
+  DEFAULT_CREASE_DEPTH_BIAS,
   fitExtent,
   type OrbitView,
   type RenderSettings,
@@ -149,6 +150,38 @@ export function folded3dWindowView(camera: FoldedFigureCamera | null | undefined
 export const FOLDED_3D_WINDOW_CREASE_WIDTH_PX = 1.5;
 
 /**
+ * How much of one layer gap a crease is allowed to float above its own paper.
+ *
+ * The bias exists to break a tie — a crease is drawn from its slot's own ring,
+ * so it is exactly coplanar with the face it bounds and would otherwise
+ * z-fight. A quarter of a gap settles that with three quarters of margin left,
+ * and, far more importantly, **cannot reach the next layer**. The whole
+ * occlusion bug was a bias that could: the shipped constant is a dozen gaps
+ * deep, so every buried layer's creases rode it to the front.
+ */
+export const FOLDED_3D_CREASE_BIAS_FRACTION = 0.25;
+
+/**
+ * The crease depth bias for a folded figure, in NDC z.
+ *
+ * Camera-independent, which is what lets it be a render *setting* rather than
+ * something recomputed per frame: `cameraUniforms` sets `depthRange` to twice
+ * the radius it is given, and the window gives it `mesh.radius`, so a fraction
+ * of `mesh.eps` in world depth is that same fraction of `eps / (2 · radius)` in
+ * NDC whatever the eye is doing.
+ *
+ * The number that comes out is small — 2.5e-5 for a shallow stack, 7.7e-6 at the
+ * corpus's deepest (`plant_penguin`, 14 layers) — which is 210 and 64 units of a
+ * 24-bit depth buffer and under one of a 16-bit one. That is the same cliff
+ * `Folded3dMeshRuntime.shallowDepthBuffer` already reports, and it is why it
+ * reports it.
+ */
+export function folded3dCreaseDepthBias(mesh: Pick<Folded3dMesh, 'eps' | 'radius'>): number {
+  if (!(mesh.radius > 0)) return DEFAULT_CREASE_DEPTH_BIAS;
+  return (FOLDED_3D_CREASE_BIAS_FRACTION * mesh.eps) / (2 * mesh.radius);
+}
+
+/**
  * How a 3D figure's paper is drawn, as the settings every renderer takes.
  *
  * Built from the figure's **own** model colours rather than from the app-wide
@@ -166,6 +199,14 @@ export function folded3dWindowRenderSettings(options: {
   style: Folded3dPaperStyle;
   displayStyle: OristudioCpFoldedFigureDisplayStyle;
   devicePixelRatio: number;
+  /**
+   * The mesh being drawn, for {@link folded3dCreaseDepthBias}.
+   *
+   * Optional only so a caller with no mesh yet still gets colours; without it
+   * the creases fall back to the renderer's own bias, which on a folded figure
+   * is deep enough to draw buried layers.
+   */
+  mesh?: Pick<Folded3dMesh, 'eps' | 'radius'> | null;
 }): RenderSettings {
   const { style, displayStyle } = options;
   const plan = folded3dStylePlan(displayStyle, style.transparentAlpha);
@@ -190,6 +231,7 @@ export function folded3dWindowRenderSettings(options: {
       FOLDED_3D_WINDOW_CREASE_WIDTH_PX * Math.max(1, options.devicePixelRatio)
     ),
     faceAlpha: plan.faceAlpha * style.faceAlpha,
+    creaseDepthBias: options.mesh ? folded3dCreaseDepthBias(options.mesh) : undefined,
   };
 }
 
@@ -218,6 +260,7 @@ export function folded3dMeshPayload(mesh: Folded3dMesh): {
     center: mesh.center,
     radius: mesh.radius,
     undeterminedIndexStart: mesh.undeterminedIndexStart,
+    undeterminedEdgeStart: mesh.undeterminedEdgeStart,
     undeterminedFaceAlpha: UNDETERMINED_FACE_ALPHA,
   };
   return {
