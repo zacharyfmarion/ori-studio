@@ -206,6 +206,16 @@
     },
     "closeLabel": "Fermer {{title}}"
   },
+  "lossySave": {
+    "blockedMessage": "{{format}} ne peut pas stocker {{features}}, et à la réouverture chaque pli serait lu comme un pli complet. Enregistrer en projet Ori Studio conserve tout.",
+    "blockedTitle": "Enregistrer en {{format}} modifierait ce patron",
+    "keepFormat": "Enregistrer quand même en {{format}}",
+    "keepFormatDescription": "Écrit le fichier que vous avez ouvert, sans ces fonctionnalités. Plus de question pour ce document.",
+    "message": "Ce document utilise des fonctionnalités que {{format}} ne peut pas stocker ; elles seront omises du fichier enregistré : {{features}}.",
+    "saveAsProject": "Enregistrer en projet Ori Studio",
+    "saveAsProjectDescription": "Conserve tout, au format .osf propre à Ori Studio.",
+    "title": "Enregistrer en {{format}} supprimera certaines fonctionnalités"
+  },
   "number": {
     "tooSmall": "Saisissez un nombre supérieur à {{minimum}}."
   },
