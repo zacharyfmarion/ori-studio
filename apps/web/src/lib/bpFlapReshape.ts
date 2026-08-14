@@ -246,7 +246,12 @@ function requestedOuterDelta(
     // from the line in both directions and the pointer sets the half-extent.
     // The extent therefore changes by an even number, which is exactly what
     // keeps the recentred anchor on the integer lattice.
-    if (pinned !== null) return Math.round(2 * Math.abs(at - pinned)) - span;
+    //
+    // Signed, and floored at zero. Taking `|at - pinned|` cannot tell a pointer
+    // five cells short of the line from one five cells past it, so dragging a
+    // handle *inward* through the centre reversed direction and grew the flap
+    // without bound. Past the line the request is simply the floor.
+    if (pinned !== null) return 2 * Math.max(0, Math.round(sign * (at - pinned))) - span;
     if (sign === 1) return Math.round(at - (low + span));
     return Math.round(low - at);
   };
@@ -376,29 +381,44 @@ function radiusFor(
 }
 
 /**
- * The requested delta, then the same walked back toward `(0, 0)` one cell at a
- * time — the larger axis first, so a corner drag gives up its excess before its
- * shorter side.
+ * The requested delta first, then every smaller one in order of how much of the
+ * request it gives up.
+ *
+ * The obvious walk — decrement the larger axis, repeat — enumerates a *staircase*
+ * from the request to the origin rather than the rectangle beneath it, so an axis
+ * that is blocked drags a perfectly feasible one down with it and never comes
+ * back. Measured on the staircase: a corner drag of `(+5, +1)` on a flap resting
+ * against the paper's top edge returned nothing at all, while `(+5, 0)` — a
+ * strictly smaller request — landed exactly. The whole corner went dead the
+ * moment the pointer rose one cell.
+ *
+ * Sweeping by total shortfall instead means the first candidate the sheet accepts
+ * is the closest one to what the pointer asked for, on both axes at once. It is
+ * lazy, so an unobstructed drag — nearly all of them — still costs one candidate.
+ *
+ * A pinned axis moves in twos (its extent grows from the mirror both ways), so
+ * walking it one at a time would offer half-steps the flap cannot take and land
+ * its recentred anchor off the lattice.
  */
 function* shrinkingDeltas(
   delta: OuterDelta,
   centre: BpFlapCentreConstraint | null,
   signs: { sx: -1 | 0 | 1; sy: -1 | 0 | 1 }
 ): Generator<OuterDelta> {
-  // A pinned axis only ever moves in twos — its extent grows from the line in
-  // both directions — so walking it back one at a time would offer half-steps
-  // the flap cannot take, and land on an anchor off the lattice.
   const stepX = centre?.axis === 'x' && signs.sx !== 0 ? 2 : 1;
   const stepY = centre?.axis === 'y' && signs.sy !== 0 ? 2 : 1;
-  let { x, y } = delta;
-  yield { x, y };
-  while (x !== 0 || y !== 0) {
-    if (x !== 0 && (Math.abs(x) >= Math.abs(y) || y === 0)) {
-      x -= Math.sign(x) * Math.min(stepX, Math.abs(x));
-    } else {
-      y -= Math.sign(y) * Math.min(stepY, Math.abs(y));
+  const reachX = Math.floor(Math.abs(delta.x) / stepX);
+  const reachY = Math.floor(Math.abs(delta.y) / stepY);
+  const signX = Math.sign(delta.x);
+  const signY = Math.sign(delta.y);
+  for (let shortfall = 0; shortfall <= reachX + reachY; shortfall++) {
+    for (let backX = Math.max(0, shortfall - reachY); backX <= Math.min(shortfall, reachX); backX++) {
+      const backY = shortfall - backX;
+      yield {
+        x: delta.x - signX * backX * stepX,
+        y: delta.y - signY * backY * stepY,
+      };
     }
-    yield { x, y };
   }
 }
 

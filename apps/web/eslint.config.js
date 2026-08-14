@@ -211,7 +211,13 @@ const OVERSIZED_PANELS = {
   // the centre constraint, and the guard that keeps a *paired* flap out of its
   // own reflection the way the move path already does — and the branch that
   // stops hiding the handles for a self-mirrored flap.
-  'BpPackingPanel.tsx': 2085,
+  //
+  // 2085 -> 2089: adversarial-audit fixes that land in the panel. A pan gesture
+  // beginning over a handle used to pan *and* resize, so `spacePressed` joins the
+  // hook's disabled gate; and a click whose pointerdown was on a handle used to
+  // feed the stacked-selection cycle and could deselect the flap being resized,
+  // so `onSelectionCycleClick` now ignores one.
+  'BpPackingPanel.tsx': 2089,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
   'BpTreePanel.tsx': 890,

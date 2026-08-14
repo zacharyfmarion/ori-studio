@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { OristudioBpFlap, OristudioBpSheet } from '../../engine/oristudioBpTypes';
 import {
+  BP_FLAP_HANDLE_SIGNS,
   BP_FLAP_RESIZE_HANDLES,
   bpFlapHandlePoint,
   bpFlapOuterBox,
@@ -89,18 +90,33 @@ export function BpFlapResizeHandles({
       )}
       {BP_FLAP_RESIZE_HANDLES.map((handle) => {
         const at = bpPackingPointToSvg(bpFlapHandlePoint(flap, handle), sheet, paperRect);
+        const signs = BP_FLAP_HANDLE_SIGNS[handle];
+        const corner = signs.sx !== 0 && signs.sy !== 0;
+        // The two families do genuinely different things — a corner sets the
+        // flap's length, which is a tree edit and relabels its leaf edge, while an
+        // edge extends its tip, which is a layout edit — so they should not look
+        // the same. The round handle is the one that makes the flap rounder; the
+        // bars lie along the edge they move and are narrow across it.
+        const size = corner
+          ? { w: half * 2, h: half * 2 }
+          : { w: signs.sx !== 0 ? half : half * 2.4, h: signs.sx !== 0 ? half * 2.4 : half };
         return (
           <rect
             key={handle}
             className={
-              resize.active === handle
-                ? 'bp-packing-flap-handle bp-packing-flap-handle--active'
-                : 'bp-packing-flap-handle'
+              [
+                'bp-packing-flap-handle',
+                corner ? 'bp-packing-flap-handle--corner' : 'bp-packing-flap-handle--edge',
+                resize.active === handle ? 'bp-packing-flap-handle--active' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')
             }
-            x={at.x - half}
-            y={at.y - half}
-            width={half * 2}
-            height={half * 2}
+            x={at.x - size.w / 2}
+            y={at.y - size.h / 2}
+            width={size.w}
+            height={size.h}
+            rx={corner ? half : half / 2}
             style={{ cursor: HANDLE_CURSORS[handle] }}
             data-bp-flap-handle={handle}
             aria-label={labels[handle]}

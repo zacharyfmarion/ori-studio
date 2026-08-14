@@ -151,6 +151,9 @@ function nameAsHandle(name: string) {
 
 function fakeEvent(target: HTMLElement): PointerEvent<SVGElement> {
   return {
+    // `button: 0` matters: the handle refuses anything else, because the viewport
+    // pans on middle-drag and would otherwise pan and resize at once.
+    button: 0,
     pointerId: 1,
     currentTarget: target,
     stopPropagation: () => undefined,
@@ -240,6 +243,27 @@ describe('BpFlapResizeHandles', () => {
       id: 1,
       footprint: { anchor: { x: 20, y: 20 }, width: 4, height: 4, radius: 4 },
     });
+  });
+
+  it('ignores anything but the primary button, so a pan does not resize', () => {
+    // The viewport pans on middle-drag and on space+left-drag. Without this a pan
+    // that begins over a handle pans AND resizes — and since the pointer is
+    // mapped through the canvas rect the pan is moving, a stationary pointer
+    // resolves to a new grid cell every frame and the flap runs away under it.
+    render();
+    const target = handle('e');
+    act(() => {
+      pointer = handleGridPoint('e');
+      const middle = { ...fakeEvent(target), button: 1 } as unknown as Parameters<
+        BpFlapResize['onHandlePointerDown']
+      >[0];
+      held.resize?.onHandlePointerDown(middle, nameAsHandle('e'));
+      pointer = { x: 30, y: 20 };
+      held.resize?.onHandlePointerMove(fakeEvent(target));
+      held.resize?.onHandlePointerUp(fakeEvent(target));
+    });
+    expect(dragRequests.beginFlapReshape).not.toHaveBeenCalled();
+    expect(dragRequests.queueFlapReshape).not.toHaveBeenCalled();
   });
 
   it('cancels the drag when the flap goes away underneath it', () => {

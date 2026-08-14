@@ -12,6 +12,7 @@ import {
   type BpFlapResizeHandle,
 } from '../lib/bpFlapReshape';
 import type { BpPackingDragRequests } from './useBpPackingDragRequests';
+import { useEventCallback } from './useEventCallback';
 import type { Point } from '../lib/geometry';
 import { track } from '../analytics';
 
@@ -152,6 +153,10 @@ export function useBpFlapResize(input: UseBpFlapResizeInput): BpFlapResize {
     });
   }, [dragRequests]);
 
+  // Stable identity, latest closure — so the unmount cleanup below can be a
+  // mount-once effect instead of re-subscribing every time `cancel` is rebuilt.
+  const cancelLatest = useEventCallback(cancel);
+
   useEffect(() => {
     if (active === null) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -169,7 +174,13 @@ export function useBpFlapResize(input: UseBpFlapResizeInput): BpFlapResize {
 
   const onHandlePointerDown = useCallback(
     (event: PointerEvent<SVGElement>, handle: BpFlapResizeHandle) => {
-      if (!flap || disabled) return;
+      // The same opening every other pointerdown in this pane has, and for the
+      // same reason: the viewport pans on middle-drag and on space+left-drag, so
+      // without this a pan that begins over a handle pans *and* resizes. Worse
+      // than both at once — the pointer is mapped through the canvas rect, which
+      // the pan is moving, so a stationary pointer resolves to a new grid cell
+      // every frame and the flap runs away under it.
+      if (event.button !== 0 || !flap || disabled) return;
       event.stopPropagation();
       event.currentTarget.setPointerCapture(event.pointerId);
       // Deliberately no store write here. A state update between pointerdown and
@@ -246,6 +257,15 @@ export function useBpFlapResize(input: UseBpFlapResizeInput): BpFlapResize {
     if (!current) return;
     if (!flap || flap.id !== current.start.id) cancel();
   }, [flap, cancel]);
+
+  // The pane itself can go while a drag is live — a workspace switch, a closed
+  // tab. Nothing else would ever end the gesture then: the terminators are a
+  // pointerup that will not arrive and the effect above, which does not re-run on
+  // unmount. The drag's `dragging: true` steps have already opened an undo entry,
+  // and `runBpTreeMutation` only closes one on a settling commit, so leaving it
+  // open means the next unrelated edit in this design commits against the
+  // *pre-drag* snapshot and undoing it reverts the resize too.
+  useEffect(() => () => cancelLatest(), [cancelLatest]);
 
   const box = flap ? bpFlapOuterBox(flap) : null;
   const roomy =

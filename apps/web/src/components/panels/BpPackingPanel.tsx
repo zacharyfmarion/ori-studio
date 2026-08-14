@@ -1050,7 +1050,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     // Screen pixels per grid cell, so the too-small gate is about what the user
     // can actually hit and zooming in reveals the handles on a small flap.
     pixelsPerCell: unit * (zoomPercent / 100),
-    disabled: flapDragging !== null || deviceDragging !== null,
+    disabled: spacePressed || flapDragging !== null || deviceDragging !== null,
     eventToPackingPoint,
     dragRequests,
   });
@@ -1151,6 +1151,16 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   const cycleRef = useRef<{ x: number; y: number; keys: string[]; index: number } | null>(null);
   const onSelectionCycleClick = (event: ReactMouseEvent<SVGSVGElement>) => {
     if (event.button !== 0 || spacePressed || event.shiftKey || event.metaKey || event.ctrlKey) {
+      cycleRef.current = null;
+      return;
+    }
+    // A click that began on a resize handle is not a click on the geometry
+    // underneath it. `stopPropagation` on the pointerdown does not stop the later
+    // click, and pointer capture retargets the compatibility mouse events to the
+    // capture target, so a click is synthesised whether or not the flap was
+    // dragged — and the stack lookup then reports whatever the handle is sitting
+    // on top of, which can cycle the selection off the flap being resized.
+    if ((event.target as Element | null)?.closest?.('[data-bp-flap-handle]')) {
       cycleRef.current = null;
       return;
     }

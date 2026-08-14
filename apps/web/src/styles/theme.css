@@ -7386,9 +7386,26 @@ button.cp-folded-figure-toolbar__notice:hover {
   pointer-events: all;
 }
 
+/*
+ * Corners are round and edges are bars, because they do different things: a
+ * corner sets the flap's length -- a tree edit, which relabels its leaf edge --
+ * while an edge extends its tip, which is a layout edit. The rounder handle is
+ * the one that makes the flap rounder.
+ */
+.bp-packing-flap-handle--edge {
+  fill: var(--accent-primary);
+  stroke: var(--bg-canvas);
+  stroke-width: 1;
+}
+
 .bp-packing-flap-handle:hover,
 .bp-packing-flap-handle--active {
   fill: var(--accent-primary);
+}
+
+.bp-packing-flap-handle--edge:hover,
+.bp-packing-flap-handle--edge.bp-packing-flap-handle--active {
+  fill: var(--text-primary);
 }
 
 /*
