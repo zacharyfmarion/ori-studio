@@ -171,20 +171,47 @@ describe('browser document saves', () => {
     expect(saved?.path).toBe(opened?.path);
   });
 
-  it('upgrades the opened handle to writable, which read-only access needs', async () => {
+  /**
+   * The prompt is unavoidable — `showOpenFilePicker` takes no permission mode
+   * and hands back a read-only handle — so it is asked at open, where it reads
+   * as part of picking the file, rather than interrupting the first Save.
+   */
+  it('asks for write access at open, so no prompt interrupts the save', async () => {
     const handle = fakeHandle('opened.osf');
     handle.getFile = async () => new File(['{}'], 'opened.osf');
     // What Chromium reports for a handle that came from the *open* dialog.
-    handle.queryPermission = vi.fn(async () => 'prompt' as PermissionState);
-    handle.requestPermission = vi.fn(async () => 'granted' as PermissionState);
+    let granted = false;
+    handle.queryPermission = vi.fn(async () => (granted ? 'granted' : 'prompt') as PermissionState);
+    handle.requestPermission = vi.fn(async () => {
+      granted = true;
+      return 'granted' as PermissionState;
+    });
     window.showOpenFilePicker = vi.fn(async () => [handle as unknown as FileSystemFileHandle]);
     const service = createFileService('web');
 
     const opened = await service.openTextFile({ title: 'Open', extensions: ['osf'] });
-    await service.saveTextFile(saveOptions({ path: opened?.path }));
-
     expect(handle.requestPermission).toHaveBeenCalledWith({ mode: 'readwrite' });
-    expect(handle.written).toEqual(['first']);
+    expect(handle.requestPermission).toHaveBeenCalledTimes(1);
+
+    await service.saveTextFile(saveOptions({ path: opened?.path }));
+    await service.saveTextFile(saveOptions({ contents: 'second', path: opened?.path }));
+
+    // Already granted, so neither save asks again.
+    expect(handle.requestPermission).toHaveBeenCalledTimes(1);
+    expect(handle.written).toEqual(['first', 'second']);
+  });
+
+  it('still opens the file when write access is refused', async () => {
+    const handle = fakeHandle('opened.osf');
+    handle.getFile = async () => new File(['{"a":1}'], 'opened.osf');
+    handle.queryPermission = vi.fn(async () => 'prompt' as PermissionState);
+    handle.requestPermission = vi.fn(async () => 'denied' as PermissionState);
+    window.showOpenFilePicker = vi.fn(async () => [handle as unknown as FileSystemFileHandle]);
+    const service = createFileService('web');
+
+    await expect(service.openTextFile({ title: 'Open', extensions: ['osf'] })).resolves.toMatchObject(
+      { text: '{"a":1}', name: 'opened.osf' }
+    );
   });
 
   it('asks where to save instead when permission to write the opened file is refused', async () => {

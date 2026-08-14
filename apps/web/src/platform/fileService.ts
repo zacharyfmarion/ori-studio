@@ -318,6 +318,18 @@ async function openBrowserTextFile(
   }
   if (!handle) return null;
 
+  // Ask for write access now, while the picker's activation is still live.
+  // There is no way to ask for it *in* the open dialog — `showOpenFilePicker`
+  // takes no permission mode, and its handle is read-only — so the choice is
+  // only when to ask. Asking here costs the same single prompt but lands it
+  // while the user is still thinking about the file they just picked, instead
+  // of interrupting an edit with a modal at the moment they pressed Save and
+  // expected it to be instant.
+  //
+  // Best-effort: a refusal still opens the file, and `ensureWritable` asks again
+  // (or falls back to a save dialog) if the save ever needs it.
+  await ensureWritable(handle).catch(() => false);
+
   const file = await handle.getFile();
   return { text: await file.text(), name: file.name, path: rememberWebSaveTarget(handle) };
 }
