@@ -463,7 +463,6 @@ export function SimulatorPanel() {
     () =>
       registerSimulatorView({
         setUpright: () => viewportRef.current?.setUpright(),
-        clearUpright: () => viewportRef.current?.clearUpright(),
       }),
     [],
   );

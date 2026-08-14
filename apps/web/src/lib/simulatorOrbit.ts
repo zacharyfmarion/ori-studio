@@ -124,22 +124,4 @@ export function setUprightView(view: SimulatorOrbitView): SimulatorOrbitView {
   };
 }
 
-/**
- * Forget the model's up and go back to the surface's own rest view.
- *
- * Deliberately a **separate verb** from "reset view", which leaves the
- * orientation alone: an upright is a property of the model, not of the current
- * look at it, so re-centring must not silently discard it. This one is the
- * discard, and it says so.
- */
-export function clearUprightView(
-  view: SimulatorOrbitView,
-  rest: SimulatorOrbitView
-): SimulatorOrbitView {
-  return { yaw: rest.yaw, pitch: rest.pitch, zoom: view.zoom };
-}
 
-/** Whether a model has been given an up of its own. */
-export function hasUpright(view: SimulatorOrbitView | null | undefined): boolean {
-  return view?.orient != null;
-}

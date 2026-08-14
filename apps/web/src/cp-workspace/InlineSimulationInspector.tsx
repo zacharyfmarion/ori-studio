@@ -2,7 +2,7 @@ import { useCallback, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Palette, Pause, Play, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
+import { ArrowUpToLine, Palette, Pause, Play, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
 import { FloatingToolbar } from '../components/ui/FloatingToolbar';
 import { resolveCpViewportCanvas } from './cpViewportCanvas';
 import { IconButton } from '../components/ui/IconButton';
@@ -102,6 +102,7 @@ export function InlineSimulationInspector({
   onTogglePlay,
   onScrub,
   onColorMode,
+  onSetUpright,
   onReplay,
   onExport,
   onRefresh,
@@ -121,6 +122,8 @@ export function InlineSimulationInspector({
   onTogglePlay: () => void;
   onScrub: (percent: number) => void;
   onColorMode: (mode: ColorMode) => void;
+  /** Take the direction now pointing up on screen as the model's up. */
+  onSetUpright: () => void;
   /** Return the fold to flat, as the Simulate workspace's Reset does. */
   onReplay: () => void;
   /** Save the window's current camera view as an image. */
@@ -174,6 +177,25 @@ export function InlineSimulationInspector({
       </span>
       <ColorModeMenu colorMode={colorMode} onColorMode={onColorMode} />
       <SimulatorExportMenu onExport={onExport} />
+      {/*
+        Which way the model is up. The orbit is a turntable about the paper's
+        *normal*, which is up for a flat sheet and is not for a model that stands
+        — so a standing figure tumbles rather than turning, and dragging cannot
+        fix it because yaw and pitch only move the eye on a sphere whose pole is
+        fixed. This picks the pole.
+
+        No matching clear, for the same reason the camera reset is not on this bar
+        either: it is narrow. The way back is the view reset on the keyboard
+        (0 or Home), which drops the orientation with the angles.
+      */}
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title={t('panels:creasePattern.inlineSimulation.setUpright', 'Set upright')}
+        onClick={onSetUpright}
+      >
+        <ArrowUpToLine size={14} />
+      </IconButton>
       <IconButton
         size="sm"
         variant="toolbar"

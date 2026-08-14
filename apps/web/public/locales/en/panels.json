@@ -199,7 +199,6 @@
     "changeFoldedColor": "Change folded model color",
     "changeFoldedDisplayStyle": "Change folded display style",
     "changeFoldedModel": "Change folded model",
-    "clearFoldedModelUpright": "Clear folded model upright",
     "commandFailed": "Command failed",
     "couldNotOpenForEditing": "This crease pattern could not be opened for editing.",
     "couldNotOpenForEditingHint": "It is shown read-only. You can still view, fold, and export it.",
@@ -300,7 +299,8 @@
       "play": "Play",
       "refresh": "Rebuild from the current creases",
       "refreshAction": "Rebuild simulation region",
-      "replay": "Reset to flat"
+      "replay": "Reset to flat",
+      "setUpright": "Set upright"
     },
     "insertImage": "Insert image...",
     "linesCount_one": "{{count}} lines",
@@ -543,7 +543,6 @@
   },
   "foldedFigureActions": {
     "anotherSolution": "Another solution",
-    "clearUpright": "Clear upright",
     "delete": "Delete",
     "displayStyle": "Display style",
     "duplicate": "Duplicate",
@@ -719,7 +718,6 @@
     "backgroundTransparent": "Transparent",
     "backgroundWhite": "White",
     "borderEdge": "Edge",
-    "clearUpright": "Clear",
     "colorMode": "Colour",
     "colorPaper": "Paper",
     "colorStrain": "Strain",

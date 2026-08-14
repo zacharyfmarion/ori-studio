@@ -199,7 +199,6 @@
     "changeFoldedColor": "Farbe des gefalteten Modells ändern",
     "changeFoldedDisplayStyle": "Faltdarstellung ändern",
     "changeFoldedModel": "Gefaltetes Modell ändern",
-    "clearFoldedModelUpright": "Oben-Richtung des gefalteten Modells zurücksetzen",
     "commandFailed": "Befehl fehlgeschlagen",
     "couldNotOpenForEditing": "Dieses Faltmuster konnte nicht zur Bearbeitung geöffnet werden.",
     "couldNotOpenForEditingHint": "Wird schreibgeschützt angezeigt. Sie können es weiterhin ansehen, falten und exportieren.",
@@ -232,7 +231,6 @@
     "duplicateFoldedModelAction": "Gefaltetes Modell duplizieren",
     "flipFoldedModel": "Gefaltetes Modell umdrehen",
     "fold": "Falten",
-    "foldModelAction": "Modell falten",
     "foldability": {
       "bigLittleBig": "Winkel lassen sich nicht schachteln (groß-klein-groß)",
       "closure": "Die Falten hier schließen sich nicht",
@@ -268,12 +266,12 @@
       "windowFailed": "Dieses Modell konnte nicht gezeichnet werden"
     },
     "foldedModelControls": "Steuerung des gefalteten Modells",
+    "foldedModels": "Gefaltete Modelle",
     "foldedModelSide": "Seite des gefalteten Modells",
     "foldedModelStatus": {
       "error": "Fehlgeschlagen",
       "loading": "Wird gefaltet …"
     },
-    "foldedModels": "Gefaltete Modelle",
     "foldedState": {
       "back": "Rückseite",
       "front": "Vorderseite"
@@ -286,6 +284,7 @@
       "transparent": "Transparent",
       "wire": "Draht"
     },
+    "foldModelAction": "Modell falten",
     "inlineSimulation": {
       "addAction": "Simulationsfenster hinzufügen",
       "canvasAriaLabel": "Eingebettete Simulation. Zum Drehen ziehen.",
@@ -300,7 +299,8 @@
       "play": "Abspielen",
       "refresh": "Aus den aktuellen Falzlinien neu aufbauen",
       "refreshAction": "Simulationsbereich neu aufbauen",
-      "replay": "Auf flach zurücksetzen"
+      "replay": "Auf flach zurücksetzen",
+      "setUpright": "Oben festlegen"
     },
     "insertImage": "Bild einfügen...",
     "linesCount_one": "{{count}} Linie",
@@ -543,7 +543,6 @@
   },
   "foldedFigureActions": {
     "anotherSolution": "Andere Lösung",
-    "clearUpright": "Oben zurücksetzen",
     "delete": "Löschen",
     "displayStyle": "Anzeigestil",
     "duplicate": "Duplizieren",
@@ -719,23 +718,22 @@
     "backgroundTransparent": "Transparent",
     "backgroundWhite": "Weiß",
     "borderEdge": "Kante",
-    "clearUpright": "Zurücksetzen",
     "colorMode": "Farbe",
     "colorPaper": "Papier",
     "colorStrain": "Dehnung",
     "creaseLines": "Falzlinien",
+    "creases": "Falten",
     "creaseStiffness": "Falz",
     "creaseStyle": "Stil",
     "creaseStyleColor": "Berg / Tal",
     "creaseStyleMono": "Eine Farbe",
     "creaseStyleMonoDashed": "Eine Farbe, gestrichelt",
     "creaseWidth": "Stärke",
-    "creases": "Falten",
     "damping": "Dämpfung",
     "export": "Export",
     "exportHint": "Seitenhintergrund des exportierten Bildes.",
-    "faceStiffness": "Fläche",
     "faces": "Flächen",
+    "faceStiffness": "Fläche",
     "hiddenLines": "Verdeckte Linien",
     "lighting": "Beleuchtung",
     "material": "Material",

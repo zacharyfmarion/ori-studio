@@ -59,7 +59,6 @@ function makeDeps(overrides: Partial<FoldedFigureActionDeps> = {}): FoldedFigure
     flip: vi.fn(),
     resetView: vi.fn(),
     setUpright: vi.fn(),
-    clearUpright: vi.fn(),
     setDisplayStyle: vi.fn(),
     foldAnother: vi.fn(),
     duplicate: vi.fn(),
@@ -212,15 +211,13 @@ describe('buildFoldedFigureActions', () => {
     expect(deps.setDisplayStyle).toHaveBeenCalledWith(figure, 'Wire2');
   });
 
-  it('routes the up-direction verbs to their dependencies', () => {
+  it('routes Set upright to its dependency', () => {
     const deps = makeDeps();
     const figure = make3dFigure(IDENTITY_ORIENT);
 
     command(figure, deps, 'set-upright').run();
-    command(figure, deps, 'clear-upright').run();
 
     expect(deps.setUpright).toHaveBeenCalledWith(figure);
-    expect(deps.clearUpright).toHaveBeenCalledWith(figure);
   });
 
   it('offers Set upright only on a 3D figure, which is the only kind with a viewpoint', () => {
@@ -229,13 +226,14 @@ describe('buildFoldedFigureActions', () => {
     expect(commandIds(make3dFigure(), deps)).toContain('set-upright');
   });
 
-  it('offers Clear upright only once there is an upright to forget', () => {
-    // Otherwise the toolbar carries a permanently dead button for the flat-sheet
-    // case, which is most of them.
+  it('offers no clear verb — undo is the way back from an upright', () => {
+    // Deliberate: this is document state and Set upright takes one undo entry,
+    // so a second button would be a second way to do what undo already does.
+    // The simulator has no undo behind it and handles this differently — its
+    // view reset drops the orientation.
     const deps = makeDeps();
 
-    expect(commandIds(make3dFigure(), deps)).not.toContain('clear-upright');
-    expect(commandIds(make3dFigure(IDENTITY_ORIENT), deps)).toContain('clear-upright');
+    expect(commandIds(make3dFigure(IDENTITY_ORIENT), deps)).not.toContain('clear-upright');
   });
 
   it('marks delete as the only destructive verb', () => {

@@ -195,7 +195,6 @@
     "changeFoldedColor": "更改折叠模型颜色",
     "changeFoldedDisplayStyle": "更改折叠显示样式",
     "changeFoldedModel": "更改折叠模型",
-    "clearFoldedModelUpright": "清除折叠模型的向上方向",
     "commandFailed": "命令失败",
     "couldNotOpenForEditing": "无法打开此折痕图进行编辑。",
     "couldNotOpenForEditingHint": "以只读方式显示。你仍然可以查看、折叠和导出它。",
@@ -222,7 +221,6 @@
     "duplicateFoldedModelAction": "复制折叠模型",
     "flipFoldedModel": "翻转折叠模型",
     "fold": "折叠",
-    "foldModelAction": "折叠模型",
     "foldability": {
       "bigLittleBig": "角度无法嵌套（大-小-大）",
       "closure": "此处的折线无法闭合",
@@ -258,12 +256,12 @@
       "windowFailed": "无法绘制此模型"
     },
     "foldedModelControls": "折叠模型控件",
+    "foldedModels": "折叠模型",
     "foldedModelSide": "折叠模型侧面",
     "foldedModelStatus": {
       "error": "失败",
       "loading": "正在折叠…"
     },
-    "foldedModels": "折叠模型",
     "foldedState": {
       "back": "背面",
       "front": "正面"
@@ -276,6 +274,7 @@
       "transparent": "透明",
       "wire": "线框"
     },
+    "foldModelAction": "折叠模型",
     "inlineSimulation": {
       "addAction": "添加模拟窗口",
       "canvasAriaLabel": "内嵌模拟。拖动可旋转。",
@@ -290,7 +289,8 @@
       "play": "播放",
       "refresh": "根据当前折痕重新生成",
       "refreshAction": "重建模拟区域",
-      "replay": "恢复为平面"
+      "replay": "恢复为平面",
+      "setUpright": "设置向上方向"
     },
     "insertImage": "插入图像...",
     "linesCount_other": "{{count}} 条线",
@@ -529,7 +529,6 @@
   },
   "foldedFigureActions": {
     "anotherSolution": "另一个解",
-    "clearUpright": "清除向上方向",
     "delete": "删除",
     "displayStyle": "显示样式",
     "duplicate": "复制",
@@ -702,23 +701,22 @@
     "backgroundTransparent": "透明",
     "backgroundWhite": "白色",
     "borderEdge": "边缘",
-    "clearUpright": "清除",
     "colorMode": "着色",
     "colorPaper": "纸张",
     "colorStrain": "应变",
     "creaseLines": "折痕线",
+    "creases": "折痕",
     "creaseStiffness": "折痕",
     "creaseStyle": "样式",
     "creaseStyleColor": "山折 / 谷折",
     "creaseStyleMono": "单色",
     "creaseStyleMonoDashed": "单色虚线",
     "creaseWidth": "粗细",
-    "creases": "折痕",
     "damping": "阻尼",
     "export": "导出",
     "exportHint": "导出图像的页面背景。",
-    "faceStiffness": "面",
     "faces": "面",
+    "faceStiffness": "面",
     "hiddenLines": "隐藏线",
     "lighting": "光照",
     "material": "材质",

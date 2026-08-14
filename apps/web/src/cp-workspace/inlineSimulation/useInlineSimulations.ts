@@ -8,6 +8,9 @@ import { inlineSimulationAsTransformable, isInlineSimulationStale } from './inli
 import type { InlineSimulation } from './inlineSimulation';
 import { exportInlineSimulation, requestInlineSimulationFold } from './inlineSimulationRuntime';
 import type { SimulatorViewExportFormat } from '../../simulator/simulatorViewExport';
+import { simulatorView } from '../../simulator/simulatorViewRegistry';
+import { track } from '../../analytics';
+import { ANALYTICS_EVENTS } from '../../analytics/events';
 
 export interface UseInlineSimulationsOptions {
   /** The live CP document, for the staleness check. */
@@ -204,6 +207,18 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
     [focusedId]
   );
 
+  /**
+   * Take the direction now pointing up on screen as the focused window's up.
+   *
+   * Through the registry rather than a ref: the viewport handle lives inside the
+   * per-window component in `InlineSimulationLayer`, which registers itself while
+   * focused — the same scoping its keyboard shortcuts use.
+   */
+  const setUpright = useCallback(() => {
+    simulatorView()?.setUpright();
+    track(ANALYTICS_EVENTS.modelUprightSet);
+  }, []);
+
   const replay = useCallback(() => setReplayRequest((nonce) => nonce + 1), []);
   const togglePlay = useCallback(() => setPlaying((current) => !current), []);
 
@@ -247,6 +262,7 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
     togglePlay,
     replayRequest,
     replay,
+    setUpright,
     focus,
     blur,
     applyBoxUpdate,

@@ -42,7 +42,6 @@ export interface FoldedFigureCommand {
     | 'flip'
     | 'reset-view'
     | 'set-upright'
-    | 'clear-upright'
     | 'another'
     | 'refold'
     | 'duplicate'
@@ -132,14 +131,19 @@ export interface FoldedFigureActionDeps {
    *
    * Yaw, pitch and zoom only. It deliberately does **not** clear an upright the
    * user set: which way the model is up is a property of the model, not of the
-   * current look at it, so re-centring must not silently discard it. See
-   * `clearUpright`.
+   * current look at it, so re-centring must not silently discard it. Undo is
+   * the way back from an upright here, which a simulation's has no equivalent of
+   * — see `SimulatorViewport.resetView`, which does drop one.
    */
   resetView: (figure: OristudioCpFoldedFigureEntry) => void;
-  /** Take the direction now pointing up on screen as the model's up. */
+  /**
+   * Take the direction now pointing up on screen as the model's up.
+   *
+   * There is no matching clear verb. This is document state and takes one undo
+   * entry, so undo is the way back — which is also why `resetView` can go on
+   * leaving an upright alone without stranding anyone.
+   */
   setUpright: (figure: OristudioCpFoldedFigureEntry) => void;
-  /** Forget the model's up and return to the default turntable. */
-  clearUpright: (figure: OristudioCpFoldedFigureEntry) => void;
   setDisplayStyle: (
     figure: OristudioCpFoldedFigureEntry,
     style: OristudioCpFoldedFigureDisplayStyle
@@ -308,18 +312,6 @@ export function buildFoldedFigureActions(
       disabled: !ready,
       run: () => deps.setUpright(figure),
     });
-    // Offered only once there is one to forget, so the toolbar does not carry a
-    // permanently dead button for the flat-sheet case that never needs it.
-    if (figure.camera?.orient != null) {
-      actions.push({
-        kind: 'command',
-        id: 'clear-upright',
-        label: t('panels:foldedFigureActions.clearUpright', 'Clear upright'),
-        icon: 'reset-view',
-        disabled: !ready,
-        run: () => deps.clearUpright(figure),
-      });
-    }
   }
 
   actions.push(

@@ -47,7 +47,6 @@ import { useFolded3dRehydration } from './useFolded3dRehydration';
 import type { Vec2 } from '../annotations/annotationTransform';
 import {
   clampSimulatorZoom,
-  clearUprightView,
   setUprightView,
   simulatorWheelZoomFactor,
   type SimulatorOrbitDrag,
@@ -789,17 +788,6 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
         // No properties: the orientation is a measured value about someone's
         // design, which the privacy contract keeps out of analytics.
         track(ANALYTICS_EVENTS.modelUprightSet);
-      },
-      clearUpright: (figure) => {
-        runFoldedFigureAction(
-          t('panels:creasePattern.clearFoldedModelUpright', 'Clear folded model upright'),
-          () =>
-            setOristudioCpFolded3dCamera(
-              figure.id,
-              clearUprightView(liveFigureCamera(figure), DEFAULT_FOLDED_3D_CAMERA)
-            )
-        );
-        track(ANALYTICS_EVENTS.modelUprightCleared);
       },
       flip: (figure) =>
         isFolded3dFigure(figure)

@@ -87,6 +87,34 @@ export function SimulatorViewControlsPanel() {
   return (
     <section className="panel-shell simulator-view-controls-panel">
       <div className="panel-body simulator-view-controls-panel__body">
+        {/*
+          First, and not `collapsible`. Everything below Render is a setting most
+          sessions never touch; this is the thing you reach for *while*
+          positioning a model, so it sits where the hand already is and a section
+          that started closed would put a click in front of it every time.
+
+          There is no matching "clear" button. The way back is the view reset
+          (0 / Home, or double-click the canvas), which drops the orientation
+          along with the angles — see `SimulatorViewport.resetView`. A simulation's
+          upright is session-only and has no undo behind it, so the reset has to
+          be a real way out rather than leaving the model stuck on a pole the user
+          picked by accident.
+        */}
+        <Section title={t('panels:simulatorViewControls.upDirection', 'Up direction')}>
+          <div className="control-row">
+            <button
+              type="button"
+              className="simulator-view-controls-panel__action"
+              onClick={() => {
+                simulatorView()?.setUpright();
+                track(ANALYTICS_EVENTS.modelUprightSet);
+              }}
+            >
+              {t('panels:simulatorViewControls.setUpright', 'Set upright')}
+            </button>
+          </div>
+        </Section>
+
         <Section title={t('panels:simulatorViewControls.render', 'Render')}>
           <div className="control-row">
             <span className="control-row__label">
@@ -188,38 +216,6 @@ export function SimulatorViewControlsPanel() {
           set is simply a reset, which is harmless. The folded figure's copy of
           this verb *can* gate, because its upright is document state.
         */}
-        {/*
-          Not `collapsible`, unlike everything below Render. That convention is
-          for settings most sessions never touch; this is an action you reach for
-          while positioning a model, and a section that starts closed would put a
-          click in front of it every time. Two buttons on one row, so it costs
-          almost nothing above the fold.
-        */}
-        <Section title={t('panels:simulatorViewControls.upDirection', 'Up direction')}>
-          <div className="control-row">
-            <button
-              type="button"
-              className="simulator-view-controls-panel__action"
-              onClick={() => {
-                simulatorView()?.setUpright();
-                track(ANALYTICS_EVENTS.modelUprightSet);
-              }}
-            >
-              {t('panels:simulatorViewControls.setUpright', 'Set upright')}
-            </button>
-            <button
-              type="button"
-              className="simulator-view-controls-panel__action"
-              onClick={() => {
-                simulatorView()?.clearUpright();
-                track(ANALYTICS_EVENTS.modelUprightCleared);
-              }}
-            >
-              {t('panels:simulatorViewControls.clearUpright', 'Clear')}
-            </button>
-          </div>
-        </Section>
-
         <Section
           title={t('panels:simulatorViewControls.paper', 'Paper')}
           collapsible

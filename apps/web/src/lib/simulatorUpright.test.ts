@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   UPRIGHT_PITCH,
-  clearUprightView,
-  hasUpright,
   nextSimulatorOrbitView,
   setUprightView,
   type SimulatorOrbitView,
@@ -127,23 +125,22 @@ describe('setting the current view as upright', () => {
   });
 });
 
-describe('clearing the upright', () => {
-  it('drops the orientation and returns to the rest view', () => {
-    const rest: SimulatorOrbitView = { yaw: Math.PI / 4, pitch: -0.955, zoom: 1.4 };
+describe('the way back from an upright', () => {
+  it('is a view reset, which drops the orientation with the angles', () => {
+    // There is no clear verb on either surface. A simulation's upright is
+    // session-only with no undo behind it, so its `resetView` returns the whole
+    // opening view — orientation included — which is what stops a model getting
+    // stuck on a pole picked by accident. A folded figure's is document state,
+    // so undo reaches it and its reset deliberately leaves an upright alone.
+    const opening: SimulatorOrbitView = { yaw: Math.PI / 4, pitch: -0.955, zoom: 1.4 };
     const upright = setUprightView({ yaw: 1.2, pitch: 0.3, zoom: 2.5 });
+    expect(upright.orient).toBeDefined();
 
-    expect(hasUpright(upright)).toBe(true);
-    const cleared = clearUprightView(upright, rest);
+    // What `SimulatorViewport.resetView` does: back to the opening view whole.
+    const reset: SimulatorOrbitView = { ...opening };
 
-    expect(hasUpright(cleared)).toBe(false);
-    expect(cleared.yaw).toBe(rest.yaw);
-    expect(cleared.pitch).toBe(rest.pitch);
-    // Zoom is the viewer's, not the model's, so it survives.
-    expect(cleared.zoom).toBe(2.5);
-  });
-
-  it('reports no upright for a plain view', () => {
-    expect(hasUpright({ yaw: 0, pitch: 0, zoom: 1 })).toBe(false);
-    expect(hasUpright(null)).toBe(false);
+    expect(reset.orient).toBeUndefined();
+    expect(reset.yaw).toBe(opening.yaw);
+    expect(reset.pitch).toBe(opening.pitch);
   });
 });

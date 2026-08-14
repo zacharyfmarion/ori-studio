@@ -238,7 +238,6 @@ export const ANALYTICS_EVENTS = {
   // it, so a low count means standing models are rarer than assumed rather than
   // that the verb is hard to find.
   modelUprightSet: 'model upright set',
-  modelUprightCleared: 'model upright cleared',
   foldedFigureRehydrated: 'folded figure rehydrated',
   creasePatternShared: 'crease pattern shared',
   shareLinkCopied: 'share link copied',

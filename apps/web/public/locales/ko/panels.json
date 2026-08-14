@@ -195,7 +195,6 @@
     "changeFoldedColor": "접힌 모델 색상 변경",
     "changeFoldedDisplayStyle": "접힌 표시 스타일 변경",
     "changeFoldedModel": "접힌 모델 변경",
-    "clearFoldedModelUpright": "접힌 모델의 위쪽 방향 해제",
     "commandFailed": "명령 실패",
     "couldNotOpenForEditing": "이 전개도를 편집용으로 열 수 없습니다.",
     "couldNotOpenForEditingHint": "읽기 전용으로 표시됩니다. 계속 보기, 접기, 내보내기를 할 수 있습니다.",
@@ -222,7 +221,6 @@
     "duplicateFoldedModelAction": "접힌 모델 복제",
     "flipFoldedModel": "접힌 모델 뒤집기",
     "fold": "접기",
-    "foldModelAction": "모델 접기",
     "foldability": {
       "bigLittleBig": "각도를 중첩할 수 없음(크게-작게-크게)",
       "closure": "여기의 접힘선이 닫히지 않습니다",
@@ -258,12 +256,12 @@
       "windowFailed": "이 모델을 그릴 수 없습니다"
     },
     "foldedModelControls": "접힌 모델 컨트롤",
+    "foldedModels": "접힌 모델",
     "foldedModelSide": "접힌 모델 면",
     "foldedModelStatus": {
       "error": "실패",
       "loading": "접는 중…"
     },
-    "foldedModels": "접힌 모델",
     "foldedState": {
       "back": "뒷면",
       "front": "앞면"
@@ -276,6 +274,7 @@
       "transparent": "투명",
       "wire": "와이어"
     },
+    "foldModelAction": "모델 접기",
     "inlineSimulation": {
       "addAction": "시뮬레이션 창 추가",
       "canvasAriaLabel": "인라인 시뮬레이션. 드래그하여 회전합니다.",
@@ -290,7 +289,8 @@
       "play": "재생",
       "refresh": "현재 주름선으로 다시 만들기",
       "refreshAction": "시뮬레이션 영역 재구성",
-      "replay": "평평하게 되돌리기"
+      "replay": "평평하게 되돌리기",
+      "setUpright": "위쪽 방향 설정"
     },
     "insertImage": "이미지 삽입...",
     "linesCount_other": "선 {{count}}개",
@@ -529,7 +529,6 @@
   },
   "foldedFigureActions": {
     "anotherSolution": "다른 해",
-    "clearUpright": "위쪽 방향 해제",
     "delete": "삭제",
     "displayStyle": "표시 스타일",
     "duplicate": "복제",
@@ -702,23 +701,22 @@
     "backgroundTransparent": "투명",
     "backgroundWhite": "흰색",
     "borderEdge": "가장자리",
-    "clearUpright": "해제",
     "colorMode": "색상",
     "colorPaper": "종이",
     "colorStrain": "변형률",
     "creaseLines": "접는 선",
+    "creases": "접는 선",
     "creaseStiffness": "접힘",
     "creaseStyle": "스타일",
     "creaseStyleColor": "산 / 골",
     "creaseStyleMono": "단색",
     "creaseStyleMonoDashed": "단색 파선",
     "creaseWidth": "굵기",
-    "creases": "접는 선",
     "damping": "감쇠",
     "export": "내보내기",
     "exportHint": "내보낸 이미지의 페이지 배경입니다.",
-    "faceStiffness": "면",
     "faces": "면",
+    "faceStiffness": "면",
     "hiddenLines": "숨은 선",
     "lighting": "조명",
     "material": "재질",

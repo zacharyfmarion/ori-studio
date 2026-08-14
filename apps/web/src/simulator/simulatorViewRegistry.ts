@@ -11,10 +11,13 @@
  * reach, exactly as the crease-pattern camera solved the same split.
  */
 export interface SimulatorViewHandle {
-  /** Take the direction now pointing up on screen as the model's up. */
+  /**
+   * Take the direction now pointing up on screen as the model's up.
+   *
+   * There is no matching clear: the way back is the viewport's own `resetView`,
+   * which drops the orientation with the angles on this surface.
+   */
   setUpright(): void;
-  /** Forget the model's up and return to the opening view. */
-  clearUpright(): void;
 }
 
 let current: SimulatorViewHandle | null = null;
