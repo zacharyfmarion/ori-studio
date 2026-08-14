@@ -94,7 +94,7 @@ describe('dropped file service', () => {
  * overwrites the first.
  */
 describe('browser document saves', () => {
-  /** A stand-in for the file the save dialog hands back. */
+  /** A stand-in for the file a picker hands back. */
   function fakeHandle(name: string) {
     const written: string[] = [];
     const handle = {
@@ -102,6 +102,13 @@ describe('browser document saves', () => {
       kind: 'file' as const,
       written,
       failNextWrite: false,
+      getFile: async () => new File([''], name),
+      queryPermission: undefined as
+        | undefined
+        | ((descriptor?: { mode?: 'read' | 'readwrite' }) => Promise<PermissionState>),
+      requestPermission: undefined as
+        | undefined
+        | ((descriptor?: { mode?: 'read' | 'readwrite' }) => Promise<PermissionState>),
       createWritable: vi.fn(async () => {
         if (handle.failNextWrite) throw new DOMException('denied', 'NotAllowedError');
         let buffer = '';
@@ -135,7 +142,78 @@ describe('browser document saves', () => {
 
   afterEach(() => {
     delete window.showSaveFilePicker;
+    delete window.showOpenFilePicker;
     vi.restoreAllMocks();
+  });
+
+  /**
+   * The half that was missing: opening a file established no save target, so the
+   * first Save after an Open asked where to put it — a file the user had just
+   * named. The open dialog's handle is the way back to it.
+   */
+  it('saves back to the file that was opened, without asking where', async () => {
+    const handle = fakeHandle('opened.osf');
+    handle.getFile = async () => new File(['{"a":1}'], 'opened.osf');
+    const openPicker = vi.fn(async () => [handle as unknown as FileSystemFileHandle]);
+    const savePicker = vi.fn();
+    window.showOpenFilePicker = openPicker;
+    window.showSaveFilePicker = savePicker as unknown as typeof window.showSaveFilePicker;
+    const service = createFileService('web');
+
+    const opened = await service.openTextFile({ title: 'Open', extensions: ['osf'] });
+    expect(opened).toMatchObject({ text: '{"a":1}', name: 'opened.osf' });
+    expect(opened?.path).toBeTruthy();
+
+    const saved = await service.saveTextFile(saveOptions({ path: opened?.path }));
+
+    expect(savePicker).not.toHaveBeenCalled();
+    expect(handle.written).toEqual(['first']);
+    expect(saved?.path).toBe(opened?.path);
+  });
+
+  it('upgrades the opened handle to writable, which read-only access needs', async () => {
+    const handle = fakeHandle('opened.osf');
+    handle.getFile = async () => new File(['{}'], 'opened.osf');
+    // What Chromium reports for a handle that came from the *open* dialog.
+    handle.queryPermission = vi.fn(async () => 'prompt' as PermissionState);
+    handle.requestPermission = vi.fn(async () => 'granted' as PermissionState);
+    window.showOpenFilePicker = vi.fn(async () => [handle as unknown as FileSystemFileHandle]);
+    const service = createFileService('web');
+
+    const opened = await service.openTextFile({ title: 'Open', extensions: ['osf'] });
+    await service.saveTextFile(saveOptions({ path: opened?.path }));
+
+    expect(handle.requestPermission).toHaveBeenCalledWith({ mode: 'readwrite' });
+    expect(handle.written).toEqual(['first']);
+  });
+
+  it('asks where to save instead when permission to write the opened file is refused', async () => {
+    const opened = fakeHandle('opened.osf');
+    opened.getFile = async () => new File(['{}'], 'opened.osf');
+    opened.queryPermission = vi.fn(async () => 'prompt' as PermissionState);
+    opened.requestPermission = vi.fn(async () => 'denied' as PermissionState);
+    const replacement = fakeHandle('elsewhere.osf');
+    const savePicker = vi.fn(async () => replacement as unknown as FileSystemFileHandle);
+    window.showOpenFilePicker = vi.fn(async () => [opened as unknown as FileSystemFileHandle]);
+    window.showSaveFilePicker = savePicker;
+    const service = createFileService('web');
+
+    const result = await service.openTextFile({ title: 'Open', extensions: ['osf'] });
+    const saved = await service.saveTextFile(saveOptions({ path: result?.path }));
+
+    expect(savePicker).toHaveBeenCalledOnce();
+    expect(opened.written).toEqual([]);
+    expect(replacement.written).toEqual(['first']);
+    expect(saved?.name).toBe('elsewhere.osf');
+  });
+
+  it('reports a dismissed open dialog as a cancel, not a fallback to the input', async () => {
+    window.showOpenFilePicker = vi.fn(async () => {
+      throw new DOMException('dismissed', 'AbortError');
+    });
+    const service = createFileService('web');
+
+    await expect(service.openTextFile({ title: 'Open', extensions: ['osf'] })).resolves.toBeNull();
   });
 
   it('saves again over the file the first save created, with no second dialog', async () => {

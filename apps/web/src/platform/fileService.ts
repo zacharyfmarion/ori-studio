@@ -112,7 +112,27 @@ declare global {
       suggestedName?: string;
       types?: { description?: string; accept: Record<string, string[]> }[];
     }) => Promise<FileSystemFileHandle>;
+    showOpenFilePicker?: (options?: {
+      multiple?: boolean;
+      types?: { description?: string; accept: Record<string, string[]> }[];
+    }) => Promise<FileSystemFileHandle[]>;
   }
+  interface FileSystemHandle {
+    // Opening a file grants read only; writing back to it needs an explicit
+    // upgrade, which is a prompt the user answers once per file.
+    queryPermission?: (descriptor?: { mode?: 'read' | 'readwrite' }) => Promise<PermissionState>;
+    requestPermission?: (descriptor?: { mode?: 'read' | 'readwrite' }) => Promise<PermissionState>;
+  }
+}
+
+/** The picker's file-type filter, from the extensions a caller accepts. */
+function pickerTypes(extensions: string[]) {
+  return [
+    {
+      description: 'Ori Studio',
+      accept: { 'application/octet-stream': extensions.map((extension) => `.${extension}`) },
+    },
+  ];
 }
 
 /**
@@ -134,6 +154,26 @@ declare global {
 const WEB_SAVE_TARGET_PREFIX = 'web-save:';
 const webSaveTargets = new Map<string, FileSystemFileHandle>();
 let nextWebSaveTargetId = 1;
+
+/** Remember a handle as a save target, and return the token that names it. */
+function rememberWebSaveTarget(handle: FileSystemFileHandle): string {
+  const token = `${WEB_SAVE_TARGET_PREFIX}${nextWebSaveTargetId++}`;
+  webSaveTargets.set(token, handle);
+  return token;
+}
+
+/**
+ * Upgrade a handle to writable.
+ *
+ * A handle from the *open* dialog carries read permission only, so saving back
+ * to the file the user opened needs this — a one-time prompt per file. A handle
+ * from the save dialog is already writable and answers `granted` outright.
+ */
+async function ensureWritable(handle: FileSystemFileHandle): Promise<boolean> {
+  if (!handle.queryPermission) return true;
+  if ((await handle.queryPermission({ mode: 'readwrite' })) === 'granted') return true;
+  return (await handle.requestPermission?.({ mode: 'readwrite' })) === 'granted';
+}
 
 /**
  * The path to record *inside a saved file*: a real filesystem path, or nothing.
@@ -193,9 +233,14 @@ async function saveBrowserTextFile(
   const existing = options.path ? webSaveTargets.get(options.path) : undefined;
   if (existing && options.path) {
     try {
-      await writeWebSaveTarget(existing, options.contents);
-      trackWebSave('overwrite');
-      return { name: existing.name, path: options.path };
+      if (await ensureWritable(existing)) {
+        await writeWebSaveTarget(existing, options.contents);
+        trackWebSave('overwrite');
+        return { name: existing.name, path: options.path };
+      }
+      // Permission refused. Asking where to put it instead is a better answer
+      // than failing the save outright.
+      webSaveTargets.delete(options.path);
     } catch (error) {
       if (isAbortError(error)) return null;
       // The page can lose permission on a handle (a revoked grant, a file moved
@@ -218,12 +263,7 @@ async function saveBrowserTextFile(
   try {
     handle = await showSaveFilePicker({
       suggestedName: name,
-      types: [
-        {
-          description: 'Ori Studio',
-          accept: { 'text/plain': options.extensions.map((extension) => `.${extension}`) },
-        },
-      ],
+      types: pickerTypes(options.extensions),
     });
   } catch (error) {
     if (isAbortError(error)) return null;
@@ -231,10 +271,8 @@ async function saveBrowserTextFile(
   }
 
   await writeWebSaveTarget(handle, options.contents);
-  const token = `${WEB_SAVE_TARGET_PREFIX}${nextWebSaveTargetId++}`;
-  webSaveTargets.set(token, handle);
   trackWebSave('picker');
-  return { name: handle.name, path: token };
+  return { name: handle.name, path: rememberWebSaveTarget(handle) };
 }
 
 function downloadBlob(blob: Blob, filename: string): void {
@@ -249,7 +287,44 @@ function downloadBlob(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-function openBrowserTextFile(options: OpenTextFileOptions): Promise<OpenTextFileResult | null> {
+/**
+ * Open a file the app can later save back to.
+ *
+ * The `<input type=file>` fallback below hands over the file's *contents* and
+ * nothing else — no way back to the file on disk. So opening a document, editing
+ * it and pressing Save had to ask where to put it, every time, even though the
+ * user had just said which file they meant. The open dialog's handle is that way
+ * back: it is remembered as the save target, so Save writes to the file that was
+ * opened. Chromium grants it read permission only; {@link ensureWritable}
+ * upgrades it at the first save.
+ */
+async function openBrowserTextFile(
+  options: OpenTextFileOptions
+): Promise<OpenTextFileResult | null> {
+  const showOpenFilePicker = window.showOpenFilePicker;
+  if (!showOpenFilePicker) return openBrowserTextFileInput(options);
+
+  let handle: FileSystemFileHandle | undefined;
+  try {
+    [handle] = await showOpenFilePicker({
+      multiple: false,
+      types: pickerTypes(options.extensions),
+    });
+  } catch (error) {
+    if (isAbortError(error)) return null;
+    // Rejected for a reason other than a dismissal — a sandboxed frame, a
+    // policy block. The input still opens the file; it just cannot save back.
+    return openBrowserTextFileInput(options);
+  }
+  if (!handle) return null;
+
+  const file = await handle.getFile();
+  return { text: await file.text(), name: file.name, path: rememberWebSaveTarget(handle) };
+}
+
+function openBrowserTextFileInput(
+  options: OpenTextFileOptions
+): Promise<OpenTextFileResult | null> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';

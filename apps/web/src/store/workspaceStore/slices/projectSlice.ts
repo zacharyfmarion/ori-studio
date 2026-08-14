@@ -1442,6 +1442,12 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
    */
   const nativeSourcePath = () => filesystemPathOrNull(get().currentFilePath);
 
+  /** The same guard, for a source object being written into a file. */
+  const sourceWithoutSaveTarget = <T extends { path: string | null } | null | undefined>(
+    source: T
+  ): T =>
+    source ? ({ ...source, path: filesystemPathOrNull(source.path) } as T) : source;
+
   /**
    * Serialize every design tab into one `.osf`, plus the Edit crease pattern.
    *
@@ -1590,7 +1596,12 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       filename,
       path,
       document: documentState.document,
-      source: get().importedCreasePattern?.source ?? documentState.source,
+      // The document's own recorded origin, which is written into the file and
+      // read back — so it holds a real path or nothing. Opening now mints a save
+      // target too, so this is where a browser token would otherwise reach disk.
+      source: sourceWithoutSaveTarget(
+        get().importedCreasePattern?.source ?? documentState.source
+      ),
       foldProjection,
       sourceFold,
       foldArtifacts: get().foldArtifacts,
