@@ -37,6 +37,7 @@ import {
 } from "../../simulator/SimulatorViewport";
 import { registerSimulatorView } from "../../simulator/simulatorViewRegistry";
 import { useSimulatorShortcuts } from "../../simulator/useSimulatorShortcuts";
+import { FoldPlayhead } from "../../simulator/foldPlayhead";
 import { SimulatorExportMenu } from "../../simulator/SimulatorExportMenu";
 import { useSimulatorViewExport } from "../../simulator/useSimulatorViewExport";
 import {
@@ -67,7 +68,7 @@ export function SimulatorPanel() {
   // simulate from the document, and drives playback.
   const viewportRef = useRef<SimulatorViewportHandle | null>(null);
   const playRafRef = useRef<number | null>(null);
-  const foldPercentRef = useRef(INITIAL_FOLD_PERCENT);
+  const playheadRef = useRef(new FoldPlayhead(INITIAL_FOLD_PERCENT));
   const sourceKeyRef = useRef<string | null>(null);
   const lastReadoutRef = useRef(0);
   // The mounted canvas element, as state (not just a ref) so the runtime hook
@@ -185,7 +186,11 @@ export function SimulatorPanel() {
 
   const handleFrame = useCallback(
     (frame: SimulatorFrameView) => {
-      foldPercentRef.current = frame.foldPercent;
+      // Reported, not assigned: a frame carries the target as it was when the
+      // worker ticked, so during playback it is a round-trip out of date and
+      // writing it would drag the fold back to where it had already been. The
+      // playhead is what decides which of the two writers is in charge.
+      playheadRef.current.report(frame.foldPercent);
       // Straight to the viewport, not through state: at 60fps a re-render per
       // frame would starve the loop this is reporting on.
       viewportRef.current?.showFrame(frame);
@@ -238,6 +243,8 @@ export function SimulatorPanel() {
     playing,
     setPlaying,
     gpuActive,
+    setFoldPercent: pushFoldPercent,
+    reset: resetSolver,
     setCamera: pushCamera,
     setRenderSettings: pushRenderSettings,
     setMaterial: pushMaterial,
@@ -285,7 +292,7 @@ export function SimulatorPanel() {
   useEffect(() => {
     if (sourceKeyRef.current === simulationSourceKey) return;
     sourceKeyRef.current = simulationSourceKey;
-    foldPercentRef.current = INITIAL_FOLD_PERCENT;
+    playheadRef.current.set(INITIAL_FOLD_PERCENT);
     setFoldPercent(INITIAL_FOLD_PERCENT);
     setPlaying(false);
   }, [simulationSourceKey, setPlaying]);
@@ -373,7 +380,7 @@ export function SimulatorPanel() {
     (percent: number) => {
       const next = clamp(percent, 0, 100);
       setPlaying(false);
-      foldPercentRef.current = next;
+      playheadRef.current.set(next);
       setFoldPercent(next);
       runtime.settleTo(next);
     },
@@ -384,7 +391,7 @@ export function SimulatorPanel() {
     setFoldTarget(
       Math.min(
         100,
-        Math.floor(foldPercentRef.current / runConfig.foldStepPercent + 1) *
+        Math.floor(playheadRef.current.value / runConfig.foldStepPercent + 1) *
           runConfig.foldStepPercent,
       ),
     );
@@ -392,7 +399,7 @@ export function SimulatorPanel() {
 
   const replayFromFlat = useCallback(() => {
     setPlaying(false);
-    foldPercentRef.current = 0;
+    playheadRef.current.set(0);
     setFoldPercent(0);
     runtime.reset();
   }, [runtime, setPlaying]);
@@ -403,10 +410,10 @@ export function SimulatorPanel() {
     if (!playing || typeof window === "undefined" || runtimeStatus !== "ready")
       return;
 
-    if (foldPercentRef.current >= 100) {
-      foldPercentRef.current = 0;
+    const playhead = playheadRef.current;
+    if (playhead.begin().rewound) {
       setFoldPercent(0);
-      runtime.reset();
+      resetSolver();
     }
 
     let previousTime: number | null = null;
@@ -414,14 +421,12 @@ export function SimulatorPanel() {
       if (previousTime === null) previousTime = time;
       const elapsedSeconds = Math.min(0.08, (time - previousTime) / 1000);
       previousTime = time;
-      const nextPercent = Math.min(
-        100,
-        foldPercentRef.current +
-          elapsedSeconds * viewSettings.foldPlayPercentPerSecond,
+      const nextPercent = playhead.advance(
+        elapsedSeconds,
+        viewSettings.foldPlayPercentPerSecond,
       );
 
-      foldPercentRef.current = nextPercent;
-      runtime.setFoldPercent(nextPercent);
+      pushFoldPercent(nextPercent);
 
       if (nextPercent >= 100) {
         playRafRef.current = null;
@@ -436,10 +441,16 @@ export function SimulatorPanel() {
       if (playRafRef.current !== null)
         window.cancelAnimationFrame(playRafRef.current);
       playRafRef.current = null;
+      playhead.end();
     };
+    // The two solver calls rather than `runtime`, which is a fresh object every
+    // render: the readouts below re-render this panel many times a second, so
+    // depending on it tore this loop down and rebuilt it just as often, and each
+    // rebuild reset `previousTime` and lost that frame's advance.
   }, [
     playing,
-    runtime,
+    pushFoldPercent,
+    resetSolver,
     viewSettings.foldPlayPercentPerSecond,
     runtimeStatus,
     setPlaying,
@@ -471,7 +482,7 @@ export function SimulatorPanel() {
   // playback, so a manual scrub always stops an in-progress play.
   const nudgeFold = useCallback(
     (deltaPercent: number) => {
-      setFoldTarget(foldPercentRef.current + deltaPercent);
+      setFoldTarget(playheadRef.current.value + deltaPercent);
     },
     [setFoldTarget],
   );

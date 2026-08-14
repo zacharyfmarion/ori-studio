@@ -15,7 +15,8 @@
     "foldingLong": "Wird noch gefaltet – das kann eine Weile dauern",
     "foldStop": "Abbrechen",
     "foldStopped": "Falten abgebrochen",
-    "foldStopping": "Wird abgebrochen…"
+    "foldStopping": "Wird abgebrochen…",
+    "saved": "{{name}} gespeichert"
   },
   "simulatorExport": {
     "empty": "Diese Simulation hat noch nichts zu exportieren",

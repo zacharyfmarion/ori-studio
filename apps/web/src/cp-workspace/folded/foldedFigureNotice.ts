@@ -116,6 +116,13 @@ export function orderReasonDetail(t: TFunction, reason: OristudioCpFold3dOrderRe
         'panels:fold3dVerdict.noLayerOrderContradictorySeeds',
         'Two faces each have to be above the other, so no stacking can satisfy both.'
       );
+    // "We stopped looking" is not "there is nothing to find", and the figure
+    // says so rather than blaming the crease pattern for our budget.
+    case 'search_exhausted':
+      return t(
+        'panels:fold3dVerdict.noLayerOrderExhausted',
+        'Ori Studio stopped searching before it found a layer order for this figure.'
+      );
     case 'overlap_without_cell':
     case 'cell_without_overlap':
     case 'arrangement_refused':

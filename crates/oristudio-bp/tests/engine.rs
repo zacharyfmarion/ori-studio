@@ -1,6 +1,6 @@
 use oristudio_bp::engine::{
-    BpProjectSession, BpSession, DesignUpdateRequest, EngineState, GraphicsData, OrderedRecord,
-    Processor, TaskSpec, UpdateResult,
+    BpProjectSession, BpSession, DesignUpdateRequest, EngineState, FlapReshape, GraphicsData,
+    OrderedRecord, Processor, TaskSpec, UpdateResult,
 };
 use oristudio_bp::grid::{BpGrid, get_dots};
 use oristudio_bp::io::cp::project_graphics_snapshot;
@@ -545,6 +545,230 @@ fn project_session_moves_and_resizes_flaps_with_grid_constraints() {
         .unwrap();
     assert_eq!((resized.width, resized.height), (1.0, 2.0));
     assert_eq!(session.history().steps().len(), 2);
+}
+
+/// One flap, one reshape: anchor, box, leaf-edge length and the flap's own tree
+/// vertex all move, and it is a single history step.
+#[test]
+fn project_session_reshapes_a_flap_in_one_step() {
+    let mut session = BpProjectSession::new(reshape_project()).unwrap();
+
+    session
+        .reshape_flap(
+            1,
+            FlapReshape {
+                anchor: Point { x: 2.0, y: 3.0 },
+                width: 3.0,
+                height: 1.0,
+                radius: Some(4.0),
+                vertex: Some(Point { x: 2.0, y: 2.0 }),
+            },
+            false,
+        )
+        .unwrap();
+
+    let flap = reshaped_flap(&session, 1);
+    assert_eq!((flap.x, flap.y), (2.0, 3.0));
+    assert_eq!((flap.width, flap.height), (3.0, 1.0));
+    // The radius is the leaf edge's length, so it lands on the tree.
+    assert_eq!(leaf_edge_length(&session, 1), 4.0);
+    let vertex = session
+        .project()
+        .design
+        .tree
+        .nodes
+        .iter()
+        .find(|node| node.id == 1)
+        .unwrap();
+    assert_eq!((vertex.x, vertex.y), (2.0, 2.0));
+    assert_eq!(session.history().steps().len(), 1);
+}
+
+/// The sheet rule is `validate_flap_with_sheet`'s, unchanged: at most one corner
+/// tip may leave the paper. A rejected reshape must leave nothing behind — not
+/// the box, and not the edge length that was validated alongside it.
+#[test]
+fn project_session_reshape_rejects_an_off_sheet_box() {
+    let mut session = BpProjectSession::new(reshape_project()).unwrap();
+
+    assert!(
+        session
+            .reshape_flap(
+                1,
+                FlapReshape {
+                    anchor: Point { x: 7.0, y: 7.0 },
+                    width: 4.0,
+                    height: 4.0,
+                    radius: Some(4.0),
+                    vertex: None,
+                },
+                false,
+            )
+            .is_err()
+    );
+
+    let flap = reshaped_flap(&session, 1);
+    assert_eq!((flap.x, flap.y), (1.0, 1.0));
+    assert_eq!((flap.width, flap.height), (1.0, 1.0));
+    assert_eq!(leaf_edge_length(&session, 1), 1.0);
+    assert_eq!(session.history().steps().len(), 0);
+}
+
+/// The reason this op exists rather than a sequence of the granular ones.
+///
+/// `resize_flap` cannot move the flap, so growing a flap that sits against the
+/// sheet edge pushes two tips off and is refused — even though the same box one
+/// cell to the left is perfectly legal. The reshape has no such intermediate
+/// state and accepts it.
+#[test]
+fn project_session_reshape_accepts_what_a_resize_alone_cannot() {
+    let mut session = BpProjectSession::new(reshape_project()).unwrap();
+    session
+        .move_flap(1, Point { x: 7.0, y: 1.0 }, false)
+        .unwrap();
+
+    assert!(session.resize_flap(1, 2.0, 1.0).is_err());
+
+    session
+        .reshape_flap(
+            1,
+            FlapReshape {
+                anchor: Point { x: 6.0, y: 1.0 },
+                width: 2.0,
+                height: 1.0,
+                radius: None,
+                vertex: None,
+            },
+            false,
+        )
+        .unwrap();
+    let flap = reshaped_flap(&session, 1);
+    assert_eq!((flap.x, flap.y), (6.0, 1.0));
+    assert_eq!((flap.width, flap.height), (2.0, 1.0));
+}
+
+#[test]
+fn project_session_reshape_validates_the_radius() {
+    let mut session = BpProjectSession::new(reshape_project()).unwrap();
+    let unchanged = |radius: f64| FlapReshape {
+        anchor: Point { x: 1.0, y: 1.0 },
+        width: 1.0,
+        height: 1.0,
+        radius: Some(radius),
+        vertex: None,
+    };
+
+    // Same floor `update_edge_length` enforces.
+    assert!(session.reshape_flap(1, unchanged(0.5), false).is_err());
+    assert!(session.reshape_flap(1, unchanged(f64::NAN), false).is_err());
+    assert!(
+        session
+            .reshape_flap(1, unchanged(f64::from(u32::MAX)), false)
+            .is_err()
+    );
+    assert_eq!(leaf_edge_length(&session, 1), 1.0);
+    assert_eq!(session.history().steps().len(), 0);
+}
+
+/// A reshape that asks for the state the flap is already in changes nothing and
+/// records nothing, so a drag that re-sends its last position cannot pile up
+/// empty undo steps.
+#[test]
+fn project_session_reshape_no_ops_when_nothing_changes() {
+    let mut session = BpProjectSession::new(reshape_project()).unwrap();
+
+    session
+        .reshape_flap(
+            1,
+            FlapReshape {
+                anchor: Point { x: 1.0, y: 1.0 },
+                width: 1.0,
+                height: 1.0,
+                radius: Some(1.0),
+                vertex: Some(Point { x: 1.0, y: 1.0 }),
+            },
+            false,
+        )
+        .unwrap();
+
+    assert_eq!(session.history().steps().len(), 0);
+}
+
+/// The tree vertex is constrained to the tree sheet, exactly as `move_vertex`
+/// constrains a dragged one — the two sheets are independent and a radius long
+/// enough to push the leaf past the tree sheet's edge must not escape it.
+#[test]
+fn project_session_reshape_constrains_the_tree_vertex() {
+    let mut session = BpProjectSession::new(reshape_project()).unwrap();
+
+    session
+        .reshape_flap(
+            1,
+            FlapReshape {
+                anchor: Point { x: 1.0, y: 1.0 },
+                width: 1.0,
+                height: 1.0,
+                radius: None,
+                vertex: Some(Point { x: 20.0, y: 2.0 }),
+            },
+            false,
+        )
+        .unwrap();
+
+    let vertex = session
+        .project()
+        .design
+        .tree
+        .nodes
+        .iter()
+        .find(|node| node.id == 1)
+        .unwrap();
+    assert_eq!((vertex.x, vertex.y), (8.0, 2.0));
+}
+
+fn reshape_project() -> Project {
+    let mut project = sample_project();
+    project.design.layout.flaps = vec![
+        Flap {
+            id: 1,
+            x: 1.0,
+            y: 1.0,
+            width: 1.0,
+            height: 1.0,
+        },
+        Flap {
+            id: 2,
+            x: 5.0,
+            y: 1.0,
+            width: 1.0,
+            height: 1.0,
+        },
+    ];
+    project
+}
+
+fn reshaped_flap(session: &BpProjectSession, id: u32) -> Flap {
+    session
+        .project()
+        .design
+        .layout
+        .flaps
+        .iter()
+        .find(|flap| flap.id == id)
+        .unwrap()
+        .clone()
+}
+
+fn leaf_edge_length(session: &BpProjectSession, id: u32) -> f64 {
+    session
+        .project()
+        .design
+        .tree
+        .edges
+        .iter()
+        .find(|edge| edge.n1 == id || edge.n2 == id)
+        .unwrap()
+        .length
 }
 
 #[test]

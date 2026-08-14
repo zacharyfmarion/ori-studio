@@ -4,6 +4,7 @@ use std::sync::Mutex;
 #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
 use tauri::Emitter;
 use tauri::Manager;
+use tauri_plugin_window_state::StateFlags;
 
 mod cp_engine;
 
@@ -75,6 +76,66 @@ fn handle_opened_event(app: &tauri::AppHandle, event: tauri::RunEvent) {
 #[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
 fn handle_opened_event(_app: &tauri::AppHandle, _event: tauri::RunEvent) {}
 
+/// The size to correct a restored window to, or `None` if it needs no correcting.
+///
+/// `tauri-plugin-window-state` persists a **physical** size and replays it with
+/// `set_size`, which does not consult the window's configured minimum — so the
+/// constraint that stops a user dragging the window too small does nothing to
+/// stop the plugin reopening it too small.
+///
+/// The reachable case is a scale-factor change rather than a stale state file: a
+/// size saved on a 1x display reopens at half the logical size on a 2x one, so
+/// docking and undocking a laptop is enough to produce it. Verified by seeding a
+/// 400x300 state file, which reopened at 200x150 against a 900x640 minimum.
+fn clamped_to_min(
+    restored: (f64, f64),
+    min_width: Option<f64>,
+    min_height: Option<f64>,
+) -> Option<(f64, f64)> {
+    let min_width = min_width.unwrap_or(0.0);
+    let min_height = min_height.unwrap_or(0.0);
+    if restored.0 >= min_width && restored.1 >= min_height {
+        return None;
+    }
+    Some((restored.0.max(min_width), restored.1.max(min_height)))
+}
+
+/// Puts a window back to at least its configured minimum after something resizes
+/// it below one.
+///
+/// Driven by `Resized` rather than run once after startup, because the size the
+/// state plugin restores is not readable when it is applied: `set_size` reaches
+/// the platform window asynchronously, so an immediate `inner_size()` — whether
+/// from the app's `setup` hook or from a plugin hook ordered behind the
+/// restore — still answers with the *pre*-restore size, finds nothing to correct,
+/// and the window shrinks a moment later. The event carries the new size
+/// directly, so it cannot be read too early.
+///
+/// This does not fight the user: the platform enforces the minimum during a
+/// drag-resize, so a sub-minimum `Resized` only ever comes from a programmatic
+/// `set_size`. Correcting one emits a further `Resized` at the corrected size,
+/// which passes the check and stops.
+fn clamp_window_to_min<R: tauri::Runtime>(
+    window: &tauri::Window<R>,
+    size: tauri::PhysicalSize<u32>,
+) {
+    let (min_width, min_height) = window
+        .config()
+        .app
+        .windows
+        .iter()
+        .find(|config| config.label == window.label())
+        .map_or((None, None), |config| (config.min_width, config.min_height));
+    let Ok(scale) = window.scale_factor() else {
+        return;
+    };
+    let size = size.to_logical::<f64>(scale);
+    if let Some((width, height)) = clamped_to_min((size.width, size.height), min_width, min_height)
+    {
+        let _ = window.set_size(tauri::LogicalSize::new(width, height));
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -85,6 +146,20 @@ pub fn run() {
         // the stop command can reach without waiting for it.
         .manage(cp_engine::new_cancel_state())
         .plugin(tauri_plugin_dialog::init())
+        // Reopen the window where and how it was left. Narrowed from the
+        // plugin's default of every flag: `FULLSCREEN` would relaunch into
+        // fullscreen after a session that merely ended there, and `VISIBLE` /
+        // `DECORATIONS` restore chrome state this app never varies.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED)
+                .build(),
+        )
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::Resized(size) = event {
+                clamp_window_to_min(window, *size);
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             platform_ping,
             read_text_file,
@@ -145,7 +220,42 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::opened_osf_paths;
+    use super::{clamped_to_min, opened_osf_paths};
+
+    #[test]
+    fn leaves_a_restored_size_at_or_above_the_minimum_alone() {
+        assert_eq!(
+            clamped_to_min((1400.0, 900.0), Some(900.0), Some(640.0)),
+            None
+        );
+        assert_eq!(
+            clamped_to_min((900.0, 640.0), Some(900.0), Some(640.0)),
+            None
+        );
+    }
+
+    #[test]
+    fn raises_a_restored_size_that_undershoots_either_axis() {
+        // The scale-change case: saved at 1x, reopened at 2x.
+        assert_eq!(
+            clamped_to_min((450.0, 320.0), Some(900.0), Some(640.0)),
+            Some((900.0, 640.0))
+        );
+        // One axis short must not shrink the other.
+        assert_eq!(
+            clamped_to_min((1400.0, 320.0), Some(900.0), Some(640.0)),
+            Some((1400.0, 640.0))
+        );
+    }
+
+    #[test]
+    fn treats_an_unconfigured_minimum_as_no_constraint() {
+        assert_eq!(clamped_to_min((120.0, 80.0), None, None), None);
+        assert_eq!(
+            clamped_to_min((120.0, 80.0), None, Some(640.0)),
+            Some((120.0, 640.0))
+        );
+    }
 
     #[test]
     fn filters_opened_urls_to_osf_file_paths() {

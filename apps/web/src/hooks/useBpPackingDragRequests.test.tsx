@@ -5,6 +5,7 @@ import {
   useBpPackingDragRequests,
   type BpPackingDragRequests,
 } from './useBpPackingDragRequests';
+import type { BpFlapFootprint } from '../lib/bpFlapReshape';
 
 /**
  * What the packing pane is allowed to ask the engine during a drag.
@@ -25,7 +26,17 @@ const actions = {
   moveDevice: vi.fn(
     async (_stretchId: string, _index: number, _loc: Loc, _dragging: boolean) => true
   ),
+  reshapeFlap: vi.fn(
+    async (_id: number, _footprint: BpFlapFootprint, _dragging: boolean) => true
+  ),
 };
+
+const footprint = (width: number, height: number, radius: number): BpFlapFootprint => ({
+  anchor: { x: 4, y: 4 },
+  width,
+  height,
+  radius,
+});
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -147,5 +158,32 @@ describe('BP packing drag requests', () => {
       await drain(() => api().queueDeviceDrag(update));
     }
     expect(actions.moveDevice).toHaveBeenCalledTimes(2);
+  });
+
+  it('applies the same rules to a resize-handle drag', async () => {
+    await drain(() => api().beginFlapReshape());
+    for (const width of [3, 3, 4]) {
+      await drain(() => api().queueFlapReshape({ id: 7, footprint: footprint(width, 0, 5) }));
+    }
+    expect(actions.reshapeFlap).toHaveBeenCalledTimes(2);
+  });
+
+  it('re-asks when only a reshape’s radius changed', async () => {
+    // A handle drag can leave the anchor exactly where it was and move only the
+    // radius, so a repeat test that compared positions would drop the step.
+    await drain(() => api().beginFlapReshape());
+    for (const radius of [5, 6]) {
+      await drain(() => api().queueFlapReshape({ id: 7, footprint: footprint(0, 0, radius) }));
+    }
+    expect(actions.reshapeFlap).toHaveBeenCalledTimes(2);
+  });
+
+  it('settles a reshape on release even when nothing moved since', async () => {
+    await drain(() => {
+      api().beginFlapReshape();
+      api().queueFlapReshape({ id: 7, footprint: footprint(3, 0, 5) });
+    });
+    await drain(() => api().flushFlapReshape({ id: 7, footprint: footprint(3, 0, 5) }));
+    expect(actions.reshapeFlap.mock.calls.map((call) => call[2])).toEqual([true, false]);
   });
 });

@@ -15,7 +15,8 @@
     "foldingLong": "Still folding — this can take a while",
     "foldStop": "Cancel",
     "foldStopped": "Fold cancelled",
-    "foldStopping": "Cancelling…"
+    "foldStopping": "Cancelling…",
+    "saved": "{{name}} saved"
   },
   "simulatorExport": {
     "empty": "This simulation has nothing to export yet",

@@ -188,6 +188,14 @@ pub enum Fold3dOrderWire {
     SearchFailed {
         component: usize,
     },
+    /// The search spent its whole iteration budget without settling.
+    ///
+    /// Its own code because it is its own claim: not "this pattern has no layer
+    /// order" but "we stopped looking". The UI says so in those words.
+    SearchExhausted {
+        component: usize,
+        iterations: u64,
+    },
     /// The user stopped the fold.
     ///
     /// Mirrors `Fold3dOrderError::Cancelled`. Unlike `Fold3dRefusalWire`, this
@@ -247,6 +255,13 @@ impl From<Fold3dOrderError> for Fold3dOrderWire {
                 component,
                 faces,
                 variables,
+            },
+            Fold3dOrderError::SearchExhausted {
+                component,
+                iterations,
+            } => Self::SearchExhausted {
+                component,
+                iterations,
             },
             Fold3dOrderError::FaceIdOutOfRange {
                 component,

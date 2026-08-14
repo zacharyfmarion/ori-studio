@@ -199,7 +199,16 @@ const OVERSIZED_PANELS = {
   // id helpers its own pointer handlers need; it no longer knows the grammar.
   // Prompted by a four-line change (threading the selection-shade layer in so a
   // selected device washes its gadget), which is what the number is for.
-  'BpPackingPanel.tsx': 1851,
+  //
+  // 1851 -> 1885: flap resize handles. The rule that turns a dragged edge
+  // into a footprint is `lib/bpFlapReshape`, the gesture and its Escape are
+  // `hooks/useBpFlapResize`, the chrome is `BpFlapResizeHandles`, and the
+  // mirroring is in the store action. What landed here is composition: a store
+  // binding, one more verb handed to `useBpPackingDragRequests` beside the two
+  // move verbs already there, the hook call with its camera scale and its two
+  // symmetry fields, the layer's mount, and one guard so a click that began on a
+  // handle does not feed the stacked-selection cycle.
+  'BpPackingPanel.tsx': 1885,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
   'BpTreePanel.tsx': 890,

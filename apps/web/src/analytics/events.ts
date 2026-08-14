@@ -220,6 +220,7 @@ export const ANALYTICS_EVENTS = {
   bpDesignAction: 'bp design action',
   bpOptimizerRun: 'bp optimizer run',
   bpPatternNotFound: 'bp pattern not found',
+  bpFlapResized: 'bp flap resized',
   cpDetectStarted: 'cp detect started',
   cpDetectCompleted: 'cp detect completed',
   cpDetectImported: 'cp detect imported',
