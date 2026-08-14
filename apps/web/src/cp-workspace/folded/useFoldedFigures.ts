@@ -47,6 +47,8 @@ import { useFolded3dRehydration } from './useFolded3dRehydration';
 import type { Vec2 } from '../annotations/annotationTransform';
 import {
   clampSimulatorZoom,
+  clearUprightView,
+  setUprightView,
   simulatorWheelZoomFactor,
   type SimulatorOrbitDrag,
   type SimulatorOrbitPoint,
@@ -768,8 +770,37 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       resetView: (figure) =>
         runFoldedFigureAction(
           t('panels:creasePattern.resetFoldedModelView', 'Reset folded model view'),
-          () => setOristudioCpFolded3dCamera(figure.id, DEFAULT_FOLDED_3D_CAMERA)
+          () =>
+            setOristudioCpFolded3dCamera(figure.id, {
+              ...DEFAULT_FOLDED_3D_CAMERA,
+              // Spread over the default rather than replacing it: an upright the
+              // user set survives a reset, because which way the model is up is
+              // a property of the model and not of the current look at it.
+              // "Clear upright" is the verb that discards it, and it says so.
+              orient: liveFigureCamera(figure).orient,
+            })
         ),
+      setUpright: (figure) => {
+        runFoldedFigureAction(
+          t('panels:creasePattern.setFoldedModelUpright', 'Set folded model upright'),
+          () =>
+            setOristudioCpFolded3dCamera(figure.id, setUprightView(liveFigureCamera(figure)))
+        );
+        // No properties: the orientation is a measured value about someone's
+        // design, which the privacy contract keeps out of analytics.
+        track(ANALYTICS_EVENTS.modelUprightSet);
+      },
+      clearUpright: (figure) => {
+        runFoldedFigureAction(
+          t('panels:creasePattern.clearFoldedModelUpright', 'Clear folded model upright'),
+          () =>
+            setOristudioCpFolded3dCamera(
+              figure.id,
+              clearUprightView(liveFigureCamera(figure), DEFAULT_FOLDED_3D_CAMERA)
+            )
+        );
+        track(ANALYTICS_EVENTS.modelUprightCleared);
+      },
       flip: (figure) =>
         isFolded3dFigure(figure)
           ? runFoldedFigureAction(

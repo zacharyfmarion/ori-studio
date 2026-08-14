@@ -6134,6 +6134,26 @@ button.cp-folded-figure-toolbar__notice:hover {
   color: var(--text-primary);
 }
 
+/* A text action inside a section body, rather than the icon-only affordance in a
+   section header. Sized to the pane's other controls so a row of them lines up
+   with the selects and toggles above. */
+.simulator-view-controls-panel__action {
+  flex: 1;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--border-subtle, rgb(255 255 255 / 10%));
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.simulator-view-controls-panel__action:hover {
+  background: var(--surface-hover, rgb(255 255 255 / 8%));
+  color: var(--text-primary);
+}
+
 .simulator-view-controls-panel__select {
   width: 100%;
   min-width: 0;

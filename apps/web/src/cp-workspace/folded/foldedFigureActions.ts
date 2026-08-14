@@ -25,6 +25,7 @@ import { foldedFigureNotice, type FoldedFigureNotice } from './foldedFigureNotic
 export type FoldedFigureActionIcon =
   | 'flip'
   | 'reset-view'
+  | 'set-upright'
   | 'style'
   | 'another'
   | 'first-solution'
@@ -37,7 +38,15 @@ export type FoldedFigureActionIcon =
 
 export interface FoldedFigureCommand {
   kind: 'command';
-  id: 'flip' | 'reset-view' | 'another' | 'refold' | 'duplicate' | 'delete';
+  id:
+    | 'flip'
+    | 'reset-view'
+    | 'set-upright'
+    | 'clear-upright'
+    | 'another'
+    | 'refold'
+    | 'duplicate'
+    | 'delete';
   label: string;
   icon: FoldedFigureActionIcon;
   disabled: boolean;
@@ -118,8 +127,19 @@ export type FoldedFigureAction =
 export interface FoldedFigureActionDeps {
   t: TFunction;
   flip: (figure: OristudioCpFoldedFigureEntry) => void;
-  /** Put a 3D figure's camera back where the fold left it. */
+  /**
+   * Put a 3D figure's camera back where the fold left it.
+   *
+   * Yaw, pitch and zoom only. It deliberately does **not** clear an upright the
+   * user set: which way the model is up is a property of the model, not of the
+   * current look at it, so re-centring must not silently discard it. See
+   * `clearUpright`.
+   */
   resetView: (figure: OristudioCpFoldedFigureEntry) => void;
+  /** Take the direction now pointing up on screen as the model's up. */
+  setUpright: (figure: OristudioCpFoldedFigureEntry) => void;
+  /** Forget the model's up and return to the default turntable. */
+  clearUpright: (figure: OristudioCpFoldedFigureEntry) => void;
   setDisplayStyle: (
     figure: OristudioCpFoldedFigureEntry,
     style: OristudioCpFoldedFigureDisplayStyle
@@ -274,6 +294,32 @@ export function buildFoldedFigureActions(
       disabled: !ready,
       run: () => deps.resetView(figure),
     });
+    // Which way the model is up, as a verb rather than something the projection
+    // decides. Both surfaces orbit as a turntable about the paper's *normal*,
+    // which is up for a flat sheet and is not for a model that stands — so a
+    // standing figure tumbles instead of turning, and no amount of dragging
+    // fixes it because yaw and pitch only move the eye on a sphere whose pole is
+    // fixed. This picks the pole.
+    actions.push({
+      kind: 'command',
+      id: 'set-upright',
+      label: t('panels:foldedFigureActions.setUpright', 'Set upright'),
+      icon: 'set-upright',
+      disabled: !ready,
+      run: () => deps.setUpright(figure),
+    });
+    // Offered only once there is one to forget, so the toolbar does not carry a
+    // permanently dead button for the flat-sheet case that never needs it.
+    if (figure.camera?.orient != null) {
+      actions.push({
+        kind: 'command',
+        id: 'clear-upright',
+        label: t('panels:foldedFigureActions.clearUpright', 'Clear upright'),
+        icon: 'reset-view',
+        disabled: !ready,
+        run: () => deps.clearUpright(figure),
+      });
+    }
   }
 
   actions.push(

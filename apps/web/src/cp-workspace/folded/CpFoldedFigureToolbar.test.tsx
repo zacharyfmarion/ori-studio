@@ -72,6 +72,8 @@ function makeDeps(
   return {
     flip: vi.fn(),
     resetView: vi.fn(),
+    setUpright: vi.fn(),
+    clearUpright: vi.fn(),
     setDisplayStyle: vi.fn(),
     foldAnother: vi.fn(),
     duplicate: vi.fn(),

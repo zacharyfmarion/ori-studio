@@ -195,6 +195,7 @@
     "changeFoldedColor": "折り上がり図の色を変更",
     "changeFoldedDisplayStyle": "折り上がり図の表示スタイルを変更",
     "changeFoldedModel": "折り上がり図を変更",
+    "clearFoldedModelUpright": "折り上がりモデルの上方向を解除",
     "commandFailed": "コマンドが失敗しました",
     "couldNotOpenForEditing": "この展開図は編集用に開けませんでした。",
     "couldNotOpenForEditingHint": "読み取り専用で表示されています。表示、折り、書き出しは引き続き行えます。",
@@ -221,6 +222,7 @@
     "duplicateFoldedModelAction": "折り上がり図を複製",
     "flipFoldedModel": "折り上がり図を裏返す",
     "fold": "折る",
+    "foldModelAction": "モデルを折る",
     "foldability": {
       "bigLittleBig": "角度を入れ子にできません（大-小-大）",
       "closure": "ここの折り線が閉じません",
@@ -256,12 +258,12 @@
       "windowFailed": "このモデルを描画できませんでした"
     },
     "foldedModelControls": "折りモデルの操作",
-    "foldedModels": "折りモデル",
     "foldedModelSide": "折りモデルの面",
     "foldedModelStatus": {
       "error": "失敗",
       "loading": "折り畳み中…"
     },
+    "foldedModels": "折りモデル",
     "foldedState": {
       "back": "裏",
       "front": "表"
@@ -274,7 +276,6 @@
       "transparent": "透明",
       "wire": "ワイヤー"
     },
-    "foldModelAction": "モデルを折る",
     "inlineSimulation": {
       "addAction": "シミュレーションウィンドウを追加",
       "canvasAriaLabel": "インラインシミュレーション。ドラッグで回転します。",
@@ -337,6 +338,7 @@
       "simulateInline": "インラインでシミュレート"
     },
     "sendImageToBack": "画像を最背面へ",
+    "setFoldedModelUpright": "折り上がりモデルの上方向を設定",
     "shadow": "影",
     "shadowUnsupported3d": "3D の折り上がりモデルにはまだ影を描画できません",
     "showFoldedModelShadow": "折りモデルの影を表示",
@@ -527,6 +529,7 @@
   },
   "foldedFigureActions": {
     "anotherSolution": "別の解",
+    "clearUpright": "上方向を解除",
     "delete": "削除",
     "displayStyle": "表示スタイル",
     "duplicate": "複製",
@@ -539,6 +542,7 @@
     "otherSide": "反対側",
     "refold": "折り直す",
     "resetView": "視点をリセット",
+    "setUpright": "上方向を設定",
     "styleDev1": "開発 1",
     "styleDev4": "開発 4",
     "styleNone": "なし",
@@ -698,22 +702,23 @@
     "backgroundTransparent": "透明",
     "backgroundWhite": "白",
     "borderEdge": "端",
+    "clearUpright": "解除",
     "colorMode": "配色",
     "colorPaper": "紙",
     "colorStrain": "ひずみ",
     "creaseLines": "折り線",
-    "creases": "折り線",
     "creaseStiffness": "折り目",
     "creaseStyle": "スタイル",
     "creaseStyleColor": "山 / 谷",
     "creaseStyleMono": "単色",
     "creaseStyleMonoDashed": "単色・破線",
     "creaseWidth": "太さ",
+    "creases": "折り線",
     "damping": "減衰",
     "export": "書き出し",
     "exportHint": "書き出す画像の背景です。",
-    "faces": "面",
     "faceStiffness": "面",
+    "faces": "面",
     "hiddenLines": "隠線",
     "lighting": "照明",
     "material": "材質",
@@ -727,6 +732,7 @@
     "render": "描画",
     "resetMaterial": "材質をリセット",
     "resetStyle": "スタイルをリセット",
+    "setUpright": "上方向を設定",
     "solver": "ソルバー",
     "solverHint": "折りが震えたり発散する場合は安定性を下げてください。",
     "stability": "安定性",
@@ -734,6 +740,7 @@
     "style": "スタイル",
     "stylePaper": "紙",
     "styleXray": "X線",
+    "upDirection": "上方向",
     "valley": "谷"
   },
   "textAnnotation": {

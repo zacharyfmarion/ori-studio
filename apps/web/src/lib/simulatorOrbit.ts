@@ -1,4 +1,9 @@
-import type { Mat3 } from '@treemaker/origami-simulator';
+import {
+  multiplyMat3,
+  transposeMat3,
+  viewRotation,
+  type Mat3,
+} from '@treemaker/origami-simulator';
 
 export interface SimulatorOrbitView {
   yaw: number;
@@ -68,4 +73,73 @@ export function nextSimulatorOrbitView(
 export function normalizeAngle(value: number): number {
   const fullTurn = Math.PI * 2;
   return ((((value + Math.PI) % fullTurn) + fullTurn) % fullTurn) - Math.PI;
+}
+
+/* --------------------------------------------------------------------------
+ * Which way is up
+ * ----------------------------------------------------------------------- */
+
+/**
+ * The pitch at which the model's up axis stands exactly vertical on screen.
+ *
+ * Not an extreme, despite how it reads. Pitch here is measured from looking
+ * straight *down* the up axis — `camera.test.ts` pins pitch 0 as exactly that —
+ * so `−π/2` is the eye at the **horizon**, the ordinary side-on view of a
+ * standing model. Dragging toward 0 rises to look down on it, toward `−π` drops
+ * to look up at it.
+ *
+ * It is also forced rather than chosen. `toViewSpace` sends world Y to
+ * `(0, −sin p, cos p)`, so `(0,1,0)` — screen up — requires `sin p = −1`.
+ */
+export const UPRIGHT_PITCH = -Math.PI / 2;
+
+/**
+ * Take the direction currently pointing up on screen as the model's up.
+ *
+ * Both surfaces orbit as a turntable about the **paper's normal**: a simulation
+ * lifts FOLD `(x, y)` to `(x, 0, y)` and a folded figure maps the kernel's
+ * `(x, y, z)` to `(x, z, −y)`, either way putting the normal on the axis yaw
+ * spins about. For a flat sheet that is right — the normal *is* up. For a model
+ * that stands, its own up lies *in* the paper plane at an angle nothing in the
+ * pipeline knows, so yaw spins it about an axis through its front and it tumbles
+ * rather than turning.
+ *
+ * Dragging cannot fix that: yaw and pitch only move the eye on a sphere whose
+ * pole is fixed. This picks the pole.
+ *
+ * The picture does not move. Writing `T` for the current total rotation, the
+ * model direction drawn straight up is `v = T⁻¹·(0,1,0)`; requiring both that
+ * `v` become the yaw axis and that `Pitch(p')·Yaw(y')·R' = T` forces
+ * `p' = UPRIGHT_PITCH` with `y'` free, leaving `R' = Pitch(p')⁻¹·T`.
+ */
+export function setUprightView(view: SimulatorOrbitView): SimulatorOrbitView {
+  const total = viewRotation(view.yaw, view.pitch, view.orient);
+  return {
+    ...view,
+    yaw: 0,
+    pitch: UPRIGHT_PITCH,
+    // Transpose rather than a general inverse: a rotation's transpose *is* its
+    // inverse, exactly, with no division to lose precision to.
+    orient: multiplyMat3(transposeMat3(viewRotation(0, UPRIGHT_PITCH)), total),
+  };
+}
+
+/**
+ * Forget the model's up and go back to the surface's own rest view.
+ *
+ * Deliberately a **separate verb** from "reset view", which leaves the
+ * orientation alone: an upright is a property of the model, not of the current
+ * look at it, so re-centring must not silently discard it. This one is the
+ * discard, and it says so.
+ */
+export function clearUprightView(
+  view: SimulatorOrbitView,
+  rest: SimulatorOrbitView
+): SimulatorOrbitView {
+  return { yaw: rest.yaw, pitch: rest.pitch, zoom: view.zoom };
+}
+
+/** Whether a model has been given an up of its own. */
+export function hasUpright(view: SimulatorOrbitView | null | undefined): boolean {
+  return view?.orient != null;
 }

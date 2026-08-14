@@ -22,7 +22,9 @@ import type { SimulatorFrameView } from "./useSimulatorRuntime";
 import type { SimulatorRenderModel } from "./renderModel";
 import {
   clampSimulatorZoom,
+  clearUprightView,
   nextSimulatorOrbitView,
+  setUprightView,
   simulatorWheelZoomFactor,
   type SimulatorOrbitView as SimulatorView,
 } from "../lib/simulatorOrbit";
@@ -84,8 +86,24 @@ function withSurfaceFraming(
 }
 
 export interface SimulatorViewportHandle {
-  /** Return the orbit camera to {@link SimulatorViewportProps.initialView}. */
+  /**
+   * Return the orbit camera to {@link SimulatorViewportProps.initialView}.
+   *
+   * Yaw, pitch and zoom. An upright the user set survives, because which way the
+   * model is up is a property of the model and not of the current look at it —
+   * {@link SimulatorViewportHandle.clearUpright} is the verb that discards it.
+   */
   resetView: () => void;
+  /**
+   * Take the direction now pointing up on screen as the model's up, so yaw spins
+   * about it rather than about the paper's normal.
+   *
+   * The picture does not move; only the parametrisation does. See
+   * `setUprightView`.
+   */
+  setUpright: () => void;
+  /** Forget the model's up and return to the opening view. */
+  clearUpright: () => void;
   /**
    * Move the orbit camera from outside, and redraw at it.
    *
@@ -428,7 +446,23 @@ export function SimulatorViewport({
   }, [gpuActive, refreshPaint, pushView]);
 
   const resetView = useCallback(() => {
-    viewRef.current = { ...openingViewRef.current };
+    // The opening view's angles, but the *current* orientation: an upright the
+    // user set is not part of what "reset the view" means.
+    viewRef.current = { ...openingViewRef.current, orient: viewRef.current.orient };
+    pushView();
+  }, [pushView]);
+
+  // Session-only, on both simulator surfaces: an inline window's descriptor has
+  // a `view` slot but no write-back, and the Simulate workspace persists no
+  // camera at all. Making either durable is its own change, deliberately not
+  // this one — so a reload returns to the paper's normal.
+  const setUpright = useCallback(() => {
+    viewRef.current = setUprightView(viewRef.current);
+    pushView();
+  }, [pushView]);
+
+  const clearUpright = useCallback(() => {
+    viewRef.current = clearUprightView(viewRef.current, openingViewRef.current);
     pushView();
   }, [pushView]);
 
@@ -447,6 +481,8 @@ export function SimulatorViewport({
     ref,
     () => ({
       resetView,
+      setUpright,
+      clearUpright,
       zoomBy,
       setView: (view: SimulatorView) => {
         viewRef.current = { ...view };
@@ -464,7 +500,7 @@ export function SimulatorViewport({
         drawCurrentFrame();
       },
     }),
-    [resetView, zoomBy, drawCurrentFrame, presentBitmap, pushView]
+    [resetView, setUpright, clearUpright, zoomBy, drawCurrentFrame, presentBitmap, pushView]
   );
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {

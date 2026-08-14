@@ -195,6 +195,7 @@
     "changeFoldedColor": "접힌 모델 색상 변경",
     "changeFoldedDisplayStyle": "접힌 표시 스타일 변경",
     "changeFoldedModel": "접힌 모델 변경",
+    "clearFoldedModelUpright": "접힌 모델의 위쪽 방향 해제",
     "commandFailed": "명령 실패",
     "couldNotOpenForEditing": "이 전개도를 편집용으로 열 수 없습니다.",
     "couldNotOpenForEditingHint": "읽기 전용으로 표시됩니다. 계속 보기, 접기, 내보내기를 할 수 있습니다.",
@@ -221,6 +222,7 @@
     "duplicateFoldedModelAction": "접힌 모델 복제",
     "flipFoldedModel": "접힌 모델 뒤집기",
     "fold": "접기",
+    "foldModelAction": "모델 접기",
     "foldability": {
       "bigLittleBig": "각도를 중첩할 수 없음(크게-작게-크게)",
       "closure": "여기의 접힘선이 닫히지 않습니다",
@@ -256,12 +258,12 @@
       "windowFailed": "이 모델을 그릴 수 없습니다"
     },
     "foldedModelControls": "접힌 모델 컨트롤",
-    "foldedModels": "접힌 모델",
     "foldedModelSide": "접힌 모델 면",
     "foldedModelStatus": {
       "error": "실패",
       "loading": "접는 중…"
     },
+    "foldedModels": "접힌 모델",
     "foldedState": {
       "back": "뒷면",
       "front": "앞면"
@@ -274,7 +276,6 @@
       "transparent": "투명",
       "wire": "와이어"
     },
-    "foldModelAction": "모델 접기",
     "inlineSimulation": {
       "addAction": "시뮬레이션 창 추가",
       "canvasAriaLabel": "인라인 시뮬레이션. 드래그하여 회전합니다.",
@@ -337,6 +338,7 @@
       "simulateInline": "인라인 시뮬레이션"
     },
     "sendImageToBack": "이미지를 맨 뒤로 보내기",
+    "setFoldedModelUpright": "접힌 모델의 위쪽 방향 설정",
     "shadow": "그림자",
     "shadowUnsupported3d": "3D 접힌 모델에는 아직 그림자가 그려지지 않습니다",
     "showFoldedModelShadow": "접힌 모델 그림자 표시",
@@ -527,6 +529,7 @@
   },
   "foldedFigureActions": {
     "anotherSolution": "다른 해",
+    "clearUpright": "위쪽 방향 해제",
     "delete": "삭제",
     "displayStyle": "표시 스타일",
     "duplicate": "복제",
@@ -539,6 +542,7 @@
     "otherSide": "반대편",
     "refold": "다시 접기",
     "resetView": "보기 초기화",
+    "setUpright": "위쪽 방향 설정",
     "styleDev1": "개발 1",
     "styleDev4": "개발 4",
     "styleNone": "없음",
@@ -698,22 +702,23 @@
     "backgroundTransparent": "투명",
     "backgroundWhite": "흰색",
     "borderEdge": "가장자리",
+    "clearUpright": "해제",
     "colorMode": "색상",
     "colorPaper": "종이",
     "colorStrain": "변형률",
     "creaseLines": "접는 선",
-    "creases": "접는 선",
     "creaseStiffness": "접힘",
     "creaseStyle": "스타일",
     "creaseStyleColor": "산 / 골",
     "creaseStyleMono": "단색",
     "creaseStyleMonoDashed": "단색 파선",
     "creaseWidth": "굵기",
+    "creases": "접는 선",
     "damping": "감쇠",
     "export": "내보내기",
     "exportHint": "내보낸 이미지의 페이지 배경입니다.",
-    "faces": "면",
     "faceStiffness": "면",
+    "faces": "면",
     "hiddenLines": "숨은 선",
     "lighting": "조명",
     "material": "재질",
@@ -727,6 +732,7 @@
     "render": "렌더링",
     "resetMaterial": "재질 초기화",
     "resetStyle": "스타일 재설정",
+    "setUpright": "위쪽 방향 설정",
     "solver": "솔버",
     "solverHint": "접기가 떨리거나 발산하면 안정성을 낮추세요.",
     "stability": "안정성",
@@ -734,6 +740,7 @@
     "style": "스타일",
     "stylePaper": "종이",
     "styleXray": "엑스레이",
+    "upDirection": "위쪽 방향",
     "valley": "골"
   },
   "textAnnotation": {

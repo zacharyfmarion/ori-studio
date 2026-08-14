@@ -35,6 +35,7 @@ import {
   SimulatorViewport,
   type SimulatorViewportHandle,
 } from "../../simulator/SimulatorViewport";
+import { registerSimulatorView } from "../../simulator/simulatorViewRegistry";
 import { useSimulatorShortcuts } from "../../simulator/useSimulatorShortcuts";
 import { SimulatorExportMenu } from "../../simulator/SimulatorExportMenu";
 import { useSimulatorViewExport } from "../../simulator/useSimulatorViewExport";
@@ -453,6 +454,19 @@ export function SimulatorPanel() {
   const zoomBy = useCallback((factor: number) => {
     viewportRef.current?.zoomBy(factor);
   }, []);
+
+  // Publish the viewpoint verbs for the view-controls pane, which is store-driven
+  // and has no path to this ref. Registered once for the panel's life: the ref is
+  // stable across the viewport's own remounts (GPU/CPU path switches), so a
+  // re-register per render would only churn.
+  useEffect(
+    () =>
+      registerSimulatorView({
+        setUpright: () => viewportRef.current?.setUpright(),
+        clearUpright: () => viewportRef.current?.clearUpright(),
+      }),
+    [],
+  );
 
   // Scrub the fold by a signed delta. setFoldTarget clamps 0-100 and pauses
   // playback, so a manual scrub always stops an in-progress play.

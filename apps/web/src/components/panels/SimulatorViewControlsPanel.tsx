@@ -12,6 +12,9 @@ import {
   type SimulatorSettings,
 } from '../../lib/simulatorSettings';
 import { simulatorStyleDefaults } from '../../simulator/simulatorPalette';
+import { simulatorView } from '../../simulator/simulatorViewRegistry';
+import { track } from '../../analytics';
+import { ANALYTICS_EVENTS } from '../../analytics/events';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useThemeStore } from '../../store/themeStore';
 import { ColorField } from '../ui/ColorField';
@@ -170,6 +173,51 @@ export function SimulatorViewControlsPanel() {
             checked={settings.lighting}
             onChange={(checked) => setSetting('lighting', checked)}
           />
+        </Section>
+
+        {/*
+          Which way the model is up. The orbit is a turntable about the paper's
+          *normal*, which is up for a flat sheet and is not for a model that
+          stands — so a standing figure tumbles rather than turning, and dragging
+          cannot fix it because yaw and pitch only move the eye on a sphere whose
+          pole is fixed. These two verbs pick the pole.
+
+          Both are offered unconditionally. Whether an upright is set lives in
+          the viewport's own ref (it is session-only for a simulation), so this
+          store-driven pane has nothing to gate on — and clearing when none is
+          set is simply a reset, which is harmless. The folded figure's copy of
+          this verb *can* gate, because its upright is document state.
+        */}
+        {/*
+          Not `collapsible`, unlike everything below Render. That convention is
+          for settings most sessions never touch; this is an action you reach for
+          while positioning a model, and a section that starts closed would put a
+          click in front of it every time. Two buttons on one row, so it costs
+          almost nothing above the fold.
+        */}
+        <Section title={t('panels:simulatorViewControls.upDirection', 'Up direction')}>
+          <div className="control-row">
+            <button
+              type="button"
+              className="simulator-view-controls-panel__action"
+              onClick={() => {
+                simulatorView()?.setUpright();
+                track(ANALYTICS_EVENTS.modelUprightSet);
+              }}
+            >
+              {t('panels:simulatorViewControls.setUpright', 'Set upright')}
+            </button>
+            <button
+              type="button"
+              className="simulator-view-controls-panel__action"
+              onClick={() => {
+                simulatorView()?.clearUpright();
+                track(ANALYTICS_EVENTS.modelUprightCleared);
+              }}
+            >
+              {t('panels:simulatorViewControls.clearUpright', 'Clear')}
+            </button>
+          </div>
         </Section>
 
         <Section

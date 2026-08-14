@@ -84,6 +84,7 @@ import {
   type CameraUniforms,
   type DrawnPiece,
   type RunPiece,
+  type Mat3,
   type Vec3,
 } from '@treemaker/origami-simulator';
 import {
@@ -156,6 +157,15 @@ export interface FoldedFigureCamera {
    * chrome rather than being cropped by it.
    */
   zoom: number;
+  /**
+   * The model's own up, applied before the camera, so `yaw` spins about it
+   * rather than about the paper's normal.
+   *
+   * Absent means identity — the turntable about the normal that every figure had
+   * before "set upright" existed, and that a flat sheet still wants. Set by the
+   * user from a view they positioned; see `setUprightView`.
+   */
+  orient?: Mat3;
 }
 
 /**
@@ -316,7 +326,16 @@ export function defaultFolded3dCamera(
  * view", a bug that looks like the camera being ignored.
  */
 export function antipodalCamera(camera: FoldedFigureCamera): FoldedFigureCamera {
-  return { yaw: camera.yaw + Math.PI, pitch: Math.PI - camera.pitch, zoom: camera.zoom };
+  return {
+    yaw: camera.yaw + Math.PI,
+    pitch: Math.PI - camera.pitch,
+    zoom: camera.zoom,
+    // Carried unchanged, and that is exactly right rather than an oversight:
+    // the eye direction is row 2 of `Pitch · Yaw · orient`, so negating row 2 of
+    // `Pitch · Yaw` negates the whole product's. Standing somewhere else does
+    // not change which way the model is up.
+    orient: camera.orient,
+  };
 }
 
 /**
@@ -360,7 +379,7 @@ function cameraUniformsFor(camera: FoldedFigureCamera, centre: Vec3): CameraUnif
     center: sim,
     // `pitch` is measured from face-on; the simulator's own zero is face-on too,
     // so the two agree and no offset is applied.
-    rotation: viewRotation(camera.yaw, camera.pitch),
+    rotation: viewRotation(camera.yaw, camera.pitch, camera.orient),
     // Not `camera.zoom`: this projection is drawn unclipped, so a zoomed-in
     // model would spill outside the frame its chrome is anchored to instead of
     // being cropped by it. Zoom is a window setting — see `FoldedFigureCamera`.
@@ -423,7 +442,7 @@ export function folded3dFrameRadius(model: OristudioCpFolded3dRenderModel): numb
  * way to say which one that is.
  */
 export function folded3dEyeDirection(camera: FoldedFigureCamera): Vec3 {
-  const [a, b, c] = viewDepthAxis(viewRotation(camera.yaw, camera.pitch));
+  const [a, b, c] = viewDepthAxis(viewRotation(camera.yaw, camera.pitch, camera.orient));
   return [a, -c, b];
 }
 

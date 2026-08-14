@@ -2459,7 +2459,14 @@
     "toasts:global.foldStop": "19766ed6ccb2",
     "toasts:global.foldStopped": "93f951528c80",
     "toasts:global.foldStopping": "91b104db05da",
-    "common:startFigure.credit": "4dee822eeee6"
+    "common:startFigure.credit": "4dee822eeee6",
+    "panels:creasePattern.clearFoldedModelUpright": "6d87aeaa7871",
+    "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
+    "panels:foldedFigureActions.clearUpright": "75db2573f6c1",
+    "panels:foldedFigureActions.setUpright": "86e47d266ac9",
+    "panels:simulatorViewControls.clearUpright": "83b12c2216ef",
+    "panels:simulatorViewControls.setUpright": "86e47d266ac9",
+    "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4921,7 +4928,14 @@
     "toasts:global.foldStop": "19766ed6ccb2",
     "toasts:global.foldStopped": "93f951528c80",
     "toasts:global.foldStopping": "91b104db05da",
-    "common:startFigure.credit": "4dee822eeee6"
+    "common:startFigure.credit": "4dee822eeee6",
+    "panels:creasePattern.clearFoldedModelUpright": "6d87aeaa7871",
+    "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
+    "panels:foldedFigureActions.clearUpright": "75db2573f6c1",
+    "panels:foldedFigureActions.setUpright": "86e47d266ac9",
+    "panels:simulatorViewControls.clearUpright": "83b12c2216ef",
+    "panels:simulatorViewControls.setUpright": "86e47d266ac9",
+    "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7383,7 +7397,14 @@
     "toasts:global.foldStop": "19766ed6ccb2",
     "toasts:global.foldStopped": "93f951528c80",
     "toasts:global.foldStopping": "91b104db05da",
-    "common:startFigure.credit": "4dee822eeee6"
+    "common:startFigure.credit": "4dee822eeee6",
+    "panels:creasePattern.clearFoldedModelUpright": "6d87aeaa7871",
+    "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
+    "panels:foldedFigureActions.clearUpright": "75db2573f6c1",
+    "panels:foldedFigureActions.setUpright": "86e47d266ac9",
+    "panels:simulatorViewControls.clearUpright": "83b12c2216ef",
+    "panels:simulatorViewControls.setUpright": "86e47d266ac9",
+    "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9806,7 +9827,14 @@
     "toasts:global.foldStop": "19766ed6ccb2",
     "toasts:global.foldStopped": "93f951528c80",
     "toasts:global.foldStopping": "91b104db05da",
-    "common:startFigure.credit": "4dee822eeee6"
+    "common:startFigure.credit": "4dee822eeee6",
+    "panels:creasePattern.clearFoldedModelUpright": "6d87aeaa7871",
+    "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
+    "panels:foldedFigureActions.clearUpright": "75db2573f6c1",
+    "panels:foldedFigureActions.setUpright": "86e47d266ac9",
+    "panels:simulatorViewControls.clearUpright": "83b12c2216ef",
+    "panels:simulatorViewControls.setUpright": "86e47d266ac9",
+    "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12229,7 +12257,14 @@
     "toasts:global.foldStop": "19766ed6ccb2",
     "toasts:global.foldStopped": "93f951528c80",
     "toasts:global.foldStopping": "91b104db05da",
-    "common:startFigure.credit": "4dee822eeee6"
+    "common:startFigure.credit": "4dee822eeee6",
+    "panels:creasePattern.clearFoldedModelUpright": "6d87aeaa7871",
+    "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
+    "panels:foldedFigureActions.clearUpright": "75db2573f6c1",
+    "panels:foldedFigureActions.setUpright": "86e47d266ac9",
+    "panels:simulatorViewControls.clearUpright": "83b12c2216ef",
+    "panels:simulatorViewControls.setUpright": "86e47d266ac9",
+    "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -14691,7 +14726,14 @@
     "toasts:global.foldStop": "19766ed6ccb2",
     "toasts:global.foldStopped": "93f951528c80",
     "toasts:global.foldStopping": "91b104db05da",
-    "common:startFigure.credit": "4dee822eeee6"
+    "common:startFigure.credit": "4dee822eeee6",
+    "panels:creasePattern.clearFoldedModelUpright": "6d87aeaa7871",
+    "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
+    "panels:foldedFigureActions.clearUpright": "75db2573f6c1",
+    "panels:foldedFigureActions.setUpright": "86e47d266ac9",
+    "panels:simulatorViewControls.clearUpright": "83b12c2216ef",
+    "panels:simulatorViewControls.setUpright": "86e47d266ac9",
+    "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17153,7 +17195,14 @@
     "toasts:global.foldStop": "19766ed6ccb2",
     "toasts:global.foldStopped": "93f951528c80",
     "toasts:global.foldStopping": "91b104db05da",
-    "common:startFigure.credit": "4dee822eeee6"
+    "common:startFigure.credit": "4dee822eeee6",
+    "panels:creasePattern.clearFoldedModelUpright": "6d87aeaa7871",
+    "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
+    "panels:foldedFigureActions.clearUpright": "75db2573f6c1",
+    "panels:foldedFigureActions.setUpright": "86e47d266ac9",
+    "panels:simulatorViewControls.clearUpright": "83b12c2216ef",
+    "panels:simulatorViewControls.setUpright": "86e47d266ac9",
+    "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -19576,6 +19625,13 @@
     "toasts:global.foldStop": "19766ed6ccb2",
     "toasts:global.foldStopped": "93f951528c80",
     "toasts:global.foldStopping": "91b104db05da",
-    "common:startFigure.credit": "4dee822eeee6"
+    "common:startFigure.credit": "4dee822eeee6",
+    "panels:creasePattern.clearFoldedModelUpright": "6d87aeaa7871",
+    "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
+    "panels:foldedFigureActions.clearUpright": "75db2573f6c1",
+    "panels:foldedFigureActions.setUpright": "86e47d266ac9",
+    "panels:simulatorViewControls.clearUpright": "83b12c2216ef",
+    "panels:simulatorViewControls.setUpright": "86e47d266ac9",
+    "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7"
   }
 }

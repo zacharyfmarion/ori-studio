@@ -118,14 +118,17 @@ export function advanceFoldedFigureOrbit(
   // hiding the drift, which still accumulates across a drag that keeps
   // returning to its anchor.
   if (point.x === drag.x && point.y === drag.y) {
-    return { yaw: drag.yaw, pitch: drag.pitch, zoom: camera.zoom };
+    return { yaw: drag.yaw, pitch: drag.pitch, zoom: camera.zoom, orient: camera.orient };
   }
   const next = nextSimulatorOrbitView(
-    { yaw: camera.yaw, pitch: camera.pitch, zoom: camera.zoom },
+    { yaw: camera.yaw, pitch: camera.pitch, zoom: camera.zoom, orient: camera.orient },
     drag,
     point
   );
-  return { yaw: next.yaw, pitch: next.pitch, zoom: camera.zoom };
+  // `orient` rides through every branch. A drag moves the eye; it never changes
+  // which way the model is up, and dropping it here would quietly undo a
+  // "set upright" the first time the user turned the figure afterwards.
+  return { yaw: next.yaw, pitch: next.pitch, zoom: camera.zoom, orient: camera.orient };
 }
 
 /**

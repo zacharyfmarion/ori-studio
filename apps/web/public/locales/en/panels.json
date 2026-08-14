@@ -199,6 +199,7 @@
     "changeFoldedColor": "Change folded model color",
     "changeFoldedDisplayStyle": "Change folded display style",
     "changeFoldedModel": "Change folded model",
+    "clearFoldedModelUpright": "Clear folded model upright",
     "commandFailed": "Command failed",
     "couldNotOpenForEditing": "This crease pattern could not be opened for editing.",
     "couldNotOpenForEditingHint": "It is shown read-only. You can still view, fold, and export it.",
@@ -349,6 +350,7 @@
       "simulateInline": "Simulate inline"
     },
     "sendImageToBack": "Send image to back",
+    "setFoldedModelUpright": "Set folded model upright",
     "shadow": "Shadow",
     "shadowUnsupported3d": "Shadows are not drawn for a 3D folded model yet",
     "showFoldedModelShadow": "Show folded model shadow",
@@ -541,6 +543,7 @@
   },
   "foldedFigureActions": {
     "anotherSolution": "Another solution",
+    "clearUpright": "Clear upright",
     "delete": "Delete",
     "displayStyle": "Display style",
     "duplicate": "Duplicate",
@@ -553,6 +556,7 @@
     "otherSide": "Other side",
     "refold": "Refold",
     "resetView": "Reset view",
+    "setUpright": "Set upright",
     "styleDev1": "Dev 1",
     "styleDev4": "Dev 4",
     "styleNone": "None",
@@ -715,6 +719,7 @@
     "backgroundTransparent": "Transparent",
     "backgroundWhite": "White",
     "borderEdge": "Edge",
+    "clearUpright": "Clear",
     "colorMode": "Colour",
     "colorPaper": "Paper",
     "colorStrain": "Strain",
@@ -744,6 +749,7 @@
     "render": "Render",
     "resetMaterial": "Reset material",
     "resetStyle": "Reset style",
+    "setUpright": "Set upright",
     "solver": "Solver",
     "solverHint": "Lower stability if a fold jitters or blows up.",
     "stability": "Stability",
@@ -751,6 +757,7 @@
     "style": "Style",
     "stylePaper": "Paper",
     "styleXray": "X-ray",
+    "upDirection": "Up direction",
     "valley": "Valley"
   },
   "textAnnotation": {
