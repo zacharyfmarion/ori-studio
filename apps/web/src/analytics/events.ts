@@ -117,7 +117,14 @@ export type FoldMode = 'flat' | 'spatial';
  * - `not-drawable` — the fold returned, and there was nothing to draw.
  * - `simulated` — the user accepted the offer to simulate instead.
  * - `cancelled` — the user declined that offer, or the CAMV warning.
+ * - `halted` — the user stopped a fold that was already running.
  * - `error` — the kernel refused.
+ *
+ * `halted` is deliberately **not** merged into `cancelled`. Declining a dialog
+ * takes a couple of hundred milliseconds and says the user changed their mind
+ * before any work happened; halting says they waited — possibly for many minutes
+ * — and gave up. Those are the two things this feature exists to tell apart, and
+ * one value cannot.
  *
  * The last three are `spatial` only, and each says something a placed 3D figure
  * still is: it drew, and this is what is true about it.
@@ -133,6 +140,7 @@ export type FoldVerdict =
   | 'not-drawable'
   | 'simulated'
   | 'cancelled'
+  | 'halted'
   | 'error'
   | 'local-crossing'
   | 'transversal-crossing'
@@ -246,6 +254,7 @@ export const ANALYTICS_EVENTS = {
   orieditaShortcutsOverrideAll: 'oriedita shortcuts override all',
   shortcutDefaultsSourceChanged: 'shortcut defaults source changed',
   cpSnapRadiusChanged: 'cp snap radius changed',
+  cpWheelGestureChanged: 'cp wheel gesture changed',
   /**
    * The start screen's 3D figure declined to start, and the static image is
    * standing in.
@@ -344,3 +353,17 @@ export type ExploriFailureReason =
   | 'unknown';
 
 export const DURATION_MS_BUCKETS = [50, 100, 250, 500, 1000, 2500, 5000, 10000] as const;
+
+/**
+ * Threshold ladder for how long a fold ran, in milliseconds.
+ *
+ * {@link DURATION_MS_BUCKETS} tops out at ten seconds, which is where a fold
+ * starts being interesting rather than where it stops: the runs worth knowing
+ * about are the ones people sit through for minutes and then give up on. This
+ * ladder is the only way to answer "how long do people tolerate", and it is put
+ * on **every** verdict rather than only on `halted`, because that question is
+ * meaningless without "how long do folds take when they finish".
+ */
+export const FOLD_DURATION_MS_BUCKETS = [
+  1000, 5000, 15000, 60000, 300000, 900000, 3600000,
+] as const;

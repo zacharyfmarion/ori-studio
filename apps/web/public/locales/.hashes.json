@@ -2455,6 +2455,10 @@
     "landing:what.figureAlt": "543ee52d013e",
     "landing:what.lead": "422c9efeb0d2",
     "landing:what.title": "f02d09678f42",
+    "toasts:global.foldingLong": "6784996a2bcc",
+    "toasts:global.foldStop": "19766ed6ccb2",
+    "toasts:global.foldStopped": "93f951528c80",
+    "toasts:global.foldStopping": "91b104db05da",
     "common:startFigure.credit": "4dee822eeee6"
   },
   "es": {
@@ -4913,6 +4917,10 @@
     "landing:what.figureAlt": "543ee52d013e",
     "landing:what.lead": "422c9efeb0d2",
     "landing:what.title": "f02d09678f42",
+    "toasts:global.foldingLong": "6784996a2bcc",
+    "toasts:global.foldStop": "19766ed6ccb2",
+    "toasts:global.foldStopped": "93f951528c80",
+    "toasts:global.foldStopping": "91b104db05da",
     "common:startFigure.credit": "4dee822eeee6"
   },
   "fr": {
@@ -7371,6 +7379,10 @@
     "landing:what.figureAlt": "543ee52d013e",
     "landing:what.lead": "422c9efeb0d2",
     "landing:what.title": "f02d09678f42",
+    "toasts:global.foldingLong": "6784996a2bcc",
+    "toasts:global.foldStop": "19766ed6ccb2",
+    "toasts:global.foldStopped": "93f951528c80",
+    "toasts:global.foldStopping": "91b104db05da",
     "common:startFigure.credit": "4dee822eeee6"
   },
   "ja": {
@@ -9790,6 +9802,10 @@
     "landing:what.figureAlt": "543ee52d013e",
     "landing:what.lead": "422c9efeb0d2",
     "landing:what.title": "f02d09678f42",
+    "toasts:global.foldingLong": "6784996a2bcc",
+    "toasts:global.foldStop": "19766ed6ccb2",
+    "toasts:global.foldStopped": "93f951528c80",
+    "toasts:global.foldStopping": "91b104db05da",
     "common:startFigure.credit": "4dee822eeee6"
   },
   "ko": {
@@ -12209,6 +12225,10 @@
     "landing:what.figureAlt": "543ee52d013e",
     "landing:what.lead": "422c9efeb0d2",
     "landing:what.title": "f02d09678f42",
+    "toasts:global.foldingLong": "6784996a2bcc",
+    "toasts:global.foldStop": "19766ed6ccb2",
+    "toasts:global.foldStopped": "93f951528c80",
+    "toasts:global.foldStopping": "91b104db05da",
     "common:startFigure.credit": "4dee822eeee6"
   },
   "pt-BR": {
@@ -14667,6 +14687,10 @@
     "landing:what.figureAlt": "543ee52d013e",
     "landing:what.lead": "422c9efeb0d2",
     "landing:what.title": "f02d09678f42",
+    "toasts:global.foldingLong": "6784996a2bcc",
+    "toasts:global.foldStop": "19766ed6ccb2",
+    "toasts:global.foldStopped": "93f951528c80",
+    "toasts:global.foldStopping": "91b104db05da",
     "common:startFigure.credit": "4dee822eeee6"
   },
   "ru": {
@@ -17125,6 +17149,10 @@
     "landing:what.figureAlt": "543ee52d013e",
     "landing:what.lead": "422c9efeb0d2",
     "landing:what.title": "f02d09678f42",
+    "toasts:global.foldingLong": "6784996a2bcc",
+    "toasts:global.foldStop": "19766ed6ccb2",
+    "toasts:global.foldStopped": "93f951528c80",
+    "toasts:global.foldStopping": "91b104db05da",
     "common:startFigure.credit": "4dee822eeee6"
   },
   "zh-CN": {
@@ -19544,6 +19572,10 @@
     "landing:what.figureAlt": "543ee52d013e",
     "landing:what.lead": "422c9efeb0d2",
     "landing:what.title": "f02d09678f42",
+    "toasts:global.foldingLong": "6784996a2bcc",
+    "toasts:global.foldStop": "19766ed6ccb2",
+    "toasts:global.foldStopped": "93f951528c80",
+    "toasts:global.foldStopping": "91b104db05da",
     "common:startFigure.credit": "4dee822eeee6"
   }
 }

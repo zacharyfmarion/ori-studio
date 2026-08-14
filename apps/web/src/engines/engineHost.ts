@@ -2,6 +2,7 @@ import { wrap, type Remote } from 'comlink';
 import { createOristudioCpNativeClient } from '../engine/oristudioCpNativeClient';
 import { attachWorkerDiagnostics, type WorkerFailure } from '../lib/workerDiagnostics';
 import { isDesktopRuntime } from '../platform/runtime';
+import { installFoldCancellation } from '../lib/foldCancellation';
 import type { OristudioBpWorkerApi } from '../workers/oristudioBpWorker';
 import type { OristudioCpWorkerApi } from '../workers/oristudioCpWorker';
 import type { TreemakerWorkerApi } from '../workers/treemakerWorker';
@@ -65,15 +66,22 @@ const CONNECTORS: { [E in EngineId]: () => Connection<E> } = {
     if (isDesktopRuntime()) {
       // Desktop: native Rust engine via Tauri commands (no wasm worker). The
       // native client implements the same OristudioCpWorkerApi surface.
-      return {
-        worker: null,
-        client: createOristudioCpNativeClient() as unknown as Remote<OristudioCpWorkerApi>,
-      };
+      const client = createOristudioCpNativeClient() as unknown as Remote<OristudioCpWorkerApi>;
+      // Desktop has no buffer to install, but its cancel flag outlives this
+      // webview's run-id counter — so cancellation is prepared on both branches,
+      // not just the one with a worker.
+      installFoldCancellation(client);
+      return { worker: null, client };
     }
     const worker = new Worker(new URL('../workers/oristudioCpWorker.ts', import.meta.url), {
       type: 'module',
     });
-    return { worker, client: wrap<OristudioCpWorkerApi>(worker) };
+    const client = wrap<OristudioCpWorkerApi>(worker);
+    // Here rather than at a fold call site: this runs exactly once per live
+    // client and so also on the respawn after a crash, which is the case where a
+    // fold-time install would silently leave Stop dead with its button enabled.
+    installFoldCancellation(client);
+    return { worker, client };
   },
   'oristudio-bp': () => {
     const worker = new Worker(new URL('../workers/oristudioBpWorker.ts', import.meta.url), {

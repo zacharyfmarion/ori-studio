@@ -45,7 +45,7 @@ use crate::checks_spatial::{
     Quat, Vec3, axis_quat, cross, dot, norm, quat_conj, quat_mul, quat_residual, quat_rotate,
 };
 use crate::fold_graph::{FoldGraph, FoldGraphError};
-use crate::folding3d::Fold3dRefusal;
+use crate::folding3d::{Fold3dPlacementError, Fold3dRefusal};
 use crate::geometry::{LineSegment, Point};
 use crate::model::crease_fold_angle;
 
@@ -413,7 +413,7 @@ impl Placement3d {
 pub(crate) fn place_faces(
     graph: &FoldGraph,
     starting_face_id: i32,
-) -> Result<Placement3d, Fold3dRefusal> {
+) -> Result<Placement3d, Fold3dPlacementError> {
     place_with(graph, starting_face_id, Convention::Correct)
 }
 
@@ -424,7 +424,7 @@ pub(crate) fn place_faces(
 pub fn place_segments(
     segments: &[LineSegment],
     starting_face_id: i32,
-) -> Result<Placement3d, Fold3dRefusal> {
+) -> Result<Placement3d, Fold3dPlacementError> {
     let graph = FoldGraph::from_segments(segments, true);
     place_faces(&graph, starting_face_id)
 }
@@ -433,13 +433,14 @@ pub(crate) fn place_with(
     graph: &FoldGraph,
     starting_face_id: i32,
     convention: Convention,
-) -> Result<Placement3d, Fold3dRefusal> {
+) -> Result<Placement3d, Fold3dPlacementError> {
     if graph.faces.is_empty() {
         return Err(if graph.include_faces {
             Fold3dRefusal::NoFaces
         } else {
             Fold3dRefusal::FacesUnresolved
-        });
+        }
+        .into());
     }
 
     // R20: every traced ring is clockwise, so one global reversal puts them all
@@ -455,12 +456,17 @@ pub(crate) fn place_with(
         .map(|line| (line.begin, line.end))
         .collect();
 
-    let positions = graph.face_positions(starting_face_id).map_err(
-        |FoldGraphError::DisconnectedFaces { reached, unreached }| Fold3dRefusal::Disconnected {
-            reached,
-            unreached,
-        },
-    )?;
+    let positions = graph
+        .face_positions(starting_face_id)
+        .map_err(|error| match error {
+            FoldGraphError::DisconnectedFaces { reached, unreached } => {
+                Fold3dPlacementError::Refused(Fold3dRefusal::Disconnected { reached, unreached })
+            }
+            // The whole reason `Fold3dPlacementError` exists: a cancel must not
+            // become `Disconnected`, which would tell the user their pattern is
+            // in pieces and offer to simulate it.
+            FoldGraphError::Cancelled => Fold3dPlacementError::Cancelled,
+        })?;
 
     let mut transforms = vec![Rigid::IDENTITY; rings.len()];
     // `face_position` is BFS depth + 1, so ascending depth is a valid parent
@@ -494,7 +500,8 @@ pub(crate) fn place_with(
             return Err(Fold3dRefusal::Disconnected {
                 reached: rings.len().saturating_sub(unreached),
                 unreached,
-            });
+            }
+            .into());
         };
         let step = crease_step(graph, &rings, &line_ends, face, parent, line, convention)?;
         transforms[face] = match convention {
@@ -561,13 +568,14 @@ fn crease_step(
     parent: usize,
     line: usize,
     convention: Convention,
-) -> Result<Rigid, Fold3dRefusal> {
-    let segment = graph
-        .segments
-        .get(line)
-        .ok_or(Fold3dRefusal::NonCreaseJoin { line })?;
+) -> Result<Rigid, Fold3dPlacementError> {
+    let segment = graph.segments.get(line).ok_or(Fold3dPlacementError::from(
+        Fold3dRefusal::NonCreaseJoin { line },
+    ))?;
     let rho = crease_fold_angle(segment)
-        .ok_or(Fold3dRefusal::NonCreaseJoin { line })?
+        .ok_or(Fold3dPlacementError::from(Fold3dRefusal::NonCreaseJoin {
+            line,
+        }))?
         .to_radians();
     // The axis is directed the way the *child's* own winding traverses the
     // edge. Taking it from the parent instead is `Rot(-d, rho) = Rot(d, -rho)`,
@@ -576,12 +584,13 @@ fn crease_step(
         Convention::ParentAxis => parent,
         _ => child,
     };
-    let (a, b) = directed_edge(&rings[owner], line_ends[line])
-        .ok_or(Fold3dRefusal::NonCreaseJoin { line })?;
+    let (a, b) = directed_edge(&rings[owner], line_ends[line]).ok_or(
+        Fold3dPlacementError::from(Fold3dRefusal::NonCreaseJoin { line }),
+    )?;
     let (pa, pb) = (point3(graph.points[a]), point3(graph.points[b]));
     let direction = sub(pb, pa);
     if norm(direction) == 0.0 {
-        return Err(Fold3dRefusal::NonCreaseJoin { line });
+        return Err(Fold3dRefusal::NonCreaseJoin { line }.into());
     }
     let rho = match convention {
         Convention::NegatedRho => -rho,
@@ -690,7 +699,7 @@ fn measure_loop_gap(
     graph: &FoldGraph,
     placement: &Placement3d,
     convention: Convention,
-) -> Result<LoopGap, Fold3dRefusal> {
+) -> Result<LoopGap, Fold3dPlacementError> {
     let mut gap = LoopGap::EMPTY;
     for join in &placement.joins {
         if join.in_tree {
@@ -756,7 +765,7 @@ fn vertex_cycles(
     placement: &Placement3d,
     edges: &DualEdges,
     convention: Convention,
-) -> Result<Vec<VertexCycle>, Fold3dRefusal> {
+) -> Result<Vec<VertexCycle>, Fold3dPlacementError> {
     let mut faces_at: Vec<Vec<usize>> = vec![Vec::new(); graph.points.len()];
     for (face, ring) in placement.rings.iter().enumerate() {
         for &vertex in ring {
@@ -1345,7 +1354,9 @@ mod tests {
         assert_eq!(graph.faces.len(), 5, "four sectors plus the filled hole");
         assert!(matches!(
             place_faces(&graph, 1),
-            Err(Fold3dRefusal::NonCreaseJoin { .. })
+            Err(Fold3dPlacementError::Refused(
+                Fold3dRefusal::NonCreaseJoin { .. }
+            ))
         ));
     }
 
@@ -1371,7 +1382,9 @@ mod tests {
         );
         assert!(matches!(
             place_segments(&model.line_segments, 1),
-            Err(Fold3dRefusal::NonCreaseJoin { .. })
+            Err(Fold3dPlacementError::Refused(
+                Fold3dRefusal::NonCreaseJoin { .. }
+            ))
         ));
     }
 

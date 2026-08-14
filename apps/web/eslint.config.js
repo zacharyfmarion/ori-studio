@@ -190,7 +190,16 @@ const OVERSIZED_PANELS = {
   // `handleMenuAction`. What is here is a child component mapping those
   // descriptors to buttons, plus the icon each one draws — composition, and the
   // shape the panel table asks for.
-  'BpPackingPanel.tsx': 2055,
+  //
+  // 2055 -> 1851: the primitive renderer moved out, whole. Everything about one
+  // engine graphic — the SVG each kind draws, the id grammar that says which
+  // flap, river or device owns it, its label, its select token, and the three
+  // predicates that decide whether the selection covers it — is one concern, and
+  // it is now `BpPackingPrimitive`. The panel imports the component and the four
+  // id helpers its own pointer handlers need; it no longer knows the grammar.
+  // Prompted by a four-line change (threading the selection-shade layer in so a
+  // selected device washes its gadget), which is what the number is for.
+  'BpPackingPanel.tsx': 1851,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
   'BpTreePanel.tsx': 890,

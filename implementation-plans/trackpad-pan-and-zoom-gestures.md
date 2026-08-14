@@ -45,7 +45,12 @@ all.
 
 ### Target model
 
-| Input | `pan` (new default) | `zoom` (classic) |
+> **Superseded in part.** `pan` shipped as the default and was reverted to
+> `zoom` after user feedback — see [Follow-up: the default is `zoom`](#follow-up-the-default-is-zoom)
+> at the end. Everything else below still describes the code; only which of the
+> two modes you land on unconfigured has changed.
+
+| Input | `pan` | `zoom` (classic, and the default) |
 | --- | --- | --- |
 | Scroll wheel / two-finger drag | Pan by (`deltaX`, `deltaY`) | Zoom at pointer |
 | Shift+scroll | Pan horizontally | Zoom at pointer |
@@ -176,15 +181,16 @@ Implementation notes:
 
 ### The setting
 
-- `settingsStore`: `cpWheelGesture: WheelGesturePreference`, default `'pan'`,
-  with `setCpWheelGesture`.
+- `settingsStore`: `cpWheelGesture: WheelGesturePreference`, default `'pan'`
+  (now `'zoom'` — see the follow-up), with `setCpWheelGesture`.
 - Persisted via `lib/storage.ts` — add `cpWheelGesture: 'cp-wheel-gesture'` to
   `STORAGE_KEYS`, read through a small `readString`-backed parser that falls
-  back to `'pan'` on anything unrecognised.
+  back to the default on anything unrecognised.
 - Settings → **Workspace** tab, new "Crease pattern canvas" section above
-  "Layout". Two radios rather than a checkbox, because it names two behaviours:
-  - *Scroll pans, pinch zooms* (default)
-  - *Scroll zooms* (classic)
+  "Layout". Two radios rather than a checkbox, because it names two behaviours,
+  the default first:
+  - *Scroll zooms* (classic, and the default)
+  - *Scroll pans, pinch zooms*
 
   plus a one-line hint that pinch and Cmd/Ctrl+scroll zoom either way.
 
@@ -200,8 +206,9 @@ tearing down the WebGL context.
 
 Oriedita's canvas wheel zooms
 ([Canvas.java:534](third_party/oriedita/oriedita-ui/src/main/java/oriedita/editor/Canvas.java:534)),
-so `pan` as the default is a **deliberate divergence** from upstream, not a
-port. The `zoom` setting is the parity mode. Worth noting in the PR that
+so `pan` was a **deliberate divergence** from upstream, not a port — and the
+follow-up below moves the default back onto the parity mode, leaving `pan` as
+the divergence you opt into. Worth noting in the PR that
 upstream also scopes its wheel preference to this canvas alone
 (`ApplicationModel.mouseWheelMovesCreasePattern`) and exposes zoom speed as a
 user preference (`zoomSpeed`), so both a canvas-scoped toggle and a tunable
@@ -304,3 +311,53 @@ Left for a real trackpad (Zach):
 - [ ] Pinch and Cmd+scroll over a folded figure / reference image, through the
       overlay's forwarding path
 - [ ] A middle-click press-release does not disturb an in-flight tool
+
+## Follow-up: the default is `zoom`
+
+Shipping `pan` as the default drew a feature request asking for the opposite
+(2026-08-13), and the thread's own answer — *this is already a setting* — is the
+tell: people were hunting for a switch to get back a behaviour they expected to
+find on. So the default flips to `zoom` and the preference stays exactly as it
+is. Nothing about either mode's mechanics moves.
+
+Two arguments were on the `pan` side and neither survives contact:
+
+- **Figma parity.** Real, but Figma is not where these users come from. Oriedita
+  is, and its canvas wheel zooms
+  ([Canvas.java:534](third_party/oriedita/oriedita-ui/src/main/java/oriedita/editor/Canvas.java:534)).
+  This makes the default the *parity* mode and turns the earlier "deliberate
+  divergence from upstream" note into a description of the non-default.
+- **Trackpad feel.** Also real, and unchanged for anyone who picks `pan` — which
+  is why the setting exists and why the answer here is a default, not a removal.
+
+Migration falls out of how the key is written: `oristudio:cp-wheel-gesture` only
+ever gets a value from picking a radio, so a stored `'pan'` is an explicit choice
+and keeps panning, while an absent key — nobody chose — follows the default over
+to `zoom`. Flipping the fallback in `readCpWheelGesture` is the whole migration;
+there is no rewrite pass and no version stamp.
+
+The one thing that does get added is the measurement the original plan deferred.
+It recorded "no new event … revisit only to measure how many users revert to
+classic", and moving the default is exactly what makes the inverse question live.
+`cp wheel gesture changed` carries `wheel_gesture`, an enum of two, and fires
+only on a deliberate switch — so the counts read as departures from the shipped
+default, not as a population split.
+
+### Checklist
+
+- [x] `readCpWheelGesture` falls back to `'zoom'`; a stored `'pan'` still wins
+- [x] Store comment states which default is live and why
+- [x] Settings radios put the default first and carry a `value`, so the tests
+      address them by meaning rather than by position
+- [x] `settingsStore.test.ts`: default is `zoom`; an explicit `pan` survives
+      hydration; absent and unreadable both land on `zoom`
+- [x] `SettingsModal.test.tsx`: opens on `Scroll zooms`, both radios drive the
+      store
+- [x] `cp wheel gesture changed` in the event registry, the setter, and
+      `docs/analytics.md`
+- [x] Canvas wheel-handler comment no longer asserts the Figma model as the
+      behaviour
+- [x] No English string added or changed, so the locale catalogs are untouched
+      and `i18n:check` has nothing to do
+- [ ] Trackpad check that `pan` is still one radio away and feels unchanged
+      (Zach)

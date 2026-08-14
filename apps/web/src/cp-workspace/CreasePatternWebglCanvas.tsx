@@ -3101,7 +3101,8 @@ export function CreasePatternWebglCanvas({
       textPressStarted = false;
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
     };
-    // Scroll pans and pinch zooms, Figma-style; the accel key zooms either way,
+    // What a plain scroll does is the `wheelGesture` preference — zoom by
+    // default, pan for the Figma model — and the accel key zooms under either,
     // which is what keeps zoom reachable from a mouse. `resolveWheelGesture`
     // owns the whole decision — including the fast pinch curve and the
     // `deltaMode` normalisation this handler used to skip — so nothing here

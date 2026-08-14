@@ -22,9 +22,19 @@ const INTERSECT_DIVIDE_BOUNDS_EPSILON: f64 = 0.05;
 /// This ports the standalone `IntersectDivide` worker semantics. The upstream
 /// implementation uses a quadtree to find possible collisions; this Rust port
 /// preserves pair mutation behavior with a direct dynamic scan.
-pub fn divide_intersections(model: &mut CreasePatternModel) {
+/// Fallible **only** to carry a cancel: the arrangement itself cannot fail.
+///
+/// Measured at ~870ms per call on a dense grid, and it runs twice per fold, so
+/// leaving it uninterruptible would blow the latency bound on its own. A caller
+/// with no cancel bound can `.expect()`-free ignore the error — `check` is inert
+/// when nothing is bound, so `Err` is unreachable there.
+pub fn divide_intersections(
+    model: &mut CreasePatternModel,
+) -> Result<(), crate::cancel::Cancelled> {
     let mut i = 0;
     while i < model.line_segments.len() {
+        // Site 12. One iteration is a scan over every later segment.
+        crate::cancel::check()?;
         let scan_len = model.line_segments.len();
         // Oriedita's QuadTree collision collector only yields candidates with
         // an index greater than `i`; overlap colors and inserted-line order
@@ -34,6 +44,7 @@ pub fn divide_intersections(model: &mut CreasePatternModel) {
         }
         i += 1;
     }
+    Ok(())
 }
 
 /// Divide a single pair of line segments.

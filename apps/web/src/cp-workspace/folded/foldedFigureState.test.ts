@@ -8,6 +8,7 @@ import {
   flipFoldedState,
   foldedFigureCurrentCase,
   foldedFigureCycling,
+  foldedFigureListsEqual,
 } from './foldedFigureState';
 
 describe('flipFoldedState', () => {
@@ -99,5 +100,22 @@ describe('foldedFigureCurrentCase', () => {
       folded3d: { discovered_fold_cases: 2, current_fold_case: 2 },
     } as unknown as OristudioCpFoldedFigureEntry;
     expect(foldedFigureCurrentCase(figure)).toBe(2);
+  });
+});
+
+describe('foldedFigureListsEqual', () => {
+  const entry = (id: string) => ({ id }) as OristudioCpFoldedFigureEntry;
+
+  it('is what "the verb changed nothing" means, and nothing weaker', () => {
+    const a = entry('folded-1');
+    const b = entry('folded-2');
+    expect(foldedFigureListsEqual([a, b], [a, b])).toBe(true);
+    expect(foldedFigureListsEqual([], [])).toBe(true);
+    expect(foldedFigureListsEqual([a], [a, b])).toBe(false);
+    expect(foldedFigureListsEqual([a, b], [b, a])).toBe(false);
+    // A rebuilt entry is a changed entry. Every verb that touches a figure
+    // spreads it into a new object, so structural equality here would call a
+    // real edit "unchanged" and swallow its undo step.
+    expect(foldedFigureListsEqual([a], [entry('folded-1')])).toBe(false);
   });
 });

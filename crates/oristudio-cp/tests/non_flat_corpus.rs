@@ -344,7 +344,7 @@ fn corpus_scan_reports_every_model() {
 /// that can say whether anything reaches it.
 #[test]
 fn corpus_admission_reports_every_verdict() {
-    use oristudio_cp::folding3d::{Fold3dOutcome, Fold3dRefusal, admit};
+    use oristudio_cp::folding3d::{Fold3dOutcome, Fold3dPlacementError, Fold3dRefusal, admit};
     use std::collections::BTreeMap;
 
     let Some(root) = corpus("corpus_admission_reports_every_verdict") else {
@@ -381,7 +381,11 @@ fn corpus_admission_reports_every_verdict() {
                     Fold3dOutcome::LocalCrossing => "admitted with a local crossing",
                 }
             }
-            Err(refusal) => {
+            // A corpus scan binds no cancel, so the placement error is always a
+            // refusal here; naming the arm keeps that assumption checked rather
+            // than assumed.
+            Err(Fold3dPlacementError::Cancelled) => "Cancelled",
+            Err(Fold3dPlacementError::Refused(refusal)) => {
                 println!("{name:<52}  {refusal}");
                 match refusal {
                     Fold3dRefusal::NoFaces => "NoFaces",
@@ -750,6 +754,9 @@ fn corpus_ordering_reports_every_model() {
                     Fold3dOrderError::NoLayerOrder { .. } => "no-order".to_string(),
                     Fold3dOrderError::FaceIdOutOfRange { .. } => "out-of-range".to_string(),
                     Fold3dOrderError::SearchFailed { .. } => "search-failed".to_string(),
+                    // A corpus scan binds no cancel; named so the assumption is
+                    // checked rather than assumed.
+                    Fold3dOrderError::Cancelled => "cancelled".to_string(),
                 };
             }
         }

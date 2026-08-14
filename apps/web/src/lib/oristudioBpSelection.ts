@@ -56,12 +56,18 @@ export function bpLinkedSelection(
     const river = document.snapshot.packing.rivers.find((candidate) => candidate.id === id);
     if (river) linked.edges.add(river.edgeId);
   };
+  /**
+   * A stretch links its devices, and nothing else.
+   *
+   * Box Pleating Studio shades a `Device` when the device *or its stretch* is
+   * selected (`layout/device.ts` `_drawShade`), while `Flap` and `River` shade
+   * only for themselves. Expanding a stretch into the flaps it spans washed both
+   * of them instead — and a stretch joins two of the largest flaps on the sheet,
+   * so that covered most of the paper to say something about the gadget between
+   * them.
+   */
   const addStretch = (id: string) => {
     linked.stretches.add(id);
-    const stretch = document.snapshot.packing.stretches.find((candidate) => candidate.id === id);
-    if (!stretch) return;
-    for (const flapId of stretch.flapIds) addFlap(flapId);
-    for (const riverId of stretch.riverIds) addRiver(riverId);
     for (const device of document.snapshot.packing.devices) {
       if (device.stretchId === id) linked.devices.add(device.id);
     }

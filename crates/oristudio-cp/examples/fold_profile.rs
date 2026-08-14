@@ -14,6 +14,7 @@
 //! Add `--loop N` to fold N times (keeps the process alive for `sample`/`samply`).
 
 use oristudio_cp::CreasePatternModel;
+use oristudio_cp::cancel::{CancelHandle, CancelSource, RunId, bind};
 use oristudio_cp::folding::{EstimationOrder, FoldingEstimateSession};
 use oristudio_cp::io::cp::import_cp_str;
 use oristudio_cp::io::ori::import_ori_json;
@@ -40,6 +41,7 @@ fn main() {
     let mut starting_face = 1i32;
     let mut csv = false;
     let mut max_order = 5usize;
+    let mut bind_cancel = false;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--loop" => loops = args.next().and_then(|v| v.parse().ok()).unwrap_or(1),
@@ -50,6 +52,11 @@ fn main() {
             // change. Carries the fingerprint, so a run that got faster and also
             // got *different* is visible in the same table.
             "--csv" => csv = true,
+            // Bind a source that never cancels, so the fold pays the
+            // transaction snapshot exactly as a real (cancellable) fold does.
+            // This is how the snapshot's wall-time and peak-RSS cost is
+            // measured against an unbound run of the same file.
+            "--bind-cancel" => bind_cancel = true,
             // Stop after this order. `--max-order 4` measures setup only, which
             // is what a change to the fold *graph* moves; Order5 is the layer
             // search and can run for an hour on a hard model, drowning the
@@ -78,6 +85,19 @@ fn main() {
     if !csv {
         println!("loaded {} ({} line segments)", path, segments.len());
     }
+
+    struct NeverCancels;
+    impl CancelSource for NeverCancels {
+        fn cancelled_run(&self) -> u32 {
+            0
+        }
+    }
+    let _bound = bind(bind_cancel.then(|| {
+        CancelHandle::new(
+            std::sync::Arc::new(NeverCancels),
+            RunId::new(1).expect("non-zero"),
+        )
+    }));
 
     let steps = [
         EstimationOrder::Order1,

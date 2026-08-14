@@ -1,4 +1,5 @@
 import { connectEngine, isEngineConnected } from '../../engines/engineHost';
+import { FOLD_RUN_NONE } from '../../lib/foldCancellation';
 import type { Remote } from 'comlink';
 import type { FlatText } from '../../cp-workspace/annotations/annotation';
 import type {
@@ -59,6 +60,29 @@ export function oristudioCpError(error: unknown): WasmErrorEnvelope {
     code: 'oristudio_cp',
     message: error instanceof Error ? error.message : String(error),
   };
+}
+
+/**
+ * `session::FOLD_CANCELLED_CODE`. Every fold error path in the kernel converts a
+ * cancel to this code, and `EngineError` crosses both bridges verbatim, so it is
+ * the same string on web and on desktop.
+ */
+const FOLD_CANCELLED = 'fold_cancelled';
+
+/**
+ * Whether a rejected fold was stopped by the user rather than failing.
+ *
+ * The mirror of `isOptimizerCancellation`, and the one place that spells the
+ * code — every catch on the fold path asks this rather than matching the string
+ * itself, so a stop cannot become an error toast in whichever branch forgot.
+ */
+export function isFoldCancellation(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: unknown }).code === FOLD_CANCELLED
+  );
 }
 
 export async function getOristudioCpClient(): Promise<OristudioCpClient> {
@@ -398,17 +422,25 @@ export async function replaceOristudioCpLineSegments(
   return refreshed;
 }
 
+/**
+ * Every wrapper below that runs a layer-ordering search takes a `runId` — the id
+ * a Stop would name (see `lib/foldCancellation.ts`). It defaults to
+ * {@link FOLD_RUN_NONE}, which is inert in the kernel and is what an
+ * unattributed call has always meant. The duplicate wrappers take none: they
+ * copy a figure rather than fold one.
+ */
 export async function foldOristudioCpDocument(
   startingFaceId = 1,
   order: OristudioCpEstimationOrder = 'Order5',
   model?: OristudioCpFoldedFigureModel,
-  selectedLineIds: number[] = []
+  selectedLineIds: number[] = [],
+  runId: number = FOLD_RUN_NONE
 ): Promise<OristudioCpFoldedFigureResult> {
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
   }
   const api = await getOristudioCpClient();
-  return api.foldFigure(handle, startingFaceId, order, model, selectedLineIds);
+  return api.foldFigure(handle, startingFaceId, order, model, selectedLineIds, runId);
 }
 
 export async function getOristudioCpFoldedFigureSnapshot(
@@ -443,19 +475,21 @@ export async function duplicateOristudioCpFoldedFigure(
 }
 
 export async function foldOristudioCpFigureAnother(
-  foldedFigureHandle: number
+  foldedFigureHandle: number,
+  runId: number = FOLD_RUN_NONE
 ): Promise<OristudioCpFoldedFigureSnapshot> {
   const api = await getOristudioCpClient();
-  return api.foldFigureAnother(foldedFigureHandle);
+  return api.foldFigureAnother(foldedFigureHandle, runId);
 }
 
 export async function foldOristudioCpFigureToCase(
   foldedFigureHandle: number,
   objective: number,
-  initialOrder: OristudioCpEstimationOrder = 'Order5'
+  initialOrder: OristudioCpEstimationOrder = 'Order5',
+  runId: number = FOLD_RUN_NONE
 ): Promise<OristudioCpFoldedFigureBatchResult> {
   const api = await getOristudioCpClient();
-  return api.foldFigureToCase(foldedFigureHandle, objective, initialOrder);
+  return api.foldFigureToCase(foldedFigureHandle, objective, initialOrder, runId);
 }
 
 /**
@@ -474,20 +508,22 @@ export async function foldOristudioCpFigureToCase(
 export async function fold3dOristudioCpDocument(
   selectedLineIds: number[],
   startingFaceId = 1,
-  model?: OristudioCpFoldedFigureModel
+  model?: OristudioCpFoldedFigureModel,
+  runId: number = FOLD_RUN_NONE
 ): Promise<OristudioCpFold3dFoldResult> {
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
   }
   const api = await getOristudioCpClient();
-  return api.fold3d(handle, selectedLineIds, startingFaceId, model);
+  return api.fold3d(handle, selectedLineIds, startingFaceId, model, runId);
 }
 
 export async function fold3dOristudioCpFigureAnother(
-  foldedFigureHandle: number
+  foldedFigureHandle: number,
+  runId: number = FOLD_RUN_NONE
 ): Promise<OristudioCpFold3dStepResult> {
   const api = await getOristudioCpClient();
-  return api.fold3dAnother(foldedFigureHandle);
+  return api.fold3dAnother(foldedFigureHandle, runId);
 }
 
 export async function duplicateOristudioCp3dFoldedFigure(

@@ -186,6 +186,42 @@ impl Default for Fold3dTolerances {
 /// `LoopNotClosed` were reached by **nothing**, because on every model that
 /// would have hit one, a vertex check refuses first. Reproduce with
 /// `corpus_admission_reports_every_verdict`.
+/// A 3D placement attempt that produced no `Placement3d`.
+///
+/// Deliberately **not** a variant of [`Fold3dRefusal`]. A refusal is a verdict
+/// about the crease pattern — it reaches the user as "this pattern can't be
+/// folded in 3D", with an offer to simulate instead, and the census in
+/// `Fold3dRefusal`'s docs counts exactly those verdicts. A cancel is not a
+/// verdict about anything. They share a return channel only because the
+/// placement path is also a checkpoint path, and keeping them separate here is
+/// what stops a stopped fold from being reported as an unfoldable pattern.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Fold3dPlacementError {
+    Refused(Fold3dRefusal),
+    Cancelled,
+}
+
+impl From<Fold3dRefusal> for Fold3dPlacementError {
+    fn from(refusal: Fold3dRefusal) -> Self {
+        Self::Refused(refusal)
+    }
+}
+
+impl From<crate::cancel::Cancelled> for Fold3dPlacementError {
+    fn from(_: crate::cancel::Cancelled) -> Self {
+        Self::Cancelled
+    }
+}
+
+impl std::fmt::Display for Fold3dPlacementError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Refused(refusal) => refusal.fmt(f),
+            Self::Cancelled => write!(f, "the fold was cancelled"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Fold3dRefusal {
     /// The segments enclose nothing to fold.

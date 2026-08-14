@@ -68,7 +68,8 @@ fn subface_arrangement_preparation_matches_oriedita_oracle() {
             segment(0.0, 0.00005, 1.0, 0.00005, LineColor::Black0),
         ],
     ] {
-        let prepared = prepare_subface_segments(&segments);
+        // No cancel is bound in a test, so `check` is inert and this cannot fail.
+        let prepared = prepare_subface_segments(&segments).expect("not cancellable in a test");
         let mut args = vec![
             "split-subface-arrangement".to_string(),
             segments.len().to_string(),
@@ -1459,6 +1460,10 @@ fn initial_hierarchy_summary(
             first_face,
             second_face,
         }) => format!("hierarchy_error|same_parity|{line}|{first_face}|{second_face}\n"),
+        // Unreachable: no cancel is bound in a test. Given its own string rather
+        // than folded into an existing arm so that if it ever did occur, the
+        // oracle comparison would fail loudly instead of matching by accident.
+        Err(InitialHierarchyError::Cancelled) => "hierarchy_error|cancelled\n".to_string(),
     }
 }
 
