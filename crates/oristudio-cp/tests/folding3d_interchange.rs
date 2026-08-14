@@ -19,7 +19,26 @@ fn repo(relative: &str) -> PathBuf {
         .join(relative)
 }
 
+/// A fixture handle, or `None` when it is one of the third-party models held
+/// outside the repository and the corpus is not configured.
+mod common;
+
+fn try_load_fixture(test: &str, session: &mut CpSession, name: &str) -> Option<u32> {
+    let path = common::fixture_path(test, name)?;
+    let raw = std::fs::read_to_string(&path)
+        .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
+    Some(
+        session
+            .load_fold(&raw, name)
+            .unwrap_or_else(|error| panic!("load {name}: {error}")),
+    )
+}
+
 fn load_fixture(session: &mut CpSession, name: &str) -> u32 {
+    assert!(
+        !common::is_external(name),
+        "{name} is held outside the repository; use try_load_fixture"
+    );
     let path = repo(&format!("tests/fixtures/fold-angle-3d/{name}.fold"));
     let raw = std::fs::read_to_string(&path)
         .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
@@ -111,7 +130,13 @@ fn the_exported_folded_form_frame_says_what_it_is() {
 #[test]
 fn the_frame_writes_every_face_and_orders_only_real_ones() {
     let mut session = CpSession::default();
-    let document = load_fixture(&mut session, "penguin_freeform");
+    let Some(document) = try_load_fixture(
+        "the_frame_writes_every_face_and_orders_only_real_ones",
+        &mut session,
+        "penguin_freeform",
+    ) else {
+        return;
+    };
     let folded = fold_3d(&mut session, document);
     let exported = export(&session, document, &[folded]);
 

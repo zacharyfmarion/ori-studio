@@ -250,6 +250,9 @@
     "decrease": "{{label}} 줄이기",
     "increase": "{{label}} 늘리기"
   },
+  "startFigure": {
+    "credit": "디자인: <2>Brandon Wong</2>"
+  },
   "toolbar": {
     "new": "새로 만들기",
     "open": "열기",

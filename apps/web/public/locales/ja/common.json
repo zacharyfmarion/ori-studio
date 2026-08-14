@@ -250,6 +250,9 @@
     "decrease": "{{label}} を減らす",
     "increase": "{{label}} を増やす"
   },
+  "startFigure": {
+    "credit": "デザイン: <2>Brandon Wong</2>"
+  },
   "toolbar": {
     "new": "新規",
     "open": "開く",

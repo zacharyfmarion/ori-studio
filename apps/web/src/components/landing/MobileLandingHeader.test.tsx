@@ -60,6 +60,39 @@ describe('MobileLandingHeader', () => {
     const { container: rendered } = renderLink();
 
     expect(rendered.querySelectorAll('button')).toHaveLength(1);
-    expect(rendered.querySelectorAll('p')).toHaveLength(1);
+    // The header's own prose, which is the tagline and nothing else. The
+    // figure's designer credit is excluded rather than counted: raising the
+    // number to two would turn a guard against creeping copy into a guard
+    // against the number two.
+    const prose = [...rendered.querySelectorAll('p')].filter(
+      (node) => !node.closest('.start-figure')
+    );
+    expect(prose).toHaveLength(1);
+  });
+
+  it('closes with the folded figure, under the masthead', () => {
+    // The phone gets no start screen, so this is the only place the product's
+    // own artefact appears above the fold. Order is asserted, not just
+    // presence: the figure reads as the header's payoff, and above the wordmark
+    // it would be a picture of nothing in particular.
+    const { container } = renderLink();
+
+    const figure = container.querySelector('.welcome-mobile-header__figure');
+    const brand = container.querySelector('.welcome-mobile-header__brand');
+    expect(figure).not.toBeNull();
+    expect(brand).not.toBeNull();
+    expect(figure?.querySelector('.start-figure')).not.toBeNull();
+    const figureFollowsBrand =
+      (brand?.compareDocumentPosition(figure as Node) ?? 0) &
+      Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(figureFollowsBrand).toBeTruthy();
+
+    // The *stage* is decorative and hides itself; the wrapper must not, or the
+    // designer credit inside would be a focusable link a screen reader never
+    // announces.
+    expect(figure?.getAttribute('aria-hidden')).toBeNull();
+    expect(
+      figure?.querySelector('.start-figure__stage')?.getAttribute('aria-hidden')
+    ).toBe('true');
   });
 });

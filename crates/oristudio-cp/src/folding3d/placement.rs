@@ -1393,10 +1393,15 @@ mod tests {
     /// not be built.
     #[test]
     fn a_placement_that_succeeds_has_a_crease_on_every_dual_adjacency() {
+        // `penguin_freeform` was the third entry and is now held outside the
+        // repository (see `tests/common/mod.rs`). It is not replaced by a
+        // corpus-gated load: this is a unit test inside the crate, where the
+        // skip machinery the integration tests share is not reachable, and both
+        // remaining fixtures carry a non-tree dual graph (3 and 12 independent
+        // cycles), so the assertion below still has something to be true of.
         for name in [
             "tests/fixtures/fold-angle-3d/spikes_small.fold",
             "tests/fixtures/fold-angle-3d/box_90.fold",
-            "tests/fixtures/fold-angle-3d/penguin_freeform.fold",
         ] {
             let model = model_at(&repo(name));
             let placement = place_segments(&model.line_segments, 1)

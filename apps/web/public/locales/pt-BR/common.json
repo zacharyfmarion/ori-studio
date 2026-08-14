@@ -250,6 +250,9 @@
     "decrease": "Diminuir {{label}}",
     "increase": "Aumentar {{label}}"
   },
+  "startFigure": {
+    "credit": "Criado por <2>Brandon Wong</2>"
+  },
   "toolbar": {
     "new": "Novo",
     "open": "Abrir",

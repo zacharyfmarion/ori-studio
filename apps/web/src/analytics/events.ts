@@ -255,6 +255,16 @@ export const ANALYTICS_EVENTS = {
   shortcutDefaultsSourceChanged: 'shortcut defaults source changed',
   cpSnapRadiusChanged: 'cp snap radius changed',
   cpWheelGestureChanged: 'cp wheel gesture changed',
+  /**
+   * The start screen's 3D figure declined to start, and the static image is
+   * standing in.
+   *
+   * Only the *failure* is instrumented. A decoration rendering is not a funnel
+   * step, and firing on every cold start would bury the one thing worth
+   * knowing: how many people's machines cannot run any of the simulator's GPU
+   * paths, which is the same capability the Simulate workspace needs.
+   */
+  startFigureFallback: 'start figure fallback',
 } as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS];
