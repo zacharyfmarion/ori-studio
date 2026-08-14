@@ -1,5 +1,5 @@
 import { singleBoxPleatDesignTab } from '../store/workspaceStore/designTabs';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   OristudioBpDocumentState,
 } from '../engine/oristudioBpTypes';
@@ -7,7 +7,21 @@ import type { OristudioCpDocumentState } from '../engine/oristudioCpTypes';
 import type { OristudioCpSelection } from '../lib/creasePatternViewport';
 import { getWorkspaceCapabilities } from '../lib/workspaceCapabilities';
 import { createFileService } from '../platform/fileService';
+import { useLayoutStore } from '../store/layoutStore';
 import { createMenuActionHandler, isMenuActionId } from './menuActions';
+
+// The default `showWorkspace` navigates for real, and the point of the tests
+// below is that it is a default rather than a wiring line — so the router itself
+// is what they watch.
+const routingMocks = vi.hoisted(() => ({
+  navigateTo: vi.fn(),
+  currentPath: vi.fn<() => string | null>(() => '/welcome'),
+}));
+
+vi.mock('../routing/appRouter', () => ({
+  navigateTo: routingMocks.navigateTo,
+  currentPath: routingMocks.currentPath,
+}));
 
 function createDeps() {
   return {
@@ -17,7 +31,7 @@ function createDeps() {
       unsubdivideOristudioBpLayoutSheet: vi.fn().mockResolvedValue(true),
       rotateOristudioBpLayoutSheet: vi.fn().mockResolvedValue(true),
       flipOristudioBpLayoutSheet: vi.fn().mockResolvedValue(true),
-      loadExampleProject: vi.fn().mockResolvedValue(undefined),
+      loadExampleProject: vi.fn().mockResolvedValue(true),
       openProject: vi.fn().mockResolvedValue(true),
       importAddCreasePattern: vi.fn().mockResolvedValue(true),
       saveProject: vi.fn().mockResolvedValue(true),
@@ -91,6 +105,7 @@ function createDeps() {
     },
     fileService: createFileService('web'),
     showStartScreen: vi.fn().mockResolvedValue(true),
+    showWorkspace: vi.fn(),
     quit: vi.fn(),
     about: vi.fn(),
     settings: vi.fn(),
@@ -738,5 +753,96 @@ describe('menu actions', () => {
 
   it('returns false for unknown ids', async () => {
     await expect(createMenuActionHandler(createDeps())('unknown')).resolves.toBe(false);
+  });
+});
+
+/**
+ * File › Open and ⌘O from the start screen loaded the file into the store and
+ * left the start screen on screen — no error, no toast, nothing in the console.
+ * Every other opener navigates once the load succeeds, and the store→URL sync
+ * that would have covered for this one deliberately bows out while off a
+ * workspace path. So the handler has to say where it landed.
+ *
+ * Tested here rather than through App.tsx because App-level wiring is otherwise
+ * unwatched: the same bug can be reintroduced by deleting one line, and the whole
+ * keyboard suite stays green.
+ */
+describe('menu actions that leave the start screen', () => {
+  beforeEach(() => {
+    routingMocks.navigateTo.mockClear();
+    routingMocks.currentPath.mockReturnValue('/welcome');
+    useLayoutStore.setState({ activeWorkspace: 'edit' });
+  });
+
+  it('shows the workspace a successful open landed on', async () => {
+    const deps = createDeps();
+
+    await expect(createMenuActionHandler(deps)('file.open')).resolves.toBe(true);
+
+    expect(deps.workspace.openProject).toHaveBeenCalledWith(deps.fileService);
+    expect(deps.showWorkspace).toHaveBeenCalledOnce();
+  });
+
+  it('stays put when the open was cancelled or refused', async () => {
+    const deps = createDeps();
+    deps.workspace.openProject.mockResolvedValue(false);
+
+    await expect(createMenuActionHandler(deps)('file.open')).resolves.toBe(false);
+
+    expect(deps.showWorkspace).not.toHaveBeenCalled();
+  });
+
+  it('shows the workspace an example landed on, and not one that never loaded', async () => {
+    const deps = createDeps();
+    const handle = createMenuActionHandler(deps);
+
+    await expect(handle('file.openExample:triad')).resolves.toBe(true);
+    expect(deps.showWorkspace).toHaveBeenCalledOnce();
+
+    // A declined discard prompt, an unknown id, or a failed parse: the store
+    // establishes nothing, so the start screen is still the honest place to be.
+    deps.workspace.loadExampleProject.mockResolvedValue(false);
+    await expect(handle('file.openExample:triad')).resolves.toBe(false);
+    expect(deps.showWorkspace).toHaveBeenCalledOnce();
+  });
+
+  it('follows a View entry, which picks a workspace without opening anything', async () => {
+    const deps = createDeps();
+    const handle = createMenuActionHandler(deps);
+
+    await expect(handle('view.edit')).resolves.toBe(true);
+    await expect(handle('view.design')).resolves.toBe(true);
+    await expect(handle('view.conditions')).resolves.toBe(true);
+
+    expect(deps.layout.activatePanel.mock.calls).toEqual([
+      ['crease-pattern'],
+      ['design'],
+      ['conditions'],
+    ]);
+    expect(deps.showWorkspace).toHaveBeenCalledTimes(3);
+
+    // Reset Layout rearranges the workspace you are already in.
+    await expect(handle('view.resetLayout')).resolves.toBe(true);
+    expect(deps.showWorkspace).toHaveBeenCalledTimes(3);
+  });
+
+  it('navigates by default, so there is no wiring line to forget', async () => {
+    // `handleMenuAction` passes no `showWorkspace`; production runs this path.
+    const { showWorkspace: _showWorkspace, ...deps } = createDeps();
+
+    await expect(createMenuActionHandler(deps)('file.open')).resolves.toBe(true);
+
+    expect(routingMocks.navigateTo).toHaveBeenCalledWith('/edit');
+  });
+
+  it('leaves the URL alone on a workspace path, where the sync owns it', async () => {
+    routingMocks.currentPath.mockReturnValue('/edit');
+    const { showWorkspace: _showWorkspace, ...deps } = createDeps();
+
+    await expect(createMenuActionHandler(deps)('file.open')).resolves.toBe(true);
+
+    // The subscription already navigates on the workspace change, and its
+    // navigate is async — a second one here would push a duplicate history entry.
+    expect(routingMocks.navigateTo).not.toHaveBeenCalled();
   });
 });
