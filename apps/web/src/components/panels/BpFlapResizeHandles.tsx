@@ -7,7 +7,7 @@ import {
   type BpFlapResizeHandle,
 } from '../../lib/bpFlapReshape';
 import { bpPackingPointToSvg, bpPackingRectToSvg } from '../../lib/bpPackingViewport';
-import { BP_FLAP_HANDLE_RADIUS, type BpFlapResize } from '../../hooks/useBpFlapResize';
+import { BP_FLAP_HANDLE_RADIUS_PX, type BpFlapResize } from '../../hooks/useBpFlapResize';
 import type { PlotRect } from '../../lib/geometry';
 
 /**
@@ -25,10 +25,11 @@ import type { PlotRect } from '../../lib/geometry';
  *   upstream masks its own; a corner flap's handles would be cut away. The flap
  *   dots and labels escape the mask for the same reason.
  *
- * Sized in SVG units rather than screen pixels, so they scale with the camera
- * exactly as the flap dots and labels do. What keeps them usable is the pane's
- * too-small gate (`useBpFlapResize`), which is a test of *relative* size and so
- * is unaffected by zoom.
+ * Sized in **screen pixels**, unlike the flap dots and labels beside them. SVG
+ * units per grid cell is `612 / sheetSpan`, so on a large sheet an ordinary flap
+ * is only a couple of handle-widths across — and because the camera scales
+ * handles and flap together, zooming in could never fix it. Dividing by the
+ * camera scale makes zoom do what the user expects.
  */
 
 /** Cursor per handle. Grid north is screen up, so the names map straight across. */
@@ -47,14 +48,18 @@ export function BpFlapResizeHandles({
   flap,
   sheet,
   paperRect,
+  cameraScale,
   resize,
 }: {
   flap: OristudioBpFlap;
   sheet: OristudioBpSheet;
   paperRect: PlotRect;
+  /** SVG units per screen pixel, so a handle keeps its size at every zoom. */
+  cameraScale: number;
   resize: BpFlapResize;
 }) {
   const { t } = useTranslation();
+  const half = BP_FLAP_HANDLE_RADIUS_PX / cameraScale;
   const outline = bpPackingRectToSvg(bpFlapOuterBox(flap), sheet, paperRect);
   const labels: Record<BpFlapResizeHandle, string> = {
     n: t('panels:bpPacking.resizeFlapTop', 'Resize flap from the top'),
@@ -92,10 +97,10 @@ export function BpFlapResizeHandles({
                 ? 'bp-packing-flap-handle bp-packing-flap-handle--active'
                 : 'bp-packing-flap-handle'
             }
-            x={at.x - BP_FLAP_HANDLE_RADIUS}
-            y={at.y - BP_FLAP_HANDLE_RADIUS}
-            width={BP_FLAP_HANDLE_RADIUS * 2}
-            height={BP_FLAP_HANDLE_RADIUS * 2}
+            x={at.x - half}
+            y={at.y - half}
+            width={half * 2}
+            height={half * 2}
             style={{ cursor: HANDLE_CURSORS[handle] }}
             data-bp-flap-handle={handle}
             aria-label={labels[handle]}

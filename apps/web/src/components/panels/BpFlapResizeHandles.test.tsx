@@ -68,7 +68,7 @@ function Harness({ source, selfMirrored }: { source: OristudioBpFlap | null; sel
     flap: selfMirrored ? null : source,
     sheet: SHEET,
     radiusRange: { min: 1, max: 100 },
-    unit: 30,
+    pixelsPerCell: 30,
     disabled: false,
     eventToPackingPoint: () => pointer,
     dragRequests,
@@ -83,6 +83,7 @@ function Harness({ source, selfMirrored }: { source: OristudioBpFlap | null; sel
         flap={resize.flap}
         sheet={SHEET}
         paperRect={bpPackingPaperRect(SHEET)}
+        cameraScale={1}
         resize={resize}
       />
     </svg>
@@ -240,6 +241,39 @@ describe('BpFlapResizeHandles', () => {
       id: 1,
       footprint: { anchor: { x: 20, y: 20 }, width: 4, height: 4, radius: 4 },
     });
+  });
+
+  it('cancels the drag when the flap goes away underneath it', () => {
+    // Deleted, deselected, or the design tab switched. No pointerup is ever
+    // coming, so without this the gesture is stuck and the undo entry it opened
+    // stays open for the next unrelated edit to fold into.
+    render();
+    dragTo('e', { x: 30, y: 20 }, { release: false });
+    dragRequests.flushFlapReshape.mockClear();
+    render({ source: null });
+    expect(dragRequests.flushFlapReshape).toHaveBeenCalledWith({
+      id: 1,
+      footprint: { anchor: { x: 20, y: 20 }, width: 4, height: 4, radius: 4 },
+    });
+  });
+
+  it('cancels when the selection moves to a different flap mid-drag', () => {
+    render();
+    dragTo('e', { x: 30, y: 20 }, { release: false });
+    dragRequests.flushFlapReshape.mockClear();
+    render({ source: flap({ id: 2 }) });
+    expect(dragRequests.flushFlapReshape).toHaveBeenCalledTimes(1);
+    expect(dragRequests.flushFlapReshape.mock.calls[0][0].id).toBe(1);
+  });
+
+  it('keeps the handles up when the flap shrinks past the too-small gate mid-drag', () => {
+    // Zoomed out, a drag can take a flap under the gate. Dropping the handles
+    // then would unmount the element holding the pointer capture and strand the
+    // gesture, which is worse than a moment of crowded chrome.
+    render();
+    dragTo('e', { x: 30, y: 20 }, { release: false });
+    render({ source: flap({ width: 0, height: 0, radius: 0.2 }) });
+    expect(handles()).toHaveLength(8);
   });
 
   it('stops listening for Escape once the gesture ends', () => {

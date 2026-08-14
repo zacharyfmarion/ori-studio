@@ -198,7 +198,11 @@ const OVERSIZED_PANELS = {
   // one more verb handed to `useBpPackingDragRequests` beside the two move verbs
   // already there, the hook call, and the layer's mount. Composition, which is
   // what a panel is for.
-  'BpPackingPanel.tsx': 2080,
+  //
+  // 2080 -> 2081: one prop. The resize handles are sized in screen pixels rather
+  // than SVG units, so the layer needs the camera scale the panel already holds
+  // for the conflict-stroke width.
+  'BpPackingPanel.tsx': 2081,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
   'BpTreePanel.tsx': 890,

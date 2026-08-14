@@ -1044,7 +1044,9 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     radiusRange: singleSelectedFlapEdge
       ? { min: 1, max: singleSelectedFlapEdge.maxLength ?? flapMaxDimension }
       : null,
-    unit,
+    // Screen pixels per grid cell, so the too-small gate is about what the user
+    // can actually hit and zooming in reveals the handles on a small flap.
+    pixelsPerCell: unit * (zoomPercent / 100),
     disabled: flapDragging !== null || deviceDragging !== null,
     eventToPackingPoint,
     dragRequests,
@@ -1852,6 +1854,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                 flap={flapResize.flap}
                 sheet={packing.sheet}
                 paperRect={paperRect}
+                cameraScale={zoomPercent / 100}
                 resize={flapResize}
               />
             )}

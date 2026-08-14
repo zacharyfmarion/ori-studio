@@ -29,15 +29,23 @@ import { track } from '../analytics';
  * would ratchet instead.
  */
 
-/** Half the side of a handle square, in SVG user units. */
-export const BP_FLAP_HANDLE_RADIUS = 5;
+/**
+ * Half the side of a handle square, in **screen pixels**.
+ *
+ * The chrome divides this by the camera scale to get its SVG size, so a handle
+ * is the same size on screen at every zoom. Sizing it in SVG units instead — as
+ * the flap dots and labels are — looked consistent but made the handles
+ * unusable on a large sheet: SVG units per grid cell is `612 / sheetSpan`, so on
+ * a 64-cell sheet an ordinary radius-1 flap is 19 units across against a 10-unit
+ * handle, and because the camera scales both together, zooming in never helped.
+ */
+export const BP_FLAP_HANDLE_RADIUS_PX = 5;
 
 /**
  * Below this many handle-widths across, the eight handles start to cover each
  * other and the flap they belong to, and a click meant to move the flap resizes
- * it instead. Measured in SVG units against the flap's drawn extent, which makes
- * it a test of *relative* size — the camera scales handles and flap together, so
- * zoom cancels out.
+ * it instead. Measured in screen pixels, so zooming in genuinely reveals the
+ * handles on a flap that is small on the paper.
  */
 const MIN_HANDLE_SPACING = 3;
 
@@ -67,8 +75,8 @@ export interface UseBpFlapResizeInput {
   sheet: OristudioBpSheet;
   /** Null when the flap has no leaf edge, which pins the radius. */
   radiusRange: BpFlapRadiusRange | null;
-  /** SVG units per grid cell, for the too-small gate. */
-  unit: number;
+  /** Screen pixels per grid cell: SVG units per cell, scaled by the camera. */
+  pixelsPerCell: number;
   /** True while the gesture should not start: another drag, or a busy engine. */
   disabled: boolean;
   /** Grid-space pointer position, already rounded to the integer grid. */
@@ -77,7 +85,7 @@ export interface UseBpFlapResizeInput {
 }
 
 export function useBpFlapResize(input: UseBpFlapResizeInput): BpFlapResize {
-  const { flap, sheet, radiusRange, unit, disabled, eventToPackingPoint, dragRequests } = input;
+  const { flap, sheet, radiusRange, pixelsPerCell, disabled, eventToPackingPoint, dragRequests } = input;
   const gesture = useRef<Gesture | null>(null);
   const [active, setActive] = useState<BpFlapResizeHandle | null>(null);
 
@@ -188,13 +196,30 @@ export function useBpFlapResize(input: UseBpFlapResizeInput): BpFlapResize {
     [finish]
   );
 
+  // A gesture whose handles disappear underneath it is stuck: the layer unmounts,
+  // no pointerup ever reaches the handler, and the undo entry the drag opened is
+  // left open for the next unrelated edit to fold into. So end it here rather than
+  // waiting for an event that is not coming.
+  //
+  // Two ways it happens. The flap can go — deleted, deselected, or the design tab
+  // switched — which is a cancel: put it back, because nothing consented to where
+  // the half-finished drag left it. And the flap can shrink past the too-small
+  // gate mid-drag, which is not a reason to abandon anything: keep the handles up
+  // for the rest of the gesture instead.
+  useEffect(() => {
+    const current = gesture.current;
+    if (!current) return;
+    if (!flap || flap.id !== current.start.id) cancel();
+  }, [flap, cancel]);
+
   const box = flap ? bpFlapOuterBox(flap) : null;
   const roomy =
     box !== null &&
-    Math.min(box.width, box.height) * unit >= MIN_HANDLE_SPACING * BP_FLAP_HANDLE_RADIUS * 2;
+    Math.min(box.width, box.height) * pixelsPerCell >=
+      MIN_HANDLE_SPACING * BP_FLAP_HANDLE_RADIUS_PX * 2;
 
   return {
-    flap: roomy ? flap : null,
+    flap: roomy || active !== null ? flap : null,
     active,
     onHandlePointerDown,
     onHandlePointerMove,
