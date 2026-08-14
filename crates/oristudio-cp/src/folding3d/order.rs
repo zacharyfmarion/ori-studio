@@ -55,8 +55,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::folding::AdditionalEstimationError;
 use crate::folding::{
-    EquivalenceCondition, EquivalenceConditionSet, HierarchyRelation, InitialHierarchy, SubFace,
-    WorkerOverlapEnumerator, WorkerOverlapSearchError, validate_initial_hierarchy,
+    EquivalenceCondition, EquivalenceConditionSet, FOLD_3D_ITERATION_BUDGET, HierarchyRelation,
+    InitialHierarchy, PermutationError, SubFace, WorkerOverlapEnumerator, WorkerOverlapSearchError,
+    validate_initial_hierarchy,
 };
 use crate::folding3d::Fold3dTolerances;
 use crate::folding3d::cells::{CellError, CellIndex, cell_index};
@@ -112,6 +113,13 @@ pub enum Fold3dOrderError {
     },
     /// The search failed for a reason that is neither of the above.
     SearchFailed { component: usize },
+    /// The search spent its whole iteration budget without settling.
+    ///
+    /// **Deliberately not `NoLayerOrder`.** That arm says no stacking exists,
+    /// which is a claim about the user's crease pattern; this one says only that
+    /// we stopped looking. Reporting the second as the first is the same
+    /// category error as reporting a cancel as a verdict.
+    SearchExhausted { component: usize, iterations: u64 },
     /// The user stopped the fold. Never a statement about the model — see
     /// [`crate::cancel`].
     Cancelled,
@@ -137,7 +145,8 @@ impl Fold3dOrderError {
             Self::ContradictorySeeds { .. }
             | Self::NoLayerOrder { .. }
             | Self::FaceIdOutOfRange { .. }
-            | Self::SearchFailed { .. } => false,
+            | Self::SearchFailed { .. }
+            | Self::SearchExhausted { .. } => false,
         }
     }
 }
@@ -178,6 +187,14 @@ impl std::fmt::Display for Fold3dOrderError {
             Self::SearchFailed { component } => {
                 write!(f, "the search over component {component} failed")
             }
+            Self::SearchExhausted {
+                component,
+                iterations,
+            } => write!(
+                f,
+                "the search over component {component} did not settle within \
+                 {iterations} iterations"
+            ),
         }
     }
 }
@@ -528,11 +545,16 @@ impl ComponentSolver {
             self.has_next = false;
             return Ok(false);
         }
+        // Same reasoning as `search_error`: the odometer polls for a stop, so
+        // discarding its error discards the cancel with it.
         let next = self
             .enumerator
             .next(self.enumerator.valid_count())
-            .map_err(|_| Fold3dOrderError::SearchFailed {
-                component: self.position,
+            .map_err(|error| match error {
+                PermutationError::Cancelled => Fold3dOrderError::Cancelled,
+                PermutationError::InvalidDigit { .. } => Fold3dOrderError::SearchFailed {
+                    component: self.position,
+                },
             })?;
         self.has_next = next > 0;
         self.current = overlap.hierarchy;
@@ -564,11 +586,42 @@ fn build_enumerator(
         &input.hierarchy,
         Some(&input.conditions),
     )
+    // The 3D path's own conditions are what make this necessary: a coupling
+    // contributes a quadruple condition over four faces that only its synthetic
+    // subface holds, and `prioritize_subfaces` leaves that subface outside the
+    // valid prefix. Without promotion the condition is binding, unseen by every
+    // guide map, and rejects every candidate forever. Flat callers do not set
+    // this — see the field's documentation.
+    .map(WorkerOverlapEnumerator::promoting_on_condition_contradiction)
+    // The backstop. Nothing here is expected to approach it — see
+    // `FOLD_3D_ITERATION_BUDGET` — but a 3D component that cannot settle must
+    // end in a verdict rather than in the Stop button.
+    .map(|enumerator| enumerator.within_iteration_budget(FOLD_3D_ITERATION_BUDGET))
     .map_err(|error| search_error(position, error))
 }
 
+/// Classify a search failure, **asking about the stop first**.
+///
+/// The wildcard below is the whole hazard: every cancel arm of
+/// [`WorkerOverlapSearchError`] — its own, the one nested in `SubFace`, the one
+/// nested in `AdditionalEstimation`, the one nested in `Setup` — falls into it
+/// and comes out as `SearchFailed`, which [`Fold3dOrderError::is_cancelled`]
+/// reports as *not* a cancel. `Fold3dSession::new` then takes its degrade path
+/// instead of unwinding and mints a figure saying the layers cannot be ordered,
+/// plus a handle, a canvas entry, an undo step and a dirty project. A cancel
+/// unwinds; it never concludes.
+///
+/// `is_cancelled` already walks every nested arm correctly. The bug was only
+/// that nothing called it.
 fn search_error(component: usize, error: WorkerOverlapSearchError) -> Fold3dOrderError {
+    if error.is_cancelled() {
+        return Fold3dOrderError::Cancelled;
+    }
     match error {
+        WorkerOverlapSearchError::Exhausted { iterations } => Fold3dOrderError::SearchExhausted {
+            component,
+            iterations,
+        },
         WorkerOverlapSearchError::AdditionalEstimation(
             AdditionalEstimationError::Contradiction {
                 upper_face,
@@ -931,6 +984,11 @@ impl Builder {
                 first: (SeedKind::Cut, usize::MAX),
                 second: (SeedKind::Cut, usize::MAX),
             },
+            // `FoldSetupError` carries its own cancel arms, so this cannot be a
+            // bare wildcard either — see `search_error`.
+            AdditionalEstimationError::Setup(setup) if setup.is_cancelled() => {
+                Fold3dOrderError::Cancelled
+            }
             AdditionalEstimationError::Setup(_) => Fold3dOrderError::SearchFailed {
                 component: position,
             },

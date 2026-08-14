@@ -754,6 +754,12 @@ fn corpus_ordering_reports_every_model() {
                     Fold3dOrderError::NoLayerOrder { .. } => "no-order".to_string(),
                     Fold3dOrderError::FaceIdOutOfRange { .. } => "out-of-range".to_string(),
                     Fold3dOrderError::SearchFailed { .. } => "search-failed".to_string(),
+                    // Distinct from "no-order" on purpose: this row means the
+                    // scan hit the iteration budget, which is a fact about the
+                    // budget and not about the model. A corpus run reporting it
+                    // is the signal to look at that model, not to raise the
+                    // number.
+                    Fold3dOrderError::SearchExhausted { .. } => "exhausted".to_string(),
                     // A corpus scan binds no cancel; named so the assumption is
                     // checked rather than assumed.
                     Fold3dOrderError::Cancelled => "cancelled".to_string(),

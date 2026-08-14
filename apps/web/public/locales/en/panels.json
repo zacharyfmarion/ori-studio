@@ -538,6 +538,7 @@
     "localCrossing_other": "The paper passes through itself at {{count}} vertices.",
     "localCrossingLabel": "Passes through itself",
     "noLayerOrderContradictorySeeds": "Two faces each have to be above the other, so no stacking can satisfy both.",
+    "noLayerOrderExhausted": "Ori Studio stopped searching before it found a layer order for this figure.",
     "noLayerOrderGeneric": "The layers of this figure could not be put in order.",
     "noLayerOrderLabel": "Layers not ordered",
     "selectCreases": "Select the creases",

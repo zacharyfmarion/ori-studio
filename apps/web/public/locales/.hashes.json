@@ -2468,7 +2468,8 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "panels:fold3dVerdict.noLayerOrderExhausted": "062c0d2b5bed"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4939,7 +4940,8 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "panels:fold3dVerdict.noLayerOrderExhausted": "062c0d2b5bed"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7410,7 +7412,8 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "panels:fold3dVerdict.noLayerOrderExhausted": "062c0d2b5bed"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9842,7 +9845,8 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "panels:fold3dVerdict.noLayerOrderExhausted": "062c0d2b5bed"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12274,7 +12278,8 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "panels:fold3dVerdict.noLayerOrderExhausted": "062c0d2b5bed"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -14745,7 +14750,8 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "panels:fold3dVerdict.noLayerOrderExhausted": "062c0d2b5bed"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17216,7 +17222,8 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "panels:fold3dVerdict.noLayerOrderExhausted": "062c0d2b5bed"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -19648,6 +19655,7 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "panels:fold3dVerdict.noLayerOrderExhausted": "062c0d2b5bed"
   }
 }

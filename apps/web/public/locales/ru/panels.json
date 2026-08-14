@@ -572,6 +572,7 @@
     "localCrossing_other": "Бумага проходит сквозь себя в {{count}} вершинах.",
     "localCrossingLabel": "Бумага проходит сквозь себя",
     "noLayerOrderContradictorySeeds": "Две грани должны быть каждая выше другой, поэтому ни один порядок слоёв не удовлетворяет обоим требованиям.",
+    "noLayerOrderExhausted": "Ori Studio прекратил поиск, не найдя порядок слоёв для этой фигуры.",
     "noLayerOrderGeneric": "Не удалось упорядочить слои этой фигуры.",
     "noLayerOrderLabel": "Слои не упорядочены",
     "selectCreases": "Выделить складки",

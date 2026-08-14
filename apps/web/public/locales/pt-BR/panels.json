@@ -555,6 +555,7 @@
     "localCrossing_other": "O papel atravessa a si mesmo em {{count}} vértices.",
     "localCrossingLabel": "O papel atravessa a si mesmo",
     "noLayerOrderContradictorySeeds": "Duas faces precisam ficar cada uma acima da outra, então nenhum empilhamento satisfaz as duas.",
+    "noLayerOrderExhausted": "O Ori Studio parou de procurar antes de encontrar uma ordem de camadas para esta figura.",
     "noLayerOrderGeneric": "Não foi possível ordenar as camadas desta figura.",
     "noLayerOrderLabel": "Camadas não ordenadas",
     "selectCreases": "Selecionar os vincos",

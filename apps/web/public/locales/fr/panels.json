@@ -555,6 +555,7 @@
     "localCrossing_other": "Le papier se traverse lui-même en {{count}} sommets.",
     "localCrossingLabel": "Le papier se traverse",
     "noLayerOrderContradictorySeeds": "Deux faces doivent chacune se placer au-dessus de l’autre : aucun empilement ne peut satisfaire les deux.",
+    "noLayerOrderExhausted": "Ori Studio a arrêté sa recherche avant de trouver un ordre des couches pour cette figure.",
     "noLayerOrderGeneric": "Les couches de cette figure n’ont pas pu être ordonnées.",
     "noLayerOrderLabel": "Couches non ordonnées",
     "selectCreases": "Sélectionner les plis",

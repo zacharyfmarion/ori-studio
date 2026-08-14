@@ -555,6 +555,7 @@
     "localCrossing_other": "El papel se atraviesa a sí mismo en {{count}} vértices.",
     "localCrossingLabel": "El papel se atraviesa",
     "noLayerOrderContradictorySeeds": "Dos caras tienen que quedar cada una por encima de la otra, así que ningún apilado satisface ambas.",
+    "noLayerOrderExhausted": "Ori Studio dejó de buscar antes de encontrar un orden de capas para esta figura.",
     "noLayerOrderGeneric": "No se han podido ordenar las capas de esta figura.",
     "noLayerOrderLabel": "Capas sin ordenar",
     "selectCreases": "Seleccionar los pliegues",
