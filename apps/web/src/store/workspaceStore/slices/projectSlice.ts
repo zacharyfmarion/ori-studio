@@ -158,7 +158,12 @@ import { selectWorkspaceCapabilities } from '../capabilities';
 import { frameActiveCpDiagnostic } from '../cpDiagnosticFocus';
 import { freshEditableCpState } from '../freshCreasePattern';
 import { landingWorkspace } from '../landingWorkspace';
-import { ensureExtension, getFileService, type FileService } from '../../../platform/fileService';
+import {
+  ensureExtension,
+  filesystemPathOrNull,
+  getFileService,
+  type FileService,
+} from '../../../platform/fileService';
 import { exportFilename as defaultFilename } from '../../../platform/exportFilename';
 import { getRuntimeSurface } from '../../../platform/runtime';
 import i18n from '../../../i18n';
@@ -1427,6 +1432,16 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   };
 
   /**
+   * Where this document came from, as recorded *inside* the file being written.
+   *
+   * The same field the app saves to is not always something to write down: in the
+   * browser it is a save-target token, meaningful only to the page that minted
+   * it. Read it through here at every serialization site, so a `.osf` never
+   * carries a reference that resolves nowhere.
+   */
+  const nativeSourcePath = () => filesystemPathOrNull(get().currentFilePath);
+
+  /**
    * Serialize every design tab into one `.osf`, plus the Edit crease pattern.
    *
    * Every design goes through its kind's codec — the same `serialize` that
@@ -1485,14 +1500,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     ).filter((design): design is NonNullable<typeof design> => design !== null);
 
     const creasePatternCompanion = get().oristudioCpDocument
-      ? await currentEditableCreasePatternProjectInput(get().currentFileName, get().currentFilePath)
+      ? await currentEditableCreasePatternProjectInput(get().currentFileName, nativeSourcePath())
       : null;
 
     const contents = serializeNativeProjectFile(
       createNativeProjectFile({
         workspaceTitle: get().workspaceTitle,
         filename: get().currentFileName,
-        path: get().currentFilePath,
+        path: nativeSourcePath(),
         designs,
         activeDesignId: get().activeDesignId,
         unknownDesigns: get().nativeUnknownDesigns,
@@ -1508,6 +1523,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       suggestedName: target.suggestedName,
       path: forceSaveAs ? null : target.path,
       extensions: [NATIVE_PROJECT_EXTENSION],
+      reusableTarget: true,
     });
     if (!result) return false;
     // `activeId`, captured before any of this: saving goes through a file dialog
@@ -1536,7 +1552,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
                 document: {
                   ...document,
                   dirty: false,
-                  source: { ...document.source, filename: result.name, path: result.path },
+                  source: {
+                    ...document.source,
+                    filename: result.name,
+                    path: filesystemPathOrNull(result.path),
+                  },
                 },
               },
               activeId
@@ -1661,13 +1681,17 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       suggestedName: ensureExtension(get().currentFileName, 'ori'),
       path: get().currentFilePath,
       extensions: ['ori'],
+      reusableTarget: true,
     });
     if (!result) return false;
 
     const source = {
       format: 'ori' as const,
       filename: result.name,
-      path: result.path,
+      // A document's source is written into files and read back, so it records a
+      // real path or nothing — never the browser's save-target token, which
+      // `currentFilePath` keeps for the next save.
+      path: filesystemPathOrNull(result.path),
     };
     setOristudioCpDocumentSource(source);
     set({
@@ -1703,13 +1727,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       suggestedName: ensureExtension(get().currentFileName, 'orh'),
       path: get().currentFilePath,
       extensions: ['orh'],
+      reusableTarget: true,
     });
     if (!result) return false;
 
     const source = {
       format: 'orh' as const,
       filename: result.name,
-      path: result.path,
+      path: filesystemPathOrNull(result.path),
     };
     setOristudioCpDocumentSource(source);
     set({
@@ -1755,7 +1780,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
 
     const input = await currentEditableCreasePatternProjectInput(
       get().currentFileName,
-      get().currentFilePath
+      nativeSourcePath()
     );
     if (!input) return false;
     const contents = serializeNativeProjectFile(
@@ -1768,13 +1793,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       suggestedName: target.suggestedName,
       path: forceSaveAs ? null : target.path,
       extensions: [NATIVE_PROJECT_EXTENSION],
+      reusableTarget: true,
     });
     if (!result) return false;
 
     const source = {
       format: 'osf' as const,
       filename: result.name,
-      path: result.path,
+      path: filesystemPathOrNull(result.path),
     };
     setOristudioCpDocumentSource(source);
     set({

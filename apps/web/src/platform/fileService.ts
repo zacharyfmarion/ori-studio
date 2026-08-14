@@ -43,6 +43,16 @@ export interface OpenBinaryFileResult {
 
 export interface SaveFileResult {
   name: string;
+  /**
+   * Where this document is now saved, in whatever terms the platform can save to
+   * it *again*: an absolute filesystem path on desktop, a
+   * {@link WEB_SAVE_TARGET_PREFIX} token in the browser, or null when the save
+   * produced something that cannot be written to a second time (a download).
+   *
+   * Passed straight back as {@link SaveTextFileOptions.path} on the next save,
+   * which is what makes a repeat Save overwrite rather than duplicate. Use
+   * {@link filesystemPathOrNull} before recording it anywhere durable.
+   */
   path: string | null;
 }
 
@@ -52,6 +62,15 @@ export interface SaveTextFileOptions {
   suggestedName: string;
   path?: string | null;
   extensions: string[];
+  /**
+   * Whether this save establishes a target the *next* save can overwrite.
+   *
+   * True for saving the document (File › Save / Save As). False for exports,
+   * which produce a fresh artifact each time rather than a file you keep saving
+   * over. In the browser this is also what chooses a save dialog over a
+   * download, so leaving it off keeps an export the one-click download it is.
+   */
+  reusableTarget?: boolean;
 }
 
 export interface SaveBinaryFileOptions {
@@ -81,6 +100,141 @@ export function ensureExtension(filename: string, extension: string): string {
   return filename.toLowerCase().endsWith(normalized.toLowerCase())
     ? filename
     : `${filename}${normalized}`;
+}
+
+declare global {
+  interface Window {
+    /**
+     * File System Access API. Chromium only — absent in Firefox and Safari, and
+     * in any non-secure context, which is why every use is guarded.
+     */
+    showSaveFilePicker?: (options?: {
+      suggestedName?: string;
+      types?: { description?: string; accept: Record<string, string[]> }[];
+    }) => Promise<FileSystemFileHandle>;
+  }
+}
+
+/**
+ * Save targets the browser can write to a second time, by the token handed back
+ * as {@link SaveFileResult.path}.
+ *
+ * A download has no way back to the file it produced, so a browser save could
+ * only ever make another copy — `project.osf`, `project (1).osf`, and so on. The
+ * File System Access API does have a way back: the handle from the save dialog
+ * stays writable for the life of the page, so a later Save can overwrite the file
+ * the first one created.
+ *
+ * The token is namespaced so it can never be mistaken for a filesystem path;
+ * {@link filesystemPathOrNull} is what keeps it out of saved files. The store
+ * round-trips it in `currentFilePath`, which is also what invalidates it: every
+ * load and every new document already writes that field, and on the web they all
+ * write null, so a handle cannot outlive the document it belongs to.
+ */
+const WEB_SAVE_TARGET_PREFIX = 'web-save:';
+const webSaveTargets = new Map<string, FileSystemFileHandle>();
+let nextWebSaveTargetId = 1;
+
+/**
+ * The path to record *inside a saved file*: a real filesystem path, or nothing.
+ *
+ * A web save-target token is meaningful only to the page that minted it, so
+ * writing one into a portable `.osf` would persist a reference that resolves
+ * nowhere — including on the machine that wrote it, after a reload.
+ */
+export function filesystemPathOrNull(path: string | null): string | null {
+  return path?.startsWith(WEB_SAVE_TARGET_PREFIX) ? null : path;
+}
+
+/** Test seam: drop every remembered handle. */
+export function resetWebSaveTargets(): void {
+  webSaveTargets.clear();
+  nextWebSaveTargetId = 1;
+}
+
+/**
+ * Dismissing a file dialog rejects rather than resolving. That is a cancelled
+ * save, not a failure — the store already reads a null result as "cancelled".
+ */
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError';
+}
+
+/**
+ * Replace the file's contents through its handle.
+ *
+ * `createWritable` writes to a swap file and only replaces the original on
+ * `close()`, so a failure part-way through leaves the file that is already on
+ * disk intact rather than truncated.
+ */
+async function writeWebSaveTarget(handle: FileSystemFileHandle, contents: string): Promise<void> {
+  const writable = await handle.createWritable();
+  await writable.write(contents);
+  await writable.close();
+}
+
+/**
+ * How a browser save found its file. Reported separately from `project saved`
+ * rather than as a property of it, because the distinction exists only here —
+ * the store cannot see which of the three happened, and a second `project saved`
+ * would double-count every save.
+ */
+type WebSaveMode = 'overwrite' | 'picker' | 'download';
+
+function trackWebSave(mode: WebSaveMode): void {
+  track('project save target', { mode });
+}
+
+async function saveBrowserTextFile(
+  options: SaveTextFileOptions
+): Promise<SaveFileResult | null> {
+  const name = ensureExtension(options.suggestedName, options.extensions[0] ?? 'txt');
+
+  const existing = options.path ? webSaveTargets.get(options.path) : undefined;
+  if (existing && options.path) {
+    try {
+      await writeWebSaveTarget(existing, options.contents);
+      trackWebSave('overwrite');
+      return { name: existing.name, path: options.path };
+    } catch (error) {
+      if (isAbortError(error)) return null;
+      // The page can lose permission on a handle (a revoked grant, a file moved
+      // out from under it). Forget it and ask again rather than failing the save.
+      webSaveTargets.delete(options.path);
+    }
+  }
+
+  const showSaveFilePicker = options.reusableTarget ? window.showSaveFilePicker : undefined;
+  if (!showSaveFilePicker) {
+    // An export, or a browser with no File System Access API (Firefox, Safari).
+    // A download is still a save; it just cannot be written to again, so the
+    // next one makes a copy.
+    downloadBlob(new Blob([options.contents], { type: 'text/plain;charset=utf-8' }), name);
+    if (options.reusableTarget) trackWebSave('download');
+    return { name, path: null };
+  }
+
+  let handle: FileSystemFileHandle;
+  try {
+    handle = await showSaveFilePicker({
+      suggestedName: name,
+      types: [
+        {
+          description: 'Ori Studio',
+          accept: { 'text/plain': options.extensions.map((extension) => `.${extension}`) },
+        },
+      ],
+    });
+  } catch (error) {
+    if (isAbortError(error)) return null;
+    throw error;
+  }
+
+  await writeWebSaveTarget(handle, options.contents);
+  const token = `${WEB_SAVE_TARGET_PREFIX}${nextWebSaveTargetId++}`;
+  webSaveTargets.set(token, handle);
+  trackWebSave('picker');
+  return { name: handle.name, path: token };
 }
 
 function downloadBlob(blob: Blob, filename: string): void {
@@ -202,12 +356,13 @@ class BrowserFileService implements FileService {
   }
 
   async saveTextFile(options: SaveTextFileOptions): Promise<SaveFileResult | null> {
-    const name = ensureExtension(options.suggestedName, options.extensions[0] ?? 'txt');
-    downloadBlob(new Blob([options.contents], { type: 'text/plain;charset=utf-8' }), name);
-    return { name, path: null };
+    return saveBrowserTextFile(options);
   }
 
   async saveBinaryFile(options: SaveBinaryFileOptions): Promise<SaveFileResult | null> {
+    // Deliberately still a download. The binary saves are all *exports* (SVG,
+    // PNG, a foreign format), and an export is a new artifact each time rather
+    // than a document you keep saving over.
     const name = ensureExtension(options.suggestedName, options.extensions[0] ?? 'bin');
     const bytes = new Uint8Array(options.bytes);
     downloadBlob(new Blob([bytes.buffer], { type: options.mimeType }), name);
