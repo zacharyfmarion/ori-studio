@@ -9,15 +9,19 @@ into the `R / W / H` pill.
 The point is not "a second way to set width". A flap's drawn extent is governed
 by **three** numbers — radius, width, height — and only one of them (the radius)
 is the origami-meaningful one. So a handle drag states *where the edges should
-land*, and the feature then makes the **radius as large as that box allows**,
-leaving width and height as whatever is left over.
+land*, and the feature solves for the three numbers behind it: **a corner resizes
+the flap, making it as round as its new bounds allow; an edge extends it, leaving
+the radius alone.**
 
 Requested behaviour, in the author's words: *"default to increasing the radius if
 it can, and then just adding or subtracting the width or height necessary to make
 the flap come out to look the way it should"* — and, on seeing the first build
 get this wrong: *"if the width and height of the flap bounds are the same, and
 divisible by 2, then just set radius and the width and height properties should
-be 0."*
+be 0."* And, on the first build of that: *"dragging on the horizontal and
+vertical handles doesn't work at all and has really weird behavior."* Both are
+answered by splitting the corner verb from the edge verb — see "Why an edge
+cannot also maximise the radius".
 
 ## Background — the geometry this rests on
 
@@ -108,60 +112,65 @@ the left and right edges still. Forgetting this is the most likely way to ship a
 flap that drifts, and it is why the result carries an anchor and why the kernel
 takes the whole footprint in one call.
 
-### Choosing the radius
+### Choosing the radius: a corner resizes, an edge extends
 
 ```
 W′ = W + Δx        H′ = H + Δy
-r′ = clamp(floor(min(W′, H′) / 2), rMin, rMax)
+
+corner:  r′ = clamp(floor(min(W′, H′) / 2), rMin, rMax)
+edge:    r′ = r
+
 w′ = W′ − 2r′      h′ = H′ − 2r′
 ```
 
-**The drag sets the outer box; the radius is then as large as that box allows.**
+**A corner makes the flap as round as its new bounds allow; an edge leaves the
+radius alone and puts the change into the box on the axis it drags.** So
+dragging a corner out to a `6 × 6` box gives a plain `r3` circle rather than
+`r2` around a `2 × 2` base, and pulling the east edge simply makes the flap
+longer that way — pushing it back in eats the box and stops at the circle.
+
 The radius is the only one of the three numbers that means anything in the folded
-model — it is the flap's length, and its leaf edge's — so it takes everything it
-can hold and `w`/`h` are the leftovers.
+model, which is why the corner — the gesture that means *resize this flap* — is
+the one that moves it.
 
-A square box of even side is therefore a pure circle: `6 × 6` is `r3`, not `r2`
-around a `2 × 2` base. That is the rule stated in the user's own words, and the
-generalisation of it.
+### Why an edge cannot also maximise the radius
 
-Two properties fall out of the answer depending on nothing but the outer box:
+These two are **mutually exclusive**, and it is worth writing down because the
+first three attempts all foundered on not seeing it:
 
-- **The dragged edge always lands exactly on the pointer.** This `r′` can never
-  drive `w′` or `h′` negative, so there is nothing to clamp against and nothing
-  to overshoot — on any handle, at any delta, square or not.
-- **The same box always gives the same flap**, so a drag out and back returns to
-  where it started, across separate gestures as well as within one.
+> Every state is "biggest circle plus leftovers" **⟹** an edge drag restructures
+> the perpendicular axis.
 
-`rMin` is `1`, the engine's floor
-([project_session.rs:201](../crates/oristudio-bp/src/engine/project_session.rs:201)),
-and it is what makes the outer box's own floor `2 × 2`. `rMax` is
-`edge.maxLength` — a tree-height cap, not a sheet cap — and a flap with no leaf
-edge has no radius to set at all, so its radius is pinned and `w`/`h` take
-everything.
+Proof: under `r = floor(min(W,H)/2)` an edge drag changes one extent. When that
+extent is the smaller one the radius follows it, and `h = H − 2r`, so a radius
+that steps by one steps the *perpendicular* box by two.
 
-One case is special-cased rather than left to the arithmetic: a delta of `(0, 0)`
-returns "no change" even when the flap is not in canonical form, so that merely
-*pressing* a handle cannot rewrite a flap nobody dragged.
+Measured before this change, on a real design: a `0 × 0 r2` flap pulled one cell
+in from the east came back as `r1` with a `1 × 2` box — the flap's length halved
+from a nudge that never touched its height. A sweep of the solver found 69 such
+swaps and 173 dead drags (every inward edge drag on a default `0 × 0 r1` flap
+returned nothing at all).
 
-**The cost, and it is real.** A flap carrying a deliberate `w × h` base is
-rewritten the first time a handle moves it. `(4,4,r2)` and `(0,0,r4)` fill the
-same paper but are different models — a rectangular-tipped flap of length 2
-against a point flap of length 4 — and this rule always picks the second. The
-`W`/`H` fields in the pill are how you get the first back.
+A corner has no such problem: both extents move together, the minimum moves with
+them, and every number changes by at most one per cell.
+
+**The cost.** Two perpendicular edge drags can leave a flap whose radius is not
+maximal, and the next corner drag snaps it. That is a one-off restructure on the
+gesture that means "resize", which is a better place for it than on every "make
+it a bit longer".
 
 Worked examples, all integral:
 
 | Start `(w,h,r)` | Handle | Δ | Result | Reads as |
 | --- | --- | --- | --- | --- |
 | `(0,0,1)` | `ne` | `+4,+4` | `(0,0,3)` | a `6 × 6` box is a circle |
-| `(2,2,1)` | `ne` | `+2,+2` | `(0,0,3)` | the same `6 × 6` box from a different flap |
 | `(0,0,1)` | `ne` | `+5,+5` | `(1,1,3)` | odd side: parity leaves one cell in the box |
 | `(0,0,2)` | `ne` | `+3,+1` | `(3,1,2)` | non-square: the short side caps the radius |
-| `(0,0,5)` | `e` | `+2,0` | `(2,0,5)` | horizontal capsule — the height is held |
-| `(0,0,5)` | `e` | `−2,0` | `(0,2,4)` | vertical capsule, its mirror image |
-| `(4,4,2)` | `n` | `0,+2` | `(0,2,4)` | the anchor walks east; a resize moves the flap |
-| `(0,0,1)` | `e` | `−1,0` | refused | the outer box floor is `2 × 2` at `r = 1` |
+| `(0,0,5)` | `e` | `+2,0` | `(2,0,5)` | an edge extends; the radius is untouched |
+| `(0,0,5)` | `e` | `−2,0` | refused | there is no box to eat, and an edge never takes the radius |
+| `(4,0,5)` | `e` | `−9,0` | `(0,0,5)` | it eats the box and stops at the circle |
+| `(4,4,2)` | `e` | `+3,0` | `(7,4,2)` | every cell lands in the box, one for one |
+| `(0,0,1)` | `e` | `−1,0` | refused | already at the floor |
 
 ### An earlier rule, and why it went
 

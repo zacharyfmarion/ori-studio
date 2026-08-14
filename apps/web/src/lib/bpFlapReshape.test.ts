@@ -93,10 +93,18 @@ describe('solveBpFlapReshape', () => {
     });
 
     it('makes a capsule when only one axis is dragged', () => {
-      // The un-dragged extent is held, so the radius is capped by it and the
-      // width takes the rest: a circle made wider and not taller is a capsule.
+      // An edge drag leaves the radius alone and puts the change in the box, so
+      // a circle made wider and not taller is a capsule.
       expect(sizes(drag(flap(0, 0, 5), 'e', 2, 0))).toEqual([2, 0, 5]);
-      expect(sizes(drag(flap(0, 0, 5), 'e', -2, 0))).toEqual([0, 2, 4]);
+    });
+
+    it('stops an edge dragged inward at the flap\'s own circle', () => {
+      // There is no width left to give back, and an edge never takes the radius
+      // — so the handle stops rather than making the flap shorter.
+      expect(drag(flap(0, 0, 5), 'e', -2, 0)).toBeNull();
+      // With a box to eat, it eats the box and then stops.
+      expect(sizes(drag(flap(4, 0, 5), 'e', -2, 0))).toEqual([2, 0, 5]);
+      expect(sizes(drag(flap(4, 0, 5), 'e', -9, 0))).toEqual([0, 0, 5]);
     });
 
     it('refuses to shrink the outer box below the minimum radius', () => {
@@ -176,13 +184,13 @@ describe('solveBpFlapReshape', () => {
       if (signs.sy !== -1) expect(after.y).toBe(before.y);
     });
 
-    it('moves the anchor when the radius grows on an axis the handle does not drive', () => {
-      // The north handle drives only y, so the outer width is unchanged — but the
-      // radius still grows into it, and the anchor has to walk east to hold the x
-      // edges still. A resize moves the flap.
-      const result = drag(flap(4, 4, 2), 'n', 0, 2);
-      expect(sizes(result)).toEqual([0, 2, 4]);
-      expect(result?.anchor).toEqual({ x: 22, y: 22 });
+    it('moves the anchor when a corner drag grows the radius', () => {
+      // The anchor is the box's lower-left corner, not a centre, so a bigger
+      // radius walks it outward to hold the pinned edges still. A resize moves
+      // the flap, which is why the result carries an anchor at all.
+      const result = drag(flap(0, 0, 2), 'ne', 2, 2);
+      expect(sizes(result)).toEqual([0, 0, 3]);
+      expect(result?.anchor).toEqual({ x: 21, y: 21 });
     });
   });
 
@@ -212,12 +220,12 @@ describe('solveBpFlapReshape', () => {
       expect(drag(flap(3, 0, 1.5), 'ne', 2, 2)).toBeNull();
     });
 
-    it('leaves the odd cell in the box, since the radius can only take even ones', () => {
-      // The un-dragged height caps the radius at 4 here, so every extra cell of
-      // width lands in the box and the outer edge tracks the pointer one for one.
-      expect(sizes(drag(flap(4, 4, 2), 'e', 1, 0))).toEqual([1, 0, 4]);
-      expect(sizes(drag(flap(4, 4, 2), 'e', 2, 0))).toEqual([2, 0, 4]);
-      expect(sizes(drag(flap(4, 4, 2), 'e', 3, 0))).toEqual([3, 0, 4]);
+    it('puts every cell of an edge drag into the box, one for one', () => {
+      // No parity to worry about on an edge: the radius does not move, so the
+      // box tracks the pointer exactly and continuously.
+      expect(sizes(drag(flap(4, 4, 2), 'e', 1, 0))).toEqual([5, 4, 2]);
+      expect(sizes(drag(flap(4, 4, 2), 'e', 2, 0))).toEqual([6, 4, 2]);
+      expect(sizes(drag(flap(4, 4, 2), 'e', 3, 0))).toEqual([7, 4, 2]);
     });
   });
 
