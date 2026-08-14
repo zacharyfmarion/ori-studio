@@ -20,12 +20,21 @@ import { useWorkspaceStore } from '../store/workspaceStore';
  *
  * A hook rather than an effect in `App.tsx` so the field it reads is asserted by
  * a test instead of by inspection, which is the part that failed the first time.
+ *
+ * **Prefers the open file's name over `workspaceTitle`**, which is what a
+ * document window is conventionally titled by. The same care applies to the
+ * field choice here: the gate is `currentFilePath`, not `currentFileName` — see
+ * `formatWindowTitle` for why the latter cannot answer "is there a file".
  */
 export function useWindowTitle() {
   const workspaceTitle = useWorkspaceStore((state) => state.workspaceTitle);
   const dirty = useWorkspaceStore((state) => state.dirty);
+  const fileName = useWorkspaceStore((state) => state.currentFileName);
+  const filePath = useWorkspaceStore((state) => state.currentFilePath);
 
   useEffect(() => {
-    void applyWindowTitle(formatWindowTitle({ projectTitle: workspaceTitle, dirty }));
-  }, [dirty, workspaceTitle]);
+    void applyWindowTitle(
+      formatWindowTitle({ projectTitle: workspaceTitle, dirty, fileName, filePath })
+    );
+  }, [dirty, fileName, filePath, workspaceTitle]);
 }

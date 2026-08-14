@@ -272,16 +272,20 @@ No capability change is required by any item in this plan; the existing
       seeded file). Confirm by quitting normally and reopening.
 
 ### Window title
-- [ ] Extend `formatWindowTitle` to prefer the filename, gated on
+- [x] Extend `formatWindowTitle` to prefer the filename, gated on
       `currentFilePath !== null`, falling back to `workspaceTitle`.
-- [ ] Subscribe `useWindowTitle` to `currentFileName` and `currentFilePath`.
-- [ ] Assert in tests: saved file shows the filename; a **new, never-saved**
+- [x] Subscribe `useWindowTitle` to `currentFileName` and `currentFilePath`.
+- [x] Assert in tests: saved file shows the filename; a **new, never-saved**
       project shows `Untitled` and *not* the synthesized `Untitled.osf`; the
-      dirty marker still applies.
+      dirty marker still applies. Also Save As, and the web fallback. 6 → 13
+      tests across the two files.
 - [ ] Verify in the running desktop app: open a `.osf`, confirm the title bar
       names it; edit, confirm the dirty marker; Save As, confirm it follows the
-      new name.
-- [ ] Confirm the browser tab title is unchanged (no path exists on web, so it
+      new name. **Needs a hand** — the filename branch is reachable only through
+      the native file dialog, which needs UI automation this environment does
+      not have, and `currentFilePath` is null on every browser path by
+      construction, so the browser cannot stand in for it.
+- [x] Confirm the browser tab title is unchanged (no path exists on web, so it
       should fall through to the current behavior).
 
 ### CSP
