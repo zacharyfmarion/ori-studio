@@ -1,7 +1,7 @@
 import { useLayoutStore } from '../store/layoutStore';
 import { currentPath, navigateTo } from './appRouter';
 import { currentWorkspacePath } from './landing';
-import { WELCOME_PATH } from './paths';
+import { parseWorkspacePath, WELCOME_PATH } from './paths';
 
 /**
  * Keep the URL in sync with `activeWorkspace` (the store→URL direction).
@@ -29,4 +29,25 @@ export function startWorkspaceUrlSync(): () => void {
     const desired = currentWorkspacePath();
     if (desired !== path) navigateTo(desired);
   });
+}
+
+/**
+ * Show the workspace the store is on, now — the explicit counterpart to
+ * {@link startWorkspaceUrlSync}.
+ *
+ * The subscription deliberately bows out while off a workspace path, so anything
+ * that establishes a document or picks a workspace from the start screen has to
+ * say so itself. Every opener already does ({@link WelcomeRoute}, the drop
+ * handler, the desktop open-with handler); the menu action handler did not, which
+ * is how File › Open and ⌘O from `/welcome` loaded the file into the store and
+ * left the start screen on screen, with no error to explain it.
+ *
+ * From a workspace path this is a no-op, because the subscription owns that case
+ * and navigating again would push a duplicate history entry — its navigate is
+ * async, so the path may not have caught up by the time a caller asks.
+ */
+export function showActiveWorkspace(): void {
+  const path = currentPath();
+  if (path !== null && parseWorkspacePath(path) !== null) return;
+  navigateTo(currentWorkspacePath());
 }

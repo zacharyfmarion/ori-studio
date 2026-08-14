@@ -31,6 +31,7 @@ import type { ExploriDbConfig, ExploriResult } from '../../explori/types';
 import type { TreeSelectionTarget, TreeVertexUpdate } from '../../tree-editor/model';
 import type { SimulatorSettings, SimulatorSettingKey } from '../../lib/simulatorSettings';
 import type { BpDocumentSymmetry } from '../../lib/bpTreeSymmetry';
+import type { BpFlapFootprint } from '../../lib/bpFlapReshape';
 import type { FileService } from '../../platform/fileService';
 import type { ImportedCreasePatternDocument } from '../../lib/creasePatternImport';
 import type {
@@ -265,6 +266,15 @@ export interface ProjectSliceState {
   currentFileName: string;
   projectMessage: string | null;
   /**
+   * The filename of a save the user has no other way of noticing, waiting to be
+   * shown once and cleared.
+   *
+   * Set only where the save wrote the file with nothing to show for it — the
+   * browser's File System Access path, where there is no download to announce
+   * it. A download is left alone: the browser reports that itself.
+   */
+  savedNotice: string | null;
+  /**
    * The generated share link, while the share modal is open.
    *
    * Held in the store rather than in the toolbar because every toolbar action
@@ -410,8 +420,14 @@ export interface ProjectSliceActions {
     figureId: string,
     fileService?: FileService
   ) => Promise<boolean>;
-  loadExampleProject: (id: string) => Promise<void>;
+  /**
+   * Load a bundled example. False when nothing was established — an unknown id, a
+   * declined discard prompt, or a load that failed — so the caller can tell an
+   * opened project from a no-op, the way {@link openProject} does.
+   */
+  loadExampleProject: (id: string) => Promise<boolean>;
   clearProjectMessage: () => void;
+  clearSavedNotice: () => void;
   setActivePanelId: (id: string | null) => void;
   /** Enter the Design workspace on the method chooser without creating a document. */
   startNewDesign: () => void;
@@ -1190,6 +1206,23 @@ export interface OristudioBpSliceActions {
    * corner off the sheet. Recorded as a single undo entry.
    */
   resizeOristudioBpLayoutFlap: (id: number, width: number, height: number) => Promise<boolean>;
+  /**
+   * Set a BP flap's whole footprint — anchor, box and radius — in one edit.
+   *
+   * What a resize *handle* commits, as opposed to the typed fields above: a flap
+   * draws as its box grown by its radius, so dragging one of its edges generally
+   * moves all three. The kernel applies them as one solve, and the symmetry
+   * partner carries the whole footprint (its anchor mirrored from this flap's new
+   * box, its dimensions swapped on a diagonal fold).
+   *
+   * `dragging` coalesces a gesture's steps into one undo entry, as the flap-move
+   * actions do; the release must repeat the final footprint with it false.
+   */
+  reshapeOristudioBpFlap: (
+    id: number,
+    footprint: BpFlapFootprint,
+    dragging?: boolean
+  ) => Promise<boolean>;
   /** Move a group of BP flaps in the packing. */
   moveOristudioBpLayoutFlaps: (ids: number[], loc: Point, dragging?: boolean) => Promise<boolean>;
   /**

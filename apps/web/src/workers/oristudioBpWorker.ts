@@ -37,6 +37,7 @@ import init, {
   bp_redo_project,
   bp_rename_tree_vertex,
   bp_replace_with_optimizer_template,
+  bp_reshape_layout_flap,
   bp_resize_layout_flap,
   bp_flip_layout_sheet,
   bp_rotate_layout_sheet,
@@ -52,6 +53,7 @@ import init, {
 } from '../generated/oristudio-bp-wasm/oristudio_bp_wasm';
 import type {
   OristudioBpPortDescriptor,
+  OristudioBpFlapReshape,
   OristudioBpOptimizerEvent,
   OristudioBpRawProject,
   OristudioBpWasmCreasePatternSnapshot,
@@ -215,6 +217,16 @@ const api = {
     height: number
   ): Promise<OristudioBpRawProject> {
     return call(() => bp_resize_layout_flap(handle, id, width, height) as OristudioBpRawProject);
+  },
+  async reshapeLayoutFlap(
+    handle: number,
+    id: number,
+    reshape: OristudioBpFlapReshape,
+    dragging = false
+  ): Promise<OristudioBpRawProject> {
+    return call(
+      () => bp_reshape_layout_flap(handle, id, reshape, dragging) as OristudioBpRawProject
+    );
   },
   async subdivideLayoutSheet(handle: number): Promise<OristudioBpRawProject> {
     return call(() => bp_subdivide_layout_sheet(handle) as OristudioBpRawProject);

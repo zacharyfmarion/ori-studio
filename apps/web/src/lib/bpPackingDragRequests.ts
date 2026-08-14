@@ -1,3 +1,4 @@
+import type { BpFlapFootprint } from './bpFlapReshape';
 import type { Point } from './geometry';
 
 /**
@@ -18,6 +19,11 @@ import type { Point } from './geometry';
 export interface BpPackingDragBackendUpdate {
   ids: number[];
   loc: Point;
+}
+
+export interface BpPackingReshapeBackendUpdate {
+  id: number;
+  footprint: BpFlapFootprint;
 }
 
 export interface BpPackingDeviceBackendUpdate {
@@ -42,6 +48,29 @@ export function sameBpDragUpdate(
     sent.loc.y === next.loc.y &&
     sent.ids.length === next.ids.length &&
     sent.ids.every((id, index) => id === next.ids[index])
+  );
+}
+
+/**
+ * The same question for a resize-handle drag.
+ *
+ * A footprint, not a position: a handle drag can leave the anchor exactly where
+ * it was and change only the box or the radius — dragging the north edge of a
+ * flap whose radius cannot grow does precisely that — so comparing locations
+ * alone would drop every step of it as a repeat.
+ */
+export function sameBpReshapeUpdate(
+  sent: BpPackingReshapeBackendUpdate | null,
+  next: BpPackingReshapeBackendUpdate
+): boolean {
+  return (
+    sent !== null &&
+    sent.id === next.id &&
+    sent.footprint.anchor.x === next.footprint.anchor.x &&
+    sent.footprint.anchor.y === next.footprint.anchor.y &&
+    sent.footprint.width === next.footprint.width &&
+    sent.footprint.height === next.footprint.height &&
+    sent.footprint.radius === next.footprint.radius
   );
 }
 

@@ -10,7 +10,7 @@ pub use history::{
     command_signature,
 };
 pub use processor::{Processor, TaskSpec};
-pub use project_session::BpProjectSession;
+pub use project_session::{BpProjectSession, FlapReshape};
 pub use session::{BpSession, DesignUpdateRequest};
 pub use state::EngineState;
 pub use update::{
