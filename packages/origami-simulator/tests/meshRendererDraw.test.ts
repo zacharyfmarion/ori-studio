@@ -19,12 +19,14 @@ interface Recorder {
   gl: WebGL2RenderingContext;
   core: GlCore;
   clears: number[];
+  clearColors: [number, number, number, number][];
   draws: DrawCall[];
 }
 
 /** A WebGL2 stub that records the calls this test asks questions about. */
 function recorder(): Recorder {
   const clears: number[] = [];
+  const clearColors: [number, number, number, number][] = [];
   const draws: DrawCall[] = [];
   const object = () => ({}) as never;
   const gl = {
@@ -80,7 +82,8 @@ function recorder(): Recorder {
     depthMask: () => {},
     blendFunc: () => {},
     blendFuncSeparate: () => {},
-    clearColor: () => {},
+    clearColor: (red: number, green: number, blue: number, alpha: number) =>
+      clearColors.push([red, green, blue, alpha]),
     clearDepth: () => {},
     clear: (mask: number) => clears.push(mask),
     useProgram: () => {},
@@ -103,7 +106,7 @@ function recorder(): Recorder {
     getTexture: () => ({}) as WebGLTexture,
   } as unknown as GlCore;
 
-  return { gl, core, clears, draws };
+  return { gl, core, clears, clearColors, draws };
 }
 
 /** Six triangles, so a sub-range can be asked for and be wrong if ignored. */
@@ -181,6 +184,33 @@ describe('composing a frame from several MeshRenderer draws', () => {
       faceRange: { start: 12, count: 999 },
     });
     expect(draws).toEqual([{ count: 6, offset: 48 }]);
+  });
+
+  it('clears an opaque frame to the background colour it was given', () => {
+    const { core, clearColors } = recorder();
+    new MeshRenderer(core, topology()).render(
+      CAMERA,
+      { ...SETTINGS, background: [0.2, 0.3, 0.4] },
+      null
+    );
+    expect(clearColors).toEqual([[0.2, 0.3, 0.4, 1]]);
+  });
+
+  it('clears a transparent frame to transparent black, not to the colour at zero alpha', () => {
+    // A straight-alpha context never reads the colour of a fully transparent
+    // pixel, so `(r, g, b, 0)` and `(0, 0, 0, 0)` are the same frame — until the
+    // browser composites the drawing buffer as premultiplied anyway, as WebKit
+    // does, and adds `r, g, b` to the page behind the canvas. That is what put a
+    // grey rectangle behind the welcome screen's figure on iOS Safari, so the
+    // colour has to be gone by the time it reaches the driver, not merely
+    // unreadable in principle.
+    const { core, clearColors } = recorder();
+    new MeshRenderer(core, topology()).render(
+      CAMERA,
+      { ...SETTINGS, background: [0.2, 0.3, 0.4], backgroundAlpha: 0 },
+      null
+    );
+    expect(clearColors).toEqual([[0, 0, 0, 0]]);
   });
 
   it('issues no draw at all for an empty range', () => {
