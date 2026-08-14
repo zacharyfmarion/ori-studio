@@ -967,6 +967,15 @@ export interface OristudioCpCommandPayload {
   fold_magnitude_degrees?: number;
   selection_distance?: number;
   /**
+   * Model-space tolerance for closing `FlatFoldableCheck`'s boundary loop.
+   * Omitted means the kernel's geometric epsilon (1e-6).
+   *
+   * Deliberately not `selection_distance`: that is a pointer radius the user is
+   * free to widen, and this decides whether a loop is a loop. Sharing one field
+   * would let the snap radius weld boundaries the drag never joined.
+   */
+  boundary_close_distance?: number;
+  /**
    * What a kernel-side snap may land on. Oriedita gates its close-point search
    * on grid visibility alone; this carries our Snapping toggle as well, so the
    * kernel and the canvas snap by one policy. Omitted means upstream — every

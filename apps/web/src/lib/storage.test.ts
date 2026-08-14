@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   readBoolean,
   readJson,
+  readNumber,
   readString,
   removeKey,
   storageKey,
@@ -9,6 +10,7 @@ import {
   STORAGE_NAMESPACE,
   writeBoolean,
   writeJson,
+  writeNumber,
   writeString,
 } from './storage';
 
@@ -69,6 +71,32 @@ describe('readBoolean / writeBoolean', () => {
   it('returns the fallback when absent', () => {
     expect(readBoolean(storageKey('missing-bool'), true)).toBe(true);
     expect(readBoolean(storageKey('missing-bool'), false)).toBe(false);
+  });
+});
+
+describe('readNumber / writeNumber', () => {
+  afterEach(() => localStorage.clear());
+
+  it('round-trips a number, including a fractional one', () => {
+    const key = storageKey('test-number');
+    writeNumber(key, 42);
+    expect(readNumber(key, 1)).toBe(42);
+    writeNumber(key, -0.5);
+    expect(readNumber(key, 1)).toBe(-0.5);
+  });
+
+  it('returns the fallback when absent', () => {
+    expect(readNumber(storageKey('missing-number'), 10)).toBe(10);
+  });
+
+  it('returns the fallback for anything that is not a finite number', () => {
+    const key = storageKey('test-bad-number');
+    for (const stored of ['', '   ', 'wide', 'NaN', 'Infinity', '10px']) {
+      writeString(key, stored);
+      // '' and '   ' matter most: `Number` reads both as 0, which would look
+      // like a deliberate setting rather than a corrupt key.
+      expect(readNumber(key, 10)).toBe(10);
+    }
   });
 });
 

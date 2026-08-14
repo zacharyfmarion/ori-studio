@@ -13,16 +13,118 @@
   grid-template-rows: minmax(0, 1fr);
 }
 
-.start-screen {
-  display: grid;
+/*
+ * The welcome page's scroll container: on a desktop, one screenful of start
+ * screen with the landing sections below it; on a phone, the landing straight
+ * away.
+ *
+ * The scrolling deliberately happens *here* and not on `.app-layout--start`,
+ * which stays clipped at `100vh`. `.file-drop-overlay` is absolutely positioned
+ * against that ancestor, and a scrolling positioning context would stretch it to
+ * the height of the whole document — a dashed border running past the fold with
+ * its label centered somewhere off screen.
+ */
+.welcome-page {
   min-width: 0;
   min-height: 0;
-  place-items: center;
+  overflow: hidden auto;
+  /* Applies to the scroll-affordance jump; `scrollIntoView` needs no argument. */
+  scroll-behavior: smooth;
+  background: var(--bg-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-page {
+    scroll-behavior: auto;
+  }
+}
+
+/*
+ * The first screenful, on a device that gets one. A phone has no hero at all —
+ * the landing is the top of the page there — so this is the start screen only.
+ *
+ * `safe center` rather than plain centering: when the content is taller than the
+ * viewport, centering pushes its top above the scroll origin where nothing can
+ * reach it, and `safe` falls back to flex-start instead. `dvh` because a mobile
+ * browser's collapsing URL bar makes `vh` taller than what is actually visible.
+ */
+.start-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: safe center;
+  min-width: 0;
+  min-height: 100dvh;
   padding: clamp(20px, 5vw, 56px);
-  overflow: auto;
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--bg-secondary) 88%, var(--bg-primary)), var(--bg-primary)),
     var(--bg-primary);
+}
+
+/*
+ * The phone's page header: a way into the app, then the masthead.
+ *
+ * The bar has real space under it. The button used to sit flush on the first
+ * section's top border, which read as a rendering mistake rather than a divider.
+ */
+.welcome-mobile-header {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-3) var(--space-5) var(--space-6);
+}
+
+.welcome-mobile-header__bar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.welcome-mobile-header__open {
+  padding: 8px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 640;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.welcome-mobile-header__open:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-primary) 72%, transparent);
+  outline-offset: 2px;
+}
+
+.welcome-mobile-header__brand {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+}
+
+.welcome-mobile-header__icon {
+  display: block;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+}
+
+.welcome-mobile-header__title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: clamp(2.4rem, 12vw, 3.2rem);
+  font-weight: 780;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.welcome-mobile-header__tagline {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  font-weight: 520;
+  line-height: 1.5;
+  text-wrap: balance;
 }
 
 .start-screen__content {
@@ -808,7 +910,8 @@
   }
 
   .start-screen {
-    align-items: start;
+    /* The main axis under `flex-direction: column` — top-align, don't center. */
+    justify-content: flex-start;
     padding: var(--space-4);
   }
 

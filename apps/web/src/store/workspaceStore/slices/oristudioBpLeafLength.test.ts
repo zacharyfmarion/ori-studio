@@ -25,6 +25,7 @@ const runtimeMocks = vi.hoisted(() => ({
   moveOristudioBpTreeVertex: vi.fn(),
   moveOristudioBpLayoutFlap: vi.fn(),
   exportOristudioBpProjectAsBps: vi.fn(async () => '<bps/>'),
+  exportOristudioBpProjectAsSessionBps: vi.fn(async () => '<bps/>'),
 }));
 
 vi.mock('../oristudioBpRuntime', async (importOriginal) => {
@@ -35,6 +36,7 @@ vi.mock('../oristudioBpRuntime', async (importOriginal) => {
     moveOristudioBpTreeVertex: runtimeMocks.moveOristudioBpTreeVertex,
     moveOristudioBpLayoutFlap: runtimeMocks.moveOristudioBpLayoutFlap,
     exportOristudioBpProjectAsBps: runtimeMocks.exportOristudioBpProjectAsBps,
+    exportOristudioBpProjectAsSessionBps: runtimeMocks.exportOristudioBpProjectAsSessionBps,
   };
 });
 

@@ -5,6 +5,7 @@ export {
   ANALYTICS_EVENTS,
   bucketCount,
   COUNT_BUCKETS,
+  CP_SNAP_RADIUS_BUCKETS,
   DESIGN_TAB_COUNT_BUCKETS,
   DURATION_MS_BUCKETS,
   PACKING_CIRCLE_COUNT_BUCKETS,
@@ -25,6 +26,10 @@ export type {
   FoldMode,
   FoldSimulationSource,
   FoldVerdict,
+  LandingCta,
+  LandingFeatureId,
+  LandingSectionId,
+  LandingSurface,
   OptimizerKind,
   ProjectOpenSource,
   WorkspaceScreen,
@@ -43,6 +48,10 @@ export { trackDesignSentToEdit } from './trackSendToEdit';
 
 export { useAppOpenedEvent } from './useAppOpenedEvent';
 export { useBpPatternNotFoundEvent } from './useBpPatternNotFoundEvent';
+export {
+  useLandingSectionViewedEvents,
+  useLandingViewedEvent,
+} from './useLandingViewedEvent';
 export { useWorkspaceViewedEvent } from './useWorkspaceViewedEvent';
 
 export {

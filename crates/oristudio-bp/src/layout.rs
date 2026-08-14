@@ -441,10 +441,36 @@ pub struct LayoutConfiguration {
     pub single_mode: bool,
     raw_partitions: Option<Vec<PartitionModel>>,
     index: usize,
+    /// The `JConfiguration` this was built from, when it carried patterns.
+    ///
+    /// Upstream captures it in the pattern generator it hands to the `Store`
+    /// (`new Store(patternGenerator(this, config))`), so a restored prototype
+    /// pattern is re-yielded first and the search then skips its duplicate.
+    /// The port generates eagerly instead of through a `Store`, so it has to be
+    /// kept to hand back to [`generators::pattern_generator_with_repo`].
+    proto: Option<ConfigurationModel>,
+    /// Whether [`Self::patterns`] is the complete list.
+    ///
+    /// Mirrors whether upstream's `Store` was drained: a configuration restored
+    /// from a session repository arrives with `index` set and every pattern
+    /// present (`$rest()`), while one restored from a file prototype has only
+    /// that one pattern (`$next()`) and must still be searched.
+    patterns_done: bool,
 }
 
 impl LayoutConfiguration {
     pub fn new(mut config: ConfigurationModel, single_mode: bool) -> Self {
+        // Upstream's constructor drains the pattern store when the prototype
+        // carries an index — a session repository, where every pattern was
+        // stored — and otherwise takes only the first, leaving the search to
+        // run later. `proto` is only interesting in that second case.
+        let patterns_done = config.index.is_some();
+        let proto = (!patterns_done
+            && config
+                .patterns
+                .as_ref()
+                .is_some_and(|patterns| !patterns.is_empty()))
+        .then(|| config.clone());
         let patterns = config
             .patterns
             .take()
@@ -482,7 +508,14 @@ impl LayoutConfiguration {
             single_mode,
             raw_partitions,
             index: config.index.unwrap_or(0),
+            proto,
+            patterns_done,
         }
+    }
+
+    /// Whether [`Self::patterns`] is already the complete list.
+    pub fn patterns_done(&self) -> bool {
+        self.patterns_done
     }
 
     pub fn to_json(&self, session: bool) -> ConfigurationModel {
@@ -532,8 +565,12 @@ impl LayoutConfiguration {
     }
 
     pub fn generate_patterns(&mut self, junctions: &[Junction], factor: Point) -> BpResult<usize> {
-        self.patterns = generators::pattern_generator(self, junctions, factor, None)?;
+        // The prototype goes back in so its pattern is re-yielded first and the
+        // search skips the duplicate, as upstream's `patternGenerator` does.
+        let proto = self.proto.clone();
+        self.patterns = generators::pattern_generator(self, junctions, factor, proto.as_ref())?;
         self.index = 0;
+        self.patterns_done = true;
         Ok(self.patterns.len())
     }
 
@@ -542,8 +579,10 @@ impl LayoutConfiguration {
         repo: &mut LayoutRepository,
         tree: &BpTree,
     ) -> BpResult<usize> {
-        self.patterns = generators::pattern_generator_with_repo(self, repo, tree, None)?;
+        let proto = self.proto.clone();
+        self.patterns = generators::pattern_generator_with_repo(self, repo, tree, proto.as_ref())?;
         self.index = 0;
+        self.patterns_done = true;
         Ok(self.patterns.len())
     }
 
@@ -649,6 +688,14 @@ pub struct LayoutRepository {
     configurations_done: bool,
     index: usize,
     stored_repo: Option<RepositoryModel>,
+    /// The `configuration` + `pattern` prototype a saved file carries, held
+    /// until the configurations are generated.
+    ///
+    /// Upstream passes the whole `JStretch` straight into `configGenerator`
+    /// from the `Repository` constructor; the port generates lazily, in
+    /// [`Self::init_with_tree`] / [`Self::complete_with_tree`], so it has to be
+    /// kept. Never holds a `repo` — see [`Self::new`].
+    proto: Option<StretchModel>,
 }
 
 impl LayoutRepository {
@@ -683,7 +730,18 @@ impl LayoutRepository {
             .iter()
             .map(ValidJunction::rect)
             .collect::<Vec<_>>();
-        let stored_repo = prototype.and_then(|prototype| prototype.repo.clone());
+        // BP Studio keeps a live `Repository` per stretch and throws it away the
+        // moment `getStructureSignature(junctions)` changes, rebuilding from
+        // index 0 (`layout/stretch.ts#$update`). This port rebuilds from the
+        // persisted JSON instead, so the equivalent check happens here: a stored
+        // repository describes the junction structure it was generated for, and
+        // reusing it under a different structure freezes the old configuration
+        // set and rigidly translates its gadget onto the new geometry. An
+        // absent signature is untrusted for the same reason.
+        let stored_repo = prototype
+            .and_then(|prototype| prototype.repo.as_ref())
+            .filter(|repo| repo.signature.as_deref() == Some(signature.as_str()))
+            .cloned();
         let configurations = stored_repo
             .as_ref()
             .map(|repo| {
@@ -695,6 +753,21 @@ impl LayoutRepository {
             })
             .unwrap_or_default();
         let configurations_done = stored_repo.is_some();
+        let index = stored_repo.as_ref().map_or(0, |repo| repo.index);
+        // The `configuration` + `pattern` half of the prototype — what a saved
+        // file carries — has to survive until the configurations are generated,
+        // which happens later in `init_with_tree` / `complete_with_tree`. The
+        // `repo` half is deliberately dropped: it is either already expanded
+        // into `configurations` above, or it failed the signature check and
+        // must not sneak back in through the generator's short circuit.
+        let proto = prototype
+            .filter(|prototype| prototype.configuration.is_some() && prototype.pattern.is_some())
+            .map(|prototype| StretchModel {
+                id: prototype.id.clone(),
+                configuration: prototype.configuration.clone(),
+                pattern: prototype.pattern.clone(),
+                repo: None,
+            });
         let mut repository = Self {
             stretch_id,
             signature,
@@ -710,10 +783,9 @@ impl LayoutRepository {
             node_set,
             configurations,
             configurations_done,
-            index: prototype
-                .and_then(|prototype| prototype.repo.as_ref())
-                .map_or(0, |repo| repo.index),
+            index,
             stored_repo,
+            proto,
         };
         repository.is_valid = prototype
             .and_then(|prototype| prototype.pattern.as_ref())
@@ -754,6 +826,7 @@ impl LayoutRepository {
                 .map(|config| config.to_json(true))
                 .collect(),
             index: self.index,
+            signature: Some(self.signature.clone()),
         })
     }
 
@@ -842,7 +915,8 @@ impl LayoutRepository {
         if !self.configurations.is_empty() {
             return Ok(());
         }
-        self.configurations = generators::config_generator(self, None)?;
+        let proto = self.proto.clone();
+        self.configurations = generators::config_generator(self, proto.as_ref())?;
         Ok(())
     }
 
@@ -850,26 +924,59 @@ impl LayoutRepository {
         if !self.configurations.is_empty() {
             return Ok(());
         }
-        self.configurations = generators::config_generator_with_repo(self, tree, None)?;
+        let proto = self.proto.clone();
+        self.configurations = generators::config_generator_with_repo(self, tree, proto.as_ref())?;
         Ok(())
     }
 
     pub fn complete(&mut self) -> BpResult<()> {
         if !self.configurations_done {
             if self.configurations.is_empty() {
-                self.configurations = generators::config_generator(self, None)?;
+                let proto = self.proto.clone();
+                self.configurations = generators::config_generator(self, proto.as_ref())?;
             }
             self.configurations_done = true;
         }
+        self.complete_configurations(|config, repo| {
+            let junctions = repo.junctions.clone();
+            config.generate_patterns(&junctions, repo.f).map(|_| ())
+        })?;
         Ok(())
     }
 
     pub fn complete_with_tree(&mut self, tree: &BpTree) -> BpResult<()> {
         if !self.configurations_done {
             if self.configurations.is_empty() {
-                self.configurations = generators::config_generator_with_repo(self, tree, None)?;
+                let proto = self.proto.clone();
+                self.configurations =
+                    generators::config_generator_with_repo(self, tree, proto.as_ref())?;
             }
             self.configurations_done = true;
+        }
+        self.complete_configurations(|config, repo| {
+            config.generate_patterns_with_repo(repo, tree).map(|_| ())
+        })?;
+        Ok(())
+    }
+
+    /// Mirror of upstream `Repository.$complete()`'s second half: after the
+    /// configuration store is drained, every configuration drains its own
+    /// pattern store (`config.$complete()`).
+    ///
+    /// Only a configuration restored from a file prototype is left incomplete —
+    /// it holds just that one pattern until the search runs — so this is where
+    /// the user's other options come back.
+    fn complete_configurations(
+        &mut self,
+        mut generate: impl FnMut(&mut LayoutConfiguration, &mut Self) -> BpResult<()>,
+    ) -> BpResult<()> {
+        for index in 0..self.configurations.len() {
+            if self.configurations[index].patterns_done() {
+                continue;
+            }
+            let mut config = self.configurations[index].clone();
+            generate(&mut config, self)?;
+            self.configurations[index] = config;
         }
         Ok(())
     }

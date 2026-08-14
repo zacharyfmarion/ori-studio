@@ -33,7 +33,10 @@ export function StartScreen({
       : t('dialogs:startScreen.chooseBegin', 'Choose how you want to begin.');
 
   return (
-    <main className="start-screen" aria-busy={preparing || undefined}>
+    // A div, not the page's `main`: the start screen is the first screenful of
+    // the welcome page, which owns the landmark and the landing below it. The
+    // labelled region inside is still the section.
+    <div className="start-screen" aria-busy={preparing || undefined}>
       <section className="start-screen__content" aria-labelledby="start-screen-title">
         <div className="start-screen__hero">
           <div className="start-screen__copy">
@@ -102,7 +105,7 @@ export function StartScreen({
           </label>
         </div>
       </section>
-    </main>
+    </div>
   );
 }
 

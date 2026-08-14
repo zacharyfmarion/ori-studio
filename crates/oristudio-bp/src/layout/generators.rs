@@ -498,7 +498,10 @@ pub fn create_config_filter(
     context: &ConfigGeneratorContext,
     signature: Option<&str>,
 ) -> BpResult<Option<bool>> {
-    if config.patterns().is_empty() {
+    // Not `patterns().is_empty()`: a configuration restored from a file
+    // prototype arrives holding exactly that one pattern and still has to be
+    // searched, or the user loses every other option for it.
+    if !config.patterns_done() {
         config.generate_patterns(context.junctions(), context.factor())?;
     }
     if let Some(signature) = signature
@@ -522,7 +525,7 @@ pub fn create_config_filter_with_repo(
     tree: &crate::tree::BpTree,
     signature: Option<&str>,
 ) -> BpResult<Option<bool>> {
-    if config.patterns().is_empty() {
+    if !config.patterns_done() {
         config.generate_patterns_with_repo(repo, tree)?;
     }
     if let Some(signature) = signature
@@ -537,47 +540,26 @@ pub fn config_generator(
     repo: &LayoutRepository,
     prototype: Option<&Stretch>,
 ) -> BpResult<Vec<LayoutConfiguration>> {
-    let mut result = Vec::new();
-    let mut proto_signature = None;
-    if let Some(prototype) = prototype {
-        if let Some(stored) = &prototype.repo {
-            return Ok(stored
-                .configurations
-                .iter()
-                .cloned()
-                .map(|config| LayoutConfiguration::new(config, false))
-                .collect());
-        }
-
-        if let (Some(proto), Some(pattern)) = (&prototype.configuration, &prototype.pattern) {
-            let config = LayoutConfiguration::new(
-                ConfigurationModel {
-                    partitions: proto.partitions.clone(),
-                    raw: None,
-                    patterns: Some(vec![pattern.clone()]),
-                    index: None,
-                },
-                false,
-            );
-            if config.pattern().is_some() {
-                proto_signature = Some(config.signature()?);
-                result.push(config);
-            }
-        }
+    if let Some(prototype) = prototype
+        && let Some(stored) = &prototype.repo
+    {
+        return Ok(stored
+            .configurations
+            .iter()
+            .cloned()
+            .map(|config| LayoutConfiguration::new(config, false))
+            .collect());
     }
+    let proto = prototype.and_then(prototype_configuration);
 
     if !repo.is_valid {
-        return Ok(result);
+        return Ok(proto.into_iter().collect());
     }
 
     if repo.junctions.len() == 1 {
         let mut context = ConfigGeneratorContext::new(repo);
-        result.extend(single_config_generator(
-            &mut context,
-            0,
-            proto_signature.as_deref(),
-        )?);
-        return Ok(result);
+        // Same guard as `config_generator_with_repo` — see `adopt_prototype`.
+        return adopt_prototype(proto, single_config_generator(&mut context, 0, None)?);
     }
 
     Err(BpError::UnsupportedOperation {
@@ -591,54 +573,101 @@ pub fn config_generator_with_repo(
     tree: &crate::tree::BpTree,
     prototype: Option<&Stretch>,
 ) -> BpResult<Vec<LayoutConfiguration>> {
-    let mut result = Vec::new();
-    let mut proto_signature = None;
-    if let Some(prototype) = prototype {
-        if let Some(stored) = &prototype.repo {
-            return Ok(stored
-                .configurations
-                .iter()
-                .cloned()
-                .map(|config| LayoutConfiguration::new(config, false))
-                .collect());
-        }
-
-        if let (Some(proto), Some(pattern)) = (&prototype.configuration, &prototype.pattern) {
-            let config = LayoutConfiguration::new(
-                ConfigurationModel {
-                    partitions: proto.partitions.clone(),
-                    raw: None,
-                    patterns: Some(vec![pattern.clone()]),
-                    index: None,
-                },
-                false,
-            );
-            if config.pattern().is_some() {
-                proto_signature = Some(config.signature()?);
-                result.push(config);
-            }
-        }
+    if let Some(prototype) = prototype
+        && let Some(stored) = &prototype.repo
+    {
+        return Ok(stored
+            .configurations
+            .iter()
+            .cloned()
+            .map(|config| LayoutConfiguration::new(config, false))
+            .collect());
     }
+    let proto = prototype.and_then(prototype_configuration);
 
     if !repo.is_valid {
-        return Ok(result);
+        return Ok(proto.into_iter().collect());
     }
 
-    if repo.junctions.len() == 1 {
+    let generated = if repo.junctions.len() == 1 {
         let mut context = ConfigGeneratorContext::new(repo);
-        result.extend(single_config_generator(
-            &mut context,
-            0,
-            proto_signature.as_deref(),
-        )?);
-        return Ok(result);
-    }
+        single_config_generator(&mut context, 0, None)?
+    } else {
+        general_config_generator(repo, tree, None)?
+    };
+    adopt_prototype(proto, generated)
+}
 
-    result.extend(general_config_generator(
-        repo,
-        tree,
-        proto_signature.as_deref(),
-    )?);
+/// The `configuration` + `pattern` prototype a saved file carries, as a
+/// single-pattern configuration — upstream's "process single prototype" branch
+/// of `configGenerator`.
+fn prototype_configuration(prototype: &Stretch) -> Option<LayoutConfiguration> {
+    let (proto, pattern) = (
+        prototype.configuration.as_ref()?,
+        prototype.pattern.as_ref()?,
+    );
+    let config = LayoutConfiguration::new(
+        ConfigurationModel {
+            partitions: proto.partitions.clone(),
+            raw: None,
+            patterns: Some(vec![pattern.clone()]),
+            index: None,
+        },
+        false,
+    );
+    config.pattern().is_some().then_some(config)
+}
+
+/// Put the prototype at the front of the generated configurations — but only if
+/// the search actually produced it.
+///
+/// Upstream yields the prototype first and then skips the generated
+/// configuration whose signature matches it, so a restored file lands on its
+/// saved pattern. It can do that unconditionally because a prototype only ever
+/// reaches it once, at load, when the structure it was saved under is by
+/// definition the current one: `State.$stretchPrototypes` is cleared every
+/// round and the client empties `design.$prototype.layout.stretches` after each
+/// core response, so an edit carries no prototype at all.
+///
+/// This port has no live `Repository` and rebuilds from the persisted stretch
+/// every time, so it re-supplies the prototype forever. Unguarded, that pins the
+/// stretch to a configuration describing junctions that no longer exist — the
+/// saved gadget is simply translated onto the new geometry. Upstream does the
+/// same thing if you hand it a stale prototype (verified against the oracle);
+/// it is single-use that saves it, not a validity check.
+///
+/// Requiring the search to have produced the same configuration is that
+/// guarantee expressed structurally: a prototype for a structure that no longer
+/// exists cannot be regenerated, so it is dropped and the search stands on its
+/// own. Where upstream is defined — a prototype matching the current structure —
+/// this yields exactly upstream's list.
+fn adopt_prototype(
+    proto: Option<LayoutConfiguration>,
+    generated: Vec<LayoutConfiguration>,
+) -> BpResult<Vec<LayoutConfiguration>> {
+    let Some(proto) = proto else {
+        return Ok(generated);
+    };
+    let signature = proto.signature()?;
+    let mut duplicate = None;
+    for (index, config) in generated.iter().enumerate() {
+        if config.signature()? == signature {
+            duplicate = Some(index);
+            break;
+        }
+    }
+    let Some(duplicate) = duplicate else {
+        return Ok(generated);
+    };
+    let mut result = Vec::with_capacity(generated.len());
+    result.push(proto);
+    result.extend(
+        generated
+            .into_iter()
+            .enumerate()
+            .filter(|(index, _)| *index != duplicate)
+            .map(|(_, config)| config),
+    );
     Ok(result)
 }
 
