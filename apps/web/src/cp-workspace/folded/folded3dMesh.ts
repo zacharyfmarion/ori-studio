@@ -31,6 +31,32 @@
  * exception, and it matches the payload's own statement that cells are the
  * drawable unit.
  *
+ * # Creases belong to a layer, and are drawn from that layer's ring
+ *
+ * A crease is **not** one line at the fold. It is emitted once per `(cell,
+ * slot)` whose paper ends there, from that slot's own copy of the cell ring, so
+ * it carries the displacement of the layer it belongs to.
+ *
+ * It used to be one undisplaced line per model edge, and that is what made
+ * buried flaps show through: a crease at the true fold line sits in the *middle*
+ * of every stack it runs through, so it is behind the near half of its own —
+ * including the layer you can see. The edge pass compensated with a constant
+ * `−0.0008` of NDC z, which at `depthRange = 2r` is `1.6e-3 · r` of world depth
+ * and therefore larger than {@link STACK_SPAN_LIMIT} could ever make a whole
+ * stack. Every buried layer's creases rode that bias in front of every layer
+ * above them. Measured on the reported `540-level-0`, 43% of the crease ink
+ * landing on paper existed only because of it, and shrinking the constant was
+ * not available: at zero, half the *visible* layer's creases go too.
+ *
+ * Drawing from the ring fixes it structurally and costs **no vertices** — a
+ * slot already emits its own copy of the ring, so the crease is two indices into
+ * vertices that are already there. The count goes *down* by `2 · edge_count`.
+ *
+ * Which ring segments are a layer's paper edges, rather than arrangement cuts it
+ * runs across, is `buildFolded3dInk` in `folded3dModelReader.ts` — shared with
+ * the CPU projector, because the window and the export disagreeing about which
+ * creases exist is the failure this whole change is repairing.
+ *
  * # Winding, which is easy to invert and was not guessed
  *
  * `MeshRenderer`'s view transform has determinant **−1** (yaw about Y, then a
@@ -60,6 +86,7 @@ import {
   type OristudioCpFolded3dRenderModel,
 } from '../../engine/oristudioCpTypes';
 import {
+  buildFolded3dInk,
   cellRing,
   cellStack,
   edgeEnds,
@@ -91,21 +118,26 @@ export const EPS_RELATIVE = 2e-4;
 /**
  * How much of `modelRadius` a whole stack may span.
  *
- * The edge pass biases creases toward the viewer by a fixed `−0.0008` of NDC z
- * (`meshRenderer.ts`), which at `depthRange = 2r` is `1.6e-3 · r` of world
- * depth. A stack spanning more than that swallows its own top layer's creases,
- * so the span is capped at half the bias for margin and {@link EPS_RELATIVE}
- * shrinks to fit once a stack is deeper than 5.
+ * Two things used to be true of this number and only one still is.
  *
- * Deep stacks are the real population, not an edge case: the committed fixtures
- * reach 5, but the external non-flat corpus reaches **14** (`plant_penguin.osf`),
- * with four models at 10. At 14 the cap gives `6.15e-5 · r`, which is still 258
- * units of a 24-bit depth buffer — and only 1.01 of a 16-bit one. A 16-bit
- * default framebuffer is legal WebGL2, and `webglSolver.ts`'s headless
- * `renderToImage` path already allocates one explicitly. **Phase 3 must read
- * `gl.getParameter(gl.DEPTH_BITS)` with the default framebuffer bound** (it
- * reports the *bound* one, and 0 for a depthless FBO) and fail loudly rather
- * than as unexplained shimmer.
+ * It was set to **half** the edge pass's then-constant `−0.0008` NDC crease
+ * bias (`1.6e-3 · r` of world depth), because a crease drawn at the fold line
+ * had to out-bias its own stack or the visible layer lost its linework. That
+ * coupling is gone: creases now carry their layer's displacement, and the bias
+ * is a fraction of one gap ({@link folded3dCreaseDepthBias}). Nothing forces
+ * this cap to sit below anything the edge pass does any more, so it is now free
+ * to be chosen on depth-buffer resolution and sub-pixel displacement alone —
+ * see the plan's Phase 6. It is left where it was so this change is about
+ * creases and nothing else.
+ *
+ * What still holds is the resolution argument. Deep stacks are the real
+ * population, not an edge case: the committed fixtures reach 5, but the external
+ * non-flat corpus reaches **14** (`plant_penguin.osf`), with four models at 10.
+ * At 14 the cap gives `6.15e-5 · r`, which is still 258 units of a 24-bit depth
+ * buffer — and only 1.01 of a 16-bit one. A 16-bit default framebuffer is legal
+ * WebGL2, and `webglSolver.ts`'s headless `renderToImage` path already allocates
+ * one explicitly, which is what `shallowDepthBuffer` reports so it fails loudly
+ * rather than as unexplained shimmer.
  */
 export const STACK_SPAN_LIMIT = 8e-4;
 
@@ -170,6 +202,19 @@ export interface Folded3dMeshSlots {
    * range a test reads to see the displacement that was actually applied.
    */
   vertexStart: Uint32Array;
+  /**
+   * The crease half: slot `i` owns creases `[edgeStart[i], edgeStart[i + 1])`
+   * of `topology.edgeIndices` / `edgeAssignments`, counted in **edges** rather
+   * than in indices. Also `count + 1` long.
+   *
+   * A slot's creases are the segments of its cell's ring where *this layer's*
+   * paper ends, so the range is usually shorter than the ring and is routinely
+   * empty — a layer buried under a wider face ends nowhere inside it.
+   *
+   * Starts after the fallback block ({@link Folded3dMesh.fallbackEdgeCount}),
+   * which owns no slot.
+   */
+  edgeStart: Uint32Array;
 }
 
 export interface Folded3dMesh {
@@ -204,18 +249,34 @@ export interface Folded3dMesh {
   maxStackDepth: number;
   slots: Folded3dMeshSlots;
   /**
-   * Where the undetermined cells' slots begin, in {@link slots} and in
-   * `topology.faceIndices` respectively.
+   * Where the undetermined cells' slots begin, in {@link slots}, in
+   * `topology.faceIndices` and in `topology.edgeIndices` respectively — the
+   * last counted in **edges**, as `slots.edgeStart` is.
    *
    * Cells the solver could not order get **no displacement** — displacing them
    * by the kernel's fallback ranking would present an invented stacking as fact
    * — so their slots are exactly coincident and will z-fight. They are emitted
    * last so a caller can draw them separately (translucent, as the CPU projector
-   * does today) without re-deriving which they are. Equal to `slots.count` and
-   * `faceIndices.length` when every cell is determined.
+   * does today) without re-deriving which they are. Equal to `slots.count`,
+   * `faceIndices.length` and `edgeAssignments.length` when every cell is
+   * determined.
    */
   undeterminedSlotStart: number;
   undeterminedIndexStart: number;
+  undeterminedEdgeStart: number;
+  /**
+   * Creases at the head of `topology.edgeIndices` that belong to no slot.
+   *
+   * The fallback for a model edge no `(cell, slot)` inks — see
+   * `Folded3dInk.orphanEdges`. Each is drawn the old way, one undisplaced line
+   * at its true endpoints, so a match that fails degrades to the picture before
+   * creases carried a layer rather than to a missing crease. Expected zero, and
+   * a figure that reports otherwise is worth looking at.
+   *
+   * At the head rather than the tail so the undetermined split stays a single
+   * cut: they draw with the determined pass, which is the opaque one.
+   */
+  fallbackEdgeCount: number;
 }
 
 /**
@@ -289,36 +350,51 @@ function signedArea2(
 /**
  * What a model's stacking costs, without building anything.
  *
- * One integer pass over `cell_attr` — no triangulation, no allocation — so a
- * caller deciding *whether* a figure can be meshed does not have to mesh it to
- * find out. {@link folded3dMesh} runs the same pass, because all three numbers
- * are needed before a single vertex can be placed: `eps` depends on the deepest
- * stack anywhere in the model.
+ * One integer pass over `cell_attr` — no triangulation, no allocation, and no
+ * ink — so a caller deciding *whether* a figure can be meshed does not have to
+ * mesh it to find out. {@link folded3dMesh} runs the same pass, because all of
+ * these are needed before a single vertex can be placed: `eps` depends on the
+ * deepest stack anywhere in the model.
+ *
+ * `vertexCount` is an **upper bound** and `slotVertexCount` is exact. Creases
+ * cost no vertices now that they are drawn from their slot's ring, except in the
+ * fallback where a model edge is inked nowhere
+ * ({@link Folded3dMesh.fallbackEdgeCount}) — so the slack is `2 · edge_count`
+ * less what was inked, and asking would mean building the ink. Bounding is the
+ * safe direction for a budget check: it can refuse a figure it did not have to,
+ * never admit one that then blows the limit.
  */
 export function folded3dMeshExtent(model: OristudioCpFolded3dRenderModel): {
   vertexCount: number;
+  slotVertexCount: number;
   maxStackDepth: number;
   maxDrawRank: number;
 } {
   let maxStackDepth = 0;
   let maxDrawRank = 0;
-  let vertexCount = model.edge_count * 2;
+  let slotVertexCount = 0;
   for (let cell = 0; cell < model.cell_count; cell += 1) {
     const base = cell * FOLDED_3D_CELL_ATTR_STRIDE;
     const ringLength = model.cell_attr[base + 2] ?? 0;
     const stackLength = model.cell_attr[base + 4] ?? 0;
     maxStackDepth = Math.max(maxStackDepth, stackLength);
     maxDrawRank = Math.max(maxDrawRank, model.cell_attr[base + 6] ?? 0);
-    if (ringLength >= 3) vertexCount += ringLength * stackLength;
+    if (ringLength >= 3) slotVertexCount += ringLength * stackLength;
   }
-  return { vertexCount, maxStackDepth, maxDrawRank };
+  return {
+    vertexCount: slotVertexCount + model.edge_count * 2,
+    slotVertexCount,
+    maxStackDepth,
+    maxDrawRank,
+  };
 }
 
 export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMeshResult {
   const centre = toSimBasis(modelCentroid(model));
   const radius = modelRadius(model);
 
-  const { vertexCount, maxStackDepth, maxDrawRank } = folded3dMeshExtent(model);
+  const { vertexCount, slotVertexCount, maxStackDepth, maxDrawRank } =
+    folded3dMeshExtent(model);
   if (vertexCount > FOLDED_3D_MESH_VERTEX_BUDGET) {
     return { kind: 'too-large', vertexCount, limit: FOLDED_3D_MESH_VERTEX_BUDGET };
   }
@@ -327,17 +403,53 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
   const rankNudge = (eps * RANK_NUDGE_FRACTION) / Math.max(1, maxDrawRank);
   const minArea2 = MIN_TRIANGLE_AREA_RELATIVE * Math.max(radius * radius, Number.MIN_VALUE);
 
-  const positions = new Float32Array(vertexCount * 3);
+  // Where each layer's paper ends, which is what the crease pass draws. Built
+  // before anything is placed, because the fallback it reports is what sizes the
+  // vertex array.
+  const ink = buildFolded3dInk(model);
+  const assignmentOf = new Uint8Array(model.edge_count);
+  for (let edge = 0; edge < model.edge_count; edge += 1) {
+    assignmentOf[edge] = folded3dEdgeAssignment(
+      model.edge_attr[edge * FOLDED_3D_EDGE_ATTR_STRIDE + 3] ?? 0,
+      model.edge_fold_degrees[edge] ?? 0
+    );
+  }
+
+  const positions = new Float32Array((slotVertexCount + ink.orphanEdges.length * 2) * 3);
   const faceIndices: number[] = [];
+  const edgeIndices: number[] = [];
+  const edgeAssignments: number[] = [];
   const slotCell: number[] = [];
   const slotFace: number[] = [];
   const slotDepth: number[] = [];
   const slotIndexStart: number[] = [];
   const slotVertexStart: number[] = [];
+  const slotEdgeStart: number[] = [];
   let vertex = 0;
 
   let undeterminedSlotStart = 0;
   let undeterminedIndexStart = 0;
+  let undeterminedEdgeStart = 0;
+
+  // The fallback, at the head of the crease arrays and the tail of the vertex
+  // array: a model edge no slot inked, drawn the old way at its true endpoints.
+  // Expected empty. It is emitted first so the undetermined split below stays a
+  // single cut through the crease arrays — these belong to the opaque pass, and
+  // to no slot.
+  let fallbackVertex = slotVertexCount;
+  for (const edge of ink.orphanEdges) {
+    const [a, b] = edgeEnds(model, edge);
+    for (const point of [a, b]) {
+      const sim = toSimBasis(point);
+      positions[fallbackVertex * 3] = sim[0] - centre[0];
+      positions[fallbackVertex * 3 + 1] = sim[1] - centre[1];
+      positions[fallbackVertex * 3 + 2] = sim[2] - centre[2];
+      fallbackVertex += 1;
+    }
+    edgeIndices.push(fallbackVertex - 2, fallbackVertex - 1);
+    edgeAssignments.push(assignmentOf[edge] ?? 0);
+  }
+  const fallbackEdgeCount = edgeAssignments.length;
 
   // Determined cells first, undetermined last, so a caller can draw the two
   // groups with different settings without re-deriving which is which.
@@ -345,6 +457,7 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
     if (wantUndetermined) {
       undeterminedSlotStart = slotCell.length;
       undeterminedIndexStart = faceIndices.length;
+      undeterminedEdgeStart = edgeAssignments.length;
     }
     for (let cell = 0; cell < model.cell_count; cell += 1) {
       const base = cell * FOLDED_3D_CELL_ATTR_STRIDE;
@@ -441,42 +554,32 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
             faceIndices.push(first + a, first + c, first + b);
           }
         }
+        // The creases, from this slot's own ring vertices: two indices each,
+        // no geometry. A segment is inked where *this layer's* paper ends and
+        // skipped where the layer runs across an arrangement cut some other
+        // face made — which is the whole of the occlusion fix, because the
+        // alternative is one line at the fold that belongs to no layer.
+        //
+        // Routinely empty: a layer buried under a wider face ends nowhere
+        // inside it.
+        slotEdgeStart.push(edgeAssignments.length);
+        for (let segment = 0; segment < ring.length; segment += 1) {
+          const edge = ink.edgeAt(cell, slot, segment);
+          if (edge < 0) continue;
+          edgeIndices.push(first + segment, first + ((segment + 1) % ring.length));
+          edgeAssignments.push(assignmentOf[edge] ?? 0);
+        }
+
         slotCell.push(cell);
         slotFace.push(face);
         slotDepth.push(slot);
       }
     }
   }
-  // Close both runs, so slot `i` owns `[start[i], start[i + 1])` in each. The
-  // vertex sentinel is taken before the creases are appended, which is exactly
-  // where the last slot's ring ends.
+  // Close all three runs, so slot `i` owns `[start[i], start[i + 1])` in each.
   slotIndexStart.push(faceIndices.length);
   slotVertexStart.push(vertex);
-
-  // Creases sit at their true endpoints and are **not** displaced: a crease lies
-  // on the intersection of two planes, so pushing it along either normal detaches
-  // it from the fold, visibly -- and a face appears at several cell heights, so
-  // there is no camera-independent height to pick. The edge shader's own
-  // `−0.0008` NDC bias is what keeps them over their paper, and it is the budget
-  // `STACK_SPAN_LIMIT` is measured against.
-  const edgeIndices = new Uint32Array(model.edge_count * 2);
-  const edgeAssignments = new Uint8Array(model.edge_count);
-  for (let edge = 0; edge < model.edge_count; edge += 1) {
-    const [a, b] = edgeEnds(model, edge);
-    for (const point of [a, b]) {
-      const sim = toSimBasis(point);
-      positions[vertex * 3] = sim[0] - centre[0];
-      positions[vertex * 3 + 1] = sim[1] - centre[1];
-      positions[vertex * 3 + 2] = sim[2] - centre[2];
-      vertex += 1;
-    }
-    edgeIndices[edge * 2] = vertex - 2;
-    edgeIndices[edge * 2 + 1] = vertex - 1;
-    edgeAssignments[edge] = folded3dEdgeAssignment(
-      model.edge_attr[edge * FOLDED_3D_EDGE_ATTR_STRIDE + 3] ?? 0,
-      model.edge_fold_degrees[edge] ?? 0
-    );
-  }
+  slotEdgeStart.push(edgeAssignments.length);
 
   return {
     kind: 'mesh',
@@ -484,9 +587,9 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
       positions,
       topology: {
         faceIndices: Uint32Array.from(faceIndices),
-        edgeIndices,
-        edgeAssignments,
-        textureDim: textureSizeFor(vertexCount),
+        edgeIndices: Uint32Array.from(edgeIndices),
+        edgeAssignments: Uint8Array.from(edgeAssignments),
+        textureDim: textureSizeFor(Math.floor(positions.length / 3)),
       },
       center: [0, 0, 0],
       radius,
@@ -499,9 +602,12 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
         depth: Int32Array.from(slotDepth),
         indexStart: Uint32Array.from(slotIndexStart),
         vertexStart: Uint32Array.from(slotVertexStart),
+        edgeStart: Uint32Array.from(slotEdgeStart),
       },
       undeterminedSlotStart,
       undeterminedIndexStart,
+      undeterminedEdgeStart,
+      fallbackEdgeCount,
     },
   };
 }

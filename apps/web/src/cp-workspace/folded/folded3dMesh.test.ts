@@ -52,9 +52,11 @@ import {
 import { foldedFigureExportDocument } from './foldedFigureExport';
 import type { Folded3dPaperStyle } from './folded3dStyle';
 import {
+  buildFolded3dInk,
   cellRing,
   cellStack,
   faceNormal,
+  modelCentroid,
   modelRadius,
   planeFrame,
 } from './folded3dModelReader';
@@ -123,6 +125,57 @@ const CAMERAS: ReadonlyArray<readonly [string, FoldedFigureCamera]> = [
 ];
 
 const FRAME = 512;
+
+/**
+ * The model edge behind every emitted crease, in emission order.
+ *
+ * Re-derived from the ink and the slot table rather than read off the mesh,
+ * which carries no per-crease edge id: this is the wiring under test, so a test
+ * that asked the mesh what it drew could only agree with itself.
+ */
+function creaseSources(
+  model: OristudioCpFolded3dRenderModel,
+  mesh: Folded3dMesh
+): number[] {
+  const ink = buildFolded3dInk(model);
+  const sources = [...ink.orphanEdges];
+  for (let slot = 0; slot < mesh.slots.count; slot += 1) {
+    expect(mesh.slots.edgeStart[slot]).toBe(sources.length);
+    const cell = mesh.slots.cell[slot]!;
+    const segments = model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE + 2] ?? 0;
+    for (let segment = 0; segment < segments; segment += 1) {
+      const edge = ink.edgeAt(cell, mesh.slots.depth[slot]!, segment);
+      if (edge >= 0) sources.push(edge);
+    }
+  }
+  return sources;
+}
+
+/** A world point in the mesh's own space: simulator basis, centroid-relative. */
+function simBasisRelative(
+  model: OristudioCpFolded3dRenderModel,
+  point: readonly [number, number, number]
+): [number, number, number] {
+  const centre = modelCentroid(model);
+  return [
+    point[0] - centre[0],
+    point[2] - centre[2],
+    -(point[1] - centre[1]),
+  ];
+}
+
+function distanceToSegment(
+  p: readonly [number, number, number],
+  a: readonly [number, number, number],
+  b: readonly [number, number, number]
+): number {
+  const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]] as const;
+  const ap = [p[0] - a[0], p[1] - a[1], p[2] - a[2]] as const;
+  const lengthSquared = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2;
+  let t = lengthSquared > 0 ? (ap[0] * ab[0] + ap[1] * ab[1] + ap[2] * ab[2]) / lengthSquared : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(ap[0] - ab[0] * t, ap[1] - ab[1] * t, ap[2] - ab[2] * t);
+}
 
 /**
  * Below this, a plane is edge-on to the eye and there is no depth order to
@@ -232,7 +285,7 @@ describe('folded3dMesh', () => {
       const mesh = meshOf(model);
 
       let expectedSlots = 0;
-      let expectedVertices = model.edge_count * 2;
+      let expectedVertices = 0;
       for (let cell = 0; cell < model.cell_count; cell += 1) {
         const base = cell * FOLDED_3D_CELL_ATTR_STRIDE;
         const ring = model.cell_attr[base + 2] ?? 0;
@@ -241,10 +294,13 @@ describe('folded3dMesh', () => {
         expectedSlots += stack;
         expectedVertices += ring * stack;
       }
+      // Creases cost no vertices — they are indices into the ring copies above —
+      // except in the fallback, which is expected empty on every fixture.
+      expect(mesh.fallbackEdgeCount).toBe(0);
+      expectedVertices += mesh.fallbackEdgeCount * 2;
 
       expect(mesh.slots.count).toBe(expectedSlots);
       expect(mesh.positions.length).toBe(expectedVertices * 3);
-      expect(mesh.topology.edgeIndices.length).toBe(model.edge_count * 2);
       // Every index addresses a vertex that exists.
       for (const index of mesh.topology.faceIndices) {
         expect(index).toBeLessThan(expectedVertices);
@@ -254,6 +310,70 @@ describe('folded3dMesh', () => {
       }
       expect(mesh.slots.indexStart.length).toBe(mesh.slots.count + 1);
       expect(mesh.slots.indexStart[mesh.slots.count]).toBe(mesh.topology.faceIndices.length);
+      // The crease run closes the same way, counted in edges rather than
+      // indices, and starts past the fallback block — which owns no slot.
+      expect(mesh.topology.edgeIndices.length).toBe(
+        mesh.topology.edgeAssignments.length * 2
+      );
+      expect(mesh.slots.edgeStart.length).toBe(mesh.slots.count + 1);
+      expect(mesh.slots.edgeStart[0]).toBe(mesh.fallbackEdgeCount);
+      expect(mesh.slots.edgeStart[mesh.slots.count]).toBe(
+        mesh.topology.edgeAssignments.length
+      );
+      for (let slot = 1; slot <= mesh.slots.count; slot += 1) {
+        expect(mesh.slots.edgeStart[slot]!).toBeGreaterThanOrEqual(
+          mesh.slots.edgeStart[slot - 1]!
+        );
+      }
+    });
+
+    it.each(NAMES)('%s draws a crease from the ring of the layer it bounds', (name) => {
+      const model = fixture(name);
+      const mesh = meshOf(model);
+      // Both ends of an emitted crease are ring vertices of the slot that owns
+      // it — that is the whole mechanism, and it is what gives the crease the
+      // depth of its own paper instead of the depth of the fold line.
+      for (let slot = 0; slot < mesh.slots.count; slot += 1) {
+        const first = mesh.slots.vertexStart[slot]!;
+        const past = mesh.slots.vertexStart[slot + 1]!;
+        for (
+          let edge = mesh.slots.edgeStart[slot]!;
+          edge < mesh.slots.edgeStart[slot + 1]!;
+          edge += 1
+        ) {
+          for (const index of [
+            mesh.topology.edgeIndices[edge * 2]!,
+            mesh.topology.edgeIndices[edge * 2 + 1]!,
+          ]) {
+            expect(index).toBeGreaterThanOrEqual(first);
+            expect(index).toBeLessThan(past);
+          }
+        }
+      }
+    });
+
+    it.each(NAMES)('%s draws no crease at a layer whose paper runs across it', (name) => {
+      const model = fixture(name);
+      const mesh = meshOf(model);
+      // A layer can only end at segments of its own cell's ring, so its crease
+      // count is bounded by the ring — and is strictly under it wherever the
+      // arrangement was cut by some *other* face lying over this one.
+      let slotsWithFewerCreasesThanSegments = 0;
+      for (let slot = 0; slot < mesh.slots.count; slot += 1) {
+        const cell = mesh.slots.cell[slot]!;
+        const segments = model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE + 2] ?? 0;
+        const creases = mesh.slots.edgeStart[slot + 1]! - mesh.slots.edgeStart[slot]!;
+        expect(creases).toBeLessThanOrEqual(segments);
+        if (creases < segments) slotsWithFewerCreasesThanSegments += 1;
+      }
+      // `hinge_90` overlaps nothing and `strip_coupled`'s panels coincide
+      // *exactly*, so in both every layer really does end at every segment of
+      // its ring and inking all of them is the right answer. The other four have
+      // partial overlap, which is the case the old mesh got wrong: without this
+      // the ink could be "always yes" and every bound above would still hold.
+      const partiallyOverlapping = name !== 'hinge_90' && name !== 'strip_coupled';
+      if (partiallyOverlapping) expect(slotsWithFewerCreasesThanSegments).toBeGreaterThan(0);
+      else expect(slotsWithFewerCreasesThanSegments).toBe(0);
     });
 
     it.each(NAMES)('%s reports the radius the figure frame is sized from', (name) => {
@@ -815,16 +935,22 @@ describe('folded3dMesh', () => {
       expect(folded3dEdgeAssignment(FOLDED_3D_EDGE_UNKNOWN, -45)).toBe(0);
     });
 
-    it.each(NAMES)('%s assigns every edge a code the edge pass draws', (name) => {
+    it.each(NAMES)('%s assigns every crease a code the edge pass draws', (name) => {
       const model = fixture(name);
       const mesh = meshOf(model);
+      const sources = creaseSources(model, mesh);
+      expect(sources).toHaveLength(mesh.topology.edgeAssignments.length);
+
       let mountains = 0;
       let valleys = 0;
-      for (let edge = 0; edge < model.edge_count; edge += 1) {
-        const code = mesh.topology.edgeAssignments[edge]!;
+      for (let crease = 0; crease < sources.length; crease += 1) {
+        const edge = sources[crease]!;
+        const code = mesh.topology.edgeAssignments[crease]!;
         // Never 3: that is the one code `buildEdgeQuads` skips, and every edge
         // the payload carries is drawn today.
         expect(code).toBeLessThanOrEqual(2);
+        // And it is the code of the model edge this crease was drawn from, not
+        // of whatever happened to sit at the same array position.
         const kind = model.edge_attr[edge * FOLDED_3D_EDGE_ATTR_STRIDE + 3] ?? 0;
         const degrees = model.edge_fold_degrees[edge] ?? 0;
         if (kind !== FOLDED_3D_EDGE_CREASE) expect(code).toBe(0);
@@ -834,29 +960,67 @@ describe('folded3dMesh', () => {
       // Every fixture is a real fold, so it has creases of both signs or of one —
       // but never none.
       expect(mountains + valleys).toBeGreaterThan(0);
+      // And no model edge silently vanished: each is drawn by at least one slot.
+      expect(new Set(sources).size).toBe(model.edge_count);
     });
 
-    it.each(NAMES)('%s places crease endpoints at their true positions', (name) => {
+    it.each(NAMES)('%s places a crease on its fold line, at its layer', (name) => {
       const model = fixture(name);
       const mesh = meshOf(model);
-      // Creases are deliberately *not* displaced: a crease lies on the
-      // intersection of two planes, so pushing it along either normal detaches it
-      // from the fold. Their span must therefore match the payload's exactly.
-      for (let edge = 0; edge < model.edge_count; edge += 1) {
-        const a = mesh.topology.edgeIndices[edge * 2]!;
-        const b = mesh.topology.edgeIndices[edge * 2 + 1]!;
+      const sources = creaseSources(model, mesh);
+      // A crease is a *segment* of the model edge it bounds, lifted onto its own
+      // layer. So it lies within the ply of the fold line — never beyond it, and
+      // never longer than the edge it came from.
+      //
+      // The whole ply plus the draw-rank nudge (`RANK_NUDGE_FRACTION`, 5% of a
+      // gap) is the ceiling; a crease further out than that is attached to the
+      // wrong edge, which is the failure this replaces "endpoints are exact"
+      // with.
+      const ceiling = mesh.eps * mesh.maxStackDepth + 1e-6 * model.span;
+      let displaced = 0;
+      for (let crease = 0; crease < sources.length; crease += 1) {
+        const edge = sources[crease]!;
+        const at = edge * 6;
+        const ends = [
+          simBasisRelative(model, [
+            model.edge_points[at]!,
+            model.edge_points[at + 1]!,
+            model.edge_points[at + 2]!,
+          ]),
+          simBasisRelative(model, [
+            model.edge_points[at + 3]!,
+            model.edge_points[at + 4]!,
+            model.edge_points[at + 5]!,
+          ]),
+        ] as const;
+        const a = mesh.topology.edgeIndices[crease * 2]!;
+        const b = mesh.topology.edgeIndices[crease * 2 + 1]!;
+        for (const index of [a, b]) {
+          const point: [number, number, number] = [
+            mesh.positions[index * 3]!,
+            mesh.positions[index * 3 + 1]!,
+            mesh.positions[index * 3 + 2]!,
+          ];
+          const off = distanceToSegment(point, ends[0], ends[1]);
+          expect(off).toBeLessThanOrEqual(ceiling);
+          if (off > 1e-9 * model.span) displaced += 1;
+        }
         const meshLength = Math.hypot(
           mesh.positions[a * 3]! - mesh.positions[b * 3]!,
           mesh.positions[a * 3 + 1]! - mesh.positions[b * 3 + 1]!,
           mesh.positions[a * 3 + 2]! - mesh.positions[b * 3 + 2]!
         );
-        const at = edge * 6;
         const payloadLength = Math.hypot(
-          model.edge_points[at]! - model.edge_points[at + 3]!,
-          model.edge_points[at + 1]! - model.edge_points[at + 4]!,
-          model.edge_points[at + 2]! - model.edge_points[at + 5]!
+          ends[0][0] - ends[1][0],
+          ends[0][1] - ends[1][1],
+          ends[0][2] - ends[1][2]
         );
-        expect(meshLength).toBeCloseTo(payloadLength, 3);
+        expect(meshLength).toBeLessThanOrEqual(payloadLength + 1e-6 * model.span);
+      }
+      // And the displacement is really applied — a mesh that still drew creases
+      // at the fold line would satisfy every bound above.
+      if ([...mesh.slots.depth].some((depth) => depth > 0)) {
+        expect(displaced).toBeGreaterThan(0);
       }
     });
   });

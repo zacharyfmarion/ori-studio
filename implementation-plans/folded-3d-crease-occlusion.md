@@ -188,15 +188,25 @@ the inline simulator's own rendering.
 
 ### Phase 2 — the mesh (lands with Phase 3; alone it changes nothing)
 
-- [ ] Emit crease indices from each slot's existing ring vertices; delete the
+- [x] Emit crease indices from each slot's existing ring vertices; delete the
       trailing crease vertex block.
-- [ ] `slots.edgeStart` (count + 1), mirroring `indexStart` / `vertexStart`.
-- [ ] `undeterminedEdgeStart`, so the undetermined pass owns its own creases.
-- [ ] Fallback: model edges inked nowhere emit undisplaced, as today.
-- [ ] `folded3dMeshExtent` updated in the same commit; assert it equals what the
-      builder produces, for every fixture.
-- [ ] Rewrite the module header — it currently *argues for* the bug — and
+- [x] `slots.edgeStart` (count + 1), mirroring `indexStart` / `vertexStart`.
+- [x] `undeterminedEdgeStart`, so the undetermined pass owns its own creases.
+- [x] Fallback: model edges inked nowhere emit undisplaced, as today.
+- [x] `folded3dMeshExtent` updated in the same commit. It is now an explicit
+      **upper bound** rather than exact — creases cost no vertices, so the slack
+      is the un-inked remainder of `2 · edge_count`, and asking exactly would
+      mean building the ink in what is meant to be an integer pass. Bounding is
+      the safe direction for a budget check.
+- [x] Rewrite the module header — it currently *argues for* the bug — and
       `STACK_SPAN_LIMIT`'s justification.
+- [x] Rewrite the three mesh tests that encoded the old contract, rather than
+      relaxing them: "one crease per model edge" becomes "a crease is a segment
+      of its edge, on its layer"; "endpoints are exact" becomes "within the ply,
+      and the displacement is really applied". Two new ones state the mechanism
+      directly — a crease's ends are ring vertices of the slot that owns it, and
+      a layer inks fewer segments than its ring has wherever another face cut
+      the arrangement over it.
 
 ### Phase 3 — the bias
 
