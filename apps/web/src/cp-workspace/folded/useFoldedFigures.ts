@@ -49,6 +49,7 @@ import {
   clampSimulatorZoom,
   simulatorWheelZoomFactor,
   type SimulatorOrbitDrag,
+  type SimulatorOrbitPoint,
 } from '../../lib/simulatorOrbit';
 import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
 import { ANALYTICS_EVENTS, COUNT_BUCKETS, bucketCount } from '../../analytics/events';
@@ -399,8 +400,15 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     [focusedFoldedBox, oristudioCpFocusedFoldedFigureId]
   );
 
+  /**
+   * Anchor a turn. `point` is in **CSS pixels**, not the user-space point
+   * {@link orbitClaimsPress} took — see `foldedFigureOrbitGesture`. The press
+   * answers "is this on the figure" in the space the box lives in and "how far
+   * has the hand moved" in the space the hand moves in, and those are not the
+   * same space once the crease-pattern camera is zoomed or rotated.
+   */
   const beginOrbit = useCallback(
-    (point: Vec2) => {
+    (point: SimulatorOrbitPoint) => {
       const id = oristudioCpFocusedFoldedFigureId;
       if (!id) return false;
       const figure = figureById(id);
@@ -429,7 +437,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
    * `folded3dRuntime.ts`.
    */
   const advanceOrbit = useCallback(
-    (point: Vec2) => {
+    (point: SimulatorOrbitPoint) => {
       const session = orbitDragRef.current;
       if (!session) return;
       const figure = figureById(session.id);

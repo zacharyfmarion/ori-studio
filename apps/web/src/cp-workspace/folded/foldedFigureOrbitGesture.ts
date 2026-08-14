@@ -11,6 +11,24 @@
  * inert its own canvas receives the drag; a folded figure is drawn into the
  * shared WebGL surface and has no element, so the press falls through to the
  * crease-pattern canvas and it has to ask this module whether it was meant.
+ *
+ * # Two questions, two spaces
+ *
+ * The press answers two things, and they do not want the same coordinates:
+ *
+ * - **Was this press on the figure?** — crease-pattern **user** space, because
+ *   that is where the figure's box lives.
+ * - **How far has the pointer travelled?** — **CSS pixels**, straight off the
+ *   event, because that is what the simulator measures and therefore what "the
+ *   same drag turns it the same amount" has to mean.
+ *
+ * Answering the second in user space is what this module was doing, and it is
+ * wrong in a way that is invisible at one camera and only there. `clientToUser`
+ * scales the delta by `dpr / cam.zoom` and rotates it by `-cam.rotation`, and
+ * the zoom readout's 100% is defined as one user unit per CSS pixel — i.e.
+ * `cam.zoom == dpr` — so the two factors cancel at 100% and nowhere else. At
+ * 200% the figure turned at half rate, at 50% at double, and on a canvas rotated
+ * for hex pleating a horizontal drag yawed *and* pitched.
  */
 
 import {
@@ -51,6 +69,10 @@ export function foldedFigureOrbitClaimsPress(
 /**
  * The drag anchor: where the pointer went down, and the camera it went down on.
  *
+ * `point` is in **CSS pixels** — see the note on spaces above. Nothing here can
+ * check that, so the guarantee is the caller's; what this module can do is only
+ * ever be handed the same space the simulator hands `nextSimulatorOrbitView`.
+ *
  * Both halves are needed because orbit is measured from the press rather than
  * integrated frame to frame — integrating would accumulate rounding over a long
  * drag, and would make a dropped move permanently shift the model.
@@ -63,11 +85,14 @@ export function beginFoldedFigureOrbit(
 }
 
 /**
- * The camera the figure should be drawn at, for a pointer now at `point`.
+ * The camera the figure should be drawn at, for a pointer now at `point`,
+ * in the same **CSS pixels** {@link beginFoldedFigureOrbit} anchored on.
  *
  * The turn itself is [`nextSimulatorOrbitView`], imported rather than copied:
  * a figure and a simulation must answer the same drag with the same rotation,
  * or "it behaves like the simulator" is false in the one way a user can feel.
+ * Sharing the arithmetic is necessary and was never sufficient — the same
+ * function over a differently-scaled delta is a different gesture.
  * `FoldedFigureCamera` and `SimulatorOrbitView` are the same three fields by
  * convergence — see the note on `FoldedFigureCamera` — and this function is the
  * only place that relies on it, so a future divergence has one site to fix.
