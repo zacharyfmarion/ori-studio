@@ -55,8 +55,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::folding::AdditionalEstimationError;
 use crate::folding::{
-    EquivalenceCondition, EquivalenceConditionSet, HierarchyRelation, InitialHierarchy, SubFace,
-    WorkerOverlapEnumerator, WorkerOverlapSearchError, validate_initial_hierarchy,
+    EquivalenceCondition, EquivalenceConditionSet, HierarchyRelation, InitialHierarchy,
+    PermutationError, SubFace, WorkerOverlapEnumerator, WorkerOverlapSearchError,
+    validate_initial_hierarchy,
 };
 use crate::folding3d::Fold3dTolerances;
 use crate::folding3d::cells::{CellError, CellIndex, cell_index};
@@ -528,11 +529,16 @@ impl ComponentSolver {
             self.has_next = false;
             return Ok(false);
         }
+        // Same reasoning as `search_error`: the odometer polls for a stop, so
+        // discarding its error discards the cancel with it.
         let next = self
             .enumerator
             .next(self.enumerator.valid_count())
-            .map_err(|_| Fold3dOrderError::SearchFailed {
-                component: self.position,
+            .map_err(|error| match error {
+                PermutationError::Cancelled => Fold3dOrderError::Cancelled,
+                PermutationError::InvalidDigit { .. } => Fold3dOrderError::SearchFailed {
+                    component: self.position,
+                },
             })?;
         self.has_next = next > 0;
         self.current = overlap.hierarchy;
@@ -567,7 +573,23 @@ fn build_enumerator(
     .map_err(|error| search_error(position, error))
 }
 
+/// Classify a search failure, **asking about the stop first**.
+///
+/// The wildcard below is the whole hazard: every cancel arm of
+/// [`WorkerOverlapSearchError`] — its own, the one nested in `SubFace`, the one
+/// nested in `AdditionalEstimation`, the one nested in `Setup` — falls into it
+/// and comes out as `SearchFailed`, which [`Fold3dOrderError::is_cancelled`]
+/// reports as *not* a cancel. `Fold3dSession::new` then takes its degrade path
+/// instead of unwinding and mints a figure saying the layers cannot be ordered,
+/// plus a handle, a canvas entry, an undo step and a dirty project. A cancel
+/// unwinds; it never concludes.
+///
+/// `is_cancelled` already walks every nested arm correctly. The bug was only
+/// that nothing called it.
 fn search_error(component: usize, error: WorkerOverlapSearchError) -> Fold3dOrderError {
+    if error.is_cancelled() {
+        return Fold3dOrderError::Cancelled;
+    }
     match error {
         WorkerOverlapSearchError::AdditionalEstimation(
             AdditionalEstimationError::Contradiction {
@@ -931,6 +953,11 @@ impl Builder {
                 first: (SeedKind::Cut, usize::MAX),
                 second: (SeedKind::Cut, usize::MAX),
             },
+            // `FoldSetupError` carries its own cancel arms, so this cannot be a
+            // bare wildcard either — see `search_error`.
+            AdditionalEstimationError::Setup(setup) if setup.is_cancelled() => {
+                Fold3dOrderError::Cancelled
+            }
             AdditionalEstimationError::Setup(_) => Fold3dOrderError::SearchFailed {
                 component: position,
             },
