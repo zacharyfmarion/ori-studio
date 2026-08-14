@@ -26,6 +26,7 @@ import {
   ORIEDITA_PAPER_BOUNDS,
   orieditaGridBaseState,
   orieditaGridLinesForModelBounds,
+  snappableOrieditaGrid,
   toggleCpSelectionList,
   visibleOrieditaGridMetadata,
 } from './creasePatternViewport';
@@ -370,6 +371,22 @@ describe('crease pattern viewport helpers', () => {
     ).toMatchObject({ kind: 'grid', point: { x: 40, y: 40 } });
   });
 
+  it('offers no grid point once the grid is hidden, though the document keeps its own state', () => {
+    // Same pointer as above, which lands well inside the capture radius of the
+    // lattice point (40, 40); only the Grid toggle changes. The document still
+    // declares WITHIN_PAPER, and used to go on snapping because of it.
+    const bounds = getEditableCpModelBounds(document);
+    const gridOff = {
+      gridVisible: false,
+      snapToGrid: true,
+      snapToVertices: false,
+      snapToLines: false,
+    };
+
+    expect(nearestCpSnapTarget(document, { x: 38, y: 42 }, bounds, gridOff)).toBeNull();
+    expect(nearestOrieditaDrawPointTarget(document, { x: 38, y: 42 }, bounds, gridOff)).toBeNull();
+  });
+
   it('treats paper corners as point-like snap targets', () => {
     const options = {
       gridVisible: false,
@@ -453,17 +470,16 @@ describe('kernel-side snap policy', () => {
     expect(cpKernelSnapCandidates(grid, allOn)).toEqual({ grid: 'Full', vertices: true });
   });
 
-  it('falls back to the document grid state when the grid is hidden from view', () => {
-    expect(cpKernelSnapCandidates(grid, { ...allOn, gridVisible: false })).toEqual({
-      grid: 'WithinPaper',
-      vertices: true,
-    });
-    expect(
-      cpKernelSnapCandidates({ ...grid, base_state: 'Hidden' }, { ...allOn, gridVisible: false })
-    ).toEqual({ grid: 'Hidden', vertices: true });
-    expect(
-      cpKernelSnapCandidates({ ...grid, base_state: 'Full' }, { ...allOn, gridVisible: false })
-    ).toEqual({ grid: 'Full', vertices: true });
+  it('drops the grid when it is hidden, whatever the document declares', () => {
+    // The document's own grid state is deliberately *not* consulted. Nothing in
+    // the UI writes it and a new document defaults to WITHIN_PAPER, so falling
+    // back to it left the Grid toggle unable to stop a grid snap — the endpoint
+    // kept landing on lattice points nobody could see.
+    for (const baseState of ['WithinPaper', 'Full', 'Hidden', 'within_paper', 'nonsense']) {
+      expect(
+        cpKernelSnapCandidates({ ...grid, base_state: baseState }, { ...allOn, gridVisible: false })
+      ).toEqual({ grid: 'Hidden', vertices: true });
+    }
   });
 
   it('drops the grid when snapping to it is off, however the grid is displayed', () => {
@@ -491,10 +507,13 @@ describe('kernel-side snap policy', () => {
     ).toEqual({ grid: 'Hidden', vertices: false });
   });
 
-  it('reads an unknown stored grid state the way the rest of the viewport does', () => {
-    expect(
-      cpKernelSnapCandidates({ ...grid, base_state: 'within_paper' }, { ...allOn, gridVisible: false })
-    ).toEqual({ grid: 'WithinPaper', vertices: true });
+  it('answers the same question the canvas snappers ask', () => {
+    // One predicate, three callers. A policy that names the grid while the
+    // canvas snapper ignores it is the ring-vs-endpoint disagreement this
+    // shared helper exists to prevent.
+    expect(snappableOrieditaGrid(grid, allOn)).toMatchObject({ base_state: 'Full' });
+    expect(snappableOrieditaGrid(grid, { ...allOn, gridVisible: false })).toBeNull();
+    expect(snappableOrieditaGrid(grid, { ...allOn, snapToGrid: false })).toBeNull();
   });
 });
 

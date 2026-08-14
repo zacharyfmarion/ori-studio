@@ -4,6 +4,7 @@ import type { CpRenderer } from './renderer/CpRenderer';
 import { readCssVarColor } from './renderer/cssColor';
 import { syncHeldModifiersFromEvent } from '../keyboard/heldModifiers';
 import { resolveWheelGesture, type WheelGesturePreference } from '../lib/wheelGesture';
+import { claimWheelBurst, forwardWheel } from '../lib/wheelBurst';
 import { cpCanvasCursor, usePanModifierHeld } from './cpCanvasCursor';
 import {
   cameraZoomForPercent,
@@ -102,6 +103,16 @@ import { createToolRuntime, type ToolRuntime } from './tools/runtime';
 import { createStepSequenceTool } from './tools/stepSequenceTool';
 import { createLinePickTool } from './tools/linePickTool';
 import type { ToolCommit, ToolPreviewSegment } from './tools/types';
+import {
+  CP_LINE_HIT_MIN_CSS,
+  CP_LINE_HIT_RATIO,
+  CP_POINT_HIT_MIN_CSS,
+  CP_POINT_HIT_RATIO,
+  CP_SNAP_RATIO,
+  cpHitRadiusModel,
+  cpKernelSnapRadiusModel,
+  cpSnapRadiusModel,
+} from './snapRadius';
 import type { ToolClickAction } from './tools/predicates';
 
 /**
@@ -234,13 +245,11 @@ const SELECTION_FALLBACK: Rgba = [0.4, 0.6, 1, 1];
 const SELECTION_WIDTH_MUL = 2.6;
 /** Alpha of a copy gesture's ghost, so prospective creases read as not-yet-real. */
 const GHOST_ALPHA = 0.55;
-/** Click hit tolerances (CSS px). Points/vertices are small precise targets, so
-    they win only on a tighter radius than the fatter line tolerance. */
-const HIT_TOLERANCE_CSS = 8;
-const POINT_HIT_TOLERANCE_CSS = 6;
+/** Click-vs-drag gesture threshold (CSS px). Deliberately *not* a radius: it must
+    not scale with the snap-radius setting, or a large radius would swallow short
+    deliberate drags. The three radii it used to sit beside (10 / 8 / 6) are now one
+    law in `snapRadius.ts`. */
 const CLICK_MOVE_THRESHOLD = 4;
-/** Move-drag snap radius (CSS px): how close an anchor must be to a target. */
-const SNAP_TOLERANCE_CSS = 10;
 
 /** Grid colour: `--border-default` composited at 82% (matches the SVG grid line). */
 const GRID_COLOR_VAR = '--border-default';
@@ -514,11 +523,17 @@ export interface CreasePatternWebglCanvasProps {
    */
   activeToolCommitsLoneCandidate: boolean;
   /**
-   * The selection distance (model units) the panel sends with the active command, so
-   * a `crease-required` step can gate its pick on exactly the radius the kernel will
-   * search — a click the kernel would reject is ignored instead of erroring.
+   * The user's snap radius in model units (Oriedita's `mouseRadius`). Every
+   * tolerance on this surface derives from it through `cpSnapRadiusModel`.
    */
-  activeToolSelectionDistance: number;
+  snapRadius: number;
+  /**
+   * Publishes the resolved snap distance whenever it changes, so the panel sends
+   * the kernel *exactly* the radius this surface snapped with. Deriving it there
+   * from the reported zoom percent would skew by the percent rounding, and a
+   * `crease-required` step gates its pick on this number matching the kernel's.
+   */
+  onSnapDistanceChange: (distance: number) => void;
   /** Number of crease picks a `line-entity` tool collects before committing. */
   activeToolLineCount: number;
   /**
@@ -824,7 +839,8 @@ export function CreasePatternWebglCanvas({
   wheelGesture,
   activeToolStepKinds,
   activeToolCommitsLoneCandidate,
-  activeToolSelectionDistance,
+  snapRadius,
+  onSnapDistanceChange,
   activeToolLineCount,
   activeToolRequireSnap,
   activeToolClickAction,
@@ -1001,6 +1017,7 @@ export function CreasePatternWebglCanvas({
   const lastReportedCameraRef = useRef<UserCamera | null>(null);
   // Last zoom percent reported to the panel (dedupes the per-frame report).
   const lastReportedZoomRef = useRef<number | null>(null);
+  const lastReportedSnapDistanceRef = useRef(Number.NaN);
   // Last model→CSS affine reported to the panel (for the text overlay), to dedupe.
   const lastReportedViewRef = useRef<CpOverlayViews | null>(null);
   // Square Bisector's dual-mode accumulator: `mode` is chosen on the first pick
@@ -1317,7 +1334,8 @@ export function CreasePatternWebglCanvas({
     wheelGesture,
     activeToolStepKinds,
     activeToolCommitsLoneCandidate,
-    activeToolSelectionDistance,
+    snapRadius,
+    onSnapDistanceChange,
     activeToolLineCount,
     activeToolRequireSnap,
     activeToolClickAction,
@@ -1605,6 +1623,16 @@ export function CreasePatternWebglCanvas({
         liveRef.current.onZoomPercentChange(zoomPercent);
       }
 
+      // The panel builds command payloads from this, so it must be the exact
+      // radius this surface snapped with rather than a re-derivation from the
+      // rounded percent above. Every prop change re-runs the render effect, so a
+      // change to the setting republishes without its own listener.
+      const snapDistance = cpKernelSnapRadiusModel(liveRef.current.snapRadius, cam.zoom / ratio);
+      if (snapDistance !== lastReportedSnapDistanceRef.current) {
+        lastReportedSnapDistanceRef.current = snapDistance;
+        liveRef.current.onSnapDistanceChange(snapDistance);
+      }
+
       if (cam.rotation !== lastReportedRotationRef.current) {
         lastReportedRotationRef.current = cam.rotation;
         liveRef.current.onRotationChange(cam.rotation);
@@ -1746,6 +1774,35 @@ export function CreasePatternWebglCanvas({
       return (cssTol * dpr()) / Math.max(1e-6, scale);
     };
 
+    /** Live zoom in the toolbar's terms: CSS px per SVG user unit. */
+    const zoomOf = (): number => {
+      const cam = cameraRef.current;
+      return cam ? cam.zoom / dpr() : 1;
+    };
+    /**
+     * The three radii, one law scaled by its ratios — see `snapRadius.ts`. They
+     * were independent CSS-px constants (10 / 8 / 6) until the radius became a
+     * user setting and they had to move together.
+     */
+    const snapTolerance = (): number =>
+      cpSnapRadiusModel(liveRef.current.snapRadius, zoomOf(), CP_SNAP_RATIO);
+    // Hit radii never tighten below pointer precision — see `cpHitRadiusModel`.
+    const lineHitTolerance = (): number =>
+      cpHitRadiusModel(liveRef.current.snapRadius, zoomOf(), CP_LINE_HIT_RATIO, CP_LINE_HIT_MIN_CSS);
+    const pointHitTolerance = (): number =>
+      cpHitRadiusModel(
+        liveRef.current.snapRadius,
+        zoomOf(),
+        CP_POINT_HIT_RATIO,
+        CP_POINT_HIT_MIN_CSS
+      );
+    /**
+     * What the kernel will search. Bounded by the setting, unlike the on-screen
+     * radius, so a `crease-required` step gates on the kernel's own number.
+     */
+    const kernelSnapTolerance = (): number =>
+      cpKernelSnapRadiusModel(liveRef.current.snapRadius, zoomOf());
+
     // The id of the diagnostic marker under a model point, if any (nearest within a
     // screen-constant radius). Markers are screen-sized, so the tolerance is CSS px.
     // Pick the primitive under the cursor. Points win only on a tight radius
@@ -1755,8 +1812,8 @@ export function CreasePatternWebglCanvas({
       const m = clientToModel(clientX, clientY);
       if (!m) return null;
       const l = liveRef.current;
-      const ptTol = modelToleranceOf(POINT_HIT_TOLERANCE_CSS);
-      const lineTol = modelToleranceOf(HIT_TOLERANCE_CSS);
+      const ptTol = pointHitTolerance();
+      const lineTol = lineHitTolerance();
 
       const p = l.pointIndex.query(m.x, m.y, ptTol);
       if (p > 0) return { kind: 'point', id: p };
@@ -1970,7 +2027,7 @@ export function CreasePatternWebglCanvas({
       const raw = clientToModel(clientX, clientY);
       if (!raw) return;
       const resolved = snaps
-        ? liveRef.current.resolveDrawPoint(raw, modelToleranceOf(SNAP_TOLERANCE_CSS))
+        ? liveRef.current.resolveDrawPoint(raw, snapTolerance())
         : { point: raw, snapped: false };
       // Grid-restricted draw: an endpoint must land on a snapped grid/vertex point.
       // A drag that releases off-target is dropped, as upstream's release does. A
@@ -2086,14 +2143,14 @@ export function CreasePatternWebglCanvas({
       }
       const raw = clientToModel(clientX, clientY);
       if (!raw) return;
-      const tol = modelToleranceOf(SNAP_TOLERANCE_CSS);
+      const tol = snapTolerance();
       // Mirror Line decides its step kinds on the first press: a pick on a
       // vertex/point runs a 3-point sequence, a pick on a bare crease a 2-line one.
       if (liveRef.current.activeToolDualMirror && !persistentToolRuntimeRef.current) {
         const firstPickKind = liveRef.current.resolveFirstPickKind(
           raw,
           tol,
-          modelToleranceOf(POINT_HIT_TOLERANCE_CSS)
+          pointHitTolerance()
         );
         if (kind !== 'down') {
           // Hovering before the first pick — preview the mode the click will enter so
@@ -2125,7 +2182,7 @@ export function CreasePatternWebglCanvas({
         const firstPickKind = liveRef.current.resolveFirstPickKind(
           raw,
           tol,
-          modelToleranceOf(POINT_HIT_TOLERANCE_CSS)
+          pointHitTolerance()
         );
         if (firstPickKind === 'line') {
           const lineId = liveRef.current.hitIndex.query(raw.x, raw.y, tol);
@@ -2178,7 +2235,7 @@ export function CreasePatternWebglCanvas({
           liveRef.current.hitIndex.query(
             point.x,
             point.y,
-            liveRef.current.activeToolSelectionDistance
+            kernelSnapTolerance()
           ) <= 0
         ) {
           return;
@@ -2208,7 +2265,7 @@ export function CreasePatternWebglCanvas({
       // snap ring marks the junction; which crease is meant would be ambiguous).
       const hoverLine =
         creaseStep && !snappedToVertex
-          ? liveRef.current.hitIndex.query(point.x, point.y, modelToleranceOf(HIT_TOLERANCE_CSS))
+          ? liveRef.current.hitIndex.query(point.x, point.y, lineHitTolerance())
           : -1;
       const highlight = hoverLine > 0 ? [hoverLine] : [];
       const out = runtime.feed({ kind, point });
@@ -2281,7 +2338,7 @@ export function CreasePatternWebglCanvas({
       }
       const raw = clientToModel(clientX, clientY);
       if (!raw) return;
-      const tol = modelToleranceOf(SNAP_TOLERANCE_CSS);
+      const tol = snapTolerance();
       const base = convergingBaseRef.current;
 
       if (base.length < 2) {
@@ -2292,7 +2349,7 @@ export function CreasePatternWebglCanvas({
             // radius) — otherwise the crease an endpoint caps always shadows the vertex
             // (its distance-to-segment is ~0 there), making vertices impossible to grab.
             const lineId =
-              liveRef.current.resolveFirstPickKind(raw, tol, modelToleranceOf(POINT_HIT_TOLERANCE_CSS)) === 'line'
+              liveRef.current.resolveFirstPickKind(raw, tol, pointHitTolerance()) === 'line'
                 ? liveRef.current.hitIndex.query(raw.x, raw.y, tol)
                 : 0;
             const seg = lineId > 0 ? liveRef.current.lineSegments[lineId - 1] : undefined;
@@ -2316,7 +2373,7 @@ export function CreasePatternWebglCanvas({
           // the point it would snap to. Mirror the commit's point-wins-ties rule so
           // the preview matches what the click will actually grab.
           const lineId =
-            liveRef.current.resolveFirstPickKind(raw, tol, modelToleranceOf(POINT_HIT_TOLERANCE_CSS)) === 'line'
+            liveRef.current.resolveFirstPickKind(raw, tol, pointHitTolerance()) === 'line'
               ? liveRef.current.hitIndex.query(raw.x, raw.y, tol)
               : 0;
           liveRef.current.onToolPreviewInput([], lineId > 0 ? [lineId] : []);
@@ -2373,15 +2430,15 @@ export function CreasePatternWebglCanvas({
       }
       const raw = clientToModel(clientX, clientY);
       if (!raw) return;
-      const tol = modelToleranceOf(SNAP_TOLERANCE_CSS);
-      const hitTol = modelToleranceOf(HIT_TOLERANCE_CSS);
+      const tol = snapTolerance();
+      const hitTol = lineHitTolerance();
       const lineUnderCursor = () => liveRef.current.hitIndex.query(raw.x, raw.y, hitTol);
 
       // First pick decides point mode vs line mode (point-priority, like Mirror Line).
       // The line lookup uses the classifier's tolerance (`tol`), not the tighter hit
       // tolerance, so a click the classifier calls a line always resolves to one.
       if (state.mode === null) {
-        if (liveRef.current.resolveFirstPickKind(raw, tol, modelToleranceOf(POINT_HIT_TOLERANCE_CSS)) === 'line') {
+        if (liveRef.current.resolveFirstPickKind(raw, tol, pointHitTolerance()) === 'line') {
           const lineId = liveRef.current.hitIndex.query(raw.x, raw.y, tol);
           if (kind === 'down') {
             if (lineId > 0) {
@@ -2510,7 +2567,7 @@ export function CreasePatternWebglCanvas({
       }
       const raw = clientToModel(clientX, clientY);
       if (!raw) return;
-      const hit = liveRef.current.hitIndex.query(raw.x, raw.y, modelToleranceOf(HIT_TOLERANCE_CSS));
+      const hit = liveRef.current.hitIndex.query(raw.x, raw.y, lineHitTolerance());
       const hoveredId = hit > 0 ? hit : null;
       const out = runtime.feed({ kind, point: raw, lineId: hoveredId });
       if (out.commit) {
@@ -2547,7 +2604,7 @@ export function CreasePatternWebglCanvas({
       // in the selection style so they read as selected as the line is drawn through them.
       const pickedCreaseIds = (a: ModelPoint, b: ModelPoint): number[] => {
         if (Math.hypot(b.x - a.x, b.y - a.y) <= modelToleranceOf(CLICK_MOVE_THRESHOLD)) {
-          const hit = liveRef.current.hitIndex.query(b.x, b.y, modelToleranceOf(HIT_TOLERANCE_CSS));
+          const hit = liveRef.current.hitIndex.query(b.x, b.y, lineHitTolerance());
           return hit > 0 ? [hit] : [];
         }
         const ids: number[] = [];
@@ -2648,6 +2705,9 @@ export function CreasePatternWebglCanvas({
     // Turning a focused 3D folded figure. The overlay has made its body inert,
     // so its presses arrive here instead of moving it.
     let orbiting = false;
+    // Whether the wheel gesture in flight is turning a focused folded figure,
+    // and which gesture that answer was worked out for. See `onWheel`.
+    let foldedWheelBurst: { id: number; claimed: boolean } | null = null;
     // Active selection move-drag: press point (model) and running delta (model).
     let movingSelection = false;
     let moveStart: ModelPoint | null = null;
@@ -2744,7 +2804,7 @@ export function CreasePatternWebglCanvas({
           !m ||
           toolMode !== 'drag-line' ||
           !liveRef.current.activeToolRequireSnap ||
-          liveRef.current.resolveDrawPoint(m, modelToleranceOf(SNAP_TOLERANCE_CSS)).snapped;
+          liveRef.current.resolveDrawPoint(m, snapTolerance()).snapped;
         if (endpointSnapped) {
           drawing = true;
           dragShift = e.shiftKey;
@@ -2760,7 +2820,7 @@ export function CreasePatternWebglCanvas({
         // line selection; otherwise it selects (click or marquee).
         const m = clientToModel(e.clientX, e.clientY);
         const lineId = m
-          ? liveRef.current.hitIndex.query(m.x, m.y, modelToleranceOf(HIT_TOLERANCE_CSS))
+          ? liveRef.current.hitIndex.query(m.x, m.y, lineHitTolerance())
           : -1;
         if (m && lineId > 0 && liveRef.current.selectedLineSet.has(lineId)) {
           e.preventDefault();
@@ -2858,7 +2918,7 @@ export function CreasePatternWebglCanvas({
             // tolerance from the WebGL camera), matching the SVG move.
             moveDelta = liveRef.current.resolveMoveSnap(
               rawDelta,
-              modelToleranceOf(SNAP_TOLERANCE_CSS)
+              snapTolerance()
             ).delta;
             // Redraw the selected lines shifted in place — the real strokes move,
             // no separate copy — and let their derived vertices follow. Only the
@@ -3048,15 +3108,36 @@ export function CreasePatternWebglCanvas({
     // reads a modifier or a raw delta.
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      // Whose gesture this is was settled by its first event, and a cursor that
+      // has since wandered over an inline simulation window does not change the
+      // answer — see `claimWheelBurst`. An owner elsewhere gets the event
+      // delivered rather than dropped, so a zoom begun on a window survives the
+      // cursor leaving it just as a pan survives crossing one.
+      const burst = claimWheelBurst(canvas);
+      if (burst.owner !== canvas) {
+        forwardWheel(burst.owner, e);
+        return;
+      }
       // A focused 3D folded figure zooms its own camera instead, exactly as a
       // focused inline simulation window does — there the window is a DOM
       // element and takes the wheel itself; a folded figure is drawn into this
       // surface, so the wheel arrives here and has to be routed. Above the
       // camera branches for the same reason the orbit press is: what the
       // pointer is over decides who the gesture belongs to.
-      const user = clientToUser(e.clientX, e.clientY);
-      if (user && liveRef.current.foldedOrbit?.claimsWheel(user)) {
-        liveRef.current.foldedOrbit.zoom(e.deltaY);
+      //
+      // Decided once per burst, and keyed on the burst's identity rather than on
+      // "was I the first handler": when the event was forwarded from a window
+      // this handler is the *second* claim of that event, so a bare first-event
+      // flag would leave the previous gesture's answer standing.
+      if (foldedWheelBurst?.id !== burst.id) {
+        const user = clientToUser(e.clientX, e.clientY);
+        foldedWheelBurst = {
+          id: burst.id,
+          claimed: !!(user && liveRef.current.foldedOrbit?.claimsWheel(user)),
+        };
+      }
+      if (foldedWheelBurst.claimed) {
+        liveRef.current.foldedOrbit?.zoom(e.deltaY);
         return;
       }
       const cam = cameraRef.current;

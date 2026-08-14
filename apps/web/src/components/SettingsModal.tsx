@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useId,
   useMemo,
   useState,
   type ReactElement,
@@ -13,12 +14,14 @@ import { OrieditaImportDialog } from './settings/OrieditaImportDialog';
 import { SettingsToggleRow } from './settings/SettingsToggleRow';
 import { ANALYTICS_EVENTS, track, useAnalytics } from '../analytics';
 import { detectSystemLocale, SUPPORTED_LOCALES, SYSTEM_LOCALE } from '../i18n/locales';
+import { clampCpSnapRadius, CP_MAX_SNAP_RADIUS, CP_MIN_SNAP_RADIUS } from '../lib/cpSnapRadiusSetting';
 import {
   shortcutActionLabel,
   shortcutCategoryLabel,
   shortcutScopeLabel,
 } from '../i18n/shortcutLabels';
 import { useLocaleStore } from '../store/localeStore';
+import { NumberField } from './ui/NumberField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/Select';
 import {
   classifyReservedKey,
@@ -33,6 +36,7 @@ import {
   keyChordId,
   SHORTCUT_DEFINITIONS,
   shortcutKeepsDefaultChords,
+  shortcutMayDecline,
   shortcutLabelForAction,
   type KeyChord,
   type ShortcutActionId,
@@ -190,7 +194,11 @@ function WorkspaceTab() {
   const setAnalyticsEnabled = useSettingsStore((state) => state.setAnalyticsEnabled);
   const cpWheelGesture = useSettingsStore((state) => state.cpWheelGesture);
   const setCpWheelGesture = useSettingsStore((state) => state.setCpWheelGesture);
+  const cpSnapRadius = useSettingsStore((state) => state.cpSnapRadius);
+  const setCpSnapRadius = useSettingsStore((state) => state.setCpSnapRadius);
   const analytics = useAnalytics();
+  const snapRadiusId = useId();
+  const snapRadiusLabel = t('dialogs:settings.workspace.snapRadius', 'Snap radius');
 
   return (
     <div className="settings-tab">
@@ -224,12 +232,14 @@ function WorkspaceTab() {
         <SettingsToggleRow
           label={t(
             'dialogs:settings.workspace.analytics',
-            'Send anonymous usage analytics to help improve Ori Studio'
+            'Send anonymous usage analytics and crash reports to help improve Ori Studio'
           )}
           checked={analyticsEnabled}
           onChange={(enabled) => {
             // Persist the preference, then apply it to the analytics client:
             // opt in/out, (re)identify or reset, and record the change itself.
+            // Crash reporting rides the same switch, but needs no call here —
+            // `MonitoringRuntimeProvider` reacts to the store value directly.
             setAnalyticsEnabled(enabled);
             analytics.setAnalyticsEnabled(enabled, { capturePreferenceChange: true });
           }}
@@ -263,6 +273,34 @@ function WorkspaceTab() {
             'Pinch and Cmd/Ctrl+scroll always zoom, whichever you choose.'
           )}
         </p>
+        {/* The modal's own row: copy on the left, control on the right, no box.
+            `.control-row` is the inspector-panel idiom — indented, with a bottom
+            divider — and reads as foreign in here. */}
+        <div className="settings-toggle-row settings-toggle-row--field">
+          <span className="settings-toggle-row__copy">
+            <label className="settings-toggle-row__label" htmlFor={snapRadiusId}>
+              {snapRadiusLabel}
+            </label>
+            <span className="settings-toggle-row__desc">
+              {t(
+                'dialogs:settings.workspace.snapRadiusHint',
+                'How close the pointer has to come to a vertex, crease or grid point to snap to it, in paper units — the paper is 400 across, so this is the same number as Oriedita uses.'
+              )}
+            </span>
+          </span>
+          <span className="settings-toggle-row__field">
+            <NumberField
+              id={snapRadiusId}
+              label={snapRadiusLabel}
+              value={cpSnapRadius}
+              min={CP_MIN_SNAP_RADIUS}
+              max={CP_MAX_SNAP_RADIUS}
+              step={1}
+              normalize={clampCpSnapRadius}
+              onCommit={setCpSnapRadius}
+            />
+          </span>
+        </div>
       </section>
       <section className="settings-section">
         <h3 className="settings-section__title">{t('dialogs:settings.workspace.layout', 'Layout')}</h3>
@@ -334,10 +372,16 @@ interface DefaultsSourceDiff {
  * reports `conditional` because nothing outranks the override. Same collision,
  * same warning — so the co-claimant is looked up directly.
  *
- * `simulator` claimants are excluded: that scope is in the stack only while a
- * simulation owns the keyboard, so `C`, `L` and `R` coexist with CP tools by
- * design. Two definitions carrying one upstream action are one verb wearing two
- * ids, so they are not a collision either.
+ * Claimants that may not answer the chord are excluded, because they leave
+ * nothing dead: `simulator` is in the stack only while a simulation owns the
+ * keyboard, so `C`, `L` and `R` coexist with CP tools by design, and a viewport
+ * binding that {@link shortcutMayDecline} hands the chord on when it does not
+ * apply. Skipping the latter is what makes `Delete` name `edit.delete` — the
+ * global binding a crease-pattern capture really costs — instead of
+ * `viewport.delete`, which was never going to fight for it.
+ *
+ * Two definitions carrying one upstream action are one verb wearing two ids, so
+ * they are not a collision either.
  */
 function findChordCoClaimant(
   definition: ShortcutDefinition,
@@ -347,6 +391,7 @@ function findChordCoClaimant(
   if (definition.scope === 'simulator') return null;
   for (const candidate of SHORTCUT_DEFINITIONS) {
     if (candidate.id === definition.id || candidate.scope === 'simulator') continue;
+    if (shortcutMayDecline(candidate.id)) continue;
     if (definition.upstreamAction && definition.upstreamAction === candidate.upstreamAction) {
       continue;
     }
@@ -521,24 +566,32 @@ function decideCapture(
   // Two definitions carrying one upstream action are one verb wearing two ids,
   // so the chord reaches what the user meant either way.
   //
-  // A `viewport` capture displaces nothing either: a viewport executor *declines*
-  // a chord it does not own and dispatch continues to the next scope, which is
-  // the mechanism `viewport.delete` and `edit.delete` both work through. Only the
-  // mirror of that is a real block, and `blocker.scope === 'viewport'` below is
-  // where it is answered.
+  // A capture that {@link shortcutMayDecline} displaces nothing either: it hands
+  // the chord on when it does not apply, so whatever it outranks still answers
+  // the rest of the time — the mechanism `viewport.delete` and `edit.delete`
+  // already coexist through. The `blocker.scope !== 'viewport'` guard is what
+  // keeps that from swallowing a same-scope collision: within one scope the
+  // dispatcher takes the first definition matching the chord and, if that one
+  // declines, continues to the next *scope* rather than the next definition —
+  // so a viewport sibling on the same chord is unreachable, decline or not.
+  //
+  // This clause used to read `definition.scope === 'viewport'`, which handed the
+  // same free pass to `viewport.zoomOut` — a capture that would have killed the
+  // blocker outright, silently.
   if (
     !blocker ||
     (definition.upstreamAction && definition.upstreamAction === blocker.upstreamAction) ||
-    (definition.scope === 'viewport' && blocker.scope !== 'viewport')
+    (shortcutMayDecline(definition.id) && blocker.scope !== 'viewport')
   ) {
     return { kind: 'assign' };
   }
   // Undo/Redo merge their overrides with the defaults instead of replacing them,
-  // so unbinding them would promise a change that cannot happen; a viewport
-  // binding declines a chord it does not own and lets it fall through, so taking
-  // its key away would break a coexistence that works. Neither is offerable, and
-  // neither can be silently overwritten either.
-  if (shortcutKeepsDefaultChords(blocker.id) || blocker.scope === 'viewport') {
+  // so unbinding them would promise a change that cannot happen. That is the only
+  // binding left that cannot be offered: a declining blocker never reaches here
+  // (it is transparent, so `findChordCoClaimant` reports what sits beneath it
+  // instead), and every other viewport binding owns its chord outright and is
+  // evictable like anything else.
+  if (shortcutKeepsDefaultChords(blocker.id)) {
     return { kind: 'refuse', blocker };
   }
   return { kind: 'unbind', blocker };

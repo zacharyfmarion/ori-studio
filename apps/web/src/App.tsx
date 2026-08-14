@@ -23,6 +23,7 @@ import { installAppKeyboardListener } from './lib/appKeyboard';
 import { registerWorkerFailureSink, workerErrorCode } from './lib/workerDiagnostics';
 import { useTauriNativeMenu } from './menus/useTauriNativeMenu';
 import { createOpenedPathFileService } from './platform/fileService';
+import { useIsWorkspaceBlocked } from './platform/mobileSurface';
 import { getRuntimeSurface } from './platform/runtime';
 import { navigateTo } from './routing/appRouter';
 import { currentWorkspacePath } from './routing/landing';
@@ -45,6 +46,7 @@ export default function App() {
   const openProject = useWorkspaceStore((state) => state.openProject);
   const selectNone = useWorkspaceStore((state) => state.selectNone);
   const engineReady = useWorkspaceStore((state) => state.engineReady);
+  const workspaceBlocked = useIsWorkspaceBlocked();
   const toasterTheme = useThemeStore((state) => state.currentTheme.type);
 
   useWelcomeDiscardGuard();
@@ -57,8 +59,17 @@ export default function App() {
   useTauriNativeMenu();
 
   useEffect(() => {
+    // A blocked phone never reaches a workspace, so the CP and TreeMaker wasm
+    // bridges this pulls in are pure cost on the connection least able to afford
+    // them. Skipping is the single biggest thing the landing page does for load
+    // time there.
+    //
+    // Reactive rather than read once, so taking the "open it anyway" escape
+    // hatch actually boots the engine — otherwise the start screen it reveals
+    // would sit on "Preparing the editor…" forever.
+    if (workspaceBlocked) return;
     void initEngine();
-  }, [initEngine]);
+  }, [initEngine, workspaceBlocked]);
 
   // Route worker deaths into the store's error envelope so they reach the same
   // toast as engine errors. The runtime modules that own the workers keep no

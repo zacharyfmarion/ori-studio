@@ -25,6 +25,7 @@ const runtimeMocks = vi.hoisted(() => ({
   rotateOristudioBpLayoutSheet: vi.fn(),
   flipOristudioBpLayoutSheet: vi.fn(),
   exportOristudioBpProjectAsBps: vi.fn(async () => '<bps/>'),
+  exportOristudioBpProjectAsSessionBps: vi.fn(async () => '<bps/>'),
 }));
 
 vi.mock('../oristudioBpRuntime', async (importOriginal) => {

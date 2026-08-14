@@ -1457,6 +1457,17 @@
   text-decoration: underline;
 }
 
+/*
+ * The bulk variant in the section header. `font: inherit` is right inside a row,
+ * where it keeps the link part of the sentence around it, and wrong here — the
+ * header has no body text to match, so it inherited the dialog's base size and
+ * came out louder than the rows it acts on. Sized to the row's action instead,
+ * which is the thing it is a shorthand for.
+ */
+.oriedita-import__use-anyway--all {
+  font-size: 0.78rem;
+}
+
 .oriedita-import__use-anyway:focus-visible {
   outline: 2px solid var(--accent-primary);
   outline-offset: 2px;
@@ -2254,6 +2265,19 @@
   min-width: 0;
 }
 
+/*
+ * Title on the left, an optional bulk control on the right. Baseline-aligned
+ * rather than centred: the control is text, and centring it against an uppercase
+ * micro-heading leaves it sitting visibly low.
+ */
+.settings-section__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
 .settings-section__title {
   margin: 0;
   color: var(--text-tertiary);
@@ -2284,9 +2308,10 @@
  * second frame saying the same thing. The copy stays flush with that title, as
  * the `<label>` checkboxes this replaced were.
  *
- * No focus rule either: the row is a mouse hit target, not a tab stop. Every row
- * holds a Radix switch — a `button`, never an `input` — and that switch carries
- * its own ring via `.toggle-switch:focus-visible`.
+ * No focus rule either: the row is a mouse hit target, not a tab stop. A switch
+ * row holds a Radix switch — a `button`, never an `input` — and that switch
+ * carries its own ring via `.toggle-switch:focus-visible`. A `--field` row holds
+ * a real input instead, which owns both the click and the ring; see below.
  */
 .settings-toggle-row {
   display: flex;
@@ -2296,6 +2321,21 @@
   /* Vertical only, so the row keeps a comfortable hit target without indenting. */
   padding: var(--space-1) 0;
   cursor: pointer;
+}
+
+/*
+ * A row whose control is a field rather than a switch. The input owns the click,
+ * so the row must not claim the pointer cursor the way a switch row does, and the
+ * field gets a column of its own so a long description cannot squeeze it.
+ */
+.settings-toggle-row--field {
+  cursor: default;
+  align-items: start;
+}
+
+.settings-toggle-row__field {
+  flex: 0 0 auto;
+  width: 132px;
 }
 
 .settings-toggle-row__copy {

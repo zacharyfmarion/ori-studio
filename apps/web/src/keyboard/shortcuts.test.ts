@@ -12,6 +12,7 @@ import {
   keyChordId,
   ORIEDITA_ACTION_TARGETS,
   parseOrieditaKeyStroke,
+  ROUTED_CP_SHORTCUT_ACTIONS,
   SHORTCUT_DEFINITIONS,
   shortcutIdForOrieditaAction,
   shortcutLabelForAction,
@@ -22,6 +23,8 @@ import {
 } from './shortcuts';
 import { handleShortcutKeyDown } from './shortcutDispatcher';
 import { ORIEDITA_DEFAULT_HOTKEYS } from '../lib/orieditaImport/orieditaDefaultHotkeys.generated';
+import { cpHiddenActions } from '../lib/oristudioCpActions';
+import { cpVariantHostAction } from '../lib/cpToolVariants';
 
 /**
  * The action a chord actually reaches, asked of the real dispatcher.
@@ -454,13 +457,39 @@ describe('Oriedita defaults source', () => {
   });
 
   it('binds no action the UI cannot run', () => {
-    // Upstream binds Ctrl+R to Reflect Through Lines, which is hidden here. A
-    // chord on a hidden action selects a tool the rail cannot show as active,
-    // so the derived table drops it — asked through the mapping so the case
-    // cannot go vacuous if the action is renamed.
-    const hidden = shortcutIdForOrieditaAction('continuousSymmetricDrawAction');
-    expect(hidden).not.toBeNull();
-    expect(oriedita(hidden!)).toEqual([]);
+    // A chord on a hidden action selects a tool the rail cannot show as active,
+    // so the derived table drops it however upstream binds it.
+    //
+    // Asserted over every hidden action rather than one example. It used to name
+    // `continuousSymmetricDrawAction`, and when Reflect Through Lines returned to
+    // the rail the test failed for the one reason that is not a regression — the
+    // premise had moved, not the rule.
+    //
+    // Two exemptions, both from `acceptsDerivedDefaultChord`: a routed action,
+    // whose chord `handleCpShortcutAction` intercepts and drives the real path
+    // for rather than arming a tool (`cp.action.folding-estimate` holds F this
+    // way), and a merged tool's non-host variant, which arms the host that does
+    // have a button.
+    const hidden = cpHiddenActions().filter(
+      (action) =>
+        !ROUTED_CP_SHORTCUT_ACTIONS.has(action.id) &&
+        (action.kind !== 'command' || cpVariantHostAction(action).id === action.id)
+    );
+    // Guard against the day nothing is hidden and this passes for free.
+    expect(hidden.length).toBeGreaterThan(0);
+    expect(hidden.flatMap((action) => oriedita(action.id).map((chord) => `${action.id}=${chord}`))).toEqual(
+      []
+    );
+  });
+
+  it('keeps the chord of a tool that is on the rail', () => {
+    // The other side of the same rule, and what the case above stopped covering:
+    // a *visible* action must keep what upstream binds it to. Reflect Through
+    // Lines is the one that moved — hidden, it was unreachable by button, by
+    // import and by manual capture all at once.
+    const visible = shortcutIdForOrieditaAction('continuousSymmetricDrawAction');
+    expect(visible).not.toBeNull();
+    expect(oriedita(visible!)).toEqual(['primary+r']);
   });
 
   it('resolves overrides against the active source, not the other one', () => {

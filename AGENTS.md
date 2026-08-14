@@ -291,10 +291,12 @@ in `implementation-plans/angle-restricted-endpoint-snap.md`.)
 
 GitHub Actions runs two main jobs:
 
-- `web-client`: installs Rust and Node, installs `wasm-pack`, builds the
-  simulator and all four wasm bridges, then runs web lint, i18n check,
-  typecheck, and unit tests (the latter with `--ignore-scripts`, so they do not
-  rebuild what the dedicated step just built).
+- `web-client`: first asserts nothing under `apps/web/src/generated/` is tracked
+  (see the wasm note above — a committed artifact passes every other check in
+  this job), then installs Rust and Node, installs `wasm-pack`, builds the
+  simulator and all four wasm bridges, and runs web lint, i18n check, typecheck,
+  and unit tests (the latter with `--ignore-scripts`, so they do not rebuild what
+  the dedicated step just built).
 - `native-oracle`: installs Tauri Linux dependencies, runs Rust format, clippy,
   workspace tests, builds the C++ oracle, and runs oracle parity tests.
 
@@ -351,6 +353,25 @@ bucketed numbers** as property values. Never send raw user content — text-tool
 text, filenames or paths, geometry / coordinates / measured values, node/edge
 data, or image data. Analytics must be a no-op when the user has opted out;
 never gate product behavior on it.
+
+### Crash reporting
+
+Sentry covers errors, in the same browser + desktop renderer. It lives in
+`apps/web/src/monitoring/` — never call `@sentry/react` directly, and never add
+a Sentry import outside that layer.
+
+You almost never need to do anything: unhandled errors are captured by Sentry's
+global handlers, and every `ErrorBoundary` catch is already reported. Reach for
+`reportError(error, { surface })` only for an error you deliberately swallow and
+still want to see. If the question is *how often*, that is a PostHog event
+instead.
+
+The same privacy contract applies, with one documented exception: **stack traces
+are sent to Sentry**, because a frame names our code rather than the user's work.
+Everything else is redacted through `lib/redact.ts` — the single shared
+implementation, also used by the analytics fingerprint. If you need different
+redaction, add an option there rather than writing a second copy. Consent is the
+same switch as analytics; `beforeSend` drops every event while opted out.
 
 ### CP detector eval work
 

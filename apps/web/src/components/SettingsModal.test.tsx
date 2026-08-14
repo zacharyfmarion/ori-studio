@@ -122,7 +122,8 @@ function rowChecked(label: string): boolean {
 const ORIEDITA_DEFAULTS_LABEL = 'Use Oriedita defaults';
 const WELCOME_LABEL = 'Show welcome screen on startup';
 const FOLD_WARNING_LABEL = 'Warn before folding a crease pattern with flat-foldability errors';
-const ANALYTICS_LABEL = 'Send anonymous usage analytics to help improve Ori Studio';
+const ANALYTICS_LABEL =
+  'Send anonymous usage analytics and crash reports to help improve Ori Studio';
 
 function defaultsToggle(): HTMLButtonElement {
   return rowSwitch(ORIEDITA_DEFAULTS_LABEL);
@@ -173,6 +174,16 @@ function pressChord(init: KeyboardEventInit) {
     window.dispatchEvent(
       new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init })
     );
+  });
+}
+
+/** React listens for the native input event, so the value goes in through the setter. */
+function typeInto(input: HTMLInputElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+  act(() => {
+    input.focus();
+    setter?.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
   });
 }
 
@@ -352,6 +363,44 @@ describe('SettingsModal', () => {
     });
 
     expect(useSettingsStore.getState().cpWheelGesture).toBe('pan');
+  });
+
+  it('dresses the snap radius as a settings row, not as an inspector-panel row', () => {
+    // `.control-row` is the panel idiom — indented, with a bottom divider and a
+    // smaller secondary label — and it reads as foreign inside this modal, which
+    // deliberately keeps its rows unboxed and flush with the section title.
+    const rendered = renderModal('workspace');
+    const input = rendered.querySelector<HTMLInputElement>('input[aria-label="Snap radius"]');
+    const row = input?.closest('.settings-toggle-row');
+
+    expect(row).toBeTruthy();
+    expect(input?.closest('.control-row')).toBeNull();
+    expect(row?.querySelector('.settings-toggle-row__label')?.textContent).toBe('Snap radius');
+    // The description belongs to the control, so it lives in the row rather than
+    // trailing after it where it reads as the next section's preamble.
+    expect(row?.querySelector('.settings-toggle-row__desc')?.textContent).toContain('400 across');
+  });
+
+  it('edits the crease-pattern snap radius and persists it', () => {
+    const rendered = renderModal('workspace');
+
+    const input = rendered.querySelector<HTMLInputElement>('input[aria-label="Snap radius"]');
+    expect(input).not.toBeNull();
+    expect(input?.value).toBe('10');
+    // The unit is the reason the number is not pixels, so the row has to say it.
+    expect(rendered.textContent).toContain('the paper is 400 across');
+
+    typeInto(input as HTMLInputElement, '24');
+    act(() => (input as HTMLInputElement).blur());
+
+    expect(useSettingsStore.getState().cpSnapRadius).toBe(24);
+    expect(localStorage.getItem('oristudio:cp-snap-radius')).toBe('24');
+
+    // Upstream's slider stops at 100, and so does a typed value.
+    typeInto(input as HTMLInputElement, '900');
+    act(() => (input as HTMLInputElement).blur());
+
+    expect(useSettingsStore.getState().cpSnapRadius).toBe(100);
   });
 
   it('captures, clears, and resets shortcuts', async () => {
@@ -585,13 +634,32 @@ describe('SettingsModal', () => {
     ]);
   });
 
-  it('displaces nothing when the capture is on a viewport binding', () => {
-    // The other half of the viewport rule. A viewport executor declines a chord
-    // it does not own and dispatch carries on to the next scope, so putting a
-    // viewport binding on a key a tool already answers costs that tool nothing —
-    // it is how `viewport.delete` and `edit.delete` both work on Delete. Offering
-    // to unbind Mountain here would be breaking a working feature to settle a
-    // collision that never fires.
+  it('displaces nothing when the capture is on a binding that declines', () => {
+    // The mirror direction, and the half that is genuinely safe. Delete Selected
+    // Object answers `false` when nothing is selected and dispatch carries on to
+    // the next scope, so putting it on a key a tool already answers costs that
+    // tool nothing — it is how `viewport.delete` and `edit.delete` both work on
+    // Delete. Offering to unbind Mountain here would be breaking a working
+    // feature to settle a collision that never fires.
+    renderModal('shortcuts');
+    const deleteRow = shortcutRowFor('Delete Selected Object');
+
+    act(() => {
+      (deleteRow.querySelector('.settings-shortcuts__capture') as HTMLButtonElement).click();
+    });
+    pressChord({ key: 'a' });
+
+    expect(useShortcutStore.getState().overrides['viewport.delete']).toEqual([{ key: 'a' }]);
+    expect(useShortcutStore.getState().overrides['cp.action.line-type.mountain']).toBeUndefined();
+    expect(document.body.textContent).not.toContain('Unbind Mountain?');
+  });
+
+  it('asks when the capture is on a viewport binding that never declines', () => {
+    // Same shape, opposite answer, and the reason the rule cannot be "is it
+    // viewport?". Fit To View claims its chord unconditionally, so moving it onto
+    // Mountain's key would leave Mountain holding a chord it can never answer —
+    // silently, until the user noticed the tool had stopped working. This capture
+    // used to be waved through on the strength of a decline that never happens.
     renderModal('shortcuts');
     const fitRow = shortcutRowFor('Fit To View');
 
@@ -600,9 +668,81 @@ describe('SettingsModal', () => {
     });
     pressChord({ key: 'a' });
 
-    expect(useShortcutStore.getState().overrides['viewport.fit']).toEqual([{ key: 'a' }]);
-    expect(useShortcutStore.getState().overrides['cp.action.line-type.mountain']).toBeUndefined();
-    expect(document.body.textContent).not.toContain('Unbind Mountain?');
+    expect(useShortcutStore.getState().overrides['viewport.fit']).toBeUndefined();
+    expect(document.body.textContent).toContain('Unbind Mountain?');
+  });
+
+  it('lets a CP tool take 5 from Zoom Out, and agrees with an import', async () => {
+    // The reported bug. `5` is a default second chord on Zoom Out, which claims
+    // it every time, so a CP tool bound there is simply dead — but every
+    // `viewport` blocker was exempt from eviction, so the capture answered "5 is
+    // already assigned to Zoom Out" and stopped, and the import skipped the row
+    // with no "Use anyway" button. Neither path had a way through.
+    const rendered = renderModal('shortcuts');
+
+    act(() => {
+      (
+        shortcutRowFor('Foldable Line').querySelector(
+          '.settings-shortcuts__capture'
+        ) as HTMLButtonElement
+      ).click();
+    });
+    pressChord({ key: '5' });
+
+    expect(rendered.textContent).not.toContain('already assigned');
+    expect(document.body.textContent).toContain('Unbind Zoom Out?');
+
+    // The import reaches the same decision about the same chord, and now offers
+    // the removal that rescues the row.
+    const imported = buildOrieditaImportPlan({
+      hotkeys: new Map([['makeFlatFoldableAction', { kind: 'value', value: 'pressed 5' }]]),
+      currentOverrides: {},
+      defaultsSource: 'ori-studio',
+    });
+    expect(imported.rows[0].detail.evictionOffer?.evictedId).toBe('viewport.zoomOut');
+
+    await act(async () => {
+      findExactButton('Unbind and assign').click();
+      await Promise.resolve();
+    });
+
+    // Through the real dispatcher, with `viewport` ahead of `crease-pattern` in
+    // the stack exactly as the app builds it — asserting the store alone would
+    // pass for a binding that is written and dead.
+    expect(dispatch(['viewport', 'crease-pattern', 'global'], { key: '5' })).toEqual([
+      'cp.action.vertex-make-angularly-flat-foldable',
+    ]);
+    // An eviction unbinds the whole action, not just the colliding chord
+    // (`shortcutStore.assignShortcut` writes `null`), so Zoom Out loses `Mod+-`
+    // as well. The confirmation says so in as many words — "leaves Zoom Out
+    // unassigned" — and a user who wants to keep the accelerator has the cheaper
+    // route of moving Zoom Out to `Mod+-` alone, which frees the digit with
+    // nothing evicted. Asserted so a future change to per-chord eviction is a
+    // deliberate one.
+    expect(useShortcutStore.getState().overrides['viewport.zoomOut']).toBeNull();
+    expect(
+      dispatch(['viewport', 'crease-pattern', 'global'], { key: '-', ctrlKey: true, metaKey: true })
+    ).toEqual([]);
+  });
+
+  it('names the binding a Delete capture really costs', () => {
+    // `viewport.delete` holds Delete and outranks crease-pattern, but it declines
+    // when nothing is selected, so it is not what a CP tool on Delete would cost.
+    // `edit.delete` is — it sits at global scope, underneath, and would stop
+    // being reached. A declining blocker is transparent, not exempt.
+    renderModal('shortcuts');
+
+    act(() => {
+      (
+        shortcutRowFor('Foldable Line').querySelector(
+          '.settings-shortcuts__capture'
+        ) as HTMLButtonElement
+      ).click();
+    });
+    pressChord({ key: 'delete' });
+
+    expect(document.body.textContent).toContain('Unbind Delete');
+    expect(document.body.textContent).not.toContain('Unbind Delete Selected Object?');
   });
 
   it('never offers to unbind Undo, because the unbind would not take', () => {

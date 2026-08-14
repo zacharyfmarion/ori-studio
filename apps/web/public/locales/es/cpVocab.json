@@ -521,7 +521,7 @@
       }
     },
     "cp_action_continuous_symmetric_draw": {
-      "label": "Reflejar a través de líneas",
+      "label": "Pliegue a través de capas",
       "tooltip": "Dibujo simétrico continuo",
       "disabledReason": "Listo",
       "steps": {

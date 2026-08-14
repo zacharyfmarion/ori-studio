@@ -147,6 +147,7 @@ const bpMocks = vi.hoisted(() => ({
   loadOristudioBpProjectFromText: vi.fn(),
   getOristudioBpPortDescriptors: vi.fn(),
   exportOristudioBpProjectAsBps: vi.fn(),
+  exportOristudioBpProjectAsSessionBps: vi.fn(),
   optimizeOristudioBpLayout: vi.fn(),
 }));
 
@@ -183,6 +184,7 @@ vi.mock('./oristudioBpRuntime', async (importOriginal) => {
     loadOristudioBpProjectFromText: bpMocks.loadOristudioBpProjectFromText,
     getOristudioBpPortDescriptors: bpMocks.getOristudioBpPortDescriptors,
     exportOristudioBpProjectAsBps: bpMocks.exportOristudioBpProjectAsBps,
+    exportOristudioBpProjectAsSessionBps: bpMocks.exportOristudioBpProjectAsSessionBps,
     optimizeOristudioBpLayout: bpMocks.optimizeOristudioBpLayout,
   };
 });
@@ -1350,6 +1352,9 @@ function resetStores(snapshot = makeSnapshot()) {
   bpMocks.loadOristudioBpProjectFromText.mockReset().mockImplementation(async () => sampleBpDocument());
   bpMocks.getOristudioBpPortDescriptors.mockReset().mockResolvedValue([]);
   bpMocks.exportOristudioBpProjectAsBps
+    .mockReset()
+    .mockResolvedValue('{"title":"Untitled","tree":{}}');
+  bpMocks.exportOristudioBpProjectAsSessionBps
     .mockReset()
     .mockResolvedValue('{"title":"Untitled","tree":{}}');
   bpMocks.optimizeOristudioBpLayout.mockReset();
@@ -7951,7 +7956,7 @@ describe('workspace store slices', () => {
       }),});
       // The snapshot the history entry must capture is the state *before* the
       // run, so the export mocked here is the pre-optimize project.
-      bpMocks.exportOristudioBpProjectAsBps.mockResolvedValueOnce('{"before":"optimize"}');
+      bpMocks.exportOristudioBpProjectAsSessionBps.mockResolvedValueOnce('{"before":"optimize"}');
       const optimized = { ...sampleBpDocument(), activeSurface: 'packing' as const };
       bpMocks.optimizeOristudioBpLayout.mockResolvedValueOnce({
         document: optimized,
