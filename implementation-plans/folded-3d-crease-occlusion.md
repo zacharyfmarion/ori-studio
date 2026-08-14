@@ -226,17 +226,25 @@ the inline simulator's own rendering.
 
 ### Phase 4 — the test that would have caught this
 
-- [ ] A CPU depth-buffer harness beside `folded3dMesh.test.ts`: rasterize the
-      face pass from `projectVertices`, sample every crease centreline.
-- [ ] **Invariant A — the bias must not change which creases are drawn.** Sample
-      for sample, with and without it. Today 30–48% mismatch across the fixtures;
-      after, zero.
-- [ ] **Invariant B — a drawn crease's covering face is never one the same cell's
-      stack places in front of the crease's own face.** The semantic statement;
-      A is the sharp proxy.
-- [ ] Both over all six fixtures × `{default, saved, antipodal}` cameras. The
+- [x] A CPU depth-buffer harness, `folded3dCreaseOcclusion.test.ts`: rasterize
+      the face pass from `projectVertices`, sample every crease centreline.
+- [x] **The property: a crease is never drawn more than half a layer gap behind
+      the paper covering it.** Stated in *layers* rather than in world units,
+      because a depth in units means nothing without the sheet spacing to
+      compare it against. Shipped configuration measures 0.25; the one it
+      replaces measures 12.
+- [x] Both invariants from the plan collapse into that one. "The bias must not
+      change what is drawn" turned out to be the wrong statement — the bias
+      legitimately settles the coplanar tie between a crease and its own face,
+      so a small difference is the point rather than a defect. What must never
+      happen is the difference reaching the *next sheet*, which is what the
+      layer-relative bound says.
+- [x] Over all six fixtures × `{default, antipodal, oblique}` cameras. The
       antipodal one matters: the `up`-toward-eye flip is a known trap
       (`foldedFigure3dProjection.ts:687`).
+- [x] Teeth: a test asserting the old constant fails the same bound on
+      `spikes_small`, and reverting `folded3dCreaseDepthBias` to it turns all 25
+      of these red.
 
 ### Phase 5 — the export path agrees
 
