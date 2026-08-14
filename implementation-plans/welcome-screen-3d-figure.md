@@ -69,8 +69,8 @@ have made the start screen the one place showing a different answer.
   workspace); here it is not.
 - **Which way is up cannot be derived.** Settled with the tuner
   (`apps/web/start-figure-tuner.html`): drag, Bake, and it prints the
-  `--orient` triple. The shipped figure is `--orient 3.1236,-0.35,1.5708
-  --yaw 0 --pitch 0 --sweep 0.5`. `folded3dMesh` hands back the figure in
+  `--orient` triple. The shipped figure is `--orient 3.1236,1.2208,1.5508
+  --yaw 0 --pitch -1.5708`. `folded3dMesh` hands back the figure in
   the paper's frame, where the paper normal is vertical — right for an editor
   figure being looked down at, wrong for a hero that should stand. Three
   automatic guesses at the upright axis all failed against the eye: the

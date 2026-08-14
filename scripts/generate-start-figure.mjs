@@ -32,7 +32,7 @@
  * # The shipped figure. CORPUS is $ORISTUDIO_NON_FLAT_CORPUS_DIR.
  * node scripts/generate-start-figure.mjs \
  *   --source "$CORPUS/plant/penguin_other_angles.osf" --component 0 \
- *   --orient 3.1236,1.2208,1.5708 --yaw 0 --pitch -1.5708
+ *   --orient 3.1236,1.2208,1.5508 --yaw 0 --pitch -1.5708
  *
  * # Swap in a different design: same command, different source. Get `--orient`
  * # from apps/web/start-figure-tuner.html rather than guessing it.

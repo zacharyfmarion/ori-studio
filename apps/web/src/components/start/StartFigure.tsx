@@ -32,9 +32,14 @@ import type { StartFigureMesh } from './startFigureMesh';
  *   when the browser is idle, and the loop does not run while the tab is hidden
  *   or the figure is scrolled out of view.
  *
- * The static image stays mounted underneath the whole time. It is the first
- * paint, and it is the permanent answer on a machine that cannot give us WebGL2
- * — two states, not a third rendering path for something decorative.
+ * Nothing is drawn until the figure is ready, and then it fades in. The frame
+ * starts empty on purpose: showing the crease-pattern image while the renderer
+ * loads means every visitor watches a picture appear and be replaced a moment
+ * later, which reads as a glitch rather than as loading. Empty-then-fade reads
+ * as nothing having happened yet, which is the truth.
+ *
+ * That image is now only the *failure* state — a machine with no WebGL2 — and it
+ * is not even fetched otherwise.
  */
 
 /**
@@ -85,7 +90,8 @@ export function StartFigure() {
   const frameRef = useRef<number | null>(null);
   const lastFrameMsRef = useRef<number>(0);
   const dragRef = useRef<{ pointerId: number; x: number } | null>(null);
-  const [live, setLive] = useState(false);
+  const [status, setStatus] = useState<'loading' | 'live' | 'fallback'>('loading');
+  const live = status === 'live';
 
   /** Re-read the theme tokens and redraw. */
   const refreshPaint = useCallback(() => {
@@ -147,7 +153,6 @@ export function StartFigure() {
     stopLoop();
     meshRef.current?.dispose();
     meshRef.current = null;
-    setLive(false);
   }, [stopLoop]);
 
   // Load the asset and the renderer, once the browser has a moment.
@@ -166,6 +171,7 @@ export function StartFigure() {
       if (cancelled) return;
       if (!asset) {
         track(ANALYTICS_EVENTS.startFigureFallback, { reason: 'asset_failed' });
+        setStatus('fallback');
         return;
       }
 
@@ -176,11 +182,13 @@ export function StartFigure() {
       const mesh = StartFigureMesh.create(canvas, asset);
       if (!mesh) {
         track(ANALYTICS_EVENTS.startFigureFallback, { reason: 'no_webgl2' });
+        setStatus('fallback');
         return;
       }
       mesh.onContextLost(() => {
         track(ANALYTICS_EVENTS.startFigureFallback, { reason: 'context_lost' });
         teardown();
+        setStatus('fallback');
       });
 
       configRef.current = { yaw: asset.view.yaw, reducedMotion: prefersReducedMotion() };
@@ -190,8 +198,10 @@ export function StartFigure() {
       const rect = canvas.getBoundingClientRect();
       mesh.resize(rect.width, rect.height, Math.max(1, window.devicePixelRatio || 1));
       refreshPaint();
+      // Drawn *before* the fade begins, so what fades in is the figure rather
+      // than an empty canvas that fills a frame or two later.
       draw();
-      setLive(true);
+      setStatus('live');
       startLoop();
     };
 
@@ -313,13 +323,17 @@ export function StartFigure() {
   }, []);
 
   return (
-    <div className="start-figure" data-live={live || undefined}>
-      <img
-        className="start-figure__fallback"
-        src={START_FIGURE.fallbackUrl}
-        alt=""
-        decoding="async"
-      />
+    <div className="start-figure" data-status={status}>
+      {/* Rendered only when the 3D figure cannot run, so the 71 KiB image is not
+          fetched by the visitors who never see it. */}
+      {status === 'fallback' && (
+        <img
+          className="start-figure__fallback"
+          src={START_FIGURE.fallbackUrl}
+          alt=""
+          decoding="async"
+        />
+      )}
       <canvas
         ref={canvasRef}
         className="start-figure__canvas"
