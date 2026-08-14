@@ -9,9 +9,9 @@ into the `R / W / H` pill.
 The point is not "a second way to set width". A flap's drawn extent is governed
 by **three** numbers — radius, width, height — and only one of them (the radius)
 is the origami-meaningful one. So a handle drag states *where the edges should
-land*, and the feature solves for the three numbers behind it: **a corner resizes
-the flap, making it as round as its new bounds allow; an edge extends it, leaving
-the radius alone.**
+land*, and the feature then makes the **radius as large as those bounds allow**,
+leaving width and height as whatever is left over — on every handle, so the same
+box always means the same flap.
 
 Requested behaviour, in the author's words: *"default to increasing the radius if
 it can, and then just adding or subtracting the width or height necessary to make
@@ -112,86 +112,63 @@ the left and right edges still. Forgetting this is the most likely way to ship a
 flap that drifts, and it is why the result carries an anchor and why the kernel
 takes the whole footprint in one call.
 
-### Choosing the radius: a corner resizes, an edge extends
+### Choosing the radius: always the largest that fits
 
 ```
 W′ = W + Δx        H′ = H + Δy
-
-corner:  r′ = clamp(floor(min(W′, H′) / 2), rMin, rMax)
-edge:    r′ = r
-
+r′ = clamp(floor(min(W′, H′) / 2), rMin, rMax)
 w′ = W′ − 2r′      h′ = H′ − 2r′
 ```
 
-**A corner makes the flap as round as its new bounds allow; an edge leaves the
-radius alone and puts the change into the box on the axis it drags.** So
-dragging a corner out to a `6 × 6` box gives a plain `r3` circle rather than
-`r2` around a `2 × 2` base, and pulling the east edge simply makes the flap
-longer that way — pushing it back in eats the box and stops at the circle.
+**The drag sets the outer box; the radius is then the largest that box will
+hold** — on every handle. A flap is always the roundest thing that fits its
+bounds: `6 × 6` is `r3`, not `r2` around a `2 × 2` base; `5 × 5` is `r2` with a
+`1 × 1` base, not `r1` with a `3 × 3` one.
 
 The radius is the only one of the three numbers that means anything in the folded
-model, which is why the corner — the gesture that means *resize this flap* — is
-the one that moves it.
+model — it is the flap's length, and its leaf edge's — so it takes everything it
+can and `w`/`h` are the leftovers. The `W`/`H` fields in the pill are there for
+the cases where that is not what the user wants.
 
-### Why an edge cannot also maximise the radius
+Because the answer depends on the outer box and nothing else, **how the box was
+reached cannot matter**: two perpendicular edge drags land on exactly the flap one
+corner drag would have produced. That is the property that made the rule apply to
+every handle rather than to corners alone, and it is asserted directly.
 
-These two are **mutually exclusive**, and it is worth writing down because the
-first three attempts all foundered on not seeing it:
+### The trade, made deliberately
 
-> Every state is "biggest circle plus leftovers" **⟹** an edge drag restructures
-> the perpendicular axis.
+The *box* is not continuous under this rule. `h = H − 2r`, so a radius stepping by
+one steps the perpendicular box by two, and an edge drag moves the radius whenever
+the axis it drags is the smaller one — so one cell of horizontal drag can
+restructure the flap vertically.
 
-Proof: under `r = floor(min(W,H)/2)` an edge drag changes one extent. When that
-extent is the smaller one the radius follows it, and `h = H − 2r`, so a radius
-that steps by one steps the *perpendicular* box by two.
+That is not a defect to be tuned away. These two are **mutually exclusive**:
 
-Measured before this change, on a real design: a `0 × 0 r2` flap pulled one cell
-in from the east came back as `r1` with a `1 × 2` box — the flap's length halved
-from a nudge that never touched its height. A sweep of the solver found 69 such
-swaps and 173 dead drags (every inward edge drag on a default `0 × 0 r1` flap
-returned nothing at all).
+> every state is "biggest circle plus leftovers"
+> **⟺ not** every edge drag leaves the perpendicular axis alone
 
-A corner has no such problem: both extents move together, the minimum moves with
-them, and every number changes by at most one per cell.
+An intermediate build split the verbs — corner maximises, edge freezes the
+radius — to buy the continuity. It was rejected once its real cost showed up: two
+perpendicular edge drags then reached a `5 × 5` box as `r1` with a `3 × 3` base
+while the corner reached the same box as `r2` with a `1 × 1` one, so the same
+bounds meant two different flaps depending on the route. Always-maximal was chosen
+over box continuity, explicitly.
 
-**The cost.** Two perpendicular edge drags can leave a flap whose radius is not
-maximal, and the next corner drag snaps it. That is a one-off restructure on the
-gesture that means "resize", which is a better place for it than on every "make
-it a bit longer".
+The radius itself *is* continuous (at most one cell per cell of drag), and the
+outer box tracks the pointer exactly.
 
 Worked examples, all integral:
 
 | Start `(w,h,r)` | Handle | Δ | Result | Reads as |
 | --- | --- | --- | --- | --- |
 | `(0,0,1)` | `ne` | `+4,+4` | `(0,0,3)` | a `6 × 6` box is a circle |
-| `(0,0,1)` | `ne` | `+5,+5` | `(1,1,3)` | odd side: parity leaves one cell in the box |
+| `(0,0,1)` | `ne` | `+3,+3` | `(1,1,2)` | odd side: parity leaves one cell in the box |
+| `(0,0,1)` | `e` then `n` | `+3`, `+3` | `(1,1,2)` | the same box by another route, the same flap |
 | `(0,0,2)` | `ne` | `+3,+1` | `(3,1,2)` | non-square: the short side caps the radius |
-| `(0,0,5)` | `e` | `+2,0` | `(2,0,5)` | an edge extends; the radius is untouched |
-| `(0,0,5)` | `e` | `−2,0` | refused | there is no box to eat, and an edge never takes the radius |
-| `(4,0,5)` | `e` | `−9,0` | `(0,0,5)` | it eats the box and stops at the circle |
-| `(4,4,2)` | `e` | `+3,0` | `(7,4,2)` | every cell lands in the box, one for one |
-| `(0,0,1)` | `e` | `−1,0` | refused | already at the floor |
-
-### An earlier rule, and why it went
-
-The first build spent the *delta* on the radius rather than maximising it:
-`δ = clamp(floor(Δdrive / 2), 1 − r, min(floor((w + Δx)/2), floor((h + Δy)/2)))`.
-It was chosen to avoid rewriting a flap's deliberate `w × h`, and it was wrong on
-its own terms:
-
-- The bound is per-axis, so the axis that moved *less* capped the radius and one
-  odd cell capped it at zero. A hand-dragged corner almost never lands both axes
-  on the same even count, so the radius was effectively unreachable by the
-  gesture that most obviously means *make this flap bigger*.
-- Relaxing that for growing axes fixed the reachability but bought an overshoot:
-  the shorter axis of an off-square corner drag landed up to a cell past the
-  pointer.
-- And it was not reversible across gestures, because the answer depended on the
-  flap as well as the box.
-
-Maximising the radius is better on all three counts at once. The one thing it
-gives up is the `w × h` it was protecting — which was never the thing being
-asked for.
+| `(0,0,5)` | `e` | `+2,0` | `(2,0,5)` | the height caps it, so the width takes the rest |
+| `(4,0,5)` | `e` | `−2,0` | `(2,0,5)` | inward: the box goes first, a wider box holds the same circle |
+| `(0,0,5)` | `e` | `−2,0` | `(0,2,4)` | with no box left, the radius narrows |
+| `(0,0,1)` | `e` | `−1,0` | refused | the outer box floor is `2 × 2` at `r = 1` |
 
 ### Parity
 

@@ -240,52 +240,53 @@ describe('resize solve invariants', () => {
     }
   });
 
-  it('stops an edge drag at the flap\'s own circle rather than shrinking it', () => {
-    // An edge drag never moves the radius, so the outer extent cannot go below
-    // the diameter. The handle stops there instead of collapsing the flap's
-    // length, which is the whole point of splitting edge from corner.
-    for (const [w, h, r] of SHAPES) {
-      const source = flap(w, h, r);
-      for (const handle of ['e', 'w', 'n', 's'] as const) {
-        const s = BP_FLAP_HANDLE_SIGNS[handle];
-        const result = solve(source, handle, s.sx === 0 ? 0 : -20, s.sy === 0 ? 0 : -20);
-        if (!result) continue;
-        expect(result.radius, `${w}x${h} r${r} ${handle}`).toBe(r);
-        const box = bpFlapOuterBox(result);
-        const driven = s.sx !== 0 ? box.width : box.height;
-        expect(driven, `${w}x${h} r${r} ${handle} floor`).toBeGreaterThanOrEqual(2 * r);
-      }
-    }
-  });
-
-  it('never moves the radius on an edge drag', () => {
+  it('leaves the radius maximal for the box it produced', () => {
+    // The rule, as a property: a flap is always the roundest thing that fits its
+    // bounds. `r = floor(min(W,H)/2)` leaves `min(w,h)` at 0 or 1 — 1 only when
+    // parity forbids a circle — so a square box of even side comes out a circle
+    // and nothing weaker survives a drag.
     for (const c of sweep()) {
-      const s = BP_FLAP_HANDLE_SIGNS[c.handle];
-      if (s.sx !== 0 && s.sy !== 0) continue;
-      expect(c.result.radius, describeCase(c)).toBe(c.source.radius);
+      const slack = Math.min(c.result.width, c.result.height);
+      expect(
+        slack,
+        `${describeCase(c)} -> w${c.result.width} h${c.result.height} r${c.result.radius}`
+      ).toBeLessThanOrEqual(1);
     }
   });
 
-  it('moves the box by at most one cell per cell of drag', () => {
-    // The user-visible form of the complaint. The radius is already continuous,
-    // but h = H - 2r, so a radius that steps by one steps the box by *two* - and
-    // a one-cell nudge on one axis then restructures the other. This is the
-    // invariant the "maximise the radius" rule broke.
+  it('reaches the same flap by two perpendicular edge drags as by one corner', () => {
+    // Why the rule applies to every handle and not to corners alone: the answer
+    // depends on the outer box, so how that box was reached cannot matter.
     for (const [w, h, r] of SHAPES) {
       const source = flap(w, h, r);
-      for (const handle of BP_FLAP_RESIZE_HANDLES) {
-        const s = BP_FLAP_HANDLE_SIGNS[handle];
-        for (let d = -8; d < 8; d++) {
-          const a = solve(source, handle, s.sx === 0 ? 0 : d, s.sy === 0 ? 0 : d);
-          const b = solve(source, handle, s.sx === 0 ? 0 : d + 1, s.sy === 0 ? 0 : d + 1);
-          if (!a || !b) continue;
-          const where = `${w}x${h} r${r} ${handle} between ${d} and ${d + 1}`;
-          expect(Math.abs(b.width - a.width), `${where} width`).toBeLessThanOrEqual(1);
-          expect(Math.abs(b.height - a.height), `${where} height`).toBeLessThanOrEqual(1);
-        }
+      for (const step of [1, 2, 3, 4]) {
+        const corner = solve(source, 'ne', step, step);
+        const east = solve(source, 'e', step, 0);
+        if (!corner || !east) continue;
+        const both = solve(flap(east.width, east.height, east.radius, east.anchor), 'n', 0, step);
+        if (!both) continue;
+        expect(
+          [both.width, both.height, both.radius],
+          `${w}x${h} r${r}, step ${step}`
+        ).toEqual([corner.width, corner.height, corner.radius]);
       }
     }
   });
+
+  /*
+   * Deliberately NOT asserted: that the *box* moves by at most one cell per cell
+   * of drag.
+   *
+   * It cannot hold alongside the rule above, and the incompatibility is exact.
+   * `h = H - 2r`, so a radius stepping by one steps the perpendicular box by two
+   * — and under a maximal radius an edge drag moves the radius whenever the axis
+   * it drags is the smaller one. Keeping the box continuous means giving up
+   * "always maximal", which is the trade the author made explicitly: a flap
+   * should always be the roundest thing that fits, and the W/H fields are there
+   * for the cases where it should not be.
+   *
+   * The radius itself is still continuous, which is asserted below.
+   */
 
   it('is monotone: dragging further out never gives a smaller box', () => {
     for (const [w, h, r] of SHAPES) {

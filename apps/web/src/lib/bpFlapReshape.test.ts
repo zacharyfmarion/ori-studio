@@ -99,13 +99,13 @@ describe('solveBpFlapReshape', () => {
       expect(sizes(drag(flap(0, 0, 5), 'e', 2, 0))).toEqual([2, 0, 5]);
     });
 
-    it('stops an edge dragged inward at the flap\'s own circle', () => {
-      // There is no width left to give back, and an edge never takes the radius
-      // — so the handle stops rather than making the flap shorter.
-      expect(drag(flap(0, 0, 5), 'e', -2, 0)).toBeNull();
-      // With a box to eat, it eats the box and then stops.
+    it('eats the box first, then narrows the radius', () => {
+      // An edge drag inward takes the box while there is box to take, because a
+      // wider box still fits the same circle. Once it is gone the radius is what
+      // is left, and a narrower box cannot hold the old one.
       expect(sizes(drag(flap(4, 0, 5), 'e', -2, 0))).toEqual([2, 0, 5]);
-      expect(sizes(drag(flap(4, 0, 5), 'e', -9, 0))).toEqual([0, 0, 5]);
+      expect(sizes(drag(flap(4, 0, 5), 'e', -4, 0))).toEqual([0, 0, 5]);
+      expect(sizes(drag(flap(0, 0, 5), 'e', -2, 0))).toEqual([0, 2, 4]);
     });
 
     it('refuses to shrink the outer box below the minimum radius', () => {
@@ -321,12 +321,21 @@ describe('solveBpFlapReshape', () => {
       expect(drag(flap(3, 0, 1.5), 'ne', 2, 2)).toBeNull();
     });
 
-    it('puts every cell of an edge drag into the box, one for one', () => {
-      // No parity to worry about on an edge: the radius does not move, so the
-      // box tracks the pointer exactly and continuously.
-      expect(sizes(drag(flap(4, 4, 2), 'e', 1, 0))).toEqual([5, 4, 2]);
-      expect(sizes(drag(flap(4, 4, 2), 'e', 2, 0))).toEqual([6, 4, 2]);
-      expect(sizes(drag(flap(4, 4, 2), 'e', 3, 0))).toEqual([7, 4, 2]);
+    it('puts an edge drag into the radius as soon as the radius can hold it', () => {
+      // The un-dragged height caps the radius at 4 here, so widening past that
+      // spills into the box — but the radius took everything it could first.
+      expect(sizes(drag(flap(4, 4, 2), 'e', 1, 0))).toEqual([1, 0, 4]);
+      expect(sizes(drag(flap(4, 4, 2), 'e', 2, 0))).toEqual([2, 0, 4]);
+      expect(sizes(drag(flap(4, 4, 2), 'e', 3, 0))).toEqual([3, 0, 4]);
+    });
+
+    it('reaches the corner\'s answer by two perpendicular edge drags', () => {
+      // The reported case: dragging out to a 5 x 5 box must be r2 with a 1 x 1
+      // box however you got there, not r1 with a 3 x 3 one.
+      const corner = drag(flap(0, 0, 1), 'ne', 3, 3);
+      expect(sizes(corner)).toEqual([1, 1, 2]);
+      const east = drag(flap(0, 0, 1), 'e', 3, 0)!;
+      expect(sizes(drag(asFlap(east), 'n', 0, 3))).toEqual([1, 1, 2]);
     });
   });
 

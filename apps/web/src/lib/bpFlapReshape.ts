@@ -15,42 +15,34 @@ import type { Point } from './geometry';
  *
  * So three numbers govern one drawn box, and a handle drag says where its edges
  * should land without saying which of the three should move. This module answers
- * that, and the answer depends on **which handle**:
+ * that with one rule, on every handle:
  *
  * ```
- * corner:  r′ = clamp(floor(min(W′, H′) / 2))   w′ = W′ − 2r′   h′ = H′ − 2r′
- * edge:    r′ = r                               w′ = W′ − 2r    h′ = H′ − 2r
+ * r′ = clamp(floor(min(W′, H′) / 2), rMin, rMax)   w′ = W′ − 2r′   h′ = H′ − 2r′
  * ```
  *
- * **A corner resizes the flap; an edge extends it.** A corner makes it as round
- * as its new bounds allow — drag one out to a `6 × 6` box and you get a plain
- * `r3` circle, not `r2` around a `2 × 2` base. An edge leaves the radius alone
- * and puts the whole change into the box on the axis it drags, so pulling the
- * east edge makes the flap longer that way, and pushing it back in eats the box
- * and stops at the circle.
+ * **The drag sets the outer box; the radius is then the largest that box will
+ * hold.** A flap is always the roundest thing that fits its bounds — a square box
+ * of even side is a plain circle, `6 × 6` giving `r3` rather than `r2` around a
+ * `2 × 2` base, and `5 × 5` giving `r2` with a `1 × 1` base rather than `r1` with
+ * a `3 × 3` one. The radius is the only one of the three that means anything in
+ * the folded model (it is the flap's length, and its leaf edge's), so it takes
+ * everything it can and `w`/`h` are the leftovers. The `W`/`H` fields in the pill
+ * are there for the cases where that is not what you want.
  *
- * The radius is the only one of the three that means anything in the folded model
- * — it is the flap's length, and its leaf edge's — which is why the corner, the
- * gesture that means *resize this flap*, is the one that moves it.
+ * Because the answer depends on the outer box and nothing else, **how the box was
+ * reached cannot matter**: two perpendicular edge drags land on exactly the flap
+ * one corner drag would have produced. That is the property that made this rule
+ * apply to every handle rather than to corners alone.
  *
- * ## Why an edge cannot also maximise the radius
+ * ## The trade this makes, deliberately
  *
- * Making every state "biggest circle plus leftovers" and making an edge drag
- * behave are mutually exclusive, and the proof is one line. Under
- * `r = floor(min(W,H)/2)` an edge drag changes one extent; when that extent is
- * the smaller one, the radius follows it — and since `h = H − 2r`, a radius that
- * steps by one steps the *perpendicular* box by two. One cell of horizontal drag
- * then restructures the flap vertically. Measured, before this: a `0 × 0 r2` flap
- * pulled one cell in from the east came back `r1` with a `1 × 2` box, halving the
- * flap's length in the folded model from a nudge that never touched its height.
- *
- * A corner has no such problem: both extents move together, the minimum moves
- * with them, and every number changes by at most one per cell.
- *
- * The cost is that two perpendicular edge drags can leave a flap whose radius is
- * not maximal, and the next corner drag snaps it. That is a one-off restructure
- * on the gesture that means "resize", which is the better place for it than on
- * every "make it a bit longer".
+ * The *box* is not continuous under it. `h = H − 2r`, so a radius stepping by one
+ * steps the perpendicular box by two, and an edge drag moves the radius whenever
+ * the axis it drags is the smaller one — so one cell of horizontal drag can
+ * restructure the flap vertically. That is not a defect to be tuned away; it is
+ * the exact price of "always maximal", and the two cannot both hold. The radius
+ * itself *is* continuous, and the outer box tracks the pointer exactly.
  *
  * ## Three facts that shape it
  *
@@ -64,9 +56,9 @@ import type { Point } from './geometry';
  * one — taking the whole graphics snapshot with it, not just that gadget. Every
  * number here is an integer in and an integer out.
  *
- * **Parity.** `W = w + 2r`, so a box of odd side cannot be a circle; on a corner
- * drag the `floor` leaves that one cell in `w` or `h`. An edge drag has no parity
- * to worry about, because it never moves the radius.
+ * **Parity.** `W = w + 2r`, so a box of odd side cannot be a circle; the `floor`
+ * leaves that one cell in `w` or `h`, and it is the only reason `min(w, h)` is
+ * ever anything but zero.
  */
 
 export type BpFlapResizeHandle = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
@@ -316,7 +308,7 @@ function footprintFor(
   const outer = bpFlapOuterBox(flap);
   const outerWidth = outer.width + delta.x;
   const outerHeight = outer.height + delta.y;
-  const radius = radiusFor(flap, signs, outerWidth, outerHeight, radiusRange);
+  const radius = radiusFor(flap, outerWidth, outerHeight, radiusRange);
   const box = { width: outerWidth - 2 * radius, height: outerHeight - 2 * radius };
   // An edge drag pushed in past the flap's own circle, or a box below the 2x2
   // floor a radius of 1 needs. Either way the caller walks the delta back.
@@ -358,21 +350,19 @@ function footprintFor(
 }
 
 /**
- * The radius the new bounds should have: maximal for a corner drag, untouched for
- * an edge drag or a flap with no leaf edge to set.
+ * The radius the new bounds should have: **always the largest that fits**, on
+ * every handle.
  *
- * "Corner" is read off the handle rather than the deltas — the two are the same
- * thing, since only a corner handle drives both axes, and asking the handle says
- * what the user grabbed rather than what they happened to do with it.
+ * The one exception is a flap with no leaf edge to set — there is no tree edge to
+ * write a radius to, so it keeps the one it has and the box takes everything.
  */
 function radiusFor(
   flap: OristudioBpFlap,
-  signs: { sx: -1 | 0 | 1; sy: -1 | 0 | 1 },
   outerWidth: number,
   outerHeight: number,
   radiusRange: BpFlapRadiusRange | null
 ): number {
-  if (!radiusRange || signs.sx === 0 || signs.sy === 0) return flap.radius;
+  if (!radiusRange) return flap.radius;
   // `min` wins a contradictory range. Clamping the other way round would hand
   // back a radius below the engine's floor of 1, which it rejects — and a
   // rejected mid-drag step is a stuck gesture rather than a visible error.
