@@ -5,10 +5,14 @@
  * something that *happens* on a press, and modelling a happening as state means
  * React de-duplicates it — pressing the same button twice would be one event.
  *
- * It exists because the control lives in `SimulatorViewControlsPanel`, which is
- * a store-driven options pane with no props and no path to the viewport, while
- * the handle lives in `SimulatorPanel`. The registry is the one thing both can
- * reach, exactly as the crease-pattern camera solved the same split.
+ * It exists for the **inline simulation windows**. Their toolbar is a floating
+ * component rendered by the crease-pattern panel, while the viewport handle
+ * lives inside the per-window component in `InlineSimulationLayer` — so there is
+ * no prop path between them, exactly the split the crease-pattern camera solved
+ * the same way.
+ *
+ * The Simulate workspace does not use it: its button sits in the same panel that
+ * owns the ref, so it calls the handle directly.
  */
 export interface SimulatorViewHandle {
   /**

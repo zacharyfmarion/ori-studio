@@ -8,6 +8,7 @@ import {
 import type { TFunction } from "i18next";
 import {
   AlertTriangle,
+  ArrowUpToLine,
   Pause,
   Play,
   RefreshCw,
@@ -35,7 +36,7 @@ import {
   SimulatorViewport,
   type SimulatorViewportHandle,
 } from "../../simulator/SimulatorViewport";
-import { registerSimulatorView } from "../../simulator/simulatorViewRegistry";
+import { announceUprightSet } from "../../lib/uprightFeedback";
 import { useSimulatorShortcuts } from "../../simulator/useSimulatorShortcuts";
 import { FoldPlayhead } from "../../simulator/foldPlayhead";
 import { SimulatorExportMenu } from "../../simulator/SimulatorExportMenu";
@@ -466,18 +467,6 @@ export function SimulatorPanel() {
     viewportRef.current?.zoomBy(factor);
   }, []);
 
-  // Publish the viewpoint verbs for the view-controls pane, which is store-driven
-  // and has no path to this ref. Registered once for the panel's life: the ref is
-  // stable across the viewport's own remounts (GPU/CPU path switches), so a
-  // re-register per render would only churn.
-  useEffect(
-    () =>
-      registerSimulatorView({
-        setUpright: () => viewportRef.current?.setUpright(),
-      }),
-    [],
-  );
-
   // Scrub the fold by a signed delta. setFoldTarget clamps 0-100 and pauses
   // playback, so a manual scrub always stops an in-progress play.
   const nudgeFold = useCallback(
@@ -543,6 +532,27 @@ export function SimulatorPanel() {
             </span>
           </div>
           <div className="panel-toolbar__group">
+            {/*
+              Which way the model is up. Here rather than in the view pane because
+              it is something you reach for *while* positioning a model — it acts
+              on the thing beside it, and the options pane is for settings you
+              configure once.
+
+              No matching "clear": the way back is the view reset (0 / Home, or
+              double-click the canvas), which drops the orientation with the
+              angles. See `SimulatorViewport.resetView`.
+            */}
+            <IconButton
+              size="sm"
+              title={t("panels:simulator.setUpright", "Set upright")}
+              disabled={loadState !== "ready"}
+              onClick={() => {
+                viewportRef.current?.setUpright();
+                announceUprightSet(t);
+              }}
+            >
+              <ArrowUpToLine size={14} />
+            </IconButton>
             <SimulatorExportMenu
               onExport={exportView}
               disabled={loadState !== "ready"}

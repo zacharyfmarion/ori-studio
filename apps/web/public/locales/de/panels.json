@@ -697,6 +697,7 @@
     "scopeStepTitle": "Den ausgewählten Sequenzschritt simulieren",
     "scopeWhole": "Gesamt",
     "scopeWholeTitle": "Das gesamte Faltmuster simulieren",
+    "setUpright": "Oben festlegen",
     "stats": "{{vertices}} Scheitelpunkte | {{triangles}} Dreiecke",
     "step": "Schritt",
     "stepAccuracy": "Genauigkeit der Schrittsimulation",
@@ -756,7 +757,6 @@
     "render": "Darstellung",
     "resetMaterial": "Material zurücksetzen",
     "resetStyle": "Stil zurücksetzen",
-    "setUpright": "Oben festlegen",
     "solver": "Solver",
     "solverHint": "Stabilität verringern, wenn eine Faltung zittert oder aufschwingt.",
     "stability": "Stabilität",
@@ -764,7 +764,6 @@
     "style": "Stil",
     "stylePaper": "Papier",
     "styleXray": "Röntgen",
-    "upDirection": "Oben-Richtung",
     "valley": "Tal"
   },
   "textAnnotation": {

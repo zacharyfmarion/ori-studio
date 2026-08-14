@@ -697,6 +697,7 @@
     "scopeStepTitle": "Simulate the selected sequence step",
     "scopeWhole": "Whole",
     "scopeWholeTitle": "Simulate the whole crease pattern",
+    "setUpright": "Set upright",
     "stats": "{{vertices}} vertices | {{triangles}} triangles",
     "step": "Step",
     "stepAccuracy": "Step simulation accuracy",
@@ -756,7 +757,6 @@
     "render": "Render",
     "resetMaterial": "Reset material",
     "resetStyle": "Reset style",
-    "setUpright": "Set upright",
     "solver": "Solver",
     "solverHint": "Lower stability if a fold jitters or blows up.",
     "stability": "Stability",
@@ -764,7 +764,6 @@
     "style": "Style",
     "stylePaper": "Paper",
     "styleXray": "X-ray",
-    "upDirection": "Up direction",
     "valley": "Valley"
   },
   "textAnnotation": {

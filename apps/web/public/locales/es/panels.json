@@ -717,6 +717,7 @@
     "scopeStepTitle": "Simular el paso de secuencia seleccionado",
     "scopeWhole": "Completo",
     "scopeWholeTitle": "Simular todo el patrón de pliegues",
+    "setUpright": "Definir vertical",
     "stats": "{{vertices}} vértices | {{triangles}} triángulos",
     "step": "Paso",
     "stepAccuracy": "Precisión de la simulación del paso",
@@ -777,7 +778,6 @@
     "render": "Renderizado",
     "resetMaterial": "Restablecer material",
     "resetStyle": "Restablecer estilo",
-    "setUpright": "Definir vertical",
     "solver": "Solucionador",
     "solverHint": "Reduce la estabilidad si un pliegue tiembla o se descontrola.",
     "stability": "Estabilidad",
@@ -785,7 +785,6 @@
     "style": "Estilo",
     "stylePaper": "Papel",
     "styleXray": "Rayos X",
-    "upDirection": "Dirección vertical",
     "valley": "Valle"
   },
   "textAnnotation": {

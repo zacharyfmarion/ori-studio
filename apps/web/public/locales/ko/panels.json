@@ -681,6 +681,7 @@
     "scopeStepTitle": "선택한 순서 단계 시뮬레이션",
     "scopeWhole": "전체",
     "scopeWholeTitle": "전체 전개도 시뮬레이션",
+    "setUpright": "위쪽 방향 설정",
     "stats": "정점 {{vertices}}개 | 삼각형 {{triangles}}개",
     "step": "단계",
     "stepAccuracy": "단계 시뮬레이션 정확도",
@@ -739,7 +740,6 @@
     "render": "렌더링",
     "resetMaterial": "재질 초기화",
     "resetStyle": "스타일 재설정",
-    "setUpright": "위쪽 방향 설정",
     "solver": "솔버",
     "solverHint": "접기가 떨리거나 발산하면 안정성을 낮추세요.",
     "stability": "안정성",
@@ -747,7 +747,6 @@
     "style": "스타일",
     "stylePaper": "종이",
     "styleXray": "엑스레이",
-    "upDirection": "위쪽 방향",
     "valley": "골"
   },
   "textAnnotation": {

@@ -681,6 +681,7 @@
     "scopeStepTitle": "模拟所选折叠步骤",
     "scopeWhole": "整体",
     "scopeWholeTitle": "模拟整个折痕图",
+    "setUpright": "设置向上方向",
     "stats": "{{vertices}} 个顶点 | {{triangles}} 个三角形",
     "step": "步骤",
     "stepAccuracy": "步骤模拟精度",
@@ -739,7 +740,6 @@
     "render": "渲染",
     "resetMaterial": "重置材质",
     "resetStyle": "重置样式",
-    "setUpright": "设置向上方向",
     "solver": "求解器",
     "solverHint": "如果折叠抖动或发散，请降低稳定性。",
     "stability": "稳定性",
@@ -747,7 +747,6 @@
     "style": "样式",
     "stylePaper": "纸张",
     "styleXray": "X 射线",
-    "upDirection": "向上方向",
     "valley": "谷折"
   },
   "textAnnotation": {

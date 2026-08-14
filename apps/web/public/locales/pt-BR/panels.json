@@ -717,6 +717,7 @@
     "scopeStepTitle": "Simular o passo de sequência selecionado",
     "scopeWhole": "Completo",
     "scopeWholeTitle": "Simular todo o padrão de vincos",
+    "setUpright": "Definir vertical",
     "stats": "{{vertices}} vértices | {{triangles}} triângulos",
     "step": "Passo",
     "stepAccuracy": "Precisão da simulação do passo",
@@ -777,7 +778,6 @@
     "render": "Renderização",
     "resetMaterial": "Redefinir material",
     "resetStyle": "Redefinir estilo",
-    "setUpright": "Definir vertical",
     "solver": "Solucionador",
     "solverHint": "Reduza a estabilidade se uma dobra tremer ou divergir.",
     "stability": "Estabilidade",
@@ -785,7 +785,6 @@
     "style": "Estilo",
     "stylePaper": "Papel",
     "styleXray": "Raios X",
-    "upDirection": "Direção vertical",
     "valley": "Vale"
   },
   "textAnnotation": {

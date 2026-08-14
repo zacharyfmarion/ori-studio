@@ -2473,9 +2473,8 @@
     "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
     "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
     "panels:foldedFigureActions.setUpright": "86e47d266ac9",
-    "panels:simulatorViewControls.setUpright": "86e47d266ac9",
-    "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7",
-    "toasts:upright.set": "a8108f3358e8"
+    "toasts:upright.set": "a8108f3358e8",
+    "panels:simulator.setUpright": "86e47d266ac9"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4951,9 +4950,8 @@
     "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
     "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
     "panels:foldedFigureActions.setUpright": "86e47d266ac9",
-    "panels:simulatorViewControls.setUpright": "86e47d266ac9",
-    "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7",
-    "toasts:upright.set": "a8108f3358e8"
+    "toasts:upright.set": "a8108f3358e8",
+    "panels:simulator.setUpright": "86e47d266ac9"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7429,9 +7427,8 @@
     "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
     "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
     "panels:foldedFigureActions.setUpright": "86e47d266ac9",
-    "panels:simulatorViewControls.setUpright": "86e47d266ac9",
-    "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7",
-    "toasts:upright.set": "a8108f3358e8"
+    "toasts:upright.set": "a8108f3358e8",
+    "panels:simulator.setUpright": "86e47d266ac9"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9868,9 +9865,8 @@
     "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
     "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
     "panels:foldedFigureActions.setUpright": "86e47d266ac9",
-    "panels:simulatorViewControls.setUpright": "86e47d266ac9",
-    "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7",
-    "toasts:upright.set": "a8108f3358e8"
+    "toasts:upright.set": "a8108f3358e8",
+    "panels:simulator.setUpright": "86e47d266ac9"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12307,9 +12303,8 @@
     "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
     "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
     "panels:foldedFigureActions.setUpright": "86e47d266ac9",
-    "panels:simulatorViewControls.setUpright": "86e47d266ac9",
-    "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7",
-    "toasts:upright.set": "a8108f3358e8"
+    "toasts:upright.set": "a8108f3358e8",
+    "panels:simulator.setUpright": "86e47d266ac9"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -14785,9 +14780,8 @@
     "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
     "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
     "panels:foldedFigureActions.setUpright": "86e47d266ac9",
-    "panels:simulatorViewControls.setUpright": "86e47d266ac9",
-    "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7",
-    "toasts:upright.set": "a8108f3358e8"
+    "toasts:upright.set": "a8108f3358e8",
+    "panels:simulator.setUpright": "86e47d266ac9"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17263,9 +17257,8 @@
     "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
     "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
     "panels:foldedFigureActions.setUpright": "86e47d266ac9",
-    "panels:simulatorViewControls.setUpright": "86e47d266ac9",
-    "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7",
-    "toasts:upright.set": "a8108f3358e8"
+    "toasts:upright.set": "a8108f3358e8",
+    "panels:simulator.setUpright": "86e47d266ac9"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -19702,8 +19695,7 @@
     "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
     "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
     "panels:foldedFigureActions.setUpright": "86e47d266ac9",
-    "panels:simulatorViewControls.setUpright": "86e47d266ac9",
-    "panels:simulatorViewControls.upDirection": "7fd0b6fdf4d7",
-    "toasts:upright.set": "a8108f3358e8"
+    "toasts:upright.set": "a8108f3358e8",
+    "panels:simulator.setUpright": "86e47d266ac9"
   }
 }

@@ -12,8 +12,6 @@ import {
   type SimulatorSettings,
 } from '../../lib/simulatorSettings';
 import { simulatorStyleDefaults } from '../../simulator/simulatorPalette';
-import { simulatorView } from '../../simulator/simulatorViewRegistry';
-import { announceUprightSet } from '../../lib/uprightFeedback';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useThemeStore } from '../../store/themeStore';
 import { ColorField } from '../ui/ColorField';
@@ -86,34 +84,6 @@ export function SimulatorViewControlsPanel() {
   return (
     <section className="panel-shell simulator-view-controls-panel">
       <div className="panel-body simulator-view-controls-panel__body">
-        {/*
-          First, and not `collapsible`. Everything below Render is a setting most
-          sessions never touch; this is the thing you reach for *while*
-          positioning a model, so it sits where the hand already is and a section
-          that started closed would put a click in front of it every time.
-
-          There is no matching "clear" button. The way back is the view reset
-          (0 / Home, or double-click the canvas), which drops the orientation
-          along with the angles — see `SimulatorViewport.resetView`. A simulation's
-          upright is session-only and has no undo behind it, so the reset has to
-          be a real way out rather than leaving the model stuck on a pole the user
-          picked by accident.
-        */}
-        <Section title={t('panels:simulatorViewControls.upDirection', 'Up direction')}>
-          <div className="control-row">
-            <button
-              type="button"
-              className="simulator-view-controls-panel__action"
-              onClick={() => {
-                simulatorView()?.setUpright();
-                announceUprightSet(t);
-              }}
-            >
-              {t('panels:simulatorViewControls.setUpright', 'Set upright')}
-            </button>
-          </div>
-        </Section>
-
         <Section title={t('panels:simulatorViewControls.render', 'Render')}>
           <div className="control-row">
             <span className="control-row__label">

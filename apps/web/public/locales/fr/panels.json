@@ -717,6 +717,7 @@
     "scopeStepTitle": "Simuler l'étape de séquence sélectionnée",
     "scopeWhole": "Complet",
     "scopeWholeTitle": "Simuler l'ensemble du patron de plis",
+    "setUpright": "Définir la verticale",
     "stats": "{{vertices}} sommets | {{triangles}} triangles",
     "step": "Étape",
     "stepAccuracy": "Précision de la simulation de l'étape",
@@ -777,7 +778,6 @@
     "render": "Rendu",
     "resetMaterial": "Réinitialiser le matériau",
     "resetStyle": "Réinitialiser le style",
-    "setUpright": "Définir la verticale",
     "solver": "Solveur",
     "solverHint": "Réduisez la stabilité si un pliage tremble ou diverge.",
     "stability": "Stabilité",
@@ -785,7 +785,6 @@
     "style": "Style",
     "stylePaper": "Papier",
     "styleXray": "Rayons X",
-    "upDirection": "Direction du haut",
     "valley": "Vallée"
   },
   "textAnnotation": {

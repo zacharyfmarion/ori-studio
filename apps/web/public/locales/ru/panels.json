@@ -737,6 +737,7 @@
     "scopeStepTitle": "Симулировать выбранный шаг последовательности",
     "scopeWhole": "Целиком",
     "scopeWholeTitle": "Симулировать весь паттерн складок",
+    "setUpright": "Задать верх",
     "stats": "{{vertices}} вершин | {{triangles}} треугольников",
     "step": "Шаг",
     "stepAccuracy": "Точность симуляции шага",
@@ -798,7 +799,6 @@
     "render": "Отображение",
     "resetMaterial": "Сбросить материал",
     "resetStyle": "Сбросить стиль",
-    "setUpright": "Задать верх",
     "solver": "Решатель",
     "solverHint": "Уменьшите устойчивость, если сгиб дрожит или расходится.",
     "stability": "Устойчивость",
@@ -806,7 +806,6 @@
     "style": "Стиль",
     "stylePaper": "Бумага",
     "styleXray": "Просвет",
-    "upDirection": "Направление вверх",
     "valley": "Долина"
   },
   "textAnnotation": {

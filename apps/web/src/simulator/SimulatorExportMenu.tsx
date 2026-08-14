@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Download } from 'lucide-react';
-import { IconButton } from '../components/ui/IconButton';
+import { MenuIconButton } from '../components/ui/MenuIconButton';
 import type { SimulatorViewExportFormat } from './simulatorViewExport';
 
 /**
@@ -46,13 +46,20 @@ export function SimulatorExportMenu({
 
   return (
     <DropdownMenu.Root>
-      <DropdownMenu.Trigger asChild>
-        {/* No `title`: an IconButton with one wraps itself in a Tooltip trigger,
-            which cannot also be a Radix `asChild` trigger. */}
-        <IconButton size="sm" variant={variant} aria-label={label} disabled={disabled}>
-          <Download size={14} />
-        </IconButton>
-      </DropdownMenu.Trigger>
+      {/*
+        `MenuIconButton` rather than an IconButton with a `title`: a menu button
+        needs to be a `DropdownMenu.Trigger asChild`, and passing `title` would
+        make it a competing `TooltipTrigger asChild` — two wrappers cannot each
+        clone the same element, so this control ended up with an `aria-label` and
+        no tooltip at all. That primitive exists precisely so the nesting is
+        written once, which is what this file should have used from the start.
+      */}
+      <MenuIconButton
+        label={label}
+        icon={<Download size={14} />}
+        disabled={disabled}
+        variant={variant}
+      />
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           className="context-menu"
