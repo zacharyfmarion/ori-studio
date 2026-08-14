@@ -70,10 +70,11 @@ describe('MobileLandingHeader', () => {
     expect(prose).toHaveLength(1);
   });
 
-  it('leads with the folded figure, above the masthead', () => {
+  it('closes with the folded figure, under the masthead', () => {
     // The phone gets no start screen, so this is the only place the product's
-    // own artefact appears above the fold. Order matters as much as presence: a
-    // figure under the tagline is a figure most visitors scroll past.
+    // own artefact appears above the fold. Order is asserted, not just
+    // presence: the figure reads as the header's payoff, and above the wordmark
+    // it would be a picture of nothing in particular.
     const { container } = renderLink();
 
     const figure = container.querySelector('.welcome-mobile-header__figure');
@@ -81,10 +82,10 @@ describe('MobileLandingHeader', () => {
     expect(figure).not.toBeNull();
     expect(brand).not.toBeNull();
     expect(figure?.querySelector('.start-figure')).not.toBeNull();
-    const brandFollowsFigure =
-      (figure?.compareDocumentPosition(brand as Node) ?? 0) &
+    const figureFollowsBrand =
+      (brand?.compareDocumentPosition(figure as Node) ?? 0) &
       Node.DOCUMENT_POSITION_FOLLOWING;
-    expect(brandFollowsFigure).toBeTruthy();
+    expect(figureFollowsBrand).toBeTruthy();
 
     // The *stage* is decorative and hides itself; the wrapper must not, or the
     // designer credit inside would be a focusable link a screen reader never

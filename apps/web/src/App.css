@@ -62,8 +62,8 @@
 }
 
 /*
- * The phone's page header: a way into the app, the folded figure, then the
- * masthead.
+ * The phone's page header: a way into the app, the masthead, then the folded
+ * figure.
  *
  * The bar has real space under it. The button used to sit flush on the first
  * section's top border, which read as a rendering mistake rather than a divider.
@@ -76,7 +76,7 @@
  */
 .welcome-mobile-header {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: var(--space-4);
   max-height: 100svh;
   padding: var(--space-3) var(--space-5) var(--space-6);

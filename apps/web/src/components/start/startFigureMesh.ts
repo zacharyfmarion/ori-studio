@@ -53,8 +53,9 @@ export class StartFigureMesh {
   static create(canvas: HTMLCanvasElement, asset: StartFigureAsset): StartFigureMesh | null {
     const built = folded3dMesh(asset.model);
     if (built.kind !== 'mesh') return null;
-    const { topology, radius } = built.mesh;
+    const { topology } = built.mesh;
     const positions = orient(built.mesh.positions, asset.view.orient);
+    const radius = screenFitRadius(positions, asset.view.pitch);
 
     let core: GlCore | null = null;
     try {
@@ -176,6 +177,41 @@ export class StartFigureMesh {
     this.mesh.dispose();
     this.core.dispose();
   }
+}
+
+/**
+ * The radius that just contains the figure **on screen**, at every yaw.
+ *
+ * `folded3dMesh` reports the bounding *sphere*, which is what a free orbit needs:
+ * tumble a model any way at all and the sphere is the only shape guaranteed to
+ * hold it. This figure does not tumble. It turns about one axis at a fixed
+ * pitch, and for that motion the sphere is far too generous — it reserves room
+ * for the model's longest diagonal in a direction the camera never looks from,
+ * which shows as a band of empty frame under the figure and a smaller figure
+ * than the space allows.
+ *
+ * Yaw rotates about the model's Y, so the two screen extents are:
+ *
+ * - horizontal — `max(hypot(x, z))`, the furthest any vertex swings from the
+ *   axis, which is what the widest yaw presents;
+ * - vertical — `|cos(pitch)|` of that same swing plus `|sin(pitch)|` of
+ *   `max(|y|)`, which at the shipped pitch of −π/2 is just `max(|y|)` and does
+ *   not change as the figure turns at all.
+ *
+ * Taking the larger fits both, at every angle, with nothing to spare. Computed
+ * from the *oriented* positions, so it follows whatever `--orient` the asset
+ * was baked with.
+ */
+function screenFitRadius(positions: Float32Array, pitch: number): number {
+  let radial = 0;
+  let vertical = 0;
+  for (let i = 0; i < positions.length; i += 3) {
+    radial = Math.max(radial, Math.hypot(positions[i]!, positions[i + 2]!));
+    vertical = Math.max(vertical, Math.abs(positions[i + 1]!));
+  }
+  const onScreenVertical =
+    Math.abs(Math.cos(pitch)) * radial + Math.abs(Math.sin(pitch)) * vertical;
+  return Math.max(1e-3, radial, onScreenVertical);
 }
 
 /**
