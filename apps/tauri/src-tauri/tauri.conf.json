@@ -21,13 +21,16 @@
         "title": "Ori Studio",
         "width": 1400,
         "height": 900,
+        "minWidth": 900,
+        "minHeight": 640,
         "resizable": true,
         "fullscreen": false,
         "dragDropEnabled": false
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' data: blob: ipc: http://ipc.localhost https://us.i.posthog.com https://us-assets.i.posthog.com https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io https://*.ingest.sentry.io; object-src 'none'; frame-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'",
+      "devCsp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' data: blob: ipc: http://ipc.localhost ws://127.0.0.1:* ws://localhost:* http://127.0.0.1:* http://localhost:* https://us.i.posthog.com https://us-assets.i.posthog.com https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io https://*.ingest.sentry.io; object-src 'none'; frame-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'"
     }
   },
   "bundle": {
