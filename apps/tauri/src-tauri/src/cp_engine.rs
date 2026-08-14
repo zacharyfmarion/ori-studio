@@ -13,9 +13,11 @@
 //! set is kept in lockstep with the shared manifest
 //! [`oristudio_cp::session::CP_ENGINE_COMMANDS`] by the parity test at the bottom.
 
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 
 use oristudio_cp::CreasePatternDocument;
+use oristudio_cp::cancel::{CancelHandle, CancelSource, RunId};
 use oristudio_cp::folding::{
     DisplayStyle, EstimationOrder, FoldedFigureModel, FoldedFigureRenderOptions,
     FoldedFigureRenderSnapshot, FoldedFigureSnapshot,
@@ -37,6 +39,59 @@ pub fn new_state() -> CpEngine {
     Arc::new(Mutex::new(CpSession::new()))
 }
 
+/// Which fold the user has asked to stop, or 0 for none.
+///
+/// Managed **beside** the engine rather than inside it, and that separation is
+/// the whole design: [`run`] holds the `CpSession` mutex for a fold's entire
+/// duration, so a cancel that touched the session would queue behind the fold it
+/// is trying to stop and arrive only once the stop was pointless.
+///
+/// It is also process-lifetime state fed by webview-lifetime ids, and those two
+/// are only safe together because the frontend clears it where it mints its
+/// first id — see [`FoldCancel::request`] and `run_id_zero_returns_the_flag_to_rest`.
+#[derive(Default)]
+pub struct FoldCancel(AtomicU32);
+
+impl CancelSource for FoldCancel {
+    fn cancelled_run(&self) -> u32 {
+        self.0.load(Ordering::Relaxed)
+    }
+}
+
+impl FoldCancel {
+    /// Record which run the user asked to stop; `0` returns the flag to rest.
+    ///
+    /// Split out of the command so it can be exercised without a Tauri `State`,
+    /// which is the only reason the clearing behaviour has a test at all.
+    fn request(&self, run_id: u32) {
+        self.0.store(run_id, Ordering::Relaxed);
+    }
+}
+
+/// Managed cancel state — shared via `Arc` so a fold can carry a reader onto its
+/// `spawn_blocking` thread while the command that writes it stays on the main one.
+pub type FoldCancelState = Arc<FoldCancel>;
+
+pub fn new_cancel_state() -> FoldCancelState {
+    FoldCancelState::default()
+}
+
+/// Stop the named fold.
+///
+/// **Synchronous on purpose**, so Tauri answers it inline instead of routing it
+/// through `spawn_blocking` — a queued async command would sit behind the ~40 CP
+/// commands already parked on `engine.lock()` for the fold's duration. It is also
+/// the reason this command is absent from
+/// [`CP_ENGINE_COMMANDS`](oristudio_cp::session::CP_ENGINE_COMMANDS): it maps to
+/// no `CpSession` operation and deliberately never takes the lock.
+///
+/// `store`, not `fetch_max`: the kernel matches the run id exactly, so stopping
+/// the visible fold cannot collaterally kill a lower-numbered background one.
+#[tauri::command]
+pub fn cp_fold_cancel(state: State<'_, FoldCancelState>, run_id: u32) {
+    state.request(run_id);
+}
+
 /// Run engine work off the UI thread: clone the `Arc`, then lock and run the
 /// closure on a blocking thread. The main thread stays free while the work runs.
 async fn run<T, F>(state: State<'_, CpEngine>, f: F) -> Result<T, EngineError>
@@ -46,6 +101,41 @@ where
 {
     let engine = Arc::clone(state.inner());
     tauri::async_runtime::spawn_blocking(move || {
+        let mut session = engine
+            .lock()
+            .map_err(|_| EngineError::new("engine_poisoned", "CP engine state is unavailable"))?;
+        f(&mut session)
+    })
+    .await
+    .map_err(|_| EngineError::new("engine_task", "CP engine task did not complete"))?
+}
+
+/// [`run`] with a cancel binding installed on the blocking thread.
+///
+/// Every fold command uses this and none uses [`run`] — the test at the bottom of
+/// this file enforces that, because a fold left on `run` compiles, passes every
+/// check, and silently ignores Stop forever.
+///
+/// The binding is installed inside the closure, i.e. on the thread that actually
+/// folds, and covers the rayon regions the kernel enters from there (its
+/// `flat_map_conditions` bridge re-installs it per worker item). A `run_id` of 0
+/// binds nothing, which is what an uncancellable background fold passes.
+async fn run_cancellable<T, F>(
+    state: State<'_, CpEngine>,
+    cancel: State<'_, FoldCancelState>,
+    run_id: u32,
+    f: F,
+) -> Result<T, EngineError>
+where
+    F: FnOnce(&mut CpSession) -> Result<T, EngineError> + Send + 'static,
+    T: Send + 'static,
+{
+    let engine = Arc::clone(state.inner());
+    let source: Arc<dyn CancelSource> = Arc::clone(cancel.inner()) as Arc<dyn CancelSource>;
+    tauri::async_runtime::spawn_blocking(move || {
+        let _bound = oristudio_cp::cancel::bind(
+            RunId::new(run_id).map(|run_id| CancelHandle::new(source, run_id)),
+        );
         let mut session = engine
             .lock()
             .map_err(|_| EngineError::new("engine_poisoned", "CP engine state is unavailable"))?;
@@ -340,6 +430,11 @@ pub async fn cp_place_circles(
 }
 
 // --- folding ----------------------------------------------------------------
+//
+// Every command that runs a *search* takes a `run_id` and goes through
+// [`run_cancellable`]; the duplicate commands below stay on [`run`], because they
+// copy an existing figure rather than fold one. A `run_id` of 0 means "not
+// cancellable", which is what every caller passed before this parameter existed.
 
 #[tauri::command]
 pub async fn cp_folded_figure_fold(
@@ -347,9 +442,11 @@ pub async fn cp_folded_figure_fold(
     starting_face_id: i32,
     order: EstimationOrder,
     model: Option<FoldedFigureModel>,
+    run_id: u32,
     state: State<'_, CpEngine>,
+    cancel: State<'_, FoldCancelState>,
 ) -> Result<FoldedFigureResult, EngineError> {
-    run(state, move |session| {
+    run_cancellable(state, cancel, run_id, move |session| {
         session.folded_figure_fold(
             document_handle,
             starting_face_id,
@@ -360,6 +457,10 @@ pub async fn cp_folded_figure_fold(
     .await
 }
 
+// A command's parameter list *is* its IPC signature, and the last two are
+// injected by Tauri rather than sent by the caller — grouping them into a struct
+// to satisfy the lint would change the wire shape the frontend calls with.
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub async fn cp_folded_figure_fold_selected(
     document_handle: u32,
@@ -367,9 +468,11 @@ pub async fn cp_folded_figure_fold_selected(
     starting_face_id: i32,
     order: EstimationOrder,
     model: Option<FoldedFigureModel>,
+    run_id: u32,
     state: State<'_, CpEngine>,
+    cancel: State<'_, FoldCancelState>,
 ) -> Result<FoldedFigureResult, EngineError> {
-    run(state, move |session| {
+    run_cancellable(state, cancel, run_id, move |session| {
         session.folded_figure_fold_selected(
             document_handle,
             &selected_line_ids,
@@ -428,9 +531,11 @@ pub async fn cp_folded_figure_duplicate(
 #[tauri::command]
 pub async fn cp_folded_figure_fold_another(
     handle: u32,
+    run_id: u32,
     state: State<'_, CpEngine>,
+    cancel: State<'_, FoldCancelState>,
 ) -> Result<FoldedFigureSnapshot, EngineError> {
-    run(state, move |session| {
+    run_cancellable(state, cancel, run_id, move |session| {
         session.folded_figure_fold_another(handle)
     })
     .await
@@ -441,9 +546,11 @@ pub async fn cp_folded_figure_fold_to_case(
     handle: u32,
     objective: u32,
     initial_order: EstimationOrder,
+    run_id: u32,
     state: State<'_, CpEngine>,
+    cancel: State<'_, FoldCancelState>,
 ) -> Result<FoldedFigureBatchResult, EngineError> {
-    run(state, move |session| {
+    run_cancellable(state, cancel, run_id, move |session| {
         session.folded_figure_fold_to_case(handle, objective as usize, initial_order)
     })
     .await
@@ -455,9 +562,11 @@ pub async fn cp_folded_figure_fold_3d(
     selected_line_ids: Vec<usize>,
     starting_face_id: i32,
     model: Option<FoldedFigureModel>,
+    run_id: u32,
     state: State<'_, CpEngine>,
+    cancel: State<'_, FoldCancelState>,
 ) -> Result<Fold3dFoldResult, EngineError> {
-    run(state, move |session| {
+    run_cancellable(state, cancel, run_id, move |session| {
         session.folded_figure_fold_3d(
             document_handle,
             &selected_line_ids,
@@ -471,9 +580,11 @@ pub async fn cp_folded_figure_fold_3d(
 #[tauri::command]
 pub async fn cp_folded_figure_3d_fold_another(
     handle: u32,
+    run_id: u32,
     state: State<'_, CpEngine>,
+    cancel: State<'_, FoldCancelState>,
 ) -> Result<Fold3dStepResult, EngineError> {
-    run(state, move |session| {
+    run_cancellable(state, cancel, run_id, move |session| {
         session.folded_figure_3d_fold_another(handle)
     })
     .await
@@ -547,10 +658,28 @@ const NATIVE_CP_COMMAND_NAMES: &[&str] = &[
     "cp_free_folded_figure",
 ];
 
+/// The six commands that run a layer-ordering search, and so must be
+/// cancellable. Named here rather than inferred, because [`run_cancellable`] can
+/// be written and never called: that compiles, passes every check in the repo,
+/// and leaves desktop Stop silently doing nothing forever.
+#[cfg(test)]
+const CANCELLABLE_FOLD_COMMANDS: &[&str] = &[
+    "cp_folded_figure_fold",
+    "cp_folded_figure_fold_selected",
+    "cp_folded_figure_fold_another",
+    "cp_folded_figure_fold_to_case",
+    "cp_folded_figure_fold_3d",
+    "cp_folded_figure_3d_fold_another",
+];
+
 #[cfg(test)]
 mod tests {
-    use super::{NATIVE_CP_COMMAND_NAMES, new_state};
+    use super::{
+        CANCELLABLE_FOLD_COMMANDS, FoldCancel, NATIVE_CP_COMMAND_NAMES, new_cancel_state, new_state,
+    };
+    use oristudio_cp::cancel::{CancelSource, RunId};
     use oristudio_cp::session::CP_ENGINE_COMMANDS;
+    use std::sync::atomic::Ordering;
 
     const SQUARE_CP: &str =
         "2 0.0 0.0 1.0 0.0\n2 1.0 0.0 1.0 1.0\n2 1.0 1.0 0.0 1.0\n2 0.0 1.0 0.0 0.0\n";
@@ -567,6 +696,92 @@ mod tests {
             stripped, CP_ENGINE_COMMANDS,
             "native Tauri command set drifted from oristudio_cp::session::CP_ENGINE_COMMANDS"
         );
+    }
+
+    /// `cp_fold_cancel` is the one native CP command deliberately outside the
+    /// shared manifest, and this states it so a future reader does not "fix" the
+    /// omission. The manifest documents itself as the list of commands that map
+    /// to a `CpSession` operation and take the engine mutex; cancel's entire
+    /// design point is that it does neither, and it has no wasm twin — the web
+    /// transport is an `Atomics.store` into shared memory, not a command.
+    #[test]
+    fn the_cancel_command_is_deliberately_outside_the_manifest() {
+        assert!(
+            !CP_ENGINE_COMMANDS.contains(&"fold_cancel"),
+            "cp_fold_cancel maps to no CpSession operation and must not enter the manifest"
+        );
+        assert!(!NATIVE_CP_COMMAND_NAMES.contains(&"cp_fold_cancel"));
+    }
+
+    /// Every fold command must reach the engine through `run_cancellable`, never
+    /// through `run` — nothing else forces it, and a fold left on `run` ignores
+    /// Stop while every check stays green.
+    #[test]
+    fn every_fold_command_binds_a_cancel_token() {
+        let source = include_str!("cp_engine.rs");
+        for command in CANCELLABLE_FOLD_COMMANDS {
+            let signature = format!("pub async fn {command}(");
+            let start = source
+                .find(&signature)
+                .unwrap_or_else(|| panic!("{command} is not defined in this file"));
+            let body = &source[start..];
+            let body = &body[..body.find("\n#[tauri::command]").unwrap_or(body.len())];
+            assert!(
+                body.contains("run_cancellable(state, cancel, run_id,"),
+                "{command} does not bind a run id — desktop Stop cannot reach it"
+            );
+            assert!(
+                !body.contains("    run(state"),
+                "{command} still calls run(), which holds the engine mutex uncancellably"
+            );
+        }
+    }
+
+    /// The cancel flag is an exact id, never a watermark: a Stop on one run must
+    /// leave every other live run alone, including a lower-numbered background
+    /// one. `store` is what makes that true; `fetch_max` would not.
+    #[test]
+    fn the_cancel_state_records_the_exact_run() {
+        let state = new_cancel_state();
+        assert_eq!(state.cancelled_run(), 0, "nothing is cancelled at rest");
+
+        state.0.store(7, Ordering::Relaxed);
+        assert_eq!(state.cancelled_run(), 7);
+
+        // A later Stop replaces the earlier one rather than accumulating.
+        state.0.store(3, Ordering::Relaxed);
+        assert_eq!(state.cancelled_run(), 3);
+
+        assert_eq!(FoldCancel::default().cancelled_run(), 0);
+    }
+
+    /// Run id 0 is how the frontend hands this flag back its "nothing is
+    /// cancelled" state, and it must actually be inert.
+    ///
+    /// This flag lives for the whole Tauri **process**; the run-id counter that
+    /// feeds it lives in the webview's JS module state and restarts at 1 on every
+    /// reload — and reload is a shipped recovery path (the error boundaries offer
+    /// it). Without a clear, a Stop on run 3 followed by a reload leaves the flag
+    /// naming 3 while the counter walks back up to it, and the third fold
+    /// afterwards is cancelled from birth: no figure, no error, not even the
+    /// "Folding stopped" toast, because nothing on the frontend asked for it. The
+    /// clear is issued where the counter begins — `installFoldCancellation`, in
+    /// the `oristudio-cp` connector — so the two halves share one lifetime.
+    #[test]
+    fn run_id_zero_returns_the_flag_to_rest() {
+        let state = new_cancel_state();
+        state.0.store(3, Ordering::Relaxed);
+        assert_eq!(state.cancelled_run(), 3);
+
+        state.request(0);
+        assert_eq!(
+            state.cancelled_run(),
+            0,
+            "a stale id survived the clear, and would cancel a later fold that reuses it"
+        );
+        // And a cleared flag cancels nothing: `RunId::new(0)` is `None`, so a
+        // fold bound to 0 has no binding at all.
+        assert!(RunId::new(0).is_none());
     }
 
     /// A command actually round-trips through the managed session state.

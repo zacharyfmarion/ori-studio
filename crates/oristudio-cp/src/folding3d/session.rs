@@ -53,6 +53,38 @@ pub enum Fold3dSessionError {
     Refused(Fold3dRefusal),
     Order(Fold3dOrderError),
     Render(RenderModelError),
+    /// The user stopped the fold.
+    ///
+    /// Separate from `Refused` because the entry point turns a refusal into an
+    /// `Ok(Refused)` *result* — the "can't fold this in 3D, simulate instead?"
+    /// dialog — and a cancel must not open that.
+    Cancelled,
+}
+
+impl From<crate::folding3d::Fold3dPlacementError> for Fold3dSessionError {
+    fn from(error: crate::folding3d::Fold3dPlacementError) -> Self {
+        match error {
+            crate::folding3d::Fold3dPlacementError::Refused(refusal) => Self::Refused(refusal),
+            crate::folding3d::Fold3dPlacementError::Cancelled => Self::Cancelled,
+        }
+    }
+}
+
+impl From<crate::cancel::Cancelled> for Fold3dSessionError {
+    fn from(_: crate::cancel::Cancelled) -> Self {
+        Self::Cancelled
+    }
+}
+
+impl Fold3dSessionError {
+    /// Whether this is the user stopping, at any depth.
+    pub fn is_cancelled(&self) -> bool {
+        match self {
+            Self::Cancelled => true,
+            Self::Order(order) => order.is_cancelled(),
+            Self::Refused(_) | Self::Render(_) => false,
+        }
+    }
 }
 
 impl std::fmt::Display for Fold3dSessionError {
@@ -61,6 +93,7 @@ impl std::fmt::Display for Fold3dSessionError {
             Self::Refused(refusal) => refusal.fmt(f),
             Self::Order(error) => error.fmt(f),
             Self::Render(error) => error.fmt(f),
+            Self::Cancelled => write!(f, "the fold was cancelled"),
         }
     }
 }
@@ -136,6 +169,13 @@ impl Fold3dSession {
             tolerances,
         ) {
             Ok(cells) => (cells, None),
+            // Ahead of the degrade, on both arms below: a stop is not an
+            // ordering verdict. Carried in `order_error` it would place the
+            // figure anyway and label it "no layer order — cancelled", which
+            // mints a kernel handle, a canvas entry, an undo step and a dirty
+            // project, and tells the user something about their crease pattern
+            // that is not true. A cancel unwinds; it never concludes.
+            Err(error) if error.is_cancelled() => return Err(Fold3dSessionError::Cancelled),
             Err(error) => (empty_cells(), Some(Fold3dOrderError::from(error))),
         };
         let enumerator = if order_error.is_some() {
@@ -149,6 +189,7 @@ impl Fold3dSession {
                 tolerances,
             ) {
                 Ok(enumerator) => Some(enumerator),
+                Err(error) if error.is_cancelled() => return Err(Fold3dSessionError::Cancelled),
                 Err(error) => {
                     order_error = Some(error);
                     None
@@ -249,7 +290,31 @@ impl Fold3dSession {
     /// [`Advance::WrappedToFirst`] without doing anything — the same answer a
     /// one-solution model gives, which is what keeps the cycling UI from
     /// needing to know the difference.
+    /// Step to the next stacking, rolling back if the user cancels.
+    ///
+    /// The rollback is not optional: `enumerator.advance()` moves the search and
+    /// `render_model` then redraws from it, so a cancel landing between the two
+    /// leaves the figure drawing a stacking the enumerator has already moved
+    /// past — and the next `advance()` skips a solution. Both failures are
+    /// silent.
     pub fn advance(&mut self) -> Result<Advance, Fold3dSessionError> {
+        if self.enumerator.is_none() {
+            return Ok(Advance::WrappedToFirst);
+        }
+        // Same reasoning as `FoldingEstimateSession::transactional`: an unbound
+        // caller cannot be cancelled, so it pays nothing.
+        if crate::cancel::current().is_none() {
+            return self.advance_inner();
+        }
+        let enumerator = self.enumerator.clone();
+        let outcome = self.advance_inner();
+        if matches!(&outcome, Err(error) if error.is_cancelled()) {
+            self.enumerator = enumerator;
+        }
+        outcome
+    }
+
+    fn advance_inner(&mut self) -> Result<Advance, Fold3dSessionError> {
         let Some(enumerator) = self.enumerator.as_mut() else {
             return Ok(Advance::WrappedToFirst);
         };

@@ -112,11 +112,40 @@ pub enum Fold3dOrderError {
     },
     /// The search failed for a reason that is neither of the above.
     SearchFailed { component: usize },
+    /// The user stopped the fold. Never a statement about the model — see
+    /// [`crate::cancel`].
+    Cancelled,
+}
+
+impl From<crate::cancel::Cancelled> for Fold3dOrderError {
+    fn from(_: crate::cancel::Cancelled) -> Self {
+        Self::Cancelled
+    }
+}
+
+impl Fold3dOrderError {
+    /// Whether this is the user stopping, **at any depth**.
+    ///
+    /// `Cells(CellError::Cancelled)` is a real route here — `wire.rs` maps it —
+    /// and a shallow `matches!` missed it, so a cancel arriving through the
+    /// arrangement was classified as a 3D failure and reached the user as an
+    /// error toast about their crease pattern instead of a stop.
+    pub fn is_cancelled(&self) -> bool {
+        match self {
+            Self::Cancelled => true,
+            Self::Cells(cells) => cells.is_cancelled(),
+            Self::ContradictorySeeds { .. }
+            | Self::NoLayerOrder { .. }
+            | Self::FaceIdOutOfRange { .. }
+            | Self::SearchFailed { .. } => false,
+        }
+    }
 }
 
 impl std::fmt::Display for Fold3dOrderError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Cancelled => write!(f, "the fold was cancelled"),
             Self::Cells(error) => error.fmt(f),
             Self::ContradictorySeeds {
                 upper,
@@ -882,6 +911,9 @@ impl Builder {
         // determination, and neither names a geometric rule, so this arm reports
         // the pair alone.
         validate_initial_hierarchy(&hierarchy).map_err(|error| match error {
+            // Kept off the `ContradictorySeeds` path: that arm reports two faces
+            // as geometrically irreconcilable, which a cancel is not.
+            AdditionalEstimationError::Cancelled => Fold3dOrderError::Cancelled,
             AdditionalEstimationError::Contradiction {
                 upper_face,
                 lower_face,
@@ -1076,6 +1108,33 @@ mod tests {
                 first: (SeedKind::Wall, 8),
                 second: (SeedKind::FullFold, 3),
             })
+        );
+    }
+
+    /// A cancel must be recognisable through the `Cells` nesting, which is a real
+    /// route (`wire.rs` maps it) and which the shallow predicate missed. Missing
+    /// it sends a stop to the user as `fold_3d_failed` — an error toast about
+    /// their crease pattern — because `is_cancelled` is the sole guard on the two
+    /// hand-built `EngineError` sites in `session.rs`.
+    #[test]
+    fn a_cancel_is_recognised_through_the_cells_nesting() {
+        assert!(Fold3dOrderError::Cancelled.is_cancelled());
+        assert!(Fold3dOrderError::Cells(CellError::Cancelled).is_cancelled());
+        assert!(
+            !Fold3dOrderError::Cells(CellError::ArrangementRefused {
+                plane: 0,
+                first_face: 0,
+                faces: 2,
+            })
+            .is_cancelled()
+        );
+        assert!(
+            !Fold3dOrderError::NoLayerOrder {
+                component: 0,
+                faces: 2,
+                variables: 1,
+            }
+            .is_cancelled()
         );
     }
 }

@@ -629,6 +629,38 @@ export interface ClipboardSliceActions {
 
 export type ClipboardSlice = ClipboardSliceState & ClipboardSliceActions;
 
+/**
+ * Which verb started a fold. One value per wrapped call site, so the indicator
+ * and the analytics can tell a first fold from a refold without carrying
+ * anything about the document itself.
+ */
+export type OristudioCpFoldRunKind =
+  | 'fold'
+  | 'fold-3d'
+  | 'another'
+  | 'another-3d'
+  | 'to-case'
+  | 'refold'
+  | 'refold-3d';
+
+/** One layer-ordering search the user can point at. */
+export interface OristudioCpFoldRun {
+  /** The id a Stop writes. Never 0 and never `RunId::BACKGROUND`. */
+  runId: number;
+  kind: OristudioCpFoldRunKind;
+  /** `Date.now()` at dispatch — what the elapsed-time bucket is measured from. */
+  startedAt: number;
+  /**
+   * Whether this run could actually be stopped, decided when it started because
+   * that is when the transport binding was made. False in a browser without
+   * cross-origin isolation, where there is no shared memory to write into — and
+   * the affordance must then be absent rather than dead.
+   */
+  cancellable: boolean;
+  /** A Stop has been written for this run; the kernel unwinds at its next checkpoint. */
+  stopping: boolean;
+}
+
 export interface CreasePatternSliceState {
   creaseColorMode: CreaseColorMode;
   oristudioCpSelection: OristudioCpSelection;
@@ -642,10 +674,21 @@ export interface CreasePatternSliceState {
   oristudioCpRevision: number;
   oristudioCpFoldedFigures: OristudioCpFoldedFigureEntry[];
   /**
-   * How many fold operations are in flight. A count, not a flag, so overlapping
-   * folds cannot clear each other's indicator. Drives the delayed progress toast.
+   * The layer-ordering searches currently running, keyed by the run id a Stop
+   * names (see `lib/foldCancellation.ts`).
+   *
+   * This used to be a count, which was enough to drive an indicator and not
+   * enough to offer a way out of one: a number cannot say *which* run to stop,
+   * nor how long it has been going. A single record could say both and could not
+   * represent the overlap the count was written for — seven call sites can fold
+   * at once, and a refold triggered by a stale figure can start while the user
+   * is folding something else.
+   *
+   * Background work (the 3D rehydrate, the export-dialog fold) is deliberately
+   * absent: it runs unbound (`FOLD_RUN_NONE`), raises no indicator, and must not
+   * be reachable by a Stop meant for the fold the user can see.
    */
-  oristudioCpFoldsInFlight: number;
+  oristudioCpFoldRuns: Record<number, OristudioCpFoldRun>;
   oristudioCpActiveFoldedFigureId: string | null;
   oristudioCpViewport: OristudioCpViewportOptions;
   /**
@@ -828,6 +871,19 @@ export interface CreasePatternSliceActions {
     model?: OristudioCpFoldedFigureModel;
     lineIds?: number[];
   }) => Promise<boolean>;
+  /**
+   * Stop every fold the user can address, and say whether there was one.
+   *
+   * Synchronous: the stop is a write into memory the running kernel already
+   * reads, so nothing is awaited and nothing can queue behind the fold it is
+   * meant to stop. The folds themselves end on their own — each rejects with
+   * `fold_cancelled` at its next checkpoint, which is what unwinds the draft
+   * figure and clears the run from {@link CreasePatternSliceState.oristudioCpFoldRuns}.
+   *
+   * `false` when nothing stoppable is running, which is how Escape knows to fall
+   * through to the rest of its ladder.
+   */
+  stopOristudioCpFolds: () => boolean;
   foldAnotherOristudioCpFigure: (id?: string) => Promise<boolean>;
   foldOristudioCpFigureToCase: (id: string, objective: number) => Promise<boolean>;
   setOristudioCpFoldedFigureDisplayStyle: (

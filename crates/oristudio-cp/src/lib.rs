@@ -5,6 +5,7 @@
 //! unsupported operations fail with a typed error instead of fabricating nearby
 //! behavior.
 
+pub mod cancel;
 pub mod canonical;
 pub mod checks;
 pub mod checks_spatial;

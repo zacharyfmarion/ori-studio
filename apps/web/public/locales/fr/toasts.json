@@ -11,7 +11,11 @@
   },
   "global": {
     "error": "Erreur Ori Studio",
-    "folding": "Pliage…"
+    "folding": "Pliage…",
+    "foldingLong": "Pliage toujours en cours — cela peut prendre du temps",
+    "foldStop": "Annuler",
+    "foldStopped": "Pliage annulé",
+    "foldStopping": "Annulation…"
   },
   "simulatorExport": {
     "empty": "Cette simulation n'a encore rien à exporter",

@@ -9,7 +9,8 @@
 use oristudio_cp::CLOSURE_RESIDUAL_BAR_DEGREES;
 use oristudio_cp::checks_spatial::Vec3;
 use oristudio_cp::folding3d::{
-    Fold3dOutcome, Fold3dRefusal, Fold3dTolerances, Placement3d, admit, admit_with, place_segments,
+    Fold3dOutcome, Fold3dPlacementError, Fold3dRefusal, Fold3dTolerances, Placement3d, admit,
+    admit_with, place_segments,
 };
 use oristudio_cp::geometry::{FoldMagnitude, LineColor, LineSegment, Point};
 use oristudio_cp::io::fold::import_fold_document;
@@ -134,7 +135,7 @@ fn the_refusing_fixtures_refuse_for_the_reason_they_were_chosen_for() {
     // connectivity.
     let model = fixture("penguin_disconnected");
     match admit(&model.line_segments, 1) {
-        Err(Fold3dRefusal::Disconnected { reached, unreached }) => {
+        Err(Fold3dPlacementError::Refused(Fold3dRefusal::Disconnected { reached, unreached })) => {
             // Which component the walk starts in is a fact about the trace
             // order, not about the file; the two sizes are the README's.
             assert_eq!((reached, unreached), (103, 127));
@@ -146,9 +147,10 @@ fn the_refusing_fixtures_refuse_for_the_reason_they_were_chosen_for() {
     // checker broken in almost any way would still pass it.
     let model = fixture("rabbit_unclosed");
     match admit(&model.line_segments, 1) {
-        Err(Fold3dRefusal::VertexClosure {
-            residual_degrees, ..
-        }) => {
+        Err(Fold3dPlacementError::Refused(Fold3dRefusal::VertexClosure {
+            residual_degrees,
+            ..
+        })) => {
             assert!(
                 (residual_degrees - 70.53).abs() < 0.01,
                 "rabbit_unclosed closes to {residual_degrees} degrees, expected 70.53"
@@ -163,7 +165,9 @@ fn the_refusing_fixtures_refuse_for_the_reason_they_were_chosen_for() {
     let model = fixture("box_90_unangled");
     assert!(matches!(
         admit(&model.line_segments, 1),
-        Err(Fold3dRefusal::FlatFoldability { .. })
+        Err(Fold3dPlacementError::Refused(
+            Fold3dRefusal::FlatFoldability { .. }
+        ))
     ));
 }
 
@@ -300,9 +304,9 @@ fn the_declared_fold_angles_come_back_out_of_the_placement() {
 #[test]
 fn the_unclosed_fixture_reports_the_same_error_from_both_directions() {
     let model = fixture("rabbit_unclosed");
-    let Err(Fold3dRefusal::VertexClosure {
+    let Err(Fold3dPlacementError::Refused(Fold3dRefusal::VertexClosure {
         residual_degrees, ..
-    }) = admit(&model.line_segments, 1)
+    })) = admit(&model.line_segments, 1)
     else {
         panic!("rabbit_unclosed is supposed to fail closure");
     };
@@ -444,7 +448,7 @@ fn a_cut_drawn_inside_the_sheet_is_refused_before_the_placement_is_attempted() {
     let segments = annulus_90();
 
     match admit(&segments, 1) {
-        Err(Fold3dRefusal::InteriorCut { line, point }) => {
+        Err(Fold3dPlacementError::Refused(Fold3dRefusal::InteriorCut { line, point })) => {
             assert_eq!(
                 segments[line].color,
                 LineColor::Black0,
@@ -463,7 +467,9 @@ fn a_cut_drawn_inside_the_sheet_is_refused_before_the_placement_is_attempted() {
     assert!(
         matches!(
             place_segments(&segments, 1),
-            Err(Fold3dRefusal::NonCreaseJoin { .. })
+            Err(Fold3dPlacementError::Refused(
+                Fold3dRefusal::NonCreaseJoin { .. }
+            ))
         ),
         "the placement is supposed to decline this too, for its own reason"
     );
@@ -494,11 +500,11 @@ fn the_loop_gap_refusal_fires_when_the_measured_gap_exceeds_the_bar() {
         ..Fold3dTolerances::DEFAULT
     };
     match admit_with(&model.line_segments, 1, tightened) {
-        Err(Fold3dRefusal::LoopNotClosed {
+        Err(Fold3dPlacementError::Refused(Fold3dRefusal::LoopNotClosed {
             worst_edge,
             gap_offset,
             gap_radians,
-        }) => {
+        })) => {
             assert_eq!(
                 gap_offset, admitted.placement.loop_gap.offset,
                 "the refusal must carry the gap the placement measured"

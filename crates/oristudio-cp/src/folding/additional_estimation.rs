@@ -576,6 +576,9 @@ impl AdditionalEstimation {
     ) -> Result<(), AdditionalEstimationError> {
         let mut s = completed + 1;
         while s < self.count && self.new_relations < MAX_NEW_RELATIONS {
+            // Site 3. One iteration builds a whole subface's transitive closure,
+            // so this polls every time rather than on a stride.
+            crate::cancel::check()?;
             if self.ia[s].is_none() {
                 self.initialize_italiano(s, table);
             }
@@ -604,7 +607,11 @@ impl AdditionalEstimation {
         loop {
             self.new_relations = 0;
             self.run_transitivity(table, completed)?;
+            // Site 4. Bodies are nanoseconds and these lists reach ~10^5
+            // entries, so a flat poll would cost more than the work.
+            let mut polled = 0u32;
             for &ec in triple {
+                crate::check_every!(polled, 10);
                 if self.new_relations >= MAX_NEW_RELATIONS {
                     break;
                 }
@@ -612,6 +619,7 @@ impl AdditionalEstimation {
                 self.new_relations += changes;
             }
             for &ec in quadruple {
+                crate::check_every!(polled, 10);
                 if self.new_relations >= MAX_NEW_RELATIONS {
                     break;
                 }
@@ -683,15 +691,22 @@ impl AdditionalEstimation {
     ) -> Result<(), AdditionalEstimationError> {
         self.new_relations = 0;
         for s in 1..self.count {
+            // The "fast" pass is still per-subface closure work, and it runs on
+            // every outer search iteration — so it carries the same checkpoints
+            // as `run_transitivity` and for the same reason.
+            crate::cancel::check()?;
             if self.ia[s].is_none() {
                 self.initialize_italiano(s, table);
             }
             self.new_relations += self.check_transitivity(table, s)?;
         }
+        let mut polled = 0u32;
         for &ec in triple {
+            crate::check_every!(polled, 10);
             self.check_triple(table, ec)?;
         }
         for &ec in quadruple {
+            crate::check_every!(polled, 10);
             self.check_quad(table, ec)?;
         }
         Ok(())

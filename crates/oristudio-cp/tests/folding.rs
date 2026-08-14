@@ -181,7 +181,7 @@ fn subface_preparation_removes_points_duplicates_and_splits_crossings() {
         ),
     ];
 
-    let prepared = prepare_subface_segments(&segments);
+    let prepared = prepare_subface_segments(&segments).expect("not cancellable in a test");
 
     assert_eq!(prepared.len(), 4);
     assert!(prepared.iter().all(|segment| segment.a != segment.b));

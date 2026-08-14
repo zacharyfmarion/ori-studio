@@ -22,6 +22,7 @@ import {
   isFoldedFigureReady,
   type FoldedFigureActionDeps,
 } from './foldedFigureActions';
+import { foldedFigureListsEqual } from './foldedFigureState';
 import { isFolded3dFigure } from './foldedFigureCapabilities';
 import { canWindowFolded3dFigure, folded3dWindowIds } from './folded3dWindow';
 import { webglRenderSupported } from '../../simulator/useSimulatorRuntime';
@@ -254,7 +255,21 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       const previous = preGestureFoldedFiguresRef.current;
       const previousActiveId = preGestureActiveFoldedIdRef.current;
       preGestureFoldedFiguresRef.current = null;
-      if (previous) recordFoldedFigureHistory([...previous], label, previousActiveId);
+      if (!previous) return;
+      const state = useWorkspaceStore.getState();
+      // A verb that changed nothing earns no undo entry. This bracket owns both
+      // ends of the gesture, so it is the one place that can tell — and the case
+      // is not rare: a fold that is refused, fails, or is *stopped* runs this
+      // `finally` having put the list back exactly as it found it, and would
+      // otherwise leave a step that undoes nothing on a project it just marked
+      // dirty.
+      if (
+        foldedFigureListsEqual(previous, state.oristudioCpFoldedFigures) &&
+        previousActiveId === state.oristudioCpActiveFoldedFigureId
+      ) {
+        return;
+      }
+      recordFoldedFigureHistory([...previous], label, previousActiveId);
     },
     [recordFoldedFigureHistory]
   );

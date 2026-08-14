@@ -196,7 +196,7 @@ because getting it wrong is how a cancel becomes a fabricated contradiction (see
 | 7b | `permutation.rs:613` / `:620` | `for condition in &conditions.triple` / `quadruple` | 5–15 ns [D] | 1024 | ~10 µs | `FinalAdditionalEstimationFailure` | — |
 | 7c | `permutation.rs:653` | `for upper` in `infer_final_subface_transitivity` | ~60 µs at k=250 [D] | 1 | 60 µs | `FinalAdditionalEstimationFailure` | — |
 | 8 | `permutation.rs:439` | `for subface_index` in `from_ordered_subfaces` (`set_guide_map`) | ~10 ms [M] | 1 | ~10 ms | `WorkerOverlapSearchError` | `SubFace.java:389` |
-| 9 | `folding.rs:4112` | `for (line_index, line) in graph.lines` in `initial_hierarchy_from_graph` | one `line_face_border` = O(F·k) [D] | 1 | ~15 µs | `InitialHierarchyError` | — |
+| 9 | `folding.rs:4112` | `for (line_index, line) in graph.lines` in `initial_hierarchy_from_graph` | one `line_face_border` = O(F·k) [D] | 1 | ~15 µs | `InitialHierarchyError` | `Configurator.java:388` ‡ |
 | 10 | `fold_graph.rs:193` | `for face in &current_round` (BFS round) | F·k² ≈ 14 µs [D] | 1 | 14 µs | `FoldGraphError` | finer than `WireFrame_Worker.java:168` |
 | 11 | `folding.rs:4331` | `for subface in &subface_graph.faces` in `configure_subfaces` | ~25 µs [D] | 1 | 25 µs | *new* `Result<_, Cancelled>` | `Configurator.java:126` |
 | 12 | `arrangement.rs:27` | `while i < model.line_segments.len()` in `divide_intersections` | n pair tests [D] | 1 | 30 µs @ n=1k | `Cancelled` (**signature change**) | `IntersectDivide.java:26` |
@@ -208,6 +208,24 @@ because getting it wrong is how a cancel becomes a fabricated contradiction (see
 whose interior is already covered by finer sites. They cost nothing and they are
 what makes the parity accounting complete; they are not what meets the 100 ms
 bar.
+
+‡ Written as "—" in the draft. `setupHierarchyList` is the upstream counterpart
+and it does poll; the row is corrected here and in the
+[accounting table](#parity-with-oriedita-and-where-we-exceed-it).
+
+**What Phase 2 actually landed, against this table.** Twelve numbered sites: 1,
+2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, with the polls placed as tabulated (and the
+same polls repeated in `AdditionalEstimation`'s "fast" variant, which runs on
+every outer search iteration). **Sites 7b, 7c, 13, 14 and 15 were not landed**,
+and site 7's number went to what this table calls 7c — the loop head it
+originally named is bounded by the site inside it, so a second poll there buys
+nothing. The `folded_points` pre-polls in
+[Sites that cannot be subdivided](#sites-that-cannot-be-subdivided-or-are-not-worth-it)
+were not landed either; `HierarchyTable::from_initial` is nevertheless entered
+directly after `equivalence_condition_candidates_from_parts`, whose last
+statement is a `check()?`. Whether any of these is *needed* is a Phase-1
+question — none of them is what meets the bar, and adding one is a one-line
+change once `max_check_gap_ms` says where the gap is.
 
 Site 9 was demoted to tier 2 in an earlier draft, then promoted because it called
 the full-face `line_face_border` scan once per line, twice per Order 4
@@ -504,7 +522,9 @@ documented divergence. Each is the R1 "worse than the hang" failure reintroduced
 through the type system instead of through a `break`.
 
 **Every error type on the checkpointed call graph gains a `Cancelled` variant**,
-with `From<Cancelled>` at each level:
+with `From<Cancelled>` at each level. Fourteen shipped, not the twelve tabulated:
+`CellError` (`folding3d/cells.rs`) and `Fold3dPlacementError` were missing from
+this list, the latter because it did not exist yet — see [3D](#3d).
 
 | Enum | Today | Route to `EngineError` |
 |---|---|---|
@@ -587,6 +607,13 @@ things the earlier draft omitted:
 - **`tests/non_flat_corpus.rs:747-755` is an expected diff.** Its match over
   `Fold3dOrderError` has five arms and no wildcard, so the new variant breaks it.
   It is not an oracle file; the diff is one arm.
+- **A fourth obligation this draft missed: `Fold3dPlacementError`.** The placement
+  path returned `Fold3dRefusal`, which is a *verdict about the crease pattern* —
+  it reaches the user as "this cannot be folded in 3D, simulate instead?" and its
+  doc comment is a corpus census of exactly those verdicts. A cancel is not a
+  verdict, so it could not become one of its arms. Phase 2 introduced
+  `Fold3dPlacementError { Refused(Fold3dRefusal), Cancelled }` and threaded it
+  through `placement.rs`, `admit.rs` and `cells.rs`.
 
 `EngineError { code, message }` (`session.rs:90`) is serialised verbatim by
 `engine_error_to_js` (`oristudio-cp-wasm/src/lib.rs:411`) and returned as the
@@ -1089,19 +1116,35 @@ accounting of upstream's 32 (`rg -c 'Thread\.interrupted\(\)' third_party/oriedi
 = 32), because Phase 6 writes "the 32 sites are accounted for" into `PORTING.md`
 and an unmapped gap written as an all-clear is worse than no line at all:
 
+**Corrected after Phase 2 shipped.** The draft table below the corrections got
+four rows wrong, and the shipped table in `PORTING.md` is the authority. What was
+wrong: `FoldedFigure_Configurator.java:388` **is** an upstream counterpart to
+site 9 (the initial hierarchy from crease colour), which this section had recorded
+as having none; `WireFrame_Worker.java:245`/`:291` are in point-set construction,
+not `folding()`, and we did not land the `folded_points` pre-poll that row
+promised; `PointSet.java:424` is the *comment declining* a check, and that file's
+one real `Thread.interrupted()` is at `:490`, in the `lineInFaceBorder` index
+build, which we do not poll; and `Configurator.java:276` (`reduceSubFaceSet`) was
+never mapped at all.
+
+Tier-1 sites 7b, 7c, 13, 14 and 15 were **not landed**. Twelve numbered sites
+shipped, and site 7's number went to what this table called 7c
+(`infer_final_subface_transitivity`), because the `run_final_additional_estimation`
+loop head it originally named is covered by the site inside it.
+
 | Upstream file | # | Our counterpart |
 |---|---|---|
-| `FoldedFigure_Configurator.java` | 10 | tier-1 sites 8, 10, 11; tier-1 sites 1, 2 (`:416`/`:458`); tier 2 (`:510` declined — see [Declined](#declined)); `:137` collapses into `:126` (sequential port) |
-| `FoldedFigure.java` | 6 | **tier-1 site 15** — the stage boundaries of `folding_estimated` (`:148,164,179,207,230,261`), one-to-one with our stage sequence |
-| `SubFace.java` | 4 | tier-1 site 8 (`:389`); tier 2 `permutation.rs:979`/`:1015`/`:1023` |
-| `AdditionalEstimationAlgorithm.java` | 3 | tier-1 sites 3, 4 |
-| `WireFrame_Worker.java` | 3 | tier-1 site 10 (`:168`); the other two are in `folding()`, where upstream has **no** check in the per-point loop — we poll before `folded_points` instead |
-| `ChainPermutationGenerator.java` | 1 | tier-1 site 5 (deliberately one level *above* `:165` — see the `next_core` trap) |
-| `CombinationGenerator.java` | 1 | tier-1 site 6 |
-| `FoldedFigure_Worker.java` | 1 | tier 2 `permutation.rs:509` (`:134`) |
-| `IntersectDivide.java` | 1 | tier-1 site 12 |
-| `PointLineMap.java` | 1 | **declined** — `PointLineMap` has no port on the fold path; the equivalent work is inside `fold_graph.rs`, covered by site 10 |
-| `PointSet.java` | 1 | **declined by upstream too** (`:424`, "way too fast even for Ryujin"); our equivalent is `calculate_faces`, tier 2 `fold_graph.rs:84` |
+| `FoldedFigure_Configurator.java` | 10 | sites 1 (`:458`), 2 (`:416`), 9 (`:388`), 11 (`:126`); `:137`/`:430`/`:481` are submit loops and `:466` guards a `synchronized` block, none of which a sequential port has; `:510` declined (see [Declined](#declined)); `:276` unmapped |
+| `FoldedFigure.java` | 6 | unmapped — the stage boundaries of `folding_estimated` (`:148,164,179,207,230,261`). Every stage interior carries a finer site, so a boundary poll bounds nothing extra |
+| `SubFace.java` | 4 | site 8 (`:389`); `:429`/`:439`/`:445` unmapped **deliberately** — polling the enclosing loop takes a cancel *before* a guide map is started rather than inside one |
+| `AdditionalEstimationAlgorithm.java` | 3 | sites 3 (`:99`), 4 (`:115`/`:130`) |
+| `WireFrame_Worker.java` | 3 | site 10 (`:168`), one level finer than upstream's per-round poll; `:245`/`:291` (point-set construction) unmapped |
+| `ChainPermutationGenerator.java` | 1 | site 5 (deliberately one level *above* `:165` — see the `next_core` trap) |
+| `CombinationGenerator.java` | 1 | site 6, in the caller (`:120`) |
+| `FoldedFigure_Worker.java` | 1 | unmapped (`:134`, tier 2) |
+| `IntersectDivide.java` | 1 | site 12 (`:26`) |
+| `PointLineMap.java` | 1 | unmapped — `PointLineMap` has no port on the fold path |
+| `PointSet.java` | 1 | unmapped — `:490`, the `lineInFaceBorder` index build. `:424` is upstream's *declining comment* ("way too fast even for Ryujin"), not a site |
 
 It also gives us the affordance shape (persistent Stop + window-wide
 Escape), and the fact that starting a new fold while one runs silently cancels
@@ -1110,12 +1153,13 @@ the old one (`SingleTaskExecutorServiceImpl.java:32-38` calls `stopTask()` first
 
 **Where we deliberately exceed it, and why:**
 
-1. **More checkpoints than 32, and finer.** Upstream's criterion is
-   `PointSet.java:424` — "fast enough even for Ryujin". Ours is a latency bound.
-   Sites 7/7b/7c, 9 and 13 in the tier-1 table have no upstream counterpart, and
-   sites 10 and 11 sit one level finer than upstream's (upstream needs
-   `Configurator.java:126` **and** `:137` only because `:137` merely stops
-   *submitting* executor tasks; a sequential port needs one).
+1. **A different criterion, so a different set.** Upstream's is
+   `PointSet.java:424` — "fast enough even for Ryujin". Ours is a latency bound,
+   and the sets differ in both directions rather than ours being a superset. Site
+   7 is the one that has no upstream counterpart at all; site 10 sits one level
+   finer than `WireFrame_Worker.java:168` (per face in a BFS round, not per
+   round). Against that, six upstream files carry sites we did not map — see the
+   corrected table above, and `PORTING.md`, which is the authority.
 2. **The signal is not consumed by reading.** `Thread.interrupted()` clears the
    flag. `FoldedFigure_Worker.java:216` calls `SubFace.setGuideMap` on the search
    thread, and `SubFace.java:389/429/439/445` `return` on the interrupt — so a
@@ -1139,10 +1183,11 @@ exception, and `Configurator.java` opens four `newWorkStealingPool`s. Our port i
 sequential, so all 32 collapse to one `check()?` shape and the distinction
 disappears rather than needing a decision.
 
-`PORTING.md` needs two new bullets in the `## Oriedita (oristudio-cp*)`
-deliberate-divergences list (points 1-3 above), plus a line in
-**Folding search coverage** naming the checkpoints as ported-and-extended, so a
-future `upstream-drift` sweep knows the 32 sites are accounted for.
+**Landed** as a `### Fold cancellation` subsection of `## Oriedita
+(oristudio-cp*)` rather than as bullets in the divergence list, because the
+32-site accounting is a table and the list is prose. It carries points 1-3 above
+with the corrections, the `fold_disconnected` contract, `Fold3dPlacementError`,
+the CAMV narrowing, and the restored crease selection.
 
 ## Measuring the latency claim
 
@@ -1470,6 +1515,18 @@ committed.
 
 ## Checklist
 
+**Landed in.** Prerequisites in PR #251. Then, on `claude/fold-cancellation`:
+
+| Phase | Commit | State |
+|---|---|---|
+| 1 — instrumentation | — | **open**, and not blocking; see the Phase 2 note below |
+| 2 — kernel signal | `a6894324` | done |
+| 3 — transaction | `9d665960` | done |
+| 4 — transports | `1755010b` | done |
+| 5 — store and affordance | `f57f067d` | done |
+| 6 — docs and close-out | `b2ff777d` | done bar the two items left open below |
+| 7 — review fixes | this commit | done bar one deferred item, below |
+
 **Landed in PR #251 — prerequisites, not a phase**
 
 - [x] Resolve open question 1: do the `line_face_border` fix first. Done, and it
@@ -1484,9 +1541,79 @@ committed.
       [Measuring the latency claim](#measuring-the-latency-claim).
 - [x] Establish the phase split on a genuinely slow model
 
-Phase 1 proper is still **open**: nothing below has been done, because
-`max_check_gap_ms` measures the gap *between checkpoints* and no checkpoint
-exists yet.
+**Phase 2 — kernel signal: DONE** (commit `a6894324`). `cancel.rs`; `Cancelled`
+on **14** error enums — not the 12 tabulated; `CellError` and the new
+`Fold3dPlacementError` were missing from that list — with a recursive
+`is_cancelled()` tested *before* classification; the wildcard in
+`From<FoldingEstimateError> for EngineError` replaced with named arms; all three
+absorbers fixed; the rayon bridge; `Fold3dPlacementError` so a cancel is never a
+`Fold3dRefusal`. 854 tests under both feature sets.
+
+**Twelve** tier-1 checkpoints, not fifteen: sites 1-12 landed, 7b/7c/13/14/15 did
+not, and site 7's number went to what the budget table calls 7c. See
+[the note under the tier-1 table](#tier-1--required-to-meet-the-bar) for why none
+of the five is what meets the bar, and Phase 1 for what would decide it.
+
+**Phase 3 — transaction: DONE** (commit `9d665960`). `transactional` +
+public/`_inner` split on `FoldingEstimateSession`; the same wrapper on
+`Fold3dSession::advance`; narrow snapshot. Measured on `slow_tiling_fold.osf`:
+**+0.77% wall, +1.2% peak RSS** for checkpoints and snapshot combined
+(`fold_profile --bind-cancel`). The rollback test was vacuous on first writing
+(a grid folds to zero solutions) and now uses `solution_sample_1.cp`, verified
+to fail with the transaction removed.
+
+**Phase 4 — transports: DONE.** Both bind a token now. Web:
+`foldCancellation.ts`, `cp_set_cancel_buffer` + `with_fold` in the wasm bridge's
+own `cancel` module, the buffer installed inside the `oristudio-cp` connector,
+run ids on the five runtime wrappers and the six wasm entry points. Desktop:
+`FoldCancel` in separate managed state, a synchronous `cp_fold_cancel`, and all
+six fold commands on `run_cancellable` — enforced by a test over the source, not
+by discipline. Cancellation is derived from the resolved client, so a packaged
+Tauri build (no COOP/COEP) has it and an un-isolated browser reports it
+unavailable rather than pretending. The 3D rehydrate and the export-dialog fold
+pass `FOLD_RUN_NONE` — **not** `BACKGROUND`, as the review pass below explains.
+The store still passes no run id anywhere the user can press — that is Phase 5.
+
+**Phase 5 — store and affordance: DONE.** `oristudioCpFoldsInFlight` is now
+`oristudioCpFoldRuns`, a map keyed by run id carrying `{ kind, startedAt,
+cancellable, stopping }`; `withFoldInFlight(kind, run)` mints the id and all
+seven call sites pass it through. `stopOristudioCpFolds()` stops every
+addressable run and answers whether there was one, which is how Escape knows to
+fall through. Quiet discard/restore on every fold catch, behind
+`isFoldCancellation`; the flat path also hands back the crease selection the
+draft entry took.
+
+Two decisions the plan left open:
+
+- **The surface is the toast, not a modal or a second persistent element.** A
+  fold is computation the user started and the app stays usable during it, so a
+  modal ten seconds in would claim a block that is not there and steal focus —
+  BP's optimizer earns its modal because the run is launched *from* it. What the
+  toast owes an hour-long run is persistence, so while a Stop is on offer it is
+  `dismissible: false`, and it escalates its own wording past
+  `FOLD_LONG_RUN_MS`. (`closeButton: false` was also passed and was inert:
+  sonner never renders one on a `loading` toast. Dropped in the review pass, so
+  the code does not imply a mechanism that is not doing the work.) Without a Stop — an
+  un-isolated browser — it stays dismissable and shows no button, rather than a
+  dead one.
+- **R8 is fixed at the bracket, not in `pushOverlayHistoryEntry`.** Half that
+  function's callers record before mutating and half after, so a guard there
+  suppresses the entries of the first half — three tests said so. The sound place
+  is `commitFoldedFigureGesture`, which owns both ends: an unchanged figure list
+  and active id record nothing, so a stopped fold leaves neither a no-op undo
+  step nor a dirty project.
+
+Analytics gained a `'halted'` verdict distinct from `'cancelled'`, and
+`elapsed_ms_bucket` on **every** `fold completed` against a new
+`FOLD_DURATION_MS_BUCKETS` ladder. Four `toasts:global.*` strings, nine locales.
+Escape joins `cancelActiveCpInput` above its `if (!editableCp) return;`, and the
+test for it mounts the real panel, installs the real document listener and
+dispatches a real key — the isolated-unit version of that test would pass with
+the wiring deleted.
+
+Phase 1 proper remains **open**, and is no longer blocking: `max_check_gap_ms`
+measures the gap *between* checkpoints, so it could only be written after Phase
+2. It is now writable and should be done before the strides are called final.
 
 **Phase 1 — instrumentation**
 
@@ -1514,180 +1641,222 @@ exists yet.
 
 **Phase 2 — kernel signal**
 
-- [ ] Add `crates/oristudio-cp/src/cancel.rs` (`CancelSource` with the cfg'd
+- [x] Add `crates/oristudio-cp/src/cancel.rs` (`CancelSource` with the cfg'd
       `Send + Sync` supertrait, `Cancelled`, `RunId(NonZeroU32)` + `BACKGROUND`,
       `CancelHandle`, split `RUN_ID`/`SOURCE` thread-locals, `check`,
       `bind`/`CancelGuard`, `current`, `check_every!`) — **no `unsafe impl`
       anywhere**, and `RUN_ID == 0` must be inert
-- [ ] Add `Cancelled` + `From<Cancelled>` to **every** enum in the
-      [error taxonomy](#errors): `FoldGraphError`, `InitialHierarchyError`,
-      `FoldSetupError`, `PermutationError`, `SubFaceSearchError`,
-      `CombinationInferenceFailure`, `AdditionalEstimationError`,
-      `FinalAdditionalEstimationFailure`, `WorkerOverlapSearchError`,
-      `FoldingEstimateError`, `Fold3dOrderError`, `Fold3dSessionError`
-- [ ] Add a **recursive** `is_cancelled()` and make `From<FoldingEstimateError>
-      for EngineError` (`session.rs:250`) test it **before** the `code` match
-- [ ] Replace the wildcard `WorkerOverlapSearchError::AdditionalEstimation(_) =>
-      "fold_contradiction"` (`session.rs:268`) with explicit arms, so a future
-      variant fails to compile
-- [ ] Add the `fold_cancelled` branch at **both** hand-built
-      `EngineError::new("fold_3d_failed", …)` sites (`session.rs:1005`, `:1013-1015`)
-- [ ] Fix the three absorbers to match `Cancelled` first and propagate:
-      `permutation.rs:1240`, `:522-557`, `:885`
-- [ ] Land tier-1 checkpoints 1-15 from the budget table, strides as tabulated;
-      sites 1 and 2 use the **latch + `break`** form, not a closure-top poll
-- [ ] Make `divide_intersections` (`arrangement.rs:25`) and
-      `prepare_subface_segments` (`folding.rs:1382`) fallible; update the 12
-      kernel callers and the four enumerated test call sites
-- [ ] Rewrite `flat_map_conditions` (`folding.rs:4285`) as the single thread
-      bridge; add the post-collect `check()?` at `folding.rs:4207` and `:4239`
-- [ ] Poll immediately before `HierarchyTable::from_initial` (`folding.rs:4468`),
-      before `into_initial_hierarchy` (`folding.rs:4553`), and before each of the
-      six `folded_points` calls
+- [x] Add `Cancelled` + `From<Cancelled>` to **every** enum in the
+      [error taxonomy](#errors) — 14, not the 12 listed here: the list missed
+      `CellError`, and `Fold3dPlacementError` did not exist yet
+- [x] Add a **recursive** `is_cancelled()` and make `From<FoldingEstimateError>
+      for EngineError` test it **before** the `code` match
+- [x] Replace the wildcard `WorkerOverlapSearchError::AdditionalEstimation(_) =>
+      "fold_contradiction"` with explicit arms, so a future variant fails to
+      compile
+- [x] Add the `fold_cancelled` branch at **both** hand-built
+      `EngineError::new("fold_3d_failed", …)` sites
+- [x] Fix the three absorbers to match `Cancelled` first and propagate
+- [x] Land tier-1 checkpoints from the budget table, strides as tabulated;
+      sites 1 and 2 use the **latch + `break`** form, not a closure-top poll —
+      **sites 1-12 only.** 7b, 7c, 13, 14 and 15 were not landed; see the note
+      under the tier-1 table
+- [x] Make `divide_intersections` and `prepare_subface_segments` fallible;
+      `configure_subfaces` too, which this list missed
+- [x] Rewrite `flat_map_conditions` as the single thread bridge; add the
+      post-collect `check()?` — **one**, not two: our port generates the 3EC and
+      4EC candidates in one function
+- [ ] Poll immediately before `HierarchyTable::from_initial`, before
+      `into_initial_hierarchy`, and before each of the six `folded_points` calls
+      — **not done.** `from_initial` is in practice entered straight after
+      `equivalence_condition_candidates_from_parts`, whose last statement is a
+      `check()?`; the other two are open, and Phase 1 is what decides whether
+      they matter
 - [ ] Unit test: `CountingCancel` over
-      `permutation.rs:2045 an_unstackable_subface_is_settled_by_the_accelerator`
-      — inert at large N, `Err(Cancelled)` with `permutation_count() < 2001` at
-      N = 50
-- [ ] Test: a token firing on the Nth check inside the **search** phase (not
+      `an_unstackable_subface_is_settled_by_the_accelerator` — **not done as
+      specified.** `tests/cancel.rs`'s `a_cancel_is_never_absorbed_into_an_answer`
+      sweeps 48 cancel depths through a real fold and asserts no cancel becomes a
+      contradiction, which covers the absorber class; it does not pin
+      `permutation_count()` at the accelerator specifically
+- [x] Test: a token firing on the Nth check inside the **search** phase (not
       setup) reaches the top as `Err(Cancelled)` and never as `found: false` or
-      `Ok(false)`
-- [ ] Test: `EngineError.code == "fold_cancelled"` for a cancel fired at each
-      tier-1 site, not only at the entry point
-- [ ] Test: an entry point invoked with **no** run id (0) runs to completion
-- [ ] Fingerprint test: same `hier_hash` with a bound-but-never-fired token as
-      with none
-- [ ] Confirm the only test-file diff is the four mechanical `?`/`expect` edits
-      (`oriedita_operations_oracle.rs:143`, `operations.rs:127`,
-      `oriedita_folding_oracle.rs:71`, `folding.rs:184`) plus one
-      `Fold3dOrderError::Cancelled` arm in `non_flat_corpus.rs:747-755`, and that
-      **no assertion changes**
-- [ ] `cargo test -p oristudio-cp` **and** `cargo test -p oristudio-cp --features parallel`
-- [ ] Overhead check: `cargo run -p oristudio-cp --release --features fold-profiling
-      --example fold_profile -- <input> --loop 5` before vs after; record the delta
-- [ ] Oracle: build `tools/oriedita-oracle/build_geometry_oracle.sh`, export the
-      five `ORIEDITA_*` vars per `.github/workflows/ci.yml:191-208`, run
-      `cargo test -p oristudio-cp --test oriedita_folding_oracle`
+      `Ok(false)` — `a_cancel_is_never_absorbed_into_an_answer`
+- [x] Test: `EngineError.code == "fold_cancelled"` for a cancel fired at each
+      tier-1 site, not only at the entry point — as a sweep over cancel depths
+      (`a_cancel_never_reports_as_a_contradiction`), which is what reaches the
+      sites; not one test per site
+- [x] Test: an entry point invoked with **no** run id (0) runs to completion
+- [x] Fingerprint test: same `hier_hash` with a bound-but-never-fired token as
+      with none — done as a `fold_profile --bind-cancel` comparison on
+      `slow_tiling_fold.osf`, not as a committed test, because no committed
+      fixture is slow enough for the comparison to mean anything
+- [x] Confirm the only test-file diff is mechanical `?`/`expect` edits and one
+      `Fold3dOrderError::Cancelled` arm, and that **no assertion changes** — the
+      two `oriedita_folding_oracle` diffs are one `.expect` and one new summary
+      arm
+- [x] `cargo test -p oristudio-cp` **and** `cargo test -p oristudio-cp --features parallel`
+- [x] Overhead check — recorded with Phase 3's, since checkpoints and snapshot
+      are paid together: **+0.77 % wall, +1.2 % peak RSS**
+- [x] Oracle: `tools/oriedita-oracle/build_geometry_oracle.sh`, the five
+      `ORIEDITA_*` vars per `.github/workflows/ci.yml`, all six suites plus
+      `oracle_env_guard`
 
 **Phase 3 — transaction**
 
-- [ ] Split `FoldingEstimateSession`'s public fold methods into public wrappers
+- [x] Split `FoldingEstimateSession`'s public fold methods into public wrappers
       + private `*_inner`, with `transactional` on the wrappers only
-- [ ] Implement `snapshot_mutable` / `restore_mutable` (`estimate` + `entries` /
+- [x] Implement `snapshot_mutable` / `restore_mutable` (`estimate` + `entries` /
       `order` / `valid_count`) as the **default** snapshot — not a fallback
-- [ ] Apply the same transaction to `Fold3dSession::advance`
-      (`folding3d/session.rs:252-264`), which mutates the enumerator and then
-      recomputes `render`
-- [ ] Extract the reset body of `restart()` (`folding.rs:1829-1843`) as
-      `fn clear(&mut self)`
-- [ ] Tests: cancelled `fold_another`, cancelled `folding_estimate_to_case`, and
-      cancelled `Fold3dSession::advance` leave the session byte-identical
-      (`discovered_fold_cases`, `current_fold_case`, `estimate.overlap`,
-      enumerator state, `render`)
-- [ ] Measure wall time **and peak RSS** for the snapshot on the largest input;
-      escalate to a full `self.clone()` only if a mutated field is missed
-- [ ] `cargo test --workspace --all-targets && cargo test --workspace --doc`
+- [x] Apply the same transaction to `Fold3dSession::advance`, which mutates the
+      enumerator and then recomputes `render`
+- [ ] Extract the reset body of `restart()` as `fn clear(&mut self)` — **not
+      done.** The public/`_inner` split gave `restart` a `restart_inner`, which
+      is what the recursive paths needed; the reset body was not separately
+      named, and the paragraph comment this item existed to prevent was not
+      written either
+- [x] Tests: cancelled `fold_another` leaves the session byte-identical — over
+      the whole `Debug` rendering, at ten cancel depths, and verified to fail
+      with the transaction removed
+- [ ] The same test for cancelled `folding_estimate_to_case` and cancelled
+      `Fold3dSession::advance` — **not done.** Both take the same
+      `transactional` seam the `fold_another` test exercises, so this is
+      coverage of the wrapper's callers rather than of the wrapper
+- [x] Measure wall time **and peak RSS** for the snapshot on the largest input;
+      escalate to a full `self.clone()` only if a mutated field is missed —
+      `slow_tiling_fold.osf`, Order1-4: 27 639 ms → 27 852 ms (**+0.77 %**),
+      469.4 MiB → 474.9 MiB (**+1.2 %**), checkpoints and snapshot together.
+      No escalation needed
+- [x] `cargo test --workspace --all-targets && cargo test --workspace --doc`
 
 **Phase 4 — transports**
 
-- [ ] `apps/web/src/store/workspaceStore/foldCancellation.ts` with
+- [x] `apps/web/src/store/workspaceStore/foldCancellation.ts` with
       `foldCancellationAvailable()` (**branches on `isDesktopRuntime()` first**),
       `foldCancellationBuffer`, `beginFoldRun` (never 0, never `BACKGROUND`), and
       a transport-dispatching `cancelFoldRun` (web: `Atomics.store` of the exact
       id; desktop: `invoke('cp_fold_cancel', { runId })`)
-- [ ] Add `setCancelBuffer` to `OristudioCpWorkerApi` and install it **inside the
+- [x] Add `setCancelBuffer` to `OristudioCpWorkerApi` and install it **inside the
       `oristudio-cp` connector** (`engineHost.ts:63-77`), not at a call site; no-op
       on the native client. `cancelFoldRun` is **not** a Comlink method — the
       worker loop is blocked
-- [ ] Add `runId` to the **five** fold runtime wrappers
+- [x] Add `runId` to the **five** fold runtime wrappers
       (`oristudioCpRuntime.ts:401`, `:445`, `:452`, `:474`, `:486`); `:438`/`:493`
       are clones and take none
-- [ ] Add `runId` to `CreaseExportFoldRuntime` (`lib/creaseExportFold.ts:27-41`),
-      its wiring (`projectSlice.ts:518`) and its test fakes; the export dialog
-      passes `RunId::BACKGROUND`
-- [ ] Give the 3D rehydrate (`creasePatternSlice.ts:2950`) `RunId::BACKGROUND`
-- [ ] `cp_set_cancel_buffer` + `SabCancel` + `with_fold` in
-      `crates/oristudio-cp-wasm/src/lib.rs`; wrap every fold entry point
-- [ ] `FoldCancel` / `FoldCancelState` / `cp_fold_cancel` / `run_cancellable` in
+- [x] ~~Add `runId` to `CreaseExportFoldRuntime`~~ — **deviation**: the interface
+      is unchanged. A run id is a property of the transport binding, and the
+      export dialog has no way to choose one, so `projectSlice.ts:518` passes
+      `FOLD_RUN_BACKGROUND` where it wires the runtime. Same effect, and the
+      injected interface and its test fakes stay free of the concept.
+- [x] Give the 3D rehydrate (`creasePatternSlice.ts:2950`) `RunId::BACKGROUND`
+- [x] `cp_set_cancel_buffer` + `SabCancel` + `with_fold` in
+      `crates/oristudio-cp-wasm/src/cancel.rs` (its own module, not `lib.rs`);
+      all six search entry points wrapped, the two duplicates deliberately not.
+      `SabCancel` is `cfg(target_arch = "wasm32")`: `cargo test --workspace` also
+      builds this crate for the host, where feature unification hands
+      `oristudio-cp` its `parallel` feature and `CancelSource` therefore demands
+      `Send + Sync` that an `Int32Array` cannot honestly give.
+- [x] `FoldCancel` / `FoldCancelState` / `cp_fold_cancel` / `run_cancellable` in
       `apps/tauri/src-tauri/src/cp_engine.rs`; `cp_fold_cancel` is **synchronous**,
       uses `store` not `fetch_max`, and never calls `run()`
-- [ ] Convert **all six** fold commands to `run_cancellable` with a `run_id`:
+- [x] Convert **all six** fold commands to `run_cancellable` with a `run_id`:
       `cp_folded_figure_fold` (`:345`), `_fold_selected` (`:364`), `_fold_another`
       (`:429`), `_fold_to_case` (`:440`), `_fold_3d` (`:453`), `_3d_fold_another`
       (`:472`) — and add a test asserting no fold command body calls `run(`
-- [ ] `.manage(FoldCancelState::default())` in `apps/tauri/src-tauri/src/lib.rs:82`
-- [ ] Register `cp_fold_cancel` **only** in `generate_handler!` (`lib.rs:91`).
-      Do **not** add it to `CP_ENGINE_COMMANDS` or `NATIVE_CP_COMMAND_NAMES`;
-      filter it in `native_commands_match_the_shared_manifest`
-      (`cp_engine.rs:558-569`) with a comment naming the exception
-- [ ] Vitest: a `SharedArrayBuffer` posted to a worker via Comlink survives
-      structured clone and a main-thread `Atomics.store` is visible inside it
-- [ ] Vitest: a simulated worker loss + reconnect leaves cancellation working
-- [ ] Test: cancelling a foreground fold leaves a concurrent `BACKGROUND` run
+- [x] `.manage(FoldCancelState::default())` in `apps/tauri/src-tauri/src/lib.rs:82`
+- [x] Register `cp_fold_cancel` **only** in `generate_handler!` (`lib.rs:91`).
+      Not in `CP_ENGINE_COMMANDS` or `NATIVE_CP_COMMAND_NAMES`; the exception is
+      named by its own test (`the_cancel_command_is_deliberately_outside_the_manifest`)
+      rather than by a filter, because the hand-written manifest list never
+      contained it and a filter over an empty case documents nothing.
+- [x] Vitest: a `SharedArrayBuffer` posted to a worker via Comlink survives
+      structured clone and a main-thread `Atomics.store` is visible inside it.
+      The hop is `structuredClone` — the same serialization `postMessage`
+      performs — because jsdom cannot spawn the bundler-emitted worker. Backed by
+      a wasm32 test (`wasm-pack test --node crates/oristudio-cp-wasm`) that folds
+      with a cancelled run id set from *outside* the module and asserts
+      `fold_cancelled`, which is the only place `Atomics.load` through `js-sys`
+      is actually exercised.
+- [x] Vitest: a simulated worker loss + reconnect leaves cancellation working
+      (asserted at `installFoldCancellation`, the connector's collaborator —
+      `connectEngine` itself cannot construct a worker under jsdom)
+- [x] Test: cancelling a foreground fold leaves a concurrent `BACKGROUND` run
       untouched
-- [ ] Correct the two false COI comments
-      (`apps/web/functions/s/[[shareId]].ts:85`, `scripts/share-smoke.mjs:17,145`)
-- [ ] `npm --workspace @treemaker/web run build:oristudio-cp-wasm` — to verify
+- [x] Correct the two false COI comments
+      (`apps/web/functions/s/[[shareId]].ts:85`, `scripts/share-smoke.mjs:17,145`).
+      Re-verified against the freshly built artifact: memory section `count 1
+      flags 0x00`, exported not imported — unshared, so the engine boots without
+      isolation and cancellation is what degrades.
+- [x] `npm --workspace @treemaker/web run build:oristudio-cp-wasm` — to verify
       locally. **Do not commit the artifact**: it is untracked as of `12cb505f`,
       and CI, both deploy workflows and Tauri all rebuild it.
-- [ ] `cargo test --workspace --all-targets && npm run check:desktop`
+- [x] `cargo test --workspace --all-targets && npm run check:desktop`
 
 **Phase 5 — store and affordance**
 
-- [ ] Replace `oristudioCpFoldsInFlight` with a **map** of live runs keyed by
-      `runId`, each `{ kind, startedAt }` (`creasePatternSlice.ts:902`,
-      `types.ts:648`, `GlobalToasts.tsx:28`) — a single record cannot represent
-      the >1 case the counter was written for
-- [ ] Add `isFoldCancellation` beside `isOptimizerCancellation`
-      (`oristudioBpRuntime.ts:238`)
-- [ ] Add quiet `discardFoldedFigureDraftQuietly` / `restorePreviousFigureQuietly`
-      (or a `notify` flag) — the existing helpers at `creasePatternSlice.ts:866`
-      and `:883` unconditionally write the error envelope
-- [ ] Add the cancel branch **before** the generic catch at
-      `creasePatternSlice.ts:2220`: remove the draft, restore
-      `previousActiveId` (captured at `:1927`), refresh selection markers, write
-      neither `oristudioCpError` nor `error`
-- [ ] Restore the scoped crease selection on cancel (ids at
-      `creasePatternSlice.ts:1810-1815`)
+- [x] Replace `oristudioCpFoldsInFlight` with a **map** of live runs keyed by
+      `runId`, each `{ kind, startedAt, cancellable, stopping }` — a single
+      record cannot represent the >1 case the counter was written for
+- [x] Add `isFoldCancellation` beside `isOptimizerCancellation`
+      (`oristudioBpRuntime.ts:238`) — it lives in `oristudioCpRuntime.ts`, with
+      the code spelled once
+- [x] Add quiet `discardFoldedFigureDraftQuietly` / `restorePreviousFigureQuietly`
+      — the existing helpers now delegate to them and add the error envelope
+- [x] Add the cancel branch **before** the generic catch in every fold action:
+      the flat first fold, the 3D first fold, both `fold_another` arms,
+      `fold_to_case`, and both refold arms
+- [x] Restore the scoped crease selection on cancel, through
+      `applyCreaseSelection` so the canvas-selection invariant holds
 - [ ] Move `createDelayedProgress.start()` so it covers the pre-fold CAMV check
-      (`creasePatternSlice.ts:1873`), not just `withFoldInFlight`
-- [ ] Add the toast Stop action and the persistent long-run element; confirm the
-      Stop action and sonner's global `closeButton` (`App.tsx:177`) do not fight
-- [ ] Add the halt to `cancelActiveCpInput` (`CreasePatternPanel.tsx:2578`)
-      **above** its `if (!editableCp) return;` first statement — **not** a new
-      `escape` shortcut definition, which `viewport.cancel` (`shortcuts.ts:288` /
-      `CreasePatternPanel.tsx:2661`) would silently swallow
-- [ ] Store test: Escape stops a fold while the active document is **not**
-      editable
-- [ ] Put the binding in `cp-workspace/folded/useFoldCancellation.ts`, or raise
-      the `CreasePatternPanel.tsx` cap in `apps/web/eslint.config.js:142` with a
-      written reason in the PR
-- [ ] Add the `'halted'` `FoldVerdict` and a fold-specific duration ladder to
-      `apps/web/src/analytics/events.ts`; put `elapsed_ms_bucket` on
-      `fold completed` for every verdict
-- [ ] Add `toasts:global.foldStop`, `toasts:global.foldStopped`,
-      `panels:creasePattern.stopFolding`; run `i18n:extract`, translate all nine
-      locales, `i18n:stamp`, `i18n:check`. **No `errors:` key.**
-- [ ] Store tests: counter returns to 0 after a cancel; `state.error` stays null;
+      (`creasePatternSlice.ts:1873`), not just `withFoldInFlight` — **not done.**
+      The CAMV pre-check is deliberately not cancellable in V1, so an indicator
+      raised over it would be one with no Stop on it, appearing and then growing
+      a button. Worth doing when the CAMV recompute itself becomes cancellable
+- [x] Add the toast Stop action; confirm it and sonner's global `closeButton`
+      (`App.tsx:177`) do not fight — the toast turns both `closeButton` and
+      `dismissible` off while a Stop is on offer, which is also the persistence
+      the long band needs; the escalation is the wording, not a second element
+- [x] Add the halt to `cancelActiveCpInput` **above** its
+      `if (!editableCp) return;` first statement — not a new `escape` definition
+- [x] Test: Escape stops a fold while the active document is **not** editable —
+      and it mounts the real panel and dispatches a real key, because the
+      isolated version passes with the wiring deleted
+- [x] Neither `useFoldCancellation.ts` nor a raised cap was needed: the rung is
+      one store binding and one guarded call, and `max-lines` still passes
+- [x] Add the `'halted'` `FoldVerdict` and `FOLD_DURATION_MS_BUCKETS`; put
+      `elapsed_ms_bucket` on `fold completed` for every verdict
+- [x] Add `toasts:global.foldStop` / `foldStopped` / `foldStopping` /
+      `foldingLong`; `i18n:extract`, nine locales, `i18n:stamp`, `i18n:check`.
+      No `errors:` key, and no `panels:creasePattern.stopFolding` — the
+      affordance is the toast action, so there is no panel label to name
+- [x] Store tests: the run map empties after a cancel; `state.error` stays null;
       the previous figure entry is unchanged
-- [ ] Decide R8 (no-op undo entry / dirty flag on a cancelled fold)
-- [ ] `npm run lint:web && npm run i18n:check && npm run typecheck:web && npm run test:web`
+- [x] Decide R8: fixed in `commitFoldedFigureGesture`, not in
+      `pushOverlayHistoryEntry` — see the Phase 5 note above for why the broader
+      guard is unsound
+- [x] `npm run lint:web && npm run i18n:check && npm run typecheck:web && npm run test:web`
 
 **Phase 6 — docs and close-out**
 
-- [ ] `PORTING.md`: two divergence bullets in `## Oriedita (oristudio-cp*)`
-      (finer-than-upstream checkpoints that do not consume themselves; a
-      cancelled fold does not destroy the figure) plus a Folding-search-coverage
-      line reproducing the [32-site accounting table](#parity-with-oriedita-and-where-we-exceed-it),
-      **including the two deliberately-unmapped sites** (`PointLineMap.java:39`,
-      `PointSet.java:424`) — a bare "all 32 accounted for" would convert a gap
-      into a false all-clear for the next `upstream-drift` sweep
-- [ ] `PORTING.md`: note that `FoldGraphError` now carries `Cancelled` alongside
+- [x] `PORTING.md`: the divergences and the 32-site accounting — landed as a
+      `### Fold cancellation` subsection rather than as bullets in the
+      divergence list, because the accounting is a table. **Fifteen** upstream
+      sites are unmapped, not the two this item anticipated, and the shipped
+      table names every one: a bare "all 32 accounted for" would have converted
+      a dozen real gaps into a false all-clear for the next `upstream-drift`
+      sweep. Four of this
+      file's mappings were wrong and are corrected there and
+      [above](#parity-with-oriedita-and-where-we-exceed-it)
+- [x] `PORTING.md`: note that `FoldGraphError` now carries `Cancelled` alongside
       `DisconnectedFaces`, so the pinned `fold_disconnected` contract is
       "disconnected **or** cancelled, distinguished by `is_cancelled()` before
       classification"
-- [ ] `PORTING.md`: record the CAMV narrowing (we cancel the fold, not the
+- [x] `PORTING.md`: record the CAMV narrowing (we cancel the fold, not the
       background CAMV recompute, in V1)
-- [ ] Update the budget table in this file with Phase 1's measured numbers
+- [x] `PORTING.md`: `Fold3dPlacementError`, which has no upstream counterpart,
+      and the restored crease selection, where upstream drops it at dispatch
+- [ ] Update the budget table in this file with Phase 1's measured numbers —
+      blocked on Phase 1, which is still open. What Phase 2 *did* land against
+      that table is recorded under it
 - [ ] File the remaining out-of-scope finding as an issue:
       `infer_final_subface_transitivity` O(S·k³) rescan
       (`FoldGraph::line_face_border` is done — PR #251)
@@ -1700,3 +1869,75 @@ exists yet.
       second fold starts cleanly afterwards, and `cp_fold_cancel` actually fires
       (not merely that it is registered)
 - [ ] Open a draft PR against `main`
+
+**Phase 7 — review fixes**
+
+Three blocking findings, all of them the same shape: a *stop* turning into an
+*answer*, or a stop that does not reach what it names.
+
+- [x] `Fold3dSession::with_tolerances` tests the cancel **before** degrading an
+      arrangement failure into a `NoLayerOrder` verdict, on both arms. Cancelling
+      during the arrangement stage previously placed a figure asserting "no layer
+      order — cancelled" about the user's crease pattern, plus a kernel handle, a
+      canvas entry, an undo step and a dirty project; the frontend has no
+      `cancelled` arm for that reason, so the explanation sentence was
+      `undefined`. Swept over `box_90` / `spikes_small` / `spikes_large` at twelve
+      cancel depths, verified to fail without the fix
+- [x] `Fold3dOrderError::is_cancelled` recurses into
+      `Cells(CellError::Cancelled)`, which `wire.rs` already handled and this did
+      not — so a cancel through the arrangement reached the user as
+      `fold_3d_failed`, i.e. an error toast. `CellError::is_cancelled` added so
+      the wrapper delegates rather than hand-matching
+- [x] `restart_inner` moves its worker aside and puts it back on a cancel.
+      `transactional`'s snapshot is narrow by design (R3) and cannot restore a
+      worker replaced wholesale, so a cancelled **backwards seek** or a cancelled
+      **wrap** committed `worker: None` under a restored estimate that still
+      advertised another solution — `find another solution` then did nothing, in
+      silence, for the rest of the session. These are the two rollback tests
+      Phase 3 left open
+- [x] `stopOristudioCpFolds` writes the **oldest** stoppable run rather than
+      looping over every one. Both transports carry a single exact-match slot, so
+      a loop left the *newest* id standing while the serial engine executed the
+      oldest — the fold the user wanted stopped ran to completion while the one
+      they had just started died. Every stoppable run is still marked `stopping`
+      (the intent covers all of them) and `withFoldInFlight` re-aims the slot at
+      the next as each run leaves
+- [x] The desktop cancel flag is cleared where this webview starts minting ids
+      (`installFoldCancellation`, now called on the desktop branch of the
+      connector too). The flag is process-lifetime and `nextRunId` is
+      webview-lifetime; reload is a shipped recovery path, so a Stop on run N
+      followed by a reload made the Nth fold afterwards cancelled from birth and
+      completely silent. R4's "ids are never reused" only ever held where the
+      generator and the flag share a lifetime
+- [x] A lost CP engine clears `oristudioCpFoldRuns`. A Comlink call on a dead
+      client never settles, so a worker crash mid-fold leaked the run — and with
+      it Escape, permanently, under a non-dismissible toast
+- [x] `useFoldRunIndicator`'s `stopping` is gated on `stoppable`, not on
+      `folding`. "Have all the stoppable runs been stopped" is vacuously true
+      when none can be, so every fold in an un-isolated browser read "Stopping…"
+      from the moment it appeared and then announced "Folding stopped" on success
+- [x] Background folds pass `FOLD_RUN_NONE` instead of `RunId::BACKGROUND`.
+      Nothing could ever cancel them either way, and a bound id costs them
+      `transactional`'s snapshot per step — per replay step of the 3D rehydrate,
+      on the platform with the recorded large-CP OOM. It also makes the comment
+      on `transactional` true again
+- [x] `check_every_polls_on_the_stride_and_not_before` asserts the iteration it
+      trips on, at two strides, and honours its `bits` parameter. It previously
+      hardcoded the stride and asserted only `Err(Cancelled)`, so it would have
+      passed with a poll on every iteration
+- [x] `foldCancellation.ts` moved to `src/lib/` (store-free transport, imported
+      by `engines/`), and the fold-run state machine moved out of
+      `GlobalToasts.tsx` into `cp-workspace/folded/useFoldRunIndicator.ts`
+- [x] The Escape ladder's comment names the three bubble-phase `window` listeners
+      that still fire alongside it, one of which discards in-progress tool input.
+      Not fixed — folding them into the rungs is a separate change — but no longer
+      claimed to be otherwise
+- [ ] **Deferred: the web-side overhead number.** The measured +0.77 % wall /
+      +1.2 % peak RSS is native + rayon + `AtomicU32`; web is sequential and pays
+      a catch-annotated `js_sys::Atomics::load` at an unstrided site. A Node
+      measurement against the built artifact suggested ~3 % with ±40 % run-to-run
+      spread, which supports "not catastrophic" and nothing stronger, and Safari
+      is unmeasured. This is the Phase 1 item above (a dev-only wasm export for
+      `max_check_gap_ms`, run in Chrome and Safari, **or** an explicit derating
+      factor with a ≤25 ms native target) and it stays there rather than being
+      answered by assertion here
