@@ -32,9 +32,15 @@ const ANALYTICS_ENABLED_KEY = storageKey(STORAGE_KEYS.analyticsEnabled);
 const CP_WHEEL_GESTURE_KEY = storageKey(STORAGE_KEYS.cpWheelGesture);
 const CP_SNAP_RADIUS_KEY = storageKey(STORAGE_KEYS.cpSnapRadius);
 
-/** Anything unrecognised — absent, stale, hand-edited — reads as the default. */
+/**
+ * Anything unrecognised — absent, stale, hand-edited — reads as the default.
+ *
+ * The key is only ever written by picking a radio, so a stored `'pan'` is an
+ * explicit choice and keeps panning across this default moving to `'zoom'`. An
+ * absent key means nobody chose, and follows the default wherever it goes.
+ */
 function readCpWheelGesture(): WheelGesturePreference {
-  return readString(CP_WHEEL_GESTURE_KEY) === 'zoom' ? 'zoom' : 'pan';
+  return readString(CP_WHEEL_GESTURE_KEY) === 'pan' ? 'pan' : 'zoom';
 }
 
 /** Same contract, on a number: unreadable degrades, out-of-range clamps in. */
@@ -63,9 +69,10 @@ interface SettingsState {
   analyticsEnabled: boolean;
   /**
    * What an *unmodified* scroll or two-finger drag does on the crease-pattern
-   * canvas. `'pan'` is the default and matches Figma; `'zoom'` restores the
-   * behaviour the canvas shipped with. Pinch and the accel key zoom either way,
-   * so this only ever changes the unmodified gesture.
+   * canvas. `'zoom'` is the default: it is what the canvas shipped with, what
+   * upstream Oriedita's canvas does, and what users asked to have back. `'pan'`
+   * is the Figma model, and remains the better fit for a trackpad. Pinch and the
+   * accel key zoom either way, so this only ever changes the unmodified gesture.
    */
   cpWheelGesture: WheelGesturePreference;
   /**
@@ -123,6 +130,11 @@ export const useSettingsStore = create<SettingsState>()(
       setCpWheelGesture: (value) => {
         writeString(CP_WHEEL_GESTURE_KEY, value);
         set({ cpWheelGesture: value });
+        // Hand-placed for the same reason as the snap radius below: no
+        // chokepoint sees a preference change. Two enum members, and the
+        // question is the one moving this default raised — whether trackpad
+        // users go looking for the switch back.
+        track(ANALYTICS_EVENTS.cpWheelGestureChanged, { wheel_gesture: value });
       },
       setCpSnapRadius: (value) => {
         const radius = clampCpSnapRadius(value);
