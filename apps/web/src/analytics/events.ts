@@ -246,6 +246,7 @@ export const ANALYTICS_EVENTS = {
   orieditaShortcutsOverrideAll: 'oriedita shortcuts override all',
   shortcutDefaultsSourceChanged: 'shortcut defaults source changed',
   cpSnapRadiusChanged: 'cp snap radius changed',
+  cpWheelGestureChanged: 'cp wheel gesture changed',
 } as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS];

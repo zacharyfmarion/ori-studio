@@ -347,22 +347,26 @@ describe('SettingsModal', () => {
       rendered.querySelectorAll<HTMLInputElement>('input[name="cp-wheel-gesture"]')
     );
     expect(radios).toHaveLength(2);
-    // Scroll-pans is the default, and the pane must open showing that.
-    expect(radios[0].checked).toBe(true);
-    expect(radios[1].checked).toBe(false);
+    const zoomRadio = radios.find((radio) => radio.value === 'zoom');
+    const panRadio = radios.find((radio) => radio.value === 'pan');
+    // Scroll-zooms is the default, and the pane must open showing that.
+    expect(zoomRadio?.checked).toBe(true);
+    expect(panRadio?.checked).toBe(false);
+    // The default leads the list rather than sitting under the alternative.
+    expect(radios[0]).toBe(zoomRadio);
 
     act(() => {
-      radios[1].click();
-    });
-
-    expect(useSettingsStore.getState().cpWheelGesture).toBe('zoom');
-    expect(radios[1].checked).toBe(true);
-
-    act(() => {
-      radios[0].click();
+      panRadio?.click();
     });
 
     expect(useSettingsStore.getState().cpWheelGesture).toBe('pan');
+    expect(panRadio?.checked).toBe(true);
+
+    act(() => {
+      zoomRadio?.click();
+    });
+
+    expect(useSettingsStore.getState().cpWheelGesture).toBe('zoom');
   });
 
   it('dresses the snap radius as a settings row, not as an inspector-panel row', () => {

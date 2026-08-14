@@ -16,6 +16,7 @@ vi.mock('../analytics', async (importOriginal) => {
 const initialSettingsState = useSettingsStore.getInitialState();
 
 const CP_SNAP_RADIUS_KEY = 'oristudio:cp-snap-radius';
+const CP_WHEEL_GESTURE_KEY = 'oristudio:cp-wheel-gesture';
 
 /** Hydration runs once, at store creation, so a stored value needs a fresh one. */
 async function hydrateWith(stored: string): Promise<number> {
@@ -23,6 +24,15 @@ async function hydrateWith(stored: string): Promise<number> {
   vi.resetModules();
   const { useSettingsStore: freshStore } = await import('./settingsStore');
   return freshStore.getState().cpSnapRadius;
+}
+
+/** Same, for the wheel preference; `null` stands for a key nobody ever wrote. */
+async function hydrateWheelGestureWith(stored: string | null): Promise<string> {
+  if (stored === null) localStorage.removeItem(CP_WHEEL_GESTURE_KEY);
+  else localStorage.setItem(CP_WHEEL_GESTURE_KEY, stored);
+  vi.resetModules();
+  const { useSettingsStore: freshStore } = await import('./settingsStore');
+  return freshStore.getState().cpWheelGesture;
 }
 
 beforeEach(() => {
@@ -51,15 +61,33 @@ describe('settingsStore', () => {
     expect(useSettingsStore.getState().settingsInitialTab).toBe('workspace');
   });
 
-  it('defaults the crease-pattern canvas to scroll-pans and persists a change', () => {
-    expect(useSettingsStore.getState().cpWheelGesture).toBe('pan');
-
-    useSettingsStore.getState().setCpWheelGesture('zoom');
+  it('defaults the crease-pattern canvas to scroll-zooms and persists a change', () => {
     expect(useSettingsStore.getState().cpWheelGesture).toBe('zoom');
-    expect(localStorage.getItem('oristudio:cp-wheel-gesture')).toBe('zoom');
 
     useSettingsStore.getState().setCpWheelGesture('pan');
-    expect(localStorage.getItem('oristudio:cp-wheel-gesture')).toBe('pan');
+    expect(useSettingsStore.getState().cpWheelGesture).toBe('pan');
+    expect(localStorage.getItem(CP_WHEEL_GESTURE_KEY)).toBe('pan');
+
+    useSettingsStore.getState().setCpWheelGesture('zoom');
+    expect(localStorage.getItem(CP_WHEEL_GESTURE_KEY)).toBe('zoom');
+  });
+
+  it('reports a wheel-gesture change as the chosen enum member', () => {
+    useSettingsStore.getState().setCpWheelGesture('pan');
+
+    expect(analytics.track).toHaveBeenCalledWith('cp wheel gesture changed', {
+      wheel_gesture: 'pan',
+    });
+  });
+
+  it('keeps an explicitly chosen scroll-pans across the default moving to zoom', async () => {
+    // The key is only written by picking a radio, so a stored `pan` is somebody
+    // who chose it and must not be flipped by the new default.
+    expect(await hydrateWheelGestureWith('pan')).toBe('pan');
+    expect(await hydrateWheelGestureWith('zoom')).toBe('zoom');
+    // Never chosen, or unreadable, follows the default.
+    expect(await hydrateWheelGestureWith(null)).toBe('zoom');
+    expect(await hydrateWheelGestureWith('sideways')).toBe('zoom');
   });
 
   it('defaults the fold warning to enabled and toggles it', () => {

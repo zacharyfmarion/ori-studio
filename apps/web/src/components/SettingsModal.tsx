@@ -249,23 +249,27 @@ function WorkspaceTab() {
         <h3 className="settings-section__title">
           {t('dialogs:settings.workspace.creasePatternCanvas', 'Crease pattern canvas')}
         </h3>
+        {/* Default first. `value` is here so the radios are addressable by what
+            they mean rather than by their position in this list. */}
         <label className="settings-checkbox">
           <input
             type="radio"
             name="cp-wheel-gesture"
-            checked={cpWheelGesture === 'pan'}
-            onChange={() => setCpWheelGesture('pan')}
+            value="zoom"
+            checked={cpWheelGesture === 'zoom'}
+            onChange={() => setCpWheelGesture('zoom')}
           />
-          {t('dialogs:settings.workspace.wheelPans', 'Scroll pans, pinch zooms')}
+          {t('dialogs:settings.workspace.wheelZooms', 'Scroll zooms')}
         </label>
         <label className="settings-checkbox">
           <input
             type="radio"
             name="cp-wheel-gesture"
-            checked={cpWheelGesture === 'zoom'}
-            onChange={() => setCpWheelGesture('zoom')}
+            value="pan"
+            checked={cpWheelGesture === 'pan'}
+            onChange={() => setCpWheelGesture('pan')}
           />
-          {t('dialogs:settings.workspace.wheelZooms', 'Scroll zooms')}
+          {t('dialogs:settings.workspace.wheelPans', 'Scroll pans, pinch zooms')}
         </label>
         <p className="settings-toggle-row__desc">
           {t(
