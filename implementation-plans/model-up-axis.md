@@ -72,10 +72,16 @@ reads oddly.
 
 ### Where it is stored
 
-A quaternion on the view (`{yaw, pitch, zoom, orient}`), `orient` optional and
-absent meaning identity. Quaternion rather than Euler angles because it composes
-and re-normalises cleanly under repeated presses; a `mat3` is what reaches the
-shader.
+A `Mat3` on the view (`{yaw, pitch, zoom, orient}`), `orient` optional and absent
+meaning identity.
+
+The first draft said quaternion, on the reasoning that it composes and
+re-normalises cleanly under repeated presses. Unifying the view onto a matrix
+first (below) made that moot: the thing being composed *is* a matrix at every
+step, so a quaternion would only have been converted to one on both sides of
+every operation. Repeated presses turned out not to need the re-normalisation
+argument either — `setUprightView` is idempotent, because pressing it again
+computes the same orientation from a view it already produced.
 
 ### Prerequisite: unify the view transform onto a matrix
 
@@ -225,30 +231,31 @@ Settled before implementation:
 
 **PR 1 — unify the view transform (pure refactor, no user-visible change)**
 
-- [ ] Build the view rotation as a `mat3` on the CPU; `cameraUniforms` returns it
-- [ ] Shaders take `u_view` and drop their trigonometry; watch the column-major
+- [x] Build the view rotation as a `mat3` on the CPU; `cameraUniforms` returns it
+- [x] Shaders take `u_view` and drop their trigonometry; watch the column-major
       transpose on the depth row
-- [ ] Share the perspective/NDC mapping between the mesh and edge programs as one
+- [x] Share the perspective/NDC mapping between the mesh and edge programs as one
       GLSL source constant
-- [ ] `folded3dEyeDirection` becomes a row lookup rather than a re-derivation
-- [ ] Decide the golden-stream tolerance question and say so in the PR
-- [ ] `camera.test.ts` / `meshRendererDraw.test.ts` still pin CPU↔GPU agreement
+- [x] `folded3dEyeDirection` becomes a row lookup rather than a re-derivation
+- [x] Decide the golden-stream tolerance question and say so in the PR
+- [x] `camera.test.ts` / `meshRendererDraw.test.ts` still pin CPU↔GPU agreement
 
 **PR 2 — the up axis**
 
-- [ ] Quaternion helpers + the set-upright computation, unit-tested on their own
-- [ ] `orient` composed into the view matrix on the CPU — no shader change
-- [ ] `orient` on `FoldedFigureCamera`; eye direction, shading and cell-stack
+- [x] Set-upright computation, unit-tested on its own (a `Mat3` throughout —
+      no quaternion was needed once the view became a matrix)
+- [x] `orient` composed into the view matrix on the CPU — no shader change
+- [x] `orient` on `FoldedFigureCamera`; eye direction, shading and cell-stack
       choice all derive from it; goldens unchanged at identity
-- [ ] Set-upright on `SimulatorViewport` + the control in view controls
-- [ ] A simulation's upright persists with its saved settings (decision 1 — the
-      one surface that has no persistence for this today)
-- [ ] Set-upright **and** clear-upright as `foldedFigureActions` commands;
+- [x] Set-upright on `SimulatorViewport` + the control in view controls
+- [~] A simulation's upright is **session-only** — deferred by decision, see
+      the note below. The folded figure's does persist.
+- [x] Set-upright **and** clear-upright as `foldedFigureActions` commands;
       toolbar, context menu and menu bar all pick both up
-- [ ] `reset-view` leaves the orientation alone (decision 2), pinned by a test
-- [ ] `.osf` round-trip; an existing file with no `orient` opens identically
-- [ ] Undo takes exactly one entry per press
-- [ ] i18n: inline English, `i18n:extract`, 8 locales, `i18n:stamp`, `i18n:check`
-- [ ] Analytics event (or confirm the `handleMenuAction` chokepoint covers it)
-- [ ] `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`
-- [ ] Browser: set upright on a standing model, confirm orbit turns around it
+- [x] `reset-view` leaves the orientation alone (decision 2), pinned by a test
+- [x] `.osf` round-trip; an existing file with no `orient` opens identically
+- [x] Undo takes exactly one entry per press
+- [x] i18n: inline English, `i18n:extract`, 8 locales, `i18n:stamp`, `i18n:check`
+- [x] Analytics event (or confirm the `handleMenuAction` chokepoint covers it)
+- [x] `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`
+- [x] Browser: set upright on a standing model, confirm orbit turns around it
