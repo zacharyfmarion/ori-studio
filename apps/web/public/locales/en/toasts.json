@@ -16,7 +16,9 @@
     "foldStop": "Cancel",
     "foldStopped": "Fold cancelled",
     "foldStopping": "Cancelling…",
-    "saved": "{{name}} saved"
+    "saved": "{{name}} saved",
+    "saving": "Saving {{name}}…",
+    "savingLong": "Still saving {{name}} — large projects take a moment"
   },
   "simulatorExport": {
     "empty": "This simulation has nothing to export yet",

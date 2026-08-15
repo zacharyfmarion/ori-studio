@@ -196,6 +196,16 @@
     },
     "closeLabel": "{{title}}を閉じる"
   },
+  "lossySave": {
+    "blockedMessage": "{{format}} は {{features}} を保存できず、ファイルを再度開くとすべての折り線が完全な折りとして読み込まれます。Ori Studio プロジェクトとして保存すればすべて保持されます。",
+    "blockedTitle": "{{format}} で保存するとこの展開図が変わります",
+    "keepFormat": "このまま {{format}} で保存",
+    "keepFormatDescription": "開いたファイルをそのまま書き込み、これらの機能は省略されます。このドキュメントでは再度確認しません。",
+    "message": "このドキュメントには {{format}} が保存できない機能があり、保存するファイルからは省略されます: {{features}}。",
+    "saveAsProject": "Ori Studio プロジェクトとして保存",
+    "saveAsProjectDescription": "Ori Studio 独自の .osf 形式ですべてを保持します。",
+    "title": "{{format}} で保存すると一部の機能が失われます"
+  },
   "number": {
     "tooSmall": "{{minimum}} より大きい数値を入力してください。"
   },

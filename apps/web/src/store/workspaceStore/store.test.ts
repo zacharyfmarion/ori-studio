@@ -40,6 +40,7 @@ import { CP_DOCUMENT_SCOPED_KEYS, discardCpDocumentState } from './cpDocumentSta
 import { foldCancellationBuffer } from '../../lib/foldCancellation';
 import { registerCpCamera } from '../../cp-workspace/renderer/cpCameraRegistry';
 import { projectFromSnapshot } from '../../engine/snapshotMapper';
+import { resolveSaveContents } from '../../platform/fileService';
 import type { FileService, SaveBinaryFileOptions, SaveTextFileOptions } from '../../platform/fileService';
 import { DEFAULT_CREASE_COLOR_MODE } from '../../lib/sampleProject';
 import {
@@ -1581,6 +1582,71 @@ function camvErrorResult(id = 'CheckCamv-1'): OristudioCpCommandResult {
   };
 }
 
+/**
+ * The ways a save can END, as file services.
+ *
+ * Every save test used to build the same always-succeeds-on-the-web service, so
+ * the endings that are not "written through on the web" went untested — which is
+ * exactly where the stranded spinner lived: the confirmation that removed it
+ * only fires for this one ending.
+ */
+const saveEndings = {
+  /** Chromium wrote through a handle: a reusable target comes back. */
+  webWrittenThrough: () => {
+    const service = createFileService();
+    service.saveTextFile.mockImplementation(async (options: SaveTextFileOptions) => {
+      savedTexts.set(options, await resolveSaveContents(options.contents, { name: options.suggestedName }));
+      return { name: options.suggestedName, path: 'web-save:1' };
+    });
+    return service;
+  },
+  /** Firefox/Safari, or a picker that failed: a download, with no target. */
+  webDownloaded: () => {
+    const service = createFileService();
+    service.saveTextFile.mockImplementation(async (options: SaveTextFileOptions) => {
+      savedTexts.set(options, await resolveSaveContents(options.contents, { name: options.suggestedName }));
+      return { name: options.suggestedName, path: null };
+    });
+    return service;
+  },
+  /** Desktop wrote to a real path. */
+  desktopWritten: () => {
+    const service = createFileService();
+    service.saveTextFile.mockImplementation(async (options: SaveTextFileOptions) => {
+      savedTexts.set(options, await resolveSaveContents(options.contents, { name: options.suggestedName }));
+      return { name: options.suggestedName, path: `/tmp/${options.suggestedName}` };
+    });
+    return { ...service, surface: 'desktop' as const, supportsNativeDialogs: true };
+  },
+  /** The user dismissed the save dialog. */
+  cancelled: () => {
+    const service = createFileService();
+    service.saveTextFile.mockImplementation(async () => null);
+    return service;
+  },
+  /** The write threw — a locked file, a full disk. */
+  failed: () => {
+    const service = createFileService();
+    service.saveTextFile.mockImplementation(async () => {
+      throw new Error('disk full');
+    });
+    return service;
+  },
+};
+
+/**
+ * What a save actually wrote, keyed by the options it was called with.
+ *
+ * `contents` is a string for an export and a thunk for a document save, so the
+ * bytes only exist once the service has resolved it.
+ */
+const savedTexts = new WeakMap<SaveTextFileOptions, string>();
+
+function savedText(options: SaveTextFileOptions | undefined): string {
+  if (!options) return '';
+  return savedTexts.get(options) ?? (typeof options.contents === 'string' ? options.contents : '');
+}
+
 function createFileService(
   file: { text: string; name: string; path: string | null } | null = null
 ): FileService & {
@@ -1594,10 +1660,19 @@ function createFileService(
     supportsNativeDialogs: false,
     openTextFile: vi.fn(async () => file),
     openBinaryFile: vi.fn(async () => null),
-    saveTextFile: vi.fn(async (options: SaveTextFileOptions) => ({
-      name: options.suggestedName,
-      path: options.path ?? `/tmp/${options.suggestedName}`,
-    })),
+    saveTextFile: vi.fn(async (options: SaveTextFileOptions) => {
+      // Document saves now hand over a thunk, and the service is what invokes it
+      // — the real one only after the save target is settled. A mock that did not
+      // call it would silently skip every serialization under test.
+      savedTexts.set(
+        options,
+        await resolveSaveContents(options.contents, { name: options.suggestedName })
+      );
+      return {
+        name: options.suggestedName,
+        path: options.path ?? `/tmp/${options.suggestedName}`,
+      };
+    }),
     saveBinaryFile: vi.fn(async (options: SaveBinaryFileOptions) => ({
       name: options.suggestedName,
       path: null,
@@ -1739,7 +1814,7 @@ describe('workspace store slices', () => {
     const savedNativeTreeOptions = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
       | SaveTextFileOptions
       | undefined;
-    const savedNativeTree = parseNativeProjectFile(savedNativeTreeOptions?.contents ?? '');
+    const savedNativeTree = parseNativeProjectFile(savedText(savedNativeTreeOptions));
     expect(activeNativeDesign(savedNativeTree)).toMatchObject({
       payload: { kind: 'treemaker', format: 'tmd5' },
     });
@@ -2117,7 +2192,7 @@ describe('workspace store slices', () => {
     expect(secondSave.path).toBe('web-save:1');
     expect(secondSave.reusableTarget).toBe(true);
     // ...but absent from the bytes that land on disk.
-    expect(secondSave.contents).not.toContain('web-save:');
+    expect(savedText(secondSave)).not.toContain('web-save:');
   });
 
   /**
@@ -2202,6 +2277,210 @@ describe('workspace store slices', () => {
     expect(after.dirty).toBe(true);
     // ...and the save is still recorded, so the next Save overwrites.
     expect(after.currentFilePath).toBe('web-save:1');
+  });
+
+  /**
+   * The indicator must never appear underneath the OS save dialog, which is the
+   * whole reason serialization moved after the picker. `saveRun` is the signal
+   * it renders from, so it has to be unset while the target is being settled and
+   * set only once the contents are actually being produced.
+   */
+  it('marks a save as running only once the target is settled', async () => {
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText(
+      JSON.stringify({
+        file_spec: 1.1,
+        vertices_coords: [
+          [0, 0],
+          [1, 0],
+        ],
+        edges_vertices: [[0, 1]],
+        edges_assignment: ['B'],
+      }),
+      { filename: 'line.fold', path: null }
+    );
+    const fileService = createFileService();
+    let whileSettlingTarget: unknown = 'never ran';
+    let whileSerializing: unknown = 'never ran';
+    fileService.saveTextFile.mockImplementation(async (options: SaveTextFileOptions) => {
+      // Standing in for the dialog: no target yet, so nothing may be showing.
+      whileSettlingTarget = useWorkspaceStore.getState().saveRun;
+      const text = await resolveSaveContents(options.contents, { name: 'line.osf' });
+      // Read after the thunk body has run and before the service returns: the
+      // window the indicator is meant to cover.
+      whileSerializing = useWorkspaceStore.getState().saveRun;
+      expect(text).not.toBe('');
+      return { name: options.suggestedName, path: 'web-save:1' };
+    });
+
+    await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+
+    expect(whileSettlingTarget).toBeNull();
+    expect(whileSerializing).toMatchObject({ name: 'line.osf' });
+    // Cleared again once the save is done, however it ended.
+    expect(useWorkspaceStore.getState().saveRun).toBeNull();
+  });
+
+  /**
+   * Opening a `.ori`, adding a reference image and pressing ⌘S wrote Oriedita's
+   * format straight back and dropped the image without a word — while File ›
+   * Export ORI, which writes the same bytes, warned about it. Same loss, so the
+   * same question, and the alternative offered is `.osf` rather than FOLD:
+   * someone pressing ⌘S wants to keep working with everything they have.
+   */
+  describe('saving back over a file whose format cannot hold everything', () => {
+    const openOri = async () => {
+      resetStores(seedSnapshot());
+      await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0\n', {
+        filename: 'legacy.ori',
+        path: null,
+      });
+      useWorkspaceStore.setState({
+        oristudioCpAnnotations: [
+          {
+            kind: 'image' as const,
+            id: 'image-1',
+            src: 'data:image/png;base64,AAAA',
+            naturalWidth: 100,
+            naturalHeight: 80,
+            center: { x: 0.5, y: 0.5 },
+            width: 0.8,
+            height: 0.64,
+            rotation: 0,
+            crop: { x: 0, y: 0, w: 1, h: 1 },
+            opacity: 1,
+            locked: false,
+            hidden: false,
+            z: 1,
+          },
+        ],
+      });
+    };
+
+    it('names what will be dropped, and writes nothing when the save is dismissed', async () => {
+      await openOri();
+      const fileService = createFileService();
+      const unregisterDialogHost = registerCommandDialogHost();
+      try {
+        const save = useWorkspaceStore.getState().saveProject(fileService);
+        await vi.waitFor(() => expect(useCommandDialogStore.getState().dialog).not.toBeNull());
+        const dialog = useCommandDialogStore.getState().dialog;
+        expect(dialog?.type).toBe('choice');
+        // It must say what *this* document loses, not that the format is legacy.
+        expect(dialog && 'message' in dialog ? dialog.message : '').toContain('Images');
+        // Dismissing must cancel the save outright — never fall through to the
+        // lossy write, which is what a confirm dialog's cancel button would do.
+        resolveCommandDialog(dialog!.id, null);
+        await expect(save).resolves.toBe(false);
+      } finally {
+        unregisterDialogHost();
+      }
+      expect(fileService.saveTextFile).not.toHaveBeenCalled();
+    });
+
+    it('asks once, then saves that document without asking again', async () => {
+      await openOri();
+      const fileService = createFileService();
+      const unregisterDialogHost = registerCommandDialogHost();
+      try {
+        const first = useWorkspaceStore.getState().saveProject(fileService);
+        await vi.waitFor(() => expect(useCommandDialogStore.getState().dialog).not.toBeNull());
+        resolveCommandDialog(useCommandDialogStore.getState().dialog!.id, 'keep-format');
+        await expect(first).resolves.toBe(true);
+
+        // ⌘S is a reflex; a modal on every one of them is a modal people learn
+        // to dismiss unread.
+        await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+        expect(useCommandDialogStore.getState().dialog).toBeNull();
+      } finally {
+        unregisterDialogHost();
+      }
+      expect(fileService.saveTextFile).toHaveBeenCalledTimes(2);
+      expect(fileService.saveTextFile.mock.lastCall?.[0].extensions).toEqual(['ori']);
+    });
+
+    // The branch the first version of these tests never took: it re-enters the
+    // save machinery. A save *did* happen, so it must report success — it used
+    // to return false for a file that was written, because the guard's "this
+    // format was not written" answer was read as "nothing was saved".
+    it('reports success when the .osf upgrade is chosen', async () => {
+      await openOri();
+      const fileService = createFileService();
+      const unregisterDialogHost = registerCommandDialogHost();
+      try {
+        const save = useWorkspaceStore.getState().saveProject(fileService);
+        await vi.waitFor(() => expect(useCommandDialogStore.getState().dialog).not.toBeNull());
+        resolveCommandDialog(useCommandDialogStore.getState().dialog!.id, 'save-as-project');
+        await expect(save).resolves.toBe(true);
+      } finally {
+        unregisterDialogHost();
+      }
+      expect(useWorkspaceStore.getState().saveRun).toBeNull();
+      expect(fileService.saveTextFile.mock.lastCall?.[0].extensions).toEqual(['osf']);
+    });
+
+    it('says nothing when the document has nothing the format would drop', async () => {
+      resetStores(seedSnapshot());
+      await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0\n', {
+        filename: 'plain.ori',
+        path: null,
+      });
+      const fileService = createFileService();
+      const unregisterDialogHost = registerCommandDialogHost();
+      try {
+        await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+        expect(useCommandDialogStore.getState().dialog).toBeNull();
+      } finally {
+        unregisterDialogHost();
+      }
+    });
+  });
+
+  /**
+   * Every ending of a save, not just the one that succeeds in a browser.
+   *
+   * `saveRun` drives the progress spinner, and the spinner is the thing that got
+   * stranded: it must be cleared however the save ended, and only the web
+   * write-through ending publishes the confirmation that used to be the only way
+   * it came down.
+   */
+  describe.each([
+    ['written through on the web', 'webWrittenThrough', true, 'crane.osf'],
+    ['downloaded, with no reusable target', 'webDownloaded', true, null],
+    ['written on desktop', 'desktopWritten', true, null],
+    ['cancelled at the dialog', 'cancelled', false, null],
+  ] as const)('a save %s', (_case, ending, expectedResult, expectedNotice) => {
+    it('clears the run indicator and reports the right outcome', async () => {
+      resetStores(seedSnapshot());
+      await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0\n', {
+        filename: 'crane.cp',
+        path: null,
+      });
+      const fileService = saveEndings[ending]();
+
+      await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(
+        expectedResult
+      );
+
+      // Nothing may be left running — a spinner outlives the save otherwise.
+      expect(useWorkspaceStore.getState().saveRun).toBeNull();
+      expect(useWorkspaceStore.getState().savedNotice).toBe(expectedNotice);
+    });
+  });
+
+  it('clears the run indicator when the write itself throws', async () => {
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0\n', {
+      filename: 'crane.cp',
+      path: null,
+    });
+
+    await expect(
+      useWorkspaceStore.getState().saveProject(saveEndings.failed())
+    ).resolves.toBe(false);
+
+    expect(useWorkspaceStore.getState().saveRun).toBeNull();
+    expect(useWorkspaceStore.getState().savedNotice).toBeNull();
   });
 
   /**
@@ -2575,7 +2854,7 @@ describe('workspace store slices', () => {
     const savedNativeCpOptions = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
       | SaveTextFileOptions
       | undefined;
-    const savedNativeCp = parseNativeProjectFile(savedNativeCpOptions?.contents ?? '');
+    const savedNativeCp = parseNativeProjectFile(savedText(savedNativeCpOptions));
     expect(savedNativeCp.workspace.creasePattern).toMatchObject({
       creasePattern: {
         engine: 'oristudio-cp',
@@ -2801,10 +3080,15 @@ describe('workspace store slices', () => {
     await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
 
     expect(oristudioCpMocks.exportOristudioCpDocumentAsOri).toHaveBeenCalledOnce();
+    // The bytes are asserted through `savedText`, not as a `contents` literal: a
+    // document save hands the service a thunk, and the string only exists once
+    // the service has settled the save target and invoked it.
+    expect(savedText(fileService.saveTextFile.mock.lastCall?.[0])).toBe(
+      '{"@version":"v1.1","title":"square"}\n'
+    );
     expect(fileService.saveTextFile).toHaveBeenLastCalledWith(
       expect.objectContaining({
         title: 'Save Oriedita ORI Document',
-        contents: '{"@version":"v1.1","title":"square"}\n',
         suggestedName: 'native.ori',
         path: '/tmp/native.ori',
         extensions: ['ori'],
@@ -2873,7 +3157,7 @@ describe('workspace store slices', () => {
     const savedOptions = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
       | SaveTextFileOptions
       | undefined;
-    const savedProject = parseNativeProjectFile(savedOptions?.contents ?? '');
+    const savedProject = parseNativeProjectFile(savedText(savedOptions));
     expect(savedProject.workspace.creasePattern).toMatchObject({
       creasePattern: {
         source: {
@@ -2924,25 +3208,23 @@ describe('workspace store slices', () => {
     useWorkspaceStore.setState({ dirty: true });
     const unregisterDialogHost = registerCommandDialogHost();
     try {
-      const saveOrh = useWorkspaceStore.getState().saveProject(fileService);
-      const dialog = useCommandDialogStore.getState().dialog;
-      expect(dialog).toMatchObject({
-        type: 'confirm',
-        title: 'Export legacy ORH?',
-        confirmLabel: 'Export ORH',
-      });
-      if (!dialog) throw new Error('expected ORH save confirmation');
-      resolveCommandDialog(dialog.id, true);
-      await expect(saveOrh).resolves.toBe(true);
+      // No prompt: this document has nothing ORH would drop. The old notice
+      // fired on every ORH save to say the format was legacy, which told the
+      // user nothing actionable — the warning is now about what *this* document
+      // would actually lose, and is covered by its own tests above.
+      await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+      expect(useCommandDialogStore.getState().dialog).toBeNull();
     } finally {
       unregisterDialogHost();
     }
 
     expect(oristudioCpMocks.exportOristudioCpDocumentAsOrh).toHaveBeenCalledOnce();
+    expect(savedText(fileService.saveTextFile.mock.lastCall?.[0])).toBe(
+      '<タイトル>\nタイトル,square\n'
+    );
     expect(fileService.saveTextFile).toHaveBeenLastCalledWith(
       expect.objectContaining({
         title: 'Save Oriedita ORH Document',
-        contents: '<タイトル>\nタイトル,square\n',
         suggestedName: 'legacy.orh',
         path: '/tmp/legacy.orh',
         extensions: ['orh'],
@@ -7302,7 +7584,7 @@ describe('workspace store slices', () => {
         | SaveTextFileOptions
         | undefined;
       expect(options?.extensions).toEqual(['osf']);
-      const saved = parseNativeProjectFile(options?.contents ?? '');
+      const saved = parseNativeProjectFile(savedText(options));
       const active = activeNativeDesign(saved);
       if (!active) throw new Error('expected a box-pleat design');
       expect(active.payload.kind).toBe('box-pleat');
@@ -7333,7 +7615,7 @@ describe('workspace store slices', () => {
       const options = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
         | SaveTextFileOptions
         | undefined;
-      const saved = parseNativeProjectFile(options?.contents ?? '');
+      const saved = parseNativeProjectFile(savedText(options));
       expect(saved.workspace.designs.map((design) => design.payload.kind)).toEqual(['box-pleat']);
       expect(saved.workspace.creasePattern).not.toBeNull();
       const active = activeNativeDesign(saved);
@@ -7356,7 +7638,7 @@ describe('workspace store slices', () => {
       const options = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
         | SaveTextFileOptions
         | undefined;
-      const saved = parseNativeProjectFile(options?.contents ?? '');
+      const saved = parseNativeProjectFile(savedText(options));
       expect(saved.workspace.designs.map((design) => design.payload.kind)).toEqual(['box-pleat']);
       expect(saved.workspace.creasePattern).not.toBeNull();
     });
@@ -7375,7 +7657,7 @@ describe('workspace store slices', () => {
       const options = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
         | SaveTextFileOptions
         | undefined;
-      expect(options?.contents).toBe('{"exported":true}');
+      expect(savedText(options)).toBe('{"exported":true}');
       expect(options?.extensions).toEqual(['bps']);
       expect(options?.suggestedName.endsWith('.bps')).toBe(true);
     });
@@ -7971,10 +8253,10 @@ describe('workspace store slices', () => {
 
       const saveService = createFileService();
       await expect(useWorkspaceStore.getState().saveProject(saveService)).resolves.toBe(true);
-      const saved = (
+      const saved = savedText(
         saveService.saveTextFile.mock.calls.at(-1)?.[0] as SaveTextFileOptions | undefined
-      )?.contents;
-      expect(saved).toBeDefined();
+      );
+      expect(saved).not.toBe('');
 
       // A fresh store, so nothing can be carried over in memory.
       useWorkspaceStore.setState(initialWorkspaceState, true);

@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useFoldRunIndicator } from '../cp-workspace/folded/useFoldRunIndicator';
+import { useSaveRunIndicator } from '../hooks/useSaveRunIndicator';
 import { formatUnknownError, humanizeError } from '../lib/toastMessages';
 import { createDelayedProgress } from '../lib/delayedProgress';
+import { SAVE_TOAST_DELAY_MS, SAVE_TOAST_MIN_VISIBLE_MS } from '../lib/saveProgressTiming';
 import { useWorkspaceStore } from '../store/workspaceStore';
 
 function errorKey(error: unknown): string {
@@ -23,8 +25,18 @@ const FOLD_TOAST_DELAY_MS = 500;
 const FOLD_TOAST_MIN_VISIBLE_MS = 1000;
 const FOLD_TOAST_ID = 'oristudio-folding';
 const FOLD_STOPPED_TOAST_ID = 'oristudio-folding-stopped';
-/** One id, so saving repeatedly replaces the notice rather than stacking it. */
 const SAVED_TOAST_ID = 'oristudio-saved';
+/**
+ * The spinner owns its own id and dismisses itself.
+ *
+ * It used to share `SAVED_TOAST_ID` so the confirmation would replace it in
+ * place — which works only when a confirmation follows. It does not for a
+ * desktop save (the notice is scoped to the browser), a download fallback (no
+ * path, so nothing to confirm), a cancelled save, or a failed one. The toast is
+ * `duration: Infinity`, so in every one of those the spinner stayed on screen
+ * for the life of the page.
+ */
+const SAVING_TOAST_ID = 'oristudio-saving';
 
 export function GlobalToasts() {
   const { t } = useTranslation();
@@ -34,6 +46,8 @@ export function GlobalToasts() {
   const clearProjectMessage = useWorkspaceStore((state) => state.clearProjectMessage);
   const savedNotice = useWorkspaceStore((state) => state.savedNotice);
   const clearSavedNotice = useWorkspaceStore((state) => state.clearSavedNotice);
+  const { saving, name: savingName, longRun: saveLongRun } = useSaveRunIndicator();
+  const [savingVisible, setSavingVisible] = useState(false);
   const lastErrorKey = useRef<string | null>(null);
 
   useEffect(() => {
@@ -64,12 +78,61 @@ export function GlobalToasts() {
   // lands on the same filename still gets its own toast.
   useEffect(() => {
     if (!savedNotice) return;
+    // The confirmation is itself the "you saw something happen" guarantee, so the
+    // spinner has nothing left to buy. They no longer share an id, so this is
+    // what keeps them from overlapping; `hide` dismisses too, and is idempotent.
+    toast.dismiss(SAVING_TOAST_ID);
     toast.success(t('toasts:global.saved', '{{name}} saved', { name: savedNotice }), {
       id: SAVED_TOAST_ID,
       duration: 3000,
     });
     clearSavedNotice();
   }, [clearSavedNotice, savedNotice, t]);
+
+  /**
+   * A save big enough to notice. Pressing ⌘S on a project carrying megabytes of
+   * embedded images used to be seconds of silence; the work now happens *after*
+   * the save target is settled, so this can cover it without ever sitting behind
+   * the OS dialog.
+   *
+   * No Cancel, unlike folding: by the time this appears the file has been chosen
+   * and is being written, and a half-written document is not something to offer
+   * as an out.
+   */
+  const saveProgress = useMemo(
+    () =>
+      createDelayedProgress({
+        delayMs: SAVE_TOAST_DELAY_MS,
+        minVisibleMs: SAVE_TOAST_MIN_VISIBLE_MS,
+        show: () => setSavingVisible(true),
+        hide: () => {
+          setSavingVisible(false);
+          // However the save ended — written, downloaded, cancelled, failed —
+          // the spinner goes. Nothing else can remove it.
+          toast.dismiss(SAVING_TOAST_ID);
+        },
+      }),
+    []
+  );
+
+  useEffect(() => {
+    if (saving) saveProgress.start();
+    else saveProgress.stop();
+  }, [saveProgress, saving]);
+
+  useEffect(() => () => saveProgress.dispose(), [saveProgress]);
+
+  useEffect(() => {
+    if (!savingVisible || !savingName) return;
+    toast.loading(
+      saveLongRun
+        ? t('toasts:global.savingLong', 'Still saving {{name}} — large projects take a moment', {
+            name: savingName,
+          })
+        : t('toasts:global.saving', 'Saving {{name}}…', { name: savingName }),
+      { id: SAVING_TOAST_ID, duration: Infinity }
+    );
+  }, [saveLongRun, savingName, savingVisible, t]);
 
   // Folding runs in the CP worker, so the main thread is free to paint this and
   // to take the Stop — which is a synchronous write into memory the running

@@ -105,4 +105,33 @@ describe('createDelayedProgress', () => {
     expect(show).not.toHaveBeenCalled();
     expect(hide).not.toHaveBeenCalled();
   });
+
+  // Whatever the indicator is — a toast that only a `hide` can remove — has to
+  // come down with its host. Otherwise unmounting mid-run strands it on screen.
+  it('hides an indicator that is on screen when it is disposed', () => {
+    const { progress, show, hide } = makeProgress();
+    progress.start();
+    vi.advanceTimersByTime(600);
+    expect(show).toHaveBeenCalledOnce();
+
+    progress.dispose();
+
+    expect(hide).toHaveBeenCalledOnce();
+  });
+
+  // The window where `running` is already false but the indicator is still up:
+  // stopping inside the minimum-visible time queues the hide rather than doing
+  // it, and dispose then throws that timer away.
+  it('hides when disposed while a queued hide is still pending', () => {
+    const { progress, show, hide } = makeProgress();
+    progress.start();
+    vi.advanceTimersByTime(600);
+    progress.stop();
+    expect(show).toHaveBeenCalledOnce();
+    expect(hide).not.toHaveBeenCalled();
+
+    progress.dispose();
+
+    expect(hide).toHaveBeenCalledOnce();
+  });
 });

@@ -56,7 +56,20 @@
   --shadow-overlay: rgba(0, 0, 0, 0.35);
   --shadow-context-menu: 0 4px 12px rgba(0, 0, 0, 0.35);
   --overlay-dim: rgba(0, 0, 0, 0.52);
+  /*
+   * Chrome that floats over a pane but is still *of* the canvas — the image and
+   * selection toolbars, the CP context panel. Above every in-pane element, below
+   * a modal: a toolbar that outranks a dialog covers the dialog, and the image
+   * toolbar sits exactly where a just-inserted image is, which is exactly when
+   * the lossy-save dialog opens.
+   */
+  --z-canvas-overlay: 900;
   --z-modal: 9999;
+  /*
+   * Only for genuinely portalled popovers — menus, selects, tooltips — which do
+   * need to open *from inside* a modal and sit above it. Do not reach for this
+   * to lift in-canvas chrome; that is what `--z-canvas-overlay` is for.
+   */
   --z-portaled-popover: 10000;
 
   --paper-shadow: rgba(0, 0, 0, 0.28);
@@ -3258,7 +3271,7 @@
   border: 1px solid var(--border-default);
   border-radius: 8px;
   box-shadow: 0 2px 8px rgb(0 0 0 / 30%);
-  z-index: var(--z-portaled-popover, 10000);
+  z-index: var(--z-canvas-overlay, 900);
   pointer-events: auto;
 }
 
@@ -5373,7 +5386,7 @@ button.cp-folded-figure-toolbar__notice:hover {
    browser window rather than the nearest Dockview panel. */
 .cp-context-panel {
   position: fixed;
-  z-index: 900; /* Above all in-pane chrome (max 17), below --z-modal. */
+  z-index: var(--z-canvas-overlay, 900); /* Above in-pane chrome, below --z-modal. */
   --cp-context-reset-gutter: 58px;
   display: grid;
   /* `minmax(0, …)` on the body row is what lets it shrink below its content and

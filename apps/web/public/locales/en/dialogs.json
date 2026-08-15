@@ -201,6 +201,16 @@
     },
     "closeLabel": "Close {{title}}"
   },
+  "lossySave": {
+    "blockedMessage": "{{format}} can’t store {{features}}, and reopening the file would read every crease as a full fold. Saving as an Ori Studio project keeps everything.",
+    "blockedTitle": "Saving as {{format}} would change this pattern",
+    "keepFormat": "Save as {{format}} anyway",
+    "keepFormatDescription": "Writes the file you opened, without those features. Not asked again for this document.",
+    "message": "This document uses features {{format}} can’t store, and they will be left out of the saved file: {{features}}.",
+    "saveAsProject": "Save as Ori Studio project",
+    "saveAsProjectDescription": "Keeps everything, in Ori Studio’s own .osf format.",
+    "title": "Saving as {{format}} will drop some features"
+  },
   "number": {
     "tooSmall": "Enter a number greater than {{minimum}}."
   },

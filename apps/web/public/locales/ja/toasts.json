@@ -16,7 +16,9 @@
     "foldStop": "キャンセル",
     "foldStopped": "折り上げをキャンセルしました",
     "foldStopping": "キャンセル中…",
-    "saved": "{{name}} を保存しました"
+    "saved": "{{name}} を保存しました",
+    "saving": "{{name}} を保存中…",
+    "savingLong": "{{name}} を保存中 — 大きなプロジェクトは時間がかかります"
   },
   "simulatorExport": {
     "empty": "このシミュレーションには書き出せるものがまだありません",

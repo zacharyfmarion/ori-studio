@@ -16,7 +16,9 @@
     "foldStop": "Abbrechen",
     "foldStopped": "Falten abgebrochen",
     "foldStopping": "Wird abgebrochen…",
-    "saved": "{{name}} gespeichert"
+    "saved": "{{name}} gespeichert",
+    "saving": "{{name}} wird gespeichert…",
+    "savingLong": "{{name}} wird noch gespeichert — große Projekte dauern einen Moment"
   },
   "simulatorExport": {
     "empty": "Diese Simulation hat noch nichts zu exportieren",

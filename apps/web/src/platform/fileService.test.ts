@@ -372,6 +372,94 @@ describe('browser document saves', () => {
     expect(click).not.toHaveBeenCalled();
   });
 
+  /**
+   * The ordering that makes ⌘S feel instant and keeps the activation window
+   * intact. Serializing a large project takes longer than transient user
+   * activation lives, so producing the bytes first meant the dialog either
+   * arrived seconds late or never opened at all.
+   */
+  it('opens the picker before it asks for the contents', async () => {
+    const order: string[] = [];
+    const handle = fakeHandle('project.osf');
+    window.showSaveFilePicker = vi.fn(async () => {
+      order.push('picker');
+      return handle as unknown as FileSystemFileHandle;
+    });
+    const service = createFileService('web');
+
+    await service.saveTextFile(
+      saveOptions({
+        contents: async () => {
+          order.push('serialize');
+          return 'bytes';
+        },
+      })
+    );
+
+    expect(order).toEqual(['picker', 'serialize']);
+    expect(handle.written).toEqual(['bytes']);
+  });
+
+  // The repeat save, which is the common one: no dialog, but the readwrite
+  // upgrade needs the same activation and must not wait for serialization.
+  it('upgrades the remembered handle before it asks for the contents', async () => {
+    const order: string[] = [];
+    const handle = fakeHandle('opened.osf');
+    handle.getFile = async () => new File(['{}'], 'opened.osf');
+    let granted = false;
+    handle.queryPermission = async () => (granted ? 'granted' : 'prompt') as PermissionState;
+    handle.requestPermission = async () => {
+      order.push('permission');
+      granted = true;
+      return 'granted' as PermissionState;
+    };
+    window.showOpenFilePicker = vi.fn(async () => [handle as unknown as FileSystemFileHandle]);
+    const service = createFileService('web');
+
+    const opened = await service.openTextFile({ title: 'Open', extensions: ['osf'] });
+    await service.saveTextFile(
+      saveOptions({
+        path: opened?.path,
+        contents: async () => {
+          order.push('serialize');
+          return 'bytes';
+        },
+      })
+    );
+
+    expect(order).toEqual(['permission', 'serialize']);
+    expect(handle.written).toEqual(['bytes']);
+  });
+
+  // Cancelling now costs nothing. It used to serialize every design, round-trip
+  // the crease-pattern worker and base64 megabytes of images, then discover the
+  // dialog had been dismissed.
+  it('never asks for the contents when the dialog is dismissed', async () => {
+    const serialize = vi.fn(async () => 'bytes');
+    window.showSaveFilePicker = vi.fn(async () => {
+      throw new DOMException('dismissed', 'AbortError');
+    });
+    const service = createFileService('web');
+
+    await expect(service.saveTextFile(saveOptions({ contents: serialize }))).resolves.toBeNull();
+    expect(serialize).not.toHaveBeenCalled();
+  });
+
+  it('asks for the contents once, even when the write fails and it falls back to a download', async () => {
+    const serialize = vi.fn(async () => 'bytes');
+    const handle = fakeHandle('project.osf');
+    handle.failNextWrite = true;
+    window.showSaveFilePicker = vi.fn(async () => handle as unknown as FileSystemFileHandle);
+    const service = createFileService('web');
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    const result = await service.saveTextFile(saveOptions({ contents: serialize }));
+
+    expect(serialize).toHaveBeenCalledOnce();
+    expect(click).toHaveBeenCalledOnce();
+    expect(result?.path).toBeNull();
+  });
+
   it('downloads, as before, where the browser has no File System Access API', async () => {
     // Firefox and Safari. `showSaveFilePicker` is left undefined.
     const service = createFileService('web');

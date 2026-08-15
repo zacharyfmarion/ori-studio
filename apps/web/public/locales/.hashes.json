@@ -2468,7 +2468,17 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "toasts:global.saving": "716872381c97",
+    "toasts:global.savingLong": "165dbcda6c90",
+    "dialogs:lossySave.blockedMessage": "b21c50fa2363",
+    "dialogs:lossySave.blockedTitle": "6af0b3e6de22",
+    "dialogs:lossySave.keepFormat": "60d81ec3a16a",
+    "dialogs:lossySave.keepFormatDescription": "d5ea7e5da1bc",
+    "dialogs:lossySave.message": "054d02117dc1",
+    "dialogs:lossySave.saveAsProject": "6dbb6ee10378",
+    "dialogs:lossySave.saveAsProjectDescription": "135fff38ea22",
+    "dialogs:lossySave.title": "bada54196e41"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4939,7 +4949,17 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "toasts:global.saving": "716872381c97",
+    "toasts:global.savingLong": "165dbcda6c90",
+    "dialogs:lossySave.blockedMessage": "b21c50fa2363",
+    "dialogs:lossySave.blockedTitle": "6af0b3e6de22",
+    "dialogs:lossySave.keepFormat": "60d81ec3a16a",
+    "dialogs:lossySave.keepFormatDescription": "d5ea7e5da1bc",
+    "dialogs:lossySave.message": "054d02117dc1",
+    "dialogs:lossySave.saveAsProject": "6dbb6ee10378",
+    "dialogs:lossySave.saveAsProjectDescription": "135fff38ea22",
+    "dialogs:lossySave.title": "bada54196e41"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7410,7 +7430,17 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "toasts:global.saving": "716872381c97",
+    "toasts:global.savingLong": "165dbcda6c90",
+    "dialogs:lossySave.blockedMessage": "b21c50fa2363",
+    "dialogs:lossySave.blockedTitle": "6af0b3e6de22",
+    "dialogs:lossySave.keepFormat": "60d81ec3a16a",
+    "dialogs:lossySave.keepFormatDescription": "d5ea7e5da1bc",
+    "dialogs:lossySave.message": "054d02117dc1",
+    "dialogs:lossySave.saveAsProject": "6dbb6ee10378",
+    "dialogs:lossySave.saveAsProjectDescription": "135fff38ea22",
+    "dialogs:lossySave.title": "bada54196e41"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9842,7 +9872,17 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "toasts:global.saving": "716872381c97",
+    "toasts:global.savingLong": "165dbcda6c90",
+    "dialogs:lossySave.blockedMessage": "b21c50fa2363",
+    "dialogs:lossySave.blockedTitle": "6af0b3e6de22",
+    "dialogs:lossySave.keepFormat": "60d81ec3a16a",
+    "dialogs:lossySave.keepFormatDescription": "d5ea7e5da1bc",
+    "dialogs:lossySave.message": "054d02117dc1",
+    "dialogs:lossySave.saveAsProject": "6dbb6ee10378",
+    "dialogs:lossySave.saveAsProjectDescription": "135fff38ea22",
+    "dialogs:lossySave.title": "bada54196e41"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12274,7 +12314,17 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "toasts:global.saving": "716872381c97",
+    "toasts:global.savingLong": "165dbcda6c90",
+    "dialogs:lossySave.blockedMessage": "b21c50fa2363",
+    "dialogs:lossySave.blockedTitle": "6af0b3e6de22",
+    "dialogs:lossySave.keepFormat": "60d81ec3a16a",
+    "dialogs:lossySave.keepFormatDescription": "d5ea7e5da1bc",
+    "dialogs:lossySave.message": "054d02117dc1",
+    "dialogs:lossySave.saveAsProject": "6dbb6ee10378",
+    "dialogs:lossySave.saveAsProjectDescription": "135fff38ea22",
+    "dialogs:lossySave.title": "bada54196e41"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -14745,7 +14795,17 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "toasts:global.saving": "716872381c97",
+    "toasts:global.savingLong": "165dbcda6c90",
+    "dialogs:lossySave.blockedMessage": "b21c50fa2363",
+    "dialogs:lossySave.blockedTitle": "6af0b3e6de22",
+    "dialogs:lossySave.keepFormat": "60d81ec3a16a",
+    "dialogs:lossySave.keepFormatDescription": "d5ea7e5da1bc",
+    "dialogs:lossySave.message": "054d02117dc1",
+    "dialogs:lossySave.saveAsProject": "6dbb6ee10378",
+    "dialogs:lossySave.saveAsProjectDescription": "135fff38ea22",
+    "dialogs:lossySave.title": "bada54196e41"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17216,7 +17276,17 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "toasts:global.saving": "716872381c97",
+    "toasts:global.savingLong": "165dbcda6c90",
+    "dialogs:lossySave.blockedMessage": "b21c50fa2363",
+    "dialogs:lossySave.blockedTitle": "6af0b3e6de22",
+    "dialogs:lossySave.keepFormat": "60d81ec3a16a",
+    "dialogs:lossySave.keepFormatDescription": "d5ea7e5da1bc",
+    "dialogs:lossySave.message": "054d02117dc1",
+    "dialogs:lossySave.saveAsProject": "6dbb6ee10378",
+    "dialogs:lossySave.saveAsProjectDescription": "135fff38ea22",
+    "dialogs:lossySave.title": "bada54196e41"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -19648,6 +19718,16 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "toasts:global.saving": "716872381c97",
+    "toasts:global.savingLong": "165dbcda6c90",
+    "dialogs:lossySave.blockedMessage": "b21c50fa2363",
+    "dialogs:lossySave.blockedTitle": "6af0b3e6de22",
+    "dialogs:lossySave.keepFormat": "60d81ec3a16a",
+    "dialogs:lossySave.keepFormatDescription": "d5ea7e5da1bc",
+    "dialogs:lossySave.message": "054d02117dc1",
+    "dialogs:lossySave.saveAsProject": "6dbb6ee10378",
+    "dialogs:lossySave.saveAsProjectDescription": "135fff38ea22",
+    "dialogs:lossySave.title": "bada54196e41"
   }
 }

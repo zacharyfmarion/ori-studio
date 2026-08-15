@@ -164,11 +164,17 @@ import {
   getFileService,
   type FileService,
   type SaveFileResult,
+  type SaveTarget,
+  type SaveTextFileOptions,
 } from '../../../platform/fileService';
 import { exportFilename as defaultFilename } from '../../../platform/exportFilename';
 import { getRuntimeSurface } from '../../../platform/runtime';
 import i18n from '../../../i18n';
-import { requestConfirmation, requestCreasePatternExportOptions } from '../../commandDialogStore';
+import {
+  requestChoice,
+  requestConfirmation,
+  requestCreasePatternExportOptions,
+} from '../../commandDialogStore';
 import {
   blockingExportLoss,
   collectExportLossWarnings,
@@ -720,6 +726,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     return resolved ? { ...resolved, fold, segments } : null;
   };
 
+  /**
+   * The extra notice File › Export ORH shows on top of the feature-specific
+   * warning. Left exactly as it was: this change is about saving back over an
+   * opened file, and the export path is not its business.
+   */
   const confirmLossyOrhWrite = () =>
     requestConfirmation({
       title: 'Export legacy ORH?',
@@ -1503,6 +1514,49 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
    * first. A tab that has chosen no method contributes nothing; it is a chooser,
    * not a design.
    */
+  /**
+   * Save a document whose contents are expensive to produce.
+   *
+   * The save target is settled before `serialize` runs, which is what makes the
+   * dialog open on the keystroke instead of after a large project has finished
+   * serializing — and what keeps the browser's transient-activation window (it
+   * expires in about five seconds) from being spent on that serialization. A
+   * cancelled save therefore costs no work at all.
+   *
+   * `saveRun` spans exactly the post-commit work, so the progress indicator can
+   * never appear underneath the OS dialog, and is cleared on every exit —
+   * cancel, throw, or a thunk that never ran.
+   */
+  /**
+   * A save that a nested frame already performed, tracked and announced.
+   *
+   * Distinct from both `SaveFileResult` (this frame wrote the file) and `null`
+   * (nothing was written), so the caller can report success without counting the
+   * save a second time.
+   */
+  const DELEGATED_SAVE = 'delegated-save' as const;
+  type SaveOutcome = SaveFileResult | typeof DELEGATED_SAVE | null;
+
+  const saveDocumentFile = async (
+    fileService: FileService,
+    options: Omit<SaveTextFileOptions, 'contents'> & {
+      serialize: (target: SaveTarget) => Promise<string>;
+    }
+  ): Promise<SaveFileResult | null> => {
+    const { serialize, ...rest } = options;
+    try {
+      return await fileService.saveTextFile({
+        ...rest,
+        contents: async (target) => {
+          set({ saveRun: { name: target.name, startedAt: Date.now() } });
+          return serialize(target);
+        },
+      });
+    } finally {
+      set({ saveRun: null });
+    }
+  };
+
   const saveNativeWorkspaceProject = async (
     fileService: FileService,
     forceSaveAs: boolean
@@ -1530,14 +1584,30 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       return selectOristudioBpDocument(get()) ? exportOristudioBpProjectAsBps() : null;
     };
 
-    const designs = (
+    /**
+     * The one serialization that must NOT wait for the dialog.
+     *
+     * `currentTreeTmd5Text` runs `set(syncTreemakerProject(...))`, which patches
+     * *whichever tab is active now* — so producing it under an open dialog would
+     * write this design's engine snapshot into whatever tab the user switched to
+     * while the dialog was up. It is also the cheap one (a `.tmd5` or a `.bps`,
+     * no images); everything expensive stays deferred below.
+     */
+    const activeTab = tabs.find((tab) => tab.id === activeId);
+    // Same precedence as every other tab — the registry first, the live engine
+    // only when it has nothing — just resolved early rather than inside the map.
+    const activeText = activeTab?.kind
+      ? ((await serializeDesign(activeId, activeTab.kind)) ??
+        (await serializeActiveDesign(activeTab.kind)))
+      : null;
+
+    const buildDesigns = async () => (
       await Promise.all(
         tabs.map(async (tab) => {
           if (tab.kind === null) return null;
           const text =
-            (await serializeDesign(tab.id, tab.kind)) ??
-            (tab.id === activeId ? await serializeActiveDesign(tab.kind) : null);
-          if (text === null) return null;
+            tab.id === activeId ? activeText : await serializeDesign(tab.id, tab.kind);
+          if (text === null || text === undefined) return null;
           return {
             id: tab.id,
             title: tab.title,
@@ -1558,31 +1628,34 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       )
     ).filter((design): design is NonNullable<typeof design> => design !== null);
 
-    const creasePatternCompanion = get().oristudioCpDocument
-      ? await currentEditableCreasePatternProjectInput(get().currentFileName, nativeSourcePath())
-      : null;
-
-    const contents = serializeNativeProjectFile(
-      createNativeProjectFile({
-        workspaceTitle: get().workspaceTitle,
-        filename: get().currentFileName,
-        path: nativeSourcePath(),
-        designs,
-        activeDesignId: get().activeDesignId,
-        unknownDesigns: get().nativeUnknownDesigns,
-        creasePattern: creasePatternCompanion,
-        extensions: get().nativeProjectExtensions,
-        appVersion: APP_VERSION,
-      })
-    );
     const target = nativeSaveTarget();
-    const result = await fileService.saveTextFile({
+    const result = await saveDocumentFile(fileService, {
       title: forceSaveAs ? 'Save Ori Studio Project As' : 'Save Ori Studio Project',
-      contents,
       suggestedName: target.suggestedName,
       path: forceSaveAs ? null : target.path,
       extensions: [NATIVE_PROJECT_EXTENSION],
       reusableTarget: true,
+      serialize: async () => {
+        const designs = await buildDesigns();
+        const creasePatternCompanion = get().oristudioCpDocument
+          ? await currentEditableCreasePatternProjectInput(get().currentFileName, nativeSourcePath())
+          : null;
+        return serializeNativeProjectFile(
+          createNativeProjectFile({
+            workspaceTitle: get().workspaceTitle,
+            filename: get().currentFileName,
+            path: nativeSourcePath(),
+            designs,
+            // `activeId`, not a fresh read: the tab this save is *for* was
+            // decided before the dialog opened.
+            activeDesignId: activeId,
+            unknownDesigns: get().nativeUnknownDesigns,
+            creasePattern: creasePatternCompanion,
+            extensions: get().nativeProjectExtensions,
+            appVersion: APP_VERSION,
+          })
+        );
+      },
     });
     if (!result) return null;
     // `activeId`, captured before any of this: saving goes through a file dialog
@@ -1680,6 +1753,126 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   // nothing to lose, so a lossless export keeps whatever confirm timing it had;
   // otherwise returns a Promise resolving to the user's choice. Callers use the
   // `gate !== true && !(await gate)` idiom so the no-loss path never awaits.
+  /**
+   * What the lossy-save guard decided.
+   *
+   * `delegated` is the one that matters: the user chose the `.osf` upgrade, so a
+   * save *did* happen — in a nested frame that already tracked and announced it.
+   * Reporting that as failure made `saveProject()` resolve false for a save that
+   * succeeded, and re-reporting it as success here would count it twice.
+   */
+  type LossySaveDecision = 'proceed' | 'cancelled' | 'delegated';
+
+  /** Option ids of the lossy-save choice. */
+  const LOSSY_SAVE_AS_PROJECT = 'save-as-project';
+  const LOSSY_SAVE_KEEP_FORMAT = 'keep-format';
+
+  /**
+   * Saving back over the file that was opened, in a format that cannot hold
+   * everything the document now has.
+   *
+   * Opening a `.ori`, adding a reference image and pressing ⌘S wrote Oriedita's
+   * format straight back and dropped the image without a word — while File ›
+   * Export ORI, which writes the *same bytes*, warned about it. Same question,
+   * so the same answer: the loss is described feature by feature.
+   *
+   * What differs from an export is the way out. An export's alternative is FOLD,
+   * the interchange format that carries a fold angle; a save's alternative is
+   * `.osf`, because someone pressing ⌘S wants to keep working with everything
+   * they have, and that is the format that keeps it.
+   */
+  const guardLossySaveBack = (
+    format: ExportFormat,
+    fileService: FileService
+  ): true | Promise<LossySaveDecision> => {
+    const warnings = supersetLossWarnings(format);
+    if (warnings.length === 0) return true;
+    // Asked once per document, not per keystroke: ⌘S is a reflex, and a modal on
+    // every one of them is a modal people learn to dismiss unread. Keyed on the
+    // filename so it invalidates itself — opening anything else asks again
+    // without any load path having to remember to clear a flag.
+    if (get().acknowledgedLossySave === get().currentFileName) return true;
+
+    const blocking = blockingExportLoss(warnings);
+    const label = exportFormatLabel(format);
+
+    // A fold angle is not merely dropped: reopening the file reads every crease
+    // as a full fold, so the pattern comes back meaning something else and
+    // nothing in it says so. There is no "save anyway" for that.
+    if (blocking.length > 0) {
+      return requestConfirmation({
+        title: i18n.t('dialogs:lossySave.blockedTitle', 'Saving as {{format}} would change this pattern', {
+          format: label,
+        }),
+        message: i18n.t(
+          'dialogs:lossySave.blockedMessage',
+          '{{format}} can’t store {{features}}, and reopening the file would read every crease as a full fold. Saving as an Ori Studio project keeps everything.',
+          { format: label, features: describeExportLoss(i18n.t, blocking) }
+        ),
+        confirmLabel: i18n.t('dialogs:lossySave.saveAsProject', 'Save as Ori Studio project'),
+        cancelLabel: i18n.t('dialogs:common.cancel', 'Cancel'),
+      }).then(async (saveAsProject) => {
+        if (!saveAsProject) return 'cancelled' as const;
+        await get().saveProjectAs(fileService);
+        return 'delegated' as const;
+      });
+    }
+
+    // Three outcomes, so a choice rather than a confirm: keeping the lossy
+    // format must be a button the user picks, never what dismissing the dialog
+    // does. Escape cancels the save.
+    return requestChoice({
+      title: i18n.t('dialogs:lossySave.title', 'Saving as {{format}} will drop some features', {
+        format: label,
+      }),
+      message: i18n.t(
+        'dialogs:lossySave.message',
+        'This document uses features {{format}} can’t store, and they will be left out of the saved file: {{features}}.',
+        { format: label, features: describeExportLoss(i18n.t, warnings) }
+      ),
+      options: [
+        {
+          id: LOSSY_SAVE_AS_PROJECT,
+          label: i18n.t('dialogs:lossySave.saveAsProject', 'Save as Ori Studio project'),
+          description: i18n.t(
+            'dialogs:lossySave.saveAsProjectDescription',
+            'Keeps everything, in Ori Studio’s own .osf format.'
+          ),
+        },
+        {
+          id: LOSSY_SAVE_KEEP_FORMAT,
+          label: i18n.t('dialogs:lossySave.keepFormat', 'Save as {{format}} anyway', {
+            format: label,
+          }),
+          description: i18n.t(
+            'dialogs:lossySave.keepFormatDescription',
+            'Writes the file you opened, without those features. Not asked again for this document.'
+          ),
+          tone: 'danger',
+        },
+      ],
+    }).then(async (choice) => {
+      if (choice === LOSSY_SAVE_AS_PROJECT) {
+        await get().saveProjectAs(fileService);
+        return 'delegated' as const;
+      }
+      if (choice !== LOSSY_SAVE_KEEP_FORMAT) return 'cancelled' as const;
+      set({ acknowledgedLossySave: get().currentFileName });
+      return 'proceed' as const;
+    });
+  };
+
+  /** The features `format` cannot carry, of those this document actually has. */
+  const supersetLossWarnings = (format: ExportFormat) =>
+    collectExportLossWarnings(format, {
+      images: get().oristudioCpAnnotations.filter(isImageAnnotation),
+      richText: get().oristudioCpAnnotations.filter(isTextAnnotation),
+      inlineSimulations: get().oristudioCpInlineSimulations,
+      lineSegments: get().oristudioCpDocument?.document.crease_pattern.line_segments ?? [],
+      foldedFigures: get().oristudioCpFoldedFigures,
+      bpSymmetry: selectOristudioBpSymmetry(get()),
+    });
+
   const guardExportLoss = (format: ExportFormat): true | Promise<boolean> => {
     const warnings = collectExportLossWarnings(format, {
       images: get().oristudioCpAnnotations.filter(isImageAnnotation),
@@ -1732,23 +1925,26 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     });
   };
 
-  const saveEditableCreasePatternAsOri = async (
-    fileService: FileService
-  ): Promise<SaveFileResult | null> => {
+  const saveEditableCreasePatternAsOri = async (fileService: FileService): Promise<SaveOutcome> => {
     const documentState = get().oristudioCpDocument;
     if (!documentState) return null;
+    const oriLoss = guardLossySaveBack('ori', fileService);
+    if (oriLoss !== true) {
+      const decision = await oriLoss;
+      // The upgrade already saved, in a frame that tracked and announced it.
+      if (decision === 'delegated') return DELEGATED_SAVE;
+      if (decision !== 'proceed') return null;
+    }
     const revisionAtSave = get().oristudioCpRevision;
-    const contents = await exportOristudioCpDocumentAsOri(
-      flattenTextAnnotations(get().oristudioCpAnnotations)
-    );
     const importedCreasePattern = get().importedCreasePattern;
-    const result = await fileService.saveTextFile({
+    const result = await saveDocumentFile(fileService, {
       title: 'Save Oriedita ORI Document',
-      contents,
       suggestedName: ensureExtension(get().currentFileName, 'ori'),
       path: get().currentFilePath,
       extensions: ['ori'],
       reusableTarget: true,
+      serialize: () =>
+        exportOristudioCpDocumentAsOri(flattenTextAnnotations(get().oristudioCpAnnotations)),
     });
     if (!result) return null;
 
@@ -1777,24 +1973,28 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     return result;
   };
 
-  const saveEditableCreasePatternAsOrh = async (
-    fileService: FileService
-  ): Promise<SaveFileResult | null> => {
+  const saveEditableCreasePatternAsOrh = async (fileService: FileService): Promise<SaveOutcome> => {
     const documentState = get().oristudioCpDocument;
     if (!documentState) return null;
+    // Was a generic "ORH is a legacy format" notice that never said what this
+    // document would actually lose.
+    const orhLoss = guardLossySaveBack('orh', fileService);
+    if (orhLoss !== true) {
+      const decision = await orhLoss;
+      // The upgrade already saved, in a frame that tracked and announced it.
+      if (decision === 'delegated') return DELEGATED_SAVE;
+      if (decision !== 'proceed') return null;
+    }
     const revisionAtSave = get().oristudioCpRevision;
-    if (!(await confirmLossyOrhWrite())) return null;
-    const contents = await exportOristudioCpDocumentAsOrh(
-      flattenTextAnnotations(get().oristudioCpAnnotations)
-    );
     const importedCreasePattern = get().importedCreasePattern;
-    const result = await fileService.saveTextFile({
+    const result = await saveDocumentFile(fileService, {
       title: 'Save Oriedita ORH Document',
-      contents,
       suggestedName: ensureExtension(get().currentFileName, 'orh'),
       path: get().currentFilePath,
       extensions: ['orh'],
       reusableTarget: true,
+      serialize: () =>
+        exportOristudioCpDocumentAsOrh(flattenTextAnnotations(get().oristudioCpAnnotations)),
     });
     if (!result) return null;
 
@@ -1823,7 +2023,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   const saveEditableCreasePattern = async (
     fileService: FileService,
     forceSaveAs: boolean
-  ): Promise<SaveFileResult | null> => {
+  ): Promise<SaveOutcome> => {
     const documentState = get().oristudioCpDocument;
     if (!documentState) {
       set({
@@ -1843,22 +2043,24 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       return saveEditableCreasePatternAsOrh(fileService);
     }
 
-    const input = await currentEditableCreasePatternProjectInput(
-      get().currentFileName,
-      nativeSourcePath()
-    );
-    if (!input) return null;
-    const contents = serializeNativeProjectFile(
-      createNativeCreasePatternProjectFile(input)
-    );
     const target = nativeSaveTarget();
-    const result = await fileService.saveTextFile({
+    const result = await saveDocumentFile(fileService, {
       title: forceSaveAs ? 'Save Ori Studio Project As' : 'Save Ori Studio Project',
-      contents,
       suggestedName: target.suggestedName,
       path: forceSaveAs ? null : target.path,
       extensions: [NATIVE_PROJECT_EXTENSION],
       reusableTarget: true,
+      serialize: async () => {
+        const input = await currentEditableCreasePatternProjectInput(
+          get().currentFileName,
+          nativeSourcePath()
+        );
+        // The document is guaranteed above, so this is unreachable — but the
+        // thunk has to be total: the picker has already created the file, and
+        // throwing here would leave an empty one behind.
+        if (!input) throw new Error('Editable crease pattern disappeared mid-save');
+        return serializeNativeProjectFile(createNativeCreasePatternProjectFile(input));
+      },
     });
     if (!result) return null;
 
@@ -1953,6 +2155,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       : await saveEditableCreasePattern(fileService, forceSaveAs);
     // Both branches write the native .osf; a null result means the user
     // cancelled the save dialog. `file exported` deliberately skips osf.
+    // Already saved, tracked and announced one frame down — say it succeeded and
+    // do not count it again.
+    if (result === DELEGATED_SAVE) return true;
     if (!result) return false;
     track('project saved', { format: 'osf' });
     if (savedWithoutTrace(fileService, result)) set({ savedNotice: result.name });
@@ -2006,6 +2211,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     currentFileName: defaultNativeFilename('Untitled'),
     projectMessage: null,
     savedNotice: null,
+    saveRun: null,
+    acknowledgedLossySave: null,
     oristudioCpShareDraft: null,
     pendingSharedCp: null,
     openingSharedCp: false,

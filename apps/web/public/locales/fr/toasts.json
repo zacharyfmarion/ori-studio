@@ -16,7 +16,9 @@
     "foldStop": "Annuler",
     "foldStopped": "Pliage annulé",
     "foldStopping": "Annulation…",
-    "saved": "{{name}} enregistré"
+    "saved": "{{name}} enregistré",
+    "saving": "Enregistrement de {{name}}…",
+    "savingLong": "Enregistrement de {{name}} — les grands projets prennent un moment"
   },
   "simulatorExport": {
     "empty": "Cette simulation n'a encore rien à exporter",

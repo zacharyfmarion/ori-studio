@@ -25,6 +25,7 @@ interface LoadingToast {
 const loadingToasts: LoadingToast[] = [];
 const messageToasts: string[] = [];
 const successToasts: string[] = [];
+const dismissed: string[] = [];
 
 vi.mock('sonner', () => ({
   toast: Object.assign(
@@ -36,7 +37,9 @@ vi.mock('sonner', () => ({
       message: (message: string) => messageToasts.push(message),
       success: (message: string) => successToasts.push(message),
       error: () => undefined,
-      dismiss: () => undefined,
+      dismiss: (id?: string) => {
+        if (id) dismissed.push(id);
+      },
     }
   ),
 }));
@@ -73,7 +76,13 @@ beforeEach(() => {
   loadingToasts.length = 0;
   messageToasts.length = 0;
   successToasts.length = 0;
-  useWorkspaceStore.setState({ oristudioCpFoldRuns: {}, error: null, savedNotice: null });
+  dismissed.length = 0;
+  useWorkspaceStore.setState({
+    oristudioCpFoldRuns: {},
+    error: null,
+    savedNotice: null,
+    saveRun: null,
+  });
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -110,6 +119,82 @@ describe('the saved toast', () => {
 
   it('says nothing until a save sets one', () => {
     expect(successToasts).toEqual([]);
+  });
+});
+
+/**
+ * Pressing ⌘S on a project carrying megabytes of embedded images used to be
+ * seconds of silence. `saveRun` is set only once the save target is settled, so
+ * this indicator can never appear underneath the OS save dialog — which is the
+ * whole reason the serialization moved after the picker.
+ */
+describe('the saving toast', () => {
+  const startSave = (name = 'project.osf') =>
+    act(() => useWorkspaceStore.setState({ saveRun: { name, startedAt: Date.now() } }));
+
+  it('says nothing about a save that finishes quickly', () => {
+    startSave();
+    act(() => vi.advanceTimersByTime(200));
+    act(() => useWorkspaceStore.setState({ saveRun: null }));
+    act(() => vi.advanceTimersByTime(2000));
+
+    expect(loadingToasts).toEqual([]);
+  });
+
+  it('names the file once the save has run long enough to notice', () => {
+    startSave('crane.osf');
+    act(() => vi.advanceTimersByTime(600));
+
+    expect(latestToast()?.message).toBe('Saving crane.osf…');
+    // No Cancel: by now the file is chosen and being written, and a
+    // half-written document is not an out worth offering.
+    expect(latestToast()?.options.action).toBeUndefined();
+  });
+
+  it('explains itself when the save outlasts reassurance', () => {
+    startSave('crane.osf');
+    act(() => vi.advanceTimersByTime(600));
+    expect(latestToast()?.message).toBe('Saving crane.osf…');
+
+    act(() => vi.advanceTimersByTime(5000));
+    expect(latestToast()?.message).toBe('Still saving crane.osf — large projects take a moment');
+  });
+
+  /**
+   * Every way a save can END, not just the one that succeeds on the web.
+   *
+   * The spinner is `duration: Infinity`, so whatever stops the save has to take
+   * it down. It used to rely on the "{{name}} saved" toast replacing it by
+   * sharing an id — which never arrives for a desktop save (the notice is scoped
+   * to the browser), a download fallback, a cancel, or a failure, and left the
+   * spinner on screen for the life of the page.
+   */
+  it.each([
+    ['succeeded on the web', 'crane.osf'],
+    ['ended with no confirmation — desktop, a download, a cancel, a failure', null],
+  ])('takes the spinner down when a save %s', (_case, notice) => {
+    startSave('crane.osf');
+    act(() => vi.advanceTimersByTime(600));
+    expect(latestToast()?.message).toBe('Saving crane.osf…');
+
+    act(() =>
+      useWorkspaceStore.setState({ saveRun: null, savedNotice: notice as string | null })
+    );
+    act(() => vi.advanceTimersByTime(2000));
+
+    expect(dismissed).toContain('oristudio-saving');
+  });
+
+  it('is replaced by the confirmation rather than stacking under it', () => {
+    startSave('crane.osf');
+    act(() => vi.advanceTimersByTime(600));
+    act(() =>
+      useWorkspaceStore.setState({ saveRun: null, savedNotice: 'crane.osf' })
+    );
+
+    expect(successToasts).toEqual(['crane.osf saved']);
+    // Same id, so sonner swaps the spinner for the confirmation in place.
+    expect(latestToast()?.message).toBe('Saving crane.osf…');
   });
 });
 

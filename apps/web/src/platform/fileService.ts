@@ -56,9 +56,30 @@ export interface SaveFileResult {
   path: string | null;
 }
 
+/** What the service settled on, handed to a contents thunk so it can name the file. */
+export interface SaveTarget {
+  name: string;
+}
+
+/**
+ * A string for an export — already in hand, and cheap.
+ *
+ * A thunk for a *document* save. The service settles the save target FIRST — the
+ * picker, or the read→readwrite upgrade on a remembered handle — and calls this
+ * only once it has one. Both of those need transient user activation, which
+ * expires about five seconds after the keystroke, and serializing a large
+ * project outlasts it: producing the contents first is what made a save fall
+ * back to a download instead of writing the file the user chose, after seconds
+ * of no feedback and no dialog.
+ *
+ * It must be total. A dismissed dialog means it is never called, so a null
+ * result keeps meaning exactly "the user cancelled"; a throw is a real failure.
+ */
+export type SaveContents = string | ((target: SaveTarget) => Promise<string>);
+
 export interface SaveTextFileOptions {
   title: string;
-  contents: string;
+  contents: SaveContents;
   suggestedName: string;
   path?: string | null;
   extensions: string[];
@@ -230,6 +251,14 @@ function trackWebSave(mode: WebSaveMode): void {
   track('project save target', { mode });
 }
 
+/** The single answer to "is this a string or a thunk". */
+export async function resolveSaveContents(
+  contents: SaveContents,
+  target: SaveTarget
+): Promise<string> {
+  return typeof contents === 'string' ? contents : contents(target);
+}
+
 async function saveBrowserTextFile(
   options: SaveTextFileOptions
 ): Promise<SaveFileResult | null> {
@@ -249,8 +278,15 @@ async function saveBrowserTextFile(
    * promise, so the worst outcome is a save that lands in Downloads instead of
    * over the original — never a save that silently does not happen.
    */
-  const download = (): SaveFileResult => {
-    downloadBlob(new Blob([options.contents], { type: 'text/plain;charset=utf-8' }), name);
+  // Produced at most once: the download floor can be reached either before the
+  // thunk has run (the picker failed) or after it has (the write failed).
+  let pending: Promise<string> | null = null;
+  const contentsFor = (target: SaveTarget): Promise<string> =>
+    (pending ??= resolveSaveContents(options.contents, target));
+
+  const download = async (): Promise<SaveFileResult> => {
+    const text = await contentsFor({ name });
+    downloadBlob(new Blob([text], { type: 'text/plain;charset=utf-8' }), name);
     if (options.reusableTarget) trackWebSave('download');
     return { name, path: null };
   };
@@ -259,7 +295,7 @@ async function saveBrowserTextFile(
   if (existing && options.path) {
     try {
       if (await ensureWritable(existing)) {
-        await writeWebSaveTarget(existing, options.contents);
+        await writeWebSaveTarget(existing, await contentsFor({ name: existing.name }));
         trackWebSave('overwrite');
         return { name: existing.name, path: options.path };
       }
@@ -283,7 +319,9 @@ async function saveBrowserTextFile(
       suggestedName: name,
       types: pickerTypes(options.extensions),
     });
-    await writeWebSaveTarget(handle, options.contents);
+    // Only now is there something to serialize *for*. A dismissed dialog throws
+    // above this line, so cancelling a save costs no work at all.
+    await writeWebSaveTarget(handle, await contentsFor({ name: handle.name }));
     trackWebSave('picker');
     return { name: handle.name, path: rememberWebSaveTarget(handle) };
   } catch (error) {
@@ -508,8 +546,14 @@ class TauriFileService implements FileService {
       options.path ??
       (await this.chooseSavePath(options.title, options.suggestedName, options.extensions));
     if (!path) return null;
-    await invoke('write_text_file', { path, contents: options.contents });
-    return { name: filenameFromPath(path), path };
+    // Same order as the browser: the dialog settles first, so it opens on the
+    // keystroke rather than after a large project has finished serializing.
+    // Desktop has no activation window to lose — this is purely so the wait
+    // lands after the user has said where the file goes.
+    const name = filenameFromPath(path);
+    const contents = await resolveSaveContents(options.contents, { name });
+    await invoke('write_text_file', { path, contents });
+    return { name, path };
   }
 
   async saveBinaryFile(options: SaveBinaryFileOptions): Promise<SaveFileResult | null> {

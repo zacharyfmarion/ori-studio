@@ -16,7 +16,9 @@
     "foldStop": "취소",
     "foldStopped": "접기를 취소했습니다",
     "foldStopping": "취소하는 중…",
-    "saved": "{{name}} 저장됨"
+    "saved": "{{name}} 저장됨",
+    "saving": "{{name}} 저장 중…",
+    "savingLong": "{{name}} 저장 중 — 큰 프로젝트는 시간이 걸립니다"
   },
   "simulatorExport": {
     "empty": "이 시뮬레이션에는 아직 내보낼 것이 없습니다",

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { resolveSaveContents } from '../../platform/fileService';
 import type { SaveTextFileOptions } from '../../platform/fileService';
 import type { FileService } from '../../platform/fileService';
 
@@ -69,7 +70,11 @@ function recordingFileService(): FileService & { written: string | null } {
     ),
     openBinaryFile: vi.fn(async () => null),
     saveTextFile: vi.fn(async (options: SaveTextFileOptions) => {
-      state.written = options.contents;
+      // The service is what invokes a document save's contents thunk, once the
+      // target is settled; a mock that skipped it would serialize nothing.
+      state.written = await resolveSaveContents(options.contents, {
+        name: options.suggestedName,
+      });
       return { name: options.suggestedName, path: `/tmp/${options.suggestedName}` };
     }),
     saveBinaryFile: vi.fn(async () => null),
