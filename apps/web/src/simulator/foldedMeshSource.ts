@@ -45,6 +45,11 @@ export interface Folded3dMeshPayload {
   undeterminedIndexStart: number;
   /** The same cut through the creases, counted in **edges**. */
   undeterminedEdgeStart: number;
+  /**
+   * Where the creases of layers buried inside their own stack begin — never
+   * drawn through opaque paper. See `Folded3dMesh.interiorEdgeStart`.
+   */
+  interiorEdgeStart: number;
   /** Face opacity for that second pass. */
   undeterminedFaceAlpha: number;
 }
@@ -57,6 +62,7 @@ export class FoldedMeshSource {
     private readonly undeterminedIndexStart: number,
     private readonly edgeCount: number,
     private readonly undeterminedEdgeStart: number,
+    private readonly interiorEdgeStart: number,
     private readonly undeterminedFaceAlpha: number,
     /**
      * Depth bits of the *default* framebuffer, which is what the layer
@@ -104,6 +110,7 @@ export class FoldedMeshSource {
         payload.undeterminedIndexStart,
         payload.edgeAssignments.byteLength,
         payload.undeterminedEdgeStart,
+        payload.interiorEdgeStart,
         payload.undeterminedFaceAlpha,
         readDepthBits(core)
       );
@@ -142,6 +149,7 @@ export class FoldedMeshSource {
         undeterminedIndexStart: this.undeterminedIndexStart,
         edgeCount: this.edgeCount,
         undeterminedEdgeStart: this.undeterminedEdgeStart,
+        interiorEdgeStart: this.interiorEdgeStart,
         undeterminedFaceAlpha: this.undeterminedFaceAlpha,
       },
       settings
@@ -233,18 +241,26 @@ export function folded3dDrawPasses(
     undeterminedIndexStart: number;
     edgeCount: number;
     undeterminedEdgeStart: number;
+    interiorEdgeStart: number;
     undeterminedFaceAlpha: number;
   },
   settings: Pick<RenderSettings, 'showFaces' | 'showEdges' | 'faceAlpha'>
 ): Folded3dDrawPass[] {
   const start = mesh.undeterminedIndexStart;
   const undeterminedCount = mesh.faceIndexCount - start;
+  // Opaque paper never shows a layer buried inside its own stack, so its creases
+  // are left out of the draw entirely; a translucent style shows the whole stack
+  // and takes them. The buried run sits at the end of the buffer precisely so
+  // this is a shorter draw rather than a second one.
+  const opaqueEdges = settings.faceAlpha < 1 || !settings.showFaces
+    ? mesh.edgeCount
+    : mesh.interiorEdgeStart;
   const single: Folded3dDrawPass = {
     clear: true,
     showEdges: settings.showEdges,
     faceAlpha: settings.faceAlpha,
     faceRange: null,
-    edgeRange: null,
+    edgeRange: { start: 0, count: opaqueEdges },
   };
   if (undeterminedCount <= 0 || !settings.showFaces || settings.faceAlpha < 1) {
     return [single];
@@ -265,7 +281,7 @@ export function folded3dDrawPasses(
       showEdges: settings.showEdges,
       faceAlpha: mesh.undeterminedFaceAlpha,
       faceRange: { start, count: undeterminedCount },
-      edgeRange: { start: edgeStart, count: mesh.edgeCount - edgeStart },
+      edgeRange: { start: edgeStart, count: opaqueEdges - edgeStart },
     },
   ];
 }

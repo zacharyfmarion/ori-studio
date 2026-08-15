@@ -277,6 +277,40 @@ the inline simulator's own rendering.
       stacks (`plant_penguin` at 14). **Not done** — deliberately out of scope so
       this change is about creases and nothing else.
 
+## Phase 7 — a buried layer's creases are not in the opaque draw
+
+Found by `simple_outline_fixture.osf`: four faces, three of them coplanar, and
+two creases drawn where one belongs.
+
+Phases 1–5 put every crease at the depth of its own layer and then asked the
+depth buffer to hide the buried ones. That cannot work, and the reason is
+structural: **the ink rule puts every crease on a cell boundary, which is
+exactly where the covering face's displacement is discontinuous.**
+
+`offset = ((stack.length − 1) / 2 − slot) · eps` reads the *cell's* stack depth.
+So one physical face sits at `+1 · eps` as the top of a 3-deep cell and at `0` as
+the only layer of the cell next door — a full layer gap apart, across a seam that
+a crease lies exactly along. Measured on the fixture: face 3's copy of the fold
+at `z = −175` is drawn on 52 of 201 samples, and **all 52 sit over
+`cell1/slot0/face2`** — the neighbour's copy of the covering face.
+
+The fix does not need the depth buffer at all. A cell is covered by every face in
+its stack, so a layer that is neither top nor bottom is behind the top from one
+side and behind the bottom from the other, at every camera. Those creases are
+emitted to a trailing block and left out of the opaque draw; a translucent style
+shows the whole stack and takes them, which is what the projector already did.
+
+- [x] Split crease emission into outer and interior; `interiorEdgeStart`.
+- [x] `slots.edgeStart` → `mesh.creaseSlot`, a per-crease record, because the
+      creases are no longer in slot order.
+- [x] `folded3dDrawPasses` ends the opaque range at `interiorEdgeStart`.
+- [x] The projector needed no change: `cellDrawOrder` already returns one slot
+      for opaque paper and the whole stack for translucent, so it has been
+      applying this rule since Phase 5. That is the parity working.
+- [x] Verified on the fixture at its own camera: the crease that should show
+      draws 193/201, the one that should not draws 0/201. One crease, as
+      reported.
+
 ## Validation
 
 Web-only, so: `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`.

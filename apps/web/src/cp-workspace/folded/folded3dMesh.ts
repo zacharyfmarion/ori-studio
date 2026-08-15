@@ -202,19 +202,6 @@ export interface Folded3dMeshSlots {
    * range a test reads to see the displacement that was actually applied.
    */
   vertexStart: Uint32Array;
-  /**
-   * The crease half: slot `i` owns creases `[edgeStart[i], edgeStart[i + 1])`
-   * of `topology.edgeIndices` / `edgeAssignments`, counted in **edges** rather
-   * than in indices. Also `count + 1` long.
-   *
-   * A slot's creases are the segments of its cell's ring where *this layer's*
-   * paper ends, so the range is usually shorter than the ring and is routinely
-   * empty — a layer buried under a wider face ends nowhere inside it.
-   *
-   * Starts after the fallback block ({@link Folded3dMesh.fallbackEdgeCount}),
-   * which owns no slot.
-   */
-  edgeStart: Uint32Array;
 }
 
 export interface Folded3dMesh {
@@ -249,9 +236,38 @@ export interface Folded3dMesh {
   maxStackDepth: number;
   slots: Folded3dMeshSlots;
   /**
+   * The slot each crease belongs to, `-1` for one that belongs to no layer.
+   * One entry per `topology.edgeAssignments`.
+   *
+   * A per-crease record rather than a per-slot range, because the creases are
+   * not in slot order: the ones a layer buried inside its own stack owns are
+   * held back to the end (see {@link interiorEdgeStart}).
+   */
+  creaseSlot: Int32Array;
+  /**
+   * Where the creases of **interior** layers begin — layers that are neither the
+   * top nor the bottom of their cell's stack.
+   *
+   * They are never on show through opaque paper. A cell is by definition covered
+   * by every face in its stack, so an interior layer is behind the top from one
+   * side and behind the bottom from the other, from every camera. Drawing them
+   * is what put a buried flap's outline on the outside of the paper covering it,
+   * and the depth buffer cannot be asked to remove them: a crease lies on a
+   * *cell boundary* by construction, which is exactly where the displacement of
+   * the covering face is discontinuous — the same face sits at `((n − 1) / 2)·eps`
+   * as the top of an n-deep cell and at `0` as the only layer of the cell next
+   * door, so a buried crease at `0` is level with the neighbour's paper and the
+   * bias tips it in front.
+   *
+   * They are emitted, at the end, rather than dropped, because a translucent
+   * style shows the whole stack and wants them — the same rule the CPU projector
+   * applies. `folded3dDrawPasses` decides.
+   */
+  interiorEdgeStart: number;
+  /**
    * Where the undetermined cells' slots begin, in {@link slots}, in
    * `topology.faceIndices` and in `topology.edgeIndices` respectively — the
-   * last counted in **edges**, as `slots.edgeStart` is.
+   * last counted in **edges**.
    *
    * Cells the solver could not order get **no displacement** — displacing them
    * by the kernel's fallback ranking would present an invented stacking as fact
@@ -424,7 +440,12 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
   const slotDepth: number[] = [];
   const slotIndexStart: number[] = [];
   const slotVertexStart: number[] = [];
-  const slotEdgeStart: number[] = [];
+  const creaseSlot: number[] = [];
+  // Creases of layers buried inside their own stack. Held back so the opaque
+  // draw can stop before them -- see `Folded3dMesh.interiorEdgeStart`.
+  const interiorIndices: number[] = [];
+  const interiorAssignments: number[] = [];
+  const interiorSlot: number[] = [];
   let vertex = 0;
 
   let undeterminedSlotStart = 0;
@@ -448,6 +469,7 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
     }
     edgeIndices.push(fallbackVertex - 2, fallbackVertex - 1);
     edgeAssignments.push(assignmentOf[edge] ?? 0);
+    creaseSlot.push(-1);
   }
   const fallbackEdgeCount = edgeAssignments.length;
 
@@ -562,12 +584,22 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
         //
         // Routinely empty: a layer buried under a wider face ends nowhere
         // inside it.
-        slotEdgeStart.push(edgeAssignments.length);
+        //
+        // A layer that is neither the top nor the bottom of its stack is never
+        // on show through opaque paper, and its creases go to the back of the
+        // buffer rather than into the draw. An undetermined cell has no order to
+        // be inside of — its slots are deliberately left coincident — so every
+        // one of them counts as outer.
+        const outer = undetermined || slot === 0 || slot === stack.length - 1;
+        const intoIndices = outer ? edgeIndices : interiorIndices;
+        const intoAssignments = outer ? edgeAssignments : interiorAssignments;
+        const intoSlot = outer ? creaseSlot : interiorSlot;
         for (let segment = 0; segment < ring.length; segment += 1) {
           const edge = ink.edgeAt(cell, slot, segment);
           if (edge < 0) continue;
-          edgeIndices.push(first + segment, first + ((segment + 1) % ring.length));
-          edgeAssignments.push(assignmentOf[edge] ?? 0);
+          intoIndices.push(first + segment, first + ((segment + 1) % ring.length));
+          intoAssignments.push(assignmentOf[edge] ?? 0);
+          intoSlot.push(slotCell.length);
         }
 
         slotCell.push(cell);
@@ -576,10 +608,17 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
       }
     }
   }
-  // Close all three runs, so slot `i` owns `[start[i], start[i + 1])` in each.
+  // Close both runs, so slot `i` owns `[start[i], start[i + 1])` in each.
   slotIndexStart.push(faceIndices.length);
   slotVertexStart.push(vertex);
-  slotEdgeStart.push(edgeAssignments.length);
+
+  // The interior layers' creases, after everything the opaque draw wants.
+  const interiorEdgeStart = edgeAssignments.length;
+  for (let i = 0; i < interiorAssignments.length; i += 1) {
+    edgeIndices.push(interiorIndices[i * 2]!, interiorIndices[i * 2 + 1]!);
+    edgeAssignments.push(interiorAssignments[i]!);
+    creaseSlot.push(interiorSlot[i]!);
+  }
 
   return {
     kind: 'mesh',
@@ -602,8 +641,9 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
         depth: Int32Array.from(slotDepth),
         indexStart: Uint32Array.from(slotIndexStart),
         vertexStart: Uint32Array.from(slotVertexStart),
-        edgeStart: Uint32Array.from(slotEdgeStart),
       },
+      creaseSlot: Int32Array.from(creaseSlot),
+      interiorEdgeStart,
       undeterminedSlotStart,
       undeterminedIndexStart,
       undeterminedEdgeStart,

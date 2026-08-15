@@ -12,16 +12,29 @@ const MIXED = {
   undeterminedIndexStart: 21,
   edgeCount: 12,
   undeterminedEdgeStart: 8,
+  // The last 2 belong to layers buried inside their own stack.
+  interiorEdgeStart: 10,
   undeterminedFaceAlpha: 0.45,
 };
 
 /** The same figure with every cell resolved — the ordinary case. */
-const DETERMINED = { ...MIXED, undeterminedIndexStart: 30, undeterminedEdgeStart: 12 };
+const DETERMINED = {
+  ...MIXED,
+  undeterminedIndexStart: 30,
+  undeterminedEdgeStart: 10,
+  interiorEdgeStart: 10,
+};
 
 describe('breaking a folded figure into draws', () => {
   it('draws a fully determined figure in one clearing pass over everything', () => {
     expect(folded3dDrawPasses(DETERMINED, OPAQUE)).toEqual([
-      { clear: true, showEdges: true, faceAlpha: 1, faceRange: null, edgeRange: null },
+      {
+        clear: true,
+        showEdges: true,
+        faceAlpha: 1,
+        faceRange: null,
+        edgeRange: { start: 0, count: 10 },
+      },
     ]);
   });
 
@@ -41,7 +54,19 @@ describe('breaking a folded figure into draws', () => {
     // ranges do: a gap loses linework, an overlap doubles its ink.
     const passes = folded3dDrawPasses(MIXED, OPAQUE);
     expect(passes[0]!.edgeRange).toEqual({ start: 0, count: 8 });
-    expect(passes[1]!.edgeRange).toEqual({ start: 8, count: 4 });
+    expect(passes[1]!.edgeRange).toEqual({ start: 8, count: 2 });
+  });
+
+  it('leaves the creases of buried layers out of an opaque draw', () => {
+    // A layer that is neither the top nor the bottom of its cell is covered
+    // whichever side you look from, so its creases are never on show. They sit at
+    // the end of the buffer, which makes leaving them out a shorter draw.
+    const opaque = folded3dDrawPasses(DETERMINED, OPAQUE);
+    expect(opaque[0]!.edgeRange).toEqual({ start: 0, count: 10 });
+    // Under a translucent style the whole stack shows, so they are drawn — the
+    // same rule the CPU projector applies.
+    const xray = folded3dDrawPasses(DETERMINED, { ...OPAQUE, faceAlpha: 0.45 });
+    expect(xray[0]!.edgeRange).toEqual({ start: 0, count: 12 });
   });
 
   it('clears once, on the first pass only', () => {
@@ -75,6 +100,7 @@ describe('breaking a folded figure into draws', () => {
     const passes = folded3dDrawPasses(MIXED, { ...OPAQUE, faceAlpha: 0.06 });
     expect(passes).toHaveLength(1);
     expect(passes[0]!.faceAlpha).toBe(0.06);
+    expect(passes[0]!.edgeRange).toEqual({ start: 0, count: 12 });
   });
 
   it('stays one pass for a wireframe style, which draws no faces at all', () => {

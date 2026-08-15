@@ -138,17 +138,40 @@ function creaseSources(
   mesh: Folded3dMesh
 ): number[] {
   const ink = buildFolded3dInk(model);
-  const sources = [...ink.orphanEdges];
+  // Each slot's inked segments, in ring order — the order the builder emits them.
+  const perSlot = new Map<number, number[]>();
   for (let slot = 0; slot < mesh.slots.count; slot += 1) {
-    expect(mesh.slots.edgeStart[slot]).toBe(sources.length);
     const cell = mesh.slots.cell[slot]!;
     const segments = model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE + 2] ?? 0;
+    const inked: number[] = [];
     for (let segment = 0; segment < segments; segment += 1) {
       const edge = ink.edgeAt(cell, mesh.slots.depth[slot]!, segment);
-      if (edge >= 0) sources.push(edge);
+      if (edge >= 0) inked.push(edge);
     }
+    perSlot.set(slot, inked);
+  }
+  const cursor = new Map<number, number>();
+  const sources: number[] = [];
+  for (let crease = 0; crease < mesh.creaseSlot.length; crease += 1) {
+    const slot = mesh.creaseSlot[crease]!;
+    if (slot < 0) {
+      sources.push(ink.orphanEdges[crease]!);
+      continue;
+    }
+    const at = cursor.get(slot) ?? 0;
+    cursor.set(slot, at + 1);
+    sources.push(perSlot.get(slot)![at]!);
   }
   return sources;
+}
+
+/** Whether a slot is buried between the top and bottom of its own stack. */
+function isInterior(mesh: Folded3dMesh, slot: number): boolean {
+  const cell = mesh.slots.cell[slot]!;
+  let last = slot;
+  while (last + 1 < mesh.slots.count && mesh.slots.cell[last + 1] === cell) last += 1;
+  const depth = mesh.slots.depth[slot]!;
+  return depth > 0 && depth < mesh.slots.depth[last]!;
 }
 
 /** A world point in the mesh's own space: simulator basis, centroid-relative. */
@@ -310,21 +333,49 @@ describe('folded3dMesh', () => {
       }
       expect(mesh.slots.indexStart.length).toBe(mesh.slots.count + 1);
       expect(mesh.slots.indexStart[mesh.slots.count]).toBe(mesh.topology.faceIndices.length);
-      // The crease run closes the same way, counted in edges rather than
-      // indices, and starts past the fallback block — which owns no slot.
+      // Every crease names the layer it belongs to, and the fallback block at
+      // the head names none.
       expect(mesh.topology.edgeIndices.length).toBe(
         mesh.topology.edgeAssignments.length * 2
       );
-      expect(mesh.slots.edgeStart.length).toBe(mesh.slots.count + 1);
-      expect(mesh.slots.edgeStart[0]).toBe(mesh.fallbackEdgeCount);
-      expect(mesh.slots.edgeStart[mesh.slots.count]).toBe(
+      expect(mesh.creaseSlot.length).toBe(mesh.topology.edgeAssignments.length);
+      for (let crease = 0; crease < mesh.fallbackEdgeCount; crease += 1) {
+        expect(mesh.creaseSlot[crease]).toBe(-1);
+      }
+      for (const slot of mesh.creaseSlot.subarray(mesh.fallbackEdgeCount)) {
+        expect(slot).toBeGreaterThanOrEqual(0);
+        expect(slot).toBeLessThan(mesh.slots.count);
+      }
+      expect(mesh.interiorEdgeStart).toBeLessThanOrEqual(
         mesh.topology.edgeAssignments.length
       );
-      for (let slot = 1; slot <= mesh.slots.count; slot += 1) {
-        expect(mesh.slots.edgeStart[slot]!).toBeGreaterThanOrEqual(
-          mesh.slots.edgeStart[slot - 1]!
-        );
+    });
+
+    it.each(NAMES)('%s keeps a buried layer’s creases out of the opaque draw', (name) => {
+      const model = fixture(name);
+      const mesh = meshOf(model);
+      // The property the reported minimal case turned on. A cell is covered by
+      // every face in its stack, so a layer that is neither top nor bottom is
+      // behind the top from one side and behind the bottom from the other, at
+      // *every* camera — it can never be on show through opaque paper.
+      //
+      // It cannot be left to the depth buffer either: a crease lies on a cell
+      // boundary by construction, which is exactly where the covering face's
+      // displacement steps, because `((n − 1) / 2 − slot) · eps` reads the
+      // *cell's* stack depth. The same face is a full layer nearer as the top of
+      // a deep cell than as the only layer of the cell next door, and a buried
+      // crease sits in that step.
+      for (let crease = 0; crease < mesh.interiorEdgeStart; crease += 1) {
+        const slot = mesh.creaseSlot[crease]!;
+        if (slot < 0) continue;
+        expect(isInterior(mesh, slot)).toBe(false);
       }
+      // And they are held back rather than dropped: a translucent style shows
+      // the whole stack and draws them, exactly as the CPU projector does.
+      const buried = [...mesh.creaseSlot.subarray(mesh.interiorEdgeStart)];
+      for (const slot of buried) expect(isInterior(mesh, slot)).toBe(true);
+      const anyDeepStack = [...mesh.slots.depth].some((depth) => depth > 1);
+      if (anyDeepStack) expect(buried.length).toBeGreaterThan(0);
     });
 
     it.each(NAMES)('%s draws a crease from the ring of the layer it bounds', (name) => {
@@ -333,21 +384,17 @@ describe('folded3dMesh', () => {
       // Both ends of an emitted crease are ring vertices of the slot that owns
       // it — that is the whole mechanism, and it is what gives the crease the
       // depth of its own paper instead of the depth of the fold line.
-      for (let slot = 0; slot < mesh.slots.count; slot += 1) {
+      for (let crease = 0; crease < mesh.creaseSlot.length; crease += 1) {
+        const slot = mesh.creaseSlot[crease]!;
+        if (slot < 0) continue;
         const first = mesh.slots.vertexStart[slot]!;
         const past = mesh.slots.vertexStart[slot + 1]!;
-        for (
-          let edge = mesh.slots.edgeStart[slot]!;
-          edge < mesh.slots.edgeStart[slot + 1]!;
-          edge += 1
-        ) {
-          for (const index of [
-            mesh.topology.edgeIndices[edge * 2]!,
-            mesh.topology.edgeIndices[edge * 2 + 1]!,
-          ]) {
-            expect(index).toBeGreaterThanOrEqual(first);
-            expect(index).toBeLessThan(past);
-          }
+        for (const index of [
+          mesh.topology.edgeIndices[crease * 2]!,
+          mesh.topology.edgeIndices[crease * 2 + 1]!,
+        ]) {
+          expect(index).toBeGreaterThanOrEqual(first);
+          expect(index).toBeLessThan(past);
         }
       }
     });
@@ -358,13 +405,14 @@ describe('folded3dMesh', () => {
       // A layer can only end at segments of its own cell's ring, so its crease
       // count is bounded by the ring — and is strictly under it wherever the
       // arrangement was cut by some *other* face lying over this one.
+      const perSlot = new Int32Array(mesh.slots.count);
+      for (const slot of mesh.creaseSlot) if (slot >= 0) perSlot[slot]! += 1;
       let slotsWithFewerCreasesThanSegments = 0;
       for (let slot = 0; slot < mesh.slots.count; slot += 1) {
         const cell = mesh.slots.cell[slot]!;
         const segments = model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE + 2] ?? 0;
-        const creases = mesh.slots.edgeStart[slot + 1]! - mesh.slots.edgeStart[slot]!;
-        expect(creases).toBeLessThanOrEqual(segments);
-        if (creases < segments) slotsWithFewerCreasesThanSegments += 1;
+        expect(perSlot[slot]!).toBeLessThanOrEqual(segments);
+        if (perSlot[slot]! < segments) slotsWithFewerCreasesThanSegments += 1;
       }
       // `hinge_90` overlaps nothing and `strip_coupled`'s panels coincide
       // *exactly*, so in both every layer really does end at every segment of

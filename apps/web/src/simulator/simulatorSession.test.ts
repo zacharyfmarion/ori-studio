@@ -624,6 +624,7 @@ describe('folded-figure meshes', () => {
     radius: 1,
     undeterminedIndexStart: 3,
     undeterminedEdgeStart: 1,
+    interiorEdgeStart: 1,
     undeterminedFaceAlpha: 0.45,
   });
 

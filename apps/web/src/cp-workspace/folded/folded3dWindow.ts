@@ -261,6 +261,7 @@ export function folded3dMeshPayload(mesh: Folded3dMesh): {
     radius: mesh.radius,
     undeterminedIndexStart: mesh.undeterminedIndexStart,
     undeterminedEdgeStart: mesh.undeterminedEdgeStart,
+    interiorEdgeStart: mesh.interiorEdgeStart,
     undeterminedFaceAlpha: UNDETERMINED_FACE_ALPHA,
   };
   return {

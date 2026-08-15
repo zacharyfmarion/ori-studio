@@ -42,6 +42,7 @@ export class StartFigureMesh {
     private readonly undeterminedIndexStart: number,
     private readonly edgeCount: number,
     private readonly undeterminedEdgeStart: number,
+    private readonly interiorEdgeStart: number,
     private readonly undeterminedFaceAlpha: number,
     private readonly creaseDepthBias: number
   ) {}
@@ -98,6 +99,7 @@ export class StartFigureMesh {
         built.mesh.undeterminedIndexStart,
         topology.edgeAssignments.length,
         built.mesh.undeterminedEdgeStart,
+        built.mesh.interiorEdgeStart,
         UNDETERMINED_FACE_ALPHA,
         folded3dCreaseDepthBias(built.mesh)
       );
@@ -162,6 +164,7 @@ export class StartFigureMesh {
         undeterminedIndexStart: this.undeterminedIndexStart,
         edgeCount: this.edgeCount,
         undeterminedEdgeStart: this.undeterminedEdgeStart,
+        interiorEdgeStart: this.interiorEdgeStart,
         undeterminedFaceAlpha: this.undeterminedFaceAlpha,
       },
       settings
