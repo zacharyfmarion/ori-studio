@@ -211,12 +211,9 @@ function Folded3dWindow({
             displayStyle: figure.displayStyle,
             devicePixelRatio:
               typeof window === 'undefined' ? 1 : (window.devicePixelRatio ?? 1),
-            // The crease bias is a fraction of this mesh's layer gap, so the
-            // settings depend on the geometry and not only on the colours.
-            mesh,
           })
         : undefined,
-    [figure.folded3d, figure.displayStyle, mesh]
+    [figure.folded3d, figure.displayStyle]
   );
 
   /**

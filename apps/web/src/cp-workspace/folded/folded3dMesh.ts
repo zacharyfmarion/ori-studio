@@ -7,50 +7,52 @@
  * over. After that a frame is a uniform change and a draw, which is the entire
  * reason a 3D figure can be a live viewport at all.
  *
- * # The crux: making a depth buffer draw a flat stack
+ * # The crux: never drawing two coplanar surfaces at once
  *
  * A folded model's layers are **exactly coplanar**. A depth buffer cannot order
  * them — same z, so they z-fight — which is why ORIPA keeps an overlap matrix
- * and why the CPU projector beside this file resolves order with a BSP. The
- * simulator escapes the problem only because it is mass-spring and its layers
- * are never exactly coincident.
+ * and why the CPU projector beside this file resolves order with a BSP.
  *
- * We have what ORIPA does not: **the kernel already computed the layer order**.
- * So each cell's ring is emitted once per face in its `cell_stack`, displaced
- * along the plane's `up` by that slot's index times {@link Folded3dMesh.eps}.
- * The z-buffer then reproduces an order we already know, and depth, lighting and
- * 60 fps come with it.
+ * The obvious escape is to displace each layer by a hair and let the z-buffer
+ * reproduce an order we already know. That was tried and it does not work, for a
+ * reason worth writing down because it is not obvious: the displacement has to
+ * be **per cell**, since a face is the top layer of one cell and buried in the
+ * next, so one physical face ends up at two different depths on either side of a
+ * cell boundary. And creases lie on cell boundaries *by construction*. Every
+ * crease therefore sits exactly in a discontinuity of the very quantity meant to
+ * hide it, and no epsilon fixes that — a bigger one punches through more, a
+ * smaller one loses the visible layer's own linework. Near edge-on the whole
+ * scheme collapses anyway, because the displacement projects to no depth
+ * separation at all.
+ *
+ * So the order is used the way the projector uses it: to decide **what to
+ * draw**, not to nudge where. A plane's visible surface is the top face of each
+ * of its cells; the opposite side's is the bottom face of each. Those two
+ * {@link Folded3dSkin}s are built once, and the eye picks one per plane. Inside
+ * a skin there is one face per cell and cells are area-disjoint, so nothing
+ * coplanar is ever drawn together and the depth buffer only ever decides plane
+ * against plane — real geometry, genuinely separated.
+ *
+ * What that deletes: the layer epsilon, the ply budget it was capped by, the
+ * per-cell draw-rank nudge, and a crease bias that had to be larger than a stack
+ * and smaller than a layer at the same time. The crease bias that remains only
+ * has to break the tie between a crease and the one face it lies on.
  *
  * # Cells, not faces — and why nothing is sorted
  *
  * The drawable unit is a **(cell, stack slot) pair**, never a face. A per-face
  * scalar height would be exactly a topological sort of the face partial order,
  * and that order is legitimately **cyclic** — the `pinwheel_cyclic` fixture
- * orders four arms `0 > 4 > 3 > 2 > 0`. Displacing per cell needs no global
- * order at all, so a cyclic model works by construction rather than by
- * exception, and it matches the payload's own statement that cells are the
- * drawable unit.
+ * orders four arms `0 > 4 > 3 > 2 > 0`. A skin asks only for the first and last
+ * entry of each `cell_stack`, which exist whether or not the order is acyclic,
+ * so a cyclic model works by construction rather than by exception.
  *
  * # Creases belong to a layer, and are drawn from that layer's ring
  *
  * A crease is **not** one line at the fold. It is emitted once per `(cell,
- * slot)` whose paper ends there, from that slot's own copy of the cell ring, so
- * it carries the displacement of the layer it belongs to.
- *
- * It used to be one undisplaced line per model edge, and that is what made
- * buried flaps show through: a crease at the true fold line sits in the *middle*
- * of every stack it runs through, so it is behind the near half of its own —
- * including the layer you can see. The edge pass compensated with a constant
- * `−0.0008` of NDC z, which at `depthRange = 2r` is `1.6e-3 · r` of world depth
- * and therefore larger than {@link STACK_SPAN_LIMIT} could ever make a whole
- * stack. Every buried layer's creases rode that bias in front of every layer
- * above them. Measured on the reported `540-level-0`, 43% of the crease ink
- * landing on paper existed only because of it, and shrinking the constant was
- * not available: at zero, half the *visible* layer's creases go too.
- *
- * Drawing from the ring fixes it structurally and costs **no vertices** — a
- * slot already emits its own copy of the ring, so the crease is two indices into
- * vertices that are already there. The count goes *down* by `2 · edge_count`.
+ * slot)` whose paper ends there, from that slot's own copy of the cell ring, and
+ * it rides in that slot's skin — so a crease is drawn exactly when the layer it
+ * bounds is the one you can see.
  *
  * Which ring segments are a layer's paper edges, rather than arrangement cuts it
  * runs across, is `buildFolded3dInk` in `folded3dModelReader.ts` — shared with
@@ -96,64 +98,6 @@ import {
 } from './folded3dModelReader';
 
 /**
- * One layer gap, as a fraction of `modelRadius`.
- *
- * The tunable number. Two bounds have to hold at once and this sits between
- * them with room to spare.
- *
- * *Below*, the depth buffer has to resolve one gap. `cameraUniforms` sets
- * `depthRange = 2r` and the shader writes `ndcZ = −depth/depthRange`, so a model
- * spanning `±r` of view depth occupies NDC z `[−0.5, 0.5]` — **half** the depth
- * buffer, window z `[0.25, 0.75]`. A world gap of `d` is therefore `d/(4r)` of
- * the buffer: at `2e-4 · r` that is 839 units of a 24-bit buffer.
- *
- * *Above*, {@link STACK_SPAN_LIMIT}.
- *
- * At a 512 px frame `2e-4 · r` is 0.04 px on screen and a five-layer stack spans
- * 0.17 px. Seen edge-on the displacement is entirely lateral, which reads as a
- * ply stack rather than as a zero-thickness line.
- */
-export const EPS_RELATIVE = 2e-4;
-
-/**
- * How much of `modelRadius` a whole stack may span.
- *
- * Two things used to be true of this number and only one still is.
- *
- * It was set to **half** the edge pass's then-constant `−0.0008` NDC crease
- * bias (`1.6e-3 · r` of world depth), because a crease drawn at the fold line
- * had to out-bias its own stack or the visible layer lost its linework. That
- * coupling is gone: creases now carry their layer's displacement, and the bias
- * is a fraction of one gap ({@link folded3dCreaseDepthBias}). Nothing forces
- * this cap to sit below anything the edge pass does any more, so it is now free
- * to be chosen on depth-buffer resolution and sub-pixel displacement alone —
- * see the plan's Phase 6. It is left where it was so this change is about
- * creases and nothing else.
- *
- * What still holds is the resolution argument. Deep stacks are the real
- * population, not an edge case: the committed fixtures reach 5, but the external
- * non-flat corpus reaches **14** (`plant_penguin.osf`), with four models at 10.
- * At 14 the cap gives `6.15e-5 · r`, which is still 258 units of a 24-bit depth
- * buffer — and only 1.01 of a 16-bit one. A 16-bit default framebuffer is legal
- * WebGL2, and `webglSolver.ts`'s headless `renderToImage` path already allocates
- * one explicitly, which is what `shallowDepthBuffer` reports so it fails loudly
- * rather than as unexplained shimmer.
- */
-export const STACK_SPAN_LIMIT = 8e-4;
-
-/**
- * How much of one layer gap the whole intra-plane draw-rank nudge may use.
- *
- * `draw_rank` is the kernel's order among the cells of one plane, sorted by
- * descending area so a contained cell ranks above its container. Cells of a
- * plane are normally area-disjoint and it decides nothing; where a decomposition
- * slips a containment through, the z-buffer would otherwise leave the outcome to
- * chance. Nudging by well under one gap cannot reorder any stack, because rank
- * is constant across a cell and so shifts its whole stack together.
- */
-export const RANK_NUDGE_FRACTION = 0.05;
-
-/**
  * Vertices one mesh may hold.
  *
  * A memory bound, not a texture one: `textureSizeFor(1_048_576)` is 1024, well
@@ -190,6 +134,11 @@ export interface Folded3dMeshSlots {
   /**
    * First index in `topology.faceIndices` belonging to each slot, plus a final
    * end sentinel — so slot `i` owns `[start[i], start[i + 1])`.
+   *
+   * Read against the **translucent and undetermined runs**, where every slot
+   * appears exactly once and in slot order. A skin repeats some of those
+   * triangles at its own offset, which is why this is one range and not a list:
+   * a slot's geometry has one canonical home and any number of draws over it.
    */
   indexStart: Uint32Array;
   /**
@@ -197,11 +146,62 @@ export interface Folded3dMeshSlots {
    * `[vertexStart[i], vertexStart[i + 1])` of {@link Folded3dMesh.positions},
    * one per point of its cell's ring, in ring order. Also `count + 1` long.
    *
-   * A slot's vertices are its own copy of the ring — that is what displacing a
-   * layer means — so this is the range to touch to highlight one layer, and the
-   * range a test reads to see the displacement that was actually applied.
+   * A slot keeps its own copy of the ring even though every slot of a cell now
+   * sits at the same place: it is what lets one layer be addressed on its own,
+   * and the cost is vertices rather than the far more expensive alternative of
+   * indices that alias.
    */
   vertexStart: Uint32Array;
+}
+
+/**
+ * One drawable surface of one plane: what the eye sees of it from a given side.
+ *
+ * A plane's visible surface is exactly **the top face of every one of its
+ * cells** — cells partition the plane's paper and each one's `cell_stack` names
+ * its top. So there are two of these per plane, and they are facts about the
+ * model rather than about the camera: built once, selected at draw time by a
+ * single bit, `up · eye`.
+ *
+ * That selection is *exact* rather than approximate because a folded figure is
+ * drawn orthographically (`withoutPerspective`, `foldedMeshSource.ts`). Every
+ * ray shares one direction, so `up · eye` has one sign across the whole plane;
+ * under perspective a near eye could see both sides of one sheet and the bit
+ * would have to be per pixel.
+ *
+ * Within a skin there is one face per cell and cells are area-disjoint, so
+ * **nothing here is coplanar with anything else here**. That is the property the
+ * whole scheme rests on: the depth buffer is left deciding plane against plane,
+ * where the geometry is genuinely separated, and is never asked to order two
+ * surfaces that occupy the same space.
+ */
+export interface Folded3dSkin {
+  plane: number;
+  /**
+   * The plane's `up`, in the **mesh's** basis, so a caller can take
+   * `up · eye` without re-deriving the axis swap. Unit length.
+   */
+  up: [number, number, number];
+  /**
+   * `1` when this skin is what the `+up` side sees, `-1` for the other.
+   *
+   * A one-face cell is the top *and* the bottom of its stack, so it appears in
+   * both skins. They are separate index runs over the same vertices.
+   */
+  side: 1 | -1;
+  faceIndexStart: number;
+  faceIndexCount: number;
+  /** In **edges**, not indices. */
+  edgeStart: number;
+  edgeCount: number;
+}
+
+/** A contiguous run of both index buffers. */
+export interface Folded3dRange {
+  faceIndexStart: number;
+  faceIndexCount: number;
+  edgeStart: number;
+  edgeCount: number;
 }
 
 export interface Folded3dMesh {
@@ -215,82 +215,55 @@ export interface Folded3dMesh {
    * export path). {@link packFolded3dPositionTexture} produces the texture form
    * from it.
    *
-   * Centroid-relative because f32 at absolute paper coordinates has an ULP
-   * around 3e-5, and keeping `eps` three orders above ULP must not depend on
-   * where on the page the figure happens to sit.
+   * At the paper's **true** positions. Layers used to be displaced along their
+   * plane's `up` by a hair, so that a depth buffer could reproduce an order the
+   * kernel had already computed; that is gone, and with it the epsilon, the ply
+   * budget and the crease bias that had to be tuned against them. Nothing is
+   * displaced because nothing coplanar is ever drawn together.
    */
   positions: Float32Array;
   topology: MeshTopology;
   /** Always `[0, 0, 0]`: {@link positions} is already centroid-relative. */
   center: [number, number, number];
   /**
-   * `modelRadius` of the *undisplaced* model — the same number
-   * `folded3dFrameRadius` sizes the figure's frame from, so the mesh cannot
-   * overflow the window it is drawn in. Displacement perturbs it by at most
-   * `STACK_SPAN_LIMIT / 2` of itself.
+   * `modelRadius` — the same number `folded3dFrameRadius` sizes the figure's
+   * frame from, so the mesh cannot overflow the window it is drawn in. Exactly,
+   * now that nothing perturbs the geometry.
    */
   radius: number;
-  /** The layer gap actually used, in world units. */
-  eps: number;
-  /** Deepest `cell_stack` in this model, which is what capped {@link eps}. */
+  /** Deepest `cell_stack` in this model. Reported, not used for placement. */
   maxStackDepth: number;
   slots: Folded3dMeshSlots;
   /**
-   * The slot each crease belongs to, `-1` for one that belongs to no layer.
-   * One entry per `topology.edgeAssignments`.
-   *
-   * A per-crease record rather than a per-slot range, because the creases are
-   * not in slot order: the ones a layer buried inside its own stack owns are
-   * held back to the end (see {@link interiorEdgeStart}).
+   * Two per plane that has any determined cell — see {@link Folded3dSkin}.
+   * This is what an opaque figure draws.
    */
-  creaseSlot: Int32Array;
+  skins: Folded3dSkin[];
   /**
-   * Where the creases of **interior** layers begin — layers that are neither the
-   * top nor the bottom of their cell's stack.
+   * Every layer of every determined cell, once each.
    *
-   * They are never on show through opaque paper. A cell is by definition covered
-   * by every face in its stack, so an interior layer is behind the top from one
-   * side and behind the bottom from the other, from every camera. Drawing them
-   * is what put a buried flap's outline on the outside of the paper covering it,
-   * and the depth buffer cannot be asked to remove them: a crease lies on a
-   * *cell boundary* by construction, which is exactly where the displacement of
-   * the covering face is discontinuous — the same face sits at `((n − 1) / 2)·eps`
-   * as the top of an n-deep cell and at `0` as the only layer of the cell next
-   * door, so a buried crease at `0` is level with the neighbour's paper and the
-   * bias tips it in front.
-   *
-   * They are emitted, at the end, rather than dropped, because a translucent
-   * style shows the whole stack and wants them — the same rule the CPU projector
-   * applies. `folded3dDrawPasses` decides.
+   * What a **translucent** style draws, where the whole stack is meant to show
+   * and the skins would hide most of it. Coplanar by construction, which is
+   * harmless there: translucent faces do not write depth, so they blend in draw
+   * order rather than competing for it.
    */
-  interiorEdgeStart: number;
+  translucent: Folded3dRange;
   /**
-   * Where the undetermined cells' slots begin, in {@link slots}, in
-   * `topology.faceIndices` and in `topology.edgeIndices` respectively — the
-   * last counted in **edges**.
+   * Cells the solver could not order.
    *
-   * Cells the solver could not order get **no displacement** — displacing them
-   * by the kernel's fallback ranking would present an invented stacking as fact
-   * — so their slots are exactly coincident and will z-fight. They are emitted
-   * last so a caller can draw them separately (translucent, as the CPU projector
-   * does today) without re-deriving which they are. Equal to `slots.count`,
-   * `faceIndices.length` and `edgeAssignments.length` when every cell is
-   * determined.
+   * They have no top and no bottom, so no skin can contain them; they are drawn
+   * translucent over the resolved figure instead, which is the honest way to say
+   * "these layers could be either way round".
    */
-  undeterminedSlotStart: number;
-  undeterminedIndexStart: number;
-  undeterminedEdgeStart: number;
+  undetermined: Folded3dRange;
   /**
-   * Creases at the head of `topology.edgeIndices` that belong to no slot.
+   * Creases at the head of `topology.edgeIndices` that belong to no layer.
    *
    * The fallback for a model edge no `(cell, slot)` inks — see
-   * `Folded3dInk.orphanEdges`. Each is drawn the old way, one undisplaced line
-   * at its true endpoints, so a match that fails degrades to the picture before
-   * creases carried a layer rather than to a missing crease. Expected zero, and
-   * a figure that reports otherwise is worth looking at.
-   *
-   * At the head rather than the tail so the undetermined split stays a single
-   * cut: they draw with the determined pass, which is the opaque one.
+   * `Folded3dInk.orphanEdges`. Each is drawn plainly, at its true endpoints, so
+   * a match that fails degrades to a slightly cluttered picture rather than a
+   * missing crease. Expected zero, and a figure that reports otherwise is worth
+   * looking at.
    */
   fallbackEdgeCount: number;
 }
@@ -340,17 +313,6 @@ export function folded3dEdgeAssignment(kind: number, foldDegrees: number): numbe
   return 0;
 }
 
-/**
- * The layer gap for a model of this radius and this deepest stack.
- *
- * Exported because it is the number the whole displacement scheme rests on and
- * a test asserting the depth budget has to be able to ask for it directly.
- */
-export function folded3dLayerEpsilon(radius: number, maxStackDepth: number): number {
-  const perLayerCap = STACK_SPAN_LIMIT / Math.max(1, maxStackDepth - 1);
-  return Math.min(EPS_RELATIVE, perLayerCap) * radius;
-}
-
 /** Signed area of a triangle in a plane's `(u, v)`, doubled. */
 function signedArea2(
   ax: number,
@@ -384,24 +346,20 @@ export function folded3dMeshExtent(model: OristudioCpFolded3dRenderModel): {
   vertexCount: number;
   slotVertexCount: number;
   maxStackDepth: number;
-  maxDrawRank: number;
 } {
   let maxStackDepth = 0;
-  let maxDrawRank = 0;
   let slotVertexCount = 0;
   for (let cell = 0; cell < model.cell_count; cell += 1) {
     const base = cell * FOLDED_3D_CELL_ATTR_STRIDE;
     const ringLength = model.cell_attr[base + 2] ?? 0;
     const stackLength = model.cell_attr[base + 4] ?? 0;
     maxStackDepth = Math.max(maxStackDepth, stackLength);
-    maxDrawRank = Math.max(maxDrawRank, model.cell_attr[base + 6] ?? 0);
     if (ringLength >= 3) slotVertexCount += ringLength * stackLength;
   }
   return {
     vertexCount: slotVertexCount + model.edge_count * 2,
     slotVertexCount,
     maxStackDepth,
-    maxDrawRank,
   };
 }
 
@@ -409,19 +367,12 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
   const centre = toSimBasis(modelCentroid(model));
   const radius = modelRadius(model);
 
-  const { vertexCount, slotVertexCount, maxStackDepth, maxDrawRank } =
-    folded3dMeshExtent(model);
+  const { vertexCount, slotVertexCount, maxStackDepth } = folded3dMeshExtent(model);
   if (vertexCount > FOLDED_3D_MESH_VERTEX_BUDGET) {
     return { kind: 'too-large', vertexCount, limit: FOLDED_3D_MESH_VERTEX_BUDGET };
   }
 
-  const eps = folded3dLayerEpsilon(radius, maxStackDepth);
-  const rankNudge = (eps * RANK_NUDGE_FRACTION) / Math.max(1, maxDrawRank);
   const minArea2 = MIN_TRIANGLE_AREA_RELATIVE * Math.max(radius * radius, Number.MIN_VALUE);
-
-  // Where each layer's paper ends, which is what the crease pass draws. Built
-  // before anything is placed, because the fallback it reports is what sizes the
-  // vertex array.
   const ink = buildFolded3dInk(model);
   const assignmentOf = new Uint8Array(model.edge_count);
   for (let edge = 0; edge < model.edge_count; edge += 1) {
@@ -432,193 +383,207 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
   }
 
   const positions = new Float32Array((slotVertexCount + ink.orphanEdges.length * 2) * 3);
-  const faceIndices: number[] = [];
-  const edgeIndices: number[] = [];
-  const edgeAssignments: number[] = [];
+  let vertex = 0;
+
+  // --- every layer, once, as geometry -------------------------------------
+  //
+  // No displacement: the paper sits where the kernel put it. Two layers of one
+  // cell are exactly coincident, and that is fine because they are never drawn
+  // together — the skins below pick one, and a translucent style that draws both
+  // blends them without writing depth.
   const slotCell: number[] = [];
   const slotFace: number[] = [];
   const slotDepth: number[] = [];
-  const slotIndexStart: number[] = [];
   const slotVertexStart: number[] = [];
-  const creaseSlot: number[] = [];
-  // Creases of layers buried inside their own stack. Held back so the opaque
-  // draw can stop before them -- see `Folded3dMesh.interiorEdgeStart`.
-  const interiorIndices: number[] = [];
-  const interiorAssignments: number[] = [];
-  const interiorSlot: number[] = [];
-  let vertex = 0;
+  /** Triangle indices per slot. */
+  const slotTriangles: number[][] = [];
+  /** `[a, b, assignment]` per crease of each slot. */
+  const slotCreases: number[][] = [];
+  /** Slots of each cell, in `cell_stack` order. */
+  const slotsOfCell: number[][] = [];
 
+  for (let cell = 0; cell < model.cell_count; cell += 1) slotsOfCell.push([]);
   let undeterminedSlotStart = 0;
-  let undeterminedIndexStart = 0;
-  let undeterminedEdgeStart = 0;
+  // Determined cells first, so the two blocks below are each contiguous in slot
+  // order and `slots.indexStart` stays a range rather than a scatter.
+  for (const wantUndetermined of [false, true]) {
+    if (wantUndetermined) undeterminedSlotStart = slotCell.length;
+  for (let cell = 0; cell < model.cell_count; cell += 1) {
+    const base = cell * FOLDED_3D_CELL_ATTR_STRIDE;
+    if (
+      ((model.cell_attr[base + 5] ?? 0) === FOLDED_3D_CELL_UNDETERMINED) !== wantUndetermined
+    ) {
+      continue;
+    }
+    const ring = cellRing(model, cell);
+    if (ring.length < 3) continue;
+    const stack = cellStack(model, cell);
+    if (stack.length === 0) continue;
+    const frame = planeFrame(model, model.cell_attr[base] ?? 0);
 
-  // The fallback, at the head of the crease arrays and the tail of the vertex
-  // array: a model edge no slot inked, drawn the old way at its true endpoints.
-  // Expected empty. It is emitted first so the undetermined split below stays a
-  // single cut through the crease arrays — these belong to the opaque pass, and
-  // to no slot.
-  let fallbackVertex = slotVertexCount;
+    // The ring, triangulated once, in the plane's **own** `(u, v)`. Never a
+    // locally re-derived tangent: a different chirality reverses every stack
+    // read off the projected winding, and the payload says so in as many words.
+    const flat: number[] = [];
+    for (const point of ring) {
+      const dx = point[0] - frame.origin[0];
+      const dy = point[1] - frame.origin[1];
+      const dz = point[2] - frame.origin[2];
+      flat.push(
+        dx * frame.u[0] + dy * frame.u[1] + dz * frame.u[2],
+        dx * frame.v[0] + dy * frame.v[1] + dz * frame.v[2]
+      );
+    }
+    const triangles = earcut(flat);
+
+    for (let slot = 0; slot < stack.length; slot += 1) {
+      const face = stack[slot]!;
+      const first = vertex;
+      slotVertexStart.push(first);
+      for (const point of ring) {
+        const sim = toSimBasis(point);
+        positions[vertex * 3] = sim[0] - centre[0];
+        positions[vertex * 3 + 1] = sim[1] - centre[1];
+        positions[vertex * 3 + 2] = sim[2] - centre[2];
+        vertex += 1;
+      }
+
+      // Which way this slot's triangles wind is a **per-face** question, not a
+      // per-cell one: `facing` flips between faces of one plane, so slots of one
+      // cell can want opposite orientations. Sharing one index order across a
+      // stack would paint the whole cell one colour and lose the two-tone
+      // layering the flat path shows.
+      //
+      // A triangle CCW in `(u, v)` has right-hand normal `+up`, and the paper
+      // front is `facing * up`; the renderer colours a triangle **front** when
+      // its right-hand normal points *away* from the eye, so the wanted normal
+      // is `−facing * up` and the wanted `(u, v)` winding sign is `−facing`.
+      // Decided per triangle from the emitted geometry rather than trusted from
+      // the ring or from earcut, neither of which promises an orientation.
+      const facing = model.face_attr[face * FOLDED_3D_FACE_ATTR_STRIDE + 3] ?? 1;
+      const wantPositive = facing < 0;
+      const indices: number[] = [];
+      for (let i = 0; i + 2 < triangles.length; i += 3) {
+        const a = triangles[i]!;
+        const b = triangles[i + 1]!;
+        const c = triangles[i + 2]!;
+        const area2 = signedArea2(
+          flat[a * 2]!,
+          flat[a * 2 + 1]!,
+          flat[b * 2]!,
+          flat[b * 2 + 1]!,
+          flat[c * 2]!,
+          flat[c * 2 + 1]!
+        );
+        if (Math.abs(area2) < minArea2) continue;
+        if (area2 > 0 === wantPositive) indices.push(first + a, first + b, first + c);
+        else indices.push(first + a, first + c, first + b);
+      }
+
+      // The creases, from this slot's own ring vertices: two indices each, no
+      // geometry of their own. A segment is inked where *this layer's* paper
+      // ends and skipped where the layer runs across an arrangement cut some
+      // other face made.
+      const creases: number[] = [];
+      for (let segment = 0; segment < ring.length; segment += 1) {
+        const edge = ink.edgeAt(cell, slot, segment);
+        if (edge < 0) continue;
+        creases.push(
+          first + segment,
+          first + ((segment + 1) % ring.length),
+          assignmentOf[edge] ?? 0
+        );
+      }
+
+      slotsOfCell[cell]!.push(slotCell.length);
+      slotCell.push(cell);
+      slotFace.push(face);
+      slotDepth.push(slot);
+      slotTriangles.push(indices);
+      slotCreases.push(creases);
+    }
+  }
+  }
+  slotVertexStart.push(vertex);
+
+  // --- assemble the index buffers -----------------------------------------
+  const faceIndices: number[] = [];
+  const edgeIndices: number[] = [];
+  const edgeAssignments: number[] = [];
+  const slotIndexStart: number[] = new Array<number>(slotCell.length).fill(0);
+
+  const appendSlot = (slot: number, record = false): void => {
+    if (record) slotIndexStart[slot] = faceIndices.length;
+    for (const index of slotTriangles[slot]!) faceIndices.push(index);
+    const creases = slotCreases[slot]!;
+    for (let i = 0; i < creases.length; i += 3) {
+      edgeIndices.push(creases[i]!, creases[i + 1]!);
+      edgeAssignments.push(creases[i + 2]!);
+    }
+  };
+
+  // The fallback, at the head of the crease buffer and the tail of the vertex
+  // array: a model edge no layer inked, drawn plainly at its true endpoints.
+  // Expected empty.
   for (const edge of ink.orphanEdges) {
     const [a, b] = edgeEnds(model, edge);
     for (const point of [a, b]) {
       const sim = toSimBasis(point);
-      positions[fallbackVertex * 3] = sim[0] - centre[0];
-      positions[fallbackVertex * 3 + 1] = sim[1] - centre[1];
-      positions[fallbackVertex * 3 + 2] = sim[2] - centre[2];
-      fallbackVertex += 1;
+      positions[vertex * 3] = sim[0] - centre[0];
+      positions[vertex * 3 + 1] = sim[1] - centre[1];
+      positions[vertex * 3 + 2] = sim[2] - centre[2];
+      vertex += 1;
     }
-    edgeIndices.push(fallbackVertex - 2, fallbackVertex - 1);
+    edgeIndices.push(vertex - 2, vertex - 1);
     edgeAssignments.push(assignmentOf[edge] ?? 0);
-    creaseSlot.push(-1);
   }
   const fallbackEdgeCount = edgeAssignments.length;
 
-  // Determined cells first, undetermined last, so a caller can draw the two
-  // groups with different settings without re-deriving which is which.
-  for (const wantUndetermined of [false, true]) {
-    if (wantUndetermined) {
-      undeterminedSlotStart = slotCell.length;
-      undeterminedIndexStart = faceIndices.length;
-      undeterminedEdgeStart = edgeAssignments.length;
-    }
-    for (let cell = 0; cell < model.cell_count; cell += 1) {
-      const base = cell * FOLDED_3D_CELL_ATTR_STRIDE;
-      const undetermined =
-        (model.cell_attr[base + 5] ?? 0) === FOLDED_3D_CELL_UNDETERMINED;
-      if (undetermined !== wantUndetermined) continue;
+  const determined = (cell: number): boolean =>
+    (model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE + 5] ?? 0) !== FOLDED_3D_CELL_UNDETERMINED;
 
-      const ring = cellRing(model, cell);
-      if (ring.length < 3) continue;
-      const stack = cellStack(model, cell);
-      if (stack.length === 0) continue;
-
-      const frame = planeFrame(model, model.cell_attr[base] ?? 0);
-      const drawRank = model.cell_attr[base + 6] ?? 0;
-
-      // The ring, triangulated once, in the plane's **own** `(u, v)`. Never a
-      // locally re-derived tangent: a different chirality reverses every stack
-      // read off the projected winding, and the payload says so in as many
-      // words.
-      const flat: number[] = [];
-      for (const point of ring) {
-        const dx = point[0] - frame.origin[0];
-        const dy = point[1] - frame.origin[1];
-        const dz = point[2] - frame.origin[2];
-        flat.push(
-          dx * frame.u[0] + dy * frame.u[1] + dz * frame.u[2],
-          dx * frame.v[0] + dy * frame.v[1] + dz * frame.v[2]
-        );
+  // Two skins per plane: the top layer of every cell, and the bottom layer of
+  // every cell. `cell_stack` is top-first with respect to the plane's `up`, so
+  // the `+1` side takes `stack[0]` and the `-1` side takes the last entry.
+  const skins: Folded3dSkin[] = [];
+  for (let plane = 0; plane < model.plane_count; plane += 1) {
+    const up = toSimBasis(planeFrame(model, plane).up);
+    for (const side of [1, -1] as const) {
+      const faceIndexStart = faceIndices.length;
+      const edgeStart = edgeAssignments.length;
+      for (let cell = 0; cell < model.cell_count; cell += 1) {
+        if ((model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE] ?? 0) !== plane) continue;
+        if (!determined(cell)) continue;
+        const slots = slotsOfCell[cell]!;
+        if (slots.length === 0) continue;
+        appendSlot(side === 1 ? slots[0]! : slots[slots.length - 1]!);
       }
-      const triangles = earcut(flat);
-
-      for (let slot = 0; slot < stack.length; slot += 1) {
-        const face = stack[slot]!;
-        // Centred on the plane rather than stacked upward from it, so the
-        // displaced mesh keeps the undisplaced centroid and radius -- the
-        // numbers the camera fit and the figure's frame already read. An
-        // uncentred stack would slide a deep plane bodily to one side.
-        //
-        // `cell_stack` is top-first with respect to `up`, so slot 0 takes the
-        // largest `+up` offset. An undetermined cell takes none at all: there is
-        // no order to express, and displacing by the kernel's fallback ranking
-        // would present an invented stacking as fact.
-        const offset = undetermined
-          ? 0
-          : ((stack.length - 1) / 2 - slot) * eps + drawRank * rankNudge;
-
-        const first = vertex;
-        slotVertexStart.push(first);
-        for (const point of ring) {
-          const world: Vec3 = [
-            point[0] + frame.up[0] * offset,
-            point[1] + frame.up[1] * offset,
-            point[2] + frame.up[2] * offset,
-          ];
-          const sim = toSimBasis(world);
-          positions[vertex * 3] = sim[0] - centre[0];
-          positions[vertex * 3 + 1] = sim[1] - centre[1];
-          positions[vertex * 3 + 2] = sim[2] - centre[2];
-          vertex += 1;
-        }
-
-        // Which way this slot's triangles wind is a **per-face** question, not a
-        // per-cell one: `facing` flips between faces of one plane, so slots of
-        // one cell can want opposite orientations. Sharing one index order
-        // across a stack would paint the whole cell one colour and lose the
-        // two-tone layering the flat path shows today.
-        //
-        // A triangle CCW in `(u, v)` has right-hand normal `+up`, and the paper
-        // front is `facing * up`; the renderer colours a triangle **front** when
-        // its right-hand normal points *away* from the eye, so the wanted normal
-        // is `−facing * up` and the wanted `(u, v)` winding sign is `−facing`.
-        // Decided per triangle from the emitted geometry rather than trusted
-        // from the ring or from earcut, neither of which promises an
-        // orientation.
-        const facing = model.face_attr[face * FOLDED_3D_FACE_ATTR_STRIDE + 3] ?? 1;
-        const wantPositive = facing < 0;
-        slotIndexStart.push(faceIndices.length);
-        for (let i = 0; i + 2 < triangles.length; i += 3) {
-          const a = triangles[i]!;
-          const b = triangles[i + 1]!;
-          const c = triangles[i + 2]!;
-          const area2 = signedArea2(
-            flat[a * 2]!,
-            flat[a * 2 + 1]!,
-            flat[b * 2]!,
-            flat[b * 2 + 1]!,
-            flat[c * 2]!,
-            flat[c * 2 + 1]!
-          );
-          if (Math.abs(area2) < minArea2) continue;
-          if (area2 > 0 === wantPositive) {
-            faceIndices.push(first + a, first + b, first + c);
-          } else {
-            faceIndices.push(first + a, first + c, first + b);
-          }
-        }
-        // The creases, from this slot's own ring vertices: two indices each,
-        // no geometry. A segment is inked where *this layer's* paper ends and
-        // skipped where the layer runs across an arrangement cut some other
-        // face made — which is the whole of the occlusion fix, because the
-        // alternative is one line at the fold that belongs to no layer.
-        //
-        // Routinely empty: a layer buried under a wider face ends nowhere
-        // inside it.
-        //
-        // A layer that is neither the top nor the bottom of its stack is never
-        // on show through opaque paper, and its creases go to the back of the
-        // buffer rather than into the draw. An undetermined cell has no order to
-        // be inside of — its slots are deliberately left coincident — so every
-        // one of them counts as outer.
-        const outer = undetermined || slot === 0 || slot === stack.length - 1;
-        const intoIndices = outer ? edgeIndices : interiorIndices;
-        const intoAssignments = outer ? edgeAssignments : interiorAssignments;
-        const intoSlot = outer ? creaseSlot : interiorSlot;
-        for (let segment = 0; segment < ring.length; segment += 1) {
-          const edge = ink.edgeAt(cell, slot, segment);
-          if (edge < 0) continue;
-          intoIndices.push(first + segment, first + ((segment + 1) % ring.length));
-          intoAssignments.push(assignmentOf[edge] ?? 0);
-          intoSlot.push(slotCell.length);
-        }
-
-        slotCell.push(cell);
-        slotFace.push(face);
-        slotDepth.push(slot);
+      if (faceIndices.length === faceIndexStart && edgeAssignments.length === edgeStart) {
+        continue;
       }
+      skins.push({
+        plane,
+        up: [up[0], up[1], up[2]],
+        side,
+        faceIndexStart,
+        faceIndexCount: faceIndices.length - faceIndexStart,
+        edgeStart,
+        edgeCount: edgeAssignments.length - edgeStart,
+      });
     }
   }
-  // Close both runs, so slot `i` owns `[start[i], start[i + 1])` in each.
+
+  // Every determined layer once, for a translucent style, then the cells the
+  // solver could not order — which have no top and no bottom to make a skin of.
+  const translucentFaceStart = faceIndices.length;
+  const translucentEdgeStart = edgeAssignments.length;
+  for (let slot = 0; slot < undeterminedSlotStart; slot += 1) appendSlot(slot, true);
+  const undeterminedFaceStart = faceIndices.length;
+  const undeterminedEdgeStart = edgeAssignments.length;
+  for (let slot = undeterminedSlotStart; slot < slotCell.length; slot += 1) {
+    appendSlot(slot, true);
+  }
   slotIndexStart.push(faceIndices.length);
-  slotVertexStart.push(vertex);
-
-  // The interior layers' creases, after everything the opaque draw wants.
-  const interiorEdgeStart = edgeAssignments.length;
-  for (let i = 0; i < interiorAssignments.length; i += 1) {
-    edgeIndices.push(interiorIndices[i * 2]!, interiorIndices[i * 2 + 1]!);
-    edgeAssignments.push(interiorAssignments[i]!);
-    creaseSlot.push(interiorSlot[i]!);
-  }
 
   return {
     kind: 'mesh',
@@ -632,7 +597,6 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
       },
       center: [0, 0, 0],
       radius,
-      eps,
       maxStackDepth,
       slots: {
         count: slotCell.length,
@@ -642,11 +606,19 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
         indexStart: Uint32Array.from(slotIndexStart),
         vertexStart: Uint32Array.from(slotVertexStart),
       },
-      creaseSlot: Int32Array.from(creaseSlot),
-      interiorEdgeStart,
-      undeterminedSlotStart,
-      undeterminedIndexStart,
-      undeterminedEdgeStart,
+      skins,
+      translucent: {
+        faceIndexStart: translucentFaceStart,
+        faceIndexCount: faceIndices.length - translucentFaceStart,
+        edgeStart: translucentEdgeStart,
+        edgeCount: edgeAssignments.length - translucentEdgeStart,
+      },
+      undetermined: {
+        faceIndexStart: undeterminedFaceStart,
+        faceIndexCount: faceIndices.length - undeterminedFaceStart,
+        edgeStart: undeterminedEdgeStart,
+        edgeCount: edgeAssignments.length - undeterminedEdgeStart,
+      },
       fallbackEdgeCount,
     },
   };

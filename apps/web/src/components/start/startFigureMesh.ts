@@ -5,7 +5,8 @@ import {
   type RenderSettings,
 } from '@treemaker/origami-simulator';
 import { folded3dMesh, packFolded3dPositionTexture } from '../../cp-workspace/folded/folded3dMesh';
-import { folded3dCreaseDepthBias } from '../../cp-workspace/folded/folded3dWindow';
+import { FOLDED_3D_CREASE_DEPTH_BIAS } from '../../cp-workspace/folded/folded3dWindow';
+import type { Folded3dRange, Folded3dSkin } from '../../cp-workspace/folded/folded3dMesh';
 import { UNDETERMINED_FACE_ALPHA } from '../../cp-workspace/folded/folded3dStyle';
 import { folded3dDrawPasses } from '../../simulator/foldedMeshSource';
 import type { StartFigureAsset } from './startFigureAsset';
@@ -38,13 +39,10 @@ export class StartFigureMesh {
     private readonly mesh: MeshRenderer,
     private readonly canvas: HTMLCanvasElement,
     private readonly radius: number,
-    private readonly faceIndexCount: number,
-    private readonly undeterminedIndexStart: number,
-    private readonly edgeCount: number,
-    private readonly undeterminedEdgeStart: number,
-    private readonly interiorEdgeStart: number,
-    private readonly undeterminedFaceAlpha: number,
-    private readonly creaseDepthBias: number
+    private readonly skins: readonly Folded3dSkin[],
+    private readonly translucent: Folded3dRange,
+    private readonly undetermined: Folded3dRange,
+    private readonly undeterminedFaceAlpha: number
   ) {}
 
   /**
@@ -95,13 +93,10 @@ export class StartFigureMesh {
         mesh,
         canvas,
         radius,
-        topology.faceIndices.length,
-        built.mesh.undeterminedIndexStart,
-        topology.edgeAssignments.length,
-        built.mesh.undeterminedEdgeStart,
-        built.mesh.interiorEdgeStart,
-        UNDETERMINED_FACE_ALPHA,
-        folded3dCreaseDepthBias(built.mesh)
+        built.mesh.skins,
+        built.mesh.translucent,
+        built.mesh.undetermined,
+        UNDETERMINED_FACE_ALPHA
       );
     } catch {
       core?.dispose();
@@ -160,14 +155,13 @@ export class StartFigureMesh {
     // undetermined stack opaque is drawing an order, and the wrong one.
     for (const pass of folded3dDrawPasses(
       {
-        faceIndexCount: this.faceIndexCount,
-        undeterminedIndexStart: this.undeterminedIndexStart,
-        edgeCount: this.edgeCount,
-        undeterminedEdgeStart: this.undeterminedEdgeStart,
-        interiorEdgeStart: this.interiorEdgeStart,
+        skins: this.skins,
+        translucent: this.translucent,
+        undetermined: this.undetermined,
         undeterminedFaceAlpha: this.undeterminedFaceAlpha,
       },
-      settings
+      settings,
+      orthographic
     )) {
       this.mesh.render(
         orthographic,
@@ -175,9 +169,9 @@ export class StartFigureMesh {
           ...settings,
           showEdges: pass.showEdges,
           faceAlpha: pass.faceAlpha,
-          // A folded figure's layers are a hair apart, so the renderer's own
-          // bias would draw the buried ones. Same rule as the figure window.
-          creaseDepthBias: this.creaseDepthBias,
+          // A crease only has to beat the one face it lies on. Same rule as the
+          // figure window.
+          creaseDepthBias: FOLDED_3D_CREASE_DEPTH_BIAS,
         },
         null,
         {

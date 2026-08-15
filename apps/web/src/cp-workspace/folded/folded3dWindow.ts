@@ -17,7 +17,6 @@
  */
 
 import {
-  DEFAULT_CREASE_DEPTH_BIAS,
   fitExtent,
   type OrbitView,
   type RenderSettings,
@@ -150,36 +149,26 @@ export function folded3dWindowView(camera: FoldedFigureCamera | null | undefined
 export const FOLDED_3D_WINDOW_CREASE_WIDTH_PX = 1.5;
 
 /**
- * How much of one layer gap a crease is allowed to float above its own paper.
+ * How far toward the viewer a crease is pushed, in NDC z.
  *
- * The bias exists to break a tie — a crease is drawn from its slot's own ring,
- * so it is exactly coplanar with the face it bounds and would otherwise
- * z-fight. A quarter of a gap settles that with three quarters of margin left,
- * and, far more importantly, **cannot reach the next layer**. The whole
- * occlusion bug was a bias that could: the shipped constant is a dozen gaps
- * deep, so every buried layer's creases rode it to the front.
+ * A tie-break and nothing more. A crease is drawn from its own layer's ring, and
+ * an opaque figure draws one layer per cell, so the only thing a crease is ever
+ * coincident with is **the single face it lies on**. It has to beat zero, not a
+ * stack.
+ *
+ * That is why it can be this small, and why being small is the point. In world
+ * depth it is `2e-5 · radius` (`depthRange = 2 · radius`), which is orders below
+ * any genuine gap between two planes of a real fold — so it cannot lift a crease
+ * through paper that is actually in front of it, which is exactly what the old
+ * constant did. It is still 84 units of a 24-bit depth buffer, comfortably
+ * resolvable; on a 16-bit one it is a third of a unit, which is what
+ * `Folded3dMeshRuntime.shallowDepthBuffer` reports.
+ *
+ * If a fold ever puts two planes closer together than this, the kernel already
+ * measures it — `min_inter_separation_relative` in the fold diagnostics — and
+ * this becomes a function of that rather than a constant.
  */
-export const FOLDED_3D_CREASE_BIAS_FRACTION = 0.25;
-
-/**
- * The crease depth bias for a folded figure, in NDC z.
- *
- * Camera-independent, which is what lets it be a render *setting* rather than
- * something recomputed per frame: `cameraUniforms` sets `depthRange` to twice
- * the radius it is given, and the window gives it `mesh.radius`, so a fraction
- * of `mesh.eps` in world depth is that same fraction of `eps / (2 · radius)` in
- * NDC whatever the eye is doing.
- *
- * The number that comes out is small — 2.5e-5 for a shallow stack, 7.7e-6 at the
- * corpus's deepest (`plant_penguin`, 14 layers) — which is 210 and 64 units of a
- * 24-bit depth buffer and under one of a 16-bit one. That is the same cliff
- * `Folded3dMeshRuntime.shallowDepthBuffer` already reports, and it is why it
- * reports it.
- */
-export function folded3dCreaseDepthBias(mesh: Pick<Folded3dMesh, 'eps' | 'radius'>): number {
-  if (!(mesh.radius > 0)) return DEFAULT_CREASE_DEPTH_BIAS;
-  return (FOLDED_3D_CREASE_BIAS_FRACTION * mesh.eps) / (2 * mesh.radius);
-}
+export const FOLDED_3D_CREASE_DEPTH_BIAS = 1e-5;
 
 /**
  * How a 3D figure's paper is drawn, as the settings every renderer takes.
@@ -199,14 +188,6 @@ export function folded3dWindowRenderSettings(options: {
   style: Folded3dPaperStyle;
   displayStyle: OristudioCpFoldedFigureDisplayStyle;
   devicePixelRatio: number;
-  /**
-   * The mesh being drawn, for {@link folded3dCreaseDepthBias}.
-   *
-   * Optional only so a caller with no mesh yet still gets colours; without it
-   * the creases fall back to the renderer's own bias, which on a folded figure
-   * is deep enough to draw buried layers.
-   */
-  mesh?: Pick<Folded3dMesh, 'eps' | 'radius'> | null;
 }): RenderSettings {
   const { style, displayStyle } = options;
   const plan = folded3dStylePlan(displayStyle, style.transparentAlpha);
@@ -231,7 +212,7 @@ export function folded3dWindowRenderSettings(options: {
       FOLDED_3D_WINDOW_CREASE_WIDTH_PX * Math.max(1, options.devicePixelRatio)
     ),
     faceAlpha: plan.faceAlpha * style.faceAlpha,
-    creaseDepthBias: options.mesh ? folded3dCreaseDepthBias(options.mesh) : undefined,
+    creaseDepthBias: FOLDED_3D_CREASE_DEPTH_BIAS,
   };
 }
 
@@ -259,9 +240,9 @@ export function folded3dMeshPayload(mesh: Folded3dMesh): {
     edgeAssignments: edgeAssignments.buffer as ArrayBuffer,
     center: mesh.center,
     radius: mesh.radius,
-    undeterminedIndexStart: mesh.undeterminedIndexStart,
-    undeterminedEdgeStart: mesh.undeterminedEdgeStart,
-    interiorEdgeStart: mesh.interiorEdgeStart,
+    skins: mesh.skins,
+    translucent: mesh.translucent,
+    undetermined: mesh.undetermined,
     undeterminedFaceAlpha: UNDETERMINED_FACE_ALPHA,
   };
   return {

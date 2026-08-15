@@ -311,6 +311,48 @@ shows the whole stack and takes them, which is what the projector already did.
       draws 193/201, the one that should not draws 0/201. One crease, as
       reported.
 
+## Phase 8 — skins: stop asking the depth buffer about coplanar layers
+
+Phases 2–7 all displaced coplanar layers by a hair and asked the depth buffer to
+reconstruct an order the kernel had already computed. Each phase removed one
+symptom and the next found another, which is the shape of a wrong mechanism
+rather than an incomplete fix. The 2D path never had any of these problems,
+because it sorts back-to-front and paints: occlusion there is discrete and
+exact, decided by the order itself.
+
+**A plane's visible surface is the top face of each of its cells.** The opposite
+side's is the bottom face of each. Those two *skins* are facts about the model,
+built once, and the eye picks one per plane by the sign of `up · eye`. That is
+exact rather than approximate because a folded figure is drawn orthographically,
+so every ray shares a direction and the sign is one bit for the whole plane.
+
+Inside a skin there is one face per cell and cells are area-disjoint, so nothing
+coplanar is ever drawn together. The depth buffer is left deciding plane against
+plane — real geometry, genuinely separated.
+
+- [x] `Folded3dSkin`, two per plane, built from `cell_stack`'s first and last
+      entry. No topological sort, so a cyclic order works by construction.
+- [x] `folded3dDrawPasses` takes the camera and emits one pass per run of planes
+      that chose the same side, then the undetermined cells translucent.
+- [x] **The layer displacement is deleted**, and with it `EPS_RELATIVE`,
+      `STACK_SPAN_LIMIT`, `folded3dLayerEpsilon`, `RANK_NUDGE_FRACTION` and
+      `mesh.eps`. The paper sits where the kernel put it.
+- [x] The crease bias becomes `FOLDED_3D_CREASE_DEPTH_BIAS = 1e-5` of NDC z. It
+      only has to break the tie between a crease and the one face it lies on, so
+      it can be 80× smaller than the constant it replaces — and being small is
+      the point: it can no longer lift a crease through paper genuinely in front
+      of it.
+- [x] Translucent styles keep the full stack, which is what they are for;
+      coplanar layers are harmless there because translucent faces do not write
+      depth.
+- [x] The projector needed no change at all. It has drawn one layer per cell
+      since Phase 5, which is what a skin is — the two paths now use the same
+      rule, reached from two directions.
+- [x] Verified on `simple_outline_fixture.osf` at its own camera on the real
+      GPU: full-width ink rows at 108, 109, 159 and 385 — two borders and the one
+      fold. Drawing every layer's creases instead adds a 260-pixel band at row
+      209, which is the second line that should not be there.
+
 ## Validation
 
 Web-only, so: `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`.

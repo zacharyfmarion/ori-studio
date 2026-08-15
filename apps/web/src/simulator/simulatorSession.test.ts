@@ -622,9 +622,9 @@ describe('folded-figure meshes', () => {
     edgeAssignments: new Uint8Array([1]).buffer,
     center: [0, 0, 0] as [number, number, number],
     radius: 1,
-    undeterminedIndexStart: 3,
-    undeterminedEdgeStart: 1,
-    interiorEdgeStart: 1,
+    skins: [],
+    translucent: { faceIndexStart: 0, faceIndexCount: 3, edgeStart: 0, edgeCount: 1 },
+    undetermined: { faceIndexStart: 3, faceIndexCount: 0, edgeStart: 1, edgeCount: 0 },
     undeterminedFaceAlpha: 0.45,
   });
 
