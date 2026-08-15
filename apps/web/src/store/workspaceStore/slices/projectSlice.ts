@@ -1527,6 +1527,16 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
    * never appear underneath the OS dialog, and is cleared on every exit —
    * cancel, throw, or a thunk that never ran.
    */
+  /**
+   * A save that a nested frame already performed, tracked and announced.
+   *
+   * Distinct from both `SaveFileResult` (this frame wrote the file) and `null`
+   * (nothing was written), so the caller can report success without counting the
+   * save a second time.
+   */
+  const DELEGATED_SAVE = 'delegated-save' as const;
+  type SaveOutcome = SaveFileResult | typeof DELEGATED_SAVE | null;
+
   const saveDocumentFile = async (
     fileService: FileService,
     options: Omit<SaveTextFileOptions, 'contents'> & {
@@ -1743,6 +1753,16 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   // nothing to lose, so a lossless export keeps whatever confirm timing it had;
   // otherwise returns a Promise resolving to the user's choice. Callers use the
   // `gate !== true && !(await gate)` idiom so the no-loss path never awaits.
+  /**
+   * What the lossy-save guard decided.
+   *
+   * `delegated` is the one that matters: the user chose the `.osf` upgrade, so a
+   * save *did* happen — in a nested frame that already tracked and announced it.
+   * Reporting that as failure made `saveProject()` resolve false for a save that
+   * succeeded, and re-reporting it as success here would count it twice.
+   */
+  type LossySaveDecision = 'proceed' | 'cancelled' | 'delegated';
+
   /** Option ids of the lossy-save choice. */
   const LOSSY_SAVE_AS_PROJECT = 'save-as-project';
   const LOSSY_SAVE_KEEP_FORMAT = 'keep-format';
@@ -1764,7 +1784,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   const guardLossySaveBack = (
     format: ExportFormat,
     fileService: FileService
-  ): true | Promise<boolean> => {
+  ): true | Promise<LossySaveDecision> => {
     const warnings = supersetLossWarnings(format);
     if (warnings.length === 0) return true;
     // Asked once per document, not per keystroke: ⌘S is a reflex, and a modal on
@@ -1792,9 +1812,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         confirmLabel: i18n.t('dialogs:lossySave.saveAsProject', 'Save as Ori Studio project'),
         cancelLabel: i18n.t('dialogs:common.cancel', 'Cancel'),
       }).then(async (saveAsProject) => {
-        if (saveAsProject) await get().saveProjectAs(fileService);
-        // Either way this format is not written.
-        return false;
+        if (!saveAsProject) return 'cancelled' as const;
+        await get().saveProjectAs(fileService);
+        return 'delegated' as const;
       });
     }
 
@@ -1834,11 +1854,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     }).then(async (choice) => {
       if (choice === LOSSY_SAVE_AS_PROJECT) {
         await get().saveProjectAs(fileService);
-        return false;
+        return 'delegated' as const;
       }
-      if (choice !== LOSSY_SAVE_KEEP_FORMAT) return false;
+      if (choice !== LOSSY_SAVE_KEEP_FORMAT) return 'cancelled' as const;
       set({ acknowledgedLossySave: get().currentFileName });
-      return true;
+      return 'proceed' as const;
     });
   };
 
@@ -1905,13 +1925,16 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     });
   };
 
-  const saveEditableCreasePatternAsOri = async (
-    fileService: FileService
-  ): Promise<SaveFileResult | null> => {
+  const saveEditableCreasePatternAsOri = async (fileService: FileService): Promise<SaveOutcome> => {
     const documentState = get().oristudioCpDocument;
     if (!documentState) return null;
     const oriLoss = guardLossySaveBack('ori', fileService);
-    if (oriLoss !== true && !(await oriLoss)) return null;
+    if (oriLoss !== true) {
+      const decision = await oriLoss;
+      // The upgrade already saved, in a frame that tracked and announced it.
+      if (decision === 'delegated') return DELEGATED_SAVE;
+      if (decision !== 'proceed') return null;
+    }
     const revisionAtSave = get().oristudioCpRevision;
     const importedCreasePattern = get().importedCreasePattern;
     const result = await saveDocumentFile(fileService, {
@@ -1950,15 +1973,18 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     return result;
   };
 
-  const saveEditableCreasePatternAsOrh = async (
-    fileService: FileService
-  ): Promise<SaveFileResult | null> => {
+  const saveEditableCreasePatternAsOrh = async (fileService: FileService): Promise<SaveOutcome> => {
     const documentState = get().oristudioCpDocument;
     if (!documentState) return null;
     // Was a generic "ORH is a legacy format" notice that never said what this
     // document would actually lose.
     const orhLoss = guardLossySaveBack('orh', fileService);
-    if (orhLoss !== true && !(await orhLoss)) return null;
+    if (orhLoss !== true) {
+      const decision = await orhLoss;
+      // The upgrade already saved, in a frame that tracked and announced it.
+      if (decision === 'delegated') return DELEGATED_SAVE;
+      if (decision !== 'proceed') return null;
+    }
     const revisionAtSave = get().oristudioCpRevision;
     const importedCreasePattern = get().importedCreasePattern;
     const result = await saveDocumentFile(fileService, {
@@ -1997,7 +2023,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   const saveEditableCreasePattern = async (
     fileService: FileService,
     forceSaveAs: boolean
-  ): Promise<SaveFileResult | null> => {
+  ): Promise<SaveOutcome> => {
     const documentState = get().oristudioCpDocument;
     if (!documentState) {
       set({
@@ -2129,6 +2155,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       : await saveEditableCreasePattern(fileService, forceSaveAs);
     // Both branches write the native .osf; a null result means the user
     // cancelled the save dialog. `file exported` deliberately skips osf.
+    // Already saved, tracked and announced one frame down — say it succeeded and
+    // do not count it again.
+    if (result === DELEGATED_SAVE) return true;
     if (!result) return false;
     track('project saved', { format: 'osf' });
     if (savedWithoutTrace(fileService, result)) set({ savedNotice: result.name });

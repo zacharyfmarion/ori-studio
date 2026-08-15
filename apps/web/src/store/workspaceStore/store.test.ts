@@ -1583,6 +1583,58 @@ function camvErrorResult(id = 'CheckCamv-1'): OristudioCpCommandResult {
 }
 
 /**
+ * The ways a save can END, as file services.
+ *
+ * Every save test used to build the same always-succeeds-on-the-web service, so
+ * the endings that are not "written through on the web" went untested — which is
+ * exactly where the stranded spinner lived: the confirmation that removed it
+ * only fires for this one ending.
+ */
+const saveEndings = {
+  /** Chromium wrote through a handle: a reusable target comes back. */
+  webWrittenThrough: () => {
+    const service = createFileService();
+    service.saveTextFile.mockImplementation(async (options: SaveTextFileOptions) => {
+      savedTexts.set(options, await resolveSaveContents(options.contents, { name: options.suggestedName }));
+      return { name: options.suggestedName, path: 'web-save:1' };
+    });
+    return service;
+  },
+  /** Firefox/Safari, or a picker that failed: a download, with no target. */
+  webDownloaded: () => {
+    const service = createFileService();
+    service.saveTextFile.mockImplementation(async (options: SaveTextFileOptions) => {
+      savedTexts.set(options, await resolveSaveContents(options.contents, { name: options.suggestedName }));
+      return { name: options.suggestedName, path: null };
+    });
+    return service;
+  },
+  /** Desktop wrote to a real path. */
+  desktopWritten: () => {
+    const service = createFileService();
+    service.saveTextFile.mockImplementation(async (options: SaveTextFileOptions) => {
+      savedTexts.set(options, await resolveSaveContents(options.contents, { name: options.suggestedName }));
+      return { name: options.suggestedName, path: `/tmp/${options.suggestedName}` };
+    });
+    return { ...service, surface: 'desktop' as const, supportsNativeDialogs: true };
+  },
+  /** The user dismissed the save dialog. */
+  cancelled: () => {
+    const service = createFileService();
+    service.saveTextFile.mockImplementation(async () => null);
+    return service;
+  },
+  /** The write threw — a locked file, a full disk. */
+  failed: () => {
+    const service = createFileService();
+    service.saveTextFile.mockImplementation(async () => {
+      throw new Error('disk full');
+    });
+    return service;
+  },
+};
+
+/**
  * What a save actually wrote, keyed by the options it was called with.
  *
  * `contents` is a string for an export and a thunk for a document save, so the
@@ -2348,8 +2400,10 @@ describe('workspace store slices', () => {
     });
 
     // The branch the first version of these tests never took: it re-enters the
-    // save machinery, and re-entrancy is where this went wrong in the browser.
-    it('completes the save when the .osf upgrade is chosen', async () => {
+    // save machinery. A save *did* happen, so it must report success — it used
+    // to return false for a file that was written, because the guard's "this
+    // format was not written" answer was read as "nothing was saved".
+    it('reports success when the .osf upgrade is chosen', async () => {
       await openOri();
       const fileService = createFileService();
       const unregisterDialogHost = registerCommandDialogHost();
@@ -2357,7 +2411,7 @@ describe('workspace store slices', () => {
         const save = useWorkspaceStore.getState().saveProject(fileService);
         await vi.waitFor(() => expect(useCommandDialogStore.getState().dialog).not.toBeNull());
         resolveCommandDialog(useCommandDialogStore.getState().dialog!.id, 'save-as-project');
-        await expect(save).resolves.toBe(false);
+        await expect(save).resolves.toBe(true);
       } finally {
         unregisterDialogHost();
       }
@@ -2380,6 +2434,53 @@ describe('workspace store slices', () => {
         unregisterDialogHost();
       }
     });
+  });
+
+  /**
+   * Every ending of a save, not just the one that succeeds in a browser.
+   *
+   * `saveRun` drives the progress spinner, and the spinner is the thing that got
+   * stranded: it must be cleared however the save ended, and only the web
+   * write-through ending publishes the confirmation that used to be the only way
+   * it came down.
+   */
+  describe.each([
+    ['written through on the web', 'webWrittenThrough', true, 'crane.osf'],
+    ['downloaded, with no reusable target', 'webDownloaded', true, null],
+    ['written on desktop', 'desktopWritten', true, null],
+    ['cancelled at the dialog', 'cancelled', false, null],
+  ] as const)('a save %s', (_case, ending, expectedResult, expectedNotice) => {
+    it('clears the run indicator and reports the right outcome', async () => {
+      resetStores(seedSnapshot());
+      await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0\n', {
+        filename: 'crane.cp',
+        path: null,
+      });
+      const fileService = saveEndings[ending]();
+
+      await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(
+        expectedResult
+      );
+
+      // Nothing may be left running — a spinner outlives the save otherwise.
+      expect(useWorkspaceStore.getState().saveRun).toBeNull();
+      expect(useWorkspaceStore.getState().savedNotice).toBe(expectedNotice);
+    });
+  });
+
+  it('clears the run indicator when the write itself throws', async () => {
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0\n', {
+      filename: 'crane.cp',
+      path: null,
+    });
+
+    await expect(
+      useWorkspaceStore.getState().saveProject(saveEndings.failed())
+    ).resolves.toBe(false);
+
+    expect(useWorkspaceStore.getState().saveRun).toBeNull();
+    expect(useWorkspaceStore.getState().savedNotice).toBeNull();
   });
 
   /**

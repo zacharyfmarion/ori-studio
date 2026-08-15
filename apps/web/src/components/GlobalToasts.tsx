@@ -78,6 +78,10 @@ export function GlobalToasts() {
   // lands on the same filename still gets its own toast.
   useEffect(() => {
     if (!savedNotice) return;
+    // The confirmation is itself the "you saw something happen" guarantee, so the
+    // spinner has nothing left to buy. They no longer share an id, so this is
+    // what keeps them from overlapping; `hide` dismisses too, and is idempotent.
+    toast.dismiss(SAVING_TOAST_ID);
     toast.success(t('toasts:global.saved', '{{name}} saved', { name: savedNotice }), {
       id: SAVED_TOAST_ID,
       duration: 3000,

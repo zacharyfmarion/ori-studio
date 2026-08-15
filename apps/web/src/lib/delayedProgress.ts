@@ -27,7 +27,7 @@ export interface DelayedProgress {
   start: () => void;
   /** Work finished. Hides now, or once the minimum visible time has elapsed. */
   stop: () => void;
-  /** Drop pending timers without showing or hiding anything. */
+  /** Drop pending timers, hiding the indicator if it is currently shown. */
   dispose: () => void;
 }
 
@@ -87,9 +87,15 @@ export function createDelayedProgress(options: DelayedProgressOptions): DelayedP
     },
 
     dispose() {
+      // Anything already on screen has to come down with the host. `clearTimers`
+      // has just discarded a queued hide, so `shownAt` — not `running` — is what
+      // says something is visible: a stop() inside its minimum-visible window
+      // leaves the indicator up with `running` already false.
+      const wasShown = shownAt !== null;
       clearTimers();
       shownAt = null;
       running = false;
+      if (wasShown) hide();
     },
   };
 }
