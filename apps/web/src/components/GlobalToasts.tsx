@@ -25,11 +25,18 @@ const FOLD_TOAST_DELAY_MS = 500;
 const FOLD_TOAST_MIN_VISIBLE_MS = 1000;
 const FOLD_TOAST_ID = 'oristudio-folding';
 const FOLD_STOPPED_TOAST_ID = 'oristudio-folding-stopped';
-/**
- * One id for the whole save, so the confirmation *replaces* the spinner in place
- * rather than stacking underneath it.
- */
 const SAVED_TOAST_ID = 'oristudio-saved';
+/**
+ * The spinner owns its own id and dismisses itself.
+ *
+ * It used to share `SAVED_TOAST_ID` so the confirmation would replace it in
+ * place — which works only when a confirmation follows. It does not for a
+ * desktop save (the notice is scoped to the browser), a download fallback (no
+ * path, so nothing to confirm), a cancelled save, or a failed one. The toast is
+ * `duration: Infinity`, so in every one of those the spinner stayed on screen
+ * for the life of the page.
+ */
+const SAVING_TOAST_ID = 'oristudio-saving';
 
 export function GlobalToasts() {
   const { t } = useTranslation();
@@ -94,9 +101,12 @@ export function GlobalToasts() {
         delayMs: SAVE_TOAST_DELAY_MS,
         minVisibleMs: SAVE_TOAST_MIN_VISIBLE_MS,
         show: () => setSavingVisible(true),
-        // Not dismissed here: the success toast reuses this id and replaces it.
-        // Dismissing would race that and flash the spinner away first.
-        hide: () => setSavingVisible(false),
+        hide: () => {
+          setSavingVisible(false);
+          // However the save ended — written, downloaded, cancelled, failed —
+          // the spinner goes. Nothing else can remove it.
+          toast.dismiss(SAVING_TOAST_ID);
+        },
       }),
     []
   );
@@ -116,7 +126,7 @@ export function GlobalToasts() {
             name: savingName,
           })
         : t('toasts:global.saving', 'Saving {{name}}…', { name: savingName }),
-      { id: SAVED_TOAST_ID, duration: Infinity }
+      { id: SAVING_TOAST_ID, duration: Infinity }
     );
   }, [saveLongRun, savingName, savingVisible, t]);
 

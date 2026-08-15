@@ -2347,6 +2347,24 @@ describe('workspace store slices', () => {
       expect(fileService.saveTextFile.mock.lastCall?.[0].extensions).toEqual(['ori']);
     });
 
+    // The branch the first version of these tests never took: it re-enters the
+    // save machinery, and re-entrancy is where this went wrong in the browser.
+    it('completes the save when the .osf upgrade is chosen', async () => {
+      await openOri();
+      const fileService = createFileService();
+      const unregisterDialogHost = registerCommandDialogHost();
+      try {
+        const save = useWorkspaceStore.getState().saveProject(fileService);
+        await vi.waitFor(() => expect(useCommandDialogStore.getState().dialog).not.toBeNull());
+        resolveCommandDialog(useCommandDialogStore.getState().dialog!.id, 'save-as-project');
+        await expect(save).resolves.toBe(false);
+      } finally {
+        unregisterDialogHost();
+      }
+      expect(useWorkspaceStore.getState().saveRun).toBeNull();
+      expect(fileService.saveTextFile.mock.lastCall?.[0].extensions).toEqual(['osf']);
+    });
+
     it('says nothing when the document has nothing the format would drop', async () => {
       resetStores(seedSnapshot());
       await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0\n', {
