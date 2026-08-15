@@ -1,7 +1,7 @@
 import {
   GlCore,
   MeshRenderer,
-  toViewSpace,
+  viewDepthAxis,
   type CameraUniforms,
   type RenderSettings,
 } from '@treemaker/origami-simulator';
@@ -211,19 +211,18 @@ export interface Folded3dDrawPass {
 /**
  * Which side of a plane the eye is on.
  *
- * The z of `up` in view space, which is the depth axis — positive means the
- * plane's `up` points toward the viewer, so the eye sees the `+1` skin. `center`
- * is zeroed because this is a direction, not a point.
+ * `up` against the view's depth axis — positive means the plane's `up` points
+ * toward the viewer, so the eye sees the `+1` skin. Read off the view rotation
+ * rather than by transforming a point, because this is a direction: it has no
+ * centre and no translation.
  *
  * A single sign for the whole plane, and that is exact rather than approximate:
  * a folded figure is drawn orthographically ({@link withoutPerspective}), so
  * every ray shares one direction.
  */
 function skinFacesEye(skin: Folded3dSkin, camera: CameraUniforms): boolean {
-  const depth = toViewSpace(skin.up[0], skin.up[1], skin.up[2], {
-    ...camera,
-    center: [0, 0, 0],
-  })[2];
+  const [ax, ay, az] = viewDepthAxis(camera.rotation);
+  const depth = skin.up[0] * ax + skin.up[1] * ay + skin.up[2] * az;
   return skin.side === 1 ? depth >= 0 : depth < 0;
 }
 
