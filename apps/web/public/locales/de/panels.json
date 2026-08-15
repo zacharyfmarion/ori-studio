@@ -307,7 +307,8 @@
       "play": "Abspielen",
       "refresh": "Aus den aktuellen Falzlinien neu aufbauen",
       "refreshAction": "Simulationsbereich neu aufbauen",
-      "replay": "Auf flach zurücksetzen"
+      "replay": "Auf flach zurücksetzen",
+      "setUpright": "Oben festlegen"
     },
     "insertImage": "Bild einfügen...",
     "linesCount_one": "{{count}} Linie",
@@ -357,6 +358,7 @@
       "simulateInline": "Eingebettet simulieren"
     },
     "sendImageToBack": "Bild in den Hintergrund senden",
+    "setFoldedModelUpright": "Oben-Richtung des gefalteten Modells festlegen",
     "shadow": "Schatten",
     "shadowUnsupported3d": "Für ein gefaltetes 3D-Modell werden noch keine Schatten gezeichnet",
     "showFoldedModelShadow": "Schatten des gefalteten Modells anzeigen",
@@ -538,6 +540,7 @@
     "localCrossing_other": "Das Papier durchdringt sich an {{count}} Knotenpunkten selbst.",
     "localCrossingLabel": "Papier durchdringt sich",
     "noLayerOrderContradictorySeeds": "Zwei Flächen müssen jeweils über der anderen liegen, sodass keine Stapelung beide erfüllt.",
+    "noLayerOrderExhausted": "Ori Studio hat die Suche abgebrochen, bevor eine Lagenordnung für diese Figur gefunden wurde.",
     "noLayerOrderGeneric": "Die Lagen dieser Figur konnten nicht geordnet werden.",
     "noLayerOrderLabel": "Lagen nicht geordnet",
     "selectCreases": "Falten auswählen",
@@ -561,6 +564,7 @@
     "otherSide": "Andere Seite",
     "refold": "Neu falten",
     "resetView": "Ansicht zurücksetzen",
+    "setUpright": "Oben festlegen",
     "styleDev1": "Entwicklung 1",
     "styleDev4": "Entwicklung 4",
     "styleNone": "Keiner",
@@ -693,6 +697,7 @@
     "scopeStepTitle": "Den ausgewählten Sequenzschritt simulieren",
     "scopeWhole": "Gesamt",
     "scopeWholeTitle": "Das gesamte Faltmuster simulieren",
+    "setUpright": "Oben festlegen",
     "stats": "{{vertices}} Scheitelpunkte | {{triangles}} Dreiecke",
     "step": "Schritt",
     "stepAccuracy": "Genauigkeit der Schrittsimulation",

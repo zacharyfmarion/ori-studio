@@ -297,7 +297,8 @@
       "play": "播放",
       "refresh": "根据当前折痕重新生成",
       "refreshAction": "重建模拟区域",
-      "replay": "恢复为平面"
+      "replay": "恢复为平面",
+      "setUpright": "设置向上方向"
     },
     "insertImage": "插入图像...",
     "linesCount_other": "{{count}} 条线",
@@ -345,6 +346,7 @@
       "simulateInline": "内嵌模拟"
     },
     "sendImageToBack": "将图像置于底层",
+    "setFoldedModelUpright": "设置折叠模型的向上方向",
     "shadow": "阴影",
     "shadowUnsupported3d": "尚不支持为 3D 折叠模型绘制阴影",
     "showFoldedModelShadow": "显示折叠模型阴影",
@@ -524,6 +526,7 @@
     "localCrossing_other": "纸张在 {{count}} 个顶点处穿过了自身。",
     "localCrossingLabel": "纸张自相穿透",
     "noLayerOrderContradictorySeeds": "两个面各自都必须位于对方之上，任何层序都无法同时满足。",
+    "noLayerOrderExhausted": "Ori Studio 在找到此立体的层序之前停止了搜索。",
     "noLayerOrderGeneric": "无法确定此立体各层的先后顺序。",
     "noLayerOrderLabel": "层序未确定",
     "selectCreases": "选中这些折线",
@@ -547,6 +550,7 @@
     "otherSide": "另一侧",
     "refold": "重新折叠",
     "resetView": "重置视角",
+    "setUpright": "设置向上方向",
     "styleDev1": "开发 1",
     "styleDev4": "开发 4",
     "styleNone": "无",
@@ -677,6 +681,7 @@
     "scopeStepTitle": "模拟所选折叠步骤",
     "scopeWhole": "整体",
     "scopeWholeTitle": "模拟整个折痕图",
+    "setUpright": "设置向上方向",
     "stats": "{{vertices}} 个顶点 | {{triangles}} 个三角形",
     "step": "步骤",
     "stepAccuracy": "步骤模拟精度",

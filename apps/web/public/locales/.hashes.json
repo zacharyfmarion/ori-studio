@@ -2468,7 +2468,13 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "panels:fold3dVerdict.noLayerOrderExhausted": "062c0d2b5bed",
+    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
+    "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
+    "panels:foldedFigureActions.setUpright": "86e47d266ac9",
+    "toasts:upright.set": "a8108f3358e8",
+    "panels:simulator.setUpright": "86e47d266ac9"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4939,7 +4945,13 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "panels:fold3dVerdict.noLayerOrderExhausted": "062c0d2b5bed",
+    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
+    "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
+    "panels:foldedFigureActions.setUpright": "86e47d266ac9",
+    "toasts:upright.set": "a8108f3358e8",
+    "panels:simulator.setUpright": "86e47d266ac9"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7410,7 +7422,13 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "panels:fold3dVerdict.noLayerOrderExhausted": "062c0d2b5bed",
+    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
+    "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
+    "panels:foldedFigureActions.setUpright": "86e47d266ac9",
+    "toasts:upright.set": "a8108f3358e8",
+    "panels:simulator.setUpright": "86e47d266ac9"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9842,7 +9860,13 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "panels:fold3dVerdict.noLayerOrderExhausted": "062c0d2b5bed",
+    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
+    "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
+    "panels:foldedFigureActions.setUpright": "86e47d266ac9",
+    "toasts:upright.set": "a8108f3358e8",
+    "panels:simulator.setUpright": "86e47d266ac9"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12274,7 +12298,13 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "panels:fold3dVerdict.noLayerOrderExhausted": "062c0d2b5bed",
+    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
+    "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
+    "panels:foldedFigureActions.setUpright": "86e47d266ac9",
+    "toasts:upright.set": "a8108f3358e8",
+    "panels:simulator.setUpright": "86e47d266ac9"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -14745,7 +14775,13 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "panels:fold3dVerdict.noLayerOrderExhausted": "062c0d2b5bed",
+    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
+    "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
+    "panels:foldedFigureActions.setUpright": "86e47d266ac9",
+    "toasts:upright.set": "a8108f3358e8",
+    "panels:simulator.setUpright": "86e47d266ac9"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17216,7 +17252,13 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "panels:fold3dVerdict.noLayerOrderExhausted": "062c0d2b5bed",
+    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
+    "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
+    "panels:foldedFigureActions.setUpright": "86e47d266ac9",
+    "toasts:upright.set": "a8108f3358e8",
+    "panels:simulator.setUpright": "86e47d266ac9"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -19648,6 +19690,12 @@
     "panels:bpPacking.resizeFlapRight": "784404c041f8",
     "panels:bpPacking.resizeFlapTop": "450f9d0fea9f",
     "panels:bpPacking.resizeFlapTopLeft": "9b42abebc4a3",
-    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820"
+    "panels:bpPacking.resizeFlapTopRight": "8c19c9c29820",
+    "panels:fold3dVerdict.noLayerOrderExhausted": "062c0d2b5bed",
+    "panels:creasePattern.inlineSimulation.setUpright": "86e47d266ac9",
+    "panels:creasePattern.setFoldedModelUpright": "51cd419d4590",
+    "panels:foldedFigureActions.setUpright": "86e47d266ac9",
+    "toasts:upright.set": "a8108f3358e8",
+    "panels:simulator.setUpright": "86e47d266ac9"
   }
 }

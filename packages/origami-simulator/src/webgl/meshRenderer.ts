@@ -11,7 +11,7 @@
 // depth-tested (no painter's sort), two-tone via `gl_FrontFacing`, flat-lit from
 // the screen-space derivative of view position. Edges are a `LINES` pass.
 import type { GlCore } from './glCore.js';
-import type { CameraUniforms } from './camera.js';
+import type { CameraUniforms, Mat3 } from './camera.js';
 import type { FoldAssignment } from '../types.js';
 
 export interface MeshTopology {
@@ -217,6 +217,9 @@ export function creaseFrameScale(
  */
 const MIN_RASTER_CREASE_WIDTH_PX = 1;
 
+/** The colour a fully transparent frame clears to — see the clear in `render`. */
+const TRANSPARENT: readonly [number, number, number] = [0, 0, 0];
+
 /**
  * The width and opacity a rasterizing renderer should draw creases at.
  *
@@ -350,19 +353,52 @@ function buildEdgeQuads(topology: MeshTopology): {
   return { interleaved: out, vertexStart };
 }
 
+/**
+ * The view transform, written once and concatenated into both programs.
+ *
+ * Every shader here used to expand the yaw/pitch products itself, and the face
+ * and edge programs each carried their own copy of the perspective divide with
+ * a comment asking whoever changed one to change the other. `u_view` arrives
+ * already composed by `camera.ts`'s `viewRotation`, so there is no camera
+ * trigonometry in GLSL at all and no second statement of the projection.
+ *
+ * `toView` is a plain matrix multiply because `u_view` is uploaded transposed —
+ * GLSL's `mat3` is column-major and `Mat3` is row-major.
+ */
+const VIEW_GLSL = `
+uniform vec3 u_center;
+uniform mat3 u_view;
+uniform float u_scale;
+uniform vec2 u_viewport;
+uniform float u_depthRange;
+uniform float u_camDist;
+
+vec3 toView(vec3 world){
+  return u_view * (world - u_center);
+}
+
+// One-point perspective: eye at +camDist along the view axis, so nearer points
+// (larger depth) magnify and farther ones shrink -> parallels converge.
+vec2 toNdc(vec3 view){
+  float persp = u_camDist / max(u_camDist - view.z, 0.001);
+  return vec2(
+    view.x*persp*u_scale/(u_viewport.x*0.5),
+    view.y*persp*u_scale/(u_viewport.y*0.5)
+  );
+}
+
+float toNdcDepth(float depth){
+  return clamp(-depth/u_depthRange, -1.0, 1.0);
+}
+`;
+
 const FACE_VERT = `#version 300 es
 precision highp float;
 uniform sampler2D u_lastPosition;
 uniform sampler2D u_originalPosition;
 uniform sampler2D u_lastVelocity;
 uniform int u_textureDim;
-uniform vec3 u_center;
-uniform vec2 u_yaw;   // cos, sin
-uniform vec2 u_pitch; // cos, sin
-uniform float u_scale;
-uniform vec2 u_viewport;
-uniform float u_depthRange;
-uniform float u_camDist;
+${VIEW_GLSL}
 out vec3 v_view;
 out float v_strain;
 
@@ -376,22 +412,9 @@ void main(){
   // velocityCalc stores this node's mean axial strain in the velocity alpha, the
   // same channel upstream reads back for its strain visualization.
   v_strain = texelFetch(u_lastVelocity, texel, 0).w;
-  vec3 d = fetchPosition(gl_VertexID) - u_center;
-  float yawX =  u_yaw.x*d.x + u_yaw.y*d.z;
-  float yawZ = -u_yaw.y*d.x + u_yaw.x*d.z;
-  float x = yawX;
-  float y = u_pitch.x*yawZ - u_pitch.y*d.y;
-  float depth = u_pitch.y*yawZ + u_pitch.x*d.y;
-  v_view = vec3(x, y, depth);
-  // One-point perspective: eye at +camDist along the view axis, so nearer points
-  // (larger depth) magnify and farther ones shrink -> parallels converge.
-  float persp = u_camDist / max(u_camDist - depth, 0.001);
-  gl_Position = vec4(
-    x*persp*u_scale/(u_viewport.x*0.5),
-    y*persp*u_scale/(u_viewport.y*0.5),
-    clamp(-depth/u_depthRange, -1.0, 1.0),
-    1.0
-  );
+  vec3 view = toView(fetchPosition(gl_VertexID));
+  v_view = view;
+  gl_Position = vec4(toNdc(view), toNdcDepth(view.z), 1.0);
 }`;
 
 const FACE_FRAG = `#version 300 es
@@ -452,13 +475,7 @@ in float a_assignment; // crease type
 uniform sampler2D u_lastPosition;
 uniform sampler2D u_originalPosition;
 uniform int u_textureDim;
-uniform vec3 u_center;
-uniform vec2 u_yaw;
-uniform vec2 u_pitch;
-uniform float u_scale;
-uniform vec2 u_viewport;
-uniform float u_depthRange;
-uniform float u_camDist;
+${VIEW_GLSL}
 uniform float u_halfWidthPx;
 uniform float u_depthBias;
 flat out int v_assignment;
@@ -471,23 +488,14 @@ vec3 fetchPosition(int index){
   return texelFetch(u_lastPosition, texel, 0).xyz + texelFetch(u_originalPosition, texel, 0).xyz;
 }
 
+// Shares toNdc with the face pass rather than restating it, so creases cannot
+// drift off their faces.
 vec2 projectNdc(int index){
-  vec3 d = fetchPosition(index) - u_center;
-  float yawX =  u_yaw.x*d.x + u_yaw.y*d.z;
-  float yawZ = -u_yaw.y*d.x + u_yaw.x*d.z;
-  float x = yawX;
-  float y = u_pitch.x*yawZ - u_pitch.y*d.y;
-  float depth = u_pitch.y*yawZ + u_pitch.x*d.y;
-  // Same one-point perspective as the face pass, so creases sit on their faces.
-  float persp = u_camDist / max(u_camDist - depth, 0.001);
-  return vec2(x*persp*u_scale/(u_viewport.x*0.5), y*persp*u_scale/(u_viewport.y*0.5));
+  return toNdc(toView(fetchPosition(index)));
 }
 
 float projectDepth(int index){
-  vec3 d = fetchPosition(index) - u_center;
-  float yawZ = -u_yaw.y*d.x + u_yaw.x*d.z;
-  float depth = u_pitch.y*yawZ + u_pitch.x*d.y;
-  return clamp(-depth/u_depthRange, -1.0, 1.0);
+  return toNdcDepth(toView(fetchPosition(index)).z);
 }
 
 void main(){
@@ -681,13 +689,24 @@ export class MeshRenderer {
     gl.depthFunc(gl.LEQUAL);
     if (options.clear ?? true) {
       // Straight (non-premultiplied) alpha, matching the context GlCore requests,
-      // so the colour is left alone and only the alpha decides what shows through.
-      gl.clearColor(
-        settings.background[0],
-        settings.background[1],
-        settings.background[2],
-        settings.backgroundAlpha ?? 1
-      );
+      // so the colour is left alone and only the alpha decides what shows through
+      // — except at zero alpha, which clears to transparent *black* rather than to
+      // the background colour nothing is going to show.
+      //
+      // Under straight alpha the two are the same picture, because the colour of a
+      // fully transparent pixel is never read. WebKit reads it anyway: it
+      // composites the drawing buffer as premultiplied whatever the context
+      // attribute asked for, so `(r, g, b, 0)` reaches the page as `r, g, b`
+      // *added* to whatever is behind the canvas. That is what put a grey
+      // rectangle behind the welcome screen's figure on iOS Safari — `--bg-canvas`
+      // #1b1f27 summed with the page's #282c34, measured as exactly #434b5b, and a
+      // white one under the light theme, where the sum clips.
+      //
+      // Zeroing the colour is a no-op wherever the attribute is honoured, and the
+      // only spelling that reads as "nothing here" under both interpretations.
+      const backgroundAlpha = settings.backgroundAlpha ?? 1;
+      const background = backgroundAlpha > 0 ? settings.background : TRANSPARENT;
+      gl.clearColor(background[0], background[1], background[2], backgroundAlpha);
       gl.clearDepth(1);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     }
@@ -815,8 +834,7 @@ export class MeshRenderer {
     this.setInt(program, cache, 'u_lastVelocity', 2);
     this.setInt(program, cache, 'u_textureDim', this.textureDim);
     this.setVec3(program, cache, 'u_center', camera.center);
-    this.setVec2(program, cache, 'u_yaw', [camera.cosYaw, camera.sinYaw]);
-    this.setVec2(program, cache, 'u_pitch', [camera.cosPitch, camera.sinPitch]);
+    this.setMat3(program, cache, 'u_view', camera.rotation);
     this.setFloat(program, cache, 'u_scale', camera.scale);
     this.setVec2(program, cache, 'u_viewport', [camera.width, camera.height]);
     this.setFloat(program, cache, 'u_depthRange', camera.depthRange);
@@ -862,6 +880,19 @@ export class MeshRenderer {
     v: [number, number, number]
   ): void {
     this.gl.uniform3f(this.location(p, c, n), v[0], v[1], v[2]);
+  }
+  /**
+   * `Mat3` is row-major and GLSL's `mat3` is column-major, so this transposes on
+   * the way in — the one place the two conventions meet. WebGL2 supports the
+   * transpose flag (WebGL1 did not), so no shuffled copy is made per frame.
+   */
+  private setMat3(
+    p: WebGLProgram,
+    c: Map<string, WebGLUniformLocation | null>,
+    n: string,
+    v: Mat3
+  ): void {
+    this.gl.uniformMatrix3fv(this.location(p, c, n), true, v as unknown as number[]);
   }
 }
 

@@ -1,4 +1,4 @@
-import { fitExtent } from "@treemaker/origami-simulator";
+import { fitExtent, viewRotation } from "@treemaker/origami-simulator";
 import type {
   CreaseDash,
   FoldDocument as SimulatorFoldDocument,
@@ -320,21 +320,19 @@ function projectPositions(
 ): ProjectedPoint[] {
   const center = boundsCenter(positions);
   const points: ProjectedPoint[] = [];
-  const cosYaw = Math.cos(view.yaw);
-  const sinYaw = Math.sin(view.yaw);
-  const cosPitch = Math.cos(view.pitch);
-  const sinPitch = Math.sin(view.pitch);
+  // The same matrix the GPU path is handed, rather than a sixth transcription of
+  // the yaw/pitch products — a machine without WebGL2 draws through here, and
+  // "the fallback is the same view" has to be structural, not remembered.
+  const m = viewRotation(view.yaw, view.pitch, view.orient);
 
   for (let index = 0; index < positions.length; index += 3) {
     const dx = (positions[index] ?? 0) - center.x;
     const dy = (positions[index + 1] ?? 0) - center.y;
     const dz = (positions[index + 2] ?? 0) - center.z;
-    const yawX = cosYaw * dx + sinYaw * dz;
-    const yawZ = -sinYaw * dx + cosYaw * dz;
     points.push({
-      x: yawX,
-      y: cosPitch * yawZ - sinPitch * dy,
-      depth: sinPitch * yawZ + cosPitch * dy,
+      x: m[0] * dx + m[1] * dy + m[2] * dz,
+      y: m[3] * dx + m[4] * dy + m[5] * dz,
+      depth: m[6] * dx + m[7] * dy + m[8] * dz,
     });
   }
   return points;

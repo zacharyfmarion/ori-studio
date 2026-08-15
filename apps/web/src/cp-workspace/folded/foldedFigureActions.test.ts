@@ -43,11 +43,22 @@ function makeFigure(
   } as unknown as OristudioCpFoldedFigureEntry;
 }
 
+const IDENTITY_ORIENT = [1, 0, 0, 0, 1, 0, 0, 0, 1] as const;
+
+/** A 3D figure, optionally carrying a model up the user has set. */
+function make3dFigure(orient?: typeof IDENTITY_ORIENT): OristudioCpFoldedFigureEntry {
+  return makeFigure({
+    folded3d: { model: { state: 'Front0' }, verdict: { verdict: 'folded' } },
+    camera: orient ? { yaw: 0, pitch: 0, zoom: 1, orient } : { yaw: 0, pitch: 0, zoom: 1 },
+  } as unknown as Partial<OristudioCpFoldedFigureEntry>);
+}
+
 function makeDeps(overrides: Partial<FoldedFigureActionDeps> = {}): FoldedFigureActionDeps {
   return {
     t,
     flip: vi.fn(),
     resetView: vi.fn(),
+    setUpright: vi.fn(),
     setDisplayStyle: vi.fn(),
     foldAnother: vi.fn(),
     duplicate: vi.fn(),
@@ -198,6 +209,31 @@ describe('buildFoldedFigureActions', () => {
     expect(deps.duplicate).toHaveBeenCalledWith(figure);
     expect(deps.remove).toHaveBeenCalledWith(figure);
     expect(deps.setDisplayStyle).toHaveBeenCalledWith(figure, 'Wire2');
+  });
+
+  it('routes Set upright to its dependency', () => {
+    const deps = makeDeps();
+    const figure = make3dFigure(IDENTITY_ORIENT);
+
+    command(figure, deps, 'set-upright').run();
+
+    expect(deps.setUpright).toHaveBeenCalledWith(figure);
+  });
+
+  it('offers Set upright only on a 3D figure, which is the only kind with a viewpoint', () => {
+    const deps = makeDeps();
+    expect(commandIds(makeFigure(), deps)).not.toContain('set-upright');
+    expect(commandIds(make3dFigure(), deps)).toContain('set-upright');
+  });
+
+  it('offers no clear verb — undo is the way back from an upright', () => {
+    // Deliberate: this is document state and Set upright takes one undo entry,
+    // so a second button would be a second way to do what undo already does.
+    // The simulator has no undo behind it and handles this differently — its
+    // view reset drops the orientation.
+    const deps = makeDeps();
+
+    expect(commandIds(make3dFigure(IDENTITY_ORIENT), deps)).not.toContain('clear-upright');
   });
 
   it('marks delete as the only destructive verb', () => {

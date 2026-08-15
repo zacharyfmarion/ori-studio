@@ -317,7 +317,8 @@
       "play": "Reproducir",
       "refresh": "Regenerar a partir de los pliegues actuales",
       "refreshAction": "Reconstruir región de simulación",
-      "replay": "Volver a plano"
+      "replay": "Volver a plano",
+      "setUpright": "Definir vertical"
     },
     "insertImage": "Insertar imagen...",
     "linesCount_one": "{{count}} línea",
@@ -369,6 +370,7 @@
       "simulateInline": "Simular incrustado"
     },
     "sendImageToBack": "Enviar imagen al fondo",
+    "setFoldedModelUpright": "Definir la vertical del modelo plegado",
     "shadow": "Sombra",
     "shadowUnsupported3d": "Todavía no se dibujan sombras para un modelo plegado en 3D",
     "showFoldedModelShadow": "Mostrar la sombra del modelo plegado",
@@ -555,6 +557,7 @@
     "localCrossing_other": "El papel se atraviesa a sí mismo en {{count}} vértices.",
     "localCrossingLabel": "El papel se atraviesa",
     "noLayerOrderContradictorySeeds": "Dos caras tienen que quedar cada una por encima de la otra, así que ningún apilado satisface ambas.",
+    "noLayerOrderExhausted": "Ori Studio dejó de buscar antes de encontrar un orden de capas para esta figura.",
     "noLayerOrderGeneric": "No se han podido ordenar las capas de esta figura.",
     "noLayerOrderLabel": "Capas sin ordenar",
     "selectCreases": "Seleccionar los pliegues",
@@ -579,6 +582,7 @@
     "otherSide": "Otro lado",
     "refold": "Volver a plegar",
     "resetView": "Restablecer vista",
+    "setUpright": "Definir vertical",
     "styleDev1": "Desarrollo 1",
     "styleDev4": "Desarrollo 4",
     "styleNone": "Ninguno",
@@ -713,6 +717,7 @@
     "scopeStepTitle": "Simular el paso de secuencia seleccionado",
     "scopeWhole": "Completo",
     "scopeWholeTitle": "Simular todo el patrón de pliegues",
+    "setUpright": "Definir vertical",
     "stats": "{{vertices}} vértices | {{triangles}} triángulos",
     "step": "Paso",
     "stepAccuracy": "Precisión de la simulación del paso",

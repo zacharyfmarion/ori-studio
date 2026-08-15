@@ -317,7 +317,8 @@
       "play": "Reproduzir",
       "refresh": "Reconstruir a partir dos vincos atuais",
       "refreshAction": "Reconstruir região de simulação",
-      "replay": "Voltar ao plano"
+      "replay": "Voltar ao plano",
+      "setUpright": "Definir vertical"
     },
     "insertImage": "Inserir imagem...",
     "linesCount_one": "{{count}} linha",
@@ -369,6 +370,7 @@
       "simulateInline": "Simular incorporado"
     },
     "sendImageToBack": "Enviar imagem para trás",
+    "setFoldedModelUpright": "Definir a vertical do modelo dobrado",
     "shadow": "Sombra",
     "shadowUnsupported3d": "As sombras ainda não são desenhadas para um modelo dobrado em 3D",
     "showFoldedModelShadow": "Mostrar sombra do modelo dobrado",
@@ -555,6 +557,7 @@
     "localCrossing_other": "O papel atravessa a si mesmo em {{count}} vértices.",
     "localCrossingLabel": "O papel atravessa a si mesmo",
     "noLayerOrderContradictorySeeds": "Duas faces precisam ficar cada uma acima da outra, então nenhum empilhamento satisfaz as duas.",
+    "noLayerOrderExhausted": "O Ori Studio parou de procurar antes de encontrar uma ordem de camadas para esta figura.",
     "noLayerOrderGeneric": "Não foi possível ordenar as camadas desta figura.",
     "noLayerOrderLabel": "Camadas não ordenadas",
     "selectCreases": "Selecionar os vincos",
@@ -579,6 +582,7 @@
     "otherSide": "Outro lado",
     "refold": "Dobrar novamente",
     "resetView": "Redefinir vista",
+    "setUpright": "Definir vertical",
     "styleDev1": "Desenvolvimento 1",
     "styleDev4": "Desenvolvimento 4",
     "styleNone": "Nenhum",
@@ -713,6 +717,7 @@
     "scopeStepTitle": "Simular o passo de sequência selecionado",
     "scopeWhole": "Completo",
     "scopeWholeTitle": "Simular todo o padrão de vincos",
+    "setUpright": "Definir vertical",
     "stats": "{{vertices}} vértices | {{triangles}} triângulos",
     "step": "Passo",
     "stepAccuracy": "Precisão da simulação do passo",

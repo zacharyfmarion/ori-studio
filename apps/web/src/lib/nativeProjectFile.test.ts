@@ -547,6 +547,50 @@ describe('native project file', () => {
     expect(serialized.minimumReaderSchemaVersion).toBe(1);
   });
 
+  it('round-trips a model up, so a figure set upright reopens upright', () => {
+    const orient = [0, 0, 1, 0, 1, 0, -1, 0, 0] as const;
+    const [entry] = reparse(
+      roundTripCp([
+        { ...folded3dFigure(), camera: { yaw: 0.5, pitch: -0.35, zoom: 1.25, orient } },
+      ]).serialized
+    );
+    expect(entry.camera?.orient).toEqual([...orient]);
+  });
+
+  it('reads a figure with no model up as having none, so old files open unmoved', () => {
+    // The whole reason this needed no schema bump: absent means identity, and
+    // identity is the turntable about the paper's normal that every figure
+    // written before the verb existed was drawn with.
+    const { serialized } = roundTripCp([folded3dFigure()]);
+    const stored = serialized.workspace.creasePattern.viewState.foldedFigures[0];
+    delete stored.camera.orient;
+
+    const [entry] = reparse(serialized);
+    expect(entry.camera).toEqual({ yaw: 0.5, pitch: -0.35, zoom: 1.25 });
+    expect(entry.camera?.orient).toBeUndefined();
+  });
+
+  it('drops a malformed model up whole rather than reading half a basis', () => {
+    // Half a rotation is not a rotation. Keeping the readable part would draw a
+    // sheared figure, which reads as a kernel bug rather than a bad file.
+    // Cast because these are deliberately not orientations — a short basis, a
+    // string, and nine slots one of which is not a number.
+    const malformed = [[1, 0, 0], 'nope', [1, 0, 0, 0, 1, 0, 0, 0, 'x']] as unknown[];
+    for (const bad of malformed) {
+      const [entry] = reparse(
+        roundTripCp([
+          {
+            ...folded3dFigure(),
+            camera: { yaw: 0.5, pitch: -0.35, zoom: 1.25, orient: bad as never },
+          },
+        ]).serialized
+      );
+      expect(entry.camera?.orient).toBeUndefined();
+      // The rest of the camera survives — only the orientation was unreadable.
+      expect(entry.camera?.yaw).toBe(0.5);
+    }
+  });
+
   it('carries a fold contradiction back, which the reader used to drop', () => {
     const contradiction = { upper_face: 3, lower_face: 7 };
     const [entry] = reparse(roundTripCp([{ ...foldedFigure(), contradiction }]).serialized);

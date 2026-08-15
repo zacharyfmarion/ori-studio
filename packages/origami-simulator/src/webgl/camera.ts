@@ -10,14 +10,102 @@ export interface OrbitView {
   yaw: number;
   pitch: number;
   zoom: number;
+  /**
+   * Model rotation applied before the camera, so yaw spins about the model's own
+   * up rather than about the paper's normal. Absent means identity, i.e. the
+   * turntable this has always been.
+   */
+  orient?: Mat3;
+}
+
+/**
+ * The view rotation, **row-major**: `view = M · (world − centre)`.
+ *
+ * Row-major because the rows are the view basis vectors, which is the whole
+ * reason this is a matrix rather than four trig scalars — row 2 *is* the eye
+ * direction, so anything that needs it reads it off instead of re-deriving it.
+ * See {@link viewDepthAxis}.
+ *
+ * GLSL's `mat3` is column-major, so the upload transposes. That is the one place
+ * the two conventions meet, and it is done with `uniformMatrix3fv`'s own
+ * transpose flag rather than by storing the transpose here.
+ */
+export type Mat3 = readonly [
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+];
+
+export const IDENTITY_MAT3: Mat3 = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+
+/**
+ * Yaw about Y, then pitch — as a matrix, which is the only statement of it.
+ *
+ * This used to be written out five times: three GLSL shaders, `toViewSpace`
+ * here, and the canvas-2D fallback's `projectPositions`. Each was a hand
+ * transcription of the same six products, and one of them (`projectDepth`) was
+ * a *partial* transcription that skipped the x row — the kind of near-copy that
+ * goes stale with nothing failing. Composing it once and shipping the result
+ * means the GPU consumes this function's output rather than a restatement of it,
+ * so the two cannot disagree.
+ *
+ * `orient` is an optional model rotation applied **before** the camera, so yaw
+ * spins about `orientᵀ · Y` rather than about world Y. Identity by default,
+ * which reproduces the original transform exactly.
+ */
+export function viewRotation(yaw: number, pitch: number, orient: Mat3 = IDENTITY_MAT3): Mat3 {
+  const cy = Math.cos(yaw);
+  const sy = Math.sin(yaw);
+  const cp = Math.cos(pitch);
+  const sp = Math.sin(pitch);
+  // Yaw about Y, then pitch, expanded once:
+  //   x     =  cy·dx           + sy·dz
+  //   y     = -cp·sy·dx - sp·dy + cp·cy·dz
+  //   depth = -sp·sy·dx + cp·dy + sp·cy·dz
+  const camera: Mat3 = [cy, 0, sy, -cp * sy, -sp, cp * cy, -sp * sy, cp, sp * cy];
+  return orient === IDENTITY_MAT3 ? camera : multiplyMat3(camera, orient);
+}
+
+/** Row-major `a · b`. */
+export function multiplyMat3(a: Mat3, b: Mat3): Mat3 {
+  const out = new Array<number>(9);
+  for (let row = 0; row < 3; row += 1) {
+    for (let col = 0; col < 3; col += 1) {
+      out[row * 3 + col] =
+        a[row * 3]! * b[col]! + a[row * 3 + 1]! * b[3 + col]! + a[row * 3 + 2]! * b[6 + col]!;
+    }
+  }
+  return out as unknown as Mat3;
+}
+
+/** Transpose, which for a rotation is also the inverse. */
+export function transposeMat3(m: Mat3): Mat3 {
+  return [m[0], m[3], m[6], m[1], m[4], m[7], m[2], m[5], m[8]];
+}
+
+/**
+ * The direction the eye lies in: row 2 of the rotation, unit length.
+ *
+ * "Which side of a plane is the viewer on" is a question the folded projector
+ * asks per stacked cell, and it used to answer it by re-deriving
+ * `(−sinP·sinY, cosP, sinP·cosY)` in trigonometry, with a comment warning that a
+ * wrong sign "draws the figure near-to-far". It is a row of the matrix, so it is
+ * read rather than derived and the sign trap cannot recur.
+ */
+export function viewDepthAxis(rotation: Mat3): [number, number, number] {
+  return [rotation[6], rotation[7], rotation[8]];
 }
 
 export interface CameraUniforms {
   center: [number, number, number];
-  cosYaw: number;
-  sinYaw: number;
-  cosPitch: number;
-  sinPitch: number;
+  /** The view rotation. See {@link viewRotation}. */
+  rotation: Mat3;
   /** World-units-to-pixels, before the NDC divide. */
   scale: number;
   /** Drawing-buffer size in device pixels. */
@@ -69,10 +157,7 @@ export function cameraUniforms(
   const scale = (fitExtent(width, height) / (2 * safeRadius)) * view.zoom;
   return {
     center,
-    cosYaw: Math.cos(view.yaw),
-    sinYaw: Math.sin(view.yaw),
-    cosPitch: Math.cos(view.pitch),
-    sinPitch: Math.sin(view.pitch),
+    rotation: viewRotation(view.yaw, view.pitch, view.orient),
     scale,
     width,
     height,
@@ -151,8 +236,12 @@ export function projectVertices(
 }
 
 /**
- * World position to the shader's view space: centred, yawed about Y, then
- * pitched. `depth` grows toward the eye.
+ * World position to the shader's view space: centred, then rotated. `depth`
+ * grows toward the eye.
+ *
+ * The rotation is {@link CameraUniforms.rotation}, the same nine numbers the
+ * shader is handed — so this is no longer a *mirror* of the vertex shader that
+ * has to be kept in step with it, it is the same matrix applied on the CPU.
  */
 export function toViewSpace(
   x: number,
@@ -163,12 +252,11 @@ export function toViewSpace(
   const dx = x - camera.center[0];
   const dy = y - camera.center[1];
   const dz = z - camera.center[2];
-  const yawX = camera.cosYaw * dx + camera.sinYaw * dz;
-  const yawZ = -camera.sinYaw * dx + camera.cosYaw * dz;
+  const m = camera.rotation;
   return [
-    yawX,
-    camera.cosPitch * yawZ - camera.sinPitch * dy,
-    camera.sinPitch * yawZ + camera.cosPitch * dy,
+    m[0] * dx + m[1] * dy + m[2] * dz,
+    m[3] * dx + m[4] * dy + m[5] * dz,
+    m[6] * dx + m[7] * dy + m[8] * dz,
   ];
 }
 
