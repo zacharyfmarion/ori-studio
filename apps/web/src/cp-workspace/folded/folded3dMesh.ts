@@ -108,6 +108,30 @@ import {
  */
 export const FOLDED_3D_MESH_VERTEX_BUDGET = 1_048_576;
 
+/**
+ * How far inside its own face a crease is drawn, as a fraction of `modelRadius`.
+ *
+ * A crease at a fold that is not flat lies in **both** planes it joins — that is
+ * what a fold line is — so it is exactly coplanar with whatever the *other*
+ * plane has along it, and that may be paper in front of the layer the crease
+ * belongs to. On the reported case a 90° fold between a flap and a wall put the
+ * flap's crease exactly on the wall's surface, and the crease bias, however
+ * small, tipped it in front: the fold showed through the wall from the side the
+ * flap is hidden on.
+ *
+ * Drawing it a hair inside its own cell settles it, and settles it in the right
+ * direction rather than by luck: the crease then has the depth of the paper it
+ * bounds, so the ordinary plane-against-plane depth test answers correctly, from
+ * every camera and in any draw order.
+ *
+ * At `1e-3` of radius this is about a quarter of a device pixel on a 512-frame
+ * window — invisible as an inset — while giving 50 times the crease bias in
+ * depth separation when the occluding plane is face-on. It shrinks with the
+ * angle between the two planes, and vanishes when the occluder is edge-on, which
+ * is exactly when the occluder covers no pixels to hide anything behind.
+ */
+export const CREASE_INSET_RELATIVE = 1e-3;
+
 /** Triangles smaller than this fraction of `radius²` are dropped. */
 const MIN_TRIANGLE_AREA_RELATIVE = 1e-12;
 
@@ -334,11 +358,10 @@ function signedArea2(
  * these are needed before a single vertex can be placed: `eps` depends on the
  * deepest stack anywhere in the model.
  *
- * `vertexCount` is an **upper bound** and `slotVertexCount` is exact. Creases
- * cost no vertices now that they are drawn from their slot's ring, except in the
- * fallback where a model edge is inked nowhere
- * ({@link Folded3dMesh.fallbackEdgeCount}) — so the slack is `2 · edge_count`
- * less what was inked, and asking would mean building the ink. Bounding is the
+ * `vertexCount` is an **upper bound** and `slotVertexCount` is exact. The slack
+ * is the fallback, where a model edge inked nowhere gets a line of its own
+ * ({@link Folded3dMesh.fallbackEdgeCount}) — so it is `2 · edge_count` less what
+ * was inked, and asking exactly would mean building the ink. Bounding is the
  * safe direction for a budget check: it can refuse a figure it did not have to,
  * never admit one that then blows the limit.
  */
@@ -354,7 +377,9 @@ export function folded3dMeshExtent(model: OristudioCpFolded3dRenderModel): {
     const ringLength = model.cell_attr[base + 2] ?? 0;
     const stackLength = model.cell_attr[base + 4] ?? 0;
     maxStackDepth = Math.max(maxStackDepth, stackLength);
-    if (ringLength >= 3) slotVertexCount += ringLength * stackLength;
+    // Two copies of the ring per slot: the paper, and the ring inset by
+    // `CREASE_INSET_RELATIVE` that the creases are drawn from.
+    if (ringLength >= 3) slotVertexCount += ringLength * stackLength * 2;
   }
   return {
     vertexCount: slotVertexCount + model.edge_count * 2,
@@ -373,6 +398,7 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
   }
 
   const minArea2 = MIN_TRIANGLE_AREA_RELATIVE * Math.max(radius * radius, Number.MIN_VALUE);
+  const inset = CREASE_INSET_RELATIVE * radius;
   const ink = buildFolded3dInk(model);
   const assignmentOf = new Uint8Array(model.edge_count);
   for (let edge = 0; edge < model.edge_count; edge += 1) {
@@ -436,12 +462,64 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
     }
     const triangles = earcut(flat);
 
+    // The same ring, pulled `inset` toward its own interior. A crease is drawn
+    // from *this* copy, so it carries the depth of the paper it bounds rather
+    // than of the fold line — see `CREASE_INSET_RELATIVE`.
+    //
+    // Per vertex rather than per segment, from the mean of the two adjacent
+    // inward normals, so the inset ring closes at its corners instead of leaving
+    // a gap at each one. Which side is inward is read off the ring's own signed
+    // area, because the kernel promises no winding.
+    let area2 = 0;
+    for (let i = 0; i < ring.length; i += 1) {
+      const j = (i + 1) % ring.length;
+      area2 += flat[i * 2]! * flat[j * 2 + 1]! - flat[j * 2]! * flat[i * 2 + 1]!;
+    }
+    const handedness = area2 >= 0 ? 1 : -1;
+    const insetFlat: number[] = [];
+    for (let i = 0; i < ring.length; i += 1) {
+      const previous = (i + ring.length - 1) % ring.length;
+      const next = (i + 1) % ring.length;
+      let nx = 0;
+      let ny = 0;
+      for (const [from, to] of [
+        [previous, i],
+        [i, next],
+      ] as const) {
+        const dx = flat[to * 2]! - flat[from * 2]!;
+        const dy = flat[to * 2 + 1]! - flat[from * 2 + 1]!;
+        const length = Math.hypot(dx, dy);
+        if (length < Number.MIN_VALUE) continue;
+        // Interior is to the left of a counter-clockwise edge.
+        nx += (-dy / length) * handedness;
+        ny += (dx / length) * handedness;
+      }
+      const length = Math.hypot(nx, ny);
+      const scale = length > 1e-9 ? inset / length : 0;
+      insetFlat.push(flat[i * 2]! + nx * scale, flat[i * 2 + 1]! + ny * scale);
+    }
+
     for (let slot = 0; slot < stack.length; slot += 1) {
       const face = stack[slot]!;
       const first = vertex;
       slotVertexStart.push(first);
       for (const point of ring) {
         const sim = toSimBasis(point);
+        positions[vertex * 3] = sim[0] - centre[0];
+        positions[vertex * 3 + 1] = sim[1] - centre[1];
+        positions[vertex * 3 + 2] = sim[2] - centre[2];
+        vertex += 1;
+      }
+      // The inset ring, lifted back out of the plane's `(u, v)`.
+      const insetFirst = vertex;
+      for (let i = 0; i < ring.length; i += 1) {
+        const u = insetFlat[i * 2]!;
+        const v = insetFlat[i * 2 + 1]!;
+        const sim = toSimBasis([
+          frame.origin[0] + frame.u[0] * u + frame.v[0] * v,
+          frame.origin[1] + frame.u[1] * u + frame.v[1] * v,
+          frame.origin[2] + frame.u[2] * u + frame.v[2] * v,
+        ]);
         positions[vertex * 3] = sim[0] - centre[0];
         positions[vertex * 3 + 1] = sim[1] - centre[1];
         positions[vertex * 3 + 2] = sim[2] - centre[2];
@@ -489,8 +567,8 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
         const edge = ink.edgeAt(cell, slot, segment);
         if (edge < 0) continue;
         creases.push(
-          first + segment,
-          first + ((segment + 1) % ring.length),
+          insetFirst + segment,
+          insetFirst + ((segment + 1) % ring.length),
           assignmentOf[edge] ?? 0
         );
       }

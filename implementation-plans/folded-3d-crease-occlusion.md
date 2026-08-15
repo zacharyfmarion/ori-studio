@@ -353,6 +353,44 @@ plane — real geometry, genuinely separated.
       fold. Drawing every layer's creases instead adds a 260-pixel band at row
       209, which is the second line that should not be there.
 
+## Phase 9 — a crease is drawn inside its own face
+
+Found by `repro.osf`: the same strip twice, once with its rightmost crease flat
+and once at 90°. The flat one is right; the 90° one shows that fold through the
+paper covering it.
+
+Phase 8 rested on "a crease is only ever coincident with the single face it lies
+on". That is true of a flat fold and false of every other one. **A fold line lies
+in both planes it joins** — that is what a fold is — so a crease left on the line
+is exactly coplanar with whatever the *other* plane has along it, which may be
+paper in front of the layer the crease belongs to. The crease bias, however
+small, then tips it in front.
+
+In the repro: the 90° fold joins a flap (its own plane) to the buried layer of a
+wall. The line sits on the wall's surface, so from the side the flap is hidden
+on, the crease is coplanar with the wall's visible face and draws over it.
+
+The fix is geometric, not another epsilon: draw a crease a hair **inside its own
+cell**, along the in-plane inward normal. It then carries the depth of the paper
+it bounds instead of the depth of the fold line, and ordinary plane-against-plane
+depth testing answers correctly — from every camera, in any draw order, with no
+sorting.
+
+- [x] `CREASE_INSET_RELATIVE = 1e-3` of radius: about a quarter of a device pixel
+      on a 512-frame window, and 50× the crease bias in depth separation when the
+      occluding plane is face-on. It shrinks with the angle between the planes
+      and vanishes when the occluder is edge-on — which is exactly when the
+      occluder covers no pixels to hide anything behind.
+- [x] The inset ring is emitted per slot beside the paper ring, mitred at the
+      corners from the mean of the two adjacent inward normals so it closes
+      rather than leaving a gap at each turn. Handedness is read off the ring's
+      own signed area, because the kernel promises no winding.
+- [x] Measured on the reported file at its own camera: crease samples drawn over
+      **another plane's** paper at equal depth fall from **177 to 0** on the 90°
+      figure, and 12 to 0 on the flat one. What remains across the fixtures is
+      under 2% of drawn samples, at plane-boundary pixels where which plane owns
+      the pixel is a rasterisation tie rather than an occlusion fact.
+
 ## Validation
 
 Web-only, so: `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`.

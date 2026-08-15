@@ -28,6 +28,7 @@ import { describe, expect, it } from 'vitest';
 import {
   cameraUniforms,
   projectVertices,
+  viewDepthAxis,
   type CameraUniforms,
   type ProjectedVertices,
 } from '@treemaker/origami-simulator';
@@ -106,7 +107,9 @@ function rasterize(
   projected: ProjectedVertices,
   camera: CameraUniforms,
   range: { start: number; count: number },
-  buffer: Float32Array
+  buffer: Float32Array,
+  plane = -1,
+  planeAt?: Int32Array
 ): void {
   const indices = mesh.topology.faceIndices;
   for (let at = range.start; at + 2 < range.start + range.count; at += 3) {
@@ -141,7 +144,10 @@ function rasterize(
         if (w0 < 0 || w1 < 0 || w0 + w1 > 1) continue;
         const z = az + w1 * (bz - az) + w0 * (cz - az);
         const to = py * FRAME + px;
-        if (z <= buffer[to]!) buffer[to] = z;
+        if (z <= buffer[to]!) {
+          buffer[to] = z;
+          if (planeAt) planeAt[to] = plane;
+        }
       }
     }
   }
@@ -224,6 +230,76 @@ describe('nothing is drawn over paper in front of it', () => {
       // And the figure still has linework: a mesh that drew no creases at all
       // would satisfy the bound above perfectly.
       expect(drawn).toBeGreaterThan(0);
+    });
+  });
+
+  describe.each(NAMES)('%s', (name) => {
+    it.each(CAMERAS)('draws no crease over another plane’s paper, from %s', (_l, yaw, pitch) => {
+      const mesh = meshOf(fixture(name));
+      const camera = cameraFor(mesh, yaw, pitch);
+      const projected = projectVertices(mesh.positions, camera, { perspective: true });
+
+      // A fold that is not flat lies in **both** planes it joins, so a crease
+      // left on the fold line is exactly coplanar with whatever the other plane
+      // has along it — and the bias then tips it in front of paper that is
+      // genuinely covering it. `CREASE_INSET_RELATIVE` pulls each crease inside
+      // its own face so that comparison is well posed; this is the statement
+      // that it worked.
+      const axis = viewDepthAxis(camera.rotation);
+      const chosen = mesh.skins.filter((skin) => {
+        const depth =
+          skin.up[0] * axis[0] + skin.up[1] * axis[1] + skin.up[2] * axis[2];
+        return skin.side === 1 ? depth >= 0 : depth < 0;
+      });
+      const buffer = new Float32Array(FRAME * FRAME).fill(Infinity);
+      const planeAt = new Int32Array(FRAME * FRAME).fill(-1);
+      for (const skin of chosen) {
+        rasterize(
+          mesh,
+          projected,
+          camera,
+          { start: skin.faceIndexStart, count: skin.faceIndexCount },
+          buffer,
+          skin.plane,
+          planeAt
+        );
+      }
+
+      let overForeignPlane = 0;
+      let drawn = 0;
+      for (const skin of chosen) {
+        for (let crease = skin.edgeStart; crease < skin.edgeStart + skin.edgeCount; crease += 1) {
+          const ia = mesh.topology.edgeIndices[crease * 2]!;
+          const ib = mesh.topology.edgeIndices[crease * 2 + 1]!;
+          const ax = projected.screen[ia * 2]!;
+          const ay = projected.screen[ia * 2 + 1]!;
+          const bx = projected.screen[ib * 2]!;
+          const by = projected.screen[ib * 2 + 1]!;
+          const az = ndcZ(projected, camera, ia);
+          const bz = ndcZ(projected, camera, ib);
+          for (let sample = 0; sample <= 200; sample += 1) {
+            const u = sample / 200;
+            const px = Math.floor(ax + (bx - ax) * u);
+            const py = Math.floor(ay + (by - ay) * u);
+            if (px < 0 || py < 0 || px >= FRAME || py >= FRAME) continue;
+            const at = py * FRAME + px;
+            const buffered = buffer[at]!;
+            if (!Number.isFinite(buffered)) continue;
+            const z = az + (bz - az) * u;
+            if (z - FOLDED_3D_CREASE_DEPTH_BIAS > buffered) continue;
+            drawn += 1;
+            // Drawn over another plane's paper with no real depth advantage —
+            // it only won because the fold line lies in that plane too.
+            if (planeAt[at]! >= 0 && planeAt[at]! !== skin.plane && z >= buffered - 1e-9) {
+              overForeignPlane += 1;
+            }
+          }
+        }
+      }
+      expect(drawn).toBeGreaterThan(0);
+      // A handful of samples survive at plane-boundary pixels, where which plane
+      // owns the pixel is a rasterisation tie rather than an occlusion fact.
+      expect(overForeignPlane / drawn).toBeLessThan(0.02);
     });
   });
 
