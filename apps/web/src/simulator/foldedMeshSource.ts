@@ -5,7 +5,11 @@ import {
   type CameraUniforms,
   type RenderSettings,
 } from '@treemaker/origami-simulator';
-import type { Folded3dRange, Folded3dSkin } from '../cp-workspace/folded/folded3dMesh';
+import type {
+  Folded3dHingeGroup,
+  Folded3dRange,
+  Folded3dSkin,
+} from '../cp-workspace/folded/folded3dMesh';
 
 /**
  * A 3D folded figure as something the worker can draw, with no solver behind it.
@@ -299,8 +303,38 @@ export function folded3dDrawPasses(
       .sort((l, r) => l.depth - r.depth)
       .map((entry) => entry.skin);
 
+    // Which side of each plane the eye is on — the fact a hinge needs and a
+    // single skin cannot know, because the far side of a bend belongs to a
+    // different plane whose exposed layer is decided by this same test.
+    const sideOfPlane = new Map<number, 1 | -1>();
+    for (const skin of visible) sideOfPlane.set(skin.plane, skin.side);
+    const hingeShows = (group: Folded3dHingeGroup): boolean =>
+      sideOfPlane.get(group.partnerPlane) === group.requiredSide;
+
     let run: Folded3dRange | null = null;
+    // Admitted hinge runs of the skins in the current merge, drawn right after
+    // it — the same place in the order the skin's own creases occupy, so a
+    // nearer plane's paper still lands on top of them.
+    let runHinges: Folded3dHingeGroup[] = [];
+    const flush = (): void => {
+      if (run) push(run, settings.faceAlpha);
+      run = null;
+      if (settings.showEdges) {
+        for (const group of runHinges) {
+          passes.push({
+            clear: passes.length === 0,
+            showEdges: true,
+            faceAlpha: settings.faceAlpha,
+            faceRange: { start: 0, count: 0 },
+            edgeRange: { start: group.edgeStart, count: group.edgeCount },
+          });
+        }
+      }
+      runHinges = [];
+    };
+
     for (const skin of visible) {
+      const admitted = skin.hingeGroups.filter(hingeShows);
       const next: Folded3dRange = {
         faceIndexStart: skin.faceIndexStart,
         faceIndexCount: skin.faceIndexCount,
@@ -316,12 +350,14 @@ export function folded3dDrawPasses(
       ) {
         run.faceIndexCount += next.faceIndexCount;
         run.edgeCount += next.edgeCount;
+        runHinges.push(...admitted);
         continue;
       }
-      if (run) push(run, settings.faceAlpha);
+      flush();
       run = next;
+      runHinges = [...admitted];
     }
-    if (run) push(run, settings.faceAlpha);
+    flush();
     push(mesh.undetermined, mesh.undeterminedFaceAlpha);
   }
 

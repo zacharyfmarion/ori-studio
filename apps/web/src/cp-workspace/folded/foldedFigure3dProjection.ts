@@ -593,7 +593,7 @@ export function projectFolded3dModel(
   const eye = orthographicEye(options.camera);
   const coplanarEps = folded3dCoplanarEpsilon(model, options.tolerances);
 
-  const { items, strokes } = buildItems(model, plan, buildFolded3dInk(model));
+  const { items, strokes } = buildItems(model, plan, buildFolded3dInk(model), eye);
   const budget = options.itemBudget ?? BSP_ITEM_BUDGET;
   let order: 'bsp' | 'depth-sorted' = 'bsp';
   let pieces: BspItem[];
@@ -650,9 +650,10 @@ export function projectFolded3dModel(
  */
 export function folded3dBspItems(
   model: OristudioCpFolded3dRenderModel,
-  displayStyle: OristudioCpFoldedFigureDisplayStyle
+  displayStyle: OristudioCpFoldedFigureDisplayStyle,
+  eye: Vec3 = [0, 0, 1]
 ): { items: BspItem[]; strokes: readonly StrokeRef[] } {
-  return buildItems(model, folded3dStylePlan(displayStyle), buildFolded3dInk(model));
+  return buildItems(model, folded3dStylePlan(displayStyle), buildFolded3dInk(model), eye);
 }
 
 /**
@@ -690,10 +691,29 @@ export interface StrokeRef {
 function buildItems(
   model: OristudioCpFolded3dRenderModel,
   plan: StylePlan,
-  ink: Folded3dInk
+  ink: Folded3dInk,
+  eye: Vec3
 ): { items: BspItem[]; strokes: StrokeRef[] } {
   const items: BspItem[] = [];
   const strokes: StrokeRef[] = [];
+
+  // Which side of each plane the eye is on, for the hinge rule below. A hinge is
+  // the fold line between two planes and is a ring segment of a cell in *both*
+  // of them, so each plane inks it knowing only its own stack — and the one
+  // whose partner is buried draws a bend nothing can see. Skipped for a
+  // translucent style, which shows the whole stack and wants every crease.
+  const sideOfPlane: Array<1 | -1> = [];
+  for (let plane = 0; plane < model.plane_count; plane += 1) {
+    const up = planeFrame(model, plane).up;
+    sideOfPlane.push(up[0] * eye[0] + up[1] * eye[1] + up[2] * eye[2] >= 0 ? 1 : -1);
+  }
+  const opaque = plan.faceAlpha >= 1;
+  const hingeShows = (cell: number, slot: number, segment: number): boolean => {
+    if (!opaque) return true;
+    const hinge = ink.hingeAt(cell, slot, segment);
+    if (!hinge) return true;
+    return sideOfPlane[hinge.partnerPlane] === 1 ? hinge.exposedOnPlus : hinge.exposedOnMinus;
+  };
   if (plan.fills) {
     for (let cell = 0; cell < model.cell_count; cell += 1) {
       const base = cell * FOLDED_3D_CELL_ATTR_STRIDE;
@@ -726,6 +746,7 @@ function buildItems(
         for (let segment = 0; segment < ring.length; segment += 1) {
           const edge = ink.edgeAt(cell, slot, segment);
           if (edge < 0) continue;
+          if (!hingeShows(cell, slot, segment)) continue;
           items.push({
             kind: 1,
             ref: strokes.length,

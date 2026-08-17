@@ -180,4 +180,75 @@ describe('buildFolded3dInk', () => {
     expect(ink.edgeAt(0, 0, -1)).toBe(-1);
     expect(ink.edgeAt(0, 0, 999)).toBe(-1);
   });
+  it('names the plane on the far side of every bend', () => {
+    const model = load('minimal_repro');
+    const ink = buildFolded3dInk(model);
+    const planeOf = (face: number): number => model.face_attr[face * 4] ?? -1;
+
+    let hinges = 0;
+    let unmatched = 0;
+    for (let cell = 0; cell < model.cell_count; cell += 1) {
+      const plane = model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE] ?? 0;
+      const stack = cellStack(model, cell);
+      const segments = ringLength(model, cell);
+      for (let slot = 0; slot < stack.length; slot += 1) {
+        for (let segment = 0; segment < segments; segment += 1) {
+          const edge = ink.edgeAt(cell, slot, segment);
+          if (edge < 0) continue;
+          const faceA = model.edge_attr[edge * FOLDED_3D_EDGE_ATTR_STRIDE] ?? -1;
+          const faceB = model.edge_attr[edge * FOLDED_3D_EDGE_ATTR_STRIDE + 1] ?? -1;
+          const bends = faceA >= 0 && faceB >= 0 && planeOf(faceA) !== planeOf(faceB);
+          const hinge = ink.hingeAt(cell, slot, segment);
+          if (!bends) {
+            // A crease that stays in its own plane is never conditional: its own
+            // cell's stack already orders it.
+            expect(hinge).toBeNull();
+            continue;
+          }
+          hinges += 1;
+          if (!hinge) {
+            unmatched += 1;
+            continue;
+          }
+          // The partner is always the *other* plane, never this one — a hinge
+          // pointing back at its own plane would make the condition vacuous.
+          expect(hinge.partnerPlane).not.toBe(plane);
+          expect([planeOf(faceA), planeOf(faceB)]).toContain(hinge.partnerPlane);
+        }
+      }
+    }
+    expect(hinges).toBe(24);
+    // Every bend in this fixture pairs up. An unmatched one is not a failure in
+    // general — it degrades to drawing as it always did — but a fixture that
+    // starts leaving them unpaired has changed in a way worth noticing.
+    expect(unmatched).toBe(0);
+  });
+
+  it('hides the bend the flat sheet buries, and only from that side', () => {
+    // The reported bug. Plane 1 is a flap hinged to the flat sheet (plane 0);
+    // the fold line is a ring segment of a cell in *both* planes. Its plane-0
+    // face sits at slot 0 of a two-layer cell, so the bend is exposed on plane
+    // 0's `+1` side and buried under the other layer from its `-1` side — which
+    // is the side the reported camera looks from.
+    const model = load('minimal_repro');
+    const ink = buildFolded3dInk(model);
+    const seen: string[] = [];
+    for (let cell = 0; cell < model.cell_count; cell += 1) {
+      if ((model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE] ?? 0) !== 1) continue;
+      const segments = ringLength(model, cell);
+      for (let segment = 0; segment < segments; segment += 1) {
+        const hinge = ink.hingeAt(cell, 0, segment);
+        if (!hinge) continue;
+        seen.push(
+          `cell ${cell} plus=${hinge.exposedOnPlus} minus=${hinge.exposedOnMinus} partner=${hinge.partnerPlane}`
+        );
+      }
+    }
+    expect(seen).toEqual([
+      'cell 8 plus=true minus=false partner=0',
+      'cell 9 plus=true minus=false partner=0',
+      'cell 10 plus=true minus=false partner=0',
+      'cell 11 plus=true minus=false partner=0',
+    ]);
+  });
 });

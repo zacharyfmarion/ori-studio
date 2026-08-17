@@ -201,6 +201,34 @@ export interface Folded3dSkin {
   centroid: [number, number, number];
   faceIndexStart: number;
   faceIndexCount: number;
+  /**
+   * The creases this skin draws unconditionally. In **edges**, not indices.
+   *
+   * Hinges are not in here — see {@link hingeGroups}.
+   */
+  edgeStart: number;
+  edgeCount: number;
+  /**
+   * Hinge creases, grouped by what has to be showing elsewhere for them to be
+   * drawn.
+   *
+   * A hinge is the fold line between two planes, and it is a ring segment of a
+   * cell in **both** of them at identical coordinates. It is only visible when
+   * neither plane has buried it — so this skin drawing its own side is not
+   * enough, the partner plane has to be showing the layer on the far side of the
+   * bend too. Which layer that is depends on which side of the partner plane the
+   * eye is on, so it cannot be baked in here; the groups are laid out as
+   * contiguous runs and `folded3dDrawPasses` includes or drops each per frame.
+   */
+  hingeGroups: readonly Folded3dHingeGroup[];
+}
+
+/** One run of hinge creases and the condition that admits it. */
+export interface Folded3dHingeGroup {
+  /** The plane on the far side of the bend. */
+  partnerPlane: number;
+  /** The side of `partnerPlane` that must be facing the eye. */
+  requiredSide: 1 | -1;
   /** In **edges**, not indices. */
   edgeStart: number;
   edgeCount: number;
@@ -372,6 +400,23 @@ export function folded3dMeshExtent(model: OristudioCpFolded3dRenderModel): {
   };
 }
 
+/** One crease of one slot, before it is sorted into a skin's runs. */
+interface SlotCrease {
+  a: number;
+  b: number;
+  assignment: number;
+  /** The plane on the far side of a hinge, or `-1` when the crease is unconditional. */
+  partnerPlane: number;
+  /** The side of `partnerPlane` that must be showing; `0` when unconditional. */
+  requiredSide: 1 | -1 | 0;
+  /**
+   * A hinge whose far side is buried on **both** of its partner's sides, so no
+   * camera can expose it. Kept for the translucent path, which shows the whole
+   * stack, and skipped by every skin.
+   */
+  buried: boolean;
+}
+
 export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMeshResult {
   const centre = toSimBasis(modelCentroid(model));
   const radius = modelRadius(model);
@@ -406,8 +451,8 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
   const slotVertexStart: number[] = [];
   /** Triangle indices per slot. */
   const slotTriangles: number[][] = [];
-  /** `[a, b, assignment]` per crease of each slot. */
-  const slotCreases: number[][] = [];
+  /** Every crease of each slot, with what has to be showing for it to be drawn. */
+  const slotCreases: SlotCrease[][] = [];
   /** Slots of each cell, in `cell_stack` order. */
   const slotsOfCell: number[][] = [];
 
@@ -493,15 +538,22 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
       // geometry of their own. A segment is inked where *this layer's* paper
       // ends and skipped where the layer runs across an arrangement cut some
       // other face made.
-      const creases: number[] = [];
+      const creases: SlotCrease[] = [];
       for (let segment = 0; segment < ring.length; segment += 1) {
         const edge = ink.edgeAt(cell, slot, segment);
         if (edge < 0) continue;
-        creases.push(
-          first + segment,
-          first + ((segment + 1) % ring.length),
-          assignmentOf[edge] ?? 0
-        );
+        const hinge = ink.hingeAt(cell, slot, segment);
+        // A hinge exposed on both of its partner's sides is unconditional — the
+        // partner cell has one layer, so nothing over there can bury the bend.
+        const conditional = hinge != null && hinge.exposedOnPlus !== hinge.exposedOnMinus;
+        creases.push({
+          a: first + segment,
+          b: first + ((segment + 1) % ring.length),
+          assignment: assignmentOf[edge] ?? 0,
+          partnerPlane: conditional ? hinge.partnerPlane : -1,
+          requiredSide: conditional ? (hinge.exposedOnPlus ? 1 : -1) : 0,
+          buried: hinge != null && !hinge.exposedOnPlus && !hinge.exposedOnMinus,
+        });
       }
 
       slotsOfCell[cell]!.push(slotCell.length);
@@ -521,13 +573,31 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
   const edgeAssignments: number[] = [];
   const slotIndexStart: number[] = new Array<number>(slotCell.length).fill(0);
 
+  /**
+   * Everything of a slot, in one run — the translucent and undetermined paths,
+   * which draw every layer and want every crease including the buried hinges.
+   */
   const appendSlot = (slot: number, record = false): void => {
     if (record) slotIndexStart[slot] = faceIndices.length;
     for (const index of slotTriangles[slot]!) faceIndices.push(index);
-    const creases = slotCreases[slot]!;
-    for (let i = 0; i < creases.length; i += 3) {
-      edgeIndices.push(creases[i]!, creases[i + 1]!);
-      edgeAssignments.push(creases[i + 2]!);
+    for (const crease of slotCreases[slot]!) {
+      edgeIndices.push(crease.a, crease.b);
+      edgeAssignments.push(crease.assignment);
+    }
+  };
+
+  const appendSlotFaces = (slot: number): void => {
+    for (const index of slotTriangles[slot]!) faceIndices.push(index);
+  };
+
+  const appendSlotCreases = (
+    slot: number,
+    accept: (crease: SlotCrease) => boolean
+  ): void => {
+    for (const crease of slotCreases[slot]!) {
+      if (!accept(crease)) continue;
+      edgeIndices.push(crease.a, crease.b);
+      edgeAssignments.push(crease.assignment);
     }
   };
 
@@ -558,16 +628,57 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
   for (let plane = 0; plane < model.plane_count; plane += 1) {
     const up = toSimBasis(planeFrame(model, plane).up);
     for (const side of [1, -1] as const) {
-      const faceIndexStart = faceIndices.length;
-      const edgeStart = edgeAssignments.length;
+      const members: number[] = [];
       for (let cell = 0; cell < model.cell_count; cell += 1) {
         if ((model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE] ?? 0) !== plane) continue;
         if (!determined(cell)) continue;
         const slots = slotsOfCell[cell]!;
         if (slots.length === 0) continue;
-        appendSlot(side === 1 ? slots[0]! : slots[slots.length - 1]!);
+        members.push(side === 1 ? slots[0]! : slots[slots.length - 1]!);
       }
-      if (faceIndices.length === faceIndexStart && edgeAssignments.length === edgeStart) {
+
+      const faceIndexStart = faceIndices.length;
+      for (const slot of members) appendSlotFaces(slot);
+
+      const edgeStart = edgeAssignments.length;
+      for (const slot of members) {
+        appendSlotCreases(slot, (crease) => !crease.buried && crease.partnerPlane < 0);
+      }
+      const edgeCount = edgeAssignments.length - edgeStart;
+
+      // One run per distinct condition. There are at most two per partner plane
+      // and a hinge has exactly one partner, so this stays a handful of runs
+      // even on a figure with many planes.
+      const conditions = new Map<string, { partnerPlane: number; requiredSide: 1 | -1 }>();
+      for (const slot of members) {
+        for (const crease of slotCreases[slot]!) {
+          if (crease.buried || crease.partnerPlane < 0) continue;
+          const requiredSide = crease.requiredSide === 1 ? 1 : -1;
+          conditions.set(`${crease.partnerPlane}:${requiredSide}`, {
+            partnerPlane: crease.partnerPlane,
+            requiredSide,
+          });
+        }
+      }
+      const hingeGroups: Folded3dHingeGroup[] = [];
+      for (const condition of conditions.values()) {
+        const groupStart = edgeAssignments.length;
+        for (const slot of members) {
+          appendSlotCreases(
+            slot,
+            (crease) =>
+              !crease.buried &&
+              crease.partnerPlane === condition.partnerPlane &&
+              crease.requiredSide === condition.requiredSide
+          );
+        }
+        const groupCount = edgeAssignments.length - groupStart;
+        if (groupCount > 0) {
+          hingeGroups.push({ ...condition, edgeStart: groupStart, edgeCount: groupCount });
+        }
+      }
+
+      if (faceIndices.length === faceIndexStart && edgeCount === 0 && hingeGroups.length === 0) {
         continue;
       }
       let cx = 0;
@@ -588,7 +699,8 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
         faceIndexStart,
         faceIndexCount: faceIndices.length - faceIndexStart,
         edgeStart,
-        edgeCount: edgeAssignments.length - edgeStart,
+        edgeCount,
+        hingeGroups,
       });
     }
   }

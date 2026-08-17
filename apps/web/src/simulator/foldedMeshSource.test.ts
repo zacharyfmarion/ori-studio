@@ -26,6 +26,7 @@ function skin(plane: number, side: 1 | -1, at: number, depth = 0): Folded3dSkin 
     faceIndexCount: 3,
     edgeStart: at,
     edgeCount: 1,
+    hingeGroups: [],
   };
 }
 

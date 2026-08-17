@@ -37,6 +37,7 @@ import {
   UNDETERMINED_FACE_ALPHA,
   type Folded3dPaperStyle,
 } from './folded3dStyle';
+import { buildFolded3dInk, planeFrame } from './folded3dModelReader';
 import { foldedFigureBox, foldedFigureLocalGeometry } from '../adapters/cpFoldedToScene';
 import {
   IDENTITY_FOLDED_PLACEMENT,
@@ -441,7 +442,8 @@ describe('the layer order the kernel computed', () => {
     // list, and `sortCoplanar` only ever governs the case where they are.
     for (const name of ['box_90', 'spikes_small', 'pinwheel_cyclic']) {
       const model = fixture(name);
-      const { items, strokes: strokeRefs } = folded3dBspItems(model, 'Paper5');
+      const eye: [number, number, number] = [0, 0, 1];
+      const { items, strokes: strokeRefs } = folded3dBspItems(model, 'Paper5', eye);
       const faces = items.filter((item) => item.kind === 0);
       const edges = items.filter((item) => item.kind === 1);
       expect(faces.length).toBeGreaterThanOrEqual(model.cell_count);
@@ -452,10 +454,38 @@ describe('the layer order the kernel computed', () => {
       // A crease is a segment of one cell's ring drawn at one layer, not a whole
       // model edge, so there are more of them than the payload has edges — a
       // crease crossing several cells is one item per cell, and one per layer
-      // that ends there. Each still names every model edge at least once, which
-      // is the property that matters: no linework is lost.
+      // that ends there. Every model edge is still named at least once, which is
+      // the property that matters: no linework is lost.
+      //
+      // Except a **hinge** whose far side is buried at this eye, which is
+      // dropped on purpose — see `buildFolded3dInk`. So the bar is that the
+      // drawn edges and the deliberately hidden ones together account for the
+      // whole payload, which still catches a crease going missing for any other
+      // reason.
       expect(edges.length).toBeGreaterThan(0);
       const covered = new Set(edges.map((item) => strokeRefs[item.ref]!.edge));
+      const ink = buildFolded3dInk(model);
+      const sideOfPlane = (plane: number): 1 | -1 => {
+        const up = planeFrame(model, plane).up;
+        return up[0] * eye[0] + up[1] * eye[1] + up[2] * eye[2] >= 0 ? 1 : -1;
+      };
+      for (let cell = 0; cell < model.cell_count; cell += 1) {
+        const ringLength = cellAttr(model, cell, 2);
+        const stackLength = cellAttr(model, cell, 4);
+        for (let slot = 0; slot < stackLength; slot += 1) {
+          for (let segment = 0; segment < ringLength; segment += 1) {
+            const edge = ink.edgeAt(cell, slot, segment);
+            if (edge < 0) continue;
+            const hinge = ink.hingeAt(cell, slot, segment);
+            if (!hinge) continue;
+            const shows =
+              sideOfPlane(hinge.partnerPlane) === 1
+                ? hinge.exposedOnPlus
+                : hinge.exposedOnMinus;
+            if (!shows) covered.add(edge);
+          }
+        }
+      }
       expect(covered.size).toBe(model.edge_count);
       // One triangle per ear, for every cell: `ring_len - 2`.
       let expectedTriangles = 0;
