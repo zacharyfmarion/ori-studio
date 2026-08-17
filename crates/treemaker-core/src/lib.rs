@@ -10084,7 +10084,15 @@ mod tests {
 
     #[test]
     fn v3_fixed_angle_preserves_501_import_behavior() {
-        let text = FIXTURE_V3.replacen("false\n0.0000000000\ntrue", "true\n45.0000000000\ntrue", 1);
+        // Normalized first: this builds its input by string surgery against
+        // hard-coded `\n`, so on a checkout with CRLF fixtures the pattern
+        // matches nothing, `replacen` silently returns the text unchanged, and
+        // the assertion below fails with `None` — describing a parser bug that
+        // does not exist. `.gitattributes` keeps fixtures LF everywhere, and
+        // this makes the test independent of that.
+        let fixture = FIXTURE_V3.replace("\r\n", "\n");
+        let text = fixture.replacen("false\n0.0000000000\ntrue", "true\n45.0000000000\ntrue", 1);
+        assert_ne!(text, fixture, "the fixed-angle substitution did not apply");
         let tree = Tree::from_tmd_str(&text).unwrap();
         let angle = tree.conditions.iter().find_map(|condition| {
             if let ConditionKind::PathAngleFixed { angle, .. } = condition.kind {

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Maps the *.osf glob onto the MIME type the generated .desktop file declares it
+  handles.
+
+  Without this the association is inert on Linux even though everything else is
+  in place: Tauri's bundler writes `MimeType=application/vnd.oristudio.project+json`
+  into the .desktop entry, but nothing tells the system that an .osf file *is*
+  that type, so `xdg-mime query filetype design.osf` answers `application/json`
+  (or `text/plain`) and the desktop never offers Ori Studio.
+
+  Installed to /usr/share/mime/packages/ by the deb bundle. The shared-mime-info
+  dpkg trigger runs update-mime-database on install, so no postinst is needed.
+
+  AppImage deliberately gets none of this — it installs no system files by
+  design, which is why the format that self-updates is also the one with no file
+  association. See implementation-plans/desktop-auto-update.md.
+-->
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/vnd.oristudio.project+json">
+    <comment>Ori Studio Project</comment>
+    <!-- .osf is JSON, so without this the more general type wins the match. -->
+    <sub-class-of type="application/json"/>
+    <glob pattern="*.osf"/>
+    <icon name="application-vnd.oristudio.project+json"/>
+    <generic-icon name="text-x-generic"/>
+  </mime-type>
+</mime-info>

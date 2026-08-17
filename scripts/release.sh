@@ -52,14 +52,17 @@ Usage:
   ./scripts/release.sh prepare <version> [--notes-file <path> | --notes <text> | --notes-stdin] [--yes]
   ./scripts/release.sh publish <version> [--env-file <path>] [--artifacts-dir <path>]
                               [--target <triple>] [--arch <name>] [--skip-deps]
-                              [--skip-local-build]
+                              [--local-build]
 
 Commands:
   prepare   Create release/v<version> from ${RELEASE_REMOTE}/${MAIN_BRANCH},
             bump versions, update CHANGELOG.md, push, and open a PR.
-  publish   Find the merged release PR, verify the merge commit, build/sign/
-            notarize local macOS artifacts, push tag v<version>, and upload
-            GitHub Release DMGs.
+  publish   Find the merged release PR, verify the merge commit and its version
+            files, then push tag v<version>. The Desktop Build workflow builds
+            and signs all four platform legs from that tag.
+
+            --local-build additionally runs the break-glass local macOS build;
+            it is not needed for a normal release.
 
 Environment:
   RELEASE_GITHUB_REPO  GitHub repo slug for gh CLI calls (default: ${RELEASE_GITHUB_REPO})
@@ -221,16 +224,6 @@ update_json_version() {
     jq --arg version "$version" '.version = $version' "$path" > "${path}.tmp" && mv "${path}.tmp" "$path"
 }
 
-sed_in_place() {
-    local script="$1"
-    shift
-
-    sed -i.bak "$script" "$@"
-    local path
-    for path in "$@"; do
-        rm -f "${path}.bak" 2>/dev/null || true
-    done
-}
 
 update_workspace_version() {
     local version="$1"
@@ -258,13 +251,15 @@ update_workspace_version() {
 update_cargo_versions() {
     local version="$1"
 
+    # One line to change. Intra-workspace path dependencies no longer carry
+    # version requirements (the workspace is `publish = false`), so there is
+    # nothing to keep in step with the bump.
+    #
+    # This used to rewrite five of them by sed and miss the other eight, which
+    # was harmless only while every version stayed inside `0.1.x`: the reqs were
+    # `^0.1.1`, and the first bump to `0.2.0` would have failed to resolve the
+    # whole workspace. See implementation-plans/desktop-ci-release.md.
     update_workspace_version "$version"
-    sed_in_place "s/treemaker-fold = { version = \".*\", path = \"crates\\/treemaker-fold\" }/treemaker-fold = { version = \"$version\", path = \"crates\\/treemaker-fold\" }/" "$WORKSPACE_CARGO_TOML"
-    sed_in_place "s/treemaker-flatfold = { version = \".*\", path = \"crates\\/treemaker-flatfold\" }/treemaker-flatfold = { version = \"$version\", path = \"crates\\/treemaker-flatfold\" }/" "$WORKSPACE_CARGO_TOML"
-
-    for manifest in crates/treemaker-cli/Cargo.toml crates/treemaker-wasm/Cargo.toml crates/oracle-tests/Cargo.toml; do
-        sed_in_place "s/treemaker-core = { version = \".*\", path = \"..\\/treemaker-core\" }/treemaker-core = { version = \"$version\", path = \"..\\/treemaker-core\" }/" "$manifest"
-    done
 }
 
 update_version_files() {
@@ -290,9 +285,6 @@ create_release_commit() {
         "$WEB_PACKAGE_JSON" \
         "$TAURI_PACKAGE_JSON" \
         "$TAURI_CONF" \
-        crates/treemaker-cli/Cargo.toml \
-        crates/treemaker-wasm/Cargo.toml \
-        crates/oracle-tests/Cargo.toml \
         "$CARGO_LOCK" \
         "$PACKAGE_LOCK" \
         "$CHANGELOG_FILE"
@@ -483,7 +475,7 @@ publish_release() {
     local artifacts_dir="${4:-}"
     local target_triple="${5:-}"
     local arch="${6:-}"
-    local skip_local_build="${7:-false}"
+    local local_build="${7:-false}"
     local skip_deps="${8:-false}"
     local tag_name
     local release_branch
@@ -545,7 +537,7 @@ publish_release() {
         artifacts_dir="target/release-artifacts/$tag_name"
     fi
 
-    if [ "$skip_local_build" != "true" ]; then
+    if [ "$local_build" = "true" ]; then
         [ -f "$LOCAL_MACOS_RELEASE_SCRIPT" ] || error "Missing local release builder: $LOCAL_MACOS_RELEASE_SCRIPT"
 
         local build_args=(
@@ -594,27 +586,32 @@ publish_release() {
     info "Pushing tag $tag_name to ${RELEASE_REMOTE}..."
     git push "$RELEASE_REMOTE" "refs/tags/$tag_name"
 
-    if [ "$skip_local_build" != "true" ]; then
+    if [ "$local_build" = "true" ]; then
         info "Publishing local macOS release artifacts..."
         bash "${publish_args[@]}"
     fi
 
     echo ""
-    echo "Release $tag_name published"
+    echo "Tag $tag_name pushed"
     echo "Tagged commit: $merge_sha"
     echo "Source PR:     $pr_url"
-    echo "Artifacts:     $artifacts_dir"
     echo ""
-    if [ "$skip_local_build" = "true" ]; then
-        echo "Local artifact publishing was skipped. To finish the release manually, run:"
-        echo "  ./scripts/local-macos-release.sh all $version --source-ref $merge_sha --output-dir $artifacts_dir"
-    else
-        echo "Local release publishing completed:"
-        echo "  1. Built, signed, notarized, stapled, and verified the macOS DMG locally"
-        echo "  2. Created or updated the GitHub Release from CHANGELOG.md"
+    if [ "$local_build" = "true" ]; then
+        echo "Local macOS artifacts were also built and uploaded (break-glass path)."
+        echo "Artifacts: $artifacts_dir"
+        echo ""
     fi
+    echo "The Desktop Build workflow is now building all four platform legs and"
+    echo "will upload them to a draft GitHub Release. Watch it with:"
+    echo "  gh run watch --repo $RELEASE_GITHUB_REPO"
     echo ""
-    echo "GitHub Actions will only validate the pushed tag."
+    echo "Then, to ship it:"
+    echo "  1. Publish the draft as a PRERELEASE"
+    echo "  2. Install it and confirm it launches"
+    echo "  3. Arm it:  gh release edit $tag_name --prerelease=false"
+    echo ""
+    echo "Until step 3, releases/latest still points at the previous release, so"
+    echo "the build is downloadable but offered to nobody."
     echo ""
     success "Done"
 }
@@ -631,7 +628,7 @@ main() {
     local artifacts_dir=""
     local target_triple=""
     local arch=""
-    local skip_local_build="false"
+    local local_build="false"
     local skip_deps="false"
 
     ensure_repo_root
@@ -697,8 +694,8 @@ main() {
                 arch="$2"
                 shift 2
                 ;;
-            --skip-local-build)
-                skip_local_build="true"
+            --local-build)
+                local_build="true"
                 shift
                 ;;
             --skip-deps)
@@ -718,7 +715,7 @@ main() {
             [ -z "$artifacts_dir" ] || error "--artifacts-dir is only supported for publish"
             [ -z "$target_triple" ] || error "--target is only supported for publish"
             [ -z "$arch" ] || error "--arch is only supported for publish"
-            [ "$skip_local_build" = "false" ] || error "--skip-local-build is only supported for publish"
+            [ "$local_build" = "false" ] || error "--local-build is only supported for publish"
             [ "$skip_deps" = "false" ] || error "--skip-deps is only supported for publish"
             info "Starting release preparation for Ori Studio"
             prepare_release "$version" "$notes_file" "$inline_notes" "$notes_from_stdin" "$auto_confirm"
@@ -730,7 +727,7 @@ main() {
             [ "$notes_from_stdin" != "true" ] || error "--notes-stdin is only supported for prepare"
             [ "$auto_confirm" = "false" ] || error "--yes is only supported for prepare"
             info "Starting release publish for Ori Studio"
-            publish_release "$version" "$env_file" "$env_file_explicit" "$artifacts_dir" "$target_triple" "$arch" "$skip_local_build" "$skip_deps"
+            publish_release "$version" "$env_file" "$env_file_explicit" "$artifacts_dir" "$target_triple" "$arch" "$local_build" "$skip_deps"
             ;;
         *)
             usage

@@ -166,7 +166,7 @@ import {
   type SaveFileResult,
 } from '../../../platform/fileService';
 import { exportFilename as defaultFilename } from '../../../platform/exportFilename';
-import { getRuntimeSurface } from '../../../platform/runtime';
+import { getRuntimeSurface, isApplePlatform } from '../../../platform/runtime';
 import i18n from '../../../i18n';
 import { requestConfirmation, requestCreasePatternExportOptions } from '../../commandDialogStore';
 import {
@@ -462,6 +462,11 @@ function selectedLineSelectionFromDocument(
 // OS from killing an out-of-memory WebView, but when a load throws we can turn the
 // opaque engine error into an actionable message. Measured against string length
 // (a cheap UTF-16 proxy) to avoid allocating a byte view of a huge file.
+//
+// The number was established against WKWebView, the only engine the desktop app
+// had ever run on. WebView2 and WebKitGTK have their own ceilings and neither has
+// been measured, so this stays a "this file is large" heuristic on those rather
+// than a claim about where it will fail.
 const LARGE_PROJECT_WARN_CHARS = 25 * 1024 * 1024;
 
 // Only for failures we cannot explain. A `ProjectFileFormatError` already names
@@ -476,9 +481,16 @@ function annotateLargeSourceError(
   if (sourceLength < LARGE_PROJECT_WARN_CHARS) return envelope;
   if (isProjectFileFormatError(error)) return envelope;
   const mb = Math.round(sourceLength / (1024 * 1024));
+  // "The web version has more headroom" is a WKWebView finding, not a general
+  // one. WebView2 is Chromium — the same engine the browser build runs on — so
+  // sending a Windows user to the web app would be advice we have no evidence
+  // for, and possibly backwards. Offered only where it was measured.
+  const headroomHint = isApplePlatform()
+    ? ' Very large crease patterns can fail to open in the desktop app; the web version has more headroom.'
+    : '';
   return {
     ...envelope,
-    message: `${envelope.message} — this file is very large (~${mb} MB) and may have exceeded available memory. Very large crease patterns can fail to open in the desktop app; the web version has more headroom.`,
+    message: `${envelope.message} — this file is very large (~${mb} MB) and may have exceeded available memory.${headroomHint}`,
   };
 }
 

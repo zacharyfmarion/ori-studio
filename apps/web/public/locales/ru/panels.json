@@ -355,6 +355,8 @@
     "orbitFoldedForm": "Повернуть сложенную фигуру",
     "preparing": "Подготовка редактора…",
     "refoldFoldedModelAction": "Сложить модель заново",
+    "rendererUnavailable": "Не удалось запустить холст паттерна складок.",
+    "rendererUnavailableHint": "Ori Studio рисует паттерны складок с помощью WebGL2, который эта система не предоставила. Обычно помогает обновление графических драйверов.",
     "resetFoldedModelView": "Сбросить вид сложенной модели",
     "resizeAnnotation": "Изменить размер аннотации",
     "resizeFoldedForm": "Изменить размер сложенной формы",

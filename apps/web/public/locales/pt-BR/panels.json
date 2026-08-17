@@ -344,6 +344,8 @@
     "orbitFoldedForm": "Girar a figura dobrada",
     "preparing": "Preparando o editor…",
     "refoldFoldedModelAction": "Dobrar o modelo novamente",
+    "rendererUnavailable": "Não foi possível iniciar a tela do padrão de vincos.",
+    "rendererUnavailableHint": "O Ori Studio desenha padrões de vincos com WebGL2, que este sistema não forneceu. Atualizar os drivers gráficos costuma resolver.",
     "resetFoldedModelView": "Redefinir a vista do modelo dobrado",
     "resizeAnnotation": "Redimensionar anotação",
     "resizeFoldedForm": "Redimensionar forma dobrada",

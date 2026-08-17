@@ -11,7 +11,7 @@ publish = false
 serde_json.workspace = true
 serde.workspace = true
 sha2.workspace = true
-treemaker-core = { version = "0.1.2", path = "../treemaker-core" }
+treemaker-core = { path = "../treemaker-core" }
 treemaker-flatfold.workspace = true
 treemaker-fold.workspace = true
 walkdir.workspace = true

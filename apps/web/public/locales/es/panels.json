@@ -344,6 +344,8 @@
     "orbitFoldedForm": "Girar la figura plegada",
     "preparing": "Preparando el editor…",
     "refoldFoldedModelAction": "Volver a plegar el modelo",
+    "rendererUnavailable": "No se pudo iniciar el lienzo del patrón de pliegues.",
+    "rendererUnavailableHint": "Ori Studio dibuja los patrones de pliegues con WebGL2, que este sistema no proporcionó. Actualizar los controladores gráficos suele resolverlo.",
     "resetFoldedModelView": "Restablecer la vista del modelo plegado",
     "resizeAnnotation": "Redimensionar anotación",
     "resizeFoldedForm": "Redimensionar forma plegada",

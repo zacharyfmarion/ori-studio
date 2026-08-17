@@ -1,6 +1,7 @@
 [package]
 name = "oristudio-bp"
 version.workspace = true
+publish.workspace = true
 edition.workspace = true
 license = "MIT"
 description = "Box Pleating Studio-compatible headless kernel for Ori Studio"

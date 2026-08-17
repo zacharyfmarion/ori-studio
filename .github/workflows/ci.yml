@@ -108,6 +108,44 @@ jobs:
       - name: Unit test repo scripts
         run: npm run test:scripts
 
+  # The workspace has only ever been compiled and tested on Linux (this file) and
+  # macOS (a developer's machine). That is the wrong platform to be missing:
+  # `.ori` and `.cp` files are Java- and Windows-authored in the wild, so CRLF
+  # handling, `encoding_rs` decode paths and `Path` separators in the fixture
+  # loaders are untested on exactly the system most likely to produce the files
+  # they parse — and a parse failure there reads to a user as "Ori Studio
+  # corrupted my crease pattern".
+  #
+  # Scoped to the file-format crates rather than the whole workspace: this is
+  # about parser portability, and the oracle suites need toolchains that would
+  # double the job for no extra coverage. They skip here anyway, since
+  # ORACLE_REQUIRED is unset.
+  windows-file-formats:
+    name: Windows file-format crates
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@v0.0.10
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-${{ github.repository }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ github.repository }}-cargo-
+
+      - name: Test file-format crates
+        run: cargo test -p oristudio-cp -p treemaker-core -p treemaker-fold
+
   native-oracle:
     name: Native Rust + C++ oracle
     runs-on: ubuntu-latest

@@ -1,6 +1,7 @@
 [package]
 name = "treemaker-wasm"
 version.workspace = true
+publish.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "wasm-bindgen package for the TreeMaker 5.0.1 Rust port"
@@ -27,9 +28,9 @@ crate-type = ["cdylib", "rlib"]
 serde.workspace = true
 serde_json.workspace = true
 serde-wasm-bindgen.workspace = true
-treemaker-core = { version = "0.1.2", path = "../treemaker-core" }
-treemaker-flatfold = { version = "0.1.0", path = "../treemaker-flatfold" }
-treemaker-fold = { version = "0.1.0", path = "../treemaker-fold" }
+treemaker-core = { path = "../treemaker-core" }
+treemaker-flatfold = { path = "../treemaker-flatfold" }
+treemaker-fold = { path = "../treemaker-fold" }
 treemaker-sequence.workspace = true
 wasm-bindgen.workspace = true
 

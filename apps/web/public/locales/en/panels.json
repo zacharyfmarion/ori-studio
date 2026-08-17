@@ -333,6 +333,8 @@
     "orbitFoldedForm": "Turn folded form",
     "preparing": "Preparing the editor…",
     "refoldFoldedModelAction": "Refold folded model",
+    "rendererUnavailable": "The crease-pattern canvas could not start.",
+    "rendererUnavailableHint": "Ori Studio draws crease patterns with WebGL2, which this system did not provide. Updating your graphics drivers usually resolves it.",
     "resetFoldedModelView": "Reset folded model view",
     "resizeAnnotation": "Resize annotation",
     "resizeFoldedForm": "Resize folded form",

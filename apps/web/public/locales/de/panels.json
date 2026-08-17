@@ -333,6 +333,8 @@
     "orbitFoldedForm": "Gefaltete Figur drehen",
     "preparing": "Editor wird vorbereitet…",
     "refoldFoldedModelAction": "Gefaltetes Modell neu falten",
+    "rendererUnavailable": "Die Faltmuster-Zeichenfläche konnte nicht gestartet werden.",
+    "rendererUnavailableHint": "Ori Studio zeichnet Faltmuster mit WebGL2, das dieses System nicht bereitgestellt hat. Eine Aktualisierung der Grafiktreiber behebt das meistens.",
     "resetFoldedModelView": "Ansicht des gefalteten Modells zurücksetzen",
     "resizeAnnotation": "Anmerkungsgröße ändern",
     "resizeFoldedForm": "Größe der gefalteten Form ändern",
