@@ -368,7 +368,11 @@ function sweep(name: string): Disagreement[] {
   if (built.kind !== 'mesh') throw new Error(`${name} did not mesh`);
   const found: Disagreement[] = [];
   for (let yawStep = 0; yawStep < 8; yawStep += 1) {
-    for (const tiltDeg of [0, 10, 20, 30, 40, 50, 60, 70, 80]) {
+    // The **whole** sphere. An earlier version of this swept pitch over
+    // `-π/2 … 0` only — one hemisphere — and reported the window clean at
+    // cameras a user was watching it fail at, because a figure viewed from
+    // underneath is a positive pitch past `π/2` and was never sampled.
+    for (const tiltDeg of [0, 20, 40, 60, 80, 100, 120, 140, 160, 200, 240, 280, 320]) {
       const result = compare(model, built.mesh, {
         yaw: (yawStep / 8) * Math.PI * 2,
         pitch: -Math.PI / 2 + (tiltDeg / 180) * Math.PI,
@@ -395,6 +399,46 @@ function sweep(name: string): Disagreement[] {
  * through sometimes" into a plane, a side, and a camera.
  */
 describe('folded 3D window vs projector', () => {
+  /**
+   * The camera the figure was saved at, from a report of a crease showing
+   * through. **This agrees**, and that is the finding: whatever produces the
+   * line on the real GPU at this camera is not reproduced by rasterizing the
+   * same draw passes here, so one of the two pictures below is not faithful.
+   *
+   * Kept as an assertion rather than deleted, because a fix that starts making
+   * this camera disagree has broken something the CPU mirror does get right.
+   */
+  it('agrees at the camera minimal_repro was reported failing at', () => {
+    const model: OristudioCpFolded3dRenderModel = JSON.parse(
+      readFileSync(join(FIXTURES, 'minimal_repro.rendermodel.json'), 'utf8')
+    );
+    const built = folded3dMesh(model);
+    if (built.kind !== 'mesh') throw new Error('minimal_repro did not mesh');
+    expect(
+      compare(model, built.mesh, {
+        yaw: -0.7605393366025517,
+        pitch: 1.9530290571795863,
+        zoom: 1,
+      })
+    ).toBeNull();
+  });
+
+  it('minimal_repro disagrees at three cameras, both faults present', () => {
+    const found = sweep('minimal_repro');
+    expect(
+      found.map((entry) => ({
+        yawStep: entry.yawStep,
+        tiltDeg: entry.tiltDeg,
+        fault: entry.spill > entry.detached ? 'spill' : 'detached',
+        bySkin: entry.bySkin,
+      }))
+    ).toEqual([
+      { yawStep: 1, tiltDeg: 0, fault: 'spill', bySkin: 'plane=1 side=1:71' },
+      { yawStep: 5, tiltDeg: 0, fault: 'detached', bySkin: 'plane=0 side=1:71' },
+      { yawStep: 6, tiltDeg: 0, fault: 'detached', bySkin: 'plane=0 side=1:335' },
+    ]);
+  });
+
   it.each(['hinge_90', 'spikes_small', 'pinwheel'])(
     '%s draws the same picture as the projector at every camera',
     (name) => {
@@ -409,7 +453,7 @@ describe('folded 3D window vs projector', () => {
     const spill = found.reduce((sum, entry) => sum + entry.spill, 0);
     const detached = found.reduce((sum, entry) => sum + entry.detached, 0);
     expect({ cameras: found.length, spill: spill > 0, detached: detached > 0 }).toEqual({
-      cameras: 19,
+      cameras: 22,
       spill: true,
       detached: true,
     });
