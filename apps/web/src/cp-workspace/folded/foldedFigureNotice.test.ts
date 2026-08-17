@@ -162,6 +162,7 @@ describe('foldedFigureNotice', () => {
       'no_layer_order',
       'face_id_out_of_range',
       'search_failed',
+      'search_exhausted',
     ];
     for (const code of codes) {
       const notice = foldedFigureNotice(
@@ -171,6 +172,33 @@ describe('foldedFigureNotice', () => {
       expect(notice?.detail, code).toBeTruthy();
       expect(notice?.detail, code).not.toContain('panels:');
     }
+  });
+
+  /// Giving up is not a finding about the crease pattern, and the sentence has
+  /// to keep those apart — the same distinction the kernel draws by giving
+  /// `SearchExhausted` its own arm instead of reusing `NoLayerOrder`.
+  it('says the search stopped, not that no layer order exists', () => {
+    const exhausted = foldedFigureNotice(
+      t,
+      spatial({
+        verdict: 'no_layer_order',
+        reason: { code: 'search_exhausted', component: 0, iterations: 1_000_000 },
+      })
+    );
+    const genuine = foldedFigureNotice(
+      t,
+      spatial({
+        verdict: 'no_layer_order',
+        reason: { code: 'no_layer_order', component: 0, faces: 12, variables: 30 },
+      })
+    );
+
+    expect(exhausted?.detail).toBe(
+      'Ori Studio stopped searching before it found a layer order for this figure.'
+    );
+    expect(exhausted?.detail).not.toBe(genuine?.detail);
+    // Still offers the way out, because the figure is drawn either way.
+    expect(exhausted?.action?.id).toBe('simulate-instead');
   });
 });
 

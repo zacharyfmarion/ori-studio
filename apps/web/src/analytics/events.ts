@@ -220,6 +220,7 @@ export const ANALYTICS_EVENTS = {
   bpDesignAction: 'bp design action',
   bpOptimizerRun: 'bp optimizer run',
   bpPatternNotFound: 'bp pattern not found',
+  bpFlapResized: 'bp flap resized',
   cpDetectStarted: 'cp detect started',
   cpDetectCompleted: 'cp detect completed',
   cpDetectImported: 'cp detect imported',
@@ -233,6 +234,11 @@ export const ANALYTICS_EVENTS = {
   foldSolutionCycled: 'fold solution cycled',
   foldedFigureOrbited: 'folded figure orbited',
   foldedFigureZoomed: 'folded figure zoomed',
+  // Whether anyone reaches for a model up at all is the question this answers —
+  // the orbit was a turntable about the paper's normal for every figure before
+  // it, so a low count means standing models are rarer than assumed rather than
+  // that the verb is hard to find.
+  modelUprightSet: 'model upright set',
   foldedFigureRehydrated: 'folded figure rehydrated',
   creasePatternShared: 'crease pattern shared',
   shareLinkCopied: 'share link copied',

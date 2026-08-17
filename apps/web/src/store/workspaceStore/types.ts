@@ -31,6 +31,7 @@ import type { ExploriDbConfig, ExploriResult } from '../../explori/types';
 import type { TreeSelectionTarget, TreeVertexUpdate } from '../../tree-editor/model';
 import type { SimulatorSettings, SimulatorSettingKey } from '../../lib/simulatorSettings';
 import type { BpDocumentSymmetry } from '../../lib/bpTreeSymmetry';
+import type { BpFlapFootprint } from '../../lib/bpFlapReshape';
 import type { FileService } from '../../platform/fileService';
 import type { ImportedCreasePatternDocument } from '../../lib/creasePatternImport';
 import type {
@@ -1205,6 +1206,23 @@ export interface OristudioBpSliceActions {
    * corner off the sheet. Recorded as a single undo entry.
    */
   resizeOristudioBpLayoutFlap: (id: number, width: number, height: number) => Promise<boolean>;
+  /**
+   * Set a BP flap's whole footprint — anchor, box and radius — in one edit.
+   *
+   * What a resize *handle* commits, as opposed to the typed fields above: a flap
+   * draws as its box grown by its radius, so dragging one of its edges generally
+   * moves all three. The kernel applies them as one solve, and the symmetry
+   * partner carries the whole footprint (its anchor mirrored from this flap's new
+   * box, its dimensions swapped on a diagonal fold).
+   *
+   * `dragging` coalesces a gesture's steps into one undo entry, as the flap-move
+   * actions do; the release must repeat the final footprint with it false.
+   */
+  reshapeOristudioBpFlap: (
+    id: number,
+    footprint: BpFlapFootprint,
+    dragging?: boolean
+  ) => Promise<boolean>;
   /** Move a group of BP flaps in the packing. */
   moveOristudioBpLayoutFlaps: (ids: number[], loc: Point, dragging?: boolean) => Promise<boolean>;
   /**

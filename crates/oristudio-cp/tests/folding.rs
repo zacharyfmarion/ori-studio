@@ -386,6 +386,62 @@ fn subface_priority_prefers_new_pair_information_then_face_count() {
     assert_eq!(priority.valid_count, 1);
 }
 
+/// The priority order is a **permutation**: every subface once, none twice.
+///
+/// The sweep ends with a tail of subfaces that carry no new pair information —
+/// all their pairs were claimed by something placed earlier — and selecting
+/// among *those* is where the ordering used to collapse. The seed for "best so
+/// far" was index 0, which is a real subface rather than a sentinel in this
+/// 0-based port, so once nothing could beat it the already-placed subface 0 was
+/// chosen again, and again. The list came back the right length and the wrong
+/// contents.
+///
+/// Nothing downstream survives that. `from_ordered_subfaces` builds one entry
+/// per slot, so the duplicates become duplicate entries and the omitted
+/// subfaces are simply absent from the search — absent from the guide maps,
+/// from the final additional-estimation pass, and from any recovery that would
+/// go looking for them. On `hex pleated pangolin` it turned 266 subfaces into 66
+/// distinct ones and dropped every subface the 3D path builds to carry a
+/// cross-plane coupling, which is why that model could never be ordered.
+///
+/// The tail here is three two-face subfaces over pairs the first subface has
+/// already claimed, so all three score zero and the collapse is reachable.
+#[test]
+fn subface_priority_is_a_permutation_even_when_the_tail_adds_nothing() {
+    let hierarchy = InitialHierarchy {
+        faces_total: 4,
+        relations: Vec::new(),
+    };
+    let subfaces = vec![
+        oristudio_cp::folding::SubFace {
+            face_ids: vec![0, 1, 2, 3],
+        },
+        oristudio_cp::folding::SubFace {
+            face_ids: vec![0, 1],
+        },
+        oristudio_cp::folding::SubFace {
+            face_ids: vec![1, 2],
+        },
+        oristudio_cp::folding::SubFace {
+            face_ids: vec![2, 3],
+        },
+    ];
+
+    let priority = prioritize_subfaces(&subfaces, &[0, 1, 2, 3], &hierarchy);
+
+    // Only the first carries new information, so the other three are the tail.
+    assert_eq!(priority.valid_count, 1);
+    assert_eq!(priority.ordered_subface_indices.len(), subfaces.len());
+    let mut seen = priority.ordered_subface_indices.clone();
+    seen.sort_unstable();
+    assert_eq!(
+        seen,
+        vec![0, 1, 2, 3],
+        "the priority order lost subfaces and repeated others: {:?}",
+        priority.ordered_subface_indices
+    );
+}
+
 #[test]
 fn worker_overlap_search_composes_valid_subface_orders() {
     let hierarchy = InitialHierarchy {

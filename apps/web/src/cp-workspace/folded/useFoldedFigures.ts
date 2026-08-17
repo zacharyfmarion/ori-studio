@@ -47,10 +47,13 @@ import { useFolded3dRehydration } from './useFolded3dRehydration';
 import type { Vec2 } from '../annotations/annotationTransform';
 import {
   clampSimulatorZoom,
+  setUprightView,
   simulatorWheelZoomFactor,
   type SimulatorOrbitDrag,
+  type SimulatorOrbitPoint,
 } from '../../lib/simulatorOrbit';
 import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
+import { announceUprightSet } from '../../lib/uprightFeedback';
 import { ANALYTICS_EVENTS, COUNT_BUCKETS, bucketCount } from '../../analytics/events';
 import { track } from '../../analytics';
 
@@ -399,8 +402,15 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     [focusedFoldedBox, oristudioCpFocusedFoldedFigureId]
   );
 
+  /**
+   * Anchor a turn. `point` is in **CSS pixels**, not the user-space point
+   * {@link orbitClaimsPress} took — see `foldedFigureOrbitGesture`. The press
+   * answers "is this on the figure" in the space the box lives in and "how far
+   * has the hand moved" in the space the hand moves in, and those are not the
+   * same space once the crease-pattern camera is zoomed or rotated.
+   */
   const beginOrbit = useCallback(
-    (point: Vec2) => {
+    (point: SimulatorOrbitPoint) => {
       const id = oristudioCpFocusedFoldedFigureId;
       if (!id) return false;
       const figure = figureById(id);
@@ -429,7 +439,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
    * `folded3dRuntime.ts`.
    */
   const advanceOrbit = useCallback(
-    (point: Vec2) => {
+    (point: SimulatorOrbitPoint) => {
       const session = orbitDragRef.current;
       if (!session) return;
       const figure = figureById(session.id);
@@ -760,8 +770,24 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       resetView: (figure) =>
         runFoldedFigureAction(
           t('panels:creasePattern.resetFoldedModelView', 'Reset folded model view'),
-          () => setOristudioCpFolded3dCamera(figure.id, DEFAULT_FOLDED_3D_CAMERA)
+          () =>
+            setOristudioCpFolded3dCamera(figure.id, {
+              ...DEFAULT_FOLDED_3D_CAMERA,
+              // Spread over the default rather than replacing it: an upright the
+              // user set survives a reset, because which way the model is up is
+              // a property of the model and not of the current look at it.
+              // "Clear upright" is the verb that discards it, and it says so.
+              orient: liveFigureCamera(figure).orient,
+            })
         ),
+      setUpright: (figure) => {
+        runFoldedFigureAction(
+          t('panels:creasePattern.setFoldedModelUpright', 'Set folded model upright'),
+          () =>
+            setOristudioCpFolded3dCamera(figure.id, setUprightView(liveFigureCamera(figure)))
+        );
+        announceUprightSet(t);
+      },
       flip: (figure) =>
         isFolded3dFigure(figure)
           ? runFoldedFigureAction(

@@ -134,6 +134,7 @@ export function folded3dWindowView(camera: FoldedFigureCamera | null | undefined
     yaw: source.yaw,
     pitch: source.pitch,
     zoom: clampSimulatorZoom(source.zoom),
+    orient: source.orient,
   };
 }
 

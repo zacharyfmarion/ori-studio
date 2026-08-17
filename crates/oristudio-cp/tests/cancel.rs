@@ -14,7 +14,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use oristudio_cp::CreasePatternDocument;
 use oristudio_cp::cancel::{CancelHandle, CancelSource, RunId, bind};
 use oristudio_cp::folding::{EstimationOrder, FoldedFigureModel, FoldingEstimateSession};
-use oristudio_cp::folding3d::wire::{Fold3dOrderWire, Fold3dVerdict};
+use oristudio_cp::folding3d::wire::Fold3dVerdict;
 use oristudio_cp::geometry::{LineColor, LineSegment, Point};
 use oristudio_cp::model::CreasePatternModel;
 use oristudio_cp::session::{CpSession, Fold3dFoldResult};
@@ -291,6 +291,22 @@ fn every_line(session: &CpSession, document: u32) -> Vec<usize> {
     (1..=count).collect()
 }
 
+/// The verdict this fixture folds to with nothing bound.
+///
+/// The baseline is computed rather than written down because it is not the
+/// subject: what the test asserts is that a cancel changes *nothing* about the
+/// answer, and comparing to a hardcoded verdict would additionally pin what each
+/// fixture folds to, which belongs to the folding3d tests instead.
+fn uncancelled_3d_verdict(name: &str) -> Fold3dVerdict {
+    let mut session = CpSession::new();
+    let document = load_3d_fixture(&mut session, name);
+    let lines = every_line(&session, document);
+    match session.folded_figure_fold_3d(document, &lines, 1, FoldedFigureModel::default()) {
+        Ok(Fold3dFoldResult::Placed { snapshot, .. }) => snapshot.verdict,
+        other => panic!("{name}: uncancelled fold did not place: {other:?}"),
+    }
+}
+
 /// A stopped 3D fold must **stop**, not conclude.
 ///
 /// The arrangement stage is the expensive half and its failures are ordinarily
@@ -300,9 +316,20 @@ fn every_line(session: &CpSession, document: u32) -> Vec<usize> {
 /// crease pattern, plus a kernel handle, a canvas entry, an undo step and a
 /// dirty project. It is the R1 failure class in its purest form: a stop
 /// converted into an answer.
+///
+/// **The assertion is equality with the unbound baseline, not inequality with a
+/// named reason.** The earlier version asserted only that the verdict was not
+/// `NoLayerOrder { reason: Cancelled }`, which is the shape a cancel takes when
+/// it travels *labelled*. It says nothing about a cancel that has been
+/// **relabelled**, and that is what `search_error` did: every non-contradiction
+/// arm — including all four cancel arms — became `SearchFailed`, so the figure
+/// was placed as `NoLayerOrder { reason: SearchFailed }` and sailed past the
+/// guard. A cancel must not change the answer at all; anything weaker only
+/// pins the one disguise somebody already thought of.
 #[test]
 fn a_cancelled_3d_fold_never_concludes_about_the_pattern() {
     for name in ["box_90", "spikes_small", "spikes_large"] {
+        let baseline = uncancelled_3d_verdict(name);
         for reads in [0u32, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024] {
             let mut session = CpSession::new();
             let document = load_3d_fixture(&mut session, name);
@@ -316,20 +343,75 @@ fn a_cancelled_3d_fold_never_concludes_about_the_pattern() {
                     error.code
                 ),
                 // Completing is fine — the cancel landed past the end of the
-                // fold. Completing with a verdict *derived from the stop* is the
-                // bug, and it is visible as the cancellation reason travelling
-                // in a `NoLayerOrder`.
-                Ok(Fold3dFoldResult::Placed { snapshot, .. }) => assert_ne!(
-                    snapshot.verdict,
-                    Fold3dVerdict::NoLayerOrder {
-                        reason: Fold3dOrderWire::Cancelled
-                    },
-                    "{name}: cancel after {reads} reads was placed as a verdict"
+                // fold. Completing with a *different* answer is the bug,
+                // whatever reason code the stop was dressed in.
+                Ok(Fold3dFoldResult::Placed { snapshot, .. }) => assert_eq!(
+                    snapshot.verdict, baseline,
+                    "{name}: cancel after {reads} reads changed the verdict"
                 ),
                 Ok(Fold3dFoldResult::Refused { refusal }) => {
                     panic!("{name}: cancel after {reads} reads became a refusal: {refusal:?}")
                 }
             }
+        }
+    }
+}
+
+/// The cancel that lands **inside the ordering search**, specifically.
+///
+/// The test above sweeps read counts and mostly stops in placement or in the
+/// arrangement, which are the cheap stages on these fixtures. This one drives
+/// the search itself: it folds once unbound to learn how many source reads a
+/// whole fold costs, then stops just short of that, which is where
+/// `possible_overlapping_search`'s own checkpoints live. Without it the sweep
+/// can be green while every checkpoint in `order.rs` is misclassified, because
+/// no `reads` value in the list happened to land there.
+#[test]
+fn a_cancel_inside_the_layer_order_search_is_a_stop() {
+    for name in ["spikes_small", "spikes_large"] {
+        let mut session = CpSession::new();
+        let document = load_3d_fixture(&mut session, name);
+        let lines = every_line(&session, document);
+
+        // Never cancels; the run id it reports matches nothing.
+        let counter = Arc::new(CancelAfter {
+            run: 0,
+            remaining: AtomicU32::new(u32::MAX),
+        });
+        {
+            let _bound = bind(Some(CancelHandle::new(
+                Arc::clone(&counter) as Arc<dyn CancelSource>,
+                RunId::new(1).expect("non-zero"),
+            )));
+            session
+                .folded_figure_fold_3d(document, &lines, 1, FoldedFigureModel::default())
+                .unwrap_or_else(|error| panic!("{name}: baseline fold failed: {error}"));
+        }
+        let total = u32::MAX - counter.remaining.load(Ordering::Relaxed);
+        assert!(
+            total > 8,
+            "{name}: a whole fold polled only {total} times — too few to stop inside the search"
+        );
+
+        // The last eighth of the fold is past placement and the arrangement on
+        // these fixtures, so a stop here is a stop in the ordering search.
+        for numerator in [7u32, 15] {
+            let reads = total * numerator / (numerator + 1);
+            let mut session = CpSession::new();
+            let document = load_3d_fixture(&mut session, name);
+            let lines = every_line(&session, document);
+
+            let _bound = bind(Some(handle(reads)));
+            let error = session
+                .folded_figure_fold_3d(document, &lines, 1, FoldedFigureModel::default())
+                .expect_err(&format!(
+                    "{name}: a stop {reads} reads into a {total}-read fold produced a figure"
+                ));
+            assert_eq!(
+                error.code, "fold_cancelled",
+                "{name}: a stop {reads} reads into a {total}-read fold reported {:?}",
+                error.code
+            );
         }
     }
 }

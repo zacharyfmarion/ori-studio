@@ -3,9 +3,12 @@ import { useEventCallback } from './useEventCallback';
 import {
   sameBpDeviceUpdate,
   sameBpDragUpdate,
+  sameBpReshapeUpdate,
   type BpPackingDeviceBackendUpdate,
   type BpPackingDragBackendUpdate,
+  type BpPackingReshapeBackendUpdate,
 } from '../lib/bpPackingDragRequests';
+import type { BpFlapFootprint } from '../lib/bpFlapReshape';
 
 /**
  * How the packing pane talks to the engine while something is being dragged.
@@ -43,6 +46,7 @@ export interface BpPackingDragRequestActions {
     loc: BpPackingDeviceBackendUpdate['loc'],
     dragging: boolean
   ) => Promise<unknown>;
+  reshapeFlap: (id: number, footprint: BpFlapFootprint, dragging: boolean) => Promise<unknown>;
 }
 
 export interface BpPackingDragRequests {
@@ -54,6 +58,9 @@ export interface BpPackingDragRequests {
   beginDeviceDrag: () => void;
   queueDeviceDrag: (update: BpPackingDeviceBackendUpdate) => void;
   flushDeviceDrag: (update: BpPackingDeviceBackendUpdate) => void;
+  beginFlapReshape: () => void;
+  queueFlapReshape: (update: BpPackingReshapeBackendUpdate) => void;
+  flushFlapReshape: (update: BpPackingReshapeBackendUpdate) => void;
 }
 
 /** One drag's outstanding work: the frame it owns, the newest sample, the last sent. */
@@ -73,11 +80,16 @@ export function useBpPackingDragRequests(
 ): BpPackingDragRequests {
   const flap = useRef<RequestChannel<BpPackingDragBackendUpdate>>(emptyChannel());
   const device = useRef<RequestChannel<BpPackingDeviceBackendUpdate>>(emptyChannel());
+  // A separate channel from the move: a gesture is one or the other, and giving
+  // them one channel would let a reshape's rAF cancel a move's in a stray
+  // overlap.
+  const reshape = useRef<RequestChannel<BpPackingReshapeBackendUpdate>>(emptyChannel());
   // Wrapped so the returned verbs keep one identity for the life of the pane,
   // whatever the store hands back this render.
   const moveFlap = useEventCallback(actions.moveFlap);
   const moveFlaps = useEventCallback(actions.moveFlaps);
   const moveDevice = useEventCallback(actions.moveDevice);
+  const reshapeFlap = useEventCallback(actions.reshapeFlap);
 
   /** Chain onto whatever is in flight, so answers cannot arrive out of order. */
   const chain = <T,>(channel: RequestChannel<T>, run: () => Promise<unknown>) => {
@@ -103,6 +115,15 @@ export function useBpPackingDragRequests(
       return id === undefined ? Promise.resolve() : moveFlap(id, update.loc, dragging);
     });
   }, [moveFlap, moveFlaps]);
+
+  const sendReshape = useCallback(
+    (update: BpPackingReshapeBackendUpdate, dragging: boolean) => {
+      const channel = reshape.current;
+      channel.sent = update;
+      chain(channel, () => reshapeFlap(update.id, update.footprint, dragging));
+    },
+    [reshapeFlap]
+  );
 
   const sendDevice = useCallback((update: BpPackingDeviceBackendUpdate, dragging: boolean) => {
     const channel = device.current;
@@ -155,7 +176,11 @@ export function useBpPackingDragRequests(
 
   useEffect(
     () => () => {
-      for (const channel of [flap.current, device.current] as RequestChannel<unknown>[]) {
+      for (const channel of [
+        flap.current,
+        device.current,
+        reshape.current,
+      ] as RequestChannel<unknown>[]) {
         if (channel.frame !== null) cancelAnimationFrame(channel.frame);
         channel.frame = null;
         channel.pending = null;
@@ -182,5 +207,16 @@ export function useBpPackingDragRequests(
       [sendDevice]
     ),
     flushDeviceDrag: useCallback((update) => flush(device.current, update, sendDevice), [sendDevice]),
+    beginFlapReshape: useCallback(() => {
+      reshape.current.sent = null;
+    }, []),
+    queueFlapReshape: useCallback(
+      (update) => schedule(reshape.current, update, sameBpReshapeUpdate, sendReshape),
+      [sendReshape]
+    ),
+    flushFlapReshape: useCallback(
+      (update) => flush(reshape.current, update, sendReshape),
+      [sendReshape]
+    ),
   };
 }

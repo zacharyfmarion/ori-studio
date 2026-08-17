@@ -3088,6 +3088,7 @@ export function CreasePatternPanel() {
                     onScrub={(percent) =>
                       inlineSimulations.scrub(focusedInlineSimulation.id, percent)
                     }
+                    onSetUpright={inlineSimulations.setUpright}
                     onReplay={inlineSimulations.replay}
                     onExport={inlineSimulations.exportView}
                     onRefresh={() => inlineSimulations.refresh(focusedInlineSimulation.id)}

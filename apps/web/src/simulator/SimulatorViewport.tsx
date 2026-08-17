@@ -23,6 +23,7 @@ import type { SimulatorRenderModel } from "./renderModel";
 import {
   clampSimulatorZoom,
   nextSimulatorOrbitView,
+  setUprightView,
   simulatorWheelZoomFactor,
   type SimulatorOrbitView as SimulatorView,
 } from "../lib/simulatorOrbit";
@@ -84,8 +85,21 @@ function withSurfaceFraming(
 }
 
 export interface SimulatorViewportHandle {
-  /** Return the orbit camera to {@link SimulatorViewportProps.initialView}. */
+  /**
+   * Return the orbit camera to {@link SimulatorViewportProps.initialView}.
+   *
+   * Angles *and* orientation — see the implementation for why this surface
+   * discards an upright where a folded figure's reset keeps one.
+   */
   resetView: () => void;
+  /**
+   * Take the direction now pointing up on screen as the model's up, so yaw spins
+   * about it rather than about the paper's normal.
+   *
+   * The picture does not move; only the parametrisation does. See
+   * `setUprightView`.
+   */
+  setUpright: () => void;
   /**
    * Move the orbit camera from outside, and redraw at it.
    *
@@ -427,8 +441,29 @@ export function SimulatorViewport({
     pushView();
   }, [gpuActive, refreshPaint, pushView]);
 
+  /**
+   * Back to the opening view — angles **and** orientation.
+   *
+   * A simulation's upright is session-only and takes no undo entry, so this is
+   * the only way out of one. Dropping it here is what lets the control be a
+   * single button rather than a pair: reset is already the verb for "put the
+   * view back", and on this surface it has to mean all of it or a model can get
+   * stuck on a pole the user picked by accident.
+   *
+   * A folded figure's is the other way round — it *is* document state, undo
+   * reaches it, and its "Reset view" leaves an upright alone deliberately.
+   */
   const resetView = useCallback(() => {
     viewRef.current = { ...openingViewRef.current };
+    pushView();
+  }, [pushView]);
+
+  // Session-only, on both simulator surfaces: an inline window's descriptor has
+  // a `view` slot but no write-back, and the Simulate workspace persists no
+  // camera at all. Making either durable is its own change, deliberately not
+  // this one — so a reload returns to the paper's normal.
+  const setUpright = useCallback(() => {
+    viewRef.current = setUprightView(viewRef.current);
     pushView();
   }, [pushView]);
 
@@ -447,6 +482,7 @@ export function SimulatorViewport({
     ref,
     () => ({
       resetView,
+      setUpright,
       zoomBy,
       setView: (view: SimulatorView) => {
         viewRef.current = { ...view };
@@ -464,7 +500,7 @@ export function SimulatorViewport({
         drawCurrentFrame();
       },
     }),
-    [resetView, zoomBy, drawCurrentFrame, presentBitmap, pushView]
+    [resetView, setUpright, zoomBy, drawCurrentFrame, presentBitmap, pushView]
   );
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {

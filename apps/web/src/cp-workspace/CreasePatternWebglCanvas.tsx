@@ -430,8 +430,19 @@ export interface CreasePatternWebglCanvasProps {
     /** The figure currently taking drags, or null when none is focused. */
     focusedId: string | null;
     claimsPress: (point: ModelPoint) => boolean;
-    begin: (point: ModelPoint) => boolean;
-    advance: (point: ModelPoint) => void;
+    /**
+     * Anchor and advance a turn, in **CSS pixels** — deliberately not the user
+     * point `claimsPress` takes.
+     *
+     * The two are different questions. "Is the press on the figure" is about the
+     * figure's box, which lives in user space; "how far has the hand moved" is
+     * about the hand, and unprojecting that through the crease-pattern camera
+     * divides it by the zoom and rotates it by the view rotation. Measuring the
+     * drag in user space made a figure turn at half rate at 200% zoom and pitch
+     * on a horizontal drag over a rotated canvas.
+     */
+    begin: (point: { x: number; y: number }) => boolean;
+    advance: (point: { x: number; y: number }) => void;
     commit: () => void;
     /**
      * Whether a wheel at this point belongs to the focused figure's camera
@@ -1753,12 +1764,19 @@ export function CreasePatternWebglCanvas({
       setFoldedOrbitPointer(next);
     };
 
-    const orbitPressPoint = (clientX: number, clientY: number): ModelPoint | null => {
+    /**
+     * Whether a press here turns the focused figure.
+     *
+     * Answered in user space and returning only a verdict, because the point the
+     * drag is then measured in is the client one — see `foldedOrbit.begin`. This
+     * used to hand its user point straight on as the drag anchor, which is how
+     * the turn rate came to depend on the crease-pattern zoom.
+     */
+    const orbitClaimsPressAt = (clientX: number, clientY: number): boolean => {
       const orbit = liveRef.current.foldedOrbit;
-      if (!orbit) return null;
+      if (!orbit) return false;
       const user = clientToUser(clientX, clientY);
-      if (!user || !orbit.claimsPress(user)) return null;
-      return user;
+      return user != null && orbit.claimsPress(user);
     };
 
     // Topmost folded figure whose pick box contains the cursor (draw order:
@@ -2732,7 +2750,7 @@ export function CreasePatternWebglCanvas({
       lastY = pressY = e.clientY;
       moved = false;
       const toolMode = liveRef.current.activeToolInputMode;
-      const orbitPoint = orbitPressPoint(e.clientX, e.clientY);
+      const orbitClaims = orbitClaimsPressAt(e.clientX, e.clientY);
       if (e.button === 2) {
         // Right button: universal erase gesture, overrides any active tool — including
         // a crease draw waiting on its second click, whose parked start it abandons.
@@ -2750,14 +2768,15 @@ export function CreasePatternWebglCanvas({
         e.preventDefault();
         panning = true;
         setPanDragging(true);
-      } else if (orbitPoint) {
+      } else if (orbitClaims) {
         // A focused 3D folded figure turns instead of anything else happening.
         // Above the tool branches because a tool must not draw through a figure
         // the user is turning, and below the right/middle-button ones because
         // erase and pan are unclaimable by design — the same precedence the
         // overlay gives a focused simulation window.
         e.preventDefault();
-        orbiting = liveRef.current.foldedOrbit?.begin(orbitPoint) ?? false;
+        orbiting =
+          liveRef.current.foldedOrbit?.begin({ x: e.clientX, y: e.clientY }) ?? false;
         if (orbiting) setOrbitPointer('turning');
       } else if (e.metaKey || liveRef.current.panToolActive) {
         // Meta+drag pans, as does a plain drag while the hand tool is on. Folded
@@ -2861,13 +2880,13 @@ export function CreasePatternWebglCanvas({
         // exactly where a press would turn the figure and nowhere else. Skipped
         // mid-gesture: a drag owns the cursor until it is released.
         //
-        // Gated on something being focused first. `orbitPressPoint` measures the
-        // canvas to place the pointer, and this runs on every move over the
+        // Gated on something being focused first. `orbitClaimsPressAt` measures
+        // the canvas to place the pointer, and this runs on every move over the
         // app's hottest surface — with no focused figure there is nothing to be
         // over, so the answer is 'none' without touching layout.
         setOrbitPointer(
           liveRef.current.foldedOrbit?.focusedId != null &&
-            orbitPressPoint(e.clientX, e.clientY) != null
+            orbitClaimsPressAt(e.clientX, e.clientY)
             ? 'over'
             : 'none'
         );
@@ -2876,8 +2895,11 @@ export function CreasePatternWebglCanvas({
         // The pointer is captured, so a drag that leaves the figure keeps
         // turning it — the same as dragging a scrollbar past its track, and what
         // any orbit that stopped at the object's edge would get wrong.
-        const user = clientToUser(e.clientX, e.clientY);
-        if (user) liveRef.current.foldedOrbit?.advance(user);
+        //
+        // Client pixels, unprojected by nothing: this is the same measurement
+        // `SimulatorViewport` takes, which is the whole of what makes a figure
+        // and a simulation answer one drag with one rotation.
+        liveRef.current.foldedOrbit?.advance({ x: e.clientX, y: e.clientY });
       } else if (erasing) {
         feedErase('move', e.clientX, e.clientY);
       } else if (drawing) {
@@ -2976,7 +2998,7 @@ export function CreasePatternWebglCanvas({
         // is also the only thing that writes the camera to the store, so
         // skipping it would leave the figure drawn at a camera nothing records.
         orbiting = false;
-        setOrbitPointer(orbitPressPoint(e.clientX, e.clientY) ? 'over' : 'none');
+        setOrbitPointer(orbitClaimsPressAt(e.clientX, e.clientY) ? 'over' : 'none');
         liveRef.current.foldedOrbit?.commit();
         if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
         return;

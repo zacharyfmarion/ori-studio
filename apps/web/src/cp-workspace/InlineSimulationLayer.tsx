@@ -40,6 +40,7 @@ import {
 } from '../simulator/useSimulatorRuntime';
 import { foldNeedsTriangulation } from '../simulator/canvas2dFrame';
 import { useSimulatorShortcuts } from '../simulator/useSimulatorShortcuts';
+import { registerSimulatorView } from '../simulator/simulatorViewRegistry';
 import { FoldPlayhead } from '../simulator/foldPlayhead';
 import {
   simulatorMaterialOptions,
@@ -442,6 +443,17 @@ function InlineSimulationWindow({
     onPlayingChange,
     viewSettings.foldPlayPercentPerSecond,
   ]);
+
+  // Publish this window's viewpoint verbs while it has focus, so the toolbar
+  // hovering over it reaches the right one. Scoped exactly like the shortcuts
+  // below and for the same reason: many windows can be mounted, only the focused
+  // one is being driven, and the registry holds a single handle.
+  useEffect(() => {
+    if (!interactive) return;
+    return registerSimulatorView({
+      setUpright: () => viewportRef.current?.setUpright(),
+    });
+  }, [interactive]);
 
   // The same keymap the Simulate workspace uses, bound only while this window has
   // focus. The `simulator` scope it pushes sits ahead of `crease-pattern`, so

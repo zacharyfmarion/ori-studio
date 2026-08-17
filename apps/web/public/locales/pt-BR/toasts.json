@@ -22,5 +22,8 @@
     "empty": "Esta simulação ainda não tem nada para exportar",
     "failed": "Não foi possível exportar esta visualização",
     "saved": "{{name}} exportado"
+  },
+  "upright": {
+    "set": "Vertical definida — arraste para girar em torno dela"
   }
 }

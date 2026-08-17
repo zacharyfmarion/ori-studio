@@ -1,4 +1,5 @@
 import { designKindRegistry } from '../designKinds';
+import type { Mat3 } from '@treemaker/origami-simulator';
 import type { FoldArtifacts, FoldDocument } from '../engine/types';
 import {
   CREASE_PATTERN_DOCUMENT_ID,
@@ -750,7 +751,31 @@ function foldedFigureCamera(value: unknown): OristudioCpFoldedFigureEntry['camer
   const pitch = finiteNumber(value.pitch);
   const zoom = positiveNumber(value.zoom);
   if (yaw === null || pitch === null || zoom === null) return null;
-  return { yaw, pitch, zoom };
+  const orient = foldedFigureOrient(value.orient);
+  return orient ? { yaw, pitch, zoom, orient } : { yaw, pitch, zoom };
+}
+
+/**
+ * A figure's model orientation — which way it was told is up.
+ *
+ * Absent on every file written before the verb existed, and absent on any figure
+ * nobody has set an upright on, so "missing" has to mean identity rather than
+ * an error. That is what lets this ride in without a schema bump: an old `.osf`
+ * opens at exactly the camera it always did.
+ *
+ * Dropped whole on anything malformed, like the canvas camera beside it. A
+ * partly-read rotation is not a rotation, and half a basis would draw a sheared
+ * figure that looks like a kernel bug.
+ */
+function foldedFigureOrient(value: unknown): Mat3 | null {
+  if (!Array.isArray(value) || value.length !== 9) return null;
+  const out: number[] = [];
+  for (const entry of value) {
+    const n = finiteNumber(entry);
+    if (n === null) return null;
+    out.push(n);
+  }
+  return out as unknown as Mat3;
 }
 
 /**

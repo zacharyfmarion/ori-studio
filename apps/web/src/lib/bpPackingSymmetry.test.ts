@@ -14,12 +14,14 @@ import {
   constrainBpFlapGroupToAxisSides,
   bpPackingSheetCenter,
   bpPackingSheetSupportsAxis,
+  bpFlapKeepsMirrorSide,
   bpPackingSymmetryAxis,
   buildMirroredBpFlapMoves,
   constrainBpFlapMoveToAxis,
   isBpFlapOnAxis,
   mirrorAfterSheetTransform,
   mirrorBpFlapAnchor,
+  mirrorBpFlapFootprint,
   projectBpFlapAnchorOntoAxis,
   type BpSheetTransform,
 } from './bpPackingSymmetry';
@@ -149,6 +151,80 @@ describe('mirrorBpFlapAnchor', () => {
       const once = mirrorBpFlapAnchor({ x: 2, y: 5 }, box, CENTER, axis);
       expect(mirrorBpFlapAnchor(once, mirroredBox, CENTER, axis)).toEqual({ x: 2, y: 5 });
     }
+  });
+});
+
+describe('bpFlapKeepsMirrorSide', () => {
+  // The move path already refuses to walk a paired flap across the mirror, on the
+  // grounds that it would land on its own reflection. A resize can cross just as
+  // easily: dragging the west handle of a flap one cell right of the axis three
+  // cells west put its box and its partner's box on the same cells.
+  const paired = flap(1, 9, 8, 0, 0); // one cell right of the axis at x = 8
+
+  it('accepts a candidate that stays on its own side', () => {
+    expect(
+      bpFlapKeepsMirrorSide(paired, { anchor: { x: 9, y: 8 }, width: 3, height: 0 }, sheet('rectangular', 16, 16), BOOK)
+    ).toBe(true);
+  });
+
+  it('refuses one that reaches across the line', () => {
+    expect(
+      bpFlapKeepsMirrorSide(paired, { anchor: { x: 6, y: 8 }, width: 3, height: 0 }, sheet('rectangular', 16, 16), BOOK)
+    ).toBe(false);
+  });
+
+  it('refuses one that merely comes to rest on the line', () => {
+    // A zero-extent flap sitting exactly on the mirror *is* its own reflection.
+    expect(
+      bpFlapKeepsMirrorSide(paired, { anchor: { x: 8, y: 8 }, width: 0, height: 0 }, sheet('rectangular', 16, 16), BOOK)
+    ).toBe(false);
+  });
+
+  it('leaves a flap that already straddles the line unconstrained', () => {
+    // `side` is which half a flap is in, and 0 means neither — it is across the
+    // mirror already. There is no side to keep it on, so the guard steps aside
+    // rather than freezing it where it is.
+    const straddling = flap(1, 6, 8, 4, 0);
+    expect(
+      bpFlapKeepsMirrorSide(straddling, { anchor: { x: 5, y: 8 }, width: 6, height: 0 }, sheet('rectangular', 16, 16), BOOK)
+    ).toBe(true);
+  });
+});
+
+describe('mirrorBpFlapFootprint', () => {
+  // A reshape changes the box, and the anchor's reflection carries the size term
+  // — so the partner has to be mirrored against the *new* box. Every case here
+  // uses a non-square flap, where mirroring against the old one would be off by
+  // exactly the amount it grew.
+  const grown = { anchor: { x: 2, y: 5 }, width: 3, height: 1 };
+
+  it('mirrors a book fold across the vertical, keeping the dimensions', () => {
+    expect(mirrorBpFlapFootprint(grown, sheet(), BOOK)).toEqual({
+      anchor: { x: 16 - 2 - 3, y: 5 },
+      width: 3,
+      height: 1,
+    });
+  });
+
+  it('exchanges the dimensions when the fold lands on a diagonal', () => {
+    expect(mirrorBpFlapFootprint(grown, sheet(), DIAGONAL)).toEqual({
+      anchor: { x: 5, y: 2 },
+      width: 1,
+      height: 3,
+    });
+  });
+
+  it('is an involution: mirroring the partner gives the primary back', () => {
+    for (const fold of [BOOK, DIAGONAL]) {
+      const once = mirrorBpFlapFootprint(grown, sheet(), fold);
+      expect(mirrorBpFlapFootprint(once!, sheet(), fold)).toEqual(grown);
+    }
+  });
+
+  it('declines a diagonal fold the sheet cannot carry', () => {
+    // Reachable only from a file: a design saved square and reopened after a
+    // resize. Better to leave the partner alone than to send it off the paper.
+    expect(mirrorBpFlapFootprint(grown, sheet('rectangular', 16, 10), DIAGONAL)).toBeNull();
   });
 });
 

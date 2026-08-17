@@ -16,10 +16,16 @@ import {
   bpPackingSheetCenter,
   bpPackingSheetSupportsAxis,
   bpPackingSymmetryAxis,
+  bpFlapKeepsMirrorSide,
+  type BpFlapFootprintLike,
 } from '../lib/bpPackingSymmetry';
 import { bpPackingPointToSvg, bpPackingSheetFrame } from '../lib/bpPackingViewport';
 import type { bpPackingPaperRect } from '../lib/bpPackingViewport';
-import type { OristudioBpSheet, OristudioBpTreeView } from '../engine/oristudioBpTypes';
+import type {
+  OristudioBpFlap,
+  OristudioBpSheet,
+  OristudioBpTreeView,
+} from '../engine/oristudioBpTypes';
 import type { SymmetryAxis } from '../lib/symmetryGeometry';
 import type { Point } from '../lib/geometry';
 
@@ -67,6 +73,32 @@ export interface BpPackingSymmetryView {
   status: string;
   /** Flaps that mirror the selection — marked, so a mirrored move is no surprise. */
   partnerIds: ReadonlySet<number>;
+  /**
+   * Whether the one selected flap is its *own* mirror, sitting on the line.
+   *
+   * Such a flap has to stay centred on the axis, and the anchor that keeps it
+   * there is `centre - width/2` — half a cell for the wrong parity, which is a
+   * fractional flap coordinate, which fails device generation for the entire
+   * design. So the resize handles decline it; its R/W/H fields still work.
+   */
+  selfMirrored: boolean;
+  /**
+   * The line a self-mirrored flap has to stay centred on, in layout grid
+   * coordinates — what the resize solve needs to grow such a flap symmetrically
+   * instead of declining it. Null unless the selection is one, or the fold lands
+   * on a diagonal, where both coordinates are pinned at once and only a square
+   * flap is self-mirrored at all.
+   */
+  selfMirrorCentre: { axis: 'x' | 'y'; at: number } | null;
+  /**
+   * Whether a reshaped flap still sits on its own side of the mirror. Null when
+   * the selection has no partner to collide with — an unpaired flap may go
+   * anywhere. The move path enforces the same rule through
+   * `constrainBpFlapGroupToAxisSides`.
+   */
+  mirrorSideGuard:
+    | ((flap: OristudioBpFlap, candidate: BpFlapFootprintLike) => boolean)
+    | null;
   /** The selected flap's explicit partner, if any. Null means nothing to unpair. */
   unpairableId: number | null;
   unpair: (vertexId: number) => void;
@@ -197,6 +229,34 @@ export function useBpPackingSymmetry(
     return explicitBpTreePairId(symmetry.pairs, id) === null ? null : id;
   }, [symmetry.pairs, selectedFlapIds]);
 
+  // Gated on mirror draw, unlike the partner mark above, and for the reason the
+  // store's own `bpIsSelfMirrored` gives: a *pair* is a fact the user recorded
+  // and outlives the toggle, while sitting on the line never is.
+  const selfMirrored = useMemo(() => {
+    if (!symmetry.enabled || selectedFlapIds.length !== 1) return false;
+    const id = selectedFlapIds[0];
+    return mirrorBpTreeVertexId(tree, symmetry.pairs, treeAxis, id) === id;
+  }, [symmetry.enabled, symmetry.pairs, selectedFlapIds, tree, treeAxis]);
+
+  const selfMirrorCentre = useMemo(() => {
+    if (!selfMirrored) return null;
+    const axis = bpPackingSymmetryAxis(sheet, symmetry);
+    const centre = bpPackingSheetCenter(sheet);
+    if (axis === 'verticalHalf') return { axis: 'x' as const, at: centre.x };
+    if (axis === 'horizontalHalf') return { axis: 'y' as const, at: centre.y };
+    // A diagonal fold pins both coordinates together; growing one axis from the
+    // line is not enough to keep such a flap on it, so the handles still decline.
+    return null;
+  }, [selfMirrored, sheet, symmetry]);
+
+  const mirrorSideGuard = useMemo(() => {
+    if (selectedFlapIds.length !== 1) return null;
+    const partner = mirrorBpTreeVertexId(tree, symmetry.pairs, treeAxis, selectedFlapIds[0]);
+    if (partner === null || partner === selectedFlapIds[0]) return null;
+    return (flap: OristudioBpFlap, candidate: BpFlapFootprintLike) =>
+      bpFlapKeepsMirrorSide(flap, candidate, sheet, symmetry);
+  }, [selectedFlapIds, tree, symmetry, treeAxis, sheet]);
+
   return {
     enabled: symmetry.enabled,
     toggle,
@@ -206,6 +266,9 @@ export function useBpPackingSymmetry(
     axisLine,
     status,
     partnerIds,
+    selfMirrored,
+    selfMirrorCentre,
+    mirrorSideGuard,
     unpairableId,
     unpair: unpairOristudioBpTreeSymmetry,
   };
