@@ -68,6 +68,7 @@
     },
     "linux": {
       "deb": {
+        "desktopTemplate": "linux/main.desktop",
         "files": {
           "/usr/share/mime/packages/oristudio.xml": "linux/oristudio-mime.xml",
           "/usr/share/icons/hicolor/32x32/mimetypes/application-vnd.oristudio.project+json.png": "linux/mimetypes/32.png",
