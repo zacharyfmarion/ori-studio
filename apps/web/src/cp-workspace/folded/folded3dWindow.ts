@@ -150,6 +150,27 @@ export function folded3dWindowView(camera: FoldedFigureCamera | null | undefined
 export const FOLDED_3D_WINDOW_CREASE_WIDTH_PX = 1.5;
 
 /**
+ * How far toward the viewer a crease is pushed, in NDC z.
+ *
+ * A tie-break and nothing more. A crease is drawn from its own layer's ring, and
+ * an opaque figure draws one layer per cell, so the only thing a crease is ever
+ * coincident with is **the single face it lies on**. It has to beat zero, not a
+ * stack.
+ *
+ * It does **not** have to clear another plane that meets this one along a fold
+ * line, which is the job it kept being handed and kept failing at: a fold line
+ * lies in both planes at once, so no epsilon separates them at every camera.
+ * That is settled by drawing the planes far-to-near and letting the nearer one's
+ * paper cover the farther one's linework — see `folded3dDrawPasses`.
+ *
+ * So all this has left to beat is the *slope* of its own face across the width of
+ * the crease ribbon, which is why it can be this small: `2e-5 · radius` of world
+ * depth, still 84 units of a 24-bit depth buffer. On a 16-bit one it is a third
+ * of a unit, which is what `Folded3dMeshRuntime.shallowDepthBuffer` reports.
+ */
+export const FOLDED_3D_CREASE_DEPTH_BIAS = 1e-5;
+
+/**
  * How a 3D figure's paper is drawn, as the settings every renderer takes.
  *
  * Built from the figure's **own** model colours rather than from the app-wide
@@ -191,6 +212,10 @@ export function folded3dWindowRenderSettings(options: {
       FOLDED_3D_WINDOW_CREASE_WIDTH_PX * Math.max(1, options.devicePixelRatio)
     ),
     faceAlpha: plan.faceAlpha * style.faceAlpha,
+    creaseDepthBias: FOLDED_3D_CREASE_DEPTH_BIAS,
+    // A nearer plane's paper has to be able to cover a farther plane's creases
+    // where the two meet along a fold line — see `RenderSettings`.
+    creaseWritesDepth: false,
   };
 }
 
@@ -218,7 +243,9 @@ export function folded3dMeshPayload(mesh: Folded3dMesh): {
     edgeAssignments: edgeAssignments.buffer as ArrayBuffer,
     center: mesh.center,
     radius: mesh.radius,
-    undeterminedIndexStart: mesh.undeterminedIndexStart,
+    skins: mesh.skins,
+    translucent: mesh.translucent,
+    undetermined: mesh.undetermined,
     undeterminedFaceAlpha: UNDETERMINED_FACE_ALPHA,
   };
   return {

@@ -5,6 +5,8 @@ import {
   type RenderSettings,
 } from '@treemaker/origami-simulator';
 import { folded3dMesh, packFolded3dPositionTexture } from '../../cp-workspace/folded/folded3dMesh';
+import { FOLDED_3D_CREASE_DEPTH_BIAS } from '../../cp-workspace/folded/folded3dWindow';
+import type { Folded3dRange, Folded3dSkin } from '../../cp-workspace/folded/folded3dMesh';
 import { UNDETERMINED_FACE_ALPHA } from '../../cp-workspace/folded/folded3dStyle';
 import { folded3dDrawPasses } from '../../simulator/foldedMeshSource';
 import type { StartFigureAsset } from './startFigureAsset';
@@ -37,8 +39,9 @@ export class StartFigureMesh {
     private readonly mesh: MeshRenderer,
     private readonly canvas: HTMLCanvasElement,
     private readonly radius: number,
-    private readonly faceIndexCount: number,
-    private readonly undeterminedIndexStart: number,
+    private readonly skins: readonly Folded3dSkin[],
+    private readonly translucent: Folded3dRange,
+    private readonly undetermined: Folded3dRange,
     private readonly undeterminedFaceAlpha: number
   ) {}
 
@@ -90,8 +93,9 @@ export class StartFigureMesh {
         mesh,
         canvas,
         radius,
-        topology.faceIndices.length,
-        built.mesh.undeterminedIndexStart,
+        orientSkins(built.mesh.skins, asset.view.orient),
+        built.mesh.translucent,
+        built.mesh.undetermined,
         UNDETERMINED_FACE_ALPHA
       );
     } catch {
@@ -151,17 +155,30 @@ export class StartFigureMesh {
     // undetermined stack opaque is drawing an order, and the wrong one.
     for (const pass of folded3dDrawPasses(
       {
-        faceIndexCount: this.faceIndexCount,
-        undeterminedIndexStart: this.undeterminedIndexStart,
+        skins: this.skins,
+        translucent: this.translucent,
+        undetermined: this.undetermined,
         undeterminedFaceAlpha: this.undeterminedFaceAlpha,
       },
-      settings
+      settings,
+      orthographic
     )) {
       this.mesh.render(
         orthographic,
-        { ...settings, showEdges: pass.showEdges, faceAlpha: pass.faceAlpha },
+        {
+          ...settings,
+          showEdges: pass.showEdges,
+          faceAlpha: pass.faceAlpha,
+          // A crease only has to beat the one face it lies on. Same rule as the
+          // figure window.
+          creaseDepthBias: FOLDED_3D_CREASE_DEPTH_BIAS,
+        },
         null,
-        { clear: pass.clear, faceRange: pass.faceRange ?? undefined }
+        {
+          clear: pass.clear,
+          faceRange: pass.faceRange ?? undefined,
+          edgeRange: pass.edgeRange ?? undefined,
+        }
       );
     }
   }
@@ -233,20 +250,15 @@ function screenFitRadius(positions: Float32Array, pitch: number): number {
  * Intrinsic Z-Y-X, which is only a convention; the angles come from the
  * generator and are chosen by eye against the real render.
  */
-function orient(
-  positions: Float32Array,
+function rotator(
   angles: readonly [number, number, number] | undefined
-): Float32Array {
-  if (!angles || angles.every((angle) => angle === 0)) return positions;
+): ((x: number, y: number, z: number) => [number, number, number]) | null {
+  if (!angles || angles.every((angle) => angle === 0)) return null;
   const [rx, ry, rz] = angles;
   const [cx, sx] = [Math.cos(rx), Math.sin(rx)];
   const [cy, sy] = [Math.cos(ry), Math.sin(ry)];
   const [cz, sz] = [Math.cos(rz), Math.sin(rz)];
-  const out = new Float32Array(positions.length);
-  for (let i = 0; i < positions.length; i += 3) {
-    const x0 = positions[i]!;
-    const y0 = positions[i + 1]!;
-    const z0 = positions[i + 2]!;
+  return (x0, y0, z0) => {
     // Rx
     const y1 = cx * y0 - sx * z0;
     const z1 = sx * y0 + cx * z0;
@@ -254,11 +266,53 @@ function orient(
     const x2 = cy * x0 + sy * z1;
     const z2 = -sy * x0 + cy * z1;
     // Rz
-    out[i] = cz * x2 - sz * y1;
-    out[i + 1] = sz * x2 + cz * y1;
-    out[i + 2] = z2;
+    return [cz * x2 - sz * y1, sz * x2 + cz * y1, z2];
+  };
+}
+
+export function orient(
+  positions: Float32Array,
+  angles: readonly [number, number, number] | undefined
+): Float32Array {
+  const rotate = rotator(angles);
+  if (!rotate) return positions;
+  const out = new Float32Array(positions.length);
+  for (let i = 0; i < positions.length; i += 3) {
+    const [x, y, z] = rotate(positions[i]!, positions[i + 1]!, positions[i + 2]!);
+    out[i] = x;
+    out[i + 1] = y;
+    out[i + 2] = z;
   }
   return out;
+}
+
+/**
+ * The same rotation, applied to what the **skins** carry.
+ *
+ * Not optional, and not cosmetic. A skin holds two vectors that are not
+ * positions: `up`, which `folded3dDrawPasses` dots against the view axis to pick
+ * which of a plane's two surfaces faces the eye, and `centroid`, which orders
+ * the planes far-to-near. Leaving them in the model's original frame while the
+ * geometry is drawn rotated asks those questions in one frame and answers them
+ * about another — so the wrong surface of a plane gets drawn, and the paper in
+ * front stops covering the paper behind. On the start figure, whose `orient` is
+ * most of a half-turn, that shows as the figure's back rendering through its
+ * front at some yaws and not others.
+ *
+ * `orient` is a rigid rotation, so a direction stays a direction and `up` stays
+ * unit length; nothing here needs renormalising.
+ */
+export function orientSkins(
+  skins: readonly Folded3dSkin[],
+  angles: readonly [number, number, number] | undefined
+): readonly Folded3dSkin[] {
+  const rotate = rotator(angles);
+  if (!rotate) return skins;
+  return skins.map((skin) => ({
+    ...skin,
+    up: rotate(skin.up[0], skin.up[1], skin.up[2]),
+    centroid: rotate(skin.centroid[0], skin.centroid[1], skin.centroid[2]),
+  }));
 }
 
 /**

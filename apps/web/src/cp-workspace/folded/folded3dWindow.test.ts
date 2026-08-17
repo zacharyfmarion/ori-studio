@@ -294,10 +294,12 @@ describe('handing a mesh to the worker', () => {
     expect(packed[3]).toBe(0);
   });
 
-  it('carries the split point and the alpha the second pass draws at', () => {
+  it('carries the skins, the ranges and the alpha the second pass draws at', () => {
     const mesh = meshOf('pinwheel');
     const { payload } = folded3dMeshPayload(mesh);
-    expect(payload.undeterminedIndexStart).toBe(mesh.undeterminedIndexStart);
+    expect(payload.skins).toBe(mesh.skins);
+    expect(payload.translucent).toBe(mesh.translucent);
+    expect(payload.undetermined).toBe(mesh.undetermined);
     expect(payload.undeterminedFaceAlpha).toBe(UNDETERMINED_FACE_ALPHA);
   });
 
