@@ -1,10 +1,17 @@
 use std::fs;
 use std::sync::Mutex;
 
-#[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
+// Used by the macOS/mobile `RunEvent::Opened` path and by the argv path that
+// serves Windows and Linux, so every target we build reaches one of them.
 use tauri::Emitter;
 use tauri::Manager;
 use tauri_plugin_window_state::StateFlags;
+
+#[cfg(any(
+    not(any(target_os = "macos", target_os = "ios", target_os = "android")),
+    test
+))]
+use std::path::{Path, PathBuf};
 
 mod cp_engine;
 
@@ -76,6 +83,66 @@ fn handle_opened_event(app: &tauri::AppHandle, event: tauri::RunEvent) {
 #[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
 fn handle_opened_event(_app: &tauri::AppHandle, _event: tauri::RunEvent) {}
 
+/// The `.osf` paths in a process argument list, resolved against `cwd`.
+///
+/// Only macOS and mobile deliver a double-clicked document through
+/// `RunEvent::Opened`. Windows and Linux pass it as a command-line argument
+/// instead — to the first launch through `std::env::args`, and to a launch that
+/// finds the app already running through the single-instance plugin's callback.
+/// Without this the `.osf` association registered by the bundler is inert on
+/// both platforms: the app starts, and opens nothing.
+///
+/// `args` must already have the executable path removed.
+#[cfg(any(
+    not(any(target_os = "macos", target_os = "ios", target_os = "android")),
+    test
+))]
+fn argv_osf_paths<I, S>(args: I, cwd: &Path) -> Vec<String>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    args.into_iter()
+        // A leading dash is a switch, not a document. Both Tauri and the webview
+        // accept command-line flags, so `--enable-something.osf` must not open a
+        // file that does not exist.
+        .filter(|arg| !arg.as_ref().starts_with('-'))
+        .map(|arg| {
+            let path = PathBuf::from(arg.as_ref());
+            if path.is_absolute() {
+                path
+            } else {
+                // A file manager passes an absolute path, but a shell launch from
+                // the document's own directory does not, and the single-instance
+                // callback reports the *second* process's cwd for exactly this.
+                cwd.join(path)
+            }
+        })
+        .filter(|path| {
+            path.extension()
+                .and_then(|extension| extension.to_str())
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("osf"))
+        })
+        .map(|path| path.to_string_lossy().into_owned())
+        .collect()
+}
+
+/// Records `.osf` paths for the frontend and tells it they arrived.
+///
+/// Both halves are required: `take_opened_files` drains this state on mount, for
+/// paths that arrived before the webview existed, and the event covers the
+/// already-running case. The frontend hook listens for one and polls the other.
+#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
+fn queue_opened_files(app: &tauri::AppHandle, paths: Vec<String>) {
+    if paths.is_empty() {
+        return;
+    }
+    if let Ok(mut opened_files) = app.state::<OpenedFiles>().0.lock() {
+        opened_files.extend(paths.clone());
+    }
+    let _ = app.emit("opened-files", paths);
+}
+
 /// The size to correct a restored window to, or `None` if it needs no correcting.
 ///
 /// `tauri-plugin-window-state` persists a **physical** size and replays it with
@@ -138,7 +205,30 @@ fn clamp_window_to_min<R: tauri::Runtime>(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    #[allow(unused_mut)]
+    let mut builder = tauri::Builder::default();
+
+    // Registered before every other plugin, per the plugin's contract: a second
+    // launch hands its arguments to the running app and exits from inside this
+    // init, so anything set up ahead of it would be set up twice.
+    //
+    // macOS is excluded because the OS already enforces one instance per .app
+    // bundle and routes the document through `RunEvent::Opened`. Without this,
+    // double-clicking a second `.osf` on Windows or Linux starts a second copy of
+    // Ori Studio, and the two then race over `tauri-plugin-window-state`'s single
+    // state file.
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_focus();
+            }
+            let paths = argv_osf_paths(argv.iter().skip(1), Path::new(&cwd));
+            queue_opened_files(app, paths);
+        }));
+    }
+
+    builder
         .manage(OpenedFiles::default())
         .manage(cp_engine::new_state())
         // Separate state, not a field on the engine: a fold holds the engine
@@ -159,6 +249,19 @@ pub fn run() {
             if let tauri::WindowEvent::Resized(size) = event {
                 clamp_window_to_min(window, *size);
             }
+        })
+        .setup(|_app| {
+            // The first launch's document, on the platforms that deliver it as an
+            // argument. Queued rather than opened directly: the webview does not
+            // exist yet, so the frontend drains this through `take_opened_files`
+            // when it mounts.
+            #[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
+            {
+                let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+                let paths = argv_osf_paths(std::env::args().skip(1), &cwd);
+                queue_opened_files(_app.handle(), paths);
+            }
+            Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             platform_ping,
@@ -220,7 +323,8 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{clamped_to_min, opened_osf_paths};
+    use super::{argv_osf_paths, clamped_to_min, opened_osf_paths};
+    use std::path::Path;
 
     #[test]
     fn leaves_a_restored_size_at_or_above_the_minimum_alone() {
@@ -267,5 +371,42 @@ mod tests {
         let paths = opened_osf_paths(vec![osf, upper, fold, web]);
 
         assert_eq!(paths, vec!["/tmp/design.osf", "/tmp/upper.OSF"]);
+    }
+
+    #[test]
+    fn filters_argv_to_osf_paths() {
+        let cwd = Path::new("/work");
+
+        let paths = argv_osf_paths(
+            ["/tmp/design.osf", "/tmp/upper.OSF", "/tmp/design.fold"],
+            cwd,
+        );
+
+        assert_eq!(paths, vec!["/tmp/design.osf", "/tmp/upper.OSF"]);
+    }
+
+    #[test]
+    fn resolves_a_relative_argv_path_against_the_cwd() {
+        // A shell launch from the document's own directory, and the
+        // single-instance callback, both produce this.
+        let paths = argv_osf_paths(["design.osf"], Path::new("/work/designs"));
+
+        assert_eq!(paths, vec!["/work/designs/design.osf"]);
+    }
+
+    #[test]
+    fn ignores_switches_that_look_like_documents() {
+        let paths = argv_osf_paths(
+            ["--enable-features=Thing.osf", "-v", "/tmp/real.osf"],
+            Path::new("/work"),
+        );
+
+        assert_eq!(paths, vec!["/tmp/real.osf"]);
+    }
+
+    #[test]
+    fn yields_nothing_for_a_plain_launch() {
+        assert!(argv_osf_paths(Vec::<String>::new(), Path::new("/work")).is_empty());
+        assert!(argv_osf_paths(["--some-flag"], Path::new("/work")).is_empty());
     }
 }

@@ -1,119 +1,471 @@
-name: Release Validation
+name: Desktop Build
+
+# Two ways in, one build path:
+#
+#   workflow_dispatch  — a one-off build of any branch. Artifacts land on the
+#                        workflow run for you to download and hand to testers.
+#                        Nothing is published and no tag is touched.
+#   push: tags v*      — a release. The same artifacts additionally go to a
+#                        GitHub Release, created as a *prerelease* so that
+#                        `releases/latest` keeps pointing at the previous good
+#                        one until a human arms it. See
+#                        implementation-plans/desktop-auto-update.md.
+#
+# macOS signing and notarization run whenever the Apple secrets are present, on
+# both paths — an unsigned macOS build is not something a tester can open.
+# Windows is deliberately unsigned for now; see implementation-plans/desktop-ci-release.md.
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
+    inputs:
+      platforms:
+        description: 'Which platforms to build'
+        type: choice
+        default: all
+        options: [all, macos, windows, linux, windows+linux]
+  push:
+    tags: ['v*']
 
 permissions:
   contents: read
 
+concurrency:
+  group: desktop-build-${{ github.ref }}
+  # Never cancel a run that may be half-way through uploading a release.
+  cancel-in-progress: false
+
 env:
   CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
 
 jobs:
   validate:
-    name: Validate release metadata
+    name: Validate
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      is_release: ${{ steps.meta.outputs.is_release }}
+      matrix: ${{ steps.meta.outputs.matrix }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
 
-      - name: Resolve version
-        id: get_version
-        run: |
-          set -euo pipefail
-
-          if [[ "${GITHUB_REF:-}" == refs/tags/v* ]]; then
-            echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
-            echo "is_release_tag=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=$(sed -n 's/^version = \"\\(.*\\)\"/\\1/p' Cargo.toml | head -n 1)" >> "$GITHUB_OUTPUT"
-            echo "is_release_tag=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Fetch main
-        run: git fetch origin main
-
-      - name: Validate release version
+      - name: Resolve version and platform set
+        id: meta
         env:
-          VERSION: ${{ steps.get_version.outputs.version }}
-          IS_RELEASE_TAG: ${{ steps.get_version.outputs.is_release_tag }}
+          PLATFORMS: ${{ inputs.platforms || 'all' }}
         run: |
           set -euo pipefail
 
-          if [ "$IS_RELEASE_TAG" = "true" ] && ! git merge-base --is-ancestor "$GITHUB_SHA" "origin/main"; then
-            echo "::error::Tagged commit $GITHUB_SHA is not reachable from origin/main"
-            exit 1
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+          else
+            # A dispatch build is not a release; it is named after whatever the
+            # branch currently declares, plus the short SHA so two builds of the
+            # same branch are tellable apart on a tester's disk.
+            echo "version=$(bash scripts/release-lib/read-workspace-version.sh)" >> "$GITHUB_OUTPUT"
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
           fi
 
-          WORKSPACE_VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
-          WEB_VERSION=$(jq -r '.version' apps/web/package.json)
-          TAURI_PACKAGE_VERSION=$(jq -r '.version' apps/tauri/package.json)
-          TAURI_CONF_VERSION=$(jq -r '.version' apps/tauri/src-tauri/tauri.conf.json)
+          # The whole matrix is emitted from here as a `{"include": [...]}` object
+          # rather than as a name list fed to a static `include:`. That pattern
+          # looks equivalent and is not: an include entry whose `name` differs
+          # from an original matrix value cannot be merged into it, so GitHub
+          # *creates a new combination* instead — and asking for `windows` would
+          # quietly build all four legs.
+          all_legs='[
+            {"name":"macos-aarch64","runner":"macos-latest","target":"aarch64-apple-darwin","bundles":"app,dmg"},
+            {"name":"macos-x86_64","runner":"macos-latest","target":"x86_64-apple-darwin","bundles":"app,dmg"},
+            {"name":"windows","runner":"windows-latest","target":"x86_64-pc-windows-msvc","bundles":"nsis"},
+            {"name":"linux","runner":"ubuntu-22.04","target":"x86_64-unknown-linux-gnu","bundles":"deb,appimage"}
+          ]'
 
-          for actual in "$WORKSPACE_VERSION" "$WEB_VERSION" "$TAURI_PACKAGE_VERSION" "$TAURI_CONF_VERSION"; do
-            if [ "$actual" != "$VERSION" ]; then
-              echo "::error::Version mismatch. Expected $VERSION, found $actual"
+          case "$PLATFORMS" in
+            all)           filter='true' ;;
+            macos)         filter='.name | startswith("macos")' ;;
+            windows)       filter='.name == "windows"' ;;
+            linux)         filter='.name == "linux"' ;;
+            windows+linux) filter='.name == "windows" or .name == "linux"' ;;
+            *) echo "::error::unknown platform set: $PLATFORMS"; exit 1 ;;
+          esac
+
+          # A release always builds every platform; the selector is a
+          # dispatch-only convenience for iterating on one leg.
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then filter='true'; fi
+
+          matrix="$(jq -c --argjson legs "$all_legs" -n "{include: (\$legs | map(select($filter)))}")"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "building: $(jq -r '.include | map(.name) | join(", ")' <<< "$matrix")"
+
+      # A tagged commit must be something that was reviewed and merged. A hotfix
+      # is allowed to sit off a release branch, but it still has to descend from
+      # the previous release rather than from nowhere.
+      - name: Check tag ancestry
+        if: steps.meta.outputs.is_release == 'true'
+        run: |
+          set -euo pipefail
+          git fetch origin main --tags --quiet
+          if git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "scheduled release: tagged commit is on main"
+          else
+            previous="$(git describe --tags --abbrev=0 "${GITHUB_SHA}^" 2>/dev/null || true)"
+            if [ -z "$previous" ]; then
+              echo "::error::tagged commit is not on main and descends from no previous tag"
               exit 1
             fi
-          done
+            if ! git merge-base --is-ancestor "$previous" "$GITHUB_SHA"; then
+              echo "::error::hotfix tag does not descend from ${previous}"
+              exit 1
+            fi
+            echo "hotfix release off ${previous}"
+          fi
 
-      - name: Extract release notes from CHANGELOG
-        if: steps.get_version.outputs.is_release_tag == 'true'
+      - name: Check version files agree
+        if: steps.meta.outputs.is_release == 'true'
+        run: bash scripts/release-lib/check-versions.sh "${{ steps.meta.outputs.version }}"
+
+      # Compilation is not correctness. A tag whose commit never had lint,
+      # typecheck, vitest, clippy or oracle parity run against it will still
+      # build, sign and notarize perfectly — this is the gap a 2am hotfix falls
+      # into, since ci.yml does not trigger on tags.
+      - name: Check CI was green at this commit
+        if: steps.meta.outputs.is_release == 'true'
         env:
-          VERSION: ${{ steps.get_version.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-
-          awk -v version="$VERSION" '
-            BEGIN {
-              in_section = 0
-              found = 0
-            }
-            $0 ~ "^## \\[" version "\\] - " {
-              in_section = 1
-              found = 1
-              next
-            }
-            /^## \[/ && in_section {
-              exit
-            }
-            in_section {
-              print
-            }
-            END {
-              if (!found) {
-                exit 2
-              }
-            }
-          ' CHANGELOG.md > release-notes.md || {
-            status=$?
-            if [ "$status" -eq 2 ]; then
-              echo "::error::No CHANGELOG.md entry found for $VERSION"
-            fi
-            exit "$status"
-          }
-
-          if [ ! -s release-notes.md ] || [ -z "$(tr -d '[:space:]' < release-notes.md)" ]; then
-            echo "::error::CHANGELOG.md entry for $VERSION is empty"
+          conclusions="$(gh run list --commit "$GITHUB_SHA" --workflow CI \
+            --json conclusion --jq '.[].conclusion' || true)"
+          if ! grep -qx success <<< "$conclusions"; then
+            echo "::error::no successful CI run for ${GITHUB_SHA}."
+            echo "::error::Open a PR for this commit, or dispatch CI on its branch, before tagging."
             exit 1
           fi
 
-      - name: Summarize release handoff
+      - name: Extract release notes
+        if: steps.meta.outputs.is_release == 'true'
+        run: bash scripts/release-lib/extract-changelog.sh "${{ steps.meta.outputs.version }}" > release-notes.md
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: steps.meta.outputs.is_release == 'true'
+        with:
+          name: release-notes
+          path: release-notes.md
+          retention-days: 14
+
+  # The web bundle is platform-independent, so it is built once here and handed
+  # to every native leg. Rebuilding it on a macOS runner to get identical bytes
+  # is the most expensive minute in the pipeline, and it would give the four
+  # platforms four chances to disagree about what they shipped.
+  frontend:
+    name: Web bundle
+    needs: validate
+    runs-on: ubuntu-latest
+    # Job level rather than step level so the `if:` on the verification step can
+    # read it — a step's own `env:` block is not reliably in scope for its own
+    # condition, and getting that wrong would silently skip the check.
+    env:
+      VITE_PUBLIC_POSTHOG_KEY: ${{ secrets.VITE_PUBLIC_POSTHOG_KEY }}
+      VITE_PUBLIC_POSTHOG_HOST: https://us.i.posthog.com
+      VITE_PUBLIC_SENTRY_DSN: ${{ secrets.VITE_PUBLIC_SENTRY_DSN }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: '. -> target'
+          key: frontend
+
+      - uses: ./.github/actions/install-wasm-pack
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build simulator and wasm bridges
+        run: |
+          npm --workspace @treemaker/web run build:simulator
+          npm --workspace @treemaker/web run build:wasm
+
+      - name: Build web bundle
+        run: npm --workspace @treemaker/web run build --ignore-scripts
+
+      # A desktop build is the one place a telemetry-blind bundle is
+      # unrecoverable: the web app redeploys in five minutes, an installed
+      # version stays blind until the user updates. This has shipped broken once
+      # already, which is why deploy-web.yml runs the same check.
+      - name: Verify analytics were inlined
+        if: env.VITE_PUBLIC_POSTHOG_KEY != ''
+        run: node scripts/verify-analytics-build.mjs apps/web/dist
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: web-dist
+          path: apps/web/dist
+          retention-days: 14
+          include-hidden-files: true
+
+  draft:
+    name: Draft release
+    needs: validate
+    if: needs.validate.outputs.is_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      release_id: ${{ steps.draft.outputs.result }}
+    steps:
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: release-notes
+
+      # Created once, here, rather than by each matrix leg — four legs racing to
+      # create the same release is how a platform goes missing.
+      - id: draft
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          VERSION: ${{ steps.get_version.outputs.version }}
-          IS_RELEASE_TAG: ${{ steps.get_version.outputs.is_release_tag }}
+          VERSION: ${{ needs.validate.outputs.version }}
+        with:
+          script: |
+            const fs = require('fs');
+            const tag = context.ref.replace('refs/tags/', '');
+            const { data: releases } = await github.rest.repos.listReleases({
+              ...context.repo, per_page: 100,
+            });
+            const existing = releases.find((r) => r.tag_name === tag);
+            if (existing) {
+              core.notice(`reusing existing draft ${existing.id} for ${tag}`);
+              return existing.id;
+            }
+            const { data } = await github.rest.repos.createRelease({
+              ...context.repo,
+              tag_name: tag,
+              name: `Ori Studio ${process.env.VERSION}`,
+              body: fs.readFileSync('release-notes.md', 'utf8'),
+              draft: true,
+              prerelease: false,
+            });
+            return data.id;
+
+  build:
+    name: Build ${{ matrix.name }}
+    needs: [validate, frontend, draft]
+    # `draft` is skipped on a dispatch build, and a skipped dependency would
+    # otherwise skip this job too. Guarding on frontend's result rather than
+    # `always()` alone keeps a failed validate from reaching the signing key.
+    if: always() && needs.frontend.result == 'success' && needs.draft.result != 'failure'
+    # Holds the Apple signing material. With no protection rules configured this
+    # is just a place to scope the secrets; add a `v*` tag deployment rule (and
+    # see the tag ruleset in the plan) to make it a control.
+    environment: release-signing
+    permissions:
+      contents: write
+    # Composed by `validate` — see the note there on why `include:` cannot do
+    # this. The Linux runner is pinned to ubuntu-22.04 rather than
+    # ubuntu-latest because it sets the glibc floor, and therefore the oldest
+    # distro the AppImage will run on: 22.04 is glibc 2.35, and moving to 24.04
+    # silently raises it to 2.39 and drops those users with no error anyone
+    # would see.
+    #
+    # MIGRATION DEADLINE: the ubuntu-22.04 label begins deprecation 2026-09-17
+    # and is removed 2027-04-17. The replacement is `container: ubuntu:22.04` on
+    # ubuntu-latest, which decouples the floor from GitHub's runner lifecycle.
+    # Do not "fix" this by bumping to 24.04.
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.validate.outputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    env:
+      ORI_PREBUILT_FRONTEND: '1'
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Install Linux build dependencies
+        if: matrix.name == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev \
+            patchelf desktop-file-utils
+
+      - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+
+      # save-if is off on purpose. Actions caches written from the default branch
+      # are readable by every ref, so a poisoned cache would put build-script and
+      # proc-macro binaries into the one job that holds the Apple signing key.
+      # Restoring is fine; contributing to a cache this job can be attacked
+      # through is not.
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: '. -> target'
+          key: release-${{ matrix.name }}
+          save-if: 'false'
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+          cache: npm
+
+      # --ignore-scripts: the wasm bridges are already inside web-dist, and the
+      # pre* hooks would rebuild them on a runner with no wasm toolchain.
+      - run: npm ci --ignore-scripts
+
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: web-dist
+          path: apps/web/dist
+
+      - name: Import Apple certificate
+        if: startsWith(matrix.name, 'macos') && env.APPLE_CERTIFICATE != ''
+        env:
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 24)"
+          echo "::add-mask::$KEYCHAIN_PASSWORD"
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+          security import "$RUNNER_TEMP/cert.p12" -k build.keychain \
+            -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          # Without this, codesign raises a GUI authorization prompt and the job
+          # hangs until it times out rather than failing.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" build.keychain >/dev/null
+
+          identity="$(security find-identity -v -p codesigning build.keychain \
+            | grep 'Developer ID Application' | head -1 | awk -F'"' '{print $2}')"
+          [ -n "$identity" ] || { echo "::error::no Developer ID Application identity in the imported certificate"; exit 1; }
+          echo "APPLE_SIGNING_IDENTITY=$identity" >> "$GITHUB_ENV"
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+          # A certificate that expires mid-week is a Thursday-evening surprise.
+          expiry="$(security find-certificate -c 'Developer ID Application' -p build.keychain \
+            | openssl x509 -noout -enddate | cut -d= -f2)"
+          echo "Developer ID certificate expires: $expiry"
+          if [ "$(date -j -f '%b %d %H:%M:%S %Y %Z' "$expiry" +%s 2>/dev/null || echo 0)" -gt 0 ]; then
+            days=$(( ( $(date -j -f '%b %d %H:%M:%S %Y %Z' "$expiry" +%s) - $(date +%s) ) / 86400 ))
+            echo "  ($days days remaining)"
+            [ "$days" -lt 60 ] && echo "::warning::Developer ID certificate expires in $days days"
+          fi
+
+      - name: Write notarization API key
+        if: startsWith(matrix.name, 'macos') && env.APPLE_CERTIFICATE != ''
+        env:
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+        run: |
+          umask 077
+          printf '%s' "$APPLE_API_KEY_CONTENT" > "$RUNNER_TEMP/asc.p8"
+          echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/asc.p8" >> "$GITHUB_ENV"
+
+      - name: Build
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Empty when the Apple secrets are absent, which is how an unsigned
+          # build falls out rather than a failing one.
+          APPLE_SIGNING_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_PATH: ${{ env.APPLE_API_KEY_PATH }}
+        with:
+          projectPath: apps/tauri
+          tauriScript: npm run tauri --
+          args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+          # Always produced, so a dispatch run hands you something downloadable.
+          uploadWorkflowArtifacts: true
+          workflowArtifactNamePattern: OriStudio-${{ matrix.name }}
+          # Only on a tag. tauri-action skips release upload without these.
+          releaseId: ${{ needs.draft.outputs.release_id }}
+          tagName: ${{ needs.validate.outputs.is_release == 'true' && github.ref_name || '' }}
+          # Composed once by a later job instead: four legs read-modify-writing
+          # one latest.json race and silently drop a platform.
+          uploadUpdaterJson: false
+
+      # `tauri build` exiting 0 does not prove the disk image mounts or that what
+      # is inside it is signed. Ported from scripts/local-macos-release.sh, which
+      # has always done this and which CI would otherwise regress.
+      - name: Verify signed macOS artifacts
+        if: startsWith(matrix.name, 'macos') && env.APPLE_CERTIFICATE != ''
+        run: |
+          set -euo pipefail
+          root="target/${{ matrix.target }}/release/bundle"
+          app="$root/macos/Ori Studio.app"
+          dmg="$(find "$root/dmg" -maxdepth 1 -name '*.dmg' | head -1)"
+          [ -n "$dmg" ] || { echo "::error::no .dmg produced in $root/dmg"; exit 1; }
+
+          codesign --verify --deep --strict --verbose=2 "$app"
+          codesign -dv --verbose=4 "$app" 2>&1 | grep -q 'Developer ID Application'
+          xcrun stapler validate "$app"
+
+          mount="$(mktemp -d)"
+          hdiutil attach -mountpoint "$mount" -nobrowse -quiet "$dmg"
+          trap 'hdiutil detach "$mount" -quiet || true' EXIT
+          test -d "$mount/Ori Studio.app"
+          codesign --verify --deep --strict "$mount/Ori Studio.app"
+          echo "macOS artifacts verified: signed, notarized, stapled, and mountable"
+
+      - name: Warn when macOS is unsigned
+        if: startsWith(matrix.name, 'macos') && env.APPLE_CERTIFICATE == ''
+        run: |
+          echo "::warning::APPLE_CERTIFICATE is not set — this macOS build is unsigned and unnotarized."
+          echo "::warning::Gatekeeper will refuse to open it on any machine but the one that built it."
+
+      # The keychain outlives the job otherwise, and the runner is reused.
+      - name: Clean up signing material
+        if: always() && startsWith(matrix.name, 'macos')
+        run: |
+          security delete-keychain build.keychain 2>/dev/null || true
+          rm -f "$RUNNER_TEMP/asc.p8" "$RUNNER_TEMP/cert.p12" 2>/dev/null || true
+
+  summary:
+    name: Summary
+    needs: [validate, build]
+    if: always() && needs.build.result != 'skipped'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report
+        env:
+          IS_RELEASE: ${{ needs.validate.outputs.is_release }}
+          VERSION: ${{ needs.validate.outputs.version }}
+          RESULT: ${{ needs.build.result }}
         run: |
           {
-            echo "## Release validation"
-            echo ""
-            echo "- Version: ${VERSION}"
-            echo "- Release tag: ${IS_RELEASE_TAG}"
-            echo "- macOS DMG build: local only via \`./scripts/release.sh publish ${VERSION}\`"
-            echo ""
-            echo "This workflow intentionally does not use macOS runners or Apple signing secrets."
+            echo "## Ori Studio desktop build"
+            echo
+            echo "- Version: \`${VERSION}\`"
+            echo "- Release: ${IS_RELEASE}"
+            echo "- Build result: ${RESULT}"
+            echo
+            if [ "$IS_RELEASE" = "true" ]; then
+              echo "The GitHub Release is still a **draft**. Publish it as a *prerelease*,"
+              echo "install it, then arm it with:"
+              echo
+              echo '```'
+              echo "gh release edit v${VERSION} --prerelease=false"
+              echo '```'
+            else
+              echo "Artifacts are attached to this workflow run — download them from the"
+              echo "**Summary** page and hand them to testers."
+            fi
+            echo
+            echo "Windows installers are unsigned; SmartScreen will warn on first run."
           } >> "$GITHUB_STEP_SUMMARY"

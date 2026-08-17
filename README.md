@@ -3,8 +3,6 @@
 [![CI](https://github.com/zacharyfmarion/ori-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/zacharyfmarion/ori-studio/actions/workflows/ci.yml)
 [![Web](https://img.shields.io/badge/Web-oristudio.pages.dev-brightgreen.svg)](https://oristudio.pages.dev/)
 [![Latest Release](https://img.shields.io/github/v/release/zacharyfmarion/ori-studio?display_name=tag)](https://github.com/zacharyfmarion/ori-studio/releases)
-[![treemaker-core on crates.io](https://img.shields.io/crates/v/treemaker-core.svg)](https://crates.io/crates/treemaker-core)
-[![treemaker-core docs](https://docs.rs/treemaker-core/badge.svg)](https://docs.rs/treemaker-core)
 
 Ori Studio aims to be the ultimate workspace for origami design and analysis. It
 combines a modern web and desktop interface with a family of Rust and WebAssembly
@@ -36,24 +34,27 @@ coming soon, community help would be appreciated!).
 
 ## Exposed Packages and Crates
 
-### TreeMaker engine crates (crates.io)
+### TreeMaker engine crates
 
-- [`treemaker-core`](https://docs.rs/treemaker-core): the native Rust engine API
-  for TreeMaker model files, optimization, feasibility checks, crease-pattern
-  generation, FOLD conversion, and simulation preparation.
-- [`treemaker-cli`](https://crates.io/crates/treemaker-cli): the `treemaker`
-  command-line tool for inspecting, checking, optimizing, and exporting models.
-- [`treemaker-wasm`](https://docs.rs/treemaker-wasm): `wasm-bindgen` bindings
-  that expose the engine to browser and Node workflows.
-- [`treemaker-fold`](https://docs.rs/treemaker-fold): generic FOLD data
-  structures and geometry helpers for origami applications.
-- [`treemaker-flatfold`](https://docs.rs/treemaker-flatfold): flat-foldability
-  and layer-order solving for FOLD crease patterns.
+Built from this workspace and used by the app. **Not currently published to
+crates.io** — see [RELEASE.md](RELEASE.md#crates). Use them by path or git
+dependency.
+
+- `treemaker-core`: the native Rust engine API for TreeMaker model files,
+  optimization, feasibility checks, crease-pattern generation, FOLD conversion,
+  and simulation preparation.
+- `treemaker-cli`: the `treemaker` command-line tool for inspecting, checking,
+  optimizing, and exporting models.
+- `treemaker-wasm`: `wasm-bindgen` bindings that expose the engine to browser
+  and Node workflows.
+- `treemaker-fold`: generic FOLD data structures and geometry helpers for
+  origami applications.
+- `treemaker-flatfold`: flat-foldability and layer-order solving for FOLD
+  crease patterns.
 - `treemaker-sequence`: research planner primitives for deriving origami
   folding sequences from FOLD crease patterns.
 
-The main TreeMaker engine entry point is
-[`Tree`](https://docs.rs/treemaker-core/latest/treemaker_core/struct.Tree.html).
+The main TreeMaker engine entry point is `treemaker_core::Tree`.
 
 ### Ori Studio workspace crates
 

@@ -26,6 +26,11 @@ edition = "2024"
 license = "GPL-2.0-or-later"
 repository = "https://github.com/zacharyfmarion/ori-studio"
 homepage = "https://github.com/zacharyfmarion/ori-studio"
+# The engine crates are not published while the desktop release train runs; see
+# implementation-plans/desktop-ci-release.md. This is also what lets the path
+# dependencies above drop their version requirements, which is what stops the
+# first minor bump from failing every `^0.1.x` req in the workspace.
+publish = false
 
 [workspace.dependencies]
 anyhow = "1.0"
@@ -44,14 +49,14 @@ js-sys = "0.3"
 encoding_rs = "0.8"
 sha2 = "0.10"
 thiserror = "2.0"
-treemaker-fold = { version = "0.1.2", path = "crates/treemaker-fold" }
-treemaker-flatfold = { version = "0.1.2", path = "crates/treemaker-flatfold" }
-treemaker-sequence = { version = "0.1.1", path = "crates/treemaker-sequence" }
-oristudio-cp = { version = "0.1.1", path = "crates/oristudio-cp" }
-oristudio-bp = { version = "0.1.2", path = "crates/oristudio-bp" }
-oristudio-cp-compiler = { version = "0.1.1", path = "crates/oristudio-cp-compiler" }
-oristudio-cp-detect = { version = "0.1.1", path = "crates/oristudio-cp-detect" }
-oristudio-cp-eval = { version = "0.1.2", path = "crates/oristudio-cp-eval" }
+treemaker-fold = { path = "crates/treemaker-fold" }
+treemaker-flatfold = { path = "crates/treemaker-flatfold" }
+treemaker-sequence = { path = "crates/treemaker-sequence" }
+oristudio-cp = { path = "crates/oristudio-cp" }
+oristudio-bp = { path = "crates/oristudio-bp" }
+oristudio-cp-compiler = { path = "crates/oristudio-cp-compiler" }
+oristudio-cp-detect = { path = "crates/oristudio-cp-detect" }
+oristudio-cp-eval = { path = "crates/oristudio-cp-eval" }
 wasm-bindgen = "0.2"
 wasm-bindgen-test = "0.3"
 walkdir = "2.5"

@@ -9,8 +9,8 @@
       "cwd": "../../web"
     },
     "beforeBuildCommand": {
-      "script": "npm run build",
-      "cwd": "../../web"
+      "script": "node scripts/build-frontend.mjs",
+      "cwd": "../../.."
     },
     "devUrl": "http://localhost:5173",
     "frontendDist": "../../web/dist"
@@ -35,7 +35,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["app", "dmg", "nsis", "deb", "appimage"],
     "fileAssociations": [
       {
         "ext": [
@@ -58,12 +58,25 @@
       }
     ],
     "resources": {
-      "icons/osf.icns": "osf.icns"
+      "icons/osf.icns": "osf.icns",
+      "icons/osf.ico": "osf.ico"
     },
     "macOS": {
       "minimumSystemVersion": "10.15",
       "infoPlist": "Info.plist",
       "entitlements": "entitlements.plist"
+    },
+    "linux": {
+      "deb": {
+        "files": {
+          "/usr/share/mime/packages/oristudio.xml": "linux/oristudio-mime.xml",
+          "/usr/share/icons/hicolor/32x32/mimetypes/application-vnd.oristudio.project+json.png": "linux/mimetypes/32.png",
+          "/usr/share/icons/hicolor/48x48/mimetypes/application-vnd.oristudio.project+json.png": "linux/mimetypes/48.png",
+          "/usr/share/icons/hicolor/64x64/mimetypes/application-vnd.oristudio.project+json.png": "linux/mimetypes/64.png",
+          "/usr/share/icons/hicolor/128x128/mimetypes/application-vnd.oristudio.project+json.png": "linux/mimetypes/128.png",
+          "/usr/share/icons/hicolor/256x256/mimetypes/application-vnd.oristudio.project+json.png": "linux/mimetypes/256.png"
+        }
+      }
     },
     "icon": [
       "icons/icon.icns",

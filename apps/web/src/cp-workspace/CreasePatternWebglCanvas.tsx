@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createReglRenderer } from './renderer/reglRenderer';
+import { CpRendererUnavailable } from './CpRendererUnavailable';
+import { reportError } from '../monitoring';
 import type { CpRenderer } from './renderer/CpRenderer';
 import { readCssVarColor } from './renderer/cssColor';
 import { syncHeldModifiersFromEvent } from '../keyboard/heldModifiers';
@@ -993,6 +995,9 @@ export function CreasePatternWebglCanvas({
   // stashed across that rebuild so recovery does not also throw away wherever the
   // user had panned and zoomed to.
   const [rendererGeneration, setRendererGeneration] = useState(0);
+  // Non-null once a WebGL2 context could not be created, which replaces the
+  // (blank) canvas with an explanation. See `CpRendererUnavailable`.
+  const [rendererError, setRendererError] = useState<string | null>(null);
   const preservedCameraRef = useRef<UserCamera | null>(null);
   // A saved camera armed by the framingKey effect, consumed by the first
   // `ensureCamera` after it. One-shot: once adopted, the user owns the camera,
@@ -1508,9 +1513,15 @@ export function CreasePatternWebglCanvas({
         },
       });
     } catch (error) {
-      console.error('[cp-webgl] failed to initialise WebGL renderer', error);
+      // Surfaced, not logged. A packaged desktop build has no console anyone
+      // reads, so the old console.error left this as a silently blank editor —
+      // which is exactly what WebKitGTK produces with no usable WebGL2.
+      reportError(error, { surface: 'cp-workspace:webgl' });
+      setRendererError(error instanceof Error ? error.message : String(error));
       return;
     }
+    // A rebuild after context loss succeeded, so clear any earlier failure.
+    setRendererError(null);
     rendererRef.current = renderer;
 
     const viewportOf = (ratio: number): Viewport => ({
@@ -3509,11 +3520,16 @@ export function CreasePatternWebglCanvas({
   });
 
   return (
-    <canvas
-      ref={canvasRef}
-      className={className}
-      style={cursor ? { cursor } : undefined}
-      aria-hidden="true"
-    />
+    <>
+      <canvas
+        ref={canvasRef}
+        className={className}
+        style={cursor ? { cursor } : undefined}
+        aria-hidden="true"
+      />
+      {/* Absolutely positioned over `.cp-panel__viewport`, which is the
+          positioning context and already hosts the other canvas overlays. */}
+      {rendererError !== null && <CpRendererUnavailable reason={rendererError} />}
+    </>
   );
 }

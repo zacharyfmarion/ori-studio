@@ -313,6 +313,8 @@
     "orbitFoldedForm": "접힌 도형 회전",
     "preparing": "편집기를 준비하는 중…",
     "refoldFoldedModelAction": "접힌 모델 다시 접기",
+    "rendererUnavailable": "전개도 캔버스를 시작할 수 없습니다.",
+    "rendererUnavailableHint": "Ori Studio는 WebGL2로 전개도를 그리지만 이 시스템에서 제공되지 않았습니다. 보통 그래픽 드라이버를 업데이트하면 해결됩니다.",
     "resetFoldedModelView": "접힌 모델 보기 초기화",
     "resizeAnnotation": "주석 크기 조정",
     "resizeFoldedForm": "접힌 형태 크기 조정",

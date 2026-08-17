@@ -1,6 +1,7 @@
 [package]
 name = "treemaker-cli"
 version.workspace = true
+publish.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Headless CLI for the TreeMaker 5.0.1 Rust port"
@@ -23,7 +24,7 @@ serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 oristudio-cp-compiler = { path = "../oristudio-cp-compiler" }
-treemaker-core = { version = "0.1.2", path = "../treemaker-core" }
+treemaker-core = { path = "../treemaker-core" }
 treemaker-flatfold.workspace = true
 treemaker-fold.workspace = true
 walkdir.workspace = true

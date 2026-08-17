@@ -31,7 +31,7 @@ import { useSendToEditActions } from '../designKinds/useSendToEditActions';
 import { handleMenuAction } from '../commands/menuActions';
 import { useFileDropTarget } from '../hooks/useFileDropTarget';
 import type { DropTargetPolicy } from '../lib/fileDrop';
-import { getRuntimeSurface } from '../platform/runtime';
+import { usesNativeAppMenu } from '../platform/runtime';
 import { applyDefaultLayout, clearPersistedLayout, useLayoutStore } from '../store/layoutStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -101,7 +101,10 @@ function Toolbar() {
   const { t } = useTranslation();
   const openSettings = useSettingsStore((state) => state.openSettings);
   const capabilities = useWorkspaceCapabilities();
-  const isDesktop = getRuntimeSurface() === 'desktop';
+  // Only macOS gets an OS menu bar, so only macOS may drop the in-app one. On
+  // Windows and Linux every File/Edit/View command — including Settings, which
+  // has no toolbar affordance — reaches the user through <MenuBar /> alone.
+  const hasNativeMenu = usesNativeAppMenu();
   const optimizeScale = capabilities['optimize.scale'];
   const bpOptimizeLayout = capabilities['bp.optimize.layout'];
   const buildCp = capabilities['cp.build'];
@@ -118,7 +121,7 @@ function Toolbar() {
     <header className="toolbar">
       <div className="toolbar__brand">
         {/* eslint-disable-next-line i18next/no-literal-string -- brand name, never translated */}
-        {isDesktop ? <span className="toolbar__title">Ori Studio</span> : <MenuBar />}
+        {hasNativeMenu ? <span className="toolbar__title">Ori Studio</span> : <MenuBar />}
       </div>
       <div className="toolbar__actions">
         <IconButton

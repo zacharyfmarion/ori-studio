@@ -6,6 +6,16 @@ inputs:
     description: wasm-pack version to install.
     required: false
     default: 0.13.1
+  sha256:
+    # This binary's output is compiled into the app that CI signs and notarizes,
+    # so a swapped release asset would put arbitrary code inside a correctly
+    # signed Ori Studio — and every attestation in the pipeline would still pass,
+    # because they attest the pipeline's provenance rather than its inputs.
+    # Update alongside `version`; the value is
+    # `shasum -a 256 wasm-pack-v<version>-x86_64-unknown-linux-musl.tar.gz`.
+    description: Expected SHA-256 of the wasm-pack release tarball.
+    required: false
+    default: c539d91ccab2591a7e975bcf82c82e1911b03335c80aa83d67ad25ed2ad06539
 
 runs:
   using: composite
@@ -14,6 +24,7 @@ runs:
       shell: bash
       env:
         WASM_PACK_VERSION: ${{ inputs.version }}
+        WASM_PACK_SHA256: ${{ inputs.sha256 }}
       run: |
         set -euo pipefail
 
@@ -25,8 +36,18 @@ runs:
 
         for attempt in 1 2 3; do
           echo "Installing wasm-pack ${WASM_PACK_VERSION} (attempt ${attempt}/3)"
-          if curl -fsSL "${url}" -o /tmp/wasm-pack.tar.gz \
-            && tar -xzf /tmp/wasm-pack.tar.gz -C /tmp; then
+          if curl -fsSL "${url}" -o /tmp/wasm-pack.tar.gz; then
+            # Verified before extraction, and a mismatch is fatal rather than
+            # retried: a wrong hash is a changed artifact, not a flaky network,
+            # and retrying would just download the same wrong bytes twice more.
+            actual="$(sha256sum /tmp/wasm-pack.tar.gz | cut -d' ' -f1)"
+            if [ "${actual}" != "${WASM_PACK_SHA256}" ]; then
+              echo "wasm-pack checksum mismatch" >&2
+              echo "  expected ${WASM_PACK_SHA256}" >&2
+              echo "  actual   ${actual}" >&2
+              exit 1
+            fi
+            tar -xzf /tmp/wasm-pack.tar.gz -C /tmp
             mv "/tmp/${archive}/wasm-pack" "${dest}/wasm-pack"
             chmod +x "${dest}/wasm-pack"
             wasm-pack --version

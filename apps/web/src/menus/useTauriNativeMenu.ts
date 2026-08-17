@@ -6,7 +6,8 @@ import { useShortcutStore } from '../store/shortcutStore';
 import { selectWorkspaceCapabilities } from '../store/workspaceStore/capabilities';
 import { useWorkspaceCapabilities } from '../store/workspaceStore/useWorkspaceCapabilities';
 import { useWorkspaceStore } from '../store/workspaceStore';
-import { isDesktopRuntime } from '../platform/runtime';
+import { usesNativeAppMenu } from '../platform/runtime';
+import { reportError } from '../monitoring';
 
 /**
  * Keeps the native macOS menu in sync with the active editing context. On
@@ -14,6 +15,14 @@ import { isDesktopRuntime } from '../platform/runtime';
  * web {@link MenuBar} whenever the visible/enabled signature changes — so the
  * Design and Crease Pattern menus appear and disappear on the native bar exactly
  * as they do in-canvas. A no-op on the web surface.
+ *
+ * **macOS only, and that is load-bearing on both sides.** `buildNativeMenu`
+ * prepends the standard app submenu, whose `Services` / `HideOthers` / `ShowAll`
+ * items are macOS-only predefined items, and `setAsAppMenu` does not attach the
+ * same way elsewhere. Windows and Linux therefore render `<MenuBar />` in the
+ * toolbar instead — so running this there would not merely fail, it would build a
+ * *second* menu alongside the one the user is already using. `usesNativeAppMenu`
+ * is the single predicate both sides read.
  */
 export function useTauriNativeMenu(): void {
   const { t } = useTranslation();
@@ -45,7 +54,7 @@ export function useTauriNativeMenu(): void {
   const buildToken = useRef(0);
 
   useEffect(() => {
-    if (!isDesktopRuntime()) return;
+    if (!usesNativeAppMenu()) return;
     const token = (buildToken.current += 1);
     const freshCapabilities = selectWorkspaceCapabilities(useWorkspaceStore.getState());
     const { overrides: freshOverrides, defaultsSource: freshSource } = useShortcutStore.getState();
@@ -61,7 +70,10 @@ export function useTauriNativeMenu(): void {
         await menu.setAsAppMenu();
       })
       .catch((error: unknown) => {
-        console.warn('Failed to update native menu', error);
+        // Reported, not warned: on macOS this is the *only* menu, so a failure
+        // here silently removes every File/Edit/View command from the app. A
+        // console warning in a packaged desktop build reaches nobody.
+        reportError(error, { surface: 'shell:native-menu' });
       });
   }, [signature, translate]);
 }

@@ -335,6 +335,8 @@
     "orbitFoldedForm": "Tourner la figure pliée",
     "preparing": "Préparation de l'éditeur…",
     "refoldFoldedModelAction": "Replier le modèle",
+    "rendererUnavailable": "Le canevas du patron de plis n’a pas pu démarrer.",
+    "rendererUnavailableHint": "Ori Studio dessine les patrons de plis avec WebGL2, que ce système n’a pas fourni. Mettre à jour les pilotes graphiques résout généralement le problème.",
     "resetFoldedModelView": "Réinitialiser la vue du modèle plié",
     "resizeAnnotation": "Redimensionner l’annotation",
     "resizeFoldedForm": "Redimensionner la forme pliée",

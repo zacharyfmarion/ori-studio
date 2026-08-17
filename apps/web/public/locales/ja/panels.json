@@ -313,6 +313,8 @@
     "orbitFoldedForm": "折り上がり図を回転",
     "preparing": "エディターを準備中…",
     "refoldFoldedModelAction": "折り上がり図を折り直す",
+    "rendererUnavailable": "展開図キャンバスを起動できませんでした。",
+    "rendererUnavailableHint": "Ori Studio は展開図の描画に WebGL2 を使用しますが、このシステムでは利用できませんでした。通常はグラフィックドライバーを更新すると解決します。",
     "resetFoldedModelView": "折り上がりモデルの視点をリセット",
     "resizeAnnotation": "注釈をサイズ変更",
     "resizeFoldedForm": "折り上がり図をサイズ変更",

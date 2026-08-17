@@ -1,4 +1,22 @@
 #!/bin/bash
+#
+# BREAK-GLASS ONLY. The Desktop Build workflow
+# (.github/workflows/release.yml) is what produces release artifacts; it builds
+# all four legs from one source ref and signs macOS in CI.
+#
+# Reach for this when CI cannot run at all. Understand what it does not do:
+#
+#   - It builds macOS only. A release made this way has no Windows or Linux
+#     artifacts, and nothing will notice they are missing.
+#   - It builds with `--bundles app` and hand-rolls the DMG, so it produces no
+#     updater artifacts and no signatures. Once the updater ships, a release cut
+#     from here has no manifest entry — and because Tauri validates the whole
+#     manifest before comparing versions, a hand-written partial one would break
+#     updates on *every* platform, not just macOS. Omit it instead.
+#   - The artifacts it uploads are not the ones CI would have produced, and
+#     nothing checks that they came from the same commit.
+#
+# See RELEASE.md, "Break-glass local macOS build".
 set -euo pipefail
 
 RED='\033[0;31m'
