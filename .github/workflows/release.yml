@@ -358,14 +358,27 @@ jobs:
           rm -f "$RUNNER_TEMP/cert.p12"
 
           # A certificate that expires mid-week is a Thursday-evening surprise.
+          #
+          # Every branch below ends in a plain command, and the block ends in
+          # `:`. This is informational, so nothing in it may decide the step's
+          # exit status — and under `bash -e` the exit status of the *last*
+          # command is the step's. A trailing `[ cond ] && echo ...` failed the
+          # whole build whenever the certificate was healthy, because a false
+          # test returns 1.
           expiry="$(security find-certificate -c 'Developer ID Application' -p build.keychain \
             | openssl x509 -noout -enddate | cut -d= -f2)"
           echo "Developer ID certificate expires: $expiry"
-          if [ "$(date -j -f '%b %d %H:%M:%S %Y %Z' "$expiry" +%s 2>/dev/null || echo 0)" -gt 0 ]; then
-            days=$(( ( $(date -j -f '%b %d %H:%M:%S %Y %Z' "$expiry" +%s) - $(date +%s) ) / 86400 ))
+          expiry_epoch="$(date -j -f '%b %d %H:%M:%S %Y %Z' "$expiry" +%s 2>/dev/null || echo 0)"
+          if [ "$expiry_epoch" -gt 0 ]; then
+            days=$(( (expiry_epoch - $(date +%s)) / 86400 ))
             echo "  ($days days remaining)"
-            [ "$days" -lt 60 ] && echo "::warning::Developer ID certificate expires in $days days"
+            if [ "$days" -lt 60 ]; then
+              echo "::warning::Developer ID certificate expires in $days days"
+            fi
+          else
+            echo "::warning::could not parse the certificate expiry date"
           fi
+          :
 
       - name: Write notarization API key
         if: startsWith(matrix.name, 'macos') && env.APPLE_CERTIFICATE != ''
