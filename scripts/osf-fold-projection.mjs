@@ -154,9 +154,26 @@ export function readFoldDocument(path, { document = 0, component = null } = {}) 
 
   let fold;
   if (parsed.format === 'oristudio-project' || parsed.workspace) {
-    const entry = parsed.workspace?.documents?.[document];
+    // Two shapes, because the project format changed under this script. Up to
+    // schema 7 a workspace held `documents[]`, any of which could be a crease
+    // pattern; from schema 8 it holds exactly one `creasePattern` beside its
+    // `designs`. Both are still openable by the app, so both are readable here
+    // — and `--document` only means anything for the first.
+    const legacy = parsed.workspace?.documents?.[document];
+    const single = parsed.workspace?.creasePattern;
+    const entry = legacy ?? single;
     if (!entry) {
-      throw new Error(`no workspace.documents[${document}] in this .osf`);
+      throw new Error(
+        parsed.workspace?.documents
+          ? `no workspace.documents[${document}] in this .osf`
+          : 'this .osf has neither workspace.documents[] nor workspace.creasePattern'
+      );
+    }
+    if (!legacy && document !== 0) {
+      throw new Error(
+        `--document ${document} was asked for, but this .osf (schema ` +
+          `${parsed.schemaVersion ?? '?'}) holds a single crease pattern`
+      );
     }
     fold = entry.creasePattern?.foldProjection;
     if (!fold) {
