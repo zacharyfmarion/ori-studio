@@ -166,6 +166,21 @@ export interface RenderSettings {
    * layer gap is camera-independent.
    */
   creaseDepthBias?: number;
+  /**
+   * Whether the crease pass writes depth. Defaults to true.
+   *
+   * A caller draws creases *without* writing depth when something drawn later
+   * has to be able to cover them. A folded figure does exactly that: its planes
+   * are drawn far-to-near, and along a fold line two planes sit at the same
+   * depth by construction — so the nearer one's paper must be able to paint over
+   * the farther one's linework, which it can only do if that linework did not
+   * claim the depth buffer first.
+   *
+   * Creases still *test* against depth either way. What this drops is their
+   * ability to occlude, which for a line lying on the surface it annotates is
+   * not something anything relies on.
+   */
+  creaseWritesDepth?: boolean;
 }
 
 /**
@@ -766,7 +781,7 @@ export class MeshRenderer {
         gl.depthMask(false);
       } else {
         gl.disable(gl.BLEND);
-        gl.depthMask(true);
+        gl.depthMask(settings.creaseWritesDepth ?? true);
       }
       gl.bindVertexArray(this.edgeVao);
       gl.useProgram(this.edgeProgram);

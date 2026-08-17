@@ -391,6 +391,44 @@ sorting.
       under 2% of drawn samples, at plane-boundary pixels where which plane owns
       the pixel is a rasterisation tie rather than an occlusion fact.
 
+## Phase 10 — settle the fold line with draw order, not an epsilon
+
+A full-sphere sweep of the reported pleat found the inset failing badly on a
+narrow band of viewpoints: 2 of 256 cameras at **40%** bad crease ink, every
+other camera under 0.7%. Notably `minFaceOn` at those cameras is 0.79 — neither
+plane is near edge-on, so this was *not* the grazing-angle limit predicted in
+Phase 9.
+
+The cause is that the inset is a **directional** epsilon. It moves a crease by δ
+along a fixed world direction, so the depth it buys is `δ · (direction ·
+viewAxis)` — a dot product, which vanishes on a great circle of camera
+directions and can even push the crease *toward* the viewer.
+
+That is the third version of the same mistake. Phases 3, 8 and 9 each broke the
+coplanar tie with a geometric epsilon, and every epsilon has a set of directions
+where it goes to zero. Shrinking it or turning it moves the null set; it never
+removes it.
+
+So stop breaking ties with geometry:
+
+- [x] **Order the plane passes far-to-near**, by each skin's centroid against the
+      view depth axis. A nearer plane's paper is then drawn *after* a farther
+      plane's linework.
+- [x] **Creases no longer write depth** (`RenderSettings.creaseWritesDepth`), so
+      that later paper can paint over them. They still test against it.
+- [x] The inset is deleted, and with it the extra ring per slot — creases index
+      the paper ring again, at no vertex cost.
+- [x] The crease bias stays at `1e-5`, with a much smaller job: beat the slope of
+      its *own* face across the width of the ribbon. It is no longer asked to
+      clear another plane.
+- [x] Measured over 256 cameras × 5 models: worst-case bad ink falls from **40.2%
+      to 4.6%**, and the all-camera average is **0.3%**.
+
+The residual concentrates at axis-aligned cameras where two planes' centroids
+give a global order that is locally wrong along part of a fold. It is also
+over-counted: the metric flags any crease over a foreign plane at equal depth,
+and at a genuine visible fold that is the correct picture.
+
 ## Validation
 
 Web-only, so: `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`.

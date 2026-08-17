@@ -32,7 +32,6 @@ import {
   type ProjectedVertices,
 } from '@treemaker/origami-simulator';
 import {
-  CREASE_INSET_RELATIVE,
   FOLDED_3D_MESH_VERTEX_BUDGET,
   folded3dEdgeAssignment,
   folded3dMesh,
@@ -315,9 +314,7 @@ describe('folded3dMesh', () => {
         const stack = model.cell_attr[base + 4] ?? 0;
         if (ring < 3 || stack === 0) continue;
         expectedSlots += stack;
-        // Two copies of the ring per slot: the paper, and the ring inset by
-        // `CREASE_INSET_RELATIVE` that the creases are drawn from.
-        expectedVertices += ring * stack * 2;
+        expectedVertices += ring * stack;
       }
       // Creases cost no vertices — they are indices into the ring copies above —
       // except in the fallback, which is expected empty on every fixture.
@@ -687,57 +684,15 @@ describe('folded3dMesh', () => {
       expect(new Set(sources).size).toBe(model.edge_count);
     });
 
-    it.each(NAMES)('%s draws a crease inside its own face, not on the fold line', (name) => {
-      const model = fixture(name);
-      const mesh = meshOf(model);
-      // A fold that is not flat lies in **both** planes it joins, so a crease
-      // left on the line is exactly coplanar with whatever the *other* plane has
-      // there — and on the reported case that was paper in front of it, which
-      // the crease bias then tipped it over. Pulled inside its own cell, it
-      // carries the depth of the paper it bounds and the ordinary
-      // plane-against-plane test answers correctly.
-      //
-      // Asserted as "the crease vertices are not the ring vertices", which is
-      // the whole of it: a mesh that stopped insetting would index the ring
-      // directly and fail here.
-      const inset = CREASE_INSET_RELATIVE * modelRadius(model);
-      let checked = 0;
-      for (let slot = 0; slot < mesh.slots.count; slot += 1) {
-        const first = mesh.slots.vertexStart[slot]!;
-        const past = mesh.slots.vertexStart[slot + 1]!;
-        const ringLength = (past - first) / 2;
-        for (let i = 0; i < ringLength; i += 1) {
-          const at = (first + i) * 3;
-          const to = (first + ringLength + i) * 3;
-          const moved = Math.hypot(
-            mesh.positions[at]! - mesh.positions[to]!,
-            mesh.positions[at + 1]! - mesh.positions[to + 1]!,
-            mesh.positions[at + 2]! - mesh.positions[to + 2]!
-          );
-          // A corner miter carries further than the edge offset; a degenerate
-          // one carries nothing. Both are bounded by the inset itself.
-          expect(moved).toBeLessThanOrEqual(inset * 4 + 1e-9);
-          if (moved > inset * 0.5) checked += 1;
-        }
-      }
-      expect(checked).toBeGreaterThan(0);
-    });
-
     it.each(NAMES)('%s places a crease on its fold line, at its layer', (name) => {
       const model = fixture(name);
       const mesh = meshOf(model);
       const sources = creaseSources(model, mesh);
       const creases = everyCrease(mesh);
-      let insetSeen = 0;
-      // A crease is a *segment* of the model edge it bounds, drawn a hair inside
-      // its own face — see `CREASE_INSET_RELATIVE`, which is what stops a fold
-      // between two planes being coplanar with the one it does not belong to.
-      // So it sits within the inset of its fold line, and is never longer than
-      // the edge it came from.
-      //
-      // Twice the inset, because the corner miter can carry a vertex a little
-      // further than the edge offset itself on a sharp turn.
-      const ceiling = 2 * CREASE_INSET_RELATIVE * modelRadius(model) + 1e-6 * model.span;
+      // A crease is a *segment* of the model edge it bounds, at the paper's true
+      // position — nothing is displaced or inset, so it lies exactly on its fold
+      // line and is never longer than the edge it came from.
+      const ceiling = 1e-6 * model.span;
       for (let nth = 0; nth < sources.length; nth += 1) {
         const crease = creases[nth]!;
         const edge = sources[nth]!;
@@ -775,17 +730,6 @@ describe('folded3dMesh', () => {
           ends[0][2] - ends[1][2]
         );
         expect(meshLength).toBeLessThanOrEqual(payloadLength + 1e-6 * model.span);
-        // And the inset is really applied — a crease still drawn on the fold
-        // line would satisfy the bound above.
-        insetSeen = Math.max(insetSeen, distanceToSegment(
-          [
-            mesh.positions[a * 3]!,
-            mesh.positions[a * 3 + 1]!,
-            mesh.positions[a * 3 + 2]!,
-          ],
-          ends[0],
-          ends[1]
-        ));
       }
     });
   });

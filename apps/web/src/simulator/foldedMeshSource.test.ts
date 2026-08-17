@@ -14,11 +14,13 @@ function cameraAt(pitch: number): CameraUniforms {
 const FROM_ABOVE = cameraAt(0);
 const FROM_BELOW = cameraAt(Math.PI);
 
-function skin(plane: number, side: 1 | -1, at: number): Folded3dSkin {
+function skin(plane: number, side: 1 | -1, at: number, depth = 0): Folded3dSkin {
   return {
     plane,
     // `+y` in the mesh basis: `toViewSpace` puts it on the depth axis at pitch 0.
     up: [0, 1, 0],
+    // On the depth axis at pitch 0, so `depth` orders the passes directly.
+    centroid: [0, depth, 0],
     side,
     faceIndexStart: at * 3,
     faceIndexCount: 3,
@@ -62,6 +64,37 @@ describe('breaking a folded figure into draws', () => {
     expect(below.map((pass) => pass.faceRange)).toEqual([
       { start: 3, count: 3 },
       { start: 9, count: 3 },
+    ]);
+  });
+
+  it('draws the planes far-to-near', () => {
+    // The whole reason the order matters: a fold line lies in *both* planes it
+    // joins, so along it they are at exactly the same depth and no epsilon can
+    // separate them at every camera. Drawing the farther plane first lets the
+    // nearer one's paper land on top of the farther one's linework and cover it,
+    // which settles the tie discretely.
+    //
+    // Plane 1 is nearer (view depth grows toward the eye), so it must be drawn
+    // second even though it comes second in the buffer.
+    const ordered = {
+      ...DETERMINED,
+      skins: [skin(0, 1, 0, 5), skin(0, -1, 1, 5), skin(1, 1, 2, -5), skin(1, -1, 3, -5)],
+    };
+    const passes = folded3dDrawPasses(ordered, OPAQUE, FROM_ABOVE);
+    expect(passes.map((pass) => pass.faceRange)).toEqual([
+      { start: 6, count: 3 },
+      { start: 0, count: 3 },
+    ]);
+
+    // And reversing the depths reverses the draws — the order is read off the
+    // camera, not off the buffer.
+    const flipped = {
+      ...DETERMINED,
+      skins: [skin(0, 1, 0, -5), skin(0, -1, 1, -5), skin(1, 1, 2, 5), skin(1, -1, 3, 5)],
+    };
+    expect(folded3dDrawPasses(flipped, OPAQUE, FROM_ABOVE).map((pass) => pass.faceRange)).toEqual([
+      { start: 0, count: 3 },
+      { start: 6, count: 3 },
     ]);
   });
 

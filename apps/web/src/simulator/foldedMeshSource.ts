@@ -259,6 +259,7 @@ export function folded3dDrawPasses(
   camera: CameraUniforms
 ): Folded3dDrawPass[] {
   const passes: Folded3dDrawPass[] = [];
+  const axis = viewDepthAxis(camera.rotation);
   const push = (range: Folded3dRange, faceAlpha: number): void => {
     if (range.faceIndexCount === 0 && range.edgeCount === 0) return;
     passes.push({
@@ -278,15 +279,36 @@ export function folded3dDrawPasses(
     push(mesh.translucent, settings.faceAlpha);
     push(mesh.undetermined, settings.faceAlpha);
   } else {
+    // Far-to-near. View depth grows toward the eye, so ascending order draws the
+    // farthest plane first — and a nearer plane's paper then lands *after* a
+    // farther plane's creases and covers them.
+    //
+    // This is what settles the fold line, and it settles it discretely. A fold
+    // line lies in **both** planes it joins, so the two are at exactly the same
+    // depth there by construction; every attempt to separate them with an
+    // epsilon — a bias, then an inset — worked at most cameras and failed on the
+    // set of directions where that epsilon's depth contribution vanished. Draw
+    // order has no such set.
+    const visible = mesh.skins
+      .filter((skin) => skinFacesEye(skin, camera))
+      .map((skin) => ({
+        skin,
+        depth:
+          skin.centroid[0] * axis[0] + skin.centroid[1] * axis[1] + skin.centroid[2] * axis[2],
+      }))
+      .sort((l, r) => l.depth - r.depth)
+      .map((entry) => entry.skin);
+
     let run: Folded3dRange | null = null;
-    for (const skin of mesh.skins) {
-      if (!skinFacesEye(skin, camera)) continue;
+    for (const skin of visible) {
       const next: Folded3dRange = {
         faceIndexStart: skin.faceIndexStart,
         faceIndexCount: skin.faceIndexCount,
         edgeStart: skin.edgeStart,
         edgeCount: skin.edgeCount,
       };
+      // Only when the sort left them adjacent in the buffer, which it usually
+      // does not — a merge that reordered the draws would undo the sort.
       if (
         run &&
         run.faceIndexStart + run.faceIndexCount === next.faceIndexStart &&

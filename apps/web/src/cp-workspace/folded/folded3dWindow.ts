@@ -157,17 +157,16 @@ export const FOLDED_3D_WINDOW_CREASE_WIDTH_PX = 1.5;
  * coincident with is **the single face it lies on**. It has to beat zero, not a
  * stack.
  *
- * That is why it can be this small, and why being small is the point. In world
- * depth it is `2e-5 · radius` (`depthRange = 2 · radius`), which is orders below
- * any genuine gap between two planes of a real fold — so it cannot lift a crease
- * through paper that is actually in front of it, which is exactly what the old
- * constant did. It is still 84 units of a 24-bit depth buffer, comfortably
- * resolvable; on a 16-bit one it is a third of a unit, which is what
- * `Folded3dMeshRuntime.shallowDepthBuffer` reports.
+ * It does **not** have to clear another plane that meets this one along a fold
+ * line, which is the job it kept being handed and kept failing at: a fold line
+ * lies in both planes at once, so no epsilon separates them at every camera.
+ * That is settled by drawing the planes far-to-near and letting the nearer one's
+ * paper cover the farther one's linework — see `folded3dDrawPasses`.
  *
- * If a fold ever puts two planes closer together than this, the kernel already
- * measures it — `min_inter_separation_relative` in the fold diagnostics — and
- * this becomes a function of that rather than a constant.
+ * So all this has left to beat is the *slope* of its own face across the width of
+ * the crease ribbon, which is why it can be this small: `2e-5 · radius` of world
+ * depth, still 84 units of a 24-bit depth buffer. On a 16-bit one it is a third
+ * of a unit, which is what `Folded3dMeshRuntime.shallowDepthBuffer` reports.
  */
 export const FOLDED_3D_CREASE_DEPTH_BIAS = 1e-5;
 
@@ -214,6 +213,9 @@ export function folded3dWindowRenderSettings(options: {
     ),
     faceAlpha: plan.faceAlpha * style.faceAlpha,
     creaseDepthBias: FOLDED_3D_CREASE_DEPTH_BIAS,
+    // A nearer plane's paper has to be able to cover a farther plane's creases
+    // where the two meet along a fold line — see `RenderSettings`.
+    creaseWritesDepth: false,
   };
 }
 
