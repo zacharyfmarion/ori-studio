@@ -153,7 +153,7 @@ reads to a user as "Ori Studio corrupted my crease pattern."
 ### Phase 2 — Prove it
 
 - [x] Add a `windows-latest` Rust test job to `ci.yml` for `oristudio-cp`, `treemaker-core`, `treemaker-fold`
-- [ ] Add a per-platform launch smoke: install the built artifact, launch it (Xvfb on Linux), wait for a `window.__ORI_READY__` flag the app sets after first paint, fail the job otherwise. **Blocked on [desktop-ci-release.md](desktop-ci-release.md) Phase 1** — there is no workflow that builds a Windows or Linux artifact to smoke yet
+- [ ] Add a per-platform launch smoke: install the built artifact, launch it (Xvfb on Linux), wait for a `window.__ORI_READY__` flag the app sets after first paint, fail the job otherwise. **No longer blocked** — the Desktop Build workflow now produces all four artifacts
 - [ ] Manual pass on Windows: menu bar renders, `File ▸ Open` works, an export completes, double-click a `.osf`, open a second `.osf` and confirm one window
 - [ ] Manual pass on Linux (AppImage and `.deb`): same list, plus confirm the CP canvas renders under software rendering
 
@@ -175,6 +175,13 @@ renders — with the launch smoke green in CI on all three platforms.
 - **Nothing here has run on WebView2 or WebKitGTK.** Every item above is
   reasoned from source and unit-tested; the manual passes are what convert that
   into evidence. The Wayland window-positioning no-op noted earlier is untouched.
+- **The Linux `.desktop` entry needed `%F` added**, found by unpacking the built
+  `.deb`. Tauri generates `Exec=ori-studio` with no field code, which the Desktop
+  Entry Spec defines as "launch with no arguments" — so the `*.osf` glob, the MIME
+  type and the icons were all correct and the path still never reached
+  `argv_osf_paths`. Overridden via `bundle.linux.deb.desktopTemplate`. **Confirm in
+  the next built `.deb` and inside the AppImage**, which shares the generated entry
+  and has no `desktopTemplate` of its own.
 
 **Effort remaining:** the two manual passes, which need a Windows machine and a
 Linux machine (or VMs). CI smoke proves the app starts, not that it is usable.

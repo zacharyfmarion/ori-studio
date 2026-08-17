@@ -278,7 +278,7 @@ that anyone may have bookmarked — either keep publishing an alias or redirect.
 - [x] `Swatinem/rust-cache` with `workspaces: '. -> target'`, and `save-if: false` in the signing job
 - [x] Run `node scripts/verify-analytics-build.mjs apps/web/dist` after the frontend build
 - [ ] ~~Linux leg in `container: ubuntu:22.04`~~ — using `runs-on: ubuntu-22.04` instead for the first working build, since the container was the plan's own highest-risk line and cannot be tested from here. The glibc floor is the same (2.35); what differs is that the label is on GitHub's deprecation clock. **The 2026-09-17 deadline is written into the workflow as a comment**, along with a warning not to "fix" it by bumping to 24.04
-- [ ] Green on all four legs before relying on it
+- [x] Green on all four legs — run 32065856218: macOS aarch64 + x86_64 signed, notarized (Apple: `Accepted`) and stapled, Windows NSIS, Linux deb + AppImage. The CI-built DMG was downloaded and independently checked: `spctl` returns `accepted / source=Notarized Developer ID`
 
 ### Phase 1b — Shared release library
 
@@ -302,6 +302,7 @@ that anyone may have bookmarked — either keep publishing an alias or redirect.
 - [x] `scripts/release.sh publish` inverted to tag-and-push by default; local build is now `--local-build`, and the closing message tells you the prerelease → arm sequence
 - [x] `local-macos-release.sh` gains a break-glass header stating what it does **not** produce
 - [ ] `publish` job asserting an **exact expected-name map per platform** — currently the draft is published by hand, so a missing platform is visible but not enforced
+- [x] Artifact upload done by an explicit `actions/upload-artifact` with `if-no-files-found: error`, not tauri-action's uploader — that one creates an artifact *per file* from a name pattern and its Linux list contains the AppImage twice, so every run 409'd
 - [ ] Generate `SHA256SUMS` (one file; the old `sha256-<arch>.txt` scheme collides between `x86_64-apple-darwin` and `x86_64-pc-windows-msvc`)
 - [ ] Add a CI grep asserting no `uses:` in `release.yml` matches `@v\d|@main|@stable|@master`, so the SHA pinning cannot rot
 
