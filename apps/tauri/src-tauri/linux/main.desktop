@@ -1,18 +1,3 @@
-# Tauri's stock template, with one change: `%F` on Exec.
-#
-# Without a field code the Desktop Entry Spec says the application is launched
-# with no arguments, so double-clicking a .osf started Ori Studio with an empty
-# document — the file path never reached `argv_osf_paths`. Everything else about
-# the association was correct (the *.osf glob, the MIME type, the icons), which
-# is what made it look like it worked.
-#
-# `%F` rather than `%f` because the handler already filters a list of paths, and
-# rather than `%U` because it takes filesystem paths, not URLs. It must not go on
-# StartupWMClass.
-#
-# Kept in sync with crates/tauri-bundler/src/bundle/linux/freedesktop/main.desktop
-# upstream; the only available variables are categories, comment, exec, icon,
-# name and mime_type.
 [Desktop Entry]
 Categories={{categories}}
 {{#if comment}}
