@@ -1,0 +1,24 @@
+# Origami file-format fixtures are byte-significant.
+#
+# They are compared against what the upstream tools produce, round-tripped
+# through our writers, and ~50 of them are embedded directly into test binaries
+# with `include_str!`. Git's end-of-line translation rewrites files on checkout
+# on Windows (`core.autocrlf` is true by default there), so without this the same
+# fixture is a different byte sequence depending on which machine ran the tests —
+# which is exactly what a parity-focused port must not allow.
+#
+# This is not hypothetical. It is how
+# `treemaker-core::tests::v3_fixed_angle_preserves_501_import_behavior` failed on
+# the very first Windows CI run: the test builds its input with
+# `replacen("false\n0.0000000000\ntrue", ...)`, the checked-out fixture had CRLF,
+# the pattern matched nothing, the substitution silently did not happen, and the
+# assertion reported `None` instead of `Some(1.0)`. The parser itself was fine —
+# the sibling test that parses the same fixture passed.
+*.tmd   -text
+*.tmd4  -text
+*.tmd5  -text
+*.cp    -text
+*.fold  -text
+*.ori   -text
+*.orh   -text
+*.osf   -text
