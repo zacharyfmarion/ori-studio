@@ -397,9 +397,12 @@ jobs:
           # rejected it: `unexpected argument '--bundles' found`.
           tauriScript: npm run tauri
           args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
-          # Always produced, so a dispatch run hands you something downloadable.
-          uploadWorkflowArtifacts: true
-          workflowArtifactNamePattern: OriStudio-${{ matrix.name }}
+          # Artifact upload is done by the explicit step below instead. The
+          # action's own uploader creates one GitHub artifact *per file* named
+          # from a pattern, and its Linux file list contains the AppImage twice —
+          # so every run 409'd with "an artifact with this name already exists",
+          # and no pattern can fix a duplicate entry.
+          uploadWorkflowArtifacts: false
           # Only on a tag. tauri-action skips release upload without these.
           releaseId: ${{ needs.draft.outputs.release_id }}
           tagName: ${{ needs.validate.outputs.is_release == 'true' && github.ref_name || '' }}
@@ -407,9 +410,13 @@ jobs:
           # one latest.json race and silently drop a platform.
           uploadUpdaterJson: false
 
+      # One artifact per platform, globbed explicitly. Deliberately not the
+      # action's uploader — see the note above. The `.app` is left out: it is
+      # large and the DMG already contains it.
       # `tauri build` exiting 0 does not prove the disk image mounts or that what
       # is inside it is signed. Ported from scripts/local-macos-release.sh, which
-      # has always done this and which CI would otherwise regress.
+      # has always done this and which CI would otherwise regress. Runs before
+      # the upload so a bad bundle is never handed to anyone.
       - name: Verify signed macOS artifacts
         if: startsWith(matrix.name, 'macos') && env.APPLE_CERTIFICATE != ''
         run: |
@@ -429,6 +436,20 @@ jobs:
           test -d "$mount/Ori Studio.app"
           codesign --verify --deep --strict "$mount/Ori Studio.app"
           echo "macOS artifacts verified: signed, notarized, stapled, and mountable"
+
+      - name: Upload installers
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: OriStudio-${{ matrix.name }}
+          path: |
+            target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+            target/${{ matrix.target }}/release/bundle/nsis/*.exe
+            target/${{ matrix.target }}/release/bundle/deb/*.deb
+            target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
+          # A build that produced nothing must fail here rather than hand back an
+          # empty download.
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Warn when macOS is unsigned
         if: startsWith(matrix.name, 'macos') && env.APPLE_CERTIFICATE == ''
