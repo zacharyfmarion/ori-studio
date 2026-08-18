@@ -5,13 +5,13 @@ import {
   offset as offsetMiddleware,
   flip,
   shift,
-  size,
   limitShift,
   FloatingPortal,
   type Placement,
 } from '@floating-ui/react';
 import { useWheelPassthrough } from '../../hooks/useWheelPassthrough';
-import { anchorIntersectsBoundary } from './floatingToolbarBounds';
+import { anchorIntersectsBoundary, toolbarMaxWidth } from './floatingToolbarBounds';
+import { observeResizeDeferred } from './observeResizeDeferred';
 
 /**
  * A rectangle in viewport (CSS px) coordinates that a {@link FloatingToolbar}
@@ -122,15 +122,6 @@ export function FloatingToolbar({
       // design tool does. `limitShift` still lets it leave with an object that
       // is leaving, rather than detaching to slide along the edge.
       shift({ ...overflow, crossAxis: true, limiter: limitShift() }),
-      // Shifting cannot rescue a pill that is simply wider than the pane, and
-      // the inline-simulation inspector is. Capping the width is what lets
-      // `.floating-toolbar`'s `flex-wrap` turn it into two rows instead.
-      size({
-        ...overflow,
-        apply({ availableWidth, elements }) {
-          elements.floating.style.maxWidth = `${Math.max(availableWidth, MIN_TOOLBAR_WIDTH)}px`;
-        },
-      }),
     ];
   }, [boundary, offsetPx]);
 
@@ -175,11 +166,15 @@ export function FloatingToolbar({
   // `autoUpdate` watches the reference and the pill, not the boundary. Dragging
   // the splitter between two docked panes resizes the boundary without moving
   // either, so nothing else would re-clamp.
+  //
+  // Deferred, because `update()` runs the `size` middleware and that writes the
+  // pill's own width — see `observeResizeDeferred` for why doing that inline
+  // ends in a background-error toast. `autoUpdate` guards against the same loop
+  // (floating-ui#1740), but only when the *reference element* resizes, and ours
+  // is a virtual reference, so its guard never fires and never protected us.
   useLayoutEffect(() => {
     if (!boundary) return undefined;
-    const observer = new ResizeObserver(() => update());
-    observer.observe(boundary);
-    return () => observer.disconnect();
+    return observeResizeDeferred(boundary, update);
   }, [boundary, update]);
 
   useWheelPassthrough(toolbar, wheelTarget);
@@ -194,14 +189,13 @@ export function FloatingToolbar({
 
   if (!anchorRect) return null;
 
+  const boundaryRect = boundary?.getBoundingClientRect();
+
   // Gone with its object. `limitShift` lets the pill follow an anchor out of the
   // boundary rather than detaching to slide along the edge; once the anchor is
   // fully outside, what is left is a pill hovering over the neighbouring pane
   // attached to nothing on screen.
-  if (
-    boundary &&
-    !anchorIntersectsBoundary(anchorRect, boundary.getBoundingClientRect(), BOUNDARY_PADDING)
-  ) {
+  if (boundaryRect && !anchorIntersectsBoundary(anchorRect, boundaryRect, BOUNDARY_PADDING)) {
     return null;
   }
 
@@ -212,7 +206,17 @@ export function FloatingToolbar({
         className={['floating-toolbar', className].filter(Boolean).join(' ')}
         role="toolbar"
         aria-label={ariaLabel}
-        style={floatingStyles}
+        style={{
+          ...floatingStyles,
+          // Shifting cannot rescue a pill that is simply wider than the pane,
+          // and the inline-simulation inspector is; this is what lets
+          // `.floating-toolbar`'s `flex-wrap` turn it into two rows instead.
+          // Rendered as a plain style rather than through `size` — see
+          // `toolbarMaxWidth` for why it must not come from the position pass.
+          maxWidth: boundaryRect
+            ? toolbarMaxWidth(boundaryRect, BOUNDARY_PADDING, MIN_TOOLBAR_WIDTH)
+            : undefined,
+        }}
       >
         {children}
       </div>

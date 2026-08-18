@@ -142,11 +142,16 @@ Three notes on that list:
   than the pane leaves `flip` with no fitting side and the bar overflows
   vertically. With it, the bar slides inside and overlaps the figure — the
   standard behaviour for a selection toolbar in a design tool.
-- **`size` caps `max-width` to the space available.** The inline-simulation
-  inspector (slider plus seven controls) is wider than a narrow CP pane, and no
-  amount of shifting fixes an element that does not fit. Pair it with
-  `flex-wrap: wrap` on `.floating-toolbar` so a constrained bar becomes two rows
-  rather than overflowing its own boundary.
+- **The width cap does not go through `size`.** The inline-simulation inspector
+  (slider plus seven controls) is wider than a narrow CP pane, and no amount of
+  shifting fixes an element that does not fit; it needs a `max-width`, paired
+  with `flex-wrap: wrap` on `.floating-toolbar` so it becomes two rows. But
+  `size`'s `availableWidth` is a function of the *resolved placement*, which is
+  a function of the pill's width — so writing the width from inside the position
+  pass resizes an element that pass observes, and the browser reports the
+  undelivered notifications as an error the app toasts. See the postscript.
+  `toolbarMaxWidth(boundary)` is the fixed point instead: no wider than the
+  pane, a function of the boundary alone, applied as a plain style.
 - **The middleware array must be memoized on `[boundary, offsetPx]`**, or every
   render hands `useFloating` a fresh array and forces a recompute.
 
@@ -198,7 +203,47 @@ jsdom gives floating-ui nothing but zero rects. Preferred over floating-ui's
 `autoUpdate` observes the reference and the floating element, not the boundary.
 Dragging the Dockview splitter between the CP pane and the View pane changes the
 boundary without necessarily changing anything React re-renders on. Attach a
-`ResizeObserver` to the boundary element and call `update()`.
+`ResizeObserver` to the boundary element and call `update()` — **deferred to an
+animation frame**, via `observeResizeDeferred`. See the postscript.
+
+## Postscript: the resize loop this first shipped with
+
+The first cut of this drew a "Something went wrong in the background" toast
+carrying *"ResizeObserver loop completed with undelivered notifications"*
+whenever a pane was resized with a toolbar on screen. Worth recording, because
+the shape recurs.
+
+That message is not a fault. It is the spec telling the page that notifications
+produced *during* observation delivery could not be delivered in the same pass.
+It arrives as a bare `error` event at the window with no `Error` and no stack,
+which `globalErrorHandlers.ts` reports and `GlobalErrorReporter` toasts.
+
+Two of this change's own additions produced it, and each needed a different fix:
+
+1. **The boundary observer called `update()` inline.** `update()` ran `size`,
+   which wrote the pill's `max-width`, which resized an element under
+   observation — from inside a resize callback. `autoUpdate` guards against
+   exactly this (floating-ui#1740, *"Prevent update loops when using the `size`
+   middleware"*) by unobserving the floating element and re-observing on the
+   next frame — **but only when the reference element resizes**, and ours is a
+   virtual reference, so the guard could never fire. Fixed by deferring:
+   `observeResizeDeferred` coalesces a burst to one call per frame, outside any
+   delivery pass.
+2. **`size` itself was a feedback path**, guard or no guard: its `availableWidth`
+   depends on the resolved placement, the placement depends on the pill's width,
+   and the value it computes sets that width. Deferring makes the loop
+   convergent rather than absent. Fixed properly by deleting the middleware —
+   the cap we actually want is "no wider than the pane", which is a function of
+   the boundary alone and therefore a fixed point.
+
+The general lesson: **a placement callback that sets a size is a cycle.** Prefer
+a rule whose inputs do not include its own output; defer only what is left.
+
+Not changed, but worth a decision later: `globalErrorHandlers.ts` toasts this
+message like any other error. It is unactionable, and any dependency's
+`ResizeObserver` can raise it. Filtering it would be defensible — but it would
+also have hidden this bug, so it is left alone here rather than decided in
+passing.
 
 ## Explicitly out of scope
 
@@ -244,8 +289,9 @@ strings, and no new user-facing feature to instrument.
       straddling each edge, fully outside, zero-size boundary).
 - [x] Add the `boundary` prop; thread it through `flip` / `shift` / `size`;
       memoize the middleware; add `crossAxis: true`.
-- [x] `max-width` via `size` + `flex-wrap: wrap` on the pill.
-- [x] `ResizeObserver` on the boundary → `update()`.
+- [x] `max-width` via `toolbarMaxWidth` + `flex-wrap: wrap` on the pill.
+- [x] `ResizeObserver` on the boundary → `update()`, deferred a frame.
+- [x] Fix the resize loop the first cut shipped with — see the postscript.
 - [x] Return `null` when the anchor no longer intersects the boundary.
 - [x] Pass `boundary={container}` at all five call sites.
 - [x] Refresh the `runAndDismiss` comment in `CpSelectionToolbar`.

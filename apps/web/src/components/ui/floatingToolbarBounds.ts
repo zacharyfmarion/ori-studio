@@ -59,3 +59,26 @@ export function anchorIntersectsBoundary(
     anchor.top + anchor.height >= top
   );
 }
+
+/**
+ * Widest the pill may be inside `boundary`, in whole px.
+ *
+ * Deliberately a function of the boundary **alone** — not of the pill, and not
+ * of where the pill ended up. `@floating-ui`'s `size` middleware would compute
+ * the tighter "space left on the chosen side", but that depends on the resolved
+ * placement, which depends on the pill's width, which is the thing being set:
+ * writing it from inside the position pipeline resizes an element that the
+ * position pipeline observes, and the browser reports the resulting undelivered
+ * notifications as an error. "No wider than the pane" is both the rule actually
+ * wanted and a fixed point, so it can be applied as a plain style instead.
+ *
+ * Rounded because a fractional width jitters between frames during a pane drag,
+ * and each distinct value is another layout write.
+ *
+ * `min` keeps the controls hittable on a pane too narrow to hold them; below it
+ * the pill is allowed to overflow, respecting the boundary having by then cost
+ * more than it bought.
+ */
+export function toolbarMaxWidth(boundary: BoundaryRect, padding: number, min: number): number {
+  return Math.round(Math.max(boundary.right - boundary.left - padding * 2, min));
+}

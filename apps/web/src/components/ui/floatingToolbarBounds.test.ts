@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { anchorIntersectsBoundary, type BoundaryRect } from './floatingToolbarBounds';
+import {
+  anchorIntersectsBoundary,
+  toolbarMaxWidth,
+  type BoundaryRect,
+} from './floatingToolbarBounds';
 import type { FloatingAnchorRect } from './FloatingToolbar';
 
 /**
@@ -64,5 +68,33 @@ describe('anchorIntersectsBoundary', () => {
     const sliver: BoundaryRect = { left: 0, top: 0, right: 10, bottom: 600 };
     expect(anchorIntersectsBoundary(anchor({ left: 0, width: 10 }), sliver, PADDING)).toBe(true);
     expect(anchorIntersectsBoundary(anchor({ left: 40, width: 10 }), sliver, PADDING)).toBe(false);
+  });
+});
+
+describe('toolbarMaxWidth', () => {
+  const MIN = 96;
+
+  it('is the pane inset by the padding on both sides', () => {
+    expect(toolbarMaxWidth(PANE, PADDING, MIN)).toBe(1000 - 16);
+  });
+
+  it('depends only on the boundary, never on the pill or its placement', () => {
+    // The property that keeps this out of the position pass: same pane, same
+    // answer, whatever the pill is doing. A `size`-middleware value would move
+    // with the resolved placement and feed back into its own input.
+    const shifted: BoundaryRect = { left: 400, top: 200, right: 1400, bottom: 800 };
+    expect(toolbarMaxWidth(shifted, PADDING, MIN)).toBe(toolbarMaxWidth(PANE, PADDING, MIN));
+  });
+
+  it('rounds, so a fractional pane width cannot jitter the value between frames', () => {
+    const fractional: BoundaryRect = { left: 0.4, top: 0, right: 500.9, bottom: 600 };
+    const value = toolbarMaxWidth(fractional, PADDING, MIN);
+    expect(Number.isInteger(value)).toBe(true);
+    expect(value).toBe(Math.round(500.5 - 16));
+  });
+
+  it('stops shrinking at the minimum, letting a hopeless pane be overflowed', () => {
+    const sliver: BoundaryRect = { left: 0, top: 0, right: 40, bottom: 600 };
+    expect(toolbarMaxWidth(sliver, PADDING, MIN)).toBe(MIN);
   });
 });
