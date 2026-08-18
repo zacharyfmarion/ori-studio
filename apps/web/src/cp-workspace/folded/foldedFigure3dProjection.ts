@@ -43,6 +43,17 @@
  * per-face scalar "layer" exists and nothing here may topologically sort. What
  * always exists is a winner per cell, and the kernel already computed it.
  *
+ * **Creases too.** A crease is a segment of one cell's ring, drawn at the layer
+ * whose paper ends there — not a whole model edge belonging to the figure at
+ * large. That is what lets a crease be drawn along the run where its own layer
+ * is on show and left off where it is buried, which the old rule could not
+ * express: `strokeIsBuried` asked whether either incident face was shown
+ * *anywhere*, so a face buried here and shown there kept its creases
+ * everywhere. Measured over the committed fixtures the change removes 2–24% of
+ * the drawn crease length, while *raising* the primitive count — the segments
+ * are shorter than the edges they came from, so counting them says the opposite
+ * of what is happening.
+ *
  * # Two orders, two mechanisms
  *
  * The kernel's `cell_stack` is **plane-local**: it totally orders one cell's
@@ -90,7 +101,6 @@ import {
 import {
   FOLDED_3D_CELL_ATTR_STRIDE,
   FOLDED_3D_CELL_UNDETERMINED,
-  FOLDED_3D_EDGE_ATTR_STRIDE,
   type OristudioCpFold3dTolerances,
   type OristudioCpFolded3dRenderModel,
   type OristudioCpFoldedFigureDisplayStyle,
@@ -109,6 +119,7 @@ import {
   type StylePlan,
 } from './folded3dStyle';
 import {
+  buildFolded3dInk,
   cellRing,
   cellStack,
   edgeEnds,
@@ -116,6 +127,7 @@ import {
   modelCentroid,
   modelRadius,
   planeFrame,
+  type Folded3dInk,
 } from './folded3dModelReader';
 import type { Point } from '../../lib/geometry';
 
@@ -201,7 +213,7 @@ export interface Folded3dProjectionOptions {
 export interface Folded3dProjection {
   snapshot: OristudioCpFoldedRenderSnapshot;
   /**
-   * Which arrangement cell each primitive came from, `-1` for a crease.
+   * Which arrangement cell each primitive came from, `-1` where none owns it.
    * Index-aligned with `snapshot.primitives`.
    *
    * Carried rather than recoverable, because it is not: the tree cuts a cell
@@ -209,11 +221,20 @@ export interface Folded3dProjection {
    * downstream could match a primitive back to the paper it is drawing. It is
    * what a hit test on a 3D figure needs, and it is what lets a test say "each
    * cell's winner is drawn last" per cell rather than in aggregate.
+   *
+   * A **crease** carries its cell too. It did not use to, and could not: a
+   * crease was one line at the fold, belonging to the model rather than to any
+   * layer of it. Now it is a segment of one cell's ring, drawn at the layer whose
+   * paper ends there — so the owner exists, and saying it here is what lets the
+   * hidden-crease rule be asserted rather than pinned to a count. `-1` remains
+   * for the creases that genuinely belong to no layer: the wireframe styles,
+   * which draw no paper, and the fallback for a model edge the ink matched
+   * nowhere.
    */
   cells: number[];
   /**
-   * Which **face** each primitive draws, `-1` for a crease and for a cell
-   * annotation. Index-aligned with `snapshot.primitives`.
+   * Which **face** each primitive draws, `-1` for a cell annotation and for a
+   * crease that belongs to no layer. Index-aligned with `snapshot.primitives`.
    *
    * The other half of the same record. A cell says which piece of paper; a face
    * says which layer of it, which is the thing the kernel's ordering decided and
@@ -572,7 +593,7 @@ export function projectFolded3dModel(
   const eye = orthographicEye(options.camera);
   const coplanarEps = folded3dCoplanarEpsilon(model, options.tolerances);
 
-  const items = buildItems(model, plan);
+  const { items, strokes } = buildItems(model, plan, buildFolded3dInk(model), eye);
   const budget = options.itemBudget ?? BSP_ITEM_BUDGET;
   let order: 'bsp' | 'depth-sorted' = 'bsp';
   let pieces: BspItem[];
@@ -586,12 +607,12 @@ export function projectFolded3dModel(
   const drafts = expand(
     model,
     pieces,
+    strokes,
     plan,
     options.style,
     uniforms,
     folded3dEyeDirection(options.camera),
-    anchor,
-    options.cullHidden !== false
+    anchor
   );
   const { primitives, cells, faces } = assemble(drafts, options);
 
@@ -616,30 +637,83 @@ export function projectFolded3dModel(
 }
 
 /**
- * What the tree is built from: one item per cell **triangle** plus one per edge.
+ * What the tree is built from: one item per cell **triangle**, plus one per
+ * crease of each layer.
  *
  * Exported because it is the unit the budget counts and the unit a regression
- * has to be stated in. `ref` is a cell index on a face and an edge index on an
- * edge; `order` carries the kernel's intra-plane `draw_rank`, which
- * `sortCoplanar` needs and which the tree would otherwise destroy.
+ * has to be stated in. `order` carries the kernel's intra-plane `draw_rank`,
+ * which `sortCoplanar` needs and which the tree would otherwise destroy.
+ *
+ * `ref` is a cell index on a face and an index into `strokes` on a crease, which
+ * is why the table comes back with the items rather than staying private: a
+ * crease's `ref` means nothing without it.
  */
 export function folded3dBspItems(
   model: OristudioCpFolded3dRenderModel,
-  displayStyle: OristudioCpFoldedFigureDisplayStyle
-): BspItem[] {
-  return buildItems(model, folded3dStylePlan(displayStyle));
+  displayStyle: OristudioCpFoldedFigureDisplayStyle,
+  eye: Vec3 = [0, 0, 1]
+): { items: BspItem[]; strokes: readonly StrokeRef[] } {
+  return buildItems(model, folded3dStylePlan(displayStyle), buildFolded3dInk(model), eye);
 }
 
 /**
- * One item per cell **triangle** plus one per edge.
+ * What a crease item is drawing.
+ *
+ * A crease belongs to a **layer**, not to the model: the same fold line is a
+ * paper edge of the face that ends there and an invisible interior cut for the
+ * face lying over it. Carrying the owning `(cell, face)` is what lets `expand`
+ * draw it only where that layer is the one on show, which is the whole of the
+ * hidden-crease question and is why `strokeIsBuried` — which asked whether a
+ * face was shown *anywhere* — could never answer it.
+ *
+ * `cell` is `-1` for a crease that belongs to no layer: the wireframe styles,
+ * which draw no paper for a layer to be buried behind, and the fallback for a
+ * model edge the ink matched nowhere.
+ */
+export interface StrokeRef {
+  cell: number;
+  face: number;
+  edge: number;
+}
+
+/**
+ * One item per cell **triangle**, plus one per crease of each layer.
  *
  * The ring is triangulated in its own plane's `(u, v)` — the frame the kernel
  * emitted, never one re-derived from a local seed, because a different tangent
  * gives a different chirality and every stack read off the projected winding
  * comes out reversed.
+ *
+ * Creases come from the same rings, so a crease is a *segment* of its cell's
+ * boundary rather than a whole model edge — clipped to the cell for free, and
+ * tagged with the layer whose paper ends there.
  */
-function buildItems(model: OristudioCpFolded3dRenderModel, plan: StylePlan): BspItem[] {
+function buildItems(
+  model: OristudioCpFolded3dRenderModel,
+  plan: StylePlan,
+  ink: Folded3dInk,
+  eye: Vec3
+): { items: BspItem[]; strokes: StrokeRef[] } {
   const items: BspItem[] = [];
+  const strokes: StrokeRef[] = [];
+
+  // Which side of each plane the eye is on, for the hinge rule below. A hinge is
+  // the fold line between two planes and is a ring segment of a cell in *both*
+  // of them, so each plane inks it knowing only its own stack — and the one
+  // whose partner is buried draws a bend nothing can see. Skipped for a
+  // translucent style, which shows the whole stack and wants every crease.
+  const sideOfPlane: Array<1 | -1> = [];
+  for (let plane = 0; plane < model.plane_count; plane += 1) {
+    const up = planeFrame(model, plane).up;
+    sideOfPlane.push(up[0] * eye[0] + up[1] * eye[1] + up[2] * eye[2] >= 0 ? 1 : -1);
+  }
+  const opaque = plan.faceAlpha >= 1;
+  const hingeShows = (cell: number, slot: number, segment: number): boolean => {
+    if (!opaque) return true;
+    const hinge = ink.hingeAt(cell, slot, segment);
+    if (!hinge) return true;
+    return sideOfPlane[hinge.partnerPlane] === 1 ? hinge.exposedOnPlus : hinge.exposedOnMinus;
+  };
   if (plan.fills) {
     for (let cell = 0; cell < model.cell_count; cell += 1) {
       const base = cell * FOLDED_3D_CELL_ATTR_STRIDE;
@@ -666,15 +740,52 @@ function buildItems(model: OristudioCpFolded3dRenderModel, plan: StylePlan): Bsp
           points: [ring[indices[i]!]!, ring[indices[i + 1]!]!, ring[indices[i + 2]!]!],
         });
       }
+      if (!plan.strokes) continue;
+      const stack = cellStack(model, cell);
+      for (let slot = 0; slot < stack.length; slot += 1) {
+        for (let segment = 0; segment < ring.length; segment += 1) {
+          const edge = ink.edgeAt(cell, slot, segment);
+          if (edge < 0) continue;
+          if (!hingeShows(cell, slot, segment)) continue;
+          items.push({
+            kind: 1,
+            ref: strokes.length,
+            // The cell's own rank, so a crease travels with the paper it bounds
+            // through the splitter promotion `sortCoplanar` undoes.
+            order: drawRank,
+            points: [ring[segment]!, ring[(segment + 1) % ring.length]!],
+          });
+          strokes.push({ cell, face: stack[slot]!, edge });
+        }
+      }
     }
   }
   if (plan.strokes) {
-    for (let edge = 0; edge < model.edge_count; edge += 1) {
+    // Creases that belong to no layer. Two disjoint cases, and both want exactly
+    // the behaviour that predates layered creases — one undisplaced line each:
+    //
+    // - **Wireframe.** No paper is drawn, so nothing can be buried behind
+    //   anything and asking which layer owns a crease is asking about a picture
+    //   that is not being made.
+    // - **The fallback.** A model edge the ink matched nowhere, which happens
+    //   when its face was dropped under `min_accepted_area_relative` or its cell
+    //   came back with a ring under three points. Drawing it plainly is how a
+    //   match that fails degrades to a slightly cluttered picture instead of a
+    //   missing crease.
+    const orphans = plan.fills ? ink.orphanEdges : range(model.edge_count);
+    for (const edge of orphans) {
       const [a, b] = edgeEnds(model, edge);
-      items.push({ kind: 1, ref: edge, points: [a, b] });
+      items.push({ kind: 1, ref: strokes.length, points: [a, b] });
+      strokes.push({ cell: -1, face: -1, edge });
     }
   }
-  return items;
+  return { items, strokes };
+}
+
+function range(count: number): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < count; i += 1) out.push(i);
+  return out;
 }
 
 /**
@@ -724,23 +835,20 @@ function depthSorted(items: BspItem[], uniforms: CameraUniforms): BspItem[] {
  * `strip_coupled` does.
  */
 /**
- * The faces opaque paper leaves on show — the selected slot of every cell.
+ * The faces each cell draws, far-to-near — one for opaque paper, the whole stack
+ * for translucent.
  *
- * Mirrors the slot choice in [`expand`] exactly, including the camera-dependent
- * end of `cell_stack`, because the two answering differently is precisely the
- * bug this exists to fix.
- *
- * `null` when the stack is drawn in full (translucent paper, or an undetermined
- * cell), which means "every face of that cell is on show" and therefore no
- * crease of it can be buried.
+ * Computed once per cell rather than per piece, and read by *both* the fill and
+ * the crease arms, which is the point: a crease is drawn exactly where the layer
+ * it bounds is drawn. Two separate answers to that question is what the bug was.
  */
-function visibleFaces(
+function cellDrawOrder(
   model: OristudioCpFolded3dRenderModel,
   plan: StylePlan,
   style: Folded3dPaperStyle,
   upTowardEye: readonly boolean[]
-): Set<number> | null {
-  const shown = new Set<number>();
+): number[][] {
+  const out: number[][] = [];
   for (let cell = 0; cell < model.cell_count; cell += 1) {
     const base = cell * FOLDED_3D_CELL_ATTR_STRIDE;
     const undetermined = (model.cell_attr[base + 5] ?? 0) === FOLDED_3D_CELL_UNDETERMINED;
@@ -749,61 +857,26 @@ function visibleFaces(
       style.faceAlpha *
       (undetermined && plan.annotateUndetermined ? UNDETERMINED_FACE_ALPHA : 1);
     const stack = cellStack(model, cell);
-    if (stack.length === 0) continue;
-    // Any cell drawn in full puts its whole stack on show, and one such cell is
-    // enough to make the whole question moot: a crease it owns is visible, and
-    // the conservative answer for every other crease is to keep it.
-    if (alpha < 1) return null;
+    // `cell_stack` runs top-of-plane first, so it is already far-to-near when the
+    // eye is on the `-up` side and has to be reversed when it is on the `+up`
+    // side. The opaque case takes the last of whichever order that is.
     const farToNear = (upTowardEye[model.cell_attr[base] ?? 0] ?? false)
       ? [...stack].reverse()
       : [...stack];
-    shown.add(farToNear[farToNear.length - 1]!);
+    out.push(alpha >= 1 && farToNear.length > 0 ? [farToNear[farToNear.length - 1]!] : farToNear);
   }
-  return shown;
-}
-
-/**
- * Whether a crease lies under paper and should not be drawn.
- *
- * The bug this fixes: within a coplanar stack no piece is *in front of* another,
- * so `findVisiblePieces` cannot cull any of them and correctly does not. Fills
- * escape that because [`expand`] separately takes one slot per cell — but that
- * selection was never applied to strokes, so every buried layer's creases drew
- * over the one visible fill. Measured on `plant_penguin.osf` (136 of 206 creases
- * at +/-180, so most of it is a flat stack): 79 strokes against 56 visible
- * fills.
- *
- * Deliberately **conservative**. A face buried in one cell can be the shown
- * layer in another, and an edge is not owned by a cell, so the test is "is
- * either incident face shown *anywhere*". That keeps a crease it cannot prove
- * hidden, which is the right bias: a missing crease is a wrong picture, an extra
- * one is a cluttered one.
- */
-function strokeIsBuried(
-  model: OristudioCpFolded3dRenderModel,
-  edge: number,
-  shownFaces: Set<number> | null
-): boolean {
-  if (shownFaces === null) return false;
-  const base = edge * FOLDED_3D_EDGE_ATTR_STRIDE;
-  const faceA = model.edge_attr[base] ?? -1;
-  const faceB = model.edge_attr[base + 1] ?? -1;
-  if (faceA >= 0 && shownFaces.has(faceA)) return false;
-  if (faceB >= 0 && shownFaces.has(faceB)) return false;
-  // An edge whose incident faces the model does not name cannot be judged, so it
-  // is drawn. Reachable on a border edge of a figure with no fills at all.
-  return faceA >= 0 || faceB >= 0;
+  return out;
 }
 
 function expand(
   model: OristudioCpFolded3dRenderModel,
   pieces: readonly BspItem[],
+  strokes: readonly StrokeRef[],
   plan: StylePlan,
   style: Folded3dPaperStyle,
   uniforms: CameraUniforms,
   viewDirection: Vec3,
-  anchor: Point,
-  cullHidden: boolean
+  anchor: Point
 ): Draft[] {
   const drafts: Draft[] = [];
   const lineColor = shade(style.line, 1, 1);
@@ -816,18 +889,27 @@ function expand(
       up[0] * viewDirection[0] + up[1] * viewDirection[1] + up[2] * viewDirection[2] >= 0
     );
   }
-  // Which faces opaque paper actually shows. `null` disables the test entirely —
-  // see `strokeIsBuried`. Burying a crease *is* hidden-piece culling, so it
-  // answers to the same switch: `cullHidden: false` means draw everything, and a
-  // caller that asked for that gets every crease.
-  const shownFaces =
-    cullHidden && plan.fills ? visibleFaces(model, plan, style, upTowardEye) : null;
+  const drawOrder = cellDrawOrder(model, plan, style, upTowardEye);
 
   for (const piece of pieces) {
     const ring = piece.points.map((point) => project(point, uniforms, anchor));
     if (piece.kind === 1) {
-      if (strokeIsBuried(model, piece.ref, shownFaces)) continue;
-      drafts.push({ kind: 'stroke', group: -1, cell: -1, face: -1, ring, color: lineColor });
+      const owner = strokes[piece.ref];
+      // A crease is drawn where its own layer is drawn, and nowhere else. Not
+      // subject to `cullHidden`: that switch is about pixels nothing shows, and
+      // this is about which sheet of paper the line belongs to — a fact about
+      // the model, which the eye does not get a vote on.
+      if (owner && owner.cell >= 0 && !(drawOrder[owner.cell] ?? []).includes(owner.face)) {
+        continue;
+      }
+      drafts.push({
+        kind: 'stroke',
+        group: -1,
+        cell: owner?.cell ?? -1,
+        face: owner?.face ?? -1,
+        ring,
+        color: lineColor,
+      });
       continue;
     }
     const cell = piece.ref;
@@ -835,15 +917,8 @@ function expand(
     const undetermined = (model.cell_attr[base + 5] ?? 0) === FOLDED_3D_CELL_UNDETERMINED;
     const alpha =
       plan.faceAlpha * style.faceAlpha * (undetermined && plan.annotateUndetermined ? UNDETERMINED_FACE_ALPHA : 1);
-    const stack = cellStack(model, cell);
-    if (stack.length === 0) continue;
-    // `cell_stack` runs top-of-plane first, so it is already far-to-near when the
-    // eye is on the `-up` side and has to be reversed when it is on the `+up`
-    // side. The opaque case takes the last of whichever order that is.
-    const farToNear = (upTowardEye[model.cell_attr[base] ?? 0] ?? false)
-      ? [...stack].reverse()
-      : [...stack];
-    const slots = alpha >= 1 ? [farToNear[farToNear.length - 1]!] : farToNear;
+    const slots = drawOrder[cell] ?? [];
+    if (slots.length === 0) continue;
     for (let slot = 0; slot < slots.length; slot += 1) {
       const face = slots[slot]!;
       const viewNormal = directionToView(faceNormal(model, face), uniforms);

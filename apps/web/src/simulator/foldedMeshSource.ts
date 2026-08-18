@@ -1,9 +1,15 @@
 import {
   GlCore,
   MeshRenderer,
+  viewDepthAxis,
   type CameraUniforms,
   type RenderSettings,
 } from '@treemaker/origami-simulator';
+import type {
+  Folded3dHingeGroup,
+  Folded3dRange,
+  Folded3dSkin,
+} from '../cp-workspace/folded/folded3dMesh';
 
 /**
  * A 3D folded figure as something the worker can draw, with no solver behind it.
@@ -38,11 +44,14 @@ export interface Folded3dMeshPayload {
   center: [number, number, number];
   radius: number;
   /**
-   * Where the cells whose layer order the kernel could not resolve begin, in
-   * `faceIndices`. They are emitted last precisely so they can be drawn
-   * separately; see {@link FoldedMeshSource.render}.
+   * The two visible surfaces of each plane, and the ranges that draw them — see
+   * `Folded3dSkin`. An opaque figure draws one per plane, chosen by `up · eye`.
    */
-  undeterminedIndexStart: number;
+  skins: Folded3dSkin[];
+  /** Every determined layer once, for a translucent style. */
+  translucent: Folded3dRange;
+  /** Cells with no resolved order, drawn translucent over the rest. */
+  undetermined: Folded3dRange;
   /** Face opacity for that second pass. */
   undeterminedFaceAlpha: number;
 }
@@ -51,8 +60,9 @@ export class FoldedMeshSource {
   private constructor(
     private readonly core: GlCore,
     private readonly mesh: MeshRenderer,
-    private readonly faceIndexCount: number,
-    private readonly undeterminedIndexStart: number,
+    private readonly skins: readonly Folded3dSkin[],
+    private readonly translucent: Folded3dRange,
+    private readonly undetermined: Folded3dRange,
     private readonly undeterminedFaceAlpha: number,
     /**
      * Depth bits of the *default* framebuffer, which is what the layer
@@ -96,8 +106,9 @@ export class FoldedMeshSource {
       return new FoldedMeshSource(
         core,
         mesh,
-        payload.faceIndices.byteLength / 4,
-        payload.undeterminedIndexStart,
+        payload.skins,
+        payload.translucent,
+        payload.undetermined,
         payload.undeterminedFaceAlpha,
         readDepthBits(core)
       );
@@ -132,18 +143,24 @@ export class FoldedMeshSource {
     const orthographic = withoutPerspective(camera);
     const passes = folded3dDrawPasses(
       {
-        faceIndexCount: this.faceIndexCount,
-        undeterminedIndexStart: this.undeterminedIndexStart,
+        skins: this.skins,
+        translucent: this.translucent,
+        undetermined: this.undetermined,
         undeterminedFaceAlpha: this.undeterminedFaceAlpha,
       },
-      settings
+      settings,
+      camera
     );
     for (const pass of passes) {
       this.mesh.render(
         orthographic,
         { ...settings, showEdges: pass.showEdges, faceAlpha: pass.faceAlpha },
         target,
-        { clear: pass.clear, faceRange: pass.faceRange ?? undefined }
+        {
+          clear: pass.clear,
+          faceRange: pass.faceRange ?? undefined,
+          edgeRange: pass.edgeRange ?? undefined,
+        }
       );
     }
   }
@@ -191,58 +208,186 @@ export interface Folded3dDrawPass {
   faceAlpha: number;
   /** A run of `faceIndices`, or null for all of them. */
   faceRange: { start: number; count: number } | null;
+  /** A run of the creases, in **edges**, or null for all of them. */
+  edgeRange: { start: number; count: number } | null;
 }
 
 /**
- * How a folded figure's frame breaks into draws — one pass, or two.
+ * Which side of a plane the eye is on.
  *
- * **Two** when some cells are undetermined and the rest are opaque: the resolved
- * stack draws first, then the unresolved cells over it at a lower opacity,
- * without clearing. Those cells carry no displacement — the kernel has no order
- * for them and inventing one would present a guess as fact — so their slots are
- * exactly coincident. Translucency is the honest way to draw a stack whose order
- * is unknown; drawing it opaque would be drawing an order, and the wrong one.
+ * `up` against the view's depth axis — positive means the plane's `up` points
+ * toward the viewer, so the eye sees the `+1` skin. Read off the view rotation
+ * rather than by transforming a point, because this is a direction: it has no
+ * centre and no translation.
  *
- * That case is rare per model and total when it happens. Across the non-flat
- * corpus exactly one model has any undetermined cells, and it has 33 of 37.
+ * A single sign for the whole plane, and that is exact rather than approximate:
+ * a folded figure is drawn orthographically ({@link withoutPerspective}), so
+ * every ray shares one direction.
+ */
+function skinFacesEye(skin: Folded3dSkin, camera: CameraUniforms): boolean {
+  const [ax, ay, az] = viewDepthAxis(camera.rotation);
+  const depth = skin.up[0] * ax + skin.up[1] * ay + skin.up[2] * az;
+  return skin.side === 1 ? depth >= 0 : depth < 0;
+}
+
+/**
+ * How a folded figure's frame breaks into draws.
  *
- * **One** otherwise: a fully-determined figure has nothing to separate, a
- * wireframe style draws no faces at all, and a translucent style has already
- * made every cell see-through, which leaves the distinction nothing to say.
+ * **Opaque**: one pass per plane, drawing the skin that faces the eye — the top
+ * face of each of that plane's cells, or the bottom, plus that layer's creases.
+ * Inside a skin nothing is coplanar with anything else, so the depth buffer is
+ * only ever deciding plane against plane. Cells the solver could not order have
+ * no top and no bottom, so they follow in a translucent pass: saying "these
+ * layers could be either way round" by seeing through them, rather than by
+ * picking one order and drawing it confidently.
+ *
+ * **Translucent**: a single pass over every layer. The skins would hide most of
+ * the stack, which is the opposite of what an X-ray style is for, and coplanar
+ * layers are harmless here because translucent faces do not write depth — they
+ * blend in draw order rather than competing for it.
+ *
+ * Consecutive planes that chose the same side are merged into one draw, so a
+ * figure whose planes agree costs one pass rather than one per plane.
  *
  * Split out from {@link FoldedMeshSource.render} because it is the whole of the
  * decision and it is testable without a GL context, which the draw itself is not.
  */
 export function folded3dDrawPasses(
   mesh: {
-    faceIndexCount: number;
-    undeterminedIndexStart: number;
+    skins: readonly Folded3dSkin[];
+    translucent: Folded3dRange;
+    undetermined: Folded3dRange;
     undeterminedFaceAlpha: number;
   },
-  settings: Pick<RenderSettings, 'showFaces' | 'showEdges' | 'faceAlpha'>
+  settings: Pick<RenderSettings, 'showFaces' | 'showEdges' | 'faceAlpha'>,
+  camera: CameraUniforms
 ): Folded3dDrawPass[] {
-  const start = mesh.undeterminedIndexStart;
-  const undeterminedCount = mesh.faceIndexCount - start;
-  const single: Folded3dDrawPass = {
-    clear: true,
-    showEdges: settings.showEdges,
-    faceAlpha: settings.faceAlpha,
-    faceRange: null,
+  const passes: Folded3dDrawPass[] = [];
+  const axis = viewDepthAxis(camera.rotation);
+  const push = (range: Folded3dRange, faceAlpha: number): void => {
+    if (range.faceIndexCount === 0 && range.edgeCount === 0) return;
+    passes.push({
+      clear: passes.length === 0,
+      showEdges: settings.showEdges,
+      faceAlpha,
+      faceRange: { start: range.faceIndexStart, count: range.faceIndexCount },
+      edgeRange: { start: range.edgeStart, count: range.edgeCount },
+    });
   };
-  if (undeterminedCount <= 0 || !settings.showFaces || settings.faceAlpha < 1) {
-    return [single];
+
+  // A translucent style shows the whole stack, so the skins say nothing it
+  // wants. A wireframe draws no paper, so there is no occlusion to arrange
+  // either — but it still wants one line per crease rather than one per layer,
+  // which is what the skins give it.
+  if (settings.showFaces && settings.faceAlpha < 1) {
+    push(mesh.translucent, settings.faceAlpha);
+    push(mesh.undetermined, settings.faceAlpha);
+  } else {
+    // Far-to-near. View depth grows toward the eye, so ascending order draws the
+    // farthest plane first — and a nearer plane's paper then lands *after* a
+    // farther plane's creases and covers them.
+    //
+    // This is what settles the fold line, and it settles it discretely. A fold
+    // line lies in **both** planes it joins, so the two are at exactly the same
+    // depth there by construction; every attempt to separate them with an
+    // epsilon — a bias, then an inset — worked at most cameras and failed on the
+    // set of directions where that epsilon's depth contribution vanished. Draw
+    // order has no such set.
+    const visible = mesh.skins
+      .filter((skin) => skinFacesEye(skin, camera))
+      .map((skin) => ({
+        skin,
+        depth:
+          skin.centroid[0] * axis[0] + skin.centroid[1] * axis[1] + skin.centroid[2] * axis[2],
+      }))
+      .sort((l, r) => l.depth - r.depth)
+      .map((entry) => entry.skin);
+
+    // Which side of each plane the eye is on — the fact a hinge needs and a
+    // single skin cannot know, because the far side of a bend belongs to a
+    // different plane whose exposed layer is decided by this same test.
+    const sideOfPlane = new Map<number, 1 | -1>();
+    for (const skin of visible) sideOfPlane.set(skin.plane, skin.side);
+    const hingeShows = (group: Folded3dHingeGroup): boolean =>
+      sideOfPlane.get(group.partnerPlane) === group.requiredSide;
+
+    let run: Folded3dRange | null = null;
+    // Admitted hinge runs of the skins in the current merge, drawn right after
+    // it — the same place in the order the skin's own creases occupy, so a
+    // nearer plane's paper still lands on top of them.
+    let runHinges: Folded3dHingeGroup[] = [];
+    const flush = (): void => {
+      if (run) push(run, settings.faceAlpha);
+      run = null;
+      if (settings.showEdges) {
+        for (const group of runHinges) {
+          passes.push({
+            clear: passes.length === 0,
+            showEdges: true,
+            faceAlpha: settings.faceAlpha,
+            faceRange: { start: 0, count: 0 },
+            edgeRange: { start: group.edgeStart, count: group.edgeCount },
+          });
+        }
+      }
+      runHinges = [];
+    };
+
+    for (const skin of visible) {
+      const admitted = skin.hingeGroups.filter(hingeShows);
+      const next: Folded3dRange = {
+        faceIndexStart: skin.faceIndexStart,
+        faceIndexCount: skin.faceIndexCount,
+        edgeStart: skin.edgeStart,
+        edgeCount: skin.edgeCount,
+      };
+      // Only when the sort left them adjacent in the buffer, which it usually
+      // does not — a merge that reordered the draws would undo the sort.
+      if (
+        run &&
+        run.faceIndexStart + run.faceIndexCount === next.faceIndexStart &&
+        run.edgeStart + run.edgeCount === next.edgeStart
+      ) {
+        run.faceIndexCount += next.faceIndexCount;
+        run.edgeCount += next.edgeCount;
+        runHinges.push(...admitted);
+        continue;
+      }
+      flush();
+      run = next;
+      runHinges = [...admitted];
+    }
+    flush();
+    push(mesh.undetermined, mesh.undeterminedFaceAlpha);
   }
-  return [
-    { ...single, faceRange: { start: 0, count: start } },
-    {
-      clear: false,
-      // Creases were drawn by the pass above; drawing them again would double
-      // their ink everywhere the two passes overlap.
+
+  // The fallback creases sit at the head of the crease buffer and belong to no
+  // layer, so no skin carries them. One extra draw, and only when there are any
+  // — which there never are on a model whose faces all survived the kernel's
+  // area bar.
+  const fallback = mesh.skins.length > 0 ? mesh.skins[0]!.edgeStart : mesh.translucent.edgeStart;
+  if (fallback > 0 && settings.showEdges) {
+    passes.push({
+      clear: passes.length === 0,
+      showEdges: true,
+      faceAlpha: settings.faceAlpha,
+      faceRange: { start: 0, count: 0 },
+      edgeRange: { start: 0, count: fallback },
+    });
+  }
+
+  if (passes.length === 0) {
+    // Nothing to draw, but the frame still has to be cleared or the previous
+    // one shows through.
+    passes.push({
+      clear: true,
       showEdges: false,
-      faceAlpha: mesh.undeterminedFaceAlpha,
-      faceRange: { start, count: undeterminedCount },
-    },
-  ];
+      faceAlpha: settings.faceAlpha,
+      faceRange: { start: 0, count: 0 },
+      edgeRange: { start: 0, count: 0 },
+    });
+  }
+  return passes;
 }
 
 /**

@@ -36,12 +36,12 @@ exports[`projecting the 3D folded state > emits the whole stream for a two-face 
     "kind": "stroke_path",
     "points": [
       [
-        -282.842712,
-        -65.710137,
-      ],
-      [
         -0,
         165.178256,
+      ],
+      [
+        282.842712,
+        -65.710137,
       ],
     ],
     "sequence": 1,
@@ -56,12 +56,12 @@ exports[`projecting the 3D folded state > emits the whole stream for a two-face 
     "kind": "stroke_path",
     "points": [
       [
-        -0,
-        165.178256,
+        -282.842712,
+        -65.710137,
       ],
       [
-        282.842712,
-        -65.710137,
+        -0,
+        165.178256,
       ],
     ],
     "sequence": 2,
@@ -100,12 +100,12 @@ exports[`projecting the 3D folded state > emits the whole stream for a two-face 
     "kind": "stroke_path",
     "points": [
       [
-        0,
-        97.662291,
+        282.842712,
+        -65.710137,
       ],
       [
-        -282.842712,
-        -65.710137,
+        0,
+        97.662291,
       ],
     ],
     "sequence": 4,
@@ -120,11 +120,11 @@ exports[`projecting the 3D folded state > emits the whole stream for a two-face 
     "kind": "stroke_path",
     "points": [
       [
-        -282.842712,
-        -65.710137,
+        0,
+        97.662291,
       ],
       [
-        282.842712,
+        -282.842712,
         -65.710137,
       ],
     ],
@@ -144,8 +144,8 @@ exports[`projecting the 3D folded state > emits the whole stream for a two-face 
         -65.710137,
       ],
       [
-        0,
-        97.662291,
+        -282.842712,
+        -65.710137,
       ],
     ],
     "sequence": 6,
