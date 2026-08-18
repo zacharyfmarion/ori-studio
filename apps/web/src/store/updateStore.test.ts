@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { shouldShowUpdateChip, useUpdateStore } from './updateStore';
+import { shouldShowUpdateCard, useUpdateStore } from './updateStore';
 
 const BASE = {
   status: 'ready' as const,
@@ -9,44 +9,44 @@ const BASE = {
   downloadWasRequested: false,
 };
 
-describe('shouldShowUpdateChip', () => {
+describe('shouldShowUpdateCard', () => {
   it('shows once an update is installable', () => {
-    expect(shouldShowUpdateChip(BASE)).toBe(true);
+    expect(shouldShowUpdateCard(BASE)).toBe(true);
   });
 
   it('stays hidden while an unrequested download runs', () => {
     // The contract: progress for something nobody asked for is a nag. An
     // automatic download must be invisible until it produces something the user
     // can act on.
-    expect(shouldShowUpdateChip({ ...BASE, status: 'downloading' })).toBe(false);
+    expect(shouldShowUpdateCard({ ...BASE, status: 'downloading' })).toBe(false);
     expect(
-      shouldShowUpdateChip({ ...BASE, status: 'downloading', downloadWasRequested: true })
+      shouldShowUpdateCard({ ...BASE, status: 'downloading', downloadWasRequested: true })
     ).toBe(true);
   });
 
   it('stays hidden while merely checking, and when nothing is offered', () => {
-    expect(shouldShowUpdateChip({ ...BASE, status: 'checking' })).toBe(false);
-    expect(shouldShowUpdateChip({ ...BASE, status: 'idle' })).toBe(false);
-    expect(shouldShowUpdateChip({ ...BASE, version: null })).toBe(false);
+    expect(shouldShowUpdateCard({ ...BASE, status: 'checking' })).toBe(false);
+    expect(shouldShowUpdateCard({ ...BASE, status: 'idle' })).toBe(false);
+    expect(shouldShowUpdateCard({ ...BASE, version: null })).toBe(false);
   });
 
   it('respects a skip only for the version that was skipped', () => {
-    expect(shouldShowUpdateChip({ ...BASE, skippedVersion: '0.3.0' })).toBe(false);
-    expect(shouldShowUpdateChip({ ...BASE, skippedVersion: '0.2.0' })).toBe(true);
+    expect(shouldShowUpdateCard({ ...BASE, skippedVersion: '0.3.0' })).toBe(false);
+    expect(shouldShowUpdateCard({ ...BASE, skippedVersion: '0.2.0' })).toBe(true);
   });
 
   it('respects a session snooze', () => {
-    expect(shouldShowUpdateChip({ ...BASE, snoozed: true })).toBe(false);
+    expect(shouldShowUpdateCard({ ...BASE, snoozed: true })).toBe(false);
   });
 
   it('shows the download variant where in-place update is impossible', () => {
     // A .deb install: it cannot self-update, but the user should still learn a
     // release exists.
-    expect(shouldShowUpdateChip({ ...BASE, status: 'unsupported' })).toBe(true);
+    expect(shouldShowUpdateCard({ ...BASE, status: 'unsupported' })).toBe(true);
   });
 
   it('never shows a failure the user did not ask for', () => {
-    expect(shouldShowUpdateChip({ ...BASE, status: 'failed' })).toBe(false);
+    expect(shouldShowUpdateCard({ ...BASE, status: 'failed' })).toBe(false);
   });
 });
 

@@ -342,8 +342,8 @@
     "title": "设置",
     "updates": {
       "automatic": "自动下载更新",
-      "checkNow": "立即检查",
       "checking": "正在检查…",
+      "checkNow": "立即检查",
       "currentVersion": "版本 {{version}}",
       "description": "更新会完整下载——Ori Studio 没有增量更新。在你选择重启之前不会安装任何内容。",
       "lastChecked": "上次检查 {{when}}",

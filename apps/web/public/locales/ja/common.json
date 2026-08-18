@@ -268,12 +268,10 @@
   },
   "update": {
     "available": "アップデートがあります",
+    "dismiss": "閉じる",
     "download": "アップデートをダウンロード",
     "downloading": "アップデートをダウンロード中…",
-    "relaunch": "再起動してアップデート",
-    "remindLater": "後で",
-    "skip": "{{version}} をスキップ",
-    "version": "バージョン {{version}}"
+    "relaunch": "再起動してアップデート"
   },
   "workspaceRail": {
     "design": "デザインワークスペース",

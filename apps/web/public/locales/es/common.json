@@ -268,12 +268,10 @@
   },
   "update": {
     "available": "Actualización disponible",
+    "dismiss": "Descartar",
     "download": "Descargar actualización",
     "downloading": "Descargando actualización…",
-    "relaunch": "Reiniciar para actualizar",
-    "remindLater": "Más tarde",
-    "skip": "Omitir {{version}}",
-    "version": "Versión {{version}}"
+    "relaunch": "Reiniciar para actualizar"
   },
   "workspaceRail": {
     "design": "Espacio de trabajo de diseño",

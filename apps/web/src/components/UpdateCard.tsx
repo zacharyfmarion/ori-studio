@@ -1,18 +1,25 @@
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ArrowRight, Download, RefreshCw, X } from 'lucide-react';
 import { ANALYTICS_EVENTS, track } from '../analytics';
 import { RELEASES_URL } from '../constants/release';
 import { relaunchIntoUpdate, startUpdateDownload } from '../lib/updateController';
 import { confirmDiscardUnsavedWork } from '../lib/unsavedWork';
-import { shouldShowUpdateChip, useUpdateStore } from '../store/updateStore';
+import { shouldShowUpdateCard, useUpdateStore } from '../store/updateStore';
 
 /**
- * The update affordance in the toolbar.
+ * The update affordance: a card floating over the bottom-left of whatever is on
+ * screen.
  *
- * The whole design turns on one sentence: **the chip says "Relaunch to update",
- * so it may only appear when relaunching will work right now** — no further
- * download, no password prompt, no trip to a browser. That is why the states
- * below are not interchangeable labels on one button:
+ * Mounted at the app root rather than in the workspace toolbar, because the
+ * welcome screen is where the app opens and is where someone is most likely to
+ * be when an update lands — an affordance that only exists once you have a
+ * document open would miss the moment it is most useful.
+ *
+ * The design still turns on one sentence: **it says "Relaunch to update", so it
+ * may only appear when relaunching will work right now** — no further download,
+ * no password prompt, no browser trip. Hence the states below are not
+ * interchangeable labels:
  *
  * - a silent automatic download renders nothing, because progress for something
  *   nobody asked for is a nag;
@@ -20,14 +27,13 @@ import { shouldShowUpdateChip, useUpdateStore } from '../store/updateStore';
  * - a Linux package install says "Download" and opens the releases page,
  *   because it genuinely cannot update in place.
  */
-export function UpdateChip() {
+export function UpdateCard() {
   const { t } = useTranslation();
   const status = useUpdateStore((state) => state.status);
   const version = useUpdateStore((state) => state.version);
   const skippedVersion = useUpdateStore((state) => state.skippedVersion);
   const snoozed = useUpdateStore((state) => state.snoozed);
   const downloadWasRequested = useUpdateStore((state) => state.downloadWasRequested);
-  const skipCurrentVersion = useUpdateStore((state) => state.skipCurrentVersion);
   const snoozeForSession = useUpdateStore((state) => state.snoozeForSession);
 
   const onRelaunch = useCallback(() => {
@@ -56,17 +62,15 @@ export function UpdateChip() {
     window.open(RELEASES_URL, '_blank', 'noopener,noreferrer');
   }, []);
 
-  const onSkip = useCallback(() => {
-    skipCurrentVersion();
-    track(ANALYTICS_EVENTS.appUpdateDismissed, { scope: 'skipped' });
-  }, [skipCurrentVersion]);
-
-  const onRemindLater = useCallback(() => {
+  const onDismiss = useCallback(() => {
+    // Dismissing hides the card for this run; it does not discard the staged
+    // download, and a relaunch brings it back. Turning updates off entirely
+    // lives in Settings, where a standing decision belongs.
     snoozeForSession();
     track(ANALYTICS_EVENTS.appUpdateDismissed, { scope: 'session' });
   }, [snoozeForSession]);
 
-  const visible = shouldShowUpdateChip({
+  const visible = shouldShowUpdateCard({
     status,
     version,
     skippedVersion,
@@ -75,51 +79,53 @@ export function UpdateChip() {
   });
   if (!visible || !version) return null;
 
-  const installing = status === 'installing';
+  const busy = status === 'installing' || status === 'downloading';
   let label: string;
   let action: () => void;
+  let Icon = RefreshCw;
 
-  if (status === 'ready' || installing) {
+  if (status === 'ready' || status === 'installing') {
     label = t('common:update.relaunch', 'Relaunch to update');
     action = onRelaunch;
   } else if (status === 'unsupported') {
     label = t('common:update.download', 'Download update');
     action = onOpenReleases;
+    Icon = Download;
   } else if (status === 'downloading') {
     label = t('common:update.downloading', 'Downloading update…');
     action = () => {};
   } else {
     label = t('common:update.available', 'Update available');
     action = onDownload;
+    Icon = Download;
   }
 
   return (
-    <div className="update-chip" data-status={status}>
+    <div className="update-card" data-status={status} role="status">
+      <button type="button" className="update-card__main" onClick={action} disabled={busy}>
+        <span className="update-card__icon" aria-hidden="true">
+          <Icon size={20} />
+        </span>
+        <span className="update-card__text">
+          <span className="update-card__label">{label}</span>
+          <span className="update-card__version">{`v${version}`}</span>
+        </span>
+        <span className="update-card__chevron" aria-hidden="true">
+          <ArrowRight size={16} />
+        </span>
+      </button>
+      {/* Its own button, not nested inside the one above — nested buttons are
+          invalid and the inner click would never arrive. Revealed on hover or
+          keyboard focus, so it is reachable without a pointer. */}
       <button
         type="button"
-        className="update-chip__action"
-        onClick={action}
-        disabled={installing || status === 'downloading'}
-        title={t('common:update.version', 'Version {{version}}', { version })}
+        className="update-card__dismiss"
+        onClick={onDismiss}
+        aria-label={t('common:update.dismiss', 'Dismiss')}
+        title={t('common:update.dismiss', 'Dismiss')}
       >
-        <span className="update-chip__dot" aria-hidden="true" />
-        <span className="update-chip__label">{label}</span>
-        <span className="update-chip__version">{`v${version}`}</span>
+        <X size={12} />
       </button>
-      {/* Skipping is offered only for an update the user could act on now.
-          Someone two hours into a crease pattern should be able to silence one
-          release without opening Settings — and without losing the download
-          that is already on disk. */}
-      {(status === 'ready' || status === 'available') && (
-        <span className="update-chip__dismiss">
-          <button type="button" onClick={onSkip} className="update-chip__dismiss-button">
-            {t('common:update.skip', 'Skip {{version}}', { version })}
-          </button>
-          <button type="button" onClick={onRemindLater} className="update-chip__dismiss-button">
-            {t('common:update.remindLater', 'Later')}
-          </button>
-        </span>
-      )}
     </div>
   );
 }

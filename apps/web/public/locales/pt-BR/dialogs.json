@@ -370,8 +370,8 @@
     "title": "Configurações",
     "updates": {
       "automatic": "Baixar atualizações automaticamente",
-      "checkNow": "Verificar agora",
       "checking": "Verificando…",
+      "checkNow": "Verificar agora",
       "currentVersion": "Versão {{version}}",
       "description": "As atualizações são baixadas por inteiro — o Ori Studio não tem atualizações parciais. Nada é instalado até você reiniciar.",
       "lastChecked": "Última verificação {{when}}",

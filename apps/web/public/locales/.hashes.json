@@ -2481,9 +2481,6 @@
     "common:update.download": "4f494b22379b",
     "common:update.downloading": "b99a39070daf",
     "common:update.relaunch": "1ef271641fde",
-    "common:update.remindLater": "73b6e48a1b55",
-    "common:update.skip": "124e3666d2f1",
-    "common:update.version": "c6b6b4b58937",
     "menu:help.checkForUpdates": "c372f825b04e",
     "dialogs:settings.updates.automatic": "3c8cb277ccda",
     "dialogs:settings.updates.checkNow": "2937cffb37ab",
@@ -2497,7 +2494,8 @@
     "dialogs:settings.updates.title": "22e2bada8f1c",
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
-    "dialogs:updateGuard.title": "470e7ee2a579"
+    "dialogs:updateGuard.title": "470e7ee2a579",
+    "common:update.dismiss": "48845bff334a"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4981,9 +4979,6 @@
     "common:update.download": "4f494b22379b",
     "common:update.downloading": "b99a39070daf",
     "common:update.relaunch": "1ef271641fde",
-    "common:update.remindLater": "73b6e48a1b55",
-    "common:update.skip": "124e3666d2f1",
-    "common:update.version": "c6b6b4b58937",
     "menu:help.checkForUpdates": "c372f825b04e",
     "dialogs:settings.updates.automatic": "3c8cb277ccda",
     "dialogs:settings.updates.checkNow": "2937cffb37ab",
@@ -4997,7 +4992,8 @@
     "dialogs:settings.updates.title": "22e2bada8f1c",
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
-    "dialogs:updateGuard.title": "470e7ee2a579"
+    "dialogs:updateGuard.title": "470e7ee2a579",
+    "common:update.dismiss": "48845bff334a"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7481,9 +7477,6 @@
     "common:update.download": "4f494b22379b",
     "common:update.downloading": "b99a39070daf",
     "common:update.relaunch": "1ef271641fde",
-    "common:update.remindLater": "73b6e48a1b55",
-    "common:update.skip": "124e3666d2f1",
-    "common:update.version": "c6b6b4b58937",
     "menu:help.checkForUpdates": "c372f825b04e",
     "dialogs:settings.updates.automatic": "3c8cb277ccda",
     "dialogs:settings.updates.checkNow": "2937cffb37ab",
@@ -7497,7 +7490,8 @@
     "dialogs:settings.updates.title": "22e2bada8f1c",
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
-    "dialogs:updateGuard.title": "470e7ee2a579"
+    "dialogs:updateGuard.title": "470e7ee2a579",
+    "common:update.dismiss": "48845bff334a"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9942,9 +9936,6 @@
     "common:update.download": "4f494b22379b",
     "common:update.downloading": "b99a39070daf",
     "common:update.relaunch": "1ef271641fde",
-    "common:update.remindLater": "73b6e48a1b55",
-    "common:update.skip": "124e3666d2f1",
-    "common:update.version": "c6b6b4b58937",
     "menu:help.checkForUpdates": "c372f825b04e",
     "dialogs:settings.updates.automatic": "3c8cb277ccda",
     "dialogs:settings.updates.checkNow": "2937cffb37ab",
@@ -9958,7 +9949,8 @@
     "dialogs:settings.updates.title": "22e2bada8f1c",
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
-    "dialogs:updateGuard.title": "470e7ee2a579"
+    "dialogs:updateGuard.title": "470e7ee2a579",
+    "common:update.dismiss": "48845bff334a"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12403,9 +12395,6 @@
     "common:update.download": "4f494b22379b",
     "common:update.downloading": "b99a39070daf",
     "common:update.relaunch": "1ef271641fde",
-    "common:update.remindLater": "73b6e48a1b55",
-    "common:update.skip": "124e3666d2f1",
-    "common:update.version": "c6b6b4b58937",
     "menu:help.checkForUpdates": "c372f825b04e",
     "dialogs:settings.updates.automatic": "3c8cb277ccda",
     "dialogs:settings.updates.checkNow": "2937cffb37ab",
@@ -12419,7 +12408,8 @@
     "dialogs:settings.updates.title": "22e2bada8f1c",
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
-    "dialogs:updateGuard.title": "470e7ee2a579"
+    "dialogs:updateGuard.title": "470e7ee2a579",
+    "common:update.dismiss": "48845bff334a"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -14903,9 +14893,6 @@
     "common:update.download": "4f494b22379b",
     "common:update.downloading": "b99a39070daf",
     "common:update.relaunch": "1ef271641fde",
-    "common:update.remindLater": "73b6e48a1b55",
-    "common:update.skip": "124e3666d2f1",
-    "common:update.version": "c6b6b4b58937",
     "menu:help.checkForUpdates": "c372f825b04e",
     "dialogs:settings.updates.automatic": "3c8cb277ccda",
     "dialogs:settings.updates.checkNow": "2937cffb37ab",
@@ -14919,7 +14906,8 @@
     "dialogs:settings.updates.title": "22e2bada8f1c",
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
-    "dialogs:updateGuard.title": "470e7ee2a579"
+    "dialogs:updateGuard.title": "470e7ee2a579",
+    "common:update.dismiss": "48845bff334a"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17403,9 +17391,6 @@
     "common:update.download": "4f494b22379b",
     "common:update.downloading": "b99a39070daf",
     "common:update.relaunch": "1ef271641fde",
-    "common:update.remindLater": "73b6e48a1b55",
-    "common:update.skip": "124e3666d2f1",
-    "common:update.version": "c6b6b4b58937",
     "menu:help.checkForUpdates": "c372f825b04e",
     "dialogs:settings.updates.automatic": "3c8cb277ccda",
     "dialogs:settings.updates.checkNow": "2937cffb37ab",
@@ -17419,7 +17404,8 @@
     "dialogs:settings.updates.title": "22e2bada8f1c",
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
-    "dialogs:updateGuard.title": "470e7ee2a579"
+    "dialogs:updateGuard.title": "470e7ee2a579",
+    "common:update.dismiss": "48845bff334a"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -19864,9 +19850,6 @@
     "common:update.download": "4f494b22379b",
     "common:update.downloading": "b99a39070daf",
     "common:update.relaunch": "1ef271641fde",
-    "common:update.remindLater": "73b6e48a1b55",
-    "common:update.skip": "124e3666d2f1",
-    "common:update.version": "c6b6b4b58937",
     "menu:help.checkForUpdates": "c372f825b04e",
     "dialogs:settings.updates.automatic": "3c8cb277ccda",
     "dialogs:settings.updates.checkNow": "2937cffb37ab",
@@ -19880,6 +19863,7 @@
     "dialogs:settings.updates.title": "22e2bada8f1c",
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
-    "dialogs:updateGuard.title": "470e7ee2a579"
+    "dialogs:updateGuard.title": "470e7ee2a579",
+    "common:update.dismiss": "48845bff334a"
   }
 }

@@ -604,81 +604,6 @@
   letter-spacing: 0;
 }
 
-/*
- * The update affordance. Quiet on purpose: this sits in the chrome permanently
- * once an update is staged, so it has to read as status rather than as a call to
- * action. The dot carries the "something changed" signal; the label carries the
- * verb.
- */
-.update-chip {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-width: 0;
-}
-
-.update-chip__action {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: 3px var(--space-2);
-  border: 1px solid var(--border-subtle);
-  border-radius: 999px;
-  background: var(--surface-raised);
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-.update-chip__action:hover:not(:disabled) {
-  border-color: var(--border-strong);
-  color: var(--text-primary);
-}
-
-.update-chip__action:disabled {
-  cursor: default;
-  opacity: 0.7;
-}
-
-.update-chip__dot {
-  flex: 0 0 auto;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--status-accent, var(--text-accent, #4c8dff));
-}
-
-.update-chip__label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.update-chip__version {
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
-
-.update-chip__dismiss {
-  display: flex;
-  gap: var(--space-1);
-}
-
-.update-chip__dismiss-button {
-  padding: 2px var(--space-1);
-  border: none;
-  background: none;
-  color: var(--text-tertiary);
-  font-size: 0.68rem;
-  cursor: pointer;
-}
-
-.update-chip__dismiss-button:hover {
-  color: var(--text-secondary);
-}
-
 .toolbar__actions {
   justify-content: flex-end;
   flex-wrap: wrap;
@@ -1066,13 +991,6 @@
     gap: var(--space-1);
   }
 
-  /* The toolbar is one column here and the chip is the least important thing
-     in it, so it sheds the version and the dismiss controls rather than
-     pushing the menu off-screen. The verb stays. */
-  .update-chip__version,
-  .update-chip__dismiss {
-    display: none;
-  }
 
   .toolbar__actions {
     justify-content: flex-start;
@@ -1158,4 +1076,138 @@
   background-color: var(--accent-primary);
   transition: background-color 0.15s ease;
   transition-delay: 0.18s;
+}
+
+/*
+ * The update affordance: a card floating over the bottom-left of whatever is on
+ * screen.
+ *
+ * Bottom-*left* on purpose — Sonner puts toasts bottom-right, and an update
+ * notice that a save confirmation can slide over is one nobody sees. Fixed
+ * rather than in the toolbar so it also covers the welcome screen, which is
+ * where the app opens.
+ *
+ * z-index sits above the workspace chrome and below the modal layer (900): it
+ * should float over the canvas, never over a dialog asking a question.
+ */
+.update-card {
+  position: fixed;
+  left: var(--space-4);
+  bottom: var(--space-4);
+  z-index: 30;
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 32%);
+  max-width: min(320px, calc(100vw - var(--space-6)));
+}
+
+.update-card__main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  border-radius: 12px;
+  background: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+  width: 100%;
+}
+
+.update-card__main:hover:not(:disabled) {
+  background: var(--surface-hover, rgb(255 255 255 / 4%));
+}
+
+.update-card__main:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.update-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+}
+
+.update-card__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.update-card__label {
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.update-card__version {
+  color: var(--text-tertiary);
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.update-card__chevron {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-left: var(--space-2);
+  color: var(--text-tertiary);
+}
+
+.update-card__main:hover:not(:disabled) .update-card__chevron {
+  color: var(--text-secondary);
+}
+
+/*
+ * Hidden until hover or keyboard focus. `:focus-visible` inside `:not(:hover)`
+ * is what keeps it reachable without a pointer — a dismiss control that only
+ * exists on hover cannot be tabbed to, and this is the only way to get rid of
+ * the card.
+ */
+.update-card__dismiss {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 50%;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.update-card:hover .update-card__dismiss,
+.update-card__dismiss:focus-visible {
+  opacity: 1;
+}
+
+.update-card__dismiss:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .update-card__dismiss {
+    transition: none;
+  }
 }

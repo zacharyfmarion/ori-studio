@@ -356,8 +356,8 @@
     "title": "Einstellungen",
     "updates": {
       "automatic": "Updates automatisch herunterladen",
-      "checkNow": "Jetzt prüfen",
       "checking": "Wird geprüft…",
+      "checkNow": "Jetzt prüfen",
       "currentVersion": "Version {{version}}",
       "description": "Updates werden vollständig heruntergeladen — Ori Studio hat keine Teil-Updates. Es wird nichts installiert, bis Sie neu starten.",
       "lastChecked": "Zuletzt geprüft {{when}}",

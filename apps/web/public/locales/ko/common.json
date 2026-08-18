@@ -268,12 +268,10 @@
   },
   "update": {
     "available": "업데이트 있음",
+    "dismiss": "닫기",
     "download": "업데이트 다운로드",
     "downloading": "업데이트 다운로드 중…",
-    "relaunch": "다시 시작하여 업데이트",
-    "remindLater": "나중에",
-    "skip": "{{version}} 건너뛰기",
-    "version": "버전 {{version}}"
+    "relaunch": "다시 시작하여 업데이트"
   },
   "workspaceRail": {
     "design": "디자인 작업 공간",

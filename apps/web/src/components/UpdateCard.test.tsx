@@ -1,15 +1,15 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { UpdateChip } from './UpdateChip';
+import { UpdateCard } from './UpdateCard';
 import { useUpdateStore } from '../store/updateStore';
 
 /**
- * The chip, at the entry point.
+ * The card, at the entry point.
  *
- * `shouldShowUpdateChip` is unit-tested beside the store; what this covers is
+ * `shouldShowUpdateCard` is unit-tested beside the store; what this covers is
  * that the component actually asks it, and that the *words* match the state —
- * because the design's whole claim is that the label is never a lie. A chip
+ * because the design's whole claim is that the label is never a lie. A card
  * saying "Relaunch to update" on a `.deb` install, or during a download, would
  * pass every store test and still be wrong.
  */
@@ -38,7 +38,7 @@ function seed(overrides: Partial<UpdateState>): void {
 
 function mount(): void {
   act(() => {
-    root?.render(<UpdateChip />);
+    root?.render(<UpdateCard />);
   });
 }
 
@@ -61,10 +61,10 @@ afterEach(() => {
   container = null;
 });
 
-describe('UpdateChip', () => {
+describe('UpdateCard', () => {
   it('renders nothing when no update is offered', () => {
     mount();
-    expect(container?.querySelector('.update-chip')).toBeNull();
+    expect(container?.querySelector('.update-card')).toBeNull();
   });
 
   it('offers to relaunch once the update is installable', () => {
@@ -78,7 +78,7 @@ describe('UpdateChip', () => {
     // Progress for something the user did not request is a nag.
     seed({ status: 'downloading', version: '0.3.0', downloadWasRequested: false });
     mount();
-    expect(container?.querySelector('.update-chip')).toBeNull();
+    expect(container?.querySelector('.update-card')).toBeNull();
   });
 
   it('shows progress for a download the user started', () => {
@@ -96,29 +96,35 @@ describe('UpdateChip', () => {
     expect(text()).not.toContain('Relaunch to update');
   });
 
-  it('does not offer to skip an update that cannot be acted on', () => {
-    seed({ status: 'unsupported', version: '0.3.0' });
-    mount();
-    expect(text()).not.toContain('Skip');
-  });
-
-  it('offers skip and later for an actionable update', () => {
+  it('always offers a way to dismiss itself', () => {
+    // It floats over the content, so there must always be a way out of it —
+    // and it is labelled, because the control is icon-only.
     seed({ status: 'ready', version: '0.3.0', readyAt: 1 });
     mount();
-    expect(text()).toContain('Skip 0.3.0');
-    expect(text()).toContain('Later');
+    const dismiss = container?.querySelector<HTMLButtonElement>('.update-card__dismiss');
+    expect(dismiss).not.toBeNull();
+    expect(dismiss?.getAttribute('aria-label')).toBe('Dismiss');
+  });
+
+  it('keeps the dismiss control out of the main button', () => {
+    // Nested buttons are invalid HTML and the inner click never arrives, so
+    // dismissing would silently trigger the relaunch instead.
+    seed({ status: 'ready', version: '0.3.0', readyAt: 1 });
+    mount();
+    const main = container?.querySelector('.update-card__main');
+    expect(main?.querySelector('.update-card__dismiss')).toBeNull();
   });
 
   it('hides itself once the version is skipped', () => {
     seed({ status: 'ready', version: '0.3.0', skippedVersion: '0.3.0', readyAt: 1 });
     mount();
-    expect(container?.querySelector('.update-chip')).toBeNull();
+    expect(container?.querySelector('.update-card')).toBeNull();
   });
 
   it('disables the button while installing so it cannot be double-fired', () => {
     seed({ status: 'installing', version: '0.3.0', readyAt: 1 });
     mount();
-    const button = container?.querySelector<HTMLButtonElement>('.update-chip__action');
+    const button = container?.querySelector<HTMLButtonElement>('.update-card__main');
     expect(button?.disabled).toBe(true);
   });
 });

@@ -56,7 +56,7 @@ interface UpdateState {
   skippedVersion: string | null;
   /** Highest version ever offered; a lower one is refused. See STORAGE_KEYS. */
   highestSeenVersion: string | null;
-  /** Suppressed for this run only, so a relaunch brings the chip back. */
+  /** Suppressed for this run only, so a relaunch brings the card back. */
   snoozed: boolean;
 
   setChecking: () => void;
@@ -172,14 +172,47 @@ export const useUpdateStore = create<UpdateState>()(
 );
 
 /**
- * Whether the chip should be on screen.
+ * Dev-only handle for driving the card by hand.
+ *
+ * Every state this UI has is reachable only through a real release: an update
+ * must exist, be downloaded, and verify. That makes the card almost impossible
+ * to look at while building it, and impossible to show someone without cutting
+ * a release first. Stripped from production builds by the `import.meta.env.DEV`
+ * guard — Rollup removes the whole block.
+ *
+ *   __oriUpdate.ready('0.3.0')   // the state the feature exists for
+ *   __oriUpdate.available('0.3.0')
+ *   __oriUpdate.unsupported('0.3.0')  // a .deb install
+ *   __oriUpdate.downloading('0.3.0')  // as if the user asked for it
+ *   __oriUpdate.reset()
+ */
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  const seed = (patch: Partial<ReturnType<typeof useUpdateStore.getState>>) => {
+    useUpdateStore.setState({ skippedVersion: null, snoozed: false, ...patch });
+  };
+  (window as unknown as Record<string, unknown>).__oriUpdate = {
+    ready: (version = '0.3.0') =>
+      seed({ status: 'ready', version, installKind: 'app', readyAt: Date.now() }),
+    available: (version = '0.3.0') =>
+      seed({ status: 'available', version, installKind: 'app' }),
+    unsupported: (version = '0.3.0') =>
+      seed({ status: 'unsupported', version, installKind: 'other' }),
+    downloading: (version = '0.3.0') =>
+      seed({ status: 'downloading', version, installKind: 'app', downloadWasRequested: true }),
+    reset: () => seed({ status: 'idle', version: null, readyAt: null }),
+    store: useUpdateStore,
+  };
+}
+
+/**
+ * Whether the card should be on screen.
  *
  * Kept beside the store rather than inlined in the component because it is the
  * feature's central claim — the chip says "Relaunch to update", so it may only
  * appear when that sentence is true. A silent automatic download renders
  * nothing; one the user asked for shows progress.
  */
-export function shouldShowUpdateChip(state: {
+export function shouldShowUpdateCard(state: {
   status: UpdateStatus;
   version: string | null;
   skippedVersion: string | null;

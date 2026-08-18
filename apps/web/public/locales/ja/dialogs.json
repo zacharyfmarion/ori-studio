@@ -342,8 +342,8 @@
     "title": "設定",
     "updates": {
       "automatic": "アップデートを自動的にダウンロードする",
-      "checkNow": "今すぐ確認",
       "checking": "確認中…",
+      "checkNow": "今すぐ確認",
       "currentVersion": "バージョン {{version}}",
       "description": "アップデートは常に全体がダウンロードされます（差分更新はありません）。再起動するまで何もインストールされません。",
       "lastChecked": "最終確認 {{when}}",

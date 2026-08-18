@@ -96,7 +96,11 @@ describe('update wiring', () => {
     expect(app).toMatch(/^\s*useUpdateCheck\(\);/m);
   });
 
-  it('renders the chip in the toolbar', () => {
-    expect(shell).toMatch(/<UpdateChip \/>/);
+  it('renders the update card at the app root, not in the workspace shell', () => {
+    // Root-level is what puts it on the welcome screen too — the screen the app
+    // opens on. Asserting the shell does *not* carry it keeps a future move
+    // back into the toolbar from silently losing that.
+    expect(app).toMatch(/<UpdateCard \/>/);
+    expect(shell).not.toMatch(/<UpdateCard \/>/);
   });
 });

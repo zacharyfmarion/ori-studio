@@ -23,6 +23,7 @@ import { installAppKeyboardListener } from './lib/appKeyboard';
 import { registerWorkerFailureSink, workerErrorCode } from './lib/workerDiagnostics';
 import { useTauriNativeMenu } from './menus/useTauriNativeMenu';
 import { useUpdateCheck } from './hooks/useUpdateCheck';
+import { UpdateCard } from './components/UpdateCard';
 import { createOpenedPathFileService } from './platform/fileService';
 import { useIsWorkspaceBlocked } from './platform/mobileSurface';
 import { getRuntimeSurface } from './platform/runtime';
@@ -184,6 +185,12 @@ export default function App() {
       </OverlayErrorBoundary>
       <OverlayErrorBoundary id="command-dialog">
         <CommandDialogModal />
+      </OverlayErrorBoundary>
+      {/* Root-level, so it floats over the welcome screen as well as the
+          workspace — the welcome screen is where the app opens, and where
+          someone is most likely to be when an update lands. */}
+      <OverlayErrorBoundary id="update-card">
+        <UpdateCard />
       </OverlayErrorBoundary>
       <OverlayErrorBoundary id="global-toasts">
         <GlobalToasts />

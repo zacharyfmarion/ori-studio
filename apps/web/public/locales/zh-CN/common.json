@@ -268,12 +268,10 @@
   },
   "update": {
     "available": "有可用更新",
+    "dismiss": "关闭",
     "download": "下载更新",
     "downloading": "正在下载更新…",
-    "relaunch": "重启以更新",
-    "remindLater": "稍后",
-    "skip": "跳过 {{version}}",
-    "version": "版本 {{version}}"
+    "relaunch": "重启以更新"
   },
   "workspaceRail": {
     "design": "设计工作区",

@@ -268,12 +268,10 @@
   },
   "update": {
     "available": "Update available",
+    "dismiss": "Dismiss",
     "download": "Download update",
     "downloading": "Downloading update…",
-    "relaunch": "Relaunch to update",
-    "remindLater": "Later",
-    "skip": "Skip {{version}}",
-    "version": "Version {{version}}"
+    "relaunch": "Relaunch to update"
   },
   "workspaceRail": {
     "design": "Design workspace",
