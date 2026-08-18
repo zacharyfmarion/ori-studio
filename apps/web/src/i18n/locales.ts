@@ -93,8 +93,12 @@ export function readStoredPreference(): LocalePreference {
   return stored && SUPPORTED_LOCALE_CODES.includes(stored) ? stored : SYSTEM_LOCALE;
 }
 
+/** The language a stored preference resolves to: the pinned code, or the detected system locale. */
+export function resolveLanguage(preference: LocalePreference): string {
+  return preference === SYSTEM_LOCALE ? detectSystemLocale() : normalizeLocale(preference);
+}
+
 /** The language i18next should start in: the pinned code, or the detected system locale. */
 export function resolveInitialLanguage(): string {
-  const preference = readStoredPreference();
-  return preference === SYSTEM_LOCALE ? detectSystemLocale() : preference;
+  return resolveLanguage(readStoredPreference());
 }

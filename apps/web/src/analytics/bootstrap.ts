@@ -6,6 +6,13 @@
  * Real wiring lives in `main.tsx`, which passes the `posthog-js` singleton.
  */
 
+import {
+  normalizeLocale,
+  readStoredPreference,
+  resolveLanguage,
+  SYSTEM_LOCALE,
+  type LocalePreference,
+} from '../i18n/locales';
 import { appBuildInfo } from '../lib/appBuildInfo';
 import { redactSensitiveText } from '../lib/redact';
 import { getRuntimeSurface } from '../platform/runtime';
@@ -36,18 +43,51 @@ export interface BootstrapOptions {
 }
 
 /**
+ * The language the app is actually running in, as two bounded enums: the
+ * resolved locale (always one of `SUPPORTED_LOCALE_CODES`) and whether the user
+ * pinned it or is following the OS.
+ *
+ * These ride on *every* event rather than only on `locale changed`, because
+ * that event answers a different question — who went looking for the language
+ * switcher — and the people who never touch it are the overwhelming majority.
+ * PostHog's own `$browser_language` is not a substitute either: it is what the
+ * browser asked for, before `normalizeLocale` maps it onto a language we ship,
+ * so an `it-IT` browser reads as Italian there while the app in front of that
+ * person is in English. Keeping both is the point — the gap between them is the
+ * demand for a locale we don't have yet.
+ */
+export function getLocaleProperties(
+  locale: string,
+  preference: LocalePreference
+): Record<string, unknown> {
+  return {
+    locale: normalizeLocale(locale),
+    locale_source: preference === SYSTEM_LOCALE ? 'system' : 'pinned',
+  };
+}
+
+/**
  * Super properties registered on the client and therefore attached to every
  * event. Deliberately small and non-identifying: build identity, which surface,
- * and the consent flag (so an opted-out no-op is distinguishable in the data
- * model even though nothing is sent while opted out).
+ * the active language, and the consent flag (so an opted-out no-op is
+ * distinguishable in the data model even though nothing is sent while opted
+ * out).
+ *
+ * The locale is resolved from storage rather than read off the i18next
+ * singleton, because this runs before React mounts — `resolveLanguage` is the
+ * same resolution i18next itself was initialized with, so the two agree.
+ * `AnalyticsRuntimeProvider` re-registers from the locale store afterwards,
+ * which is what keeps this current when the language changes mid-session.
  */
 export function getBootstrapSharedProperties(options: BootstrapOptions): Record<string, unknown> {
   const build = appBuildInfo();
+  const preference = readStoredPreference();
   return {
     app_version: build.version,
     app_commit: build.commit,
     runtime_surface: getRuntimeSurface(),
     analytics_enabled: options.analyticsEnabled,
+    ...getLocaleProperties(resolveLanguage(preference), preference),
   };
 }
 
