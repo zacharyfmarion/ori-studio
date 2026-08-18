@@ -79,21 +79,30 @@ jobs:
             {"name":"macos-aarch64","runner":"macos-latest","target":"aarch64-apple-darwin","bundles":"app,dmg"},
             {"name":"macos-x86_64","runner":"macos-latest","target":"x86_64-apple-darwin","bundles":"app,dmg"},
             {"name":"windows","runner":"windows-latest","target":"x86_64-pc-windows-msvc","bundles":"nsis"},
-            {"name":"linux","runner":"ubuntu-22.04","target":"x86_64-unknown-linux-gnu","bundles":"deb,appimage"}
+            {"name":"linux","runner":"ubuntu-22.04","target":"x86_64-unknown-linux-gnu","bundles":"deb,appimage"},
+            {"name":"linux-arm64","runner":"ubuntu-22.04-arm","target":"aarch64-unknown-linux-gnu","bundles":"deb,appimage"}
           ]'
 
           case "$PLATFORMS" in
             all)           filter='true' ;;
             macos)         filter='.name | startswith("macos")' ;;
             windows)       filter='.name == "windows"' ;;
-            linux)         filter='.name == "linux"' ;;
-            windows+linux) filter='.name == "windows" or .name == "linux"' ;;
+            linux)         filter='.name | startswith("linux")' ;;
+            windows+linux) filter='.name == "windows" or (.name | startswith("linux"))' ;;
             *) echo "::error::unknown platform set: $PLATFORMS"; exit 1 ;;
           esac
 
-          # A release always builds every platform; the selector is a
+          # A release always builds every *shipping* platform; the selector is a
           # dispatch-only convenience for iterating on one leg.
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then filter='true'; fi
+          #
+          # linux-arm64 is deliberately excluded. It exists so the maintainer can
+          # run the Linux build in a VM on an Apple Silicon Mac — VMware and
+          # Parallels virtualize arm64 guests only, and emulating x86_64 is far
+          # too slow to judge a WebGL canvas by. It shares the Linux code path but
+          # not the architecture, so it proves UI and integration behaviour and
+          # nothing about the binary users actually download. Publishing it would
+          # imply a platform nobody has asked for and nothing verifies.
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then filter='.name != "linux-arm64"'; fi
 
           matrix="$(jq -c --argjson legs "$all_legs" -n "{include: (\$legs | map(select($filter)))}")"
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
@@ -106,7 +115,17 @@ jobs:
         if: steps.meta.outputs.is_release == 'true'
         run: |
           set -euo pipefail
-          git fetch origin main --tags --quiet
+          # No `--tags`, and not quiet. actions/checkout has already fetched
+          # every tag, and then rewritten refs/tags/<this tag> to point straight
+          # at the commit. Asking for `--tags` here makes git try to replace that
+          # lightweight ref with the annotated tag object release.sh actually
+          # created, which it refuses:
+          #
+          #   ! [rejected]  v0.2.0 -> v0.2.0  (would clobber existing tag)
+          #
+          # That is a non-zero exit, so `set -e` killed this step — and `--quiet`
+          # suppressed the one line saying why, leaving a bare "exit code 1".
+          git fetch origin main
           if git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
             echo "scheduled release: tagged commit is on main"
           else
@@ -292,7 +311,7 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Install Linux build dependencies
-        if: matrix.name == 'linux'
+        if: startsWith(matrix.name, 'linux')
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
