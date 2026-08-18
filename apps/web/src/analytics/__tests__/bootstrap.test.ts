@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { LOCALE_STORAGE_KEY } from '../../i18n/locales';
 import {
   fingerprintError,
+  getBootstrapSharedProperties,
+  getLocaleProperties,
   inferErrorDomain,
   initializePostHog,
   type PostHogClientLike,
@@ -85,6 +88,53 @@ describe('initializePostHog', () => {
     const props = client.register.mock.calls[0][0];
     expect(props).toMatchObject({ analytics_enabled: true, runtime_surface: 'web' });
     expect(props.app_version).toBeTypeOf('string');
+  });
+
+  it('registers the active language, so every event can be broken down by it', () => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, 'ja');
+    const client = makeFakeClient();
+    initializePostHog(client, { analyticsEnabled: true }, KEY_ENV);
+    expect(client.register.mock.calls[0][0]).toMatchObject({
+      locale: 'ja',
+      locale_source: 'pinned',
+    });
+  });
+});
+
+describe('locale super properties', () => {
+  function mockBrowserLanguage(tag: string) {
+    vi.spyOn(navigator, 'language', 'get').mockReturnValue(tag);
+  }
+
+  it('follows the OS when nothing is pinned', () => {
+    mockBrowserLanguage('fr-CA');
+    expect(getBootstrapSharedProperties({ analyticsEnabled: true })).toMatchObject({
+      locale: 'fr',
+      locale_source: 'system',
+    });
+  });
+
+  // The whole reason this isn't just PostHog's `$browser_language`: an `it-IT`
+  // browser reads as Italian there, while the app that person is looking at is
+  // in English. The gap between the two is what tells us which language to
+  // translate next, so `locale` has to be the one we actually serve.
+  it('reports the language we serve, not the one the browser asked for', () => {
+    mockBrowserLanguage('it-IT');
+    expect(getBootstrapSharedProperties({ analyticsEnabled: true })).toMatchObject({
+      locale: 'en',
+      locale_source: 'system',
+    });
+  });
+
+  it('is always a supported code and a bounded source', () => {
+    expect(getLocaleProperties('zh-TW', 'system')).toEqual({
+      locale: 'zh-CN',
+      locale_source: 'system',
+    });
+    expect(getLocaleProperties('pt-BR', 'pt-BR')).toEqual({
+      locale: 'pt-BR',
+      locale_source: 'pinned',
+    });
   });
 });
 

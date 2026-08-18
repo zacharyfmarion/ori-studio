@@ -175,7 +175,20 @@ crash. If you want *frequency*, that is a PostHog event, not a Sentry one.
 ## Tracked events
 
 Every event also carries the super properties `app_version`, `app_commit`,
-`runtime_surface`, and `analytics_enabled`.
+`runtime_surface`, `analytics_enabled`, `locale`, and `locale_source`.
+
+**`locale` is the language the app is running in** — one of the nine codes in
+`SUPPORTED_LOCALES` — and `locale_source` is `system` or `pinned`, i.e. whether
+the person chose it or is following their OS. Two things it is deliberately not:
+
+- Not the `locale changed` event. That fires when someone goes looking for the
+  language switcher, which is a handful of people; it cannot tell you what
+  language everyone else is reading.
+- Not PostHog's automatic `$browser_language`. That is what the browser asked
+  for, *before* `normalizeLocale` maps it onto a language we ship — an `it-IT`
+  browser reads as Italian there while the app in front of that person is in
+  English. Both are worth keeping: the gap between them is demand for a locale
+  we don't have yet.
 
 | Event | Properties | Fires when |
 | --- | --- | --- |

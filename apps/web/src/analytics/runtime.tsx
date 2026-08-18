@@ -9,10 +9,12 @@
  */
 
 import { createContext, useContext, useLayoutEffect, useMemo, type ReactNode } from 'react';
+import { useLocaleStore } from '../store/localeStore';
 import { useSettingsStore } from '../store/settingsStore';
 import {
   fingerprintError,
   getBootstrapSharedProperties,
+  getLocaleProperties,
   inferErrorDomain,
   type PostHogClientLike,
 } from './bootstrap';
@@ -162,6 +164,8 @@ export interface AnalyticsRuntimeProviderProps {
  */
 export function AnalyticsRuntimeProvider({ client, children }: AnalyticsRuntimeProviderProps) {
   const analyticsEnabled = useSettingsStore((state) => state.analyticsEnabled);
+  const locale = useLocaleStore((state) => state.locale);
+  const localePreference = useLocaleStore((state) => state.preference);
   const api = useMemo(() => createAnalyticsApi(client), [client]);
 
   useLayoutEffect(() => {
@@ -176,6 +180,14 @@ export function AnalyticsRuntimeProvider({ client, children }: AnalyticsRuntimeP
     client.register(getBootstrapSharedProperties({ analyticsEnabled }));
     api.setAnalyticsEnabled(analyticsEnabled);
   }, [client, api, analyticsEnabled]);
+
+  // Bootstrap read the language from storage before React existed; from here on
+  // the store is the live source, so a mid-session switch moves the person to
+  // the new locale in the data instead of leaving them under the one they
+  // launched in.
+  useLayoutEffect(() => {
+    client?.register(getLocaleProperties(locale, localePreference));
+  }, [client, locale, localePreference]);
 
   return <AnalyticsContext.Provider value={api}>{children}</AnalyticsContext.Provider>;
 }

@@ -1,6 +1,9 @@
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useLocaleStore } from '../../store/localeStore';
 import type { PostHogClientLike } from '../bootstrap';
-import { createAnalyticsApi } from '../runtime';
+import { AnalyticsRuntimeProvider, createAnalyticsApi } from '../runtime';
 import { peekStableId } from '../stableId';
 
 function makeFakeClient() {
@@ -129,5 +132,55 @@ describe('createAnalyticsApi', () => {
     const api = createAnalyticsApi(client);
     api.setAnalyticsEnabled(true); // no capturePreferenceChange
     expect(client.capture).not.toHaveBeenCalled();
+  });
+});
+
+describe('AnalyticsRuntimeProvider locale sync', () => {
+  function localeProps(client: ReturnType<typeof makeFakeClient>) {
+    return client.register.mock.calls
+      .map(([props]) => props)
+      .filter((props) => 'locale' in props)
+      .map((props) => ({ locale: props.locale, locale_source: props.locale_source }));
+  }
+
+  let container: HTMLElement;
+  let root: ReturnType<typeof createRoot>;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+    useLocaleStore.setState({ locale: 'en', preference: 'system' });
+  });
+
+  // Without this the super property would be frozen at whatever the language
+  // was when the app launched, and someone who switches mid-session would keep
+  // reporting the old one for the rest of their visit.
+  it('re-registers the language when the user switches it mid-session', () => {
+    const client = makeFakeClient();
+    act(() => {
+      root.render(createElement(AnalyticsRuntimeProvider, { client, children: null }));
+    });
+    act(() => {
+      useLocaleStore.setState({ locale: 'ja', preference: 'ja' });
+    });
+
+    expect(localeProps(client).at(-1)).toEqual({ locale: 'ja', locale_source: 'pinned' });
+  });
+
+  it('is inert when analytics never initialized', () => {
+    expect(() => {
+      act(() => {
+        root.render(createElement(AnalyticsRuntimeProvider, { client: null, children: null }));
+      });
+      act(() => {
+        useLocaleStore.setState({ locale: 'de', preference: 'de' });
+      });
+    }).not.toThrow();
   });
 });
