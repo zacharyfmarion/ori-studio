@@ -271,6 +271,22 @@ export const ANALYTICS_EVENTS = {
    * paths, which is the same capability the Simulate workspace needs.
    */
   startFigureFallback: 'start figure fallback',
+  /**
+   * Every completed update check, including the ones that find nothing.
+   *
+   * The heartbeat. Without it, "the endpoint has been unreachable for a month"
+   * and "there was no release this month" produce identical dashboards — and
+   * the failure mode of a silent updater is that nobody notices for a long
+   * time. Alert on the *absence* of `result: 'available'` after arming a
+   * release, not on the presence of an error.
+   */
+  appUpdateChecked: 'app update checked',
+  appUpdateAvailable: 'app update available',
+  appUpdateDownloadStarted: 'app update download started',
+  appUpdateDownloaded: 'app update downloaded',
+  appUpdateRelaunched: 'app update relaunched',
+  appUpdateFailed: 'app update failed',
+  appUpdateDismissed: 'app update dismissed',
 } as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS];
@@ -358,6 +374,43 @@ export type ExploriFailureReason =
   | 'rate_limited'
   | 'unknown';
 
+/**
+ * Which bundle format an install can update itself from. Mirrors `InstallKind`
+ * in `apps/tauri/src-tauri/src/updater.rs`.
+ *
+ * The point of carrying it is `other` — a Linux package install, which is
+ * offered a download link rather than an in-place update. This is the only way
+ * to measure what that restriction costs.
+ */
+export type UpdateInstallKind = 'app' | 'nsis' | 'appimage' | 'other';
+
+/** What a completed update check found. */
+export type UpdateCheckResult = 'none' | 'available' | 'error';
+
+/** Whether the check ran on the app's schedule or because someone asked. */
+export type UpdateTrigger = 'automatic' | 'manual';
+
+/** The stage an update failed at. */
+export type UpdateFailureStage = 'check' | 'download' | 'install';
+
+/**
+ * Why an update step failed.
+ *
+ * `signature` is the one worth alerting on: it means the payload did not verify
+ * against the public key compiled into the app, which is either a corrupted
+ * object or an attack, and — if it is a key mismatch — it is fleet-wide.
+ * `stale_manifest` means the endpoint offered a version below one already seen.
+ */
+export type UpdateFailureReason =
+  | 'network'
+  | 'signature'
+  | 'stale_manifest'
+  | 'unsupported'
+  | 'unknown';
+
+/** How an offered update stopped being shown. */
+export type UpdateDismissScope = 'skipped' | 'session' | 'revoked';
+
 export const DURATION_MS_BUCKETS = [50, 100, 250, 500, 1000, 2500, 5000, 10000] as const;
 
 /**
@@ -372,4 +425,18 @@ export const DURATION_MS_BUCKETS = [50, 100, 250, 500, 1000, 2500, 5000, 10000] 
  */
 export const FOLD_DURATION_MS_BUCKETS = [
   1000, 5000, 15000, 60000, 300000, 900000, 3600000,
+] as const;
+
+/**
+ * Threshold ladder for how long a downloaded update sat before the user
+ * relaunched into it, in milliseconds.
+ *
+ * Hours to days, not seconds: the other ladders measure how long someone waits
+ * for the app, and this measures how long the app waits for someone. It is the
+ * metric that says whether the affordance works — an update that is staged for
+ * a week is one the chip failed to communicate, and that is indistinguishable
+ * from a healthy install unless it is measured.
+ */
+export const UPDATE_PENDING_MS_BUCKETS = [
+  60000, 900000, 3600000, 14400000, 86400000, 259200000, 604800000,
 ] as const;

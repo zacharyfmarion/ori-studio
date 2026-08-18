@@ -340,6 +340,18 @@
       "workspace": "ワークスペース"
     },
     "title": "設定",
+    "updates": {
+      "automatic": "アップデートを自動的にダウンロードする",
+      "checking": "確認中…",
+      "checkNow": "今すぐ確認",
+      "currentVersion": "バージョン {{version}}",
+      "description": "アップデートは常に全体がダウンロードされます（差分更新はありません）。再起動するまで何もインストールされません。",
+      "lastChecked": "最終確認 {{when}}",
+      "neverChecked": "未確認",
+      "notify": "通知のみ、ダウンロードは自分で開始する",
+      "off": "アップデートを確認しない",
+      "title": "アップデート"
+    },
     "workspace": {
       "analytics": "Ori Studio の改善に役立てるため、匿名の利用状況データとクラッシュレポートを送信する",
       "creasePatternCanvas": "展開図キャンバス",
@@ -406,5 +418,10 @@
     "showWelcomeOnStartup": "起動時にようこそ画面を表示",
     "startOptions": "開始オプション",
     "title": "新しい折り紙ワークスペースを開始"
+  },
+  "updateGuard": {
+    "discard": "破棄して再起動",
+    "message": "現在のプロジェクトに保存されていない変更があります。Ori Studio を再起動してアップデートし、変更を破棄しますか？",
+    "title": "保存されていない変更を破棄しますか？"
   }
 }

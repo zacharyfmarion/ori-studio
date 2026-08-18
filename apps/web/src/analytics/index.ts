@@ -10,6 +10,7 @@ export {
   DURATION_MS_BUCKETS,
   FOLD_DURATION_MS_BUCKETS,
   PACKING_CIRCLE_COUNT_BUCKETS,
+  UPDATE_PENDING_MS_BUCKETS,
 } from './events';
 export type {
   AnalyticsEventName,
@@ -33,6 +34,12 @@ export type {
   LandingSurface,
   OptimizerKind,
   ProjectOpenSource,
+  UpdateCheckResult,
+  UpdateDismissScope,
+  UpdateFailureReason,
+  UpdateFailureStage,
+  UpdateInstallKind,
+  UpdateTrigger,
   WorkspaceScreen,
 } from './events';
 

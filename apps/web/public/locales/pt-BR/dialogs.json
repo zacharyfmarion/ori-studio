@@ -368,6 +368,18 @@
       "workspace": "Workspace"
     },
     "title": "Configurações",
+    "updates": {
+      "automatic": "Baixar atualizações automaticamente",
+      "checking": "Verificando…",
+      "checkNow": "Verificar agora",
+      "currentVersion": "Versão {{version}}",
+      "description": "As atualizações são baixadas por inteiro — o Ori Studio não tem atualizações parciais. Nada é instalado até você reiniciar.",
+      "lastChecked": "Última verificação {{when}}",
+      "neverChecked": "Ainda não verificado",
+      "notify": "Avisar, mas deixar eu iniciar o download",
+      "off": "Não verificar atualizações",
+      "title": "Atualizações"
+    },
     "workspace": {
       "analytics": "Enviar análises de uso anônimas e relatórios de falhas para ajudar a melhorar o Ori Studio",
       "creasePatternCanvas": "Tela do padrão de vincos",
@@ -434,5 +446,10 @@
     "showWelcomeOnStartup": "Mostrar boas-vindas ao iniciar",
     "startOptions": "Opções de início",
     "title": "Iniciar um novo workspace de origami"
+  },
+  "updateGuard": {
+    "discard": "Descartar e reiniciar",
+    "message": "Seu projeto atual tem alterações não salvas. Reiniciar o Ori Studio para atualizar e descartá-las?",
+    "title": "Descartar alterações não salvas?"
   }
 }

@@ -12,6 +12,7 @@ import type { TFunction } from 'i18next';
 import { Check, Download, Keyboard, LayoutDashboard, Palette, RotateCcw, X } from 'lucide-react';
 import { OrieditaImportDialog } from './settings/OrieditaImportDialog';
 import { SettingsToggleRow } from './settings/SettingsToggleRow';
+import { UpdatesSection } from './settings/UpdatesSection';
 import { ANALYTICS_EVENTS, track, useAnalytics } from '../analytics';
 import { detectSystemLocale, SUPPORTED_LOCALES, SYSTEM_LOCALE } from '../i18n/locales';
 import { clampCpSnapRadius, CP_MAX_SNAP_RADIUS, CP_MIN_SNAP_RADIUS } from '../lib/cpSnapRadiusSetting';
@@ -245,6 +246,7 @@ function WorkspaceTab() {
           }}
         />
       </section>
+      <UpdatesSection />
       <section className="settings-section">
         <h3 className="settings-section__title">
           {t('dialogs:settings.workspace.creasePatternCanvas', 'Crease pattern canvas')}

@@ -14,6 +14,7 @@ use tauri_plugin_window_state::StateFlags;
 use std::path::{Path, PathBuf};
 
 mod cp_engine;
+mod updater;
 
 #[derive(Default)]
 struct OpenedFiles(Mutex<Vec<String>>);
@@ -228,6 +229,15 @@ pub fn run() {
         }));
     }
 
+    // Desktop only: replacing the running application has no meaning on mobile,
+    // and neither plugin builds for those targets.
+    #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+    {
+        builder = builder
+            .plugin(tauri_plugin_updater::Builder::new().build())
+            .plugin(tauri_plugin_process::init());
+    }
+
     builder
         .manage(OpenedFiles::default())
         .manage(cp_engine::new_state())
@@ -270,6 +280,7 @@ pub fn run() {
             write_text_file,
             write_binary_file,
             take_opened_files,
+            updater::update_environment,
             // CP engine — keep in lockstep with cp_engine::NATIVE_CP_COMMAND_NAMES.
             cp_engine::cp_operation_descriptors,
             cp_engine::cp_load_cp,

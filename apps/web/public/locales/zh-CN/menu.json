@@ -98,7 +98,8 @@
     "settings": "设置"
   },
   "help": {
-    "about": "关于 Ori Studio"
+    "about": "关于 Ori Studio",
+    "checkForUpdates": "检查更新…"
   },
   "menubar": {
     "creasePattern": "折痕图",

@@ -98,7 +98,8 @@
     "settings": "Configurações"
   },
   "help": {
-    "about": "Sobre o Ori Studio"
+    "about": "Sobre o Ori Studio",
+    "checkForUpdates": "Verificar atualizações…"
   },
   "menubar": {
     "creasePattern": "Padrão de vincos",

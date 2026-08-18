@@ -19,6 +19,13 @@ tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-window-state = "2"
 
+# Desktop only. The updater replaces the running application, which has no
+# meaning on mobile, and `tauri-plugin-updater` does not build for those targets.
+[target.'cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))'.dependencies]
+tauri-plugin-updater = "2"
+# `relaunch()` after the update installs. Separate plugin from the updater.
+tauri-plugin-process = "2"
+
 # Windows and Linux only. macOS enforces one instance per .app bundle itself and
 # routes a double-clicked document through `RunEvent::Opened`; on the other two a
 # second `.osf` would otherwise start a second copy of the app, and the two would

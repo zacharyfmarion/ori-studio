@@ -98,7 +98,8 @@
     "settings": "設定"
   },
   "help": {
-    "about": "Ori Studio について"
+    "about": "Ori Studio について",
+    "checkForUpdates": "アップデートを確認…"
   },
   "menubar": {
     "creasePattern": "展開図",

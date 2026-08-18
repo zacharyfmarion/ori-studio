@@ -266,6 +266,13 @@
     "sendToEditWithCirclesTooltip": "Envoyer le patron de plis de cette conception avec ses cercles d’empilement",
     "settings": "Paramètres"
   },
+  "update": {
+    "available": "Mise à jour disponible",
+    "dismiss": "Fermer",
+    "download": "Télécharger la mise à jour",
+    "downloading": "Téléchargement de la mise à jour…",
+    "relaunch": "Redémarrer pour mettre à jour"
+  },
   "workspaceRail": {
     "design": "Espace de travail Conception",
     "edit": "Espace de travail Édition",

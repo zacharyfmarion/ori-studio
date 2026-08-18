@@ -266,6 +266,13 @@
     "sendToEditWithCirclesTooltip": "Das Faltmuster dieses Designs zusammen mit seinen Packungskreisen senden",
     "settings": "Einstellungen"
   },
+  "update": {
+    "available": "Update verfügbar",
+    "dismiss": "Schließen",
+    "download": "Update herunterladen",
+    "downloading": "Update wird heruntergeladen…",
+    "relaunch": "Neu starten zum Aktualisieren"
+  },
   "workspaceRail": {
     "design": "Design-Arbeitsbereich",
     "edit": "Bearbeiten-Arbeitsbereich",

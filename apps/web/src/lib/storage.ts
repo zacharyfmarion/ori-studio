@@ -44,6 +44,21 @@ export const STORAGE_KEYS = {
   analyticsEnabled: 'analytics-enabled',
   /** Anonymous, locally-generated stable id used to `identify()` in PostHog. */
   analyticsId: 'analytics-id',
+  /**
+   * How updates are delivered: automatic, notify-only, or off. Tauri has no
+   * delta updates, so every release is a full download — someone on metered or
+   * hotel wifi needs a way to stop that without turning off the notice too.
+   */
+  updateDelivery: 'update-delivery',
+  /** A version the user asked not to be reminded about. Cleared by a newer one. */
+  updateSkippedVersion: 'update-skipped-version',
+  /**
+   * The highest version ever *offered*. A manifest naming something lower is
+   * refused: minisign proves a payload's integrity, not that it is current, so
+   * without this an old-but-validly-signed release could be served indefinitely
+   * to hold the fleet back from a fix.
+   */
+  updateHighestSeenVersion: 'update-highest-seen-version',
   layout: 'layout',
   layoutVersion: 'layout-version',
   shareAuthor: 'share-author',

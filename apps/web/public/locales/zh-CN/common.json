@@ -266,6 +266,13 @@
     "sendToEditWithCirclesTooltip": "将此设计的折痕图连同其堆积圆一起发送",
     "settings": "设置"
   },
+  "update": {
+    "available": "有可用更新",
+    "dismiss": "关闭",
+    "download": "下载更新",
+    "downloading": "正在下载更新…",
+    "relaunch": "重启以更新"
+  },
   "workspaceRail": {
     "design": "设计工作区",
     "edit": "编辑工作区",

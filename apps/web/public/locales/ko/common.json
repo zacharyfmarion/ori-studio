@@ -266,6 +266,13 @@
     "sendToEditWithCirclesTooltip": "이 디자인의 전개도를 패킹 원과 함께 보냅니다",
     "settings": "설정"
   },
+  "update": {
+    "available": "업데이트 있음",
+    "dismiss": "닫기",
+    "download": "업데이트 다운로드",
+    "downloading": "업데이트 다운로드 중…",
+    "relaunch": "다시 시작하여 업데이트"
+  },
   "workspaceRail": {
     "design": "디자인 작업 공간",
     "edit": "편집 작업 공간",

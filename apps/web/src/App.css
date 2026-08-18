@@ -991,6 +991,7 @@
     gap: var(--space-1);
   }
 
+
   .toolbar__actions {
     justify-content: flex-start;
   }
@@ -1075,4 +1076,144 @@
   background-color: var(--accent-primary);
   transition: background-color 0.15s ease;
   transition-delay: 0.18s;
+}
+
+/*
+ * The update affordance: a card floating over the bottom-left of whatever is on
+ * screen.
+ *
+ * Bottom-*left* on purpose — Sonner puts toasts bottom-right, and an update
+ * notice that a save confirmation can slide over is one nobody sees. Fixed
+ * rather than in the toolbar so it also covers the welcome screen, which is
+ * where the app opens.
+ *
+ * z-index sits above the workspace chrome and below the modal layer (900): it
+ * should float over the canvas, never over a dialog asking a question.
+ *
+ * It is accent-outlined rather than neutral because it competes with a full
+ * canvas behind it. This is the one piece of chrome that appears unprompted and
+ * has a deadline attached, so it is allowed to be the brightest edge on screen;
+ * everything quieter read as part of the background.
+ */
+.update-card {
+  position: fixed;
+  left: var(--space-4);
+  bottom: var(--space-4);
+  z-index: 30;
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--accent-primary);
+  border-radius: 12px;
+  /* Opaque, and tinted toward the accent. An earlier revision asked for
+     `--surface-raised`, which this stylesheet does not define — the declaration
+     was dropped and the card rendered with no background at all, which is
+     exactly what "it fades into the background" looks like. */
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-elevated));
+  /* Ambient elevation plus an accent halo, to lift it off a busy canvas.
+     Deliberately not `--shadow-soft`: that token is undefined repo-wide and is
+     already tracked as such in styles/themeTokens.test.ts, so naming it here
+     would drop this declaration entirely. */
+  box-shadow:
+    var(--shadow-context-menu),
+    0 0 0 3px color-mix(in srgb, var(--accent-primary) 18%, transparent);
+  /* Lower bound as well as upper: with the leading icon gone, a short label
+     ("Update available") would otherwise shrink the card to a size that reads
+     as a tooltip rather than a notification. */
+  min-width: 240px;
+  max-width: min(320px, calc(100vw - var(--space-6)));
+}
+
+.update-card__main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  border-radius: 12px;
+  background: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+  width: 100%;
+}
+
+.update-card__main:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+}
+
+.update-card__main:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.update-card__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.update-card__label {
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.update-card__version {
+  color: var(--text-tertiary);
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.update-card__chevron {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-left: var(--space-2);
+  color: var(--accent-primary);
+}
+
+/*
+ * Hidden until hover or keyboard focus. `:focus-visible` is what keeps it
+ * reachable without a pointer — a dismiss control that only exists on hover
+ * cannot be tabbed to, and this is the only way to get rid of the card.
+ */
+.update-card__dismiss {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--accent-primary);
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.update-card:hover .update-card__dismiss,
+.update-card__dismiss:focus-visible {
+  opacity: 1;
+}
+
+.update-card__dismiss:hover {
+  color: var(--text-primary);
+  background: var(--bg-surface);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .update-card__dismiss {
+    transition: none;
+  }
 }

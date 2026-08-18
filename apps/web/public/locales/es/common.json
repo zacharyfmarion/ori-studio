@@ -266,6 +266,13 @@
     "sendToEditWithCirclesTooltip": "Enviar el patrón de pliegues de este diseño junto con sus círculos empaquetados",
     "settings": "Configuración"
   },
+  "update": {
+    "available": "Actualización disponible",
+    "dismiss": "Descartar",
+    "download": "Descargar actualización",
+    "downloading": "Descargando actualización…",
+    "relaunch": "Reiniciar para actualizar"
+  },
   "workspaceRail": {
     "design": "Espacio de trabajo de diseño",
     "edit": "Espacio de trabajo de edición",

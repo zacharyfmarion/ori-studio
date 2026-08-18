@@ -368,6 +368,18 @@
       "workspace": "Espacio de trabajo"
     },
     "title": "Configuración",
+    "updates": {
+      "automatic": "Descargar actualizaciones automáticamente",
+      "checking": "Buscando…",
+      "checkNow": "Buscar ahora",
+      "currentVersion": "Versión {{version}}",
+      "description": "Las actualizaciones se descargan completas: Ori Studio no tiene actualizaciones parciales. No se instala nada hasta que reinicies.",
+      "lastChecked": "Última comprobación {{when}}",
+      "neverChecked": "Aún sin comprobar",
+      "notify": "Avisarme, pero iniciar la descarga yo",
+      "off": "No buscar actualizaciones",
+      "title": "Actualizaciones"
+    },
     "workspace": {
       "analytics": "Enviar analíticas de uso anónimas e informes de fallos para ayudar a mejorar Ori Studio",
       "creasePatternCanvas": "Lienzo del patrón de pliegues",
@@ -434,5 +446,10 @@
     "showWelcomeOnStartup": "Mostrar bienvenida al iniciar",
     "startOptions": "Opciones de inicio",
     "title": "Iniciar un nuevo espacio de trabajo de origami"
+  },
+  "updateGuard": {
+    "discard": "Descartar y reiniciar",
+    "message": "Tu proyecto actual tiene cambios sin guardar. ¿Reiniciar Ori Studio para actualizar y descartarlos?",
+    "title": "¿Descartar los cambios sin guardar?"
   }
 }

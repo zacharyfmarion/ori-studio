@@ -98,7 +98,8 @@
     "settings": "Paramètres"
   },
   "help": {
-    "about": "À propos d'Ori Studio"
+    "about": "À propos d'Ori Studio",
+    "checkForUpdates": "Rechercher des mises à jour…"
   },
   "menubar": {
     "creasePattern": "Patron de plis",
