@@ -87,11 +87,18 @@ describe('CpFoldedFigureToolbar', () => {
   let root: Root;
 
   beforeEach(() => {
+    // Origin offset so the fixture's 10x10 figure sits well inside the pane
+    // below rather than straddling its edge — the toolbar now hides for an
+    // anchor outside its boundary, and a figure pinned to 0,0 would be
+    // deciding that on a two-pixel overlap.
     cpOverlayViewStore.set({
-      model: { origin: [0, 0], ex: [1, 0], ey: [0, 1] },
-      user: { origin: [0, 0], ex: [1, 0], ey: [0, 1] },
+      model: { origin: [100, 100], ex: [1, 0], ey: [0, 1] },
+      user: { origin: [100, 100], ex: [1, 0], ey: [0, 1] },
     });
     container = document.createElement('div');
+    // jsdom lays nothing out, so the pane the toolbar is confined to has to be
+    // stated. 1000x600 at the origin.
+    container.getBoundingClientRect = () => new DOMRect(0, 0, 1000, 600);
     document.body.appendChild(container);
     host = document.createElement('div');
     document.body.appendChild(host);
@@ -139,6 +146,19 @@ describe('CpFoldedFigureToolbar', () => {
   it('renders nothing for a figure that draws nothing', () => {
     // Mid-fold: no render snapshot yet, so there is no box to anchor to.
     render(makeFigure({ status: 'loading', renderSnapshot: null, snapshot: null }));
+    expect(toolbar()).toBeNull();
+  });
+
+  // The pill is body-portaled, so nothing clips it: panned past the pane edge it
+  // would otherwise sit over the neighbouring View pane, attached to a figure
+  // that is no longer on screen. `boundary` is what makes it leave with it.
+  it('hides once the figure is panned out of the pane', () => {
+    // A figure is anchored in `user` space, not `model` — see the component.
+    cpOverlayViewStore.set({
+      model: { origin: [100, 100], ex: [1, 0], ey: [0, 1] },
+      user: { origin: [5000, 100], ex: [1, 0], ey: [0, 1] },
+    });
+    render(makeFigure());
     expect(toolbar()).toBeNull();
   });
 

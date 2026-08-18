@@ -262,6 +262,7 @@ function TextToolbar({
   return (
     <FloatingToolbar
       anchorRect={anchorRect}
+      boundary={container}
       wheelTarget={resolveCpViewportCanvas}
       className="cp-text-toolbar"
       ariaLabel={t('panels:textAnnotation.textControls', 'Text controls')}

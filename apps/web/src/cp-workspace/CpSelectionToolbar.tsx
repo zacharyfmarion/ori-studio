@@ -147,8 +147,11 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
 
   if (!match) return null;
 
-  // Every action dismisses the toolbar by clearing the selection: it otherwise
-  // lingers over the surface (and over the export modal, which it out-z-indexes).
+  // Every action dismisses the toolbar by clearing the selection: acting on a
+  // selection is the end of that selection, and the pill otherwise lingers over
+  // the surface with nothing left to do. (It used to *have* to go — at
+  // `--z-portaled-popover` it drew over the export modal it had just opened.
+  // That is fixed at the tier now, so this is behaviour, not a workaround.)
   // Actions capture their segment id / line ids up front, so clearing the live
   // selection cannot affect the operation in flight.
   const { segmentId, cpLineIds } = match;
@@ -161,6 +164,7 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
   return (
     <FloatingToolbar
       anchorRect={anchorRect}
+      boundary={container}
       wheelTarget={resolveCpViewportCanvas}
       className="cp-selection-toolbar"
       ariaLabel={t('panels:creasePattern.selectionToolbar.label', 'Crease pattern actions')}

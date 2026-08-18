@@ -148,6 +148,7 @@ export function CpFoldedFigureToolbar({
   return (
     <FloatingToolbar
       anchorRect={anchorRect}
+      boundary={container}
       wheelTarget={resolveCpViewportCanvas}
       className="cp-folded-figure-toolbar"
       ariaLabel={t('panels:foldedFigureActions.label', 'Folded figure actions')}

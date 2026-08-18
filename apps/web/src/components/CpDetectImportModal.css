@@ -1,7 +1,9 @@
 .cp-detect-modal {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  /* The shared modal tier. At its old 80 it was below every body-portaled
+     canvas toolbar, so a floating bar drew across a full-screen modal. */
+  z-index: var(--z-modal);
   display: grid;
   place-items: center;
   padding: 24px;

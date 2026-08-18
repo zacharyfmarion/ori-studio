@@ -144,6 +144,7 @@ export function InlineSimulationInspector({
   return (
     <FloatingToolbar
       anchorRect={anchorRect}
+      boundary={container}
       wheelTarget={resolveCpViewportCanvas}
       className="cp-inline-simulation-inspector"
       ariaLabel={t(

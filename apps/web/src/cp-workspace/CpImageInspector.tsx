@@ -40,6 +40,7 @@ export function CpImageInspector({
   return (
     <FloatingToolbar
       anchorRect={anchorRect}
+      boundary={container}
       wheelTarget={resolveCpViewportCanvas}
       className="cp-image-inspector"
       ariaLabel={t('panels:imageInspector.imageControls', 'Image controls')}

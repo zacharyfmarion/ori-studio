@@ -26,11 +26,16 @@ let root: Root | null = null;
 let host: HTMLDivElement | null = null;
 let canvas: HTMLCanvasElement | null = null;
 
-function render(options: { wired: boolean; anchor?: FloatingAnchorRect | null }) {
+function render(options: {
+  wired: boolean;
+  anchor?: FloatingAnchorRect | null;
+  boundary?: Element | null;
+}) {
   act(() => {
     root?.render(
       <FloatingToolbar
         anchorRect={options.anchor === undefined ? ANCHOR : options.anchor}
+        boundary={options.boundary}
         wheelTarget={options.wired ? () => canvas : undefined}
         ariaLabel="actions"
       >
@@ -38,6 +43,17 @@ function render(options: { wired: boolean; anchor?: FloatingAnchorRect | null })
       </FloatingToolbar>
     );
   });
+}
+
+/**
+ * A stand-in for the pane a toolbar is confined to. jsdom lays nothing out, so
+ * the rect has to be stated rather than measured.
+ */
+function pane(rect: DOMRect): HTMLDivElement {
+  const element = document.createElement('div');
+  element.getBoundingClientRect = () => rect;
+  document.body.appendChild(element);
+  return element;
 }
 
 function toolbar(): HTMLElement | null {
@@ -111,5 +127,47 @@ describe('FloatingToolbar wheel handling', () => {
 
     expect(original.defaultPrevented).toBe(true);
     expect(seen).toHaveLength(1);
+  });
+});
+
+/**
+ * The toolbar's containment.
+ *
+ * Where the pill lands within its boundary is `@floating-ui`'s job and needs a
+ * real layout engine to observe — jsdom hands it nothing but zero rects. What
+ * *is* testable here is the decision this component owns: whether the pill
+ * belongs on screen at all, which is the half that keeps a body-portaled pill
+ * off a neighbouring pane once its object has left. The clamping arithmetic
+ * itself is covered in `floatingToolbarBounds.test.ts`.
+ */
+describe('FloatingToolbar boundary', () => {
+  let boundary: HTMLDivElement | null = null;
+
+  afterEach(() => {
+    boundary?.remove();
+    boundary = null;
+  });
+
+  it('shows the pill while its anchor is inside the boundary', () => {
+    boundary = pane(new DOMRect(0, 0, 1000, 600));
+    render({ wired: false, boundary });
+
+    expect(toolbar()).not.toBeNull();
+  });
+
+  it('hides the pill once its anchor has left the boundary', () => {
+    // The same anchor, against a pane that has been panned away from it.
+    boundary = pane(new DOMRect(600, 0, 400, 600));
+    render({ wired: false, boundary });
+
+    expect(toolbar()).toBeNull();
+  });
+
+  it('keeps the browser window as the boundary when none is given', () => {
+    // Undefined must not be read as "no room" — an unbounded toolbar is the
+    // documented default, and every non-CP caller relies on it.
+    render({ wired: false, boundary: undefined });
+
+    expect(toolbar()).not.toBeNull();
   });
 });
