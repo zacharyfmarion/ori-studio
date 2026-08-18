@@ -22,14 +22,15 @@ import { installHeldModifierTracker } from './keyboard/heldModifiers';
 import { installAppKeyboardListener } from './lib/appKeyboard';
 import { registerWorkerFailureSink, workerErrorCode } from './lib/workerDiagnostics';
 import { useTauriNativeMenu } from './menus/useTauriNativeMenu';
+import { useUpdateCheck } from './hooks/useUpdateCheck';
 import { createOpenedPathFileService } from './platform/fileService';
 import { useIsWorkspaceBlocked } from './platform/mobileSurface';
 import { getRuntimeSurface } from './platform/runtime';
+import { confirmDiscardUnsavedWork, hasUnsavedWork } from './lib/unsavedWork';
 import { navigateTo } from './routing/appRouter';
 import { currentWorkspacePath } from './routing/landing';
 import { startWorkspaceUrlSync } from './routing/workspaceUrlSync';
 import { useWelcomeDiscardGuard } from './routing/useWelcomeDiscardGuard';
-import { requestConfirmation } from './store/commandDialogStore';
 import { useShortcutStore } from './store/shortcutStore';
 import { useThemeStore } from './store/themeStore';
 import { useWorkspaceStore } from './store/workspaceStore';
@@ -57,6 +58,7 @@ export default function App() {
   useEffect(() => startWorkspaceUrlSync(), []);
 
   useTauriNativeMenu();
+  useUpdateCheck();
 
   useEffect(() => {
     // A blocked phone never reaches a workspace, so the CP and TreeMaker wasm
@@ -87,7 +89,9 @@ export default function App() {
 
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!useWorkspaceStore.getState().dirty) return;
+      // `beforeunload` cannot await a dialog — the browser owns this prompt —
+      // so it shares the predicate but not the confirmation.
+      if (!hasUnsavedWork()) return;
       event.preventDefault();
       event.returnValue = '';
     };
@@ -103,16 +107,15 @@ export default function App() {
       .then(({ getCurrentWindow }) => {
         const appWindow = getCurrentWindow();
         return appWindow.onCloseRequested((event) => {
-          if (!useWorkspaceStore.getState().dirty) return;
+          if (!hasUnsavedWork()) return;
           event.preventDefault();
-          void requestConfirmation({
+          void confirmDiscardUnsavedWork({
             title: t('dialogs:closeGuard.title', 'Discard unsaved changes?'),
             message: t(
               'dialogs:closeGuard.message',
               'Your current project has unsaved changes. Close Ori Studio and discard them?'
             ),
             confirmLabel: t('dialogs:closeGuard.discard', 'Discard'),
-            tone: 'danger',
           }).then((confirmed) => {
             if (confirmed) void appWindow.destroy();
           });

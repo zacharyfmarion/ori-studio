@@ -266,6 +266,15 @@
     "sendToEditWithCirclesTooltip": "このデザインの展開図をパッキング円とともに送る",
     "settings": "設定"
   },
+  "update": {
+    "available": "アップデートがあります",
+    "download": "アップデートをダウンロード",
+    "downloading": "アップデートをダウンロード中…",
+    "relaunch": "再起動してアップデート",
+    "remindLater": "後で",
+    "skip": "{{version}} をスキップ",
+    "version": "バージョン {{version}}"
+  },
   "workspaceRail": {
     "design": "デザインワークスペース",
     "edit": "編集ワークスペース",

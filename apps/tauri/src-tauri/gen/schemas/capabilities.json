@@ -1,1 +1,1 @@
-{"default":{"identifier":"default","description":"Default permissions for Ori Studio","local":true,"windows":["main"],"permissions":["core:default","core:event:default","core:menu:default","core:window:allow-destroy","core:window:allow-set-title","dialog:default"]}}
+{"default":{"identifier":"default","description":"Default permissions for Ori Studio","local":true,"windows":["main"],"permissions":["core:default","core:event:default","core:menu:default","core:window:allow-destroy","core:window:allow-set-title","dialog:default","updater:default","process:allow-restart"]}}

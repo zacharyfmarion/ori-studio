@@ -98,7 +98,8 @@
     "settings": "Settings"
   },
   "help": {
-    "about": "About Ori Studio"
+    "about": "About Ori Studio",
+    "checkForUpdates": "Check for Updates…"
   },
   "menubar": {
     "creasePattern": "Crease Pattern",

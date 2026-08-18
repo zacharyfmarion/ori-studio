@@ -8,6 +8,8 @@
     "core:menu:default",
     "core:window:allow-destroy",
     "core:window:allow-set-title",
-    "dialog:default"
+    "dialog:default",
+    "updater:default",
+    "process:allow-restart"
   ]
 }

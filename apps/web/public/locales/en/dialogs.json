@@ -354,6 +354,18 @@
       "workspace": "Workspace"
     },
     "title": "Settings",
+    "updates": {
+      "automatic": "Download updates automatically",
+      "checking": "Checking…",
+      "checkNow": "Check now",
+      "currentVersion": "Version {{version}}",
+      "description": "Updates are downloaded in full — Ori Studio has no partial updates. Nothing installs until you choose to relaunch.",
+      "lastChecked": "Last checked {{when}}",
+      "neverChecked": "Not checked yet",
+      "notify": "Tell me, but let me start the download",
+      "off": "Don't check for updates",
+      "title": "Updates"
+    },
     "workspace": {
       "analytics": "Send anonymous usage analytics and crash reports to help improve Ori Studio",
       "creasePatternCanvas": "Crease pattern canvas",
@@ -420,5 +432,10 @@
     "showWelcomeOnStartup": "Show welcome on startup",
     "startOptions": "Start options",
     "title": "Start a new origami workspace"
+  },
+  "updateGuard": {
+    "discard": "Discard and restart",
+    "message": "Your current project has unsaved changes. Restart Ori Studio to update and discard them?",
+    "title": "Discard unsaved changes?"
   }
 }

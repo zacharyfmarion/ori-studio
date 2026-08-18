@@ -340,6 +340,18 @@
       "workspace": "작업 공간"
     },
     "title": "설정",
+    "updates": {
+      "automatic": "업데이트를 자동으로 다운로드",
+      "checkNow": "지금 확인",
+      "checking": "확인 중…",
+      "currentVersion": "버전 {{version}}",
+      "description": "업데이트는 항상 전체가 다운로드됩니다. Ori Studio에는 부분 업데이트가 없습니다. 다시 시작하기 전에는 아무것도 설치되지 않습니다.",
+      "lastChecked": "마지막 확인 {{when}}",
+      "neverChecked": "아직 확인하지 않음",
+      "notify": "알려주되 다운로드는 직접 시작",
+      "off": "업데이트를 확인하지 않음",
+      "title": "업데이트"
+    },
     "workspace": {
       "analytics": "Ori Studio 개선에 도움이 되도록 익명 사용 통계와 오류 보고서 보내기",
       "creasePatternCanvas": "전개도 캔버스",
@@ -406,5 +418,10 @@
     "showWelcomeOnStartup": "시작 시 환영 화면 표시",
     "startOptions": "시작 옵션",
     "title": "새 종이접기 작업 공간 시작"
+  },
+  "updateGuard": {
+    "discard": "버리고 다시 시작",
+    "message": "현재 프로젝트에 저장하지 않은 변경 사항이 있습니다. Ori Studio를 다시 시작하여 업데이트하고 변경 사항을 버릴까요?",
+    "title": "저장하지 않은 변경 사항을 버릴까요?"
   }
 }

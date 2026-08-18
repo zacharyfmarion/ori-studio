@@ -1,5 +1,6 @@
 import type { MenuActionId } from '../commands/menuActions';
 import { shortcutLabelForAction, type ShortcutResolutionInput } from '../keyboard/shortcuts';
+import { isDesktopRuntime } from '../platform/runtime';
 
 /**
  * Minimal translator shape: `(key, englishDefault) => localized`. The app passes
@@ -267,6 +268,18 @@ export function getMenuBarDef(
     {
       label: t('menu:menubar.help', 'Help'),
       items: [
+        // Desktop only: the browser build updates by reloading. Spread-gated
+        // the same way as the other desktop-only entries in this file.
+        ...(isDesktopRuntime()
+          ? ([
+              {
+                type: 'action',
+                id: 'help.checkForUpdates',
+                label: t('menu:help.checkForUpdates', 'Check for Updates…'),
+              },
+              { type: 'separator' },
+            ] as const)
+          : []),
         { type: 'action', id: 'help.about', label: t('menu:help.about', 'About Ori Studio') },
       ],
     },

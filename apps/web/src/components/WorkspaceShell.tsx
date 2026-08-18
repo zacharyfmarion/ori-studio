@@ -32,6 +32,7 @@ import { handleMenuAction } from '../commands/menuActions';
 import { useFileDropTarget } from '../hooks/useFileDropTarget';
 import type { DropTargetPolicy } from '../lib/fileDrop';
 import { usesNativeAppMenu } from '../platform/runtime';
+import { UpdateChip } from './UpdateChip';
 import { applyDefaultLayout, clearPersistedLayout, useLayoutStore } from '../store/layoutStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -122,6 +123,10 @@ function Toolbar() {
       <div className="toolbar__brand">
         {/* eslint-disable-next-line i18next/no-literal-string -- brand name, never translated */}
         {hasNativeMenu ? <span className="toolbar__title">Ori Studio</span> : <MenuBar />}
+        {/* In `.toolbar__brand`, not `.toolbar__actions`: that region is
+            `flex-wrap: wrap; overflow: hidden`, so adding to it would wrap the
+            Optimize/Send buttons onto a second row. */}
+        <UpdateChip />
       </div>
       <div className="toolbar__actions">
         <IconButton

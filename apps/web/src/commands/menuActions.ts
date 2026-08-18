@@ -27,6 +27,8 @@ import type {
 } from '../engine/oristudioBpTypes';
 import type { CreaseExportOptions } from '../lib/creaseExport';
 
+import { runUpdateCheck } from '../lib/updateController';
+
 export const MENU_ACTION_IDS = [
   'app.about',
   'app.quit',
@@ -120,6 +122,7 @@ export const MENU_ACTION_IDS = [
   'cp.changeCircleColor',
   'cp.organizeCircles',
   'help.about',
+  'help.checkForUpdates',
 ] as const;
 
 export type MenuActionId = (typeof MENU_ACTION_IDS)[number];
@@ -676,6 +679,14 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         return deps.workspace.executeOristudioCpCommand('OrganizeCircles');
       case 'help.about':
         deps.about?.();
+        return true;
+
+      // Dispatching through here means `command invoked` is captured at the
+      // chokepoint; no second hand-placed event for the same thing.
+      case 'help.checkForUpdates':
+        void runUpdateCheck('manual').catch(() => {
+          // The controller records the failure; a menu action must not throw.
+        });
         return true;
     }
 

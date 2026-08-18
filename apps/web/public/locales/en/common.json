@@ -266,6 +266,15 @@
     "sendToEditWithCirclesTooltip": "Send this design's crease pattern along with its packed circles",
     "settings": "Settings"
   },
+  "update": {
+    "available": "Update available",
+    "download": "Download update",
+    "downloading": "Downloading update…",
+    "relaunch": "Relaunch to update",
+    "remindLater": "Later",
+    "skip": "Skip {{version}}",
+    "version": "Version {{version}}"
+  },
   "workspaceRail": {
     "design": "Design workspace",
     "edit": "Edit workspace",

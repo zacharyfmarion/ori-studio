@@ -604,6 +604,81 @@
   letter-spacing: 0;
 }
 
+/*
+ * The update affordance. Quiet on purpose: this sits in the chrome permanently
+ * once an update is staged, so it has to read as status rather than as a call to
+ * action. The dot carries the "something changed" signal; the label carries the
+ * verb.
+ */
+.update-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.update-chip__action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 3px var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.update-chip__action:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.update-chip__action:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.update-chip__dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-accent, var(--text-accent, #4c8dff));
+}
+
+.update-chip__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.update-chip__version {
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.update-chip__dismiss {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.update-chip__dismiss-button {
+  padding: 2px var(--space-1);
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+
+.update-chip__dismiss-button:hover {
+  color: var(--text-secondary);
+}
+
 .toolbar__actions {
   justify-content: flex-end;
   flex-wrap: wrap;
@@ -989,6 +1064,14 @@
 
   .toolbar__brand {
     gap: var(--space-1);
+  }
+
+  /* The toolbar is one column here and the chip is the least important thing
+     in it, so it sheds the version and the dismiss controls rather than
+     pushing the menu off-screen. The verb stays. */
+  .update-chip__version,
+  .update-chip__dismiss {
+    display: none;
   }
 
   .toolbar__actions {

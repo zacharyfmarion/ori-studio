@@ -76,3 +76,27 @@ describe('the workspace canvas grid', () => {
     expect(shell.indexOf('workspace-shell__dock"')).toBeLessThan(shell.indexOf('<DockviewReact'));
   });
 });
+
+/**
+ * Wiring, not layout — but the same class of bug and the same reason it needs a
+ * source-level check.
+ *
+ * A hook that nothing calls is a dead feature, and this repo has shipped that:
+ * deleting one line from `App.tsx` left 111 keyboard tests green while the
+ * feature was gone. `useUpdateCheck` is the only thing that ever populates the
+ * update store, so without this the whole updater is one deleted line from
+ * being silently inert — and every unit test beside it would still pass,
+ * because they seed the store directly.
+ */
+describe('update wiring', () => {
+  const app = readFileSync(join(here, 'App.tsx'), 'utf8');
+
+  it('mounts the update check', () => {
+    expect(app).toMatch(/import \{ useUpdateCheck \} from '\.\/hooks\/useUpdateCheck'/);
+    expect(app).toMatch(/^\s*useUpdateCheck\(\);/m);
+  });
+
+  it('renders the chip in the toolbar', () => {
+    expect(shell).toMatch(/<UpdateChip \/>/);
+  });
+});

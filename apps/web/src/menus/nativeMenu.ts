@@ -141,6 +141,18 @@ function appSubmenu(): SubmenuOptions {
         },
       },
       SEPARATOR,
+      // Where macOS users look for this. It is in the Help menu too, via
+      // menuDefinition — but this submenu is hand-built and inherits nothing
+      // from there, so an entry added to the shared definition alone would
+      // simply not appear in the place macOS convention puts it.
+      {
+        id: 'help.checkForUpdates',
+        text: 'Check for Updates…',
+        action: () => {
+          void handleMenuAction('help.checkForUpdates');
+        },
+      },
+      SEPARATOR,
       { item: 'Services' },
       SEPARATOR,
       { item: 'Hide' },

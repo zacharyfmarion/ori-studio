@@ -266,6 +266,15 @@
     "sendToEditWithCirclesTooltip": "Enviar o padrão de vincos deste design junto com seus círculos de empacotamento",
     "settings": "Configurações"
   },
+  "update": {
+    "available": "Atualização disponível",
+    "download": "Baixar atualização",
+    "downloading": "Baixando atualização…",
+    "relaunch": "Reiniciar para atualizar",
+    "remindLater": "Depois",
+    "skip": "Ignorar {{version}}",
+    "version": "Versão {{version}}"
+  },
   "workspaceRail": {
     "design": "Workspace de Design",
     "edit": "Workspace de Edição",

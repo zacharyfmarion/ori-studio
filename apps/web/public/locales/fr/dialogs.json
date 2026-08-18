@@ -171,8 +171,8 @@
   },
   "foldWarning": {
     "dontShowAgain": "Ne plus afficher",
-    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage\u00a0?",
-    "spatialMessage": "Des erreurs ont été détectées dans la façon dont ces plis se plient. Continuer le pliage\u00a0?",
+    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage ?",
+    "spatialMessage": "Des erreurs ont été détectées dans la façon dont ces plis se plient. Continuer le pliage ?",
     "title": "Avertissement"
   },
   "help": {
@@ -368,6 +368,18 @@
       "workspace": "Espace de travail"
     },
     "title": "Paramètres",
+    "updates": {
+      "automatic": "Télécharger les mises à jour automatiquement",
+      "checkNow": "Vérifier maintenant",
+      "checking": "Vérification…",
+      "currentVersion": "Version {{version}}",
+      "description": "Les mises à jour sont téléchargées en entier — Ori Studio n’a pas de mises à jour partielles. Rien ne s’installe avant que vous ne redémarriez.",
+      "lastChecked": "Dernière vérification {{when}}",
+      "neverChecked": "Pas encore vérifié",
+      "notify": "Me prévenir, mais me laisser lancer le téléchargement",
+      "off": "Ne pas rechercher de mises à jour",
+      "title": "Mises à jour"
+    },
     "workspace": {
       "analytics": "Envoyer des statistiques d’utilisation anonymes et des rapports de plantage pour améliorer Ori Studio",
       "creasePatternCanvas": "Zone de dessin du patron de plis",
@@ -380,7 +392,7 @@
       "resetTitle": "Réinitialiser la disposition de l'espace de travail",
       "showWelcome": "Afficher l'écran d'accueil au démarrage",
       "snapRadius": "Rayon d'aimantation",
-      "snapRadiusHint": "À quelle distance le pointeur doit arriver d'un sommet, d'un pli ou d'un point de grille pour s'y aimanter, en unités de papier\u00a0: le papier fait 400 de large, c'est donc le même nombre que dans Oriedita.",
+      "snapRadiusHint": "À quelle distance le pointeur doit arriver d'un sommet, d'un pli ou d'un point de grille pour s'y aimanter, en unités de papier : le papier fait 400 de large, c'est donc le même nombre que dans Oriedita.",
       "startup": "Démarrage",
       "wheelGestureHint": "Le pincement et Cmd/Ctrl+défilement zooment toujours, quel que soit votre choix.",
       "wheelPans": "Le défilement déplace, le pincement zoome",
@@ -434,5 +446,10 @@
     "showWelcomeOnStartup": "Afficher l'accueil au démarrage",
     "startOptions": "Options de démarrage",
     "title": "Démarrer un nouvel espace de travail d'origami"
+  },
+  "updateGuard": {
+    "discard": "Abandonner et redémarrer",
+    "message": "Votre projet actuel comporte des modifications non enregistrées. Redémarrer Ori Studio pour mettre à jour et les abandonner ?",
+    "title": "Abandonner les modifications non enregistrées ?"
   }
 }
