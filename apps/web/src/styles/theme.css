@@ -56,6 +56,21 @@
   --shadow-overlay: rgba(0, 0, 0, 0.35);
   --shadow-context-menu: 0 4px 12px rgba(0, 0, 0, 0.35);
   --overlay-dim: rgba(0, 0, 0, 0.52);
+  /* The app's stacking tiers, in order. Anything that paints over another
+     surface belongs in one of them rather than at a number of its own.
+
+     1–20      In-pane chrome. Plain z-index inside the pane's own stacking
+               context, so these never compare against anything outside it.
+     900       Body-portaled chrome that still *belongs* to one pane — a
+               canvas object's floating toolbar, the tool hint window. It is
+               portaled only to escape Dockview's transformed panels, so it
+               must sit above every pane's chrome but below anything the user
+               deliberately opened on top of the app.
+     9999      Modals and the menu bar's own dropdowns.
+     10000     Portaled popovers: context menus, select content, tooltips —
+               including the ones opened *from* a 900-tier toolbar, which is
+               why this tier has to outrank it. */
+  --z-canvas-overlay: 900;
   --z-modal: 9999;
   --z-portaled-popover: 10000;
 
@@ -3252,13 +3267,22 @@
 .floating-toolbar {
   display: flex;
   align-items: center;
+  /* Wraps rather than overflows. `FloatingToolbar`'s `size` middleware caps the
+     pill's width to the space its boundary leaves, and a pill that cannot fit —
+     the inline-simulation inspector on a narrow pane — has to become two rows,
+     because the alternative is controls hanging outside the very pane the
+     boundary exists to keep it inside. */
+  flex-wrap: wrap;
   gap: 6px;
   padding: 4px 8px;
   background: var(--bg-elevated, var(--bg-secondary));
   border: 1px solid var(--border-default);
   border-radius: 8px;
   box-shadow: 0 2px 8px rgb(0 0 0 / 30%);
-  z-index: var(--z-portaled-popover, 10000);
+  /* Pane-owned chrome, not a popover: it is persistent, so it must not cover a
+     menu or modal the user just opened. The menus it opens itself portal at
+     `--z-portaled-popover` and so still land on top of it. */
+  z-index: var(--z-canvas-overlay);
   pointer-events: auto;
 }
 
@@ -5373,7 +5397,7 @@ button.cp-folded-figure-toolbar__notice:hover {
    browser window rather than the nearest Dockview panel. */
 .cp-context-panel {
   position: fixed;
-  z-index: 900; /* Above all in-pane chrome (max 17), below --z-modal. */
+  z-index: var(--z-canvas-overlay);
   --cp-context-reset-gutter: 58px;
   display: grid;
   /* `minmax(0, …)` on the body row is what lets it shrink below its content and

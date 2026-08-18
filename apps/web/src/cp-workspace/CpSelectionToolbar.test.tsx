@@ -129,11 +129,18 @@ describe('CpSelectionToolbar', () => {
   beforeEach(() => {
     // Reset the gate so a test that turns it off cannot leak into later ones.
     shareEnabled.value = true;
+    // Origin offset so the fixture's unit-square selection sits well inside the
+    // pane below rather than straddling its edge — the toolbar now hides for an
+    // anchor outside its boundary, and a selection pinned to 0,0 would be
+    // deciding that on a one-pixel overlap.
     cpOverlayViewStore.set({
-      model: { origin: [0, 0], ex: [1, 0], ey: [0, 1] },
-      user: { origin: [0, 0], ex: [1, 0], ey: [0, 1] },
+      model: { origin: [100, 100], ex: [1, 0], ey: [0, 1] },
+      user: { origin: [100, 100], ex: [1, 0], ey: [0, 1] },
     });
     container = document.createElement('div');
+    // jsdom lays nothing out, so the pane the toolbar is confined to has to be
+    // stated. 1000x600 at the origin.
+    container.getBoundingClientRect = () => new DOMRect(0, 0, 1000, 600);
     document.body.appendChild(container);
     host = document.createElement('div');
     document.body.appendChild(host);
