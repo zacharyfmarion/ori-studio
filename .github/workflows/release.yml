@@ -106,7 +106,17 @@ jobs:
         if: steps.meta.outputs.is_release == 'true'
         run: |
           set -euo pipefail
-          git fetch origin main --tags --quiet
+          # No `--tags`, and not quiet. actions/checkout has already fetched
+          # every tag, and then rewritten refs/tags/<this tag> to point straight
+          # at the commit. Asking for `--tags` here makes git try to replace that
+          # lightweight ref with the annotated tag object release.sh actually
+          # created, which it refuses:
+          #
+          #   ! [rejected]  v0.2.0 -> v0.2.0  (would clobber existing tag)
+          #
+          # That is a non-zero exit, so `set -e` killed this step — and `--quiet`
+          # suppressed the one line saying why, leaving a bare "exit code 1".
+          git fetch origin main
           if git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
             echo "scheduled release: tagged commit is on main"
           else
