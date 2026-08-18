@@ -1089,6 +1089,11 @@
  *
  * z-index sits above the workspace chrome and below the modal layer (900): it
  * should float over the canvas, never over a dialog asking a question.
+ *
+ * It is accent-outlined rather than neutral because it competes with a full
+ * canvas behind it. This is the one piece of chrome that appears unprompted and
+ * has a deadline attached, so it is allowed to be the brightest edge on screen;
+ * everything quieter read as part of the background.
  */
 .update-card {
   position: fixed;
@@ -1097,10 +1102,24 @@
   z-index: 30;
   display: flex;
   align-items: stretch;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--accent-primary);
   border-radius: 12px;
-  background: var(--surface-raised);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 32%);
+  /* Opaque, and tinted toward the accent. An earlier revision asked for
+     `--surface-raised`, which this stylesheet does not define — the declaration
+     was dropped and the card rendered with no background at all, which is
+     exactly what "it fades into the background" looks like. */
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-elevated));
+  /* Ambient elevation plus an accent halo, to lift it off a busy canvas.
+     Deliberately not `--shadow-soft`: that token is undefined repo-wide and is
+     already tracked as such in styles/themeTokens.test.ts, so naming it here
+     would drop this declaration entirely. */
+  box-shadow:
+    var(--shadow-context-menu),
+    0 0 0 3px color-mix(in srgb, var(--accent-primary) 18%, transparent);
+  /* Lower bound as well as upper: with the leading icon gone, a short label
+     ("Update available") would otherwise shrink the card to a size that reads
+     as a tooltip rather than a notification. */
+  min-width: 240px;
   max-width: min(320px, calc(100vw - var(--space-6)));
 }
 
@@ -1120,20 +1139,12 @@
 }
 
 .update-card__main:hover:not(:disabled) {
-  background: var(--surface-hover, rgb(255 255 255 / 4%));
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
 }
 
 .update-card__main:disabled {
   cursor: default;
   opacity: 0.75;
-}
-
-.update-card__icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  color: var(--text-secondary);
 }
 
 .update-card__text {
@@ -1164,18 +1175,13 @@
   flex: 0 0 auto;
   margin-left: auto;
   padding-left: var(--space-2);
-  color: var(--text-tertiary);
-}
-
-.update-card__main:hover:not(:disabled) .update-card__chevron {
-  color: var(--text-secondary);
+  color: var(--accent-primary);
 }
 
 /*
- * Hidden until hover or keyboard focus. `:focus-visible` inside `:not(:hover)`
- * is what keeps it reachable without a pointer — a dismiss control that only
- * exists on hover cannot be tabbed to, and this is the only way to get rid of
- * the card.
+ * Hidden until hover or keyboard focus. `:focus-visible` is what keeps it
+ * reachable without a pointer — a dismiss control that only exists on hover
+ * cannot be tabbed to, and this is the only way to get rid of the card.
  */
 .update-card__dismiss {
   position: absolute;
@@ -1187,9 +1193,9 @@
   width: 18px;
   height: 18px;
   padding: 0;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--accent-primary);
   border-radius: 50%;
-  background: var(--surface-raised);
+  background: var(--bg-elevated);
   color: var(--text-secondary);
   cursor: pointer;
   opacity: 0;
@@ -1203,7 +1209,7 @@
 
 .update-card__dismiss:hover {
   color: var(--text-primary);
-  border-color: var(--border-strong);
+  background: var(--bg-surface);
 }
 
 @media (prefers-reduced-motion: reduce) {

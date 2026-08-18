@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowRight, Download, RefreshCw, X } from 'lucide-react';
+import { ArrowRight, X } from 'lucide-react';
 import { ANALYTICS_EVENTS, track } from '../analytics';
 import { RELEASES_URL } from '../constants/release';
 import { relaunchIntoUpdate, startUpdateDownload } from '../lib/updateController';
@@ -82,7 +82,6 @@ export function UpdateCard() {
   const busy = status === 'installing' || status === 'downloading';
   let label: string;
   let action: () => void;
-  let Icon = RefreshCw;
 
   if (status === 'ready' || status === 'installing') {
     label = t('common:update.relaunch', 'Relaunch to update');
@@ -90,22 +89,17 @@ export function UpdateCard() {
   } else if (status === 'unsupported') {
     label = t('common:update.download', 'Download update');
     action = onOpenReleases;
-    Icon = Download;
   } else if (status === 'downloading') {
     label = t('common:update.downloading', 'Downloading update…');
     action = () => {};
   } else {
     label = t('common:update.available', 'Update available');
     action = onDownload;
-    Icon = Download;
   }
 
   return (
     <div className="update-card" data-status={status} role="status">
       <button type="button" className="update-card__main" onClick={action} disabled={busy}>
-        <span className="update-card__icon" aria-hidden="true">
-          <Icon size={20} />
-        </span>
         <span className="update-card__text">
           <span className="update-card__label">{label}</span>
           <span className="update-card__version">{`v${version}`}</span>
