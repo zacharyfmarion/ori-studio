@@ -1,0 +1,48 @@
+# Editor defaults, so a file arrives at the formatter already close to right.
+#
+# This is not the enforcement layer. Prettier (`npm run format:check`) and
+# `cargo fmt --check` are, and both are gated in CI. What this file adds is the
+# languages neither of them covers — Rust is rustfmt's, but Python and the shell
+# scripts have no formatter in this repo, and this is what keeps their indent
+# consistent between editors.
+#
+# Prettier reads .editorconfig as a fallback and its own config wins on conflict,
+# so the values below are kept in agreement with prettier.config.mjs rather than
+# competing with it.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.{ts,tsx,mts,js,mjs,cjs,jsx,json,jsonc,css,html,yml,yaml}]
+max_line_length = 100
+
+# Two trailing spaces are a hard line break in Markdown, so trimming them
+# silently changes the rendered output.
+[*.md]
+trim_trailing_whitespace = false
+
+# rustfmt defaults; AGENTS.md > Rust is why there is no rustfmt.toml.
+[*.rs]
+indent_size = 4
+max_line_length = 100
+
+[*.py]
+indent_size = 4
+max_line_length = 88
+
+[*.toml]
+indent_size = 2
+
+# Vendored upstream sources are parity references (AGENTS.md > Porting
+# discipline). An editor silently retabbing or trimming one turns the next
+# upstream diff into noise.
+[third_party/**]
+trim_trailing_whitespace = false
+insert_final_newline = false

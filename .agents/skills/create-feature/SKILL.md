@@ -109,6 +109,19 @@ Run the appropriate subset of these commands based on what changed. Do not run
 heavy commands for areas the change does not touch unless a cross-cutting risk
 justifies it.
 
+### Formatting
+
+Run whenever the change touches a Prettier-covered file — TypeScript, JSX, the
+Node scripts, CSS, HTML, YAML, or hand-authored JSON. Markdown is excluded on
+purpose; see `.prettierignore`.
+
+```bash
+npm run format:check
+```
+
+`npm run format` fixes. Format only the files your change already touches — a
+diff that mixes reformatting into a behavior change is much harder to review.
+
 ### Docs and workflow
 
 ```bash

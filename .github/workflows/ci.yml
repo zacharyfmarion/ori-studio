@@ -17,10 +17,39 @@ env:
   # across steps and runs. Incremental compilation is incompatible with sccache
   # and is not useful in CI, so it is disabled.
   RUSTC_WRAPPER: sccache
-  SCCACHE_GHA_ENABLED: "true"
+  SCCACHE_GHA_ENABLED: 'true'
   CARGO_INCREMENTAL: 0
 
 jobs:
+  # Repo-wide Prettier gate, and deliberately its own job rather than a step in
+  # `web-client`. It covers more than the web client — the Node scripts under
+  # scripts/, these workflows, the crates' docs — and it needs neither Rust nor
+  # wasm, so as a step it would sit behind several minutes of toolchain setup
+  # before reporting a missing line break. Here it is a checkout, a Node
+  # install, and a few seconds.
+  #
+  # --ignore-scripts skips the lifecycle hooks: the pre* wasm/simulator builds
+  # and Playwright's browser download. Prettier needs none of them, and skipping
+  # them is most of why this job is fast.
+  formatting:
+    name: Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Node dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Check formatting
+        run: npm run format:check
+
   web-client:
     name: Web client lint, typecheck, tests
     runs-on: ubuntu-latest
@@ -228,7 +257,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: '17'
 
       - name: Cache Oriedita oracle build
         id: oriedita-oracle-cache

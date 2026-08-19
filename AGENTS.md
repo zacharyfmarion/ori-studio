@@ -217,11 +217,37 @@ The signal worth acting on is a panel growing *because behavior keeps landing
 there*, which is what the table above is for. A panel that is long because it
 composes a genuinely large surface is fine.
 
+## Formatting
+
+Two formatters, split by language, both gated in CI:
+
+- **Prettier** owns TypeScript, JSX, the Node tooling scripts, CSS, HTML, YAML,
+  and hand-authored JSON — `npm run format` to fix, `npm run format:check` to
+  verify. Config is `prettier.config.mjs` (100 columns, single quotes,
+  everything else Prettier's default).
+- **rustfmt** owns Rust — `cargo fmt`. Defaults, which is why there is no
+  `rustfmt.toml`.
+
+`.prettierignore` lists what is out of scope and why. The categories are
+vendored upstream sources, build outputs, generated catalogs, fixtures, and
+**Markdown** — which is excluded deliberately, because Prettier pads table cells
+to the width of the widest cell in the column and that takes this file's longest
+line from 80 to 296. Wrap prose at 80 by hand, as the existing docs do.
+
+Do not reformat a file you are not otherwise changing. Formatting churn mixed
+into a behavior change is what makes a diff unreviewable.
+
+Nothing runs on commit — there is no hook. Run `npm run format` before you push,
+or let the `Formatting` CI job tell you.
+
 ## Build commands
 
 ```bash
-# Rust workspace
+# Formatting — whole repo, both languages
+npm run format:check
 cargo fmt --check
+
+# Rust workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 
@@ -286,11 +312,19 @@ in `implementation-plans/angle-restricted-endpoint-snap.md`.)
   menu, dialog, filesystem, or window behavior changes.
 - Docs-only and workflow-only changes can usually be validated with
   `git diff --check`.
+- Anything that touches a Prettier-covered file — which is every non-Markdown
+  change above — needs `npm run format:check`. It is seconds, and it is the one
+  check that fails on a file you only meant to glance at.
 
 ## CI
 
-GitHub Actions runs two main jobs:
+GitHub Actions runs three main jobs:
 
+- `formatting`: installs Node with `--ignore-scripts` and runs the repo-wide
+  Prettier check. Its own job rather than a step in `web-client`, because it
+  covers more than the web client and needs neither Rust nor wasm — as a step
+  it would sit behind several minutes of toolchain setup before reporting a
+  missing line break.
 - `web-client`: first asserts nothing under `apps/web/src/generated/` is tracked
   (see the wasm note above — a committed artifact passes every other check in
   this job), then installs Rust and Node, installs `wasm-pack`, builds the
