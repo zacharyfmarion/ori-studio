@@ -20,6 +20,7 @@ import {
 } from "./simulatorPalette";
 import type { SimulatorFrameView } from "./useSimulatorRuntime";
 import type { SimulatorRenderModel } from "./renderModel";
+import { recordSimulatorProbe } from "./simulatorPerfProbe";
 import {
   clampSimulatorZoom,
   nextSimulatorOrbitView,
@@ -295,7 +296,12 @@ export function SimulatorViewport({
       bitmap.close();
       return;
     }
+    // Timed: this is where a frame reaches the screen, and a browser that cannot
+    // adopt the bitmap as a GPU handle copies it right here. See
+    // `simulatorPerfProbe`.
+    const started = performance.now();
     context.transferFromImageBitmap(bitmap);
+    recordSimulatorProbe('present', performance.now() - started);
   }, []);
 
   // In GPU mode the worker owns the canvas and draws; this no-ops. In CPU mode
@@ -344,7 +350,13 @@ export function SimulatorViewport({
    */
   const deviceSize = useCallback(() => {
     const canvas = canvasRef.current;
+    // Timed: this canvas sits inside a transformed overlay tree that the
+    // crease-pattern camera rewrites, so reading its box is a forced layout —
+    // once per orbit frame, and before `setCamera`'s own timer starts. See
+    // `simulatorPerfProbe`.
+    const measureStarted = performance.now();
     const rect = canvas?.getBoundingClientRect();
+    recordSimulatorProbe('measure', performance.now() - measureStarted);
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     return {
       width: Math.max(minDeviceSize, Math.floor((rect?.width || 720) * dpr)),

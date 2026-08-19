@@ -696,9 +696,7 @@ export class MeshRenderer {
     gl.bindFramebuffer(gl.FRAMEBUFFER, target);
     // The buffer may be larger than this render: it is shared by every inline
     // simulation window and sized to the largest of them, so each one draws into
-    // the corner it needs. `clear` below ignores the viewport and covers the
-    // whole buffer, which is what keeps a previous window's pixels out of this
-    // one's crop.
+    // the corner it needs.
     gl.viewport(0, 0, camera.width, camera.height);
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
@@ -723,7 +721,24 @@ export class MeshRenderer {
       const background = backgroundAlpha > 0 ? settings.background : TRANSPARENT;
       gl.clearColor(background[0], background[1], background[2], backgroundAlpha);
       gl.clearDepth(1);
+      // Scissored to the viewport, because `clear` otherwise ignores it and
+      // covers the whole shared buffer — and that buffer is grow-only, sized to
+      // the largest window ever opened. Unscissored, one deep zoom pins it at
+      // 2048x2048 and every later render pays a full-buffer clear of a
+      // multisampled colour buffer plus depth, whatever size the window drawing
+      // is: measured flat at ~7.5ms per render across a 23x range of viewport
+      // areas in WebKit, against ~2.8ms at a 512x512 buffer. Chromium hides it
+      // behind a fast-clear path, which is why this only ever showed up on
+      // Safari and the desktop shell.
+      //
+      // Safe because the viewport rect is the only part anyone reads: the frame
+      // leaves through `createImageBitmap(canvas, 0, h - height, width, height)`,
+      // exactly this rect. Keeping a previous window's pixels out of this one's
+      // crop is what the clear is for, and clearing the crop does that.
+      gl.enable(gl.SCISSOR_TEST);
+      gl.scissor(0, 0, camera.width, camera.height);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.disable(gl.SCISSOR_TEST);
     }
 
     const translucent = settings.faceAlpha < 1;

@@ -309,3 +309,89 @@ throttle leaves the layout on the critical path — twenty boxes still relaid ou
 just less often — and leaves the ResizeObserver as the thing driving renders. A
 transform removes the trigger rather than rate-limiting it: `ResizeObserver`
 watches the layout box, which a transform provably does not change.
+
+## Phase 3 — the buffer is not free to keep — DONE
+
+Follow-up, from a WebKit-only report: with simulations open, zoom the crease
+pattern in far and back out, and orbiting a window is then slow *for the rest of
+the session*. Chromium never shows it. Safari and the desktop shell both do.
+
+### What Phase 1 got wrong
+
+Two of Phase 1's decisions were right about allocation and wrong about what the
+allocation then costs per frame.
+
+**The clear was never scissored.** Phase 1's own checklist says "confirm the
+clear covers the crop region (scissor, not viewport)". What shipped covers the
+whole buffer instead, with a comment explaining that as intentional. It kept a
+previous window's pixels out of this one's crop, which is real — but so does
+clearing the crop, and the crop is the only region anyone reads.
+
+**Grow-only was priced on the wrong side.** A reallocation costs ~2.2ms and
+stalls the GPU process, so never paying it twice looked cheaper than paying it
+often. That prices the allocation and ignores the standing charge: the buffer is
+read every frame through `createImageBitmap`, and with `preserveDrawingBuffer:
+false` that obliges the browser to clear the entire drawing buffer before the
+next draw — four samples deep, since the context asks for `antialias: true`.
+That clear is the browser's, so no scissor of ours bounds it, and it is charged
+on every render for as long as the buffer stays big. Chromium fast-paths it,
+which is why this stayed invisible for a release.
+
+So one deep zoom pinned the buffer at 2048x2048, and every later render paid for
+it even with the windows back at thumbnail size.
+
+### Evidence
+
+Measured in the desktop shell (WKWebView), four windows, via `sim-perf`:
+
+| buffer | crop | draw |
+| --- | --- | --- |
+| 2048x2048 | 2048x2048 | 6.7–8.5 ms |
+| 2048x2048 | 234x234 | 6.8–7.6 ms |
+| 512x512 | 269x269 | **0.69 ms** |
+
+Flat across a 76x range of viewport area, and 10x cheaper at a smaller buffer:
+the cost is the buffer, not the drawing. That is the whole diagnosis, and it is
+only visible because the readout separates them.
+
+### What changed
+
+- `meshRenderer.ts` — the clear is scissored to the viewport. Worth 4x on its
+  own at a 512x512 buffer; worth nothing at 2048x2048, where the browser's own
+  clear dominates. Both halves of that are the point.
+- `simulatorSession.ts` — the buffer shrinks again. Growth still follows the
+  caller's request directly; shrinking is decided by the peak across every live
+  session *and mesh*, and waits `SHRINK_HOLD_MS` so a zoom-out settles first.
+  Sizing it to the caller alone is what would bring back Phase 1's thrash.
+- `useSimulatorPerfLog.ts` — the readout is one poller per page, not one per
+  runtime. It was inside `useSimulatorRuntime`, so 3D folded figures — which
+  share this buffer and use `useFolded3dMeshRuntime` — logged nothing at all
+  while doing exactly the work under investigation. And `getPerfStats` both
+  reads and resets, so N pollers on a stagger made every per-second rate
+  meaningless while per-render averages stayed honest.
+- `vite.config.ts` — a dev-only sink that appends the readout to
+  `artifacts/sim-perf/sim-perf.log`. The WKWebView inspector will not give up
+  console text, which made the one build whose numbers mattered the one that
+  could not report them.
+
+### Still open
+
+**The render request is uncapped.** `SimulatorViewport.deviceSize()` reports the
+painted size with no ceiling; a deep zoom asked for `28659x28659` device pixels
+for a window a sliver of which was on screen. It is clamped to
+`MAX_BITMAP_RENDER_EDGE` before anything is allocated, so it costs no memory —
+but it is what drives the buffer to its ceiling, and the frame it produces is
+upscaled ~14x by the time it is presented.
+
+Capping it naively trades sharpness one-for-one: render the whole window smaller
+and the visible part gets proportionally blurrier. Doing it properly means
+rendering only the visible sub-rect under a sub-rect camera, which is a real
+change and is deliberately not this one.
+
+### Guards
+
+Both fixes are invisible to any rendering test — the picture is identical either
+way, only the timing differs — so the tests assert the mechanism directly:
+`meshRendererDraw.test.ts` that the clear is scissored to the viewport and the
+scissor is turned back off, `renderCanvasSize.test.ts` that the buffer is handed
+back when asked and not when a lone caller asks.

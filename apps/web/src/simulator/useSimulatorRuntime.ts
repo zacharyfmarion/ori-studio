@@ -15,7 +15,8 @@ import {
   type SimulatorClient,
 } from '../store/workspaceStore/simulatorRuntime';
 import { inflateRenderModel, type SimulatorRenderModel } from './renderModel';
-import { readString, storageKey } from '../lib/storage';
+import { recordSimulatorProbe } from './simulatorPerfProbe';
+import { useSimulatorPerfLog } from './useSimulatorPerfLog';
 import type { SimulatorExportBackground } from '../lib/simulatorSettings';
 
 // Drives the simulator worker and exposes the latest frame to a renderer.
@@ -48,18 +49,6 @@ export interface SimulatorFrameView {
   converged: boolean;
   foldPercent: number;
   maxStrain: number;
-}
-
-// Main-thread timing, read and reset by the perf logger.
-let cameraDispatchTotal = 0;
-let cameraDispatchCount = 0;
-function cameraDispatchAvg(): number {
-  return cameraDispatchCount ? cameraDispatchTotal / cameraDispatchCount : 0;
-}
-let tickRoundTripTotal = 0;
-let tickRoundTripCount = 0;
-function tickRoundTripAvg(): number {
-  return tickRoundTripCount ? tickRoundTripTotal / tickRoundTripCount : 0;
 }
 
 /**
@@ -451,8 +440,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
           // slow because the worker tick is slow (e.g. a GPU pipeline stall),
           // this is high; if it is fast but ticks are still infrequent, the
           // throttle is on the main thread.
-          tickRoundTripTotal += performance.now() - dispatched;
-          tickRoundTripCount += 1;
+          recordSimulatorProbe('tickRoundTrip', performance.now() - dispatched);
           // A null reply means the worker does not know this token. Usually that
           // is our own newer load having replaced it, which `publish` ignores —
           // but if the token we quoted is *still* the one we hold, nothing of
@@ -556,8 +544,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
         if (bitmap) onFrameRef.current?.({ ...lastScalarsRef.current, bitmap });
       })
       .catch(() => undefined);
-    cameraDispatchTotal += performance.now() - started;
-    cameraDispatchCount += 1;
+    recordSimulatorProbe('cameraDispatch', performance.now() - started);
   }, []);
 
   const setRenderSettings = useCallback((settings: RenderSettings) => {
@@ -577,38 +564,11 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
   }, []);
 
   // Opt-in perf logging: set `oristudio:sim-perf` to `1` in localStorage, then
-  // reload. Once a second it prints the worker's solve/render/camera timings
-  // plus the main thread's own camera-dispatch cost, so it is clear whether lag
-  // is the GPU draw, the solve, the message rate, or the main thread.
-  useEffect(() => {
-    if (status !== 'ready' || typeof window === 'undefined') return;
-    if (readString(storageKey('sim-perf')) !== '1') return;
-    const id = window.setInterval(() => {
-      const client = clientRef.current;
-      if (!client) return;
-      void client
-        .getPerfStats()
-        .then((s) => {
-          const perSec = (n: number) => (s.windowMs ? (n / s.windowMs) * 1000 : 0).toFixed(0);
-          console.log(
-            `[sim] ${s.backend}${s.gpuRender ? '+gpuRender' : '+cpuRender'} | ` +
-              `${s.liveSessions} sessions, ${s.liveMeshes} meshes | ` +
-              `solve ${s.solveAvgMs.toFixed(1)}ms avg / ${s.solveMaxMs.toFixed(1)} max, ` +
-              `${perSec(s.ticks)} ticks/s, ${perSec(s.stepsTotal)} steps/s | ` +
-              `render ${s.renderAvgMs.toFixed(2)}ms avg / ${s.renderMaxMs.toFixed(2)} max, ` +
-              `${perSec(s.renders)} draws/s | ` +
-              `camera ${perSec(s.cameraCalls)} msg/s, main-dispatch ${cameraDispatchAvg().toFixed(2)}ms | ` +
-              `tick round-trip ${tickRoundTripAvg().toFixed(1)}ms`
-          );
-          cameraDispatchTotal = 0;
-          cameraDispatchCount = 0;
-          tickRoundTripTotal = 0;
-          tickRoundTripCount = 0;
-        })
-        .catch(() => undefined);
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [status]);
+  // reload. Shared with every other simulator surface — see
+  // `useSimulatorPerfLog`, which is one poller per page rather than one per
+  // runtime, because the worker's counters are global and reading them resets
+  // them.
+  useSimulatorPerfLog();
 
   return {
     status,

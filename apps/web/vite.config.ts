@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
@@ -26,6 +26,56 @@ function keepTauriFrontendDistPath(): Plugin {
     closeBundle() {
       const path = resolve(__dirname, '../../', DIST_PLACEHOLDER);
       if (!existsSync(path)) writeFileSync(path, DIST_PLACEHOLDER_TEXT);
+    },
+  };
+}
+
+/** Where {@link simPerfLogSink} appends. Gitignored (`artifacts/`). */
+const SIM_PERF_LOG = 'artifacts/sim-perf/sim-perf.log';
+
+/**
+ * Dev-only sink for the `oristudio:sim-perf` readout.
+ *
+ * The desktop shell is a WKWebView, and its inspector does not give up console
+ * text the way a browser's does — which makes the one build whose numbers matter
+ * most the one you cannot get numbers out of. Posting them to the dev server
+ * writes them to a file instead, identically from Chrome, Safari and the Tauri
+ * window, so runs across engines land in one place and compare directly.
+ *
+ * `apply: 'serve'` — there is no production counterpart and there should not be
+ * one. The body is written verbatim: the client formats, this only appends, and
+ * a debug sink must never be able to fail the dev server.
+ */
+function simPerfLogSink(): Plugin {
+  return {
+    name: 'ori-sim-perf-log',
+    apply: 'serve',
+    configureServer(server) {
+      const path = resolve(__dirname, '../../', SIM_PERF_LOG);
+      server.middlewares.use('/__sim-perf', (req, res) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.end();
+          return;
+        }
+        let body = '';
+        req.on('data', (chunk: Buffer) => {
+          body += chunk.toString('utf8');
+          // A runaway client must not fill the disk.
+          if (body.length > 1_000_000) req.destroy();
+        });
+        req.on('end', () => {
+          try {
+            mkdirSync(dirname(path), { recursive: true });
+            appendFileSync(path, body.endsWith('\n') ? body : `${body}\n`);
+          } catch {
+            // Nothing to do and nothing worth failing a page load over.
+          }
+          res.statusCode = 204;
+          res.end();
+        });
+      });
+      server.config.logger.info(`  ➜  sim-perf log:  ${SIM_PERF_LOG}`);
     },
   };
 }
@@ -93,6 +143,7 @@ export default defineConfig({
   plugins: [
     react(),
     keepTauriFrontendDistPath(),
+    simPerfLogSink(),
     ...(uploadSourcemaps
       ? [
           sentryVitePlugin({
