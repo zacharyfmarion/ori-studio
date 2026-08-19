@@ -16,17 +16,12 @@ import {
   Axis3d,
   Circle,
   CircleDot,
-  FileQuestionMark,
-  FileText,
-  FolderOpen,
   Layers,
   Plus,
-  ScanLine,
   SlidersHorizontal,
   Tag,
   Waypoints,
 } from 'lucide-react';
-import { handleMenuAction } from '../../commands/menuActions';
 import {
   registerViewportShortcutExecutor,
   setActiveShortcutViewportSurface,
@@ -74,7 +69,6 @@ import {
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { DesignAttributionFooter } from '../DesignAttributionFooter';
 import { BpTreePanel } from './BpTreePanel';
-import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { SurfaceLoading } from '../ui/SurfaceLoading';
 import {
@@ -487,7 +481,6 @@ function TreeMakerDesignPanel() {
   const [symmetryModeOverride, setSymmetryModeOverride] = useState<SymmetrySelectValue | null>(null);
   const project = useWorkspaceStore((state) => selectProject(state));
   const engineReady = useWorkspaceStore((state) => state.engineReady);
-  const importedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern);
   const selection = useWorkspaceStore((state) => selectSelection(state));
   const symmetryAuthoringPairs = useWorkspaceStore((state) => selectSymmetryAuthoringPairs(state));
   const select = useWorkspaceStore((state) => state.select);
@@ -899,49 +892,6 @@ function TreeMakerDesignPanel() {
     return (
       <section className="panel-shell design-panel">
         <SurfaceLoading label={t('panels:design.preparingTreeEditor', 'Preparing the tree editor…')} />
-      </section>
-    );
-  }
-
-  if (importedCreasePattern) {
-    return (
-      <section className="panel-shell design-panel">
-        <div className="panel-body document-mode-empty">
-          <div className="document-mode-empty__icon" aria-hidden="true">
-            <FileQuestionMark size={30} />
-          </div>
-          <span className="document-mode-empty__message">
-            {importedCreasePattern
-              ? (
-                <>
-                  <span className="document-mode-empty__filename">
-                    {importedCreasePattern.source.filename}
-                  </span>{' '}
-                  {t(
-                    'panels:design.importedCreasePatternSuffix',
-                    'is an imported crease pattern without an editable tree.'
-                  )}
-                </>
-              )
-              : (
-                t('panels:design.noEditableTree', 'This document does not have an editable tree.')
-              )}
-          </span>
-          <div className="document-mode-empty__actions">
-            <Button size="sm" variant="primary" onClick={() => void handleMenuAction('view.edit')}>
-              <ScanLine size={14} />
-              {t('panels:design.editCp', 'Edit CP')}
-            </Button>
-            <Button size="sm" variant="secondary" onClick={() => void handleMenuAction('file.new')}>
-              <FileText size={14} />
-              {t('panels:design.newTree', 'New Tree')}
-            </Button>
-            <Button size="sm" variant="secondary" onClick={() => void handleMenuAction('file.open')}>
-              <FolderOpen size={14} />
-              {t('panels:design.open', 'Open')}
-            </Button>
-          </div>
-        </div>
       </section>
     );
   }

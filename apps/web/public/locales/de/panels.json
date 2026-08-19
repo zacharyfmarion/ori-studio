@@ -153,9 +153,6 @@
     },
     "clear": "Löschen",
     "editor": "Editor",
-    "imported": {
-      "message": "Importierte Faltmuster haben keine bearbeitbaren Baumbedingungen."
-    },
     "list": "Liste",
     "noConditions": "Keine Bedingungen",
     "paper": {
@@ -382,12 +379,10 @@
     "axisY": "Y",
     "axisYAria": "Design-Symmetrieachse Y",
     "canvas": "Baumdesign-Leinwand",
-    "editCp": "CP bearbeiten",
     "emptyStateBody": "Verwenden Sie Zweige für die Klappen, Gliedmaßen und Merkmale, die die gefaltete Basis benötigt.",
     "emptyStateTitle": "Skizzieren Sie den Baum hinter Ihrem Design",
     "flipPresetAxis": "Voreingestellte Achse spiegeln",
     "flipToPreset": "Auf {{preset}} spiegeln",
-    "importedCreasePatternSuffix": "ist ein importiertes Faltmuster ohne bearbeitbaren Baum.",
     "layerCircles": "Kreise",
     "layerLabels": "Beschriftungen",
     "layerPaths": "Pfade",
@@ -414,9 +409,6 @@
       "subtitle": "Wählen Sie, wie Sie dieses Modell erstellen möchten.",
       "title": "Ein neues Design beginnen"
     },
-    "newTree": "Neuer Baum",
-    "noEditableTree": "Dieses Dokument hat keinen bearbeitbaren Baum.",
-    "open": "Öffnen",
     "paneTitle": {
       "bpPacking": "BP-Editor",
       "bpTree": "Baum-Editor",
@@ -471,11 +463,6 @@
     "optimizerInfeasible": "Der Optimierer meldete ein nicht erfüllbares beschränktes System",
     "optimizingScale": "Skalierung wird optimiert",
     "paths": "Pfade"
-  },
-  "documentModeEmpty": {
-    "editCp": "CP bearbeiten",
-    "newTree": "Neuer Baum",
-    "open": "Öffnen"
   },
   "explori": {
     "advancedDatabases": "Topologiegrößen wählen",

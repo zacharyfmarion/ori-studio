@@ -151,9 +151,6 @@
     },
     "clear": "クリア",
     "editor": "エディター",
-    "imported": {
-      "message": "インポートした展開図には編集可能なツリー条件がありません。"
-    },
     "list": "リスト",
     "noConditions": "条件なし",
     "paper": {
@@ -370,12 +367,10 @@
     "axisY": "Y",
     "axisYAria": "デザインの対称軸 Y",
     "canvas": "ツリーデザインキャンバス",
-    "editCp": "CP を編集",
     "emptyStateBody": "折りベースに必要なフラップ、手足、特徴を枝で表現します。",
     "emptyStateTitle": "デザインの背後にあるツリーをスケッチ",
     "flipPresetAxis": "プリセット軸を反転",
     "flipToPreset": "{{preset}} に反転",
-    "importedCreasePatternSuffix": "は編集可能なツリーを持たないインポート済み展開図です。",
     "layerCircles": "円",
     "layerLabels": "ラベル",
     "layerPaths": "パス",
@@ -402,9 +397,6 @@
       "subtitle": "このモデルの作成方法を選択してください。",
       "title": "新しいデザインを開始"
     },
-    "newTree": "新規ツリー",
-    "noEditableTree": "このドキュメントには編集可能なツリーがありません。",
-    "open": "開く",
     "paneTitle": {
       "bpPacking": "BP エディター",
       "bpTree": "ツリーエディター",
@@ -457,11 +449,6 @@
     "optimizerInfeasible": "オプティマイザーが実行不可能な制約系を報告しました",
     "optimizingScale": "スケールを最適化中",
     "paths": "パス"
-  },
-  "documentModeEmpty": {
-    "editCp": "CP を編集",
-    "newTree": "新規ツリー",
-    "open": "開く"
   },
   "explori": {
     "advancedDatabases": "トポロジーサイズを選択",

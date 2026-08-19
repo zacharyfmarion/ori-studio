@@ -151,9 +151,6 @@
     },
     "clear": "지우기",
     "editor": "편집기",
-    "imported": {
-      "message": "가져온 전개도에는 편집 가능한 트리 조건이 없습니다."
-    },
     "list": "목록",
     "noConditions": "조건 없음",
     "paper": {
@@ -370,12 +367,10 @@
     "axisY": "Y",
     "axisYAria": "디자인 대칭 축 Y",
     "canvas": "트리 디자인 캔버스",
-    "editCp": "CP 편집",
     "emptyStateBody": "접힌 베이스에 필요한 플랩, 갈래, 세부 요소를 트리 가지로 표현하세요.",
     "emptyStateTitle": "디자인의 바탕이 되는 트리를 스케치하세요",
     "flipPresetAxis": "프리셋 축 뒤집기",
     "flipToPreset": "{{preset}}(으)로 뒤집기",
-    "importedCreasePatternSuffix": "은(는) 편집 가능한 트리가 없는 가져온 전개도입니다.",
     "layerCircles": "원",
     "layerLabels": "레이블",
     "layerPaths": "경로",
@@ -402,9 +397,6 @@
       "subtitle": "이 모델을 작성할 방식을 선택하세요.",
       "title": "새 디자인 시작"
     },
-    "newTree": "새 트리",
-    "noEditableTree": "이 문서에는 편집 가능한 트리가 없습니다.",
-    "open": "열기",
     "paneTitle": {
       "bpPacking": "BP 편집기",
       "bpTree": "트리 편집기",
@@ -457,11 +449,6 @@
     "optimizerInfeasible": "최적화 프로그램이 실현 불가능한 제약 시스템을 보고했습니다",
     "optimizingScale": "배율 최적화 중",
     "paths": "경로"
-  },
-  "documentModeEmpty": {
-    "editCp": "CP 편집",
-    "newTree": "새 트리",
-    "open": "열기"
   },
   "explori": {
     "advancedDatabases": "토폴로지 크기 선택",

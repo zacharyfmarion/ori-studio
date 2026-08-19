@@ -155,9 +155,6 @@
     },
     "clear": "Borrar",
     "editor": "Editor",
-    "imported": {
-      "message": "Los patrones de pliegues importados no tienen condiciones de árbol editables."
-    },
     "list": "Lista",
     "noConditions": "Sin condiciones",
     "paper": {
@@ -394,12 +391,10 @@
     "axisY": "Y",
     "axisYAria": "Eje Y de simetría del diseño",
     "canvas": "Lienzo de diseño del árbol",
-    "editCp": "Editar CP",
     "emptyStateBody": "Use ramas para las solapas, extremidades y detalles que necesita la base plegada.",
     "emptyStateTitle": "Esboce el árbol que hay detrás de su diseño",
     "flipPresetAxis": "Voltear eje predefinido",
     "flipToPreset": "Voltear a {{preset}}",
-    "importedCreasePatternSuffix": "es un patrón de pliegues importado sin un árbol editable.",
     "layerCircles": "Círculos",
     "layerLabels": "Etiquetas",
     "layerPaths": "Trayectos",
@@ -426,9 +421,6 @@
       "subtitle": "Elija cómo desea crear este modelo.",
       "title": "Iniciar un nuevo diseño"
     },
-    "newTree": "Nuevo árbol",
-    "noEditableTree": "Este documento no tiene un árbol editable.",
-    "open": "Abrir",
     "paneTitle": {
       "bpPacking": "Editor BP",
       "bpTree": "Editor de árbol",
@@ -485,11 +477,6 @@
     "optimizerInfeasible": "El optimizador informó de un sistema restringido inviable",
     "optimizingScale": "Optimizando escala",
     "paths": "Trayectos"
-  },
-  "documentModeEmpty": {
-    "editCp": "Editar CP",
-    "newTree": "Nuevo árbol",
-    "open": "Abrir"
   },
   "explori": {
     "advancedDatabases": "Elegir tamaños de topología",

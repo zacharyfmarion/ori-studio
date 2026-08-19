@@ -41,17 +41,6 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
     };
   }
 
-  function rejectReadOnly() {
-    if (!get().importedCreasePattern) return false;
-    set({
-      error: {
-        code: 'invalid_operation',
-        message: 'Imported crease patterns are read-only',
-      },
-    });
-    return true;
-  }
-
   async function requireActiveTree() {
     const result = await ensureTreeHandle();
     if (result.initializedSnapshot) {
@@ -61,7 +50,6 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
   }
 
   async function applyCommandEdit(edit: TreeEdit, label: string) {
-    if (rejectReadOnly()) return;
     set({ error: null });
     const checkpoint = await get().beginHistoryCheckpoint();
     const selectionBeforeEdit = selectSelection(get());
@@ -111,7 +99,6 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
       // in, not to whichever tab is showing when the engine answers. See
       // `mapDesignTab`.
       const designId = get().activeDesignId;
-      if (rejectReadOnly()) return;
       set({ error: null });
       const checkpoint = await get().beginHistoryCheckpoint();
       try {
@@ -251,7 +238,6 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
       // in, not to whichever tab is showing when the engine answers. See
       // `mapDesignTab`.
       const designId = get().activeDesignId;
-      if (rejectReadOnly()) return;
       set({ error: null });
       const checkpoint = await get().beginHistoryCheckpoint();
       try {
@@ -321,7 +307,6 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
       // in, not to whichever tab is showing when the engine answers. See
       // `mapDesignTab`.
       const designId = get().activeDesignId;
-      if (rejectReadOnly()) return;
       if (node1 === node2) return;
       set({ error: null });
       const checkpoint = await get().beginHistoryCheckpoint();
@@ -356,7 +341,6 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
       // in, not to whichever tab is showing when the engine answers. See
       // `mapDesignTab`.
       const designId = get().activeDesignId;
-      if (rejectReadOnly()) return;
       set({ error: null });
       const checkpoint = await get().beginHistoryCheckpoint();
       try {
@@ -382,7 +366,6 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
       // in, not to whichever tab is showing when the engine answers. See
       // `mapDesignTab`.
       const designId = get().activeDesignId;
-      if (rejectReadOnly()) return;
       set({ error: null });
       const checkpoint = await get().beginHistoryCheckpoint();
       try {
@@ -533,7 +516,6 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
       // in, not to whichever tab is showing when the engine answers. See
       // `mapDesignTab`.
       const designId = get().activeDesignId;
-      if (rejectReadOnly()) return;
       const selection = selectSelection(get(), designId);
       const nodeIds = selectedNodeIds(selection).sort((a, b) => b - a);
       const edgeIds = selectedEdgeIds(selection).sort((a, b) => b - a);
@@ -628,8 +610,6 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
       ...patchTreemakerDesign(get(), { selection: { kind: 'path', id: path.id } 
       }),});
     },
-    setToolMode: (toolMode) => set({
-      ...patchTreemakerDesign(get(), { toolMode: !get().importedCreasePattern ? toolMode : 'select' 
-      }),}),
+    setToolMode: (toolMode) => set(patchTreemakerDesign(get(), { toolMode })),
   };
 };

@@ -153,9 +153,6 @@
     },
     "clear": "Clear",
     "editor": "Editor",
-    "imported": {
-      "message": "Imported crease patterns do not have editable tree conditions."
-    },
     "list": "List",
     "noConditions": "No conditions",
     "paper": {
@@ -382,12 +379,10 @@
     "axisY": "Y",
     "axisYAria": "Design symmetry axis Y",
     "canvas": "Tree design canvas",
-    "editCp": "Edit CP",
     "emptyStateBody": "Use branches for the flaps, limbs, and features the folded base needs.",
     "emptyStateTitle": "Sketch the tree behind your design",
     "flipPresetAxis": "Flip preset axis",
     "flipToPreset": "Flip to {{preset}}",
-    "importedCreasePatternSuffix": "is an imported crease pattern without an editable tree.",
     "layerCircles": "Circles",
     "layerLabels": "Labels",
     "layerPaths": "Paths",
@@ -414,9 +409,6 @@
       "subtitle": "Choose how you want to author this model.",
       "title": "Start a new design"
     },
-    "newTree": "New Tree",
-    "noEditableTree": "This document does not have an editable tree.",
-    "open": "Open",
     "paneTitle": {
       "bpPacking": "BP Editor",
       "bpTree": "Tree editor",
@@ -471,11 +463,6 @@
     "optimizerInfeasible": "Optimizer reported an infeasible constrained system",
     "optimizingScale": "Optimizing scale",
     "paths": "Paths"
-  },
-  "documentModeEmpty": {
-    "editCp": "Edit CP",
-    "newTree": "New Tree",
-    "open": "Open"
   },
   "explori": {
     "advancedDatabases": "Choose topology sizes",
