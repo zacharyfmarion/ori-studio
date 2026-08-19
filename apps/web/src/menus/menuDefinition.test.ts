@@ -37,7 +37,7 @@ describe('web menu definition', () => {
   it('groups extended edit tools into compact submenus', () => {
     const editMenu = getMenuBarDef().find((menu) => menu.label === 'Edit');
     const submenuLabels = editMenu?.items.flatMap((item) =>
-      item.type === 'submenu' ? [item.label] : []
+      item.type === 'submenu' ? [item.label] : [],
     );
 
     expect(submenuLabels).toEqual(['Select', 'Node', 'Edge', 'Strain', 'Stubs']);
@@ -47,7 +47,7 @@ describe('web menu definition', () => {
     const viewMenu = getMenuBarDef().find((menu) => menu.label === 'View');
     const actionItems =
       viewMenu?.items.flatMap((item) =>
-        item.type === 'action' ? [{ id: item.id, label: item.label }] : []
+        item.type === 'action' ? [{ id: item.id, label: item.label }] : [],
       ) ?? [];
 
     expect(actionItems.map((item) => item.label)).toEqual([

@@ -31,7 +31,7 @@ import type { ToolPreviewSegment } from './types';
 
 export function toolPreviewSegments(
   segments: readonly OristudioCpLineSegment[] | undefined,
-  operationId: OristudioCpOperationId | undefined
+  operationId: OristudioCpOperationId | undefined,
 ): ToolPreviewSegment[] {
   const carriesCrease = cpCommandCandidatesCarryCrease(operationId);
   return (segments ?? []).map((segment) => ({

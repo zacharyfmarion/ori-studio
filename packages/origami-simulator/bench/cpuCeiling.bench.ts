@@ -45,7 +45,7 @@ describe('CPU optimisation ceiling', () => {
       for (let i = 0; i < referenceModel.positions.length; i += 1) {
         maxDelta = Math.max(
           maxDelta,
-          Math.abs(referenceModel.positions[i]! - fastModel.positions[i]!)
+          Math.abs(referenceModel.positions[i]! - fastModel.positions[i]!),
         );
       }
 
@@ -58,7 +58,7 @@ describe('CPU optimisation ceiling', () => {
           `reference ${(referenceMs / steps).toFixed(3)} ms/step | ` +
           `prototype ${(fastMs / steps).toFixed(3)} ms/step | ` +
           `${(referenceMs / fastMs).toFixed(1)}x | ` +
-          `max delta ${maxDelta.toExponential(2)}`
+          `max delta ${maxDelta.toExponential(2)}`,
       );
     }
 

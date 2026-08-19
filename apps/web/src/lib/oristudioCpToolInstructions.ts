@@ -196,7 +196,9 @@ export const ORIEDITA_CP_TOOL_INSTRUCTIONS: Record<string, OristudioCpToolInstru
     intro: ['Duplicate folded shape.'],
   },
   fishBoneDrawAction: {
-    intro: ['Draw perpendicular parallel lines alternating in mountain and valley by drawing a line.'],
+    intro: [
+      'Draw perpendicular parallel lines alternating in mountain and valley by drawing a line.',
+    ],
     notes: ['The interval of the parallel lines will be equal to the width of grid.'],
   },
   foldableLineDrawAction: {
@@ -277,10 +279,7 @@ export const ORIEDITA_CP_TOOL_INSTRUCTIONS: Record<string, OristudioCpToolInstru
   },
   o_F_checkAction: {
     intro: ['Check flat foldability inside polygon.'],
-    steps: [
-      'Click or click and drag to add segments.',
-      'Select starting point to close polygon.',
-    ],
+    steps: ['Click or click and drag to add segments.', 'Select starting point to close polygon.'],
     notes: [
       'Polygon turns cyan if pattern inside it is flat foldable, otherwise it stays magenta.',
       'If the tool does not work as intended, vertices and segments should not be on crease pattern vertices.',
@@ -361,10 +360,7 @@ export const ORIEDITA_CP_TOOL_INSTRUCTIONS: Record<string, OristudioCpToolInstru
   },
   textAction: {
     intro: ['Add and edit text annotations.'],
-    steps: [
-      'Click an empty spot to add text there.',
-      'Click a label to edit it; drag to move it.',
-    ],
+    steps: ['Click an empty spot to add text there.', 'Click a label to edit it; drag to move it.'],
     notes: [
       'Press ESC or click away to finish an edit; empty text is discarded.',
       'Right-click a label, or select it and press Delete, to remove it.',
@@ -403,11 +399,10 @@ export const ORIEDITA_CP_TOOL_INSTRUCTIONS: Record<string, OristudioCpToolInstru
 };
 
 export function instructionsForCpAction(
-  action: OristudioCpActionDefinition | null | undefined
+  action: OristudioCpActionDefinition | null | undefined,
 ): OristudioCpToolInstructions | null {
   if (!action) return null;
-  const fallbackUpstream =
-    isCommandAction(action) ? action.command.upstream : undefined;
+  const fallbackUpstream = isCommandAction(action) ? action.command.upstream : undefined;
   return (
     instructionsForOrieditaAction(action.upstreamAction) ??
     instructionsForOrieditaAction(fallbackUpstream) ??
@@ -417,13 +412,13 @@ export function instructionsForCpAction(
 
 export function instructionsForCpTool(
   action: OristudioCpActionDefinition | null | undefined,
-  command: OristudioCpCommandDefinition | null | undefined
+  command: OristudioCpCommandDefinition | null | undefined,
 ): OristudioCpToolInstructions | null {
   return instructionsForCpAction(action) ?? instructionsForOrieditaAction(command?.upstream);
 }
 
 export function instructionsForOrieditaAction(
-  upstreamAction: string | null | undefined
+  upstreamAction: string | null | undefined,
 ): OristudioCpToolInstructions | null {
   if (!upstreamAction) return null;
   return ORIEDITA_CP_TOOL_INSTRUCTIONS[upstreamAction] ?? null;
@@ -436,7 +431,7 @@ export function instructionsForOrieditaAction(
  */
 export function resolvedOrieditaInstructionKey(
   action: OristudioCpActionDefinition | null | undefined,
-  command: OristudioCpCommandDefinition | null | undefined
+  command: OristudioCpCommandDefinition | null | undefined,
 ): string | null {
   if (action) {
     if (action.upstreamAction && ORIEDITA_CP_TOOL_INSTRUCTIONS[action.upstreamAction]) {
@@ -454,23 +449,20 @@ export function resolvedOrieditaInstructionKey(
 }
 
 function isCommandAction(
-  action: OristudioCpActionDefinition
+  action: OristudioCpActionDefinition,
 ): action is OristudioCpCommandActionDefinition {
   return action.kind === 'command';
 }
 
 function fallbackInstructionsForCpAction(
-  action: OristudioCpActionDefinition
+  action: OristudioCpActionDefinition,
 ): OristudioCpToolInstructions | null {
   if (!isCommandAction(action)) return null;
 
   const intro =
-    action.tooltip && action.tooltip !== action.label
-      ? [action.tooltip]
-      : [`Use ${action.label}.`];
+    action.tooltip && action.tooltip !== action.label ? [action.tooltip] : [`Use ${action.label}.`];
   const steps = action.toolSteps?.length ? [...action.toolSteps] : undefined;
-  const notes =
-    action.uiStatus === 'ready' ? undefined : [action.disabledReason];
+  const notes = action.uiStatus === 'ready' ? undefined : [action.disabledReason];
 
   return { intro, steps, notes };
 }

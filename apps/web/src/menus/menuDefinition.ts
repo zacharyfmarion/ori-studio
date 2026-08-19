@@ -54,15 +54,29 @@ function shortcut(id: MenuActionId, resolution?: ShortcutResolutionInput): strin
 
 export function getMenuBarDef(
   resolution?: ShortcutResolutionInput,
-  t: MenuTranslate = identityTranslate
+  t: MenuTranslate = identityTranslate,
 ): MenuDef[] {
   return [
     {
       label: t('menu:menubar.file', 'File'),
       items: [
-        { type: 'action', id: 'file.new', label: t('menu:file.new', 'New Project'), shortcut: shortcut('file.new', resolution) },
-        { type: 'action', id: 'file.open', label: t('menu:file.open', 'Open...'), shortcut: shortcut('file.open', resolution) },
-        { type: 'action', id: 'file.importAdd', label: t('menu:file.importAdd', 'Import (Add)...') },
+        {
+          type: 'action',
+          id: 'file.new',
+          label: t('menu:file.new', 'New Project'),
+          shortcut: shortcut('file.new', resolution),
+        },
+        {
+          type: 'action',
+          id: 'file.open',
+          label: t('menu:file.open', 'Open...'),
+          shortcut: shortcut('file.open', resolution),
+        },
+        {
+          type: 'action',
+          id: 'file.importAdd',
+          label: t('menu:file.importAdd', 'Import (Add)...'),
+        },
         // "Detect CP from Image..." is still experimental — dev builds only.
         ...(import.meta.env.DEV
           ? [
@@ -74,51 +88,149 @@ export function getMenuBarDef(
             ]
           : []),
         { type: 'separator' },
-        { type: 'action', id: 'file.save', label: t('menu:file.save', 'Save'), shortcut: shortcut('file.save', resolution) },
-        { type: 'action', id: 'file.saveAs', label: t('menu:file.saveAs', 'Save As...'), shortcut: shortcut('file.saveAs', resolution) },
+        {
+          type: 'action',
+          id: 'file.save',
+          label: t('menu:file.save', 'Save'),
+          shortcut: shortcut('file.save', resolution),
+        },
+        {
+          type: 'action',
+          id: 'file.saveAs',
+          label: t('menu:file.saveAs', 'Save As...'),
+          shortcut: shortcut('file.saveAs', resolution),
+        },
         { type: 'separator' },
         {
           type: 'submenu',
           label: t('menu:file.export', 'Export'),
           items: [
-            { type: 'action', id: 'file.exportV5', label: t('menu:file.exportV5', 'Export TreeMaker 5...') },
-            { type: 'action', id: 'file.exportV4', label: t('menu:file.exportV4', 'Export TreeMaker 4...') },
+            {
+              type: 'action',
+              id: 'file.exportV5',
+              label: t('menu:file.exportV5', 'Export TreeMaker 5...'),
+            },
+            {
+              type: 'action',
+              id: 'file.exportV4',
+              label: t('menu:file.exportV4', 'Export TreeMaker 4...'),
+            },
             { type: 'separator' },
             { type: 'action', id: 'file.exportCp', label: t('menu:file.exportCp', 'Export CP...') },
-            { type: 'action', id: 'file.exportFold', label: t('menu:file.exportFold', 'Export FOLD...') },
-            { type: 'action', id: 'file.exportBps', label: t('menu:file.exportBps', 'Export .bps...') },
-            { type: 'action', id: 'file.exportOri', label: t('menu:file.exportOri', 'Export ORI...') },
-            { type: 'action', id: 'file.exportOrh', label: t('menu:file.exportOrh', 'Export ORH...') },
+            {
+              type: 'action',
+              id: 'file.exportFold',
+              label: t('menu:file.exportFold', 'Export FOLD...'),
+            },
+            {
+              type: 'action',
+              id: 'file.exportBps',
+              label: t('menu:file.exportBps', 'Export .bps...'),
+            },
+            {
+              type: 'action',
+              id: 'file.exportOri',
+              label: t('menu:file.exportOri', 'Export ORI...'),
+            },
+            {
+              type: 'action',
+              id: 'file.exportOrh',
+              label: t('menu:file.exportOrh', 'Export ORH...'),
+            },
             { type: 'separator' },
-            { type: 'action', id: 'file.exportSvg', label: t('menu:file.exportSvg', 'Export SVG...') },
-            { type: 'action', id: 'file.exportPng', label: t('menu:file.exportPng', 'Export PNG...') },
+            {
+              type: 'action',
+              id: 'file.exportSvg',
+              label: t('menu:file.exportSvg', 'Export SVG...'),
+            },
+            {
+              type: 'action',
+              id: 'file.exportPng',
+              label: t('menu:file.exportPng', 'Export PNG...'),
+            },
           ],
         },
         { type: 'separator' },
-        { type: 'action', id: 'file.settings', label: t('menu:file.settings', 'Settings'), shortcut: shortcut('file.settings', resolution) },
+        {
+          type: 'action',
+          id: 'file.settings',
+          label: t('menu:file.settings', 'Settings'),
+          shortcut: shortcut('file.settings', resolution),
+        },
       ],
     },
     {
       label: t('menu:menubar.edit', 'Edit'),
       items: [
-        { type: 'action', id: 'edit.undo', label: t('menu:edit.undo', 'Undo'), shortcut: shortcut('edit.undo', resolution) },
-        { type: 'action', id: 'edit.redo', label: t('menu:edit.redo', 'Redo'), shortcut: shortcut('edit.redo', resolution) },
+        {
+          type: 'action',
+          id: 'edit.undo',
+          label: t('menu:edit.undo', 'Undo'),
+          shortcut: shortcut('edit.undo', resolution),
+        },
+        {
+          type: 'action',
+          id: 'edit.redo',
+          label: t('menu:edit.redo', 'Redo'),
+          shortcut: shortcut('edit.redo', resolution),
+        },
         { type: 'separator' },
-        { type: 'action', id: 'edit.cut', label: t('menu:edit.cut', 'Cut'), shortcut: shortcut('edit.cut', resolution) },
-        { type: 'action', id: 'edit.copy', label: t('menu:edit.copy', 'Copy'), shortcut: shortcut('edit.copy', resolution) },
-        { type: 'action', id: 'edit.paste', label: t('menu:edit.paste', 'Paste'), shortcut: shortcut('edit.paste', resolution) },
+        {
+          type: 'action',
+          id: 'edit.cut',
+          label: t('menu:edit.cut', 'Cut'),
+          shortcut: shortcut('edit.cut', resolution),
+        },
+        {
+          type: 'action',
+          id: 'edit.copy',
+          label: t('menu:edit.copy', 'Copy'),
+          shortcut: shortcut('edit.copy', resolution),
+        },
+        {
+          type: 'action',
+          id: 'edit.paste',
+          label: t('menu:edit.paste', 'Paste'),
+          shortcut: shortcut('edit.paste', resolution),
+        },
         { type: 'separator' },
-        { type: 'action', id: 'edit.delete', label: t('menu:edit.delete', 'Delete Selected'), shortcut: shortcut('edit.delete', resolution) },
+        {
+          type: 'action',
+          id: 'edit.delete',
+          label: t('menu:edit.delete', 'Delete Selected'),
+          shortcut: shortcut('edit.delete', resolution),
+        },
         { type: 'separator' },
         {
           type: 'submenu',
           label: t('menu:edit.select', 'Select'),
           items: [
-            { type: 'action', id: 'edit.selectAll', label: t('menu:edit.selectAll', 'Select All'), shortcut: shortcut('edit.selectAll', resolution) },
-            { type: 'action', id: 'edit.deselectAll', label: t('menu:edit.deselectAll', 'Deselect All') },
-            { type: 'action', id: 'edit.selectByIndex', label: t('menu:edit.selectByIndex', 'Select By Index...') },
-            { type: 'action', id: 'edit.selectMovableParts', label: t('menu:edit.selectMovableParts', 'Select Movable Parts') },
-            { type: 'action', id: 'edit.selectCorridorFacets', label: t('menu:edit.selectCorridorFacets', 'Select Corridor Facets') },
+            {
+              type: 'action',
+              id: 'edit.selectAll',
+              label: t('menu:edit.selectAll', 'Select All'),
+              shortcut: shortcut('edit.selectAll', resolution),
+            },
+            {
+              type: 'action',
+              id: 'edit.deselectAll',
+              label: t('menu:edit.deselectAll', 'Deselect All'),
+            },
+            {
+              type: 'action',
+              id: 'edit.selectByIndex',
+              label: t('menu:edit.selectByIndex', 'Select By Index...'),
+            },
+            {
+              type: 'action',
+              id: 'edit.selectMovableParts',
+              label: t('menu:edit.selectMovableParts', 'Select Movable Parts'),
+            },
+            {
+              type: 'action',
+              id: 'edit.selectCorridorFacets',
+              label: t('menu:edit.selectCorridorFacets', 'Select Corridor Facets'),
+            },
           ],
         },
         {
@@ -126,45 +238,113 @@ export function getMenuBarDef(
           label: t('menu:edit.node', 'Node'),
           items: [
             { type: 'action', id: 'edit.makeRoot', label: t('menu:edit.makeRoot', 'Make Root') },
-            { type: 'action', id: 'edit.absorbNodes', label: t('menu:edit.absorbNodes', 'Absorb Nodes') },
-            { type: 'action', id: 'edit.absorbRedundantNodes', label: t('menu:edit.absorbRedundantNodes', 'Absorb Redundant Nodes') },
+            {
+              type: 'action',
+              id: 'edit.absorbNodes',
+              label: t('menu:edit.absorbNodes', 'Absorb Nodes'),
+            },
+            {
+              type: 'action',
+              id: 'edit.absorbRedundantNodes',
+              label: t('menu:edit.absorbRedundantNodes', 'Absorb Redundant Nodes'),
+            },
             { type: 'separator' },
-            { type: 'action', id: 'edit.perturbNodes', label: t('menu:edit.perturbNodes', 'Perturb Nodes') },
-            { type: 'action', id: 'edit.perturbAllNodes', label: t('menu:edit.perturbAllNodes', 'Perturb All Nodes') },
+            {
+              type: 'action',
+              id: 'edit.perturbNodes',
+              label: t('menu:edit.perturbNodes', 'Perturb Nodes'),
+            },
+            {
+              type: 'action',
+              id: 'edit.perturbAllNodes',
+              label: t('menu:edit.perturbAllNodes', 'Perturb All Nodes'),
+            },
           ],
         },
         {
           type: 'submenu',
           label: t('menu:edit.edge', 'Edge'),
           items: [
-            { type: 'action', id: 'edit.splitEdge', label: t('menu:edit.splitEdge', 'Split Edge...') },
-            { type: 'action', id: 'edit.setEdgeLength', label: t('menu:edit.setEdgeLength', 'Set Edge Length...') },
-            { type: 'action', id: 'edit.scaleEdgeLengths', label: t('menu:edit.scaleEdgeLengths', 'Scale Edge Lengths...') },
+            {
+              type: 'action',
+              id: 'edit.splitEdge',
+              label: t('menu:edit.splitEdge', 'Split Edge...'),
+            },
+            {
+              type: 'action',
+              id: 'edit.setEdgeLength',
+              label: t('menu:edit.setEdgeLength', 'Set Edge Length...'),
+            },
+            {
+              type: 'action',
+              id: 'edit.scaleEdgeLengths',
+              label: t('menu:edit.scaleEdgeLengths', 'Scale Edge Lengths...'),
+            },
             { type: 'separator' },
-            { type: 'action', id: 'edit.renormalizeToEdge', label: t('menu:edit.renormalizeToEdge', 'Renormalize To Edge') },
-            { type: 'action', id: 'edit.renormalizeToUnitScale', label: t('menu:edit.renormalizeToUnitScale', 'Renormalize To Unit Scale') },
-            { type: 'action', id: 'edit.absorbEdges', label: t('menu:edit.absorbEdges', 'Absorb Edges') },
+            {
+              type: 'action',
+              id: 'edit.renormalizeToEdge',
+              label: t('menu:edit.renormalizeToEdge', 'Renormalize To Edge'),
+            },
+            {
+              type: 'action',
+              id: 'edit.renormalizeToUnitScale',
+              label: t('menu:edit.renormalizeToUnitScale', 'Renormalize To Unit Scale'),
+            },
+            {
+              type: 'action',
+              id: 'edit.absorbEdges',
+              label: t('menu:edit.absorbEdges', 'Absorb Edges'),
+            },
           ],
         },
         {
           type: 'submenu',
           label: t('menu:edit.strain', 'Strain'),
           items: [
-            { type: 'action', id: 'edit.removeStrain', label: t('menu:edit.removeStrain', 'Remove Strain') },
-            { type: 'action', id: 'edit.removeAllStrain', label: t('menu:edit.removeAllStrain', 'Remove All Strain') },
+            {
+              type: 'action',
+              id: 'edit.removeStrain',
+              label: t('menu:edit.removeStrain', 'Remove Strain'),
+            },
+            {
+              type: 'action',
+              id: 'edit.removeAllStrain',
+              label: t('menu:edit.removeAllStrain', 'Remove All Strain'),
+            },
             { type: 'separator' },
-            { type: 'action', id: 'edit.relieveStrain', label: t('menu:edit.relieveStrain', 'Relieve Strain') },
-            { type: 'action', id: 'edit.relieveAllStrain', label: t('menu:edit.relieveAllStrain', 'Relieve All Strain') },
+            {
+              type: 'action',
+              id: 'edit.relieveStrain',
+              label: t('menu:edit.relieveStrain', 'Relieve Strain'),
+            },
+            {
+              type: 'action',
+              id: 'edit.relieveAllStrain',
+              label: t('menu:edit.relieveAllStrain', 'Relieve All Strain'),
+            },
           ],
         },
         {
           type: 'submenu',
           label: t('menu:edit.stubs', 'Stubs'),
           items: [
-            { type: 'action', id: 'edit.addLargestStubForNodes', label: t('menu:edit.addLargestStubForNodes', 'Add Largest Stub From Nodes') },
-            { type: 'action', id: 'edit.addLargestStubForPoly', label: t('menu:edit.addLargestStubForPoly', 'Add Largest Stub From Poly') },
+            {
+              type: 'action',
+              id: 'edit.addLargestStubForNodes',
+              label: t('menu:edit.addLargestStubForNodes', 'Add Largest Stub From Nodes'),
+            },
+            {
+              type: 'action',
+              id: 'edit.addLargestStubForPoly',
+              label: t('menu:edit.addLargestStubForPoly', 'Add Largest Stub From Poly'),
+            },
             { type: 'separator' },
-            { type: 'action', id: 'edit.triangulateTree', label: t('menu:edit.triangulateTree', 'Triangulate Tree') },
+            {
+              type: 'action',
+              id: 'edit.triangulateTree',
+              label: t('menu:edit.triangulateTree', 'Triangulate Tree'),
+            },
           ],
         },
       ],
@@ -176,7 +356,11 @@ export function getMenuBarDef(
         { type: 'action', id: 'view.edit', label: t('menu:view.edit', 'Edit') },
         { type: 'action', id: 'view.simulate', label: t('menu:view.simulate', 'Simulate') },
         { type: 'separator' },
-        { type: 'action', id: 'view.resetLayout', label: t('menu:view.resetLayout', 'Reset Layout') },
+        {
+          type: 'action',
+          id: 'view.resetLayout',
+          label: t('menu:view.resetLayout', 'Reset Layout'),
+        },
       ],
     },
     {
@@ -184,20 +368,62 @@ export function getMenuBarDef(
       items: [
         // BP-only, and the only visible items in a box-pleat design (every other
         // entry here is TreeMaker-tree authoring, which the BP mask hides).
-        { type: 'action', id: 'bp.optimize.layout', label: t('menu:bp.optimizeLayout', 'Optimize Layout…') },
+        {
+          type: 'action',
+          id: 'bp.optimize.layout',
+          label: t('menu:bp.optimizeLayout', 'Optimize Layout…'),
+        },
         { type: 'separator' },
-        { type: 'action', id: 'bp.layout.subdivide', label: t('menu:bp.subdivide', 'Subdivide Grid') },
-        { type: 'action', id: 'bp.layout.unsubdivide', label: t('menu:bp.unsubdivide', 'Un-subdivide Grid') },
-        { type: 'action', id: 'bp.layout.rotateRight', label: t('menu:bp.rotateRight', 'Rotate Right') },
-        { type: 'action', id: 'bp.layout.rotateLeft', label: t('menu:bp.rotateLeft', 'Rotate Left') },
-        { type: 'action', id: 'bp.layout.flipHorizontal', label: t('menu:bp.flipHorizontal', 'Horizontal Flip') },
-        { type: 'action', id: 'bp.layout.flipVertical', label: t('menu:bp.flipVertical', 'Vertical Flip') },
+        {
+          type: 'action',
+          id: 'bp.layout.subdivide',
+          label: t('menu:bp.subdivide', 'Subdivide Grid'),
+        },
+        {
+          type: 'action',
+          id: 'bp.layout.unsubdivide',
+          label: t('menu:bp.unsubdivide', 'Un-subdivide Grid'),
+        },
+        {
+          type: 'action',
+          id: 'bp.layout.rotateRight',
+          label: t('menu:bp.rotateRight', 'Rotate Right'),
+        },
+        {
+          type: 'action',
+          id: 'bp.layout.rotateLeft',
+          label: t('menu:bp.rotateLeft', 'Rotate Left'),
+        },
+        {
+          type: 'action',
+          id: 'bp.layout.flipHorizontal',
+          label: t('menu:bp.flipHorizontal', 'Horizontal Flip'),
+        },
+        {
+          type: 'action',
+          id: 'bp.layout.flipVertical',
+          label: t('menu:bp.flipVertical', 'Vertical Flip'),
+        },
         { type: 'separator' },
-        { type: 'action', id: 'optimize.scale', label: t('menu:optimize.scale', 'Optimize Scale'), shortcut: shortcut('optimize.scale', resolution) },
+        {
+          type: 'action',
+          id: 'optimize.scale',
+          label: t('menu:optimize.scale', 'Optimize Scale'),
+          shortcut: shortcut('optimize.scale', resolution),
+        },
         { type: 'action', id: 'optimize.edges', label: t('menu:optimize.edges', 'Optimize Edges') },
-        { type: 'action', id: 'optimize.strain', label: t('menu:optimize.strain', 'Optimize Strain') },
+        {
+          type: 'action',
+          id: 'optimize.strain',
+          label: t('menu:optimize.strain', 'Optimize Strain'),
+        },
         { type: 'separator' },
-        { type: 'action', id: 'cp.build', label: t('menu:cp.build', 'Build Crease Pattern'), shortcut: shortcut('cp.build', resolution) },
+        {
+          type: 'action',
+          id: 'cp.build',
+          label: t('menu:cp.build', 'Build Crease Pattern'),
+          shortcut: shortcut('cp.build', resolution),
+        },
       ],
     },
     {
@@ -207,40 +433,97 @@ export function getMenuBarDef(
           type: 'submenu',
           label: t('menu:cp.selectedLines', 'Selected Lines'),
           items: [
-            { type: 'action', id: 'cp.deleteSelectedLines', label: t('menu:cp.deleteSelectedLines', 'Delete Selected Lines') },
+            {
+              type: 'action',
+              id: 'cp.deleteSelectedLines',
+              label: t('menu:cp.deleteSelectedLines', 'Delete Selected Lines'),
+            },
             { type: 'separator' },
-            { type: 'action', id: 'cp.changeCreaseType', label: t('menu:cp.changeCreaseType', 'Change Crease Type') },
-            { type: 'action', id: 'cp.advanceCreaseType', label: t('menu:cp.advanceCreaseType', 'Advance Crease Type') },
-            { type: 'action', id: 'cp.toggleMountainValley', label: t('menu:cp.toggleMountainValley', 'Toggle Mountain/Valley') },
+            {
+              type: 'action',
+              id: 'cp.changeCreaseType',
+              label: t('menu:cp.changeCreaseType', 'Change Crease Type'),
+            },
+            {
+              type: 'action',
+              id: 'cp.advanceCreaseType',
+              label: t('menu:cp.advanceCreaseType', 'Advance Crease Type'),
+            },
+            {
+              type: 'action',
+              id: 'cp.toggleMountainValley',
+              label: t('menu:cp.toggleMountainValley', 'Toggle Mountain/Valley'),
+            },
             { type: 'separator' },
-            { type: 'action', id: 'cp.makeMountain', label: t('menu:cp.makeMountain', 'Make Mountain') },
+            {
+              type: 'action',
+              id: 'cp.makeMountain',
+              label: t('menu:cp.makeMountain', 'Make Mountain'),
+            },
             { type: 'action', id: 'cp.makeValley', label: t('menu:cp.makeValley', 'Make Valley') },
             { type: 'action', id: 'cp.makeEdge', label: t('menu:cp.makeEdge', 'Make Edge') },
-            { type: 'action', id: 'cp.makeAuxiliary', label: t('menu:cp.makeAuxiliary', 'Make Auxiliary') },
+            {
+              type: 'action',
+              id: 'cp.makeAuxiliary',
+              label: t('menu:cp.makeAuxiliary', 'Make Auxiliary'),
+            },
             { type: 'separator' },
-            { type: 'action', id: 'cp.replaceLineType', label: t('menu:cp.replaceLineType', 'Replace Selected Line Type...') },
-            { type: 'action', id: 'cp.deleteLineType', label: t('menu:cp.deleteLineType', 'Delete Selected Line Type...') },
+            {
+              type: 'action',
+              id: 'cp.replaceLineType',
+              label: t('menu:cp.replaceLineType', 'Replace Selected Line Type...'),
+            },
+            {
+              type: 'action',
+              id: 'cp.deleteLineType',
+              label: t('menu:cp.deleteLineType', 'Delete Selected Line Type...'),
+            },
           ],
         },
         {
           type: 'submenu',
           label: t('menu:cp.transform', 'Transform Selection'),
           items: [
-            { type: 'action', id: 'cp.transformFlipHorizontal', label: t('menu:cp.transformFlipHorizontal', 'Flip Horizontal') },
-            { type: 'action', id: 'cp.transformFlipVertical', label: t('menu:cp.transformFlipVertical', 'Flip Vertical') },
+            {
+              type: 'action',
+              id: 'cp.transformFlipHorizontal',
+              label: t('menu:cp.transformFlipHorizontal', 'Flip Horizontal'),
+            },
+            {
+              type: 'action',
+              id: 'cp.transformFlipVertical',
+              label: t('menu:cp.transformFlipVertical', 'Flip Vertical'),
+            },
             { type: 'separator' },
-            { type: 'action', id: 'cp.transformRotateLeft', label: t('menu:cp.transformRotateLeft', 'Rotate Left 90') },
-            { type: 'action', id: 'cp.transformRotateRight', label: t('menu:cp.transformRotateRight', 'Rotate Right 90') },
+            {
+              type: 'action',
+              id: 'cp.transformRotateLeft',
+              label: t('menu:cp.transformRotateLeft', 'Rotate Left 90'),
+            },
+            {
+              type: 'action',
+              id: 'cp.transformRotateRight',
+              label: t('menu:cp.transformRotateRight', 'Rotate Right 90'),
+            },
           ],
         },
         {
           type: 'submenu',
           label: t('menu:cp.diagnostics', 'Diagnostics'),
           items: [
-            { type: 'action', id: 'cp.checkCamv', label: t('menu:cp.checkCamv', 'Check foldability'), shortcut: shortcut('cp.checkCamv', resolution) },
+            {
+              type: 'action',
+              id: 'cp.checkCamv',
+              label: t('menu:cp.checkCamv', 'Check foldability'),
+              shortcut: shortcut('cp.checkCamv', resolution),
+            },
             { type: 'action', id: 'cp.check1', label: t('menu:cp.check1', 'Check Overlaps') },
             { type: 'action', id: 'cp.check2', label: t('menu:cp.check2', 'Check T-junctions') },
-            { type: 'action', id: 'cp.check3', label: t('menu:cp.check3', 'Check Vertex Foldability') },
+            {
+              type: 'action',
+              id: 'cp.check3',
+              label: t('menu:cp.check3', 'Check Vertex Foldability'),
+            },
             { type: 'action', id: 'cp.check4', label: t('menu:cp.check4', 'Check Maekawa/BLB') },
           ],
         },
@@ -250,17 +533,41 @@ export function getMenuBarDef(
           items: [
             { type: 'action', id: 'cp.fix1', label: t('menu:cp.fix1', 'Repair Overlaps') },
             { type: 'action', id: 'cp.fix2', label: t('menu:cp.fix2', 'Split T-junctions') },
-            { type: 'action', id: 'cp.deleteExtraVertices', label: t('menu:cp.deleteExtraVertices', 'Delete Extra Vertices'), shortcut: shortcut('cp.deleteExtraVertices', resolution) },
-            { type: 'action', id: 'cp.deleteExtraVerticesIgnoreColor', label: t('menu:cp.deleteExtraVerticesIgnoreColor', 'Delete Extra Vertices (Ignore Type)') },
-            { type: 'action', id: 'cp.fixInaccurate', label: t('menu:cp.fixInaccurate', 'Fix Inaccurate Creases...') },
+            {
+              type: 'action',
+              id: 'cp.deleteExtraVertices',
+              label: t('menu:cp.deleteExtraVertices', 'Delete Extra Vertices'),
+              shortcut: shortcut('cp.deleteExtraVertices', resolution),
+            },
+            {
+              type: 'action',
+              id: 'cp.deleteExtraVerticesIgnoreColor',
+              label: t(
+                'menu:cp.deleteExtraVerticesIgnoreColor',
+                'Delete Extra Vertices (Ignore Type)',
+              ),
+            },
+            {
+              type: 'action',
+              id: 'cp.fixInaccurate',
+              label: t('menu:cp.fixInaccurate', 'Fix Inaccurate Creases...'),
+            },
           ],
         },
         {
           type: 'submenu',
           label: t('menu:cp.annotations', 'Annotations'),
           items: [
-            { type: 'action', id: 'cp.changeCircleColor', label: t('menu:cp.changeCircleColor', 'Change Circle Color...') },
-            { type: 'action', id: 'cp.organizeCircles', label: t('menu:cp.organizeCircles', 'Organize Circles') },
+            {
+              type: 'action',
+              id: 'cp.changeCircleColor',
+              label: t('menu:cp.changeCircleColor', 'Change Circle Color...'),
+            },
+            {
+              type: 'action',
+              id: 'cp.organizeCircles',
+              label: t('menu:cp.organizeCircles', 'Organize Circles'),
+            },
           ],
         },
       ],

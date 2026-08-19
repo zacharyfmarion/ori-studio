@@ -13,7 +13,7 @@ import type { FoldDocument, RenderSettings } from '@treemaker/origami-simulator'
  * here is a real failure rather than the ordinary stale-call path.
  */
 async function frame(
-  payload: Promise<SimulatorFramePayload | null> | SimulatorFramePayload | null
+  payload: Promise<SimulatorFramePayload | null> | SimulatorFramePayload | null,
 ): Promise<SimulatorFramePayload> {
   const resolved = await payload;
   if (!resolved) throw new Error('expected a frame, got a stale-session null');
@@ -281,7 +281,10 @@ describe('session tokens', () => {
     expect(await session.tick({ token: info.token })).toBeNull();
     expect(await session.settle(200, { token: info.token })).toBeNull();
     expect(
-      await session.setCamera({ view: { yaw: 0, pitch: 0, zoom: 1 }, width: 8, height: 8 }, info.token)
+      await session.setCamera(
+        { view: { yaw: 0, pitch: 0, zoom: 1 }, width: 8, height: 8 },
+        info.token,
+      ),
     ).toBeNull();
     session.dispose();
   });
@@ -293,8 +296,9 @@ describe('session tokens', () => {
     // holding every model ever loaded.
     // Two past the cap, read from the constant: hard-coding a count meant the
     // test kept passing for the wrong reason the moment the cap moved.
-    const tokens = Array.from({ length: MAX_CONCURRENT_SIMULATIONS + 2 }, () =>
-      session.load(miura(4, 4), {}).token
+    const tokens = Array.from(
+      { length: MAX_CONCURRENT_SIMULATIONS + 2 },
+      () => session.load(miura(4, 4), {}).token,
     );
 
     expect(await session.tick({ token: tokens[0]! })).toBeNull();
@@ -308,8 +312,9 @@ describe('session tokens', () => {
     // therefore needs one slot more than there are windows; without the spare,
     // every reload at the cap evicted somebody still on screen.
     const session = createSimulatorSession();
-    const windows = Array.from({ length: MAX_CONCURRENT_SIMULATIONS }, () =>
-      session.load(miura(4, 4), {}).token
+    const windows = Array.from(
+      { length: MAX_CONCURRENT_SIMULATIONS },
+      () => session.load(miura(4, 4), {}).token,
     );
     // The overlap: one window reloads while all the others hold their models.
     const reloaded = session.load(miura(4, 4), {}).token;
@@ -327,8 +332,9 @@ describe('session tokens', () => {
     // the one being looked at.
     const session = createSimulatorSession();
     const first = session.load(miura(4, 4), {}).token;
-    const rest = Array.from({ length: MAX_CONCURRENT_SIMULATIONS - 1 }, () =>
-      session.load(miura(4, 4), {}).token
+    const rest = Array.from(
+      { length: MAX_CONCURRENT_SIMULATIONS - 1 },
+      () => session.load(miura(4, 4), {}).token,
     );
 
     // The oldest session is the one in use; the second-oldest has gone quiet.
@@ -422,7 +428,11 @@ describe('exporting the current view as SVG', () => {
     session.load(miura(6, 6), {});
     await frame(session.settle(2000, {}));
 
-    await session.setCamera({ view: { yaw: 0.8, pitch: -0.6, zoom: 1.2 }, width: 640, height: 480 });
+    await session.setCamera({
+      view: { yaw: 0.8, pitch: -0.6, zoom: 1.2 },
+      width: 640,
+      height: 480,
+    });
     const angled = session.exportSvg();
     expect(angled).not.toBeNull();
 
@@ -505,10 +515,7 @@ describe('exporting the current view as SVG', () => {
     await frame(session.settle(2000, {}));
     // A transparent *surface* (an inline window over the crease pattern) must
     // still export an opaque page when one is asked for.
-    await session.setRenderSettings(
-      { ...DEFAULT_EXPORT_SETTINGS, backgroundAlpha: 0 },
-      info.token
-    );
+    await session.setRenderSettings({ ...DEFAULT_EXPORT_SETTINGS, backgroundAlpha: 0 }, info.token);
 
     const white = session.exportSvg({ token: info.token, background: 'white' })!.svg;
     expect(white).toContain('<rect');
@@ -555,7 +562,12 @@ describe('foldScaledForSolver', () => {
         [size, size, 0],
         [0, size, 0],
       ],
-      edges_vertices: [[0, 1], [1, 2], [2, 3], [3, 0]],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+      ],
       edges_assignment: ['B', 'B', 'B', 'B'],
       faces_vertices: [[0, 1, 2, 3]],
     }) as unknown as FoldDocument;
@@ -579,7 +591,7 @@ describe('foldScaledForSolver', () => {
     // An Oriedita sheet reaches ~3900 units, where 1e-5 is unrepresentable.
     expect(float32StepAt(3900)).toBeGreaterThan(CONVERGENCE_EPSILON);
     expect(float32StepAt(span(foldScaledForSolver(square(3900))))).toBeLessThan(
-      CONVERGENCE_EPSILON
+      CONVERGENCE_EPSILON,
     );
   });
 
@@ -602,8 +614,9 @@ describe('foldScaledForSolver', () => {
   it('leaves a degenerate fold alone rather than dividing by zero', () => {
     const point = square(0);
     expect(foldScaledForSolver(point)).toBe(point);
-    expect(foldScaledForSolver({ vertices_coords: [] } as unknown as FoldDocument))
-      .toEqual({ vertices_coords: [] });
+    expect(foldScaledForSolver({ vertices_coords: [] } as unknown as FoldDocument)).toEqual({
+      vertices_coords: [],
+    });
   });
 });
 
@@ -637,7 +650,13 @@ describe('folded-figure meshes', () => {
 
   it('answers null for a mesh it does not have', async () => {
     const session = createSimulatorSession();
-    expect(await session.setFolded3dMeshCamera(9999, { view: { yaw: 0, pitch: 0, zoom: 1 }, width: 64, height: 64 })).toBeNull();
+    expect(
+      await session.setFolded3dMeshCamera(9999, {
+        view: { yaw: 0, pitch: 0, zoom: 1 },
+        width: 64,
+        height: 64,
+      }),
+    ).toBeNull();
     expect(
       await session.setFolded3dMeshRenderSettings(9999, {
         frontColor: [1, 1, 0],
@@ -652,7 +671,7 @@ describe('folded-figure meshes', () => {
         lighting: true,
         creaseWidthPx: 3,
         faceAlpha: 1,
-      } satisfies RenderSettings)
+      } satisfies RenderSettings),
     ).toBeNull();
   });
 

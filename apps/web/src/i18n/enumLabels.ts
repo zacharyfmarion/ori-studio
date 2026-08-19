@@ -31,19 +31,13 @@ export function cpLineStyleLabel(t: TFunction, style: OristudioCpLineStyle): str
   }
 }
 
-export function cpLengthenColorModeLabel(
-  t: TFunction,
-  mode: OristudioCpLengthenColorMode
-): string {
+export function cpLengthenColorModeLabel(t: TFunction, mode: OristudioCpLengthenColorMode): string {
   return mode === 'same'
     ? t('tools:lengthenColorMode.same', 'Same')
     : t('tools:lengthenColorMode.active', 'Active');
 }
 
-export function cpLengthenColorModeTitle(
-  t: TFunction,
-  mode: OristudioCpLengthenColorMode
-): string {
+export function cpLengthenColorModeTitle(t: TFunction, mode: OristudioCpLengthenColorMode): string {
   return mode === 'same'
     ? t('tools:lengthenColorMode.sameTitle', 'Extend each crease in its own line type')
     : t('tools:lengthenColorMode.activeTitle', 'Extend in the active line type');
@@ -63,7 +57,7 @@ export function cpDivideModeTitle(t: TFunction, mode: OristudioCpDivideMode): st
 
 export function cpFoldAngleDisplayLabel(
   t: TFunction,
-  display: OristudioCpFoldAngleDisplay
+  display: OristudioCpFoldAngleDisplay,
 ): string {
   switch (display) {
     case 'color':
@@ -95,7 +89,7 @@ export function simulatorAccuracyTitle(t: TFunction, value: SimulatorAccuracy): 
     case 'accurate':
       return t(
         'panels:simulator.accuracyAccurateTitle',
-        'Step preview with smaller solver increments and more settling'
+        'Step preview with smaller solver increments and more settling',
       );
     default:
       return value;

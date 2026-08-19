@@ -61,9 +61,7 @@ function renderItem(item: ContextMenuItem, index: number): React.ReactNode {
         >
           {item.icon != null && <span className="context-menu__icon">{item.icon}</span>}
           <span className="context-menu__label">{item.label}</span>
-          {item.shortcut != null && (
-            <span className="context-menu__shortcut">{item.shortcut}</span>
-          )}
+          {item.shortcut != null && <span className="context-menu__shortcut">{item.shortcut}</span>}
         </DropdownMenu.Item>
       );
   }
@@ -132,7 +130,7 @@ export function ContextMenu({
             }}
           />
         </DropdownMenu.Trigger>,
-        document.body
+        document.body,
       )}
       <DropdownMenu.Portal>
         <DropdownMenu.Content

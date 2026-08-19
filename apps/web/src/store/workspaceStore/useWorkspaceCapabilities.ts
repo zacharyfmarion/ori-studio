@@ -17,27 +17,33 @@ export function useWorkspaceCapabilities() {
   const creaseCount = useWorkspaceStore((state) => selectProject(state).creases.length);
   const facetCount = useWorkspaceStore((state) => selectProject(state).facets.length);
   const hasEditableCreasePattern = useWorkspaceStore((state) => state.oristudioCpDocument !== null);
-  const hasImportedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern !== null);
-  const hasBoxPleatDocument = useWorkspaceStore((state) => selectOristudioBpDocument(state) !== null);
+  const hasImportedCreasePattern = useWorkspaceStore(
+    (state) => state.importedCreasePattern !== null,
+  );
+  const hasBoxPleatDocument = useWorkspaceStore(
+    (state) => selectOristudioBpDocument(state) !== null,
+  );
   const boxPleatTreeEdgeCount = useWorkspaceStore(
-    (state) => selectOristudioBpDocument(state)?.snapshot?.tree?.edges?.length ?? 0
+    (state) => selectOristudioBpDocument(state)?.snapshot?.tree?.edges?.length ?? 0,
   );
   const boxPleatBusy = useWorkspaceStore((state) => state.oristudioBpBusy);
   const boxPleatCanSubdivide = useWorkspaceStore((state) =>
-    bpSheetCanSubdivide(selectOristudioBpDocument(state))
+    bpSheetCanSubdivide(selectOristudioBpDocument(state)),
   );
   const boxPleatCanUnsubdivide = useWorkspaceStore((state) =>
-    bpSheetCanUnsubdivide(selectOristudioBpDocument(state))
+    bpSheetCanUnsubdivide(selectOristudioBpDocument(state)),
   );
-  const hasSimulationModel = useWorkspaceStore((state) => state.foldArtifacts?.simulation_model != null);
+  const hasSimulationModel = useWorkspaceStore(
+    (state) => state.foldArtifacts?.simulation_model != null,
+  );
   const oristudioCpSelectedLineCount = useWorkspaceStore(
-    (state) => state.oristudioCpSelection.lines.length
+    (state) => state.oristudioCpSelection.lines.length,
   );
   const oristudioCpSelectedPointCount = useWorkspaceStore(
-    (state) => state.oristudioCpSelection.points.length
+    (state) => state.oristudioCpSelection.points.length,
   );
   const oristudioCpSelectedCircleCount = useWorkspaceStore(
-    (state) => state.oristudioCpSelection.circles.length
+    (state) => state.oristudioCpSelection.circles.length,
   );
   const cpHistoryPastCount = useWorkspaceStore((state) => state.oristudioCpHistoryPast.length);
   const cpHistoryFutureCount = useWorkspaceStore((state) => state.oristudioCpHistoryFuture.length);
@@ -49,7 +55,9 @@ export function useWorkspaceCapabilities() {
   });
   // Every tab, not the focused one — a save writes the whole workspace.
   const canSaveDesign = useWorkspaceStore((state) =>
-    state.designTabs.some((tab) => (tab.kind ? designKind(tab.kind)?.isSavable(tab) : false) ?? false)
+    state.designTabs.some(
+      (tab) => (tab.kind ? designKind(tab.kind)?.isSavable(tab) : false) ?? false,
+    ),
   );
   // Subscribed to the tab itself, which is what carries every design kind's
   // undo stack. An edit replaces the tab object, so this re-renders — the
@@ -62,13 +70,13 @@ export function useWorkspaceCapabilities() {
     activeEditingContext,
     activeDesign,
     hasEditableCreasePattern ? cpHistoryPastCount : 0,
-    'past'
+    'past',
   );
   const historyFutureCount = historyCountForContext(
     activeEditingContext,
     activeDesign,
     hasEditableCreasePattern ? cpHistoryFutureCount : 0,
-    'future'
+    'future',
   );
 
   return useMemo(
@@ -93,13 +101,13 @@ export function useWorkspaceCapabilities() {
           oristudioCpSelectedPointCount,
           oristudioCpSelectedCircleCount,
           hasDeletableDesignSelection,
-      canSaveDesign,
+          canSaveDesign,
           historyPastCount,
           historyFutureCount,
           clipboard,
           selection,
         },
-        t
+        t,
       ),
     [
       clipboard,
@@ -126,6 +134,6 @@ export function useWorkspaceCapabilities() {
       selection,
       status,
       t,
-    ]
+    ],
   );
 }

@@ -1,8 +1,5 @@
 import { cpActionById } from './oristudioCpActions';
-import type {
-  OristudioCpActionDefinition,
-  OristudioCpActionId,
-} from './oristudioCpActions';
+import type { OristudioCpActionDefinition, OristudioCpActionId } from './oristudioCpActions';
 import type {
   OristudioCpCommandDefinition,
   OristudioCpCommandUiStatus,
@@ -53,7 +50,7 @@ export const IDLE_ORISTUDIO_CP_TOOL_STATE: OristudioCpToolState = {
 
 export function transitionOristudioCpToolState(
   state: OristudioCpToolState,
-  event: OristudioCpToolEvent
+  event: OristudioCpToolEvent,
 ): OristudioCpToolState {
   switch (event.type) {
     case 'selectAction':
@@ -91,7 +88,7 @@ export function cancelOristudioCpToolState(state: OristudioCpToolState): {
 
 function stateForCommand(
   command: OristudioCpCommandDefinition,
-  editable: boolean
+  editable: boolean,
 ): OristudioCpToolState {
   if (!editable) {
     return blockedCommandState(command, 'Open an editable crease pattern first');
@@ -116,7 +113,7 @@ function stateForCommand(
 function stateForAction(
   action: OristudioCpActionDefinition,
   editable: boolean,
-  toolOptions: OristudioCpToolOptions
+  toolOptions: OristudioCpToolOptions,
 ): OristudioCpToolState {
   if (action.kind === 'line-type') return IDLE_ORISTUDIO_CP_TOOL_STATE;
   if (!editable) {
@@ -149,7 +146,7 @@ function stateForAction(
  */
 function resolveActiveVariant(
   state: OristudioCpToolState,
-  toolOptions: OristudioCpToolOptions
+  toolOptions: OristudioCpToolOptions,
 ): OristudioCpToolState {
   const action = state.activeActionId ? cpActionById(state.activeActionId) : undefined;
   if (!action || action.kind !== 'command') return state;
@@ -159,7 +156,7 @@ function resolveActiveVariant(
 
 function blockedCommandState(
   command: OristudioCpCommandDefinition,
-  reason: string
+  reason: string,
 ): OristudioCpToolState {
   return {
     activeActionId: null,
@@ -175,7 +172,7 @@ function blockedCommandState(
 
 function blockedActionState(
   action: OristudioCpActionDefinition & { kind: 'command' },
-  reason: string
+  reason: string,
 ): OristudioCpToolState {
   const steps = action.toolSteps ?? action.command.toolSteps ?? [];
   return {

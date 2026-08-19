@@ -315,8 +315,7 @@ export interface Folded3dMesh {
  * not been rehydrated shows anyway.
  */
 export type Folded3dMeshResult =
-  | { kind: 'mesh'; mesh: Folded3dMesh }
-  | { kind: 'too-large'; vertexCount: number; limit: number };
+  { kind: 'mesh'; mesh: Folded3dMesh } | { kind: 'too-large'; vertexCount: number; limit: number };
 
 /**
  * Kernel world axes to the renderer's, so the mesh shader's hard-coded
@@ -358,7 +357,7 @@ function signedArea2(
   bx: number,
   by: number,
   cx: number,
-  cy: number
+  cy: number,
 ): number {
   return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
 }
@@ -432,7 +431,7 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
   for (let edge = 0; edge < model.edge_count; edge += 1) {
     assignmentOf[edge] = folded3dEdgeAssignment(
       model.edge_attr[edge * FOLDED_3D_EDGE_ATTR_STRIDE + 3] ?? 0,
-      model.edge_fold_degrees[edge] ?? 0
+      model.edge_fold_degrees[edge] ?? 0,
     );
   }
 
@@ -462,108 +461,106 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
   // order and `slots.indexStart` stays a range rather than a scatter.
   for (const wantUndetermined of [false, true]) {
     if (wantUndetermined) undeterminedSlotStart = slotCell.length;
-  for (let cell = 0; cell < model.cell_count; cell += 1) {
-    const base = cell * FOLDED_3D_CELL_ATTR_STRIDE;
-    if (
-      ((model.cell_attr[base + 5] ?? 0) === FOLDED_3D_CELL_UNDETERMINED) !== wantUndetermined
-    ) {
-      continue;
-    }
-    const ring = cellRing(model, cell);
-    if (ring.length < 3) continue;
-    const stack = cellStack(model, cell);
-    if (stack.length === 0) continue;
-    const frame = planeFrame(model, model.cell_attr[base] ?? 0);
+    for (let cell = 0; cell < model.cell_count; cell += 1) {
+      const base = cell * FOLDED_3D_CELL_ATTR_STRIDE;
+      if (((model.cell_attr[base + 5] ?? 0) === FOLDED_3D_CELL_UNDETERMINED) !== wantUndetermined) {
+        continue;
+      }
+      const ring = cellRing(model, cell);
+      if (ring.length < 3) continue;
+      const stack = cellStack(model, cell);
+      if (stack.length === 0) continue;
+      const frame = planeFrame(model, model.cell_attr[base] ?? 0);
 
-    // The ring, triangulated once, in the plane's **own** `(u, v)`. Never a
-    // locally re-derived tangent: a different chirality reverses every stack
-    // read off the projected winding, and the payload says so in as many words.
-    const flat: number[] = [];
-    for (const point of ring) {
-      const dx = point[0] - frame.origin[0];
-      const dy = point[1] - frame.origin[1];
-      const dz = point[2] - frame.origin[2];
-      flat.push(
-        dx * frame.u[0] + dy * frame.u[1] + dz * frame.u[2],
-        dx * frame.v[0] + dy * frame.v[1] + dz * frame.v[2]
-      );
-    }
-    const triangles = earcut(flat);
-
-    for (let slot = 0; slot < stack.length; slot += 1) {
-      const face = stack[slot]!;
-      const first = vertex;
-      slotVertexStart.push(first);
+      // The ring, triangulated once, in the plane's **own** `(u, v)`. Never a
+      // locally re-derived tangent: a different chirality reverses every stack
+      // read off the projected winding, and the payload says so in as many words.
+      const flat: number[] = [];
       for (const point of ring) {
-        const sim = toSimBasis(point);
-        positions[vertex * 3] = sim[0] - centre[0];
-        positions[vertex * 3 + 1] = sim[1] - centre[1];
-        positions[vertex * 3 + 2] = sim[2] - centre[2];
-        vertex += 1;
-      }
-
-      // Which way this slot's triangles wind is a **per-face** question, not a
-      // per-cell one: `facing` flips between faces of one plane, so slots of one
-      // cell can want opposite orientations. Sharing one index order across a
-      // stack would paint the whole cell one colour and lose the two-tone
-      // layering the flat path shows.
-      //
-      // A triangle CCW in `(u, v)` has right-hand normal `+up`, and the paper
-      // front is `facing * up`; the renderer colours a triangle **front** when
-      // its right-hand normal points *away* from the eye, so the wanted normal
-      // is `−facing * up` and the wanted `(u, v)` winding sign is `−facing`.
-      // Decided per triangle from the emitted geometry rather than trusted from
-      // the ring or from earcut, neither of which promises an orientation.
-      const facing = model.face_attr[face * FOLDED_3D_FACE_ATTR_STRIDE + 3] ?? 1;
-      const wantPositive = facing < 0;
-      const indices: number[] = [];
-      for (let i = 0; i + 2 < triangles.length; i += 3) {
-        const a = triangles[i]!;
-        const b = triangles[i + 1]!;
-        const c = triangles[i + 2]!;
-        const area2 = signedArea2(
-          flat[a * 2]!,
-          flat[a * 2 + 1]!,
-          flat[b * 2]!,
-          flat[b * 2 + 1]!,
-          flat[c * 2]!,
-          flat[c * 2 + 1]!
+        const dx = point[0] - frame.origin[0];
+        const dy = point[1] - frame.origin[1];
+        const dz = point[2] - frame.origin[2];
+        flat.push(
+          dx * frame.u[0] + dy * frame.u[1] + dz * frame.u[2],
+          dx * frame.v[0] + dy * frame.v[1] + dz * frame.v[2],
         );
-        if (Math.abs(area2) < minArea2) continue;
-        if (area2 > 0 === wantPositive) indices.push(first + a, first + b, first + c);
-        else indices.push(first + a, first + c, first + b);
       }
+      const triangles = earcut(flat);
 
-      // The creases, from this slot's own ring vertices: two indices each, no
-      // geometry of their own. A segment is inked where *this layer's* paper
-      // ends and skipped where the layer runs across an arrangement cut some
-      // other face made.
-      const creases: SlotCrease[] = [];
-      for (let segment = 0; segment < ring.length; segment += 1) {
-        const edge = ink.edgeAt(cell, slot, segment);
-        if (edge < 0) continue;
-        const hinge = ink.hingeAt(cell, slot, segment);
-        // A hinge exposed on both of its partner's sides is unconditional — the
-        // partner cell has one layer, so nothing over there can bury the bend.
-        const conditional = hinge != null && hinge.exposedOnPlus !== hinge.exposedOnMinus;
-        creases.push({
-          a: first + segment,
-          b: first + ((segment + 1) % ring.length),
-          assignment: assignmentOf[edge] ?? 0,
-          partnerPlane: conditional ? hinge.partnerPlane : -1,
-          requiredSide: conditional ? (hinge.exposedOnPlus ? 1 : -1) : 0,
-          buried: hinge != null && !hinge.exposedOnPlus && !hinge.exposedOnMinus,
-        });
+      for (let slot = 0; slot < stack.length; slot += 1) {
+        const face = stack[slot]!;
+        const first = vertex;
+        slotVertexStart.push(first);
+        for (const point of ring) {
+          const sim = toSimBasis(point);
+          positions[vertex * 3] = sim[0] - centre[0];
+          positions[vertex * 3 + 1] = sim[1] - centre[1];
+          positions[vertex * 3 + 2] = sim[2] - centre[2];
+          vertex += 1;
+        }
+
+        // Which way this slot's triangles wind is a **per-face** question, not a
+        // per-cell one: `facing` flips between faces of one plane, so slots of one
+        // cell can want opposite orientations. Sharing one index order across a
+        // stack would paint the whole cell one colour and lose the two-tone
+        // layering the flat path shows.
+        //
+        // A triangle CCW in `(u, v)` has right-hand normal `+up`, and the paper
+        // front is `facing * up`; the renderer colours a triangle **front** when
+        // its right-hand normal points *away* from the eye, so the wanted normal
+        // is `−facing * up` and the wanted `(u, v)` winding sign is `−facing`.
+        // Decided per triangle from the emitted geometry rather than trusted from
+        // the ring or from earcut, neither of which promises an orientation.
+        const facing = model.face_attr[face * FOLDED_3D_FACE_ATTR_STRIDE + 3] ?? 1;
+        const wantPositive = facing < 0;
+        const indices: number[] = [];
+        for (let i = 0; i + 2 < triangles.length; i += 3) {
+          const a = triangles[i]!;
+          const b = triangles[i + 1]!;
+          const c = triangles[i + 2]!;
+          const area2 = signedArea2(
+            flat[a * 2]!,
+            flat[a * 2 + 1]!,
+            flat[b * 2]!,
+            flat[b * 2 + 1]!,
+            flat[c * 2]!,
+            flat[c * 2 + 1]!,
+          );
+          if (Math.abs(area2) < minArea2) continue;
+          if (area2 > 0 === wantPositive) indices.push(first + a, first + b, first + c);
+          else indices.push(first + a, first + c, first + b);
+        }
+
+        // The creases, from this slot's own ring vertices: two indices each, no
+        // geometry of their own. A segment is inked where *this layer's* paper
+        // ends and skipped where the layer runs across an arrangement cut some
+        // other face made.
+        const creases: SlotCrease[] = [];
+        for (let segment = 0; segment < ring.length; segment += 1) {
+          const edge = ink.edgeAt(cell, slot, segment);
+          if (edge < 0) continue;
+          const hinge = ink.hingeAt(cell, slot, segment);
+          // A hinge exposed on both of its partner's sides is unconditional — the
+          // partner cell has one layer, so nothing over there can bury the bend.
+          const conditional = hinge != null && hinge.exposedOnPlus !== hinge.exposedOnMinus;
+          creases.push({
+            a: first + segment,
+            b: first + ((segment + 1) % ring.length),
+            assignment: assignmentOf[edge] ?? 0,
+            partnerPlane: conditional ? hinge.partnerPlane : -1,
+            requiredSide: conditional ? (hinge.exposedOnPlus ? 1 : -1) : 0,
+            buried: hinge != null && !hinge.exposedOnPlus && !hinge.exposedOnMinus,
+          });
+        }
+
+        slotsOfCell[cell]!.push(slotCell.length);
+        slotCell.push(cell);
+        slotFace.push(face);
+        slotDepth.push(slot);
+        slotTriangles.push(indices);
+        slotCreases.push(creases);
       }
-
-      slotsOfCell[cell]!.push(slotCell.length);
-      slotCell.push(cell);
-      slotFace.push(face);
-      slotDepth.push(slot);
-      slotTriangles.push(indices);
-      slotCreases.push(creases);
     }
-  }
   }
   slotVertexStart.push(vertex);
 
@@ -590,10 +587,7 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
     for (const index of slotTriangles[slot]!) faceIndices.push(index);
   };
 
-  const appendSlotCreases = (
-    slot: number,
-    accept: (crease: SlotCrease) => boolean
-  ): void => {
+  const appendSlotCreases = (slot: number, accept: (crease: SlotCrease) => boolean): void => {
     for (const crease of slotCreases[slot]!) {
       if (!accept(crease)) continue;
       edgeIndices.push(crease.a, crease.b);
@@ -669,7 +663,7 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
             (crease) =>
               !crease.buried &&
               crease.partnerPlane === condition.partnerPlane &&
-              crease.requiredSide === condition.requiredSide
+              crease.requiredSide === condition.requiredSide,
           );
         }
         const groupCount = edgeAssignments.length - groupStart;
@@ -767,7 +761,7 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
  */
 export function packFolded3dPositionTexture(
   positions: Float32Array,
-  textureDim: number
+  textureDim: number,
 ): Float32Array {
   const out = new Float32Array(textureDim * textureDim * 4);
   const count = Math.min(Math.floor(positions.length / 3), textureDim * textureDim);

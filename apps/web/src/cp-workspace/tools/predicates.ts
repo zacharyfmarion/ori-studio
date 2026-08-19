@@ -91,7 +91,7 @@ export function isReflectSelectionOperation(operationId: OpId): boolean {
  * pair onto the target pair.
  */
 export function creaseTransformTool(
-  operationId: OpId
+  operationId: OpId,
 ): { kind: 'move' | 'copy'; pointCount: 2 | 4 } | null {
   switch (operationId) {
     case 'CreaseMove':
@@ -140,7 +140,7 @@ export function cpCommandRequiresContextApply(command: OristudioCpCommandDefinit
   if (isSelectionCircleApplyOperation(command.operationId)) return true;
   if ((command.toolSteps?.length ?? 0) > 0) return false;
   return cpToolSettingGroupsForCommand(command).some(
-    (group) => group !== 'line-color' && group !== 'line-select-help'
+    (group) => group !== 'line-color' && group !== 'line-select-help',
   );
 }
 
@@ -170,7 +170,7 @@ export function isWholeDocumentCpCommand(command: OristudioCpCommandDefinition):
 // eraser's line-type filter? Used to preview which crease a click erases.
 export function lineColorMatchesCustomType(
   color: string,
-  lineType: OristudioCpCustomLineType
+  lineType: OristudioCpCustomLineType,
 ): boolean {
   switch (lineType) {
     case 'Any':
@@ -198,7 +198,7 @@ export function lineColorMatchesCustomType(
  */
 export function shouldPreferPointSnapForStep(
   command: OristudioCpCommandDefinition | null | undefined,
-  stepIndex: number
+  stepIndex: number,
 ): boolean {
   if (command?.operationId === 'DrawCreaseSymmetric') return true;
   if (command?.operationId === 'DoubleSymmetricDraw') return true;
@@ -218,7 +218,7 @@ export function shouldPreferPointSnapForStep(
 export function isDefaultSelectionMode(
   state: { activeOperationId: string | null; phase: string },
   pendingPointCount: number,
-  pendingPathCount: number
+  pendingPathCount: number,
 ): boolean {
   return (
     state.phase === 'active' &&

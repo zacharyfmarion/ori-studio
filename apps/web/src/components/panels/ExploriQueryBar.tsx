@@ -27,7 +27,10 @@ import { selectExploriDesignOrEmpty } from '../../store/workspaceStore/designTab
  * of drawing.
  */
 
-function symmetryLabel(symmetry: ExploriSymmetry, t: ReturnType<typeof useTranslation>['t']): string {
+function symmetryLabel(
+  symmetry: ExploriSymmetry,
+  t: ReturnType<typeof useTranslation>['t'],
+): string {
   if (symmetry === 'book') return t('panels:explori.symmetryBook', 'Book');
   if (symmetry === 'diag') return t('panels:explori.symmetryDiagonal', 'Diagonal');
   return t('panels:explori.symmetryNone', 'None');
@@ -59,9 +62,7 @@ export function ExploriQueryBar() {
   const toggleSymmetry = (symmetry: ExploriSymmetry) => {
     const without = configs.filter((config) => config.symmetry !== symmetry);
     commit(
-      symmetryOn(symmetry)
-        ? without
-        : [...without, ...EXPLORI_SIZES.map((N) => ({ N, symmetry }))]
+      symmetryOn(symmetry) ? without : [...without, ...EXPLORI_SIZES.map((N) => ({ N, symmetry }))],
     );
   };
 
@@ -69,7 +70,7 @@ export function ExploriQueryBar() {
     commit(
       has(N, symmetry)
         ? configs.filter((config) => !(config.N === N && config.symmetry === symmetry))
-        : [...configs, { N, symmetry }]
+        : [...configs, { N, symmetry }],
     );
 
   const reason =
@@ -162,7 +163,7 @@ export function ExploriQueryBar() {
                                 aria-label={t(
                                   'panels:explori.databaseCell',
                                   '{{symmetry}}, size {{size}}',
-                                  { symmetry: symmetryLabel(symmetry, t), size }
+                                  { symmetry: symmetryLabel(symmetry, t), size },
                                 )}
                                 onChange={() => toggleSize(size, symmetry)}
                               />
@@ -179,9 +180,7 @@ export function ExploriQueryBar() {
         </div>
 
         <div className="explori-field">
-          <span className="explori-field__label">
-            {t('panels:explori.searchSize', 'Results')}
-          </span>
+          <span className="explori-field__label">{t('panels:explori.searchSize', 'Results')}</span>
           <input
             className="explori-query-bar__count"
             type="number"
@@ -214,7 +213,6 @@ export function ExploriQueryBar() {
       {/* Said out loud rather than only as a disabled button, because "why can I
           not search" is the question the empty state actually raises. */}
       {reason && <p className="explori-query-bar__hint">{reason}</p>}
-
     </div>
   );
 }

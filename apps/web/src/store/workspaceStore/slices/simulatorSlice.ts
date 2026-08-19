@@ -35,9 +35,7 @@ export const createSimulatorSlice: WorkspaceSliceCreator<SimulatorSlice> = (set,
     // a restored preference all land in range.
     const next: SimulatorSettings = {
       ...current,
-      [key]: isSimulatorNumericSetting(key)
-        ? clampSimulatorSetting(key, value as number)
-        : value,
+      [key]: isSimulatorNumericSetting(key) ? clampSimulatorSetting(key, value as number) : value,
     };
     set({ simulatorSettings: next });
     persist(next);

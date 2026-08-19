@@ -48,7 +48,7 @@ function inset(start: number, end: number, padding: number): [number, number] {
 export function anchorIntersectsBoundary(
   anchor: FloatingAnchorRect,
   boundary: BoundaryRect,
-  padding: number
+  padding: number,
 ): boolean {
   const [left, right] = inset(boundary.left, boundary.right, padding);
   const [top, bottom] = inset(boundary.top, boundary.bottom, padding);

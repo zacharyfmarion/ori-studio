@@ -43,9 +43,27 @@ describe('oristudio BP selection helpers', () => {
     },
   ];
   const devices: OristudioBpDevice[] = [
-    { id: '2,3:device:0', stretchId: '2,3', position: { x: 0, y: 0 }, rangeScalar: null, forward: null },
-    { id: '2,3:device:1', stretchId: '2,3', position: { x: 1, y: 1 }, rangeScalar: null, forward: null },
-    { id: '4,5:device:0', stretchId: '4,5', position: { x: 2, y: 2 }, rangeScalar: null, forward: null },
+    {
+      id: '2,3:device:0',
+      stretchId: '2,3',
+      position: { x: 0, y: 0 },
+      rangeScalar: null,
+      forward: null,
+    },
+    {
+      id: '2,3:device:1',
+      stretchId: '2,3',
+      position: { x: 1, y: 1 },
+      rangeScalar: null,
+      forward: null,
+    },
+    {
+      id: '4,5:device:0',
+      stretchId: '4,5',
+      position: { x: 2, y: 2 },
+      rangeScalar: null,
+      forward: null,
+    },
   ];
   const linkedDocument = {
     snapshot: {

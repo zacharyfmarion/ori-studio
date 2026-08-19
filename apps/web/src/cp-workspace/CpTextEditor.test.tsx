@@ -32,7 +32,7 @@ function renderEditor(onExit: (reason: 'blur' | 'escape') => void): HTMLElement 
         onChange={() => {}}
         onExit={onExit}
         onDelete={() => {}}
-      />
+      />,
     );
   });
   const content = container.querySelector<HTMLElement>('.cp-text-editor__content');

@@ -68,16 +68,14 @@ async function toShareError(response: Response, fallback: string): Promise<CpSha
     return new CpShareError(
       response.status,
       body.code ?? 'unknown',
-      body.error?.trim() || fallback
+      body.error?.trim() || fallback,
     );
   } catch {
     return new CpShareError(response.status, 'unknown', fallback);
   }
 }
 
-export async function createCpShare(
-  request: CreateCpShareRequest
-): Promise<CreateCpShareResponse> {
+export async function createCpShare(request: CreateCpShareRequest): Promise<CreateCpShareResponse> {
   const response = await fetch(`${shareApiBase()}/api/cp`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -136,7 +134,7 @@ function delay(ms: number, signal?: AbortSignal): Promise<void> {
  */
 export async function fetchCpShareWithRetry(
   shareId: string,
-  options: { signal?: AbortSignal; onRetry?: (attempt: number) => void } = {}
+  options: { signal?: AbortSignal; onRetry?: (attempt: number) => void } = {},
 ): Promise<CpShareData> {
   for (let attempt = 0; ; attempt += 1) {
     try {
@@ -172,7 +170,7 @@ export const MIN_CARD_BYTES = 2_048;
 export async function uploadCpShareThumbnail(
   shareId: string,
   png: Blob,
-  token: string
+  token: string,
 ): Promise<void> {
   for (let attempt = 0; ; attempt += 1) {
     const response = await fetch(
@@ -181,7 +179,7 @@ export async function uploadCpShareThumbnail(
         method: 'PUT',
         headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${token}` },
         body: png,
-      }
+      },
     );
     if (response.ok) return;
 

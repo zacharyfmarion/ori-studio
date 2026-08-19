@@ -42,7 +42,11 @@ const { useWorkspaceStore } = await import('../store');
 // this path exists to avoid, and equal sheets would hide it.
 const TREE_AXIS = { angle: 90, loc: { x: 4, y: 4 } };
 
-function sheet(width = 16, height = 16, kind: OristudioBpSheet['kind'] = 'rectangular'): OristudioBpSheet {
+function sheet(
+  width = 16,
+  height = 16,
+  kind: OristudioBpSheet['kind'] = 'rectangular',
+): OristudioBpSheet {
   return { kind, width, height, grid: { kind: 'rectangular', interval: 1, snap: true } };
 }
 
@@ -100,7 +104,7 @@ function setUp(
     quarterTurn?: boolean;
     pairs?: { v1: number; v2: number }[];
   },
-  layout = sheet()
+  layout = sheet(),
 ) {
   useWorkspaceStore.setState(
     {
@@ -117,7 +121,7 @@ function setUp(
         },
       }),
     },
-    true
+    true,
   );
 }
 
@@ -149,8 +153,8 @@ beforeEach(() => {
               ...candidate,
               anchor: { x: candidate.anchor.x + vector.x, y: candidate.anchor.y + vector.y },
             }
-          : candidate
-      )
+          : candidate,
+      ),
     );
   };
   runtimeMocks.moveOristudioBpLayoutFlaps.mockImplementation(async (ids, loc) => land(ids, loc));
@@ -165,7 +169,7 @@ describe('moveOristudioBpLayoutFlapWithSymmetry', () => {
   it('carries the partner to the reflected position', async () => {
     setUp({ enabled: true });
     await expect(
-      useWorkspaceStore.getState().moveOristudioBpLayoutFlapWithSymmetry(1, { x: 3, y: 9 })
+      useWorkspaceStore.getState().moveOristudioBpLayoutFlapWithSymmetry(1, { x: 3, y: 9 }),
     ).resolves.toBe(true);
     expect(groupMoves()).toEqual([[[1], { x: 3, y: 9 }]]);
     // Layout sheet is 16 wide and the flap is 2 wide: 16 - 3 - 2 = 11.
@@ -212,7 +216,7 @@ describe('moveOristudioBpLayoutFlapWithSymmetry', () => {
     setUp({ enabled: true });
     // A clamped engine: it takes the move but stops one cell short.
     runtimeMocks.moveOristudioBpLayoutFlaps.mockImplementationOnce(async () =>
-      bpDocument(FLAPS.map((f) => (f.id === 1 ? { ...f, anchor: { x: 4, y: 9 } } : f)))
+      bpDocument(FLAPS.map((f) => (f.id === 1 ? { ...f, anchor: { x: 4, y: 9 } } : f))),
     );
     await useWorkspaceStore.getState().moveOristudioBpLayoutFlapWithSymmetry(1, { x: 3, y: 9 });
     // Mirror of the landing (x = 4), not of the request (x = 3).
@@ -243,7 +247,9 @@ describe('moveOristudioBpLayoutFlapsWithSymmetry', () => {
   it('mirrors every flap in the group that has a partner outside it', async () => {
     setUp({ enabled: true, pairs: [{ v1: 1, v2: 2 }] });
     // Dragging flap 3 (unpaired) with flap 1 (paired to 2): only 1 mirrors.
-    await useWorkspaceStore.getState().moveOristudioBpLayoutFlapsWithSymmetry([3, 1], { x: 2, y: 4 });
+    await useWorkspaceStore
+      .getState()
+      .moveOristudioBpLayoutFlapsWithSymmetry([3, 1], { x: 2, y: 4 });
     expect(groupMoves()).toEqual([[[3, 1], { x: 2, y: 4 }]]);
     // The group translates by (+1, +1), so flap 1 lands at (3, 7) and its
     // partner at 16 - 3 - 2 = 11.
@@ -252,7 +258,9 @@ describe('moveOristudioBpLayoutFlapsWithSymmetry', () => {
 
   it('mirrors nothing when the selection already holds both members', async () => {
     setUp({ enabled: true });
-    await useWorkspaceStore.getState().moveOristudioBpLayoutFlapsWithSymmetry([1, 2], { x: 3, y: 9 });
+    await useWorkspaceStore
+      .getState()
+      .moveOristudioBpLayoutFlapsWithSymmetry([1, 2], { x: 3, y: 9 });
     expect(singleMoves()).toEqual([]);
   });
 
@@ -263,10 +271,17 @@ describe('moveOristudioBpLayoutFlapsWithSymmetry', () => {
         ...useWorkspaceStore.getInitialState(),
         ...singleBoxPleatDesignTab({
           document: bpDocument([flap(id, anchorX, 4)]),
-          symmetry: { ...TREE_AXIS, enabled, fold: 'book', quarterTurn: false, sidesSwapped: false, pairs: [] },
+          symmetry: {
+            ...TREE_AXIS,
+            enabled,
+            fold: 'book',
+            quarterTurn: false,
+            sidesSwapped: false,
+            pairs: [],
+          },
         }),
       },
-      true
+      true,
     );
   }
 

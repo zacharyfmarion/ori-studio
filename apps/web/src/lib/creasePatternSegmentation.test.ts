@@ -10,7 +10,10 @@ import {
   simulationFacesForSegment,
 } from './creasePatternSegmentation';
 
-function unitSquare(offsetX: number, baseVertex: number): {
+function unitSquare(
+  offsetX: number,
+  baseVertex: number,
+): {
   coords: number[][];
   edges: [number, number][];
   face: number[];
@@ -152,9 +155,9 @@ describe('segmentFoldDocument', () => {
   });
 
   it('returns no segments for an empty fold', () => {
-    expect(segmentFoldDocument({ vertices_coords: [], edges_vertices: [], faces_vertices: [] })).toEqual(
-      []
-    );
+    expect(
+      segmentFoldDocument({ vertices_coords: [], edges_vertices: [], faces_vertices: [] }),
+    ).toEqual([]);
   });
 });
 
@@ -231,8 +234,10 @@ describe('cpThumbnailSvg', () => {
     const svg = segmentThumbnailSvg(fold, segment!, { size: 100 });
 
     // The mountain crease is the y=0..10 edge at x=10; find every drawn y.
-    const ys = [...svg.matchAll(/y1="([\d.]+)" x2="[\d.]+" y2="([\d.]+)"/g)]
-      .flatMap((m) => [Number(m[1]), Number(m[2])]);
+    const ys = [...svg.matchAll(/y1="([\d.]+)" x2="[\d.]+" y2="([\d.]+)"/g)].flatMap((m) => [
+      Number(m[1]),
+      Number(m[2]),
+    ]);
     expect(ys.length).toBeGreaterThan(0);
 
     // Project the corners directly and confirm low fold y ⇒ low SVG y.

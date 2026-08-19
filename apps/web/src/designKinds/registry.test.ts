@@ -14,8 +14,7 @@ import { DESIGN_KINDS, designKindRegistry, primaryPane } from './registry';
 import type { DesignKindDescriptor } from './types';
 
 /** Renders inline English defaults, matching the app's fallback translator. */
-const t = ((_key: string, defaultValue?: string) =>
-  defaultValue ?? _key) as unknown as TFunction;
+const t = ((_key: string, defaultValue?: string) => defaultValue ?? _key) as unknown as TFunction;
 
 describe('design kind registry', () => {
   it('registers every shipped kind', () => {
@@ -34,7 +33,7 @@ describe('design kind registry', () => {
       for (const method of ['create', 'hydrate', 'serialize', 'free'] as const) {
         expect(typeof kind.codec[method]).toBe('function');
       }
-    }
+    },
   );
 
   it.each(DESIGN_KINDS.map((kind) => [kind.id, kind] as const))(
@@ -43,7 +42,7 @@ describe('design kind registry', () => {
       const primaries = kind.panes.filter((pane) => pane.placement.kind === 'primary');
       expect(primaries).toHaveLength(1);
       expect(primaryPane(kind)).toBe(primaries[0]);
-    }
+    },
   );
 
   it.each(DESIGN_KINDS.map((kind) => [kind.id, kind] as const))(
@@ -51,7 +50,7 @@ describe('design kind registry', () => {
     (_id, kind) => {
       const ids = kind.panes.map((pane) => pane.id);
       expect(new Set(ids).size).toBe(ids.length);
-    }
+    },
   );
 
   it('maps each design editing context to exactly one kind', () => {
@@ -83,7 +82,6 @@ describe('design kind registry', () => {
     const order = designKindRegistry().chooserOrder.map((kind) => kind.id);
     expect(order).toEqual(['box-pleat', 'explori', 'treemaker']);
   });
-
 });
 
 /**
@@ -116,7 +114,7 @@ describe('extensibility: a third design kind', () => {
     panes: [
       {
         id: 'canvas',
-      component: 'design',
+        component: 'design',
         title: () => 'Stub canvas',
         placement: { kind: 'primary' },
         editingContext: STUB_CONTEXT,
@@ -205,7 +203,7 @@ describe('extensibility: a third design kind', () => {
     });
     const ids = Object.keys(real) as WorkspaceCapabilityId[];
     return Object.fromEntries(
-      ids.map((id) => [id, { enabled: true, visible: true, label: id, reason: '' }])
+      ids.map((id) => [id, { enabled: true, visible: true, label: id, reason: '' }]),
     ) as WorkspaceCapabilities;
   }
 
@@ -247,10 +245,9 @@ describe('extensibility: a third design kind', () => {
       'crease-pattern',
       'simulate',
     ] as EditingContext[]) {
-      expect(
-        maskCapabilitiesForContext(base, context, kinds),
-        `context ${context}`
-      ).toEqual(maskCapabilitiesForContext(base, context, DESIGN_KINDS));
+      expect(maskCapabilitiesForContext(base, context, kinds), `context ${context}`).toEqual(
+        maskCapabilitiesForContext(base, context, DESIGN_KINDS),
+      );
     }
   });
 
@@ -265,13 +262,13 @@ describe('extensibility: a third design kind', () => {
     const withOwner = [...DESIGN_KINDS, owningStub];
     const base = allVisibleCapabilities();
 
-    expect(maskCapabilitiesForContext(base, STUB_CONTEXT, withOwner)['view.conditions'].visible).toBe(
-      true
-    );
+    expect(
+      maskCapabilitiesForContext(base, STUB_CONTEXT, withOwner)['view.conditions'].visible,
+    ).toBe(true);
     for (const context of ['treemaker-tree', 'crease-pattern'] as EditingContext[]) {
       expect(
         maskCapabilitiesForContext(base, context, withOwner)['view.conditions'].visible,
-        `context ${context}`
+        `context ${context}`,
       ).toBe(false);
     }
   });

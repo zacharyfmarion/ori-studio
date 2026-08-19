@@ -63,7 +63,13 @@ let root: Root;
 let pointer: Point = { x: 0, y: 0 };
 const held: { resize: BpFlapResize | null } = { resize: null };
 
-function Harness({ source, selfMirrored }: { source: OristudioBpFlap | null; selfMirrored: boolean }) {
+function Harness({
+  source,
+  selfMirrored,
+}: {
+  source: OristudioBpFlap | null;
+  selfMirrored: boolean;
+}) {
   const resize = useBpFlapResize({
     flap: selfMirrored ? null : source,
     sheet: SHEET,
@@ -96,7 +102,7 @@ function render(options: { source?: OristudioBpFlap | null; selfMirrored?: boole
       <Harness
         source={options.source === undefined ? flap() : options.source}
         selfMirrored={options.selfMirrored ?? false}
-      />
+      />,
     );
   });
 }
@@ -179,16 +185,11 @@ afterEach(() => {
 describe('BpFlapResizeHandles', () => {
   it('draws all eight handles for a selected flap', () => {
     render();
-    expect(handles().map((element) => element.dataset.bpFlapHandle).sort()).toEqual([
-      'e',
-      'n',
-      'ne',
-      'nw',
-      's',
-      'se',
-      'sw',
-      'w',
-    ]);
+    expect(
+      handles()
+        .map((element) => element.dataset.bpFlapHandle)
+        .sort(),
+    ).toEqual(['e', 'n', 'ne', 'nw', 's', 'se', 'sw', 'w']);
   });
 
   it('gives each handle a hit target larger than itself, but never overlapping', () => {
@@ -213,7 +214,7 @@ describe('BpFlapResizeHandles', () => {
         const drawn = box(visual[index]);
         expect(
           target.w >= drawn.w && target.h >= drawn.h,
-          `r${radius} handle ${index}: target ${target.w}x${target.h} vs drawn ${drawn.w}x${drawn.h}`
+          `r${radius} handle ${index}: target ${target.w}x${target.h} vs drawn ${drawn.w}x${drawn.h}`,
         ).toBe(true);
       }
       // Every pair on the box, so nothing depends on guessing which two are
@@ -230,7 +231,7 @@ describe('BpFlapResizeHandles', () => {
             q.y + q.h <= p.y + 1e-9;
           expect(
             apart,
-            `r${radius}: ${(a as HTMLElement).dataset.bpFlapHandle} overlaps ${(b as HTMLElement).dataset.bpFlapHandle}`
+            `r${radius}: ${(a as HTMLElement).dataset.bpFlapHandle} overlaps ${(b as HTMLElement).dataset.bpFlapHandle}`,
           ).toBe(true);
         }
       }

@@ -24,7 +24,7 @@ import {
 function longhand(
   yaw: number,
   pitch: number,
-  d: readonly [number, number, number]
+  d: readonly [number, number, number],
 ): [number, number, number] {
   const cosYaw = Math.cos(yaw);
   const sinYaw = Math.sin(yaw);

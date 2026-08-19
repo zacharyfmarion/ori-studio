@@ -1,4 +1,10 @@
-import { patchTreemakerDesign, selectProject, selectSelection, singleDesignTab, singleTreemakerDesignTab } from '../../store/workspaceStore/designTabs';
+import {
+  patchTreemakerDesign,
+  selectProject,
+  selectSelection,
+  singleDesignTab,
+  singleTreemakerDesignTab,
+} from '../../store/workspaceStore/designTabs';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
@@ -43,7 +49,7 @@ vi.mock('react-zoom-pan-pinch', async () => {
           onTransformed?.(api, { scale: 1 });
         }, [onInit, onTransformed]);
         return React.createElement('div', { 'data-testid': 'transform-wrapper' }, children);
-      }
+      },
     ),
     TransformComponent: ({ children }: { children: React.ReactNode }) =>
       React.createElement('div', { 'data-testid': 'transform-component' }, children),
@@ -65,7 +71,7 @@ beforeEach(() => {
 
 function renderPanel(
   project: TreeProject = createSampleProject(),
-  state: Partial<ReturnType<typeof useWorkspaceStore.getState>> = {}
+  state: Partial<ReturnType<typeof useWorkspaceStore.getState>> = {},
 ) {
   useWorkspaceStore.setState(
     {
@@ -76,7 +82,7 @@ function renderPanel(
       engineReady: true,
       ...state,
     },
-    true
+    true,
   );
 
   container = document.createElement('div');
@@ -86,7 +92,7 @@ function renderPanel(
     root?.render(
       <TooltipProvider>
         <DesignPanel />
-      </TooltipProvider>
+      </TooltipProvider>,
     );
   });
 
@@ -124,7 +130,7 @@ function renderDesignPanel(state: Partial<ReturnType<typeof useWorkspaceStore.ge
       ...singleDesignTab('treemaker'),
       ...state,
     },
-    true
+    true,
   );
   container = document.createElement('div');
   document.body.append(container);
@@ -135,7 +141,7 @@ function renderDesignPanel(state: Partial<ReturnType<typeof useWorkspaceStore.ge
         <TooltipProvider>
           <DesignPanel />
         </TooltipProvider>
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   });
 }
@@ -159,7 +165,9 @@ describe('DesignPanel', () => {
   it('anchors the empty nudge to the paper inside the zoomable SVG canvas', () => {
     renderPanel(createEmptyProject());
 
-    const emptyState = container?.querySelector<SVGForeignObjectElement>('foreignObject.design-empty-state');
+    const emptyState = container?.querySelector<SVGForeignObjectElement>(
+      'foreignObject.design-empty-state',
+    );
 
     expect(emptyState).toBeTruthy();
     expect(emptyState?.closest('svg.design-canvas')).toBeTruthy();
@@ -199,7 +207,7 @@ describe('DesignPanel', () => {
       expect.any(Number),
       expect.any(Number),
       1,
-      0
+      0,
     );
   });
 
@@ -209,10 +217,11 @@ describe('DesignPanel', () => {
 
     act(() => {
       useWorkspaceStore.setState({
-      ...singleTreemakerDesignTab({
-        project: { ...project, scale: 1 }
-      }),
-        status: 'optimized'});
+        ...singleTreemakerDesignTab({
+          project: { ...project, scale: 1 },
+        }),
+        status: 'optimized',
+      });
     });
 
     expect(transformMocks.centerView).not.toHaveBeenCalled();
@@ -228,29 +237,36 @@ describe('DesignPanel', () => {
 
   /** Applies a `setSymmetry` update to the store, the way the engine would. */
   function stubSetSymmetry() {
-    return vi.fn(async (update: Parameters<ReturnType<typeof useWorkspaceStore.getState>['setSymmetry']>[0]) => {
-      const project = selectProject(useWorkspaceStore.getState());
-      useWorkspaceStore.setState({
-      ...singleTreemakerDesignTab({
-        project: {
-          ...project,
-          hasSymmetry: update.hasSymmetry ?? project.hasSymmetry,
-          paper: {
-            ...project.paper,
-            symAngle: update.symAngle ?? project.paper.symAngle,
-            symLoc: update.symLoc ?? project.paper.symLoc,
-          },
-        }
-      }),});
-    });
+    return vi.fn(
+      async (
+        update: Parameters<ReturnType<typeof useWorkspaceStore.getState>['setSymmetry']>[0],
+      ) => {
+        const project = selectProject(useWorkspaceStore.getState());
+        useWorkspaceStore.setState({
+          ...singleTreemakerDesignTab({
+            project: {
+              ...project,
+              hasSymmetry: update.hasSymmetry ?? project.hasSymmetry,
+              paper: {
+                ...project.paper,
+                symAngle: update.symAngle ?? project.paper.symAngle,
+                symLoc: update.symLoc ?? project.paper.symLoc,
+              },
+            },
+          }),
+        });
+      },
+    );
   }
 
   // Found by its visible label, not by an `aria-label`: the toggle used to carry
   // one that overrode the visible "Symmetry" text, which is exactly the
   // Label-in-Name failure that was removed.
   const symmetryToggle = () =>
-    [...(container?.querySelectorAll<HTMLButtonElement>('.viewport-toolbar__symmetry-button') ?? [])]
-      .find((button) => button.textContent?.includes('Symmetry'));
+    [
+      ...(container?.querySelectorAll<HTMLButtonElement>('.viewport-toolbar__symmetry-button') ??
+        []),
+    ].find((button) => button.textContent?.includes('Symmetry'));
   const symmetryOptionsButton = () =>
     container?.querySelector<HTMLButtonElement>('button[aria-label="Symmetry options"]');
 
@@ -286,7 +302,10 @@ describe('DesignPanel', () => {
   it('mirrors node edits whenever symmetry is on, with no separate mirror mode', () => {
     const addNodeAt = vi.fn(async () => undefined);
     const addNodeWithSymmetry = vi.fn(async () => undefined);
-    renderPanel({ ...createSampleProject(), hasSymmetry: true }, { addNodeAt, addNodeWithSymmetry });
+    renderPanel(
+      { ...createSampleProject(), hasSymmetry: true },
+      { addNodeAt, addNodeWithSymmetry },
+    );
 
     // The old UI needed a second "Mirror nodes" opt-in before edits reflected.
     expect(container?.textContent).not.toContain('Mirror nodes');
@@ -321,7 +340,9 @@ describe('DesignPanel', () => {
     expect(container?.textContent).not.toContain('Enable symmetry');
     expect(container?.textContent).not.toContain('Show axis');
 
-    const angle = container?.querySelector<HTMLInputElement>('input[aria-label="Design symmetry angle"]');
+    const angle = container?.querySelector<HTMLInputElement>(
+      'input[aria-label="Design symmetry angle"]',
+    );
     expect(angle).toBeTruthy();
 
     await act(async () => {
@@ -370,7 +391,7 @@ describe('DesignPanel', () => {
       act(() => {
         handleShortcutRuntimeKeyDown(
           new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }),
-          { context: { activeEditingContext: 'treemaker-tree' }, menu }
+          { context: { activeEditingContext: 'treemaker-tree' }, menu },
         );
       });
       return menu;
@@ -395,7 +416,7 @@ describe('DesignPanel', () => {
             bubbles: true,
             cancelable: true,
           }),
-          { context: { activeEditingContext: 'treemaker-tree' }, menu }
+          { context: { activeEditingContext: 'treemaker-tree' }, menu },
         );
       });
       expect(transformMocks.zoomIn).toHaveBeenCalled();

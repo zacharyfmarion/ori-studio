@@ -40,7 +40,7 @@ export interface CpDocumentCamera {
  * where an imported Oriedita camera rides along.
  */
 export function useCpDocumentCamera(
-  metadata: Record<string, unknown> | null | undefined
+  metadata: Record<string, unknown> | null | undefined,
 ): CpDocumentCamera {
   // Snapshotted at load, never read live.
   //
@@ -65,14 +65,13 @@ export function useCpDocumentCamera(
   if (snapshot.loadId !== projectLoadId) {
     setSnapshot({ loadId: projectLoadId, camera: liveCamera });
   }
-  const initialCamera =
-    snapshot.loadId === projectLoadId ? snapshot.camera : liveCamera;
+  const initialCamera = snapshot.loadId === projectLoadId ? snapshot.camera : liveCamera;
 
   // From the document's own metadata rather than the store, so it travels with
   // the document exactly like its mouse mode and tool options do.
   const initialRotation = useMemo(
     () => creasePatternRotationFromOrieditaMetadata(metadata),
-    [metadata]
+    [metadata],
   );
 
   // A drag moves the camera ~60x a second, and this is document state, so it is
@@ -82,7 +81,7 @@ export function useCpDocumentCamera(
     window.clearTimeout(settleTimerRef.current);
     settleTimerRef.current = window.setTimeout(
       () => useWorkspaceStore.getState().setOristudioCpCamera(camera),
-      CAMERA_SETTLE_MS
+      CAMERA_SETTLE_MS,
     );
   }, []);
   useEffect(() => () => window.clearTimeout(settleTimerRef.current), []);

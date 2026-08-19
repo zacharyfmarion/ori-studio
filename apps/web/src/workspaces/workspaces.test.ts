@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  WORKSPACE_DEFINITIONS,
-  workspaceForCommandId,
-  workspaceForPanelId,
-} from './workspaces';
+import { WORKSPACE_DEFINITIONS, workspaceForCommandId, workspaceForPanelId } from './workspaces';
 
 describe('workspace definitions', () => {
   it('defines the three primary workspaces in rail order', () => {

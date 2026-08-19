@@ -46,7 +46,7 @@ export function cpPointsToScene(
   vertices: readonly ModelPoint[],
   circles: readonly CpCircleInput[],
   style: CpPointStyle,
-  selection?: CpPointSelection
+  selection?: CpPointSelection,
 ): PointGeometry {
   const count = points.length + vertices.length + circles.length;
   const center = new Float32Array(count * 2);
@@ -57,14 +57,7 @@ export function cpPointsToScene(
   const fill = new Float32Array(count * 4);
   const stroke = new Float32Array(count * 4);
 
-  const write = (
-    i: number,
-    p: ModelPoint,
-    r: number,
-    screen: number,
-    f: Rgba,
-    s: Rgba
-  ): void => {
+  const write = (i: number, p: ModelPoint, r: number, screen: number, f: Rgba, s: Rgba): void => {
     center[i * 2] = p.x;
     center[i * 2 + 1] = p.y;
     radius[i] = r;
@@ -85,7 +78,14 @@ export function cpPointsToScene(
   const sel = selection?.color;
   for (let i = 0; i < points.length; i++) {
     const on = selection?.pointIdx.has(i);
-    write(i, points[i], pointRadius, 1, on && sel ? sel : style.pointFill, on && sel ? sel : style.pointStroke);
+    write(
+      i,
+      points[i],
+      pointRadius,
+      1,
+      on && sel ? sel : style.pointFill,
+      on && sel ? sel : style.pointStroke,
+    );
   }
   const vertexOffset = points.length;
   for (let j = 0; j < vertices.length; j++) {
@@ -95,7 +95,14 @@ export function cpPointsToScene(
   const circleOffset = vertexOffset + vertices.length;
   for (let k = 0; k < circles.length; k++) {
     const on = selection?.circleIdx.has(k);
-    write(circleOffset + k, circles[k].center, circles[k].radius, 0, TRANSPARENT, on && sel ? sel : style.circleStroke);
+    write(
+      circleOffset + k,
+      circles[k].center,
+      circles[k].radius,
+      0,
+      TRANSPARENT,
+      on && sel ? sel : style.circleStroke,
+    );
   }
 
   return { center, radius, screenSpace, fill, stroke, count };

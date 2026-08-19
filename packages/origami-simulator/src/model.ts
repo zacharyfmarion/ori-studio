@@ -20,7 +20,7 @@ export class OrigamiModel {
     this.velocities = new Float32Array(this.positions.length);
     this.colors = prepared.colors.slice();
     this.originalEdgeLengths = new Float32Array(
-      prepared.edgesVertices.map((edge) => edgeLength(this.originalPositions, edge))
+      prepared.edgesVertices.map((edge) => edgeLength(this.originalPositions, edge)),
     );
     this.creaseMomentArms = this.computeCreaseMomentArms();
   }
@@ -111,14 +111,18 @@ export class OrigamiModel {
     return {
       ...this.prepared.diagnostics,
       maxEdgeStrain: max,
-      averageEdgeStrain: this.prepared.edgesVertices.length ? total / this.prepared.edgesVertices.length : 0,
+      averageEdgeStrain: this.prepared.edgesVertices.length
+        ? total / this.prepared.edgesVertices.length
+        : 0,
     };
   }
 
   private pointTuples(source: Float32Array): Array<[number, number, number]> {
     const points: Array<[number, number, number]> = [];
     for (let index = 0; index < source.length; index += 3) {
-      points.push(normalizePoint([source[index] ?? 0, source[index + 1] ?? 0, source[index + 2] ?? 0]));
+      points.push(
+        normalizePoint([source[index] ?? 0, source[index + 1] ?? 0, source[index + 2] ?? 0]),
+      );
     }
     return points;
   }
@@ -178,8 +182,8 @@ function normalizeSimulationPositions(source: Float32Array): Float32Array {
       Math.hypot(
         (normalized[index] ?? 0) - center[0],
         (normalized[index + 1] ?? 0) - center[1],
-        (normalized[index + 2] ?? 0) - center[2]
-      )
+        (normalized[index + 2] ?? 0) - center[2],
+      ),
     );
   }
   if (radius <= EPSILON) return normalized;
@@ -201,7 +205,7 @@ function triangleNormal(
   source: Float32Array,
   aIndex: number,
   bIndex: number,
-  cIndex: number
+  cIndex: number,
 ): [number, number, number] {
   const a = pointAt(source, aIndex);
   const b = pointAt(source, bIndex);
@@ -214,7 +218,7 @@ function triangleNormal(
 function distanceToLine3D(
   point: [number, number, number],
   a: [number, number, number],
-  b: [number, number, number]
+  b: [number, number, number],
 ): number {
   const ab: [number, number, number] = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
   const ap: [number, number, number] = [point[0] - a[0], point[1] - a[1], point[2] - a[2]];
@@ -223,15 +227,8 @@ function distanceToLine3D(
   return magnitude(cross(ap, ab)) / length;
 }
 
-function cross(
-  a: [number, number, number],
-  b: [number, number, number]
-): [number, number, number] {
-  return [
-    a[1] * b[2] - a[2] * b[1],
-    a[2] * b[0] - a[0] * b[2],
-    a[0] * b[1] - a[1] * b[0],
-  ];
+function cross(a: [number, number, number], b: [number, number, number]): [number, number, number] {
+  return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 }
 
 function magnitude(vector: [number, number, number]): number {

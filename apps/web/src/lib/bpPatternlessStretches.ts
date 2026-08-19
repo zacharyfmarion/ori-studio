@@ -27,7 +27,7 @@ export function bpPatternlessStretchVisuals(
   packing: Pick<OristudioBpPackingView, 'stretches' | 'flaps'>,
   sheet: OristudioBpSheet,
   paperRect: PlotRect,
-  selectedStretchIds: ReadonlySet<string>
+  selectedStretchIds: ReadonlySet<string>,
 ): BpPatternlessStretchVisual[] {
   return packing.stretches
     .filter((stretch) => stretch.patternFound === false)

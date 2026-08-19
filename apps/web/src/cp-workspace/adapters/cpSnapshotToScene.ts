@@ -98,7 +98,6 @@ export interface CpTransformPreview {
  */
 export type CpReplacedLines = ReadonlySet<number>;
 
-
 /**
  * Convert crease-pattern line segments into GPU-ready stroke geometry. Pure: the
  * per-colour resolution is injected so this stays testable without the DOM/theme.
@@ -117,7 +116,7 @@ export function cpSnapshotToScene(
   move?: CpTransformPreview,
   /** See {@link cpGeometryStrokesToScene}; kept in step for the parity gate. */
   foldAngle?: CpFoldAngleStyle,
-  replaced?: CpReplacedLines
+  replaced?: CpReplacedLines,
 ): { strokes: StrokeGeometry } {
   const count = lineSegments.length;
   const a = new Float32Array(count * 2);

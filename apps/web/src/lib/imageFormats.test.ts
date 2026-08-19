@@ -58,7 +58,7 @@ describe('DECODABLE_IMAGE_EXTENSIONS', () => {
 
   it('renders an accept list of dotted extensions', () => {
     expect(DECODABLE_IMAGE_ACCEPT.split(',')).toEqual(
-      DECODABLE_IMAGE_EXTENSIONS.map((extension) => `.${extension}`)
+      DECODABLE_IMAGE_EXTENSIONS.map((extension) => `.${extension}`),
     );
     expect(DECODABLE_IMAGE_ACCEPT).toContain('.png');
     expect(DECODABLE_IMAGE_ACCEPT).not.toContain('.ori');

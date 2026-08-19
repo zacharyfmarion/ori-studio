@@ -43,7 +43,7 @@ export function loneCandidateAutoPick(
   stepKinds: readonly CpStepSnap[],
   step: number,
   previewSegments: readonly ToolPreviewSegment[],
-  commitOnLoneCandidate = false
+  commitOnLoneCandidate = false,
 ): ModelPoint | null {
   if (stepKinds[step] !== 'candidate') return null;
   if (step >= stepKinds.length - 1 && !commitOnLoneCandidate) return null;

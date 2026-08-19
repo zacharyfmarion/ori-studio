@@ -79,17 +79,22 @@ export function foldedFoldDocument(source: FoldDocument, mesh: FoldedMesh): Fold
 
 /** Wavefront OBJ. Indices are 1-based, which is the classic off-by-one here. */
 export function foldedObj(mesh: FoldedMesh, name = 'folded'): string {
-  const lines: string[] = [`# Ori Studio folded form (${Math.round(mesh.foldPercent)}%)`, `o ${name}`];
+  const lines: string[] = [
+    `# Ori Studio folded form (${Math.round(mesh.foldPercent)}%)`,
+    `o ${name}`,
+  ];
   const vertexCount = Math.floor(mesh.positions.length / 3);
   for (let i = 0; i < vertexCount; i += 1) {
     lines.push(
       `v ${round(mesh.positions[i * 3] ?? 0)} ${round(mesh.positions[i * 3 + 1] ?? 0)} ${round(
-        mesh.positions[i * 3 + 2] ?? 0
-      )}`
+        mesh.positions[i * 3 + 2] ?? 0,
+      )}`,
     );
   }
   for (let i = 0; i + 2 < mesh.triangles.length; i += 3) {
-    lines.push(`f ${mesh.triangles[i]! + 1} ${mesh.triangles[i + 1]! + 1} ${mesh.triangles[i + 2]! + 1}`);
+    lines.push(
+      `f ${mesh.triangles[i]! + 1} ${mesh.triangles[i + 1]! + 1} ${mesh.triangles[i + 2]! + 1}`,
+    );
   }
   return `${lines.join('\n')}\n`;
 }

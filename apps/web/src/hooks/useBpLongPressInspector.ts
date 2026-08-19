@@ -46,8 +46,7 @@ export function useBpLongPressInspector() {
       const onPointerMove = (moveEvent: PointerEvent) => {
         if (moveEvent.pointerId !== pointerId) return;
         if (
-          Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) >
-          BP_LONG_PRESS_MOVE_PX
+          Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) > BP_LONG_PRESS_MOVE_PX
         ) {
           clearPending();
         }
@@ -72,6 +71,6 @@ export function useBpLongPressInspector() {
       window.addEventListener('pointerup', onPointerEnd, { passive: true });
       window.addEventListener('pointercancel', onPointerEnd, { passive: true });
     },
-    [activatePanel, clearPending]
+    [activatePanel, clearPending],
   );
 }

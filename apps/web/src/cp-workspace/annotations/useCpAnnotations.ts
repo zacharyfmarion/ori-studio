@@ -32,7 +32,6 @@ import {
   DEFAULT_TEXT_FONT_SIZE,
 } from './textAnnotation';
 
-
 /** Reason inline text editing ended: a click outside, or the keyboard. */
 export type TextEditExitReason = 'blur' | 'escape';
 
@@ -58,19 +57,13 @@ export interface UseCpAnnotationsOptions {
 export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsOptions) {
   const { t } = useTranslation();
   const annotations = useWorkspaceStore((state) => state.oristudioCpAnnotations);
-  const selectedAnnotationId = useWorkspaceStore(
-    (state) => state.oristudioCpSelectedAnnotationId
-  );
+  const selectedAnnotationId = useWorkspaceStore((state) => state.oristudioCpSelectedAnnotationId);
   const addAnnotation = useWorkspaceStore((state) => state.addAnnotation);
   const updateAnnotation = useWorkspaceStore((state) => state.updateAnnotation);
   const removeAnnotation = useWorkspaceStore((state) => state.removeAnnotation);
-  const setSelectedAnnotation = useWorkspaceStore(
-    (state) => state.setSelectedAnnotation
-  );
+  const setSelectedAnnotation = useWorkspaceStore((state) => state.setSelectedAnnotation);
   const syncAnnotationHeight = useWorkspaceStore((state) => state.syncAnnotationHeight);
-  const recordAnnotationHistory = useWorkspaceStore(
-    (state) => state.recordAnnotationHistory
-  );
+  const recordAnnotationHistory = useWorkspaceStore((state) => state.recordAnnotationHistory);
 
   /**
    * Annotation list captured at the start of a move/resize/rotate/crop/edit, so
@@ -88,33 +81,30 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
       preGestureAnnotationsRef.current = null;
       if (previous) recordAnnotationHistory([...previous], label);
     },
-    [recordAnnotationHistory]
+    [recordAnnotationHistory],
   );
 
   const selectedAnnotation = useMemo(
     () => annotations.find((a) => a.id === selectedAnnotationId) ?? null,
-    [annotations, selectedAnnotationId]
+    [annotations, selectedAnnotationId],
   );
   const selectedImage: ImageAnnotation | null =
     selectedAnnotation && isImageAnnotation(selectedAnnotation) ? selectedAnnotation : null;
   // Image annotations only — the WebGL renderer and the image overlay narrow to
   // this; text annotations render on their own DOM layer.
-  const imageAnnotations = useMemo(
-    () => annotations.filter(isImageAnnotation),
-    [annotations]
-  );
+  const imageAnnotations = useMemo(() => annotations.filter(isImageAnnotation), [annotations]);
   const transformableObjects = useMemo<TransformableCanvasObject[]>(
     () => annotations.map(annotationAsTransformable),
-    [annotations]
+    [annotations],
   );
 
   const annotationById = useCallback(
     (id: string) => useWorkspaceStore.getState().oristudioCpAnnotations.find((a) => a.id === id),
-    []
+    [],
   );
   const applyBoxUpdate = useCallback(
     (id: string, patch: CanvasObjectBoxUpdate) => updateAnnotation(id, patch),
-    [updateAnnotation]
+    [updateAnnotation],
   );
   // Crop needs the image's source rect, which the overlay has no view of; it
   // hands back the dragged handle and pointer and we apply the image math here.
@@ -130,14 +120,14 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
         crop: next.crop,
       });
     },
-    [annotationById, updateAnnotation]
+    [annotationById, updateAnnotation],
   );
   const canCrop = useCallback(
     (id: string) => {
       const annotation = annotationById(id);
       return !!annotation && isImageAnnotation(annotation);
     },
-    [annotationById]
+    [annotationById],
   );
   const gestureLabel = useCallback(
     (kind: 'move' | 'resize' | 'rotate' | 'crop') => {
@@ -152,7 +142,7 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
           return t('panels:creasePattern.resizeAnnotation', 'Resize annotation');
       }
     },
-    [t]
+    [t],
   );
 
   // Import an image file and add it as a reference image, placed at the given
@@ -179,7 +169,7 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
         const { width, height } = fitImageModelSize(
           source.naturalWidth,
           source.naturalHeight,
-          targetExtent
+          targetExtent,
         );
         const images = useWorkspaceStore.getState().oristudioCpAnnotations;
         const topZ = images.reduce((max, image) => Math.max(max, image.z), 0);
@@ -195,7 +185,7 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
             // already go through the overlay view, so they need no adjustment.
             rotation: uprightRotationForView(overlayView),
             z: topZ + 1,
-          })
+          }),
         );
         recordAnnotationHistory([...images], t('panels:creasePattern.addImage', 'Add image'));
       } catch (error) {
@@ -208,14 +198,14 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
             message: t(
               'errors:creasePattern.imageNotDecodable',
               'Ori Studio could not read {{name}} as an image. Try a PNG, JPEG, or WebP.',
-              { name: file.name }
+              { name: file.name },
             ),
           },
           projectMessage: null,
         });
       }
     },
-    [addAnnotation, recordAnnotationHistory, overlayView, viewportRef, t]
+    [addAnnotation, recordAnnotationHistory, overlayView, viewportRef, t],
   );
 
   const handleViewportDragOver = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
@@ -238,7 +228,7 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
       // image and stopped from bubbling, so it reached neither handler's file
       // path and only surfaced as a decode error in the console.
       const file = Array.from(event.dataTransfer.files).find(
-        (candidate) => classifyDroppedFile(candidate).kind === 'image'
+        (candidate) => classifyDroppedFile(candidate).kind === 'image',
       );
       // Anything that is not an image bubbles up to the workspace drop target,
       // which opens or imports it.
@@ -248,7 +238,7 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
       event.stopPropagation();
       void addImageFromFile(file, { x: event.clientX, y: event.clientY });
     },
-    [addImageFromFile]
+    [addImageFromFile],
   );
 
   // Image-layer edits driven by the inspector: each records one undo entry.
@@ -298,7 +288,7 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
       setSelectedAnnotation(id);
       setEditingTextId(id);
     },
-    [setSelectedAnnotation]
+    [setSelectedAnnotation],
   );
 
   /**
@@ -339,7 +329,7 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
       addAnnotation(box);
       setEditingTextId(box.id);
     },
-    [overlayView, addAnnotation, requestEditText, setSelectedAnnotation]
+    [overlayView, addAnnotation, requestEditText, setSelectedAnnotation],
   );
 
   // Text tool: a press-drag creates a fixed-size box (the dragged height seeds a
@@ -370,14 +360,14 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
       addAnnotation(annotation);
       setEditingTextId(annotation.id);
     },
-    [overlayView, addAnnotation, createTextAt]
+    [overlayView, addAnnotation, createTextAt],
   );
 
   const changeTextContent = useCallback(
     (id: string, doc: SerializedEditorState, plainText: string) => {
       updateAnnotation(id, { doc, plainText });
     },
-    [updateAnnotation]
+    [updateAnnotation],
   );
 
   // Leave inline editing. An empty box is discarded (parity with Oriedita's
@@ -406,10 +396,10 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
       commitGesture(
         editing.created
           ? t('panels:textAnnotation.addText', 'Add text')
-          : t('panels:textAnnotation.editText', 'Edit text')
+          : t('panels:textAnnotation.editText', 'Edit text'),
       );
     },
-    [removeAnnotation, commitGesture, t]
+    [removeAnnotation, commitGesture, t],
   );
 
   // Delete from the text toolbar removes the box and leaves edit mode; the

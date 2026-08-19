@@ -41,13 +41,7 @@ export type ProjectOpenSource = 'file' | 'example' | 'new' | 'drop' | 'share';
 export type LandingSurface = 'desktop' | 'phone';
 
 /** The landing sections below the fold, in page order. */
-export type LandingSectionId =
-  | 'what'
-  | 'edit'
-  | 'design'
-  | 'simulate'
-  | 'compatibility'
-  | 'get';
+export type LandingSectionId = 'what' | 'edit' | 'design' | 'simulate' | 'compatibility' | 'get';
 
 /**
  * The landing page's calls to action.
@@ -73,16 +67,7 @@ export type LandingFeatureId =
 
 /** Export target formats (the file's kind only — never its name or contents). */
 export type ExportFormat =
-  | 'osf'
-  | 'tm5'
-  | 'tm4'
-  | 'cp'
-  | 'fold'
-  | 'bps'
-  | 'ori'
-  | 'orh'
-  | 'svg'
-  | 'png';
+  'osf' | 'tm5' | 'tm4' | 'cp' | 'fold' | 'bps' | 'ori' | 'orh' | 'svg' | 'png';
 
 /** Formats the folded-form (simulator) export offers. */
 export type FoldedFormExportFormat = 'fold' | 'obj' | 'stl';
@@ -163,29 +148,14 @@ export type FoldabilityCheckSource = 'pre-fold';
  * Both are new: `fold simulation run` had no call site before this feature, so
  * nothing older is in the data to reconcile with.
  */
-export type FoldSimulationSource =
-  | 'fold-3d-refused'
-  | 'fold-3d-no-layer-order';
+export type FoldSimulationSource = 'fold-3d-refused' | 'fold-3d-no-layer-order';
 
 /** The coarse group a command id belongs to (derived from its id prefix). */
-export type CommandGroup =
-  | 'file'
-  | 'edit'
-  | 'view'
-  | 'cp'
-  | 'bp'
-  | 'optimize'
-  | 'help'
-  | 'other';
+export type CommandGroup = 'file' | 'edit' | 'view' | 'cp' | 'bp' | 'optimize' | 'help' | 'other';
 
 /** Where an error was surfaced, for `app error` bucketing. */
 export type AnalyticsErrorDomain =
-  | 'bootstrap'
-  | 'runtime'
-  | 'render'
-  | 'file_io'
-  | 'settings'
-  | 'panel';
+  'bootstrap' | 'runtime' | 'render' | 'file_io' | 'settings' | 'panel';
 
 // ---------------------------------------------------------------------------
 // Event names
@@ -367,12 +337,7 @@ export type ExploriSendSource = 'card' | 'detail';
 
 /** Why a search did not produce results. An enum — never the server's prose. */
 export type ExploriFailureReason =
-  | 'network'
-  | 'timeout'
-  | 'upstream_error'
-  | 'invalid_tree'
-  | 'rate_limited'
-  | 'unknown';
+  'network' | 'timeout' | 'upstream_error' | 'invalid_tree' | 'rate_limited' | 'unknown';
 
 /**
  * Which bundle format an install can update itself from. Mirrors `InstallKind`
@@ -402,11 +367,7 @@ export type UpdateFailureStage = 'check' | 'download' | 'install';
  * `stale_manifest` means the endpoint offered a version below one already seen.
  */
 export type UpdateFailureReason =
-  | 'network'
-  | 'signature'
-  | 'stale_manifest'
-  | 'unsupported'
-  | 'unknown';
+  'network' | 'signature' | 'stale_manifest' | 'unsupported' | 'unknown';
 
 /** How an offered update stopped being shown. */
 export type UpdateDismissScope = 'skipped' | 'session' | 'revoked';

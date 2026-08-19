@@ -118,7 +118,8 @@ const MIN_CONSTRAINABLE_FRACTION = 1e-4;
 const DEG = Math.PI / 180;
 
 function direction(vertices, a, b) {
-  const angle = (Math.atan2(vertices[b][1] - vertices[a][1], vertices[b][0] - vertices[a][0]) * 180) / Math.PI;
+  const angle =
+    (Math.atan2(vertices[b][1] - vertices[a][1], vertices[b][0] - vertices[a][0]) * 180) / Math.PI;
   return ((angle % 180) + 180) % 180;
 }
 
@@ -163,7 +164,7 @@ export function classify(vertices, edges, slivers = sliverSet(vertices, edges)) 
     const deviations = directions.map((d) => deviation(d, base));
     const on = deviations.filter((d) => d <= ROUNDING_MAX_DEGREES).length;
     const ambiguous = deviations.filter(
-      (d) => d > ROUNDING_MAX_DEGREES && d < DESIGN_MIN_DEGREES
+      (d) => d > ROUNDING_MAX_DEGREES && d < DESIGN_MIN_DEGREES,
     ).length;
     const fraction = on / deviations.length;
     if (!best || fraction > best.fraction) best = { base, on, ambiguous, fraction };
@@ -220,7 +221,7 @@ function solve(vertices, constraints, iterations = 20000) {
   const apply = (x) =>
     constraints.map(
       ({ a, b, normal, scale }) =>
-        ((x[b][0] - x[a][0]) * normal[0] + (x[b][1] - x[a][1]) * normal[1]) * scale
+        ((x[b][0] - x[a][0]) * normal[0] + (x[b][1] - x[a][1]) * normal[1]) * scale,
     );
 
   const dot = (u, v) => u.reduce((sum, value, i) => sum + value * v[i], 0);
@@ -329,7 +330,8 @@ export function snapToAngles(fold) {
     if (length < 1e-9) {
       return { fold: null, report: { skipped: 'would collapse an edge', base } };
     }
-    const off = Math.abs(Math.asin(Math.min(1, Math.abs((dx * normal[0] + dy * normal[1]) / length)))) / DEG;
+    const off =
+      Math.abs(Math.asin(Math.min(1, Math.abs((dx * normal[0] + dy * normal[1]) / length)))) / DEG;
     worstConstrained = Math.max(worstConstrained, off);
   }
   if (worstConstrained > EXACT_BAR_DEGREES) {
@@ -395,7 +397,7 @@ function main() {
   const inputs = args.filter((a, i) => !a.startsWith('--') && args[i - 1] !== '--out');
   if (inputs.length === 0 || (!outDir && !inPlace && !report)) {
     console.error(
-      'usage: node scripts/snap-to-angles.mjs <dir|file...> --out DIR | --in-place | --report'
+      'usage: node scripts/snap-to-angles.mjs <dir|file...> --out DIR | --in-place | --report',
     );
     process.exit(1);
   }
@@ -407,7 +409,7 @@ function main() {
           .filter((f) => extname(f).toLowerCase() === '.fold')
           .sort()
           .map((f) => join(input, f))
-      : [input]
+      : [input],
   );
 
   let snapped = 0;
@@ -424,14 +426,17 @@ function main() {
     console.log(
       `  ${name.padEnd(30)} ${String(base).padStart(5)}°  ` +
         `${constrained} constrained, ${free} free  moved <= ${worstMove.toExponential(1)} ` +
-        `(${(fraction * 100).toFixed(4)}% of span)`
+        `(${(fraction * 100).toFixed(4)}% of span)`,
     );
     if (!report) {
-      writeFileSync(outDir ? join(outDir, `${name}.fold`) : file, `${JSON.stringify(result.fold)}\n`);
+      writeFileSync(
+        outDir ? join(outDir, `${name}.fold`) : file,
+        `${JSON.stringify(result.fold)}\n`,
+      );
     }
   }
   console.log(
-    `\n${snapped} of ${files.length} ${report ? 'would snap' : 'snapped'}; the rest were left untouched.`
+    `\n${snapped} of ${files.length} ${report ? 'would snap' : 'snapped'}; the rest were left untouched.`,
   );
 }
 

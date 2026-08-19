@@ -34,7 +34,9 @@ async function main() {
   const results = [];
   for (const fixture of manifest.fixtures) {
     if (!fixture.input_tensor_f32_path) {
-      throw new Error(`Fixture ${fixture.id} is missing input_tensor_f32_path; regenerate oracle artifacts.`);
+      throw new Error(
+        `Fixture ${fixture.id} is missing input_tensor_f32_path; regenerate oracle artifacts.`,
+      );
     }
     const input = await readF32(resolve(manifestRoot, fixture.input_tensor_f32_path));
     const outputs = await session.run({
@@ -50,7 +52,10 @@ async function main() {
       heads[head] = compareArrays(actual, expected, head === 'line_logits' ? threshold : null);
       if (exportManifestPath) {
         const outputPath = `${fixture.root}/onnx_${head}.f32`;
-        await writeFile(resolve(manifestRoot, outputPath), Buffer.from(actual.buffer, actual.byteOffset, actual.byteLength));
+        await writeFile(
+          resolve(manifestRoot, outputPath),
+          Buffer.from(actual.buffer, actual.byteOffset, actual.byteLength),
+        );
         fixture[pathKey] = outputPath;
       }
     }
@@ -125,7 +130,8 @@ function aggregate(results) {
     const values = results.map((result) => result.heads[head]).filter(Boolean);
     aggregate.heads[head] = {
       max_abs_error: Math.max(...values.map((value) => value.max_abs_error ?? Infinity)),
-      mean_abs_error: values.reduce((sum, value) => sum + (value.mean_abs_error ?? 0), 0) / values.length,
+      mean_abs_error:
+        values.reduce((sum, value) => sum + (value.mean_abs_error ?? 0), 0) / values.length,
       threshold_mask_diffs: values.some((value) => value.threshold_mask_diffs !== null)
         ? values.reduce((sum, value) => sum + (value.threshold_mask_diffs ?? 0), 0)
         : null,

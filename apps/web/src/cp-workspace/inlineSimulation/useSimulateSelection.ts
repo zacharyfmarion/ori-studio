@@ -16,27 +16,22 @@ import { MAX_CONCURRENT_SIMULATIONS } from '../../simulator/simulatorLimits';
  */
 export function useSimulateSelection(): () => Promise<void> {
   const { t } = useTranslation();
-  const addInlineSimulation = useWorkspaceStore(
-    (state) => state.addOristudioCpInlineSimulation
-  );
+  const addInlineSimulation = useWorkspaceStore((state) => state.addOristudioCpInlineSimulation);
 
   return useCallback(async () => {
     const state = useWorkspaceStore.getState();
     const document = state.oristudioCpDocument?.document ?? null;
     if (!document) {
       toast.error(
-        t('toasts:creasePattern.simulateNoRegion', 'Select a closed region to simulate.')
+        t('toasts:creasePattern.simulateNoRegion', 'Select a closed region to simulate.'),
       );
       return;
     }
 
-    const match = await resolveInlineSimulationRegion(
-      document,
-      state.oristudioCpSelection.lines
-    );
+    const match = await resolveInlineSimulationRegion(document, state.oristudioCpSelection.lines);
     if (!match) {
       toast.error(
-        t('toasts:creasePattern.simulateNoRegion', 'Select a closed region to simulate.')
+        t('toasts:creasePattern.simulateNoRegion', 'Select a closed region to simulate.'),
       );
       return;
     }
@@ -52,17 +47,14 @@ export function useSimulateSelection(): () => Promise<void> {
       // fan this out into every locale's plural categories, for a constant.
       toast.message(
         t('toasts:creasePattern.inlineSimulationCap', {
-          defaultValue:
-            'Up to {{max}} simulation windows at once. Close one to open another.',
+          defaultValue: 'Up to {{max}} simulation windows at once. Close one to open another.',
           max: MAX_CONCURRENT_SIMULATIONS,
-        })
+        }),
       );
       return;
     }
     if (result === 'unavailable') {
-      toast.error(
-        t('toasts:creasePattern.simulateFailed', 'That region could not be simulated.')
-      );
+      toast.error(t('toasts:creasePattern.simulateFailed', 'That region could not be simulated.'));
     }
   }, [addInlineSimulation, t]);
 }

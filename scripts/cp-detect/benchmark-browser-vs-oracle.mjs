@@ -43,8 +43,12 @@ async function main() {
 
     for (const fixture of manifest.fixtures) {
       const imagePath = resolve(manifestRoot, fixture.source_image_path);
-      const oracleFold = JSON.parse(await readFile(resolve(manifestRoot, fixture.fold_path), 'utf8'));
-      const oracleReport = JSON.parse(await readFile(resolve(manifestRoot, fixture.report_path), 'utf8'));
+      const oracleFold = JSON.parse(
+        await readFile(resolve(manifestRoot, fixture.fold_path), 'utf8'),
+      );
+      const oracleReport = JSON.parse(
+        await readFile(resolve(manifestRoot, fixture.report_path), 'utf8'),
+      );
       const detection = await runBrowserDetection(page, imagePath);
       const predictedFold = JSON.parse(detection.foldJson);
       results.push({
@@ -84,10 +88,12 @@ async function main() {
 async function runBrowserDetection(page, imagePath) {
   const startIndex = await page.evaluate(() => window.__oriCpDetectBenchmarkResults.length);
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('ori-studio:detect-cp-image')));
-  await page.getByRole('button', { name: /Choose Image/i }).waitFor({ state: 'visible', timeout: 30_000 });
+  await page
+    .getByRole('button', { name: /Choose Image/i })
+    .waitFor({ state: 'visible', timeout: 30_000 });
   await page.waitForFunction(() => {
     const button = [...document.querySelectorAll('button')].find((item) =>
-      /Choose Image/.test(item.textContent || '')
+      /Choose Image/.test(item.textContent || ''),
     );
     return Boolean(button && !button.disabled);
   });
@@ -96,20 +102,30 @@ async function runBrowserDetection(page, imagePath) {
   const chooser = await chooserPromise;
   await chooser.setFiles(imagePath);
 
-  await page.waitForFunction(() => {
-    const button = [...document.querySelectorAll('button')].find((item) =>
-      /^\s*Detect\s*$/.test(item.textContent || '')
-    );
-    return Boolean(button && !button.disabled);
-  }, null, { timeout: 60_000 });
+  await page.waitForFunction(
+    () => {
+      const button = [...document.querySelectorAll('button')].find((item) =>
+        /^\s*Detect\s*$/.test(item.textContent || ''),
+      );
+      return Boolean(button && !button.disabled);
+    },
+    null,
+    { timeout: 60_000 },
+  );
   await page.getByRole('button', { name: /^Detect$/i }).click();
   await page.waitForFunction(
     (index) => window.__oriCpDetectBenchmarkResults.length > index,
     startIndex,
-    { timeout: 180_000 }
+    { timeout: 180_000 },
   );
-  const detail = await page.evaluate((index) => window.__oriCpDetectBenchmarkResults[index], startIndex);
-  await page.getByTitle('Close').click().catch(() => {});
+  const detail = await page.evaluate(
+    (index) => window.__oriCpDetectBenchmarkResults[index],
+    startIndex,
+  );
+  await page
+    .getByTitle('Close')
+    .click()
+    .catch(() => {});
   return detail.detection;
 }
 
@@ -219,12 +235,8 @@ function greedyPointMatches(left, right, tolerance) {
 }
 
 function segmentCost(left, right) {
-  const same =
-    pointDistance(left.a, right.a) +
-    pointDistance(left.b, right.b);
-  const swapped =
-    pointDistance(left.a, right.b) +
-    pointDistance(left.b, right.a);
+  const same = pointDistance(left.a, right.a) + pointDistance(left.b, right.b);
+  const swapped = pointDistance(left.a, right.b) + pointDistance(left.b, right.a);
   return Math.min(same, swapped);
 }
 

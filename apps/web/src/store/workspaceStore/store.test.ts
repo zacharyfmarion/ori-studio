@@ -1,5 +1,21 @@
 import { patchBoxPleatDesign, singleBoxPleatDesignTab } from './designTabs';
-import { selectDesignMethod, selectDesignViewportFitRequestId, selectHistoryFuture, selectHistoryPast, selectLastOptimization, selectOristudioBpDocument, selectOristudioBpHistoryPast, selectOristudioBpSymmetry, selectOristudioBpViewportFitRequestId, selectProject, selectSelection, selectSymmetryAuthoringPairs, selectToolMode, singleDesignTab, singleTreemakerDesignTab } from './designTabs';
+import {
+  selectDesignMethod,
+  selectDesignViewportFitRequestId,
+  selectHistoryFuture,
+  selectHistoryPast,
+  selectLastOptimization,
+  selectOristudioBpDocument,
+  selectOristudioBpHistoryPast,
+  selectOristudioBpSymmetry,
+  selectOristudioBpViewportFitRequestId,
+  selectProject,
+  selectSelection,
+  selectSymmetryAuthoringPairs,
+  selectToolMode,
+  singleDesignTab,
+  singleTreemakerDesignTab,
+} from './designTabs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   ConditionKind,
@@ -40,7 +56,11 @@ import { CP_DOCUMENT_SCOPED_KEYS, discardCpDocumentState } from './cpDocumentSta
 import { foldCancellationBuffer } from '../../lib/foldCancellation';
 import { registerCpCamera } from '../../cp-workspace/renderer/cpCameraRegistry';
 import { projectFromSnapshot } from '../../engine/snapshotMapper';
-import type { FileService, SaveBinaryFileOptions, SaveTextFileOptions } from '../../platform/fileService';
+import type {
+  FileService,
+  SaveBinaryFileOptions,
+  SaveTextFileOptions,
+} from '../../platform/fileService';
 import { DEFAULT_CREASE_COLOR_MODE } from '../../lib/sampleProject';
 import {
   DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
@@ -236,10 +256,7 @@ import { selectWorkspaceCapabilities } from './capabilities';
 import { useWorkspaceStore } from './store';
 
 type SnapshotOptions = Partial<
-  Pick<
-    TreeSnapshot,
-    'nodes' | 'edges' | 'paths' | 'vertices' | 'creases' | 'facets' | 'conditions'
-  >
+  Pick<TreeSnapshot, 'nodes' | 'edges' | 'paths' | 'vertices' | 'creases' | 'facets' | 'conditions'>
 > & {
   paper?: Partial<PaperSettings>;
   summary?: Partial<TreeSummary>;
@@ -268,7 +285,7 @@ function cloneSnapshot(snapshot: TreeSnapshot): TreeSnapshot {
 function nodeSnapshot(
   id: number,
   loc = { x: id / 10, y: id / 10 },
-  overrides: Partial<NodeSnapshot> = {}
+  overrides: Partial<NodeSnapshot> = {},
 ): NodeSnapshot {
   return {
     id,
@@ -285,7 +302,7 @@ function nodeSnapshot(
 function edgeSnapshot(
   id: number,
   nodes: [number, number],
-  overrides: Partial<EdgeSnapshot> = {}
+  overrides: Partial<EdgeSnapshot> = {},
 ): EdgeSnapshot {
   return {
     id,
@@ -398,8 +415,15 @@ function seedSnapshot(): TreeSnapshot {
 }
 
 function foldArtifactsFromSnapshot(snapshot: TreeSnapshot): FoldArtifacts {
-  if (snapshot.vertices.length === 0 || snapshot.creases.length === 0 || snapshot.facets.length === 0) {
-    throw { code: 'invalid_operation', message: 'build a crease pattern before exporting FOLD artifacts' };
+  if (
+    snapshot.vertices.length === 0 ||
+    snapshot.creases.length === 0 ||
+    snapshot.facets.length === 0
+  ) {
+    throw {
+      code: 'invalid_operation',
+      message: 'build a crease pattern before exporting FOLD artifacts',
+    };
   }
 
   const fold = {
@@ -409,7 +433,7 @@ function foldArtifactsFromSnapshot(snapshot: TreeSnapshot): FoldArtifacts {
     frame_classes: ['creasePattern'],
     vertices_coords: snapshot.vertices.map((vertex) => [vertex.loc.x, vertex.loc.y]),
     edges_vertices: snapshot.creases.map(
-      (crease) => [crease.vertices[0] - 1, crease.vertices[1] - 1] as [number, number]
+      (crease) => [crease.vertices[0] - 1, crease.vertices[1] - 1] as [number, number],
     ),
     edges_assignment: snapshot.creases.map(() => 'M' as const),
     edges_foldAngle: snapshot.creases.map(() => -180),
@@ -463,8 +487,7 @@ function foldArtifactsFromFold(fold: FoldDocument): FoldArtifacts {
         elevation: 0,
         is_border: fold.edges_vertices.some(
           (edge, edgeIndex) =>
-            fold.edges_assignment?.[edgeIndex] === 'B' &&
-            (edge[0] === index || edge[1] === index)
+            fold.edges_assignment?.[edgeIndex] === 'B' && (edge[0] === index || edge[1] === index),
         ),
       })),
       creases: fold.edges_vertices.map((vertices, index) => ({
@@ -472,7 +495,12 @@ function foldArtifactsFromFold(fold: FoldDocument): FoldArtifacts {
         source_crease: index,
         vertices,
         kind: 0,
-        fold: fold.edges_assignment?.[index] === 'M' ? 1 : fold.edges_assignment?.[index] === 'V' ? 2 : 3,
+        fold:
+          fold.edges_assignment?.[index] === 'M'
+            ? 1
+            : fold.edges_assignment?.[index] === 'V'
+              ? 2
+              : 3,
       })),
       facets: fold.faces_vertices.map((vertices, index) => ({
         id: index,
@@ -575,7 +603,8 @@ function refreshMockTopology(snapshot: TreeSnapshot): TreeSnapshot {
 function createMockEngineApi(initialSnapshot: TreeSnapshot) {
   let snapshotState = cloneSnapshot(initialSnapshot);
   let saveCount = 0;
-  let nextConditionId = Math.max(0, ...snapshotState.conditions.map((condition) => condition.index)) + 1;
+  let nextConditionId =
+    Math.max(0, ...snapshotState.conditions.map((condition) => condition.index)) + 1;
 
   const setSnapshot = (snapshot: TreeSnapshot) => {
     snapshotState = cloneSnapshot(snapshot);
@@ -600,7 +629,7 @@ function createMockEngineApi(initialSnapshot: TreeSnapshot) {
     exportFold: vi.fn(async () => JSON.stringify(foldArtifactsFromSnapshot(snapshotState).fold)),
     foldArtifacts: vi.fn(async () => foldArtifactsFromSnapshot(snapshotState)),
     flatFoldArtifacts: vi.fn(async (foldJson: string) =>
-      foldArtifactsFromFold(JSON.parse(foldJson) as FoldDocument)
+      foldArtifactsFromFold(JSON.parse(foldJson) as FoldDocument),
     ),
     sequenceAnalyzeFold: vi.fn(async (foldJson: string) => ({
       normalized: JSON.parse(foldJson) as FoldDocument,
@@ -718,7 +747,7 @@ function createMockEngineApi(initialSnapshot: TreeSnapshot) {
             edges.push(
               edgeSnapshot(createdEdge, [edit.connect_to, createdNode], {
                 length: edit.edge_length ?? 1,
-              })
+              }),
             );
           }
           snapshotState = refreshMockTopology(makeSnapshot({ ...snapshotState, nodes, edges }));
@@ -728,7 +757,7 @@ function createMockEngineApi(initialSnapshot: TreeSnapshot) {
           snapshotState = makeSnapshot({
             ...snapshotState,
             nodes: snapshotState.nodes.map((node) =>
-              node.id === edit.id ? { ...node, loc: edit.loc } : node
+              node.id === edit.id ? { ...node, loc: edit.loc } : node,
             ),
           });
           break;
@@ -739,28 +768,32 @@ function createMockEngineApi(initialSnapshot: TreeSnapshot) {
           snapshotState = makeSnapshot({
             ...snapshotState,
             nodes: snapshotState.nodes.map((node) =>
-              node.id === edit.id ? { ...node, label: edit.label } : node
+              node.id === edit.id ? { ...node, label: edit.label } : node,
             ),
           });
           break;
         case 'add_edge':
           createdEdge = nextId(snapshotState.edges);
-          snapshotState = refreshMockTopology(makeSnapshot({
-            ...snapshotState,
-            edges: [
-              ...snapshotState.edges,
-              edgeSnapshot(createdEdge, [edit.node1, edit.node2], {
-                label: edit.label ?? `e${createdEdge}`,
-                length: edit.length ?? 1,
-              }),
-            ],
-          }));
+          snapshotState = refreshMockTopology(
+            makeSnapshot({
+              ...snapshotState,
+              edges: [
+                ...snapshotState.edges,
+                edgeSnapshot(createdEdge, [edit.node1, edit.node2], {
+                  label: edit.label ?? `e${createdEdge}`,
+                  length: edit.length ?? 1,
+                }),
+              ],
+            }),
+          );
           break;
         case 'delete_edge':
-          snapshotState = refreshMockTopology(makeSnapshot({
-            ...snapshotState,
-            edges: snapshotState.edges.filter((edge) => edge.id !== edit.id),
-          }));
+          snapshotState = refreshMockTopology(
+            makeSnapshot({
+              ...snapshotState,
+              edges: snapshotState.edges.filter((edge) => edge.id !== edit.id),
+            }),
+          );
           break;
         case 'update_edge':
           snapshotState = makeSnapshot({
@@ -774,7 +807,7 @@ function createMockEngineApi(initialSnapshot: TreeSnapshot) {
                     strain: edit.strain ?? edge.strain,
                     stiffness: edit.stiffness ?? edge.stiffness,
                   }
-                : edge
+                : edge,
             ),
           });
           break;
@@ -813,7 +846,7 @@ function createMockEngineApi(initialSnapshot: TreeSnapshot) {
           snapshotState = makeSnapshot({
             ...snapshotState,
             conditions: snapshotState.conditions.map((condition) =>
-              condition.index === edit.id ? { ...condition, kind: edit.kind } : condition
+              condition.index === edit.id ? { ...condition, kind: edit.kind } : condition,
             ),
           });
           break;
@@ -827,7 +860,7 @@ function createMockEngineApi(initialSnapshot: TreeSnapshot) {
           snapshotState = makeSnapshot({
             ...snapshotState,
             nodes: snapshotState.nodes.map((node) =>
-              node.id === edit.node ? { ...node, id: 1 } : { ...node, id: node.id + 1 }
+              node.id === edit.node ? { ...node, id: 1 } : { ...node, id: node.id + 1 },
             ),
           });
           break;
@@ -838,28 +871,29 @@ function createMockEngineApi(initialSnapshot: TreeSnapshot) {
           createdEdge = nextId(snapshotState.edges);
           const newNode = createdNode;
           const newEdge = createdEdge;
-          snapshotState = refreshMockTopology(makeSnapshot({
-            ...snapshotState,
-            nodes: [
-              ...snapshotState.nodes,
-              nodeSnapshot(newNode, { x: 0.5, y: 0.5 }),
-            ],
-            edges: [
-              ...snapshotState.edges.map((candidate) =>
-                candidate.id === edit.edge
-                  ? { ...candidate, nodes: [candidate.nodes[0], newNode], length: edit.distance }
-                  : candidate
-              ),
-              edgeSnapshot(newEdge, [newNode, edge.nodes[1]], { length: edge.length - edit.distance }),
-            ],
-          }));
+          snapshotState = refreshMockTopology(
+            makeSnapshot({
+              ...snapshotState,
+              nodes: [...snapshotState.nodes, nodeSnapshot(newNode, { x: 0.5, y: 0.5 })],
+              edges: [
+                ...snapshotState.edges.map((candidate) =>
+                  candidate.id === edit.edge
+                    ? { ...candidate, nodes: [candidate.nodes[0], newNode], length: edit.distance }
+                    : candidate,
+                ),
+                edgeSnapshot(newEdge, [newNode, edge.nodes[1]], {
+                  length: edge.length - edit.distance,
+                }),
+              ],
+            }),
+          );
           break;
         }
         case 'set_edge_lengths':
           snapshotState = makeSnapshot({
             ...snapshotState,
             edges: snapshotState.edges.map((edge) =>
-              edit.edges.includes(edge.id) ? { ...edge, length: edit.length, strain: 0 } : edge
+              edit.edges.includes(edge.id) ? { ...edge, length: edit.length, strain: 0 } : edge,
             ),
           });
           break;
@@ -867,7 +901,7 @@ function createMockEngineApi(initialSnapshot: TreeSnapshot) {
           snapshotState = makeSnapshot({
             ...snapshotState,
             edges: snapshotState.edges.map((edge) =>
-              edit.edges.includes(edge.id) ? { ...edge, length: edge.length * edit.factor } : edge
+              edit.edges.includes(edge.id) ? { ...edge, length: edge.length * edit.factor } : edge,
             ),
           });
           break;
@@ -905,7 +939,7 @@ function createMockEngineApi(initialSnapshot: TreeSnapshot) {
             nodes: snapshotState.nodes.map((node) =>
               edit.nodes.includes(node.id)
                 ? { ...node, loc: { x: node.loc.x + 0.01, y: node.loc.y + 0.01 } }
-                : node
+                : node,
             ),
           });
           break;
@@ -922,7 +956,7 @@ function createMockEngineApi(initialSnapshot: TreeSnapshot) {
           snapshotState = makeSnapshot({
             ...snapshotState,
             edges: snapshotState.edges.map((edge) =>
-              edit.edges.includes(edge.id) ? { ...edge, strain: 0 } : edge
+              edit.edges.includes(edge.id) ? { ...edge, strain: 0 } : edge,
             ),
           });
           break;
@@ -938,7 +972,7 @@ function createMockEngineApi(initialSnapshot: TreeSnapshot) {
             edges: snapshotState.edges.map((edge) =>
               edit.edges.includes(edge.id)
                 ? { ...edge, length: edge.length * (1 + edge.strain), strain: 0 }
-                : edge
+                : edge,
             ),
           });
           break;
@@ -986,27 +1020,29 @@ function configureEngine(api: TestEngineApi) {
     api.replaceSnapshot(snapshot);
     return cloneSnapshot(snapshot);
   });
-  engineMocks.loadTreeFromText.mockReset().mockImplementation(async (_engine: EngineClient, text: string) => {
-    const snapshot = savedSnapshots.get(text) ?? api.snapshotState;
-    api.replaceSnapshot(snapshot);
-    return cloneSnapshot(snapshot);
-  });
+  engineMocks.loadTreeFromText
+    .mockReset()
+    .mockImplementation(async (_engine: EngineClient, text: string) => {
+      const snapshot = savedSnapshots.get(text) ?? api.snapshotState;
+      api.replaceSnapshot(snapshot);
+      return cloneSnapshot(snapshot);
+    });
 }
 
 function loadSnapshotIntoStore(snapshot: TreeSnapshot, title = 'Seed project') {
   // A loaded tree claims the design, exactly as `loadText` does in production —
   // `singleTreemakerDesignTab` installs the kind and the tree together.
   useWorkspaceStore.setState({
-      ...singleTreemakerDesignTab({
-    project: projectFromSnapshot(snapshot, title),
-    lastOptimization: null,
-    viewportFitRequestId: 0,
-    historyPast: [],
-    historyFuture: [],
-    selection: { kind: 'tree' },
-    toolMode: 'select',
-    symmetryAuthoringPairs: []
-      }),
+    ...singleTreemakerDesignTab({
+      project: projectFromSnapshot(snapshot, title),
+      lastOptimization: null,
+      viewportFitRequestId: 0,
+      historyPast: [],
+      historyFuture: [],
+      selection: { kind: 'tree' },
+      toolMode: 'select',
+      symmetryAuthoringPairs: [],
+    }),
     importedCreasePattern: null,
     oristudioCpDocument: null,
     oristudioCpOperationDescriptors: [],
@@ -1033,7 +1069,8 @@ function loadSnapshotIntoStore(snapshot: TreeSnapshot, title = 'Seed project') {
     sequencePlan: null,
     sequenceSimulationFocus: { kind: 'whole' },
     sequencePlanning: false,
-    sequenceError: null});
+    sequenceError: null,
+  });
 }
 
 function sampleBpDocument(): import('../../engine/oristudioBpTypes').OristudioBpDocumentState {
@@ -1098,7 +1135,7 @@ function blankCpDocumentState(): OristudioCpDocumentState {
 function cpLine(
   a: { x: number; y: number },
   b: { x: number; y: number },
-  overrides: Partial<OristudioCpLineSegment> = {}
+  overrides: Partial<OristudioCpLineSegment> = {},
 ): OristudioCpLineSegment {
   return {
     a,
@@ -1145,7 +1182,7 @@ function insertAppendsToDocument(): void {
         ...(useWorkspaceStore.getState().oristudioCpDocument?.document.crease_pattern
           .line_segments ?? []),
         ...segments,
-      ])
+      ]),
   );
 }
 
@@ -1241,7 +1278,7 @@ function folded3dRenderModelFixture(): OristudioCpFolded3dRenderModel {
 }
 
 function folded3dSnapshot(
-  overrides: Partial<OristudioCpFolded3dSnapshot> = {}
+  overrides: Partial<OristudioCpFolded3dSnapshot> = {},
 ): OristudioCpFolded3dSnapshot {
   return {
     schema_version: 1,
@@ -1348,8 +1385,12 @@ function resetStores(snapshot = makeSnapshot()) {
   useLayoutStore.setState(initialLayoutState, true);
   const api = createMockEngineApi(snapshot);
   configureEngine(api);
-  bpMocks.createSampleOristudioBpProject.mockReset().mockImplementation(async () => sampleBpDocument());
-  bpMocks.loadOristudioBpProjectFromText.mockReset().mockImplementation(async () => sampleBpDocument());
+  bpMocks.createSampleOristudioBpProject
+    .mockReset()
+    .mockImplementation(async () => sampleBpDocument());
+  bpMocks.loadOristudioBpProjectFromText
+    .mockReset()
+    .mockImplementation(async () => sampleBpDocument());
   bpMocks.getOristudioBpPortDescriptors.mockReset().mockResolvedValue([]);
   bpMocks.exportOristudioBpProjectAsBps
     .mockReset()
@@ -1365,9 +1406,7 @@ function resetStores(snapshot = makeSnapshot()) {
     .mockReset()
     .mockImplementation(async () => blankCpDocumentState());
   oristudioCpMocks.releaseOristudioCpDocument.mockReset().mockResolvedValue(undefined);
-  oristudioCpMocks.exportOristudioCpDocumentAsCp
-    .mockReset()
-    .mockResolvedValue('1 0 0 1 0\n');
+  oristudioCpMocks.exportOristudioCpDocumentAsCp.mockReset().mockResolvedValue('1 0 0 1 0\n');
   oristudioCpMocks.exportOristudioCpDocumentAsFold
     .mockReset()
     .mockResolvedValue(editableCpFoldText);
@@ -1394,44 +1433,55 @@ function resetStores(snapshot = makeSnapshot()) {
   // Default: no flat-foldability violations, so the pre-fold warning gate folds
   // straight through. Reset here so its call count / queued results don't leak
   // between tests now that folding runs CheckCamv up front.
-  oristudioCpMocks.runOristudioCpCheckCommand
-    .mockReset()
-    .mockResolvedValue({
-      operation: 'CheckCamv',
-      status: 'OracleTested',
-      diagnostics: [],
-      diagnostic_entries: [],
-    });
+  oristudioCpMocks.runOristudioCpCheckCommand.mockReset().mockResolvedValue({
+    operation: 'CheckCamv',
+    status: 'OracleTested',
+    diagnostics: [],
+    diagnostic_entries: [],
+  });
   oristudioCpMocks.foldOristudioCpFigureAnother
     .mockReset()
     .mockResolvedValue({ ...foldedFigureSnapshot(), discovered_fold_cases: 2 });
-  oristudioCpMocks.foldOristudioCpFigureToCase
-    .mockReset()
-    .mockResolvedValue({
-      snapshot: { ...foldedFigureSnapshot(), discovered_fold_cases: 3 },
-      discovered_case_numbers: [1, 2, 3],
-    });
+  oristudioCpMocks.foldOristudioCpFigureToCase.mockReset().mockResolvedValue({
+    snapshot: { ...foldedFigureSnapshot(), discovered_fold_cases: 3 },
+    discovered_case_numbers: [1, 2, 3],
+  });
   oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot
     .mockReset()
     .mockResolvedValue(foldedRenderSnapshot());
   oristudioCpMocks.setOristudioCpFoldedFigureModel
     .mockReset()
-    .mockImplementation(async (_handle: number, model: OristudioCpFoldedFigureSnapshot['model']) => ({
-      ...foldedFigureSnapshot(),
-      model,
-    }));
+    .mockImplementation(
+      async (_handle: number, model: OristudioCpFoldedFigureSnapshot['model']) => ({
+        ...foldedFigureSnapshot(),
+        model,
+      }),
+    );
   oristudioCpMocks.duplicateOristudioCpFoldedFigure
     .mockReset()
     .mockResolvedValue({ handle: 8, snapshot: foldedFigureSnapshot() });
   oristudioCpMocks.freeOristudioCpFoldedFigure.mockReset().mockResolvedValue(undefined);
   oristudioCpMocks.setOristudioCpDocumentSource.mockReset();
-  oristudioCpMocks.loadOristudioCpDocumentFromText
-    .mockReset()
-    .mockImplementation(async (_text: string, source: { format: 'cp' | 'fold' | 'ori' | 'orh'; filename: string; path?: string | null; title?: string }) => ({
+  oristudioCpMocks.loadOristudioCpDocumentFromText.mockReset().mockImplementation(
+    async (
+      _text: string,
+      source: {
+        format: 'cp' | 'fold' | 'ori' | 'orh';
+        filename: string;
+        path?: string | null;
+        title?: string;
+      },
+    ) => ({
       handle: 2,
       loadSerial: 1,
       document: {
-        title: source.title ?? (source.format === 'ori' ? 'native ori' : source.format === 'orh' ? 'orh model' : 'square'),
+        title:
+          source.title ??
+          (source.format === 'ori'
+            ? 'native ori'
+            : source.format === 'orh'
+              ? 'orh model'
+              : 'square'),
         crease_pattern: {
           line_segments: [],
           circles: [],
@@ -1457,7 +1507,13 @@ function resetStores(snapshot = makeSnapshot()) {
         metadata: {},
       },
       summary: {
-        title: source.title ?? (source.format === 'ori' ? 'native ori' : source.format === 'orh' ? 'orh model' : 'square'),
+        title:
+          source.title ??
+          (source.format === 'ori'
+            ? 'native ori'
+            : source.format === 'orh'
+              ? 'orh model'
+              : 'square'),
         line_segments: 5,
         circles: 0,
         points: 0,
@@ -1473,18 +1529,17 @@ function resetStores(snapshot = makeSnapshot()) {
       },
       operationDescriptors: cpOperationDescriptors,
       lastCommandResult: null,
-    }));
+    }),
+  );
   oristudioCpMocks.importAddOristudioCpDocumentFromText
     .mockReset()
-    .mockImplementation(async () =>
-      editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })])
-    );
+    .mockImplementation(async () => editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]));
   oristudioCpMocks.restoreOristudioCpDocument
     .mockReset()
     .mockImplementation(
       async (
         document: OristudioCpDocumentSnapshot,
-        source: OristudioCpDocumentState['source']
+        source: OristudioCpDocumentState['source'],
       ) => ({
         handle: 3,
         loadSerial: 2,
@@ -1508,7 +1563,7 @@ function resetStores(snapshot = makeSnapshot()) {
         source,
         operationDescriptors: cpOperationDescriptors,
         lastCommandResult: null,
-      })
+      }),
     );
   oristudioCpMocks.restoreOristudioCpDocumentInPlace
     .mockReset()
@@ -1516,7 +1571,7 @@ function resetStores(snapshot = makeSnapshot()) {
       async (
         document: OristudioCpDocumentSnapshot,
         source?: OristudioCpDocumentState['source'],
-        lastCommandResult: OristudioCpCommandResult | null = null
+        lastCommandResult: OristudioCpCommandResult | null = null,
       ) => {
         // In-place restore keeps the current handle and load serial: only the
         // document content changes.
@@ -1541,11 +1596,12 @@ function resetStores(snapshot = makeSnapshot()) {
                 document.crease_pattern.texts.length ===
               0,
           },
-          source: source ?? current?.source ?? { format: 'cp', filename: 'Untitled.cp', path: null },
+          source: source ??
+            current?.source ?? { format: 'cp', filename: 'Untitled.cp', path: null },
           operationDescriptors: cpOperationDescriptors,
           lastCommandResult,
         };
-      }
+      },
     );
   oristudioCpMocks.executeOristudioCpCommand.mockReset().mockRejectedValue({
     code: 'not_implemented',
@@ -1582,7 +1638,7 @@ function camvErrorResult(id = 'CheckCamv-1'): OristudioCpCommandResult {
 }
 
 function createFileService(
-  file: { text: string; name: string; path: string | null } | null = null
+  file: { text: string; name: string; path: string | null } | null = null,
 ): FileService & {
   openTextFile: ReturnType<typeof vi.fn>;
   openBinaryFile: ReturnType<typeof vi.fn>;
@@ -1734,11 +1790,10 @@ describe('workspace store slices', () => {
         title: 'Save Ori Studio Project',
         path: null,
         extensions: ['osf'],
-      })
+      }),
     );
     const savedNativeTreeOptions = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
-      | SaveTextFileOptions
-      | undefined;
+      SaveTextFileOptions | undefined;
     const savedNativeTree = parseNativeProjectFile(savedNativeTreeOptions?.contents ?? '');
     expect(activeNativeDesign(savedNativeTree)).toMatchObject({
       payload: { kind: 'treemaker', format: 'tmd5' },
@@ -1750,12 +1805,12 @@ describe('workspace store slices', () => {
       expect.objectContaining({
         title: 'Save Ori Studio Project As',
         path: null,
-      })
+      }),
     );
 
     await expect(useWorkspaceStore.getState().exportV5(fileService)).resolves.toBe(true);
     expect(fileService.saveTextFile).toHaveBeenLastCalledWith(
-      expect.objectContaining({ title: 'Export TreeMaker 5 Project', extensions: ['tmd5'] })
+      expect.objectContaining({ title: 'Export TreeMaker 5 Project', extensions: ['tmd5'] }),
     );
 
     await expect(useWorkspaceStore.getState().exportV4(fileService)).resolves.toBe(true);
@@ -1765,26 +1820,34 @@ describe('workspace store slices', () => {
     await expect(useWorkspaceStore.getState().exportFold(fileService)).resolves.toBe(true);
     expect(api.exportFold).toHaveBeenCalledWith(1);
     expect(fileService.saveTextFile).toHaveBeenLastCalledWith(
-      expect.objectContaining({ title: 'Export FOLD Document', extensions: ['fold'] })
+      expect.objectContaining({ title: 'Export FOLD Document', extensions: ['fold'] }),
     );
 
     await expect(useWorkspaceStore.getState().exportSvg(fileService)).resolves.toBe(true);
     expect(exportMocks.serializeCreasePatternSvg).toHaveBeenCalledWith(
       expect.objectContaining({ edges_vertices: expect.any(Array) }),
       expect.any(Array),
-      expect.objectContaining({ segmentId: null, includeUnassigned: true, showBackgroundColor: true }),
-      { foldedFigure: null }
+      expect.objectContaining({
+        segmentId: null,
+        includeUnassigned: true,
+        showBackgroundColor: true,
+      }),
+      { foldedFigure: null },
     );
 
     await expect(useWorkspaceStore.getState().exportPng(fileService)).resolves.toBe(true);
     expect(exportMocks.renderCreasePatternPng).toHaveBeenCalledWith(
       expect.objectContaining({ edges_vertices: expect.any(Array) }),
       expect.any(Array),
-      expect.objectContaining({ segmentId: null, includeUnassigned: true, showBackgroundColor: true }),
-      { foldedFigure: null }
+      expect.objectContaining({
+        segmentId: null,
+        includeUnassigned: true,
+        showBackgroundColor: true,
+      }),
+      { foldedFigure: null },
     );
     expect(fileService.saveBinaryFile).toHaveBeenCalledWith(
-      expect.objectContaining({ extensions: ['png'], mimeType: 'image/png' })
+      expect.objectContaining({ extensions: ['png'], mimeType: 'image/png' }),
     );
 
     useWorkspaceStore.getState().clearProjectMessage();
@@ -1821,8 +1884,8 @@ describe('workspace store slices', () => {
       useWorkspaceStore
         .getState()
         .oristudioCpDocument?.document.crease_pattern.line_segments.every(
-          (line) => line.color === 'Black0'
-        )
+          (line) => line.color === 'Black0',
+        ),
     ).toBe(true);
     expect(useWorkspaceStore.getState().importedCreasePattern).toBeNull();
     expect(useWorkspaceStore.getState().oristudioCpSelection).toEqual(emptyOristudioCpSelection());
@@ -2043,7 +2106,7 @@ describe('workspace store slices', () => {
         tmd5Text: 'native tree tmd5',
         appVersion: '0.1.1',
         now: new Date('2026-05-26T12:00:00.000Z'),
-      })
+      }),
     );
     const fileService = createFileService({
       text: nativeText,
@@ -2067,7 +2130,7 @@ describe('workspace store slices', () => {
         suggestedName: 'native-tree.osf',
         path: '/tmp/native-tree.osf',
         extensions: ['osf'],
-      })
+      }),
     );
   });
 
@@ -2091,7 +2154,7 @@ describe('workspace store slices', () => {
         edges_vertices: [[0, 1]],
         edges_assignment: ['B'],
       }),
-      { filename: 'line.fold', path: null }
+      { filename: 'line.fold', path: null },
     );
     const fileService = createFileService();
     fileService.saveTextFile.mockImplementation(async (options: SaveTextFileOptions) => ({
@@ -2137,7 +2200,7 @@ describe('workspace store slices', () => {
         edges_vertices: [[0, 1]],
         edges_assignment: ['B'],
       }),
-      { filename: 'line.fold', path: null }
+      { filename: 'line.fold', path: null },
     );
     const fileService = createFileService();
     fileService.saveTextFile.mockImplementation(async (options: SaveTextFileOptions) => ({
@@ -2162,7 +2225,7 @@ describe('workspace store slices', () => {
         edges_vertices: [[0, 1]],
         edges_assignment: ['B'],
       }),
-      { filename: 'line.fold', path: null }
+      { filename: 'line.fold', path: null },
     );
     const fileService = createFileService();
     // The Firefox/Safari fallback: a download, with no target to write to again.
@@ -2209,7 +2272,7 @@ describe('workspace store slices', () => {
         tmd5Text: 'native tree tmd5',
         appVersion: '0.1.1',
         now: new Date('2026-05-26T12:00:00.000Z'),
-      })
+      }),
     );
     const fileService = createFileService({
       text: padToLargeSource(nativeText),
@@ -2220,7 +2283,7 @@ describe('workspace store slices', () => {
     await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(false);
 
     expect(useWorkspaceStore.getState().error?.message).toMatch(
-      /^engine load failed — this file is very large \(~26 MB\)/
+      /^engine load failed — this file is very large \(~26 MB\)/,
     );
   });
 
@@ -2260,7 +2323,7 @@ describe('workspace store slices', () => {
         lineage: importedCpLineage(),
         appVersion: '0.1.1',
         now: new Date('2026-05-26T12:00:00.000Z'),
-      })
+      }),
     );
     const fileService = createFileService({
       text: nativeText,
@@ -2270,14 +2333,11 @@ describe('workspace store slices', () => {
 
     await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
 
-    expect(oristudioCpMocks.restoreOristudioCpDocument).toHaveBeenCalledWith(
-      document,
-      {
-        format: 'osf',
-        filename: 'native-cp.osf',
-        path: '/tmp/native-cp.osf',
-      }
-    );
+    expect(oristudioCpMocks.restoreOristudioCpDocument).toHaveBeenCalledWith(document, {
+      format: 'osf',
+      filename: 'native-cp.osf',
+      path: '/tmp/native-cp.osf',
+    });
     expect(useWorkspaceStore.getState()).toMatchObject({
       currentFileName: 'native-cp.osf',
       currentFilePath: '/tmp/native-cp.osf',
@@ -2335,7 +2395,7 @@ describe('workspace store slices', () => {
         images: [image],
         appVersion: '0.1.1',
         now: new Date('2026-05-26T12:00:00.000Z'),
-      })
+      }),
     );
     const fileService = createFileService({
       text: nativeText,
@@ -2357,13 +2417,7 @@ describe('workspace store slices', () => {
     // that killed the Edit shortcuts after an open.
     const activateWorkspace = vi.fn(useLayoutStore.getState().activateWorkspace);
     useLayoutStore.setState({ activateWorkspace });
-    const cpText = [
-      '1 0 0 1 0',
-      '1 1 0 1 1',
-      '1 1 1 0 1',
-      '1 0 1 0 0',
-      '2 0 0 1 1',
-    ].join('\n');
+    const cpText = ['1 0 0 1 0', '1 1 0 1 1', '1 1 1 0 1', '1 0 1 0 0', '2 0 0 1 1'].join('\n');
     const fileService = createFileService({
       text: cpText,
       name: 'square.cp',
@@ -2386,7 +2440,7 @@ describe('workspace store slices', () => {
         filename: 'square.cp',
         path: '/tmp/square.cp',
         title: 'square',
-      })
+      }),
     );
     expect(useWorkspaceStore.getState().oristudioCpDocument).toMatchObject({
       handle: 2,
@@ -2400,7 +2454,7 @@ describe('workspace store slices', () => {
       },
     });
     expect(useWorkspaceStore.getState().oristudioCpOperationDescriptors).toEqual(
-      cpOperationDescriptors
+      cpOperationDescriptors,
     );
     // A crease pattern is not a design: opening a bare `.cp` establishes no tree,
     // so the pattern lives in the CP document rather than in a phantom project.
@@ -2412,7 +2466,7 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().foldArtifactStatus).toBe('stale');
     await useWorkspaceStore.getState().ensureFoldArtifacts();
     expect(
-      useWorkspaceStore.getState().foldArtifacts?.simulation_model?.fold.faces_vertices.length
+      useWorkspaceStore.getState().foldArtifacts?.simulation_model?.fold.faces_vertices.length,
     ).toBeGreaterThan(0);
     expect(activateWorkspace).toHaveBeenCalledWith('edit');
 
@@ -2444,11 +2498,10 @@ describe('workspace store slices', () => {
         suggestedName: 'square.osf',
         path: null,
         extensions: ['osf'],
-      })
+      }),
     );
     const savedNativeCpOptions = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
-      | SaveTextFileOptions
-      | undefined;
+      SaveTextFileOptions | undefined;
     const savedNativeCp = parseNativeProjectFile(savedNativeCpOptions?.contents ?? '');
     expect(savedNativeCp.workspace.creasePattern).toMatchObject({
       creasePattern: {
@@ -2487,7 +2540,7 @@ describe('workspace store slices', () => {
         suggestedName: 'square.cp',
         path: null,
         extensions: ['cp'],
-      })
+      }),
     );
 
     await expect(useWorkspaceStore.getState().exportFold(fileService)).resolves.toBe(true);
@@ -2499,7 +2552,7 @@ describe('workspace store slices', () => {
         title: 'Export FOLD Document',
         contents: editableCpFoldText,
         extensions: ['fold'],
-      })
+      }),
     );
 
     await expect(useWorkspaceStore.getState().exportOri(fileService)).resolves.toBe(true);
@@ -2509,7 +2562,7 @@ describe('workspace store slices', () => {
         title: 'Export Oriedita ORI Document',
         contents: '{"@version":"v1.1","title":"square"}\n',
         extensions: ['ori'],
-      })
+      }),
     );
 
     const unregisterDialogHost = registerCommandDialogHost();
@@ -2533,7 +2586,7 @@ describe('workspace store slices', () => {
         title: 'Export Oriedita ORH Document',
         contents: '<タイトル>\nタイトル,square\n',
         extensions: ['orh'],
-      })
+      }),
     );
   });
 
@@ -2617,7 +2670,7 @@ describe('workspace store slices', () => {
     const unregisterDialogHost = registerCommandDialogHost();
     try {
       await expect(
-        useWorkspaceStore.getState().openProject(fileService, { confirmDiscard: false })
+        useWorkspaceStore.getState().openProject(fileService, { confirmDiscard: false }),
       ).resolves.toBe(true);
       expect(useCommandDialogStore.getState().dialog).toBeNull();
     } finally {
@@ -2645,7 +2698,7 @@ describe('workspace store slices', () => {
         format: 'ori',
         filename: 'native.ori',
         path: '/tmp/native.ori',
-      })
+      }),
     );
     expect(oristudioCpMocks.exportOristudioCpDocumentAsFold).toHaveBeenCalledOnce();
     // The file's own `title` names the project, which is what the window title
@@ -2682,7 +2735,7 @@ describe('workspace store slices', () => {
         suggestedName: 'native.ori',
         path: '/tmp/native.ori',
         extensions: ['ori'],
-      })
+      }),
     );
     expect(oristudioCpMocks.setOristudioCpDocumentSource).toHaveBeenCalledWith({
       format: 'ori',
@@ -2745,8 +2798,7 @@ describe('workspace store slices', () => {
     await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
 
     const savedOptions = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
-      | SaveTextFileOptions
-      | undefined;
+      SaveTextFileOptions | undefined;
     const savedProject = parseNativeProjectFile(savedOptions?.contents ?? '');
     expect(savedProject.workspace.creasePattern).toMatchObject({
       creasePattern: {
@@ -2787,7 +2839,7 @@ describe('workspace store slices', () => {
         format: 'orh',
         filename: 'legacy.orh',
         path: '/tmp/legacy.orh',
-      })
+      }),
     );
     expect(useWorkspaceStore.getState().importedCreasePattern?.source).toMatchObject({
       format: 'orh',
@@ -2820,7 +2872,7 @@ describe('workspace store slices', () => {
         suggestedName: 'legacy.orh',
         path: '/tmp/legacy.orh',
         extensions: ['orh'],
-      })
+      }),
     );
     expect(oristudioCpMocks.setOristudioCpDocumentSource).toHaveBeenCalledWith({
       format: 'orh',
@@ -2836,9 +2888,9 @@ describe('workspace store slices', () => {
       path: '/tmp/line.cp',
     });
 
-    await expect(useWorkspaceStore.getState().executeOristudioCpCommand('DrawCreaseFree')).resolves.toBe(
-      false
-    );
+    await expect(
+      useWorkspaceStore.getState().executeOristudioCpCommand('DrawCreaseFree'),
+    ).resolves.toBe(false);
 
     expect(oristudioCpMocks.executeOristudioCpCommand).toHaveBeenCalledWith('DrawCreaseFree', {});
     expect(useWorkspaceStore.getState().oristudioCpDocument?.source.filename).toBe('line.cp');
@@ -2861,16 +2913,16 @@ describe('workspace store slices', () => {
       path: '/tmp/import.cp',
     });
 
-    await expect(
-      useWorkspaceStore.getState().importAddCreasePattern(fileService)
-    ).resolves.toBe(true);
+    await expect(useWorkspaceStore.getState().importAddCreasePattern(fileService)).resolves.toBe(
+      true,
+    );
 
     expect(fileService.openTextFile).toHaveBeenCalledWith(
-      expect.objectContaining({ extensions: ['fold', 'cp', 'ori', 'orh'] })
+      expect.objectContaining({ extensions: ['fold', 'cp', 'ori', 'orh'] }),
     );
     expect(oristudioCpMocks.importAddOristudioCpDocumentFromText).toHaveBeenCalledWith(
       '2 0 0 5 5',
-      { format: 'cp', filename: 'import.cp' }
+      { format: 'cp', filename: 'import.cp' },
     );
     // The merge is recorded so undo can revert the import.
     expect(useWorkspaceStore.getState().oristudioCpHistoryPast.length).toBe(historyBefore + 1);
@@ -2889,9 +2941,9 @@ describe('workspace store slices', () => {
       path: '/tmp/notes.txt',
     });
 
-    await expect(
-      useWorkspaceStore.getState().importAddCreasePattern(fileService)
-    ).resolves.toBe(false);
+    await expect(useWorkspaceStore.getState().importAddCreasePattern(fileService)).resolves.toBe(
+      false,
+    );
     expect(oristudioCpMocks.importAddOristudioCpDocumentFromText).not.toHaveBeenCalled();
     expect(useWorkspaceStore.getState().error).toMatchObject({ code: 'invalid_operation' });
   });
@@ -2904,9 +2956,9 @@ describe('workspace store slices', () => {
       path: '/tmp/import.cp',
     });
 
-    await expect(
-      useWorkspaceStore.getState().importAddCreasePattern(fileService)
-    ).resolves.toBe(false);
+    await expect(useWorkspaceStore.getState().importAddCreasePattern(fileService)).resolves.toBe(
+      false,
+    );
     expect(fileService.openTextFile).not.toHaveBeenCalled();
     expect(oristudioCpMocks.importAddOristudioCpDocumentFromText).not.toHaveBeenCalled();
   });
@@ -2966,13 +3018,12 @@ describe('workspace store slices', () => {
     await expect(
       useWorkspaceStore.getState().executeOristudioCpCommand('CreaseMakeMountain', {
         line_ids: [1, 2],
-      })
+      }),
     ).resolves.toBe(true);
 
-    expect(oristudioCpMocks.executeOristudioCpCommand).toHaveBeenCalledWith(
-      'CreaseMakeMountain',
-      { line_ids: [1, 2] }
-    );
+    expect(oristudioCpMocks.executeOristudioCpCommand).toHaveBeenCalledWith('CreaseMakeMountain', {
+      line_ids: [1, 2],
+    });
     expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([1, 2]);
     expect(useWorkspaceStore.getState().dirty).toBe(true);
     expect(useWorkspaceStore.getState().foldArtifactStatus).toBe('stale');
@@ -2985,7 +3036,7 @@ describe('workspace store slices', () => {
     expect(oristudioCpMocks.exportOristudioCpDocumentAsFold).toHaveBeenCalledOnce();
     expect(useWorkspaceStore.getState().foldArtifactStatus).toBe('ready');
     expect(
-      useWorkspaceStore.getState().foldArtifacts?.simulation_model?.fold.faces_vertices
+      useWorkspaceStore.getState().foldArtifacts?.simulation_model?.fold.faces_vertices,
     ).toHaveLength(2);
   });
 
@@ -3011,7 +3062,7 @@ describe('workspace store slices', () => {
       'Order5',
       undefined,
       [1],
-      A_RUN_ID
+      A_RUN_ID,
     );
     // A fresh fold is neither selected on the canvas nor marked selected by the
     // kernel renderer, so it doesn't steal delete-key focus the moment it lands.
@@ -3022,7 +3073,7 @@ describe('workspace store slices', () => {
         display_mark: false,
         selected: false,
         index: 1,
-      }
+      },
     );
     expect(foldedFigure).toMatchObject({
       handle: 7,
@@ -3038,7 +3089,7 @@ describe('workspace store slices', () => {
     // an unplaced figure covers the pattern it came from.
     const anchor = cpUserAnchorForLineIds(
       useWorkspaceStore.getState().oristudioCpDocument!.document,
-      [1]
+      [1],
     );
     const placedBounds = foldedFigureUserBounds([foldedFigure])[0].bounds;
     expect(placedBounds.minX).toBeGreaterThanOrEqual(anchor.right);
@@ -3063,31 +3114,31 @@ describe('workspace store slices', () => {
     // and useless for deciding whether a refold is warranted.
     insertAppendsToDocument();
     await expect(
-      useWorkspaceStore.getState().insertOristudioCpLineSegments([
-        cpLine({ x: 5, y: 5 }, { x: 6, y: 6 }),
-      ])
+      useWorkspaceStore
+        .getState()
+        .insertOristudioCpLineSegments([cpLine({ x: 5, y: 5 }, { x: 6, y: 6 })]),
     ).resolves.toBe(true);
     expect(
       isFoldedFigureStale(
         useWorkspaceStore.getState().oristudioCpDocument!.document,
-        useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!
-      )
+        useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!,
+      ),
     ).toBe(false);
 
     // An edit touching the region does mark it out of date.
     insertAppendsToDocument();
     await expect(
-      useWorkspaceStore.getState().insertOristudioCpLineSegments([
-        cpLine({ x: 0, y: 0 }, { x: 1, y: 1 }),
-      ])
+      useWorkspaceStore
+        .getState()
+        .insertOristudioCpLineSegments([cpLine({ x: 0, y: 0 }, { x: 1, y: 1 })]),
     ).resolves.toBe(true);
 
     expect(useWorkspaceStore.getState().oristudioCpRevision).toBe(2);
     expect(
       isFoldedFigureStale(
         useWorkspaceStore.getState().oristudioCpDocument!.document,
-        useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!
-      )
+        useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!,
+      ),
     ).toBe(true);
     // Status stays `ready`: the kernel handle is still valid, it was just folded
     // from creases that have since moved. Upstream likewise keeps folding the
@@ -3116,17 +3167,12 @@ describe('workspace store slices', () => {
       cpLine(
         { x: 0, y: 0 },
         { x: 1, y: 1 },
-        magnitude === undefined
-          ? { color: 'Red1' }
-          : { color: 'Red1', fold_magnitude: magnitude }
+        magnitude === undefined ? { color: 'Red1' } : { color: 'Red1', fold_magnitude: magnitude },
       );
 
     /** The unit square of `editableCpFoldText`, with its diagonal folded to 90°. */
     function nonFlatSquare() {
-      return editableCpState([
-        ...BORDER,
-        diagonal(90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE),
-      ]);
+      return editableCpState([...BORDER, diagonal(90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE)]);
     }
 
     const WHOLE_REGION = [1, 2, 3, 4, 5];
@@ -3200,7 +3246,7 @@ describe('workspace store slices', () => {
         'Order5',
         undefined,
         [1, 2, 3, 4],
-        A_RUN_ID
+        A_RUN_ID,
       );
       expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.folded3d ?? null).toBeNull();
     });
@@ -3218,7 +3264,7 @@ describe('workspace store slices', () => {
         WHOLE_REGION,
         1,
         undefined,
-        A_RUN_ID
+        A_RUN_ID,
       );
       const figure = useWorkspaceStore.getState().oristudioCpFoldedFigures[0];
       // Exactly one witness. Both non-null is the state the whole UI would then
@@ -3245,10 +3291,10 @@ describe('workspace store slices', () => {
           cpLine(
             { x: 1, y: 0 },
             { x: 1, y: 1 },
-            { color: 'Black0', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE }
+            { color: 'Black0', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE },
           ),
         ]),
-        [1, 2]
+        [1, 2],
       );
 
       await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
@@ -3263,13 +3309,13 @@ describe('workspace store slices', () => {
       resetStores(seedSnapshot());
       seedDocument(
         editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 }, { color: 'Cyan3' })]),
-        [1]
+        [1],
       );
 
       await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(false);
 
       expect(useWorkspaceStore.getState().oristudioCpError).toBe(
-        'Select one or more foldable crease-pattern lines first'
+        'Select one or more foldable crease-pattern lines first',
       );
       expect(oristudioCpMocks.fold3dOristudioCpDocument).not.toHaveBeenCalled();
       expect(oristudioCpMocks.foldOristudioCpDocument).not.toHaveBeenCalled();
@@ -3287,7 +3333,7 @@ describe('workspace store slices', () => {
       expect(simulations[0]?.sourceBoundary?.length).toBeGreaterThan(0);
       // The new window takes the canvas selection, as it does from the toolbar.
       expect(useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId).toBe(
-        simulations[0]?.id
+        simulations[0]?.id,
       );
       expect(activatePanel).not.toHaveBeenCalled();
       // No figure was produced.
@@ -3367,7 +3413,7 @@ describe('workspace store slices', () => {
           cpLine(
             { x: 0, y: 0 },
             { x: 1, y: 1 },
-            { color: 'Red1', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE }
+            { color: 'Red1', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE },
           ),
         ]),
         oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1, 2] },
@@ -3382,7 +3428,7 @@ describe('workspace store slices', () => {
       const figure = await fold3dFigure();
 
       await expect(
-        useWorkspaceStore.getState().foldAnotherOristudioCpFigure(figure.id)
+        useWorkspaceStore.getState().foldAnotherOristudioCpFigure(figure.id),
       ).resolves.toBe(true);
 
       expect(oristudioCpMocks.fold3dOristudioCpFigureAnother).toHaveBeenCalledWith(11, A_RUN_ID);
@@ -3406,7 +3452,7 @@ describe('workspace store slices', () => {
           cpLine(
             { x: 0, y: 0 },
             { x: 1, y: 1 },
-            { color: 'Red1', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE }
+            { color: 'Red1', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE },
           ),
           // A construction line inside the same region. Not foldable, so the
           // kernel never sees it — but the region does not exist without it.
@@ -3427,7 +3473,7 @@ describe('workspace store slices', () => {
       const figure = await fold3dFigure();
 
       await expect(
-        useWorkspaceStore.getState().duplicateOristudioCpFoldedFigure(figure.id)
+        useWorkspaceStore.getState().duplicateOristudioCpFoldedFigure(figure.id),
       ).resolves.toBe(true);
 
       expect(oristudioCpMocks.duplicateOristudioCp3dFoldedFigure).toHaveBeenCalledWith(11);
@@ -3443,7 +3489,7 @@ describe('workspace store slices', () => {
       oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot.mockClear();
 
       await expect(
-        useWorkspaceStore.getState().setOristudioCpFoldedFigureDisplayStyle(figure.id, 'Wire2')
+        useWorkspaceStore.getState().setOristudioCpFoldedFigureDisplayStyle(figure.id, 'Wire2'),
       ).resolves.toBe(true);
 
       // `folded_figure_render_snapshot` takes `flat(handle)`; reaching it would
@@ -3467,7 +3513,7 @@ describe('workspace store slices', () => {
       await expect(
         useWorkspaceStore
           .getState()
-          .setOristudioCpFolded3dCamera(figure.id, foldedFigureOtherSideCamera(before))
+          .setOristudioCpFolded3dCamera(figure.id, foldedFigureOtherSideCamera(before)),
       ).resolves.toBe(true);
 
       const turned = useWorkspaceStore.getState().oristudioCpFoldedFigures[0];
@@ -3493,7 +3539,7 @@ describe('workspace store slices', () => {
       await expect(
         useWorkspaceStore
           .getState()
-          .setOristudioCpFolded3dCamera(flat.id, { yaw: 1, pitch: 1, zoom: 1 })
+          .setOristudioCpFolded3dCamera(flat.id, { yaw: 1, pitch: 1, zoom: 1 }),
       ).resolves.toBe(false);
       expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.camera ?? null).toBeNull();
     });
@@ -3502,12 +3548,12 @@ describe('workspace store slices', () => {
       const figure = await fold3dFigure();
 
       await expect(
-        useWorkspaceStore.getState().foldOristudioCpFigureToCase(figure.id, 3)
+        useWorkspaceStore.getState().foldOristudioCpFigureToCase(figure.id, 3),
       ).resolves.toBe(false);
 
       expect(oristudioCpMocks.foldOristudioCpFigureToCase).not.toHaveBeenCalled();
       expect(useWorkspaceStore.getState().oristudioCpError).toBe(
-        'A 3D folded model has no numbered solutions to batch to'
+        'A 3D folded model has no numbered solutions to batch to',
       );
     });
 
@@ -3522,7 +3568,7 @@ describe('workspace store slices', () => {
       });
 
       await expect(
-        useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(figure.id)
+        useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(figure.id),
       ).resolves.toBe(true);
 
       const flat = useWorkspaceStore.getState().oristudioCpFoldedFigures[0];
@@ -3547,13 +3593,13 @@ describe('workspace store slices', () => {
           cpLine(
             { x: 0, y: 0 },
             { x: 1, y: 0 },
-            { color: 'Red1', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE }
+            { color: 'Red1', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE },
           ),
         ]),
       });
 
       await expect(
-        useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(figure.id)
+        useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(figure.id),
       ).resolves.toBe(true);
 
       const spatial = useWorkspaceStore.getState().oristudioCpFoldedFigures[0];
@@ -3584,7 +3630,7 @@ describe('workspace store slices', () => {
           .oristudioCpFoldedFigures.map((candidate) =>
             candidate.id === figure.id
               ? { ...candidate, folded3d: { ...candidate.folded3d!, ...exhausted } }
-              : candidate
+              : candidate,
           ),
       });
       oristudioCpMocks.fold3dOristudioCpFigureAnother.mockResolvedValueOnce({
@@ -3594,10 +3640,11 @@ describe('workspace store slices', () => {
       });
 
       await expect(
-        useWorkspaceStore.getState().foldAnotherOristudioCpFigure(figure.id)
+        useWorkspaceStore.getState().foldAnotherOristudioCpFigure(figure.id),
       ).resolves.toBe(true);
-      expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.folded3d?.current_fold_case)
-        .toBe(1);
+      expect(
+        useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.folded3d?.current_fold_case,
+      ).toBe(1);
       const cycled = () =>
         analyticsMocks.track.mock.calls
           .filter(([name]) => name === 'fold solution cycled')
@@ -3613,12 +3660,10 @@ describe('workspace store slices', () => {
       await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
       const flat = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
       useWorkspaceStore.setState({
-        oristudioCpFoldedFigures: [
-          { ...flat, snapshot: { ...flat.snapshot!, ...exhausted } },
-        ],
+        oristudioCpFoldedFigures: [{ ...flat, snapshot: { ...flat.snapshot!, ...exhausted } }],
       });
       await expect(
-        useWorkspaceStore.getState().foldAnotherOristudioCpFigure(flat.id)
+        useWorkspaceStore.getState().foldAnotherOristudioCpFigure(flat.id),
       ).resolves.toBe(true);
 
       expect(spatialEvents).toEqual([{ direction: 'wrap', solution_count_bucket: '<=5' }]);
@@ -3642,7 +3687,7 @@ describe('workspace store slices', () => {
           cpLine(
             { x: 0, y: 0 },
             { x: 1, y: 1 },
-            { color: 'Red1', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE }
+            { color: 'Red1', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE },
           ),
         ]),
       });
@@ -3666,7 +3711,7 @@ describe('workspace store slices', () => {
       await expect(useWorkspaceStore.getState().exportFold(fileService)).resolves.toBe(true);
       expect(oristudioCpMocks.exportOristudioCpDocumentAsFold).toHaveBeenLastCalledWith(
         expect.anything(),
-        [figure.handle]
+        [figure.handle],
       );
 
       // A figure reopened from an `.osf` has no kernel session to describe it,
@@ -3690,7 +3735,7 @@ describe('workspace store slices', () => {
       }
       expect(oristudioCpMocks.exportOristudioCpDocumentAsFold).toHaveBeenLastCalledWith(
         expect.anything(),
-        []
+        [],
       );
     });
 
@@ -3703,7 +3748,7 @@ describe('workspace store slices', () => {
       const unregisterDialogHost = registerCommandDialogHost();
       try {
         await expect(
-          useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(figure.id)
+          useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(figure.id),
         ).resolves.toBe(false);
         // A stale refold can run in the background; a background action must
         // never raise a modal.
@@ -3723,9 +3768,7 @@ describe('workspace store slices', () => {
        * one and then taking those away, so the entry is exactly what the app
        * would have written and read back.
        */
-      async function reopened3dFigure(
-        overrides: Partial<OristudioCpFoldedFigureEntry> = {}
-      ) {
+      async function reopened3dFigure(overrides: Partial<OristudioCpFoldedFigureEntry> = {}) {
         const folded = await fold3dFigure();
         dropFolded3dRenderModel(folded.handle);
         const entry: OristudioCpFoldedFigureEntry = {
@@ -3751,7 +3794,7 @@ describe('workspace store slices', () => {
         expect(folded3dRenderModel(before.handle)).toBeUndefined();
 
         await expect(
-          useWorkspaceStore.getState().rehydrateOristudioCpFolded3dFigure(before.id)
+          useWorkspaceStore.getState().rehydrateOristudioCpFolded3dFigure(before.id),
         ).resolves.toBe(true);
 
         const after = figureNow();
@@ -3781,14 +3824,11 @@ describe('workspace store slices', () => {
           sourceFingerprint: 'folded-from-creases-that-have-since-moved',
         });
         expect(
-          isFoldedFigureStale(
-            useWorkspaceStore.getState().oristudioCpDocument!.document,
-            figure
-          )
+          isFoldedFigureStale(useWorkspaceStore.getState().oristudioCpDocument!.document, figure),
         ).toBe(true);
 
         await expect(
-          useWorkspaceStore.getState().rehydrateOristudioCpFolded3dFigure(figure.id)
+          useWorkspaceStore.getState().rehydrateOristudioCpFolded3dFigure(figure.id),
         ).resolves.toBe(false);
         // Not "folded and then discarded" — never folded at all. Refolding a
         // stale figure is what the explicit Refold verb is for, and it replaces
@@ -3814,7 +3854,7 @@ describe('workspace store slices', () => {
           });
 
         await expect(
-          useWorkspaceStore.getState().rehydrateOristudioCpFolded3dFigure(figure.id)
+          useWorkspaceStore.getState().rehydrateOristudioCpFolded3dFigure(figure.id),
         ).resolves.toBe(true);
 
         // A fresh session always opens at solution 1, so a figure saved at 3
@@ -3836,7 +3876,7 @@ describe('workspace store slices', () => {
         });
 
         await expect(
-          useWorkspaceStore.getState().rehydrateOristudioCpFolded3dFigure(figure.id)
+          useWorkspaceStore.getState().rehydrateOristudioCpFolded3dFigure(figure.id),
         ).resolves.toBe(false);
         expect(figureNow().handle).toBeNull();
         // Not left behind in the kernel: a 3D session is megabytes.
@@ -3858,7 +3898,7 @@ describe('workspace store slices', () => {
         });
 
         await expect(
-          useWorkspaceStore.getState().rehydrateOristudioCpFolded3dFigure(figure.id)
+          useWorkspaceStore.getState().rehydrateOristudioCpFolded3dFigure(figure.id),
         ).resolves.toBe(false);
         expect(figureNow().handle).toBeNull();
         expect(oristudioCpMocks.freeOristudioCpFoldedFigure).toHaveBeenCalledWith(11);
@@ -3871,12 +3911,10 @@ describe('workspace store slices', () => {
           () =>
             new Promise((resolve) => {
               release = () => resolve(folded3dPlaced());
-            })
+            }),
         );
 
-        const quiet = useWorkspaceStore
-          .getState()
-          .rehydrateOristudioCpFolded3dFigure(figure.id);
+        const quiet = useWorkspaceStore.getState().rehydrateOristudioCpFolded3dFigure(figure.id);
         // The background pass must not put "Folding…" under a figure nobody
         // touched: that is a change to what the user sees, on load.
         expect(figureNow().status).toBe('ready');
@@ -3888,7 +3926,7 @@ describe('workspace store slices', () => {
           () =>
             new Promise((resolve) => {
               release = () => resolve(folded3dPlaced());
-            })
+            }),
         );
         const pressed = useWorkspaceStore
           .getState()
@@ -3906,18 +3944,16 @@ describe('workspace store slices', () => {
           () =>
             new Promise((resolve) => {
               release = () => resolve(folded3dPlaced());
-            })
+            }),
         );
 
-        const first = useWorkspaceStore
-          .getState()
-          .rehydrateOristudioCpFolded3dFigure(figure.id);
+        const first = useWorkspaceStore.getState().rehydrateOristudioCpFolded3dFigure(figure.id);
         // The second caller is refused rather than queued: two folds of one
         // figure allocate two sessions, and only one of them can be adopted.
         await expect(
           useWorkspaceStore
             .getState()
-            .rehydrateOristudioCpFolded3dFigure(figure.id, { pending: true })
+            .rehydrateOristudioCpFolded3dFigure(figure.id, { pending: true }),
         ).resolves.toBe(false);
         release();
         await expect(first).resolves.toBe(true);
@@ -3944,13 +3980,13 @@ describe('workspace store slices', () => {
     });
     insertAppendsToDocument();
     await expect(
-      useWorkspaceStore.getState().insertOristudioCpLineSegments([
-        cpLine({ x: 0, y: 0 }, { x: 1, y: 1 }),
-      ])
+      useWorkspaceStore
+        .getState()
+        .insertOristudioCpLineSegments([cpLine({ x: 0, y: 0 }, { x: 1, y: 1 })]),
     ).resolves.toBe(true);
 
     await expect(
-      useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(before.id)
+      useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(before.id),
     ).resolves.toBe(true);
 
     const after = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
@@ -3963,10 +3999,7 @@ describe('workspace store slices', () => {
     expect(after.status).toBe('ready');
     // Re-baselined, so it reads as up to date until the creases move again.
     expect(
-      isFoldedFigureStale(
-        useWorkspaceStore.getState().oristudioCpDocument!.document,
-        after
-      )
+      isFoldedFigureStale(useWorkspaceStore.getState().oristudioCpDocument!.document, after),
     ).toBe(false);
   });
 
@@ -3990,7 +4023,7 @@ describe('workspace store slices', () => {
       message: 'two faces meet with the same orientation across a crease',
     });
     await expect(
-      useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(before.id)
+      useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(before.id),
     ).resolves.toBe(false);
 
     const after = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
@@ -4028,7 +4061,7 @@ describe('workspace store slices', () => {
     });
 
     await expect(
-      useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(before.id)
+      useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(before.id),
     ).resolves.toBe(false);
 
     const after = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
@@ -4087,7 +4120,7 @@ describe('workspace store slices', () => {
     useWorkspaceStore.setState({ oristudioCpDocument: editableCpState([]) });
 
     await expect(
-      useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(figure.id)
+      useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(figure.id),
     ).resolves.toBe(false);
     expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]).toMatchObject({
       id: figure.id,
@@ -4116,7 +4149,7 @@ describe('workspace store slices', () => {
           new Promise((resolve, reject) => {
             settle = resolve;
             fail = reject;
-          })
+          }),
       );
       return {
         finish: (result: unknown) => settle(result),
@@ -4168,7 +4201,7 @@ describe('workspace store slices', () => {
         'Order5',
         undefined,
         [1],
-        runs[0]!.runId
+        runs[0]!.runId,
       );
 
       fold.finish({ handle: 7, snapshot: foldedFigureSnapshot() });
@@ -4191,9 +4224,10 @@ describe('workspace store slices', () => {
       expect(Atomics.load(view, 0)).toBe(runId);
       // Still listed, and now saying so: the fold is in the kernel until it
       // unwinds, and an indicator that vanished at the press would lie.
-      expect(
-        Object.values(useWorkspaceStore.getState().oristudioCpFoldRuns)[0]
-      ).toMatchObject({ runId, stopping: true });
+      expect(Object.values(useWorkspaceStore.getState().oristudioCpFoldRuns)[0]).toMatchObject({
+        runId,
+        stopping: true,
+      });
 
       fold.cancel();
       await expect(folding).resolves.toBe(false);
@@ -4232,9 +4266,10 @@ describe('workspace store slices', () => {
       // Re-aimed as the executing run left, so a single press really does stop
       // every run it claimed to.
       expect(Atomics.load(view, 0)).toBe(newer);
-      expect(
-        Object.values(useWorkspaceStore.getState().oristudioCpFoldRuns)[0]
-      ).toMatchObject({ runId: newer, stopping: true });
+      expect(Object.values(useWorkspaceStore.getState().oristudioCpFoldRuns)[0]).toMatchObject({
+        runId: newer,
+        stopping: true,
+      });
 
       second.cancel();
       await expect(secondFolding).resolves.toBe(false);
@@ -4260,9 +4295,9 @@ describe('workspace store slices', () => {
       });
 
       expect(useWorkspaceStore.getState().stopOristudioCpFolds()).toBe(false);
-      expect(
-        Object.values(useWorkspaceStore.getState().oristudioCpFoldRuns)[0]
-      ).toMatchObject({ stopping: false });
+      expect(Object.values(useWorkspaceStore.getState().oristudioCpFoldRuns)[0]).toMatchObject({
+        stopping: false,
+      });
     });
 
     it('leaves no error, no debris and the selection intact', async () => {
@@ -4327,7 +4362,7 @@ describe('workspace store slices', () => {
       expect(
         analyticsMocks.track.mock.calls
           .filter(([name]) => name === 'fold completed')
-          .map(([, properties]) => properties)
+          .map(([, properties]) => properties),
       ).toEqual([
         {
           mode: 'flat',
@@ -4337,7 +4372,6 @@ describe('workspace store slices', () => {
         },
       ]);
     });
-
   });
 
   /**
@@ -4478,7 +4512,7 @@ describe('workspace store slices', () => {
           cpLine(
             { x: 0, y: 0 },
             { x: 1, y: 1 },
-            { color: 'Red1', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE }
+            { color: 'Red1', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE },
           ),
         ]),
         oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1, 2, 3, 4, 5] },
@@ -4546,9 +4580,7 @@ describe('workspace store slices', () => {
       seedFlatSquare();
       await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
 
-      await expect(
-        useWorkspaceStore.getState().foldAnotherOristudioCpFigure()
-      ).resolves.toBe(true);
+      await expect(useWorkspaceStore.getState().foldAnotherOristudioCpFigure()).resolves.toBe(true);
 
       // The seeded snapshot has another solution waiting, which is exactly the
       // predicate the button labels itself from.
@@ -4604,9 +4636,7 @@ describe('workspace store slices', () => {
       resetStores(seedSnapshot());
       seedFlatSquare();
       await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
-      await expect(
-        useWorkspaceStore.getState().foldAnotherOristudioCpFigure()
-      ).resolves.toBe(true);
+      await expect(useWorkspaceStore.getState().foldAnotherOristudioCpFigure()).resolves.toBe(true);
 
       const values = analyticsMocks.track.mock.calls
         .filter(([name]) => String(name).startsWith('fold'))
@@ -4648,7 +4678,7 @@ describe('workspace store slices', () => {
       'Order5',
       undefined,
       [2, 1],
-      A_RUN_ID
+      A_RUN_ID,
     );
   });
 
@@ -4690,7 +4720,7 @@ describe('workspace store slices', () => {
         rotation: 90,
       }),
       [1],
-      A_RUN_ID
+      A_RUN_ID,
     );
   });
 
@@ -4726,9 +4756,9 @@ describe('workspace store slices', () => {
         // Appearance still carries over; only the side is reset.
         expect.objectContaining({ front_color: { red: 1, green: 2, blue: 3 }, state: 'Front0' }),
         [1],
-        A_RUN_ID
+        A_RUN_ID,
       );
-    }
+    },
   );
 
   it('does not fold editable CP documents without selected foldable lines', async () => {
@@ -4748,7 +4778,7 @@ describe('workspace store slices', () => {
     expect(oristudioCpMocks.foldOristudioCpDocument).not.toHaveBeenCalled();
     expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toEqual([]);
     expect(useWorkspaceStore.getState().oristudioCpError).toBe(
-      'Select one or more foldable crease-pattern lines first'
+      'Select one or more foldable crease-pattern lines first',
     );
   });
 
@@ -4773,7 +4803,7 @@ describe('workspace store slices', () => {
     await expect(
       useWorkspaceStore
         .getState()
-        .setOristudioCpFoldedFigureDisplayStyle(foldedFigure.id, 'Transparent3')
+        .setOristudioCpFoldedFigureDisplayStyle(foldedFigure.id, 'Transparent3'),
     ).resolves.toBe(true);
 
     expect(oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot).toHaveBeenCalledWith(
@@ -4783,7 +4813,7 @@ describe('workspace store slices', () => {
         display_mark: false,
         selected: true,
         index: 1,
-      }
+      },
     );
     expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]).toMatchObject({
       startingFaceId: 2,
@@ -4808,19 +4838,19 @@ describe('workspace store slices', () => {
     await expect(
       useWorkspaceStore
         .getState()
-        .updateOristudioCpFoldedFigureModel(foldedFigure.id, { state: 'Back1' })
+        .updateOristudioCpFoldedFigureModel(foldedFigure.id, { state: 'Back1' }),
     ).resolves.toBe(true);
 
     expect(oristudioCpMocks.setOristudioCpFoldedFigureModel).toHaveBeenCalledWith(
       7,
-      expect.objectContaining({ state: 'Back1' })
+      expect.objectContaining({ state: 'Back1' }),
     );
     expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.snapshot?.model.state).toBe(
-      'Back1'
+      'Back1',
     );
 
     await expect(
-      useWorkspaceStore.getState().duplicateOristudioCpFoldedFigure(foldedFigure.id)
+      useWorkspaceStore.getState().duplicateOristudioCpFoldedFigure(foldedFigure.id),
     ).resolves.toBe(true);
 
     expect(oristudioCpMocks.duplicateOristudioCpFoldedFigure).toHaveBeenCalledWith(7);
@@ -4883,7 +4913,7 @@ describe('workspace store slices', () => {
 
     await useWorkspaceStore.getState().undo();
     expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0].placement).toEqual(
-      IDENTITY_FOLDED_PLACEMENT
+      IDENTITY_FOLDED_PLACEMENT,
     );
     // Overlay-only: the wasm document is never reloaded to restore a placement.
     expect(oristudioCpMocks.restoreOristudioCpDocumentInPlace).not.toHaveBeenCalled();
@@ -4942,7 +4972,7 @@ describe('workspace store slices', () => {
   /** The model each `setOristudioCpFoldedFigureModel` call pushed, in order. */
   function kernelModelWrites(): OristudioCpFoldedFigureModel[] {
     return oristudioCpMocks.setOristudioCpFoldedFigureModel.mock.calls.map(
-      (call) => call[1] as OristudioCpFoldedFigureModel
+      (call) => call[1] as OristudioCpFoldedFigureModel,
     );
   }
 
@@ -4956,7 +4986,7 @@ describe('workspace store slices', () => {
       async (_handle: number, model: OristudioCpFoldedFigureModel) => ({
         ...foldedFigureSnapshot(),
         model,
-      })
+      }),
     );
 
     const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
@@ -4971,7 +5001,7 @@ describe('workspace store slices', () => {
 
     // The web state reverted, and the kernel was told about it.
     expect(
-      useWorkspaceStore.getState().oristudioCpFoldedFigures[0].snapshot?.model.front_color
+      useWorkspaceStore.getState().oristudioCpFoldedFigures[0].snapshot?.model.front_color,
     ).toEqual(original.front_color);
     expect(kernelModelWrites().at(-1)?.front_color).toEqual(original.front_color);
   });
@@ -4983,7 +5013,7 @@ describe('workspace store slices', () => {
       (_handle: number, model: OristudioCpFoldedFigureModel) =>
         new Promise<OristudioCpFoldedFigureSnapshot>((resolve) => {
           resolveWrite = () => resolve({ ...foldedFigureSnapshot(), model });
-        })
+        }),
     );
 
     // Three recorded model steps.
@@ -5029,9 +5059,9 @@ describe('workspace store slices', () => {
       (_handle: number, model: OristudioCpFoldedFigureModel) => {
         const wait = (delay -= 10);
         return new Promise((resolve) =>
-          setTimeout(() => resolve({ ...foldedFigureSnapshot(), model }), Math.max(wait, 0))
+          setTimeout(() => resolve({ ...foldedFigureSnapshot(), model }), Math.max(wait, 0)),
         );
-      }
+      },
     );
 
     for (const color of [RED, BLUE]) {
@@ -5051,14 +5081,11 @@ describe('workspace store slices', () => {
     }
 
     oristudioCpMocks.setOristudioCpFoldedFigureModel.mockClear();
-    await Promise.all([
-      useWorkspaceStore.getState().undo(),
-      useWorkspaceStore.getState().undo(),
-    ]);
+    await Promise.all([useWorkspaceStore.getState().undo(), useWorkspaceStore.getState().undo()]);
     // Whatever order the round-trips completed in, the kernel ends on the state
     // the burst settled on — never on the intermediate it passed through.
     await vi.waitFor(() =>
-      expect(kernelModelWrites().at(-1)?.front_color).toEqual(original.front_color)
+      expect(kernelModelWrites().at(-1)?.front_color).toEqual(original.front_color),
     );
     expect(kernelModelWrites().some((m) => m.front_color.blue === 255)).toBe(false);
   });
@@ -5069,7 +5096,7 @@ describe('workspace store slices', () => {
       async (_handle: number, model: OristudioCpFoldedFigureModel) => ({
         ...foldedFigureSnapshot(),
         model,
-      })
+      }),
     );
     // Colour first, so the kernel holds RED...
     await useWorkspaceStore
@@ -5088,7 +5115,7 @@ describe('workspace store slices', () => {
     await flushMicrotasks();
 
     expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0].placement).toEqual(
-      IDENTITY_FOLDED_PLACEMENT
+      IDENTITY_FOLDED_PLACEMENT,
     );
     // Nothing kernel-held changed, so the reconcile cost a comparison and no
     // round-trip. This is what keeps a held-down undo cheap.
@@ -5101,7 +5128,7 @@ describe('workspace store slices', () => {
       async (_handle: number, model: OristudioCpFoldedFigureModel) => ({
         ...foldedFigureSnapshot(),
         model,
-      })
+      }),
     );
     const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
     await useWorkspaceStore
@@ -5112,7 +5139,7 @@ describe('workspace store slices', () => {
     oristudioCpMocks.setOristudioCpFoldedFigureModel.mockRejectedValue(new Error('kernel gone'));
     await useWorkspaceStore.getState().undo();
     await vi.waitFor(() =>
-      expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0].status).toBe('error')
+      expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0].status).toBe('error'),
     );
     expect(useWorkspaceStore.getState().oristudioCpError).toContain('kernel gone');
   });
@@ -5123,7 +5150,7 @@ describe('workspace store slices', () => {
       async (_handle: number, model: OristudioCpFoldedFigureModel) => ({
         ...foldedFigureSnapshot(),
         model,
-      })
+      }),
     );
     // Undoing "add figure": the previous state had no figures at all.
     useWorkspaceStore.getState().recordFoldedFigureHistory([], 'Fold model');
@@ -5217,7 +5244,9 @@ describe('workspace store slices', () => {
 
     // And it really is editable again: a model update reaches the kernel.
     await expect(
-      useWorkspaceStore.getState().updateOristudioCpFoldedFigureModel(figure.id, { state: 'Back1' })
+      useWorkspaceStore
+        .getState()
+        .updateOristudioCpFoldedFigureModel(figure.id, { state: 'Back1' }),
     ).resolves.toBe(true);
     expect(oristudioCpMocks.setOristudioCpFoldedFigureModel).toHaveBeenCalled();
   });
@@ -5248,9 +5277,7 @@ describe('workspace store slices', () => {
 
       await useWorkspaceStore.getState().undo();
       expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toHaveLength(1);
-      expect(useWorkspaceStore.getState().oristudioCpInlineSimulations[0].id).toBe(
-        'inline-sim-1'
-      );
+      expect(useWorkspaceStore.getState().oristudioCpInlineSimulations[0].id).toBe('inline-sim-1');
     });
 
     it('takes the window away again on redo', async () => {
@@ -5265,10 +5292,12 @@ describe('workspace store slices', () => {
       seedWindow();
       const moved = { center: { x: 40, y: 40 }, width: 100, height: 100, rotation: 0 };
       // What a drag looks like: one checkpoint, many updates, one commit.
-      useWorkspaceStore.getState().recordInlineSimulationHistory(
-        useWorkspaceStore.getState().oristudioCpInlineSimulations,
-        'Move simulation window'
-      );
+      useWorkspaceStore
+        .getState()
+        .recordInlineSimulationHistory(
+          useWorkspaceStore.getState().oristudioCpInlineSimulations,
+          'Move simulation window',
+        );
       for (let x = 10; x <= 40; x += 10) {
         useWorkspaceStore.getState().updateOristudioCpInlineSimulation('inline-sim-1', {
           box: { ...moved, center: { x, y: x } },
@@ -5277,9 +5306,10 @@ describe('workspace store slices', () => {
       expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(1);
 
       await useWorkspaceStore.getState().undo();
-      expect(
-        useWorkspaceStore.getState().oristudioCpInlineSimulations[0].box.center
-      ).toEqual({ x: 0, y: 0 });
+      expect(useWorkspaceStore.getState().oristudioCpInlineSimulations[0].box.center).toEqual({
+        x: 0,
+        y: 0,
+      });
     });
 
     it('leaves focus, scrubbing and playback out of history', () => {
@@ -5300,9 +5330,7 @@ describe('workspace store slices', () => {
       useWorkspaceStore.getState().removeOristudioCpInlineSimulation('inline-sim-1');
 
       await useWorkspaceStore.getState().undo();
-      expect(
-        useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId
-      ).toBeNull();
+      expect(useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId).toBeNull();
     });
 
     it('leaves live windows alone for an entry that never captured them', async () => {
@@ -5355,10 +5383,7 @@ describe('workspace store slices', () => {
         useWorkspaceStore
           .getState()
           .updateOristudioCpFoldedFigureModel(figure.id, { state: 'Back1' }),
-      () =>
-        useWorkspaceStore
-          .getState()
-          .setOristudioCpFoldedFigureDisplayStyle(figure.id, 'Wire2'),
+      () => useWorkspaceStore.getState().setOristudioCpFoldedFigureDisplayStyle(figure.id, 'Wire2'),
       () => useWorkspaceStore.getState().deleteOristudioCpFoldedFigure(figure.id),
     ]) {
       useWorkspaceStore.setState({ oristudioCpFoldedFigures: [figure], dirty: false });
@@ -5389,7 +5414,7 @@ describe('workspace store slices', () => {
     // sequencing, the stale response would win and the slider would snap back.
     const resolvers: Array<(value: OristudioCpFoldedFigureSnapshot) => void> = [];
     oristudioCpMocks.setOristudioCpFoldedFigureModel.mockImplementation(
-      () => new Promise((resolve) => resolvers.push(resolve))
+      () => new Promise((resolve) => resolvers.push(resolve)),
     );
 
     const first = useWorkspaceStore
@@ -5399,14 +5424,20 @@ describe('workspace store slices', () => {
       .getState()
       .updateOristudioCpFoldedFigureModel(figure.id, { transparent_transparency: 200 });
 
-    resolvers[1]({ ...foldedFigureSnapshot(), model: { ...foldedFigureSnapshot().model, transparent_transparency: 200 } });
+    resolvers[1]({
+      ...foldedFigureSnapshot(),
+      model: { ...foldedFigureSnapshot().model, transparent_transparency: 200 },
+    });
     await second;
-    resolvers[0]({ ...foldedFigureSnapshot(), model: { ...foldedFigureSnapshot().model, transparent_transparency: 10 } });
+    resolvers[0]({
+      ...foldedFigureSnapshot(),
+      model: { ...foldedFigureSnapshot().model, transparent_transparency: 10 },
+    });
     await first;
 
     expect(
       useWorkspaceStore.getState().oristudioCpFoldedFigures[0].snapshot?.model
-        .transparent_transparency
+        .transparent_transparency,
     ).toBe(200);
   });
 
@@ -5482,17 +5513,13 @@ describe('workspace store slices', () => {
       width: 1,
       height: 1,
     });
-    const selectCreases = () =>
-      useWorkspaceStore.getState().toggleOristudioCpLineSelection(3);
+    const selectCreases = () => useWorkspaceStore.getState().toggleOristudioCpLineSelection(3);
     const state = () => useWorkspaceStore.getState();
 
     for (const [name, select] of [
       ['annotation', () => state().setSelectedAnnotation(annotation.id)],
       ['folded figure', () => state().setOristudioCpActiveFoldedFigure(figure.id)],
-      [
-        'inline simulation',
-        () => state().focusOristudioCpInlineSimulation('inline-sim-1'),
-      ],
+      ['inline simulation', () => state().focusOristudioCpInlineSimulation('inline-sim-1')],
     ] as const) {
       useWorkspaceStore.setState({
         oristudioCpFoldedFigures: [figure],
@@ -5563,14 +5590,10 @@ describe('workspace store slices', () => {
     });
 
     useWorkspaceStore.getState().setOristudioCpSelection(emptyOristudioCpSelection());
-    expect(useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId).toBe(
-      'inline-sim-1'
-    );
+    expect(useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId).toBe('inline-sim-1');
 
     useWorkspaceStore.getState().clearOristudioCpSelection();
-    expect(useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId).toBe(
-      'inline-sim-1'
-    );
+    expect(useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId).toBe('inline-sim-1');
   });
 
   it('rerenders folded figure selected markers when the active figure changes', async () => {
@@ -5612,7 +5635,7 @@ describe('workspace store slices', () => {
         display_mark: false,
         selected: false,
         index: 1,
-      }
+      },
     );
     expect(oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot).toHaveBeenCalledWith(
       8,
@@ -5621,7 +5644,7 @@ describe('workspace store slices', () => {
         display_mark: false,
         selected: true,
         index: 2,
-      }
+      },
     );
   });
 
@@ -5654,7 +5677,7 @@ describe('workspace store slices', () => {
     expect(oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot).toHaveBeenCalledWith(
       0,
       'Wire2',
-      expect.anything()
+      expect.anything(),
     );
 
     await useWorkspaceStore.getState().updateOristudioCpFoldedFigureModel(figure.id, {
@@ -5662,7 +5685,7 @@ describe('workspace store slices', () => {
     });
     expect(oristudioCpMocks.setOristudioCpFoldedFigureModel).toHaveBeenCalledWith(
       0,
-      expect.objectContaining({ state: 'Back1' })
+      expect.objectContaining({ state: 'Back1' }),
     );
 
     await useWorkspaceStore.getState().duplicateOristudioCpFoldedFigure(figure.id);
@@ -5712,26 +5735,24 @@ describe('workspace store slices', () => {
     });
 
     await expect(
-      useWorkspaceStore
-        .getState()
-        .executeOristudioCpCommand('CreaseMakeMountain', null as never)
+      useWorkspaceStore.getState().executeOristudioCpCommand('CreaseMakeMountain', null as never),
     ).resolves.toBe(true);
 
     expect(oristudioCpMocks.executeOristudioCpCommand).toHaveBeenCalledWith(
       'CreaseMakeMountain',
-      {}
+      {},
     );
 
     oristudioCpMocks.executeOristudioCpCommand.mockClear();
     await expect(
       useWorkspaceStore
         .getState()
-        .executeOristudioCpCommand('CreaseMakeMountain', ['bad'] as never)
+        .executeOristudioCpCommand('CreaseMakeMountain', ['bad'] as never),
     ).resolves.toBe(false);
 
     expect(oristudioCpMocks.executeOristudioCpCommand).not.toHaveBeenCalled();
     expect(useWorkspaceStore.getState().oristudioCpError).toContain(
-      'Invalid crease-pattern command payload'
+      'Invalid crease-pattern command payload',
     );
   });
 
@@ -5752,9 +5773,9 @@ describe('workspace store slices', () => {
       },
     });
 
-    await expect(useWorkspaceStore.getState().executeOristudioCpCommand('CreaseMakeMountain')).resolves.toBe(
-      true
-    );
+    await expect(
+      useWorkspaceStore.getState().executeOristudioCpCommand('CreaseMakeMountain'),
+    ).resolves.toBe(true);
     oristudioCpMocks.exportOristudioCpDocumentAsFold.mockRejectedValueOnce({
       code: 'export_failed',
       message: 'Fold export failed',
@@ -5795,16 +5816,15 @@ describe('workspace store slices', () => {
     await expect(
       useWorkspaceStore.getState().executeOristudioCpCommand('CreaseMakeMountain', {
         line_ids: [1, 2],
-      })
+      }),
     ).resolves.toBe(true);
 
     // The edit applied + rendered immediately, without awaiting CAMV.
-    expect(oristudioCpMocks.executeOristudioCpCommand).toHaveBeenCalledWith(
-      'CreaseMakeMountain',
-      { line_ids: [1, 2] }
-    );
+    expect(oristudioCpMocks.executeOristudioCpCommand).toHaveBeenCalledWith('CreaseMakeMountain', {
+      line_ids: [1, 2],
+    });
     expect(useWorkspaceStore.getState().oristudioCpDocument?.lastCommandResult).toEqual(
-      commandResult
+      commandResult,
     );
     expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBeNull();
     expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(1);
@@ -5860,7 +5880,7 @@ describe('workspace store slices', () => {
     });
 
     await expect(useWorkspaceStore.getState().executeOristudioCpCommand('Check1')).resolves.toBe(
-      true
+      true,
     );
 
     expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(0);
@@ -5874,7 +5894,7 @@ describe('workspace store slices', () => {
     expect(frameModelBounds).toHaveBeenCalledTimes(1);
     expect(frameModelBounds.mock.calls[0][0]).toMatchObject({ minX: 120, minY: 240 });
     expect(
-      useWorkspaceStore.getState().oristudioCpDocument?.lastCommandResult?.diagnostic_entries
+      useWorkspaceStore.getState().oristudioCpDocument?.lastCommandResult?.diagnostic_entries,
     ).toHaveLength(1);
 
     const checkedDocument = useWorkspaceStore.getState().oristudioCpDocument;
@@ -5899,14 +5919,12 @@ describe('workspace store slices', () => {
     });
 
     await expect(
-      useWorkspaceStore.getState().executeOristudioCpCommand('FlatFoldableCheck')
+      useWorkspaceStore.getState().executeOristudioCpCommand('FlatFoldableCheck'),
     ).resolves.toBe(true);
 
     expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(0);
     expect(useWorkspaceStore.getState().dirty).toBe(false);
-    expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBe(
-      'FlatFoldableCheck-1'
-    );
+    expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBe('FlatFoldableCheck-1');
     // Adopted, but it reports no geometry, so there is nothing to frame and the
     // count stays where the Check1 jump left it.
     expect(frameModelBounds).toHaveBeenCalledTimes(1);
@@ -5923,7 +5941,7 @@ describe('workspace store slices', () => {
     });
 
     await expect(useWorkspaceStore.getState().executeOristudioCpCommand('Fix1')).resolves.toBe(
-      true
+      true,
     );
 
     expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBeNull();
@@ -6025,12 +6043,10 @@ describe('workspace store slices', () => {
     await expect(
       useWorkspaceStore.getState().executeOristudioCpCommand('LineSegmentDelete', {
         line_ids: [1],
-      })
+      }),
     ).resolves.toBe(true);
 
-    expect(useWorkspaceStore.getState().oristudioCpSelection).toEqual(
-      emptyOristudioCpSelection()
-    );
+    expect(useWorkspaceStore.getState().oristudioCpSelection).toEqual(emptyOristudioCpSelection());
   });
 
   it('syncs editable CP selection from kernel line selection commands', async () => {
@@ -6090,7 +6106,7 @@ describe('workspace store slices', () => {
           { x: 0, y: 0 },
           { x: 1, y: 0 },
         ],
-      })
+      }),
     ).resolves.toBe(true);
 
     expect(useWorkspaceStore.getState().oristudioCpSelection).toEqual({
@@ -6145,7 +6161,7 @@ describe('workspace store slices', () => {
     await expect(
       useWorkspaceStore.getState().executeOristudioCpCommand('CreaseMakeMountain', {
         line_ids: [1],
-      })
+      }),
     ).resolves.toBe(true);
 
     expect(useWorkspaceStore.getState().oristudioCpHistoryPast[0]).toMatchObject({
@@ -6155,7 +6171,7 @@ describe('workspace store slices', () => {
     });
 
     expect(selectWorkspaceCapabilities(useWorkspaceStore.getState())['edit.undo'].enabled).toBe(
-      true
+      true,
     );
 
     const undoCamvResult = camvErrorResult('CheckCamv-undo');
@@ -6164,16 +6180,16 @@ describe('workspace store slices', () => {
     expect(oristudioCpMocks.restoreOristudioCpDocumentInPlace).toHaveBeenLastCalledWith(
       loadedDocument.document,
       loadedDocument.source,
-      null
+      null,
     );
     // Undo restores in place: the handle and load serial are unchanged, so the
     // editor viewport is not re-fit (regression for the undo canvas jump).
     expect(useWorkspaceStore.getState().oristudioCpDocument?.handle).toBe(loadedDocument.handle);
     expect(useWorkspaceStore.getState().oristudioCpDocument?.loadSerial).toBe(
-      loadedDocument.loadSerial
+      loadedDocument.loadSerial,
     );
     expect(useWorkspaceStore.getState().oristudioCpDocument?.document).toEqual(
-      loadedDocument.document
+      loadedDocument.document,
     );
     expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([1]);
     // CAMV is recomputed off the critical path — flush the debounce, then assert.
@@ -6189,7 +6205,7 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().foldArtifactStatus).toBe('ready');
 
     expect(selectWorkspaceCapabilities(useWorkspaceStore.getState())['edit.redo'].enabled).toBe(
-      true
+      true,
     );
 
     const redoCamvResult = camvErrorResult('CheckCamv-redo');
@@ -6198,7 +6214,7 @@ describe('workspace store slices', () => {
     expect(oristudioCpMocks.restoreOristudioCpDocumentInPlace).toHaveBeenLastCalledWith(
       changedDocument,
       loadedDocument.source,
-      null
+      null,
     );
     expect(useWorkspaceStore.getState().oristudioCpDocument?.document).toEqual(changedDocument);
     expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([1]);
@@ -6229,7 +6245,7 @@ describe('workspace store slices', () => {
       {
         filename: 'line.fold',
         path: '/tmp/line.fold',
-      }
+      },
     );
     const fileService = createFileService();
 
@@ -6241,7 +6257,7 @@ describe('workspace store slices', () => {
         suggestedName: 'line.osf',
         path: null,
         extensions: ['osf'],
-      })
+      }),
     );
     expect(useWorkspaceStore.getState()).toMatchObject({
       currentFileName: 'line.osf',
@@ -6279,9 +6295,7 @@ describe('workspace store slices', () => {
     });
 
     useWorkspaceStore.getState().clearOristudioCpSelection();
-    expect(useWorkspaceStore.getState().oristudioCpSelection).toEqual(
-      emptyOristudioCpSelection()
-    );
+    expect(useWorkspaceStore.getState().oristudioCpSelection).toEqual(emptyOristudioCpSelection());
   });
 
   it('updates editable CP grid size as undoable document metadata', async () => {
@@ -6298,9 +6312,7 @@ describe('workspace store slices', () => {
       dirty: false,
     });
 
-    await expect(useWorkspaceStore.getState().setOristudioCpGridSize(32.8)).resolves.toBe(
-      true
-    );
+    await expect(useWorkspaceStore.getState().setOristudioCpGridSize(32.8)).resolves.toBe(true);
 
     expect(oristudioCpMocks.restoreOristudioCpDocumentInPlace).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -6309,10 +6321,10 @@ describe('workspace store slices', () => {
         }),
       }),
       documentState.source,
-      null
+      null,
     );
     expect(
-      useWorkspaceStore.getState().oristudioCpDocument?.document.crease_pattern.grid.grid_size
+      useWorkspaceStore.getState().oristudioCpDocument?.document.crease_pattern.grid.grid_size,
     ).toBe(32);
     expect(useWorkspaceStore.getState().oristudioCpSelection).toEqual(selection);
     expect(useWorkspaceStore.getState().dirty).toBe(true);
@@ -6325,13 +6337,13 @@ describe('workspace store slices', () => {
 
     await useWorkspaceStore.getState().undo();
     expect(
-      useWorkspaceStore.getState().oristudioCpDocument?.document.crease_pattern.grid.grid_size
+      useWorkspaceStore.getState().oristudioCpDocument?.document.crease_pattern.grid.grid_size,
     ).toBe(8);
     expect(useWorkspaceStore.getState().projectMessage).toBe('Undid Set grid size to 32');
 
     await useWorkspaceStore.getState().redo();
     expect(
-      useWorkspaceStore.getState().oristudioCpDocument?.document.crease_pattern.grid.grid_size
+      useWorkspaceStore.getState().oristudioCpDocument?.document.crease_pattern.grid.grid_size,
     ).toBe(32);
     expect(useWorkspaceStore.getState().projectMessage).toBe('Redid Set grid size to 32');
   });
@@ -6354,8 +6366,8 @@ describe('workspace store slices', () => {
           grid_xc: 1,
           draw_diagonal_gridlines: true,
         },
-        'Configure grid'
-      )
+        'Configure grid',
+      ),
     ).resolves.toBe(true);
 
     const grid = useWorkspaceStore.getState().oristudioCpDocument?.document.crease_pattern.grid;
@@ -6376,7 +6388,7 @@ describe('workspace store slices', () => {
     oristudioCpMocks.restoreOristudioCpDocumentInPlace.mockClear();
     const historyDepth = useWorkspaceStore.getState().oristudioCpHistoryPast.length;
     await expect(
-      useWorkspaceStore.getState().updateOristudioCpGrid({ grid_angle: 400 })
+      useWorkspaceStore.getState().updateOristudioCpGrid({ grid_angle: 400 }),
     ).resolves.toBe(true);
     expect(oristudioCpMocks.restoreOristudioCpDocumentInPlace).not.toHaveBeenCalled();
     expect(useWorkspaceStore.getState().oristudioCpHistoryPast.length).toBe(historyDepth);
@@ -6387,26 +6399,30 @@ describe('workspace store slices', () => {
       makeSnapshot({
         ...seedSnapshot(),
         conditions: [conditionSnapshot(1)],
-      })
+      }),
     );
     loadSnapshotIntoStore(api.snapshotState);
 
     await useWorkspaceStore.getState().addNodeAt({ x: 0.75, y: 0.75 }, 1);
-    expect(selectProject(useWorkspaceStore.getState()).nodes.map((node) => node.id)).toEqual([1, 2, 3]);
+    expect(selectProject(useWorkspaceStore.getState()).nodes.map((node) => node.id)).toEqual([
+      1, 2, 3,
+    ]);
     expect(selectSelection(useWorkspaceStore.getState())).toEqual({ kind: 'node', id: 3 });
     expect(useWorkspaceStore.getState().status).toBe('needs_optimization');
     expect(selectHistoryPast(useWorkspaceStore.getState()).at(-1)?.label).toBe('Add node');
 
     await useWorkspaceStore.getState().moveNode(3, { x: 0.8, y: 0.7 });
-    expect(selectProject(useWorkspaceStore.getState()).nodes.find((node) => node.id === 3)?.loc).toEqual({
+    expect(
+      selectProject(useWorkspaceStore.getState()).nodes.find((node) => node.id === 3)?.loc,
+    ).toEqual({
       x: 0.8,
       y: 0.7,
     });
 
     await useWorkspaceStore.getState().updateNodeLabel(3, 'new tip');
-    expect(selectProject(useWorkspaceStore.getState()).nodes.find((node) => node.id === 3)?.label).toBe(
-      'new tip'
-    );
+    expect(
+      selectProject(useWorkspaceStore.getState()).nodes.find((node) => node.id === 3)?.label,
+    ).toBe('new tip');
 
     await useWorkspaceStore.getState().addEdge(2, 3);
     expect(selectSelection(useWorkspaceStore.getState())).toEqual({ kind: 'edge', id: 3 });
@@ -6414,26 +6430,42 @@ describe('workspace store slices', () => {
     await useWorkspaceStore
       .getState()
       .updateEdge(3, { label: 'span', length: 2, strain: 0.1, stiffness: 4 });
-    expect(selectProject(useWorkspaceStore.getState()).edges.find((edge) => edge.id === 3)).toMatchObject({
+    expect(
+      selectProject(useWorkspaceStore.getState()).edges.find((edge) => edge.id === 3),
+    ).toMatchObject({
       label: 'span',
       length: 2,
       strain: 0.1,
       stiffness: 4,
     });
 
-    useWorkspaceStore.getState().select({ kind: 'multi', nodes: [1, 2], edges: [], paths: [], creases: [], facets: [], conditions: [] });
+    useWorkspaceStore.getState().select({
+      kind: 'multi',
+      nodes: [1, 2],
+      edges: [],
+      paths: [],
+      creases: [],
+      facets: [],
+      conditions: [],
+    });
     useWorkspaceStore.getState().selectPathBetweenSelectedNodes();
     expect(selectSelection(useWorkspaceStore.getState())).toEqual({ kind: 'path', id: 1 });
 
     useWorkspaceStore.getState().selectAll();
-    expect(selectSelection(useWorkspaceStore.getState())).toMatchObject({ kind: 'multi', nodes: [1, 2, 3] });
+    expect(selectSelection(useWorkspaceStore.getState())).toMatchObject({
+      kind: 'multi',
+      nodes: [1, 2, 3],
+    });
     useWorkspaceStore.getState().selectNone();
     expect(selectSelection(useWorkspaceStore.getState())).toEqual({ kind: 'tree' });
     useWorkspaceStore.getState().setToolMode('node');
     expect(selectToolMode(useWorkspaceStore.getState())).toBe('node');
 
     await useWorkspaceStore.getState().updatePaper({ width: 2, height: 3 });
-    expect(selectProject(useWorkspaceStore.getState()).paper).toMatchObject({ width: 2, height: 3 });
+    expect(selectProject(useWorkspaceStore.getState()).paper).toMatchObject({
+      width: 2,
+      height: 3,
+    });
 
     await useWorkspaceStore
       .getState()
@@ -6446,7 +6478,9 @@ describe('workspace store slices', () => {
     await useWorkspaceStore.getState().addCondition(nodeFixedCondition(2));
     expect(selectProject(useWorkspaceStore.getState()).conditions).toHaveLength(2);
     await useWorkspaceStore.getState().deleteCondition(1);
-    expect(selectProject(useWorkspaceStore.getState()).conditions.map((condition) => condition.id)).toEqual([2]);
+    expect(
+      selectProject(useWorkspaceStore.getState()).conditions.map((condition) => condition.id),
+    ).toEqual([2]);
     await useWorkspaceStore.getState().clearConditions();
     expect(selectProject(useWorkspaceStore.getState()).conditions).toEqual([]);
 
@@ -6475,10 +6509,8 @@ describe('workspace store slices', () => {
           { id: 1, vertices: [1, 2, 3], color: 1, corridor_edge: 1 },
           { id: 2, vertices: [1, 3, 2], color: 2, corridor_edge: 2 },
         ],
-        conditions: [
-          conditionSnapshot(1, { type: 'edge_length_fixed', edge: 2 }),
-        ],
-      })
+        conditions: [conditionSnapshot(1, { type: 'edge_length_fixed', edge: 2 })],
+      }),
     );
     loadSnapshotIntoStore(api.snapshotState);
 
@@ -6550,7 +6582,7 @@ describe('workspace store slices', () => {
           conditionSnapshot(2, { type: 'edge_length_fixed', edge: 1 }),
           conditionSnapshot(3, { type: 'path_active', node1: 1, node2: 2 }),
         ],
-      })
+      }),
     );
     loadSnapshotIntoStore(api.snapshotState);
 
@@ -6569,16 +6601,19 @@ describe('workspace store slices', () => {
 
     useWorkspaceStore.getState().select({ kind: 'path', id: 1 });
     await useWorkspaceStore.getState().deleteConditionsForSelectedPaths();
-    expect(selectProject(useWorkspaceStore.getState()).conditions.map((condition) => condition.kind.type)).toEqual([
-      'node_fixed',
-      'edge_length_fixed',
-    ]);
+    expect(
+      selectProject(useWorkspaceStore.getState()).conditions.map(
+        (condition) => condition.kind.type,
+      ),
+    ).toEqual(['node_fixed', 'edge_length_fixed']);
 
     useWorkspaceStore.getState().select({ kind: 'node', id: 2 });
     await useWorkspaceStore.getState().deleteConditionsForSelectedNodes();
-    expect(selectProject(useWorkspaceStore.getState()).conditions.map((condition) => condition.kind.type)).toEqual([
-      'edge_length_fixed',
-    ]);
+    expect(
+      selectProject(useWorkspaceStore.getState()).conditions.map(
+        (condition) => condition.kind.type,
+      ),
+    ).toEqual(['edge_length_fixed']);
 
     useWorkspaceStore.getState().select({ kind: 'edge', id: 1 });
     await useWorkspaceStore.getState().deleteConditionsForSelectedEdges();
@@ -6590,7 +6625,7 @@ describe('workspace store slices', () => {
       makeSnapshot({
         paper: { has_symmetry: true },
         nodes: [nodeSnapshot(1, { x: 0.5, y: 0.5 }, { label: 'axis', is_leaf: false })],
-      })
+      }),
     );
     loadSnapshotIntoStore(api.snapshotState);
 
@@ -6605,10 +6640,13 @@ describe('workspace store slices', () => {
       [1, 2],
       [1, 3],
     ]);
-    expect(selectProject(useWorkspaceStore.getState()).conditions.map((condition) => condition.kind)).toEqual([
-      { type: 'nodes_paired', node1: 2, node2: 3 },
-    ]);
-    expect(selectSelection(useWorkspaceStore.getState())).toMatchObject({ kind: 'multi', nodes: [2, 3] });
+    expect(
+      selectProject(useWorkspaceStore.getState()).conditions.map((condition) => condition.kind),
+    ).toEqual([{ type: 'nodes_paired', node1: 2, node2: 3 }]);
+    expect(selectSelection(useWorkspaceStore.getState())).toMatchObject({
+      kind: 'multi',
+      nodes: [2, 3],
+    });
     expect(selectHistoryPast(useWorkspaceStore.getState())).toHaveLength(1);
     expect(selectHistoryPast(useWorkspaceStore.getState())[0].label).toBe('Add mirrored branch');
   });
@@ -6623,18 +6661,16 @@ describe('workspace store slices', () => {
           nodeSnapshot(3, { x: 0.72, y: 0.5 }),
         ],
         edges: [edgeSnapshot(1, [1, 2]), edgeSnapshot(2, [1, 3])],
-        conditions: [
-          conditionSnapshot(1, { type: 'nodes_paired', node1: 2, node2: 3 }),
-        ],
-      })
+        conditions: [conditionSnapshot(1, { type: 'nodes_paired', node1: 2, node2: 3 })],
+      }),
     );
     loadSnapshotIntoStore(api.snapshotState);
 
     await useWorkspaceStore.getState().addNodeWithSymmetry({ x: 0.16, y: 0.7 }, 2);
 
-    expect(selectProject(useWorkspaceStore.getState()).conditions.map((condition) => condition.kind)).toEqual([
-      { type: 'nodes_paired', node1: 4, node2: 5 },
-    ]);
+    expect(
+      selectProject(useWorkspaceStore.getState()).conditions.map((condition) => condition.kind),
+    ).toEqual([{ type: 'nodes_paired', node1: 4, node2: 5 }]);
     expect(selectSymmetryAuthoringPairs(useWorkspaceStore.getState())).toEqual([
       { node1: 2, node2: 3 },
       { node1: 4, node2: 5 },
@@ -6652,7 +6688,9 @@ describe('workspace store slices', () => {
     expect(nodeLocs[5]).toEqual({ x: 0.14, y: 0.3 });
     expect(nodeLocs[6]?.x).toBeCloseTo(0.86);
     expect(nodeLocs[6]?.y).toBeCloseTo(0.3);
-    expect(selectProject(useWorkspaceStore.getState()).conditions.map((condition) => condition.kind)).toEqual([
+    expect(
+      selectProject(useWorkspaceStore.getState()).conditions.map((condition) => condition.kind),
+    ).toEqual([
       { type: 'nodes_paired', node1: 4, node2: 5 },
       { type: 'nodes_paired', node1: 6, node2: 7 },
     ]);
@@ -6663,7 +6701,7 @@ describe('workspace store slices', () => {
       makeSnapshot({
         paper: { has_symmetry: true },
         nodes: [nodeSnapshot(1, { x: 0.5, y: 0.5 }, { label: 'axis', is_leaf: false })],
-      })
+      }),
     );
     loadSnapshotIntoStore(api.snapshotState);
 
@@ -6672,7 +6710,9 @@ describe('workspace store slices', () => {
     expect(selectProject(useWorkspaceStore.getState()).nodes).toHaveLength(2);
     expect(selectProject(useWorkspaceStore.getState()).nodes[1].loc.x).toBeCloseTo(0.5);
     expect(selectProject(useWorkspaceStore.getState()).nodes[1].loc.y).toBeCloseTo(0.72);
-    expect(selectProject(useWorkspaceStore.getState()).edges.map((edge) => edge.nodes)).toEqual([[1, 2]]);
+    expect(selectProject(useWorkspaceStore.getState()).edges.map((edge) => edge.nodes)).toEqual([
+      [1, 2],
+    ]);
     expect(selectProject(useWorkspaceStore.getState()).conditions).toEqual([]);
     expect(useWorkspaceStore.getState().projectMessage).toBe('Added axial node');
   });
@@ -6686,20 +6726,22 @@ describe('workspace store slices', () => {
           nodeSnapshot(2, { x: 0.2, y: 0.25 }),
           nodeSnapshot(3, { x: 0.8, y: 0.25 }),
         ],
-        conditions: [
-          conditionSnapshot(1, { type: 'nodes_paired', node1: 2, node2: 3 }),
-        ],
-      })
+        conditions: [conditionSnapshot(1, { type: 'nodes_paired', node1: 2, node2: 3 })],
+      }),
     );
     loadSnapshotIntoStore(api.snapshotState);
 
     await useWorkspaceStore.getState().moveNodeWithSymmetry(2, { x: 0.3, y: 0.4 });
 
-    expect(selectProject(useWorkspaceStore.getState()).nodes.find((node) => node.id === 2)?.loc).toEqual({
+    expect(
+      selectProject(useWorkspaceStore.getState()).nodes.find((node) => node.id === 2)?.loc,
+    ).toEqual({
       x: 0.3,
       y: 0.4,
     });
-    expect(selectProject(useWorkspaceStore.getState()).nodes.find((node) => node.id === 3)?.loc).toEqual({
+    expect(
+      selectProject(useWorkspaceStore.getState()).nodes.find((node) => node.id === 3)?.loc,
+    ).toEqual({
       x: 0.7,
       y: 0.4,
     });
@@ -6717,18 +6759,15 @@ describe('workspace store slices', () => {
           nodeSnapshot(3, { x: 0.8, y: 0.3 }),
         ],
         edges: [edgeSnapshot(1, [1, 2]), edgeSnapshot(2, [1, 3])],
-        conditions: [
-          conditionSnapshot(1, { type: 'nodes_paired', node1: 2, node2: 3 }),
-        ],
-      })
+        conditions: [conditionSnapshot(1, { type: 'nodes_paired', node1: 2, node2: 3 })],
+      }),
     );
     loadSnapshotIntoStore(api.snapshotState);
 
     await useWorkspaceStore.getState().updateEdge(1, { length: 2.5 });
 
     expect(selectProject(useWorkspaceStore.getState()).edges.map((edge) => edge.length)).toEqual([
-      2.5,
-      2.5,
+      2.5, 2.5,
     ]);
     expect(selectHistoryPast(useWorkspaceStore.getState())).toHaveLength(1);
     expect(selectHistoryPast(useWorkspaceStore.getState())[0].label).toBe('Edit mirrored edges');
@@ -6744,7 +6783,7 @@ describe('workspace store slices', () => {
         ],
         edges: [edgeSnapshot(1, [1, 2]), edgeSnapshot(2, [1, 3])],
         paths: [pathSnapshot(1, [1, 2]), pathSnapshot(2, [1, 3]), pathSnapshot(3, [2, 3])],
-      })
+      }),
     );
     loadSnapshotIntoStore(api.snapshotState);
 
@@ -6752,13 +6791,15 @@ describe('workspace store slices', () => {
     await useWorkspaceStore.getState().deleteSelection();
 
     expect(api.applyEdit).toHaveBeenCalledWith(1, { type: 'delete_node', id: 2 });
-    expect(selectProject(useWorkspaceStore.getState()).nodes.map((node) => [node.id, node.label])).toEqual([
+    expect(
+      selectProject(useWorkspaceStore.getState()).nodes.map((node) => [node.id, node.label]),
+    ).toEqual([
       [1, 'root'],
       [2, 'right'],
     ]);
-    expect(selectProject(useWorkspaceStore.getState()).edges.map((edge) => [edge.id, edge.nodes])).toEqual([
-      [1, [1, 2]],
-    ]);
+    expect(
+      selectProject(useWorkspaceStore.getState()).edges.map((edge) => [edge.id, edge.nodes]),
+    ).toEqual([[1, [1, 2]]]);
     expect(selectSelection(useWorkspaceStore.getState())).toEqual({ kind: 'tree' });
     expect(useWorkspaceStore.getState()).toMatchObject({
       status: 'needs_optimization',
@@ -6791,7 +6832,9 @@ describe('workspace store slices', () => {
     });
 
     await useWorkspaceStore.getState().pasteClipboard();
-    expect(selectProject(useWorkspaceStore.getState()).nodes.map((node) => node.id)).toEqual([1, 2, 3, 4]);
+    expect(selectProject(useWorkspaceStore.getState()).nodes.map((node) => node.id)).toEqual([
+      1, 2, 3, 4,
+    ]);
     expect(selectSelection(useWorkspaceStore.getState())).toMatchObject({
       kind: 'multi',
       nodes: [3, 4],
@@ -6801,17 +6844,18 @@ describe('workspace store slices', () => {
     await useWorkspaceStore.getState().cutSelection();
     const clipboard = useWorkspaceStore.getState().clipboard;
     expect(clipboard?.kind).toBe('tree');
-    expect(clipboard?.kind === 'tree' ? clipboard.nodes.map((node) => node.sourceId) : []).toEqual([3, 4]);
-    expect(selectProject(useWorkspaceStore.getState()).nodes.map((node) => node.id)).toEqual([1, 2]);
+    expect(clipboard?.kind === 'tree' ? clipboard.nodes.map((node) => node.sourceId) : []).toEqual([
+      3, 4,
+    ]);
+    expect(selectProject(useWorkspaceStore.getState()).nodes.map((node) => node.id)).toEqual([
+      1, 2,
+    ]);
   });
 
   it('copies and pastes selected editable CP lines', async () => {
     resetStores(seedSnapshot());
     const sourceLine = cpLine({ x: 0, y: 0 }, { x: 2, y: 0 }, { color: 'Blue2' });
-    const documentState = editableCpState([
-      sourceLine,
-      cpLine({ x: 0, y: 1 }, { x: 2, y: 1 }),
-    ]);
+    const documentState = editableCpState([sourceLine, cpLine({ x: 0, y: 1 }, { x: 2, y: 1 })]);
     useWorkspaceStore.setState({
       activePanelId: 'crease-pattern',
       oristudioCpDocument: documentState,
@@ -6824,7 +6868,7 @@ describe('workspace store slices', () => {
         editableCpState([
           ...documentState.document.crease_pattern.line_segments,
           ...segments.map((segment) => ({ ...segment, selected: 2 })),
-        ])
+        ]),
     );
 
     useWorkspaceStore.getState().copySelection();
@@ -6865,13 +6909,11 @@ describe('workspace store slices', () => {
         editableCpState([
           { ...segments[0], selected: 2 },
           documentState.document.crease_pattern.line_segments[1],
-        ])
+        ]),
     );
 
     await expect(
-      useWorkspaceStore
-        .getState()
-        .transformOristudioCpSelection({ kind: 'flip-horizontal' })
+      useWorkspaceStore.getState().transformOristudioCpSelection({ kind: 'flip-horizontal' }),
     ).resolves.toBe(true);
 
     expect(oristudioCpMocks.replaceOristudioCpLineSegments).toHaveBeenCalledWith(
@@ -6881,7 +6923,7 @@ describe('workspace store slices', () => {
           a: { x: 2, y: 0 },
           b: { x: 0, y: 0 },
         }),
-      ]
+      ],
     );
     expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([1]);
     expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(1);
@@ -6925,19 +6967,19 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().status).toBe('optimized');
     expect(selectLastOptimization(useWorkspaceStore.getState())).toMatchObject({ kind: 'scale' });
     expect(selectDesignViewportFitRequestId(useWorkspaceStore.getState())).toBe(
-      initialFitRequestId + 1
+      initialFitRequestId + 1,
     );
 
     await useWorkspaceStore.getState().optimizeEdges();
     expect(selectLastOptimization(useWorkspaceStore.getState())).toMatchObject({ kind: 'edges' });
     expect(selectDesignViewportFitRequestId(useWorkspaceStore.getState())).toBe(
-      initialFitRequestId + 1
+      initialFitRequestId + 1,
     );
 
     await useWorkspaceStore.getState().optimizeStrain();
     expect(selectLastOptimization(useWorkspaceStore.getState())).toMatchObject({ kind: 'strain' });
     expect(selectDesignViewportFitRequestId(useWorkspaceStore.getState())).toBe(
-      initialFitRequestId + 1
+      initialFitRequestId + 1,
     );
 
     await useWorkspaceStore.getState().buildCreasePattern();
@@ -6974,7 +7016,7 @@ describe('workspace store slices', () => {
 
     useWorkspaceStore.getState().markFoldSourceChanged();
     await expect(useWorkspaceStore.getState().ensureFoldArtifacts()).resolves.toBe(
-      currentArtifacts
+      currentArtifacts,
     );
     expect(useWorkspaceStore.getState().foldArtifactStatus).toBe('ready');
 
@@ -7014,7 +7056,7 @@ describe('workspace store slices', () => {
       path: '/tmp/another.tmd5',
     });
     await expect(useWorkspaceStore.getState().ensureFoldArtifacts()).resolves.toBe(
-      currentArtifacts
+      currentArtifacts,
     );
 
     resolveClosedFile(closedFileArtifacts);
@@ -7101,7 +7143,7 @@ describe('workspace store slices', () => {
 
       expect(bpMocks.loadOristudioBpProjectFromText).toHaveBeenCalledWith(
         '{"title":"Crane","tree":{}}',
-        expect.objectContaining({ filename: 'crane.bps', format: 'bps' })
+        expect.objectContaining({ filename: 'crane.bps', format: 'bps' }),
       );
       const state = useWorkspaceStore.getState();
       expect(selectOristudioBpDocument(state)).not.toBeNull();
@@ -7153,7 +7195,7 @@ describe('workspace store slices', () => {
       await expect(
         useWorkspaceStore
           .getState()
-          .createOristudioBpProject({ preserveEditCanvas: true, confirmDiscard: false })
+          .createOristudioBpProject({ preserveEditCanvas: true, confirmDiscard: false }),
       ).resolves.toBe(true);
 
       expect(useWorkspaceStore.getState().foldArtifacts).toBe(artifacts);
@@ -7173,8 +7215,7 @@ describe('workspace store slices', () => {
       await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
 
       const options = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
-        | SaveTextFileOptions
-        | undefined;
+        SaveTextFileOptions | undefined;
       expect(options?.extensions).toEqual(['osf']);
       const saved = parseNativeProjectFile(options?.contents ?? '');
       const active = activeNativeDesign(saved);
@@ -7205,8 +7246,7 @@ describe('workspace store slices', () => {
       await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
 
       const options = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
-        | SaveTextFileOptions
-        | undefined;
+        SaveTextFileOptions | undefined;
       const saved = parseNativeProjectFile(options?.contents ?? '');
       expect(saved.workspace.designs.map((design) => design.payload.kind)).toEqual(['box-pleat']);
       expect(saved.workspace.creasePattern).not.toBeNull();
@@ -7222,14 +7262,15 @@ describe('workspace store slices', () => {
         path: null,
       });
       // A design coexists with a CP on the always-live Edit canvas.
-      useWorkspaceStore.setState({ oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]) });
+      useWorkspaceStore.setState({
+        oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      });
 
       const fileService = createFileService();
       await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
 
       const options = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
-        | SaveTextFileOptions
-        | undefined;
+        SaveTextFileOptions | undefined;
       const saved = parseNativeProjectFile(options?.contents ?? '');
       expect(saved.workspace.designs.map((design) => design.payload.kind)).toEqual(['box-pleat']);
       expect(saved.workspace.creasePattern).not.toBeNull();
@@ -7247,8 +7288,7 @@ describe('workspace store slices', () => {
       await expect(useWorkspaceStore.getState().exportBps(fileService)).resolves.toBe(true);
 
       const options = fileService.saveTextFile.mock.calls.at(-1)?.[0] as
-        | SaveTextFileOptions
-        | undefined;
+        SaveTextFileOptions | undefined;
       expect(options?.contents).toBe('{"exported":true}');
       expect(options?.extensions).toEqual(['bps']);
       expect(options?.suggestedName.endsWith('.bps')).toBe(true);
@@ -7275,16 +7315,20 @@ describe('workspace store slices', () => {
             lineage: importedCpLineage(),
           },
           appVersion: '0.0.0',
-        })
+        }),
       );
       useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
-      const fileService = createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' });
+      const fileService = createFileService({
+        text: osf,
+        name: 'crane.osf',
+        path: '/tmp/crane.osf',
+      });
 
       await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
 
       expect(bpMocks.loadOristudioBpProjectFromText).toHaveBeenCalledWith(
         '{"title":"Crane"}',
-        expect.objectContaining({ format: 'bps' })
+        expect.objectContaining({ format: 'bps' }),
       );
       const state = useWorkspaceStore.getState();
       expect(selectOristudioBpDocument(state)).not.toBeNull();
@@ -7330,7 +7374,7 @@ describe('workspace store slices', () => {
             lineage: importedCpLineage(),
           },
           appVersion: '0.0.0',
-        })
+        }),
       );
       useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
       // The user is editing the crease pattern when they open the file, so the
@@ -7340,7 +7384,7 @@ describe('workspace store slices', () => {
       await expect(
         useWorkspaceStore
           .getState()
-          .openProject(createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' }))
+          .openProject(createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' })),
       ).resolves.toBe(true);
 
       const state = useWorkspaceStore.getState();
@@ -7374,7 +7418,7 @@ describe('workspace store slices', () => {
             lineage: importedCpLineage(),
           },
           appVersion: '0.0.0',
-        })
+        }),
       );
       useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
       useLayoutStore.setState({ activeWorkspace: 'edit' });
@@ -7382,7 +7426,7 @@ describe('workspace store slices', () => {
       await expect(
         useWorkspaceStore
           .getState()
-          .openProject(createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' }))
+          .openProject(createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' })),
       ).resolves.toBe(true);
 
       const cpAction = vi.fn();
@@ -7440,7 +7484,7 @@ describe('workspace store slices', () => {
               bps: '{"title":"Crane"}',
               creasePatternCompanion: cpCompanion(),
               appVersion: '0.0.0',
-            })
+            }),
           ),
         },
         {
@@ -7453,7 +7497,7 @@ describe('workspace store slices', () => {
               path: null,
               bps: '{"title":"Crane"}',
               appVersion: '0.0.0',
-            })
+            }),
           ),
         },
         {
@@ -7467,7 +7511,7 @@ describe('workspace store slices', () => {
               tmd5Text: 'native tree tmd5',
               creasePatternCompanion: cpCompanion(),
               appVersion: '0.0.0',
-            })
+            }),
           ),
         },
         {
@@ -7480,7 +7524,7 @@ describe('workspace store slices', () => {
               path: null,
               tmd5Text: 'native tree tmd5',
               appVersion: '0.0.0',
-            })
+            }),
           ),
         },
       ];
@@ -7493,13 +7537,13 @@ describe('workspace store slices', () => {
         await expect(
           useWorkspaceStore
             .getState()
-            .openProject(createFileService({ text: open.text, name: open.name, path: null }))
+            .openProject(createFileService({ text: open.text, name: open.name, path: null })),
         ).resolves.toBe(true);
 
         const activePanelId = useWorkspaceStore.getState().activePanelId;
         expect(
           activePanelId === null ? null : workspaceForPanelId(activePanelId),
-          `${open.name} left ${activePanelId} active`
+          `${open.name} left ${activePanelId} active`,
         ).toBe(useLayoutStore.getState().activeWorkspace);
       }
     });
@@ -7539,7 +7583,7 @@ describe('workspace store slices', () => {
             camera: { centerX: 12, centerY: -4, zoom: 3, rotation: 0.5 },
           },
           appVersion: '0.0.0',
-        })
+        }),
       );
       useWorkspaceStore.setState({
         engineReady: true,
@@ -7555,7 +7599,7 @@ describe('workspace store slices', () => {
       await expect(
         useWorkspaceStore
           .getState()
-          .openProject(createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' }))
+          .openProject(createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' })),
       ).resolves.toBe(true);
 
       const state = useWorkspaceStore.getState();
@@ -7604,7 +7648,7 @@ describe('workspace store slices', () => {
             lineage: importedCpLineage(),
           },
           appVersion: '0.0.0',
-        })
+        }),
       );
       useWorkspaceStore.setState({
         engineReady: true,
@@ -7627,7 +7671,9 @@ describe('workspace store slices', () => {
         await expect(
           useWorkspaceStore
             .getState()
-            .openProject(createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' }))
+            .openProject(
+              createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' }),
+            ),
         ).resolves.toBe(true);
       } finally {
         unsubscribe();
@@ -7650,7 +7696,7 @@ describe('workspace store slices', () => {
           path: '/tmp/crane.osf',
           bps: '{"title":"Crane"}',
           appVersion: '0.0.0',
-        })
+        }),
       );
       useWorkspaceStore.setState({
         engineReady: true,
@@ -7665,7 +7711,7 @@ describe('workspace store slices', () => {
       await expect(
         useWorkspaceStore
           .getState()
-          .openProject(createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' }))
+          .openProject(createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' })),
       ).resolves.toBe(true);
 
       expect(useWorkspaceStore.getState().oristudioCpDocument).toBeNull();
@@ -7699,7 +7745,7 @@ describe('workspace store slices', () => {
             lineage: importedCpLineage(),
           },
           appVersion: '0.0.0',
-        })
+        }),
       );
       useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
       useLayoutStore.setState({ activeWorkspace: 'edit' });
@@ -7714,7 +7760,9 @@ describe('workspace store slices', () => {
         await expect(
           useWorkspaceStore
             .getState()
-            .openProject(createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' }))
+            .openProject(
+              createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' }),
+            ),
         ).resolves.toBe(true);
       } finally {
         unsubscribe();
@@ -7740,10 +7788,14 @@ describe('workspace store slices', () => {
           path: '/tmp/crane.osf',
           bps: '{"title":"Crane"}',
           appVersion: '0.0.0',
-        })
+        }),
       );
       useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
-      const fileService = createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' });
+      const fileService = createFileService({
+        text: osf,
+        name: 'crane.osf',
+        path: '/tmp/crane.osf',
+      });
 
       await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
 
@@ -7773,8 +7825,8 @@ describe('workspace store slices', () => {
         useWorkspaceStore
           .getState()
           .openProject(
-            createFileService({ text: 'tree text', name: 'tree.tmd5', path: '/tmp/tree.tmd5' })
-          )
+            createFileService({ text: 'tree text', name: 'tree.tmd5', path: '/tmp/tree.tmd5' }),
+          ),
       ).resolves.toBe(true);
 
       const state = useWorkspaceStore.getState();
@@ -7878,9 +7930,15 @@ describe('workspace store slices', () => {
           filename: 'crane.osf',
           path: null,
           bps: '{"title":"Crane"}',
-          symmetry: { enabled: true, fold: 'book', quarterTurn: false, sidesSwapped: false, pairs: [{ v1: 1, v2: 99 }] },
+          symmetry: {
+            enabled: true,
+            fold: 'book',
+            quarterTurn: false,
+            sidesSwapped: false,
+            pairs: [{ v1: 1, v2: 99 }],
+          },
           appVersion: '0.0.0',
-        })
+        }),
       );
       useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
       const fileService = createFileService({ text: osf, name: 'crane.osf', path: null });
@@ -7935,9 +7993,9 @@ describe('workspace store slices', () => {
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
       expectInvariant();
 
-      await useWorkspaceStore.getState().duplicateDesignTab(
-        useWorkspaceStore.getState().activeDesignId
-      );
+      await useWorkspaceStore
+        .getState()
+        .duplicateDesignTab(useWorkspaceStore.getState().activeDesignId);
       expectInvariant();
 
       useWorkspaceStore.getState().startNewDesign();
@@ -8057,8 +8115,11 @@ describe('workspace store slices', () => {
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
       const before = selectOristudioBpDocument(useWorkspaceStore.getState());
       useWorkspaceStore.setState({
-      ...patchBoxPleatDesign(useWorkspaceStore.getState(), { historyPast: [], historyFuture: [] 
-      }),});
+        ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
+          historyPast: [],
+          historyFuture: [],
+        }),
+      });
       // The snapshot the history entry must capture is the state *before* the
       // run, so the export mocked here is the pre-optimize project.
       bpMocks.exportOristudioBpProjectAsSessionBps.mockResolvedValueOnce('{"before":"optimize"}');
@@ -8076,7 +8137,7 @@ describe('workspace store slices', () => {
           useBasinHopping: false,
           randomCandidateCount: 1,
           respectSymmetry: false,
-        })
+        }),
       ).resolves.toBe('applied');
 
       const state = useWorkspaceStore.getState();
@@ -8092,7 +8153,7 @@ describe('workspace store slices', () => {
       expect(bpMocks.optimizeOristudioBpLayout).toHaveBeenCalledWith(
         expect.objectContaining({ openNew: false, seed: null }),
         expect.objectContaining({ activeSurface: 'packing' }),
-        undefined
+        undefined,
       );
     });
 
@@ -8116,7 +8177,7 @@ describe('workspace store slices', () => {
       expect(bpMocks.optimizeOristudioBpLayout).toHaveBeenCalledWith(
         expect.objectContaining({ symmetry: null }),
         expect.anything(),
-        undefined
+        undefined,
       );
     });
 
@@ -8127,17 +8188,18 @@ describe('workspace store slices', () => {
       const leaves = tree.vertices.filter((vertex) => vertex.isLeaf);
       // The blank design has two leaves; pair them across a vertical axis.
       useWorkspaceStore.setState({
-      ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
-        symmetry: {
-          enabled: true,
-          fold: 'book',
-          quarterTurn: false,
-          sidesSwapped: false,
-          angle: 90,
-          loc: { x: tree.sheet.width / 2, y: tree.sheet.height / 2 },
-          pairs: [{ v1: leaves[0].id, v2: leaves[1].id }],
-        }
-      }),});
+        ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
+          symmetry: {
+            enabled: true,
+            fold: 'book',
+            quarterTurn: false,
+            sidesSwapped: false,
+            angle: 90,
+            loc: { x: tree.sheet.width / 2, y: tree.sheet.height / 2 },
+            pairs: [{ v1: leaves[0].id, v2: leaves[1].id }],
+          },
+        }),
+      });
       bpMocks.optimizeOristudioBpLayout.mockResolvedValueOnce({
         document: sampleBpDocument(),
         eventCount: 0,
@@ -8151,7 +8213,7 @@ describe('workspace store slices', () => {
           useBasinHopping: false,
           randomCandidateCount: 1,
           respectSymmetry: true,
-        })
+        }),
       ).resolves.toBe('applied');
 
       const call = bpMocks.optimizeOristudioBpLayout.mock.calls.at(-1)!;
@@ -8162,7 +8224,7 @@ describe('workspace store slices', () => {
         new Map([
           [leaves[0].id, leaves[1].id],
           [leaves[1].id, leaves[0].id],
-        ])
+        ]),
       );
     });
 
@@ -8174,30 +8236,31 @@ describe('workspace store slices', () => {
       // A leaf that is neither on the mirror line nor opposite another one has
       // no mirror to give, so the run must say so rather than quietly drop it.
       useWorkspaceStore.setState({
-      ...singleBoxPleatDesignTab({
-        document: {
-          ...document,
-          snapshot: {
-            ...document.snapshot,
-            tree: {
-              ...tree,
-              vertices: [
-                ...tree.vertices,
-                { ...tree.vertices[1], id: 99, name: 'stray', loc: { x: 3, y: 4 } },
-              ],
+        ...singleBoxPleatDesignTab({
+          document: {
+            ...document,
+            snapshot: {
+              ...document.snapshot,
+              tree: {
+                ...tree,
+                vertices: [
+                  ...tree.vertices,
+                  { ...tree.vertices[1], id: 99, name: 'stray', loc: { x: 3, y: 4 } },
+                ],
+              },
             },
           },
-        },
-        symmetry: {
-          enabled: true,
-          fold: 'book',
-          quarterTurn: false,
-          sidesSwapped: false,
-          angle: 90,
-          loc: { x: tree.sheet.width / 2, y: tree.sheet.height / 2 },
-          pairs: [],
-        }
-      }),} as never);
+          symmetry: {
+            enabled: true,
+            fold: 'book',
+            quarterTurn: false,
+            sidesSwapped: false,
+            angle: 90,
+            loc: { x: tree.sheet.width / 2, y: tree.sheet.height / 2 },
+            pairs: [],
+          },
+        }),
+      } as never);
 
       await expect(
         useWorkspaceStore.getState().optimizeOristudioBpLayout({
@@ -8206,7 +8269,7 @@ describe('workspace store slices', () => {
           useBasinHopping: false,
           randomCandidateCount: 4,
           respectSymmetry: true,
-        })
+        }),
       ).resolves.toBe('failed');
 
       expect(bpMocks.optimizeOristudioBpLayout).not.toHaveBeenCalled();
@@ -8219,17 +8282,18 @@ describe('workspace store slices', () => {
       const tree = selectOristudioBpDocument(useWorkspaceStore.getState())!.snapshot.tree;
       const leaves = tree.vertices.filter((vertex) => vertex.isLeaf).map((vertex) => vertex.id);
       useWorkspaceStore.setState({
-      ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
-        symmetry: {
-          enabled: true,
-          fold: 'book',
-          quarterTurn: false,
-          sidesSwapped: false,
-          angle: 90,
-          loc: { x: tree.sheet.width / 2, y: tree.sheet.height / 2 },
-          pairs: [{ v1: leaves[0], v2: leaves[1] }],
-        }
-      }),});
+        ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
+          symmetry: {
+            enabled: true,
+            fold: 'book',
+            quarterTurn: false,
+            sidesSwapped: false,
+            angle: 90,
+            loc: { x: tree.sheet.width / 2, y: tree.sheet.height / 2 },
+            pairs: [{ v1: leaves[0], v2: leaves[1] }],
+          },
+        }),
+      });
 
       bpMocks.optimizeOristudioBpLayout.mockResolvedValueOnce({
         document: sampleBpDocument(),
@@ -8244,21 +8308,23 @@ describe('workspace store slices', () => {
           useBasinHopping: false,
           randomCandidateCount: 4,
           respectSymmetry: true,
-        })
+        }),
       ).resolves.toBe('applied');
 
       const call = bpMocks.optimizeOristudioBpLayout.mock.calls.at(-1)!;
       expect((call[0] as { symmetry: unknown }).symmetry).not.toBeNull();
     });
 
-
     it('leaves the document and history untouched when the optimizer is cancelled', async () => {
       useWorkspaceStore.getState().startNewDesign();
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
       const before = selectOristudioBpDocument(useWorkspaceStore.getState());
       useWorkspaceStore.setState({
-      ...patchBoxPleatDesign(useWorkspaceStore.getState(), { historyPast: [], historyFuture: [] 
-      }),});
+        ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
+          historyPast: [],
+          historyFuture: [],
+        }),
+      });
       bpMocks.optimizeOristudioBpLayout.mockRejectedValueOnce({
         code: 'optimization_cancelled',
         message: 'Box Pleat optimization cancelled',
@@ -8271,7 +8337,7 @@ describe('workspace store slices', () => {
           useBasinHopping: false,
           randomCandidateCount: 4,
           respectSymmetry: false,
-        })
+        }),
       ).resolves.toBe('cancelled');
 
       const state = useWorkspaceStore.getState();
@@ -8289,8 +8355,11 @@ describe('workspace store slices', () => {
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
       const before = selectOristudioBpDocument(useWorkspaceStore.getState());
       useWorkspaceStore.setState({
-      ...patchBoxPleatDesign(useWorkspaceStore.getState(), { historyPast: [], historyFuture: [] 
-      }),});
+        ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
+          historyPast: [],
+          historyFuture: [],
+        }),
+      });
       bpMocks.optimizeOristudioBpLayout.mockRejectedValueOnce({
         code: 'optimization_failed',
         message: 'Solution exceeds maximal sheet size.',
@@ -8303,7 +8372,7 @@ describe('workspace store slices', () => {
           useBasinHopping: true,
           randomCandidateCount: 1,
           respectSymmetry: false,
-        })
+        }),
       ).resolves.toBe('failed');
 
       const state = useWorkspaceStore.getState();
@@ -8466,7 +8535,7 @@ describe('changing a 3D folded model appearance', () => {
         cpLine(
           { x: 0, y: 0 },
           { x: 1, y: 0 },
-          { color: 'Red1', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE }
+          { color: 'Red1', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE },
         ),
       ]),
       oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
@@ -8480,11 +8549,9 @@ describe('changing a 3D folded model appearance', () => {
   it('accepts a colour change and keeps it on the 3D snapshot', async () => {
     const figure = await seedSpatialFigure();
     await expect(
-      useWorkspaceStore
-        .getState()
-        .updateOristudioCpFoldedFigureModel(figure.id, {
-          front_color: { red: 10, green: 20, blue: 30 },
-        })
+      useWorkspaceStore.getState().updateOristudioCpFoldedFigureModel(figure.id, {
+        front_color: { red: 10, green: 20, blue: 30 },
+      }),
     ).resolves.toBe(true);
 
     const after = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
@@ -8498,11 +8565,9 @@ describe('changing a 3D folded model appearance', () => {
     const figure = await seedSpatialFigure();
     const before = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!.renderSnapshot;
     await expect(
-      useWorkspaceStore
-        .getState()
-        .updateOristudioCpFoldedFigureModel(figure.id, {
-          front_color: { red: 1, green: 2, blue: 3 },
-        })
+      useWorkspaceStore.getState().updateOristudioCpFoldedFigureModel(figure.id, {
+        front_color: { red: 1, green: 2, blue: 3 },
+      }),
     ).resolves.toBe(true);
     const after = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!.renderSnapshot;
     expect(after).not.toEqual(before);
@@ -8530,7 +8595,7 @@ describe('changing a 3D folded model appearance', () => {
       ] as never,
     });
     await expect(
-      useWorkspaceStore.getState().updateOristudioCpFoldedFigureModel('empty', {})
+      useWorkspaceStore.getState().updateOristudioCpFoldedFigureModel('empty', {}),
     ).resolves.toBe(false);
   });
 });
@@ -8554,7 +8619,7 @@ describe('a fresh 3D fold arrives focused', () => {
         cpLine(
           { x: 0, y: 0 },
           { x: 1, y: 0 },
-          { color: 'Red1', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE }
+          { color: 'Red1', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE },
         ),
       ]),
       oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },

@@ -92,7 +92,7 @@ function renderLayer(options: { focused: boolean; overlayInteractive: boolean })
         replayRequest={0}
         onFocus={() => {}}
         onPlayingChange={() => {}}
-      />
+      />,
     );
   });
   // Mounting pushes the window's opening camera; the assertions are about what

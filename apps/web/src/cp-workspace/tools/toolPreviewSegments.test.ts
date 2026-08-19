@@ -23,7 +23,10 @@ describe('toolPreviewSegments', () => {
   });
 
   it('carries the crease for a tool whose candidates the kernel decided', () => {
-    const [only] = toolPreviewSegments([segment('Red1', 900000000)], 'VertexMakeAngularlyFlatFoldable');
+    const [only] = toolPreviewSegments(
+      [segment('Red1', 900000000)],
+      'VertexMakeAngularlyFlatFoldable',
+    );
     expect(only.crease).toEqual({ color: 'Red1', foldMagnitude: 900000000 });
   });
 
@@ -38,7 +41,7 @@ describe('toolPreviewSegments', () => {
     // crease colour would claim they are creases.
     const previews = toolPreviewSegments(
       [segment('Orange4'), segment('Green6'), segment('Purple8'), segment('Cyan3')],
-      'VertexMakeAngularlyFlatFoldable'
+      'VertexMakeAngularlyFlatFoldable',
     );
     expect(previews.every((preview) => preview.crease === undefined)).toBe(true);
   });

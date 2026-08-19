@@ -89,11 +89,11 @@ describe('SimulatorPanel', () => {
     await flushSimulator();
 
     expect(rendered.querySelector('[aria-label="Fold percent"]')).not.toBeNull();
-    expect(rendered.querySelector('[aria-label="Simulator scope"]')?.textContent).toContain('Whole');
-    expect(rendered.querySelector('[aria-label="Step simulation accuracy"]')).toBeNull();
-    expect(rendered.querySelector('.simulator-canvas')?.getAttribute('data-lighting')).toBe(
-      'true'
+    expect(rendered.querySelector('[aria-label="Simulator scope"]')?.textContent).toContain(
+      'Whole',
     );
+    expect(rendered.querySelector('[aria-label="Step simulation accuracy"]')).toBeNull();
+    expect(rendered.querySelector('.simulator-canvas')?.getAttribute('data-lighting')).toBe('true');
     expect(rendered.textContent).not.toContain('Manual preview');
     expect(putImageDataMock).toHaveBeenCalled();
     expect(fillMock).toHaveBeenCalledTimes(putImageDataMock.mock.calls.length);
@@ -143,9 +143,9 @@ describe('SimulatorPanel', () => {
     expect(rendered.querySelector('[aria-label="Step percent"]')).not.toBeNull();
     expect(rendered.textContent).toContain('Step 1: manual collapse');
     expect(rendered.textContent).toContain('Manual preview');
-    expect(rendered.querySelector('[aria-label="Step simulation accuracy"]')?.textContent).toContain(
-      'Fast'
-    );
+    expect(
+      rendered.querySelector('[aria-label="Step simulation accuracy"]')?.textContent,
+    ).toContain('Fast');
     expect(activeAccuracyButton(rendered)?.textContent).toBe('Fast');
   });
 
@@ -158,7 +158,7 @@ describe('SimulatorPanel', () => {
     });
     const accuracyControl = rendered.querySelector('[aria-label="Step simulation accuracy"]');
     const accurateButton = Array.from(accuracyControl?.querySelectorAll('button') ?? []).find(
-      (button) => button.textContent === 'Accurate'
+      (button) => button.textContent === 'Accurate',
     );
 
     expect(activeAccuracyButton(rendered)?.textContent).toBe('Fast');
@@ -226,7 +226,7 @@ function pressKey(key: string, init: KeyboardEventInit = {}): void {
     {
       context: { activeEditingContext: 'crease-pattern' },
       menu: () => {},
-    }
+    },
   );
 }
 
@@ -239,7 +239,7 @@ function renderPanel(state: Partial<ReturnType<typeof useWorkspaceStore.getState
       engineReady: true,
       ...state,
     },
-    true
+    true,
   );
 
   container = document.createElement('div');
@@ -249,7 +249,7 @@ function renderPanel(state: Partial<ReturnType<typeof useWorkspaceStore.getState
     root?.render(
       <TooltipProvider>
         <SimulatorPanel />
-      </TooltipProvider>
+      </TooltipProvider>,
     );
   });
   return container;
@@ -259,13 +259,16 @@ function activeAccuracyButton(rendered: HTMLDivElement): HTMLButtonElement | nul
   const accuracyControl = rendered.querySelector('[aria-label="Step simulation accuracy"]');
   return (
     Array.from(accuracyControl?.querySelectorAll('button') ?? []).find(
-      (button) => button.getAttribute('aria-pressed') === 'true'
+      (button) => button.getAttribute('aria-pressed') === 'true',
     ) ?? null
   );
 }
 
 function manualCollapsePlan(): SequencePlan {
-  const before = sequenceState('before', simpleFold(['B', 'B', 'B', 'B', 'F'], [null, null, null, null, 0]));
+  const before = sequenceState(
+    'before',
+    simpleFold(['B', 'B', 'B', 'B', 'F'], [null, null, null, null, 0]),
+  );
   const after = sequenceState('after', simpleFold());
   return {
     status: 'partial',
@@ -311,7 +314,7 @@ function sequenceState(id: string, document: FoldDocument): SequenceStateSnapsho
 
 function simpleFold(
   assignments: FoldDocument['edges_assignment'] = ['B', 'B', 'B', 'B', 'V'],
-  foldAngles: FoldDocument['edges_foldAngle'] = [null, null, null, null, 180]
+  foldAngles: FoldDocument['edges_foldAngle'] = [null, null, null, null, 180],
 ): FoldDocument {
   return {
     file_spec: 1.2,

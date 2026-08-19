@@ -133,7 +133,7 @@ export function createDocumentRegistry(options: DocumentRegistryOptions = {}) {
    */
   async function park(
     documentId: string,
-    reason: 'evicted' | 'released' = 'released'
+    reason: 'evicted' | 'released' = 'released',
   ): Promise<void> {
     const entry = hot.get(documentId);
     if (!entry) return;
@@ -195,7 +195,10 @@ export function createDocumentRegistry(options: DocumentRegistryOptions = {}) {
    * Wrap anything long-running — an optimize, a fold, a build — so a tab switch
    * during it cannot evict the handle being written to (see the plan's R14).
    */
-  async function pinned<T>(document: RegisteredDocument, work: (handle: number) => Promise<T>): Promise<T> {
+  async function pinned<T>(
+    document: RegisteredDocument,
+    work: (handle: number) => Promise<T>,
+  ): Promise<T> {
     // Pin *before* hydrating, not after: `acquire` suspends, and anything that runs
     // while it is suspended could otherwise evict the document this call exists
     // to protect.

@@ -151,7 +151,7 @@ export function cameraUniforms(
   center: [number, number, number],
   radius: number,
   width: number,
-  height: number
+  height: number,
 ): CameraUniforms {
   const safeRadius = Math.max(1e-3, radius);
   const scale = (fitExtent(width, height) / (2 * safeRadius)) * view.zoom;
@@ -210,7 +210,7 @@ export interface ProjectVerticesOptions {
 export function projectVertices(
   positions: Float32Array,
   camera: CameraUniforms,
-  options: ProjectVerticesOptions = {}
+  options: ProjectVerticesOptions = {},
 ): ProjectedVertices {
   const perspective = options.perspective ?? true;
   const count = Math.floor(positions.length / 3);
@@ -222,7 +222,7 @@ export function projectVertices(
       positions[vertex * 3] ?? 0,
       positions[vertex * 3 + 1] ?? 0,
       positions[vertex * 3 + 2] ?? 0,
-      camera
+      camera,
     );
     view[vertex * 3] = x;
     view[vertex * 3 + 1] = y;
@@ -247,7 +247,7 @@ export function toViewSpace(
   x: number,
   y: number,
   z: number,
-  camera: CameraUniforms
+  camera: CameraUniforms,
 ): [number, number, number] {
   const dx = x - camera.center[0];
   const dy = y - camera.center[1];
@@ -270,7 +270,7 @@ export function toViewSpace(
 export function projectViewPoint(
   view: readonly [number, number, number],
   camera: CameraUniforms,
-  perspective = true
+  perspective = true,
 ): [number, number] {
   // Eye at +camDist along the view axis: nearer points (larger depth) magnify
   // and farther ones shrink, so receding parallels converge.
@@ -303,7 +303,11 @@ export function boundingRadius(positions: Float32Array, center: [number, number,
   for (let i = 0; i < positions.length; i += 3) {
     radius = Math.max(
       radius,
-      Math.hypot(positions[i]! - center[0], positions[i + 1]! - center[1], positions[i + 2]! - center[2])
+      Math.hypot(
+        positions[i]! - center[0],
+        positions[i + 1]! - center[1],
+        positions[i + 2]! - center[2],
+      ),
     );
   }
   return Math.max(1e-3, radius);

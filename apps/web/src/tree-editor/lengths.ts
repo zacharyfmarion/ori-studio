@@ -62,7 +62,10 @@ export function snapToInteger(distance: number, state?: QuantizeState): number {
   // One step away: only move once the cursor is past the midpoint *and* the
   // deadband. Otherwise hold, which is what stops the flicker.
   const boundary = (current + nearest) / 2;
-  const moved = nearest > current ? distance >= boundary + SNAP_HYSTERESIS : distance <= boundary - SNAP_HYSTERESIS;
+  const moved =
+    nearest > current
+      ? distance >= boundary + SNAP_HYSTERESIS
+      : distance <= boundary - SNAP_HYSTERESIS;
   const answer = moved ? nearest : current;
   if (state) state.current = answer;
   return answer;

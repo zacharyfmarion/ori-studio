@@ -55,7 +55,7 @@ export const RING_FORMATS: readonly RingFormat[] = [
   ...EXPORTABLE_FILE_EXTENSIONS.filter(
     (extension) =>
       extension !== NATIVE_PROJECT_EXTENSION &&
-      !(OPENABLE_FILE_EXTENSIONS as readonly string[]).includes(extension)
+      !(OPENABLE_FILE_EXTENSIONS as readonly string[]).includes(extension),
   ),
 ].map((extension) => ({ extension, direction: directionFor(extension) }));
 
@@ -127,7 +127,12 @@ export function LandingFormatRing() {
         label on each file already says, so announcing the wires as well would
         be noise.
       */}
-      <svg className="landing-ring__wires" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+      <svg
+        className="landing-ring__wires"
+        viewBox="0 0 100 100"
+        aria-hidden="true"
+        focusable="false"
+      >
         <defs>
           <marker
             id={`${markerPrefix}-head`}
@@ -189,9 +194,7 @@ export function LandingFormatRing() {
               {outboundHead ? (
                 <line {...flow} className="landing-ring__flow" data-way="out" />
               ) : null}
-              {inboundHead ? (
-                <line {...flow} className="landing-ring__flow" data-way="in" />
-              ) : null}
+              {inboundHead ? <line {...flow} className="landing-ring__flow" data-way="in" /> : null}
             </g>
           );
         })}
@@ -272,7 +275,7 @@ function useInView(ref: React.RefObject<HTMLElement | null>): boolean {
     }
     const observer = new IntersectionObserver(
       ([entry]) => setInView(entry?.isIntersecting ?? false),
-      { threshold: 0.15 }
+      { threshold: 0.15 },
     );
     observer.observe(element);
     return () => observer.disconnect();

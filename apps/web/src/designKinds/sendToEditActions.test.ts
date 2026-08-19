@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TFunction } from 'i18next';
-import {
-  kindHasPackingCircles,
-  sendToEditPrimary,
-  sendToEditVariants,
-} from './sendToEditActions';
+import { kindHasPackingCircles, sendToEditPrimary, sendToEditVariants } from './sendToEditActions';
 import { DESIGN_KINDS } from './registry';
 
 /** Enough of `t` for a catalog that only ever calls `t(key, english)`. */

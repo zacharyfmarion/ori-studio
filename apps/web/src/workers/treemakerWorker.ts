@@ -28,9 +28,7 @@ import type {
   TreeSnapshot,
   WasmErrorEnvelope,
 } from '../engine/types';
-import {
-  segmentFoldDocument,
-} from '../lib/creasePatternSegmentation';
+import { segmentFoldDocument } from '../lib/creasePatternSegmentation';
 
 let ready: Promise<void> | null = null;
 
@@ -112,7 +110,7 @@ const api = {
   },
   async sequenceAnalyzeFold(
     foldJson: string,
-    options?: { solution_limit?: number; require_unique_layer_order?: boolean }
+    options?: { solution_limit?: number; require_unique_layer_order?: boolean },
   ): Promise<SequenceTargetState> {
     return call(() => sequence_analyze_fold(foldJson, options ?? null) as SequenceTargetState);
   },
@@ -123,7 +121,7 @@ const api = {
       max_steps?: number;
       max_states?: number;
       require_unique_layer_order?: boolean;
-    }
+    },
   ): Promise<SequencePlan> {
     return call(() => sequence_plan_fold(foldJson, options ?? null) as SequencePlan);
   },
@@ -134,10 +132,10 @@ const api = {
       max_steps?: number;
       max_states?: number;
       require_unique_layer_order?: boolean;
-    }
+    },
   ): Promise<SequencePlanFoldResult> {
     return call(
-      () => sequence_plan_fold_with_target(foldJson, options ?? null) as SequencePlanFoldResult
+      () => sequence_plan_fold_with_target(foldJson, options ?? null) as SequencePlanFoldResult,
     );
   },
   async saveTmd5(handle: number): Promise<string> {

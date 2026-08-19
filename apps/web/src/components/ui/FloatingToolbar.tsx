@@ -184,7 +184,7 @@ export function FloatingToolbar({
       setFloating(node);
       setToolbar(node);
     },
-    [setFloating]
+    [setFloating],
   );
 
   if (!anchorRect) return null;

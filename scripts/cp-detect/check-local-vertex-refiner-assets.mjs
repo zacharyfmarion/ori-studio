@@ -54,13 +54,17 @@ if (manifest.model.sha256 && !String(manifest.model.sha256).startsWith('replace-
 
 const inference = manifest.inference ?? {};
 if (inference.model_version !== pointer.inference.model_version) {
-  fail(`wrong model version: expected ${pointer.inference.model_version}, got ${inference.model_version}`);
+  fail(
+    `wrong model version: expected ${pointer.inference.model_version}, got ${inference.model_version}`,
+  );
 }
 if (Number(inference.crop_size) !== Number(pointer.inference.crop_size)) {
   fail(`wrong crop size: expected ${pointer.inference.crop_size}, got ${inference.crop_size}`);
 }
 if (Number(inference.input_channels) !== Number(pointer.inference.input_channels)) {
-  fail(`wrong input channels: expected ${pointer.inference.input_channels}, got ${inference.input_channels}`);
+  fail(
+    `wrong input channels: expected ${pointer.inference.input_channels}, got ${inference.input_channels}`,
+  );
 }
 
 console.log(`cp-vertex-refiner assets ok: ${modelPath} (${size} bytes)`);

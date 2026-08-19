@@ -65,10 +65,15 @@ window.runGpuParity = (foldPercent, stepCounts) => {
       for (const steps of stepCounts) {
         const fold = fixture.build();
 
-        const referenceModel = new OrigamiModel(prepareFoldModel(structuredClone(fold), { triangulate: true }));
+        const referenceModel = new OrigamiModel(
+          prepareFoldModel(structuredClone(fold), { triangulate: true }),
+        );
         const reference = new ReferenceSolver(referenceModel, { foldPercent, integrationType });
         reference.step(steps);
-        const referencePositions = referenceModel.positions.slice(0, referenceModel.prepared.vertexCount * 3);
+        const referencePositions = referenceModel.positions.slice(
+          0,
+          referenceModel.prepared.vertexCount * 3,
+        );
 
         const canvas = document.createElement('canvas');
         canvas.width = 2;
@@ -89,7 +94,9 @@ window.runGpuParity = (foldPercent, stepCounts) => {
             rows.push({ ...row, gpuSupported: false, error: 'WebGL2 unsupported' });
             continue;
           }
-          const gpuModel = new OrigamiModel(prepareFoldModel(structuredClone(fold), { triangulate: true }));
+          const gpuModel = new OrigamiModel(
+            prepareFoldModel(structuredClone(fold), { triangulate: true }),
+          );
           const gpu = new WebglSolver(canvas, gpuModel, { foldPercent, integrationType });
           gpu.step(steps);
           const gpuPositions = new Float32Array(gpuModel.prepared.vertexCount * 3);
@@ -160,7 +167,13 @@ window.runRenderCheck = () => {
       solver.readPositions(positions);
       const center = centroid(positions);
       const radius = boundingRadius(positions, center);
-      const camera = cameraUniforms({ yaw: 0.4, pitch: 0.38, zoom: 1 }, center, radius, RENDER_SIZE, RENDER_SIZE);
+      const camera = cameraUniforms(
+        { yaw: 0.4, pitch: 0.38, zoom: 1 },
+        center,
+        radius,
+        RENDER_SIZE,
+        RENDER_SIZE,
+      );
 
       const pixels = solver.renderToImage(camera, RENDER_SETTINGS, RENDER_SIZE, RENDER_SIZE);
       // Strain colour mode must compile and produce a visibly different image;
@@ -174,7 +187,7 @@ window.runRenderCheck = () => {
         camera,
         { ...facesOnly, colorMode: 'strain', strainClip: 5 },
         RENDER_SIZE,
-        RENDER_SIZE
+        RENDER_SIZE,
       );
       let strainDiffers = false;
       for (let i = 0; i < paperFaces.length; i += 4) {
@@ -188,8 +201,11 @@ window.runRenderCheck = () => {
       let covered = 0;
       const colors = new Set<number>();
       for (let i = 0; i < pixels.length; i += 4) {
-        const r = pixels[i]!, g = pixels[i + 1]!, b = pixels[i + 2]!;
-        if (Math.abs(r - bg[0]!) > 6 || Math.abs(g - bg[1]!) > 6 || Math.abs(b - bg[2]!) > 6) covered += 1;
+        const r = pixels[i]!,
+          g = pixels[i + 1]!,
+          b = pixels[i + 2]!;
+        if (Math.abs(r - bg[0]!) > 6 || Math.abs(g - bg[1]!) > 6 || Math.abs(b - bg[2]!) > 6)
+          covered += 1;
         colors.add((r >> 3) | ((g >> 3) << 5) | ((b >> 3) << 10));
       }
       const coverage = covered / (RENDER_SIZE * RENDER_SIZE);
@@ -249,12 +265,21 @@ declare global {
       extraFolds?: Record<string, FoldDocument>,
       timeStepScale?: number,
       fineFrom?: number,
-      integrationType?: 'euler' | 'verlet'
+      integrationType?: 'euler' | 'verlet',
     ) => StabilityRow[];
   }
 }
 
-window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit, extraFolds = {}, timeStepScale = 1, fineFrom = Number.POSITIVE_INFINITY, integrationType = 'euler') => {
+window.runStabilitySweep = (
+  fixtureNames,
+  totalSteps,
+  chunk,
+  strainLimit,
+  extraFolds = {},
+  timeStepScale = 1,
+  fineFrom = Number.POSITIVE_INFINITY,
+  integrationType = 'euler',
+) => {
   const rows: StabilityRow[] = [];
   const builders: Array<{ name: string; build: () => FoldDocument }> = [
     ...fixtureNames.flatMap((name) => {
@@ -297,12 +322,16 @@ window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit, extraF
             rows.push({ ...row, error: 'WebGL2 unsupported' });
             continue;
           }
-          solver = new WebglSolver(canvas, model, { foldPercent: 0, timeStepScale, integrationType });
+          solver = new WebglSolver(canvas, model, {
+            foldPercent: 0,
+            timeStepScale,
+            integrationType,
+          });
         } else {
           solver = new ReferenceSolver(model, { foldPercent: 0, timeStepScale, integrationType });
         }
 
-        for (let done = 0; done < totalSteps; ) {
+        for (let done = 0; done < totalSteps;) {
           const thisChunk = done >= fineFrom ? 1 : chunk;
           // Ramp the fold target across the run, the way playback does.
           const foldPercent = Math.min(100, (done / totalSteps) * 100);
@@ -337,10 +366,13 @@ window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit, extraF
                 for (let k = 0; k < count * 4; k += 1) {
                   const v = raw[k]!;
                   if (!Number.isFinite(v)) bad = true;
-                  else if (tex === 'u_lastPosition' && Math.abs(v) > maxAbsPos) maxAbsPos = Math.abs(v);
+                  else if (tex === 'u_lastPosition' && Math.abs(v) > maxAbsPos)
+                    maxAbsPos = Math.abs(v);
                 }
                 if (bad) badList.push(tex);
-              } catch { /* texture may not exist */ }
+              } catch {
+                /* texture may not exist */
+              }
             }
             if (badList.length) {
               row.firstBadTexture = badList.join('+');

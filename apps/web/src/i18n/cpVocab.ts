@@ -59,9 +59,7 @@ export function cpActionTooltip(t: TFunction, action: OristudioCpActionDefinitio
 }
 
 export function cpActionDisabledReason(t: TFunction, action: OristudioCpActionDefinition): string {
-  return action.disabledReason
-    ? t(actionKey(action, 'disabledReason'), action.disabledReason)
-    : '';
+  return action.disabledReason ? t(actionKey(action, 'disabledReason'), action.disabledReason) : '';
 }
 
 /** Localized tool-step instructions for a command action (empty when it has none). */
@@ -86,7 +84,7 @@ function translateLines(
   t: TFunction,
   upstreamAction: string,
   field: 'intro' | 'steps' | 'notes',
-  lines: readonly string[] | undefined
+  lines: readonly string[] | undefined,
 ): string[] | undefined {
   if (!lines || lines.length === 0) return undefined;
   return lines.map((line, index) => t(instructionKey(upstreamAction, field, index), line));
@@ -100,7 +98,7 @@ function translateLines(
 export function cpToolInstructions(
   t: TFunction,
   action: OristudioCpActionDefinition | null | undefined,
-  command: OristudioCpCommandDefinition | null | undefined
+  command: OristudioCpCommandDefinition | null | undefined,
 ): OristudioCpToolInstructions | null {
   const key = resolvedOrieditaInstructionKey(action, command);
   if (key) {
@@ -158,7 +156,7 @@ export function buildCpVocabCatalog(): CatalogNode {
   for (const [upstreamAction, entry] of Object.entries(ORIEDITA_CP_TOOL_INSTRUCTIONS)) {
     for (const field of ['intro', 'steps', 'notes'] as const) {
       entry[field]?.forEach((line, index) =>
-        put(instructionKey(upstreamAction, field, index), line)
+        put(instructionKey(upstreamAction, field, index), line),
       );
     }
   }

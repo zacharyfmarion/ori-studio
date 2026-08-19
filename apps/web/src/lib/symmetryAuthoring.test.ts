@@ -13,7 +13,7 @@ import {
 function project(
   nodes: TreeProject['nodes'],
   conditions: TreeProject['conditions'] = [],
-  edges: TreeProject['edges'] = []
+  edges: TreeProject['edges'] = [],
 ): TreeProject {
   return {
     title: 'Symmetry test',
@@ -80,7 +80,7 @@ describe('symmetry authoring helpers', () => {
         node(5, 0.8, 0.7),
       ],
       [{ id: 1, isFeasible: true, kind: { type: 'nodes_paired', node1: 4, node2: 5 } }],
-      [edge(1, 1, 2), edge(2, 1, 3), edge(3, 2, 4), edge(4, 3, 5)]
+      [edge(1, 1, 2), edge(2, 1, 3), edge(3, 2, 4), edge(4, 3, 5)],
     );
     const pairs = addSymmetryAuthoringPair([], 2, 3);
 

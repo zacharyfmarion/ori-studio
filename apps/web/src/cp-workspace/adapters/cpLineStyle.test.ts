@@ -21,7 +21,13 @@ function themedRoot(): Element {
 }
 
 const hex = ([r, g, b]: readonly number[]): string =>
-  `#${[r, g, b].map((c) => Math.round(c * 255).toString(16).padStart(2, '0')).join('')}`;
+  `#${[r, g, b]
+    .map((c) =>
+      Math.round(c * 255)
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`;
 
 describe('createCpLineAppearanceResolver', () => {
   it('paints each crease its own themed colour in the color style', () => {

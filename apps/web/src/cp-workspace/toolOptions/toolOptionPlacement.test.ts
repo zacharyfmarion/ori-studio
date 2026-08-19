@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CpOverlayView } from '../CreasePatternWebglCanvas';
-import {
-  FRAME_PADDING_CSS,
-  toolOptionFrame,
-  toolOptionHeaderOffset,
-} from './toolOptionPlacement';
+import { FRAME_PADDING_CSS, toolOptionFrame, toolOptionHeaderOffset } from './toolOptionPlacement';
 import { boundsOfPoints } from './toolOptionWindow';
 
 /** Model space scaled by `scale`, with the origin at `origin`. */
@@ -68,7 +64,7 @@ describe('toolOptionHeaderOffset', () => {
     const offset = toolOptionHeaderOffset(
       { left: 200, top: 300, width: 400, height: 200 },
       HEADER,
-      viewport
+      viewport,
     );
     expect(offset).toBe(-HEADER);
   });
@@ -80,7 +76,7 @@ describe('toolOptionHeaderOffset', () => {
     const offset = toolOptionHeaderOffset(
       { left: 200, top: 4, width: 400, height: 300 },
       HEADER,
-      viewport
+      viewport,
     );
     expect(offset).toBe(0);
   });
@@ -92,7 +88,7 @@ describe('toolOptionHeaderOffset', () => {
     const far = toolOptionFrame(view(4, [200, 200]), BOUNDS);
     expect(far.width).toBeGreaterThan(near.width);
     expect(toolOptionHeaderOffset(near, HEADER, viewport)).toBe(
-      toolOptionHeaderOffset(far, HEADER, viewport)
+      toolOptionHeaderOffset(far, HEADER, viewport),
     );
   });
 });
@@ -104,7 +100,7 @@ describe('boundsOfPoints', () => {
         { x: 1, y: 5 },
         { x: -3, y: 2 },
         { x: 4, y: -1 },
-      ])
+      ]),
     ).toEqual({ minX: -3, minY: -1, maxX: 4, maxY: 5 });
   });
 

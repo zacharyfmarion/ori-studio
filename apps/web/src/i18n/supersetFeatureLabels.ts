@@ -31,7 +31,7 @@ export function supersetFeatureLabel(t: TFunction, id: SupersetFeatureId): strin
     case 'foldedForm3dDetached':
       return t(
         'dialogs:exportLoss.feature.foldedForm3dDetached',
-        '3D folded figures needing a refold'
+        '3D folded figures needing a refold',
       );
   }
 }
@@ -41,10 +41,7 @@ export function supersetFeatureLabel(t: TFunction, id: SupersetFeatureId): strin
  * interpolated rather than concatenated so a locale can move or re-shape the
  * brackets — CJK sets them full-width.
  */
-export function describeExportLoss(
-  t: TFunction,
-  warnings: readonly ExportLossWarning[]
-): string {
+export function describeExportLoss(t: TFunction, warnings: readonly ExportLossWarning[]): string {
   return warnings
     .map((warning) =>
       // `total`, not `count`: `count` would send i18next looking for plural
@@ -52,7 +49,7 @@ export function describeExportLoss(
       t('dialogs:exportLoss.featureCount', '{{feature}} ({{total}})', {
         feature: supersetFeatureLabel(t, warning.id),
         total: warning.count,
-      })
+      }),
     )
     .join(', ');
 }

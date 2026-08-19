@@ -32,7 +32,7 @@ function renderStartScreen(overrides: Partial<ComponentProps<typeof StartScreen>
 
 function button(label: string): HTMLButtonElement {
   const match = Array.from(container?.querySelectorAll('button') ?? []).find((element) =>
-    element.textContent?.includes(label)
+    element.textContent?.includes(label),
   );
   expect(match).toBeDefined();
   return match as HTMLButtonElement;
@@ -69,18 +69,16 @@ describe('StartScreen', () => {
 
     expect(rendered.querySelector('.start-figure__canvas')).not.toBeNull();
     expect(rendered.querySelector('.start-figure__fallback')).toBeNull();
-    expect(rendered.querySelector('.start-figure')?.getAttribute('data-status')).toBe(
-      'loading'
-    );
+    expect(rendered.querySelector('.start-figure')?.getAttribute('data-status')).toBe('loading');
 
     // The decorative half hides itself, and the preview around it does not —
     // it carries the designer credit, and a link inside an `aria-hidden`
     // subtree is focusable but never announced.
+    expect(rendered.querySelector('.start-figure__stage')?.getAttribute('aria-hidden')).toBe(
+      'true',
+    );
     expect(
-      rendered.querySelector('.start-figure__stage')?.getAttribute('aria-hidden')
-    ).toBe('true');
-    expect(
-      rendered.querySelector('.start-screen__preview')?.getAttribute('aria-hidden')
+      rendered.querySelector('.start-screen__preview')?.getAttribute('aria-hidden'),
     ).toBeNull();
   });
 

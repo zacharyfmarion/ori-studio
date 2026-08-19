@@ -3,8 +3,12 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { isInlineSimulationStale } from './inlineSimulation';
 import type { InlineSimulation } from './inlineSimulation';
 import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes';
-import { foldedSourceBounds, foldedSourceFingerprint, cpLinesByIds, reselectFoldableLineIds }
-  from '../folded/foldedFigureStaleness';
+import {
+  foldedSourceBounds,
+  foldedSourceFingerprint,
+  cpLinesByIds,
+  reselectFoldableLineIds,
+} from '../folded/foldedFigureStaleness';
 import {
   getInlineSimulationFoldPercent,
   getInlineSimulationSource,
@@ -34,17 +38,26 @@ function artifactsForSquare(scale = 1) {
     faceIndices: [0],
     boundary: [[at(-200, -200), at(200, -200), at(200, 200), at(-200, 200)]],
     bounds: {
-      minX: -200 * scale, minY: -200 * scale,
-      maxX: 200 * scale, maxY: 200 * scale,
+      minX: -200 * scale,
+      minY: -200 * scale,
+      maxX: 200 * scale,
+      maxY: 200 * scale,
     },
   };
   return {
     fold: {
       vertices_coords: [
-        [-200 * scale, -200 * scale], [200 * scale, -200 * scale],
-        [200 * scale, 200 * scale], [-200 * scale, 200 * scale],
+        [-200 * scale, -200 * scale],
+        [200 * scale, -200 * scale],
+        [200 * scale, 200 * scale],
+        [-200 * scale, 200 * scale],
       ],
-      edges_vertices: [[0, 1], [1, 2], [2, 3], [3, 0]],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+      ],
       edges_assignment: ['B', 'B', 'B', 'B'],
       faces_vertices: [[0, 1, 2, 3]],
     },
@@ -83,8 +96,12 @@ function midSessionArtifacts(state: Record<string, unknown>) {
 
 function line(ax: number, ay: number, bx: number, by: number, color = 'Red1') {
   return {
-    a: { x: ax, y: ay }, b: { x: bx, y: by },
-    active: 'Inactive0', color, selected: 0, customized: 0,
+    a: { x: ax, y: ay },
+    b: { x: bx, y: by },
+    active: 'Inactive0',
+    color,
+    selected: 0,
+    customized: 0,
     customized_color: { red: 0, green: 0, blue: 0 },
   } as never;
 }
@@ -103,20 +120,27 @@ const SQUARE = [
 /** A window recorded against `document`, exactly as saving would have written it. */
 function savedWindow(document: OristudioCpDocumentSnapshot): InlineSimulation {
   const bounds = foldedSourceBounds(
-    cpLinesByIds(document, SQUARE.map((_, i) => i + 1))
+    cpLinesByIds(
+      document,
+      SQUARE.map((_, i) => i + 1),
+    ),
   );
   return {
     id: 'inline-sim-1',
     box: { center: { x: 0, y: 0 }, width: 400, height: 400, rotation: 0 },
     z: 1,
     view: { yaw: 0, pitch: 0, zoom: 1 },
-    sourceBoundary: [[
-      { x: -200, y: -200 }, { x: 200, y: -200 },
-      { x: 200, y: 200 }, { x: -200, y: 200 },
-    ]],
+    sourceBoundary: [
+      [
+        { x: -200, y: -200 },
+        { x: 200, y: -200 },
+        { x: 200, y: 200 },
+        { x: -200, y: 200 },
+      ],
+    ],
     sourceBounds: bounds,
     sourceFingerprint: foldedSourceFingerprint(
-      cpLinesByIds(document, reselectFoldableLineIds(document, bounds))
+      cpLinesByIds(document, reselectFoldableLineIds(document, bounds)),
     ),
     segmentIdHint: 0,
   };
@@ -138,10 +162,12 @@ describe('provenance across a load', () => {
 
     // The file's creases changed after that window was recorded.
     const nowOpened = doc([...SQUARE.slice(0, 3), line(-200, 200, -200, -199)]);
-    useWorkspaceStore.setState(seedArtifacts({
-      oristudioCpInlineSimulations: [saved],
-      oristudioCpDocument: { document: nowOpened },
-    }));
+    useWorkspaceStore.setState(
+      seedArtifacts({
+        oristudioCpInlineSimulations: [saved],
+        oristudioCpDocument: { document: nowOpened },
+      }),
+    );
 
     const hydrated = await useWorkspaceStore.getState().hydrateOristudioCpInlineSimulations();
     // Asserted, not assumed: if hydration bails early every check below is
@@ -178,15 +204,21 @@ describe('provenance across a load', () => {
     // the boundary is the identity, so changing bounds alone would still match.
     const orphan: InlineSimulation = {
       ...savedWindow(document),
-      sourceBoundary: [[
-        { x: 9000, y: 9000 }, { x: 9100, y: 9000 }, { x: 9100, y: 9100 },
-      ]],
+      sourceBoundary: [
+        [
+          { x: 9000, y: 9000 },
+          { x: 9100, y: 9000 },
+          { x: 9100, y: 9100 },
+        ],
+      ],
       segmentIdHint: 99,
     };
-    useWorkspaceStore.setState(seedArtifacts({
-      oristudioCpInlineSimulations: [orphan],
-      oristudioCpDocument: { document },
-    }));
+    useWorkspaceStore.setState(
+      seedArtifacts({
+        oristudioCpInlineSimulations: [orphan],
+        oristudioCpDocument: { document },
+      }),
+    );
 
     expect(await useWorkspaceStore.getState().hydrateOristudioCpInlineSimulations()).toBe(0);
     expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toHaveLength(1);
@@ -211,29 +243,31 @@ describe('restoring the fold of a window undo brought back', () => {
   it('rebuilds a fold that was dropped on delete', async () => {
     const document = doc(SQUARE);
     const saved = savedWindow(document);
-    useWorkspaceStore.setState(midSessionArtifacts({
-      oristudioCpInlineSimulations: [saved],
-      oristudioCpDocument: { document },
-    }));
+    useWorkspaceStore.setState(
+      midSessionArtifacts({
+        oristudioCpInlineSimulations: [saved],
+        oristudioCpDocument: { document },
+      }),
+    );
     await useWorkspaceStore.getState().hydrateOristudioCpInlineSimulations();
 
     deleteWindow(saved.id);
     // What undo does: put the descriptor back, then ask for the fold.
     useWorkspaceStore.setState({ oristudioCpInlineSimulations: [saved] });
 
-    expect(
-      await useWorkspaceStore.getState().restoreOristudioCpInlineSimulationSources()
-    ).toBe(1);
+    expect(await useWorkspaceStore.getState().restoreOristudioCpInlineSimulationSources()).toBe(1);
     expect(getInlineSimulationSource(saved.id)).not.toBeNull();
   });
 
   it('brings the window back where its fold was, not snapped to flat', async () => {
     const document = doc(SQUARE);
     const saved = savedWindow(document);
-    useWorkspaceStore.setState(midSessionArtifacts({
-      oristudioCpInlineSimulations: [saved],
-      oristudioCpDocument: { document },
-    }));
+    useWorkspaceStore.setState(
+      midSessionArtifacts({
+        oristudioCpInlineSimulations: [saved],
+        oristudioCpDocument: { document },
+      }),
+    );
     publishInlineSimulationFold(saved.id, 62);
 
     deleteWindow(saved.id);
@@ -250,10 +284,12 @@ describe('restoring the fold of a window undo brought back', () => {
     const atSaveTime = doc(SQUARE);
     const saved = savedWindow(atSaveTime);
     const nowOpened = doc([...SQUARE.slice(0, 3), line(-200, 200, -200, -199)]);
-    useWorkspaceStore.setState(midSessionArtifacts({
-      oristudioCpInlineSimulations: [saved],
-      oristudioCpDocument: { document: nowOpened },
-    }));
+    useWorkspaceStore.setState(
+      midSessionArtifacts({
+        oristudioCpInlineSimulations: [saved],
+        oristudioCpDocument: { document: nowOpened },
+      }),
+    );
 
     deleteWindow(saved.id);
     useWorkspaceStore.setState({ oristudioCpInlineSimulations: [saved] });
@@ -267,15 +303,15 @@ describe('restoring the fold of a window undo brought back', () => {
   it('does no work when every window already has its fold', async () => {
     const document = doc(SQUARE);
     const saved = savedWindow(document);
-    useWorkspaceStore.setState(midSessionArtifacts({
-      oristudioCpInlineSimulations: [saved],
-      oristudioCpDocument: { document },
-    }));
+    useWorkspaceStore.setState(
+      midSessionArtifacts({
+        oristudioCpInlineSimulations: [saved],
+        oristudioCpDocument: { document },
+      }),
+    );
     await useWorkspaceStore.getState().hydrateOristudioCpInlineSimulations();
 
-    expect(
-      await useWorkspaceStore.getState().restoreOristudioCpInlineSimulationSources()
-    ).toBe(0);
+    expect(await useWorkspaceStore.getState().restoreOristudioCpInlineSimulationSources()).toBe(0);
   });
 
   it('reuses cached artifacts rather than recomputing them', async () => {
@@ -296,9 +332,7 @@ describe('restoring the fold of a window undo brought back', () => {
 
     deleteWindow(saved.id);
     useWorkspaceStore.setState({ oristudioCpInlineSimulations: [saved] });
-    expect(
-      await useWorkspaceStore.getState().restoreOristudioCpInlineSimulationSources()
-    ).toBe(1);
+    expect(await useWorkspaceStore.getState().restoreOristudioCpInlineSimulationSources()).toBe(1);
     expect(refreshes).toBe(0);
   });
 
@@ -310,17 +344,17 @@ describe('restoring the fold of a window undo brought back', () => {
     // same detection `addOristudioCpInlineSimulation` uses for the same hazard.
     const document = doc(SQUARE);
     const saved = savedWindow(document);
-    useWorkspaceStore.setState(seedArtifacts({
-      oristudioCpInlineSimulations: [saved],
-      oristudioCpDocument: { document },
-    }));
+    useWorkspaceStore.setState(
+      seedArtifacts({
+        oristudioCpInlineSimulations: [saved],
+        oristudioCpDocument: { document },
+      }),
+    );
 
     deleteWindow(saved.id);
     useWorkspaceStore.setState({ oristudioCpInlineSimulations: [saved] });
 
-    expect(
-      await useWorkspaceStore.getState().restoreOristudioCpInlineSimulationSources()
-    ).toBe(1);
+    expect(await useWorkspaceStore.getState().restoreOristudioCpInlineSimulationSources()).toBe(1);
     expect(getInlineSimulationSource(saved.id)).not.toBeNull();
   });
 });
@@ -334,7 +368,9 @@ describe('telling the canvas a fold has arrived', () => {
     // the layer looked once, found nothing, and a restored window stayed an
     // empty frame — which is exactly what shipped, and what nothing caught.
     let woken = 0;
-    const stop = subscribeInlineSimulationSources(() => { woken += 1; });
+    const stop = subscribeInlineSimulationSources(() => {
+      woken += 1;
+    });
     setInlineSimulationSource('sim-notify', { fold: {} as never, modelKey: 'k' });
     expect(woken).toBe(1);
     expect(getInlineSimulationSource('sim-notify')).not.toBeNull();
@@ -343,13 +379,17 @@ describe('telling the canvas a fold has arrived', () => {
 
   it('wakes the canvas for every window hydration restores', async () => {
     const document = doc(SQUARE);
-    useWorkspaceStore.setState(seedArtifacts({
-      oristudioCpInlineSimulations: [savedWindow(document)],
-      oristudioCpDocument: { document },
-    }));
+    useWorkspaceStore.setState(
+      seedArtifacts({
+        oristudioCpInlineSimulations: [savedWindow(document)],
+        oristudioCpDocument: { document },
+      }),
+    );
 
     let woken = 0;
-    const stop = subscribeInlineSimulationSources(() => { woken += 1; });
+    const stop = subscribeInlineSimulationSources(() => {
+      woken += 1;
+    });
     const hydrated = await useWorkspaceStore.getState().hydrateOristudioCpInlineSimulations();
     stop();
 
@@ -359,7 +399,9 @@ describe('telling the canvas a fold has arrived', () => {
 
   it('stops notifying once unsubscribed', () => {
     let woken = 0;
-    const stop = subscribeInlineSimulationSources(() => { woken += 1; });
+    const stop = subscribeInlineSimulationSources(() => {
+      woken += 1;
+    });
     stop();
     setInlineSimulationSource('sim-gone', { fold: {} as never, modelKey: 'k' });
     expect(woken).toBe(0);

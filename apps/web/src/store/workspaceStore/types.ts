@@ -34,10 +34,7 @@ import type { BpDocumentSymmetry } from '../../lib/bpTreeSymmetry';
 import type { BpFlapFootprint } from '../../lib/bpFlapReshape';
 import type { FileService } from '../../platform/fileService';
 import type { ImportedCreasePatternDocument } from '../../lib/creasePatternImport';
-import type {
-  CreaseExportFoldedFigureSettings,
-  CreaseExportOptions,
-} from '../../lib/creaseExport';
+import type { CreaseExportFoldedFigureSettings, CreaseExportOptions } from '../../lib/creaseExport';
 import type { CpSegment } from '../../lib/creasePatternSegmentation';
 import type { CreaseExportFoldResult } from '../../lib/creaseExportFold';
 import type { SegmentExportFormat } from '../../lib/creaseSegmentExport';
@@ -61,7 +58,10 @@ import type {
 } from '../../engine/oristudioCpTypes';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import type { OristudioCpActionId } from '../../lib/oristudioCpActions';
-import type { CpLineClipboardPayload, CpSelectionTransform } from '../../lib/creasePatternClipboard';
+import type {
+  CpLineClipboardPayload,
+  CpSelectionTransform,
+} from '../../lib/creasePatternClipboard';
 import type { OristudioCpLineage } from '../../lib/oristudioCpLineage';
 import type { CanvasAnnotation, AnnotationUpdate } from '../../cp-workspace/annotations/annotation';
 import type { UserCamera } from '../../cp-workspace/renderer/camera';
@@ -126,7 +126,6 @@ export interface OristudioCpActionRequest {
   operationId: OristudioCpOperationId;
 }
 
-
 /**
  * What the share modal is working on: one crease pattern, resolved to a codec payload
  * and ready to publish. Held in the store rather than in the toolbar that started it,
@@ -159,8 +158,7 @@ export interface OristudioCpShareDraft {
  * fetches.
  */
 export type PendingSharedCp =
-  | { kind: 'payload'; payload: string }
-  | { kind: 'id'; shareId: string };
+  { kind: 'payload'; payload: string } | { kind: 'id'; shareId: string };
 
 /**
  * A file the editable kernel would not open, kept so the Edit surface can say so
@@ -308,33 +306,33 @@ export interface ProjectSliceActions {
   loadStarterProject: () => Promise<void>;
   loadProjectText: (
     text: string,
-    source?: { title?: string; filename?: string; path?: string | null; dirty?: boolean }
+    source?: { title?: string; filename?: string; path?: string | null; dirty?: boolean },
   ) => Promise<void>;
   loadCreasePatternText: (
     text: string,
-    source: { filename: string; path?: string | null }
+    source: { filename: string; path?: string | null },
   ) => Promise<void>;
   executeOristudioCpCommand: (
     operationId: OristudioCpOperationId,
-    payload?: OristudioCpCommandPayload
+    payload?: OristudioCpCommandPayload,
   ) => Promise<boolean>;
   insertOristudioCpLineSegments: (
     segments: OristudioCpLineSegment[],
-    label?: string
+    label?: string,
   ) => Promise<boolean>;
   replaceOristudioCpLineSegments: (
     lineIds: number[],
     segments: OristudioCpLineSegment[],
-    label?: string
+    label?: string,
   ) => Promise<boolean>;
   setOristudioCpGridSize: (gridSize: number) => Promise<boolean>;
   updateOristudioCpGrid: (
     patch: Partial<OristudioCpGridMetadata>,
-    label?: string
+    label?: string,
   ) => Promise<boolean>;
   previewOristudioCpCommand: (
     operationId: OristudioCpOperationId,
-    payload?: OristudioCpCommandPayload
+    payload?: OristudioCpCommandPayload,
   ) => Promise<OristudioCpCommandPreview | null>;
   clearOristudioCpDocument: () => Promise<void>;
   /**
@@ -350,7 +348,7 @@ export interface ProjectSliceActions {
    */
   openProject: (
     fileService?: FileService,
-    options?: { confirmDiscard?: boolean }
+    options?: { confirmDiscard?: boolean },
   ) => Promise<boolean>;
   importAddCreasePattern: (fileService?: FileService) => Promise<boolean>;
   /**
@@ -384,7 +382,7 @@ export interface ProjectSliceActions {
   exportOristudioCpSegment: (
     format: SegmentExportFormat,
     segmentId: number,
-    fileService?: FileService
+    fileService?: FileService,
   ) => Promise<boolean>;
   /**
    * Encode one crease-pattern segment as a share link and open the share modal.
@@ -405,7 +403,7 @@ export interface ProjectSliceActions {
    * export dialog's `foldSegment` is.
    */
   foldOristudioCpShareFigure: (
-    settings: CreaseExportFoldedFigureSettings
+    settings: CreaseExportFoldedFigureSettings,
   ) => Promise<CreaseExportFoldResult>;
   /** Close the share modal and drop the generated link. */
   dismissOristudioCpShare: () => void;
@@ -418,7 +416,7 @@ export interface ProjectSliceActions {
   exportOristudioCpFoldedFigure: (
     format: FoldedFigureExportFormat,
     figureId: string,
-    fileService?: FileService
+    fileService?: FileService,
   ) => Promise<boolean>;
   /**
    * Load a bundled example. False when nothing was established — an unknown id, a
@@ -558,7 +556,7 @@ export interface EditingSliceActions {
   updateNodeLabel: (id: number, label: string) => Promise<void>;
   updateEdge: (
     id: number,
-    update: { label?: string; length?: number; strain?: number; stiffness?: number }
+    update: { label?: string; length?: number; strain?: number; stiffness?: number },
   ) => Promise<void>;
   makeSelectedNodeRoot: () => Promise<void>;
   splitSelectedEdge: (distance: number) => Promise<void>;
@@ -651,13 +649,7 @@ export type ClipboardSlice = ClipboardSliceState & ClipboardSliceActions;
  * anything about the document itself.
  */
 export type OristudioCpFoldRunKind =
-  | 'fold'
-  | 'fold-3d'
-  | 'another'
-  | 'another-3d'
-  | 'to-case'
-  | 'refold'
-  | 'refold-3d';
+  'fold' | 'fold-3d' | 'another' | 'another-3d' | 'to-case' | 'refold' | 'refold-3d';
 
 /** One layer-ordering search the user can point at. */
 export interface OristudioCpFoldRun {
@@ -766,9 +758,7 @@ export interface CreasePatternSliceState {
   sequenceError: string | null;
 }
 
-export type SequenceSimulationFocus =
-  | { kind: 'whole' }
-  | { kind: 'sequence_step'; stepId: string };
+export type SequenceSimulationFocus = { kind: 'whole' } | { kind: 'sequence_step'; stepId: string };
 
 export interface CreasePatternSliceActions {
   optimizeScale: () => Promise<void>;
@@ -809,13 +799,13 @@ export interface CreasePatternSliceActions {
    * translated message can be produced.
    */
   addOristudioCpInlineSimulation: (
-    region: InlineSimulationRegion
+    region: InlineSimulationRegion,
   ) => Promise<AddInlineSimulationResult>;
   updateOristudioCpInlineSimulation: (
     id: string,
     // No fold percentage: that is per-frame transport and lives in
     // `inlineSimulationRuntime`, not in document-shaped store state.
-    patch: Partial<Pick<InlineSimulation, 'box' | 'view' | 'z'>>
+    patch: Partial<Pick<InlineSimulation, 'box' | 'view' | 'z'>>,
   ) => void;
   removeOristudioCpInlineSimulation: (id: string) => void;
   /** Hand the solver to a window, or to none. */
@@ -865,7 +855,7 @@ export interface CreasePatternSliceActions {
   setOristudioCpCamera: (camera: UserCamera | null) => void;
   setOristudioCpViewportOption: <K extends OristudioCpViewportOptionKey>(
     key: K,
-    value: OristudioCpViewportOptions[K]
+    value: OristudioCpViewportOptions[K],
   ) => void;
   setOristudioCpSelection: (selection: OristudioCpSelection) => void;
   /**
@@ -904,7 +894,7 @@ export interface CreasePatternSliceActions {
   foldOristudioCpFigureToCase: (id: string, objective: number) => Promise<boolean>;
   setOristudioCpFoldedFigureDisplayStyle: (
     id: string,
-    displayStyle: OristudioCpFoldedFigureDisplayStyle
+    displayStyle: OristudioCpFoldedFigureDisplayStyle,
   ) => Promise<boolean>;
   /**
    * Move a 3D figure's eye and re-project it.
@@ -920,7 +910,7 @@ export interface CreasePatternSliceActions {
   setOristudioCpFolded3dCamera: (id: string, camera: FoldedFigureCamera) => Promise<boolean>;
   updateOristudioCpFoldedFigureModel: (
     id: string,
-    update: Partial<OristudioCpFoldedFigureModel>
+    update: Partial<OristudioCpFoldedFigureModel>,
   ) => Promise<boolean>;
   duplicateOristudioCpFoldedFigure: (id?: string) => Promise<boolean>;
   /**
@@ -953,7 +943,7 @@ export interface CreasePatternSliceActions {
    */
   rehydrateOristudioCpFolded3dFigure: (
     id: string,
-    options?: { pending?: boolean }
+    options?: { pending?: boolean },
   ) => Promise<boolean>;
   deleteOristudioCpFoldedFigure: (id: string) => Promise<void>;
   setOristudioCpActiveFoldedFigure: (id: string | null) => void;
@@ -963,10 +953,7 @@ export interface CreasePatternSliceActions {
    * see {@link FoldedFigurePlacement} for why placement does not go through the
    * kernel model.
    */
-  setOristudioCpFoldedFigurePlacement: (
-    id: string,
-    patch: Partial<FoldedFigurePlacement>
-  ) => void;
+  setOristudioCpFoldedFigurePlacement: (id: string, patch: Partial<FoldedFigurePlacement>) => void;
   /**
    * Open an inline simulation of the region these creases enclose, falling back
    * to the Simulate panel when they are not one whole region.
@@ -1019,7 +1006,7 @@ export interface CreasePatternSliceActions {
   recordFoldedFigureHistory: (
     previous: OristudioCpFoldedFigureEntry[],
     label: string,
-    previousActiveId?: string | null
+    previousActiveId?: string | null,
   ) => void;
   /**
    * Record a simulation-window change into the CP undo history. `previous` is the
@@ -1131,7 +1118,7 @@ export interface OristudioBpSliceActions {
        * self-provision into and then discard.
        */
       preserveEditCanvas?: boolean;
-    }
+    },
   ) => Promise<boolean>;
   /** Replace the active BP selection. */
   selectOristudioBp: (selection: OristudioBpSelection) => void;
@@ -1144,7 +1131,7 @@ export interface OristudioBpSliceActions {
   /** Move several BP tree vertices at once (e.g. a rigidly-rotated subtree). */
   moveOristudioBpTreeVertices: (
     updates: { id: number; loc: Point }[],
-    dragging?: boolean
+    dragging?: boolean,
   ) => Promise<boolean>;
   /** Add a unit-length leaf to a parent vertex, optionally at a target location. */
   addOristudioBpTreeLeaf: (parentId: number, loc?: Point) => Promise<boolean>;
@@ -1160,7 +1147,7 @@ export interface OristudioBpSliceActions {
   addOristudioBpTreeLeafWithSymmetry: (
     parentId: number,
     loc?: Point,
-    axisTolerance?: number
+    axisTolerance?: number,
   ) => Promise<boolean>;
   /**
    * Move vertices and, when mirror-draw is on, also move their paired counterparts to
@@ -1168,7 +1155,7 @@ export interface OristudioBpSliceActions {
    */
   moveOristudioBpTreeVerticesWithSymmetry: (
     updates: { id: number; loc: Point }[],
-    dragging?: boolean
+    dragging?: boolean,
   ) => Promise<boolean>;
   /** Delete a tree node (leaf-cascade; the engine refuses below the minimum size). */
   deleteOristudioBpTreeNode: (id: number) => Promise<boolean>;
@@ -1188,7 +1175,7 @@ export interface OristudioBpSliceActions {
   setOristudioBpTreeEdgeLength: (
     vertices: [number, number],
     length: number,
-    subtreeUpdates?: { id: number; loc: Point }[]
+    subtreeUpdates?: { id: number; loc: Point }[],
   ) => Promise<boolean>;
   /**
    * Rename a BP tree vertex by id. A flap has no name of its own — its name is
@@ -1221,7 +1208,7 @@ export interface OristudioBpSliceActions {
   reshapeOristudioBpFlap: (
     id: number,
     footprint: BpFlapFootprint,
-    dragging?: boolean
+    dragging?: boolean,
   ) => Promise<boolean>;
   /** Move a group of BP flaps in the packing. */
   moveOristudioBpLayoutFlaps: (ids: number[], loc: Point, dragging?: boolean) => Promise<boolean>;
@@ -1236,20 +1223,20 @@ export interface OristudioBpSliceActions {
   moveOristudioBpLayoutFlapWithSymmetry: (
     id: number,
     loc: Point,
-    dragging?: boolean
+    dragging?: boolean,
   ) => Promise<boolean>;
   /** {@link moveOristudioBpLayoutFlapWithSymmetry} for a whole selection. */
   moveOristudioBpLayoutFlapsWithSymmetry: (
     ids: number[],
     loc: Point,
-    dragging?: boolean
+    dragging?: boolean,
   ) => Promise<boolean>;
   /** Move a BP device handle in the packing. */
   moveOristudioBpDevice: (
     id: string,
     index: number,
     loc: Point,
-    dragging?: boolean
+    dragging?: boolean,
   ) => Promise<boolean>;
   /** Cycle a stretch's GOPS configuration (delta ±1) to pick a valid crease pattern. */
   switchOristudioBpStretchConfig: (id: string, delta: number) => Promise<boolean>;
@@ -1276,7 +1263,7 @@ export interface OristudioBpSliceActions {
   setOristudioBpLayoutSheet: (
     gridType: OristudioBpSheetKind,
     width: number | null,
-    height: number | null
+    height: number | null,
   ) => Promise<boolean>;
   /**
    * Forget that this vertex mirrors another. The two stay where they are; they
@@ -1290,7 +1277,7 @@ export interface OristudioBpSliceActions {
    */
   optimizeOristudioBpLayout: (
     options: OristudioBpOptimizerRunOptions,
-    onProgress?: (progress: OristudioBpOptimizerProgress) => void
+    onProgress?: (progress: OristudioBpOptimizerProgress) => void,
   ) => Promise<OristudioBpOptimizerOutcome>;
 }
 
@@ -1334,13 +1321,16 @@ export interface ExploriSlice {
   setExploriEdgeLength: (
     edgeId: number,
     length: number,
-    updates: readonly TreeVertexUpdate[]
+    updates: readonly TreeVertexUpdate[],
   ) => Promise<boolean>;
   toggleExploriSymmetry: () => Promise<boolean>;
   unpairExploriNode: (nodeId: number) => Promise<boolean>;
   setExploriDbConfigs: (dbConfigs: ExploriDbConfig[]) => Promise<boolean>;
   setExploriResultLimit: (resultLimit: number) => Promise<boolean>;
-  selectExploriResult: (result: ExploriResult | null, detailIndex: number | null) => Promise<boolean>;
+  selectExploriResult: (
+    result: ExploriResult | null,
+    detailIndex: number | null,
+  ) => Promise<boolean>;
   runExploriQuery: () => Promise<boolean>;
   sendExploriToEdit: (source?: ExploriSendSource) => Promise<boolean>;
   undoExplori: () => Promise<boolean>;
@@ -1348,8 +1338,7 @@ export interface ExploriSlice {
   resetExploriDesign: () => Promise<boolean>;
 }
 
-export type WorkspaceState =
-  ProjectSlice &
+export type WorkspaceState = ProjectSlice &
   ExploriSlice &
   HistorySlice &
   EditingSlice &

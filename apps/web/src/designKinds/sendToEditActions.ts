@@ -46,7 +46,10 @@ export function sendToEditPrimary(t: TFunction): SendToEditVariant {
   return {
     id: 'plain',
     label: t('common:toolbar.sendToEdit', 'Send to Edit'),
-    title: t('common:toolbar.sendToEditTooltip', "Send this design's crease pattern to the Edit canvas"),
+    title: t(
+      'common:toolbar.sendToEditTooltip',
+      "Send this design's crease pattern to the Edit canvas",
+    ),
     includeCircles: false,
   };
 }
@@ -63,7 +66,7 @@ export function sendToEditVariants(kind: DesignKindId, t: TFunction): SendToEdit
       label: t('common:toolbar.sendToEditWithCircles', 'Send to Edit (include circles)'),
       title: t(
         'common:toolbar.sendToEditWithCirclesTooltip',
-        "Send this design's crease pattern along with its packed circles"
+        "Send this design's crease pattern along with its packed circles",
       ),
       includeCircles: true,
     },

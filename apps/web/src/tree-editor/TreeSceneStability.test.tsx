@@ -33,7 +33,7 @@ vi.mock('react-zoom-pan-pinch', async () => {
   return {
     TransformWrapper: React.forwardRef<unknown, MockProps>(function MockTransformWrapper(
       { children, onInit, onTransformed },
-      ref
+      ref,
     ) {
       const didInit = React.useRef(false);
       React.useImperativeHandle(ref, () => api, []);
@@ -210,29 +210,30 @@ afterEach(() => {
 function render(
   document_: OristudioBpDocumentState,
   selectedVertexId: number | null,
-  symmetryEnabled = false
+  symmetryEnabled = false,
 ) {
   useWorkspaceStore.setState(
     {
       ...useWorkspaceStore.getInitialState(),
       ...singleBoxPleatDesignTab({
-      document: document_,
-      selection:
-        selectedVertexId === null
-          ? { kind: 'bp-none' }
-          : { kind: 'bp-vertex', id: selectedVertexId },
-      symmetry: {
-        enabled: symmetryEnabled,
-        fold: 'book',
-        quarterTurn: false,
-        sidesSwapped: false,
-        angle: 90,
-        loc: { x: 20, y: 20 },
-        pairs: [],
-      }
+        document: document_,
+        selection:
+          selectedVertexId === null
+            ? { kind: 'bp-none' }
+            : { kind: 'bp-vertex', id: selectedVertexId },
+        symmetry: {
+          enabled: symmetryEnabled,
+          fold: 'book',
+          quarterTurn: false,
+          sidesSwapped: false,
+          angle: 90,
+          loc: { x: 20, y: 20 },
+          pairs: [],
+        },
       }),
-      ...actions},
-    true
+      ...actions,
+    },
+    true,
   );
 
   container = window.document.createElement('div');
@@ -294,7 +295,7 @@ describe('BP tree canvas — the drawing is not rebuilt for nothing', () => {
 
     act(() => {
       dot.dispatchEvent(
-        new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 400, clientY: 300 })
+        new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 400, clientY: 300 }),
       );
     });
     drain();
@@ -309,14 +310,14 @@ describe('BP tree canvas — the drawing is not rebuilt for nothing', () => {
             button: 0,
             clientX: 400 + step * 7,
             clientY: 300 + step * 5,
-          })
+          }),
         );
       });
       drain();
     }
     act(() => {
       body.dispatchEvent(
-        new MouseEvent('pointerup', { bubbles: true, button: 0, clientX: 484, clientY: 360 })
+        new MouseEvent('pointerup', { bubbles: true, button: 0, clientX: 484, clientY: 360 }),
       );
     });
     drain();
@@ -353,7 +354,9 @@ describe('BP tree canvas — the drawing is not rebuilt for nothing', () => {
     if (!svg) throw new Error('BP tree canvas did not render');
     // One move to arm the ghost, which is a legitimate render; the rest is hover.
     act(() => {
-      body.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 300, clientY: 260 }));
+      body.dispatchEvent(
+        new MouseEvent('pointermove', { bubbles: true, clientX: 300, clientY: 260 }),
+      );
     });
     const touched = new Set<Node>();
     const observer = new MutationObserver(() => {});
@@ -365,7 +368,7 @@ describe('BP tree canvas — the drawing is not rebuilt for nothing', () => {
             bubbles: true,
             clientX: 300 + step * 9,
             clientY: 260 + step * 6,
-          })
+          }),
         );
       });
       for (const record of observer.takeRecords()) touched.add(record.target);
@@ -401,8 +404,8 @@ describe('BP tree canvas — the drawing is not rebuilt for nothing', () => {
       root?.render(
         <TooltipProvider>
           <BpTreePanel document={moved} />
-        </TooltipProvider>
-      )
+        </TooltipProvider>,
+      ),
     );
     expect(canvas.count()).toBeGreaterThan(0);
     canvas.stop();

@@ -57,8 +57,6 @@ export function parseWorkspacePath(pathname: string): { workspace: WorkspaceId }
     case DESIGN_PATH:
       return { workspace: 'design' };
     default:
-      return LEGACY_DESIGN_PATHS.some((path) => path === pathname)
-        ? { workspace: 'design' }
-        : null;
+      return LEGACY_DESIGN_PATHS.some((path) => path === pathname) ? { workspace: 'design' } : null;
   }
 }

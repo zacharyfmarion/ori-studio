@@ -61,7 +61,7 @@ export interface FoldAngleSelectionSummary {
 
 export function summariseFoldAngles(
   magnitudesDegrees: readonly (number | null)[],
-  nonCreaseCount: number
+  nonCreaseCount: number,
 ): FoldAngleSelectionSummary {
   if (magnitudesDegrees.length === 0) {
     return { degrees: null, creaseCount: 0, nonCreaseCount, mixed: false };

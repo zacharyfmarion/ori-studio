@@ -60,9 +60,9 @@ describe('the query payload', () => {
     // Empty *and* chosen. An empty stored list on a document the user has not
     // touched is not "no databases" — the selection is still following the
     // drawing at that point, and following it to a non-empty set.
-    expect(
-      exploriQueryBlocker(documentWith({ dbConfigs: [], dbConfigsDirty: true }))
-    ).toBe('no-database');
+    expect(exploriQueryBlocker(documentWith({ dbConfigs: [], dbConfigsDirty: true }))).toBe(
+      'no-database',
+    );
     expect(exploriQueryBlocker(documentWith({ dbConfigs: [] }))).toBeNull();
     expect(exploriQueryBlocker(documentWith())).toBeNull();
   });
@@ -74,7 +74,10 @@ describe('reading a response', () => {
       status: init.status ?? 200,
       headers: { 'Content-Type': 'application/json' },
     });
-    vi.stubGlobal('fetch', vi.fn(async () => response));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => response),
+    );
   }
 
   it('parses a real archive response', async () => {

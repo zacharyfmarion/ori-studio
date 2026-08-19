@@ -48,10 +48,7 @@ export type SimulatorShortcutId =
   | 'simulator.toggleHiddenLines'
   | 'simulator.toggleLighting';
 export type ShortcutActionId =
-  | MenuActionId
-  | OristudioCpActionId
-  | ViewportShortcutId
-  | SimulatorShortcutId;
+  MenuActionId | OristudioCpActionId | ViewportShortcutId | SimulatorShortcutId;
 export type ShortcutTarget = 'menu' | 'cp-action' | 'viewport' | 'simulator';
 export type ReservedKeyClassification = 'allowed' | 'soft-reserved' | 'hard-reserved';
 
@@ -106,14 +103,15 @@ function resolutionOf(input: ShortcutResolutionInput): ShortcutResolution {
   return { overrides: input as ShortcutOverrides };
 }
 
-const ALWAYS_AVAILABLE_DEFAULT_SHORTCUTS = new Set<ShortcutActionId>([
-  'edit.undo',
-  'edit.redo',
-]);
+const ALWAYS_AVAILABLE_DEFAULT_SHORTCUTS = new Set<ShortcutActionId>(['edit.undo', 'edit.redo']);
 
 export interface ShortcutRegistryDiagnostics {
   unmappedOrieditaActions: string[];
-  duplicateDefaultChords: Array<{ scope: ShortcutScope; chord: string; actionIds: ShortcutActionId[] }>;
+  duplicateDefaultChords: Array<{
+    scope: ShortcutScope;
+    chord: string;
+    actionIds: ShortcutActionId[];
+  }>;
   reservedDefaultChords: Array<{
     actionId: ShortcutActionId;
     chord: string;
@@ -232,7 +230,7 @@ const MENU_SHORTCUTS: ShortcutDefinition[] = [
     'Save As...',
     'File',
     { primary: true, shift: true, key: 's' },
-    'saveAsAction'
+    'saveAsAction',
   ),
   menuShortcut('file.settings', 'Settings', 'File', { primary: true, key: ',' }, 'prefAction'),
   menuShortcut('edit.undo', 'Undo', 'Edit', { primary: true, key: 'z' }, 'undoAction'),
@@ -245,9 +243,15 @@ const MENU_SHORTCUTS: ShortcutDefinition[] = [
     'Delete Selected',
     'Edit',
     [{ key: 'delete' }, { key: 'backspace' }],
-    'deleteSelectedLineSegmentAction'
+    'deleteSelectedLineSegmentAction',
   ),
-  menuShortcut('edit.selectAll', 'Select All', 'Edit', { primary: true, key: 'a' }, 'selectAllAction'),
+  menuShortcut(
+    'edit.selectAll',
+    'Select All',
+    'Edit',
+    { primary: true, key: 'a' },
+    'selectAllAction',
+  ),
   menuShortcut('optimize.scale', 'Optimize Scale', 'Design', { primary: true, key: 'r' }),
   menuShortcut('cp.build', 'Build Crease Pattern', 'Design', { primary: true, key: 'b' }),
   menuShortcut('cp.checkCamv', 'Check foldability', 'Crease Pattern', {
@@ -265,14 +269,14 @@ const MENU_SHORTCUTS: ShortcutDefinition[] = [
     'Delete Extra Vertices',
     'Crease Pattern',
     { primary: true, shift: true, key: 'v' },
-    'v_del_allAction'
+    'v_del_allAction',
   ),
 ];
 
 function simulatorShortcut(
   id: SimulatorShortcutId,
   label: string,
-  defaultChord: KeyChord | KeyChord[]
+  defaultChord: KeyChord | KeyChord[],
 ): ShortcutDefinition {
   const defaultChords = normalizeDefaultChords(defaultChord);
   return {
@@ -300,10 +304,7 @@ const SIMULATOR_SHORTCUTS: ShortcutDefinition[] = [
   simulatorShortcut('simulator.foldEnd', 'Jump To Folded', { shift: true, key: 'arrowright' }),
   simulatorShortcut('simulator.foldStart', 'Jump To Flat', { shift: true, key: 'arrowleft' }),
   simulatorShortcut('simulator.replay', 'Replay From Flat', { key: 'r' }),
-  simulatorShortcut('simulator.resetView', 'Reset Simulator View', [
-    { key: '0' },
-    { key: 'home' },
-  ]),
+  simulatorShortcut('simulator.resetView', 'Reset Simulator View', [{ key: '0' }, { key: 'home' }]),
   simulatorShortcut('simulator.zoomIn', 'Zoom In Simulator', [{ key: '=' }, { key: '+' }]),
   simulatorShortcut('simulator.zoomOut', 'Zoom Out Simulator', [{ key: '-' }, { key: '_' }]),
   simulatorShortcut('simulator.toggleFaces', 'Toggle Faces', { key: 'f' }),
@@ -363,13 +364,13 @@ const VIEWPORT_SHORTCUTS: ShortcutDefinition[] = [
     'viewport.zoomIn',
     'Zoom In',
     [{ primary: true, key: '=' }, { key: '6' }],
-    'creasePatternZoomInAction'
+    'creasePatternZoomInAction',
   ),
   viewportShortcut(
     'viewport.zoomOut',
     'Zoom Out',
     [{ primary: true, key: '-' }, { key: '5' }],
-    'creasePatternZoomOutAction'
+    'creasePatternZoomOutAction',
   ),
   viewportShortcut('viewport.fit', 'Fit To View', { primary: true, key: '0' }),
   viewportShortcut('viewport.actualSize', 'Actual Size', { primary: true, key: '1' }),
@@ -377,7 +378,12 @@ const VIEWPORT_SHORTCUTS: ShortcutDefinition[] = [
   // Upstream turns the camera by `angleSystemModel.getAngleStep()` per press
   // rather than our fixed step, so the two agree on the verb and not on the
   // amount. The chord is what an import carries, and the verb is what it names.
-  viewportShortcut('viewport.rotateCcw', 'Rotate View Left', { key: '3' }, 'rotateAnticlockwiseAction'),
+  viewportShortcut(
+    'viewport.rotateCcw',
+    'Rotate View Left',
+    { key: '3' },
+    'rotateAnticlockwiseAction',
+  ),
   viewportShortcut('viewport.rotateCw', 'Rotate View Right', { key: '4' }, 'rotateClockwiseAction'),
   viewportShortcut('viewport.resetRotation', 'Reset View Rotation', null),
   // Escape is a viewport shortcut like any other, so it dispatches
@@ -434,7 +440,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
 ];
 
 const SHORTCUT_DEFINITION_BY_ID = new Map(
-  SHORTCUT_DEFINITIONS.map((definition) => [definition.id, definition])
+  SHORTCUT_DEFINITIONS.map((definition) => [definition.id, definition]),
 );
 
 /**
@@ -508,8 +514,10 @@ export function shortcutIdForOrieditaAction(action: string): ShortcutActionId | 
  * visible after all. The same exemption `shortcutRegistry.test.ts` and
  * `importPlan.ts` grant, for the same reason.
  */
-export const ROUTED_CP_SHORTCUT_ACTIONS: ReadonlySet<ShortcutActionId> =
-  new Set<ShortcutActionId>(['cp.action.folding-estimate', 'cp.action.fold']);
+export const ROUTED_CP_SHORTCUT_ACTIONS: ReadonlySet<ShortcutActionId> = new Set<ShortcutActionId>([
+  'cp.action.folding-estimate',
+  'cp.action.fold',
+]);
 
 /**
  * Whether a definition may carry a *default* chord at all.
@@ -571,8 +579,8 @@ function buildOrieditaDefaultChords(): Map<ShortcutActionId, KeyChord[]> {
     assigned.set(
       definition.id,
       definition.defaultChords.filter(
-        (chord) => !claimed.has(scopedChordId(definition.scope, chord))
-      )
+        (chord) => !claimed.has(scopedChordId(definition.scope, chord)),
+      ),
     );
   }
   return assigned;
@@ -611,7 +619,7 @@ let orieditaDefaultChords: Map<ShortcutActionId, KeyChord[]> | null = null;
 
 export function getDefaultShortcutChords(
   id: ShortcutActionId,
-  defaultsSource: ShortcutDefaultsSource = 'ori-studio'
+  defaultsSource: ShortcutDefaultsSource = 'ori-studio',
 ): KeyChord[] {
   const definition = getShortcutDefinition(id);
   if (!definition) return [];
@@ -659,7 +667,7 @@ function menuShortcut(
   label: string,
   category: string,
   defaultChord: KeyChord | KeyChord[] | null,
-  upstreamAction?: string
+  upstreamAction?: string,
 ): ShortcutDefinition {
   const defaultChords = normalizeDefaultChords(defaultChord);
   return {
@@ -678,7 +686,7 @@ function viewportShortcut(
   id: ViewportShortcutId,
   label: string,
   defaultChord: KeyChord | KeyChord[] | null,
-  upstreamAction?: string
+  upstreamAction?: string,
 ): ShortcutDefinition {
   const defaultChords = normalizeDefaultChords(defaultChord);
   return {
@@ -752,15 +760,13 @@ function cpCategoryLabel(group: string): string {
   }
 }
 
-export function getShortcutDefinition(
-  id: ShortcutActionId
-): ShortcutDefinition | undefined {
+export function getShortcutDefinition(id: ShortcutActionId): ShortcutDefinition | undefined {
   return SHORTCUT_DEFINITION_BY_ID.get(id);
 }
 
 export function getShortcutRegistryDiagnostics(): ShortcutRegistryDiagnostics {
   const mappedOrieditaActions = new Set(
-    SHORTCUT_DEFINITIONS.map((definition) => definition.upstreamAction).filter(Boolean)
+    SHORTCUT_DEFINITIONS.map((definition) => definition.upstreamAction).filter(Boolean),
   );
   const duplicateBuckets = new Map<string, ShortcutActionId[]>();
   const reservedDefaultChords: ShortcutRegistryDiagnostics['reservedDefaultChords'] = [];
@@ -785,7 +791,7 @@ export function getShortcutRegistryDiagnostics(): ShortcutRegistryDiagnostics {
 
   return {
     unmappedOrieditaActions: Object.keys(ORIEDITA_DEFAULTS).filter(
-      (action) => !mappedOrieditaActions.has(action)
+      (action) => !mappedOrieditaActions.has(action),
     ),
     duplicateDefaultChords: Array.from(duplicateBuckets.entries())
       .filter((entry) => entry[1].length > 1)
@@ -799,14 +805,14 @@ export function getShortcutRegistryDiagnostics(): ShortcutRegistryDiagnostics {
 
 export function getResolvedShortcut(
   id: ShortcutActionId,
-  resolution: ShortcutResolutionInput = {}
+  resolution: ShortcutResolutionInput = {},
 ): KeyChord | null {
   return getResolvedShortcuts(id, resolution)[0] ?? null;
 }
 
 export function getResolvedShortcuts(
   id: ShortcutActionId,
-  resolution: ShortcutResolutionInput = {}
+  resolution: ShortcutResolutionInput = {},
 ): KeyChord[] {
   const { overrides = {}, defaultsSource } = resolutionOf(resolution);
   const definition = getShortcutDefinition(id);
@@ -843,7 +849,7 @@ function mergeKeyChords(defaultChords: KeyChord[], overrideChords: KeyChord[]): 
 
 export function shortcutLabelForAction(
   id: ShortcutActionId,
-  resolution: ShortcutResolutionInput = {}
+  resolution: ShortcutResolutionInput = {},
 ): string | undefined {
   const chords = getResolvedShortcuts(id, resolution);
   return chords.length > 0 ? chords.map((chord) => formatKeyChord(chord)).join(' / ') : undefined;
@@ -852,7 +858,7 @@ export function shortcutLabelForAction(
 export function findShortcutConflict(
   actionId: ShortcutActionId,
   chord: KeyChord,
-  resolution: ShortcutResolutionInput = {}
+  resolution: ShortcutResolutionInput = {},
 ): ShortcutDefinition | null {
   const definition = getShortcutDefinition(actionId);
   if (!definition) return null;
@@ -862,7 +868,7 @@ export function findShortcutConflict(
     if (!shortcutScopesOverlap(definition.scope, candidate.scope)) continue;
     if (
       getResolvedShortcuts(candidate.id, resolution).some((candidateChord) =>
-        keyChordEquals(candidateChord, chord)
+        keyChordEquals(candidateChord, chord),
       )
     ) {
       return candidate;
@@ -952,7 +958,7 @@ function shortcutDispatchPrecedes(a: ShortcutDefinition, b: ShortcutDefinition):
 export function findShortcutShadowing(
   actionId: ShortcutActionId,
   chord: KeyChord,
-  resolution: ShortcutResolutionInput = {}
+  resolution: ShortcutResolutionInput = {},
 ): ShortcutShadowing | null {
   const definition = getShortcutDefinition(actionId);
   if (!definition) return null;
@@ -993,7 +999,7 @@ export function findShortcutShadowing(
     if (candidate.id === actionId) continue;
     if (
       !getResolvedShortcuts(candidate.id, resolution).some((candidateChord) =>
-        keyChordEquals(candidateChord, chord)
+        keyChordEquals(candidateChord, chord),
       )
     ) {
       continue;
@@ -1028,7 +1034,7 @@ export function findShortcutShadowing(
  */
 function shortcutShadowingKind(
   asked: ShortcutDefinition,
-  alwaysPresentLeader: ShortcutDefinition
+  alwaysPresentLeader: ShortcutDefinition,
 ): 'hard' | 'conditional' {
   // Conditional only when nothing that shares every stack with `asked` beats it —
   // i.e. the chord reaches `asked` in every stack its own scope appears in. Any
@@ -1039,7 +1045,7 @@ function shortcutShadowingKind(
 
 export function parseOrieditaKeyStroke(
   value: string,
-  options: { ctrlAsPrimary?: boolean } = {}
+  options: { ctrlAsPrimary?: boolean } = {},
 ): KeyChord | null {
   const parts = value.trim().split(/\s+/u).filter(Boolean);
   if (parts.length === 0) return null;
@@ -1111,7 +1117,7 @@ export function keyChordId(chord: KeyChord): string {
 
 export function formatKeyChord(
   chord: KeyChord,
-  options: { platform?: 'mac' | 'other' } = {}
+  options: { platform?: 'mac' | 'other' } = {},
 ): string {
   const platform = options.platform ?? (isApplePlatform() ? 'mac' : 'other');
   const normalized = normalizeKeyChord(chord);
@@ -1188,11 +1194,5 @@ function displayKey(key: string): string {
 }
 
 function isModifierKey(key: string): boolean {
-  return (
-    key === 'control' ||
-    key === 'ctrl' ||
-    key === 'meta' ||
-    key === 'shift' ||
-    key === 'alt'
-  );
+  return key === 'control' || key === 'ctrl' || key === 'meta' || key === 'shift' || key === 'alt';
 }

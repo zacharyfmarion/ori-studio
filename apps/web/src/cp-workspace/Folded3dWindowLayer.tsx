@@ -1,19 +1,9 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { OrbitView } from '@treemaker/origami-simulator';
 import { useCpOverlayViews } from './cpOverlayViewStore';
 import { overlayCssPerModel, overlayModelToCss } from './annotations/annotationTransform';
-import {
-  canvasWindowPlacement,
-  windowScreenAngle,
-} from './canvasObjects/canvasWindowPlacement';
+import { canvasWindowPlacement, windowScreenAngle } from './canvasObjects/canvasWindowPlacement';
 import { useSettledScale } from './canvasObjects/useSettledScale';
 import { foldedFigureBox } from './adapters/cpFoldedToScene';
 import { folded3dMesh } from './folded/folded3dMesh';
@@ -26,10 +16,7 @@ import {
 import { folded3dPaperStyle } from './folded/folded3dStyle';
 import { subscribeFolded3dOrbitCamera } from './folded/folded3dRuntime';
 import { useFolded3dMeshRuntime } from './folded/useFolded3dMeshRuntime';
-import {
-  SimulatorViewport,
-  type SimulatorViewportHandle,
-} from '../simulator/SimulatorViewport';
+import { SimulatorViewport, type SimulatorViewportHandle } from '../simulator/SimulatorViewport';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../lib/simulatorSettings';
 import type { OristudioCpFoldedFigureEntry } from '../engine/oristudioCpTypes';
 
@@ -209,11 +196,10 @@ function Folded3dWindow({
         ? folded3dWindowRenderSettings({
             style: folded3dPaperStyle(figure.folded3d.model),
             displayStyle: figure.displayStyle,
-            devicePixelRatio:
-              typeof window === 'undefined' ? 1 : (window.devicePixelRatio ?? 1),
+            devicePixelRatio: typeof window === 'undefined' ? 1 : (window.devicePixelRatio ?? 1),
           })
         : undefined,
-    [figure.folded3d, figure.displayStyle]
+    [figure.folded3d, figure.displayStyle],
   );
 
   /**
@@ -225,13 +211,9 @@ function Folded3dWindow({
    */
   const pushCamera = useCallback(
     (view: OrbitView, width: number, height: number) => {
-      setCamera(
-        { ...view, zoom: view.zoom * folded3dFrameFillZoom(width, height) },
-        width,
-        height
-      );
+      setCamera({ ...view, zoom: view.zoom * folded3dFrameFillZoom(width, height) }, width, height);
     },
-    [setCamera]
+    [setCamera],
   );
 
   // The camera is document state — undo, "view from the other side", and a drag
@@ -262,7 +244,7 @@ function Folded3dWindow({
       subscribeFolded3dOrbitCamera(figureId, (live) => {
         viewportRef.current?.setView(folded3dWindowView(live));
       }),
-    [figureId]
+    [figureId],
   );
 
   return (
@@ -301,7 +283,7 @@ function Folded3dWindow({
         className="cp-folded-figure-window__canvas"
         ariaLabel={t(
           'panels:creasePattern.foldedFigure.windowAriaLabel',
-          'Folded model, in three dimensions'
+          'Folded model, in three dimensions',
         )}
       />
       {badgeStyle && status === 'error' && (

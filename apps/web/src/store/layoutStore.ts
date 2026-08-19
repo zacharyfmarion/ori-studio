@@ -2,7 +2,15 @@ import { create } from 'zustand';
 import type { DockviewApi, IDockviewPanel, SerializedDockview } from 'dockview';
 import type { WorkspaceId } from '../workspaces/workspaces';
 import { primaryPanelIdFor, workspaceForPanelId } from '../workspaces/workspaces';
-import { readJson, readString, removeKey, storageKey, STORAGE_KEYS, writeJson, writeString } from '../lib/storage';
+import {
+  readJson,
+  readString,
+  removeKey,
+  storageKey,
+  STORAGE_KEYS,
+  writeJson,
+  writeString,
+} from '../lib/storage';
 
 // v18: the Design workspace collapsed to one panel — every design pane moved
 // into the per-tab dock inside it — so any stored Design layout is a layout of

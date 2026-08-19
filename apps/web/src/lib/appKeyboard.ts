@@ -59,7 +59,7 @@ export function handleAppKeyDown(event: KeyboardEvent, actions: AppKeyboardActio
 
 export function installAppKeyboardListener(
   actions: AppKeyboardActions,
-  target: Document = document
+  target: Document = document,
 ): () => void {
   const onKeyDown = (event: KeyboardEvent) => {
     handleAppKeyDown(event, actions);

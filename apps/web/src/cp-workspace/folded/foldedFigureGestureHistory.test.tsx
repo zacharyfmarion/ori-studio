@@ -98,7 +98,7 @@ describe('the folded-figure gesture bracket', () => {
 
     expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(1);
     expect(useWorkspaceStore.getState().oristudioCpHistoryPast[0]?.label).toBe(
-      'Rename folded model'
+      'Rename folded model',
     );
   });
 

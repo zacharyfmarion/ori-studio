@@ -13,7 +13,7 @@ function createActions(
   selection: Selection,
   options: {
     activeEditingContext?: EditingContext;
-  } = {}
+  } = {},
 ) {
   return {
     getActiveEditingContext: vi.fn(() => options.activeEditingContext ?? 'treemaker-tree'),
@@ -77,10 +77,9 @@ describe('app keyboard shortcuts', () => {
     // Escape. A viewport that answers nothing declines and the chord moves on.
     const viewport = vi.fn(() => true);
     cleanups.push(registerViewportShortcutExecutor('crease-pattern', viewport));
-    const actions = createActions(
-      selectEverything(createSampleProject()),
-      { activeEditingContext: 'crease-pattern' }
-    );
+    const actions = createActions(selectEverything(createSampleProject()), {
+      activeEditingContext: 'crease-pattern',
+    });
     const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
 
     expect(handleAppKeyDown(event, actions)).toBe(true);
@@ -246,7 +245,7 @@ describe('app keyboard shortcuts', () => {
           metaKey: true,
           bubbles: true,
           cancelable: true,
-        })
+        }),
       );
 
       expect(actions.handleMenuAction).toHaveBeenCalledWith('edit.undo');
@@ -271,7 +270,7 @@ describe('app keyboard shortcuts', () => {
           metaKey: true,
           bubbles: true,
           cancelable: true,
-        })
+        }),
       );
 
       expect(actions.handleMenuAction).not.toHaveBeenCalled();

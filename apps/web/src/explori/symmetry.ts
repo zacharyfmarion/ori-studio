@@ -35,7 +35,7 @@ export const EXPLORI_SYMMETRY_TOLERANCE = 0.05;
 export function addExploriPair(
   pairs: TreeSymmetryPair[],
   a: number,
-  b: number
+  b: number,
 ): TreeSymmetryPair[] {
   if (a === b) return pairs;
   const rest = pairs.filter((pair) => ![pair.v1, pair.v2].some((id) => id === a || id === b));
@@ -50,7 +50,7 @@ export function removeExploriPair(pairs: TreeSymmetryPair[], nodeId: number): Tr
 /** The node explicitly paired with this one, if any. */
 export function explicitExploriPairId(
   pairs: readonly TreeSymmetryPair[],
-  nodeId: number
+  nodeId: number,
 ): number | null {
   for (const pair of pairs) {
     if (pair.v1 === nodeId) return pair.v2;
@@ -67,7 +67,7 @@ export function explicitExploriPairId(
 export function mirrorExploriNodeId(
   document: ExploriDocument,
   nodeId: number,
-  tolerance = EXPLORI_SYMMETRY_TOLERANCE
+  tolerance = EXPLORI_SYMMETRY_TOLERANCE,
 ): number | null {
   const explicit = explicitExploriPairId(document.symmetry.pairs, nodeId);
   if (explicit !== null && document.nodes.some((node) => node.id === explicit)) return explicit;
@@ -107,7 +107,7 @@ export function mirrorExploriNodeId(
 export function exploriMirrorHeldIds(
   document: ExploriDocument,
   movedIds: readonly number[],
-  tolerance = EXPLORI_SYMMETRY_TOLERANCE
+  tolerance = EXPLORI_SYMMETRY_TOLERANCE,
 ): Set<number> {
   const moved = new Set(movedIds);
   const held = new Set<number>();
@@ -137,7 +137,7 @@ export function exploriMirrorHeldIds(
 export function exploriLeafPlacement(
   symmetryEnabled: boolean,
   loc: Point,
-  axisTolerance: number
+  axisTolerance: number,
 ): { placed: Point; onAxis: boolean } {
   const snap = snapPointToSymmetryAxis(loc, EXPLORI_SYMMETRY_AXIS, axisTolerance);
   const onAxis = symmetryEnabled && snap.snapped;

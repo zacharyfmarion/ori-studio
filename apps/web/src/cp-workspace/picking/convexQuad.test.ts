@@ -61,7 +61,9 @@ describe('segmentIntersectsConvexQuad', () => {
 
   it('does not depend on winding', () => {
     expect(segmentIntersectsConvexQuad({ x: -5, y: 5 }, { x: 15, y: 5 }, boxReversed)).toBe(true);
-    expect(segmentIntersectsConvexQuad({ x: -5, y: -5 }, { x: -1, y: 20 }, boxReversed)).toBe(false);
+    expect(segmentIntersectsConvexQuad({ x: -5, y: -5 }, { x: -1, y: 20 }, boxReversed)).toBe(
+      false,
+    );
   });
 
   it('rejects a segment the rotated box misses but its AABB would catch', () => {

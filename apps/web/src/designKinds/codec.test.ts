@@ -36,7 +36,7 @@ function fakeTreemakerClient() {
 
 function fakeBoxPleatClient(
   sheet: { width: number; height: number; type?: 'rect' | 'diag' } = { width: 16, height: 12 },
-  layout: { flaps?: { id: number; x: number; y: number; width: number; height: number }[] } = {}
+  layout: { flaps?: { id: number; x: number; y: number; width: number; height: number }[] } = {},
 ) {
   const flaps = layout.flaps ?? [{ id: 1, x: 8, y: 7, width: 0, height: 0 }];
   return {
@@ -71,7 +71,12 @@ describe('treemaker codec', () => {
   });
 
   it('frees the named handle, and swallows a double free', async () => {
-    const failing = { ...fakeTreemakerClient(), freeTree: vi.fn(async () => { throw new Error('gone'); }) };
+    const failing = {
+      ...fakeTreemakerClient(),
+      freeTree: vi.fn(async () => {
+        throw new Error('gone');
+      }),
+    };
     const failingCodec = createTreemakerCodec(async () => failing as unknown as EngineClient);
     await expect(failingCodec.free(12)).resolves.toBeUndefined();
     expect(failing.freeTree).toHaveBeenCalledWith(12);
@@ -88,7 +93,7 @@ describe('treemaker sendToEdit', () => {
     expect(client.exportFold).toHaveBeenCalledWith(7);
     // Ordering matters: exporting without building hands over a stale CP.
     expect(client.buildCreasePattern.mock.invocationCallOrder[0]).toBeLessThan(
-      client.exportFold.mock.invocationCallOrder[0]
+      client.exportFold.mock.invocationCallOrder[0],
     );
     expect(payload).toMatchObject({ format: 'fold', filename: 'Crane.fold' });
   });
@@ -202,7 +207,7 @@ describe('box-pleat sendToEdit', () => {
     // payload is the plain one rather than something approximate.
     const client = fakeBoxPleatClient(
       { width: 16, height: 16 },
-      { flaps: [{ id: 1, x: 2, y: 2, width: 3, height: 2 }] }
+      { flaps: [{ id: 1, x: 2, y: 2, width: 3, height: 2 }] },
     );
     const sendToEdit = createBoxPleatSendToEdit(async () => client as unknown as OristudioBpClient);
     const payload = await sendToEdit(3, {

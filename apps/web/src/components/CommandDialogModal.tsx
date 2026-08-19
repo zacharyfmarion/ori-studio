@@ -62,13 +62,21 @@ export function CommandDialogModal() {
         className="simple-modal"
         onMouseDown={() => cancelCommandDialog(dialog.id)}
       >
-        <div role="document" className="simple-modal__document" onMouseDown={(event) => event.stopPropagation()}>
+        <div
+          role="document"
+          className="simple-modal__document"
+          onMouseDown={(event) => event.stopPropagation()}
+        >
           <header className="simple-modal__header">
             <span>
               <CircleAlert size={15} aria-hidden="true" />
               {dialog.title}
             </span>
-            <IconButton size="sm" aria-label={t('dialogs:common.closeNamed', 'Close {{name}}', { name: dialog.title })} onClick={() => cancelCommandDialog(dialog.id)}>
+            <IconButton
+              size="sm"
+              aria-label={t('dialogs:common.closeNamed', 'Close {{name}}', { name: dialog.title })}
+              onClick={() => cancelCommandDialog(dialog.id)}
+            >
               <X size={15} />
             </IconButton>
           </header>
@@ -102,13 +110,21 @@ export function CommandDialogModal() {
         className="simple-modal"
         onMouseDown={() => cancelCommandDialog(dialog.id)}
       >
-        <div role="document" className="simple-modal__document" onMouseDown={(event) => event.stopPropagation()}>
+        <div
+          role="document"
+          className="simple-modal__document"
+          onMouseDown={(event) => event.stopPropagation()}
+        >
           <header className="simple-modal__header">
             <span>
               <CircleAlert size={15} aria-hidden="true" />
               {dialog.title}
             </span>
-            <IconButton size="sm" aria-label={t('dialogs:common.closeNamed', 'Close {{name}}', { name: dialog.title })} onClick={() => cancelCommandDialog(dialog.id)}>
+            <IconButton
+              size="sm"
+              aria-label={t('dialogs:common.closeNamed', 'Close {{name}}', { name: dialog.title })}
+              onClick={() => cancelCommandDialog(dialog.id)}
+            >
               <X size={15} />
             </IconButton>
           </header>
@@ -153,13 +169,21 @@ export function CommandDialogModal() {
         className="simple-modal"
         onMouseDown={() => cancelCommandDialog(dialog.id)}
       >
-        <div role="document" className="simple-modal__document" onMouseDown={(event) => event.stopPropagation()}>
+        <div
+          role="document"
+          className="simple-modal__document"
+          onMouseDown={(event) => event.stopPropagation()}
+        >
           <header className="simple-modal__header">
             <span>
               <CircleAlert size={15} aria-hidden="true" />
               {dialog.title}
             </span>
-            <IconButton size="sm" aria-label={t('dialogs:common.closeNamed', 'Close {{name}}', { name: dialog.title })} onClick={() => cancelCommandDialog(dialog.id)}>
+            <IconButton
+              size="sm"
+              aria-label={t('dialogs:common.closeNamed', 'Close {{name}}', { name: dialog.title })}
+              onClick={() => cancelCommandDialog(dialog.id)}
+            >
               <X size={15} />
             </IconButton>
           </header>
@@ -206,13 +230,21 @@ export function CommandDialogModal() {
       className="simple-modal"
       onMouseDown={() => cancelCommandDialog(dialog.id)}
     >
-      <div role="document" className="simple-modal__document" onMouseDown={(event) => event.stopPropagation()}>
+      <div
+        role="document"
+        className="simple-modal__document"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
         <header className="simple-modal__header">
           <span>
             <Ruler size={15} aria-hidden="true" />
             {dialog.title}
           </span>
-          <IconButton size="sm" aria-label={`Close ${dialog.title}`} onClick={() => cancelCommandDialog(dialog.id)}>
+          <IconButton
+            size="sm"
+            aria-label={`Close ${dialog.title}`}
+            onClick={() => cancelCommandDialog(dialog.id)}
+          >
             <X size={15} />
           </IconButton>
         </header>
@@ -242,7 +274,9 @@ export function CommandDialogModal() {
           {dialog.meta && <div className="simple-modal__meta">{dialog.meta}</div>}
           {showError && (
             <div className="simple-modal__error" role="alert">
-              {t('dialogs:number.tooSmall', 'Enter a number greater than {{minimum}}.', { minimum })}
+              {t('dialogs:number.tooSmall', 'Enter a number greater than {{minimum}}.', {
+                minimum,
+              })}
             </div>
           )}
           <footer className="simple-modal__footer">

@@ -24,7 +24,7 @@ describe('candidatePreviewGroups', () => {
       [segment(0), segment(1)],
       TOOL,
       appearanceFor,
-      FOLD_ANGLE
+      FOLD_ANGLE,
     );
     expect(groups).toHaveLength(1);
     expect(groups[0].color).toEqual(TOOL);
@@ -40,7 +40,7 @@ describe('candidatePreviewGroups', () => {
       [segment(0, { color: 'Red1' })],
       TOOL,
       appearanceFor,
-      FOLD_ANGLE
+      FOLD_ANGLE,
     );
     expect(groups).toHaveLength(1);
     expect(groups[0].color).toEqual(RED);
@@ -52,7 +52,7 @@ describe('candidatePreviewGroups', () => {
       [segment(0, { color: 'Red1', foldMagnitude: half })],
       TOOL,
       appearanceFor,
-      FOLD_ANGLE
+      FOLD_ANGLE,
     );
     // Halfway between the ink and the anchor: the green channel is untouched by
     // both, and the blue channel is what moves.
@@ -62,10 +62,14 @@ describe('candidatePreviewGroups', () => {
 
   it('separates candidates that would commit different creases', () => {
     const groups = candidatePreviewGroups(
-      [segment(0, { color: 'Red1' }), segment(1, { color: 'Blue2' }), segment(2, { color: 'Red1' })],
+      [
+        segment(0, { color: 'Red1' }),
+        segment(1, { color: 'Blue2' }),
+        segment(2, { color: 'Red1' }),
+      ],
       TOOL,
       appearanceFor,
-      FOLD_ANGLE
+      FOLD_ANGLE,
     );
     expect(groups).toHaveLength(2);
     const red = groups.find((group) => group.color === RED || group.color[0] === 1);
@@ -77,7 +81,7 @@ describe('candidatePreviewGroups', () => {
       [segment(0, { color: 'Red1' }), segment(1)],
       TOOL,
       appearanceFor,
-      FOLD_ANGLE
+      FOLD_ANGLE,
     );
     expect(groups.map((group) => group.color)).toContainEqual(TOOL);
   });
@@ -90,7 +94,7 @@ describe('candidatePreviewGroups arming', () => {
       TOOL,
       appearanceFor,
       FOLD_ANGLE,
-      1
+      1,
     );
     // Same colour, so without the armed split these would be one group.
     expect(groups).toHaveLength(2);
@@ -108,7 +112,7 @@ describe('candidatePreviewGroups arming', () => {
       TOOL,
       appearanceFor,
       FOLD_ANGLE,
-      null
+      null,
     );
     expect(groups.every((group) => group.dashed)).toBe(true);
   });
@@ -122,7 +126,7 @@ describe('candidatePreviewGroups arming', () => {
       TOOL,
       appearanceFor,
       FOLD_ANGLE,
-      null
+      null,
     );
     expect(groups).toHaveLength(1);
     expect(groups[0].dashed).toBe(false);
@@ -131,7 +135,12 @@ describe('candidatePreviewGroups arming', () => {
   it('leaves other tools alone: one group, no dash opinion', () => {
     // Arming is the completion tool's affordance; every other tool passes no
     // index and must keep the single undashed group it had before.
-    const groups = candidatePreviewGroups([segment(0), segment(1)], TOOL, appearanceFor, FOLD_ANGLE);
+    const groups = candidatePreviewGroups(
+      [segment(0), segment(1)],
+      TOOL,
+      appearanceFor,
+      FOLD_ANGLE,
+    );
     expect(groups).toHaveLength(1);
     expect(groups[0].dashed).toBeUndefined();
   });
@@ -149,7 +158,7 @@ describe('candidates follow the fold-angle display mode', () => {
       TOOL,
       appearanceFor,
       { display: 'color', anchor: [1, 0, 1, 1] },
-      null
+      null,
     );
     expect(group.color[2]).toBeCloseTo(0.5, 6);
     expect(group.color[3]).toBe(1);
@@ -161,7 +170,7 @@ describe('candidates follow the fold-angle display mode', () => {
       TOOL,
       appearanceFor,
       { display: 'opacity', anchor: [1, 0, 1, 1] },
-      null
+      null,
     );
     expect(group.color.slice(0, 3)).toEqual(RED.slice(0, 3));
     expect(group.color[3]).toBeLessThan(1);

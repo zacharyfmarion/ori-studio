@@ -60,9 +60,7 @@ export const START_FIGURE_TURN_PERIOD_MS = 24_000;
 /** How long a released drag rests before the turn reclaims the figure. */
 export const START_FIGURE_HOLD_MS = 2_500;
 
-export function initialStartFigureOrbit(
-  config: StartFigureOrbitConfig
-): StartFigureOrbitState {
+export function initialStartFigureOrbit(config: StartFigureOrbitConfig): StartFigureOrbitState {
   return { yaw: config.yaw, mode: 'auto', holdMs: 0 };
 }
 
@@ -75,7 +73,7 @@ export function initialStartFigureOrbit(
 export function advanceStartFigureOrbit(
   state: StartFigureOrbitState,
   elapsedMs: number,
-  config: StartFigureOrbitConfig
+  config: StartFigureOrbitConfig,
 ): StartFigureOrbitState {
   if (state.mode === 'dragging') return state;
 
@@ -95,16 +93,12 @@ export function advanceStartFigureOrbit(
 
   return {
     ...state,
-    yaw: normalizeAngle(
-      state.yaw + (elapsedMs / START_FIGURE_TURN_PERIOD_MS) * Math.PI * 2
-    ),
+    yaw: normalizeAngle(state.yaw + (elapsedMs / START_FIGURE_TURN_PERIOD_MS) * Math.PI * 2),
     holdMs: 0,
   };
 }
 
-export function beginStartFigureDrag(
-  state: StartFigureOrbitState
-): StartFigureOrbitState {
+export function beginStartFigureDrag(state: StartFigureOrbitState): StartFigureOrbitState {
   return { ...state, mode: 'dragging' };
 }
 
@@ -119,7 +113,7 @@ export function beginStartFigureDrag(
  */
 export function dragStartFigureOrbit(
   state: StartFigureOrbitState,
-  deltaX: number
+  deltaX: number,
 ): StartFigureOrbitState {
   return {
     ...state,
@@ -128,8 +122,6 @@ export function dragStartFigureOrbit(
   };
 }
 
-export function endStartFigureDrag(
-  state: StartFigureOrbitState
-): StartFigureOrbitState {
+export function endStartFigureDrag(state: StartFigureOrbitState): StartFigureOrbitState {
   return { ...state, mode: 'resuming', holdMs: START_FIGURE_HOLD_MS };
 }

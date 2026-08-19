@@ -41,7 +41,7 @@ const api = {
   async solveReportWithProgress(
     request: unknown,
     seed: number | null,
-    onEvent: (event: OristudioBpOptimizerEvent) => void
+    onEvent: (event: OristudioBpOptimizerEvent) => void,
   ): Promise<unknown> {
     return call(() => bp_optimizer_solve_report_with_progress(request, seed, onEvent));
   },

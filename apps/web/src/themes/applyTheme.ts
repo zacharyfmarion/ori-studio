@@ -55,7 +55,10 @@ function colorMix(color: string, amount: number): string {
  */
 const MONOCHROME_VALLEY_INK_RATIO = 0.365;
 
-function applyTreeMakerDerivedTokens(theme: TreeMakerTheme, setVar: (name: string, value: string) => void) {
+function applyTreeMakerDerivedTokens(
+  theme: TreeMakerTheme,
+  setVar: (name: string, value: string) => void,
+) {
   const { colors } = theme;
   const isLight = theme.type === 'light';
 
@@ -69,7 +72,10 @@ function applyTreeMakerDerivedTokens(theme: TreeMakerTheme, setVar: (name: strin
   setVar('--tree-node', colors['bg.tertiary']);
   setVar('--tree-node-stroke', isLight ? colors['bg.primary'] : colors['text.inverse']);
   setVar('--tree-label', colors['text.primary']);
-  setVar('--tree-label-stroke', isLight ? colorMix(colors['bg.primary'], 86) : colorMix(colors['bg.secondary'], 82));
+  setVar(
+    '--tree-label-stroke',
+    isLight ? colorMix(colors['bg.primary'], 86) : colorMix(colors['bg.secondary'], 82),
+  );
 
   setVar('--fold-mountain', MOUNTAIN_VALLEY_COLORS[theme.type].mountain);
   setVar('--fold-valley', MOUNTAIN_VALLEY_COLORS[theme.type].valley);
@@ -77,7 +83,7 @@ function applyTreeMakerDerivedTokens(theme: TreeMakerTheme, setVar: (name: strin
   setVar('--fold-border', colors['text.primary']);
   setVar(
     '--fold-monochrome-valley',
-    mixHexColors(colors['text.primary'], colors['bg.canvas'], MONOCHROME_VALLEY_INK_RATIO)
+    mixHexColors(colors['text.primary'], colors['bg.canvas'], MONOCHROME_VALLEY_INK_RATIO),
   );
   setVar('--fold-ridge', colors['status.danger']);
   setVar('--fold-hinge', colors['port.image']);

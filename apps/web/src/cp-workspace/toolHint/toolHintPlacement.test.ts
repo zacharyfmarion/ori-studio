@@ -93,7 +93,7 @@ describe('cpToolHintPlacement', () => {
 
     it('ignores a toolbar that is absent', () => {
       expect(cpToolHintPlacement(DEFAULT_ANCHOR, WINDOW, null)).toEqual(
-        cpToolHintPlacement(DEFAULT_ANCHOR, WINDOW)
+        cpToolHintPlacement(DEFAULT_ANCHOR, WINDOW),
       );
     });
   });

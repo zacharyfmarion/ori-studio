@@ -27,7 +27,10 @@ describe('cpSnapRadiusModel', () => {
     // Upstream: mouseRadius / max(1, zoom). Model shrinks, screen distance does not.
     expect(cpSnapRadiusModel(10, 2)).toBeCloseTo(5, 12);
     expect(cpSnapRadiusModel(10, 4)).toBeCloseTo(2.5, 12);
-    expect(screenPx(cpSnapRadiusModel(10, 2), 2)).toBeCloseTo(screenPx(cpSnapRadiusModel(10, 4), 4), 12);
+    expect(screenPx(cpSnapRadiusModel(10, 2), 2)).toBeCloseTo(
+      screenPx(cpSnapRadiusModel(10, 4), 4),
+      12,
+    );
   });
 
   it('holds it constant in model units just below 100%, until the floor takes over', () => {
@@ -45,7 +48,7 @@ describe('cpSnapRadiusModel', () => {
     // large documents far out, where upstream's law alone decays to a pixel or two.
     for (const zoom of [0.5, 0.25, 0.1, 0.05, 0.01]) {
       expect(screenPx(cpSnapRadiusModel(10, zoom), zoom)).toBeGreaterThanOrEqual(
-        CP_MIN_SNAP_RADIUS_CSS - 1e-9
+        CP_MIN_SNAP_RADIUS_CSS - 1e-9,
       );
     }
   });
@@ -90,7 +93,10 @@ describe('cpSnapRadiusModel', () => {
     expect(cpSnapRadiusModel(10, 0)).toBeCloseTo(cpSnapRadiusModel(10, 1), 12);
     expect(cpSnapRadiusModel(10, Number.NaN)).toBeCloseTo(cpSnapRadiusModel(10, 1), 12);
     expect(cpSnapRadiusModel(10, -2)).toBeCloseTo(cpSnapRadiusModel(10, 1), 12);
-    expect(cpSnapRadiusModel(Number.NaN, 1)).toBeCloseTo(cpSnapRadiusModel(CP_DEFAULT_SNAP_RADIUS, 1), 12);
+    expect(cpSnapRadiusModel(Number.NaN, 1)).toBeCloseTo(
+      cpSnapRadiusModel(CP_DEFAULT_SNAP_RADIUS, 1),
+      12,
+    );
     expect(cpSnapRadiusModel(0, 1)).toBeCloseTo(cpSnapRadiusModel(CP_DEFAULT_SNAP_RADIUS, 1), 12);
     expect(Number.isFinite(cpSnapRadiusModel(10, Number.POSITIVE_INFINITY))).toBe(true);
   });
@@ -128,7 +134,7 @@ describe('cpHitRadiusModel', () => {
 });
 
 describe('cpKernelSnapRadiusModel', () => {
-  it('is upstream\'s law with no floor, so it never exceeds the setting', () => {
+  it("is upstream's law with no floor, so it never exceeds the setting", () => {
     // The screen floor keeps a target clickable when zoomed out; the kernel has no
     // screen, and reuses this scalar for decisions that are not pointer proximity
     // (Voronoi's seed toggle deletes within it). Sending the floored value made it

@@ -37,7 +37,12 @@ function escapeRegExp(value: string): string {
  * The `[^>]*` tag scan would mis-split a tag whose attribute value contained a literal
  * `>`. Nothing we write can: every value goes through {@link escapeHtmlAttribute} first.
  */
-function setMetaTag(html: string, attr: 'property' | 'name', name: string, content: string): string {
+function setMetaTag(
+  html: string,
+  attr: 'property' | 'name',
+  name: string,
+  content: string,
+): string {
   const escaped = escapeHtmlAttribute(content);
   const replacement = `<meta ${attr}="${name}" content="${escaped}" />`;
   const matcher = new RegExp(`\\b${attr}\\s*=\\s*["']${escapeRegExp(name)}["']`, 'i');

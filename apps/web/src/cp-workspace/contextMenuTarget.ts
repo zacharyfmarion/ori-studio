@@ -5,9 +5,7 @@
  * plus a branch in the panel's item builder — the canvas and menu component stay
  * unchanged.
  */
-export type CpContextTarget =
-  | { kind: 'folded-figure'; figureId: string }
-  | { kind: 'empty' };
+export type CpContextTarget = { kind: 'folded-figure'; figureId: string } | { kind: 'empty' };
 
 /** A canvas request to open a context menu at viewport coordinates for `target`. */
 export interface CpContextMenuRequest {

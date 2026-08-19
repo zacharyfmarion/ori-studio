@@ -13,7 +13,7 @@ export function isMenuItemVisible(item: MenuItemDef, capabilities: WorkspaceCapa
   if (item.type === 'command') return true;
   if (item.type === 'submenu') {
     return item.items.some(
-      (child) => child.type !== 'separator' && isMenuItemVisible(child, capabilities)
+      (child) => child.type !== 'separator' && isMenuItemVisible(child, capabilities),
     );
   }
 
@@ -28,7 +28,7 @@ export function isMenuItemVisible(item: MenuItemDef, capabilities: WorkspaceCapa
  */
 export function menuHasVisibleItems(menu: MenuDef, capabilities: WorkspaceCapabilities): boolean {
   return menu.items.some(
-    (item) => item.type !== 'separator' && isMenuItemVisible(item, capabilities)
+    (item) => item.type !== 'separator' && isMenuItemVisible(item, capabilities),
   );
 }
 
@@ -41,7 +41,7 @@ export function menuHasVisibleItems(menu: MenuDef, capabilities: WorkspaceCapabi
  */
 export function pruneMenuItems(
   items: MenuItemDef[],
-  capabilities: WorkspaceCapabilities
+  capabilities: WorkspaceCapabilities,
 ): MenuItemDef[] {
   const pruned: MenuItemDef[] = [];
   for (const item of items) {

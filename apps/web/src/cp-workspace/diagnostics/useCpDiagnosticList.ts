@@ -37,10 +37,10 @@ export function useCpDiagnosticList(): CpDiagnosticList {
   const { t } = useTranslation();
   const camvResult = useWorkspaceStore((state) => state.oristudioCpCamvResult);
   const lastCommandResult = useWorkspaceStore(
-    (state) => state.oristudioCpDocument?.lastCommandResult ?? null
+    (state) => state.oristudioCpDocument?.lastCommandResult ?? null,
   );
   const camvIssuesVisible = useWorkspaceStore(
-    (state) => state.oristudioCpViewport.camvIssuesVisible !== false
+    (state) => state.oristudioCpViewport.camvIssuesVisible !== false,
   );
   const activeId = useWorkspaceStore((state) => state.oristudioCpActiveDiagnosticId);
   const setActive = useWorkspaceStore((state) => state.setOristudioCpActiveDiagnostic);
@@ -56,7 +56,7 @@ export function useCpDiagnosticList(): CpDiagnosticList {
   // list, and what a jump-to-diagnostic can reach all ask the same question.
   const entries = useMemo(
     () => visibleCpDiagnosticEntries(camvResult, lastCommandResult, camvIssuesVisible),
-    [camvIssuesVisible, camvResult, lastCommandResult]
+    [camvIssuesVisible, camvResult, lastCommandResult],
   );
 
   // Which check names the headline, and whether a clean result is worth showing.
@@ -85,7 +85,7 @@ export function useCpDiagnosticList(): CpDiagnosticList {
       t,
       diagnosticOperationLabel(t, result.operation),
       entries,
-      { issueOnly }
+      { issueOnly },
     );
   }, [entries, headline, t]);
 

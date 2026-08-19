@@ -13,8 +13,7 @@ export function rgbColorToHex(color: OristudioCpRgbColor): string {
 export function mixHexColors(color: string, against: string, ratio: number): string {
   const a = hexToRgbColor(color);
   const b = hexToRgbColor(against);
-  const mix = (channel: keyof OristudioCpRgbColor) =>
-    a[channel] * ratio + b[channel] * (1 - ratio);
+  const mix = (channel: keyof OristudioCpRgbColor) => a[channel] * ratio + b[channel] * (1 - ratio);
   return rgbColorToHex({ red: mix('red'), green: mix('green'), blue: mix('blue') });
 }
 

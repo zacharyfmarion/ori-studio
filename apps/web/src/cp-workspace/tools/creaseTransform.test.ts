@@ -31,29 +31,26 @@ describe('creaseTransform golden parity with the kernel', () => {
         point(testCase.sourceA),
         point(testCase.sourceB),
         point(testCase.targetA),
-        point(testCase.targetB)
+        point(testCase.targetB),
       );
       expect(matrix).not.toBeNull();
       if (matrix === null) return;
 
       segments.forEach(([ax, ay, bx, by], segmentIndex) => {
-        const [expectedAx, expectedAy, expectedBx, expectedBy] =
-          testCase.transformed[segmentIndex];
+        const [expectedAx, expectedAy, expectedBx, expectedBy] = testCase.transformed[segmentIndex];
         const a = applyAffine(matrix, ax, ay);
         const b = applyAffine(matrix, bx, by);
         // Tolerance, not equality: the matrix form re-associates the kernel's
         // per-point arithmetic, so the two agree to well inside a ulp-scale slack
         // but not bit-for-bit. The commit still comes from the kernel.
         const close = (actual: number, expected: number) =>
-          expect(Math.abs(actual - expected)).toBeLessThanOrEqual(
-            1e-12 * (1 + Math.abs(expected))
-          );
+          expect(Math.abs(actual - expected)).toBeLessThanOrEqual(1e-12 * (1 + Math.abs(expected)));
         close(a.x, expectedAx);
         close(a.y, expectedAy);
         close(b.x, expectedBx);
         close(b.y, expectedBy);
       });
-    }
+    },
   );
 });
 

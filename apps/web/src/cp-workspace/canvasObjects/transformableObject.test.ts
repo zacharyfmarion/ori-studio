@@ -45,7 +45,7 @@ const squarePrimitive: OristudioCpFoldedRenderPrimitive = {
 
 function foldedFigure(
   placement: FoldedFigurePlacement = IDENTITY_FOLDED_PLACEMENT,
-  primitives: OristudioCpFoldedRenderPrimitive[] = [squarePrimitive]
+  primitives: OristudioCpFoldedRenderPrimitive[] = [squarePrimitive],
 ): OristudioCpFoldedFigureEntry {
   return {
     id: 'generated-1',
@@ -101,7 +101,7 @@ describe('foldedFigureAsTransformable', () => {
   it('reflects the placement in the box', () => {
     const base = foldedFigureAsTransformable(foldedFigure())!;
     const placed = foldedFigureAsTransformable(
-      foldedFigure({ offset: { x: 30, y: -10 }, scale: 2, rotation: 0.75 })
+      foldedFigure({ offset: { x: 30, y: -10 }, scale: 2, rotation: 0.75 }),
     )!;
     expect(placed.box.center.x).toBeCloseTo(base.box.center.x + 30);
     expect(placed.box.center.y).toBeCloseTo(base.box.center.y - 10);
@@ -111,9 +111,7 @@ describe('foldedFigureAsTransformable', () => {
 
   it('is null for a figure with nothing drawable, so it cannot be grabbed', () => {
     expect(foldedFigureAsTransformable(foldedFigure(IDENTITY_FOLDED_PLACEMENT, []))).toBeNull();
-    expect(
-      foldedFigureAsTransformable({ ...foldedFigure(), renderSnapshot: null })
-    ).toBeNull();
+    expect(foldedFigureAsTransformable({ ...foldedFigure(), renderSnapshot: null })).toBeNull();
   });
 });
 
@@ -146,7 +144,7 @@ describe('which canvas object holds the selection', () => {
         annotationId: 'img-1',
         foldedFigureId: 'fig-1',
         inlineSimulationId: 'sim-1',
-      })
+      }),
     ).toBe('img-1');
   });
 });

@@ -124,7 +124,7 @@ describe('held modifiers', () => {
     install();
 
     window.dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'Shift', shiftKey: true, altKey: true, bubbles: true })
+      new KeyboardEvent('keydown', { key: 'Shift', shiftKey: true, altKey: true, bubbles: true }),
     );
 
     const state = readHeldModifiers();

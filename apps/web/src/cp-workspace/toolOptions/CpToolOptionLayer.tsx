@@ -53,7 +53,7 @@ export function CpToolOptionLayer({ option }: { option: CpToolOptionWindow | nul
     setChromeSize((current) =>
       current && current.width === box.width && current.height === box.height
         ? current
-        : { width: box.width, height: box.height }
+        : { width: box.width, height: box.height },
     );
   }, [chromeKey]);
 
@@ -67,7 +67,7 @@ export function CpToolOptionLayer({ option }: { option: CpToolOptionWindow | nul
       setViewport((current) =>
         current && current.width === box.width && current.height === box.height
           ? current
-          : { width: box.width, height: box.height }
+          : { width: box.width, height: box.height },
       );
     });
     observer.observe(layerRef);

@@ -32,7 +32,7 @@ const EXPLORI_HIDDEN_CAPABILITIES: readonly WorkspaceCapabilityId[] = [
 export function createExploriSendToEdit() {
   return async function sendToEdit(
     handle: number,
-    request: SendToEditRequest
+    request: SendToEditRequest,
   ): Promise<SendToEditPayload> {
     const document = exploriDocument(handle);
     const selected = document?.selected;
@@ -64,7 +64,7 @@ export function createExploriDesignKind(): DesignKindDescriptor {
         title: t('panels:design.methodChooser.explori.title', 'Search 22.5°'),
         description: t(
           'panels:design.methodChooser.explori.description',
-          'Draw a tree and find crease patterns that match it, from the ExplOri archive.'
+          'Draw a tree and find crease patterns that match it, from the ExplOri archive.',
         ),
       }),
       Icon: Telescope,

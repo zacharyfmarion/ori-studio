@@ -65,7 +65,7 @@ describe('the lone candidate on Foldable Line', () => {
     const snap = entry?.snapPerStep ?? [];
     expect(entry?.commitOnLoneCandidate).toBe(true);
     expect(
-      loneCandidateAutoPick(snap, snap.length - 1, [RAY], entry?.commitOnLoneCandidate)
+      loneCandidateAutoPick(snap, snap.length - 1, [RAY], entry?.commitOnLoneCandidate),
     ).toEqual({ x: 5, y: 10 });
   });
 
@@ -74,7 +74,7 @@ describe('the lone candidate on Foldable Line', () => {
     const snap = entry?.snapPerStep ?? [];
     const two = [RAY, { a: { x: 0, y: 0 }, b: { x: -10, y: 20 } }];
     expect(
-      loneCandidateAutoPick(snap, snap.length - 1, two, entry?.commitOnLoneCandidate)
+      loneCandidateAutoPick(snap, snap.length - 1, two, entry?.commitOnLoneCandidate),
     ).toBeNull();
   });
 

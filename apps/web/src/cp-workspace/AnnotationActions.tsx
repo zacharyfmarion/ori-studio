@@ -55,12 +55,15 @@ export function AnnotationActions({
       }
       onOpacity(percent / 100);
     },
-    [onGestureStart, onOpacity]
+    [onGestureStart, onOpacity],
   );
 
   return (
     <>
-      <label className="floating-toolbar__opacity" title={t('panels:imageInspector.opacity', 'Opacity')}>
+      <label
+        className="floating-toolbar__opacity"
+        title={t('panels:imageInspector.opacity', 'Opacity')}
+      >
         <span aria-hidden="true">{t('panels:imageInspector.opacity', 'Opacity')}</span>
         <Slider
           ref={opacityRef}

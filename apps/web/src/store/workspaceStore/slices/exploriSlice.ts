@@ -1,4 +1,10 @@
-import { ANALYTICS_EVENTS, bucketCount, COUNT_BUCKETS, DURATION_MS_BUCKETS, track } from '../../../analytics';
+import {
+  ANALYTICS_EVENTS,
+  bucketCount,
+  COUNT_BUCKETS,
+  DURATION_MS_BUCKETS,
+  track,
+} from '../../../analytics';
 import { designKind } from '../../../designKinds';
 import { acquireDesignHandle } from '../../../engines/designHandles';
 import { useLayoutStore } from '../../layoutStore';
@@ -12,7 +18,11 @@ import {
 import { exploriDocument, replaceExploriDocument } from '../../../explori/handles';
 import { queryExplori, ExploriError } from '../../../explori/exploriService';
 import { exploriMatchQuality } from '../../../explori/matchQuality';
-import { exploriTilingLabel, type ExploriDbConfig, type ExploriResult } from '../../../explori/types';
+import {
+  exploriTilingLabel,
+  type ExploriDbConfig,
+  type ExploriResult,
+} from '../../../explori/types';
 import type { Point } from '../../../lib/geometry';
 import { reflectPointAcrossSymmetryAxis } from '../../../lib/symmetryGeometry';
 import {
@@ -60,13 +70,18 @@ function queued<T>(designId: string, work: () => Promise<T>): Promise<T> {
   const next = previous.then(work, work);
   // Swallowed on the *queue* only: the caller still sees the rejection, but one
   // failed edit must not poison every edit behind it.
-  editQueues.set(designId, next.then(undefined, () => undefined));
+  editQueues.set(
+    designId,
+    next.then(undefined, () => undefined),
+  );
   return next;
 }
 
 export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get) => {
   /** Read the design's live document, or null when the design is of another kind. */
-  const documentFor = async (designId: string): Promise<{ handle: number; document: ExploriDocument } | null> => {
+  const documentFor = async (
+    designId: string,
+  ): Promise<{ handle: number; document: ExploriDocument } | null> => {
     const design = selectExploriDesign(get(), designId);
     if (!design) return null;
     const handle = await acquireDesignHandle(designId, 'explori');
@@ -83,7 +98,7 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
    */
   const edit = (
     designId: string,
-    change: (document: ExploriDocument) => ExploriDocument | null
+    change: (document: ExploriDocument) => ExploriDocument | null,
   ): Promise<boolean> => queued(designId, () => applyEdit(designId, change));
 
   /**
@@ -99,7 +114,7 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
   const restoredDetailIndex = (
     results: readonly ExploriResult[],
     selected: ExploriResult | null,
-    current: number | null
+    current: number | null,
   ): number | null => {
     // A closed detail stays closed. `detailIndex` does not travel through the
     // history, and "a result is chosen but the drill-down is shut" is a state two
@@ -115,7 +130,7 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
 
   const applyEdit = async (
     designId: string,
-    change: (document: ExploriDocument) => ExploriDocument | null
+    change: (document: ExploriDocument) => ExploriDocument | null,
   ): Promise<boolean> => {
     const held = await documentFor(designId);
     if (!held) return false;
@@ -187,7 +202,7 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
   /** Reflect the moves of paired nodes onto their partners. */
   const withMirroredMoves = (
     document: ExploriDocument,
-    updates: readonly TreeVertexUpdate[]
+    updates: readonly TreeVertexUpdate[],
   ): TreeVertexUpdate[] => {
     if (!document.symmetry.enabled) return [...updates];
     const moved = new Set(updates.map((update) => update.id));
@@ -208,11 +223,11 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
 
   const applyMoves = (
     document: ExploriDocument,
-    updates: readonly TreeVertexUpdate[]
+    updates: readonly TreeVertexUpdate[],
   ): ExploriDocument => {
     const moved = new Map(updates.map((update) => [update.id, update.loc]));
     const nodes = document.nodes.map((node) =>
-      moved.has(node.id) ? { ...node, loc: moved.get(node.id)! } : node
+      moved.has(node.id) ? { ...node, loc: moved.get(node.id)! } : node,
     );
     const next = { ...document, nodes };
     // Lengths are read out of the drawing here, so moving a node *is* setting
@@ -268,7 +283,7 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
         const { placed, onAxis } = exploriLeafPlacement(
           document.symmetry.enabled,
           loc,
-          axisTolerance
+          axisTolerance,
         );
         const id = document.nextNodeId;
         let next: ExploriDocument = {
@@ -320,7 +335,9 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
 
     moveExploriNodes: async (updates: readonly TreeVertexUpdate[]) => {
       const designId = get().activeDesignId;
-      return edit(designId, (document) => applyMoves(document, withMirroredMoves(document, updates)));
+      return edit(designId, (document) =>
+        applyMoves(document, withMirroredMoves(document, updates)),
+      );
     },
 
     deleteExploriNode: async (nodeId: number) => {
@@ -328,7 +345,10 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
       return edit(designId, (document) => {
         if (nodeId === 0) return null;
         const partner = document.symmetry.enabled ? mirrorExploriNodeId(document, nodeId) : null;
-        const removing = new Set([nodeId, ...(partner !== null && partner !== nodeId ? [partner] : [])]);
+        const removing = new Set([
+          nodeId,
+          ...(partner !== null && partner !== nodeId ? [partner] : []),
+        ]);
         // Only a leaf may go: deleting an interior node would orphan whatever
         // hangs below it, and there is no sensible reattachment to guess at.
         for (const id of removing) {
@@ -339,12 +359,12 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
           ...document,
           nodes: document.nodes.filter((node) => !removing.has(node.id)),
           edges: document.edges.filter(
-            (edge) => !removing.has(edge.vertices[0]) && !removing.has(edge.vertices[1])
+            (edge) => !removing.has(edge.vertices[0]) && !removing.has(edge.vertices[1]),
           ),
           symmetry: {
             ...document.symmetry,
             pairs: document.symmetry.pairs.filter(
-              (pair) => !removing.has(pair.v1) && !removing.has(pair.v2)
+              (pair) => !removing.has(pair.v1) && !removing.has(pair.v2),
             ),
           },
         };
@@ -359,15 +379,17 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
       }));
     },
 
-    setExploriEdgeLength: async (edgeId: number, length: number, updates: readonly TreeVertexUpdate[]) => {
+    setExploriEdgeLength: async (
+      edgeId: number,
+      length: number,
+      updates: readonly TreeVertexUpdate[],
+    ) => {
       const designId = get().activeDesignId;
       return edit(designId, (document) => {
         const moved = applyMoves(document, withMirroredMoves(document, updates));
         return {
           ...moved,
-          edges: moved.edges.map((edge) =>
-            edge.id === edgeId ? { ...edge, length } : edge
-          ),
+          edges: moved.edges.map((edge) => (edge.id === edgeId ? { ...edge, length } : edge)),
         };
       });
     },
@@ -384,7 +406,10 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
       const designId = get().activeDesignId;
       return edit(designId, (document) => ({
         ...document,
-        symmetry: { ...document.symmetry, pairs: removeExploriPair(document.symmetry.pairs, nodeId) },
+        symmetry: {
+          ...document.symmetry,
+          pairs: removeExploriPair(document.symmetry.pairs, nodeId),
+        },
       }));
     },
 
@@ -430,7 +455,7 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
             results: response.results,
             detailIndex: null,
             error: null,
-          })
+          }),
         );
         // Shape and counts only. The tree itself, its lengths and the tiling ids
         // that came back are the user's design and never leave in an event.
@@ -449,10 +474,8 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
           patchExploriDesign(get(), designId, {
             searching: false,
             error:
-              error instanceof ExploriError
-                ? error.message
-                : 'The search could not be completed.',
-          })
+              error instanceof ExploriError ? error.message : 'The search could not be completed.',
+          }),
         );
         track(ANALYTICS_EVENTS.exploriSearchFailed, {
           reason: error instanceof ExploriError ? error.code : 'unknown',
@@ -477,8 +500,7 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
       if (!kind) return false;
       await get().ensureEditCreasePattern();
       const payload = await kind.sendToEdit(held.handle, {
-        editGridDivisions:
-          get().oristudioCpDocument?.document.crease_pattern.grid.grid_size ?? 0,
+        editGridDivisions: get().oristudioCpDocument?.document.crease_pattern.grid.grid_size ?? 0,
         title: exploriTilingLabel(held.document.selected),
       });
       const ok = await get().importAddOristudioCpText(payload);

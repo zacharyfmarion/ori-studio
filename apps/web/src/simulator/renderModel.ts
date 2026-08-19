@@ -1,8 +1,5 @@
 import type { FoldAssignment } from '@treemaker/origami-simulator';
-import {
-  EDGE_ASSIGNMENT_CODES,
-  type SimulatorModelInfo,
-} from './simulatorSession';
+import { EDGE_ASSIGNMENT_CODES, type SimulatorModelInfo } from './simulatorSession';
 
 /**
  * The topology the render side needs, in the shape the draw code wants.
@@ -38,9 +35,7 @@ export function inflateRenderModel(info: SimulatorModelInfo): SimulatorRenderMod
   const edgesAssignment: FoldAssignment[] = [];
   for (let i = 0; i < assignmentCodes.length; i += 1) {
     edgesVertices.push([edgePairs[i * 2]!, edgePairs[i * 2 + 1]!]);
-    edgesAssignment.push(
-      (EDGE_ASSIGNMENT_CODES[assignmentCodes[i]!] ?? 'U') as FoldAssignment
-    );
+    edgesAssignment.push((EDGE_ASSIGNMENT_CODES[assignmentCodes[i]!] ?? 'U') as FoldAssignment);
   }
 
   const facesEdges: number[][] = [];

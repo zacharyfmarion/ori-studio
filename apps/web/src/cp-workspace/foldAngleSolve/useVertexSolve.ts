@@ -43,11 +43,11 @@ const OPERATION: OristudioCpOperationId = 'VertexSolveFoldAngles';
 export interface UseVertexSolveOptions {
   preview: (
     operationId: OristudioCpOperationId,
-    payload: OristudioCpCommandPayload
+    payload: OristudioCpCommandPayload,
   ) => Promise<OristudioCpCommandPreview | null>;
   execute: (
     operationId: OristudioCpOperationId,
-    payload: OristudioCpCommandPayload
+    payload: OristudioCpCommandPayload,
   ) => Promise<boolean>;
   /** Fills in grid width, active colour and the rest, as the panel does. */
   buildPayload: (payload: OristudioCpCommandPayload) => OristudioCpCommandPayload;
@@ -121,7 +121,7 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
   const payloadFor = useCallback(
     (lineIds: readonly number[], index: number): OristudioCpCommandPayload =>
       latest.current.buildPayload({ line_ids: [...lineIds], candidate_index: index }),
-    []
+    [],
   );
 
   const begin = useCallback(
@@ -152,7 +152,7 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
       setReview(outcome.review);
       return true;
     },
-    [payloadFor]
+    [payloadFor],
   );
 
   // Drop the review if the document changes under it.
@@ -197,7 +197,7 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
         // that produced the segments rather than guessed at step time.
         const isCurrent = preview?.candidate_is_current === true;
         setReview((current) =>
-          current && current.isCurrent !== isCurrent ? { ...current, isCurrent } : current
+          current && current.isCurrent !== isCurrent ? { ...current, isCurrent } : current,
         );
       });
     // `key` is the identity of what is being previewed; `review` itself is a new
@@ -223,14 +223,11 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
     setReview(null);
   }, []);
 
-  const segments = useMemo(
-    () => toolPreviewSegments(solved?.segments, OPERATION),
-    [solved]
-  );
+  const segments = useMemo(() => toolPreviewSegments(solved?.segments, OPERATION), [solved]);
 
   const replacedLineIds = useMemo(
     () => (review && solved ? [...review.lineIds] : []),
-    [review, solved]
+    [review, solved],
   );
 
   const option = useMemo((): CpToolOptionWindow | null => {
@@ -245,12 +242,12 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
     const note = review.isFamily
       ? t(
           'tools:cpContext.solveAngles.family',
-          'These three creases leave one degree of freedom, so this is one of infinitely many answers — pick a different third crease for a definite one.'
+          'These three creases leave one degree of freedom, so this is one of infinitely many answers — pick a different third crease for a definite one.',
         )
       : review.isCurrent
         ? t(
             'tools:cpContext.solveAngles.current',
-            'This is what the vertex already does — step to see the alternative.'
+            'This is what the vertex already does — step to see the alternative.',
           )
         : null;
     return {
@@ -277,6 +274,6 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
       apply,
       cancel,
     }),
-    [apply, begin, cancel, option, replacedLineIds, review, segments, step]
+    [apply, begin, cancel, option, replacedLineIds, review, segments, step],
   );
 }

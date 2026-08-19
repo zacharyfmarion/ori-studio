@@ -56,7 +56,7 @@ export function annotationAspectLockPolicy(annotation: CanvasAnnotation): Aspect
  */
 export function annotationAtModelPoint(
   annotations: readonly CanvasAnnotation[],
-  model: { x: number; y: number }
+  model: { x: number; y: number },
 ): CanvasAnnotation | null {
   let best: CanvasAnnotation | null = null;
   for (const annotation of annotations) {

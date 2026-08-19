@@ -33,7 +33,7 @@ function useDocumentResetKeys(): readonly unknown[] {
 
 export function withPanelErrorBoundary(
   Panel: FC<IDockviewPanelProps>,
-  panelId: string
+  panelId: string,
 ): FC<IDockviewPanelProps> {
   function PanelWithErrorBoundary(props: IDockviewPanelProps) {
     const resetKeys = useDocumentResetKeys();

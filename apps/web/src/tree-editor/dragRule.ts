@@ -1,15 +1,6 @@
-import {
-  axisDirection,
-  projectOntoSymmetryAxis,
-  type SymmetryAxis,
-} from '../lib/symmetryGeometry';
+import { axisDirection, projectOntoSymmetryAxis, type SymmetryAxis } from '../lib/symmetryGeometry';
 import type { Point } from '../lib/geometry';
-import {
-  subtreeIds,
-  type EditableTree,
-  type TreeTopology,
-  type TreeVertexUpdate,
-} from './model';
+import { subtreeIds, type EditableTree, type TreeTopology, type TreeVertexUpdate } from './model';
 
 /**
  * Geometry for a length-faithful tree editor.
@@ -36,7 +27,7 @@ export function edgeLengthRepositions(
   tree: EditableTree,
   topology: TreeTopology,
   edgeId: number,
-  length: number
+  length: number,
 ): TreeVertexUpdate[] {
   const edge = tree.edges.find((candidate) => candidate.id === edgeId);
   if (!edge) return [];
@@ -82,7 +73,7 @@ export function rotationBetween(pivot: Point, from: Point, to: Point): number {
 export function rotatePointsBy(
   pivot: Point,
   delta: number,
-  points: Iterable<readonly [number, Point]>
+  points: Iterable<readonly [number, Point]>,
 ): Map<number, Point> {
   const cos = Math.cos(delta);
   const sin = Math.sin(delta);
@@ -103,7 +94,7 @@ export function rotatePointsAround(
   pivot: Point,
   from: Point,
   to: Point,
-  points: Iterable<readonly [number, Point]>
+  points: Iterable<readonly [number, Point]>,
 ): Map<number, Point> {
   return rotatePointsBy(pivot, rotationBetween(pivot, from, to), points);
 }
@@ -120,7 +111,7 @@ const TAU = Math.PI * 2;
 export function translatePoints(
   from: Point,
   to: Point,
-  points: Iterable<readonly [number, Point]>
+  points: Iterable<readonly [number, Point]>,
 ): Map<number, Point> {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
@@ -218,7 +209,7 @@ function rotateAndExtend(
   angle: number,
   extension: number,
   direction: Point,
-  points: Iterable<readonly [number, Point]>
+  points: Iterable<readonly [number, Point]>,
 ): Map<number, Point> {
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
@@ -332,9 +323,7 @@ export function treeDragUpdates(input: TreeDragInput): TreeDragResult {
   // is already outside — a file drawn against a larger sheet, a tree whose
   // sheet was shrunk under it — was not put there by this gesture, and refusing
   // to move it would leave it stuck there forever.
-  const bounded = bounds
-    ? subtree.filter(([, point]) => bounds(point)).map(([id]) => id)
-    : [];
+  const bounded = bounds ? subtree.filter(([, point]) => bounds(point)).map(([id]) => id) : [];
   const isValid = (moved: Map<number, Point>, enforceMirror = true) => {
     // Finiteness first, and not as paranoia: every other check here is a `<`,
     // and `NaN < anything` is false — so a degenerate state would sail through
@@ -382,9 +371,7 @@ export function treeDragUpdates(input: TreeDragInput): TreeDragResult {
     const slideTo = (radius: number) => {
       const tip = axisPointAtRadius(pivot, pinned.tip, axis, radius);
       if (!tip) return null;
-      const angle = normalizeSignedAngle(
-        Math.atan2(tip.y - pivot.y, tip.x - pivot.x) - startAngle
-      );
+      const angle = normalizeSignedAngle(Math.atan2(tip.y - pivot.y, tip.x - pivot.x) - startAngle);
       return at(angle, radius - startRadius);
     };
     const admissibleAt = (radius: number) => {
@@ -403,7 +390,9 @@ export function treeDragUpdates(input: TreeDragInput): TreeDragResult {
     return EMPTY_RESULT(length.current);
   }
 
-  const t = largestValidT((step) => admissible(at(requestedAngle * step, requestedExtension * step)));
+  const t = largestValidT((step) =>
+    admissible(at(requestedAngle * step, requestedExtension * step)),
+  );
   const angle = requestedAngle * t;
   const reached = startRadius + requestedExtension * t;
 
@@ -447,15 +436,14 @@ function axisPointAtRadius(
   pivot: Point,
   toward: Point,
   axis: SymmetryAxis,
-  radius: number
+  radius: number,
 ): Point | null {
   const foot = projectOntoSymmetryAxis(pivot, axis);
   const offset = Math.hypot(foot.x - pivot.x, foot.y - pivot.y);
   if (radius < offset - 1e-12) return null;
   const along = Math.sqrt(Math.max(0, radius * radius - offset * offset));
   const direction = axisDirection(axis);
-  const side =
-    (toward.x - foot.x) * direction.x + (toward.y - foot.y) * direction.y >= 0 ? 1 : -1;
+  const side = (toward.x - foot.x) * direction.x + (toward.y - foot.y) * direction.y >= 0 ? 1 : -1;
   return {
     x: foot.x + side * along * direction.x,
     y: foot.y + side * along * direction.y,
@@ -466,29 +454,26 @@ export function axisPinnedTip(
   pivot: Point,
   target: Point,
   axis: SymmetryAxis,
-  rule: TreeDragLengthRule
+  rule: TreeDragLengthRule,
 ): { tip: Point; radius: number } | null {
   // The nearest the vertex can ever come to the pivot while staying on the line.
   const foot = projectOntoSymmetryAxis(pivot, axis);
   const offset = Math.hypot(foot.x - pivot.x, foot.y - pivot.y);
 
   const wanted = projectOntoSymmetryAxis(target, axis);
-  let radius = clampToRule(
-    rule.quantize(Math.hypot(wanted.x - pivot.x, wanted.y - pivot.y)),
-    rule
-  );
+  let radius = clampToRule(rule.quantize(Math.hypot(wanted.x - pivot.x, wanted.y - pivot.y)), rule);
   // A radius shorter than that reaches nothing, so walk up to the first
   // admissible one that does — by whole steps where the rule has them.
   if (radius < offset) {
-    radius = rule.step === null ? offset : radius + Math.ceil((offset - radius) / rule.step) * rule.step;
+    radius =
+      rule.step === null ? offset : radius + Math.ceil((offset - radius) / rule.step) * rule.step;
     if (radius > (rule.max ?? Number.POSITIVE_INFINITY)) return null;
   }
 
   const along = Math.sqrt(Math.max(0, radius * radius - offset * offset));
   const direction = axisDirection(axis);
   // Two intersections, mirrored about the foot; take the one the cursor is on.
-  const side =
-    (wanted.x - foot.x) * direction.x + (wanted.y - foot.y) * direction.y >= 0 ? 1 : -1;
+  const side = (wanted.x - foot.x) * direction.x + (wanted.y - foot.y) * direction.y >= 0 ? 1 : -1;
   return {
     tip: { x: foot.x + side * along * direction.x, y: foot.y + side * along * direction.y },
     radius,
@@ -502,11 +487,7 @@ export function axisPinnedTip(
  * touched exactly once per pointer sample — by the cursor, which is the only
  * thing entitled to move it.
  */
-function lengthCandidates(
-  requested: number,
-  reached: number,
-  rule: TreeDragLengthRule
-): number[] {
+function lengthCandidates(requested: number, reached: number, rule: TreeDragLengthRule): number[] {
   const candidates: number[] = [];
   const push = (value: number) => {
     const clamped = clampToRule(value, rule);
@@ -534,7 +515,7 @@ function lengthCandidates(
 function heldStaysInPlace(
   moved: ReadonlyMap<number, Point>,
   subtree: readonly (readonly [number, Point])[],
-  mirror: TreeDragMirror
+  mirror: TreeDragMirror,
 ): boolean {
   const normal = axisDirection({ ...mirror.axis, angle: mirror.axis.angle + 90 });
   const signedDistance = (point: Point) =>

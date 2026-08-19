@@ -14,7 +14,7 @@ import type { OristudioBpRiver } from '../engine/oristudioBpTypes';
  */
 export function bpRiverIdFromGraphicsId(
   id: string,
-  rivers: readonly OristudioBpRiver[]
+  rivers: readonly OristudioBpRiver[],
 ): number | null {
   const match = /^re(\d+),(\d+)(?::|$)/.exec(id);
   if (!match) return null;

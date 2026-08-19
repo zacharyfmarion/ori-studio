@@ -120,7 +120,7 @@ beforeEach(() => {
     () =>
       new Promise<boolean>((resolve) => {
         landings.push(resolve);
-      })
+      }),
   );
   useWorkspaceStore.setState({
     rehydrateOristudioCpFolded3dFigure: rehydrate as never,
@@ -240,20 +240,13 @@ describe('what rehydration costs app start', () => {
   const TIMED_MOUNTS = 60;
 
   /** One start-up: mount the surface, let its effects run, tear it down. */
-  function mountOnce(
-    figures: readonly OristudioCpFoldedFigureEntry[],
-    rehydrating: boolean
-  ): void {
+  function mountOnce(figures: readonly OristudioCpFoldedFigureEntry[], rehydrating: boolean): void {
     const host = document.createElement('div');
     document.body.appendChild(host);
     const surface = createRoot(host);
     act(() => {
       surface.render(
-        rehydrating ? (
-          <Probe figures={figures} staleIds={NONE} priorityId={null} />
-        ) : (
-          <Inert />
-        )
+        rehydrating ? <Probe figures={figures} staleIds={NONE} priorityId={null} /> : <Inert />,
       );
     });
     act(() => surface.unmount());

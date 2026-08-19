@@ -60,7 +60,7 @@ let inFlight: { fingerprint: string; promise: Promise<FoldArtifacts | null> } | 
 
 /** Already-computed artifacts for this crease geometry, if any. Never starts work. */
 export function peekCpSegmentationArtifacts(
-  document: OristudioCpDocumentSnapshot | null | undefined
+  document: OristudioCpDocumentSnapshot | null | undefined,
 ): FoldArtifacts | null {
   if (!document || !cached) return null;
   return cached.fingerprint === creaseFingerprint(document) ? cached.artifacts : null;
@@ -73,7 +73,7 @@ export function peekCpSegmentationArtifacts(
  * Resolves `null` when no editable document is loaded or the export fails.
  */
 export function ensureCpSegmentationArtifacts(
-  document: OristudioCpDocumentSnapshot | null | undefined
+  document: OristudioCpDocumentSnapshot | null | undefined,
 ): Promise<FoldArtifacts | null> {
   if (!document) return Promise.resolve(null);
   const fingerprint = creaseFingerprint(document);
@@ -86,22 +86,23 @@ export function ensureCpSegmentationArtifacts(
     const artifacts = segmentationFoldArtifactsFromFold(fold);
     cached = { fingerprint, artifacts };
     if (import.meta.env.DEV) {
-       
       console.debug(
-        `[cp-toolbar] segmentation recomputed in ${Math.round(performance.now() - startedAt)}ms (${fingerprint})`
+        `[cp-toolbar] segmentation recomputed in ${Math.round(performance.now() - startedAt)}ms (${fingerprint})`,
       );
     }
     return artifacts;
-  })().catch((error: unknown) => {
-    // Never leave a failure cached: one transient error (e.g. the kernel handle
-    // not ready) would otherwise disable the toolbar until the next edit. Report
-    // rather than swallow — a silently absent toolbar is indistinguishable from
-    // "this selection is not a crease pattern".
-    console.warn('Crease-pattern segmentation failed; selection actions unavailable.', error);
-    return null;
-  }).finally(() => {
-    if (inFlight?.fingerprint === fingerprint) inFlight = null;
-  });
+  })()
+    .catch((error: unknown) => {
+      // Never leave a failure cached: one transient error (e.g. the kernel handle
+      // not ready) would otherwise disable the toolbar until the next edit. Report
+      // rather than swallow — a silently absent toolbar is indistinguishable from
+      // "this selection is not a crease pattern".
+      console.warn('Crease-pattern segmentation failed; selection actions unavailable.', error);
+      return null;
+    })
+    .finally(() => {
+      if (inFlight?.fingerprint === fingerprint) inFlight = null;
+    });
 
   inFlight = { fingerprint, promise };
   return promise;

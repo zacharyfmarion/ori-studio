@@ -13,7 +13,10 @@ function harness() {
       listeners.set(type, [...(listeners.get(type) ?? []), listener]);
     },
     removeEventListener(type: string, listener: EventListener) {
-      listeners.set(type, (listeners.get(type) ?? []).filter((entry) => entry !== listener));
+      listeners.set(
+        type,
+        (listeners.get(type) ?? []).filter((entry) => entry !== listener),
+      );
     },
     dispatch(type: string, event: unknown) {
       for (const listener of listeners.get(type) ?? []) listener(event as Event);

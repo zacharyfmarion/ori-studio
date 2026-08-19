@@ -17,11 +17,7 @@ import { defaultFolded3dCamera, folded3dFrameRadius } from './foldedFigure3dProj
 import { folded3dWindowView } from './folded3dWindow';
 import { project3dRenderSnapshot } from './folded3dReproject';
 import { setFolded3dRenderModel, resetFolded3dRenderModels } from './folded3dRenderModels';
-import {
-  clearAllFolded3dOrbits,
-  folded3dOrbitCount,
-  getFolded3dOrbit,
-} from './folded3dRuntime';
+import { clearAllFolded3dOrbits, folded3dOrbitCount, getFolded3dOrbit } from './folded3dRuntime';
 import { useFoldedFigures } from './useFoldedFigures';
 
 /**
@@ -50,7 +46,7 @@ vi.mock('../../simulator/useSimulatorRuntime', async (importOriginal) => ({
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '__fixtures__');
 const RENDER_MODEL: OristudioCpFolded3dRenderModel = JSON.parse(
-  readFileSync(join(FIXTURES, 'hinge_90.rendermodel.json'), 'utf8')
+  readFileSync(join(FIXTURES, 'hinge_90.rendermodel.json'), 'utf8'),
 );
 
 const HANDLE = 31;

@@ -70,12 +70,12 @@ export type VertexSolveOutcome =
 /** What to do with a kernel preview of the three picked creases. */
 export function outcomeForPreview(
   lineIds: readonly number[],
-  preview: OristudioCpCommandPreview | null | undefined
+  preview: OristudioCpCommandPreview | null | undefined,
 ): VertexSolveOutcome {
   if (!preview) return { kind: 'none', reason: null };
   if (preview.unavailable) return { kind: 'none', reason: preview.unavailable };
   const isFamily = preview.candidate_is_family === true;
-  const count = isFamily ? 0 : preview.candidate_count ?? 0;
+  const count = isFamily ? 0 : (preview.candidate_count ?? 0);
   // Neither a branch nor a family member. The kernel says why through
   // `unavailable`, handled above, so reaching here means the preview never ran —
   // a stale response or a document that changed underneath it.

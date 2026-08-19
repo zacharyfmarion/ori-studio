@@ -138,7 +138,7 @@ export function InlineSimulationInspector({
   // on. Subscribing here means this bar is the only thing that re-renders for it.
   const foldPercent = useSyncExternalStore(
     subscribeInlineSimulationFold,
-    useCallback(() => getInlineSimulationFoldPercent(simulation.id), [simulation.id])
+    useCallback(() => getInlineSimulationFoldPercent(simulation.id), [simulation.id]),
   );
 
   return (
@@ -147,10 +147,7 @@ export function InlineSimulationInspector({
       boundary={container}
       wheelTarget={resolveCpViewportCanvas}
       className="cp-inline-simulation-inspector"
-      ariaLabel={t(
-        'panels:creasePattern.inlineSimulation.controls',
-        'Inline simulation controls'
-      )}
+      ariaLabel={t('panels:creasePattern.inlineSimulation.controls', 'Inline simulation controls')}
     >
       <IconButton
         size="sm"
@@ -173,9 +170,7 @@ export function InlineSimulationInspector({
         aria-label={t('panels:creasePattern.inlineSimulation.fold', 'Fold')}
         onChange={onScrub}
       />
-      <span className="cp-inline-simulation-inspector__readout">
-        {Math.round(foldPercent)}%
-      </span>
+      <span className="cp-inline-simulation-inspector__readout">{Math.round(foldPercent)}%</span>
       <ColorModeMenu colorMode={colorMode} onColorMode={onColorMode} />
       <SimulatorExportMenu onExport={onExport} />
       {/*
@@ -211,7 +206,7 @@ export function InlineSimulationInspector({
           variant="toolbar"
           title={t(
             'panels:creasePattern.inlineSimulation.refresh',
-            'Rebuild from the current creases'
+            'Rebuild from the current creases',
           )}
           onClick={onRefresh}
         >

@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const dialogMocks = vi.hoisted(() => ({
-  requestConfirmation:
-    vi.fn<(options: { title: string; message: string }) => Promise<boolean>>(async () => true),
+  requestConfirmation: vi.fn<(options: { title: string; message: string }) => Promise<boolean>>(
+    async () => true,
+  ),
 }));
 
 vi.mock('../commandDialogStore', async (importOriginal) => {
@@ -24,7 +25,8 @@ vi.mock('../../engines/designHandles', () => ({
 
 const { useWorkspaceStore } = await import('../workspaceStore');
 const handles = await import('../../engines/designHandles');
-const { DEFAULT_DESIGN_TITLE, resetDesignTabIds, selectDesignMethod } = await import('./designTabs');
+const { DEFAULT_DESIGN_TITLE, resetDesignTabIds, selectDesignMethod } =
+  await import('./designTabs');
 const { createTreemakerDesignState } = await import('./designContent');
 
 const tabs = () => useWorkspaceStore.getState().designTabs;
@@ -240,7 +242,9 @@ describe('requestCloseDesignTab', () => {
           pendingHydration: false,
           kind: 'treemaker',
           treemaker: createTreemakerDesignState({
-            historyPast: [{ text: 'earlier', label: 'edit', timestamp: '2026-01-01T00:00:00.000Z' }],
+            historyPast: [
+              { text: 'earlier', label: 'edit', timestamp: '2026-01-01T00:00:00.000Z' },
+            ],
           }),
         },
       ],

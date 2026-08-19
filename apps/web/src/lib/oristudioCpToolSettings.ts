@@ -1,11 +1,5 @@
-import type {
-  OristudioCpCustomLineType,
-  OristudioCpRgbColor,
-} from '../engine/oristudioCpTypes';
-import type {
-  OristudioCpCommandDefinition,
-  OristudioCpOperationId,
-} from './oristudioCpCommands';
+import type { OristudioCpCustomLineType, OristudioCpRgbColor } from '../engine/oristudioCpTypes';
+import type { OristudioCpCommandDefinition, OristudioCpOperationId } from './oristudioCpCommands';
 
 export type OristudioCpToolSettingGroup =
   | 'line-color'
@@ -234,30 +228,21 @@ export const ORISTUDIO_CP_CUSTOM_LINE_TYPES: readonly OristudioCpCustomLineType[
 
 export const ORISTUDIO_CP_REPLACE_TARGET_LINE_TYPE_OPTIONS =
   ORISTUDIO_CP_CUSTOM_LINE_TYPE_OPTIONS.filter(
-    (option) => option.value !== 'Any' && option.value !== 'MountainAndValley'
+    (option) => option.value !== 'Any' && option.value !== 'MountainAndValley',
   );
 
 export const ORISTUDIO_CP_RATIO_PRESETS = [
   {
     label: '1:1',
-    expression: ratioExpressionFromHalves(
-      { a: 1, b: 0, c: 0 },
-      { a: 1, b: 0, c: 0 }
-    ),
+    expression: ratioExpressionFromHalves({ a: 1, b: 0, c: 0 }, { a: 1, b: 0, c: 0 }),
   },
   {
     label: '1:2',
-    expression: ratioExpressionFromHalves(
-      { a: 1, b: 0, c: 0 },
-      { a: 2, b: 0, c: 0 }
-    ),
+    expression: ratioExpressionFromHalves({ a: 1, b: 0, c: 0 }, { a: 2, b: 0, c: 0 }),
   },
   {
     label: '2:1',
-    expression: ratioExpressionFromHalves(
-      { a: 2, b: 0, c: 0 },
-      { a: 1, b: 0, c: 0 }
-    ),
+    expression: ratioExpressionFromHalves({ a: 2, b: 0, c: 0 }, { a: 1, b: 0, c: 0 }),
   },
   {
     label: '1:sqrt(2)',
@@ -265,10 +250,7 @@ export const ORISTUDIO_CP_RATIO_PRESETS = [
   },
   {
     label: 'sqrt(2):1',
-    expression: ratioExpressionFromHalves(
-      { a: 0, b: 1, c: 2 },
-      { a: 1, b: 0, c: 0 }
-    ),
+    expression: ratioExpressionFromHalves({ a: 0, b: 1, c: 2 }, { a: 1, b: 0, c: 0 }),
   },
 ] as const;
 
@@ -379,13 +361,7 @@ const TOOL_OPTION_KEYS_BY_GROUP: Partial<
   'erase-line-type': ['customLineType'],
   'fix-precision': ['fixPrecision', 'fixPrecisionUseBp', 'fixPrecisionUse22_5'],
   'polygon-corners': ['polygonCorners'],
-  square: [
-    'squareSize',
-    'squareSizeUnit',
-    'squareOrientation',
-    'squareAnchor',
-    'squareLineType',
-  ],
+  square: ['squareSize', 'squareSizeUnit', 'squareOrientation', 'squareAnchor', 'squareLineType'],
   'parallel-width': ['parallelWidth'],
   'candidate-choice': ['candidateIndex'],
   'completion-stops': ['foldableLineStopsOnAux'],
@@ -394,7 +370,7 @@ const TOOL_OPTION_KEYS_BY_GROUP: Partial<
 
 /** The options behind a set of groups, deduplicated. */
 export function cpToolOptionKeysForGroups(
-  groups: readonly OristudioCpToolSettingGroup[]
+  groups: readonly OristudioCpToolSettingGroup[],
 ): (keyof OristudioCpToolOptions)[] {
   const keys = new Set<keyof OristudioCpToolOptions>();
   for (const group of groups) {
@@ -404,7 +380,7 @@ export function cpToolOptionKeysForGroups(
 }
 
 export function cpToolSettingGroupsForOperation(
-  operationId: OristudioCpOperationId
+  operationId: OristudioCpOperationId,
 ): readonly OristudioCpToolSettingGroup[] {
   const groups: OristudioCpToolSettingGroup[] = [];
   if (LINE_COLOR_OPERATION_IDS.has(operationId)) {
@@ -415,14 +391,15 @@ export function cpToolSettingGroupsForOperation(
 }
 
 export function cpToolSettingGroupsForCommand(
-  command: OristudioCpCommandDefinition | null | undefined
+  command: OristudioCpCommandDefinition | null | undefined,
 ): readonly OristudioCpToolSettingGroup[] {
   return command ? cpToolSettingGroupsForOperation(command.operationId) : [];
 }
 
-export function evaluateOrieditaRatioExpression(
-  expression: OristudioCpRatioExpression
-): { ratioS: number; ratioT: number } {
+export function evaluateOrieditaRatioExpression(expression: OristudioCpRatioExpression): {
+  ratioS: number;
+  ratioT: number;
+} {
   return {
     ratioS: evaluateRatioPart(expression.a, expression.b, expression.c),
     ratioT: evaluateRatioPart(expression.d, expression.e, expression.f),
@@ -439,7 +416,7 @@ function evaluateRatioPart(a: number, b: number, c: number): number {
 
 export function ratioExpressionFromHalves(
   left: OristudioCpRatioHalf,
-  right: OristudioCpRatioHalf
+  right: OristudioCpRatioHalf,
 ): OristudioCpRatioExpression {
   return {
     a: left.a,
@@ -451,9 +428,10 @@ export function ratioExpressionFromHalves(
   };
 }
 
-export function ratioHalvesFromExpression(
-  expression: OristudioCpRatioExpression
-): { left: OristudioCpRatioHalf; right: OristudioCpRatioHalf } {
+export function ratioHalvesFromExpression(expression: OristudioCpRatioExpression): {
+  left: OristudioCpRatioHalf;
+  right: OristudioCpRatioHalf;
+} {
   return {
     left: { a: expression.a, b: expression.b, c: expression.c },
     right: { a: expression.d, b: expression.e, c: expression.f },
@@ -471,9 +449,7 @@ export function formatOrieditaRatioHalf(half: OristudioCpRatioHalf): string {
   return `${formatOrieditaRatioNumber(a)} ${b < 0 ? '-' : '+'} ${radical}`;
 }
 
-export function parseOrieditaRatioHalfInput(
-  input: string
-): OristudioCpRatioHalf | null {
+export function parseOrieditaRatioHalfInput(input: string): OristudioCpRatioHalf | null {
   const normalized = input.trim().toLowerCase().replace(/\s+/g, '');
   if (normalized.length === 0) return null;
   const number = parseFiniteNumber(normalized);

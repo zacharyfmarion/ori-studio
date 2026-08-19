@@ -42,7 +42,7 @@ export class GpuMath {
     height: number,
     typeName: 'FLOAT' | 'UNSIGNED_BYTE',
     data: Float32Array | Uint8Array | null,
-    replace = true
+    replace = true,
   ): WebGLTexture {
     const existing = this.textures.get(name);
     if (existing) {
@@ -71,7 +71,7 @@ export class GpuMath {
       0,
       this.gl.RGBA,
       typeName === 'FLOAT' ? this.gl.FLOAT : this.gl.UNSIGNED_BYTE,
-      data
+      data,
     );
     this.textures.set(name, texture);
     return texture;
@@ -96,7 +96,7 @@ export class GpuMath {
       this.gl.COLOR_ATTACHMENT0,
       this.gl.TEXTURE_2D,
       texture,
-      0
+      0,
     );
     if (this.gl.checkFramebufferStatus(this.gl.FRAMEBUFFER) !== this.gl.FRAMEBUFFER_COMPLETE) {
       this.gl.deleteFramebuffer(framebuffer);
@@ -118,7 +118,7 @@ export class GpuMath {
     programName: string,
     name: string,
     value: number | [number, number] | [number, number, number],
-    type: '1f' | '2f' | '3f' | '1i'
+    type: '1f' | '2f' | '3f' | '1i',
   ): void {
     const record = this.programs.get(programName);
     if (!record) throw new Error(`Unknown WebGL program ${programName}`);

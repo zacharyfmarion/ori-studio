@@ -16,7 +16,9 @@ describe('simulator orbit controls', () => {
   });
 
   it('maps vertical dragging to conventional orbit direction', () => {
-    expect(nextSimulatorOrbitView(view, drag, { x: 100, y: 140 }).pitch).toBeGreaterThan(view.pitch);
+    expect(nextSimulatorOrbitView(view, drag, { x: 100, y: 140 }).pitch).toBeGreaterThan(
+      view.pitch,
+    );
     expect(nextSimulatorOrbitView(view, drag, { x: 100, y: 60 }).pitch).toBeLessThan(view.pitch);
   });
 

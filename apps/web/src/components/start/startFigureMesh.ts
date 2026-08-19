@@ -42,7 +42,7 @@ export class StartFigureMesh {
     private readonly skins: readonly Folded3dSkin[],
     private readonly translucent: Folded3dRange,
     private readonly undetermined: Folded3dRange,
-    private readonly undeterminedFaceAlpha: number
+    private readonly undeterminedFaceAlpha: number,
   ) {}
 
   /**
@@ -96,7 +96,7 @@ export class StartFigureMesh {
         orientSkins(built.mesh.skins, asset.view.orient),
         built.mesh.translucent,
         built.mesh.undetermined,
-        UNDETERMINED_FACE_ALPHA
+        UNDETERMINED_FACE_ALPHA,
       );
     } catch {
       core?.dispose();
@@ -138,13 +138,7 @@ export class StartFigureMesh {
   render(view: { yaw: number; pitch: number }, settings: RenderSettings): void {
     if (this.lost) return;
     const { width, height } = this.canvas;
-    const camera = cameraUniforms(
-      { ...view, zoom: 1 },
-      [0, 0, 0],
-      this.radius,
-      width,
-      height
-    );
+    const camera = cameraUniforms({ ...view, zoom: 1 }, [0, 0, 0], this.radius, width, height);
     const orthographic = {
       ...camera,
       camDist: camera.depthRange * ORTHOGRAPHIC_EYE_DISTANCE,
@@ -161,7 +155,7 @@ export class StartFigureMesh {
         undeterminedFaceAlpha: this.undeterminedFaceAlpha,
       },
       settings,
-      orthographic
+      orthographic,
     )) {
       this.mesh.render(
         orthographic,
@@ -178,7 +172,7 @@ export class StartFigureMesh {
           clear: pass.clear,
           faceRange: pass.faceRange ?? undefined,
           edgeRange: pass.edgeRange ?? undefined,
-        }
+        },
       );
     }
   }
@@ -251,7 +245,7 @@ function screenFitRadius(positions: Float32Array, pitch: number): number {
  * generator and are chosen by eye against the real render.
  */
 function rotator(
-  angles: readonly [number, number, number] | undefined
+  angles: readonly [number, number, number] | undefined,
 ): ((x: number, y: number, z: number) => [number, number, number]) | null {
   if (!angles || angles.every((angle) => angle === 0)) return null;
   const [rx, ry, rz] = angles;
@@ -272,7 +266,7 @@ function rotator(
 
 export function orient(
   positions: Float32Array,
-  angles: readonly [number, number, number] | undefined
+  angles: readonly [number, number, number] | undefined,
 ): Float32Array {
   const rotate = rotator(angles);
   if (!rotate) return positions;
@@ -304,7 +298,7 @@ export function orient(
  */
 export function orientSkins(
   skins: readonly Folded3dSkin[],
-  angles: readonly [number, number, number] | undefined
+  angles: readonly [number, number, number] | undefined,
 ): readonly Folded3dSkin[] {
   const rotate = rotator(angles);
   if (!rotate) return skins;

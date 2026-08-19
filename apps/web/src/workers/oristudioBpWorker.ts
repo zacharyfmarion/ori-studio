@@ -131,15 +131,15 @@ const api = {
   async creasePatternSnapshot(
     handle: number,
     reorient = false,
-    useAuxiliary = false
+    useAuxiliary = false,
   ): Promise<OristudioBpWasmCreasePatternSnapshot> {
     return call(
       () =>
         bp_project_crease_pattern_snapshot(
           handle,
           reorient,
-          useAuxiliary
-        ) as OristudioBpWasmCreasePatternSnapshot
+          useAuxiliary,
+        ) as OristudioBpWasmCreasePatternSnapshot,
     );
   },
   async packingValidation(handle: number): Promise<OristudioBpWasmPackingValidation> {
@@ -159,7 +159,7 @@ const api = {
     id: number,
     x: number,
     y: number,
-    dragging = false
+    dragging = false,
   ): Promise<OristudioBpRawProject> {
     return call(() => bp_move_tree_vertex(handle, id, x, y, dragging) as OristudioBpRawProject);
   },
@@ -171,10 +171,10 @@ const api = {
     n1: number,
     n2: number,
     length: number,
-    dragging = false
+    dragging = false,
   ): Promise<OristudioBpRawProject> {
     return call(
-      () => bp_update_tree_edge_length(handle, n1, n2, length, dragging) as OristudioBpRawProject
+      () => bp_update_tree_edge_length(handle, n1, n2, length, dragging) as OristudioBpRawProject,
     );
   },
   async addTreeLeaf(handle: number, at: number, length: number): Promise<OristudioBpRawProject> {
@@ -197,7 +197,7 @@ const api = {
     id: number,
     x: number,
     y: number,
-    dragging = false
+    dragging = false,
   ): Promise<OristudioBpRawProject> {
     return call(() => bp_move_layout_flap(handle, id, x, y, dragging) as OristudioBpRawProject);
   },
@@ -206,7 +206,7 @@ const api = {
     ids: number[],
     x: number,
     y: number,
-    dragging = false
+    dragging = false,
   ): Promise<OristudioBpRawProject> {
     return call(() => bp_move_layout_flaps(handle, ids, x, y, dragging) as OristudioBpRawProject);
   },
@@ -214,7 +214,7 @@ const api = {
     handle: number,
     id: number,
     width: number,
-    height: number
+    height: number,
   ): Promise<OristudioBpRawProject> {
     return call(() => bp_resize_layout_flap(handle, id, width, height) as OristudioBpRawProject);
   },
@@ -222,10 +222,10 @@ const api = {
     handle: number,
     id: number,
     reshape: OristudioBpFlapReshape,
-    dragging = false
+    dragging = false,
   ): Promise<OristudioBpRawProject> {
     return call(
-      () => bp_reshape_layout_flap(handle, id, reshape, dragging) as OristudioBpRawProject
+      () => bp_reshape_layout_flap(handle, id, reshape, dragging) as OristudioBpRawProject,
     );
   },
   async subdivideLayoutSheet(handle: number): Promise<OristudioBpRawProject> {
@@ -245,10 +245,10 @@ const api = {
     handle: number,
     gridType: 'rectangular' | 'diagonal',
     width: number | null,
-    height: number | null
+    height: number | null,
   ): Promise<OristudioBpRawProject> {
     return call(
-      () => bp_update_layout_sheet(handle, gridType, width, height) as OristudioBpRawProject
+      () => bp_update_layout_sheet(handle, gridType, width, height) as OristudioBpRawProject,
     );
   },
   async completeStretch(handle: number, id: string): Promise<OristudioBpRawProject> {
@@ -257,14 +257,14 @@ const api = {
   async switchStretchConfig(
     handle: number,
     id: string,
-    delta: number
+    delta: number,
   ): Promise<OristudioBpRawProject> {
     return call(() => bp_switch_stretch_config(handle, id, delta) as OristudioBpRawProject);
   },
   async switchStretchPattern(
     handle: number,
     id: string,
-    delta: number
+    delta: number,
   ): Promise<OristudioBpRawProject> {
     return call(() => bp_switch_stretch_pattern(handle, id, delta) as OristudioBpRawProject);
   },
@@ -274,7 +274,7 @@ const api = {
     index: number,
     x: number,
     y: number,
-    dragging = false
+    dragging = false,
   ): Promise<OristudioBpRawProject> {
     return call(() => bp_move_device(handle, id, index, x, y, dragging) as OristudioBpRawProject);
   },
@@ -288,7 +288,7 @@ const api = {
     handle: number,
     reorient = true,
     useAuxiliary = false,
-    cpScale = 1
+    cpScale = 1,
   ): Promise<string> {
     return call(() => bp_export_cp(handle, reorient, useAuxiliary, cpScale));
   },
@@ -308,7 +308,7 @@ const api = {
     // `Math.random()` inline. Supplying it here keeps that same source while
     // leaving the kernel a pure function of its inputs. Only used in view mode,
     // and only when two flaps share a coordinate.
-    jitterSeed = Math.floor(Math.random() * 0x1_0000_0000)
+    jitterSeed = Math.floor(Math.random() * 0x1_0000_0000),
   ): Promise<unknown> {
     return call(() =>
       bp_optimizer_request(
@@ -317,8 +317,8 @@ const api = {
         useBasinHopping,
         randomCandidateCount,
         useDimension,
-        jitterSeed
-      )
+        jitterSeed,
+      ),
     );
   },
   async checkOptimizerResult(result: unknown): Promise<void> {
@@ -333,19 +333,19 @@ const api = {
   async replaceWithOptimizerTemplate(
     handle: number,
     request: unknown,
-    result: unknown
+    result: unknown,
   ): Promise<OristudioBpRawProject> {
     return call(
-      () => bp_replace_with_optimizer_template(handle, request, result) as OristudioBpRawProject
+      () => bp_replace_with_optimizer_template(handle, request, result) as OristudioBpRawProject,
     );
   },
   async openOptimizerTemplate(
     handle: number,
     request: unknown,
-    result: unknown
+    result: unknown,
   ): Promise<OristudioBpWasmOpenedProject> {
     return call(
-      () => bp_open_optimizer_template(handle, request, result) as OristudioBpWasmOpenedProject
+      () => bp_open_optimizer_template(handle, request, result) as OristudioBpWasmOpenedProject,
     );
   },
   async optimizerSolve(request: unknown, seed: number | null = null): Promise<unknown> {
@@ -357,7 +357,7 @@ const api = {
   async optimizerSolveReportWithProgress(
     request: unknown,
     seed: number | null,
-    onEvent: (event: OristudioBpOptimizerEvent) => void
+    onEvent: (event: OristudioBpOptimizerEvent) => void,
   ): Promise<unknown> {
     return call(() => bp_optimizer_solve_report_with_progress(request, seed, onEvent));
   },

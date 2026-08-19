@@ -33,7 +33,7 @@ export const dragBoxTool: ToolEngine<DragBoxState> = {
         const corners = viewAlignedBoxCorners(
           state.start,
           input.point,
-          input.viewTransform ?? null
+          input.viewTransform ?? null,
         );
         return { state, preview: { segments: boxCornerEdges(corners) }, commit: null };
       }

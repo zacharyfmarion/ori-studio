@@ -38,7 +38,9 @@ async function main() {
       const imageBase64 = await readFile(inputPath, 'base64');
       const result = await runSample(page, sample, imageBase64, options);
       if (!result.ok) {
-        process.stdout.write(`${JSON.stringify({ id: sample.id, ok: false, error: result.error })}\n`);
+        process.stdout.write(
+          `${JSON.stringify({ id: sample.id, ok: false, error: result.error })}\n`,
+        );
         continue;
       }
       for (const stage of result.stages) {
@@ -58,7 +60,11 @@ async function main() {
           ...stage.report,
           manifest_id: result.manifest?.id ?? null,
         };
-        await writeFile(foldPath, `${JSON.stringify(JSON.parse(stage.fold_json), null, 2)}\n`, 'utf8');
+        await writeFile(
+          foldPath,
+          `${JSON.stringify(JSON.parse(stage.fold_json), null, 2)}\n`,
+          'utf8',
+        );
         await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
         const row = {
           id: sample.id,
@@ -83,7 +89,7 @@ async function main() {
             edges: stage.report?.edge_count,
             border_edges: stage.report?.border_edge_count,
           })),
-        })}\n`
+        })}\n`,
       );
     }
   } finally {
@@ -110,7 +116,11 @@ async function main() {
       samples: rows,
       browser_errors: browserErrors,
     };
-    await writeFile(resolve(stageDir, 'run_manifest.json'), `${JSON.stringify(runManifest, null, 2)}\n`, 'utf8');
+    await writeFile(
+      resolve(stageDir, 'run_manifest.json'),
+      `${JSON.stringify(runManifest, null, 2)}\n`,
+      'utf8',
+    );
   }
 
   await writeFile(
@@ -127,9 +137,9 @@ async function main() {
         browser_errors: browserErrors,
       },
       null,
-      2
+      2,
     )}\n`,
-    'utf8'
+    'utf8',
   );
   if (browserErrors.length > 0) {
     process.stderr.write(`browser errors:\n${browserErrors.join('\n')}\n`);
@@ -144,7 +154,9 @@ async function runSample(page, sample, imageBase64, options) {
         const blob = new Blob([bytes], { type: 'image/png' });
         const bitmap = await createImageBitmap(blob);
         if (bitmap.width !== imageSize || bitmap.height !== imageSize) {
-          throw new Error(`Expected ${imageSize}x${imageSize}, got ${bitmap.width}x${bitmap.height}`);
+          throw new Error(
+            `Expected ${imageSize}x${imageSize}, got ${bitmap.width}x${bitmap.height}`,
+          );
         }
         const canvas = document.createElement('canvas');
         canvas.width = bitmap.width;
@@ -169,7 +181,7 @@ async function runSample(page, sample, imageBase64, options) {
         manifestUrl: options.manifestUrl ?? '/models/cp-detector-v3/manifest.json',
         modelUrl: options.modelUrl ?? null,
         threshold: options.threshold === undefined ? null : Number(options.threshold),
-      }
+      },
     );
   } catch (error) {
     return {

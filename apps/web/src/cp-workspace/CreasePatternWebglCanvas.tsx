@@ -56,11 +56,7 @@ import {
 import { cpGeometryStrokesToScene } from './adapters/cpGeometryToScene';
 import { matrixFromPointPairs } from './tools/creaseTransform';
 import type { CpStepSnap } from './tools/inputModelRegistry';
-import {
-  isCreaseStep,
-  loneCandidateAutoPick,
-  requiresCreaseInRange,
-} from './tools/sequenceSteps';
+import { isCreaseStep, loneCandidateAutoPick, requiresCreaseInRange } from './tools/sequenceSteps';
 import {
   createTransformGhost,
   ghostBaseFromGeometry,
@@ -83,11 +79,7 @@ import {
 import type { OristudioCpFoldedFigureEntry } from '../engine/oristudioCpTypes';
 import { useFolded3dOrbitFigures } from './folded/useFolded3dOrbitFigures';
 import type { CpContextMenuRequest } from './contextMenuTarget';
-import {
-  cpGridLinesToStrokes,
-  gridBoundsKey,
-  visibleGridBounds,
-} from './adapters/cpGridToScene';
+import { cpGridLinesToStrokes, gridBoundsKey, visibleGridBounds } from './adapters/cpGridToScene';
 import {
   cpVertexId,
   orieditaGridLinesForModelBounds,
@@ -274,7 +266,7 @@ const dpr = () => Math.min(window.devicePixelRatio || 1, MAX_DPR);
 function projectPointOnSegment(
   p: ModelPoint,
   a: ToolPreviewSegment['a'],
-  b: ToolPreviewSegment['b']
+  b: ToolPreviewSegment['b'],
 ): ModelPoint {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
@@ -294,7 +286,7 @@ function projectPointOnSegment(
 function snapToNearestSegment(
   raw: ModelPoint,
   segments: readonly ToolPreviewSegment[],
-  maxDistance: number
+  maxDistance: number,
 ): { point: ModelPoint; index: number } | null {
   let best: { point: ModelPoint; index: number } | null = null;
   let bestDist = maxDistance;
@@ -314,7 +306,7 @@ function segmentsIntersect(
   p1: ModelPoint,
   p2: ModelPoint,
   p3: ModelPoint,
-  p4: ModelPoint
+  p4: ModelPoint,
 ): boolean {
   const side = (a: ModelPoint, b: ModelPoint, c: ModelPoint) =>
     (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
@@ -322,17 +314,14 @@ function segmentsIntersect(
   const d2 = side(p3, p4, p2);
   const d3 = side(p1, p2, p3);
   const d4 = side(p1, p2, p4);
-  return (
-    ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
-    ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))
-  );
+  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
 }
 
 /** The nearest of `candidates` to `raw` within `maxDistance`, else null. */
 function snapToNearestPoint(
   raw: ModelPoint,
   candidates: readonly ModelPoint[],
-  maxDistance: number
+  maxDistance: number,
 ): ModelPoint | null {
   let best: ModelPoint | null = null;
   let bestDist = maxDistance;
@@ -355,7 +344,7 @@ function sequenceOverlayPoints(
   placed: readonly ModelPoint[],
   ring: ModelPoint | null,
   color: Rgba,
-  candidateDots: readonly ModelPoint[] = []
+  candidateDots: readonly ModelPoint[] = [],
 ): PointGeometry | null {
   const count = placed.length + candidateDots.length + (ring ? 1 : 0);
   if (count === 0) return null;
@@ -389,9 +378,7 @@ function sequenceOverlayPoints(
  * derived line endpoints and are not (they merely follow the lines).
  */
 export type CpSelectHit =
-  | { kind: 'line'; id: number }
-  | { kind: 'point'; id: number }
-  | { kind: 'circle'; id: number };
+  { kind: 'line'; id: number } | { kind: 'point'; id: number } | { kind: 'circle'; id: number };
 
 /** Ids touched by a marquee, by primitive type. */
 export interface CpBoxSelection {
@@ -504,7 +491,7 @@ export interface CreasePatternWebglCanvasProps {
    */
   resolveMoveSnap: (
     rawDelta: { x: number; y: number },
-    toleranceModel: number
+    toleranceModel: number,
   ) => { delta: { x: number; y: number }; snapLabel: string | null };
   /**
    * Active draw-tool mode, or null when no draw tool is active. Drag modes draw on
@@ -644,7 +631,7 @@ export interface CreasePatternWebglCanvasProps {
   resolveFirstPickKind: (
     rawPoint: ModelPoint,
     toleranceModel: number,
-    pointPriorityModel: number
+    pointPriorityModel: number,
   ) => 'point' | 'line';
   /**
    * Snap a raw model draw point to nearby geometry (grid/vertices), reporting
@@ -652,7 +639,7 @@ export interface CreasePatternWebglCanvasProps {
    */
   resolveDrawPoint: (
     rawPoint: ModelPoint,
-    toleranceModel: number
+    toleranceModel: number,
   ) => {
     point: ModelPoint;
     snapped: boolean;
@@ -667,7 +654,7 @@ export interface CreasePatternWebglCanvasProps {
    */
   resolveDrawPointOnCrease: (
     rawPoint: ModelPoint,
-    toleranceModel: number
+    toleranceModel: number,
   ) => { point: ModelPoint; snappedToVertex: boolean };
   /** Commit a tool's collected input (free points and/or picked crease ids). */
   onToolCommit: (commit: ToolCommit) => void;
@@ -924,9 +911,7 @@ export function CreasePatternWebglCanvas({
    * the moment a fold completed, advertising a turn everywhere except the one
    * place it worked.
    */
-  const [foldedOrbitPointer, setFoldedOrbitPointer] = useState<'none' | 'over' | 'turning'>(
-    'none'
-  );
+  const [foldedOrbitPointer, setFoldedOrbitPointer] = useState<'none' | 'over' | 'turning'>('none');
   const foldedOrbitPointerRef = useRef<'none' | 'over' | 'turning'>('none');
   // Cmd held offers a grab before the press, so the pan affordance is visible
   // rather than something you have to already know about.
@@ -1136,7 +1121,7 @@ export function CreasePatternWebglCanvas({
   // of the SVG's own fixed-rect fit, which mis-centres imported cameras).
   const contentBounds = useMemo<UserBounds | null>(
     () => cpContentBounds({ lineSegments, images, overlayBoxes, foldedFigures, modelToSvg }),
-    [lineSegments, images, overlayBoxes, foldedFigures, modelToSvg]
+    [lineSegments, images, overlayBoxes, foldedFigures, modelToSvg],
   );
 
   // Spatial indices for click hit-testing. Points are indexed as zero-length
@@ -1144,22 +1129,22 @@ export function CreasePatternWebglCanvas({
   // derived and not selectable, so they get no index.
   const hitIndex = useMemo(
     () => new LineHitIndex(lineSegments.map((s, i) => ({ id: i + 1, a: s.a, b: s.b }))),
-    [lineSegments]
+    [lineSegments],
   );
   const pointIndex = useMemo(
     () => new LineHitIndex(points.map((p, i) => ({ id: i + 1, a: p, b: p }))),
-    [points]
+    [points],
   );
   // Folded-figure pick boxes (SVG user coords) for cmd-drag move, in draw order.
   const foldedBounds = useMemo<FoldedFigureBounds[]>(
     () => foldedFigureUserBounds(foldedFigures),
-    [foldedFigures]
+    [foldedFigures],
   );
   // Selected line ids as a set, for "is the press on a selected line" (move-drag).
   const selectedLineSet = useMemo(() => new Set(selectedLineIds), [selectedLineIds]);
   const replacedLineSet = useMemo(
     () => (toolReplacedLineIds.length > 0 ? new Set(toolReplacedLineIds) : undefined),
-    [toolReplacedLineIds]
+    [toolReplacedLineIds],
   );
   // Quantized ids of the endpoints of the selected lines. A derived vertex sits
   // on one of these iff it belongs to a moved line, so it should follow the drag.
@@ -1190,7 +1175,7 @@ export function CreasePatternWebglCanvas({
       const appearanceFor = createCpLineAppearanceResolver(
         lineStyle,
         mode,
-        document.documentElement
+        document.documentElement,
       );
       const dashPatterns = cpLineStyleDashPatterns(lineStyle);
       const selection = {
@@ -1210,7 +1195,7 @@ export function CreasePatternWebglCanvas({
         anchor: readCssVarColor(
           document.documentElement,
           FOLD_ANGLE_ANCHOR_VAR,
-          FOLD_ANGLE_ANCHOR_FALLBACK
+          FOLD_ANGLE_ANCHOR_FALLBACK,
         ),
       };
       const replaced = replacedLineSet;
@@ -1222,7 +1207,7 @@ export function CreasePatternWebglCanvas({
           selection,
           move,
           foldAngle,
-          replaced
+          replaced,
         ).strokes;
       }
       return cpSnapshotToScene(
@@ -1232,7 +1217,7 @@ export function CreasePatternWebglCanvas({
         selection,
         move,
         foldAngle,
-        replaced
+        replaced,
       ).strokes;
     },
     // currentTheme drives DOM-resolved colours; rebuild callers on theme change.
@@ -1249,7 +1234,7 @@ export function CreasePatternWebglCanvas({
       selectedLineSet,
       replacedLineSet,
       currentTheme,
-    ]
+    ],
   );
   useEffect(() => {
     buildStrokesRef.current = buildStrokes;
@@ -1265,7 +1250,7 @@ export function CreasePatternWebglCanvas({
         move === undefined
           ? vertices
           : vertices.map((v) =>
-              selectedEndpointKeys.has(cpVertexId(v)) ? applyAffine(move.matrix, v.x, v.y) : v
+              selectedEndpointKeys.has(cpVertexId(v)) ? applyAffine(move.matrix, v.x, v.y) : v,
             );
       return cpPointsToScene(
         points,
@@ -1276,7 +1261,7 @@ export function CreasePatternWebglCanvas({
           pointIdx: new Set(selectedPointIds.map((id) => id - 1)),
           circleIdx: new Set(selectedCircleIds.map((id) => id - 1)),
           color: readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK),
-        }
+        },
       );
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1290,7 +1275,7 @@ export function CreasePatternWebglCanvas({
       selectedCircleIds,
       selectedEndpointKeys,
       currentTheme,
-    ]
+    ],
   );
   useEffect(() => {
     buildPointsRef.current = buildPoints;
@@ -1305,7 +1290,7 @@ export function CreasePatternWebglCanvas({
       const appearanceFor = createCpLineAppearanceResolver(
         lineStyle,
         mode,
-        document.documentElement
+        document.documentElement,
       );
       const style = { alpha: GHOST_ALPHA, widthMul: SELECTION_WIDTH_MUL };
       const base = geometry
@@ -1315,7 +1300,7 @@ export function CreasePatternWebglCanvas({
     },
     // currentTheme drives DOM-resolved colours; rebuild on theme change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [geometry, lineSegments, mode, lineStyle, currentTheme]
+    [geometry, lineSegments, mode, lineStyle, currentTheme],
   );
 
   // Per-frame / per-interaction inputs the effect reads without re-subscribing.
@@ -1338,12 +1323,12 @@ export function CreasePatternWebglCanvas({
     circleRadiusToSvg,
     foldedFigures,
     foldedBounds,
-          selectedLineSet,
+    selectedLineSet,
     buildStrokes,
     buildPoints,
     onSelect,
     onBoxSelect,
-      onTranslateSelection,
+    onTranslateSelection,
     resolveMoveSnap,
     activeToolInputMode,
     panToolActive,
@@ -1411,32 +1396,29 @@ export function CreasePatternWebglCanvas({
    * and from the effect below for the tools whose candidates only appear once the
    * kernel answers. Returns whether it acted.
    */
-  const tryLoneCandidateAutoPick = useCallback(
-    (runtime: ToolRuntime): boolean => {
-      const stepKinds = dynamicStepKindsRef.current ?? liveRef.current.activeToolStepKinds;
-      const auto = loneCandidateAutoPick(
-        stepKinds,
-        sequenceStepRef.current,
-        liveRef.current.toolCommandPreviewSegments,
-        liveRef.current.activeToolCommitsLoneCandidate
-      );
-      if (!auto) return false;
-      const out = runtime.feed({ kind: 'down', point: auto });
-      if (out.commit) {
-        liveRef.current.onToolCommit(out.commit);
-        liveRef.current.onToolPreviewInput([], []);
-        sequenceStepRef.current = 0;
-        dynamicStepKindsRef.current = null;
-        armedCandidateRef.current = null;
-        liveRef.current.onToolPickProgress(0);
-        return true;
-      }
-      sequenceStepRef.current += 1;
-      liveRef.current.onToolPickProgress(sequenceStepRef.current);
+  const tryLoneCandidateAutoPick = useCallback((runtime: ToolRuntime): boolean => {
+    const stepKinds = dynamicStepKindsRef.current ?? liveRef.current.activeToolStepKinds;
+    const auto = loneCandidateAutoPick(
+      stepKinds,
+      sequenceStepRef.current,
+      liveRef.current.toolCommandPreviewSegments,
+      liveRef.current.activeToolCommitsLoneCandidate,
+    );
+    if (!auto) return false;
+    const out = runtime.feed({ kind: 'down', point: auto });
+    if (out.commit) {
+      liveRef.current.onToolCommit(out.commit);
+      liveRef.current.onToolPreviewInput([], []);
+      sequenceStepRef.current = 0;
+      dynamicStepKindsRef.current = null;
+      armedCandidateRef.current = null;
+      liveRef.current.onToolPickProgress(0);
       return true;
-    },
-    []
-  );
+    }
+    sequenceStepRef.current += 1;
+    liveRef.current.onToolPickProgress(sequenceStepRef.current);
+    return true;
+  }, []);
 
   useEffect(() => {
     const runtime = persistentToolRuntimeRef.current;
@@ -1484,15 +1466,15 @@ export function CreasePatternWebglCanvas({
       windowedFoldedFigureIds && windowedFoldedFigureIds.size > 0
         ? foldedFigures.filter((figure) => !windowedFoldedFigureIds.has(figure.id))
         : foldedFigures,
-    [foldedFigures, windowedFoldedFigureIds]
+    [foldedFigures, windowedFoldedFigureIds],
   );
   const drawnFoldedFigures = useFolded3dOrbitFigures(sceneFoldedFigures);
   const foldedGeometry = useMemo(
     () =>
       cpFoldedToScene(drawnFoldedFigures, (figure) =>
-        staleFoldedFigureIds?.has(figure.id) ? STALE_FOLDED_FIGURE_OPACITY : 1
+        staleFoldedFigureIds?.has(figure.id) ? STALE_FOLDED_FIGURE_OPACITY : 1,
       ),
-    [drawnFoldedFigures, staleFoldedFigureIds]
+    [drawnFoldedFigures, staleFoldedFigureIds],
   );
 
   // Red fill for the two faces of any folded figure whose fold hit a global
@@ -1500,7 +1482,7 @@ export function CreasePatternWebglCanvas({
   // space, so it rides the renderer's diagnostic-fill layer.
   const contradictionFaceFills = useMemo(
     () => cpContradictionFaceFills(foldedFigures),
-    [foldedFigures]
+    [foldedFigures],
   );
 
   // Renderer lifecycle + render loop. Re-runs only when the GL context is lost
@@ -1573,7 +1555,7 @@ export function CreasePatternWebglCanvas({
         bounds,
         viewport,
         undefined,
-        liveRef.current.initialRotation ?? 0
+        liveRef.current.initialRotation ?? 0,
       );
       return cameraRef.current;
     };
@@ -1599,7 +1581,7 @@ export function CreasePatternWebglCanvas({
             const lines = orieditaGridLinesForModelBounds(bounds, gridMeta);
             const color = readCssVarColor(canvas, GRID_COLOR_VAR, GRID_FALLBACK);
             renderer.setGrid(
-              cpGridLinesToStrokes(lines, [color[0], color[1], color[2], GRID_COLOR_ALPHA])
+              cpGridLinesToStrokes(lines, [color[0], color[1], color[2], GRID_COLOR_ALPHA]),
             );
           }
         }
@@ -1740,7 +1722,7 @@ export function CreasePatternWebglCanvas({
       return unprojectDevicePoint(
         userCameraToView(cam, viewportOf(ratio)),
         (clientX - rect.left) * ratio,
-        (clientY - rect.top) * ratio
+        (clientY - rect.top) * ratio,
       );
     };
     const clientToModel = (clientX: number, clientY: number): ModelPoint | null => {
@@ -1798,7 +1780,7 @@ export function CreasePatternWebglCanvas({
       const cam = cameraRef.current;
       if (!cam) return cssTol;
       const scale = viewTransformScale(
-        modelViewFromCamera(cam, viewportOf(dpr()), liveRef.current.modelToSvg)
+        modelViewFromCamera(cam, viewportOf(dpr()), liveRef.current.modelToSvg),
       );
       return (cssTol * dpr()) / Math.max(1e-6, scale);
     };
@@ -1817,13 +1799,18 @@ export function CreasePatternWebglCanvas({
       cpSnapRadiusModel(liveRef.current.snapRadius, zoomOf(), CP_SNAP_RATIO);
     // Hit radii never tighten below pointer precision — see `cpHitRadiusModel`.
     const lineHitTolerance = (): number =>
-      cpHitRadiusModel(liveRef.current.snapRadius, zoomOf(), CP_LINE_HIT_RATIO, CP_LINE_HIT_MIN_CSS);
+      cpHitRadiusModel(
+        liveRef.current.snapRadius,
+        zoomOf(),
+        CP_LINE_HIT_RATIO,
+        CP_LINE_HIT_MIN_CSS,
+      );
     const pointHitTolerance = (): number =>
       cpHitRadiusModel(
         liveRef.current.snapRadius,
         zoomOf(),
         CP_POINT_HIT_RATIO,
-        CP_POINT_HIT_MIN_CSS
+        CP_POINT_HIT_MIN_CSS,
       );
     /**
      * What the kernel will search. Bounded by the setting, unlike the on-screen
@@ -1983,7 +1970,7 @@ export function CreasePatternWebglCanvas({
        * does. Arming and the step prompt still key off `livePoints` alone — an anchor
        * being *dragged* from is not a parked one.
        */
-      placed: readonly ModelPoint[] = livePoints ?? []
+      placed: readonly ModelPoint[] = livePoints ?? [],
     ) => {
       const armed = livePoints?.[0] ?? null;
       const was = armedDrawPointRef.current;
@@ -1992,8 +1979,8 @@ export function CreasePatternWebglCanvas({
         sequenceOverlayPoints(
           placed,
           snapRing,
-          readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK)
-        )
+          readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK),
+        ),
       );
       if (!!armed !== !!was) liveRef.current.onToolPickProgress(armed ? 1 : 0);
     };
@@ -2006,7 +1993,7 @@ export function CreasePatternWebglCanvas({
       toolPreviewSegmentsRef.current = live;
       sequencePreviewOwnedRef.current = false;
       renderer.setPreview(
-        live ? previewSegmentsToStrokes(live, liveRef.current.toolPreviewColor) : null
+        live ? previewSegmentsToStrokes(live, liveRef.current.toolPreviewColor) : null,
       );
     };
     // Claim the preview channel for content that owns its colours.
@@ -2033,7 +2020,11 @@ export function CreasePatternWebglCanvas({
         liveRef.current.onToolPreviewInput([], []);
       }
     };
-    const feedTool = (kind: 'down' | 'move' | 'up' | 'cancel', clientX: number, clientY: number) => {
+    const feedTool = (
+      kind: 'down' | 'move' | 'up' | 'cancel',
+      clientX: number,
+      clientY: number,
+    ) => {
       const runtime = drawRuntime();
       if (!runtime) return;
       // Only crease-drawing snaps to grid/vertices; selection/erase boxes (drag-box)
@@ -2085,7 +2076,7 @@ export function CreasePatternWebglCanvas({
         syncArmedDrawPoint(
           out.livePoints,
           kernelPreviewed && segment ? kernelSnapRing() : snapRingFor(resolved.point, raw),
-          kernelPreviewed ? (placed ?? []) : undefined
+          kernelPreviewed ? (placed ?? []) : undefined,
         );
       }
       renderNow();
@@ -2093,9 +2084,7 @@ export function CreasePatternWebglCanvas({
         // Same raw-cursor rule as the preview: the engine saw the snapped point so its
         // arming rule holds, but the endpoint the kernel angle-snaps is the cursor.
         const points =
-          kernelPreviewed && out.commit.points
-            ? [out.commit.points[0], raw]
-            : out.commit.points;
+          kernelPreviewed && out.commit.points ? [out.commit.points[0], raw] : out.commit.points;
         liveRef.current.onToolCommit({ ...out.commit, points, additive: dragShift });
       }
     };
@@ -2111,7 +2100,7 @@ export function CreasePatternWebglCanvas({
     // the placed dots show.
     const transformMatrixFor = (
       livePoints: readonly ModelPoint[],
-      pointCount: 2 | 4
+      pointCount: 2 | 4,
     ): CpAffineMatrix | null => {
       if (pointCount === 2) {
         if (livePoints.length < 2) return null;
@@ -2123,7 +2112,7 @@ export function CreasePatternWebglCanvas({
     };
     const updateTransformPreview = (
       transform: { kind: 'move' | 'copy'; pointCount: 2 | 4 },
-      livePoints: readonly ModelPoint[]
+      livePoints: readonly ModelPoint[],
     ) => {
       const ids = liveRef.current.selectedLineSet;
       const matrix = transformMatrixFor(livePoints, transform.pointCount);
@@ -2158,7 +2147,11 @@ export function CreasePatternWebglCanvas({
     // controller kernel-previews the live points and renders the result.
     const feedPersistent = (kind: 'down' | 'move' | 'cancel', clientX: number, clientY: number) => {
       if (liveRef.current.activeToolInputMode !== 'sequence') return;
-      const accent = readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK);
+      const accent = readCssVarColor(
+        document.documentElement,
+        SELECTION_COLOR_VAR,
+        SELECTION_FALLBACK,
+      );
       if (kind === 'cancel') {
         persistentToolRuntimeRef.current?.feed({ kind: 'cancel', point: { x: 0, y: 0 } });
         sequenceStepRef.current = 0;
@@ -2176,11 +2169,7 @@ export function CreasePatternWebglCanvas({
       // Mirror Line decides its step kinds on the first press: a pick on a
       // vertex/point runs a 3-point sequence, a pick on a bare crease a 2-line one.
       if (liveRef.current.activeToolDualMirror && !persistentToolRuntimeRef.current) {
-        const firstPickKind = liveRef.current.resolveFirstPickKind(
-          raw,
-          tol,
-          pointHitTolerance()
-        );
+        const firstPickKind = liveRef.current.resolveFirstPickKind(raw, tol, pointHitTolerance());
         if (kind !== 'down') {
           // Hovering before the first pick — preview the mode the click will enter so
           // the two modes are legible: highlight the crease it would pick in line mode,
@@ -2195,7 +2184,7 @@ export function CreasePatternWebglCanvas({
             liveRef.current.onToolPreviewInput([], []);
             const snap = liveRef.current.resolveDrawPoint(raw, tol);
             renderer.setOverlayPoints(
-              sequenceOverlayPoints([], snap.snapped ? snap.point : null, accent)
+              sequenceOverlayPoints([], snap.snapped ? snap.point : null, accent),
             );
           }
           renderNow();
@@ -2208,11 +2197,7 @@ export function CreasePatternWebglCanvas({
       // outright. Same classifier as Mirror Line, so "vertex wins over line" reads
       // identically in both tools.
       if (liveRef.current.activeToolMeasureCreasePick && !persistentToolRuntimeRef.current) {
-        const firstPickKind = liveRef.current.resolveFirstPickKind(
-          raw,
-          tol,
-          pointHitTolerance()
-        );
+        const firstPickKind = liveRef.current.resolveFirstPickKind(raw, tol, pointHitTolerance());
         if (firstPickKind === 'line') {
           const lineId = liveRef.current.hitIndex.query(raw.x, raw.y, tol);
           if (lineId > 0) {
@@ -2233,7 +2218,9 @@ export function CreasePatternWebglCanvas({
       }
       const stepKinds = dynamicStepKindsRef.current ?? liveRef.current.activeToolStepKinds;
       if (!persistentToolRuntimeRef.current) {
-        persistentToolRuntimeRef.current = createToolRuntime(createStepSequenceTool(stepKinds.length));
+        persistentToolRuntimeRef.current = createToolRuntime(
+          createStepSequenceTool(stepKinds.length),
+        );
         sequenceStepRef.current = 0;
       }
       const runtime = persistentToolRuntimeRef.current;
@@ -2261,11 +2248,7 @@ export function CreasePatternWebglCanvas({
         if (
           requiresCreaseInRange(stepKind) &&
           kind === 'down' &&
-          liveRef.current.hitIndex.query(
-            point.x,
-            point.y,
-            kernelSnapTolerance()
-          ) <= 0
+          liveRef.current.hitIndex.query(point.x, point.y, kernelSnapTolerance()) <= 0
         ) {
           return;
         }
@@ -2357,7 +2340,11 @@ export function CreasePatternWebglCanvas({
     // two point picks — then the previewed converging rays throw off intersection
     // points; picking one draws the two creases from the base endpoints to it.
     const feedConverging = (kind: 'down' | 'move' | 'cancel', clientX: number, clientY: number) => {
-      const accent = readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK);
+      const accent = readCssVarColor(
+        document.documentElement,
+        SELECTION_COLOR_VAR,
+        SELECTION_FALLBACK,
+      );
       if (kind === 'cancel') {
         convergingBaseRef.current = [];
         liveRef.current.onToolPreviewInput([], []);
@@ -2413,7 +2400,9 @@ export function CreasePatternWebglCanvas({
           // Hover for the second base point.
           liveRef.current.onToolPreviewInput([], []);
           const snap = liveRef.current.resolveDrawPoint(raw, tol);
-          renderer.setOverlayPoints(sequenceOverlayPoints(base, snap.snapped ? snap.point : null, accent));
+          renderer.setOverlayPoints(
+            sequenceOverlayPoints(base, snap.snapped ? snap.point : null, accent),
+          );
         }
         renderNow();
         return;
@@ -2433,7 +2422,7 @@ export function CreasePatternWebglCanvas({
         // the intersection candidates (ringing the one under the cursor).
         liveRef.current.onToolPreviewInput([base[0], base[1], converge ?? raw], []);
         renderer.setOverlayPoints(
-          sequenceOverlayPoints([], converge, accent, liveRef.current.toolCommandPreviewPoints)
+          sequenceOverlayPoints([], converge, accent, liveRef.current.toolCommandPreviewPoints),
         );
       }
       renderNow();
@@ -2443,8 +2432,16 @@ export function CreasePatternWebglCanvas({
     // points. A crease starts 2-line mode — collect 2 source crease ids then a
     // destination crease id, commit 3 line ids. Picked source creases render in the
     // selection style; point mode shows placed dots + the kernel bisector preview.
-    const feedSquareBisector = (kind: 'down' | 'move' | 'cancel', clientX: number, clientY: number) => {
-      const accent = readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK);
+    const feedSquareBisector = (
+      kind: 'down' | 'move' | 'cancel',
+      clientX: number,
+      clientY: number,
+    ) => {
+      const accent = readCssVarColor(
+        document.documentElement,
+        SELECTION_COLOR_VAR,
+        SELECTION_FALLBACK,
+      );
       const state = squareBisectorRef.current;
       const reset = () => {
         squareBisectorRef.current = { mode: null, points: [], lineIds: [] };
@@ -2487,7 +2484,9 @@ export function CreasePatternWebglCanvas({
             renderer.setOverlayPoints(sequenceOverlayPoints(state.points, null, accent));
           } else {
             setLinePickHighlight([]);
-            renderer.setOverlayPoints(sequenceOverlayPoints([], snap.snapped ? snap.point : null, accent));
+            renderer.setOverlayPoints(
+              sequenceOverlayPoints([], snap.snapped ? snap.point : null, accent),
+            );
           }
         }
         renderNow();
@@ -2503,7 +2502,9 @@ export function CreasePatternWebglCanvas({
             if (pts.length === 3) liveRef.current.onToolPreviewInput(pts, []);
             renderer.setOverlayPoints(sequenceOverlayPoints(pts, null, accent));
           } else {
-            renderer.setOverlayPoints(sequenceOverlayPoints(pts, snap.snapped ? snap.point : null, accent));
+            renderer.setOverlayPoints(
+              sequenceOverlayPoints(pts, snap.snapped ? snap.point : null, accent),
+            );
           }
         } else {
           // Destination crease: the 4th point resolves the nearest line kernel-side.
@@ -2531,7 +2532,9 @@ export function CreasePatternWebglCanvas({
             setLinePickHighlight([...lines]);
           }
         } else {
-          setLinePickHighlight(lineId > 0 && !lines.includes(lineId) ? [...lines, lineId] : [...lines]);
+          setLinePickHighlight(
+            lineId > 0 && !lines.includes(lineId) ? [...lines, lineId] : [...lines],
+          );
         }
       } else if (kind === 'down') {
         if (lineId > 0) {
@@ -2558,7 +2561,11 @@ export function CreasePatternWebglCanvas({
     };
     // Dispatch a click-based `sequence` gesture to the right bespoke handler, else the
     // generic point-sequence engine.
-    const feedSequenceTool = (kind: 'down' | 'move' | 'cancel', clientX: number, clientY: number) => {
+    const feedSequenceTool = (
+      kind: 'down' | 'move' | 'cancel',
+      clientX: number,
+      clientY: number,
+    ) => {
       if (liveRef.current.activeToolConverging) feedConverging(kind, clientX, clientY);
       else if (liveRef.current.activeToolSquareBisector) feedSquareBisector(kind, clientX, clientY);
       else if (liveRef.current.activeToolVoronoi) feedVoronoi(kind, clientX, clientY);
@@ -2582,7 +2589,7 @@ export function CreasePatternWebglCanvas({
       if (liveRef.current.activeToolInputMode !== 'line-entity') return;
       if (!persistentToolRuntimeRef.current) {
         persistentToolRuntimeRef.current = createToolRuntime(
-          createLinePickTool(liveRef.current.activeToolLineCount)
+          createLinePickTool(liveRef.current.activeToolLineCount),
         );
       }
       const runtime = persistentToolRuntimeRef.current;
@@ -2623,11 +2630,15 @@ export function CreasePatternWebglCanvas({
     const feedLengthen = (
       kind: 'down' | 'move' | 'up' | 'cancel',
       clientX: number,
-      clientY: number
+      clientY: number,
     ) => {
       if (liveRef.current.activeToolInputMode !== 'lengthen') return;
       const state = lengthenRef.current;
-      const accent = readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK);
+      const accent = readCssVarColor(
+        document.documentElement,
+        SELECTION_COLOR_VAR,
+        SELECTION_FALLBACK,
+      );
       // The crease ids the selection line picks, mirroring the kernel: every crease it
       // strictly crosses, or — when degenerate (a click) — the nearest crease. Rendered
       // in the selection style so they read as selected as the line is drawn through them.
@@ -2676,8 +2687,8 @@ export function CreasePatternWebglCanvas({
           renderer.setPreview(
             previewSegmentsToStrokes(
               [{ a: state.a, b: state.b }],
-              readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK)
-            )
+              readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK),
+            ),
           );
         } else if (kind === 'up') {
           if (!state.a) return;
@@ -2725,9 +2736,9 @@ export function CreasePatternWebglCanvas({
         out.preview && out.preview.segments.length > 0
           ? previewSegmentsToStrokes(
               out.preview.segments,
-              readCssVarColor(canvas, ERASE_COLOR_VAR, ERASE_FALLBACK)
+              readCssVarColor(canvas, ERASE_COLOR_VAR, ERASE_FALLBACK),
             )
-          : null
+          : null,
       );
       renderNow();
     };
@@ -2775,8 +2786,7 @@ export function CreasePatternWebglCanvas({
         // erase and pan are unclaimable by design — the same precedence the
         // overlay gives a focused simulation window.
         e.preventDefault();
-        orbiting =
-          liveRef.current.foldedOrbit?.begin({ x: e.clientX, y: e.clientY }) ?? false;
+        orbiting = liveRef.current.foldedOrbit?.begin({ x: e.clientX, y: e.clientY }) ?? false;
         if (orbiting) setOrbitPointer('turning');
       } else if (e.metaKey || liveRef.current.panToolActive) {
         // Meta+drag pans, as does a plain drag while the hand tool is on. Folded
@@ -2849,9 +2859,7 @@ export function CreasePatternWebglCanvas({
         // A plain drag that starts on an already-selected crease moves the whole
         // line selection; otherwise it selects (click or marquee).
         const m = clientToModel(e.clientX, e.clientY);
-        const lineId = m
-          ? liveRef.current.hitIndex.query(m.x, m.y, lineHitTolerance())
-          : -1;
+        const lineId = m ? liveRef.current.hitIndex.query(m.x, m.y, lineHitTolerance()) : -1;
         if (m && lineId > 0 && liveRef.current.selectedLineSet.has(lineId)) {
           e.preventDefault();
           movingSelection = true;
@@ -2885,10 +2893,9 @@ export function CreasePatternWebglCanvas({
         // app's hottest surface — with no focused figure there is nothing to be
         // over, so the answer is 'none' without touching layout.
         setOrbitPointer(
-          liveRef.current.foldedOrbit?.focusedId != null &&
-            orbitClaimsPressAt(e.clientX, e.clientY)
+          liveRef.current.foldedOrbit?.focusedId != null && orbitClaimsPressAt(e.clientX, e.clientY)
             ? 'over'
-            : 'none'
+            : 'none',
         );
       }
       if (orbiting) {
@@ -2907,10 +2914,7 @@ export function CreasePatternWebglCanvas({
       } else if (liveRef.current.panToolActive && !panning) {
         // Hand tool on but not dragging: suppress every tool hover preview, so
         // no ghost snap indicator trails the grab cursor.
-      } else if (
-        liveRef.current.activeToolInputMode === 'lengthen' &&
-        !panning
-      ) {
+      } else if (liveRef.current.activeToolInputMode === 'lengthen' && !panning) {
         // Lengthen: draw the selection line while dragging, or (in the extension
         // phase) track the target-point cursor. Fires on hover too.
         feedLengthen('move', e.clientX, e.clientY);
@@ -2949,10 +2953,7 @@ export function CreasePatternWebglCanvas({
             const rawDelta = { x: m.x - moveStart.x, y: m.y - moveStart.y };
             // Snap the translation to nearby grid/vertices/lines (screen-fixed
             // tolerance from the WebGL camera), matching the SVG move.
-            moveDelta = liveRef.current.resolveMoveSnap(
-              rawDelta,
-              snapTolerance()
-            ).delta;
+            moveDelta = liveRef.current.resolveMoveSnap(rawDelta, snapTolerance()).delta;
             // Redraw the selected lines shifted in place — the real strokes move,
             // no separate copy — and let their derived vertices follow. Only the
             // stroke + point buffers are re-uploaded per frame.
@@ -3209,8 +3210,8 @@ export function CreasePatternWebglCanvas({
           sequenceOverlayPoints(
             [parked],
             null,
-            readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK)
-          )
+            readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK),
+          ),
         );
       } else {
         renderer.setOverlayPoints(null);
@@ -3317,10 +3318,10 @@ export function CreasePatternWebglCanvas({
               anchor: readCssVarColor(
                 document.documentElement,
                 FOLD_ANGLE_ANCHOR_VAR,
-                FOLD_ANGLE_ANCHOR_FALLBACK
+                FOLD_ANGLE_ANCHOR_FALLBACK,
               ),
             },
-            armedCandidateRef.current
+            armedCandidateRef.current,
           ),
           // Creases that already exist and are merely being pointed at, in the
           // selection accent — they are not being drawn, so they must not take
@@ -3330,12 +3331,12 @@ export function CreasePatternWebglCanvas({
             color: readCssVarColor(
               document.documentElement,
               SELECTION_COLOR_VAR,
-              SELECTION_FALLBACK
+              SELECTION_FALLBACK,
             ),
           },
         ],
-        activeToolDashedPreview
-      )
+        activeToolDashedPreview,
+      ),
     );
     return true;
     // `currentTheme` is not read here, but it is what makes the DOM-resolved
@@ -3383,25 +3384,23 @@ export function CreasePatternWebglCanvas({
   // model-space by the panel and forwarded straight to the renderer's overlay layer.
   useEffect(() => {
     rendererRef.current?.setDiagnosticMarkers(
-      diagnosticMarkers.count > 0 ? diagnosticMarkers : null
+      diagnosticMarkers.count > 0 ? diagnosticMarkers : null,
     );
     renderNowRef.current();
   }, [diagnosticMarkers, rendererGeneration]);
   useEffect(() => {
     rendererRef.current?.setDiagnosticStrokes(
-      diagnosticStrokes.count > 0 ? diagnosticStrokes : null
+      diagnosticStrokes.count > 0 ? diagnosticStrokes : null,
     );
     renderNowRef.current();
   }, [diagnosticStrokes, rendererGeneration]);
   useEffect(() => {
-    rendererRef.current?.setDiagnosticWedges(
-      diagnosticWedges.count > 0 ? diagnosticWedges : null
-    );
+    rendererRef.current?.setDiagnosticWedges(diagnosticWedges.count > 0 ? diagnosticWedges : null);
     renderNowRef.current();
   }, [diagnosticWedges, rendererGeneration]);
   useEffect(() => {
     rendererRef.current?.setDiagnosticFills(
-      contradictionFaceFills.count > 0 ? contradictionFaceFills : null
+      contradictionFaceFills.count > 0 ? contradictionFaceFills : null,
     );
     renderNowRef.current();
   }, [contradictionFaceFills, rendererGeneration]);
@@ -3433,7 +3432,7 @@ export function CreasePatternWebglCanvas({
       move(camera, { width: canvas.width, height: canvas.height, dpr: 1 }, canvas);
       renderNowRef.current();
     },
-    []
+    [],
   );
 
   // The camera as methods, published for the panel's toolbar and shortcuts and for
@@ -3443,11 +3442,17 @@ export function CreasePatternWebglCanvas({
     const handle: CpCameraHandle = {
       zoomIn: () =>
         withCamera((camera, viewport) =>
-          zoomUserCameraAt(camera, viewport, viewport.width / 2, viewport.height / 2, ZOOM_STEP)
+          zoomUserCameraAt(camera, viewport, viewport.width / 2, viewport.height / 2, ZOOM_STEP),
         ),
       zoomOut: () =>
         withCamera((camera, viewport) =>
-          zoomUserCameraAt(camera, viewport, viewport.width / 2, viewport.height / 2, 1 / ZOOM_STEP)
+          zoomUserCameraAt(
+            camera,
+            viewport,
+            viewport.width / 2,
+            viewport.height / 2,
+            1 / ZOOM_STEP,
+          ),
         ),
       fit: () =>
         withCamera((camera, viewport) => {
@@ -3497,7 +3502,7 @@ export function CreasePatternWebglCanvas({
             },
             viewport,
             camera,
-            liveRef.current.contentBounds
+            liveRef.current.contentBounds,
           );
         }),
     };
@@ -3514,12 +3519,12 @@ export function CreasePatternWebglCanvas({
     const accent = readCssVarColor(
       document.documentElement,
       SELECTION_COLOR_VAR,
-      SELECTION_FALLBACK
+      SELECTION_FALLBACK,
     );
     renderer.setOverlayPoints(
       toolCommandPreviewPoints.length > 0
         ? sequenceOverlayPoints([], null, accent, toolCommandPreviewPoints)
-        : null
+        : null,
     );
     renderNowRef.current();
   }, [activeToolVoronoi, toolCommandPreviewPoints]);

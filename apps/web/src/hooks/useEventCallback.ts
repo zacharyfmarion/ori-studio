@@ -17,7 +17,7 @@ import { useCallback, useInsertionEffect, useRef } from 'react';
  * when to re-run. It is for event handlers, which is why it is named for them.
  */
 export function useEventCallback<Args extends unknown[], Result>(
-  handler: (...args: Args) => Result
+  handler: (...args: Args) => Result,
 ): (...args: Args) => Result {
   const ref = useRef<(...args: Args) => Result>(handler);
   // Written before any effect or layout effect can fire, so a handler invoked

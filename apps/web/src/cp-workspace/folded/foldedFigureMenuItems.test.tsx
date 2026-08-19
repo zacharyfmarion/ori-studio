@@ -10,7 +10,7 @@ import { foldedFigureMenuItems } from './foldedFigureMenuItems';
 const t = ((_key: string, fallback: string) => fallback) as unknown as TFunction;
 
 function makeFigure(
-  overrides: Partial<OristudioCpFoldedFigureEntry> = {}
+  overrides: Partial<OristudioCpFoldedFigureEntry> = {},
 ): OristudioCpFoldedFigureEntry {
   const status: OristudioCpFoldedFigureStatus = 'ready';
   return {

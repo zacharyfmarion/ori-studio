@@ -25,12 +25,15 @@ export function CpRendererUnavailable({ reason }: CpRendererUnavailableProps) {
   return (
     <div className="cp-panel__unopened" role="status">
       <span className="cp-panel__unopened-title">
-        {t('panels:creasePattern.rendererUnavailable', 'The crease-pattern canvas could not start.')}
+        {t(
+          'panels:creasePattern.rendererUnavailable',
+          'The crease-pattern canvas could not start.',
+        )}
       </span>
       <span className="cp-panel__unopened-detail">
         {t(
           'panels:creasePattern.rendererUnavailableHint',
-          'Ori Studio draws crease patterns with WebGL2, which this system did not provide. Updating your graphics drivers usually resolves it.'
+          'Ori Studio draws crease patterns with WebGL2, which this system did not provide. Updating your graphics drivers usually resolves it.',
         )}
       </span>
       {/* The underlying error. Without it this state is a dead end: the editor is

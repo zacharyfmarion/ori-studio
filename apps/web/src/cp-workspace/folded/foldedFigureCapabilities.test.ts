@@ -12,7 +12,7 @@ const t = ((key: string, second?: unknown) =>
   typeof second === 'string' ? second : key) as unknown as TFunction;
 
 function figure(
-  overrides: Partial<OristudioCpFoldedFigureEntry> = {}
+  overrides: Partial<OristudioCpFoldedFigureEntry> = {},
 ): OristudioCpFoldedFigureEntry {
   return {
     id: 'folded-1',
@@ -104,7 +104,7 @@ describe('foldedFigureCapabilities', () => {
     // stackings of the same paper is byte-identical.
     expect(FOLDED_FIGURE_STYLE_CHOICES).toContain('Transparent3');
     expect(foldedFigureCapabilities(spatialFigure).styleChoices).toEqual(
-      foldedFigureCapabilities(flatFigure).styleChoices
+      foldedFigureCapabilities(flatFigure).styleChoices,
     );
   });
 });
@@ -127,13 +127,13 @@ describe('buildFoldedFigureActions, gated', () => {
     expect(label(spatialActions)).not.toBe(label(flatActions));
     // Everything else a 3D figure genuinely has stays.
     expect(spatialActions.map((action) => action.id)).toEqual(
-      expect.arrayContaining(['display-style', 'another', 'duplicate', 'delete'])
+      expect.arrayContaining(['display-style', 'another', 'duplicate', 'delete']),
     );
   });
 
   it('offers a 3D figure the whole style list', () => {
     const choice = buildFoldedFigureActions(spatialFigure, deps()).find(
-      (action) => action.id === 'display-style'
+      (action) => action.id === 'display-style',
     );
     expect(choice?.kind).toBe('choice');
     if (choice?.kind !== 'choice') throw new Error('expected the display-style choice');

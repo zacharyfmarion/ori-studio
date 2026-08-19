@@ -83,8 +83,16 @@ vi.mock('./renderModel', () => ({
 const { useSimulatorRuntime } = await import('./useSimulatorRuntime');
 
 const FOLD = {
-  vertices_coords: [[0, 0], [1, 0], [0, 1]],
-  edges_vertices: [[0, 1], [1, 2], [2, 0]],
+  vertices_coords: [
+    [0, 0],
+    [1, 0],
+    [0, 1],
+  ],
+  edges_vertices: [
+    [0, 1],
+    [1, 2],
+    [2, 0],
+  ],
   edges_assignment: ['B', 'B', 'B'],
   faces_vertices: [[0, 1, 2]],
 } as unknown as FoldDocument;

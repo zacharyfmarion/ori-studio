@@ -8,8 +8,7 @@ import type {
   CpVertexRefinerOutputTensorNames,
 } from '../engine/cpDetectTypes';
 
-export const DEFAULT_CP_VERTEX_REFINER_MANIFEST_URL =
-  '/models/cp-vertex-refiner-v3/manifest.json';
+export const DEFAULT_CP_VERTEX_REFINER_MANIFEST_URL = '/models/cp-vertex-refiner-v3/manifest.json';
 
 export const CP_VERTEX_REFINER_OUTPUT_KEYS = [
   'vertex_heatmap',
@@ -32,12 +31,12 @@ export interface VertexRefinerTensorFactory {
 
 export async function fetchVertexRefinerModelManifest(
   manifestUrl = DEFAULT_CP_VERTEX_REFINER_MANIFEST_URL,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
 ): Promise<CpVertexRefinerModelManifest> {
   const response = await fetchImpl(manifestUrl);
   if (!response.ok) {
     throw new Error(
-      `Failed to load CP vertex refiner manifest: ${response.status} ${response.statusText}`
+      `Failed to load CP vertex refiner manifest: ${response.status} ${response.statusText}`,
     );
   }
   return parseVertexRefinerModelManifest(await response.text());
@@ -49,9 +48,7 @@ export function parseVertexRefinerModelManifest(text: string): CpVertexRefinerMo
   return manifest;
 }
 
-export function validateVertexRefinerModelManifest(
-  manifest: CpVertexRefinerModelManifest
-): void {
+export function validateVertexRefinerModelManifest(manifest: CpVertexRefinerModelManifest): void {
   if (manifest.schema !== 'oristudio/cp-vertex-refiner-model-manifest/v1') {
     throw new Error(`Unsupported CP vertex refiner manifest schema: ${manifest.schema}`);
   }
@@ -63,7 +60,7 @@ export function validateVertexRefinerModelManifest(
   }
   if (manifest.inference.model_version !== 'v3') {
     throw new Error(
-      `Unsupported CP vertex refiner model_version: ${manifest.inference.model_version}`
+      `Unsupported CP vertex refiner model_version: ${manifest.inference.model_version}`,
     );
   }
   if (manifest.inference.crop_size !== 96) {
@@ -71,7 +68,7 @@ export function validateVertexRefinerModelManifest(
   }
   if (manifest.inference.input_channels !== 11) {
     throw new Error(
-      `Unsupported CP vertex refiner input_channels: ${manifest.inference.input_channels}`
+      `Unsupported CP vertex refiner input_channels: ${manifest.inference.input_channels}`,
     );
   }
   for (const key of CP_VERTEX_REFINER_OUTPUT_KEYS) {
@@ -86,7 +83,7 @@ export async function runVertexRefinerInference(
   tensorFactory: VertexRefinerTensorFactory,
   cropTensor: Float32Array,
   manifest: CpVertexRefinerModelManifest,
-  runtime?: CpDetectRuntimeInfo
+  runtime?: CpDetectRuntimeInfo,
 ): Promise<CpVertexRefinerInferenceResult> {
   validateVertexRefinerModelManifest(manifest);
   const startedAt = performance.now();
@@ -95,7 +92,7 @@ export async function runVertexRefinerInference(
   const cropValues = inputChannels * cropSize * cropSize;
   if (cropTensor.length % cropValues !== 0) {
     throw new Error(
-      `Vertex refiner crop tensor length ${cropTensor.length} is not divisible by ${cropValues}`
+      `Vertex refiner crop tensor length ${cropTensor.length} is not divisible by ${cropValues}`,
     );
   }
   const cropCount = cropTensor.length / cropValues;
@@ -139,7 +136,7 @@ export function vertexRefinerOutputNames(outputs: CpVertexRefinerOutputTensorNam
 
 export function collectVertexRefinerOutputs(
   rawOutputs: Record<string, unknown>,
-  outputNames: CpVertexRefinerOutputTensorNames
+  outputNames: CpVertexRefinerOutputTensorNames,
 ): CpVertexRefinerOutputs {
   const entries = CP_VERTEX_REFINER_OUTPUT_KEYS.map((key) => {
     const tensorName = outputNames[key];

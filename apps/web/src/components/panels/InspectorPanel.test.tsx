@@ -24,7 +24,7 @@ afterEach(() => {
 
 function renderInspector(
   state: Partial<ReturnType<typeof useWorkspaceStore.getState>> = {},
-  design: Partial<TreemakerDesignState> = {}
+  design: Partial<TreemakerDesignState> = {},
 ) {
   useWorkspaceStore.setState(
     {
@@ -32,7 +32,7 @@ function renderInspector(
       ...singleTreemakerDesignTab({ project: createSampleProject(), ...design }),
       ...state,
     },
-    true
+    true,
   );
   container = document.createElement('div');
   document.body.appendChild(container);

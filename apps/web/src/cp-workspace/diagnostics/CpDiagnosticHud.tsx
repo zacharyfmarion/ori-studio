@@ -110,7 +110,7 @@ export function CpDiagnosticHud() {
       const id = row?.dataset.diagnosticId;
       if (id) selectDiagnostic(id);
     },
-    [selectDiagnostic]
+    [selectDiagnostic],
   );
 
   // React Compiler cannot memoize a component that uses `useVirtualizer`, so

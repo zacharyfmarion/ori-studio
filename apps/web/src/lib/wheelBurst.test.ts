@@ -67,7 +67,7 @@ describe('forwardWheel', () => {
 
     forwardWheel(
       b,
-      new WheelEvent('wheel', { deltaX: 3, deltaY: -7, ctrlKey: true, bubbles: true })
+      new WheelEvent('wheel', { deltaX: 3, deltaY: -7, ctrlKey: true, bubbles: true }),
     );
 
     expect(seen).toHaveLength(1);

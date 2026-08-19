@@ -14,7 +14,7 @@ import { SHARE_CARD_HEIGHT, SHARE_CARD_WIDTH } from './creaseExport';
  * `node scripts/generate-og-default.mjs` if this fails.
  */
 const CARD = readFileSync(
-  join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'public', 'og-default.png')
+  join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'public', 'og-default.png'),
 );
 
 describe('og-default.png', () => {

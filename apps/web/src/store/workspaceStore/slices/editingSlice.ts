@@ -1,4 +1,9 @@
-import { patchTreemakerDesign, selectProject, selectSelection, selectSymmetryAuthoringPairs } from '../designTabs';
+import {
+  patchTreemakerDesign,
+  selectProject,
+  selectSelection,
+  selectSymmetryAuthoringPairs,
+} from '../designTabs';
 import type { TreeEdit, TreeSnapshot } from '../../../engine/types';
 import { projectFromSnapshot } from '../../../engine/snapshotMapper';
 import {
@@ -69,19 +74,25 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
       const { api, treeHandle } = await requireActiveTree();
       const report = await api.applyEdit(treeHandle, edit);
       set({
-      ...patchTreemakerDesign(get(), {
-        project: projectFromSnapshot(report.snapshot, selectProject(get()).title),
-        selection:
-          report.created_node !== undefined || report.created_edge !== undefined
-            ? nextSelectionForEdit(edit, report.snapshot, report.created_node, report.created_edge)
-            : selectionBeforeEdit,
-        lastOptimization: null
-      }),
+        ...patchTreemakerDesign(get(), {
+          project: projectFromSnapshot(report.snapshot, selectProject(get()).title),
+          selection:
+            report.created_node !== undefined || report.created_edge !== undefined
+              ? nextSelectionForEdit(
+                  edit,
+                  report.snapshot,
+                  report.created_node,
+                  report.created_edge,
+                )
+              : selectionBeforeEdit,
+          lastOptimization: null,
+        }),
         status: statusAfterEdit(report.snapshot),
         dirty: true,
         error: null,
         ...staleTreeDerivedArtifacts(),
-        projectMessage: null});
+        projectMessage: null,
+      });
       get().commitHistoryCheckpoint(checkpoint, label);
     } catch (error) {
       set({ status: 'error', error: engineError(error) });
@@ -123,20 +134,25 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
           edge_length: connectTo === undefined ? undefined : 1,
         });
         set({
-      ...patchTreemakerDesign(get(), {
-          project: projectFromSnapshot(report.snapshot, selectProject(get(), designId).title),
-          selection: nextSelectionForEdit(
-            { type: 'add_node', loc, connect_to: connectTo },
-            report.snapshot,
-            report.created_node,
-            report.created_edge
+          ...patchTreemakerDesign(
+            get(),
+            {
+              project: projectFromSnapshot(report.snapshot, selectProject(get(), designId).title),
+              selection: nextSelectionForEdit(
+                { type: 'add_node', loc, connect_to: connectTo },
+                report.snapshot,
+                report.created_node,
+                report.created_edge,
+              ),
+              lastOptimization: null,
+            },
+            designId,
           ),
-          lastOptimization: null
-      }, designId),
           status: statusAfterEdit(report.snapshot),
           dirty: true,
           error: null,
-          ...staleTreeDerivedArtifacts()});
+          ...staleTreeDerivedArtifacts(),
+        });
         get().commitHistoryCheckpoint(checkpoint, 'Add node');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
@@ -160,12 +176,15 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         const { api, treeHandle } = await requireActiveTree();
         const axis = symmetryAxisForProject(project);
         const snapped = snapPointToSymmetryAxis(loc, axis);
-        const parent = connectTo === undefined ? null : project.nodes.find((node) => node.id === connectTo);
+        const parent =
+          connectTo === undefined ? null : project.nodes.find((node) => node.id === connectTo);
         const parentSide = parent ? symmetrySide(parent.loc, axis) : 0;
         const parentPair = parent
           ? findMirrorNodeId(project, selectSymmetryAuthoringPairs(get(), designId), parent.id)
           : null;
-        const shouldMirror = Boolean(parent && !snapped.snapped && (parentSide === 0 || parentPair));
+        const shouldMirror = Boolean(
+          parent && !snapped.snapped && (parentSide === 0 || parentPair),
+        );
         let snapshot: TreeSnapshot | null = null;
         let selection = selectSelection(get(), designId);
         let authoringPairs = selectSymmetryAuthoringPairs(get(), designId);
@@ -184,12 +203,12 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
           { type: 'add_node', loc: snapped.point, connect_to: connectTo },
           snapshot,
           firstReport.created_node,
-          firstReport.created_edge
+          firstReport.created_edge,
         );
 
         if (shouldMirror && firstReport.created_node) {
           const mirroredLoc = reflectPointAcrossSymmetryAxis(snapped.point, axis);
-          const mirroredParent = parentSide === 0 ? connectTo : parentPair ?? undefined;
+          const mirroredParent = parentSide === 0 ? connectTo : (parentPair ?? undefined);
           const secondReport = await api.applyEdit(treeHandle, {
             type: 'add_node',
             loc: mirroredLoc,
@@ -202,7 +221,7 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
             authoringPairs = addSymmetryAuthoringPair(
               authoringPairs,
               firstReport.created_node,
-              secondReport.created_node
+              secondReport.created_node,
             );
             const conditionReport = await api.applyEdit(treeHandle, {
               type: 'add_condition',
@@ -229,17 +248,26 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         const addedPair = selection.kind === 'multi' && selection.nodes.length === 2;
         const nextProject = projectFromSnapshot(snapshot, selectProject(get(), designId).title);
         set({
-      ...patchTreemakerDesign(get(), {
-          project: nextProject,
-          symmetryAuthoringPairs: filterSymmetryAuthoringPairs(nextProject, authoringPairs),
-          lastOptimization: null,
-          selection,
-      }, designId),
+          ...patchTreemakerDesign(
+            get(),
+            {
+              project: nextProject,
+              symmetryAuthoringPairs: filterSymmetryAuthoringPairs(nextProject, authoringPairs),
+              lastOptimization: null,
+              selection,
+            },
+            designId,
+          ),
           status: statusAfterEdit(snapshot),
           dirty: true,
           error: null,
           ...staleTreeDerivedArtifacts(),
-          projectMessage: addedPair ? 'Added mirrored branch' : snapped.snapped ? 'Added axial node' : null});
+          projectMessage: addedPair
+            ? 'Added mirrored branch'
+            : snapped.snapped
+              ? 'Added axial node'
+              : null,
+        });
         get().commitHistoryCheckpoint(checkpoint, addedPair ? 'Add mirrored branch' : 'Add node');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
@@ -259,15 +287,20 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         const edit: TreeEdit = { type: 'move_node', id, loc };
         const report = await api.applyEdit(treeHandle, edit);
         set({
-      ...patchTreemakerDesign(get(), {
-          project: projectFromSnapshot(report.snapshot, selectProject(get(), designId).title),
-          selection: nextSelectionForEdit(edit, report.snapshot),
-          lastOptimization: null
-      }, designId),
+          ...patchTreemakerDesign(
+            get(),
+            {
+              project: projectFromSnapshot(report.snapshot, selectProject(get(), designId).title),
+              selection: nextSelectionForEdit(edit, report.snapshot),
+              lastOptimization: null,
+            },
+            designId,
+          ),
           status: statusAfterEdit(report.snapshot),
           dirty: true,
           error: null,
-          ...staleTreeDerivedArtifacts()});
+          ...staleTreeDerivedArtifacts(),
+        });
         get().commitHistoryCheckpoint(checkpoint, 'Move node');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
@@ -301,15 +334,23 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
           loc: reflectPointAcrossSymmetryAxis(loc, axis),
         });
         set({
-      ...patchTreemakerDesign(get(), {
-          project: projectFromSnapshot(pairedReport.snapshot, selectProject(get(), designId).title),
-          selection: nextSelectionForEdit(edit, primaryReport.snapshot),
-          lastOptimization: null
-      }, designId),
+          ...patchTreemakerDesign(
+            get(),
+            {
+              project: projectFromSnapshot(
+                pairedReport.snapshot,
+                selectProject(get(), designId).title,
+              ),
+              selection: nextSelectionForEdit(edit, primaryReport.snapshot),
+              lastOptimization: null,
+            },
+            designId,
+          ),
           status: statusAfterEdit(pairedReport.snapshot),
           dirty: true,
           error: null,
-          ...staleTreeDerivedArtifacts()});
+          ...staleTreeDerivedArtifacts(),
+        });
         get().commitHistoryCheckpoint(checkpoint, 'Move mirrored nodes');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
@@ -334,17 +375,22 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
           length: 1,
         });
         set({
-      ...patchTreemakerDesign(get(), {
-          project: projectFromSnapshot(report.snapshot, selectProject(get(), designId).title),
-          selection: report.created_edge
-            ? { kind: 'edge', id: report.created_edge }
-            : { kind: 'node', id: node2 },
-          lastOptimization: null
-      }, designId),
+          ...patchTreemakerDesign(
+            get(),
+            {
+              project: projectFromSnapshot(report.snapshot, selectProject(get(), designId).title),
+              selection: report.created_edge
+                ? { kind: 'edge', id: report.created_edge }
+                : { kind: 'node', id: node2 },
+              lastOptimization: null,
+            },
+            designId,
+          ),
           status: statusAfterEdit(report.snapshot),
           dirty: true,
           error: null,
-          ...staleTreeDerivedArtifacts()});
+          ...staleTreeDerivedArtifacts(),
+        });
         get().commitHistoryCheckpoint(checkpoint, 'Add edge');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
@@ -364,13 +410,18 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         const edit: TreeEdit = { type: 'update_node_label', id, label };
         const report = await api.applyEdit(treeHandle, edit);
         set({
-      ...patchTreemakerDesign(get(), {
-          project: projectFromSnapshot(report.snapshot, selectProject(get(), designId).title),
-          selection: nextSelectionForEdit(edit, report.snapshot)
-      }, designId),
+          ...patchTreemakerDesign(
+            get(),
+            {
+              project: projectFromSnapshot(report.snapshot, selectProject(get(), designId).title),
+              selection: nextSelectionForEdit(edit, report.snapshot),
+            },
+            designId,
+          ),
           dirty: true,
           error: null,
-          ...staleTreeDerivedArtifacts()});
+          ...staleTreeDerivedArtifacts(),
+        });
         get().commitHistoryCheckpoint(checkpoint, 'Rename node');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
@@ -389,7 +440,11 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         const { api, treeHandle } = await requireActiveTree();
         const edit: TreeEdit = { type: 'update_edge', id, ...update };
         const report = await api.applyEdit(treeHandle, edit);
-        const mirrorEdge = findMirrorEdgeId(selectProject(get(), designId), selectSymmetryAuthoringPairs(get(), designId), id);
+        const mirrorEdge = findMirrorEdgeId(
+          selectProject(get(), designId),
+          selectSymmetryAuthoringPairs(get(), designId),
+          id,
+        );
         const mirrorUpdate = {
           length: update.length,
           stiffness: update.stiffness,
@@ -405,16 +460,27 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
             })
           : report;
         set({
-      ...patchTreemakerDesign(get(), {
-          project: projectFromSnapshot(finalReport.snapshot, selectProject(get(), designId).title),
-          selection: nextSelectionForEdit(edit, report.snapshot),
-          lastOptimization: null
-      }, designId),
+          ...patchTreemakerDesign(
+            get(),
+            {
+              project: projectFromSnapshot(
+                finalReport.snapshot,
+                selectProject(get(), designId).title,
+              ),
+              selection: nextSelectionForEdit(edit, report.snapshot),
+              lastOptimization: null,
+            },
+            designId,
+          ),
           status: statusAfterEdit(finalReport.snapshot),
           dirty: true,
           error: null,
-          ...staleTreeDerivedArtifacts()});
-        get().commitHistoryCheckpoint(checkpoint, shouldUpdateMirror ? 'Edit mirrored edges' : 'Edit edge');
+          ...staleTreeDerivedArtifacts(),
+        });
+        get().commitHistoryCheckpoint(
+          checkpoint,
+          shouldUpdateMirror ? 'Edit mirrored edges' : 'Edit edge',
+        );
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
       }
@@ -456,7 +522,10 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         set({ projectMessage: 'Select one edge to renormalize' });
         return;
       }
-      await applyCommandEdit({ type: 'renormalize_to_edge', edge: edges[0] }, 'Renormalize to edge');
+      await applyCommandEdit(
+        { type: 'renormalize_to_edge', edge: edges[0] },
+        'Renormalize to edge',
+      );
     },
 
     renormalizeToUnitScale: async () => {
@@ -521,7 +590,10 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         set({ projectMessage: 'Select one generated facet before choosing a stub polygon' });
         return;
       }
-      await applyCommandEdit({ type: 'add_largest_stub_for_poly', poly: facets[0] }, 'Add largest polygon stub');
+      await applyCommandEdit(
+        { type: 'add_largest_stub_for_poly', poly: facets[0] },
+        'Add largest polygon stub',
+      );
     },
 
     triangulateTree: async () => {
@@ -545,16 +617,21 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         if (selectionCoversAllNodes(selection, selectProject(get(), designId))) {
           const snapshot = await createBlankTree(api);
           set({
-      ...patchTreemakerDesign(get(), {
-            project: projectFromSnapshot(snapshot, selectProject(get(), designId).title),
-            selection: { kind: 'tree' },
-            lastOptimization: null
-      }, designId),
+            ...patchTreemakerDesign(
+              get(),
+              {
+                project: projectFromSnapshot(snapshot, selectProject(get(), designId).title),
+                selection: { kind: 'tree' },
+                lastOptimization: null,
+              },
+              designId,
+            ),
             status: statusAfterEdit(snapshot),
             dirty: true,
             error: null,
             ...staleTreeDerivedArtifacts(),
-            projectMessage: 'Cleared design'});
+            projectMessage: 'Cleared design',
+          });
           get().commitHistoryCheckpoint(checkpoint, 'Clear design');
           return;
         }
@@ -570,15 +647,20 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         }
         if (!snapshot) return;
         set({
-      ...patchTreemakerDesign(get(), {
-          project: projectFromSnapshot(snapshot, selectProject(get(), designId).title),
-          selection: { kind: 'tree' },
-          lastOptimization: null
-      }, designId),
+          ...patchTreemakerDesign(
+            get(),
+            {
+              project: projectFromSnapshot(snapshot, selectProject(get(), designId).title),
+              selection: { kind: 'tree' },
+              lastOptimization: null,
+            },
+            designId,
+          ),
           status: statusAfterEdit(snapshot),
           dirty: true,
           error: null,
-          ...staleTreeDerivedArtifacts()});
+          ...staleTreeDerivedArtifacts(),
+        });
         get().commitHistoryCheckpoint(checkpoint, 'Delete selection');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
@@ -586,35 +668,43 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
     },
 
     select: (selection) => set(patchTreemakerDesign(get(), { selection })),
-    selectAll: () => set({
-      ...patchTreemakerDesign(get(), { selection: selectEverything(selectProject(get())) 
-      }),}),
-    selectNone: () => set({
-      ...patchTreemakerDesign(get(), { selection: { kind: 'tree' } 
-      }),}),
+    selectAll: () =>
+      set({
+        ...patchTreemakerDesign(get(), { selection: selectEverything(selectProject(get())) }),
+      }),
+    selectNone: () =>
+      set({
+        ...patchTreemakerDesign(get(), { selection: { kind: 'tree' } }),
+      }),
     selectByIndex: (kind, id) => {
       const next = selectionByIndex(selectProject(get()), kind, id);
       set({
-      ...patchTreemakerDesign(get(), {
-        selection: next
-      }),
-        projectMessage: next.kind === 'tree' ? `No ${kind} ${id}` : null});
+        ...patchTreemakerDesign(get(), {
+          selection: next,
+        }),
+        projectMessage: next.kind === 'tree' ? `No ${kind} ${id}` : null,
+      });
     },
     selectMovableParts: () => {
       const next = movablePartSelection(selectProject(get()));
       set({
-      ...patchTreemakerDesign(get(), {
-        selection: next
-      }),
-        projectMessage: next.kind === 'tree' ? 'No movable parts' : null});
+        ...patchTreemakerDesign(get(), {
+          selection: next,
+        }),
+        projectMessage: next.kind === 'tree' ? 'No movable parts' : null,
+      });
     },
     selectCorridorFacets: () => {
-      const next = corridorFacetSelection(selectProject(get()), selectedEdgeIds(selectSelection(get())));
+      const next = corridorFacetSelection(
+        selectProject(get()),
+        selectedEdgeIds(selectSelection(get())),
+      );
       set({
-      ...patchTreemakerDesign(get(), {
-        selection: next
-      }),
-        projectMessage: next.kind === 'tree' ? 'No corridor facets for selected edges' : null});
+        ...patchTreemakerDesign(get(), {
+          selection: next,
+        }),
+        projectMessage: next.kind === 'tree' ? 'No corridor facets for selected edges' : null,
+      });
     },
     selectPathBetweenSelectedNodes: () => {
       const [a, b] = selectedNodeIds(selectSelection(get()));
@@ -622,14 +712,18 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
       const path = selectProject(get()).paths.find(
         (candidate) =>
           (candidate.nodes[0] === a && candidate.nodes[1] === b) ||
-          (candidate.nodes[0] === b && candidate.nodes[1] === a)
+          (candidate.nodes[0] === b && candidate.nodes[1] === a),
       );
-      if (path) set({
-      ...patchTreemakerDesign(get(), { selection: { kind: 'path', id: path.id } 
-      }),});
+      if (path)
+        set({
+          ...patchTreemakerDesign(get(), { selection: { kind: 'path', id: path.id } }),
+        });
     },
-    setToolMode: (toolMode) => set({
-      ...patchTreemakerDesign(get(), { toolMode: !get().importedCreasePattern ? toolMode : 'select' 
-      }),}),
+    setToolMode: (toolMode) =>
+      set({
+        ...patchTreemakerDesign(get(), {
+          toolMode: !get().importedCreasePattern ? toolMode : 'select',
+        }),
+      }),
   };
 };

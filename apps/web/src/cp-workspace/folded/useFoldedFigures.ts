@@ -37,11 +37,7 @@ import {
   foldedFigureOrbitChanged,
   foldedFigureOrbitClaimsPress,
 } from './foldedFigureOrbitGesture';
-import {
-  clearFolded3dOrbit,
-  getFolded3dOrbit,
-  publishFolded3dOrbit,
-} from './folded3dRuntime';
+import { clearFolded3dOrbit, getFolded3dOrbit, publishFolded3dOrbit } from './folded3dRuntime';
 import { reproject3dFigureAt } from './folded3dReproject';
 import { useFolded3dRehydration } from './useFolded3dRehydration';
 import type { Vec2 } from '../annotations/annotationTransform';
@@ -122,50 +118,50 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
   const { t } = useTranslation();
   const oristudioCpFoldedFigures = useWorkspaceStore((state) => state.oristudioCpFoldedFigures);
   const oristudioCpActiveFoldedFigureId = useWorkspaceStore(
-    (state) => state.oristudioCpActiveFoldedFigureId
+    (state) => state.oristudioCpActiveFoldedFigureId,
   );
   const oristudioCpFocusedFoldedFigureId = useWorkspaceStore(
-    (state) => state.oristudioCpFocusedFoldedFigureId
+    (state) => state.oristudioCpFocusedFoldedFigureId,
   );
   const focusOristudioCpFoldedFigure = useWorkspaceStore(
-    (state) => state.focusOristudioCpFoldedFigure
+    (state) => state.focusOristudioCpFoldedFigure,
   );
   const recordFoldedFigureHistory = useWorkspaceStore((state) => state.recordFoldedFigureHistory);
   const foldOristudioCpDocument = useWorkspaceStore((state) => state.foldOristudioCpDocument);
   const foldAnotherOristudioCpFigure = useWorkspaceStore(
-    (state) => state.foldAnotherOristudioCpFigure
+    (state) => state.foldAnotherOristudioCpFigure,
   );
   const setOristudioCpFoldedFigurePlacement = useWorkspaceStore(
-    (state) => state.setOristudioCpFoldedFigurePlacement
+    (state) => state.setOristudioCpFoldedFigurePlacement,
   );
   const setOristudioCpFoldedFigureDisplayStyle = useWorkspaceStore(
-    (state) => state.setOristudioCpFoldedFigureDisplayStyle
+    (state) => state.setOristudioCpFoldedFigureDisplayStyle,
   );
   const setOristudioCpFolded3dCamera = useWorkspaceStore(
-    (state) => state.setOristudioCpFolded3dCamera
+    (state) => state.setOristudioCpFolded3dCamera,
   );
   const updateOristudioCpFoldedFigureModel = useWorkspaceStore(
-    (state) => state.updateOristudioCpFoldedFigureModel
+    (state) => state.updateOristudioCpFoldedFigureModel,
   );
   const duplicateOristudioCpFoldedFigure = useWorkspaceStore(
-    (state) => state.duplicateOristudioCpFoldedFigure
+    (state) => state.duplicateOristudioCpFoldedFigure,
   );
   const refoldOristudioCpFoldedFigure = useWorkspaceStore(
-    (state) => state.refoldOristudioCpFoldedFigure
+    (state) => state.refoldOristudioCpFoldedFigure,
   );
   const exportOristudioCpFoldedFigure = useWorkspaceStore(
-    (state) => state.exportOristudioCpFoldedFigure
+    (state) => state.exportOristudioCpFoldedFigure,
   );
   const deleteOristudioCpFoldedFigure = useWorkspaceStore(
-    (state) => state.deleteOristudioCpFoldedFigure
+    (state) => state.deleteOristudioCpFoldedFigure,
   );
   const setOristudioCpViewportOption = useWorkspaceStore(
-    (state) => state.setOristudioCpViewportOption
+    (state) => state.setOristudioCpViewportOption,
   );
   const requestOristudioCpAction = useWorkspaceStore((state) => state.requestOristudioCpAction);
   const setOristudioCpSelection = useWorkspaceStore((state) => state.setOristudioCpSelection);
   const simulateOristudioCpCreaseRegion = useWorkspaceStore(
-    (state) => state.simulateOristudioCpCreaseRegion
+    (state) => state.simulateOristudioCpCreaseRegion,
   );
   const canFoldSelectedModel = selectedFoldLineIds.length > 0;
 
@@ -181,18 +177,18 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
         .reverse()
         .find(
           (figure) =>
-            isFoldedFromCurrentCpSourceKind(figure.sourceKind) && isFoldedFigureReady(figure)
+            isFoldedFromCurrentCpSourceKind(figure.sourceKind) && isFoldedFigureReady(figure),
         ) ??
       null,
-    [oristudioCpActiveFoldedFigureId, oristudioCpFoldedFigures]
+    [oristudioCpActiveFoldedFigureId, oristudioCpFoldedFigures],
   );
 
   const generatedFoldedFigures = useMemo(
     () =>
       oristudioCpFoldedFigures.filter((figure) =>
-        isFoldedFromCurrentCpSourceKind(figure.sourceKind)
+        isFoldedFromCurrentCpSourceKind(figure.sourceKind),
       ),
-    [oristudioCpFoldedFigures]
+    [oristudioCpFoldedFigures],
   );
 
   /**
@@ -207,7 +203,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     () =>
       generatedFoldedFigures.find((figure) => figure.id === oristudioCpActiveFoldedFigureId) ??
       null,
-    [generatedFoldedFigures, oristudioCpActiveFoldedFigureId]
+    [generatedFoldedFigures, oristudioCpActiveFoldedFigureId],
   );
 
   /**
@@ -274,7 +270,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       }
       recordFoldedFigureHistory([...previous], label, previousActiveId);
     },
-    [recordFoldedFigureHistory]
+    [recordFoldedFigureHistory],
   );
 
   /**
@@ -287,7 +283,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       beginFoldedFigureGesture();
       void Promise.resolve(action()).finally(() => commitFoldedFigureGesture(label));
     },
-    [beginFoldedFigureGesture, commitFoldedFigureGesture]
+    [beginFoldedFigureGesture, commitFoldedFigureGesture],
   );
 
   const foldedGestureLabel = useCallback(
@@ -302,7 +298,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
           return t('panels:creasePattern.resizeFoldedForm', 'Resize folded form');
       }
     },
-    [t]
+    [t],
   );
 
   // Folded figures are the third canvas-object kind. They keep their own
@@ -313,7 +309,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       generatedFoldedFigures
         .map(foldedFigureAsTransformable)
         .filter((object): object is TransformableCanvasObject => object !== null),
-    [generatedFoldedFigures]
+    [generatedFoldedFigures],
   );
 
   /**
@@ -330,12 +326,12 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
    */
   const folded3dWindowFigureIds = useMemo(
     () => folded3dWindowIds(generatedFoldedFigures, { gpuAvailable: webglRenderSupported() }),
-    [generatedFoldedFigures]
+    [generatedFoldedFigures],
   );
 
   const folded3dWindowFigures = useMemo(
     () => generatedFoldedFigures.filter((figure) => folded3dWindowFigureIds.has(figure.id)),
-    [generatedFoldedFigures, folded3dWindowFigureIds]
+    [generatedFoldedFigures, folded3dWindowFigureIds],
   );
 
   /**
@@ -349,7 +345,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
    */
   const foldedInertBodyIds = useMemo(
     () => new Set(oristudioCpFocusedFoldedFigureId ? [oristudioCpFocusedFoldedFigureId] : []),
-    [oristudioCpFocusedFoldedFigureId]
+    [oristudioCpFocusedFoldedFigureId],
   );
 
   /** The focused figure's transformable box, for the canvas' hit test. */
@@ -382,7 +378,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       useWorkspaceStore
         .getState()
         .oristudioCpFoldedFigures.find((candidate) => candidate.id === id),
-    []
+    [],
   );
 
   /**
@@ -397,9 +393,9 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
         oristudioCpFocusedFoldedFigureId,
         oristudioCpFocusedFoldedFigureId,
         focusedFoldedBox,
-        point
+        point,
       ),
-    [focusedFoldedBox, oristudioCpFocusedFoldedFigureId]
+    [focusedFoldedBox, oristudioCpFocusedFoldedFigureId],
   );
 
   /**
@@ -427,7 +423,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       };
       return true;
     },
-    [figureById, oristudioCpFocusedFoldedFigureId]
+    [figureById, oristudioCpFocusedFoldedFigureId],
   );
 
   /**
@@ -461,12 +457,10 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       // as "keep the picture you have".
       publishFolded3dOrbit(session.id, {
         camera: next,
-        snapshot: session.windowed
-          ? null
-          : reproject3dFigureAt(figure, figure.displayStyle, next),
+        snapshot: session.windowed ? null : reproject3dFigureAt(figure, figure.displayStyle, next),
       });
     },
-    [beginFoldedFigureGesture, figureById]
+    [beginFoldedFigureGesture, figureById],
   );
 
   /**
@@ -509,7 +503,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       orbitDragRef.current = null;
       if (session) clearFolded3dOrbit(session.id);
     },
-    []
+    [],
   );
 
   /**
@@ -563,9 +557,9 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
         oristudioCpFocusedFoldedFigureId,
         oristudioCpFocusedFoldedFigureId,
         focusedFoldedBox,
-        point
+        point,
       ),
-    [focusedFoldedBox, folded3dWindowFigureIds, oristudioCpFocusedFoldedFigureId]
+    [focusedFoldedBox, folded3dWindowFigureIds, oristudioCpFocusedFoldedFigureId],
   );
 
   /**
@@ -601,7 +595,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       // from the camera alone.
       publishFolded3dOrbit(id, { camera: { ...before, zoom }, snapshot: null });
     },
-    [beginFoldedFigureGesture, figureById, oristudioCpFocusedFoldedFigureId]
+    [beginFoldedFigureGesture, figureById, oristudioCpFocusedFoldedFigureId],
   );
 
   /** A burst that never went quiet, because the surface went away. */
@@ -627,7 +621,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       oristudioCpFocusedFoldedFigureId,
       zoomClaimsWheel,
       zoomFocusedFigure,
-    ]
+    ],
   );
 
   const handleFoldedFigureBoxUpdate = useCallback(
@@ -655,7 +649,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       if (patch.rotation !== undefined) next.rotation = patch.rotation;
       setOristudioCpFoldedFigurePlacement(id, next);
     },
-    [setOristudioCpFoldedFigurePlacement]
+    [setOristudioCpFoldedFigurePlacement],
   );
 
   const handleFoldModel = useCallback(() => {
@@ -664,7 +658,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       foldOristudioCpDocument({
         startingFaceId: FOLD_STARTING_FACE_ID,
         lineIds: selectedFoldLineIds,
-      })
+      }),
     );
   }, [
     canFoldSelectedModel,
@@ -680,10 +674,10 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       const id = activeFoldedFigure.id;
       runFoldedFigureAction(
         t('panels:creasePattern.changeFoldedDisplayStyle', 'Change folded display style'),
-        () => setOristudioCpFoldedFigureDisplayStyle(id, displayStyle)
+        () => setOristudioCpFoldedFigureDisplayStyle(id, displayStyle),
       );
     },
-    [activeFoldedFigure, setOristudioCpFoldedFigureDisplayStyle, runFoldedFigureAction, t]
+    [activeFoldedFigure, setOristudioCpFoldedFigureDisplayStyle, runFoldedFigureAction, t],
   );
 
   /**
@@ -703,7 +697,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       if (!scope) {
         runFoldedFigureAction(
           t('panels:creasePattern.changeFoldedModel', 'Change folded model'),
-          () => updateOristudioCpFoldedFigureModel(id, update)
+          () => updateOristudioCpFoldedFigureModel(id, update),
         );
         return;
       }
@@ -719,7 +713,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       runFoldedFigureAction,
       beginFoldedFigureGesture,
       t,
-    ]
+    ],
   );
 
   const endFoldedModelGesture = useCallback(
@@ -728,7 +722,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       foldedModelGestureScopeRef.current = null;
       commitFoldedFigureGesture(label);
     },
-    [commitFoldedFigureGesture]
+    [commitFoldedFigureGesture],
   );
 
   const handleDuplicateFoldedFigure = useCallback(() => {
@@ -736,7 +730,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     const id = activeFoldedFigure.id;
     runFoldedFigureAction(
       t('panels:creasePattern.duplicateFoldedModelAction', 'Duplicate folded model'),
-      () => duplicateOristudioCpFoldedFigure(id)
+      () => duplicateOristudioCpFoldedFigure(id),
     );
   }, [activeFoldedFigure, duplicateOristudioCpFoldedFigure, runFoldedFigureAction, t]);
 
@@ -747,10 +741,10 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       if (!id) return;
       runFoldedFigureAction(
         t('panels:creasePattern.deleteFoldedModelAction', 'Delete folded model'),
-        () => deleteOristudioCpFoldedFigure(id)
+        () => deleteOristudioCpFoldedFigure(id),
       );
     },
-    [activeFoldedFigure, deleteOristudioCpFoldedFigure, runFoldedFigureAction, t]
+    [activeFoldedFigure, deleteOristudioCpFoldedFigure, runFoldedFigureAction, t],
   );
 
   /**
@@ -778,13 +772,12 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
               // a property of the model and not of the current look at it.
               // "Clear upright" is the verb that discards it, and it says so.
               orient: liveFigureCamera(figure).orient,
-            })
+            }),
         ),
       setUpright: (figure) => {
         runFoldedFigureAction(
           t('panels:creasePattern.setFoldedModelUpright', 'Set folded model upright'),
-          () =>
-            setOristudioCpFolded3dCamera(figure.id, setUprightView(liveFigureCamera(figure)))
+          () => setOristudioCpFolded3dCamera(figure.id, setUprightView(liveFigureCamera(figure))),
         );
         announceUprightSet(t);
       },
@@ -793,42 +786,39 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
           ? runFoldedFigureAction(
               t('panels:creasePattern.viewFoldedModelOtherSide', 'View from the other side'),
               () =>
-                setOristudioCpFolded3dCamera(
-                  figure.id,
-                  foldedFigureOtherSideCamera(figure.camera)
-                )
+                setOristudioCpFolded3dCamera(figure.id, foldedFigureOtherSideCamera(figure.camera)),
             )
           : runFoldedFigureAction(
               t('panels:creasePattern.flipFoldedModel', 'Flip folded model'),
               () =>
                 updateOristudioCpFoldedFigureModel(figure.id, {
                   state: foldedFigureFlipState(figure),
-                })
+                }),
             ),
       setDisplayStyle: (figure, style) =>
         runFoldedFigureAction(
           t('panels:creasePattern.changeFoldedDisplayStyle', 'Change folded display style'),
-          () => setOristudioCpFoldedFigureDisplayStyle(figure.id, style)
+          () => setOristudioCpFoldedFigureDisplayStyle(figure.id, style),
         ),
       foldAnother: (figure) =>
         runFoldedFigureAction(
           t('panels:creasePattern.anotherSolutionAction', 'Show another solution'),
-          () => foldAnotherOristudioCpFigure(figure.id)
+          () => foldAnotherOristudioCpFigure(figure.id),
         ),
       duplicate: (figure) =>
         runFoldedFigureAction(
           t('panels:creasePattern.duplicateFoldedModelAction', 'Duplicate folded model'),
-          () => duplicateOristudioCpFoldedFigure(figure.id)
+          () => duplicateOristudioCpFoldedFigure(figure.id),
         ),
       remove: (figure) =>
         runFoldedFigureAction(
           t('panels:creasePattern.deleteFoldedModelAction', 'Delete folded model'),
-          () => deleteOristudioCpFoldedFigure(figure.id)
+          () => deleteOristudioCpFoldedFigure(figure.id),
         ),
       refold: (figure) =>
         runFoldedFigureAction(
           t('panels:creasePattern.refoldFoldedModelAction', 'Refold folded model'),
-          () => refoldOristudioCpFoldedFigure(figure.id)
+          () => refoldOristudioCpFoldedFigure(figure.id),
         ),
       // Derived, not stamped: an edit outside a figure's source region leaves it
       // alone, which is the whole point of porting Oriedita's box + content
@@ -896,7 +886,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       simulateOristudioCpCreaseRegion,
       staleFoldedFigureIds,
       t,
-    ]
+    ],
   );
 
   return {

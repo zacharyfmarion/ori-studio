@@ -1,9 +1,5 @@
 import { connectEngine } from '../../engines/engineHost';
-import {
-  acquireDesignHandle,
-  adoptDesignHandle,
-  forgetDesign,
-} from '../../engines/designHandles';
+import { acquireDesignHandle, adoptDesignHandle, forgetDesign } from '../../engines/designHandles';
 import { readActiveDesign, type ActiveDesignRef } from './activeDesignSource';
 import { proxy, wrap, type Remote } from 'comlink';
 import {
@@ -94,9 +90,10 @@ export async function getOristudioBpPortDescriptors(): Promise<OristudioBpPortDe
  * has to keep the Abort button responsive. Nothing is lost: progress is a
  * snapshot, not a stream, so only the most recent value ever matters.
  */
-function coalesceProgress(
-  onProgress: (progress: OristudioBpOptimizerProgress) => void
-): { deliver: (progress: OristudioBpOptimizerProgress) => void; stop: () => void } {
+function coalesceProgress(onProgress: (progress: OristudioBpOptimizerProgress) => void): {
+  deliver: (progress: OristudioBpOptimizerProgress) => void;
+  stop: () => void;
+} {
   let pending: OristudioBpOptimizerProgress | null = null;
   let frame: number | null = null;
   const schedule =
@@ -134,13 +131,16 @@ function coalesceProgress(
 async function solveOptimizerRequestWithProgress(
   request: unknown,
   seed: number | null,
-  onProgress?: (progress: OristudioBpOptimizerProgress) => void
+  onProgress?: (progress: OristudioBpOptimizerProgress) => void,
 ): Promise<unknown> {
   optimizerCancelRequested = false;
   optimizerWorker?.terminate();
-  optimizerWorker = new Worker(new URL('../../workers/oristudioBpOptimizerWorker.ts', import.meta.url), {
-    type: 'module',
-  });
+  optimizerWorker = new Worker(
+    new URL('../../workers/oristudioBpOptimizerWorker.ts', import.meta.url),
+    {
+      type: 'module',
+    },
+  );
   attachWorkerDiagnostics(optimizerWorker, 'oristudio-bp-optimizer');
   optimizerClient = wrap<OristudioBpOptimizerWorkerApi>(optimizerWorker);
   const activeWorker = optimizerWorker;
@@ -151,7 +151,7 @@ async function solveOptimizerRequestWithProgress(
       seed,
       proxy((event: OristudioBpOptimizerEvent) => {
         progress?.deliver(optimizerProgressFromEvent(event));
-      })
+      }),
     );
   } catch (error) {
     if (optimizerCancelRequested) {
@@ -221,7 +221,7 @@ async function claimBpProject(
   api: OristudioBpClient,
   target: ActiveDesignRef | null,
   handle: number,
-  source: OristudioBpSourceRef
+  source: OristudioBpSourceRef,
 ): Promise<void> {
   if (!target) {
     await api.freeProject(handle).catch(() => undefined);
@@ -297,7 +297,7 @@ export async function loadOristudioBpProjectFromText(
     path?: string | null;
     format?: Extract<OristudioBpSourceRef['format'], 'bps' | 'generated'>;
     dirty?: boolean;
-  }
+  },
 ): Promise<OristudioBpDocumentState> {
   const target = targetDesign();
   const api = await getOristudioBpClient();
@@ -328,7 +328,7 @@ export async function loadOristudioBpProjectFromText(
  * the current source (filename/path) so undo doesn't rename the project.
  */
 export async function restoreOristudioBpProjectSnapshot(
-  bps: string
+  bps: string,
 ): Promise<OristudioBpDocumentState> {
   const source = currentSourceOf(readActiveDesign()?.id ?? null);
   return loadOristudioBpProjectFromText(bps, {
@@ -346,7 +346,7 @@ export async function importTreeMakerToOristudioBpProject(
     filename: string;
     path?: string | null;
     dirty?: boolean;
-  }
+  },
 ): Promise<OristudioBpDocumentState> {
   const target = targetDesign();
   const api = await getOristudioBpClient();
@@ -381,40 +381,40 @@ export async function refreshOristudioBpProject(): Promise<OristudioBpDocumentSt
 export async function moveOristudioBpTreeVertex(
   id: number,
   loc: Point,
-  options: OristudioBpMutationOptions = {}
+  options: OristudioBpMutationOptions = {},
 ): Promise<OristudioBpDocumentState> {
   return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.moveTreeVertex(handle, id, loc.x, loc.y, options.dragging ?? false)
+    api.moveTreeVertex(handle, id, loc.x, loc.y, options.dragging ?? false),
   );
 }
 
 export async function renameOristudioBpTreeVertex(
   id: number,
   name: string,
-  options: OristudioBpMutationOptions = {}
+  options: OristudioBpMutationOptions = {},
 ): Promise<OristudioBpDocumentState> {
   return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.renameTreeVertex(handle, id, name)
+    api.renameTreeVertex(handle, id, name),
   );
 }
 
 export async function updateOristudioBpTreeEdgeLength(
   vertices: [number, number],
   length: number,
-  options: OristudioBpMutationOptions = {}
+  options: OristudioBpMutationOptions = {},
 ): Promise<OristudioBpDocumentState> {
   return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.updateTreeEdgeLength(handle, vertices[0], vertices[1], length, options.dragging ?? false)
+    api.updateTreeEdgeLength(handle, vertices[0], vertices[1], length, options.dragging ?? false),
   );
 }
 
 export async function addOristudioBpTreeLeaf(
   at: number,
   length: number,
-  options: OristudioBpMutationOptions = {}
+  options: OristudioBpMutationOptions = {},
 ): Promise<OristudioBpDocumentState> {
   return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.addTreeLeaf(handle, at, length)
+    api.addTreeLeaf(handle, at, length),
   );
 }
 
@@ -425,57 +425,55 @@ export async function addOristudioBpTreeLeaf(
  */
 export async function deleteOristudioBpTreeLeaves(
   ids: readonly number[],
-  options: OristudioBpMutationOptions = {}
+  options: OristudioBpMutationOptions = {},
 ): Promise<OristudioBpDocumentState> {
   return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.deleteTreeLeaves(handle, [...ids])
+    api.deleteTreeLeaves(handle, [...ids]),
   );
 }
 
 export async function joinOristudioBpTreeVertex(
   id: number,
-  options: OristudioBpMutationOptions = {}
+  options: OristudioBpMutationOptions = {},
 ): Promise<OristudioBpDocumentState> {
-  return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.joinTreeVertex(handle, id)
-  );
+  return mutateActiveOristudioBpProject(options, (api, handle) => api.joinTreeVertex(handle, id));
 }
 
 export async function splitOristudioBpTreeEdge(
   vertices: [number, number],
-  options: OristudioBpMutationOptions = {}
+  options: OristudioBpMutationOptions = {},
 ): Promise<OristudioBpDocumentState> {
   return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.splitTreeEdge(handle, vertices[0], vertices[1])
+    api.splitTreeEdge(handle, vertices[0], vertices[1]),
   );
 }
 
 export async function mergeOristudioBpTreeEdge(
   vertices: [number, number],
-  options: OristudioBpMutationOptions = {}
+  options: OristudioBpMutationOptions = {},
 ): Promise<OristudioBpDocumentState> {
   return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.mergeTreeEdge(handle, vertices[0], vertices[1])
+    api.mergeTreeEdge(handle, vertices[0], vertices[1]),
   );
 }
 
 export async function moveOristudioBpLayoutFlap(
   id: number,
   loc: Point,
-  options: OristudioBpMutationOptions = {}
+  options: OristudioBpMutationOptions = {},
 ): Promise<OristudioBpDocumentState> {
   return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.moveLayoutFlap(handle, id, loc.x, loc.y, options.dragging ?? false)
+    api.moveLayoutFlap(handle, id, loc.x, loc.y, options.dragging ?? false),
   );
 }
 
 export async function moveOristudioBpLayoutFlaps(
   ids: number[],
   loc: Point,
-  options: OristudioBpMutationOptions = {}
+  options: OristudioBpMutationOptions = {},
 ): Promise<OristudioBpDocumentState> {
   return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.moveLayoutFlaps(handle, ids, loc.x, loc.y, options.dragging ?? false)
+    api.moveLayoutFlaps(handle, ids, loc.x, loc.y, options.dragging ?? false),
   );
 }
 
@@ -483,10 +481,10 @@ export async function resizeOristudioBpLayoutFlap(
   id: number,
   width: number,
   height: number,
-  options: OristudioBpMutationOptions = {}
+  options: OristudioBpMutationOptions = {},
 ): Promise<OristudioBpDocumentState> {
   return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.resizeLayoutFlap(handle, id, width, height)
+    api.resizeLayoutFlap(handle, id, width, height),
   );
 }
 
@@ -502,7 +500,7 @@ export async function resizeOristudioBpLayoutFlap(
 export async function reshapeOristudioBpLayoutFlap(
   id: number,
   reshape: OristudioBpFlapReshape,
-  options: OristudioBpMutationOptions = {}
+  options: OristudioBpMutationOptions = {},
 ): Promise<OristudioBpDocumentState> {
   const finite = [reshape.x, reshape.y, reshape.width, reshape.height];
   if (reshape.radius !== undefined) finite.push(reshape.radius);
@@ -511,41 +509,39 @@ export async function reshapeOristudioBpLayoutFlap(
     throw new Error(`BP flap reshape must be finite: ${JSON.stringify(reshape)}`);
   }
   return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.reshapeLayoutFlap(handle, id, reshape, options.dragging ?? false)
+    api.reshapeLayoutFlap(handle, id, reshape, options.dragging ?? false),
   );
 }
 
 export async function subdivideOristudioBpLayoutSheet(
-  options: OristudioBpMutationOptions = {}
+  options: OristudioBpMutationOptions = {},
 ): Promise<OristudioBpDocumentState> {
-  return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.subdivideLayoutSheet(handle)
-  );
+  return mutateActiveOristudioBpProject(options, (api, handle) => api.subdivideLayoutSheet(handle));
 }
 
 export async function unsubdivideOristudioBpLayoutSheet(
-  options: OristudioBpMutationOptions = {}
+  options: OristudioBpMutationOptions = {},
 ): Promise<OristudioBpDocumentState> {
   return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.unsubdivideLayoutSheet(handle)
+    api.unsubdivideLayoutSheet(handle),
   );
 }
 
 export async function rotateOristudioBpLayoutSheet(
   clockwise: boolean,
-  options: OristudioBpMutationOptions = {}
+  options: OristudioBpMutationOptions = {},
 ): Promise<OristudioBpDocumentState> {
   return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.rotateLayoutSheet(handle, clockwise)
+    api.rotateLayoutSheet(handle, clockwise),
   );
 }
 
 export async function flipOristudioBpLayoutSheet(
   horizontal: boolean,
-  options: OristudioBpMutationOptions = {}
+  options: OristudioBpMutationOptions = {},
 ): Promise<OristudioBpDocumentState> {
   return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.flipLayoutSheet(handle, horizontal)
+    api.flipLayoutSheet(handle, horizontal),
   );
 }
 
@@ -554,39 +550,37 @@ export async function updateOristudioBpLayoutSheet(
   gridType: OristudioBpSheetKind,
   width: number | null,
   height: number | null,
-  options: OristudioBpMutationOptions = {}
+  options: OristudioBpMutationOptions = {},
 ): Promise<OristudioBpDocumentState> {
   return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.updateLayoutSheet(handle, gridType, width, height)
+    api.updateLayoutSheet(handle, gridType, width, height),
   );
 }
 
 export async function completeOristudioBpStretch(
   id: string,
-  options: OristudioBpMutationOptions = {}
+  options: OristudioBpMutationOptions = {},
 ): Promise<OristudioBpDocumentState> {
-  return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.completeStretch(handle, id)
-  );
+  return mutateActiveOristudioBpProject(options, (api, handle) => api.completeStretch(handle, id));
 }
 
 export async function switchOristudioBpStretchConfig(
   id: string,
   delta: number,
-  options: OristudioBpMutationOptions = {}
+  options: OristudioBpMutationOptions = {},
 ): Promise<OristudioBpDocumentState> {
   return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.switchStretchConfig(handle, id, delta)
+    api.switchStretchConfig(handle, id, delta),
   );
 }
 
 export async function switchOristudioBpStretchPattern(
   id: string,
   delta: number,
-  options: OristudioBpMutationOptions = {}
+  options: OristudioBpMutationOptions = {},
 ): Promise<OristudioBpDocumentState> {
   return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.switchStretchPattern(handle, id, delta)
+    api.switchStretchPattern(handle, id, delta),
   );
 }
 
@@ -594,10 +588,10 @@ export async function moveOristudioBpDevice(
   id: string,
   index: number,
   loc: Point,
-  options: OristudioBpMutationOptions = {}
+  options: OristudioBpMutationOptions = {},
 ): Promise<OristudioBpDocumentState> {
   return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.moveDevice(handle, id, index, loc.x, loc.y, options.dragging ?? false)
+    api.moveDevice(handle, id, index, loc.x, loc.y, options.dragging ?? false),
   );
 }
 
@@ -610,7 +604,7 @@ export interface OristudioBpOptimizerRunSummary {
 export async function optimizeOristudioBpLayout(
   options: OristudioBpOptimizerOptions,
   stateOptions: Pick<OristudioBpMutationOptions, 'activeSurface'> = {},
-  onProgress?: (progress: OristudioBpOptimizerProgress) => void
+  onProgress?: (progress: OristudioBpOptimizerProgress) => void,
 ): Promise<OristudioBpOptimizerRunSummary> {
   const target = targetDesign();
   const handle = await requireActiveBpHandle();
@@ -620,7 +614,7 @@ export async function optimizeOristudioBpLayout(
     options.layoutMode,
     options.useBasinHopping,
     options.randomCandidateCount,
-    options.useDimension
+    options.useDimension,
   );
   // The request is built engine-side and carried as plain JSON, so a symmetry
   // requirement is attached here rather than threaded through the wasm signature.
@@ -681,10 +675,18 @@ export async function notifyOristudioBpProjectSaved(): Promise<void> {
   await api.notifyProjectSaved(handle);
 }
 
-function optimizerProgressFromEvent(event: OristudioBpOptimizerEvent): OristudioBpOptimizerProgress {
+function optimizerProgressFromEvent(
+  event: OristudioBpOptimizerEvent,
+): OristudioBpOptimizerProgress {
   switch (event.event) {
     case 'loading':
-      return optimizerProgress('initializing', 'Initializing', event.data, null, 'Loading optimizer');
+      return optimizerProgress(
+        'initializing',
+        'Initializing',
+        event.data,
+        null,
+        'Loading optimizer',
+      );
     case 'start':
       return optimizerProgress('start', 'Starting', null, null, 'Starting BP optimizer');
     case 'candidate':
@@ -693,7 +695,7 @@ function optimizerProgressFromEvent(event: OristudioBpOptimizerEvent): Oristudio
         'Candidate generation',
         event.data[0],
         event.data[1],
-        'Generating random layout candidates'
+        'Generating random layout candidates',
       );
     case 'cont':
       return optimizerProgress(
@@ -701,7 +703,7 @@ function optimizerProgressFromEvent(event: OristudioBpOptimizerEvent): Oristudio
         'Continuous solving',
         event.data[1],
         event.data[2],
-        'Solving continuous layout constraints'
+        'Solving continuous layout constraints',
       );
     case 'flap':
       return optimizerProgress(
@@ -709,7 +711,7 @@ function optimizerProgressFromEvent(event: OristudioBpOptimizerEvent): Oristudio
         'Pre-solving',
         event.data,
         null,
-        'Preparing flap hierarchy'
+        'Preparing flap hierarchy',
       );
     case 'pack':
       return optimizerProgress('packing', 'Packing', event.data, null, 'Packing flaps');
@@ -719,7 +721,7 @@ function optimizerProgressFromEvent(event: OristudioBpOptimizerEvent): Oristudio
         'Integral grid fitting',
         event.data[0],
         event.data[1],
-        'Fitting result to the integer grid'
+        'Fitting result to the integer grid',
       );
   }
 }
@@ -729,7 +731,7 @@ function optimizerProgress(
   label: string,
   current: number | null,
   total: number | null,
-  message: string
+  message: string,
 ): OristudioBpOptimizerProgress {
   return {
     stage,
@@ -769,7 +771,7 @@ export async function exportOristudioBpProjectAsCp(
     // bpSheetMaxCells / editGridDivisions so one BP cell maps onto one Edit
     // grid cell. Defaults to 1 (fill the standard paper) for every other caller.
     cpScale?: number;
-  }
+  },
 ): Promise<string> {
   const handle = await requireActiveBpHandle();
   const api = await getOristudioBpClient();
@@ -777,12 +779,12 @@ export async function exportOristudioBpProjectAsCp(
     handle,
     options.reorient,
     options.includeAuxiliaryHinges,
-    options.cpScale ?? 1
+    options.cpScale ?? 1,
   );
 }
 
 export async function exportOristudioBpProjectAsFold(
-  options: Pick<OristudioBpExportOptions, 'reorient' | 'includeAuxiliaryHinges'>
+  options: Pick<OristudioBpExportOptions, 'reorient' | 'includeAuxiliaryHinges'>,
 ): Promise<string> {
   const handle = await requireActiveBpHandle();
   const api = await getOristudioBpClient();
@@ -806,7 +808,7 @@ async function buildProjectState(
   api: OristudioBpClient,
   input: Omit<OristudioBpStateFromRawInput, 'project'> & {
     project?: OristudioBpStateFromRawInput['project'];
-  }
+  },
 ): Promise<OristudioBpDocumentState> {
   const [project, summary, treeData, layout, packingValidation] = await Promise.all([
     input.project ? Promise.resolve(input.project) : api.snapshot(input.handle),
@@ -837,7 +839,7 @@ async function buildProjectState(
  */
 async function layoutSnapshotOrError(
   api: OristudioBpClient,
-  handle: number
+  handle: number,
 ): Promise<{ snapshot: OristudioBpWasmLayoutSnapshot | null; error: string | null }> {
   try {
     return { snapshot: await api.layoutSnapshot(handle), error: null };
@@ -850,7 +852,7 @@ async function buildOpenedProjectState(
   api: OristudioBpClient,
   opened: OristudioBpWasmOpenedProject,
   source: OristudioBpSourceRef,
-  options: Pick<OristudioBpStateFromRawInput, 'dirty' | 'activeSurface'>
+  options: Pick<OristudioBpStateFromRawInput, 'dirty' | 'activeSurface'>,
 ): Promise<OristudioBpDocumentState> {
   const layout = await layoutSnapshotOrError(api, opened.handle);
   return oristudioBpProjectStateFromRaw({
@@ -869,9 +871,9 @@ async function buildOpenedProjectState(
 async function navigateOristudioBpHistory(
   operation: (
     api: OristudioBpClient,
-    handle: number
+    handle: number,
   ) => Promise<OristudioBpWasmHistoryNavigationProject>,
-  fallbackSurface: OristudioBpEditingSurface
+  fallbackSurface: OristudioBpEditingSurface,
 ): Promise<OristudioBpHistoryNavigation | null> {
   const handle = await requireActiveBpHandle();
   const api = await getOristudioBpClient();
@@ -896,7 +898,7 @@ interface OristudioBpMutationOptions {
 
 async function mutateActiveOristudioBpProject(
   options: OristudioBpMutationOptions,
-  operation: (api: OristudioBpClient, handle: number) => Promise<OristudioBpRawProject>
+  operation: (api: OristudioBpClient, handle: number) => Promise<OristudioBpRawProject>,
 ): Promise<OristudioBpDocumentState> {
   const handle = await requireActiveBpHandle();
   const api = await getOristudioBpClient();
@@ -975,30 +977,30 @@ function optimizedProjectSource(source: OristudioBpSourceRef | null): OristudioB
 
 function selectionFromHistoryTags(
   tags: string[],
-  document: OristudioBpDocumentState
+  document: OristudioBpDocumentState,
 ): OristudioBpSelection {
   const selections = tags
     .map((tag) => selectionFromHistoryTag(tag, document))
     .filter((selection): selection is Exclude<OristudioBpSelection, { kind: 'bp-none' }> =>
-      Boolean(selection && selection.kind !== 'bp-none')
+      Boolean(selection && selection.kind !== 'bp-none'),
     );
   if (selections.length === 0) return { kind: 'bp-none' };
   if (selections.length === 1) return selections[0];
   return {
     kind: 'bp-multi',
     vertices: selections.flatMap((selection) =>
-      selection.kind === 'bp-vertex' ? [selection.id] : []
+      selection.kind === 'bp-vertex' ? [selection.id] : [],
     ),
     edges: selections.flatMap((selection) => (selection.kind === 'bp-edge' ? [selection.id] : [])),
     flaps: selections.flatMap((selection) => (selection.kind === 'bp-flap' ? [selection.id] : [])),
     rivers: selections.flatMap((selection) =>
-      selection.kind === 'bp-river' ? [selection.id] : []
+      selection.kind === 'bp-river' ? [selection.id] : [],
     ),
     stretches: selections.flatMap((selection) =>
-      selection.kind === 'bp-stretch' ? [selection.id] : []
+      selection.kind === 'bp-stretch' ? [selection.id] : [],
     ),
     devices: selections.flatMap((selection) =>
-      selection.kind === 'bp-device' ? [selection.id] : []
+      selection.kind === 'bp-device' ? [selection.id] : [],
     ),
     invalidJunctions: [],
   };
@@ -1006,7 +1008,7 @@ function selectionFromHistoryTags(
 
 function selectionFromHistoryTag(
   tag: string,
-  document: OristudioBpDocumentState
+  document: OristudioBpDocumentState,
 ): OristudioBpSelection | null {
   if (tag === 'tree') return { kind: 'bp-none' };
   const vertexId = prefixedNumericTag(tag, 'v');
@@ -1023,8 +1025,7 @@ function selectionFromHistoryTag(
         (candidate) =>
           (candidate.vertices[0] === edgeVertices[0] &&
             candidate.vertices[1] === edgeVertices[1]) ||
-          (candidate.vertices[0] === edgeVertices[1] &&
-            candidate.vertices[1] === edgeVertices[0])
+          (candidate.vertices[0] === edgeVertices[1] && candidate.vertices[1] === edgeVertices[0]),
       );
       if (edge) return { kind: 'bp-edge', id: edge.id };
     }
@@ -1049,4 +1050,3 @@ function prefixedNumericTag(tag: string, prefix: string): number | null {
   if (!/^\d+$/u.test(value)) return null;
   return Number(value);
 }
-

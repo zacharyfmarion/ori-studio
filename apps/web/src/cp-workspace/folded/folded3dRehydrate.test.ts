@@ -13,7 +13,7 @@ import {
  * recorded source region, with no kernel handle behind any of it.
  */
 function reopened(
-  overrides: Partial<OristudioCpFoldedFigureEntry> = {}
+  overrides: Partial<OristudioCpFoldedFigureEntry> = {},
 ): OristudioCpFoldedFigureEntry {
   return {
     id: 'folded-1',
@@ -49,8 +49,12 @@ describe('which reopened figures can be made live', () => {
     // handle to draw in the first place.
     expect(
       canRehydrateFolded3dFigure(
-        reopened({ folded3d: null, snapshot: {} as never, sourceKind: 'generated-from-current-cp' })
-      )
+        reopened({
+          folded3d: null,
+          snapshot: {} as never,
+          sourceKind: 'generated-from-current-cp',
+        }),
+      ),
     ).toBe(false);
   });
 
@@ -71,7 +75,9 @@ describe('which reopened figures can be made live', () => {
   });
 
   it('leaves a figure imported from a file alone', () => {
-    expect(canRehydrateFolded3dFigure(reopened({ sourceKind: 'imported-folded-form' }))).toBe(false);
+    expect(canRehydrateFolded3dFigure(reopened({ sourceKind: 'imported-folded-form' }))).toBe(
+      false,
+    );
   });
 
   it('leaves a figure with no frame alone', () => {
@@ -89,9 +95,7 @@ describe('getting back to the solution the figure was saved showing', () => {
 
   it('needs one step per solution past the first', () => {
     expect(
-      folded3dSolutionReplaySteps(
-        reopened({ folded3d: { current_fold_case: 4 } as never })
-      )
+      folded3dSolutionReplaySteps(reopened({ folded3d: { current_fold_case: 4 } as never })),
     ).toBe(3);
   });
 
@@ -110,9 +114,7 @@ describe('getting back to the solution the figure was saved showing', () => {
   it('gives up on a file that never recorded which solution it was showing', () => {
     // Old enough that the index was not written, so landing on the right one
     // could not be checked afterwards.
-    expect(
-      folded3dSolutionReplaySteps(reopened({ folded3d: { model: {} } as never }))
-    ).toBeNull();
+    expect(folded3dSolutionReplaySteps(reopened({ folded3d: { model: {} } as never }))).toBeNull();
   });
 });
 
@@ -144,17 +146,17 @@ describe('the order figures are rehydrated in', () => {
   });
 
   it('puts the figure the user is looking at first', () => {
-    expect(
-      folded3dRehydrationQueue([a, b, c], { staleIds: NONE, priorityId: 'c' })
-    ).toEqual(['c', 'a', 'b']);
+    expect(folded3dRehydrationQueue([a, b, c], { staleIds: NONE, priorityId: 'c' })).toEqual([
+      'c',
+      'a',
+      'b',
+    ]);
   });
 
   it('drops stale figures rather than reordering them', () => {
     // Refolding a stale figure would replace what the user is looking at with a
     // different fold. That is the Refold verb's job, and it asks first.
-    expect(
-      folded3dRehydrationQueue([a, b, c], { staleIds: new Set(['b']) })
-    ).toEqual(['a', 'c']);
+    expect(folded3dRehydrationQueue([a, b, c], { staleIds: new Set(['b']) })).toEqual(['a', 'c']);
   });
 
   it('drops figures already tried, keyed on the entry rather than the id', () => {
@@ -163,7 +165,7 @@ describe('the order figures are rehydrated in', () => {
       folded3dRehydrationQueue([a, b, c], {
         staleIds: NONE,
         skip: (figure) => tried.has(figure),
-      })
+      }),
     ).toEqual(['a', 'c']);
     // A figure rewritten since — refolded, restored by undo, or a different
     // document reusing the id — is a different object, so it is asked again.
@@ -172,16 +174,17 @@ describe('the order figures are rehydrated in', () => {
       folded3dRehydrationQueue([a, rewrittenB, c], {
         staleIds: NONE,
         skip: (figure) => tried.has(figure),
-      })
+      }),
     ).toEqual(['a', 'b', 'c']);
   });
 
   it('ignores a priority id that is not in the queue', () => {
-    expect(
-      folded3dRehydrationQueue([a, b], { staleIds: NONE, priorityId: 'gone' })
-    ).toEqual(['a', 'b']);
-    expect(
-      folded3dRehydrationQueue([a, b], { staleIds: new Set(['a']), priorityId: 'a' })
-    ).toEqual(['b']);
+    expect(folded3dRehydrationQueue([a, b], { staleIds: NONE, priorityId: 'gone' })).toEqual([
+      'a',
+      'b',
+    ]);
+    expect(folded3dRehydrationQueue([a, b], { staleIds: new Set(['a']), priorityId: 'a' })).toEqual(
+      ['b'],
+    );
   });
 });

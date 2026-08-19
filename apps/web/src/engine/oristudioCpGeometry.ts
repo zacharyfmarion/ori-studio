@@ -158,7 +158,7 @@ export class CpGeometry {
       this.transport.segEndpoints,
       this.transport.segAttr,
       this.transport.segCustomColor,
-      this.transport.segFoldMagnitude
+      this.transport.segFoldMagnitude,
     );
   }
 
@@ -172,7 +172,7 @@ export class CpGeometry {
       index,
       this.transport.auxEndpoints,
       this.transport.auxAttr,
-      this.transport.auxCustomColor
+      this.transport.auxCustomColor,
     );
   }
 
@@ -226,7 +226,7 @@ function readSegment(
   endpoints: Float64Array,
   attr: Int32Array,
   custom: Uint8Array,
-  foldMagnitude?: Uint32Array
+  foldMagnitude?: Uint32Array,
 ): OristudioCpLineSegment {
   const e = index * 4;
   const a = index * SEG_ATTR_STRIDE;
@@ -292,7 +292,7 @@ export function vertexPointsFromTransport(transport: CpGeometryTransport): Point
  * the parity and round-trip gates compare this against the structured snapshot.
  */
 export function decodeCpGeometryToSnapshot(
-  transport: CpGeometryTransport
+  transport: CpGeometryTransport,
 ): OristudioCpDocumentSnapshot {
   const geometry = new CpGeometry(transport);
   const model: OristudioCpModel = {

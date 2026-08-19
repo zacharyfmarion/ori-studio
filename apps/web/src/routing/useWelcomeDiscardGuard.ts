@@ -17,7 +17,7 @@ export function useWelcomeDiscardGuard(): void {
     ({ currentLocation, nextLocation }) =>
       dirty &&
       nextLocation.pathname === WELCOME_PATH &&
-      currentLocation.pathname !== nextLocation.pathname
+      currentLocation.pathname !== nextLocation.pathname,
   );
 
   useEffect(() => {

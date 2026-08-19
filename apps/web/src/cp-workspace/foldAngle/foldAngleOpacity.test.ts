@@ -128,7 +128,7 @@ describe('applyFoldAngleOpacity', () => {
     // hairline. The step makes "not a full fold" categorical; the ramp within
     // says how shallow.
     expect(applyFoldAngleOpacity(MOUNTAIN, deg(179.999))[3]).toBeLessThanOrEqual(
-      FOLD_ANGLE_MAX_OPACITY
+      FOLD_ANGLE_MAX_OPACITY,
     );
     expect(applyFoldAngleOpacity(MOUNTAIN, deg(0))[3]).toBeCloseTo(FOLD_ANGLE_MIN_OPACITY, 6);
   });
@@ -148,7 +148,7 @@ describe('applyFoldAngleOpacity', () => {
     const translucent: Rgba = [1, 0.302, 0.365, 0.5];
     expect(applyFoldAngleOpacity(translucent, deg(0))[3]).toBeCloseTo(
       0.5 * FOLD_ANGLE_MIN_OPACITY,
-      6
+      6,
     );
   });
 });
@@ -201,10 +201,10 @@ describe('foldAngleInk', () => {
   it('dispatches to the mode', () => {
     const magnitude = deg(90);
     expect(foldAngleInk(MOUNTAIN, magnitude, { display: 'opacity', anchor: ANCHOR })).toEqual(
-      applyFoldAngleOpacity(MOUNTAIN, magnitude)
+      applyFoldAngleOpacity(MOUNTAIN, magnitude),
     );
     expect(foldAngleInk(MOUNTAIN, magnitude, { display: 'color', anchor: ANCHOR })).toEqual(
-      applyFoldAngleRamp(MOUNTAIN, magnitude, ANCHOR)
+      applyFoldAngleRamp(MOUNTAIN, magnitude, ANCHOR),
     );
   });
 
@@ -212,7 +212,7 @@ describe('foldAngleInk', () => {
     for (const display of ORISTUDIO_CP_FOLD_ANGLE_DISPLAYS) {
       expect(foldAngleInk(MOUNTAIN, undefined, { display, anchor: ANCHOR })).toBe(MOUNTAIN);
       expect(foldAngleInk(MOUNTAIN, FOLD_MAGNITUDE_FULL, { display, anchor: ANCHOR })).toBe(
-        MOUNTAIN
+        MOUNTAIN,
       );
     }
   });
@@ -240,7 +240,7 @@ describe('foldAngleInk', () => {
       foldAngleInk(MOUNTAIN, deg(90), {
         display: DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
         anchor: ANCHOR,
-      })
+      }),
     );
   });
 });

@@ -74,12 +74,12 @@ describe('cpToolOptionPersistence', () => {
 
     store({ angleSystemAngles: [10, 20, 30] });
     expect(readCpToolOptions().angleSystemAngles).toEqual(
-      DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS.angleSystemAngles
+      DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS.angleSystemAngles,
     );
 
     store({ angleSystemAngles: [10, 20, 30, 40, 50, 'x'] });
     expect(readCpToolOptions().angleSystemAngles).toEqual(
-      DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS.angleSystemAngles
+      DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS.angleSystemAngles,
     );
   });
 
@@ -119,7 +119,7 @@ describe('cpToolOptionPersistence', () => {
     // silently different division rather than a visibly reset one.
     store({ divisionRatio: { a: 3, b: 0, c: 0 } });
     expect(readCpToolOptions().divisionRatio).toEqual(
-      DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS.divisionRatio
+      DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS.divisionRatio,
     );
   });
 
@@ -137,7 +137,7 @@ describe('cpToolOptionPersistence', () => {
 
     store({ customLineType: 'Rainbow' });
     expect(readCpToolOptions().customLineType).toBe(
-      DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS.customLineType
+      DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS.customLineType,
     );
   });
 
@@ -170,7 +170,7 @@ describe('cpToolOptionPersistence', () => {
         'squareOrientation',
         'squareSize',
         'squareSizeUnit',
-      ].sort()
+      ].sort(),
     );
   });
 
@@ -191,7 +191,7 @@ describe('cpToolOptionPersistence', () => {
       expect(hasNonDefaultCpToolOptions(options, ['angleSystemDivider'])).toBe(true);
       expect(hasNonDefaultCpToolOptions(options, ['polygonCorners'])).toBe(false);
       expect(hasNonDefaultCpToolOptions(DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS, ['fixPrecision'])).toBe(
-        false
+        false,
       );
     });
 
@@ -202,7 +202,7 @@ describe('cpToolOptionPersistence', () => {
       };
       expect(hasNonDefaultCpToolOptions(options, ['angleSystemAngles'])).toBe(true);
       expect(
-        hasNonDefaultCpToolOptions(DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS, ['angleSystemAngles'])
+        hasNonDefaultCpToolOptions(DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS, ['angleSystemAngles']),
       ).toBe(false);
     });
   });

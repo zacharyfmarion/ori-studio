@@ -87,7 +87,7 @@ async function replaceHandle(nextHandle: number) {
 async function claimTree(
   api: EngineClient,
   nextHandle: number,
-  target: ActiveDesignRef | null
+  target: ActiveDesignRef | null,
 ): Promise<TreeSnapshot> {
   try {
     const snapshot = await api.snapshot(nextHandle);
@@ -216,7 +216,7 @@ export function nextSelectionForEdit(
   edit: TreeEdit,
   snapshot: TreeSnapshot,
   createdNode?: number,
-  createdEdge?: number
+  createdEdge?: number,
 ): Selection {
   if (createdNode !== undefined) return { kind: 'node', id: createdNode };
   if (createdEdge !== undefined) return { kind: 'edge', id: createdEdge };
@@ -261,7 +261,7 @@ export function nextSelectionForEdit(
 export function syncTreemakerProject(
   state: DesignTabsSlice,
   snapshot: TreeSnapshot,
-  title?: string
+  title?: string,
 ) {
   const ready = { engineReady: true, status: 'ready' as const, error: null };
   // A tab that is not TreeMaker has no tree to sync, and that is an ordinary
@@ -280,7 +280,7 @@ export function projectStateFromSnapshot(
   snapshot: TreeSnapshot,
   title?: string,
   design: Partial<TreemakerDesignState> = {},
-  designId: string = state.activeDesignId
+  designId: string = state.activeDesignId,
 ) {
   return {
     ...installTreemakerDesign(
@@ -289,7 +289,7 @@ export function projectStateFromSnapshot(
         project: projectFromSnapshot(snapshot, title),
         ...design,
       },
-      designId
+      designId,
     ),
     engineReady: true,
     status: 'ready' as const,

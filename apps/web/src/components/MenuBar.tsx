@@ -95,9 +95,7 @@ function MenuDropdown({
             }}
           >
             <span className="menu-dropdown__item-label">{capability?.label ?? item.label}</span>
-            {item.shortcut && (
-              <span className="menu-dropdown__item-shortcut">{item.shortcut}</span>
-            )}
+            {item.shortcut && <span className="menu-dropdown__item-shortcut">{item.shortcut}</span>}
           </button>
         );
       })}
@@ -118,14 +116,14 @@ export function MenuBar() {
     () =>
       getMenuBarDef(
         { overrides: shortcutOverrides, defaultsSource: shortcutDefaultsSource },
-        (key, defaultValue) => t(key, defaultValue)
+        (key, defaultValue) => t(key, defaultValue),
       ),
-    [shortcutOverrides, shortcutDefaultsSource, t]
+    [shortcutOverrides, shortcutDefaultsSource, t],
   );
   const capabilities = useWorkspaceCapabilities();
   const visibleMenus = useMemo<MenuDef[]>(
     () => menuDef.filter((menu) => menuHasVisibleItems(menu, capabilities)),
-    [menuDef, capabilities]
+    [menuDef, capabilities],
   );
 
   const closeMenu = useCallback(() => {
@@ -163,9 +161,7 @@ export function MenuBar() {
           <div key={menu.label} className="menubar__menu-wrapper">
             <button
               type="button"
-              className={`menubar__trigger ${
-                openMenu === index ? 'menubar__trigger--active' : ''
-              }`}
+              className={`menubar__trigger ${openMenu === index ? 'menubar__trigger--active' : ''}`}
               aria-haspopup="menu"
               aria-expanded={openMenu === index}
               onClick={() => setOpenMenu(openMenu === index ? null : index)}

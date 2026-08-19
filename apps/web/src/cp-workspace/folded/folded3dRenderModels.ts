@@ -28,7 +28,7 @@ const models = new Map<number, OristudioCpFolded3dRenderModel>();
 /** Remember the geometry a 3D fold produced, against its handle. */
 export function setFolded3dRenderModel(
   handle: number | null | undefined,
-  model: OristudioCpFolded3dRenderModel
+  model: OristudioCpFolded3dRenderModel,
 ): void {
   // Handle 0 is a valid wasm slot index; only null/undefined means "not ready".
   if (handle == null) return;
@@ -40,7 +40,7 @@ export function setFolded3dRenderModel(
  * none — a figure loaded from a file, or one whose handle has been freed.
  */
 export function folded3dRenderModel(
-  handle: number | null | undefined
+  handle: number | null | undefined,
 ): OristudioCpFolded3dRenderModel | undefined {
   if (handle == null) return undefined;
   return models.get(handle);

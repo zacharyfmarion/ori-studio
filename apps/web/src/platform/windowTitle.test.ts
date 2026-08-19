@@ -3,15 +3,15 @@ import { formatWindowTitle } from './windowTitle';
 
 describe('window title formatting', () => {
   it('formats clean web titles', () => {
-    expect(
-      formatWindowTitle({ projectTitle: 'Crane base', dirty: false, surface: 'web' })
-    ).toBe('Crane base - Ori Studio');
+    expect(formatWindowTitle({ projectTitle: 'Crane base', dirty: false, surface: 'web' })).toBe(
+      'Crane base - Ori Studio',
+    );
   });
 
   it('marks dirty desktop titles', () => {
-    expect(
-      formatWindowTitle({ projectTitle: 'Crane base', dirty: true, surface: 'desktop' })
-    ).toBe('*Crane base - Ori Studio');
+    expect(formatWindowTitle({ projectTitle: 'Crane base', dirty: true, surface: 'desktop' })).toBe(
+      '*Crane base - Ori Studio',
+    );
   });
 
   it('names the open file rather than the project, extension included', () => {
@@ -21,7 +21,7 @@ describe('window title formatting', () => {
         dirty: false,
         fileName: 'dragon.osf',
         filePath: '/Users/someone/Documents/dragon.osf',
-      })
+      }),
     ).toBe('dragon.osf - Ori Studio');
   });
 
@@ -32,7 +32,7 @@ describe('window title formatting', () => {
         dirty: true,
         fileName: 'dragon.osf',
         filePath: '/tmp/dragon.osf',
-      })
+      }),
     ).toBe('*dragon.osf - Ori Studio');
   });
 
@@ -49,7 +49,7 @@ describe('window title formatting', () => {
         dirty: false,
         fileName: 'Untitled.osf',
         filePath: null,
-      })
+      }),
     ).toBe('Untitled - Ori Studio');
   });
 
@@ -61,7 +61,7 @@ describe('window title formatting', () => {
         fileName: 'crane.osf',
         filePath: null,
         surface: 'web',
-      })
+      }),
     ).toBe('Crane base - Ori Studio');
   });
 });

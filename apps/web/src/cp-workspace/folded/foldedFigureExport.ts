@@ -61,7 +61,7 @@ export interface FoldedFigureExportDocument {
  */
 export function foldedFigureExportDocument(
   snapshot: OristudioCpFoldedRenderSnapshot | null | undefined,
-  options: FoldedFigureExportOptions = {}
+  options: FoldedFigureExportOptions = {},
 ): FoldedFigureExportDocument | null {
   if (!snapshot) return null;
   const identity = (point: Point): Point => point;
@@ -107,7 +107,7 @@ export function foldedFigureExportDocument(
 /** The figure as a standalone SVG file. Null when it draws nothing. */
 export function serializeFoldedFigureSvg(
   snapshot: OristudioCpFoldedRenderSnapshot | null | undefined,
-  options: FoldedFigureExportOptions = {}
+  options: FoldedFigureExportOptions = {},
 ): string | null {
   return foldedFigureExportDocument(snapshot, options)?.svg ?? null;
 }
@@ -115,7 +115,7 @@ export function serializeFoldedFigureSvg(
 /** The figure rasterized to PNG bytes. Null when it draws nothing. */
 export async function renderFoldedFigurePng(
   snapshot: OristudioCpFoldedRenderSnapshot | null | undefined,
-  options: FoldedFigureExportOptions = {}
+  options: FoldedFigureExportOptions = {},
 ): Promise<Uint8Array | null> {
   const page = foldedFigureExportDocument(snapshot, options);
   if (!page) return null;

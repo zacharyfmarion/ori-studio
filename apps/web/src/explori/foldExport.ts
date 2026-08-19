@@ -28,7 +28,9 @@ const SQRT2_2 = Math.SQRT1_2;
 export type FoldAssignment = 'B' | 'M' | 'V' | 'F';
 
 export function foldAssignmentFor(lineType: ExploriLineType | string): FoldAssignment {
-  const type = String(lineType ?? '').trim().toLowerCase();
+  const type = String(lineType ?? '')
+    .trim()
+    .toLowerCase();
   if (type === 'b') return 'B';
   if (type === 'm' || type === 'rm' || type === 'hm') return 'M';
   if (type === 'v' || type === 'rv' || type === 'av' || type === 'hv') return 'V';
@@ -82,7 +84,7 @@ export const EDIT_PAPER_SIZE = 400;
 
 export function exploriCpToFoldObject(
   cp: ExploriCp,
-  options: ExploriFoldOptions = {}
+  options: ExploriFoldOptions = {},
 ): Record<string, unknown> {
   const scale = options.paperSize ?? EDIT_PAPER_SIZE;
   // ExplOri patterns arrive in the unit square; the Edit paper is a square of
@@ -108,7 +110,7 @@ export function exploriCpToFoldObject(
 
 export function exploriResultToFold(result: ExploriResult, title?: string): string {
   return JSON.stringify(
-    exploriCpToFoldObject(result.cp, { title: title || exploriTilingLabel(result) })
+    exploriCpToFoldObject(result.cp, { title: title || exploriTilingLabel(result) }),
   );
 }
 

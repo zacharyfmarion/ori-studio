@@ -79,8 +79,7 @@ function line(x0, y0, x1, y1, color, weight = 3) {
 /** Sheet-local coordinates in 0..1. */
 const sx = (u) => ORIGIN_X + u * SHEET;
 const sy = (v) => ORIGIN_Y + v * SHEET;
-const seg = (u0, v0, u1, v1, color, weight) =>
-  line(sx(u0), sy(v0), sx(u1), sy(v1), color, weight);
+const seg = (u0, v0, u1, v1, color, weight) => line(sx(u0), sy(v0), sx(u1), sy(v1), color, weight);
 
 fill(CANVAS);
 fillRect(ORIGIN_X, ORIGIN_Y, ORIGIN_X + SHEET, ORIGIN_Y + SHEET, PAPER);
@@ -168,7 +167,7 @@ const target = join(
   'apps',
   'web',
   'public',
-  'og-default.png'
+  'og-default.png',
 );
 writeFileSync(target, png);
 console.log(`Wrote ${target} (${WIDTH}x${HEIGHT}, ${png.length} bytes)`);

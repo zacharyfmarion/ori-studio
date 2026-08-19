@@ -87,7 +87,7 @@ async function ensureManifest(manifestUrl: string): Promise<CpDetectModelManifes
 async function ensureSession(
   manifest: CpDetectModelManifest,
   manifestUrl: string,
-  options: CpDetectWorkerRunOptions = {}
+  options: CpDetectWorkerRunOptions = {},
 ): Promise<CpDetectSessionRuntime> {
   configureOrtRuntime();
   const modelUrl = options.modelUrl ?? resolveModelUrl(manifest.model.url, manifestUrl);
@@ -123,7 +123,7 @@ function configureOrtRuntime(): void {
 
 async function createSessionRuntime(
   modelUrl: string,
-  requestedProvider: CpDetectExecutionProvider
+  requestedProvider: CpDetectExecutionProvider,
 ): Promise<CpDetectSessionRuntime> {
   const webgpuAvailable = hasWebGpu();
   let fallbackReason: string | undefined;
@@ -131,7 +131,7 @@ async function createSessionRuntime(
     const startedAt = performance.now();
     try {
       const session = await enqueueOrtOperation(() =>
-        ort.InferenceSession.create(modelUrl, sessionOptions(provider))
+        ort.InferenceSession.create(modelUrl, sessionOptions(provider)),
       );
       return {
         session,
@@ -166,7 +166,7 @@ function hasWebGpu(): boolean {
 
 function providerCandidates(
   requestedProvider: CpDetectExecutionProvider,
-  webgpuAvailable: boolean
+  webgpuAvailable: boolean,
 ): ActiveExecutionProvider[] {
   if (requestedProvider === 'wasm') return ['wasm'];
   if (requestedProvider === 'webgpu') return ['webgpu'];
@@ -181,7 +181,7 @@ function resolveModelUrl(modelUrl: string, manifestUrl: string): string {
 async function ensureModelPresent(
   manifest: CpDetectModelManifest,
   manifestUrl: string,
-  modelUrlOverride?: string
+  modelUrlOverride?: string,
 ): Promise<void> {
   const modelUrl = modelUrlOverride ?? resolveModelUrl(manifest.model.url, manifestUrl);
   if (modelPresencePromise && modelPresenceKey === modelUrl) return modelPresencePromise;
@@ -259,51 +259,52 @@ const api = {
     });
   },
   async autoRectifyImage(image: ImageData, imageSize = 1024): Promise<CpDetectRectifiedImage> {
-    return call(() => rectifyFromWasm(cp_detect_auto_rectify_rgba(
-      imageDataBytes(image),
-      image.width,
-      image.height,
-      imageSize
-    )));
+    return call(() =>
+      rectifyFromWasm(
+        cp_detect_auto_rectify_rgba(imageDataBytes(image), image.width, image.height, imageSize),
+      ),
+    );
   },
   async manualRectifyImage(
     image: ImageData,
     quad: CpDetectQuad,
-    imageSize = 1024
+    imageSize = 1024,
   ): Promise<CpDetectRectifiedImage> {
-    return call(() => rectifyFromWasm(cp_detect_manual_rectify_rgba(
-      imageDataBytes(image),
-      image.width,
-      image.height,
-      imageSize,
-      JSON.stringify(quad)
-    )));
+    return call(() =>
+      rectifyFromWasm(
+        cp_detect_manual_rectify_rgba(
+          imageDataBytes(image),
+          image.width,
+          image.height,
+          imageSize,
+          JSON.stringify(quad),
+        ),
+      ),
+    );
   },
   async runDenseInference(
     image: ImageData,
-    options: CpDetectWorkerRunOptions = {}
+    options: CpDetectWorkerRunOptions = {},
   ): Promise<CpDetectInferenceResult> {
     return call(() => denseInferenceForImage(image, options));
   },
   async detectRectifiedFold(
     image: ImageData,
-    options: CpDetectWorkerRunOptions = {}
+    options: CpDetectWorkerRunOptions = {},
   ): Promise<CpDetectFoldResult> {
     return call(async () => {
       const requestedJunctionSource = options.junctionSource ?? CP_DETECT_DEFAULT_JUNCTION_SOURCE;
       const lineEvidenceSource = resolveLineEvidenceSource(options.lineEvidenceSource);
       const inference = await denseInferenceForImage(image, options);
       const requestedDecodeJunctionSource: CpDetectJunctionSource =
-        requestedJunctionSource === 'line-arrangement'
-          ? 'line-arrangement'
-          : 'dense-model';
+        requestedJunctionSource === 'line-arrangement' ? 'line-arrangement' : 'dense-model';
       const decoded = decodeFoldFromDenseOutputs(
         image,
         inference.outputs,
         inference.manifest,
         options,
         requestedDecodeJunctionSource,
-        lineEvidenceSource
+        lineEvidenceSource,
       );
       const junctionSource = detectedJunctionSource(decoded.report, requestedDecodeJunctionSource);
       return {
@@ -319,7 +320,7 @@ const api = {
   },
   async ablateRectifiedFold(
     image: ImageData,
-    options: CpDetectWorkerRunOptions = {}
+    options: CpDetectWorkerRunOptions = {},
   ): Promise<CpDetectAblationResult> {
     return call(async () => {
       const inference = await denseInferenceForImage(image, options);
@@ -331,7 +332,7 @@ const api = {
         inference.outputs.line_style_logits.data,
         inference.outputs.boundary_contact_logits.data,
         inference.manifest.inference.image_size,
-        inference.manifest.inference.threshold
+        inference.manifest.inference.threshold,
       ) as Omit<CpDetectAblationResult, 'manifest'>;
       return {
         ...ablation,
@@ -343,7 +344,7 @@ const api = {
 
 async function denseInferenceForImage(
   image: ImageData,
-  options: CpDetectWorkerRunOptions
+  options: CpDetectWorkerRunOptions,
 ): Promise<CpDetectInferenceResult> {
   const manifestUrl = options.manifestUrl ?? DEFAULT_CP_DETECT_MODEL_MANIFEST_URL;
   const baseManifest = await ensureManifest(manifestUrl);
@@ -363,7 +364,7 @@ async function denseInferenceForImage(
       },
     },
     image,
-    manifest
+    manifest,
   );
   return {
     ...inference,
@@ -385,13 +386,11 @@ function decodeFoldFromDenseOutputs(
   manifest: CpDetectModelManifest,
   options: CpDetectWorkerRunOptions = {},
   junctionSource: CpDetectJunctionSource = 'dense-model',
-  lineEvidenceSource: CpDetectLineEvidenceSource = 'source-image'
+  lineEvidenceSource: CpDetectLineEvidenceSource = 'source-image',
 ): WasmDecodedFold {
   const decoderBackend = options.decoderBackend ?? 'legacy_v2_decoder';
   const outputBundle = Object.fromEntries(
-    CP_DETECT_OUTPUT_KEYS
-      .filter((key) => outputs[key])
-      .map((key) => [key, outputs[key].data])
+    CP_DETECT_OUTPUT_KEYS.filter((key) => outputs[key]).map((key) => [key, outputs[key].data]),
   );
   if (lineEvidenceSource === 'source-image') {
     return withLineEvidenceSource(
@@ -406,9 +405,9 @@ function decodeFoldFromDenseOutputs(
         'null',
         imageDataBytes(image),
         image.width,
-        image.height
+        image.height,
       ) as WasmDecodedFold,
-      lineEvidenceSource
+      lineEvidenceSource,
     );
   }
   if (junctionSource === 'line-arrangement') {
@@ -421,9 +420,9 @@ function decodeFoldFromDenseOutputs(
         manifest.inference.junction_offset_radius_px,
         options.exactSolveTimeoutSeconds ?? null,
         junctionSource,
-        'null'
+        'null',
       ) as WasmDecodedFold,
-      lineEvidenceSource
+      lineEvidenceSource,
     );
   }
   return withLineEvidenceSource(
@@ -433,14 +432,14 @@ function decodeFoldFromDenseOutputs(
       manifest.inference.threshold,
       decoderBackend,
       manifest.inference.junction_offset_radius_px,
-      options.exactSolveTimeoutSeconds ?? null
+      options.exactSolveTimeoutSeconds ?? null,
     ) as WasmDecodedFold,
-    lineEvidenceSource
+    lineEvidenceSource,
   );
 }
 
 function resolveLineEvidenceSource(
-  value: CpDetectWorkerRunOptions['lineEvidenceSource']
+  value: CpDetectWorkerRunOptions['lineEvidenceSource'],
 ): CpDetectLineEvidenceSource {
   if (value === undefined || value === null || value === CP_DETECT_DEFAULT_LINE_EVIDENCE_SOURCE) {
     return CP_DETECT_DEFAULT_LINE_EVIDENCE_SOURCE;
@@ -453,7 +452,7 @@ function resolveLineEvidenceSource(
 
 function withLineEvidenceSource(
   decoded: WasmDecodedFold,
-  lineEvidenceSource: CpDetectLineEvidenceSource
+  lineEvidenceSource: CpDetectLineEvidenceSource,
 ): WasmDecodedFold {
   return {
     ...decoded,
@@ -496,15 +495,15 @@ function cpDetectSessionFromOrt(session: ort.InferenceSession): CpDetectOnnxSess
   return {
     inputNames: session.inputNames,
     async run(feeds) {
-      return enqueueOrtOperation(() =>
-        session.run(feeds as Parameters<ort.InferenceSession['run']>[0]) as Promise<
-          Record<string, unknown>
-        >,
+      return enqueueOrtOperation(
+        () =>
+          session.run(feeds as Parameters<ort.InferenceSession['run']>[0]) as Promise<
+            Record<string, unknown>
+          >,
       );
     },
   };
 }
-
 
 function enqueueOrtOperation<T>(operation: () => Promise<T>): Promise<T> {
   const run = ortOperationQueue.then(operation, operation);
@@ -517,7 +516,7 @@ function enqueueOrtOperation<T>(operation: () => Promise<T>): Promise<T> {
 
 function detectedJunctionSource(
   report: CpDetectFoldResult['detectorReport'],
-  fallback: CpDetectJunctionSource
+  fallback: CpDetectJunctionSource,
 ): CpDetectJunctionSource {
   const source = report.quality_report?.junction_source;
   return source === 'dense-model' || source === 'line-arrangement' || source === 'vertex-refiner-v3'

@@ -108,10 +108,17 @@ function setUp(symmetryEnabled: boolean) {
       ...useWorkspaceStore.getInitialState(),
       ...singleBoxPleatDesignTab({
         document: engine.document(),
-        symmetry: { ...AXIS, enabled: symmetryEnabled, fold: 'book', quarterTurn: false, sidesSwapped: false, pairs: [] },
+        symmetry: {
+          ...AXIS,
+          enabled: symmetryEnabled,
+          fold: 'book',
+          quarterTurn: false,
+          sidesSwapped: false,
+          pairs: [],
+        },
       }),
     },
-    true
+    true,
   );
 }
 

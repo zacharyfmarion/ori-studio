@@ -47,7 +47,10 @@ interface ErrorBoundaryState {
   context: ErrorReportContext | null;
 }
 
-function keysChanged(a: readonly unknown[] | undefined, b: readonly unknown[] | undefined): boolean {
+function keysChanged(
+  a: readonly unknown[] | undefined,
+  b: readonly unknown[] | undefined,
+): boolean {
   if (a === b) return false;
   if (!a || !b || a.length !== b.length) return true;
   return a.some((value, index) => !Object.is(value, b[index]));

@@ -1,4 +1,11 @@
-import { selectDesignMethod, selectDesignViewportFitRequestId, selectOristudioBpDocument, selectProject, selectSelection, selectSymmetryAuthoringPairs } from '../../store/workspaceStore/designTabs';
+import {
+  selectDesignMethod,
+  selectDesignViewportFitRequestId,
+  selectOristudioBpDocument,
+  selectProject,
+  selectSelection,
+  selectSymmetryAuthoringPairs,
+} from '../../store/workspaceStore/designTabs';
 import {
   useCallback,
   useEffect,
@@ -11,7 +18,11 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
+import {
+  TransformComponent,
+  TransformWrapper,
+  type ReactZoomPanPinchRef,
+} from 'react-zoom-pan-pinch';
 import {
   Axis3d,
   Circle,
@@ -291,7 +302,9 @@ function DesignSymmetryOptionsButton({
           >
             <span>
               {nextSymmetryPresetLabel
-                ? t('panels:design.flipToPreset', 'Flip to {{preset}}', { preset: nextSymmetryPresetLabel })
+                ? t('panels:design.flipToPreset', 'Flip to {{preset}}', {
+                    preset: nextSymmetryPresetLabel,
+                  })
                 : t('panels:design.flipPresetAxis', 'Flip preset axis')}
             </span>
           </button>
@@ -484,7 +497,9 @@ function TreeMakerDesignPanel() {
   const [layers, setLayers] = useState<DesignViewLayers>(DEFAULT_DESIGN_VIEW_LAYERS);
   const [spacePressed, setSpacePressed] = useState(false);
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
-  const [symmetryModeOverride, setSymmetryModeOverride] = useState<SymmetrySelectValue | null>(null);
+  const [symmetryModeOverride, setSymmetryModeOverride] = useState<SymmetrySelectValue | null>(
+    null,
+  );
   const project = useWorkspaceStore((state) => selectProject(state));
   const engineReady = useWorkspaceStore((state) => state.engineReady);
   const importedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern);
@@ -497,8 +512,8 @@ function TreeMakerDesignPanel() {
   const moveNodeWithSymmetry = useWorkspaceStore((state) => state.moveNodeWithSymmetry);
   const setSymmetry = useWorkspaceStore((state) => state.setSymmetry);
   const projectLoadId = useWorkspaceStore((state) => state.projectLoadId);
-  const designViewportFitRequestId = useWorkspaceStore(
-    (state) => selectDesignViewportFitRequestId(state)
+  const designViewportFitRequestId = useWorkspaceStore((state) =>
+    selectDesignViewportFitRequestId(state),
   );
   // Symmetry is one decision, so `project.hasSymmetry` is the only thing that
   // says whether node edits mirror. There is no separate mirror-editing mode to
@@ -510,12 +525,17 @@ function TreeMakerDesignPanel() {
     paperWidth: project.paper.width,
     paperHeight: project.paper.height,
   });
-  const symmetryMode = project.hasSymmetry ? (symmetryModeOverride ?? inferredSymmetryMode) : 'none';
-  const presetSymmetryMode = symmetryMode === 'book' || symmetryMode === 'diagonal' ? symmetryMode : null;
+  const symmetryMode = project.hasSymmetry
+    ? (symmetryModeOverride ?? inferredSymmetryMode)
+    : 'none';
+  const presetSymmetryMode =
+    symmetryMode === 'book' || symmetryMode === 'diagonal' ? symmetryMode : null;
   const activePresetOption = presetSymmetryMode
     ? symmetryOptionForPreset(presetSymmetryMode, project.paper.symAngle)
     : null;
-  const nextSymmetryPresetOption = activePresetOption ? nextSymmetryOption(activePresetOption) : null;
+  const nextSymmetryPresetOption = activePresetOption
+    ? nextSymmetryOption(activePresetOption)
+    : null;
   const symmetryAxis = useMemo(() => symmetryAxisForProject(project), [project]);
   const showEmptyState = engineReady && project.nodes.length === 0 && project.edges.length === 0;
 
@@ -536,7 +556,7 @@ function TreeMakerDesignPanel() {
   }, [dragging, project, symmetryAuthoringPairs, symmetryAxis]);
   const worldRect = useMemo(
     () => getDesignWorldRect(project, layers, { nodeLocations }),
-    [layers, nodeLocations, project]
+    [layers, nodeLocations, project],
   );
 
   const findNode = (id: number) => project.nodes.find((node) => node.id === id);
@@ -586,10 +606,10 @@ function TreeMakerDesignPanel() {
       return clientPointToPaper(
         { x: event.clientX, y: event.clientY },
         svg.getBoundingClientRect(),
-        worldRect
+        worldRect,
       );
     },
-    [worldRect]
+    [worldRect],
   );
 
   const getViewportSize = useCallback((): ViewportSize | null => {
@@ -616,17 +636,17 @@ function TreeMakerDesignPanel() {
         transform.positionX,
         transform.positionY,
         transform.scale,
-        animationTime
+        animationTime,
       );
     },
-    [getViewportSize, worldRect]
+    [getViewportSize, worldRect],
   );
 
   const fitToView = useCallback(
     (animationTime = 180) => {
       transformRef.current?.centerView(computeFitScale(), animationTime);
     },
-    [computeFitScale]
+    [computeFitScale],
   );
 
   const setActualSize = useCallback(() => {
@@ -659,12 +679,12 @@ function TreeMakerDesignPanel() {
           return false;
       }
     },
-    [fitToView, setActualSize]
+    [fitToView, setActualSize],
   );
 
   useEffect(
     () => registerViewportShortcutExecutor('tree', handleViewportShortcut),
-    [handleViewportShortcut]
+    [handleViewportShortcut],
   );
 
   const lastFittedProjectLoadIdRef = useRef<number | null>(null);
@@ -684,14 +704,19 @@ function TreeMakerDesignPanel() {
     (animationTime = 0) => {
       if (lastFittedProjectLoadIdRef.current === projectLoadId) return true;
       const container = containerRef.current;
-      if (!container || !transformRef.current || container.clientWidth <= 0 || container.clientHeight <= 0) {
+      if (
+        !container ||
+        !transformRef.current ||
+        container.clientWidth <= 0 ||
+        container.clientHeight <= 0
+      ) {
         return false;
       }
       transformRef.current.centerView(computeFitScale(), animationTime);
       lastFittedProjectLoadIdRef.current = projectLoadId;
       return true;
     },
-    [computeFitScale, projectLoadId]
+    [computeFitScale, projectLoadId],
   );
 
   const fitLoadedProjectRef = useRef(fitLoadedProject);
@@ -749,7 +774,7 @@ function TreeMakerDesignPanel() {
       project.paper.symLoc,
       project.paper.width,
       setSymmetry,
-    ]
+    ],
   );
 
   const applyDesignSymmetryPreset = useCallback(
@@ -763,12 +788,7 @@ function TreeMakerDesignPanel() {
         symLoc: paperCenter(project.paper.width, project.paper.height),
       });
     },
-    [
-      project.paper.height,
-      project.paper.symAngle,
-      project.paper.width,
-      setSymmetry,
-    ]
+    [project.paper.height, project.paper.symAngle, project.paper.width, setSymmetry],
   );
 
   const flipDesignSymmetryPreset = useCallback(() => {
@@ -794,7 +814,7 @@ function TreeMakerDesignPanel() {
       setLayers((current) => setDesignLayerVisibility(current, 'symmetry', true));
       void setSymmetry({ hasSymmetry: true, ...update });
     },
-    [setSymmetry]
+    [setSymmetry],
   );
 
   useEffect(() => {
@@ -808,7 +828,6 @@ function TreeMakerDesignPanel() {
         setSpacePressed(true);
         return;
       }
-
     };
 
     const onKeyUp = (event: KeyboardEvent) => {
@@ -898,7 +917,9 @@ function TreeMakerDesignPanel() {
     // while that WASM comes up (no global overlay gates this surface).
     return (
       <section className="panel-shell design-panel">
-        <SurfaceLoading label={t('panels:design.preparingTreeEditor', 'Preparing the tree editor…')} />
+        <SurfaceLoading
+          label={t('panels:design.preparingTreeEditor', 'Preparing the tree editor…')}
+        />
       </section>
     );
   }
@@ -911,21 +932,19 @@ function TreeMakerDesignPanel() {
             <FileQuestionMark size={30} />
           </div>
           <span className="document-mode-empty__message">
-            {importedCreasePattern
-              ? (
-                <>
-                  <span className="document-mode-empty__filename">
-                    {importedCreasePattern.source.filename}
-                  </span>{' '}
-                  {t(
-                    'panels:design.importedCreasePatternSuffix',
-                    'is an imported crease pattern without an editable tree.'
-                  )}
-                </>
-              )
-              : (
-                t('panels:design.noEditableTree', 'This document does not have an editable tree.')
-              )}
+            {importedCreasePattern ? (
+              <>
+                <span className="document-mode-empty__filename">
+                  {importedCreasePattern.source.filename}
+                </span>{' '}
+                {t(
+                  'panels:design.importedCreasePatternSuffix',
+                  'is an imported crease pattern without an editable tree.',
+                )}
+              </>
+            ) : (
+              t('panels:design.noEditableTree', 'This document does not have an editable tree.')
+            )}
           </span>
           <div className="document-mode-empty__actions">
             <Button size="sm" variant="primary" onClick={() => void handleMenuAction('view.edit')}>
@@ -936,7 +955,11 @@ function TreeMakerDesignPanel() {
               <FileText size={14} />
               {t('panels:design.newTree', 'New Tree')}
             </Button>
-            <Button size="sm" variant="secondary" onClick={() => void handleMenuAction('file.open')}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => void handleMenuAction('file.open')}
+            >
               <FolderOpen size={14} />
               {t('panels:design.open', 'Open')}
             </Button>
@@ -1050,11 +1073,13 @@ function TreeMakerDesignPanel() {
                 >
                   <div className="design-empty-state__inner" role="note">
                     <div className="design-empty-state__copy">
-                      <strong>{t('panels:design.emptyStateTitle', 'Sketch the tree behind your design')}</strong>
+                      <strong>
+                        {t('panels:design.emptyStateTitle', 'Sketch the tree behind your design')}
+                      </strong>
                       <span>
                         {t(
                           'panels:design.emptyStateBody',
-                          'Use branches for the flaps, limbs, and features the folded base needs.'
+                          'Use branches for the flaps, limbs, and features the folded base needs.',
                         )}
                       </span>
                     </div>
@@ -1071,7 +1096,9 @@ function TreeMakerDesignPanel() {
                         <line
                           className={[
                             'symmetry-ghost-edge',
-                            symmetryHoverPreview.unresolved ? 'symmetry-ghost-edge--unresolved' : '',
+                            symmetryHoverPreview.unresolved
+                              ? 'symmetry-ghost-edge--unresolved'
+                              : '',
                           ].join(' ')}
                           x1={p1.x}
                           y1={p1.y}
@@ -1155,7 +1182,7 @@ function TreeMakerDesignPanel() {
                       select(
                         event.shiftKey || event.metaKey || event.ctrlKey
                           ? toggleEdgeSelection(selection, edge.id)
-                          : { kind: 'edge', id: edge.id }
+                          : { kind: 'edge', id: edge.id },
                       );
                     }}
                   >
@@ -1171,7 +1198,11 @@ function TreeMakerDesignPanel() {
                       y2={p2.y}
                     />
                     {layers.labels && (
-                      <text className="edge-label" x={(p1.x + p2.x) / 2 + 8} y={(p1.y + p2.y) / 2 - 8}>
+                      <text
+                        className="edge-label"
+                        x={(p1.x + p2.x) / 2 + 8}
+                        y={(p1.y + p2.y) / 2 - 8}
+                      >
                         {formatNumber(edge.length, 2)}
                       </text>
                     )}
@@ -1242,9 +1273,18 @@ function TreeMakerDesignPanel() {
           )}
         </div>
         <div className="design-legend">
-          <span><CircleDot size={13} /> {t('panels:design.legendTerminal', 'Terminal')}</span>
-          <span><Waypoints size={13} /> {t('panels:design.legendActivePath', 'Active path')}</span>
-          <span><Plus size={13} /> {t('panels:design.legendScale', 'Scale {{value}}', { value: formatNumber(project.scale, 3) })}</span>
+          <span>
+            <CircleDot size={13} /> {t('panels:design.legendTerminal', 'Terminal')}
+          </span>
+          <span>
+            <Waypoints size={13} /> {t('panels:design.legendActivePath', 'Active path')}
+          </span>
+          <span>
+            <Plus size={13} />{' '}
+            {t('panels:design.legendScale', 'Scale {{value}}', {
+              value: formatNumber(project.scale, 3),
+            })}
+          </span>
         </div>
       </div>
       <DesignAttributionFooter method="tree" />

@@ -25,7 +25,7 @@ const TOOL_COMMANDS = ORISTUDIO_CP_COMMANDS.filter((c) => c.uiStatus === 'ready'
 describe('CP input-model registry', () => {
   it('covers every ready tool command exactly once', () => {
     const missing = TOOL_COMMANDS.filter((c) => !cpInputModel(c.operationId)).map(
-      (c) => c.operationId
+      (c) => c.operationId,
     );
     expect(missing).toEqual([]);
   });

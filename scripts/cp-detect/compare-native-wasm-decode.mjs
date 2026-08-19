@@ -9,11 +9,11 @@ const execFileAsync = promisify(execFile);
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const wasmPackagePath = resolve(
   root,
-  'apps/web/src/generated/oristudio-cp-detect-wasm/oristudio_cp_detect_wasm.js'
+  'apps/web/src/generated/oristudio-cp-detect-wasm/oristudio_cp_detect_wasm.js',
 );
 const wasmBinaryPath = resolve(
   root,
-  'apps/web/src/generated/oristudio-cp-detect-wasm/oristudio_cp_detect_wasm_bg.wasm'
+  'apps/web/src/generated/oristudio-cp-detect-wasm/oristudio_cp_detect_wasm_bg.wasm',
 );
 const DENSE_HEADS = [
   ['line_logits', 'line_logits_f32_path'],
@@ -36,9 +36,14 @@ async function main() {
   const fixtures = native.fixtures.map((nativeFixture, index) => {
     const wasmFixture = wasm.fixtures[index];
     const foldMatch = stableStringify(nativeFixture.fold) === stableStringify(wasmFixture?.fold);
-    const reportMatch = stableStringify(nativeFixture.report) === stableStringify(wasmFixture?.report);
+    const reportMatch =
+      stableStringify(nativeFixture.report) === stableStringify(wasmFixture?.report);
     const graph = compareFoldGraph(nativeFixture.fold, wasmFixture?.fold, graphTolerance);
-    const reportToleranceMatch = tolerantJsonEqual(nativeFixture.report, wasmFixture?.report, reportTolerance);
+    const reportToleranceMatch = tolerantJsonEqual(
+      nativeFixture.report,
+      wasmFixture?.report,
+      reportTolerance,
+    );
     return {
       id: nativeFixture.id,
       profile: nativeFixture.profile ?? null,
@@ -53,8 +58,12 @@ async function main() {
       native_vertices: nativeFixture.fold.vertices_coords?.length ?? 0,
       wasm_vertices: wasmFixture?.fold?.vertices_coords?.length ?? 0,
       max_vertex_delta: graph.maxVertexDelta,
-      first_fold_difference: foldMatch ? null : firstDifference(nativeFixture.fold, wasmFixture?.fold),
-      first_report_difference: reportMatch ? null : firstDifference(nativeFixture.report, wasmFixture?.report),
+      first_fold_difference: foldMatch
+        ? null
+        : firstDifference(nativeFixture.fold, wasmFixture?.fold),
+      first_report_difference: reportMatch
+        ? null
+        : firstDifference(nativeFixture.report, wasmFixture?.report),
     };
   });
   const report = {
@@ -68,7 +77,8 @@ async function main() {
     fold_match_count: fixtures.filter((fixture) => fixture.fold_match).length,
     graph_match_count: fixtures.filter((fixture) => fixture.graph_match).length,
     report_match_count: fixtures.filter((fixture) => fixture.report_match).length,
-    report_tolerance_match_count: fixtures.filter((fixture) => fixture.report_tolerance_match).length,
+    report_tolerance_match_count: fixtures.filter((fixture) => fixture.report_tolerance_match)
+      .length,
     fixtures,
   };
   if (options.out) {
@@ -127,7 +137,7 @@ async function runWasm(manifestPath, decoderBackend, limit) {
       dense.boundary_contact_logits,
       manifest.config.image_size,
       manifest.config.threshold,
-      decoderBackend
+      decoderBackend,
     );
     fixtures.push({
       id: fixture.id,
@@ -141,7 +151,9 @@ async function runWasm(manifestPath, decoderBackend, limit) {
 
 async function readFloat32(path) {
   const bytes = await readFile(path);
-  return new Float32Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+  return new Float32Array(
+    bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+  );
 }
 
 function resolvePath(rootPath, value) {
@@ -225,7 +237,8 @@ function firstDifference(left, right, path = '$') {
   }
   if (Array.isArray(left) || Array.isArray(right)) {
     if (!Array.isArray(left) || !Array.isArray(right)) return { path, left, right };
-    if (left.length !== right.length) return { path: `${path}.length`, left: left.length, right: right.length };
+    if (left.length !== right.length)
+      return { path: `${path}.length`, left: left.length, right: right.length };
     for (let index = 0; index < left.length; index += 1) {
       const diff = firstDifference(left[index], right[index], `${path}[${index}]`);
       if (diff) return diff;
@@ -249,7 +262,7 @@ function sortJson(value) {
   return Object.fromEntries(
     Object.entries(value)
       .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, entry]) => [key, sortJson(entry)])
+      .map(([key, entry]) => [key, sortJson(entry)]),
   );
 }
 

@@ -312,7 +312,7 @@ export function foldedLineStroke(antiAlias: boolean): OristudioCpFoldedRenderStr
  */
 export function folded3dCoplanarEpsilon(
   model: OristudioCpFolded3dRenderModel,
-  tolerances: OristudioCpFold3dTolerances
+  tolerances: OristudioCpFold3dTolerances,
 ): number {
   const radius = modelRadius(model);
   return tolerances.distance_relative * model.span + tolerances.angle_radians * radius;
@@ -331,7 +331,7 @@ export function folded3dCoplanarEpsilon(
  */
 export function defaultFolded3dCamera(
   model: OristudioCpFolded3dRenderModel,
-  side: OristudioCpFoldedFigureState = 'Front0'
+  side: OristudioCpFoldedFigureState = 'Front0',
 ): FoldedFigureCamera {
   void model;
   const base = DEFAULT_FOLDED_3D_CAMERA;
@@ -372,7 +372,7 @@ export function antipodalCamera(camera: FoldedFigureCamera): FoldedFigureCamera 
  * this reaches was folded at {@link DEFAULT_FOLDED_3D_CAMERA} anyway.
  */
 export function foldedFigureOtherSideCamera(
-  camera: FoldedFigureCamera | null | undefined
+  camera: FoldedFigureCamera | null | undefined,
 ): FoldedFigureCamera {
   return antipodalCamera(camera ?? DEFAULT_FOLDED_3D_CAMERA);
 }
@@ -552,7 +552,7 @@ function lightIntensity(viewNormal: Vec3, style: Folded3dPaperStyle): number {
 function shade(
   color: readonly [number, number, number],
   intensity: number,
-  alpha: number
+  alpha: number,
 ): OristudioCpRgbaColor {
   return {
     red: Math.round(clampUnit(color[0] * intensity) * 255),
@@ -585,7 +585,7 @@ interface Draft {
 
 export function projectFolded3dModel(
   model: OristudioCpFolded3dRenderModel,
-  options: Folded3dProjectionOptions
+  options: Folded3dProjectionOptions,
 ): Folded3dProjection {
   const anchor = options.anchor ?? { x: 0, y: 0 };
   const plan = folded3dStylePlan(options.displayStyle, options.style.transparentAlpha);
@@ -612,7 +612,7 @@ export function projectFolded3dModel(
     options.style,
     uniforms,
     folded3dEyeDirection(options.camera),
-    anchor
+    anchor,
   );
   const { primitives, cells, faces } = assemble(drafts, options);
 
@@ -651,7 +651,7 @@ export function projectFolded3dModel(
 export function folded3dBspItems(
   model: OristudioCpFolded3dRenderModel,
   displayStyle: OristudioCpFoldedFigureDisplayStyle,
-  eye: Vec3 = [0, 0, 1]
+  eye: Vec3 = [0, 0, 1],
 ): { items: BspItem[]; strokes: readonly StrokeRef[] } {
   return buildItems(model, folded3dStylePlan(displayStyle), buildFolded3dInk(model), eye);
 }
@@ -692,7 +692,7 @@ function buildItems(
   model: OristudioCpFolded3dRenderModel,
   plan: StylePlan,
   ink: Folded3dInk,
-  eye: Vec3
+  eye: Vec3,
 ): { items: BspItem[]; strokes: StrokeRef[] } {
   const items: BspItem[] = [];
   const strokes: StrokeRef[] = [];
@@ -728,7 +728,7 @@ function buildItems(
         const dz = point[2] - frame.origin[2];
         flat.push(
           dx * frame.u[0] + dy * frame.u[1] + dz * frame.u[2],
-          dx * frame.v[0] + dy * frame.v[1] + dz * frame.v[2]
+          dx * frame.v[0] + dy * frame.v[1] + dz * frame.v[2],
         );
       }
       const indices = earcut(flat);
@@ -846,7 +846,7 @@ function cellDrawOrder(
   model: OristudioCpFolded3dRenderModel,
   plan: StylePlan,
   style: Folded3dPaperStyle,
-  upTowardEye: readonly boolean[]
+  upTowardEye: readonly boolean[],
 ): number[][] {
   const out: number[][] = [];
   for (let cell = 0; cell < model.cell_count; cell += 1) {
@@ -860,9 +860,8 @@ function cellDrawOrder(
     // `cell_stack` runs top-of-plane first, so it is already far-to-near when the
     // eye is on the `-up` side and has to be reversed when it is on the `+up`
     // side. The opaque case takes the last of whichever order that is.
-    const farToNear = (upTowardEye[model.cell_attr[base] ?? 0] ?? false)
-      ? [...stack].reverse()
-      : [...stack];
+    const farToNear =
+      (upTowardEye[model.cell_attr[base] ?? 0] ?? false) ? [...stack].reverse() : [...stack];
     out.push(alpha >= 1 && farToNear.length > 0 ? [farToNear[farToNear.length - 1]!] : farToNear);
   }
   return out;
@@ -876,7 +875,7 @@ function expand(
   style: Folded3dPaperStyle,
   uniforms: CameraUniforms,
   viewDirection: Vec3,
-  anchor: Point
+  anchor: Point,
 ): Draft[] {
   const drafts: Draft[] = [];
   const lineColor = shade(style.line, 1, 1);
@@ -886,7 +885,7 @@ function expand(
   for (let plane = 0; plane < model.plane_count; plane += 1) {
     const { up } = planeFrame(model, plane);
     upTowardEye.push(
-      up[0] * viewDirection[0] + up[1] * viewDirection[1] + up[2] * viewDirection[2] >= 0
+      up[0] * viewDirection[0] + up[1] * viewDirection[1] + up[2] * viewDirection[2] >= 0,
     );
   }
   const drawOrder = cellDrawOrder(model, plan, style, upTowardEye);
@@ -916,7 +915,9 @@ function expand(
     const base = cell * FOLDED_3D_CELL_ATTR_STRIDE;
     const undetermined = (model.cell_attr[base + 5] ?? 0) === FOLDED_3D_CELL_UNDETERMINED;
     const alpha =
-      plan.faceAlpha * style.faceAlpha * (undetermined && plan.annotateUndetermined ? UNDETERMINED_FACE_ALPHA : 1);
+      plan.faceAlpha *
+      style.faceAlpha *
+      (undetermined && plan.annotateUndetermined ? UNDETERMINED_FACE_ALPHA : 1);
     const slots = drawOrder[cell] ?? [];
     if (slots.length === 0) continue;
     for (let slot = 0; slot < slots.length; slot += 1) {
@@ -955,7 +956,7 @@ function expand(
 /** Cull, merge, and write the primitive stream. */
 function assemble(
   drafts: readonly Draft[],
-  options: Folded3dProjectionOptions
+  options: Folded3dProjectionOptions,
 ): { primitives: OristudioCpFoldedRenderPrimitive[]; cells: number[]; faces: number[] } {
   const opaque = drafts.every((draft) => draft.kind === 'stroke' || draft.color.alpha >= 255);
   const survivors =
@@ -1050,7 +1051,10 @@ function merge(drafts: readonly Draft[]): Draft[] {
   return out;
 }
 
-function pathCommands(ring: readonly Point[], close: boolean): OristudioCpFoldedRenderPathCommand[] {
+function pathCommands(
+  ring: readonly Point[],
+  close: boolean,
+): OristudioCpFoldedRenderPathCommand[] {
   const commands: OristudioCpFoldedRenderPathCommand[] = [];
   for (let i = 0; i < ring.length; i += 1) {
     const point = ring[i]!;

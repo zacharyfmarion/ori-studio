@@ -64,10 +64,14 @@ function bpTreeCopy(t: TFunction): TreeEditorCopy {
     selectVertex: (id, label, isLeaf) => {
       if (isLeaf) {
         return label
-          ? t('panels:bpTree.selectLeafVertexWithLabel', 'Select BP leaf vertex {{id}}, {{label}}', {
-              id,
-              label,
-            })
+          ? t(
+              'panels:bpTree.selectLeafVertexWithLabel',
+              'Select BP leaf vertex {{id}}, {{label}}',
+              {
+                id,
+                label,
+              },
+            )
           : t('panels:bpTree.selectLeafVertex', 'Select BP leaf vertex {{id}}', { id });
       }
       return label
@@ -93,17 +97,17 @@ export function useBpTreeEditorHost(document: OristudioBpDocumentState): TreeEdi
   const clearSelection = useWorkspaceStore((state) => state.clearOristudioBpSelection);
   const addOristudioBpTreeLeaf = useWorkspaceStore((state) => state.addOristudioBpTreeLeaf);
   const setOristudioBpTreeEdgeLength = useWorkspaceStore(
-    (state) => state.setOristudioBpTreeEdgeLength
+    (state) => state.setOristudioBpTreeEdgeLength,
   );
   const renameOristudioBpVertex = useWorkspaceStore((state) => state.renameOristudioBpVertex);
   const setOristudioBpActiveSurface = useWorkspaceStore(
-    (state) => state.setOristudioBpActiveSurface
+    (state) => state.setOristudioBpActiveSurface,
   );
   const addOristudioBpTreeLeafWithSymmetry = useWorkspaceStore(
-    (state) => state.addOristudioBpTreeLeafWithSymmetry
+    (state) => state.addOristudioBpTreeLeafWithSymmetry,
   );
   const moveOristudioBpTreeVerticesWithSymmetry = useWorkspaceStore(
-    (state) => state.moveOristudioBpTreeVerticesWithSymmetry
+    (state) => state.moveOristudioBpTreeVerticesWithSymmetry,
   );
   const scheduleLongPressInspector = useBpLongPressInspector();
 
@@ -119,7 +123,7 @@ export function useBpTreeEditorHost(document: OristudioBpDocumentState): TreeEdi
   // change on an edit, so this cannot pull the camera mid-drawing.
   const fitRect = useMemo(
     () => getBpTreeWorldRect(tree, { contentOnly: true, padding: 12 }),
-    [tree]
+    [tree],
   );
 
   const frame = useMemo<TreeFrame>(
@@ -138,7 +142,7 @@ export function useBpTreeEditorHost(document: OristudioBpDocumentState): TreeEdi
       // what a node may not leave is the paper.
       boundsRect: paperRect,
     }),
-    [tree.sheet, paperRect, worldRect]
+    [tree.sheet, paperRect, worldRect],
   );
 
   const selectionView = useMemo<TreeSelectionView>(() => {
@@ -172,13 +176,13 @@ export function useBpTreeEditorHost(document: OristudioBpDocumentState): TreeEdi
         selectOristudioBp(
           target.kind === 'vertex'
             ? { kind: 'bp-vertex', id: target.id }
-            : { kind: 'bp-edge', id: target.id }
+            : { kind: 'bp-edge', id: target.id },
         ),
       toggleSelection: (target) =>
         selectOristudioBp(
           target.kind === 'vertex'
             ? toggleBpVertexSelection(selection, target.id)
-            : toggleBpEdgeSelection(selection, target.id)
+            : toggleBpEdgeSelection(selection, target.id),
         ),
       clearSelection,
       addLeaf: async (parentId, loc, axisTolerance) => {
@@ -234,6 +238,6 @@ export function useBpTreeEditorHost(document: OristudioBpDocumentState): TreeEdi
       setLayer,
       setOristudioBpActiveSurface,
       scheduleLongPressInspector,
-    ]
+    ],
   );
 }

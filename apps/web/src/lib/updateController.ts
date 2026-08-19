@@ -1,9 +1,4 @@
-import {
-  ANALYTICS_EVENTS,
-  UPDATE_PENDING_MS_BUCKETS,
-  bucketCount,
-  track,
-} from '../analytics';
+import { ANALYTICS_EVENTS, UPDATE_PENDING_MS_BUCKETS, bucketCount, track } from '../analytics';
 import type { UpdateFailureReason, UpdateFailureStage, UpdateTrigger } from '../analytics/events';
 import { reportError } from '../monitoring';
 import {
@@ -62,7 +57,7 @@ function reportFailure(
   stage: UpdateFailureStage,
   reason: UpdateFailureReason,
   error: unknown,
-  trigger: UpdateTrigger
+  trigger: UpdateTrigger,
 ): void {
   const installKind = useUpdateStore.getState().installKind;
   track(ANALYTICS_EVENTS.appUpdateFailed, { stage, reason, install_kind: installKind, trigger });
@@ -117,9 +112,7 @@ export async function runUpdateCheck(trigger: UpdateTrigger): Promise<void> {
     });
 
     if (!environment.selfUpdateSupported) {
-      useUpdateStore
-        .getState()
-        .setUnsupported(update.version, environment.installKind, checkedAt);
+      useUpdateStore.getState().setUnsupported(update.version, environment.installKind, checkedAt);
       return;
     }
 

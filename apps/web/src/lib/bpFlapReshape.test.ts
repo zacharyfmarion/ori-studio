@@ -19,7 +19,12 @@ const SHEET: OristudioBpSheet = {
 
 const RADIUS = { min: 1, max: 100 };
 
-function flap(width: number, height: number, radius: number, at = { x: 20, y: 20 }): OristudioBpFlap {
+function flap(
+  width: number,
+  height: number,
+  radius: number,
+  at = { x: 20, y: 20 },
+): OristudioBpFlap {
   return {
     id: 1,
     vertexId: 1,
@@ -45,7 +50,7 @@ function drag(
   dx: number,
   dy: number,
   radiusRange: typeof RADIUS | null = RADIUS,
-  sheet = SHEET
+  sheet = SHEET,
 ): BpFlapFootprint | null {
   const outer = bpFlapOuterBox(source);
   const signs = BP_FLAP_HANDLE_SIGNS[handle];
@@ -329,7 +334,7 @@ describe('solveBpFlapReshape', () => {
       expect(sizes(drag(flap(4, 4, 2), 'e', 3, 0))).toEqual([3, 0, 4]);
     });
 
-    it('reaches the corner\'s answer by two perpendicular edge drags', () => {
+    it("reaches the corner's answer by two perpendicular edge drags", () => {
       // The reported case: dragging out to a 5 x 5 box must be r2 with a 1 x 1
       // box however you got there, not r1 with a 3 x 3 one.
       const corner = drag(flap(0, 0, 1), 'ne', 3, 3);

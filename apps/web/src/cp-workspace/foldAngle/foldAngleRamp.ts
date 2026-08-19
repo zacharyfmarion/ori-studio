@@ -54,7 +54,7 @@ import type { OristudioCpFoldAngleDisplay } from '../../lib/creasePatternViewpor
 export function applyFoldAngleRamp(
   ink: Rgba,
   magnitudeUnits: number | undefined,
-  anchor: Rgba
+  anchor: Rgba,
 ): Rgba {
   const fraction = nonClassicFoldFraction(magnitudeUnits);
   if (fraction === null) return ink;
@@ -144,7 +144,7 @@ export function applyFoldAngleOpacity(ink: Rgba, magnitudeUnits: number | undefi
 export function foldAngleInk(
   ink: Rgba,
   magnitudeUnits: number | undefined,
-  options: { display: OristudioCpFoldAngleDisplay; anchor: Rgba }
+  options: { display: OristudioCpFoldAngleDisplay; anchor: Rgba },
 ): Rgba {
   switch (options.display) {
     case 'opacity':

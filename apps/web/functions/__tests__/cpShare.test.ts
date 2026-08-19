@@ -81,7 +81,7 @@ function createContext(
   request: Request,
   params: Record<string, string | string[] | undefined> = {},
   next: (request?: Request) => Promise<Response> = async () =>
-    new Response(INDEX_HTML, { headers: { 'Content-Type': 'text/html' } })
+    new Response(INDEX_HTML, { headers: { 'Content-Type': 'text/html' } }),
 ): CpShareContext {
   return { request, env, params, next };
 }
@@ -106,7 +106,15 @@ describe('share id validation', () => {
   });
 
   it('rejects everything else, which is what keeps null reads off the KV quota', () => {
-    for (const bad of ['a3bK9xm', 'a3bK9xmQwertyu', 'a3bK-xmQ', 'a3bK_xmQ', '', '../../etc', 'a3bK9xm ']) {
+    for (const bad of [
+      'a3bK9xm',
+      'a3bK9xmQwertyu',
+      'a3bK-xmQ',
+      'a3bK_xmQ',
+      '',
+      '../../etc',
+      'a3bK9xm ',
+    ]) {
       expect(isValidShareId(bad)).toBe(false);
     }
   });
@@ -145,7 +153,6 @@ describe('field sanitisation', () => {
     expect(sanitizeAuthor(42)).toBeNull();
     expect(sanitizeAuthor('y'.repeat(200))).toHaveLength(60);
   });
-
 });
 
 describe('payload validation', () => {
@@ -172,11 +179,15 @@ describe('POST /api/cp', () => {
   it('stores the payload verbatim and returns a share url', async () => {
     const env = createEnv();
     const response = await onRequestPost(
-      createContext(env, postRequest({ payload: VALID_PAYLOAD, title: 'Bird base' }))
+      createContext(env, postRequest({ payload: VALID_PAYLOAD, title: 'Bird base' })),
     );
     expect(response.status).toBe(200);
 
-    const body = (await response.json()) as { id: string; url: string; thumbnailUploadToken: string };
+    const body = (await response.json()) as {
+      id: string;
+      url: string;
+      thumbnailUploadToken: string;
+    };
     expect(isValidShareId(body.id)).toBe(true);
     expect(body.url).toBe(`https://oristudio.pages.dev/s/${body.id}`);
 
@@ -189,13 +200,13 @@ describe('POST /api/cp', () => {
   it('stores only the hash of the upload token, never the token', async () => {
     const env = createEnv();
     const response = await onRequestPost(
-      createContext(env, postRequest({ payload: VALID_PAYLOAD, title: 'x' }))
+      createContext(env, postRequest({ payload: VALID_PAYLOAD, title: 'x' })),
     );
     const body = (await response.json()) as { id: string; thumbnailUploadToken: string };
     const stored = env.kv.get(shareKey(body.id))!;
     expect(stored).not.toContain(body.thumbnailUploadToken);
     expect(JSON.parse(stored).thumbnailUploadTokenHash).toBe(
-      await hashToken(body.thumbnailUploadToken)
+      await hashToken(body.thumbnailUploadToken),
     );
   });
 
@@ -219,11 +230,13 @@ describe('POST /api/cp', () => {
   it('returns 413 for an oversized payload and 400 for a malformed one', async () => {
     const env = createEnv();
     const tooBig = await onRequestPost(
-      createContext(env, postRequest({ payload: 'a'.repeat(MAX_PAYLOAD_BYTES + 1) }))
+      createContext(env, postRequest({ payload: 'a'.repeat(MAX_PAYLOAD_BYTES + 1) })),
     );
     expect(tooBig.status).toBe(413);
 
-    const malformed = await onRequestPost(createContext(env, postRequest({ payload: 'has spaces' })));
+    const malformed = await onRequestPost(
+      createContext(env, postRequest({ payload: 'has spaces' })),
+    );
     expect(malformed.status).toBe(400);
   });
 
@@ -246,10 +259,10 @@ describe('POST /api/cp', () => {
   it('maps a KV quota failure to 503 rather than a generic 500', async () => {
     const env = createEnv();
     vi.spyOn(env.SHARE_KV, 'put').mockRejectedValue(
-      new Error('KV PUT failed: daily limit exceeded')
+      new Error('KV PUT failed: daily limit exceeded'),
     );
     const response = await onRequestPost(
-      createContext(env, postRequest({ payload: VALID_PAYLOAD }))
+      createContext(env, postRequest({ payload: VALID_PAYLOAD })),
     );
     expect(response.status).toBe(503);
     expect((await response.json()).code).toBe('storage_quota');
@@ -261,7 +274,7 @@ describe('GET /api/cp/[id]', () => {
     const env = createEnv();
     const get = vi.spyOn(env.SHARE_KV, 'get');
     const response = await getShare(
-      createContext(env, new Request('https://x/api/cp/nope'), { id: 'nope' })
+      createContext(env, new Request('https://x/api/cp/nope'), { id: 'nope' }),
     );
     expect(response.status).toBe(400);
     expect(get).not.toHaveBeenCalled();
@@ -270,7 +283,7 @@ describe('GET /api/cp/[id]', () => {
   it('404s a well-formed id that does not exist', async () => {
     const env = createEnv();
     const response = await getShare(
-      createContext(env, new Request('https://x/api/cp/a3bK9xmQ'), { id: 'a3bK9xmQ' })
+      createContext(env, new Request('https://x/api/cp/a3bK9xmQ'), { id: 'a3bK9xmQ' }),
     );
     expect(response.status).toBe(404);
   });
@@ -279,12 +292,12 @@ describe('GET /api/cp/[id]', () => {
     const env = createEnv();
     const created = (await (
       await onRequestPost(
-        createContext(env, postRequest({ payload: VALID_PAYLOAD, title: 'Crane', author: 'Zach' }))
+        createContext(env, postRequest({ payload: VALID_PAYLOAD, title: 'Crane', author: 'Zach' })),
       )
     ).json()) as { id: string };
 
     const response = await getShare(
-      createContext(env, new Request(`https://x/api/cp/${created.id}`), { id: created.id })
+      createContext(env, new Request(`https://x/api/cp/${created.id}`), { id: created.id }),
     );
     const body = await response.json();
     expect(body.payload).toBe(VALID_PAYLOAD);
@@ -318,12 +331,12 @@ describe('thumbnail endpoint', () => {
     const png = pngBytes();
 
     const first = await putThumbnail(
-      createContext(env, putRequest(share.id, share.thumbnailUploadToken, png), { id: share.id })
+      createContext(env, putRequest(share.id, share.thumbnailUploadToken, png), { id: share.id }),
     );
     expect(first.status).toBe(200);
 
     const second = await putThumbnail(
-      createContext(env, putRequest(share.id, share.thumbnailUploadToken, png), { id: share.id })
+      createContext(env, putRequest(share.id, share.thumbnailUploadToken, png), { id: share.id }),
     );
     expect(second.status).toBe(409);
   });
@@ -334,7 +347,7 @@ describe('thumbnail endpoint', () => {
     const response = await putThumbnail(
       createContext(env, putRequest(share.id, 'not-the-token', pngBytes()), {
         id: share.id,
-      })
+      }),
     );
     expect(response.status).toBe(401);
   });
@@ -343,11 +356,9 @@ describe('thumbnail endpoint', () => {
     const env = createEnv();
     const share = await createShare(env);
     const response = await putThumbnail(
-      createContext(
-        env,
-        putRequest(share.id, share.thumbnailUploadToken, pngBytes(512 * 1024)),
-        { id: share.id }
-      )
+      createContext(env, putRequest(share.id, share.thumbnailUploadToken, pngBytes(512 * 1024)), {
+        id: share.id,
+      }),
     );
     expect(response.status).toBe(413);
   });
@@ -359,7 +370,7 @@ describe('thumbnail endpoint', () => {
     await putThumbnail(
       createContext(env, putRequest(share.id, share.thumbnailUploadToken, pngBytes()), {
         id: share.id,
-      })
+      }),
     );
     expect(put).not.toHaveBeenCalled();
   });
@@ -373,7 +384,7 @@ describe('thumbnail endpoint', () => {
     const response = await getThumbnail(
       createContext(env, new Request('https://oristudio.pages.dev/api/cp/a3bK9xmQ/thumbnail'), {
         id: 'a3bK9xmQ',
-      })
+      }),
     );
 
     expect(response.status).toBe(200);
@@ -459,13 +470,15 @@ describe('GET /s/[[shareId]]', () => {
   it('re-asserts COOP/COEP, which _headers does not do for Function responses', async () => {
     const env = createEnv();
     const created = (await (
-      await onRequestPost(createContext(env, postRequest({ payload: VALID_PAYLOAD, title: 'Crane' })))
+      await onRequestPost(
+        createContext(env, postRequest({ payload: VALID_PAYLOAD, title: 'Crane' })),
+      )
     ).json()) as { id: string };
 
     const response = await getSharePage(
       createContext(env, new Request(`https://oristudio.pages.dev/s/${created.id}`), {
         shareId: created.id,
-      })
+      }),
     );
     expect(response.headers.get('Cross-Origin-Opener-Policy')).toBe('same-origin');
     expect(response.headers.get('Cross-Origin-Embedder-Policy')).toBe('require-corp');
@@ -478,7 +491,7 @@ describe('GET /s/[[shareId]]', () => {
     const response = await getSharePage(
       createContext(env, new Request('https://oristudio.pages.dev/s/../../etc/passwd'), {
         shareId: '../../etc/passwd',
-      })
+      }),
     );
     expect(get).not.toHaveBeenCalled();
     expect(response.headers.get('Cross-Origin-Opener-Policy')).toBe('same-origin');
@@ -492,7 +505,9 @@ describe('GET /s/[[shareId]]', () => {
     // carry the body we tried to give it.
     const env = createEnv();
     const created = (await (
-      await onRequestPost(createContext(env, postRequest({ payload: VALID_PAYLOAD, title: 'Crane' })))
+      await onRequestPost(
+        createContext(env, postRequest({ payload: VALID_PAYLOAD, title: 'Crane' })),
+      )
     ).json()) as { id: string };
 
     let seen: Headers | null = null;
@@ -518,7 +533,9 @@ describe('GET /s/[[shareId]]', () => {
     // plain asset instead of a Worker exception page.
     const env = createEnv();
     const created = (await (
-      await onRequestPost(createContext(env, postRequest({ payload: VALID_PAYLOAD, title: 'Crane' })))
+      await onRequestPost(
+        createContext(env, postRequest({ payload: VALID_PAYLOAD, title: 'Crane' })),
+      )
     ).json()) as { id: string };
 
     const response = await getSharePage(
@@ -526,8 +543,8 @@ describe('GET /s/[[shareId]]', () => {
         env,
         new Request(`https://oristudio.pages.dev/s/${created.id}`),
         { shareId: created.id },
-        async () => new Response(null, { status: 304 })
-      )
+        async () => new Response(null, { status: 304 }),
+      ),
     );
     expect(response.status).toBe(304);
     expect(response.headers.get('Cross-Origin-Opener-Policy')).toBe('same-origin');
@@ -538,7 +555,7 @@ describe('GET /s/[[shareId]]', () => {
     const response = await getSharePage(
       createContext(env, new Request('https://oristudio.pages.dev/s/a3bK9xmQ'), {
         shareId: 'a3bK9xmQ',
-      })
+      }),
     );
     expect(await response.text()).toContain('<title>Ori Studio</title>');
   });
@@ -576,8 +593,8 @@ describe('PNG validation on upload', () => {
           },
           body: notAPng.buffer as ArrayBuffer,
         }),
-        { id: share.id }
-      )
+        { id: share.id },
+      ),
     );
 
     expect(response.status).toBe(400);
@@ -585,7 +602,9 @@ describe('PNG validation on upload', () => {
   });
 
   it('accepts real PNG bytes', () => {
-    expect(isPng(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]).buffer)).toBe(true);
+    expect(
+      isPng(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]).buffer),
+    ).toBe(true);
     expect(isPng(new Uint8Array([0x89, 0x50]).buffer)).toBe(false);
     expect(isPng(new Uint8Array([]).buffer)).toBe(false);
   });

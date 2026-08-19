@@ -43,7 +43,7 @@ describe('orienting the start figure', () => {
     const asPositions = orient(new Float32Array(directions.flat()), SHIPPED);
     const asSkins = orientSkins(
       directions.map((direction) => skin(direction, direction)),
-      SHIPPED
+      SHIPPED,
     );
     asSkins.forEach((rotated, index) => {
       for (const axis of [0, 1, 2]) {

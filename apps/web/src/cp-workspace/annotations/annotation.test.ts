@@ -70,8 +70,18 @@ describe('annotationAtModelPoint', () => {
   });
 
   it('skips hidden and locked annotations', () => {
-    const hidden = createTextAnnotation({ center: { x: 5, y: 5 }, width: 4, height: 2, hidden: true });
-    const locked = createTextAnnotation({ center: { x: 5, y: 5 }, width: 4, height: 2, locked: true });
+    const hidden = createTextAnnotation({
+      center: { x: 5, y: 5 },
+      width: 4,
+      height: 2,
+      hidden: true,
+    });
+    const locked = createTextAnnotation({
+      center: { x: 5, y: 5 },
+      width: 4,
+      height: 2,
+      locked: true,
+    });
     expect(annotationAtModelPoint([hidden, locked], { x: 5, y: 5 })).toBeNull();
   });
 });

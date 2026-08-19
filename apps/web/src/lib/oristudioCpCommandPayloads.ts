@@ -1,11 +1,10 @@
 import type { OristudioCpCommandPayload } from '../engine/oristudioCpTypes';
 
 export type OristudioCpCommandPayloadValidation =
-  | { ok: true; payload: OristudioCpCommandPayload }
-  | { ok: false; error: string };
+  { ok: true; payload: OristudioCpCommandPayload } | { ok: false; error: string };
 
 export function normalizeOristudioCpCommandPayload(
-  rawPayload: unknown
+  rawPayload: unknown,
 ): OristudioCpCommandPayloadValidation {
   if (rawPayload === null || rawPayload === undefined) return { ok: true, payload: {} };
   if (!isRecord(rawPayload)) {
@@ -20,7 +19,7 @@ export function normalizeOristudioCpCommandPayload(
 
 function compactOristudioCpCommandPayload(payload: object): OristudioCpCommandPayload {
   return Object.fromEntries(
-    Object.entries(payload).filter(([, value]) => value !== undefined)
+    Object.entries(payload).filter(([, value]) => value !== undefined),
   ) as OristudioCpCommandPayload;
 }
 

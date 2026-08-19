@@ -9,7 +9,12 @@ import type { Point, PlotRect } from './geometry';
 import { cpPaletteEntryForColor } from './oristudioCpPalette';
 
 export const CP_VIEWBOX_SIZE = 720;
-export const CP_WORLD_RECT: PlotRect = { x: 0, y: 0, width: CP_VIEWBOX_SIZE, height: CP_VIEWBOX_SIZE };
+export const CP_WORLD_RECT: PlotRect = {
+  x: 0,
+  y: 0,
+  width: CP_VIEWBOX_SIZE,
+  height: CP_VIEWBOX_SIZE,
+};
 export const CP_PAPER_RECT: PlotRect = { x: 66, y: 54, width: 588, height: 588 };
 export const CP_PAPER_SHADOW_RECT: PlotRect = { x: 56, y: 44, width: 608, height: 608 };
 export const CP_EDITABLE_CANVAS_RECT: PlotRect = {
@@ -68,11 +73,7 @@ export interface OristudioCpSelection {
 
 // Oriedita's canvas LineStyle enum (oriedita.editor.canvas.LineStyle).
 export type OristudioCpLineStyle =
-  | 'color'
-  | 'black-white'
-  | 'color-and-shape'
-  | 'black-one-dot'
-  | 'black-two-dot';
+  'color' | 'black-white' | 'color-and-shape' | 'black-one-dot' | 'black-two-dot';
 
 export const ORISTUDIO_CP_LINE_STYLES: readonly OristudioCpLineStyle[] = [
   'color',
@@ -132,7 +133,9 @@ export const DEFAULT_ORISTUDIO_CP_POINT_SIZE = 1;
 export type OristudioCpViewportOptionKey = keyof OristudioCpViewportOptions;
 
 // Maps an Oriedita LineColor to the crease-kind used by line-style dash rules.
-export function cpLineStyleColorKind(color: string): 'mountain' | 'valley' | 'edge' | 'aux' | 'other' {
+export function cpLineStyleColorKind(
+  color: string,
+): 'mountain' | 'valley' | 'edge' | 'aux' | 'other' {
   switch (color) {
     case 'Red1':
       return 'mountain';
@@ -154,12 +157,18 @@ export function advanceOristudioCpLineStyle(style: OristudioCpLineStyle): Oristu
 
 export function clampOristudioCpLineWidth(value: number): number {
   if (!Number.isFinite(value)) return ORISTUDIO_CP_MIN_LINE_WIDTH;
-  return Math.min(ORISTUDIO_CP_MAX_LINE_WIDTH, Math.max(ORISTUDIO_CP_MIN_LINE_WIDTH, Math.round(value)));
+  return Math.min(
+    ORISTUDIO_CP_MAX_LINE_WIDTH,
+    Math.max(ORISTUDIO_CP_MIN_LINE_WIDTH, Math.round(value)),
+  );
 }
 
 export function clampOristudioCpPointSize(value: number): number {
   if (!Number.isFinite(value)) return ORISTUDIO_CP_MIN_POINT_SIZE;
-  return Math.min(ORISTUDIO_CP_MAX_POINT_SIZE, Math.max(ORISTUDIO_CP_MIN_POINT_SIZE, Math.round(value)));
+  return Math.min(
+    ORISTUDIO_CP_MAX_POINT_SIZE,
+    Math.max(ORISTUDIO_CP_MIN_POINT_SIZE, Math.round(value)),
+  );
 }
 
 export const EMPTY_ORISTUDIO_CP_SELECTION: OristudioCpSelection = {
@@ -251,7 +260,7 @@ export function cpVertexId(point: Point): string {
  * thousands of segments) that reruns on every edit.
  */
 export function getCpVertexPoints(
-  document: OristudioCpDocumentSnapshot | null | undefined
+  document: OristudioCpDocumentSnapshot | null | undefined,
 ): Point[] {
   if (!document) return [];
 
@@ -280,9 +289,7 @@ export function toggleCpSelectionList<T extends number | string>(ids: T[], id: T
   return ids.includes(id)
     ? ids.filter((selectedId) => selectedId !== id)
     : Array.from(new Set([...ids, id])).sort((a, b) =>
-        typeof a === 'number' && typeof b === 'number'
-          ? a - b
-          : String(a).localeCompare(String(b))
+        typeof a === 'number' && typeof b === 'number' ? a - b : String(a).localeCompare(String(b)),
       );
 }
 
@@ -368,7 +375,7 @@ export const ORIEDITA_GRID_SCALE_DEFAULTS = { a: 1, b: 0, c: 1 } as const;
 const VISIBLE_GRID_STATE: OristudioCpGridState = 'Full';
 
 export function visibleOrieditaGridMetadata(
-  grid: OristudioCpGridMetadata
+  grid: OristudioCpGridMetadata,
 ): OristudioCpGridMetadata {
   return {
     ...grid,
@@ -392,7 +399,7 @@ export function visibleOrieditaGridMetadata(
  */
 export function snappableOrieditaGrid(
   grid: OristudioCpGridMetadata,
-  options: OristudioCpViewportOptions
+  options: OristudioCpViewportOptions,
 ): OristudioCpGridMetadata | null {
   if (!options.snapToGrid || !options.gridVisible) return null;
   return visibleOrieditaGridMetadata(grid);
@@ -406,7 +413,7 @@ export function snappableOrieditaGrid(
  */
 export function cpKernelSnapCandidates(
   grid: OristudioCpGridMetadata,
-  options: OristudioCpViewportOptions
+  options: OristudioCpViewportOptions,
 ): OristudioCpSnapCandidates {
   return {
     grid: snappableOrieditaGrid(grid, options) ? VISIBLE_GRID_STATE : 'Hidden',
@@ -417,7 +424,7 @@ export function cpKernelSnapCandidates(
 function resolveOrieditaGridBaseState(
   grid: OristudioCpGridMetadata,
   gridXLength: number,
-  gridYLength: number
+  gridYLength: number,
 ): OrieditaGridBaseState {
   const baseState = orieditaGridBaseState(grid.base_state);
   if (baseState !== 'within-paper') return baseState;
@@ -432,7 +439,7 @@ function resolveOrieditaGridBaseState(
 }
 
 export function getEditableCpModelBounds(
-  document: OristudioCpDocumentSnapshot | null | undefined
+  document: OristudioCpDocumentSnapshot | null | undefined,
 ): CpModelBounds {
   const points: Point[] = [];
   const includeOrieditaPaper =
@@ -441,7 +448,7 @@ export function getEditableCpModelBounds(
     if (includeOrieditaPaper) {
       points.push(
         { x: ORIEDITA_PAPER_MIN, y: ORIEDITA_PAPER_MIN },
-        { x: ORIEDITA_PAPER_MAX, y: ORIEDITA_PAPER_MAX }
+        { x: ORIEDITA_PAPER_MAX, y: ORIEDITA_PAPER_MAX },
       );
     }
     for (const segment of document.crease_pattern.line_segments) {
@@ -454,7 +461,7 @@ export function getEditableCpModelBounds(
     for (const circle of document.crease_pattern.circles) {
       points.push(
         { x: circle.x - circle.r, y: circle.y - circle.r },
-        { x: circle.x + circle.r, y: circle.y + circle.r }
+        { x: circle.x + circle.r, y: circle.y + circle.r },
       );
     }
     for (const text of document.crease_pattern.texts) {
@@ -489,7 +496,7 @@ export function getEditableCpModelBounds(
 export function modelPointToCpSvg(
   point: Point,
   bounds: CpModelBounds,
-  rect: PlotRect = CP_PAPER_RECT
+  rect: PlotRect = CP_PAPER_RECT,
 ): Point {
   return {
     x: rect.x + ((point.x - bounds.minX) / bounds.spanX) * rect.width,
@@ -500,7 +507,7 @@ export function modelPointToCpSvg(
 export function cpSvgPointToModel(
   point: Point,
   bounds: CpModelBounds,
-  rect: PlotRect = CP_PAPER_RECT
+  rect: PlotRect = CP_PAPER_RECT,
 ): Point {
   return {
     x: bounds.minX + ((point.x - rect.x) / rect.width) * bounds.spanX,
@@ -540,11 +547,7 @@ export function cpLineColorClass(color: string, mode: 'mvf' | 'agrh'): string {
   const paletteEntry = cpPaletteEntryForColor(color);
   if (paletteEntry) {
     const legacyClass = legacyFoldClassForLineColor(color);
-    return [
-      'crease',
-      legacyClass,
-      `crease--line-color-${paletteEntry.cssClass}`,
-    ]
+    return ['crease', legacyClass, `crease--line-color-${paletteEntry.cssClass}`]
       .filter(Boolean)
       .join(' ');
   }
@@ -594,7 +597,7 @@ export function getCpGridLines(
   bounds: CpModelBounds,
   grid: OristudioCpGridMetadata | number,
   intervalSize = 1,
-  renderOptions: CpGridRenderOptions = {}
+  renderOptions: CpGridRenderOptions = {},
 ): CpGridLine[] {
   if (typeof grid !== 'number') {
     return getOrieditaGridLines(bounds, grid, renderOptions);
@@ -629,14 +632,14 @@ export function getCpGridLines(
 export function getOrieditaGridLines(
   bounds: CpModelBounds,
   grid: OristudioCpGridMetadata,
-  renderOptions: CpGridRenderOptions = {}
+  renderOptions: CpGridRenderOptions = {},
 ): CpGridLine[] {
   const basis = getOrieditaGridBasis(grid);
   if (basis.baseState === 'hidden' || !hasValidGridBasis(basis)) return [];
   return orieditaGridLinesForDrawingBounds(
     gridDrawingBounds(bounds, basis, renderOptions),
     grid,
-    basis
+    basis,
   );
 }
 
@@ -651,7 +654,7 @@ export function getOrieditaGridLines(
  */
 export function orieditaGridLinesForModelBounds(
   drawingBounds: CpModelBounds,
-  grid: OristudioCpGridMetadata
+  grid: OristudioCpGridMetadata,
 ): CpGridLine[] {
   const basis = getOrieditaGridBasis(grid);
   if (basis.baseState === 'hidden' || !hasValidGridBasis(basis)) return [];
@@ -663,10 +666,7 @@ export function orieditaGridLinesForModelBounds(
  * margin so small pans do not immediately reveal an ungridded edge before the
  * grid is regenerated.
  */
-export function expandedModelBoundsFromPoints(
-  points: Point[],
-  marginRatio = 0.5
-): CpModelBounds {
+export function expandedModelBoundsFromPoints(points: Point[], marginRatio = 0.5): CpModelBounds {
   const bounds = boundsFromPoints(points);
   const marginX = bounds.spanX * marginRatio;
   const marginY = bounds.spanY * marginRatio;
@@ -674,14 +674,14 @@ export function expandedModelBoundsFromPoints(
     bounds.minX - marginX,
     bounds.minY - marginY,
     bounds.maxX + marginX,
-    bounds.maxY + marginY
+    bounds.maxY + marginY,
   );
 }
 
 function orieditaGridLinesForDrawingBounds(
   drawingBounds: CpModelBounds,
   grid: OristudioCpGridMetadata,
-  basis: OrieditaGridBasis
+  basis: OrieditaGridBasis,
 ): CpGridLine[] {
   let { minA, maxA, minB, maxB } = gridIndexRange(drawingBounds, basis);
   if (basis.baseState === 'within-paper') {
@@ -747,7 +747,7 @@ function orieditaGridLinesForDrawingBounds(
 
 export function closestOrieditaGridPoint(
   point: Point,
-  grid: OristudioCpGridMetadata
+  grid: OristudioCpGridMetadata,
 ): Point | null {
   const basis = getOrieditaGridBasis(grid);
   if (basis.baseState === 'hidden' || !hasValidGridBasis(basis)) return null;
@@ -757,7 +757,7 @@ export function closestOrieditaGridPoint(
     point.x - searchRadius,
     point.y - searchRadius,
     point.x + searchRadius,
-    point.y + searchRadius
+    point.y + searchRadius,
   );
   const { minA, maxA, minB, maxB } = gridIndexRange(bounds, basis);
   let bestPoint: Point | null = null;
@@ -783,7 +783,7 @@ export function nearestCpSnapTarget(
   point: Point,
   bounds: CpModelBounds,
   options: OristudioCpViewportOptions,
-  maxDistance = Math.max(bounds.spanX, bounds.spanY) * 0.015
+  maxDistance = Math.max(bounds.spanX, bounds.spanY) * 0.015,
 ): CpSnapTarget | null {
   let best: CpSnapTarget | null = null;
   const pointSnapDistance = maxDistance * POINT_SNAP_DISTANCE_MULTIPLIER;
@@ -796,12 +796,9 @@ export function nearestCpSnapTarget(
     document.crease_pattern.line_segments.forEach((segment, index) => {
       consider(
         pointTarget(segment.a, point, 'vertex', `line ${index + 1} start`),
-        pointSnapDistance
+        pointSnapDistance,
       );
-      consider(
-        pointTarget(segment.b, point, 'vertex', `line ${index + 1} end`),
-        pointSnapDistance
-      );
+      consider(pointTarget(segment.b, point, 'vertex', `line ${index + 1} end`), pointSnapDistance);
     });
     document.crease_pattern.points.forEach((candidate, index) => {
       consider(pointTarget(candidate, point, 'point', `point ${index + 1}`), pointSnapDistance);
@@ -834,7 +831,7 @@ export function nearestOrieditaDrawPointTarget(
   point: Point,
   bounds: CpModelBounds,
   options: OristudioCpViewportOptions,
-  maxDistance = Math.max(bounds.spanX, bounds.spanY) * 0.015
+  maxDistance = Math.max(bounds.spanX, bounds.spanY) * 0.015,
 ): CpSnapTarget | null {
   let best: CpSnapTarget | null = null;
   const pointSnapDistance = maxDistance * POINT_SNAP_DISTANCE_MULTIPLIER;
@@ -847,12 +844,9 @@ export function nearestOrieditaDrawPointTarget(
     document.crease_pattern.line_segments.forEach((segment, index) => {
       consider(
         pointTarget(segment.a, point, 'vertex', `line ${index + 1} start`),
-        pointSnapDistance
+        pointSnapDistance,
       );
-      consider(
-        pointTarget(segment.b, point, 'vertex', `line ${index + 1} end`),
-        pointSnapDistance
-      );
+      consider(pointTarget(segment.b, point, 'vertex', `line ${index + 1} end`), pointSnapDistance);
     });
     document.crease_pattern.points.forEach((candidate, index) => {
       consider(pointTarget(candidate, point, 'point', `point ${index + 1}`), pointSnapDistance);
@@ -860,7 +854,7 @@ export function nearestOrieditaDrawPointTarget(
     document.crease_pattern.circles.forEach((circle, index) => {
       consider(
         pointTarget({ x: circle.x, y: circle.y }, point, 'point', `circle ${index + 1} center`),
-        pointSnapDistance
+        pointSnapDistance,
       );
     });
     ORIEDITA_PAPER_CORNERS.forEach((corner) => {
@@ -915,27 +909,19 @@ function hasValidGridBasis(basis: OrieditaGridBasis): boolean {
 function gridDrawingBounds(
   bounds: CpModelBounds,
   basis: OrieditaGridBasis,
-  renderOptions: CpGridRenderOptions
+  renderOptions: CpGridRenderOptions,
 ): CpModelBounds {
   if (basis.baseState !== 'full') return bounds;
   const canvasRect = renderOptions.canvasRect ?? CP_WORLD_RECT;
   const paperRect = renderOptions.paperRect ?? CP_PAPER_RECT;
   const points = [
     cpSvgPointToModel({ x: canvasRect.x, y: canvasRect.y }, bounds, paperRect),
-    cpSvgPointToModel(
-      { x: canvasRect.x + canvasRect.width, y: canvasRect.y },
-      bounds,
-      paperRect
-    ),
-    cpSvgPointToModel(
-      { x: canvasRect.x, y: canvasRect.y + canvasRect.height },
-      bounds,
-      paperRect
-    ),
+    cpSvgPointToModel({ x: canvasRect.x + canvasRect.width, y: canvasRect.y }, bounds, paperRect),
+    cpSvgPointToModel({ x: canvasRect.x, y: canvasRect.y + canvasRect.height }, bounds, paperRect),
     cpSvgPointToModel(
       { x: canvasRect.x + canvasRect.width, y: canvasRect.y + canvasRect.height },
       bounds,
-      paperRect
+      paperRect,
     ),
   ];
   return boundsFromPoints(points);
@@ -983,7 +969,7 @@ function gridIndex(point: Point, basis: OrieditaGridBasis): Point {
 function gridPoint(basis: OrieditaGridBasis, aIndex: number, bIndex: number): Point {
   return addPoints(
     basis.origin,
-    addPoints(scalePoint(basis.a, aIndex), scalePoint(basis.b, bIndex))
+    addPoints(scalePoint(basis.a, aIndex), scalePoint(basis.b, bIndex)),
   );
 }
 
@@ -1014,7 +1000,7 @@ function gridLineStep(
   maxA: number,
   minB: number,
   maxB: number,
-  includeDiagonals: boolean
+  includeDiagonals: boolean,
 ): number {
   const baseCount = Math.max(0, maxA - minA + 1) + Math.max(0, maxB - minB + 1);
   const estimatedCount = includeDiagonals ? baseCount * 2 : baseCount;
@@ -1037,7 +1023,7 @@ function pointTarget(
   candidate: Point,
   point: Point,
   kind: CpSnapTarget['kind'],
-  label: string
+  label: string,
 ): CpSnapTarget {
   return {
     point: candidate,
@@ -1054,7 +1040,7 @@ function closestPointOnSegment(point: Point, segment: OristudioCpLineSegment): P
   if (lengthSquared === 0) return segment.a;
   const t = Math.max(
     0,
-    Math.min(1, ((point.x - segment.a.x) * dx + (point.y - segment.a.y) * dy) / lengthSquared)
+    Math.min(1, ((point.x - segment.a.x) * dx + (point.y - segment.a.y) * dy) / lengthSquared),
   );
   return {
     x: segment.a.x + dx * t,

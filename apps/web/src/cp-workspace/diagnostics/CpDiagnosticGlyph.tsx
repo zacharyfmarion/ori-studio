@@ -29,21 +29,24 @@ const GLYPH_PX = 12;
 function shapeTitle(t: TFunction, shape: CpDiagnosticMarkerShape): string | null {
   switch (shape) {
     case 'triangle':
-      return t('panels:creasePattern.foldability.shape.triangle', 'Incorrect (odd) number of folds');
+      return t(
+        'panels:creasePattern.foldability.shape.triangle',
+        'Incorrect (odd) number of folds',
+      );
     case 'square':
       return t('panels:creasePattern.foldability.shape.square', 'Incorrect fold types');
     case 'circle':
     case 'ring':
       return t(
         'panels:creasePattern.foldability.shape.circle',
-        "Incorrect angles (Kawasaki's theorem)"
+        "Incorrect angles (Kawasaki's theorem)",
       );
     case 'big-little-big':
       return t('panels:creasePattern.foldability.shape.bigLittleBig', 'Big-little-big');
     case 'self-intersection':
       return t(
         'panels:creasePattern.foldability.shape.selfIntersection',
-        'The fold angles agree, but the paper cannot get there without crossing itself'
+        'The fold angles agree, but the paper cannot get there without crossing itself',
       );
     default:
       return null;

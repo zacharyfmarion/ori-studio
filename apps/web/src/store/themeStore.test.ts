@@ -43,8 +43,12 @@ beforeEach(() => {
 describe('themeStore', () => {
   it('exposes the Cascade preset theme set', () => {
     const names = useThemeStore.getState().presetThemes.map((theme) => theme.name);
-    const firstDarkTheme = useThemeStore.getState().presetThemes.find((theme) => theme.type === 'dark');
-    const firstLightTheme = useThemeStore.getState().presetThemes.find((theme) => theme.type === 'light');
+    const firstDarkTheme = useThemeStore
+      .getState()
+      .presetThemes.find((theme) => theme.type === 'dark');
+    const firstLightTheme = useThemeStore
+      .getState()
+      .presetThemes.find((theme) => theme.type === 'light');
 
     expect(names).toHaveLength(23);
     expect(firstDarkTheme?.name).toBe('One Dark');
@@ -84,7 +88,7 @@ describe('themeStore', () => {
     expect(useThemeStore.getState().currentTheme.name).toBe('GitHub Light');
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('GitHub Light');
     expect(document.documentElement.style.getPropertyValue('--bg-primary')).toBe(
-      theme?.colors['bg.primary']
+      theme?.colors['bg.primary'],
     );
     expect(document.documentElement.getAttribute('data-theme-type')).toBe('light');
   });

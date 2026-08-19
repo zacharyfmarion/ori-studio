@@ -14,10 +14,10 @@ describe('toast message helpers', () => {
 
   it('humanizes structural fold error codes', () => {
     expect(
-      humanizeError({ code: 'fold_same_parity', message: 'InitialHierarchy(...)' }, t)
+      humanizeError({ code: 'fold_same_parity', message: 'InitialHierarchy(...)' }, t),
     ).toContain("can't be folded flat");
     expect(
-      humanizeError({ code: 'fold_layer_search', message: 'WorkerOverlap(SubFace(...))' }, t)
+      humanizeError({ code: 'fold_layer_search', message: 'WorkerOverlap(SubFace(...))' }, t),
     ).toContain("couldn't be folded");
   });
 
@@ -26,19 +26,19 @@ describe('toast message helpers', () => {
   it('covers every fold and FOLD-import code the kernel mints', () => {
     const rawRustDebug = 'Setup(FoldGraph(DisconnectedFaces { reached: 225, unreached: 1 }))';
     expect(humanizeError({ code: 'fold_disconnected', message: rawRustDebug }, t)).not.toContain(
-      'DisconnectedFaces'
+      'DisconnectedFaces',
     );
     expect(humanizeError({ code: 'fold_disconnected', message: rawRustDebug }, t)).toContain(
-      'separate pieces'
+      'separate pieces',
     );
 
     const rawIoDisplay =
       'folded form, not a crease pattern: FOLD folded-form frames (this frame declares frame_classes)';
     expect(humanizeError({ code: 'fold_folded_form', message: rawIoDisplay }, t)).not.toContain(
-      'frame_classes'
+      'frame_classes',
     );
     expect(humanizeError({ code: 'fold_folded_form', message: rawIoDisplay }, t)).toContain(
-      'folded model'
+      'folded model',
     );
   });
 
@@ -47,22 +47,30 @@ describe('toast message helpers', () => {
     expect(
       humanizeError(
         { code: 'project_file_too_new', message: 'Unsupported Ori Studio project schemaVersion 9' },
-        t
-      )
+        t,
+      ),
     ).toContain('newer version of Ori Studio');
     expect(
-      humanizeError({ code: 'project_file_unrecognized', message: 'File is not an Ori Studio project' }, t)
+      humanizeError(
+        { code: 'project_file_unrecognized', message: 'File is not an Ori Studio project' },
+        t,
+      ),
     ).toContain("isn't an Ori Studio project");
     expect(
       humanizeError(
-        { code: 'project_file_damaged', message: 'Ori Studio project field workspace must be an object' },
-        t
-      )
+        {
+          code: 'project_file_damaged',
+          message: 'Ori Studio project field workspace must be an object',
+        },
+        t,
+      ),
     ).not.toContain('workspace');
   });
 
   it('falls back to the raw message for unknown codes', () => {
-    expect(humanizeError({ code: 'some_other_error', message: 'raw detail' }, t)).toBe('raw detail');
+    expect(humanizeError({ code: 'some_other_error', message: 'raw detail' }, t)).toBe(
+      'raw detail',
+    );
     expect(humanizeError(new Error('boom'), t)).toBe('boom');
   });
 });

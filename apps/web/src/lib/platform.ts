@@ -19,10 +19,7 @@ export function isApplePlatform(): boolean {
  * True when the event carries the platform's accel modifier: Cmd on Apple,
  * Ctrl elsewhere.
  */
-export function isPrimaryModifier(event: {
-  metaKey: boolean;
-  ctrlKey: boolean;
-}): boolean {
+export function isPrimaryModifier(event: { metaKey: boolean; ctrlKey: boolean }): boolean {
   return isApplePlatform() ? event.metaKey : event.ctrlKey;
 }
 

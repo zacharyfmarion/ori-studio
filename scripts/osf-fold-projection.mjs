@@ -107,9 +107,7 @@ export function selectComponent(fold, index) {
   const components = vertexComponents(vertices.length, edges);
   const chosen = components[index];
   if (!chosen) {
-    throw new Error(
-      `--component ${index}: file has ${components.length} component(s)`
-    );
+    throw new Error(`--component ${index}: file has ${components.length} component(s)`);
   }
   const vertexMap = new Map(chosen.map((v, i) => [v, i]));
   const keptEdges = [];
@@ -128,13 +126,11 @@ export function selectComponent(fold, index) {
   for (const key of EDGE_ARRAYS) {
     if (Array.isArray(fold[key])) out[key] = keptEdges.map((e) => fold[key][e]);
   }
-  out.faces_vertices = keptFaces.map((f) =>
-    faces[f].map((v) => vertexMap.get(v))
-  );
+  out.faces_vertices = keptFaces.map((f) => faces[f].map((v) => vertexMap.get(v)));
   for (const key of FACE_ARRAYS) {
     if (!Array.isArray(fold[key])) continue;
     out[key] = keptFaces.map((f) =>
-      fold[key][f].map((e) => (key === 'faces_edges' ? edgeMap.get(e) : e))
+      fold[key][f].map((e) => (key === 'faces_edges' ? edgeMap.get(e) : e)),
     );
   }
   return out;
@@ -166,13 +162,13 @@ export function readFoldDocument(path, { document = 0, component = null } = {}) 
       throw new Error(
         parsed.workspace?.documents
           ? `no workspace.documents[${document}] in this .osf`
-          : 'this .osf has neither workspace.documents[] nor workspace.creasePattern'
+          : 'this .osf has neither workspace.documents[] nor workspace.creasePattern',
       );
     }
     if (!legacy && document !== 0) {
       throw new Error(
         `--document ${document} was asked for, but this .osf (schema ` +
-          `${parsed.schemaVersion ?? '?'}) holds a single crease pattern`
+          `${parsed.schemaVersion ?? '?'}) holds a single crease pattern`,
       );
     }
     fold = entry.creasePattern?.foldProjection;
@@ -181,7 +177,7 @@ export function readFoldDocument(path, { document = 0, component = null } = {}) 
       // Saying so beats emitting an empty FOLD document.
       throw new Error(
         'this .osf carries no creasePattern.foldProjection — open it in Ori ' +
-          'Studio, fold it, and save before extracting'
+          'Studio, fold it, and save before extracting',
       );
     }
   } else if (parsed.vertices_coords || parsed.edges_vertices) {
@@ -217,20 +213,14 @@ function main(argv) {
   const out = { ...fold };
   if (Array.isArray(fold.vertices_coords)) {
     out.vertices_coords = fold.vertices_coords.map((v) =>
-      v.map((c) => round(c, options.precision))
+      v.map((c) => round(c, options.precision)),
     );
   }
   if (Array.isArray(fold.edges_foldAngle)) {
-    out.edges_foldAngle = fold.edges_foldAngle.map((a) =>
-      round(a, options.precision)
-    );
+    out.edges_foldAngle = fold.edges_foldAngle.map((a) => round(a, options.precision));
   }
 
-  process.stdout.write(
-    options.pretty
-      ? `${JSON.stringify(out, null, 2)}\n`
-      : JSON.stringify(out)
-  );
+  process.stdout.write(options.pretty ? `${JSON.stringify(out, null, 2)}\n` : JSON.stringify(out));
 }
 
 if (process.argv[1] && import.meta.url.endsWith(basename(process.argv[1]))) {

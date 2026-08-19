@@ -81,7 +81,7 @@ type Drag =
 
 function objectCornersCss(
   object: TransformableCanvasObject,
-  views: { model: CpOverlayView; user: CpOverlayView }
+  views: { model: CpOverlayView; user: CpOverlayView },
 ): Vec2[] {
   const view = views[object.space];
   return boxCornersModel(object.box).map((corner) => overlayModelToCss(view, corner));
@@ -160,7 +160,10 @@ export function CanvasObjectOverlay({
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       const target = event.target as HTMLElement | null;
-      if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) {
+      if (
+        target &&
+        (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
+      ) {
         return;
       }
       if (cropMode) setCropMode(false);
@@ -179,7 +182,7 @@ export function CanvasObjectOverlay({
         y: event.clientY - rect.top,
       });
     },
-    [overlay, views]
+    [overlay, views],
   );
 
   const beginCapture = (event: ReactPointerEvent<SVGElement>) => {
@@ -211,14 +214,14 @@ export function CanvasObjectOverlay({
         moved: false,
       };
     },
-    [interactive, onSelect, onGestureStart]
+    [interactive, onSelect, onGestureStart],
   );
 
   const handleResizeDown = useCallback(
     (
       event: ReactPointerEvent<SVGRectElement>,
       object: TransformableCanvasObject,
-      handle: AnnotationResizeHandle
+      handle: AnnotationResizeHandle,
     ) => {
       if (!interactive || object.locked || event.button !== 0) return;
       beginCapture(event);
@@ -232,7 +235,7 @@ export function CanvasObjectOverlay({
         moved: false,
       };
     },
-    [interactive, onGestureStart, cropMode, canCrop]
+    [interactive, onGestureStart, cropMode, canCrop],
   );
 
   const handleRotateDown = useCallback(
@@ -253,7 +256,7 @@ export function CanvasObjectOverlay({
         moved: false,
       };
     },
-    [interactive, pointerToObject, onGestureStart]
+    [interactive, pointerToObject, onGestureStart],
   );
 
   const handlePointerMove = useCallback(
@@ -261,7 +264,10 @@ export function CanvasObjectOverlay({
       const drag = dragRef.current;
       if (!drag || !views) return;
       if (drag.kind === 'move') {
-        const dCss = { x: event.clientX - drag.startClient.x, y: event.clientY - drag.startClient.y };
+        const dCss = {
+          x: event.clientX - drag.startClient.x,
+          y: event.clientY - drag.startClient.y,
+        };
         const dObject = overlayCssDeltaToModel(views[object.space], dCss);
         if (!dObject) return;
         if (!drag.moved && Math.hypot(dCss.x, dCss.y) > 1) drag.moved = true;
@@ -282,7 +288,7 @@ export function CanvasObjectOverlay({
           drag.startObject.box,
           drag.handle,
           pointer,
-          resizeAspectLock(drag.startObject.aspectLock, event.shiftKey)
+          resizeAspectLock(drag.startObject.aspectLock, event.shiftKey),
         );
         onUpdate(drag.id, { center: next.center, width: next.width, height: next.height });
         return;
@@ -294,7 +300,7 @@ export function CanvasObjectOverlay({
       if (event.shiftKey) rotation = snapAngle(rotation, IMAGE_ROTATION_SNAP_RADIANS);
       onUpdate(drag.id, { rotation });
     },
-    [views, pointerToObject, onUpdate, onCropUpdate]
+    [views, pointerToObject, onUpdate, onCropUpdate],
   );
 
   /**
@@ -318,13 +324,10 @@ export function CanvasObjectOverlay({
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
       if (drag?.moved) {
-        onGestureCommit?.(
-          drag.id,
-          drag.kind === 'resize' && drag.crop ? 'crop' : drag.kind
-        );
+        onGestureCommit?.(drag.id, drag.kind === 'resize' && drag.crop ? 'crop' : drag.kind);
       }
     },
-    [onGestureCommit]
+    [onGestureCommit],
   );
 
   const selected = objects.find((object) => object.id === selectedId) ?? null;
@@ -336,7 +339,7 @@ export function CanvasObjectOverlay({
   // mounted next to its own canvas and can name it exactly.
   useWheelPassthrough(
     overlay,
-    useCallback(() => overlay?.parentElement?.querySelector('canvas'), [overlay])
+    useCallback(() => overlay?.parentElement?.querySelector('canvas'), [overlay]),
   );
 
   if (!views) return null;
@@ -374,11 +377,7 @@ export function CanvasObjectOverlay({
             points={points}
             fill="transparent"
             stroke={
-              isSelected
-                ? cropping
-                  ? '#e0a020'
-                  : 'var(--accent-primary, #4c9aff)'
-                : 'transparent'
+              isSelected ? (cropping ? '#e0a020' : 'var(--accent-primary, #4c9aff)') : 'transparent'
             }
             // A focused body is inert to this overlay and its interior is taking
             // drags — orbiting a 3D figure, running a simulation. Doubling the
@@ -445,16 +444,13 @@ function SelectionHandles({
   onResizeDown: (
     event: ReactPointerEvent<SVGRectElement>,
     object: TransformableCanvasObject,
-    handle: AnnotationResizeHandle
+    handle: AnnotationResizeHandle,
   ) => void;
   onRotateDown: (
     event: ReactPointerEvent<SVGCircleElement>,
-    object: TransformableCanvasObject
+    object: TransformableCanvasObject,
   ) => void;
-  onPointerMove: (
-    event: ReactPointerEvent<SVGElement>,
-    object: TransformableCanvasObject
-  ) => void;
+  onPointerMove: (event: ReactPointerEvent<SVGElement>, object: TransformableCanvasObject) => void;
   onPointerUp: (event: ReactPointerEvent<SVGElement>) => void;
   onPointerCancel: (event: ReactPointerEvent<SVGElement>) => void;
 }) {

@@ -38,12 +38,7 @@ export function exploriApiBase(): string {
 export const EXPLORI_MIN_EDGES = 4;
 
 export type ExploriErrorCode =
-  | 'network'
-  | 'timeout'
-  | 'upstream_error'
-  | 'invalid_tree'
-  | 'rate_limited'
-  | 'unknown';
+  'network' | 'timeout' | 'upstream_error' | 'invalid_tree' | 'rate_limited' | 'unknown';
 
 export class ExploriError extends Error {
   readonly code: ExploriErrorCode;
@@ -90,7 +85,9 @@ export function exploriDbConfigsForQuery(configs: readonly ExploriDbConfig[]): E
 }
 
 /** Why a search cannot run yet, or null when it can. */
-export function exploriQueryBlocker(document: ExploriDocument): 'too-simple' | 'no-database' | null {
+export function exploriQueryBlocker(
+  document: ExploriDocument,
+): 'too-simple' | 'no-database' | null {
   if (document.edges.length < EXPLORI_MIN_EDGES) return 'too-simple';
   if (effectiveExploriDbConfigs(document).length === 0) return 'no-database';
   return null;
@@ -169,7 +166,8 @@ function numberField(value: unknown, fallback = 0): number {
 }
 
 function parseCp(value: unknown): ExploriCp | null {
-  if (!isRecord(value) || !Array.isArray(value.vertices) || !Array.isArray(value.edges)) return null;
+  if (!isRecord(value) || !Array.isArray(value.vertices) || !Array.isArray(value.edges))
+    return null;
   const vertices: number[][] = [];
   for (const entry of value.vertices) {
     if (!Array.isArray(entry) || entry.length < 8) return null;
@@ -218,9 +216,10 @@ function parseGraph(value: unknown): ExploriGraph | null {
     if (!isRecord(entry)) continue;
     const id = entry.id;
     if (typeof id !== 'number' && typeof id !== 'string') continue;
-    const pos = Array.isArray(entry.pos) && entry.pos.length >= 2
-      ? ([numberField(entry.pos[0]), numberField(entry.pos[1])] as [number, number])
-      : undefined;
+    const pos =
+      Array.isArray(entry.pos) && entry.pos.length >= 2
+        ? ([numberField(entry.pos[0]), numberField(entry.pos[1])] as [number, number])
+        : undefined;
     nodes.push({ id, ...(pos ? { pos } : {}) });
   }
   const edges: ExploriGraph['edges'] = [];
@@ -228,7 +227,10 @@ function parseGraph(value: unknown): ExploriGraph | null {
     if (!isRecord(entry)) continue;
     const u = entry.u;
     const v = entry.v;
-    if ((typeof u !== 'number' && typeof u !== 'string') || (typeof v !== 'number' && typeof v !== 'string')) {
+    if (
+      (typeof u !== 'number' && typeof u !== 'string') ||
+      (typeof v !== 'number' && typeof v !== 'string')
+    ) {
       continue;
     }
     edges.push({ u, v, length: numberField(entry.length, 1) });
@@ -237,7 +239,9 @@ function parseGraph(value: unknown): ExploriGraph | null {
 }
 
 function parseSymmetry(value: unknown): ExploriSymmetry {
-  return EXPLORI_SYMMETRIES.includes(value as ExploriSymmetry) ? (value as ExploriSymmetry) : 'none';
+  return EXPLORI_SYMMETRIES.includes(value as ExploriSymmetry)
+    ? (value as ExploriSymmetry)
+    : 'none';
 }
 
 function parseResult(value: unknown, index: number): ExploriResult | null {
@@ -276,7 +280,7 @@ function parseQueryResponse(payload: unknown): ExploriQueryResponse {
 
 export async function queryExplori(
   document: ExploriDocument,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<ExploriQueryResponse> {
   const blocker = exploriQueryBlocker(document);
   if (blocker === 'too-simple') {
@@ -292,7 +296,7 @@ export async function queryExplori(
       db_configs: exploriDbConfigsForQuery(effectiveExploriDbConfigs(document)),
       n: document.resultLimit,
     },
-    signal
+    signal,
   );
   return parseQueryResponse(payload);
 }
@@ -306,7 +310,7 @@ export async function queryExplori(
  */
 export async function fetchExploriTiling(
   ref: ExploriTilingRef,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<ExploriResult | null> {
   const query = new URLSearchParams({
     id: String(ref.tilingId),

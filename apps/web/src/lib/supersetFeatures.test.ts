@@ -100,7 +100,13 @@ describe('collectExportLossWarnings', () => {
     const presence = {
       ...noneElse,
       images: [],
-      bpSymmetry: { enabled: true, fold: 'book' as const, quarterTurn: false, sidesSwapped: false, pairs: [{ v1: 1, v2: 2 }] },
+      bpSymmetry: {
+        enabled: true,
+        fold: 'book' as const,
+        quarterTurn: false,
+        sidesSwapped: false,
+        pairs: [{ v1: 1, v2: 2 }],
+      },
     };
     expect(collectExportLossWarnings('bps', presence)).toEqual([
       { id: 'symmetry', count: 1, blocking: false },
@@ -124,7 +130,13 @@ describe('collectExportLossWarnings', () => {
   it('warns when mirror draw was turned on, or the fold changed, with nothing paired', () => {
     for (const bpSymmetry of [
       { enabled: true, fold: 'book' as const, quarterTurn: false, sidesSwapped: false, pairs: [] },
-      { enabled: false, fold: 'diagonal' as const, quarterTurn: false, sidesSwapped: false, pairs: [] },
+      {
+        enabled: false,
+        fold: 'diagonal' as const,
+        quarterTurn: false,
+        sidesSwapped: false,
+        pairs: [],
+      },
     ]) {
       const warnings = collectExportLossWarnings('bps', { ...noneElse, images: [], bpSymmetry });
       expect(warnings.map((warning) => warning.id)).toEqual(['symmetry']);
@@ -135,7 +147,13 @@ describe('collectExportLossWarnings', () => {
     const warnings = collectExportLossWarnings('bps', {
       ...noneElse,
       images: [],
-      bpSymmetry: { enabled: false, fold: 'diagonal' as const, quarterTurn: false, sidesSwapped: false, pairs: [{ v1: 1, v2: 2 }] },
+      bpSymmetry: {
+        enabled: false,
+        fold: 'diagonal' as const,
+        quarterTurn: false,
+        sidesSwapped: false,
+        pairs: [{ v1: 1, v2: 2 }],
+      },
     });
     expect(blockingExportLoss(warnings)).toEqual([]);
   });
@@ -201,7 +219,7 @@ describe('non-flat fold angles block an export rather than warning', () => {
 describe('3D folded figures survive .fold, and only while they hold a session', () => {
   const figure = (
     kind: 'flat' | 'spatial',
-    handle: number | null = 1
+    handle: number | null = 1,
   ): OristudioCpFoldedFigureEntry =>
     ({
       id: `figure-${kind}-${handle}`,
@@ -229,9 +247,7 @@ describe('3D folded figures survive .fold, and only while they hold a session', 
   it('warns, without blocking, on every format that cannot carry one', () => {
     for (const format of ['cp', 'ori', 'orh', 'dxf', 'obj'] as const) {
       const warnings = collectExportLossWarnings(format, presence([figure('spatial')]));
-      expect(warnings).toEqual([
-        { id: 'foldedForm3d', count: 1, blocking: false },
-      ]);
+      expect(warnings).toEqual([{ id: 'foldedForm3d', count: 1, blocking: false }]);
       // The `.osf` still has the figure, so losing it is not a reason to stop.
       expect(blockingExportLoss(warnings)).toEqual([]);
     }
@@ -240,11 +256,9 @@ describe('3D folded figures survive .fold, and only while they hold a session', 
   it('counts only the 3D figures', () => {
     const warnings = collectExportLossWarnings(
       'cp',
-      presence([figure('flat'), figure('spatial'), figure('flat', 2)])
+      presence([figure('flat'), figure('spatial'), figure('flat', 2)]),
     );
-    expect(warnings).toEqual([
-      { id: 'foldedForm3d', count: 1, blocking: false },
-    ]);
+    expect(warnings).toEqual([{ id: 'foldedForm3d', count: 1, blocking: false }]);
   });
 
   it('warns on .fold for a figure reopened from an .osf, which has no session', () => {
@@ -265,7 +279,7 @@ describe('3D folded figures survive .fold, and only while they hold a session', 
   it('files each 3D figure under exactly one of the two entries', () => {
     const warnings = collectExportLossWarnings(
       'cp',
-      presence([figure('spatial'), figure('spatial', null), figure('spatial', 3)])
+      presence([figure('spatial'), figure('spatial', null), figure('spatial', 3)]),
     );
     expect(warnings).toEqual([
       { id: 'foldedForm3d', count: 2, blocking: false },

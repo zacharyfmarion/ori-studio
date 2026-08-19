@@ -74,9 +74,9 @@ describe('segment export format metadata', () => {
     const formats = SEGMENT_EXPORT_FORMATS.map((meta) => meta.format);
     expect(formats).toEqual(['cp', 'fold', 'ori', 'orh', 'svg', 'png']);
     expect(formats).not.toContain('v5');
-    expect(SEGMENT_EXPORT_FORMATS.filter((meta) => meta.kind === 'image').map((m) => m.format)).toEqual(
-      ['svg', 'png']
-    );
+    expect(
+      SEGMENT_EXPORT_FORMATS.filter((meta) => meta.kind === 'image').map((m) => m.format),
+    ).toEqual(['svg', 'png']);
   });
 
   it('isSegmentImageFormat only matches svg/png', () => {

@@ -26,8 +26,7 @@ function lab([r, g, b]: Rgba): [number, number, number] {
 
 const lightness = (c: Rgba) => lab(c)[0];
 const chroma = (c: Rgba) => Math.hypot(lab(c)[1], lab(c)[2]);
-const deltaE = (a: Rgba, b: Rgba) =>
-  Math.hypot(...lab(a).map((v, i) => v - lab(b)[i]));
+const deltaE = (a: Rgba, b: Rgba) => Math.hypot(...lab(a).map((v, i) => v - lab(b)[i]));
 
 const ANGLES = [180, 135, 120, 90, 60, 45, 20, 0];
 
@@ -102,8 +101,8 @@ describe('mountain and valley converge as the fold flattens', () => {
     const separations = ANGLES.map((angle) =>
       deltaE(
         applyFoldAngleRamp(MOUNTAIN, deg(angle), ANCHOR),
-        applyFoldAngleRamp(VALLEY, deg(angle), ANCHOR)
-      )
+        applyFoldAngleRamp(VALLEY, deg(angle), ANCHOR),
+      ),
     );
     for (let i = 1; i < separations.length; i += 1) {
       expect(separations[i]).toBeLessThan(separations[i - 1]);
@@ -115,7 +114,7 @@ describe('the ramp is monotone and ordered', () => {
   it('moves further from the unfolded ink as the angle shrinks', () => {
     for (const ink of [MOUNTAIN, VALLEY]) {
       const distances = ANGLES.map((angle) =>
-        deltaE(ink, applyFoldAngleRamp(ink, deg(angle), ANCHOR))
+        deltaE(ink, applyFoldAngleRamp(ink, deg(angle), ANCHOR)),
       );
       for (let i = 1; i < distances.length; i += 1) {
         expect(distances[i]).toBeGreaterThan(distances[i - 1]);

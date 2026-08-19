@@ -1,10 +1,5 @@
 import { memo, useLayoutEffect, type PointerEvent, type Ref } from 'react';
-import {
-  TREE_CHROME_ATTR,
-  TREE_GHOST_PART,
-  TREE_SCENE_ATTR,
-  treeChromeDash,
-} from './sceneDom';
+import { TREE_CHROME_ATTR, TREE_GHOST_PART, TREE_SCENE_ATTR, treeChromeDash } from './sceneDom';
 import type { PlotRect, Point } from '../lib/geometry';
 import { treeDotPx, type TreeDotSizes } from '../lib/treeNodeDot';
 import { viewportRectToViewBox } from '../lib/treeViewportPrimitives';

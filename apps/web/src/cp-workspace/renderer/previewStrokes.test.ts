@@ -65,9 +65,9 @@ describe('previewGroupsToStrokes', () => {
 
   it('carries the overlay dash pattern only when dashed', () => {
     expect(previewGroupsToStrokes([{ segments: [seg(0)], color: RED }]).dashPatterns).toEqual([]);
-    expect(
-      previewGroupsToStrokes([{ segments: [seg(0)], color: RED }], true).dashPatterns
-    ).toEqual([OVERLAY_DASH_PATTERN]);
+    expect(previewGroupsToStrokes([{ segments: [seg(0)], color: RED }], true).dashPatterns).toEqual(
+      [OVERLAY_DASH_PATTERN],
+    );
   });
 
   it('defaults every segment to the base width', () => {
@@ -113,7 +113,7 @@ describe('per-group dashing leaves every other tool alone', () => {
         { segments: [seg(1)], color: RED, dashed: false },
         { segments: [seg(2)], color: RED, dashed: true },
       ],
-      false
+      false,
     );
     expect(geometry.dashPatterns).toHaveLength(1);
     expect([...(geometry.dashSlot ?? [])]).toEqual([0, 1]);

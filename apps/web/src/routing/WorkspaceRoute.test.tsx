@@ -47,12 +47,10 @@ function renderAt(root: Root, entry: string, client?: PostHogClientLike): void {
       },
       ...LEGACY_DESIGN_PATHS.map((path) => ({ path, loader: () => redirect(DESIGN_PATH) })),
     ],
-    { initialEntries: [entry] }
+    { initialEntries: [entry] },
   );
   const tree: ReactNode = <RouterProvider router={router} />;
-  root.render(
-    client ? createElement(AnalyticsRuntimeProvider, { client, children: tree }) : tree
-  );
+  root.render(client ? createElement(AnalyticsRuntimeProvider, { client, children: tree }) : tree);
 }
 
 describe('WorkspaceRoute — /design', () => {

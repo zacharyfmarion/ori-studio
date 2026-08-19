@@ -58,7 +58,7 @@ export function useCpToolHintAnchor(container: HTMLElement | null): CpToolHintPl
       const next = cpToolHintPlacement(
         rect,
         { width: window.innerWidth, height: window.innerHeight },
-        toolbar?.getBoundingClientRect() ?? null
+        toolbar?.getBoundingClientRect() ?? null,
       );
       // The observer fires for changes that leave this rule's inputs alone
       // (height-only splits, sub-pixel reflows). Bailing on an equal result keeps

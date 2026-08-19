@@ -84,10 +84,13 @@ describe('the blocked-device gate on the workspace routes', () => {
     await expect(resolve('/edit')).resolves.toBe('/edit');
   });
 
-  it.each(['/edit', '/design', '/simulate'])('bounces %s to the welcome page on a phone', async (path) => {
-    mockPhoneViewport();
-    await expect(resolve(path)).resolves.toBe('/welcome');
-  });
+  it.each(['/edit', '/design', '/simulate'])(
+    'bounces %s to the welcome page on a phone',
+    async (path) => {
+      mockPhoneViewport();
+      await expect(resolve(path)).resolves.toBe('/welcome');
+    },
+  );
 
   it('bounces a legacy Design sub-path too, without following its redirect first', async () => {
     mockPhoneViewport();

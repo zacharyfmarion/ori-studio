@@ -35,7 +35,12 @@ describe('dragBoxTool', () => {
       { kind: 'move', point: { x: 5, y: 8 } },
       { kind: 'up', point: { x: 5, y: 8 } },
     ]);
-    expect(outs[2].commit).toEqual({ points: [{ x: 1, y: 2 }, { x: 5, y: 8 }] });
+    expect(outs[2].commit).toEqual({
+      points: [
+        { x: 1, y: 2 },
+        { x: 5, y: 8 },
+      ],
+    });
     expect(outs[2].state).toEqual({ start: null });
   });
 
@@ -44,7 +49,12 @@ describe('dragBoxTool', () => {
       { kind: 'down', point: { x: 1, y: 2 } },
       { kind: 'up', point: { x: 1, y: 9 } }, // same x, zero width
     ]);
-    expect(outs[1].commit).toEqual({ points: [{ x: 1, y: 2 }, { x: 1, y: 9 }] });
+    expect(outs[1].commit).toEqual({
+      points: [
+        { x: 1, y: 2 },
+        { x: 1, y: 9 },
+      ],
+    });
   });
 
   it('does not commit a zero-length gesture', () => {

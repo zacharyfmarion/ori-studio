@@ -49,11 +49,11 @@ describe('CpDiagnosticGlyph', () => {
 
   it('tones a mountain shortfall red and a valley shortfall blue', () => {
     expect(
-      render(entry({ rule: 'Maekawa', violation_color: 'NotEnoughMountain' })).dataset.tone
+      render(entry({ rule: 'Maekawa', violation_color: 'NotEnoughMountain' })).dataset.tone,
     ).toBe('mountain');
-    expect(render(entry({ rule: 'Maekawa', violation_color: 'NotEnoughValley' })).dataset.tone).toBe(
-      'valley'
-    );
+    expect(
+      render(entry({ rule: 'Maekawa', violation_color: 'NotEnoughValley' })).dataset.tone,
+    ).toBe('valley');
   });
 
   it('draws Kawasaki-only failures as a hollow ring', () => {

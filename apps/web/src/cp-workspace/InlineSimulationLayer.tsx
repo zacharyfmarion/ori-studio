@@ -15,10 +15,7 @@ import { useWheelPassthrough } from '../hooks/useWheelPassthrough';
 import { claimWheelBurst } from '../lib/wheelBurst';
 import { overlayCssPerModel, overlayModelToCss } from './annotations/annotationTransform';
 import type { InlineSimulation } from './inlineSimulation/inlineSimulation';
-import {
-  canvasWindowPlacement,
-  windowScreenAngle,
-} from './canvasObjects/canvasWindowPlacement';
+import { canvasWindowPlacement, windowScreenAngle } from './canvasObjects/canvasWindowPlacement';
 import { useSettledScale } from './canvasObjects/useSettledScale';
 import {
   getInlineSimulationFoldPercent,
@@ -29,10 +26,7 @@ import {
   subscribeInlineSimulationFoldTarget,
 } from './inlineSimulation/inlineSimulationRuntime';
 import { useSimulatorViewExport } from '../simulator/useSimulatorViewExport';
-import {
-  SimulatorViewport,
-  type SimulatorViewportHandle,
-} from '../simulator/SimulatorViewport';
+import { SimulatorViewport, type SimulatorViewportHandle } from '../simulator/SimulatorViewport';
 import {
   useSimulatorRuntime,
   webglRenderSupported,
@@ -42,10 +36,7 @@ import { foldNeedsTriangulation } from '../simulator/canvas2dFrame';
 import { useSimulatorShortcuts } from '../simulator/useSimulatorShortcuts';
 import { registerSimulatorView } from '../simulator/simulatorViewRegistry';
 import { FoldPlayhead } from '../simulator/foldPlayhead';
-import {
-  simulatorMaterialOptions,
-  type SimulatorSettings,
-} from '../lib/simulatorSettings';
+import { simulatorMaterialOptions, type SimulatorSettings } from '../lib/simulatorSettings';
 
 /**
  * DOM layer that renders inline simulation windows over the WebGL canvas.
@@ -180,8 +171,7 @@ export function InlineSimulationLayer({
           // a drag there moves it like any other canvas object — except while
           // that overlay is inert, when taking the press here is the only way a
           // window stays clickable at all.
-          pointerEvents:
-            simulation.id === focusedId || !overlayInteractive ? 'auto' : 'none',
+          pointerEvents: simulation.id === focusedId || !overlayInteractive ? 'auto' : 'none',
         };
         return (
           <InlineSimulationWindow
@@ -250,7 +240,7 @@ function InlineSimulationWindow({
   // not write to the store. A plain read found nothing and never looked again.
   const source = useSyncExternalStore(
     subscribeInlineSimulationSources,
-    useCallback(() => getInlineSimulationSource(simulation.id), [simulation.id])
+    useCallback(() => getInlineSimulationSource(simulation.id), [simulation.id]),
   );
 
   /**
@@ -277,7 +267,7 @@ function InlineSimulationWindow({
   // and a window changing size does not reload its model.
   const bitmapOutput = useMemo(
     () => (gpuAvailable ? { width: INITIAL_RENDER_EDGE, height: INITIAL_RENDER_EDGE } : null),
-    [gpuAvailable]
+    [gpuAvailable],
   );
 
   // Where the fold should be when the solver loads.
@@ -293,10 +283,7 @@ function InlineSimulationWindow({
   // excludes `solverOptions` from its load effect: it is read when a model loads
   // and never re-triggers one, so later scrubbing still goes through
   // `setFoldPercent` rather than reloading.
-  const materialOptions = useMemo(
-    () => simulatorMaterialOptions(viewSettings),
-    [viewSettings]
-  );
+  const materialOptions = useMemo(() => simulatorMaterialOptions(viewSettings), [viewSettings]);
   // Seeded from the runtime's fold percent, which is where the user left this
   // window, and not from the last frame the solver reported — those are only
   // delivered while the window is focused, so the reported value is stale by
@@ -323,7 +310,7 @@ function InlineSimulationWindow({
         publishInlineSimulationFold(simulation.id, frame.foldPercent);
       }
     },
-    [simulation.id]
+    [simulation.id],
   );
 
   // Every window keeps its model loaded, focused or not.
@@ -335,10 +322,11 @@ function InlineSimulationWindow({
   // showing a bitmap made for the size it used to be, which goes soft zoomed in
   // and threadbare zoomed out.
   const runtime = useSimulatorRuntime({
-    fold:
-      source && gpuAvailable ? (source.fold as unknown as SimulatorFoldDocument) : null,
+    fold: source && gpuAvailable ? (source.fold as unknown as SimulatorFoldDocument) : null,
     solverOptions,
-    triangulate: source ? foldNeedsTriangulation(source.fold as unknown as SimulatorFoldDocument) : true,
+    triangulate: source
+      ? foldNeedsTriangulation(source.fold as unknown as SimulatorFoldDocument)
+      : true,
     canvas: null,
     bitmapOutput,
     // Frozen unless this window has focus. It still redraws when the camera
@@ -416,10 +404,7 @@ function InlineSimulationWindow({
       if (previous === null) previous = time;
       const elapsedSeconds = Math.min(0.08, (time - previous) / 1000);
       previous = time;
-      const next = playhead.advance(
-        elapsedSeconds,
-        viewSettings.foldPlayPercentPerSecond
-      );
+      const next = playhead.advance(elapsedSeconds, viewSettings.foldPlayPercentPerSecond);
       setFoldPercent(next);
       if (next >= 100) {
         onPlayingChange(false);
@@ -527,7 +512,7 @@ function InlineSimulationWindow({
   const exportView = useSimulatorViewExport(runtime.exportSvg);
   useEffect(
     () => registerInlineSimulationExporter(simulation.id, exportView),
-    [exportView, simulation.id]
+    [exportView, simulation.id],
   );
 
   // Keep the window's stored camera in step, so a refresh comes back where the
@@ -537,7 +522,7 @@ function InlineSimulationWindow({
       runtime.setCamera(view, width, height);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [],
   );
 
   return (
@@ -579,14 +564,14 @@ function InlineSimulationWindow({
         className="cp-inline-simulation__canvas"
         ariaLabel={t(
           'panels:creasePattern.inlineSimulation.canvasAriaLabel',
-          'Inline simulation. Drag to rotate.'
+          'Inline simulation. Drag to rotate.',
         )}
       />
       {badgeStyle && !gpuAvailable && (
         <span className="cp-inline-simulation__badge" style={badgeStyle}>
           {t(
             'panels:creasePattern.inlineSimulation.gpuUnavailable',
-            'Needs WebGL2 — open in the Simulate workspace'
+            'Needs WebGL2 — open in the Simulate workspace',
           )}
         </span>
       )}
@@ -600,8 +585,7 @@ function InlineSimulationWindow({
           className="cp-inline-simulation__badge cp-inline-simulation__badge--error"
           style={badgeStyle}
         >
-          {runtime.error ??
-            t('panels:creasePattern.inlineSimulation.failed', 'Simulation failed')}
+          {runtime.error ?? t('panels:creasePattern.inlineSimulation.failed', 'Simulation failed')}
         </span>
       )}
     </div>

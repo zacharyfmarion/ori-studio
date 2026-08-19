@@ -9,19 +9,25 @@ import { IconButton } from './ui/IconButton';
 function acknowledgements(t: TFunction): Array<{ title: string; href: string; detail: string }> {
   return [
     {
-      title: t('dialogs:help.acknowledgements.treemaker.title', 'Robert J. Lang and TreeMaker 5.0.1'),
+      title: t(
+        'dialogs:help.acknowledgements.treemaker.title',
+        'Robert J. Lang and TreeMaker 5.0.1',
+      ),
       href: 'https://langorigami.com/article/treemaker/',
       detail: t(
         'dialogs:help.acknowledgements.treemaker.detail',
-        "TreeMaker's original model code and behavior are the canonical reference for this Rust, WebAssembly, and desktop port."
+        "TreeMaker's original model code and behavior are the canonical reference for this Rust, WebAssembly, and desktop port.",
       ),
     },
     {
-      title: t('dialogs:help.acknowledgements.boxPleatingStudio.title', 'Mu-Tsun Tsai and Box Pleating Studio'),
+      title: t(
+        'dialogs:help.acknowledgements.boxPleatingStudio.title',
+        'Mu-Tsun Tsai and Box Pleating Studio',
+      ),
       href: 'https://github.com/bp-studio/box-pleating-studio',
       detail: t(
         'dialogs:help.acknowledgements.boxPleatingStudio.detail',
-        "The box-pleated authoring method is a Rust and WebAssembly port of Mu-Tsun Tsai's Box Pleating Studio."
+        "The box-pleated authoring method is a Rust and WebAssembly port of Mu-Tsun Tsai's Box Pleating Studio.",
       ),
     },
     {
@@ -29,7 +35,7 @@ function acknowledgements(t: TFunction): Array<{ title: string; href: string; de
       href: 'https://225.designorigami.net/',
       detail: t(
         'dialogs:help.acknowledgements.explori.detail',
-        'The Search 22.5° design method sends your tree to ExplOri, a searchable archive of 22.5° crease patterns, and shows the closest matches it returns.'
+        'The Search 22.5° design method sends your tree to ExplOri, a searchable archive of 22.5° crease patterns, and shows the closest matches it returns.',
       ),
     },
     {
@@ -37,15 +43,18 @@ function acknowledgements(t: TFunction): Array<{ title: string; href: string; de
       href: 'https://github.com/oriedita/oriedita',
       detail: t(
         'dialogs:help.acknowledgements.oriedita.detail',
-        'The crease-pattern editor is a Rust and WebAssembly port of the Oriedita editor (itself a fork of Orihime), including its foldability diagnostics, repairs, and file formats.'
+        'The crease-pattern editor is a Rust and WebAssembly port of the Oriedita editor (itself a fork of Orihime), including its foldability diagnostics, repairs, and file formats.',
       ),
     },
     {
-      title: t('dialogs:help.acknowledgements.origamiSimulator.title', 'Amanda Ghassaei and Origami Simulator'),
+      title: t(
+        'dialogs:help.acknowledgements.origamiSimulator.title',
+        'Amanda Ghassaei and Origami Simulator',
+      ),
       href: 'https://github.com/amandaghassaei/OrigamiSimulator',
       detail: t(
         'dialogs:help.acknowledgements.origamiSimulator.detail',
-        "The Simulate workspace folds bases into an interactive 3D model using a TypeScript port of Amanda Ghassaei's Origami Simulator."
+        "The Simulate workspace folds bases into an interactive 3D model using a TypeScript port of Amanda Ghassaei's Origami Simulator.",
       ),
     },
   ];
@@ -106,7 +115,11 @@ function ModalShell({
               <p>{subtitle}</p>
             </div>
           </div>
-          <IconButton size="sm" aria-label={t('dialogs:help.closeLabel', 'Close {{title}}', { title })} onClick={closeHelp}>
+          <IconButton
+            size="sm"
+            aria-label={t('dialogs:help.closeLabel', 'Close {{title}}', { title })}
+            onClick={closeHelp}
+          >
             <X size={15} />
           </IconButton>
         </header>
@@ -127,7 +140,7 @@ function AboutModal() {
       title={t('dialogs:help.about.title', 'About Ori Studio')}
       subtitle={t(
         'dialogs:help.about.subtitle',
-        'A modern shared workspace for designing, editing, and folding origami crease patterns.'
+        'A modern shared workspace for designing, editing, and folding origami crease patterns.',
       )}
       icon={<BookOpen size={18} />}
     >
@@ -136,10 +149,10 @@ function AboutModal() {
         <div>
           <p>
             <Trans i18nKey="dialogs:help.about.intro">
-              Ori Studio aims to be the ultimate workspace for origami design and analysis. It
-              leans heavily on ports of existing origami tools created by the community — the
-              Edit workspace, for instance, is a port of Oriedita to Rust, focused on usability
-              and performance. If you have any suggestions, feel free to{' '}
+              Ori Studio aims to be the ultimate workspace for origami design and analysis. It leans
+              heavily on ports of existing origami tools created by the community — the Edit
+              workspace, for instance, is a port of Oriedita to Rust, focused on usability and
+              performance. If you have any suggestions, feel free to{' '}
               <a href={ISSUES_URL} target="_blank" rel="noreferrer noopener">
                 open an issue on GitHub
               </a>

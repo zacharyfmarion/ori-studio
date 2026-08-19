@@ -40,7 +40,7 @@ function renderResultsPanel(design: Partial<ExploriDesignState> = {}): HTMLDivEl
       designTabs: [{ ...tab, explori: { ...tab.explori, ...design } }],
       activeDesignId: tab.id,
     },
-    true
+    true,
   );
   container = document.createElement('div');
   document.body.append(container);

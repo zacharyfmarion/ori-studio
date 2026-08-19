@@ -59,7 +59,7 @@ vi.mock('./folded/useFolded3dMeshRuntime', () => ({
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'folded', '__fixtures__');
 const RENDER_MODEL: OristudioCpFolded3dRenderModel = JSON.parse(
-  readFileSync(join(FIXTURES, 'hinge_90.rendermodel.json'), 'utf8')
+  readFileSync(join(FIXTURES, 'hinge_90.rendermodel.json'), 'utf8'),
 );
 
 const HANDLE = 21;
@@ -164,7 +164,7 @@ function render(): void {
     root.render(
       <Profiled>
         <Folded3dWindowLayer figures={[figure()]} focusedId={null} staleIds={new Set()} />
-      </Profiled>
+      </Profiled>,
     );
   });
 }
@@ -272,7 +272,7 @@ describe('placing a folded figure window', () => {
           figures={[figure()]}
           focusedId="folded-1"
           staleIds={new Set(['folded-1'])}
-        />
+        />,
       );
     });
     expect(windowEl().dataset.stale).toBe('true');
@@ -340,12 +340,8 @@ describe('turning a folded figure', () => {
     act(() => {
       root.render(
         <Profiled>
-          <Folded3dWindowLayer
-            figures={[figure(), second]}
-            focusedId={null}
-            staleIds={new Set()}
-          />
-        </Profiled>
+          <Folded3dWindowLayer figures={[figure(), second]} focusedId={null} staleIds={new Set()} />
+        </Profiled>,
       );
     });
     meshCameras.length = 0;
@@ -381,7 +377,7 @@ describe('turning a folded figure', () => {
         root.render(
           <Profiled>
             <Folded3dWindowLayer figures={many} focusedId={null} staleIds={new Set()} />
-          </Profiled>
+          </Profiled>,
         );
       });
       expect(container.querySelectorAll('.cp-folded-figure-window')).toHaveLength(count);

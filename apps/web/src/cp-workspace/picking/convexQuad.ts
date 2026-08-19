@@ -72,7 +72,7 @@ function segmentsIntersect(
   p1: ModelPoint,
   p2: ModelPoint,
   p3: ModelPoint,
-  p4: ModelPoint
+  p4: ModelPoint,
 ): boolean {
   const cross = (a: ModelPoint, b: ModelPoint, c: ModelPoint) =>
     (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
@@ -85,7 +85,7 @@ function segmentsIntersect(
   const d2 = cross(p3, p4, p2);
   const d3 = cross(p1, p2, p3);
   const d4 = cross(p1, p2, p4);
-  if (((d1 > 0) !== (d2 > 0) || d1 === 0 || d2 === 0) && ((d3 > 0) !== (d4 > 0) || d3 === 0 || d4 === 0)) {
+  if ((d1 > 0 !== d2 > 0 || d1 === 0 || d2 === 0) && (d3 > 0 !== d4 > 0 || d3 === 0 || d4 === 0)) {
     // Straddling, or an endpoint lies on the other segment's line — confirm the
     // touching endpoints are within the spans rather than beyond them.
     if (d1 !== 0 && d2 !== 0 && d3 !== 0 && d4 !== 0) return true;
@@ -93,7 +93,7 @@ function segmentsIntersect(
     if (d2 === 0 && onSpan(p3, p4, p2)) return true;
     if (d3 === 0 && onSpan(p1, p2, p3)) return true;
     if (d4 === 0 && onSpan(p1, p2, p4)) return true;
-    return (d1 > 0) !== (d2 > 0) && (d3 > 0) !== (d4 > 0);
+    return d1 > 0 !== d2 > 0 && d3 > 0 !== d4 > 0;
   }
   return false;
 }
@@ -114,7 +114,7 @@ export function pointInConvexQuad(p: ModelPoint, quad: ConvexQuad): boolean {
 export function segmentIntersectsConvexQuad(
   a: ModelPoint,
   b: ModelPoint,
-  quad: ConvexQuad
+  quad: ConvexQuad,
 ): boolean {
   const flat = degenerateSegment(quad);
   if (flat) return segmentsIntersect(a, b, flat[0], flat[1]);
@@ -154,7 +154,7 @@ export function circleRingIntersectsConvexQuad(
   cx: number,
   cy: number,
   r: number,
-  quad: ConvexQuad
+  quad: ConvexQuad,
 ): boolean {
   const centre = { x: cx, y: cy };
   const inside = pointInConvexQuad(centre, quad);

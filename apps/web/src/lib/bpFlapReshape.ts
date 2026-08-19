@@ -81,19 +81,17 @@ export const BP_FLAP_RESIZE_HANDLES: readonly BpFlapResizeHandle[] = [
  * sides. Same shape as the CP overlay's `HANDLE_SIGNS`, which does the same job
  * for annotation boxes.
  */
-export const BP_FLAP_HANDLE_SIGNS: Record<
-  BpFlapResizeHandle,
-  { sx: -1 | 0 | 1; sy: -1 | 0 | 1 }
-> = {
-  n: { sx: 0, sy: 1 },
-  ne: { sx: 1, sy: 1 },
-  e: { sx: 1, sy: 0 },
-  se: { sx: 1, sy: -1 },
-  s: { sx: 0, sy: -1 },
-  sw: { sx: -1, sy: -1 },
-  w: { sx: -1, sy: 0 },
-  nw: { sx: -1, sy: 1 },
-};
+export const BP_FLAP_HANDLE_SIGNS: Record<BpFlapResizeHandle, { sx: -1 | 0 | 1; sy: -1 | 0 | 1 }> =
+  {
+    n: { sx: 0, sy: 1 },
+    ne: { sx: 1, sy: 1 },
+    e: { sx: 1, sy: 0 },
+    se: { sx: 1, sy: -1 },
+    s: { sx: 0, sy: -1 },
+    sw: { sx: -1, sy: -1 },
+    w: { sx: -1, sy: 0 },
+    nw: { sx: -1, sy: 1 },
+  };
 
 /** A flap's footprint: everything a reshape writes. */
 export interface BpFlapFootprint {
@@ -155,7 +153,7 @@ interface OuterDelta {
  * the ordinary flap (`w = h = 0`) the rectangle is a point.
  */
 export function bpFlapOuterBox(
-  flap: Pick<OristudioBpFlap, 'anchor' | 'width' | 'height' | 'radius'>
+  flap: Pick<OristudioBpFlap, 'anchor' | 'width' | 'height' | 'radius'>,
 ): { x: number; y: number; width: number; height: number } {
   return {
     x: flap.anchor.x - flap.radius,
@@ -171,7 +169,7 @@ export function bpFlapOuterBox(
  */
 export function bpFlapHandlePoint(
   flap: Pick<OristudioBpFlap, 'anchor' | 'width' | 'height' | 'radius'>,
-  handle: BpFlapResizeHandle
+  handle: BpFlapResizeHandle,
 ): Point {
   const box = bpFlapOuterBox(flap);
   const { sx, sy } = BP_FLAP_HANDLE_SIGNS[handle];
@@ -223,7 +221,7 @@ function requestedOuterDelta(
   flap: OristudioBpFlap,
   signs: { sx: -1 | 0 | 1; sy: -1 | 0 | 1 },
   pointer: Point,
-  centre: BpFlapCentreConstraint | null
+  centre: BpFlapCentreConstraint | null,
 ): OuterDelta {
   const outer = bpFlapOuterBox(flap);
   const along = (
@@ -231,7 +229,7 @@ function requestedOuterDelta(
     low: number,
     span: number,
     at: number,
-    pinned: number | null
+    pinned: number | null,
   ): number => {
     if (sign === 0) return 0;
     // Pinned to the mirror: the opposite edge cannot stay put, so the box grows
@@ -295,7 +293,7 @@ function footprintFor(
   signs: { sx: -1 | 0 | 1; sy: -1 | 0 | 1 },
   delta: OuterDelta,
   radiusRange: BpFlapRadiusRange | null,
-  centre: BpFlapCentreConstraint | null
+  centre: BpFlapCentreConstraint | null,
 ): BpFlapFootprint | null {
   // A gesture that asks for the box the flap already has asks for nothing. Said
   // here rather than left to fall out of the arithmetic, so that merely pressing
@@ -321,7 +319,7 @@ function footprintFor(
     low: number,
     was: number,
     now: number,
-    pinned: number | null
+    pinned: number | null,
   ): number => {
     if (pinned !== null) return pinned - now / 2;
     return sign === -1 ? low + was - now : low;
@@ -329,15 +327,20 @@ function footprintFor(
   const footprint = {
     anchor: {
       x:
-        origin(signs.sx, outer.x, outer.width, outerWidth, centre?.axis === 'x' ? centre.at : null) +
-        radius,
+        origin(
+          signs.sx,
+          outer.x,
+          outer.width,
+          outerWidth,
+          centre?.axis === 'x' ? centre.at : null,
+        ) + radius,
       y:
         origin(
           signs.sy,
           outer.y,
           outer.height,
           outerHeight,
-          centre?.axis === 'y' ? centre.at : null
+          centre?.axis === 'y' ? centre.at : null,
         ) + radius,
     },
     ...box,
@@ -360,7 +363,7 @@ function radiusFor(
   flap: OristudioBpFlap,
   outerWidth: number,
   outerHeight: number,
-  radiusRange: BpFlapRadiusRange | null
+  radiusRange: BpFlapRadiusRange | null,
 ): number {
   if (!radiusRange) return flap.radius;
   // `min` wins a contradictory range. Clamping the other way round would hand
@@ -393,7 +396,7 @@ function radiusFor(
 function* shrinkingDeltas(
   delta: OuterDelta,
   centre: BpFlapCentreConstraint | null,
-  signs: { sx: -1 | 0 | 1; sy: -1 | 0 | 1 }
+  signs: { sx: -1 | 0 | 1; sy: -1 | 0 | 1 },
 ): Generator<OuterDelta> {
   const stepX = centre?.axis === 'x' && signs.sx !== 0 ? 2 : 1;
   const stepY = centre?.axis === 'y' && signs.sy !== 0 ? 2 : 1;
@@ -402,7 +405,11 @@ function* shrinkingDeltas(
   const signX = Math.sign(delta.x);
   const signY = Math.sign(delta.y);
   for (let shortfall = 0; shortfall <= reachX + reachY; shortfall++) {
-    for (let backX = Math.max(0, shortfall - reachY); backX <= Math.min(shortfall, reachX); backX++) {
+    for (
+      let backX = Math.max(0, shortfall - reachY);
+      backX <= Math.min(shortfall, reachX);
+      backX++
+    ) {
       const backY = shortfall - backX;
       yield {
         x: delta.x - signX * backX * stepX,

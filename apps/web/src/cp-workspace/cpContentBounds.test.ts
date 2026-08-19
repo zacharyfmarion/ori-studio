@@ -59,7 +59,7 @@ const squarePrimitive: OristudioCpFoldedRenderPrimitive = {
 
 const foldedFigureAt = (
   offset: { x: number; y: number },
-  primitives: OristudioCpFoldedRenderPrimitive[] = [squarePrimitive]
+  primitives: OristudioCpFoldedRenderPrimitive[] = [squarePrimitive],
 ): OristudioCpFoldedFigureEntry => ({
   id: 'generated-1',
   title: 'Folded model 1',
@@ -195,7 +195,7 @@ describe('what the camera frames against', () => {
     // A figure has to be reachable even with the creases deleted out from under it.
     const figure = foldedFigureAt({ x: 50, y: 50 });
     expect(cpContentBounds({ lineSegments: [], foldedFigures: [figure], modelToSvg })).toEqual(
-      foldedFigureUserAabb(figure)
+      foldedFigureUserAabb(figure),
     );
   });
 

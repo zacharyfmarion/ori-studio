@@ -1,4 +1,7 @@
-import { selectOristudioBpSelection, selectOristudioBpViewportFitRequestId } from '../../store/workspaceStore/designTabs';
+import {
+  selectOristudioBpSelection,
+  selectOristudioBpViewportFitRequestId,
+} from '../../store/workspaceStore/designTabs';
 import {
   useCallback,
   useEffect,
@@ -94,10 +97,7 @@ import { treeTopology } from '../../tree-editor/model';
 import { hasPassedDragThreshold } from '../../lib/pointerGesture';
 import { useBpPackingDragRequests } from '../../hooks/useBpPackingDragRequests';
 import { useBpFlapResize } from '../../hooks/useBpFlapResize';
-import {
-  useBpPackingSymmetry,
-  type BpPackingSymmetryView,
-} from '../../hooks/useBpPackingSymmetry';
+import { useBpPackingSymmetry, type BpPackingSymmetryView } from '../../hooks/useBpPackingSymmetry';
 import { BpPackingStretchNav } from './BpPackingStretchNav';
 import { BpPackingSymmetryMenu } from './BpPackingSymmetryMenu';
 import { type Point } from '../../lib/geometry';
@@ -109,10 +109,7 @@ import {
 import { clientPointToDesignWorld } from '../../lib/designViewport';
 import { setActiveShortcutViewportSurface } from '../../keyboard/shortcutRuntime';
 import { useBpLongPressInspector } from '../../hooks/useBpLongPressInspector';
-import {
-  useBpSheetTransforms,
-  type BpSheetTransformIcon,
-} from '../../hooks/useBpSheetTransforms';
+import { useBpSheetTransforms, type BpSheetTransformIcon } from '../../hooks/useBpSheetTransforms';
 import {
   useViewportSurface,
   VIEWPORT_PINCH_ZOOM,
@@ -191,7 +188,6 @@ interface BpPackingDragState {
   vector: Point;
   moved: boolean;
 }
-
 
 const BP_PACKING_NUDGE_VECTORS: Record<BpPackingNudgeDirection, Point> = {
   up: { x: 0, y: 1 },
@@ -277,7 +273,7 @@ function bpPackingNudgeDirectionFromKey(key: string): BpPackingNudgeDirection | 
 
 function selectedNudgeFlaps(
   selection: OristudioBpSelection,
-  flaps: OristudioBpFlap[]
+  flaps: OristudioBpFlap[],
 ): OristudioBpFlap[] {
   if (selection.kind === 'bp-flap') {
     return flaps.filter((flap) => flap.id === selection.id);
@@ -291,7 +287,7 @@ function selectedNudgeFlaps(
 
 function selectedNudgeDevice(
   selection: OristudioBpSelection,
-  devices: OristudioBpDevice[]
+  devices: OristudioBpDevice[],
 ): OristudioBpDevice | null {
   if (selection.kind === 'bp-device') {
     return devices.find((device) => device.id === selection.id) ?? null;
@@ -307,7 +303,7 @@ function selectedNudgeDevice(
     selection.invalidJunctions.length === 0
   ) {
     const id = selection.devices[0];
-    return id ? devices.find((device) => device.id === id) ?? null : null;
+    return id ? (devices.find((device) => device.id === id) ?? null) : null;
   }
   return null;
 }
@@ -448,7 +444,7 @@ function BpPackingViewportToolbar({
   setSheet: (
     gridType: OristudioBpSheetKind,
     width: number | null,
-    height: number | null
+    height: number | null,
   ) => Promise<boolean>;
   symmetry: BpPackingSymmetryView;
   zoomIn: () => void;
@@ -622,7 +618,7 @@ function BpPackingDPad({
       };
       repeatTimerRef.current = window.setTimeout(repeat, BP_DPAD_INITIAL_REPEAT_MS);
     },
-    [clearRepeat, enabled, onNudge]
+    [clearRepeat, enabled, onNudge],
   );
 
   useEffect(() => clearRepeat, [clearRepeat]);
@@ -733,7 +729,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   const selection = useWorkspaceStore((state) => selectOristudioBpSelection(state));
   const clearSelection = useWorkspaceStore((state) => state.clearOristudioBpSelection);
   const setOristudioBpActiveSurface = useWorkspaceStore(
-    (state) => state.setOristudioBpActiveSurface
+    (state) => state.setOristudioBpActiveSurface,
   );
   // Every flap move in this pane goes through the mirrored actions, which fall
   // back to the plain ones when mirror draw is off. Whether a move carries a
@@ -741,27 +737,25 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   const moveFlap = useWorkspaceStore((state) => state.moveOristudioBpLayoutFlapWithSymmetry);
   const moveFlaps = useWorkspaceStore((state) => state.moveOristudioBpLayoutFlapsWithSymmetry);
   const resizeOristudioBpLayoutFlap = useWorkspaceStore(
-    (state) => state.resizeOristudioBpLayoutFlap
+    (state) => state.resizeOristudioBpLayoutFlap,
   );
   const reshapeOristudioBpFlap = useWorkspaceStore((state) => state.reshapeOristudioBpFlap);
   const setOristudioBpTreeEdgeLength = useWorkspaceStore(
-    (state) => state.setOristudioBpTreeEdgeLength
+    (state) => state.setOristudioBpTreeEdgeLength,
   );
   const renameOristudioBpVertex = useWorkspaceStore((state) => state.renameOristudioBpVertex);
   const moveOristudioBpDevice = useWorkspaceStore((state) => state.moveOristudioBpDevice);
   const switchOristudioBpStretchConfig = useWorkspaceStore(
-    (state) => state.switchOristudioBpStretchConfig
+    (state) => state.switchOristudioBpStretchConfig,
   );
   const switchOristudioBpStretchPattern = useWorkspaceStore(
-    (state) => state.switchOristudioBpStretchPattern
+    (state) => state.switchOristudioBpStretchPattern,
   );
-  const setOristudioBpLayoutSheet = useWorkspaceStore(
-    (state) => state.setOristudioBpLayoutSheet
-  );
+  const setOristudioBpLayoutSheet = useWorkspaceStore((state) => state.setOristudioBpLayoutSheet);
   const packing = document.snapshot.packing;
   const linkedSelection = useMemo(
     () => bpLinkedSelection(selection, document),
-    [selection, document]
+    [selection, document],
   );
   // The stretch whose device/pattern is currently selected. Selecting a device
   // links its stretch (bpLinkedSelection.addDevice -> addStretch), so a single
@@ -794,9 +788,8 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     if (!singleSelectedFlap) return null;
     const vertexId = singleSelectedFlap.vertexId;
     return (
-      tree.edges.find(
-        (edge) => edge.vertices[0] === vertexId || edge.vertices[1] === vertexId
-      ) ?? null
+      tree.edges.find((edge) => edge.vertices[0] === vertexId || edge.vertices[1] === vertexId) ??
+      null
     );
   }, [singleSelectedFlap, tree.edges]);
   // The single selected river, and its dual tree edge — a river's width *is*
@@ -823,16 +816,16 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       setOristudioBpTreeEdgeLength(
         edge.vertices,
         length,
-        edgeLengthRepositions(tree, topology, edge.id, length)
+        edgeLengthRepositions(tree, topology, edge.id, length),
       ),
-    [tree, topology, setOristudioBpTreeEdgeLength]
+    [tree, topology, setOristudioBpTreeEdgeLength],
   );
   const setSelectedFlapRadius = useCallback(
     (length: number): Promise<boolean> =>
       singleSelectedFlapEdge
         ? setDualEdgeLength(singleSelectedFlapEdge, length)
         : Promise.resolve(false),
-    [singleSelectedFlapEdge, setDualEdgeLength]
+    [singleSelectedFlapEdge, setDualEdgeLength],
   );
   const paperRect = useMemo(() => bpPackingPaperRect(packing.sheet), [packing.sheet]);
   const shadowRect = useMemo(() => bpPackingShadowRect(packing.sheet), [packing.sheet]);
@@ -842,32 +835,32 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   const isDiagonalSheet = packing.sheet.kind === 'diagonal';
   const canGrowSheet = useMemo(
     () => bpSteppedSheetSize(packing.sheet, packing.flaps, true) !== null,
-    [packing]
+    [packing],
   );
   const canShrinkSheet = useMemo(
     () => bpSteppedSheetSize(packing.sheet, packing.flaps, false) !== null,
-    [packing]
+    [packing],
   );
   const sheetPolygonPoints = useMemo(
     () =>
       bpPackingSheetBorderPoints(packing.sheet, paperRect)
         .map((p) => `${p.x},${p.y}`)
         .join(' '),
-    [packing.sheet, paperRect]
+    [packing.sheet, paperRect],
   );
   const sheetShadowPolygonPoints = useMemo(
     () =>
       bpPackingSheetShadowPoints(packing.sheet, paperRect)
         .map((p) => `${p.x},${p.y}`)
         .join(' '),
-    [packing.sheet, paperRect]
+    [packing.sheet, paperRect],
   );
   const worldRect = useMemo(
     () => getBpPackingWorldRect(displayPacking, { cropToSheet: !layers.outsidePaper }),
-    [displayPacking, layers.outsidePaper]
+    [displayPacking, layers.outsidePaper],
   );
-  const viewportFitRequestId = useWorkspaceStore(
-    (state) => selectOristudioBpViewportFitRequestId(state)
+  const viewportFitRequestId = useWorkspaceStore((state) =>
+    selectOristudioBpViewportFitRequestId(state),
   );
 
   const {
@@ -888,56 +881,57 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     // framed; ordinary edits keep the same key and leave the camera alone.
     fitKey: `${document.handle}:${document.source.filename}:packing:${viewportFitRequestId}`,
   });
-  const gridLines = useMemo(() => bpPackingGridLines(packing.sheet, paperRect), [paperRect, packing.sheet]);
-  const unit = useMemo(() => bpPackingUnitToSvg(packing.sheet, paperRect), [packing.sheet, paperRect]);
+  const gridLines = useMemo(
+    () => bpPackingGridLines(packing.sheet, paperRect),
+    [paperRect, packing.sheet],
+  );
+  const unit = useMemo(
+    () => bpPackingUnitToSvg(packing.sheet, paperRect),
+    [packing.sheet, paperRect],
+  );
   const nudgeableFlaps = useMemo(
     () => selectedNudgeFlaps(selection, packing.flaps),
-    [selection, packing.flaps]
+    [selection, packing.flaps],
   );
   const nudgeableDevice = useMemo(
     () => selectedNudgeDevice(selection, packing.devices),
-    [selection, packing.devices]
+    [selection, packing.devices],
   );
-  const selectedFlapIds = useMemo(
-    () => nudgeableFlaps.map((flap) => flap.id),
-    [nudgeableFlaps]
-  );
+  const selectedFlapIds = useMemo(() => nudgeableFlaps.map((flap) => flap.id), [nudgeableFlaps]);
   const symmetry = useBpPackingSymmetry(tree, packing.sheet, paperRect, selectedFlapIds);
   const packingAlerts = useMemo(
     () => bpPackingAlertDiagnostics(document.snapshot.diagnostics),
-    [document.snapshot.diagnostics]
+    [document.snapshot.diagnostics],
   );
   const conflictVisuals = useMemo(() => {
     const thicknessPx = (thickness: number | null): number | null =>
       thickness === null ? null : thickness * unit * (zoomPercent / 100);
     return packing.invalidJunctions.map((junction) => ({
-        junction,
-        active: linkedSelection.invalidJunctions.has(junction.id),
-        paths: junction.paths.map((path) => ({
-          d: bpArcPathToSvgPath(path, packing.sheet, paperRect),
-          strokeWidth: conflictStrokeWidth(
-            // Rendered thickness: grid units → SVG units → screen pixels.
-            thicknessPx(bpArcPathThickness(path)),
-            // Screen pixels per grid cell: SVG user units scaled by the camera.
-            unit * (zoomPercent / 100)
-          ),
-        })),
+      junction,
+      active: linkedSelection.invalidJunctions.has(junction.id),
+      paths: junction.paths.map((path) => ({
+        d: bpArcPathToSvgPath(path, packing.sheet, paperRect),
+        strokeWidth: conflictStrokeWidth(
+          // Rendered thickness: grid units → SVG units → screen pixels.
+          thicknessPx(bpArcPathThickness(path)),
+          // Screen pixels per grid cell: SVG user units scaled by the camera.
+          unit * (zoomPercent / 100),
+        ),
+      })),
     }));
   }, [
-      linkedSelection.invalidJunctions,
-      packing.invalidJunctions,
-      packing.sheet,
-      paperRect,
-      unit,
-      // The stroke is in screen pixels, so it has to be recomputed as you zoom.
-      zoomPercent,
-    ]
-  );
+    linkedSelection.invalidJunctions,
+    packing.invalidJunctions,
+    packing.sheet,
+    paperRect,
+    unit,
+    // The stroke is in screen pixels, so it has to be recomputed as you zoom.
+    zoomPercent,
+  ]);
   useBpPatternNotFoundEvent(packing.stretches);
   const patternlessVisuals = useMemo(
-    () =>
-      bpPatternlessStretchVisuals(packing, packing.sheet, paperRect, linkedSelection.stretches),
-    [linkedSelection.stretches, packing, paperRect]
+    () => bpPatternlessStretchVisuals(packing, packing.sheet, paperRect, linkedSelection.stretches),
+    [linkedSelection.stretches, packing, paperRect],
   );
   const sheetClipId = useId();
   /**
@@ -959,7 +953,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       const worldPoint = clientPointToDesignWorld(
         { x: event.clientX, y: event.clientY },
         svg.getBoundingClientRect(),
-        worldRect
+        worldRect,
       );
       // Match Box Pleating Studio: the pointer is rounded to the integer grid
       // (dragController.getCoordinate -> $round) before constraint/movement, so
@@ -968,7 +962,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       const gridPoint = bpPackingSvgToPoint(worldPoint, packing.sheet, paperRect);
       return { x: Math.round(gridPoint.x), y: Math.round(gridPoint.y) };
     },
-    [packing.sheet, paperRect, worldRect]
+    [packing.sheet, paperRect, worldRect],
   );
 
   // Raw pointer position in world (SVG viewBox) coordinates — unrounded, used to
@@ -980,12 +974,11 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       return clientPointToDesignWorld(
         { x: event.clientX, y: event.clientY },
         svg.getBoundingClientRect(),
-        worldRect
+        worldRect,
       );
     },
-    [worldRect]
+    [worldRect],
   );
-
 
   const nudgeSelection = useCallback(
     (direction: BpPackingNudgeDirection) => {
@@ -1012,7 +1005,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
           x: reference.anchor.x + vector.x,
           y: reference.anchor.y + vector.y,
         },
-        packing.sheet
+        packing.sheet,
       );
       if (constrainedVector.x === 0 && constrainedVector.y === 0) return false;
       const ids = flaps.map((flap) => flap.id);
@@ -1028,7 +1021,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       packing.devices,
       packing.flaps,
       packing.sheet,
-    ]
+    ],
   );
 
   const dragRequests = useBpPackingDragRequests({
@@ -1043,9 +1036,10 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     // than losing its handles: `selfMirrorCentre` says which coordinate is pinned.
     // It is null for a diagonal fold, which pins both at once — that one still
     // declines, and its R/W/H fields still work.
-    flap: singleSelectedFlap && !(symmetry.selfMirrored && !symmetry.selfMirrorCentre)
-      ? singleSelectedFlap
-      : null,
+    flap:
+      singleSelectedFlap && !(symmetry.selfMirrored && !symmetry.selfMirrorCentre)
+        ? singleSelectedFlap
+        : null,
     centre: symmetry.selfMirrorCentre,
     mirrorSideGuard: symmetry.mirrorSideGuard,
     sheet: packing.sheet,
@@ -1059,7 +1053,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     eventToPackingPoint,
     dragRequests,
   });
-
 
   useEffect(() => {
     const container = containerRef.current;
@@ -1094,7 +1087,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         active: false,
       });
     },
-    [spacePressed, eventToWorldPoint, selection]
+    [spacePressed, eventToWorldPoint, selection],
   );
 
   const onCanvasPointerDown = (event: PointerEvent<SVGSVGElement>) => {
@@ -1110,7 +1103,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     const world = eventToWorldPoint(event);
     const movedPx = Math.hypot(
       event.clientX - current.clientStart.x,
-      event.clientY - current.clientStart.y
+      event.clientY - current.clientStart.y,
     );
     const active = current.active || movedPx >= BP_PACKING_DRAG_SELECT_THRESHOLD_PX;
     if (active) {
@@ -1129,7 +1122,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
               y: flap.anchor.y + flap.height / 2,
             },
             packing.sheet,
-            paperRect
+            paperRect,
           );
           return center.x >= minX && center.x <= maxX && center.y >= minY && center.y <= maxY;
         })
@@ -1234,12 +1227,15 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     // $moveTo(pt - _dragOffset)), so the flap tracks the cursor by the grab point
     // instead of snapping its corner to the cursor.
     const cursor = eventToPackingPoint(event);
-    const target = { x: cursor.x - flapDragging.grabOffset.x, y: cursor.y - flapDragging.grabOffset.y };
+    const target = {
+      x: cursor.x - flapDragging.grabOffset.x,
+      y: cursor.y - flapDragging.grabOffset.y,
+    };
     const { loc, vector } = constrainBpPackingFlapGroupTarget(
       sourceFlaps,
       sourceFlap,
       target,
-      packing.sheet
+      packing.sheet,
     );
     const dx = loc.x - flapDragging.start.x;
     const dy = loc.y - flapDragging.start.y;
@@ -1289,7 +1285,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     selectOristudioBp(
       event.shiftKey || event.metaKey || event.ctrlKey
         ? toggleBpRiverSelection(selection, riverId)
-        : { kind: 'bp-river', id: riverId }
+        : { kind: 'bp-river', id: riverId },
     );
     scheduleLongPressInspector(event);
   };
@@ -1300,12 +1296,15 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     selectOristudioBp(
       event.shiftKey || event.metaKey || event.ctrlKey
         ? toggleBpInvalidJunctionSelection(selection, id)
-        : { kind: 'bp-invalid-junction', id }
+        : { kind: 'bp-invalid-junction', id },
     );
     scheduleLongPressInspector(event);
   };
 
-  const onPrimitivePointerDown = (event: PointerEvent<SVGGElement>, primitive: OristudioBpGraphicPrimitive) => {
+  const onPrimitivePointerDown = (
+    event: PointerEvent<SVGGElement>,
+    primitive: OristudioBpGraphicPrimitive,
+  ) => {
     const deviceInfo = deviceInfoFromPrimitiveId(primitive.id, document);
     if (deviceInfo !== null) {
       if (event.button !== 0 || spacePressed) return;
@@ -1314,7 +1313,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       selectOristudioBp(
         event.shiftKey || event.metaKey || event.ctrlKey
           ? toggleBpDeviceSelection(selection, deviceInfo.deviceId)
-          : { kind: 'bp-device', id: deviceInfo.deviceId }
+          : { kind: 'bp-device', id: deviceInfo.deviceId },
       );
       scheduleLongPressInspector(event);
       if (
@@ -1356,22 +1355,21 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
 
   const onPrimitivePointerMove = (
     event: PointerEvent<SVGGElement>,
-    primitive: OristudioBpGraphicPrimitive
+    primitive: OristudioBpGraphicPrimitive,
   ) => {
     if (!deviceDragging || !primitive.id.startsWith(deviceDragging.primitivePrefix)) return;
     event.stopPropagation();
     const constrained = constrainBpPackingDeviceTarget(
       deviceDragging.baseDevice,
       deviceDragging.start,
-      eventToPackingPoint(event)
+      eventToPackingPoint(event),
     );
     const worldMoved = Math.hypot(constrained.vector.x, constrained.vector.y) > 0;
     const clientMoved = hasPassedDragThreshold(deviceDragging.clientStart, {
       x: event.clientX,
       y: event.clientY,
     });
-    const moved =
-      deviceDragging.moved || (clientMoved && worldMoved);
+    const moved = deviceDragging.moved || (clientMoved && worldMoved);
     setDeviceDragging({
       ...deviceDragging,
       loc: constrained.loc,
@@ -1390,7 +1388,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
 
   const finishDeviceDrag = (
     event: PointerEvent<SVGGElement>,
-    primitive: OristudioBpGraphicPrimitive
+    primitive: OristudioBpGraphicPrimitive,
   ) => {
     if (!deviceDragging || !primitive.id.startsWith(deviceDragging.primitivePrefix)) return;
     event.stopPropagation();
@@ -1465,12 +1463,12 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
           >
             <defs>
               {/*
-                * A conflict lives inside the flaps it belongs to, so nothing in
-                * that layer may paint outside one. Its outline stroke is centred
-                * on the region's edge — and that edge *is* the flap circle — so
-                * without this half the stroke renders outside the flap and reads
-                * as the conflict being in the wrong place.
-                */}
+               * A conflict lives inside the flaps it belongs to, so nothing in
+               * that layer may paint outside one. Its outline stroke is centred
+               * on the region's edge — and that edge *is* the flap circle — so
+               * without this half the stroke renders outside the flap and reads
+               * as the conflict being in the wrong place.
+               */}
               <clipPath id={flapsClipId}>
                 {packing.flaps.map((flap) => {
                   const shape = bpPackingFlapClearanceRect(flap, packing.sheet, paperRect);
@@ -1552,7 +1550,11 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
             {symmetry.axisLine && (
               // Clipped to the sheet so a diagonal sheet's line stops at the
               // diamond rather than running out to its bounding square.
-              <g className="bp-packing-symmetry" clipPath={`url(#${sheetClipId})`} aria-hidden="true">
+              <g
+                className="bp-packing-symmetry"
+                clipPath={`url(#${sheetClipId})`}
+                aria-hidden="true"
+              >
                 <line
                   className="symmetry-line"
                   x1={symmetry.axisLine.x1}
@@ -1599,17 +1601,17 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
               {displayPacking.graphics.map((primitive) =>
                 primitive.layer !== 'device' && isBpPackingLayerVisible(layers, primitive.layer) ? (
                   <BpPackingPrimitive
-                  key={primitive.id}
-                  primitive={primitive}
-                  document={document}
-                  linkedSelection={linkedSelection}
-                  selectionShade={layers.selectionShade}
-                  paperRect={paperRect}
-                  onPointerDown={onPrimitivePointerDown}
-                  onPointerMove={onPrimitivePointerMove}
+                    key={primitive.id}
+                    primitive={primitive}
+                    document={document}
+                    linkedSelection={linkedSelection}
+                    selectionShade={layers.selectionShade}
+                    paperRect={paperRect}
+                    onPointerDown={onPrimitivePointerDown}
+                    onPointerMove={onPrimitivePointerMove}
                     onPointerUp={finishDeviceDrag}
                   />
-                ) : null
+                ) : null,
               )}
             </g>
             {layers.conflicts && (
@@ -1654,10 +1656,14 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                   <g
                     key={visual.junction.id}
                     data-bp-select={`conflict:${visual.junction.id}`}
-                    aria-label={t('panels:bpPacking.selectConflict', 'Select BP conflict {{id}}: {{message}}', {
-                      id: visual.junction.id,
-                      message: visual.junction.message,
-                    })}
+                    aria-label={t(
+                      'panels:bpPacking.selectConflict',
+                      'Select BP conflict {{id}}: {{message}}',
+                      {
+                        id: visual.junction.id,
+                        message: visual.junction.message,
+                      },
+                    )}
                     onPointerDown={(event) => onConflictPointerDown(event, visual.junction.id)}
                   >
                     {visual.paths.map((path, index) => (
@@ -1717,7 +1723,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                   const rect = bpPackingRectToSvg(
                     { x: flap.anchor.x, y: flap.anchor.y, width: flap.width, height: flap.height },
                     packing.sheet,
-                    paperRect
+                    paperRect,
                   );
                   const center = {
                     x: rect.x + rect.width / 2,
@@ -1763,7 +1769,9 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                           rx={Math.min(6, Math.max(1, unit * 0.08))}
                         />
                       </g>
-                      {layers.dots && <circle className="bp-packing-flap-dot" cx={center.x} cy={center.y} r={4} />}
+                      {layers.dots && (
+                        <circle className="bp-packing-flap-dot" cx={center.x} cy={center.y} r={4} />
+                      )}
                       {layers.labels && (
                         <text className="bp-packing-label" x={center.x + 7} y={center.y - 7}>
                           {bpFlapLabel(flap.id, flap.name)}
@@ -1793,9 +1801,14 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                   .sort((a, b) => b.radius - a.radius)
                   .map((flap) => {
                     const rect = bpPackingRectToSvg(
-                      { x: flap.anchor.x, y: flap.anchor.y, width: flap.width, height: flap.height },
+                      {
+                        x: flap.anchor.x,
+                        y: flap.anchor.y,
+                        width: flap.width,
+                        height: flap.height,
+                      },
                       packing.sheet,
-                      paperRect
+                      paperRect,
                     );
                     const center = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
                     // Parity with BP Studio: the whole flap drags, not just its
@@ -1833,10 +1846,14 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                           // `{{id}}` carries the flap's letter label, so what's
                           // spoken matches what's drawn on the canvas.
                           flap.name
-                            ? t('panels:bpPacking.selectFlapWithName', 'Select BP flap {{id}}, {{name}}', {
-                                id: bpDefaultFlapLabel(flap.id),
-                                name: flap.name,
-                              })
+                            ? t(
+                                'panels:bpPacking.selectFlapWithName',
+                                'Select BP flap {{id}}, {{name}}',
+                                {
+                                  id: bpDefaultFlapLabel(flap.id),
+                                  name: flap.name,
+                                },
+                              )
                             : t('panels:bpPacking.selectFlap', 'Select BP flap {{id}}', {
                                 id: bpDefaultFlapLabel(flap.id),
                               })
@@ -1854,17 +1871,17 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
               {displayPacking.graphics.map((primitive) =>
                 primitive.layer === 'device' && isBpPackingLayerVisible(layers, primitive.layer) ? (
                   <BpPackingPrimitive
-                  key={primitive.id}
-                  primitive={primitive}
-                  document={document}
-                  linkedSelection={linkedSelection}
-                  selectionShade={layers.selectionShade}
-                  paperRect={paperRect}
-                  onPointerDown={onPrimitivePointerDown}
-                  onPointerMove={onPrimitivePointerMove}
+                    key={primitive.id}
+                    primitive={primitive}
+                    document={document}
+                    linkedSelection={linkedSelection}
+                    selectionShade={layers.selectionShade}
+                    paperRect={paperRect}
+                    onPointerDown={onPrimitivePointerDown}
+                    onPointerMove={onPrimitivePointerMove}
                     onPointerUp={finishDeviceDrag}
                   />
-                ) : null
+                ) : null,
               )}
             </g>
             {/* Selection chrome, so above every geometry layer and outside the
@@ -1968,7 +1985,10 @@ function BpPackingAlerts({
   const shown = diagnostics.slice(0, BP_PACKING_ALERT_LIMIT);
   const hidden = diagnostics.length - shown.length;
   return (
-    <div className="bp-packing-alerts" aria-label={t('panels:bpPacking.warnings', 'Box Pleat packing warnings')}>
+    <div
+      className="bp-packing-alerts"
+      aria-label={t('panels:bpPacking.warnings', 'Box Pleat packing warnings')}
+    >
       {shown.map((diagnostic) => {
         const content = (
           <>
@@ -2078,15 +2098,13 @@ function bpSelectionStackAt(clientX: number, clientY: number): string[] {
   return tokens;
 }
 
-function bpPackingAlertDiagnostics(
-  diagnostics: OristudioBpDiagnostic[]
-): OristudioBpDiagnostic[] {
+function bpPackingAlertDiagnostics(diagnostics: OristudioBpDiagnostic[]): OristudioBpDiagnostic[] {
   return diagnostics.filter(
     (diagnostic) =>
       diagnostic.kind === 'pattern-not-found' ||
       diagnostic.kind === 'layout-graphics-error' ||
       diagnostic.kind === 'unsupported' ||
-      diagnostic.kind === 'upstream-gap'
+      diagnostic.kind === 'upstream-gap',
   );
 }
 
@@ -2098,7 +2116,8 @@ function bpPackingAlertLabel(diagnostic: OristudioBpDiagnostic, t: TFunction): s
       flaps: bpFlapLabelList(diagnostic.detail.flapLabels, t),
     });
   }
-  if (diagnostic.kind === 'pattern-not-found') return t('panels:bpPacking.patternNotFound', 'Pattern not found');
+  if (diagnostic.kind === 'pattern-not-found')
+    return t('panels:bpPacking.patternNotFound', 'Pattern not found');
   if (diagnostic.kind === 'upstream-gap') return t('panels:bpPacking.upstreamGap', 'Upstream gap');
   if (diagnostic.kind === 'layout-graphics-error') {
     return t('panels:bpPacking.layoutGraphicsError', 'Layout could not be drawn');
@@ -2113,18 +2132,18 @@ function bpPackingAlertMessage(diagnostic: OristudioBpDiagnostic, t: TFunction):
   return diagnostic.detail.hasConfiguration
     ? t(
         'panels:bpPacking.patternNotFoundWithConfig',
-        'These flaps overlap in a way Ori Studio can lay out but not crease. Try another configuration, move one flap away from the others, or enlarge the sheet.'
+        'These flaps overlap in a way Ori Studio can lay out but not crease. Try another configuration, move one flap away from the others, or enlarge the sheet.',
       )
     : t(
         'panels:bpPacking.patternNotFoundNoConfig',
-        'These flaps overlap in a way Ori Studio cannot crease yet. Move one of them away from the others, or enlarge the sheet.'
+        'These flaps overlap in a way Ori Studio cannot crease yet. Move one of them away from the others, or enlarge the sheet.',
       );
 }
 
 function constrainBpPackingDeviceTarget(
   device: OristudioBpDevice,
   start: Point,
-  target: Point
+  target: Point,
 ): {
   loc: Point;
   vector: Point;
@@ -2133,7 +2152,7 @@ function constrainBpPackingDeviceTarget(
   const forward = device.forward ?? true;
   const f = forward ? 1 : -1;
   const range = device.rangeScalar ?? [Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY];
-  const projected = Math.round(((target.x - start.x) + f * (target.y - start.y)) / 2);
+  const projected = Math.round((target.x - start.x + f * (target.y - start.y)) / 2);
   const dx = clamp(projected, range[0], range[1]);
   const vector = { x: dx, y: f * dx };
   return {
@@ -2153,7 +2172,7 @@ function clamp(value: number, min: number, max: number): number {
 function selectedFlapDragIds(
   selection: OristudioBpSelection,
   activeId: number,
-  flaps: OristudioBpFlap[]
+  flaps: OristudioBpFlap[],
 ): number[] {
   const available = new Set(flaps.map((flap) => flap.id));
   if (
@@ -2165,4 +2184,3 @@ function selectedFlapDragIds(
   }
   return [activeId];
 }
-

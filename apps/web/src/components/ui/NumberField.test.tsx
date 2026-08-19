@@ -63,10 +63,7 @@ function field(view: HTMLElement) {
 }
 
 function type(input: HTMLInputElement, value: string) {
-  const setter = Object.getOwnPropertyDescriptor(
-    window.HTMLInputElement.prototype,
-    'value'
-  )?.set;
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
   act(() => {
     input.focus();
     setter?.call(input, value);
@@ -136,7 +133,7 @@ describe('NumberField', () => {
 
   it('keeps fractional steps free of float noise', () => {
     const view = render(
-      <Harness initial={1} step={0.1} min={undefined} max={undefined} normalize={undefined} />
+      <Harness initial={1} step={0.1} min={undefined} max={undefined} normalize={undefined} />,
     );
     const { input, up } = field(view);
 

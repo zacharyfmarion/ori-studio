@@ -185,7 +185,7 @@ function argumentCount(code: string, open: number): number {
  */
 function innermostBody(
   bodies: { start: number; end: number }[],
-  at: number
+  at: number,
 ): { start: number; end: number } | null {
   let best: { start: number; end: number } | null = null;
   for (const body of bodies) {
@@ -228,7 +228,7 @@ describe('a design-tab access after an await names its design', () => {
       offenders,
       'These resolve the active design after an await, so a tab switch during the ' +
         'round trip lands the result on the wrong design. Capture `activeDesignId` ' +
-        'before the first await and pass it as the trailing argument.'
+        'before the first await and pass it as the trailing argument.',
     ).toEqual([]);
   });
 });

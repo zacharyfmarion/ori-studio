@@ -1,13 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  keyChordFromKeyboardEvent,
-  keyChordId,
-  type KeyChord,
-} from '../../keyboard/shortcuts';
-import {
-  parseOrieditaKeyStrokeStrict,
-  type KeyStrokeRejectReason,
-} from './parseKeyStroke';
+import { keyChordFromKeyboardEvent, keyChordId, type KeyChord } from '../../keyboard/shortcuts';
+import { parseOrieditaKeyStrokeStrict, type KeyStrokeRejectReason } from './parseKeyStroke';
 
 function expectChord(value: string): KeyChord {
   const result = parseOrieditaKeyStrokeStrict(value);
@@ -21,7 +14,7 @@ function expectReason(value: string): KeyStrokeRejectReason {
   const result = parseOrieditaKeyStrokeStrict(value);
   if (result.ok) {
     throw new Error(
-      `expected ${JSON.stringify(value)} to be rejected, got ${keyChordId(result.chord)}`
+      `expected ${JSON.stringify(value)} to be rejected, got ${keyChordId(result.chord)}`,
     );
   }
   return result.reason;
@@ -98,9 +91,7 @@ describe('parseOrieditaKeyStrokeStrict', () => {
         key: 'z',
       });
       // Token order is not assumed either way, so the human order parses too.
-      expect(expectChord('ctrl shift pressed V')).toEqual(
-        expectChord('shift ctrl pressed V')
-      );
+      expect(expectChord('ctrl shift pressed V')).toEqual(expectChord('shift ctrl pressed V'));
     });
 
     it('shift plus a letter', () => {
@@ -188,16 +179,12 @@ describe('parseOrieditaKeyStrokeStrict', () => {
       expect(expectReason('shift pressed 1')).toBe('shift-non-letter-unrepresentable');
       expect(expectReason('shift pressed MINUS')).toBe('shift-non-letter-unrepresentable');
       expect(expectReason('shift pressed SLASH')).toBe('shift-non-letter-unrepresentable');
-      expect(expectReason('shift ctrl pressed 9')).toBe(
-        'shift-non-letter-unrepresentable'
-      );
+      expect(expectReason('shift ctrl pressed 9')).toBe('shift-non-letter-unrepresentable');
     });
 
     it('numpad and other location-specific keys', () => {
       for (const digit of [0, 1, 5, 9]) {
-        expect(expectReason(`pressed NUMPAD${digit}`)).toBe(
-          'key-location-unrepresentable'
-        );
+        expect(expectReason(`pressed NUMPAD${digit}`)).toBe('key-location-unrepresentable');
       }
       expect(expectReason('pressed MULTIPLY')).toBe('key-location-unrepresentable');
       expect(expectReason('pressed ADD')).toBe('key-location-unrepresentable');

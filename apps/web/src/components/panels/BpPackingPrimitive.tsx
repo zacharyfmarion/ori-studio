@@ -175,15 +175,19 @@ function deviceShadeClassName(shadeSelected: boolean): string {
 function primitiveAriaLabel(
   primitive: OristudioBpGraphicPrimitive,
   document: OristudioBpDocumentState,
-  t: TFunction
+  t: TFunction,
 ): string | undefined {
   const deviceInfo = deviceInfoFromPrimitiveId(primitive.id, document);
   if (deviceInfo) {
     const stretchId = deviceInfo.deviceId.split(':device:')[0] ?? deviceInfo.deviceId;
-    return t('panels:bpPacking.selectDevice', 'Select BP device {{index}} for stretch {{stretchId}}', {
-      index: deviceInfo.index + 1,
-      stretchId,
-    });
+    return t(
+      'panels:bpPacking.selectDevice',
+      'Select BP device {{index}} for stretch {{stretchId}}',
+      {
+        index: deviceInfo.index + 1,
+        stretchId,
+      },
+    );
   }
   const flapId = flapIdFromPrimitiveId(primitive.id);
   if (flapId !== null) {
@@ -192,14 +196,15 @@ function primitiveAriaLabel(
     });
   }
   const riverId = riverIdFromPrimitiveId(primitive.id, document);
-  if (riverId !== null) return t('panels:bpPacking.selectRiverShort', 'Select BP river {{id}}', { id: riverId });
+  if (riverId !== null)
+    return t('panels:bpPacking.selectRiverShort', 'Select BP river {{id}}', { id: riverId });
   return undefined;
 }
 
 /** The `data-bp-select` token for a crease primitive, used by click-cycling. */
 function primitiveSelectToken(
   primitive: OristudioBpGraphicPrimitive,
-  document: OristudioBpDocumentState
+  document: OristudioBpDocumentState,
 ): string | undefined {
   const deviceInfo = deviceInfoFromPrimitiveId(primitive.id, document);
   if (deviceInfo) return `device:${deviceInfo.deviceId}`;
@@ -221,7 +226,7 @@ export function flapIdFromPrimitiveId(id: string): number | null {
 
 export function riverIdFromPrimitiveId(
   id: string,
-  document: OristudioBpDocumentState
+  document: OristudioBpDocumentState,
 ): number | null {
   return bpRiverIdFromGraphicsId(id, document.snapshot.packing.rivers);
 }
@@ -239,7 +244,7 @@ export function deviceIndexFromId(id: string): number | null {
 
 export function deviceInfoFromPrimitiveId(
   id: string,
-  document: OristudioBpDocumentState
+  document: OristudioBpDocumentState,
 ): { deviceId: string; index: number } | null {
   const match = /^s(.+)\.(\d+)(?::|$)/.exec(id);
   if (!match) return null;
@@ -250,10 +255,7 @@ export function deviceInfoFromPrimitiveId(
     : null;
 }
 
-function primitiveSelectedByFlap(
-  id: string,
-  linkedSelection: OristudioBpLinkedSelection
-): boolean {
+function primitiveSelectedByFlap(id: string, linkedSelection: OristudioBpLinkedSelection): boolean {
   const flapId = flapIdFromPrimitiveId(id);
   return flapId !== null && linkedSelection.flaps.has(flapId);
 }
@@ -261,7 +263,7 @@ function primitiveSelectedByFlap(
 function primitiveSelectedByRiver(
   id: string,
   document: OristudioBpDocumentState,
-  linkedSelection: OristudioBpLinkedSelection
+  linkedSelection: OristudioBpLinkedSelection,
 ): boolean {
   const riverId = riverIdFromPrimitiveId(id, document);
   return riverId !== null && linkedSelection.rivers.has(riverId);
@@ -270,7 +272,7 @@ function primitiveSelectedByRiver(
 function primitiveSelectedByDevice(
   id: string,
   document: OristudioBpDocumentState,
-  linkedSelection: OristudioBpLinkedSelection
+  linkedSelection: OristudioBpLinkedSelection,
 ): boolean {
   const deviceId = deviceIdFromPrimitiveId(id, document);
   return deviceId !== null && linkedSelection.devices.has(deviceId);

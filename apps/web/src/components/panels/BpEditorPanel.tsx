@@ -1,4 +1,7 @@
-import { selectDesignMethod, selectOristudioBpDocument } from '../../store/workspaceStore/designTabs';
+import {
+  selectDesignMethod,
+  selectOristudioBpDocument,
+} from '../../store/workspaceStore/designTabs';
 import { BoxSelect, CircleDashed } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -13,7 +16,7 @@ export function BpEditorPanel() {
   const oristudioBpError = useWorkspaceStore((state) => state.oristudioBpError);
   const createOristudioBpProject = useWorkspaceStore((state) => state.createOristudioBpProject);
   const setOristudioBpActiveSurface = useWorkspaceStore(
-    (state) => state.setOristudioBpActiveSurface
+    (state) => state.setOristudioBpActiveSurface,
   );
 
   // Box-pleat chosen but the BP worker hasn't produced the document yet: show a
@@ -43,13 +46,12 @@ export function BpEditorPanel() {
             <BoxSelect size={24} />
           </div>
           <span className="document-mode-empty__message">
-            {t('panels:bpEditor.emptyProject', 'Open a Box Pleat project to edit flaps and rivers.')}
+            {t(
+              'panels:bpEditor.emptyProject',
+              'Open a Box Pleat project to edit flaps and rivers.',
+            )}
           </span>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => void createOristudioBpProject()}
-          >
+          <Button size="sm" variant="secondary" onClick={() => void createOristudioBpProject()}>
             {t('panels:bpEditor.newBoxPleat', 'New Box Pleat')}
           </Button>
         </div>
@@ -72,7 +74,10 @@ export function BpEditorPanel() {
             <CircleDashed size={24} />
           </div>
           <span className="document-mode-empty__message">
-            {t('panels:bpEditor.emptyPacking', 'Run Optimize Layout or materialize a packing before manual BP editing.')}
+            {t(
+              'panels:bpEditor.emptyPacking',
+              'Run Optimize Layout or materialize a packing before manual BP editing.',
+            )}
           </span>
         </div>
       </section>

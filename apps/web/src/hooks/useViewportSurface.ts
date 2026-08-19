@@ -144,7 +144,7 @@ export function useViewportSurface({
     (animationTime = FIT_ANIMATION_MS) => {
       transformRef.current?.centerView(computeFitScale(), animationTime);
     },
-    [computeFitScale]
+    [computeFitScale],
   );
 
   const setActualSize = useCallback(() => {
@@ -186,12 +186,12 @@ export function useViewportSurface({
           return false;
       }
     },
-    [zoomIn, zoomOut, fitToView, setActualSize, onViewportShortcut]
+    [zoomIn, zoomOut, fitToView, setActualSize, onViewportShortcut],
   );
 
   useEffect(
     () => registerViewportShortcutExecutor(surface, handleViewportShortcut),
-    [surface, handleViewportShortcut]
+    [surface, handleViewportShortcut],
   );
 
   // Fit once per document. Held in a ref rather than state so a pending frame
@@ -221,7 +221,7 @@ export function useViewportSurface({
       lastFittedKeyRef.current = fitKey;
       return true;
     },
-    [computeFitScale, fitKey]
+    [computeFitScale, fitKey],
   );
   const fitLoadedDocumentRef = useRef(fitLoadedDocument);
   useEffect(() => {
@@ -322,7 +322,7 @@ export function useViewportSurface({
       const { minScale, maxScale } = api.instance.setup;
       const next = Math.min(
         maxScale,
-        Math.max(minScale, scale * Math.exp(-event.deltaY * PINCH_ZOOM_SENSITIVITY))
+        Math.max(minScale, scale * Math.exp(-event.deltaY * PINCH_ZOOM_SENSITIVITY)),
       );
       if (next === scale) return;
 

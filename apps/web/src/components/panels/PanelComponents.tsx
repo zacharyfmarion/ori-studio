@@ -40,5 +40,5 @@ const panels: Record<string, FC<IDockviewPanelProps>> = {
  * workspace interactive.
  */
 export const panelComponents: Record<string, FC<IDockviewPanelProps>> = Object.fromEntries(
-  Object.entries(panels).map(([id, Panel]) => [id, withPanelErrorBoundary(Panel, id)])
+  Object.entries(panels).map(([id, Panel]) => [id, withPanelErrorBoundary(Panel, id)]),
 );

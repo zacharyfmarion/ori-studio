@@ -321,7 +321,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     // draw -- so the panel swaps the canvas element (React key) when the desired
     // path changes, giving a fresh untransferred one.
     const wantsGpu = Boolean(
-      (canvas || wantsBitmapOutput) && allowGpuRender && webglRenderSupported()
+      (canvas || wantsBitmapOutput) && allowGpuRender && webglRenderSupported(),
     );
 
     void (async () => {
@@ -333,7 +333,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
         if (wantsGpu && bitmapOutputRef.current) {
           await client.attachBitmapOutput(
             bitmapOutputRef.current.width,
-            bitmapOutputRef.current.height
+            bitmapOutputRef.current.height,
           );
         } else if (wantsGpu && canvas && transferredCanvasRef.current !== canvas) {
           const offscreen = canvas.transferControlToOffscreen();
@@ -488,26 +488,23 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     };
   }, [status, publish]);
 
-  const retarget = useCallback(
-    (mutate: (client: SimulatorClient) => Promise<void>) => {
-      const client = clientRef.current;
-      if (!client) return;
-      // Assume the change unsettles the model; the loop picks it up next frame
-      // and keeps working until the worker reports convergence again.
-      convergedRef.current = false;
-      void mutate(client).catch((cause: unknown) => {
-        setError(cause instanceof Error ? cause.message : String(cause));
-        setStatus('error');
-      });
-    },
-    []
-  );
+  const retarget = useCallback((mutate: (client: SimulatorClient) => Promise<void>) => {
+    const client = clientRef.current;
+    if (!client) return;
+    // Assume the change unsettles the model; the loop picks it up next frame
+    // and keeps working until the worker reports convergence again.
+    convergedRef.current = false;
+    void mutate(client).catch((cause: unknown) => {
+      setError(cause instanceof Error ? cause.message : String(cause));
+      setStatus('error');
+    });
+  }, []);
 
   const setFoldPercent = useCallback(
     (percent: number) => {
       retarget((client) => client.setFoldPercent(percent, tokenRef.current));
     },
-    [retarget]
+    [retarget],
   );
 
   /**
@@ -520,14 +517,14 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     (percent: number) => {
       setFoldPercent(percent);
     },
-    [setFoldPercent]
+    [setFoldPercent],
   );
 
   const setMaterial = useCallback(
     (materialOptions: Partial<SimulatorOptions>) => {
       retarget((client) => client.setMaterial(materialOptions, tokenRef.current));
     },
-    [retarget]
+    [retarget],
   );
 
   // One round-trip, not two: the session zeroes the fold target as part of
@@ -598,7 +595,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
               `render ${s.renderAvgMs.toFixed(2)}ms avg / ${s.renderMaxMs.toFixed(2)} max, ` +
               `${perSec(s.renders)} draws/s | ` +
               `camera ${perSec(s.cameraCalls)} msg/s, main-dispatch ${cameraDispatchAvg().toFixed(2)}ms | ` +
-              `tick round-trip ${tickRoundTripAvg().toFixed(1)}ms`
+              `tick round-trip ${tickRoundTripAvg().toFixed(1)}ms`,
           );
           cameraDispatchTotal = 0;
           cameraDispatchCount = 0;

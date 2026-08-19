@@ -76,12 +76,12 @@ export interface BpTreeSymmetryView extends TreeSymmetryHost {
 
 export function useBpTreeSymmetry(
   tree: OristudioBpTreeView,
-  paperRect: ReturnType<typeof bpTreePaperRect>
+  paperRect: ReturnType<typeof bpTreePaperRect>,
 ): BpTreeSymmetryView {
   const symmetry = useWorkspaceStore((state) => selectOristudioBpSymmetry(state));
   const setOristudioBpSymmetry = useWorkspaceStore((state) => state.setOristudioBpSymmetry);
   const unpairOristudioBpTreeSymmetry = useWorkspaceStore(
-    (state) => state.unpairOristudioBpTreeSymmetry
+    (state) => state.unpairOristudioBpTreeSymmetry,
   );
 
   const toggle = useCallback(() => {
@@ -95,7 +95,6 @@ export function useBpTreeSymmetry(
       angle: BP_TREE_SYMMETRY_ANGLE,
     });
   }, [setOristudioBpSymmetry, tree.sheet, symmetry.enabled]);
-
 
   const axisLine = useMemo(() => {
     if (!symmetry.enabled) return null;
@@ -147,18 +146,18 @@ export function useBpTreeSymmetry(
 
   const axis = useMemo(
     () => ({ loc: symmetry.loc, angle: symmetry.angle }),
-    [symmetry.loc, symmetry.angle]
+    [symmetry.loc, symmetry.angle],
   );
 
   const resolveMirrorOf = useCallback(
     (vertexId: number) =>
       mirrorBpTreeVertexId(tree, symmetry.pairs, axis, vertexId, BP_TREE_SYMMETRY_TOLERANCE),
-    [tree, symmetry.pairs, axis]
+    [tree, symmetry.pairs, axis],
   );
 
   const partnerOf = useCallback(
     (vertexId: number) => explicitBpTreePairId(symmetry.pairs, vertexId),
-    [symmetry.pairs]
+    [symmetry.pairs],
   );
 
   const isOnAxis = useCallback(
@@ -169,7 +168,7 @@ export function useBpTreeSymmetry(
       const axis = { loc: symmetry.loc, angle: symmetry.angle };
       return symmetrySide(loc, axis, BP_TREE_SYMMETRY_TOLERANCE) === 0;
     },
-    [symmetry.enabled, symmetry.loc, symmetry.angle, tree.vertices]
+    [symmetry.enabled, symmetry.loc, symmetry.angle, tree.vertices],
   );
 
   const dragMirror = useCallback(
@@ -178,11 +177,9 @@ export function useBpTreeSymmetry(
       const heldIds = bpTreeMirrorHeldIds(tree, symmetry.pairs, axis, movedIds);
       // The same band `symmetrySide` calls "on the axis", so a held vertex can
       // never be reclassified as its own mirror by getting close enough.
-      return heldIds.size === 0
-        ? null
-        : { axis, heldIds, clearance: BP_TREE_SYMMETRY_TOLERANCE };
+      return heldIds.size === 0 ? null : { axis, heldIds, clearance: BP_TREE_SYMMETRY_TOLERANCE };
     },
-    [symmetry.loc, symmetry.angle, symmetry.pairs, tree]
+    [symmetry.loc, symmetry.angle, symmetry.pairs, tree],
   );
 
   return {

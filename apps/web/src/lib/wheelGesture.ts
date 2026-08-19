@@ -20,8 +20,7 @@
 export type WheelGesturePreference = 'pan' | 'zoom';
 
 export type WheelGesture =
-  | { kind: 'zoom'; factor: number }
-  | { kind: 'pan'; dx: number; dy: number };
+  { kind: 'zoom'; factor: number } | { kind: 'pan'; dx: number; dy: number };
 
 /** The fields of a `WheelEvent` this needs; a plain object in tests. */
 export interface WheelGestureInput {
@@ -96,7 +95,7 @@ function clamp(value: number, limit: number): number {
  */
 export function resolveWheelGesture(
   event: WheelGestureInput,
-  preference: WheelGesturePreference
+  preference: WheelGesturePreference,
 ): WheelGesture {
   const zooms = preference === 'zoom' || event.ctrlKey || event.metaKey;
 
@@ -104,7 +103,10 @@ export function resolveWheelGesture(
     // Ctrl without Cmd is the pinch gesture; everything else is a wheel.
     const sensitivity =
       event.ctrlKey && !event.metaKey ? PINCH_ZOOM_SENSITIVITY : WHEEL_ZOOM_SENSITIVITY;
-    const exponent = clamp(-toPixels(event.deltaY, event.deltaMode) * sensitivity, MAX_ZOOM_EXPONENT);
+    const exponent = clamp(
+      -toPixels(event.deltaY, event.deltaMode) * sensitivity,
+      MAX_ZOOM_EXPONENT,
+    );
     return { kind: 'zoom', factor: Math.exp(exponent) };
   }
 

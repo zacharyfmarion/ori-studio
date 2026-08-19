@@ -125,7 +125,7 @@ function fitLattice(vertices, edges, kind) {
   if (!Number.isFinite(base) || base <= 0) return null;
   const anchor = vertices.reduce(
     (min, v) => [Math.min(min[0], v[0]), Math.min(min[1], v[1])],
-    [Infinity, Infinity]
+    [Infinity, Infinity],
   );
 
   let best = null;
@@ -150,7 +150,7 @@ function fitLattice(vertices, edges, kind) {
           [sumX / vertices.length, sumY / vertices.length],
           [0, 0],
           pitch,
-          kind
+          kind,
         );
         origin = [origin[0] + shift[0], origin[1] + shift[1]];
       }
@@ -212,7 +212,7 @@ export function snapToLattice(fold) {
       return { fold: null, report: { skipped: 'would collapse an edge', kind } };
     }
     const turn = Math.abs(
-      ((Math.atan2(after[1], after[0]) - Math.atan2(before[1], before[0])) * 180) / Math.PI
+      ((Math.atan2(after[1], after[0]) - Math.atan2(before[1], before[0])) * 180) / Math.PI,
     );
     worstTurn = Math.max(worstTurn, Math.min(turn, 360 - turn));
   }
@@ -252,7 +252,7 @@ function main() {
           .filter((f) => extname(f).toLowerCase() === '.fold')
           .sort()
           .map((f) => join(input, f))
-      : [input]
+      : [input],
   );
 
   let snapped = 0;
@@ -268,7 +268,7 @@ function main() {
     writeFileSync(outDir ? join(outDir, `${name}.fold`) : file, `${JSON.stringify(fold)}\n`);
     console.log(
       `  ${name.padEnd(34)} ${report.kind.padEnd(10)} pitch ${report.pitch.toFixed(4)}  ` +
-        `worst ${report.worst.toExponential(1)} (${(report.fraction * 100).toFixed(3)}% of pitch)`
+        `worst ${report.worst.toExponential(1)} (${(report.fraction * 100).toFixed(3)}% of pitch)`,
     );
   }
   console.log(`\n${snapped} of ${files.length} snapped; the rest were left untouched.`);

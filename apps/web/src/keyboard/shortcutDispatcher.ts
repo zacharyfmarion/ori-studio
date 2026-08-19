@@ -72,7 +72,7 @@ export function isShortcutEditingTarget(target: EventTarget | null): boolean {
 
 export function handleShortcutKeyDown(
   event: KeyboardEvent,
-  options: ShortcutDispatchOptions
+  options: ShortcutDispatchOptions,
 ): boolean {
   if (event.defaultPrevented || event.isComposing || isShortcutEditingTarget(event.target)) {
     return false;
@@ -90,7 +90,7 @@ export function handleShortcutKeyDown(
     const definition = SHORTCUT_DEFINITIONS.find((candidate) => {
       if (candidate.scope !== scope) return false;
       return getResolvedShortcuts(candidate.id, resolution).some((shortcut) =>
-        keyChordEquals(shortcut, chord)
+        keyChordEquals(shortcut, chord),
       );
     });
 
@@ -114,7 +114,7 @@ export function handleShortcutKeyDown(
 function executeShortcut(
   id: ShortcutActionId,
   target: ShortcutTarget,
-  executors: ShortcutExecutors
+  executors: ShortcutExecutors,
 ): boolean {
   switch (target) {
     case 'menu':

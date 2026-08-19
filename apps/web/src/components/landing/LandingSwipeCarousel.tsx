@@ -72,11 +72,7 @@ function prefersReducedMotion(): boolean {
  * list; these three are short and benefit from being swiped. The two share the
  * parts worth sharing — `LandingFigure` — and nothing else.
  */
-export function LandingSwipeCarousel({
-  label,
-  items,
-  showTabs = true,
-}: LandingSwipeCarouselProps) {
+export function LandingSwipeCarousel({ label, items, showTabs = true }: LandingSwipeCarouselProps) {
   const { t } = useTranslation();
   const baseId = useId();
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -159,7 +155,7 @@ export function LandingSwipeCarousel({
 
       goTo(Math.min(Math.max(from + steps, 0), items.length - 1));
     },
-    [goTo, items.length]
+    [goTo, items.length],
   );
 
   const dragHandlers = usePointerDrag(trackRef, { onSettle: settleFromDrag });
@@ -226,9 +222,7 @@ export function LandingSwipeCarousel({
               aria-hidden={index === active ? undefined : true}
             >
               <LandingFigure name={item.figure} alt={item.figureAlt} />
-              {showTabs ? null : (
-                <h3 className="landing-swipe__slide-title">{item.title}</h3>
-              )}
+              {showTabs ? null : <h3 className="landing-swipe__slide-title">{item.title}</h3>}
               <p className="landing-swipe__body">{item.body}</p>
             </div>
           ))}

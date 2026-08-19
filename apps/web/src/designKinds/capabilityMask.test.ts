@@ -74,7 +74,7 @@ const LEGACY_SIMULATE_VISIBLE_EDIT = new Set<WorkspaceCapabilityId>(['edit.undo'
 
 function legacyMask(
   capabilities: WorkspaceCapabilities,
-  context: EditingContext
+  context: EditingContext,
 ): WorkspaceCapabilities {
   const masked = { ...capabilities };
   const ids = Object.keys(masked) as WorkspaceCapabilityId[];
@@ -147,7 +147,7 @@ function allVisibleCapabilities(): WorkspaceCapabilities {
   });
   const ids = Object.keys(real) as WorkspaceCapabilityId[];
   return Object.fromEntries(
-    ids.map((id) => [id, { enabled: true, visible: true, label: id, reason: '' }])
+    ids.map((id) => [id, { enabled: true, visible: true, label: id, reason: '' }]),
   ) as WorkspaceCapabilities;
 }
 
@@ -168,7 +168,7 @@ describe('registry-driven capability masking', () => {
   it.each(ALL_CONTEXTS)('matches the pre-registry rules in %s', (context) => {
     const base = allVisibleCapabilities();
     expect(hiddenIds(maskCapabilitiesForContext(base, context))).toEqual(
-      hiddenIds(legacyMask(base, context))
+      hiddenIds(legacyMask(base, context)),
     );
   });
 

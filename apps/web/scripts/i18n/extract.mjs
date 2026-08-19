@@ -49,7 +49,7 @@ const generatedSnapshots = Object.fromEntries(
   GENERATED_NAMESPACES.map((ns) => [
     ns,
     Object.fromEntries(TARGET_LOCALES.map((locale) => [locale, readCatalog(locale, ns)])),
-  ])
+  ]),
 );
 
 // Delete the English parser-managed catalogs so the parser rebuilds them purely from the

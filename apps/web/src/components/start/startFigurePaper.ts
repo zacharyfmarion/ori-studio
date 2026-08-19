@@ -61,7 +61,7 @@ function darken(color: string, factor: number): string {
  * `mountainColor` / `valleyColor` alongside it would be dead weight.
  */
 export function startFigurePaperSettings(
-  styles: CSSStyleDeclaration
+  styles: CSSStyleDeclaration,
 ): Partial<Pick<SimulatorSettings, 'paperFront' | 'paperBack' | 'borderColor'>> {
   const accent = styles.getPropertyValue('--accent-primary').trim();
   if (accent === '') return {};

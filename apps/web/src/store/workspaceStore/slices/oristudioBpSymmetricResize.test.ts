@@ -1,6 +1,9 @@
 import { singleBoxPleatDesignTab } from '../designTabs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { OristudioBpDocumentState, OristudioBpTreeView } from '../../../engine/oristudioBpTypes';
+import type {
+  OristudioBpDocumentState,
+  OristudioBpTreeView,
+} from '../../../engine/oristudioBpTypes';
 
 /**
  * Resizing a flap under mirror draw resizes its partner too.
@@ -83,17 +86,18 @@ function setUp(options: {
     {
       ...useWorkspaceStore.getInitialState(),
       ...singleBoxPleatDesignTab({
-      document: bpDocument(kind),
-      symmetry: {
-        ...AXIS,
-        enabled: options.enabled,
-        fold: options.fold ?? 'book',
-        quarterTurn: options.quarterTurn ?? false,
-        sidesSwapped: false,
-        pairs: options.pairs ?? [],
-      }
-      })},
-    true
+        document: bpDocument(kind),
+        symmetry: {
+          ...AXIS,
+          enabled: options.enabled,
+          fold: options.fold ?? 'book',
+          quarterTurn: options.quarterTurn ?? false,
+          sidesSwapped: false,
+          pairs: options.pairs ?? [],
+        },
+      }),
+    },
+    true,
   );
 }
 
@@ -118,9 +122,9 @@ afterEach(() => {
 describe('resizeOristudioBpLayoutFlap under symmetry', () => {
   it('resizes the mirror partner to match', async () => {
     setUp({ enabled: true });
-    await expect(
-      useWorkspaceStore.getState().resizeOristudioBpLayoutFlap(1, 3, 2)
-    ).resolves.toBe(true);
+    await expect(useWorkspaceStore.getState().resizeOristudioBpLayoutFlap(1, 3, 2)).resolves.toBe(
+      true,
+    );
     expect(resizes()).toEqual([
       [1, 3, 2],
       [2, 3, 2],

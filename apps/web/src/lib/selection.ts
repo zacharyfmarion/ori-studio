@@ -133,7 +133,11 @@ export function toggleConditionSelection(selection: Selection, id: number): Sele
 
 export type SelectablePartKind = 'node' | 'edge' | 'path' | 'crease' | 'facet' | 'condition';
 
-export function selectByIndex(project: TreeProject, kind: SelectablePartKind, id: number): Selection {
+export function selectByIndex(
+  project: TreeProject,
+  kind: SelectablePartKind,
+  id: number,
+): Selection {
   switch (kind) {
     case 'node':
       return project.nodes.some((node) => node.id === id) ? { kind, id } : { kind: 'tree' };
@@ -146,24 +150,22 @@ export function selectByIndex(project: TreeProject, kind: SelectablePartKind, id
     case 'facet':
       return project.facets.some((facet) => facet.id === id) ? { kind, id } : { kind: 'tree' };
     case 'condition':
-      return project.conditions.some((condition) => condition.id === id) ? { kind, id } : { kind: 'tree' };
+      return project.conditions.some((condition) => condition.id === id)
+        ? { kind, id }
+        : { kind: 'tree' };
   }
 }
 
 export function selectMovableParts(project: TreeProject): Selection {
   const fixedLengthEdges = new Set(
     project.conditions.flatMap((condition) =>
-      condition.kind.type === 'edge_length_fixed' ? [condition.kind.edge] : []
-    )
+      condition.kind.type === 'edge_length_fixed' ? [condition.kind.edge] : [],
+    ),
   );
   const selection = {
     kind: 'multi' as const,
-    nodes: project.nodes
-      .filter((node) => node.isLeaf && !node.isPinned)
-      .map((node) => node.id),
-    edges: project.edges
-      .filter((edge) => !fixedLengthEdges.has(edge.id))
-      .map((edge) => edge.id),
+    nodes: project.nodes.filter((node) => node.isLeaf && !node.isPinned).map((node) => node.id),
+    edges: project.edges.filter((edge) => !fixedLengthEdges.has(edge.id)).map((edge) => edge.id),
     paths: [],
     creases: [],
     facets: [],

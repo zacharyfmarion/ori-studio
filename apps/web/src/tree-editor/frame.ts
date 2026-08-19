@@ -118,7 +118,7 @@ export interface CenteredFitOptions {
  */
 export function centeredTreeFitRect(
   points: readonly Point[],
-  options: CenteredFitOptions
+  options: CenteredFitOptions,
 ): PlotRect {
   const { unitSvg, minHalfSpan, padding } = options;
   let halfSpan = minHalfSpan;

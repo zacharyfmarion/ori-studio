@@ -23,7 +23,7 @@ import { forwardWheel } from '../lib/wheelBurst';
  */
 export function useWheelPassthrough(
   element: Element | null,
-  resolveTarget: (() => Element | null | undefined) | undefined
+  resolveTarget: (() => Element | null | undefined) | undefined,
 ): void {
   // Held in a ref so an inline arrow from the caller does not detach and
   // reattach the listener on every render.

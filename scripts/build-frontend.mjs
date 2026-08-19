@@ -26,7 +26,7 @@ if (process.env.ORI_PREBUILT_FRONTEND === '1') {
   if (!existsSync(distIndex)) {
     console.error(
       'ORI_PREBUILT_FRONTEND=1 but apps/web/dist/index.html is missing.\n' +
-        'The prebuilt web bundle was not restored — refusing to bundle an app with no frontend.'
+        'The prebuilt web bundle was not restored — refusing to bundle an app with no frontend.',
     );
     process.exit(1);
   }

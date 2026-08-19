@@ -25,10 +25,7 @@ const SETTINGS: RenderSettings = {
  * ordering of the two whole triangles is correct — the case a depth sort cannot
  * express at any precision.
  */
-const CROSSING = new Float32Array([
-  -1, -1, 0, 1, -1, 0, 0, 1, 0,
-  0, -1, -1, 0, -1, 1, 0, 1, 0,
-]);
+const CROSSING = new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0, 0, -1, -1, 0, -1, 1, 0, 1, 0]);
 
 const CAMERA = cameraUniforms({ yaw: 0.6, pitch: -0.5, zoom: 1 }, [0, 0, 0], 1.5, 400, 400);
 
@@ -38,7 +35,7 @@ function render(positions: Float32Array, faceIndices: Uint32Array) {
     { faceIndices, edgeIndices: new Uint32Array(), edgeAssignments: new Uint8Array() },
     CAMERA,
     SETTINGS,
-    { background: false }
+    { background: false },
   );
 }
 
@@ -54,8 +51,24 @@ describe('ordering interpenetrating geometry', () => {
     // The heart of it. Sorting emits every piece of one triangle before every
     // piece of the other; correctness here requires alternating between them.
     const items: BspItem[] = [
-      { kind: 0, ref: 0, points: [[-1, -1, 0], [1, -1, 0], [0, 1, 0]] },
-      { kind: 0, ref: 1, points: [[0, -1, -1], [0, -1, 1], [0, 1, 0]] },
+      {
+        kind: 0,
+        ref: 0,
+        points: [
+          [-1, -1, 0],
+          [1, -1, 0],
+          [0, 1, 0],
+        ],
+      },
+      {
+        kind: 0,
+        ref: 1,
+        points: [
+          [0, -1, -1],
+          [0, -1, 1],
+          [0, 1, 0],
+        ],
+      },
     ];
     const ordered = traverseBsp(buildBsp(items), [0, 0, 10]);
     const refs = ordered.map((item) => item.ref);
@@ -68,8 +81,24 @@ describe('ordering interpenetrating geometry', () => {
 
   it('orders far to near, so the eye position decides the direction', () => {
     const items: BspItem[] = [
-      { kind: 0, ref: 0, points: [[-1, -1, -1], [1, -1, -1], [0, 1, -1]] },
-      { kind: 0, ref: 1, points: [[-1, -1, 1], [1, -1, 1], [0, 1, 1]] },
+      {
+        kind: 0,
+        ref: 0,
+        points: [
+          [-1, -1, -1],
+          [1, -1, -1],
+          [0, 1, -1],
+        ],
+      },
+      {
+        kind: 0,
+        ref: 1,
+        points: [
+          [-1, -1, 1],
+          [1, -1, 1],
+          [0, 1, 1],
+        ],
+      },
     ];
     const tree = buildBsp(items);
     // Eye on the +depth side: the depth = +1 triangle is nearer, so it is last.
@@ -91,7 +120,9 @@ describe('ordering interpenetrating geometry', () => {
   it('leaves non-overlapping geometry uncut', () => {
     // The tree must not split for its own sake: two separated triangles need no
     // cutting, and growth is the whole cost of this approach.
-    const apart = new Float32Array([-1, -1, 0, -0.6, -1, 0, -0.8, 1, 0, 0.6, -1, 0, 1, -1, 0, 0.8, 1, 0]);
+    const apart = new Float32Array([
+      -1, -1, 0, -0.6, -1, 0, -0.8, 1, 0, 0.6, -1, 0, 1, -1, 0, 0.8, 1, 0,
+    ]);
     const page = render(apart, new Uint32Array([0, 1, 2, 3, 4, 5]))!;
     expect((page.svg.match(/<polygon/gu) ?? []).length).toBe(2);
   });
@@ -105,8 +136,7 @@ describe('ordering interpenetrating geometry', () => {
     // pieces stay collinear and match what the GPU rasterizes.
     const positions = new Float32Array([
       // Two faces crossing in an X.
-      -1, -1, 0, 1, -1, 0, 0, 1, 0,
-      0, -1, -1, 0, -1, 1, 0, 1, 0,
+      -1, -1, 0, 1, -1, 0, 0, 1, 0, 0, -1, -1, 0, -1, 1, 0, 1, 0,
       // A crease that lies in neither, so whichever plane is chosen cuts it.
       -1, 0.2, -1, 1, 0.2, 1,
     ]);
@@ -118,15 +148,22 @@ describe('ordering interpenetrating geometry', () => {
         edgeAssignments: new Uint8Array([1]),
       },
       CAMERA,
-      { ...SETTINGS, showEdges: true, creaseWidthPx: 1 }
+      { ...SETTINGS, showEdges: true, creaseWidthPx: 1 },
     )!;
 
-    const lines = [...page.svg.matchAll(/<line x1="([-\d.]+)" y1="([-\d.]+)" x2="([-\d.]+)" y2="([-\d.]+)"/gu)]
-      .map((m) => [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])] as const);
+    const lines = [
+      ...page.svg.matchAll(/<line x1="([-\d.]+)" y1="([-\d.]+)" x2="([-\d.]+)" y2="([-\d.]+)"/gu),
+    ].map((m) => [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])] as const);
     expect(lines.length).toBeGreaterThan(1); // the crease really was cut
 
     // Every piece must lie on the line through the two extreme endpoints.
-    const points = lines.flatMap(([x1, y1, x2, y2]) => [[x1, y1], [x2, y2]] as [number, number][]);
+    const points = lines.flatMap(
+      ([x1, y1, x2, y2]) =>
+        [
+          [x1, y1],
+          [x2, y2],
+        ] as [number, number][],
+    );
     let a = points[0]!;
     let b = points[0]!;
     for (const q of points) {
@@ -147,8 +184,23 @@ describe('ordering interpenetrating geometry', () => {
     // A plane tilted enough to have both a screen and a depth component, so the
     // near side is decided rather than degenerate. The crease straddles it, but
     // by less than the ink it is drawn with.
-    const face: BspItem = { kind: 0, ref: 0, points: [[0, 0, 0], [0, 10, 0], [1, 0, 10]] };
-    const grazing: BspItem = { kind: 1, ref: 0, points: [[-0.5, 2, 1], [0.5, 5, 3]] };
+    const face: BspItem = {
+      kind: 0,
+      ref: 0,
+      points: [
+        [0, 0, 0],
+        [0, 10, 0],
+        [1, 0, 10],
+      ],
+    };
+    const grazing: BspItem = {
+      kind: 1,
+      ref: 0,
+      points: [
+        [-0.5, 2, 1],
+        [0.5, 5, 3],
+      ],
+    };
 
     it('is not split by a plane it only grazes', () => {
       // Splitting here is what chopped creases into sub-pixel confetti: 48 pieces
@@ -172,7 +224,15 @@ describe('ordering interpenetrating geometry', () => {
     it('leaves faces alone, however thin the ink', () => {
       // The tolerance is a property of the ink, not of the tree. A face has area
       // and must still be cut, or stacked layers stop ordering against it.
-      const crossing: BspItem = { kind: 0, ref: 1, points: [[-2, 2, 1], [2, 5, 3], [0, 8, 2]] };
+      const crossing: BspItem = {
+        kind: 0,
+        ref: 1,
+        points: [
+          [-2, 2, 1],
+          [2, 5, 3],
+          [0, 8, 2],
+        ],
+      };
       const ordered = traverseBsp(buildBsp([face, crossing], { edgeInk: 1.1 }), [0, 0, 10]);
       expect(ordered.filter((item) => item.kind === 0 && item.ref === 1).length).toBeGreaterThan(1);
     });
@@ -181,8 +241,22 @@ describe('ordering interpenetrating geometry', () => {
   it('handles an empty tree and a tree of edges alone', () => {
     expect(traverseBsp(buildBsp([]), [0, 0, 1])).toEqual([]);
     const edges: BspItem[] = [
-      { kind: 1, ref: 0, points: [[-1, 0, 0], [1, 0, 0]] },
-      { kind: 1, ref: 1, points: [[0, -1, 0], [0, 1, 0]] },
+      {
+        kind: 1,
+        ref: 0,
+        points: [
+          [-1, 0, 0],
+          [1, 0, 0],
+        ],
+      },
+      {
+        kind: 1,
+        ref: 1,
+        points: [
+          [0, -1, 0],
+          [0, 1, 0],
+        ],
+      },
     ];
     // No face means no splitting plane; both edges still come out.
     expect(traverseBsp(buildBsp(edges), [0, 0, 1])).toHaveLength(2);
@@ -197,14 +271,22 @@ describe('ordering interpenetrating geometry', () => {
       kind: 0,
       ref,
       order: ref,
-      points: [[0, 0, 0], [10, 0, 0], [10, 10, 0]],
+      points: [
+        [0, 0, 0],
+        [10, 0, 0],
+        [10, 10, 0],
+      ],
     });
     // Straddle z = 0 so a z = 0 splitter cuts them, and each other so their own
     // planes cut plenty — which is what makes the sampled splitter interesting.
     const decoy = (i: number): BspItem => ({
       kind: 0,
       ref: 100 + i,
-      points: [[1 + i * 0.1, 1, -5], [9, 1 + i * 0.1, 5], [9, 9, 5 - i * 0.1]],
+      points: [
+        [1 + i * 0.1, 1, -5],
+        [9, 1 + i * 0.1, 5],
+        [9, 9, 5 - i * 0.1],
+      ],
     });
     const scene = (withOrder: boolean): BspItem[] => {
       const items: BspItem[] = [];
@@ -239,8 +321,25 @@ describe('ordering interpenetrating geometry', () => {
       // `order` is the tie-break under `kind`, never over it: a crease with a
       // lower order must not jump ahead of the face it lies in.
       const items: BspItem[] = [
-        { kind: 1, ref: 0, order: 0, points: [[-1, -1, 0], [1, -1, 0]] },
-        { kind: 0, ref: 0, order: 5, points: [[-1, -1, 0], [1, -1, 0], [0, 1, 0]] },
+        {
+          kind: 1,
+          ref: 0,
+          order: 0,
+          points: [
+            [-1, -1, 0],
+            [1, -1, 0],
+          ],
+        },
+        {
+          kind: 0,
+          ref: 0,
+          order: 5,
+          points: [
+            [-1, -1, 0],
+            [1, -1, 0],
+            [0, 1, 0],
+          ],
+        },
       ];
       expect(traverseBsp(buildBsp(items), [0, 0, 10]).map((i) => i.kind)).toEqual([0, 1]);
     });
@@ -249,12 +348,25 @@ describe('ordering interpenetrating geometry', () => {
   describe('a caller-supplied coplanarity tolerance', () => {
     // Two faces a thousandth of a unit apart: one plane as far as the caller is
     // concerned, two planes at the default epsilon.
-    const lower: BspItem = { kind: 0, ref: 0, order: 0, points: [[0, 0, 0], [10, 0, 0], [10, 10, 0]] };
+    const lower: BspItem = {
+      kind: 0,
+      ref: 0,
+      order: 0,
+      points: [
+        [0, 0, 0],
+        [10, 0, 0],
+        [10, 10, 0],
+      ],
+    };
     const upper: BspItem = {
       kind: 0,
       ref: 1,
       order: 1,
-      points: [[0, 0, 1e-3], [10, 0, 1e-3], [10, 10, 1e-3]],
+      points: [
+        [0, 0, 1e-3],
+        [10, 0, 1e-3],
+        [10, 10, 1e-3],
+      ],
     };
 
     it('keeps items inside it in one coplanar list, ordered by the caller', () => {
@@ -277,7 +389,7 @@ describe('ordering interpenetrating geometry', () => {
       const eye: Vec3 = [0, 0, Number.MAX_SAFE_INTEGER];
       expect(traverseBsp(buildBsp([upper, lower]), eye).map((item) => item.ref)).toEqual([0, 1]);
       expect(
-        traverseBsp(buildBsp([upper, lower]), [0, 0, -Number.MAX_SAFE_INTEGER]).map((i) => i.ref)
+        traverseBsp(buildBsp([upper, lower]), [0, 0, -Number.MAX_SAFE_INTEGER]).map((i) => i.ref),
       ).toEqual([1, 0]);
     });
   });
@@ -286,8 +398,23 @@ describe('ordering interpenetrating geometry', () => {
     // Coplanar items share a node, and a crease must land after its face there —
     // the vector counterpart of the edge shader's depth bias.
     const items: BspItem[] = [
-      { kind: 1, ref: 0, points: [[-1, -1, 0], [1, -1, 0]] },
-      { kind: 0, ref: 0, points: [[-1, -1, 0], [1, -1, 0], [0, 1, 0]] },
+      {
+        kind: 1,
+        ref: 0,
+        points: [
+          [-1, -1, 0],
+          [1, -1, 0],
+        ],
+      },
+      {
+        kind: 0,
+        ref: 0,
+        points: [
+          [-1, -1, 0],
+          [1, -1, 0],
+          [0, 1, 0],
+        ],
+      },
     ];
     const ordered = traverseBsp(buildBsp(items), [0, 0, 10]);
     expect(ordered.map((i) => i.kind)).toEqual([0, 1]);

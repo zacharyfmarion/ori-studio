@@ -104,7 +104,7 @@ describe('projectFromSnapshot', () => {
         path({ id: 3, nodes: [1, 3], is_leaf: false, is_conditioned: true }),
         path({ id: 4, nodes: [1, 4], is_leaf: false, is_active: true }),
         path({ id: 5, nodes: [1, 4], is_leaf: false }),
-      ])
+      ]),
     );
 
     expect(project.paths.map((visiblePath) => visiblePath.id)).toEqual([1, 2, 3, 4]);

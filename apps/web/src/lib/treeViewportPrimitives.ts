@@ -19,7 +19,9 @@ export function isTreeViewportKeyboardActivation(event: { key: string }): boolea
   return event.key === 'Enter' || event.key === ' ';
 }
 
-export function viewportSizeFromElement(viewport: HTMLElement | SVGElement | null): ViewportSize | null {
+export function viewportSizeFromElement(
+  viewport: HTMLElement | SVGElement | null,
+): ViewportSize | null {
   if (!viewport) return null;
   return {
     width: viewport.clientWidth || viewport.getBoundingClientRect().width,

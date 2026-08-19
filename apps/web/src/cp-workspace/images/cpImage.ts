@@ -71,9 +71,7 @@ export function defaultCpImageCrop(): CpImageCrop {
 
 function generateCpImageId(): string {
   const cryptoObj =
-    typeof globalThis !== 'undefined'
-      ? (globalThis.crypto as Crypto | undefined)
-      : undefined;
+    typeof globalThis !== 'undefined' ? (globalThis.crypto as Crypto | undefined) : undefined;
   if (cryptoObj && typeof cryptoObj.randomUUID === 'function') {
     return `image-${cryptoObj.randomUUID()}`;
   }

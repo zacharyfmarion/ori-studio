@@ -69,7 +69,7 @@ export function isNonClassicSegment(segment: OristudioCpLineSegment): boolean {
  */
 export function resolveFoldRoute(
   document: OristudioCpDocumentSnapshot | null | undefined,
-  scopedLineIds: readonly number[]
+  scopedLineIds: readonly number[],
 ): FoldRoute {
   if (!document) return { kind: 'none' };
   const lineIds = selectedFoldableCpLineIds(document, {
@@ -118,7 +118,7 @@ export function kernelLineOrder(foldableLineIds: readonly number[]): number[] {
  */
 export function documentLineIdForKernelLine(
   order: readonly number[],
-  kernelIndex: number | null | undefined
+  kernelIndex: number | null | undefined,
 ): number | null {
   if (kernelIndex == null || !Number.isInteger(kernelIndex) || kernelIndex < 0) return null;
   return order[kernelIndex] ?? null;
@@ -133,7 +133,7 @@ export function documentLineIdForKernelLine(
  */
 export function documentLineIdsForKernelLines(
   order: readonly number[],
-  kernelIndices: readonly (number | null | undefined)[]
+  kernelIndices: readonly (number | null | undefined)[],
 ): number[] {
   const ids: number[] = [];
   for (const index of kernelIndices) {

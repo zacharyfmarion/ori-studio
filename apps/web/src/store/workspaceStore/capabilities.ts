@@ -38,10 +38,12 @@ export function historyCountForContext(
   which: 'past' | 'future',
   /** Parameterized for the same reason the registry is: so a stub kind can
    *  drive this consumer without mutating global state. */
-  kinds?: readonly DesignKindDescriptor[]
+  kinds?: readonly DesignKindDescriptor[],
 ): number {
   if (context === 'crease-pattern') return cpCount;
-  const kind = kinds ? designKindRegistry(kinds).forContext(context) : designKindForContext(context);
+  const kind = kinds
+    ? designKindRegistry(kinds).forContext(context)
+    : designKindForContext(context);
   if (!kind) return 0;
   return kind.history(tab)[which];
 }
@@ -59,7 +61,9 @@ export function historyCountForContext(
  * the crease-pattern kernel that had nothing to do with it.
  */
 function anyDesignIsSavable(state: WorkspaceState): boolean {
-  return state.designTabs.some((tab) => (tab.kind ? designKind(tab.kind)?.isSavable(tab) : false) ?? false);
+  return state.designTabs.some(
+    (tab) => (tab.kind ? designKind(tab.kind)?.isSavable(tab) : false) ?? false,
+  );
 }
 
 export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabilityInput {
@@ -72,13 +76,13 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
     context,
     tab,
     state.oristudioCpDocument ? state.oristudioCpHistoryPast.length : 0,
-    'past'
+    'past',
   );
   const historyFutureCount = historyCountForContext(
     context,
     tab,
     state.oristudioCpDocument ? state.oristudioCpHistoryFuture.length : 0,
-    'future'
+    'future',
   );
 
   return {
@@ -99,8 +103,7 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
     oristudioCpSelectedLineCount: state.oristudioCpSelection.lines.length,
     oristudioCpSelectedPointCount: state.oristudioCpSelection.points.length,
     oristudioCpSelectedCircleCount: state.oristudioCpSelection.circles.length,
-    hasDeletableDesignSelection:
-      activeKind?.deletableTarget?.(activeDesignTab(state)) != null,
+    hasDeletableDesignSelection: activeKind?.deletableTarget?.(activeDesignTab(state)) != null,
     canSaveDesign: anyDesignIsSavable(state),
     historyPastCount,
     historyFutureCount,

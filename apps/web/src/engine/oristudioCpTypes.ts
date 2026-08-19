@@ -6,12 +6,7 @@ import type {
 } from '../lib/oristudioCpCommands';
 
 export type OristudioCpOperationCategory =
-  | 'Kernel'
-  | 'Io'
-  | 'KernelIntent'
-  | 'KernelPreview'
-  | 'UiPreviewOnly'
-  | 'OutOfScopeUi';
+  'Kernel' | 'Io' | 'KernelIntent' | 'KernelPreview' | 'UiPreviewOnly' | 'OutOfScopeUi';
 
 /**
  * Whether an operation is a port or an Ori Studio original — the kernel's
@@ -190,31 +185,13 @@ export interface OristudioCpCommandPreview {
 }
 
 export type OristudioCpEstimationOrder =
-  | 'Order0'
-  | 'Order1'
-  | 'Order2'
-  | 'Order3'
-  | 'Order4'
-  | 'Order5'
-  | 'Order6'
-  | 'Order51';
+  'Order0' | 'Order1' | 'Order2' | 'Order3' | 'Order4' | 'Order5' | 'Order6' | 'Order51';
 
 export type OristudioCpEstimationStep =
-  | 'Step0'
-  | 'Step1'
-  | 'Step2'
-  | 'Step3'
-  | 'Step4'
-  | 'Step5'
-  | 'Step10';
+  'Step0' | 'Step1' | 'Step2' | 'Step3' | 'Step4' | 'Step5' | 'Step10';
 
 export type OristudioCpFoldedFigureDisplayStyle =
-  | 'None0'
-  | 'Development1'
-  | 'Wire2'
-  | 'Transparent3'
-  | 'Development4'
-  | 'Paper5';
+  'None0' | 'Development1' | 'Wire2' | 'Transparent3' | 'Development4' | 'Paper5';
 
 export type OristudioCpFoldedFigureState = 'Front0' | 'Back1' | 'Both2' | 'Transparent3';
 
@@ -391,11 +368,7 @@ export interface OristudioCpFoldedFigureSnapshot {
 }
 
 /** Mirror of the kernel's `folding::FoldOutcome`. */
-export type OristudioCpFoldOutcome =
-  | 'NotAttempted'
-  | 'Solved'
-  | 'NoSolutions'
-  | 'Contradiction';
+export type OristudioCpFoldOutcome = 'NotAttempted' | 'Solved' | 'NoSolutions' | 'Contradiction';
 
 export interface OristudioCpFoldedFigureResult {
   handle: number;
@@ -423,11 +396,7 @@ export interface OristudioCpFoldedFigureBatchResult {
 
 /** Oriedita's five flat-foldability rules, as kernel codes. */
 export type OristudioCpFlatFoldabilityRuleCode =
-  | 'number_of_folds'
-  | 'angles'
-  | 'maekawa'
-  | 'big_little_big'
-  | 'none';
+  'number_of_folds' | 'angles' | 'maekawa' | 'big_little_big' | 'none';
 
 /** Why a vertex could not be evaluated at all. */
 export type OristudioCpIndeterminateCode = 'unassigned_crease' | 'unsplit_junction';
@@ -787,9 +756,7 @@ export type OristudioCpFoldedFigureSourceKind =
  * errors, the figure simply never goes stale, never offers a refold and never
  * becomes the toolbar's fallback.
  */
-export function isFoldedFromCurrentCpSourceKind(
-  kind: OristudioCpFoldedFigureSourceKind
-): boolean {
+export function isFoldedFromCurrentCpSourceKind(kind: OristudioCpFoldedFigureSourceKind): boolean {
   return kind === 'generated-from-current-cp' || kind === 'generated-3d';
 }
 
@@ -900,17 +867,7 @@ export interface OristudioCpFoldedFigureEntry {
      * is restated here: it has to stay assignable to the projector's `Mat3`
      * without importing it, and a bare array is not.
      */
-    orient?: readonly [
-      number,
-      number,
-      number,
-      number,
-      number,
-      number,
-      number,
-      number,
-      number,
-    ];
+    orient?: readonly [number, number, number, number, number, number, number, number, number];
   } | null;
   /**
    * Half the side of the square frame a 3D figure draws inside, in the local
@@ -1059,13 +1016,7 @@ export type OristudioCpSquareAnchorPayload =
   | 'BottomRight';
 
 export type OristudioCpTextCommandAction =
-  | 'Create'
-  | 'CreateAt'
-  | 'Move'
-  | 'SetContent'
-  | 'DeleteSelected'
-  | 'DeleteAt'
-  | 'DeleteBox';
+  'Create' | 'CreateAt' | 'Move' | 'SetContent' | 'DeleteSelected' | 'DeleteAt' | 'DeleteBox';
 
 export type OristudioCpLineColor =
   | 'Angle'
@@ -1083,12 +1034,7 @@ export type OristudioCpLineColor =
   | 'Grey10';
 
 export type OristudioCpCustomLineType =
-  | 'Any'
-  | 'Edge'
-  | 'MountainAndValley'
-  | 'Mountain'
-  | 'Valley'
-  | 'Aux';
+  'Any' | 'Edge' | 'MountainAndValley' | 'Mountain' | 'Valley' | 'Aux';
 
 export interface OristudioCpDocumentState {
   handle: number;

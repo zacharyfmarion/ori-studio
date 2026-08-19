@@ -4,7 +4,12 @@ import type {
   PredefinedMenuItemOptions,
   SubmenuOptions,
 } from '@tauri-apps/api/menu';
-import { getMenuBarDef, type MenuDef, type MenuItemDef, type MenuTranslate } from './menuDefinition';
+import {
+  getMenuBarDef,
+  type MenuDef,
+  type MenuItemDef,
+  type MenuTranslate,
+} from './menuDefinition';
 import { menuHasVisibleItems, pruneMenuItems } from './menuVisibility';
 import { handleMenuAction } from '../commands/menuActions';
 import {
@@ -64,7 +69,7 @@ function acceleratorKey(key: string): string {
 
 function acceleratorForAction(
   id: string,
-  resolution: ShortcutResolutionInput | undefined
+  resolution: ShortcutResolutionInput | undefined,
 ): string | undefined {
   // getResolvedShortcut returns null for ids without a shortcut definition, so
   // this is safe to call for every action id.
@@ -79,7 +84,7 @@ function acceleratorForAction(
 function toNativeOption(
   item: MenuItemDef,
   capabilities: WorkspaceCapabilities,
-  resolution: ShortcutResolutionInput | undefined
+  resolution: ShortcutResolutionInput | undefined,
 ): NativeItemOption | null {
   switch (item.type) {
     case 'separator':
@@ -116,7 +121,7 @@ function toNativeOption(
 function buildItemOptions(
   items: MenuItemDef[],
   capabilities: WorkspaceCapabilities,
-  resolution: ShortcutResolutionInput | undefined
+  resolution: ShortcutResolutionInput | undefined,
 ): NativeItemOption[] {
   return pruneMenuItems(items, capabilities)
     .map((item) => toNativeOption(item, capabilities, resolution))
@@ -168,7 +173,7 @@ function appSubmenu(): SubmenuOptions {
 export function nativeMenuOptions(
   menuDef: MenuDef[],
   capabilities: WorkspaceCapabilities,
-  resolution: ShortcutResolutionInput | undefined
+  resolution: ShortcutResolutionInput | undefined,
 ): SubmenuOptions[] {
   const menus: SubmenuOptions[] = [appSubmenu()];
   for (const menu of menuDef) {
@@ -188,7 +193,7 @@ export function nativeMenuOptions(
 export function nativeMenuSignature(
   menuDef: MenuDef[],
   capabilities: WorkspaceCapabilities,
-  resolution: ShortcutResolutionInput | undefined
+  resolution: ShortcutResolutionInput | undefined,
 ): string {
   // Carries the whole resolution, not just the overrides: switching the defaults
   // source moves accelerators the same way a rebind does.
@@ -228,7 +233,7 @@ export function nativeMenuSignature(
 export async function buildNativeMenu(
   capabilities: WorkspaceCapabilities,
   resolution: ShortcutResolutionInput | undefined,
-  translate?: MenuTranslate
+  translate?: MenuTranslate,
 ): Promise<Menu> {
   const options = nativeMenuOptions(getMenuBarDef(resolution, translate), capabilities, resolution);
   return Menu.new({ items: options });

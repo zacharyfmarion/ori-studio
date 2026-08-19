@@ -83,7 +83,7 @@ export const TREE_CHROME_ATTR = {
  */
 export function treeChromeDash(
   dashPx: readonly number[],
-  chromePx: (px: number) => number
+  chromePx: (px: number) => number,
 ): string {
   return dashPx.map((px) => chromePx(px)).join(' ');
 }
@@ -119,7 +119,10 @@ function readNumber(element: Element, name: string): number | null {
 function readNumbers(element: Element, name: string): number[] | null {
   const raw = element.getAttribute(name);
   if (raw === null) return null;
-  const values = raw.split(/[\s,]+/).filter(Boolean).map(Number.parseFloat);
+  const values = raw
+    .split(/[\s,]+/)
+    .filter(Boolean)
+    .map(Number.parseFloat);
   return values.length > 0 && values.every(Number.isFinite) ? values : null;
 }
 
@@ -147,7 +150,7 @@ function readTarget(element: SVGElement): TreeSceneTarget | null {
  */
 export function collectTreeSceneTargets(
   root: ParentNode,
-  movingIds: ReadonlySet<number>
+  movingIds: ReadonlySet<number>,
 ): TreeSceneTarget[] {
   const targets: TreeSceneTarget[] = [];
   for (const element of root.querySelectorAll<SVGElement>(`[${TREE_SCENE_ATTR.anchor}]`)) {
@@ -181,7 +184,7 @@ export function collectAllTreeSceneTargets(root: ParentNode): TreeSceneTarget[] 
 export function applyTreeScenePositions(
   targets: readonly TreeSceneTarget[],
   pointFor: (vertexId: number) => Point | undefined,
-  chromePx: (px: number) => number
+  chromePx: (px: number) => number,
 ): void {
   for (const target of targets) {
     const a = pointFor(target.p1);
@@ -240,7 +243,8 @@ export function applyTreeGhost(root: ParentNode, geometry: TreeGhostGeometry | n
   const mirrorEdge = ghostPart(root, 'mirror-edge');
   const mirrorNode = ghostPart(root, 'mirror-node');
   if (!geometry) {
-    for (const element of [primaryEdge, primaryNode, mirrorEdge, mirrorNode]) setShown(element, false);
+    for (const element of [primaryEdge, primaryNode, mirrorEdge, mirrorNode])
+      setShown(element, false);
     return;
   }
   setShown(primaryEdge, true);
@@ -308,11 +312,13 @@ export function collectTreeChromeTargets(root: ParentNode): TreeChromeTarget[] {
  */
 export function applyTreeChromeScale(
   targets: readonly TreeChromeTarget[],
-  chromePx: (px: number) => number
+  chromePx: (px: number) => number,
 ): void {
   for (const target of targets) {
-    if (target.strokePx !== null) target.element.style.strokeWidth = String(chromePx(target.strokePx));
-    if (target.radiusPx !== null) target.element.setAttribute('r', String(chromePx(target.radiusPx)));
+    if (target.strokePx !== null)
+      target.element.style.strokeWidth = String(chromePx(target.strokePx));
+    if (target.radiusPx !== null)
+      target.element.setAttribute('r', String(chromePx(target.radiusPx)));
     if (target.fontPx !== null) target.element.style.fontSize = `${chromePx(target.fontPx)}px`;
     if (target.dashPx !== null) {
       target.element.style.strokeDasharray = treeChromeDash(target.dashPx, chromePx);
@@ -328,12 +334,7 @@ export function applyTreeChromeScale(
  * the cursor. Falls back silently when the label is not drawn (labels are a
  * layer, and only leaf edges carry one).
  */
-export function applyTreeEdgeLabel(
-  root: ParentNode,
-  p1: number,
-  p2: number,
-  text: string
-): void {
+export function applyTreeEdgeLabel(root: ParentNode, p1: number, p2: number, text: string): void {
   const selector =
     `[${TREE_SCENE_ATTR.anchor}="edge-label"]` +
     `[${TREE_SCENE_ATTR.p1}="${p1}"][${TREE_SCENE_ATTR.p2}="${p2}"]`;
@@ -341,7 +342,7 @@ export function applyTreeEdgeLabel(
     root.querySelector<SVGElement>(selector) ??
     root.querySelector<SVGElement>(
       `[${TREE_SCENE_ATTR.anchor}="edge-label"]` +
-        `[${TREE_SCENE_ATTR.p1}="${p2}"][${TREE_SCENE_ATTR.p2}="${p1}"]`
+        `[${TREE_SCENE_ATTR.p1}="${p2}"][${TREE_SCENE_ATTR.p2}="${p1}"]`,
     );
   if (element) element.textContent = text;
 }

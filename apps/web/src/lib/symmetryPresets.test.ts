@@ -39,7 +39,7 @@ describe('symmetry preset helpers', () => {
         symLoc: { x: 0.5, y: 0.5 },
         paperWidth: 1,
         paperHeight: 1,
-      })
+      }),
     ).toBe('none');
     expect(
       symmetrySelectValueForState({
@@ -48,7 +48,7 @@ describe('symmetry preset helpers', () => {
         symLoc: { x: 0.5, y: 0.5 },
         paperWidth: 1,
         paperHeight: 1,
-      })
+      }),
     ).toBe('diagonal');
     expect(
       symmetrySelectValueForState({
@@ -57,7 +57,7 @@ describe('symmetry preset helpers', () => {
         symLoc: { x: 0.5, y: 0.5 },
         paperWidth: 1,
         paperHeight: 1,
-      })
+      }),
     ).toBe('custom');
     expect(
       symmetrySelectValueForState({
@@ -66,7 +66,7 @@ describe('symmetry preset helpers', () => {
         symLoc: { x: 0.25, y: 0.5 },
         paperWidth: 1,
         paperHeight: 1,
-      })
+      }),
     ).toBe('custom');
   });
 });

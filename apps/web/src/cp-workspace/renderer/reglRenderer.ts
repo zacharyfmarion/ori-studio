@@ -52,7 +52,7 @@ async function decodeImageBitmap(src: string): Promise<ImageBitmap | null> {
  */
 export function createReglRenderer(
   canvas: HTMLCanvasElement,
-  options: ReglRendererOptions = {}
+  options: ReglRendererOptions = {},
 ): CpRenderer {
   const regl: Regl = createREGL({
     canvas,
@@ -213,7 +213,7 @@ export function createReglRenderer(
               wrapS: 'clamp',
               wrapT: 'clamp',
               flipY: false,
-            })
+            }),
           );
           options.onAsyncLoad?.();
         });

@@ -130,7 +130,7 @@ describe('bpPackingFlapClearanceRect', () => {
   it('grows a zero-size flap into a circle of its radius', () => {
     const clearance = bpPackingFlapClearanceRect(
       { anchor: { x: 8, y: 8 }, width: 0, height: 0, radius: 3 },
-      s
+      s,
     );
     expect(approx(clearance.width, 6 * unit)).toBe(true);
     expect(approx(clearance.height, 6 * unit)).toBe(true);
@@ -141,7 +141,7 @@ describe('bpPackingFlapClearanceRect', () => {
   it('grows a sized flap on every side, keeping the corner radius', () => {
     const clearance = bpPackingFlapClearanceRect(
       { anchor: { x: 4, y: 4 }, width: 2, height: 2, radius: 3 },
-      s
+      s,
     );
     const rect = bpPackingPaperRect(s);
     // Grid (1,1)..(9,9) — the flap rect grown by 3 on each side.
@@ -183,7 +183,7 @@ describe('bpArcPathToSvgPath', () => {
         { x: 3, y: 1 },
         { x: 3, y: 3 },
       ],
-      s
+      s,
     );
     expect(d).not.toContain('A');
     expect(d.match(/L/g)).toHaveLength(2);
@@ -261,7 +261,7 @@ describe('bpArcPathThickness', () => {
       bpArcPathThickness([
         { x: 0, y: 0 },
         { x: 1, y: 0 },
-      ])
+      ]),
     ).toBeNull();
   });
 
@@ -270,7 +270,7 @@ describe('bpArcPathThickness', () => {
       bpArcPathThickness([
         { x: 0, y: 0, arc: { x: 0, y: 1 }, r: 0.1 },
         { x: 10, y: 0, arc: { x: 10, y: 1 }, r: 0.1 },
-      ])
+      ]),
     ).toBe(0.2);
   });
 });
@@ -385,7 +385,7 @@ describe('getBpPackingWorldRect', () => {
     // The helper keeps its old behaviour for a caller that says nothing; the
     // packing pane is what passes the Layers toggle.
     expect(getBpPackingWorldRect(cornerPacking())).toEqual(
-      getBpPackingWorldRect(cornerPacking(), { cropToSheet: false })
+      getBpPackingWorldRect(cornerPacking(), { cropToSheet: false }),
     );
   });
 });
@@ -410,7 +410,10 @@ describe('snapBpPackingAnchorToGrid', () => {
   });
 
   it('leaves the anchor alone when the sheet has no grid to land on', () => {
-    const degenerate = { ...sheet('rectangular', 16), grid: { kind: 'rectangular' as const, interval: 0, snap: true } };
+    const degenerate = {
+      ...sheet('rectangular', 16),
+      grid: { kind: 'rectangular' as const, interval: 0, snap: true },
+    };
     expect(snapBpPackingAnchorToGrid({ x: 11.5, y: 4 }, degenerate)).toEqual({ x: 11.5, y: 4 });
   });
 });
@@ -435,7 +438,7 @@ describe('constrainBpPackingFlapGroupTarget grid alignment', () => {
       [off],
       off,
       { x: 10.5, y: 11 },
-      sheet('rectangular', 16)
+      sheet('rectangular', 16),
     );
     expect(loc).toEqual({ x: 11, y: 11 });
   });
@@ -446,7 +449,7 @@ describe('constrainBpPackingFlapGroupTarget grid alignment', () => {
       [on],
       on,
       { x: 9, y: 11 },
-      sheet('rectangular', 16)
+      sheet('rectangular', 16),
     );
     expect(loc).toEqual({ x: 9, y: 11 });
     expect(vector).toEqual({ x: -2, y: 0 });
@@ -460,7 +463,7 @@ describe('constrainBpPackingFlapGroupTarget grid alignment', () => {
       [reference, flap(5, 4, 4)],
       reference,
       { x: 10.5, y: 11 },
-      sheet('rectangular', 16)
+      sheet('rectangular', 16),
     );
     expect(loc).toEqual({ x: 10.5, y: 11 });
   });
@@ -488,7 +491,7 @@ describe('bpPackingCoveragePath', () => {
           ],
         ],
       },
-      rect
+      rect,
     );
 
     expect(d.match(/M/g)).toHaveLength(2);
@@ -510,7 +513,7 @@ describe('bpPackingCoveragePath', () => {
         holes: [],
       },
       rect,
-      paper
+      paper,
     );
 
     expect(d.startsWith(`M${corner.x},${corner.y}`)).toBe(true);
@@ -527,8 +530,8 @@ describe('bpPackingCoveragePath', () => {
           ],
           holes: [],
         },
-        rect
-      )
+        rect,
+      ),
     ).toBe('');
   });
 });

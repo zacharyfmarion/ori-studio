@@ -33,10 +33,7 @@ import {
   type FoldedFigureCamera,
   type Folded3dProjectionOptions,
 } from './foldedFigure3dProjection';
-import {
-  UNDETERMINED_FACE_ALPHA,
-  type Folded3dPaperStyle,
-} from './folded3dStyle';
+import { UNDETERMINED_FACE_ALPHA, type Folded3dPaperStyle } from './folded3dStyle';
 import { buildFolded3dInk, planeFrame } from './folded3dModelReader';
 import { foldedFigureBox, foldedFigureLocalGeometry } from '../adapters/cpFoldedToScene';
 import {
@@ -125,7 +122,7 @@ function strokes(primitives: readonly OristudioCpFoldedRenderPrimitive[]) {
 function paintedArea(primitives: readonly OristudioCpFoldedRenderPrimitive[]): number {
   return fills(primitives).reduce(
     (total, primitive) => total + polygonArea(primitivePoints(primitive)),
-    0
+    0,
   );
 }
 
@@ -151,7 +148,7 @@ function cellStack(model: OristudioCpFolded3dRenderModel, cell: number): number[
 function cellFarToNear(
   model: OristudioCpFolded3dRenderModel,
   cell: number,
-  camera: FoldedFigureCamera
+  camera: FoldedFigureCamera,
 ): number[] {
   const stack = cellStack(model, cell);
   const base = cellAttr(model, cell, 0) * FOLDED_3D_PLANE_FRAME_STRIDE;
@@ -176,10 +173,10 @@ function stackedCells(model: OristudioCpFolded3dRenderModel): number[] {
 /** Cells the eye sees from the `-up` side, where `cell_stack` runs near-to-far. */
 function cellsSeenFromBelow(
   model: OristudioCpFolded3dRenderModel,
-  camera: FoldedFigureCamera
+  camera: FoldedFigureCamera,
 ): number[] {
   return stackedCells(model).filter(
-    (cell) => cellFarToNear(model, cell, camera)[0] === cellStack(model, cell)[0]
+    (cell) => cellFarToNear(model, cell, camera)[0] === cellStack(model, cell)[0],
   );
 }
 
@@ -218,7 +215,7 @@ describe('projecting the 3D folded state', () => {
     const camera: FoldedFigureCamera = { yaw: 0, pitch: 0, zoom: 1 };
     const projection = projectFolded3dModel(
       model,
-      options({ camera, cullHidden: false, mergeCoplanar: false })
+      options({ camera, cullHidden: false, mergeCoplanar: false }),
     );
 
     // Every cell vertex, straight out of the payload, minus the model centroid.
@@ -244,8 +241,8 @@ describe('projecting the 3D folded state', () => {
 
     const drawn = new Set(
       fills(projection.snapshot.primitives).flatMap((primitive) =>
-        primitivePoints(primitive).map(([x, y]) => `${x.toFixed(6)},${y.toFixed(6)}`)
-      )
+        primitivePoints(primitive).map(([x, y]) => `${x.toFixed(6)},${y.toFixed(6)}`),
+      ),
     );
     expect(drawn.size).toBeGreaterThan(0);
     for (const point of drawn) expect(expected).toContain(point);
@@ -381,7 +378,7 @@ describe('the layer order the kernel computed', () => {
     const model = fixture('pinwheel_cyclic');
     const projection = projectFolded3dModel(
       model,
-      options({ camera, displayStyle: 'Transparent3', cullHidden: false, mergeCoplanar: false })
+      options({ camera, displayStyle: 'Transparent3', cullHidden: false, mergeCoplanar: false }),
     );
     expect(model.cell_count).toBeGreaterThan(0);
 
@@ -415,7 +412,7 @@ describe('the layer order the kernel computed', () => {
     const model = fixture('pinwheel_cyclic');
     const projection = projectFolded3dModel(
       model,
-      options({ camera, cullHidden: false, mergeCoplanar: false })
+      options({ camera, cullHidden: false, mergeCoplanar: false }),
     );
     let checked = 0;
     projection.snapshot.primitives.forEach((primitive, index) => {
@@ -479,9 +476,7 @@ describe('the layer order the kernel computed', () => {
             const hinge = ink.hingeAt(cell, slot, segment);
             if (!hinge) continue;
             const shows =
-              sideOfPlane(hinge.partnerPlane) === 1
-                ? hinge.exposedOnPlus
-                : hinge.exposedOnMinus;
+              sideOfPlane(hinge.partnerPlane) === 1 ? hinge.exposedOnPlus : hinge.exposedOnMinus;
             if (!shows) covered.add(edge);
           }
         }
@@ -513,7 +508,7 @@ describe('the layer order the kernel computed', () => {
     // No throw, nothing dropped: the projector never asks for a global order.
     const projection = projectFolded3dModel(
       model,
-      options({ cullHidden: false, mergeCoplanar: false })
+      options({ cullHidden: false, mergeCoplanar: false }),
     );
     expect(fills(projection.snapshot.primitives).length).toBeGreaterThanOrEqual(model.cell_count);
   });
@@ -532,7 +527,11 @@ describe('the layer order the kernel computed', () => {
       if (stack.length < 3) return false;
       // Two buried faces on opposite sides of the paper, so swapping them
       // changes a colour and not merely an index.
-      return (model.face_normals[stack[1]! * 3 + 2] ?? 0) * (model.face_normals[stack[2]! * 3 + 2] ?? 0) < 0;
+      return (
+        (model.face_normals[stack[1]! * 3 + 2] ?? 0) *
+          (model.face_normals[stack[2]! * 3 + 2] ?? 0) <
+        0
+      );
     });
     if (cell === undefined) throw new Error('expected a three-deep stack with a two-sided pair');
 
@@ -547,13 +546,13 @@ describe('the layer order the kernel computed', () => {
 
     const picture = (
       subject: OristudioCpFolded3dRenderModel,
-      displayStyle: 'Paper5' | 'Transparent3'
+      displayStyle: 'Paper5' | 'Transparent3',
     ) =>
       JSON.stringify(
         projectFolded3dModel(
           subject,
-          options({ displayStyle, cullHidden: false, mergeCoplanar: false })
-        ).snapshot
+          options({ displayStyle, cullHidden: false, mergeCoplanar: false }),
+        ).snapshot,
       );
 
     expect(picture(reordered, 'Paper5')).toEqual(picture(model, 'Paper5'));
@@ -573,8 +572,9 @@ describe('the layer order the kernel computed', () => {
     expect(fifth.face_normals).toEqual(first.face_normals);
     expect(fifth.cell_stack).not.toEqual(first.cell_stack);
     const stream = (model: OristudioCpFolded3dRenderModel) =>
-      projectFolded3dModel(model, options({ cullHidden: false, mergeCoplanar: false }))
-        .faces.join(',');
+      projectFolded3dModel(model, options({ cullHidden: false, mergeCoplanar: false })).faces.join(
+        ',',
+      );
     expect(stream(fifth)).not.toEqual(stream(first));
   });
 
@@ -600,16 +600,18 @@ describe('X-ray transparency', () => {
     // from where layers stack rather than from one layer reading well.
     const faint = projectFolded3dModel(
       fixture('spikes_small'),
-      options({ displayStyle: 'Transparent3', style: { ...STYLE, transparentAlpha: 16 / 255 } })
+      options({ displayStyle: 'Transparent3', style: { ...STYLE, transparentAlpha: 16 / 255 } }),
     );
     const strong = projectFolded3dModel(
       fixture('spikes_small'),
-      options({ displayStyle: 'Transparent3', style: { ...STYLE, transparentAlpha: 200 / 255 } })
+      options({ displayStyle: 'Transparent3', style: { ...STYLE, transparentAlpha: 200 / 255 } }),
     );
-    const alphaOf = (projection: { snapshot: { primitives: OristudioCpFoldedRenderPrimitive[] } }) =>
+    const alphaOf = (projection: {
+      snapshot: { primitives: OristudioCpFoldedRenderPrimitive[] };
+    }) =>
       fills(projection.snapshot.primitives)
         .map((primitive) =>
-          primitive.style.paint.kind === 'color' ? primitive.style.paint.color.alpha : -1
+          primitive.style.paint.kind === 'color' ? primitive.style.paint.color.alpha : -1,
         )
         .find((alpha) => alpha >= 0);
     expect(alphaOf(faint)).toBeLessThan(alphaOf(strong)!);
@@ -619,7 +621,7 @@ describe('X-ray transparency', () => {
   it('leaves the paper style opaque, so only X-ray is affected', () => {
     const paper = projectFolded3dModel(
       fixture('spikes_small'),
-      options({ style: { ...STYLE, transparentAlpha: 16 / 255 } })
+      options({ style: { ...STYLE, transparentAlpha: 16 / 255 } }),
     );
     for (const primitive of fills(paper.snapshot.primitives)) {
       if (primitive.style.paint.kind === 'color') {
@@ -662,15 +664,17 @@ describe('the frame a 3D figure draws inside', () => {
   }
 
   it('is the same box at every camera', () => {
-    const boxes = CAMERAS.map(([, camera]) => foldedFigureBox(framedEntry('spikes_small', camera))!);
+    const boxes = CAMERAS.map(([, camera]) =>
+      foldedFigureBox(framedEntry('spikes_small', camera))!,
+    );
     for (const box of boxes) expect(box).toEqual(boxes[0]);
     // Non-vacuous: the projection genuinely differs between these cameras, so a
     // box that followed it would differ too.
     const drawn = CAMERAS.map(
       ([, camera]) =>
         foldedFigureLocalGeometry(
-          projectFolded3dModel(fixture('spikes_small'), options({ camera })).snapshot
-        ).bounds!
+          projectFolded3dModel(fixture('spikes_small'), options({ camera })).snapshot,
+        ).bounds!,
     );
     expect(drawn[1]).not.toEqual(drawn[0]);
   });
@@ -704,7 +708,7 @@ describe('an undecided cell', () => {
     const projection = projectFolded3dModel(model, options({ mergeCoplanar: false }));
     const red = undeterminedCellColor();
     const annotations = projection.snapshot.primitives.filter(
-      (primitive) => primitive.kind === 'fill_polygon'
+      (primitive) => primitive.kind === 'fill_polygon',
     );
     expect(annotations.length).toBeGreaterThan(0);
     for (const annotation of annotations) {
@@ -714,7 +718,7 @@ describe('an undecided cell', () => {
     const faded = fills(projection.snapshot.primitives).filter(
       (primitive) =>
         primitive.style.paint.kind === 'color' &&
-        primitive.style.paint.color.alpha === Math.round(UNDETERMINED_FACE_ALPHA * 255)
+        primitive.style.paint.color.alpha === Math.round(UNDETERMINED_FACE_ALPHA * 255),
     );
     expect(faded.length).toBe(cellStack(model, 0).length);
   });
@@ -722,7 +726,7 @@ describe('an undecided cell', () => {
   it('leaves a determined figure with no annotation at all', () => {
     const projection = projectFolded3dModel(fixture('box_90'), options());
     expect(
-      projection.snapshot.primitives.some((primitive) => primitive.kind === 'fill_polygon')
+      projection.snapshot.primitives.some((primitive) => primitive.kind === 'fill_polygon'),
     ).toBe(false);
     expect(projection.stats.undeterminedCells).toBe(0);
   });
@@ -755,8 +759,8 @@ describe('the camera', () => {
     expect(Math.sin(back.yaw)).toBeCloseTo(Math.sin(DEFAULT_FOLDED_3D_CAMERA.yaw), 12);
     expect(folded3dEyeDirection(back)).toEqual(
       folded3dEyeDirection(DEFAULT_FOLDED_3D_CAMERA).map((component) =>
-        expect.closeTo(component, 12)
-      ) as unknown as ReturnType<typeof folded3dEyeDirection>
+        expect.closeTo(component, 12),
+      ) as unknown as ReturnType<typeof folded3dEyeDirection>,
     );
     // A figure with no recorded camera is shown at the default, so turning it
     // over is the antipode of that rather than a refusal.
@@ -788,11 +792,11 @@ describe('the camera', () => {
         camera: { ...DEFAULT_FOLDED_3D_CAMERA, zoom: 2 },
         anchor: { x: 100, y: -50 },
         mergeCoplanar: false,
-      })
+      }),
     );
     expect(paintedArea(two.snapshot.primitives)).toBeCloseTo(
       paintedArea(one.snapshot.primitives),
-      6
+      6,
     );
 
     // Non-vacuous: the anchor *does* move the picture, so the areas above are
@@ -837,7 +841,7 @@ describe('display styles', () => {
       }
     }
     expect(
-      projection.snapshot.primitives.some((primitive) => primitive.kind === 'fill_polygon')
+      projection.snapshot.primitives.some((primitive) => primitive.kind === 'fill_polygon'),
     ).toBe(false);
   });
 });
@@ -869,7 +873,7 @@ describe('the guards', () => {
     expect(epsilon).toBeLessThan(model.span * 1e-5);
     // It scales with the offset tolerance, which an angle would not.
     expect(
-      folded3dCoplanarEpsilon(model, { ...TOLERANCES, distance_relative: 1e-5 })
+      folded3dCoplanarEpsilon(model, { ...TOLERANCES, distance_relative: 1e-5 }),
     ).toBeGreaterThan(epsilon * 5);
   });
 
@@ -880,11 +884,11 @@ describe('the guards', () => {
     // regression the epsilon exists to prevent would ship green.
     const model = fixture('box_90');
     expect(projectFolded3dModel(model, options()).stats.coplanarEps).toBe(
-      folded3dCoplanarEpsilon(model, TOLERANCES)
+      folded3dCoplanarEpsilon(model, TOLERANCES),
     );
     const loose: OristudioCpFold3dTolerances = { ...TOLERANCES, distance_relative: 1e-4 };
     expect(projectFolded3dModel(model, options({ tolerances: loose })).stats.coplanarEps).toBe(
-      folded3dCoplanarEpsilon(model, loose)
+      folded3dCoplanarEpsilon(model, loose),
     );
   });
 });
@@ -894,31 +898,23 @@ describe('culling and merging', () => {
     // A run is replaced by its outline, which tiles the same region, so the
     // paper covered is identical and only the shape count falls.
     const model = fixture('box_90');
-    const bare = projectFolded3dModel(
-      model,
-      options({ cullHidden: false, mergeCoplanar: false })
-    );
+    const bare = projectFolded3dModel(model, options({ cullHidden: false, mergeCoplanar: false }));
     const merged = projectFolded3dModel(model, options({ cullHidden: false }));
     for (const [cell, area] of areaByCell(bare)) {
       expect(areaByCell(merged).get(cell)).toBeCloseTo(area, 6);
     }
-    expect(merged.snapshot.primitives.length).toBeLessThanOrEqual(
-      bare.snapshot.primitives.length
-    );
+    expect(merged.snapshot.primitives.length).toBeLessThanOrEqual(bare.snapshot.primitives.length);
   });
 
   it('culling drops only paper nothing shows', () => {
     const model = fixture('box_90');
-    const bare = projectFolded3dModel(
-      model,
-      options({ cullHidden: false, mergeCoplanar: false })
-    );
+    const bare = projectFolded3dModel(model, options({ cullHidden: false, mergeCoplanar: false }));
     const culled = projectFolded3dModel(model, options({ mergeCoplanar: false }));
     expect(culled.snapshot.primitives.length).toBeLessThan(bare.snapshot.primitives.length);
     // Never more paper than before, and every surviving cell is one that was
     // already there.
     expect(paintedArea(culled.snapshot.primitives)).toBeLessThanOrEqual(
-      paintedArea(bare.snapshot.primitives) + 1e-6
+      paintedArea(bare.snapshot.primitives) + 1e-6,
     );
     const before = new Set(bare.cells);
     for (const cell of culled.cells) expect(before).toContain(cell);
@@ -931,13 +927,10 @@ describe('culling and merging', () => {
     // ring area times its stack depth.
     const model = fixture('box_90');
     const opaque = areaByCell(
-      projectFolded3dModel(model, options({ cullHidden: false, mergeCoplanar: false }))
+      projectFolded3dModel(model, options({ cullHidden: false, mergeCoplanar: false })),
     );
     const clear = areaByCell(
-      projectFolded3dModel(
-        model,
-        options({ displayStyle: 'Transparent3', mergeCoplanar: false })
-      )
+      projectFolded3dModel(model, options({ displayStyle: 'Transparent3', mergeCoplanar: false })),
     );
     expect(clear.size).toBe(model.cell_count);
     for (const [cell, area] of clear) {
@@ -960,13 +953,10 @@ function round(value: number): number {
  * Enough to say "plane A before plane B" without depending on how many pieces
  * the tree cut, which is what makes it stable across tolerance changes.
  */
-function planeOrder(
-  model: OristudioCpFolded3dRenderModel,
-  camera: FoldedFigureCamera
-): number[] {
+function planeOrder(model: OristudioCpFolded3dRenderModel, camera: FoldedFigureCamera): number[] {
   const projection = projectFolded3dModel(
     model,
-    options({ camera, displayStyle: 'Paper5', cullHidden: false, mergeCoplanar: false })
+    options({ camera, displayStyle: 'Paper5', cullHidden: false, mergeCoplanar: false }),
   );
   const seen: number[] = [];
   projection.snapshot.primitives.forEach((primitive, index) => {

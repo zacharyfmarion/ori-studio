@@ -117,7 +117,10 @@ export function canvasWindowPlacement(options: {
   // transform, because the element is scaled on its way there: a length declared
   // here arrives multiplied by `scale`.
   const undoScale = scale > 0 ? 1 / scale : 1;
-  const shrink = Math.pow(Math.min(1, paintedShortEdge / CORNER_REFERENCE_EDGE_CSS), CORNER_SHRINK_EXPONENT);
+  const shrink = Math.pow(
+    Math.min(1, paintedShortEdge / CORNER_REFERENCE_EDGE_CSS),
+    CORNER_SHRINK_EXPONENT,
+  );
   return {
     width: box.width * base,
     height: box.height * base,
@@ -146,7 +149,7 @@ export function canvasWindowPlacement(options: {
  */
 function badgeChrome(
   paintedShortEdge: number,
-  undoScale: number
+  undoScale: number,
 ): { transform: string; opacity: number } | null {
   const opacity = smoothstep(BADGE_GONE_AT_CSS, BADGE_FULL_AT_CSS, paintedShortEdge);
   if (opacity <= 0) return null;
@@ -180,11 +183,7 @@ export function paintedSize(placement: CanvasWindowPlacement): {
  * Derived by mapping a unit step through the affine rather than by reading a
  * camera angle, so it stays right under a flipped or non-conformal view.
  */
-export function windowScreenAngle(
-  view: CpOverlayView,
-  center: Vec2,
-  rotation: number
-): number {
+export function windowScreenAngle(view: CpOverlayView, center: Vec2, rotation: number): number {
   const origin = overlayModelToCss(view, center);
   const tip = overlayModelToCss(view, {
     x: center.x + Math.cos(rotation),

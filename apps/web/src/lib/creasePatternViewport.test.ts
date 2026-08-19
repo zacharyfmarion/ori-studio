@@ -162,7 +162,7 @@ describe('crease pattern viewport helpers', () => {
         ...document.crease_pattern.grid,
         grid_angle: 60,
         base_state: 'WithinPaper',
-      }).baseState
+      }).baseState,
     ).toBe('full');
   });
 
@@ -175,7 +175,7 @@ describe('crease pattern viewport helpers', () => {
       getOrieditaGridBasis({
         ...document.crease_pattern.grid,
         grid_size: 0,
-      }).gridWidth
+      }).gridWidth,
     ).toBe(400);
   });
 
@@ -213,7 +213,7 @@ describe('crease pattern viewport helpers', () => {
       {
         canvasRect: CP_EDITABLE_CANVAS_RECT,
         paperRect: CP_PAPER_RECT,
-      }
+      },
     );
 
     expect(CP_EDITABLE_CANVAS_RECT.width).toBeGreaterThan(CP_EDITABLE_FIT_RECT.width);
@@ -234,7 +234,7 @@ describe('crease pattern viewport helpers', () => {
       {
         canvasRect: CP_EDITABLE_CANVAS_RECT,
         paperRect: CP_PAPER_RECT,
-      }
+      },
     );
 
     expect(lines.length).toBeLessThanOrEqual(520);
@@ -268,7 +268,7 @@ describe('crease pattern viewport helpers', () => {
         { x: 0, y: 0 },
         { x: 0, y: 10 },
         { x: 10, y: 0 },
-      ])
+      ]),
     );
 
     expect(
@@ -277,7 +277,7 @@ describe('crease pattern viewport helpers', () => {
         snapToGrid: true,
         snapToVertices: true,
         snapToLines: true,
-      })
+      }),
     ).toMatchObject({ kind: 'line', label: 'line 1' });
 
     expect(toggleCpSelectionList([2], 1)).toEqual([1, 2]);
@@ -290,7 +290,7 @@ describe('crease pattern viewport helpers', () => {
         circles: [],
         texts: [],
         faces: [],
-      })
+      }),
     ).toBe(3);
   });
 
@@ -303,7 +303,7 @@ describe('crease pattern viewport helpers', () => {
         snapToGrid: false,
         snapToVertices: true,
         snapToLines: true,
-      })
+      }),
     ).toMatchObject({ kind: 'line', label: 'line 1' });
 
     expect(
@@ -317,8 +317,8 @@ describe('crease pattern viewport helpers', () => {
           snapToVertices: true,
           snapToLines: true,
         },
-        3
-      )
+        3,
+      ),
     ).toMatchObject({ kind: 'vertex', label: 'line 1 start', point: { x: 0, y: 0 } });
   });
 
@@ -336,8 +336,8 @@ describe('crease pattern viewport helpers', () => {
           snapToVertices: true,
           snapToLines: false,
         },
-        5
-      )
+        5,
+      ),
     ).toMatchObject({ kind: 'vertex', label: 'line 1 end', point: { x: 10, y: 0 } });
 
     expect(
@@ -351,8 +351,8 @@ describe('crease pattern viewport helpers', () => {
           snapToVertices: false,
           snapToLines: false,
         },
-        5
-      )
+        5,
+      ),
     ).toBeNull();
   });
 
@@ -367,7 +367,7 @@ describe('crease pattern viewport helpers', () => {
         snapToGrid: true,
         snapToVertices: false,
         snapToLines: false,
-      })
+      }),
     ).toMatchObject({ kind: 'grid', point: { x: 40, y: 40 } });
   });
 
@@ -396,7 +396,7 @@ describe('crease pattern viewport helpers', () => {
     };
 
     expect(
-      nearestCpSnapTarget(document, { x: 198, y: 199 }, ORIEDITA_PAPER_BOUNDS, options, 4)
+      nearestCpSnapTarget(document, { x: 198, y: 199 }, ORIEDITA_PAPER_BOUNDS, options, 4),
     ).toMatchObject({
       kind: 'vertex',
       label: 'paper bottom right',
@@ -408,8 +408,8 @@ describe('crease pattern viewport helpers', () => {
         { x: -198, y: -199 },
         ORIEDITA_PAPER_BOUNDS,
         options,
-        4
-      )
+        4,
+      ),
     ).toMatchObject({
       kind: 'vertex',
       label: 'paper top left',
@@ -432,7 +432,7 @@ describe('crease pattern viewport helpers', () => {
         snapToGrid: true,
         snapToVertices: false,
         snapToLines: false,
-      })
+      }),
     ).toMatchObject({ kind: 'grid', point: { x: 40, y: 40 } });
     expect(
       nearestCpSnapTarget(hiddenDocument, { x: 38, y: 42 }, getEditableCpModelBounds(document), {
@@ -440,15 +440,21 @@ describe('crease pattern viewport helpers', () => {
         snapToGrid: true,
         snapToVertices: false,
         snapToLines: false,
-      })
+      }),
     ).toBeNull();
   });
 
   it('maps Oriedita line colors to existing CP render classes', () => {
     expect(orieditaGridBaseState('WITHIN_PAPER')).toBe('within-paper');
-    expect(cpLineColorClass('Red1', 'mvf')).toBe('crease crease--fold-mountain crease--line-color-mountain');
-    expect(cpLineColorClass('Blue2', 'mvf')).toBe('crease crease--fold-valley crease--line-color-valley');
-    expect(cpLineColorClass('Cyan3', 'mvf')).toBe('crease crease--fold-flat crease--line-color-flat');
+    expect(cpLineColorClass('Red1', 'mvf')).toBe(
+      'crease crease--fold-mountain crease--line-color-mountain',
+    );
+    expect(cpLineColorClass('Blue2', 'mvf')).toBe(
+      'crease crease--fold-valley crease--line-color-valley',
+    );
+    expect(cpLineColorClass('Cyan3', 'mvf')).toBe(
+      'crease crease--fold-flat crease--line-color-flat',
+    );
     expect(cpLineColorClass('None', 'mvf')).toBe('crease crease--line-color-unassigned');
     expect(cpLineColorClass('Purple8', 'mvf')).toBe('crease crease--line-color-purple');
     expect(cpLineColorClass('Red1', 'agrh')).toBe('crease crease--kind-axial');
@@ -477,7 +483,10 @@ describe('kernel-side snap policy', () => {
     // kept landing on lattice points nobody could see.
     for (const baseState of ['WithinPaper', 'Full', 'Hidden', 'within_paper', 'nonsense']) {
       expect(
-        cpKernelSnapCandidates({ ...grid, base_state: baseState }, { ...allOn, gridVisible: false })
+        cpKernelSnapCandidates(
+          { ...grid, base_state: baseState },
+          { ...allOn, gridVisible: false },
+        ),
       ).toEqual({ grid: 'Hidden', vertices: true });
     }
   });
@@ -488,7 +497,7 @@ describe('kernel-side snap policy', () => {
       vertices: true,
     });
     expect(
-      cpKernelSnapCandidates(grid, { ...allOn, snapToGrid: false, gridVisible: false })
+      cpKernelSnapCandidates(grid, { ...allOn, snapToGrid: false, gridVisible: false }),
     ).toEqual({ grid: 'Hidden', vertices: true });
   });
 
@@ -503,7 +512,7 @@ describe('kernel-side snap policy', () => {
         snapToGrid: false,
         snapToVertices: false,
         snapToLines: false,
-      })
+      }),
     ).toEqual({ grid: 'Hidden', vertices: false });
   });
 
@@ -552,13 +561,13 @@ describe('viewport-following (infinite) grid generation', () => {
     // lines well outside the paper, unlike a fixed paper-bounded grid.
     const wide = orieditaGridLinesForModelBounds(
       { minX: -1000, minY: -1000, maxX: 1000, maxY: 1000, spanX: 2000, spanY: 2000 },
-      visibleGrid
+      visibleGrid,
     );
     const maxCoordinate = Math.max(
-      ...wide.flatMap((line) => [line.a.x, line.a.y, line.b.x, line.b.y])
+      ...wide.flatMap((line) => [line.a.x, line.a.y, line.b.x, line.b.y]),
     );
     const minCoordinate = Math.min(
-      ...wide.flatMap((line) => [line.a.x, line.a.y, line.b.x, line.b.y])
+      ...wide.flatMap((line) => [line.a.x, line.a.y, line.b.x, line.b.y]),
     );
     expect(maxCoordinate).toBeGreaterThan(400);
     expect(minCoordinate).toBeLessThan(-400);
@@ -567,10 +576,10 @@ describe('viewport-following (infinite) grid generation', () => {
     // the extent follows the viewport rather than a fixed world.
     const narrow = orieditaGridLinesForModelBounds(
       { minX: -50, minY: -50, maxX: 50, maxY: 50, spanX: 100, spanY: 100 },
-      visibleGrid
+      visibleGrid,
     );
     const narrowMax = Math.max(
-      ...narrow.flatMap((line) => [line.a.x, line.a.y, line.b.x, line.b.y])
+      ...narrow.flatMap((line) => [line.a.x, line.a.y, line.b.x, line.b.y]),
     );
     expect(narrowMax).toBeLessThan(400);
     expect(wide.length).toBeGreaterThan(narrow.length);
@@ -579,7 +588,7 @@ describe('viewport-following (infinite) grid generation', () => {
   it('caps line count for very large visible regions like Oriedita', () => {
     const huge = orieditaGridLinesForModelBounds(
       { minX: -100000, minY: -100000, maxX: 100000, maxY: 100000, spanX: 200000, spanY: 200000 },
-      visibleGrid
+      visibleGrid,
     );
     expect(huge.length).toBeGreaterThan(0);
     expect(huge.length).toBeLessThan(1000);
@@ -593,7 +602,7 @@ describe('viewport-following (infinite) grid generation', () => {
         { x: 0, y: 40 },
         { x: 100, y: 40 },
       ],
-      0.5
+      0.5,
     );
     expect(bounds.minX).toBeCloseTo(-50);
     expect(bounds.maxX).toBeCloseTo(150);

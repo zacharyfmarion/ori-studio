@@ -24,7 +24,7 @@ afterEach(() => {
 
 function renderDiagnosticsPanel(
   state: Partial<ReturnType<typeof useWorkspaceStore.getState>> = {},
-  design: Partial<TreemakerDesignState> = {}
+  design: Partial<TreemakerDesignState> = {},
 ) {
   useWorkspaceStore.setState(
     {
@@ -34,7 +34,7 @@ function renderDiagnosticsPanel(
       status: 'optimized',
       ...state,
     },
-    true
+    true,
   );
   container = document.createElement('div');
   document.body.append(container);
@@ -50,15 +50,15 @@ describe('DiagnosticsPanel', () => {
     const view = renderDiagnosticsPanel(
       {},
       {
-      lastOptimization: {
-        kind: 'scale',
-        converged: true,
-        old_scale: 0.1,
-        new_scale: 0.2,
-        is_feasible: true,
-        message: 'Scale optimization complete',
+        lastOptimization: {
+          kind: 'scale',
+          converged: true,
+          old_scale: 0.1,
+          new_scale: 0.2,
+          is_feasible: true,
+          message: 'Scale optimization complete',
+        },
       },
-      }
     );
 
     expect(view.textContent).toContain('Nodes');

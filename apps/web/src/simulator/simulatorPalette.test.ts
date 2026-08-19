@@ -8,10 +8,7 @@ import {
   resolveRenderSettings,
   resolveSimulatorPaint,
 } from './simulatorPalette';
-import {
-  ORIEDITA_DASH_ONE_DOT,
-  ORIEDITA_DASH_VALLEY,
-} from '../lib/oristudioCpLineStyle';
+import { ORIEDITA_DASH_ONE_DOT, ORIEDITA_DASH_VALLEY } from '../lib/oristudioCpLineStyle';
 import { DEFAULT_SIMULATOR_SETTINGS, type SimulatorSettings } from '../lib/simulatorSettings';
 
 /** A surface carrying theme tokens, as a mounted canvas would. */
@@ -41,7 +38,7 @@ describe('resolving simulator colours', () => {
   it('follows the theme when nothing is overridden', () => {
     const settings = resolveRenderSettings(
       themed({ '--sim-paper-front': '#112233', '--sim-paper-back': '#445566' }),
-      DEFAULT_SIMULATOR_SETTINGS
+      DEFAULT_SIMULATOR_SETTINGS,
     );
     expect(hex(settings.frontColor)).toBe('#112233');
     expect(hex(settings.backColor)).toBe('#445566');
@@ -59,11 +56,11 @@ describe('resolving simulator colours', () => {
     // stop moving it.
     const dark = resolveRenderSettings(
       themed({ '--sim-paper-front': '#101010' }),
-      DEFAULT_SIMULATOR_SETTINGS
+      DEFAULT_SIMULATOR_SETTINGS,
     );
     const light = resolveRenderSettings(
       themed({ '--sim-paper-front': '#f0f0f0' }),
-      DEFAULT_SIMULATOR_SETTINGS
+      DEFAULT_SIMULATOR_SETTINGS,
     );
     expect(hex(dark.frontColor)).not.toBe(hex(light.frontColor));
   });
@@ -73,7 +70,7 @@ describe('resolving simulator colours', () => {
     // theme; a theme that tinted them would change what the drawing means.
     const settings = resolveRenderSettings(
       themed({ '--status-danger': '#00ff00', '--accent-primary': '#00ff00' }),
-      DEFAULT_SIMULATOR_SETTINGS
+      DEFAULT_SIMULATOR_SETTINGS,
     );
     expect(hex(settings.mountainColor)).toBe(DEFAULT_MOUNTAIN_COLOR);
     expect(hex(settings.valleyColor)).toBe(DEFAULT_VALLEY_COLOR);
@@ -82,7 +79,7 @@ describe('resolving simulator colours', () => {
   it('lets crease colours be overridden anyway', () => {
     const settings = resolveRenderSettings(
       themed(),
-      settingsWith({ mountainColor: '#aa0000', valleyColor: '#0000aa', borderColor: '#333333' })
+      settingsWith({ mountainColor: '#aa0000', valleyColor: '#0000aa', borderColor: '#333333' }),
     );
     expect(hex(settings.mountainColor)).toBe('#aa0000');
     expect(hex(settings.valleyColor)).toBe('#0000aa');
@@ -108,7 +105,7 @@ describe('resolving simulator colours', () => {
     expect(
       resolveRenderSettings(themed(), DEFAULT_SIMULATOR_SETTINGS, {
         transparentBackground: true,
-      }).backgroundAlpha
+      }).backgroundAlpha,
     ).toBe(0);
   });
 
@@ -138,10 +135,7 @@ describe('resolving simulator colours', () => {
   });
 
   it('carries hidden lines outside RenderSettings, where only one path honours them', () => {
-    const paint = resolveSimulatorPaint(
-      themed(),
-      settingsWith({ showHiddenLines: true })
-    );
+    const paint = resolveSimulatorPaint(themed(), settingsWith({ showHiddenLines: true }));
     expect(paint.showHiddenLines).toBe(true);
     expect('showHiddenLines' in paint.render).toBe(false);
   });
@@ -183,7 +177,7 @@ describe('flattening a crease style', () => {
     // style a suggestion.
     const settings = resolveRenderSettings(
       themed({ '--text-primary': '#223344' }),
-      settingsWith({ creaseStyle: 'mono', mountainColor: '#ff0000' })
+      settingsWith({ creaseStyle: 'mono', mountainColor: '#ff0000' }),
     );
     expect(hex(settings.mountainColor)).toBe('#223344');
   });

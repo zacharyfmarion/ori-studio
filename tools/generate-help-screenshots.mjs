@@ -10,7 +10,7 @@ const appUrl = process.env.TREEMAKER_WEB_URL ?? 'http://127.0.0.1:5274/';
 async function waitForWorkspace(page) {
   await page.waitForFunction(
     () => globalThis.__treemakerWorkspaceStore?.getState().engineReady === true,
-    { timeout: 30_000 }
+    { timeout: 30_000 },
   );
 }
 

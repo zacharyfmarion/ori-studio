@@ -1,4 +1,13 @@
-import { installBoxPleatDesign, patchBoxPleatDesign, selectOristudioBpDocument, selectOristudioBpHistoryFuture, selectOristudioBpHistoryPast, selectOristudioBpSelection, selectOristudioBpSymmetry, selectOristudioBpViewportFitRequestId } from '../designTabs';
+import {
+  installBoxPleatDesign,
+  patchBoxPleatDesign,
+  selectOristudioBpDocument,
+  selectOristudioBpHistoryFuture,
+  selectOristudioBpHistoryPast,
+  selectOristudioBpSelection,
+  selectOristudioBpSymmetry,
+  selectOristudioBpViewportFitRequestId,
+} from '../designTabs';
 import { getBoxPleatExampleProject } from '../../../examples/catalog';
 
 import { markGeneratedCpLineageStale } from '../../../lib/oristudioCpLineage';
@@ -150,7 +159,8 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     if (!dirty) return true;
     return requestConfirmation({
       title: 'Discard unsaved changes?',
-      message: 'Your current project has unsaved changes. Start a new Box Pleat design and discard them?',
+      message:
+        'Your current project has unsaved changes. Start a new Box Pleat design and discard them?',
       confirmLabel: 'Discard',
       tone: 'danger',
     });
@@ -173,7 +183,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
        * edits a different one.
        */
       designId?: string;
-    } = {}
+    } = {},
   ) => {
     // Pairs name vertices by id. The ids are explicit in the `.bps` text so they
     // survive the round trip, but the file's design and its symmetry are still
@@ -193,23 +203,27 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     set({
       // Kind and content in one call: loading a `.bps` *is* the design, so the
       // tab claims box-pleat and takes the document at the same moment.
-      ...installBoxPleatDesign(get(), {
-        document,
-        // A tree opens with nothing selected: the add-anchor is always a vertex
-        // the user picked, never an implicit default.
-        selection: emptyOristudioBpSelection(),
-        historyPast: [],
-        historyFuture: [],
-        // Mirror-draw state is per-design. `symmetry` carries what the file said,
-        // if the loader read any; otherwise a new design starts symmetric, which
-        // is how box-pleat authoring wants to begin. The axis itself is always
-        // derived here rather than restored: vertical, centred on the loaded sheet.
-        symmetry: {
-          ...(symmetry ?? defaultBpDocumentSymmetry()),
-          angle: BP_TREE_SYMMETRY_ANGLE,
-          loc: bpTreeSymmetryDefaultLoc(document.snapshot.tree.sheet),
+      ...installBoxPleatDesign(
+        get(),
+        {
+          document,
+          // A tree opens with nothing selected: the add-anchor is always a vertex
+          // the user picked, never an implicit default.
+          selection: emptyOristudioBpSelection(),
+          historyPast: [],
+          historyFuture: [],
+          // Mirror-draw state is per-design. `symmetry` carries what the file said,
+          // if the loader read any; otherwise a new design starts symmetric, which
+          // is how box-pleat authoring wants to begin. The axis itself is always
+          // derived here rather than restored: vertical, centred on the loaded sheet.
+          symmetry: {
+            ...(symmetry ?? defaultBpDocumentSymmetry()),
+            angle: BP_TREE_SYMMETRY_ANGLE,
+            loc: bpTreeSymmetryDefaultLoc(document.snapshot.tree.sheet),
+          },
         },
-      }, options.designId),
+        options.designId,
+      ),
       // A box-pleat design has no tree, so it cannot borrow `project.title` to
       // name the project the way a TreeMaker design used to. It names it directly.
       workspaceTitle: bpTitle,
@@ -240,7 +254,8 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       dirty: document.dirty,
       projectMessage: message,
       status: 'ready',
-      error: null});
+      error: null,
+    });
   };
 
   /**
@@ -276,7 +291,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       symmetry.pairs,
       { loc: symmetry.loc, angle: symmetry.angle },
       vertexId,
-      BP_TREE_SYMMETRY_TOLERANCE
+      BP_TREE_SYMMETRY_TOLERANCE,
     );
     return partner === null || partner === vertexId ? null : partner;
   };
@@ -315,7 +330,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         symmetry.pairs,
         { loc: symmetry.loc, angle: symmetry.angle },
         vertexId,
-        BP_TREE_SYMMETRY_TOLERANCE
+        BP_TREE_SYMMETRY_TOLERANCE,
       ) === vertexId
     );
   };
@@ -342,11 +357,11 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
   const leafVertexLocationForRadius = (
     document: OristudioBpDocumentState,
     flapId: number,
-    radius: number
+    radius: number,
   ): Point | undefined => {
     const tree = document.snapshot.tree;
     const edge = tree.edges.find(
-      (candidate) => candidate.vertices[0] === flapId || candidate.vertices[1] === flapId
+      (candidate) => candidate.vertices[0] === flapId || candidate.vertices[1] === flapId,
     );
     if (!edge) return undefined;
     const parentId = edge.vertices[0] === flapId ? edge.vertices[1] : edge.vertices[0];
@@ -373,7 +388,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     leafId: number,
     treeLoc: Point,
     mirror: BpMirrorOrientation | null,
-    selfMirrored = false
+    selfMirrored = false,
   ): Promise<OristudioBpDocumentState> => {
     if (!flapAnchor(document, leafId)) return document;
     return moveRuntimeOristudioBpLayoutFlap(
@@ -385,7 +400,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         mirror,
         selfMirrored,
       }),
-      { activeSurface: document.activeSurface }
+      { activeSurface: document.activeSurface },
     );
   };
 
@@ -411,7 +426,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     document: OristudioBpDocumentState,
     primaryId: number,
     partnerId: number,
-    mirror: BpMirrorOrientation
+    mirror: BpMirrorOrientation,
   ): Promise<OristudioBpDocumentState> => {
     const primary = flapAnchor(document, primaryId);
     if (!primary || !flapAnchor(document, partnerId)) return document;
@@ -437,10 +452,13 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     designId: string,
     document: OristudioBpDocumentState,
     message: string,
-    history?: { past: SnapshotEntry<BpHistorySnapshot>[]; future: SnapshotEntry<BpHistorySnapshot>[] },
+    history?: {
+      past: SnapshotEntry<BpHistorySnapshot>[];
+      future: SnapshotEntry<BpHistorySnapshot>[];
+    },
     // Selection the edit leaves behind. Applied in the same `set` as the document
     // so a render never sees the new document beside the old selection.
-    selection?: OristudioBpSelection
+    selection?: OristudioBpSelection,
   ) => {
     // One design-tab writer: document, selection and history all ride the same
     // patch. Two spreads would write `designTabs` twice and the later would win.
@@ -452,7 +470,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           ...(selection ? { selection } : {}),
           ...(history ? { historyPast: history.past, historyFuture: history.future } : {}),
         },
-        designId
+        designId,
       ),
       oristudioBpBusy: false,
       oristudioBpError: null,
@@ -479,15 +497,15 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         selection: selectOristudioBpSelection(get()),
         symmetry: bpDocumentSymmetry(selectOristudioBpSymmetry(get())),
       },
-      label
+      label,
     );
     const history = recordSnapshot(
       { past: selectOristudioBpHistoryPast(get()), future: selectOristudioBpHistoryFuture(get()) },
-      entry
+      entry,
     );
     set({
-      ...patchBoxPleatDesign(get(), { historyPast: history.past, historyFuture: history.future 
-      }),});
+      ...patchBoxPleatDesign(get(), { historyPast: history.past, historyFuture: history.future }),
+    });
   };
 
   /** What the undo menu should call a mirror-draw change. */
@@ -515,7 +533,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
   const runBpTreeMutation = async (
     message: string,
     operation: (document: OristudioBpDocumentState) => Promise<OristudioBpDocumentState>,
-    options: { dragging?: boolean; selection?: OristudioBpSelection } = {}
+    options: { dragging?: boolean; selection?: OristudioBpSelection } = {},
   ): Promise<boolean> => {
     const document = selectOristudioBpDocument(get());
     if (!document) return false;
@@ -532,14 +550,17 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     try {
       if (!pendingHistory.has(designId)) {
         const bps = await exportOristudioBpProjectAsSessionBps();
-        pendingHistory.set(designId, snapshotEntry(
-          {
-            bps,
-            selection: selectOristudioBpSelection(get(), designId),
-            symmetry: bpDocumentSymmetry(selectOristudioBpSymmetry(get(), designId)),
-          },
-          message
-        ));
+        pendingHistory.set(
+          designId,
+          snapshotEntry(
+            {
+              bps,
+              selection: selectOristudioBpSelection(get(), designId),
+              symmetry: bpDocumentSymmetry(selectOristudioBpSymmetry(get(), designId)),
+            },
+            message,
+          ),
+        );
       }
       const nextDocument = await operation(document);
       // Prune ephemeral symmetry pairs to vertices that still exist after the edit,
@@ -549,11 +570,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         const prunedPairs = filterBpTreeSymmetryPairs(nextDocument.snapshot.tree, symmetry.pairs);
         if (prunedPairs.length !== symmetry.pairs.length) {
           set(
-            patchBoxPleatDesign(
-              get(),
-              { symmetry: { ...symmetry, pairs: prunedPairs } },
-              designId
-            )
+            patchBoxPleatDesign(get(), { symmetry: { ...symmetry, pairs: prunedPairs } }, designId),
           );
         }
       }
@@ -573,10 +590,10 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
                   past: selectOristudioBpHistoryPast(get(), designId),
                   future: selectOristudioBpHistoryFuture(get(), designId),
                 },
-                entry
+                entry,
               )
             : undefined,
-          options.selection
+          options.selection,
         );
       }
       return true;
@@ -614,7 +631,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
   const transformBpLayoutSheet = (
     label: string,
     transform: BpSheetTransform,
-    run: () => Promise<OristudioBpDocumentState>
+    run: () => Promise<OristudioBpDocumentState>,
   ): Promise<boolean> => {
     // Named before the first await, like every other addressed write here: the
     // mirror belongs to the design the transform started in.
@@ -627,7 +644,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       const moved = mirrorAfterSheetTransform(
         next.snapshot.packing.sheet.kind,
         symmetry,
-        transform
+        transform,
       );
       if (
         moved.quarterTurn !== symmetry.quarterTurn ||
@@ -732,10 +749,10 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       try {
         await get().clearOristudioCpDocument();
         const document = await loadOristudioBpProjectFromText(example.text, {
-            filename: example.filename,
-            format: 'generated',
-            dirty: false,
-          });
+          filename: example.filename,
+          format: 'generated',
+          dirty: false,
+        });
         setLoadedBpProject(document, `Loaded ${example.title}`, { designId });
         showBpDesignWorkspace();
         return true;
@@ -761,11 +778,11 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         // the load never publishes an empty canvas mid-flight.
         if (!options.preserveEditCanvas) await get().clearOristudioCpDocument();
         const document = await loadOristudioBpProjectFromText(text, {
-            filename: source.filename,
-            path: source.path ?? null,
-            format: 'bps',
-            dirty: false,
-          });
+          filename: source.filename,
+          path: source.path ?? null,
+          format: 'bps',
+          dirty: false,
+        });
         setLoadedBpProject(document, `Loaded ${source.filename}`, {
           symmetry: options.symmetry ?? null,
           preserveEditCanvas: options.preserveEditCanvas,
@@ -788,15 +805,15 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
 
     selectOristudioBp: (selection) => {
       set({
-      ...patchBoxPleatDesign(get(), { selection: selection 
-      }),});
+        ...patchBoxPleatDesign(get(), { selection: selection }),
+      });
     },
 
     clearOristudioBpSelection: () => {
       if (bpSelectionSize(selectOristudioBpSelection(get())) === 0) return;
       set({
-      ...patchBoxPleatDesign(get(), { selection: emptyOristudioBpSelection() 
-      }),});
+        ...patchBoxPleatDesign(get(), { selection: emptyOristudioBpSelection() }),
+      });
     },
 
     setOristudioBpActiveSurface: (surface) => {
@@ -807,8 +824,8 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       // mid-gesture, which makes toolbar mousedown land on a different element
       // than pointerdown so the browser never fires the click.
       set({
-      ...patchBoxPleatDesign(get(), { document: { ...document, activeSurface: surface } 
-      }),});
+        ...patchBoxPleatDesign(get(), { document: { ...document, activeSurface: surface } }),
+      });
       // Hold the Dockview panel activation until the pointer comes up. It
       // reflows the pane, which swaps the DOM out from under an in-flight
       // gesture — so activating here would drop the very first click or drag on
@@ -825,7 +842,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
             activeSurface: document.activeSurface,
             dragging,
           }),
-        { dragging, selection: { kind: 'bp-vertex', id } }
+        { dragging, selection: { kind: 'bp-vertex', id } },
       ),
 
     moveOristudioBpTreeVertices: async (updates, dragging = false) => {
@@ -842,32 +859,36 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           }
           return next;
         },
-        { dragging }
+        { dragging },
       );
     },
 
     addOristudioBpTreeLeaf: async (parentId, loc) => {
-      return runBpTreeMutation('Added BP leaf', async (document) => {
-        const before = new Set(document.snapshot.tree.vertices.map((vertex) => vertex.id));
-        const parent = document.snapshot.tree.vertices.find((vertex) => vertex.id === parentId);
-        let next = await addRuntimeOristudioBpTreeLeaf(
-          parentId,
-          drawnLeafLength(parent?.loc, loc),
-          { activeSurface: document.activeSurface }
-        );
-        const created = next.snapshot.tree.vertices.find((vertex) => !before.has(vertex.id));
-        if (created && loc) {
-          next = await moveRuntimeOristudioBpTreeVertex(created.id, loc, {
-            activeSurface: next.activeSurface,
-          });
-          next = await seedFlapFromDrawing(next, created.id, loc, null);
-        }
-        // Selection stays on the parent, not the new leaf: real trees branch like
-        // stars, so the common gesture is "give this node another child", and
-        // re-anchoring to the leaf would turn every click into a chain instead.
-        // Moving to a new branch node is an explicit click.
-        return next;
-      }, { selection: { kind: 'bp-vertex', id: parentId } });
+      return runBpTreeMutation(
+        'Added BP leaf',
+        async (document) => {
+          const before = new Set(document.snapshot.tree.vertices.map((vertex) => vertex.id));
+          const parent = document.snapshot.tree.vertices.find((vertex) => vertex.id === parentId);
+          let next = await addRuntimeOristudioBpTreeLeaf(
+            parentId,
+            drawnLeafLength(parent?.loc, loc),
+            { activeSurface: document.activeSurface },
+          );
+          const created = next.snapshot.tree.vertices.find((vertex) => !before.has(vertex.id));
+          if (created && loc) {
+            next = await moveRuntimeOristudioBpTreeVertex(created.id, loc, {
+              activeSurface: next.activeSurface,
+            });
+            next = await seedFlapFromDrawing(next, created.id, loc, null);
+          }
+          // Selection stays on the parent, not the new leaf: real trees branch like
+          // stars, so the common gesture is "give this node another child", and
+          // re-anchoring to the leaf would turn every click into a chain instead.
+          // Moving to a new branch node is an explicit click.
+          return next;
+        },
+        { selection: { kind: 'bp-vertex', id: parentId } },
+      );
     },
 
     setOristudioBpSymmetry: (update) => {
@@ -875,15 +896,16 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       // An update that changes nothing must not leave an undo step that appears
       // to do nothing, nor claim the project has unsaved work.
       const changed = (Object.keys(update) as (keyof OristudioBpSymmetryState)[]).some(
-        (key) => update[key] !== current[key]
+        (key) => update[key] !== current[key],
       );
       if (!changed) return;
       recordSymmetryHistory(symmetryEditLabel(update));
       // Saved with the design, so changing it leaves unsaved work — with no
       // `dirty` the close prompt would let it go silently.
       set({
-      ...patchBoxPleatDesign(get(), { symmetry: { ...current, ...update }
-      }), dirty: true });
+        ...patchBoxPleatDesign(get(), { symmetry: { ...current, ...update } }),
+        dirty: true,
+      });
     },
 
     addOristudioBpTreeLeafWithSymmetry: async (parentId, loc, axisTolerance) => {
@@ -901,7 +923,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       const addLeafAt = async (
         document: OristudioBpDocumentState,
         on: number,
-        at: Point | undefined
+        at: Point | undefined,
       ): Promise<{ document: OristudioBpDocumentState; createdId: number | null }> => {
         const before = new Set(document.snapshot.tree.vertices.map((vertex) => vertex.id));
         const anchor = document.snapshot.tree.vertices.find((vertex) => vertex.id === on);
@@ -916,69 +938,73 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         }
         return { document: next, createdId: created?.id ?? null };
       };
-      return runBpTreeMutation('Added mirrored BP leaf', async (document) => {
-        const tree = document.snapshot.tree;
-        const parent = tree.vertices.find((vertex) => vertex.id === parentId);
-        if (!parent) return document;
-        // Snap the target onto the axis when inside the band; an axial leaf gets no
-        // mirror (a single centred leaf).
-        const snap = loc
-          ? snapPointToSymmetryAxis(loc, axis, axisSnapTolerance)
-          : { point: undefined as Point | undefined, snapped: false };
-        const targetLoc = snap.point ?? loc;
+      return runBpTreeMutation(
+        'Added mirrored BP leaf',
+        async (document) => {
+          const tree = document.snapshot.tree;
+          const parent = tree.vertices.find((vertex) => vertex.id === parentId);
+          if (!parent) return document;
+          // Snap the target onto the axis when inside the band; an axial leaf gets no
+          // mirror (a single centred leaf).
+          const snap = loc
+            ? snapPointToSymmetryAxis(loc, axis, axisSnapTolerance)
+            : { point: undefined as Point | undefined, snapped: false };
+          const targetLoc = snap.point ?? loc;
 
-        const added = await addLeafAt(document, parentId, targetLoc);
-        // Seed the flap from where the leaf was *drawn*, and the partner's from
-        // the reflection of where this one landed — see `seedFlapFromDrawing`.
-        const primaryDocument =
-          added.createdId != null && targetLoc
-            ? await seedFlapFromDrawing(
-                added.document,
-                added.createdId,
-                targetLoc,
-                symmetry,
-                snap.snapped
-              )
-            : added.document;
-        const primary = { document: primaryDocument, createdId: added.createdId };
-        const mirrorParentId = mirrorBpTreeVertexId(
-          tree,
-          symmetry.pairs,
-          axis,
-          parentId,
-          BP_TREE_SYMMETRY_TOLERANCE
-        );
-        const shouldMirror = Boolean(
-          primary.createdId != null && targetLoc && !snap.snapped && mirrorParentId != null
-        );
-        if (!shouldMirror || primary.createdId == null || mirrorParentId == null || !targetLoc) {
-          // Keep the parent selected so the next click adds another sibling —
-          // see addOristudioBpTreeLeaf.
-          return primary.document;
-        }
-        const mirror = await addLeafAt(
-          primary.document,
-          mirrorParentId,
-          reflectPointAcrossSymmetryAxis(targetLoc, axis)
-        );
-        let next = mirror.document;
-        if (mirror.createdId != null) {
-          const pairs = addBpTreeSymmetryPair(
-            selectOristudioBpSymmetry(get(), designId).pairs,
-            primary.createdId,
-            mirror.createdId
+          const added = await addLeafAt(document, parentId, targetLoc);
+          // Seed the flap from where the leaf was *drawn*, and the partner's from
+          // the reflection of where this one landed — see `seedFlapFromDrawing`.
+          const primaryDocument =
+            added.createdId != null && targetLoc
+              ? await seedFlapFromDrawing(
+                  added.document,
+                  added.createdId,
+                  targetLoc,
+                  symmetry,
+                  snap.snapped,
+                )
+              : added.document;
+          const primary = { document: primaryDocument, createdId: added.createdId };
+          const mirrorParentId = mirrorBpTreeVertexId(
+            tree,
+            symmetry.pairs,
+            axis,
+            parentId,
+            BP_TREE_SYMMETRY_TOLERANCE,
           );
-          set(
-            patchBoxPleatDesign(
-              get(),
-              { symmetry: { ...selectOristudioBpSymmetry(get(), designId), pairs } },
-              designId
-            )
+          const shouldMirror = Boolean(
+            primary.createdId != null && targetLoc && !snap.snapped && mirrorParentId != null,
           );
-          next = await seedPartnerFlap(next, primary.createdId, mirror.createdId, symmetry);
-        }
-        return next;
-      }, { selection: { kind: 'bp-vertex', id: parentId } });
+          if (!shouldMirror || primary.createdId == null || mirrorParentId == null || !targetLoc) {
+            // Keep the parent selected so the next click adds another sibling —
+            // see addOristudioBpTreeLeaf.
+            return primary.document;
+          }
+          const mirror = await addLeafAt(
+            primary.document,
+            mirrorParentId,
+            reflectPointAcrossSymmetryAxis(targetLoc, axis),
+          );
+          let next = mirror.document;
+          if (mirror.createdId != null) {
+            const pairs = addBpTreeSymmetryPair(
+              selectOristudioBpSymmetry(get(), designId).pairs,
+              primary.createdId,
+              mirror.createdId,
+            );
+            set(
+              patchBoxPleatDesign(
+                get(),
+                { symmetry: { ...selectOristudioBpSymmetry(get(), designId), pairs } },
+                designId,
+              ),
+            );
+            next = await seedPartnerFlap(next, primary.createdId, mirror.createdId, symmetry);
+          }
+          return next;
+        },
+        { selection: { kind: 'bp-vertex', id: parentId } },
+      );
     },
 
     moveOristudioBpTreeVerticesWithSymmetry: async (updates, dragging = false) => {
@@ -994,7 +1020,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
             symmetry.pairs,
             axis,
             updates,
-            BP_TREE_SYMMETRY_TOLERANCE
+            BP_TREE_SYMMETRY_TOLERANCE,
           );
           let next = document;
           for (const update of [...updates, ...mirrored]) {
@@ -1005,7 +1031,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           }
           return next;
         },
-        { dragging }
+        { dragging },
       );
     },
 
@@ -1021,23 +1047,22 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       // ids at once rather than deleting one and then refusing the other.
       const symmetry = selectOristudioBpSymmetry(get());
       const tree = selectOristudioBpDocument(get())?.snapshot.tree;
-      const ids =
-        tree
-          ? bpTreeDeleteIdsWithSymmetry(
-              tree,
-              symmetry.pairs,
-              { loc: symmetry.loc, angle: symmetry.angle },
-              id,
-              BP_TREE_SYMMETRY_TOLERANCE
-            )
-          : [id];
+      const ids = tree
+        ? bpTreeDeleteIdsWithSymmetry(
+            tree,
+            symmetry.pairs,
+            { loc: symmetry.loc, angle: symmetry.angle },
+            id,
+            BP_TREE_SYMMETRY_TOLERANCE,
+          )
+        : [id];
       return runBpTreeMutation(
         ids.length > 1 ? 'Deleted mirrored BP nodes' : 'Deleted BP node',
         (document) =>
           deleteRuntimeOristudioBpTreeLeaves(ids, {
             activeSurface: document.activeSurface,
           }),
-        { selection: emptyOristudioBpSelection() }
+        { selection: emptyOristudioBpSelection() },
       );
     },
 
@@ -1059,8 +1084,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         // as well is what let this and the TreeMaker path drift into two
         // spellings of one operation.
         const payload = await kind.sendToEdit(await requireActiveBpHandle(), {
-          editGridDivisions:
-            get().oristudioCpDocument?.document.crease_pattern.grid.grid_size ?? 0,
+          editGridDivisions: get().oristudioCpDocument?.document.crease_pattern.grid.grid_size ?? 0,
           title: 'box-pleat',
           includeCircles,
         });
@@ -1093,13 +1117,14 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       // reusing the same mirroring the drag path uses.
       const symmetry = selectOristudioBpSymmetry(get(), designId);
       const mirrorsEdge =
-        bpMirrorPartnerId(vertices[0], designId) !== null || bpMirrorPartnerId(vertices[1], designId) !== null;
+        bpMirrorPartnerId(vertices[0], designId) !== null ||
+        bpMirrorPartnerId(vertices[1], designId) !== null;
       const label = mirrorsEdge ? 'Set mirrored BP edge length' : 'Set BP edge length';
       return runBpTreeMutation(label, async (document) => {
         const applyEdge = async (
           next: OristudioBpDocumentState,
           edgeVertices: [number, number],
-          updates: readonly { id: number; loc: Point }[]
+          updates: readonly { id: number; loc: Point }[],
         ) => {
           let current = await updateRuntimeOristudioBpTreeEdgeLength(edgeVertices, length, {
             activeSurface: 'tree',
@@ -1107,7 +1132,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           for (const update of updates) {
             current = await moveRuntimeOristudioBpTreeVertex(update.id, update.loc, {
               activeSurface: 'tree',
-              });
+            });
           }
           return current;
         };
@@ -1119,14 +1144,26 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         const tree = document.snapshot.tree;
         const axis: SymmetryAxis = { loc: symmetry.loc, angle: symmetry.angle };
         const [a, b] = vertices;
-        const mirrorA = mirrorBpTreeVertexId(tree, symmetry.pairs, axis, a, BP_TREE_SYMMETRY_TOLERANCE);
-        const mirrorB = mirrorBpTreeVertexId(tree, symmetry.pairs, axis, b, BP_TREE_SYMMETRY_TOLERANCE);
+        const mirrorA = mirrorBpTreeVertexId(
+          tree,
+          symmetry.pairs,
+          axis,
+          a,
+          BP_TREE_SYMMETRY_TOLERANCE,
+        );
+        const mirrorB = mirrorBpTreeVertexId(
+          tree,
+          symmetry.pairs,
+          axis,
+          b,
+          BP_TREE_SYMMETRY_TOLERANCE,
+        );
         const mirroredUpdates = buildMirroredBpTreeUpdates(
           tree,
           symmetry.pairs,
           axis,
           subtreeUpdates,
-          BP_TREE_SYMMETRY_TOLERANCE
+          BP_TREE_SYMMETRY_TOLERANCE,
         );
 
         // Only mirror onto a genuinely distinct partner edge: skip when the edge
@@ -1154,7 +1191,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       runBpTreeMutation('Renamed BP node', (document) =>
         renameRuntimeOristudioBpTreeVertex(id, name, {
           activeSurface: document.activeSurface,
-        })
+        }),
       ),
 
     moveOristudioBpLayoutFlap: async (id, loc, dragging = false) =>
@@ -1165,7 +1202,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
             activeSurface: 'packing',
             dragging,
           }),
-        { dragging, selection: { kind: 'bp-flap', id } }
+        { dragging, selection: { kind: 'bp-flap', id } },
       ),
 
     resizeOristudioBpLayoutFlap: async (id, width, height) => {
@@ -1195,16 +1232,16 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           if (partnerId === null) return next;
           const mirrorId = partnerId;
           const swaps = optimizerSymmetryAxisSwapsDimensions(
-            optimizerSymmetryAxisForMirror(document.snapshot.tree.sheet.kind, symmetry)
+            optimizerSymmetryAxisForMirror(document.snapshot.tree.sheet.kind, symmetry),
           );
           return resizeRuntimeOristudioBpLayoutFlap(
             mirrorId,
             swaps ? height : width,
             swaps ? width : height,
-            { activeSurface: 'packing' }
+            { activeSurface: 'packing' },
           );
         },
-        { selection: { kind: 'bp-flap', id } }
+        { selection: { kind: 'bp-flap', id } },
       );
     },
 
@@ -1242,7 +1279,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
               radius: footprint.radius,
               vertex,
             },
-            { activeSurface: 'packing', dragging }
+            { activeSurface: 'packing', dragging },
           );
           if (partnerId === null) return next;
           const mirrored = mirrorBpFlapFootprint(footprint, next.snapshot.packing.sheet, symmetry);
@@ -1265,10 +1302,10 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
               radius: footprint.radius,
               vertex: partnerVertex,
             },
-            { activeSurface: 'packing', dragging }
+            { activeSurface: 'packing', dragging },
           );
         },
-        { dragging, selection: { kind: 'bp-flap', id } }
+        { dragging, selection: { kind: 'bp-flap', id } },
       );
     },
 
@@ -1280,7 +1317,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
             activeSurface: 'packing',
             dragging,
           }),
-        { dragging, selection: bpFlapSelection(ids) }
+        { dragging, selection: bpFlapSelection(ids) },
       ),
 
     moveOristudioBpLayoutFlapWithSymmetry: async (id, loc, dragging = false) =>
@@ -1311,7 +1348,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           const reference = before.flaps.find((flap) => flap.id === ids[0]);
           const onAxis =
             reference && bpIsSelfMirrored(reference.id, designId)
-              ? constrainBpFlapMoveToAxis(reference, loc, before.sheet, symmetry) ?? loc
+              ? (constrainBpFlapMoveToAxis(reference, loc, before.sheet, symmetry) ?? loc)
               : loc;
           // A paired flap stays in its own half: crossing the mirror would put it
           // on top of its own reflection. Only the component across the axis is
@@ -1335,7 +1372,9 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           // engine clamps the group's translation against the sheet, and a mirror
           // built from the request would drift from the drawing by whatever the
           // clamp took off.
-          const landed = new Map(moved.snapshot.packing.flaps.map((flap) => [flap.id, flap.anchor]));
+          const landed = new Map(
+            moved.snapshot.packing.flaps.map((flap) => [flap.id, flap.anchor]),
+          );
           const mirrored = buildMirroredBpFlapMoves({
             tree: document.snapshot.tree,
             pairs: symmetry.pairs,
@@ -1366,7 +1405,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           }
           return next;
         },
-        { dragging, selection: bpFlapSelection(ids) }
+        { dragging, selection: bpFlapSelection(ids) },
       );
     },
 
@@ -1378,35 +1417,35 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
             activeSurface: 'packing',
             dragging,
           }),
-        { dragging, selection: { kind: 'bp-device', id: `${id}:device:${index}` } }
+        { dragging, selection: { kind: 'bp-device', id: `${id}:device:${index}` } },
       ),
 
     completeOristudioBpStretch: async (id) =>
       runBpTreeMutation('Completed BP stretch', () =>
         completeRuntimeOristudioBpStretch(id, {
           activeSurface: 'packing',
-        })
+        }),
       ),
 
     switchOristudioBpStretchConfig: async (id, delta) =>
       runBpTreeMutation('Switched BP stretch configuration', () =>
         switchRuntimeOristudioBpStretchConfig(id, delta, {
           activeSurface: 'packing',
-        })
+        }),
       ),
 
     switchOristudioBpStretchPattern: async (id, delta) =>
       runBpTreeMutation('Switched BP stretch pattern', () =>
         switchRuntimeOristudioBpStretchPattern(id, delta, {
           activeSurface: 'packing',
-        })
+        }),
       ),
 
     subdivideOristudioBpLayoutSheet: async () =>
       transformBpLayoutSheet('Subdivided BP sheet', { kind: 'subdivide' }, () =>
         subdivideRuntimeOristudioBpLayoutSheet({
           activeSurface: 'packing',
-        })
+        }),
       ),
 
     unsubdivideOristudioBpLayoutSheet: async () =>
@@ -1417,7 +1456,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       transformBpLayoutSheet('Un-subdivided BP sheet', { kind: 'unsubdivide' }, () =>
         unsubdivideRuntimeOristudioBpLayoutSheet({
           activeSurface: 'packing',
-        })
+        }),
       ),
 
     rotateOristudioBpLayoutSheet: async (clockwise) =>
@@ -1427,7 +1466,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         () =>
           rotateRuntimeOristudioBpLayoutSheet(clockwise, {
             activeSurface: 'packing',
-          })
+          }),
       ),
 
     flipOristudioBpLayoutSheet: async (horizontal) =>
@@ -1437,7 +1476,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         () =>
           flipRuntimeOristudioBpLayoutSheet(horizontal, {
             activeSurface: 'packing',
-          })
+          }),
       ),
 
     optimizeOristudioBpLayout: async (options, onProgress) => {
@@ -1474,7 +1513,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           const summary = await optimizeRuntimeOristudioBpLayout(
             { ...options, openNew: false, seed: null, symmetry },
             { activeSurface: 'packing' },
-            onProgress
+            onProgress,
           );
           return summary.document;
         } catch (error) {
@@ -1486,8 +1525,12 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         // The sheet resized and every flap moved, so the old camera is framing
         // nothing useful. Ask the packing pane to re-fit.
         set({
-      ...patchBoxPleatDesign(get(), { viewportFitRequestId: selectOristudioBpViewportFitRequestId(get(), designId) + 1 
-      }, designId),});
+          ...patchBoxPleatDesign(
+            get(),
+            { viewportFitRequestId: selectOristudioBpViewportFitRequestId(get(), designId) + 1 },
+            designId,
+          ),
+        });
         return 'applied';
       }
       return cancelled ? 'cancelled' : 'failed';
@@ -1499,8 +1542,9 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       if (pairs.length === symmetry.pairs.length) return;
       recordSymmetryHistory('Unpair from mirror');
       set({
-      ...patchBoxPleatDesign(get(), { symmetry: { ...symmetry, pairs }
-      }), dirty: true });
+        ...patchBoxPleatDesign(get(), { symmetry: { ...symmetry, pairs } }),
+        dirty: true,
+      });
     },
 
     // `null` dimensions travel through to the engine, which fills them from its
@@ -1511,7 +1555,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       runBpTreeMutation('Resized BP sheet', () =>
         updateRuntimeOristudioBpLayoutSheet(gridType, width, height, {
           activeSurface: 'packing',
-        })
+        }),
       ),
   };
 };

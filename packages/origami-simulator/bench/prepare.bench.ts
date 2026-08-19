@@ -41,7 +41,7 @@ describe('prepareFoldModel cost', () => {
       lines.push(
         `${name.padEnd(15)} v=${String(prepared.vertexCount).padStart(6)} ` +
           `f=${String(prepared.faceCount).padStart(6)} ` +
-          `e=${String(prepared.edgeCount).padStart(6)} | prepare ${ms.toFixed(1)}ms`
+          `e=${String(prepared.edgeCount).padStart(6)} | prepare ${ms.toFixed(1)}ms`,
       );
     }
 

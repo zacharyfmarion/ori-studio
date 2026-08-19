@@ -35,7 +35,7 @@ describe('vertexRefinerInference', () => {
           CP_VERTEX_REFINER_OUTPUT_KEYS.map((key) => [
             TEST_MANIFEST.outputs[key],
             { data: new Float32Array([1]), dims: [1, 1, 1, 1] },
-          ])
+          ]),
         );
       },
     };
@@ -49,7 +49,7 @@ describe('vertexRefinerInference', () => {
       session,
       tensorFactory,
       new Float32Array(2 * 11 * 96 * 96),
-      TEST_MANIFEST
+      TEST_MANIFEST,
     );
 
     expect(result.input).toEqual({
@@ -67,8 +67,8 @@ describe('vertexRefinerInference', () => {
         JSON.stringify({
           ...TEST_MANIFEST,
           inference: { ...TEST_MANIFEST.inference, input_channels: 12 },
-        })
-      )
+        }),
+      ),
     ).toThrow(/input_channels/u);
   });
 });

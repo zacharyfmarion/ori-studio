@@ -68,7 +68,7 @@ describe('oriedita native metadata', () => {
           lineColor: 'RED_1',
           toggleLineColor: true,
         },
-      })
+      }),
     ).toBe('Blue2');
     expect(
       activeLineColorFromOrieditaMetadata({
@@ -76,7 +76,7 @@ describe('oriedita native metadata', () => {
           lineColor: 'YELLOW_7',
           toggleLineColor: true,
         },
-      })
+      }),
     ).toBe('Yellow7');
   });
 
@@ -87,7 +87,7 @@ describe('oriedita native metadata', () => {
         'oriedita:ori:canvasModel': {
           lineColor: 'FUTURE_COLOR_99',
         },
-      })
+      }),
     ).toBeNull();
   });
 
@@ -97,7 +97,7 @@ describe('oriedita native metadata', () => {
         'oriedita:ori:canvasModel': {
           mouseMode: 'DRAW_CREASE_FREE_1',
         },
-      })
+      }),
     ).toBe('DRAW_CREASE_FREE_1');
   });
 
@@ -108,7 +108,7 @@ describe('oriedita native metadata', () => {
         'oriedita:ori:canvasModel': {
           mouseMode: '   ',
         },
-      })
+      }),
     ).toBeNull();
   });
 
@@ -120,7 +120,7 @@ describe('oriedita native metadata', () => {
           customToLineType: 'VALLEY',
           delLineType: 'AUX',
         },
-      })
+      }),
     ).toEqual({
       customFromLineType: 'MountainAndValley',
       customToLineType: 'Valley',
@@ -134,7 +134,7 @@ describe('oriedita native metadata', () => {
           customToLineType: 0,
           delLineType: 2,
         },
-      })
+      }),
     ).toEqual({
       customFromLineType: 'Any',
       customToLineType: 'Edge',
@@ -166,7 +166,7 @@ describe('oriedita native metadata', () => {
       foldedFigureModelFromOrieditaMetadata({
         ...saved,
         'oriedita:ori:creasePatternCamera': { cameraZoomX: 1, cameraAngle: 0 },
-      })
+      }),
     ).toMatchObject({ scale: 2.5, rotation: 90 });
   });
 
@@ -175,7 +175,7 @@ describe('oriedita native metadata', () => {
       foldedFigureModelFromOrieditaMetadata({
         'oriedita:ori:foldedFigureModel': { scale: 2 },
         'oriedita:ori:creasePatternCamera': { cameraZoomX: 0 },
-      })!.scale
+      })!.scale,
     ).toBe(2);
   });
 
@@ -187,7 +187,7 @@ describe('oriedita native metadata', () => {
         'oriedita:ori:canvasModel': { lineColor: 'BLUE_2', mouseMode: 'DRAW_CREASE_FREE_1' },
         'oriedita:ori:unknownFutureField': {},
         'oriedita:orh:oriagarizu_front_color': [1, 2, 3],
-      })
+      }),
     ).toEqual({
       // The camera is preserved for round-tripping but no longer *restored*: it
       // describes the view its author last had, not the document, and applying
@@ -204,7 +204,7 @@ describe('oriedita native metadata', () => {
     expect(
       orieditaNativeMetadataStatus({
         'oriedita:ori:canvasModel': { mouseMode: 'FUTURE_MOUSE_MODE_999' },
-      })
+      }),
     ).toEqual({
       restored: [],
       preserved: ['Canvas'],

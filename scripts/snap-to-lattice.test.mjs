@@ -17,7 +17,7 @@ function grid(n, jitter = 0, pitch = 10) {
   for (let i = 0; i <= n; i += 1) {
     for (let j = 0; j <= n; j += 1) {
       index.set(`${i},${j}`, vertices.length);
-      const wobble = () => (jitter === 0 ? 0 : (Math.sin(vertices.length * 12.9898) * jitter));
+      const wobble = () => (jitter === 0 ? 0 : Math.sin(vertices.length * 12.9898) * jitter);
       vertices.push([i * pitch + wobble(), j * pitch + wobble()]);
     }
   }
@@ -47,7 +47,7 @@ test('a jittered square grid is pulled back onto its lattice', () => {
     for (const offset of [(x - ox) / report.pitch, (y - oy) / report.pitch]) {
       assert.ok(
         Math.abs(offset - Math.round(offset)) < 1e-9,
-        `offset ${offset} is not a whole number of pitches`
+        `offset ${offset} is not a whole number of pitches`,
       );
     }
   }
@@ -64,10 +64,22 @@ test('fold angles and assignments are never touched', () => {
 test('a free-form pattern is left alone', () => {
   // Directions all over the place: there is no lattice, and moving points would
   // invent geometry.
-  const vertices = [[0, 0], [10, 3], [4, 11], [17, 5], [9, 19]];
+  const vertices = [
+    [0, 0],
+    [10, 3],
+    [4, 11],
+    [17, 5],
+    [9, 19],
+  ];
   const { fold, report } = snapToLattice({
     vertices_coords: vertices,
-    edges_vertices: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 0]],
+    edges_vertices: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 4],
+      [4, 0],
+    ],
   });
   assert.equal(fold, null);
   assert.equal(report.skipped, 'free-form');

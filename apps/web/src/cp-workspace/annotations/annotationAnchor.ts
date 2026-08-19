@@ -24,7 +24,7 @@ import type { FloatingAnchorRect } from '../../components/ui/FloatingToolbar';
 export function boundingScreenRect(
   view: CpOverlayView,
   container: { left: number; top: number },
-  cornersModel: readonly Vec2[]
+  cornersModel: readonly Vec2[],
 ): FloatingAnchorRect | null {
   if (cornersModel.length === 0) return null;
   let minX = Infinity;
@@ -51,7 +51,7 @@ export function boundingScreenRect(
 export function annotationScreenRect(
   view: CpOverlayView,
   container: { left: number; top: number },
-  box: AnnotationBox
+  box: AnnotationBox,
 ): FloatingAnchorRect | null {
   return boundingScreenRect(view, container, boxCornersModel(box));
 }

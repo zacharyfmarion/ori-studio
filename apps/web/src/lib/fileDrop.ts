@@ -1,4 +1,7 @@
-import { importedCreasePatternFormat, type ImportedCreasePatternFormat } from './creasePatternImport';
+import {
+  importedCreasePatternFormat,
+  type ImportedCreasePatternFormat,
+} from './creasePatternImport';
 import { isDecodableImageType } from './imageFormats';
 import { NATIVE_PROJECT_EXTENSION } from './nativeProjectFile';
 

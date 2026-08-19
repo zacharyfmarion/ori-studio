@@ -44,7 +44,9 @@ function tabEventValues() {
 }
 
 const eventsNamed = (name: string) =>
-  analytics.track.mock.calls.filter(([called]) => called === name).map(([, properties]) => properties);
+  analytics.track.mock.calls
+    .filter(([called]) => called === name)
+    .map(([, properties]) => properties);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -118,7 +120,9 @@ describe('design tab events', () => {
   it('buckets the count rather than sending it raw', () => {
     for (let index = 0; index < 6; index += 1) store().addDesignTab();
 
-    const buckets = eventsNamed('design tab opened').map((properties) => properties?.open_count_bucket);
+    const buckets = eventsNamed('design tab opened').map(
+      (properties) => properties?.open_count_bucket,
+    );
     // Seven designs open collapse to four buckets, not seven values.
     expect(new Set(buckets).size).toBeLessThan(buckets.length);
     expect(buckets.at(-1)).toBe('<=10');

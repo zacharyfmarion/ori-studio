@@ -46,7 +46,7 @@ type PackingEdge = Pick<EdgeSnapshot, 'nodes' | 'length' | 'strain'>;
 export function leafCirclePaperRadius(
   nodeId: number,
   edges: readonly PackingEdge[],
-  scale: number
+  scale: number,
 ): number {
   const incident = edges.find((edge) => edge.nodes.includes(nodeId));
   return incident ? strainedEdgeLength(incident) * scale : 0;
@@ -62,7 +62,7 @@ export function leafCirclePaperRadius(
 export function treemakerPackingCircles(
   nodes: readonly NodeSnapshot[],
   edges: readonly PackingEdge[],
-  paper: Pick<PaperSettings, 'height' | 'scale'>
+  paper: Pick<PaperSettings, 'height' | 'scale'>,
 ): SendToEditCircle[] {
   return nodes
     .filter((node) => node.is_leaf)
@@ -79,7 +79,7 @@ export function treemakerPackingCircles(
  * `to_fold_document` emits the `FOLD_BORDER` creases along its edges.
  */
 export function treemakerFoldBounds(
-  paper: Pick<PaperSettings, 'width' | 'height'>
+  paper: Pick<PaperSettings, 'width' | 'height'>,
 ): [number, number, number, number] {
   return [0, 0, paper.width, paper.height];
 }
@@ -121,7 +121,7 @@ export function isCircularBpFlap(flap: Pick<OristudioBpFlap, 'width' | 'height'>
  */
 export function boxPleatPackingCircles(
   flaps: readonly Pick<OristudioBpFlap, 'anchor' | 'width' | 'height' | 'radius'>[],
-  sheet: OristudioBpSheet
+  sheet: OristudioBpSheet,
 ): SendToEditCircle[] {
   const frame = bpPackingSheetFrame(sheet);
   return flaps

@@ -18,7 +18,7 @@ import {
 const t = ((_key: string, fallback: string) => fallback) as unknown as TFunction;
 
 function makeFigure(
-  overrides: Partial<OristudioCpFoldedFigureEntry> = {}
+  overrides: Partial<OristudioCpFoldedFigureEntry> = {},
 ): OristudioCpFoldedFigureEntry {
   const status: OristudioCpFoldedFigureStatus = 'ready';
   return {
@@ -76,10 +76,10 @@ function commandIds(figure: OristudioCpFoldedFigureEntry, deps: FoldedFigureActi
 function command(
   figure: OristudioCpFoldedFigureEntry,
   deps: FoldedFigureActionDeps,
-  id: FoldedFigureCommand['id']
+  id: FoldedFigureCommand['id'],
 ): FoldedFigureCommand {
   const found = buildFoldedFigureActions(figure, deps).find(
-    (action): action is FoldedFigureCommand => action.kind === 'command' && action.id === id
+    (action): action is FoldedFigureCommand => action.kind === 'command' && action.id === id,
   );
   if (!found) throw new Error(`no ${id} command`);
   return found;
@@ -88,10 +88,10 @@ function command(
 function choice(
   figure: OristudioCpFoldedFigureEntry,
   deps: FoldedFigureActionDeps,
-  id: FoldedFigureChoice['id'] = 'display-style'
+  id: FoldedFigureChoice['id'] = 'display-style',
 ): FoldedFigureChoice {
   const found = buildFoldedFigureActions(figure, deps).find(
-    (action): action is FoldedFigureChoice => action.kind === 'choice' && action.id === id
+    (action): action is FoldedFigureChoice => action.kind === 'choice' && action.id === id,
   );
   if (!found) throw new Error(`no ${id} choice`);
   return found;
@@ -203,7 +203,9 @@ describe('buildFoldedFigureActions', () => {
     command(figure, deps, 'another').run();
     command(figure, deps, 'duplicate').run();
     command(figure, deps, 'delete').run();
-    choice(figure, deps).options.find((option) => option.id === 'display-style-Wire2')?.run();
+    choice(figure, deps)
+      .options.find((option) => option.id === 'display-style-Wire2')
+      ?.run();
     expect(deps.flip).toHaveBeenCalledWith(figure);
     expect(deps.foldAnother).toHaveBeenCalledWith(figure);
     expect(deps.duplicate).toHaveBeenCalledWith(figure);
@@ -255,14 +257,7 @@ describe('buildFoldedFigureActions', () => {
       const ids = buildFoldedFigureActions(makeFigure(), deps)
         .filter((action) => action.kind !== 'separator')
         .map((action) => action.id);
-      expect(ids).toEqual([
-        'flip',
-        'display-style',
-        'another',
-        'export',
-        'duplicate',
-        'delete',
-      ]);
+      expect(ids).toEqual(['flip', 'display-style', 'another', 'export', 'duplicate', 'delete']);
     });
 
     it('offers image formats only — a folded figure is geometry on a page', () => {
@@ -426,7 +421,7 @@ describe('the solution verb is the same verb on either kind of figure', () => {
             verdict: { verdict: 'folded' },
             ...STREAM[index]!.cycling,
           },
-        } as unknown as Partial<OristudioCpFoldedFigureEntry>)
+        } as unknown as Partial<OristudioCpFoldedFigureEntry>),
       );
     expect(at(1)).toEqual({ label: 'Another solution', icon: 'another', disabled: false });
     expect(at(2)).toEqual({

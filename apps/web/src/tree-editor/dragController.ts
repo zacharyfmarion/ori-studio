@@ -1,11 +1,7 @@
 import { treeDragUpdates, type TreeDragLengthRule, type TreeDragMirror } from './dragRule';
 import { createQuantizeState, type QuantizeState } from './lengths';
 import { hasPassedDragThreshold } from '../lib/pointerGesture';
-import {
-  applyTreeScenePositions,
-  collectTreeSceneTargets,
-  type TreeSceneTarget,
-} from './sceneDom';
+import { applyTreeScenePositions, collectTreeSceneTargets, type TreeSceneTarget } from './sceneDom';
 import type { Point } from '../lib/geometry';
 import type { SymmetryAxis } from '../lib/symmetryGeometry';
 
@@ -176,7 +172,7 @@ export function startTreeDrag(input: TreeDragStart): TreeDragSession {
         const loc = locOf(id);
         return loc && toSvgPoint(loc);
       },
-      chromePx
+      chromePx,
     );
   };
 

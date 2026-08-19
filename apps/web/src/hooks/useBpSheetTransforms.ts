@@ -62,6 +62,6 @@ export function useBpSheetTransforms(): BpSheetTransformAction[] {
           run: () => void handleMenuAction(id),
         };
       }),
-    [capabilities, t]
+    [capabilities, t],
   );
 }

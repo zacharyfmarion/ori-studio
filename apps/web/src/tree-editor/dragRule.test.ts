@@ -157,8 +157,8 @@ describe('treeDragUpdates', () => {
     expect(
       Math.hypot(
         result.updates.get(2)!.x - result.updates.get(1)!.x,
-        result.updates.get(2)!.y - result.updates.get(1)!.y
-      )
+        result.updates.get(2)!.y - result.updates.get(1)!.y,
+      ),
     ).toBeCloseTo(1);
   });
 
@@ -221,7 +221,7 @@ describe('treeDragUpdates', () => {
         start: { x: 1, y: 0 },
         target: { x: 0, y: 1 },
         length: held(1),
-      }).updates.size
+      }).updates.size,
     ).toBe(0);
   });
 
@@ -235,7 +235,7 @@ describe('treeDragUpdates', () => {
         start: { x: 1, y: 0 },
         target: { x: 0, y: 1 },
         length: held(1),
-      }).updates.size
+      }).updates.size,
     ).toBe(0);
   });
 });
@@ -262,7 +262,13 @@ describe('treeDragUpdates — the mirror is a wall', () => {
   const CLEARANCE = 0.02;
 
   /** Length held fixed, so these stay tests about the angle alone. */
-  const held = (current: number) => ({ current, min: 1, max: null, step: 1, quantize: () => current });
+  const held = (current: number) => ({
+    current,
+    min: 1,
+    max: null,
+    step: 1,
+    quantize: () => current,
+  });
 
   function drag(target: Point, heldIds: number[]) {
     return treeDragUpdates({
@@ -273,10 +279,7 @@ describe('treeDragUpdates — the mirror is a wall', () => {
       start: { x: 11, y: 10 },
       target,
       length: held(1),
-      mirror:
-        heldIds.length > 0
-          ? { axis, heldIds: new Set(heldIds), clearance: CLEARANCE }
-          : null,
+      mirror: heldIds.length > 0 ? { axis, heldIds: new Set(heldIds), clearance: CLEARANCE } : null,
     }).updates;
   }
 
@@ -509,7 +512,7 @@ describe('treeDragUpdates — a vertex pinned to the mirror slides along it', ()
     it('moves nothing when no admissible radius reaches the line', () => {
       const { updates } = slideFromOffAxisParent(
         { x: 0, y: 1 },
-        { ...snapped(5), max: 2 } // ceiling below the parent's own distance
+        { ...snapped(5), max: 2 }, // ceiling below the parent's own distance
       );
       expect(updates.size).toBe(0);
     });
@@ -698,7 +701,7 @@ describe('edgeLengthRepositions', () => {
         { id: 1, loc: { x: 3, y: 0 } },
         { id: 2, loc: { x: 4, y: 0 } },
         { id: 3, loc: { x: 3, y: 1 } },
-      ])
+      ]),
     );
     expect(updates).toHaveLength(3);
   });

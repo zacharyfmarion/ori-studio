@@ -164,10 +164,20 @@ describe('vertexRefinerPipeline', () => {
     expect(proposals.length).toBeGreaterThanOrEqual(32);
     expect(selected.length).toBeLessThanOrEqual(64);
     expect(selected.length).toBe(proposals.length);
-    expect(selected.some((proposal) => proposal.provenance.includes('square_frame_corner'))).toBe(true);
+    expect(selected.some((proposal) => proposal.provenance.includes('square_frame_corner'))).toBe(
+      true,
+    );
     expect(selected.some((proposal) => proposal.provenance.includes('sliding_window'))).toBe(true);
-    expect(selected.some((proposal) => proposal.provenance.includes('boundary_contact_top') && proposal.y === 0)).toBe(true);
-    expect(selected.some((proposal) => proposal.provenance.includes('boundary_contact_bottom') && proposal.y === 255)).toBe(true);
+    expect(
+      selected.some(
+        (proposal) => proposal.provenance.includes('boundary_contact_top') && proposal.y === 0,
+      ),
+    ).toBe(true);
+    expect(
+      selected.some(
+        (proposal) => proposal.provenance.includes('boundary_contact_bottom') && proposal.y === 255,
+      ),
+    ).toBe(true);
   });
 
   it('uses the proposal cap for deterministic full-coverage interior crops', () => {
@@ -190,7 +200,9 @@ describe('vertexRefinerPipeline', () => {
       imageHeight: 1024,
     });
     const boundaryCount = proposals.filter((proposal) =>
-      proposal.provenance.some((source) => source.startsWith('boundary_contact_') || source === 'square_frame_corner')
+      proposal.provenance.some(
+        (source) => source.startsWith('boundary_contact_') || source === 'square_frame_corner',
+      ),
     ).length;
     const interior = proposals.filter((proposal) => proposal.provenance.includes('sliding_window'));
     const interiorXs = new Set(interior.map((proposal) => proposal.x));
@@ -231,9 +243,15 @@ describe('vertexRefinerPipeline', () => {
     });
 
     expect(proposals).toHaveLength(2);
-    expect(proposals.every((proposal) => proposal.provenance[0]?.startsWith('dense_junction_region:3'))).toBe(true);
-    expect(proposals.some((proposal) => Math.hypot(proposal.x - 34, proposal.y - 32) < 12)).toBe(true);
-    expect(proposals.some((proposal) => Math.hypot(proposal.x - 96, proposal.y - 94) < 12)).toBe(true);
+    expect(
+      proposals.every((proposal) => proposal.provenance[0]?.startsWith('dense_junction_region:3')),
+    ).toBe(true);
+    expect(proposals.some((proposal) => Math.hypot(proposal.x - 34, proposal.y - 32) < 12)).toBe(
+      true,
+    );
+    expect(proposals.some((proposal) => Math.hypot(proposal.x - 96, proposal.y - 94) < 12)).toBe(
+      true,
+    );
   });
 
   it('does not select dense-region crops that touch the paper border', () => {
@@ -404,25 +422,27 @@ describe('vertexRefinerPipeline', () => {
       },
     ];
 
-    expect(mergeDecodedVertexRefinerVertices(decoded, proposals, {
-      cropSize,
-      radiusPx: 3,
-      minSupport: 1,
-      minSupportFraction: 0.25,
-    })).toHaveLength(0);
-    expect(mergeDecodedVertexRefinerVertices(decoded, proposals, {
-      cropSize,
-      radiusPx: 3,
-      minSupport: 1,
-      minSupportFraction: 0.2,
-    })).toHaveLength(1);
+    expect(
+      mergeDecodedVertexRefinerVertices(decoded, proposals, {
+        cropSize,
+        radiusPx: 3,
+        minSupport: 1,
+        minSupportFraction: 0.25,
+      }),
+    ).toHaveLength(0);
+    expect(
+      mergeDecodedVertexRefinerVertices(decoded, proposals, {
+        cropSize,
+        radiusPx: 3,
+        minSupport: 1,
+        minSupportFraction: 0.2,
+      }),
+    ).toHaveLength(1);
   });
 
   it('keeps close vertices separate when the same crop detects both peaks', () => {
     const cropSize = 96;
-    const proposals: VertexRefinerProposal[] = [
-      { x: 48, y: 48, score: 1, provenance: ['test'] },
-    ];
+    const proposals: VertexRefinerProposal[] = [{ x: 48, y: 48, score: 1, provenance: ['test'] }];
     const decoded: VertexRefinerDecodedVertex[] = [
       {
         x: 48,
@@ -454,12 +474,14 @@ describe('vertexRefinerPipeline', () => {
       },
     ];
 
-    expect(mergeDecodedVertexRefinerVertices(decoded, proposals, {
-      cropSize,
-      radiusPx: 5,
-      minSupport: 1,
-      splitSameCropConflicts: true,
-    })).toHaveLength(2);
+    expect(
+      mergeDecodedVertexRefinerVertices(decoded, proposals, {
+        cropSize,
+        radiusPx: 5,
+        minSupport: 1,
+        splitSameCropConflicts: true,
+      }),
+    ).toHaveLength(2);
   });
 
   it('keeps near-frame interior predictions as interior vertices', () => {
@@ -648,5 +670,7 @@ function setOutput(
   value: number,
 ) {
   const channels = tensor.dims[1] ?? 1;
-  tensor.data[batch * channels * cropSize * cropSize + channel * cropSize * cropSize + row * cropSize + col] = value;
+  tensor.data[
+    batch * channels * cropSize * cropSize + channel * cropSize * cropSize + row * cropSize + col
+  ] = value;
 }

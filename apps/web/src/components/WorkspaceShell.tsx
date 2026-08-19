@@ -213,7 +213,12 @@ function Toolbar() {
         {(optimizeScale.visible || buildCp.visible || isBpContext) && (
           <span className="toolbar__separator" />
         )}
-        <IconButton size="sm" title={t('common:toolbar.settings', 'Settings')} tooltipSide="bottom" onClick={() => openSettings()}>
+        <IconButton
+          size="sm"
+          title={t('common:toolbar.settings', 'Settings')}
+          tooltipSide="bottom"
+          onClick={() => openSettings()}
+        >
           <Settings size={15} />
         </IconButton>
       </div>
@@ -276,7 +281,7 @@ export function WorkspaceShell() {
   // WorkspaceRoute without a fresh onReady.
   const location = useLocation();
   const targetRef = useRef(
-    parseWorkspacePath(location.pathname) ?? { workspace: 'design' as WorkspaceId }
+    parseWorkspacePath(location.pathname) ?? { workspace: 'design' as WorkspaceId },
   );
 
   // Drop the disposed Dockview API when the shell unmounts (e.g. navigating to
@@ -324,7 +329,7 @@ export function WorkspaceShell() {
         timer = setTimeout(() => saveLayout(), 250);
       });
     },
-    [loadLayout, saveLayout, setDockviewApi]
+    [loadLayout, saveLayout, setDockviewApi],
   );
 
   // The chrome and the canvas get separate boundaries: a capability selector

@@ -20,7 +20,11 @@ describe('cpSnapshotToScene', () => {
       { a: { x: 0, y: 0 }, b: { x: 10, y: 20 }, color: 'Red1' },
       { a: { x: 5, y: 6 }, b: { x: 7, y: 8 }, color: 'Blue2' },
     ];
-    const scene = cpSnapshotToScene(segments, (c) => solid(c === 'Red1' ? RED : BLUE), SOLID_PATTERNS);
+    const scene = cpSnapshotToScene(
+      segments,
+      (c) => solid(c === 'Red1' ? RED : BLUE),
+      SOLID_PATTERNS,
+    );
     expect(scene.strokes.count).toBe(2);
     expect(Array.from(scene.strokes.a)).toEqual([0, 0, 5, 6]);
     expect(Array.from(scene.strokes.b)).toEqual([10, 20, 7, 8]);
@@ -51,7 +55,7 @@ describe('cpSnapshotToScene', () => {
     const { strokes } = cpSnapshotToScene(
       segments,
       (color) => ({ color: RED, dashSlot: color === 'Red1' ? 1 : color === 'Blue2' ? 2 : 0 }),
-      patterns
+      patterns,
     );
     expect(strokes.dashPatterns).toBe(patterns);
     expect(Array.from(strokes.dashSlot ?? [])).toEqual([1, 2, 0]);

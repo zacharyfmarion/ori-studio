@@ -105,7 +105,7 @@ function foldedSnapshot(): OristudioCpFoldedRenderSnapshot {
 /** Expand a collapsed controls section by clicking its caret. */
 function openSection(container: HTMLElement, title: string) {
   const toggle = Array.from(
-    container.querySelectorAll<HTMLButtonElement>('.export-modal__section-toggle')
+    container.querySelectorAll<HTMLButtonElement>('.export-modal__section-toggle'),
   ).find((button) => button.textContent === title);
   expect(toggle).toBeDefined();
   if (toggle?.getAttribute('aria-expanded') === 'false') toggle.click();
@@ -144,7 +144,7 @@ function renderModalHost() {
 
 function findButton(label: string): HTMLButtonElement {
   const button = Array.from(container?.querySelectorAll('button') ?? []).find(
-    (element) => element.textContent === label
+    (element) => element.textContent === label,
   );
   expect(button).toBeDefined();
   return button as HTMLButtonElement;
@@ -153,7 +153,7 @@ function findButton(label: string): HTMLButtonElement {
 /** Choice options carry a label and a description, so match on the label span. */
 function findOption(label: string): HTMLButtonElement {
   const option = Array.from(
-    container?.querySelectorAll<HTMLButtonElement>('.choice-dialog__option') ?? []
+    container?.querySelectorAll<HTMLButtonElement>('.choice-dialog__option') ?? [],
   ).find((element) => element.querySelector('.choice-dialog__option-label')?.textContent === label);
   expect(option).toBeDefined();
   return option as HTMLButtonElement;
@@ -242,7 +242,7 @@ describe('CommandDialogModal', () => {
     await act(async () => {
       (
         rendered.querySelector(
-          '[aria-label="Include flat / unassigned creases"]'
+          '[aria-label="Include flat / unassigned creases"]',
         ) as HTMLButtonElement
       ).click();
       (rendered.querySelector('[aria-label="Show background color"]') as HTMLButtonElement).click();
@@ -284,7 +284,7 @@ describe('CommandDialogModal', () => {
     // "All patterns" plus one card per pattern, each with a rendered thumbnail.
     expect(cards).toHaveLength(segments.length + 1);
     expect(rendered.querySelectorAll('.export-modal__pattern-thumb svg')).toHaveLength(
-      segments.length + 1
+      segments.length + 1,
     );
 
     await act(async () => {
@@ -348,7 +348,7 @@ describe('CommandDialogModal', () => {
       setFieldValue(rendered.querySelector('#export-subtitle') as HTMLInputElement, 'Traditional');
       setFieldValue(
         rendered.querySelector('#export-description') as HTMLTextAreaElement,
-        'Folded from a square.'
+        'Folded from a square.',
       );
     });
     await act(async () => {
@@ -388,7 +388,7 @@ describe('CommandDialogModal', () => {
     });
 
     const toggle = rendered.querySelector(
-      '[aria-label="Include folded figure"]'
+      '[aria-label="Include folded figure"]',
     ) as HTMLButtonElement;
     expect(toggle.hasAttribute('disabled')).toBe(false);
 
@@ -444,7 +444,7 @@ describe('CommandDialogModal', () => {
     // The overlay states the kernel also has — Both and Transparent — are not
     // views the product offers, here or on the canvas.
     expect(
-      Array.from(sides?.querySelectorAll('button') ?? []).map((button) => button.textContent)
+      Array.from(sides?.querySelectorAll('button') ?? []).map((button) => button.textContent),
     ).toEqual(['Front', 'Back']);
   });
 

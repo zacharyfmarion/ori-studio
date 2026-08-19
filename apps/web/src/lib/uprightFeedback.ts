@@ -21,8 +21,6 @@ import { ANALYTICS_EVENTS } from '../analytics/events';
  * design, which the privacy contract keeps out of analytics.
  */
 export function announceUprightSet(t: TFunction): void {
-  toast.success(
-    t('toasts:upright.set', 'Up direction set — drag to turn around it')
-  );
+  toast.success(t('toasts:upright.set', 'Up direction set — drag to turn around it'));
   track(ANALYTICS_EVENTS.modelUprightSet);
 }

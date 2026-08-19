@@ -40,7 +40,7 @@ export interface BpPackingDeviceBackendUpdate {
  */
 export function sameBpDragUpdate(
   sent: BpPackingDragBackendUpdate | null,
-  next: BpPackingDragBackendUpdate
+  next: BpPackingDragBackendUpdate,
 ): boolean {
   return (
     sent !== null &&
@@ -61,7 +61,7 @@ export function sameBpDragUpdate(
  */
 export function sameBpReshapeUpdate(
   sent: BpPackingReshapeBackendUpdate | null,
-  next: BpPackingReshapeBackendUpdate
+  next: BpPackingReshapeBackendUpdate,
 ): boolean {
   return (
     sent !== null &&
@@ -77,7 +77,7 @@ export function sameBpReshapeUpdate(
 /** The same question for a stretch device's drag. */
 export function sameBpDeviceUpdate(
   sent: BpPackingDeviceBackendUpdate | null,
-  next: BpPackingDeviceBackendUpdate
+  next: BpPackingDeviceBackendUpdate,
 ): boolean {
   return (
     sent !== null &&

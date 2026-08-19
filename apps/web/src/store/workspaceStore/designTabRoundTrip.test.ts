@@ -65,7 +65,7 @@ function recordingFileService(): FileService & { written: string | null } {
     surface: 'web',
     supportsNativeDialogs: false,
     openTextFile: vi.fn(async () =>
-      state.written === null ? null : { text: state.written, name: 'studio.osf', path: null }
+      state.written === null ? null : { text: state.written, name: 'studio.osf', path: null },
     ),
     openBinaryFile: vi.fn(async () => null),
     saveTextFile: vi.fn(async (options: SaveTextFileOptions) => {
@@ -86,7 +86,10 @@ function reopenOn(_fileService: FileService) {
 }
 
 const paneLayout = (...ids: string[]) =>
-  ({ grid: { root: { type: 'branch' } }, panels: Object.fromEntries(ids.map((id) => [id, {}])) }) as never;
+  ({
+    grid: { root: { type: 'branch' } },
+    panels: Object.fromEntries(ids.map((id) => [id, {}])),
+  }) as never;
 
 /** Three designs of mixed kinds, each laid out differently, the middle active. */
 function threeDesigns() {
@@ -103,7 +106,12 @@ function threeDesigns() {
         kind: 'treemaker',
         treemaker: createTreemakerDesignState(),
       },
-      { ...kabuto, paneLayout: paneLayout('design', 'bp-editor'), kind: 'box-pleat', boxPleat: createBoxPleatDesignState() },
+      {
+        ...kabuto,
+        paneLayout: paneLayout('design', 'bp-editor'),
+        kind: 'box-pleat',
+        boxPleat: createBoxPleatDesignState(),
+      },
       { ...beetle, paneLayout: null, kind: 'treemaker', treemaker: createTreemakerDesignState() },
     ],
     // The *last* tab is active, so "reopens on the design that was active" is
@@ -152,7 +160,7 @@ describe('saving and reopening a project of several designs', () => {
     expect(store().activeDesignId).toBe(ids.beetle);
   });
 
-  it('restores each design\'s own pane arrangement', async () => {
+  it("restores each design's own pane arrangement", async () => {
     threeDesigns();
     const fileService = recordingFileService();
 
@@ -170,7 +178,7 @@ describe('saving and reopening a project of several designs', () => {
     ]);
   });
 
-  it('hands every design\'s text to the registry, not just the active one', async () => {
+  it("hands every design's text to the registry, not just the active one", async () => {
     const ids = threeDesigns();
     const fileService = recordingFileService();
 
@@ -183,11 +191,11 @@ describe('saving and reopening a project of several designs', () => {
     // must have its text adopted — otherwise visiting a background tab would
     // build a blank document.
     expect(handles.adoptDesign.mock.calls.map(([id]) => id).sort()).toEqual(
-      [ids.crane, ids.kabuto, ids.beetle].sort()
+      [ids.crane, ids.kabuto, ids.beetle].sort(),
     );
   });
 
-  it('keeps the project title, which is the project\'s and not any design\'s', async () => {
+  it("keeps the project title, which is the project's and not any design's", async () => {
     threeDesigns();
     const fileService = recordingFileService();
 
@@ -236,7 +244,9 @@ describe('visiting a design that was not the active one', () => {
     // finds nothing to do rather than installing over the first.
     await Promise.all([store().hydrateDesignTab(ids.crane), store().hydrateDesignTab(ids.crane)]);
 
-    expect(handles.acquireDesignHandle.mock.calls.filter(([id]) => id === ids.crane)).toHaveLength(1);
+    expect(handles.acquireDesignHandle.mock.calls.filter(([id]) => id === ids.crane)).toHaveLength(
+      1,
+    );
   });
 
   it('leaves a design created in this session alone', async () => {
@@ -325,7 +335,7 @@ describe('two box-pleat designs with different mirror state', () => {
     expect(symmetry?.enabled).toBe(BOOK.enabled);
   });
 
-  it('gives each design back its own mirror, not the other one\'s', async () => {
+  it("gives each design back its own mirror, not the other one's", async () => {
     const ids = twoBoxPleatDesigns();
     const fileService = recordingFileService();
 
@@ -369,7 +379,7 @@ describe('replacing the project', () => {
     // The engine documents go with them, or the registry leaks a handle per
     // design for the life of the session.
     expect(handles.forgetDesign.mock.calls.map(([id]) => id).sort()).toEqual(
-      [ids.crane, ids.kabuto, ids.beetle].sort()
+      [ids.crane, ids.kabuto, ids.beetle].sort(),
     );
   });
 });
@@ -399,8 +409,16 @@ describe('saving while the user switches tabs', () => {
     const other = createDesignTab([saved], { kind: 'box-pleat', title: 'Other' });
     useWorkspaceStore.setState({
       designTabs: [
-        { ...saved, kind: 'box-pleat', boxPleat: createBoxPleatDesignState({ document: bpDoc('Saved.bps') }) },
-        { ...other, kind: 'box-pleat', boxPleat: createBoxPleatDesignState({ document: bpDoc('Other.bps') }) },
+        {
+          ...saved,
+          kind: 'box-pleat',
+          boxPleat: createBoxPleatDesignState({ document: bpDoc('Saved.bps') }),
+        },
+        {
+          ...other,
+          kind: 'box-pleat',
+          boxPleat: createBoxPleatDesignState({ document: bpDoc('Other.bps') }),
+        },
       ],
       activeDesignId: saved.id,
       workspaceTitle: 'Studio',
@@ -409,8 +427,12 @@ describe('saving while the user switches tabs', () => {
     });
 
     const fileService = recordingFileService();
-    const realSave = fileService.saveTextFile as unknown as (o: SaveTextFileOptions) => Promise<unknown>;
-    (fileService as { saveTextFile: unknown }).saveTextFile = async (options: SaveTextFileOptions) => {
+    const realSave = fileService.saveTextFile as unknown as (
+      o: SaveTextFileOptions,
+    ) => Promise<unknown>;
+    (fileService as { saveTextFile: unknown }).saveTextFile = async (
+      options: SaveTextFileOptions,
+    ) => {
       // The click lands while the dialog is up.
       useWorkspaceStore.setState({ activeDesignId: other.id });
       return realSave(options);

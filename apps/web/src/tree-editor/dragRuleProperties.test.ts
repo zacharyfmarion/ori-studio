@@ -117,7 +117,13 @@ describe('drag rule properties', () => {
       const s = scenario(next);
       const result = treeDragUpdates({
         ...s,
-        length: { current: s.currentLength, min: 1, max: 6, step: 1, quantize: (d) => Math.round(d) },
+        length: {
+          current: s.currentLength,
+          min: 1,
+          max: 6,
+          step: 1,
+          quantize: (d) => Math.round(d),
+        },
       });
       expect(Number.isInteger(result.length)).toBe(true);
       expect(result.length).toBeGreaterThanOrEqual(1);
@@ -133,7 +139,9 @@ describe('drag rule properties', () => {
     for (let i = 0; i < CASES; i += 1) {
       const s = scenario(next);
       // Only a scenario that starts legally can be swept from.
-      const held = s.subtreeIds.filter((id) => Math.abs(normalDistance(s.vertices.get(id)!)) >= clearance);
+      const held = s.subtreeIds.filter(
+        (id) => Math.abs(normalDistance(s.vertices.get(id)!)) >= clearance,
+      );
       if (held.length === 0) continue;
       const mirror: TreeDragMirror = { axis, heldIds: new Set(held), clearance };
       const { updates } = treeDragUpdates({ ...s, length: snapped(s.currentLength), mirror });
@@ -170,7 +178,13 @@ describe('drag rule properties', () => {
       const s = scenario(next);
       const { updates, length } = treeDragUpdates({
         ...s,
-        length: { current: s.currentLength, min: 1, max: null, step: 1, quantize: () => s.currentLength },
+        length: {
+          current: s.currentLength,
+          min: 1,
+          max: null,
+          step: 1,
+          quantize: () => s.currentLength,
+        },
       });
       if (updates.size === 0) continue;
       expect(length).toBe(s.currentLength);

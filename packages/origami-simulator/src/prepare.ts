@@ -20,7 +20,7 @@ import type {
 
 export function prepareFoldModel(
   source: FoldDocument,
-  options: PrepareFoldOptions = {}
+  options: PrepareFoldOptions = {},
 ): PreparedOrigamiModel {
   const diagnostics: SimulatorDiagnostics = { warnings: [], errors: [] };
   validateFold(source, diagnostics);
@@ -99,18 +99,20 @@ function validateFold(fold: FoldDocument, diagnostics: SimulatorDiagnostics): vo
 function normalizeFold(
   source: FoldDocument,
   options: PrepareFoldOptions,
-  diagnostics: SimulatorDiagnostics
+  diagnostics: SimulatorDiagnostics,
 ): FoldDocument {
   const fold = cloneFold(source);
   fold.vertices_coords = fold.vertices_coords.map((coord) => normalizePoint(coord));
   fold.edges_assignment = fold.edges_vertices.map((_, index) =>
-    normalizeAssignment(fold.edges_assignment?.[index])
+    normalizeAssignment(fold.edges_assignment?.[index]),
   );
   fold.edges_foldAngle = fold.edges_vertices.map((_, index) => {
     const assignment = fold.edges_assignment?.[index] ?? 'U';
     const angle = fold.edges_foldAngle?.[index];
     if (typeof angle === 'number' || angle === null) return angle;
-    return options.foldUseAngles === false ? assignmentFoldAngle(assignment) : assignmentFoldAngle(assignment);
+    return options.foldUseAngles === false
+      ? assignmentFoldAngle(assignment)
+      : assignmentFoldAngle(assignment);
   });
 
   // Canonicalise before triangulating. A crease drawn in two collinear strokes is
@@ -168,7 +170,7 @@ const DRIVEN_ASSIGNMENTS = new Set<FoldAssignment>(['M', 'V', 'F']);
 function removeRedundantVertices(
   fold: FoldDocument,
   epsilon: number,
-  diagnostics: SimulatorDiagnostics
+  diagnostics: SimulatorDiagnostics,
 ): void {
   const coords = fold.vertices_coords;
   const sourceEdgeCount = fold.edges_vertices.length;
@@ -199,7 +201,7 @@ function removeRedundantVertices(
   remapEdgeExtensionArrays(fold, sourceEdgeCount, edgeSources);
   diagnostics.warnings.push(
     `merged ${merged.size} redundant vertex/vertices` +
-      (droppedFaces ? `, dropping ${droppedFaces} degenerate face(s)` : '')
+      (droppedFaces ? `, dropping ${droppedFaces} degenerate face(s)` : ''),
   );
 }
 
@@ -209,7 +211,7 @@ function isStraightThrough(
   vertex: number,
   first: number,
   second: number,
-  epsilon: number
+  epsilon: number,
 ): boolean {
   const point = coords[vertex];
   const a = coords[first];
@@ -237,7 +239,7 @@ function mergeEdge(
   first: number,
   centre: number,
   second: number,
-  diagnostics: SimulatorDiagnostics
+  diagnostics: SimulatorDiagnostics,
 ): boolean {
   const edges = fold.edges_vertices;
   const assignments = fold.edges_assignment;
@@ -258,7 +260,7 @@ function mergeEdge(
   const assignment = assignments[halves[0]!];
   if (assignment !== assignments[halves[1]!]) {
     diagnostics.warnings.push(
-      `not merging ${first}-${centre}-${second}: different edge assignments`
+      `not merging ${first}-${centre}-${second}: different edge assignments`,
     );
     return false;
   }
@@ -283,9 +285,7 @@ function mergeEdge(
     diagnostics.warnings.push(`incompatible fold angles merged: ${JSON.stringify(angles)}`);
   }
   const set = angles.filter((angle): angle is number => Boolean(angle));
-  const mergedAngle = set.length
-    ? set.reduce((sum, angle) => sum + angle, 0) / set.length
-    : null;
+  const mergedAngle = set.length ? set.reduce((sum, angle) => sum + angle, 0) / set.length : null;
   // The earlier half, so the inherited extension data is deterministic.
   const source = edgeSources[Math.min(halves[0]!, halves[1]!)]!;
 
@@ -354,7 +354,7 @@ function dropMergedVertices(fold: FoldDocument, merged: Set<number>): number {
 function remapEdgeExtensionArrays(
   fold: FoldDocument,
   sourceEdgeCount: number,
-  edgeSources: number[]
+  edgeSources: number[],
 ): void {
   for (const key of Object.keys(fold)) {
     if (!key.includes(':edges_')) continue;
@@ -417,8 +417,12 @@ function removeDegenerateGeometry(fold: FoldDocument, diagnostics: SimulatorDiag
     const a = coords[face[0]!]!;
     const b = coords[face[1]!]!;
     const c = coords[face[2]!]!;
-    const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
-    const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+    const ux = b[0] - a[0],
+      uy = b[1] - a[1],
+      uz = b[2] - a[2];
+    const vx = c[0] - a[0],
+      vy = c[1] - a[1],
+      vz = c[2] - a[2];
     const cx = uy * vz - uz * vy;
     const cy = uz * vx - ux * vz;
     const cz = ux * vy - uy * vx;
@@ -453,7 +457,7 @@ function removeDegenerateGeometry(fold: FoldDocument, diagnostics: SimulatorDiag
 
   if (droppedFaces || droppedEdges) {
     diagnostics.warnings.push(
-      `dropped ${droppedFaces} degenerate triangle(s) and ${droppedEdges} zero-length edge(s)`
+      `dropped ${droppedFaces} degenerate triangle(s) and ${droppedEdges} zero-length edge(s)`,
     );
   }
 }
@@ -619,16 +623,26 @@ function inCircumcircle(coords: number[], a: number, b: number, c: number, d: nu
 
   const dx = coords[d * 2]!;
   const dy = coords[d * 2 + 1]!;
-  const ax = coords[a * 2]! - dx, ay = coords[a * 2 + 1]! - dy;
-  const bx = coords[second * 2]! - dx, by = coords[second * 2 + 1]! - dy;
-  const cx = coords[third * 2]! - dx, cy = coords[third * 2 + 1]! - dy;
+  const ax = coords[a * 2]! - dx,
+    ay = coords[a * 2 + 1]! - dy;
+  const bx = coords[second * 2]! - dx,
+    by = coords[second * 2 + 1]! - dy;
+  const cx = coords[third * 2]! - dx,
+    cy = coords[third * 2 + 1]! - dy;
 
   const determinant =
     (ax * ax + ay * ay) * (bx * cy - by * cx) -
     (bx * bx + by * by) * (ax * cy - ay * cx) +
     (cx * cx + cy * cy) * (ax * by - ay * bx);
 
-  const scale = Math.max(Math.abs(ax), Math.abs(ay), Math.abs(bx), Math.abs(by), Math.abs(cx), Math.abs(cy));
+  const scale = Math.max(
+    Math.abs(ax),
+    Math.abs(ay),
+    Math.abs(bx),
+    Math.abs(by),
+    Math.abs(cx),
+    Math.abs(cy),
+  );
   return determinant > scale ** 4 * 1e-9;
 }
 
@@ -682,9 +696,12 @@ function ringSignedArea(coords: number[]): number {
 }
 
 function triangleSignedArea(coords: number[], a: number, b: number, c: number): number {
-  const ax = coords[a * 2]!, ay = coords[a * 2 + 1]!;
-  const bx = coords[b * 2]!, by = coords[b * 2 + 1]!;
-  const cx = coords[c * 2]!, cy = coords[c * 2 + 1]!;
+  const ax = coords[a * 2]!,
+    ay = coords[a * 2 + 1]!;
+  const bx = coords[b * 2]!,
+    by = coords[b * 2 + 1]!;
+  const cx = coords[c * 2]!,
+    cy = coords[c * 2 + 1]!;
   return ((bx - ax) * (cy - ay) - (by - ay) * (cx - ax)) / 2;
 }
 
@@ -693,7 +710,7 @@ function triangulateQuad(
   face: number[],
   nextFaces: number[][],
   edgeIndex: Map<number, number>,
-  threshold: number
+  threshold: number,
 ): void {
   const [v0, v1, v2, v3] = [face[0] ?? 0, face[1] ?? 0, face[2] ?? 0, face[3] ?? 0];
   const across02: [number[], number[]] = [
@@ -735,7 +752,7 @@ function triangulateQuad(
 function smallestAngleOf(
   fold: FoldDocument,
   triangles: [number[], number[]],
-  threshold: number
+  threshold: number,
 ): number {
   let smallest = Infinity;
   let winding = 0;
@@ -771,8 +788,12 @@ function crossMagnitude(fold: FoldDocument, triangle: number[]): number {
   const a = normalizePoint(fold.vertices_coords[triangle[0] ?? 0] ?? []);
   const b = normalizePoint(fold.vertices_coords[triangle[1] ?? 0] ?? []);
   const c = normalizePoint(fold.vertices_coords[triangle[2] ?? 0] ?? []);
-  const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
-  const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+  const ux = b[0] - a[0],
+    uy = b[1] - a[1],
+    uz = b[2] - a[2];
+  const vx = c[0] - a[0],
+    vy = c[1] - a[1],
+    vz = c[2] - a[2];
   return Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx);
 }
 
@@ -782,7 +803,7 @@ function appendEdgeIfMissing(
   fold: FoldDocument,
   edgeIndex: Map<number, number>,
   a: number,
-  b: number
+  b: number,
 ): void {
   const key = edgeKey(a, b);
   if (edgeIndex.has(key)) return;
@@ -811,14 +832,14 @@ function buildFacesEdges(fold: FoldDocument, diagnostics: SimulatorDiagnostics):
         diagnostics.warnings.push(`face ${faceIndex} references missing edge ${a}-${b}`);
       }
       return edge;
-    })
+    }),
   );
 }
 
 function buildEdgesFaces(
   fold: FoldDocument,
   facesEdges: number[][],
-  diagnostics: SimulatorDiagnostics
+  diagnostics: SimulatorDiagnostics,
 ): number[][] {
   const edgesFaces = fold.edges_vertices.map((): number[] => []);
   facesEdges.forEach((faceEdges, faceIndex) => {

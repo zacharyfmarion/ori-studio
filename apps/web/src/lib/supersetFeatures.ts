@@ -162,7 +162,7 @@ const SUPERSET_FEATURES: readonly SupersetFeature[] = [
     id: 'foldAngles',
     count: (presence) =>
       presence.lineSegments.filter(
-        (segment) => isFoldingCrease(segment.color) && !isClassicCrease(segment)
+        (segment) => isFoldingCrease(segment.color) && !isClassicCrease(segment),
       ).length,
     droppedByFormats: FOLD_ANGLE_LOSSY_FORMATS,
     blocking: true,
@@ -171,7 +171,7 @@ const SUPERSET_FEATURES: readonly SupersetFeature[] = [
     id: 'foldedForm3d',
     count: (presence) =>
       presence.foldedFigures.filter(
-        (figure) => (figure.folded3d ?? null) !== null && figure.handle != null
+        (figure) => (figure.folded3d ?? null) !== null && figure.handle != null,
       ).length,
     /**
      * `.fold` is **not** in this list: the export writes one `foldedForm` frame
@@ -205,7 +205,7 @@ const SUPERSET_FEATURES: readonly SupersetFeature[] = [
      */
     count: (presence) =>
       presence.foldedFigures.filter(
-        (figure) => (figure.folded3d ?? null) !== null && figure.handle == null
+        (figure) => (figure.folded3d ?? null) !== null && figure.handle == null,
       ).length,
     droppedByFormats: ['cp', 'fold', 'ori', 'orh', 'dxf', 'obj'],
   },
@@ -224,7 +224,7 @@ export interface ExportLossWarning {
  */
 export function collectExportLossWarnings(
   format: ExportFormat,
-  presence: SupersetPresence
+  presence: SupersetPresence,
 ): ExportLossWarning[] {
   const warnings: ExportLossWarning[] = [];
   for (const feature of SUPERSET_FEATURES) {
@@ -247,8 +247,6 @@ export function exportFormatLabel(format: ExportFormat): string {
 }
 
 /** The warnings that make an export impossible rather than merely lossy. */
-export function blockingExportLoss(
-  warnings: readonly ExportLossWarning[]
-): ExportLossWarning[] {
+export function blockingExportLoss(warnings: readonly ExportLossWarning[]): ExportLossWarning[] {
   return warnings.filter((warning) => warning.blocking);
 }

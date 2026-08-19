@@ -41,7 +41,7 @@ describe('cpCanvasCursor', () => {
     // The pointer is captured, so a turn continues past the figure's edge. The
     // cursor has to follow it rather than reverting the moment hover is lost.
     expect(cpCanvasCursor(state({ foldedOrbitDragging: true, foldedOrbitHovered: false }))).toBe(
-      'grabbing'
+      'grabbing',
     );
   });
 

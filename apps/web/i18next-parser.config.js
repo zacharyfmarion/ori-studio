@@ -35,5 +35,5 @@ export default {
 
   // English default (the 2nd arg to `t`) is written only into the English catalog; every
   // target locale starts empty so `i18n:check` can flag it as untranslated.
-  defaultValue: (locale, _namespace, _key, value) => (locale === 'en' ? value ?? '' : ''),
+  defaultValue: (locale, _namespace, _key, value) => (locale === 'en' ? (value ?? '') : ''),
 };

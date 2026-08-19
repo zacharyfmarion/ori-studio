@@ -33,14 +33,14 @@ export function BpPackingEmptySpaceLayer({
         id: region.id,
         d: bpPackingCoveragePath(region, sheet, paperRect),
       })),
-    [coverage, paperRect, sheet]
+    [coverage, paperRect, sheet],
   );
   const sheetPoints = useMemo(
     () =>
       bpPackingSheetBorderPoints(sheet, paperRect)
         .map((point) => `${point.x},${point.y}`)
         .join(' '),
-    [paperRect, sheet]
+    [paperRect, sheet],
   );
 
   if (paths.length === 0) return null;

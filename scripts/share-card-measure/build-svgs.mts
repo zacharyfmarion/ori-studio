@@ -71,5 +71,8 @@ for (const [position, entry] of index.entries()) {
 }
 
 writeFileSync(join(outDir, 'manifest.json'), JSON.stringify(manifest));
-copyFileSync(join(dirname(fileURLToPath(import.meta.url)), 'index.html'), join(outDir, 'index.html'));
+copyFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), 'index.html'),
+  join(outDir, 'index.html'),
+);
 console.log(`wrote ${manifest.length} SVGs to ${outDir}`);

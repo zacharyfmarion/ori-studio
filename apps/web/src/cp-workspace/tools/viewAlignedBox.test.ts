@@ -72,7 +72,7 @@ describe('viewAlignedBoxCorners', () => {
     const mirrored: ViewTransform = { origin: [0, 0], ex: [-2, 0], ey: [0, 2] };
     const [p0, p1, p2, p3] = onScreen(
       mirrored,
-      viewAlignedBoxCorners({ x: 1, y: 2 }, { x: 9, y: 7 }, mirrored)
+      viewAlignedBoxCorners({ x: 1, y: 2 }, { x: 9, y: 7 }, mirrored),
     );
     expect(p0.x).toBeCloseTo(p1.x);
     expect(p1.y).toBeCloseTo(p2.y);
@@ -91,7 +91,7 @@ describe('viewAlignedBoxCorners', () => {
   it('falls back to the model-aligned box for a degenerate view', () => {
     const degenerate: ViewTransform = { origin: [0, 0], ex: [0, 0], ey: [0, 0] };
     expect(viewAlignedBoxCorners({ x: 0, y: 0 }, { x: 2, y: 3 }, degenerate)).toEqual(
-      viewAlignedBoxCorners({ x: 0, y: 0 }, { x: 2, y: 3 }, null)
+      viewAlignedBoxCorners({ x: 0, y: 0 }, { x: 2, y: 3 }, null),
     );
   });
 });

@@ -36,7 +36,7 @@ function renderRail(active: Partial<CpToolRailActive> = {}): HTMLDivElement {
           editable
           onSelectAction={() => {}}
         />
-      </TooltipProvider>
+      </TooltipProvider>,
     );
   });
   return container;

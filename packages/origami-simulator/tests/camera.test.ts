@@ -25,8 +25,7 @@ describe('fitting a model to the frame', () => {
     // Halve the frame, halve the model. Under the old `max(28px, 8%)` padding a
     // 512 -> 128 step shrank the model by 4.8x instead of 4x, and 512 -> 64 by
     // 27x instead of 8x.
-    const at = (edge: number) =>
-      cameraUniforms(VIEW, CENTER, 1, edge, edge).scale;
+    const at = (edge: number) => cameraUniforms(VIEW, CENTER, 1, edge, edge).scale;
     expect(at(256) / at(512)).toBeCloseTo(0.5, 6);
     expect(at(128) / at(512)).toBeCloseTo(0.25, 6);
     expect(at(64) / at(512)).toBeCloseTo(0.125, 6);
@@ -62,7 +61,7 @@ describe('projecting vertices the way the vertex shader does', () => {
   /** One vertex in, its view triple and pixel pair out. */
   function project(
     position: [number, number, number],
-    options?: { perspective?: boolean }
+    options?: { perspective?: boolean },
   ): { x: number; y: number; depth: number; sx: number; sy: number } {
     const out = projectVertices(new Float32Array(position), camera, options);
     return {
@@ -128,7 +127,10 @@ describe('projecting vertices the way the vertex shader does', () => {
 
   it('yaws about Y, so a quarter turn puts +x where -z was', () => {
     const at = (yaw: number, position: [number, number, number]) =>
-      projectVertices(new Float32Array(position), cameraUniforms({ ...VIEW, yaw }, CENTER, 1, 400, 300));
+      projectVertices(
+        new Float32Array(position),
+        cameraUniforms({ ...VIEW, yaw }, CENTER, 1, 400, 300),
+      );
     const before = at(0, [0, 0, -1]);
     const after = at(Math.PI / 2, [1, 0, 0]);
     expect(after.screen[0]).toBeCloseTo(before.screen[0]!, 5);
@@ -144,7 +146,7 @@ describe('projecting vertices the way the vertex shader does', () => {
     const point = new Float32Array([0.3, 0.6, -0.2]);
     expect(projectVertices(point, both).screen[1]).not.toBeCloseTo(
       projectVertices(point, swapped).screen[1]!,
-      3
+      3,
     );
   });
 

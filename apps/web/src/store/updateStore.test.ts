@@ -20,7 +20,7 @@ describe('shouldShowUpdateCard', () => {
     // can act on.
     expect(shouldShowUpdateCard({ ...BASE, status: 'downloading' })).toBe(false);
     expect(
-      shouldShowUpdateCard({ ...BASE, status: 'downloading', downloadWasRequested: true })
+      shouldShowUpdateCard({ ...BASE, status: 'downloading', downloadWasRequested: true }),
     ).toBe(true);
   });
 

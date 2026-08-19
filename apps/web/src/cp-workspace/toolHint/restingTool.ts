@@ -22,7 +22,7 @@ import type { OristudioCpCommandDefinition } from '../../lib/oristudioCpCommands
 
 export function isRestingCpTool(
   action: OristudioCpActionDefinition | undefined,
-  command: OristudioCpCommandDefinition
+  command: OristudioCpCommandDefinition,
 ): boolean {
   if (action?.id === DEFAULT_ORISTUDIO_CP_ACTION_ID) return true;
   // The rail sets an action, but other routes activate a command directly and

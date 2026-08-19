@@ -23,7 +23,7 @@ vi.stubGlobal('ResizeObserver', ResizeObserverStub);
  * geometry has no box, and the toolbar has nothing to anchor to.
  */
 function makeFigure(
-  overrides: Partial<OristudioCpFoldedFigureEntry> = {}
+  overrides: Partial<OristudioCpFoldedFigureEntry> = {},
 ): OristudioCpFoldedFigureEntry {
   return {
     id: 'folded-1',
@@ -67,7 +67,7 @@ function makeFigure(
 }
 
 function makeDeps(
-  overrides: Partial<FoldedFigureActionDeps> = {}
+  overrides: Partial<FoldedFigureActionDeps> = {},
 ): Omit<FoldedFigureActionDeps, 't'> {
   return {
     flip: vi.fn(),
@@ -113,13 +113,13 @@ describe('CpFoldedFigureToolbar', () => {
 
   function render(
     figure: OristudioCpFoldedFigureEntry,
-    deps: Omit<FoldedFigureActionDeps, 't'> = makeDeps()
+    deps: Omit<FoldedFigureActionDeps, 't'> = makeDeps(),
   ) {
     act(() => {
       root.render(
         <TooltipProvider delayDuration={0}>
           <CpFoldedFigureToolbar figure={figure} container={container} deps={deps} />
-        </TooltipProvider>
+        </TooltipProvider>,
       );
     });
   }
@@ -164,13 +164,7 @@ describe('CpFoldedFigureToolbar', () => {
 
   it('shows the Tier-A verbs: flip, style, another solution, duplicate, delete', () => {
     render(makeFigure());
-    expect(labels()).toEqual([
-      'Flip',
-      'Display style',
-      'Another solution',
-      'Duplicate',
-      'Delete',
-    ]);
+    expect(labels()).toEqual(['Flip', 'Display style', 'Another solution', 'Duplicate', 'Delete']);
   });
 
   // Regression: a dropdown trigger used to carry only an aria-label, because
@@ -179,7 +173,7 @@ describe('CpFoldedFigureToolbar', () => {
   it('gives dropdown triggers a tooltip, not just an accessible name', () => {
     render(makeFigure(), makeDeps({ exportAs: vi.fn() }));
     const menuButtons = buttons().filter(
-      (button) => button.getAttribute('aria-haspopup') === 'menu'
+      (button) => button.getAttribute('aria-haspopup') === 'menu',
     );
     expect(menuButtons.map((button) => button.getAttribute('aria-label'))).toEqual([
       'Display style',

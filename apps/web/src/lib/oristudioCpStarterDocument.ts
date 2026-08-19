@@ -25,7 +25,7 @@ export const STARTER_ORISTUDIO_CP_GRID: OristudioCpGridMetadata = {
 };
 
 export function createStarterOristudioCpDocument(
-  title = 'Untitled CP'
+  title = 'Untitled CP',
 ): OristudioCpDocumentSnapshot {
   return {
     title,
@@ -54,7 +54,7 @@ export function createStarterBorderSegments(): OristudioCpLineSegment[] {
 
 function createBorderSegment(
   a: OristudioCpLineSegment['a'],
-  b: OristudioCpLineSegment['b']
+  b: OristudioCpLineSegment['b'],
 ): OristudioCpLineSegment {
   return {
     a,

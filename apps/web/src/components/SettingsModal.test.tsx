@@ -34,7 +34,7 @@ let container: HTMLDivElement | null = null;
 
 function findButton(label: string): HTMLButtonElement {
   const button = Array.from(container?.querySelectorAll('button') ?? []).find((element) =>
-    element.textContent?.includes(label)
+    element.textContent?.includes(label),
   );
   expect(button).toBeDefined();
   return button as HTMLButtonElement;
@@ -42,7 +42,7 @@ function findButton(label: string): HTMLButtonElement {
 
 function findExactButton(label: string): HTMLButtonElement {
   const button = Array.from(container?.querySelectorAll('button') ?? []).find(
-    (element) => element.textContent === label
+    (element) => element.textContent === label,
   );
   expect(button).toBeDefined();
   return button as HTMLButtonElement;
@@ -50,18 +50,17 @@ function findExactButton(label: string): HTMLButtonElement {
 
 function themeNamesForSection(rendered: HTMLElement, label: string): string[] {
   const section = Array.from(rendered.querySelectorAll('.settings-section')).find((element) =>
-    element.querySelector('.settings-section__title')?.textContent?.includes(label)
+    element.querySelector('.settings-section__title')?.textContent?.includes(label),
   );
   expect(section).toBeDefined();
   return Array.from(section?.querySelectorAll('.settings-theme-card__name') ?? []).map(
-    (element) => element.textContent ?? ''
+    (element) => element.textContent ?? '',
   );
 }
 
 function shortcutRowFor(label: string): HTMLElement {
   const row = Array.from(container?.querySelectorAll('.settings-shortcuts__row') ?? []).find(
-    (element) =>
-      element.querySelector('.settings-shortcuts__copy span')?.textContent === label
+    (element) => element.querySelector('.settings-shortcuts__copy span')?.textContent === label,
   );
   expect(row).toBeDefined();
   return row as HTMLElement;
@@ -80,7 +79,7 @@ function effectiveKeymap(): Map<ShortcutActionId, string> {
       getResolvedShortcuts(definition.id, { overrides, defaultsSource })
         .map((chord) => keyChordId(chord))
         .join(' '),
-    ])
+    ]),
   );
 }
 
@@ -90,14 +89,14 @@ function chordListId(chords: KeyChord[]): string {
 
 function changedBindings(
   before: Map<ShortcutActionId, string>,
-  after: Map<ShortcutActionId, string>
+  after: Map<ShortcutActionId, string>,
 ): ShortcutActionId[] {
   return [...after.keys()].filter((id) => before.get(id) !== after.get(id));
 }
 
 function toggleRowFor(label: string): HTMLElement {
   const row = Array.from(container?.querySelectorAll('.settings-toggle-row') ?? []).find(
-    (element) => element.querySelector('.settings-toggle-row__label')?.textContent === label
+    (element) => element.querySelector('.settings-toggle-row__label')?.textContent === label,
   );
   expect(row).toBeDefined();
   return row as HTMLElement;
@@ -164,7 +163,7 @@ function dispatch(scopeStack: ShortcutScope[], init: KeyboardEventInit): Shortcu
       overrides,
       defaultsSource,
       executors: { menu: record, cpAction: record, viewport: record, simulator: record },
-    }
+    },
   );
   return reached;
 }
@@ -172,7 +171,7 @@ function dispatch(scopeStack: ShortcutScope[], init: KeyboardEventInit): Shortcu
 function pressChord(init: KeyboardEventInit) {
   act(() => {
     window.dispatchEvent(
-      new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init })
+      new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }),
     );
   });
 }
@@ -199,7 +198,7 @@ function renderModal(tab?: SettingsTab, analyticsClient: PostHogClientLike | nul
           <SettingsModal />
           <CommandDialogModal />
         </TooltipProvider>
-      </AnalyticsRuntimeProvider>
+      </AnalyticsRuntimeProvider>,
     );
   });
   return container;
@@ -308,9 +307,7 @@ describe('SettingsModal', () => {
     // this replaced gave for free.
     act(() => {
       (
-        toggleRowFor(FOLD_WARNING_LABEL).querySelector(
-          '.settings-toggle-row__label'
-        ) as HTMLElement
+        toggleRowFor(FOLD_WARNING_LABEL).querySelector('.settings-toggle-row__label') as HTMLElement
       ).click();
     });
 
@@ -344,7 +341,7 @@ describe('SettingsModal', () => {
     const rendered = renderModal('workspace');
 
     const radios = Array.from(
-      rendered.querySelectorAll<HTMLInputElement>('input[name="cp-wheel-gesture"]')
+      rendered.querySelectorAll<HTMLInputElement>('input[name="cp-wheel-gesture"]'),
     );
     expect(radios).toHaveLength(2);
     const zoomRadio = radios.find((radio) => radio.value === 'zoom');
@@ -427,7 +424,7 @@ describe('SettingsModal', () => {
           altKey: true,
           bubbles: true,
           cancelable: true,
-        })
+        }),
       );
     });
 
@@ -687,7 +684,7 @@ describe('SettingsModal', () => {
     act(() => {
       (
         shortcutRowFor('Foldable Line').querySelector(
-          '.settings-shortcuts__capture'
+          '.settings-shortcuts__capture',
         ) as HTMLButtonElement
       ).click();
     });
@@ -725,7 +722,11 @@ describe('SettingsModal', () => {
     // deliberate one.
     expect(useShortcutStore.getState().overrides['viewport.zoomOut']).toBeNull();
     expect(
-      dispatch(['viewport', 'crease-pattern', 'global'], { key: '-', ctrlKey: true, metaKey: true })
+      dispatch(['viewport', 'crease-pattern', 'global'], {
+        key: '-',
+        ctrlKey: true,
+        metaKey: true,
+      }),
     ).toEqual([]);
   });
 
@@ -739,7 +740,7 @@ describe('SettingsModal', () => {
     act(() => {
       (
         shortcutRowFor('Foldable Line').querySelector(
-          '.settings-shortcuts__capture'
+          '.settings-shortcuts__capture',
         ) as HTMLButtonElement
       ).click();
     });
@@ -789,7 +790,7 @@ describe('SettingsModal', () => {
     ]);
   });
 
-  it("confirms the defaults switch with counts that match what changes", async () => {
+  it('confirms the defaults switch with counts that match what changes', async () => {
     const rendered = renderModal('shortcuts');
     expect(defaultsToggleChecked()).toBe(false);
     expect(rendered.textContent).toContain('Use Oriedita defaults');
@@ -818,7 +819,7 @@ describe('SettingsModal', () => {
     for (const id of changed.slice(0, 3)) {
       const chords = getResolvedShortcuts(id, useShortcutStore.getState());
       expect(prompt).toContain(
-        chords.length > 0 ? `moves to ${formatKeyChord(chords[0])}` : 'becomes unassigned'
+        chords.length > 0 ? `moves to ${formatKeyChord(chords[0])}` : 'becomes unassigned',
       );
     }
 
@@ -898,9 +899,9 @@ describe('SettingsModal', () => {
 
     // And the warning was earned: P reaches the customization, not the default
     // the confirmation counted as moving.
-    expect(getResolvedShortcuts('cp.action.perpendicular-draw', useShortcutStore.getState())).toEqual([
-      { key: 'p' },
-    ]);
+    expect(
+      getResolvedShortcuts('cp.action.perpendicular-draw', useShortcutStore.getState()),
+    ).toEqual([{ key: 'p' }]);
     expect(dispatch(['crease-pattern', 'global'], { key: 'p' })).toEqual([
       'cp.action.line-type.mountain',
     ]);
@@ -958,17 +959,21 @@ describe('SettingsModal', () => {
       capture.click();
     });
     pressChord({ key: 'j' });
-    expect(shortcutRowFor('Mountain').querySelector('.settings-shortcuts__capture')?.textContent).toBe('J');
+    expect(
+      shortcutRowFor('Mountain').querySelector('.settings-shortcuts__capture')?.textContent,
+    ).toBe('J');
 
     const reset = shortcutRowFor('Mountain').querySelector(
-      '[aria-label="Reset Mountain shortcut"]'
+      '[aria-label="Reset Mountain shortcut"]',
     ) as HTMLButtonElement;
     act(() => {
       reset.click();
     });
 
     // Back onto M, not onto the A the Ori Studio table ships.
-    expect(shortcutRowFor('Mountain').querySelector('.settings-shortcuts__capture')?.textContent).toBe('M');
+    expect(
+      shortcutRowFor('Mountain').querySelector('.settings-shortcuts__capture')?.textContent,
+    ).toBe('M');
   });
 
   it('closes on Escape', () => {

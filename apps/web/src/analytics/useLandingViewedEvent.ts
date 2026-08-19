@@ -36,7 +36,7 @@ export function useLandingViewedEvent(surface: LandingSurface): void {
  */
 export function useLandingSectionViewedEvents(
   scrollerRef: React.RefObject<HTMLElement | null>,
-  sections: ReadonlyArray<{ id: string; section: LandingSectionId }>
+  sections: ReadonlyArray<{ id: string; section: LandingSectionId }>,
 ): void {
   useEffect(() => {
     const root = scrollerRef.current;
@@ -54,7 +54,7 @@ export function useLandingSectionViewedEvents(
         }
       },
       // A third of a section on screen is "read", not "scrolled past".
-      { root, threshold: 0.33 }
+      { root, threshold: 0.33 },
     );
 
     for (const { id, section } of sections) {

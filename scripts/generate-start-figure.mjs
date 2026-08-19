@@ -102,13 +102,14 @@ function parseArgs(argv) {
     if (arg === '--source') options.source = argv[(i += 1)];
     else if (arg === '--out') options.out = argv[(i += 1)];
     else if (arg === '--orient') {
-      const parts = String(argv[(i += 1)]).split(',').map(Number);
+      const parts = String(argv[(i += 1)])
+        .split(',')
+        .map(Number);
       if (parts.length !== 3 || !parts.every(Number.isFinite)) {
         throw new Error('--orient needs three comma-separated radians, e.g. 1.5708,0,0.28');
       }
       options.orient = parts;
-    }
-    else if (numeric[arg]) {
+    } else if (numeric[arg]) {
       const value = Number(argv[(i += 1)]);
       if (!Number.isFinite(value)) throw new Error(`${arg} needs a number`);
       options[numeric[arg]] = value;
@@ -138,14 +139,20 @@ function foldWithKernel(options) {
     const json = execFileSync(
       'cargo',
       [
-        'run', '--quiet', '--release',
-        '-p', 'oristudio-cp',
-        '--example', 'fold3d_render_model',
+        'run',
+        '--quiet',
+        '--release',
+        '-p',
+        'oristudio-cp',
+        '--example',
+        'fold3d_render_model',
         '--',
-        '--source', foldPath,
-        '--solution', String(options.solution),
+        '--source',
+        foldPath,
+        '--solution',
+        String(options.solution),
       ],
-      { cwd: REPO, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }
+      { cwd: REPO, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 },
     );
     return JSON.parse(json);
   } finally {
@@ -166,13 +173,13 @@ function main(argv) {
     // honest way to show a stack whose order the kernel could not decide — but
     // a hero figure should not be the one model in the corpus that has them.
     process.stderr.write(
-      `warning: ${model.undetermined_cells} cell(s) have an undecided layer order\n`
+      `warning: ${model.undetermined_cells} cell(s) have an undecided layer order\n`,
     );
   }
   process.stderr.write(
     `folded ${basename(options.source)}: ${model.face_count} faces, ` +
       `${model.plane_count} planes, ${model.cell_count} cells, ${model.edge_count} creases ` +
-      `(solution ${options.solution})\n`
+      `(solution ${options.solution})\n`,
   );
 
   const asset = {
@@ -193,9 +200,7 @@ function main(argv) {
   mkdirSync(dirname(out), { recursive: true });
   const json = `${JSON.stringify(asset)}\n`;
   writeFileSync(out, json);
-  process.stderr.write(
-    `wrote ${out} (${(Buffer.byteLength(json) / 1024).toFixed(1)} KiB)\n`
-  );
+  process.stderr.write(`wrote ${out} (${(Buffer.byteLength(json) / 1024).toFixed(1)} KiB)\n`);
 }
 
 try {

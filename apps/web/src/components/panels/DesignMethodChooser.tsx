@@ -82,7 +82,11 @@ interface MethodCardProps {
 function MethodCard({ kind, disabled, pending, onSelect }: MethodCardProps) {
   const { t } = useTranslation();
   const { title, description } = kind.chooser.copy(t);
-  const icon: ReactNode = pending ? <Loader2 size={22} className="design-method-card__spinner" /> : <kind.chooser.Icon size={22} />;
+  const icon: ReactNode = pending ? (
+    <Loader2 size={22} className="design-method-card__spinner" />
+  ) : (
+    <kind.chooser.Icon size={22} />
+  );
   return (
     <button
       type="button"
@@ -96,9 +100,7 @@ function MethodCard({ kind, disabled, pending, onSelect }: MethodCardProps) {
       <span className="design-method-card__icon">{icon}</span>
       <span className="design-method-card__title">{title}</span>
       <span className="design-method-card__description">
-        {pending
-          ? t('panels:design.methodChooser.creating', 'Preparing the editor…')
-          : description}
+        {pending ? t('panels:design.methodChooser.creating', 'Preparing the editor…') : description}
       </span>
     </button>
   );

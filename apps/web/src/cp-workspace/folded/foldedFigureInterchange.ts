@@ -23,9 +23,7 @@ import { isFolded3dFigure } from './foldedFigureCapabilities';
  * Kernel handles of the 3D figures a `.fold` export should write frames for, in
  * canvas order — which is the order the frames appear in the file.
  */
-export function folded3dExportHandles(
-  figures: readonly OristudioCpFoldedFigureEntry[]
-): number[] {
+export function folded3dExportHandles(figures: readonly OristudioCpFoldedFigureEntry[]): number[] {
   const handles: number[] = [];
   for (const figure of figures) {
     if (!isFolded3dFigure(figure)) continue;
@@ -40,7 +38,7 @@ export function folded3dExportHandles(
  * that could describe them is gone.
  */
 export function detachedFolded3dFigures(
-  figures: readonly OristudioCpFoldedFigureEntry[]
+  figures: readonly OristudioCpFoldedFigureEntry[],
 ): OristudioCpFoldedFigureEntry[] {
   return figures.filter((figure) => isFolded3dFigure(figure) && figure.handle == null);
 }

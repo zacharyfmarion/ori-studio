@@ -48,44 +48,44 @@ function isCode(value: string | null | undefined): value is CpToolUnavailableCod
  */
 export function cpToolUnavailableMessage(
   t: TFunction,
-  code: string | null | undefined
+  code: string | null | undefined,
 ): string | null {
   if (!isCode(code)) return null;
   switch (code) {
     case 'BoundaryVertex':
       return t(
         'tools:cpContext.completion.boundaryVertex',
-        'This point is on the edge of the paper, so there is nothing to close — pick a vertex inside the sheet.'
+        'This point is on the edge of the paper, so there is nothing to close — pick a vertex inside the sheet.',
       );
     case 'Indeterminate':
       return t(
         'tools:cpContext.completion.indeterminate',
-        'Cannot tell: a crease here is unassigned, or another crease passes through without ending here.'
+        'Cannot tell: a crease here is unassigned, or another crease passes through without ending here.',
       );
     case 'AlreadyClosed':
       return t(
         'tools:cpContext.completion.alreadyClosed',
-        'This vertex already folds consistently — no crease is missing.'
+        'This vertex already folds consistently — no crease is missing.',
       );
     case 'ExceedsFullFold':
       return t(
         'tools:cpContext.completion.exceedsFullFold',
-        'No single crease can close this vertex: it would have to fold past 180°.'
+        'No single crease can close this vertex: it would have to fold past 180°.',
       );
     case 'Overdetermined':
       return t(
         'tools:cpContext.completion.overdetermined',
-        'No single crease closes this vertex — at least two would be needed.'
+        'No single crease closes this vertex — at least two would be needed.',
       );
     case 'NotEnoughCreases':
       return t(
         'tools:cpContext.solveAngles.notEnoughCreases',
-        'Fewer than three creases meet here, so there are no three angles to solve.'
+        'Fewer than three creases meet here, so there are no three angles to solve.',
       );
     case 'CreaseNotInFan':
       return t(
         'tools:cpContext.solveAngles.creaseNotInFan',
-        'Pick three different creases that all meet at the same vertex.'
+        'Pick three different creases that all meet at the same vertex.',
       );
     // Not a failure: three creases chosen at random cannot close a freely-angled
     // vertex about 62% of the time. The next move is a different three, which is
@@ -93,7 +93,7 @@ export function cpToolUnavailableMessage(
     case 'AnglesUnreachable':
       return t(
         'tools:cpContext.solveAngles.unreachable',
-        'These three creases cannot close this vertex at any fold angles — try a different three.'
+        'These three creases cannot close this vertex at any fold angles — try a different three.',
       );
   }
 }
@@ -113,7 +113,7 @@ export function cpToolUnavailableMessage(
 export function forcedAssignmentNotice(
   t: TFunction,
   candidates: readonly { crease?: { color: string } }[],
-  activeColor: string
+  activeColor: string,
 ): string | null {
   const assigned = candidates
     .map((candidate) => candidate.crease?.color)
@@ -124,10 +124,10 @@ export function forcedAssignmentNotice(
   return forced === 'Red1'
     ? t(
         'tools:cpContext.completion.forcedMountain',
-        'This crease has to be a mountain — drawn as one, not in the selected line type.'
+        'This crease has to be a mountain — drawn as one, not in the selected line type.',
       )
     : t(
         'tools:cpContext.completion.forcedValley',
-        'This crease has to be a valley — drawn as one, not in the selected line type.'
+        'This crease has to be a valley — drawn as one, not in the selected line type.',
       );
 }

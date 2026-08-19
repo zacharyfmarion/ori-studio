@@ -100,7 +100,7 @@ describe('useCpLineColorInversion', () => {
       holdControl(true);
       expect(result.effectiveLineColor).toBe(base);
       expect(result.inverted).toBe(false);
-    }
+    },
   );
 
   it('is inert when disabled, so a held key outside the Edit workspace does nothing', () => {

@@ -132,9 +132,7 @@ function settle(ms = 250): Promise<void> {
  * cap is the highest count at which every context created so far was still
  * alive — past it, the engine has started evicting.
  */
-async function measureWorkerContextCap(
-  notes: string[]
-): Promise<{ cap: number; float: boolean }> {
+async function measureWorkerContextCap(notes: string[]): Promise<{ cap: number; float: boolean }> {
   const worker = spawn(CONTEXT_CAP_WORKER);
   const holder = document.createElement('div');
   holder.style.cssText = 'position:fixed;left:-10000px;top:0;width:1px;height:1px;overflow:hidden';
@@ -179,7 +177,7 @@ async function measureWorkerContextCap(
 
 /** Time render + transferToImageBitmap + transferFromImageBitmap for one frame. */
 async function measureFanOut(
-  notes: string[]
+  notes: string[],
 ): Promise<{ supported: boolean; msPerFrame: number | null }> {
   if (typeof OffscreenCanvas === 'undefined') {
     notes.push('OffscreenCanvas is not available');

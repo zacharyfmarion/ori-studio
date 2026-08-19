@@ -56,11 +56,11 @@ function MeasureFigure({
         {kind === 'distance' && points.length >= 2 && (
           <>
             <line x1={points[0].x} y1={points[0].y} x2={points[1].x} y2={points[1].y} />
-            {[
-              arrowheadPoints(points[0], points[1]),
-              arrowheadPoints(points[1], points[0]),
-            ].map((barbs, index) =>
-              barbs ? <polyline key={index} points={barbs} className="cp-measure-layer__arrow" /> : null
+            {[arrowheadPoints(points[0], points[1]), arrowheadPoints(points[1], points[0])].map(
+              (barbs, index) =>
+                barbs ? (
+                  <polyline key={index} points={barbs} className="cp-measure-layer__arrow" />
+                ) : null,
             )}
           </>
         )}
@@ -118,7 +118,8 @@ export function CpMeasureLayer({
   const format = (kind: CpMeasureKind, value: number) =>
     kind === 'angle' ? formatCpAngle(value, angleUnit) : formatCpLength(value, unit, scale);
 
-  const project = (points: readonly Vec2[]) => points.map((point) => overlayModelToCss(view, point));
+  const project = (points: readonly Vec2[]) =>
+    points.map((point) => overlayModelToCss(view, point));
 
   const liveComplete = liveKind === 'angle' ? livePoints.length >= 3 : livePoints.length >= 2;
 

@@ -65,14 +65,18 @@ describe('ExplOri — Edit menu verbs are enabled', () => {
     expect(empty['edit.undo'].enabled).toBe(false);
 
     const edited = getWorkspaceCapabilities(
-      workspaceCapabilityInput(stateWith(exploriTab({ historyPast: [JSON.stringify(createExploriDocument())] })))
+      workspaceCapabilityInput(
+        stateWith(exploriTab({ historyPast: [JSON.stringify(createExploriDocument())] })),
+      ),
     );
     expect(edited['edit.undo'].enabled).toBe(true);
   });
 
   it('enables Redo once something has been undone', () => {
     const capabilities = getWorkspaceCapabilities(
-      workspaceCapabilityInput(stateWith(exploriTab({ historyFuture: [JSON.stringify(createExploriDocument())] })))
+      workspaceCapabilityInput(
+        stateWith(exploriTab({ historyFuture: [JSON.stringify(createExploriDocument())] })),
+      ),
     );
     expect(capabilities['edit.redo'].enabled).toBe(true);
   });
@@ -80,16 +84,16 @@ describe('ExplOri — Edit menu verbs are enabled', () => {
   it('enables Delete with a leaf selected, and not with the root', () => {
     const leaf = getWorkspaceCapabilities(
       workspaceCapabilityInput(
-        stateWith(exploriTab({ document: treeWithLeaf(), selection: { kind: 'vertex', id: 1 } }))
-      )
+        stateWith(exploriTab({ document: treeWithLeaf(), selection: { kind: 'vertex', id: 1 } })),
+      ),
     );
     expect(leaf['edit.delete'].enabled).toBe(true);
 
     // The root is not deletable — there would be no tree left to search with.
     const root = getWorkspaceCapabilities(
       workspaceCapabilityInput(
-        stateWith(exploriTab({ document: treeWithLeaf(), selection: { kind: 'vertex', id: 0 } }))
-      )
+        stateWith(exploriTab({ document: treeWithLeaf(), selection: { kind: 'vertex', id: 0 } })),
+      ),
     );
     expect(root['edit.delete'].enabled).toBe(false);
   });
@@ -107,7 +111,7 @@ describe('ExplOri — Edit menu verbs are enabled', () => {
 describe('ExplOri — the design can be saved', () => {
   it('enables Save and Save As', () => {
     const capabilities = getWorkspaceCapabilities(
-      workspaceCapabilityInput(stateWith(exploriTab()))
+      workspaceCapabilityInput(stateWith(exploriTab())),
     );
     expect(capabilities['file.save'].enabled).toBe(true);
     expect(capabilities['file.saveAs'].enabled).toBe(true);
@@ -115,7 +119,7 @@ describe('ExplOri — the design can be saved', () => {
 
   it('offers the project reason, not the crease-pattern kernel excuse', () => {
     const capabilities = getWorkspaceCapabilities(
-      workspaceCapabilityInput(stateWith(exploriTab()))
+      workspaceCapabilityInput(stateWith(exploriTab())),
     );
     expect(capabilities['file.save'].reason).not.toMatch(/crease-pattern kernel/i);
   });
@@ -148,7 +152,7 @@ describe('ExplOri — guards that must not over-refuse', () => {
       activeEditingContext: 'simulate',
     } as unknown as WorkspaceState;
     expect(getWorkspaceCapabilities(workspaceCapabilityInput(state))['file.save'].enabled).toBe(
-      true
+      true,
     );
   });
 });

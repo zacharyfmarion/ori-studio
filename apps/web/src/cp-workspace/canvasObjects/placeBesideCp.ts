@@ -116,7 +116,7 @@ export function boxAabbInFrame(box: AnnotationBox, frameAngle: number): Aabb {
         x: box.center.x + dx * cos - dy * sin,
         y: box.center.y + dx * sin + dy * cos,
       },
-      frameAngle
+      frameAngle,
     );
     if (corner.x < minX) minX = corner.x;
     if (corner.y < minY) minY = corner.y;
@@ -140,7 +140,7 @@ export function aabbInFrame(aabb: Aabb, frameAngle: number): Aabb {
       height: aabb.maxY - aabb.minY,
       rotation: 0,
     },
-    frameAngle
+    frameAngle,
   );
 }
 

@@ -12,22 +12,26 @@ import {
 describe('cpDetectInference', () => {
   it('preprocesses RGBA ImageData into RGB CHW float32', () => {
     const image = testImageData(
-      new Uint8ClampedArray([
-        255, 0, 0, 255,
-        0, 128, 0, 255,
-        0, 0, 255, 255,
-        255, 255, 255, 255,
-      ]),
+      new Uint8ClampedArray([255, 0, 0, 255, 0, 128, 0, 255, 0, 0, 255, 255, 255, 255, 255, 255]),
       2,
-      2
+      2,
     );
 
     const tensor = preprocessCpDetectImage(image, 2);
 
     expect(Array.from(tensor)).toEqual([
-      1, 0, 0, 1,
-      0, expect.closeTo(128 / 255), 0, 1,
-      0, 0, 1, 1,
+      1,
+      0,
+      0,
+      1,
+      0,
+      expect.closeTo(128 / 255),
+      0,
+      1,
+      0,
+      0,
+      1,
+      1,
     ]);
   });
 
@@ -43,7 +47,7 @@ describe('cpDetectInference', () => {
           CP_DETECT_OUTPUT_KEYS.map((key) => [
             TEST_MANIFEST.outputs[key],
             { data: new Float32Array([1]), dims: [1, 1, 1, 1] },
-          ])
+          ]),
         );
       },
     };

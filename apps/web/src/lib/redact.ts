@@ -33,7 +33,7 @@ export interface RedactOptions {
  */
 export function redactSensitiveText(
   raw: string,
-  { redactNumbers = true, maxLength }: RedactOptions = {}
+  { redactNumbers = true, maxLength }: RedactOptions = {},
 ): string {
   let text = raw
     .replace(/https?:\/\/\S+/g, '<url>')

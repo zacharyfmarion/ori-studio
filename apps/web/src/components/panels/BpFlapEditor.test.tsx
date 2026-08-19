@@ -67,7 +67,7 @@ function renderEditor(props: Partial<RenderProps> = {}) {
         onRename={spies.onRename}
         onResize={spies.onResize}
         onRadius={spies.onRadius}
-      />
+      />,
     );
   });
   return spies;

@@ -2,7 +2,12 @@ import { singleTreemakerDesignTab } from '../../store/workspaceStore/designTabs'
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { FoldArtifacts, FoldDocument, SequencePlan, SequenceStateSnapshot } from '../../engine/types';
+import type {
+  FoldArtifacts,
+  FoldDocument,
+  SequencePlan,
+  SequenceStateSnapshot,
+} from '../../engine/types';
 import { createSampleProject } from '../../lib/sampleProject';
 import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -32,20 +37,32 @@ describe('SequencePanel', () => {
     const rendered = renderPanel(simplePlan());
 
     expect(rendered.querySelector('[aria-label="Folding sequence diagram"]')).not.toBeNull();
-    expect(rendered.querySelector('[aria-label="Step 1 Before folded state unfolded"]')).not.toBeNull();
-    expect(rendered.querySelector('[aria-label="Step 1 After folded state target"]')).not.toBeNull();
+    expect(
+      rendered.querySelector('[aria-label="Step 1 Before folded state unfolded"]'),
+    ).not.toBeNull();
+    expect(
+      rendered.querySelector('[aria-label="Step 1 After folded state target"]'),
+    ).not.toBeNull();
     expect(rendered.querySelectorAll('.sequence-preview-crease--highlight')).toHaveLength(2);
-    expect(rendered.querySelector<HTMLDetailsElement>('.sequence-panel__details')?.open).toBe(false);
-    expect(rendered.querySelector('.sequence-diagram-step__header')?.textContent).toContain('Step 1');
-    expect(rendered.querySelector('.sequence-diagram-step__header')?.textContent).toContain('Simulate');
-    expect(rendered.querySelector('.sequence-diagram-step__header')?.textContent).not.toContain('1 crease');
+    expect(rendered.querySelector<HTMLDetailsElement>('.sequence-panel__details')?.open).toBe(
+      false,
+    );
+    expect(rendered.querySelector('.sequence-diagram-step__header')?.textContent).toContain(
+      'Step 1',
+    );
+    expect(rendered.querySelector('.sequence-diagram-step__header')?.textContent).toContain(
+      'Simulate',
+    );
+    expect(rendered.querySelector('.sequence-diagram-step__header')?.textContent).not.toContain(
+      '1 crease',
+    );
     expect(rendered.querySelector('.sequence-diagram-step__label')?.textContent).toContain(
-      'Make a valley fold on crease 6'
+      'Make a valley fold on crease 6',
     );
     expect(
       rendered
         .querySelector('.sequence-diagram-step__visuals')
-        ?.compareDocumentPosition(rendered.querySelector('.sequence-diagram-step__copy') as Node)
+        ?.compareDocumentPosition(rendered.querySelector('.sequence-diagram-step__copy') as Node),
     ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(rendered.textContent).toContain('Make a valley fold on crease 6');
   });
@@ -73,8 +90,12 @@ describe('SequencePanel', () => {
 
     expect(rendered.textContent).toContain('Collapse up until this point');
     expect(rendered.textContent).not.toContain('Unsupported collapse region');
-    expect(rendered.querySelector('[aria-label="Step 1 Before folded state flat-cp"]')).not.toBeNull();
-    expect(rendered.querySelector('[aria-label="Step 1 After folded state target"]')).not.toBeNull();
+    expect(
+      rendered.querySelector('[aria-label="Step 1 Before folded state flat-cp"]'),
+    ).not.toBeNull();
+    expect(
+      rendered.querySelector('[aria-label="Step 1 After folded state target"]'),
+    ).not.toBeNull();
     expect(rendered.querySelectorAll('.sequence-preview-crease--highlight')).toHaveLength(4);
     expect(rendered.querySelector('.sequence-preview-face--highlight')).not.toBeNull();
   });
@@ -99,7 +120,9 @@ describe('SequencePanel', () => {
   it('shows an indeterminate planning indicator while sequence planning is running', () => {
     const rendered = renderPanel(null, { sequencePlanning: true });
 
-    expect(rendered.querySelector('.sequence-panel__toolbar-summary')?.textContent).toContain('Planning');
+    expect(rendered.querySelector('.sequence-panel__toolbar-summary')?.textContent).toContain(
+      'Planning',
+    );
     expect(rendered.textContent).toContain('Planning folding sequence');
     expect(rendered.textContent).toContain('Resolving the flat-fold target');
     expect(rendered.querySelector('[aria-label="Sequence planning in progress"]')).not.toBeNull();
@@ -108,7 +131,7 @@ describe('SequencePanel', () => {
 
 function renderPanel(
   plan: SequencePlan | null,
-  state: Partial<ReturnType<typeof useWorkspaceStore.getState>> = {}
+  state: Partial<ReturnType<typeof useWorkspaceStore.getState>> = {},
 ) {
   const fold = plan?.states[0]?.document ?? simpleFold();
   useWorkspaceStore.setState(
@@ -121,7 +144,7 @@ function renderPanel(
       sequencePlan: plan,
       ...state,
     },
-    true
+    true,
   );
 
   container = document.createElement('div');
@@ -131,7 +154,7 @@ function renderPanel(
     root?.render(
       <TooltipProvider>
         <SequencePanel />
-      </TooltipProvider>
+      </TooltipProvider>,
     );
   });
   return container;
@@ -173,7 +196,7 @@ function simplePlan(): SequencePlan {
 function sequenceState(
   id: string,
   document: FoldDocument,
-  activeCreases: number[]
+  activeCreases: number[],
 ): SequenceStateSnapshot {
   return {
     id,
@@ -187,7 +210,7 @@ function sequenceState(
 }
 
 function simpleFold(
-  assignments: FoldDocument['edges_assignment'] = ['B', 'B', 'B', 'B', 'B', 'B', 'V']
+  assignments: FoldDocument['edges_assignment'] = ['B', 'B', 'B', 'B', 'B', 'B', 'V'],
 ): FoldDocument {
   return {
     file_spec: 1.2,

@@ -137,12 +137,7 @@ const DEFAULT_EYE: Vec3 = [0, 0, Number.MAX_SAFE_INTEGER];
  * normal's screen length converts a plane distance into the screen distance to
  * the plane's trace, and it is the trace that the ink can straddle.
  */
-function toleranceFor(
-  item: BspItem,
-  plane: Plane,
-  edgeInk: number,
-  coplanarEps: number
-): number {
+function toleranceFor(item: BspItem, plane: Plane, edgeInk: number, coplanarEps: number): number {
   if (item.kind !== 1 || edgeInk <= 0) return coplanarEps;
   return Math.max(coplanarEps, edgeInk * Math.hypot(plane.n[0], plane.n[1]));
 }
@@ -158,12 +153,7 @@ function toleranceFor(
  * and into the children — the exact stack the caller passed a tolerance to keep
  * together.
  */
-function straddlesAsInk(
-  item: BspItem,
-  edgeInk: number,
-  eps: number,
-  coplanarEps: number
-): boolean {
+function straddlesAsInk(item: BspItem, edgeInk: number, eps: number, coplanarEps: number): boolean {
   return item.kind === 1 && edgeInk > 0 && eps > coplanarEps;
 }
 
@@ -222,7 +212,7 @@ function partition(
   plane: Plane,
   eps: number,
   nearIsFront: boolean,
-  inkStraddle: boolean
+  inkStraddle: boolean,
 ): Partition {
   const dist = item.points.map((p) => distance(plane, p));
   const anyFront = dist.some((d) => d > eps);
@@ -273,7 +263,7 @@ function partition(
 function chooseSplitter(
   items: readonly BspItem[],
   edgeInk: number,
-  coplanarEps: number
+  coplanarEps: number,
 ): { plane: Plane; index: number } | null {
   let best: { plane: Plane; index: number; cuts: number } | null = null;
   const faces: number[] = [];
@@ -317,7 +307,7 @@ function subdivide(
   edgeInk: number,
   eye: Vec3,
   coplanarEps: number,
-  depth: number
+  depth: number,
 ): BspNode | null {
   if (items.length === 0) return null;
   const splitter = depth < MAX_DEPTH ? chooseSplitter(items, edgeInk, coplanarEps) : null;
@@ -339,7 +329,7 @@ function subdivide(
       splitter.plane,
       eps,
       nearIsFront,
-      straddlesAsInk(item, edgeInk, eps, coplanarEps)
+      straddlesAsInk(item, edgeInk, eps, coplanarEps),
     );
     coplanar.push(...parts.coplanar);
     front.push(...parts.front);

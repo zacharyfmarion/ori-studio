@@ -101,24 +101,25 @@ describe('svgToPngCard', () => {
     //
     // jsdom neither loads images nor provides a context, so both are stubbed — otherwise
     // `new Image()` never settles and this test times out instead of failing.
-    const objectUrl = vi
-      .spyOn(URL, 'createObjectURL')
-      .mockReturnValue('blob:stub');
+    const objectUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:stub');
     const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
-    const getContext = vi
-      .spyOn(HTMLCanvasElement.prototype, 'getContext')
-      .mockReturnValue(null);
-    const src = vi
-      .spyOn(HTMLImageElement.prototype, 'src', 'set')
-      .mockImplementation(function (this: HTMLImageElement) {
-        queueMicrotask(() => this.onload?.(new Event('load')));
-      });
+    const getContext = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+    const src = vi.spyOn(HTMLImageElement.prototype, 'src', 'set').mockImplementation(function (
+      this: HTMLImageElement,
+    ) {
+      queueMicrotask(() => this.onload?.(new Event('load')));
+    });
 
     try {
       await expect(
-        svgToPngCard('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>', 10, 10, {
-          background: '#ffffff',
-        })
+        svgToPngCard(
+          '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>',
+          10,
+          10,
+          {
+            background: '#ffffff',
+          },
+        ),
       ).rejects.toThrow('Canvas rendering is unavailable');
       // The object URL is released even on the failure path.
       expect(revoke).toHaveBeenCalledWith('blob:stub');

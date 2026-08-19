@@ -96,7 +96,9 @@ describe('buildMirroredBpTreeUpdates', () => {
       { id: 1, loc: { x: 1, y: 5 } },
       { id: 9, loc: { x: 0.5, y: 0.5 } }, // no counterpart
     ];
-    expect(buildMirroredBpTreeUpdates(t2, [], axis, moved)).toEqual([{ id: 2, loc: { x: 7, y: 5 } }]);
+    expect(buildMirroredBpTreeUpdates(t2, [], axis, moved)).toEqual([
+      { id: 2, loc: { x: 7, y: 5 } },
+    ]);
   });
 });
 

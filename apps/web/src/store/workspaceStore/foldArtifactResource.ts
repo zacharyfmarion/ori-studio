@@ -50,7 +50,7 @@ export function emptyFoldArtifactResourceState(): FoldArtifactResourceState {
  * {@link emptyFoldArtifactResourceState} so the field set stays in sync.
  */
 export function pickFoldArtifactResourceState(
-  state: FoldArtifactResourceState
+  state: FoldArtifactResourceState,
 ): FoldArtifactResourceState {
   return {
     foldArtifacts: state.foldArtifacts,
@@ -74,7 +74,7 @@ export function pickFoldArtifactResourceState(
  * shows the previously opened file rather than merely showing stale data.
  */
 export function staleFoldArtifactResourceState(
-  currentRevision: number
+  currentRevision: number,
 ): FoldArtifactResourceState & FoldArtifactDependentState {
   return {
     foldArtifacts: null,
@@ -93,7 +93,7 @@ export function staleFoldArtifactResourceState(
 
 export function readyFoldArtifactResourceState(
   foldArtifacts: FoldArtifacts,
-  revision: number
+  revision: number,
 ): FoldArtifactResourceState {
   return {
     foldArtifacts,

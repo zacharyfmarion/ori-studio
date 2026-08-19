@@ -72,7 +72,7 @@ vi.mock('./foldedFigure3dProjection', async (importOriginal) => {
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '__fixtures__');
 const RENDER_MODEL: OristudioCpFolded3dRenderModel = JSON.parse(
-  readFileSync(join(FIXTURES, 'box_90.rendermodel.json'), 'utf8')
+  readFileSync(join(FIXTURES, 'box_90.rendermodel.json'), 'utf8'),
 );
 
 const HANDLE = 71;
@@ -247,9 +247,7 @@ describe('the exportable picture is still rebuilt, once, when it goes stale', ()
     // read, and a figure that stopped refreshing it would export the old view.
     const after = storedFigure().renderSnapshot;
     expect(after).not.toBe(before);
-    expect(after).toEqual(
-      reproject3dFigureAt(storedFigure(), 'Paper5', live?.camera ?? CAMERA)
-    );
+    expect(after).toEqual(reproject3dFigureAt(storedFigure(), 'Paper5', live?.camera ?? CAMERA));
   });
 });
 

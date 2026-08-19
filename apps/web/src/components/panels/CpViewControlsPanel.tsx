@@ -37,7 +37,12 @@ export function CpViewControlsPanel() {
     return (
       <section className="panel-shell cp-view-controls-panel">
         <div className="panel-body cp-view-controls-panel__empty">
-          <span className="empty-note">{t('panels:cpViewControls.emptyNote', 'Open an editable crease pattern to adjust view options.')}</span>
+          <span className="empty-note">
+            {t(
+              'panels:cpViewControls.emptyNote',
+              'Open an editable crease pattern to adjust view options.',
+            )}
+          </span>
         </div>
       </section>
     );
@@ -47,8 +52,7 @@ export function CpViewControlsPanel() {
   const gridSize = normalizeOrieditaGridSize(grid.grid_size);
   const camvVisible = viewport.camvIssuesVisible !== false;
   const foldAngleLabelsVisible = viewport.foldAngleLabelsVisible !== false;
-  const snapEnabled =
-    viewport.snapToGrid || viewport.snapToVertices || viewport.snapToLines;
+  const snapEnabled = viewport.snapToGrid || viewport.snapToVertices || viewport.snapToLines;
 
   return (
     <section className="panel-shell cp-view-controls-panel">
@@ -149,7 +153,11 @@ function GridSettingsSection({
         <span>{t('panels:cpViewControls.moreGridSettings', 'More grid settings')}</span>
       </button>
       {open && (
-        <div className="grid-settings__body" role="group" aria-label={t('panels:cpViewControls.gridConfiguration', 'Grid configuration')}>
+        <div
+          className="grid-settings__body"
+          role="group"
+          aria-label={t('panels:cpViewControls.gridConfiguration', 'Grid configuration')}
+        >
           <NumberRow
             label={t('panels:cpViewControls.interval', 'Interval')}
             value={grid.interval_grid_size}
@@ -161,7 +169,7 @@ function GridSettingsSection({
                 { interval_grid_size: value },
                 t('panels:cpViewControls.setGridInterval', 'Set grid interval to {{value}}', {
                   value: normalizeOrieditaIntervalGridSize(value),
-                })
+                }),
               )
             }
           />
@@ -178,7 +186,7 @@ function GridSettingsSection({
                 { grid_angle: value },
                 t('panels:cpViewControls.setGridAngle', 'Set grid angle to {{value}}°', {
                   value: clampOrieditaGridAngle(value),
-                })
+                }),
               )
             }
           />
@@ -188,7 +196,10 @@ function GridSettingsSection({
             b={grid.grid_xb}
             c={grid.grid_xc}
             onChange={(a, b, c) =>
-              update({ grid_xa: a, grid_xb: b, grid_xc: c }, t('panels:cpViewControls.setGridXScale', 'Set grid X scale'))
+              update(
+                { grid_xa: a, grid_xb: b, grid_xc: c },
+                t('panels:cpViewControls.setGridXScale', 'Set grid X scale'),
+              )
             }
           />
           <GridScaleRow
@@ -197,7 +208,10 @@ function GridSettingsSection({
             b={grid.grid_yb}
             c={grid.grid_yc}
             onChange={(a, b, c) =>
-              update({ grid_ya: a, grid_yb: b, grid_yc: c }, t('panels:cpViewControls.setGridYScale', 'Set grid Y scale'))
+              update(
+                { grid_ya: a, grid_yb: b, grid_yc: c },
+                t('panels:cpViewControls.setGridYScale', 'Set grid Y scale'),
+              )
             }
           />
           <ToggleRow
@@ -208,7 +222,7 @@ function GridSettingsSection({
                 { draw_diagonal_gridlines: checked },
                 checked
                   ? t('panels:cpViewControls.showDiagonalGridlines', 'Show diagonal gridlines')
-                  : t('panels:cpViewControls.hideDiagonalGridlines', 'Hide diagonal gridlines')
+                  : t('panels:cpViewControls.hideDiagonalGridlines', 'Hide diagonal gridlines'),
               )
             }
           />
@@ -226,7 +240,7 @@ function GridSettingsSection({
                   grid_yc: ORIEDITA_GRID_SCALE_DEFAULTS.c,
                   grid_angle: 90,
                 },
-                t('panels:cpViewControls.resetGridShape', 'Reset grid shape')
+                t('panels:cpViewControls.resetGridShape', 'Reset grid shape'),
               )
             }
           >
@@ -282,10 +296,15 @@ function LineStyleRow({
   const { t } = useTranslation();
   return (
     <div className="control-row">
-      <span className="control-row__label">{t('panels:cpViewControls.lineStyle', 'Line style')}</span>
+      <span className="control-row__label">
+        {t('panels:cpViewControls.lineStyle', 'Line style')}
+      </span>
       <div className="control-row__value control-row__value--select">
         <Select value={value} onValueChange={(next) => onChange(next as OristudioCpLineStyle)}>
-          <SelectTrigger aria-label={t('panels:cpViewControls.lineStyle', 'Line style')} className="cp-view-controls-panel__select">
+          <SelectTrigger
+            aria-label={t('panels:cpViewControls.lineStyle', 'Line style')}
+            className="cp-view-controls-panel__select"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -396,7 +415,9 @@ function GridScaleRow({
           +
         </span>
         <NumberField
-          label={t('panels:cpViewControls.gridRootCoefficient', '{{label}} root coefficient', { label })}
+          label={t('panels:cpViewControls.gridRootCoefficient', '{{label}} root coefficient', {
+            label,
+          })}
           className="grid-scale-row__input"
           value={b}
           step={0.1}

@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { OristudioBpSheet } from '../engine/oristudioBpTypes';
-import {
-  bpPackingSheetCenter,
-  bpPackingSymmetryAxis,
-  isBpFlapOnAxis,
-} from './bpPackingSymmetry';
+import { bpPackingSheetCenter, bpPackingSymmetryAxis, isBpFlapOnAxis } from './bpPackingSymmetry';
 import {
   bpTreePointToLayoutPoint,
   seedBpFlapAnchor,
@@ -24,7 +20,7 @@ const DIAGONAL = { fold: 'diagonal', quarterTurn: false, sidesSwapped: false } a
 function sheet(
   width: number,
   height = width,
-  kind: OristudioBpSheet['kind'] = 'rectangular'
+  kind: OristudioBpSheet['kind'] = 'rectangular',
 ): OristudioBpSheet {
   return { kind, width, height, grid: { kind: 'rectangular', interval: 1, snap: true } };
 }
@@ -64,7 +60,7 @@ describe('seedBpFlapAnchor', () => {
         layoutSheet: LAYOUT,
         mirror: BOOK,
         selfMirrored: false,
-      })
+      }),
     ).toEqual({ x: 12, y: 4 });
   });
 
@@ -76,7 +72,7 @@ describe('seedBpFlapAnchor', () => {
         layoutSheet: LAYOUT,
         mirror: BOOK,
         selfMirrored: true,
-      })
+      }),
       // 10 * 0.8 = 8, dead centre of a 16-wide sheet; 6 * 0.8 = 4.8 -> 5.
     ).toEqual({ x: 8, y: 5 });
   });
@@ -93,9 +89,9 @@ describe('seedBpFlapAnchor', () => {
       selfMirrored: true,
     });
     const axis = bpPackingSymmetryAxis(LAYOUT, DIAGONAL);
-    expect(isBpFlapOnAxis(anchor, { width: 0, height: 0 }, bpPackingSheetCenter(LAYOUT), axis)).toBe(
-      true
-    );
+    expect(
+      isBpFlapOnAxis(anchor, { width: 0, height: 0 }, bpPackingSheetCenter(LAYOUT), axis),
+    ).toBe(true);
   });
 
   it('does not project when mirror draw is off', () => {
@@ -106,7 +102,7 @@ describe('seedBpFlapAnchor', () => {
         layoutSheet: LAYOUT,
         mirror: null,
         selfMirrored: true,
-      })
+      }),
     ).toEqual({ x: 8, y: 4 });
   });
 });

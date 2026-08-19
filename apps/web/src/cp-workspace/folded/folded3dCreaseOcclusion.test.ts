@@ -33,10 +33,7 @@ import {
   type ProjectedVertices,
 } from '@treemaker/origami-simulator';
 import { folded3dMesh, type Folded3dMesh } from './folded3dMesh';
-import {
-  FOLDED_3D_CREASE_DEPTH_BIAS,
-  folded3dFrameFillZoom,
-} from './folded3dWindow';
+import { FOLDED_3D_CREASE_DEPTH_BIAS, folded3dFrameFillZoom } from './folded3dWindow';
 import { folded3dDrawPasses } from '../../simulator/foldedMeshSource';
 import { UNDETERMINED_FACE_ALPHA } from './folded3dStyle';
 import type { OristudioCpFolded3dRenderModel } from '../../engine/oristudioCpTypes';
@@ -70,7 +67,7 @@ const OPAQUE = { showFaces: true, showEdges: true, faceAlpha: 1 };
 
 function fixture(name: string): OristudioCpFolded3dRenderModel {
   return JSON.parse(
-    readFileSync(join(FIXTURES, `${name}.rendermodel.json`), 'utf8')
+    readFileSync(join(FIXTURES, `${name}.rendermodel.json`), 'utf8'),
   ) as OristudioCpFolded3dRenderModel;
 }
 
@@ -86,7 +83,7 @@ function cameraFor(mesh: Folded3dMesh, yaw: number, pitch: number): CameraUnifor
     mesh.center,
     mesh.radius,
     FRAME,
-    FRAME
+    FRAME,
   );
 }
 
@@ -109,7 +106,7 @@ function rasterize(
   range: { start: number; count: number },
   buffer: Float32Array,
   plane = -1,
-  planeAt?: Int32Array
+  planeAt?: Int32Array,
 ): void {
   const indices = mesh.topology.faceIndices;
   for (let at = range.start; at + 2 < range.start + range.count; at += 3) {
@@ -164,7 +161,7 @@ function measure(
   projected: ProjectedVertices,
   camera: CameraUniforms,
   range: { start: number; count: number },
-  buffer: Float32Array
+  buffer: Float32Array,
 ): CreaseInk {
   const SAMPLES = 200;
   let drawn = 0;
@@ -205,7 +202,7 @@ describe('nothing is drawn over paper in front of it', () => {
       const passes = folded3dDrawPasses(
         { ...mesh, undeterminedFaceAlpha: UNDETERMINED_FACE_ALPHA },
         OPAQUE,
-        camera
+        camera,
       );
 
       // The real draw, in the real order: every pass's faces into the depth
@@ -247,8 +244,7 @@ describe('nothing is drawn over paper in front of it', () => {
       // that it worked.
       const axis = viewDepthAxis(camera.rotation);
       const chosen = mesh.skins.filter((skin) => {
-        const depth =
-          skin.up[0] * axis[0] + skin.up[1] * axis[1] + skin.up[2] * axis[2];
+        const depth = skin.up[0] * axis[0] + skin.up[1] * axis[1] + skin.up[2] * axis[2];
         return skin.side === 1 ? depth >= 0 : depth < 0;
       });
       const buffer = new Float32Array(FRAME * FRAME).fill(Infinity);
@@ -261,7 +257,7 @@ describe('nothing is drawn over paper in front of it', () => {
           { start: skin.faceIndexStart, count: skin.faceIndexCount },
           buffer,
           skin.plane,
-          planeAt
+          planeAt,
         );
       }
 

@@ -39,9 +39,11 @@ describe('resolveWheelGesture', () => {
 
     it('leaves a platform-supplied deltaX alone when shift is held', () => {
       // Some platforms already fold Shift into deltaX; that value wins.
-      expect(
-        resolveWheelGesture(wheel({ deltaX: 15, deltaY: 3, shiftKey: true }), 'pan')
-      ).toEqual({ kind: 'pan', dx: 15, dy: 3 });
+      expect(resolveWheelGesture(wheel({ deltaX: 15, deltaY: 3, shiftKey: true }), 'pan')).toEqual({
+        kind: 'pan',
+        dx: 15,
+        dy: 3,
+      });
     });
 
     it('zooms on the accel key, on either platform', () => {
@@ -97,9 +99,11 @@ describe('resolveWheelGesture', () => {
       // the clamp every event is worth the same, which is the point of it.
       const factors = [1, 2, 3, 4, 5, 6].map(
         (delta) =>
-          (resolveWheelGesture(wheel({ deltaY: -delta, ctrlKey: true }), 'pan') as {
-            factor: number;
-          }).factor
+          (
+            resolveWheelGesture(wheel({ deltaY: -delta, ctrlKey: true }), 'pan') as {
+              factor: number;
+            }
+          ).factor,
       );
       for (let i = 1; i < factors.length; i += 1) {
         expect(factors[i]).toBeGreaterThan(factors[i - 1]);
@@ -118,7 +122,7 @@ describe('resolveWheelGesture', () => {
       // PINCH/WHEEL sensitivity says, not a rounding error.
       expect(Math.log(pinch.factor) / Math.log(mouse.factor)).toBeCloseTo(
         PINCH_ZOOM_SENSITIVITY / WHEEL_ZOOM_SENSITIVITY,
-        6
+        6,
       );
     });
 

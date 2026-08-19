@@ -332,11 +332,7 @@ export interface Folded3dMeshFrame {
  */
 interface MeshRenderSource {
   readonly drawingBufferSize: { width: number; height: number };
-  render(
-    camera: CameraUniforms,
-    settings: RenderSettings,
-    target?: WebGLFramebuffer | null
-  ): void;
+  render(camera: CameraUniforms, settings: RenderSettings, target?: WebGLFramebuffer | null): void;
 }
 
 /** The most recently loaded session, for callers with no token to quote. */
@@ -581,7 +577,7 @@ function requireSession(): Session {
  */
 function sessionFor(token: SimulatorSessionToken | undefined): Session | null {
   if (sessionFailure) throw new Error(sessionFailure);
-  const session = token === undefined ? latestSession() : sessions.get(token) ?? null;
+  const session = token === undefined ? latestSession() : (sessions.get(token) ?? null);
   if (session) session.lastUsed = ++useCounter;
   return session;
 }
@@ -599,7 +595,7 @@ function sessionFor(token: SimulatorSessionToken | undefined): Session | null {
 function createBackend(
   model: OrigamiModel,
   options: SimulatorLoadOptions,
-  renderCanvas: OffscreenCanvas | null
+  renderCanvas: OffscreenCanvas | null,
 ): { backend: SolverBackend; backendId: SimulatorBackendId; gpuSolver: WebglSolver | null } {
   const solverOptions = options.solver ?? {};
   const hasFoldProfile = Boolean(solverOptions.foldProfile?.ranges?.length);
@@ -694,7 +690,7 @@ const api = {
     const prepareOptions = options.prepare ?? { triangulate: true };
     const prepared = options.modelKey
       ? preparedModels.get(options.modelKey, () =>
-          prepareFoldModel(foldScaledForSolver(fold), prepareOptions)
+          prepareFoldModel(foldScaledForSolver(fold), prepareOptions),
         )
       : prepareFoldModel(foldScaledForSolver(fold), prepareOptions);
     const model = new OrigamiModel(prepared);
@@ -717,7 +713,7 @@ const api = {
         : {
             budgetMs: options.budgetMs ?? 10,
             convergenceEpsilon: options.convergenceEpsilon,
-          }
+          },
     );
 
     const created: Session = {
@@ -741,11 +737,9 @@ const api = {
       // opened is the last thing eviction would reach for rather than the first.
       lastUsed: ++useCounter,
       gpuRender: gpuSolver && renderCanvas ? gpuSolver : null,
-
     };
     sessions.set(sessionToken, created);
     evictBeyondCap();
-
 
     const indices = prepared.indices.slice();
 
@@ -754,9 +748,7 @@ const api = {
     prepared.edgesVertices.forEach((edge, index) => {
       edgesVertices[index * 2] = edge[0];
       edgesVertices[index * 2 + 1] = edge[1];
-      const code = EDGE_ASSIGNMENT_CODES.indexOf(
-        prepared.edgesAssignment[index] ?? 'U'
-      );
+      const code = EDGE_ASSIGNMENT_CODES.indexOf(prepared.edgesAssignment[index] ?? 'U');
       edgesAssignment[index] = code < 0 ? EDGE_ASSIGNMENT_CODES.indexOf('U') : code;
     });
 
@@ -787,7 +779,7 @@ const api = {
         edgesVertices.buffer as ArrayBuffer,
         edgesAssignment.buffer as ArrayBuffer,
         facesEdges.buffer as ArrayBuffer,
-      ]
+      ],
     );
   },
 
@@ -846,7 +838,7 @@ const api = {
       withColors?: boolean;
       recycled?: ArrayBuffer;
       token?: SimulatorSessionToken;
-    } = {}
+    } = {},
   ): Promise<SimulatorFramePayload | null> {
     const active = sessionFor(options.token);
     if (!active) return null;
@@ -865,7 +857,7 @@ const api = {
       withColors?: boolean;
       recycled?: ArrayBuffer;
       token?: SimulatorSessionToken;
-    } = {}
+    } = {},
   ): Promise<SimulatorFramePayload | null> {
     const active = sessionFor(options.token);
     if (!active) return null;
@@ -891,7 +883,7 @@ const api = {
         vertexCount: active.model.prepared.vertexCount,
         foldPercent: active.foldPercent,
       },
-      [positions.buffer as ArrayBuffer, triangles.buffer as ArrayBuffer]
+      [positions.buffer as ArrayBuffer, triangles.buffer as ArrayBuffer],
     );
   },
 
@@ -919,7 +911,7 @@ const api = {
        * baked in. Transparent composites into anything.
        */
       background?: SimulatorExportBackground;
-    } = {}
+    } = {},
   ): SvgRenderResult | null {
     const active = sessionFor(options.token);
     if (!active) return null;
@@ -941,7 +933,7 @@ const api = {
       active.view.center,
       active.view.radius,
       active.view.width,
-      active.view.height
+      active.view.height,
     );
     const mode = options.background ?? 'transparent';
     const settings: RenderSettings =
@@ -976,7 +968,7 @@ const api = {
    */
   async setCamera(
     camera: SimulatorCamera,
-    token?: SimulatorSessionToken
+    token?: SimulatorSessionToken,
   ): Promise<ImageBitmap | null> {
     const active = sessionFor(token);
     if (!active) return null;
@@ -992,7 +984,7 @@ const api = {
   /** Update render settings (colours, faces/edges/lighting, x-ray) and redraw. */
   async setRenderSettings(
     settings: RenderSettings,
-    token?: SimulatorSessionToken
+    token?: SimulatorSessionToken,
   ): Promise<ImageBitmap | null> {
     const active = sessionFor(token);
     if (!active) return null;
@@ -1077,15 +1069,14 @@ const api = {
       // buffer; at 16 the deepest real model's layers sit 1.01 units apart and
       // start to collide. Reported so that shows up as a fact rather than as
       // shimmer nobody can explain.
-      shallowDepthBuffer:
-        source.depthBits > 0 && source.depthBits < FOLDED_3D_REQUIRED_DEPTH_BITS,
+      shallowDepthBuffer: source.depthBits > 0 && source.depthBits < FOLDED_3D_REQUIRED_DEPTH_BITS,
     };
   },
 
   /** Move a folded figure's camera and redraw it. Null once its mesh is gone. */
   async setFolded3dMeshCamera(
     token: Folded3dMeshToken,
-    camera: SimulatorCamera
+    camera: SimulatorCamera,
   ): Promise<Folded3dMeshFrame | null> {
     const mesh = meshFor(token);
     if (!mesh) return null;
@@ -1100,7 +1091,7 @@ const api = {
   /** Change a folded figure's colours or style and redraw it. */
   async setFolded3dMeshRenderSettings(
     token: Folded3dMeshToken,
-    settings: RenderSettings
+    settings: RenderSettings,
   ): Promise<Folded3dMeshFrame | null> {
     const mesh = meshFor(token);
     if (!mesh) return null;
@@ -1123,7 +1114,7 @@ const api = {
 async function readFrame(
   active: Session,
   tick: { steps: number; elapsedMs: number; converged: boolean; maxVelocity: number },
-  options: { withColors?: boolean; recycled?: ArrayBuffer }
+  options: { withColors?: boolean; recycled?: ArrayBuffer },
 ): Promise<SimulatorFramePayload> {
   perf.ticks += 1;
   perf.solveTotalMs += tick.elapsedMs;
@@ -1177,7 +1168,7 @@ async function readFrame(
       bitmap: null,
       ...scalars,
     },
-    transferables
+    transferables,
   );
 }
 
@@ -1261,7 +1252,7 @@ export function bitmapCanvasEdge(edge: number): number {
  */
 export function fitRenderWithin(
   requested: { width: number; height: number },
-  limit: { width: number; height: number }
+  limit: { width: number; height: number },
 ): { width: number; height: number } {
   const width = Math.max(1, Math.floor(requested.width));
   const height = Math.max(1, Math.floor(requested.height));
@@ -1276,7 +1267,7 @@ export function fitRenderWithin(
 export function nextRenderCanvasSize(
   current: { width: number; height: number },
   requested: { width: number; height: number },
-  mode: PresentMode
+  mode: PresentMode,
 ): { width: number; height: number } | null {
   if (mode === 'canvas') {
     const width = Math.max(1, Math.floor(requested.width));
@@ -1303,7 +1294,7 @@ function sizeRenderCanvas(width: number, height: number): void {
 
 async function renderGpu(
   source: MeshRenderSource,
-  state: SessionView
+  state: SessionView,
 ): Promise<ImageBitmap | null> {
   // Timed as a whole. It used to start after the resize, which is exactly the
   // work that turned out to dominate — the instrumentation meant to catch this

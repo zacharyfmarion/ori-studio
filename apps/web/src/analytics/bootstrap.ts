@@ -26,7 +26,11 @@ export interface PostHogClientLike {
   opt_in_capturing(options?: { captureEventName?: string | null | false }): void;
   opt_out_capturing(options?: Record<string, unknown>): void;
   identify(distinctId?: string): void;
-  capture(event: string, properties?: Record<string, unknown> | null, options?: Record<string, unknown>): unknown;
+  capture(
+    event: string,
+    properties?: Record<string, unknown> | null,
+    options?: Record<string, unknown>,
+  ): unknown;
   reset(resetDeviceId?: boolean): void;
 }
 
@@ -58,7 +62,7 @@ export interface BootstrapOptions {
  */
 export function getLocaleProperties(
   locale: string,
-  preference: LocalePreference
+  preference: LocalePreference,
 ): Record<string, unknown> {
   return {
     locale: normalizeLocale(locale),
@@ -101,7 +105,7 @@ export function getBootstrapSharedProperties(options: BootstrapOptions): Record<
 export function initializePostHog(
   client: PostHogClientLike,
   options: BootstrapOptions,
-  env: PostHogEnvironment
+  env: PostHogEnvironment,
 ): boolean {
   const key = env.VITE_PUBLIC_POSTHOG_KEY;
   const host = env.VITE_PUBLIC_POSTHOG_HOST;

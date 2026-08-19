@@ -31,7 +31,7 @@ function render(): HTMLDivElement {
     root?.render(
       <TooltipProvider>
         <SimulatorViewControlsPanel />
-      </TooltipProvider>
+      </TooltipProvider>,
     );
   });
   return container;
@@ -49,7 +49,7 @@ function section(rendered: HTMLDivElement, title: string): HTMLElement {
     ...rendered.querySelectorAll<HTMLElement>('.simulator-view-controls-panel__section'),
   ].find(
     (element) =>
-      element.querySelector('.simulator-view-controls-panel__section-title')?.textContent === title
+      element.querySelector('.simulator-view-controls-panel__section-title')?.textContent === title,
   );
   if (!found) throw new Error(`no section titled ${title}`);
   return found;
@@ -57,7 +57,7 @@ function section(rendered: HTMLDivElement, title: string): HTMLElement {
 
 function toggle(rendered: HTMLDivElement, title: string): void {
   const button = section(rendered, title).querySelector<HTMLButtonElement>(
-    '.simulator-view-controls-panel__section-toggle'
+    '.simulator-view-controls-panel__section-toggle',
   );
   if (!button) throw new Error(`section ${title} is not collapsible`);
   act(() => {
@@ -101,17 +101,17 @@ describe('SimulatorViewControlsPanel', () => {
 
   it('disables hidden lines while crease lines are off', () => {
     const rendered = render();
-    expect(
-      rendered.querySelector<HTMLButtonElement>('[aria-label="Hidden lines"]')?.disabled
-    ).toBe(false);
+    expect(rendered.querySelector<HTMLButtonElement>('[aria-label="Hidden lines"]')?.disabled).toBe(
+      false,
+    );
 
     act(() => {
       useWorkspaceStore.getState().setSimulatorSetting('showEdges', false);
     });
 
-    expect(
-      rendered.querySelector<HTMLButtonElement>('[aria-label="Hidden lines"]')?.disabled
-    ).toBe(true);
+    expect(rendered.querySelector<HTMLButtonElement>('[aria-label="Hidden lines"]')?.disabled).toBe(
+      true,
+    );
   });
 
   it('commits a material slider to the store', () => {
@@ -174,14 +174,14 @@ describe('SimulatorViewControlsPanel', () => {
     // engine's timestep scale, where smaller is more stable.
     expect(Number(input.value)).toBeCloseTo(
       Number(input.min) + Number(input.max) - settings.timeStepScale,
-      5
+      5,
     );
 
     dragSlider(input, Number(input.max));
 
     expect(useWorkspaceStore.getState().simulatorSettings.timeStepScale).toBeCloseTo(
       Number(input.min),
-      5
+      5,
     );
   });
 });
@@ -200,7 +200,7 @@ describe('collapsible sections', () => {
     // Render stays open: it is the one people came for. Asserted on the toggle
     // class rather than aria-expanded, which the Radix selects inside it carry.
     expect(
-      section(rendered, 'Render').querySelector('.simulator-view-controls-panel__section-toggle')
+      section(rendered, 'Render').querySelector('.simulator-view-controls-panel__section-toggle'),
     ).toBeNull();
   });
 
@@ -233,9 +233,7 @@ describe('collapsible sections', () => {
       useWorkspaceStore.getState().setSimulatorSetting('paperFront', '#ff8800');
     });
     expect(rendered.querySelector('.color-field__clear')).not.toBeNull();
-    expect(
-      rendered.querySelector<HTMLInputElement>('[aria-label="Front"]')?.value
-    ).toBe('#ff8800');
+    expect(rendered.querySelector<HTMLInputElement>('[aria-label="Front"]')?.value).toBe('#ff8800');
   });
 
   it('disables the per-kind swatches under a mono crease style', () => {

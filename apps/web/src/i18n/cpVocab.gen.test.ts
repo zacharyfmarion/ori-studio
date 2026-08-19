@@ -15,7 +15,7 @@ const CATALOG_PATH = join(
   'public',
   'locales',
   'en',
-  'cpVocab.json'
+  'cpVocab.json',
 );
 
 describe('cpVocab English catalog', () => {

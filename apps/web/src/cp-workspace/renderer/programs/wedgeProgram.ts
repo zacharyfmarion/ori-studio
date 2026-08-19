@@ -133,7 +133,12 @@ export function createWedgeProgram(regl: Regl): WedgeProgram {
     },
     blend: {
       enable: true,
-      func: { srcRGB: 1, srcAlpha: 1, dstRGB: 'one minus src alpha', dstAlpha: 'one minus src alpha' },
+      func: {
+        srcRGB: 1,
+        srcAlpha: 1,
+        dstRGB: 'one minus src alpha',
+        dstAlpha: 'one minus src alpha',
+      },
     },
     depth: { enable: false },
     count: 3,

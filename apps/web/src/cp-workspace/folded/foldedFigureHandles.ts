@@ -85,9 +85,7 @@ export function retainFoldedFigureHandle(handle: number | null | undefined): voi
 }
 
 /** Retain every handle in a figure list (a history entry taking ownership). */
-export function retainFoldedFigureHandles(
-  figures: readonly { handle: number | null }[]
-): void {
+export function retainFoldedFigureHandles(figures: readonly { handle: number | null }[]): void {
   for (const figure of figures) retainFoldedFigureHandle(figure.handle);
 }
 
@@ -113,9 +111,7 @@ export function releaseFoldedFigureHandle(handle: number | null | undefined): vo
 }
 
 /** Release every handle in a figure list (a history entry being evicted). */
-export function releaseFoldedFigureHandles(
-  figures: readonly { handle: number | null }[]
-): void {
+export function releaseFoldedFigureHandles(figures: readonly { handle: number | null }[]): void {
   for (const figure of figures) releaseFoldedFigureHandle(figure.handle);
 }
 

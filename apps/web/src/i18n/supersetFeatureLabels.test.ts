@@ -56,9 +56,9 @@ describe('supersetFeatureLabel', () => {
 describe('describeExportLoss', () => {
   it('reads as it did before the names were localized', () => {
     expect(describeExportLoss(i18n.t, [warning('images', 3)])).toBe('Images (3)');
-    expect(
-      describeExportLoss(i18n.t, [warning('images', 3), warning('foldAngles', 1)])
-    ).toBe('Images (3), Non-flat fold angles (1)');
+    expect(describeExportLoss(i18n.t, [warning('images', 3), warning('foldAngles', 1)])).toBe(
+      'Images (3), Non-flat fold angles (1)',
+    );
   });
 
   it('is empty for a lossless export', () => {
@@ -73,7 +73,7 @@ describe('describeExportLoss', () => {
         ? `${String(options.feature)}【${String(options.total)}】`
         : key) as unknown as TFunction;
     expect(describeExportLoss(bracketed, [warning('symmetry', 2)])).toBe(
-      'dialogs:exportLoss.feature.symmetry【2】'
+      'dialogs:exportLoss.feature.symmetry【2】',
     );
   });
 });

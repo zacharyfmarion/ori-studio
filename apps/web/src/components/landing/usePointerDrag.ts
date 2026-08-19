@@ -32,11 +32,11 @@ export interface PointerDragHandlers {
  */
 export function usePointerDrag(
   ref: RefObject<HTMLElement | null>,
-  options: { onSettle?: (startScroll: number) => void } = {}
+  options: { onSettle?: (startScroll: number) => void } = {},
 ): PointerDragHandlers {
   const { onSettle } = options;
   const drag = useRef<{ id: number; startX: number; startScroll: number; moved: boolean } | null>(
-    null
+    null,
   );
   // Outlives the gesture: `pointerup` fires before `click`, and the click is
   // what has to be suppressed.
@@ -54,7 +54,7 @@ export function usePointerDrag(
         moved: false,
       };
     },
-    [ref]
+    [ref],
   );
 
   const onPointerMove = useCallback(
@@ -79,7 +79,7 @@ export function usePointerDrag(
       }
       element.scrollLeft = state.startScroll - dx;
     },
-    [ref]
+    [ref],
   );
 
   const finish = useCallback(
@@ -101,7 +101,7 @@ export function usePointerDrag(
       onSettle?.(state.startScroll);
       element?.removeAttribute(DRAGGING_ATTR);
     },
-    [onSettle, ref]
+    [onSettle, ref],
   );
 
   const onClickCapture = useCallback(
@@ -111,7 +111,7 @@ export function usePointerDrag(
       event.preventDefault();
       event.stopPropagation();
     },
-    []
+    [],
   );
 
   return {

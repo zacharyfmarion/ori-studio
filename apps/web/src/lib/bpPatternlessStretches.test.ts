@@ -52,7 +52,7 @@ describe('bpPatternlessStretchVisuals', () => {
       { stretches: [stretch()], flaps },
       sheet,
       paperRect,
-      new Set()
+      new Set(),
     );
 
     expect(visuals).toEqual([]);
@@ -63,7 +63,7 @@ describe('bpPatternlessStretchVisuals', () => {
       { stretches: [stretch({ patternFound: false })], flaps },
       sheet,
       paperRect,
-      new Set()
+      new Set(),
     );
 
     expect(visuals).toHaveLength(1);
@@ -78,7 +78,7 @@ describe('bpPatternlessStretchVisuals', () => {
       { stretches: [stretch({ patternFound: false, flapIds: [1, 99] })], flaps },
       sheet,
       paperRect,
-      new Set()
+      new Set(),
     );
 
     expect(visuals[0].flaps).toHaveLength(1);
@@ -94,7 +94,7 @@ describe('bpPatternlessStretchVisuals', () => {
       },
       sheet,
       paperRect,
-      new Set()
+      new Set(),
     );
 
     const unit = paperRect.width / 20;
@@ -117,7 +117,7 @@ describe('bpPatternlessStretchVisuals', () => {
       },
       sheet,
       paperRect,
-      new Set(['3,4'])
+      new Set(['3,4']),
     );
 
     expect(visuals.map((visual) => [visual.id, visual.active])).toEqual([

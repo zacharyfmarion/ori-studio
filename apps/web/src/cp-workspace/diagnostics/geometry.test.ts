@@ -60,10 +60,12 @@ describe('cpDiagnosticMarkerStyle', () => {
 
   it('maps flat-foldability rules to their shapes', () => {
     const base = { kind: 'Check4', point: { x: 0, y: 0 } };
-    expect(cpDiagnosticMarkerStyle(entry({ ...base, rule: 'NumberOfFolds' })).shape).toBe('triangle');
+    expect(cpDiagnosticMarkerStyle(entry({ ...base, rule: 'NumberOfFolds' })).shape).toBe(
+      'triangle',
+    );
     expect(cpDiagnosticMarkerStyle(entry({ ...base, rule: 'Maekawa' })).shape).toBe('square');
     expect(cpDiagnosticMarkerStyle(entry({ ...base, rule: 'BigLittleBig' })).shape).toBe(
-      'big-little-big'
+      'big-little-big',
     );
     expect(cpDiagnosticMarkerStyle(entry({ ...base, rule: 'None' })).shape).toBe('none');
   });
@@ -71,17 +73,19 @@ describe('cpDiagnosticMarkerStyle', () => {
   it('Angles is a ring when correct, a disc otherwise', () => {
     const base = { kind: 'Check4', rule: 'Angles', point: { x: 0, y: 0 } };
     expect(cpDiagnosticMarkerStyle(entry({ ...base, violation_color: 'Correct' })).shape).toBe(
-      'ring'
+      'ring',
     );
     expect(cpDiagnosticMarkerStyle(entry({ ...base, violation_color: 'Unknown' })).shape).toBe(
-      'circle'
+      'circle',
     );
   });
 });
 
 describe('cpDiagnosticMarkerTone', () => {
   it('maps violation colours to tones, falling back to severity', () => {
-    expect(cpDiagnosticMarkerTone(entry({ violation_color: 'NotEnoughMountain' }))).toBe('mountain');
+    expect(cpDiagnosticMarkerTone(entry({ violation_color: 'NotEnoughMountain' }))).toBe(
+      'mountain',
+    );
     expect(cpDiagnosticMarkerTone(entry({ violation_color: 'NotEnoughValley' }))).toBe('valley');
     expect(cpDiagnosticMarkerTone(entry({ violation_color: 'Correct' }))).toBe('neutral');
     expect(cpDiagnosticMarkerTone(entry({ violation_color: 'Unknown' }))).toBe('unknown');
@@ -94,7 +98,7 @@ describe('buildCpDiagnosticMarkers', () => {
   it('emits one marker per renderable entry with its shape id, skipping point-less ones', () => {
     const geo = buildCpDiagnosticMarkers(
       [entry({ point: { x: 1, y: 2 } }), entry({ id: 'd2', point: null })],
-      tones
+      tones,
     );
     expect(geo.count).toBe(1);
     expect(geo.shape[0]).toBe(MARKER_SHAPE.cross);
@@ -118,7 +122,10 @@ describe('buildCpDiagnosticMarkers', () => {
 
 describe('buildCpDiagnosticStrokes', () => {
   it('emits one stroke per segment, skipping big-little-big entries', () => {
-    const normal = entry({ point: { x: 0, y: 0 }, segments: [seg({ x: 0, y: 0 }, { x: 2, y: 0 })] });
+    const normal = entry({
+      point: { x: 0, y: 0 },
+      segments: [seg({ x: 0, y: 0 }, { x: 2, y: 0 })],
+    });
     const blb = entry({
       id: 'd2',
       kind: 'Check4',
@@ -181,7 +188,7 @@ describe('bounds + endpoints', () => {
 
   it('diagnosticEntryBounds covers the point + segment endpoints', () => {
     const bounds = diagnosticEntryBounds(
-      entry({ point: { x: 0, y: 0 }, segments: [seg({ x: -1, y: 2 }, { x: 3, y: -4 })] })
+      entry({ point: { x: 0, y: 0 }, segments: [seg({ x: -1, y: 2 }, { x: 3, y: -4 })] }),
     );
     expect(bounds).toEqual({ minX: -1, minY: -4, maxX: 3, maxY: 2, center: { x: 1, y: -1 } });
   });

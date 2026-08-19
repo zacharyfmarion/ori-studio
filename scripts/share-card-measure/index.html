@@ -4,10 +4,25 @@
     <meta charset="UTF-8" />
     <title>Share card size measurement</title>
     <style>
-      body { font: 13px/1.5 ui-monospace, monospace; margin: 24px; }
-      #status { margin-bottom: 12px; }
-      pre { background: #f4f4f5; padding: 12px; overflow-x: auto; }
-      canvas { border: 1px solid #ddd; max-width: 320px; height: auto; }
+      body {
+        font:
+          13px/1.5 ui-monospace,
+          monospace;
+        margin: 24px;
+      }
+      #status {
+        margin-bottom: 12px;
+      }
+      pre {
+        background: #f4f4f5;
+        padding: 12px;
+        overflow-x: auto;
+      }
+      canvas {
+        border: 1px solid #ddd;
+        max-width: 320px;
+        height: auto;
+      }
     </style>
   </head>
   <body>
@@ -70,7 +85,9 @@
 
       // Resume support: rows already measured are skipped, so a dropped tab costs only the
       // document in flight rather than the whole run.
-      const existing = await (await fetch('rows.jsonl').catch(() => new Response('')))
+      const existing = await (
+        await fetch('rows.jsonl').catch(() => new Response(''))
+      )
         .text()
         .catch(() => '');
       const measured = new Set();
@@ -122,21 +139,21 @@
       const buckets = [0, 100, 300, 600, 1200, 2500, Infinity];
       const byCreases = [];
       for (let b = 0; b < buckets.length - 1; b += 1) {
-        const inBucket = rows.filter(
-          (r) => r.creases >= buckets[b] && r.creases < buckets[b + 1]
-        );
+        const inBucket = rows.filter((r) => r.creases >= buckets[b] && r.creases < buckets[b + 1]);
         if (!inBucket.length) continue;
         byCreases.push({
           creases: `${buckets[b]}–${buckets[b + 1] === Infinity ? '∞' : buckets[b + 1]}`,
           n: inBucket.length,
-          mean_kb: Number(
-            kb(inBucket.reduce((sum, r) => sum + r.bytes, 0) / inBucket.length)
-          ),
+          mean_kb: Number(kb(inBucket.reduce((sum, r) => sum + r.bytes, 0) / inBucket.length)),
         });
       }
 
       status.textContent = `Done: ${rows.length} documents, ${failures.length} failures.`;
-      report.textContent = JSON.stringify({ result, byCreases, failures: failures.slice(0, 5) }, null, 2);
+      report.textContent = JSON.stringify(
+        { result, byCreases, failures: failures.slice(0, 5) },
+        null,
+        2,
+      );
       window.__SHARE_CARD_RESULT = { result, byCreases };
     </script>
   </body>

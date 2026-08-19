@@ -36,31 +36,19 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
-    "targets": [
-      "app",
-      "dmg",
-      "nsis",
-      "deb",
-      "appimage"
-    ],
+    "targets": ["app", "dmg", "nsis", "deb", "appimage"],
     "fileAssociations": [
       {
-        "ext": [
-          "osf"
-        ],
+        "ext": ["osf"],
         "name": "Ori Studio Project",
         "description": "Ori Studio Project",
         "mimeType": "application/vnd.oristudio.project+json",
         "role": "Editor",
         "rank": "Owner",
-        "contentTypes": [
-          "com.zacharymarion.oristudio.project"
-        ],
+        "contentTypes": ["com.zacharymarion.oristudio.project"],
         "exportedType": {
           "identifier": "com.zacharymarion.oristudio.project",
-          "conformsTo": [
-            "public.json"
-          ]
+          "conformsTo": ["public.json"]
         }
       }
     ],

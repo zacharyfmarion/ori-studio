@@ -19,7 +19,10 @@ export async function onRequestGet(context: CpShareContext): Promise<Response> {
 
   const share = await readShare(context.env, id);
   if (!share) {
-    return json({ error: 'This crease pattern no longer exists.', code: 'not_found' }, { status: 404 });
+    return json(
+      { error: 'This crease pattern no longer exists.', code: 'not_found' },
+      { status: 404 },
+    );
   }
 
   return json(
@@ -33,6 +36,6 @@ export async function onRequestGet(context: CpShareContext): Promise<Response> {
     // Records are immutable, so a client that retries after a consistency miss can cache
     // the result — but only briefly, because the miss it is retrying is itself a cache
     // artifact.
-    { headers: { 'Cache-Control': 'public, max-age=60' } }
+    { headers: { 'Cache-Control': 'public, max-age=60' } },
   );
 }

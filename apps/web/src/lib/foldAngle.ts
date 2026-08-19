@@ -61,7 +61,7 @@ export function creaseFoldAngle(segment: OristudioCpLineSegment): number | null 
  */
 export function foldAngleFromParts(
   color: string,
-  magnitudeUnits: number | undefined
+  magnitudeUnits: number | undefined,
 ): number | null {
   if (!isFoldingCrease(color as OristudioCpLineSegment['color'])) return null;
   const magnitude = magnitudeUnits === undefined ? 180 : foldMagnitudeToDegrees(magnitudeUnits);

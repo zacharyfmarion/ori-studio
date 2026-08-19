@@ -76,7 +76,7 @@ export function bpPackingSheetCenter(sheet: OristudioBpSheet): Point {
  */
 export function bpPackingSheetSupportsAxis(
   sheet: OristudioBpSheet,
-  axis: OptimizerSymmetryAxis
+  axis: OptimizerSymmetryAxis,
 ): boolean {
   if (axis === 'verticalHalf' || axis === 'horizontalHalf') return true;
   const frame = bpPackingSheetFrame(sheet);
@@ -86,7 +86,7 @@ export function bpPackingSheetSupportsAxis(
 /** The layout-space axis a design's mirror resolves to on this sheet. */
 export function bpPackingSymmetryAxis(
   sheet: OristudioBpSheet,
-  mirror: BpMirrorOrientation
+  mirror: BpMirrorOrientation,
 ): OptimizerSymmetryAxis {
   return optimizerSymmetryAxisForMirror(sheet.kind, mirror);
 }
@@ -128,7 +128,7 @@ function axisForNormal([x, y]: readonly [number, number]): OptimizerSymmetryAxis
  */
 function transportDirection(
   [x, y]: readonly [number, number],
-  transform: BpSheetTransform
+  transform: BpSheetTransform,
 ): readonly [number, number] {
   switch (transform.kind) {
     case 'subdivide':
@@ -169,7 +169,7 @@ function transportDirection(
 export function mirrorAfterSheetTransform(
   sheetKind: OristudioBpSheetKind,
   mirror: BpMirrorOrientation,
-  transform: BpSheetTransform
+  transform: BpSheetTransform,
 ): BpMirrorOrientation {
   const axis = optimizerSymmetryAxisForMirror(sheetKind, mirror);
   const sign = mirror.sidesSwapped ? -1 : 1;
@@ -203,7 +203,7 @@ export function mirrorBpFlapAnchor(
   anchor: Point,
   box: FlapBox,
   center: Point,
-  axis: OptimizerSymmetryAxis
+  axis: OptimizerSymmetryAxis,
 ): Point {
   const { width, height } = box;
   switch (axis) {
@@ -246,7 +246,7 @@ export interface BpFlapFootprintLike {
 export function mirrorBpFlapFootprint(
   footprint: BpFlapFootprintLike,
   sheet: OristudioBpSheet,
-  mirror: BpMirrorOrientation
+  mirror: BpMirrorOrientation,
 ): BpFlapFootprintLike | null {
   const axis = bpPackingSymmetryAxis(sheet, mirror);
   if (!bpPackingSheetSupportsAxis(sheet, axis)) return null;
@@ -277,7 +277,7 @@ export function bpFlapKeepsMirrorSide(
   current: OristudioBpFlap,
   candidate: BpFlapFootprintLike,
   sheet: OristudioBpSheet,
-  mirror: BpMirrorOrientation
+  mirror: BpMirrorOrientation,
 ): boolean {
   const axis = bpPackingSymmetryAxis(sheet, mirror);
   if (!bpPackingSheetSupportsAxis(sheet, axis)) return true;
@@ -308,7 +308,7 @@ export function projectBpFlapAnchorOntoAxis(
   anchor: Point,
   box: FlapBox,
   center: Point,
-  axis: OptimizerSymmetryAxis
+  axis: OptimizerSymmetryAxis,
 ): Point {
   const { width, height } = box;
   switch (axis) {
@@ -342,12 +342,9 @@ export function isBpFlapOnAxis(
   box: FlapBox,
   center: Point,
   axis: OptimizerSymmetryAxis,
-  tolerance = BP_PACKING_SYMMETRY_TOLERANCE
+  tolerance = BP_PACKING_SYMMETRY_TOLERANCE,
 ): boolean {
-  if (
-    optimizerSymmetryAxisSwapsDimensions(axis) &&
-    Math.abs(box.width - box.height) > tolerance
-  ) {
+  if (optimizerSymmetryAxisSwapsDimensions(axis) && Math.abs(box.width - box.height) > tolerance) {
     return false;
   }
   const mirrored = mirrorBpFlapAnchor(anchor, box, center, axis);
@@ -382,7 +379,7 @@ export function bpFlapAxisSpan(
   anchor: Point,
   box: FlapBox,
   center: Point,
-  axis: OptimizerSymmetryAxis
+  axis: OptimizerSymmetryAxis,
 ): { min: number; max: number } {
   const normal = axisUnitNormal(axis);
   let min = Number.POSITIVE_INFINITY;
@@ -413,7 +410,7 @@ export function bpFlapAxisSide(
   box: FlapBox,
   center: Point,
   axis: OptimizerSymmetryAxis,
-  tolerance = BP_PACKING_SYMMETRY_TOLERANCE
+  tolerance = BP_PACKING_SYMMETRY_TOLERANCE,
 ): -1 | 0 | 1 {
   const { min, max } = bpFlapAxisSpan(anchor, box, center, axis);
   if (min >= -tolerance) return 1;
@@ -462,15 +459,13 @@ function stepsToClearAxis(
   distance: number,
   step: number,
   strict: boolean,
-  tolerance: number
+  tolerance: number,
 ): number {
   // A degenerate sheet has no grid to land on; fall back to the bare geometry,
   // which puts the near edge on the line.
   if (step <= 0) return -distance;
   const steps = -distance / step;
-  const whole = strict
-    ? Math.floor(steps + tolerance) + 1
-    : Math.ceil(steps - tolerance);
+  const whole = strict ? Math.floor(steps + tolerance) + 1 : Math.ceil(steps - tolerance);
   return whole * step;
 }
 
@@ -541,7 +536,7 @@ export function constrainBpFlapGroupToAxisSides(input: ConstrainBpFlapGroupInput
   // exactly 1) rather than doing any real moving.
   return snapBpPackingAnchorToGrid(
     { x: target.x + correction * normal.x, y: target.y + correction * normal.y },
-    sheet
+    sheet,
   );
 }
 
@@ -610,7 +605,7 @@ export function constrainBpFlapMoveToAxis(
   flap: OristudioBpFlap,
   loc: Point,
   sheet: OristudioBpSheet,
-  mirror: BpMirrorOrientation
+  mirror: BpMirrorOrientation,
 ): Point | null {
   const axis = bpPackingSymmetryAxis(sheet, mirror);
   if (!bpPackingSheetSupportsAxis(sheet, axis)) return null;

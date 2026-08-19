@@ -28,7 +28,10 @@ interface Divergence {
   note?: string;
 }
 
-function compare(ours: Float32Array, theirs: Float32Array): { maxAbs: number; meanAbs: number; scale: number } {
+function compare(
+  ours: Float32Array,
+  theirs: Float32Array,
+): { maxAbs: number; meanAbs: number; scale: number } {
   const n = Math.min(ours.length, theirs.length);
   let maxAbs = 0;
   let total = 0;
@@ -88,7 +91,7 @@ describe('upstream parity', () => {
         `${row.fixture.padEnd(14)} steps=${String(row.steps).padStart(3)} ` +
         `v=${String(row.nodesOurs).padStart(5)}/${String(row.nodesUpstream).padEnd(5)} | ` +
         `max ${row.maxAbs.toExponential(2)}  mean ${row.meanAbs.toExponential(2)}  ` +
-        `(scale ${row.scale.toFixed(3)})${row.note ? `  <-- ${row.note}` : ''}`
+        `(scale ${row.scale.toFixed(3)})${row.note ? `  <-- ${row.note}` : ''}`,
     );
     const comparable = rows.filter((row) => !row.note);
     const worst = comparable.reduce((max, row) => Math.max(max, row.maxAbs), 0);
@@ -97,7 +100,7 @@ describe('upstream parity', () => {
       `\n${lines.join('\n')}\n\n` +
         `comparable rows: ${comparable.length}/${rows.length}\n` +
         `worst max-abs divergence: ${worst.toExponential(3)}\n` +
-        `=> suggested Tier C threshold: ${(worst * 10).toExponential(1)}\n\n`
+        `=> suggested Tier C threshold: ${(worst * 10).toExponential(1)}\n\n`,
     );
   }, 900_000);
 });

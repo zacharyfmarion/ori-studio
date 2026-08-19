@@ -26,17 +26,14 @@ const loadingToasts: LoadingToast[] = [];
 const messageToasts: string[] = [];
 
 vi.mock('sonner', () => ({
-  toast: Object.assign(
-    (message: string) => messageToasts.push(message),
-    {
-      loading: (message: string, options: LoadingToast['options']) => {
-        loadingToasts.push({ message, options: options ?? {} });
-      },
-      message: (message: string) => messageToasts.push(message),
-      error: () => undefined,
-      dismiss: () => undefined,
-    }
-  ),
+  toast: Object.assign((message: string) => messageToasts.push(message), {
+    loading: (message: string, options: LoadingToast['options']) => {
+      loadingToasts.push({ message, options: options ?? {} });
+    },
+    message: (message: string) => messageToasts.push(message),
+    error: () => undefined,
+    dismiss: () => undefined,
+  }),
 }));
 
 function run(patch: Partial<OristudioCpFoldRun> = {}): OristudioCpFoldRun {

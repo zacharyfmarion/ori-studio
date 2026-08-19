@@ -65,7 +65,10 @@ function blank(): Picture {
 }
 
 function fitTransform(points: Array<[number, number]>) {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
   for (const [x, y] of points) {
     if (x < minX) minX = x;
     if (x > maxX) maxX = x;
@@ -82,17 +85,33 @@ function fitTransform(points: Array<[number, number]>) {
 
 function fillTriangle(
   pic: Picture,
-  ax: number, ay: number, bx: number, by: number, cx: number, cy: number,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  cx: number,
+  cy: number,
   id: number,
   depth: Float32Array | null,
-  az = 0, bz = 0, cz = 0,
-  skinIndex = -1
+  az = 0,
+  bz = 0,
+  cz = 0,
+  skinIndex = -1,
 ) {
   const area = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
   if (Math.abs(area) < 1e-12) return;
-  for (let py = Math.max(0, Math.floor(Math.min(ay, by, cy))); py <= Math.min(N - 1, Math.ceil(Math.max(ay, by, cy))); py += 1) {
-    for (let px = Math.max(0, Math.floor(Math.min(ax, bx, cx))); px <= Math.min(N - 1, Math.ceil(Math.max(ax, bx, cx))); px += 1) {
-      const sx = px + 0.5, sy = py + 0.5;
+  for (
+    let py = Math.max(0, Math.floor(Math.min(ay, by, cy)));
+    py <= Math.min(N - 1, Math.ceil(Math.max(ay, by, cy)));
+    py += 1
+  ) {
+    for (
+      let px = Math.max(0, Math.floor(Math.min(ax, bx, cx)));
+      px <= Math.min(N - 1, Math.ceil(Math.max(ax, bx, cx)));
+      px += 1
+    ) {
+      const sx = px + 0.5,
+        sy = py + 0.5;
       const w0 = ((bx - ax) * (sy - ay) - (by - ay) * (sx - ax)) / area;
       const w1 = ((sx - ax) * (cy - ay) - (sy - ay) * (cx - ax)) / area;
       if (w0 < 0 || w1 < 0 || w0 + w1 > 1) continue;
@@ -111,24 +130,32 @@ function fillTriangle(
 /** Stamp a segment as a ribbon of the given half-width. */
 function stampSegment(
   pic: Picture,
-  ax: number, ay: number, bx: number, by: number,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
   id: number,
   half: number,
   depth: Float32Array | null,
-  az = 0, bz = 0, bias = 0
+  az = 0,
+  bz = 0,
+  bias = 0,
 ) {
-  const dx = bx - ax, dy = by - ay;
+  const dx = bx - ax,
+    dy = by - ay;
   const length = Math.hypot(dx, dy);
   if (length < 1e-9) return;
   const steps = Math.max(1, Math.ceil(length * 2));
   for (let s = 0; s <= steps; s += 1) {
     const u = s / steps;
-    const x = ax + dx * u, y = ay + dy * u;
+    const x = ax + dx * u,
+      y = ay + dy * u;
     const z = az + (bz - az) * u;
     for (let oy = -Math.ceil(half); oy <= Math.ceil(half); oy += 1) {
       for (let ox = -Math.ceil(half); ox <= Math.ceil(half); ox += 1) {
         if (ox * ox + oy * oy > half * half + 0.5) continue;
-        const px = Math.floor(x + ox), py = Math.floor(y + oy);
+        const px = Math.floor(x + ox),
+          py = Math.floor(y + oy);
         if (px < 0 || py < 0 || px >= N || py >= N) continue;
         const at = py * N + px;
         if (depth) {
@@ -144,7 +171,11 @@ function stampSegment(
 function primitivePoints(primitive: OristudioCpFoldedRenderPrimitive): Array<[number, number]> {
   const g = primitive.geometry;
   if (g.kind === 'polygon') return g.points.map((p) => [p.x, p.y] as [number, number]);
-  if (g.kind === 'segment') return [[g.from.x, g.from.y], [g.to.x, g.to.y]];
+  if (g.kind === 'segment')
+    return [
+      [g.from.x, g.from.y],
+      [g.to.x, g.to.y],
+    ];
   if (g.kind === 'path') {
     const out: Array<[number, number]> = [];
     for (const c of g.commands) {
@@ -159,7 +190,7 @@ function primitivePoints(primitive: OristudioCpFoldedRenderPrimitive): Array<[nu
 function projectorPicture(
   model: OristudioCpFolded3dRenderModel,
   camera: FoldedFigureCamera,
-  half: number
+  half: number,
 ): Picture {
   const projection = projectFolded3dModel(model, {
     camera,
@@ -176,17 +207,24 @@ function projectorPicture(
     if (pts.length === 0) return;
     if (primitive.kind.startsWith('fill')) {
       for (let i = 1; i + 1 < pts.length; i += 1) {
-        fillTriangle(pic, pts[0]![0], pts[0]![1], pts[i]![0], pts[i]![1], pts[i + 1]![0], pts[i + 1]![1], PAPER, null);
+        fillTriangle(
+          pic,
+          pts[0]![0],
+          pts[0]![1],
+          pts[i]![0],
+          pts[i]![1],
+          pts[i + 1]![0],
+          pts[i + 1]![1],
+          PAPER,
+          null,
+        );
       }
       return;
     }
     for (let i = 0; i + 1 < pts.length; i += 1) {
       stampSegment(pic, pts[i]![0], pts[i]![1], pts[i + 1]![0], pts[i + 1]![1], index, half, null);
     }
-    pic.label.set(
-      index,
-      `cell=${projection.cells[index]} face=${projection.faces[index]}`
-    );
+    pic.label.set(index, `cell=${projection.cells[index]} face=${projection.faces[index]}`);
   });
   return pic;
 }
@@ -198,20 +236,21 @@ function meshPicture(mesh: Folded3dMesh, camera: FoldedFigureCamera, half: numbe
     mesh.center,
     mesh.radius,
     N,
-    N
+    N,
   );
   const ortho = { ...uniforms, camDist: uniforms.depthRange * 5000 };
   const p = projectVertices(mesh.positions, ortho, { perspective: false });
   const ndcZ = (v: number) =>
     Math.max(-1, Math.min(1, -(p.view[v * 3 + 2] ?? 0) / ortho.depthRange));
   const all: Array<[number, number]> = [];
-  for (let v = 0; v * 2 + 1 < p.screen.length; v += 1) all.push([p.screen[v * 2]!, p.screen[v * 2 + 1]!]);
+  for (let v = 0; v * 2 + 1 < p.screen.length; v += 1)
+    all.push([p.screen[v * 2]!, p.screen[v * 2 + 1]!]);
   const to = fitTransform(all);
 
   const passes = folded3dDrawPasses(
     { ...mesh, undeterminedFaceAlpha: 0.45 },
     { showFaces: true, showEdges: true, faceAlpha: 1 },
-    ortho
+    ortho,
   );
   const pic = blank();
   const depth = new Float32Array(N * N).fill(Infinity);
@@ -238,11 +277,27 @@ function meshPicture(mesh: Folded3dMesh, camera: FoldedFigureCamera, half: numbe
       const idx = mesh.topology.faceIndices;
       const end = pass.faceRange.start + pass.faceRange.count;
       for (let t = pass.faceRange.start; t + 2 < end; t += 3) {
-        const ia = idx[t]!, ib = idx[t + 1]!, ic = idx[t + 2]!;
+        const ia = idx[t]!,
+          ib = idx[t + 1]!,
+          ic = idx[t + 2]!;
         const [ax, ay] = to(p.screen[ia * 2]!, p.screen[ia * 2 + 1]!);
         const [bx, by] = to(p.screen[ib * 2]!, p.screen[ib * 2 + 1]!);
         const [cx, cy] = to(p.screen[ic * 2]!, p.screen[ic * 2 + 1]!);
-        fillTriangle(pic, ax, ay, bx, by, cx, cy, PAPER, depth, ndcZ(ia), ndcZ(ib), ndcZ(ic), faceOwner.get(t) ?? -1);
+        fillTriangle(
+          pic,
+          ax,
+          ay,
+          bx,
+          by,
+          cx,
+          cy,
+          PAPER,
+          depth,
+          ndcZ(ia),
+          ndcZ(ib),
+          ndcZ(ic),
+          faceOwner.get(t) ?? -1,
+        );
       }
     }
     if (pass.edgeRange) {
@@ -252,7 +307,19 @@ function meshPicture(mesh: Folded3dMesh, camera: FoldedFigureCamera, half: numbe
         const ib = mesh.topology.edgeIndices[e * 2 + 1]!;
         const [ax, ay] = to(p.screen[ia * 2]!, p.screen[ia * 2 + 1]!);
         const [bx, by] = to(p.screen[ib * 2]!, p.screen[ib * 2 + 1]!);
-        stampSegment(pic, ax, ay, bx, by, e, half, depth, ndcZ(ia), ndcZ(ib), FOLDED_3D_CREASE_DEPTH_BIAS);
+        stampSegment(
+          pic,
+          ax,
+          ay,
+          bx,
+          by,
+          e,
+          half,
+          depth,
+          ndcZ(ia),
+          ndcZ(ib),
+          FOLDED_3D_CREASE_DEPTH_BIAS,
+        );
         const skinIndex = owner.get(e) ?? -1;
         pic.skinOfEdge.set(e, skinIndex);
         const skin = mesh.skins[skinIndex];
@@ -271,7 +338,8 @@ function inkMask(pic: Picture, r: number): Uint8Array {
       if (pic.id[y * N + x]! < 0) continue;
       for (let oy = -r; oy <= r; oy += 1) {
         for (let ox = -r; ox <= r; ox += 1) {
-          const px = x + ox, py = y + oy;
+          const px = x + ox,
+            py = y + oy;
           if (px >= 0 && py >= 0 && px < N && py < N) mask[py * N + px] = 1;
         }
       }
@@ -298,7 +366,7 @@ interface Disagreement {
 function compare(
   model: OristudioCpFolded3dRenderModel,
   mesh: Folded3dMesh,
-  camera: FoldedFigureCamera
+  camera: FoldedFigureCamera,
 ): Disagreement | null {
   const reference = projectorPicture(model, camera, 1.5);
   const actual = meshPicture(mesh, camera, 1.5);
@@ -369,7 +437,7 @@ function compare(
 
 function sweep(name: string): Disagreement[] {
   const model: OristudioCpFolded3dRenderModel = JSON.parse(
-    readFileSync(join(FIXTURES, `${name}.rendermodel.json`), 'utf8')
+    readFileSync(join(FIXTURES, `${name}.rendermodel.json`), 'utf8'),
   );
   const built = folded3dMesh(model);
   if (built.kind !== 'mesh') throw new Error(`${name} did not mesh`);
@@ -417,7 +485,7 @@ describe('folded 3D window vs projector', () => {
    */
   it('agrees at the camera minimal_repro was reported failing at', () => {
     const model: OristudioCpFolded3dRenderModel = JSON.parse(
-      readFileSync(join(FIXTURES, 'minimal_repro.rendermodel.json'), 'utf8')
+      readFileSync(join(FIXTURES, 'minimal_repro.rendermodel.json'), 'utf8'),
     );
     const built = folded3dMesh(model);
     if (built.kind !== 'mesh') throw new Error('minimal_repro did not mesh');
@@ -440,7 +508,7 @@ describe('folded 3D window vs projector', () => {
         tiltDeg: entry.tiltDeg,
         fault: entry.spill > entry.detached ? 'spill' : 'detached',
         bySkin: entry.bySkin,
-      }))
+      })),
     ).toEqual([
       { yawStep: 1, tiltDeg: 0, fault: 'spill', bySkin: 'plane=1 side=1:71' },
       { yawStep: 5, tiltDeg: 0, fault: 'detached', bySkin: 'plane=0 side=1:71' },
@@ -452,7 +520,7 @@ describe('folded 3D window vs projector', () => {
     '%s draws the same picture as the projector at every camera',
     (name) => {
       expect(sweep(name)).toEqual([]);
-    }
+    },
   );
 
   it('box_90 has creases the projector hides — two distinct faults', () => {

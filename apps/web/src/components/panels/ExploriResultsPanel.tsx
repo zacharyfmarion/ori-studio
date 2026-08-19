@@ -60,7 +60,8 @@ function ResultFigure({
   mode: ExploriThumbMode;
   size: number;
 }) {
-  if (mode === 'packing') return <ExploriCpFigure cp={result.packing} size={size} variant="packing" />;
+  if (mode === 'packing')
+    return <ExploriCpFigure cp={result.packing} size={size} variant="packing" />;
   if (mode === 'fold' && result.fold) return <ExploriFoldFigure fold={result.fold} size={size} />;
   if (mode === 'tree' && result.tree) return <ExploriGraphFigure graph={result.tree} size={size} />;
   return <ExploriCpFigure cp={result.cp} size={size} />;
@@ -181,7 +182,7 @@ export function ExploriResultsPanel() {
           title={t('panels:explori.searchingStatus', 'Searching the archive…')}
           detail={t(
             'panels:explori.searchingDetail',
-            'Comparing your tree against every topology in the databases you chose.'
+            'Comparing your tree against every topology in the databases you chose.',
           )}
         />
       </section>
@@ -301,7 +302,7 @@ export function ExploriResultsPanel() {
             title={t('panels:explori.noMatches', 'No matching crease patterns')}
             detail={t(
               'panels:explori.noMatchesDetail',
-              'The archive has nothing close to this tree. Try adjusting the branches, or search more symmetries.'
+              'The archive has nothing close to this tree. Try adjusting the branches, or search more symmetries.',
             )}
           />
         ) : (
@@ -310,7 +311,7 @@ export function ExploriResultsPanel() {
             title={t('panels:explori.noResultsYetTitle', 'No results yet')}
             detail={t(
               'panels:explori.noResultsYet',
-              'Draw a tree and search the archive to see matching crease patterns.'
+              'Draw a tree and search the archive to see matching crease patterns.',
             )}
           />
         )
@@ -339,7 +340,9 @@ export function ExploriResultsPanel() {
                   {t('panels:explori.viewTreeAndCp', 'Tree and crease pattern')}
                 </SelectItem>
                 <SelectItem value="cp">{t('panels:explori.viewCp', 'Crease pattern')}</SelectItem>
-                <SelectItem value="packing">{t('panels:explori.viewPacking', 'Packing')}</SelectItem>
+                <SelectItem value="packing">
+                  {t('panels:explori.viewPacking', 'Packing')}
+                </SelectItem>
                 <SelectItem value="tree">{t('panels:explori.viewTree', 'Tree')}</SelectItem>
                 <SelectItem value="fold">{t('panels:explori.viewFold', 'Folded form')}</SelectItem>
               </SelectContent>
@@ -349,7 +352,10 @@ export function ExploriResultsPanel() {
             {results.map((result, index) => {
               const quality = exploriMatchQuality(result.distance);
               return (
-                <article key={`${exploriTilingLabel(result)}:${index}`} className="explori-result-card">
+                <article
+                  key={`${exploriTilingLabel(result)}:${index}`}
+                  className="explori-result-card"
+                >
                   <button
                     type="button"
                     className="explori-result-card__open"
@@ -367,7 +373,10 @@ export function ExploriResultsPanel() {
                     <IconButton
                       size="sm"
                       variant="toolbar"
-                      title={t('panels:explori.quickSendToEdit', 'Send this crease pattern to Edit')}
+                      title={t(
+                        'panels:explori.quickSendToEdit',
+                        'Send this crease pattern to Edit',
+                      )}
                       onClick={() => void quickSend(result)}
                     >
                       <Send size={14} />

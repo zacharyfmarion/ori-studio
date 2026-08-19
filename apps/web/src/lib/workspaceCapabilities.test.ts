@@ -92,7 +92,9 @@ describe('workspace capabilities', () => {
     expect(state['optimize.scale'].enabled).toBe(false);
     expect(state['optimize.scale'].reason).toBe('Add at least one tree edge before optimizing');
     expect(state['cp.build'].enabled).toBe(false);
-    expect(state['cp.build'].reason).toBe('Add tree edges, then optimize before building the crease pattern');
+    expect(state['cp.build'].reason).toBe(
+      'Add tree edges, then optimize before building the crease pattern',
+    );
     expect(getNextDocumentAction(state)).toBe('optimize.scale');
   });
 
@@ -109,7 +111,12 @@ describe('workspace capabilities', () => {
   });
 
   it('allows rebuilding an existing generated crease pattern', () => {
-    const state = capabilities({ status: 'crease_pattern_ready', edgeCount: 2, creaseCount: 4, facetCount: 1 });
+    const state = capabilities({
+      status: 'crease_pattern_ready',
+      edgeCount: 2,
+      creaseCount: 4,
+      facetCount: 1,
+    });
 
     expect(state['cp.build'].enabled).toBe(true);
     expect(state['cp.build'].label).toBe('Rebuild CP');
@@ -141,7 +148,9 @@ describe('workspace capabilities', () => {
     expect(nodeState['edit.splitEdge'].enabled).toBe(false);
 
     expect(edgeState['edit.triangulateTree'].enabled).toBe(false);
-    expect(edgeState['edit.triangulateTree'].reason).toBe('Stub finder triangulation port is pending');
+    expect(edgeState['edit.triangulateTree'].reason).toBe(
+      'Stub finder triangulation port is pending',
+    );
   });
 
   it('does not call an empty CP-ready tree a rebuildable crease pattern', () => {
@@ -390,7 +399,11 @@ describe('workspace capabilities', () => {
 
   it('disables workflow actions while the engine is busy or unavailable', () => {
     for (const status of ['loading_engine', 'optimizing', 'building_crease_pattern'] as const) {
-      const state = capabilities({ status, edgeCount: 2, engineReady: status !== 'loading_engine' });
+      const state = capabilities({
+        status,
+        edgeCount: 2,
+        engineReady: status !== 'loading_engine',
+      });
 
       expect(state['optimize.scale'].enabled).toBe(false);
       expect(state['cp.build'].enabled).toBe(false);

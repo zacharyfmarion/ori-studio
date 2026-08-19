@@ -109,5 +109,5 @@ const { entries, keyCount } = deriveDefaultHotkeys(readFileSync(sourcePath, 'utf
 writeFileSync(outputPath, renderModule(entries, keyCount));
 
 console.log(
-  `Wrote ${OUTPUT_RELATIVE}: ${Object.keys(entries).length} bound of ${keyCount} actions.`
+  `Wrote ${OUTPUT_RELATIVE}: ${Object.keys(entries).length} bound of ${keyCount} actions.`,
 );

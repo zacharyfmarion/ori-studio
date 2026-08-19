@@ -15,7 +15,7 @@ test('opacity becomes the fold angle, signed by assignment', () => {
       <line stroke="#FF0000" opacity="0.5" x1="0" y1="0" x2="10" y2="0"/>
       <line stroke="#0000FF" opacity="0.25" x1="0" y1="0" x2="0" y2="10"/>
       <line stroke="#FF0000" x1="10" y1="0" x2="10" y2="10"/>
-    `)
+    `),
   );
   // FOLD signs a mountain negative and a valley positive; 0.5 opacity is 90 deg.
   assert.deepEqual(fold.edges_assignment, ['M', 'V', 'M']);
@@ -26,7 +26,7 @@ test('scientific notation is a small angle, not a large one', () => {
   // Illustrator writes `5.5645e-02`, which is 0.056 -> about 10 degrees. Parsed
   // as `5.5645` it would clamp to a full fold and quietly flatten the model.
   const { fold } = svgToFold(
-    wrap('<line stroke="#0000FF" stroke-opacity="5.5645e-02" x1="0" y1="0" x2="10" y2="0"/>')
+    wrap('<line stroke="#0000FF" stroke-opacity="5.5645e-02" x1="0" y1="0" x2="10" y2="0"/>'),
   );
   assert.ok(fold.edges_foldAngle[0] > 9 && fold.edges_foldAngle[0] < 11);
 });
@@ -38,7 +38,7 @@ test('reads stroke and opacity from a stylesheet class', () => {
     wrap(`
       <style type="text/css">.st0{fill:none;stroke:#0000FF;stroke-opacity:0.5;}</style>
       <path class="st0" d="M0,0h10"/>
-    `)
+    `),
   );
   assert.deepEqual(fold.edges_assignment, ['V']);
   assert.deepEqual(fold.edges_foldAngle, [90]);
@@ -53,7 +53,7 @@ test('every stroke colour maps to its FOLD assignment', () => {
       <line stroke="#FFFF00" x1="0" y1="3" x2="1" y2="3"/>
       <line stroke="#FF00FF" x1="0" y1="4" x2="1" y2="4"/>
       <line stroke="#00FF00" x1="0" y1="5" x2="1" y2="5"/>
-    `)
+    `),
   );
   assert.deepEqual(fold.edges_assignment, ['M', 'V', 'B', 'F', 'U', 'B']);
   // Only a driven crease carries an angle; a facet or boundary is flat.
@@ -61,9 +61,7 @@ test('every stroke colour maps to its FOLD assignment', () => {
 });
 
 test('straight path commands, absolute and relative', () => {
-  const { fold } = svgToFold(
-    wrap('<path stroke="#000000" d="M0,0 H10 V10 h-10 Z"/>')
-  );
+  const { fold } = svgToFold(wrap('<path stroke="#000000" d="M0,0 H10 V10 h-10 Z"/>'));
   assert.equal(fold.vertices_coords.length, 4);
   assert.equal(fold.edges_vertices.length, 4);
 });
@@ -75,7 +73,7 @@ test('a curved path is skipped, never flattened into a straight line', () => {
     wrap(`
       <path stroke="#FF0000" d="M0,0 C5,5 10,5 15,0"/>
       <line stroke="#0000FF" x1="0" y1="0" x2="10" y2="0"/>
-    `)
+    `),
   );
   assert.equal(stats.skippedCurves, 1);
   assert.equal(fold.edges_vertices.length, 1);
@@ -86,7 +84,7 @@ test('coincident endpoints weld into one vertex', () => {
     wrap(`
       <line stroke="#FF0000" x1="0" y1="0" x2="10" y2="0"/>
       <line stroke="#0000FF" x1="10" y1="0" x2="10" y2="10"/>
-    `)
+    `),
   );
   assert.equal(fold.vertices_coords.length, 3);
 });
@@ -96,7 +94,7 @@ test('a repeated segment is not emitted twice', () => {
     wrap(`
       <line stroke="#FF0000" x1="0" y1="0" x2="10" y2="0"/>
       <line stroke="#FF0000" x1="10" y1="0" x2="0" y2="0"/>
-    `)
+    `),
   );
   assert.equal(stats.duplicates, 1);
   assert.equal(fold.edges_vertices.length, 1);
@@ -124,10 +122,12 @@ test('a crease crossing another is split into a shared vertex', () => {
     wrap(`
       <line stroke="#FF0000" x1="-10" y1="0" x2="10" y2="0"/>
       <line stroke="#0000FF" x1="0" y1="-10" x2="0" y2="10"/>
-    `)
+    `),
   );
   assert.equal(fold.edges_vertices.length, 4, 'both segments split at the crossing');
-  const centre = fold.vertices_coords.findIndex(([x, y]) => Math.abs(x) < 1e-9 && Math.abs(y) < 1e-9);
+  const centre = fold.vertices_coords.findIndex(
+    ([x, y]) => Math.abs(x) < 1e-9 && Math.abs(y) < 1e-9,
+  );
   assert.ok(centre >= 0, 'the crossing became a vertex');
   const touching = fold.edges_vertices.filter(([a, b]) => a === centre || b === centre);
   assert.equal(touching.length, 4, 'all four arms meet at it');
@@ -138,7 +138,7 @@ test('split pieces keep their parent assignment and fold angle', () => {
     wrap(`
       <line stroke="#FF0000" opacity="0.5" x1="-10" y1="0" x2="10" y2="0"/>
       <line stroke="#0000FF" opacity="0.25" x1="0" y1="-10" x2="0" y2="10"/>
-    `)
+    `),
   );
   const mountains = fold.edges_foldAngle.filter((_, i) => fold.edges_assignment[i] === 'M');
   const valleys = fold.edges_foldAngle.filter((_, i) => fold.edges_assignment[i] === 'V');
@@ -154,7 +154,7 @@ test('a crease ending part-way along the boundary splits it', () => {
     wrap(`
       <line stroke="#000000" x1="0" y1="0" x2="100" y2="0"/>
       <line stroke="#FF0000" x1="50" y1="0" x2="50" y2="50"/>
-    `)
+    `),
   );
   const boundary = fold.edges_assignment.filter((a) => a === 'B').length;
   assert.equal(boundary, 2, 'the boundary is split at the crease endpoint');
@@ -167,7 +167,7 @@ test('a crease drawn short of the boundary is pulled onto it', () => {
     wrap(`
       <line stroke="#000000" x1="0" y1="0" x2="100" y2="0"/>
       <line stroke="#FF0000" x1="50" y1="0.05" x2="50" y2="50"/>
-    `)
+    `),
   );
   assert.equal(stats.snapped, 1);
   assert.equal(fold.edges_assignment.filter((a) => a === 'B').length, 2);
@@ -180,7 +180,7 @@ test('an endpoint far from everything is left where it is', () => {
     wrap(`
       <line stroke="#000000" x1="0" y1="0" x2="100" y2="0"/>
       <line stroke="#FF0000" x1="50" y1="20" x2="50" y2="50"/>
-    `)
+    `),
   );
   assert.equal(stats.snapped, 0);
   assert.equal(fold.edges_assignment.filter((a) => a === 'B').length, 1);
@@ -211,9 +211,11 @@ test('endpoints either side of a grid cell boundary still weld', () => {
        <line stroke="#0000FF" x1="499.9999999" y1="0" x2="1000" y2="0"/>
        <line stroke="#000000" x1="500" y1="0" x2="500" y2="1000"/>
      </svg>`,
-    { planar: false }
+    { planar: false },
   );
-  const at500 = fold.vertices_coords.filter(([x, y]) => Math.abs(x - 500) < 1e-3 && Math.abs(y) < 1e-3);
+  const at500 = fold.vertices_coords.filter(
+    ([x, y]) => Math.abs(x - 500) < 1e-3 && Math.abs(y) < 1e-3,
+  );
   assert.equal(at500.length, 1, `expected one vertex near (500, 0), found ${at500.length}`);
 });
 
@@ -228,8 +230,10 @@ test('a genuinely distinct nearby vertex is not swallowed', () => {
        <line stroke="#FF0000" x1="0" y1="0" x2="500" y2="0"/>
        <line stroke="#0000FF" x1="500.01" y1="0" x2="1000" y2="0"/>
      </svg>`,
-    { planar: false }
+    { planar: false },
   );
-  const near500 = fold.vertices_coords.filter(([x, y]) => Math.abs(x - 500) < 1 && Math.abs(y) < 1e-3);
+  const near500 = fold.vertices_coords.filter(
+    ([x, y]) => Math.abs(x - 500) < 1 && Math.abs(y) < 1e-3,
+  );
   assert.equal(near500.length, 2, 'two vertices 0.01 apart must stay distinct');
 });

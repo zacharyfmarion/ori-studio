@@ -19,7 +19,7 @@ const SOURCE_PATH = join(
   '..',
   '..',
   '..',
-  'third_party/oriedita/oriedita/src/main/resources/hotkey.properties'
+  'third_party/oriedita/oriedita/src/main/resources/hotkey.properties',
 );
 
 // Measured against the vendored jar table. Pinned so an upstream change to *either* number is
@@ -41,9 +41,10 @@ function readVendoredDefaults(): VendoredDefaults {
     if (trimmed === '' || trimmed.startsWith('#') || trimmed.startsWith('!')) continue;
 
     const separator = trimmed.indexOf('=');
-    expect(separator, `expected a "key=value" line, got ${JSON.stringify(trimmed)}`).toBeGreaterThan(
-      0
-    );
+    expect(
+      separator,
+      `expected a "key=value" line, got ${JSON.stringify(trimmed)}`,
+    ).toBeGreaterThan(0);
 
     const action = trimmed.slice(0, separator).trim();
     const keystroke = trimmed.slice(separator + 1).trim();

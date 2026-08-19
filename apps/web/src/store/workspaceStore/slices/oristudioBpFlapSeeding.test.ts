@@ -152,7 +152,7 @@ function setUp(symmetry: { enabled: boolean; fold?: 'book' | 'diagonal' }) {
         },
       }),
     },
-    true
+    true,
   );
 }
 
@@ -211,9 +211,7 @@ describe('addOristudioBpTreeLeafWithSymmetry', () => {
 
   it('leaves a centred leaf on the mirror, with no partner', async () => {
     setUp({ enabled: true });
-    await useWorkspaceStore
-      .getState()
-      .addOristudioBpTreeLeafWithSymmetry(0, { x: 10, y: 5 }, 0.5);
+    await useWorkspaceStore.getState().addOristudioBpTreeLeafWithSymmetry(0, { x: 10, y: 5 }, 0.5);
     expect(engine.anchorOf(1)).toEqual({ x: 8, y: 4 });
     expect(engine.anchorOf(2)).toBeUndefined();
   });

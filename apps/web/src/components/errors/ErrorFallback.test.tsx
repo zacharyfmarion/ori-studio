@@ -46,14 +46,14 @@ function renderFallback(overrides: Partial<Parameters<typeof ErrorFallback>[0]> 
         context={context}
         onRetry={() => undefined}
         {...overrides}
-      />
-    )
+      />,
+    ),
   );
 }
 
 function findButton(label: string): HTMLButtonElement {
   const button = Array.from(container.querySelectorAll('button')).find((candidate) =>
-    candidate.textContent?.includes(label)
+    candidate.textContent?.includes(label),
   );
   if (!button) throw new Error(`no button labelled ${label}`);
   return button;
@@ -148,7 +148,7 @@ describe('ErrorFallback', () => {
       renderFallback({ variant: 'mini' });
 
       const titles = [...container.querySelectorAll('button')].map(
-        (button) => button.getAttribute('title') ?? button.getAttribute('aria-label') ?? ''
+        (button) => button.getAttribute('title') ?? button.getAttribute('aria-label') ?? '',
       );
       expect(titles[0]).toContain('Try again');
       expect(titles[0]).toContain('Error: kaboom');

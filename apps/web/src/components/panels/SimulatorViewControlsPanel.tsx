@@ -61,10 +61,10 @@ export function SimulatorViewControlsPanel() {
   const styleDefaults = useMemo(
     () =>
       simulatorStyleDefaults(
-        typeof document === 'undefined' ? null : getComputedStyle(document.documentElement)
+        typeof document === 'undefined' ? null : getComputedStyle(document.documentElement),
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [theme]
+    [theme],
   );
   // A mono style paints every crease in the edge ink, so the per-kind swatches
   // stop doing anything; showing them live would promise an effect they no
@@ -214,9 +214,7 @@ export function SimulatorViewControlsPanel() {
             <div className="control-row__value">
               <Select
                 value={settings.creaseStyle}
-                onValueChange={(value) =>
-                  setSetting('creaseStyle', value as SimulatorCreaseStyle)
-                }
+                onValueChange={(value) => setSetting('creaseStyle', value as SimulatorCreaseStyle)}
               >
                 <SelectTrigger
                   aria-label={t('panels:simulatorViewControls.creaseStyle', 'Style')}
@@ -238,12 +236,12 @@ export function SimulatorViewControlsPanel() {
             {colorRow(
               'mountainColor',
               t('panels:simulatorViewControls.mountain', 'Mountain'),
-              monoCreases
+              monoCreases,
             )}
             {colorRow(
               'valleyColor',
               t('panels:simulatorViewControls.valley', 'Valley'),
-              monoCreases
+              monoCreases,
             )}
             {colorRow('borderColor', t('panels:simulatorViewControls.borderEdge', 'Edge'))}
           </div>
@@ -260,7 +258,7 @@ export function SimulatorViewControlsPanel() {
           collapsible
           description={t(
             'panels:simulatorViewControls.exportHint',
-            'Page background of an exported image.'
+            'Page background of an exported image.',
           )}
         >
           <div className="control-row">
@@ -297,7 +295,7 @@ export function SimulatorViewControlsPanel() {
           collapsible
           description={t(
             'panels:simulatorViewControls.materialHint',
-            'How the paper resists stretching and folding.'
+            'How the paper resists stretching and folding.',
           )}
           action={
             <button
@@ -348,7 +346,7 @@ export function SimulatorViewControlsPanel() {
           collapsible
           description={t(
             'panels:simulatorViewControls.solverHint',
-            'Lower stability if a fold jitters or blows up.'
+            'Lower stability if a fold jitters or blows up.',
           )}
         >
           <SliderRow
@@ -398,9 +396,7 @@ function Section({
   const [open, setOpen] = useState(false);
   const body = (
     <>
-      {description && (
-        <p className="simulator-view-controls-panel__section-hint">{description}</p>
-      )}
+      {description && <p className="simulator-view-controls-panel__section-hint">{description}</p>}
       {children}
     </>
   );

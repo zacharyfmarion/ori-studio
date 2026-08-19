@@ -45,7 +45,7 @@ vi.mock('../../platform/fileService', () => ({
  */
 const FIXTURES = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../lib/orieditaImport/__fixtures__'
+  '../../lib/orieditaImport/__fixtures__',
 );
 
 const CONFIG_JSON_PATH = '/Users/someone/origami';
@@ -98,7 +98,7 @@ async function clickAndSettle(button: HTMLElement): Promise<void> {
 
 function button(label: string): HTMLButtonElement {
   const found = Array.from(container?.querySelectorAll('button') ?? []).find((element) =>
-    element.textContent?.includes(label)
+    element.textContent?.includes(label),
   );
   expect(found, `no button matching ${label}`).toBeDefined();
   return found as HTMLButtonElement;
@@ -117,20 +117,20 @@ function rows(): string[] {
 
 function sectionFor(heading: string): Element | undefined {
   return Array.from(container?.querySelectorAll('.settings-section') ?? []).find((element) =>
-    element.querySelector('.settings-section__title')?.textContent?.includes(heading)
+    element.querySelector('.settings-section__title')?.textContent?.includes(heading),
   );
 }
 
 /** The rows under one of the outcome headings, which is what groups them. */
 function rowsUnder(heading: string): string[] {
   return Array.from(sectionFor(heading)?.querySelectorAll('.oriedita-import__row') ?? []).map(
-    rowText
+    rowText,
   );
 }
 
 function rowElementFor(action: string): Element {
   const row = Array.from(container?.querySelectorAll('.oriedita-import__row') ?? []).find(
-    (element) => rowText(element).startsWith(`${action} |`)
+    (element) => rowText(element).startsWith(`${action} |`),
   );
   expect(row, `no row for ${action}`).toBeDefined();
   return row as Element;
@@ -143,7 +143,7 @@ function rowFor(action: string): string {
 /** The "Use anyway" button on one row, which only a row with an offer has. */
 function useAnywayOn(action: string): HTMLButtonElement | undefined {
   return Array.from(rowElementFor(action).querySelectorAll('button')).find((element) =>
-    element.textContent?.includes('Use anyway')
+    element.textContent?.includes('Use anyway'),
   );
 }
 
@@ -207,7 +207,7 @@ async function openSample(name = 'sample'): Promise<void> {
  */
 async function openBuilt(hotkeys: string): Promise<void> {
   openBinaryFile.mockResolvedValue(
-    openedFile(buildZip([{ name: 'hotkey.properties', data: hotkeys }]))
+    openedFile(buildZip([{ name: 'hotkey.properties', data: hotkeys }])),
   );
   render();
   await clickAndSettle(button('Choose Settings Export'));
@@ -266,11 +266,11 @@ describe('OrieditaImportDialog', () => {
 
     const skipped = rowsUnder('Skipped');
     expect(skipped).toContain(
-      'spacedAction | no matching action — Ori Studio has no matching action. | shift ctrl pressed V'
+      'spacedAction | no matching action — Ori Studio has no matching action. | shift ctrl pressed V',
     );
     // The blank value is the one that must never read as an unbind.
     expect(rowFor('clearedAction')).toContain(
-      'Left blank in Oriedita. Oriedita writes the same blank when a hotkey is reset to its default'
+      'Left blank in Oriedita. Oriedita writes the same blank when a hotkey is reset to its default',
     );
     // Shift+A is Measure Angle's here, so the user's own Mountain edit loses —
     // and the row names the binding it would have taken the key from.
@@ -311,9 +311,7 @@ describe('OrieditaImportDialog', () => {
 
     await click(offer as HTMLButtonElement);
 
-    expect(rowsUnder('Will change')).toEqual([
-      'Mountain | crease-pattern — Replaces A | Shift+A',
-    ]);
+    expect(rowsUnder('Will change')).toEqual(['Mountain | crease-pattern — Replaces A | Shift+A']);
     expect(rowsUnder('Will be unbound')).toEqual([
       'Measure Angle | Gives up this key to Mountain, and is left unassigned. | Shift+A',
     ]);
@@ -337,7 +335,7 @@ describe('OrieditaImportDialog', () => {
     // The rows no approval reaches are untouched: an unmapped action has no
     // blocker to unbind, so "all" must not quietly mean "all of them".
     expect(rowsUnder('Skipped')).toContain(
-      'spacedAction | no matching action — Ori Studio has no matching action. | shift ctrl pressed V'
+      'spacedAction | no matching action — Ori Studio has no matching action. | shift ctrl pressed V',
     );
     // Still nothing written until Apply.
     expect(useShortcutStore.getState().overrides).toEqual({});
@@ -349,13 +347,11 @@ describe('OrieditaImportDialog', () => {
     await openSample();
     await click(useAnywayOn('Mountain') as HTMLButtonElement);
 
-    expect(
-      rowsUnder('Skipped').filter((row) => row.includes('Use anyway')).length
-    ).toBeLessThan(2);
+    expect(rowsUnder('Skipped').filter((row) => row.includes('Use anyway')).length).toBeLessThan(2);
     expect(
       Array.from(container?.querySelectorAll('button') ?? []).some(
-        (element) => element.textContent === 'Override all'
-      )
+        (element) => element.textContent === 'Override all',
+      ),
     ).toBe(false);
   });
 
@@ -402,7 +398,7 @@ describe('OrieditaImportDialog', () => {
     // binding that plans and applies but still runs the old action is exactly the
     // failure "Use anyway" would be lying about.
     const fired = pressAndSee(
-      new KeyboardEvent('keydown', { key: 'A', shiftKey: true, bubbles: true, cancelable: true })
+      new KeyboardEvent('keydown', { key: 'A', shiftKey: true, bubbles: true, cancelable: true }),
     );
     expect(fired).toBe('cp.action.line-type.mountain');
   });
@@ -426,7 +422,7 @@ describe('OrieditaImportDialog', () => {
     await clickAndSettle(button('Choose Settings Export'));
 
     expect(container?.querySelector('[role="alert"]')?.textContent).toContain(
-      'not an Oriedita settings export'
+      'not an Oriedita settings export',
     );
     expect(rows()).toEqual([]);
     expect(useShortcutStore.getState().overrides).toEqual({});
@@ -447,9 +443,7 @@ describe('OrieditaImportDialog', () => {
     render();
     await clickAndSettle(button('Choose Settings Export'));
 
-    expect(container?.querySelector('[role="alert"]')?.textContent).toContain(
-      'could not be read'
-    );
+    expect(container?.querySelector('[role="alert"]')?.textContent).toContain('could not be read');
   });
 
   it('returns to the start when the picker is dismissed', async () => {

@@ -211,7 +211,9 @@ export function isSimulatorColor(value: unknown): value is string {
   return typeof value === 'string' && HEX_COLOR.test(value);
 }
 
-export function isSimulatorNumericSetting(key: SimulatorSettingKey): key is SimulatorNumericSettingKey {
+export function isSimulatorNumericSetting(
+  key: SimulatorSettingKey,
+): key is SimulatorNumericSettingKey {
   return key in SIMULATOR_SETTING_RANGES;
 }
 

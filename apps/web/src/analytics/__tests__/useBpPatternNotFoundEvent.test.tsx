@@ -95,7 +95,7 @@ describe('useBpPatternNotFoundEvent', () => {
             patternFound: false,
           }),
         ],
-      })
+      }),
     );
 
     expect(events(client)).toEqual([
@@ -113,7 +113,7 @@ describe('useBpPatternNotFoundEvent', () => {
       client,
       createElement(Probe, {
         stretches: [stretch({ configCount: 3, patternCount: 0, patternFound: false })],
-      })
+      }),
     );
 
     expect(events(client)).toEqual([
@@ -131,7 +131,7 @@ describe('useBpPatternNotFoundEvent', () => {
       client,
       createElement(Probe, {
         stretches: [stretch({ id: '10,12,14,22', flapIds: [10, 12, 14, 22], patternFound: false })],
-      })
+      }),
     );
 
     const serialized = JSON.stringify(events(client));
@@ -151,7 +151,7 @@ describe('useBpPatternNotFoundEvent', () => {
       client,
       createElement(Probe, {
         stretches: [failing, stretch({ id: '3,4', flapIds: [3, 4], patternFound: false })],
-      })
+      }),
     );
     expect(events(client)).toHaveLength(2);
   });

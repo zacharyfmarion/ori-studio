@@ -24,23 +24,45 @@
 console.time = () => {};
 console.timeEnd = () => {};
 
-import { DesignController } from "core/controller/designController";
-import { LayoutController } from "core/controller/layoutController";
-import { State } from "core/service/state";
-import { UpdateResult } from "core/service/updateResult";
-import { readFileSync } from "node:fs";
+import { DesignController } from 'core/controller/designController';
+import { LayoutController } from 'core/controller/layoutController';
+import { State } from 'core/service/state';
+import { UpdateResult } from 'core/service/updateResult';
+import { readFileSync } from 'node:fs';
 
-interface JFlap { id: number; x: number; y: number; width: number; height: number }
-interface MoveFlapEdit { op: "moveFlap"; id: number; x: number; y: number }
+interface JFlap {
+  id: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+interface MoveFlapEdit {
+  op: 'moveFlap';
+  id: number;
+  x: number;
+  y: number;
+}
 /** Selecting a stretch in the app calls `LayoutController.completeStretch`. */
-interface CompleteStretchEdit { op: "completeStretch"; id: string }
-interface SwitchConfigEdit { op: "switchConfig"; id: string; to: number }
-interface SwitchPatternEdit { op: "switchPattern"; id: string; to: number }
+interface CompleteStretchEdit {
+  op: 'completeStretch';
+  id: string;
+}
+interface SwitchConfigEdit {
+  op: 'switchConfig';
+  id: string;
+  to: number;
+}
+interface SwitchPatternEdit {
+  op: 'switchPattern';
+  id: string;
+  to: number;
+}
 type Edit = MoveFlapEdit | CompleteStretchEdit | SwitchConfigEdit | SwitchPatternEdit;
 
 function sortKeys(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sortKeys);
-  if (value && typeof value === "object") {
+  if (value && typeof value === 'object') {
     const out: Record<string, unknown> = {};
     for (const key of Object.keys(value as Record<string, unknown>).sort()) {
       out[key] = sortKeys((value as Record<string, unknown>)[key]);
@@ -53,19 +75,19 @@ function sortKeys(value: unknown): unknown {
 function main(): void {
   const [designPath, editsPath] = process.argv.slice(2);
   if (!designPath) {
-    console.error("usage: bun layout-graphics.ts <design.json> [edits.json]");
+    console.error('usage: bun layout-graphics.ts <design.json> [edits.json]');
     process.exit(2);
   }
-  const design = JSON.parse(readFileSync(designPath, "utf8"));
+  const design = JSON.parse(readFileSync(designPath, 'utf8'));
   // Track the current flap set so each edit sends the full array (as the app does).
   const flaps: JFlap[] = (design.layout.flaps ?? []).map((f: JFlap) => ({ ...f }));
 
   DesignController.init(design);
-  const edits: Edit[] = editsPath ? JSON.parse(readFileSync(editsPath, "utf8")) : [];
+  const edits: Edit[] = editsPath ? JSON.parse(readFileSync(editsPath, 'utf8')) : [];
   for (const edit of edits) {
     switch (edit.op) {
-      case "moveFlap": {
-        let flap = flaps.find(f => f.id === edit.id);
+      case 'moveFlap': {
+        let flap = flaps.find((f) => f.id === edit.id);
         if (!flap) {
           // A leaf with no explicit flap: BP Studio seeds it a default at the origin.
           flap = { id: edit.id, x: 0, y: 0, width: 0, height: 0 };
@@ -82,13 +104,13 @@ function main(): void {
         DesignController.update({ flaps, edges: [], stretches: [], dragging: false });
         break;
       }
-      case "completeStretch":
+      case 'completeStretch':
         LayoutController.completeStretch(edit.id);
         break;
-      case "switchConfig":
+      case 'switchConfig':
         LayoutController.switchConfig(edit.id, edit.to);
         break;
-      case "switchPattern":
+      case 'switchPattern':
         LayoutController.switchPattern(edit.id, edit.to);
         break;
       default:
@@ -111,13 +133,23 @@ function main(): void {
     // against the port's layout snapshot and not just the drawn geometry.
     stretches: Object.fromEntries(
       [...State.$stretches].map(([id, stretch]) => {
-        const repo = (stretch as unknown as { $repo: { $configurations: unknown[]; $configuration: { $index: number; $patterns: unknown[] } | null } }).$repo;
-        return [id, {
-          configCount: repo.$configurations.length,
-          patternCount: repo.$configuration?.$patterns.length ?? null,
-          patternIndex: repo.$configuration?.$index ?? null,
-        }];
-      })
+        const repo = (
+          stretch as unknown as {
+            $repo: {
+              $configurations: unknown[];
+              $configuration: { $index: number; $patterns: unknown[] } | null;
+            };
+          }
+        ).$repo;
+        return [
+          id,
+          {
+            configCount: repo.$configurations.length,
+            patternCount: repo.$configuration?.$patterns.length ?? null,
+            patternIndex: repo.$configuration?.$index ?? null,
+          },
+        ];
+      }),
     ),
   };
   console.log(JSON.stringify(sortKeys(out), null, 2));

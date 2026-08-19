@@ -1,5 +1,10 @@
 import type { OrigamiModel } from '../model.js';
-import type { FoldAssignment, FoldProfile, SimulatorDiagnostics, SimulatorOptions } from '../types.js';
+import type {
+  FoldAssignment,
+  FoldProfile,
+  SimulatorDiagnostics,
+  SimulatorOptions,
+} from '../types.js';
 
 // Assignment letter -> edge colour code the mesh renderer expects
 // (0=B, 1=M, 2=V, 3=F). Unassigned/other creases fall through to the border
@@ -123,15 +128,23 @@ export class WebglSolver implements SolverBackend {
     return this.gl.onContextLost(handler);
   }
 
-  constructor(canvas: HTMLCanvasElement | OffscreenCanvas, model: OrigamiModel, options: SimulatorOptions = {}) {
+  constructor(
+    canvas: HTMLCanvasElement | OffscreenCanvas,
+    model: OrigamiModel,
+    options: SimulatorOptions = {},
+  ) {
     const gl = GlCore.create(canvas);
     if (!gl) throw new Error('WebGL2 is not available for the GPU solver');
     this.gl = gl;
     this.nodeCount = model.prepared.vertexCount;
-    this.diagnostics = { ...model.prepared.diagnostics, webglAvailable: true, usedCpuFallback: false };
+    this.diagnostics = {
+      ...model.prepared.diagnostics,
+      webglAvailable: true,
+      usedCpuFallback: false,
+    };
     this.originalPositions = model.originalPositions;
     this.edgeRestLengths = new Float32Array(
-      model.prepared.edgesVertices.map((_, index) => model.edgeRestLength(index))
+      model.prepared.edgesVertices.map((_, index) => model.edgeRestLength(index)),
     );
     this.material = {
       axialStiffness: options.axialStiffness ?? 20,
@@ -148,7 +161,9 @@ export class WebglSolver implements SolverBackend {
     // quotes.
     this.topology = meshTopologyFor(model.prepared, this.packed.dims.textureDim);
     this.dt = timeStepFor(this.packed, this.material);
-    this.positionScratch = new Float32Array(this.packed.dims.textureDim * this.packed.dims.textureDim * 4);
+    this.positionScratch = new Float32Array(
+      this.packed.dims.textureDim * this.packed.dims.textureDim * 4,
+    );
 
     this.buildTextures();
     this.buildPrograms();
@@ -305,7 +320,11 @@ export class WebglSolver implements SolverBackend {
    * solver's GL context, so it must be called on the same thread the solver
    * runs on.
    */
-  render(camera: CameraUniforms, settings: RenderSettings, target: WebGLFramebuffer | null = null): void {
+  render(
+    camera: CameraUniforms,
+    settings: RenderSettings,
+    target: WebGLFramebuffer | null = null,
+  ): void {
     this.meshRenderer ??= new MeshRenderer(this.gl, this.topology);
     this.meshRenderer.render(camera, settings, target);
   }
@@ -316,7 +335,12 @@ export class WebglSolver implements SolverBackend {
    * interactive path renders straight to the canvas via {@link render} with no
    * readback. Returns RGBA rows top-to-bottom.
    */
-  renderToImage(camera: CameraUniforms, settings: RenderSettings, width: number, height: number): Uint8Array {
+  renderToImage(
+    camera: CameraUniforms,
+    settings: RenderSettings,
+    width: number,
+    height: number,
+  ): Uint8Array {
     const gl = this.gl.gl;
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -356,15 +380,23 @@ export class WebglSolver implements SolverBackend {
     const gl = this.gl;
 
     // normalCalc over faces
-    gl.step('normalCalc', ['u_faceVertexIndices', 'u_lastPosition', 'u_originalPosition'], 'u_normals');
+    gl.step(
+      'normalCalc',
+      ['u_faceVertexIndices', 'u_lastPosition', 'u_originalPosition'],
+      'u_normals',
+    );
     // thetaCalc over creases (accumulator ping-pong)
     gl.step(
       'thetaCalc',
       ['u_normals', 'u_lastTheta', 'u_creaseVectors', 'u_lastPosition', 'u_originalPosition'],
-      'u_theta'
+      'u_theta',
     );
     // updateCreaseGeo over creases
-    gl.step('updateCreaseGeo', ['u_lastPosition', 'u_originalPosition', 'u_creaseMeta2'], 'u_creaseGeo');
+    gl.step(
+      'updateCreaseGeo',
+      ['u_lastPosition', 'u_originalPosition', 'u_creaseMeta2'],
+      'u_creaseGeo',
+    );
     if (this.integrationType === 'verlet') {
       // positionCalcVerlet integrates the force straight into position from two
       // steps of history; velocityCalcVerlet then derives velocity from how far it
@@ -426,7 +458,10 @@ export class WebglSolver implements SolverBackend {
       height: dims.textureDimEdges,
       data: packBeamMeta(this.packed, this.material),
     });
-    gl.createTexture('u_creaseMeta', { ...creaseSpec, data: packCreaseMeta(this.packed, this.material) });
+    gl.createTexture('u_creaseMeta', {
+      ...creaseSpec,
+      data: packCreaseMeta(this.packed, this.material),
+    });
 
     // Ping-pong state
     gl.createTexture('u_position', { ...nodeSpec, data: zeros(dims.textureDim) });
@@ -463,16 +498,42 @@ export class WebglSolver implements SolverBackend {
 
     bind('normalCalc', ['u_faceVertexIndices', 'u_lastPosition', 'u_originalPosition']);
     gl.setUniform('normalCalc', 'u_textureDim', [dims.textureDim, dims.textureDim], '2f');
-    gl.setUniform('normalCalc', 'u_textureDimFaces', [dims.textureDimFaces, dims.textureDimFaces], '2f');
+    gl.setUniform(
+      'normalCalc',
+      'u_textureDimFaces',
+      [dims.textureDimFaces, dims.textureDimFaces],
+      '2f',
+    );
 
-    bind('thetaCalc', ['u_normals', 'u_lastTheta', 'u_creaseVectors', 'u_lastPosition', 'u_originalPosition']);
+    bind('thetaCalc', [
+      'u_normals',
+      'u_lastTheta',
+      'u_creaseVectors',
+      'u_lastPosition',
+      'u_originalPosition',
+    ]);
     gl.setUniform('thetaCalc', 'u_textureDim', [dims.textureDim, dims.textureDim], '2f');
-    gl.setUniform('thetaCalc', 'u_textureDimFaces', [dims.textureDimFaces, dims.textureDimFaces], '2f');
-    gl.setUniform('thetaCalc', 'u_textureDimCreases', [dims.textureDimCreases, dims.textureDimCreases], '2f');
+    gl.setUniform(
+      'thetaCalc',
+      'u_textureDimFaces',
+      [dims.textureDimFaces, dims.textureDimFaces],
+      '2f',
+    );
+    gl.setUniform(
+      'thetaCalc',
+      'u_textureDimCreases',
+      [dims.textureDimCreases, dims.textureDimCreases],
+      '2f',
+    );
 
     bind('updateCreaseGeo', ['u_lastPosition', 'u_originalPosition', 'u_creaseMeta2']);
     gl.setUniform('updateCreaseGeo', 'u_textureDim', [dims.textureDim, dims.textureDim], '2f');
-    gl.setUniform('updateCreaseGeo', 'u_textureDimCreases', [dims.textureDimCreases, dims.textureDimCreases], '2f');
+    gl.setUniform(
+      'updateCreaseGeo',
+      'u_textureDimCreases',
+      [dims.textureDimCreases, dims.textureDimCreases],
+      '2f',
+    );
 
     // Euler's velocityCalc and Verlet's positionCalcVerlet share the force shader,
     // so they take the same inputs and dimension uniforms. Configure both from one
@@ -484,20 +545,35 @@ export class WebglSolver implements SolverBackend {
       if (program === 'positionCalcVerlet') samplers.push('u_lastLastPosition');
       bind(program, samplers);
       gl.setUniform(program, 'u_textureDim', [dims.textureDim, dims.textureDim], '2f');
-      gl.setUniform(program, 'u_textureDimEdges', [dims.textureDimEdges, dims.textureDimEdges], '2f');
-      gl.setUniform(program, 'u_textureDimFaces', [dims.textureDimFaces, dims.textureDimFaces], '2f');
-      gl.setUniform(program, 'u_textureDimCreases', [dims.textureDimCreases, dims.textureDimCreases], '2f');
+      gl.setUniform(
+        program,
+        'u_textureDimEdges',
+        [dims.textureDimEdges, dims.textureDimEdges],
+        '2f',
+      );
+      gl.setUniform(
+        program,
+        'u_textureDimFaces',
+        [dims.textureDimFaces, dims.textureDimFaces],
+        '2f',
+      );
+      gl.setUniform(
+        program,
+        'u_textureDimCreases',
+        [dims.textureDimCreases, dims.textureDimCreases],
+        '2f',
+      );
       gl.setUniform(
         program,
         'u_textureDimNodeCreases',
         [dims.textureDimNodeCreases, dims.textureDimNodeCreases],
-        '2f'
+        '2f',
       );
       gl.setUniform(
         program,
         'u_textureDimNodeFaces',
         [dims.textureDimNodeFaces, dims.textureDimNodeFaces],
-        '2f'
+        '2f',
       );
       gl.setUniform(program, 'u_calcFaceStrain', 0, '1i');
     }

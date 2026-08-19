@@ -21,10 +21,7 @@ import {
   getCpVertexPoints,
   ORISTUDIO_CP_FOLD_ANGLE_DISPLAYS,
 } from '../../lib/creasePatternViewport';
-import {
-  cpLineStyleDashPatterns,
-  cpLineStyleDashSlot,
-} from '../../lib/oristudioCpLineStyle';
+import { cpLineStyleDashPatterns, cpLineStyleDashSlot } from '../../lib/oristudioCpLineStyle';
 import type { Rgba } from '../renderer/types';
 import type { CpLineAppearance } from './cpLineStyle';
 import {
@@ -56,7 +53,7 @@ function appearanceFor(name: string): CpLineAppearance {
 
 function expectStrokesEqual(
   a: ReturnType<typeof cpSnapshotToScene>['strokes'],
-  b: ReturnType<typeof cpGeometryStrokesToScene>['strokes']
+  b: ReturnType<typeof cpGeometryStrokesToScene>['strokes'],
 ): void {
   expect(b.count).toBe(a.count);
   expect(Array.from(b.a)).toEqual(Array.from(a.a));
@@ -93,7 +90,7 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
   it('plain (no selection, no move)', () => {
     expectStrokesEqual(
       cpSnapshotToScene(segmentsInput(), appearanceFor, DASH_PATTERNS).strokes,
-      cpGeometryStrokesToScene(transport, appearanceFor, DASH_PATTERNS).strokes
+      cpGeometryStrokesToScene(transport, appearanceFor, DASH_PATTERNS).strokes,
     );
   });
 
@@ -105,7 +102,7 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
     };
     expectStrokesEqual(
       cpSnapshotToScene(segmentsInput(), appearanceFor, DASH_PATTERNS, selection).strokes,
-      cpGeometryStrokesToScene(transport, appearanceFor, DASH_PATTERNS, selection).strokes
+      cpGeometryStrokesToScene(transport, appearanceFor, DASH_PATTERNS, selection).strokes,
     );
   });
 
@@ -119,7 +116,7 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
         undefined,
         undefined,
         undefined,
-        replaced
+        replaced,
       ).strokes,
       cpGeometryStrokesToScene(
         transport,
@@ -128,8 +125,8 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
         undefined,
         undefined,
         undefined,
-        replaced
-      ).strokes
+        replaced,
+      ).strokes,
     );
   });
 
@@ -145,7 +142,7 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
       undefined,
       undefined,
       undefined,
-      new Set([2])
+      new Set([2]),
     ).strokes;
     expect(hidden.count).toBe(plain.count);
     expect(hidden.color[(2 - 1) * 4 + 3]).toBe(0);
@@ -174,7 +171,7 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
       selection,
       undefined,
       undefined,
-      new Set([2])
+      new Set([2]),
     ).strokes;
     expect(strokes.color[(2 - 1) * 4 + 3]).toBe(0);
     expect(strokes.widthMul[1]).toBe(1);
@@ -195,7 +192,7 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
           DASH_PATTERNS,
           undefined,
           undefined,
-          foldAngle
+          foldAngle,
         ).strokes,
         cpGeometryStrokesToScene(
           transport,
@@ -203,8 +200,8 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
           DASH_PATTERNS,
           undefined,
           undefined,
-          foldAngle
-        ).strokes
+          foldAngle,
+        ).strokes,
       );
     });
 
@@ -218,7 +215,7 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
         DASH_PATTERNS,
         undefined,
         undefined,
-        foldAngle
+        foldAngle,
       ).strokes;
       expect(Array.from(treated.color)).not.toEqual(Array.from(plain.color));
     });
@@ -232,7 +229,7 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
         cpGeometryStrokesToScene(transport, appearanceFor, DASH_PATTERNS, undefined, undefined, {
           display,
           anchor: ANCHOR,
-        }).strokes.color
+        }).strokes.color,
     );
     expect(Array.from(byMode[0])).not.toEqual(Array.from(byMode[1]));
   });
@@ -249,7 +246,7 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
     };
     expectStrokesEqual(
       cpSnapshotToScene(segmentsInput(), appearanceFor, DASH_PATTERNS, selection, move).strokes,
-      cpGeometryStrokesToScene(transport, appearanceFor, DASH_PATTERNS, selection, move).strokes
+      cpGeometryStrokesToScene(transport, appearanceFor, DASH_PATTERNS, selection, move).strokes,
     );
   });
 
@@ -268,7 +265,7 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
     };
     expectStrokesEqual(
       cpSnapshotToScene(segmentsInput(), appearanceFor, DASH_PATTERNS, selection, move).strokes,
-      cpGeometryStrokesToScene(transport, appearanceFor, DASH_PATTERNS, selection, move).strokes
+      cpGeometryStrokesToScene(transport, appearanceFor, DASH_PATTERNS, selection, move).strokes,
     );
   });
 

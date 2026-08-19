@@ -30,7 +30,7 @@ const GREY_FALLBACK: Rgba = [0.635, 0.635, 0.635, 1];
 export function createCpLineAppearanceResolver(
   style: OristudioCpLineStyle,
   mode: 'mvf' | 'agrh',
-  styleRoot: Element
+  styleRoot: Element,
 ): (color: string) => CpLineAppearance {
   const ink = readCssVarColor(styleRoot, INK_COLOR_VAR, INK_FALLBACK);
   const grey = readCssVarColor(styleRoot, GREY_COLOR_VAR, GREY_FALLBACK);

@@ -43,7 +43,7 @@ export interface CpToolVariantSurface {
     state: OristudioCpToolState,
     action: OristudioCpActionDefinition,
     editable: boolean,
-    modeOverrides?: Partial<OristudioCpToolOptions>
+    modeOverrides?: Partial<OristudioCpToolOptions>,
   ) => OristudioCpToolState;
   /** The command the armed tool would actually run. */
   activeCommand: OristudioCpCommandDefinition | undefined;
@@ -65,19 +65,19 @@ export function useCpToolVariant({
       state: OristudioCpToolState,
       action: OristudioCpActionDefinition,
       editable: boolean,
-      modeOverrides?: Partial<OristudioCpToolOptions>
+      modeOverrides?: Partial<OristudioCpToolOptions>,
     ) =>
       transitionOristudioCpToolState(state, {
         type: 'selectAction',
         action,
         editable,
         toolOptions: modeOverrides ? { ...toolOptions, ...modeOverrides } : toolOptions,
-      })
+      }),
   );
 
   useEffect(() => {
     setToolState((state) =>
-      transitionOristudioCpToolState(state, { type: 'resolveVariant', toolOptions })
+      transitionOristudioCpToolState(state, { type: 'resolveVariant', toolOptions }),
     );
   }, [setToolState, toolOptions]);
 

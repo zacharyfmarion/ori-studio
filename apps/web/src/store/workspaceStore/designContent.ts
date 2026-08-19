@@ -49,7 +49,7 @@ export interface ExploriDesignState {
 }
 
 export function createExploriDesignState(
-  overrides: Partial<ExploriDesignState> = {}
+  overrides: Partial<ExploriDesignState> = {},
 ): ExploriDesignState {
   return {
     document: createExploriDocument(),
@@ -94,7 +94,7 @@ export interface TreemakerDesignState {
 }
 
 export function createTreemakerDesignState(
-  overrides: Partial<TreemakerDesignState> = {}
+  overrides: Partial<TreemakerDesignState> = {},
 ): TreemakerDesignState {
   return {
     project: createEmptyProject(),
@@ -138,7 +138,7 @@ export interface BoxPleatDesignState {
 }
 
 export function createBoxPleatDesignState(
-  overrides: Partial<BoxPleatDesignState> = {}
+  overrides: Partial<BoxPleatDesignState> = {},
 ): BoxPleatDesignState {
   return {
     document: null,
@@ -185,11 +185,11 @@ export type DesignTabContent =
 export const EMPTY_PROJECT: TreeProject = Object.freeze(createEmptyProject());
 
 export const EMPTY_TREEMAKER_DESIGN: TreemakerDesignState = Object.freeze(
-  createTreemakerDesignState({ project: EMPTY_PROJECT })
+  createTreemakerDesignState({ project: EMPTY_PROJECT }),
 );
 
 export const EMPTY_BOX_PLEAT_DESIGN: BoxPleatDesignState = Object.freeze(
-  createBoxPleatDesignState()
+  createBoxPleatDesignState(),
 );
 
 export const EMPTY_EXPLORI_DESIGN: ExploriDesignState = Object.freeze(createExploriDesignState());

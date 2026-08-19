@@ -156,16 +156,7 @@ export function createInlineSimulation(options: {
    */
   frameAngle?: number;
 }): InlineSimulation {
-  const {
-    id,
-    segment,
-    document,
-    cpLineIds,
-    z,
-    view,
-    blockers = [],
-    frameAngle = 0,
-  } = options;
+  const { id, segment, document, cpLineIds, z, view, blockers = [], frameAngle = 0 } = options;
   const bounds = foldedSourceBounds(cpLinesByIds(document, cpLineIds));
   // Sized and anchored from the crease bounds, which are the document's own
   // coordinates by construction, rather than from the segment's — those come
@@ -213,7 +204,7 @@ export function createInlineSimulation(options: {
  */
 export function sourceFingerprintFor(
   document: OristudioCpDocumentSnapshot | null | undefined,
-  bounds: FoldedSourceBounds | null
+  bounds: FoldedSourceBounds | null,
 ): string | null {
   if (!document || !bounds) return null;
   return foldedSourceFingerprint(cpLinesByIds(document, reselectFoldableLineIds(document, bounds)));
@@ -237,7 +228,7 @@ export function sourceFingerprintFor(
  */
 export function isInlineSimulationStale(
   document: OristudioCpDocumentSnapshot | null | undefined,
-  simulation: InlineSimulation
+  simulation: InlineSimulation,
 ): boolean {
   if (!document) return false;
   if (simulation.sourceBounds == null || simulation.sourceFingerprint == null) return false;
@@ -423,7 +414,7 @@ export function boundariesMatch(a: readonly Point[][], b: readonly Point[][]): b
  */
 export function resolveInlineSimulationSegment(
   simulation: InlineSimulation,
-  segments: readonly CpSegment[]
+  segments: readonly CpSegment[],
 ): CpSegment | null {
   const boundary = simulation.sourceBoundary;
   if (!boundary) return null;
@@ -439,7 +430,7 @@ export function resolveInlineSimulationSegment(
 
 /** A window as the shared selection overlay sees it: a model-space box. */
 export function inlineSimulationAsTransformable(
-  simulation: InlineSimulation
+  simulation: InlineSimulation,
 ): TransformableCanvasObject {
   return {
     id: simulation.id,

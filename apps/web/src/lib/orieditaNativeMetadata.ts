@@ -57,7 +57,7 @@ export interface OrieditaCanvasToolOptions {
 }
 
 export function foldedFigureModelFromOrieditaMetadata(
-  metadata: Record<string, unknown> | null | undefined
+  metadata: Record<string, unknown> | null | undefined,
 ): OristudioCpFoldedFigureModel | null {
   if (!metadata) return null;
   const oriModel = recordValue(metadata[ORI_FOLDED_MODEL_KEY]);
@@ -76,8 +76,7 @@ export function foldedFigureModelFromOrieditaMetadata(
     scale: (numberValue(oriModel?.scale) ?? DEFAULT_FOLDED_MODEL.scale) / view.zoom,
     rotation: (numberValue(oriModel?.rotation) ?? DEFAULT_FOLDED_MODEL.rotation) - view.angle,
     anti_alias: booleanValue(oriModel?.antiAlias) ?? DEFAULT_FOLDED_MODEL.anti_alias,
-    display_shadows:
-      booleanValue(oriModel?.displayShadows) ?? DEFAULT_FOLDED_MODEL.display_shadows,
+    display_shadows: booleanValue(oriModel?.displayShadows) ?? DEFAULT_FOLDED_MODEL.display_shadows,
     state: foldedState(oriModel?.state) ?? DEFAULT_FOLDED_MODEL.state,
     folded_cases: integerValue(oriModel?.foldedCases) ?? DEFAULT_FOLDED_MODEL.folded_cases,
     transparent_transparency:
@@ -113,7 +112,7 @@ export function foldedFigureModelFromOrieditaMetadata(
  * must open at +22.5° here.
  */
 export function creasePatternRotationFromOrieditaMetadata(
-  metadata: Record<string, unknown> | null | undefined
+  metadata: Record<string, unknown> | null | undefined,
 ): number | null {
   if (!metadata) return null;
   const camera = recordValue(metadata[ORI_CAMERA_KEY]);
@@ -123,7 +122,7 @@ export function creasePatternRotationFromOrieditaMetadata(
 }
 
 export function activeLineColorFromOrieditaMetadata(
-  metadata: Record<string, unknown> | null | undefined
+  metadata: Record<string, unknown> | null | undefined,
 ): OristudioCpLineColor | null {
   const canvasModel = recordValue(metadata?.[ORI_CANVAS_MODEL_KEY]);
   const lineColor = lineColorValue(canvasModel?.lineColor);
@@ -132,7 +131,7 @@ export function activeLineColorFromOrieditaMetadata(
 }
 
 export function activeMouseModeFromOrieditaMetadata(
-  metadata: Record<string, unknown> | null | undefined
+  metadata: Record<string, unknown> | null | undefined,
 ): string | null {
   const canvasModel = recordValue(metadata?.[ORI_CANVAS_MODEL_KEY]);
   const mouseMode = canvasModel?.mouseMode;
@@ -142,7 +141,7 @@ export function activeMouseModeFromOrieditaMetadata(
 }
 
 export function canvasToolOptionsFromOrieditaMetadata(
-  metadata: Record<string, unknown> | null | undefined
+  metadata: Record<string, unknown> | null | undefined,
 ): OrieditaCanvasToolOptions | null {
   const canvasModel = recordValue(metadata?.[ORI_CANVAS_MODEL_KEY]);
   if (!canvasModel) return null;
@@ -158,7 +157,7 @@ export function canvasToolOptionsFromOrieditaMetadata(
 }
 
 export function orieditaNativeMetadataStatus(
-  metadata: Record<string, unknown> | null | undefined
+  metadata: Record<string, unknown> | null | undefined,
 ): OrieditaNativeMetadataStatus | null {
   if (!metadata) return null;
   const restored = new Set<string>();
@@ -264,7 +263,7 @@ function rgbArray(value: unknown): OristudioCpRgbColor | null {
   const [red, green, blue] = value.map((channel) =>
     typeof channel === 'number' && Number.isInteger(channel) && channel >= 0 && channel <= 255
       ? channel
-      : null
+      : null,
   );
   if (red === null || green === null || blue === null) return null;
   return { red, green, blue };
@@ -349,7 +348,10 @@ function customLineTypeValue(value: unknown): OristudioCpCustomLineType | null {
   }
 
   if (typeof value !== 'string') return null;
-  const normalized = value.trim().replace(/[-_\s]/gu, '').toUpperCase();
+  const normalized = value
+    .trim()
+    .replace(/[-_\s]/gu, '')
+    .toUpperCase();
   switch (normalized) {
     case 'ANY':
       return 'Any';

@@ -19,7 +19,7 @@ function run(
   state: StartFigureOrbitState,
   ms: number,
   config = CONFIG,
-  frameMs = 16
+  frameMs = 16,
 ): StartFigureOrbitState {
   let current = state;
   for (let elapsed = 0; elapsed < ms; elapsed += frameMs) {
@@ -45,11 +45,7 @@ describe('one axis', () => {
     // The point of the module, asserted structurally: pitch is not
     // representable here, so nothing can drift it. A change that reintroduces
     // it has to change this test, which is the intent.
-    expect(Object.keys(initialStartFigureOrbit(CONFIG)).sort()).toEqual([
-      'holdMs',
-      'mode',
-      'yaw',
-    ]);
+    expect(Object.keys(initialStartFigureOrbit(CONFIG)).sort()).toEqual(['holdMs', 'mode', 'yaw']);
   });
 
   it('takes no vertical delta at all', () => {
@@ -71,10 +67,7 @@ describe('the turn', () => {
   });
 
   it('keeps turning the same way past a full revolution', () => {
-    const travelled = travel(
-      initialStartFigureOrbit(CONFIG),
-      START_FIGURE_TURN_PERIOD_MS * 2.5
-    );
+    const travelled = travel(initialStartFigureOrbit(CONFIG), START_FIGURE_TURN_PERIOD_MS * 2.5);
     expect(travelled).toBeCloseTo(Math.PI * 5, 1);
   });
 
@@ -122,7 +115,7 @@ describe('dragging', () => {
   it('is not overridden by the turn while the pointer is down', () => {
     const dragged = dragStartFigureOrbit(
       beginStartFigureDrag(initialStartFigureOrbit(CONFIG)),
-      -220
+      -220,
     );
     expect(run(dragged, 3_000)).toEqual(dragged);
   });
@@ -131,7 +124,7 @@ describe('dragging', () => {
 describe('resuming after a release', () => {
   function released(): StartFigureOrbitState {
     return endStartFigureDrag(
-      dragStartFigureOrbit(beginStartFigureDrag(initialStartFigureOrbit(CONFIG)), -180)
+      dragStartFigureOrbit(beginStartFigureDrag(initialStartFigureOrbit(CONFIG)), -180),
     );
   }
 
@@ -177,7 +170,7 @@ describe('reduced motion', () => {
   it('still lets the figure be dragged', () => {
     const dragged = dragStartFigureOrbit(
       beginStartFigureDrag(initialStartFigureOrbit({ ...CONFIG, reducedMotion: true })),
-      -100
+      -100,
     );
     expect(dragged.yaw).not.toBe(CONFIG.yaw);
   });

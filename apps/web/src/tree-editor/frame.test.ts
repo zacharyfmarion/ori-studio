@@ -77,7 +77,13 @@ describe('the fit rect for a centred tree', () => {
   });
 
   it('grows to hold the drawing, with room around it', () => {
-    const rect = centeredTreeFitRect([{ x: 0, y: 0 }, { x: 11, y: 2 }], options);
+    const rect = centeredTreeFitRect(
+      [
+        { x: 0, y: 0 },
+        { x: 11, y: 2 },
+      ],
+      options,
+    );
     // 11 out plus a unit of padding.
     expect(rect.width / 2 / options.unitSvg).toBeCloseTo(12, 9);
     isCentredOnOrigin(rect);
@@ -87,7 +93,13 @@ describe('the fit rect for a centred tree', () => {
     // The regression this exists for: fitting a lopsided tree's own bounding box
     // would open it half off-screen, because the camera is aimed at the origin
     // regardless.
-    const rect = centeredTreeFitRect([{ x: 9, y: 9 }, { x: 12, y: 10 }], options);
+    const rect = centeredTreeFitRect(
+      [
+        { x: 9, y: 9 },
+        { x: 12, y: 10 },
+      ],
+      options,
+    );
     isCentredOnOrigin(rect);
     // Far enough out to hold the outermost node, not merely the span between them.
     expect(rect.width / 2 / options.unitSvg).toBeCloseTo(13, 9);
@@ -102,7 +114,13 @@ describe('the fit rect for a centred tree', () => {
   it('ignores a non-finite point rather than losing the whole rect to it', () => {
     // One NaN would otherwise poison every Math.max and hand the camera a rect
     // it cannot fit anything into.
-    const rect = centeredTreeFitRect([{ x: Number.NaN, y: 0 }, { x: 9, y: 0 }], options);
+    const rect = centeredTreeFitRect(
+      [
+        { x: Number.NaN, y: 0 },
+        { x: 9, y: 0 },
+      ],
+      options,
+    );
     expect(rect.width / 2 / options.unitSvg).toBeCloseTo(10, 9);
   });
 });

@@ -116,8 +116,7 @@ interface ImageAttributes {
 
 // A unit quad (two triangles) reused for every image.
 const QUAD_CORNERS = new Float32Array([
-  -0.5, -0.5, 0.5, -0.5, 0.5, 0.5,
-  -0.5, -0.5, 0.5, 0.5, -0.5, 0.5,
+  -0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5,
 ]);
 
 export function createImageProgram(regl: Regl): ImageProgram {

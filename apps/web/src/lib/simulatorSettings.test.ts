@@ -24,7 +24,7 @@ describe('simulatorSettings', () => {
     expect(clampSimulatorSetting('timeStepScale', 0)).toBe(0.05);
     // A half-typed number field yields NaN; fall back rather than store it.
     expect(clampSimulatorSetting('creaseStiffness', Number.NaN)).toBe(
-      DEFAULT_SIMULATOR_SETTINGS.creaseStiffness
+      DEFAULT_SIMULATOR_SETTINGS.creaseStiffness,
     );
   });
 
@@ -70,11 +70,13 @@ describe('simulatorSettings', () => {
 
   it('validates the export background and clamps the crease weight', () => {
     expect(normalizeSimulatorSettings({ exportBackground: 'chartreuse' }).exportBackground).toBe(
-      DEFAULT_SIMULATOR_SETTINGS.exportBackground
+      DEFAULT_SIMULATOR_SETTINGS.exportBackground,
     );
-    expect(normalizeSimulatorSettings({ exportBackground: 'white' }).exportBackground).toBe('white');
+    expect(normalizeSimulatorSettings({ exportBackground: 'white' }).exportBackground).toBe(
+      'white',
+    );
     expect(normalizeSimulatorSettings({ creaseWidth: 999 }).creaseWidth).toBe(
-      SIMULATOR_SETTING_RANGES.creaseWidth.max
+      SIMULATOR_SETTING_RANGES.creaseWidth.max,
     );
   });
 });

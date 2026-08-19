@@ -55,7 +55,7 @@ const KEY = storageKey(STORAGE_KEYS.cpToolOptions);
  * default for that key alone.
  */
 type Validator<K extends keyof OristudioCpToolOptions> = (
-  value: unknown
+  value: unknown,
 ) => OristudioCpToolOptions[K] | null;
 
 type Registry = {
@@ -80,7 +80,9 @@ function boolean(value: unknown): boolean | null {
 
 function oneOf<T extends string>(values: readonly T[]): (value: unknown) => T | null {
   return (value) =>
-    typeof value === 'string' && (values as readonly string[]).includes(value) ? (value as T) : null;
+    typeof value === 'string' && (values as readonly string[]).includes(value)
+      ? (value as T)
+      : null;
 }
 
 /** The six coefficients of `a + b*sqrt(c) : d + e*sqrt(f)`, all present and finite. */
@@ -91,7 +93,7 @@ function ratioExpression(value: unknown): OristudioCpRatioExpression | null {
   const record = value as Record<string, unknown>;
   if (RATIO_FIELDS.some((field) => finiteIn(record[field], -1e6, 1e6) === null)) return null;
   return Object.fromEntries(
-    RATIO_FIELDS.map((field) => [field, record[field] as number])
+    RATIO_FIELDS.map((field) => [field, record[field] as number]),
   ) as unknown as OristudioCpRatioExpression;
 }
 
@@ -219,7 +221,7 @@ export function writeCpToolOptions(options: OristudioCpToolOptions): void {
  */
 export function resetCpToolOptions(
   options: OristudioCpToolOptions,
-  keys: readonly (keyof OristudioCpToolOptions)[]
+  keys: readonly (keyof OristudioCpToolOptions)[],
 ): OristudioCpToolOptions {
   const next = { ...options };
   for (const key of keys) {
@@ -231,10 +233,10 @@ export function resetCpToolOptions(
 /** Whether any of `keys` differs from its default. */
 export function hasNonDefaultCpToolOptions(
   options: OristudioCpToolOptions,
-  keys: readonly (keyof OristudioCpToolOptions)[]
+  keys: readonly (keyof OristudioCpToolOptions)[],
 ): boolean {
   return keys.some(
     (key) =>
-      JSON.stringify(options[key]) !== JSON.stringify(DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS[key])
+      JSON.stringify(options[key]) !== JSON.stringify(DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS[key]),
   );
 }

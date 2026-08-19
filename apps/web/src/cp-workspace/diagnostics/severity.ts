@@ -26,7 +26,7 @@ export function isCpDiagnosticWarning(entry: OristudioCpDiagnosticEntry): boolea
 }
 
 export function countCpDiagnosticErrors(
-  entries: readonly OristudioCpDiagnosticEntry[] | undefined | null
+  entries: readonly OristudioCpDiagnosticEntry[] | undefined | null,
 ): number {
   return (entries ?? []).filter(isCpDiagnosticError).length;
 }

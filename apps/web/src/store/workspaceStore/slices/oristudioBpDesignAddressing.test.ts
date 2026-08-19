@@ -92,7 +92,16 @@ function tree(vertexIds: number[] = [0, 1, 2]): OristudioBpTreeView {
 }
 
 function flap(id: number, x: number, y: number): OristudioBpFlap {
-  return { id, vertexId: id, name: `f${id}`, anchor: { x, y }, width: 2, height: 1, radius: 1, constrained: true };
+  return {
+    id,
+    vertexId: id,
+    name: `f${id}`,
+    anchor: { x, y },
+    width: 2,
+    height: 1,
+    radius: 1,
+    constrained: true,
+  };
 }
 
 /** A document tagged by its flap position, so "which design got it" is readable. */
@@ -124,7 +133,14 @@ function twoDesigns() {
         kind: 'box-pleat',
         boxPleat: createBoxPleatDesignState({
           document: bpDocument(1),
-          symmetry: { ...AXIS, enabled: true, fold: 'book', quarterTurn: false, sidesSwapped: false, pairs: [{ v1: 1, v2: 2 }] },
+          symmetry: {
+            ...AXIS,
+            enabled: true,
+            fold: 'book',
+            quarterTurn: false,
+            sidesSwapped: false,
+            pairs: [{ v1: 1, v2: 2 }],
+          },
         }),
       },
       {
@@ -132,7 +148,14 @@ function twoDesigns() {
         kind: 'box-pleat',
         boxPleat: createBoxPleatDesignState({
           document: bpDocument(99),
-          symmetry: { ...AXIS, enabled: false, fold: 'diagonal', quarterTurn: false, sidesSwapped: false, pairs: [{ v1: 1, v2: 2 }] },
+          symmetry: {
+            ...AXIS,
+            enabled: false,
+            fold: 'diagonal',
+            quarterTurn: false,
+            sidesSwapped: false,
+            pairs: [{ v1: 1, v2: 2 }],
+          },
         }),
       },
     ],

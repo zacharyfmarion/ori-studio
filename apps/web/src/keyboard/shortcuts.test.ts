@@ -36,7 +36,7 @@ import { cpVariantHostAction } from '../lib/cpToolVariants';
 function dispatched(
   chord: KeyChord,
   scopeStack: ShortcutScope[],
-  overrides: ShortcutOverrides = {}
+  overrides: ShortcutOverrides = {},
 ): ShortcutActionId | null {
   let fired: ShortcutActionId | null = null;
   const claim = (id: ShortcutActionId) => {
@@ -63,7 +63,7 @@ function dispatched(
           return true;
         },
       },
-    }
+    },
   );
   return fired;
 }
@@ -101,10 +101,7 @@ describe('shortcut registry', () => {
     expect(getResolvedShortcut('cp.action.draw-crease')).toEqual({
       key: 'z',
     });
-    expect(getResolvedShortcuts('edit.delete')).toEqual([
-      { key: 'delete' },
-      { key: 'backspace' },
-    ]);
+    expect(getResolvedShortcuts('edit.delete')).toEqual([{ key: 'delete' }, { key: 'backspace' }]);
     expect(shortcutLabelForAction('edit.delete')).toContain('Delete / Backspace');
   });
 
@@ -123,13 +120,14 @@ describe('shortcut registry', () => {
     expect(
       getResolvedShortcuts('edit.redo', {
         'edit.redo': [{ primary: true, alt: true, key: 'z' }],
-      })
+      }),
     ).toEqual([
       { primary: true, shift: true, key: 'z' },
       { primary: true, alt: true, key: 'z' },
     ]);
-    expect(findShortcutConflict('file.save', { primary: true, key: 'z' }, { 'edit.undo': null })?.id)
-      .toBe('edit.undo');
+    expect(
+      findShortcutConflict('file.save', { primary: true, key: 'z' }, { 'edit.undo': null })?.id,
+    ).toBe('edit.undo');
   });
 
   it('detects conflicts only across overlapping scopes', () => {
@@ -137,7 +135,7 @@ describe('shortcut registry', () => {
     expect(conflict?.id).toBe('file.save');
 
     expect(
-      findShortcutConflict('cp.action.line-type.mountain', { primary: true, key: 's' })
+      findShortcutConflict('cp.action.line-type.mountain', { primary: true, key: 's' }),
     ).toBeNull();
   });
 
@@ -159,9 +157,9 @@ describe('shortcut registry', () => {
     });
     // `primary` is Cmd on macOS and Ctrl elsewhere; Oriedita's own
     // hotkey.properties says `ctrl shift V` because it is a Java desktop app.
-    expect(
-      formatKeyChord({ primary: true, shift: true, key: 'v' }, { platform: 'mac' })
-    ).toBe('Cmd+Shift+V');
+    expect(formatKeyChord({ primary: true, shift: true, key: 'v' }, { platform: 'mac' })).toBe(
+      'Cmd+Shift+V',
+    );
   });
 
   it('keeps every shortcut id unique', () => {
@@ -205,7 +203,10 @@ describe('shortcut registry', () => {
 
   it('keeps the mirror family on M and puts the measure tools on Shift+M / Shift+A', () => {
     expect(getResolvedShortcut('cp.action.symmetric-draw')).toEqual({ key: 'm' });
-    expect(getResolvedShortcut('cp.action.draw-crease-symmetric')).toEqual({ primary: true, key: 'm' });
+    expect(getResolvedShortcut('cp.action.draw-crease-symmetric')).toEqual({
+      primary: true,
+      key: 'm',
+    });
     expect(getResolvedShortcut('cp.action.display-length-between-points1')).toEqual({
       key: 'm',
       shift: true,
@@ -217,10 +218,10 @@ describe('shortcut registry', () => {
     // The bare keys they shift stay with their own tools.
     expect(getResolvedShortcut('cp.action.line-type.mountain')).toEqual({ key: 'a' });
     expect(shortcutLabelForAction('cp.action.display-length-between-points1')).toMatch(
-      /Shift\+M$/u
+      /Shift\+M$/u,
     );
     expect(shortcutLabelForAction('cp.action.display-angle-between-three-points1')).toMatch(
-      /Shift\+A$/u
+      /Shift\+A$/u,
     );
   });
 
@@ -238,7 +239,7 @@ describe('shortcut registry', () => {
           actionId: 'optimize.scale',
           classification: 'soft-reserved',
         }),
-      ])
+      ]),
     );
   });
 });
@@ -378,7 +379,7 @@ describe('Oriedita defaults source', () => {
     });
     // And the two lists between them account for all 34.
     expect(Object.keys(applied).length + Object.keys(dropped).length).toBe(
-      Object.keys(ORIEDITA_DEFAULT_HOTKEYS).length
+      Object.keys(ORIEDITA_DEFAULT_HOTKEYS).length,
     );
   });
 
@@ -450,7 +451,7 @@ describe('Oriedita defaults source', () => {
     const reserved = SHORTCUT_DEFINITIONS.flatMap((definition) =>
       getDefaultShortcutChords(definition.id, 'oriedita')
         .filter((chord) => classifyReservedKey(chord) === 'hard-reserved')
-        .map((chord) => `${definition.id}=${keyChordId(chord)}`)
+        .map((chord) => `${definition.id}=${keyChordId(chord)}`),
     );
 
     expect(reserved).toEqual([]);
@@ -473,13 +474,13 @@ describe('Oriedita defaults source', () => {
     const hidden = cpHiddenActions().filter(
       (action) =>
         !ROUTED_CP_SHORTCUT_ACTIONS.has(action.id) &&
-        (action.kind !== 'command' || cpVariantHostAction(action).id === action.id)
+        (action.kind !== 'command' || cpVariantHostAction(action).id === action.id),
     );
     // Guard against the day nothing is hidden and this passes for free.
     expect(hidden.length).toBeGreaterThan(0);
-    expect(hidden.flatMap((action) => oriedita(action.id).map((chord) => `${action.id}=${chord}`))).toEqual(
-      []
-    );
+    expect(
+      hidden.flatMap((action) => oriedita(action.id).map((chord) => `${action.id}=${chord}`)),
+    ).toEqual([]);
   });
 
   it('keeps the chord of a tool that is on the rail', () => {
@@ -497,15 +498,18 @@ describe('Oriedita defaults source', () => {
 
     // A plain override replaces, so both sources agree.
     expect(getResolvedShortcuts('file.saveAs', { overrides })).toEqual([{ key: 'j' }]);
-    expect(
-      getResolvedShortcuts('file.saveAs', { overrides, defaultsSource: 'oriedita' })
-    ).toEqual([{ key: 'j' }]);
+    expect(getResolvedShortcuts('file.saveAs', { overrides, defaultsSource: 'oriedita' })).toEqual([
+      { key: 'j' },
+    ]);
 
     // Undo and Redo merge instead of replacing, and the defaults they merge with
     // have to be the active source's — otherwise the inactive table leaks a
     // chord in. Upstream agrees with us on both, which is the answer to pin.
     expect(
-      getResolvedShortcuts('edit.undo', { overrides: { 'edit.undo': null }, defaultsSource: 'oriedita' })
+      getResolvedShortcuts('edit.undo', {
+        overrides: { 'edit.undo': null },
+        defaultsSource: 'oriedita',
+      }),
     ).toEqual([{ primary: true, key: 'z' }]);
     expect(oriedita('edit.redo')).toEqual(['primary+shift+z']);
   });
@@ -514,11 +518,11 @@ describe('Oriedita defaults source', () => {
     // M is Mirror Line here and Mountain upstream, so "who else holds M" has a
     // different answer per source. The capture UI asks this before rebinding.
     expect(findShortcutShadowing('file.save', { key: 'm' })?.definition.id).toBe(
-      'cp.action.symmetric-draw'
+      'cp.action.symmetric-draw',
     );
     expect(
       findShortcutShadowing('file.save', { key: 'm' }, { defaultsSource: 'oriedita' })?.definition
-        .id
+        .id,
     ).toBe('cp.action.line-type.mountain');
   });
 });
@@ -530,8 +534,9 @@ describe('findShortcutShadowing', () => {
     // of menu ones. `crease-pattern` precedes `global` in the scope stack, so a
     // CP tool on Mod+S does not coexist with Save — it replaces it whenever the
     // CP canvas is the editing context.
-    expect(findShortcutConflict('cp.action.line-type.mountain', { primary: true, key: 's' }))
-      .toBeNull();
+    expect(
+      findShortcutConflict('cp.action.line-type.mountain', { primary: true, key: 's' }),
+    ).toBeNull();
 
     const shadowing = findShortcutShadowing('cp.action.line-type.mountain', {
       primary: true,
@@ -617,11 +622,11 @@ describe('findShortcutShadowing', () => {
     // the chord goes to the simulator while a simulation owns the keyboard, and
     // to the tool otherwise.
     const overrides = { 'simulator.replay': [chord] };
-    expect(dispatched(chord, ['simulator', 'viewport', 'crease-pattern', 'global'], overrides)).toBe(
-      'simulator.replay'
-    );
+    expect(
+      dispatched(chord, ['simulator', 'viewport', 'crease-pattern', 'global'], overrides),
+    ).toBe('simulator.replay');
     expect(dispatched(chord, ['viewport', 'crease-pattern', 'global'], overrides)).toBe(
-      'cp.action.symmetric-draw'
+      'cp.action.symmetric-draw',
     );
   });
 
@@ -644,7 +649,7 @@ describe('findShortcutShadowing', () => {
     expect(
       dispatched(chord, ['simulator', 'viewport', 'crease-pattern', 'global'], {
         'simulator.foldStart': [chord],
-      })
+      }),
     ).toBe('simulator.foldEnd');
   });
 
@@ -653,7 +658,7 @@ describe('findShortcutShadowing', () => {
     // compare against is the one the plan assigns, not the shipped default.
     const overrides = { 'cp.action.line-type.valley': [{ key: 'j' }] };
     expect(findShortcutShadowing('file.save', { key: 'j' }, overrides)?.definition.id).toBe(
-      'cp.action.line-type.valley'
+      'cp.action.line-type.valley',
     );
     expect(findShortcutShadowing('file.save', { key: 's' }, overrides)).toBeNull();
   });
@@ -674,7 +679,7 @@ describe('the Oriedita layout covers the drawing surface only', () => {
         const ours = getDefaultShortcutChords(definition.id, 'ori-studio');
         const theirs = getDefaultShortcutChords(definition.id, 'oriedita');
         return JSON.stringify(ours) !== JSON.stringify(theirs);
-      }).map((definition) => definition.scope)
+      }).map((definition) => definition.scope),
     );
 
     expect([...changedScopes]).toEqual(['crease-pattern']);
@@ -687,7 +692,7 @@ describe('the Oriedita layout covers the drawing surface only', () => {
     // have. Both are faithful derivations, and both are wrong to apply.
     for (const id of ['file.settings', 'file.saveAs', 'edit.delete'] as const) {
       expect(getDefaultShortcutChords(id, 'oriedita'), id).toEqual(
-        getDefaultShortcutChords(id, 'ori-studio')
+        getDefaultShortcutChords(id, 'ori-studio'),
       );
     }
   });

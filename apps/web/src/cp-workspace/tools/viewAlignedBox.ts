@@ -46,7 +46,7 @@ function modelAlignedCorners(a: ModelPoint, b: ModelPoint): BoxCorners {
 export function viewAlignedBoxCorners(
   a: ModelPoint,
   b: ModelPoint,
-  view: ViewTransform | null
+  view: ViewTransform | null,
 ): BoxCorners {
   if (!view) return modelAlignedCorners(a, b);
   const da = projectModelPoint(view, a.x, a.y);

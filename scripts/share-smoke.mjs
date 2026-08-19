@@ -103,7 +103,7 @@ async function runChecks(target) {
       response.status === 400 && body?.code === 'bad_id',
       `got ${response.status} ${response.headers.get('content-type')} — 200 text/html means the ` +
         'Functions did not upload and Pages served the SPA fallback; 404 means this host is not ' +
-        'serving this deployment'
+        'serving this deployment',
     );
   }
 
@@ -114,7 +114,7 @@ async function runChecks(target) {
     check(
       'absent share 404s, so SHARE_KV is bound',
       response.status === 404 && body?.code === 'not_found',
-      `got ${response.status} — a 500 here means env.SHARE_KV is undefined`
+      `got ${response.status} — a 500 here means env.SHARE_KV is undefined`,
     );
   }
 
@@ -124,7 +124,7 @@ async function runChecks(target) {
     check(
       'thumbnail falls back to the default card, so SHARE_R2 and og-default.png are present',
       response.ok && (response.headers.get('content-type') || '').includes('image/png'),
-      `got ${response.status} ${response.headers.get('content-type')}`
+      `got ${response.status} ${response.headers.get('content-type')}`,
     );
   }
 
@@ -136,7 +136,7 @@ async function runChecks(target) {
     check(
       'share route serves the SPA',
       served,
-      `got ${response.status} ${type} — a 404 page here would replace every share link`
+      `got ${response.status} ${type} — a 404 page here would replace every share link`,
     );
     check(
       'share route keeps cross-origin isolation',
@@ -144,9 +144,9 @@ async function runChecks(target) {
         response.headers.get('cross-origin-embedder-policy') === 'require-corp',
       served
         ? 'COOP/COEP missing — no SharedArrayBuffer, so a fold started from this entry path ' +
-          'cannot be stopped. Pages does not apply _headers to Function responses, so the ' +
-          'Function must set them itself'
-        : 'the route did not serve, so its headers say nothing — see the check above'
+            'cannot be stopped. Pages does not apply _headers to Function responses, so the ' +
+            'Function must set them itself'
+        : 'the route did not serve, so its headers say nothing — see the check above',
     );
   }
 
@@ -183,7 +183,7 @@ async function smoke(target) {
   if (!reachable) {
     console.error(
       `${target} never answered within ${DEADLINE_MS / 1000}s. The deploy itself failed, or the ` +
-        'URL is wrong.'
+        'URL is wrong.',
     );
     return false;
   }
@@ -215,7 +215,7 @@ async function main() {
     console.log(
       resolved
         ? `  ok   ${alias} resolves`
-        : `  FAIL ${alias} never resolved — the link handed to people does not load`
+        : `  FAIL ${alias} never resolved — the link handed to people does not load`,
     );
     ok = ok && resolved;
   }

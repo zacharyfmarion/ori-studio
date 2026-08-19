@@ -1,7 +1,10 @@
 import { singleBoxPleatDesignTab } from '../designTabs';
 import { selectOristudioBpHistoryPast } from '../designTabs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { OristudioBpDocumentState, OristudioBpTreeView } from '../../../engine/oristudioBpTypes';
+import type {
+  OristudioBpDocumentState,
+  OristudioBpTreeView,
+} from '../../../engine/oristudioBpTypes';
 
 /**
  * Deleting under symmetry removes the mirror partner too, in one engine call and
@@ -80,17 +83,18 @@ function setUp(symmetry: { enabled: boolean; pairs?: { v1: number; v2: number }[
     {
       ...useWorkspaceStore.getInitialState(),
       ...singleBoxPleatDesignTab({
-      document: bpDocument(),
-      symmetry: {
-        ...AXIS,
-        enabled: symmetry.enabled,
-        fold: 'book',
-        quarterTurn: false,
-        sidesSwapped: false,
-        pairs: symmetry.pairs ?? [],
-      }
-      })},
-    true
+        document: bpDocument(),
+        symmetry: {
+          ...AXIS,
+          enabled: symmetry.enabled,
+          fold: 'book',
+          quarterTurn: false,
+          sidesSwapped: false,
+          pairs: symmetry.pairs ?? [],
+        },
+      }),
+    },
+    true,
   );
 }
 

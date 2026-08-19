@@ -15,7 +15,7 @@ afterEach(() => {
 describe('isViewportInteractiveTarget', () => {
   it('claims controls that own their keystrokes', () => {
     const host = mount(
-      '<button></button><input /><textarea></textarea><select></select><div contenteditable="true"></div>'
+      '<button></button><input /><textarea></textarea><select></select><div contenteditable="true"></div>',
     );
     for (const el of host.children) expect(isViewportInteractiveTarget(el)).toBe(true);
   });

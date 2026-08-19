@@ -38,10 +38,7 @@ import {
 } from '../../lib/foldAngle';
 import { formatFoldAngle } from '../../lib/foldAngle';
 import type { ToolPreviewSegment } from '../tools/types';
-import {
-  planFoldAngleBadges,
-  type FoldAngleBadgeInput,
-} from './foldAngleBadges';
+import { planFoldAngleBadges, type FoldAngleBadgeInput } from './foldAngleBadges';
 
 export function CpFoldAngleLayer({
   lineSegments,
@@ -64,7 +61,7 @@ export function CpFoldAngleLayer({
   // Note this gates the *badges* only — crease colour is unconditional, and
   // lives in the stroke builders where no visibility flag reaches it.
   const labelsVisible = useWorkspaceStore(
-    (state) => state.oristudioCpViewport.foldAngleLabelsVisible !== false
+    (state) => state.oristudioCpViewport.foldAngleLabelsVisible !== false,
   );
   if (!view) return null;
 

@@ -34,17 +34,21 @@ import type { BpFlapFootprint } from '../lib/bpFlapReshape';
  */
 
 export interface BpPackingDragRequestActions {
-  moveFlap: (id: number, loc: BpPackingDragBackendUpdate['loc'], dragging: boolean) => Promise<unknown>;
+  moveFlap: (
+    id: number,
+    loc: BpPackingDragBackendUpdate['loc'],
+    dragging: boolean,
+  ) => Promise<unknown>;
   moveFlaps: (
     ids: number[],
     loc: BpPackingDragBackendUpdate['loc'],
-    dragging: boolean
+    dragging: boolean,
   ) => Promise<unknown>;
   moveDevice: (
     stretchId: string,
     index: number,
     loc: BpPackingDeviceBackendUpdate['loc'],
-    dragging: boolean
+    dragging: boolean,
   ) => Promise<unknown>;
   reshapeFlap: (id: number, footprint: BpFlapFootprint, dragging: boolean) => Promise<unknown>;
 }
@@ -76,7 +80,7 @@ function emptyChannel<T>(): RequestChannel<T> {
 }
 
 export function useBpPackingDragRequests(
-  actions: BpPackingDragRequestActions
+  actions: BpPackingDragRequestActions,
 ): BpPackingDragRequests {
   const flap = useRef<RequestChannel<BpPackingDragBackendUpdate>>(emptyChannel());
   const device = useRef<RequestChannel<BpPackingDeviceBackendUpdate>>(emptyChannel());
@@ -92,12 +96,17 @@ export function useBpPackingDragRequests(
   const reshapeFlap = useEventCallback(actions.reshapeFlap);
 
   /** Chain onto whatever is in flight, so answers cannot arrive out of order. */
-  const chain = <T,>(channel: RequestChannel<T>, run: () => Promise<unknown>) => {
+  const chain = <T>(channel: RequestChannel<T>, run: () => Promise<unknown>) => {
     const queued = channel.queue;
-    const next = queued ? queued.then(() => run(), () => run()) : run();
+    const next = queued
+      ? queued.then(
+          () => run(),
+          () => run(),
+        )
+      : run();
     const guarded = next.then(
       () => undefined,
-      () => undefined
+      () => undefined,
     );
     channel.queue = guarded;
     void guarded.finally(() => {
@@ -105,16 +114,19 @@ export function useBpPackingDragRequests(
     });
   };
 
-  const sendFlap = useCallback((update: BpPackingDragBackendUpdate, dragging: boolean) => {
-    if (update.ids.length === 0) return;
-    const channel = flap.current;
-    channel.sent = update;
-    chain(channel, () => {
-      if (update.ids.length > 1) return moveFlaps(update.ids, update.loc, dragging);
-      const id = update.ids[0];
-      return id === undefined ? Promise.resolve() : moveFlap(id, update.loc, dragging);
-    });
-  }, [moveFlap, moveFlaps]);
+  const sendFlap = useCallback(
+    (update: BpPackingDragBackendUpdate, dragging: boolean) => {
+      if (update.ids.length === 0) return;
+      const channel = flap.current;
+      channel.sent = update;
+      chain(channel, () => {
+        if (update.ids.length > 1) return moveFlaps(update.ids, update.loc, dragging);
+        const id = update.ids[0];
+        return id === undefined ? Promise.resolve() : moveFlap(id, update.loc, dragging);
+      });
+    },
+    [moveFlap, moveFlaps],
+  );
 
   const sendReshape = useCallback(
     (update: BpPackingReshapeBackendUpdate, dragging: boolean) => {
@@ -122,14 +134,17 @@ export function useBpPackingDragRequests(
       channel.sent = update;
       chain(channel, () => reshapeFlap(update.id, update.footprint, dragging));
     },
-    [reshapeFlap]
+    [reshapeFlap],
   );
 
-  const sendDevice = useCallback((update: BpPackingDeviceBackendUpdate, dragging: boolean) => {
-    const channel = device.current;
-    channel.sent = update;
-    chain(channel, () => moveDevice(update.stretchId, update.index, update.loc, dragging));
-  }, [moveDevice]);
+  const sendDevice = useCallback(
+    (update: BpPackingDeviceBackendUpdate, dragging: boolean) => {
+      const channel = device.current;
+      channel.sent = update;
+      chain(channel, () => moveDevice(update.stretchId, update.index, update.loc, dragging));
+    },
+    [moveDevice],
+  );
 
   /**
    * Schedule a frame, unless the newest sample says nothing new.
@@ -137,11 +152,11 @@ export function useBpPackingDragRequests(
    * `pending` is recorded before any early return, so a frame already in flight
    * always sends the newest sample rather than the one that scheduled it.
    */
-  const schedule = <T,>(
+  const schedule = <T>(
     channel: RequestChannel<T>,
     update: T,
     same: (sent: T | null, next: T) => boolean,
-    send: (update: T, dragging: boolean) => void
+    send: (update: T, dragging: boolean) => void,
   ) => {
     channel.pending = update;
     if (channel.frame !== null) return;
@@ -162,10 +177,10 @@ export function useBpPackingDragRequests(
     if (!ran) channel.frame = handle;
   };
 
-  const flush = <T,>(
+  const flush = <T>(
     channel: RequestChannel<T>,
     update: T,
-    send: (update: T, dragging: boolean) => void
+    send: (update: T, dragging: boolean) => void,
   ) => {
     if (channel.frame !== null) cancelAnimationFrame(channel.frame);
     channel.frame = null;
@@ -187,7 +202,7 @@ export function useBpPackingDragRequests(
         channel.sent = null;
       }
     },
-    []
+    [],
   );
 
   return {
@@ -196,7 +211,7 @@ export function useBpPackingDragRequests(
     }, []),
     queueFlapDrag: useCallback(
       (update) => schedule(flap.current, update, sameBpDragUpdate, sendFlap),
-      [sendFlap]
+      [sendFlap],
     ),
     flushFlapDrag: useCallback((update) => flush(flap.current, update, sendFlap), [sendFlap]),
     beginDeviceDrag: useCallback(() => {
@@ -204,19 +219,22 @@ export function useBpPackingDragRequests(
     }, []),
     queueDeviceDrag: useCallback(
       (update) => schedule(device.current, update, sameBpDeviceUpdate, sendDevice),
-      [sendDevice]
+      [sendDevice],
     ),
-    flushDeviceDrag: useCallback((update) => flush(device.current, update, sendDevice), [sendDevice]),
+    flushDeviceDrag: useCallback(
+      (update) => flush(device.current, update, sendDevice),
+      [sendDevice],
+    ),
     beginFlapReshape: useCallback(() => {
       reshape.current.sent = null;
     }, []),
     queueFlapReshape: useCallback(
       (update) => schedule(reshape.current, update, sameBpReshapeUpdate, sendReshape),
-      [sendReshape]
+      [sendReshape],
     ),
     flushFlapReshape: useCallback(
       (update) => flush(reshape.current, update, sendReshape),
-      [sendReshape]
+      [sendReshape],
     ),
   };
 }

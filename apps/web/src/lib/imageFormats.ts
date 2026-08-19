@@ -58,7 +58,7 @@ export const DECODABLE_IMAGE_EXTENSIONS = [
 
 /** `accept` value for a file input that takes reference images. */
 export const DECODABLE_IMAGE_ACCEPT = DECODABLE_IMAGE_EXTENSIONS.map(
-  (extension) => `.${extension}`
+  (extension) => `.${extension}`,
 ).join(',');
 
 /**

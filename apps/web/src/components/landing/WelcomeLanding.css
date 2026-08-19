@@ -888,7 +888,9 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
-[data-surface='phone'] .landing-section__inner[data-layout='split-reverse'] > .landing-section__head {
+[data-surface='phone']
+  .landing-section__inner[data-layout='split-reverse']
+  > .landing-section__head {
   order: 0;
 }
 

@@ -13,7 +13,7 @@ import {
 
 function segment(
   color: OristudioCpLineSegment['color'],
-  foldMagnitude?: number
+  foldMagnitude?: number,
 ): OristudioCpLineSegment {
   return {
     a: { x: 0, y: 0 },

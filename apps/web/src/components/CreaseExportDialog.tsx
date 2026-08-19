@@ -40,13 +40,7 @@ import { ColorField } from './ui/ColorField';
 import { IconButton } from './ui/IconButton';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { Slider } from './ui/Slider';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from './ui/Select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/Select';
 import { Toggle } from './ui/Toggle';
 
 const THUMBNAIL_SIZE = 104;
@@ -123,7 +117,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
   const [foldError, setFoldError] = useState<string | null>(null);
   const [discoveredCases, setDiscoveredCases] = useState(1);
   const [foldedTransform, setFoldedTransform] = useState<CpModelToFoldTransform | undefined>(
-    undefined
+    undefined,
   );
   const [openSections, setOpenSections] = useState<Record<SectionId, boolean>>({
     appearance: true,
@@ -161,9 +155,11 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
     () =>
       isFlatFoldableFold(
         dialog.fold,
-        segmentId != null ? (dialog.segments.find((entry) => entry.id === segmentId) ?? null) : null
+        segmentId != null
+          ? (dialog.segments.find((entry) => entry.id === segmentId) ?? null)
+          : null,
       ),
-    [dialog.fold, dialog.segments, segmentId]
+    [dialog.fold, dialog.segments, segmentId],
   );
   // Folding needs a kernel document, and one pattern at a time: "All patterns"
   // has no single folded form to draw beside the sheet.
@@ -192,7 +188,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
     setFoldError(null);
     void foldSegment(
       dialog.segments.find((entry) => entry.id === segmentId) ?? null,
-      foldedSettings
+      foldedSettings,
     )
       .then((result) => {
         foldCache.current.set(key, result);
@@ -251,7 +247,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
           theme,
           includeFoldedFigure,
         },
-        { foldedFigure, foldedFigureTransform: foldedTransform }
+        { foldedFigure, foldedFigureTransform: foldedTransform },
       ),
     [
       dialog.fold,
@@ -266,7 +262,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
       includeFoldedFigure,
       foldedFigure,
       foldedTransform,
-    ]
+    ],
   );
 
   const previewSrc = useMemo(() => {
@@ -442,7 +438,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                   onChange={(next) => patch({ includeUnassigned: next })}
                   aria-label={t(
                     'dialogs:export.includeUnassigned',
-                    'Include flat / unassigned creases'
+                    'Include flat / unassigned creases',
                   )}
                 />
               </div>
@@ -464,16 +460,16 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                       {dialog.foldSegment === null
                         ? t(
                             'dialogs:export.foldedFigureNeedsCp',
-                            'Open an editable crease pattern to fold it'
+                            'Open an editable crease pattern to fold it',
                           )
                         : !isFlat
                           ? t(
                               'dialogs:export.foldedFigureNeedsFlat',
-                              'This export folds flat only, and this pattern has creases that are not full folds'
+                              'This export folds flat only, and this pattern has creases that are not full folds',
                             )
                           : t(
                               'dialogs:export.foldedFigureNeedsOnePattern',
-                              'Select a single pattern to fold'
+                              'Select a single pattern to fold',
                             )}
                     </small>
                   )}
@@ -505,7 +501,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                 title={t('dialogs:export.foldedFigureSection', 'Folded figure')}
                 open={openSections.folded}
                 onToggle={toggleSection}
-            >
+              >
                 <div className="export-modal__control-group">
                   <span className="export-modal__label">
                     {t('dialogs:export.foldedSide', 'Side')}
@@ -601,7 +597,6 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                   onChange={(event) => patchCaption({ description: event.currentTarget.value })}
                 />
               </div>
-          
             </ExportSection>
           </div>
           <footer className="simple-modal__footer">
@@ -622,7 +617,7 @@ function usePatternOptions(
   fold: FoldDocument,
   segments: CpSegment[],
   palette: CreaseExportPalette,
-  t: ReturnType<typeof useTranslation>['t']
+  t: ReturnType<typeof useTranslation>['t'],
 ): PatternOption[] {
   return useMemo(() => {
     if (segments.length <= 1) return [];

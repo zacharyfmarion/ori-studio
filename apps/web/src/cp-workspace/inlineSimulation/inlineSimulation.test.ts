@@ -20,7 +20,7 @@ function line(
   ay: number,
   bx: number,
   by: number,
-  color = 'Red1'
+  color = 'Red1',
 ): OristudioCpLineSegment {
   return {
     a: { x: ax, y: ay },
@@ -73,10 +73,7 @@ const SQUARE_LINES = [
   line(0, 0, 10, 10),
 ];
 
-function simulationOver(
-  document: OristudioCpDocumentSnapshot,
-  seg: CpSegment
-): InlineSimulation {
+function simulationOver(document: OristudioCpDocumentSnapshot, seg: CpSegment): InlineSimulation {
   return createInlineSimulation({
     id: 'sim-1',
     segment: seg,
@@ -188,7 +185,19 @@ describe('ring matching', () => {
       [10, 10],
       [1, 10],
     ]);
-    expect(boundariesMatch([UNIT_SQUARE, ring([[1, 1], [2, 1], [2, 2]])], [other])).toBe(false);
+    expect(
+      boundariesMatch(
+        [
+          UNIT_SQUARE,
+          ring([
+            [1, 1],
+            [2, 1],
+            [2, 2],
+          ]),
+        ],
+        [other],
+      ),
+    ).toBe(false);
   });
 
   it('picks the enclosing ring regardless of tracing order', () => {
@@ -420,7 +429,13 @@ describe('resolving a window to its region', () => {
     // A new region appearing above/left shifts every later id; the boundary does
     // not move, which is exactly why it is the identity and the id is not.
     const renumbered = [
-      segment(0, [ring([[0, -20], [5, -20], [5, -15]])]),
+      segment(0, [
+        ring([
+          [0, -20],
+          [5, -20],
+          [5, -15],
+        ]),
+      ]),
       segment(1, [UNIT_SQUARE]),
     ];
 
@@ -429,7 +444,16 @@ describe('resolving a window to its region', () => {
 
   it('does not pick a neighbour when its own region is gone', () => {
     const created = simulationOver(document, segment(0, [UNIT_SQUARE]));
-    const elsewhere = [segment(0, [ring([[50, 50], [60, 50], [60, 60], [50, 60]])])];
+    const elsewhere = [
+      segment(0, [
+        ring([
+          [50, 50],
+          [60, 50],
+          [60, 60],
+          [50, 60],
+        ]),
+      ]),
+    ];
 
     // Nearest-match would return the only candidate here, and the window would
     // silently start simulating a different part of the pattern.

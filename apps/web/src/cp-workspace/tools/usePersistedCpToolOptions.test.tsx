@@ -10,7 +10,11 @@ const KEY = storageKey(STORAGE_KEYS.cpToolOptions);
 describe('usePersistedCpToolOptions', () => {
   let host: HTMLElement;
   let root: Root;
-  let set: (update: (current: typeof DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS) => typeof DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS) => void;
+  let set: (
+    update: (
+      current: typeof DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS,
+    ) => typeof DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS,
+  ) => void;
   let seen: typeof DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS;
 
   function Probe() {

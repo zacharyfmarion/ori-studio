@@ -211,7 +211,12 @@ export function createPointProgram(regl: Regl): PointProgram {
     // Points overlap crease lines and each other; blend for antialiased edges.
     blend: {
       enable: true,
-      func: { srcRGB: 1, srcAlpha: 1, dstRGB: 'one minus src alpha', dstAlpha: 'one minus src alpha' },
+      func: {
+        srcRGB: 1,
+        srcAlpha: 1,
+        dstRGB: 'one minus src alpha',
+        dstAlpha: 'one minus src alpha',
+      },
     },
     depth: { enable: false },
     count: 6,
@@ -242,14 +247,7 @@ export function createPointProgram(regl: Regl): PointProgram {
       userOpacity,
       markerOpacity,
     }) {
-      if (
-        count === 0 ||
-        !centerBuf ||
-        !radiusBuf ||
-        !screenSpaceBuf ||
-        !fillBuf ||
-        !strokeBuf
-      ) {
+      if (count === 0 || !centerBuf || !radiusBuf || !screenSpaceBuf || !fillBuf || !strokeBuf) {
         return;
       }
       draw({

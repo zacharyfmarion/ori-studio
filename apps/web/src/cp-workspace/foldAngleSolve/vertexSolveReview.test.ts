@@ -35,7 +35,7 @@ describe('outcomeForPreview', () => {
     // would present an arbitrary choice as a determination.
     const outcome = outcomeForPreview(
       LINES,
-      preview({ candidate_count: 0, candidate_is_family: true })
+      preview({ candidate_count: 0, candidate_is_family: true }),
     );
     expect(outcome).toEqual({
       kind: 'review',
@@ -49,7 +49,7 @@ describe('outcomeForPreview', () => {
     // has no second member to step to.
     const outcome = outcomeForPreview(
       LINES,
-      preview({ candidate_count: 2, candidate_is_family: true })
+      preview({ candidate_count: 2, candidate_is_family: true }),
     );
     expect(outcome).toMatchObject({ kind: 'review', review: { count: 0, isFamily: true } });
   });
@@ -60,7 +60,7 @@ describe('outcomeForPreview', () => {
     // document's own state up as a change.
     const outcome = outcomeForPreview(
       LINES,
-      preview({ candidate_count: 1, candidate_is_current: true })
+      preview({ candidate_count: 1, candidate_is_current: true }),
     );
     expect(outcome).toMatchObject({ kind: 'review', review: { isCurrent: true, count: 1 } });
   });
@@ -107,14 +107,14 @@ describe('stepReview', () => {
 describe('isSteppable', () => {
   it('is false for nothing, for one answer, and for a family', () => {
     expect(isSteppable(null)).toBe(false);
-    expect(isSteppable({ lineIds: LINES, index: 0, count: 1, isFamily: false, isCurrent: false })).toBe(
-      false
-    );
-    expect(isSteppable({ lineIds: LINES, index: 0, count: 0, isFamily: true, isCurrent: false })).toBe(
-      false
-    );
-    expect(isSteppable({ lineIds: LINES, index: 0, count: 2, isFamily: false, isCurrent: false })).toBe(
-      true
-    );
+    expect(
+      isSteppable({ lineIds: LINES, index: 0, count: 1, isFamily: false, isCurrent: false }),
+    ).toBe(false);
+    expect(
+      isSteppable({ lineIds: LINES, index: 0, count: 0, isFamily: true, isCurrent: false }),
+    ).toBe(false);
+    expect(
+      isSteppable({ lineIds: LINES, index: 0, count: 2, isFamily: false, isCurrent: false }),
+    ).toBe(true);
   });
 });

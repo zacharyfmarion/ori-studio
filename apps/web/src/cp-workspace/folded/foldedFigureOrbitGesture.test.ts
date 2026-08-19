@@ -7,10 +7,7 @@ import {
   foldedFigureOrbitClaimsPress,
 } from './foldedFigureOrbitGesture';
 import { DEFAULT_FOLDED_3D_CAMERA } from './foldedFigure3dProjection';
-import {
-  SIMULATOR_ORBIT_SENSITIVITY,
-  nextSimulatorOrbitView,
-} from '../../lib/simulatorOrbit';
+import { SIMULATOR_ORBIT_SENSITIVITY, nextSimulatorOrbitView } from '../../lib/simulatorOrbit';
 import type { AnnotationBox } from '../annotations/annotationTransform';
 
 const BOX: AnnotationBox = { center: { x: 100, y: 100 }, width: 40, height: 20, rotation: 0 };
@@ -66,7 +63,7 @@ describe('orbit', () => {
     const viaMidpoint = advanceFoldedFigureOrbit(
       advanceFoldedFigureOrbit(DEFAULT_FOLDED_3D_CAMERA, drag, { x: 30, y: 0 }),
       drag,
-      { x: 60, y: 0 }
+      { x: 60, y: 0 },
     );
     expect(viaMidpoint.yaw).toBeCloseTo(direct.yaw, 12);
     expect(viaMidpoint.pitch).toBeCloseTo(direct.pitch, 12);
@@ -78,11 +75,7 @@ describe('orbit', () => {
     const drag = beginFoldedFigureOrbit(DEFAULT_FOLDED_3D_CAMERA, { x: 5, y: 5 });
     const point = { x: 85, y: -35 };
     const figure = advanceFoldedFigureOrbit(DEFAULT_FOLDED_3D_CAMERA, drag, point);
-    const simulation = nextSimulatorOrbitView(
-      { ...DEFAULT_FOLDED_3D_CAMERA },
-      drag,
-      point
-    );
+    const simulation = nextSimulatorOrbitView({ ...DEFAULT_FOLDED_3D_CAMERA }, drag, point);
     expect(figure.yaw).toBe(simulation.yaw);
     expect(figure.pitch).toBe(simulation.pitch);
     // And the constant is genuinely in play, so the assertion above is not

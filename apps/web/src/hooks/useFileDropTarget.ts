@@ -56,23 +56,26 @@ export function useFileDropTarget({ policy }: UseFileDropTargetOptions): FileDro
    */
   const describedDrag = useRef(false);
 
-  const claimsDrag = useCallback((event: ReactDragEvent<HTMLElement>) => {
-    const transfer = event.dataTransfer;
-    const view = { types: Array.from(transfer.types), items: transfer.items };
-    const carriesFiles = dragCarriesFiles(view);
+  const claimsDrag = useCallback(
+    (event: ReactDragEvent<HTMLElement>) => {
+      const transfer = event.dataTransfer;
+      const view = { types: Array.from(transfer.types), items: transfer.items };
+      const carriesFiles = dragCarriesFiles(view);
 
-    if (!describedDrag.current) {
-      describedDrag.current = true;
-      // A declined drag leaves no other trace: no preventDefault, so no drop
-      // event, so no handler and no error. This line is the only way to tell
-      // "the platform reported something we did not recognize" apart from
-      // "drag-and-drop is not wired up".
-      console.info('[file-drop] drag seen', { policy, ...describeDragPayload(view) });
-    }
+      if (!describedDrag.current) {
+        describedDrag.current = true;
+        // A declined drag leaves no other trace: no preventDefault, so no drop
+        // event, so no handler and no error. This line is the only way to tell
+        // "the platform reported something we did not recognize" apart from
+        // "drag-and-drop is not wired up".
+        console.info('[file-drop] drag seen', { policy, ...describeDragPayload(view) });
+      }
 
-    if (!carriesFiles) return false;
-    return !isImageOnlyDrag(transfer.items);
-  }, [policy]);
+      if (!carriesFiles) return false;
+      return !isImageOnlyDrag(transfer.items);
+    },
+    [policy],
+  );
 
   const onDragEnter = useCallback(
     (event: ReactDragEvent<HTMLElement>) => {
@@ -81,7 +84,7 @@ export function useFileDropTarget({ policy }: UseFileDropTargetOptions): FileDro
       dragDepth.current += 1;
       setDragActive(true);
     },
-    [claimsDrag]
+    [claimsDrag],
   );
 
   const onDragOver = useCallback(
@@ -91,7 +94,7 @@ export function useFileDropTarget({ policy }: UseFileDropTargetOptions): FileDro
       event.preventDefault();
       event.dataTransfer.dropEffect = 'copy';
     },
-    [claimsDrag]
+    [claimsDrag],
   );
 
   const onDragLeave = useCallback(
@@ -100,7 +103,7 @@ export function useFileDropTarget({ policy }: UseFileDropTargetOptions): FileDro
       dragDepth.current = Math.max(0, dragDepth.current - 1);
       if (dragDepth.current === 0) setDragActive(false);
     },
-    [claimsDrag]
+    [claimsDrag],
   );
 
   const onDrop = useCallback(
@@ -117,7 +120,7 @@ export function useFileDropTarget({ policy }: UseFileDropTargetOptions): FileDro
       event.preventDefault();
       void handleFileDrop({ files, policy });
     },
-    [policy]
+    [policy],
   );
 
   return {

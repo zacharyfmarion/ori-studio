@@ -77,7 +77,7 @@ export type CreasePatternExportDialogOptions = {
   foldSegment:
     | ((
         segment: CpSegment | null,
-        settings: CreaseExportFoldedFigureSettings
+        settings: CreaseExportFoldedFigureSettings,
       ) => Promise<CreaseExportFoldResult>)
     | null;
   confirmLabel?: string;
@@ -93,8 +93,10 @@ export type CreaseExportDialogResult = {
   content: CreaseExportContent;
 };
 
-export type CreasePatternExportDialog = { id: number; type: 'crease-export' } &
-  CreasePatternExportDialogOptions;
+export type CreasePatternExportDialog = {
+  id: number;
+  type: 'crease-export';
+} & CreasePatternExportDialogOptions;
 
 export type CommandDialog =
   | ({ id: number; type: 'confirm' } & ConfirmDialogOptions)
@@ -134,8 +136,8 @@ export const useCommandDialogStore = create<CommandDialogState>()(
       openDialog: (dialog) => set({ dialog }),
       closeDialog: () => set({ dialog: null }),
     }),
-    { name: 'CommandDialogStore' }
-  )
+    { name: 'CommandDialogStore' },
+  ),
 );
 
 function clearPendingWithFallback() {
@@ -172,7 +174,7 @@ export function requestConfirmation(options: ConfirmDialogOptions): Promise<bool
 }
 
 export function requestConfirmationWithOption(
-  options: ConfirmWithOptionDialogOptions
+  options: ConfirmWithOptionDialogOptions,
 ): Promise<ConfirmWithOptionResult> {
   const fallback: ConfirmWithOptionResult = { confirmed: false, optionChecked: false };
   if (mountedHostCount === 0) return Promise.resolve(fallback);
@@ -228,7 +230,7 @@ export function requestPositiveNumber(options: NumberDialogOptions): Promise<num
 }
 
 export function requestCreasePatternExportOptions(
-  options: CreasePatternExportDialogOptions
+  options: CreasePatternExportDialogOptions,
 ): Promise<CreaseExportDialogResult | null> {
   if (mountedHostCount === 0) {
     return Promise.resolve({
@@ -252,7 +254,7 @@ export function requestCreasePatternExportOptions(
 
 export function resolveCommandDialog(
   id: number,
-  value: boolean | number | string | ConfirmWithOptionResult | CreaseExportDialogResult | null
+  value: boolean | number | string | ConfirmWithOptionResult | CreaseExportDialogResult | null,
 ): void {
   if (!pending || pending.id !== id) return;
   pending.resolve(value as never);

@@ -43,11 +43,7 @@ export function makeMiura(n: number, m: number): FoldDocument {
   const vertices: number[][] = [];
   for (let i = 0; i <= n; i += 1) {
     for (let j = 0; j <= m; j += 1) {
-      vertices.push([
-        i + (j % 2 === 0 ? 0 : Math.cos(angle) * 0.25),
-        j * Math.sin(angle),
-        0,
-      ]);
+      vertices.push([i + (j % 2 === 0 ? 0 : Math.cos(angle) * 0.25), j * Math.sin(angle), 0]);
     }
   }
 
@@ -143,26 +139,46 @@ export function makeBoxPleat(n: number): FoldDocument {
 export function makeBirdBase(): FoldDocument {
   // 0-3 corners, 4-7 edge midpoints, 8 centre.
   const vertices = [
-    [0, 0, 0], [2, 0, 0], [2, 2, 0], [0, 2, 0],
-    [1, 0, 0], [2, 1, 0], [1, 2, 0], [0, 1, 0],
+    [0, 0, 0],
+    [2, 0, 0],
+    [2, 2, 0],
+    [0, 2, 0],
+    [1, 0, 0],
+    [2, 1, 0],
+    [1, 2, 0],
+    [0, 1, 0],
     [1, 1, 0],
   ];
   const acc = newEdges();
   // Boundary, split at the midpoints.
-  pushEdge(acc, 0, 4, 'B'); pushEdge(acc, 4, 1, 'B');
-  pushEdge(acc, 1, 5, 'B'); pushEdge(acc, 5, 2, 'B');
-  pushEdge(acc, 2, 6, 'B'); pushEdge(acc, 6, 3, 'B');
-  pushEdge(acc, 3, 7, 'B'); pushEdge(acc, 7, 0, 'B');
+  pushEdge(acc, 0, 4, 'B');
+  pushEdge(acc, 4, 1, 'B');
+  pushEdge(acc, 1, 5, 'B');
+  pushEdge(acc, 5, 2, 'B');
+  pushEdge(acc, 2, 6, 'B');
+  pushEdge(acc, 6, 3, 'B');
+  pushEdge(acc, 3, 7, 'B');
+  pushEdge(acc, 7, 0, 'B');
   // Diagonals through the centre.
-  pushEdge(acc, 0, 8, 'V'); pushEdge(acc, 1, 8, 'V');
-  pushEdge(acc, 2, 8, 'V'); pushEdge(acc, 3, 8, 'V');
+  pushEdge(acc, 0, 8, 'V');
+  pushEdge(acc, 1, 8, 'V');
+  pushEdge(acc, 2, 8, 'V');
+  pushEdge(acc, 3, 8, 'V');
   // Midpoint spokes: the book/cupboard folds.
-  pushEdge(acc, 4, 8, 'M'); pushEdge(acc, 5, 8, 'M');
-  pushEdge(acc, 6, 8, 'M'); pushEdge(acc, 7, 8, 'M');
+  pushEdge(acc, 4, 8, 'M');
+  pushEdge(acc, 5, 8, 'M');
+  pushEdge(acc, 6, 8, 'M');
+  pushEdge(acc, 7, 8, 'M');
 
   const faces = [
-    [0, 4, 8], [4, 1, 8], [1, 5, 8], [5, 2, 8],
-    [2, 6, 8], [6, 3, 8], [3, 7, 8], [7, 0, 8],
+    [0, 4, 8],
+    [4, 1, 8],
+    [1, 5, 8],
+    [5, 2, 8],
+    [2, 6, 8],
+    [6, 3, 8],
+    [3, 7, 8],
+    [7, 0, 8],
   ];
 
   return {
@@ -179,33 +195,78 @@ export function makeBookFold(): FoldDocument {
   return {
     file_spec: 1.2,
     frame_classes: ['creasePattern'],
-    vertices_coords: [[0, 0], [1, 0], [1, 1], [0, 1]],
-    edges_vertices: [[0, 1], [1, 2], [2, 3], [3, 0], [0, 2]],
+    vertices_coords: [
+      [0, 0],
+      [1, 0],
+      [1, 1],
+      [0, 1],
+    ],
+    edges_vertices: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 0],
+      [0, 2],
+    ],
     edges_assignment: ['B', 'B', 'B', 'B', 'M'],
     edges_foldAngle: [null, null, null, null, -180],
-    faces_vertices: [[0, 1, 2], [0, 2, 3]],
+    faces_vertices: [
+      [0, 1, 2],
+      [0, 2, 3],
+    ],
   };
 }
 
 /** A face with three collinear vertices — zero area, undefined normal. */
 export function makeZeroAreaFace(): FoldDocument {
   return {
-    vertices_coords: [[0, 0], [1, 0], [2, 0], [1, 1]],
-    edges_vertices: [[0, 1], [1, 2], [2, 3], [3, 0], [1, 3]],
+    vertices_coords: [
+      [0, 0],
+      [1, 0],
+      [2, 0],
+      [1, 1],
+    ],
+    edges_vertices: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 0],
+      [1, 3],
+    ],
     edges_assignment: ['B', 'B', 'B', 'B', 'M'],
     edges_foldAngle: [null, null, null, null, -180],
-    faces_vertices: [[0, 1, 3], [1, 2, 3]],
+    faces_vertices: [
+      [0, 1, 3],
+      [1, 2, 3],
+    ],
   };
 }
 
 /** Two triangles sharing only a vertex — a disconnected-ish component. */
 export function makeDisconnected(): FoldDocument {
   return {
-    vertices_coords: [[0, 0], [1, 0], [0, 1], [3, 3], [4, 3], [3, 4]],
-    edges_vertices: [[0, 1], [1, 2], [2, 0], [3, 4], [4, 5], [5, 3]],
+    vertices_coords: [
+      [0, 0],
+      [1, 0],
+      [0, 1],
+      [3, 3],
+      [4, 3],
+      [3, 4],
+    ],
+    edges_vertices: [
+      [0, 1],
+      [1, 2],
+      [2, 0],
+      [3, 4],
+      [4, 5],
+      [5, 3],
+    ],
     edges_assignment: ['B', 'B', 'B', 'B', 'B', 'B'],
     edges_foldAngle: [null, null, null, null, null, null],
-    faces_vertices: [[0, 1, 2], [3, 4, 5]],
+    faces_vertices: [
+      [0, 1, 2],
+      [3, 4, 5],
+    ],
   };
 }
 
@@ -237,11 +298,29 @@ export function makeHighValence(spokes = 16): FoldDocument {
 /** An edge shared by three faces — invalid manifold, must not crash. */
 export function makeNonManifoldEdge(): FoldDocument {
   return {
-    vertices_coords: [[0, 0], [1, 0], [0, 1], [1, 1], [0.5, -1]],
-    edges_vertices: [[0, 1], [1, 2], [2, 0], [1, 3], [3, 2], [0, 4], [4, 1]],
+    vertices_coords: [
+      [0, 0],
+      [1, 0],
+      [0, 1],
+      [1, 1],
+      [0.5, -1],
+    ],
+    edges_vertices: [
+      [0, 1],
+      [1, 2],
+      [2, 0],
+      [1, 3],
+      [3, 2],
+      [0, 4],
+      [4, 1],
+    ],
     edges_assignment: ['M', 'B', 'B', 'B', 'B', 'B', 'B'],
     edges_foldAngle: [-180, null, null, null, null, null, null],
-    faces_vertices: [[0, 1, 2], [1, 3, 2], [0, 4, 1]],
+    faces_vertices: [
+      [0, 1, 2],
+      [1, 3, 2],
+      [0, 4, 1],
+    ],
   };
 }
 
@@ -338,7 +417,7 @@ export const FIXTURES: readonly SimulatorFixture[] = [
 ];
 
 export const SCALING_FIXTURES: readonly SimulatorFixture[] = FIXTURES.filter(
-  (fixture) => fixture.name.startsWith('miura-') || fixture.name === 'boxpleat-24'
+  (fixture) => fixture.name.startsWith('miura-') || fixture.name === 'boxpleat-24',
 );
 
 export function fixtureByName(name: string): SimulatorFixture {

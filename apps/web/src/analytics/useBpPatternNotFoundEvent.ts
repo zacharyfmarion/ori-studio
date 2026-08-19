@@ -35,7 +35,7 @@ export function useBpPatternNotFoundEvent(stretches: OristudioBpStretch[]): void
       stretch_count_bucket: bucketCount(patternless.length, BP_PATTERNLESS_STRETCH_BUCKETS),
       max_flap_count_bucket: bucketCount(
         Math.max(...patternless.map((stretch) => stretch.flapIds.length)),
-        COUNT_BUCKETS
+        COUNT_BUCKETS,
       ),
       configuration_reach: configurationReach(patternless),
     });

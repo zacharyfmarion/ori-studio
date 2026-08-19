@@ -4,11 +4,7 @@ import { selectOristudioBpDocument } from '../store/workspaceStore/designTabs';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useWorkspaceCapabilities } from '../store/workspaceStore/useWorkspaceCapabilities';
 import type { SplitButtonAction } from '../components/ui/SplitButton';
-import {
-  sendToEditMenuLabel,
-  sendToEditPrimary,
-  sendToEditVariants,
-} from './sendToEditActions';
+import { sendToEditMenuLabel, sendToEditPrimary, sendToEditVariants } from './sendToEditActions';
 import type { DesignKindId } from './types';
 
 export interface SendToEditButtonModel {
@@ -65,5 +61,14 @@ export function useSendToEditActions(kind: DesignKindId): SendToEditButtonModel 
         onSelect: () => void send.run(variant.includeCircles),
       })),
     };
-  }, [kind, t, sendTreeToEdit, sendBpToEdit, buildCp.enabled, buildCp.reason, hasBpDocument, bpBusy]);
+  }, [
+    kind,
+    t,
+    sendTreeToEdit,
+    sendBpToEdit,
+    buildCp.enabled,
+    buildCp.reason,
+    hasBpDocument,
+    bpBusy,
+  ]);
 }

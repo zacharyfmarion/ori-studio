@@ -39,7 +39,7 @@ const NAMES = [
 
 function load(name: string): OristudioCpFolded3dRenderModel {
   return JSON.parse(
-    readFileSync(join(FIXTURES, `${name}.rendermodel.json`), 'utf8')
+    readFileSync(join(FIXTURES, `${name}.rendermodel.json`), 'utf8'),
   ) as OristudioCpFolded3dRenderModel;
 }
 
@@ -50,9 +50,12 @@ function ringLength(model: OristudioCpFolded3dRenderModel, cell: number): number
 /** Every `(cell, slot, segment) -> edge` the model inks, as a comparable list. */
 function inkTable(
   model: OristudioCpFolded3dRenderModel,
-  tolerance = FOLDED_3D_INK_TOLERANCE_RELATIVE
+  tolerance = FOLDED_3D_INK_TOLERANCE_RELATIVE,
 ): string[] {
-  const ink = buildFolded3dInk({ ...model, span: (model.span * tolerance) / FOLDED_3D_INK_TOLERANCE_RELATIVE });
+  const ink = buildFolded3dInk({
+    ...model,
+    span: (model.span * tolerance) / FOLDED_3D_INK_TOLERANCE_RELATIVE,
+  });
   const rows: string[] = [];
   for (let cell = 0; cell < model.cell_count; cell += 1) {
     const segments = ringLength(model, cell);
@@ -112,7 +115,9 @@ describe('buildFolded3dInk', () => {
             const near =
               Math.hypot(point[0] - ax, point[1] - ay, point[2] - az) +
               Math.hypot(point[0] - bx, point[1] - by, point[2] - bz);
-            expect(near).toBeLessThanOrEqual(length + FOLDED_3D_INK_TOLERANCE_RELATIVE * model.span);
+            expect(near).toBeLessThanOrEqual(
+              length + FOLDED_3D_INK_TOLERANCE_RELATIVE * model.span,
+            );
           }
         }
       }
@@ -240,7 +245,7 @@ describe('buildFolded3dInk', () => {
         const hinge = ink.hingeAt(cell, 0, segment);
         if (!hinge) continue;
         seen.push(
-          `cell ${cell} plus=${hinge.exposedOnPlus} minus=${hinge.exposedOnMinus} partner=${hinge.partnerPlane}`
+          `cell ${cell} plus=${hinge.exposedOnPlus} minus=${hinge.exposedOnMinus} partner=${hinge.partnerPlane}`,
         );
       }
     }

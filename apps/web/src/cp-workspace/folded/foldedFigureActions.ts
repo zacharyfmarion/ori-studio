@@ -38,14 +38,7 @@ export type FoldedFigureActionIcon =
 
 export interface FoldedFigureCommand {
   kind: 'command';
-  id:
-    | 'flip'
-    | 'reset-view'
-    | 'set-upright'
-    | 'another'
-    | 'refold'
-    | 'duplicate'
-    | 'delete';
+  id: 'flip' | 'reset-view' | 'set-upright' | 'another' | 'refold' | 'duplicate' | 'delete';
   label: string;
   icon: FoldedFigureActionIcon;
   disabled: boolean;
@@ -113,10 +106,7 @@ export interface FoldedFigureNoteAction {
 }
 
 export type FoldedFigureAction =
-  | FoldedFigureCommand
-  | FoldedFigureChoice
-  | FoldedFigureSeparator
-  | FoldedFigureNoteAction;
+  FoldedFigureCommand | FoldedFigureChoice | FoldedFigureSeparator | FoldedFigureNoteAction;
 
 /**
  * Store bindings the actions call. Every mutating call is expected to be wrapped
@@ -146,7 +136,7 @@ export interface FoldedFigureActionDeps {
   setUpright: (figure: OristudioCpFoldedFigureEntry) => void;
   setDisplayStyle: (
     figure: OristudioCpFoldedFigureEntry,
-    style: OristudioCpFoldedFigureDisplayStyle
+    style: OristudioCpFoldedFigureDisplayStyle,
   ) => void;
   foldAnother: (figure: OristudioCpFoldedFigureEntry) => void;
   duplicate: (figure: OristudioCpFoldedFigureEntry) => void;
@@ -160,20 +150,14 @@ export interface FoldedFigureActionDeps {
   /** Whether the figure's source creases have changed since it was folded. */
   isStale?: (figure: OristudioCpFoldedFigureEntry) => boolean;
   /** Save the figure on its own as an image. Omitted drops the export menu. */
-  exportAs?: (
-    figure: OristudioCpFoldedFigureEntry,
-    format: FoldedFigureExportFormat
-  ) => void;
+  exportAs?: (figure: OristudioCpFoldedFigureEntry, format: FoldedFigureExportFormat) => void;
   /**
    * Act on a 3D figure's verdict: reveal the CAMV issues, select the creases a
    * crossing names, or simulate a figure whose layers could not be ordered.
    * Omitted leaves the notice as a statement with no button — which is the right
    * shape for a surface that only reads.
    */
-  runNoticeAction?: (
-    figure: OristudioCpFoldedFigureEntry,
-    notice: FoldedFigureNotice
-  ) => void;
+  runNoticeAction?: (figure: OristudioCpFoldedFigureEntry, notice: FoldedFigureNotice) => void;
 }
 
 /**
@@ -192,10 +176,7 @@ export function isFoldedFigureReady(figure: OristudioCpFoldedFigureEntry): boole
 }
 
 /** A folded figure is geometry on a page, so it exports as an image only. */
-export const FOLDED_FIGURE_EXPORT_FORMATS: readonly FoldedFigureExportFormat[] = [
-  'svg',
-  'png',
-];
+export const FOLDED_FIGURE_EXPORT_FORMATS: readonly FoldedFigureExportFormat[] = ['svg', 'png'];
 
 export function foldedExportFormatLabel(t: TFunction, value: FoldedFigureExportFormat): string {
   // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
@@ -209,7 +190,7 @@ export function foldedExportFormatLabel(t: TFunction, value: FoldedFigureExportF
 
 export function foldedDisplayStyleChoiceLabel(
   t: TFunction,
-  value: OristudioCpFoldedFigureDisplayStyle
+  value: OristudioCpFoldedFigureDisplayStyle,
 ): string {
   // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
   switch (value) {
@@ -239,7 +220,7 @@ export function foldedDisplayStyleChoiceLabel(
  */
 export function buildFoldedFigureActions(
   figure: OristudioCpFoldedFigureEntry,
-  deps: FoldedFigureActionDeps
+  deps: FoldedFigureActionDeps,
 ): FoldedFigureAction[] {
   const { t } = deps;
   const ready = isFoldedFigureReady(figure);
@@ -261,10 +242,9 @@ export function buildFoldedFigureActions(
         id: 'notice',
         notice,
         icon: notice.tone === 'error' ? 'notice-error' : 'notice-warn',
-        run:
-          notice.action && runNoticeAction ? () => runNoticeAction(figure, notice) : null,
+        run: notice.action && runNoticeAction ? () => runNoticeAction(figure, notice) : null,
       },
-      { kind: 'separator', id: 'after-notice' }
+      { kind: 'separator', id: 'after-notice' },
     );
   }
 
@@ -343,7 +323,7 @@ export function buildFoldedFigureActions(
       // would land exactly where it started.
       disabled: !ready || (!hasNextSolution && !wrapsToFirst),
       run: () => deps.foldAnother(figure),
-    }
+    },
   );
 
   // Refold is present only when it applies: a figure that matches its source
@@ -379,7 +359,7 @@ export function buildFoldedFigureActions(
           checked: false,
           run: () => exportAs(figure, value),
         })),
-      }
+      },
     );
   }
 
@@ -401,7 +381,7 @@ export function buildFoldedFigureActions(
       disabled: false,
       danger: true,
       run: () => deps.remove(figure),
-    }
+    },
   );
 
   return actions;

@@ -43,9 +43,9 @@ export function SquareToolOptions({
               current.squareSize,
               current.squareSizeUnit,
               squareSizeUnit,
-              gridWidth
+              gridWidth,
             ),
-          }
+          },
     );
 
   return (
@@ -96,7 +96,7 @@ export function SquareToolOptions({
             label: t('tools:cpContext.squareOrientationDiagonal', 'Diagonal'),
             title: t(
               'tools:cpContext.squareOrientationDiagonalHint',
-              'The same square, turned 45 degrees'
+              'The same square, turned 45 degrees',
             ),
           },
         ]}
@@ -125,7 +125,7 @@ export function SquareToolOptions({
             label: t('tools:cpContext.squareLineTypeActive', 'Active'),
             title: t(
               'tools:cpContext.squareLineTypeActiveHint',
-              'Draw the square in the active line type'
+              'Draw the square in the active line type',
             ),
           },
         ]}
@@ -209,7 +209,12 @@ function SegmentedToolOption<T extends string>({
   return (
     <div className="cp-context-panel__field">
       <span>{label}</span>
-      <SegmentedControl aria-label={ariaLabel} value={value} options={options} onChange={onChange} />
+      <SegmentedControl
+        aria-label={ariaLabel}
+        value={value}
+        options={options}
+        onChange={onChange}
+      />
     </div>
   );
 }
@@ -261,7 +266,7 @@ function SquareAnchorPicker({
 
 function squareAnchorLabel(
   t: ReturnType<typeof useTranslation<['tools']>>['t'],
-  anchor: OristudioCpSquareAnchor
+  anchor: OristudioCpSquareAnchor,
 ): string {
   switch (anchor) {
     case 'top-left':

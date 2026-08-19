@@ -15,7 +15,11 @@ import { SettingsToggleRow } from './settings/SettingsToggleRow';
 import { UpdatesSection } from './settings/UpdatesSection';
 import { ANALYTICS_EVENTS, track, useAnalytics } from '../analytics';
 import { detectSystemLocale, SUPPORTED_LOCALES, SYSTEM_LOCALE } from '../i18n/locales';
-import { clampCpSnapRadius, CP_MAX_SNAP_RADIUS, CP_MIN_SNAP_RADIUS } from '../lib/cpSnapRadiusSetting';
+import {
+  clampCpSnapRadius,
+  CP_MAX_SNAP_RADIUS,
+  CP_MIN_SNAP_RADIUS,
+} from '../lib/cpSnapRadiusSetting';
 import {
   shortcutActionLabel,
   shortcutCategoryLabel,
@@ -117,14 +121,18 @@ function LanguageSection() {
 
   // Annotate "System default" with the language it currently resolves to.
   const detected = detectSystemLocale();
-  const detectedName =
-    SUPPORTED_LOCALES.find((l) => l.code === detected)?.nativeName ?? detected;
+  const detectedName = SUPPORTED_LOCALES.find((l) => l.code === detected)?.nativeName ?? detected;
 
   return (
     <section className="settings-section">
-      <h3 className="settings-section__title">{t('dialogs:settings.language.title', 'Language')}</h3>
+      <h3 className="settings-section__title">
+        {t('dialogs:settings.language.title', 'Language')}
+      </h3>
       <Select value={preference} onValueChange={setLocale}>
-        <SelectTrigger className="settings-full-width" aria-label={t('dialogs:settings.language.title', 'Language')}>
+        <SelectTrigger
+          className="settings-full-width"
+          aria-label={t('dialogs:settings.language.title', 'Language')}
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -154,11 +162,15 @@ function AppearanceTab() {
         acc[theme.type].push(theme);
         return acc;
       },
-      { dark: [], light: [] }
+      { dark: [], light: [] },
     );
     return [
       { key: 'dark', label: t('dialogs:settings.appearance.dark', 'Dark'), themes: grouped.dark },
-      { key: 'light', label: t('dialogs:settings.appearance.light', 'Light'), themes: grouped.light },
+      {
+        key: 'light',
+        label: t('dialogs:settings.appearance.light', 'Light'),
+        themes: grouped.light,
+      },
     ].filter((section) => section.themes.length > 0);
   }, [presetThemes, t]);
 
@@ -220,7 +232,7 @@ function WorkspaceTab() {
         <SettingsToggleRow
           label={t(
             'dialogs:settings.workspace.foldWarning',
-            'Warn before folding a crease pattern with flat-foldability errors'
+            'Warn before folding a crease pattern with flat-foldability errors',
           )}
           checked={foldWarningEnabled}
           onChange={setFoldWarningEnabled}
@@ -233,7 +245,7 @@ function WorkspaceTab() {
         <SettingsToggleRow
           label={t(
             'dialogs:settings.workspace.analytics',
-            'Send anonymous usage analytics and crash reports to help improve Ori Studio'
+            'Send anonymous usage analytics and crash reports to help improve Ori Studio',
           )}
           checked={analyticsEnabled}
           onChange={(enabled) => {
@@ -276,7 +288,7 @@ function WorkspaceTab() {
         <p className="settings-toggle-row__desc">
           {t(
             'dialogs:settings.workspace.wheelGestureHint',
-            'Pinch and Cmd/Ctrl+scroll always zoom, whichever you choose.'
+            'Pinch and Cmd/Ctrl+scroll always zoom, whichever you choose.',
           )}
         </p>
         {/* The modal's own row: copy on the left, control on the right, no box.
@@ -290,7 +302,7 @@ function WorkspaceTab() {
             <span className="settings-toggle-row__desc">
               {t(
                 'dialogs:settings.workspace.snapRadiusHint',
-                'How close the pointer has to come to a vertex, crease or grid point to snap to it, in paper units — the paper is 400 across, so this is the same number as Oriedita uses.'
+                'How close the pointer has to come to a vertex, crease or grid point to snap to it, in paper units — the paper is 400 across, so this is the same number as Oriedita uses.',
               )}
             </span>
           </span>
@@ -309,7 +321,9 @@ function WorkspaceTab() {
         </div>
       </section>
       <section className="settings-section">
-        <h3 className="settings-section__title">{t('dialogs:settings.workspace.layout', 'Layout')}</h3>
+        <h3 className="settings-section__title">
+          {t('dialogs:settings.workspace.layout', 'Layout')}
+        </h3>
         <Button
           size="md"
           variant="secondary"
@@ -317,7 +331,10 @@ function WorkspaceTab() {
           onClick={() => {
             void requestConfirmation({
               title: t('dialogs:settings.workspace.resetTitle', 'Reset Workspace Layout'),
-              message: t('dialogs:settings.workspace.resetMessage', 'Restore the default layout for the current workspace?'),
+              message: t(
+                'dialogs:settings.workspace.resetMessage',
+                'Restore the default layout for the current workspace?',
+              ),
               confirmLabel: t('dialogs:common.reset', 'Reset'),
               tone: 'danger',
             }).then((confirmed) => {
@@ -392,7 +409,7 @@ interface DefaultsSourceDiff {
 function findChordCoClaimant(
   definition: ShortcutDefinition,
   chord: KeyChord,
-  resolution: ShortcutResolution
+  resolution: ShortcutResolution,
 ): ShortcutDefinition | null {
   if (definition.scope === 'simulator') return null;
   for (const candidate of SHORTCUT_DEFINITIONS) {
@@ -403,7 +420,7 @@ function findChordCoClaimant(
     }
     if (
       getResolvedShortcuts(candidate.id, resolution).some((candidateChord) =>
-        keyChordEquals(candidateChord, chord)
+        keyChordEquals(candidateChord, chord),
       )
     ) {
       return candidate;
@@ -421,7 +438,7 @@ function findChordCoClaimant(
 function diffDefaultsSource(
   overrides: ShortcutOverrides,
   from: ShortcutDefaultsSource,
-  to: ShortcutDefaultsSource
+  to: ShortcutDefaultsSource,
 ): DefaultsSourceDiff {
   const before: ShortcutResolution = { overrides, defaultsSource: from };
   const after: ShortcutResolution = { overrides, defaultsSource: to };
@@ -443,7 +460,7 @@ function diffDefaultsSource(
       .map((chord) => ({ chord, blocker: findChordCoClaimant(definition, chord, after) }))
       .find(
         (entry) =>
-          entry.blocker !== null && findChordCoClaimant(definition, entry.chord, before) === null
+          entry.blocker !== null && findChordCoClaimant(definition, entry.chord, before) === null,
       );
     if (clash?.blocker) {
       clashes.push({ definition, chord: clash.chord, blocker: clash.blocker });
@@ -496,7 +513,7 @@ function defaultsSourceMessage(t: TFunction, diff: DefaultsSourceDiff): string {
         count: diff.unaffectedCustomized,
         defaultValue_one: '1 shortcut you customized is unaffected.',
         defaultValue_other: '{{count}} shortcuts you customized are unaffected.',
-      })
+      }),
     );
   }
   if (diff.clashes.length > 0) {
@@ -510,8 +527,8 @@ function defaultsSourceMessage(t: TFunction, diff: DefaultsSourceDiff): string {
             label: shortcutActionLabel(t, clash.definition),
             chord: formatKeyChord(clash.chord),
             blocker: shortcutActionLabel(t, clash.blocker),
-          }
-        )
+          },
+        ),
       )
       .join('; ');
     parts.push(
@@ -520,7 +537,7 @@ function defaultsSourceMessage(t: TFunction, diff: DefaultsSourceDiff): string {
         clashes: list,
         defaultValue_one: '1 shortcut you customized now clashes: {{clashes}}.',
         defaultValue_other: '{{count}} shortcuts you customized now clash: {{clashes}}.',
-      })
+      }),
     );
   }
   return parts.join(' ');
@@ -556,7 +573,7 @@ type CaptureDecision =
 function decideCapture(
   definition: ShortcutDefinition,
   chord: KeyChord,
-  resolution: ShortcutResolution
+  resolution: ShortcutResolution,
 ): CaptureDecision {
   // Asked before anything else, and shared with the importer: an action that
   // cannot hold an override must not be assignable here either. Capture had no
@@ -615,7 +632,7 @@ function ShortcutsTab() {
   const setDefaultsSource = useShortcutStore((state) => state.setDefaultsSource);
   const resolution = useMemo<ShortcutResolution>(
     () => ({ overrides, defaultsSource }),
-    [defaultsSource, overrides]
+    [defaultsSource, overrides],
   );
   const [search, setSearch] = useState('');
   const [assignedOnly, setAssignedOnly] = useState(false);
@@ -642,28 +659,40 @@ function ShortcutsTab() {
       if (!chord) return;
       const reserved = classifyReservedKey(chord);
       if (reserved === 'hard-reserved') {
-        setMessage(t('dialogs:settings.shortcuts.reserved', '{{chord}} is reserved by the browser.', { chord: formatKeyChord(chord) }));
+        setMessage(
+          t('dialogs:settings.shortcuts.reserved', '{{chord}} is reserved by the browser.', {
+            chord: formatKeyChord(chord),
+          }),
+        );
         return;
       }
       const definition = getShortcutDefinition(capturingId);
       if (!definition) return;
       const assignedMessage =
         reserved === 'soft-reserved'
-          ? t('dialogs:settings.shortcuts.softReserved', '{{chord}} was assigned, but some browsers may reserve it.', { chord: formatKeyChord(chord) })
+          ? t(
+              'dialogs:settings.shortcuts.softReserved',
+              '{{chord}} was assigned, but some browsers may reserve it.',
+              { chord: formatKeyChord(chord) },
+            )
           : null;
       const decision = decideCapture(definition, chord, resolution);
       if (decision.kind === 'not-bindable') {
         setMessage(
-          t(
-            'dialogs:settings.shortcuts.notBindable',
-            '{{label}} cannot take a shortcut yet.',
-            { label: shortcutActionLabel(t, definition) }
-          )
+          t('dialogs:settings.shortcuts.notBindable', '{{label}} cannot take a shortcut yet.', {
+            label: shortcutActionLabel(t, definition),
+          }),
         );
         return;
       }
       if (decision.kind === 'refuse') {
-        setMessage(t('dialogs:settings.shortcuts.alreadyAssigned', '{{chord}} is already assigned to {{label}}.', { chord: formatKeyChord(chord), label: shortcutActionLabel(t, decision.blocker) }));
+        setMessage(
+          t(
+            'dialogs:settings.shortcuts.alreadyAssigned',
+            '{{chord}} is already assigned to {{label}}.',
+            { chord: formatKeyChord(chord), label: shortcutActionLabel(t, decision.blocker) },
+          ),
+        );
         return;
       }
       if (decision.kind === 'unbind') {
@@ -675,7 +704,9 @@ function ShortcutsTab() {
         setCapturingId(null);
         setMessage(null);
         void requestConfirmation({
-          title: t('dialogs:settings.shortcuts.unbindTitle', 'Unbind {{label}}?', { label: blockerLabel }),
+          title: t('dialogs:settings.shortcuts.unbindTitle', 'Unbind {{label}}?', {
+            label: blockerLabel,
+          }),
           message: t(
             'dialogs:settings.shortcuts.unbindMessage',
             '{{blocker}} uses {{chord}}. Assigning it to {{label}} leaves {{blocker}} unassigned.',
@@ -683,7 +714,7 @@ function ShortcutsTab() {
               blocker: blockerLabel,
               chord: formatKeyChord(chord),
               label: shortcutActionLabel(t, definition),
-            }
+            },
           ),
           confirmLabel: t('dialogs:settings.shortcuts.unbindConfirm', 'Unbind and assign'),
           tone: 'danger',
@@ -732,7 +763,10 @@ function ShortcutsTab() {
   const resetAll = () => {
     void requestConfirmation({
       title: t('dialogs:settings.shortcuts.resetAllTitle', 'Reset Shortcuts'),
-      message: t('dialogs:settings.shortcuts.resetAllMessage', 'Restore all keyboard shortcuts to their defaults?'),
+      message: t(
+        'dialogs:settings.shortcuts.resetAllMessage',
+        'Restore all keyboard shortcuts to their defaults?',
+      ),
       confirmLabel: t('dialogs:common.reset', 'Reset'),
       tone: 'danger',
     }).then((confirmed) => {
@@ -787,7 +821,7 @@ function ShortcutsTab() {
           label={t('dialogs:settings.shortcuts.useOrieditaDefaults', 'Use Oriedita defaults')}
           description={t(
             'dialogs:settings.shortcuts.useOrieditaDefaultsHint',
-            "Oriedita's crease-pattern keys: M, V and L for line types, F to fold, R to mirror. Shortcuts you set yourself are left alone."
+            "Oriedita's crease-pattern keys: M, V and L for line types, F to fold, R to mirror. Shortcuts you set yourself are left alone.",
           )}
           checked={defaultsSource === 'oriedita'}
           onChange={(checked) => changeDefaultsSource(checked ? 'oriedita' : 'ori-studio')}
@@ -856,10 +890,7 @@ function ShortcutsTab() {
                 defaultChords.length > 0
                   ? defaultChords.map((chord) => formatKeyChord(chord)).join(' / ')
                   : '-';
-              const hasOverride = Object.prototype.hasOwnProperty.call(
-                overrides,
-                definition.id
-              );
+              const hasOverride = Object.prototype.hasOwnProperty.call(overrides, definition.id);
               return (
                 <div key={definition.id} className="settings-shortcuts__row">
                   <div className="settings-shortcuts__copy">
@@ -875,7 +906,13 @@ function ShortcutsTab() {
                     data-capturing={capturingId === definition.id || undefined}
                     onClick={() => {
                       setCapturingId(definition.id);
-                      setMessage(t('dialogs:settings.shortcuts.pressPrompt', 'Press a shortcut for {{label}}.', { label: actionLabel }));
+                      setMessage(
+                        t(
+                          'dialogs:settings.shortcuts.pressPrompt',
+                          'Press a shortcut for {{label}}.',
+                          { label: actionLabel },
+                        ),
+                      );
                     }}
                   >
                     {capturingId === definition.id
@@ -884,13 +921,15 @@ function ShortcutsTab() {
                         ? currentLabel
                         : t('dialogs:settings.shortcuts.unassigned', 'Unassigned')}
                   </button>
-                  <span className="settings-shortcuts__default">
-                    {defaultLabel}
-                  </span>
+                  <span className="settings-shortcuts__default">{defaultLabel}</span>
                   <IconButton
                     size="sm"
-                    title={t('dialogs:settings.shortcuts.clear', 'Clear {{label}} shortcut', { label: actionLabel })}
-                    aria-label={t('dialogs:settings.shortcuts.clear', 'Clear {{label}} shortcut', { label: actionLabel })}
+                    title={t('dialogs:settings.shortcuts.clear', 'Clear {{label}} shortcut', {
+                      label: actionLabel,
+                    })}
+                    aria-label={t('dialogs:settings.shortcuts.clear', 'Clear {{label}} shortcut', {
+                      label: actionLabel,
+                    })}
                     onClick={() => {
                       clearShortcut(definition.id);
                       setCapturingId(null);
@@ -901,8 +940,12 @@ function ShortcutsTab() {
                   </IconButton>
                   <IconButton
                     size="sm"
-                    title={t('dialogs:settings.shortcuts.reset', 'Reset {{label}} shortcut', { label: actionLabel })}
-                    aria-label={t('dialogs:settings.shortcuts.reset', 'Reset {{label}} shortcut', { label: actionLabel })}
+                    title={t('dialogs:settings.shortcuts.reset', 'Reset {{label}} shortcut', {
+                      label: actionLabel,
+                    })}
+                    aria-label={t('dialogs:settings.shortcuts.reset', 'Reset {{label}} shortcut', {
+                      label: actionLabel,
+                    })}
                     disabled={!hasOverride}
                     onClick={() => {
                       resetShortcut(definition.id);
@@ -968,7 +1011,10 @@ function SettingsModalContent({
       >
         <aside className="settings-modal__sidebar">
           <div className="settings-modal__title">{t('dialogs:settings.title', 'Settings')}</div>
-          <nav className="settings-modal__tabs" aria-label={t('dialogs:settings.sections', 'Settings sections')}>
+          <nav
+            className="settings-modal__tabs"
+            aria-label={t('dialogs:settings.sections', 'Settings sections')}
+          >
             {TABS.map((tab) => {
               const Icon = tab.icon;
               return (

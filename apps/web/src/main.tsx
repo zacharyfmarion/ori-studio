@@ -3,16 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
 import posthog from 'posthog-js';
 import * as Sentry from '@sentry/react';
-import {
-  AnalyticsRuntimeProvider,
-  initializePostHog,
-  type PostHogClientLike,
-} from './analytics';
-import {
-  initializeSentry,
-  MonitoringRuntimeProvider,
-  type SentryClientLike,
-} from './monitoring';
+import { AnalyticsRuntimeProvider, initializePostHog, type PostHogClientLike } from './analytics';
+import { initializeSentry, MonitoringRuntimeProvider, type SentryClientLike } from './monitoring';
 import { AppErrorBoundary } from './components/errors/AppErrorBoundary';
 import { readBoolean, storageKey, STORAGE_KEYS } from './lib/storage';
 import { createAppRouter, setAppRouter } from './routing/appRouter';
@@ -35,7 +27,7 @@ const analyticsEnabled = readBoolean(storageKey(STORAGE_KEYS.analyticsEnabled), 
 const monitoringReady = initializeSentry(
   Sentry as unknown as SentryClientLike,
   { monitoringEnabled: analyticsEnabled },
-  import.meta.env
+  import.meta.env,
 );
 const monitoringClient = monitoringReady ? (Sentry as unknown as SentryClientLike) : null;
 
@@ -45,7 +37,7 @@ const monitoringClient = monitoringReady ? (Sentry as unknown as SentryClientLik
 const analyticsReady = initializePostHog(
   posthog as unknown as PostHogClientLike,
   { analyticsEnabled },
-  import.meta.env
+  import.meta.env,
 );
 const analyticsClient = analyticsReady ? (posthog as unknown as PostHogClientLike) : null;
 
@@ -63,5 +55,5 @@ createRoot(document.getElementById('root')!).render(
         </AppErrorBoundary>
       </MonitoringRuntimeProvider>
     </AnalyticsRuntimeProvider>
-  </StrictMode>
+  </StrictMode>,
 );

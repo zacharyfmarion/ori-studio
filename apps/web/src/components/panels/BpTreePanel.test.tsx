@@ -1,4 +1,7 @@
-import { patchBoxPleatDesign, singleBoxPleatDesignTab } from '../../store/workspaceStore/designTabs';
+import {
+  patchBoxPleatDesign,
+  singleBoxPleatDesignTab,
+} from '../../store/workspaceStore/designTabs';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -39,7 +42,7 @@ vi.mock('react-zoom-pan-pinch', async () => {
   return {
     TransformWrapper: React.forwardRef<unknown, MockProps>(function MockTransformWrapper(
       { children, onInit, onTransformed },
-      ref
+      ref,
     ) {
       const didInit = React.useRef(false);
       React.useImperativeHandle(ref, () => api, []);
@@ -155,8 +158,22 @@ function bpDocument(): OristudioBpDocumentState {
           vertex(2, 10, 11, false, true),
         ],
         edges: [
-          { id: 1, vertices: [0, 1] as [number, number], length: 1, maxLength: null, isLeafEdge: true, dualRiverId: null },
-          { id: 2, vertices: [0, 2] as [number, number], length: 1, maxLength: null, isLeafEdge: true, dualRiverId: null },
+          {
+            id: 1,
+            vertices: [0, 1] as [number, number],
+            length: 1,
+            maxLength: null,
+            isLeafEdge: true,
+            dualRiverId: null,
+          },
+          {
+            id: 2,
+            vertices: [0, 2] as [number, number],
+            length: 1,
+            maxLength: null,
+            isLeafEdge: true,
+            dualRiverId: null,
+          },
         ],
       },
       packing: {
@@ -179,7 +196,7 @@ function bpDocument(): OristudioBpDocumentState {
 const actions = {
   addOristudioBpTreeLeaf: vi.fn(async (_parentId: number, _loc?: unknown) => true),
   addOristudioBpTreeLeafWithSymmetry: vi.fn(
-    async (_parentId: number, _loc?: unknown, _tolerance?: number) => true
+    async (_parentId: number, _loc?: unknown, _tolerance?: number) => true,
   ),
   selectOristudioBp: vi.fn(),
   clearOristudioBpSelection: vi.fn(),
@@ -218,23 +235,24 @@ function render(selectedVertexId: number | null, symmetryEnabled = false) {
     {
       ...useWorkspaceStore.getInitialState(),
       ...singleBoxPleatDesignTab({
-      document: document_,
-      selection:
-        selectedVertexId === null
-          ? { kind: 'bp-none' }
-          : { kind: 'bp-vertex', id: selectedVertexId },
-      symmetry: {
-        enabled: symmetryEnabled,
-        fold: 'book',
-        quarterTurn: false,
-        sidesSwapped: false,
-        angle: 90,
-        loc: { x: 10, y: 10 },
-        pairs: [],
-      }
+        document: document_,
+        selection:
+          selectedVertexId === null
+            ? { kind: 'bp-none' }
+            : { kind: 'bp-vertex', id: selectedVertexId },
+        symmetry: {
+          enabled: symmetryEnabled,
+          fold: 'book',
+          quarterTurn: false,
+          sidesSwapped: false,
+          angle: 90,
+          loc: { x: 10, y: 10 },
+          pairs: [],
+        },
       }),
-      ...actions},
-    true
+      ...actions,
+    },
+    true,
   );
 
   container = window.document.createElement('div');
@@ -244,7 +262,7 @@ function render(selectedVertexId: number | null, symmetryEnabled = false) {
     root?.render(
       <TooltipProvider>
         <BpTreePanel document={document_} />
-      </TooltipProvider>
+      </TooltipProvider>,
     );
   });
 
@@ -259,7 +277,16 @@ function render(selectedVertexId: number | null, symmetryEnabled = false) {
   const canvas = container.querySelector('svg.bp-tree-canvas');
   if (canvas) {
     canvas.getBoundingClientRect = () =>
-      ({ left: 0, top: 0, width: 900, height: 720, right: 900, bottom: 720, x: 0, y: 0 }) as DOMRect;
+      ({
+        left: 0,
+        top: 0,
+        width: 900,
+        height: 720,
+        right: 900,
+        bottom: 720,
+        x: 0,
+        y: 0,
+      }) as DOMRect;
   }
   return body;
 }
@@ -308,10 +335,10 @@ describe('BP tree pane — adding is anchored to the selection', () => {
     const body = render(1);
     act(() => {
       body.dispatchEvent(
-        new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 400, clientY: 300 })
+        new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 400, clientY: 300 }),
       );
       body.dispatchEvent(
-        new MouseEvent('pointerup', { bubbles: true, button: 0, clientX: 460, clientY: 360 })
+        new MouseEvent('pointerup', { bubbles: true, button: 0, clientX: 460, clientY: 360 }),
       );
     });
     expect(actions.addOristudioBpTreeLeaf).not.toHaveBeenCalled();
@@ -330,7 +357,7 @@ describe('BP tree pane — a vertex on the mirror line slides along it', () => {
     if (!dot) throw new Error('vertex dot did not render');
     act(() => {
       dot.dispatchEvent(
-        new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 400, clientY: 300 })
+        new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 400, clientY: 300 }),
       );
       body.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, button: 0, ...to }));
       body.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, button: 0, ...to }));
@@ -399,7 +426,7 @@ describe('BP tree pane — the hover ghost previews the click', () => {
     const body = render(null, true);
     act(() => {
       body.dispatchEvent(
-        new MouseEvent('pointermove', { bubbles: true, clientX: 400, clientY: 300 })
+        new MouseEvent('pointermove', { bubbles: true, clientX: 400, clientY: 300 }),
       );
     });
     expect(ghost()).toBeNull();
@@ -409,7 +436,7 @@ describe('BP tree pane — the hover ghost previews the click', () => {
     const body = render(1, true);
     act(() => {
       body.dispatchEvent(
-        new MouseEvent('pointermove', { bubbles: true, clientX: 400, clientY: 300 })
+        new MouseEvent('pointermove', { bubbles: true, clientX: 400, clientY: 300 }),
       );
     });
     expect(ghost()).not.toBeNull();
@@ -424,11 +451,19 @@ describe('BP tree pane — selecting an edge highlights the edge', () => {
         ...singleBoxPleatDesignTab({
           document: document_,
           selection: { kind: 'bp-edge', id: 1 },
-          symmetry: { enabled: false, fold: 'book', quarterTurn: false, sidesSwapped: false, angle: 90, loc: { x: 10, y: 10 }, pairs: [] },
+          symmetry: {
+            enabled: false,
+            fold: 'book',
+            quarterTurn: false,
+            sidesSwapped: false,
+            angle: 90,
+            loc: { x: 10, y: 10 },
+            pairs: [],
+          },
         }),
         ...actions,
       },
-      true
+      true,
     );
     container = window.document.createElement('div');
     window.document.body.append(container);
@@ -437,7 +472,7 @@ describe('BP tree pane — selecting an edge highlights the edge', () => {
       root?.render(
         <TooltipProvider>
           <BpTreePanel document={document_} />
-        </TooltipProvider>
+        </TooltipProvider>,
       );
     });
 
@@ -459,11 +494,11 @@ describe('BP tree pane — selecting an edge highlights the edge', () => {
     const corner = bpTreePointToSvg({ x: 20, y: 0 }, SHEET);
     expect(Number(bounds!.getAttribute('x')) + Number(bounds!.getAttribute('width'))).toBeCloseTo(
       corner.x,
-      9
+      9,
     );
     expect(Number(bounds!.getAttribute('y')) + Number(bounds!.getAttribute('height'))).toBeCloseTo(
       corner.y,
-      9
+      9,
     );
   });
 
@@ -490,9 +525,7 @@ describe('BP tree pane — selecting an edge highlights the edge', () => {
 });
 
 describe('BP tree pane — the selected node is the loudest dot', () => {
-  const dots = (body: HTMLElement) => [
-    ...body.querySelectorAll<SVGCircleElement>('.bp-tree-node'),
-  ];
+  const dots = (body: HTMLElement) => [...body.querySelectorAll<SVGCircleElement>('.bp-tree-node')];
   const radius = (dot: SVGCircleElement) => Number(dot.getAttribute('r'));
   const ring = (dot: SVGCircleElement) => Number(dot.style.strokeWidth);
 
@@ -529,8 +562,7 @@ describe('BP tree pane — the selected node is the loudest dot', () => {
 
   it('keeps the selection emphasis proportional as the camera zooms', () => {
     const body = render(1);
-    const selected = () =>
-      dots(body).find((dot) => dot.classList.contains('tree-node--selected'))!;
+    const selected = () => dots(body).find((dot) => dot.classList.contains('tree-node--selected'))!;
     const atRest = radius(selected());
     act(() => {
       transformed.fn?.({}, { scale: 4 });
@@ -613,7 +645,7 @@ describe('BP tree pane — Escape', () => {
     act(() => {
       handleShortcutRuntimeKeyDown(
         new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }),
-        { context: { activeEditingContext: 'bp-tree' }, menu: vi.fn() }
+        { context: { activeEditingContext: 'bp-tree' }, menu: vi.fn() },
       );
     });
     expect(actions.clearOristudioBpSelection).toHaveBeenCalled();
@@ -647,8 +679,10 @@ describe('BP tree pane — the name field never steals focus', () => {
     // holds focus the browser undoes the field's text instead of the add.
     act(() => {
       useWorkspaceStore.setState({
-      ...patchBoxPleatDesign(useWorkspaceStore.getState(), { selection: { kind: 'bp-vertex', id: 2 } 
-      }),});
+        ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
+          selection: { kind: 'bp-vertex', id: 2 },
+        }),
+      });
     });
     const input = container?.querySelector<HTMLInputElement>('.bp-name-editor__input');
     expect(input).toBeTruthy();
@@ -661,8 +695,10 @@ describe('BP tree pane — the name field never steals focus', () => {
       const dot = container?.querySelectorAll<SVGCircleElement>('.bp-tree-node')[2];
       dot?.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }));
       useWorkspaceStore.setState({
-      ...patchBoxPleatDesign(useWorkspaceStore.getState(), { selection: { kind: 'bp-vertex', id: 2 } 
-      }),});
+        ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
+          selection: { kind: 'bp-vertex', id: 2 },
+        }),
+      });
     });
     const input = container?.querySelector<HTMLInputElement>('.bp-name-editor__input');
     expect(input).toBeTruthy();
@@ -695,7 +731,7 @@ describe('BP tree pane — Delete reaches the node delete', () => {
     act(() => {
       handleShortcutRuntimeKeyDown(
         new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }),
-        { context: { activeEditingContext: 'bp-tree' }, menu }
+        { context: { activeEditingContext: 'bp-tree' }, menu },
       );
     });
     return menu;
@@ -712,7 +748,7 @@ describe('BP tree pane — Delete reaches the node delete', () => {
     act(() => {
       handleShortcutRuntimeKeyDown(
         new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }),
-        { context: { activeEditingContext: 'bp-tree' }, menu }
+        { context: { activeEditingContext: 'bp-tree' }, menu },
       );
     });
     expect(menu).toHaveBeenCalledWith('edit.delete');
@@ -724,7 +760,7 @@ describe('BP tree pane — Delete reaches the node delete', () => {
     act(() => {
       handleShortcutRuntimeKeyDown(
         new KeyboardEvent('keydown', { key: '=', metaKey: true, bubbles: true, cancelable: true }),
-        { context: { activeEditingContext: 'bp-tree' }, menu }
+        { context: { activeEditingContext: 'bp-tree' }, menu },
       );
     });
     // Declining Delete must not turn into declining everything.
@@ -758,7 +794,7 @@ describe('BP tree pane — pairings survive mirror draw being off', () => {
             loc: { x: 10, y: 10 },
             pairs: [{ v1: 1, v2: 2 }],
           },
-        })
+        }),
       );
     });
     return body;
@@ -780,13 +816,13 @@ describe('BP tree pane — pairings survive mirror draw being off', () => {
     if (!dot) throw new Error('vertex dot did not render');
     act(() => {
       dot.dispatchEvent(
-        new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 400, clientY: 300 })
+        new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 400, clientY: 300 }),
       );
       body.dispatchEvent(
-        new MouseEvent('pointermove', { bubbles: true, button: 0, clientX: 460, clientY: 360 })
+        new MouseEvent('pointermove', { bubbles: true, button: 0, clientX: 460, clientY: 360 }),
       );
       body.dispatchEvent(
-        new MouseEvent('pointerup', { bubbles: true, button: 0, clientX: 460, clientY: 360 })
+        new MouseEvent('pointerup', { bubbles: true, button: 0, clientX: 460, clientY: 360 }),
       );
     });
     // Either mirrored path counts: a drag that also changed the edge's length
@@ -824,8 +860,22 @@ describe('BP tree pane — every edge shows its length', () => {
     tree.vertices = [...tree.vertices, node(3, 12, 10, false), node(4, 14, 10, true)];
     tree.edges = [
       ...tree.edges,
-      { id: 3, vertices: [0, 3] as [number, number], length: 7, maxLength: null, isLeafEdge: false, dualRiverId: 1 },
-      { id: 4, vertices: [3, 4] as [number, number], length: 9, maxLength: null, isLeafEdge: true, dualRiverId: null },
+      {
+        id: 3,
+        vertices: [0, 3] as [number, number],
+        length: 7,
+        maxLength: null,
+        isLeafEdge: false,
+        dualRiverId: 1,
+      },
+      {
+        id: 4,
+        vertices: [3, 4] as [number, number],
+        length: 9,
+        maxLength: null,
+        isLeafEdge: true,
+        dualRiverId: null,
+      },
     ];
   }
 

@@ -8,19 +8,14 @@ import type {
   OristudioCpFoldedRenderSnapshot,
 } from '../../engine/oristudioCpTypes';
 import { foldedFigureExportDocument, serializeFoldedFigureSvg } from './foldedFigureExport';
-import {
-  DEFAULT_FOLDED_3D_CAMERA,
-  projectFolded3dModel,
-} from './foldedFigure3dProjection';
+import { DEFAULT_FOLDED_3D_CAMERA, projectFolded3dModel } from './foldedFigure3dProjection';
 
 const FOLDED_FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '__fixtures__');
 
 const solid = (r: number, g: number, b: number, a: number) =>
   ({ kind: 'color', color: { red: r, green: g, blue: b, alpha: a } }) as const;
 
-function snapshot(
-  primitives: OristudioCpFoldedRenderPrimitive[]
-): OristudioCpFoldedRenderSnapshot {
+function snapshot(primitives: OristudioCpFoldedRenderPrimitive[]): OristudioCpFoldedRenderSnapshot {
   return {
     schema_version: 1,
     fixture: null,
@@ -95,24 +90,20 @@ describe('foldedFigureExportDocument', () => {
   it('sizes the viewBox to the page so the figure fills it', () => {
     const page = foldedFigureExportDocument(snapshot([square()]));
     expect(page?.svg).toContain(
-      `viewBox="0 0 ${page!.width.toFixed(2)} ${page!.height.toFixed(2)}"`
+      `viewBox="0 0 ${page!.width.toFixed(2)} ${page!.height.toFixed(2)}"`,
     );
   });
 
   it('draws a background by default and omits it on request', () => {
     expect(serializeFoldedFigureSvg(snapshot([square()]))).toContain('<rect width="100%"');
     expect(
-      serializeFoldedFigureSvg(snapshot([square()]), { showBackgroundColor: false })
+      serializeFoldedFigureSvg(snapshot([square()]), { showBackgroundColor: false }),
     ).not.toContain('<rect width="100%"');
   });
 
   it('honours the export theme', () => {
-    expect(serializeFoldedFigureSvg(snapshot([square()]), { theme: 'dark' })).toContain(
-      '#101317'
-    );
-    expect(serializeFoldedFigureSvg(snapshot([square()]), { theme: 'light' })).toContain(
-      '#ffffff'
-    );
+    expect(serializeFoldedFigureSvg(snapshot([square()]), { theme: 'dark' })).toContain('#101317');
+    expect(serializeFoldedFigureSvg(snapshot([square()]), { theme: 'light' })).toContain('#ffffff');
   });
 
   it('emits a standalone SVG document', () => {
@@ -137,7 +128,7 @@ describe('foldedFigureExportDocument', () => {
  */
 describe('exporting a 3D folded figure', () => {
   const model: OristudioCpFolded3dRenderModel = JSON.parse(
-    readFileSync(join(FOLDED_FIXTURES, 'box_90.rendermodel.json'), 'utf8')
+    readFileSync(join(FOLDED_FIXTURES, 'box_90.rendermodel.json'), 'utf8'),
   );
 
   const projected = projectFolded3dModel(model, {
@@ -148,7 +139,7 @@ describe('exporting a 3D folded figure', () => {
       back: [1, 1, 1],
       line: [0, 0, 0],
       faceAlpha: 1,
-  transparentAlpha: 16 / 255,
+      transparentAlpha: 16 / 255,
       lineWidth: 1.200000048,
       antiAlias: true,
       lighting: true,

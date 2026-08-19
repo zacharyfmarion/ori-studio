@@ -99,7 +99,7 @@ export function packModel(model: OrigamiModel, material: SolverMaterial): Packed
   // --- per-node beam incidences (CSR) ---
   const nodeBeams: Array<{ other: number; rest: number }[]> = Array.from(
     { length: nodeCount },
-    () => []
+    () => [],
   );
   prepared.edgesVertices.forEach((edge, edgeIndex) => {
     const rest = Math.max(EPSILON, model.edgeRestLength(edgeIndex));
@@ -111,7 +111,7 @@ export function packModel(model: OrigamiModel, material: SolverMaterial): Packed
   // --- per-node crease incidences (types 1..4) ---
   const nodeCreases: Array<{ crease: number; type: number }[]> = Array.from(
     { length: nodeCount },
-    () => []
+    () => [],
   );
   creaseParams.forEach((crease, creaseIndex) => {
     const edge = prepared.edgesVertices[crease.edge];
@@ -324,11 +324,17 @@ function nominalTriangleAngles(
   positions: Float32Array,
   a: number,
   b: number,
-  c: number
+  c: number,
 ): [number, number, number] {
-  const ax = positions[a * 3]!, ay = positions[a * 3 + 1]!, az = positions[a * 3 + 2]!;
-  const bx = positions[b * 3]!, by = positions[b * 3 + 1]!, bz = positions[b * 3 + 2]!;
-  const cx = positions[c * 3]!, cy = positions[c * 3 + 1]!, cz = positions[c * 3 + 2]!;
+  const ax = positions[a * 3]!,
+    ay = positions[a * 3 + 1]!,
+    az = positions[a * 3 + 2]!;
+  const bx = positions[b * 3]!,
+    by = positions[b * 3 + 1]!,
+    bz = positions[b * 3 + 2]!;
+  const cx = positions[c * 3]!,
+    cy = positions[c * 3 + 1]!,
+    cz = positions[c * 3 + 2]!;
   const ab = normalize(bx - ax, by - ay, bz - az);
   const ac = normalize(cx - ax, cy - ay, cz - az);
   const bc = normalize(cx - bx, cy - by, cz - bz);

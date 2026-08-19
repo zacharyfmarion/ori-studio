@@ -57,7 +57,7 @@ export type { FoldedSourceBounds };
  * Port of `GetBoundingBox.getBoundingBox`. Null for an empty set.
  */
 export function foldedSourceBounds(
-  lines: readonly OristudioCpLineSegment[]
+  lines: readonly OristudioCpLineSegment[],
 ): FoldedSourceBounds | null {
   if (lines.length === 0) return null;
   let minX = Number.POSITIVE_INFINITY;
@@ -87,7 +87,7 @@ export function foldedSourceBounds(
  */
 export function segmentOverlapsBounds(
   line: OristudioCpLineSegment,
-  bounds: FoldedSourceBounds
+  bounds: FoldedSourceBounds,
 ): boolean {
   const dx = line.b.x - line.a.x;
   const dy = line.b.y - line.a.y;
@@ -137,7 +137,7 @@ export function segmentOverlapsBounds(
  */
 export function reselectFoldableLineIds(
   document: OristudioCpDocumentSnapshot | null | undefined,
-  bounds: FoldedSourceBounds | null
+  bounds: FoldedSourceBounds | null,
 ): number[] {
   if (!document || !bounds) return [];
   const ids: number[] = [];
@@ -167,7 +167,7 @@ export function reselectFoldableLineIds(
  */
 export function reselectSourceLineIds(
   document: OristudioCpDocumentSnapshot | null | undefined,
-  bounds: FoldedSourceBounds | null
+  bounds: FoldedSourceBounds | null,
 ): number[] {
   if (!document || !bounds) return [];
   const ids: number[] = [];
@@ -182,7 +182,7 @@ export function reselectSourceLineIds(
 /** The lines behind 1-based ids, skipping any that no longer resolve. */
 export function cpLinesByIds(
   document: OristudioCpDocumentSnapshot | null | undefined,
-  ids: readonly number[]
+  ids: readonly number[],
 ): OristudioCpLineSegment[] {
   if (!document) return [];
   const lines: OristudioCpLineSegment[] = [];
@@ -298,7 +298,6 @@ export function foldedSourceFingerprint(lines: readonly OristudioCpLineSegment[]
   return creaseSetDigest(lines.map(segmentKey).sort());
 }
 
-
 /**
  * `document` + region -> the fingerprint that region's creases hash to *today*.
  *
@@ -330,7 +329,7 @@ const CURRENT_FINGERPRINTS = new WeakMap<OristudioCpDocumentSnapshot, Map<string
 
 function currentSourceFingerprint(
   document: OristudioCpDocumentSnapshot,
-  bounds: FoldedSourceBounds
+  bounds: FoldedSourceBounds,
 ): string {
   let byRegion = CURRENT_FINGERPRINTS.get(document);
   if (byRegion === undefined) {
@@ -341,7 +340,7 @@ function currentSourceFingerprint(
   const cached = byRegion.get(key);
   if (cached !== undefined) return cached;
   const fingerprint = foldedSourceFingerprint(
-    cpLinesByIds(document, reselectFoldableLineIds(document, bounds))
+    cpLinesByIds(document, reselectFoldableLineIds(document, bounds)),
   );
   byRegion.set(key, fingerprint);
   return fingerprint;
@@ -356,7 +355,7 @@ function currentSourceFingerprint(
  */
 export function isFoldedFigureStale(
   document: OristudioCpDocumentSnapshot | null | undefined,
-  figure: OristudioCpFoldedFigureEntry
+  figure: OristudioCpFoldedFigureEntry,
 ): boolean {
   if (!document) return false;
   if (figure.sourceBounds == null || figure.sourceFingerprint == null) return false;

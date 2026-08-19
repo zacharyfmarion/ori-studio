@@ -181,7 +181,7 @@ describe('readOriconfigArchive', () => {
       }
       for (const [name, content] of result.entries) {
         expect(content, `byte ${index} changed ${name} without being reported`).toBe(
-          pristine.entries.get(name)
+          pristine.entries.get(name),
         );
       }
     }
@@ -224,7 +224,7 @@ describe('readOriconfigArchive', () => {
         { name: 'config.json', data: CONFIG_JSON },
         { name: 'hotkey.properties', data: HOTKEY_PROPERTIES },
       ],
-      { comment: 'repackaged by a tool that leaves a note '.repeat(40) }
+      { comment: 'repackaged by a tool that leaves a note '.repeat(40) },
     );
 
     const result = await readOriconfigArchive(archive);

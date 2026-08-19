@@ -51,7 +51,10 @@ function distanceToSegment(point: Point, a: Point, b: Point): number {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const lengthSq = dx * dx + dy * dy;
-  const t = lengthSq === 0 ? 0 : Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSq));
+  const t =
+    lengthSq === 0
+      ? 0
+      : Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSq));
   return Math.hypot(point.x - (a.x + t * dx), point.y - (a.y + t * dy));
 }
 
@@ -85,7 +88,10 @@ function edgeKey(a: number, b: number): string {
  * an ordinary mountain/valley crease is not a self-contained crease pattern, so
  * it is not offered for folding, export, or simulation.
  */
-function rimAssignmentCounts(fold: FoldDocument, segment: CpSegment): { rim: number; nonBorder: number } {
+function rimAssignmentCounts(
+  fold: FoldDocument,
+  segment: CpSegment,
+): { rim: number; nonBorder: number } {
   const faces = fold.faces_vertices ?? [];
   const useCount = new Map<string, number>();
   for (const faceIndex of segment.faceIndices) {
@@ -134,7 +140,7 @@ const containmentCache = new WeakMap<FoldArtifacts, SegmentContainment>();
 function segmentContainment(
   artifacts: FoldArtifacts,
   document: OristudioCpDocumentSnapshot,
-  segments: CpSegment[]
+  segments: CpSegment[],
 ): SegmentContainment {
   const cached = containmentCache.get(artifacts);
   if (cached && cached.document === document && cached.lineIds.length === segments.length) {
@@ -175,10 +181,9 @@ function segmentContainment(
   const result: SegmentContainment = { document, lineIds, eligible, rim };
   containmentCache.set(artifacts, result);
   if (import.meta.env.DEV) {
-     
     console.debug(
       `[cp-toolbar] containment recomputed in ${Math.round(performance.now() - startedAt)}ms ` +
-        `(${missReason}, ${document.crease_pattern.line_segments.length} creases × ${segments.length} regions)`
+        `(${missReason}, ${document.crease_pattern.line_segments.length} creases × ${segments.length} regions)`,
     );
   }
   return result;
@@ -235,7 +240,7 @@ const DIAGNOSIS_SAMPLE_LIMIT = 8;
 
 function describeLines(
   document: OristudioCpDocumentSnapshot,
-  ids: number[]
+  ids: number[],
 ): { byColor: Record<string, number>; sample: DiagnosisLine[] } {
   const byColor: Record<string, number> = {};
   const sample: DiagnosisLine[] = [];
@@ -259,7 +264,7 @@ function describeLines(
 export function explainSelectedSegment(
   document: OristudioCpDocumentSnapshot | null | undefined,
   selection: OristudioCpSelection,
-  artifacts: FoldArtifacts | null | undefined
+  artifacts: FoldArtifacts | null | undefined,
 ): SelectionSegmentDiagnosis {
   const base: SelectionSegmentDiagnosis = {
     reason: 'matched',
@@ -302,11 +307,15 @@ export function explainSelectedSegment(
   });
   regions.sort(
     (a, b) =>
-      a.extraInSelection + a.missingFromSelection - (b.extraInSelection + b.missingFromSelection)
+      a.extraInSelection + a.missingFromSelection - (b.extraInSelection + b.missingFromSelection),
   );
 
   const matched = regions.some(
-    (r) => r.eligible && r.containedLines > 0 && r.extraInSelection === 0 && r.missingFromSelection === 0
+    (r) =>
+      r.eligible &&
+      r.containedLines > 0 &&
+      r.extraInSelection === 0 &&
+      r.missingFromSelection === 0,
   );
   return { ...base, reason: matched ? 'matched' : 'no-region-matches', regions };
 }
@@ -322,7 +331,7 @@ export function explainSelectedSegment(
 export function segmentContainedLineIds(
   document: OristudioCpDocumentSnapshot | null | undefined,
   artifacts: FoldArtifacts | null | undefined,
-  segment: CpSegment
+  segment: CpSegment,
 ): number[] {
   if (!document || !artifacts) return [];
   const segments = resolveCpSegments(artifacts);
@@ -345,7 +354,7 @@ export function segmentContainedLineIds(
 export function resolveSelectedSegment(
   document: OristudioCpDocumentSnapshot | null | undefined,
   selection: OristudioCpSelection,
-  artifacts: FoldArtifacts | null | undefined
+  artifacts: FoldArtifacts | null | undefined,
 ): SelectedSegmentMatch | null {
   if (!document || !artifacts || selection.lines.length === 0) return null;
 

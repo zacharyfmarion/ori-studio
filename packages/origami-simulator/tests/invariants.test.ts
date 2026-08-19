@@ -19,7 +19,7 @@ import type { FoldDocument } from '../src/types.js';
 // 6561-vertex fixture at 32 ms/step into the unit suite just makes it slow
 // enough that people stop running it.
 const INVARIANT_FIXTURES = FIXTURES.filter(
-  (fixture) => fixture.scale === 'tiny' || fixture.scale === 'small'
+  (fixture) => fixture.scale === 'tiny' || fixture.scale === 'small',
 );
 const SOLVABLE_FIXTURES = INVARIANT_FIXTURES.filter((fixture) => !fixture.degenerate);
 
@@ -69,11 +69,15 @@ describe('no NaN or Inf', () => {
   // on, so assert the guards never actually fire on real input.
   for (const fixture of INVARIANT_FIXTURES) {
     for (const foldPercent of [0, 50, 100]) {
-      it(`${fixture.name} stays finite at foldPercent ${foldPercent}`, () => {
-        const model = solve(fixture.build(), foldPercent, 300);
-        for (const value of model.positions) expect(Number.isFinite(value)).toBe(true);
-        for (const value of model.velocities) expect(Number.isFinite(value)).toBe(true);
-      }, SLOW);
+      it(
+        `${fixture.name} stays finite at foldPercent ${foldPercent}`,
+        () => {
+          const model = solve(fixture.build(), foldPercent, 300);
+          for (const value of model.positions) expect(Number.isFinite(value)).toBe(true);
+          for (const value of model.velocities) expect(Number.isFinite(value)).toBe(true);
+        },
+        SLOW,
+      );
     }
   }
 });
@@ -92,26 +96,30 @@ describe('energy monotonicity', () => {
   const AT_REST = 1e-9;
 
   for (const fixture of SOLVABLE_FIXTURES) {
-    it(`${fixture.name} does not gain kinetic energy while settling`, () => {
-      const model = new OrigamiModel(prepareFoldModel(fixture.build(), { triangulate: true }));
-      const solver = new ReferenceSolver(model, { foldPercent: 60, damping: 0.45 });
+    it(
+      `${fixture.name} does not gain kinetic energy while settling`,
+      () => {
+        const model = new OrigamiModel(prepareFoldModel(fixture.build(), { triangulate: true }));
+        const solver = new ReferenceSolver(model, { foldPercent: 60, damping: 0.45 });
 
-      const kinetic = () => {
-        let total = 0;
-        for (const v of model.velocities) total += v * v;
-        return total;
-      };
+        const kinetic = () => {
+          let total = 0;
+          for (const v of model.velocities) total += v * v;
+          return total;
+        };
 
-      // Let the crease impulse do its work first; energy legitimately rises
-      // while the creases are still driving the sheet.
-      solver.step(400);
-      const early = kinetic();
-      solver.step(1200);
-      const late = kinetic();
+        // Let the crease impulse do its work first; energy legitimately rises
+        // while the creases are still driving the sheet.
+        solver.step(400);
+        const early = kinetic();
+        solver.step(1200);
+        const late = kinetic();
 
-      if (early < AT_REST && late < AT_REST) return; // settled before we started measuring
-      expect(late).toBeLessThan(early);
-    }, SLOW);
+        if (early < AT_REST && late < AT_REST) return; // settled before we started measuring
+        expect(late).toBeLessThan(early);
+      },
+      SLOW,
+    );
   }
 });
 

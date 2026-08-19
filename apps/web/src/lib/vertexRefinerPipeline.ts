@@ -175,20 +175,25 @@ export async function runVertexRefinerOnImage(
   const proposalStartedAt = performance.now();
   const proposalMode = options.proposalMode ?? 'full-coverage';
   const proposalCap = options.proposalCap ?? manifest.inference.proposal_cap ?? 256;
-  const proposals = options.proposals ?? generateVertexRefinerProposals(image.width, image.height, {
-    cropSize,
-    frame,
-    proposalCap,
-    mode: proposalMode,
-    denseJunctionLogits: options.denseJunctionLogits,
-    denseRegionJunctionThreshold: options.denseRegionJunctionThreshold,
-    denseRegionMinPeaks: options.denseRegionMinPeaks,
-    denseRegionMaxOverlapFraction: options.denseRegionMaxOverlapFraction,
-    stridePx: options.gridStridePx ?? DEFAULT_GRID_STRIDE_PX,
-  });
-  const refinementRegions = proposalMode === 'dense-junction-regions'
-    ? proposals.map((proposal) => refinementRegionForProposal(proposal, cropSize, image.width, image.height))
-    : undefined;
+  const proposals =
+    options.proposals ??
+    generateVertexRefinerProposals(image.width, image.height, {
+      cropSize,
+      frame,
+      proposalCap,
+      mode: proposalMode,
+      denseJunctionLogits: options.denseJunctionLogits,
+      denseRegionJunctionThreshold: options.denseRegionJunctionThreshold,
+      denseRegionMinPeaks: options.denseRegionMinPeaks,
+      denseRegionMaxOverlapFraction: options.denseRegionMaxOverlapFraction,
+      stridePx: options.gridStridePx ?? DEFAULT_GRID_STRIDE_PX,
+    });
+  const refinementRegions =
+    proposalMode === 'dense-junction-regions'
+      ? proposals.map((proposal) =>
+          refinementRegionForProposal(proposal, cropSize, image.width, image.height),
+        )
+      : undefined;
   const tensorStartedAt = performance.now();
   const cropTensor = buildVertexRefinerCropTensor(features, proposals, cropSize);
   const inference = await runVertexRefinerInferenceInChunks(
@@ -197,7 +202,11 @@ export async function runVertexRefinerOnImage(
     cropTensor,
     manifest,
     options.runtime,
-    options.batchSize ?? Math.min(manifest.inference.batch_size ?? DEFAULT_BROWSER_BATCH_SIZE, DEFAULT_BROWSER_BATCH_SIZE),
+    options.batchSize ??
+      Math.min(
+        manifest.inference.batch_size ?? DEFAULT_BROWSER_BATCH_SIZE,
+        DEFAULT_BROWSER_BATCH_SIZE,
+      ),
   );
   const decodeStartedAt = performance.now();
   const rawVertices = decodeVertexRefinerOutputTensors(inference.outputs, proposals, {
@@ -213,7 +222,8 @@ export async function runVertexRefinerOnImage(
     cropSize,
     radiusPx: options.mergeRadiusPx ?? Math.max(manifest.inference.merge_radius_px ?? 5, 5),
     boundaryRadiusPx:
-      options.boundaryMergeRadiusPx ?? Math.max(manifest.inference.boundary_merge_radius_px ?? 5, 5),
+      options.boundaryMergeRadiusPx ??
+      Math.max(manifest.inference.boundary_merge_radius_px ?? 5, 5),
     minSupport: options.minSupport ?? 1,
     minSupportFraction:
       options.minSupportFraction ?? manifest.inference.min_support_fraction ?? 0.25,
@@ -449,12 +459,32 @@ export function generateSlidingWindowVertexRefinerProposals(
     boundaryProposals.push({ x, y, score: 1, provenance: ['square_frame_corner'] });
   }
   for (const x of gridCenters(frame.x_min, frame.x_max, boundaryStride)) {
-    boundaryProposals.push({ x, y: frame.y_min, score: 0.85, provenance: ['boundary_contact_top'] });
-    boundaryProposals.push({ x, y: frame.y_max, score: 0.85, provenance: ['boundary_contact_bottom'] });
+    boundaryProposals.push({
+      x,
+      y: frame.y_min,
+      score: 0.85,
+      provenance: ['boundary_contact_top'],
+    });
+    boundaryProposals.push({
+      x,
+      y: frame.y_max,
+      score: 0.85,
+      provenance: ['boundary_contact_bottom'],
+    });
   }
   for (const y of gridCenters(frame.y_min, frame.y_max, boundaryStride)) {
-    boundaryProposals.push({ x: frame.x_min, y, score: 0.85, provenance: ['boundary_contact_left'] });
-    boundaryProposals.push({ x: frame.x_max, y, score: 0.85, provenance: ['boundary_contact_right'] });
+    boundaryProposals.push({
+      x: frame.x_min,
+      y,
+      score: 0.85,
+      provenance: ['boundary_contact_left'],
+    });
+    boundaryProposals.push({
+      x: frame.x_max,
+      y,
+      score: 0.85,
+      provenance: ['boundary_contact_right'],
+    });
   }
   const mergedBoundaryProposals = mergeVertexRefinerProposals(boundaryProposals, 1e-3);
   const interiorBudget = Math.max(0, proposalCap - mergedBoundaryProposals.length);
@@ -494,23 +524,27 @@ export function generateDenseJunctionRegionVertexRefinerProposals(
   const minPeaks = Math.max(1, Math.floor(options.minPeaksPerCrop ?? 3));
   const candidates = peaks
     .map((peak) => denseJunctionCropCandidate(peak, peaks, cropSize, options.frame))
-    .filter((proposal): proposal is { proposal: VertexRefinerProposal; peakCount: number } =>
-      proposal !== null
-      && proposal.peakCount >= minPeaks
-      && !denseRegionCropTouchesFrame(proposal.proposal, cropSize, options.frame)
+    .filter(
+      (proposal): proposal is { proposal: VertexRefinerProposal; peakCount: number } =>
+        proposal !== null &&
+        proposal.peakCount >= minPeaks &&
+        !denseRegionCropTouchesFrame(proposal.proposal, cropSize, options.frame),
     )
-    .sort((left, right) =>
-      right.peakCount - left.peakCount ||
-      right.proposal.score - left.proposal.score ||
-      left.proposal.y - right.proposal.y ||
-      left.proposal.x - right.proposal.x,
+    .sort(
+      (left, right) =>
+        right.peakCount - left.peakCount ||
+        right.proposal.score - left.proposal.score ||
+        left.proposal.y - right.proposal.y ||
+        left.proposal.x - right.proposal.x,
     );
   const selected: VertexRefinerProposal[] = [];
   const maxOverlap = clamp(options.maxOverlapFraction ?? 0.05, 0, 1);
   for (const candidate of candidates) {
     if (selected.length >= options.proposalCap) break;
     const proposal = candidate.proposal;
-    if (selected.some((existing) => cropOverlapFraction(existing, proposal, cropSize) > maxOverlap)) {
+    if (
+      selected.some((existing) => cropOverlapFraction(existing, proposal, cropSize) > maxOverlap)
+    ) {
       continue;
     }
     selected.push(proposal);
@@ -566,13 +600,29 @@ function denseJunctionPeaks(
   if (!shape) return [];
   const { width, height, channelOffset } = shape;
   const threshold = clamp(options.threshold, 0, 1);
-  const mapRadius = Math.max(1, Math.round(options.nmsRadiusPx * Math.max(width / options.imageWidth, height / options.imageHeight)));
+  const mapRadius = Math.max(
+    1,
+    Math.round(
+      options.nmsRadiusPx * Math.max(width / options.imageWidth, height / options.imageHeight),
+    ),
+  );
   const candidates: Array<{ row: number; col: number; score: number }> = [];
   for (let row = 0; row < height; row += 1) {
     for (let col = 0; col < width; col += 1) {
       const score = sigmoid(junctionLogits.data[channelOffset + row * width + col]);
       if (score < threshold) continue;
-      if (!isDenseMapLocalMax(junctionLogits.data, channelOffset, width, height, row, col, score, mapRadius)) {
+      if (
+        !isDenseMapLocalMax(
+          junctionLogits.data,
+          channelOffset,
+          width,
+          height,
+          row,
+          col,
+          score,
+          mapRadius,
+        )
+      ) {
         continue;
       }
       candidates.push({ row, col, score });
@@ -584,11 +634,12 @@ function denseJunctionPeaks(
       const y = mapCoordToImageCoord(candidate.row, height, options.imageHeight);
       return { ...candidate, x, y };
     })
-    .filter((peak) =>
-      peak.x >= options.frame.x_min &&
-      peak.x <= options.frame.x_max &&
-      peak.y >= options.frame.y_min &&
-      peak.y <= options.frame.y_max,
+    .filter(
+      (peak) =>
+        peak.x >= options.frame.x_min &&
+        peak.x <= options.frame.x_max &&
+        peak.y >= options.frame.y_min &&
+        peak.y <= options.frame.y_max,
     )
     .sort((left, right) => right.score - left.score || left.y - right.y || left.x - right.x);
 }
@@ -602,7 +653,9 @@ function denseJunctionCropCandidate(
   const half = cropSize / 2;
   const x = clamp(peak.x, frame.x_min + half, frame.x_max - half);
   const y = clamp(peak.y, frame.y_min + half, frame.y_max - half);
-  const inside = peaks.filter((candidate) => Math.abs(candidate.x - x) <= half && Math.abs(candidate.y - y) <= half);
+  const inside = peaks.filter(
+    (candidate) => Math.abs(candidate.x - x) <= half && Math.abs(candidate.y - y) <= half,
+  );
   if (inside.length === 0) return null;
   const scoreSum = inside.reduce((sum, candidate) => sum + candidate.score, 0);
   return {
@@ -633,7 +686,9 @@ function denseRegionCropTouchesFrame(
   );
 }
 
-function tensorSpatialShape(tensor: CpDetectTensorData): { width: number; height: number; channelOffset: number } | null {
+function tensorSpatialShape(
+  tensor: CpDetectTensorData,
+): { width: number; height: number; channelOffset: number } | null {
   const dims = tensor.dims;
   if (dims.length >= 4) {
     const height = dims[dims.length - 2] ?? 0;
@@ -687,8 +742,14 @@ function cropOverlapFraction(
 ): number {
   const [leftX, leftY] = cropOriginForCenter(left, cropSize);
   const [rightX, rightY] = cropOriginForCenter(right, cropSize);
-  const overlapX = Math.max(0, Math.min(leftX + cropSize, rightX + cropSize) - Math.max(leftX, rightX));
-  const overlapY = Math.max(0, Math.min(leftY + cropSize, rightY + cropSize) - Math.max(leftY, rightY));
+  const overlapX = Math.max(
+    0,
+    Math.min(leftX + cropSize, rightX + cropSize) - Math.max(leftX, rightX),
+  );
+  const overlapY = Math.max(
+    0,
+    Math.min(leftY + cropSize, rightY + cropSize) - Math.max(leftY, rightY),
+  );
   return (overlapX * overlapY) / Math.max(1, cropSize * cropSize);
 }
 
@@ -738,7 +799,17 @@ export function buildVertexRefinerCropTensor(
       if (channel >= 9) {
         tensor.set(source, channelOffset);
       } else {
-        copyCrop(source, features.width, features.height, originX, originY, cropSize, padValue, tensor, channelOffset);
+        copyCrop(
+          source,
+          features.width,
+          features.height,
+          originX,
+          originY,
+          cropSize,
+          padValue,
+          tensor,
+          channelOffset,
+        );
       }
     }
   });
@@ -762,7 +833,15 @@ export function decodeVertexRefinerOutputTensors(
   for (let cropIndex = 0; cropIndex < proposals.length; cropIndex += 1) {
     const [originX, originY] = cropOriginForCenter(proposals[cropIndex], cropSize);
     const peaks = [
-      ...peakEntries(outputs.vertex_heatmap, cropIndex, 0, cropSize, options.heatmapThreshold, options.nmsRadiusPx, false),
+      ...peakEntries(
+        outputs.vertex_heatmap,
+        cropIndex,
+        0,
+        cropSize,
+        options.heatmapThreshold,
+        options.nmsRadiusPx,
+        false,
+      ),
       ...peakEntries(
         outputs.boundary_contact_heatmap,
         cropIndex,
@@ -773,8 +852,17 @@ export function decodeVertexRefinerOutputTensors(
         true,
       ),
     ];
-    for (const peak of dedupePeakEntries(peaks).sort((left, right) => right.score - left.score || left.row - right.row || left.col - right.col)) {
-      const offsetBase = tensorOffset(outputs.vertex_offset, cropIndex, 0, peak.row, peak.col, cropSize);
+    for (const peak of dedupePeakEntries(peaks).sort(
+      (left, right) => right.score - left.score || left.row - right.row || left.col - right.col,
+    )) {
+      const offsetBase = tensorOffset(
+        outputs.vertex_offset,
+        cropIndex,
+        0,
+        peak.row,
+        peak.col,
+        cropSize,
+      );
       const dx = outputs.vertex_offset.data[offsetBase];
       const dy = outputs.vertex_offset.data[offsetBase + cropSize * cropSize];
       let kindId = argmaxChannel(outputs.vertex_kind, cropIndex, peak.row, peak.col, cropSize);
@@ -785,11 +873,17 @@ export function decodeVertexRefinerOutputTensors(
       let x = originX + peak.col + dx;
       let y = originY + peak.row + dy;
       const kindName = VERTEX_KIND_NAMES[kindId] ?? 'background';
-      const boundarySideId = argmaxChannel(outputs.boundary_side, cropIndex, peak.row, peak.col, cropSize);
+      const boundarySideId = argmaxChannel(
+        outputs.boundary_side,
+        cropIndex,
+        peak.row,
+        peak.col,
+        cropSize,
+      );
       const predictedBoundarySide = BOUNDARY_SIDE_NAMES[boundarySideId] ?? null;
       const boundaryLike = peak.boundaryCandidate || kindName === 'boundary_contact';
       let boundarySide: VertexRefinerBoundarySide | null = boundaryLike
-        ? predictedBoundarySide ?? nearestFrameSide(x, y, options.frame)
+        ? (predictedBoundarySide ?? nearestFrameSide(x, y, options.frame))
         : null;
       if (boundaryLike) {
         boundarySide ??= nearestFrameSide(x, y, options.frame);
@@ -807,7 +901,14 @@ export function decodeVertexRefinerOutputTensors(
         kind: VERTEX_KIND_NAMES[kindId] ?? 'background',
         degree_class: degreeClass,
         degree: degreeClass,
-        ray_bins: activeRayBins(outputs.incident_rays, cropIndex, peak.row, peak.col, cropSize, options.rayThreshold ?? 0.5),
+        ray_bins: activeRayBins(
+          outputs.incident_rays,
+          cropIndex,
+          peak.row,
+          peak.col,
+          cropSize,
+          options.rayThreshold ?? 0.5,
+        ),
         boundary_side_id: boundarySide ? BOUNDARY_SIDE_NAMES.indexOf(boundarySide) : null,
         boundary_side: boundarySide,
         side_coordinate: sideCoordinate,
@@ -831,7 +932,8 @@ export function mergeDecodedVertexRefinerVertices(
     splitMinSupportFraction?: number;
   },
 ): VertexRefinerMergedVertex[] {
-  return mergeDecodedVertexRefinerVerticesWithDebug(rawVertices, proposals, options).merged_vertices;
+  return mergeDecodedVertexRefinerVerticesWithDebug(rawVertices, proposals, options)
+    .merged_vertices;
 }
 
 export function mergeDecodedVertexRefinerVerticesWithDebug(
@@ -860,12 +962,22 @@ export function mergeDecodedVertexRefinerVerticesWithDebug(
   const clusters: ClusterEntry[][] = [];
   const sortedEntries = rawVertices
     .map((vertex, rawVertexId) => ({ vertex, rawVertexId }))
-    .sort((left, right) => right.vertex.score - left.vertex.score || left.vertex.y - right.vertex.y || left.vertex.x - right.vertex.x);
+    .sort(
+      (left, right) =>
+        right.vertex.score - left.vertex.score ||
+        left.vertex.y - right.vertex.y ||
+        left.vertex.x - right.vertex.x,
+    );
   for (const entry of sortedEntries) {
     let matchIndex = -1;
-    let bestDistance = isBoundaryVertex(entry.vertex) ? options.boundaryRadiusPx ?? options.radiusPx : options.radiusPx;
+    let bestDistance = isBoundaryVertex(entry.vertex)
+      ? (options.boundaryRadiusPx ?? options.radiusPx)
+      : options.radiusPx;
     for (let index = 0; index < clusters.length; index += 1) {
-      const distance = clusterDistance(entry.vertex, clusters[index].map((member) => member.vertex));
+      const distance = clusterDistance(
+        entry.vertex,
+        clusters[index].map((member) => member.vertex),
+      );
       if (distance <= bestDistance) {
         bestDistance = distance;
         matchIndex = index;
@@ -888,7 +1000,11 @@ export function mergeDecodedVertexRefinerVerticesWithDebug(
           reason: 'filtered_min_support',
         };
       }
-      const vertex = mergeVertexCluster(cluster.map((entry) => entry.vertex), proposals, options.cropSize);
+      const vertex = mergeVertexCluster(
+        cluster.map((entry) => entry.vertex),
+        proposals,
+        options.cropSize,
+      );
       if (vertex.support_fraction < (options.minSupportFraction ?? 0)) {
         return {
           clusterId,
@@ -901,7 +1017,8 @@ export function mergeDecodedVertexRefinerVerticesWithDebug(
       }
       if (
         fromConflictSplit &&
-        vertex.support_fraction < (options.splitMinSupportFraction ?? options.minSupportFraction ?? 0)
+        vertex.support_fraction <
+          (options.splitMinSupportFraction ?? options.minSupportFraction ?? 0)
       ) {
         return {
           clusterId,
@@ -923,12 +1040,16 @@ export function mergeDecodedVertexRefinerVerticesWithDebug(
     });
 
   const retained = candidates
-    .filter((candidate): candidate is CandidateCluster & { vertex: VertexRefinerMergedVertex } => candidate.retained && candidate.vertex !== null)
-    .sort((left, right) =>
-      right.vertex.support_count - left.vertex.support_count ||
-      right.vertex.score - left.vertex.score ||
-      left.vertex.y - right.vertex.y ||
-      left.vertex.x - right.vertex.x
+    .filter(
+      (candidate): candidate is CandidateCluster & { vertex: VertexRefinerMergedVertex } =>
+        candidate.retained && candidate.vertex !== null,
+    )
+    .sort(
+      (left, right) =>
+        right.vertex.support_count - left.vertex.support_count ||
+        right.vertex.score - left.vertex.score ||
+        left.vertex.y - right.vertex.y ||
+        left.vertex.x - right.vertex.x,
     );
   const mergedIdByClusterId = new Map<number, number>();
   retained.forEach((candidate, mergedVertexId) => {
@@ -960,12 +1081,13 @@ export function mergeDecodedVertexRefinerVerticesWithDebug(
   const rawToMerged = candidates
     .flatMap((candidate) => {
       const mergedVertexId = mergedIdByClusterId.get(candidate.clusterId) ?? null;
-      const mergedVertex = mergedVertexId === null ? null : retained[mergedVertexId]?.vertex ?? null;
+      const mergedVertex =
+        mergedVertexId === null ? null : (retained[mergedVertexId]?.vertex ?? null);
       return candidate.entries.map((entry) => ({
         raw_vertex_id: entry.rawVertexId,
         merged_vertex_id: mergedVertexId,
         cluster_id: candidate.clusterId,
-        status: candidate.retained ? 'merged' as const : 'filtered' as const,
+        status: candidate.retained ? ('merged' as const) : ('filtered' as const),
         reason: candidate.reason,
         distance_to_merged_px: mergedVertex
           ? Math.hypot(entry.vertex.x - mergedVertex.x, entry.vertex.y - mergedVertex.y)
@@ -1129,7 +1251,11 @@ function buildFrameFeatureMaps(
       const outsideDx = Math.max(frame.x_min - x, x - frame.x_max, 0);
       const outsideDy = Math.max(frame.y_min - y, y - frame.y_max, 0);
       const outsideDistance = Math.hypot(outsideDx, outsideDy);
-      signed[idx] = clamp((inside ? insideDistance : -outsideDistance) / Math.max(cropSize, 1), -1, 1);
+      signed[idx] = clamp(
+        (inside ? insideDistance : -outsideDistance) / Math.max(cropSize, 1),
+        -1,
+        1,
+      );
       const edge = inFrameBand(x, y, frame, 1.5);
       const contact = inFrameBand(x, y, frame, 3);
       edgeMask[idx] = edge ? 1 : 0;
@@ -1225,7 +1351,9 @@ function mergeVertexRefinerProposals(
 ): VertexRefinerProposal[] {
   const merged: VertexRefinerProposal[] = [];
   for (const proposal of [...proposals].sort(proposalCompare)) {
-    const match = merged.findIndex((existing) => Math.hypot(existing.x - proposal.x, existing.y - proposal.y) <= radiusPx);
+    const match = merged.findIndex(
+      (existing) => Math.hypot(existing.x - proposal.x, existing.y - proposal.y) <= radiusPx,
+    );
     if (match < 0) {
       merged.push({ ...proposal, provenance: [...proposal.provenance] });
       continue;
@@ -1310,10 +1438,7 @@ function markCovered(
   }
 }
 
-function cropOriginForCenter(
-  center: { x: number; y: number },
-  cropSize: number,
-): [number, number] {
+function cropOriginForCenter(center: { x: number; y: number }, cropSize: number): [number, number] {
   return [Math.round(center.x - cropSize / 2), Math.round(center.y - cropSize / 2)];
 }
 
@@ -1363,12 +1488,25 @@ function peakEntries(
   const peaks: Array<{ score: number; row: number; col: number; boundaryCandidate: boolean }> = [];
   for (let row = 0; row < cropSize; row += 1) {
     for (let col = 0; col < cropSize; col += 1) {
-      const score = sigmoid(tensor.data[tensorOffset(tensor, batchIndex, channel, row, col, cropSize)]);
+      const score = sigmoid(
+        tensor.data[tensorOffset(tensor, batchIndex, channel, row, col, cropSize)],
+      );
       if (score < threshold) continue;
       let isPeak = true;
-      for (let yy = Math.max(0, row - radius); yy <= Math.min(cropSize - 1, row + radius) && isPeak; yy += 1) {
-        for (let xx = Math.max(0, col - radius); xx <= Math.min(cropSize - 1, col + radius); xx += 1) {
-          if (sigmoid(tensor.data[tensorOffset(tensor, batchIndex, channel, yy, xx, cropSize)]) > score + 1e-6) {
+      for (
+        let yy = Math.max(0, row - radius);
+        yy <= Math.min(cropSize - 1, row + radius) && isPeak;
+        yy += 1
+      ) {
+        for (
+          let xx = Math.max(0, col - radius);
+          xx <= Math.min(cropSize - 1, col + radius);
+          xx += 1
+        ) {
+          if (
+            sigmoid(tensor.data[tensorOffset(tensor, batchIndex, channel, yy, xx, cropSize)]) >
+            score + 1e-6
+          ) {
             isPeak = false;
             break;
           }
@@ -1383,7 +1521,10 @@ function peakEntries(
 function dedupePeakEntries(
   peaks: Array<{ score: number; row: number; col: number; boundaryCandidate: boolean }>,
 ): Array<{ score: number; row: number; col: number; boundaryCandidate: boolean }> {
-  const byCell = new Map<string, { score: number; row: number; col: number; boundaryCandidate: boolean }>();
+  const byCell = new Map<
+    string,
+    { score: number; row: number; col: number; boundaryCandidate: boolean }
+  >();
   for (const peak of peaks) {
     const key = `${peak.row}:${peak.col}`;
     const previous = byCell.get(key);
@@ -1405,7 +1546,12 @@ function tensorOffset(
   cropSize: number,
 ): number {
   const channels = tensor.dims[1] ?? 1;
-  return batchIndex * channels * cropSize * cropSize + channel * cropSize * cropSize + row * cropSize + col;
+  return (
+    batchIndex * channels * cropSize * cropSize +
+    channel * cropSize * cropSize +
+    row * cropSize +
+    col
+  );
 }
 
 function argmaxChannel(
@@ -1438,13 +1584,19 @@ function activeRayBins(
 ): number[] {
   const bins: number[] = [];
   for (let channel = 0; channel < Math.min(tensor.dims[1] ?? RAY_BINS, RAY_BINS); channel += 1) {
-    const value = sigmoid(tensor.data[tensorOffset(tensor, batchIndex, channel, row, col, cropSize)]);
+    const value = sigmoid(
+      tensor.data[tensorOffset(tensor, batchIndex, channel, row, col, cropSize)],
+    );
     if (value >= threshold) bins.push(channel);
   }
   return bins;
 }
 
-function nearestFrameSide(x: number, y: number, frame: VertexRefinerFrame): VertexRefinerBoundarySide {
+function nearestFrameSide(
+  x: number,
+  y: number,
+  frame: VertexRefinerFrame,
+): VertexRefinerBoundarySide {
   const distances: Record<VertexRefinerBoundarySide, number> = {
     top: Math.abs(y - frame.y_min),
     right: Math.abs(x - frame.x_max),
@@ -1494,15 +1646,29 @@ function splitSameCropConflictClusterEntries<T extends { vertex: VertexRefinerDe
     splitSameCropConflicts?: boolean;
   },
 ): Array<{ cluster: T[]; fromConflictSplit: boolean }> {
-  if (!options.splitSameCropConflicts || !hasSameCropConflict(cluster.map((entry) => entry.vertex))) {
+  if (
+    !options.splitSameCropConflicts ||
+    !hasSameCropConflict(cluster.map((entry) => entry.vertex))
+  ) {
     return [{ cluster, fromConflictSplit: false }];
   }
   const subclusters: T[][] = [];
-  for (const entry of [...cluster].sort((left, right) => right.vertex.score - left.vertex.score || left.vertex.y - right.vertex.y || left.vertex.x - right.vertex.x)) {
+  for (const entry of [...cluster].sort(
+    (left, right) =>
+      right.vertex.score - left.vertex.score ||
+      left.vertex.y - right.vertex.y ||
+      left.vertex.x - right.vertex.x,
+  )) {
     let matchIndex = -1;
-    let bestDistance = isBoundaryVertex(entry.vertex) ? options.boundaryRadiusPx ?? options.radiusPx : options.radiusPx;
+    let bestDistance = isBoundaryVertex(entry.vertex)
+      ? (options.boundaryRadiusPx ?? options.radiusPx)
+      : options.radiusPx;
     for (let index = 0; index < subclusters.length; index += 1) {
-      const distance = clusterDistance(entry.vertex, subclusters[index].map((member) => member.vertex), true);
+      const distance = clusterDistance(
+        entry.vertex,
+        subclusters[index].map((member) => member.vertex),
+        true,
+      );
       if (distance <= bestDistance) {
         bestDistance = distance;
         matchIndex = index;
@@ -1528,12 +1694,17 @@ function clusterDistance(
   cluster: VertexRefinerDecodedVertex[],
   preventSameCrop = false,
 ): number {
-  if (preventSameCrop && cluster.some((member) => member.crop_index === vertex.crop_index)) return Infinity;
+  if (preventSameCrop && cluster.some((member) => member.crop_index === vertex.crop_index))
+    return Infinity;
   const [centerX, centerY] = weightedCenter(cluster);
   const clusterSide = cluster.find((member) => isBoundaryVertex(member))?.boundary_side ?? null;
   if (isBoundaryVertex(vertex) || clusterSide !== null) {
     if (!isBoundaryVertex(vertex) || clusterSide === null || vertex.boundary_side !== clusterSide) {
-      if (isBoundaryVertex(vertex) && clusterSide !== null && vertex.boundary_side !== clusterSide) {
+      if (
+        isBoundaryVertex(vertex) &&
+        clusterSide !== null &&
+        vertex.boundary_side !== clusterSide
+      ) {
         return Math.hypot(vertex.x - centerX, vertex.y - centerY);
       }
       return Infinity;
@@ -1554,17 +1725,22 @@ function mergeVertexCluster(
   const distances = cluster.map((vertex) => Math.hypot(vertex.x - x, vertex.y - y));
   const boundarySide = weightedSideMode(cluster);
   const sideCoordinate = boundarySide ? weightedSideCoordinate(cluster, boundarySide) : null;
-  const kindId = boundarySide === null
-    ? weightedMode(cluster.map((vertex) => [vertex.kind_id, vertex.score] as const))
-    : 2;
-  const possibleSupport = proposals.filter((proposal) => proposalContainsPoint(proposal, x, y, cropSize)).length;
+  const kindId =
+    boundarySide === null
+      ? weightedMode(cluster.map((vertex) => [vertex.kind_id, vertex.score] as const))
+      : 2;
+  const possibleSupport = proposals.filter((proposal) =>
+    proposalContainsPoint(proposal, x, y, cropSize),
+  ).length;
   return {
     x,
     y,
     score: Math.max(...cluster.map((vertex) => vertex.score)),
     kind_id: kindId,
     kind: VERTEX_KIND_NAMES[kindId] ?? 'background',
-    degree_class: weightedMode(cluster.map((vertex) => [vertex.degree_class, vertex.score] as const)),
+    degree_class: weightedMode(
+      cluster.map((vertex) => [vertex.degree_class, vertex.score] as const),
+    ),
     degree: weightedMode(cluster.map((vertex) => [vertex.degree, vertex.score] as const)),
     ray_bins: rayVote(cluster, 0.35),
     boundary_side_id: boundarySide ? BOUNDARY_SIDE_NAMES.indexOf(boundarySide) : null,
@@ -1573,7 +1749,8 @@ function mergeVertexCluster(
     support_count: cluster.length,
     possible_support_count: possibleSupport,
     support_fraction: Math.min(1, cluster.length / Math.max(possibleSupport, 1)),
-    mean_member_distance_px: distances.reduce((sum, value) => sum + value, 0) / Math.max(distances.length, 1),
+    mean_member_distance_px:
+      distances.reduce((sum, value) => sum + value, 0) / Math.max(distances.length, 1),
     max_member_distance_px: Math.max(0, ...distances),
   };
 }
@@ -1596,16 +1773,26 @@ function weightedMode(items: ReadonlyArray<readonly [number, number]>): number {
   for (const [key, score] of items) {
     votes.set(key, (votes.get(key) ?? 0) + Math.max(score, 1e-4));
   }
-  return [...votes.entries()].sort((left, right) => right[1] - left[1] || left[0] - right[0])[0]?.[0] ?? 0;
+  return (
+    [...votes.entries()].sort((left, right) => right[1] - left[1] || left[0] - right[0])[0]?.[0] ??
+    0
+  );
 }
 
 function weightedSideMode(cluster: VertexRefinerDecodedVertex[]): VertexRefinerBoundarySide | null {
   const votes = new Map<VertexRefinerBoundarySide, number>();
   for (const vertex of cluster) {
     if (!vertex.boundary_side) continue;
-    votes.set(vertex.boundary_side, (votes.get(vertex.boundary_side) ?? 0) + Math.max(vertex.score, 1e-4));
+    votes.set(
+      vertex.boundary_side,
+      (votes.get(vertex.boundary_side) ?? 0) + Math.max(vertex.score, 1e-4),
+    );
   }
-  return [...votes.entries()].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))[0]?.[0] ?? null;
+  return (
+    [...votes.entries()].sort(
+      (left, right) => right[1] - left[1] || left[0].localeCompare(right[0]),
+    )[0]?.[0] ?? null
+  );
 }
 
 function weightedSideCoordinate(
@@ -1639,7 +1826,12 @@ function uniqueSortedNumbers(values: readonly number[]): number[] {
   return [...new Set(values)].sort((left, right) => left - right);
 }
 
-function proposalContainsPoint(proposal: VertexRefinerProposal, x: number, y: number, cropSize: number): boolean {
+function proposalContainsPoint(
+  proposal: VertexRefinerProposal,
+  x: number,
+  y: number,
+  cropSize: number,
+): boolean {
   const [originX, originY] = cropOriginForCenter(proposal, cropSize);
   return x >= originX && x < originX + cropSize && y >= originY && y < originY + cropSize;
 }

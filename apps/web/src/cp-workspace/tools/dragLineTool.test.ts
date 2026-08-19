@@ -33,7 +33,12 @@ describe('dragLineTool', () => {
       { kind: 'up', point: { x: 10, y: 0 } },
     ]);
     const up = outs[2];
-    expect(up.commit).toEqual({ points: [{ x: 0, y: 0 }, { x: 10, y: 0 }] });
+    expect(up.commit).toEqual({
+      points: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+      ],
+    });
     expect(up.preview).toBeNull();
     expect(up.state).toEqual(IDLE);
   });
@@ -91,7 +96,12 @@ describe('dragLineTool', () => {
       // The second press keeps the armed start rather than restarting from it.
       expect(outs[3].state).toEqual({ start: { x: 0, y: 0 }, armed: true });
       expect(outs[3].preview).toEqual({ segments: [{ a: { x: 0, y: 0 }, b: { x: 10, y: 0 } }] });
-      expect(outs[4].commit).toEqual({ points: [{ x: 0, y: 0 }, { x: 10, y: 0 }] });
+      expect(outs[4].commit).toEqual({
+        points: [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+        ],
+      });
       expect(outs[4].state).toEqual(IDLE);
     });
 
@@ -137,7 +147,12 @@ describe('dragLineTool', () => {
         { kind: 'move', point: { x: 8, y: 0 }, tolerance: 1 },
         { kind: 'up', point: { x: 8, y: 0 }, tolerance: 1 },
       ]);
-      expect(outs[4].commit).toEqual({ points: [{ x: 0, y: 0 }, { x: 8, y: 0 }] });
+      expect(outs[4].commit).toEqual({
+        points: [
+          { x: 0, y: 0 },
+          { x: 8, y: 0 },
+        ],
+      });
     });
 
     it('a drag longer than the tolerance still commits without arming', () => {
@@ -146,7 +161,12 @@ describe('dragLineTool', () => {
         { kind: 'move', point: { x: 0, y: 4 }, tolerance: 1 },
         { kind: 'up', point: { x: 0, y: 4 }, tolerance: 1 },
       ]);
-      expect(outs[2].commit).toEqual({ points: [{ x: 0, y: 0 }, { x: 0, y: 4 }] });
+      expect(outs[2].commit).toEqual({
+        points: [
+          { x: 0, y: 0 },
+          { x: 0, y: 4 },
+        ],
+      });
       expect(outs[2].state).toEqual(IDLE);
     });
 
@@ -155,7 +175,12 @@ describe('dragLineTool', () => {
         { kind: 'down', point: { x: 0, y: 0 } },
         { kind: 'up', point: { x: 0.0001, y: 0 } },
       ]);
-      expect(outs[1].commit).toEqual({ points: [{ x: 0, y: 0 }, { x: 0.0001, y: 0 }] });
+      expect(outs[1].commit).toEqual({
+        points: [
+          { x: 0, y: 0 },
+          { x: 0.0001, y: 0 },
+        ],
+      });
     });
 
     it('arms rather than committing a zero-length press-release', () => {
@@ -192,7 +217,12 @@ describe('dragLineTool', () => {
         { kind: 'down', point: { x: 100, y: 100 }, tolerance: 4 },
         { kind: 'up', point: { x: 108, y: 100 }, tolerance: 4 },
       ]);
-      expect(outs[1].commit).toEqual({ points: [{ x: 100, y: 100 }, { x: 108, y: 100 }] });
+      expect(outs[1].commit).toEqual({
+        points: [
+          { x: 100, y: 100 },
+          { x: 108, y: 100 },
+        ],
+      });
     });
   });
 });

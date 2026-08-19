@@ -54,7 +54,7 @@ export type CpSelectionTransform =
 
 export function selectedCpLineSegments(
   document: OristudioCpDocumentSnapshot | null | undefined,
-  selection: OristudioCpSelection
+  selection: OristudioCpSelection,
 ): OristudioCpLineSegment[] {
   if (!document || selection.lines.length === 0) return [];
   return selection.lines
@@ -69,7 +69,7 @@ export function isOrieditaFoldableLineColor(color: OristudioCpLineSegment['color
 
 export function selectedFoldableCpLineIds(
   document: OristudioCpDocumentSnapshot | null | undefined,
-  selection: OristudioCpSelection
+  selection: OristudioCpSelection,
 ): number[] {
   if (!document || selection.lines.length === 0) return [];
   return selection.lines.filter((id) => {
@@ -80,7 +80,7 @@ export function selectedFoldableCpLineIds(
 
 export function buildCpLineClipboardPayload(
   document: OristudioCpDocumentSnapshot | null | undefined,
-  selection: OristudioCpSelection
+  selection: OristudioCpSelection,
 ): CpLineClipboardPayload | null {
   const lines = selectedCpLineSegments(document, selection);
   const bounds = cpLineSelectionBounds(lines);
@@ -88,7 +88,7 @@ export function buildCpLineClipboardPayload(
 }
 
 export function cpLineSelectionBounds(
-  lines: readonly OristudioCpLineSegment[]
+  lines: readonly OristudioCpLineSegment[],
 ): CpLineSelectionBounds | null {
   if (lines.length === 0) return null;
   const points = lines.flatMap((line) => [line.a, line.b]);
@@ -112,7 +112,7 @@ export function cpLineSelectionBounds(
 
 export function cpLineSelectionMoveAnchorPoints(
   lines: readonly OristudioCpLineSegment[],
-  angleDegrees = 0
+  angleDegrees = 0,
 ): Point[] {
   const frame = cpLineSelectionFrame(lines, angleDegrees);
   if (!frame) return [];
@@ -127,7 +127,7 @@ export function cpLineSelectionMoveAnchorPoints(
 
 export function cpLineSelectionFrame(
   lines: readonly OristudioCpLineSegment[],
-  angleDegrees = 0
+  angleDegrees = 0,
 ): CpLineSelectionFrame | null {
   const points = uniquePoints(lines.flatMap((line) => [line.a, line.b]));
   if (points.length === 0) return null;
@@ -136,17 +136,17 @@ export function cpLineSelectionFrame(
 
 export function offsetCpLineSegmentsForPaste(
   lines: readonly OristudioCpLineSegment[],
-  pasteCount: number
+  pasteCount: number,
 ): OristudioCpLineSegment[] {
   const offset = DEFAULT_PASTE_OFFSET * ((pasteCount % 6) + 1);
   return lines.map((line) =>
-    transformLinePoints(line, (point) => ({ x: point.x + offset, y: point.y - offset }))
+    transformLinePoints(line, (point) => ({ x: point.x + offset, y: point.y - offset })),
   );
 }
 
 export function transformCpLineSegments(
   lines: readonly OristudioCpLineSegment[],
-  transform: CpSelectionTransform
+  transform: CpSelectionTransform,
 ): OristudioCpLineSegment[] {
   const bounds = cpLineSelectionBounds(lines);
   if (!bounds) return [];
@@ -161,7 +161,7 @@ export function transformCpLineSegments(
       transform.frame,
       transform.anchor,
       transform.scaleX,
-      transform.scaleY
+      transform.scaleY,
     );
   }
 
@@ -179,7 +179,7 @@ export function transformCpLineSegments(
           x: center.x + x * cos - y * sin,
           y: center.y + x * sin + y * cos,
         };
-      })
+      }),
     );
   }
 
@@ -188,7 +188,7 @@ export function transformCpLineSegments(
     const transformed = transformLinePoints(line, (point) =>
       transform.kind === 'flip-horizontal'
         ? { x: center.x * 2 - point.x, y: point.y }
-        : { x: point.x, y: center.y * 2 - point.y }
+        : { x: point.x, y: center.y * 2 - point.y },
     );
     return swap ? swapMountainValleyLine(transformed) : transformed;
   });
@@ -196,10 +196,10 @@ export function transformCpLineSegments(
 
 export function translateCpLineSegments(
   lines: readonly OristudioCpLineSegment[],
-  delta: Point
+  delta: Point,
 ): OristudioCpLineSegment[] {
   return lines.map((line) =>
-    transformLinePoints(line, (point) => ({ x: point.x + delta.x, y: point.y + delta.y }))
+    transformLinePoints(line, (point) => ({ x: point.x + delta.x, y: point.y + delta.y })),
   );
 }
 
@@ -208,7 +208,7 @@ export function scaleCpLineSegments(
   frame: CpLineSelectionFrame,
   anchor: Point,
   scaleX: number,
-  scaleY: number
+  scaleY: number,
 ): OristudioCpLineSegment[] {
   return lines.map((line) =>
     transformLinePoints(line, (point) => {
@@ -217,13 +217,13 @@ export function scaleCpLineSegments(
         x: anchor.x + (local.x - anchor.x) * scaleX,
         y: anchor.y + (local.y - anchor.y) * scaleY,
       });
-    })
+    }),
   );
 }
 
 export function cpFramePointToLocal(
   frame: Pick<CpLineSelectionFrame, 'axisX' | 'axisY' | 'center'>,
-  point: Point
+  point: Point,
 ): Point {
   const dx = point.x - frame.center.x;
   const dy = point.y - frame.center.y;
@@ -235,7 +235,7 @@ export function cpFramePointToLocal(
 
 export function cpFrameLocalToPoint(
   frame: Pick<CpLineSelectionFrame, 'axisX' | 'axisY' | 'center'>,
-  local: Point
+  local: Point,
 ): Point {
   return {
     x: frame.center.x + frame.axisX.x * local.x + frame.axisY.x * local.y,
@@ -335,7 +335,7 @@ function formatAngle(angleDegrees: number): string {
 
 function transformLinePoints(
   line: OristudioCpLineSegment,
-  transform: (point: Point) => Point
+  transform: (point: Point) => Point,
 ): OristudioCpLineSegment {
   return {
     ...cloneCpLineSegment(line),

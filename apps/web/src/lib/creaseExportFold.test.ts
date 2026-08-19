@@ -219,9 +219,9 @@ describe('foldSegmentForExport', () => {
   it('advances to a later fold case before rendering', async () => {
     const api = runtime();
 
-    await expect(
-      foldSegmentForExport(api, document(), null, undefined, 3)
-    ).resolves.toMatchObject({ discoveredCases: 3 });
+    await expect(foldSegmentForExport(api, document(), null, undefined, 3)).resolves.toMatchObject({
+      discoveredCases: 3,
+    });
 
     expect(api.foldToCase).toHaveBeenCalledWith(7, 3);
     expect(api.renderSnapshot).toHaveBeenCalledWith(7, 'Transparent3');

@@ -207,8 +207,6 @@ function isMenuAcceleratorExpressible(key: string): boolean {
   return key.length === 1 || /^f\d+$/u.test(key) || MENU_ACCELERATOR_NAMED_KEYS.has(key);
 }
 
-
-
 /**
  * Whether an override may name this action at all.
  *
@@ -246,7 +244,7 @@ interface OrieditaKeyStrokeEntry {
  * have deliberately cleared. It is reported and not acted on.
  */
 function collectKeyStrokes(
-  hotkeys: ReadonlyMap<string, JavaPropertyValue>
+  hotkeys: ReadonlyMap<string, JavaPropertyValue>,
 ): OrieditaKeyStrokeEntry[] {
   return [...hotkeys].map(([action, value]) => ({
     action,
@@ -279,7 +277,7 @@ type Draft =
 function settled(
   base: RowBase,
   reason: OrieditaImportSkipReason,
-  detail: Partial<OrieditaImportRowDetail> = {}
+  detail: Partial<OrieditaImportRowDetail> = {},
 ): Draft {
   return {
     kind: 'settled',
@@ -379,8 +377,8 @@ function shadowingRecord(shadowing: ShortcutShadowing): OrieditaImportShadowing 
  */
 const CONDITIONAL_CLAIMANTS_SILENCED: ShortcutOverrides = Object.fromEntries(
   SHORTCUT_DEFINITIONS.filter(
-    (definition) => definition.scope === 'simulator' || shortcutMayDecline(definition.id)
-  ).map((definition) => [definition.id, []])
+    (definition) => definition.scope === 'simulator' || shortcutMayDecline(definition.id),
+  ).map((definition) => [definition.id, []]),
 );
 
 /**
@@ -392,7 +390,7 @@ const CONDITIONAL_CLAIMANTS_SILENCED: ShortcutOverrides = Object.fromEntries(
 function shadowingWithoutConditionalClaimants(
   id: ShortcutActionId,
   chord: KeyChord,
-  resolution: PlanResolution
+  resolution: PlanResolution,
 ): ShortcutShadowing | null {
   // Silencing the binding being asked about would ask a meaningless question.
   const definition = getShortcutDefinition(id);
@@ -423,7 +421,7 @@ function shadowingWithoutConditionalClaimants(
 function resolveShadowing(
   candidates: Map<ShortcutActionId, KeyChord>,
   current: PlanResolution,
-  allowEvictionFor: ReadonlySet<ShortcutActionId>
+  allowEvictionFor: ReadonlySet<ShortcutActionId>,
 ): ShadowResolution {
   const rejected = new Map<ShortcutActionId, OrieditaImportShadowing>();
   const evicted = new Map<ShortcutActionId, OrieditaImportEviction>();
@@ -562,7 +560,7 @@ function canEvict(
   blockerId: ShortcutActionId,
   takenById: ShortcutActionId,
   candidates: ReadonlyMap<ShortcutActionId, KeyChord>,
-  evicted: ReadonlyMap<ShortcutActionId, OrieditaImportEviction>
+  evicted: ReadonlyMap<ShortcutActionId, OrieditaImportEviction>,
 ): boolean {
   return (
     !candidates.has(blockerId) &&
@@ -600,9 +598,7 @@ function isSharedByDesign(blockerId: ShortcutActionId, takenById: ShortcutAction
   if (!blocker) return false;
   if (shortcutMayDecline(blockerId)) return true;
   const taker = getShortcutDefinition(takenById);
-  return Boolean(
-    blocker.upstreamAction && taker?.upstreamAction === blocker.upstreamAction
-  );
+  return Boolean(blocker.upstreamAction && taker?.upstreamAction === blocker.upstreamAction);
 }
 
 /**
@@ -614,7 +610,7 @@ function offersFor(
   rejected: ReadonlyMap<ShortcutActionId, OrieditaImportShadowing>,
   rejectedChord: ReadonlyMap<ShortcutActionId, KeyChord>,
   evicted: ReadonlyMap<ShortcutActionId, OrieditaImportEviction>,
-  current: PlanResolution
+  current: PlanResolution,
 ): Map<ShortcutActionId, OrieditaImportEviction> {
   const offers = new Map<ShortcutActionId, OrieditaImportEviction>();
   for (const [id, shadowing] of rejected) {
@@ -661,7 +657,7 @@ function offersFor(
 function evictionRecord(
   blocking: ShortcutShadowing,
   chord: KeyChord,
-  takenById: ShortcutActionId
+  takenById: ShortcutActionId,
 ): OrieditaImportEviction {
   return {
     evictedId: blocking.definition.id,
@@ -700,7 +696,7 @@ export function buildOrieditaImportPlan(input: OrieditaImportPlanInput): Oriedit
   const { rejected, deferred, evicted, offers } = resolveShadowing(
     candidates,
     current,
-    input.allowEvictionFor ?? new Set()
+    input.allowEvictionFor ?? new Set(),
   );
   const overrides: ShortcutOverrides = {};
   const rows: OrieditaImportRow[] = [];
@@ -741,9 +737,7 @@ export function buildOrieditaImportPlan(input: OrieditaImportPlanInput): Oriedit
       ...draft.base,
       outcome: { kind: 'apply', chord: draft.chord },
       detail: {
-        replacedChords: existingChords.filter(
-          (existing) => !keyChordEquals(existing, draft.chord)
-        ),
+        replacedChords: existingChords.filter((existing) => !keyChordEquals(existing, draft.chord)),
         ...(alreadyMatches ? { alreadyMatches } : {}),
         // Applied, but the chord does double duty while a simulation is focused.
         ...(sharedWith ? { shadowing: sharedWith } : {}),
