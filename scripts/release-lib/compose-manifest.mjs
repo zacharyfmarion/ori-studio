@@ -25,7 +25,11 @@ import { basename } from 'node:path';
 const PLATFORM_MATCHERS = [
   { key: 'darwin-aarch64', test: (n) => /\.app\.tar\.gz$/.test(n) && /aarch64|arm64/.test(n) },
   { key: 'darwin-x86_64', test: (n) => /\.app\.tar\.gz$/.test(n) && /x64|x86_64|intel/.test(n) },
-  { key: 'windows-x86_64', test: (n) => /\.nsis\.zip$/.test(n) },
+  // Tauri v2 signs the NSIS installer itself; `.nsis.zip` is the older shape.
+  // Accept either rather than betting on one — v0.2.0 produced
+  // `Ori.Studio_0.2.0_x64-setup.exe`, and a matcher expecting only the zip
+  // silently reported "no payload" and refused to compose the manifest.
+  { key: 'windows-x86_64', test: (n) => /-setup\.exe$/.test(n) || /\.nsis\.zip$/.test(n) },
   // Tauri has shipped both shapes for AppImage across versions; accept either
   // rather than betting on one.
   { key: 'linux-x86_64', test: (n) => /\.AppImage(\.tar\.gz)?$/.test(n) },
