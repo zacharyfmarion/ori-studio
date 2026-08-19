@@ -356,15 +356,17 @@
     "title": "Settings",
     "updates": {
       "automatic": "Download updates automatically",
+      "checkFailed": "Couldn't check for updates — last tried {{when}}",
       "checking": "Checking…",
       "checkNow": "Check now",
       "currentVersion": "Version {{version}}",
       "description": "Updates are downloaded in full — Ori Studio has no partial updates. Nothing installs until you choose to relaunch.",
-      "lastChecked": "Last checked {{when}}",
       "neverChecked": "Not checked yet",
       "notify": "Tell me, but let me start the download",
       "off": "Don't check for updates",
-      "title": "Updates"
+      "offered": "Version {{version}} is available",
+      "title": "Updates",
+      "upToDate": "Up to date — checked {{when}}"
     },
     "workspace": {
       "analytics": "Send anonymous usage analytics and crash reports to help improve Ori Studio",

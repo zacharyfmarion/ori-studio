@@ -356,15 +356,17 @@
     "title": "Einstellungen",
     "updates": {
       "automatic": "Updates automatisch herunterladen",
+      "checkFailed": "Nach Updates konnte nicht gesucht werden — letzter Versuch {{when}}",
       "checking": "Wird geprüft…",
       "checkNow": "Jetzt prüfen",
       "currentVersion": "Version {{version}}",
       "description": "Updates werden vollständig heruntergeladen — Ori Studio hat keine Teil-Updates. Es wird nichts installiert, bis Sie neu starten.",
-      "lastChecked": "Zuletzt geprüft {{when}}",
       "neverChecked": "Noch nicht geprüft",
       "notify": "Benachrichtigen, aber Download selbst starten",
       "off": "Nicht nach Updates suchen",
-      "title": "Updates"
+      "offered": "Version {{version}} ist verfügbar",
+      "title": "Updates",
+      "upToDate": "Auf dem neuesten Stand — geprüft {{when}}"
     },
     "workspace": {
       "analytics": "Anonyme Nutzungsstatistiken und Absturzberichte senden, um Ori Studio zu verbessern",

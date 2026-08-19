@@ -75,16 +75,33 @@ function reportFailure(
 }
 
 /**
+ * What a check settled on.
+ *
+ * `'skipped'` means the check never ran — delivery is off, or a download is
+ * already in flight. It is distinct from `'none'` because only `'none'` licenses
+ * saying "you're up to date"; reporting that after a check that did not happen
+ * would be a claim about the world made from no evidence.
+ */
+export type UpdateCheckOutcome = 'skipped' | 'none' | 'available' | 'unsupported' | 'failed';
+
+/**
  * Run one update check, and start the download when policy allows.
  *
  * Failures are deliberately silent for automatic checks — this app works
  * offline, and a toast every four hours on a train is worse than no updater at
- * all. The caller surfaces manual failures.
+ * all. The caller surfaces manual failures, which is what the returned outcome
+ * is for: it reports what the check settled on, including `'skipped'` for the
+ * early returns, so a caller can tell "nothing to report" from "nothing found"
+ * instead of inferring it from store state the check never touched.
+ *
+ * It resolves rather than rejects even when the check fails. Every caller is an
+ * event handler or a timer that must not throw, and each one previously carried
+ * its own `.catch(() => {})` saying so.
  */
-export async function runUpdateCheck(trigger: UpdateTrigger): Promise<void> {
+export async function runUpdateCheck(trigger: UpdateTrigger): Promise<UpdateCheckOutcome> {
   const store = useUpdateStore.getState();
-  if (store.delivery === 'off' && trigger === 'automatic') return;
-  if (store.status === 'downloading' || store.status === 'installing') return;
+  if (store.delivery === 'off' && trigger === 'automatic') return 'skipped';
+  if (store.status === 'downloading' || store.status === 'installing') return 'skipped';
 
   store.setChecking();
   try {
@@ -95,7 +112,7 @@ export async function runUpdateCheck(trigger: UpdateTrigger): Promise<void> {
     if (!update) {
       useUpdateStore.getState().setNoUpdate(checkedAt);
       track(ANALYTICS_EVENTS.appUpdateChecked, { result: 'none', trigger });
-      return;
+      return 'none';
     }
 
     // Refuse an offer older than one already seen. minisign proves a payload's
@@ -106,7 +123,7 @@ export async function runUpdateCheck(trigger: UpdateTrigger): Promise<void> {
       useUpdateStore.getState().setNoUpdate(checkedAt);
       track(ANALYTICS_EVENTS.appUpdateChecked, { result: 'error', trigger });
       reportFailure('check', 'stale_manifest', new Error('stale manifest'), trigger);
-      return;
+      return 'none';
     }
 
     track(ANALYTICS_EVENTS.appUpdateChecked, { result: 'available', trigger });
@@ -120,7 +137,7 @@ export async function runUpdateCheck(trigger: UpdateTrigger): Promise<void> {
       useUpdateStore
         .getState()
         .setUnsupported(update.version, environment.installKind, checkedAt);
-      return;
+      return 'unsupported';
     }
 
     useUpdateStore.getState().setAvailable(update.version, environment.installKind, checkedAt);
@@ -128,11 +145,12 @@ export async function runUpdateCheck(trigger: UpdateTrigger): Promise<void> {
     if (useUpdateStore.getState().delivery === 'automatic') {
       await startUpdateDownload('automatic');
     }
+    return 'available';
   } catch (error) {
-    useUpdateStore.getState().setCheckFailed();
+    useUpdateStore.getState().setCheckFailed(Date.now());
     track(ANALYTICS_EVENTS.appUpdateChecked, { result: 'error', trigger });
     reportFailure('check', classifyUpdateError(error), error, trigger);
-    if (trigger === 'manual') throw error;
+    return 'failed';
   }
 }
 

@@ -23,6 +23,12 @@
     "failed": "이 보기를 내보낼 수 없습니다",
     "saved": "{{name}} 내보냄"
   },
+  "update": {
+    "available": "버전 {{version}}을(를) 사용할 수 있습니다",
+    "checkFailed": "업데이트를 확인할 수 없습니다",
+    "checkFailedHint": "Ori Studio가 업데이트 서버에 연결하지 못했습니다. 연결을 확인한 후 다시 시도하세요.",
+    "upToDate": "Ori Studio가 최신 상태입니다"
+  },
   "upright": {
     "set": "위쪽 방향을 설정했습니다 — 드래그하면 그 축을 중심으로 회전합니다"
   }

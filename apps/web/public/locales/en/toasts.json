@@ -23,6 +23,12 @@
     "failed": "Could not export this view",
     "saved": "Exported {{name}}"
   },
+  "update": {
+    "available": "Version {{version}} is available",
+    "checkFailed": "Couldn't check for updates",
+    "checkFailedHint": "Ori Studio could not reach the update server. Check your connection and try again.",
+    "upToDate": "Ori Studio is up to date"
+  },
   "upright": {
     "set": "Up direction set — drag to turn around it"
   }

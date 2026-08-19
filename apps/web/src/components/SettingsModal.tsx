@@ -213,19 +213,8 @@ function WorkspaceTab() {
           onChange={setShowWelcomeOnStartup}
         />
       </section>
-      <section className="settings-section">
-        <h3 className="settings-section__title">
-          {t('dialogs:settings.workspace.folding', 'Folding')}
-        </h3>
-        <SettingsToggleRow
-          label={t(
-            'dialogs:settings.workspace.foldWarning',
-            'Warn before folding a crease pattern with flat-foldability errors'
-          )}
-          checked={foldWarningEnabled}
-          onChange={setFoldWarningEnabled}
-        />
-      </section>
+      {/* With Startup and Privacy: how the app behaves, ahead of how it edits. */}
+      <UpdatesSection />
       <section className="settings-section">
         <h3 className="settings-section__title">
           {t('dialogs:settings.workspace.privacy', 'Privacy')}
@@ -246,7 +235,19 @@ function WorkspaceTab() {
           }}
         />
       </section>
-      <UpdatesSection />
+      <section className="settings-section">
+        <h3 className="settings-section__title">
+          {t('dialogs:settings.workspace.folding', 'Folding')}
+        </h3>
+        <SettingsToggleRow
+          label={t(
+            'dialogs:settings.workspace.foldWarning',
+            'Warn before folding a crease pattern with flat-foldability errors'
+          )}
+          checked={foldWarningEnabled}
+          onChange={setFoldWarningEnabled}
+        />
+      </section>
       <section className="settings-section">
         <h3 className="settings-section__title">
           {t('dialogs:settings.workspace.creasePatternCanvas', 'Crease pattern canvas')}

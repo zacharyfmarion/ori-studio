@@ -342,15 +342,17 @@
     "title": "设置",
     "updates": {
       "automatic": "自动下载更新",
+      "checkFailed": "无法检查更新 — 上次尝试 {{when}}",
       "checking": "正在检查…",
       "checkNow": "立即检查",
       "currentVersion": "版本 {{version}}",
       "description": "更新会完整下载——Ori Studio 没有增量更新。在你选择重启之前不会安装任何内容。",
-      "lastChecked": "上次检查 {{when}}",
       "neverChecked": "尚未检查",
       "notify": "通知我，但由我开始下载",
       "off": "不检查更新",
-      "title": "更新"
+      "offered": "版本 {{version}} 可用",
+      "title": "更新",
+      "upToDate": "已是最新 — 检查于 {{when}}"
     },
     "workspace": {
       "analytics": "发送匿名使用分析数据和崩溃报告以帮助改进 Ori Studio",

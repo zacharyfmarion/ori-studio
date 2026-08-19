@@ -2487,7 +2487,6 @@
     "dialogs:settings.updates.checking": "ec963ffc911b",
     "dialogs:settings.updates.currentVersion": "c6b6b4b58937",
     "dialogs:settings.updates.description": "04183baeac56",
-    "dialogs:settings.updates.lastChecked": "31af4326af64",
     "dialogs:settings.updates.neverChecked": "881d23f6ba57",
     "dialogs:settings.updates.notify": "cc6104980b4a",
     "dialogs:settings.updates.off": "a3c7ead7e748",
@@ -2495,7 +2494,14 @@
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
     "dialogs:updateGuard.title": "470e7ee2a579",
-    "common:update.dismiss": "48845bff334a"
+    "common:update.dismiss": "48845bff334a",
+    "dialogs:settings.updates.checkFailed": "bf3c26d47078",
+    "dialogs:settings.updates.offered": "87877b02aea0",
+    "dialogs:settings.updates.upToDate": "6ccf80bf706f",
+    "toasts:update.available": "87877b02aea0",
+    "toasts:update.checkFailed": "f14c20615261",
+    "toasts:update.checkFailedHint": "60d834c455a9",
+    "toasts:update.upToDate": "dc9b7a5d3c7d"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4985,7 +4991,6 @@
     "dialogs:settings.updates.checking": "ec963ffc911b",
     "dialogs:settings.updates.currentVersion": "c6b6b4b58937",
     "dialogs:settings.updates.description": "04183baeac56",
-    "dialogs:settings.updates.lastChecked": "31af4326af64",
     "dialogs:settings.updates.neverChecked": "881d23f6ba57",
     "dialogs:settings.updates.notify": "cc6104980b4a",
     "dialogs:settings.updates.off": "a3c7ead7e748",
@@ -4993,7 +4998,14 @@
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
     "dialogs:updateGuard.title": "470e7ee2a579",
-    "common:update.dismiss": "48845bff334a"
+    "common:update.dismiss": "48845bff334a",
+    "dialogs:settings.updates.checkFailed": "bf3c26d47078",
+    "dialogs:settings.updates.offered": "87877b02aea0",
+    "dialogs:settings.updates.upToDate": "6ccf80bf706f",
+    "toasts:update.available": "87877b02aea0",
+    "toasts:update.checkFailed": "f14c20615261",
+    "toasts:update.checkFailedHint": "60d834c455a9",
+    "toasts:update.upToDate": "dc9b7a5d3c7d"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7483,7 +7495,6 @@
     "dialogs:settings.updates.checking": "ec963ffc911b",
     "dialogs:settings.updates.currentVersion": "c6b6b4b58937",
     "dialogs:settings.updates.description": "04183baeac56",
-    "dialogs:settings.updates.lastChecked": "31af4326af64",
     "dialogs:settings.updates.neverChecked": "881d23f6ba57",
     "dialogs:settings.updates.notify": "cc6104980b4a",
     "dialogs:settings.updates.off": "a3c7ead7e748",
@@ -7491,7 +7502,14 @@
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
     "dialogs:updateGuard.title": "470e7ee2a579",
-    "common:update.dismiss": "48845bff334a"
+    "common:update.dismiss": "48845bff334a",
+    "dialogs:settings.updates.checkFailed": "bf3c26d47078",
+    "dialogs:settings.updates.offered": "87877b02aea0",
+    "dialogs:settings.updates.upToDate": "6ccf80bf706f",
+    "toasts:update.available": "87877b02aea0",
+    "toasts:update.checkFailed": "f14c20615261",
+    "toasts:update.checkFailedHint": "60d834c455a9",
+    "toasts:update.upToDate": "dc9b7a5d3c7d"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9942,7 +9960,6 @@
     "dialogs:settings.updates.checking": "ec963ffc911b",
     "dialogs:settings.updates.currentVersion": "c6b6b4b58937",
     "dialogs:settings.updates.description": "04183baeac56",
-    "dialogs:settings.updates.lastChecked": "31af4326af64",
     "dialogs:settings.updates.neverChecked": "881d23f6ba57",
     "dialogs:settings.updates.notify": "cc6104980b4a",
     "dialogs:settings.updates.off": "a3c7ead7e748",
@@ -9950,7 +9967,14 @@
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
     "dialogs:updateGuard.title": "470e7ee2a579",
-    "common:update.dismiss": "48845bff334a"
+    "common:update.dismiss": "48845bff334a",
+    "dialogs:settings.updates.checkFailed": "bf3c26d47078",
+    "dialogs:settings.updates.offered": "87877b02aea0",
+    "dialogs:settings.updates.upToDate": "6ccf80bf706f",
+    "toasts:update.available": "87877b02aea0",
+    "toasts:update.checkFailed": "f14c20615261",
+    "toasts:update.checkFailedHint": "60d834c455a9",
+    "toasts:update.upToDate": "dc9b7a5d3c7d"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12401,7 +12425,6 @@
     "dialogs:settings.updates.checking": "ec963ffc911b",
     "dialogs:settings.updates.currentVersion": "c6b6b4b58937",
     "dialogs:settings.updates.description": "04183baeac56",
-    "dialogs:settings.updates.lastChecked": "31af4326af64",
     "dialogs:settings.updates.neverChecked": "881d23f6ba57",
     "dialogs:settings.updates.notify": "cc6104980b4a",
     "dialogs:settings.updates.off": "a3c7ead7e748",
@@ -12409,7 +12432,14 @@
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
     "dialogs:updateGuard.title": "470e7ee2a579",
-    "common:update.dismiss": "48845bff334a"
+    "common:update.dismiss": "48845bff334a",
+    "dialogs:settings.updates.checkFailed": "bf3c26d47078",
+    "dialogs:settings.updates.offered": "87877b02aea0",
+    "dialogs:settings.updates.upToDate": "6ccf80bf706f",
+    "toasts:update.available": "87877b02aea0",
+    "toasts:update.checkFailed": "f14c20615261",
+    "toasts:update.checkFailedHint": "60d834c455a9",
+    "toasts:update.upToDate": "dc9b7a5d3c7d"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -14899,7 +14929,6 @@
     "dialogs:settings.updates.checking": "ec963ffc911b",
     "dialogs:settings.updates.currentVersion": "c6b6b4b58937",
     "dialogs:settings.updates.description": "04183baeac56",
-    "dialogs:settings.updates.lastChecked": "31af4326af64",
     "dialogs:settings.updates.neverChecked": "881d23f6ba57",
     "dialogs:settings.updates.notify": "cc6104980b4a",
     "dialogs:settings.updates.off": "a3c7ead7e748",
@@ -14907,7 +14936,14 @@
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
     "dialogs:updateGuard.title": "470e7ee2a579",
-    "common:update.dismiss": "48845bff334a"
+    "common:update.dismiss": "48845bff334a",
+    "dialogs:settings.updates.checkFailed": "bf3c26d47078",
+    "dialogs:settings.updates.offered": "87877b02aea0",
+    "dialogs:settings.updates.upToDate": "6ccf80bf706f",
+    "toasts:update.available": "87877b02aea0",
+    "toasts:update.checkFailed": "f14c20615261",
+    "toasts:update.checkFailedHint": "60d834c455a9",
+    "toasts:update.upToDate": "dc9b7a5d3c7d"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17397,7 +17433,6 @@
     "dialogs:settings.updates.checking": "ec963ffc911b",
     "dialogs:settings.updates.currentVersion": "c6b6b4b58937",
     "dialogs:settings.updates.description": "04183baeac56",
-    "dialogs:settings.updates.lastChecked": "31af4326af64",
     "dialogs:settings.updates.neverChecked": "881d23f6ba57",
     "dialogs:settings.updates.notify": "cc6104980b4a",
     "dialogs:settings.updates.off": "a3c7ead7e748",
@@ -17405,7 +17440,14 @@
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
     "dialogs:updateGuard.title": "470e7ee2a579",
-    "common:update.dismiss": "48845bff334a"
+    "common:update.dismiss": "48845bff334a",
+    "dialogs:settings.updates.checkFailed": "bf3c26d47078",
+    "dialogs:settings.updates.offered": "87877b02aea0",
+    "dialogs:settings.updates.upToDate": "6ccf80bf706f",
+    "toasts:update.available": "87877b02aea0",
+    "toasts:update.checkFailed": "f14c20615261",
+    "toasts:update.checkFailedHint": "60d834c455a9",
+    "toasts:update.upToDate": "dc9b7a5d3c7d"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -19856,7 +19898,6 @@
     "dialogs:settings.updates.checking": "ec963ffc911b",
     "dialogs:settings.updates.currentVersion": "c6b6b4b58937",
     "dialogs:settings.updates.description": "04183baeac56",
-    "dialogs:settings.updates.lastChecked": "31af4326af64",
     "dialogs:settings.updates.neverChecked": "881d23f6ba57",
     "dialogs:settings.updates.notify": "cc6104980b4a",
     "dialogs:settings.updates.off": "a3c7ead7e748",
@@ -19864,6 +19905,13 @@
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
     "dialogs:updateGuard.title": "470e7ee2a579",
-    "common:update.dismiss": "48845bff334a"
+    "common:update.dismiss": "48845bff334a",
+    "dialogs:settings.updates.checkFailed": "bf3c26d47078",
+    "dialogs:settings.updates.offered": "87877b02aea0",
+    "dialogs:settings.updates.upToDate": "6ccf80bf706f",
+    "toasts:update.available": "87877b02aea0",
+    "toasts:update.checkFailed": "f14c20615261",
+    "toasts:update.checkFailedHint": "60d834c455a9",
+    "toasts:update.upToDate": "dc9b7a5d3c7d"
   }
 }

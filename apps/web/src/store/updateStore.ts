@@ -51,7 +51,17 @@ interface UpdateState {
   downloadWasRequested: boolean;
   /** When the update became installable, for the pending-time metric. */
   readyAt: number | null;
-  lastCheckedAt: number | null;
+  /**
+   * The last check that ran, and whether it got an answer.
+   *
+   * One field rather than a timestamp beside a flag, because both readers need
+   * the pair: the settings row says what happened *and* when, and the interval
+   * guard backs off after a failure exactly as it does after a success. Split
+   * across two fields they can disagree, and the first version of this recorded
+   * the time on success only — so a failing check both looked like it had never
+   * run and re-fired on every visibility change.
+   */
+  lastCheck: { readonly at: number; readonly ok: boolean } | null;
   delivery: UpdateDelivery;
   skippedVersion: string | null;
   /** Highest version ever offered; a lower one is refused. See STORAGE_KEYS. */
@@ -60,7 +70,7 @@ interface UpdateState {
   snoozed: boolean;
 
   setChecking: () => void;
-  setCheckFailed: () => void;
+  setCheckFailed: (checkedAt: number) => void;
   setNoUpdate: (checkedAt: number) => void;
   setAvailable: (version: string, installKind: UpdateInstallKind, checkedAt: number) => void;
   setUnsupported: (version: string, installKind: UpdateInstallKind, checkedAt: number) => void;
@@ -85,7 +95,7 @@ export const useUpdateStore = create<UpdateState>()(
       downloadProgress: null,
       downloadWasRequested: false,
       readyAt: null,
-      lastCheckedAt: null,
+      lastCheck: null,
       delivery: readDelivery(),
       skippedVersion: readString(SKIPPED_KEY),
       highestSeenVersion: readString(HIGHEST_SEEN_KEY),
@@ -95,12 +105,21 @@ export const useUpdateStore = create<UpdateState>()(
 
       // A failed check leaves any already-staged update alone: losing the
       // network must not retract a "Relaunch to update" the user can still act
-      // on, since the payload is already on disk.
-      setCheckFailed: () =>
-        set((state) => (state.status === 'checking' ? { status: 'failed' } : {})),
+      // on, since the payload is already on disk. The attempt is recorded
+      // either way -- it happened, whether or not it moved `status`.
+      setCheckFailed: (checkedAt) =>
+        set((state) => ({
+          ...(state.status === 'checking' ? { status: 'failed' as const } : {}),
+          lastCheck: { at: checkedAt, ok: false },
+        })),
 
       setNoUpdate: (checkedAt) =>
-        set({ status: 'idle', version: null, downloadProgress: null, lastCheckedAt: checkedAt }),
+        set({
+          status: 'idle',
+          version: null,
+          downloadProgress: null,
+          lastCheck: { at: checkedAt, ok: true },
+        }),
 
       setAvailable: (version, installKind, checkedAt) => {
         const { highestSeenVersion } = get();
@@ -111,7 +130,7 @@ export const useUpdateStore = create<UpdateState>()(
           status: 'available',
           version,
           installKind,
-          lastCheckedAt: checkedAt,
+          lastCheck: { at: checkedAt, ok: true },
           highestSeenVersion: version,
           downloadProgress: null,
           // A newer offer retires an older skip, so skipping one release is not
@@ -129,7 +148,7 @@ export const useUpdateStore = create<UpdateState>()(
           status: 'unsupported',
           version,
           installKind,
-          lastCheckedAt: checkedAt,
+          lastCheck: { at: checkedAt, ok: true },
           downloadProgress: null,
         }),
 

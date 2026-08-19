@@ -342,15 +342,17 @@
     "title": "設定",
     "updates": {
       "automatic": "アップデートを自動的にダウンロードする",
+      "checkFailed": "アップデートを確認できませんでした — 最終試行 {{when}}",
       "checking": "確認中…",
       "checkNow": "今すぐ確認",
       "currentVersion": "バージョン {{version}}",
       "description": "アップデートは常に全体がダウンロードされます（差分更新はありません）。再起動するまで何もインストールされません。",
-      "lastChecked": "最終確認 {{when}}",
       "neverChecked": "未確認",
       "notify": "通知のみ、ダウンロードは自分で開始する",
       "off": "アップデートを確認しない",
-      "title": "アップデート"
+      "offered": "バージョン {{version}} が利用可能です",
+      "title": "アップデート",
+      "upToDate": "最新の状態です — 確認 {{when}}"
     },
     "workspace": {
       "analytics": "Ori Studio の改善に役立てるため、匿名の利用状況データとクラッシュレポートを送信する",

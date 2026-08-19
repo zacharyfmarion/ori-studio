@@ -370,15 +370,17 @@
     "title": "Configuración",
     "updates": {
       "automatic": "Descargar actualizaciones automáticamente",
+      "checkFailed": "No se pudo buscar actualizaciones — último intento {{when}}",
       "checking": "Buscando…",
       "checkNow": "Buscar ahora",
       "currentVersion": "Versión {{version}}",
       "description": "Las actualizaciones se descargan completas: Ori Studio no tiene actualizaciones parciales. No se instala nada hasta que reinicies.",
-      "lastChecked": "Última comprobación {{when}}",
       "neverChecked": "Aún sin comprobar",
       "notify": "Avisarme, pero iniciar la descarga yo",
       "off": "No buscar actualizaciones",
-      "title": "Actualizaciones"
+      "offered": "La versión {{version}} está disponible",
+      "title": "Actualizaciones",
+      "upToDate": "Actualizado — comprobado {{when}}"
     },
     "workspace": {
       "analytics": "Enviar analíticas de uso anónimas e informes de fallos para ayudar a mejorar Ori Studio",
