@@ -41,22 +41,38 @@ describe('choosing a canvas size', () => {
 describe('sizing the shared render canvas', () => {
   describe('bitmap mode — the canvas is scratch, shared by every window', () => {
     it('does not resize for a smaller request', () => {
-      expect(nextRenderCanvasSize(at(1024, 1024), at(240, 240), 'bitmap')).toBeNull();
+      expect(nextRenderCanvasSize({
+        current: at(1024, 1024),
+        requested: at(240, 240),
+        mode: 'bitmap',
+      })).toBeNull();
     });
 
     it('does not resize across a whole zoom within one bucket', () => {
       // The regression this exists for: every one of these used to reallocate.
       for (let edge = 520; edge <= 1024; edge += 4) {
-        expect(nextRenderCanvasSize(at(1024, 1024), at(edge, edge), 'bitmap')).toBeNull();
+        expect(nextRenderCanvasSize({
+          current: at(1024, 1024),
+          requested: at(edge, edge),
+          mode: 'bitmap',
+        })).toBeNull();
       }
     });
 
     it('grows to the bucket, not to the request', () => {
-      expect(nextRenderCanvasSize(at(256, 256), at(300, 300), 'bitmap')).toEqual(at(512, 512));
+      expect(nextRenderCanvasSize({
+        current: at(256, 256),
+        requested: at(300, 300),
+        mode: 'bitmap',
+      })).toEqual(at(512, 512));
     });
 
     it('grows on one axis without shrinking the other', () => {
-      expect(nextRenderCanvasSize(at(1024, 256), at(300, 480), 'bitmap')).toEqual(at(1024, 512));
+      expect(nextRenderCanvasSize({
+        current: at(1024, 256),
+        requested: at(300, 480),
+        mode: 'bitmap',
+      })).toEqual(at(1024, 512));
     });
 
     it('stops growing at the cap however far you zoom', () => {
@@ -64,7 +80,11 @@ describe('sizing the shared render canvas', () => {
       const resizes: number[] = [];
       // A fast zoom in: the request climbs without bound.
       for (let edge = 130; edge <= 12_000; edge += 37) {
-        const next = nextRenderCanvasSize(size, at(edge, edge), 'bitmap');
+        const next = nextRenderCanvasSize({
+          current: size,
+          requested: at(edge, edge),
+          mode: 'bitmap',
+        });
         if (next) { resizes.push(next.width); size = next; }
       }
       expect(resizes).toEqual([256, 512, 1024, MAX_BITMAP_RENDER_EDGE]);
@@ -80,22 +100,34 @@ describe('sizing the shared render canvas', () => {
       // WebKit: 234x234 windows drawing into a 2048x2048 buffer cost ~7ms a
       // render against 0.69ms at 512x512. Grow-only paid that forever after one
       // deep zoom.
-      expect(nextRenderCanvasSize(at(2048, 2048), at(234, 234), 'bitmap', true)).toEqual(
-        at(256, 256)
-      );
+      expect(nextRenderCanvasSize({
+        current: at(2048, 2048),
+        requested: at(234, 234),
+        mode: 'bitmap',
+        allowShrink: true,
+      })).toEqual(at(256, 256));
     });
 
     it('shrinks only when asked, so a caller that cannot see the other windows does not', () => {
       // The buffer is shared. A window sizing it by its own request alone would
       // thrash it against a larger sibling on every message, which is the
       // regression the grow-only rule was introduced to remove.
-      expect(nextRenderCanvasSize(at(2048, 2048), at(234, 234), 'bitmap')).toBeNull();
+      expect(nextRenderCanvasSize({
+        current: at(2048, 2048),
+        requested: at(234, 234),
+        mode: 'bitmap',
+      })).toBeNull();
     });
 
     it('still does not resize when the request is already the right bucket', () => {
       // Shrinking must not mean resizing on every render: 500 and 512 are the
       // same bucket, so there is nothing to hand back.
-      expect(nextRenderCanvasSize(at(512, 512), at(500, 500), 'bitmap', true)).toBeNull();
+      expect(nextRenderCanvasSize({
+        current: at(512, 512),
+        requested: at(500, 500),
+        mode: 'bitmap',
+        allowShrink: true,
+      })).toBeNull();
     });
 
     it('settles once the largest window has been seen', () => {
@@ -103,7 +135,7 @@ describe('sizing the shared render canvas', () => {
       let resizes = 0;
       for (let i = 0; i < 60; i += 1) {
         const want = [at(240, 240), at(520, 520), at(380, 380)][i % 3]!;
-        const next = nextRenderCanvasSize(size, want, 'bitmap');
+        const next = nextRenderCanvasSize({ current: size, requested: want, mode: 'bitmap' });
         if (next) { resizes += 1; size = next; }
       }
       expect(resizes).toBe(2);
@@ -115,16 +147,32 @@ describe('sizing the shared render canvas', () => {
     it('matches the request exactly, and shrinks', () => {
       // Unlike bitmap mode: here the canvas is what the user sees, so a buffer
       // that does not match the drawing gets stretched by the compositor.
-      expect(nextRenderCanvasSize(at(800, 800), at(400, 400), 'canvas')).toEqual(at(400, 400));
-      expect(nextRenderCanvasSize(at(400, 400), at(830, 830), 'canvas')).toEqual(at(830, 830));
+      expect(nextRenderCanvasSize({
+        current: at(800, 800),
+        requested: at(400, 400),
+        mode: 'canvas',
+      })).toEqual(at(400, 400));
+      expect(nextRenderCanvasSize({
+        current: at(400, 400),
+        requested: at(830, 830),
+        mode: 'canvas',
+      })).toEqual(at(830, 830));
     });
 
     it('does nothing when already exact', () => {
-      expect(nextRenderCanvasSize(at(400, 400), at(400, 400), 'canvas')).toBeNull();
+      expect(nextRenderCanvasSize({
+        current: at(400, 400),
+        requested: at(400, 400),
+        mode: 'canvas',
+      })).toBeNull();
     });
 
     it('never sizes to zero', () => {
-      expect(nextRenderCanvasSize(at(0, 0), at(0, 0), 'canvas')).toEqual(at(1, 1));
+      expect(nextRenderCanvasSize({
+        current: at(0, 0),
+        requested: at(0, 0),
+        mode: 'canvas',
+      })).toEqual(at(1, 1));
     });
   });
 });
