@@ -408,7 +408,7 @@ and `gh release edit --prerelease=false` demonstrably starts the offer while
 - [ ] Highest-version-seen persistence and `stale_manifest` rejection
 - [ ] Extract `confirmDiscardUnsaved()`; call it from the chip, `beforeunload` and `onCloseRequested`
 - [ ] `lib/storage.ts` keys: `updateAutoDownload`, `updateSkippedVersion`, `updateHighestSeenVersion`
-- [ ] Settings ▸ Workspace ▸ Updates: **Automatic / Notify only / Off**, "Check now", "Last checked", current version. Tauri has no delta updates, so every check is a full download; a user on hotel wifi needs a way to stop it
+- [ ] Settings ▸ General ▸ Updates: **Automatic / Notify only / Off**, "Check now", "Last checked", current version. Tauri has no delta updates, so every check is a full download; a user on hotel wifi needs a way to stop it
 - [ ] Measure the payload size before defaulting to automatic; if it is large, default to notify-only
 - [ ] Menu entry in `menuDefinition.ts`, desktop-gated — **and `menus/nativeMenu.ts:132-153`**, since the macOS app submenu is hand-built and not generated from `menuDefinition`
 - [ ] Surface the current version in `HelpModal.tsx` — `APP_VERSION` is rendered nowhere in the UI today, which is odd if the chip names v0.3.0 while nothing says you're on v0.2.0

@@ -23,6 +23,12 @@
     "failed": "Não foi possível exportar esta visualização",
     "saved": "{{name}} exportado"
   },
+  "update": {
+    "available": "A versão {{version}} está disponível",
+    "checkFailed": "Não foi possível verificar atualizações",
+    "checkFailedHint": "O Ori Studio não conseguiu acessar o servidor de atualizações. Verifique sua conexão e tente novamente.",
+    "upToDate": "O Ori Studio está atualizado"
+  },
   "upright": {
     "set": "Vertical definida — arraste para girar em torno dela"
   }

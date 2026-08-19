@@ -273,6 +273,12 @@
       "light": "밝음"
     },
     "close": "설정 닫기",
+    "general": {
+      "analytics": "Ori Studio 개선에 도움이 되도록 익명 사용 통계와 오류 보고서 보내기",
+      "privacy": "개인정보 보호",
+      "showWelcome": "시작 시 환영 화면 표시",
+      "startup": "시작"
+    },
     "language": {
       "system": "시스템 기본값",
       "title": "언어"
@@ -336,36 +342,35 @@
     },
     "tab": {
       "appearance": "모양",
+      "general": "일반",
       "shortcuts": "단축키",
       "workspace": "작업 공간"
     },
     "title": "설정",
     "updates": {
       "automatic": "업데이트를 자동으로 다운로드",
+      "checkFailed": "업데이트를 확인할 수 없습니다 — 마지막 시도 {{when}}",
       "checking": "확인 중…",
       "checkNow": "지금 확인",
       "currentVersion": "버전 {{version}}",
       "description": "업데이트는 항상 전체가 다운로드됩니다. Ori Studio에는 부분 업데이트가 없습니다. 다시 시작하기 전에는 아무것도 설치되지 않습니다.",
-      "lastChecked": "마지막 확인 {{when}}",
       "neverChecked": "아직 확인하지 않음",
       "notify": "알려주되 다운로드는 직접 시작",
       "off": "업데이트를 확인하지 않음",
-      "title": "업데이트"
+      "offered": "버전 {{version}}을(를) 사용할 수 있습니다",
+      "title": "업데이트",
+      "upToDate": "최신 상태입니다 — 확인 {{when}}"
     },
     "workspace": {
-      "analytics": "Ori Studio 개선에 도움이 되도록 익명 사용 통계와 오류 보고서 보내기",
       "creasePatternCanvas": "전개도 캔버스",
       "folding": "접기",
       "foldWarning": "평평접기 오류가 있는 전개도를 접기 전에 경고",
       "layout": "레이아웃",
-      "privacy": "개인정보 보호",
       "resetButton": "작업 공간 레이아웃 초기화",
       "resetMessage": "현재 작업 공간의 기본 레이아웃을 복원하시겠습니까?",
       "resetTitle": "작업 공간 레이아웃 초기화",
-      "showWelcome": "시작 시 환영 화면 표시",
       "snapRadius": "스냅 반경",
       "snapRadiusHint": "포인터가 정점, 접는 선, 격자 점에 스냅되려면 얼마나 가까이 가야 하는지를 종이 단위로 지정합니다. 종이 너비가 400이므로 Oriedita와 같은 숫자입니다.",
-      "startup": "시작",
       "wheelGestureHint": "어느 쪽을 선택하든 핀치와 Cmd/Ctrl+스크롤은 항상 확대/축소합니다.",
       "wheelPans": "스크롤은 이동, 핀치는 확대/축소",
       "wheelZooms": "스크롤은 확대/축소"

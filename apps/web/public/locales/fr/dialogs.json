@@ -171,8 +171,8 @@
   },
   "foldWarning": {
     "dontShowAgain": "Ne plus afficher",
-    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage\u00a0?",
-    "spatialMessage": "Des erreurs ont été détectées dans la façon dont ces plis se plient. Continuer le pliage\u00a0?",
+    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage ?",
+    "spatialMessage": "Des erreurs ont été détectées dans la façon dont ces plis se plient. Continuer le pliage ?",
     "title": "Avertissement"
   },
   "help": {
@@ -293,6 +293,12 @@
       "light": "Clair"
     },
     "close": "Fermer les paramètres",
+    "general": {
+      "analytics": "Envoyer des statistiques d’utilisation anonymes et des rapports de plantage pour améliorer Ori Studio",
+      "privacy": "Confidentialité",
+      "showWelcome": "Afficher l'écran d'accueil au démarrage",
+      "startup": "Démarrage"
+    },
     "language": {
       "system": "Par défaut du système",
       "title": "Langue"
@@ -364,36 +370,35 @@
     },
     "tab": {
       "appearance": "Apparence",
+      "general": "Général",
       "shortcuts": "Raccourcis",
       "workspace": "Espace de travail"
     },
     "title": "Paramètres",
     "updates": {
       "automatic": "Télécharger les mises à jour automatiquement",
+      "checkFailed": "Impossible de rechercher des mises à jour — dernier essai {{when}}",
       "checking": "Vérification…",
       "checkNow": "Vérifier maintenant",
       "currentVersion": "Version {{version}}",
       "description": "Les mises à jour sont téléchargées en entier — Ori Studio n’a pas de mises à jour partielles. Rien ne s’installe avant que vous ne redémarriez.",
-      "lastChecked": "Dernière vérification {{when}}",
       "neverChecked": "Pas encore vérifié",
       "notify": "Me prévenir, mais me laisser lancer le téléchargement",
       "off": "Ne pas rechercher de mises à jour",
-      "title": "Mises à jour"
+      "offered": "La version {{version}} est disponible",
+      "title": "Mises à jour",
+      "upToDate": "À jour — vérifié {{when}}"
     },
     "workspace": {
-      "analytics": "Envoyer des statistiques d’utilisation anonymes et des rapports de plantage pour améliorer Ori Studio",
       "creasePatternCanvas": "Zone de dessin du patron de plis",
       "folding": "Pliage",
       "foldWarning": "Avertir avant de plier un patron de plis comportant des erreurs de pliabilité à plat",
       "layout": "Disposition",
-      "privacy": "Confidentialité",
       "resetButton": "Réinitialiser la disposition de l'espace de travail",
       "resetMessage": "Restaurer la disposition par défaut de l'espace de travail actuel ?",
       "resetTitle": "Réinitialiser la disposition de l'espace de travail",
-      "showWelcome": "Afficher l'écran d'accueil au démarrage",
       "snapRadius": "Rayon d'aimantation",
-      "snapRadiusHint": "À quelle distance le pointeur doit arriver d'un sommet, d'un pli ou d'un point de grille pour s'y aimanter, en unités de papier\u00a0: le papier fait 400 de large, c'est donc le même nombre que dans Oriedita.",
-      "startup": "Démarrage",
+      "snapRadiusHint": "À quelle distance le pointeur doit arriver d'un sommet, d'un pli ou d'un point de grille pour s'y aimanter, en unités de papier : le papier fait 400 de large, c'est donc le même nombre que dans Oriedita.",
       "wheelGestureHint": "Le pincement et Cmd/Ctrl+défilement zooment toujours, quel que soit votre choix.",
       "wheelPans": "Le défilement déplace, le pincement zoome",
       "wheelZooms": "Le défilement zoome"

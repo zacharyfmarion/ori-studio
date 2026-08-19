@@ -60,7 +60,7 @@ describe('updateStore', () => {
       highestSeenVersion: null,
       snoozed: false,
       readyAt: null,
-      lastCheckedAt: null,
+      lastCheck: null,
       downloadProgress: null,
       downloadWasRequested: false,
     });
@@ -86,13 +86,37 @@ describe('updateStore', () => {
     // still act on — the payload is already on disk.
     useUpdateStore.getState().setAvailable('0.3.0', 'app', 1000);
     useUpdateStore.getState().setReady(2000);
-    useUpdateStore.getState().setCheckFailed();
+    useUpdateStore.getState().setCheckFailed(3000);
     expect(useUpdateStore.getState().status).toBe('ready');
   });
 
   it('marks a check that fails while checking as failed', () => {
     useUpdateStore.getState().setChecking();
-    useUpdateStore.getState().setCheckFailed();
+    useUpdateStore.getState().setCheckFailed(3000);
     expect(useUpdateStore.getState().status).toBe('failed');
+  });
+
+  it('records a check that failed, so it is not indistinguishable from never checking', () => {
+    // The whole bug: the settings row read "Not checked yet" no matter how many
+    // times someone pressed Check now against an unreachable server, and the
+    // interval guard — which reads this same field — never backed off.
+    useUpdateStore.getState().setChecking();
+    useUpdateStore.getState().setCheckFailed(3000);
+    expect(useUpdateStore.getState().lastCheck).toEqual({ at: 3000, ok: false });
+  });
+
+  it('records a failed check even when it leaves a staged update alone', () => {
+    // `setCheckFailed` deliberately does not move `status` here. The attempt
+    // still happened, and the timestamp is what the interval guard reads.
+    useUpdateStore.getState().setAvailable('0.3.0', 'app', 1000);
+    useUpdateStore.getState().setReady(2000);
+    useUpdateStore.getState().setCheckFailed(3000);
+    expect(useUpdateStore.getState().status).toBe('ready');
+    expect(useUpdateStore.getState().lastCheck).toEqual({ at: 3000, ok: false });
+  });
+
+  it('records a successful check as ok', () => {
+    useUpdateStore.getState().setNoUpdate(4000);
+    expect(useUpdateStore.getState().lastCheck).toEqual({ at: 4000, ok: true });
   });
 });

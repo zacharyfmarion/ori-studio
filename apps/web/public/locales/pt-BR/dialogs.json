@@ -293,6 +293,12 @@
       "light": "Claro"
     },
     "close": "Fechar configurações",
+    "general": {
+      "analytics": "Enviar análises de uso anônimas e relatórios de falhas para ajudar a melhorar o Ori Studio",
+      "privacy": "Privacidade",
+      "showWelcome": "Mostrar a tela de boas-vindas ao iniciar",
+      "startup": "Inicialização"
+    },
     "language": {
       "system": "Padrão do sistema",
       "title": "Idioma"
@@ -364,36 +370,35 @@
     },
     "tab": {
       "appearance": "Aparência",
+      "general": "Geral",
       "shortcuts": "Atalhos",
       "workspace": "Workspace"
     },
     "title": "Configurações",
     "updates": {
       "automatic": "Baixar atualizações automaticamente",
+      "checkFailed": "Não foi possível verificar atualizações — última tentativa {{when}}",
       "checking": "Verificando…",
       "checkNow": "Verificar agora",
       "currentVersion": "Versão {{version}}",
       "description": "As atualizações são baixadas por inteiro — o Ori Studio não tem atualizações parciais. Nada é instalado até você reiniciar.",
-      "lastChecked": "Última verificação {{when}}",
       "neverChecked": "Ainda não verificado",
       "notify": "Avisar, mas deixar eu iniciar o download",
       "off": "Não verificar atualizações",
-      "title": "Atualizações"
+      "offered": "A versão {{version}} está disponível",
+      "title": "Atualizações",
+      "upToDate": "Atualizado — verificado {{when}}"
     },
     "workspace": {
-      "analytics": "Enviar análises de uso anônimas e relatórios de falhas para ajudar a melhorar o Ori Studio",
       "creasePatternCanvas": "Tela do padrão de vincos",
       "folding": "Dobra",
       "foldWarning": "Avisar antes de dobrar um padrão de vincos com erros de dobradura plana",
       "layout": "Layout",
-      "privacy": "Privacidade",
       "resetButton": "Redefinir layout do workspace",
       "resetMessage": "Restaurar o layout padrão do workspace atual?",
       "resetTitle": "Redefinir layout do workspace",
-      "showWelcome": "Mostrar a tela de boas-vindas ao iniciar",
       "snapRadius": "Raio de ajuste",
       "snapRadiusHint": "A que distância o ponteiro precisa chegar de um vértice, de uma dobra ou de um ponto da grade para se ajustar a ele, em unidades de papel: o papel tem 400 de largura, então é o mesmo número que o Oriedita usa.",
-      "startup": "Inicialização",
       "wheelGestureHint": "A pinça e Cmd/Ctrl+rolagem sempre ampliam, independentemente da escolha.",
       "wheelPans": "Rolagem move, pinça amplia",
       "wheelZooms": "Rolagem amplia"

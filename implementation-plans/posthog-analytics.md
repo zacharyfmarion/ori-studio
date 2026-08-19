@@ -107,7 +107,7 @@ Ori Studio specifics that shape the port:
   (registry now has 13 keys; same `readBoolean`/`writeBoolean` pattern).
 - `apps/web/src/store/settingsStore.ts` — `analyticsEnabled` field + setter
   (copy the existing `foldWarningEnabled` toggle, not just `showWelcomeOnStartup`).
-- `apps/web/src/components/SettingsModal.tsx` — privacy toggle in `WorkspaceTab`
+- `apps/web/src/components/SettingsModal.tsx` — privacy toggle in `GeneralTab`
   (or a new Privacy tab) + i18n strings.
 - Domain event call sites: `projectSlice` (build CP, optimizers), `platform/
   fileService.ts` (open/save/export), `creasePatternSlice` (foldability checks),
@@ -197,7 +197,7 @@ consent/init/scrub machinery is fully in place and unit-tested.
 - Fire `app opened` after platform init resolves, gated by consent + client-ready.
 - `ErrorBoundary` → `trackAnalyticsError` (`error_domain: 'runtime'`, fingerprint,
   handled).
-- Settings toggle in `SettingsModal.tsx` `WorkspaceTab` (or new Privacy tab):
+- Settings toggle in `SettingsModal.tsx` `GeneralTab`:
   checkbox bound to `analyticsEnabled`, calling
   `setAnalyticsEnabled(v, { capturePreferenceChange: true })` → fires
   `analytics preference changed` then opt-in/`identify` or `reset`/opt-out.
@@ -312,7 +312,7 @@ Phase 1 — Core runtime
 Phase 2 — Bootstrap + settings + consent
 - [x] `app opened` via a tested `useAppOpenedEvent` hook (module-guarded vs StrictMode), runtime-gated
 - [x] shared `ErrorBoundary.componentDidCatch` → `trackAnalyticsError` (covers app/router/panels/overlays via `surface`)
-- [x] Settings → Workspace → Privacy toggle + `analytics preference changed`
+- [x] Settings → General → Privacy toggle + `analytics preference changed`
 - [x] i18n strings extracted + translated (8 locales) + stamped, `i18n:check` green
 - [x] `ph-no-capture` on `CpTextEditor` content + `ShareLinkModal` URL (detect modal is canvas, covered by masking)
 
@@ -337,5 +337,5 @@ Phase 5 — Docs, firewall, CI, verify
 - [x] `vite-env.d.ts` augmentation (done in Phase 1)
 - [x] absence-firewall verified in the preview: DEV console logs "PostHog disabled", zero PostHog network requests
 - [x] CI/deploy env wired (`deploy-web.yml`, Phase 0)
-- [x] browser verification: app loads clean, no console errors, Privacy toggle renders (Settings → Workspace → Privacy)
+- [x] browser verification: app loads clean, no console errors, Privacy toggle renders (Settings → General → Privacy)
 - [ ] live event-flow + opt-out-resets-identity verification — needs a real key, so blocked on Phase 0 provisioning (analytics is correctly disabled locally without one)

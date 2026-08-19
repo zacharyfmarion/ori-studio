@@ -12,7 +12,7 @@ safeguards that keep it that way.
   can fix it. Code under `apps/web/src/monitoring/`. Errors only: no tracing, no
   profiling, no session replay.
 
-**One switch governs both.** Settings → Workspace → Privacy is a single toggle;
+**One switch governs both.** Settings → General → Privacy is a single toggle;
 opting out of usage analytics also stops crash reports.
 
 The browser build and the Tauri desktop build share the same renderer code, so
@@ -33,7 +33,7 @@ one implementation covers both. A `runtime_surface` property/tag (`web` |
   mints a new one, so the two sessions are not linkable. Sentry uses the *same*
   id as its `user.id`, so a crash and a session are correlatable without either
   system knowing who the user is.
-- **Opt-out, honored immediately.** Settings → Workspace → Privacy has a toggle
+- **Opt-out, honored immediately.** Settings → General → Privacy has a toggle
   (default on). Turning it off sends a final `analytics preference changed`
   event, then resets identity and stops all capture — including autocapture. For
   Sentry it flips the `beforeSend` gate to drop every event, clears the identity,
