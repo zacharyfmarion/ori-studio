@@ -514,6 +514,27 @@ export interface PerfSnapshot {
   renders: number;
   renderAvgMs: number;
   renderMaxMs: number;
+  /** Reallocating the shared drawing buffer. Near zero once it has grown. */
+  resizeAvgMs: number;
+  /** Issuing the GL commands — the actual drawing. */
+  drawAvgMs: number;
+  /**
+   * `createImageBitmap` — cropping the frame out of the shared canvas.
+   *
+   * The cost that does not have to scale with the window: a browser able to copy
+   * a sub-rect on the GPU charges for the crop, one that cannot snapshots the
+   * whole drawing buffer. Compare against {@link PerfSnapshot.canvas}.
+   */
+  snapshotAvgMs: number;
+  snapshotMaxMs: number;
+  /** Device-pixel size the window asked for, uncapped. */
+  request: { width: number; height: number };
+  /** The shared, grow-only render canvas. */
+  canvas: { width: number; height: number };
+  /** What GL actually backed it with, which the browser may clamp. */
+  buffer: { width: number; height: number };
+  /** The sub-rect actually rendered and cropped out. */
+  crop: { width: number; height: number };
   /** setCamera calls this window — the orbit/zoom message rate. */
   cameraCalls: number;
   /** Solver ticks (budgeted frames) this window. */
@@ -537,16 +558,30 @@ export interface PerfSnapshot {
 
 // Cheap counters, always on (a few adds per op). getPerfStats() reads and
 // resets them; the runtime only polls when the debug flag is set.
+const ZERO_SIZE = { width: 0, height: 0 };
+
 const perf = {
   windowStart: 0,
   renders: 0,
   renderTotalMs: 0,
   renderMaxMs: 0,
+  // The three phases of a render, which the total cannot tell apart. See
+  // `renderGpu`.
+  resizeTotalMs: 0,
+  drawTotalMs: 0,
+  snapshotTotalMs: 0,
+  snapshotMaxMs: 0,
   cameraCalls: 0,
   ticks: 0,
   solveTotalMs: 0,
   solveMaxMs: 0,
   stepsTotal: 0,
+  // Sizes from the most recent render, not aggregates: they are step functions
+  // that hold for long stretches, and what matters is the value in force.
+  lastRequest: ZERO_SIZE as { width: number; height: number },
+  lastCanvas: ZERO_SIZE as { width: number; height: number },
+  lastBuffer: ZERO_SIZE as { width: number; height: number },
+  lastCrop: ZERO_SIZE as { width: number; height: number },
 };
 
 function nowMs(): number {
@@ -558,11 +593,17 @@ function resetPerf(at: number): void {
   perf.renders = 0;
   perf.renderTotalMs = 0;
   perf.renderMaxMs = 0;
+  perf.resizeTotalMs = 0;
+  perf.drawTotalMs = 0;
+  perf.snapshotTotalMs = 0;
+  perf.snapshotMaxMs = 0;
   perf.cameraCalls = 0;
   perf.ticks = 0;
   perf.solveTotalMs = 0;
   perf.solveMaxMs = 0;
   perf.stepsTotal = 0;
+  // Deliberately not the `last*` sizes: they describe the state the next window
+  // starts in, and zeroing them would blank the readout between renders.
 }
 
 function requireSession(): Session {
@@ -1020,6 +1061,14 @@ const api = {
       renders: perf.renders,
       renderAvgMs: perf.renders ? perf.renderTotalMs / perf.renders : 0,
       renderMaxMs: perf.renderMaxMs,
+      resizeAvgMs: perf.renders ? perf.resizeTotalMs / perf.renders : 0,
+      drawAvgMs: perf.renders ? perf.drawTotalMs / perf.renders : 0,
+      snapshotAvgMs: perf.renders ? perf.snapshotTotalMs / perf.renders : 0,
+      snapshotMaxMs: perf.snapshotMaxMs,
+      request: perf.lastRequest,
+      canvas: perf.lastCanvas,
+      buffer: perf.lastBuffer,
+      crop: perf.lastCrop,
       cameraCalls: perf.cameraCalls,
       ticks: perf.ticks,
       solveAvgMs: perf.ticks ? perf.solveTotalMs / perf.ticks : 0,
@@ -1273,10 +1322,32 @@ export function fitRenderWithin(
   };
 }
 
+/**
+ * How long the peak must stay below the buffer before it is given back.
+ *
+ * Grows are instant; only shrinking waits. Long enough that a zoom-out gesture
+ * settles first — so the buffer is handed back once, not once per frame of the
+ * gesture — and short enough that letting go of a zoom returns the frame rate
+ * before the next thing you try feels slow.
+ */
+const SHRINK_HOLD_MS = 750;
+
+/**
+ * When the buffer last changed size, so a shrink can be made to wait.
+ * `-Infinity` lets the first one happen immediately.
+ */
+let lastCanvasResizeMs = -Infinity;
+
 export function nextRenderCanvasSize(
   current: { width: number; height: number },
   requested: { width: number; height: number },
-  mode: PresentMode
+  mode: PresentMode,
+  /**
+   * Whether the buffer may be handed back when the request is smaller than it.
+   * False keeps the historical grow-only behaviour, which is what a caller that
+   * cannot see the *other* windows' sizes must ask for — see `sizeRenderCanvas`.
+   */
+  allowShrink = false
 ): { width: number; height: number } | null {
   if (mode === 'canvas') {
     const width = Math.max(1, Math.floor(requested.width));
@@ -1286,19 +1357,75 @@ export function nextRenderCanvasSize(
   }
   const width = bitmapCanvasEdge(requested.width);
   const height = bitmapCanvasEdge(requested.height);
-  if (current.width >= width && current.height >= height) return null;
+  if (current.width >= width && current.height >= height) {
+    if (!allowShrink) return null;
+    // Give the buffer back once nobody needs it.
+    //
+    // This was grow-only, on the reasoning that a reallocation costs ~2.2ms and
+    // stalls the GPU process, so never paying it twice is the cheaper trade.
+    // That holds for the *allocation* and misses what the allocation then costs
+    // per frame: with `preserveDrawingBuffer: false`, reading the canvas each
+    // frame obliges the browser to clear the whole drawing buffer before the
+    // next draw, and multisampling makes that four samples deep. That clear is
+    // the browser's, not ours — no scissor of ours bounds it — and it is
+    // charged on every render for as long as the buffer stays big.
+    //
+    // Measured in WebKit, one deep zoom and back: 234x234 windows drawing into
+    // a 2048x2048 buffer cost ~7ms per render, against 0.69ms once the buffer
+    // is 512x512. So the trade is one 2.2ms stall against ~6ms every frame
+    // until the tab closes, and grow-only is on the wrong side of it. Chromium
+    // fast-paths the clear and shows none of this, which is why it went unseen.
+    if (current.width === width && current.height === height) return null;
+    return { width, height };
+  }
   return {
     width: Math.max(current.width, width),
     height: Math.max(current.height, height),
   };
 }
 
-function sizeRenderCanvas(width: number, height: number): void {
+/**
+ * The largest render any live window currently wants.
+ *
+ * The buffer is shared, so its size is a property of the whole set rather than
+ * of whichever window is drawing now — sizing it to the caller alone would make
+ * two windows of different sizes thrash it against each other on every message,
+ * which is the regression `inline-simulation-performance.md` removed.
+ */
+function peakRequestedSize(): { width: number; height: number } {
+  let width = 0;
+  let height = 0;
+  for (const session of sessions.values()) {
+    width = Math.max(width, session.view.width);
+    height = Math.max(height, session.view.height);
+  }
+  for (const mesh of meshes.values()) {
+    width = Math.max(width, mesh.view.width);
+    height = Math.max(height, mesh.view.height);
+  }
+  return { width, height };
+}
+
+function sizeRenderCanvas(width: number, height: number, at = nowMs()): void {
   if (!renderCanvas) return;
-  const next = nextRenderCanvasSize(renderCanvas, { width, height }, presentMode);
+  // Growth is decided by the caller's own request, so a window that needs more
+  // pixels gets them on the frame it asks. Shrinking is decided by the peak
+  // across every live window, and only once it has held — see
+  // {@link SHRINK_HOLD_MS}.
+  const settled = at - lastCanvasResizeMs >= SHRINK_HOLD_MS;
+  const requested = settled ? peakRequestedSize() : { width, height };
+  const next = nextRenderCanvasSize(
+    renderCanvas,
+    // A peak of zero means no session has been given a size yet; fall back to
+    // the caller's, rather than collapsing the buffer to the floor.
+    requested.width && requested.height ? requested : { width, height },
+    presentMode,
+    settled
+  );
   if (!next) return;
   renderCanvas.width = next.width;
   renderCanvas.height = next.height;
+  lastCanvasResizeMs = at;
 }
 
 async function renderGpu(
@@ -1314,6 +1441,7 @@ async function renderGpu(
   // is stretched to the window's box when it is presented. Rounding the viewport
   // too is what squashed the fold: a 257x255 window rendered 512x256.
   sizeRenderCanvas(state.width, state.height);
+  const resized = nowMs();
   // What GL actually gave us, which is not always what the canvas was set to —
   // see {@link WebglSolver.drawingBufferSize}. Rendering or cropping past this
   // reads nothing back and shows an empty window with no error anywhere.
@@ -1321,6 +1449,7 @@ async function renderGpu(
   const { width, height } = fitRenderWithin(state, buffer);
   const camera = cameraUniforms(state.view, state.center, state.radius, width, height);
   source.render(camera, state.settings);
+  const drawn = nowMs();
   // The render fills the viewport at the buffer's bottom-left; a bitmap's origin
   // is top-left, so the crop is measured down from the top of the buffer.
   const bitmap =
@@ -1334,6 +1463,22 @@ async function renderGpu(
   perf.renders += 1;
   perf.renderTotalMs += elapsed;
   if (elapsed > perf.renderMaxMs) perf.renderMaxMs = elapsed;
+  // Split three ways, because the total cannot distinguish the failure modes and
+  // they have opposite fixes. `snapshot` is the one to watch: a browser that
+  // cannot copy a sub-rect on the GPU snapshots the *whole* drawing buffer here,
+  // so it scales with the grow-only canvas rather than with the window — and the
+  // sizes below are what make that visible instead of inferred.
+  perf.resizeTotalMs += resized - started;
+  perf.drawTotalMs += drawn - resized;
+  const snapshotMs = nowMs() - drawn;
+  perf.snapshotTotalMs += snapshotMs;
+  if (snapshotMs > perf.snapshotMaxMs) perf.snapshotMaxMs = snapshotMs;
+  perf.lastRequest = { width: state.width, height: state.height };
+  perf.lastCanvas = renderCanvas
+    ? { width: renderCanvas.width, height: renderCanvas.height }
+    : { width: 0, height: 0 };
+  perf.lastBuffer = buffer;
+  perf.lastCrop = { width, height };
   return bitmap;
 }
 

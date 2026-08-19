@@ -70,6 +70,33 @@ describe('sizing the shared render canvas', () => {
       expect(size.width).toBe(MAX_BITMAP_RENDER_EDGE);
     });
 
+    it('hands the buffer back when asked, once nobody needs it', () => {
+      // Why this is worth a reallocation. The buffer is only read through
+      // `createImageBitmap`, and with `preserveDrawingBuffer: false` that
+      // obliges the browser to clear the whole of it before the next draw — a
+      // clear that is the browser's, so no scissor of ours bounds it, and that
+      // is charged per render for as long as the buffer stays big. Measured in
+      // WebKit: 234x234 windows drawing into a 2048x2048 buffer cost ~7ms a
+      // render against 0.69ms at 512x512. Grow-only paid that forever after one
+      // deep zoom.
+      expect(nextRenderCanvasSize(at(2048, 2048), at(234, 234), 'bitmap', true)).toEqual(
+        at(256, 256)
+      );
+    });
+
+    it('shrinks only when asked, so a caller that cannot see the other windows does not', () => {
+      // The buffer is shared. A window sizing it by its own request alone would
+      // thrash it against a larger sibling on every message, which is the
+      // regression the grow-only rule was introduced to remove.
+      expect(nextRenderCanvasSize(at(2048, 2048), at(234, 234), 'bitmap')).toBeNull();
+    });
+
+    it('still does not resize when the request is already the right bucket', () => {
+      // Shrinking must not mean resizing on every render: 500 and 512 are the
+      // same bucket, so there is nothing to hand back.
+      expect(nextRenderCanvasSize(at(512, 512), at(500, 500), 'bitmap', true)).toBeNull();
+    });
+
     it('settles once the largest window has been seen', () => {
       let size = at(1, 1);
       let resizes = 0;

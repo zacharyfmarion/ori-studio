@@ -6,6 +6,8 @@ import {
   retainSimulatorClient,
   type SimulatorClient,
 } from '../../store/workspaceStore/simulatorRuntime';
+import { recordSimulatorProbe } from '../../simulator/simulatorPerfProbe';
+import { useSimulatorPerfLog } from '../../simulator/useSimulatorPerfLog';
 import { folded3dMeshPayload } from './folded3dWindow';
 import type { Folded3dMesh } from './folded3dMesh';
 
@@ -166,10 +168,14 @@ export function useFolded3dMeshRuntime(options: {
       cameraRef.current = { view, width, height };
       const token = tokenRef.current;
       if (token === undefined) return;
+      // Timed like the solver's own dispatch, so an orbit that is slow on this
+      // thread reads the same whichever kind of window it came from.
+      const started = performance.now();
       void clientRef.current
         ?.setFolded3dMeshCamera(token, { view, width, height })
         .then(receive)
         .catch(() => undefined);
+      recordSimulatorProbe('cameraDispatch', performance.now() - started);
     },
     [receive]
   );
@@ -186,6 +192,13 @@ export function useFolded3dMeshRuntime(options: {
     },
     [receive]
   );
+
+  // A folded figure draws into the same shared buffer as every simulation, so
+  // it is subject to the same costs and belongs in the same readout. Without
+  // this, a page showing only folded figures logged nothing while doing exactly
+  // the work under investigation. The poller is shared, so mounting many
+  // figures still produces one line per second.
+  useSimulatorPerfLog();
 
   return { status, shallowDepthBuffer, setCamera, setRenderSettings };
 }
