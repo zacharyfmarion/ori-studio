@@ -235,7 +235,10 @@ to the width of the widest cell in the column and that takes this file's longest
 line from 80 to 296. Wrap prose at 80 by hand, as the existing docs do.
 
 Do not reformat a file you are not otherwise changing. Formatting churn mixed
-into a behavior change is what makes a diff unreviewable.
+into a behavior change is what makes a diff unreviewable. The one repo-wide
+reformat is listed in `.git-blame-ignore-revs`, so `git blame` still points at
+whoever wrote the line — add a commit there only if it is purely mechanical,
+since a listed commit becomes invisible in blame.
 
 Nothing runs on commit — there is no hook. Run `npm run format` before you push,
 or let the `Formatting` CI job tell you.

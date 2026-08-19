@@ -1,0 +1,14 @@
+# Commits that changed formatting only, and should not show up as the last
+# thing that touched a line.
+#
+# GitHub honours this file automatically in its blame view. Locally it is
+# opt-in, once per clone:
+#
+#     git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# Only add a commit here if it is *purely* mechanical — a formatter run with no
+# hand edits mixed in. A commit listed here becomes invisible in blame, so one
+# that also changed behaviour would hide that behaviour permanently.
+
+# Apply Prettier to the codebase (773 files, `npm run format`)
+f721ee7fff54d94a2610db12f697f8b8d769c71a

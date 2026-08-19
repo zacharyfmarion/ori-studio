@@ -125,7 +125,11 @@ should also run the C++ oracle parity tests — see [`AGENTS.md`](AGENTS.md#buil
   hand, as the existing docs do. There is no commit hook; CI's `Formatting` job
   is the gate.
 - **Keep formatting out of behavior changes.** Don't reformat a file you aren't
-  otherwise touching — a diff that mixes the two is much harder to review.
+  otherwise touching — a diff that mixes the two is much harder to review. The
+  one repo-wide reformat is listed in
+  [`.git-blame-ignore-revs`](.git-blame-ignore-revs) so it doesn't bury the real
+  authorship; GitHub applies that automatically, and locally it's one command:
+  `git config blame.ignoreRevsFile .git-blame-ignore-revs`.
 - **Rust:** 2024 edition, `rustfmt` defaults. Library code propagates typed
   errors — avoid `unwrap()`, `expect()`, and `panic!()` outside tests or
   genuinely unreachable invariants. If a TreeMaker operation isn't ported yet,
