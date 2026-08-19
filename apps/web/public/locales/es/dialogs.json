@@ -293,6 +293,12 @@
       "light": "Claro"
     },
     "close": "Cerrar configuración",
+    "general": {
+      "analytics": "Enviar analíticas de uso anónimas e informes de fallos para ayudar a mejorar Ori Studio",
+      "privacy": "Privacidad",
+      "showWelcome": "Mostrar la pantalla de bienvenida al iniciar",
+      "startup": "Inicio"
+    },
     "language": {
       "system": "Predeterminado del sistema",
       "title": "Idioma"
@@ -364,6 +370,7 @@
     },
     "tab": {
       "appearance": "Apariencia",
+      "general": "General",
       "shortcuts": "Atajos",
       "workspace": "Espacio de trabajo"
     },
@@ -383,19 +390,15 @@
       "upToDate": "Actualizado — comprobado {{when}}"
     },
     "workspace": {
-      "analytics": "Enviar analíticas de uso anónimas e informes de fallos para ayudar a mejorar Ori Studio",
       "creasePatternCanvas": "Lienzo del patrón de pliegues",
       "folding": "Plegado",
       "foldWarning": "Avisar antes de plegar un patrón de pliegues con errores de plegado plano",
       "layout": "Disposición",
-      "privacy": "Privacidad",
       "resetButton": "Restablecer disposición del espacio de trabajo",
       "resetMessage": "¿Restaurar la disposición predeterminada del espacio de trabajo actual?",
       "resetTitle": "Restablecer disposición del espacio de trabajo",
-      "showWelcome": "Mostrar la pantalla de bienvenida al iniciar",
       "snapRadius": "Radio de ajuste",
       "snapRadiusHint": "A qué distancia debe llegar el puntero de un vértice, un pliegue o un punto de la cuadrícula para ajustarse a él, en unidades de papel: el papel mide 400 de ancho, así que es el mismo número que usa Oriedita.",
-      "startup": "Inicio",
       "wheelGestureHint": "El pellizco y Cmd/Ctrl+desplazamiento siempre amplían, elijas lo que elijas.",
       "wheelPans": "Desplazar mueve, pellizcar amplía",
       "wheelZooms": "Desplazar amplía"

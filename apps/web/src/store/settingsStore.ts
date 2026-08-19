@@ -24,7 +24,7 @@ import {
 } from '../lib/storage';
 import type { WheelGesturePreference } from '../lib/wheelGesture';
 
-export type SettingsTab = 'appearance' | 'shortcuts' | 'workspace';
+export type SettingsTab = 'general' | 'appearance' | 'shortcuts' | 'workspace';
 
 const SHOW_WELCOME_ON_STARTUP_KEY = storageKey(STORAGE_KEYS.showWelcomeOnStartup);
 const FOLD_WARNING_KEY = storageKey(STORAGE_KEYS.foldWarning);

@@ -283,6 +283,12 @@
       "light": "Hell"
     },
     "close": "Einstellungen schließen",
+    "general": {
+      "analytics": "Anonyme Nutzungsstatistiken und Absturzberichte senden, um Ori Studio zu verbessern",
+      "privacy": "Datenschutz",
+      "showWelcome": "Willkommensbildschirm beim Start anzeigen",
+      "startup": "Start"
+    },
     "language": {
       "system": "Systemstandard",
       "title": "Sprache"
@@ -350,6 +356,7 @@
     },
     "tab": {
       "appearance": "Darstellung",
+      "general": "Allgemein",
       "shortcuts": "Tastenkürzel",
       "workspace": "Arbeitsbereich"
     },
@@ -369,19 +376,15 @@
       "upToDate": "Auf dem neuesten Stand — geprüft {{when}}"
     },
     "workspace": {
-      "analytics": "Anonyme Nutzungsstatistiken und Absturzberichte senden, um Ori Studio zu verbessern",
       "creasePatternCanvas": "Faltmuster-Zeichenfläche",
       "folding": "Falten",
       "foldWarning": "Vor dem Falten eines Faltmusters mit Flachfaltbarkeitsfehlern warnen",
       "layout": "Layout",
-      "privacy": "Datenschutz",
       "resetButton": "Arbeitsbereichslayout zurücksetzen",
       "resetMessage": "Das Standardlayout für den aktuellen Arbeitsbereich wiederherstellen?",
       "resetTitle": "Arbeitsbereichslayout zurücksetzen",
-      "showWelcome": "Willkommensbildschirm beim Start anzeigen",
       "snapRadius": "Einrastradius",
       "snapRadiusHint": "Wie nah der Zeiger an einen Eckpunkt, eine Falzlinie oder einen Rasterpunkt kommen muss, damit er dort einrastet – in Papiereinheiten: Das Papier ist 400 breit, also ist es dieselbe Zahl wie in Oriedita.",
-      "startup": "Start",
       "wheelGestureHint": "Zwei-Finger-Geste und Cmd/Strg+Scrollen zoomen immer, unabhängig von der Auswahl.",
       "wheelPans": "Scrollen verschiebt, Zwei-Finger-Geste zoomt",
       "wheelZooms": "Scrollen zoomt"

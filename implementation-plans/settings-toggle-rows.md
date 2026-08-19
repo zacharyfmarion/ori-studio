@@ -2,7 +2,8 @@
 
 ## Goal
 
-Replace the raw checkboxes on the Settings → Workspace tab with the shared
+Replace the raw checkboxes on the Settings → Workspace tab (Startup and
+Privacy have since moved to Settings → General) with the shared
 `Toggle` switch, so an immediately-applied on/off preference looks and behaves
 the same everywhere in Settings. The Shortcuts tab already ships that shape
 ("Use Oriedita defaults"); Workspace was still using bare

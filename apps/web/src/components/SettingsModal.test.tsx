@@ -230,8 +230,16 @@ afterEach(() => {
 });
 
 describe('SettingsModal', () => {
-  it('renders Cascade themes and applies a selected theme', () => {
+  it('opens on whichever tab is first in the list', () => {
+    // Both production callers pass no tab, so this fallback is every real open.
+    // Asserted off the content header, not `textContent`: the sidebar puts every
+    // tab's name on the page regardless of which one is showing.
     const rendered = renderModal();
+    expect(rendered.querySelector('.settings-modal__header h2')?.textContent).toBe('General');
+  });
+
+  it('renders Cascade themes and applies a selected theme', () => {
+    const rendered = renderModal('appearance');
 
     expect(rendered.querySelector('[role="dialog"]')).not.toBeNull();
     expect(rendered.textContent).toContain('Appearance');
@@ -270,25 +278,47 @@ describe('SettingsModal', () => {
     expect(resetLayout).toHaveBeenCalledOnce();
   });
 
+  /**
+   * Named by the row copy rather than wrapped in a `<label>`, which is what
+   * keeps a click on the copy from also reaching the switch directly. All of
+   * these default to on, so the pane must open showing that.
+   */
+  function expectSwitchRow(rendered: HTMLElement, label: string) {
+    const labelId = toggleRowFor(label).querySelector('.settings-toggle-row__label')?.id;
+    expect(labelId).toBeTruthy();
+    expect(rowSwitch(label).getAttribute('aria-labelledby')).toBe(labelId);
+    expect(rowChecked(label)).toBe(true);
+    expect(rendered.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
+  }
+
+  it('presents the general booleans as switches, each naming its own row copy', () => {
+    const rendered = renderModal('general');
+
+    // Startup and Privacy. Updates sits between them but renders nothing off
+    // the desktop build, so it contributes no control here.
+    expect(rendered.querySelectorAll('.settings-toggle-row [role="switch"]')).toHaveLength(2);
+    for (const label of [WELCOME_LABEL, ANALYTICS_LABEL]) {
+      expectSwitchRow(rendered, label);
+    }
+  });
+
   it('presents the workspace booleans as switches, each naming its own row copy', () => {
     const rendered = renderModal('workspace');
 
-    // The three preferences that apply the moment they are flipped. The scroll
-    // gesture below them is a two-way *named* choice, so it stays a radio group
-    // — a switch would have to drop one of the two labels.
-    expect(rendered.querySelectorAll('.settings-toggle-row [role="switch"]')).toHaveLength(3);
-    expect(rendered.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
+    // Only Folding is left here now that Startup and Privacy moved to General.
+    // The scroll gesture below it is a two-way *named* choice, so it stays a
+    // radio group — a switch would have to drop one of the two labels.
+    expect(rendered.querySelectorAll('.settings-toggle-row [role="switch"]')).toHaveLength(1);
     expect(rendered.querySelectorAll('input[type="radio"]')).toHaveLength(2);
+    expectSwitchRow(rendered, FOLD_WARNING_LABEL);
+  });
 
-    for (const label of [WELCOME_LABEL, FOLD_WARNING_LABEL, ANALYTICS_LABEL]) {
-      // Named by the row copy rather than wrapped in a `<label>`, which is what
-      // keeps a click on the copy from also reaching the switch directly.
-      const labelId = toggleRowFor(label).querySelector('.settings-toggle-row__label')?.id;
-      expect(labelId).toBeTruthy();
-      expect(rowSwitch(label).getAttribute('aria-labelledby')).toBe(labelId);
-      // All three default to on, so the pane must open showing that.
-      expect(rowChecked(label)).toBe(true);
-    }
+  it('keeps the moved preferences off the tab they came from', () => {
+    // A section can be rendered twice as easily as zero times, and both tabs
+    // would look right in isolation.
+    const rendered = renderModal('workspace');
+    expect(rendered.textContent).not.toContain(WELCOME_LABEL);
+    expect(rendered.textContent).not.toContain(ANALYTICS_LABEL);
   });
 
   it('flips a workspace preference from the switch and from the row copy', () => {
@@ -322,7 +352,7 @@ describe('SettingsModal', () => {
     // The one preference whose switch does more than write the store, so the
     // control swap had to carry the side effect across with it.
     const client = stubPostHogClient();
-    renderModal('workspace', client);
+    renderModal('general', client);
     client.capture.mockClear();
 
     act(() => {
