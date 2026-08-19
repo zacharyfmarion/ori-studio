@@ -32,7 +32,7 @@ describe('isApplePlatform', () => {
       isApplePlatform({
         userAgent:
           'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
-      })
+      }),
     ).toBe(true);
   });
 
@@ -43,7 +43,7 @@ describe('isApplePlatform', () => {
         platform: 'Win32',
         userAgent:
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0',
-      })
+      }),
     ).toBe(false);
     // WebKitGTK on Linux. Note its UA contains "AppleWebKit" — matching on that
     // substring instead of a word-boundary "Mac" would answer true here and hide
@@ -53,7 +53,7 @@ describe('isApplePlatform', () => {
         platform: 'Linux x86_64',
         userAgent:
           'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
-      })
+      }),
     ).toBe(false);
   });
 

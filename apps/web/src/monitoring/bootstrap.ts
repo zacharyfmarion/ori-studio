@@ -87,7 +87,7 @@ function releaseName(): string {
 export function initializeSentry(
   client: SentryClientLike,
   options: MonitoringBootstrapOptions,
-  env: SentryEnvironment
+  env: SentryEnvironment,
 ): boolean {
   const dsn = env.VITE_PUBLIC_SENTRY_DSN;
 

@@ -66,8 +66,14 @@ function measuredFoldAngle(positions: Float32Array): number {
   };
 
   const axis = unit(sub(p2, p0));
-  const rejectA = sub(sub(apexA, p0), axis.map((c) => c * dot(sub(apexA, p0), axis)));
-  const rejectB = sub(sub(apexB, p0), axis.map((c) => c * dot(sub(apexB, p0), axis)));
+  const rejectA = sub(
+    sub(apexA, p0),
+    axis.map((c) => c * dot(sub(apexA, p0), axis)),
+  );
+  const rejectB = sub(
+    sub(apexB, p0),
+    axis.map((c) => c * dot(sub(apexB, p0), axis)),
+  );
   const ua = unit(rejectA);
   const ub = unit(rejectB);
 

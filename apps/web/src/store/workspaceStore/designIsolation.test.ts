@@ -114,7 +114,10 @@ describe('per-design isolation', () => {
     let state = twoDesigns();
     state = { ...state, ...patchTreemakerDesign(state, { project: namedProject('crane tree') }) };
     const onBeetle = withActive(state, state.designTabs[1].id);
-    state = { ...onBeetle, ...patchTreemakerDesign(onBeetle, { project: namedProject('beetle tree') }) };
+    state = {
+      ...onBeetle,
+      ...patchTreemakerDesign(onBeetle, { project: namedProject('beetle tree') }),
+    };
 
     expect(selectProject(state).title).toBe('beetle tree');
     expect(selectProject(withActive(state, state.designTabs[0].id)).title).toBe('crane tree');
@@ -149,7 +152,15 @@ describe('per-design isolation: box-pleat', () => {
       ...state,
       ...patchBoxPleatDesign(state, {
         historyPast: [{ label: 'Moved flap' }] as never,
-        symmetry: { enabled: true, fold: 'diagonal', quarterTurn: false, sidesSwapped: false, angle: 90, loc: { x: 0, y: 0 }, pairs: [] },
+        symmetry: {
+          enabled: true,
+          fold: 'diagonal',
+          quarterTurn: false,
+          sidesSwapped: false,
+          angle: 90,
+          loc: { x: 0, y: 0 },
+          pairs: [],
+        },
       }),
     };
 
@@ -272,7 +283,10 @@ describe('addressed writes', () => {
 
     // The user switched to the beetle while the engine was working.
     const switched = withActive(state, beetle);
-    const next = { ...switched, ...patchTreemakerDesign(switched, { project: namedProject('Crane v2') }, crane) };
+    const next = {
+      ...switched,
+      ...patchTreemakerDesign(switched, { project: namedProject('Crane v2') }, crane),
+    };
 
     expect(treeOf(next, crane).project.title).toBe('Crane v2');
     expect(treeOf(next, beetle).project.title).not.toBe('Crane v2');

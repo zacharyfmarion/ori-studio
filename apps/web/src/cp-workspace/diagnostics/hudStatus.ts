@@ -69,7 +69,7 @@ export function diagnosticOperationLabel(t: TFunction, operation: string): strin
 export function diagnosticHudStatus(
   t: TFunction,
   result: OristudioCpCommandResult | null | undefined,
-  options: { issueOnly?: boolean } = {}
+  options: { issueOnly?: boolean } = {},
 ): CpDiagnosticHudStatus | null {
   if (!result || !isDiagnosticResultOperation(result.operation)) return null;
   if (!result.diagnostics.length) return null;
@@ -77,7 +77,7 @@ export function diagnosticHudStatus(
     t,
     diagnosticOperationLabel(t, result.operation),
     result.diagnostic_entries ?? EMPTY_ENTRIES,
-    options
+    options,
   );
 }
 
@@ -98,11 +98,12 @@ export function diagnosticHudStatusForEntries(
   t: TFunction,
   label: string,
   entries: readonly OristudioCpDiagnosticEntry[],
-  options: { issueOnly?: boolean } = {}
+  options: { issueOnly?: boolean } = {},
 ): CpDiagnosticHudStatus | null {
   const errorCount = entries.filter(isCpDiagnosticError).length;
   const warningCount = entries.filter(isCpDiagnosticWarning).length;
-  const detail = entries.length === 1 && entries[0] ? cpDiagnosticEntryMessage(t, entries[0]) : null;
+  const detail =
+    entries.length === 1 && entries[0] ? cpDiagnosticEntryMessage(t, entries[0]) : null;
 
   if (errorCount > 0) {
     const errors =

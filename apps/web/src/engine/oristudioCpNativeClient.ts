@@ -119,7 +119,7 @@ export function decodeCompactGeometryBytes(buffer: ArrayBuffer): CpGeometryTrans
 
   let offset = COMPACT_GEOMETRY_HEADER_U32S * 4;
   const tail = JSON.parse(
-    new TextDecoder().decode(new Uint8Array(buffer, offset, tailLen))
+    new TextDecoder().decode(new Uint8Array(buffer, offset, tailLen)),
   ) as CpGeometryTransport['tail'];
   offset += tailLen;
 
@@ -204,7 +204,7 @@ async function setTextsNative(handle: number, texts: FlatText[]): Promise<void> 
 async function exportWithTexts(
   handle: number,
   texts: FlatText[],
-  exporter: () => Promise<string>
+  exporter: () => Promise<string>,
 ): Promise<string> {
   await setTextsNative(handle, texts);
   try {
@@ -264,14 +264,14 @@ export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
     async executeCommand(
       handle: number,
       operationId: OristudioCpOperationId,
-      payload: OristudioCpCommandPayload = {}
+      payload: OristudioCpCommandPayload = {},
     ): Promise<OristudioCpCommandResult> {
       return call('cp_execute_command', { handle, operation: operationId, payload });
     },
     async previewCommand(
       handle: number,
       operationId: OristudioCpOperationId,
-      payload: OristudioCpCommandPayload = {}
+      payload: OristudioCpCommandPayload = {},
     ): Promise<OristudioCpCommandPreview> {
       return call('cp_preview_command', { handle, operation: operationId, payload });
     },
@@ -287,7 +287,7 @@ export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
     async replaceLineSegments(
       handle: number,
       lineIds: number[],
-      segments: OristudioCpLineSegment[]
+      segments: OristudioCpLineSegment[],
     ): Promise<number> {
       return call('cp_replace_line_segments', { handle, lineIds, segments });
     },
@@ -298,7 +298,7 @@ export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
       order: OristudioCpEstimationOrder = 'Order5',
       model?: OristudioCpFoldedFigureModel,
       selectedLineIds: number[] = [],
-      runId = 0
+      runId = 0,
     ): Promise<OristudioCpFoldedFigureResult> {
       if (selectedLineIds.length > 0) {
         return call('cp_folded_figure_fold_selected', {
@@ -324,7 +324,7 @@ export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
     async foldedFigureRenderSnapshot(
       handle: number,
       displayStyle?: OristudioCpFoldedFigureSnapshot['display_style'],
-      options?: OristudioCpFoldedFigureRenderOptions
+      options?: OristudioCpFoldedFigureRenderOptions,
     ): Promise<OristudioCpFoldedRenderSnapshot | null> {
       return call('cp_folded_figure_render_snapshot', {
         handle,
@@ -334,24 +334,21 @@ export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
     },
     async setFoldedFigureModel(
       handle: number,
-      model: OristudioCpFoldedFigureModel
+      model: OristudioCpFoldedFigureModel,
     ): Promise<OristudioCpFoldedFigureSnapshot> {
       return call('cp_folded_figure_set_model', { handle, model });
     },
     async duplicateFoldedFigure(handle: number): Promise<OristudioCpFoldedFigureResult> {
       return call('cp_folded_figure_duplicate', { handle });
     },
-    async foldFigureAnother(
-      handle: number,
-      runId = 0
-    ): Promise<OristudioCpFoldedFigureSnapshot> {
+    async foldFigureAnother(handle: number, runId = 0): Promise<OristudioCpFoldedFigureSnapshot> {
       return call('cp_folded_figure_fold_another', { handle, runId });
     },
     async foldFigureToCase(
       handle: number,
       objective: number,
       initialOrder: OristudioCpEstimationOrder = 'Order5',
-      runId = 0
+      runId = 0,
     ): Promise<OristudioCpFoldedFigureBatchResult> {
       return call('cp_folded_figure_fold_to_case', { handle, objective, initialOrder, runId });
     },
@@ -360,7 +357,7 @@ export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
       selectedLineIds: number[],
       startingFaceId = 1,
       model?: OristudioCpFoldedFigureModel,
-      runId = 0
+      runId = 0,
     ): Promise<OristudioCpFold3dFoldResult> {
       return call('cp_folded_figure_fold_3d', {
         documentHandle: handle,
@@ -389,10 +386,10 @@ export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
     async exportFoldFile(
       handle: number,
       texts: FlatText[] = [],
-      foldedHandles: number[] = []
+      foldedHandles: number[] = [],
     ): Promise<string> {
       return exportWithTexts(handle, texts, () =>
-        call('cp_export_fold_file', { handle, foldedHandles })
+        call('cp_export_fold_file', { handle, foldedHandles }),
       );
     },
     async exportOri(handle: number, texts: FlatText[] = []): Promise<string> {
@@ -413,7 +410,7 @@ export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
     async placeCircles(
       handle: number,
       sourceBounds: readonly [number, number, number, number],
-      circles: readonly SendToEditCircle[]
+      circles: readonly SendToEditCircle[],
     ): Promise<void> {
       const coords = new Array<number>(circles.length * 2);
       const radii = new Array<number>(circles.length);

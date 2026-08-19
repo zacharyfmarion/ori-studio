@@ -35,11 +35,16 @@ interface Baseline {
 /** Steps chosen so each fixture takes a broadly similar wall-clock time. */
 function stepsFor(fixture: SimulatorFixture): number {
   switch (fixture.scale) {
-    case 'tiny': return 400;
-    case 'small': return 200;
-    case 'medium': return 100;
-    case 'large': return 50;
-    case 'xl': return 25;
+    case 'tiny':
+      return 400;
+    case 'small':
+      return 200;
+    case 'medium':
+      return 100;
+    case 'large':
+      return 50;
+    case 'xl':
+      return 25;
   }
 }
 
@@ -99,7 +104,7 @@ describe('solver throughput', () => {
           results.map(({ fixture, ...rest }) => [
             fixture,
             { ...rest, msPerStep: Number(rest.msPerStep.toFixed(4)) },
-          ])
+          ]),
         ),
       };
       writeFileSync(BASELINE_PATH, `${JSON.stringify(next, null, 2)}\n`);

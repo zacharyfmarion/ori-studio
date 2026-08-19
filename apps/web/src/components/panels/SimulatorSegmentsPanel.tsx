@@ -42,7 +42,10 @@ export const SimulatorSegmentsSidebar = memo(function SimulatorSegmentsSidebar()
   if (segments.length <= 1) return null;
 
   return (
-    <aside className="segments-sidebar" aria-label={t('panels:simulatorSegments.creasePatterns', 'Crease patterns')}>
+    <aside
+      className="segments-sidebar"
+      aria-label={t('panels:simulatorSegments.creasePatterns', 'Crease patterns')}
+    >
       <div className="segments-sidebar__header">
         <Shapes size={14} />
         <span className="panel-title">{t('panels:simulatorSegments.patterns', 'Patterns')}</span>
@@ -93,10 +96,7 @@ function SegmentThumbnail({ segment, index, svg, selected, onSelect }: SegmentTh
         })}
       >
         {/* Trusted, locally generated SVG string. */}
-        <span
-          className="segment-card__thumb"
-          dangerouslySetInnerHTML={{ __html: svg }}
-        />
+        <span className="segment-card__thumb" dangerouslySetInnerHTML={{ __html: svg }} />
         <span className="segment-card__badge" aria-hidden="true">
           {index + 1}
         </span>

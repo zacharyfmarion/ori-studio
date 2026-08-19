@@ -189,7 +189,7 @@ describe('composing a frame from several MeshRenderer draws', () => {
     new MeshRenderer(core, topology()).render(
       CAMERA,
       { ...SETTINGS, background: [0.2, 0.3, 0.4] },
-      null
+      null,
     );
     expect(clearColors).toEqual([[0.2, 0.3, 0.4, 1]]);
   });
@@ -206,7 +206,7 @@ describe('composing a frame from several MeshRenderer draws', () => {
     new MeshRenderer(core, topology()).render(
       CAMERA,
       { ...SETTINGS, background: [0.2, 0.3, 0.4], backgroundAlpha: 0 },
-      null
+      null,
     );
     expect(clearColors).toEqual([[0, 0, 0, 0]]);
   });

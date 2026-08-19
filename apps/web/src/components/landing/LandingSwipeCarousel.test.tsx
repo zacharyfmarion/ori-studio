@@ -6,9 +6,27 @@ import { LandingSwipeCarousel, type LandingSwipeItem } from './LandingSwipeCarou
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const ITEMS = [
-  { id: 'design-bp', figure: 'design-bp', title: 'Box Pleating', body: 'Flaps on a grid.', figureAlt: 'A grid.' },
-  { id: 'design-treemaker', figure: 'design-treemaker', title: 'Circle Packing', body: 'A tree and circles.', figureAlt: 'A tree.' },
-  { id: 'design-explori', figure: 'design-explori', title: 'ExplOri', body: 'Search the archive.', figureAlt: 'Results.' },
+  {
+    id: 'design-bp',
+    figure: 'design-bp',
+    title: 'Box Pleating',
+    body: 'Flaps on a grid.',
+    figureAlt: 'A grid.',
+  },
+  {
+    id: 'design-treemaker',
+    figure: 'design-treemaker',
+    title: 'Circle Packing',
+    body: 'A tree and circles.',
+    figureAlt: 'A tree.',
+  },
+  {
+    id: 'design-explori',
+    figure: 'design-explori',
+    title: 'ExplOri',
+    body: 'Search the archive.',
+    figureAlt: 'Results.',
+  },
 ] as const satisfies readonly LandingSwipeItem[];
 
 const SLIDE_WIDTH = 600;
@@ -46,7 +64,7 @@ function selectedTitle(): string | undefined {
 
 function activeDot(): number {
   return Array.from(container?.querySelectorAll('.landing-swipe__dot') ?? []).findIndex((d) =>
-    d.hasAttribute('data-active')
+    d.hasAttribute('data-active'),
   );
 }
 
@@ -68,7 +86,7 @@ function pointer(type: string, init: { id?: number; x?: number; kind?: string } 
 beforeEach(() => {
   vi.stubGlobal(
     'matchMedia',
-    vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
   );
 });
 
@@ -156,7 +174,7 @@ describe('LandingSwipeCarousel', () => {
     const { track } = renderCarousel();
     const hidden = () =>
       Array.from(track.querySelectorAll('.landing-swipe__slide')).map((s) =>
-        s.getAttribute('aria-hidden')
+        s.getAttribute('aria-hidden'),
       );
 
     expect(hidden()).toEqual([null, 'true', 'true']);
@@ -171,7 +189,7 @@ describe('LandingSwipeCarousel', () => {
         matches: q.includes('reduce'),
         addEventListener: vi.fn(),
         removeEventListener: vi.fn(),
-      }))
+      })),
     );
     const { scrollTo } = renderCarousel();
 
@@ -227,9 +245,7 @@ describe('LandingSwipeCarousel', () => {
   it('jumps to a slide when its dot is pressed', () => {
     // They read as controls, so they have to be controls.
     const { scrollTo } = renderCarousel();
-    const dots = Array.from(
-      container!.querySelectorAll<HTMLButtonElement>('.landing-swipe__dot')
-    );
+    const dots = Array.from(container!.querySelectorAll<HTMLButtonElement>('.landing-swipe__dot'));
 
     expect(dots.map((d) => d.tagName)).toEqual(['BUTTON', 'BUTTON', 'BUTTON']);
     expect(dots.map((d) => d.getAttribute('aria-label'))).toEqual([
@@ -354,9 +370,9 @@ describe('LandingSwipeCarousel', () => {
 
   it('names the arrows, since a chevron alone says nothing', () => {
     renderCarousel();
-    const labels = Array.from(
-      container!.querySelectorAll('.landing-swipe__arrow')
-    ).map((a) => a.getAttribute('aria-label'));
+    const labels = Array.from(container!.querySelectorAll('.landing-swipe__arrow')).map((a) =>
+      a.getAttribute('aria-label'),
+    );
 
     expect(labels).toEqual(['Previous', 'Next']);
   });
@@ -369,13 +385,15 @@ describe('LandingSwipeCarousel', () => {
     document.body.append(container);
     root = createRoot(container);
     act(() =>
-      root?.render(<LandingSwipeCarousel label="Design methods" items={ITEMS} showTabs={false} />)
+      root?.render(<LandingSwipeCarousel label="Design methods" items={ITEMS} showTabs={false} />),
     );
 
     expect(container.querySelectorAll('[role="tab"]')).toHaveLength(0);
     expect(container.querySelectorAll('[role="tablist"]')).toHaveLength(0);
     expect(
-      Array.from(container.querySelectorAll('.landing-swipe__slide-title')).map((h) => h.textContent)
+      Array.from(container.querySelectorAll('.landing-swipe__slide-title')).map(
+        (h) => h.textContent,
+      ),
     ).toEqual(['Box Pleating', 'Circle Packing', 'ExplOri']);
 
     // No tablist means no tabpanels either; calling them that would be a lie.

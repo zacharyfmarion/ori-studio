@@ -46,7 +46,7 @@ export const DEFAULT_DESIGN_VIEW_LAYERS: DesignViewLayers = {
 export function setDesignLayerVisibility(
   layers: DesignViewLayers,
   layer: DesignViewLayerKey,
-  visible: boolean
+  visible: boolean,
 ): DesignViewLayers {
   return { ...layers, [layer]: visible };
 }
@@ -124,14 +124,14 @@ export function leafCircleRadius(project: TreeProject, nodeId: number): number {
   const fallback = project.scale * DESIGN_PAPER_RECT.width;
   return Math.max(
     MIN_LEAF_CIRCLE_PX,
-    paperRadius > 0 ? paperRadius * DESIGN_PAPER_RECT.width : fallback
+    paperRadius > 0 ? paperRadius * DESIGN_PAPER_RECT.width : fallback,
   );
 }
 
 export function getDesignWorldRect(
   project: TreeProject,
   layers: DesignViewLayers = DEFAULT_DESIGN_VIEW_LAYERS,
-  options: DesignWorldOptions = {}
+  options: DesignWorldOptions = {},
 ): PlotRect {
   const bounds: Bounds = {
     minX: DESIGN_BASE_WORLD_RECT.x,
@@ -191,7 +191,7 @@ export function getViewportFitScale(
   viewport: ViewportSize,
   targetRect: Pick<PlotRect, 'width' | 'height'>,
   padding = VIEWPORT_FIT_PADDING,
-  maxScale = 1
+  maxScale = 1,
 ): number {
   const width = Math.max(1, viewport.width - padding);
   const height = Math.max(1, viewport.height - padding);
@@ -203,7 +203,7 @@ export function getCenteredDesignTransform(
   worldRect: PlotRect,
   targetRect: PlotRect,
   padding = VIEWPORT_FIT_PADDING,
-  maxScale = 1
+  maxScale = 1,
 ): DesignViewportTransform {
   const scale = getViewportFitScale(viewport, targetRect, padding, maxScale);
   const targetCenterX = targetRect.x - worldRect.x + targetRect.width / 2;
@@ -219,7 +219,7 @@ export function getCenteredDesignTransform(
 export function clientPointToDesignWorld(
   client: Point,
   bounds: Pick<DOMRect, 'left' | 'top' | 'width' | 'height'>,
-  worldRect: PlotRect
+  worldRect: PlotRect,
 ): Point {
   if (bounds.width <= 0 || bounds.height <= 0) {
     return { x: worldRect.x, y: worldRect.y };
@@ -235,7 +235,9 @@ export function clientPointToPaper(
   client: Point,
   bounds: Pick<DOMRect, 'left' | 'top' | 'width' | 'height'>,
   worldRect: PlotRect,
-  paperRect: PlotRect = DESIGN_PAPER_RECT
+  paperRect: PlotRect = DESIGN_PAPER_RECT,
 ): Point {
-  return clampPaperPoint(svgToPaper(clientPointToDesignWorld(client, bounds, worldRect), paperRect));
+  return clampPaperPoint(
+    svgToPaper(clientPointToDesignWorld(client, bounds, worldRect), paperRect),
+  );
 }

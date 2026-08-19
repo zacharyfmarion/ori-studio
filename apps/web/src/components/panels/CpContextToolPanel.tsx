@@ -105,7 +105,7 @@ function measureUnitLabel(t: TFunction, unit: CpMeasureUnit): string {
 
 export function cpLineTypeStatusLabel(
   lineColor: OristudioCpLineColor,
-  t: TFunction = identityTranslate
+  t: TFunction = identityTranslate,
 ): string {
   const entry = cpPaletteEntryForColor(lineColor);
   return entry ? cpPaletteStatusLabel(t, entry) : `Line ${cpLineAssignmentLabel(lineColor)}`;
@@ -114,7 +114,7 @@ export function cpLineTypeStatusLabel(
 function contextApplyDisabledForCommand(
   command: OristudioCpCommandDefinition,
   selection: OristudioCpSelection,
-  pendingPointCount: number
+  pendingPointCount: number,
 ): boolean {
   switch (command.operationId) {
     case 'VoronoiCreate':
@@ -124,7 +124,10 @@ function contextApplyDisabledForCommand(
     case 'CircleDrawTangentLine':
       return selection.circles.length < 2;
     case 'CircleDrawInverted':
-      return selection.circles.length < 2 && !(selection.circles.length >= 1 && selection.lines.length >= 1);
+      return (
+        selection.circles.length < 2 &&
+        !(selection.circles.length >= 1 && selection.lines.length >= 1)
+      );
     case 'CircleDrawConcentricSelect':
       return selection.circles.length < 3;
     case 'CircleDrawConcentricTwoCircleSelect':
@@ -224,7 +227,11 @@ export function CpContextToolPanel({
   // on a selection, and select-then-assign is exactly how that workflow goes, so
   // suppressing the hint must not take it with it.
   const hasContent =
-    groups.length > 0 || !!instructions || !!unavailableMessage || !!toolNotice || foldAngleAvailable;
+    groups.length > 0 ||
+    !!instructions ||
+    !!unavailableMessage ||
+    !!toolNotice ||
+    foldAngleAvailable;
   if (!hasContent) return null;
 
   return (
@@ -308,20 +315,28 @@ function CpContextToolInstructions({
 
   return (
     <div className="cp-context-panel__instructions">
-      <div className="cp-context-panel__group-title">{t('tools:cpContext.instructions', 'Instructions')}</div>
+      <div className="cp-context-panel__group-title">
+        {t('tools:cpContext.instructions', 'Instructions')}
+      </div>
       {hasIntro && (
         <div className="cp-context-panel__instruction-copy">
-          {instructions.intro?.map((line) => <p key={line}>{line}</p>)}
+          {instructions.intro?.map((line) => (
+            <p key={line}>{line}</p>
+          ))}
         </div>
       )}
       {hasSteps && (
         <ol className="cp-context-panel__instruction-list">
-          {instructions.steps?.map((step) => <li key={step}>{step}</li>)}
+          {instructions.steps?.map((step) => (
+            <li key={step}>{step}</li>
+          ))}
         </ol>
       )}
       {hasNotes && (
         <div className="cp-context-panel__instruction-notes">
-          {instructions.notes?.map((note) => <p key={note}>{note}</p>)}
+          {instructions.notes?.map((note) => (
+            <p key={note}>{note}</p>
+          ))}
         </div>
       )}
     </div>
@@ -339,7 +354,12 @@ type CopyStatus = 'idle' | 'copied' | 'failed';
 function useCopyStatus(): [CopyStatus, (text: string) => void] {
   const [status, setStatus] = useState<CopyStatus>('idle');
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    [],
+  );
   const copy = useCallback((text: string) => {
     void copyTextToClipboard(text).then((copied) => {
       setStatus(copied ? 'copied' : 'failed');
@@ -388,7 +408,9 @@ function CpContextToolGroup({
   if (group === 'line-color') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">{t('tools:cpContext.lineType', 'Line type')}</div>
+        <div className="cp-context-panel__group-title">
+          {t('tools:cpContext.lineType', 'Line type')}
+        </div>
         <div className="cp-context-panel__readout">{cpLineTypeStatusLabel(activeLineColor, t)}</div>
       </div>
     );
@@ -425,7 +447,9 @@ function CpContextToolGroup({
   if (group === 'division-count') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">{t('tools:cpContext.divideByCount', 'Divide by count')}</div>
+        <div className="cp-context-panel__group-title">
+          {t('tools:cpContext.divideByCount', 'Divide by count')}
+        </div>
         <NumericToolOption
           label={t('tools:cpContext.count', 'Count')}
           ariaLabel={t('tools:cpContext.divisionCount', 'Division count')}
@@ -433,9 +457,7 @@ function CpContextToolGroup({
           max={256}
           step={1}
           value={options.divisionCount}
-          onChange={(divisionCount) =>
-            setOptions((current) => ({ ...current, divisionCount }))
-          }
+          onChange={(divisionCount) => setOptions((current) => ({ ...current, divisionCount }))}
         />
       </div>
     );
@@ -448,7 +470,9 @@ function CpContextToolGroup({
   if (group === 'angle-system') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">{t('tools:cpContext.angleSystem', 'Angle system')}</div>
+        <div className="cp-context-panel__group-title">
+          {t('tools:cpContext.angleSystem', 'Angle system')}
+        </div>
         <NumericToolOption
           label={t('tools:cpContext.divider', 'Divider')}
           ariaLabel={t('tools:cpContext.angleSystemDivider', 'Angle system divider')}
@@ -481,7 +505,9 @@ function CpContextToolGroup({
   if (group === 'replace-line-type') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">{t('tools:cpContext.replaceLineType', 'Replace line type')}</div>
+        <div className="cp-context-panel__group-title">
+          {t('tools:cpContext.replaceLineType', 'Replace line type')}
+        </div>
         <SelectToolOption
           label={t('tools:cpContext.from', 'From')}
           ariaLabel={t('tools:cpContext.replaceFromLineType', 'Replace from line type')}
@@ -507,15 +533,15 @@ function CpContextToolGroup({
   if (group === 'delete-line-type') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">{t('tools:cpContext.deleteLineType', 'Delete line type')}</div>
+        <div className="cp-context-panel__group-title">
+          {t('tools:cpContext.deleteLineType', 'Delete line type')}
+        </div>
         <SelectToolOption
           label={t('tools:cpContext.filter', 'Filter')}
           ariaLabel={t('tools:cpContext.deleteLineTypeAria', 'Delete line type')}
           value={options.customLineType}
           options={ORISTUDIO_CP_CUSTOM_LINE_TYPE_OPTIONS}
-          onChange={(customLineType) =>
-            setOptions((current) => ({ ...current, customLineType }))
-          }
+          onChange={(customLineType) => setOptions((current) => ({ ...current, customLineType }))}
         />
       </div>
     );
@@ -530,9 +556,7 @@ function CpContextToolGroup({
           ariaLabel={t('tools:cpContext.eraseLineType', 'Erase line type')}
           value={options.customLineType}
           options={ORISTUDIO_CP_CUSTOM_LINE_TYPE_OPTIONS}
-          onChange={(customLineType) =>
-            setOptions((current) => ({ ...current, customLineType }))
-          }
+          onChange={(customLineType) => setOptions((current) => ({ ...current, customLineType }))}
         />
       </div>
     );
@@ -541,7 +565,9 @@ function CpContextToolGroup({
   if (group === 'fix-precision') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">{t('tools:cpContext.fixInaccurate', 'Fix inaccurate')}</div>
+        <div className="cp-context-panel__group-title">
+          {t('tools:cpContext.fixInaccurate', 'Fix inaccurate')}
+        </div>
         <NumericToolOption
           label={t('tools:cpContext.precision', 'Precision')}
           ariaLabel={t('tools:cpContext.fixPrecision', 'Fix precision')}
@@ -574,7 +600,9 @@ function CpContextToolGroup({
   if (group === 'polygon-corners') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">{t('tools:cpContext.regularPolygon', 'Regular polygon')}</div>
+        <div className="cp-context-panel__group-title">
+          {t('tools:cpContext.regularPolygon', 'Regular polygon')}
+        </div>
         <NumericToolOption
           label={t('tools:cpContext.corners', 'Corners')}
           ariaLabel={t('tools:cpContext.polygonCorners', 'Polygon corners')}
@@ -582,9 +610,7 @@ function CpContextToolGroup({
           max={256}
           step={1}
           value={options.polygonCorners}
-          onChange={(polygonCorners) =>
-            setOptions((current) => ({ ...current, polygonCorners }))
-          }
+          onChange={(polygonCorners) => setOptions((current) => ({ ...current, polygonCorners }))}
         />
       </div>
     );
@@ -597,7 +623,9 @@ function CpContextToolGroup({
   if (group === 'parallel-width') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">{t('tools:cpContext.parallelWidth', 'Parallel width')}</div>
+        <div className="cp-context-panel__group-title">
+          {t('tools:cpContext.parallelWidth', 'Parallel width')}
+        </div>
         <NumericToolOption
           label={t('tools:cpContext.width', 'Width')}
           ariaLabel={t('tools:cpContext.parallelWidthAria', 'Parallel width')}
@@ -605,9 +633,7 @@ function CpContextToolGroup({
           max={9999}
           step={0.1}
           value={options.parallelWidth}
-          onChange={(parallelWidth) =>
-            setOptions((current) => ({ ...current, parallelWidth }))
-          }
+          onChange={(parallelWidth) => setOptions((current) => ({ ...current, parallelWidth }))}
         />
       </div>
     );
@@ -623,7 +649,7 @@ function CpContextToolGroup({
           label={t('tools:cpContext.stopOnAuxLabel', 'Auxiliary lines')}
           ariaLabel={t(
             'tools:cpContext.stopOnAuxAria',
-            'Let a suggested crease stop at an auxiliary line'
+            'Let a suggested crease stop at an auxiliary line',
           )}
           checked={options.foldableLineStopsOnAux}
           onChange={(foldableLineStopsOnAux) =>
@@ -640,7 +666,9 @@ function CpContextToolGroup({
       activeOperationId !== 'CircleDrawConcentricSelect';
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">{t('tools:cpContext.candidate', 'Candidate')}</div>
+        <div className="cp-context-panel__group-title">
+          {t('tools:cpContext.candidate', 'Candidate')}
+        </div>
         <CheckboxToolOption
           label={
             usesNearestCandidate
@@ -682,7 +710,9 @@ function CpContextToolGroup({
   if (group === 'circle-select-help') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">{t('tools:cpContext.circleSelection', 'Circle selection')}</div>
+        <div className="cp-context-panel__group-title">
+          {t('tools:cpContext.circleSelection', 'Circle selection')}
+        </div>
         <div className="cp-context-panel__readout">
           {selection.circles.length === 1
             ? t('tools:cpContext.circlesSelectedOne', '{{count}} circle selected', {
@@ -742,7 +772,9 @@ function CpContextToolGroup({
         : null;
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">{t('tools:cpContext.measure', 'Measure')}</div>
+        <div className="cp-context-panel__group-title">
+          {t('tools:cpContext.measure', 'Measure')}
+        </div>
         <button
           type="button"
           className="cp-context-panel__measure-value"
@@ -757,7 +789,9 @@ function CpContextToolGroup({
           onMouseLeave={() => onHoverMeasurement(null)}
           onClick={() => {
             if (!latest) return;
-            copyMeasurement(copyTextForCpMeasurement(latest.entry, measureUnit, measureScale, measureAngleUnit));
+            copyMeasurement(
+              copyTextForCpMeasurement(latest.entry, measureUnit, measureScale, measureAngleUnit),
+            );
           }}
         >
           {latest === undefined
@@ -788,11 +822,15 @@ function CpContextToolGroup({
                   onMouseEnter={() => onHoverMeasurement(index)}
                   onMouseLeave={() => onHoverMeasurement(null)}
                   onClick={() =>
-                    copyMeasurement(copyTextForCpMeasurement(entry, measureUnit, measureScale, measureAngleUnit))
+                    copyMeasurement(
+                      copyTextForCpMeasurement(entry, measureUnit, measureScale, measureAngleUnit),
+                    )
                   }
                 >
                   <span>{measureKindLabel(t, entry.kind)}</span>
-                  <span>{formatCpMeasurement(entry, measureUnit, measureScale, measureAngleUnit)}</span>
+                  <span>
+                    {formatCpMeasurement(entry, measureUnit, measureScale, measureAngleUnit)}
+                  </span>
                 </button>
               </li>
             ))}
@@ -822,7 +860,9 @@ function CpContextToolGroup({
               <select
                 aria-label={t('tools:cpContext.measureUnit', 'Units')}
                 value={measureUnit}
-                onChange={(event) => onMeasureUnitChange(event.currentTarget.value as CpMeasureUnit)}
+                onChange={(event) =>
+                  onMeasureUnitChange(event.currentTarget.value as CpMeasureUnit)
+                }
               >
                 {CP_MEASURE_UNITS.map((unit) => (
                   <option key={unit} value={unit}>
@@ -855,7 +895,9 @@ function CpContextToolGroup({
   if (group === 'custom-circle-color') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">{t('tools:cpContext.circleColor', 'Circle color')}</div>
+        <div className="cp-context-panel__group-title">
+          {t('tools:cpContext.circleColor', 'Circle color')}
+        </div>
         <div
           className="cp-context-panel__color-swatch"
           style={{
@@ -884,8 +926,12 @@ function CpContextToolGroup({
   if (group === 'line-select-help') {
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">{t('tools:cpContext.lineSelection', 'Line selection')}</div>
-        <div className="cp-context-panel__readout">{t('tools:cpContext.dragAcrossCreases', 'Drag across creases to apply this action.')}</div>
+        <div className="cp-context-panel__group-title">
+          {t('tools:cpContext.lineSelection', 'Line selection')}
+        </div>
+        <div className="cp-context-panel__readout">
+          {t('tools:cpContext.dragAcrossCreases', 'Drag across creases to apply this action.')}
+        </div>
       </div>
     );
   }
@@ -930,7 +976,7 @@ function DivisionRatioOptions({
       setRightDraft(formatOrieditaRatioHalf(halves.right));
       setOptions((current) => ({ ...current, divisionRatio }));
     },
-    [setOptions]
+    [setOptions],
   );
 
   const updateSimpleHalf = useCallback(
@@ -948,12 +994,12 @@ function DivisionRatioOptions({
           ...current,
           divisionRatio: ratioExpressionFromHalves(
             side === 'left' ? parsed : halves.left,
-            side === 'right' ? parsed : halves.right
+            side === 'right' ? parsed : halves.right,
           ),
         };
       });
     },
-    [setOptions]
+    [setOptions],
   );
 
   const updateExactField = useCallback(
@@ -964,12 +1010,14 @@ function DivisionRatioOptions({
       };
       applyRatioExpression(divisionRatio);
     },
-    [applyRatioExpression, options.divisionRatio]
+    [applyRatioExpression, options.divisionRatio],
   );
 
   return (
     <div className="cp-context-panel__group">
-      <div className="cp-context-panel__group-title">{t('tools:cpContext.divideByRatio', 'Divide by ratio')}</div>
+      <div className="cp-context-panel__group-title">
+        {t('tools:cpContext.divideByRatio', 'Divide by ratio')}
+      </div>
       <div className="cp-context-panel__ratio-simple">
         <TextToolOption
           label={t('tools:cpContext.left', 'Left')}
@@ -986,7 +1034,10 @@ function DivisionRatioOptions({
           onChange={(value) => updateSimpleHalf('right', value)}
         />
       </div>
-      <div className="cp-context-panel__preset-grid" aria-label={t('tools:cpContext.ratioPresets', 'Ratio presets')}>
+      <div
+        className="cp-context-panel__preset-grid"
+        aria-label={t('tools:cpContext.ratioPresets', 'Ratio presets')}
+      >
         {ORISTUDIO_CP_RATIO_PRESETS.map((preset) => (
           <button
             key={preset.label}
@@ -1013,7 +1064,9 @@ function DivisionRatioOptions({
             <NumericToolOption
               key={field.key}
               label={field.label}
-              ariaLabel={t('tools:cpContext.ratioFieldAria', 'Ratio {{letter}}', { letter: field.label })}
+              ariaLabel={t('tools:cpContext.ratioFieldAria', 'Ratio {{letter}}', {
+                letter: field.label,
+              })}
               min={field.min}
               max={999}
               step={field.step}
@@ -1029,7 +1082,7 @@ function DivisionRatioOptions({
 
 function sameRatioExpression(
   left: OristudioCpRatioExpression,
-  right: OristudioCpRatioExpression
+  right: OristudioCpRatioExpression,
 ): boolean {
   return RATIO_FIELDS.every((field) => left[field.key] === right[field.key]);
 }
@@ -1061,10 +1114,12 @@ function circleColorAria(t: TFunction, key: keyof OristudioCpRgbColor): string {
 function updateAngleField(
   setOptions: Dispatch<SetStateAction<OristudioCpToolOptions>>,
   index: number,
-  value: number
+  value: number,
 ) {
   setOptions((current) => {
-    const angleSystemAngles = [...current.angleSystemAngles] as OristudioCpToolOptions['angleSystemAngles'];
+    const angleSystemAngles = [
+      ...current.angleSystemAngles,
+    ] as OristudioCpToolOptions['angleSystemAngles'];
     angleSystemAngles[index] = value;
     return {
       ...current,
@@ -1076,7 +1131,7 @@ function updateAngleField(
 function updateCustomCircleColor(
   setOptions: Dispatch<SetStateAction<OristudioCpToolOptions>>,
   field: keyof OristudioCpRgbColor,
-  value: number
+  value: number,
 ) {
   setOptions((current) => ({
     ...current,
@@ -1285,4 +1340,3 @@ function CheckboxToolOption({
     </label>
   );
 }
-

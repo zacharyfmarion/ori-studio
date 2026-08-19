@@ -171,7 +171,7 @@ export function useFolded3dMeshRuntime(options: {
         .then(receive)
         .catch(() => undefined);
     },
-    [receive]
+    [receive],
   );
 
   const setRenderSettings = useCallback(
@@ -184,7 +184,7 @@ export function useFolded3dMeshRuntime(options: {
         .then(receive)
         .catch(() => undefined);
     },
-    [receive]
+    [receive],
   );
 
   return { status, shallowDepthBuffer, setCamera, setRenderSettings };

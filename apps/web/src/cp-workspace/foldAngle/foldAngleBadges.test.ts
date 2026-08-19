@@ -70,10 +70,10 @@ describe('fold angle badge planning', () => {
     expect(few.map((badge) => badge.lineId)).toEqual([1, 2, 3]);
 
     const many = planFoldAngleBadges(
-      Array.from({ length: MAX_BADGES + 10 }, (_, i) => horizontal(i + 1, 40 + i))
+      Array.from({ length: MAX_BADGES + 10 }, (_, i) => horizontal(i + 1, 40 + i)),
     );
     expect(many.map((badge) => badge.lineId)).toEqual(
-      [...many].sort((l, r) => l.lineId - r.lineId).map((badge) => badge.lineId)
+      [...many].sort((l, r) => l.lineId - r.lineId).map((badge) => badge.lineId),
     );
   });
 

@@ -119,7 +119,7 @@ async function main() {
           seconds: Number(((performance.now() - sampleStart) / 1000).toFixed(3)),
           image_size: dense.image_size,
           runtime: dense.runtime ?? null,
-        })}\n`
+        })}\n`,
       );
     }
   } finally {
@@ -140,7 +140,11 @@ async function main() {
     samples,
     browser_errors: browserErrors,
   };
-  await writeFile(resolve(outDir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+  await writeFile(
+    resolve(outDir, 'manifest.json'),
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    'utf8',
+  );
   if (browserErrors.length > 0) {
     process.stderr.write(`browser errors:\n${browserErrors.join('\n')}\n`);
   }
@@ -148,7 +152,15 @@ async function main() {
 
 async function runSample(page, sample, imageBase64, options) {
   return page.evaluate(
-    async ({ base64, imageSize, manifestUrl, modelUrl, threshold, executionProvider, outputKeys }) => {
+    async ({
+      base64,
+      imageSize,
+      manifestUrl,
+      modelUrl,
+      threshold,
+      executionProvider,
+      outputKeys,
+    }) => {
       const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
       const blob = new Blob([bytes], { type: 'image/png' });
       const bitmap = await createImageBitmap(blob);
@@ -201,13 +213,16 @@ async function runSample(page, sample, imageBase64, options) {
       threshold: options.threshold === undefined ? null : Number(options.threshold),
       executionProvider: options.executionProvider ?? null,
       outputKeys: OUTPUT_KEYS,
-    }
+    },
   );
 }
 
 async function preflight(url, manifestUrl) {
   const checks = [
-    [new URL(manifestUrl, url).href, 'model manifest (model assets are gitignored — copy them from a checkout that has them or re-export with scripts/cp-detect/export-cpline-onnx.py)'],
+    [
+      new URL(manifestUrl, url).href,
+      'model manifest (model assets are gitignored — copy them from a checkout that has them or re-export with scripts/cp-detect/export-cpline-onnx.py)',
+    ],
   ];
   let manifest;
   for (const [target, hint] of checks) {
@@ -215,7 +230,9 @@ async function preflight(url, manifestUrl) {
     try {
       response = await fetch(target);
     } catch (error) {
-      throw new Error(`dev server not reachable at ${target}: ${error.message}. Start it with: cd apps/web && npx vite --host 127.0.0.1 --port 5175`);
+      throw new Error(
+        `dev server not reachable at ${target}: ${error.message}. Start it with: cd apps/web && npx vite --host 127.0.0.1 --port 5175`,
+      );
     }
     if (!response.ok) {
       throw new Error(`preflight ${response.status} for ${target} — missing ${hint}`);
@@ -231,14 +248,16 @@ async function preflight(url, manifestUrl) {
   const modelUrl = new URL(manifest.model.url, new URL(manifestUrl, url)).href;
   const head = await fetch(modelUrl, { method: 'HEAD' });
   if (!head.ok) {
-    throw new Error(`preflight ${head.status} for ${modelUrl} — model.onnx missing next to its manifest (gitignored asset)`);
+    throw new Error(
+      `preflight ${head.status} for ${modelUrl} — model.onnx missing next to its manifest (gitignored asset)`,
+    );
   }
   // The inference worker imports onnxruntime-web; if node_modules are stale
   // the worker 500s inside the page and the run hangs without this check.
   const workerProbe = await fetch(new URL('/src/workers/cpDetectWorker.ts', url).href);
   if (!workerProbe.ok) {
     throw new Error(
-      `preflight ${workerProbe.status} for cpDetectWorker.ts — vite cannot serve the inference worker. Usually missing npm dependencies (run: npm install). Check the vite log for the unresolved import.`
+      `preflight ${workerProbe.status} for cpDetectWorker.ts — vite cannot serve the inference worker. Usually missing npm dependencies (run: npm install). Check the vite log for the unresolved import.`,
     );
   }
 }

@@ -26,11 +26,13 @@ function loadedWindow(id: string, edge: number): InlineSimulation {
     box: { center: { x: 1000, y: 1000 }, width: edge, height: edge, rotation: 0 },
     z: 1,
     view: { yaw: 0, pitch: 0, zoom: 1 },
-    sourceBoundary: [[
-      { x: -200, y: -200 },
-      { x: 200, y: -200 },
-      { x: 200, y: 200 },
-    ]],
+    sourceBoundary: [
+      [
+        { x: -200, y: -200 },
+        { x: 200, y: -200 },
+        { x: 200, y: 200 },
+      ],
+    ],
     sourceBounds: { minX: -200, minY: -200, maxX: 200, maxY: 200 },
     sourceFingerprint: 'cs1:deadbeefdeadbeef',
     segmentIdHint: 0,
@@ -41,12 +43,14 @@ function loadedWindow(id: string, edge: number): InlineSimulation {
 const segment = {
   id: 0,
   faceIndices: [0],
-  boundary: [[
-    { x: -200, y: -200 },
-    { x: 200, y: -200 },
-    { x: 200, y: 200 },
-    { x: -200, y: 200 },
-  ]],
+  boundary: [
+    [
+      { x: -200, y: -200 },
+      { x: 200, y: -200 },
+      { x: 200, y: 200 },
+      { x: -200, y: 200 },
+    ],
+  ],
   bounds: { minX: -200, minY: -200, maxX: 200, maxY: 200 },
 };
 
@@ -58,7 +62,12 @@ const artifacts = {
       [200, 200],
       [-200, 200],
     ],
-    edges_vertices: [[0, 1], [1, 2], [2, 3], [3, 0]],
+    edges_vertices: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 0],
+    ],
     edges_assignment: ['B', 'B', 'B', 'B'],
     faces_vertices: [[0, 1, 2, 3]],
   },
@@ -139,9 +148,7 @@ describe('opening a window after a file load', () => {
       loadedWindow('inline-sim-3', 800),
     ]);
 
-    await useWorkspaceStore
-      .getState()
-      .addOristudioCpInlineSimulation({ segment, cpLineIds: [] });
+    await useWorkspaceStore.getState().addOristudioCpInlineSimulation({ segment, cpLineIds: [] });
 
     const ids = useWorkspaceStore
       .getState()
@@ -157,9 +164,7 @@ describe('opening a window after a file load', () => {
     // both matching `focusedId`, both advancing on play.
     loadWindows([loadedWindow('inline-sim-1', 400)]);
 
-    await useWorkspaceStore
-      .getState()
-      .addOristudioCpInlineSimulation({ segment, cpLineIds: [] });
+    await useWorkspaceStore.getState().addOristudioCpInlineSimulation({ segment, cpLineIds: [] });
 
     expect(getInlineSimulationSource('inline-sim-1')?.modelKey).toBe('loaded:inline-sim-1');
   });

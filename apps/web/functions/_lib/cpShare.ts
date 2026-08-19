@@ -29,7 +29,7 @@ export interface CpShareR2 {
   put(
     key: string,
     value: ArrayBuffer,
-    options?: { httpMetadata?: { contentType?: string; cacheControl?: string } }
+    options?: { httpMetadata?: { contentType?: string; cacheControl?: string } },
   ): Promise<unknown>;
 }
 
@@ -258,7 +258,10 @@ export async function rateLimitKey(request: Request, now: Date): Promise<string>
  * It is a speed bump, not a defence — IPs are cheap. What actually bounds damage is the
  * free plan's own daily write ceiling and the payload cap.
  */
-export async function enforceRateLimit(context: CpShareContext, now: Date): Promise<Response | null> {
+export async function enforceRateLimit(
+  context: CpShareContext,
+  now: Date,
+): Promise<Response | null> {
   const key = await rateLimitKey(context.request, now);
   const current = Number((await context.env.SHARE_KV.get(key)) || '0');
   if (current >= RATE_LIMIT_PER_HOUR) {
@@ -267,7 +270,7 @@ export async function enforceRateLimit(context: CpShareContext, now: Date): Prom
         error: 'Too many share links from this connection. Try again in a few minutes.',
         code: 'rate_limited',
       },
-      { status: 429 }
+      { status: 429 },
     );
   }
   await context.env.SHARE_KV.put(key, String(current + 1), { expirationTtl: 3600 });
@@ -291,7 +294,7 @@ export function storageFailure(error: unknown): Response {
         : 'Could not create a share link right now.',
       code: exhausted ? 'storage_quota' : 'storage_failure',
     },
-    { status: exhausted ? 503 : 500 }
+    { status: exhausted ? 503 : 500 },
   );
 }
 
@@ -321,6 +324,6 @@ export function escapeHtmlAttribute(value: string): string {
 export function escapeJsonForScript(value: unknown): string {
   return JSON.stringify(value)
     .replace(/</g, '\\u003c')
-    .replace(/\u2028/g, "\\u2028")
-    .replace(/\u2029/g, "\\u2029");
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
 }

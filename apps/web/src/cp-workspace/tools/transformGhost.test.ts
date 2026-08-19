@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { translationMatrix } from '../adapters/cpSnapshotToScene';
 import type { Rgba } from '../renderer/types';
-import {
-  createTransformGhost,
-  ghostBaseFromSegments,
-  type CpGhostStyle,
-} from './transformGhost';
+import { createTransformGhost, ghostBaseFromSegments, type CpGhostStyle } from './transformGhost';
 
 const RED: Rgba = [1, 0, 0, 1];
 const STYLE: CpGhostStyle = { alpha: 0.5, widthMul: 2 };
@@ -39,7 +35,7 @@ describe('ghostBaseFromSegments', () => {
       segments,
       new Set([1, 2]),
       (color) => ({ color: RED, dashSlot: color === 'Red1' ? 1 : 2 }),
-      STYLE
+      STYLE,
     );
     expect(Array.from(base.dashSlot)).toEqual([1, 2]);
   });

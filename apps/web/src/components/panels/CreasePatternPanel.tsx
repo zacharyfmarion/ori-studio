@@ -1,28 +1,14 @@
 import { selectProject } from '../../store/workspaceStore/designTabs';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import {
-  ImagePlus,
-  ListChecks,
-  Loader2,
-  Origami,
-} from 'lucide-react';
+import { ImagePlus, ListChecks, Loader2, Origami } from 'lucide-react';
 import {
   registerCpActionShortcutExecutor,
   registerViewportShortcutExecutor,
   setActiveShortcutViewportSurface,
 } from '../../keyboard/shortcutRuntime';
-import {
-  shortcutLabelForAction,
-  type ViewportShortcutId,
-} from '../../keyboard/shortcuts';
+import { shortcutLabelForAction, type ViewportShortcutId } from '../../keyboard/shortcuts';
 import type {
   OristudioCpCommandPayload,
   OristudioCpDocumentSnapshot,
@@ -52,10 +38,7 @@ import {
   type OristudioCpCommandDefinition,
 } from '../../lib/oristudioCpCommands';
 import { forcedAssignmentNotice } from '../../cp-workspace/tools/toolUnavailable';
-import {
-  resolveCpToolLineColor,
-  squareCommandPayload,
-} from '../../cp-workspace/tools/squareTool';
+import { resolveCpToolLineColor, squareCommandPayload } from '../../cp-workspace/tools/squareTool';
 import { toolPreviewSegments } from '../../cp-workspace/tools/toolPreviewSegments';
 import { cpKernelSnapRadiusModel } from '../../cp-workspace/snapRadius';
 import {
@@ -322,14 +305,13 @@ function measureSnapLabel(t: TFunction, kind: CpSnapTarget['kind'] | null): stri
   }
 }
 
-
 function cpCommandPayloadDefaults(
   command: OristudioCpCommandDefinition,
   gridWidth: number | undefined,
   lineColor: OristudioCpLineColor,
   snapDistance: number,
   toolOptions: OristudioCpToolOptions,
-  snapCandidates: OristudioCpSnapCandidates | undefined
+  snapCandidates: OristudioCpSnapCandidates | undefined,
 ): OristudioCpCommandPayload {
   const payload: OristudioCpCommandPayload = {};
   const operationId = command.operationId;
@@ -371,10 +353,7 @@ function cpCommandPayloadDefaults(
 
   // Where a completion candidate may stop. The ray extension happens in the
   // kernel, so the setting has to travel with the command.
-  if (
-    operationId === 'VertexMakeAngularlyFlatFoldable' ||
-    operationId === 'FoldableLineDraw'
-  ) {
+  if (operationId === 'VertexMakeAngularlyFlatFoldable' || operationId === 'FoldableLineDraw') {
     payload.stop_on_auxiliary = toolOptions.foldableLineStopsOnAux;
   }
 
@@ -459,7 +438,7 @@ function cpCircleRingSegments(
   x: number,
   y: number,
   r: number,
-  sides = cpCircleRingSideCount(r)
+  sides = cpCircleRingSideCount(r),
 ): { a: Point; b: Point }[] {
   const out: { a: Point; b: Point }[] = [];
   for (let i = 0; i < sides; i++) {
@@ -488,10 +467,9 @@ function cpCreasesUnderPreviewEndpoints(
   previewSegments: readonly { a: Point; b: Point }[],
   anchors: readonly Point[],
   lineSegments: readonly OristudioCpLineSegment[],
-  eps: number
+  eps: number,
 ): { a: Point; b: Point }[] {
-  const nearAnchor = (p: Point) =>
-    anchors.some((a) => Math.hypot(p.x - a.x, p.y - a.y) <= eps);
+  const nearAnchor = (p: Point) => anchors.some((a) => Math.hypot(p.x - a.x, p.y - a.y) <= eps);
   const endpoints: Point[] = [];
   for (const s of previewSegments) {
     if (!nearAnchor(s.a)) endpoints.push(s.a);
@@ -561,7 +539,7 @@ function FoldedFigureMenuButton({
   // Filtered rather than replaced, so this dropdown keeps its own order while
   // the capability list decides membership.
   const offeredDisplayStyles = FOLDED_DISPLAY_STYLE_OPTIONS.filter((value) =>
-    capabilities.styleChoices.includes(value)
+    capabilities.styleChoices.includes(value),
   );
   const foldedDisplayStyleOptions = offeredDisplayStyles.includes(currentDisplayStyle)
     ? offeredDisplayStyles
@@ -599,7 +577,9 @@ function FoldedFigureMenuButton({
         >
           <div className="folded-figure-menu__header">
             <span>{t('panels:creasePattern.foldedModels', 'Folded models')}</span>
-            <span>{activeFigure ? activeFigure.title : t('panels:creasePattern.none', 'None')}</span>
+            <span>
+              {activeFigure ? activeFigure.title : t('panels:creasePattern.none', 'None')}
+            </span>
           </div>
           {figures.length > 0 && (
             <div className="folded-figure-menu__list">
@@ -671,7 +651,7 @@ function FoldedFigureMenuButton({
               onCommit={() =>
                 onModelGestureEnd(
                   `color:${field.key}`,
-                  t('panels:creasePattern.changeFoldedColor', 'Change folded model color')
+                  t('panels:creasePattern.changeFoldedColor', 'Change folded model color'),
                 )
               }
             />
@@ -688,7 +668,7 @@ function FoldedFigureMenuButton({
               activeFigure && !foldedAppearanceEnabled(activeFigure, 'shadow')
                 ? t(
                     'panels:creasePattern.shadowUnsupported3d',
-                    'Shadows are not drawn for a 3D folded model yet'
+                    'Shadows are not drawn for a 3D folded model yet',
                   )
                 : undefined
             }
@@ -697,10 +677,14 @@ function FoldedFigureMenuButton({
             <Toggle
               checked={model?.display_shadows ?? false}
               disabled={
-                !modelReady || (activeFigure ? !foldedAppearanceEnabled(activeFigure, 'shadow') : false)
+                !modelReady ||
+                (activeFigure ? !foldedAppearanceEnabled(activeFigure, 'shadow') : false)
               }
               onChange={(display_shadows) => onModelUpdate({ display_shadows })}
-              aria-label={t('panels:creasePattern.showFoldedModelShadow', 'Show folded model shadow')}
+              aria-label={t(
+                'panels:creasePattern.showFoldedModelShadow',
+                'Show folded model shadow',
+              )}
             />
           </div>
           {/* No Color alpha toggle: it only reaches the Transparent display
@@ -869,7 +853,7 @@ export function CreasePatternPanel() {
   // (they render on the DOM layer, not in GL).
   const textAnnotations = useMemo(
     () => oristudioCpAnnotations.filter(isTextAnnotation),
-    [oristudioCpAnnotations]
+    [oristudioCpAnnotations],
   );
   // Object toolbars anchor themselves against the *live* camera (see
   // useCanvasObjectAnchor); the panel only supplies the element they measure
@@ -888,17 +872,10 @@ export function CreasePatternPanel() {
     setToolbarContainer(el);
   }, []);
 
-
-
-
-
-
-
-
   const oristudioCpActionRequest = useWorkspaceStore((state) => state.oristudioCpActionRequest);
   const oristudioCpFoldedFigures = useWorkspaceStore((state) => state.oristudioCpFoldedFigures);
   const oristudioCpActiveFoldedFigureId = useWorkspaceStore(
-    (state) => state.oristudioCpActiveFoldedFigureId
+    (state) => state.oristudioCpActiveFoldedFigureId,
   );
   const oristudioCpViewport = useWorkspaceStore((state) => state.oristudioCpViewport);
   const projectLoadId = useWorkspaceStore((state) => state.projectLoadId);
@@ -907,42 +884,41 @@ export function CreasePatternPanel() {
   const mode = 'mvf' as const;
   const currentTheme = useThemeStore((state) => state.currentTheme);
   const toggleOristudioCpLineSelection = useWorkspaceStore(
-    (state) => state.toggleOristudioCpLineSelection
+    (state) => state.toggleOristudioCpLineSelection,
   );
   const toggleOristudioCpPointSelection = useWorkspaceStore(
-    (state) => state.toggleOristudioCpPointSelection
+    (state) => state.toggleOristudioCpPointSelection,
   );
   const toggleOristudioCpCircleSelection = useWorkspaceStore(
-    (state) => state.toggleOristudioCpCircleSelection
+    (state) => state.toggleOristudioCpCircleSelection,
   );
   const setOristudioCpSelection = useWorkspaceStore((state) => state.setOristudioCpSelection);
   const clearOristudioCpActionRequest = useWorkspaceStore(
-    (state) => state.clearOristudioCpActionRequest
+    (state) => state.clearOristudioCpActionRequest,
   );
   const setOristudioCpActiveFoldedFigure = useWorkspaceStore(
-    (state) => state.setOristudioCpActiveFoldedFigure
+    (state) => state.setOristudioCpActiveFoldedFigure,
   );
   const clearOristudioCpSelection = useWorkspaceStore((state) => state.clearOristudioCpSelection);
   const stopOristudioCpFolds = useWorkspaceStore((state) => state.stopOristudioCpFolds);
-  const executeOristudioCpCommand = useWorkspaceStore(
-    (state) => state.executeOristudioCpCommand
-  );
-  const previewOristudioCpCommand = useWorkspaceStore(
-    (state) => state.previewOristudioCpCommand
-  );
+  const executeOristudioCpCommand = useWorkspaceStore((state) => state.executeOristudioCpCommand);
+  const previewOristudioCpCommand = useWorkspaceStore((state) => state.previewOristudioCpCommand);
   const transformOristudioCpSelection = useWorkspaceStore(
-    (state) => state.transformOristudioCpSelection
+    (state) => state.transformOristudioCpSelection,
   );
   const shortcutOverrides = useShortcutStore((state) => state.overrides);
   const shortcutDefaultsSource = useShortcutStore((state) => state.defaultsSource);
   // Hints must name the key that actually fires, so they read the active layout.
   const shortcutResolution = useMemo(
     () => ({ overrides: shortcutOverrides, defaultsSource: shortcutDefaultsSource }),
-    [shortcutOverrides, shortcutDefaultsSource]
+    [shortcutOverrides, shortcutDefaultsSource],
   );
   // The fold chord lands on FoldingEstimate (Fold is the deduped duplicate);
   // `handleCpShortcutAction` routes both to the real fold path.
-  const foldShortcutLabel = shortcutLabelForAction('cp.action.folding-estimate', shortcutResolution);
+  const foldShortcutLabel = shortcutLabelForAction(
+    'cp.action.folding-estimate',
+    shortcutResolution,
+  );
 
   const editableCp = oristudioCpDocument?.document ?? null;
   const editableCpHandle = oristudioCpDocument?.handle ?? null;
@@ -953,15 +929,15 @@ export function CreasePatternPanel() {
   const openingSharedCp = useWorkspaceStore((state) => state.openingSharedCp);
   const nativeActiveLineColor = useMemo(
     () => activeLineColorFromOrieditaMetadata(editableCp?.metadata),
-    [editableCp?.metadata]
+    [editableCp?.metadata],
   );
   const nativeActiveMouseMode = useMemo(
     () => activeMouseModeFromOrieditaMetadata(editableCp?.metadata),
-    [editableCp?.metadata]
+    [editableCp?.metadata],
   );
   const nativeCanvasToolOptions = useMemo(
     () => canvasToolOptionsFromOrieditaMetadata(editableCp?.metadata),
-    [editableCp?.metadata]
+    [editableCp?.metadata],
   );
   // The document's view: what to open at, and where a moved camera is recorded.
   const documentCamera = useCpDocumentCamera(editableCp?.metadata);
@@ -972,7 +948,7 @@ export function CreasePatternPanel() {
   // restore, rail click) touch the base.
   const { effectiveLineColor: effectiveCpLineColor } = useCpLineColorInversion(
     activeCpLineColor,
-    activeEditingContext === 'crease-pattern'
+    activeEditingContext === 'crease-pattern',
   );
   const editableCpBounds = ORIEDITA_PAPER_BOUNDS;
   // `cpModelToSvg` / `cpSvgToModel`, not a document-derived affine: a file's
@@ -985,16 +961,16 @@ export function CreasePatternPanel() {
       Math.max(
         1,
         (radius / Math.max(editableCpBounds.spanX, editableCpBounds.spanY)) *
-          Math.min(CP_PAPER_RECT.width, CP_PAPER_RECT.height)
+          Math.min(CP_PAPER_RECT.width, CP_PAPER_RECT.height),
       ),
-    [editableCpBounds]
+    [editableCpBounds],
   );
   const editableCpVisibleGrid = useMemo(
     () =>
       editableCp && oristudioCpViewport.gridVisible
         ? visibleOrieditaGridMetadata(editableCp.crease_pattern.grid)
         : null,
-    [editableCp, oristudioCpViewport.gridVisible]
+    [editableCp, oristudioCpViewport.gridVisible],
   );
   // Fallback grid extent for environments where the live viewport transform is
   // unavailable (initial paint before fit, jsdom tests). Mirrors the previous
@@ -1003,9 +979,10 @@ export function CreasePatternPanel() {
   const editableCpGridWidth = useMemo(
     () =>
       editableCp
-        ? getOrieditaGridBasis(visibleOrieditaGridMetadata(editableCp.crease_pattern.grid)).gridWidth
+        ? getOrieditaGridBasis(visibleOrieditaGridMetadata(editableCp.crease_pattern.grid))
+            .gridWidth
         : undefined,
-    [editableCp]
+    [editableCp],
   );
   useEffect(() => {
     if (!editableCp) {
@@ -1029,10 +1006,9 @@ export function CreasePatternPanel() {
     setCpToolOptions,
   ]);
 
-
   const selectedEditableFoldLineIds = useMemo(
     () => selectedFoldableCpLineIds(editableCp, oristudioCpSelection),
-    [editableCp, oristudioCpSelection]
+    [editableCp, oristudioCpSelection],
   );
   // Folded figures: derived state, the undo-gesture protocol, and the store-bound
   // verbs the toolbar and context menu both render from.
@@ -1077,7 +1053,7 @@ export function CreasePatternPanel() {
         hidden: false,
       })),
     ],
-    [textAnnotations, inlineSimulations.simulations]
+    [textAnnotations, inlineSimulations.simulations],
   );
   // Shared with the selection toolbar, so the keyboard and the button cannot
   // disagree about what counts as a simulatable region.
@@ -1095,7 +1071,7 @@ export function CreasePatternPanel() {
       annotations.transformableObjects,
       folded.transformableObjects,
       inlineSimulations.transformableObjects,
-    ]
+    ],
   );
   /**
    * Every body the overlay must leave alone, from both kinds that have an
@@ -1106,11 +1082,11 @@ export function CreasePatternPanel() {
    */
   const inertBodyIds = useMemo(
     () => new Set([...inlineSimulations.inertBodyIds, ...folded.inertBodyIds]),
-    [inlineSimulations.inertBodyIds, folded.inertBodyIds]
+    [inlineSimulations.inertBodyIds, folded.inertBodyIds],
   );
   const isFoldedFigureId = useCallback(
     (id: string) => folded.transformableObjects.some((object) => object.id === id),
-    [folded.transformableObjects]
+    [folded.transformableObjects],
   );
   // The canvas's single selection: whichever kind currently owns it. The store
   // keeps the ids mutually exclusive, so at most one is non-null.
@@ -1156,7 +1132,7 @@ export function CreasePatternPanel() {
       inlineSimulations,
       setSelectedAnnotation,
       setOristudioCpActiveFoldedFigure,
-    ]
+    ],
   );
 
   // Gesture dispatch: the overlay reports box updates by id, and the id decides
@@ -1167,7 +1143,7 @@ export function CreasePatternPanel() {
       else if (isFoldedFigureId(id)) folded.applyBoxUpdate(id, patch);
       else annotations.applyBoxUpdate(id, patch);
     },
-    [isFoldedFigureId, folded, annotations, inlineSimulations]
+    [isFoldedFigureId, folded, annotations, inlineSimulations],
   );
   // All three kinds take one checkpoint per gesture, not per pointermove.
   const beginCanvasObjectGesture = useCallback(
@@ -1176,7 +1152,7 @@ export function CreasePatternPanel() {
       else if (isFoldedFigureId(id)) folded.beginGesture();
       else annotations.beginGesture();
     },
-    [isFoldedFigureId, annotations, folded, inlineSimulations]
+    [isFoldedFigureId, annotations, folded, inlineSimulations],
   );
   const commitCanvasObjectGesture = useCallback(
     (id: string, kind: 'move' | 'resize' | 'rotate' | 'crop') => {
@@ -1185,17 +1161,8 @@ export function CreasePatternPanel() {
       } else if (isFoldedFigureId(id)) folded.commitGesture(folded.gestureLabel(kind));
       else annotations.commitGesture(annotations.gestureLabel(kind));
     },
-    [
-      isFoldedFigureId,
-      annotations,
-      folded,
-      inlineSimulations,
-    ]
+    [isFoldedFigureId, annotations, folded, inlineSimulations],
   );
-
-
-
-
 
   // Right-click context menu for a folded form. Items act on the clicked figure by
   // id (not the active one), so they behave correctly even before selection settles.
@@ -1203,7 +1170,7 @@ export function CreasePatternPanel() {
   const buildFoldedFigureMenuItems = useCallback(
     (figure: OristudioCpFoldedFigureEntry) =>
       foldedFigureMenuItemsWith(figure, foldedFigureActionDeps, t),
-    [foldedFigureActionDeps, t]
+    [foldedFigureActionDeps, t],
   );
   const handleRequestContextMenu = useCallback(
     (request: CpContextMenuRequest) => {
@@ -1220,7 +1187,7 @@ export function CreasePatternPanel() {
         items: buildFoldedFigureMenuItems(figure),
       });
     },
-    [oristudioCpFoldedFigures, setOristudioCpActiveFoldedFigure, buildFoldedFigureMenuItems]
+    [oristudioCpFoldedFigures, setOristudioCpActiveFoldedFigure, buildFoldedFigureMenuItems],
   );
   /**
    * Right-click on a canvas object. The overlay sits above the canvas and takes
@@ -1235,7 +1202,7 @@ export function CreasePatternPanel() {
       setOristudioCpActiveFoldedFigure(id);
       setFoldedContextMenu({ x: clientX, y: clientY, items: buildFoldedFigureMenuItems(figure) });
     },
-    [oristudioCpFoldedFigures, setOristudioCpActiveFoldedFigure, buildFoldedFigureMenuItems]
+    [oristudioCpFoldedFigures, setOristudioCpActiveFoldedFigure, buildFoldedFigureMenuItems],
   );
   // Vertex dots: dedup crease-segment endpoints — the top main-thread cost after an
   // edit on dense patterns. Dedup straight from the transport's typed arrays
@@ -1247,13 +1214,12 @@ export function CreasePatternPanel() {
       editableCpGeometry
         ? vertexPointsFromTransport(editableCpGeometry)
         : getCpVertexPoints(editableCp),
-    [editableCp, editableCpGeometry]
+    [editableCp, editableCpGeometry],
   );
   const importedFoldedForms = useMemo(
     () =>
-      (importedCreasePattern?.sourceFold?.file_frames ?? [])
-        .filter(isRenderableFoldedFormFrame),
-    [importedCreasePattern?.sourceFold]
+      (importedCreasePattern?.sourceFold?.file_frames ?? []).filter(isRenderableFoldedFormFrame),
+    [importedCreasePattern?.sourceFold],
   );
   // WebGL geometry for the imported .fold folded-form frames: faces → fills, edges →
   // strokes in SVG user coords (via the same row layout as the SVG layer), so the
@@ -1289,15 +1255,18 @@ export function CreasePatternPanel() {
   // own no longer populates a tree — and if the CP kernel fails to load it, the
   // imported document is the only evidence a pattern exists at all.
   const hasCreasePattern =
-    hasEditableCreasePattern || !!importedCreasePattern || project.creases.length > 0 || project.facets.length > 0;
+    hasEditableCreasePattern ||
+    !!importedCreasePattern ||
+    project.creases.length > 0 ||
+    project.facets.length > 0;
   const editableSelectionSize = cpSelectionSize(oristudioCpSelection);
   const selectedEditableCpLines = useMemo(
     () => selectedCpLineSegments(editableCp, oristudioCpSelection),
-    [editableCp, oristudioCpSelection]
+    [editableCp, oristudioCpSelection],
   );
   const activeCpAction = useMemo(
     () => (cpToolState.activeActionId ? cpActionById(cpToolState.activeActionId) : undefined),
-    [cpToolState.activeActionId]
+    [cpToolState.activeActionId],
   );
   // Extend Line and Divided Line are one rail button over two kernel operations
   // each, so which one is armed depends on a tool option as well as the action.
@@ -1340,7 +1309,10 @@ export function CreasePatternPanel() {
       ? pendingSquareBisectorLineIds.length === 1
         ? t('panels:creasePattern.angleBisectorSelect2Lines', 'Angle Bisector: Select 2 lines')
         : pendingSquareBisectorLineIds.length === 2
-          ? t('panels:creasePattern.angleBisectorSelectSegmentToEnd', 'Angle Bisector: Select segment to end')
+          ? t(
+              'panels:creasePattern.angleBisectorSelectSegmentToEnd',
+              'Angle Bisector: Select segment to end',
+            )
           : cpToolState.prompt
       : cpToolState.prompt;
   // Which measure tool is active decides what is being measured — there is no
@@ -1356,7 +1328,7 @@ export function CreasePatternPanel() {
       gridWidth: editableCpGridWidth ?? editableCpBounds.spanX,
       paperEdgeMm: cpMeasurePreferences.paperEdgeMm,
     }),
-    [editableCpBounds.spanX, editableCpGridWidth, cpMeasurePreferences.paperEdgeMm]
+    [editableCpBounds.spanX, editableCpGridWidth, cpMeasurePreferences.paperEdgeMm],
   );
 
   // Measure's prompt follows its kind, not the command's static 2-step list: an
@@ -1366,7 +1338,7 @@ export function CreasePatternPanel() {
       ? `${t('panels:creasePattern.measure', 'Measure')}: ${measureStepPrompt(
           t,
           cpMeasureKind ?? 'distance',
-          cpMeasurePicked
+          cpMeasurePicked,
         )}`
       : squareBisectorToolPrompt;
   const activeCpToolPrompt = measureToolPrompt;
@@ -1375,7 +1347,7 @@ export function CreasePatternPanel() {
   // whether a newly activated diagnostic is one the user can actually see.
   const latestDiagnosticEntries = useMemo(
     () => visibleCpDiagnosticEntries(oristudioCpCamvResult, lastCommandResult, camvIssuesVisible),
-    [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult]
+    [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult],
   );
   // WebGL diagnostic overlay geometry (markers + segment highlights). Rebuilt when
   // the entries or theme change; the tone colours read the current theme's CSS vars.
@@ -1437,12 +1409,12 @@ export function CreasePatternPanel() {
       editableCp
         ? cpKernelSnapCandidates(editableCp.crease_pattern.grid, oristudioCpViewport)
         : undefined,
-    [editableCp, oristudioCpViewport]
+    [editableCp, oristudioCpViewport],
   );
   const buildCpCommandPayload = useCallback(
     (
       command: OristudioCpCommandDefinition,
-      payload: OristudioCpCommandPayload = {}
+      payload: OristudioCpCommandPayload = {},
     ): OristudioCpCommandPayload => ({
       ...cpCommandPayloadDefaults(
         command,
@@ -1452,11 +1424,11 @@ export function CreasePatternPanel() {
         // here from the rounded zoom percent would skew the kernel's search.
         cpSnapDistanceRef.current,
         cpToolOptions,
-        cpKernelSnapPolicy
+        cpKernelSnapPolicy,
       ),
       ...payload,
     }),
-    [cpKernelSnapPolicy, effectiveCpLineColor, cpToolOptions, editableCpGridWidth]
+    [cpKernelSnapPolicy, effectiveCpLineColor, cpToolOptions, editableCpGridWidth],
   );
 
   const [cpToolUnavailable, setCpToolUnavailable] = useState<string | null>(null);
@@ -1471,7 +1443,7 @@ export function CreasePatternPanel() {
     buildPayload: useCallback(
       (payload: OristudioCpCommandPayload) =>
         activeCpCommand ? buildCpCommandPayload(activeCpCommand, payload) : payload,
-      [activeCpCommand, buildCpCommandPayload]
+      [activeCpCommand, buildCpCommandPayload],
     ),
     documentVersion: editableCp?.crease_pattern.line_segments,
   });
@@ -1500,15 +1472,24 @@ export function CreasePatternPanel() {
         ? cpToolSelectionForMouseMode(nativeActiveMouseMode)
         : null;
     const restoredAction = persistedAction ?? nativeSelection?.action;
-    const nextAction = isNewDocument ? restoredAction ?? defaultAction : defaultAction;
+    const nextAction = isNewDocument ? (restoredAction ?? defaultAction) : defaultAction;
     if (!nextAction) return;
     const modeOverrides = isNewDocument ? nativeSelection?.options : undefined;
     if (modeOverrides) setCpToolOptions((current) => ({ ...current, ...modeOverrides }));
     setCpToolState((state) =>
-      isNewDocument || state.phase === 'idle' ? armCpTool(state, nextAction, true, modeOverrides) : state
+      isNewDocument || state.phase === 'idle'
+        ? armCpTool(state, nextAction, true, modeOverrides)
+        : state,
     );
-  }, [armCpTool, cpToolState.phase, editableCp, editableCpHandle, nativeActiveMouseMode, projectLoadId, setCpToolOptions]);
-
+  }, [
+    armCpTool,
+    cpToolState.phase,
+    editableCp,
+    editableCpHandle,
+    nativeActiveMouseMode,
+    projectLoadId,
+    setCpToolOptions,
+  ]);
 
   const handleCpToolAction = useCallback(
     /**
@@ -1570,7 +1551,7 @@ export function CreasePatternPanel() {
           command.operationId,
           buildCpCommandPayload(command, {
             line_ids: oristudioCpSelection.lines,
-          })
+          }),
         );
         setCpToolPoints([]);
         setCpToolState((state) =>
@@ -1581,10 +1562,12 @@ export function CreasePatternPanel() {
                   ? { type: 'commit', keepActive: true }
                   : {
                       type: 'commandError',
-                      message: useWorkspaceStore.getState().oristudioCpError ?? t('panels:creasePattern.commandFailed', 'Command failed'),
-                    }
+                      message:
+                        useWorkspaceStore.getState().oristudioCpError ??
+                        t('panels:creasePattern.commandFailed', 'Command failed'),
+                    },
               )
-            : state
+            : state,
         );
       })();
     },
@@ -1597,7 +1580,7 @@ export function CreasePatternPanel() {
       setCpToolOptions,
       setSelectedAnnotation,
       t,
-    ]
+    ],
   );
 
   const handleCpShortcutAction = useCallback(
@@ -1619,12 +1602,12 @@ export function CreasePatternPanel() {
       }
       handleCpToolAction(action, true);
     },
-    [handleCpToolAction, folded]
+    [handleCpToolAction, folded],
   );
 
   useEffect(
     () => registerCpActionShortcutExecutor(handleCpShortcutAction),
-    [handleCpShortcutAction]
+    [handleCpShortcutAction],
   );
 
   useEffect(() => {
@@ -1667,7 +1650,7 @@ export function CreasePatternPanel() {
       }
       const succeeded = await executeOristudioCpCommand(
         activeCpCommand.operationId,
-        buildCpCommandPayload(activeCpCommand, selectionPayload)
+        buildCpCommandPayload(activeCpCommand, selectionPayload),
       );
       if (succeeded && activeCpCommand.operationId === 'VoronoiCreate') {
         setCpToolPoints([]);
@@ -1677,13 +1660,15 @@ export function CreasePatternPanel() {
           ? transitionOristudioCpToolState(
               state,
               succeeded
-                  ? { type: 'commit', keepActive: true }
+                ? { type: 'commit', keepActive: true }
                 : {
                     type: 'commandError',
-                    message: useWorkspaceStore.getState().oristudioCpError ?? t('panels:creasePattern.commandFailed', 'Command failed'),
-                  }
+                    message:
+                      useWorkspaceStore.getState().oristudioCpError ??
+                      t('panels:creasePattern.commandFailed', 'Command failed'),
+                  },
             )
-          : state
+          : state,
       );
     })();
   }, [
@@ -1703,7 +1688,7 @@ export function CreasePatternPanel() {
     setCpToolState((state) =>
       state.activeOperationId === activeCpCommand.operationId
         ? transitionOristudioCpToolState(state, { type: 'cancel', keepActive: true })
-        : state
+        : state,
     );
   }, [activeCpCommand]);
 
@@ -1715,7 +1700,7 @@ export function CreasePatternPanel() {
       crease_pattern: {
         ...editableCp.crease_pattern,
         line_segments: editableCp.crease_pattern.line_segments.filter(
-          (_line, index) => !selectedLineIds.has(index + 1)
+          (_line, index) => !selectedLineIds.has(index + 1),
         ),
       },
     };
@@ -1727,10 +1712,7 @@ export function CreasePatternPanel() {
   // updateSelectionMovePreview, but returns the adjusted delta instead of
   // driving SVG preview state.
   const resolveEditableMoveSnap = useCallback(
-    (
-      rawDelta: Point,
-      toleranceModel: number
-    ): { delta: Point; snapLabel: string | null } => {
+    (rawDelta: Point, toleranceModel: number): { delta: Point; snapLabel: string | null } => {
       const snappingEnabled =
         oristudioCpViewport.snapToGrid ||
         oristudioCpViewport.snapToVertices ||
@@ -1747,7 +1729,7 @@ export function CreasePatternPanel() {
           anchorPoint,
           editableCpBounds,
           oristudioCpViewport,
-          toleranceModel
+          toleranceModel,
         );
         if (!target) continue;
         if (!best || target.distance < best.target.distance) best = { target, anchorPoint };
@@ -1761,7 +1743,7 @@ export function CreasePatternPanel() {
         snapLabel: best.target.label,
       };
     },
-    [editableCpBounds, oristudioCpViewport, selectedEditableCpLines, selectionMoveSnapDocument]
+    [editableCpBounds, oristudioCpViewport, selectedEditableCpLines, selectionMoveSnapDocument],
   );
 
   // WebGL draw tools: snap a raw model draw point to nearby geometry (the surface
@@ -1769,7 +1751,7 @@ export function CreasePatternPanel() {
   const resolveEditableDrawModelPoint = useCallback(
     (
       rawPoint: Point,
-      toleranceModel: number
+      toleranceModel: number,
     ): { point: Point; snapped: boolean; kind?: CpSnapTarget['kind'] } => {
       if (!editableCp) return { point: rawPoint, snapped: false };
       const target = nearestOrieditaDrawPointTarget(
@@ -1777,14 +1759,14 @@ export function CreasePatternPanel() {
         rawPoint,
         editableCpBounds,
         oristudioCpViewport,
-        toleranceModel
+        toleranceModel,
       );
       // Report whether the point locked onto a grid point / vertex, so a restricted
       // draw can reject a start/end that doesn't snap — and *what* it locked onto, so
       // the measure tool can say whether an endpoint is a real vertex or a free point.
       return { point: target?.point ?? rawPoint, snapped: target !== null, kind: target?.kind };
     },
-    [editableCp, editableCpBounds, oristudioCpViewport]
+    [editableCp, editableCpBounds, oristudioCpViewport],
   );
 
   // Crease steps: snap the point onto the nearest crease (forcing line/vertex
@@ -1797,7 +1779,7 @@ export function CreasePatternPanel() {
         rawPoint,
         editableCpBounds,
         { ...oristudioCpViewport, snapToLines: true, snapToVertices: true },
-        toleranceModel
+        toleranceModel,
       );
       // Report whether we snapped to a crease *junction* (a vertex where multiple
       // creases meet). The surface highlights the single line under any other snap
@@ -1805,7 +1787,7 @@ export function CreasePatternPanel() {
       // highlight at a junction, where which crease is meant is ambiguous.
       return { point: target?.point ?? rawPoint, snappedToVertex: target?.kind === 'vertex' };
     },
-    [editableCp, editableCpBounds, oristudioCpViewport]
+    [editableCp, editableCpBounds, oristudioCpViewport],
   );
 
   // "First click decides" classifier for the dual-mode tools (Mirror Line, Square
@@ -1829,7 +1811,7 @@ export function CreasePatternPanel() {
         rawPoint,
         editableCpBounds,
         { ...oristudioCpViewport, snapToVertices: true, snapToGrid: false },
-        pointPriorityModel
+        pointPriorityModel,
       );
       if (vertex && vertex.distance <= pointPriorityModel) return 'point';
       const point = nearestOrieditaDrawPointTarget(
@@ -1837,19 +1819,19 @@ export function CreasePatternPanel() {
         rawPoint,
         editableCpBounds,
         { ...oristudioCpViewport, snapToVertices: true },
-        toleranceModel
+        toleranceModel,
       );
       const line = nearestCpSnapTarget(
         editableCp,
         rawPoint,
         editableCpBounds,
         { ...oristudioCpViewport, snapToLines: true, snapToVertices: false, snapToGrid: false },
-        toleranceModel
+        toleranceModel,
       );
       if (line?.kind === 'line' && (!point || line.distance < point.distance)) return 'line';
       return 'point';
     },
-    [editableCp, editableCpBounds, oristudioCpViewport]
+    [editableCp, editableCpBounds, oristudioCpViewport],
   );
 
   // WebGL draw tools: commit a tool's collected points through the kernel command
@@ -1875,7 +1857,7 @@ export function CreasePatternPanel() {
         setCpToolState((state) =>
           state.activeOperationId === command.operationId
             ? transitionOristudioCpToolState(state, { type: 'commit', keepActive: true })
-            : state
+            : state,
         );
         return;
       }
@@ -1898,7 +1880,7 @@ export function CreasePatternPanel() {
         if (measurePoints.length === 0) return;
         void previewOristudioCpCommand(
           command.operationId,
-          buildCpCommandPayload(command, { points: measurePoints })
+          buildCpCommandPayload(command, { points: measurePoints }),
         ).then((preview) => {
           const value = preview?.measurement;
           if (value != null) {
@@ -1911,7 +1893,7 @@ export function CreasePatternPanel() {
         setCpToolState((state) =>
           state.activeOperationId === command.operationId
             ? transitionOristudioCpToolState(state, { type: 'commit', keepActive: true })
-            : state
+            : state,
         );
         return;
       }
@@ -1924,22 +1906,21 @@ export function CreasePatternPanel() {
             // must send empty line_ids — CreaseSelect prioritises line_ids over the
             // box, so passing the prior selection would re-select it instead of the
             // new region. Other tools carry the prior selection as their input.
-            line_ids:
-              isLineEntityCommit
-                ? [...pickedLineIds]
-                : isCreaseToggleMvClickTool(command.operationId) ||
-                    isLineEraseClickTool(command.operationId) ||
-                    isLineClickSelectionOperation(command.operationId) ||
-                    // Square Bisector's point mode resolves everything from its 4
-                    // points; the kernel routes to line mode when line_ids has ≥3, so
-                    // never leak the ambient selection into it.
-                    command.operationId === 'SquareBisector' ||
-                    // Lengthen commits a 3-point selection line + target; the kernel
-                    // prioritises line_ids ≥ 2, so a stray ambient selection would
-                    // hijack it into the click-pick path. Send its points alone.
-                    isLengthenCreaseOperation(command.operationId)
-                  ? []
-                  : oristudioCpSelection.lines,
+            line_ids: isLineEntityCommit
+              ? [...pickedLineIds]
+              : isCreaseToggleMvClickTool(command.operationId) ||
+                  isLineEraseClickTool(command.operationId) ||
+                  isLineClickSelectionOperation(command.operationId) ||
+                  // Square Bisector's point mode resolves everything from its 4
+                  // points; the kernel routes to line mode when line_ids has ≥3, so
+                  // never leak the ambient selection into it.
+                  command.operationId === 'SquareBisector' ||
+                  // Lengthen commits a 3-point selection line + target; the kernel
+                  // prioritises line_ids ≥ 2, so a stray ambient selection would
+                  // hijack it into the click-pick path. Send its points alone.
+                  isLengthenCreaseOperation(command.operationId)
+                ? []
+                : oristudioCpSelection.lines,
             circle_ids: oristudioCpSelection.circles,
             points: [...points],
             // A plain box/lasso/polygon select replaces the selection; holding a
@@ -1951,7 +1932,7 @@ export function CreasePatternPanel() {
               command.operationId === 'SelectPolygon'
                 ? !commit.additive
                 : undefined,
-          })
+          }),
         );
         setCpToolState((state) =>
           state.activeOperationId === command.operationId
@@ -1961,10 +1942,12 @@ export function CreasePatternPanel() {
                   ? { type: 'commit', keepActive: true }
                   : {
                       type: 'commandError',
-                      message: useWorkspaceStore.getState().oristudioCpError ?? t('panels:creasePattern.commandFailed', 'Command failed'),
-                    }
+                      message:
+                        useWorkspaceStore.getState().oristudioCpError ??
+                        t('panels:creasePattern.commandFailed', 'Command failed'),
+                    },
               )
-            : state
+            : state,
         );
       })();
     },
@@ -1978,7 +1961,7 @@ export function CreasePatternPanel() {
       oristudioCpSelection.lines,
       t,
       vertexSolve,
-    ]
+    ],
   );
 
   usePickToolSelectionReset(activeCpCommand?.operationId);
@@ -2002,7 +1985,7 @@ export function CreasePatternPanel() {
         return next;
       });
     },
-    [activeCpCommand]
+    [activeCpCommand],
   );
 
   // Only crease-drawing tools preview in the active line colour; select / toggle /
@@ -2023,7 +2006,7 @@ export function CreasePatternPanel() {
       ? resolveCpLineColor(
           resolveCpToolLineColor(operationId, cpToolOptions, effectiveCpLineColor),
           mode,
-          document.documentElement
+          document.documentElement,
         )
       : readCssVarColor(document.documentElement, '--accent-primary', [0.4, 0.6, 1, 1] as const);
   }, [activeCpCommand?.operationId, cpToolOptions, effectiveCpLineColor, mode]);
@@ -2060,7 +2043,11 @@ export function CreasePatternPanel() {
       squareBisector: false,
       voronoi: false,
     };
-    if (!activeCpCommand || activeCpCommand.uiStatus !== 'ready' || cpToolState.phase !== 'active') {
+    if (
+      !activeCpCommand ||
+      activeCpCommand.uiStatus !== 'ready' ||
+      cpToolState.phase !== 'active'
+    ) {
       return idle;
     }
     const im = activeCpCommand.inputMode;
@@ -2168,12 +2155,12 @@ export function CreasePatternPanel() {
       vertexSolve.segments.length > 0
         ? [...webglToolPreviewSegments, ...vertexSolve.segments]
         : webglToolPreviewSegments,
-    [vertexSolve.segments, webglToolPreviewSegments]
+    [vertexSolve.segments, webglToolPreviewSegments],
   );
 
   const cpToolForcedAssignment = useMemo(
     () => forcedAssignmentNotice(t, webglToolPreviewSegments, effectiveCpLineColor),
-    [t, webglToolPreviewSegments, effectiveCpLineColor]
+    [t, webglToolPreviewSegments, effectiveCpLineColor],
   );
   const webglPreviewRequestRef = useRef(0);
   // The crease transform tools (Move / Copy, two- and four-point) preview by
@@ -2181,7 +2168,7 @@ export function CreasePatternPanel() {
   // preview — see `activeToolTransform` on the WebGL surface.
   const webglActiveToolTransform = useMemo(
     () => creaseTransformTool(activeCpCommand?.operationId),
-    [activeCpCommand?.operationId]
+    [activeCpCommand?.operationId],
   );
   const handleWebglToolPreviewInput = useCallback(
     (points: readonly Point[], highlightLineIds: readonly number[]) => {
@@ -2217,7 +2204,7 @@ export function CreasePatternPanel() {
           line_ids: oristudioCpSelection.lines,
           circle_ids: oristudioCpSelection.circles,
           points: [...points],
-        })
+        }),
       ).then((preview) => {
         if (webglPreviewRequestRef.current !== requestId) return;
         const kernel = toolPreviewSegments(preview?.segments, command.operationId);
@@ -2236,7 +2223,7 @@ export function CreasePatternPanel() {
               kernel,
               anchors,
               editableCp.crease_pattern.line_segments,
-              onCreaseEps
+              onCreaseEps,
             )
           : [];
         // Candidate geometry and existing-crease highlights go to separate
@@ -2262,7 +2249,7 @@ export function CreasePatternPanel() {
       oristudioCpSelection.circles,
       oristudioCpSelection.lines,
       previewOristudioCpCommand,
-    ]
+    ],
   );
 
   // WebGL Voronoi seed clicks: mirror them into `cpToolPoints` (the source the
@@ -2273,7 +2260,7 @@ export function CreasePatternPanel() {
       setCpToolPoints([...seeds]);
       handleWebglToolPreviewInput(seeds, []);
     },
-    [handleWebglToolPreviewInput]
+    [handleWebglToolPreviewInput],
   );
 
   // Clear the WebGL point-sequence preview when that mode is no longer active, or
@@ -2308,7 +2295,7 @@ export function CreasePatternPanel() {
             buildCpCommandPayload(activeCpCommand, {
               line_ids: oristudioCpSelection.lines,
               points: [axis.a, axis.b],
-            })
+            }),
           );
           setCpToolState((state) =>
             state.activeOperationId === activeCpCommand.operationId
@@ -2319,10 +2306,11 @@ export function CreasePatternPanel() {
                     : {
                         type: 'commandError',
                         message:
-                          useWorkspaceStore.getState().oristudioCpError ?? t('panels:creasePattern.commandFailed', 'Command failed'),
-                      }
+                          useWorkspaceStore.getState().oristudioCpError ??
+                          t('panels:creasePattern.commandFailed', 'Command failed'),
+                      },
                 )
-              : state
+              : state,
           );
         })();
         return;
@@ -2340,7 +2328,7 @@ export function CreasePatternPanel() {
           setCpToolState((state) =>
             state.activeOperationId === activeCpCommand.operationId
               ? transitionOristudioCpToolState(state, { type: 'advanceStep' })
-              : state
+              : state,
           );
           return;
         }
@@ -2352,7 +2340,7 @@ export function CreasePatternPanel() {
             activeCpCommand.operationId,
             buildCpCommandPayload(activeCpCommand, {
               line_ids: lineIds,
-            })
+            }),
           );
           setCpToolState((state) =>
             state.activeOperationId === activeCpCommand.operationId
@@ -2362,10 +2350,12 @@ export function CreasePatternPanel() {
                     ? { type: 'commit', keepActive: true }
                     : {
                         type: 'commandError',
-                        message: useWorkspaceStore.getState().oristudioCpError ?? t('panels:creasePattern.commandFailed', 'Command failed'),
-                      }
+                        message:
+                          useWorkspaceStore.getState().oristudioCpError ??
+                          t('panels:creasePattern.commandFailed', 'Command failed'),
+                      },
                 )
-              : state
+              : state,
           );
         })();
         return;
@@ -2381,7 +2371,7 @@ export function CreasePatternPanel() {
         void (async () => {
           const succeeded = await executeOristudioCpCommand(
             activeCpCommand.operationId,
-            buildCpCommandPayload(activeCpCommand, { line_ids: [id] })
+            buildCpCommandPayload(activeCpCommand, { line_ids: [id] }),
           );
           setCpToolState((state) =>
             state.activeOperationId === activeCpCommand.operationId
@@ -2391,10 +2381,12 @@ export function CreasePatternPanel() {
                     ? { type: 'commit', keepActive: true }
                     : {
                         type: 'commandError',
-                        message: useWorkspaceStore.getState().oristudioCpError ?? t('panels:creasePattern.commandFailed', 'Command failed'),
-                      }
+                        message:
+                          useWorkspaceStore.getState().oristudioCpError ??
+                          t('panels:creasePattern.commandFailed', 'Command failed'),
+                      },
                 )
-              : state
+              : state,
           );
         })();
         return;
@@ -2410,7 +2402,7 @@ export function CreasePatternPanel() {
         void (async () => {
           const succeeded = await executeOristudioCpCommand(
             activeCpCommand.operationId,
-            buildCpCommandPayload(activeCpCommand, { line_ids: [id] })
+            buildCpCommandPayload(activeCpCommand, { line_ids: [id] }),
           );
           setCpToolState((state) =>
             state.activeOperationId === activeCpCommand.operationId
@@ -2420,10 +2412,12 @@ export function CreasePatternPanel() {
                     ? { type: 'commit', keepActive: true }
                     : {
                         type: 'commandError',
-                        message: useWorkspaceStore.getState().oristudioCpError ?? t('panels:creasePattern.commandFailed', 'Command failed'),
-                      }
+                        message:
+                          useWorkspaceStore.getState().oristudioCpError ??
+                          t('panels:creasePattern.commandFailed', 'Command failed'),
+                      },
                 )
-              : state
+              : state,
           );
         })();
         return;
@@ -2437,7 +2431,7 @@ export function CreasePatternPanel() {
             phase: cpToolState.phase,
           },
           cpToolPoints.length,
-          cpToolPath.length
+          cpToolPath.length,
         )
       ) {
         toggleOristudioCpLineSelection(id, additive);
@@ -2458,7 +2452,7 @@ export function CreasePatternPanel() {
               line_ids: [id],
               replace_selection:
                 activeCpCommand.operationId === 'CreaseSelect' ? !additive : undefined,
-            })
+            }),
           );
           setCpToolState((state) =>
             state.activeOperationId === activeCpCommand.operationId
@@ -2471,10 +2465,12 @@ export function CreasePatternPanel() {
                       }
                     : {
                         type: 'commandError',
-                        message: useWorkspaceStore.getState().oristudioCpError ?? t('panels:creasePattern.commandFailed', 'Command failed'),
-                      }
+                        message:
+                          useWorkspaceStore.getState().oristudioCpError ??
+                          t('panels:creasePattern.commandFailed', 'Command failed'),
+                      },
                 )
-              : state
+              : state,
           );
         })();
         return;
@@ -2493,7 +2489,7 @@ export function CreasePatternPanel() {
           setCpToolState((state) =>
             state.activeOperationId === activeCpCommand.operationId
               ? transitionOristudioCpToolState(state, { type: 'advanceStep' })
-              : state
+              : state,
           );
           return;
         }
@@ -2505,7 +2501,7 @@ export function CreasePatternPanel() {
             activeCpCommand.operationId,
             buildCpCommandPayload(activeCpCommand, {
               line_ids: lineIds,
-            })
+            }),
           );
           setCpToolState((state) =>
             state.activeOperationId === activeCpCommand.operationId
@@ -2515,10 +2511,12 @@ export function CreasePatternPanel() {
                     ? { type: 'commit', keepActive: true }
                     : {
                         type: 'commandError',
-                        message: useWorkspaceStore.getState().oristudioCpError ?? t('panels:creasePattern.commandFailed', 'Command failed'),
-                      }
+                        message:
+                          useWorkspaceStore.getState().oristudioCpError ??
+                          t('panels:creasePattern.commandFailed', 'Command failed'),
+                      },
                 )
-              : state
+              : state,
           );
         })();
         return;
@@ -2540,7 +2538,7 @@ export function CreasePatternPanel() {
       pendingSquareBisectorLineIds,
       toggleOristudioCpLineSelection,
       t,
-    ]
+    ],
   );
 
   const handleEditablePointClick = useCallback(
@@ -2553,7 +2551,7 @@ export function CreasePatternPanel() {
       }
       toggleOristudioCpPointSelection(id, additive);
     },
-    [activeCpCommand?.operationId, cpToolState.phase, toggleOristudioCpPointSelection]
+    [activeCpCommand?.operationId, cpToolState.phase, toggleOristudioCpPointSelection],
   );
 
   const handleEditableCircleClick = useCallback(
@@ -2566,15 +2564,8 @@ export function CreasePatternPanel() {
       }
       toggleOristudioCpCircleSelection(id, additive);
     },
-    [activeCpCommand?.operationId, cpToolState.phase, toggleOristudioCpCircleSelection]
+    [activeCpCommand?.operationId, cpToolState.phase, toggleOristudioCpCircleSelection],
   );
-
-
-
-
-
-
-
 
   const emptyStatusLabel =
     status === 'building_crease_pattern'
@@ -2594,10 +2585,7 @@ export function CreasePatternPanel() {
     status !== 'building_crease_pattern' &&
     status !== 'optimizing';
   // The zoom-preset dropdown passes a scale (preset/100); the owned camera takes a percent.
-  const setZoomLevel = useCallback(
-    (scale: number) => cpCamera()?.setZoomPercent(scale * 100),
-    []
-  );
+  const setZoomLevel = useCallback((scale: number) => cpCamera()?.setZoomPercent(scale * 100), []);
 
   /**
    * Escape, as a layered cancel: stop a running fold, else leave the hand tool,
@@ -2696,12 +2684,7 @@ export function CreasePatternPanel() {
     setCpMeasurements((current) => current.slice(0, -1));
     setCpHoveredMeasureIndex(null);
     return true;
-  }, [
-    editableCp,
-    editableSelectionSize,
-    cpMeasurements.length,
-    cpToolState.activeOperationId,
-  ]);
+  }, [editableCp, editableSelectionSize, cpMeasurements.length, cpToolState.activeOperationId]);
 
   // No `default`: the switch is exhaustive over `ViewportShortcutId`, so a new
   // viewport verb fails to compile here until this surface says whether it
@@ -2778,12 +2761,12 @@ export function CreasePatternPanel() {
       vertexSolve,
       deleteSelectedCanvasObject,
       dropLastMeasurement,
-    ]
+    ],
   );
 
   useEffect(
     () => registerViewportShortcutExecutor('crease-pattern', handleViewportShortcut),
-    [handleViewportShortcut]
+    [handleViewportShortcut],
   );
 
   useEffect(() => {
@@ -2865,274 +2848,281 @@ export function CreasePatternPanel() {
               <CpDiagnosticHud />
               {editableCp ? (
                 <>
-                <CreasePatternWebglCanvas
-                  className={CP_VIEWPORT_CANVAS_CLASS}
-                  lineSegments={editableCp.crease_pattern.line_segments}
-                  geometry={oristudioCpDocument?.geometry ?? null}
-                  images={imageAnnotations}
-                  overlayBoxes={overlayBoxes}
-                  framingKey={`${projectLoadId}:${editableCpHandle ?? 'none'}`}
-                  modelToSvg={editableModelToSvg}
-                  svgToModel={editableSvgToModel}
-                  foldedOrbit={folded.orbit}
-                  selectedLineIds={oristudioCpSelection.lines}
-                  selectedPointIds={oristudioCpSelection.points}
-                  selectedCircleIds={oristudioCpSelection.circles}
-                  onSelect={(hit, additive) => {
-                    // Any click on the canvas is a click outside every canvas
-                    // object — the overlay captures presses that land on one and
-                    // they never reach here. So deselect first, whether or not
-                    // the click found a crease. Taking a crease selection would
-                    // clear an object anyway, but a click that *deselects* the
-                    // last crease leaves no claim behind to do it.
-                    selectCanvasObject(null);
-                    if (!hit) {
-                      if (!additive) clearOristudioCpSelection();
-                      return;
-                    }
-                    if (hit.kind === 'line') handleEditableLineClick(hit.id, additive);
-                    else if (hit.kind === 'point') handleEditablePointClick(hit.id, additive);
-                    else handleEditableCircleClick(hit.id, additive);
-                  }}
-                  onBoxSelect={(sets, additive) => {
-                    const merge = (prev: number[], next: number[]) =>
-                      Array.from(new Set([...prev, ...next]));
-                    const base = additive ? oristudioCpSelection : emptyOristudioCpSelection();
-                    setOristudioCpSelection({
-                      ...base,
-                      lines: additive ? merge(base.lines, sets.lines) : sets.lines,
-                      points: additive ? merge(base.points, sets.points) : sets.points,
-                      circles: additive ? merge(base.circles, sets.circles) : sets.circles,
-                    });
-                  }}
-                  onTranslateSelection={(delta) => {
-                    void transformOristudioCpSelection({ kind: 'translate', delta });
-                  }}
-                  resolveMoveSnap={resolveEditableMoveSnap}
-                  activeToolInputMode={webglActiveTool.mode}
-                  activeToolOperationId={activeCpCommand?.operationId ?? null}
-                  activeToolStepKinds={webglActiveTool.stepKinds}
-                  activeToolCommitsLoneCandidate={
-                    cpInputModel(activeCpCommand?.operationId)?.commitOnLoneCandidate ?? false
-                  }
-                  snapRadius={cpSnapRadius}
-                  onSnapDistanceChange={handleCpSnapDistanceChange}
-                  activeToolLineCount={webglActiveTool.lineCount}
-                  activeToolDualMirror={webglActiveTool.dualMirror}
-                  activeToolMeasureCreasePick={cpMeasureKind === 'distance'}
-                  activeToolConverging={webglActiveTool.converging}
-                  activeToolSquareBisector={webglActiveTool.squareBisector}
-                  activeToolVoronoi={webglActiveTool.voronoi}
-                  activeToolDashedPreview={isCpMeasurementOperation(activeCpCommand?.operationId)}
-                  activeToolTransform={webglActiveToolTransform}
-                  onTextCreate={webglActiveTool.mode === 'text' ? annotations.createTextAt : undefined}
-                  onTextCreateBox={
-                    webglActiveTool.mode === 'text' ? annotations.createTextBoxFromDrag : undefined
-                  }
-                  voronoiSeeds={cpToolPoints}
-                  onVoronoiSeedsChange={handleWebglVoronoiSeeds}
-                  activeToolRequireSnap={isRestrictedDrawOperation(activeCpCommand?.operationId)}
-                  activeToolClickAction={toolClickAction(activeCpCommand?.operationId)}
-                  resolveDrawPoint={resolveEditableDrawModelPoint}
-                  resolveDrawPointOnCrease={resolveEditableDrawPointOnCrease}
-                  resolveFirstPickKind={resolveEditableFirstPickKind}
-                  onToolCommit={handleWebglToolCommit}
-                  onToolPreviewInput={handleWebglToolPreviewInput}
-                  onToolPickProgress={handleWebglToolPickProgress}
-                  onToolSnapKind={setCpMeasureSnapKind}
-                  toolCommandPreviewSegments={cpPreviewSegments}
-                  toolCommandHighlightSegments={webglToolHighlightSegments}
-                  toolReplacedLineIds={vertexSolve.replacedLineIds}
-                  toolCommandPreviewPoints={webglToolPreviewPoints}
-                  toolPreviewColor={toolPreviewColor}
-                  diagnosticMarkers={cpDiagnosticGeometry.markers}
-                  diagnosticStrokes={cpDiagnosticGeometry.strokes}
-                  diagnosticWedges={cpDiagnosticGeometry.wedges}
-                  operationFrame={cpOperationFrameStrokes}
-                  panToolActive={panToolActive}
-                  wheelGesture={cpWheelGesture}
-                  onRotationChange={setViewRotation}
-                  onZoomPercentChange={handleWebglZoomPercent}
-                  onViewChange={handleWebglViewChange}
-                  {...documentCamera}
-                  activeToolModelAlignedBox={isModelAlignedBoxOperation(
-                    activeCpCommand?.operationId
-                  )}
-                  onEraseBox={(points) => {
-                    void executeOristudioCpCommand('LineSegmentDelete', {
-                      line_ids: [],
-                      points: [...points],
-                    });
-                  }}
-                  onEraseLine={(id) => {
-                    void executeOristudioCpCommand('LineSegmentDelete', { line_ids: [id] });
-                  }}
-                  onEraseCircle={(id) => {
-                    void executeOristudioCpCommand('LineSegmentDelete', { circle_ids: [id] });
-                  }}
-                  onRequestContextMenu={handleRequestContextMenu}
-                  mode={mode}
-                  lineStyle={oristudioCpViewport.lineStyle ?? DEFAULT_ORISTUDIO_CP_LINE_STYLE}
-                  foldAngleDisplay={
-                    oristudioCpViewport.foldAngleDisplay ??
-                    DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY
-                  }
-                  lineWidth={oristudioCpViewport.lineWidth ?? 1}
-                  points={editableCp.crease_pattern.points}
-                  vertices={editableCpVertexPoints}
-                  pointSize={oristudioCpViewport.pointSize ?? 1}
-                  circles={editableCp.crease_pattern.circles}
-                  circleRadiusToSvg={editableCircleRadiusToSvg}
-                  foldedFigures={generatedFoldedFigures}
-                  staleFoldedFigureIds={staleFoldedFigureIds}
-                  windowedFoldedFigureIds={folded.windowIds}
-                  importedForms={cpImportedFoldedFormsGeometry}
-                  grid={editableCpVisibleGrid}
-                  gridVisible={oristudioCpViewport.gridVisible}
-                />
-                <ContextMenu
-                  open={foldedContextMenu !== null}
-                  x={foldedContextMenu?.x ?? 0}
-                  y={foldedContextMenu?.y ?? 0}
-                  items={foldedContextMenu?.items ?? []}
-                  onOpenChange={(open) => {
-                    if (!open) setFoldedContextMenu(null);
-                  }}
-                />
-                {webglOverlayView &&
-                  isCpMeasurementOperation(activeCpCommand?.operationId) &&
-                  cpToolState.phase === 'active' && (
-                    <CpMeasureLayer
-                      measurements={cpMeasurements}
-                      hoveredIndex={cpHoveredMeasureIndex}
-                      liveKind={cpMeasureKind ?? 'distance'}
-                      livePoints={cpMeasureLivePoints}
-                      liveValue={cpMeasureLiveValue}
-                      liveSnapLabel={
-                        cpMeasurePicked > 0 &&
-                        cpMeasurePicked < cpMeasurePointCount(cpMeasureKind ?? 'distance')
-                          ? measureSnapLabel(t, cpMeasureSnapKind)
-                          : null
+                  <CreasePatternWebglCanvas
+                    className={CP_VIEWPORT_CANVAS_CLASS}
+                    lineSegments={editableCp.crease_pattern.line_segments}
+                    geometry={oristudioCpDocument?.geometry ?? null}
+                    images={imageAnnotations}
+                    overlayBoxes={overlayBoxes}
+                    framingKey={`${projectLoadId}:${editableCpHandle ?? 'none'}`}
+                    modelToSvg={editableModelToSvg}
+                    svgToModel={editableSvgToModel}
+                    foldedOrbit={folded.orbit}
+                    selectedLineIds={oristudioCpSelection.lines}
+                    selectedPointIds={oristudioCpSelection.points}
+                    selectedCircleIds={oristudioCpSelection.circles}
+                    onSelect={(hit, additive) => {
+                      // Any click on the canvas is a click outside every canvas
+                      // object — the overlay captures presses that land on one and
+                      // they never reach here. So deselect first, whether or not
+                      // the click found a crease. Taking a crease selection would
+                      // clear an object anyway, but a click that *deselects* the
+                      // last crease leaves no claim behind to do it.
+                      selectCanvasObject(null);
+                      if (!hit) {
+                        if (!additive) clearOristudioCpSelection();
+                        return;
                       }
-                      unit={cpMeasurePreferences.unit}
-                      angleUnit={cpMeasurePreferences.angleUnit}
-                      scale={cpMeasureScale}
+                      if (hit.kind === 'line') handleEditableLineClick(hit.id, additive);
+                      else if (hit.kind === 'point') handleEditablePointClick(hit.id, additive);
+                      else handleEditableCircleClick(hit.id, additive);
+                    }}
+                    onBoxSelect={(sets, additive) => {
+                      const merge = (prev: number[], next: number[]) =>
+                        Array.from(new Set([...prev, ...next]));
+                      const base = additive ? oristudioCpSelection : emptyOristudioCpSelection();
+                      setOristudioCpSelection({
+                        ...base,
+                        lines: additive ? merge(base.lines, sets.lines) : sets.lines,
+                        points: additive ? merge(base.points, sets.points) : sets.points,
+                        circles: additive ? merge(base.circles, sets.circles) : sets.circles,
+                      });
+                    }}
+                    onTranslateSelection={(delta) => {
+                      void transformOristudioCpSelection({ kind: 'translate', delta });
+                    }}
+                    resolveMoveSnap={resolveEditableMoveSnap}
+                    activeToolInputMode={webglActiveTool.mode}
+                    activeToolOperationId={activeCpCommand?.operationId ?? null}
+                    activeToolStepKinds={webglActiveTool.stepKinds}
+                    activeToolCommitsLoneCandidate={
+                      cpInputModel(activeCpCommand?.operationId)?.commitOnLoneCandidate ?? false
+                    }
+                    snapRadius={cpSnapRadius}
+                    onSnapDistanceChange={handleCpSnapDistanceChange}
+                    activeToolLineCount={webglActiveTool.lineCount}
+                    activeToolDualMirror={webglActiveTool.dualMirror}
+                    activeToolMeasureCreasePick={cpMeasureKind === 'distance'}
+                    activeToolConverging={webglActiveTool.converging}
+                    activeToolSquareBisector={webglActiveTool.squareBisector}
+                    activeToolVoronoi={webglActiveTool.voronoi}
+                    activeToolDashedPreview={isCpMeasurementOperation(activeCpCommand?.operationId)}
+                    activeToolTransform={webglActiveToolTransform}
+                    onTextCreate={
+                      webglActiveTool.mode === 'text' ? annotations.createTextAt : undefined
+                    }
+                    onTextCreateBox={
+                      webglActiveTool.mode === 'text'
+                        ? annotations.createTextBoxFromDrag
+                        : undefined
+                    }
+                    voronoiSeeds={cpToolPoints}
+                    onVoronoiSeedsChange={handleWebglVoronoiSeeds}
+                    activeToolRequireSnap={isRestrictedDrawOperation(activeCpCommand?.operationId)}
+                    activeToolClickAction={toolClickAction(activeCpCommand?.operationId)}
+                    resolveDrawPoint={resolveEditableDrawModelPoint}
+                    resolveDrawPointOnCrease={resolveEditableDrawPointOnCrease}
+                    resolveFirstPickKind={resolveEditableFirstPickKind}
+                    onToolCommit={handleWebglToolCommit}
+                    onToolPreviewInput={handleWebglToolPreviewInput}
+                    onToolPickProgress={handleWebglToolPickProgress}
+                    onToolSnapKind={setCpMeasureSnapKind}
+                    toolCommandPreviewSegments={cpPreviewSegments}
+                    toolCommandHighlightSegments={webglToolHighlightSegments}
+                    toolReplacedLineIds={vertexSolve.replacedLineIds}
+                    toolCommandPreviewPoints={webglToolPreviewPoints}
+                    toolPreviewColor={toolPreviewColor}
+                    diagnosticMarkers={cpDiagnosticGeometry.markers}
+                    diagnosticStrokes={cpDiagnosticGeometry.strokes}
+                    diagnosticWedges={cpDiagnosticGeometry.wedges}
+                    operationFrame={cpOperationFrameStrokes}
+                    panToolActive={panToolActive}
+                    wheelGesture={cpWheelGesture}
+                    onRotationChange={setViewRotation}
+                    onZoomPercentChange={handleWebglZoomPercent}
+                    onViewChange={handleWebglViewChange}
+                    {...documentCamera}
+                    activeToolModelAlignedBox={isModelAlignedBoxOperation(
+                      activeCpCommand?.operationId,
+                    )}
+                    onEraseBox={(points) => {
+                      void executeOristudioCpCommand('LineSegmentDelete', {
+                        line_ids: [],
+                        points: [...points],
+                      });
+                    }}
+                    onEraseLine={(id) => {
+                      void executeOristudioCpCommand('LineSegmentDelete', { line_ids: [id] });
+                    }}
+                    onEraseCircle={(id) => {
+                      void executeOristudioCpCommand('LineSegmentDelete', { circle_ids: [id] });
+                    }}
+                    onRequestContextMenu={handleRequestContextMenu}
+                    mode={mode}
+                    lineStyle={oristudioCpViewport.lineStyle ?? DEFAULT_ORISTUDIO_CP_LINE_STYLE}
+                    foldAngleDisplay={
+                      oristudioCpViewport.foldAngleDisplay ??
+                      DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY
+                    }
+                    lineWidth={oristudioCpViewport.lineWidth ?? 1}
+                    points={editableCp.crease_pattern.points}
+                    vertices={editableCpVertexPoints}
+                    pointSize={oristudioCpViewport.pointSize ?? 1}
+                    circles={editableCp.crease_pattern.circles}
+                    circleRadiusToSvg={editableCircleRadiusToSvg}
+                    foldedFigures={generatedFoldedFigures}
+                    staleFoldedFigureIds={staleFoldedFigureIds}
+                    windowedFoldedFigureIds={folded.windowIds}
+                    importedForms={cpImportedFoldedFormsGeometry}
+                    grid={editableCpVisibleGrid}
+                    gridVisible={oristudioCpViewport.gridVisible}
+                  />
+                  <ContextMenu
+                    open={foldedContextMenu !== null}
+                    x={foldedContextMenu?.x ?? 0}
+                    y={foldedContextMenu?.y ?? 0}
+                    items={foldedContextMenu?.items ?? []}
+                    onOpenChange={(open) => {
+                      if (!open) setFoldedContextMenu(null);
+                    }}
+                  />
+                  {webglOverlayView &&
+                    isCpMeasurementOperation(activeCpCommand?.operationId) &&
+                    cpToolState.phase === 'active' && (
+                      <CpMeasureLayer
+                        measurements={cpMeasurements}
+                        hoveredIndex={cpHoveredMeasureIndex}
+                        liveKind={cpMeasureKind ?? 'distance'}
+                        livePoints={cpMeasureLivePoints}
+                        liveValue={cpMeasureLiveValue}
+                        liveSnapLabel={
+                          cpMeasurePicked > 0 &&
+                          cpMeasurePicked < cpMeasurePointCount(cpMeasureKind ?? 'distance')
+                            ? measureSnapLabel(t, cpMeasureSnapKind)
+                            : null
+                        }
+                        unit={cpMeasurePreferences.unit}
+                        angleUnit={cpMeasurePreferences.angleUnit}
+                        scale={cpMeasureScale}
+                      />
+                    )}
+                  {webglOverlayView && (
+                    <CpFoldAngleLayer
+                      lineSegments={editableCp?.crease_pattern.line_segments}
+                      toolCandidates={cpPreviewSegments}
                     />
                   )}
-                {webglOverlayView && (
-                  <CpFoldAngleLayer
-                    lineSegments={editableCp?.crease_pattern.line_segments}
-                    toolCandidates={cpPreviewSegments}
-                  />
-                )}
-                {/* Subscribes to the camera itself and renders nothing without
+                  {/* Subscribes to the camera itself and renders nothing without
                     an option, so it needs no gate of its own. */}
-                <CpToolOptionLayer option={vertexSolve.option} />
-                {webglOverlayView && (oristudioCpAnnotations.length > 0 || editingTextId) && (
-                  <CpTextAnnotationLayer
-                    annotations={oristudioCpAnnotations}
-                    editingTextId={editingTextId}
-                    toolbarContainer={toolbarContainer}
-                    onChangeText={annotations.changeTextContent}
-                    onExitEdit={annotations.exitEditText}
-                    onDelete={annotations.deleteEditingText}
-                    onSyncHeight={annotations.syncAnnotationHeight}
-                  />
-                )}
-                {webglOverlayView && canvasObjects.length > 0 && (
-                  <CanvasObjectOverlay
-                    objects={canvasObjects}
-                    selectedId={selectedCanvasObjectId}
-                    suppressedId={editingTextId}
-                    inertBodyIds={inertBodyIds}
-                    interactive={annotationsInteractive}
-                    onSelect={selectCanvasObject}
-                    onUpdate={handleCanvasObjectUpdate}
-                    onCropUpdate={annotations.applyCrop}
-                    onRequestEdit={annotations.requestEditText}
-                    onContextMenu={handleCanvasObjectContextMenu}
-                    canCrop={annotations.canCrop}
-                    onGestureStart={beginCanvasObjectGesture}
-                    onGestureCommit={commitCanvasObjectGesture}
-                  />
-                )}
-                {webglOverlayView && folded.windowFigures.length > 0 && (
-                  <Folded3dWindowLayer
-                    figures={folded.windowFigures}
-                    focusedId={folded.orbit.focusedId}
-                    staleIds={staleFoldedFigureIds}
-                  />
-                )}
-                {webglOverlayView && inlineSimulations.simulations.length > 0 && (
-                  <InlineSimulationLayer
-                    simulations={inlineSimulations.simulations}
-                    focusedId={inlineSimulations.focusedId}
-                    staleIds={inlineSimulations.staleIds}
-                    viewSettings={inlineSimulations.settings}
-                    playing={inlineSimulations.playing}
-                    overlayInteractive={annotationsInteractive}
-                    replayRequest={inlineSimulations.replayRequest}
-                    onFocus={inlineSimulations.focus}
-                    onPlayingChange={inlineSimulations.setPlaying}
-                  />
-                )}
-                {focusedInlineSimulation && (
-                  <InlineSimulationInspector
-                    simulation={focusedInlineSimulation}
-                    container={toolbarContainer}
-                    playing={inlineSimulations.playing}
-                    stale={inlineSimulations.staleIds.has(focusedInlineSimulation.id)}
-                    colorMode={inlineSimulations.settings.colorMode}
-                    onColorMode={(mode) => inlineSimulations.setSetting('colorMode', mode)}
-                    onTogglePlay={inlineSimulations.togglePlay}
-                    onScrub={(percent) =>
-                      inlineSimulations.scrub(focusedInlineSimulation.id, percent)
-                    }
-                    onSetUpright={inlineSimulations.setUpright}
-                    onReplay={inlineSimulations.replay}
-                    onExport={inlineSimulations.exportView}
-                    onRefresh={() => inlineSimulations.refresh(focusedInlineSimulation.id)}
-                    onDelete={() => inlineSimulations.remove(focusedInlineSimulation.id)}
-                  />
-                )}
-                {annotationsInteractive && selectedCpImage && !editingTextId && (
-                  <CpImageInspector
-                    image={selectedCpImage}
-                    container={toolbarContainer}
-                    onUpdate={(patch) => updateAnnotation(selectedCpImage.id, patch)}
-                    onGestureStart={annotations.beginGesture}
-                    onGestureCommit={annotations.commitGesture}
-                    onBringToFront={annotations.bringSelectedImageToFront}
-                    onSendToBack={annotations.sendSelectedImageToBack}
-                    onDelete={deleteSelectedImage}
-                  />
-                )}
-                {!editingTextId && !selectedCpImage && selectedFoldedFigure && (
-                  <CpFoldedFigureToolbar
-                    figure={selectedFoldedFigure}
-                    container={toolbarContainer}
-                    deps={foldedFigureActionDeps}
-                  />
-                )}
-                {/* Deliberately not gated on `annotationsInteractive`: that flag
+                  <CpToolOptionLayer option={vertexSolve.option} />
+                  {webglOverlayView && (oristudioCpAnnotations.length > 0 || editingTextId) && (
+                    <CpTextAnnotationLayer
+                      annotations={oristudioCpAnnotations}
+                      editingTextId={editingTextId}
+                      toolbarContainer={toolbarContainer}
+                      onChangeText={annotations.changeTextContent}
+                      onExitEdit={annotations.exitEditText}
+                      onDelete={annotations.deleteEditingText}
+                      onSyncHeight={annotations.syncAnnotationHeight}
+                    />
+                  )}
+                  {webglOverlayView && canvasObjects.length > 0 && (
+                    <CanvasObjectOverlay
+                      objects={canvasObjects}
+                      selectedId={selectedCanvasObjectId}
+                      suppressedId={editingTextId}
+                      inertBodyIds={inertBodyIds}
+                      interactive={annotationsInteractive}
+                      onSelect={selectCanvasObject}
+                      onUpdate={handleCanvasObjectUpdate}
+                      onCropUpdate={annotations.applyCrop}
+                      onRequestEdit={annotations.requestEditText}
+                      onContextMenu={handleCanvasObjectContextMenu}
+                      canCrop={annotations.canCrop}
+                      onGestureStart={beginCanvasObjectGesture}
+                      onGestureCommit={commitCanvasObjectGesture}
+                    />
+                  )}
+                  {webglOverlayView && folded.windowFigures.length > 0 && (
+                    <Folded3dWindowLayer
+                      figures={folded.windowFigures}
+                      focusedId={folded.orbit.focusedId}
+                      staleIds={staleFoldedFigureIds}
+                    />
+                  )}
+                  {webglOverlayView && inlineSimulations.simulations.length > 0 && (
+                    <InlineSimulationLayer
+                      simulations={inlineSimulations.simulations}
+                      focusedId={inlineSimulations.focusedId}
+                      staleIds={inlineSimulations.staleIds}
+                      viewSettings={inlineSimulations.settings}
+                      playing={inlineSimulations.playing}
+                      overlayInteractive={annotationsInteractive}
+                      replayRequest={inlineSimulations.replayRequest}
+                      onFocus={inlineSimulations.focus}
+                      onPlayingChange={inlineSimulations.setPlaying}
+                    />
+                  )}
+                  {focusedInlineSimulation && (
+                    <InlineSimulationInspector
+                      simulation={focusedInlineSimulation}
+                      container={toolbarContainer}
+                      playing={inlineSimulations.playing}
+                      stale={inlineSimulations.staleIds.has(focusedInlineSimulation.id)}
+                      colorMode={inlineSimulations.settings.colorMode}
+                      onColorMode={(mode) => inlineSimulations.setSetting('colorMode', mode)}
+                      onTogglePlay={inlineSimulations.togglePlay}
+                      onScrub={(percent) =>
+                        inlineSimulations.scrub(focusedInlineSimulation.id, percent)
+                      }
+                      onSetUpright={inlineSimulations.setUpright}
+                      onReplay={inlineSimulations.replay}
+                      onExport={inlineSimulations.exportView}
+                      onRefresh={() => inlineSimulations.refresh(focusedInlineSimulation.id)}
+                      onDelete={() => inlineSimulations.remove(focusedInlineSimulation.id)}
+                    />
+                  )}
+                  {annotationsInteractive && selectedCpImage && !editingTextId && (
+                    <CpImageInspector
+                      image={selectedCpImage}
+                      container={toolbarContainer}
+                      onUpdate={(patch) => updateAnnotation(selectedCpImage.id, patch)}
+                      onGestureStart={annotations.beginGesture}
+                      onGestureCommit={annotations.commitGesture}
+                      onBringToFront={annotations.bringSelectedImageToFront}
+                      onSendToBack={annotations.sendSelectedImageToBack}
+                      onDelete={deleteSelectedImage}
+                    />
+                  )}
+                  {!editingTextId && !selectedCpImage && selectedFoldedFigure && (
+                    <CpFoldedFigureToolbar
+                      figure={selectedFoldedFigure}
+                      container={toolbarContainer}
+                      deps={foldedFigureActionDeps}
+                    />
+                  )}
+                  {/* Deliberately not gated on `annotationsInteractive`: that flag
                     keeps *annotations* from stealing clicks while a drawing tool
                     is mid-gesture, and it is false for exactly the tools that
                     produce crease selections (Box Select and friends), which
                     would hide these actions whenever they are relevant. Only the
                     other floating toolbars are mutually exclusive with this one. */}
-                {!editingTextId && !selectedCpImage && !selectedFoldedFigure && (
-                  <CpSelectionToolbar container={toolbarContainer} />
-                )}
+                  {!editingTextId && !selectedCpImage && !selectedFoldedFigure && (
+                    <CpSelectionToolbar container={toolbarContainer} />
+                  )}
                 </>
               ) : (
                 <div className="cp-panel__unopened" role="status">
                   <span className="cp-panel__unopened-title">
-                    {t('panels:creasePattern.couldNotOpenForEditing', 'This crease pattern could not be opened for editing.')}
+                    {t(
+                      'panels:creasePattern.couldNotOpenForEditing',
+                      'This crease pattern could not be opened for editing.',
+                    )}
                   </span>
                   <span className="cp-panel__unopened-detail">
                     {t(
                       'panels:creasePattern.couldNotOpenForEditingHint',
-                      'It is shown read-only. You can still view, fold, and export it.'
+                      'It is shown read-only. You can still view, fold, and export it.',
                     )}
                   </span>
                   {/* The kernel's own reason. Without it this state is a dead end:
@@ -3141,7 +3131,10 @@ export function CreasePatternPanel() {
                 </div>
               )}
               <ViewportToolbar
-                ariaLabel={t('panels:creasePattern.viewportControls', 'Crease pattern viewport controls')}
+                ariaLabel={t(
+                  'panels:creasePattern.viewportControls',
+                  'Crease pattern viewport controls',
+                )}
                 zoomPercent={zoomPercent}
                 zoomIn={() => cpCamera()?.zoomIn()}
                 zoomOut={() => cpCamera()?.zoomOut()}
@@ -3154,11 +3147,15 @@ export function CreasePatternPanel() {
                 rotateView={(direction) =>
                   cpCamera()?.rotateBy(direction * VIEW_ROTATION_STEP_RADIANS)
                 }
-                setViewRotation={(degrees) =>
-                  cpCamera()?.rotateTo((degrees * Math.PI) / 180)
-                }
-                rotateCcwShortcutLabel={shortcutLabelForAction('viewport.rotateCcw', shortcutResolution)}
-                rotateCwShortcutLabel={shortcutLabelForAction('viewport.rotateCw', shortcutResolution)}
+                setViewRotation={(degrees) => cpCamera()?.rotateTo((degrees * Math.PI) / 180)}
+                rotateCcwShortcutLabel={shortcutLabelForAction(
+                  'viewport.rotateCcw',
+                  shortcutResolution,
+                )}
+                rotateCwShortcutLabel={shortcutLabelForAction(
+                  'viewport.rotateCw',
+                  shortcutResolution,
+                )}
               >
                 {editableCp && (
                   <>
@@ -3191,9 +3188,11 @@ export function CreasePatternPanel() {
                       <IconButton
                         size="sm"
                         variant="toolbar"
-                        title={foldShortcutLabel
-                          ? `${t('panels:creasePattern.fold', 'Fold')} (${foldShortcutLabel})`
-                          : t('panels:creasePattern.fold', 'Fold')}
+                        title={
+                          foldShortcutLabel
+                            ? `${t('panels:creasePattern.fold', 'Fold')} (${foldShortcutLabel})`
+                            : t('panels:creasePattern.fold', 'Fold')
+                        }
                         disabled={!canFoldSelectedModel}
                         onClick={folded.foldModel}
                       >
@@ -3253,10 +3252,18 @@ export function CreasePatternPanel() {
                 {editableCp && <span>{activeCpToolPrompt}</span>}
                 {editableCp && <span>{cpLineTypeStatusLabel(effectiveCpLineColor, t)}</span>}
                 {editableCp && editableCpSummary && (
-                  <span>{t('panels:creasePattern.linesCount', '{{count}} lines', { count: editableCpSummary.line_segments })}</span>
+                  <span>
+                    {t('panels:creasePattern.linesCount', '{{count}} lines', {
+                      count: editableCpSummary.line_segments,
+                    })}
+                  </span>
                 )}
                 {editableCp && editableSelectionSize > 0 && (
-                  <span>{t('panels:creasePattern.selectedCount', '{{count}} selected', { count: editableSelectionSize })}</span>
+                  <span>
+                    {t('panels:creasePattern.selectedCount', '{{count}} selected', {
+                      count: editableSelectionSize,
+                    })}
+                  </span>
                 )}
               </div>
             </div>
@@ -3270,7 +3277,9 @@ export function CreasePatternPanel() {
               </span>
             ) : (
               <>
-                <span title={status === 'error' ? (errorText ?? undefined) : undefined}>{emptyStatusLabel}</span>
+                <span title={status === 'error' ? (errorText ?? undefined) : undefined}>
+                  {emptyStatusLabel}
+                </span>
                 <NextDocumentAction />
               </>
             )}
@@ -3280,7 +3289,6 @@ export function CreasePatternPanel() {
     </section>
   );
 }
-
 
 function isRenderableGeneratedFoldedFigure(figure: OristudioCpFoldedFigureEntry): boolean {
   return Boolean(figure.renderSnapshot?.primitives.length || figure.snapshot?.wireframe);

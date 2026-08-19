@@ -46,17 +46,33 @@ describe('parking beside the crease pattern', () => {
     // Two blockers with a wide gap between them: the scan takes the gap rather
     // than jumping past everything, so deleting from a row does not make the
     // next object march off to the right forever.
-    expect(place(50, 50, [[100, 0, 150, 50], [400, 0, 450, 50]]).left).toBe(160);
+    expect(
+      place(50, 50, [
+        [100, 0, 150, 50],
+        [400, 0, 450, 50],
+      ]).left,
+    ).toBe(160);
   });
 
   it('skips a hole that is too narrow', () => {
     // Only 20 wide between them, and 50 is needed.
-    expect(place(50, 50, [[100, 0, 150, 50], [180, 0, 250, 50]]).left).toBe(260);
+    expect(
+      place(50, 50, [
+        [100, 0, 150, 50],
+        [180, 0, 250, 50],
+      ]).left,
+    ).toBe(260);
   });
 
   it('is unaffected by blocker ordering', () => {
-    const ordered = place(50, 50, [[100, 0, 150, 50], [180, 0, 250, 50]]);
-    const reversed = place(50, 50, [[180, 0, 250, 50], [100, 0, 150, 50]]);
+    const ordered = place(50, 50, [
+      [100, 0, 150, 50],
+      [180, 0, 250, 50],
+    ]);
+    const reversed = place(50, 50, [
+      [180, 0, 250, 50],
+      [100, 0, 150, 50],
+    ]);
     expect(reversed).toEqual(ordered);
   });
 
@@ -133,7 +149,7 @@ describe('frame conversions', () => {
     const blockerAt = (frameCentre: { x: number; y: number }) =>
       boxAabbInFrame(
         { center: pointFromFrame(frameCentre, angle), width: 10, height: 10, rotation: angle },
-        angle
+        angle,
       );
     const packAround = (blockers: ReturnType<typeof blockerAt>[]) =>
       firstFreeSlotBeside({

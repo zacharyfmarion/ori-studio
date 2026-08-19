@@ -60,7 +60,7 @@ export function foldedFigureOrbitClaimsPress(
   focusedId: string | null,
   figureId: string,
   box: AnnotationBox | null,
-  point: Vec2
+  point: Vec2,
 ): boolean {
   if (focusedId === null || focusedId !== figureId || box === null) return false;
   return boxContainsModelPoint(box, point);
@@ -79,7 +79,7 @@ export function foldedFigureOrbitClaimsPress(
  */
 export function beginFoldedFigureOrbit(
   camera: FoldedFigureCamera,
-  point: SimulatorOrbitPoint
+  point: SimulatorOrbitPoint,
 ): SimulatorOrbitDrag {
   return { x: point.x, y: point.y, yaw: camera.yaw, pitch: camera.pitch };
 }
@@ -104,7 +104,7 @@ export function beginFoldedFigureOrbit(
 export function advanceFoldedFigureOrbit(
   camera: FoldedFigureCamera,
   drag: SimulatorOrbitDrag,
-  point: SimulatorOrbitPoint
+  point: SimulatorOrbitPoint,
 ): FoldedFigureCamera {
   // A pointer that has not left the press is not a turn, and must return the
   // anchor *exactly*. Without this it does not: `normalizeAngle` round-trips
@@ -123,7 +123,7 @@ export function advanceFoldedFigureOrbit(
   const next = nextSimulatorOrbitView(
     { yaw: camera.yaw, pitch: camera.pitch, zoom: camera.zoom, orient: camera.orient },
     drag,
-    point
+    point,
   );
   // `orient` rides through every branch. A drag moves the eye; it never changes
   // which way the model is up, and dropping it here would quietly undo a
@@ -142,7 +142,7 @@ export function advanceFoldedFigureOrbit(
  */
 export function foldedFigureOrbitChanged(
   before: FoldedFigureCamera,
-  after: FoldedFigureCamera
+  after: FoldedFigureCamera,
 ): boolean {
   return before.yaw !== after.yaw || before.pitch !== after.pitch || before.zoom !== after.zoom;
 }

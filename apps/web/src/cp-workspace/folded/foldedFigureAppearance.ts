@@ -82,7 +82,7 @@ export const FOLDED_APPEARANCE_OPTIONS: readonly FoldedAppearanceOption[] = [
  */
 export function foldedAppearanceSupport(
   figure: OristudioCpFoldedFigureEntry,
-  option: FoldedAppearanceOption
+  option: FoldedAppearanceOption,
 ): FoldedAppearanceSupport {
   switch (option) {
     case 'scale':
@@ -117,7 +117,7 @@ export function foldedAppearanceSupport(
 /** Whether a control should be offered at all. `not-applicable` never is. */
 export function foldedAppearanceVisible(
   figure: OristudioCpFoldedFigureEntry,
-  option: FoldedAppearanceOption
+  option: FoldedAppearanceOption,
 ): boolean {
   return foldedAppearanceSupport(figure, option) !== 'not-applicable';
 }
@@ -125,7 +125,7 @@ export function foldedAppearanceVisible(
 /** Whether an offered control should be interactive. */
 export function foldedAppearanceEnabled(
   figure: OristudioCpFoldedFigureEntry,
-  option: FoldedAppearanceOption
+  option: FoldedAppearanceOption,
 ): boolean {
   return foldedAppearanceSupport(figure, option) === 'supported';
 }

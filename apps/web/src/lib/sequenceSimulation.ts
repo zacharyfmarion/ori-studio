@@ -20,15 +20,14 @@ export interface SequenceStepSimulation {
 }
 
 export type SequenceStepSimulationResult =
-  | { ok: true; simulation: SequenceStepSimulation }
-  | { ok: false; reason: string };
+  { ok: true; simulation: SequenceStepSimulation } | { ok: false; reason: string };
 
 const MANUAL_COLLAPSE_WARNING =
   'Approximate manual collapse preview. This is not a validated fold decomposition.';
 
 export function buildSequenceStepSimulation(
   plan: SequencePlan | null | undefined,
-  stepId: string
+  stepId: string,
 ): SequenceStepSimulationResult {
   if (!plan) return unavailable('No sequence plan is available.');
   const stepIndex = plan.steps.findIndex((candidate) => candidate.id === stepId);
@@ -44,7 +43,9 @@ export function buildSequenceStepSimulation(
     return unavailable('The selected step references state data that is no longer available.');
   }
   if (!sameTopology(beforeState.document, afterState.document)) {
-    return unavailable('The selected step changes topology, so it cannot be simulated step-locally.');
+    return unavailable(
+      'The selected step changes topology, so it cannot be simulated step-locally.',
+    );
   }
 
   const affectedCreases = affectedCreasesForStep(step);
@@ -62,7 +63,7 @@ export function buildSequenceStepSimulation(
   const fold = cloneFoldDocument(afterState.document);
   fold.frame_title = `${step.label} simulation`;
   fold.edges_assignment = ranges.map((range, edge) =>
-    simulationAssignmentForRange(afterState.document, edge, range.fromAngle, range.toAngle)
+    simulationAssignmentForRange(afterState.document, edge, range.fromAngle, range.toAngle),
   );
   fold.edges_foldAngle = ranges.map((range) => range.toAngle);
 
@@ -106,7 +107,7 @@ function affectedFacesForStep(step: SequenceInstructionStep): number[] {
 
 function uniqueSorted(values: number[]): number[] {
   return Array.from(new Set(values.filter((value) => Number.isInteger(value) && value >= 0))).sort(
-    (a, b) => a - b
+    (a, b) => a - b,
   );
 }
 
@@ -127,7 +128,7 @@ function simulationAssignmentForRange(
   document: FoldDocument,
   edge: number,
   fromAngle: number,
-  toAngle: number
+  toAngle: number,
 ): FoldAssignment {
   const existing = document.edges_assignment?.[edge];
   if (fromAngle === 0 && toAngle === 0 && existing && isBoundaryAssignment(existing)) {

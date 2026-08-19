@@ -46,10 +46,7 @@ export function GalleryView({ examples, selectedId, onOpen, onUpload }: GalleryV
     });
   }, [examples, query]);
 
-  const columnCount = Math.max(
-    1,
-    Math.floor((width + CELL_GAP_PX) / (CELL_MIN_PX + CELL_GAP_PX)),
-  );
+  const columnCount = Math.max(1, Math.floor((width + CELL_GAP_PX) / (CELL_MIN_PX + CELL_GAP_PX)));
   const cellSize =
     width > 0 ? (width - CELL_GAP_PX * (columnCount - 1)) / columnCount : CELL_MIN_PX;
   const rowHeight = cellSize + ROW_LABEL_PX + CELL_GAP_PX;
@@ -96,7 +93,9 @@ export function GalleryView({ examples, selectedId, onOpen, onUpload }: GalleryV
                 >
                   {rowItems.map((example) => (
                     <button
-                      className={example.id === selectedId ? 'gallery-cell selected' : 'gallery-cell'}
+                      className={
+                        example.id === selectedId ? 'gallery-cell selected' : 'gallery-cell'
+                      }
                       key={example.id}
                       onClick={() => onOpen(example.id)}
                       style={{ width: cellSize }}

@@ -27,7 +27,9 @@ async function main() {
     }
     const sourcePath = resolve(debugRoot, row.debug);
     const sample = JSON.parse(await readFile(sourcePath, 'utf8'));
-    const cropSize = Number(options.cropSize ?? sample.manifest?.inference?.crop_size ?? sample.options?.crop_size ?? 96);
+    const cropSize = Number(
+      options.cropSize ?? sample.manifest?.inference?.crop_size ?? sample.options?.crop_size ?? 96,
+    );
     const mergedVertices = mergeDecodedVertexRefinerVertices(
       sample.rawVertices as VertexRefinerDecodedVertex[],
       sample.proposals as VertexRefinerProposal[],
@@ -82,7 +84,11 @@ async function main() {
     ok_count: rows.filter((row) => row.ok).length,
     samples: rows,
   };
-  await writeFile(resolve(outDir, 'run_manifest.json'), `${JSON.stringify(runManifest, null, 2)}\n`, 'utf8');
+  await writeFile(
+    resolve(outDir, 'run_manifest.json'),
+    `${JSON.stringify(runManifest, null, 2)}\n`,
+    'utf8',
+  );
 }
 
 function numberOption(value: string | undefined, fallback: number): number {

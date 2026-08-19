@@ -14,9 +14,8 @@ vi.mock('../cpSegmentationArtifacts', () => ({
   peekCpSegmentationArtifacts: vi.fn(() => segmentationArtifacts()),
 }));
 
-const { ensureCpSegmentationArtifacts, peekCpSegmentationArtifacts } = await import(
-  '../cpSegmentationArtifacts'
-);
+const { ensureCpSegmentationArtifacts, peekCpSegmentationArtifacts } =
+  await import('../cpSegmentationArtifacts');
 
 // Two bordered squares sharing a middle wall; left region = line ids [1,3,5,7,8].
 // The same fixture CpSelectionToolbar's tests use, so the toolbar's render gate
@@ -73,7 +72,7 @@ function makeLine(
   ay: number,
   bx: number,
   by: number,
-  color: string
+  color: string,
 ): OristudioCpLineSegment {
   return {
     a: { x: ax, y: ay },
@@ -128,7 +127,7 @@ describe('resolveInlineSimulationRegion', () => {
 
   it('rejects a selection spanning two regions', async () => {
     await expect(
-      resolveInlineSimulationRegion(makeDocument(), [...LEFT_REGION, 2, 4, 6, 9])
+      resolveInlineSimulationRegion(makeDocument(), [...LEFT_REGION, 2, 4, 6, 9]),
     ).resolves.toBeNull();
   });
 

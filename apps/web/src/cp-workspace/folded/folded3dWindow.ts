@@ -16,11 +16,7 @@
  * or not at all.
  */
 
-import {
-  fitExtent,
-  type OrbitView,
-  type RenderSettings,
-} from '@treemaker/origami-simulator';
+import { fitExtent, type OrbitView, type RenderSettings } from '@treemaker/origami-simulator';
 import type {
   OristudioCpFolded3dRenderModel,
   OristudioCpFoldedFigureDisplayStyle,
@@ -69,7 +65,7 @@ import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from './foldedFigur
  */
 export function canWindowFolded3dFigure(
   figure: OristudioCpFoldedFigureEntry,
-  options: { gpuAvailable: boolean }
+  options: { gpuAvailable: boolean },
 ): boolean {
   if (!options.gpuAvailable) return false;
   if (!isFolded3dFigure(figure)) return false;
@@ -82,7 +78,7 @@ export function canWindowFolded3dFigure(
 /** The figures that get a window, as a set the scene can subtract. */
 export function folded3dWindowIds(
   figures: readonly OristudioCpFoldedFigureEntry[],
-  options: { gpuAvailable: boolean }
+  options: { gpuAvailable: boolean },
 ): ReadonlySet<string> {
   const ids = new Set<string>();
   for (const figure of figures) {
@@ -209,7 +205,7 @@ export function folded3dWindowRenderSettings(options: {
     lighting: style.lighting,
     creaseWidthPx: Math.max(
       0.5,
-      FOLDED_3D_WINDOW_CREASE_WIDTH_PX * Math.max(1, options.devicePixelRatio)
+      FOLDED_3D_WINDOW_CREASE_WIDTH_PX * Math.max(1, options.devicePixelRatio),
     ),
     faceAlpha: plan.faceAlpha * style.faceAlpha,
     creaseDepthBias: FOLDED_3D_CREASE_DEPTH_BIAS,
@@ -261,7 +257,7 @@ export function folded3dMeshPayload(mesh: Folded3dMesh): {
 
 /** The render model a figure would be meshed from, or undefined. */
 export function folded3dFigureModel(
-  figure: OristudioCpFoldedFigureEntry
+  figure: OristudioCpFoldedFigureEntry,
 ): OristudioCpFolded3dRenderModel | undefined {
   return folded3dRenderModel(figure.handle);
 }

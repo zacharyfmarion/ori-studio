@@ -5,29 +5,29 @@ import {
   useRef,
   type PointerEvent as ReactPointerEvent,
   type Ref,
-} from "react";
-import type { RenderSettings } from "@treemaker/origami-simulator";
+} from 'react';
+import type { RenderSettings } from '@treemaker/origami-simulator';
 import {
   drawFrame,
   invalidateSimulatorSurface,
   type SimulatorHighlights,
   EMPTY_HIGHLIGHTS,
-} from "./canvas2dFrame";
+} from './canvas2dFrame';
 import {
   resolveSimulatorPaint,
   type SimulatorPaint,
   type SimulatorSurfaceOptions,
-} from "./simulatorPalette";
-import type { SimulatorFrameView } from "./useSimulatorRuntime";
-import type { SimulatorRenderModel } from "./renderModel";
+} from './simulatorPalette';
+import type { SimulatorFrameView } from './useSimulatorRuntime';
+import type { SimulatorRenderModel } from './renderModel';
 import {
   clampSimulatorZoom,
   nextSimulatorOrbitView,
   setUprightView,
   simulatorWheelZoomFactor,
   type SimulatorOrbitView as SimulatorView,
-} from "../lib/simulatorOrbit";
-import type { SimulatorSettings as SimulatorViewSettings } from "../lib/simulatorSettings";
+} from '../lib/simulatorOrbit';
+import type { SimulatorSettings as SimulatorViewSettings } from '../lib/simulatorSettings';
 
 /**
  * The simulator's drawing surface: a canvas, an orbit camera, and whatever it
@@ -74,7 +74,7 @@ export const DEFAULT_SIMULATOR_VIEW: SimulatorView = {
  */
 function withSurfaceFraming(
   settings: RenderSettings,
-  surface: SimulatorSurfaceOptions
+  surface: SimulatorSurfaceOptions,
 ): RenderSettings {
   return {
     ...settings,
@@ -282,7 +282,7 @@ export function SimulatorViewport({
         element && bitmapPresent ? element.getContext('bitmaprenderer') : null;
       onCanvasChange(element);
     },
-    [onCanvasChange, bitmapPresent]
+    [onCanvasChange, bitmapPresent],
   );
 
   /**
@@ -331,7 +331,7 @@ export function SimulatorViewport({
     const paint = resolveSimulatorPaint(
       getComputedStyle(canvas),
       viewSettingsRef.current,
-      surfaceOptionsRef.current
+      surfaceOptionsRef.current,
     );
     paintRef.current = paint;
     if (gpuActiveRef.current) pushRenderSettings(paint.render);
@@ -401,7 +401,7 @@ export function SimulatorViewport({
   }, [highlights, drawCurrentFrame]);
 
   useEffect(() => {
-    if (typeof ResizeObserver === "undefined") return;
+    if (typeof ResizeObserver === 'undefined') return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const observer = new ResizeObserver(() => {
@@ -420,14 +420,14 @@ export function SimulatorViewport({
   // the theme flips. Watching the documentElement's class/data attributes covers
   // both the app's own toggle and an OS-level change.
   useEffect(() => {
-    if (typeof MutationObserver === "undefined") return;
+    if (typeof MutationObserver === 'undefined') return;
     const observer = new MutationObserver(() => {
       invalidateSimulatorSurface(canvasRef.current);
       refreshPaint();
     });
     observer.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ["class", "data-theme"],
+      attributeFilter: ['class', 'data-theme'],
     });
     return () => observer.disconnect();
   }, [refreshPaint]);
@@ -475,7 +475,7 @@ export function SimulatorViewport({
       };
       pushView();
     },
-    [pushView]
+    [pushView],
   );
 
   useImperativeHandle(
@@ -500,7 +500,7 @@ export function SimulatorViewport({
         drawCurrentFrame();
       },
     }),
-    [resetView, setUpright, zoomBy, drawCurrentFrame, presentBitmap, pushView]
+    [resetView, setUpright, zoomBy, drawCurrentFrame, presentBitmap, pushView],
   );
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -563,8 +563,8 @@ export function SimulatorViewport({
       pushView();
     };
 
-    canvas.addEventListener("wheel", onWheel, { passive: false });
-    return () => canvas.removeEventListener("wheel", onWheel);
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', onWheel);
   }, [canvasKey, pushView]);
 
   return (

@@ -109,11 +109,14 @@ export function createFillProgram(regl: Regl, options: FillProgramOptions = {}):
     },
     blend: {
       enable: true,
-      func: { srcRGB: 1, srcAlpha: 1, dstRGB: 'one minus src alpha', dstAlpha: 'one minus src alpha' },
+      func: {
+        srcRGB: 1,
+        srcAlpha: 1,
+        dstRGB: 'one minus src alpha',
+        dstAlpha: 'one minus src alpha',
+      },
     },
-    depth: options.depthOrdered
-      ? { enable: true, mask: true, func: 'lequal' }
-      : { enable: false },
+    depth: options.depthOrdered ? { enable: true, mask: true, func: 'lequal' } : { enable: false },
     count: (_ctx, props) => props.vertexCount,
   });
 

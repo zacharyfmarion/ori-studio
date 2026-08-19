@@ -1,5 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_DESIGN_TITLE, clearActiveDesignContent, markActiveTabBoxPleat, activeDesignTab, createDesignTab, designMethodOf, initialDesignTabs, nextDesignTabId, resetDesignTabIds, selectDesignMethod, singleDesignTab, type DesignTab, uniqueDesignTitle, withActiveTab } from './designTabs';
+import {
+  DEFAULT_DESIGN_TITLE,
+  clearActiveDesignContent,
+  markActiveTabBoxPleat,
+  activeDesignTab,
+  createDesignTab,
+  designMethodOf,
+  initialDesignTabs,
+  nextDesignTabId,
+  resetDesignTabIds,
+  selectDesignMethod,
+  singleDesignTab,
+  type DesignTab,
+  uniqueDesignTitle,
+  withActiveTab,
+} from './designTabs';
 
 beforeEach(() => {
   resetDesignTabIds();

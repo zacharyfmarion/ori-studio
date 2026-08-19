@@ -30,7 +30,7 @@ describe('treeDotPx', () => {
       for (const isLeaf of [true, false]) {
         expect(treeDotPx(sizes, isLeaf, true) / treeDotPx(sizes, isLeaf, false)).toBeCloseTo(
           TREE_DOT_SELECTED_SCALE,
-          10
+          10,
         );
       }
     }

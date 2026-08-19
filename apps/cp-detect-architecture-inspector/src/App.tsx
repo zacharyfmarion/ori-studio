@@ -1,6 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { DragEvent as ReactDragEvent, FormEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
-import { Activity, CheckCircle2, CircleDot, GitBranch, Grid3x3, ImagePlus, Layers3, ListFilter, Loader2, Play, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import type {
+  DragEvent as ReactDragEvent,
+  FormEvent,
+  MouseEvent as ReactMouseEvent,
+  PointerEvent as ReactPointerEvent,
+} from 'react';
+import {
+  Activity,
+  CheckCircle2,
+  CircleDot,
+  GitBranch,
+  Grid3x3,
+  ImagePlus,
+  Layers3,
+  ListFilter,
+  Loader2,
+  Play,
+  RefreshCw,
+  SlidersHorizontal,
+} from 'lucide-react';
 import { GalleryView } from './GalleryView';
 import {
   fetchStage1Example,
@@ -66,9 +84,18 @@ const ASSIGNMENT_LABELS: Record<number, string> = {
 };
 
 type ProbeKindId = 'vertex' | 'carrier' | 'boundary';
-type ProbeStatusId = 'feasible' | 'low_cost' | 'high_cost' | 'infeasible' | 'odd_degree' | 'hard_kawasaki';
+type ProbeStatusId =
+  'feasible' | 'low_cost' | 'high_cost' | 'infeasible' | 'odd_degree' | 'hard_kawasaki';
 type ProbeVisibility = Record<ProbeStatusId, Record<ProbeKindId, boolean>>;
-type Stage4IssueFilter = 'all' | 'hard_kawasaki' | 'odd_degree' | 'infeasible' | 'high_cost' | 'vertex' | 'carrier' | 'boundary';
+type Stage4IssueFilter =
+  | 'all'
+  | 'hard_kawasaki'
+  | 'odd_degree'
+  | 'infeasible'
+  | 'high_cost'
+  | 'vertex'
+  | 'carrier'
+  | 'boundary';
 
 interface Stage4Issue {
   id: string;
@@ -115,12 +142,48 @@ const PROBE_STATUS_ROWS: Array<{
   color: string;
   kinds: ProbeKindId[];
 }> = [
-  { id: 'feasible', label: 'Feasible', note: 'already locally exact', color: '#16a34a', kinds: ['vertex', 'carrier', 'boundary'] },
-  { id: 'low_cost', label: 'Low cost', note: 'small movement should fix local geometry', color: '#0891b2', kinds: ['vertex', 'carrier', 'boundary'] },
-  { id: 'high_cost', label: 'High cost', note: 'possible but expensive or evidence-moving', color: '#f59e0b', kinds: ['vertex', 'carrier', 'boundary'] },
-  { id: 'infeasible', label: 'Infeasible', note: 'topology or movement budget blocker', color: '#dc2626', kinds: ['vertex', 'carrier', 'boundary'] },
-  { id: 'odd_degree', label: 'Odd vertices', note: 'geometry cannot repair odd degree', color: '#ef4444', kinds: ['vertex'] },
-  { id: 'hard_kawasaki', label: 'Hard Kawasaki', note: 'large local angle residuals', color: '#9333ea', kinds: ['vertex'] },
+  {
+    id: 'feasible',
+    label: 'Feasible',
+    note: 'already locally exact',
+    color: '#16a34a',
+    kinds: ['vertex', 'carrier', 'boundary'],
+  },
+  {
+    id: 'low_cost',
+    label: 'Low cost',
+    note: 'small movement should fix local geometry',
+    color: '#0891b2',
+    kinds: ['vertex', 'carrier', 'boundary'],
+  },
+  {
+    id: 'high_cost',
+    label: 'High cost',
+    note: 'possible but expensive or evidence-moving',
+    color: '#f59e0b',
+    kinds: ['vertex', 'carrier', 'boundary'],
+  },
+  {
+    id: 'infeasible',
+    label: 'Infeasible',
+    note: 'topology or movement budget blocker',
+    color: '#dc2626',
+    kinds: ['vertex', 'carrier', 'boundary'],
+  },
+  {
+    id: 'odd_degree',
+    label: 'Odd vertices',
+    note: 'geometry cannot repair odd degree',
+    color: '#ef4444',
+    kinds: ['vertex'],
+  },
+  {
+    id: 'hard_kawasaki',
+    label: 'Hard Kawasaki',
+    note: 'large local angle residuals',
+    color: '#9333ea',
+    kinds: ['vertex'],
+  },
 ];
 
 const ISSUE_FILTERS: Array<{ id: Stage4IssueFilter; label: string }> = [
@@ -135,17 +198,29 @@ const ISSUE_FILTERS: Array<{ id: Stage4IssueFilter; label: string }> = [
 ];
 
 const ISSUE_LIST_LIMIT_PER_TYPE = 10;
-const UPLOAD_QUAD_HANDLES: UploadQuadHandle[] = ['top_left', 'top_right', 'bottom_right', 'bottom_left'];
+const UPLOAD_QUAD_HANDLES: UploadQuadHandle[] = [
+  'top_left',
+  'top_right',
+  'bottom_right',
+  'bottom_left',
+];
 const DEFAULT_UPLOAD_IMAGE_SIZE = 1024;
 
-type ActiveStage = 'stage0' | 'stage0b' | 'stage1' | 'stage2' | 'stage4' | 'stage5' | 'stage5b' | 'stage6';
-type AnyStageResponse = Stage0Response | Stage0bResponse | Stage1Response | Stage2Response | Stage3Response | Stage4Response | Stage5Response | Stage5bResponse | Stage6Response;
+type ActiveStage =
+  'stage0' | 'stage0b' | 'stage1' | 'stage2' | 'stage4' | 'stage5' | 'stage5b' | 'stage6';
+type AnyStageResponse =
+  | Stage0Response
+  | Stage0bResponse
+  | Stage1Response
+  | Stage2Response
+  | Stage3Response
+  | Stage4Response
+  | Stage5Response
+  | Stage5bResponse
+  | Stage6Response;
 type AuditCategoryId = 'selected' | 'locked' | 'available' | 'conflict' | 'dominated' | 'rejected';
 type CandidateGenerationStrategy =
-  | 'legacy-threshold'
-  | 'legacy-topology-v2'
-  | 'junction-carrier-v1'
-  | 'junction-first-v1';
+  'legacy-threshold' | 'legacy-topology-v2' | 'junction-carrier-v1' | 'junction-first-v1';
 type DataMode = 'samples' | 'upload';
 type UploadBusy = 'opening' | 'rectifying' | 'checking-refiner' | 'building' | null;
 type UploadQuadHandle = 'top_left' | 'top_right' | 'bottom_right' | 'bottom_left';
@@ -226,7 +301,8 @@ export function App() {
   const [activeStage, setActiveStage] = useState<ActiveStage>(() => readUrlStage() ?? 'stage6');
   const [threshold, setThreshold] = useState(0.65);
   const [mapSize, setMapSize] = useState(192);
-  const [candidateStrategy, setCandidateStrategy] = useState<CandidateGenerationStrategy>('junction-first-v1');
+  const [candidateStrategy, setCandidateStrategy] =
+    useState<CandidateGenerationStrategy>('junction-first-v1');
   const [legacyLowThreshold, setLegacyLowThreshold] = useState(0.35);
   const [legacySnapRadiusPx, setLegacySnapRadiusPx] = useState(12);
   const [exactSolveTimeoutSeconds, setExactSolveTimeoutSeconds] = useState<number | null>(null);
@@ -268,7 +344,9 @@ export function App() {
   const [showExactFailures, setShowExactFailures] = useState(true);
   const [showTopologyIssues, setShowTopologyIssues] = useState(true);
   // Stage 2 candidate-graph controls.
-  const [candidateColorBy, setCandidateColorBy] = useState<'assignment' | 'policy' | 'confidence'>('assignment');
+  const [candidateColorBy, setCandidateColorBy] = useState<'assignment' | 'policy' | 'confidence'>(
+    'assignment',
+  );
   const [showCandidateConflicts, setShowCandidateConflicts] = useState(false);
   const [minCandidateConfidence, setMinCandidateConfidence] = useState(0);
   const [selectedCandidateId, setSelectedCandidateId] = useState<number | null>(null);
@@ -282,7 +360,9 @@ export function App() {
   });
   const [auditLookup, setAuditLookup] = useState('');
   const [selectedAuditTarget, setSelectedAuditTarget] = useState<string | null>(null);
-  const [probeVisibility, setProbeVisibility] = useState<ProbeVisibility>(() => defaultProbeVisibility());
+  const [probeVisibility, setProbeVisibility] = useState<ProbeVisibility>(() =>
+    defaultProbeVisibility(),
+  );
   const [stage4IssueFilter, setStage4IssueFilter] = useState<Stage4IssueFilter>('all');
   const [selectedStage4IssueId, setSelectedStage4IssueId] = useState<string | null>(null);
   const [selectedMapId, setSelectedMapId] = useState('line_probability');
@@ -299,7 +379,9 @@ export function App() {
   const [reloadToken, setReloadToken] = useState(0);
   // The gallery grid is the default landing view; opening a sample (or starting
   // an upload) switches to the per-stage inspector.
-  const [view, setView] = useState<'gallery' | 'inspector'>(() => (readUrlSample() ? 'inspector' : 'gallery'));
+  const [view, setView] = useState<'gallery' | 'inspector'>(() =>
+    readUrlSample() ? 'inspector' : 'gallery',
+  );
   const [dataMode, setDataMode] = useState<DataMode>('samples');
   const [uploadSource, setUploadSource] = useState<UploadSourceImage | null>(null);
   const [uploadQuad, setUploadQuad] = useState<UploadQuad | null>(null);
@@ -493,7 +575,13 @@ export function App() {
         setServerOk(true);
         setServerError(null);
         setExamples(exampleResponse.rows);
-        setSelectedId((current) => current ?? defaultExampleForStage(exampleResponse.rows, activeStage)?.id ?? exampleResponse.rows[0]?.id ?? null);
+        setSelectedId(
+          (current) =>
+            current ??
+            defaultExampleForStage(exampleResponse.rows, activeStage)?.id ??
+            exampleResponse.rows[0]?.id ??
+            null,
+        );
       })
       .catch((error: unknown) => {
         if (cancelled) return;
@@ -507,7 +595,13 @@ export function App() {
   }, [activeStage]);
 
   useEffect(() => {
-    if (dataMode === 'upload' || !selectedId || activeStage === 'stage0' || activeStage === 'stage0b') return;
+    if (
+      dataMode === 'upload' ||
+      !selectedId ||
+      activeStage === 'stage0' ||
+      activeStage === 'stage0b'
+    )
+      return;
     let cancelled = false;
     setStage(null);
     setLoadingStage(true);
@@ -515,19 +609,23 @@ export function App() {
       activeStage === 'stage6'
         ? fetchStage6Example(selectedId, queryControls)
         : activeStage === 'stage5b'
-        ? fetchStage5bExample(selectedId, queryControls)
-        : activeStage === 'stage5'
-        ? fetchStage5Example(selectedId, queryControls)
-        : activeStage === 'stage4'
-        ? fetchStage4Example(selectedId, queryControls)
-        : activeStage === 'stage2'
-          ? fetchStage2Example(selectedId, queryControls)
-          : fetchStage1Example(selectedId, queryControls);
+          ? fetchStage5bExample(selectedId, queryControls)
+          : activeStage === 'stage5'
+            ? fetchStage5Example(selectedId, queryControls)
+            : activeStage === 'stage4'
+              ? fetchStage4Example(selectedId, queryControls)
+              : activeStage === 'stage2'
+                ? fetchStage2Example(selectedId, queryControls)
+                : fetchStage1Example(selectedId, queryControls);
     request
       .then((payload) => {
         if (cancelled) return;
         setStage(payload);
-        setSelectedMapId((current) => (payload.maps.some((map) => map.id === current) ? current : (payload.maps[0]?.id ?? current)));
+        setSelectedMapId((current) =>
+          payload.maps.some((map) => map.id === current)
+            ? current
+            : (payload.maps[0]?.id ?? current),
+        );
       })
       .catch((error: unknown) => {
         if (cancelled) return;
@@ -541,7 +639,10 @@ export function App() {
     };
   }, [selectedId, activeStage, dataMode, queryControls, reloadToken]);
 
-  const currentStage = dataMode === 'upload' ? uploadRun?.stages[activeStage as keyof UploadedInspectorRunBundle['stages']] ?? null : stage;
+  const currentStage =
+    dataMode === 'upload'
+      ? (uploadRun?.stages[activeStage as keyof UploadedInspectorRunBundle['stages']] ?? null)
+      : stage;
   const currentTopology = stageTopology(currentStage);
   const topologyOverlay = showTopologyIssues ? currentTopology : null;
   const stage0b = activeStage === 'stage0b' && isStage0b(currentStage) ? currentStage : null;
@@ -581,7 +682,8 @@ export function App() {
   }, [selectedV3CropIndex, stage0b]);
 
   const selectedMap = useMemo(
-    () => currentStage?.maps.find((map) => map.id === selectedMapId) ?? currentStage?.maps[0] ?? null,
+    () =>
+      currentStage?.maps.find((map) => map.id === selectedMapId) ?? currentStage?.maps[0] ?? null,
     [selectedMapId, currentStage?.maps],
   );
 
@@ -625,7 +727,11 @@ export function App() {
     };
   }, [showDense, currentStage, selectedMapId]);
 
-  const stage4Issues = useMemo(() => (activeStage === 'stage4' && isStage4(currentStage) ? buildStage4Issues(currentStage) : []), [activeStage, currentStage]);
+  const stage4Issues = useMemo(
+    () =>
+      activeStage === 'stage4' && isStage4(currentStage) ? buildStage4Issues(currentStage) : [],
+    [activeStage, currentStage],
+  );
   const filteredStage4Issues = useMemo(
     () => filterStage4Issues(stage4Issues, stage4IssueFilter),
     [stage4IssueFilter, stage4Issues],
@@ -658,7 +764,9 @@ export function App() {
       return;
     }
     setSelectedStage4IssueId((current) =>
-      current && filteredStage4Issues.some((issue) => issue.id === current) ? current : (filteredStage4Issues[0]?.id ?? null),
+      current && filteredStage4Issues.some((issue) => issue.id === current)
+        ? current
+        : (filteredStage4Issues[0]?.id ?? null),
     );
   }, [activeStage, filteredStage4Issues]);
 
@@ -739,7 +847,11 @@ export function App() {
     setUploadError(null);
     try {
       const client = getInspectorUploadClient();
-      const rectified = await client.manualRectifyImage(uploadSource.image, uploadQuad, DEFAULT_UPLOAD_IMAGE_SIZE);
+      const rectified = await client.manualRectifyImage(
+        uploadSource.image,
+        uploadQuad,
+        DEFAULT_UPLOAD_IMAGE_SIZE,
+      );
       await setNextRectified(rectified);
       setVertexRefinerStatus(null);
       setVertexRefinerError(null);
@@ -814,7 +926,16 @@ export function App() {
     } finally {
       setUploadBusy(null);
     }
-  }, [candidateStrategy, exactSolveTimeoutSeconds, legacyLowThreshold, legacySnapRadiusPx, threshold, uploadRectified, uploadSource?.name, vertexRefinerEnabled]);
+  }, [
+    candidateStrategy,
+    exactSolveTimeoutSeconds,
+    legacyLowThreshold,
+    legacySnapRadiusPx,
+    threshold,
+    uploadRectified,
+    uploadSource?.name,
+    vertexRefinerEnabled,
+  ]);
 
   const onUploadDrop = useCallback(
     (event: ReactDragEvent<HTMLDivElement>) => {
@@ -862,852 +983,1194 @@ export function App() {
           }}
         />
       ) : (
-      <main className="workspace">
-        <aside className="sample-panel">
-          <div className="sample-panel-header">
-            <PanelTitle icon={<CircleDot size={17} />} title={dataMode === 'upload' ? 'Upload' : 'Samples'} />
-            <div className="mode-switch" aria-label="Data source">
-              <button className={dataMode === 'samples' ? 'selected' : ''} onClick={() => setDataMode('samples')}>
-                Samples
-              </button>
-              <button className={dataMode === 'upload' ? 'selected' : ''} onClick={() => setDataMode('upload')}>
-                Upload
-              </button>
+        <main className="workspace">
+          <aside className="sample-panel">
+            <div className="sample-panel-header">
+              <PanelTitle
+                icon={<CircleDot size={17} />}
+                title={dataMode === 'upload' ? 'Upload' : 'Samples'}
+              />
+              <div className="mode-switch" aria-label="Data source">
+                <button
+                  className={dataMode === 'samples' ? 'selected' : ''}
+                  onClick={() => setDataMode('samples')}
+                >
+                  Samples
+                </button>
+                <button
+                  className={dataMode === 'upload' ? 'selected' : ''}
+                  onClick={() => setDataMode('upload')}
+                >
+                  Upload
+                </button>
+              </div>
             </div>
-          </div>
-          {dataMode === 'samples' ? (
-            <div className="sample-list">
-              {examples.length > 0 ? (
-                examples.map((example) => (
+            {dataMode === 'samples' ? (
+              <div className="sample-list">
+                {examples.length > 0 ? (
+                  examples.map((example) => (
+                    <button
+                      className={example.id === selectedId ? 'sample-row selected' : 'sample-row'}
+                      key={example.id}
+                      onClick={() => setSelectedId(example.id)}
+                    >
+                      <strong>{example.source_id ?? example.id}</strong>
+                      <span>
+                        {example.family ?? 'unknown'} · {example.profile ?? 'unknown'} ·{' '}
+                        {example.edge_count ?? 0} GT edges
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="sample-empty">
+                    <strong>No cached samples</strong>
+                    <span>Upload an image, or start the backend with a dense-cache manifest.</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div
+                className={`upload-panel${uploadDropActive ? ' drop-active' : ''}`}
+                onDragEnter={(event) => {
+                  event.preventDefault();
+                  setUploadDropActive(true);
+                }}
+                onDragOver={(event) => event.preventDefault()}
+                onDragLeave={(event) => {
+                  event.preventDefault();
+                  setUploadDropActive(false);
+                }}
+                onDrop={onUploadDrop}
+              >
+                <input
+                  accept="image/png,image/jpeg,image/webp"
+                  hidden
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0];
+                    event.currentTarget.value = '';
+                    if (file) void loadUploadFile(file);
+                  }}
+                  ref={uploadFileInputRef}
+                  type="file"
+                />
+                <button
+                  className="upload-action primary"
+                  disabled={uploadBusy !== null}
+                  onClick={chooseUploadImage}
+                >
+                  <ImagePlus size={15} />
+                  Choose Image
+                </button>
+                <div className="upload-refiner-box">
+                  <label className="upload-toggle">
+                    <input
+                      checked={vertexRefinerEnabled}
+                      onChange={(event) => setVertexRefinerEnabled(event.currentTarget.checked)}
+                      type="checkbox"
+                    />
+                    <span>V3 refiner</span>
+                  </label>
                   <button
-                    className={example.id === selectedId ? 'sample-row selected' : 'sample-row'}
-                    key={example.id}
-                    onClick={() => setSelectedId(example.id)}
+                    className="upload-action"
+                    disabled={uploadBusy !== null}
+                    onClick={() => void verifyVertexRefiner()}
                   >
-                    <strong>{example.source_id ?? example.id}</strong>
+                    <CheckCircle2 size={14} />
+                    Check V3
+                  </button>
+                  {vertexRefinerStatus ? (
+                    <div className="upload-status">{vertexRefinerStatus}</div>
+                  ) : null}
+                  {vertexRefinerError ? (
+                    <div className="upload-error">{vertexRefinerError}</div>
+                  ) : null}
+                </div>
+                <div className="upload-drop-hint">Drop image here</div>
+                {uploadBusy ? (
+                  <div className="upload-status">
+                    <Loader2 size={14} className="spinner" />
+                    {uploadBusyLabel(uploadBusy)}
+                  </div>
+                ) : null}
+                {uploadError ? <div className="upload-error">{uploadError}</div> : null}
+                {uploadSource ? (
+                  <div className="upload-preview-stack">
+                    <strong>{uploadSource.name}</strong>
+                    <UploadCropEditor
+                      dragging={uploadDragging}
+                      imageRef={uploadSourceImageRef}
+                      onDragHandle={setUploadDragging}
+                      onUpdateQuad={setUploadQuad}
+                      quad={uploadQuad}
+                      source={uploadSource}
+                    />
+                    <button
+                      className="upload-action"
+                      disabled={!uploadQuad || uploadBusy !== null}
+                      onClick={rerunUploadRectification}
+                    >
+                      <RefreshCw size={14} />
+                      Update Crop
+                    </button>
+                  </div>
+                ) : null}
+                {uploadRectified ? (
+                  <div className="upload-preview-stack">
+                    <strong>Rectified</strong>
+                    <CanvasImage image={uploadRectified.image} />
+                    <button
+                      className="upload-action primary"
+                      disabled={uploadBusy !== null}
+                      onClick={runUploadedInspector}
+                    >
+                      <Play size={14} />
+                      Run Inspector
+                    </button>
+                  </div>
+                ) : null}
+                {uploadRun ? (
+                  <button
+                    className="sample-row selected upload-run-row"
+                    onClick={() => setActiveStage('stage6')}
+                  >
+                    <strong>{uploadRun.sample.source_id ?? uploadRun.sample.id}</strong>
                     <span>
-                      {example.family ?? 'unknown'} · {example.profile ?? 'unknown'} · {example.edge_count ?? 0} GT edges
+                      {uploadRun.stages.stage6.selection.report.selected_spans} selected spans · no
+                      GT
                     </span>
                   </button>
-                ))
-              ) : (
-                <div className="sample-empty">
-                  <strong>No cached samples</strong>
-                  <span>Upload an image, or start the backend with a dense-cache manifest.</span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div
-              className={`upload-panel${uploadDropActive ? ' drop-active' : ''}`}
-              onDragEnter={(event) => {
-                event.preventDefault();
-                setUploadDropActive(true);
-              }}
-              onDragOver={(event) => event.preventDefault()}
-              onDragLeave={(event) => {
-                event.preventDefault();
-                setUploadDropActive(false);
-              }}
-              onDrop={onUploadDrop}
-            >
-              <input
-                accept="image/png,image/jpeg,image/webp"
-                hidden
-                onChange={(event) => {
-                  const file = event.currentTarget.files?.[0];
-                  event.currentTarget.value = '';
-                  if (file) void loadUploadFile(file);
-                }}
-                ref={uploadFileInputRef}
-                type="file"
-              />
-              <button className="upload-action primary" disabled={uploadBusy !== null} onClick={chooseUploadImage}>
-                <ImagePlus size={15} />
-                Choose Image
-              </button>
-              <div className="upload-refiner-box">
-                <label className="upload-toggle">
-                  <input
-                    checked={vertexRefinerEnabled}
-                    onChange={(event) => setVertexRefinerEnabled(event.currentTarget.checked)}
-                    type="checkbox"
-                  />
-                  <span>V3 refiner</span>
-                </label>
-                <button className="upload-action" disabled={uploadBusy !== null} onClick={() => void verifyVertexRefiner()}>
-                  <CheckCircle2 size={14} />
-                  Check V3
-                </button>
-                {vertexRefinerStatus ? <div className="upload-status">{vertexRefinerStatus}</div> : null}
-                {vertexRefinerError ? <div className="upload-error">{vertexRefinerError}</div> : null}
+                ) : null}
               </div>
-              <div className="upload-drop-hint">Drop image here</div>
-              {uploadBusy ? (
-                <div className="upload-status">
-                  <Loader2 size={14} className="spinner" />
-                  {uploadBusyLabel(uploadBusy)}
-                </div>
-              ) : null}
-              {uploadError ? <div className="upload-error">{uploadError}</div> : null}
-              {uploadSource ? (
-                <div className="upload-preview-stack">
-                  <strong>{uploadSource.name}</strong>
-                  <UploadCropEditor
-                    dragging={uploadDragging}
-                    imageRef={uploadSourceImageRef}
-                    onDragHandle={setUploadDragging}
-                    onUpdateQuad={setUploadQuad}
-                    quad={uploadQuad}
-                    source={uploadSource}
+            )}
+          </aside>
+
+          <section className="main-panel">
+            <div className="controls-panel">
+              <PanelTitle icon={<SlidersHorizontal size={17} />} title="Evidence Extraction" />
+              <label>
+                Stage
+                <select
+                  value={activeStage}
+                  onChange={(event) => setActiveStage(event.target.value as ActiveStage)}
+                >
+                  {dataMode === 'upload' ? (
+                    <option value="stage0">Stage 0: raw dense outputs</option>
+                  ) : null}
+                  {dataMode === 'upload' && uploadRun?.stages.stage0b ? (
+                    <option value="stage0b">Stage 0b: V3 crop refiner</option>
+                  ) : null}
+                  <option value="stage1">Stage 1: dense evidence</option>
+                  <option value="stage2">Stage 2: candidate generation</option>
+                  <option value="stage4">Stage 4: exactizability probes</option>
+                  <option value="stage5">Stage 5: beam vs ground truth</option>
+                  <option value="stage5b">Stage 5b: decision audit</option>
+                  <option value="stage6">Stage 6: exact solve</option>
+                </select>
+              </label>
+              <label>
+                Threshold
+                <input
+                  min="0.05"
+                  max="0.95"
+                  step="0.01"
+                  type="number"
+                  value={threshold}
+                  onChange={(event) => setThreshold(Number(event.target.value))}
+                />
+              </label>
+              {activeStage !== 'stage4' &&
+              activeStage !== 'stage5' &&
+              activeStage !== 'stage5b' &&
+              activeStage !== 'stage6' ? (
+                <label>
+                  Map size
+                  <input
+                    min="64"
+                    max="1024"
+                    step="32"
+                    type="number"
+                    value={mapSize}
+                    onChange={(event) => setMapSize(Number(event.target.value))}
                   />
-                  <button className="upload-action" disabled={!uploadQuad || uploadBusy !== null} onClick={rerunUploadRectification}>
-                    <RefreshCw size={14} />
-                    Update Crop
-                  </button>
-                </div>
+                </label>
               ) : null}
-              {uploadRectified ? (
-                <div className="upload-preview-stack">
-                  <strong>Rectified</strong>
-                  <CanvasImage image={uploadRectified.image} />
-                  <button className="upload-action primary" disabled={uploadBusy !== null} onClick={runUploadedInspector}>
-                    <Play size={14} />
-                    Run Inspector
-                  </button>
-                </div>
+              {activeStage !== 'stage4' &&
+              activeStage !== 'stage5' &&
+              activeStage !== 'stage5b' &&
+              activeStage !== 'stage6' ? (
+                <label>
+                  Background
+                  <select
+                    value={background}
+                    onChange={(event) => setBackground(event.target.value)}
+                  >
+                    {BACKGROUND_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option.replaceAll('_', ' ')}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               ) : null}
-              {uploadRun ? (
-                <button className="sample-row selected upload-run-row" onClick={() => setActiveStage('stage6')}>
-                  <strong>{uploadRun.sample.source_id ?? uploadRun.sample.id}</strong>
-                  <span>{uploadRun.stages.stage6.selection.report.selected_spans} selected spans · no GT</span>
-                </button>
+              {activeStage === 'stage5' || activeStage === 'stage5b' || activeStage === 'stage6' ? (
+                <label>
+                  Candidate strategy
+                  <select
+                    value={candidateStrategy}
+                    onChange={(event) =>
+                      setCandidateStrategy(event.target.value as CandidateGenerationStrategy)
+                    }
+                  >
+                    <option value="junction-first-v1">Junction-first v1 (default)</option>
+                    <option value="junction-carrier-v1">Junction/carrier v1</option>
+                    <option value="legacy-topology-v2">Legacy topology v2</option>
+                    <option value="legacy-threshold">Legacy threshold</option>
+                  </select>
+                </label>
               ) : null}
+              {activeStage === 'stage5' || activeStage === 'stage5b' || activeStage === 'stage6' ? (
+                <label>
+                  Weak threshold
+                  <input
+                    max={threshold}
+                    min={0.05}
+                    onChange={(event) => setLegacyLowThreshold(Number(event.target.value))}
+                    step={0.01}
+                    type="number"
+                    value={legacyLowThreshold}
+                  />
+                </label>
+              ) : null}
+              {activeStage === 'stage5' || activeStage === 'stage5b' || activeStage === 'stage6' ? (
+                <label>
+                  Snap radius px
+                  <input
+                    max={128}
+                    min={0}
+                    onChange={(event) => setLegacySnapRadiusPx(Number(event.target.value))}
+                    step={1}
+                    type="number"
+                    value={legacySnapRadiusPx}
+                  />
+                </label>
+              ) : null}
+              {activeStage === 'stage6' ? (
+                <label>
+                  Exact timeout s
+                  <input
+                    min={-1}
+                    onChange={(event) =>
+                      setExactSolveTimeoutSeconds(
+                        event.target.value === '' ? null : Number(event.target.value),
+                      )
+                    }
+                    placeholder="default"
+                    step={1}
+                    type="number"
+                    value={exactSolveTimeoutSeconds ?? ''}
+                  />
+                </label>
+              ) : null}
+              <button
+                className="refresh-button"
+                disabled={
+                  dataMode === 'upload'
+                    ? !uploadRectified || uploadBusy !== null
+                    : !selectedId || loadingStage
+                }
+                onClick={dataMode === 'upload' ? runUploadedInspector : refreshStage}
+              >
+                {dataMode === 'upload' ? <Play size={16} /> : <RefreshCw size={16} />}
+                {dataMode === 'upload' ? 'Run' : 'Refresh'}
+              </button>
             </div>
-          )}
-        </aside>
 
-        <section className="main-panel">
-          <div className="controls-panel">
-            <PanelTitle icon={<SlidersHorizontal size={17} />} title="Evidence Extraction" />
-            <label>
-              Stage
-              <select value={activeStage} onChange={(event) => setActiveStage(event.target.value as ActiveStage)}>
-                {dataMode === 'upload' ? <option value="stage0">Stage 0: raw dense outputs</option> : null}
-                {dataMode === 'upload' && uploadRun?.stages.stage0b ? <option value="stage0b">Stage 0b: V3 crop refiner</option> : null}
-                <option value="stage1">Stage 1: dense evidence</option>
-                <option value="stage2">Stage 2: candidate generation</option>
-                <option value="stage4">Stage 4: exactizability probes</option>
-                <option value="stage5">Stage 5: beam vs ground truth</option>
-                <option value="stage5b">Stage 5b: decision audit</option>
-                <option value="stage6">Stage 6: exact solve</option>
-              </select>
-            </label>
-            <label>
-              Threshold
-              <input
-                min="0.05"
-                max="0.95"
-                step="0.01"
-                type="number"
-                value={threshold}
-                onChange={(event) => setThreshold(Number(event.target.value))}
-              />
-            </label>
-            {activeStage !== 'stage4' && activeStage !== 'stage5' && activeStage !== 'stage5b' && activeStage !== 'stage6' ? (
-              <label>
-                Map size
-                <input
-                  min="64"
-                  max="1024"
-                  step="32"
-                  type="number"
-                  value={mapSize}
-                  onChange={(event) => setMapSize(Number(event.target.value))}
-                />
-              </label>
+            {serverError && dataMode === 'samples' ? (
+              <div className="error-panel">{serverError}</div>
             ) : null}
-            {activeStage !== 'stage4' && activeStage !== 'stage5' && activeStage !== 'stage5b' && activeStage !== 'stage6' ? (
-              <label>
-                Background
-                <select value={background} onChange={(event) => setBackground(event.target.value)}>
-                  {BACKGROUND_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option.replaceAll('_', ' ')}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-            {activeStage === 'stage5' || activeStage === 'stage5b' || activeStage === 'stage6' ? (
-              <label>
-                Candidate strategy
-                <select value={candidateStrategy} onChange={(event) => setCandidateStrategy(event.target.value as CandidateGenerationStrategy)}>
-                  <option value="junction-first-v1">Junction-first v1 (default)</option>
-                  <option value="junction-carrier-v1">Junction/carrier v1</option>
-                  <option value="legacy-topology-v2">Legacy topology v2</option>
-                  <option value="legacy-threshold">Legacy threshold</option>
-                </select>
-              </label>
-            ) : null}
-            {activeStage === 'stage5' || activeStage === 'stage5b' || activeStage === 'stage6' ? (
-              <label>
-                Weak threshold
-                <input
-                  max={threshold}
-                  min={0.05}
-                  onChange={(event) => setLegacyLowThreshold(Number(event.target.value))}
-                  step={0.01}
-                  type="number"
-                  value={legacyLowThreshold}
-                />
-              </label>
-            ) : null}
-            {activeStage === 'stage5' || activeStage === 'stage5b' || activeStage === 'stage6' ? (
-              <label>
-                Snap radius px
-                <input
-                  max={128}
-                  min={0}
-                  onChange={(event) => setLegacySnapRadiusPx(Number(event.target.value))}
-                  step={1}
-                  type="number"
-                  value={legacySnapRadiusPx}
-                />
-              </label>
-            ) : null}
+
             {activeStage === 'stage6' ? (
-              <label>
-                Exact timeout s
-                <input
-                  min={-1}
-                  onChange={(event) =>
-                    setExactSolveTimeoutSeconds(event.target.value === '' ? null : Number(event.target.value))
-                  }
-                  placeholder="default"
-                  step={1}
-                  type="number"
-                  value={exactSolveTimeoutSeconds ?? ''}
-                />
-              </label>
-            ) : null}
-            <button
-              className="refresh-button"
-              disabled={dataMode === 'upload' ? !uploadRectified || uploadBusy !== null : !selectedId || loadingStage}
-              onClick={dataMode === 'upload' ? runUploadedInspector : refreshStage}
-            >
-              {dataMode === 'upload' ? <Play size={16} /> : <RefreshCw size={16} />}
-              {dataMode === 'upload' ? 'Run' : 'Refresh'}
-            </button>
-          </div>
-
-          {serverError && dataMode === 'samples' ? <div className="error-panel">{serverError}</div> : null}
-
-          {activeStage === 'stage6' ? (
-            <section className="summary-grid">
-              <Metric label="exact status" value={stage6?.exact_solve.status ?? '...'} />
-              <Metric label="recovered GT" value={stage6 ? solveRecoveryLabel(stage6) : '...'} />
-              <Metric
-                label="Kawasaki"
-                value={
-                  stage6
-                    ? `${formatDegrees(stage6.exact_solve.theorem_residual_report.before.max_kawasaki_residual_degrees)} → ${formatDegrees(
-                        stage6.exact_solve.theorem_residual_report.after.max_kawasaki_residual_degrees,
-                      )}`
-                    : '...'
-                }
-              />
-              <Metric
-                label="Maekawa fails"
-                value={
-                  stage6
-                    ? `${stage6.exact_solve.theorem_residual_report.before.maekawa_failures.length} → ${stage6.exact_solve.theorem_residual_report.after.maekawa_failures.length}`
-                    : '...'
-                }
-              />
-              <Metric
-                label="odd vertices"
-                value={
-                  stage6
-                    ? `${stage6.exact_solve.theorem_residual_report.before.odd_degree_vertices.length} → ${stage6.exact_solve.theorem_residual_report.after.odd_degree_vertices.length}`
-                    : '...'
-                }
-              />
-              <Metric
-                label="carrier residual"
-                value={
-                  stage6
-                    ? `${formatMetricNumber(stage6.exact_solve.theorem_residual_report.before.max_carrier_residual, 5)} → ${formatMetricNumber(
-                        stage6.exact_solve.theorem_residual_report.after.max_carrier_residual,
-                        5,
-                      )}`
-                    : '...'
-                }
-              />
-              <Metric label="moved vertices" value={stage6 ? stage6.exact_solve.movement_report.moved_vertices.length : '...'} />
-              <Metric
-                label="max movement"
-                value={stage6 ? formatMetricNumber(stage6.exact_solve.movement_report.max_vertex_movement, 5) : '...'}
-              />
-              <Metric
-                label="objective"
-                value={
-                  stage6
-                    ? `${formatMetricNumber(stage6.exact_solve.movement_report.initial_objective, 2)} → ${formatMetricNumber(
-                        stage6.exact_solve.movement_report.final_objective,
-                        2,
-                      )}`
-                    : '...'
-                }
-              />
-              <Metric label="selected spans" value={stage6 ? stage6.selection.report.selected_spans : '...'} />
-              <Metric
-                label="GT graph"
-                value={stage6?.ground_truth ? `${stage6.ground_truth.vertices_px.length} V / ${stage6.ground_truth.edges_vertices.length} E` : 'none'}
-              />
-            </section>
-          ) : activeStage === 'stage5b' ? (
-            <section className="summary-grid">
-              <Metric label="candidates" value={stage5b ? stage5b.decision_audit.summary.total_candidates : '...'} />
-              <Metric label="selected" value={stage5b ? stage5b.decision_audit.summary.selected : '...'} />
-              <Metric label="available" value={stage5b ? stage5b.decision_audit.summary.available : '...'} />
-              <Metric label="conflicts" value={stage5b ? stage5b.decision_audit.summary.conflicted_with_selected : '...'} />
-              <Metric label="replaced" value={stage5b ? stage5b.decision_audit.summary.dominated_or_replaced : '...'} />
-              <Metric label="rejected" value={stage5b ? stage5b.decision_audit.summary.rejected : '...'} />
-              <Metric
-                label="GT selected"
-                value={
-                  stage5b
-                    ? `${stage5b.decision_audit.summary.gt_edges_with_selected_match} / ${stage5b.decision_audit.summary.gt_edges}`
-                    : '...'
-                }
-              />
-              <Metric label="strategy" value={stage5b?.candidate_strategy ?? candidateStrategy} />
-            </section>
-          ) : activeStage === 'stage5' ? (
-            <section className="summary-grid">
-              <Metric label="selected spans" value={stage5 ? stage5.selection.report.selected_spans : '...'} />
-              <Metric label="strategy" value={stage5?.candidate_strategy ?? candidateStrategy} />
-              <Metric label="candidates" value={candidateGraph?.report?.crease_candidates ?? '...'} />
-              <Metric label="weak candidates" value={candidateGraph?.report?.legacy_low_threshold_spans ?? '...'} />
-              <Metric label="conflicts" value={candidateGraph?.report?.conflicts ?? '...'} />
-              <Metric
-                label="span vertices"
-                value={stage5 ? new Set(stage5.selection.selected_spans.flatMap((span) => span.vertices)).size : '...'}
-              />
-              <Metric label="atomic provenance" value={stage5 ? stage5.selection.selected_edge_ids.length : '...'} />
-              <Metric
-                label="shared spans"
-                value={stage5 ? stage5.selection.selected_spans.filter((span) => span.kind === 'shared_carrier_span').length : '...'}
-              />
-              <Metric
-                label="normalized spans"
-                value={
-                  stage5
-                    ? stage5.selection.selected_spans.filter((span) => span.kind === 'normalized_pass_through_span').length
-                    : '...'
-                }
-              />
-              <Metric
-                label="collapsed vertices"
-                value={stage5 ? stage5.selection.selected_spans.reduce((sum, span) => sum + span.collapsed_vertex_ids.length, 0) : '...'}
-              />
-              <Metric label="weak promoted" value={stage5 ? stage5.selection.report.weak_edges_promoted : '...'} />
-              <Metric
-                label="GT graph"
-                value={stage5?.ground_truth ? `${stage5.ground_truth.vertices_px.length} V / ${stage5.ground_truth.edges_vertices.length} E` : 'none'}
-              />
-              <Metric
-                label="product decode"
-                value={stage5?.legacy_graph ? `${stage5.legacy_graph.vertices_px.length} V / ${stage5.legacy_graph.edges_vertices.length} E` : 'none'}
-              />
-            </section>
-          ) : activeStage === 'stage4' ? (
-            <section className="summary-grid">
-              <Metric label="probe verdicts" value={isStage4(currentStage) ? `${currentStage.exactizability.summary.infeasible} hard / ${currentStage.exactizability.summary.high_cost} high` : '...'} />
-              <Metric label="odd vertices" value={isStage4(currentStage) ? currentStage.exactizability.summary.odd_degree_vertices : '...'} />
-              <Metric
-                label="max Kawasaki"
-                value={isStage4(currentStage) ? `${currentStage.exactizability.summary.max_kawasaki_residual_degrees.toFixed(1)}°` : '...'}
-              />
-              <Metric
-                label="max vertex move"
-                value={isStage4(currentStage) ? currentStage.exactizability.summary.max_estimated_vertex_move.toFixed(4) : '...'}
-              />
-              <Metric
-                label="max carrier move"
-                value={isStage4(currentStage) ? currentStage.exactizability.summary.max_carrier_endpoint_move.toFixed(4) : '...'}
-              />
-            </section>
-          ) : activeStage === 'stage2' ? (
-            <section className="summary-grid">
-              <Metric label="crease candidates" value={isStage2(currentStage) ? currentStage.candidate_graph.report.crease_candidates : '...'} />
-              <Metric label="graph vertices" value={isStage2(currentStage) ? currentStage.candidate_graph.report.vertices : '...'} />
-              <Metric label="locked border spans" value={isStage2(currentStage) ? currentStage.candidate_graph.report.locked_border_spans : '...'} />
-              <Metric label="conflicts" value={isStage2(currentStage) ? currentStage.candidate_graph.report.conflicts : '...'} />
-              <Metric label="strategy" value={isStage2(currentStage) ? currentStage.candidate_strategy : '...'} />
-            </section>
-          ) : activeStage === 'stage0b' && stage0b ? (
-            <section className="summary-grid">
-              <Metric label="V3 model" value={stage0b.vertex_refiner.model_manifest_id} />
-              <Metric
-                label="proposal mode"
-                value={stage0b.vertex_refiner.proposal_mode ?? CP_DETECT_DEFAULT_VERTEX_REFINER_PROPOSAL_MODE}
-              />
-              <Metric label="crops" value={stage0b.vertex_refiner.proposal_count} />
-              <Metric label="regions" value={stage0b.vertex_refiner.refinement_regions?.length ?? 0} />
-              <Metric label="selected crop" value={`${selectedV3CropIndex + 1} / ${stage0b.vertex_refiner.proposal_count}`} />
-              <Metric label="raw in crop" value={v3CropDebug?.raw_vertices.length ?? '...'} />
-              <Metric label="merged from crop" value={v3CropDebug?.merged_vertices.length ?? '...'} />
-              <Metric label="all raw" value={stage0b.vertex_refiner.raw_prediction_count} />
-              <Metric label="all merged" value={stage0b.vertex_refiner.merged_vertex_count} />
-              <Metric label="crop size" value={stage0b.vertex_refiner.crop_size ?? 96} />
-            </section>
-          ) : activeStage === 'stage0' && isStage0(currentStage) ? (
-            <section className="summary-grid">
-              <Metric label="model" value={currentStage.model_manifest_id ?? 'unknown'} />
-              <Metric label="provider" value={currentStage.runtime?.active_execution_provider ?? 'unknown'} />
-              <Metric label="model run ms" value={formatMetricNumber(currentStage.runtime?.model_run_ms, 1)} />
-              <Metric label="outputs" value={currentStage.dense_outputs.length} />
-              <Metric label="junction source" value={currentStage.junction_source ?? 'dense-model'} />
-              <Metric label="V3 merged" value={currentStage.vertex_refiner?.merged_vertex_count ?? 'off'} />
-              <Metric label="image size" value={currentStage.config.image_size} />
-            </section>
-          ) : (
-            <section className="summary-grid">
-              <Metric label="line primitives" value={isStage1(currentStage) ? currentStage.report.line_primitives : '...'} />
-              <Metric label="junctions" value={isStage1(currentStage) ? currentStage.report.junction_primitives : '...'} />
-              <Metric label="boundary contacts" value={isStage1(currentStage) ? currentStage.report.boundary_contact_primitives : '...'} />
-              <Metric label="Hough segments" value={isStage1(currentStage) ? currentStage.report.hough_segments : '...'} />
-              <Metric label="legacy dependency" value={isStage1(currentStage) && currentStage.report.legacy_dependency === false ? 'false' : '...'} />
-            </section>
-          )}
-
-          <section
-            className={
-              activeStage === 'stage4'
-                ? 'viewer-and-maps stage4-viewer-layout'
-                : activeStage === 'stage0b'
-                  ? 'viewer-and-maps stage0b-viewer-layout'
-                : activeStage === 'stage5'
-                  ? 'viewer-and-maps stage5-viewer-layout'
-                  : activeStage === 'stage5b'
-                    ? 'viewer-and-maps stage5b-viewer-layout'
-                  : activeStage === 'stage6'
-                    ? 'viewer-and-maps stage6-viewer-layout'
-                  : 'viewer-and-maps'
-            }
-          >
-            <div className="viewer-panel">
-              <div className="viewer-toolbar">
-                <PanelTitle
-                  icon={activeStage !== 'stage1' && activeStage !== 'stage0' ? <GitBranch size={17} /> : <Layers3 size={17} />}
-                  title={
-                    activeStage === 'stage5b'
-                      ? 'Candidate Decision Audit'
-                      : activeStage === 'stage5'
-                      ? 'Selected Graph vs Ground Truth'
-                      : activeStage === 'stage6'
-                        ? 'Exact Solve Before / After'
-                      : activeStage === 'stage4'
-                      ? 'Input + Exactizability Probes'
-                      : activeStage === 'stage2'
-                      ? 'Predicted vs Ground Truth'
-                      : activeStage === 'stage0b'
-                        ? 'V3 Crop Refiner'
-                        : activeStage === 'stage0'
-                          ? 'Raw Dense Outputs'
-                        : 'Input + Stage 1 Primitives'
+              <section className="summary-grid">
+                <Metric label="exact status" value={stage6?.exact_solve.status ?? '...'} />
+                <Metric label="recovered GT" value={stage6 ? solveRecoveryLabel(stage6) : '...'} />
+                <Metric
+                  label="Kawasaki"
+                  value={
+                    stage6
+                      ? `${formatDegrees(stage6.exact_solve.theorem_residual_report.before.max_kawasaki_residual_degrees)} → ${formatDegrees(
+                          stage6.exact_solve.theorem_residual_report.after
+                            .max_kawasaki_residual_degrees,
+                        )}`
+                      : '...'
                   }
                 />
-                {currentTopology ? (
-                  <TopologyBadge
-                    topology={currentTopology}
-                    exactLabel={
-                      activeStage === 'stage2'
-                        ? 'all creases covered'
+                <Metric
+                  label="Maekawa fails"
+                  value={
+                    stage6
+                      ? `${stage6.exact_solve.theorem_residual_report.before.maekawa_failures.length} → ${stage6.exact_solve.theorem_residual_report.after.maekawa_failures.length}`
+                      : '...'
+                  }
+                />
+                <Metric
+                  label="odd vertices"
+                  value={
+                    stage6
+                      ? `${stage6.exact_solve.theorem_residual_report.before.odd_degree_vertices.length} → ${stage6.exact_solve.theorem_residual_report.after.odd_degree_vertices.length}`
+                      : '...'
+                  }
+                />
+                <Metric
+                  label="carrier residual"
+                  value={
+                    stage6
+                      ? `${formatMetricNumber(stage6.exact_solve.theorem_residual_report.before.max_carrier_residual, 5)} → ${formatMetricNumber(
+                          stage6.exact_solve.theorem_residual_report.after.max_carrier_residual,
+                          5,
+                        )}`
+                      : '...'
+                  }
+                />
+                <Metric
+                  label="moved vertices"
+                  value={stage6 ? stage6.exact_solve.movement_report.moved_vertices.length : '...'}
+                />
+                <Metric
+                  label="max movement"
+                  value={
+                    stage6
+                      ? formatMetricNumber(
+                          stage6.exact_solve.movement_report.max_vertex_movement,
+                          5,
+                        )
+                      : '...'
+                  }
+                />
+                <Metric
+                  label="objective"
+                  value={
+                    stage6
+                      ? `${formatMetricNumber(stage6.exact_solve.movement_report.initial_objective, 2)} → ${formatMetricNumber(
+                          stage6.exact_solve.movement_report.final_objective,
+                          2,
+                        )}`
+                      : '...'
+                  }
+                />
+                <Metric
+                  label="selected spans"
+                  value={stage6 ? stage6.selection.report.selected_spans : '...'}
+                />
+                <Metric
+                  label="GT graph"
+                  value={
+                    stage6?.ground_truth
+                      ? `${stage6.ground_truth.vertices_px.length} V / ${stage6.ground_truth.edges_vertices.length} E`
+                      : 'none'
+                  }
+                />
+              </section>
+            ) : activeStage === 'stage5b' ? (
+              <section className="summary-grid">
+                <Metric
+                  label="candidates"
+                  value={stage5b ? stage5b.decision_audit.summary.total_candidates : '...'}
+                />
+                <Metric
+                  label="selected"
+                  value={stage5b ? stage5b.decision_audit.summary.selected : '...'}
+                />
+                <Metric
+                  label="available"
+                  value={stage5b ? stage5b.decision_audit.summary.available : '...'}
+                />
+                <Metric
+                  label="conflicts"
+                  value={stage5b ? stage5b.decision_audit.summary.conflicted_with_selected : '...'}
+                />
+                <Metric
+                  label="replaced"
+                  value={stage5b ? stage5b.decision_audit.summary.dominated_or_replaced : '...'}
+                />
+                <Metric
+                  label="rejected"
+                  value={stage5b ? stage5b.decision_audit.summary.rejected : '...'}
+                />
+                <Metric
+                  label="GT selected"
+                  value={
+                    stage5b
+                      ? `${stage5b.decision_audit.summary.gt_edges_with_selected_match} / ${stage5b.decision_audit.summary.gt_edges}`
+                      : '...'
+                  }
+                />
+                <Metric label="strategy" value={stage5b?.candidate_strategy ?? candidateStrategy} />
+              </section>
+            ) : activeStage === 'stage5' ? (
+              <section className="summary-grid">
+                <Metric
+                  label="selected spans"
+                  value={stage5 ? stage5.selection.report.selected_spans : '...'}
+                />
+                <Metric label="strategy" value={stage5?.candidate_strategy ?? candidateStrategy} />
+                <Metric
+                  label="candidates"
+                  value={candidateGraph?.report?.crease_candidates ?? '...'}
+                />
+                <Metric
+                  label="weak candidates"
+                  value={candidateGraph?.report?.legacy_low_threshold_spans ?? '...'}
+                />
+                <Metric label="conflicts" value={candidateGraph?.report?.conflicts ?? '...'} />
+                <Metric
+                  label="span vertices"
+                  value={
+                    stage5
+                      ? new Set(stage5.selection.selected_spans.flatMap((span) => span.vertices))
+                          .size
+                      : '...'
+                  }
+                />
+                <Metric
+                  label="atomic provenance"
+                  value={stage5 ? stage5.selection.selected_edge_ids.length : '...'}
+                />
+                <Metric
+                  label="shared spans"
+                  value={
+                    stage5
+                      ? stage5.selection.selected_spans.filter(
+                          (span) => span.kind === 'shared_carrier_span',
+                        ).length
+                      : '...'
+                  }
+                />
+                <Metric
+                  label="normalized spans"
+                  value={
+                    stage5
+                      ? stage5.selection.selected_spans.filter(
+                          (span) => span.kind === 'normalized_pass_through_span',
+                        ).length
+                      : '...'
+                  }
+                />
+                <Metric
+                  label="collapsed vertices"
+                  value={
+                    stage5
+                      ? stage5.selection.selected_spans.reduce(
+                          (sum, span) => sum + span.collapsed_vertex_ids.length,
+                          0,
+                        )
+                      : '...'
+                  }
+                />
+                <Metric
+                  label="weak promoted"
+                  value={stage5 ? stage5.selection.report.weak_edges_promoted : '...'}
+                />
+                <Metric
+                  label="GT graph"
+                  value={
+                    stage5?.ground_truth
+                      ? `${stage5.ground_truth.vertices_px.length} V / ${stage5.ground_truth.edges_vertices.length} E`
+                      : 'none'
+                  }
+                />
+                <Metric
+                  label="product decode"
+                  value={
+                    stage5?.legacy_graph
+                      ? `${stage5.legacy_graph.vertices_px.length} V / ${stage5.legacy_graph.edges_vertices.length} E`
+                      : 'none'
+                  }
+                />
+              </section>
+            ) : activeStage === 'stage4' ? (
+              <section className="summary-grid">
+                <Metric
+                  label="probe verdicts"
+                  value={
+                    isStage4(currentStage)
+                      ? `${currentStage.exactizability.summary.infeasible} hard / ${currentStage.exactizability.summary.high_cost} high`
+                      : '...'
+                  }
+                />
+                <Metric
+                  label="odd vertices"
+                  value={
+                    isStage4(currentStage)
+                      ? currentStage.exactizability.summary.odd_degree_vertices
+                      : '...'
+                  }
+                />
+                <Metric
+                  label="max Kawasaki"
+                  value={
+                    isStage4(currentStage)
+                      ? `${currentStage.exactizability.summary.max_kawasaki_residual_degrees.toFixed(1)}°`
+                      : '...'
+                  }
+                />
+                <Metric
+                  label="max vertex move"
+                  value={
+                    isStage4(currentStage)
+                      ? currentStage.exactizability.summary.max_estimated_vertex_move.toFixed(4)
+                      : '...'
+                  }
+                />
+                <Metric
+                  label="max carrier move"
+                  value={
+                    isStage4(currentStage)
+                      ? currentStage.exactizability.summary.max_carrier_endpoint_move.toFixed(4)
+                      : '...'
+                  }
+                />
+              </section>
+            ) : activeStage === 'stage2' ? (
+              <section className="summary-grid">
+                <Metric
+                  label="crease candidates"
+                  value={
+                    isStage2(currentStage)
+                      ? currentStage.candidate_graph.report.crease_candidates
+                      : '...'
+                  }
+                />
+                <Metric
+                  label="graph vertices"
+                  value={
+                    isStage2(currentStage) ? currentStage.candidate_graph.report.vertices : '...'
+                  }
+                />
+                <Metric
+                  label="locked border spans"
+                  value={
+                    isStage2(currentStage)
+                      ? currentStage.candidate_graph.report.locked_border_spans
+                      : '...'
+                  }
+                />
+                <Metric
+                  label="conflicts"
+                  value={
+                    isStage2(currentStage) ? currentStage.candidate_graph.report.conflicts : '...'
+                  }
+                />
+                <Metric
+                  label="strategy"
+                  value={isStage2(currentStage) ? currentStage.candidate_strategy : '...'}
+                />
+              </section>
+            ) : activeStage === 'stage0b' && stage0b ? (
+              <section className="summary-grid">
+                <Metric label="V3 model" value={stage0b.vertex_refiner.model_manifest_id} />
+                <Metric
+                  label="proposal mode"
+                  value={
+                    stage0b.vertex_refiner.proposal_mode ??
+                    CP_DETECT_DEFAULT_VERTEX_REFINER_PROPOSAL_MODE
+                  }
+                />
+                <Metric label="crops" value={stage0b.vertex_refiner.proposal_count} />
+                <Metric
+                  label="regions"
+                  value={stage0b.vertex_refiner.refinement_regions?.length ?? 0}
+                />
+                <Metric
+                  label="selected crop"
+                  value={`${selectedV3CropIndex + 1} / ${stage0b.vertex_refiner.proposal_count}`}
+                />
+                <Metric label="raw in crop" value={v3CropDebug?.raw_vertices.length ?? '...'} />
+                <Metric
+                  label="merged from crop"
+                  value={v3CropDebug?.merged_vertices.length ?? '...'}
+                />
+                <Metric label="all raw" value={stage0b.vertex_refiner.raw_prediction_count} />
+                <Metric label="all merged" value={stage0b.vertex_refiner.merged_vertex_count} />
+                <Metric label="crop size" value={stage0b.vertex_refiner.crop_size ?? 96} />
+              </section>
+            ) : activeStage === 'stage0' && isStage0(currentStage) ? (
+              <section className="summary-grid">
+                <Metric label="model" value={currentStage.model_manifest_id ?? 'unknown'} />
+                <Metric
+                  label="provider"
+                  value={currentStage.runtime?.active_execution_provider ?? 'unknown'}
+                />
+                <Metric
+                  label="model run ms"
+                  value={formatMetricNumber(currentStage.runtime?.model_run_ms, 1)}
+                />
+                <Metric label="outputs" value={currentStage.dense_outputs.length} />
+                <Metric
+                  label="junction source"
+                  value={currentStage.junction_source ?? 'dense-model'}
+                />
+                <Metric
+                  label="V3 merged"
+                  value={currentStage.vertex_refiner?.merged_vertex_count ?? 'off'}
+                />
+                <Metric label="image size" value={currentStage.config.image_size} />
+              </section>
+            ) : (
+              <section className="summary-grid">
+                <Metric
+                  label="line primitives"
+                  value={isStage1(currentStage) ? currentStage.report.line_primitives : '...'}
+                />
+                <Metric
+                  label="junctions"
+                  value={isStage1(currentStage) ? currentStage.report.junction_primitives : '...'}
+                />
+                <Metric
+                  label="boundary contacts"
+                  value={
+                    isStage1(currentStage) ? currentStage.report.boundary_contact_primitives : '...'
+                  }
+                />
+                <Metric
+                  label="Hough segments"
+                  value={isStage1(currentStage) ? currentStage.report.hough_segments : '...'}
+                />
+                <Metric
+                  label="legacy dependency"
+                  value={
+                    isStage1(currentStage) && currentStage.report.legacy_dependency === false
+                      ? 'false'
+                      : '...'
+                  }
+                />
+              </section>
+            )}
+
+            <section
+              className={
+                activeStage === 'stage4'
+                  ? 'viewer-and-maps stage4-viewer-layout'
+                  : activeStage === 'stage0b'
+                    ? 'viewer-and-maps stage0b-viewer-layout'
+                    : activeStage === 'stage5'
+                      ? 'viewer-and-maps stage5-viewer-layout'
+                      : activeStage === 'stage5b'
+                        ? 'viewer-and-maps stage5b-viewer-layout'
                         : activeStage === 'stage6'
-                          ? 'recovered GT'
-                          : 'exact topology'
+                          ? 'viewer-and-maps stage6-viewer-layout'
+                          : 'viewer-and-maps'
+              }
+            >
+              <div className="viewer-panel">
+                <div className="viewer-toolbar">
+                  <PanelTitle
+                    icon={
+                      activeStage !== 'stage1' && activeStage !== 'stage0' ? (
+                        <GitBranch size={17} />
+                      ) : (
+                        <Layers3 size={17} />
+                      )
+                    }
+                    title={
+                      activeStage === 'stage5b'
+                        ? 'Candidate Decision Audit'
+                        : activeStage === 'stage5'
+                          ? 'Selected Graph vs Ground Truth'
+                          : activeStage === 'stage6'
+                            ? 'Exact Solve Before / After'
+                            : activeStage === 'stage4'
+                              ? 'Input + Exactizability Probes'
+                              : activeStage === 'stage2'
+                                ? 'Predicted vs Ground Truth'
+                                : activeStage === 'stage0b'
+                                  ? 'V3 Crop Refiner'
+                                  : activeStage === 'stage0'
+                                    ? 'Raw Dense Outputs'
+                                    : 'Input + Stage 1 Primitives'
                     }
                   />
-                ) : null}
-                {currentTopology ? (
-                  <label className="topology-toggle">
-                    <input
-                      type="checkbox"
-                      checked={showTopologyIssues}
-                      onChange={(event) => setShowTopologyIssues(event.target.checked)}
+                  {currentTopology ? (
+                    <TopologyBadge
+                      topology={currentTopology}
+                      exactLabel={
+                        activeStage === 'stage2'
+                          ? 'all creases covered'
+                          : activeStage === 'stage6'
+                            ? 'recovered GT'
+                            : 'exact topology'
+                      }
                     />
-                    topology issues
-                  </label>
-                ) : null}
-                {activeStage === 'stage0b' ? (
-                  <div className="toggle-row">
-                    <label>
-                      <input checked={showV3CropBoxes} onChange={(event) => setShowV3CropBoxes(event.target.checked)} type="checkbox" />
-                      crop boxes
-                    </label>
-                    <label>
-                      <input checked={showV3CropRawVertices} onChange={(event) => setShowV3CropRawVertices(event.target.checked)} type="checkbox" />
-                      raw crop vertices
-                    </label>
-                    <label>
-                      <input checked={showV3CropMergedVertices} onChange={(event) => setShowV3CropMergedVertices(event.target.checked)} type="checkbox" />
-                      merged vertices
-                    </label>
-                    <label>
-                      <input checked={showV3CropFrame} onChange={(event) => setShowV3CropFrame(event.target.checked)} type="checkbox" />
-                      frame
-                    </label>
-                  </div>
-                ) : activeStage === 'stage6' ? (
-                  <div className="toggle-row stage6-toggle-row">
-                    <label>
+                  ) : null}
+                  {currentTopology ? (
+                    <label className="topology-toggle">
                       <input
                         type="checkbox"
-                        checked={showExactBefore}
-                        onChange={(event) => setShowExactBefore(event.target.checked)}
+                        checked={showTopologyIssues}
+                        onChange={(event) => setShowTopologyIssues(event.target.checked)}
                       />
-                      selected before
+                      topology issues
                     </label>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={showExactAfter}
-                        onChange={(event) => setShowExactAfter(event.target.checked)}
-                      />
-                      exact solved
-                    </label>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={showExactMovement}
-                        onChange={(event) => setShowExactMovement(event.target.checked)}
-                      />
-                      movement
-                    </label>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={showExactFailures}
-                        onChange={(event) => setShowExactFailures(event.target.checked)}
-                      />
-                      failed vertices
-                    </label>
-                    {stage6?.ground_truth ? (
+                  ) : null}
+                  {activeStage === 'stage0b' ? (
+                    <div className="toggle-row">
+                      <label>
+                        <input
+                          checked={showV3CropBoxes}
+                          onChange={(event) => setShowV3CropBoxes(event.target.checked)}
+                          type="checkbox"
+                        />
+                        crop boxes
+                      </label>
+                      <label>
+                        <input
+                          checked={showV3CropRawVertices}
+                          onChange={(event) => setShowV3CropRawVertices(event.target.checked)}
+                          type="checkbox"
+                        />
+                        raw crop vertices
+                      </label>
+                      <label>
+                        <input
+                          checked={showV3CropMergedVertices}
+                          onChange={(event) => setShowV3CropMergedVertices(event.target.checked)}
+                          type="checkbox"
+                        />
+                        merged vertices
+                      </label>
+                      <label>
+                        <input
+                          checked={showV3CropFrame}
+                          onChange={(event) => setShowV3CropFrame(event.target.checked)}
+                          type="checkbox"
+                        />
+                        frame
+                      </label>
+                    </div>
+                  ) : activeStage === 'stage6' ? (
+                    <div className="toggle-row stage6-toggle-row">
                       <label>
                         <input
                           type="checkbox"
-                          checked={showGroundTruth}
-                          onChange={(event) => setShowGroundTruth(event.target.checked)}
+                          checked={showExactBefore}
+                          onChange={(event) => setShowExactBefore(event.target.checked)}
                         />
-                        GT graph
+                        selected before
                       </label>
-                    ) : null}
-                  </div>
-                ) : activeStage === 'stage5b' ? (
-                  <div className="toggle-row stage5b-toggle-row">
-                    {AUDIT_CATEGORIES.map((category) => (
-                      <label key={category.id}>
+                      <label>
                         <input
-                          checked={auditVisibility[category.id]}
+                          type="checkbox"
+                          checked={showExactAfter}
+                          onChange={(event) => setShowExactAfter(event.target.checked)}
+                        />
+                        exact solved
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={showExactMovement}
+                          onChange={(event) => setShowExactMovement(event.target.checked)}
+                        />
+                        movement
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={showExactFailures}
+                          onChange={(event) => setShowExactFailures(event.target.checked)}
+                        />
+                        failed vertices
+                      </label>
+                      {stage6?.ground_truth ? (
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={showGroundTruth}
+                            onChange={(event) => setShowGroundTruth(event.target.checked)}
+                          />
+                          GT graph
+                        </label>
+                      ) : null}
+                    </div>
+                  ) : activeStage === 'stage5b' ? (
+                    <div className="toggle-row stage5b-toggle-row">
+                      {AUDIT_CATEGORIES.map((category) => (
+                        <label key={category.id}>
+                          <input
+                            checked={auditVisibility[category.id]}
+                            onChange={(event) =>
+                              setAuditVisibility((current) => ({
+                                ...current,
+                                [category.id]: event.target.checked,
+                              }))
+                            }
+                            type="checkbox"
+                          />
+                          {category.label}
+                        </label>
+                      ))}
+                      {stage5b?.ground_truth ? (
+                        <label>
+                          <input
+                            checked={showGroundTruth}
+                            onChange={(event) => setShowGroundTruth(event.target.checked)}
+                            type="checkbox"
+                          />
+                          GT graph
+                        </label>
+                      ) : null}
+                      <label>
+                        <input
+                          checked={showLegacyGraph}
+                          onChange={(event) => setShowLegacyGraph(event.target.checked)}
+                          type="checkbox"
+                        />
+                        product decode
+                      </label>
+                    </div>
+                  ) : activeStage === 'stage5' ? (
+                    <div className="toggle-row stage5-toggle-row">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={showSelectedEdges}
+                          onChange={(event) => setShowSelectedEdges(event.target.checked)}
+                        />
+                        selected graph
+                      </label>
+                      {stage5?.ground_truth ? (
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={showGroundTruth}
+                            onChange={(event) => setShowGroundTruth(event.target.checked)}
+                          />
+                          GT graph
+                        </label>
+                      ) : null}
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={showLegacyGraph}
+                          onChange={(event) => setShowLegacyGraph(event.target.checked)}
+                        />
+                        product decode
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={showAtomicEdges}
+                          onChange={(event) => setShowAtomicEdges(event.target.checked)}
+                        />
+                        atomic provenance
+                      </label>
+                    </div>
+                  ) : activeStage === 'stage2' ? (
+                    <div className="toggle-row">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={showLines}
+                          onChange={(event) => setShowLines(event.target.checked)}
+                        />
+                        candidates
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={showJunctions}
+                          onChange={(event) => setShowJunctions(event.target.checked)}
+                        />
+                        junctions
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={showCandidateConflicts}
+                          onChange={(event) => setShowCandidateConflicts(event.target.checked)}
+                        />
+                        conflicts
+                      </label>
+                      <label className="control-inline">
+                        color by
+                        <select
+                          value={candidateColorBy}
                           onChange={(event) =>
-                            setAuditVisibility((current) => ({ ...current, [category.id]: event.target.checked }))
+                            setCandidateColorBy(event.target.value as CandidateColorBy)
                           }
-                          type="checkbox"
+                        >
+                          <option value="assignment">assignment</option>
+                          <option value="policy">selection policy</option>
+                          <option value="confidence">confidence</option>
+                        </select>
+                      </label>
+                      <label className="control-inline">
+                        min conf {minCandidateConfidence.toFixed(2)}
+                        <input
+                          type="range"
+                          min={0}
+                          max={1}
+                          step={0.05}
+                          value={minCandidateConfidence}
+                          onChange={(event) =>
+                            setMinCandidateConfidence(Number(event.target.value))
+                          }
                         />
-                        {category.label}
                       </label>
-                    ))}
-                    {stage5b?.ground_truth ? (
-                      <label>
-                        <input checked={showGroundTruth} onChange={(event) => setShowGroundTruth(event.target.checked)} type="checkbox" />
-                        GT graph
-                      </label>
-                    ) : null}
-                    <label>
-                      <input checked={showLegacyGraph} onChange={(event) => setShowLegacyGraph(event.target.checked)} type="checkbox" />
-                      product decode
-                    </label>
-                  </div>
-                ) : activeStage === 'stage5' ? (
-                  <div className="toggle-row stage5-toggle-row">
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={showSelectedEdges}
-                        onChange={(event) => setShowSelectedEdges(event.target.checked)}
-                      />
-                      selected graph
-                    </label>
-                    {stage5?.ground_truth ? (
+                    </div>
+                  ) : activeStage === 'stage1' ? (
+                    <div className="toggle-row">
                       <label>
                         <input
                           type="checkbox"
-                          checked={showGroundTruth}
-                          onChange={(event) => setShowGroundTruth(event.target.checked)}
+                          checked={showLines}
+                          disabled={showDense}
+                          onChange={(event) => setShowLines(event.target.checked)}
                         />
-                        GT graph
+                        lines
                       </label>
-                    ) : null}
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={showLegacyGraph}
-                        onChange={(event) => setShowLegacyGraph(event.target.checked)}
-                      />
-                      product decode
-                    </label>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={showAtomicEdges}
-                        onChange={(event) => setShowAtomicEdges(event.target.checked)}
-                      />
-                      atomic provenance
-                    </label>
-                  </div>
-                ) : activeStage === 'stage2' ? (
-                  <div className="toggle-row">
-                    <label>
-                      <input type="checkbox" checked={showLines} onChange={(event) => setShowLines(event.target.checked)} />
-                      candidates
-                    </label>
-                    <label>
-                      <input type="checkbox" checked={showJunctions} onChange={(event) => setShowJunctions(event.target.checked)} />
-                      junctions
-                    </label>
-                    <label>
-                      <input type="checkbox" checked={showCandidateConflicts} onChange={(event) => setShowCandidateConflicts(event.target.checked)} />
-                      conflicts
-                    </label>
-                    <label className="control-inline">
-                      color by
-                      <select value={candidateColorBy} onChange={(event) => setCandidateColorBy(event.target.value as CandidateColorBy)}>
-                        <option value="assignment">assignment</option>
-                        <option value="policy">selection policy</option>
-                        <option value="confidence">confidence</option>
-                      </select>
-                    </label>
-                    <label className="control-inline">
-                      min conf {minCandidateConfidence.toFixed(2)}
-                      <input
-                        type="range"
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        value={minCandidateConfidence}
-                        onChange={(event) => setMinCandidateConfidence(Number(event.target.value))}
-                      />
-                    </label>
-                  </div>
-                ) : activeStage === 'stage1' ? (
-                  <div className="toggle-row">
-                    <label>
-                      <input type="checkbox" checked={showLines} disabled={showDense} onChange={(event) => setShowLines(event.target.checked)} />
-                      lines
-                    </label>
-                    <label>
-                      <input type="checkbox" checked={showJunctions} disabled={showDense} onChange={(event) => setShowJunctions(event.target.checked)} />
-                      junctions
-                    </label>
-                    <label>
-                      <input type="checkbox" checked={showContacts} disabled={showDense} onChange={(event) => setShowContacts(event.target.checked)} />
-                      contacts
-                    </label>
-                    <label title="Replace the main square with the selected dense map at full resolution">
-                      <input type="checkbox" checked={showDense} onChange={(event) => setShowDense(event.target.checked)} />
-                      dense
-                    </label>
-                  </div>
-                ) : null}
-              </div>
-              {stage0b ? (
-                <VertexRefinerCropViewer
-                  cropDebug={v3CropDebug}
-                  highlightedMergedId={highlightedV3MergedId}
-                  highlightedRawId={highlightedV3RawId}
-                  selectedCropIndex={selectedV3CropIndex}
-                  showCropBoxes={showV3CropBoxes}
-                  showFrame={showV3CropFrame}
-                  showMergedVertices={showV3CropMergedVertices}
-                  showRawVertices={showV3CropRawVertices}
-                  stage={stage0b}
-                  onSelectCrop={setSelectedV3CropIndex}
-                />
-              ) : isStage6(currentStage) ? (
-                <ExactSolveViewer
-                  showAfter={showExactAfter}
-                  showBefore={showExactBefore}
-                  showFailures={showExactFailures}
-                  showGroundTruth={showGroundTruth}
-                  showMovement={showExactMovement}
-                  topology={topologyOverlay}
-                  stage={currentStage}
-                />
-              ) : isStage5b(currentStage) ? (
-                <Stage5bAuditViewer
-                  auditVisibility={auditVisibility}
-                  selectedTarget={selectedAuditTarget}
-                  showGroundTruth={showGroundTruth}
-                  showLegacyGraph={showLegacyGraph}
-                  topology={topologyOverlay}
-                  stage={currentStage}
-                  onSelectTarget={setSelectedAuditTarget}
-                />
-              ) : isStage3(currentStage) ? (
-                <SelectionViewer
-                  backgroundMap={activeStage === 'stage4' || activeStage === 'stage5' ? null : backgroundMap}
-                  showCarrierGeometry={activeStage === 'stage5' ? true : showCarrierGeometry}
-                  showContacts={showContacts}
-                  showJunctions={showJunctions}
-                  showLineEndpoints={showLineEndpoints}
-                  showLines={showLines}
-                  showExactProbes={activeStage === 'stage4'}
-                  showGroundTruth={showGroundTruth}
-                  showLegacyGraph={showLegacyGraph}
-                  showAtomicEdges={showAtomicEdges}
-                  showRejectedEdges={showRejectedEdges}
-                  showSelectedEdges={showSelectedEdges}
-                  showSharedCarriers={showSharedCarriers}
-                  showUndecidedEdges={showUndecidedEdges}
-                  probeVisibility={probeVisibility}
-                  selectedStage4Issue={selectedStage4Issue}
-                  topology={topologyOverlay}
-                  stage={currentStage}
-                />
-              ) : isStage2(currentStage) ? (
-                <div className="viewer-compare">
-                  <div className="viewer-compare-cell">
-                    <span className="viewer-compare-label">Predicted candidates</span>
-                    <CandidateGraphViewer
-                      backgroundMap={backgroundMap}
-                      showJunctions={showJunctions}
-                      showLines={showLines}
-                      showConflicts={showCandidateConflicts}
-                      colorBy={candidateColorBy}
-                      minConfidence={minCandidateConfidence}
-                      selectedCandidateId={selectedCandidateId}
-                      onSelectCandidate={setSelectedCandidateId}
-                      topology={null}
-                      stage={currentStage}
-                    />
-                  </div>
-                  {currentStage.ground_truth ? (
-                    <div className="viewer-compare-cell">
-                      <span className="viewer-compare-label">Ground truth</span>
-                      <Stage2GroundTruthPanel
-                        graph={currentStage.ground_truth}
-                        imageSize={currentStage.config.image_size}
-                        inputImageUrl={currentStage.sample.input_image_url}
-                      />
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={showJunctions}
+                          disabled={showDense}
+                          onChange={(event) => setShowJunctions(event.target.checked)}
+                        />
+                        junctions
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={showContacts}
+                          disabled={showDense}
+                          onChange={(event) => setShowContacts(event.target.checked)}
+                        />
+                        contacts
+                      </label>
+                      <label title="Replace the main square with the selected dense map at full resolution">
+                        <input
+                          type="checkbox"
+                          checked={showDense}
+                          onChange={(event) => setShowDense(event.target.checked)}
+                        />
+                        dense
+                      </label>
                     </div>
                   ) : null}
                 </div>
-              ) : hasArrangement(currentStage) ? (
-                <ArrangementViewer
-                  backgroundMap={backgroundMap}
-                  showInferredCrossings={showInferredCrossings}
-                  showAtomicEdges={showAtomicEdges}
-                  showContacts={showContacts}
-                  showJunctions={showJunctions}
-                  showLineEndpoints={showLineEndpoints}
-                  showLines={showLines}
-                  showSharedCarriers={showSharedCarriers}
-                  stage={currentStage}
-                />
-              ) : isStage1(currentStage) ? (
-                <PrimitiveViewer
-                  backgroundMap={backgroundMap}
-                  showContacts={showContacts}
-                  showJunctions={showJunctions}
-                  showLines={showLines}
-                  showDense={showDense}
-                  denseMap={denseFullMap && denseFullMap.id === selectedMap?.id ? denseFullMap : selectedMap}
-                  denseLoading={denseFullMapLoading}
-                  stage={currentStage}
-                />
-              ) : isStage0(currentStage) ? (
-                <RawDenseViewer stage={currentStage} selectedMap={selectedMap} />
-              ) : (
-                <div className="loading-panel">Loading dense evidence...</div>
-              )}
-            </div>
-
-            {stage0b ? (
-              <aside className="map-panel v3-crop-debug-panel">
-                <VertexRefinerCropDebugPanel
-                  busy={v3CropBusy}
-                  cropDebug={v3CropDebug}
-                  error={v3CropError}
-                  highlightedMergedId={highlightedV3MergedId}
-                  highlightedRawId={highlightedV3RawId}
-                  selectedCropIndex={selectedV3CropIndex}
-                  stage={stage0b}
-                  onHighlightMerged={setHighlightedV3MergedId}
-                  onHighlightRaw={setHighlightedV3RawId}
-                  onSelectCrop={setSelectedV3CropIndex}
-                />
-              </aside>
-            ) : isStage6(currentStage) ? (
-              <aside className="map-panel stage6-diagnostics-panel">
-                <Stage6LayerSummary stage={currentStage} />
-              </aside>
-            ) : isStage4(currentStage) ? (
-              <aside className="map-panel stage4-probe-panel">
-                <Stage4LayerSummary
-                  filteredIssues={filteredStage4Issues}
-                  issueFilter={stage4IssueFilter}
-                  issues={stage4Issues}
-                  onToggleProbe={toggleProbeVisibility}
-                  onIssueFilterChange={setStage4IssueFilter}
-                  onSelectIssue={selectStage4Issue}
-                  probeVisibility={probeVisibility}
-                  selectedIssue={selectedStage4Issue}
-                  stage={currentStage}
-                />
-              </aside>
-            ) : isStage5b(currentStage) ? (
-              <aside className="map-panel stage5b-audit-panel">
-                <Stage5bAuditPanel
-                  lookup={auditLookup}
-                  onLookupChange={setAuditLookup}
-                  onSelectTarget={setSelectedAuditTarget}
-                  selectedTarget={selectedAuditTarget}
-                  stage={currentStage}
-                />
-              </aside>
-            ) : activeStage === 'stage5' ? null : (
-            <aside className="map-panel">
-              <PanelTitle icon={<Layers3 size={17} />} title="Dense Evidence Maps" />
-              <select value={selectedMapId} onChange={(event) => setSelectedMapId(event.target.value)}>
-                {currentStage?.maps.map((map) => (
-                  <option key={map.id} value={map.id}>
-                    {map.label}
-                  </option>
-                ))}
-              </select>
-              {selectedMap ? <Heatmap map={selectedMap} mode="large" /> : <div className="loading-panel">No map loaded.</div>}
-              <div className="map-grid">
-                {currentStage?.maps.map((map) => (
-                  <button
-                    className={map.id === selectedMapId ? 'map-thumb selected' : 'map-thumb'}
-                    key={map.id}
-                    onClick={() => setSelectedMapId(map.id)}
-                    title={map.label}
-                  >
-                    <Heatmap map={map} mode="thumb" />
-                    <span>{map.label}</span>
-                  </button>
-                ))}
+                {stage0b ? (
+                  <VertexRefinerCropViewer
+                    cropDebug={v3CropDebug}
+                    highlightedMergedId={highlightedV3MergedId}
+                    highlightedRawId={highlightedV3RawId}
+                    selectedCropIndex={selectedV3CropIndex}
+                    showCropBoxes={showV3CropBoxes}
+                    showFrame={showV3CropFrame}
+                    showMergedVertices={showV3CropMergedVertices}
+                    showRawVertices={showV3CropRawVertices}
+                    stage={stage0b}
+                    onSelectCrop={setSelectedV3CropIndex}
+                  />
+                ) : isStage6(currentStage) ? (
+                  <ExactSolveViewer
+                    showAfter={showExactAfter}
+                    showBefore={showExactBefore}
+                    showFailures={showExactFailures}
+                    showGroundTruth={showGroundTruth}
+                    showMovement={showExactMovement}
+                    topology={topologyOverlay}
+                    stage={currentStage}
+                  />
+                ) : isStage5b(currentStage) ? (
+                  <Stage5bAuditViewer
+                    auditVisibility={auditVisibility}
+                    selectedTarget={selectedAuditTarget}
+                    showGroundTruth={showGroundTruth}
+                    showLegacyGraph={showLegacyGraph}
+                    topology={topologyOverlay}
+                    stage={currentStage}
+                    onSelectTarget={setSelectedAuditTarget}
+                  />
+                ) : isStage3(currentStage) ? (
+                  <SelectionViewer
+                    backgroundMap={
+                      activeStage === 'stage4' || activeStage === 'stage5' ? null : backgroundMap
+                    }
+                    showCarrierGeometry={activeStage === 'stage5' ? true : showCarrierGeometry}
+                    showContacts={showContacts}
+                    showJunctions={showJunctions}
+                    showLineEndpoints={showLineEndpoints}
+                    showLines={showLines}
+                    showExactProbes={activeStage === 'stage4'}
+                    showGroundTruth={showGroundTruth}
+                    showLegacyGraph={showLegacyGraph}
+                    showAtomicEdges={showAtomicEdges}
+                    showRejectedEdges={showRejectedEdges}
+                    showSelectedEdges={showSelectedEdges}
+                    showSharedCarriers={showSharedCarriers}
+                    showUndecidedEdges={showUndecidedEdges}
+                    probeVisibility={probeVisibility}
+                    selectedStage4Issue={selectedStage4Issue}
+                    topology={topologyOverlay}
+                    stage={currentStage}
+                  />
+                ) : isStage2(currentStage) ? (
+                  <div className="viewer-compare">
+                    <div className="viewer-compare-cell">
+                      <span className="viewer-compare-label">Predicted candidates</span>
+                      <CandidateGraphViewer
+                        backgroundMap={backgroundMap}
+                        showJunctions={showJunctions}
+                        showLines={showLines}
+                        showConflicts={showCandidateConflicts}
+                        colorBy={candidateColorBy}
+                        minConfidence={minCandidateConfidence}
+                        selectedCandidateId={selectedCandidateId}
+                        onSelectCandidate={setSelectedCandidateId}
+                        topology={null}
+                        stage={currentStage}
+                      />
+                    </div>
+                    {currentStage.ground_truth ? (
+                      <div className="viewer-compare-cell">
+                        <span className="viewer-compare-label">Ground truth</span>
+                        <Stage2GroundTruthPanel
+                          graph={currentStage.ground_truth}
+                          imageSize={currentStage.config.image_size}
+                          inputImageUrl={currentStage.sample.input_image_url}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                ) : hasArrangement(currentStage) ? (
+                  <ArrangementViewer
+                    backgroundMap={backgroundMap}
+                    showInferredCrossings={showInferredCrossings}
+                    showAtomicEdges={showAtomicEdges}
+                    showContacts={showContacts}
+                    showJunctions={showJunctions}
+                    showLineEndpoints={showLineEndpoints}
+                    showLines={showLines}
+                    showSharedCarriers={showSharedCarriers}
+                    stage={currentStage}
+                  />
+                ) : isStage1(currentStage) ? (
+                  <PrimitiveViewer
+                    backgroundMap={backgroundMap}
+                    showContacts={showContacts}
+                    showJunctions={showJunctions}
+                    showLines={showLines}
+                    showDense={showDense}
+                    denseMap={
+                      denseFullMap && denseFullMap.id === selectedMap?.id
+                        ? denseFullMap
+                        : selectedMap
+                    }
+                    denseLoading={denseFullMapLoading}
+                    stage={currentStage}
+                  />
+                ) : isStage0(currentStage) ? (
+                  <RawDenseViewer stage={currentStage} selectedMap={selectedMap} />
+                ) : (
+                  <div className="loading-panel">Loading dense evidence...</div>
+                )}
               </div>
-              {isStage3(currentStage) ? <Stage3LayerSummary stage={currentStage} /> : isStage2(currentStage) ? (selectedCandidateId !== null ? <CandidateDetailPanel stage={currentStage} candidateId={selectedCandidateId} onClose={() => setSelectedCandidateId(null)} /> : <Stage2CandidateSummary stage={currentStage} />) : hasArrangement(currentStage) ? <Stage2LayerSummary stage={currentStage} /> : isStage0(currentStage) ? <RawDenseSummary stage={currentStage} /> : null}
-            </aside>
-            )}
+
+              {stage0b ? (
+                <aside className="map-panel v3-crop-debug-panel">
+                  <VertexRefinerCropDebugPanel
+                    busy={v3CropBusy}
+                    cropDebug={v3CropDebug}
+                    error={v3CropError}
+                    highlightedMergedId={highlightedV3MergedId}
+                    highlightedRawId={highlightedV3RawId}
+                    selectedCropIndex={selectedV3CropIndex}
+                    stage={stage0b}
+                    onHighlightMerged={setHighlightedV3MergedId}
+                    onHighlightRaw={setHighlightedV3RawId}
+                    onSelectCrop={setSelectedV3CropIndex}
+                  />
+                </aside>
+              ) : isStage6(currentStage) ? (
+                <aside className="map-panel stage6-diagnostics-panel">
+                  <Stage6LayerSummary stage={currentStage} />
+                </aside>
+              ) : isStage4(currentStage) ? (
+                <aside className="map-panel stage4-probe-panel">
+                  <Stage4LayerSummary
+                    filteredIssues={filteredStage4Issues}
+                    issueFilter={stage4IssueFilter}
+                    issues={stage4Issues}
+                    onToggleProbe={toggleProbeVisibility}
+                    onIssueFilterChange={setStage4IssueFilter}
+                    onSelectIssue={selectStage4Issue}
+                    probeVisibility={probeVisibility}
+                    selectedIssue={selectedStage4Issue}
+                    stage={currentStage}
+                  />
+                </aside>
+              ) : isStage5b(currentStage) ? (
+                <aside className="map-panel stage5b-audit-panel">
+                  <Stage5bAuditPanel
+                    lookup={auditLookup}
+                    onLookupChange={setAuditLookup}
+                    onSelectTarget={setSelectedAuditTarget}
+                    selectedTarget={selectedAuditTarget}
+                    stage={currentStage}
+                  />
+                </aside>
+              ) : activeStage === 'stage5' ? null : (
+                <aside className="map-panel">
+                  <PanelTitle icon={<Layers3 size={17} />} title="Dense Evidence Maps" />
+                  <select
+                    value={selectedMapId}
+                    onChange={(event) => setSelectedMapId(event.target.value)}
+                  >
+                    {currentStage?.maps.map((map) => (
+                      <option key={map.id} value={map.id}>
+                        {map.label}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedMap ? (
+                    <Heatmap map={selectedMap} mode="large" />
+                  ) : (
+                    <div className="loading-panel">No map loaded.</div>
+                  )}
+                  <div className="map-grid">
+                    {currentStage?.maps.map((map) => (
+                      <button
+                        className={map.id === selectedMapId ? 'map-thumb selected' : 'map-thumb'}
+                        key={map.id}
+                        onClick={() => setSelectedMapId(map.id)}
+                        title={map.label}
+                      >
+                        <Heatmap map={map} mode="thumb" />
+                        <span>{map.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {isStage3(currentStage) ? (
+                    <Stage3LayerSummary stage={currentStage} />
+                  ) : isStage2(currentStage) ? (
+                    selectedCandidateId !== null ? (
+                      <CandidateDetailPanel
+                        stage={currentStage}
+                        candidateId={selectedCandidateId}
+                        onClose={() => setSelectedCandidateId(null)}
+                      />
+                    ) : (
+                      <Stage2CandidateSummary stage={currentStage} />
+                    )
+                  ) : hasArrangement(currentStage) ? (
+                    <Stage2LayerSummary stage={currentStage} />
+                  ) : isStage0(currentStage) ? (
+                    <RawDenseSummary stage={currentStage} />
+                  ) : null}
+                </aside>
+              )}
+            </section>
           </section>
-        </section>
-      </main>
+        </main>
       )}
     </div>
   );
@@ -1725,7 +2188,9 @@ function isStage1(stage: AnyStageResponse | null): stage is Stage1Response {
   return Boolean(stage && 'primitives' in stage);
 }
 
-function hasArrangement(stage: AnyStageResponse | null): stage is Stage2Response | Stage3Response | Stage4Response | Stage5Response | Stage6Response {
+function hasArrangement(
+  stage: AnyStageResponse | null,
+): stage is Stage2Response | Stage3Response | Stage4Response | Stage5Response | Stage6Response {
   return Boolean(stage && 'arrangement' in stage);
 }
 
@@ -1734,11 +2199,15 @@ function isStage2(stage: AnyStageResponse | null): stage is Stage2Response {
   return Boolean(stage && 'candidate_graph' in stage && !('selection' in stage));
 }
 
-function isStage3(stage: AnyStageResponse | null): stage is Stage3Response | Stage4Response | Stage5Response | Stage6Response {
+function isStage3(
+  stage: AnyStageResponse | null,
+): stage is Stage3Response | Stage4Response | Stage5Response | Stage6Response {
   return Boolean(stage && 'selection' in stage);
 }
 
-function hasExactizability(stage: AnyStageResponse | null): stage is Stage4Response | Stage5Response | Stage6Response {
+function hasExactizability(
+  stage: AnyStageResponse | null,
+): stage is Stage4Response | Stage5Response | Stage6Response {
   return Boolean(stage && 'exactizability' in stage);
 }
 
@@ -1746,12 +2215,16 @@ function isStage4(stage: AnyStageResponse | null): stage is Stage4Response {
   return Boolean(stage && 'exactizability' in stage && !('ground_truth' in stage));
 }
 
-function isStage5Like(stage: AnyStageResponse | null): stage is Stage5Response | Stage5bResponse | Stage6Response {
+function isStage5Like(
+  stage: AnyStageResponse | null,
+): stage is Stage5Response | Stage5bResponse | Stage6Response {
   return Boolean(stage && 'ground_truth' in stage);
 }
 
 function isStage5(stage: AnyStageResponse | null): stage is Stage5Response {
-  return Boolean(stage && 'ground_truth' in stage && !('decision_audit' in stage) && !('exact_solve' in stage));
+  return Boolean(
+    stage && 'ground_truth' in stage && !('decision_audit' in stage) && !('exact_solve' in stage),
+  );
 }
 
 function isStage5b(stage: AnyStageResponse | null): stage is Stage5bResponse {
@@ -1798,16 +2271,31 @@ function defaultExampleForStage(rows: ExampleRow[], activeStage: ActiveStage): E
   }, rows[0]);
 }
 
-function RawDenseViewer({ selectedMap, stage }: { selectedMap: MapPayload | null; stage: Stage0Response }) {
+function RawDenseViewer({
+  selectedMap,
+  stage,
+}: {
+  selectedMap: MapPayload | null;
+  stage: Stage0Response;
+}) {
   const size = stage.config.image_size;
   return (
     <div className="viewer-canvas raw-dense-canvas">
       {selectedMap ? (
         <Heatmap map={selectedMap} mode="background" />
       ) : (
-        <img alt="" className="input-image" src={stage.input_image_url || stage.sample.input_image_url} />
+        <img
+          alt=""
+          className="input-image"
+          src={stage.input_image_url || stage.sample.input_image_url}
+        />
       )}
-      <svg className="primitive-overlay" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Raw dense model outputs">
+      <svg
+        className="primitive-overlay"
+        viewBox={`0 0 ${size} ${size}`}
+        role="img"
+        aria-label="Raw dense model outputs"
+      >
         <rect className="raw-dense-frame" x={1} y={1} width={size - 2} height={size - 2} />
         {stage.vertex_refiner?.proposals.map((proposal, index) => (
           <circle
@@ -1845,7 +2333,8 @@ function RawDenseSummary({ stage }: { stage: Stage0Response }) {
           <>
             <span>V3 refiner</span>
             <strong>
-              {stage.vertex_refiner.merged_vertex_count} merged / {stage.vertex_refiner.raw_prediction_count} raw
+              {stage.vertex_refiner.merged_vertex_count} merged /{' '}
+              {stage.vertex_refiner.raw_prediction_count} raw
             </strong>
           </>
         ) : null}
@@ -1858,7 +2347,8 @@ function RawDenseSummary({ stage }: { stage: Stage0Response }) {
               {tensor.channels} ch · {tensor.length.toLocaleString()} f32
             </span>
             <em>
-              {formatMetricNumber(tensor.min, 3)} / {formatMetricNumber(tensor.max, 3)} / {formatMetricNumber(tensor.mean, 3)}
+              {formatMetricNumber(tensor.min, 3)} / {formatMetricNumber(tensor.max, 3)} /{' '}
+              {formatMetricNumber(tensor.mean, 3)}
             </em>
           </div>
         ))}
@@ -1892,8 +2382,12 @@ function VertexRefinerCropViewer({
 }) {
   const size = stage.config.image_size;
   const cropSize = stage.vertex_refiner.crop_size ?? 96;
-  const selectedMergedIds = new Set(cropDebug?.merged_vertices.map((vertex) => vertex.merged_vertex_id) ?? []);
-  const rawVertices = cropDebug?.raw_vertices ?? stage.vertex_refiner.raw_vertices.filter((vertex) => vertex.crop_index === selectedCropIndex);
+  const selectedMergedIds = new Set(
+    cropDebug?.merged_vertices.map((vertex) => vertex.merged_vertex_id) ?? [],
+  );
+  const rawVertices =
+    cropDebug?.raw_vertices ??
+    stage.vertex_refiner.raw_vertices.filter((vertex) => vertex.crop_index === selectedCropIndex);
   const selectFromClick = (event: ReactMouseEvent<SVGSVGElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     const x = ((event.clientX - rect.left) / rect.width) * size;
@@ -1903,7 +2397,11 @@ function VertexRefinerCropViewer({
   };
   return (
     <div className="viewer-canvas v3-crop-canvas">
-      <img alt="" className="input-image" src={stage.input_image_url || stage.sample.input_image_url} />
+      <img
+        alt=""
+        className="input-image"
+        src={stage.input_image_url || stage.sample.input_image_url}
+      />
       <svg
         className="primitive-overlay arrangement-overlay v3-crop-overlay"
         onClick={selectFromClick}
@@ -1945,11 +2443,20 @@ function VertexRefinerCropViewer({
               const selected = selectedMergedIds.has(mergedVertexId);
               const highlighted = highlightedMergedId === mergedVertexId;
               return (
-                <g className={highlighted ? 'v3-global-merged highlighted' : selected ? 'v3-global-merged selected' : 'v3-global-merged'} key={`merged-${mergedVertexId}`}>
+                <g
+                  className={
+                    highlighted
+                      ? 'v3-global-merged highlighted'
+                      : selected
+                        ? 'v3-global-merged selected'
+                        : 'v3-global-merged'
+                  }
+                  key={`merged-${mergedVertexId}`}
+                >
                   <circle cx={vertex.x} cy={vertex.y} r={highlighted ? 6 : selected ? 4.2 : 2.8} />
                   <title>
-                    merged {mergedVertexId}; {vertex.kind}; score {vertex.score.toFixed(3)}; support {vertex.support_count}/
-                    {vertex.possible_support_count}
+                    merged {mergedVertexId}; {vertex.kind}; score {vertex.score.toFixed(3)}; support{' '}
+                    {vertex.support_count}/{vertex.possible_support_count}
                   </title>
                 </g>
               );
@@ -1960,14 +2467,19 @@ function VertexRefinerCropViewer({
               const rawVertexId = vertex.raw_vertex_id ?? index;
               return (
                 <circle
-                  className={highlightedV3Class('v3-raw-vertex', highlightedRawId === rawVertexId, vertex.merge_status === 'filtered')}
+                  className={highlightedV3Class(
+                    'v3-raw-vertex',
+                    highlightedRawId === rawVertexId,
+                    vertex.merge_status === 'filtered',
+                  )}
                   cx={vertex.x}
                   cy={vertex.y}
                   key={`raw-${rawVertexId}`}
                   r={highlightedRawId === rawVertexId ? 5 : 3}
                 >
                   <title>
-                    raw {rawVertexId}; crop {vertex.crop_index}; {vertex.kind}; score {vertex.score.toFixed(3)}; {vertex.merge_reason ?? 'merged'}
+                    raw {rawVertexId}; crop {vertex.crop_index}; {vertex.kind}; score{' '}
+                    {vertex.score.toFixed(3)}; {vertex.merge_reason ?? 'merged'}
                   </title>
                 </circle>
               );
@@ -2007,10 +2519,14 @@ function VertexRefinerCropDebugPanel({
       <PanelTitle icon={<Layers3 size={17} />} title="V3 Crop Signals" />
       <label className="v3-crop-select">
         Crop
-        <select value={selectedCropIndex} onChange={(event) => onSelectCrop(Number(event.target.value))}>
+        <select
+          value={selectedCropIndex}
+          onChange={(event) => onSelectCrop(Number(event.target.value))}
+        >
           {stage.vertex_refiner.proposals.map((candidate, index) => (
             <option key={index} value={index}>
-              #{index} · {candidate.provenance.join('+') || 'proposal'} · {candidate.x.toFixed(1)},{candidate.y.toFixed(1)}
+              #{index} · {candidate.provenance.join('+') || 'proposal'} · {candidate.x.toFixed(1)},
+              {candidate.y.toFixed(1)}
             </option>
           ))}
         </select>
@@ -2023,7 +2539,11 @@ function VertexRefinerCropDebugPanel({
         <span>score</span>
         <strong>{formatMetricNumber(proposal?.score, 3)}</strong>
         <span>raw / merged</span>
-        <strong>{cropDebug ? `${cropDebug.raw_vertices.length} / ${cropDebug.merged_vertices.length}` : '...'}</strong>
+        <strong>
+          {cropDebug
+            ? `${cropDebug.raw_vertices.length} / ${cropDebug.merged_vertices.length}`
+            : '...'}
+        </strong>
       </div>
       {busy ? <div className="loading-panel compact">Loading crop debug...</div> : null}
       {error ? <div className="error-panel compact">{error}</div> : null}
@@ -2080,7 +2600,11 @@ function CropSignalGrid({
               <svg viewBox={`0 0 ${cropDebug.crop_size} ${cropDebug.crop_size}`} aria-hidden="true">
                 {cropDebug.merged_vertices.map((vertex) => (
                   <circle
-                    className={highlightedMergedId === vertex.merged_vertex_id ? 'v3-crop-map-merged highlighted' : 'v3-crop-map-merged'}
+                    className={
+                      highlightedMergedId === vertex.merged_vertex_id
+                        ? 'v3-crop-map-merged highlighted'
+                        : 'v3-crop-map-merged'
+                    }
                     cx={vertex.local_x}
                     cy={vertex.local_y}
                     key={`merged-${vertex.merged_vertex_id}`}
@@ -2089,7 +2613,11 @@ function CropSignalGrid({
                 ))}
                 {cropDebug.raw_vertices.map((vertex) => (
                   <circle
-                    className={highlightedV3Class('v3-crop-map-raw', highlightedRawId === vertex.raw_vertex_id, vertex.merge_status === 'filtered')}
+                    className={highlightedV3Class(
+                      'v3-crop-map-raw',
+                      highlightedRawId === vertex.raw_vertex_id,
+                      vertex.merge_status === 'filtered',
+                    )}
                     cx={vertex.local_x}
                     cy={vertex.local_y}
                     key={`raw-${vertex.raw_vertex_id}`}
@@ -2147,7 +2675,11 @@ function CropVertexTables({
               <span>{vertex.kind}</span>
               <span>{vertex.score.toFixed(3)}</span>
               <span>{formatPoint(vertex.local_x, vertex.local_y)}</span>
-              <span>{vertex.merged_vertex_id === null ? vertex.merge_reason ?? 'filtered' : `m${vertex.merged_vertex_id}`}</span>
+              <span>
+                {vertex.merged_vertex_id === null
+                  ? (vertex.merge_reason ?? 'filtered')
+                  : `m${vertex.merged_vertex_id}`}
+              </span>
             </div>
           ))
         ) : (
@@ -2172,7 +2704,9 @@ function CropVertexTables({
             >
               <span>m{vertex.merged_vertex_id}</span>
               <span>{vertex.kind}</span>
-              <span>{vertex.support_count}/{vertex.possible_support_count}</span>
+              <span>
+                {vertex.support_count}/{vertex.possible_support_count}
+              </span>
               <span>{formatPoint(vertex.local_x, vertex.local_y)}</span>
               <span>{vertex.raw_vertex_ids.join(', ')}</span>
             </div>
@@ -2199,8 +2733,15 @@ function CropVertexTables({
             >
               <span>c{cluster.cluster_id}</span>
               <span>{cluster.reason}</span>
-              <span>{cluster.support_count}/{cluster.possible_support_count}</span>
-              <span>{formatPoint(cluster.center.x - cropDebug.crop_box.x_min, cluster.center.y - cropDebug.crop_box.y_min)}</span>
+              <span>
+                {cluster.support_count}/{cluster.possible_support_count}
+              </span>
+              <span>
+                {formatPoint(
+                  cluster.center.x - cropDebug.crop_box.x_min,
+                  cluster.center.y - cropDebug.crop_box.y_min,
+                )}
+              </span>
               <span>{cluster.raw_vertex_ids.join(', ')}</span>
             </div>
           ))
@@ -2307,7 +2848,10 @@ function UploadCropEditor({
     >
       <img alt="" draggable={false} ref={imageRef} src={source.url} />
       {quad ? (
-        <svg className="upload-crop-overlay" viewBox={`0 0 ${source.image.width} ${source.image.height}`}>
+        <svg
+          className="upload-crop-overlay"
+          viewBox={`0 0 ${source.image.width} ${source.image.height}`}
+        >
           <polygon className="upload-crop-quad" points={uploadQuadPolygon(quad)} />
           {UPLOAD_QUAD_HANDLES.map((handle) => (
             <circle
@@ -2399,7 +2943,9 @@ function normalizeUploadQuad(value: unknown): UploadQuad | null {
 function normalizeUploadPoint(value: unknown): UploadPoint | null {
   if (!value || typeof value !== 'object') return null;
   const point = value as { x?: unknown; y?: unknown };
-  return typeof point.x === 'number' && typeof point.y === 'number' ? { x: point.x, y: point.y } : null;
+  return typeof point.x === 'number' && typeof point.y === 'number'
+    ? { x: point.x, y: point.y }
+    : null;
 }
 
 function fullImageQuad(image: ImageData): UploadQuad {
@@ -2413,7 +2959,11 @@ function fullImageQuad(image: ImageData): UploadQuad {
   };
 }
 
-function uploadPointFromPointer(event: ReactPointerEvent, element: HTMLElement, image: ImageData): UploadPoint {
+function uploadPointFromPointer(
+  event: ReactPointerEvent,
+  element: HTMLElement,
+  image: ImageData,
+): UploadPoint {
   const rect = element.getBoundingClientRect();
   return {
     x: ((event.clientX - rect.left) / rect.width) * image.width,
@@ -2460,7 +3010,9 @@ function PrimitiveViewer({
         {denseMap ? (
           <Heatmap map={denseMap} mode="dense" />
         ) : (
-          <div className="loading-panel">{denseLoading ? 'Loading full-resolution map…' : 'No dense map selected.'}</div>
+          <div className="loading-panel">
+            {denseLoading ? 'Loading full-resolution map…' : 'No dense map selected.'}
+          </div>
         )}
         {denseLoading && denseMap ? <span className="dense-loading-badge">upscaling…</span> : null}
       </div>
@@ -2473,9 +3025,16 @@ function PrimitiveViewer({
       ) : (
         <img alt="" className="input-image" src={stage.sample.input_image_url} />
       )}
-      <svg className="primitive-overlay" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Stage 1 primitives">
+      <svg
+        className="primitive-overlay"
+        viewBox={`0 0 ${size} ${size}`}
+        role="img"
+        aria-label="Stage 1 primitives"
+      >
         {showLines
-          ? stage.primitives.line_primitives.map((line, index) => <LinePrimitiveView key={index} line={line} />)
+          ? stage.primitives.line_primitives.map((line, index) => (
+              <LinePrimitiveView key={index} line={line} />
+            ))
           : null}
         {showJunctions
           ? stage.primitives.junction_primitives.map((junction, index) => (
@@ -2494,7 +3053,8 @@ function PrimitiveViewer({
 
 function LinePrimitiveView({ line }: { line: LinePrimitive }) {
   const label = ASSIGNMENT_LABELS[line.assignment.label] ?? 'U';
-  const color = label === 'M' ? '#e11d48' : label === 'V' ? '#2563eb' : label === 'B' ? '#111827' : '#b45309';
+  const color =
+    label === 'M' ? '#e11d48' : label === 'V' ? '#2563eb' : label === 'B' ? '#111827' : '#b45309';
   const opacity = line.source === 'observed_strong' ? 0.92 : 0.45;
   return (
     <g>
@@ -2509,7 +3069,8 @@ function LinePrimitiveView({ line }: { line: LinePrimitive }) {
         y2={line.p1[1]}
       />
       <title>
-        {label} support {line.support.toFixed(3)} confidence {line.assignment.confidence.toFixed(3)} votes {line.votes}
+        {label} support {line.support.toFixed(3)} confidence {line.assignment.confidence.toFixed(3)}{' '}
+        votes {line.votes}
       </title>
     </g>
   );
@@ -2517,7 +3078,14 @@ function LinePrimitiveView({ line }: { line: LinePrimitive }) {
 
 function JunctionView({ junction }: { junction: JunctionPrimitive }) {
   return (
-    <circle cx={junction.point[0]} cy={junction.point[1]} fill="#facc15" r={5.5} stroke="#422006" strokeWidth={1.5}>
+    <circle
+      cx={junction.point[0]}
+      cy={junction.point[1]}
+      fill="#facc15"
+      r={5.5}
+      stroke="#422006"
+      strokeWidth={1.5}
+    >
       <title>junction support {junction.support.toFixed(3)}</title>
     </circle>
   );
@@ -2525,9 +3093,17 @@ function JunctionView({ junction }: { junction: JunctionPrimitive }) {
 
 function BoundaryContactView({ contact }: { contact: BoundaryContactPrimitive }) {
   return (
-    <circle cx={contact.point[0]} cy={contact.point[1]} fill="#22c55e" r={7} stroke="#064e3b" strokeWidth={1.7}>
+    <circle
+      cx={contact.point[0]}
+      cy={contact.point[1]}
+      fill="#22c55e"
+      r={7}
+      stroke="#064e3b"
+      strokeWidth={1.7}
+    >
       <title>
-        {contact.side} contact {contact.side_coordinate.toFixed(3)} support {contact.support.toFixed(3)}
+        {contact.side} contact {contact.side_coordinate.toFixed(3)} support{' '}
+        {contact.support.toFixed(3)}
       </title>
     </circle>
   );
@@ -2578,42 +3154,91 @@ function ArrangementViewer({
       >
         {showAtomicEdges
           ? renderedAtomicEdges.map((edge) => (
-              <AtomicEdgeView edge={edge} frame={stage.overlay_frame_px} key={edge.id} verticesById={verticesById} />
+              <AtomicEdgeView
+                edge={edge}
+                frame={stage.overlay_frame_px}
+                key={edge.id}
+                verticesById={verticesById}
+              />
             ))
           : null}
         {showLines
           ? stage.arrangement.carriers
               .filter((carrier) => carrier.kind === 'observed_local')
-              .map((carrier) => <CarrierView carrier={carrier} frame={stage.overlay_frame_px} key={carrier.id} muted />)
+              .map((carrier) => (
+                <CarrierView
+                  carrier={carrier}
+                  frame={stage.overlay_frame_px}
+                  key={carrier.id}
+                  muted
+                />
+              ))
           : null}
         {showSharedCarriers
           ? stage.arrangement.carriers
               .filter((carrier) => carrier.kind === 'shared_collinear_alternative')
-              .map((carrier) => <CarrierView carrier={carrier} frame={stage.overlay_frame_px} key={carrier.id} muted shared />)
+              .map((carrier) => (
+                <CarrierView
+                  carrier={carrier}
+                  frame={stage.overlay_frame_px}
+                  key={carrier.id}
+                  muted
+                  shared
+                />
+              ))
           : null}
         {showJunctions
           ? stage.arrangement.vertices
-              .filter((vertex) => vertex.kind === 'observed_junction' || vertex.kind === 'junction_cluster')
-              .map((vertex) => <ArrangementVertexView frame={stage.overlay_frame_px} key={vertex.id} vertex={vertex} />)
+              .filter(
+                (vertex) =>
+                  vertex.kind === 'observed_junction' || vertex.kind === 'junction_cluster',
+              )
+              .map((vertex) => (
+                <ArrangementVertexView
+                  frame={stage.overlay_frame_px}
+                  key={vertex.id}
+                  vertex={vertex}
+                />
+              ))
           : null}
         {showLineEndpoints
           ? stage.arrangement.vertices
               .filter((vertex) => vertex.kind === 'observed_line_endpoint')
-              .map((vertex) => <ArrangementVertexView frame={stage.overlay_frame_px} key={vertex.id} vertex={vertex} />)
+              .map((vertex) => (
+                <ArrangementVertexView
+                  frame={stage.overlay_frame_px}
+                  key={vertex.id}
+                  vertex={vertex}
+                />
+              ))
           : null}
         {showInferredCrossings
           ? stage.arrangement.vertices
               .filter((vertex) => vertex.kind === 'carrier_intersection')
-              .map((vertex) => <ArrangementVertexView frame={stage.overlay_frame_px} key={vertex.id} vertex={vertex} />)
+              .map((vertex) => (
+                <ArrangementVertexView
+                  frame={stage.overlay_frame_px}
+                  key={vertex.id}
+                  vertex={vertex}
+                />
+              ))
           : null}
         {showContacts
           ? stage.arrangement.vertices
               .filter((vertex) => vertex.kind === 'boundary_contact' || vertex.kind === 'corner')
-              .map((vertex) => <ArrangementVertexView frame={stage.overlay_frame_px} key={`contact-${vertex.id}`} vertex={vertex} />)
+              .map((vertex) => (
+                <ArrangementVertexView
+                  frame={stage.overlay_frame_px}
+                  key={`contact-${vertex.id}`}
+                  vertex={vertex}
+                />
+              ))
           : null}
       </svg>
       {clippedAtomicEdges > 0 ? (
-        <div className="render-cap-note">showing first 5000 atomic intervals; {clippedAtomicEdges} hidden for speed</div>
+        <div className="render-cap-note">
+          showing first 5000 atomic intervals; {clippedAtomicEdges} hidden for speed
+        </div>
       ) : null}
     </div>
   );
@@ -2658,13 +3283,34 @@ function TopologyIssuesLayer({ topology }: { topology: TopologyDiff }) {
   return (
     <g className="topology-issues-layer">
       {missing.map((edge, index) => (
-        <line className="topology-missing" key={`miss-${index}`} x1={edge.a[0]} y1={edge.a[1]} x2={edge.b[0]} y2={edge.b[1]} />
+        <line
+          className="topology-missing"
+          key={`miss-${index}`}
+          x1={edge.a[0]}
+          y1={edge.a[1]}
+          x2={edge.b[0]}
+          y2={edge.b[1]}
+        />
       ))}
       {extra.map((edge, index) => (
-        <line className="topology-extra" key={`extra-${index}`} x1={edge.a[0]} y1={edge.a[1]} x2={edge.b[0]} y2={edge.b[1]} />
+        <line
+          className="topology-extra"
+          key={`extra-${index}`}
+          x1={edge.a[0]}
+          y1={edge.a[1]}
+          x2={edge.b[0]}
+          y2={edge.b[1]}
+        />
       ))}
       {topology.wrong_assignment_edges.map((edge, index) => (
-        <line className="topology-wrong" key={`wrong-${index}`} x1={edge.a[0]} y1={edge.a[1]} x2={edge.b[0]} y2={edge.b[1]} />
+        <line
+          className="topology-wrong"
+          key={`wrong-${index}`}
+          x1={edge.a[0]}
+          y1={edge.a[1]}
+          x2={edge.b[0]}
+          y2={edge.b[1]}
+        />
       ))}
     </g>
   );
@@ -2768,8 +3414,10 @@ function candidateStroke(
   candidate: CandidateGraphCreaseCandidate,
   colorBy: CandidateColorBy,
 ): string {
-  if (colorBy === 'assignment') return candidateLabelColor(candidate.assignment_evidence.observed_label);
-  if (colorBy === 'policy') return candidate.selection_policy.toLowerCase() === 'locked' ? '#1f2937' : '#7c3aed';
+  if (colorBy === 'assignment')
+    return candidateLabelColor(candidate.assignment_evidence.observed_label);
+  if (colorBy === 'policy')
+    return candidate.selection_policy.toLowerCase() === 'locked' ? '#1f2937' : '#7c3aed';
   return confidenceColor(candidate.presence_probability);
 }
 
@@ -2844,7 +3492,9 @@ function CandidateGraphViewer({
           ? graph.conflicts.flatMap((conflict) => {
               const points = conflict.candidate_ids
                 .map((id) => candidateById.get(id))
-                .filter((candidate): candidate is CandidateGraphCreaseCandidate => Boolean(candidate))
+                .filter((candidate): candidate is CandidateGraphCreaseCandidate =>
+                  Boolean(candidate),
+                )
                 .map(candidateMidpoint)
                 .filter((point): point is { x: number; y: number } => Boolean(point));
               const links = [];
@@ -2934,11 +3584,36 @@ function Stage2CandidateSummary({ stage }: { stage: Stage2Response }) {
   return (
     <div className="hypothesis-panel">
       <PanelTitle icon={<GitBranch size={17} />} title="Stage 2 Candidate Generation" />
-      <LayerRow color="#0f766e" label="Crease candidates" value={report.crease_candidates} note="junction-first IR spans fed to beam selection" />
-      <LayerRow color="#1f2937" label="Locked (border)" value={locked} note="always selected (paper boundary / locked spans)" />
-      <LayerRow color="#7c3aed" label="Optional" value={optional} note="beam decides these by score and conflicts" />
-      <LayerRow color="#9333ea" label="Graph vertices" value={report.vertices} note="junctions + paper corners in the IR" />
-      <LayerRow color="#ef4444" label="Conflicts" value={report.conflicts} note="mutually-exclusive candidate pairs" />
+      <LayerRow
+        color="#0f766e"
+        label="Crease candidates"
+        value={report.crease_candidates}
+        note="junction-first IR spans fed to beam selection"
+      />
+      <LayerRow
+        color="#1f2937"
+        label="Locked (border)"
+        value={locked}
+        note="always selected (paper boundary / locked spans)"
+      />
+      <LayerRow
+        color="#7c3aed"
+        label="Optional"
+        value={optional}
+        note="beam decides these by score and conflicts"
+      />
+      <LayerRow
+        color="#9333ea"
+        label="Graph vertices"
+        value={report.vertices}
+        note="junctions + paper corners in the IR"
+      />
+      <LayerRow
+        color="#ef4444"
+        label="Conflicts"
+        value={report.conflicts}
+        note="mutually-exclusive candidate pairs"
+      />
       <div className="hypothesis-divider" />
       <PanelTitle icon={<GitBranch size={17} />} title="Assignment" />
       {Object.entries(labelCounts).map(([label, count]) => (
@@ -2948,8 +3623,8 @@ function Stage2CandidateSummary({ stage }: { stage: Stage2Response }) {
         </div>
       ))}
       <p>
-        Stage 2 is the production junction-first candidate graph ({graph.provenance.source_adapter}).
-        Stage 3 runs exactizability-aware beam selection over these candidates.
+        Stage 2 is the production junction-first candidate graph ({graph.provenance.source_adapter}
+        ). Stage 3 runs exactizability-aware beam selection over these candidates.
       </p>
     </div>
   );
@@ -2978,7 +3653,9 @@ function CandidateDetailPanel({
     );
   }
   const evidence = candidate.assignment_evidence;
-  const conflicts = stage.candidate_graph.conflicts.filter((conflict) => conflict.candidate_ids.includes(candidateId));
+  const conflicts = stage.candidate_graph.conflicts.filter((conflict) =>
+    conflict.candidate_ids.includes(candidateId),
+  );
   const votes: [string, number][] = [
     ['mountain', evidence.mountain],
     ['valley', evidence.valley],
@@ -2996,12 +3673,17 @@ function CandidateDetailPanel({
       </div>
       <div className="selection-status-row">
         <span>
-          <span className="layer-swatch" style={{ background: candidateLabelColor(evidence.observed_label) }} /> assignment
+          <span
+            className="layer-swatch"
+            style={{ background: candidateLabelColor(evidence.observed_label) }}
+          />{' '}
+          assignment
         </span>
         <strong>{evidence.observed_label}</strong>
       </div>
       <div className="candidate-detail-note">
-        confidence {evidence.confidence.toFixed(2)} · margin {evidence.margin.toFixed(2)} · {evidence.source}
+        confidence {evidence.confidence.toFixed(2)} · margin {evidence.margin.toFixed(2)} ·{' '}
+        {evidence.source}
       </div>
       <div className="selection-status-row">
         <span>selection policy</span>
@@ -3016,7 +3698,8 @@ function CandidateDetailPanel({
       <div className="selection-status-row">
         <span>line support (min/mean/max)</span>
         <strong>
-          {candidate.line_support_min.toFixed(2)} / {candidate.line_support_mean.toFixed(2)} / {candidate.line_support_max.toFixed(2)}
+          {candidate.line_support_min.toFixed(2)} / {candidate.line_support_mean.toFixed(2)} /{' '}
+          {candidate.line_support_max.toFixed(2)}
         </strong>
       </div>
       <div className="selection-status-row">
@@ -3107,39 +3790,44 @@ function SelectionViewer({
     if (!showExactProbes || !hasExactizability(stage)) return [];
     return stage.exactizability.vertex_probes
       .map((probe) => ({ probe, displayStatus: vertexProbeDisplayStatus(probe, probeVisibility) }))
-      .filter((entry): entry is { probe: VertexExactizabilityProbe; displayStatus: ProbeStatusId } => entry.displayStatus !== null);
+      .filter(
+        (entry): entry is { probe: VertexExactizabilityProbe; displayStatus: ProbeStatusId } =>
+          entry.displayStatus !== null,
+      );
   }, [probeVisibility, showExactProbes, stage]);
   const visibleCarrierProbes = useMemo(() => {
     if (!showExactProbes || !hasExactizability(stage)) return [];
-    return stage.exactizability.carrier_probes.filter((probe) => isProbeStatusVisible(probe.status, 'carrier', probeVisibility));
+    return stage.exactizability.carrier_probes.filter((probe) =>
+      isProbeStatusVisible(probe.status, 'carrier', probeVisibility),
+    );
   }, [probeVisibility, showExactProbes, stage]);
   const visibleBoundaryProbes = useMemo(() => {
     if (!showExactProbes || !hasExactizability(stage)) return [];
-    return stage.exactizability.boundary_probes.filter((probe) => isProbeStatusVisible(probe.status, 'boundary', probeVisibility));
+    return stage.exactizability.boundary_probes.filter((probe) =>
+      isProbeStatusVisible(probe.status, 'boundary', probeVisibility),
+    );
   }, [probeVisibility, showExactProbes, stage]);
   const stage4Active = showExactProbes && hasExactizability(stage);
   const size = stage.config.image_size;
 
   const renderSelectionEdges = (ids: number[], decision: 'selected' | 'rejected' | 'undecided') =>
-    ids
-      .slice(0, decision === 'selected' ? 5000 : 1500)
-      .map((edgeId) => {
-        const edge = edgesById.get(edgeId);
-        const score = scoresByEdgeId.get(edgeId);
-        if (!edge || !score) return null;
-        return (
-          <SelectionEdgeView
-            decision={decision}
-            edge={edge}
-            frame={stage.overlay_frame_px}
-            key={`${decision}-${edgeId}`}
-            score={score}
-            carriersById={carriersById}
-            showCarrierGeometry={showCarrierGeometry}
-            verticesById={verticesById}
-          />
-        );
-      });
+    ids.slice(0, decision === 'selected' ? 5000 : 1500).map((edgeId) => {
+      const edge = edgesById.get(edgeId);
+      const score = scoresByEdgeId.get(edgeId);
+      if (!edge || !score) return null;
+      return (
+        <SelectionEdgeView
+          decision={decision}
+          edge={edge}
+          frame={stage.overlay_frame_px}
+          key={`${decision}-${edgeId}`}
+          score={score}
+          carriersById={carriersById}
+          showCarrierGeometry={showCarrierGeometry}
+          verticesById={verticesById}
+        />
+      );
+    });
 
   return (
     <div className={stage4Active ? 'viewer-canvas stage4-issue-canvas' : 'viewer-canvas'}>
@@ -3148,13 +3836,23 @@ function SelectionViewer({
       ) : isStage5(stage) ? (
         <div className="stage5-blank-paper" />
       ) : (
-        <img alt="" className={stage4Active ? 'input-image stage4-source-image' : 'input-image'} src={stage.sample.input_image_url} />
+        <img
+          alt=""
+          className={stage4Active ? 'input-image stage4-source-image' : 'input-image'}
+          src={stage.sample.input_image_url}
+        />
       )}
       <svg
         className="primitive-overlay arrangement-overlay"
         viewBox={`0 0 ${size} ${size}`}
         role="img"
-        aria-label={stage4Active ? 'Stage 4 exactizability probes' : isStage5(stage) ? 'Stage 5 selected graph' : 'Beam selection'}
+        aria-label={
+          stage4Active
+            ? 'Stage 4 exactizability probes'
+            : isStage5(stage)
+              ? 'Stage 5 selected graph'
+              : 'Beam selection'
+        }
       >
         {showGroundTruth && isStage5(stage) && stage.ground_truth ? (
           <GroundTruthGraphView graph={stage.ground_truth} />
@@ -3162,18 +3860,39 @@ function SelectionViewer({
         {showLegacyGraph && isStage5(stage) && stage.legacy_graph ? (
           <LegacyGraphView graph={stage.legacy_graph} />
         ) : null}
-        {showAtomicEdges ? renderSelectionEdges(stage.selection.selected_edge_ids, 'selected') : null}
-        {showRejectedEdges ? renderSelectionEdges(stage.selection.rejected_edge_ids, 'rejected') : null}
-        {showUndecidedEdges ? renderSelectionEdges(stage.selection.undecided_edge_ids, 'undecided') : null}
+        {showAtomicEdges
+          ? renderSelectionEdges(stage.selection.selected_edge_ids, 'selected')
+          : null}
+        {showRejectedEdges
+          ? renderSelectionEdges(stage.selection.rejected_edge_ids, 'rejected')
+          : null}
+        {showUndecidedEdges
+          ? renderSelectionEdges(stage.selection.undecided_edge_ids, 'undecided')
+          : null}
         {showLines
           ? stage.arrangement.carriers
               .filter((carrier) => carrier.kind === 'observed_local')
-              .map((carrier) => <CarrierView carrier={carrier} frame={stage.overlay_frame_px} key={carrier.id} muted />)
+              .map((carrier) => (
+                <CarrierView
+                  carrier={carrier}
+                  frame={stage.overlay_frame_px}
+                  key={carrier.id}
+                  muted
+                />
+              ))
           : null}
         {showSharedCarriers
           ? stage.arrangement.carriers
               .filter((carrier) => carrier.kind === 'shared_collinear_alternative')
-              .map((carrier) => <CarrierView carrier={carrier} frame={stage.overlay_frame_px} key={carrier.id} muted shared />)
+              .map((carrier) => (
+                <CarrierView
+                  carrier={carrier}
+                  frame={stage.overlay_frame_px}
+                  key={carrier.id}
+                  muted
+                  shared
+                />
+              ))
           : null}
         {showSelectedEdges && isStage5(stage) ? (
           <SelectionSpanGraphView
@@ -3187,18 +3906,39 @@ function SelectionViewer({
         ) : null}
         {showJunctions
           ? stage.arrangement.vertices
-              .filter((vertex) => vertex.kind === 'observed_junction' || vertex.kind === 'junction_cluster')
-              .map((vertex) => <ArrangementVertexView frame={stage.overlay_frame_px} key={vertex.id} vertex={vertex} />)
+              .filter(
+                (vertex) =>
+                  vertex.kind === 'observed_junction' || vertex.kind === 'junction_cluster',
+              )
+              .map((vertex) => (
+                <ArrangementVertexView
+                  frame={stage.overlay_frame_px}
+                  key={vertex.id}
+                  vertex={vertex}
+                />
+              ))
           : null}
         {showLineEndpoints
           ? stage.arrangement.vertices
               .filter((vertex) => vertex.kind === 'observed_line_endpoint')
-              .map((vertex) => <ArrangementVertexView frame={stage.overlay_frame_px} key={vertex.id} vertex={vertex} />)
+              .map((vertex) => (
+                <ArrangementVertexView
+                  frame={stage.overlay_frame_px}
+                  key={vertex.id}
+                  vertex={vertex}
+                />
+              ))
           : null}
         {showContacts
           ? stage.arrangement.vertices
               .filter((vertex) => vertex.kind === 'boundary_contact' || vertex.kind === 'corner')
-              .map((vertex) => <ArrangementVertexView frame={stage.overlay_frame_px} key={`contact-${vertex.id}`} vertex={vertex} />)
+              .map((vertex) => (
+                <ArrangementVertexView
+                  frame={stage.overlay_frame_px}
+                  key={`contact-${vertex.id}`}
+                  vertex={vertex}
+                />
+              ))
           : null}
         {stage4Active && hasExactizability(stage)
           ? visibleCarrierProbes.map((probe) => {
@@ -3208,9 +3948,15 @@ function SelectionViewer({
                   carrier={carrier}
                   frame={stage.overlay_frame_px}
                   key={`carrier-probe-${probe.carrier_id}`}
-                  muted={Boolean(selectedStage4Issue && !stage4IssueMatchesProbe(selectedStage4Issue, 'carrier', probe))}
+                  muted={Boolean(
+                    selectedStage4Issue &&
+                    !stage4IssueMatchesProbe(selectedStage4Issue, 'carrier', probe),
+                  )}
                   probe={probe}
-                  selected={Boolean(selectedStage4Issue && stage4IssueMatchesProbe(selectedStage4Issue, 'carrier', probe))}
+                  selected={Boolean(
+                    selectedStage4Issue &&
+                    stage4IssueMatchesProbe(selectedStage4Issue, 'carrier', probe),
+                  )}
                 />
               ) : null;
             })
@@ -3220,9 +3966,15 @@ function SelectionViewer({
               <ExactBoundaryProbeView
                 frame={stage.overlay_frame_px}
                 key={`boundary-probe-${probe.vertex_id}`}
-                muted={Boolean(selectedStage4Issue && !stage4IssueMatchesProbe(selectedStage4Issue, 'boundary', probe))}
+                muted={Boolean(
+                  selectedStage4Issue &&
+                  !stage4IssueMatchesProbe(selectedStage4Issue, 'boundary', probe),
+                )}
                 probe={probe}
-                selected={Boolean(selectedStage4Issue && stage4IssueMatchesProbe(selectedStage4Issue, 'boundary', probe))}
+                selected={Boolean(
+                  selectedStage4Issue &&
+                  stage4IssueMatchesProbe(selectedStage4Issue, 'boundary', probe),
+                )}
               />
             ))
           : null}
@@ -3232,9 +3984,15 @@ function SelectionViewer({
                 displayStatus={displayStatus}
                 frame={stage.overlay_frame_px}
                 key={`vertex-probe-${probe.vertex_id}`}
-                muted={Boolean(selectedStage4Issue && !stage4IssueMatchesProbe(selectedStage4Issue, 'vertex', probe, displayStatus))}
+                muted={Boolean(
+                  selectedStage4Issue &&
+                  !stage4IssueMatchesProbe(selectedStage4Issue, 'vertex', probe, displayStatus),
+                )}
                 probe={probe}
-                selected={Boolean(selectedStage4Issue && stage4IssueMatchesProbe(selectedStage4Issue, 'vertex', probe, displayStatus))}
+                selected={Boolean(
+                  selectedStage4Issue &&
+                  stage4IssueMatchesProbe(selectedStage4Issue, 'vertex', probe, displayStatus),
+                )}
               />
             ))
           : null}
@@ -3276,14 +4034,25 @@ function Stage5bAuditViewer({
   const parsedTarget = parseAuditTarget(selectedTarget);
   const selectedCandidateId = parsedTarget?.kind === 'span' ? parsedTarget.id : null;
   const selectedGtId = parsedTarget?.kind === 'gt' ? parsedTarget.id : null;
-  const visibleCandidates = stage.decision_audit.candidates.filter((candidate) => auditVisibility[auditCategory(candidate)]);
+  const visibleCandidates = stage.decision_audit.candidates.filter(
+    (candidate) => auditVisibility[auditCategory(candidate)],
+  );
 
   return (
     <div className="viewer-canvas stage5b-canvas">
       <div className="stage5-blank-paper" />
-      <svg className="primitive-overlay arrangement-overlay" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Stage 5b candidate decision audit">
-        {showGroundTruth && stage.ground_truth ? <GroundTruthGraphView graph={stage.ground_truth} /> : null}
-        {showLegacyGraph && stage.legacy_graph ? <LegacyGraphView graph={stage.legacy_graph} /> : null}
+      <svg
+        className="primitive-overlay arrangement-overlay"
+        viewBox={`0 0 ${size} ${size}`}
+        role="img"
+        aria-label="Stage 5b candidate decision audit"
+      >
+        {showGroundTruth && stage.ground_truth ? (
+          <GroundTruthGraphView graph={stage.ground_truth} />
+        ) : null}
+        {showLegacyGraph && stage.legacy_graph ? (
+          <LegacyGraphView graph={stage.legacy_graph} />
+        ) : null}
         {visibleCandidates.map((candidate) => (
           <Stage5bCandidateView
             candidate={candidate}
@@ -3293,7 +4062,9 @@ function Stage5bAuditViewer({
             onSelect={() => onSelectTarget(`span:${candidate.id}`)}
           />
         ))}
-        {selectedGtId !== null && stage.ground_truth ? <Stage5bGtEdgeHighlight graph={stage.ground_truth} gtEdgeId={selectedGtId} /> : null}
+        {selectedGtId !== null && stage.ground_truth ? (
+          <Stage5bGtEdgeHighlight graph={stage.ground_truth} gtEdgeId={selectedGtId} />
+        ) : null}
         {topology ? <TopologyIssuesLayer topology={topology} /> : null}
       </svg>
     </div>
@@ -3319,7 +4090,14 @@ function Stage5bCandidateView({
   const selected = category === 'selected' || category === 'locked';
   const strokeWidth = highlighted ? 4.2 : selected ? 2.5 : category === 'available' ? 1.8 : 1.35;
   const opacity = highlighted ? 1 : selected ? 0.92 : category === 'available' ? 0.72 : 0.48;
-  const dash = category === 'available' ? '7 5' : category === 'dominated' ? '3 5' : category === 'rejected' ? '2 7' : undefined;
+  const dash =
+    category === 'available'
+      ? '7 5'
+      : category === 'dominated'
+        ? '3 5'
+        : category === 'rejected'
+          ? '2 7'
+          : undefined;
   return (
     <g className={`audit-candidate audit-${category}`}>
       {highlighted ? (
@@ -3350,15 +4128,22 @@ function Stage5bCandidateView({
         y2={p1.y}
       >
         <title>
-          span:{candidate.id} {candidate.reason_category}; {candidate.kind}; {candidate.assignment_label}; score{' '}
-          {candidate.score.toFixed(3)}; {candidate.reasons.join('; ')}
+          span:{candidate.id} {candidate.reason_category}; {candidate.kind};{' '}
+          {candidate.assignment_label}; score {candidate.score.toFixed(3)};{' '}
+          {candidate.reasons.join('; ')}
         </title>
       </line>
     </g>
   );
 }
 
-function Stage5bGtEdgeHighlight({ graph, gtEdgeId }: { graph: GroundTruthGraph; gtEdgeId: number }) {
+function Stage5bGtEdgeHighlight({
+  graph,
+  gtEdgeId,
+}: {
+  graph: GroundTruthGraph;
+  gtEdgeId: number;
+}) {
   const edge = graph.edges_vertices[gtEdgeId];
   if (!edge) return null;
   const a = graph.vertices_px[edge[0]];
@@ -3510,12 +4295,23 @@ function SelectionSpanGraphView({
   selection: Stage5Response['selection'];
   verticesById: Map<number, ArrangementVertex>;
 }) {
-  const endpointsById = new Map<number, { degree: number; id: number; point: { x: number; y: number } }>();
+  const endpointsById = new Map<
+    number,
+    { degree: number; id: number; point: { x: number; y: number } }
+  >();
   for (const span of selection.selected_spans) {
     const fallbackA = verticesById.get(span.vertices[0]);
     const fallbackB = verticesById.get(span.vertices[1]);
-    rememberSelectionEndpoint(endpointsById, span.vertices[0], span.endpoint_points?.[0] ?? fallbackA?.point ?? null);
-    rememberSelectionEndpoint(endpointsById, span.vertices[1], span.endpoint_points?.[1] ?? fallbackB?.point ?? null);
+    rememberSelectionEndpoint(
+      endpointsById,
+      span.vertices[0],
+      span.endpoint_points?.[0] ?? fallbackA?.point ?? null,
+    );
+    rememberSelectionEndpoint(
+      endpointsById,
+      span.vertices[1],
+      span.endpoint_points?.[1] ?? fallbackB?.point ?? null,
+    );
   }
   const endpoints = [...endpointsById.values()];
 
@@ -3542,7 +4338,9 @@ function SelectionSpanGraphView({
         if (!p0 || !p1) return null;
         const color = arrangementAssignmentColor(span.assignment.label);
         const isCarrierSpan =
-          span.kind === 'shared_carrier_span' || span.kind === 'observed_carrier_span' || span.kind === 'normalized_pass_through_span';
+          span.kind === 'shared_carrier_span' ||
+          span.kind === 'observed_carrier_span' ||
+          span.kind === 'normalized_pass_through_span';
         const strokeWidth = isCarrierSpan ? 2.35 : 1.65;
         return (
           <g key={`selected-span-${span.id}`}>
@@ -3569,10 +4367,12 @@ function SelectionSpanGraphView({
               y2={p1.y}
             >
               <title>
-                selected span {span.id}: {span.kind}; {span.assignment.label}; carrier {span.carrier_id}; endpoints {span.vertices[0]} {'->'}{' '}
-                {span.vertices[1]}; {span.source_atomic_edge_ids.length} atomic evidence interval(s); {span.collapsed_vertex_ids.length} collapsed
-                pass-through vertex/vertices; {span.replaced_atomic_edge_ids.length} replaced local fragment(s); score {span.score.toFixed(3)};{' '}
-                {span.reasons.join('; ')}
+                selected span {span.id}: {span.kind}; {span.assignment.label}; carrier{' '}
+                {span.carrier_id}; endpoints {span.vertices[0]} {'->'} {span.vertices[1]};{' '}
+                {span.source_atomic_edge_ids.length} atomic evidence interval(s);{' '}
+                {span.collapsed_vertex_ids.length} collapsed pass-through vertex/vertices;{' '}
+                {span.replaced_atomic_edge_ids.length} replaced local fragment(s); score{' '}
+                {span.score.toFixed(3)}; {span.reasons.join('; ')}
               </title>
             </line>
           </g>
@@ -3617,7 +4417,8 @@ function SelectionSpanEndpointView({
   point: { x: number; y: number };
 }) {
   const image = imagePoint(point, frame);
-  const isBoundary = nearUnit(point.x, 0) || nearUnit(point.x, 1) || nearUnit(point.y, 0) || nearUnit(point.y, 1);
+  const isBoundary =
+    nearUnit(point.x, 0) || nearUnit(point.x, 1) || nearUnit(point.y, 0) || nearUnit(point.y, 1);
   const isObserved = degree !== 2;
   const fill = isBoundary ? '#22c55e' : isObserved ? '#facc15' : '#f8fafc';
   const radius = isBoundary ? 3.1 : isObserved ? 3.0 : 2.45;
@@ -3683,8 +4484,15 @@ function ExactSolveViewer({
   return (
     <div className="viewer-canvas exact-solve-canvas">
       <div className="stage5-blank-paper" />
-      <svg className="primitive-overlay arrangement-overlay" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Stage 6 exact solve">
-        {showGroundTruth && stage.ground_truth ? <GroundTruthGraphView graph={stage.ground_truth} /> : null}
+      <svg
+        className="primitive-overlay arrangement-overlay"
+        viewBox={`0 0 ${size} ${size}`}
+        role="img"
+        aria-label="Stage 6 exact solve"
+      >
+        {showGroundTruth && stage.ground_truth ? (
+          <GroundTruthGraphView graph={stage.ground_truth} />
+        ) : null}
         {showBefore ? (
           <g className="exact-before-layer">
             <SelectionSpanGraphView
@@ -3711,7 +4519,10 @@ function ExactSolvedGraphView({ stage }: { stage: Stage6Response }) {
     endpointDegrees.set(bId, (endpointDegrees.get(bId) ?? 0) + 1);
   }
   return (
-    <g className={`exact-solved-graph exact-status-${stage.exact_solve.status}`} aria-label="Exact-solved graph">
+    <g
+      className={`exact-solved-graph exact-status-${stage.exact_solve.status}`}
+      aria-label="Exact-solved graph"
+    >
       {stage.exact_solve.edges_exact.map(([aId, bId], index) => {
         const a = stage.exact_solve.vertices_exact[aId];
         const b = stage.exact_solve.vertices_exact[bId];
@@ -3755,7 +4566,11 @@ function ExactSolvedGraphView({ stage }: { stage: Stage6Response }) {
         const point = stage.exact_solve.vertices_exact[vertexId];
         if (!point) return null;
         const image = imagePoint(point, stage.overlay_frame_px);
-        const boundary = nearUnit(point.x, 0) || nearUnit(point.x, 1) || nearUnit(point.y, 0) || nearUnit(point.y, 1);
+        const boundary =
+          nearUnit(point.x, 0) ||
+          nearUnit(point.x, 1) ||
+          nearUnit(point.y, 0) ||
+          nearUnit(point.y, 1);
         return (
           <circle
             cx={image.x}
@@ -3863,25 +4678,41 @@ function ExactFailureVertexView({ stage }: { stage: Stage6Response }) {
   );
 }
 
-function exactEdgeAssignmentLabel(stage: Stage6Response, edge: [number, number], index: number): string {
-  const boundarySpanIds = new Set(stage.exact_solve.theorem_residual_report.after.paper_boundary_span_ids ?? []);
+function exactEdgeAssignmentLabel(
+  stage: Stage6Response,
+  edge: [number, number],
+  index: number,
+): string {
+  const boundarySpanIds = new Set(
+    stage.exact_solve.theorem_residual_report.after.paper_boundary_span_ids ?? [],
+  );
   const indexed = stage.selection.selected_spans[index];
   if (indexed && sameUndirectedEdge(indexed.vertices, edge)) {
     return boundarySpanIds.has(indexed.id) ? 'boundary' : indexed.assignment.label;
   }
-  const matched = stage.selection.selected_spans.find((span) => sameUndirectedEdge(span.vertices, edge));
+  const matched = stage.selection.selected_spans.find((span) =>
+    sameUndirectedEdge(span.vertices, edge),
+  );
   if (matched) return boundarySpanIds.has(matched.id) ? 'boundary' : matched.assignment.label;
-  return indexed && boundarySpanIds.has(indexed.id) ? 'boundary' : (indexed?.assignment.label ?? 'unknown');
+  return indexed && boundarySpanIds.has(indexed.id)
+    ? 'boundary'
+    : (indexed?.assignment.label ?? 'unknown');
 }
 
 function sameUndirectedEdge(left: [number, number], right: [number, number]): boolean {
-  return (left[0] === right[0] && left[1] === right[1]) || (left[0] === right[1] && left[1] === right[0]);
+  return (
+    (left[0] === right[0] && left[1] === right[1]) || (left[0] === right[1] && left[1] === right[0])
+  );
 }
 
-function exactFailureVertices(stage: Stage6Response): Array<{ vertexId: number; reasons: string[]; color: string }> {
+function exactFailureVertices(
+  stage: Stage6Response,
+): Array<{ vertexId: number; reasons: string[]; color: string }> {
   const after = stage.exact_solve.theorem_residual_report.after;
   const failures = new Map<number, string[]>();
-  const diagnosticsByVertex = new Map(after.vertex_diagnostics.map((diagnostic) => [diagnostic.vertex_id, diagnostic]));
+  const diagnosticsByVertex = new Map(
+    after.vertex_diagnostics.map((diagnostic) => [diagnostic.vertex_id, diagnostic]),
+  );
   const remember = (vertexId: number, reason: string) => {
     const reasons = failures.get(vertexId) ?? [];
     if (!reasons.includes(reason)) reasons.push(reason);
@@ -3894,12 +4725,20 @@ function exactFailureVertices(stage: Stage6Response): Array<{ vertexId: number; 
   for (const vertexId of after.degree_two_vertices) remember(vertexId, 'Degree-2 pass-through');
   for (const vertexId of after.maekawa_failures) {
     const residual = diagnosticsByVertex.get(vertexId)?.maekawa_residual;
-    remember(vertexId, typeof residual === 'number' ? `Maekawa residual ${formatMetricNumber(residual, 0)}` : 'Maekawa failure');
+    remember(
+      vertexId,
+      typeof residual === 'number'
+        ? `Maekawa residual ${formatMetricNumber(residual, 0)}`
+        : 'Maekawa failure',
+    );
   }
   for (const vertexId of after.boundary_failures) remember(vertexId, 'Boundary failure');
   for (const diagnostic of after.vertex_diagnostics) {
     if ((diagnostic.kawasaki_residual_degrees ?? 0) >= 0.01) {
-      remember(vertexIdFromDiagnostic(diagnostic), `Kawasaki ${formatDegrees(diagnostic.kawasaki_residual_degrees)}`);
+      remember(
+        vertexIdFromDiagnostic(diagnostic),
+        `Kawasaki ${formatDegrees(diagnostic.kawasaki_residual_degrees)}`,
+      );
     }
   }
   return [...failures.entries()].map(([vertexId, reasons]) => ({
@@ -3955,7 +4794,9 @@ function SelectionEdgeView({
   return (
     <line
       stroke={color}
-      strokeDasharray={decision === 'selected' ? undefined : decision === 'undecided' ? '7 5' : '3 7'}
+      strokeDasharray={
+        decision === 'selected' ? undefined : decision === 'undecided' ? '7 5' : '3 7'
+      }
       strokeLinecap="round"
       strokeOpacity={decision === 'selected' ? 0.96 : decision === 'undecided' ? 0.62 : 0.24}
       strokeWidth={decision === 'selected' ? 2.35 : 1.25}
@@ -3966,8 +4807,9 @@ function SelectionEdgeView({
       y2={p1.y}
     >
       <title>
-        {decision} edge {edge.id} carrier {edge.carrier_id} {carrier?.kind ?? 'unknown'} score {score.total_score.toFixed(3)} support{' '}
-        {edge.line_support.toFixed(3)}; {score.reasons.join('; ')}
+        {decision} edge {edge.id} carrier {edge.carrier_id} {carrier?.kind ?? 'unknown'} score{' '}
+        {score.total_score.toFixed(3)} support {edge.line_support.toFixed(3)};{' '}
+        {score.reasons.join('; ')}
       </title>
     </line>
   );
@@ -3986,13 +4828,21 @@ function CarrierView({
 }) {
   const p0 = imagePoint(pointAtCarrierT(carrier, carrier.support_interval[0]), frame);
   const p1 = imagePoint(pointAtCarrierT(carrier, carrier.support_interval[1]), frame);
-  const color = muted ? (shared ? '#7c3aed' : '#475569') : shared ? '#9333ea' : arrangementAssignmentColor(carrier.assignment.label);
+  const color = muted
+    ? shared
+      ? '#7c3aed'
+      : '#475569'
+    : shared
+      ? '#9333ea'
+      : arrangementAssignmentColor(carrier.assignment.label);
   return (
     <line
       stroke={color}
       strokeDasharray={shared ? '7 5' : undefined}
       strokeLinecap="round"
-      strokeOpacity={muted ? 0.24 : shared ? 0.82 : carrier.source === 'observed_strong' ? 0.9 : 0.55}
+      strokeOpacity={
+        muted ? 0.24 : shared ? 0.82 : carrier.source === 'observed_strong' ? 0.9 : 0.55
+      }
       strokeWidth={muted ? 1.2 : shared ? 2.4 : 2.1}
       vectorEffect="non-scaling-stroke"
       x1={p0.x}
@@ -4001,7 +4851,8 @@ function CarrierView({
       y2={p1.y}
     >
       <title>
-        {carrier.kind} support {carrier.visual_support.toFixed(3)} cost {carrier.hypothesis_cost.toFixed(3)}
+        {carrier.kind} support {carrier.visual_support.toFixed(3)} cost{' '}
+        {carrier.hypothesis_cost.toFixed(3)}
       </title>
     </line>
   );
@@ -4034,8 +4885,8 @@ function AtomicEdgeView({
       y2={p1.y}
     >
       <title>
-        atomic interval {edge.id} carrier {edge.carrier_id} support {edge.line_support.toFixed(3)} overlap{' '}
-        {edge.support_overlap.toFixed(3)}
+        atomic interval {edge.id} carrier {edge.carrier_id} support {edge.line_support.toFixed(3)}{' '}
+        overlap {edge.support_overlap.toFixed(3)}
       </title>
     </line>
   );
@@ -4074,7 +4925,8 @@ function ArrangementVertexView({
       vectorEffect="non-scaling-stroke"
     >
       <title>
-        {vertex.kind} support {vertex.support.toFixed(3)} carriers {vertex.carrier_ids.join(',') || 'none'}
+        {vertex.kind} support {vertex.support.toFixed(3)} carriers{' '}
+        {vertex.carrier_ids.join(',') || 'none'}
       </title>
     </circle>
   );
@@ -4106,15 +4958,27 @@ function ExactVertexProbeView({
       cy={point.y}
       fill="white"
       fillOpacity={selected ? 0.3 : muted ? 0.04 : isHard ? 0.2 : 0.08}
-      r={selected ? 11 : displayStatus === 'infeasible' || displayStatus === 'odd_degree' || displayStatus === 'hard_kawasaki' ? 9 : displayStatus === 'high_cost' ? 7 : 5}
+      r={
+        selected
+          ? 11
+          : displayStatus === 'infeasible' ||
+              displayStatus === 'odd_degree' ||
+              displayStatus === 'hard_kawasaki'
+            ? 9
+            : displayStatus === 'high_cost'
+              ? 7
+              : 5
+      }
       stroke={color}
       strokeOpacity={muted ? 0.18 : isHard ? 0.95 : 0.55}
       strokeWidth={selected ? 2.6 : isHard ? 2.1 : 1.4}
       vectorEffect="non-scaling-stroke"
     >
       <title>
-        vertex {probe.vertex_id}: {displayStatus.replaceAll('_', ' ')}; base status {probe.status.replaceAll('_', ' ')}; degree {probe.degree}; Kawasaki residual{' '}
-        {probe.residual_before_degrees?.toFixed(3) ?? 'n/a'}°; move {probe.max_vertex_move.toFixed(5)}
+        vertex {probe.vertex_id}: {displayStatus.replaceAll('_', ' ')}; base status{' '}
+        {probe.status.replaceAll('_', ' ')}; degree {probe.degree}; Kawasaki residual{' '}
+        {probe.residual_before_degrees?.toFixed(3) ?? 'n/a'}°; move{' '}
+        {probe.max_vertex_move.toFixed(5)}
         {probe.blockers.length ? `; ${probe.blockers.join('; ')}` : ''}
       </title>
     </circle>
@@ -4150,8 +5014,8 @@ function ExactBoundaryProbeView({
       y={point.y - size / 2}
     >
       <title>
-        boundary vertex {probe.vertex_id}: {probe.status.replaceAll('_', ' ')}; side {probe.side ?? 'nearest'}; boundary move{' '}
-        {probe.max_vertex_move.toFixed(5)}
+        boundary vertex {probe.vertex_id}: {probe.status.replaceAll('_', ' ')}; side{' '}
+        {probe.side ?? 'nearest'}; boundary move {probe.max_vertex_move.toFixed(5)}
         {probe.blockers.length ? `; ${probe.blockers.join('; ')}` : ''}
       </title>
     </rect>
@@ -4189,8 +5053,10 @@ function ExactCarrierProbeView({
       y2={p1.y}
     >
       <title>
-        carrier {probe.carrier_id}: {probe.status.replaceAll('_', ' ')}; {probe.carrier_kind.replaceAll('_', ' ')}; selected edges{' '}
-        {probe.selected_edges}; max endpoint move {probe.max_endpoint_move.toFixed(5)}, mean {probe.mean_endpoint_move.toFixed(5)}
+        carrier {probe.carrier_id}: {probe.status.replaceAll('_', ' ')};{' '}
+        {probe.carrier_kind.replaceAll('_', ' ')}; selected edges {probe.selected_edges}; max
+        endpoint move {probe.max_endpoint_move.toFixed(5)}, mean{' '}
+        {probe.mean_endpoint_move.toFixed(5)}
         {probe.blockers.length ? `; ${probe.blockers.join('; ')}` : ''}
       </title>
     </line>
@@ -4221,7 +5087,13 @@ function Stage4IssueContextView({
     <g aria-label={`Selected issue ${issue.label}`}>
       {carrierIds.map((carrierId) => {
         const carrier = carriersById.get(carrierId);
-        return carrier ? <Stage4IssueCarrierContext carrier={carrier} frame={frame} key={`issue-carrier-${carrierId}`} /> : null;
+        return carrier ? (
+          <Stage4IssueCarrierContext
+            carrier={carrier}
+            frame={frame}
+            key={`issue-carrier-${carrierId}`}
+          />
+        ) : null;
       })}
       {candidateIds.map((edgeId) => {
         const edge = edgesById.get(edgeId);
@@ -4260,7 +5132,13 @@ function Stage4IssueContextView({
   );
 }
 
-function Stage4IssueCarrierContext({ carrier, frame }: { carrier: ArrangementCarrier; frame: Stage2Response['overlay_frame_px'] }) {
+function Stage4IssueCarrierContext({
+  carrier,
+  frame,
+}: {
+  carrier: ArrangementCarrier;
+  frame: Stage2Response['overlay_frame_px'];
+}) {
   const p0 = imagePoint(pointAtCarrierT(carrier, carrier.support_interval[0]), frame);
   const p1 = imagePoint(pointAtCarrierT(carrier, carrier.support_interval[1]), frame);
   return (
@@ -4339,14 +5217,21 @@ function Stage4IssueEdgeContext({
         y2={p1.y}
       >
         <title>
-          {role} associated edge {edge.id} carrier {edge.carrier_id}; score {score?.total_score.toFixed(3) ?? 'n/a'}
+          {role} associated edge {edge.id} carrier {edge.carrier_id}; score{' '}
+          {score?.total_score.toFixed(3) ?? 'n/a'}
         </title>
       </line>
     </g>
   );
 }
 
-function Stage4IssueFocusMarker({ frame, issue }: { frame: Stage2Response['overlay_frame_px']; issue: Stage4Issue }) {
+function Stage4IssueFocusMarker({
+  frame,
+  issue,
+}: {
+  frame: Stage2Response['overlay_frame_px'];
+  issue: Stage4Issue;
+}) {
   if (!issue.point) return null;
   const point = imagePoint(issue.point, frame);
   const color = issue.color;
@@ -4405,19 +5290,54 @@ function Stage2LayerSummary({ stage }: { stage: Stage2Response }) {
   return (
     <div className="hypothesis-panel">
       <PanelTitle icon={<GitBranch size={17} />} title="Stage 2 Layers" />
-      <LayerRow color="#e11d48" label="Observed carriers" value={report.observed_carriers} note="source-image line evidence" />
-      <LayerRow color="#9333ea" label="Shared alternatives" value={report.shared_carrier_alternatives} note="optional collinear carrier interpretations" />
-      <LayerRow color="#facc15" label="Observed junctions" value={report.observed_junctions} note="model junction peaks" />
-      <LayerRow color="#94a3b8" label="Line endpoints" value={report.line_endpoints} note="ends of observed line primitives" />
-      <LayerRow color="#22c55e" label="Boundary contacts" value={report.boundary_contacts} note="square-side contact candidates" />
-      <LayerRow color="#f97316" label="Inferred crossings" value={report.carrier_intersections} note="supported carrier-carrier crossings" />
+      <LayerRow
+        color="#e11d48"
+        label="Observed carriers"
+        value={report.observed_carriers}
+        note="source-image line evidence"
+      />
+      <LayerRow
+        color="#9333ea"
+        label="Shared alternatives"
+        value={report.shared_carrier_alternatives}
+        note="optional collinear carrier interpretations"
+      />
+      <LayerRow
+        color="#facc15"
+        label="Observed junctions"
+        value={report.observed_junctions}
+        note="model junction peaks"
+      />
+      <LayerRow
+        color="#94a3b8"
+        label="Line endpoints"
+        value={report.line_endpoints}
+        note="ends of observed line primitives"
+      />
+      <LayerRow
+        color="#22c55e"
+        label="Boundary contacts"
+        value={report.boundary_contacts}
+        note="square-side contact candidates"
+      />
+      <LayerRow
+        color="#f97316"
+        label="Inferred crossings"
+        value={report.carrier_intersections}
+        note="supported carrier-carrier crossings"
+      />
       <LayerRow
         color="#64748b"
         label="Suppressed crossings"
         value={report.suppressed_carrier_intersections}
         note="infinite-line crossings outside observed support"
       />
-      <LayerRow color="#f59e0b" label="Atomic intervals" value={report.atomic_edges} note="adjacent candidate vertex intervals; not selected" />
+      <LayerRow
+        color="#f59e0b"
+        label="Atomic intervals"
+        value={report.atomic_edges}
+        note="adjacent candidate vertex intervals; not selected"
+      />
       <div className="hypothesis-divider" />
       <PanelTitle icon={<GitBranch size={17} />} title="Hypotheses" />
       {Object.entries(counts).map(([kind, count]) => (
@@ -4426,7 +5346,10 @@ function Stage2LayerSummary({ stage }: { stage: Stage2Response }) {
           <strong>{count}</strong>
         </div>
       ))}
-      <p>Stage 2 keeps alternatives open. It emits {report.selected_edges} selected FOLD edges by design.</p>
+      <p>
+        Stage 2 keeps alternatives open. It emits {report.selected_edges} selected FOLD edges by
+        design.
+      </p>
     </div>
   );
 }
@@ -4445,13 +5368,21 @@ function Stage5bAuditPanel({
   stage: Stage5bResponse;
 }) {
   const target = parseAuditTarget(selectedTarget);
-  const selectedCandidate = target?.kind === 'span' ? stage.decision_audit.candidates.find((candidate) => candidate.id === target.id) ?? null : null;
-  const selectedGt = target?.kind === 'gt' ? stage.decision_audit.gt_edges.find((edge) => edge.gt_edge_id === target.id) ?? null : null;
+  const selectedCandidate =
+    target?.kind === 'span'
+      ? (stage.decision_audit.candidates.find((candidate) => candidate.id === target.id) ?? null)
+      : null;
+  const selectedGt =
+    target?.kind === 'gt'
+      ? (stage.decision_audit.gt_edges.find((edge) => edge.gt_edge_id === target.id) ?? null)
+      : null;
   const candidatesById = useMemo(
     () => new Map(stage.decision_audit.candidates.map((candidate) => [candidate.id, candidate])),
     [stage.decision_audit.candidates],
   );
-  const problemGtEdges = stage.decision_audit.gt_edges.filter((edge) => edge.root_cause !== 'selected').slice(0, 20);
+  const problemGtEdges = stage.decision_audit.gt_edges
+    .filter((edge) => edge.root_cause !== 'selected')
+    .slice(0, 20);
   const submitLookup = (event: FormEvent) => {
     event.preventDefault();
     const normalized = normalizeAuditLookup(lookup);
@@ -4462,7 +5393,12 @@ function Stage5bAuditPanel({
     <div className="stage5b-audit-summary">
       <PanelTitle icon={<ListFilter size={17} />} title="Decision Audit" />
       <form className="audit-lookup" onSubmit={submitLookup}>
-        <input onChange={(event) => onLookupChange(event.target.value)} placeholder="span:1842 or gt:97" type="text" value={lookup} />
+        <input
+          onChange={(event) => onLookupChange(event.target.value)}
+          placeholder="span:1842 or gt:97"
+          type="text"
+          value={lookup}
+        />
         <button type="submit">Find</button>
       </form>
 
@@ -4476,7 +5412,13 @@ function Stage5bAuditPanel({
       </div>
 
       {selectedCandidate ? <CandidateAuditDetails candidate={selectedCandidate} /> : null}
-      {selectedGt ? <GtAuditDetails candidatesById={candidatesById} edge={selectedGt} onSelectTarget={onSelectTarget} /> : null}
+      {selectedGt ? (
+        <GtAuditDetails
+          candidatesById={candidatesById}
+          edge={selectedGt}
+          onSelectTarget={onSelectTarget}
+        />
+      ) : null}
       {!selectedCandidate && !selectedGt ? (
         <div className="audit-empty-state">
           <strong>Pick a candidate or GT edge</strong>
@@ -4488,7 +5430,11 @@ function Stage5bAuditPanel({
         <h3>GT Edges Needing Attention</h3>
         {problemGtEdges.length ? (
           problemGtEdges.map((edge) => (
-            <button className="audit-list-row" key={`gt-problem-${edge.gt_edge_id}`} onClick={() => onSelectTarget(`gt:${edge.gt_edge_id}`)}>
+            <button
+              className="audit-list-row"
+              key={`gt-problem-${edge.gt_edge_id}`}
+              onClick={() => onSelectTarget(`gt:${edge.gt_edge_id}`)}
+            >
               <strong>gt:{edge.gt_edge_id}</strong>
               <span>{edge.root_cause.replaceAll('_', ' ')}</span>
             </button>
@@ -4546,7 +5492,9 @@ function CandidateAuditDetails({ candidate }: { candidate: CandidateDecisionReco
         </div>
       ) : null}
       <AuditReasons reasons={candidate.reasons} />
-      {candidate.score_breakdown ? <AuditScoreBreakdown breakdown={candidate.score_breakdown} /> : null}
+      {candidate.score_breakdown ? (
+        <AuditScoreBreakdown breakdown={candidate.score_breakdown} />
+      ) : null}
     </div>
   );
 }
@@ -4578,11 +5526,15 @@ function GtAuditDetails({
         {edge.matches.map((match) => {
           const candidate = candidatesById.get(match.candidate_id);
           return (
-            <button className="audit-list-row" key={`gt-match-${edge.gt_edge_id}-${match.candidate_id}`} onClick={() => onSelectTarget(`span:${match.candidate_id}`)}>
+            <button
+              className="audit-list-row"
+              key={`gt-match-${edge.gt_edge_id}-${match.candidate_id}`}
+              onClick={() => onSelectTarget(`span:${match.candidate_id}`)}
+            >
               <strong>span:{match.candidate_id}</strong>
               <span>
-                {match.reason_category} · {match.distance_px.toFixed(2)}px · {match.angle_delta_degrees.toFixed(1)}° ·{' '}
-                {candidate?.kind ?? 'unknown'}
+                {match.reason_category} · {match.distance_px.toFixed(2)}px ·{' '}
+                {match.angle_delta_degrees.toFixed(1)}° · {candidate?.kind ?? 'unknown'}
               </span>
             </button>
           );
@@ -4616,7 +5568,11 @@ function AuditReasons({ reasons }: { reasons: string[] }) {
   );
 }
 
-function AuditScoreBreakdown({ breakdown }: { breakdown: NonNullable<CandidateDecisionRecord['score_breakdown']> }) {
+function AuditScoreBreakdown({
+  breakdown,
+}: {
+  breakdown: NonNullable<CandidateDecisionRecord['score_breakdown']>;
+}) {
   return (
     <div className="audit-section">
       <h3>Score Breakdown</h3>
@@ -4636,7 +5592,9 @@ function Stage3LayerSummary({ stage }: { stage: Stage3Response }) {
   // (select_candidate_graph_beam_from_ir); stage 5 adds the ground-truth overlays.
   const isStage5 = 'ground_truth' in stage;
   const carriersById = new Map(stage.arrangement.carriers.map((carrier) => [carrier.id, carrier]));
-  const selectedScores = stage.selection.edge_scores.filter((score) => score.decision === 'selected');
+  const selectedScores = stage.selection.edge_scores.filter(
+    (score) => score.decision === 'selected',
+  );
   const selectedCarrierIds = new Set(selectedScores.map((score) => score.carrier_id));
   const selectedSharedEdges = selectedScores.filter(
     (score) => carriersById.get(score.carrier_id)?.kind === 'shared_collinear_alternative',
@@ -4653,23 +5611,96 @@ function Stage3LayerSummary({ stage }: { stage: Stage3Response }) {
     .slice(0, 10);
   return (
     <div className="hypothesis-panel">
-      <PanelTitle icon={<GitBranch size={17} />} title={isStage5 ? 'Stage 5 Beam Selection' : 'Beam Selection'} />
-      <LayerRow color="#16a34a" label="Selected edges" value={report.selected_edges} note="atomic intervals chosen for the graph" />
-      <LayerRow color="#9333ea" label="Shared selected" value={selectedSharedEdges} note="selected intervals from shared straight carriers" />
-      <LayerRow color="#475569" label="Observed selected" value={selectedObservedEdges} note="selected intervals from local observed carriers" />
-      <LayerRow color="#0f766e" label="Selected carriers" value={selectedCarrierIds.size} note={`${selectedSharedCarriers} shared carrier(s) selected`} />
-      <LayerRow color="#f59e0b" label="Undecided edges" value={report.undecided_edges} note="plausible evidence not selected yet" />
-      <LayerRow color="#94a3b8" label="Rejected edges" value={report.rejected_edges} note="candidates below current costs" />
-      <LayerRow color="#2563eb" label="Weak promoted" value={report.weak_edges_promoted} note="weak evidence selected by topology benefit" />
-      <LayerRow color="#9333ea" label="Hypotheses" value={report.selected_hypotheses} note="arrangement hypotheses referenced by selection" />
-      <LayerRow color="#ef4444" label="Odd vertices" value={report.odd_degree_vertices} note="remaining local topology warnings" />
+      <PanelTitle
+        icon={<GitBranch size={17} />}
+        title={isStage5 ? 'Stage 5 Beam Selection' : 'Beam Selection'}
+      />
+      <LayerRow
+        color="#16a34a"
+        label="Selected edges"
+        value={report.selected_edges}
+        note="atomic intervals chosen for the graph"
+      />
+      <LayerRow
+        color="#9333ea"
+        label="Shared selected"
+        value={selectedSharedEdges}
+        note="selected intervals from shared straight carriers"
+      />
+      <LayerRow
+        color="#475569"
+        label="Observed selected"
+        value={selectedObservedEdges}
+        note="selected intervals from local observed carriers"
+      />
+      <LayerRow
+        color="#0f766e"
+        label="Selected carriers"
+        value={selectedCarrierIds.size}
+        note={`${selectedSharedCarriers} shared carrier(s) selected`}
+      />
+      <LayerRow
+        color="#f59e0b"
+        label="Undecided edges"
+        value={report.undecided_edges}
+        note="plausible evidence not selected yet"
+      />
+      <LayerRow
+        color="#94a3b8"
+        label="Rejected edges"
+        value={report.rejected_edges}
+        note="candidates below current costs"
+      />
+      <LayerRow
+        color="#2563eb"
+        label="Weak promoted"
+        value={report.weak_edges_promoted}
+        note="weak evidence selected by topology benefit"
+      />
+      <LayerRow
+        color="#9333ea"
+        label="Hypotheses"
+        value={report.selected_hypotheses}
+        note="arrangement hypotheses referenced by selection"
+      />
+      <LayerRow
+        color="#ef4444"
+        label="Odd vertices"
+        value={report.odd_degree_vertices}
+        note="remaining local topology warnings"
+      />
       <div className="hypothesis-divider" />
       <PanelTitle icon={<GitBranch size={17} />} title="Structural Edits" />
-      <LayerRow color="#7c3aed" label="Shared replacements" value={report.shared_replacements} note="straight carriers replacing local fragments" />
-      <LayerRow color="#7c3aed" label="Fragments replaced" value={report.local_fragments_replaced} note="local intervals explained by shared carriers" />
-      <LayerRow color="#f59e0b" label="Fragments retained" value={report.local_fragments_retained} note="local intervals kept despite shared alternatives" />
-      <LayerRow color="#0f766e" label="Pass-through vertices" value={report.collapsible_degree_two_vertices} note="degree-2 collinear vertices to collapse later" />
-      <LayerRow color="#dc2626" label="Bad degree-2 vertices" value={report.non_collinear_degree_two_vertices} note="degree-2 pseudo-junction penalties" />
+      <LayerRow
+        color="#7c3aed"
+        label="Shared replacements"
+        value={report.shared_replacements}
+        note="straight carriers replacing local fragments"
+      />
+      <LayerRow
+        color="#7c3aed"
+        label="Fragments replaced"
+        value={report.local_fragments_replaced}
+        note="local intervals explained by shared carriers"
+      />
+      <LayerRow
+        color="#f59e0b"
+        label="Fragments retained"
+        value={report.local_fragments_retained}
+        note="local intervals kept despite shared alternatives"
+      />
+      <LayerRow
+        color="#0f766e"
+        label="Pass-through vertices"
+        value={report.collapsible_degree_two_vertices}
+        note="degree-2 collinear vertices to collapse later"
+      />
+      <LayerRow
+        color="#dc2626"
+        label="Bad degree-2 vertices"
+        value={report.non_collinear_degree_two_vertices}
+        note="degree-2 pseudo-junction penalties"
+      />
       <div className="hypothesis-divider" />
       <div className="selection-status-row">
         <span>Total selected score</span>
@@ -4735,14 +5766,46 @@ function Stage6LayerSummary({ stage }: { stage: Stage6Response }) {
       </div>
       <div className="hypothesis-divider" />
       <PanelTitle icon={<ListFilter size={17} />} title="Before / After Checks" />
-      <ExactDiagnosticRow label="Kawasaki max" before={formatDegrees(before.max_kawasaki_residual_degrees)} after={formatDegrees(after.max_kawasaki_residual_degrees)} />
-      <ExactDiagnosticRow label="Carrier residual" before={formatMetricNumber(before.max_carrier_residual, 6)} after={formatMetricNumber(after.max_carrier_residual, 6)} />
-      <ExactDiagnosticRow label="Odd vertices" before={String(before.odd_degree_vertices.length)} after={String(after.odd_degree_vertices.length)} />
-      <ExactDiagnosticRow label="Degree-2 vertices" before={String(before.degree_two_vertices.length)} after={String(after.degree_two_vertices.length)} />
-      <ExactDiagnosticRow label="Maekawa failures" before={String(before.maekawa_failures.length)} after={String(after.maekawa_failures.length)} />
-      <ExactDiagnosticRow label="Degenerate edges" before={String(before.degenerate_edges.length)} after={String(after.degenerate_edges.length)} />
-      <ExactDiagnosticRow label="Crossings" before={String(before.unmodeled_crossings.length)} after={String(after.unmodeled_crossings.length)} />
-      <ExactDiagnosticRow label="Boundary failures" before={String(before.boundary_failures.length)} after={String(after.boundary_failures.length)} />
+      <ExactDiagnosticRow
+        label="Kawasaki max"
+        before={formatDegrees(before.max_kawasaki_residual_degrees)}
+        after={formatDegrees(after.max_kawasaki_residual_degrees)}
+      />
+      <ExactDiagnosticRow
+        label="Carrier residual"
+        before={formatMetricNumber(before.max_carrier_residual, 6)}
+        after={formatMetricNumber(after.max_carrier_residual, 6)}
+      />
+      <ExactDiagnosticRow
+        label="Odd vertices"
+        before={String(before.odd_degree_vertices.length)}
+        after={String(after.odd_degree_vertices.length)}
+      />
+      <ExactDiagnosticRow
+        label="Degree-2 vertices"
+        before={String(before.degree_two_vertices.length)}
+        after={String(after.degree_two_vertices.length)}
+      />
+      <ExactDiagnosticRow
+        label="Maekawa failures"
+        before={String(before.maekawa_failures.length)}
+        after={String(after.maekawa_failures.length)}
+      />
+      <ExactDiagnosticRow
+        label="Degenerate edges"
+        before={String(before.degenerate_edges.length)}
+        after={String(after.degenerate_edges.length)}
+      />
+      <ExactDiagnosticRow
+        label="Crossings"
+        before={String(before.unmodeled_crossings.length)}
+        after={String(after.unmodeled_crossings.length)}
+      />
+      <ExactDiagnosticRow
+        label="Boundary failures"
+        before={String(before.boundary_failures.length)}
+        after={String(after.boundary_failures.length)}
+      />
       <div className="hypothesis-divider" />
       <PanelTitle icon={<GitBranch size={17} />} title="Movement" />
       <ExactDiagnosticRow
@@ -4784,14 +5847,22 @@ function Stage6LayerSummary({ stage }: { stage: Stage6Response }) {
         <p>No local theorem failures remain in the exact-solved graph.</p>
       )}
       <p>
-        Stage 6 preserves Stage 5 topology. It only moves vertices and carrier parameters within the exact solver, then reports
-        whether local theorem and geometry residuals improved.
+        Stage 6 preserves Stage 5 topology. It only moves vertices and carrier parameters within the
+        exact solver, then reports whether local theorem and geometry residuals improved.
       </p>
     </div>
   );
 }
 
-function ExactDiagnosticRow({ after, before, label }: { after: string; before: string; label: string }) {
+function ExactDiagnosticRow({
+  after,
+  before,
+  label,
+}: {
+  after: string;
+  before: string;
+  label: string;
+}) {
   return (
     <div className="exact-diagnostic-row">
       <span>{label}</span>
@@ -4840,7 +5911,11 @@ function Stage4LayerSummary({
           </button>
         ))}
       </div>
-      {selectedIssue ? <Stage4IssueDetail issue={selectedIssue} /> : <p>No exactizability issues match this filter.</p>}
+      {selectedIssue ? (
+        <Stage4IssueDetail issue={selectedIssue} />
+      ) : (
+        <p>No exactizability issues match this filter.</p>
+      )}
       <div className="issue-list">
         {issueSections.map((section) => (
           <div className="issue-section" key={section.id}>
@@ -4863,7 +5938,8 @@ function Stage4LayerSummary({
       </div>
       {filteredIssues.length > ISSUE_LIST_LIMIT_PER_TYPE ? (
         <p>
-          Showing up to {ISSUE_LIST_LIMIT_PER_TYPE} issue(s) per selected type. Use filters to focus a specific family.
+          Showing up to {ISSUE_LIST_LIMIT_PER_TYPE} issue(s) per selected type. Use filters to focus
+          a specific family.
         </p>
       ) : null}
       <div className="hypothesis-divider" />
@@ -4907,8 +5983,8 @@ function Stage4LayerSummary({
         <strong>{summary.total_estimated_energy.toFixed(2)}</strong>
       </div>
       <p>
-        Stage 4 does not alter the graph. Select an issue to highlight the associated selected edges, weak candidates,
-        carriers, and local theorem evidence.
+        Stage 4 does not alter the graph. Select an issue to highlight the associated selected
+        edges, weak candidates, carriers, and local theorem evidence.
       </p>
     </div>
   );
@@ -4994,7 +6070,10 @@ function ProbeToggleRow({
       {(['vertex', 'carrier', 'boundary'] as ProbeKindId[]).map((kind) => {
         const available = row.kinds.includes(kind);
         return (
-          <label className={available ? 'probe-kind-toggle' : 'probe-kind-toggle disabled'} key={kind}>
+          <label
+            className={available ? 'probe-kind-toggle' : 'probe-kind-toggle disabled'}
+            key={kind}
+          >
             <input
               aria-label={`${row.label} ${PROBE_KIND_LABELS[kind]} probes`}
               checked={available ? visibility[kind] : false}
@@ -5010,7 +6089,17 @@ function ProbeToggleRow({
   );
 }
 
-function LayerRow({ color, label, note, value }: { color: string; label: string; note: string; value: number }) {
+function LayerRow({
+  color,
+  label,
+  note,
+  value,
+}: {
+  color: string;
+  label: string;
+  note: string;
+  value: number;
+}) {
   return (
     <div className="layer-row">
       <span className="layer-swatch" style={{ background: color }} />
@@ -5096,7 +6185,10 @@ function legacyAssignmentColor(label: string) {
 
 function buildStage4Issues(stage: Stage4Response): Stage4Issue[] {
   const selectedEdgeIds = new Set(stage.selection.selected_edge_ids);
-  const candidateEdgeIds = new Set([...stage.selection.undecided_edge_ids, ...stage.selection.rejected_edge_ids]);
+  const candidateEdgeIds = new Set([
+    ...stage.selection.undecided_edge_ids,
+    ...stage.selection.rejected_edge_ids,
+  ]);
   const verticesById = new Map(stage.arrangement.vertices.map((vertex) => [vertex.id, vertex]));
   const carriersById = new Map(stage.arrangement.carriers.map((carrier) => [carrier.id, carrier]));
   const edgeById = new Map(stage.arrangement.atomic_edges.map((edge) => [edge.id, edge]));
@@ -5104,10 +6196,16 @@ function buildStage4Issues(stage: Stage4Response): Stage4Issue[] {
     number,
     { selectedEdgeIds: number[]; candidateEdgeIds: number[]; carrierIds: Set<number> }
   >();
-  const edgesByCarrier = new Map<number, { selectedEdgeIds: number[]; candidateEdgeIds: number[] }>();
+  const edgesByCarrier = new Map<
+    number,
+    { selectedEdgeIds: number[]; candidateEdgeIds: number[] }
+  >();
 
   for (const edge of stage.arrangement.atomic_edges) {
-    const carrierEntry = edgesByCarrier.get(edge.carrier_id) ?? { selectedEdgeIds: [], candidateEdgeIds: [] };
+    const carrierEntry = edgesByCarrier.get(edge.carrier_id) ?? {
+      selectedEdgeIds: [],
+      candidateEdgeIds: [],
+    };
     if (selectedEdgeIds.has(edge.id)) carrierEntry.selectedEdgeIds.push(edge.id);
     if (candidateEdgeIds.has(edge.id)) carrierEntry.candidateEdgeIds.push(edge.id);
     edgesByCarrier.set(edge.carrier_id, carrierEntry);
@@ -5283,7 +6381,9 @@ function buildStage4Issues(stage: Stage4Response): Stage4Issue[] {
     });
   }
 
-  return issues.sort((left, right) => issuePriority(right) - issuePriority(left) || right.value - left.value);
+  return issues.sort(
+    (left, right) => issuePriority(right) - issuePriority(left) || right.value - left.value,
+  );
 }
 
 function filterStage4Issues(issues: Stage4Issue[], filter: Stage4IssueFilter) {
@@ -5294,8 +6394,14 @@ function filterStage4Issues(issues: Stage4Issue[], filter: Stage4IssueFilter) {
   return issues.filter((issue) => issue.status === filter);
 }
 
-function stage4IssueSections(issues: Stage4Issue[], filter: Stage4IssueFilter): Stage4IssueSection[] {
-  const sectionFilters = filter === 'all' ? ISSUE_FILTERS.filter((entry) => entry.id !== 'all') : ISSUE_FILTERS.filter((entry) => entry.id === filter);
+function stage4IssueSections(
+  issues: Stage4Issue[],
+  filter: Stage4IssueFilter,
+): Stage4IssueSection[] {
+  const sectionFilters =
+    filter === 'all'
+      ? ISSUE_FILTERS.filter((entry) => entry.id !== 'all')
+      : ISSUE_FILTERS.filter((entry) => entry.id === filter);
   return sectionFilters
     .map((entry) => {
       const sectionIssues = filterStage4Issues(issues, entry.id);
@@ -5324,8 +6430,11 @@ function stage4IssueMatchesProbe(
   _displayStatus?: ProbeStatusId,
 ) {
   if (issue.probeKind !== kind) return false;
-  if (kind === 'carrier') return issue.carrierId === (probe as CarrierExactizabilityProbe).carrier_id;
-  return issue.vertexId === (probe as VertexExactizabilityProbe | BoundaryExactizabilityProbe).vertex_id;
+  if (kind === 'carrier')
+    return issue.carrierId === (probe as CarrierExactizabilityProbe).carrier_id;
+  return (
+    issue.vertexId === (probe as VertexExactizabilityProbe | BoundaryExactizabilityProbe).vertex_id
+  );
 }
 
 function uniqueNumbers(values: Iterable<number>) {
@@ -5343,22 +6452,34 @@ function alternatingAngleSums(angles: number[]) {
   );
 }
 
-function stage4ProbeRowCount(summary: Stage4Response['exactizability']['summary'], status: ProbeStatusId) {
+function stage4ProbeRowCount(
+  summary: Stage4Response['exactizability']['summary'],
+  status: ProbeStatusId,
+) {
   if (status === 'odd_degree') return summary.odd_degree_vertices;
   if (status === 'hard_kawasaki') return summary.hard_kawasaki_vertices;
   return summary[status];
 }
 
 function isProbeStatusVisible(status: string, kind: ProbeKindId, visibility: ProbeVisibility) {
-  if (status === 'feasible' || status === 'low_cost' || status === 'high_cost' || status === 'infeasible') {
+  if (
+    status === 'feasible' ||
+    status === 'low_cost' ||
+    status === 'high_cost' ||
+    status === 'infeasible'
+  ) {
     return visibility[status][kind];
   }
   return false;
 }
 
-function vertexProbeDisplayStatus(probe: VertexExactizabilityProbe, visibility: ProbeVisibility): ProbeStatusId | null {
+function vertexProbeDisplayStatus(
+  probe: VertexExactizabilityProbe,
+  visibility: ProbeVisibility,
+): ProbeStatusId | null {
   if (visibility.odd_degree.vertex && probe.degree % 2 === 1) return 'odd_degree';
-  if (visibility.hard_kawasaki.vertex && (probe.residual_before_degrees ?? 0) > 12) return 'hard_kawasaki';
+  if (visibility.hard_kawasaki.vertex && (probe.residual_before_degrees ?? 0) > 12)
+    return 'hard_kawasaki';
   if (isProbeStatusVisible(probe.status, 'vertex', visibility)) {
     return probe.status as ProbeStatusId;
   }
@@ -5375,7 +6496,13 @@ function exactStatusColor(status: string) {
   return '#64748b';
 }
 
-function Heatmap({ map, mode }: { map: MapPayload; mode: 'thumb' | 'large' | 'background' | 'dense' }) {
+function Heatmap({
+  map,
+  mode,
+}: {
+  map: MapPayload;
+  mode: 'thumb' | 'large' | 'background' | 'dense';
+}) {
   const [dataUrl, setDataUrl] = useState('');
 
   useEffect(() => {

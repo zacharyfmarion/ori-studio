@@ -47,10 +47,7 @@ export const NATIVE_PROJECT_MIME_TYPE = 'application/vnd.oristudio.project+json'
 export const NATIVE_PROJECT_SCHEMA_VERSION = 8;
 
 export type NativeProjectDocumentKind =
-  | 'treemaker-tree'
-  | 'crease-pattern'
-  | 'box-pleat'
-  | 'explori';
+  'treemaker-tree' | 'crease-pattern' | 'box-pleat' | 'explori';
 
 /**
  * Which document the workspace was focused on when saved. This is the file's
@@ -160,9 +157,7 @@ export interface NativeBoxPleatDocumentV1 extends NativeProjectBaseDocumentV1 {
 }
 
 export type NativeProjectDocumentV1 =
-  | NativeTreeDocumentV1
-  | NativeCreasePatternDocumentV1
-  | NativeBoxPleatDocumentV1;
+  NativeTreeDocumentV1 | NativeCreasePatternDocumentV1 | NativeBoxPleatDocumentV1;
 
 export interface NativeProjectFileV1 {
   format: typeof NATIVE_PROJECT_FORMAT;
@@ -420,13 +415,13 @@ export function migrateNativeProjectFile(value: unknown): NativeProjectFile {
   if (!isRecord(value)) {
     throw new ProjectFileFormatError(
       'project_file_unrecognized',
-      'Ori Studio project must contain a JSON object'
+      'Ori Studio project must contain a JSON object',
     );
   }
   if (value.format !== NATIVE_PROJECT_FORMAT) {
     throw new ProjectFileFormatError(
       'project_file_unrecognized',
-      'File is not an Ori Studio project'
+      'File is not an Ori Studio project',
     );
   }
 
@@ -437,7 +432,7 @@ export function migrateNativeProjectFile(value: unknown): NativeProjectFile {
   ) {
     throw new ProjectFileFormatError(
       'project_file_too_new',
-      `Ori Studio project requires reader schema ${minimumReaderSchemaVersion}, but this app supports ${NATIVE_PROJECT_SCHEMA_VERSION}`
+      `Ori Studio project requires reader schema ${minimumReaderSchemaVersion}, but this app supports ${NATIVE_PROJECT_SCHEMA_VERSION}`,
     );
   }
 
@@ -459,7 +454,7 @@ export function migrateNativeProjectFile(value: unknown): NativeProjectFile {
   if (schemaVersion === null) {
     throw new ProjectFileFormatError(
       'project_file_damaged',
-      'Ori Studio project is missing schemaVersion'
+      'Ori Studio project is missing schemaVersion',
     );
   }
   // A version above the newest we know is a file from the future — the one case
@@ -467,7 +462,7 @@ export function migrateNativeProjectFile(value: unknown): NativeProjectFile {
   // no build ever wrote.
   throw new ProjectFileFormatError(
     schemaVersion > NATIVE_PROJECT_SCHEMA_VERSION ? 'project_file_too_new' : 'project_file_damaged',
-    `Unsupported Ori Studio project schemaVersion ${schemaVersion}`
+    `Unsupported Ori Studio project schemaVersion ${schemaVersion}`,
   );
 }
 
@@ -480,9 +475,7 @@ export function migrateNativeProjectFile(value: unknown): NativeProjectFile {
  * v1–v7 build could still read losslessly keeps 1, so updating this app does not
  * strand every project a user has.
  */
-export function createNativeProjectFile(
-  input: NativeProjectDocumentsInput
-): NativeProjectFileV8 {
+export function createNativeProjectFile(input: NativeProjectDocumentsInput): NativeProjectFileV8 {
   const actor = actorFromInput(input);
   const designs: NativeDesignDocumentV8[] = input.designs.map((design) => ({
     id: design.id,
@@ -501,12 +494,11 @@ export function createNativeProjectFile(
           appVersion: input.appVersion,
           now: input.now,
         },
-        CREASE_PATTERN_DOCUMENT_ID
+        CREASE_PATTERN_DOCUMENT_ID,
       )
     : null;
 
-  const legacyReadable =
-    designs.length <= 1 && (input.unknownDesigns?.length ?? 0) === 0;
+  const legacyReadable = designs.length <= 1 && (input.unknownDesigns?.length ?? 0) === 0;
 
   return {
     format: NATIVE_PROJECT_FORMAT,
@@ -551,7 +543,7 @@ export function createNativeTreeProjectFile(input: NativeTreeProjectInput): Nati
 }
 
 export function createNativeBoxPleatProjectFile(
-  input: NativeBoxPleatProjectInput
+  input: NativeBoxPleatProjectInput,
 ): NativeProjectFileV8 {
   return createNativeProjectFile({
     workspaceTitle: input.title,
@@ -576,7 +568,7 @@ export function createNativeBoxPleatProjectFile(
 }
 
 export function createNativeCreasePatternProjectFile(
-  input: NativeCreasePatternProjectInput
+  input: NativeCreasePatternProjectInput,
 ): NativeProjectFileV1 {
   const actor = actorFromInput(input);
   const title = input.title.trim() || input.document.title || 'Untitled CP';
@@ -616,7 +608,7 @@ export function createNativeCreasePatternProjectFile(
 
 function createNativeCreasePatternDocument(
   input: NativeCreasePatternProjectInput,
-  id: string
+  id: string,
 ): NativeCreasePatternDocumentV1 {
   const title = input.title.trim() || input.document.title || 'Untitled CP';
   return {
@@ -641,10 +633,7 @@ function createNativeCreasePatternDocument(
       viewport: input.viewport,
       camera: input.camera ?? null,
       foldedFigures: nativeFoldedFigures(input.foldedFigures),
-      activeFoldedFigureId: activeFoldedFigureId(
-        input.foldedFigures,
-        input.activeFoldedFigureId
-      ),
+      activeFoldedFigureId: activeFoldedFigureId(input.foldedFigures, input.activeFoldedFigureId),
     },
     // Preserve any extension bag carried forward from a loaded file rather than
     // clobbering it with `{}` — keeps forward-compat data written by a newer app
@@ -653,7 +642,9 @@ function createNativeCreasePatternDocument(
   };
 }
 
-function nativeFoldedFigures(entries: OristudioCpFoldedFigureEntry[]): OristudioCpFoldedFigureEntry[] {
+function nativeFoldedFigures(
+  entries: OristudioCpFoldedFigureEntry[],
+): OristudioCpFoldedFigureEntry[] {
   return entries.map((entry) => ({
     ...entry,
     handle: null,
@@ -663,7 +654,7 @@ function nativeFoldedFigures(entries: OristudioCpFoldedFigureEntry[]): Oristudio
 
 function activeFoldedFigureId(
   entries: OristudioCpFoldedFigureEntry[],
-  activeId: string | null
+  activeId: string | null,
 ): string | null {
   return activeId && entries.some((entry) => entry.id === activeId) ? activeId : null;
 }
@@ -724,8 +715,7 @@ function validateFoldedFigure(value: unknown, index: number): OristudioCpFoldedF
     // projection's own bounds and start resizing as it turns again.
     frameRadius: positiveNumber(entry.frameRadius),
     sourceBounds: foldedSourceBoundsField(entry.sourceBounds),
-    sourceFingerprint:
-      typeof entry.sourceFingerprint === 'string' ? entry.sourceFingerprint : null,
+    sourceFingerprint: typeof entry.sourceFingerprint === 'string' ? entry.sourceFingerprint : null,
     sourceLineIds: Array.isArray(entry.sourceLineIds)
       ? entry.sourceLineIds.filter((id): id is number => typeof id === 'number')
       : [],
@@ -849,7 +839,7 @@ function foldedFigureStatus(value: unknown): OristudioCpFoldedFigureStatus {
  */
 function foldedFigureSourceKind(
   value: unknown,
-  hasFolded3d: boolean
+  hasFolded3d: boolean,
 ): OristudioCpFoldedFigureEntry['sourceKind'] {
   if (hasFolded3d) return 'generated-3d';
   if (
@@ -870,9 +860,7 @@ function foldedFigureSourceKind(
   return value === undefined || value === null ? 'generated-from-current-cp' : 'unknown';
 }
 
-function foldedFigureDisplayStyle(
-  value: unknown
-): OristudioCpFoldedFigureDisplayStyle | null {
+function foldedFigureDisplayStyle(value: unknown): OristudioCpFoldedFigureDisplayStyle | null {
   if (
     value === 'None0' ||
     value === 'Development1' ||
@@ -960,7 +948,7 @@ function validateV8(value: Record<string, unknown>): NativeProjectFileV8 {
     if (isReservedDocumentId(id)) {
       throw new ProjectFileFormatError(
         'project_file_damaged',
-        `Design document may not use the reserved id ${JSON.stringify(id)}`
+        `Design document may not use the reserved id ${JSON.stringify(id)}`,
       );
     }
     designs.push({
@@ -1036,7 +1024,11 @@ function migrateLegacyToV8(value: Record<string, unknown>): NativeProjectFileV8 
       designs.push({
         id: document.id,
         title: document.title,
-        payload: { kind: 'box-pleat', text: document.project.text, format: document.project.format },
+        payload: {
+          kind: 'box-pleat',
+          text: document.project.text,
+          format: document.project.format,
+        },
         // The mirror-draw state was a top-level field on the legacy document;
         // in v8 it rides the design's own view state.
         viewState: { symmetry: document.symmetry },
@@ -1047,14 +1039,12 @@ function migrateLegacyToV8(value: Record<string, unknown>): NativeProjectFileV8 
 
   const creasePattern =
     (documents.find((document) => document.kind === 'crease-pattern') as
-      | NativeCreasePatternDocumentV1
-      | undefined) ?? null;
+      NativeCreasePatternDocumentV1 | undefined) ?? null;
 
   // `activeMode` is the only signal a legacy file carries for which design was
   // active, which is why it is still read here and no longer written.
   const activeKind = legacy.workspace.activeMode === 'box-pleat' ? 'box-pleat' : 'treemaker';
-  const active =
-    designs.find((design) => design.payload.kind === activeKind) ?? designs[0] ?? null;
+  const active = designs.find((design) => design.payload.kind === activeKind) ?? designs[0] ?? null;
 
   return {
     ...legacy,
@@ -1091,13 +1081,13 @@ function validateV1(value: Record<string, unknown>): LegacyWorkspaceFile {
   if (activeMode !== 'tree' && activeMode !== 'crease-pattern' && activeMode !== 'box-pleat') {
     throw new ProjectFileFormatError(
       'project_file_damaged',
-      `Unsupported Ori Studio activeMode ${JSON.stringify(activeMode)}`
+      `Unsupported Ori Studio activeMode ${JSON.stringify(activeMode)}`,
     );
   }
   if (!documents.some((document) => document.id === activeDocumentId)) {
     throw new ProjectFileFormatError(
       'project_file_damaged',
-      'Ori Studio project activeDocumentId does not match a document'
+      'Ori Studio project activeDocumentId does not match a document',
     );
   }
 
@@ -1134,7 +1124,7 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
     if (format !== 'tmd5') {
       throw new ProjectFileFormatError(
         'project_file_damaged',
-        `Unsupported tree document format ${format}`
+        `Unsupported tree document format ${format}`,
       );
     }
     return {
@@ -1156,7 +1146,7 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
     if (engine !== 'oristudio-cp') {
       throw new ProjectFileFormatError(
         'project_file_damaged',
-        `Unsupported crease-pattern engine ${JSON.stringify(engine)}`
+        `Unsupported crease-pattern engine ${JSON.stringify(engine)}`,
       );
     }
     const viewState = isRecord(document.viewState) ? document.viewState : {};
@@ -1170,9 +1160,10 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
         engine,
         document: recordField(
           creasePattern.document,
-          'document.creasePattern.document'
+          'document.creasePattern.document',
         ) as unknown as OristudioCpDocumentSnapshot,
-        source: validateSource(creasePattern.source) ?? validateImportedSource(creasePattern.source),
+        source:
+          validateSource(creasePattern.source) ?? validateImportedSource(creasePattern.source),
         foldProjection: isRecord(creasePattern.foldProjection)
           ? (creasePattern.foldProjection as unknown as FoldDocument)
           : null,
@@ -1213,7 +1204,7 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
           foldedFigures,
           typeof viewState.activeFoldedFigureId === 'string'
             ? viewState.activeFoldedFigureId
-            : null
+            : null,
         ),
       },
       extensions,
@@ -1226,14 +1217,14 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
     if (engine !== 'oristudio-bp') {
       throw new ProjectFileFormatError(
         'project_file_damaged',
-        `Unsupported box-pleat engine ${JSON.stringify(engine)}`
+        `Unsupported box-pleat engine ${JSON.stringify(engine)}`,
       );
     }
     const format = stringField(project.format, 'document.project.format');
     if (format !== 'bps') {
       throw new ProjectFileFormatError(
         'project_file_damaged',
-        `Unsupported box-pleat project format ${format}`
+        `Unsupported box-pleat project format ${format}`,
       );
     }
     return {
@@ -1253,7 +1244,7 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
 
   throw new ProjectFileFormatError(
     'project_file_damaged',
-    `Unsupported Ori Studio document kind ${JSON.stringify(kind)}`
+    `Unsupported Ori Studio document kind ${JSON.stringify(kind)}`,
   );
 }
 
@@ -1314,7 +1305,7 @@ function recordField(value: unknown, field: string): Record<string, unknown> {
   if (isRecord(value)) return value;
   throw new ProjectFileFormatError(
     'project_file_damaged',
-    `Ori Studio project field ${field} must be an object`
+    `Ori Studio project field ${field} must be an object`,
   );
 }
 
@@ -1322,7 +1313,7 @@ function arrayField(value: unknown, field: string): unknown[] {
   if (Array.isArray(value)) return value;
   throw new ProjectFileFormatError(
     'project_file_damaged',
-    `Ori Studio project field ${field} must be an array`
+    `Ori Studio project field ${field} must be an array`,
   );
 }
 
@@ -1330,7 +1321,7 @@ function stringField(value: unknown, field: string): string {
   if (typeof value === 'string') return value;
   throw new ProjectFileFormatError(
     'project_file_damaged',
-    `Ori Studio project field ${field} must be a string`
+    `Ori Studio project field ${field} must be a string`,
   );
 }
 

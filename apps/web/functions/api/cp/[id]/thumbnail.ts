@@ -39,7 +39,7 @@ async function serveFallbackCard(request: Request, includeBody: boolean): Promis
   }
   return new Response(includeBody ? upstream.body : null, {
     headers: withSecurityHeaders(
-      new Headers({ 'Content-Type': 'image/png', 'Cache-Control': FALLBACK_CACHE_CONTROL })
+      new Headers({ 'Content-Type': 'image/png', 'Cache-Control': FALLBACK_CACHE_CONTROL }),
     ),
   });
 }
@@ -100,10 +100,16 @@ export async function onRequestPut(context: CpShareContext): Promise<Response> {
 
   const share = await readShare(context.env, id);
   if (!share) {
-    return json({ error: 'This crease pattern no longer exists.', code: 'not_found' }, { status: 404 });
+    return json(
+      { error: 'This crease pattern no longer exists.', code: 'not_found' },
+      { status: 404 },
+    );
   }
   if (!share.thumbnailUploadTokenHash) {
-    return json({ error: 'This share cannot accept a preview image.', code: 'conflict' }, { status: 409 });
+    return json(
+      { error: 'This share cannot accept a preview image.', code: 'conflict' },
+      { status: 409 },
+    );
   }
   if ((await hashToken(token)) !== share.thumbnailUploadTokenHash) {
     return json({ error: 'Invalid upload token.', code: 'unauthorized' }, { status: 401 });
@@ -119,7 +125,10 @@ export async function onRequestPut(context: CpShareContext): Promise<Response> {
     return json({ error: 'Empty preview image.', code: 'bad_request' }, { status: 400 });
   }
   if (bytes.byteLength > MAX_THUMBNAIL_BYTES) {
-    return json({ error: 'Preview image is too large.', code: 'payload_too_large' }, { status: 413 });
+    return json(
+      { error: 'Preview image is too large.', code: 'payload_too_large' },
+      { status: 413 },
+    );
   }
   // `Content-Type: image/png` is the uploader's claim. These eight bytes are the fact, and
   // this endpoint serves what it stores back from our own origin.

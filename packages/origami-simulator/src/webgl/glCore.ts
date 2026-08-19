@@ -190,7 +190,7 @@ export class GlCore {
       0,
       gl.RGBA,
       gl.FLOAT,
-      spec.data
+      spec.data,
     );
 
     const framebuffer = gl.createFramebuffer();
@@ -220,11 +220,16 @@ export class GlCore {
       0,
       gl.RGBA,
       gl.FLOAT,
-      data
+      data,
     );
   }
 
-  setUniform(programName: string, name: string, value: number | number[], type: '1f' | '2f' | '3f' | '1i'): void {
+  setUniform(
+    programName: string,
+    name: string,
+    value: number | number[],
+    type: '1f' | '2f' | '3f' | '1i',
+  ): void {
     this.assertLive();
     const gl = this.gl;
     const record = this.requireProgram(programName);
@@ -237,8 +242,15 @@ export class GlCore {
     if (location === null) return; // optimised out; harmless
     if (type === '1f') gl.uniform1f(location, value as number);
     else if (type === '1i') gl.uniform1i(location, value as number);
-    else if (type === '2f') gl.uniform2f(location, (value as number[])[0]!, (value as number[])[1]!);
-    else gl.uniform3f(location, (value as number[])[0]!, (value as number[])[1]!, (value as number[])[2]!);
+    else if (type === '2f')
+      gl.uniform2f(location, (value as number[])[0]!, (value as number[])[1]!);
+    else
+      gl.uniform3f(
+        location,
+        (value as number[])[0]!,
+        (value as number[])[1]!,
+        (value as number[])[2]!,
+      );
   }
 
   /**

@@ -100,7 +100,7 @@ export function GlobalToasts() {
           toast.dismiss(FOLD_TOAST_ID);
         },
       }),
-    []
+    [],
   );
 
   useEffect(() => {

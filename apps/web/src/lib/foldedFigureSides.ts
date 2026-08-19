@@ -38,8 +38,6 @@ export type FoldedFigureSide = (typeof FOLDED_FIGURE_SIDES)[number];
 export const NEW_FOLDED_FIGURE_SIDE: FoldedFigureSide = 'Front0';
 
 /** Whether a kernel state is one of the two sides the UI offers. */
-export function isFoldedFigureSide(
-  state: OristudioCpFoldedFigureState
-): state is FoldedFigureSide {
+export function isFoldedFigureSide(state: OristudioCpFoldedFigureState): state is FoldedFigureSide {
   return state === 'Front0' || state === 'Back1';
 }

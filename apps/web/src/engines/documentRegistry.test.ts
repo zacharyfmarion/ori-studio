@@ -271,7 +271,7 @@ describe('pinning', () => {
     await expect(
       registry.pinned(doc('a', fake.kind), async () => {
         throw new Error('optimize failed');
-      })
+      }),
     ).rejects.toThrow('optimize failed');
 
     await registry.acquire(doc('b', fake.kind));
@@ -330,7 +330,7 @@ describe('pinning', () => {
       registry.pinned(doc('a', fake.kind), async () => {
         await registry.acquire(doc('b', fake.kind));
         expect(registry.isHot('a')).toBe(true);
-      })
+      }),
     );
 
     await registry.acquire(doc('c', fake.kind));

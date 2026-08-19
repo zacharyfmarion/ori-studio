@@ -14,7 +14,9 @@ describe('trimming an ExplOri bundle', () => {
 
   it('drops per-result heat, which feeds a normalization upstream no longer uses', () => {
     const trimmed = trimExploriBundle({
-      results: [{ rank: 1, heat: { query: [1, 2], result: [3, 4] }, cp: { vertices: [], edges: [] } }],
+      results: [
+        { rank: 1, heat: { query: [1, 2], result: [3, 4] }, cp: { vertices: [], edges: [] } },
+      ],
     }) as { results: Record<string, unknown>[] };
     expect(trimmed.results[0]).not.toHaveProperty('heat');
     expect(trimmed.results[0].rank).toBe(1);
@@ -87,7 +89,11 @@ describe('POST /api/explori/query — what reaches upstream', () => {
     return { response, forwarded: sent.body ? JSON.parse(sent.body) : null };
   }
 
-  const valid = { tree: { nodes: NODES, edges: EDGES }, db_configs: [{ N: 4, symmetry: 'book' }], n: 5 };
+  const valid = {
+    tree: { nodes: NODES, edges: EDGES },
+    db_configs: [{ N: 4, symmetry: 'book' }],
+    n: 5,
+  };
 
   it('forwards a well-formed query, keeping each edge length', async () => {
     const { response, forwarded } = await post(valid);
@@ -240,7 +246,7 @@ describe('POST /api/explori/query — accepts what the client actually sends', (
 
   it('still refuses an array long enough to be an attack', async () => {
     const { response } = await send(
-      Array.from({ length: 5000 }, () => ({ N: 4, symmetry: 'none' }))
+      Array.from({ length: 5000 }, () => ({ N: 4, symmetry: 'none' })),
     );
     expect(response.status).toBe(400);
   });
@@ -248,7 +254,7 @@ describe('POST /api/explori/query — accepts what the client actually sends', (
   it('collapses duplicates, so upstream loads each index once', async () => {
     // The real bound on upstream work, whatever the array length.
     const { forwarded } = await send(
-      Array.from({ length: 200 }, (_, i) => ({ N: 2 + (i % 4), symmetry: 'book' }))
+      Array.from({ length: 200 }, (_, i) => ({ N: 2 + (i % 4), symmetry: 'book' })),
     );
     expect(forwarded.db_configs).toHaveLength(4);
   });

@@ -51,7 +51,7 @@ let uninstall: (() => void) | null = null;
 function pressEscape(): void {
   act(() => {
     document.dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
     );
   });
 }
@@ -70,8 +70,8 @@ beforeEach(() => {
     root?.render(
       <TooltipProvider>
         <CreasePatternPanel />
-      </TooltipProvider>
-    )
+      </TooltipProvider>,
+    ),
   );
   uninstall = installAppKeyboardListener({
     getActiveEditingContext: () => 'crease-pattern',

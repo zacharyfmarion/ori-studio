@@ -42,11 +42,13 @@ export function StartScreen({
           <div className="start-screen__copy">
             {/* eslint-disable-next-line i18next/no-literal-string -- brand name, never translated */}
             <span className="start-screen__eyebrow">Ori Studio</span>
-            <h1 id="start-screen-title">{t('dialogs:startScreen.title', 'Start a new origami workspace')}</h1>
+            <h1 id="start-screen-title">
+              {t('dialogs:startScreen.title', 'Start a new origami workspace')}
+            </h1>
             <p>
               {t(
                 'dialogs:startScreen.description',
-                'Begin with a crease pattern, open an existing file, or sketch the tree structure for a new design.'
+                'Begin with a crease pattern, open an existing file, or sketch the tree structure for a new design.',
               )}
             </p>
           </div>
@@ -59,12 +61,15 @@ export function StartScreen({
           </div>
         </div>
 
-        <div className="start-screen__actions" aria-label={t('dialogs:startScreen.startOptions', 'Start options')}>
+        <div
+          className="start-screen__actions"
+          aria-label={t('dialogs:startScreen.startOptions', 'Start options')}
+        >
           <StartAction
             title={t('dialogs:startScreen.createCp.title', 'Create a CP')}
             description={t(
               'dialogs:startScreen.createCp.description',
-              'Open a blank editable crease-pattern document with CP drawing tools ready.'
+              'Open a blank editable crease-pattern document with CP drawing tools ready.',
             )}
             icon={<PenTool size={20} />}
             disabled={disabled}
@@ -74,7 +79,7 @@ export function StartScreen({
             title={t('dialogs:startScreen.openFile.title', 'Open a file')}
             description={t(
               'dialogs:startScreen.openFile.description',
-              'Open .osf projects or import .cp, .fold, .ori, .orh, .tmd, .tmd4, and .tmd5 files through the shared file workflow.'
+              'Open .osf projects or import .cp, .fold, .ori, .orh, .tmd, .tmd4, and .tmd5 files through the shared file workflow.',
             )}
             icon={<FolderOpen size={20} />}
             disabled={disabled}
@@ -84,7 +89,7 @@ export function StartScreen({
             title={t('dialogs:startScreen.createDesign.title', 'Create a design')}
             description={t(
               'dialogs:startScreen.createDesign.description',
-              'Start from a blank tree, then optimize it and build a crease pattern.'
+              'Start from a blank tree, then optimize it and build a crease pattern.',
             )}
             icon={<DraftingCompass size={20} />}
             disabled={disabled}
@@ -121,12 +126,7 @@ interface StartActionProps {
 
 function StartAction({ title, description, icon, disabled, onClick }: StartActionProps) {
   return (
-    <button
-      type="button"
-      className="start-action"
-      disabled={disabled}
-      onClick={onClick}
-    >
+    <button type="button" className="start-action" disabled={disabled} onClick={onClick}>
       <span className="start-action__icon">{icon}</span>
       <span className="start-action__text">
         <span className="start-action__title">{title}</span>

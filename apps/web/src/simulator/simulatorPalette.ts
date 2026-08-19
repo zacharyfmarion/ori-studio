@@ -1,8 +1,5 @@
 import type { CreaseDash, RenderSettings } from '@treemaker/origami-simulator';
-import {
-  ORIEDITA_DASH_ONE_DOT,
-  ORIEDITA_DASH_VALLEY,
-} from '../lib/oristudioCpLineStyle';
+import { ORIEDITA_DASH_ONE_DOT, ORIEDITA_DASH_VALLEY } from '../lib/oristudioCpLineStyle';
 import type {
   SimulatorColorSettingKey,
   SimulatorCreaseStyle,
@@ -134,7 +131,7 @@ function resolve(
   override: string | null,
   styles: CSSStyleDeclaration | null,
   token: string | null,
-  fallback: string
+  fallback: string,
 ): Rgb {
   if (override) return parseCssRgb(override, parseCssRgb(fallback, [0, 0, 0]));
   const themed = token ? cssVar(styles, token, fallback) : fallback;
@@ -176,23 +173,25 @@ export function creaseStyleDashes(style: SimulatorCreaseStyle): boolean {
 export function resolveRenderSettings(
   styles: CSSStyleDeclaration | null,
   settings: SimulatorSettings,
-  surface: SimulatorSurfaceOptions = {}
+  surface: SimulatorSurfaceOptions = {},
 ): RenderSettings {
   const dpr = typeof window === 'undefined' ? 1 : Math.max(1, window.devicePixelRatio || 1);
   const edge = resolve(settings.borderColor, styles, '--text-primary', FALLBACK.border);
   const mono = settings.creaseStyle !== 'color';
   return {
-    frontColor: unit(resolve(settings.paperFront, styles, '--sim-paper-front', FALLBACK.paperFront)),
+    frontColor: unit(
+      resolve(settings.paperFront, styles, '--sim-paper-front', FALLBACK.paperFront),
+    ),
     backColor: unit(resolve(settings.paperBack, styles, '--sim-paper-back', FALLBACK.paperBack)),
     // A mono style is one ink for every crease, so it overrides the per-kind
     // colours rather than sitting alongside them — that is what "mono" means.
     // The ink is the edge colour, which is theme-derived, so it stays legible on
     // dark paper where a literal black would not.
     mountainColor: unit(
-      mono ? edge : resolve(settings.mountainColor, styles, null, DEFAULT_MOUNTAIN_COLOR)
+      mono ? edge : resolve(settings.mountainColor, styles, null, DEFAULT_MOUNTAIN_COLOR),
     ),
     valleyColor: unit(
-      mono ? edge : resolve(settings.valleyColor, styles, null, DEFAULT_VALLEY_COLOR)
+      mono ? edge : resolve(settings.valleyColor, styles, null, DEFAULT_VALLEY_COLOR),
     ),
     borderColor: unit(edge),
     creaseDash: creaseDashFor(settings.creaseStyle),
@@ -236,7 +235,7 @@ export interface SimulatorPaint {
 export function resolveSimulatorPaint(
   styles: CSSStyleDeclaration | null,
   settings: SimulatorSettings,
-  surface: SimulatorSurfaceOptions = {}
+  surface: SimulatorSurfaceOptions = {},
 ): SimulatorPaint {
   return {
     render: resolveRenderSettings(styles, settings, surface),
@@ -265,14 +264,14 @@ export function resolveSimulatorChrome(styles: CSSStyleDeclaration | null): Simu
  * at. Recompute on a theme change; the values move with it.
  */
 export function simulatorStyleDefaults(
-  styles: CSSStyleDeclaration | null
+  styles: CSSStyleDeclaration | null,
 ): Record<SimulatorColorSettingKey, string> {
   const hex = (rgb: Rgb) =>
     `#${rgb
       .map((channel) =>
         Math.round(Math.min(255, Math.max(0, channel)))
           .toString(16)
-          .padStart(2, '0')
+          .padStart(2, '0'),
       )
       .join('')}`;
   return {

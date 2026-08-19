@@ -38,7 +38,7 @@ function Boom({ message = 'boom' }: { message?: string }): never {
 
 function findButton(label: string): HTMLButtonElement | undefined {
   return Array.from(container.querySelectorAll('button')).find((button) =>
-    button.textContent?.includes(label)
+    button.textContent?.includes(label),
   );
 }
 
@@ -52,7 +52,7 @@ function click(element: HTMLElement): void {
 function dispatchZoomIn(): boolean {
   return handleShortcutRuntimeKeyDown(
     new KeyboardEvent('keydown', { key: '=', metaKey: true, bubbles: true, cancelable: true }),
-    { context: { activeEditingContext: 'crease-pattern' }, menu: () => undefined }
+    { context: { activeEditingContext: 'crease-pattern' }, menu: () => undefined },
   );
 }
 
@@ -61,7 +61,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary surface="panel:test" variant="pane">
         <p>all good</p>
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
     expect(container.textContent).toContain('all good');
     expect(container.querySelector('.error-fallback')).toBeNull();
@@ -71,7 +71,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary surface="panel:test" variant="pane">
         <Boom message="panel exploded" />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
 
     const fallback = container.querySelector('.error-fallback');
@@ -85,12 +85,14 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary surface="panel:test" variant="pane">
         <Boom />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
 
-    const logged = vi.mocked(console.error).mock.calls.some((args) =>
-      args.some((arg) => typeof arg === 'string' && arg.includes('error boundary "panel:test"'))
-    );
+    const logged = vi
+      .mocked(console.error)
+      .mock.calls.some((args) =>
+        args.some((arg) => typeof arg === 'string' && arg.includes('error boundary "panel:test"')),
+      );
     expect(logged).toBe(true);
   });
 
@@ -111,7 +113,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary surface="panel:test" variant="pane">
         <Subject />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
     expect(container.textContent).toContain('This panel stopped working');
     // A render that throws never commits, so no effect ran.
@@ -136,14 +138,14 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary surface="panel:test" variant="pane" resetKeys={[1]}>
         <Subject ok={false} />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
     expect(container.textContent).toContain('This panel stopped working');
 
     render(
       <ErrorBoundary surface="panel:test" variant="pane" resetKeys={[2]}>
         <Subject ok />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
     expect(container.textContent).toContain('good document');
   });
@@ -152,12 +154,12 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary surface="panel:test" variant="pane" resetKeys={[1]}>
         <Boom />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
     render(
       <ErrorBoundary surface="panel:test" variant="pane" resetKeys={[1]}>
         <p>would be fine now</p>
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
     expect(container.textContent).toContain('This panel stopped working');
   });
@@ -171,8 +173,8 @@ describe('ErrorBoundary', () => {
       render(
         <ErrorBoundary surface="panel:test" variant="pane" onError={onError}>
           <Boom message="original failure" />
-        </ErrorBoundary>
-      )
+        </ErrorBoundary>,
+      ),
     ).not.toThrow();
 
     expect(onError).toHaveBeenCalledOnce();
@@ -196,7 +198,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary surface="panel:crease-pattern" variant="pane">
         <Subject ok />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
     expect(dispatchZoomIn()).toBe(true);
     expect(executor).toHaveBeenCalledOnce();
@@ -204,7 +206,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary surface="panel:crease-pattern" variant="pane">
         <Subject ok={false} />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
     expect(container.textContent).toContain('This panel stopped working');
 
@@ -217,7 +219,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary surface="overlay:settings" variant="overlay">
         <Boom />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
     expect(container.querySelector('.error-fallback--overlay')).not.toBeNull();
     expect(container.textContent).toContain('This dialog stopped working');

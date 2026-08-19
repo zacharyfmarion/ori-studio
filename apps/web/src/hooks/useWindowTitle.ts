@@ -34,7 +34,7 @@ export function useWindowTitle() {
 
   useEffect(() => {
     void applyWindowTitle(
-      formatWindowTitle({ projectTitle: workspaceTitle, dirty, fileName, filePath })
+      formatWindowTitle({ projectTitle: workspaceTitle, dirty, fileName, filePath }),
     );
   }, [dirty, fileName, filePath, workspaceTitle]);
 }

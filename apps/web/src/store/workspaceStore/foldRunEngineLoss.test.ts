@@ -33,7 +33,13 @@ function announceLoss(engine: string): void {
 }
 
 function liveRun(runId: number) {
-  return { runId, kind: 'fold' as const, startedAt: Date.now(), cancellable: true, stopping: false };
+  return {
+    runId,
+    kind: 'fold' as const,
+    startedAt: Date.now(),
+    cancellable: true,
+    stopping: false,
+  };
 }
 
 beforeEach(() => {

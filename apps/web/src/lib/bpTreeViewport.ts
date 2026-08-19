@@ -103,7 +103,7 @@ export function bpTreeShadowRect(sheet: OristudioBpSheet): PlotRect {
 export function bpTreePointToSvg(
   point: Point,
   sheet: OristudioBpSheet,
-  rect = bpTreePaperRect(sheet)
+  rect = bpTreePaperRect(sheet),
 ): Point {
   return {
     x: rect.x + (point.x / Math.max(1, sheet.width)) * rect.width,
@@ -114,14 +114,14 @@ export function bpTreePointToSvg(
 export function svgToBpTreePoint(
   point: Point,
   sheet: OristudioBpSheet,
-  rect = bpTreePaperRect(sheet)
+  rect = bpTreePaperRect(sheet),
 ): Point {
   return constrainBpTreePoint(
     {
       x: ((point.x - rect.x) / rect.width) * Math.max(1, sheet.width),
       y: ((rect.y + rect.height - point.y) / rect.height) * Math.max(1, sheet.height),
     },
-    sheet
+    sheet,
   );
 }
 
@@ -140,14 +140,17 @@ export function bpTreeUnitToSvg(sheet: OristudioBpSheet, rect = bpTreePaperRect(
 export function bpTreeLeafCircleRadius(
   tree: OristudioBpTreeView,
   vertexId: number,
-  rect = bpTreePaperRect(tree.sheet)
+  rect = bpTreePaperRect(tree.sheet),
 ): number {
   const incidentEdge = tree.edges.find((edge) => edge.vertices.includes(vertexId));
   const unit = bpTreeUnitToSvg(tree.sheet, rect);
   return Math.max(LEAF_CIRCLE_MIN_RADIUS, (incidentEdge?.length ?? 1) * unit);
 }
 
-export function bpTreeGridLines(sheet: OristudioBpSheet, rect = bpTreePaperRect(sheet)): BpTreeGridLine[] {
+export function bpTreeGridLines(
+  sheet: OristudioBpSheet,
+  rect = bpTreePaperRect(sheet),
+): BpTreeGridLine[] {
   const lines: BpTreeGridLine[] = [];
   const interval = Math.max(1, sheet.grid.interval || 1);
   for (let x = 0; x <= sheet.width; x += interval) {
@@ -218,7 +221,7 @@ export function bpTreeSheetWorldRect(sheet: OristudioBpSheet): PlotRect {
 
 export function getBpTreeWorldRect(
   tree: OristudioBpTreeView,
-  options: BpTreeViewportOptions = {}
+  options: BpTreeViewportOptions = {},
 ): PlotRect {
   const paperRect = bpTreePaperRect(tree.sheet);
   const shadowRect = bpTreeShadowRect(tree.sheet);

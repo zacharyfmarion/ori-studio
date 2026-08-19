@@ -23,7 +23,7 @@ describe('iguana_24 crease pattern', () => {
   it('prepares a simulation model with every crease driven', () => {
     const project = JSON.parse(readFileSync(FIXTURE, 'utf8'));
     const document = project.workspace.documents.find(
-      (candidate: { kind: string }) => candidate.kind === 'crease-pattern'
+      (candidate: { kind: string }) => candidate.kind === 'crease-pattern',
     );
     const projection = document.creasePattern.foldProjection;
 

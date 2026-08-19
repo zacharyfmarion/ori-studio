@@ -19,7 +19,7 @@ describe('storageKey', () => {
     expect(storageKey(STORAGE_KEYS.theme)).toBe(`${STORAGE_NAMESPACE}:theme`);
     expect(storageKey(STORAGE_KEYS.layout, 'design')).toBe(`${STORAGE_NAMESPACE}:layout:design`);
     expect(storageKey('layout', 'design', 'box-pleat')).toBe(
-      `${STORAGE_NAMESPACE}:layout:design:box-pleat`
+      `${STORAGE_NAMESPACE}:layout:design:box-pleat`,
     );
   });
 });

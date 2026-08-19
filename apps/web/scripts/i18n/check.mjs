@@ -70,13 +70,15 @@ const PLURAL_SUFFIX = /_(zero|one|two|few|many|other)$/;
 function pluralFamilySatisfied(flatNs, key) {
   const base = key.replace(PLURAL_SUFFIX, '');
   return Object.entries(flatNs).some(
-    ([k, v]) => (k === base || k.startsWith(`${base}_`)) && v !== '' && v !== undefined
+    ([k, v]) => (k === base || k.startsWith(`${base}_`)) && v !== '' && v !== undefined,
   );
 }
 
 for (const locale of TARGET_LOCALES) {
   const bucket = hashes[locale] ?? {};
-  const flatByNs = Object.fromEntries(NAMESPACES.map((ns) => [ns, flatten(readCatalog(locale, ns))]));
+  const flatByNs = Object.fromEntries(
+    NAMESPACES.map((ns) => [ns, flatten(readCatalog(locale, ns))]),
+  );
   const missing = [];
   const stale = [];
   for (const [id, enValue] of Object.entries(english)) {
@@ -125,7 +127,9 @@ if (totalGaps) {
 for (const p of problems) console.error(p);
 
 if (problems.length || totalGaps) {
-  console.error(`\ni18n:check failed (${problems.length} structural, ${totalGaps} translation gaps).`);
+  console.error(
+    `\ni18n:check failed (${problems.length} structural, ${totalGaps} translation gaps).`,
+  );
   process.exit(1);
 }
 console.log('i18n:check passed.');

@@ -78,7 +78,11 @@ describe('startTreeDrag — the mirrored partner moves with the gesture', () => 
 
   it('keeps the partner mirrored across every sample of the gesture', () => {
     const session = drag({ reflect, reflectedIds: [2] });
-    for (const at of [{ x: 1, y: 1 }, { x: 3, y: -2 }, { x: 0.5, y: 4 }]) {
+    for (const at of [
+      { x: 1, y: 1 },
+      { x: 3, y: -2 },
+      { x: 0.5, y: 4 },
+    ]) {
       session.move(at);
       const dragged = session.updates.get(1)!;
       const partner = session.updates.get(2)!;

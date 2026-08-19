@@ -2,10 +2,7 @@ import type { MenuActionId } from '../commands/menuActions';
 import type { DocumentMode } from '../lib/sampleProject';
 import type { EditingContext } from '../workspaces/editingContext';
 import type { OristudioCpActionId } from '../lib/oristudioCpActions';
-import {
-  handleShortcutKeyDown,
-  type ShortcutExecutors,
-} from './shortcutDispatcher';
+import { handleShortcutKeyDown, type ShortcutExecutors } from './shortcutDispatcher';
 import type {
   ShortcutDefaultsSource,
   ShortcutOverrides,
@@ -64,7 +61,7 @@ export interface ShortcutRuntimeOptions {
 
 export function registerViewportShortcutExecutor(
   surface: ViewportSurface,
-  executor: ViewportExecutor
+  executor: ViewportExecutor,
 ): () => void {
   viewportExecutors[surface] = executor;
   return () => {
@@ -108,9 +105,7 @@ function resolvedViewportSurface(context: ShortcutRuntimeContext): ViewportSurfa
   );
 }
 
-export function shortcutScopeStackForContext(
-  context: ShortcutRuntimeContext
-): ShortcutScope[] {
+export function shortcutScopeStackForContext(context: ShortcutRuntimeContext): ShortcutScope[] {
   const scopes: ShortcutScope[] = [];
   // Ahead of everything: a simulation in hand should answer Space and the view
   // toggles, not the crease-pattern tools bound to the same keys.
@@ -128,7 +123,7 @@ export function shortcutScopeStackForContext(
 
 export function handleShortcutRuntimeKeyDown(
   event: KeyboardEvent,
-  options: ShortcutRuntimeOptions
+  options: ShortcutRuntimeOptions,
 ): boolean {
   const executors: ShortcutExecutors = {
     menu: options.menu,

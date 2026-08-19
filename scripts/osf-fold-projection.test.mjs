@@ -90,15 +90,15 @@ test('component 1 is the other island, and the two partition the input', () => {
   const second = selectComponent(twoIslands(), 1);
   assert.equal(
     first.vertices_coords.length + second.vertices_coords.length,
-    twoIslands().vertices_coords.length
+    twoIslands().vertices_coords.length,
   );
   assert.equal(
     first.edges_vertices.length + second.edges_vertices.length,
-    twoIslands().edges_vertices.length
+    twoIslands().edges_vertices.length,
   );
   assert.equal(
     first.faces_vertices.length + second.faces_vertices.length,
-    twoIslands().faces_vertices.length
+    twoIslands().faces_vertices.length,
   );
 });
 

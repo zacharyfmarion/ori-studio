@@ -20,7 +20,7 @@ function renderAt(root: Root, entry: string): void {
       { path: '/s/:shareId', element: <ShareRoute /> },
       { path: EDIT_PATH, element: <div data-testid="edit" /> },
     ],
-    { initialEntries: [entry] }
+    { initialEntries: [entry] },
   );
   root.render(<RouterProvider router={router} />);
 }
@@ -29,7 +29,13 @@ function inlineSharedCp(id: string, payload: string): void {
   const script = document.createElement('script');
   script.type = 'application/json';
   script.id = SHARED_CP_SCRIPT_ID;
-  script.textContent = JSON.stringify({ id, payload, title: 'Bird base', author: null, creaseCount: 3 });
+  script.textContent = JSON.stringify({
+    id,
+    payload,
+    title: 'Bird base',
+    author: null,
+    creaseCount: 3,
+  });
   document.head.append(script);
   resetInlinedSharedCp();
 }

@@ -26,7 +26,10 @@ export function resolveCpPointStyle(styleRoot: Element, pointSize: number): CpPo
     pointFill: readCssVarColor(styleRoot, '--accent-primary', FALLBACK),
     pointStroke: readCssVarColor(styleRoot, '--bg-primary', FALLBACK),
     vertexFill: withAlpha(readCssVarColor(styleRoot, '--bg-paper', FALLBACK), VERTEX_OPACITY),
-    vertexStroke: withAlpha(readCssVarColor(styleRoot, '--text-secondary', FALLBACK), VERTEX_OPACITY),
+    vertexStroke: withAlpha(
+      readCssVarColor(styleRoot, '--text-secondary', FALLBACK),
+      VERTEX_OPACITY,
+    ),
     circleStroke: readCssVarColor(styleRoot, '--accent-secondary', FALLBACK),
   };
 }

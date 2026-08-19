@@ -45,7 +45,7 @@ export function UpdateCard() {
         title: t('dialogs:updateGuard.title', 'Discard unsaved changes?'),
         message: t(
           'dialogs:updateGuard.message',
-          'Your current project has unsaved changes. Restart Ori Studio to update and discard them?'
+          'Your current project has unsaved changes. Restart Ori Studio to update and discard them?',
         ),
         confirmLabel: t('dialogs:updateGuard.discard', 'Discard and restart'),
       });

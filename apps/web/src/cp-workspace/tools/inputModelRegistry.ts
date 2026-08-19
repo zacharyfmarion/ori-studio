@@ -71,40 +71,112 @@ export interface CpInputModelEntry {
 
 export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputModelEntry>> = {
   // POINT-SEQUENCE — N points, kernel resolves creases from points (§4.D)
-  AngleSystem: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'crease'] },
-  Axiom5: { model: 'point-sequence', pointCount: 4, snapPerStep: ['point', 'crease', 'point', 'crease'] },
-  Axiom7: { model: 'point-sequence', pointCount: 4, snapPerStep: ['point', 'crease', 'crease', 'crease'] },
+  AngleSystem: {
+    model: 'point-sequence',
+    pointCount: 3,
+    snapPerStep: ['point', 'point', 'crease'],
+  },
+  Axiom5: {
+    model: 'point-sequence',
+    pointCount: 4,
+    snapPerStep: ['point', 'crease', 'point', 'crease'],
+  },
+  Axiom7: {
+    model: 'point-sequence',
+    pointCount: 4,
+    snapPerStep: ['point', 'crease', 'crease', 'crease'],
+  },
   CircleDraw: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
   CircleDrawConcentric: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
   CircleDrawFree: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
-  CircleDrawSeparate: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'point'] },
-  CircleDrawThreePoint: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'point'] },
-  ContinuousSymmetricDraw: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  CircleDrawSeparate: {
+    model: 'point-sequence',
+    pointCount: 3,
+    snapPerStep: ['point', 'point', 'point'],
+  },
+  CircleDrawThreePoint: {
+    model: 'point-sequence',
+    pointCount: 3,
+    snapPerStep: ['point', 'point', 'point'],
+  },
+  ContinuousSymmetricDraw: {
+    model: 'point-sequence',
+    pointCount: 2,
+    snapPerStep: ['point', 'point'],
+  },
   CreaseCopy: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
-  CreaseCopy4p: { model: 'point-sequence', pointCount: 4, snapPerStep: ['point', 'point', 'point', 'point'] },
-  CreaseDeleteIntersecting: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
-  CreaseDeleteOverlapping: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  CreaseCopy4p: {
+    model: 'point-sequence',
+    pointCount: 4,
+    snapPerStep: ['point', 'point', 'point', 'point'],
+  },
+  CreaseDeleteIntersecting: {
+    model: 'point-sequence',
+    pointCount: 2,
+    snapPerStep: ['point', 'point'],
+  },
+  CreaseDeleteOverlapping: {
+    model: 'point-sequence',
+    pointCount: 2,
+    snapPerStep: ['point', 'point'],
+  },
   CreaseMove: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
-  CreaseMove4p: { model: 'point-sequence', pointCount: 4, snapPerStep: ['point', 'point', 'point', 'point'] },
+  CreaseMove4p: {
+    model: 'point-sequence',
+    pointCount: 4,
+    snapPerStep: ['point', 'point', 'point', 'point'],
+  },
   DeletePoint: { model: 'point-sequence', pointCount: 1, snapPerStep: ['point'] },
-  DisplayAngleBetweenThreePoints1: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'point'] },
-  DisplayAngleBetweenThreePoints2: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'point'] },
-  DisplayAngleBetweenThreePoints3: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'point'] },
-  DisplayLengthBetweenPoints1: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
-  DisplayLengthBetweenPoints2: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  DisplayAngleBetweenThreePoints1: {
+    model: 'point-sequence',
+    pointCount: 3,
+    snapPerStep: ['point', 'point', 'point'],
+  },
+  DisplayAngleBetweenThreePoints2: {
+    model: 'point-sequence',
+    pointCount: 3,
+    snapPerStep: ['point', 'point', 'point'],
+  },
+  DisplayAngleBetweenThreePoints3: {
+    model: 'point-sequence',
+    pointCount: 3,
+    snapPerStep: ['point', 'point', 'point'],
+  },
+  DisplayLengthBetweenPoints1: {
+    model: 'point-sequence',
+    pointCount: 2,
+    snapPerStep: ['point', 'point'],
+  },
+  DisplayLengthBetweenPoints2: {
+    model: 'point-sequence',
+    pointCount: 2,
+    snapPerStep: ['point', 'point'],
+  },
   DoubleSymmetricDraw: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
   DrawBirdBase: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
   DrawBlintz: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
   // Converging Lines: driven by a bespoke canvas handler (dual first click → base
   // segment, then a converge pick on a ray intersection). The step kinds here are
   // nominal — the panel special-cases this op and does not route via snapPerStep.
-  DrawCreaseAngleRestricted: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'candidate'] },
-  DrawCreaseAngleRestricted3: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'crease'] },
+  DrawCreaseAngleRestricted: {
+    model: 'point-sequence',
+    pointCount: 3,
+    snapPerStep: ['point', 'point', 'candidate'],
+  },
+  DrawCreaseAngleRestricted3: {
+    model: 'point-sequence',
+    pointCount: 3,
+    snapPerStep: ['point', 'point', 'crease'],
+  },
   // Angle Restricted Line: the panel special-cases this op as a press-drag-release
   // 'angle-drag' — the shared drag-line engine, but kernel-previewed (the kernel owns
   // the angle snap). The entry below is nominal: kept for registry coverage, not
   // routed via snapPerStep.
-  DrawCreaseAngleRestricted5: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  DrawCreaseAngleRestricted5: {
+    model: 'point-sequence',
+    pointCount: 2,
+    snapPerStep: ['point', 'point'],
+  },
   DrawDoveBase: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
   DrawFishBase: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
   DrawFrogBase: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
@@ -117,17 +189,33 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   // rather than an existing crease — Oriedita's LINE_SEGMENT_DIVISION_27 / _RATIO_28.
   LineSegmentDivision: { model: 'drag-line' },
   LineSegmentRatioSet: { model: 'drag-line' },
-  ParallelDraw: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'crease', 'crease'] },
+  ParallelDraw: {
+    model: 'point-sequence',
+    pointCount: 3,
+    snapPerStep: ['point', 'crease', 'crease'],
+  },
   ParallelDrawWidth: { model: 'point-sequence', pointCount: 2, snapPerStep: ['crease', 'point'] },
   PerpendicularDraw: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'crease'] },
-  PolygonSetNoCorners: { model: 'point-sequence', pointCount: 2, snapPerStep: ['crease', 'crease'] },
+  PolygonSetNoCorners: {
+    model: 'point-sequence',
+    pointCount: 2,
+    snapPerStep: ['crease', 'crease'],
+  },
   // One click and the square is placed. Free point snap, not 'crease': the
   // anchor is a position on the grid, and pulling it onto a nearby crease would
   // take a whole-cell square off the lattice it was sized against.
   SquareGenerate: { model: 'point-sequence', pointCount: 1, snapPerStep: ['point'] },
-  SelectLineIntersecting: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  SelectLineIntersecting: {
+    model: 'point-sequence',
+    pointCount: 2,
+    snapPerStep: ['point', 'point'],
+  },
   SymmetricDraw: { model: 'point-sequence', pointCount: 2, snapPerStep: ['crease', 'crease'] },
-  UnselectLineIntersecting: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
+  UnselectLineIntersecting: {
+    model: 'point-sequence',
+    pointCount: 2,
+    snapPerStep: ['point', 'point'],
+  },
   VertexDeleteOnCrease: { model: 'point-sequence', pointCount: 1, snapPerStep: ['point'] },
   // Foldable Line: vertex → one of the previewed candidates. Two steps, not
   // Oriedita's three — each candidate is drawn to whatever stops it and carries
@@ -221,7 +309,7 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
 
 /** Look up a tool's input model. Returns undefined for unknown operation ids. */
 export function cpInputModel(
-  operationId: OristudioCpOperationId | null | undefined
+  operationId: OristudioCpOperationId | null | undefined,
 ): CpInputModelEntry | undefined {
   return operationId ? CP_INPUT_MODELS[operationId] : undefined;
 }

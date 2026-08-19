@@ -27,7 +27,7 @@ import { useFolded3dOrbitFigures } from './useFolded3dOrbitFigures';
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '__fixtures__');
 const RENDER_MODEL: OristudioCpFolded3dRenderModel = JSON.parse(
-  readFileSync(join(FIXTURES, 'hinge_90.rendermodel.json'), 'utf8')
+  readFileSync(join(FIXTURES, 'hinge_90.rendermodel.json'), 'utf8'),
 );
 
 const HANDLE = 11;

@@ -29,7 +29,7 @@ function offsetPoint(point: Point, pasteCount: number): Point {
 
 function buildClipboardPayload(
   project: TreeProject,
-  selection: Selection
+  selection: Selection,
 ): TreeClipboardPayload | null {
   const explicitNodeIds = selectedNodeIds(selection);
   const explicitEdgeIds = selectedEdgeIds(selection);
@@ -52,7 +52,7 @@ function buildClipboardPayload(
     .filter(
       (edge) =>
         explicitEdgeIds.includes(edge.id) ||
-        (nodeIds.has(edge.nodes[0]) && nodeIds.has(edge.nodes[1]))
+        (nodeIds.has(edge.nodes[0]) && nodeIds.has(edge.nodes[1])),
     )
     .map<ClipboardEdge>((edge) => ({
       sourceId: edge.id,
@@ -74,7 +74,7 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
     if (get().activeEditingContext === 'crease-pattern') {
       const clipboard = buildCpLineClipboardPayload(
         get().oristudioCpDocument?.document,
-        get().oristudioCpSelection
+        get().oristudioCpSelection,
       );
       if (!clipboard) return;
       set({
@@ -246,28 +246,29 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
       if (!latestSnapshot) latestSnapshot = await api.snapshot(treeHandle);
       const pastedNodes = Array.from(mappedIds.values()).sort((a, b) => a - b);
       set({
-      ...patchTreemakerDesign(get(), {
-        project: projectFromSnapshot(latestSnapshot, selectProject(get()).title),
-        selection:
-          pastedNodes.length === 1
-            ? { kind: 'node', id: pastedNodes[0] }
-            : {
-                kind: 'multi',
-                nodes: pastedNodes,
-                edges: [],
-                paths: [],
-                creases: [],
-                facets: [],
-                conditions: [],
-              },
-        lastOptimization: null
-      }),
+        ...patchTreemakerDesign(get(), {
+          project: projectFromSnapshot(latestSnapshot, selectProject(get()).title),
+          selection:
+            pastedNodes.length === 1
+              ? { kind: 'node', id: pastedNodes[0] }
+              : {
+                  kind: 'multi',
+                  nodes: pastedNodes,
+                  edges: [],
+                  paths: [],
+                  creases: [],
+                  facets: [],
+                  conditions: [],
+                },
+          lastOptimization: null,
+        }),
         status: statusAfterEdit(latestSnapshot),
         dirty: true,
         error: null,
         ...staleFoldArtifactResourceState(get().foldArtifactRevision),
         clipboardPasteCount: get().clipboardPasteCount + 1,
-        projectMessage: `Pasted ${pastedNodes.length} nodes`});
+        projectMessage: `Pasted ${pastedNodes.length} nodes`,
+      });
       get().commitHistoryCheckpoint(checkpoint, 'Paste');
     } catch (error) {
       set({ status: 'error', error: engineError(error) });

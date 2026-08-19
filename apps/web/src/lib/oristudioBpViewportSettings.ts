@@ -65,7 +65,7 @@ function asRecord(value: unknown): Record<string, unknown> {
 function normalizeBooleanLayerMap<TKey extends string>(
   value: unknown,
   defaults: Record<TKey, boolean>,
-  keys: readonly TKey[]
+  keys: readonly TKey[],
 ): Record<TKey, boolean> {
   const record = asRecord(value);
   const normalized = { ...defaults };
@@ -80,7 +80,7 @@ export function normalizeBpTreeViewLayers(value: unknown): BpTreeViewLayers {
   return normalizeBooleanLayerMap(
     value,
     DEFAULT_BP_TREE_VIEW_LAYERS,
-    BP_TREE_VIEW_LAYER_KEYS
+    BP_TREE_VIEW_LAYER_KEYS,
   ) as BpTreeViewLayers;
 }
 
@@ -88,14 +88,14 @@ export function normalizeBpPackingViewLayers(value: unknown): BpPackingViewLayer
   return normalizeBooleanLayerMap(
     value,
     DEFAULT_BP_PACKING_VIEW_LAYERS,
-    BP_PACKING_VIEW_LAYER_KEYS
+    BP_PACKING_VIEW_LAYER_KEYS,
   ) as BpPackingViewLayers;
 }
 
 export function setBpTreeLayerVisibility(
   layers: BpTreeViewLayers,
   layer: BpTreeViewLayerKey,
-  visible: boolean
+  visible: boolean,
 ): BpTreeViewLayers {
   return { ...layers, [layer]: visible };
 }
@@ -103,14 +103,14 @@ export function setBpTreeLayerVisibility(
 export function setBpPackingLayerVisibility(
   layers: BpPackingViewLayers,
   layer: BpPackingViewLayerKey,
-  visible: boolean
+  visible: boolean,
 ): BpPackingViewLayers {
   return { ...layers, [layer]: visible };
 }
 
 export function isBpPackingLayerVisible(
   layers: BpPackingViewLayers,
-  layer: OristudioBpLayerId
+  layer: OristudioBpLayerId,
 ): boolean {
   switch (layer) {
     case 'grid':

@@ -35,11 +35,13 @@ export interface CpDetectTensorFactory {
 
 export async function fetchCpDetectModelManifest(
   manifestUrl = DEFAULT_CP_DETECT_MODEL_MANIFEST_URL,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
 ): Promise<string> {
   const response = await fetchImpl(manifestUrl);
   if (!response.ok) {
-    throw new Error(`Failed to load CP detector manifest: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Failed to load CP detector manifest: ${response.status} ${response.statusText}`,
+    );
   }
   return response.text();
 }
@@ -47,7 +49,7 @@ export async function fetchCpDetectModelManifest(
 export function preprocessCpDetectImage(image: ImageData, imageSize: number): Float32Array {
   if (image.width !== imageSize || image.height !== imageSize) {
     throw new Error(
-      `CP detector input must be ${imageSize}x${imageSize}; got ${image.width}x${image.height}`
+      `CP detector input must be ${imageSize}x${imageSize}; got ${image.width}x${image.height}`,
     );
   }
   const pixelCount = imageSize * imageSize;
@@ -68,7 +70,7 @@ export async function runCpDetectDenseInference(
   session: CpDetectOnnxSession,
   tensorFactory: CpDetectTensorFactory,
   image: ImageData,
-  manifest: CpDetectModelManifest
+  manifest: CpDetectModelManifest,
 ): Promise<CpDetectInferenceResult> {
   const startedAt = performance.now();
   const imageSize = manifest.inference.image_size;
@@ -77,10 +79,12 @@ export async function runCpDetectDenseInference(
     throw new Error('CP detector ONNX session has no input names');
   }
   const preprocessStartedAt = performance.now();
-  const inputTensor = tensorFactory.float32(
-    preprocessCpDetectImage(image, imageSize),
-    [1, 3, imageSize, imageSize]
-  );
+  const inputTensor = tensorFactory.float32(preprocessCpDetectImage(image, imageSize), [
+    1,
+    3,
+    imageSize,
+    imageSize,
+  ]);
   const runStartedAt = performance.now();
   const rawOutputs = await session.run({ [inputName]: inputTensor });
   const collectStartedAt = performance.now();
@@ -108,7 +112,7 @@ export function cpDetectOutputNames(outputs: CpDetectOutputTensorNames): string[
 
 export function collectCpDetectOutputs(
   rawOutputs: Record<string, unknown>,
-  outputNames: CpDetectOutputTensorNames
+  outputNames: CpDetectOutputTensorNames,
 ): CpDetectDenseOutputs {
   const entries = CP_DETECT_OUTPUT_KEYS.map((key) => {
     const tensorName = outputNames[key];

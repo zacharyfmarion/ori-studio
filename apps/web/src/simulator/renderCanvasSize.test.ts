@@ -64,7 +64,10 @@ describe('sizing the shared render canvas', () => {
       // A fast zoom in: the request climbs without bound.
       for (let edge = 130; edge <= 12_000; edge += 37) {
         const next = nextRenderCanvasSize(size, at(edge, edge), 'bitmap');
-        if (next) { resizes.push(next.width); size = next; }
+        if (next) {
+          resizes.push(next.width);
+          size = next;
+        }
       }
       expect(resizes).toEqual([256, 512, 1024, MAX_BITMAP_RENDER_EDGE]);
       expect(size.width).toBe(MAX_BITMAP_RENDER_EDGE);
@@ -76,7 +79,10 @@ describe('sizing the shared render canvas', () => {
       for (let i = 0; i < 60; i += 1) {
         const want = [at(240, 240), at(520, 520), at(380, 380)][i % 3]!;
         const next = nextRenderCanvasSize(size, want, 'bitmap');
-        if (next) { resizes += 1; size = next; }
+        if (next) {
+          resizes += 1;
+          size = next;
+        }
       }
       expect(resizes).toBe(2);
       expect(size).toEqual(at(1024, 1024));
@@ -101,11 +107,11 @@ describe('sizing the shared render canvas', () => {
   });
 });
 
-describe('the render viewport keeps the window\'s shape', () => {
+describe("the render viewport keeps the window's shape", () => {
   const aspect = (s: { width: number; height: number }) => s.width / s.height;
   const huge = { width: 100_000, height: 100_000 };
 
-  it('renders at the window\'s exact size when it fits', () => {
+  it("renders at the window's exact size when it fits", () => {
     expect(fitRenderWithin({ width: 257, height: 255 }, huge)).toEqual({ width: 257, height: 255 });
   });
 

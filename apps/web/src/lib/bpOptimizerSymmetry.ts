@@ -26,10 +26,7 @@ import type { SymmetryAxis } from './symmetryGeometry';
 
 /** Matches the kernel's `SymmetryAxis`, named for the normalized unit sheet. */
 export type OptimizerSymmetryAxis =
-  | 'verticalHalf'
-  | 'horizontalHalf'
-  | 'mainDiagonal'
-  | 'antiDiagonal';
+  'verticalHalf' | 'horizontalHalf' | 'mainDiagonal' | 'antiDiagonal';
 
 export interface OptimizerSymmetryPayload {
   axis: OptimizerSymmetryAxis;
@@ -84,7 +81,7 @@ const DISTANCE_EPSILON = 1e-6;
  */
 export function optimizerSymmetryAxisForMirror(
   sheetKind: OristudioBpSheetKind,
-  mirror: BpMirrorOrientation
+  mirror: BpMirrorOrientation,
 ): OptimizerSymmetryAxis {
   const alongGrid = sheetKind === 'diagonal' ? mirror.fold === 'diagonal' : mirror.fold === 'book';
   const base = alongGrid ? 'verticalHalf' : 'mainDiagonal';
@@ -158,7 +155,7 @@ export interface OptimizerSymmetryInput extends BpMirrorOrientation {
 
 export function resolveOptimizerSymmetry(
   tree: OristudioBpTreeView,
-  symmetry: OptimizerSymmetryInput
+  symmetry: OptimizerSymmetryInput,
 ): OptimizerSymmetryResolution {
   // Deliberately does not ask whether mirror draw is on. That toggle decides
   // whether a *new* node is drawn with a twin; whether the design is symmetric is

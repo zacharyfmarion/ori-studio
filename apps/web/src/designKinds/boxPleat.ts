@@ -41,9 +41,7 @@ const BOX_PLEAT_HIDDEN_CAPABILITIES: readonly WorkspaceCapabilityId[] = [
   'file.exportStl',
 ];
 
-export function createBoxPleatCodec(
-  getClient: () => Promise<OristudioBpClient>
-): DesignKindCodec {
+export function createBoxPleatCodec(getClient: () => Promise<OristudioBpClient>): DesignKindCodec {
   return {
     async create() {
       const api = await getClient();
@@ -70,7 +68,7 @@ export function createBoxPleatCodec(
 export function createBoxPleatSendToEdit(getClient: () => Promise<OristudioBpClient>) {
   return async function sendToEdit(
     handle: number,
-    request: SendToEditRequest
+    request: SendToEditRequest,
   ): Promise<SendToEditPayload> {
     const api = await getClient();
     // Scale the export so one BP grid cell maps onto one Edit grid cell — without
@@ -123,7 +121,7 @@ export function createBoxPleatSendToEdit(getClient: () => Promise<OristudioBpCli
 }
 
 export function createBoxPleatDesignKind(
-  getClient: () => Promise<OristudioBpClient>
+  getClient: () => Promise<OristudioBpClient>,
 ): DesignKindDescriptor {
   return {
     id: 'box-pleat',
@@ -136,7 +134,7 @@ export function createBoxPleatDesignKind(
         title: t('panels:design.methodChooser.boxPleated.title', 'Box-pleated'),
         description: t(
           'panels:design.methodChooser.boxPleated.description',
-          'Author a tree, then pack flaps and rivers on a grid.'
+          'Author a tree, then pack flaps and rivers on a grid.',
         ),
       }),
       Icon: Grid3x3,

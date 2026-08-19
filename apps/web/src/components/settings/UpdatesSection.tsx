@@ -52,9 +52,7 @@ export function UpdatesSection() {
 
   return (
     <section className="settings-section">
-      <h3 className="settings-section__title">
-        {t('dialogs:settings.updates.title', 'Updates')}
-      </h3>
+      <h3 className="settings-section__title">{t('dialogs:settings.updates.title', 'Updates')}</h3>
       {DELIVERY_OPTIONS.map((option) => (
         <label className="settings-checkbox" key={option}>
           <input
@@ -70,14 +68,16 @@ export function UpdatesSection() {
       <p className="settings-toggle-row__desc">
         {t(
           'dialogs:settings.updates.description',
-          'Updates are downloaded in full — Ori Studio has no partial updates. Nothing installs until you choose to relaunch.'
+          'Updates are downloaded in full — Ori Studio has no partial updates. Nothing installs until you choose to relaunch.',
         )}
       </p>
       <div className="settings-toggle-row">
         <div>
-          <div>{t('dialogs:settings.updates.currentVersion', 'Version {{version}}', {
-            version: APP_VERSION,
-          })}</div>
+          <div>
+            {t('dialogs:settings.updates.currentVersion', 'Version {{version}}', {
+              version: APP_VERSION,
+            })}
+          </div>
           <p className="settings-toggle-row__desc">
             {lastCheckedAt
               ? t('dialogs:settings.updates.lastChecked', 'Last checked {{when}}', {

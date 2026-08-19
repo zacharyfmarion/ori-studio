@@ -167,8 +167,8 @@ export const useUpdateStore = create<UpdateState>()(
 
       snoozeForSession: () => set({ snoozed: true }),
     }),
-    { name: 'UpdateStore' }
-  )
+    { name: 'UpdateStore' },
+  ),
 );
 
 /**
@@ -193,8 +193,7 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
   (window as unknown as Record<string, unknown>).__oriUpdate = {
     ready: (version = '0.3.0') =>
       seed({ status: 'ready', version, installKind: 'app', readyAt: Date.now() }),
-    available: (version = '0.3.0') =>
-      seed({ status: 'available', version, installKind: 'app' }),
+    available: (version = '0.3.0') => seed({ status: 'available', version, installKind: 'app' }),
     unsupported: (version = '0.3.0') =>
       seed({ status: 'unsupported', version, installKind: 'other' }),
     downloading: (version = '0.3.0') =>

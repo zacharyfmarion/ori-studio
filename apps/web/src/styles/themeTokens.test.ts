@@ -93,7 +93,7 @@ describe('theme.css custom properties', () => {
       'a var() here names a property theme.css never defines, so every declaration ' +
         'using it is dropped by the browser and the rule silently does not apply — ' +
         'define the token, give the var() a fallback, or, if it arrived with a merge ' +
-        'and is not yours to value, add it to KNOWN_MISSING with a note'
+        'and is not yours to value, add it to KNOWN_MISSING with a note',
     ).toEqual(KNOWN_MISSING);
   });
 });

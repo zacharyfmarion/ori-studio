@@ -1,8 +1,5 @@
 import { foldedFigureBox } from '../adapters/cpFoldedToScene';
-import {
-  annotationAspectLockPolicy,
-  type CanvasAnnotation,
-} from '../annotations/annotation';
+import { annotationAspectLockPolicy, type CanvasAnnotation } from '../annotations/annotation';
 import type { AnnotationBox, AspectLockPolicy } from '../annotations/annotationTransform';
 import type { OristudioCpFoldedFigureEntry } from '../../engine/oristudioCpTypes';
 
@@ -37,9 +34,7 @@ export interface TransformableCanvasObject {
 }
 
 /** An annotation as the overlay sees it: a model-space box. */
-export function annotationAsTransformable(
-  annotation: CanvasAnnotation
-): TransformableCanvasObject {
+export function annotationAsTransformable(annotation: CanvasAnnotation): TransformableCanvasObject {
   return {
     id: annotation.id,
     space: 'model',
@@ -76,9 +71,7 @@ export function selectedCanvasObjectId(selection: {
   foldedFigureId: string | null;
   inlineSimulationId: string | null;
 }): string | null {
-  return (
-    selection.annotationId ?? selection.foldedFigureId ?? selection.inlineSimulationId ?? null
-  );
+  return selection.annotationId ?? selection.foldedFigureId ?? selection.inlineSimulationId ?? null;
 }
 
 /**
@@ -90,7 +83,7 @@ export function selectedCanvasObjectId(selection: {
  * non-uniform stretch is not something the model can represent.
  */
 export function foldedFigureAsTransformable(
-  figure: OristudioCpFoldedFigureEntry
+  figure: OristudioCpFoldedFigureEntry,
 ): TransformableCanvasObject | null {
   const box = foldedFigureBox(figure);
   if (!box) return null;

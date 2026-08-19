@@ -23,7 +23,7 @@ function render(state: Partial<ReturnType<typeof useWorkspaceStore.getState>>) {
     root?.render(
       <TooltipProvider>
         <DesignPaneLayout />
-      </TooltipProvider>
+      </TooltipProvider>,
     );
   });
   return container;
@@ -53,7 +53,7 @@ describe('DesignPaneLayout — a tab with no kind', () => {
 
     const button = (label: string) =>
       Array.from(host.querySelectorAll('button')).find((element) =>
-        element.textContent?.includes(label)
+        element.textContent?.includes(label),
       );
     // Box-pleating runs on the BP worker, so it must not wait on the engine…
     expect(button('Box-pleated')?.disabled).toBe(false);
@@ -67,7 +67,10 @@ describe('the pane layout a kind declares', () => {
 
   /** A dockview api recorded rather than driven — the arrangement is the subject. */
   function fakeDock() {
-    const panels = new Map<string, { id: string; group: { id: string }; api: { setActive: Mock } }>();
+    const panels = new Map<
+      string,
+      { id: string; group: { id: string }; api: { setActive: Mock } }
+    >();
     const calls: Record<string, unknown>[] = [];
     const api = {
       addGroup: vi.fn((options: Record<string, unknown>) => ({ id: 'g0', ...options })),
@@ -105,8 +108,14 @@ describe('the pane layout a kind declares', () => {
     expect(calls[1]).toMatchObject({ initialWidth: 320 });
     // Diagnostics and Conditions are *tabs* of the inspector's column, not
     // columns of their own — the reason this is a dock and not a grid.
-    expect(calls[2]).toMatchObject({ position: { referenceGroup: 'inspector-group' }, inactive: true });
-    expect(calls[3]).toMatchObject({ position: { referenceGroup: 'inspector-group' }, inactive: true });
+    expect(calls[2]).toMatchObject({
+      position: { referenceGroup: 'inspector-group' },
+      inactive: true,
+    });
+    expect(calls[3]).toMatchObject({
+      position: { referenceGroup: 'inspector-group' },
+      inactive: true,
+    });
   });
 
   it('gives box-pleat two headerless canvases side by side', () => {
@@ -146,7 +155,7 @@ describe('restoring a saved pane layout', () => {
     return { api: api as unknown as DockviewApi, raw: api };
   }
 
-  it('restores a layout naming exactly the kind\'s panes', () => {
+  it("restores a layout naming exactly the kind's panes", () => {
     const { api, raw } = fakeDock();
     const saved = layoutOf('design', 'inspector', 'diagnostics', 'conditions');
 
@@ -159,13 +168,17 @@ describe('restoring a saved pane layout', () => {
     // circle-packed tab would mount a dock with panels that have no components.
     const { api, raw } = fakeDock();
 
-    expect(restoreLayout(api, designKind('treemaker')!, layoutOf('design', 'bp-editor'))).toBe(false);
+    expect(restoreLayout(api, designKind('treemaker')!, layoutOf('design', 'bp-editor'))).toBe(
+      false,
+    );
     expect(raw.fromJSON).not.toHaveBeenCalled();
   });
 
   it('refuses a layout missing a pane the kind has since gained', () => {
     const { api } = fakeDock();
-    expect(restoreLayout(api, designKind('treemaker')!, layoutOf('design', 'inspector'))).toBe(false);
+    expect(restoreLayout(api, designKind('treemaker')!, layoutOf('design', 'inspector'))).toBe(
+      false,
+    );
   });
 
   it('falls back to the default when dockview rejects the layout', () => {
@@ -174,7 +187,13 @@ describe('restoring a saved pane layout', () => {
       throw new Error('corrupt');
     });
 
-    expect(restoreLayout(api, designKind('treemaker')!, layoutOf('design', 'inspector', 'diagnostics', 'conditions'))).toBe(false);
+    expect(
+      restoreLayout(
+        api,
+        designKind('treemaker')!,
+        layoutOf('design', 'inspector', 'diagnostics', 'conditions'),
+      ),
+    ).toBe(false);
     // Whatever it managed to build before throwing is cleared, so the caller
     // builds the default into an empty dock rather than half a restored one.
     expect(raw.clear).toHaveBeenCalled();
@@ -222,7 +241,10 @@ describe('a third design kind lays out with no code change', () => {
   } as unknown as DesignKindDescriptor;
 
   function fakeDock() {
-    const panels = new Map<string, { id: string; group: { id: string }; api: { setActive: Mock } }>();
+    const panels = new Map<
+      string,
+      { id: string; group: { id: string }; api: { setActive: Mock } }
+    >();
     const calls: Record<string, unknown>[] = [];
     const api = {
       addGroup: vi.fn((options: Record<string, unknown>) => ({ id: 'g0', ...options })),
@@ -254,7 +276,7 @@ describe('a third design kind lays out with no code change', () => {
     expect(calls[2]).toMatchObject({ position: { referenceGroup: 'inspector-group' } });
   });
 
-  it('restores a layout of its own panes and refuses another kind\'s', () => {
+  it("restores a layout of its own panes and refuses another kind's", () => {
     const { api } = fakeDock();
     const layoutOf = (...ids: string[]) =>
       ({ panels: Object.fromEntries(ids.map((id) => [id, {}])) }) as unknown as SerializedDockview;
@@ -288,7 +310,7 @@ describe('the chooser while a design is being created', () => {
       () =>
         new Promise<void>((resolve) => {
           resolveChoice = resolve;
-        })
+        }),
     );
     const host = render({
       ...singleDesignTab(null),

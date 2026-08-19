@@ -64,7 +64,7 @@ export interface OristudioBpStateFromRawInput {
 }
 
 export function oristudioBpProjectStateFromRaw(
-  input: OristudioBpStateFromRawInput
+  input: OristudioBpStateFromRawInput,
 ): OristudioBpDocumentState {
   return {
     workflowTarget: 'box-pleat',
@@ -79,7 +79,7 @@ export function oristudioBpProjectStateFromRaw(
       input.treeData ?? null,
       input.layoutSnapshot ?? null,
       input.packingValidation ?? null,
-      input.layoutError ?? null
+      input.layoutError ?? null,
     ),
     history: historySummary(input.project),
     optimizer: defaultOptimizerState(),
@@ -94,14 +94,14 @@ export function oristudioBpProjectSnapshotFromRaw(
   treeData: OristudioBpWasmTreeData | null = null,
   layoutSnapshot: OristudioBpWasmLayoutSnapshot | null = null,
   packingValidation: OristudioBpWasmPackingValidation | null = null,
-  layoutError: string | null = null
+  layoutError: string | null = null,
 ): OristudioBpProjectSnapshot {
   const tree = treeView(
     project.design.tree.sheet,
     project.design.tree.nodes,
     treeData?.edges ?? project.design.tree.edges,
     project.design.layout.flaps,
-    treeData
+    treeData,
   );
   const packing = packingView(project, tree, layoutSnapshot, packingValidation);
   return {
@@ -113,7 +113,7 @@ export function oristudioBpProjectSnapshotFromRaw(
       packing,
       layoutSnapshot,
       packingValidation,
-      layoutError
+      layoutError,
     ),
     stale: {
       packing: project.design.layout.flaps.length === 0 && project.design.tree.nodes.length > 0,
@@ -127,7 +127,7 @@ export function oristudioBpProjectSnapshotFromRaw(
 function projectSummary(
   project: OristudioBpRawProject,
   packing: OristudioBpPackingView,
-  wasmSummary: OristudioBpWasmProjectSummary | null
+  wasmSummary: OristudioBpWasmProjectSummary | null,
 ): OristudioBpProjectSummary {
   const degrees = vertexDegrees(project.design.tree.edges);
   return {
@@ -136,7 +136,8 @@ function projectSummary(
     upstreamVersion: project.version || wasmSummary?.version || null,
     treeVertices: wasmSummary?.tree_nodes ?? project.design.tree.nodes.length,
     treeEdges: wasmSummary?.tree_edges ?? project.design.tree.edges.length,
-    leafVertices: project.design.tree.nodes.filter((node) => (degrees.get(node.id) ?? 0) <= 1).length,
+    leafVertices: project.design.tree.nodes.filter((node) => (degrees.get(node.id) ?? 0) <= 1)
+      .length,
     flaps: wasmSummary?.layout_flaps ?? project.design.layout.flaps.length,
     rivers: packing.rivers.length,
     // The packing view's count, not the persisted one: `layout.stretches` holds
@@ -153,7 +154,7 @@ function projectDiagnostics(
   packing: OristudioBpPackingView,
   layoutSnapshot: OristudioBpWasmLayoutSnapshot | null,
   packingValidation: OristudioBpWasmPackingValidation | null,
-  layoutError: string | null
+  layoutError: string | null,
 ): OristudioBpDiagnostic[] {
   const diagnostics: OristudioBpDiagnostic[] = [];
   if (project.error) {
@@ -176,11 +177,11 @@ function projectDiagnostics(
     });
   }
   const patternlessStretches = packing.stretches.filter(
-    (stretch) => stretch.patternFound === false
+    (stretch) => stretch.patternFound === false,
   );
   for (const stretch of patternlessStretches) {
     const flapLabels = stretch.flapIds.map((id) =>
-      bpFlapLabel(id, packing.flaps.find((flap) => flap.id === id)?.name ?? '')
+      bpFlapLabel(id, packing.flaps.find((flap) => flap.id === id)?.name ?? ''),
     );
     diagnostics.push({
       id: `bp-pattern-not-found:${stretch.id}`,
@@ -233,7 +234,7 @@ function staleReasons(
   packing: OristudioBpPackingView,
   layoutSnapshot: OristudioBpWasmLayoutSnapshot | null,
   packingValidation: OristudioBpWasmPackingValidation | null,
-  layoutError: string | null
+  layoutError: string | null,
 ): string[] {
   const reasons: string[] = [];
   if (project.design.layout.flaps.length === 0 && project.design.tree.nodes.length > 0) {
@@ -259,7 +260,7 @@ function treeView(
   vertices: OristudioBpRawVertex[],
   edges: OristudioBpRawEdge[],
   flaps: OristudioBpRawFlap[],
-  treeData: OristudioBpWasmTreeData | null
+  treeData: OristudioBpWasmTreeData | null,
 ): OristudioBpTreeView {
   const degrees = vertexDegrees(edges);
   const flapIds = new Set(flaps.map((flap) => flap.id));
@@ -275,7 +276,13 @@ function treeView(
     sheet: sheet(treeSheet),
     maxTreeHeight,
     vertices: vertices.map((vertex) =>
-      treeVertex(vertex, degrees.get(vertex.id) ?? 0, rootVertexId, flapIds, nodeData.get(vertex.id) ?? null)
+      treeVertex(
+        vertex,
+        degrees.get(vertex.id) ?? 0,
+        rootVertexId,
+        flapIds,
+        nodeData.get(vertex.id) ?? null,
+      ),
     ),
     edges: edges.map((edge, index) => treeEdge(edge, index + 1, degrees, nodeData)),
   };
@@ -286,7 +293,7 @@ function treeVertex(
   degree: number,
   rootVertexId: number | null,
   flapIds: Set<number>,
-  nodeData: OristudioBpWasmTreeNode | null
+  nodeData: OristudioBpWasmTreeNode | null,
 ): OristudioBpTreeVertex {
   const dist = nodeData?.dist ?? (rootVertexId === vertex.id ? 0 : vertex.y);
   return {
@@ -308,7 +315,7 @@ function treeEdge(
   edge: OristudioBpRawEdge,
   id: number,
   degrees: Map<number, number>,
-  nodeData: Map<number, OristudioBpWasmTreeNode>
+  nodeData: Map<number, OristudioBpWasmTreeNode>,
 ): OristudioBpTreeEdge {
   const firstNode = nodeData.get(edge.n1);
   const secondNode = nodeData.get(edge.n2);
@@ -317,15 +324,16 @@ function treeEdge(
       ? firstNode.dist > secondNode.dist
         ? firstNode
         : secondNode
-      : firstNode ?? secondNode ?? null;
+      : (firstNode ?? secondNode ?? null);
   return {
     id,
     vertices: [edge.n1, edge.n2],
     length: edge.length,
-    maxLength: child ? Math.max(1, MAX_TREE_HEIGHT - (child.dist + child.height) + edge.length) : null,
+    maxLength: child
+      ? Math.max(1, MAX_TREE_HEIGHT - (child.dist + child.height) + edge.length)
+      : null,
     isLeafEdge: (degrees.get(edge.n1) ?? 0) <= 1 || (degrees.get(edge.n2) ?? 0) <= 1,
-    dualRiverId:
-      (degrees.get(edge.n1) ?? 0) > 1 && (degrees.get(edge.n2) ?? 0) > 1 ? id : null,
+    dualRiverId: (degrees.get(edge.n1) ?? 0) > 1 && (degrees.get(edge.n2) ?? 0) > 1 ? id : null,
   };
 }
 
@@ -333,13 +341,13 @@ function packingView(
   project: OristudioBpRawProject,
   tree: OristudioBpTreeView,
   layoutSnapshot: OristudioBpWasmLayoutSnapshot | null,
-  packingValidation: OristudioBpWasmPackingValidation | null
+  packingValidation: OristudioBpWasmPackingValidation | null,
 ): OristudioBpPackingView {
   const flaps = project.design.layout.flaps.map((flap) =>
-    packingFlap(flap, project.design.tree.nodes, project.design.tree.edges)
+    packingFlap(flap, project.design.tree.nodes, project.design.tree.edges),
   );
   const invalidJunctions = (layoutSnapshot?.invalidJunctions ?? []).map((junction) =>
-    packingInvalidJunction(junction)
+    packingInvalidJunction(junction),
   );
   const stretches = packingStretches(project, layoutSnapshot);
   const devices = packingDevices(layoutSnapshot);
@@ -375,7 +383,7 @@ function packingRivers(tree: OristudioBpTreeView): OristudioBpRiver[] {
  * before that filter so an id still names the ring it came from.
  */
 function packingCoverage(
-  layoutSnapshot: OristudioBpWasmLayoutSnapshot | null
+  layoutSnapshot: OristudioBpWasmLayoutSnapshot | null,
 ): OristudioBpCoverageRegion[] {
   if (!layoutSnapshot) return [];
   return layoutSnapshot.nodeGraphics.flatMap((entry) =>
@@ -385,12 +393,12 @@ function packingCoverage(
         outer: contour.outer,
         holes: (contour.inner ?? []).filter((ring) => ring.length > 2),
       }))
-      .filter((region) => region.outer.length > 2)
+      .filter((region) => region.outer.length > 2),
   );
 }
 
 function packingInvalidJunction(
-  junction: OristudioBpWasmInvalidJunction
+  junction: OristudioBpWasmInvalidJunction,
 ): OristudioBpInvalidJunction {
   return {
     id: junction.id,
@@ -403,15 +411,15 @@ function packingInvalidJunction(
 }
 
 function packingGraphics(
-  layoutSnapshot: OristudioBpWasmLayoutSnapshot | null
+  layoutSnapshot: OristudioBpWasmLayoutSnapshot | null,
 ): OristudioBpGraphicPrimitive[] {
   if (!layoutSnapshot) return [];
   return [
     ...layoutSnapshot.nodeGraphics.flatMap((entry) =>
-      graphicsDataPrimitives(entry.id, entry.data, entry.id.startsWith('f') ? 'flap' : 'river')
+      graphicsDataPrimitives(entry.id, entry.data, entry.id.startsWith('f') ? 'flap' : 'river'),
     ),
     ...layoutSnapshot.deviceGraphics.flatMap((entry) =>
-      graphicsDataPrimitives(entry.id, entry.data, 'device')
+      graphicsDataPrimitives(entry.id, entry.data, 'device'),
     ),
   ];
 }
@@ -419,7 +427,7 @@ function packingGraphics(
 function graphicsDataPrimitives(
   id: string,
   data: OristudioBpWasmGraphicsData,
-  sourceLayer: 'flap' | 'river' | 'device'
+  sourceLayer: 'flap' | 'river' | 'device',
 ): OristudioBpGraphicPrimitive[] {
   const primitives: OristudioBpGraphicPrimitive[] = [];
   data.contours.forEach((contour, index) => {
@@ -484,7 +492,7 @@ function packingValidity(
   flapCount: number,
   leafCount: number,
   invalidJunctionCount: number,
-  packingValidation: OristudioBpWasmPackingValidation | null
+  packingValidation: OristudioBpWasmPackingValidation | null,
 ): OristudioBpPackingView['validity'] {
   if (flapCount === 0 && leafCount > 0) return 'stale';
   if (invalidJunctionCount > 0) return 'invalid';
@@ -505,7 +513,7 @@ function manualPackingValidationMessage(message: string): string {
 function packingFlap(
   flap: { id: number; x: number; y: number; width: number; height: number },
   vertices: OristudioBpRawVertex[],
-  edges: OristudioBpRawEdge[]
+  edges: OristudioBpRawEdge[],
 ): OristudioBpFlap {
   const vertex = vertices.find((candidate) => candidate.id === flap.id);
   return {
@@ -533,7 +541,7 @@ function packingFlap(
  */
 function packingStretches(
   project: OristudioBpRawProject,
-  layoutSnapshot: OristudioBpWasmLayoutSnapshot | null
+  layoutSnapshot: OristudioBpWasmLayoutSnapshot | null,
 ): OristudioBpStretch[] {
   if (!layoutSnapshot) return project.design.layout.stretches.map(persistedStretch);
   return layoutSnapshot.stretches.map((stretch) => ({
@@ -574,9 +582,7 @@ function persistedStretch(stretch: OristudioBpRawStretch): OristudioBpStretch {
  * everything the selectable model needs, for stretches the project never
  * persisted.
  */
-function packingDevices(
-  layoutSnapshot: OristudioBpWasmLayoutSnapshot | null
-): OristudioBpDevice[] {
+function packingDevices(layoutSnapshot: OristudioBpWasmLayoutSnapshot | null): OristudioBpDevice[] {
   return (layoutSnapshot?.deviceGraphics ?? []).flatMap((entry) => {
     const id = deviceIdFromGraphicsId(entry.id);
     const stretchId = stretchIdFromDeviceId(id);
@@ -610,7 +616,7 @@ function activeConfiguration(stretch: OristudioBpRawStretch): OristudioBpRawConf
 
 function activePattern(
   stretch: OristudioBpRawStretch,
-  configuration: OristudioBpRawConfiguration | null
+  configuration: OristudioBpRawConfiguration | null,
 ): OristudioBpRawPattern | null {
   if (stretch.pattern) return stretch.pattern;
   const index = configuration?.index ?? null;
@@ -622,7 +628,6 @@ function deviceIdFromGraphicsId(id: string): string {
   const match = /^s(.+)\.(\d+)$/.exec(id);
   return match ? `${match[1]}:device:${match[2]}` : id;
 }
-
 
 export function sheet(raw: OristudioBpRawSheet): OristudioBpSheet {
   const kind = raw.type === 'diag' ? 'diagonal' : 'rectangular';
@@ -662,7 +667,7 @@ function vertexDegrees(edges: OristudioBpRawEdge[]): Map<number, number> {
  */
 export function bpFlapRadius(
   flap: Pick<OristudioBpRawFlap, 'id' | 'width' | 'height'>,
-  edges: OristudioBpRawEdge[]
+  edges: OristudioBpRawEdge[],
 ): number {
   const edge = edges.find((candidate) => candidate.n1 === flap.id || candidate.n2 === flap.id);
   return edge?.length ?? Math.max(flap.width, flap.height) / 2;

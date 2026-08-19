@@ -25,7 +25,7 @@ let initialized: Promise<void> | null = null;
 export async function initCpWasm(): Promise<void> {
   initialized ??= init({
     module_or_path: readFileSync(
-      resolve(process.cwd(), 'src/generated/oristudio-cp-wasm/oristudio_cp_wasm_bg.wasm')
+      resolve(process.cwd(), 'src/generated/oristudio-cp-wasm/oristudio_cp_wasm_bg.wasm'),
     ),
   }).then(() => undefined);
   await initialized;
@@ -68,9 +68,11 @@ export function batterySegments(): OristudioCpLineSegment[] {
       // gating all key off it. Only Red1/Blue2 can carry one; the kernel drops
       // it elsewhere, which is itself worth round-tripping.
       const foldMagnitude =
-        n % 3 === 1 ? 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE
-        : n % 3 === 2 ? 45 * FOLD_MAGNITUDE_UNITS_PER_DEGREE
-        : undefined;
+        n % 3 === 1
+          ? 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE
+          : n % 3 === 2
+            ? 45 * FOLD_MAGNITUDE_UNITS_PER_DEGREE
+            : undefined;
       segments.push({
         a: { x: n * 1.5, y: -n * 0.25 },
         b: { x: n === 0 ? n * 1.5 : n * 3.0, y: n === 0 ? -n * 0.25 : 1e12 - n },

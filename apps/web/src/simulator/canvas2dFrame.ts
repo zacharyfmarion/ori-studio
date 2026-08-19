@@ -1,11 +1,11 @@
-import { fitExtent, viewRotation } from "@treemaker/origami-simulator";
+import { fitExtent, viewRotation } from '@treemaker/origami-simulator';
 import type {
   CreaseDash,
   FoldDocument as SimulatorFoldDocument,
-} from "@treemaker/origami-simulator";
-import type { SimulatorFrameView } from "./useSimulatorRuntime";
-import type { SimulatorRenderModel } from "./renderModel";
-import type { SimulatorOrbitView as SimulatorView } from "../lib/simulatorOrbit";
+} from '@treemaker/origami-simulator';
+import type { SimulatorFrameView } from './useSimulatorRuntime';
+import type { SimulatorRenderModel } from './renderModel';
+import type { SimulatorOrbitView as SimulatorView } from '../lib/simulatorOrbit';
 import {
   PAPER_LIGHT_DIRECTION,
   renderColorToCss,
@@ -13,7 +13,7 @@ import {
   type Rgb,
   type SimulatorPaint,
   type SimulatorSurfaceOptions,
-} from "./simulatorPalette";
+} from './simulatorPalette';
 
 export { PAPER_LIGHT_DIRECTION, type SimulatorSurfaceOptions };
 
@@ -88,9 +88,7 @@ interface SimulatorSurface {
 
 const surfaceCache = new WeakMap<HTMLCanvasElement, SimulatorSurface>();
 
-export function invalidateSimulatorSurface(
-  canvas: HTMLCanvasElement | null,
-): void {
+export function invalidateSimulatorSurface(canvas: HTMLCanvasElement | null): void {
   if (canvas) surfaceCache.delete(canvas);
 }
 
@@ -137,7 +135,7 @@ export function drawFrame(
     canvas.height = height;
   }
 
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const render = paint.render;
   const palette = paletteFrom(paint);
@@ -162,8 +160,7 @@ export function drawFrame(
   // every frame made the model visibly "breathe" as it folded -- the sheet gets
   // smaller as it closes, so the auto-fit zoomed in to compensate -- and cost
   // three extra full walks of the position array per draw.
-  const scale =
-    (availableSize / (2 * surface.framingRadius(positions))) * view.zoom;
+  const scale = (availableSize / (2 * surface.framingRadius(positions))) * view.zoom;
   const map = (point: ProjectedPoint) => ({
     x: width / 2 + point.x * scale,
     y: height / 2 - point.y * scale,
@@ -176,15 +173,7 @@ export function drawFrame(
 
   if (!xray && render.showFaces) {
     if (render.lighting) {
-      drawProjectedPaperShadow(
-        ctx,
-        triangles,
-        projected,
-        map,
-        width,
-        height,
-        dpr,
-      );
+      drawProjectedPaperShadow(ctx, triangles, projected, map, width, height, dpr);
     }
     const depthSurface = drawPaperFacesWithDepth(
       ctx,
@@ -201,17 +190,7 @@ export function drawFrame(
     );
     if (depthSurface) {
       if (render.showEdges) {
-        drawVisibleEdges(
-          ctx,
-          model,
-          projected,
-          map,
-          dpr,
-          0.94,
-          palette,
-          highlights,
-          depthSurface,
-        );
+        drawVisibleEdges(ctx, model, projected, map, dpr, 0.94, palette, highlights, depthSurface);
         if (paint.showHiddenLines) {
           drawAllEdges(
             ctx,
@@ -238,15 +217,9 @@ export function drawFrame(
   for (const triangle of triangles) {
     if (render.showFaces) {
       const highlighted = highlights.faces.has(triangle.faceIndex);
-      const a = map(
-        projected[triangle.vertices[0]] ?? { x: 0, y: 0, depth: 0 },
-      );
-      const b = map(
-        projected[triangle.vertices[1]] ?? { x: 0, y: 0, depth: 0 },
-      );
-      const c = map(
-        projected[triangle.vertices[2]] ?? { x: 0, y: 0, depth: 0 },
-      );
+      const a = map(projected[triangle.vertices[0]] ?? { x: 0, y: 0, depth: 0 });
+      const b = map(projected[triangle.vertices[1]] ?? { x: 0, y: 0, depth: 0 });
+      const c = map(projected[triangle.vertices[2]] ?? { x: 0, y: 0, depth: 0 });
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
@@ -314,10 +287,7 @@ export function normalizeVector(vector: { x: number; y: number; z: number }): {
   };
 }
 
-function projectPositions(
-  positions: Float32Array,
-  view: SimulatorView,
-): ProjectedPoint[] {
+function projectPositions(positions: Float32Array, view: SimulatorView): ProjectedPoint[] {
   const center = boundsCenter(positions);
   const points: ProjectedPoint[] = [];
   // The same matrix the GPU path is handed, rather than a sixth transcription of
@@ -418,7 +388,7 @@ function paletteFrom(paint: SimulatorPaint): SimulatorPalette {
     border: renderColorToCss(render.borderColor),
     flat: chrome.flat,
     highlight: chrome.highlight,
-    highlightFace: "rgb(240 198 116 / 0.3)",
+    highlightFace: 'rgb(240 198 116 / 0.3)',
     highlightFaceRgb: chrome.highlightFaceRgb,
     paperFrontRgb: renderColorToRgb(render.frontColor),
     paperBackRgb: renderColorToRgb(render.backColor),
@@ -427,24 +397,15 @@ function paletteFrom(paint: SimulatorPaint): SimulatorPalette {
   };
 }
 
-function triangleOrder(
-  indices: Uint32Array,
-  projected: ProjectedPoint[],
-): OrderedTriangle[] {
+function triangleOrder(indices: Uint32Array, projected: ProjectedPoint[]): OrderedTriangle[] {
   const triangles: OrderedTriangle[] = [];
   for (let index = 0; index < indices.length; index += 3) {
     triangles.push({
       faceIndex: Math.floor(index / 3),
-      vertices: [
-        indices[index] ?? 0,
-        indices[index + 1] ?? 0,
-        indices[index + 2] ?? 0,
-      ],
+      vertices: [indices[index] ?? 0, indices[index + 1] ?? 0, indices[index + 2] ?? 0],
     });
   }
-  return triangles.sort(
-    (a, b) => averageDepth(a, projected) - averageDepth(b, projected),
-  );
+  return triangles.sort((a, b) => averageDepth(a, projected) - averageDepth(b, projected));
 }
 
 function drawProjectedPaperShadow(
@@ -460,11 +421,11 @@ function drawProjectedPaperShadow(
   const shadowOffset = Math.max(5 * dpr, size * 0.018);
   const shadowBlur = Math.max(10 * dpr, size * 0.03);
   ctx.save();
-  ctx.shadowColor = "rgba(0, 0, 0, 0.24)";
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.24)';
   ctx.shadowBlur = shadowBlur;
   ctx.shadowOffsetX = shadowOffset;
   ctx.shadowOffsetY = shadowOffset * 1.15;
-  ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
   ctx.beginPath();
 
   for (const triangle of triangles) {
@@ -481,15 +442,9 @@ function drawProjectedPaperShadow(
   ctx.restore();
 }
 
-function averageDepth(
-  triangle: OrderedTriangle,
-  projected: ProjectedPoint[],
-): number {
+function averageDepth(triangle: OrderedTriangle, projected: ProjectedPoint[]): number {
   return (
-    triangle.vertices.reduce(
-      (total, vertex) => total + (projected[vertex]?.depth ?? 0),
-      0,
-    ) / 3
+    triangle.vertices.reduce((total, vertex) => total + (projected[vertex]?.depth ?? 0), 0) / 3
   );
 }
 
@@ -588,9 +543,9 @@ function rasterizeDepthTriangle(
 }
 
 function edgeFunction(
-  a: Pick<ScreenPoint, "sx" | "sy">,
-  b: Pick<ScreenPoint, "sx" | "sy">,
-  point: Pick<ScreenPoint, "sx" | "sy">,
+  a: Pick<ScreenPoint, 'sx' | 'sy'>,
+  b: Pick<ScreenPoint, 'sx' | 'sy'>,
+  point: Pick<ScreenPoint, 'sx' | 'sy'>,
 ): number {
   return (point.sx - a.sx) * (b.sy - a.sy) - (point.sy - a.sy) * (b.sx - a.sx);
 }
@@ -610,9 +565,7 @@ function triangleFaceRgb(
   const c = projected[triangle[2]];
   if (!a || !b || !c) return palette.paperFrontRgb;
   const winding = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
-  return winding * PAPER_FRONT_WINDING >= 0
-    ? palette.paperFrontRgb
-    : palette.paperBackRgb;
+  return winding * PAPER_FRONT_WINDING >= 0 ? palette.paperFrontRgb : palette.paperBackRgb;
 }
 
 function triangleColor(
@@ -622,13 +575,9 @@ function triangleColor(
   projected?: ProjectedPoint[],
   lighting = false,
 ): string {
-  const base = projected
-    ? triangleFaceRgb(triangle, projected, palette)
-    : palette.paperFrontRgb;
+  const base = projected ? triangleFaceRgb(triangle, projected, palette) : palette.paperFrontRgb;
   const [r, g, b] =
-    lighting && projected
-      ? shadeRgb(base, triangleLightIntensity(triangle, projected))
-      : base;
+    lighting && projected ? shadeRgb(base, triangleLightIntensity(triangle, projected)) : base;
   return alpha >= 1 ? `rgb(${r} ${g} ${b})` : `rgb(${r} ${g} ${b} / ${alpha})`;
 }
 
@@ -640,27 +589,19 @@ function triangleRasterColor(
   lighting: boolean,
 ): [number, number, number, number] {
   const base = triangleFaceRgb(triangle, projected, palette);
-  const shaded = lighting
-    ? shadeRgb(base, triangleLightIntensity(triangle, projected))
-    : base;
-  const rgb = highlighted
-    ? blendRgb(shaded, palette.highlightFaceRgb, 0.3)
-    : shaded;
+  const shaded = lighting ? shadeRgb(base, triangleLightIntensity(triangle, projected)) : base;
+  const rgb = highlighted ? blendRgb(shaded, palette.highlightFaceRgb, 0.3) : shaded;
   return [rgb[0], rgb[1], rgb[2], 255];
 }
 
-function triangleLightIntensity(
-  triangle: number[],
-  projected: ProjectedPoint[],
-): number {
+function triangleLightIntensity(triangle: number[], projected: ProjectedPoint[]): number {
   const a = projected[triangle[0]];
   const b = projected[triangle[1]];
   const c = projected[triangle[2]];
   if (!a || !b || !c) return 1;
   const normal = triangleNormal(a, b, c);
   if (!normal) return 1;
-  const oriented =
-    normal.z < 0 ? { x: -normal.x, y: -normal.y, z: -normal.z } : normal;
+  const oriented = normal.z < 0 ? { x: -normal.x, y: -normal.y, z: -normal.z } : normal;
   const [lx, ly, lz] = PAPER_LIGHT_DIRECTION;
   const diffuse = Math.max(0, dotVector(oriented, { x: lx, y: ly, z: lz }));
   return clamp(0.74 + diffuse * 0.3 + oriented.z * 0.04, 0.68, 1.08);
@@ -698,10 +639,7 @@ function dotVector(
   return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
-function shadeRgb(
-  color: [number, number, number],
-  intensity: number,
-): [number, number, number] {
+function shadeRgb(color: [number, number, number], intensity: number): [number, number, number] {
   if (intensity <= 1) {
     return [
       Math.round(color[0] * intensity),
@@ -853,9 +791,7 @@ function drawEdgeSegment(
   ctx.beginPath();
   ctx.moveTo(a.x, a.y);
   ctx.lineTo(b.x, b.y);
-  ctx.strokeStyle = highlighted
-    ? palette.highlight
-    : edgeColor(assignment, palette);
+  ctx.strokeStyle = highlighted ? palette.highlight : edgeColor(assignment, palette);
   ctx.globalAlpha = highlighted ? 1 : edgeAlpha(assignment, alpha);
   if (highlighted) ctx.lineWidth = Math.max(ctx.lineWidth, dpr * 3);
   ctx.stroke();
@@ -889,9 +825,7 @@ function drawVisibleEdgeSegment(
   let segmentStart: { x: number; y: number } | null = null;
   let previousVisible: { x: number; y: number } | null = null;
 
-  ctx.strokeStyle = highlighted
-    ? palette.highlight
-    : edgeColor(assignment, palette);
+  ctx.strokeStyle = highlighted ? palette.highlight : edgeColor(assignment, palette);
   ctx.globalAlpha = highlighted ? 1 : edgeAlpha(assignment, alpha);
   if (highlighted) ctx.lineWidth = Math.max(ctx.lineWidth, dpr * 3);
 
@@ -908,8 +842,7 @@ function drawVisibleEdgeSegment(
     const point = {
       x: a.x + (b.x - a.x) * t,
       y: a.y + (b.y - a.y) * t,
-      depth:
-        fromProjected.depth + (toProjected.depth - fromProjected.depth) * t,
+      depth: fromProjected.depth + (toProjected.depth - fromProjected.depth) * t,
     };
     if (edgePointIsVisible(point, depthSurface)) {
       segmentStart ??= point;
@@ -932,8 +865,7 @@ function edgePointIsVisible(
 ): boolean {
   const x = Math.round(point.x);
   const y = Math.round(point.y);
-  if (x < 0 || y < 0 || x >= depthSurface.width || y >= depthSurface.height)
-    return false;
+  if (x < 0 || y < 0 || x >= depthSurface.width || y >= depthSurface.height) return false;
   const surfaceDepth = depthSurface.depths[y * depthSurface.width + x];
   if (surfaceDepth === undefined || !Number.isFinite(surfaceDepth)) return true;
   return point.depth >= surfaceDepth - PAPER_EDGE_DEPTH_EPSILON;
@@ -941,9 +873,7 @@ function edgePointIsVisible(
 
 function findEdge(edges: [number, number][], from: number, to: number): number {
   return edges.findIndex(
-    (edge) =>
-      (edge[0] === from && edge[1] === to) ||
-      (edge[0] === to && edge[1] === from),
+    (edge) => (edge[0] === from && edge[1] === to) || (edge[0] === to && edge[1] === from),
   );
 }
 
@@ -961,22 +891,19 @@ function applyEdgeDash(
   const dash = palette.dash;
   if (!dash) return;
   const pattern =
-    assignment === "M" ? dash.mountain : assignment === "V" ? dash.valley : dash.border;
+    assignment === 'M' ? dash.mountain : assignment === 'V' ? dash.valley : dash.border;
   ctx.setLineDash(pattern ? [...pattern] : []);
 }
 
-function edgeColor(
-  assignment: string | undefined,
-  palette: SimulatorPalette,
-): string {
-  if (assignment === "M") return palette.mountain;
-  if (assignment === "V") return palette.valley;
-  if (assignment === "B") return palette.border;
+function edgeColor(assignment: string | undefined, palette: SimulatorPalette): string {
+  if (assignment === 'M') return palette.mountain;
+  if (assignment === 'V') return palette.valley;
+  if (assignment === 'B') return palette.border;
   return palette.flat;
 }
 
 function edgeAlpha(assignment: string | undefined, alpha: number): number {
-  if (assignment === "F") return alpha * 0.55;
+  if (assignment === 'F') return alpha * 0.55;
   if (!assignment) return alpha * 0.32;
   return alpha;
 }

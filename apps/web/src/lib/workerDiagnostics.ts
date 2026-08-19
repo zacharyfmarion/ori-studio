@@ -62,7 +62,7 @@ function describeWorkerEvent(event: Event): string {
 export function attachWorkerDiagnostics(
   worker: Worker,
   name: WorkerName,
-  observe?: (failure: WorkerFailure) => void
+  observe?: (failure: WorkerFailure) => void,
 ): () => void {
   const report = (kind: WorkerFailure['kind']) => (event: Event) => {
     const failure: WorkerFailure = { worker: name, kind, message: describeWorkerEvent(event) };

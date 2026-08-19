@@ -101,7 +101,7 @@ export function parseStartFigureAsset(value: unknown): StartFigureAsset | null {
 
 export async function loadStartFigureAsset(
   url: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<StartFigureAsset | null> {
   const response = await fetch(url, { signal });
   if (!response.ok) return null;

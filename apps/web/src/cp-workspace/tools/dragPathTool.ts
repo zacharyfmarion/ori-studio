@@ -37,9 +37,7 @@ export const dragPathTool: ToolEngine<DragPathState> = {
         if (state.points.length === 0) return { state, preview: null, commit: null };
         // Skip duplicate samples so a still cursor doesn't inflate the path.
         const last = state.points[state.points.length - 1];
-        const points = samePoint(last, input.point)
-          ? state.points
-          : [...state.points, input.point];
+        const points = samePoint(last, input.point) ? state.points : [...state.points, input.point];
         return { state: { points }, preview: { segments: polyline(points) }, commit: null };
       }
 

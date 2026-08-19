@@ -77,7 +77,7 @@ function createDockviewApi(layout: SerializedDockview = dockviewLayout()) {
         panels.set(options.id, panel);
         activePanelId = options.id;
         return panel;
-      }
+      },
     ),
     clear: vi.fn(() => {
       panels.clear();
@@ -108,9 +108,7 @@ describe('layout store', () => {
     applyDefaultLayout(api);
 
     expect(api.addPanel).toHaveBeenCalledTimes(1);
-    expect(api.addPanel.mock.calls.map(([options]) => options.id)).toEqual([
-      'design-workspace',
-    ]);
+    expect(api.addPanel.mock.calls.map(([options]) => options.id)).toEqual(['design-workspace']);
     expect(api.addGroup).toHaveBeenCalledWith({ direction: 'right', hideHeader: true });
     expect(api.panelMap.get('design-workspace')?.group.hideHeader).toBe(true);
     // The panes a design used to contribute at this level are gone from it.
@@ -255,5 +253,4 @@ describe('layout store', () => {
     expect(api.addPanel).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem('oristudio:layout:design')).toContain('reset');
   });
-
 });

@@ -13,9 +13,8 @@ import type { BpOptimizerDialogOptions } from '../store/bpOptimizerUiStore';
 
 const cancelMock = vi.hoisted(() => vi.fn());
 vi.mock('../store/workspaceStore/oristudioBpRuntime', async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import('../store/workspaceStore/oristudioBpRuntime')
-  >();
+  const actual =
+    await importOriginal<typeof import('../store/workspaceStore/oristudioBpRuntime')>();
   return { ...actual, cancelActiveOristudioBpOptimizer: cancelMock };
 });
 
@@ -30,7 +29,7 @@ function renderModal() {
     root?.render(
       <TooltipProvider delayDuration={0}>
         <BpOptimizerModal />
-      </TooltipProvider>
+      </TooltipProvider>,
     );
   });
   return container;
@@ -42,7 +41,7 @@ function text(): string {
 
 function findButton(label: string): HTMLButtonElement {
   const button = Array.from(container?.querySelectorAll('button') ?? []).find(
-    (element) => element.textContent?.trim() === label
+    (element) => element.textContent?.trim() === label,
   );
   expect(button, `button "${label}"`).toBeDefined();
   return button as HTMLButtonElement;
@@ -211,8 +210,8 @@ describe('BpOptimizerModal', () => {
     expect(text()).toContain('Fitting to the grid...');
     expect(
       Array.from(container?.querySelectorAll('button') ?? []).some(
-        (element) => element.textContent?.trim() === 'Run!'
-      )
+        (element) => element.textContent?.trim() === 'Run!',
+      ),
     ).toBe(false);
 
     const bar = container?.querySelector('[role="progressbar"]');
@@ -254,38 +253,38 @@ describe('symmetry row', () => {
     }> = {},
     sheetKind: 'rectangular' | 'diagonal' = 'rectangular',
     // A leaf that is neither on the mirror line nor opposite another one.
-    stray = false
+    stray = false,
   ) {
     const sheet = { kind: sheetKind, width: 20, height: 20, grid: {} };
     useWorkspaceStore.setState({
       ...singleBoxPleatDesignTab({
-      symmetry: {
-        enabled: true,
-        fold: 'book',
-        quarterTurn: false,
-        sidesSwapped: false,
-        angle: 90,
-        loc: { x: 10, y: 10 },
-        pairs: [],
-        ...symmetry,
-      },
-      document: {
-        snapshot: {
-          tree: {
-            sheet,
-            vertices: [
-              { id: 0, name: 'root', loc: { x: 10, y: 10 }, isLeaf: false },
-              { id: 1, name: 'a', loc: { x: 6, y: 12 }, isLeaf: true },
-              { id: 2, name: 'b', loc: { x: 14, y: 12 }, isLeaf: true },
-              ...(stray ? [{ id: 3, name: 'c', loc: { x: 3, y: 4 }, isLeaf: true }] : []),
-            ],
-            edges: [
-              { id: 0, vertices: [0, 1], length: 4 },
-              { id: 1, vertices: [0, 2], length: 4 },
-            ],
-          },
+        symmetry: {
+          enabled: true,
+          fold: 'book',
+          quarterTurn: false,
+          sidesSwapped: false,
+          angle: 90,
+          loc: { x: 10, y: 10 },
+          pairs: [],
+          ...symmetry,
         },
-      } as never,
+        document: {
+          snapshot: {
+            tree: {
+              sheet,
+              vertices: [
+                { id: 0, name: 'root', loc: { x: 10, y: 10 }, isLeaf: false },
+                { id: 1, name: 'a', loc: { x: 6, y: 12 }, isLeaf: true },
+                { id: 2, name: 'b', loc: { x: 14, y: 12 }, isLeaf: true },
+                ...(stray ? [{ id: 3, name: 'c', loc: { x: 3, y: 4 }, isLeaf: true }] : []),
+              ],
+              edges: [
+                { id: 0, vertices: [0, 1], length: 4 },
+                { id: 1, vertices: [0, 2], length: 4 },
+              ],
+            },
+          },
+        } as never,
       }),
     });
   }
@@ -357,7 +356,7 @@ describe('symmetry row', () => {
     });
     expect(spy).toHaveBeenCalledWith(
       expect.objectContaining({ respectSymmetry: false }),
-      expect.anything()
+      expect.anything(),
     );
   });
 
@@ -371,7 +370,7 @@ describe('symmetry row', () => {
     });
     expect(spy).toHaveBeenCalledWith(
       expect.objectContaining({ respectSymmetry: true }),
-      expect.anything()
+      expect.anything(),
     );
   });
 });

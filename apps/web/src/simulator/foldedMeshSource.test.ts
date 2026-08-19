@@ -105,10 +105,10 @@ describe('breaking a folded figure into draws', () => {
     for (const camera of [FROM_ABOVE, FROM_BELOW]) {
       const passes = folded3dDrawPasses(DETERMINED, OPAQUE, camera);
       const drawn = passes.flatMap((pass) =>
-        pass.faceRange ? [[pass.faceRange.start, pass.faceRange.count] as const] : []
+        pass.faceRange ? [[pass.faceRange.start, pass.faceRange.count] as const] : [],
       );
       const total = drawn.reduce((sum, [, count]) => sum + count, 0);
-      expect(total).toBe(MESH.skins.length / 2 * 3);
+      expect(total).toBe((MESH.skins.length / 2) * 3);
     }
   });
 
@@ -196,7 +196,9 @@ describe('breaking a folded figure into draws', () => {
       skins: DETERMINED.skins.map((s) => ({ ...s, edgeStart: s.edgeStart + 2 })),
     };
     const passes = folded3dDrawPasses(withFallback, OPAQUE, FROM_ABOVE);
-    const fallback = passes.filter((pass) => pass.edgeRange?.start === 0 && pass.faceRange?.count === 0);
+    const fallback = passes.filter(
+      (pass) => pass.edgeRange?.start === 0 && pass.faceRange?.count === 0,
+    );
     expect(fallback).toHaveLength(1);
     expect(fallback[0]!.edgeRange).toEqual({ start: 0, count: 2 });
   });

@@ -354,11 +354,11 @@ const CP_TOOL_ICON_BY_OPERATION = Object.fromEntries(
   ORISTUDIO_CP_ACTIONS.filter((action) => action.kind === 'command').map((action) => [
     action.operationId,
     commandIcon(action.icon),
-  ])
+  ]),
 ) as Partial<Record<OristudioCpOperationId, CpToolIcon>>;
 
 const CP_TOOL_ICON_BY_ACTION = Object.fromEntries(
-  ORISTUDIO_CP_ACTIONS.map((action) => [action.id, commandIcon(action.icon)])
+  ORISTUDIO_CP_ACTIONS.map((action) => [action.id, commandIcon(action.icon)]),
 ) as Partial<Record<OristudioCpActionId, CpToolIcon>>;
 
 export const CpToolRail = memo(function CpToolRail({
@@ -375,17 +375,19 @@ export const CpToolRail = memo(function CpToolRail({
   // against the active layout rather than the shipped table.
   const shortcutResolution = useMemo<ShortcutResolution>(
     () => ({ overrides: shortcutOverrides, defaultsSource: shortcutDefaultsSource }),
-    [shortcutOverrides, shortcutDefaultsSource]
+    [shortcutOverrides, shortcutDefaultsSource],
   );
 
   return (
-    <aside className="cp-tool-rail" aria-label={t('tools:cpRail.ariaLabel', 'Crease pattern tools')}>
+    <aside
+      className="cp-tool-rail"
+      aria-label={t('tools:cpRail.ariaLabel', 'Crease pattern tools')}
+    >
       <div className="cp-tool-rail__groups">
         {ORISTUDIO_CP_ACTION_GROUPS.map((group) => {
           const actions = cpActionsForGroup(group.id).filter(
             (action) =>
-              action.placement === 'left-rail' ||
-              action.placement === 'left-rail-overflow'
+              action.placement === 'left-rail' || action.placement === 'left-rail-overflow',
           );
           if (actions.length === 0) return null;
 
@@ -429,7 +431,7 @@ function CpToolRailGroup({
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(
-    () => readRailGroupOpenState()[group.id] ?? group.collapsedByDefault !== true
+    () => readRailGroupOpenState()[group.id] ?? group.collapsedByDefault !== true,
   );
   const buttonsId = `cp-tool-rail-group-${group.id}`;
 
@@ -566,9 +568,10 @@ function capitalize(value: string): string {
 function commandStatusLabel(
   action: OristudioCpActionDefinition,
   editable: boolean,
-  t: TFunction
+  t: TFunction,
 ): string {
-  if (!editable) return t('tools:cpRail.openEditableFirst', 'Open an editable crease pattern first');
+  if (!editable)
+    return t('tools:cpRail.openEditableFirst', 'Open an editable crease pattern first');
   if (action.uiStatus === 'ready') return cpActionTooltip(t, action);
   return cpActionDisabledReason(t, action);
 }

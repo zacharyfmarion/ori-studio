@@ -15,7 +15,10 @@ import {
   serializeNativeProjectFile,
 } from './nativeProjectFile';
 import { ProjectFileFormatError } from './projectFileError';
-import { DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS, emptyOristudioCpSelection } from './creasePatternViewport';
+import {
+  DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+  emptyOristudioCpSelection,
+} from './creasePatternViewport';
 import { importedCpLineage } from './oristudioCpLineage';
 
 const now = new Date('2026-05-26T12:00:00.000Z');
@@ -199,7 +202,6 @@ function asLegacyFile(v8: LegacyShaped, schemaVersion: number): LegacyShaped {
     },
   };
 }
-
 
 describe('native project file', () => {
   it('serializes and parses tree documents as an Ori Studio project', () => {
@@ -550,9 +552,8 @@ describe('native project file', () => {
   it('round-trips a model up, so a figure set upright reopens upright', () => {
     const orient = [0, 0, 1, 0, 1, 0, -1, 0, 0] as const;
     const [entry] = reparse(
-      roundTripCp([
-        { ...folded3dFigure(), camera: { yaw: 0.5, pitch: -0.35, zoom: 1.25, orient } },
-      ]).serialized
+      roundTripCp([{ ...folded3dFigure(), camera: { yaw: 0.5, pitch: -0.35, zoom: 1.25, orient } }])
+        .serialized,
     );
     expect(entry.camera?.orient).toEqual([...orient]);
   });
@@ -583,7 +584,7 @@ describe('native project file', () => {
             ...folded3dFigure(),
             camera: { yaw: 0.5, pitch: -0.35, zoom: 1.25, orient: bad as never },
           },
-        ]).serialized
+        ]).serialized,
       );
       expect(entry.camera?.orient).toBeUndefined();
       // The rest of the camera survives — only the orientation was unreadable.
@@ -753,7 +754,7 @@ describe('native project file', () => {
 
     const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
 
-        expect(parsed.workspace.activeDocumentId).toBe('box-pleat');
+    expect(parsed.workspace.activeDocumentId).toBe('box-pleat');
     expect(parsed.workspace.designs.map((design) => design.payload.kind)).toEqual(['box-pleat']);
     expect(parsed.workspace.creasePattern).not.toBeNull();
     const active = activeNativeDesign(parsed);
@@ -772,7 +773,13 @@ describe('native project file', () => {
       path: '/tmp/multi.osf',
       designs: [
         { id: 'tree', title: 'Multi tree', kind: 'treemaker', text: 'tmd5-body', format: 'tmd5' },
-        { id: 'box-pleat', title: 'Multi bp', kind: 'box-pleat', text: '{"tree":{}}', format: 'bps' },
+        {
+          id: 'box-pleat',
+          title: 'Multi bp',
+          kind: 'box-pleat',
+          text: '{"tree":{}}',
+          format: 'bps',
+        },
       ],
       activeDesignId: 'tree',
       creasePattern: {
@@ -848,13 +855,11 @@ describe('native project file', () => {
           workspaceTitle: 'Future',
           filename: 'future.osf',
           path: null,
-          designs: [
-            { id: 'd1', title: 'Crane', kind: 'treemaker', text: 'crane', format: 'tmd5' },
-          ],
+          designs: [{ id: 'd1', title: 'Crane', kind: 'treemaker', text: 'crane', format: 'tmd5' }],
           appVersion: '0.1.1',
           now,
-        })
-      )
+        }),
+      ),
     );
     file.workspace.designs.push({
       id: 'd2',
@@ -883,8 +888,8 @@ describe('native project file', () => {
           designs: [{ id: 'd1', title: 'Crane', kind: 'treemaker', text: 'c', format: 'tmd5' }],
           appVersion: '0.1.1',
           now,
-        })
-      )
+        }),
+      ),
     );
     file.workspace.designs[0].id = 'crease-pattern';
 
@@ -905,10 +910,10 @@ describe('native project file', () => {
             ],
             appVersion: '0.1.1',
             now,
-          })
-        )
+          }),
+        ),
       ),
-      6
+      6,
     );
 
     const parsed = parseNativeProjectFile(JSON.stringify(legacy));
@@ -989,9 +994,7 @@ describe('native project file', () => {
       });
 
     const cameraOf = (raw: unknown) => {
-      const parsed = parseNativeProjectFile(
-        typeof raw === 'string' ? raw : JSON.stringify(raw)
-      );
+      const parsed = parseNativeProjectFile(typeof raw === 'string' ? raw : JSON.stringify(raw));
       const document = parsed.workspace.creasePattern;
       if (!document) throw new Error('expected CP document');
       return document.viewState.camera;
@@ -1016,7 +1019,16 @@ describe('native project file', () => {
     it('drops a malformed camera rather than refusing the file', () => {
       // A camera is a *view*: a bad one must never cost the user their geometry.
       // Zero zoom would divide by zero; an out-of-range one blanks the canvas.
-      for (const junk of [null, 42, 'square', [], { zoom: 2 }, { ...camera, zoom: 0 }, { ...camera, rotation: Number.NaN }, { ...camera, zoom: 1e9 }]) {
+      for (const junk of [
+        null,
+        42,
+        'square',
+        [],
+        { zoom: 2 },
+        { ...camera, zoom: 0 },
+        { ...camera, rotation: Number.NaN },
+        { ...camera, zoom: 1e9 },
+      ]) {
         const raw = JSON.parse(serializeNativeProjectFile(cpFileWith({ camera })));
         raw.workspace.creasePattern.viewState.camera = junk;
         expect(cameraOf(raw)).toBeNull();
@@ -1039,10 +1051,10 @@ describe('native project file', () => {
               symmetry,
               appVersion: '0.1.1',
               now,
-            })
-          )
+            }),
+          ),
         ),
-        6
+        6,
       );
 
     /** The box-pleat document of a parsed file, narrowed. */
@@ -1103,24 +1115,48 @@ describe('native project file', () => {
       // Off is the honest reading: nothing in a file written before symmetry
       // existed was ever mirrored, so opening it with the mirror on would put
       // a claim into the design that its author never made.
-      const raw = bpFile({ enabled: false, fold: 'diagonal', quarterTurn: false, sidesSwapped: false, pairs: [{ v1: 1, v2: 2 }] });
+      const raw = bpFile({
+        enabled: false,
+        fold: 'diagonal',
+        quarterTurn: false,
+        sidesSwapped: false,
+        pairs: [{ v1: 1, v2: 2 }],
+      });
       raw.schemaVersion = 5;
       delete raw.workspace.documents[0].symmetry;
-      expect(bpDocumentOf(raw).symmetry).toEqual({ enabled: false, fold: 'book', quarterTurn: false, sidesSwapped: false, pairs: [] });
+      expect(bpDocumentOf(raw).symmetry).toEqual({
+        enabled: false,
+        fold: 'book',
+        quarterTurn: false,
+        sidesSwapped: false,
+        pairs: [],
+      });
     });
 
     it('opens rather than refuses when the symmetry block is malformed', () => {
       for (const junk of [null, 42, 'book', [], { pairs: 'nope' }]) {
         const raw = bpFile();
         raw.workspace.documents[0].symmetry = junk;
-        expect(bpDocumentOf(raw).symmetry).toEqual({ enabled: false, fold: 'book', quarterTurn: false, sidesSwapped: false, pairs: [] });
+        expect(bpDocumentOf(raw).symmetry).toEqual({
+          enabled: false,
+          fold: 'book',
+          quarterTurn: false,
+          sidesSwapped: false,
+          pairs: [],
+        });
       }
     });
 
     it('keeps the usable half of a partly malformed block', () => {
       const raw = bpFile();
       raw.workspace.documents[0].symmetry = { enabled: false, fold: 'sideways', pairs: null };
-      expect(bpDocumentOf(raw).symmetry).toEqual({ enabled: false, fold: 'book', quarterTurn: false, sidesSwapped: false, pairs: [] });
+      expect(bpDocumentOf(raw).symmetry).toEqual({
+        enabled: false,
+        fold: 'book',
+        quarterTurn: false,
+        sidesSwapped: false,
+        pairs: [],
+      });
     });
 
     it('re-establishes one mirror per vertex, whatever the file claims', () => {
@@ -1137,9 +1173,7 @@ describe('native project file', () => {
           'nope',
         ],
       };
-      expect((bpDocumentOf(raw).symmetry as { pairs: unknown }).pairs).toEqual([
-        { v1: 1, v2: 5 },
-      ]);
+      expect((bpDocumentOf(raw).symmetry as { pairs: unknown }).pairs).toEqual([{ v1: 1, v2: 5 }]);
     });
   });
 
@@ -1153,14 +1187,14 @@ describe('native project file', () => {
           bps: '{}',
           appVersion: '0.1.1',
           now,
-        })
-      )
+        }),
+      ),
     );
     // The engine field only exists in the v1–v7 shape; v8 stores a kind id.
     const legacy = asLegacyFile(file, 6);
     legacy.workspace.documents[0].project.engine = 'somethingElse';
     expect(() => parseNativeProjectFile(JSON.stringify(legacy))).toThrow(
-      /Unsupported box-pleat engine/i
+      /Unsupported box-pleat engine/i,
     );
   });
 
@@ -1203,8 +1237,8 @@ describe('native project file', () => {
           format: 'oristudio.project',
           schemaVersion: NATIVE_PROJECT_SCHEMA_VERSION + 1,
           minimumReaderSchemaVersion: NATIVE_PROJECT_SCHEMA_VERSION + 1,
-        })
-      )
+        }),
+      ),
     ).toThrow(/requires reader schema/i);
   });
 
@@ -1336,11 +1370,13 @@ describe('native project file', () => {
       box: { center: { x: 0, y: 0 }, width: 100, height: 100, rotation: 0 },
       z: 1,
       view: { yaw: 0, pitch: 0, zoom: 1 },
-      sourceBoundary: [[
-        { x: -50, y: -50 },
-        { x: 50, y: -50 },
-        { x: 50, y: 50 },
-      ]],
+      sourceBoundary: [
+        [
+          { x: -50, y: -50 },
+          { x: 50, y: -50 },
+          { x: 50, y: 50 },
+        ],
+      ],
       sourceBounds: { minX: -50, minY: -50, maxX: 50, maxY: 50 },
       sourceFingerprint: 'cs1:deadbeefdeadbeef',
       segmentIdHint: null,
@@ -1368,7 +1404,7 @@ describe('native project file', () => {
     const document = parsed.workspace.creasePattern;
     if (!document) throw new Error('expected CP document');
     expect(document.creasePattern.inlineSimulations[0]?.sourceFingerprint).toBe(
-      'cs1:deadbeefdeadbeef'
+      'cs1:deadbeefdeadbeef',
     );
   });
 
@@ -1588,7 +1624,7 @@ describe('a crease-pattern-only save', () => {
 
   it('raises the reader bar when it carries one', () => {
     const file = createNativeCreasePatternProjectFile(
-      cpInput({ unknownDesigns: [{ id: 'design-9' }] })
+      cpInput({ unknownDesigns: [{ id: 'design-9' }] }),
     );
     expect(file.minimumReaderSchemaVersion).toBe(8);
   });
@@ -1599,7 +1635,7 @@ describe('a crease-pattern-only save', () => {
 
   it('carries the file-level extension bag forward', () => {
     const file = createNativeCreasePatternProjectFile(
-      cpInput({ fileExtensions: { futureThing: { a: 1 } } })
+      cpInput({ fileExtensions: { futureThing: { a: 1 } } }),
     );
     expect(file.extensions).toEqual({ futureThing: { a: 1 } });
   });

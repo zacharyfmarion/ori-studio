@@ -60,14 +60,14 @@ function render(props: Partial<Parameters<typeof BpPackingStretchNav>[0]> = {}) 
           onSwitchPattern: vi.fn(),
           ...props,
         }),
-      })
+      }),
     );
   });
 }
 
 function steppers() {
   return [...container.querySelectorAll('.bp-packing-stretch-nav__stepper')].map(
-    (el) => el.querySelector('.bp-packing-stretch-nav__label')?.textContent
+    (el) => el.querySelector('.bp-packing-stretch-nav__label')?.textContent,
   );
 }
 
@@ -75,14 +75,14 @@ describe('BpPackingStretchNav', () => {
   it('names the stretch by its flaps, not its id', () => {
     render();
     expect(container.querySelector('.bp-packing-stretch-nav__title')?.textContent).toBe(
-      'Stretch K and M'
+      'Stretch K and M',
     );
   });
 
   it('uses a flap name over its letter default', () => {
     render({ flaps: [flap(10, 'Head'), flap(12)] });
     expect(container.querySelector('.bp-packing-stretch-nav__title')?.textContent).toBe(
-      'Stretch Head and M'
+      'Stretch Head and M',
     );
   });
 
@@ -94,7 +94,7 @@ describe('BpPackingStretchNav', () => {
     const title = container.querySelector('.bp-packing-stretch-nav__title');
     expect(title?.getAttribute('title')).toBe('Stretch left back leg and tail blah blah');
     expect(container.querySelector('.bp-packing-stretch-nav')?.getAttribute('aria-label')).toBe(
-      'Stretch left back leg and tail blah blah pattern navigation'
+      'Stretch left back leg and tail blah blah pattern navigation',
     );
   });
 
@@ -104,7 +104,7 @@ describe('BpPackingStretchNav', () => {
     render();
     expect(steppers()).toEqual([]);
     expect(container.querySelector('.bp-packing-stretch-nav__note')?.textContent).toBe(
-      'Only one pattern'
+      'Only one pattern',
     );
   });
 
@@ -136,7 +136,7 @@ describe('BpPackingStretchNav', () => {
     expect(steppers()).toEqual([]);
     expect(container.querySelector('.bp-packing-stretch-nav__note')).toBeNull();
     expect(container.querySelector('.bp-packing-stretch-nav__warning')?.textContent).toBe(
-      'No valid pattern'
+      'No valid pattern',
     );
   });
 

@@ -36,14 +36,8 @@ describe('crease pattern import', () => {
 
   it('parses ORIPA CP lines and infers simulatable faces', () => {
     const result = parseImportedCreasePattern(
-      [
-        '1 0 0 1 0',
-        '1 1 0 1 1',
-        '1 1 1 0 1',
-        '1 0 1 0 0',
-        '2 0 0 1 1',
-      ].join('\n'),
-      { format: 'cp', filename: 'square.cp', path: null }
+      ['1 0 0 1 0', '1 1 0 1 1', '1 1 1 0 1', '1 0 1 0 0', '2 0 0 1 1'].join('\n'),
+      { format: 'cp', filename: 'square.cp', path: null },
     );
 
     expect(result.document.source.format).toBe('cp');
@@ -204,9 +198,11 @@ describe('crease pattern import', () => {
     // these numbers.
     const cp = (count: number) => {
       let seed = 987654321;
-      const rand = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
-      return Array.from({ length: count }, (_, i) =>
-        `${i % 3 === 0 ? 1 : 2} ${rand().toFixed(6)} ${rand().toFixed(6)} ${rand().toFixed(6)} ${rand().toFixed(6)}`
+      const rand = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+      return Array.from(
+        { length: count },
+        (_, i) =>
+          `${i % 3 === 0 ? 1 : 2} ${rand().toFixed(6)} ${rand().toFixed(6)} ${rand().toFixed(6)} ${rand().toFixed(6)}`,
       ).join('\n');
     };
 
@@ -262,9 +258,7 @@ describe('crease pattern import', () => {
     } as unknown as Parameters<typeof segmentationFoldArtifactsFromFold>[0];
 
     const { fold: inferred } = segmentationFoldArtifactsFromFold(fold);
-    const colors = (inferred as unknown as Record<string, number[]>)[
-      'oristudio:edges_line_colors'
-    ];
+    const colors = (inferred as unknown as Record<string, number[]>)['oristudio:edges_line_colors'];
     expect(colors).toHaveLength(inferred.edges_vertices.length);
 
     // Every rebuilt edge must carry the colour of the source edge with the same
@@ -340,7 +334,7 @@ describe('crease pattern import', () => {
     const centre = simulation.vertices_coords.findIndex(([x, , z]) => x === 0 && z === 0);
     const corner = simulation.vertices_coords.findIndex(([x, , z]) => x === 200 && z === 200);
     const diagonal = simulation.edges_vertices.findIndex(
-      ([a, b]) => (a === centre && b === corner) || (a === corner && b === centre)
+      ([a, b]) => (a === centre && b === corner) || (a === corner && b === centre),
     );
     expect(diagonal).toBeGreaterThanOrEqual(0);
     expect(simulation.edges_assignment?.[diagonal]).toBe('M');
@@ -451,7 +445,7 @@ describe('non-180 fold angles survive import', () => {
       // dropping it must change nothing about the square.
       const control = parseImportedCreasePattern(
         JSON.stringify(squareWithSpareVertex([90, 310])),
-        source
+        source,
       ).document.fold;
       expect(control.vertices_coords).toHaveLength(4);
       expect(control.edges_vertices).toHaveLength(4);
@@ -459,7 +453,7 @@ describe('non-180 fold angles survive import', () => {
       for (const spare of [[400], ['x', 'y'], [], [1, Number.NaN]]) {
         const parsed = parseImportedCreasePattern(
           JSON.stringify(squareWithSpareVertex(spare)),
-          source
+          source,
         ).document.fold;
         expect(parsed.vertices_coords).toHaveLength(4);
         expect(parsed.edges_vertices).toHaveLength(4);
@@ -483,23 +477,20 @@ describe('non-180 fold angles survive import', () => {
         edges_assignment: ['B', 'M', 'V', 'B', 'F'],
       });
 
-      const typeByEdge = (fold: {
-        edges_vertices: number[][];
-        edges_assignment?: string[];
-      }) =>
+      const typeByEdge = (fold: { edges_vertices: number[][]; edges_assignment?: string[] }) =>
         Object.fromEntries(
           fold.edges_vertices.map((edge, index) => [
             [...edge].sort((a, b) => a - b).join('-'),
             fold.edges_assignment?.[index],
-          ])
+          ]),
         );
 
-      const control = typeByEdge(parseImportedCreasePattern(
-        JSON.stringify(withEdge([1, 2])), source
-      ).document.fold);
-      const dropped = typeByEdge(parseImportedCreasePattern(
-        JSON.stringify(withEdge([1, 999])), source
-      ).document.fold);
+      const control = typeByEdge(
+        parseImportedCreasePattern(JSON.stringify(withEdge([1, 2])), source).document.fold,
+      );
+      const dropped = typeByEdge(
+        parseImportedCreasePattern(JSON.stringify(withEdge([1, 999])), source).document.fold,
+      );
 
       // Every edge that survived must keep the crease type it had in the control.
       for (const [edge, assignment] of Object.entries(dropped)) {
@@ -525,7 +516,10 @@ describe('non-180 fold angles survive import', () => {
     const source = { format: 'fold' as const, filename: 'cycle.fold', path: null };
 
     // A frame whose parent is itself, and a two-frame cycle.
-    const selfParent = { ...geometry, file_frames: [{ frame_parent: 1, frame_inherit: true, ...geometry }] };
+    const selfParent = {
+      ...geometry,
+      file_frames: [{ frame_parent: 1, frame_inherit: true, ...geometry }],
+    };
     const twoFrameCycle = {
       ...geometry,
       file_frames: [
@@ -536,7 +530,7 @@ describe('non-180 fold angles survive import', () => {
 
     for (const document of [selfParent, twoFrameCycle]) {
       expect(() => parseImportedCreasePattern(JSON.stringify(document), source)).not.toThrow(
-        /Maximum call stack size exceeded/
+        /Maximum call stack size exceeded/,
       );
     }
   });

@@ -36,7 +36,10 @@ export function DiagnosticsPanel() {
           <Metric label={t('panels:diagnostics.nodes', 'Nodes')} value={project.nodes.length} />
           <Metric label={t('panels:diagnostics.edges', 'Edges')} value={project.edges.length} />
           <Metric label={t('panels:diagnostics.paths', 'Paths')} value={project.paths.length} />
-          <Metric label={t('panels:diagnostics.conditions', 'Conditions')} value={project.conditions.length} />
+          <Metric
+            label={t('panels:diagnostics.conditions', 'Conditions')}
+            value={project.conditions.length}
+          />
         </div>
         <div className="status-row" data-tone={error ? 'bad' : engineReady ? 'good' : 'warn'}>
           {engineIcon}
@@ -59,22 +62,34 @@ export function DiagnosticsPanel() {
           </span>
         </div>
         <div className="status-row" data-tone={infeasibleConditions.length === 0 ? 'good' : 'bad'}>
-          {infeasibleConditions.length === 0 ? <CheckCircle2 size={15} /> : <AlertTriangle size={15} />}
+          {infeasibleConditions.length === 0 ? (
+            <CheckCircle2 size={15} />
+          ) : (
+            <AlertTriangle size={15} />
+          )}
           <span>
             {infeasibleConditions.length === 0
               ? t('panels:diagnostics.allConditionsFeasible', 'All conditions feasible')
               : infeasibleConditions.length === 1
-                ? t('panels:diagnostics.infeasibleConditionOne', '{{count}} infeasible condition: {{ids}}', {
-                    count: infeasibleConditions.length,
-                    ids: infeasibleConditions.map((condition) => condition.id).join(', '),
-                  })
-                : t('panels:diagnostics.infeasibleConditionOther', '{{count}} infeasible conditions: {{ids}}', {
-                    count: infeasibleConditions.length,
-                    ids: infeasibleConditions
-                      .slice(0, 3)
-                      .map((condition) => condition.id)
-                      .join(', '),
-                  })}
+                ? t(
+                    'panels:diagnostics.infeasibleConditionOne',
+                    '{{count}} infeasible condition: {{ids}}',
+                    {
+                      count: infeasibleConditions.length,
+                      ids: infeasibleConditions.map((condition) => condition.id).join(', '),
+                    },
+                  )
+                : t(
+                    'panels:diagnostics.infeasibleConditionOther',
+                    '{{count}} infeasible conditions: {{ids}}',
+                    {
+                      count: infeasibleConditions.length,
+                      ids: infeasibleConditions
+                        .slice(0, 3)
+                        .map((condition) => condition.id)
+                        .join(', '),
+                    },
+                  )}
           </span>
         </div>
         <div className="status-row" data-tone="warn">
@@ -83,7 +98,7 @@ export function DiagnosticsPanel() {
             {t(
               'panels:diagnostics.conditionedParts',
               'Conditioned parts: {{nodes}} nodes, {{edges}} edges, {{paths}} paths',
-              { nodes: conditionedNodes, edges: conditionedEdges, paths: conditionedPaths }
+              { nodes: conditionedNodes, edges: conditionedEdges, paths: conditionedPaths },
             )}
           </span>
         </div>
@@ -93,7 +108,7 @@ export function DiagnosticsPanel() {
             <span>
               {t(
                 'panels:diagnostics.optimizerInfeasible',
-                'Optimizer reported an infeasible constrained system'
+                'Optimizer reported an infeasible constrained system',
               )}
             </span>
           </div>

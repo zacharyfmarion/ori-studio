@@ -37,17 +37,32 @@ import type { OristudioBpFlap, OristudioBpSheet } from '../engine/oristudioBpTyp
 const SHEETS: ReadonlyArray<readonly [string, OristudioBpSheet, { x: number; y: number }]> = [
   [
     'rect 64',
-    { kind: 'rectangular', width: 64, height: 64, grid: { kind: 'rectangular', interval: 1, snap: true } },
+    {
+      kind: 'rectangular',
+      width: 64,
+      height: 64,
+      grid: { kind: 'rectangular', interval: 1, snap: true },
+    },
     { x: 30, y: 30 },
   ],
   [
     'diagonal 64',
-    { kind: 'diagonal', width: 64, height: 64, grid: { kind: 'diagonal', interval: 1, snap: true } },
+    {
+      kind: 'diagonal',
+      width: 64,
+      height: 64,
+      grid: { kind: 'diagonal', interval: 1, snap: true },
+    },
     { x: 32, y: 32 },
   ],
   [
     'diagonal 33',
-    { kind: 'diagonal', width: 33, height: 33, grid: { kind: 'diagonal', interval: 1, snap: true } },
+    {
+      kind: 'diagonal',
+      width: 33,
+      height: 33,
+      grid: { kind: 'diagonal', interval: 1, snap: true },
+    },
     { x: 16, y: 16 },
   ],
 ];
@@ -71,7 +86,12 @@ const SHAPES: ReadonlyArray<readonly [number, number, number]> = [
 
 const DELTAS = [-9, -5, -3, -2, -1, 0, 1, 2, 3, 5, 9];
 
-function flap(width: number, height: number, radius: number, at = { x: 30, y: 30 }): OristudioBpFlap {
+function flap(
+  width: number,
+  height: number,
+  radius: number,
+  at = { x: 30, y: 30 },
+): OristudioBpFlap {
   return { id: 1, vertexId: 1, name: '', anchor: at, width, height, radius, constrained: true };
 }
 
@@ -80,7 +100,7 @@ function solve(
   handle: BpFlapResizeHandle,
   dx: number,
   dy: number,
-  sheet: OristudioBpSheet = SHEETS[0][1]
+  sheet: OristudioBpSheet = SHEETS[0][1],
 ): BpFlapFootprint | null {
   const outer = bpFlapOuterBox(source);
   const s = BP_FLAP_HANDLE_SIGNS[handle];
@@ -177,7 +197,7 @@ describe('resize solve invariants', () => {
       if (s.sx !== -1) expect(after.x, `${describeCase(c)} west edge`).toBe(before.x);
       if (s.sy !== 1) {
         expect(after.y + after.height, `${describeCase(c)} north edge`).toBe(
-          before.y + before.height
+          before.y + before.height,
         );
       }
       if (s.sy !== -1) expect(after.y, `${describeCase(c)} south edge`).toBe(before.y);
@@ -196,7 +216,7 @@ describe('resize solve invariants', () => {
       const check = (axis: string, was: number, now: number, asked: number) => {
         const got = now - was;
         expect(Math.abs(got), `${describeCase(c)} ${axis} overshoot`).toBeLessThanOrEqual(
-          Math.abs(asked)
+          Math.abs(asked),
         );
         if (asked !== 0 && got !== 0) {
           expect(Math.sign(got), `${describeCase(c)} ${axis} direction`).toBe(Math.sign(asked));
@@ -249,7 +269,7 @@ describe('resize solve invariants', () => {
       const slack = Math.min(c.result.width, c.result.height);
       expect(
         slack,
-        `${describeCase(c)} -> w${c.result.width} h${c.result.height} r${c.result.radius}`
+        `${describeCase(c)} -> w${c.result.width} h${c.result.height} r${c.result.radius}`,
       ).toBeLessThanOrEqual(1);
     }
   });
@@ -265,10 +285,11 @@ describe('resize solve invariants', () => {
         if (!corner || !east) continue;
         const both = solve(flap(east.width, east.height, east.radius, east.anchor), 'n', 0, step);
         if (!both) continue;
-        expect(
-          [both.width, both.height, both.radius],
-          `${w}x${h} r${r}, step ${step}`
-        ).toEqual([corner.width, corner.height, corner.radius]);
+        expect([both.width, both.height, both.radius], `${w}x${h} r${r}, step ${step}`).toEqual([
+          corner.width,
+          corner.height,
+          corner.radius,
+        ]);
       }
     }
   });
@@ -329,7 +350,7 @@ describe('resize solve invariants', () => {
           if (!a || !b) continue;
           expect(
             Math.abs(b.radius - a.radius),
-            `${w}x${h} r${r} ${handle} between ${d} and ${d + 1}`
+            `${w}x${h} r${r} ${handle} between ${d} and ${d + 1}`,
           ).toBeLessThanOrEqual(1);
         }
       }

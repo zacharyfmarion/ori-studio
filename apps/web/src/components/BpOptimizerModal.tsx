@@ -1,4 +1,7 @@
-import { selectOristudioBpDocument, selectOristudioBpSymmetry } from '../store/workspaceStore/designTabs';
+import {
+  selectOristudioBpDocument,
+  selectOristudioBpSymmetry,
+} from '../store/workspaceStore/designTabs';
 import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -58,18 +61,15 @@ function ProgressRow({ progress }: { progress: OristudioBpOptimizerProgress | nu
   // Only the stages that report a denominator get a determinate bar; the rest
   // stay indeterminate rather than inventing a percentage.
   const determinate =
-    progress != null &&
-    progress.total != null &&
-    progress.total > 0 &&
-    progress.current != null;
-  const ratio = determinate
-    ? Math.min(1, Math.max(0, progress.current! / progress.total!))
-    : 0;
+    progress != null && progress.total != null && progress.total > 0 && progress.current != null;
+  const ratio = determinate ? Math.min(1, Math.max(0, progress.current! / progress.total!)) : 0;
 
   return (
     <div className="bp-optimizer__progress">
       <div className="bp-optimizer__progress-label">
-        {progress ? stageLabel(t, progress.stage) : t('dialogs:bpOptimizer.stage.start', 'Processing problem...')}
+        {progress
+          ? stageLabel(t, progress.stage)
+          : t('dialogs:bpOptimizer.stage.start', 'Processing problem...')}
       </div>
       <div
         className="bp-optimizer__progress-track"
@@ -99,13 +99,15 @@ export function BpOptimizerModal() {
   const optimize = useWorkspaceStore((state) => state.optimizeOristudioBpLayout);
   const symmetryState = useWorkspaceStore((state) => selectOristudioBpSymmetry(state));
   const setOristudioBpSymmetry = useWorkspaceStore((state) => state.setOristudioBpSymmetry);
-  const tree = useWorkspaceStore((state) => selectOristudioBpDocument(state)?.snapshot.tree ?? null);
+  const tree = useWorkspaceStore(
+    (state) => selectOristudioBpDocument(state)?.snapshot.tree ?? null,
+  );
   // The fold lives here rather than in the tree view: a tree is not drawn on the
   // paper, so it has no book or diagonal fold of its own. The tree's mirror line
   // stays vertical whatever is chosen here.
   const foldOptions = useMemo(
     () => SYMMETRY_FOLDS.map((fold) => ({ fold, label: symmetryFoldLabel(t, fold) })),
-    [t]
+    [t],
   );
 
   /**
@@ -147,7 +149,10 @@ export function BpOptimizerModal() {
     store.beginRun();
     // The stored preference is left alone when symmetry cannot apply; the row
     // explains why rather than silently rewriting what the user chose.
-    const effective = { ...options, respectSymmetry: options.respectSymmetry && symmetry.mode === 'ready' };
+    const effective = {
+      ...options,
+      respectSymmetry: options.respectSymmetry && symmetry.mode === 'ready',
+    };
     const outcome = await optimize(effective, (next) => {
       useBpOptimizerUiStore.getState().reportProgress(next);
     });
@@ -162,7 +167,7 @@ export function BpOptimizerModal() {
     }
     store.finishRun(
       useWorkspaceStore.getState().oristudioBpError ??
-        t('dialogs:bpOptimizer.failed', 'The optimizer could not find a layout.')
+        t('dialogs:bpOptimizer.failed', 'The optimizer could not find a layout.'),
     );
   };
 
@@ -227,7 +232,9 @@ export function BpOptimizerModal() {
                       setOptions({ layoutMode: value as OristudioBpOptimizerLayoutMode })
                     }
                   >
-                    <SelectTrigger aria-label={t('dialogs:bpOptimizer.layoutMethod', 'Layout method')}>
+                    <SelectTrigger
+                      aria-label={t('dialogs:bpOptimizer.layoutMethod', 'Layout method')}
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -248,15 +255,13 @@ export function BpOptimizerModal() {
                       <span>
                         {t(
                           'dialogs:bpOptimizer.useBasinHopping',
-                          'Try variations of the current layouts'
+                          'Try variations of the current layouts',
                         )}
                       </span>
                     </label>
                   ) : (
                     <label className="bp-optimizer__count">
-                      <span>
-                        {t('dialogs:bpOptimizer.toTry', 'Number of layouts to try:')}
-                      </span>
+                      <span>{t('dialogs:bpOptimizer.toTry', 'Number of layouts to try:')}</span>
                       <input
                         type="number"
                         min={MIN_BP_RANDOM_CANDIDATES}
@@ -288,11 +293,11 @@ export function BpOptimizerModal() {
                         <span>{t('dialogs:bpOptimizer.enable', 'Use symmetry for this run')}</span>
                       </label>
                       {/*
-                        * Unlike the toggle above, the fold is not a per-run choice —
-                        * it is saved with the design and is the same value the BP
-                        * Editor's symmetry menu writes, so a change here moves that
-                        * pane's mirror line too.
-                        */}
+                       * Unlike the toggle above, the fold is not a per-run choice —
+                       * it is saved with the design and is the same value the BP
+                       * Editor's symmetry menu writes, so a change here moves that
+                       * pane's mirror line too.
+                       */}
                       <span className="bp-optimizer__field-label">
                         {t('dialogs:bpOptimizer.designFold', 'Fold (saved with the design)')}
                       </span>
@@ -324,7 +329,7 @@ export function BpOptimizerModal() {
                         <p className="bp-optimizer__hint bp-optimizer__hint--warn">
                           {t(
                             'dialogs:bpOptimizer.symmetryInconsistent',
-                            'Some paired flaps are not interchangeable in the tree, so mirroring them will use more paper.'
+                            'Some paired flaps are not interchangeable in the tree, so mirroring them will use more paper.',
                           )}
                         </p>
                       )}
@@ -345,7 +350,11 @@ export function BpOptimizerModal() {
                 <Button size="sm" variant="ghost" disabled>
                   {t('dialogs:bpOptimizer.running', 'Running...')}
                 </Button>
-                <Button size="sm" variant="danger" onClick={() => cancelActiveOristudioBpOptimizer()}>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => cancelActiveOristudioBpOptimizer()}
+                >
                   {t('dialogs:bpOptimizer.abort', 'Abort')}
                 </Button>
               </>

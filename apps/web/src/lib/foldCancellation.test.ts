@@ -109,8 +109,12 @@ describe('web transport', () => {
   });
 
   it('reports itself unavailable, and stays harmless, without cross-origin isolation', async () => {
-    const { cancelFoldRun, foldCancellationAvailable, foldCancellationBuffer, installFoldCancellation } =
-      await loadModule({ isolated: false });
+    const {
+      cancelFoldRun,
+      foldCancellationAvailable,
+      foldCancellationBuffer,
+      installFoldCancellation,
+    } = await loadModule({ isolated: false });
     const client = fakeClient();
 
     // The CP wasm module's memory is unshared, so the engine boots here and

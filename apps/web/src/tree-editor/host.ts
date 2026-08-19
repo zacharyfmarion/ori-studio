@@ -166,7 +166,7 @@ export interface TreeEditorHost {
    */
   setEdgeLength(
     lengths: readonly TreeEdgeLengthUpdate[],
-    repositions: readonly TreeVertexUpdate[]
+    repositions: readonly TreeVertexUpdate[],
   ): void | Promise<void>;
   renameVertex?(vertexId: number, name: string): void | Promise<void>;
 

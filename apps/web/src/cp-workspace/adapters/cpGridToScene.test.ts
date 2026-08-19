@@ -24,7 +24,13 @@ describe('visibleGridBounds', () => {
 });
 
 describe('gridBoundsKey', () => {
-  const grid = { grid_size: 8, grid_angle: 0, grid_xa: 1, grid_ya: 1, interval_grid_size: 1 } as OristudioCpGridMetadata;
+  const grid = {
+    grid_size: 8,
+    grid_angle: 0,
+    grid_xa: 1,
+    grid_ya: 1,
+    interval_grid_size: 1,
+  } as OristudioCpGridMetadata;
   const bounds: CpModelBounds = { minX: 0, minY: 0, maxX: 10, maxY: 10, spanX: 10, spanY: 10 };
   it('is stable for equal inputs and differs when bounds move', () => {
     expect(gridBoundsKey(bounds, grid)).toBe(gridBoundsKey({ ...bounds }, grid));
@@ -37,7 +43,7 @@ describe('cpGridLinesToStrokes', () => {
     const color: Rgba = [0.4, 0.4, 0.4, 0.82];
     const geo = cpGridLinesToStrokes(
       [{ id: 'g', a: { x: 0, y: 0 }, b: { x: 5, y: 0 }, major: false }],
-      color
+      color,
     );
     expect(geo.count).toBe(1);
     expect(Array.from(geo.a)).toEqual([0, 0]);

@@ -34,12 +34,7 @@ export type CpDiagnosticMarkerShape =
   | 'none';
 
 export type CpDiagnosticMarkerTone =
-  | 'danger'
-  | 'warning'
-  | 'mountain'
-  | 'valley'
-  | 'neutral'
-  | 'unknown';
+  'danger' | 'warning' | 'mountain' | 'valley' | 'neutral' | 'unknown';
 
 export interface CpDiagnosticMarkerStyle {
   shape: CpDiagnosticMarkerShape;
@@ -97,7 +92,9 @@ export function boundsFromPoints(points: Point[]): CpDiagnosticBounds | null {
   };
 }
 
-export function diagnosticEntryBounds(entry: OristudioCpDiagnosticEntry): CpDiagnosticBounds | null {
+export function diagnosticEntryBounds(
+  entry: OristudioCpDiagnosticEntry,
+): CpDiagnosticBounds | null {
   return boundsFromPoints(diagnosticEntryPoints(entry));
 }
 
@@ -128,7 +125,9 @@ export function cpDiagnosticMarkerTone(entry: OristudioCpDiagnosticEntry): CpDia
   }
 }
 
-export function cpDiagnosticMarkerStyle(entry: OristudioCpDiagnosticEntry): CpDiagnosticMarkerStyle {
+export function cpDiagnosticMarkerStyle(
+  entry: OristudioCpDiagnosticEntry,
+): CpDiagnosticMarkerStyle {
   // The paper passing through itself is its own failure, distinct from the
   // vertex not closing — the angles agree, the result is just not reachable.
   if (entry.rule === 'SelfIntersection') {
@@ -179,7 +178,7 @@ function withAlpha(color: Rgba, alpha: number): Rgba {
 
 /** The angular sectors around a big-little-big vertex (or a segment fallback). */
 export function cpBlbSectors(
-  entry: OristudioCpDiagnosticEntry
+  entry: OristudioCpDiagnosticEntry,
 ): { segment: OristudioCpLineSegment; violating: boolean }[] {
   return entry.big_little_big && entry.big_little_big.length > 0
     ? entry.big_little_big
@@ -196,7 +195,7 @@ export function cpHasBlbWedges(entry: OristudioCpDiagnosticEntry): boolean {
 /** Build screen-space marker geometry for the diagnostic entries. */
 export function buildCpDiagnosticMarkers(
   entries: readonly OristudioCpDiagnosticEntry[],
-  toneColors: Record<CpDiagnosticMarkerTone, Rgba>
+  toneColors: Record<CpDiagnosticMarkerTone, Rgba>,
 ): MarkerGeometry {
   const markers: { center: Point; shape: number; fill: Rgba; stroke: Rgba }[] = [];
   for (const entry of entries) {
@@ -234,7 +233,7 @@ export function buildCpDiagnosticMarkers(
 /** Build model-space segment-highlight strokes for the diagnostic entries. */
 export function buildCpDiagnosticStrokes(
   entries: readonly OristudioCpDiagnosticEntry[],
-  toneColors: Record<CpDiagnosticMarkerTone, Rgba>
+  toneColors: Record<CpDiagnosticMarkerTone, Rgba>,
 ): StrokeGeometry {
   const segs: { a: Point; b: Point; color: Rgba }[] = [];
   for (const entry of entries) {
@@ -265,7 +264,7 @@ export function buildCpDiagnosticStrokes(
  */
 export function buildCpDiagnosticWedges(
   entries: readonly OristudioCpDiagnosticEntry[],
-  toneColors: Record<CpDiagnosticMarkerTone, Rgba>
+  toneColors: Record<CpDiagnosticMarkerTone, Rgba>,
 ): WedgeGeometry {
   const wedges: { center: Point; dir0: Point; dir1: Point; color: Rgba }[] = [];
   for (const entry of entries) {
@@ -286,7 +285,7 @@ export function buildCpDiagnosticWedges(
         dir1: { x: e1.x - vertex.x, y: e1.y - vertex.y },
         color: withAlpha(
           base,
-          sector.violating ? CP_DIAGNOSTIC_BLB_VIOLATING_ALPHA : CP_DIAGNOSTIC_BLB_QUIET_ALPHA
+          sector.violating ? CP_DIAGNOSTIC_BLB_VIOLATING_ALPHA : CP_DIAGNOSTIC_BLB_QUIET_ALPHA,
         ),
       });
     }

@@ -20,7 +20,7 @@ export const DRAG_START_THRESHOLD_PX = 4;
 export function hasPassedDragThreshold(
   from: Point,
   to: Point,
-  threshold = DRAG_START_THRESHOLD_PX
+  threshold = DRAG_START_THRESHOLD_PX,
 ): boolean {
   return Math.hypot(to.x - from.x, to.y - from.y) >= threshold;
 }
@@ -46,9 +46,13 @@ export function trackPointerGestures(): void {
   if (listening) return;
   listening = true;
   // Capture phase, so the count is right even when a handler stops propagation.
-  window.addEventListener('pointerdown', () => {
-    pointersDown += 1;
-  }, true);
+  window.addEventListener(
+    'pointerdown',
+    () => {
+      pointersDown += 1;
+    },
+    true,
+  );
   const release = () => {
     pointersDown = Math.max(0, pointersDown - 1);
     if (pointersDown === 0) flushPending();

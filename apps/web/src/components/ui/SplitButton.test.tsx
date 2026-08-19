@@ -36,7 +36,7 @@ function mount(node: React.ReactNode) {
 function byName(name: string): HTMLElement | undefined {
   return [...document.querySelectorAll<HTMLElement>('button,[role="menuitem"]')].find(
     (element) =>
-      element.getAttribute('aria-label') === name || element.textContent?.trim() === name
+      element.getAttribute('aria-label') === name || element.textContent?.trim() === name,
   );
 }
 
@@ -68,7 +68,7 @@ describe('SplitButton', () => {
       splitButton({
         onClick,
         actions: [{ id: 'with-circles', label: 'Send to Edit (include circles)', onSelect }],
-      })
+      }),
     );
 
     const primary = byName('Send to Edit');
@@ -87,7 +87,7 @@ describe('SplitButton', () => {
       splitButton({
         onClick,
         actions: [{ id: 'with-circles', label: 'Send to Edit (include circles)', onSelect }],
-      })
+      }),
     );
 
     click(byName('More options') as HTMLElement);

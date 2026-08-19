@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  track,
-  useLandingSectionViewedEvents,
-  useLandingViewedEvent,
-} from '../analytics';
+import { track, useLandingSectionViewedEvents, useLandingViewedEvent } from '../analytics';
 import { FileDropOverlay } from '../components/FileDropOverlay';
 import { MobileLandingHeader } from '../components/landing/MobileLandingHeader';
 import {

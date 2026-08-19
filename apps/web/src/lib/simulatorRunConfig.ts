@@ -65,7 +65,7 @@ export const STEP_SIMULATION_ACCURACY_OPTIONS: Array<{
 
 export function simulatorRunConfig(
   scope: SimulatorScope,
-  stepAccuracy: StepSimulationAccuracy
+  stepAccuracy: StepSimulationAccuracy,
 ): SimulatorRunConfig {
   if (scope === 'whole') return WHOLE_RUN_CONFIG;
   return stepAccuracy === 'accurate' ? STEP_ACCURATE_RUN_CONFIG : STEP_FAST_RUN_CONFIG;

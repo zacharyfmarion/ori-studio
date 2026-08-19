@@ -56,7 +56,7 @@ export interface PannedOverlayView {
 
 export function usePannedOverlayView(): PannedOverlayView {
   const [view, setView] = useState<CpOverlayView | null>(
-    () => cpOverlayViewStore.get()?.model ?? null
+    () => cpOverlayViewStore.get()?.model ?? null,
   );
   // The plan the DOM currently reflects. Held in a ref as well as state because
   // the store notification runs outside React and has to compare against the
@@ -106,7 +106,7 @@ export function usePannedOverlayView(): PannedOverlayView {
       // the node that just appeared.
       writeOffset(cpOverlayViewStore.get()?.model ?? null);
     },
-    [writeOffset]
+    [writeOffset],
   );
 
   return { view, containerRef };

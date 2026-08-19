@@ -19,7 +19,9 @@ function makeFakeClient() {
 }
 
 function viewedEvents(client: ReturnType<typeof makeFakeClient>) {
-  return client.capture.mock.calls.filter((call) => call[0] === 'workspace viewed').map((call) => call[1]);
+  return client.capture.mock.calls
+    .filter((call) => call[0] === 'workspace viewed')
+    .map((call) => call[1]);
 }
 
 let container: HTMLElement;

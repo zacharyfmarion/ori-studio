@@ -43,7 +43,7 @@ function refusalMessage(reason: DropRejectReason, selection: DroppedSelection): 
       return i18n.t(
         'errors:fileDrop.imageNotHere',
         'Drop {{name}} onto the crease pattern to add it as a reference image.',
-        { name: selection.file.name }
+        { name: selection.file.name },
       );
     case 'unsupported-file':
       return i18n.t(
@@ -52,7 +52,7 @@ function refusalMessage(reason: DropRejectReason, selection: DroppedSelection): 
         {
           name: selection.file.name,
           extensions: OPENABLE_FILE_EXTENSIONS.map((extension) => `.${extension}`).join(', '),
-        }
+        },
       );
   }
 }
@@ -67,7 +67,7 @@ function refusalMessage(reason: DropRejectReason, selection: DroppedSelection): 
  */
 function requestOpenOrImportChoice(
   selection: DroppedSelection,
-  warnsDiscard: boolean
+  warnsDiscard: boolean,
 ): Promise<string | null> {
   return requestChoice({
     title: i18n.t('dialogs:fileDrop.choiceTitle', 'Open or import {{name}}?', {
@@ -76,7 +76,7 @@ function requestOpenOrImportChoice(
     message: i18n.t(
       'dialogs:fileDrop.choiceMessage',
       '{{name}} is a crease pattern, so it can be merged into the one you are editing or opened on its own.',
-      { name: selection.file.name }
+      { name: selection.file.name },
     ),
     options: [
       {
@@ -84,7 +84,7 @@ function requestOpenOrImportChoice(
         label: i18n.t('dialogs:fileDrop.importLabel', 'Import beside the current pattern'),
         description: i18n.t(
           'dialogs:fileDrop.importDescription',
-          'Placed to the right of your crease pattern, as one undoable edit.'
+          'Placed to the right of your crease pattern, as one undoable edit.',
         ),
       },
       {
@@ -93,12 +93,9 @@ function requestOpenOrImportChoice(
         description: warnsDiscard
           ? i18n.t(
               'dialogs:fileDrop.openDescriptionDirty',
-              'Replaces what you are working on and discards your unsaved changes.'
+              'Replaces what you are working on and discards your unsaved changes.',
             )
-          : i18n.t(
-              'dialogs:fileDrop.openDescription',
-              'Replaces what you are working on.'
-            ),
+          : i18n.t('dialogs:fileDrop.openDescription', 'Replaces what you are working on.'),
         tone: warnsDiscard ? 'danger' : 'default',
       },
     ],
@@ -125,7 +122,7 @@ function reportIgnoredFiles(selection: DroppedSelection): void {
         : i18n.t(
             'toasts:fileDrop.ignoredFiles',
             'Used {{name}}; ignored {{others}} other dropped files.',
-            { name: selection.file.name, others }
+            { name: selection.file.name, others },
           ),
   });
 }
@@ -147,9 +144,7 @@ export async function handleFileDrop({ files, policy }: FileDropRequest): Promis
   // One dialog at a time: raising ours would resolve whatever is already open
   // with its fallback, silently cancelling it.
   if (useCommandDialogStore.getState().dialog !== null) {
-    refuse(
-      i18n.t('errors:fileDrop.dialogOpen', 'Finish the open dialog before dropping a file.')
-    );
+    refuse(i18n.t('errors:fileDrop.dialogOpen', 'Finish the open dialog before dropping a file.'));
     return 'refused';
   }
 
@@ -188,9 +183,7 @@ export async function handleFileDrop({ files, policy }: FileDropRequest): Promis
   // not ask a second time. Without a choice, nobody has asked yet — leave the
   // store's own prompt in place.
   const confirmDiscard = decision.outcome !== 'choose';
-  const opened = await useWorkspaceStore
-    .getState()
-    .openProject(fileService, { confirmDiscard });
+  const opened = await useWorkspaceStore.getState().openProject(fileService, { confirmDiscard });
   if (!opened) return null;
   reportIgnoredFiles(selection);
   navigateTo(currentWorkspacePath());

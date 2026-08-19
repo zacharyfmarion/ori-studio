@@ -25,7 +25,7 @@ import type { FloatingAnchorRect } from '../../components/ui/FloatingToolbar';
 export function useCanvasObjectAnchor(
   box: AnnotationBox | null,
   space: 'model' | 'user',
-  container: HTMLElement | null
+  container: HTMLElement | null,
 ): FloatingAnchorRect | null {
   const views = useCpOverlayViews();
   if (!box || !views || !container) return null;

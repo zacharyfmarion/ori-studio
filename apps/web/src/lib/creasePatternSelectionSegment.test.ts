@@ -69,7 +69,13 @@ function makeArtifacts(fold: FoldDocument = makeFold()): FoldArtifacts {
   return { fold, simulation_model: null };
 }
 
-function makeLine(ax: number, ay: number, bx: number, by: number, color: string): OristudioCpLineSegment {
+function makeLine(
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  color: string,
+): OristudioCpLineSegment {
   return {
     a: { x: ax, y: ay },
     b: { x: bx, y: by },
@@ -82,7 +88,7 @@ function makeLine(ax: number, ay: number, bx: number, by: number, color: string)
 }
 
 function makeDocument(
-  lines: Array<[number, number, number, number, string]> = LINES
+  lines: Array<[number, number, number, number, string]> = LINES,
 ): OristudioCpDocumentSnapshot {
   return {
     crease_pattern: {
@@ -97,7 +103,10 @@ function makeDocument(
   };
 }
 
-function selection(lines: number[], extra: Partial<OristudioCpSelection> = {}): OristudioCpSelection {
+function selection(
+  lines: number[],
+  extra: Partial<OristudioCpSelection> = {},
+): OristudioCpSelection {
   return { ...emptyOristudioCpSelection(), lines, ...extra };
 }
 
@@ -110,7 +119,11 @@ describe('resolveSelectedSegment', () => {
   });
 
   it('matches the right region and reports its own line set', () => {
-    const match = resolveSelectedSegment(makeDocument(), selection(RIGHT_LINE_IDS), makeArtifacts());
+    const match = resolveSelectedSegment(
+      makeDocument(),
+      selection(RIGHT_LINE_IDS),
+      makeArtifacts(),
+    );
     expect(match).not.toBeNull();
     expect(match?.segmentId).toBe(1);
     expect(match?.cpLineIds).toEqual(RIGHT_LINE_IDS);
@@ -126,7 +139,7 @@ describe('resolveSelectedSegment', () => {
     const match = resolveSelectedSegment(
       makeDocument(),
       selection(LEFT_LINE_IDS, { points: [2] }),
-      makeArtifacts()
+      makeArtifacts(),
     );
     expect(match?.segmentId).toBe(0);
   });
@@ -137,7 +150,7 @@ describe('resolveSelectedSegment', () => {
 
   it('rejects a selection that spills beyond one region', () => {
     expect(
-      resolveSelectedSegment(makeDocument(), selection([...LEFT_LINE_IDS, 2]), makeArtifacts())
+      resolveSelectedSegment(makeDocument(), selection([...LEFT_LINE_IDS, 2]), makeArtifacts()),
     ).toBeNull();
   });
 
@@ -146,8 +159,8 @@ describe('resolveSelectedSegment', () => {
       resolveSelectedSegment(
         makeDocument(),
         selection([...LEFT_LINE_IDS, ...RIGHT_LINE_IDS]),
-        makeArtifacts()
-      )
+        makeArtifacts(),
+      ),
     ).toBeNull();
   });
 

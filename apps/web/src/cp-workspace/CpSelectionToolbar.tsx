@@ -122,7 +122,7 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
 
   const match = useMemo(
     () => resolveSelectedSegment(cpDocument, selection, segmentation),
-    [cpDocument, selection, segmentation]
+    [cpDocument, selection, segmentation],
   );
 
   const box: AnnotationBox | null = useMemo(() => {
@@ -160,7 +160,6 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
     clearSelection();
   };
 
-
   return (
     <FloatingToolbar
       anchorRect={anchorRect}
@@ -192,10 +191,7 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
       <IconButton
         size="sm"
         variant="toolbar"
-        title={t(
-          'panels:creasePattern.selectionToolbar.simulateInline',
-          'Simulate inline'
-        )}
+        title={t('panels:creasePattern.selectionToolbar.simulateInline', 'Simulate inline')}
         onClick={() => runAndDismiss(() => void simulateSelectionInline())}
       >
         <PictureInPicture2 size={14} />

@@ -114,7 +114,7 @@ export default function App() {
             title: t('dialogs:closeGuard.title', 'Discard unsaved changes?'),
             message: t(
               'dialogs:closeGuard.message',
-              'Your current project has unsaved changes. Close Ori Studio and discard them?'
+              'Your current project has unsaved changes. Close Ori Studio and discard them?',
             ),
             confirmLabel: t('dialogs:closeGuard.discard', 'Discard'),
           }).then((confirmed) => {
@@ -144,7 +144,7 @@ export default function App() {
         getShortcutOverrides: () => useShortcutStore.getState().overrides,
         getShortcutDefaultsSource: () => useShortcutStore.getState().defaultsSource,
       },
-      document
+      document,
     );
   }, [selectNone]);
 
@@ -159,7 +159,7 @@ export default function App() {
       if (!opened) return;
       navigateTo(currentWorkspacePath());
     },
-    [openProject]
+    [openProject],
   );
 
   useTauriOpenedFiles(engineReady, handleOpenedFilePath);

@@ -40,7 +40,7 @@ function clientToUser(cam: UserCamera, clientX: number, clientY: number) {
   const point = unprojectDevicePoint(
     userCameraToView(cam, { width: 1200 * DPR, height: 800 * DPR, dpr: DPR }),
     clientX * DPR,
-    clientY * DPR
+    clientY * DPR,
   );
   if (!point) throw new Error('degenerate camera');
   return point;
@@ -50,7 +50,7 @@ function clientToUser(cam: UserCamera, clientX: number, clientY: number) {
 function turnBy(
   dx: number,
   dy: number,
-  through: (clientX: number, clientY: number) => { x: number; y: number }
+  through: (clientX: number, clientY: number) => { x: number; y: number },
 ) {
   const drag = beginFoldedFigureOrbit(DEFAULT_FOLDED_3D_CAMERA, through(400, 300));
   return advanceFoldedFigureOrbit(DEFAULT_FOLDED_3D_CAMERA, drag, through(400 + dx, 300 + dy));
@@ -106,12 +106,11 @@ describe('measuring the drag in crease-pattern user space', () => {
     expect(turnBy(60, 40, (x, y) => clientToUser(camera({ zoom: DPR }), x, y))).toEqual(reference);
 
     // A quarter of the turn at 4x, four times it at 1/4x.
-    expect(yawOf(turnBy(60, 40, (x, y) => clientToUser(camera({ zoom: DPR * 4 }), x, y)))).toBeCloseTo(
-      yawOf(reference) / 4,
-      12
-    );
     expect(
-      yawOf(turnBy(60, 40, (x, y) => clientToUser(camera({ zoom: DPR * 0.25 }), x, y)))
+      yawOf(turnBy(60, 40, (x, y) => clientToUser(camera({ zoom: DPR * 4 }), x, y))),
+    ).toBeCloseTo(yawOf(reference) / 4, 12);
+    expect(
+      yawOf(turnBy(60, 40, (x, y) => clientToUser(camera({ zoom: DPR * 0.25 }), x, y))),
     ).toBeCloseTo(yawOf(reference) * 4, 12);
   });
 
@@ -120,7 +119,7 @@ describe('measuring the drag in crease-pattern user space', () => {
     // view rotation rotates the delta, so a drag straight across the screen
     // arrives as a mix of yaw and pitch.
     const rotated = turnBy(60, 0, (x, y) =>
-      clientToUser(camera({ zoom: DPR, rotation: Math.PI / 6 }), x, y)
+      clientToUser(camera({ zoom: DPR, rotation: Math.PI / 6 }), x, y),
     );
 
     expect(rotated.pitch).not.toBeCloseTo(DEFAULT_FOLDED_3D_CAMERA.pitch, 6);

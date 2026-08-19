@@ -44,11 +44,7 @@ const FALLBACK: Rgba = [0.6, 0.6, 0.64, 1];
  * Resolve a line colour to its rendered RGBA by reading the mapped theme
  * variable off `styleRoot` (any element inheriting the theme, e.g. the canvas).
  */
-export function resolveCpLineColor(
-  color: string,
-  mode: 'mvf' | 'agrh',
-  styleRoot: Element
-): Rgba {
+export function resolveCpLineColor(color: string, mode: 'mvf' | 'agrh', styleRoot: Element): Rgba {
   const varName = cpLineColorVar(color, mode);
   return varName ? readCssVarColor(styleRoot, varName, FALLBACK) : FALLBACK;
 }

@@ -39,35 +39,43 @@ describe('Oriedita CP tool instructions', () => {
     expect(
       instructionsForCpAction(
         railActions.find(
-          (action) => action.kind === 'command' && action.operationId === 'DrawCreaseAngleRestricted5'
-        )
-      )?.intro?.[0]
+          (action) =>
+            action.kind === 'command' && action.operationId === 'DrawCreaseAngleRestricted5',
+        ),
+      )?.intro?.[0],
     ).toBe('Draw angle restricted line with selected angle restriction.');
 
     expect(
       instructionsForCpAction(
         railActions.find(
-          (action) => action.kind === 'command' && action.operationId === 'DrawCreaseAngleRestricted'
-        )
-      )?.intro?.[0]
+          (action) =>
+            action.kind === 'command' && action.operationId === 'DrawCreaseAngleRestricted',
+        ),
+      )?.intro?.[0],
     ).toBe('Draw converging lines with angle offset.');
 
     expect(
       instructionsForCpAction(
-        railActions.find((action) => action.kind === 'command' && action.operationId === 'DrawPoint')
-      )?.intro
+        railActions.find(
+          (action) => action.kind === 'command' && action.operationId === 'DrawPoint',
+        ),
+      )?.intro,
     ).toEqual(['Add a vertex.']);
 
     expect(
       instructionsForCpAction(
-        railActions.find((action) => action.kind === 'command' && action.operationId === 'CreaseMove')
-      )?.intro
+        railActions.find(
+          (action) => action.kind === 'command' && action.operationId === 'CreaseMove',
+        ),
+      )?.intro,
     ).toEqual(['Move selected lines by drawing a line.']);
 
     expect(
       instructionsForCpAction(
-        railActions.find((action) => action.kind === 'command' && action.operationId === 'CircleDraw')
-      )?.intro
+        railActions.find(
+          (action) => action.kind === 'command' && action.operationId === 'CircleDraw',
+        ),
+      )?.intro,
     ).toEqual(['Draw circles snapping to grid and vertices.']);
   });
 

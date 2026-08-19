@@ -44,9 +44,10 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
       render: { ...toolbarRenderProbe },
       foldArtifactRevision: state.foldArtifactRevision,
       overlayViews: cpOverlayViewStore.get() !== null,
-      toolbarInDom: typeof globalThis.document !== 'undefined'
-        ? globalThis.document.querySelector('.cp-selection-toolbar') !== null
-        : false,
+      toolbarInDom:
+        typeof globalThis.document !== 'undefined'
+          ? globalThis.document.querySelector('.cp-selection-toolbar') !== null
+          : false,
     };
 
     // The closest region is the actionable one; the rest are noise in a document

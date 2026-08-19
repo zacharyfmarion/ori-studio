@@ -103,6 +103,6 @@ export function forwardWheel(target: EventTarget, event: WheelEvent): void {
       metaKey: event.metaKey,
       shiftKey: event.shiftKey,
       cancelable: true,
-    })
+    }),
   );
 }

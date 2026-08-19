@@ -24,12 +24,12 @@ import { folded3dSceneOrbitFrames, subscribeFolded3dOrbit } from './folded3dRunt
  * of a turn to deliver a picture it does not draw. See `folded3dRuntime.ts`.
  */
 export function useFolded3dOrbitFigures(
-  figures: readonly OristudioCpFoldedFigureEntry[]
+  figures: readonly OristudioCpFoldedFigureEntry[],
 ): readonly OristudioCpFoldedFigureEntry[] {
   const frames = useSyncExternalStore(
     subscribeFolded3dOrbit,
     folded3dSceneOrbitFrames,
-    folded3dSceneOrbitFrames
+    folded3dSceneOrbitFrames,
   );
   return useMemo(() => {
     if (frames.size === 0) return figures;

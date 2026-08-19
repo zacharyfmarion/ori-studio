@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { AlertTriangle, ArrowRight, CheckCircle2, CircleDashed, Layers3, Play, Waves } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  CircleDashed,
+  Layers3,
+  Play,
+  Waves,
+} from 'lucide-react';
 import type {
   FoldDocument,
   SequenceInstructionStep,
@@ -49,11 +57,11 @@ export function SequencePanel() {
       ? sequenceError
       : foldArtifactStatus === 'loading'
         ? t('panels:sequence.statusPreparing', 'Preparing crease pattern')
-      : sequencePlan
-        ? formatStatus(sequencePlan.status)
-        : foldArtifacts
-          ? t('panels:sequence.statusNotPlanned', 'Sequence not planned')
-          : foldArtifactError || t('panels:sequence.statusPending', 'Crease pattern pending');
+        : sequencePlan
+          ? formatStatus(sequencePlan.status)
+          : foldArtifacts
+            ? t('panels:sequence.statusNotPlanned', 'Sequence not planned')
+            : foldArtifactError || t('panels:sequence.statusPending', 'Crease pattern pending');
   const headerSummary = sequencePlanning
     ? t('panels:sequence.headerPlanning', 'Planning | {{elapsed}}', {
         elapsed: formatElapsed(planningElapsedSeconds),
@@ -96,9 +104,7 @@ export function SequencePanel() {
           planningElapsedSeconds={planningElapsedSeconds}
         />
         {sequencePlanning && <SequencePlanningProgress elapsedSeconds={planningElapsedSeconds} />}
-        {sequencePlan && (
-          <SequenceDiagramList plan={sequencePlan} />
-        )}
+        {sequencePlan && <SequenceDiagramList plan={sequencePlan} />}
       </div>
     </section>
   );
@@ -137,11 +143,22 @@ function SequenceDetails({
       <div className="metric-grid sequence-panel__metrics">
         <Metric
           label={t('panels:sequence.metricStatus', 'Status')}
-          value={sequencePlan ? formatStatus(sequencePlan.status) : t('panels:sequence.idle', 'Idle')}
+          value={
+            sequencePlan ? formatStatus(sequencePlan.status) : t('panels:sequence.idle', 'Idle')
+          }
         />
-        <Metric label={t('panels:sequence.metricSteps', 'Steps')} value={sequencePlan?.steps.length ?? 0} />
-        <Metric label={t('panels:sequence.metricOpen', 'Open')} value={sequencePlan?.search.best_unresolved_creases ?? 0} />
-        <Metric label={t('panels:sequence.metricStates', 'States')} value={sequencePlan?.search.states_explored ?? 0} />
+        <Metric
+          label={t('panels:sequence.metricSteps', 'Steps')}
+          value={sequencePlan?.steps.length ?? 0}
+        />
+        <Metric
+          label={t('panels:sequence.metricOpen', 'Open')}
+          value={sequencePlan?.search.best_unresolved_creases ?? 0}
+        />
+        <Metric
+          label={t('panels:sequence.metricStates', 'States')}
+          value={sequencePlan?.search.states_explored ?? 0}
+        />
       </div>
       <div className="status-row" data-tone={statusTone}>
         {statusTone === 'good' ? <CheckCircle2 size={15} /> : <AlertTriangle size={15} />}
@@ -161,7 +178,9 @@ function SequenceDetails({
       {sequencePlan?.search.budget_exhausted && (
         <div className="status-row" data-tone="warn">
           <CircleDashed size={15} />
-          <span>{t('panels:sequence.budgetReached', 'Search budget reached with a partial result')}</span>
+          <span>
+            {t('panels:sequence.budgetReached', 'Search budget reached with a partial result')}
+          </span>
         </div>
       )}
       {sequencePlan?.diagnostics.slice(0, 4).map((diagnostic) => (
@@ -204,19 +223,24 @@ function SequenceDiagramList({ plan }: { plan: SequencePlan }) {
   const activateWorkspace = useLayoutStore((state) => state.activateWorkspace);
   const stateById = useMemo(
     () => new Map(plan.states.map((state) => [state.id, state])),
-    [plan.states]
+    [plan.states],
   );
 
   if (plan.steps.length === 0) {
     return (
       <ol className="sequence-panel__steps">
-        <li className="sequence-panel__empty-step">{t('panels:sequence.noSteps', 'No sequence steps')}</li>
+        <li className="sequence-panel__empty-step">
+          {t('panels:sequence.noSteps', 'No sequence steps')}
+        </li>
       </ol>
     );
   }
 
   return (
-    <ol className="sequence-panel__steps" aria-label={t('panels:sequence.diagramLabel', 'Folding sequence diagram')}>
+    <ol
+      className="sequence-panel__steps"
+      aria-label={t('panels:sequence.diagramLabel', 'Folding sequence diagram')}
+    >
       {plan.steps.map((step, index) => {
         const beforeState = step.before_state ? stateById.get(step.before_state) : null;
         const afterState = step.after_state ? stateById.get(step.after_state) : null;
@@ -225,7 +249,9 @@ function SequenceDiagramList({ plan }: { plan: SequencePlan }) {
           <li key={step.id} className="sequence-diagram-step">
             <div className="sequence-diagram-step__header">
               <div className="sequence-diagram-step__header-main">
-                <span>{t('panels:sequence.stepNumber', 'Step {{number}}', { number: index + 1 })}</span>
+                <span>
+                  {t('panels:sequence.stepNumber', 'Step {{number}}', { number: index + 1 })}
+                </span>
                 <strong>{formatKind(step.kind)}</strong>
               </div>
               <div className="sequence-diagram-step__header-actions">
@@ -251,7 +277,9 @@ function SequenceDiagramList({ plan }: { plan: SequencePlan }) {
                 state={beforeState}
                 mode="folded"
                 highlights={highlights}
-                stepLabel={t('panels:sequence.stepNumber', 'Step {{number}}', { number: index + 1 })}
+                stepLabel={t('panels:sequence.stepNumber', 'Step {{number}}', {
+                  number: index + 1,
+                })}
               />
               <div className="sequence-diagram-step__arrow" aria-hidden="true">
                 <ArrowRight size={17} />
@@ -261,7 +289,9 @@ function SequenceDiagramList({ plan }: { plan: SequencePlan }) {
                 state={afterState}
                 mode="folded"
                 highlights={highlights}
-                stepLabel={t('panels:sequence.stepNumber', 'Step {{number}}', { number: index + 1 })}
+                stepLabel={t('panels:sequence.stepNumber', 'Step {{number}}', {
+                  number: index + 1,
+                })}
               />
             </div>
             <div className="sequence-diagram-step__copy">
@@ -308,7 +338,9 @@ function SequencePreview({
           <Layers3 size={13} />
           <span>{title}</span>
         </div>
-        <div className="sequence-panel__preview-empty">{t('panels:sequence.stateUnavailable', 'State unavailable')}</div>
+        <div className="sequence-panel__preview-empty">
+          {t('panels:sequence.stateUnavailable', 'State unavailable')}
+        </div>
       </div>
     );
   }
@@ -410,18 +442,18 @@ function planningMessage(t: TFunction, elapsedSeconds: number): string {
     return t(
       'panels:sequence.planningMessageLong',
       'Still planning after {{elapsed}}. Large crease patterns can take a while; this run is still active.',
-      { elapsed: formatElapsed(elapsedSeconds) }
+      { elapsed: formatElapsed(elapsedSeconds) },
     );
   }
   if (elapsedSeconds >= 15) {
     return t(
       'panels:sequence.planningMessageMedium',
-      'Searching sequence states. Complex crease patterns may take longer than simple bases.'
+      'Searching sequence states. Complex crease patterns may take longer than simple bases.',
     );
   }
   return t(
     'panels:sequence.planningMessageShort',
-    'Resolving the flat-fold target and searching for fold steps.'
+    'Resolving the flat-fold target and searching for fold steps.',
   );
 }
 
@@ -465,7 +497,10 @@ function highlightsForStep(step: SequenceInstructionStep): SequenceHighlights {
   };
 }
 
-function pointsForState(state: SequenceStateSnapshot, mode: 'paper' | 'folded'): Array<[number, number]> {
+function pointsForState(
+  state: SequenceStateSnapshot,
+  mode: 'paper' | 'folded',
+): Array<[number, number]> {
   if (mode === 'folded' && state.folded_vertices.length === state.document.vertices_coords.length) {
     return state.folded_vertices;
   }
@@ -481,7 +516,7 @@ function createPreviewProjection(points: Array<[number, number]>) {
       minY: Math.min(acc.minY, y),
       maxY: Math.max(acc.maxY, y),
     }),
-    { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity }
+    { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
   );
   const minX = Number.isFinite(bounds.minX) ? bounds.minX : 0;
   const maxX = Number.isFinite(bounds.maxX) ? bounds.maxX : 1;
@@ -491,7 +526,7 @@ function createPreviewProjection(points: Array<[number, number]>) {
   const spanY = Math.max(0.001, maxY - minY);
   const scale = Math.min(
     (PREVIEW_VIEWBOX - PREVIEW_PADDING * 2) / spanX,
-    (PREVIEW_VIEWBOX - PREVIEW_PADDING * 2) / spanY
+    (PREVIEW_VIEWBOX - PREVIEW_PADDING * 2) / spanY,
   );
   const offsetX = (PREVIEW_VIEWBOX - spanX * scale) / 2;
   const offsetY = (PREVIEW_VIEWBOX - spanY * scale) / 2;
@@ -508,7 +543,7 @@ function createPreviewProjection(points: Array<[number, number]>) {
 function polygonPoints(
   face: number[],
   points: Array<[number, number]>,
-  project: NonNullable<ReturnType<typeof createPreviewProjection>>
+  project: NonNullable<ReturnType<typeof createPreviewProjection>>,
 ): string | null {
   const projected = face
     .map((vertex) => project(points[vertex]))

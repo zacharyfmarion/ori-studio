@@ -21,7 +21,7 @@ describe('toggledCpLineColor', () => {
   // therefore do nothing at all.
   it('leaves every other palette colour unchanged', () => {
     const untouched = ORISTUDIO_CP_LINE_COLOR_PALETTE.filter(
-      (entry) => entry.lineColor !== 'Red1' && entry.lineColor !== 'Blue2'
+      (entry) => entry.lineColor !== 'Red1' && entry.lineColor !== 'Blue2',
     );
 
     expect(untouched.length).toBeGreaterThan(0);

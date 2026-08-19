@@ -61,7 +61,7 @@ function vertexLoc(tree: OristudioBpTreeView, id: number): Point | null {
 export function addBpTreeSymmetryPair(
   pairs: BpTreeSymmetryPair[],
   a: number,
-  b: number
+  b: number,
 ): BpTreeSymmetryPair[] {
   if (a === b) return pairs;
   const next = { v1: Math.min(a, b), v2: Math.max(a, b) };
@@ -206,7 +206,8 @@ export function validateBpDocumentSymmetry(value: unknown): BpDocumentSymmetry |
     // Absent means the file predates the sheet transforms, and a design that was
     // never rotated is one whose mirror is still where its fold puts it, the
     // right way round.
-    quarterTurn: typeof record.quarterTurn === 'boolean' ? record.quarterTurn : fallback.quarterTurn,
+    quarterTurn:
+      typeof record.quarterTurn === 'boolean' ? record.quarterTurn : fallback.quarterTurn,
     sidesSwapped:
       typeof record.sidesSwapped === 'boolean' ? record.sidesSwapped : fallback.sidesSwapped,
     pairs,
@@ -220,7 +221,7 @@ function isVertexId(value: unknown): value is number {
 /** Drop whatever pairing mentions this vertex. */
 export function removeBpTreeSymmetryPair(
   pairs: BpTreeSymmetryPair[],
-  vertexId: number
+  vertexId: number,
 ): BpTreeSymmetryPair[] {
   return pairs.filter((pair) => pair.v1 !== vertexId && pair.v2 !== vertexId);
 }
@@ -228,10 +229,10 @@ export function removeBpTreeSymmetryPair(
 /** Drop pairs that reference a removed vertex (or degenerated to a self-pair). */
 export function filterBpTreeSymmetryPairs(
   tree: OristudioBpTreeView,
-  pairs: BpTreeSymmetryPair[]
+  pairs: BpTreeSymmetryPair[],
 ): BpTreeSymmetryPair[] {
   return pairs.filter(
-    (pair) => pair.v1 !== pair.v2 && vertexExists(tree, pair.v1) && vertexExists(tree, pair.v2)
+    (pair) => pair.v1 !== pair.v2 && vertexExists(tree, pair.v1) && vertexExists(tree, pair.v2),
   );
 }
 
@@ -255,7 +256,7 @@ export function mirrorBpTreeVertexId(
   pairs: BpTreeSymmetryPair[],
   axis: SymmetryAxis,
   vertexId: number,
-  tolerance = BP_TREE_SYMMETRY_TOLERANCE
+  tolerance = BP_TREE_SYMMETRY_TOLERANCE,
 ): number | null {
   const explicit = explicitBpTreePairId(pairs, vertexId);
   if (explicit != null && vertexExists(tree, explicit)) return explicit;
@@ -286,7 +287,7 @@ export function buildMirroredBpTreeUpdates(
   pairs: BpTreeSymmetryPair[],
   axis: SymmetryAxis,
   updates: readonly BpTreeVertexUpdate[],
-  tolerance = BP_TREE_SYMMETRY_TOLERANCE
+  tolerance = BP_TREE_SYMMETRY_TOLERANCE,
 ): BpTreeVertexUpdate[] {
   const primaryIds = new Set(updates.map((update) => update.id));
   const emitted = new Set<number>();
@@ -317,7 +318,7 @@ export function bpTreeMirrorHeldIds(
   pairs: BpTreeSymmetryPair[],
   axis: SymmetryAxis,
   movedIds: readonly number[],
-  tolerance = BP_TREE_SYMMETRY_TOLERANCE
+  tolerance = BP_TREE_SYMMETRY_TOLERANCE,
 ): Set<number> {
   const moved = new Set(movedIds);
   const held = new Set<number>();
@@ -347,7 +348,7 @@ export function bpTreeDeleteIdsWithSymmetry(
   pairs: BpTreeSymmetryPair[],
   axis: SymmetryAxis,
   vertexId: number,
-  tolerance = BP_TREE_SYMMETRY_TOLERANCE
+  tolerance = BP_TREE_SYMMETRY_TOLERANCE,
 ): number[] {
   const mirrorId = mirrorBpTreeVertexId(tree, pairs, axis, vertexId, tolerance);
   return mirrorId == null || mirrorId === vertexId ? [vertexId] : [vertexId, mirrorId];

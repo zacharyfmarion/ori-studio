@@ -32,7 +32,7 @@ vi.mock('../store/workspaceStore/capabilities', () => ({
 
 vi.mock('../store/commandDialogStore', async () => {
   const actual = await vi.importActual<typeof import('../store/commandDialogStore')>(
-    '../store/commandDialogStore'
+    '../store/commandDialogStore',
   );
   return { ...actual, requestChoice: dialogMocks.requestChoice };
 });

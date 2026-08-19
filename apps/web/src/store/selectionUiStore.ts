@@ -14,6 +14,6 @@ export const useSelectionUiStore = create<SelectionUiState>()(
       openSelectByIndex: () => set({ isSelectByIndexOpen: true }),
       closeSelectByIndex: () => set({ isSelectByIndexOpen: false }),
     }),
-    { name: 'SelectionUiStore' }
-  )
+    { name: 'SelectionUiStore' },
+  ),
 );

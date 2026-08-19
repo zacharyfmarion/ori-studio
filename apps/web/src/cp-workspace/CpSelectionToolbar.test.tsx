@@ -31,7 +31,7 @@ function renderToolbar(root: Root, container: HTMLElement): void {
   root.render(
     <TooltipProvider>
       <CpSelectionToolbar container={container} />
-    </TooltipProvider>
+    </TooltipProvider>,
   );
 }
 
@@ -87,7 +87,13 @@ const LINES: Array<[number, number, number, number, string]> = [
   [1, 0, 2, 1, 'Blue2'],
 ];
 
-function makeLine(ax: number, ay: number, bx: number, by: number, color: string): OristudioCpLineSegment {
+function makeLine(
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  color: string,
+): OristudioCpLineSegment {
   return {
     a: { x: ax, y: ay },
     b: { x: bx, y: by },
@@ -181,7 +187,9 @@ describe('CpSelectionToolbar', () => {
     >);
     await act(async () => renderToolbar(root, container));
 
-    const share = document.querySelector<HTMLButtonElement>('button[aria-label="Create shareable link"]');
+    const share = document.querySelector<HTMLButtonElement>(
+      'button[aria-label="Create shareable link"]',
+    );
     expect(share).not.toBeNull();
     await act(async () => share!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
 
@@ -270,7 +278,7 @@ describe('CpSelectionToolbar', () => {
       seedStore([1, 3, 5, 7, 8]);
       await act(async () => renderToolbar(root, container));
       const button = document.querySelector<HTMLButtonElement>(
-        'button[aria-label="Simulate inline"]'
+        'button[aria-label="Simulate inline"]',
       );
       await act(async () => button!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
 
@@ -290,19 +298,17 @@ describe('CpSelectionToolbar', () => {
       const match = resolveSelectedSegment(
         state.oristudioCpDocument?.document,
         state.oristudioCpSelection,
-        state.foldArtifacts
+        state.foldArtifacts,
       );
       expect(match).not.toBeNull();
       expect(
         await state.addOristudioCpInlineSimulation({
           segment: match!.segment,
           cpLineIds: match!.cpLineIds,
-        })
+        }),
       ).toBe('added');
       expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([]);
-      expect(
-        useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId
-      ).not.toBeNull();
+      expect(useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId).not.toBeNull();
     });
 
     it('leaves nothing selected when the shortcut runs it', async () => {

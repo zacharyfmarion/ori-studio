@@ -16,6 +16,6 @@ export const useHelpStore = create<HelpState>()(
       openAbout: () => set({ activeModal: 'about' }),
       closeHelp: () => set({ activeModal: null }),
     }),
-    { name: 'HelpStore' }
-  )
+    { name: 'HelpStore' },
+  ),
 );

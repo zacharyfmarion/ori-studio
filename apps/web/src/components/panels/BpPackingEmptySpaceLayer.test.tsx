@@ -61,7 +61,7 @@ function render(coverage: OristudioBpCoverageRegion[]): void {
           sheet={sheet}
           paperRect={bpPackingPaperRect(sheet)}
         />
-      </svg>
+      </svg>,
     );
   });
 }
@@ -76,7 +76,10 @@ describe('BpPackingEmptySpaceLayer', () => {
     expect(paths).toHaveLength(2);
     expect(paths.every((path) => path.getAttribute('fill-rule') === 'evenodd')).toBe(true);
     expect(
-      container.querySelector('.bp-packing-empty-space-fill')?.closest('[mask]')?.getAttribute('mask')
+      container
+        .querySelector('.bp-packing-empty-space-fill')
+        ?.closest('[mask]')
+        ?.getAttribute('mask'),
     ).toBe(`url(#${container.querySelector('mask')?.id})`);
   });
 
@@ -93,7 +96,9 @@ describe('BpPackingEmptySpaceLayer', () => {
 
     // Both are cut out by the one mask, so the tint and the hatch always mark
     // the same paper.
-    const masked = container.querySelector(`g[mask="url(#${container.querySelector('mask')?.id})"]`);
+    const masked = container.querySelector(
+      `g[mask="url(#${container.querySelector('mask')?.id})"]`,
+    );
     expect(masked?.contains(tint as Node)).toBe(true);
     expect(masked?.contains(lines as Node)).toBe(true);
 

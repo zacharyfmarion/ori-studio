@@ -80,7 +80,7 @@ export function similarityFromPointPairs(
   sourceA: ModelPoint,
   sourceB: ModelPoint,
   targetA: ModelPoint,
-  targetB: ModelPoint
+  targetB: ModelPoint,
 ): CpSimilarity | null {
   const sourceLength = Math.hypot(sourceB.x - sourceA.x, sourceB.y - sourceA.y);
   if (!(sourceLength > 0)) return null;
@@ -125,7 +125,7 @@ export function matrixFromPointPairs(
   sourceA: ModelPoint,
   sourceB: ModelPoint,
   targetA: ModelPoint,
-  targetB: ModelPoint
+  targetB: ModelPoint,
 ): CpAffineMatrix | null {
   const similarity = similarityFromPointPairs(sourceA, sourceB, targetA, targetB);
   return similarity === null ? null : matrixFromSimilarity(similarity);

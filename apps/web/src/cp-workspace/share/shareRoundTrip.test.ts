@@ -70,8 +70,8 @@ describe('inlined share payload round trip', () => {
       renderSharedCpHtml(
         INDEX_HTML,
         { ...META, title: '</script><img src=x onerror=alert(1)>', author: 'a" onload="x' },
-        PAYLOAD
-      )
+        PAYLOAD,
+      ),
     );
 
     const inlined = inlinedSharedCp();

@@ -13,7 +13,7 @@ let container: HTMLDivElement | null = null;
 
 function pointerEvent(
   type: string,
-  init: MouseEventInit & { pointerId?: number; pointerType?: string } = {}
+  init: MouseEventInit & { pointerId?: number; pointerType?: string } = {},
 ): PointerEvent {
   const event = new MouseEvent(type, { bubbles: true, cancelable: true, ...init }) as PointerEvent;
   Object.defineProperty(event, 'pointerId', { configurable: true, value: init.pointerId ?? 1 });

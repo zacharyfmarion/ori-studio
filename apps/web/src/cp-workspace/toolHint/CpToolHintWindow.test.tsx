@@ -33,10 +33,15 @@ describe('CpToolHintWindow', () => {
   const render = (el: HTMLElement | null = container) =>
     act(() =>
       root.render(
-        <CpToolHintWindow container={el} title="Solve Fold Angles" meta="Instructions" ariaLabel="Tool options">
+        <CpToolHintWindow
+          container={el}
+          title="Solve Fold Angles"
+          meta="Instructions"
+          ariaLabel="Tool options"
+        >
           <p className="probe-body">Pick three creases</p>
-        </CpToolHintWindow>
-      )
+        </CpToolHintWindow>,
+      ),
     );
 
   const windowEl = () => document.querySelector<HTMLElement>('.cp-context-panel');
@@ -131,8 +136,8 @@ describe('CpToolHintWindow', () => {
           headerAction={<button className="probe-reset" type="button" />}
         >
           <p />
-        </CpToolHintWindow>
-      )
+        </CpToolHintWindow>,
+      ),
     );
     const reset = windowEl()?.querySelector('.probe-reset');
     expect(reset).not.toBeNull();

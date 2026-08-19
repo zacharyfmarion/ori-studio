@@ -118,7 +118,11 @@ export function NumberField({
       onMouseDown={(event) => event.preventDefault()}
       onClick={() => stepBy(direction)}
     >
-      {direction === 1 ? <Plus size={11} aria-hidden="true" /> : <Minus size={11} aria-hidden="true" />}
+      {direction === 1 ? (
+        <Plus size={11} aria-hidden="true" />
+      ) : (
+        <Minus size={11} aria-hidden="true" />
+      )}
     </button>
   );
 

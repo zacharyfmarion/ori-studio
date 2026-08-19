@@ -30,7 +30,7 @@ import type { WorkspaceState } from './types';
  */
 export function freshEditableCpState(
   document: OristudioCpDocumentState,
-  previous: Pick<WorkspaceState, 'projectLoadId' | 'foldArtifactRevision'>
+  previous: Pick<WorkspaceState, 'projectLoadId' | 'foldArtifactRevision'>,
 ): CpDocumentScopedState & Partial<WorkspaceState> {
   return {
     // Everything scoped to the document this replaces, discarded — then the

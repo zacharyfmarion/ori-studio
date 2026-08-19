@@ -92,11 +92,8 @@ describe('lineColorMatchesCustomType', () => {
 });
 
 describe('shouldPreferPointSnapForStep', () => {
-  const cmd = (
-    operationId: string,
-    toolSteps?: string[]
-  ): OristudioCpCommandDefinition =>
-    ({ operationId, toolSteps } as unknown as OristudioCpCommandDefinition);
+  const cmd = (operationId: string, toolSteps?: string[]): OristudioCpCommandDefinition =>
+    ({ operationId, toolSteps }) as unknown as OristudioCpCommandDefinition;
 
   it('symmetric-draw axes always prefer points', () => {
     expect(shouldPreferPointSnapForStep(cmd('DrawCreaseSymmetric'), 0)).toBe(true);
@@ -120,21 +117,20 @@ describe('shouldPreferPointSnapForStep', () => {
 describe('isDefaultSelectionMode', () => {
   it('is the active CreaseSelect tool with no in-progress sequence', () => {
     expect(
-      isDefaultSelectionMode({ activeOperationId: 'CreaseSelect', phase: 'active' }, 0, 0)
+      isDefaultSelectionMode({ activeOperationId: 'CreaseSelect', phase: 'active' }, 0, 0),
     ).toBe(true);
     // A pending point or path means a sequence is in progress → not default select.
     expect(
-      isDefaultSelectionMode({ activeOperationId: 'CreaseSelect', phase: 'active' }, 1, 0)
+      isDefaultSelectionMode({ activeOperationId: 'CreaseSelect', phase: 'active' }, 1, 0),
     ).toBe(false);
     expect(
-      isDefaultSelectionMode({ activeOperationId: 'DrawCreaseFree', phase: 'active' }, 0, 0)
+      isDefaultSelectionMode({ activeOperationId: 'DrawCreaseFree', phase: 'active' }, 0, 0),
     ).toBe(false);
-    expect(
-      isDefaultSelectionMode({ activeOperationId: 'CreaseSelect', phase: 'idle' }, 0, 0)
-    ).toBe(false);
+    expect(isDefaultSelectionMode({ activeOperationId: 'CreaseSelect', phase: 'idle' }, 0, 0)).toBe(
+      false,
+    );
   });
 });
-
 
 describe('toolClickAction', () => {
   it('names the click behaviour of each box tool, and nothing else', () => {
@@ -191,9 +187,9 @@ describe('isWholeDocumentCpCommand', () => {
 
   it('holds for both delete-extra-vertices sweeps', () => {
     expect(isWholeDocumentCpCommand(cpCommandByOperation('DeleteExtraVertices')!)).toBe(true);
-    expect(
-      isWholeDocumentCpCommand(cpCommandByOperation('DeleteExtraVerticesIgnoreColor')!)
-    ).toBe(true);
+    expect(isWholeDocumentCpCommand(cpCommandByOperation('DeleteExtraVerticesIgnoreColor')!)).toBe(
+      true,
+    );
   });
 
   it('is false for tools the canvas has to stay armed with', () => {

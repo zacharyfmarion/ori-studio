@@ -40,8 +40,7 @@ export type KeyStrokeRejectReason =
   | 'ctrl-meta-unrepresentable';
 
 export type ParsedKeyStroke =
-  | { ok: true; chord: KeyChord }
-  | { ok: false; reason: KeyStrokeRejectReason };
+  { ok: true; chord: KeyChord } | { ok: false; reason: KeyStrokeRejectReason };
 
 /**
  * `ctrl` and `meta` get their own slots rather than both writing `primary`, so
@@ -160,7 +159,7 @@ export function parseOrieditaKeyStrokeStrict(value: string): ParsedKeyStroke {
  */
 function parseTypedKeyStroke(
   rest: string[],
-  modifiers: Record<ModifierSlot, boolean>
+  modifiers: Record<ModifierSlot, boolean>,
 ): ParsedKeyStroke {
   if (rest.length !== 1) return { ok: false, reason: 'typed-unrepresentable' };
   if (modifiers.shift || modifiers.ctrl || modifiers.meta || modifiers.alt) {

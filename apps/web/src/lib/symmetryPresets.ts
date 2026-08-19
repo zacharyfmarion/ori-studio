@@ -36,14 +36,14 @@ function angleDistance(a: number, b: number): number {
 
 export function symmetryOptionForAngle(angle: number): SymmetryPresetOption {
   return SYMMETRY_PRESET_OPTIONS.reduce((best, option) =>
-    angleDistance(angle, option.angle) < angleDistance(angle, best.angle) ? option : best
+    angleDistance(angle, option.angle) < angleDistance(angle, best.angle) ? option : best,
   );
 }
 
 export function exactSymmetryOptionForAngle(angle: number): SymmetryPresetOption | null {
   return (
     SYMMETRY_PRESET_OPTIONS.find(
-      (option) => angleDistance(angle, option.angle) <= SYMMETRY_MATCH_EPSILON
+      (option) => angleDistance(angle, option.angle) <= SYMMETRY_MATCH_EPSILON,
     ) ?? null
   );
 }
@@ -54,7 +54,7 @@ export function defaultSymmetryOption(preset: SymmetryPreset): SymmetryPresetOpt
 
 export function symmetryOptionForPreset(
   preset: SymmetryPreset,
-  currentAngle: number
+  currentAngle: number,
 ): SymmetryPresetOption {
   const current = symmetryOptionForAngle(currentAngle);
   return current.preset === preset ? current : defaultSymmetryOption(preset);

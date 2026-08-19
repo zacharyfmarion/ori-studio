@@ -91,10 +91,7 @@ export function bpPackingSheetFrame(sheet: OristudioBpSheet): BpSheetFrame {
 
 export function bpPackingPaperRect(sheet: OristudioBpSheet): PlotRect {
   const frame = bpPackingSheetFrame(sheet);
-  const scale = Math.min(
-    BASE_SHEET_RECT.width / frame.spanX,
-    BASE_SHEET_RECT.height / frame.spanY
-  );
+  const scale = Math.min(BASE_SHEET_RECT.width / frame.spanX, BASE_SHEET_RECT.height / frame.spanY);
   const rectWidth = frame.spanX * scale;
   const rectHeight = frame.spanY * scale;
   return {
@@ -118,7 +115,7 @@ export function bpPackingShadowRect(sheet: OristudioBpSheet): PlotRect {
 export function bpPackingPointToSvg(
   point: Point,
   sheet: OristudioBpSheet,
-  rect = bpPackingPaperRect(sheet)
+  rect = bpPackingPaperRect(sheet),
 ): Point {
   const frame = bpPackingSheetFrame(sheet);
   return {
@@ -131,7 +128,7 @@ export function bpPackingPointToSvg(
 export function bpPackingSvgToPoint(
   svgPoint: Point,
   sheet: OristudioBpSheet,
-  rect = bpPackingPaperRect(sheet)
+  rect = bpPackingPaperRect(sheet),
 ): Point {
   const frame = bpPackingSheetFrame(sheet);
   return {
@@ -142,7 +139,7 @@ export function bpPackingSvgToPoint(
 
 export function bpPackingUnitToSvg(
   sheet: OristudioBpSheet,
-  rect = bpPackingPaperRect(sheet)
+  rect = bpPackingPaperRect(sheet),
 ): number {
   const frame = bpPackingSheetFrame(sheet);
   return rect.width / frame.spanX;
@@ -155,7 +152,7 @@ export function bpPackingUnitToSvg(
  */
 export function bpPackingSheetBorderPoints(
   sheet: OristudioBpSheet,
-  rect = bpPackingPaperRect(sheet)
+  rect = bpPackingPaperRect(sheet),
 ): Point[] {
   if (sheet.kind === 'diagonal') {
     const size = Math.max(1, Math.round(sheet.width));
@@ -180,7 +177,7 @@ export function bpPackingSheetBorderPoints(
 /** The drop-shadow polygon: the paper outline pushed out from its centroid. */
 export function bpPackingSheetShadowPoints(
   sheet: OristudioBpSheet,
-  rect = bpPackingPaperRect(sheet)
+  rect = bpPackingPaperRect(sheet),
 ): Point[] {
   const border = bpPackingSheetBorderPoints(sheet, rect);
   const cx = border.reduce((sum, p) => sum + p.x, 0) / border.length;
@@ -202,7 +199,7 @@ export function bpPackingSheetShadowPoints(
 export function bpPackingFlapClearanceRect(
   flap: Pick<OristudioBpFlap, 'anchor' | 'width' | 'height' | 'radius'>,
   sheet: OristudioBpSheet,
-  paperRect = bpPackingPaperRect(sheet)
+  paperRect = bpPackingPaperRect(sheet),
 ): PlotRect & { radius: number } {
   const grown = bpPackingRectToSvg(
     {
@@ -212,7 +209,7 @@ export function bpPackingFlapClearanceRect(
       height: flap.height + flap.radius * 2,
     },
     sheet,
-    paperRect
+    paperRect,
   );
   return { ...grown, radius: flap.radius * bpPackingUnitToSvg(sheet, paperRect) };
 }
@@ -241,7 +238,6 @@ export function bpArcPathThickness(path: readonly OristudioBpArcPoint[]): number
   return sagitta(Math.abs(first.r)) + sagitta(Math.abs(second.r));
 }
 
-
 /**
  * Renders an arc outline as an SVG path `d`, mirroring BP's canvas drawing of an
  * {@link https://github.com/MuTsunTsai/box-pleating-studio | InvalidJunction}:
@@ -257,13 +253,13 @@ export function bpArcPathThickness(path: readonly OristudioBpArcPoint[]): number
 export function bpArcPathToSvgPath(
   path: readonly OristudioBpArcPoint[],
   sheet: OristudioBpSheet,
-  rect = bpPackingPaperRect(sheet)
+  rect = bpPackingPaperRect(sheet),
 ): string {
   if (path.length === 0) return '';
   const unit = bpPackingUnitToSvg(sheet, rect);
   const points = path.map((point) => bpPackingPointToSvg(point, sheet, rect));
   const anchors = path.map((point) =>
-    point.arc ? bpPackingPointToSvg(point.arc, sheet, rect) : null
+    point.arc ? bpPackingPointToSvg(point.arc, sheet, rect) : null,
   );
 
   // A junction region is the intersection of two rounded rects — convex — so
@@ -323,7 +319,7 @@ function round(value: number): number {
 export function bpPackingCoveragePath(
   region: OristudioBpCoverageRegion,
   sheet: OristudioBpSheet,
-  rect = bpPackingPaperRect(sheet)
+  rect = bpPackingPaperRect(sheet),
 ): string {
   return [region.outer, ...region.holes]
     .filter((ring) => ring.length > 2)
@@ -333,7 +329,7 @@ export function bpPackingCoveragePath(
           const { x, y } = bpPackingPointToSvg(point, sheet, rect);
           return `${index === 0 ? 'M' : 'L'}${round(x)},${round(y)}`;
         })
-        .join('')
+        .join(''),
     )
     .map((subpath) => `${subpath}Z`)
     .join('');
@@ -342,7 +338,7 @@ export function bpPackingCoveragePath(
 export function bpPackingRectToSvg(
   rect: { x: number; y: number; width: number; height: number },
   sheet: OristudioBpSheet,
-  paperRect = bpPackingPaperRect(sheet)
+  paperRect = bpPackingPaperRect(sheet),
 ): PlotRect {
   const bottomLeft = bpPackingPointToSvg({ x: rect.x, y: rect.y }, sheet, paperRect);
   const unit = bpPackingUnitToSvg(sheet, paperRect);
@@ -357,7 +353,7 @@ export function bpPackingRectToSvg(
 export function constrainBpPackingFlapTarget(
   flap: OristudioBpFlap,
   target: Point,
-  sheet: OristudioBpSheet
+  sheet: OristudioBpSheet,
 ): Point {
   const vector = {
     x: target.x - flap.anchor.x,
@@ -368,7 +364,7 @@ export function constrainBpPackingFlapTarget(
     flap.anchor,
     flap.width,
     flap.height,
-    vector
+    vector,
   );
   return {
     x: flap.anchor.x + fix.x,
@@ -398,7 +394,7 @@ export function constrainBpPackingFlapGroupTarget(
   flaps: OristudioBpFlap[],
   reference: OristudioBpFlap,
   target: Point,
-  sheet: OristudioBpSheet
+  sheet: OristudioBpSheet,
 ): { loc: Point; vector: Point } {
   // A group translates rigidly — one vector moves every member — so a correction
   // that puts the reference back on the grid takes every other member off it.
@@ -416,9 +412,9 @@ export function constrainBpPackingFlapGroupTarget(
         flap.anchor,
         flap.width,
         flap.height,
-        current
+        current,
       ),
-    vector
+    vector,
   );
   return {
     loc: {
@@ -460,10 +456,10 @@ export function bpPackingCanResizeFlap(
   anchor: Point,
   width: number,
   height: number,
-  sheet: OristudioBpSheet
+  sheet: OristudioBpSheet,
 ): boolean {
   const offSheet = flapDots(anchor, width, height).filter(
-    (dot) => !bpPackingSheetContains(dot, sheet)
+    (dot) => !bpPackingSheetContains(dot, sheet),
   ).length;
   return offSheet <= 1;
 }
@@ -473,7 +469,7 @@ function constrainFlap(
   location: Point,
   width: number,
   height: number,
-  vector: Point
+  vector: Point,
 ): Point {
   const zeroWidth = width === 0;
   const zeroHeight = height === 0;
@@ -549,7 +545,7 @@ function diagonalConstrain(width: number, point: Point): Point {
 
 export function bpPackingGridLines(
   sheet: OristudioBpSheet,
-  rect = bpPackingPaperRect(sheet)
+  rect = bpPackingPaperRect(sheet),
 ): BpPackingGridLine[] {
   const lines: BpPackingGridLine[] = [];
   if (sheet.grid.kind === 'diagonal') {
@@ -604,7 +600,7 @@ export function bpPackingGridLines(
  */
 export function getBpPackingWorldRect(
   packing: OristudioBpPackingView,
-  options: { cropToSheet?: boolean } = {}
+  options: { cropToSheet?: boolean } = {},
 ): PlotRect {
   const cropToSheet = options.cropToSheet === true;
   const paperRect = bpPackingPaperRect(packing.sheet);
@@ -623,7 +619,7 @@ export function getBpPackingWorldRect(
     const rect = bpPackingRectToSvg(
       { x: flap.anchor.x, y: flap.anchor.y, width: flap.width, height: flap.height },
       packing.sheet,
-      paperRect
+      paperRect,
     );
     // The body is masked when cropping; whatever of it shows is inside the
     // sheet, which is already in the bounds. Its dot and label are not masked.
@@ -656,12 +652,13 @@ export function getBpPackingWorldRect(
       const outline = path.flatMap((point) => (point.arc ? [point, point.arc] : [point]));
       includePoints(
         bounds,
-        outline.map((point) => bpPackingPointToSvg(point, packing.sheet, paperRect))
+        outline.map((point) => bpPackingPointToSvg(point, packing.sheet, paperRect)),
       );
     }
   }
 
-  for (const primitive of packing.graphics) includePrimitive(bounds, primitive, packing.sheet, paperRect);
+  for (const primitive of packing.graphics)
+    includePrimitive(bounds, primitive, packing.sheet, paperRect);
 
   return {
     x: bounds.minX - WORLD_PADDING,
@@ -675,14 +672,20 @@ function includePrimitive(
   bounds: Bounds,
   primitive: OristudioBpGraphicPrimitive,
   sheet: OristudioBpSheet,
-  paperRect: PlotRect
+  paperRect: PlotRect,
 ): void {
   if (primitive.kind === 'line') {
-    includePoints(bounds, primitive.points.map((point) => bpPackingPointToSvg(point, sheet, paperRect)));
+    includePoints(
+      bounds,
+      primitive.points.map((point) => bpPackingPointToSvg(point, sheet, paperRect)),
+    );
     return;
   }
   if (primitive.kind === 'polyline' || primitive.kind === 'polygon') {
-    includePoints(bounds, primitive.points.map((point) => bpPackingPointToSvg(point, sheet, paperRect)));
+    includePoints(
+      bounds,
+      primitive.points.map((point) => bpPackingPointToSvg(point, sheet, paperRect)),
+    );
     return;
   }
   if (primitive.kind === 'circle') {

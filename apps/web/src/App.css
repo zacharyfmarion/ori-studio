@@ -57,7 +57,11 @@
   min-height: 100dvh;
   padding: clamp(20px, 5vw, 56px);
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--bg-secondary) 88%, var(--bg-primary)), var(--bg-primary)),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--bg-secondary) 88%, var(--bg-primary)),
+      var(--bg-primary)
+    ),
     var(--bg-primary);
 }
 
@@ -991,7 +995,6 @@
     gap: var(--space-1);
   }
 
-
   .toolbar__actions {
     justify-content: flex-start;
   }
@@ -1072,7 +1075,10 @@
 }
 
 .dockview-theme-treemaker .dv-split-view-container .dv-sash-container .dv-sash:not(.disabled):hover,
-.dockview-theme-treemaker .dv-split-view-container .dv-sash-container .dv-sash:not(.disabled):active {
+.dockview-theme-treemaker
+  .dv-split-view-container
+  .dv-sash-container
+  .dv-sash:not(.disabled):active {
   background-color: var(--accent-primary);
   transition: background-color 0.15s ease;
   transition-delay: 0.18s;

@@ -43,8 +43,8 @@ describe('withPanelErrorBoundary', () => {
         <>
           <BrokenPanel {...panelProps} />
           <HealthyPanel {...panelProps} />
-        </>
-      )
+        </>,
+      ),
     );
 
     expect(container.textContent).toContain('This panel stopped working');

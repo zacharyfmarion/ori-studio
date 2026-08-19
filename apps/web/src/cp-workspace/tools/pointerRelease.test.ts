@@ -45,7 +45,7 @@ describe('cpPointerReleaseRoute', () => {
           moved: true,
           transformPointCount: 2,
           sequenceStep: 1,
-        })
+        }),
       ).toBe('erase');
     });
 
@@ -82,19 +82,19 @@ describe('cpPointerReleaseRoute', () => {
 
     it('commits a two-point sequence transform dragged to its destination', () => {
       expect(
-        release({ toolMode: 'sequence', transformPointCount: 2, sequenceStep: 1, moved: true })
+        release({ toolMode: 'sequence', transformPointCount: 2, sequenceStep: 1, moved: true }),
       ).toBe('sequence-drag-commit');
     });
 
     it('leaves a click (no drag) on a two-point transform to the click path', () => {
       expect(
-        release({ toolMode: 'sequence', transformPointCount: 2, sequenceStep: 1, moved: false })
+        release({ toolMode: 'sequence', transformPointCount: 2, sequenceStep: 1, moved: false }),
       ).toBe('none');
     });
 
     it('does not drag-commit a two-point transform on its first step', () => {
       expect(
-        release({ toolMode: 'sequence', transformPointCount: 2, sequenceStep: 0, moved: true })
+        release({ toolMode: 'sequence', transformPointCount: 2, sequenceStep: 0, moved: true }),
       ).toBe('none');
     });
 
@@ -106,7 +106,7 @@ describe('cpPointerReleaseRoute', () => {
           sequenceStep: 1,
           moved: true,
           cancelled: true,
-        })
+        }),
       ).toBe('none');
     });
   });
@@ -168,7 +168,7 @@ describe('toolModeSnapsDrawPoint', () => {
     'leaves %s on the raw cursor',
     (mode) => {
       expect(toolModeSnapsDrawPoint(mode)).toBe(false);
-    }
+    },
   );
 
   it('is false with no tool active', () => {

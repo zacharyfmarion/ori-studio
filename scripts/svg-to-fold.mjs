@@ -220,12 +220,12 @@ function extractSegments(svg) {
 
     if (/^<line\b/i.test(tag)) {
       const [x1, y1, x2, y2] = ['x1', 'y1', 'x2', 'y2'].map((n) =>
-        Number.parseFloat(attr(tag, n, classes) ?? '0')
+        Number.parseFloat(attr(tag, n, classes) ?? '0'),
       );
       push([x1, y1], [x2, y2]);
     } else if (/^<rect\b/i.test(tag)) {
       const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((n) =>
-        Number.parseFloat(attr(tag, n, classes) ?? '0')
+        Number.parseFloat(attr(tag, n, classes) ?? '0'),
       );
       const corners = [
         [x, y],
@@ -355,8 +355,14 @@ function splitAtIntersections(segments, tolerance) {
   const buckets = new Map();
   const keysFor = (segment) => {
     const keys = [];
-    const [minX, maxX] = [Math.min(segment.a[0], segment.b[0]), Math.max(segment.a[0], segment.b[0])];
-    const [minY, maxY] = [Math.min(segment.a[1], segment.b[1]), Math.max(segment.a[1], segment.b[1])];
+    const [minX, maxX] = [
+      Math.min(segment.a[0], segment.b[0]),
+      Math.max(segment.a[0], segment.b[0]),
+    ];
+    const [minY, maxY] = [
+      Math.min(segment.a[1], segment.b[1]),
+      Math.max(segment.a[1], segment.b[1]),
+    ];
     for (let x = Math.floor(minX / cell); x <= Math.floor(maxX / cell); x += 1) {
       for (let y = Math.floor(minY / cell); y <= Math.floor(maxY / cell); y += 1) {
         keys.push(`${x},${y}`);
@@ -602,7 +608,7 @@ function main() {
         console.log(
           `  ${title.padEnd(34)} ${String(stats.vertices).padStart(6)}v ` +
             `${String(stats.edges).padStart(6)}e  ${String(stats.nonFlat).padStart(5)} non-flat` +
-            (notes.length ? `   (${notes.join(', ')})` : '')
+            (notes.length ? `   (${notes.join(', ')})` : ''),
         );
       }
     } catch (error) {

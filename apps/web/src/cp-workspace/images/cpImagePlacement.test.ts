@@ -49,10 +49,24 @@ describe('hit-testing', () => {
     const front = image({ id: 'front', center: { x: 0, y: 0 }, width: 4, height: 4, z: 1 });
     expect(imageAtModelPoint([back, front], { x: 0, y: 0 })?.id).toBe('front');
 
-    const hidden = image({ id: 'hidden', center: { x: 0, y: 0 }, width: 4, height: 4, z: 2, hidden: true });
+    const hidden = image({
+      id: 'hidden',
+      center: { x: 0, y: 0 },
+      width: 4,
+      height: 4,
+      z: 2,
+      hidden: true,
+    });
     expect(imageAtModelPoint([back, front, hidden], { x: 0, y: 0 })?.id).toBe('front');
 
-    const locked = image({ id: 'locked', center: { x: 0, y: 0 }, width: 4, height: 4, z: 3, locked: true });
+    const locked = image({
+      id: 'locked',
+      center: { x: 0, y: 0 },
+      width: 4,
+      height: 4,
+      z: 3,
+      locked: true,
+    });
     expect(imageAtModelPoint([back, front, locked], { x: 0, y: 0 })?.id).toBe('front');
   });
 

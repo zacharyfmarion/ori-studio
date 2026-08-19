@@ -68,7 +68,8 @@ export function SelectByIndexModal() {
 
   useEffect(() => {
     if (!isOpen) return;
-    const initialKind = PART_KINDS.find((part) => idsForKind(project, part.kind).length > 0)?.kind ?? 'node';
+    const initialKind =
+      PART_KINDS.find((part) => idsForKind(project, part.kind).length > 0)?.kind ?? 'node';
     setKind(initialKind);
     setDraft(String(idsForKind(project, initialKind)[0] ?? ''));
   }, [isOpen, project]);
@@ -101,13 +102,21 @@ export function SelectByIndexModal() {
       className="simple-modal"
       onMouseDown={close}
     >
-      <div role="document" className="simple-modal__document" onMouseDown={(event) => event.stopPropagation()}>
+      <div
+        role="document"
+        className="simple-modal__document"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
         <header className="simple-modal__header">
           <span>
             <LocateFixed size={15} aria-hidden="true" />
             {t('dialogs:selectByIndex.title', 'Select by index')}
           </span>
-          <IconButton size="sm" aria-label={t('dialogs:selectByIndex.close', 'Close select by index')} onClick={close}>
+          <IconButton
+            size="sm"
+            aria-label={t('dialogs:selectByIndex.close', 'Close select by index')}
+            onClick={close}
+          >
             <X size={15} />
           </IconButton>
         </header>

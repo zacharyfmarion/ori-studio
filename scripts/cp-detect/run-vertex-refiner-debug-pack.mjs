@@ -98,7 +98,11 @@ async function main() {
     samples: rows,
     browser_errors: browserErrors,
   };
-  await writeFile(resolve(outDir, 'run_manifest.json'), `${JSON.stringify(runManifest, null, 2)}\n`, 'utf8');
+  await writeFile(
+    resolve(outDir, 'run_manifest.json'),
+    `${JSON.stringify(runManifest, null, 2)}\n`,
+    'utf8',
+  );
   if (browserErrors.length > 0) {
     process.stderr.write(`browser errors:\n${browserErrors.join('\n')}\n`);
   }
@@ -158,7 +162,7 @@ async function runSample(page, sample, imageBase64, options, vertexRefinerFrame)
       vertexRefinerModelUrl: options.vertexRefinerModelUrl ?? null,
       vertexRefinerFrame,
       refinerOptions: refinerOptions(options),
-    }
+    },
   );
 }
 
@@ -222,7 +226,10 @@ function refinerOptions(options) {
   return Object.fromEntries(
     [
       ['vertexRefinerProposalCap', numberOption(options.vertexRefinerProposalCap)],
-      ['vertexRefinerProposalMode', options.vertexRefinerProposalMode ?? DEFAULT_VERTEX_REFINER_PROPOSAL_MODE],
+      [
+        'vertexRefinerProposalMode',
+        options.vertexRefinerProposalMode ?? DEFAULT_VERTEX_REFINER_PROPOSAL_MODE,
+      ],
       [
         'vertexRefinerDenseRegionJunctionThreshold',
         numberOption(options.vertexRefinerDenseRegionJunctionThreshold) ??
@@ -240,16 +247,28 @@ function refinerOptions(options) {
       ],
       ['vertexRefinerGridStridePx', numberOption(options.vertexRefinerGridStridePx)],
       ['vertexRefinerHeatmapThreshold', numberOption(options.vertexRefinerHeatmapThreshold)],
-      ['vertexRefinerBoundaryHeatmapThreshold', numberOption(options.vertexRefinerBoundaryHeatmapThreshold)],
+      [
+        'vertexRefinerBoundaryHeatmapThreshold',
+        numberOption(options.vertexRefinerBoundaryHeatmapThreshold),
+      ],
       ['vertexRefinerNmsRadiusPx', numberOption(options.vertexRefinerNmsRadiusPx)],
       ['vertexRefinerMergeRadiusPx', numberOption(options.vertexRefinerMergeRadiusPx)],
-      ['vertexRefinerBoundaryMergeRadiusPx', numberOption(options.vertexRefinerBoundaryMergeRadiusPx)],
+      [
+        'vertexRefinerBoundaryMergeRadiusPx',
+        numberOption(options.vertexRefinerBoundaryMergeRadiusPx),
+      ],
       ['vertexRefinerMinSupport', numberOption(options.vertexRefinerMinSupport)],
       ['vertexRefinerMinSupportFraction', numberOption(options.vertexRefinerMinSupportFraction)],
-      ['vertexRefinerSplitSameCropConflicts', booleanOption(options.vertexRefinerSplitSameCropConflicts)],
-      ['vertexRefinerSplitMinSupportFraction', numberOption(options.vertexRefinerSplitMinSupportFraction)],
+      [
+        'vertexRefinerSplitSameCropConflicts',
+        booleanOption(options.vertexRefinerSplitSameCropConflicts),
+      ],
+      [
+        'vertexRefinerSplitMinSupportFraction',
+        numberOption(options.vertexRefinerSplitMinSupportFraction),
+      ],
       ['executionProvider', options.executionProvider],
-    ].filter(([, value]) => value !== undefined && value !== null)
+    ].filter(([, value]) => value !== undefined && value !== null),
   );
 }
 

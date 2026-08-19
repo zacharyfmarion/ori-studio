@@ -11,10 +11,7 @@ import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes'
 import type { OristudioCpSelection } from '../../lib/creasePatternViewport';
 import { selectedCpLineSegments } from '../../lib/creasePatternClipboard';
 import { creaseFoldMagnitudeDegrees, isFoldingCrease } from '../../lib/foldAngle';
-import {
-  type FoldAngleSelectionSummary,
-  summariseFoldAngles,
-} from './foldAngleActions';
+import { type FoldAngleSelectionSummary, summariseFoldAngles } from './foldAngleActions';
 
 /**
  * Is there anything in the selection a fold angle could be set on?
@@ -26,7 +23,7 @@ import {
  */
 export function hasFoldableCpSelection(
   document: OristudioCpDocumentSnapshot | null | undefined,
-  selection: OristudioCpSelection
+  selection: OristudioCpSelection,
 ): boolean {
   if (!document) return false;
   return selection.lines.some((id) => {
@@ -82,7 +79,7 @@ export function useFoldAngleSelection(): FoldAngleSelectionBinding {
         ...(degrees === null ? {} : { fold_magnitude_degrees: degrees }),
       });
     },
-    [executeCommand, selection.lines]
+    [executeCommand, selection.lines],
   );
 
   return {

@@ -5,11 +5,11 @@ import {
   foldedSourceFingerprint,
   reselectFoldableLineIds,
 } from '../folded/foldedFigureStaleness';
+import { isInlineSimulationStale, resolveInlineSimulationSegment } from './inlineSimulation';
 import {
-  isInlineSimulationStale,
-  resolveInlineSimulationSegment,
-} from './inlineSimulation';
-import { getInlineSimulationFoldPercent, getInlineSimulationSource } from './inlineSimulationRuntime';
+  getInlineSimulationFoldPercent,
+  getInlineSimulationSource,
+} from './inlineSimulationRuntime';
 
 /**
  * Dev-only console hook: `__inlineSimStaleDebug()`.

@@ -92,7 +92,7 @@ describe('resolved tool line colour', () => {
   it('leaves every other tool on the active colour', () => {
     expect(resolveCpToolLineColor('DrawCreaseFree', withLineType('edge'), 'Red1')).toBe('Red1');
     expect(resolveCpToolLineColor('PolygonSetNoCorners', withLineType('edge'), 'Blue2')).toBe(
-      'Blue2'
+      'Blue2',
     );
     expect(resolveCpToolLineColor(undefined, withLineType('edge'), 'Blue2')).toBe('Blue2');
   });

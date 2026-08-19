@@ -17,7 +17,7 @@ describe('shortcut dispatcher', () => {
       handleShortcutKeyDown(event, {
         scopeStack: ['crease-pattern', 'global'],
         executors: { cpAction, menu },
-      })
+      }),
     ).toBe(true);
 
     expect(cpAction).toHaveBeenCalledWith('cp.action.inward');
@@ -41,7 +41,7 @@ describe('shortcut dispatcher', () => {
         handleShortcutKeyDown(event, {
           scopeStack: ['viewport', 'global'],
           executors: { viewport, menu },
-        })
+        }),
       ).toBe(true);
 
       expect(viewport).toHaveBeenCalledWith('viewport.delete');
@@ -95,7 +95,7 @@ describe('shortcut dispatcher', () => {
         scopeStack: ['crease-pattern'],
         overrides: { 'cp.action.line-type.mountain': null },
         executors: { cpAction },
-      })
+      }),
     ).toBe(false);
 
     expect(cpAction).not.toHaveBeenCalled();
@@ -179,7 +179,7 @@ describe('simulator scope', () => {
       handleShortcutKeyDown(press(key), {
         scopeStack: [...scopedStack],
         executors: { simulator, cpAction },
-      })
+      }),
     ).toBe(true);
 
     expect(simulator).toHaveBeenCalledWith(expected);
@@ -192,8 +192,8 @@ describe('simulator scope', () => {
       (definition) =>
         definition.scope === 'crease-pattern' &&
         definition.defaultChords.some(
-          (chord) => chord.key === key && !chord.primary && !chord.shift && !chord.alt
-        )
+          (chord) => chord.key === key && !chord.primary && !chord.shift && !chord.alt,
+        ),
     )?.id;
   }
 
@@ -211,7 +211,7 @@ describe('simulator scope', () => {
       });
 
       expect(cpAction).toHaveBeenCalledWith(expected);
-    }
+    },
   );
 
   it('falls through when the simulator scope is present but nothing claimed it', () => {

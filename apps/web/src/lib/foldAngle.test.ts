@@ -11,10 +11,7 @@ import {
   isFoldingCrease,
 } from './foldAngle';
 
-function segment(
-  color: string,
-  foldMagnitude?: number
-): OristudioCpLineSegment {
+function segment(color: string, foldMagnitude?: number): OristudioCpLineSegment {
   return {
     a: { x: 0, y: 0 },
     b: { x: 1, y: 0 },

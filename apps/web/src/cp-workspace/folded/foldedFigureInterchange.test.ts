@@ -5,7 +5,7 @@ import { detachedFolded3dFigures, folded3dExportHandles } from './foldedFigureIn
 function figure(
   id: string,
   kind: 'flat' | 'spatial',
-  handle: number | null
+  handle: number | null,
 ): OristudioCpFoldedFigureEntry {
   return {
     id,
@@ -23,7 +23,7 @@ describe('folded3dExportHandles', () => {
         figure('a', 'spatial', 7),
         figure('b', 'flat', 3),
         figure('c', 'spatial', 2),
-      ])
+      ]),
     ).toEqual([7, 2]);
   });
 
@@ -33,7 +33,7 @@ describe('folded3dExportHandles', () => {
 
   it('drops a 3D figure with no handle rather than sending null to the kernel', () => {
     expect(
-      folded3dExportHandles([figure('a', 'spatial', null), figure('b', 'spatial', 4)])
+      folded3dExportHandles([figure('a', 'spatial', null), figure('b', 'spatial', 4)]),
     ).toEqual([4]);
   });
 

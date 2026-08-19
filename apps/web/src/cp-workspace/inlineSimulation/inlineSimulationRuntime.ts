@@ -137,7 +137,7 @@ export function subscribeInlineSimulationFold(listener: () => void): () => void 
 
 /** Subscribe to fold *requests* only, so the solver's own frames do not echo back. */
 export function subscribeInlineSimulationFoldTarget(
-  listener: (id: string, percent: number) => void
+  listener: (id: string, percent: number) => void,
 ): () => void {
   targetListeners.add(listener);
   return () => targetListeners.delete(listener);
@@ -168,7 +168,7 @@ const exporters = new Map<string, InlineSimulationExporter>();
 /** Register while mounted. Returns the matching unregister, for an effect. */
 export function registerInlineSimulationExporter(
   id: string,
-  exporter: InlineSimulationExporter
+  exporter: InlineSimulationExporter,
 ): () => void {
   exporters.set(id, exporter);
   return () => {
@@ -183,7 +183,7 @@ export function registerInlineSimulationExporter(
  */
 export function exportInlineSimulation(
   id: string,
-  format: SimulatorViewExportFormat
+  format: SimulatorViewExportFormat,
 ): Promise<boolean> {
   const exporter = exporters.get(id);
   return exporter ? exporter(format) : Promise.resolve(false);

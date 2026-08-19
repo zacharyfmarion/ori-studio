@@ -148,6 +148,6 @@ export const useSettingsStore = create<SettingsState>()(
         });
       },
     }),
-    { name: 'SettingsStore' }
-  )
+    { name: 'SettingsStore' },
+  ),
 );

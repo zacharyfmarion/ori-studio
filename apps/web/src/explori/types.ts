@@ -38,7 +38,9 @@ export function exploriSymmetryAbbreviation(symmetry: ExploriSymmetry): string {
 }
 
 /** How a result is named in the UI, matching upstream. */
-export function exploriTilingLabel(result: Pick<ExploriResult, 'N' | 'symmetry' | 'tilingId'>): string {
+export function exploriTilingLabel(
+  result: Pick<ExploriResult, 'N' | 'symmetry' | 'tilingId'>,
+): string {
   return `${result.N}${exploriSymmetryAbbreviation(result.symmetry)}.${result.tilingId}`;
 }
 
@@ -52,7 +54,7 @@ export function exploriTilingLabel(result: Pick<ExploriResult, 'N' | 'symmetry' 
  */
 export function exploriResultUrl(
   result: Pick<ExploriResult, 'N' | 'symmetry' | 'tilingId'>,
-  origin = 'https://225.designorigami.net'
+  origin = 'https://225.designorigami.net',
 ): string {
   return `${origin}/view?id=${result.N}${exploriSymmetryAbbreviation(result.symmetry)}${result.tilingId}`;
 }

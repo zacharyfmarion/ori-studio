@@ -32,7 +32,7 @@ export function bpFlapLabel(id: number, name: string): string {
 /** The display labels of a set of flap ids, in the order given. */
 export function bpFlapLabels(
   ids: readonly number[],
-  flaps: readonly { id: number; name: string }[]
+  flaps: readonly { id: number; name: string }[],
 ): string[] {
   return ids.map((id) => bpFlapLabel(id, flaps.find((flap) => flap.id === id)?.name ?? ''));
 }

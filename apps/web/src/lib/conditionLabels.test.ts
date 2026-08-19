@@ -11,7 +11,7 @@ describe('condition labels', () => {
         y_fixed: false,
         x_fix_value: 0.25,
         y_fix_value: 0,
-      })
+      }),
     ).toBe('Node 3 fixed');
     expect(
       conditionDetail({
@@ -20,7 +20,7 @@ describe('condition labels', () => {
         node2: 5,
         quant: 8,
         quant_offset: 11.25,
-      })
+      }),
     ).toBe('8 divisions, offset 11.25 deg');
   });
 });

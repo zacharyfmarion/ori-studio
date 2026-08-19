@@ -107,7 +107,9 @@ export class ReferenceSolver implements SolverBackend {
       ...this.options,
       ...options,
       foldPercent:
-        options.foldPercent === undefined ? this.options.foldPercent : clampFoldPercent(options.foldPercent),
+        options.foldPercent === undefined
+          ? this.options.foldPercent
+          : clampFoldPercent(options.foldPercent),
     };
     if ('foldProfile' in options) {
       this.foldProfileRanges = foldProfileRangeMap(options.foldProfile?.ranges ?? []);
@@ -281,7 +283,11 @@ export class ReferenceSolver implements SolverBackend {
   }
 
   private thetaCalc(normals: Float32Array): Float32Array {
-    for (let creaseIndex = 0; creaseIndex < this.model.prepared.creaseParams.length; creaseIndex += 1) {
+    for (
+      let creaseIndex = 0;
+      creaseIndex < this.model.prepared.creaseParams.length;
+      creaseIndex += 1
+    ) {
       const crease = this.model.prepared.creaseParams[creaseIndex];
       if (!crease) continue;
       const edge = this.model.prepared.edgesVertices[crease.edge];
@@ -294,7 +300,7 @@ export class ReferenceSolver implements SolverBackend {
       const creaseVector = normalize(subtract(node1, node0));
       const theta = Math.atan2(
         dot(cross(normal1, creaseVector), normal2),
-        clamp(dot(normal1, normal2), -1, 1)
+        clamp(dot(normal1, normal2), -1, 1),
       );
       let diff = theta - (this.theta[creaseIndex] ?? 0);
       if (diff < -5) diff += TWO_PI;
@@ -339,7 +345,7 @@ export class ReferenceSolver implements SolverBackend {
     dt: number,
     normals: Float32Array,
     theta: Float32Array,
-    creaseGeometry: CreaseGeometry[]
+    creaseGeometry: CreaseGeometry[],
   ): void {
     this.forces.fill(0);
     for (let vertex = 0; vertex < this.model.prepared.vertexCount; vertex += 1) {
@@ -355,7 +361,8 @@ export class ReferenceSolver implements SolverBackend {
 
   private positionCalc(dt: number): void {
     for (let index = 0; index < this.relativePositions.length; index += 1) {
-      this.relativePositions[index] = (this.model.velocities[index] ?? 0) * dt + (this.lastRelativePositions[index] ?? 0);
+      this.relativePositions[index] =
+        (this.model.velocities[index] ?? 0) * dt + (this.lastRelativePositions[index] ?? 0);
       if (!Number.isFinite(this.relativePositions[index])) this.relativePositions[index] = 0;
     }
     this.lastRelativePositions.set(this.relativePositions);
@@ -366,7 +373,7 @@ export class ReferenceSolver implements SolverBackend {
     dt: number,
     normals: Float32Array,
     theta: Float32Array,
-    creaseGeometry: CreaseGeometry[]
+    creaseGeometry: CreaseGeometry[],
   ): void {
     this.forces.fill(0);
     for (let vertex = 0; vertex < this.model.prepared.vertexCount; vertex += 1) {
@@ -374,7 +381,9 @@ export class ReferenceSolver implements SolverBackend {
       const offset = vertex * 3;
       this.forces.set(force, offset);
       this.relativePositions[offset] =
-        force[0] * dt * dt + 2 * (this.lastRelativePositions[offset] ?? 0) - (this.lastLastRelativePositions[offset] ?? 0);
+        force[0] * dt * dt +
+        2 * (this.lastRelativePositions[offset] ?? 0) -
+        (this.lastLastRelativePositions[offset] ?? 0);
       this.relativePositions[offset + 1] =
         force[1] * dt * dt +
         2 * (this.lastRelativePositions[offset + 1] ?? 0) -
@@ -384,8 +393,10 @@ export class ReferenceSolver implements SolverBackend {
         2 * (this.lastRelativePositions[offset + 2] ?? 0) -
         (this.lastLastRelativePositions[offset + 2] ?? 0);
       if (!Number.isFinite(this.relativePositions[offset])) this.relativePositions[offset] = 0;
-      if (!Number.isFinite(this.relativePositions[offset + 1])) this.relativePositions[offset + 1] = 0;
-      if (!Number.isFinite(this.relativePositions[offset + 2])) this.relativePositions[offset + 2] = 0;
+      if (!Number.isFinite(this.relativePositions[offset + 1]))
+        this.relativePositions[offset + 1] = 0;
+      if (!Number.isFinite(this.relativePositions[offset + 2]))
+        this.relativePositions[offset + 2] = 0;
     }
   }
 
@@ -405,7 +416,7 @@ export class ReferenceSolver implements SolverBackend {
     vertex: number,
     normals: Float32Array,
     theta: Float32Array,
-    creaseGeometry: CreaseGeometry[]
+    creaseGeometry: CreaseGeometry[],
   ): Vec3 {
     let force: Vec3 = [0, 0, 0];
     force = add(force, this.beamForce(vertex));
@@ -444,7 +455,7 @@ export class ReferenceSolver implements SolverBackend {
     vertex: number,
     normals: Float32Array,
     theta: Float32Array,
-    geometry: CreaseGeometry[]
+    geometry: CreaseGeometry[],
   ): Vec3 {
     let force: Vec3 = [0, 0, 0];
     for (const ref of this.nodeCreases[vertex] ?? []) {
@@ -470,7 +481,10 @@ export class ReferenceSolver implements SolverBackend {
         }
         force = add(
           force,
-          scale(add(scale(normal1, coef1 / geo.height1), scale(normal2, coef2 / geo.height2)), -angularForce)
+          scale(
+            add(scale(normal1, coef1 / geo.height1), scale(normal2, coef2 / geo.height2)),
+            -angularForce,
+          ),
         );
       } else {
         const normalIndex = ref.nodeNumber === 1 ? crease.face1 : crease.face2;
@@ -573,7 +587,10 @@ export class ReferenceSolver implements SolverBackend {
   }
 
   private absolutePointAt(vertex: number): Vec3 {
-    return add(pointAt(this.model.originalPositions, vertex), pointAt(this.lastRelativePositions, vertex));
+    return add(
+      pointAt(this.model.originalPositions, vertex),
+      pointAt(this.lastRelativePositions, vertex),
+    );
   }
 
   private velocityPointAt(source: Float32Array, vertex: number): Vec3 {
@@ -644,11 +661,7 @@ function dot(a: Vec3, b: Vec3): number {
 }
 
 function cross(a: Vec3, b: Vec3): Vec3 {
-  return [
-    a[1] * b[2] - a[2] * b[1],
-    a[2] * b[0] - a[0] * b[2],
-    a[0] * b[1] - a[1] * b[0],
-  ];
+  return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 }
 
 function add(a: Vec3, b: Vec3): Vec3 {

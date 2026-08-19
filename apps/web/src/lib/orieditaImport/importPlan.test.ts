@@ -28,7 +28,7 @@ function hotkeys(entries: Record<string, string | null>): Map<string, JavaProper
     Object.entries(entries).map(([action, value]) => [
       action,
       value === null ? { kind: 'empty' } : { kind: 'value', value },
-    ])
+    ]),
   );
 }
 
@@ -41,7 +41,7 @@ interface PlanOptions {
 
 function plan(
   entries: Record<string, string | null>,
-  options: PlanOptions = {}
+  options: PlanOptions = {},
 ): OrieditaImportPlan {
   return buildOrieditaImportPlan({
     hotkeys: hotkeys(entries),
@@ -65,7 +65,7 @@ function outcomeOf(built: OrieditaImportPlan, action: string): string {
 
 function overrideEntries(overrides: ShortcutOverrides): Array<[ShortcutActionId, KeyChord[]]> {
   return Object.entries(overrides).flatMap(([id, chords]) =>
-    chords ? [[id as ShortcutActionId, chords]] : []
+    chords ? [[id as ShortcutActionId, chords]] : [],
   );
 }
 
@@ -84,15 +84,15 @@ function overrideEntries(overrides: ShortcutOverrides): Array<[ShortcutActionId,
 function dispatchWinner(
   stack: readonly ShortcutScope[],
   chord: KeyChord,
-  resolution: ShortcutResolution
+  resolution: ShortcutResolution,
 ): ShortcutActionId | null {
   for (const scope of stack) {
     const definition = SHORTCUT_DEFINITIONS.find(
       (candidate) =>
         candidate.scope === scope &&
         getResolvedShortcuts(candidate.id, resolution).some((existing) =>
-          keyChordEquals(existing, chord)
-        )
+          keyChordEquals(existing, chord),
+        ),
     );
     if (definition) return definition.id;
   }
@@ -124,7 +124,7 @@ function expectNoDeadBindings(built: OrieditaImportPlan, options: PlanOptions = 
     for (const chord of chords) {
       expect(
         dispatchWinner(STACK_WITHOUT_SIMULATION, chord, applied),
-        `${id} ${keyChordId(chord)}`
+        `${id} ${keyChordId(chord)}`,
       ).toBe(id);
     }
   }
@@ -170,9 +170,9 @@ describe('actions that must never receive a chord', () => {
     // `lengthenCrease2Action` targets the non-host half of the merged Extend
     // Line tool: hidden because it has no button of its own, but arming it
     // lights up the host's button.
-    expect(outcomeOf(plan({ lengthenCrease2Action: 'pressed INSERT' }), 'lengthenCrease2Action')).toBe(
-      'apply:insert'
-    );
+    expect(
+      outcomeOf(plan({ lengthenCrease2Action: 'pressed INSERT' }), 'lengthenCrease2Action'),
+    ).toBe('apply:insert');
   });
 
   it('allows the fold stub the shortcut executor routes to the real fold', () => {
@@ -229,7 +229,7 @@ describe('chord-level rejections', () => {
 
   it('refuses a chord the browser reserves', () => {
     expect(outcomeOf(plan({ colRedAction: 'ctrl pressed W' }), 'colRedAction')).toBe(
-      'skip:reserved-chord'
+      'skip:reserved-chord',
     );
   });
 
@@ -237,7 +237,7 @@ describe('chord-level rejections', () => {
     // `acceleratorKey` would pass `arrowleft` through verbatim and Tauri would
     // reject the whole menu.
     expect(outcomeOf(plan({ selectAllAction: 'pressed LEFT' }), 'selectAllAction')).toBe(
-      'skip:menu-accelerator-unsupported'
+      'skip:menu-accelerator-unsupported',
     );
   });
 
@@ -251,12 +251,12 @@ describe('chord-level rejections', () => {
     // rather than being dropped. What this case is really pinning is the
     // absence of `menu-accelerator-unsupported`, which is why the assertion
     // names the reason it must not be.
-    expect(outcomeOf(plan({ creasePatternZoomInAction: 'pressed HOME' }), 'creasePatternZoomInAction')).toBe(
-      'apply:home'
-    );
-    expect(outcomeOf(plan({ creasePatternZoomInAction: 'pressed INSERT' }), 'creasePatternZoomInAction')).toBe(
-      'apply:insert'
-    );
+    expect(
+      outcomeOf(plan({ creasePatternZoomInAction: 'pressed HOME' }), 'creasePatternZoomInAction'),
+    ).toBe('apply:home');
+    expect(
+      outcomeOf(plan({ creasePatternZoomInAction: 'pressed INSERT' }), 'creasePatternZoomInAction'),
+    ).toBe('apply:insert');
   });
 });
 
@@ -278,18 +278,18 @@ describe('replacing a multi-chord binding', () => {
     const built = plan({ deleteSelectedLineSegmentAction: 'pressed F13' });
     expect(outcomeOf(built, 'deleteSelectedLineSegmentAction')).toBe('apply:f13');
     expect(
-      rowFor(built, 'deleteSelectedLineSegmentAction').detail.replacedChords.map(keyChordId)
+      rowFor(built, 'deleteSelectedLineSegmentAction').detail.replacedChords.map(keyChordId),
     ).toEqual(['delete', 'backspace']);
   });
 
   it('measures the drop against existing overrides, not the defaults', () => {
     const built = plan(
       { creasePatternZoomInAction: 'pressed INSERT' },
-      { currentOverrides: { 'viewport.zoomIn': [{ key: '9' }] } }
+      { currentOverrides: { 'viewport.zoomIn': [{ key: '9' }] } },
     );
-    expect(rowFor(built, 'creasePatternZoomInAction').detail.replacedChords.map(keyChordId)).toEqual([
-      '9',
-    ]);
+    expect(
+      rowFor(built, 'creasePatternZoomInAction').detail.replacedChords.map(keyChordId),
+    ).toEqual(['9']);
   });
 });
 
@@ -349,7 +349,7 @@ describe('shadowing', () => {
     const built = plan({ makeFlatFoldableAction: 'pressed 5' });
     expect(outcomeOf(built, 'makeFlatFoldableAction')).toBe('skip:shadowed');
     expect(rowFor(built, 'makeFlatFoldableAction').detail.shadowing?.actionId).toBe(
-      'viewport.zoomOut'
+      'viewport.zoomOut',
     );
   });
 
@@ -389,7 +389,7 @@ describe('a simulator collision must not hide a real one', () => {
     const built = plan({ foldAction: 'pressed F' });
     expect(outcomeOf(built, 'foldAction')).toBe('skip:shadowed');
     expect(rowFor(built, 'foldAction').detail.shadowing?.actionId).toBe(
-      'cp.action.line-type.auxiliary'
+      'cp.action.line-type.auxiliary',
     );
   });
 
@@ -412,7 +412,7 @@ describe('a simulator collision must not hide a real one', () => {
     const built = plan({ colBlackAction: 'pressed L' });
     expect(outcomeOf(built, 'colBlackAction')).toBe('apply:l');
     expect(rowFor(built, 'colBlackAction').detail.shadowing?.actionId).toBe(
-      'simulator.toggleLighting'
+      'simulator.toggleLighting',
     );
     expectNoDeadBindings(built);
   });
@@ -481,7 +481,7 @@ describe('a realistic archive', () => {
   it('decides every row', () => {
     const built = plan(REALISTIC_DELTAS);
     expect(
-      built.rows.map((row) => `${row.orieditaAction} -> ${outcomeOf(built, row.orieditaAction)}`)
+      built.rows.map((row) => `${row.orieditaAction} -> ${outcomeOf(built, row.orieditaAction)}`),
     ).toEqual([
       'colRedAction -> apply:insert',
       'senbun_henkan2Action -> skip:ambiguous-empty',
@@ -509,12 +509,14 @@ describe('a realistic archive', () => {
     const changing = built.rows.flatMap((row) =>
       row.outcome.kind === 'apply' && row.shortcutId && !row.detail.alreadyMatches
         ? [row.shortcutId]
-        : []
+        : [],
     );
     expect(Object.keys(built.overrides).sort()).toEqual([...new Set(changing)].sort());
     // And nothing written is ever a no-op.
     expect(
-      built.rows.some((row) => row.detail.alreadyMatches && row.shortcutId && row.shortcutId in built.overrides)
+      built.rows.some(
+        (row) => row.detail.alreadyMatches && row.shortcutId && row.shortcutId in built.overrides,
+      ),
     ).toBe(false);
   });
 });
@@ -609,14 +611,14 @@ describe('per-row eviction', () => {
     // unrelated row that wants T.
     const built = plan(
       { ...LINE_TYPE_MIGRATION, perpendicularDrawAction: 'pressed T' },
-      { allowEvictionFor: ['cp.action.symmetric-draw'] }
+      { allowEvictionFor: ['cp.action.symmetric-draw'] },
     );
     expect(outcomeOf(built, 'perpendicularDrawAction')).toBe('skip:shadowed');
     expect(built.evictions.map((eviction) => eviction.evictedId)).toEqual([
       'cp.action.draw-crease-angle-restricted5',
     ]);
     expect(rowFor(built, 'perpendicularDrawAction').detail.evictionOffer?.evictedId).toBe(
-      'cp.action.vertex-make-angularly-flat-foldable'
+      'cp.action.vertex-make-angularly-flat-foldable',
     );
   });
 });
@@ -639,7 +641,7 @@ describe('an approval that cannot be made to work removes nothing', () => {
   it('keeps the offer that cannot be honoured out of the plan', () => {
     const built = plan(
       { colRedAction: 'ctrl pressed Z' },
-      { currentOverrides: OVER_UNDO, allowEvictionFor: ['cp.action.line-type.mountain'] }
+      { currentOverrides: OVER_UNDO, allowEvictionFor: ['cp.action.line-type.mountain'] },
     );
     expect(outcomeOf(built, 'colRedAction')).toBe('skip:shadowed');
     expect(built.evictions).toEqual([]);
@@ -649,7 +651,7 @@ describe('an approval that cannot be made to work removes nothing', () => {
   it('names the blocker that actually decided it', () => {
     const built = plan(
       { colRedAction: 'ctrl pressed Z' },
-      { currentOverrides: OVER_UNDO, allowEvictionFor: ['cp.action.line-type.mountain'] }
+      { currentOverrides: OVER_UNDO, allowEvictionFor: ['cp.action.line-type.mountain'] },
     );
     expect(rowFor(built, 'colRedAction').detail.shadowing?.actionId).toBe('edit.undo');
     // And no second offer, since Undo's `null` would not take either.
@@ -664,7 +666,7 @@ describe('an approval that cannot be made to work removes nothing', () => {
       {
         currentOverrides: OVER_UNDO,
         allowEvictionFor: ['cp.action.line-type.mountain', 'cp.action.symmetric-draw'],
-      }
+      },
     );
     expect(outcomeOf(built, 'colRedAction')).toBe('skip:shadowed');
     expect(outcomeOf(built, 'symmetricDrawAction')).toBe('apply:r');
@@ -683,7 +685,14 @@ describe('an approval that cannot be made to work removes nothing', () => {
  * away for nobody.
  */
 describe('every eviction has a surviving taker', () => {
-  const cases: Array<[name: string, entries: Record<string, string | null>, overrides: ShortcutOverrides, allow: ShortcutActionId[]]> = [
+  const cases: Array<
+    [
+      name: string,
+      entries: Record<string, string | null>,
+      overrides: ShortcutOverrides,
+      allow: ShortcutActionId[],
+    ]
+  > = [
     ['the line-type chain', LINE_TYPE_MIGRATION, {}, ['cp.action.symmetric-draw']],
     [
       'a blocker with Undo behind it',
@@ -703,19 +712,19 @@ describe('every eviction has a surviving taker', () => {
     const built = plan(entries, { currentOverrides, allowEvictionFor });
     const applied = new Set(
       built.rows.flatMap((row) =>
-        row.outcome.kind === 'apply' && row.shortcutId ? [row.shortcutId] : []
-      )
+        row.outcome.kind === 'apply' && row.shortcutId ? [row.shortcutId] : [],
+      ),
     );
     for (const eviction of built.evictions) {
       expect(applied, `${eviction.evictedId} gave up a key to nobody`).toContain(
-        eviction.takenById
+        eviction.takenById,
       );
     }
     // And the list is exactly the `null`s Apply writes — no more, nothing stale.
     expect(built.evictions.map((eviction) => eviction.evictedId).sort()).toEqual(
       Object.entries(built.overrides)
         .flatMap(([id, chords]) => (chords === null ? [id] : []))
-        .sort()
+        .sort(),
     );
   });
 });
@@ -730,16 +739,28 @@ describe('every eviction has a surviving taker', () => {
  * for one, since the dialog is not the only thing that can call this.
  */
 describe('blockers that are never offered', () => {
-  const cases: Array<[name: string, entries: Record<string, string | null>, action: string, id: ShortcutActionId]> = [
+  const cases: Array<
+    [name: string, entries: Record<string, string | null>, action: string, id: ShortcutActionId]
+  > = [
     // A declining viewport binding is deliberately absent: it no longer blocks a
     // row at all, so there is nothing here to withhold an offer from. That case
     // now lives in `shadowing` above, as an applied row.
     //
     // Undo merges its overrides with the defaults, so the `null` would not take.
-    ['undo, which cannot honour a null override', { colRedAction: 'ctrl pressed Z' }, 'colRedAction', 'cp.action.line-type.mountain'],
+    [
+      'undo, which cannot honour a null override',
+      { colRedAction: 'ctrl pressed Z' },
+      'colRedAction',
+      'cp.action.line-type.mountain',
+    ],
     // `cp.deleteExtraVertices` and `cp.action.delete-extra-vertices` both carry
     // `v_del_allAction` and run the same sweep.
-    ['the same verb under another id', { v_del_allAction: 'ctrl shift pressed V' }, 'v_del_allAction', 'cp.deleteExtraVertices'],
+    [
+      'the same verb under another id',
+      { v_del_allAction: 'ctrl shift pressed V' },
+      'v_del_allAction',
+      'cp.deleteExtraVertices',
+    ],
   ];
 
   it.each(cases)('%s', (_name, entries, action, id) => {
@@ -770,9 +791,12 @@ describe('an approval buys one removal, and only when that is enough', () => {
     const offer = plan({ symmetricDrawAction: 'pressed R' }).rows[0].detail.evictionOffer;
     expect(offer?.evictedId).toBe('cp.action.draw-crease-angle-restricted5');
 
-    const approved = plan({ symmetricDrawAction: 'pressed R' }, {
-      allowEvictionFor: ['cp.action.symmetric-draw'],
-    });
+    const approved = plan(
+      { symmetricDrawAction: 'pressed R' },
+      {
+        allowEvictionFor: ['cp.action.symmetric-draw'],
+      },
+    );
     expect(approved.evictions.map((eviction) => eviction.evictedId)).toEqual([
       'cp.action.draw-crease-angle-restricted5',
     ]);

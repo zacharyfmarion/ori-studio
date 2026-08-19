@@ -19,7 +19,7 @@ import type { SimulatorExportBackground } from '../lib/simulatorSettings';
  * already lives; this hook only moves the result to disk.
  */
 export function useSimulatorViewExport(
-  exportSvg: (background?: SimulatorExportBackground) => Promise<SvgRenderResult | null>
+  exportSvg: (background?: SimulatorExportBackground) => Promise<SvgRenderResult | null>,
 ): (format: SimulatorViewExportFormat) => Promise<boolean> {
   const { t } = useTranslation();
   const background = useWorkspaceStore((state) => state.simulatorSettings.exportBackground);
@@ -30,9 +30,7 @@ export function useSimulatorViewExport(
       // mid-click), and that is the same outcome for the user as an empty view.
       const page = await exportSvg(background).catch(() => null);
       if (!page) {
-        toast.error(
-          t('toasts:simulatorExport.empty', 'This simulation has nothing to export yet')
-        );
+        toast.error(t('toasts:simulatorExport.empty', 'This simulation has nothing to export yet'));
         return false;
       }
       try {
@@ -61,6 +59,6 @@ export function useSimulatorViewExport(
         return false;
       }
     },
-    [exportSvg, background, t]
+    [exportSvg, background, t],
   );
 }

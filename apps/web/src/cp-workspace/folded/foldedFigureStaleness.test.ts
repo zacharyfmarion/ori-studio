@@ -20,7 +20,7 @@ function line(
   bx: number,
   by: number,
   color = 'Black0',
-  overrides: Partial<OristudioCpLineSegment> = {}
+  overrides: Partial<OristudioCpLineSegment> = {},
 ): OristudioCpLineSegment {
   return {
     a: { x: ax, y: ay },
@@ -61,7 +61,7 @@ const SQUARE_IDS = [1, 2, 3, 4, 5];
 function figureFrom(
   document: OristudioCpDocumentSnapshot,
   lineIds: number[],
-  overrides: Partial<OristudioCpFoldedFigureEntry> = {}
+  overrides: Partial<OristudioCpFoldedFigureEntry> = {},
 ): OristudioCpFoldedFigureEntry {
   const bounds = foldedSourceBounds(cpLinesByIds(document, lineIds));
   const reselected = cpLinesByIds(document, reselectFoldableLineIds(document, bounds));
@@ -170,9 +170,12 @@ describe('reselectSourceLineIds', () => {
   });
 
   it('is still bounded by the region, and still needs both inputs', () => {
-    expect(reselectSourceLineIds(doc([...SQUARE, line(5, 5, 6, 6, 'Cyan3')]), foldedSourceBounds(SQUARE))).toEqual(
-      SQUARE_IDS
-    );
+    expect(
+      reselectSourceLineIds(
+        doc([...SQUARE, line(5, 5, 6, 6, 'Cyan3')]),
+        foldedSourceBounds(SQUARE),
+      ),
+    ).toEqual(SQUARE_IDS);
     expect(reselectSourceLineIds(null, { minX: 0, minY: 0, maxX: 1, maxY: 1 })).toEqual([]);
     expect(reselectSourceLineIds(doc(SQUARE), null)).toEqual([]);
   });
@@ -201,7 +204,7 @@ describe('foldedSourceFingerprint', () => {
 
   it('distinguishes duplicate creases by multiplicity', () => {
     expect(foldedSourceFingerprint([...SQUARE, SQUARE[0]!])).not.toBe(
-      foldedSourceFingerprint(SQUARE)
+      foldedSourceFingerprint(SQUARE),
     );
   });
 
@@ -285,17 +288,25 @@ describe('isFoldedFigureStale', () => {
 function legacyFingerprint(lines: OristudioCpLineSegment[]): string {
   return lines
     .map((l) =>
-      [l.a.x, l.a.y, l.b.x, l.b.y, l.active, l.color, l.customized,
-        l.customized_color.red, l.customized_color.green, l.customized_color.blue].join(',')
+      [
+        l.a.x,
+        l.a.y,
+        l.b.x,
+        l.b.y,
+        l.active,
+        l.color,
+        l.customized,
+        l.customized_color.red,
+        l.customized_color.green,
+        l.customized_color.blue,
+      ].join(','),
     )
     .sort()
     .join(';');
 }
 
 function grid(count: number): OristudioCpLineSegment[] {
-  return Array.from({ length: count }, (_, i) =>
-    line(i * 0.3125, -200, i * 0.3125, 200, 'Red1')
-  );
+  return Array.from({ length: count }, (_, i) => line(i * 0.3125, -200, i * 0.3125, 200, 'Red1'));
 }
 
 describe('fingerprint size', () => {
@@ -313,9 +324,7 @@ describe('fingerprint size', () => {
   it('is still smaller than the legacy form at four creases', () => {
     // Not just asymptotically better — better immediately, so there is no size
     // at which the old form wins.
-    expect(foldedSourceFingerprint(SQUARE).length).toBeLessThan(
-      legacyFingerprint(SQUARE).length
-    );
+    expect(foldedSourceFingerprint(SQUARE).length).toBeLessThan(legacyFingerprint(SQUARE).length);
   });
 
   it('shrinks a dense region by orders of magnitude', () => {
@@ -362,7 +371,7 @@ describe('digest correctness', () => {
   });
 });
 
-describe('fold angle is part of a crease\'s identity', () => {
+describe("fold angle is part of a crease's identity", () => {
   // Colour used to be a crease's whole fold identity; it is now half of it, and
   // this fingerprint was written when that was still true. Leaving the magnitude
   // out made changing an angle invisible to the staleness check — a folded figure
@@ -422,7 +431,10 @@ describe('fold angle is part of a crease\'s identity', () => {
  * drift.
  */
 describe('which figures have creases that can go stale', () => {
-  const ANGLED = doc([...SQUARE.slice(0, 4), line(0, 0, 1, 1, 'Red1', { fold_magnitude: 90 * 1e7 })]);
+  const ANGLED = doc([
+    ...SQUARE.slice(0, 4),
+    line(0, 0, 1, 1, 'Red1', { fold_magnitude: 90 * 1e7 }),
+  ]);
 
   it('sees a 3D figure drift, exactly as it sees a flat one', () => {
     const spatial = figureFrom(doc(SQUARE), SQUARE_IDS, { sourceKind: 'generated-3d' });
@@ -434,7 +446,11 @@ describe('which figures have creases that can go stale', () => {
     // Neither has live creases behind it, so a drift it cannot act on is not
     // worth reporting — and `'unknown'` is what the reader writes for a kind a
     // newer build invented, where offering a refold would guess.
-    for (const sourceKind of ['imported-folded-form', 'imported-preserved-frame', 'unknown'] as const) {
+    for (const sourceKind of [
+      'imported-folded-form',
+      'imported-preserved-frame',
+      'unknown',
+    ] as const) {
       const figure = figureFrom(doc(SQUARE), SQUARE_IDS, { sourceKind });
       expect(isFoldedFigureStale(ANGLED, figure), sourceKind).toBe(false);
     }
@@ -496,8 +512,8 @@ describe('isFoldedFigureStale caching', () => {
 
     // `far`'s region does not hash to `whole`'s, and a cache that ignored the
     // region would report this fresh.
-    expect(isFoldedFigureStale(document, { ...far, sourceFingerprint: whole.sourceFingerprint })).toBe(
-      true
-    );
+    expect(
+      isFoldedFigureStale(document, { ...far, sourceFingerprint: whole.sourceFingerprint }),
+    ).toBe(true);
   });
 });

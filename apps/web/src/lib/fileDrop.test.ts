@@ -52,7 +52,10 @@ describe('classifyDroppedFile', () => {
 
   it('is case-insensitive', () => {
     expect(classifyDroppedFile(file('Design.OSF'))).toEqual({ kind: 'project' });
-    expect(classifyDroppedFile(file('Design.Cp'))).toEqual({ kind: 'crease-pattern', format: 'cp' });
+    expect(classifyDroppedFile(file('Design.Cp'))).toEqual({
+      kind: 'crease-pattern',
+      format: 'cp',
+    });
   });
 
   it('classifies images by MIME type, since a photo can carry any extension', () => {
@@ -220,19 +223,23 @@ describe('drag-in-flight predicates', () => {
   it('detects an image-only drag', () => {
     expect(isImageOnlyDrag(items([{ kind: 'file', type: 'image/png' }]))).toBe(true);
     expect(
-      isImageOnlyDrag(items([
-        { kind: 'file', type: 'image/png' },
-        { kind: 'file', type: 'image/jpeg' },
-      ]))
+      isImageOnlyDrag(
+        items([
+          { kind: 'file', type: 'image/png' },
+          { kind: 'file', type: 'image/jpeg' },
+        ]),
+      ),
     ).toBe(true);
   });
 
   it('is not image-only when any entry is a document', () => {
     expect(
-      isImageOnlyDrag(items([
-        { kind: 'file', type: 'image/png' },
-        { kind: 'file', type: '' },
-      ]))
+      isImageOnlyDrag(
+        items([
+          { kind: 'file', type: 'image/png' },
+          { kind: 'file', type: '' },
+        ]),
+      ),
     ).toBe(false);
   });
 
@@ -243,10 +250,12 @@ describe('drag-in-flight predicates', () => {
   it('does not call a type no browser decodes an image', () => {
     expect(isImageOnlyDrag(items([{ kind: 'file', type: 'image/x-olympus-orf' }]))).toBe(false);
     expect(
-      isImageOnlyDrag(items([
-        { kind: 'file', type: 'image/png' },
-        { kind: 'file', type: 'image/x-olympus-orf' },
-      ]))
+      isImageOnlyDrag(
+        items([
+          { kind: 'file', type: 'image/png' },
+          { kind: 'file', type: 'image/x-olympus-orf' },
+        ]),
+      ),
     ).toBe(false);
   });
 
@@ -269,7 +278,7 @@ describe('drag-in-flight predicates', () => {
       dragCarriesFiles({
         types: ['public.file-url'],
         items: items([{ kind: 'file', type: '' }]),
-      })
+      }),
     ).toBe(true);
     expect(dragCarriesFiles({ types: [], items: items([{ kind: 'file', type: '' }]) })).toBe(true);
   });
@@ -281,7 +290,7 @@ describe('drag-in-flight predicates', () => {
       dragCarriesFiles({
         types: ['application/vnd.dockview.tab'],
         items: items([{ kind: 'string', type: 'application/vnd.dockview.tab' }]),
-      })
+      }),
     ).toBe(false);
     expect(dragCarriesFiles({ types: [], items: items([]) })).toBe(false);
     expect(dragCarriesFiles({ types: [], items: null })).toBe(false);
@@ -300,7 +309,10 @@ describe('drag-in-flight predicates', () => {
     });
 
     expect(
-      describeDragPayload({ types: ['Files'], items: items([{ kind: 'file', type: 'image/png' }]) })
+      describeDragPayload({
+        types: ['Files'],
+        items: items([{ kind: 'file', type: 'image/png' }]),
+      }),
     ).toMatchObject({ carriesFiles: true, imageOnly: true, itemKinds: ['file:image/png'] });
   });
 });

@@ -50,7 +50,7 @@ describe('MobileLandingHeader', () => {
 
     expect(rendered.querySelector('h1')?.textContent).toBe('Ori Studio');
     expect(rendered.querySelector('.welcome-mobile-header__tagline')?.textContent).toContain(
-      'origami'
+      'origami',
     );
   });
 
@@ -65,7 +65,7 @@ describe('MobileLandingHeader', () => {
     // number to two would turn a guard against creeping copy into a guard
     // against the number two.
     const prose = [...rendered.querySelectorAll('p')].filter(
-      (node) => !node.closest('.start-figure')
+      (node) => !node.closest('.start-figure'),
     );
     expect(prose).toHaveLength(1);
   });
@@ -83,16 +83,13 @@ describe('MobileLandingHeader', () => {
     expect(brand).not.toBeNull();
     expect(figure?.querySelector('.start-figure')).not.toBeNull();
     const figureFollowsBrand =
-      (brand?.compareDocumentPosition(figure as Node) ?? 0) &
-      Node.DOCUMENT_POSITION_FOLLOWING;
+      (brand?.compareDocumentPosition(figure as Node) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING;
     expect(figureFollowsBrand).toBeTruthy();
 
     // The *stage* is decorative and hides itself; the wrapper must not, or the
     // designer credit inside would be a focusable link a screen reader never
     // announces.
     expect(figure?.getAttribute('aria-hidden')).toBeNull();
-    expect(
-      figure?.querySelector('.start-figure__stage')?.getAttribute('aria-hidden')
-    ).toBe('true');
+    expect(figure?.querySelector('.start-figure__stage')?.getAttribute('aria-hidden')).toBe('true');
   });
 });

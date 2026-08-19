@@ -47,7 +47,7 @@ export function candidatePreviewGroups(
   fallback: Rgba,
   appearanceFor: CpLineAppearanceFor,
   foldAngle: { display: OristudioCpFoldAngleDisplay; anchor: Rgba },
-  armed: number | null = null
+  armed: number | null = null,
 ): PreviewStrokeGroup[] {
   if (segments.length === 0) return [];
   const inkFor = (segment: ToolPreviewSegment): Rgba =>
@@ -55,7 +55,7 @@ export function candidatePreviewGroups(
       ? foldAngleInk(
           appearanceFor(segment.crease.color).color,
           segment.crease.foldMagnitude,
-          foldAngle
+          foldAngle,
         )
       : fallback;
 

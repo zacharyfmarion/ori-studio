@@ -65,7 +65,15 @@ function cpSegments(cp: ExploriCp): Segment[] {
     const a = vertices[from];
     const b = vertices[to];
     if (!a || !b) continue;
-    segments.push({ type: String(lineType ?? '').trim().toLowerCase(), x1: a[0], y1: a[1], x2: b[0], y2: b[1] });
+    segments.push({
+      type: String(lineType ?? '')
+        .trim()
+        .toLowerCase(),
+      x1: a[0],
+      y1: a[1],
+      x2: b[0],
+      y2: b[1],
+    });
   }
   return segments;
 }
@@ -90,17 +98,23 @@ export function ExploriCpFigure({
   const project = useMemo(
     () =>
       projector(
-        boundsOf(segments.flatMap((s) => [[s.x1, s.y1] as [number, number], [s.x2, s.y2] as [number, number]])),
-        size
+        boundsOf(
+          segments.flatMap((s) => [
+            [s.x1, s.y1] as [number, number],
+            [s.x2, s.y2] as [number, number],
+          ]),
+        ),
+        size,
       ),
-    [segments, size]
+    [segments, size],
   );
   return (
     <svg viewBox={`0 0 ${size} ${size}`} className="explori-figure" role="presentation">
       {segments.map((segment, index) => {
         const [x1, y1] = project(segment.x1, segment.y1);
         const [x2, y2] = project(segment.x2, segment.y2);
-        const width = variant === 'packing' ? packingStrokeWidth(segment.type) : segment.type === 'h' ? 1 : 2;
+        const width =
+          variant === 'packing' ? packingStrokeWidth(segment.type) : segment.type === 'h' ? 1 : 2;
         return (
           <line
             key={index}
@@ -124,10 +138,7 @@ export function ExploriCpFigure({
 const LAYER_ALPHA = 0.1;
 
 export function ExploriFoldFigure({ fold, size }: { fold: ExploriFold; size: number }) {
-  const project = useMemo(
-    () => projector(boundsOf(fold.faces.flat()), size),
-    [fold, size]
-  );
+  const project = useMemo(() => projector(boundsOf(fold.faces.flat()), size), [fold, size]);
   return (
     <svg viewBox={`0 0 ${size} ${size}`} className="explori-figure" role="presentation">
       {fold.faces.map((face, index) => {
@@ -190,7 +201,7 @@ export function layoutExploriGraph(graph: ExploriGraph): Map<string, [number, nu
   // drawing reads best from — a leaf root would push everything into a fan.
   const root = [...adjacency.entries()].reduce(
     (best, entry) => (entry[1].length > (adjacency.get(best)?.length ?? 0) ? entry[0] : best),
-    String(graph.nodes[0].id)
+    String(graph.nodes[0].id),
   );
 
   // Children first, so a wedge can be sized by the leaves below it.
@@ -211,7 +222,7 @@ export function layoutExploriGraph(graph: ExploriGraph): Map<string, [number, nu
       id,
       children.length === 0
         ? 1
-        : children.reduce((sum, child) => sum + (leafCount.get(child.id) ?? 1), 0)
+        : children.reduce((sum, child) => sum + (leafCount.get(child.id) ?? 1), 0),
     );
   }
 
@@ -241,7 +252,7 @@ export function ExploriGraphFigure({ graph, size }: { graph: ExploriGraph; size:
   const positioned = useMemo(() => layoutExploriGraph(graph), [graph]);
   const project = useMemo(
     () => projector(boundsOf([...positioned.values()]), size),
-    [positioned, size]
+    [positioned, size],
   );
   if (positioned.size === 0) return null;
   return (

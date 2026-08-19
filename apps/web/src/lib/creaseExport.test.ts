@@ -206,7 +206,7 @@ describe('crease pattern export captions', () => {
     const svg = serializeCreasePatternSvg(
       fold,
       segments,
-      caption({ title: 'Crane', subtitle: 'Traditional', description: 'Folded from a square.' })
+      caption({ title: 'Crane', subtitle: 'Traditional', description: 'Folded from a square.' }),
     );
 
     expect(svg).toContain('>Crane</text>');
@@ -264,13 +264,13 @@ describe('folded figure placement', () => {
       fold,
       segments,
       { ...DEFAULT_CREASE_EXPORT_OPTIONS, includeFoldedFigure: true },
-      { foldedFigure: tallFigure() }
+      { foldedFigure: tallFigure() },
     );
     const layout = layoutCreaseExport(
       { title: '', subtitle: '', description: '' },
       artwork.palette,
       artwork.foldedBox,
-      artwork.inset
+      artwork.inset,
     );
 
     // The figure's box ends exactly where the crease pattern's drawing does.
@@ -324,7 +324,7 @@ describe('export layout', () => {
     expect(layout.width).toBeGreaterThan(layout.cp.width + layout.folded!.width);
   });
 
-  it('counts the pattern\'s own margin toward the gap under the caption', () => {
+  it("counts the pattern's own margin toward the gap under the caption", () => {
     const captioned = { ...emptyCaption, title: 'Crane' };
     const noInset = layoutCreaseExport(captioned, palette, null, { top: 0, bottom: 0 });
     const inset = layoutCreaseExport(captioned, palette, null, { top: 48, bottom: 48 });

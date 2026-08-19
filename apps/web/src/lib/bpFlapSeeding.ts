@@ -47,7 +47,7 @@ const NEW_FLAP_BOX = { width: 0, height: 0 };
 export function bpTreePointToLayoutPoint(
   point: Point,
   treeSheet: OristudioBpSheet,
-  layoutSheet: OristudioBpSheet
+  layoutSheet: OristudioBpSheet,
 ): Point {
   const from = bpPackingSheetFrame(treeSheet);
   const to = bpPackingSheetFrame(layoutSheet);
@@ -57,7 +57,7 @@ export function bpTreePointToLayoutPoint(
       x: Math.round((point.x * to.spanX) / from.spanX),
       y: Math.round((point.y * to.spanY) / from.spanY),
     },
-    layoutSheet
+    layoutSheet,
   );
 }
 
@@ -89,7 +89,7 @@ export function seedBpFlapAnchor(input: BpFlapSeedInput): Point {
   if (isBpFlapOnAxis(anchor, NEW_FLAP_BOX, center, axis)) return anchor;
   return constrainBpPackingPoint(
     projectBpFlapAnchorOntoAxis(anchor, NEW_FLAP_BOX, center, axis),
-    layoutSheet
+    layoutSheet,
   );
 }
 
@@ -110,7 +110,7 @@ export function seedBpFlapAnchor(input: BpFlapSeedInput): Point {
 export function seedBpPartnerFlapAnchor(
   primaryAnchor: Point,
   layoutSheet: OristudioBpSheet,
-  mirror: BpMirrorOrientation
+  mirror: BpMirrorOrientation,
 ): Point | null {
   const axis = bpPackingSymmetryAxis(layoutSheet, mirror);
   if (!bpPackingSheetSupportsAxis(layoutSheet, axis)) return null;

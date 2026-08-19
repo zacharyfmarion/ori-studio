@@ -23,11 +23,13 @@ function figure(kind: 'flat' | 'spatial'): OristudioCpFoldedFigureEntry {
     placement: IDENTITY_FOLDED_PLACEMENT,
     error: null,
   };
-  return (
-    kind === 'spatial'
-      ? { ...base, sourceKind: 'generated-3d', snapshot: null, folded3d: {} }
-      : { ...base, sourceKind: 'generated-from-current-cp', snapshot: {} }
-  ) as unknown as OristudioCpFoldedFigureEntry;
+  return (kind === 'spatial'
+    ? { ...base, sourceKind: 'generated-3d', snapshot: null, folded3d: {} }
+    : {
+        ...base,
+        sourceKind: 'generated-from-current-cp',
+        snapshot: {},
+      }) as unknown as OristudioCpFoldedFigureEntry;
 }
 
 describe('foldedAppearanceSupport', () => {
@@ -38,7 +40,7 @@ describe('foldedAppearanceSupport', () => {
     for (const option of FOLDED_APPEARANCE_OPTIONS) {
       for (const kind of ['flat', 'spatial'] as const) {
         expect(['supported', 'unsupported', 'not-applicable'], `${option}/${kind}`).toContain(
-          foldedAppearanceSupport(figure(kind), option)
+          foldedAppearanceSupport(figure(kind), option),
         );
       }
     }

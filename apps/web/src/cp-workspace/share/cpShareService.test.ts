@@ -23,11 +23,13 @@ afterEach(() => {
 
 describe('createCpShare', () => {
   it('posts the payload and returns the link', async () => {
-    const fetchSpy = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        jsonResponse({ id: 'a3bK9xmQ', url: 'https://ori.studio/s/a3bK9xmQ', thumbnailUploadToken: 'tok' })
-      );
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        id: 'a3bK9xmQ',
+        url: 'https://ori.studio/s/a3bK9xmQ',
+        thumbnailUploadToken: 'tok',
+      }),
+    );
 
     const result = await createCpShare({ payload: 'T0NTMQEB', title: 'Bird base', author: 'Zach' });
 
@@ -42,19 +44,23 @@ describe('createCpShare', () => {
 
   it('surfaces the Worker code so the toast can say something specific', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      jsonResponse({ error: 'Too many share links.', code: 'rate_limited' }, 429)
+      jsonResponse({ error: 'Too many share links.', code: 'rate_limited' }, 429),
     );
 
     // The code, not just the status, is what distinguishes "wait a few minutes" from
     // "this pattern is too big" — both are refusals the person can act on differently.
-    await expect(createCpShare({ payload: 'x', title: '', author: null }))
-      .rejects.toMatchObject({ status: 429, code: 'rate_limited' });
+    await expect(createCpShare({ payload: 'x', title: '', author: null })).rejects.toMatchObject({
+      status: 429,
+      code: 'rate_limited',
+    });
   });
 
   it('still throws a typed error when the body is not JSON', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('<html>502</html>', { status: 502 }));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('<html>502</html>', { status: 502 }),
+    );
     const error = await createCpShare({ payload: 'x', title: '', author: null }).catch(
-      (caught: unknown) => caught
+      (caught: unknown) => caught,
     );
     expect(error).toBeInstanceOf(CpShareError);
     expect((error as CpShareError).status).toBe(502);
@@ -65,14 +71,16 @@ describe('fetchCpShare', () => {
   it('encodes the id rather than interpolating it raw', async () => {
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(jsonResponse({ id: 'a', payload: 'p', title: '', author: null, createdAt: '' }));
+      .mockResolvedValue(
+        jsonResponse({ id: 'a', payload: 'p', title: '', author: null, createdAt: '' }),
+      );
     await fetchCpShare('../../etc');
     expect(String(fetchSpy.mock.calls[0][0])).toContain(encodeURIComponent('../../etc'));
   });
 
   it('throws with the not_found code for a missing share', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      jsonResponse({ error: 'gone', code: 'not_found' }, 404)
+      jsonResponse({ error: 'gone', code: 'not_found' }, 404),
     );
     await expect(fetchCpShare('a3bK9xmQ')).rejects.toMatchObject({ code: 'not_found' });
   });
@@ -92,11 +100,11 @@ describe('uploadCpShareThumbnail', () => {
 
   it('rejects on failure so the caller can log and move on', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      jsonResponse({ error: 'nope', code: 'conflict' }, 409)
+      jsonResponse({ error: 'nope', code: 'conflict' }, 409),
     );
-    await expect(
-      uploadCpShareThumbnail('a3bK9xmQ', new Blob([]), 'tok')
-    ).rejects.toBeInstanceOf(CpShareError);
+    await expect(uploadCpShareThumbnail('a3bK9xmQ', new Blob([]), 'tok')).rejects.toBeInstanceOf(
+      CpShareError,
+    );
   });
 });
 

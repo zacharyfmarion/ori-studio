@@ -27,7 +27,7 @@ import {
 export function fitImageModelSize(
   naturalWidth: number,
   naturalHeight: number,
-  targetModelExtent: number
+  targetModelExtent: number,
 ): { width: number; height: number } {
   const aspect = naturalWidth > 0 && naturalHeight > 0 ? naturalWidth / naturalHeight : 1;
   if (aspect >= 1) {
@@ -61,7 +61,7 @@ export interface CpImageCropResult extends AnnotationResizeResult {
 export function cropImage(
   image: CpImage,
   handle: AnnotationResizeHandle,
-  pointerModel: Vec2
+  pointerModel: Vec2,
 ): CpImageCropResult {
   const { sx, sy } = HANDLE_SIGNS[handle];
   const cos = Math.cos(image.rotation);
@@ -95,7 +95,8 @@ export function cropImage(
 
   if (sx !== 0) {
     cropW = densityX * width;
-    if (sx > 0) cropX = image.crop.x; // left edge anchored
+    if (sx > 0)
+      cropX = image.crop.x; // left edge anchored
     else cropX = image.crop.x + image.crop.w - cropW; // right edge anchored
     // Clamp within the source; keep density by re-deriving width from the crop.
     if (cropX < 0) {

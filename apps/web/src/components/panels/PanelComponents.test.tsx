@@ -21,8 +21,8 @@ describe('panelComponents', () => {
       // panes *inside* it, mounted by the active tab's own dock.
       'design-workspace',
       'diagnostics',
-    'explori-results',
-    'explori-tree',
+      'explori-results',
+      'explori-tree',
       'inspector',
       'sequence',
       'simulator',
@@ -33,7 +33,7 @@ describe('panelComponents', () => {
   it('wraps every panel in an error boundary', () => {
     for (const [id, Panel] of Object.entries(panelComponents)) {
       expect(Panel.displayName, `panel "${id}" is not wrapped in an error boundary`).toMatch(
-        new RegExp(`^${PANEL_BOUNDARY_DISPLAY_PREFIX}\\(`)
+        new RegExp(`^${PANEL_BOUNDARY_DISPLAY_PREFIX}\\(`),
       );
     }
   });

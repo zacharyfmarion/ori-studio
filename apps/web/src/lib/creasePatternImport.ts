@@ -1,4 +1,7 @@
-import { prepareFoldModel, type FoldDocument as SimulatorFoldDocument } from '@treemaker/origami-simulator';
+import {
+  prepareFoldModel,
+  type FoldDocument as SimulatorFoldDocument,
+} from '@treemaker/origami-simulator';
 import type { FoldAssignment, FoldArtifacts, FoldDocument } from '../engine/types';
 import { remapEdgeExtensionArrays } from './foldEdgeArrays';
 import type { CreaseLine, FacetShape, TreeProject } from './sampleProject';
@@ -98,7 +101,7 @@ export function importedCreasePatternFormat(filename: string): ImportedCreasePat
 
 export function parseImportedCreasePattern(
   text: string,
-  source: ImportedCreasePatternSource
+  source: ImportedCreasePatternSource,
 ): ImportedCreasePatternResult {
   if (source.format === 'ori' || source.format === 'orh') {
     throw new Error('Oriedita native files must be imported through the native Oriedita runtime');
@@ -116,7 +119,7 @@ export function parseImportedCreasePattern(
 // but without the stringify + re-parse of a potentially very large projection.
 export function parseImportedCreasePatternFromFold(
   fold: unknown,
-  source: ImportedCreasePatternSource
+  source: ImportedCreasePatternSource,
 ): ImportedCreasePatternResult {
   const diagnostics: ImportedCreasePatternDiagnostics = { warnings: [], errors: [] };
   const parsed = parseFoldValue(fold, source.filename, diagnostics);
@@ -126,12 +129,10 @@ export function parseImportedCreasePatternFromFold(
 function buildImportedCreasePatternResult(
   parsed: ParsedFoldSource,
   source: ImportedCreasePatternSource,
-  diagnostics: ImportedCreasePatternDiagnostics
+  diagnostics: ImportedCreasePatternDiagnostics,
 ): ImportedCreasePatternResult {
   const withTopology =
-    parsed.fold.faces_vertices.length > 0
-      ? parsed.fold
-      : inferTopology(parsed.fold, diagnostics);
+    parsed.fold.faces_vertices.length > 0 ? parsed.fold : inferTopology(parsed.fold, diagnostics);
   const lineOnly = withTopology.faces_vertices.length === 0;
   const project = projectFromFold(withTopology, parsed.title);
   const foldArtifacts = foldArtifactsFromFold(withTopology);
@@ -166,7 +167,7 @@ function buildImportedCreasePatternResult(
  */
 export function foldArtifactsFromFold(
   fold: FoldDocument,
-  diagnostics: ImportedCreasePatternDiagnostics = { warnings: [], errors: [] }
+  diagnostics: ImportedCreasePatternDiagnostics = { warnings: [], errors: [] },
 ): FoldArtifacts {
   const withTopology = fold.faces_vertices?.length ? fold : inferTopology(fold, diagnostics);
   const simulation = prepareSimulationFold(withTopology);
@@ -194,7 +195,7 @@ export function foldArtifactsFromFold(
  */
 export function segmentationFoldArtifactsFromFold(
   fold: FoldDocument,
-  diagnostics: ImportedCreasePatternDiagnostics = { warnings: [], errors: [] }
+  diagnostics: ImportedCreasePatternDiagnostics = { warnings: [], errors: [] },
 ): FoldArtifacts {
   return {
     fold: fold.faces_vertices?.length ? fold : inferTopology(fold, diagnostics),
@@ -208,7 +209,7 @@ export function segmentationFoldArtifactsFromFold(
 function parseCpText(
   text: string,
   filename: string,
-  diagnostics: ImportedCreasePatternDiagnostics
+  diagnostics: ImportedCreasePatternDiagnostics,
 ): {
   title: string;
   selectedFrame: null;
@@ -266,7 +267,7 @@ interface ParsedFoldSource {
 function parseFoldText(
   text: string,
   filename: string,
-  diagnostics: ImportedCreasePatternDiagnostics
+  diagnostics: ImportedCreasePatternDiagnostics,
 ): ParsedFoldSource {
   let parsed: unknown;
   try {
@@ -286,7 +287,7 @@ function parseFoldText(
 function parseFoldValue(
   parsed: unknown,
   filename: string,
-  diagnostics: ImportedCreasePatternDiagnostics
+  diagnostics: ImportedCreasePatternDiagnostics,
 ): ParsedFoldSource {
   if (!isRecord(parsed)) throw new Error('FOLD file must contain a JSON object');
 
@@ -338,8 +339,7 @@ function resolveFoldFrames(root: Record<string, unknown>): ResolvedFoldFrame[] {
     let frame = withoutFileFrames(raw);
     let inherited = false;
     const rawParent = numberField(raw.frame_parent);
-    const parent =
-      rawParent !== null && Number.isInteger(rawParent) ? rawParent : null;
+    const parent = rawParent !== null && Number.isInteger(rawParent) ? rawParent : null;
     if (
       index > 0 &&
       raw.frame_inherit === true &&
@@ -362,9 +362,11 @@ function resolveFoldFrames(root: Record<string, unknown>): ResolvedFoldFrame[] {
 }
 
 function chooseFoldFrame(frames: ResolvedFoldFrame[]): ResolvedFoldFrame | null {
-  return frames
-    .filter(({ frame }) => hasUsableFoldGeometry(frame))
-    .sort((a, b) => frameScore(b.frame) - frameScore(a.frame) || a.index - b.index)[0] ?? null;
+  return (
+    frames
+      .filter(({ frame }) => hasUsableFoldGeometry(frame))
+      .sort((a, b) => frameScore(b.frame) - frameScore(a.frame) || a.index - b.index)[0] ?? null
+  );
 }
 
 function foldFrameInfo(frame: ResolvedFoldFrame): ImportedFoldFrameInfo {
@@ -403,13 +405,15 @@ function frameScore(frame: Record<string, unknown>): number {
 }
 
 function hasUsableFoldGeometry(frame: Record<string, unknown>): boolean {
-  return arrayField(frame.vertices_coords).length > 0 && arrayField(frame.edges_vertices).length > 0;
+  return (
+    arrayField(frame.vertices_coords).length > 0 && arrayField(frame.edges_vertices).length > 0
+  );
 }
 
 function normalizeFoldObject(
   frame: Record<string, unknown>,
   title: string,
-  diagnostics: ImportedCreasePatternDiagnostics
+  diagnostics: ImportedCreasePatternDiagnostics,
 ): FoldDocument {
   // Dropping an entry from either list renumbers everything after it, and every
   // other array here points *into* those lists — by vertex index (edges, faces)
@@ -452,15 +456,16 @@ function normalizeFoldObject(
     .filter(Array.isArray)
     .map((face) => face.map((vertex) => vertexRemap.get(Number(vertex))))
     .filter(
-      (face): face is number[] =>
-        face.length >= 3 && face.every((vertex) => vertex !== undefined)
+      (face): face is number[] => face.length >= 3 && face.every((vertex) => vertex !== undefined),
     );
 
   if (rawCoords.length !== rawVertices.length) {
     diagnostics.warnings.push('Some FOLD vertices were ignored because they were invalid');
   }
   if (edges.length !== rawEdges.length) {
-    diagnostics.warnings.push('Some FOLD edges were ignored because they referenced invalid vertices');
+    diagnostics.warnings.push(
+      'Some FOLD edges were ignored because they referenced invalid vertices',
+    );
   }
 
   return completeFold({
@@ -478,7 +483,7 @@ function normalizeFoldObject(
     edges_foldAngle: normalizeFoldAngles(
       arrayField(frame.edges_foldAngle),
       assignments,
-      sourceEdgeIndices
+      sourceEdgeIndices,
     ),
     edges_faces: [],
     faces_vertices: faces,
@@ -508,7 +513,7 @@ function foldFromSegments(segments: RawSegment[], title: string): FoldDocument {
 
 function inferTopology(
   fold: FoldDocument,
-  diagnostics: ImportedCreasePatternDiagnostics
+  diagnostics: ImportedCreasePatternDiagnostics,
 ): FoldDocument {
   const segments = fold.edges_vertices.flatMap((edge, index): RawSegment[] => {
     const a = fold.vertices_coords[edge[0]];
@@ -585,7 +590,10 @@ function orientFacesConsistently(fold: FoldDocument): FoldDocument {
 // mountains fold as mountains and valleys as valleys against our winding.
 const SIMULATION_FOLD_ANGLE_SIGN = -1;
 
-function prepareSimulationFold(fold: FoldDocument): { fold: FoldDocument | null; error: string | null } {
+function prepareSimulationFold(fold: FoldDocument): {
+  fold: FoldDocument | null;
+  error: string | null;
+} {
   if (fold.faces_vertices.length === 0) {
     return { fold: null, error: 'Simulation requires inferred or imported faces' };
   }
@@ -597,7 +605,7 @@ function prepareSimulationFold(fold: FoldDocument): { fold: FoldDocument | null;
     }).fold as FoldDocument;
     const oriented = orientFacesConsistently(triangulated);
     oriented.edges_foldAngle = (oriented.edges_foldAngle ?? []).map((angle) =>
-      typeof angle === 'number' ? angle * SIMULATION_FOLD_ANGLE_SIGN : angle
+      typeof angle === 'number' ? angle * SIMULATION_FOLD_ANGLE_SIGN : angle,
     );
     const model = prepareFoldModel(oriented as SimulatorFoldDocument, { triangulate: false });
     return { fold: model.fold as FoldDocument, error: null };
@@ -705,7 +713,8 @@ function splitSegments(segments: NormalizedSegment[]): {
     .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
     .forEach(([key, assignment]) => {
       const [a, b] = key.split(':').map(Number);
-      if (a === undefined || b === undefined || !Number.isInteger(a) || !Number.isInteger(b)) return;
+      if (a === undefined || b === undefined || !Number.isInteger(a) || !Number.isInteger(b))
+        return;
       edges.push([a, b]);
       assignments.push(assignment);
       sources.push(edgeSources.get(key) ?? 0);
@@ -793,7 +802,7 @@ function collectIntersectionCuts(segments: NormalizedSegment[], cuts: number[][]
 
 function segmentIntersectionParams(
   a: NormalizedSegment | undefined,
-  b: NormalizedSegment | undefined
+  b: NormalizedSegment | undefined,
 ): { a: number[]; b: number[] } {
   if (!a || !b) return { a: [], b: [] };
   const p = a.a;
@@ -878,7 +887,7 @@ function normalizePoints(points: RawPoint[]): RawPoint[] {
       minY: Math.min(acc.minY, point.y),
       maxY: Math.max(acc.maxY, point.y),
     }),
-    { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity }
+    { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
   );
   const spanX = Math.max(EPSILON, bounds.maxX - bounds.minX);
   const spanY = Math.max(EPSILON, bounds.maxY - bounds.minY);
@@ -910,7 +919,7 @@ function statsFromFold(fold: FoldDocument): ImportedCreasePatternStats {
       boundaries: 0,
       flats: 0,
       unassigned: 0,
-    }
+    },
   );
 }
 
@@ -920,7 +929,7 @@ function completeFold(fold: FoldDocument): FoldDocument {
   // dropped and the mapping stops being 1:1.
   const assignments = normalizeAssignments(
     fold.edges_assignment ?? [],
-    fold.edges_vertices.map((_, index) => index)
+    fold.edges_vertices.map((_, index) => index),
   );
   return {
     ...fold,
@@ -946,7 +955,13 @@ function completeFold(fold: FoldDocument): FoldDocument {
 function normalizeAssignments(values: unknown[], sourceEdgeIndices: number[]): FoldAssignment[] {
   return sourceEdgeIndices.map((sourceIndex) => {
     const value = values[sourceIndex];
-    return value === 'B' || value === 'M' || value === 'V' || value === 'F' || value === 'U' || value === 'C' || value === 'J'
+    return value === 'B' ||
+      value === 'M' ||
+      value === 'V' ||
+      value === 'F' ||
+      value === 'U' ||
+      value === 'C' ||
+      value === 'J'
       ? value
       : 'U';
   });
@@ -956,11 +971,13 @@ function normalizeAssignments(values: unknown[], sourceEdgeIndices: number[]): F
 function normalizeFoldAngles(
   values: unknown[],
   assignments: FoldAssignment[],
-  sourceEdgeIndices: number[]
+  sourceEdgeIndices: number[],
 ): Array<number | null> {
   return assignments.map((assignment, index) => {
     const value = values[sourceEdgeIndices[index] ?? index];
-    return typeof value === 'number' && Number.isFinite(value) ? value : defaultFoldAngle(assignment);
+    return typeof value === 'number' && Number.isFinite(value)
+      ? value
+      : defaultFoldAngle(assignment);
   });
 }
 
@@ -993,7 +1010,10 @@ function kindName(assignment: FoldAssignment): CreaseLine['kind'] {
   return 'pseudohinge';
 }
 
-function mergeAssignment(current: FoldAssignment | undefined, next: FoldAssignment): FoldAssignment {
+function mergeAssignment(
+  current: FoldAssignment | undefined,
+  next: FoldAssignment,
+): FoldAssignment {
   if (!current || current === next) return next;
   if (current === 'U') return next;
   if (next === 'U') return current;
@@ -1013,7 +1033,9 @@ function arrayField(value: unknown): unknown[] {
 }
 
 function stringArrayField(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : [];
 }
 
 function stringField(value: unknown): string | null {
@@ -1029,7 +1051,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function coordToPoint(coord: number[]): RawPoint {
-  return { x: coord[0] ?? 0, y: coord.length === 2 ? (coord[1] ?? 0) : (coord[2] ?? coord[1] ?? 0) };
+  return {
+    x: coord[0] ?? 0,
+    y: coord.length === 2 ? (coord[1] ?? 0) : (coord[2] ?? coord[1] ?? 0),
+  };
 }
 
 function basenameWithoutExtension(filename: string): string {
@@ -1052,12 +1077,24 @@ function projectParam(segment: NormalizedSegment, point: RawPoint): number {
 }
 
 function uniqueSorted(values: number[]): number[] {
-  return [...new Set(values.filter(inUnit).map(clamp01).map((value) => Number(value.toFixed(10))))]
-    .sort((a, b) => a - b);
+  return [
+    ...new Set(
+      values
+        .filter(inUnit)
+        .map(clamp01)
+        .map((value) => Number(value.toFixed(10))),
+    ),
+  ].sort((a, b) => a - b);
 }
 
 function directedEdges(edges: [number, number][]): Array<[number, number]> {
-  return edges.flatMap(([a, b]) => [[a, b], [b, a]] as Array<[number, number]>);
+  return edges.flatMap(
+    ([a, b]) =>
+      [
+        [a, b],
+        [b, a],
+      ] as Array<[number, number]>,
+  );
 }
 
 function polygonArea(face: number[], vertices: RawPoint[]): number {

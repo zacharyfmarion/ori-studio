@@ -9,10 +9,7 @@ function entry(id: string): OristudioCpDiagnosticEntry {
   return { id, kind: 'CheckCamv', severity: 'error', message: id };
 }
 
-function result(
-  operation: string,
-  ids: string[]
-): OristudioCpCommandResult {
+function result(operation: string, ids: string[]): OristudioCpCommandResult {
   return {
     operation,
     status: 'OracleTested',
@@ -82,6 +79,8 @@ describe('visibleCpDiagnosticEntry', () => {
   it('returns null for a hidden or unknown id', () => {
     expect(visibleCpDiagnosticEntry(entries, 'check1-1')).toBeNull();
     expect(visibleCpDiagnosticEntry(entries, null)).toBeNull();
-    expect(visibleCpDiagnosticEntry(visibleCpDiagnosticEntries(camv, null, false), 'camv-1')).toBeNull();
+    expect(
+      visibleCpDiagnosticEntry(visibleCpDiagnosticEntries(camv, null, false), 'camv-1'),
+    ).toBeNull();
   });
 });

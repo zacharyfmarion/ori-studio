@@ -89,21 +89,21 @@ export function ShareLinkModal() {
       draft
         ? isFlatFoldableFold(
             draft.fold,
-            draft.segments.find((entry) => entry.id === draft.segmentId) ?? null
+            draft.segments.find((entry) => entry.id === draft.segmentId) ?? null,
           )
         : true,
-    [draft]
+    [draft],
   );
   const canFold = hasDocument && isFlat;
 
   const foldedSettings: CreaseExportFoldedFigureSettings = useMemo(
     () => ({ side, frontColor, backColor, foldCase: 1 }),
-    [side, frontColor, backColor]
+    [side, frontColor, backColor],
   );
 
   const foldFn = useCallback(
     (settings: CreaseExportFoldedFigureSettings) => foldShareFigure(settings),
-    [foldShareFigure]
+    [foldShareFigure],
   );
 
   const folded = useFoldedFigurePreview({
@@ -133,7 +133,7 @@ export function ShareLinkModal() {
         includeFoldedFigure: showFolded && folded.figure !== null,
         foldedFigure: foldedSettings,
       },
-      { foldedFigure: folded.figure, foldedFigureTransform: folded.transform }
+      { foldedFigure: folded.figure, foldedFigureTransform: folded.transform },
     );
     const page = composeCreaseExportSvg(artwork, EMPTY_CREASE_EXPORT_CAPTION);
     return { ...page, background: artwork.palette.canvas };
@@ -149,7 +149,7 @@ export function ShareLinkModal() {
 
   const previewSrc = useMemo(
     () => (card ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(card.svg)}` : null),
-    [card]
+    [card],
   );
 
   if (!draft || !card) return null;
@@ -253,7 +253,7 @@ export function ShareLinkModal() {
                   <small className="export-modal__hint">
                     {t(
                       'dialogs:share.foldedFigureNeedsFlat',
-                      'This preview folds flat only, and this pattern has creases that are not full folds'
+                      'This preview folds flat only, and this pattern has creases that are not full folds',
                     )}
                   </small>
                 )}
@@ -321,23 +321,23 @@ export function ShareLinkModal() {
             </span>
 
             <div className="share-embed">
-                <div
-                  className="share-embed__image"
-                  style={{
-                    aspectRatio: `${SHARE_CARD_WIDTH} / ${SHARE_CARD_HEIGHT}`,
-                    // `svgToPngCard` fills the whole canvas with this before drawing, so the
-                    // preview must letterbox against it too — against the app background it
-                    // would show a framing the published PNG never has.
-                    background: card.background,
-                  }}
-                >
-                  {previewSrc && (
-                    <img
-                      src={previewSrc}
-                      alt={t('dialogs:share.previewAlt', 'Preview of the shared crease pattern')}
-                    />
-                  )}
-                </div>
+              <div
+                className="share-embed__image"
+                style={{
+                  aspectRatio: `${SHARE_CARD_WIDTH} / ${SHARE_CARD_HEIGHT}`,
+                  // `svgToPngCard` fills the whole canvas with this before drawing, so the
+                  // preview must letterbox against it too — against the app background it
+                  // would show a framing the published PNG never has.
+                  background: card.background,
+                }}
+              >
+                {previewSrc && (
+                  <img
+                    src={previewSrc}
+                    alt={t('dialogs:share.previewAlt', 'Preview of the shared crease pattern')}
+                  />
+                )}
+              </div>
               <div className="share-embed__meta">
                 <div className="share-embed__title">{shareCardTitle(cardText)}</div>
                 <div className="share-embed__host">{shareHost}</div>
@@ -361,7 +361,11 @@ export function ShareLinkModal() {
                 onFocus={(event) => event.currentTarget.select()}
               />
               <Button variant="primary" onClick={() => void copy()}>
-                {justCopied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
+                {justCopied ? (
+                  <Check size={14} aria-hidden="true" />
+                ) : (
+                  <Copy size={14} aria-hidden="true" />
+                )}
                 {justCopied
                   ? t('dialogs:shareLink.copied', 'Copied')
                   : t('dialogs:shareLink.copy', 'Copy link')}
@@ -391,11 +395,11 @@ export function ShareLinkModal() {
           {url
             ? t(
                 'dialogs:share.scope',
-                'Anyone with this link opens their own editable copy — they cannot change your original. Links cannot be deleted or changed once created, and carry the crease pattern only: not reference images, annotations, or saved simulations.'
+                'Anyone with this link opens their own editable copy — they cannot change your original. Links cannot be deleted or changed once created, and carry the crease pattern only: not reference images, annotations, or saved simulations.',
               )
             : t(
                 'dialogs:share.scopeDraft',
-                'Set the title, author and figure first: a link is a permanent snapshot — it cannot be edited or deleted afterwards, so changes mean creating another one. Carries the crease pattern only — not reference images, annotations, or saved simulations.'
+                'Set the title, author and figure first: a link is a permanent snapshot — it cannot be edited or deleted afterwards, so changes mean creating another one. Carries the crease pattern only — not reference images, annotations, or saved simulations.',
               )}
         </p>
       </div>

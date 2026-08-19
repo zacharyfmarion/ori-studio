@@ -11,9 +11,7 @@ import {
 
 describe('oristudioCpToolSettings', () => {
   it('uses Oriedita exact-ratio defaults for line ratio division', () => {
-    const ratio = evaluateOrieditaRatioExpression(
-      DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS.divisionRatio
-    );
+    const ratio = evaluateOrieditaRatioExpression(DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS.divisionRatio);
 
     expect(ratio.ratioS).toBe(1);
     expect(ratio.ratioT).toBeCloseTo(Math.sqrt(2));
@@ -29,12 +27,9 @@ describe('oristudioCpToolSettings', () => {
   });
 
   it('builds ratio expressions from left and right halves', () => {
-    expect(
-      ratioExpressionFromHalves(
-        { a: 1, b: 0, c: 0 },
-        { a: 0, b: 1, c: 2 }
-      )
-    ).toEqual(DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS.divisionRatio);
+    expect(ratioExpressionFromHalves({ a: 1, b: 0, c: 0 }, { a: 0, b: 1, c: 2 })).toEqual(
+      DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS.divisionRatio,
+    );
   });
 
   it('maps operations to contextual option groups', () => {
@@ -46,28 +41,17 @@ describe('oristudioCpToolSettings', () => {
       'divide-mode',
       'division-ratio',
     ]);
-    expect(cpToolSettingGroupsForOperation('ReplaceLineTypeSelect')).toEqual([
-      'replace-line-type',
-    ]);
+    expect(cpToolSettingGroupsForOperation('ReplaceLineTypeSelect')).toEqual(['replace-line-type']);
     expect(cpToolSettingGroupsForOperation('FixInaccurate')).toEqual(['fix-precision']);
-    expect(cpToolSettingGroupsForOperation('VoronoiCreate')).toEqual([
-      'line-color',
-      'apply-lines',
-    ]);
-    expect(cpToolSettingGroupsForOperation('CircleChangeColor')).toEqual([
-      'custom-circle-color',
-    ]);
+    expect(cpToolSettingGroupsForOperation('VoronoiCreate')).toEqual(['line-color', 'apply-lines']);
+    expect(cpToolSettingGroupsForOperation('CircleChangeColor')).toEqual(['custom-circle-color']);
     expect(cpToolSettingGroupsForOperation('CircleDrawTangentLine')).toEqual([
       'line-color',
       'circle-select-help',
       'candidate-choice',
     ]);
-    expect(cpToolSettingGroupsForOperation('CircleDrawInverted')).toEqual([
-      'circle-select-help',
-    ]);
-    expect(cpToolSettingGroupsForOperation('CircleDrawConcentric')).toEqual([
-      'circle-select-help',
-    ]);
+    expect(cpToolSettingGroupsForOperation('CircleDrawInverted')).toEqual(['circle-select-help']);
+    expect(cpToolSettingGroupsForOperation('CircleDrawConcentric')).toEqual(['circle-select-help']);
     expect(cpToolSettingGroupsForOperation('CircleDrawConcentricSelect')).toEqual([
       'circle-select-help',
       'candidate-choice',
@@ -76,9 +60,7 @@ describe('oristudioCpToolSettings', () => {
       'circle-select-help',
     ]);
     expect(cpToolSettingGroupsForOperation('Text')).toEqual([]);
-    expect(cpToolSettingGroupsForOperation('DisplayLengthBetweenPoints1')).toEqual([
-      'measure',
-    ]);
+    expect(cpToolSettingGroupsForOperation('DisplayLengthBetweenPoints1')).toEqual(['measure']);
   });
 
   // Extend Line is one rail tool over two operations, and the panel follows the

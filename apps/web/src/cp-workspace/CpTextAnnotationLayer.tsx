@@ -23,7 +23,11 @@ import { CpTextEditor } from './CpTextEditor';
  */
 
 /** Screen-space rotation (radians) of the box's local +x axis under the camera. */
-function screenAngle(view: CpOverlayView, center: { x: number; y: number }, rotation: number): number {
+function screenAngle(
+  view: CpOverlayView,
+  center: { x: number; y: number },
+  rotation: number,
+): number {
   const origin = overlayModelToCss(view, center);
   const tip = overlayModelToCss(view, {
     x: center.x + Math.cos(rotation),

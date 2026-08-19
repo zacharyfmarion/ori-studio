@@ -25,9 +25,7 @@ const at = (scale: number) => (px: number) => px / scale;
 
 describe('counter-scaled chrome', () => {
   it('scales a dash pattern with the camera', () => {
-    const root = scene(
-      `<line ${TREE_CHROME_ATTR.dash}="6 6" ${TREE_CHROME_ATTR.stroke}="3" />`
-    );
+    const root = scene(`<line ${TREE_CHROME_ATTR.dash}="6 6" ${TREE_CHROME_ATTR.stroke}="3" />`);
     const targets = collectTreeChromeTargets(root);
     applyTreeChromeScale(targets, at(0.25));
 
@@ -40,9 +38,7 @@ describe('counter-scaled chrome', () => {
     // The regression itself. `stroke-dasharray` is in user units, so a pattern
     // left in the stylesheet stays put while the width around it grows on
     // zoom-out; past roughly 1:2 the dashes are wider than they are long.
-    const root = scene(
-      `<line ${TREE_CHROME_ATTR.dash}="6 6" ${TREE_CHROME_ATTR.stroke}="3" />`
-    );
+    const root = scene(`<line ${TREE_CHROME_ATTR.dash}="6 6" ${TREE_CHROME_ATTR.stroke}="3" />`);
     const targets = collectTreeChromeTargets(root);
     const line = root.querySelector('line');
 
@@ -63,7 +59,7 @@ describe('counter-scaled chrome', () => {
     applyTreeChromeScale(collectTreeChromeTargets(root), chromePx);
 
     expect(root.querySelector('line')?.style.strokeDasharray).toBe(
-      treeChromeDash([2, 6], chromePx)
+      treeChromeDash([2, 6], chromePx),
     );
   });
 

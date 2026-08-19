@@ -68,9 +68,7 @@ export function normalizeCpLineage(value: unknown): OristudioCpLineage {
   };
 }
 
-export function markCpLineageEdited(
-  lineage: OristudioCpLineage | null
-): OristudioCpLineage | null {
+export function markCpLineageEdited(lineage: OristudioCpLineage | null): OristudioCpLineage | null {
   if (!lineage) return lineage;
   return {
     ...lineage,
@@ -79,7 +77,7 @@ export function markCpLineageEdited(
 }
 
 export function markGeneratedCpLineageStale(
-  lineage: OristudioCpLineage | null
+  lineage: OristudioCpLineage | null,
 ): OristudioCpLineage | null {
   if (!lineage || lineage.kind !== 'generated-from-tree') return lineage;
   return {

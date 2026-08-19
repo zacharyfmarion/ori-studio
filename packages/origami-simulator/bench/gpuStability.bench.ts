@@ -68,50 +68,61 @@ describe('solver long-run stability', () => {
 
       await page.goto(`${base}bench/gpuParityHarness/index.html`, { waitUntil: 'networkidle' });
       await page.waitForFunction(
-        () => typeof (window as unknown as { runStabilitySweep?: unknown }).runStabilitySweep === 'function',
+        () =>
+          typeof (window as unknown as { runStabilitySweep?: unknown }).runStabilitySweep ===
+          'function',
         undefined,
-        { timeout: 30_000 }
+        { timeout: 30_000 },
       );
 
       const extraFolds: Record<string, unknown> = {};
       for (const name of REAL_FOLD_FIXTURES) {
         extraFolds[name] = JSON.parse(
-          readFileSync(resolve(HARNESS_ROOT, `../fixtures/${name}.fold`), 'utf8')
+          readFileSync(resolve(HARNESS_ROOT, `../fixtures/${name}.fold`), 'utf8'),
         );
       }
 
       const allRows: StabilityRow[] = [];
       for (const scale of TIME_STEP_SCALES) {
-      for (const integrator of INTEGRATORS) {
-      const rows = (await page.evaluate(
-        ([fixtures, totalSteps, chunk, strainLimit, folds, ts, ff, it]) =>
-          (
-            window as unknown as {
-              runStabilitySweep: (
-                f: string[],
-                t: number,
-                c: number,
-                s: number,
-                x: Record<string, unknown>,
-                ts: number,
-                ff: number,
-                it: 'euler' | 'verlet'
-              ) => StabilityRow[];
-            }
-          ).runStabilitySweep(
-            fixtures as string[],
-            totalSteps as number,
-            chunk as number,
-            strainLimit as number,
-            folds as Record<string, unknown>,
-            ts as number,
-            ff as number,
-            it as 'euler' | 'verlet'
-          ),
-        [FIXTURES_TO_SWEEP, TOTAL_STEPS, CHUNK, STRAIN_LIMIT, extraFolds, scale, FINE_FROM, integrator] as const
-      )) as StabilityRow[];
-      allRows.push(...rows);
-      }
+        for (const integrator of INTEGRATORS) {
+          const rows = (await page.evaluate(
+            ([fixtures, totalSteps, chunk, strainLimit, folds, ts, ff, it]) =>
+              (
+                window as unknown as {
+                  runStabilitySweep: (
+                    f: string[],
+                    t: number,
+                    c: number,
+                    s: number,
+                    x: Record<string, unknown>,
+                    ts: number,
+                    ff: number,
+                    it: 'euler' | 'verlet',
+                  ) => StabilityRow[];
+                }
+              ).runStabilitySweep(
+                fixtures as string[],
+                totalSteps as number,
+                chunk as number,
+                strainLimit as number,
+                folds as Record<string, unknown>,
+                ts as number,
+                ff as number,
+                it as 'euler' | 'verlet',
+              ),
+            [
+              FIXTURES_TO_SWEEP,
+              TOTAL_STEPS,
+              CHUNK,
+              STRAIN_LIMIT,
+              extraFolds,
+              scale,
+              FINE_FROM,
+              integrator,
+            ] as const,
+          )) as StabilityRow[];
+          allRows.push(...rows);
+        }
       }
       const rows = allRows;
 
@@ -123,7 +134,7 @@ describe('solver long-run stability', () => {
               ? `stable through ${row.steps} steps (max strain ${row.maxStrainSeen.toExponential(2)})`
               : `UNSTABLE at step ${row.firstBadStep} (fold ${row.firstBadFoldPercent?.toFixed(1)}%, ` +
                 `${row.firstBadKind}, max strain ${row.maxStrainSeen.toExponential(2)}, ` +
-                `bad=${row.firstBadTexture ?? 'n/a'}@${row.firstBadTextureStep ?? '-'} maxPos=${row.maxAbsPositionAtFailure?.toExponential(2) ?? '-'})`)
+                `bad=${row.firstBadTexture ?? 'n/a'}@${row.firstBadTextureStep ?? '-'} maxPos=${row.maxAbsPositionAtFailure?.toExponential(2) ?? '-'})`),
       );
       process.stdout.write(`\n${lines.join('\n')}\n\n`);
       if (pageErrors.length) process.stdout.write(`page errors:\n${pageErrors.join('\n')}\n\n`);

@@ -581,7 +581,12 @@ export interface CandidateSelection {
 
 export interface SelectionSpan {
   id: number;
-  kind: 'atomic_interval' | 'observed_carrier_span' | 'normalized_pass_through_span' | 'shared_carrier_span' | string;
+  kind:
+    | 'atomic_interval'
+    | 'observed_carrier_span'
+    | 'normalized_pass_through_span'
+    | 'shared_carrier_span'
+    | string;
   carrier_id: number;
   vertices: [number, number];
   endpoint_points?: [{ x: number; y: number }, { x: number; y: number }] | null;
@@ -748,7 +753,16 @@ export interface CandidateDecisionRecord {
   source_kind: string;
   selection_policy: string;
   decision: 'selected' | 'rejected' | 'undecided' | 'not_considered' | string;
-  reason_category: 'selected' | 'locked' | 'available' | 'conflict' | 'dominated' | 'policy' | 'cost' | 'not_considered' | string;
+  reason_category:
+    | 'selected'
+    | 'locked'
+    | 'available'
+    | 'conflict'
+    | 'dominated'
+    | 'policy'
+    | 'cost'
+    | 'not_considered'
+    | string;
   score: number;
   score_breakdown?: SelectionScoreBreakdown | null;
   line_support_min: number;

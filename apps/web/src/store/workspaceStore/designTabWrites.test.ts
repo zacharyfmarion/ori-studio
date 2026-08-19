@@ -47,7 +47,11 @@ function sourceFiles(dir: string): string[] {
 function setCallBodies(source: string): { body: string; line: number }[] {
   const bodies: { body: string; line: number }[] = [];
   const opener = 'set({';
-  for (let start = source.indexOf(opener); start !== -1; start = source.indexOf(opener, start + 1)) {
+  for (
+    let start = source.indexOf(opener);
+    start !== -1;
+    start = source.indexOf(opener, start + 1)
+  ) {
     let depth = 0;
     let index = start + opener.length - 1;
     const open = index;
@@ -127,7 +131,7 @@ describe('per-design fields have no flat remnants', () => {
     expect(
       leftovers,
       'These live on the active design tab now. A top-level copy is dead state the ' +
-        'compiler will not flag — read them with selectProject / selectSelection / etc.'
+        'compiler will not flag — read them with selectProject / selectSelection / etc.',
     ).toEqual([]);
   });
 
@@ -156,7 +160,7 @@ describe('design-tab writes', () => {
         // Counts occurrences, not distinct helpers: two calls to the *same*
         // writer in one set() collide exactly as two different ones do.
         const writers = DESIGN_TAB_WRITERS.flatMap((writer) =>
-          Array.from({ length: body.split(writer).length - 1 }, () => writer)
+          Array.from({ length: body.split(writer).length - 1 }, () => writer),
         );
         if (writers.length > 1) {
           collisions.push(`${file.replace(STORE_DIR, '.')}:${line} → ${writers.join(' + ')}`);
@@ -167,7 +171,7 @@ describe('design-tab writes', () => {
       collisions,
       'Two design-tab writers in one set() — the later spread silently discards the earlier. ' +
         'Fold the per-design fields into a single call (projectStateFromSnapshot takes a ' +
-        '`design` argument for exactly this).'
+        '`design` argument for exactly this).',
     ).toEqual([]);
   });
 });

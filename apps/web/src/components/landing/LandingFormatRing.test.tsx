@@ -30,7 +30,7 @@ function scrollIntoView(isIntersecting: boolean) {
     for (const { callback, target } of observers) {
       callback(
         [{ target, isIntersecting } as IntersectionObserverEntry],
-        {} as IntersectionObserver
+        {} as IntersectionObserver,
       );
     }
   });
@@ -52,7 +52,7 @@ function lengthOf(line: Element): number {
 
 function extensionsWith(direction: string): string[] {
   return RING_FORMATS.filter((format) => format.direction === direction).map(
-    (format) => format.extension
+    (format) => format.extension,
   );
 }
 
@@ -97,12 +97,12 @@ describe('LandingFormatRing', () => {
   it('keeps the native project format out of the orbit and in the hub', () => {
     const rendered = renderRing();
     const orbit = Array.from(
-      rendered.querySelectorAll('.landing-ring__slot .landing-file__ext')
+      rendered.querySelectorAll('.landing-ring__slot .landing-file__ext'),
     ).map((file) => file.textContent);
 
     expect(orbit).not.toContain(`.${NATIVE_PROJECT_EXTENSION}`);
     expect(rendered.querySelector('.landing-ring__hub .landing-file__ext')?.textContent).toBe(
-      `.${NATIVE_PROJECT_EXTENSION}`
+      `.${NATIVE_PROJECT_EXTENSION}`,
     );
   });
 
@@ -123,8 +123,8 @@ describe('LandingFormatRing', () => {
     const groups = Array.from(rendered.querySelectorAll('.landing-ring__wires g'));
 
     RING_FORMATS.forEach(({ direction }, index) => {
-      const flows = Array.from(groups[index].querySelectorAll('.landing-ring__flow')).map(
-        (flow) => flow.getAttribute('data-way')
+      const flows = Array.from(groups[index].querySelectorAll('.landing-ring__flow')).map((flow) =>
+        flow.getAttribute('data-way'),
       );
       if (direction === 'both') expect(flows.sort()).toEqual(['in', 'out']);
       if (direction === 'import') expect(flows).toEqual(['in']);
@@ -156,7 +156,7 @@ describe('LandingFormatRing', () => {
       // every cycle, which reads as a broken animation rather than a subtle one.
       expect(Number.parseFloat(declared)).toBeCloseTo(
         lengthOf(group.querySelector('.landing-ring__flow')!),
-        1
+        1,
       );
       // `px` rather than a bare number, so the `calc()` in the stylesheet is
       // given a real length; a unitless one is discarded by stricter engines and
@@ -181,10 +181,12 @@ describe('LandingFormatRing', () => {
   it('states the direction in text, since the arrows are decorative', () => {
     const rendered = renderRing();
     const spoken = Array.from(rendered.querySelectorAll('.landing-file__direction')).map(
-      (label) => label.textContent
+      (label) => label.textContent,
     );
 
-    expect(rendered.querySelector('.landing-ring__wires')?.getAttribute('aria-hidden')).toBe('true');
+    expect(rendered.querySelector('.landing-ring__wires')?.getAttribute('aria-hidden')).toBe(
+      'true',
+    );
     expect(spoken).toHaveLength(RING_FORMATS.length);
     expect(spoken).toContain('opens and exports');
     expect(spoken).toContain('exports only');
@@ -201,14 +203,14 @@ describe('LandingFormatRing', () => {
     expect(ring?.style.getPropertyValue('--ring-count')).toBe(String(RING_FORMATS.length));
     expect(slots).toHaveLength(RING_FORMATS.length);
     expect(slots.map((slot) => slot.style.getPropertyValue('--slot'))).toEqual(
-      RING_FORMATS.map((_, index) => String(index))
+      RING_FORMATS.map((_, index) => String(index)),
     );
   });
 
   it('names the list for anyone who cannot see the arrangement', () => {
     const rendered = renderRing();
     expect(rendered.querySelector('.landing-ring__orbit')?.getAttribute('aria-label')).toBe(
-      'Supported file formats'
+      'Supported file formats',
     );
   });
 });

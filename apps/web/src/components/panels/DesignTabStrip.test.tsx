@@ -17,9 +17,8 @@ vi.mock('../../engines/designHandles', () => ({
 }));
 
 const { useWorkspaceStore } = await import('../../store/workspaceStore');
-const { DEFAULT_DESIGN_TITLE, resetDesignTabIds } = await import(
-  '../../store/workspaceStore/designTabs'
-);
+const { DEFAULT_DESIGN_TITLE, resetDesignTabIds } =
+  await import('../../store/workspaceStore/designTabs');
 const { TooltipProvider } = await import('../ui/Tooltip');
 const { DesignTabStrip } = await import('./DesignTabStrip');
 
@@ -52,7 +51,7 @@ function render() {
     root?.render(
       <TooltipProvider delayDuration={0}>
         <DesignTabStrip />
-      </TooltipProvider>
+      </TooltipProvider>,
     );
   });
 }
@@ -75,7 +74,7 @@ const tabEls = () => Array.from(document.querySelectorAll<HTMLElement>('[data-de
 const triggers = () => Array.from(document.querySelectorAll<HTMLElement>('[role="tab"]'));
 const tabTitles = () =>
   Array.from(document.querySelectorAll<HTMLElement>('.design-tab__title')).map(
-    (element) => element.textContent
+    (element) => element.textContent,
   );
 
 function click(element: Element) {
@@ -190,10 +189,7 @@ describe('inline rename', () => {
 
   function type(input: HTMLInputElement, value: string) {
     act(() => {
-      const setter = Object.getOwnPropertyDescriptor(
-        HTMLInputElement.prototype,
-        'value'
-      )?.set;
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
       setter?.call(input, value);
       input.dispatchEvent(new Event('input', { bubbles: true }));
     });
@@ -341,7 +337,7 @@ describe('the tab hit area', () => {
   const here = dirname(new URL(import.meta.url).pathname);
   const themeCss = readFileSync(join(here, '../../styles/theme.css'), 'utf8').replace(
     /\/\*[\s\S]*?\*\//g,
-    ''
+    '',
   );
 
   /** The declaration block of the rule whose selector is exactly `selector`. */
@@ -377,7 +373,7 @@ describe('context menu', () => {
   function openMenu(index = 0) {
     act(() => {
       tabEls()[index].dispatchEvent(
-        new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 })
+        new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 }),
       );
     });
     return Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]'));

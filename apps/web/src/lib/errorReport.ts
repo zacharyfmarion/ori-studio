@@ -192,8 +192,10 @@ export function buildErrorReport(input: ErrorReportInput): string {
     blocks.push(
       section(
         'Component stack',
-        ['```', clampLines(redactPaths(componentStack), MAX_COMPONENT_STACK_LINES), '```'].join('\n')
-      )
+        ['```', clampLines(redactPaths(componentStack), MAX_COMPONENT_STACK_LINES), '```'].join(
+          '\n',
+        ),
+      ),
     );
   }
 

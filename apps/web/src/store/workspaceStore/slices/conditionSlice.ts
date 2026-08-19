@@ -1,29 +1,18 @@
-import {
-  patchTreemakerDesign,
-  selectProject,
-  selectSelection,
-} from "../designTabs";
-import type { ConditionKind, TreeSnapshot } from "../../../engine/types";
-import { projectFromSnapshot } from "../../../engine/snapshotMapper";
-import {
-  selectedEdgeIds,
-  selectedNodeIds,
-  selectedPathIds,
-} from "../../../lib/selection";
-import { markGeneratedCpLineageStale } from "../../../lib/oristudioCpLineage";
+import { patchTreemakerDesign, selectProject, selectSelection } from '../designTabs';
+import type { ConditionKind, TreeSnapshot } from '../../../engine/types';
+import { projectFromSnapshot } from '../../../engine/snapshotMapper';
+import { selectedEdgeIds, selectedNodeIds, selectedPathIds } from '../../../lib/selection';
+import { markGeneratedCpLineageStale } from '../../../lib/oristudioCpLineage';
 import {
   engineError,
   ensureTreeHandle,
   syncTreemakerProject,
   statusAfterEdit,
-} from "../engineRuntime";
-import { staleFoldArtifactResourceState } from "../foldArtifactResource";
-import type { ConditionSlice, WorkspaceSliceCreator } from "../types";
+} from '../engineRuntime';
+import { staleFoldArtifactResourceState } from '../foldArtifactResource';
+import type { ConditionSlice, WorkspaceSliceCreator } from '../types';
 
-export const createConditionSlice: WorkspaceSliceCreator<ConditionSlice> = (
-  set,
-  get,
-) => {
+export const createConditionSlice: WorkspaceSliceCreator<ConditionSlice> = (set, get) => {
   function staleTreeDerivedArtifacts() {
     return {
       ...staleFoldArtifactResourceState(get().foldArtifactRevision),
@@ -35,8 +24,8 @@ export const createConditionSlice: WorkspaceSliceCreator<ConditionSlice> = (
     if (!get().importedCreasePattern) return false;
     set({
       error: {
-        code: "invalid_operation",
-        message: "Conditions require an editable tree document",
+        code: 'invalid_operation',
+        message: 'Conditions require an editable tree document',
       },
     });
     return true;
@@ -44,16 +33,16 @@ export const createConditionSlice: WorkspaceSliceCreator<ConditionSlice> = (
 
   async function applyConditionEdit(
     edit:
-      | { type: "update_paper"; width: number; height: number }
+      | { type: 'update_paper'; width: number; height: number }
       | {
-          type: "set_symmetry";
+          type: 'set_symmetry';
           has_symmetry: boolean;
           sym_loc?: { x: number; y: number };
           sym_angle?: number;
         }
-      | { type: "add_condition"; kind: ConditionKind }
-      | { type: "update_condition"; id: number; kind: ConditionKind }
-      | { type: "delete_condition"; id: number },
+      | { type: 'add_condition'; kind: ConditionKind }
+      | { type: 'update_condition'; id: number; kind: ConditionKind }
+      | { type: 'delete_condition'; id: number },
     label: string,
   ) {
     if (rejectReadOnly()) return;
@@ -62,21 +51,12 @@ export const createConditionSlice: WorkspaceSliceCreator<ConditionSlice> = (
     try {
       const { api, treeHandle, initializedSnapshot } = await ensureTreeHandle();
       if (initializedSnapshot) {
-        set(
-          syncTreemakerProject(
-            get(),
-            initializedSnapshot,
-            selectProject(get()).title,
-          ),
-        );
+        set(syncTreemakerProject(get(), initializedSnapshot, selectProject(get()).title));
       }
       const report = await api.applyEdit(treeHandle, edit);
       set({
         ...patchTreemakerDesign(get(), {
-          project: projectFromSnapshot(
-            report.snapshot,
-            selectProject(get()).title,
-          ),
+          project: projectFromSnapshot(report.snapshot, selectProject(get()).title),
           lastOptimization: null,
         }),
         status: statusAfterEdit(report.snapshot),
@@ -87,7 +67,7 @@ export const createConditionSlice: WorkspaceSliceCreator<ConditionSlice> = (
       });
       get().commitHistoryCheckpoint(checkpoint, label);
     } catch (error) {
-      set({ status: "error", error: engineError(error) });
+      set({ status: 'error', error: engineError(error) });
     }
   }
 
@@ -95,7 +75,7 @@ export const createConditionSlice: WorkspaceSliceCreator<ConditionSlice> = (
     if (rejectReadOnly()) return;
     const sortedIds = Array.from(new Set(ids)).sort((a, b) => b - a);
     if (sortedIds.length === 0) {
-      set({ projectMessage: "No matching conditions" });
+      set({ projectMessage: 'No matching conditions' });
       return;
     }
     set({ error: null });
@@ -105,7 +85,7 @@ export const createConditionSlice: WorkspaceSliceCreator<ConditionSlice> = (
       let snapshot: TreeSnapshot | null = null;
       for (const id of sortedIds) {
         const report = await api.applyEdit(treeHandle, {
-          type: "delete_condition",
+          type: 'delete_condition',
           id,
         });
         snapshot = report.snapshot;
@@ -114,7 +94,7 @@ export const createConditionSlice: WorkspaceSliceCreator<ConditionSlice> = (
       set({
         ...patchTreemakerDesign(get(), {
           project: projectFromSnapshot(snapshot, selectProject(get()).title),
-          selection: { kind: "tree" },
+          selection: { kind: 'tree' },
           lastOptimization: null,
         }),
         status: statusAfterEdit(snapshot),
@@ -125,7 +105,7 @@ export const createConditionSlice: WorkspaceSliceCreator<ConditionSlice> = (
       });
       get().commitHistoryCheckpoint(checkpoint, label);
     } catch (error) {
-      set({ status: "error", error: engineError(error) });
+      set({ status: 'error', error: engineError(error) });
     }
   }
 
@@ -133,58 +113,45 @@ export const createConditionSlice: WorkspaceSliceCreator<ConditionSlice> = (
     return a < b ? `${a}:${b}` : `${b}:${a}`;
   }
 
-  function conditionRefsNode(
-    kind: ConditionKind,
-    nodeIds: Set<number>,
-  ): boolean {
+  function conditionRefsNode(kind: ConditionKind, nodeIds: Set<number>): boolean {
     switch (kind.type) {
-      case "node_combo":
-      case "node_fixed":
-      case "node_on_corner":
-      case "node_on_edge":
-      case "node_symmetric":
+      case 'node_combo':
+      case 'node_fixed':
+      case 'node_on_corner':
+      case 'node_on_edge':
+      case 'node_symmetric':
         return nodeIds.has(kind.node);
-      case "nodes_paired":
-      case "path_active":
-      case "path_angle_fixed":
-      case "path_angle_quant":
-      case "path_combo":
+      case 'nodes_paired':
+      case 'path_active':
+      case 'path_angle_fixed':
+      case 'path_angle_quant':
+      case 'path_combo':
         return nodeIds.has(kind.node1) || nodeIds.has(kind.node2);
-      case "nodes_collinear":
-        return (
-          nodeIds.has(kind.node1) ||
-          nodeIds.has(kind.node2) ||
-          nodeIds.has(kind.node3)
-        );
-      case "edge_length_fixed":
-      case "edges_same_strain":
+      case 'nodes_collinear':
+        return nodeIds.has(kind.node1) || nodeIds.has(kind.node2) || nodeIds.has(kind.node3);
+      case 'edge_length_fixed':
+      case 'edges_same_strain':
         return false;
     }
   }
 
-  function conditionRefsEdge(
-    kind: ConditionKind,
-    edgeIds: Set<number>,
-  ): boolean {
+  function conditionRefsEdge(kind: ConditionKind, edgeIds: Set<number>): boolean {
     switch (kind.type) {
-      case "edge_length_fixed":
+      case 'edge_length_fixed':
         return edgeIds.has(kind.edge);
-      case "edges_same_strain":
+      case 'edges_same_strain':
         return edgeIds.has(kind.edge1) || edgeIds.has(kind.edge2);
       default:
         return false;
     }
   }
 
-  function conditionRefsPath(
-    kind: ConditionKind,
-    pathKeys: Set<string>,
-  ): boolean {
+  function conditionRefsPath(kind: ConditionKind, pathKeys: Set<string>): boolean {
     switch (kind.type) {
-      case "path_active":
-      case "path_angle_fixed":
-      case "path_angle_quant":
-      case "path_combo":
+      case 'path_active':
+      case 'path_angle_fixed':
+      case 'path_angle_quant':
+      case 'path_combo':
         return pathKeys.has(pathKey(kind.node1, kind.node2));
       default:
         return false;
@@ -195,64 +162,48 @@ export const createConditionSlice: WorkspaceSliceCreator<ConditionSlice> = (
     updatePaper: async (update) => {
       const width = update.width ?? selectProject(get()).paper.width;
       const height = update.height ?? selectProject(get()).paper.height;
-      await applyConditionEdit(
-        { type: "update_paper", width, height },
-        "Updated paper",
-      );
+      await applyConditionEdit({ type: 'update_paper', width, height }, 'Updated paper');
     },
 
     setSymmetry: async (update) => {
       const project = selectProject(get());
       await applyConditionEdit(
         {
-          type: "set_symmetry",
+          type: 'set_symmetry',
           has_symmetry: update.hasSymmetry ?? project.hasSymmetry,
           sym_loc: update.symLoc ?? project.paper.symLoc,
           sym_angle: update.symAngle ?? project.paper.symAngle,
         },
-        "Updated symmetry",
+        'Updated symmetry',
       );
     },
 
     addCondition: async (kind) => {
-      await applyConditionEdit(
-        { type: "add_condition", kind },
-        "Added condition",
-      );
+      await applyConditionEdit({ type: 'add_condition', kind }, 'Added condition');
     },
 
     updateCondition: async (id, kind) => {
-      await applyConditionEdit(
-        { type: "update_condition", id, kind },
-        "Updated condition",
-      );
+      await applyConditionEdit({ type: 'update_condition', id, kind }, 'Updated condition');
     },
 
     deleteCondition: async (id) => {
-      await applyConditionEdit(
-        { type: "delete_condition", id },
-        "Removed condition",
-      );
+      await applyConditionEdit({ type: 'delete_condition', id }, 'Removed condition');
     },
 
     deleteConditionsForSelectedNodes: async () => {
       const nodeIds = new Set(selectedNodeIds(selectSelection(get())));
       const ids = selectProject(get())
-        .conditions.filter((condition) =>
-          conditionRefsNode(condition.kind, nodeIds),
-        )
+        .conditions.filter((condition) => conditionRefsNode(condition.kind, nodeIds))
         .map((condition) => condition.id);
-      await deleteConditionIds(ids, "Removed selected node conditions");
+      await deleteConditionIds(ids, 'Removed selected node conditions');
     },
 
     deleteConditionsForSelectedEdges: async () => {
       const edgeIds = new Set(selectedEdgeIds(selectSelection(get())));
       const ids = selectProject(get())
-        .conditions.filter((condition) =>
-          conditionRefsEdge(condition.kind, edgeIds),
-        )
+        .conditions.filter((condition) => conditionRefsEdge(condition.kind, edgeIds))
         .map((condition) => condition.id);
-      await deleteConditionIds(ids, "Removed selected edge conditions");
+      await deleteConditionIds(ids, 'Removed selected edge conditions');
     },
 
     deleteConditionsForSelectedPaths: async () => {
@@ -263,18 +214,14 @@ export const createConditionSlice: WorkspaceSliceCreator<ConditionSlice> = (
           .map((path) => pathKey(path.nodes[0], path.nodes[1])),
       );
       const ids = selectProject(get())
-        .conditions.filter((condition) =>
-          conditionRefsPath(condition.kind, pathKeys),
-        )
+        .conditions.filter((condition) => conditionRefsPath(condition.kind, pathKeys))
         .map((condition) => condition.id);
-      await deleteConditionIds(ids, "Removed selected path conditions");
+      await deleteConditionIds(ids, 'Removed selected path conditions');
     },
 
     clearConditions: async () => {
-      const ids = selectProject(get()).conditions.map(
-        (condition) => condition.id,
-      );
-      await deleteConditionIds(ids, "Cleared conditions");
+      const ids = selectProject(get()).conditions.map((condition) => condition.id);
+      await deleteConditionIds(ids, 'Cleared conditions');
     },
   };
 };

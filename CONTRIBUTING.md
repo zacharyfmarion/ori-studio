@@ -74,6 +74,14 @@ See the [README](README.md#getting-started) for using the published crates and C
 Run the smallest set that covers your change, and mention anything you skipped
 and why. CI runs the full set regardless.
 
+Formatting (whole repo — run this whatever you touched):
+
+```sh
+npm run format        # fix
+npm run format:check  # verify, same as CI
+cargo fmt             # Rust
+```
+
 Rust engine:
 
 ```sh
@@ -109,6 +117,19 @@ should also run the C++ oracle parity tests — see [`AGENTS.md`](AGENTS.md#buil
 
 ## Coding standards
 
+- **Formatting is automated — don't hand-tune it.** [Prettier](https://prettier.io)
+  formats TypeScript, JSX, the Node scripts, CSS, HTML, YAML, and hand-authored
+  JSON; `rustfmt` formats Rust. Run `npm run format` and `cargo fmt` before you
+  push. Markdown is deliberately *not* Prettier-formatted (see
+  [`.prettierignore`](.prettierignore) for why) — wrap prose at 80 columns by
+  hand, as the existing docs do. There is no commit hook; CI's `Formatting` job
+  is the gate.
+- **Keep formatting out of behavior changes.** Don't reformat a file you aren't
+  otherwise touching — a diff that mixes the two is much harder to review. The
+  one repo-wide reformat is listed in
+  [`.git-blame-ignore-revs`](.git-blame-ignore-revs) so it doesn't bury the real
+  authorship; GitHub applies that automatically, and locally it's one command:
+  `git config blame.ignoreRevsFile .git-blame-ignore-revs`.
 - **Rust:** 2024 edition, `rustfmt` defaults. Library code propagates typed
   errors — avoid `unwrap()`, `expect()`, and `panic!()` outside tests or
   genuinely unreachable invariants. If a TreeMaker operation isn't ported yet,
@@ -123,9 +144,10 @@ should also run the C++ oracle parity tests — see [`AGENTS.md`](AGENTS.md#buil
 
 - Target `main`. Draft PRs are welcome while work is in progress.
 - Describe what changed and why, and note which checks you ran.
-- Make sure CI passes. Two jobs run: `web-client` (web lint, typecheck, tests)
-  and `native-oracle` (Rust format, clippy, workspace tests, and C++ oracle
-  parity). Match your local validation to the surface you changed.
+- Make sure CI passes. Three jobs run: `formatting` (repo-wide Prettier check),
+  `web-client` (web lint, typecheck, tests) and `native-oracle` (Rust format,
+  clippy, workspace tests, and C++ oracle parity). Match your local validation
+  to the surface you changed.
 - A maintainer will review. Expect some back-and-forth on parity-sensitive
   changes — matching the reference implementation is the priority.
 

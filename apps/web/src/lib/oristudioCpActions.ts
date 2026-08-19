@@ -45,16 +45,14 @@ export interface OristudioCpBaseActionDefinition {
   shortcut?: string;
 }
 
-export interface OristudioCpLineTypeActionDefinition
-  extends OristudioCpBaseActionDefinition {
+export interface OristudioCpLineTypeActionDefinition extends OristudioCpBaseActionDefinition {
   kind: 'line-type';
   group: 'line-type';
   lineColor: OristudioCpLineColor;
   lineInputMode: OristudioCpLineInputMode;
 }
 
-export interface OristudioCpCommandActionDefinition
-  extends OristudioCpBaseActionDefinition {
+export interface OristudioCpCommandActionDefinition extends OristudioCpBaseActionDefinition {
   kind: 'command';
   command: OristudioCpCommandDefinition;
   operationId: OristudioCpOperationId;
@@ -65,8 +63,7 @@ export interface OristudioCpCommandActionDefinition
 }
 
 export type OristudioCpActionDefinition =
-  | OristudioCpLineTypeActionDefinition
-  | OristudioCpCommandActionDefinition;
+  OristudioCpLineTypeActionDefinition | OristudioCpCommandActionDefinition;
 
 /**
  * Line types that stay out of the rail. Unassigned is a real crease colour —
@@ -87,8 +84,8 @@ export const ORISTUDIO_CP_LINE_TYPE_ACTIONS = [
       // Keep palette order (M, V, E, A) explicit rather than leaning on a
       // stable sort, since the rail sorts every group by `railOrder`.
       index + 1,
-      HIDDEN_LINE_TYPE_IDS.has(entry.id) ? 'hidden-ui-only' : 'left-rail'
-    )
+      HIDDEN_LINE_TYPE_IDS.has(entry.id) ? 'hidden-ui-only' : 'left-rail',
+    ),
   ),
 ] as const satisfies readonly OristudioCpLineTypeActionDefinition[];
 
@@ -651,7 +648,7 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
 export const ORISTUDIO_CP_ACTIONS: OristudioCpActionDefinition[] = [
   ...ORISTUDIO_CP_LINE_TYPE_ACTIONS,
   ...ORISTUDIO_CP_COMMANDS.map((command) =>
-    commandAction(command, ORIEDITA_RAIL_ACTION_OVERRIDES[command.operationId])
+    commandAction(command, ORIEDITA_RAIL_ACTION_OVERRIDES[command.operationId]),
   ),
   ...(AUXILIARY_DRAW_COMMAND
     ? [
@@ -683,7 +680,7 @@ function lineTypeAction(
   upstreamAction: string,
   icon: string,
   railOrder: number,
-  placement: OristudioCpCommandPlacement
+  placement: OristudioCpCommandPlacement,
 ): OristudioCpLineTypeActionDefinition {
   return {
     id: `cp.action.line-type.${id}`,
@@ -724,7 +721,7 @@ function upstreamLineColorAction(lineColor: OristudioCpLineColor): string {
 
 function commandAction(
   command: OristudioCpCommandDefinition,
-  overrides: Partial<OristudioCpCommandActionDefinition> = {}
+  overrides: Partial<OristudioCpCommandActionDefinition> = {},
 ): OristudioCpCommandActionDefinition {
   return {
     id: actionIdForCommand(command),
@@ -768,34 +765,34 @@ export function cpActionsForGroup(group: OristudioCpActionGroupId): OristudioCpA
 }
 
 export function cpActionById(
-  actionId: OristudioCpActionId
+  actionId: OristudioCpActionId,
 ): OristudioCpActionDefinition | undefined {
   return ORISTUDIO_CP_ACTIONS.find((action) => action.id === actionId);
 }
 
 export function cpActionByOperation(
-  operationId: OristudioCpOperationId
+  operationId: OristudioCpOperationId,
 ): OristudioCpCommandActionDefinition | undefined {
   return ORISTUDIO_CP_ACTIONS.find(
     (action): action is OristudioCpCommandActionDefinition =>
-      action.kind === 'command' && action.operationId === operationId
+      action.kind === 'command' && action.operationId === operationId,
   );
 }
 
 export function cpActionByUpstreamMouseMode(
-  mouseMode: string
+  mouseMode: string,
 ): OristudioCpCommandActionDefinition | undefined {
   return ORISTUDIO_CP_ACTIONS.find(
     (action): action is OristudioCpCommandActionDefinition =>
-      action.kind === 'command' && action.upstreamMouseMode === mouseMode
+      action.kind === 'command' && action.upstreamMouseMode === mouseMode,
   );
 }
 
 export function cpRailActions(): OristudioCpActionDefinition[] {
   return sortActionsForRail(
     ORISTUDIO_CP_ACTIONS.filter(
-      (action) => action.placement === 'left-rail' || action.placement === 'left-rail-overflow'
-    )
+      (action) => action.placement === 'left-rail' || action.placement === 'left-rail-overflow',
+    ),
   );
 }
 
@@ -810,9 +807,7 @@ export function cpHiddenActions(): OristudioCpActionDefinition[] {
   return ORISTUDIO_CP_ACTIONS.filter((action) => action.placement === 'hidden-ui-only');
 }
 
-function sortActionsForRail(
-  actions: OristudioCpActionDefinition[]
-): OristudioCpActionDefinition[] {
+function sortActionsForRail(actions: OristudioCpActionDefinition[]): OristudioCpActionDefinition[] {
   return [...actions].sort((a, b) => {
     const groupA = actionGroupOrder(a.group);
     const groupB = actionGroupOrder(b.group);

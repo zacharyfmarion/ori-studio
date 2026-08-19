@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-import { readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
-import { createHash } from "node:crypto";
-import { basename, extname, join } from "node:path";
-import { IO } from "../../third_party/flat-folder/src/io.js";
-import { M } from "../../third_party/flat-folder/src/math.js";
-import { X } from "../../third_party/flat-folder/src/conversion.js";
-import { CON } from "../../third_party/flat-folder/src/constraints.js";
-import { SOLVER } from "../../third_party/flat-folder/src/solver.js";
-import { NOTE } from "../../third_party/flat-folder/src/note.js";
+import { readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { basename, extname, join } from 'node:path';
+import { IO } from '../../third_party/flat-folder/src/io.js';
+import { M } from '../../third_party/flat-folder/src/math.js';
+import { X } from '../../third_party/flat-folder/src/conversion.js';
+import { CON } from '../../third_party/flat-folder/src/constraints.js';
+import { SOLVER } from '../../third_party/flat-folder/src/solver.js';
+import { NOTE } from '../../third_party/flat-folder/src/note.js';
 
 NOTE.show = false;
 CON.build();
@@ -22,13 +22,13 @@ if (!command || !file) {
 }
 
 try {
-  if (command === "run-corpus") {
+  if (command === 'run-corpus') {
     const limit = parseLimit(args);
     const result = runCorpus(file, limit);
     process.stdout.write(`${stableStringify(result)}\n`);
     process.exit(0);
   }
-  const doc = readFileSync(file, "utf8");
+  const doc = readFileSync(file, 'utf8');
   const limit = parseLimit(args);
   const result = run(command, file, doc, limit);
   process.stdout.write(`${stableStringify(result)}\n`);
@@ -39,21 +39,21 @@ try {
 
 function usage() {
   process.stderr.write(
-    "usage: oracle.mjs <normalize|project|overlap|constraints|solve|run-corpus> <file-or-dir> [--limit <n|all>]\n",
+    'usage: oracle.mjs <normalize|project|overlap|constraints|solve|run-corpus> <file-or-dir> [--limit <n|all>]\n',
   );
 }
 
 function parseLimit(args) {
   let limit = 10;
   for (let i = 0; i < args.length; i += 1) {
-    if (args[i] === "--limit" && i + 1 < args.length) {
+    if (args[i] === '--limit' && i + 1 < args.length) {
       const raw = args[i + 1];
-      limit = raw === "all" ? Infinity : Number(raw);
+      limit = raw === 'all' ? Infinity : Number(raw);
       i += 1;
     }
   }
   if (!(limit === Infinity || (Number.isInteger(limit) && limit > 0))) {
-    throw new Error("limit must be a positive integer or all");
+    throw new Error('limit must be a positive integer or all');
   }
   return limit;
 }
@@ -66,17 +66,17 @@ function runCorpus(root, limit) {
   let duplicates = 0;
   for (const file of entries) {
     const bytes = readFileSync(file);
-    const hash = createHash("sha256").update(bytes).digest("hex");
+    const hash = createHash('sha256').update(bytes).digest('hex');
     if (byHash.has(hash)) {
       duplicates += 1;
       continue;
     }
-    byHash.set(hash, { file, doc: bytes.toString("utf8") });
+    byHash.set(hash, { file, doc: bytes.toString('utf8') });
   }
   const statuses = {};
   const cases = [];
   for (const { file, doc } of byHash.values()) {
-    const result = run("solve", file, doc, limit);
+    const result = run('solve', file, doc, limit);
     statuses[result.status] = (statuses[result.status] ?? 0) + 1;
     cases.push({
       file,
@@ -87,9 +87,9 @@ function runCorpus(root, limit) {
     });
   }
   return {
-    command: "run-corpus",
+    command: 'run-corpus',
     file: root,
-    limit: limit === Infinity ? "all" : limit,
+    limit: limit === Infinity ? 'all' : limit,
     total: entries.length,
     unique: byHash.size,
     duplicates,
@@ -109,37 +109,59 @@ function scanFoldFiles(root, entries, seenDirs) {
     for (const entry of readdirSync(root, { withFileTypes: true })) {
       scanFoldFiles(join(root, entry.name), entries, seenDirs);
     }
-  } else if (stat.isFile() && extname(root).toLowerCase() === ".fold") {
+  } else if (stat.isFile() && extname(root).toLowerCase() === '.fold') {
     entries.push(root);
   }
 }
 
 function run(command, file, doc, limit) {
   const type = extname(file).slice(1).toLowerCase();
-  if (type !== "fold" && type !== "cp" && type !== "svg" && type !== "opx") {
+  if (type !== 'fold' && type !== 'cp' && type !== 'svg' && type !== 'opx') {
     throw new Error(`unsupported extension .${type}`);
   }
   const pipeline = buildPipeline(doc, type, true, limit, command);
   const common = {
     file: basename(file),
     command,
-    limit: limit === Infinity ? "all" : limit,
+    limit: limit === Infinity ? 'all' : limit,
     status: pipeline.status,
   };
-  if (pipeline.status !== "ok") {
+  if (pipeline.status !== 'ok') {
     return { ...common, error: pipeline.error };
   }
   switch (command) {
-    case "normalize":
+    case 'normalize':
       return { ...common, normalize: normalizeRecord(pipeline) };
-    case "project":
-      return { ...common, normalize: normalizeRecord(pipeline), project: projectRecord(pipeline, true) };
-    case "overlap":
-      return { ...common, normalize: normalizeRecord(pipeline), project: projectRecord(pipeline, true), overlap: overlapRecord(pipeline, true) };
-    case "constraints":
-      return { ...common, normalize: normalizeRecord(pipeline), project: projectRecord(pipeline), overlap: overlapRecord(pipeline), constraints: constraintsRecord(pipeline) };
-    case "solve":
-      return { ...common, normalize: normalizeRecord(pipeline), project: projectRecord(pipeline), overlap: overlapRecord(pipeline), constraints: constraintsRecord(pipeline), solve: solveRecord(pipeline) };
+    case 'project':
+      return {
+        ...common,
+        normalize: normalizeRecord(pipeline),
+        project: projectRecord(pipeline, true),
+      };
+    case 'overlap':
+      return {
+        ...common,
+        normalize: normalizeRecord(pipeline),
+        project: projectRecord(pipeline, true),
+        overlap: overlapRecord(pipeline, true),
+      };
+    case 'constraints':
+      return {
+        ...common,
+        normalize: normalizeRecord(pipeline),
+        project: projectRecord(pipeline),
+        overlap: overlapRecord(pipeline),
+        constraints: constraintsRecord(pipeline),
+      };
+    case 'solve':
+      return {
+        ...common,
+        normalize: normalizeRecord(pipeline),
+        project: projectRecord(pipeline),
+        overlap: overlapRecord(pipeline),
+        constraints: constraintsRecord(pipeline),
+        solve: solveRecord(pipeline),
+      };
     default:
       throw new Error(`unknown command ${command}`);
   }
@@ -147,32 +169,48 @@ function run(command, file, doc, limit) {
 
 function buildPipeline(doc, type, side, limit, command) {
   try {
-    const [V, VV, EV, EA, EF, FV, FE] =
-      IO.doc_type_side_2_V_VV_EV_EA_EF_FV_FE(doc, type, side);
+    const [V, VV, EV, EA, EF, FV, FE] = IO.doc_type_side_2_V_VV_EV_EA_EF_FV_FE(doc, type, side);
     if (V === undefined) {
-      return { status: "invalid-input", error: "Flat-Folder import returned no vertices" };
+      return { status: 'invalid-input', error: 'Flat-Folder import returned no vertices' };
     }
     const VK = X.V_VV_EV_EA_2_VK(V, VV, EV, EA);
-    if (command === "normalize") {
-      return { status: "ok", V, VV, EV, EA, EF, FV, FE, VK };
+    if (command === 'normalize') {
+      return { status: 'ok', V, VV, EV, EA, EF, FV, FE, VK };
     }
     const [Vf, Ff] = X.V_FV_EV_EA_2_Vf_Ff(V, FV, EV, EA);
-    if (command === "project") {
-      return { status: "ok", V, VV, EV, EA, EF, FV, FE, VK, Vf, Ff };
+    if (command === 'project') {
+      return { status: 'ok', V, VV, EV, EA, EF, FV, FE, VK, Vf, Ff };
     }
     const L = EV.map((edge) => M.expand(edge, Vf));
     const [P, SP, SE, eps_i] = X.L_2_V_EV_EL(L);
     if (P.length === 0) {
-      return { status: "precision-failure", error: "could not find stable folded edge graph" };
+      return { status: 'precision-failure', error: 'could not find stable folded edge graph' };
     }
     const [, CP] = X.V_EV_2_VV_FV(P, SP);
     const [SC, CS] = X.EV_FV_2_EF_FE(SP, CP);
     const [CF, FC] = X.EF_FV_P_SP_SE_CP_SC_2_CF_FC(EF, FV, P, SP, SE, CP, SC);
-    if (command === "overlap") {
+    if (command === 'overlap') {
       return {
-        status: "ok",
-        V, VV, EV, EA, EF, FV, FE, VK, Vf, Ff,
-        P, SP, SE, eps_i, CP, SC, CS, CF, FC,
+        status: 'ok',
+        V,
+        VV,
+        EV,
+        EA,
+        EF,
+        FV,
+        FE,
+        VK,
+        Vf,
+        Ff,
+        P,
+        SP,
+        SE,
+        eps_i,
+        CP,
+        SC,
+        CS,
+        CF,
+        FC,
       };
     }
     const BF = X.EF_SP_SE_CP_CF_2_BF(EF, SP, SE, CP, CF);
@@ -187,26 +225,21 @@ function buildPipeline(doc, type, side, limit, command) {
         BTn[i] += bT[i].length;
       }
     }
-    for (const [i, d] of [[0, 6], [1, 2], [2, 2]]) {
+    for (const [i, d] of [
+      [0, 6],
+      [1, 2],
+      [2, 2],
+    ]) {
       BTn[i] /= d;
     }
     const CC = X.FC_BF_BI_BT_2_CC(FC, BF, BI, BT);
     const BA0 = SOLVER.EF_EA_Ff_BF_BI_2_BA0(EF, EA, Ff, BF, BI);
     const trans_count = { all: 0, reduced: 0 };
-    const assigned = SOLVER.initial_assignment(
-      BA0,
-      BF,
-      BT,
-      BI,
-      FC,
-      CF,
-      CC,
-      trans_count,
-    );
-    if ((assigned.length === 3) && (assigned[0].length === undefined)) {
+    const assigned = SOLVER.initial_assignment(BA0, BF, BT, BI, FC, CF, CC, trans_count);
+    if (assigned.length === 3 && assigned[0].length === undefined) {
       const [constraintType, faces, conflictFaces] = assigned;
       return {
-        status: "assignment-conflict",
+        status: 'assignment-conflict',
         error: {
           constraint_type: CON.names[constraintType],
           faces,
@@ -216,28 +249,81 @@ function buildPipeline(doc, type, side, limit, command) {
     }
     const BA = assigned;
     const GB = SOLVER.get_components(BI, BF, BT, BA, FC, CF, CC, trans_count);
-    if (command === "constraints") {
+    if (command === 'constraints') {
       return {
-        status: "ok",
-        V, VV, EV, EA, EF, FV, FE, VK, Vf, Ff,
-        P, SP, SE, eps_i, CP, SC, CS, CF, FC,
-        BF, BT, BTn, CC, BA, GB, trans_count,
+        status: 'ok',
+        V,
+        VV,
+        EV,
+        EA,
+        EF,
+        FV,
+        FE,
+        VK,
+        Vf,
+        Ff,
+        P,
+        SP,
+        SE,
+        eps_i,
+        CP,
+        SC,
+        CS,
+        CF,
+        FC,
+        BF,
+        BT,
+        BTn,
+        CC,
+        BA,
+        GB,
+        trans_count,
       };
     }
     const GA = SOLVER.solve(BI, BF, BT, BA, GB, FC, CF, CC, limit);
     if (GA.length === undefined) {
-      return { status: "unsatisfied-component", error: { component: GA } };
+      return { status: 'unsatisfied-component', error: { component: GA } };
     }
-    const edges = X.BF_GB_GA_GI_2_edges(BF, GB, GA, GA.map(() => 0));
+    const edges = X.BF_GB_GA_GI_2_edges(
+      BF,
+      GB,
+      GA,
+      GA.map(() => 0),
+    );
     const FO = X.edges_Ff_2_FO(edges, Ff);
     return {
-      status: "ok",
-      V, VV, EV, EA, EF, FV, FE, VK, Vf, Ff,
-      P, SP, SE, eps_i, CP, SC, CS, CF, FC,
-      BF, BT, BTn, CC, BA, GB, GA, trans_count, FO,
+      status: 'ok',
+      V,
+      VV,
+      EV,
+      EA,
+      EF,
+      FV,
+      FE,
+      VK,
+      Vf,
+      Ff,
+      P,
+      SP,
+      SE,
+      eps_i,
+      CP,
+      SC,
+      CS,
+      CF,
+      FC,
+      BF,
+      BT,
+      BTn,
+      CC,
+      BA,
+      GB,
+      GA,
+      trans_count,
+      FO,
     };
   } catch (error) {
-    return { status: "oracle-error", error: String(error?.message ?? error) };
+    return { status: 'oracle-error', error: String(error?.message ?? error) };
   }
 }
 
@@ -311,11 +397,14 @@ function solveRecord(p) {
     components: p.GB.length,
     component_sizes: p.GB.map((B) => B.length),
     solution_counts: solutionCounts,
-    states: solutionCounts.map(BigInt).reduce((a, b) => a * b, 1n).toString(),
+    states: solutionCounts
+      .map(BigInt)
+      .reduce((a, b) => a * b, 1n)
+      .toString(),
     face_orders: p.FO.length,
     face_orders_hash: hashJson(p.FO),
   };
-  if (process.env.FLATFOLDER_ORACLE_INCLUDE_DATA === "1") {
+  if (process.env.FLATFOLDER_ORACLE_INCLUDE_DATA === '1') {
     record.face_orders_data = p.FO;
   }
   return record;
@@ -330,7 +419,7 @@ function countValues(values) {
 }
 
 function hashJson(value) {
-  return createHash("sha256").update(stableStringify(value)).digest("hex");
+  return createHash('sha256').update(stableStringify(value)).digest('hex');
 }
 
 function stableStringify(value) {
@@ -338,13 +427,13 @@ function stableStringify(value) {
 }
 
 function stabilize(value) {
-  if (typeof value === "bigint") {
+  if (typeof value === 'bigint') {
     return value.toString();
   }
   if (Array.isArray(value)) {
     return value.map(stabilize);
   }
-  if (value && typeof value === "object") {
+  if (value && typeof value === 'object') {
     const out = {};
     for (const key of Object.keys(value).sort()) {
       out[key] = stabilize(value[key]);

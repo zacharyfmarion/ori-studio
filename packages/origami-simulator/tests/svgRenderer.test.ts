@@ -57,7 +57,7 @@ const CAMERA = cameraUniforms({ yaw: 0, pitch: -1, zoom: 1 }, [0, 0, 0], 2, 400,
 function render(
   settings: Partial<RenderSettings> = {},
   options: Parameters<typeof renderMeshToSvg>[4] = {},
-  geometry = positions()
+  geometry = positions(),
 ) {
   return renderMeshToSvg(geometry, topology(), CAMERA, { ...SETTINGS, ...settings }, options);
 }
@@ -126,7 +126,7 @@ describe('rendering the folded mesh to SVG', () => {
     const drawn = drawOrder(page!.svg);
     const lastPolygon = drawn.reduce(
       (last, line, index) => (line.includes('<polygon') ? index : last),
-      -1
+      -1,
     );
     // Every crease here belongs to the near triangle, which is the last face
     // drawn, so all three lines follow it.
@@ -156,11 +156,11 @@ describe('rendering the folded mesh to SVG', () => {
     // at both ends — that closes the gaps in a dash-dot pattern.
     const page = render({ creaseDash: { border: null, mountain: [10, 3, 3, 3], valley: null } })!;
     const mountain = drawOrder(page.svg).find(
-      (line) => line.includes('<line') && line.includes(hexOf(SETTINGS.mountainColor))
+      (line) => line.includes('<line') && line.includes(hexOf(SETTINGS.mountainColor)),
     )!;
     expect(mountain).toContain('stroke-linecap="butt"');
     const valley = drawOrder(page.svg).find(
-      (line) => line.includes('<line') && line.includes(hexOf(SETTINGS.valleyColor))
+      (line) => line.includes('<line') && line.includes(hexOf(SETTINGS.valleyColor)),
     )!;
     expect(valley).not.toContain('stroke-linecap');
   });
@@ -168,7 +168,7 @@ describe('rendering the folded mesh to SVG', () => {
   it('emits no dash attribute at all when nothing is dashed', () => {
     expect(render().svg).not.toContain('stroke-dasharray');
     expect(
-      render({ creaseDash: { border: null, mountain: null, valley: null } })!.svg
+      render({ creaseDash: { border: null, mountain: null, valley: null } })!.svg,
     ).not.toContain('stroke-dasharray');
   });
 
@@ -189,7 +189,8 @@ describe('rendering the folded mesh to SVG', () => {
       (projected.view[3]! - projected.view[0]!) * (projected.view[7]! - projected.view[1]!) -
       (projected.view[4]! - projected.view[1]!) * (projected.view[6]! - projected.view[0]!);
     const screenArea =
-      (projected.screen[2]! - projected.screen[0]!) * (projected.screen[5]! - projected.screen[1]!) -
+      (projected.screen[2]! - projected.screen[0]!) *
+        (projected.screen[5]! - projected.screen[1]!) -
       (projected.screen[3]! - projected.screen[1]!) * (projected.screen[4]! - projected.screen[0]!);
     // The fixture is only meaningful while the two spaces disagree about it.
     expect(viewArea >= 0).not.toBe(screenArea <= 0);
@@ -202,7 +203,7 @@ describe('rendering the folded mesh to SVG', () => {
         edgeAssignments: new Uint8Array(),
       },
       camera,
-      { ...SETTINGS, showEdges: false, lighting: false }
+      { ...SETTINGS, showEdges: false, lighting: false },
     )!;
     // Screen winding says front, so the front colour is the correct answer.
     expect(page.svg).toContain(hexOf(SETTINGS.frontColor));
@@ -249,7 +250,7 @@ describe('rendering the folded mesh to SVG', () => {
     // A 10% strain against a 5% clip is past the clip, so fully red.
     const strain = new Float32Array([0, 0, 0, 0.1, 0.1, 0.1]);
     const polygons = drawOrder(
-      render({ colorMode: 'strain', strainClip: 5, showEdges: false }, { strain })!.svg
+      render({ colorMode: 'strain', strainClip: 5, showEdges: false }, { strain })!.svg,
     );
     const relaxed = polygons.find((line) => touches(line, NEAR_TRIANGLE))!;
     const strained = polygons.find((line) => touches(line, FAR_TRIANGLE))!;
@@ -277,7 +278,9 @@ describe('rendering the folded mesh to SVG', () => {
   it('drops degenerate triangles rather than emitting invisible polygons', () => {
     // A zero-area triangle is the signature of a solver NaN reaching the
     // renderer.
-    const collapsed = new Float32Array([0, 1, 0, 0, 1, 0, 0, 1, 0, -1, -1, -1, 1, -1, -1, 0, -1, 1]);
+    const collapsed = new Float32Array([
+      0, 1, 0, 0, 1, 0, 0, 1, 0, -1, -1, -1, 1, -1, -1, 0, -1, 1,
+    ]);
     const page = render({ showEdges: false }, {}, collapsed);
     expect(drawOrder(page!.svg).filter((line) => line.includes('<polygon'))).toHaveLength(1);
   });
@@ -289,8 +292,7 @@ describe('rendering the folded mesh to SVG', () => {
      * the two overlap exactly on screen and one of them is wholly buried.
      */
     const STACKED = new Float32Array([
-      -1, 1, -1, 1, 1, -1, 0, 1, 1,
-      -0.2, -1, -0.5, 0.2, -1, -0.5, 0, -1, 0,
+      -1, 1, -1, 1, 1, -1, 0, 1, 1, -0.2, -1, -0.5, 0.2, -1, -0.5, 0, -1, 0,
     ]);
     const OVERHEAD = cameraUniforms({ yaw: 0, pitch: 0, zoom: 1 }, [0, 0, 0], 2, 400, 300);
 
@@ -305,7 +307,7 @@ describe('rendering the folded mesh to SVG', () => {
         },
         OVERHEAD,
         { ...SETTINGS, showEdges: false },
-        options
+        options,
       );
       return drawOrder(page!.svg);
     }
@@ -323,10 +325,7 @@ describe('rendering the folded mesh to SVG', () => {
     });
 
     it('keeps both when the near one does not cover the far one', () => {
-      const apart = new Float32Array([
-        -1, 1, -1, 1, 1, -1, 0, 1, 1,
-        -1, -1, 3, 1, -1, 3, 0, -1, 5,
-      ]);
+      const apart = new Float32Array([-1, 1, -1, 1, 1, -1, 0, 1, 1, -1, -1, 3, 1, -1, 3, 0, -1, 5]);
       const page = renderMeshToSvg(
         apart,
         {
@@ -337,7 +336,7 @@ describe('rendering the folded mesh to SVG', () => {
         },
         OVERHEAD,
         { ...SETTINGS, showEdges: false },
-        {}
+        {},
       );
       expect(drawOrder(page!.svg)).toHaveLength(2);
     });
@@ -355,7 +354,7 @@ describe('rendering the folded mesh to SVG', () => {
         },
         OVERHEAD,
         { ...SETTINGS, showEdges: false, faceAlpha: 0.5 },
-        {}
+        {},
       );
       expect(drawOrder(page!.svg)).toHaveLength(2);
     });
@@ -378,7 +377,7 @@ describe('rendering the folded mesh to SVG', () => {
         SQUARE_TOPOLOGY,
         CAMERA,
         { ...SETTINGS, showEdges: false },
-        options
+        options,
       );
       return drawOrder(page!.svg);
     }
@@ -405,7 +404,7 @@ describe('rendering the folded mesh to SVG', () => {
         { ...SQUARE_TOPOLOGY, edgeAssignments: new Uint8Array([1, 1, 1, 1, 1]) },
         CAMERA,
         { ...SETTINGS, showEdges: false },
-        {}
+        {},
       );
       expect(drawOrder(folded!.svg)).toHaveLength(2);
     });
@@ -459,10 +458,15 @@ describe('rendering the folded mesh to SVG', () => {
     expect(
       renderMeshToSvg(
         new Float32Array(),
-        { faceIndices: new Uint32Array(), edgeIndices: new Uint32Array(), edgeAssignments: new Uint8Array(), textureDim: 1 },
+        {
+          faceIndices: new Uint32Array(),
+          edgeIndices: new Uint32Array(),
+          edgeAssignments: new Uint8Array(),
+          textureDim: 1,
+        },
         CAMERA,
-        SETTINGS
-      )
+        SETTINGS,
+      ),
     ).toBeNull();
   });
 
@@ -510,7 +514,7 @@ describe('crease weight against the size of the frame', () => {
     expect(strokeWidthOf(small.svg) / strokeWidthOf(big.svg)).toBeCloseTo(0.5, 6);
     expect(strokeWidthOf(small.svg) / small.width).toBeCloseTo(
       strokeWidthOf(big.svg) / big.width,
-      6
+      6,
     );
   });
 

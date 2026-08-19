@@ -200,15 +200,13 @@ async function ensureVertexRefinerSession(
     return vertexRefinerSessionPromise;
   }
   vertexRefinerSessionKey = key;
-  vertexRefinerSessionPromise = createSessionRuntime(modelUrl, requestedProvider).catch(
-    (error) => {
-      if (vertexRefinerSessionKey === key) {
-        vertexRefinerSessionKey = null;
-        vertexRefinerSessionPromise = null;
-      }
-      throw error;
-    },
-  );
+  vertexRefinerSessionPromise = createSessionRuntime(modelUrl, requestedProvider).catch((error) => {
+    if (vertexRefinerSessionKey === key) {
+      vertexRefinerSessionKey = null;
+      vertexRefinerSessionPromise = null;
+    }
+    throw error;
+  });
   return vertexRefinerSessionPromise;
 }
 
@@ -369,8 +367,7 @@ async function vertexRefinerForImage(
   options: CpDetectWorkerRunOptions,
   denseOutputs?: CpDetectDenseOutputs,
 ) {
-  const manifestUrl =
-    options.vertexRefinerManifestUrl ?? DEFAULT_CP_VERTEX_REFINER_MANIFEST_URL;
+  const manifestUrl = options.vertexRefinerManifestUrl ?? DEFAULT_CP_VERTEX_REFINER_MANIFEST_URL;
   const manifest = await ensureVertexRefinerManifest(manifestUrl);
   const sessionRuntime = await ensureVertexRefinerSession(manifest, manifestUrl, options);
   return runVertexRefinerOnImage(
@@ -411,10 +408,11 @@ function cpDetectSessionFromOrt(session: ort.InferenceSession): CpDetectOnnxSess
   return {
     inputNames: session.inputNames,
     async run(feeds) {
-      return enqueueOrtOperation(() =>
-        session.run(feeds as Parameters<ort.InferenceSession['run']>[0]) as Promise<
-          Record<string, unknown>
-        >,
+      return enqueueOrtOperation(
+        () =>
+          session.run(feeds as Parameters<ort.InferenceSession['run']>[0]) as Promise<
+            Record<string, unknown>
+          >,
       );
     },
   };
@@ -424,10 +422,11 @@ function vertexRefinerSessionFromOrt(session: ort.InferenceSession): VertexRefin
   return {
     inputNames: session.inputNames,
     async run(feeds) {
-      return enqueueOrtOperation(() =>
-        session.run(feeds as Parameters<ort.InferenceSession['run']>[0]) as Promise<
-          Record<string, unknown>
-        >,
+      return enqueueOrtOperation(
+        () =>
+          session.run(feeds as Parameters<ort.InferenceSession['run']>[0]) as Promise<
+            Record<string, unknown>
+          >,
       );
     },
   };
@@ -479,14 +478,9 @@ const api = {
   async verifyVertexRefinerAssets(
     options: CpDetectWorkerRunOptions = {},
   ): Promise<CpVertexRefinerModelManifest> {
-    const manifestUrl =
-      options.vertexRefinerManifestUrl ?? DEFAULT_CP_VERTEX_REFINER_MANIFEST_URL;
+    const manifestUrl = options.vertexRefinerManifestUrl ?? DEFAULT_CP_VERTEX_REFINER_MANIFEST_URL;
     const manifest = await ensureVertexRefinerManifest(manifestUrl);
-    await ensureVertexRefinerModelPresent(
-      manifest,
-      manifestUrl,
-      options.vertexRefinerModelUrl,
-    );
+    await ensureVertexRefinerModelPresent(manifest, manifestUrl, options.vertexRefinerModelUrl);
     const sessionRuntime = await ensureVertexRefinerSession(manifest, manifestUrl, options);
     const cropSize = manifest.inference.crop_size;
     const inputChannels = manifest.inference.input_channels;
@@ -506,12 +500,9 @@ const api = {
 
   async autoRectifyImage(image: ImageData, imageSize = 1024): Promise<CpDetectRectifiedImage> {
     await ensureWasmReady();
-    return rectifyFromWasm(cp_detect_auto_rectify_rgba(
-      imageDataBytes(image),
-      image.width,
-      image.height,
-      imageSize,
-    ));
+    return rectifyFromWasm(
+      cp_detect_auto_rectify_rgba(imageDataBytes(image), image.width, image.height, imageSize),
+    );
   },
 
   async manualRectifyImage(
@@ -520,13 +511,15 @@ const api = {
     imageSize = 1024,
   ): Promise<CpDetectRectifiedImage> {
     await ensureWasmReady();
-    return rectifyFromWasm(cp_detect_manual_rectify_rgba(
-      imageDataBytes(image),
-      image.width,
-      image.height,
-      imageSize,
-      JSON.stringify(quad),
-    ));
+    return rectifyFromWasm(
+      cp_detect_manual_rectify_rgba(
+        imageDataBytes(image),
+        image.width,
+        image.height,
+        imageSize,
+        JSON.stringify(quad),
+      ),
+    );
   },
 
   async runUploadedInspector(
@@ -541,8 +534,7 @@ const api = {
       options.vertexRefinerFrame ?? paperFrameFromRectificationReport(options.rectificationReport);
     const proposalMode = effectiveVertexRefinerProposalMode(options);
     const needsDenseForVertexRefiner =
-      junctionSource === 'vertex-refiner-v3' &&
-      proposalMode === 'dense-junction-regions';
+      junctionSource === 'vertex-refiner-v3' && proposalMode === 'dense-junction-regions';
     const [inference, vertexRefiner] = needsDenseForVertexRefiner
       ? await (async () => {
           const dense = await denseInferenceForImage(image, options);
@@ -560,9 +552,10 @@ const api = {
             : null,
         ]);
     const outputBundle = Object.fromEntries(
-      CP_DETECT_OUTPUT_KEYS
-        .filter((key) => inference.outputs[key])
-        .map((key) => [key, inference.outputs[key].data]),
+      CP_DETECT_OUTPUT_KEYS.filter((key) => inference.outputs[key]).map((key) => [
+        key,
+        inference.outputs[key].data,
+      ]),
     );
     const vertexRefinerDebug = vertexRefiner
       ? {
@@ -742,8 +735,14 @@ function buildVertexRefinerCropDebug(
         local_y: vertex.y - originY,
       };
     });
-  const clusterIds = new Set(rawVertices.map((vertex) => vertex.cluster_id).filter((clusterId): clusterId is number => typeof clusterId === 'number'));
-  const mergeClusters = result.merge_debug.clusters.filter((cluster) => clusterIds.has(cluster.cluster_id));
+  const clusterIds = new Set(
+    rawVertices
+      .map((vertex) => vertex.cluster_id)
+      .filter((clusterId): clusterId is number => typeof clusterId === 'number'),
+  );
+  const mergeClusters = result.merge_debug.clusters.filter((cluster) =>
+    clusterIds.has(cluster.cluster_id),
+  );
   return {
     schema: 'oristudio/cp-detect-v3-crop-debug/v1',
     run_id: runId,
@@ -762,10 +761,7 @@ function buildVertexRefinerCropDebug(
   };
 }
 
-function vertexRefinerInputMaps(
-  result: VertexRefinerImageResult,
-  cropIndex: number,
-): MapPayload[] {
+function vertexRefinerInputMaps(result: VertexRefinerImageResult, cropIndex: number): MapPayload[] {
   if (!result.debug) return [];
   const cropSize = result.inference.input.crop_size;
   const inputChannels = result.manifest.inference.input_channels;
@@ -778,13 +774,18 @@ function vertexRefinerInputMaps(
       name.replaceAll('_', ' '),
       cropSize,
       cropSize,
-      result.debug?.crop_tensor.subarray(cropOffset + channel * cropArea, cropOffset + (channel + 1) * cropArea) ?? new Float32Array(cropArea),
+      result.debug?.crop_tensor.subarray(
+        cropOffset + channel * cropArea,
+        cropOffset + (channel + 1) * cropArea,
+      ) ?? new Float32Array(cropArea),
     ),
   );
 }
 
 function vertexRefinerInputChannelNames(manifest: CpVertexRefinerModelManifest): string[] {
-  const names = Array.from(manifest.inference.input_channel_names ?? VERTEX_REFINER_INPUT_CHANNEL_NAMES);
+  const names = Array.from(
+    manifest.inference.input_channel_names ?? VERTEX_REFINER_INPUT_CHANNEL_NAMES,
+  );
   while (names.length < manifest.inference.input_channels) {
     names.push(`input_channel_${names.length}`);
   }
@@ -798,7 +799,15 @@ function vertexRefinerOutputMaps(
   const cropSize = result.inference.input.crop_size;
   const maps: MapPayload[] = [];
   maps.push(
-    tensorChannelMap('output:vertex_heatmap', 'vertex heatmap', result.inference.outputs.vertex_heatmap, cropIndex, 0, cropSize, sigmoid),
+    tensorChannelMap(
+      'output:vertex_heatmap',
+      'vertex heatmap',
+      result.inference.outputs.vertex_heatmap,
+      cropIndex,
+      0,
+      cropSize,
+      sigmoid,
+    ),
     tensorChannelMap(
       'output:boundary_contact_heatmap',
       'boundary contact heatmap',
@@ -808,21 +817,76 @@ function vertexRefinerOutputMaps(
       cropSize,
       sigmoid,
     ),
-    tensorChannelMap('output:offset_dx', 'offset dx', result.inference.outputs.vertex_offset, cropIndex, 0, cropSize),
-    tensorChannelMap('output:offset_dy', 'offset dy', result.inference.outputs.vertex_offset, cropIndex, 1, cropSize),
+    tensorChannelMap(
+      'output:offset_dx',
+      'offset dx',
+      result.inference.outputs.vertex_offset,
+      cropIndex,
+      0,
+      cropSize,
+    ),
+    tensorChannelMap(
+      'output:offset_dy',
+      'offset dy',
+      result.inference.outputs.vertex_offset,
+      cropIndex,
+      1,
+      cropSize,
+    ),
     offsetMagnitudeMap(result.inference.outputs.vertex_offset, cropIndex, cropSize),
   );
   VERTEX_KIND_NAMES.forEach((name, channel) => {
-    maps.push(softmaxChannelMap(`output:vertex_kind:${name}`, `kind ${name}`, result.inference.outputs.vertex_kind, cropIndex, channel, cropSize));
+    maps.push(
+      softmaxChannelMap(
+        `output:vertex_kind:${name}`,
+        `kind ${name}`,
+        result.inference.outputs.vertex_kind,
+        cropIndex,
+        channel,
+        cropSize,
+      ),
+    );
   });
   for (let channel = 0; channel < (result.inference.outputs.degree.dims[1] ?? 0); channel += 1) {
-    maps.push(softmaxChannelMap(`output:degree:${channel}`, `degree ${channel}`, result.inference.outputs.degree, cropIndex, channel, cropSize));
+    maps.push(
+      softmaxChannelMap(
+        `output:degree:${channel}`,
+        `degree ${channel}`,
+        result.inference.outputs.degree,
+        cropIndex,
+        channel,
+        cropSize,
+      ),
+    );
   }
   BOUNDARY_SIDE_NAMES.forEach((name, channel) => {
-    maps.push(softmaxChannelMap(`output:boundary_side:${name}`, `side ${name}`, result.inference.outputs.boundary_side, cropIndex, channel, cropSize));
+    maps.push(
+      softmaxChannelMap(
+        `output:boundary_side:${name}`,
+        `side ${name}`,
+        result.inference.outputs.boundary_side,
+        cropIndex,
+        channel,
+        cropSize,
+      ),
+    );
   });
-  for (let channel = 0; channel < (result.inference.outputs.incident_rays.dims[1] ?? 0); channel += 1) {
-    maps.push(tensorChannelMap(`output:incident_ray:${channel}`, `ray bin ${channel}`, result.inference.outputs.incident_rays, cropIndex, channel, cropSize, sigmoid));
+  for (
+    let channel = 0;
+    channel < (result.inference.outputs.incident_rays.dims[1] ?? 0);
+    channel += 1
+  ) {
+    maps.push(
+      tensorChannelMap(
+        `output:incident_ray:${channel}`,
+        `ray bin ${channel}`,
+        result.inference.outputs.incident_rays,
+        cropIndex,
+        channel,
+        cropSize,
+        sigmoid,
+      ),
+    );
   }
   return maps;
 }
@@ -860,13 +924,21 @@ function softmaxChannelMap(
   for (let index = 0; index < area; index += 1) {
     let maxLogit = -Infinity;
     for (let nextChannel = 0; nextChannel < channels; nextChannel += 1) {
-      maxLogit = Math.max(maxLogit, tensor.data[cropIndex * channels * area + nextChannel * area + index] ?? 0);
+      maxLogit = Math.max(
+        maxLogit,
+        tensor.data[cropIndex * channels * area + nextChannel * area + index] ?? 0,
+      );
     }
     let sum = 0;
     for (let nextChannel = 0; nextChannel < channels; nextChannel += 1) {
-      sum += Math.exp((tensor.data[cropIndex * channels * area + nextChannel * area + index] ?? 0) - maxLogit);
+      sum += Math.exp(
+        (tensor.data[cropIndex * channels * area + nextChannel * area + index] ?? 0) - maxLogit,
+      );
     }
-    values[index] = Math.exp((tensor.data[cropIndex * channels * area + channel * area + index] ?? 0) - maxLogit) / Math.max(sum, 1e-9);
+    values[index] =
+      Math.exp(
+        (tensor.data[cropIndex * channels * area + channel * area + index] ?? 0) - maxLogit,
+      ) / Math.max(sum, 1e-9);
   }
   return mapPayloadFromValues(id, label, cropSize, cropSize, values);
 }
@@ -885,7 +957,13 @@ function offsetMagnitudeMap(
     const dy = tensor.data[offset + area + index] ?? 0;
     values[index] = Math.hypot(dx, dy);
   }
-  return mapPayloadFromValues('output:offset_magnitude', 'offset magnitude', cropSize, cropSize, values);
+  return mapPayloadFromValues(
+    'output:offset_magnitude',
+    'offset magnitude',
+    cropSize,
+    cropSize,
+    values,
+  );
 }
 
 function mapPayloadFromValues(
@@ -908,7 +986,9 @@ function mapPayloadFromValues(
     max = 0;
   }
   const span = Math.max(max - min, 1e-9);
-  const scaled = Array.from(values, (value) => Math.round(255 * ((Number.isFinite(value) ? value : min) - min) / span));
+  const scaled = Array.from(values, (value) =>
+    Math.round((255 * ((Number.isFinite(value) ? value : min) - min)) / span),
+  );
   return {
     id,
     label,

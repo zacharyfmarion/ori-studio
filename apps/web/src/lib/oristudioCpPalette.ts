@@ -30,7 +30,7 @@ export const ORISTUDIO_CP_PRIMARY_LINE_COLOR_PALETTE = ORISTUDIO_CP_LINE_COLOR_P
     entry.id === 'valley' ||
     entry.id === 'edge' ||
     entry.id === 'unassigned' ||
-    entry.id === 'auxiliary'
+    entry.id === 'auxiliary',
 );
 
 export const ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE = ORISTUDIO_CP_LINE_COLOR_PALETTE.filter(
@@ -40,15 +40,15 @@ export const ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE = ORISTUDIO_CP_LINE_COLOR_PAL
     entry.id === 'green' ||
     entry.id === 'yellow' ||
     entry.id === 'purple' ||
-    entry.id === 'other'
+    entry.id === 'other',
 );
 
 export const ORISTUDIO_CP_LINE_COLOR_BY_COLOR = new Map(
-  ORISTUDIO_CP_LINE_COLOR_PALETTE.map((entry) => [entry.lineColor, entry])
+  ORISTUDIO_CP_LINE_COLOR_PALETTE.map((entry) => [entry.lineColor, entry]),
 );
 
 export function cpPaletteEntryForColor(
-  lineColor: OristudioCpLineColor | string
+  lineColor: OristudioCpLineColor | string,
 ): OristudioCpPaletteEntry | undefined {
   return ORISTUDIO_CP_LINE_COLOR_BY_COLOR.get(lineColor as OristudioCpLineColor);
 }
@@ -83,7 +83,7 @@ function paletteEntry(
   lineColor: OristudioCpLineColor,
   cssClass: string,
   statusLabel: string,
-  semantic: boolean
+  semantic: boolean,
 ): OristudioCpPaletteEntry {
   return {
     id,

@@ -18,10 +18,7 @@
 import { useTranslation } from 'react-i18next';
 import { RotateCcw } from 'lucide-react';
 import type { Dispatch, SetStateAction } from 'react';
-import {
-  hasNonDefaultCpToolOptions,
-  resetCpToolOptions,
-} from '../../lib/cpToolOptionPersistence';
+import { hasNonDefaultCpToolOptions, resetCpToolOptions } from '../../lib/cpToolOptionPersistence';
 import {
   cpToolOptionKeysForGroups,
   type OristudioCpToolOptions,
@@ -49,7 +46,7 @@ export function CpContextToolReset({
       onClick={() => setOptions((current) => resetCpToolOptions(current, keys))}
       title={t(
         'tools:cpContext.resetSettingsHint',
-        'A setting here is not its default. Some settings are remembered between sessions.'
+        'A setting here is not its default. Some settings are remembered between sessions.',
       )}
     >
       <RotateCcw size={11} />

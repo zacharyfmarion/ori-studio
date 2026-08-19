@@ -12,7 +12,11 @@
  * every pointer move: an N-segment selection allocates once per gesture, not once
  * per frame.
  */
-import { lineColorName, SEG_ATTR_STRIDE, type CpGeometryTransport } from '../../engine/oristudioCpGeometry';
+import {
+  lineColorName,
+  SEG_ATTR_STRIDE,
+  type CpGeometryTransport,
+} from '../../engine/oristudioCpGeometry';
 import type { CpLineAppearance } from '../adapters/cpLineStyle';
 import type {
   CpAffineMatrix,
@@ -61,7 +65,7 @@ export function ghostBaseFromGeometry(
   transport: CpGeometryTransport,
   selectedIds: ReadonlySet<number>,
   appearanceFor: CpLineAppearanceFor,
-  style: CpGhostStyle
+  style: CpGhostStyle,
 ): CpGhostBase {
   const endpoints = transport.segEndpoints;
   const attr = transport.segAttr;
@@ -95,7 +99,7 @@ export function ghostBaseFromSegments(
   lineSegments: readonly CpLineSegmentInput[],
   selectedIds: ReadonlySet<number>,
   appearanceFor: CpLineAppearanceFor,
-  style: CpGhostStyle
+  style: CpGhostStyle,
 ): CpGhostBase {
   const base = allocateBase(countSelected(lineSegments.length, selectedIds));
   const appearanceCache = new Map<string, CpLineAppearance>();
@@ -127,7 +131,7 @@ export function ghostBaseFromSegments(
 export function createTransformGhost(
   base: CpGhostBase,
   style: CpGhostStyle,
-  dashPatterns: CpDashPatterns
+  dashPatterns: CpDashPatterns,
 ): CpTransformGhost | null {
   if (base.count === 0) return null;
 
@@ -180,7 +184,7 @@ function writeAppearance(
   base: CpGhostBase,
   index: number,
   appearance: CpLineAppearance,
-  alpha: number
+  alpha: number,
 ): void {
   const rgba: Rgba = appearance.color;
   base.color[index * 4] = rgba[0];

@@ -48,11 +48,7 @@ export function MobileLandingHeader({ onOpenAnyway }: MobileLandingHeaderProps) 
   return (
     <header className="welcome-mobile-header">
       <div className="welcome-mobile-header__bar">
-        <button
-          type="button"
-          className="welcome-mobile-header__open"
-          onClick={onOpenAnyway}
-        >
+        <button type="button" className="welcome-mobile-header__open" onClick={onOpenAnyway}>
           {t('landing:openApp', 'Open App (unoptimized on mobile)')}
         </button>
       </div>
@@ -71,10 +67,7 @@ export function MobileLandingHeader({ onOpenAnyway }: MobileLandingHeaderProps) 
         {/* eslint-disable-next-line i18next/no-literal-string -- brand name, never translated */}
         <h1 className="welcome-mobile-header__title">Ori Studio</h1>
         <p className="welcome-mobile-header__tagline">
-          {t(
-            'landing:mobileHero.tagline',
-            'Design, edit and fold origami, all in the browser.'
-          )}
+          {t('landing:mobileHero.tagline', 'Design, edit and fold origami, all in the browser.')}
         </p>
       </div>
 

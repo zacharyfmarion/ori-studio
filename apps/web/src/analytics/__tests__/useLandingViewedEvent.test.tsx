@@ -4,10 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PostHogClientLike } from '../bootstrap';
 import type { LandingSurface } from '../events';
 import { AnalyticsRuntimeProvider } from '../runtime';
-import {
-  useLandingSectionViewedEvents,
-  useLandingViewedEvent,
-} from '../useLandingViewedEvent';
+import { useLandingSectionViewedEvents, useLandingViewedEvent } from '../useLandingViewedEvent';
 
 function makeFakeClient() {
   return {
@@ -37,7 +34,7 @@ class FakeObserver {
 
   constructor(
     private readonly callback: IntersectionObserverCallback,
-    readonly options?: IntersectionObserverInit
+    readonly options?: IntersectionObserverInit,
   ) {
     FakeObserver.instances.push(this);
   }
@@ -113,7 +110,10 @@ describe('useLandingViewedEvent', () => {
     const client = makeFakeClient();
     render(client, createElement(Probe, { surface: 'phone' }));
     render(client, createElement(Probe, { surface: 'desktop' }));
-    expect(events(client, 'landing viewed')).toEqual([{ surface: 'phone' }, { surface: 'desktop' }]);
+    expect(events(client, 'landing viewed')).toEqual([
+      { surface: 'phone' },
+      { surface: 'desktop' },
+    ]);
   });
 });
 
@@ -130,7 +130,7 @@ describe('useLandingSectionViewedEvents', () => {
       'div',
       { ref },
       createElement('section', { id: 'landing-what' }),
-      createElement('section', { id: 'landing-get' })
+      createElement('section', { id: 'landing-get' }),
     );
   }
 

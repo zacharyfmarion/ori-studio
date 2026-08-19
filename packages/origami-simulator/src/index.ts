@@ -19,23 +19,13 @@ export {
   type MeshTopology,
   type RenderSettings,
 } from './webgl/meshRenderer.js';
-export {
-  buildBsp,
-  traverseBsp,
-  type BspItem,
-  type BuildBspOptions,
-  type Vec3,
-} from './bsp.js';
+export { buildBsp, traverseBsp, type BspItem, type BuildBspOptions, type Vec3 } from './bsp.js';
 export {
   renderMeshToSvg,
   type RenderMeshToSvgOptions,
   type SvgRenderResult,
 } from './svgRenderer.js';
-export {
-  findVisiblePieces,
-  type DrawnPiece,
-  type VisibilityOptions,
-} from './hiddenPieces.js';
+export { findVisiblePieces, type DrawnPiece, type VisibilityOptions } from './hiddenPieces.js';
 export {
   coplanarRuns,
   outlineOf,

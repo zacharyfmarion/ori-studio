@@ -22,7 +22,7 @@ const NONE: readonly OristudioCpDiagnosticEntry[] = [];
 export function visibleCpDiagnosticEntries(
   camvResult: OristudioCpCommandResult | null,
   lastCommandResult: OristudioCpCommandResult | null,
-  camvIssuesVisible: boolean
+  camvIssuesVisible: boolean,
 ): readonly OristudioCpDiagnosticEntry[] {
   const overlay = camvIssuesVisible ? (camvResult?.diagnostic_entries ?? NONE) : NONE;
   const isHiddenCamvCommand = !camvIssuesVisible && lastCommandResult?.operation === 'CheckCamv';
@@ -44,7 +44,7 @@ export function visibleCpDiagnosticEntries(
 /** The visible entry with this id, or null — including when it is currently hidden. */
 export function visibleCpDiagnosticEntry(
   entries: readonly OristudioCpDiagnosticEntry[],
-  id: string | null
+  id: string | null,
 ): OristudioCpDiagnosticEntry | null {
   if (!id) return null;
   return entries.find((entry) => entry.id === id) ?? null;

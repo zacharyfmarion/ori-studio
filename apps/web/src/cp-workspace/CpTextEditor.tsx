@@ -35,7 +35,11 @@ import { resolveCpViewportCanvas } from './cpViewportCanvas';
 import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
 import type { AnnotationBox } from './annotations/annotationTransform';
 import { IconButton } from '../components/ui/IconButton';
-import { TEXT_BLOCK_PRESETS, type TextAlign, type TextBlockType } from './annotations/textFormatting';
+import {
+  TEXT_BLOCK_PRESETS,
+  type TextAlign,
+  type TextBlockType,
+} from './annotations/textFormatting';
 
 const LEXICAL_THEME = {
   paragraph: 'cp-text-view__block',
@@ -75,7 +79,14 @@ export interface CpTextEditorProps {
   onDelete: () => void;
 }
 
-export function CpTextEditor({ doc, box, container, onChange, onExit, onDelete }: CpTextEditorProps) {
+export function CpTextEditor({
+  doc,
+  box,
+  container,
+  onChange,
+  onExit,
+  onDelete,
+}: CpTextEditorProps) {
   const { t } = useTranslation();
   const handleChange = useCallback(
     (editorState: EditorState) => {
@@ -83,7 +94,7 @@ export function CpTextEditor({ doc, box, container, onChange, onExit, onDelete }
       const plain = editorState.read(() => $getRoot().getTextContent());
       onChange(json, plain);
     },
-    [onChange]
+    [onChange],
   );
 
   const handleBlur = useCallback(
@@ -93,7 +104,7 @@ export function CpTextEditor({ doc, box, container, onChange, onExit, onDelete }
       if (next && next.closest('[data-cp-text-toolbar]')) return;
       onExit('blur');
     },
-    [onExit]
+    [onExit],
   );
 
   const handleEscape = useCallback(() => onExit('escape'), [onExit]);
@@ -111,10 +122,7 @@ export function CpTextEditor({ doc, box, container, onChange, onExit, onDelete }
     >
       <RichTextPlugin
         contentEditable={
-          <ContentEditable
-            className="cp-text-editor__content ph-no-capture"
-            onBlur={handleBlur}
-          />
+          <ContentEditable className="cp-text-editor__content ph-no-capture" onBlur={handleBlur} />
         }
         placeholder={
           <div className="cp-text-editor__placeholder">
@@ -152,9 +160,9 @@ function EscapeExitPlugin({ onEscape }: { onEscape: () => void }) {
           onEscape();
           return true;
         },
-        COMMAND_PRIORITY_HIGH
+        COMMAND_PRIORITY_HIGH,
       ),
-    [editor, onEscape]
+    [editor, onEscape],
   );
   return null;
 }
@@ -200,14 +208,17 @@ function TextToolbar({
         const selection = $getSelection();
         if (!$isRangeSelection(selection)) return;
         const anchorNode = selection.anchor.getNode();
-        const block = anchorNode.getKey() === 'root'
-          ? anchorNode
-          : anchorNode.getTopLevelElementOrThrow();
+        const block =
+          anchorNode.getKey() === 'root' ? anchorNode : anchorNode.getTopLevelElementOrThrow();
         let blockType: TextBlockType = 'paragraph';
         if ($isHeadingNode(block)) blockType = block.getTag() === 'h2' ? 'h2' : 'h1';
         const format = $isElementNode(block) ? block.getFormatType() : 'left';
         const align: TextAlign =
-          format === 'center' ? 'center' : format === 'right' || format === 'end' ? 'right' : 'left';
+          format === 'center'
+            ? 'center'
+            : format === 'right' || format === 'end'
+              ? 'right'
+              : 'left';
         setState({
           bold: selection.hasFormat('bold'),
           italic: selection.hasFormat('italic'),
@@ -228,18 +239,20 @@ function TextToolbar({
         const selection = $getSelection();
         if (!$isRangeSelection(selection)) return;
         $setBlocksType(selection, () =>
-          type === 'paragraph' ? $createParagraphNode() : $createHeadingNode(type as HeadingTagType)
+          type === 'paragraph'
+            ? $createParagraphNode()
+            : $createHeadingNode(type as HeadingTagType),
         );
       });
     },
-    [editor]
+    [editor],
   );
 
   const setAlign = useCallback(
     (align: TextAlign) => {
       editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, align as ElementFormatType);
     },
-    [editor]
+    [editor],
   );
 
   const setColor = useCallback(
@@ -249,14 +262,14 @@ function TextToolbar({
         if ($isRangeSelection(selection)) $patchStyleText(selection, { color: color || null });
       });
     },
-    [editor]
+    [editor],
   );
 
   const toggleMark = useCallback(
     (mark: 'bold' | 'italic' | 'underline') => {
       editor.dispatchCommand(FORMAT_TEXT_COMMAND, mark);
     },
-    [editor]
+    [editor],
   );
 
   return (
@@ -314,7 +327,11 @@ function TextToolbar({
           <Underline size={14} />
         </IconButton>
         <span className="floating-toolbar__separator" />
-        <div className="cp-text-toolbar__align" role="group" aria-label={t('panels:textAnnotation.alignment', 'Alignment')}>
+        <div
+          className="cp-text-toolbar__align"
+          role="group"
+          aria-label={t('panels:textAnnotation.alignment', 'Alignment')}
+        >
           {(['left', 'center', 'right'] as const).map((align) => (
             <button
               key={align}
@@ -335,7 +352,10 @@ function TextToolbar({
           ))}
         </div>
         <span className="floating-toolbar__separator" />
-        <label className="cp-text-toolbar__color" title={t('panels:textAnnotation.color', 'Text color')}>
+        <label
+          className="cp-text-toolbar__color"
+          title={t('panels:textAnnotation.color', 'Text color')}
+        >
           <select
             className="cp-text-toolbar__color-select"
             value={state.color}

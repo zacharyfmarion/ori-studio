@@ -46,7 +46,7 @@ describe('cpPointsToScene', () => {
       [{ x: 1, y: 1 }],
       [{ x: 2, y: 2 }],
       [{ center: { x: 9, y: 9 }, radius: 40 }],
-      style
+      style,
     );
     expect(geo.count).toBe(3);
     // circle is the 3rd instance
@@ -67,7 +67,7 @@ describe('cpPointsToScene', () => {
       [{ x: 0, y: 0 }],
       [{ x: 1, y: 1 }],
       [{ center: { x: 9, y: 9 }, radius: 40 }],
-      style
+      style,
     );
     // point + vertex are constant-screen markers (1); circle scales with zoom (0)
     expect(Array.from(geo.screenSpace)).toEqual([1, 1, 0]);
@@ -76,7 +76,10 @@ describe('cpPointsToScene', () => {
   it('recolours selected points and circle rings, never vertices', () => {
     const SEL: Rgba = [0, 0, 1, 1];
     const geo = cpPointsToScene(
-      [{ x: 0, y: 0 }, { x: 1, y: 1 }],
+      [
+        { x: 0, y: 0 },
+        { x: 1, y: 1 },
+      ],
       [{ x: 2, y: 2 }],
       [{ center: { x: 9, y: 9 }, radius: 40 }],
       style,
@@ -84,7 +87,7 @@ describe('cpPointsToScene', () => {
         pointIdx: new Set([1]),
         circleIdx: new Set([0]),
         color: SEL,
-      }
+      },
     );
     // point 0 unselected keeps its fill; point 1 selected takes the accent
     closeToAll(geo.fill.slice(0, 4), [...PF]);

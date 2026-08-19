@@ -90,12 +90,7 @@ export interface AnnotationBox {
 export type AnnotationResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
 /** The four corner handles — the only ones offered for aspect-locked objects. */
-export const CORNER_RESIZE_HANDLES: readonly AnnotationResizeHandle[] = [
-  'nw',
-  'ne',
-  'se',
-  'sw',
-];
+export const CORNER_RESIZE_HANDLES: readonly AnnotationResizeHandle[] = ['nw', 'ne', 'se', 'sw'];
 
 /** Local-axis signs of a handle's dragged point: 0 = that axis is fixed (edge). */
 export const HANDLE_SIGNS: Record<AnnotationResizeHandle, { sx: -1 | 0 | 1; sy: -1 | 0 | 1 }> = {
@@ -147,7 +142,7 @@ export function resizeAnnotationBox(
   box: AnnotationBox,
   handle: AnnotationResizeHandle,
   pointerModel: Vec2,
-  aspectLock = false
+  aspectLock = false,
 ): AnnotationResizeResult {
   const { sx, sy } = HANDLE_SIGNS[handle];
   const cos = Math.cos(box.rotation);

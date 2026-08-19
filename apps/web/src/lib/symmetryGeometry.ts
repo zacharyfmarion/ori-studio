@@ -49,7 +49,7 @@ export function distanceToSymmetryAxis(point: Point, axis: SymmetryAxis): number
 export function symmetrySide(
   point: Point,
   axis: SymmetryAxis,
-  tolerance = SYMMETRY_AUTHORING_TOLERANCE
+  tolerance = SYMMETRY_AUTHORING_TOLERANCE,
 ): -1 | 0 | 1 {
   const direction = axisDirection(axis);
   const dx = point.x - axis.loc.x;
@@ -62,7 +62,7 @@ export function symmetrySide(
 export function snapPointToSymmetryAxis(
   point: Point,
   axis: SymmetryAxis,
-  tolerance = SYMMETRY_AUTHORING_TOLERANCE
+  tolerance = SYMMETRY_AUTHORING_TOLERANCE,
 ): { point: Point; snapped: boolean; distance: number } {
   const distance = distanceToSymmetryAxis(point, axis);
   if (distance > tolerance) return { point, snapped: false, distance };

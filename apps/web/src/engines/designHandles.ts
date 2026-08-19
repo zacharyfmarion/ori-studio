@@ -38,7 +38,7 @@ function documentFor(designId: string, kind: DesignKindId): RegisteredDocument |
  */
 export async function acquireDesignHandle(
   designId: string,
-  kind: DesignKindId
+  kind: DesignKindId,
 ): Promise<number | null> {
   const document = documentFor(designId, kind);
   return document ? registry.acquire(document) : null;
@@ -53,14 +53,17 @@ export async function acquireDesignHandle(
 export async function withDesignHandle<T>(
   designId: string,
   kind: DesignKindId,
-  work: (handle: number) => Promise<T>
+  work: (handle: number) => Promise<T>,
 ): Promise<T | null> {
   const document = documentFor(designId, kind);
   return document ? registry.pinned(document, work) : null;
 }
 
 /** Serialize a design, whether or not it currently holds a handle. */
-export async function serializeDesign(designId: string, kind: DesignKindId): Promise<string | null> {
+export async function serializeDesign(
+  designId: string,
+  kind: DesignKindId,
+): Promise<string | null> {
   const document = documentFor(designId, kind);
   if (!document) return null;
   try {
@@ -98,7 +101,7 @@ export function adoptDesign(designId: string, text: string): void {
 export async function adoptDesignHandle(
   designId: string,
   kind: DesignKindId,
-  handle: number
+  handle: number,
 ): Promise<boolean> {
   const document = documentFor(designId, kind);
   if (!document) return false;
@@ -117,7 +120,7 @@ export function hotDesignIds(): string[] {
 }
 
 export function subscribeToDesignHandles(
-  listener: Parameters<typeof registry.subscribe>[0]
+  listener: Parameters<typeof registry.subscribe>[0],
 ): () => void {
   return registry.subscribe(listener);
 }

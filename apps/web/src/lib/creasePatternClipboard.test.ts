@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { OristudioCpDocumentSnapshot, OristudioCpLineSegment } from '../engine/oristudioCpTypes';
+import type {
+  OristudioCpDocumentSnapshot,
+  OristudioCpLineSegment,
+} from '../engine/oristudioCpTypes';
 import {
   buildCpLineClipboardPayload,
   cpLineSelectionBounds,
@@ -16,7 +19,7 @@ import { emptyOristudioCpSelection } from './creasePatternViewport';
 function cpLine(
   a: { x: number; y: number },
   b: { x: number; y: number },
-  overrides: Partial<OristudioCpLineSegment> = {}
+  overrides: Partial<OristudioCpLineSegment> = {},
 ): OristudioCpLineSegment {
   return {
     a,
@@ -61,13 +64,16 @@ function documentWithLines(lines: OristudioCpLineSegment[]): OristudioCpDocument
 
 describe('crease-pattern clipboard geometry', () => {
   it('builds selected-line payloads with content bounds', () => {
-    const payload = buildCpLineClipboardPayload(documentWithLines([
-      cpLine({ x: 0, y: 0 }, { x: 2, y: 0 }),
-      cpLine({ x: -1, y: 3 }, { x: 1, y: 4 }),
-    ]), {
-      ...emptyOristudioCpSelection(),
-      lines: [2],
-    });
+    const payload = buildCpLineClipboardPayload(
+      documentWithLines([
+        cpLine({ x: 0, y: 0 }, { x: 2, y: 0 }),
+        cpLine({ x: -1, y: 3 }, { x: 1, y: 4 }),
+      ]),
+      {
+        ...emptyOristudioCpSelection(),
+        lines: [2],
+      },
+    );
 
     expect(payload).toMatchObject({
       kind: 'cp-lines',
@@ -94,10 +100,10 @@ describe('crease-pattern clipboard geometry', () => {
   });
 
   it('translates selected lines by a model-space delta', () => {
-    const translated = translateCpLineSegments(
-      [cpLine({ x: 1, y: 2 }, { x: 3, y: 4 })],
-      { x: -2, y: 5 }
-    );
+    const translated = translateCpLineSegments([cpLine({ x: 1, y: 2 }, { x: 3, y: 4 })], {
+      x: -2,
+      y: 5,
+    });
 
     expect(translated[0]).toMatchObject({
       a: { x: -1, y: 7 },
@@ -139,16 +145,13 @@ describe('crease-pattern clipboard geometry', () => {
     const frame = cpLineSelectionFrame([cpLine({ x: -2, y: -1 }, { x: 2, y: 1 })]);
     expect(frame).not.toBeNull();
 
-    const scaled = transformCpLineSegments(
-      [cpLine({ x: -2, y: -1 }, { x: 2, y: 1 })],
-      {
-        kind: 'scale',
-        frame: frame!,
-        anchor: { x: -frame!.width / 2, y: 0 },
-        scaleX: 1.5,
-        scaleY: 1,
-      }
-    );
+    const scaled = transformCpLineSegments([cpLine({ x: -2, y: -1 }, { x: 2, y: 1 })], {
+      kind: 'scale',
+      frame: frame!,
+      anchor: { x: -frame!.width / 2, y: 0 },
+      scaleX: 1.5,
+      scaleY: 1,
+    });
 
     expect(scaled[0].a.x).toBeCloseTo(-2);
     expect(scaled[0].a.y).toBeCloseTo(-1);

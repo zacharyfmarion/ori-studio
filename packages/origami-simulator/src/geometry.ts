@@ -27,7 +27,7 @@ export function normalizePoint(coord: number[]): [number, number, number] {
 export function distanceToLine2D(
   point: [number, number, number],
   a: [number, number, number],
-  b: [number, number, number]
+  b: [number, number, number],
 ): number {
   const ax = a[0];
   const az = a[2];
@@ -48,7 +48,7 @@ export function edgeLength(positions: Float32Array, edge: [number, number]): num
   return Math.hypot(
     positions[a] - positions[b],
     positions[a + 1] - positions[b + 1],
-    positions[a + 2] - positions[b + 2]
+    positions[a + 2] - positions[b + 2],
   );
 }
 

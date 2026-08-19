@@ -38,7 +38,7 @@ describe('describeError', () => {
 
   it('reads the engine error envelope', () => {
     expect(describeError({ code: 'fold_contradiction', message: 'no order' })).toBe(
-      'fold_contradiction: no order'
+      'fold_contradiction: no order',
     );
   });
 
@@ -65,7 +65,9 @@ describe('describeError', () => {
 
 describe('redactPaths', () => {
   it('removes the username from every host convention', () => {
-    expect(redactPaths('/@fs/Users/zacharymarion/code/app.ts:12')).toBe('/@fs/Users/~/code/app.ts:12');
+    expect(redactPaths('/@fs/Users/zacharymarion/code/app.ts:12')).toBe(
+      '/@fs/Users/~/code/app.ts:12',
+    );
     expect(redactPaths('at /home/zach/src/app.ts')).toBe('at /home/~/src/app.ts');
     expect(redactPaths('C:\\Users\\Zach\\app.ts')).toBe('C:\\Users\\~\\app.ts');
   });
@@ -84,7 +86,7 @@ describe('errorStack', () => {
   it('clamps a runaway stack', () => {
     const error = new Error('deep');
     error.stack = ['Error: deep', ...Array.from({ length: 200 }, (_, i) => `    at f${i} ()`)].join(
-      '\n'
+      '\n',
     );
     const stack = errorStack(error);
     expect(stack).not.toBeNull();
@@ -109,12 +111,14 @@ describe('document descriptions', () => {
       points: 3,
       texts: 1,
     });
-    expect(described).toBe('crease pattern · 1284 lines · 12 aux lines · 0 circles · 3 points · 1 texts');
+    expect(described).toBe(
+      'crease pattern · 1284 lines · 12 aux lines · 0 circles · 3 points · 1 texts',
+    );
   });
 
   it('reports tree shape as counts only', () => {
     expect(describeTreeDocument({ nodes: 6, edges: 5, paths: 15, conditions: 2 })).toBe(
-      'tree · 6 nodes · 5 edges · 15 paths · 2 conditions'
+      'tree · 6 nodes · 5 edges · 15 paths · 2 conditions',
     );
   });
 });
@@ -132,7 +136,7 @@ describe('buildErrorReport', () => {
 
   it('omits the version build suffix when the commit is unknown', () => {
     expect(report({ build: { version: '0.1.2', commit: 'unknown' } })).toContain(
-      '**Version**: 0.1.2\n'
+      '**Version**: 0.1.2\n',
     );
   });
 

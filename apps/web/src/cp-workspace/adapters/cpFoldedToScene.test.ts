@@ -21,7 +21,7 @@ import type {
 
 function figure(
   primitives: OristudioCpFoldedRenderPrimitive[],
-  placement: FoldedFigurePlacement = IDENTITY_FOLDED_PLACEMENT
+  placement: FoldedFigurePlacement = IDENTITY_FOLDED_PLACEMENT,
 ): OristudioCpFoldedFigureEntry {
   return {
     id: 'f1',
@@ -125,7 +125,7 @@ const strokeTriangle = (placement: FoldedFigurePlacement = IDENTITY_FOLDED_PLACE
         },
       },
     ],
-    placement
+    placement,
   );
 
 describe('draw order as depth', () => {
@@ -240,9 +240,7 @@ describe('folded figure placement', () => {
 
   it('scales about the figure centre, so the centre does not move', () => {
     const base = drawnCenter(strokeTriangle());
-    const scaled = drawnCenter(
-      strokeTriangle({ offset: { x: 0, y: 0 }, scale: 3, rotation: 0 })
-    );
+    const scaled = drawnCenter(strokeTriangle({ offset: { x: 0, y: 0 }, scale: 3, rotation: 0 }));
     expect(scaled.x).toBeCloseTo(base.x);
     expect(scaled.y).toBeCloseTo(base.y);
   });
@@ -306,7 +304,7 @@ describe('foldedFigureBox', () => {
   it('scales the box extents and carries the rotation', () => {
     const base = foldedFigureBox(strokeTriangle())!;
     const placed = foldedFigureBox(
-      strokeTriangle({ offset: { x: 10, y: 20 }, scale: 2, rotation: 0.5 })
+      strokeTriangle({ offset: { x: 10, y: 20 }, scale: 2, rotation: 0.5 }),
     )!;
     expect(placed.width).toBeCloseTo(base.width * 2);
     expect(placed.height).toBeCloseTo(base.height * 2);
@@ -350,7 +348,7 @@ describe('foldedFigureBox', () => {
             ],
           },
         },
-      ])
+      ]),
     )!;
     // Square, and the same box for two different projections — the point of the
     // frame. The side is `2 * frameRadius` carried into user coordinates by
@@ -413,7 +411,7 @@ describe('foldedFigureBox', () => {
             ],
           },
         },
-      ])
+      ]),
     )!;
     expect(line.height).toBeGreaterThan(triangle.height * 10);
   });
@@ -469,7 +467,10 @@ describe('foldedFigureUserBounds', () => {
     const square = foldedFigureUserBounds([polygonFigure()])[0].bounds;
     const side = square.maxX - square.minX;
     const turned = foldedFigureUserBounds([
-      { ...polygonFigure(), placement: { offset: { x: 0, y: 0 }, scale: 1, rotation: Math.PI / 4 } },
+      {
+        ...polygonFigure(),
+        placement: { offset: { x: 0, y: 0 }, scale: 1, rotation: Math.PI / 4 },
+      },
     ])[0].bounds;
     // A square turned 45 degrees has a bounding box sqrt(2) times as wide.
     expect(turned.maxX - turned.minX).toBeCloseTo(side * Math.SQRT2);
@@ -486,7 +487,7 @@ describe('cpContradictionFaceFills', () => {
   ];
 
   function figureWithContradiction(
-    faces: OristudioCpContradictionFaceGeometry | null
+    faces: OristudioCpContradictionFaceGeometry | null,
   ): OristudioCpFoldedFigureEntry {
     const snapshot = {
       contradiction_faces: faces,
@@ -518,7 +519,13 @@ describe('cpContradictionFaceFills', () => {
 
   it('skips degenerate (sub-triangle) face rings', () => {
     const geo = cpContradictionFaceFills([
-      figureWithContradiction({ upper: [{ x: 0, y: 0 }, { x: 1, y: 1 }], lower: quad(0, 0) }),
+      figureWithContradiction({
+        upper: [
+          { x: 0, y: 0 },
+          { x: 1, y: 1 },
+        ],
+        lower: quad(0, 0),
+      }),
     ]);
     // upper has < 3 points -> dropped; lower quad -> 6 vertices
     expect(geo.count).toBe(6);
@@ -542,7 +549,7 @@ describe('placeFoldedFigureBesideCp', () => {
     expect(foldedFigureUserBounds([placed])[0].bounds.minY).toBeCloseTo(paper.top);
   });
 
-  it("parks a framed 3D figure by its box, not by what it draws", () => {
+  it('parks a framed 3D figure by its box, not by what it draws', () => {
     // The bug: the slot was sized from the drawing's extent and the offset
     // measured from the drawing's centre, while `foldedFigureBox` reports the
     // framed square about the projected centroid. Two different rectangles, so a
@@ -585,7 +592,7 @@ describe('placeFoldedFigureBesideCp', () => {
       placement: placeFoldedFigureBesideCp(second, [firstPlaced], paper),
     };
     expect(foldedFigureUserBounds([secondPlaced])[0].bounds.minY).toBeCloseTo(
-      foldedFigureUserBounds([firstPlaced])[0].bounds.minY
+      foldedFigureUserBounds([firstPlaced])[0].bounds.minY,
     );
   });
 
@@ -633,10 +640,11 @@ describe('placeFoldedFigureBesideCp', () => {
     };
     // Delete the middle one; the next fold should take its slot back rather than
     // landing past the third.
-    const refilled = placeFoldedFigureBesideCp(polygonFigureNamed('d'), [
-      firstPlaced,
-      thirdPlaced,
-    ], paper);
+    const refilled = placeFoldedFigureBesideCp(
+      polygonFigureNamed('d'),
+      [firstPlaced, thirdPlaced],
+      paper,
+    );
     expect(refilled).toEqual(secondPlaced.placement);
   });
 
@@ -651,7 +659,7 @@ describe('placeFoldedFigureBesideCp', () => {
     };
     const tightBounds = foldedFigureUserBounds([tight])[0].bounds;
     expect(foldedFigureUserBounds([placed])[0].bounds.minX).toBeGreaterThanOrEqual(
-      tightBounds.maxX
+      tightBounds.maxX,
     );
   });
 
@@ -666,15 +674,12 @@ describe('placeFoldedFigureBesideCp', () => {
     const placedBounds = foldedFigureUserBounds([placed])[0].bounds;
     // Either it fits in the gap before the turned figure, or it clears it —
     // never overlapping the turned figure's true (rotated) extent.
-    const clears =
-      placedBounds.maxX <= turnedBounds.minX || placedBounds.minX >= turnedBounds.maxX;
+    const clears = placedBounds.maxX <= turnedBounds.minX || placedBounds.minX >= turnedBounds.maxX;
     expect(clears).toBe(true);
   });
 
   it('is identity for a figure that draws nothing', () => {
-    expect(placeFoldedFigureBesideCp(figure([]), [], paper)).toEqual(
-      IDENTITY_FOLDED_PLACEMENT
-    );
+    expect(placeFoldedFigureBesideCp(figure([]), [], paper)).toEqual(IDENTITY_FOLDED_PLACEMENT);
   });
 });
 
@@ -690,7 +695,7 @@ function figureAt(
   id: string,
   left: number,
   top: number,
-  rotation = 0
+  rotation = 0,
 ): OristudioCpFoldedFigureEntry {
   const entry = polygonFigureNamed(id);
   const bounds = foldedFigureLocalGeometry(entry.renderSnapshot!).bounds!;
@@ -780,7 +785,7 @@ describe('cpUserAnchorForLineIds', () => {
   it('ignores ids that resolve to nothing', () => {
     const document = doc([{ a: { x: 0.2, y: 0.2 }, b: { x: 0.4, y: 0.4 } }]);
     expect(cpUserAnchorForLineIds(document, [1, 99])).toEqual(
-      cpUserAnchorForLineIds(document, [1])
+      cpUserAnchorForLineIds(document, [1]),
     );
   });
 

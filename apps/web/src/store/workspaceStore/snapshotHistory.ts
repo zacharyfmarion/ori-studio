@@ -37,7 +37,7 @@ export function snapshotEntry<S>(snapshot: S, label: string): SnapshotEntry<S> {
  */
 export function recordSnapshot<S>(
   history: SnapshotHistory<S>,
-  entry: SnapshotEntry<S>
+  entry: SnapshotEntry<S>,
 ): SnapshotHistory<S> {
   return {
     past: [...history.past, entry].slice(-MAX_SNAPSHOT_HISTORY),
@@ -52,7 +52,7 @@ export function recordSnapshot<S>(
  */
 export function undoSnapshot<S>(
   history: SnapshotHistory<S>,
-  current: SnapshotEntry<S>
+  current: SnapshotEntry<S>,
 ): { restore: SnapshotEntry<S>; history: SnapshotHistory<S> } | null {
   const restore = history.past.at(-1);
   if (!restore) return null;
@@ -72,7 +72,7 @@ export function undoSnapshot<S>(
  */
 export function redoSnapshot<S>(
   history: SnapshotHistory<S>,
-  current: SnapshotEntry<S>
+  current: SnapshotEntry<S>,
 ): { restore: SnapshotEntry<S>; history: SnapshotHistory<S> } | null {
   const restore = history.future[0];
   if (!restore) return null;

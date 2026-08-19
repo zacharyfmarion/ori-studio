@@ -67,14 +67,17 @@ test('the layout is recorded so a cell can be identified', () => {
   const { layout } = combineFolds([pattern('a'), pattern('b'), pattern('c'), pattern('d')]);
   assert.deepEqual(
     layout.map(({ name, row, column }) => `${name}@${row},${column}`),
-    ['a@0,0', 'b@0,1', 'c@1,0', 'd@1,1']
+    ['a@0,0', 'b@0,1', 'c@1,0', 'd@1,1'],
   );
 });
 
 test('an empty pattern is skipped rather than shifting the grid', () => {
   const empty = { name: 'empty', fold: { vertices_coords: [], edges_vertices: [] } };
   const { layout } = combineFolds([empty, pattern('a')]);
-  assert.deepEqual(layout.map((entry) => entry.name), ['a']);
+  assert.deepEqual(
+    layout.map((entry) => entry.name),
+    ['a'],
+  );
 });
 
 test('nothing to combine is an error, not an empty document', () => {

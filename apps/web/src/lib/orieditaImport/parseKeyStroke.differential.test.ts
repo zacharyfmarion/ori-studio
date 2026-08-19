@@ -26,7 +26,7 @@ import { parseOrieditaKeyStrokeStrict } from './parseKeyStroke';
  */
 const CORPUS = readFileSync(
   resolve(dirname(fileURLToPath(import.meta.url)), '__fixtures__', 'jdk-keystroke-corpus.txt'),
-  'utf8'
+  'utf8',
 )
   .split('\n')
   .filter((line) => line.length > 0 && !line.startsWith('#'));

@@ -1,9 +1,6 @@
 import type { OptimizerSymmetryPayload } from '../lib/bpOptimizerSymmetry';
 import type { Point } from '../lib/geometry';
-import type {
-  OristudioBpCapabilityId,
-  OristudioBpCommandId,
-} from '../lib/oristudioBpCommands';
+import type { OristudioBpCapabilityId, OristudioBpCommandId } from '../lib/oristudioBpCommands';
 
 export type OristudioBpWorkflowTarget = 'box-pleat';
 export type OristudioWorkflowTarget = 'treemaker' | OristudioBpWorkflowTarget;
@@ -279,12 +276,7 @@ export interface OristudioBpPackingView {
 }
 
 export type OristudioBpCreaseLineAssignment =
-  | 'mountain'
-  | 'valley'
-  | 'flat'
-  | 'border'
-  | 'auxiliary'
-  | 'unassigned';
+  'mountain' | 'valley' | 'flat' | 'border' | 'auxiliary' | 'unassigned';
 
 export interface OristudioBpCreaseLine {
   id: string;

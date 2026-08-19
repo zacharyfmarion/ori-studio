@@ -40,7 +40,7 @@ function render(options: {
         ariaLabel="actions"
       >
         <button type="button">act</button>
-      </FloatingToolbar>
+      </FloatingToolbar>,
     );
   });
 }

@@ -62,8 +62,8 @@ describe('selection helpers', () => {
           facets: [],
           conditions: [],
         },
-        project
-      )
+        project,
+      ),
     ).toBe(true);
     expect(
       selectionCoversAllNodes(
@@ -76,8 +76,8 @@ describe('selection helpers', () => {
           facets: [],
           conditions: [],
         },
-        project
-      )
+        project,
+      ),
     ).toBe(false);
   });
 
@@ -93,7 +93,7 @@ describe('selection helpers', () => {
     const project = {
       ...createSampleProject(),
       nodes: createSampleProject().nodes.map((node) =>
-        node.id === 2 ? { ...node, isPinned: true } : node
+        node.id === 2 ? { ...node, isPinned: true } : node,
       ),
       conditions: [
         {

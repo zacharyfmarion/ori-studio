@@ -44,7 +44,7 @@ describe('the ExplOri document', () => {
     expect(parseExploriDocument('{"nodes":[]}').nodes).toHaveLength(1);
     // A node with no position is unusable; the rest of the document is not.
     const partial = parseExploriDocument(
-      JSON.stringify({ nodes: [{ id: 0, loc: { x: 0, y: 0 } }, { id: 1 }], edges: [] })
+      JSON.stringify({ nodes: [{ id: 0, loc: { x: 0, y: 0 } }, { id: 1 }], edges: [] }),
     );
     expect(partial.nodes).toHaveLength(1);
   });
@@ -54,7 +54,7 @@ describe('the ExplOri document', () => {
       JSON.stringify({
         nodes: [{ id: 0, loc: { x: 0, y: 0 } }],
         edges: [{ id: 1, vertices: [0, 7], length: 1 }],
-      })
+      }),
     );
     expect(parsed.edges).toHaveLength(0);
   });
@@ -104,7 +104,7 @@ describe('which databases a search uses', () => {
 
   it('includes it for a tree that is not symmetric', () => {
     expect(symmetriesOf(withNodes([2, 1], [-2, 1], [1.5, -2]))).toEqual(
-      new Set(['diag', 'book', 'none'])
+      new Set(['diag', 'book', 'none']),
     );
   });
 

@@ -952,11 +952,11 @@ export type OristudioBpCommandId = (typeof ORISTUDIO_BP_COMMANDS)[number]['id'];
 export type OristudioBpCapabilityId = (typeof ORISTUDIO_BP_COMMANDS)[number]['capability'];
 
 export const ORISTUDIO_BP_COMMAND_IDS = ORISTUDIO_BP_COMMANDS.map(
-  (command) => command.id
+  (command) => command.id,
 ) as readonly OristudioBpCommandId[];
 
 export const ORISTUDIO_BP_CAPABILITY_IDS = ORISTUDIO_BP_COMMANDS.map(
-  (command) => command.capability
+  (command) => command.capability,
 ) as readonly OristudioBpCapabilityId[];
 
 export function isOristudioBpCommandId(id: string): id is OristudioBpCommandId {

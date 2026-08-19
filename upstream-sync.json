@@ -54,11 +54,7 @@
         "roughContour.ts stale-contour clear (v0.7.15). May not apply: our layout/contours.rs computes into a fresh result map rather than mutating persistent node state. See implementation-plans/bp-studio-sync-2026-08-10.md."
       ],
       "oracle": "tools/bp-studio-oracle/oracle.mjs",
-      "watch_paths": [
-        "src/core/",
-        "src/shared/json/",
-        "src/client/patches/migrations/"
-      ],
+      "watch_paths": ["src/core/", "src/shared/json/", "src/client/patches/migrations/"],
       "port_map": {
         "src/core/": "crates/oristudio-bp/src/",
         "src/shared/json/": "crates/oristudio-bp/src/io/",
@@ -74,9 +70,7 @@
       "last_checked_date": "2026-08-10",
       "vendored_subset_note": "Unlike the other upstreams this is a curated subset, not a full copy: 20 files, with large images and the upstream example corpus deliberately omitted. A re-vendor must update the vendored files rather than copying the tree.",
       "oracle": "tools/flat-folder-oracle/oracle.mjs",
-      "watch_paths": [
-        "src/"
-      ],
+      "watch_paths": ["src/"],
       "port_map": {
         "src/": "crates/treemaker-flatfold/src/"
       }
@@ -90,9 +84,7 @@
       "last_checked_commit": "7855983a613c879c171b2b1557f8cd102d2640cf",
       "last_checked_date": "2026-08-10",
       "oracle": null,
-      "watch_paths": [
-        "js/"
-      ],
+      "watch_paths": ["js/"],
       "port_map": {
         "js/": "packages/origami-simulator/src/"
       }

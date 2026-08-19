@@ -38,16 +38,24 @@ export function ConditionsPanel() {
   const addCondition = useWorkspaceStore((state) => state.addCondition);
   const updateCondition = useWorkspaceStore((state) => state.updateCondition);
   const deleteCondition = useWorkspaceStore((state) => state.deleteCondition);
-  const deleteConditionsForSelectedNodes = useWorkspaceStore((state) => state.deleteConditionsForSelectedNodes);
-  const deleteConditionsForSelectedEdges = useWorkspaceStore((state) => state.deleteConditionsForSelectedEdges);
-  const deleteConditionsForSelectedPaths = useWorkspaceStore((state) => state.deleteConditionsForSelectedPaths);
+  const deleteConditionsForSelectedNodes = useWorkspaceStore(
+    (state) => state.deleteConditionsForSelectedNodes,
+  );
+  const deleteConditionsForSelectedEdges = useWorkspaceStore(
+    (state) => state.deleteConditionsForSelectedEdges,
+  );
+  const deleteConditionsForSelectedPaths = useWorkspaceStore(
+    (state) => state.deleteConditionsForSelectedPaths,
+  );
   const clearConditions = useWorkspaceStore((state) => state.clearConditions);
   const nodeIds = selectedNodeIds(selection);
   const edgeIds = selectedEdgeIds(selection);
   const conditionIds = selectedConditionIds(selection);
   const pathIds = selectedPathIds(selection);
-  const selectedNode = nodeIds.length === 1 ? project.nodes.find((node) => node.id === nodeIds[0]) : null;
-  const selectedEdge = edgeIds.length === 1 ? project.edges.find((edge) => edge.id === edgeIds[0]) : null;
+  const selectedNode =
+    nodeIds.length === 1 ? project.nodes.find((node) => node.id === nodeIds[0]) : null;
+  const selectedEdge =
+    edgeIds.length === 1 ? project.edges.find((edge) => edge.id === edgeIds[0]) : null;
   const selectedPath =
     selection.kind === 'path' ? project.paths.find((path) => path.id === selection.id) : null;
   const editedCondition =
@@ -64,7 +72,7 @@ export function ConditionsPanel() {
         const node = project.nodes.find((candidate) => candidate.id === id);
         return node?.isLeaf;
       }),
-    [nodeIds, project.nodes]
+    [nodeIds, project.nodes],
   );
 
   const add = (kind: ConditionKind) => {
@@ -81,7 +89,7 @@ export function ConditionsPanel() {
           <span className="document-mode-empty__message">
             {t(
               'panels:conditions.imported.message',
-              'Imported crease patterns do not have editable tree conditions.'
+              'Imported crease patterns do not have editable tree conditions.',
             )}
           </span>
           <div className="document-mode-empty__actions">
@@ -93,7 +101,11 @@ export function ConditionsPanel() {
               <FileText size={14} />
               {t('panels:documentModeEmpty.newTree', 'New Tree')}
             </Button>
-            <Button size="sm" variant="secondary" onClick={() => void handleMenuAction('file.open')}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => void handleMenuAction('file.open')}
+            >
               <FolderOpen size={14} />
               {t('panels:documentModeEmpty.open', 'Open')}
             </Button>
@@ -117,7 +129,9 @@ export function ConditionsPanel() {
       </div>
       <div className="panel-body conditions-panel__body">
         <section className="condition-section">
-          <div className="condition-section__title">{t('panels:conditions.paper.title', 'Paper')}</div>
+          <div className="condition-section__title">
+            {t('panels:conditions.paper.title', 'Paper')}
+          </div>
           <NumberControl
             label={t('panels:conditions.paper.width', 'Width')}
             value={project.paper.width}
@@ -144,7 +158,7 @@ export function ConditionsPanel() {
               label={t('panels:conditions.actions.fixNode.label', 'Fix node')}
               help={t(
                 'panels:conditions.actions.fixNode.help',
-                "Select one leaf node. Adds a fixed-position condition at the node's current coordinates."
+                "Select one leaf node. Adds a fixed-position condition at the node's current coordinates.",
               )}
               disabled={!selectedNode?.isLeaf}
               onClick={() =>
@@ -164,7 +178,7 @@ export function ConditionsPanel() {
               label={t('panels:conditions.actions.nodeOnEdge.label', 'Node on edge')}
               help={t(
                 'panels:conditions.actions.nodeOnEdge.help',
-                'Select one leaf node. Constrains it to lie somewhere on the paper boundary.'
+                'Select one leaf node. Constrains it to lie somewhere on the paper boundary.',
               )}
               disabled={!selectedNode?.isLeaf}
               onClick={() => selectedNode && add({ type: 'node_on_edge', node: selectedNode.id })}
@@ -174,7 +188,7 @@ export function ConditionsPanel() {
               label={t('panels:conditions.actions.nodeOnCorner.label', 'Node on corner')}
               help={t(
                 'panels:conditions.actions.nodeOnCorner.help',
-                'Select one leaf node. Constrains it to one of the paper corners.'
+                'Select one leaf node. Constrains it to one of the paper corners.',
               )}
               disabled={!selectedNode?.isLeaf}
               onClick={() => selectedNode && add({ type: 'node_on_corner', node: selectedNode.id })}
@@ -184,7 +198,7 @@ export function ConditionsPanel() {
               label={t('panels:conditions.actions.nodeOnSymmetry.label', 'Node on symmetry')}
               help={t(
                 'panels:conditions.actions.nodeOnSymmetry.help',
-                'Enable symmetry and select one leaf node. Constrains the node to the active symmetry line.'
+                'Enable symmetry and select one leaf node. Constrains the node to the active symmetry line.',
               )}
               disabled={!selectedNode?.isLeaf || !project.hasSymmetry}
               onClick={() => selectedNode && add({ type: 'node_symmetric', node: selectedNode.id })}
@@ -194,7 +208,7 @@ export function ConditionsPanel() {
               label={t('panels:conditions.actions.pairNodes.label', 'Pair nodes')}
               help={t(
                 'panels:conditions.actions.pairNodes.help',
-                'Select two leaf nodes. Keeps the pair mirrored across the active symmetry line.'
+                'Select two leaf nodes. Keeps the pair mirrored across the active symmetry line.',
               )}
               disabled={selectedLeafNodeIds.length !== 2}
               onClick={() =>
@@ -224,14 +238,18 @@ export function ConditionsPanel() {
               label="Fix edge length"
               help="Select one edge. Locks that edge's current tree length during optimization."
               disabled={!selectedEdge}
-              onClick={() => selectedEdge && add({ type: 'edge_length_fixed', edge: selectedEdge.id })}
+              onClick={() =>
+                selectedEdge && add({ type: 'edge_length_fixed', edge: selectedEdge.id })
+              }
             />
             <ConditionAction
               icon={<Link2 size={14} />}
               label="Same strain"
               help="Select two edges. Constrains both edges to use the same strain value."
               disabled={edgeIds.length !== 2}
-              onClick={() => add({ type: 'edges_same_strain', edge1: edgeIds[0], edge2: edgeIds[1] })}
+              onClick={() =>
+                add({ type: 'edges_same_strain', edge1: edgeIds[0], edge2: edgeIds[1] })
+              }
             />
             <ConditionAction
               icon={<Plus size={14} />}
@@ -240,7 +258,11 @@ export function ConditionsPanel() {
               disabled={!selectedPath}
               onClick={() =>
                 selectedPath &&
-                add({ type: 'path_active', node1: selectedPath.nodes[0], node2: selectedPath.nodes[1] })
+                add({
+                  type: 'path_active',
+                  node1: selectedPath.nodes[0],
+                  node2: selectedPath.nodes[1],
+                })
               }
             />
           </div>
@@ -261,7 +283,12 @@ export function ConditionsPanel() {
                 }
               />
               <NumberControl label="Quant" value={quant} min={1} step={1} onCommit={setQuant} />
-              <NumberControl label="Offset" value={quantOffset} step={1} onCommit={setQuantOffset} />
+              <NumberControl
+                label="Offset"
+                value={quantOffset}
+                step={1}
+                onCommit={setQuantOffset}
+              />
               <ConditionAction
                 icon={<Plus size={14} />}
                 label="Quantize"
@@ -305,7 +332,9 @@ export function ConditionsPanel() {
 
         {editedCondition && (
           <section className="condition-section">
-            <div className="condition-section__title">{t('panels:conditions.editor', 'Editor')}</div>
+            <div className="condition-section__title">
+              {t('panels:conditions.editor', 'Editor')}
+            </div>
             <ConditionEditor
               condition={editedCondition}
               onUpdate={(kind) => void updateCondition(editedCondition.id, kind)}
@@ -364,33 +393,97 @@ function ConditionEditor({
   onUpdate: (kind: ConditionKind) => void;
 }) {
   const kind = condition.kind;
-  const update = (patch: Partial<ConditionKind>) => onUpdate({ ...kind, ...patch } as ConditionKind);
-  const updateInt = (key: string, value: number) => update({ [key]: Math.max(1, Math.round(value)) } as Partial<ConditionKind>);
-  const updateNumber = (key: string, value: number) => update({ [key]: value } as Partial<ConditionKind>);
-  const updateBool = (key: string, value: boolean) => update({ [key]: value } as Partial<ConditionKind>);
+  const update = (patch: Partial<ConditionKind>) =>
+    onUpdate({ ...kind, ...patch } as ConditionKind);
+  const updateInt = (key: string, value: number) =>
+    update({ [key]: Math.max(1, Math.round(value)) } as Partial<ConditionKind>);
+  const updateNumber = (key: string, value: number) =>
+    update({ [key]: value } as Partial<ConditionKind>);
+  const updateBool = (key: string, value: boolean) =>
+    update({ [key]: value } as Partial<ConditionKind>);
 
   switch (kind.type) {
     case 'node_combo':
       return (
         <div className="condition-advanced__body">
-          <NumberControl label="Node" value={kind.node} min={1} step={1} onCommit={(value) => updateInt('node', value)} />
-          <ToggleControl label="Sym line" checked={kind.to_symmetry_line} onChange={(value) => updateBool('to_symmetry_line', value)} />
-          <ToggleControl label="Paper edge" checked={kind.to_paper_edge} onChange={(value) => updateBool('to_paper_edge', value)} />
-          <ToggleControl label="Corner" checked={kind.to_paper_corner} onChange={(value) => updateBool('to_paper_corner', value)} />
-          <ToggleControl label="Fix X" checked={kind.x_fixed} onChange={(value) => updateBool('x_fixed', value)} />
-          <NumberControl label="X" value={kind.x_fix_value} step={0.01} onCommit={(value) => updateNumber('x_fix_value', value)} />
-          <ToggleControl label="Fix Y" checked={kind.y_fixed} onChange={(value) => updateBool('y_fixed', value)} />
-          <NumberControl label="Y" value={kind.y_fix_value} step={0.01} onCommit={(value) => updateNumber('y_fix_value', value)} />
+          <NumberControl
+            label="Node"
+            value={kind.node}
+            min={1}
+            step={1}
+            onCommit={(value) => updateInt('node', value)}
+          />
+          <ToggleControl
+            label="Sym line"
+            checked={kind.to_symmetry_line}
+            onChange={(value) => updateBool('to_symmetry_line', value)}
+          />
+          <ToggleControl
+            label="Paper edge"
+            checked={kind.to_paper_edge}
+            onChange={(value) => updateBool('to_paper_edge', value)}
+          />
+          <ToggleControl
+            label="Corner"
+            checked={kind.to_paper_corner}
+            onChange={(value) => updateBool('to_paper_corner', value)}
+          />
+          <ToggleControl
+            label="Fix X"
+            checked={kind.x_fixed}
+            onChange={(value) => updateBool('x_fixed', value)}
+          />
+          <NumberControl
+            label="X"
+            value={kind.x_fix_value}
+            step={0.01}
+            onCommit={(value) => updateNumber('x_fix_value', value)}
+          />
+          <ToggleControl
+            label="Fix Y"
+            checked={kind.y_fixed}
+            onChange={(value) => updateBool('y_fixed', value)}
+          />
+          <NumberControl
+            label="Y"
+            value={kind.y_fix_value}
+            step={0.01}
+            onCommit={(value) => updateNumber('y_fix_value', value)}
+          />
         </div>
       );
     case 'node_fixed':
       return (
         <div className="condition-advanced__body">
-          <NumberControl label="Node" value={kind.node} min={1} step={1} onCommit={(value) => updateInt('node', value)} />
-          <ToggleControl label="Fix X" checked={kind.x_fixed} onChange={(value) => updateBool('x_fixed', value)} />
-          <NumberControl label="X" value={kind.x_fix_value} step={0.01} onCommit={(value) => updateNumber('x_fix_value', value)} />
-          <ToggleControl label="Fix Y" checked={kind.y_fixed} onChange={(value) => updateBool('y_fixed', value)} />
-          <NumberControl label="Y" value={kind.y_fix_value} step={0.01} onCommit={(value) => updateNumber('y_fix_value', value)} />
+          <NumberControl
+            label="Node"
+            value={kind.node}
+            min={1}
+            step={1}
+            onCommit={(value) => updateInt('node', value)}
+          />
+          <ToggleControl
+            label="Fix X"
+            checked={kind.x_fixed}
+            onChange={(value) => updateBool('x_fixed', value)}
+          />
+          <NumberControl
+            label="X"
+            value={kind.x_fix_value}
+            step={0.01}
+            onCommit={(value) => updateNumber('x_fix_value', value)}
+          />
+          <ToggleControl
+            label="Fix Y"
+            checked={kind.y_fixed}
+            onChange={(value) => updateBool('y_fixed', value)}
+          />
+          <NumberControl
+            label="Y"
+            value={kind.y_fix_value}
+            step={0.01}
+            onCommit={(value) => updateNumber('y_fix_value', value)}
+          />
         </div>
       );
     case 'node_on_corner':
@@ -398,71 +491,213 @@ function ConditionEditor({
     case 'node_symmetric':
       return (
         <div className="condition-advanced__body">
-          <NumberControl label="Node" value={kind.node} min={1} step={1} onCommit={(value) => updateInt('node', value)} />
+          <NumberControl
+            label="Node"
+            value={kind.node}
+            min={1}
+            step={1}
+            onCommit={(value) => updateInt('node', value)}
+          />
         </div>
       );
     case 'nodes_paired':
       return (
         <div className="condition-advanced__body">
-          <NumberControl label="Node 1" value={kind.node1} min={1} step={1} onCommit={(value) => updateInt('node1', value)} />
-          <NumberControl label="Node 2" value={kind.node2} min={1} step={1} onCommit={(value) => updateInt('node2', value)} />
+          <NumberControl
+            label="Node 1"
+            value={kind.node1}
+            min={1}
+            step={1}
+            onCommit={(value) => updateInt('node1', value)}
+          />
+          <NumberControl
+            label="Node 2"
+            value={kind.node2}
+            min={1}
+            step={1}
+            onCommit={(value) => updateInt('node2', value)}
+          />
         </div>
       );
     case 'nodes_collinear':
       return (
         <div className="condition-advanced__body">
-          <NumberControl label="Node 1" value={kind.node1} min={1} step={1} onCommit={(value) => updateInt('node1', value)} />
-          <NumberControl label="Node 2" value={kind.node2} min={1} step={1} onCommit={(value) => updateInt('node2', value)} />
-          <NumberControl label="Node 3" value={kind.node3} min={1} step={1} onCommit={(value) => updateInt('node3', value)} />
+          <NumberControl
+            label="Node 1"
+            value={kind.node1}
+            min={1}
+            step={1}
+            onCommit={(value) => updateInt('node1', value)}
+          />
+          <NumberControl
+            label="Node 2"
+            value={kind.node2}
+            min={1}
+            step={1}
+            onCommit={(value) => updateInt('node2', value)}
+          />
+          <NumberControl
+            label="Node 3"
+            value={kind.node3}
+            min={1}
+            step={1}
+            onCommit={(value) => updateInt('node3', value)}
+          />
         </div>
       );
     case 'edge_length_fixed':
       return (
         <div className="condition-advanced__body">
-          <NumberControl label="Edge" value={kind.edge} min={1} step={1} onCommit={(value) => updateInt('edge', value)} />
+          <NumberControl
+            label="Edge"
+            value={kind.edge}
+            min={1}
+            step={1}
+            onCommit={(value) => updateInt('edge', value)}
+          />
         </div>
       );
     case 'edges_same_strain':
       return (
         <div className="condition-advanced__body">
-          <NumberControl label="Edge 1" value={kind.edge1} min={1} step={1} onCommit={(value) => updateInt('edge1', value)} />
-          <NumberControl label="Edge 2" value={kind.edge2} min={1} step={1} onCommit={(value) => updateInt('edge2', value)} />
+          <NumberControl
+            label="Edge 1"
+            value={kind.edge1}
+            min={1}
+            step={1}
+            onCommit={(value) => updateInt('edge1', value)}
+          />
+          <NumberControl
+            label="Edge 2"
+            value={kind.edge2}
+            min={1}
+            step={1}
+            onCommit={(value) => updateInt('edge2', value)}
+          />
         </div>
       );
     case 'path_combo':
       return (
         <div className="condition-advanced__body">
-          <NumberControl label="Node 1" value={kind.node1} min={1} step={1} onCommit={(value) => updateInt('node1', value)} />
-          <NumberControl label="Node 2" value={kind.node2} min={1} step={1} onCommit={(value) => updateInt('node2', value)} />
-          <ToggleControl label="Fix angle" checked={kind.is_angle_fixed} onChange={(value) => updateBool('is_angle_fixed', value)} />
-          <NumberControl label="Angle" value={kind.angle} step={1} onCommit={(value) => updateNumber('angle', value)} />
-          <ToggleControl label="Quantize" checked={kind.is_angle_quant} onChange={(value) => updateBool('is_angle_quant', value)} />
-          <NumberControl label="Quant" value={kind.quant} min={1} step={1} onCommit={(value) => updateInt('quant', value)} />
-          <NumberControl label="Offset" value={kind.quant_offset} step={1} onCommit={(value) => updateNumber('quant_offset', value)} />
+          <NumberControl
+            label="Node 1"
+            value={kind.node1}
+            min={1}
+            step={1}
+            onCommit={(value) => updateInt('node1', value)}
+          />
+          <NumberControl
+            label="Node 2"
+            value={kind.node2}
+            min={1}
+            step={1}
+            onCommit={(value) => updateInt('node2', value)}
+          />
+          <ToggleControl
+            label="Fix angle"
+            checked={kind.is_angle_fixed}
+            onChange={(value) => updateBool('is_angle_fixed', value)}
+          />
+          <NumberControl
+            label="Angle"
+            value={kind.angle}
+            step={1}
+            onCommit={(value) => updateNumber('angle', value)}
+          />
+          <ToggleControl
+            label="Quantize"
+            checked={kind.is_angle_quant}
+            onChange={(value) => updateBool('is_angle_quant', value)}
+          />
+          <NumberControl
+            label="Quant"
+            value={kind.quant}
+            min={1}
+            step={1}
+            onCommit={(value) => updateInt('quant', value)}
+          />
+          <NumberControl
+            label="Offset"
+            value={kind.quant_offset}
+            step={1}
+            onCommit={(value) => updateNumber('quant_offset', value)}
+          />
         </div>
       );
     case 'path_active':
       return (
         <div className="condition-advanced__body">
-          <NumberControl label="Node 1" value={kind.node1} min={1} step={1} onCommit={(value) => updateInt('node1', value)} />
-          <NumberControl label="Node 2" value={kind.node2} min={1} step={1} onCommit={(value) => updateInt('node2', value)} />
+          <NumberControl
+            label="Node 1"
+            value={kind.node1}
+            min={1}
+            step={1}
+            onCommit={(value) => updateInt('node1', value)}
+          />
+          <NumberControl
+            label="Node 2"
+            value={kind.node2}
+            min={1}
+            step={1}
+            onCommit={(value) => updateInt('node2', value)}
+          />
         </div>
       );
     case 'path_angle_fixed':
       return (
         <div className="condition-advanced__body">
-          <NumberControl label="Node 1" value={kind.node1} min={1} step={1} onCommit={(value) => updateInt('node1', value)} />
-          <NumberControl label="Node 2" value={kind.node2} min={1} step={1} onCommit={(value) => updateInt('node2', value)} />
-          <NumberControl label="Angle" value={kind.angle} step={1} onCommit={(value) => updateNumber('angle', value)} />
+          <NumberControl
+            label="Node 1"
+            value={kind.node1}
+            min={1}
+            step={1}
+            onCommit={(value) => updateInt('node1', value)}
+          />
+          <NumberControl
+            label="Node 2"
+            value={kind.node2}
+            min={1}
+            step={1}
+            onCommit={(value) => updateInt('node2', value)}
+          />
+          <NumberControl
+            label="Angle"
+            value={kind.angle}
+            step={1}
+            onCommit={(value) => updateNumber('angle', value)}
+          />
         </div>
       );
     case 'path_angle_quant':
       return (
         <div className="condition-advanced__body">
-          <NumberControl label="Node 1" value={kind.node1} min={1} step={1} onCommit={(value) => updateInt('node1', value)} />
-          <NumberControl label="Node 2" value={kind.node2} min={1} step={1} onCommit={(value) => updateInt('node2', value)} />
-          <NumberControl label="Quant" value={kind.quant} min={1} step={1} onCommit={(value) => updateInt('quant', value)} />
-          <NumberControl label="Offset" value={kind.quant_offset} step={1} onCommit={(value) => updateNumber('quant_offset', value)} />
+          <NumberControl
+            label="Node 1"
+            value={kind.node1}
+            min={1}
+            step={1}
+            onCommit={(value) => updateInt('node1', value)}
+          />
+          <NumberControl
+            label="Node 2"
+            value={kind.node2}
+            min={1}
+            step={1}
+            onCommit={(value) => updateInt('node2', value)}
+          />
+          <NumberControl
+            label="Quant"
+            value={kind.quant}
+            min={1}
+            step={1}
+            onCommit={(value) => updateInt('quant', value)}
+          />
+          <NumberControl
+            label="Offset"
+            value={kind.quant_offset}
+            step={1}
+            onCommit={(value) => updateNumber('quant_offset', value)}
+          />
         </div>
       );
   }

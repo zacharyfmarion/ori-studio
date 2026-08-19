@@ -88,9 +88,7 @@ export function canRehydrateFolded3dFigure(figure: OristudioCpFoldedFigureEntry)
  * no recorded case at all, which is a file old enough that the index was not
  * written and so cannot be checked afterwards.
  */
-export function folded3dSolutionReplaySteps(
-  figure: OristudioCpFoldedFigureEntry
-): number | null {
+export function folded3dSolutionReplaySteps(figure: OristudioCpFoldedFigureEntry): number | null {
   const current = figure.folded3d?.current_fold_case ?? null;
   if (current === null || !Number.isInteger(current) || current < 1) return null;
   const steps = current - 1;
@@ -122,10 +120,7 @@ const FOLDED_3D_FRAME_AGREEMENT = 1e-9;
  * agree on it agree on the paper's extent at every orientation. It does **not**
  * check the layer order, which is why the solution index is checked separately.
  */
-export function sameFolded3dFrame(
-  refolded: number,
-  stored: number | null | undefined
-): boolean {
+export function sameFolded3dFrame(refolded: number, stored: number | null | undefined): boolean {
   if (stored == null || !(stored > 0) || !Number.isFinite(refolded)) return false;
   return Math.abs(refolded - stored) <= FOLDED_3D_FRAME_AGREEMENT * stored;
 }
@@ -159,7 +154,7 @@ export function folded3dRehydrationQueue(
     skip?: (figure: OristudioCpFoldedFigureEntry) => boolean;
     /** The figure the user is looking at, if any. */
     priorityId?: string | null;
-  }
+  },
 ): readonly string[] {
   const { staleIds, skip, priorityId } = options;
   const queue: string[] = [];

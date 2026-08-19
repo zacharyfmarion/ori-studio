@@ -18,7 +18,7 @@ import {
 const t = ((key: string, fallback: string, vars?: Record<string, string>) =>
   fallback.replace(
     /\{\{(\w+)\}\}/gu,
-    (_, name: string) => vars?.[name] ?? ''
+    (_, name: string) => vars?.[name] ?? '',
   )) as unknown as TFunction;
 
 function entry(over: Partial<OristudioCpDiagnosticEntry> = {}): OristudioCpDiagnosticEntry {
@@ -80,7 +80,7 @@ describe('the table covers what the kernel can emit', () => {
         const message = foldabilityViolationMessage(t, rule as FoldabilityRule, color);
         expect(message, `${rule} + ${color}`).toBeTruthy();
       }
-    }
+    },
   );
 
   it('declines a violation with no rule, so the kernel message survives', () => {
@@ -97,7 +97,7 @@ describe('self-intersection', () => {
   it('reads as the paper crossing itself, not as an angle disagreement', () => {
     const message = cpDiagnosticEntryMessage(
       t,
-      entry({ kind: 'SpatialSelfIntersection', rule: 'SelfIntersection' })
+      entry({ kind: 'SpatialSelfIntersection', rule: 'SelfIntersection' }),
     );
     expect(message).toBe('Paper passes through itself here');
     expect(message).not.toMatch(/close|angle/iu);
@@ -125,7 +125,7 @@ describe('borders inside the paper', () => {
         rule: 'InteriorBorder',
         severity: 'warning',
         message: 'Border with paper on both sides: the vertices on it are not checked',
-      })
+      }),
     );
 
     expect(message).toBe('Edge with paper on both sides — foldability is not checked along it');
@@ -157,8 +157,8 @@ describe('the spatial rules', () => {
           rule: 'Closure',
           residual_degrees: 53.004_9,
           message: 'Creases do not close: 53.0049 degrees off',
-        })
-      )
+        }),
+      ),
     ).toBe('The creases here do not close up: 53° off');
     expect(spatialRuleMessage(t, 'Closure')).toBe('The creases here do not close up');
   });
@@ -174,7 +174,6 @@ describe('the spatial rules', () => {
 });
 
 describe('entries this table does not speak for', () => {
-
   it('falls back for overlap and T-junction checks', () => {
     const overlap = entry({
       kind: 'Check1',
@@ -182,7 +181,7 @@ describe('entries this table does not speak for', () => {
       message: 'Overlapping or contained non-auxiliary creases',
     });
     expect(cpDiagnosticEntryMessage(t, overlap)).toBe(
-      'Overlapping or contained non-auxiliary creases'
+      'Overlapping or contained non-auxiliary creases',
     );
   });
 
@@ -193,7 +192,7 @@ describe('entries this table does not speak for', () => {
 
   it('falls back when the rule is known but the colour is missing', () => {
     expect(cpDiagnosticEntryMessage(t, entry({ rule: 'Maekawa' }))).toBe(
-      'Flat-foldability violation: Maekawa'
+      'Flat-foldability violation: Maekawa',
     );
   });
 });
@@ -210,11 +209,11 @@ describe('a real entry', () => {
     // after it.
     const square = cpDiagnosticEntryMessage(
       t,
-      entry({ rule: 'Maekawa', violation_color: 'NotEnoughMountain' })
+      entry({ rule: 'Maekawa', violation_color: 'NotEnoughMountain' }),
     );
     const triangle = cpDiagnosticEntryMessage(
       t,
-      entry({ rule: 'NumberOfFolds', violation_color: 'NotEnoughMountain' })
+      entry({ rule: 'NumberOfFolds', violation_color: 'NotEnoughMountain' }),
     );
     expect(triangle).toContain(square.toLowerCase());
     expect(triangle).not.toBe(square);

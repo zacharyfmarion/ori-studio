@@ -94,7 +94,11 @@
   gap: var(--space-3);
   min-height: 300px;
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--border-subtle) 55%, transparent) 1px, transparent 1px),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--border-subtle) 55%, transparent) 1px,
+      transparent 1px
+    ),
     linear-gradient(color-mix(in srgb, var(--border-subtle) 55%, transparent) 1px, transparent 1px),
     var(--bg-primary);
   background-size: 28px 28px;

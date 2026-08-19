@@ -88,7 +88,7 @@ describe('dash slots', () => {
       for (const color of [MOUNTAIN, VALLEY, EDGE, AUX, OTHER]) {
         const slot = cpLineStyleDashSlot(style, color);
         expect(slot === SOLID_DASH_SLOT ? null : patterns[slot - 1]).toEqual(
-          cpLineStyleDashPattern(style, color)
+          cpLineStyleDashPattern(style, color),
         );
       }
     }

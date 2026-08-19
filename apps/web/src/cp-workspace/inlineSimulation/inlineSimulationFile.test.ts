@@ -1,15 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import {
-  validateInlineSimulation,
-  validateInlineSimulations,
-} from './inlineSimulationFile';
+import { validateInlineSimulation, validateInlineSimulations } from './inlineSimulationFile';
 
 const valid = {
   id: 'inline-sim-1',
   box: { center: { x: 10, y: -20 }, width: 100, height: 80, rotation: 0.5 },
   z: 3,
   view: { yaw: 0.78, pitch: -0.95, zoom: 1.4 },
-  sourceBoundary: [[{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }]],
+  sourceBoundary: [
+    [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+    ],
+  ],
   sourceBounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
   sourceFingerprint: 'cs1:abcd',
   segmentIdHint: 2,
@@ -62,8 +65,13 @@ describe('reading a window back out of a file', () => {
     expect(
       validateInlineSimulation({
         ...valid,
-        sourceBoundary: [[{ x: 0, y: 0 }, { x: 'nope', y: 1 }]],
-      })
+        sourceBoundary: [
+          [
+            { x: 0, y: 0 },
+            { x: 'nope', y: 1 },
+          ],
+        ],
+      }),
     ).toBeNull();
   });
 

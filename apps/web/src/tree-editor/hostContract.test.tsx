@@ -31,7 +31,7 @@ vi.mock('react-zoom-pan-pinch', async () => {
   return {
     TransformWrapper: React.forwardRef<unknown, MockProps>(function MockTransformWrapper(
       { children, onInit, onTransformed },
-      ref
+      ref,
     ) {
       const didInit = React.useRef(false);
       React.useImperativeHandle(ref, () => api, []);
@@ -137,7 +137,13 @@ function stubHost(mode: 'sync' | 'deferred') {
           vertices: [...tree.vertices, { id, loc, isLeaf: true, isRoot: false, name: '' }],
           edges: [
             ...tree.edges,
-            { id: 100 + id, vertices: [parentId, id], length: 1, isLeafEdge: true, maxLength: null },
+            {
+              id: 100 + id,
+              vertices: [parentId, id],
+              length: 1,
+              isLeafEdge: true,
+              maxLength: null,
+            },
           ],
         };
       });
@@ -149,7 +155,7 @@ function stubHost(mode: 'sync' | 'deferred') {
         tree = {
           ...tree,
           vertices: tree.vertices.map((vertex) =>
-            moved.has(vertex.id) ? { ...vertex, loc: moved.get(vertex.id)! } : vertex
+            moved.has(vertex.id) ? { ...vertex, loc: moved.get(vertex.id)! } : vertex,
           ),
         };
       });
@@ -202,7 +208,7 @@ function mount(stub: ReturnType<typeof stubHost>) {
     root?.render(
       <TooltipProvider>
         <Harness />
-      </TooltipProvider>
+      </TooltipProvider>,
     );
   });
   return container!.querySelector<HTMLElement>('.stub-tree-panel__body')!;

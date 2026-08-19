@@ -21,7 +21,7 @@ import type { TreeSelectionTarget } from '../tree-editor/model';
  */
 export function deletableExploriNodeId(
   document: ExploriDocument,
-  selection: TreeSelectionTarget | null
+  selection: TreeSelectionTarget | null,
 ): number | null {
   if (!selection) return null;
   const degreeOf = (id: number) =>

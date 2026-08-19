@@ -130,7 +130,7 @@ export function dashSlotUniforms(pattern: readonly number[], dpr: number): DashS
 /** Resolve a geometry's pattern table to the fixed set of slot uniforms. */
 export function dashTableUniforms(
   patterns: readonly (readonly number[])[] | undefined,
-  dpr: number
+  dpr: number,
 ): DashSlotUniforms[] {
   const slots: DashSlotUniforms[] = [];
   for (let slot = 0; slot < MAX_DASH_SLOTS; slot += 1) {
@@ -229,10 +229,7 @@ export interface StrokeProgramOptions {
   depthOrdered?: boolean;
 }
 
-export function createStrokeProgram(
-  regl: Regl,
-  options: StrokeProgramOptions = {}
-): StrokeProgram {
+export function createStrokeProgram(regl: Regl, options: StrokeProgramOptions = {}): StrokeProgram {
   const quad = regl.buffer(QUAD);
   let aBuf: Buffer | null = null;
   let bBuf: Buffer | null = null;
@@ -251,9 +248,15 @@ export function createStrokeProgram(
       aA: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.aBuf, divisor: 1 },
       aB: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.bBuf, divisor: 1 },
       aColor: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.colorBuf, divisor: 1 },
-      aWidthMul: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.widthMulBuf, divisor: 1 },
+      aWidthMul: {
+        buffer: (_ctx: unknown, props: StrokeDrawParams) => props.widthMulBuf,
+        divisor: 1,
+      },
       aDepth: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.depthBuf, divisor: 1 },
-      aDashSlot: { buffer: (_ctx: unknown, props: StrokeDrawParams) => props.dashSlotBuf, divisor: 1 },
+      aDashSlot: {
+        buffer: (_ctx: unknown, props: StrokeDrawParams) => props.dashSlotBuf,
+        divisor: 1,
+      },
     },
     uniforms: {
       u_origin: (_ctx, props) => props.originArr,
@@ -270,11 +273,14 @@ export function createStrokeProgram(
     // semi-transparent strokes (e.g. grid lines) composite over the background.
     blend: {
       enable: true,
-      func: { srcRGB: 1, srcAlpha: 1, dstRGB: 'one minus src alpha', dstAlpha: 'one minus src alpha' },
+      func: {
+        srcRGB: 1,
+        srcAlpha: 1,
+        dstRGB: 'one minus src alpha',
+        dstAlpha: 'one minus src alpha',
+      },
     },
-    depth: options.depthOrdered
-      ? { enable: true, mask: true, func: 'lequal' }
-      : { enable: false },
+    depth: options.depthOrdered ? { enable: true, mask: true, func: 'lequal' } : { enable: false },
     count: 6,
     instances: (_ctx, props) => props.instanceCount,
   });

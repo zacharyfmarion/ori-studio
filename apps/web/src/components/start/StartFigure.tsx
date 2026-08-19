@@ -116,7 +116,7 @@ export function StartFigure() {
         // The start screen owns the backdrop; the figure composites onto it.
         transparentBackground: true,
         creaseWidthReferenceEdge: CREASE_WIDTH_REFERENCE_EDGE,
-      }
+      },
     );
   }, []);
 
@@ -318,7 +318,7 @@ export function StartFigure() {
       // running but `advance` is a no-op, so a drag would not otherwise repaint.
       draw();
     },
-    [draw]
+    [draw],
   );
 
   const onPointerUp = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {

@@ -84,7 +84,8 @@ function readUint32(view: DataView, offset: number): number {
 }
 
 function readBytes(bytes: Uint8Array, offset: number, length: number): Uint8Array {
-  if (offset < 0 || length < 0 || offset + length > bytes.byteLength) throw new DamagedArchiveError();
+  if (offset < 0 || length < 0 || offset + length > bytes.byteLength)
+    throw new DamagedArchiveError();
   return bytes.subarray(offset, offset + length);
 }
 
@@ -155,7 +156,11 @@ interface LocatedEntry {
  * the whole app config directory, so unrelated bundles ride along, and a bundle we
  * never use has no business failing the import.
  */
-function locateWantedEntries(view: DataView, bytes: Uint8Array, eocdOffset: number): LocatedEntry[] {
+function locateWantedEntries(
+  view: DataView,
+  bytes: Uint8Array,
+  eocdOffset: number,
+): LocatedEntry[] {
   const entryCount = readUint16(view, eocdOffset + 10);
   let recordOffset = readUint32(view, eocdOffset + 16);
   const located: LocatedEntry[] = [];
@@ -173,7 +178,8 @@ function locateWantedEntries(view: DataView, bytes: Uint8Array, eocdOffset: numb
     const name = decodeText(readBytes(bytes, recordOffset + CENTRAL_RECORD_SIZE, nameLength));
 
     if (isWantedEntryName(name)) {
-      if (readUint32(view, localHeaderOffset) !== LOCAL_FILE_SIGNATURE) throw new DamagedArchiveError();
+      if (readUint32(view, localHeaderOffset) !== LOCAL_FILE_SIGNATURE)
+        throw new DamagedArchiveError();
       // The local header repeats the name and extra fields at its own lengths, and
       // they genuinely differ from the central record's — Info-ZIP writes a longer
       // timestamp extra field locally than it does centrally.
@@ -258,7 +264,7 @@ async function inflateRaw(data: Uint8Array, limit: number): Promise<Uint8Array |
  * map as the answer to "what did this archive actually carry".
  */
 export async function readOriconfigArchive(
-  data: ArrayBuffer | Uint8Array
+  data: ArrayBuffer | Uint8Array,
 ): Promise<OriconfigArchiveResult> {
   const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);

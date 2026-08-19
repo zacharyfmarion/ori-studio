@@ -36,7 +36,7 @@ export function project3dRenderSnapshot(
   render: OristudioCpFolded3dRenderModel,
   snapshot: OristudioCpFolded3dSnapshot,
   displayStyle: OristudioCpFoldedFigureDisplayStyle,
-  camera: FoldedFigureCamera
+  camera: FoldedFigureCamera,
 ): OristudioCpFoldedRenderSnapshot {
   return projectFolded3dModel(render, {
     camera,
@@ -58,7 +58,7 @@ export function project3dRenderSnapshot(
 export function reproject3dFigureAt(
   figure: OristudioCpFoldedFigureEntry,
   displayStyle: OristudioCpFoldedFigureDisplayStyle,
-  camera: FoldedFigureCamera | null
+  camera: FoldedFigureCamera | null,
 ): OristudioCpFoldedRenderSnapshot | null {
   const snapshot = figure.folded3d ?? null;
   const render = folded3dRenderModel(figure.handle);
@@ -67,14 +67,14 @@ export function reproject3dFigureAt(
     render,
     snapshot,
     displayStyle,
-    camera ?? defaultFolded3dCamera(render, snapshot.model.state)
+    camera ?? defaultFolded3dCamera(render, snapshot.model.state),
   );
 }
 
 /** The same, at the figure's own recorded viewpoint. */
 export function reproject3dFigure(
   figure: OristudioCpFoldedFigureEntry,
-  displayStyle: OristudioCpFoldedFigureDisplayStyle
+  displayStyle: OristudioCpFoldedFigureDisplayStyle,
 ): OristudioCpFoldedRenderSnapshot | null {
   return reproject3dFigureAt(figure, displayStyle, figure.camera ?? null);
 }

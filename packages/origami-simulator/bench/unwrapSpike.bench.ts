@@ -67,7 +67,12 @@ describe('thetaCalc 2pi unwrap spike', () => {
               worst = maxAbs;
               worstLabel = label;
             }
-            const flag = maxAbs >= CATASTROPHE ? '  <-- CATASTROPHIC' : maxAbs > TIER_C ? '  <-- over Tier C' : '';
+            const flag =
+              maxAbs >= CATASTROPHE
+                ? '  <-- CATASTROPHIC'
+                : maxAbs > TIER_C
+                  ? '  <-- over Tier C'
+                  : '';
             rows.push(`${label.padEnd(34)} max ${maxAbs.toExponential(2)}${flag}`);
           }
         }
@@ -80,7 +85,7 @@ describe('thetaCalc 2pi unwrap spike', () => {
       `\n${rows.join('\n')}\n\n` +
         `worst: ${worst.toExponential(3)} (${worstLabel})\n` +
         `catastrophe threshold: ${CATASTROPHE.toExponential(0)}  |  Tier C: ${TIER_C.toExponential(0)}\n` +
-        `verdict: ${worst >= CATASTROPHE ? 'UNWRAP IS FRAGILE -- do not port as-is' : 'unwrap is stable on this GPU'}\n\n`
+        `verdict: ${worst >= CATASTROPHE ? 'UNWRAP IS FRAGILE -- do not port as-is' : 'unwrap is stable on this GPU'}\n\n`,
     );
 
     // The gate. A 2pi flip is a correctness failure, not a tolerance question.

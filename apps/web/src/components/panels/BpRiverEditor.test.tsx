@@ -40,7 +40,7 @@ function renderEditor(dual = edge()) {
     root.render(
       <TooltipProvider>
         <BpRiverEditor river={river} edge={dual} onSetWidth={onSetWidth} onEscape={onEscape} />
-      </TooltipProvider>
+      </TooltipProvider>,
     );
   });
   return { onSetWidth, onEscape };
@@ -103,7 +103,9 @@ describe('BpRiverEditor', () => {
   it('reverts a typed width on Escape and releases the pane', () => {
     const { onSetWidth, onEscape } = renderEditor();
     setValue(input(), '4');
-    act(() => input().dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Escape' })));
+    act(() =>
+      input().dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Escape' })),
+    );
     expect(onSetWidth).not.toHaveBeenCalled();
     expect(input().value).toBe('2');
     expect(onEscape).toHaveBeenCalled();

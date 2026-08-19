@@ -1,4 +1,8 @@
-import { patchTreemakerDesign, selectDesignViewportFitRequestId, selectProject } from '../designTabs';
+import {
+  patchTreemakerDesign,
+  selectDesignViewportFitRequestId,
+  selectProject,
+} from '../designTabs';
 import {
   ANALYTICS_EVENTS,
   bucketCount,
@@ -43,10 +47,7 @@ import {
 import { nextInlineSimulationId } from '../../../cp-workspace/inlineSimulation/inlineSimulationIds';
 import { resolveInlineSimulationRegion } from '../../../cp-workspace/inlineSimulation/resolveSimulationRegion';
 import { DEFAULT_SIMULATOR_VIEW } from '../../../simulator/SimulatorViewport';
-import {
-  aabbInFrame,
-  boxAabbInFrame,
-} from '../../../cp-workspace/canvasObjects/placeBesideCp';
+import { aabbInFrame, boxAabbInFrame } from '../../../cp-workspace/canvasObjects/placeBesideCp';
 import { uprightRotationForView } from '../../../cp-workspace/annotations/annotationTransform';
 import { cpOverlayViewStore } from '../../../cp-workspace/cpOverlayViewStore';
 import { countCpDiagnosticErrors } from '../../../cp-workspace/diagnostics/severity';
@@ -97,7 +98,8 @@ async function confirmDiscardDirtyProject(dirty: boolean): Promise<boolean> {
   if (!dirty) return true;
   return requestConfirmation({
     title: 'Discard unsaved changes?',
-    message: 'Opening this shared crease pattern will replace your current work. Continue and discard it?',
+    message:
+      'Opening this shared crease pattern will replace your current work. Continue and discard it?',
     confirmLabel: 'Discard',
     tone: 'danger',
   });
@@ -218,7 +220,7 @@ function occupiedModelSpace(state: WorkspaceState, frameAngle = 0): Aabb[] {
   // rather than a bounding box inflated by its rotation.
   const boxes = [
     ...state.oristudioCpInlineSimulations.map((simulation) =>
-      boxAabbInFrame(simulation.box, frameAngle)
+      boxAabbInFrame(simulation.box, frameAngle),
     ),
     ...state.oristudioCpAnnotations
       .filter((annotation) => !annotation.hidden)
@@ -230,8 +232,8 @@ function occupiedModelSpace(state: WorkspaceState, frameAngle = 0): Aabb[] {
             height: annotation.height,
             rotation: annotation.rotation,
           },
-          frameAngle
-        )
+          frameAngle,
+        ),
       ),
   ];
   for (const figure of state.oristudioCpFoldedFigures) {
@@ -247,8 +249,8 @@ function occupiedModelSpace(state: WorkspaceState, frameAngle = 0): Aabb[] {
           maxX: Math.max(min.x, max.x),
           maxY: Math.max(min.y, max.y),
         },
-        frameAngle
-      )
+        frameAngle,
+      ),
     );
   }
   return boxes;
@@ -276,10 +278,7 @@ function inlineSimulationRevision(id: string): number {
  */
 let stopListeningForCpEngineLoss: (() => void) | null = null;
 
-export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice> = (
-  set,
-  get
-) => {
+export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice> = (set, get) => {
   // A fold run is cleared by the `finally` of the call that started it, and a
   // Comlink call on a dead client never settles — so a CP worker that crashes
   // mid-fold (the large-CP case this feature exists for) leaves its run in the
@@ -347,14 +346,17 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     const prior = modelWriteChain.get(id) ?? Promise.resolve();
     const next = prior.then(task, task);
     // Swallow on the chain copy only; the returned promise keeps its rejection.
-    modelWriteChain.set(id, next.then(undefined, () => undefined));
+    modelWriteChain.set(
+      id,
+      next.then(undefined, () => undefined),
+    );
     return next;
   }
 
   /** Push `model` into the kernel and remember it, so reconciles can skip. */
   async function writeFoldedFigureModel(
     handle: number,
-    model: OristudioCpFoldedFigureModel
+    model: OristudioCpFoldedFigureModel,
   ): Promise<OristudioCpFoldedFigureSnapshot> {
     const snapshot = await setRuntimeOristudioCpFoldedFigureModel(handle, model);
     lastWrittenKernelModel.set(handle, model);
@@ -410,9 +412,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       figures.find((figure) => figure.id === activeId) ??
       // Nothing selected: act on the most recent generated figure, which is the
       // one a just-completed fold produced.
-      [...figures]
-        .reverse()
-        .find((figure) => isFoldedFromCurrentCpSourceKind(figure.sourceKind)) ??
+      [...figures].reverse().find((figure) => isFoldedFromCurrentCpSourceKind(figure.sourceKind)) ??
       null
     );
   }
@@ -421,7 +421,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     handle: number,
     displayStyle: OristudioCpFoldedFigureDisplayStyle,
     index: number,
-    selected: boolean
+    selected: boolean,
   ) {
     return getRuntimeOristudioCpFoldedFigureRenderSnapshot(handle, displayStyle, {
       // The camera/rotation marker (orange cross + purple selection disc) is not
@@ -468,7 +468,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     figureId: string,
     epoch: number,
     handle: number,
-    render: Parameters<typeof setFolded3dRenderModel>[1]
+    render: Parameters<typeof setFolded3dRenderModel>[1],
   ): Promise<boolean> {
     const stillThere =
       foldedFigureHandleEpoch() === epoch &&
@@ -503,12 +503,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         handle,
         figure.displayStyle,
         foldedFigureIndex(id),
-        get().oristudioCpActiveFoldedFigureId === id
+        get().oristudioCpActiveFoldedFigureId === id,
       );
       if (modelRequestSequence.get(id) !== requestId) return;
       set({
         oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
-          candidate.id === id ? { ...candidate, snapshot, renderSnapshot, error: null } : candidate
+          candidate.id === id ? { ...candidate, snapshot, renderSnapshot, error: null } : candidate,
         ),
       });
     } catch (error) {
@@ -522,7 +522,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
           candidate.id === id
             ? { ...candidate, status: 'error', error: normalized.message }
-            : candidate
+            : candidate,
         ),
       });
     }
@@ -544,12 +544,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         figure.handle,
         figure.displayStyle,
         foldedFigureIndex(id),
-        selected
+        selected,
       );
       if ((get().oristudioCpActiveFoldedFigureId === id) !== selected) return;
       set({
         oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
-          candidate.id === id ? { ...candidate, renderSnapshot } : candidate
+          candidate.id === id ? { ...candidate, renderSnapshot } : candidate,
         ),
       });
     } catch {
@@ -637,7 +637,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
    */
   function buildInlineSimulationSources(
     simulations: InlineSimulation[],
-    artifacts: FoldArtifacts | null | undefined
+    artifacts: FoldArtifacts | null | undefined,
   ): number {
     if (!artifacts || !get().oristudioCpDocument) return 0;
     const segments = resolveCpSegments(artifacts);
@@ -705,11 +705,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
    */
   function takeCanvasSelection(
     owner: 'creases' | 'annotation' | 'folded-figure' | 'inline-simulation' | 'none',
-    patch: Partial<WorkspaceState> = {}
+    patch: Partial<WorkspaceState> = {},
   ): void {
     const previousFoldedId = get().oristudioCpActiveFoldedFigureId;
-    const releasingCreases =
-      owner !== 'creases' && cpSelectionSize(get().oristudioCpSelection) > 0;
+    const releasingCreases = owner !== 'creases' && cpSelectionSize(get().oristudioCpSelection) > 0;
     const releasingFoldedFigure = owner !== 'folded-figure' && previousFoldedId !== null;
 
     // Orbit focus is narrower than folded-figure selection: it belongs to one
@@ -729,9 +728,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       ...(owner === 'annotation' ? {} : { oristudioCpSelectedAnnotationId: null }),
       ...(owner === 'folded-figure' ? {} : { oristudioCpActiveFoldedFigureId: null }),
       ...(keepsFoldedFocus ? {} : { oristudioCpFocusedFoldedFigureId: null }),
-      ...(owner === 'inline-simulation'
-        ? {}
-        : { oristudioCpFocusedInlineSimulationId: null }),
+      ...(owner === 'inline-simulation' ? {} : { oristudioCpFocusedInlineSimulationId: null }),
       ...patch,
     });
 
@@ -783,7 +780,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
    */
   async function simulateNonFlatRegion(
     document: OristudioCpDocumentSnapshot,
-    lineIds: readonly number[]
+    lineIds: readonly number[],
   ): Promise<void> {
     const region = await resolveInlineSimulationRegion(document, lineIds);
     const opened = region
@@ -804,7 +801,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   function foldedSourceProvenance(
     document: OristudioCpDocumentSnapshot,
     lineIds: readonly number[],
-    scopedLineIds: readonly number[] = lineIds
+    scopedLineIds: readonly number[] = lineIds,
   ): Pick<
     OristudioCpFoldedFigureEntry,
     'sourceBounds' | 'sourceFingerprint' | 'sourceLineIds' | 'sourceScopedLineIds'
@@ -836,7 +833,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
    */
   function isDrawableFoldResult(
     snapshot: OristudioCpFoldedFigureEntry['snapshot'],
-    renderSnapshot: OristudioCpFoldedFigureEntry['renderSnapshot']
+    renderSnapshot: OristudioCpFoldedFigureEntry['renderSnapshot'],
   ): boolean {
     return Boolean(renderSnapshot?.primitives.length || snapshot?.wireframe);
   }
@@ -849,9 +846,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
    * "nobody asked for one". A figure from a build before that field existed
    * carries no outcome, and `folded` is the honest answer there: it drew.
    */
-  function foldVerdictForOutcome(
-    snapshot: OristudioCpFoldedFigureEntry['snapshot']
-  ): FoldVerdict {
+  function foldVerdictForOutcome(snapshot: OristudioCpFoldedFigureEntry['snapshot']): FoldVerdict {
     switch (snapshot?.outcome) {
       case 'NoSolutions':
         return 'no-solutions';
@@ -925,11 +920,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
    */
   function discardFoldedFigureDraftQuietly(
     figureId: string,
-    selection?: OristudioCpSelection
+    selection?: OristudioCpSelection,
   ): false {
     set({
       oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.filter(
-        (candidate) => candidate.id !== figureId
+        (candidate) => candidate.id !== figureId,
       ),
       oristudioCpActiveFoldedFigureId: null,
     });
@@ -945,10 +940,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
    * not produce a replacement. The figure itself was never invalid — the crease
    * pattern is — so destroying it would lose work over someone else's problem.
    */
-  function restorePreviousFigure(
-    previous: OristudioCpFoldedFigureEntry,
-    message: string
-  ): boolean {
+  function restorePreviousFigure(previous: OristudioCpFoldedFigureEntry, message: string): boolean {
     restorePreviousFigureQuietly(previous);
     set({ oristudioCpError: message, error: { code: 'invalid_operation', message } });
     return false;
@@ -958,7 +950,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   function restorePreviousFigureQuietly(previous: OristudioCpFoldedFigureEntry): false {
     set({
       oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
-        candidate.id === previous.id ? previous : candidate
+        candidate.id === previous.id ? previous : candidate,
       ),
     });
     return false;
@@ -982,7 +974,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
    * its millisecond ties.
    */
   function stoppableFoldRuns(
-    runs: Record<number, OristudioCpFoldRun> = get().oristudioCpFoldRuns
+    runs: Record<number, OristudioCpFoldRun> = get().oristudioCpFoldRuns,
   ): OristudioCpFoldRun[] {
     return Object.values(runs)
       .filter((run) => run.cancellable)
@@ -1019,7 +1011,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
    */
   async function withFoldInFlight<T>(
     kind: OristudioCpFoldRunKind,
-    run: (runId: number) => Promise<T>
+    run: (runId: number) => Promise<T>,
   ): Promise<T> {
     const runId = beginFoldRun();
     set({
@@ -1135,10 +1127,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         }
         return foldArtifacts;
       } catch (error) {
-        if (
-          get().foldArtifactRevision === currentRevision &&
-          foldArtifactRequestId === requestId
-        ) {
+        if (get().foldArtifactRevision === currentRevision && foldArtifactRequestId === requestId) {
           set({
             foldArtifacts: null,
             foldArtifactError: engineError(error).message,
@@ -1180,7 +1169,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     label: string,
     capabilityId: WorkspaceCapabilityId,
     optimize: (api: EngineClient, treeHandle: number) => Promise<OptimizationReport>,
-    options: { fitPaperView?: boolean } = {}
+    options: { fitPaperView?: boolean } = {},
   ) {
     const capability = selectWorkspaceCapabilities(get())[capabilityId];
     if (!capability.enabled) {
@@ -1207,19 +1196,24 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       if (!result) return;
       const { report, snapshot } = result;
       set({
-      ...patchTreemakerDesign(get(), {
-        project: projectFromSnapshot(snapshot, selectProject(get(), designId).title),
-        lastOptimization: report,
-        viewportFitRequestId: options.fitPaperView
-          ? selectDesignViewportFitRequestId(get(), designId) + 1
-          : selectDesignViewportFitRequestId(get(), designId)
-      }, designId),
+        ...patchTreemakerDesign(
+          get(),
+          {
+            project: projectFromSnapshot(snapshot, selectProject(get(), designId).title),
+            lastOptimization: report,
+            viewportFitRequestId: options.fitPaperView
+              ? selectDesignViewportFitRequestId(get(), designId) + 1
+              : selectDesignViewportFitRequestId(get(), designId),
+          },
+          designId,
+        ),
         status: report.is_feasible ? 'optimized' : 'needs_optimization',
         error: null,
         ...staleFoldArtifactResourceState(get().foldArtifactRevision),
         oristudioCpLineage: markGeneratedCpLineageStale(get().oristudioCpLineage),
         dirty: true,
-        projectMessage: label});
+        projectMessage: label,
+      });
       get().commitHistoryCheckpoint(checkpoint, label);
       track('optimizer run', { kind, succeeded: true, feasible: report.is_feasible });
     } catch (error) {
@@ -1253,21 +1247,23 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     sequenceError: null,
 
     optimizeScale: async () => {
-      await runOptimization('Optimize scale', 'optimize.scale', (api, treeHandle) =>
-        api.optimizeScale(treeHandle),
-        { fitPaperView: true }
+      await runOptimization(
+        'Optimize scale',
+        'optimize.scale',
+        (api, treeHandle) => api.optimizeScale(treeHandle),
+        { fitPaperView: true },
       );
     },
 
     optimizeEdges: async () => {
       await runOptimization('Optimize edges', 'optimize.edges', (api, treeHandle) =>
-        api.optimizeEdges(treeHandle)
+        api.optimizeEdges(treeHandle),
       );
     },
 
     optimizeStrain: async () => {
       await runOptimization('Optimize strain', 'optimize.strain', (api, treeHandle) =>
-        api.optimizeStrain(treeHandle)
+        api.optimizeStrain(treeHandle),
       );
     },
 
@@ -1371,7 +1367,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       })();
       return ensureEditInFlight;
     },
-
 
     buildCreasePattern: async () => {
       // Addressed write: this action's result belongs to the design it started
@@ -1515,8 +1510,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         // BP path drift into two spellings of one operation.
         await get().ensureEditCreasePattern();
         const payload = await kind.sendToEdit(treeHandle, {
-          editGridDivisions:
-            get().oristudioCpDocument?.document.crease_pattern.grid.grid_size ?? 0,
+          editGridDivisions: get().oristudioCpDocument?.document.crease_pattern.grid.grid_size ?? 0,
           title: selectProject(get()).title,
           includeCircles,
         });
@@ -1675,7 +1669,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // is not undoable.
       get().recordInlineSimulationHistory(
         simulations,
-        i18n.t('panels:creasePattern.inlineSimulation.addAction', 'Add simulation window')
+        i18n.t('panels:creasePattern.inlineSimulation.addAction', 'Add simulation window'),
       );
 
       // A new window takes the solver *and* the canvas selection: opening one
@@ -1699,7 +1693,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // panel's begin/commit protocol, the same as the other canvas objects.
       set({
         oristudioCpInlineSimulations: get().oristudioCpInlineSimulations.map((simulation) =>
-          simulation.id === id ? { ...simulation, ...patch } : simulation
+          simulation.id === id ? { ...simulation, ...patch } : simulation,
         ),
         dirty: true,
       });
@@ -1710,7 +1704,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       if (!previous.some((simulation) => simulation.id === id)) return;
       get().recordInlineSimulationHistory(
         previous,
-        i18n.t('panels:creasePattern.inlineSimulation.deleteAction', 'Delete simulation window')
+        i18n.t('panels:creasePattern.inlineSimulation.deleteAction', 'Delete simulation window'),
       );
       // The fold goes; undo rebuilds it rather than history holding it alive.
       clearInlineSimulationSource(id);
@@ -1780,7 +1774,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // segment fold is 240KB-2.9MB, and a hundred undoable deletions of them is
       // tens to hundreds of MB retained for windows the user threw away.
       const missing = get().oristudioCpInlineSimulations.filter(
-        (simulation) => getInlineSimulationSource(simulation.id) === null
+        (simulation) => getInlineSimulationSource(simulation.id) === null,
       );
       if (missing.length === 0) return 0;
 
@@ -1799,7 +1793,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     refreshOristudioCpInlineSimulation: async (id) => {
       const document = get().oristudioCpDocument?.document ?? null;
       const simulation = get().oristudioCpInlineSimulations.find(
-        (candidate) => candidate.id === id
+        (candidate) => candidate.id === id,
       );
       if (!document || !simulation) return false;
 
@@ -1822,17 +1816,14 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       }
 
       const bounds = foldedSourceBounds(
-        cpLinesByIds(document, segmentContainedLineIds(document, artifacts, segment))
+        cpLinesByIds(document, segmentContainedLineIds(document, artifacts, segment)),
       );
       const revision = inlineSimulationRevision(id);
       // Recorded before the rewrite, and after the failure paths above so a
       // refresh that could not resolve its region leaves no entry behind.
       get().recordInlineSimulationHistory(
         get().oristudioCpInlineSimulations,
-        i18n.t(
-          'panels:creasePattern.inlineSimulation.refreshAction',
-          'Rebuild simulation region'
-        )
+        i18n.t('panels:creasePattern.inlineSimulation.refreshAction', 'Rebuild simulation region'),
       );
       setInlineSimulationSource(id, {
         fold: buildSegmentSimulationFold(artifacts, segment),
@@ -1849,7 +1840,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                 sourceFingerprint: sourceFingerprintFor(document, bounds),
                 segmentIdHint: segment.id,
               }
-            : candidate
+            : candidate,
         ),
         oristudioCpFocusedInlineSimulationId: id,
         dirty: true,
@@ -1864,8 +1855,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     setOristudioCpViewportOption: (key, value) =>
       set({ oristudioCpViewport: { ...get().oristudioCpViewport, [key]: value } }),
 
-    setOristudioCpSelection: (oristudioCpSelection) =>
-      applyCreaseSelection(oristudioCpSelection),
+    setOristudioCpSelection: (oristudioCpSelection) => applyCreaseSelection(oristudioCpSelection),
 
     claimCanvasForCreaseSelection: () => {
       // For selections that arrive from the *kernel* rather than from a click:
@@ -1925,9 +1915,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     setOristudioCpFoldedFigurePlacement: (id, patch) => {
       set({
         oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) =>
-          figure.id === id
-            ? { ...figure, placement: { ...figure.placement, ...patch } }
-            : figure
+          figure.id === id ? { ...figure, placement: { ...figure.placement, ...patch } } : figure,
         ),
         dirty: true,
       });
@@ -1993,7 +1981,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       const completed = (
         verdict: FoldVerdict,
         solutionCount?: number,
-        extra?: { refusal?: OristudioCpFold3dRefusal['code']; order_reason?: string }
+        extra?: { refusal?: OristudioCpFold3dRefusal['code']; order_reason?: string },
       ): void => {
         track(ANALYTICS_EVENTS.foldCompleted, {
           mode,
@@ -2042,11 +2030,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
               route.kind === 'spatial'
                 ? i18n.t(
                     'dialogs:foldWarning.spatialMessage',
-                    'Detected errors in how these creases fold. Continue to fold?'
+                    'Detected errors in how these creases fold. Continue to fold?',
                   )
                 : i18n.t(
                     'dialogs:foldWarning.message',
-                    'Detected errors in flat foldability. Continue to fold?'
+                    'Detected errors in flat foldability. Continue to fold?',
                   ),
             optionLabel: i18n.t('dialogs:foldWarning.dontShowAgain', "Don't show this again"),
             confirmLabel: i18n.t('dialogs:common.yes', 'Yes'),
@@ -2085,21 +2073,18 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
               selectedLineIds,
               options.startingFaceId ?? 1,
               options.model,
-              runId
-            )
+              runId,
+            ),
           );
 
           if (result.status === 'refused') {
             const simulate = await requestConfirmation({
-              title: i18n.t(
-                'dialogs:fold3dRefused.title',
-                'This pattern can’t be folded in 3D'
-              ),
+              title: i18n.t('dialogs:fold3dRefused.title', 'This pattern can’t be folded in 3D'),
               message: i18n.t('dialogs:fold3dRefused.message', '{{reason}} {{trailer}}', {
                 reason: fold3dRefusalMessage(i18n.t, result.refusal),
                 trailer: i18n.t(
                   'dialogs:fold3dRefused.simulateTrailer',
-                  'The simulator can fold it approximately.'
+                  'The simulator can fold it approximately.',
                 ),
               }),
               confirmLabel: i18n.t('dialogs:fold3dRefused.simulate', 'Simulate'),
@@ -2130,7 +2115,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             result.render,
             result.snapshot,
             displayStyle,
-            camera
+            camera,
           );
           retainFoldedFigureHandle(result.handle);
           // The geometry lives beside the handle, not on the entry: it is up to
@@ -2142,7 +2127,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           const foldedSourceAnchor = cpUserAnchorForLineIds(
             oristudioCpDocument.document,
             selectedLineIds,
-            userFrameAngle
+            userFrameAngle,
           );
           const existing = get().oristudioCpFoldedFigures;
           const folded: OristudioCpFoldedFigureEntry = {
@@ -2170,11 +2155,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             placement: IDENTITY_FOLDED_PLACEMENT,
             error: null,
             contradiction: null,
-            ...foldedSourceProvenance(
-              oristudioCpDocument.document,
-              selectedLineIds,
-              scopedLineIds
-            ),
+            ...foldedSourceProvenance(oristudioCpDocument.document, selectedLineIds, scopedLineIds),
           };
           set({
             oristudioCpFoldedFigures: [
@@ -2185,7 +2166,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                   folded,
                   existing,
                   foldedSourceAnchor,
-                  userFrameAngle
+                  userFrameAngle,
                 ),
               },
             ],
@@ -2212,7 +2193,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           completed(
             fold3dVerdictForAnalytics(result.snapshot),
             result.snapshot.discovered_fold_cases,
-            fold3dVerdictProperties(result.snapshot)
+            fold3dVerdictProperties(result.snapshot),
           );
           return true;
         } catch (error) {
@@ -2263,7 +2244,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         // A reopened Oriedita file keeps its folded appearance, but not its
         // saved side -- a new figure always faces front (NEW_FOLDED_FIGURE_SIDE).
         const savedModel = foldedFigureModelFromOrieditaMetadata(
-          oristudioCpDocument.document.metadata
+          oristudioCpDocument.document.metadata,
         );
         const model =
           options.model ??
@@ -2274,8 +2255,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             options.order ?? 'Order5',
             model,
             selectedLineIds,
-            runId
-          )
+            runId,
+          ),
         );
         const displayStyle = result.snapshot.display_style;
         // Rendered unselected: a fresh fold is not the canvas selection, so it
@@ -2284,7 +2265,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           result.handle,
           displayStyle,
           figureIndex,
-          false
+          false,
         );
         // A fold that *returns* has not necessarily produced anything to draw,
         // and this is the same test the refold path already makes. Without it a
@@ -2298,8 +2279,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             figureId,
             i18n.t(
               'errors:cp.foldProducedNothing',
-              'These creases have no flat folded form to draw'
-            )
+              'These creases have no flat folded form to draw',
+            ),
           );
         }
         // A global layer-ordering contradiction is NOT an error: the estimate
@@ -2318,7 +2299,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         const foldedSourceAnchor = cpUserAnchorForLineIds(
           oristudioCpDocument.document,
           selectedLineIds,
-          userFrameAngle
+          userFrameAngle,
         );
         const existing = get().oristudioCpFoldedFigures;
         const folded: OristudioCpFoldedFigureEntry = {
@@ -2333,11 +2314,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           // Provenance, so the figure can later be told apart from the creases
           // it came from and refolded from them. Oriedita keeps exactly this
           // (a bounding box) — see lib/foldedFigureStaleness.ts.
-          ...foldedSourceProvenance(
-            oristudioCpDocument.document,
-            selectedLineIds,
-            scopedLineIds
-          ),
+          ...foldedSourceProvenance(oristudioCpDocument.document, selectedLineIds, scopedLineIds),
         };
         set({
           oristudioCpFoldedFigures: existing.map((figure) =>
@@ -2351,10 +2328,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                     folded,
                     existing,
                     foldedSourceAnchor,
-                    userFrameAngle
+                    userFrameAngle,
                   ),
                 }
-              : figure
+              : figure,
           ),
           // A fresh fold is not selected. Selecting it would put delete-key focus
           // on the new figure the moment it appears, and the folded-figure menu
@@ -2370,7 +2347,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         refreshFoldedFigureSelectionMarkers(previousActiveId);
         completed(
           contradiction ? 'contradiction' : foldVerdictForOutcome(result.snapshot),
-          result.snapshot.discovered_fold_cases
+          result.snapshot.discovered_fold_cases,
         );
         return true;
       } catch (error) {
@@ -2389,7 +2366,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                   status: 'error',
                   error: normalized.message,
                 }
-              : figure
+              : figure,
           ),
           oristudioCpError: normalized.message,
           error: normalized,
@@ -2420,7 +2397,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         Object.values(get().oristudioCpFoldRuns).map((run) => [
           run.runId,
           run.cancellable ? { ...run, stopping: true } : run,
-        ])
+        ]),
       );
       set({ oristudioCpFoldRuns: stopped });
       aimFoldStopAtOldestPending(stopped);
@@ -2459,7 +2436,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
       set({
         oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
-          candidate.id === figure.id ? { ...candidate, status: 'loading' } : candidate
+          candidate.id === figure.id ? { ...candidate, status: 'loading' } : candidate,
         ),
       });
 
@@ -2474,14 +2451,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         // leaving both witnesses non-null.
         if (spatial) {
           const step = await withFoldInFlight('another-3d', (runId) =>
-            fold3dRuntimeOristudioCpFigureAnother(handle, runId)
+            fold3dRuntimeOristudioCpFigureAnother(handle, runId),
           );
           track(ANALYTICS_EVENTS.foldSolutionCycled, {
             direction: cycleDirection,
-            solution_count_bucket: bucketCount(
-              step.snapshot.discovered_fold_cases,
-              COUNT_BUCKETS
-            ),
+            solution_count_bucket: bucketCount(step.snapshot.discovered_fold_cases, COUNT_BUCKETS),
           });
           setFolded3dRenderModel(handle, step.render);
           const camera =
@@ -2490,7 +2464,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             step.render,
             step.snapshot,
             figure.displayStyle,
-            camera
+            camera,
           );
           takeCanvasSelection('folded-figure', {
             oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
@@ -2503,7 +2477,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                     camera,
                     error: null,
                   }
-                : candidate
+                : candidate,
             ),
             oristudioCpActiveFoldedFigureId: figure.id,
             oristudioCpError: null,
@@ -2513,7 +2487,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           return true;
         }
         const snapshot = await withFoldInFlight('another', (runId) =>
-          foldRuntimeOristudioCpFigureAnother(handle, runId)
+          foldRuntimeOristudioCpFigureAnother(handle, runId),
         );
         track(ANALYTICS_EVENTS.foldSolutionCycled, {
           direction: cycleDirection,
@@ -2523,13 +2497,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           figure.handle,
           figure.displayStyle,
           foldedFigureIndex(figure.id),
-          true
+          true,
         );
         takeCanvasSelection('folded-figure', {
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
             candidate.id === figure.id
               ? { ...candidate, status: 'ready', snapshot, renderSnapshot, error: null }
-              : candidate
+              : candidate,
           ),
           oristudioCpActiveFoldedFigureId: figure.id,
           oristudioCpError: null,
@@ -2547,7 +2521,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
             candidate.id === figure.id
               ? { ...candidate, status: 'error', error: normalized.message }
-              : candidate
+              : candidate,
           ),
           oristudioCpError: normalized.message,
           error: normalized,
@@ -2588,20 +2562,20 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
       set({
         oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
-          candidate.id === figure.id ? { ...candidate, status: 'loading' } : candidate
+          candidate.id === figure.id ? { ...candidate, status: 'loading' } : candidate,
         ),
       });
 
       try {
         const handle = figure.handle;
         const result = await withFoldInFlight('to-case', (runId) =>
-          foldRuntimeOristudioCpFigureToCase(handle, objective, 'Order5', runId)
+          foldRuntimeOristudioCpFigureToCase(handle, objective, 'Order5', runId),
         );
         const renderSnapshot = await renderSnapshotForFoldedFigure(
           figure.handle,
           figure.displayStyle,
           foldedFigureIndex(figure.id),
-          true
+          true,
         );
         takeCanvasSelection('folded-figure', {
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
@@ -2613,7 +2587,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                   renderSnapshot,
                   error: null,
                 }
-              : candidate
+              : candidate,
           ),
           oristudioCpActiveFoldedFigureId: figure.id,
           oristudioCpError: null,
@@ -2631,7 +2605,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
             candidate.id === figure.id
               ? { ...candidate, status: 'error', error: normalized.message }
-              : candidate
+              : candidate,
           ),
           oristudioCpError: normalized.message,
           error: normalized,
@@ -2675,7 +2649,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                 camera,
                 renderSnapshot: renderSnapshot ?? candidate.renderSnapshot,
               }
-            : candidate
+            : candidate,
         ),
         oristudioCpActiveFoldedFigureId: figure.id,
         oristudioCpError: null,
@@ -2714,7 +2688,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                   displayStyle,
                   renderSnapshot: renderSnapshot ?? candidate.renderSnapshot,
                 }
-              : candidate
+              : candidate,
           ),
           oristudioCpActiveFoldedFigureId: figure.id,
           oristudioCpError: null,
@@ -2728,11 +2702,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           figure.handle,
           displayStyle,
           foldedFigureIndex(figure.id),
-          true
+          true,
         );
         takeCanvasSelection('folded-figure', {
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
-            candidate.id === figure.id ? { ...candidate, displayStyle, renderSnapshot } : candidate
+            candidate.id === figure.id ? { ...candidate, displayStyle, renderSnapshot } : candidate,
           ),
           oristudioCpActiveFoldedFigureId: figure.id,
           oristudioCpError: null,
@@ -2745,7 +2719,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
             candidate.id === figure.id
               ? { ...candidate, status: 'error', error: normalized.message }
-              : candidate
+              : candidate,
           ),
           oristudioCpError: normalized.message,
           error: normalized,
@@ -2768,7 +2742,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         const renderSnapshot = reproject3dFigureAt(
           { ...figure, folded3d: next },
           figure.displayStyle,
-          figure.camera ?? null
+          figure.camera ?? null,
         );
         takeCanvasSelection('folded-figure', {
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
@@ -2781,7 +2755,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                   // blanking it, exactly as the camera setter does.
                   renderSnapshot: renderSnapshot ?? candidate.renderSnapshot,
                 }
-              : candidate
+              : candidate,
           ),
           oristudioCpActiveFoldedFigureId: figure.id,
           oristudioCpError: null,
@@ -2816,14 +2790,14 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           figure.handle,
           figure.displayStyle,
           foldedFigureIndex(figure.id),
-          true
+          true,
         );
         if (modelRequestSequence.get(id) !== requestId) return true;
         takeCanvasSelection('folded-figure', {
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
             candidate.id === figure.id
               ? { ...candidate, snapshot, renderSnapshot, error: null }
-              : candidate
+              : candidate,
           ),
           oristudioCpActiveFoldedFigureId: figure.id,
           oristudioCpError: null,
@@ -2836,7 +2810,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
             candidate.id === figure.id
               ? { ...candidate, status: 'error', error: normalized.message }
-              : candidate
+              : candidate,
           ),
           oristudioCpError: normalized.message,
           error: normalized,
@@ -2877,7 +2851,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // from the box the same way the folded set is — see `reselectSourceLineIds`.
       const scopedRefoldLineIds = reselectSourceLineIds(
         oristudioCpDocument.document,
-        figure.sourceBounds
+        figure.sourceBounds,
       );
       // Matches what folding itself requires (`foldOristudioCpDocument` rejects
       // an empty selection); anything the kernel will accept, a refold should.
@@ -2896,7 +2870,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       const refoldEpoch = foldedFigureHandleEpoch();
       set({
         oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
-          candidate.id === figure.id ? { ...candidate, status: 'loading' } : candidate
+          candidate.id === figure.id ? { ...candidate, status: 'loading' } : candidate,
         ),
         oristudioCpError: null,
       });
@@ -2922,25 +2896,22 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
               refoldRoute.lineIds,
               figure.startingFaceId ?? 1,
               figure.folded3d?.model,
-              runId
-            )
+              runId,
+            ),
           );
           if (result.status === 'refused') {
             // A refusal on a refold restores rather than offering the simulator:
             // a refold can be triggered in the background by a stale figure, and
             // a background action must not raise a modal. The old figure is
             // still a valid picture of the creases it was folded from.
-            return restorePreviousFigure(
-              figure,
-              fold3dRefusalMessage(i18n.t, result.refusal)
-            );
+            return restorePreviousFigure(figure, fold3dRefusalMessage(i18n.t, result.refusal));
           }
           const camera = defaultFolded3dCamera(result.render, result.snapshot.model.state);
           const renderSnapshot = project3dRenderSnapshot(
             result.render,
             result.snapshot,
             figure.displayStyle,
-            camera
+            camera,
           );
           if (!(await adoptFolded3dHandle(figure.id, refoldEpoch, result.handle, result.render))) {
             return false;
@@ -2971,10 +2942,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                     ...foldedSourceProvenance(
                       oristudioCpDocument.document,
                       refoldRoute.lineIds,
-                      scopedRefoldLineIds
+                      scopedRefoldLineIds,
                     ),
                   }
-                : candidate
+                : candidate,
             ),
             oristudioCpActiveFoldedFigureId: figure.id,
             oristudioCpError: null,
@@ -2996,14 +2967,14 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             'Order5',
             figure.snapshot?.model,
             refoldRoute.lineIds,
-            runId
-          )
+            runId,
+          ),
         );
         const renderSnapshot = await renderSnapshotForFoldedFigure(
           result.handle,
           figure.displayStyle,
           foldedFigureIndex(figure.id),
-          true
+          true,
         );
         // A fold that *returns* has not necessarily produced anything: a global
         // flat-foldability contradiction concludes at the transparent
@@ -3014,7 +2985,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           await freeOristudioCpFoldedFigure(result.handle).catch(() => {});
           return restorePreviousFigure(
             figure,
-            'This crease pattern can no longer be folded flat, so the folded model is unchanged'
+            'This crease pattern can no longer be folded flat, so the folded model is unchanged',
           );
         }
         retainFoldedFigureHandle(result.handle);
@@ -3039,12 +3010,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                   // Re-baseline against what was actually folded, so the figure
                   // reads as up to date until the creases move again.
                   ...foldedSourceProvenance(
-                      oristudioCpDocument.document,
-                      refoldRoute.lineIds,
-                      scopedRefoldLineIds
-                    ),
+                    oristudioCpDocument.document,
+                    refoldRoute.lineIds,
+                    scopedRefoldLineIds,
+                  ),
                 }
-              : candidate
+              : candidate,
           ),
           oristudioCpActiveFoldedFigureId: figure.id,
           oristudioCpError: null,
@@ -3128,7 +3099,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       const setStatus = (status: OristudioCpFoldedFigureEntry['status']) => {
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
-            candidate.id === id ? { ...candidate, status } : candidate
+            candidate.id === id ? { ...candidate, status } : candidate,
           ),
         });
       };
@@ -3164,7 +3135,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           route.lineIds,
           figure.startingFaceId ?? 1,
           figure.folded3d?.model,
-          FOLD_RUN_NONE
+          FOLD_RUN_NONE,
         );
         if (result.status === 'refused') return await abandon(null);
         handle = result.handle;
@@ -3174,7 +3145,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         for (let step = 0; step < replaySteps; step += 1) {
           const advanced = await fold3dRuntimeOristudioCpFigureAnother(
             result.handle,
-            FOLD_RUN_NONE
+            FOLD_RUN_NONE,
           );
           snapshot = advanced.snapshot;
           render = advanced.render;
@@ -3214,7 +3185,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                   folded3d: snapshot,
                   error: null,
                 }
-              : candidate
+              : candidate,
           ),
           // No `dirty`, no `projectMessage`, no selection, no history entry.
           // Nothing about the document changed; a figure that could not be
@@ -3297,7 +3268,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             result.render,
             result.snapshot,
             source.displayStyle,
-            camera
+            camera,
           );
           if (
             !(await adoptFolded3dHandle(figureId, duplicateEpoch, result.handle, result.render))
@@ -3318,7 +3289,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                     frameRadius: folded3dFrameRadius(result.render),
                     error: null,
                   }
-                : figure
+                : figure,
             ),
             oristudioCpActiveFoldedFigureId: figureId,
             oristudioCpError: null,
@@ -3333,7 +3304,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           result.handle,
           source.displayStyle,
           figureIndex,
-          true
+          true,
         );
         retainFoldedFigureHandle(result.handle);
         takeCanvasSelection('folded-figure', {
@@ -3347,7 +3318,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                   renderSnapshot,
                   error: null,
                 }
-              : figure
+              : figure,
           ),
           oristudioCpActiveFoldedFigureId: figureId,
           oristudioCpError: null,
@@ -3362,7 +3333,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) =>
             figure.id === figureId
               ? { ...figure, status: 'error', error: normalized.message }
-              : figure
+              : figure,
           ),
           oristudioCpError: normalized.message,
           error: normalized,
@@ -3383,7 +3354,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       const remaining = get().oristudioCpFoldedFigures.filter((candidate) => candidate.id !== id);
       const activeId =
         get().oristudioCpActiveFoldedFigureId === id
-          ? remaining[0]?.id ?? null
+          ? (remaining[0]?.id ?? null)
           : get().oristudioCpActiveFoldedFigureId;
       set({
         oristudioCpFoldedFigures: remaining,
@@ -3434,7 +3405,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       return get().replaceOristudioCpLineSegments(
         selection.lines,
         transformed,
-        cpSelectionTransformLabel(transform)
+        cpSelectionTransformLabel(transform),
       );
     },
 
@@ -3448,7 +3419,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
               ...get().oristudioCpSelection,
               lines: toggleCpSelectionList(get().oristudioCpSelection.lines, id),
             }
-          : { ...emptyOristudioCpSelection(), lines: [id] }
+          : { ...emptyOristudioCpSelection(), lines: [id] },
       ),
 
     toggleOristudioCpPointSelection: (id, additive = false) =>
@@ -3458,7 +3429,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
               ...get().oristudioCpSelection,
               points: toggleCpSelectionList(get().oristudioCpSelection.points, id),
             }
-          : { ...emptyOristudioCpSelection(), points: [id] }
+          : { ...emptyOristudioCpSelection(), points: [id] },
       ),
 
     toggleOristudioCpCircleSelection: (id, additive = false) =>
@@ -3468,7 +3439,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
               ...get().oristudioCpSelection,
               circles: toggleCpSelectionList(get().oristudioCpSelection.circles, id),
             }
-          : { ...emptyOristudioCpSelection(), circles: [id] }
+          : { ...emptyOristudioCpSelection(), circles: [id] },
       ),
 
     toggleOristudioCpTextSelection: (id, additive = false) =>
@@ -3478,7 +3449,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
               ...get().oristudioCpSelection,
               texts: toggleCpSelectionList(get().oristudioCpSelection.texts, id),
             }
-          : { ...emptyOristudioCpSelection(), texts: [id] }
+          : { ...emptyOristudioCpSelection(), texts: [id] },
       ),
 
     // --- Annotations: images + text boxes (superset feature; see
@@ -3494,7 +3465,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     updateAnnotation: (id, patch) =>
       set({
         oristudioCpAnnotations: get().oristudioCpAnnotations.map((annotation) =>
-          annotation.id === id ? ({ ...annotation, ...patch } as typeof annotation) : annotation
+          annotation.id === id ? ({ ...annotation, ...patch } as typeof annotation) : annotation,
         ),
         dirty: true,
       }),
@@ -3502,7 +3473,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     removeAnnotation: (id) =>
       set({
         oristudioCpAnnotations: get().oristudioCpAnnotations.filter(
-          (annotation) => annotation.id !== id
+          (annotation) => annotation.id !== id,
         ),
         oristudioCpSelectedAnnotationId:
           get().oristudioCpSelectedAnnotationId === id

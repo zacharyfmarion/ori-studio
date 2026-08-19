@@ -67,7 +67,11 @@ export const CP_MIN_SNAP_RADIUS_CSS = 10;
  * @param zoom   `zoomPercent / 100`, i.e. CSS px per SVG user unit
  * @param ratio  one of the `CP_*_RATIO` constants
  */
-export function cpSnapRadiusModel(radius: number, zoom: number, ratio: number = CP_SNAP_RATIO): number {
+export function cpSnapRadiusModel(
+  radius: number,
+  zoom: number,
+  ratio: number = CP_SNAP_RATIO,
+): number {
   const safeZoom = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
   const safeRadius = Number.isFinite(radius) && radius > 0 ? radius : CP_DEFAULT_SNAP_RADIUS;
   const upstream = (safeRadius * ratio) / Math.max(1, safeZoom);
@@ -101,13 +105,10 @@ export function cpHitRadiusModel(
   radius: number,
   zoom: number,
   ratio: number,
-  minCss: number
+  minCss: number,
 ): number {
   const safeZoom = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
-  return Math.max(
-    cpSnapRadiusModel(radius, zoom, ratio),
-    minCss / (CP_MODEL_TO_CSS * safeZoom)
-  );
+  return Math.max(cpSnapRadiusModel(radius, zoom, ratio), minCss / (CP_MODEL_TO_CSS * safeZoom));
 }
 
 /**

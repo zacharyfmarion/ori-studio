@@ -116,8 +116,7 @@ export function useBpFlapResize(input: UseBpFlapResizeInput): BpFlapResize {
   const centre = useMemo(() => {
     if (!requestedCentre || !flap) return null;
     const box = bpFlapOuterBox(flap);
-    const middle =
-      requestedCentre.axis === 'x' ? box.x + box.width / 2 : box.y + box.height / 2;
+    const middle = requestedCentre.axis === 'x' ? box.x + box.width / 2 : box.y + box.height / 2;
     return Math.abs(middle - requestedCentre.at) < 1e-6 ? requestedCentre : null;
   }, [requestedCentre, flap]);
 
@@ -135,7 +134,7 @@ export function useBpFlapResize(input: UseBpFlapResizeInput): BpFlapResize {
         radius_changed: footprint.radius !== radius,
       });
     },
-    [dragRequests]
+    [dragRequests],
   );
 
   const cancel = useCallback(() => {
@@ -197,7 +196,7 @@ export function useBpFlapResize(input: UseBpFlapResizeInput): BpFlapResize {
       setActive(handle);
       dragRequests.beginFlapReshape();
     },
-    [flap, disabled, eventToPackingPoint, dragRequests]
+    [flap, disabled, eventToPackingPoint, dragRequests],
   );
 
   const onHandlePointerMove = useCallback(
@@ -226,7 +225,7 @@ export function useBpFlapResize(input: UseBpFlapResizeInput): BpFlapResize {
       current.sent = footprint;
       dragRequests.queueFlapReshape({ id: current.start.id, footprint });
     },
-    [eventToPackingPoint, radiusRange, sheet, centre, mirrorSideGuard, dragRequests]
+    [eventToPackingPoint, radiusRange, sheet, centre, mirrorSideGuard, dragRequests],
   );
 
   const onHandlePointerUp = useCallback(
@@ -239,7 +238,7 @@ export function useBpFlapResize(input: UseBpFlapResizeInput): BpFlapResize {
       }
       finish(current.sent, current.start.id, current.handle, current.start.radius);
     },
-    [finish]
+    [finish],
   );
 
   // A gesture whose handles disappear underneath it is stuck: the layer unmounts,

@@ -35,7 +35,7 @@ const NO_CYCLING: FoldedFigureCycling = {
  * which is what lets the one solution verb bind to either without branching.
  */
 export function foldedFigureCycling(
-  figure: OristudioCpFoldedFigureEntry | null | undefined
+  figure: OristudioCpFoldedFigureEntry | null | undefined,
 ): FoldedFigureCycling {
   const source = figure?.folded3d ?? figure?.snapshot;
   if (!source) return NO_CYCLING;
@@ -58,7 +58,7 @@ export function foldedFigureCycling(
  * Which layer-ordering solution a figure is showing, 1-based.
  */
 export function foldedFigureCurrentCase(
-  figure: OristudioCpFoldedFigureEntry | null | undefined
+  figure: OristudioCpFoldedFigureEntry | null | undefined,
 ): number {
   return foldedFigureCycling(figure).current;
 }
@@ -86,7 +86,7 @@ export function flipFoldedState(state: OristudioCpFoldedFigureState): FoldedFigu
  */
 export function foldedModelsEqual(
   a: OristudioCpFoldedFigureModel | undefined,
-  b: OristudioCpFoldedFigureModel | undefined
+  b: OristudioCpFoldedFigureModel | undefined,
 ): boolean {
   if (!a || !b) return false;
   return (
@@ -124,7 +124,7 @@ function rgbEqual(a: OristudioCpRgbColor, b: OristudioCpRgbColor): boolean {
  */
 export function foldedFigureListsEqual(
   before: readonly OristudioCpFoldedFigureEntry[],
-  after: readonly OristudioCpFoldedFigureEntry[]
+  after: readonly OristudioCpFoldedFigureEntry[],
 ): boolean {
   return before.length === after.length && before.every((entry, index) => entry === after[index]);
 }

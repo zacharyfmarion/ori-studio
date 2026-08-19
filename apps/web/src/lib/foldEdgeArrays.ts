@@ -61,7 +61,7 @@ export function remapEdgeExtensionArrays(
   next: FoldDocument,
   source: FoldDocument,
   sourceEdgeCount: number,
-  sourceEdgeIndices: number[]
+  sourceEdgeIndices: number[],
 ): void {
   for (const [key, value] of Object.entries(source)) {
     if (!isEdgeExtensionKey(key)) continue;

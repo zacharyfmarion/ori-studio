@@ -22,20 +22,17 @@ import {
  */
 const t = ((key: string, second?: unknown, third?: unknown) => {
   const options = (typeof second === 'object' ? second : third) as
-    | Record<string, unknown>
-    | undefined;
+    Record<string, unknown> | undefined;
   const fallback =
     typeof second === 'string'
       ? second
       : ((options?.defaultValue_other ?? options?.defaultValue_one ?? key) as string);
   if (!options) return fallback;
-  return fallback.replace(/\{\{(\w+)\}\}/gu, (_match, name: string) =>
-    String(options[name] ?? '')
-  );
+  return fallback.replace(/\{\{(\w+)\}\}/gu, (_match, name: string) => String(options[name] ?? ''));
 }) as unknown as TFunction;
 
 function figure(
-  overrides: Partial<OristudioCpFoldedFigureEntry> = {}
+  overrides: Partial<OristudioCpFoldedFigureEntry> = {},
 ): OristudioCpFoldedFigureEntry {
   return {
     id: 'folded-1',
@@ -60,7 +57,7 @@ function spatial(
     crossings?: OristudioCpFold3dCrossing[];
     sourceLineIds?: number[];
     sourceScopedLineIds?: number[];
-  } = {}
+  } = {},
 ): OristudioCpFoldedFigureEntry {
   return figure({
     sourceLineIds: extras.sourceLineIds ?? [],
@@ -102,13 +99,16 @@ describe('foldedFigureNotice', () => {
     // wrong crease whenever those ids arrived unsorted.
     const notice = foldedFigureNotice(
       t,
-      spatial({ verdict: 'transversal_crossing', crossings: 2 }, {
-        sourceLineIds: [9, 2, 5],
-        crossings: [
-          { code: 'transversal', line: 0, face: 1 },
-          { code: 'sheets', line: 2, faces: [1, 2] },
-        ],
-      })
+      spatial(
+        { verdict: 'transversal_crossing', crossings: 2 },
+        {
+          sourceLineIds: [9, 2, 5],
+          crossings: [
+            { code: 'transversal', line: 0, face: 1 },
+            { code: 'sheets', line: 2, faces: [1, 2] },
+          ],
+        },
+      ),
     );
     expect(notice).toMatchObject({
       id: 'transversal-crossing',
@@ -120,7 +120,10 @@ describe('foldedFigureNotice', () => {
   it('offers no action for a crossing whose creases cannot be named', () => {
     // The kernel lists at most 16 crossings and reports an exact count, so a
     // verdict can arrive with nothing resolvable behind it.
-    const notice = foldedFigureNotice(t, spatial({ verdict: 'transversal_crossing', crossings: 40 }));
+    const notice = foldedFigureNotice(
+      t,
+      spatial({ verdict: 'transversal_crossing', crossings: 40 }),
+    );
     expect(notice?.action).toBeNull();
   });
 
@@ -142,8 +145,8 @@ describe('foldedFigureNotice', () => {
       t,
       spatial(
         { verdict: 'no_layer_order', reason },
-        { sourceLineIds: [4, 7], sourceScopedLineIds: [4, 7, 11] }
-      )
+        { sourceLineIds: [4, 7], sourceScopedLineIds: [4, 7, 11] },
+      ),
     );
     expect(notice).toMatchObject({
       id: 'no-layer-order',
@@ -167,7 +170,7 @@ describe('foldedFigureNotice', () => {
     for (const code of codes) {
       const notice = foldedFigureNotice(
         t,
-        spatial({ verdict: 'no_layer_order', reason: { code } as OristudioCpFold3dOrderReason })
+        spatial({ verdict: 'no_layer_order', reason: { code } as OristudioCpFold3dOrderReason }),
       );
       expect(notice?.detail, code).toBeTruthy();
       expect(notice?.detail, code).not.toContain('panels:');
@@ -183,18 +186,18 @@ describe('foldedFigureNotice', () => {
       spatial({
         verdict: 'no_layer_order',
         reason: { code: 'search_exhausted', component: 0, iterations: 1_000_000 },
-      })
+      }),
     );
     const genuine = foldedFigureNotice(
       t,
       spatial({
         verdict: 'no_layer_order',
         reason: { code: 'no_layer_order', component: 0, faces: 12, variables: 30 },
-      })
+      }),
     );
 
     expect(exhausted?.detail).toBe(
-      'Ori Studio stopped searching before it found a layer order for this figure.'
+      'Ori Studio stopped searching before it found a layer order for this figure.',
     );
     expect(exhausted?.detail).not.toBe(genuine?.detail);
     // Still offers the way out, because the figure is drawn either way.
@@ -207,13 +210,13 @@ describe('crossingLineIds / foldedFigureSimulationLineIds', () => {
     expect(
       crossingLineIds({ sourceLineIds: [9, 2, 5] }, [
         { code: 'chords', lines: [0, 2], faces: [1, 2, 3, 4] },
-      ])
+      ]),
     ).toEqual([2, 9]);
   });
 
   it('simulates from the scoped ids, never the colour-filtered ones', () => {
     expect(
-      foldedFigureSimulationLineIds({ sourceLineIds: [1, 2], sourceScopedLineIds: [1, 2, 3] })
+      foldedFigureSimulationLineIds({ sourceLineIds: [1, 2], sourceScopedLineIds: [1, 2, 3] }),
     ).toEqual([1, 2, 3]);
   });
 
@@ -222,7 +225,7 @@ describe('crossingLineIds / foldedFigureSimulationLineIds', () => {
     // is, and no worse than what that build did.
     expect(foldedFigureSimulationLineIds({ sourceLineIds: [1, 2] })).toEqual([1, 2]);
     expect(
-      foldedFigureSimulationLineIds({ sourceLineIds: [1, 2], sourceScopedLineIds: [] })
+      foldedFigureSimulationLineIds({ sourceLineIds: [1, 2], sourceScopedLineIds: [] }),
     ).toEqual([1, 2]);
     expect(foldedFigureSimulationLineIds({})).toEqual([]);
   });
@@ -259,15 +262,15 @@ describe('fold3dRefusalMessage', () => {
   it('words a flat-foldability refusal the way the foldability panel does', () => {
     // The same theorem failing must not read two ways depending on which check
     // found it — and these phrases are already translated in every locale.
-    expect(fold3dRefusalMessage(t, { code: 'flat_foldability', point: { x: 0, y: 0 }, rule: 'angles' })).toBe(
-      'Incorrect angles'
-    );
+    expect(
+      fold3dRefusalMessage(t, { code: 'flat_foldability', point: { x: 0, y: 0 }, rule: 'angles' }),
+    ).toBe('Incorrect angles');
     expect(
       fold3dRefusalMessage(t, {
         code: 'flat_foldability',
         point: { x: 0, y: 0 },
         rule: 'number_of_folds',
-      })
+      }),
     ).toBe('Odd number of folds');
   });
 
@@ -277,7 +280,7 @@ describe('fold3dRefusalMessage', () => {
         code: 'vertex_closure',
         point: { x: 0, y: 0 },
         residual_degrees: 12.3456789,
-      })
+      }),
     ).toContain('12.35');
   });
 });

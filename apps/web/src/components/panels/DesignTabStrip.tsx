@@ -122,7 +122,7 @@ export function DesignTabStrip() {
       moveRightLabel,
       reorderDesignTab,
       t,
-    ]
+    ],
   );
 
   return (

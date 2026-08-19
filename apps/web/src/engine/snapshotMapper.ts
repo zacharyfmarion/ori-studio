@@ -48,13 +48,7 @@ function facetColor(color: number): FacetShape['color'] {
 function isDesignVisiblePath(path: TreeSnapshot['paths'][number]): boolean {
   if (path.nodes.length < 2) return false;
 
-  return (
-    path.is_leaf ||
-    path.is_active ||
-    path.is_border ||
-    path.is_polygon ||
-    path.is_conditioned
-  );
+  return path.is_leaf || path.is_active || path.is_border || path.is_polygon || path.is_conditioned;
 }
 
 export function projectFromSnapshot(snapshot: TreeSnapshot, titleOverride?: string): TreeProject {
@@ -91,18 +85,16 @@ export function projectFromSnapshot(snapshot: TreeSnapshot, titleOverride?: stri
       stiffness: edge.stiffness,
       isConditioned: edge.is_conditioned,
     })),
-    paths: snapshot.paths
-      .filter(isDesignVisiblePath)
-      .map((path) => ({
-        id: path.id,
-        nodes: [path.nodes[0], path.nodes[path.nodes.length - 1]] as [number, number],
-        isLeaf: path.is_leaf,
-        isActive: path.is_active,
-        isFeasible: path.is_feasible,
-        isBorder: path.is_border,
-        isPolygon: path.is_polygon,
-        isConditioned: path.is_conditioned,
-      })),
+    paths: snapshot.paths.filter(isDesignVisiblePath).map((path) => ({
+      id: path.id,
+      nodes: [path.nodes[0], path.nodes[path.nodes.length - 1]] as [number, number],
+      isLeaf: path.is_leaf,
+      isActive: path.is_active,
+      isFeasible: path.is_feasible,
+      isBorder: path.is_border,
+      isPolygon: path.is_polygon,
+      isConditioned: path.is_conditioned,
+    })),
     creases: snapshot.creases.flatMap((crease) => {
       const a = vertexLocs.get(crease.vertices[0]);
       const b = vertexLocs.get(crease.vertices[1]);

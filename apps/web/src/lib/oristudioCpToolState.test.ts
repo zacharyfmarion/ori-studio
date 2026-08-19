@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  cpActionById,
-  type OristudioCpCommandActionDefinition,
-} from './oristudioCpActions';
-import {
-  cpCommandByOperation,
-  type OristudioCpCommandDefinition,
-} from './oristudioCpCommands';
+import { cpActionById, type OristudioCpCommandActionDefinition } from './oristudioCpActions';
+import { cpCommandByOperation, type OristudioCpCommandDefinition } from './oristudioCpCommands';
 import {
   cancelOristudioCpToolState,
   IDLE_ORISTUDIO_CP_TOOL_STATE,
@@ -185,13 +179,13 @@ describe('oristudio CP tool state', () => {
         transitionOristudioCpToolState(drawing, {
           type: 'resolveVariant',
           toolOptions: { ...DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS, divideMode: 'ratio' },
-        })
+        }),
       ).toBe(drawing);
       expect(
         transitionOristudioCpToolState(IDLE_ORISTUDIO_CP_TOOL_STATE, {
           type: 'resolveVariant',
           toolOptions: DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS,
-        })
+        }),
       ).toBe(IDLE_ORISTUDIO_CP_TOOL_STATE);
     });
   });
@@ -207,7 +201,7 @@ describe('oristudio CP tool state', () => {
       transitionOristudioCpToolState(active, {
         type: 'commandError',
         message: 'candidate vanished',
-      })
+      }),
     ).toMatchObject({
       activeActionId: null,
       activeOperationId: 'DrawPoint',

@@ -37,14 +37,19 @@ async function main() {
   try {
     await page.goto(url, { waitUntil: 'networkidle' });
     await page.evaluate(async () => {
-      const wasm = await import('/src/generated/oristudio-cp-detect-wasm/oristudio_cp_detect_wasm.js');
+      const wasm =
+        await import('/src/generated/oristudio-cp-detect-wasm/oristudio_cp_detect_wasm.js');
       await wasm.default();
       window.__cpDetectDecodeDenseOutputs = wasm.cp_detect_decode_dense_outputs;
     });
 
     for (const fixture of manifest.fixtures) {
-      const oracleFold = JSON.parse(await readFile(resolve(manifestRoot, fixture.fold_path), 'utf8'));
-      const oracleReport = JSON.parse(await readFile(resolve(manifestRoot, fixture.report_path), 'utf8'));
+      const oracleFold = JSON.parse(
+        await readFile(resolve(manifestRoot, fixture.fold_path), 'utf8'),
+      );
+      const oracleReport = JSON.parse(
+        await readFile(resolve(manifestRoot, fixture.report_path), 'utf8'),
+      );
       const dense = {};
       for (const [head, pathKey] of DENSE_HEADS) {
         dense[head] = viteFsUrl(resolve(manifestRoot, fixture[pathKey]));
@@ -65,10 +70,10 @@ async function main() {
             arrays.line_style_logits,
             arrays.boundary_contact_logits,
             imageSize,
-            threshold
+            threshold,
           );
         },
-        { dense, imageSize, threshold }
+        { dense, imageSize, threshold },
       );
       const browserFold = JSON.parse(decoded.fold_json);
       results.push({
@@ -125,7 +130,10 @@ function reportMatches(left, right) {
   return (
     left.status === right.status &&
     sameStrings(warningCodes(left.warnings ?? []), warningCodes(right.warnings ?? [])) &&
-    sameStrings(repairActionCodes(left.repair_actions ?? []), repairActionCodes(right.repair_actions ?? []))
+    sameStrings(
+      repairActionCodes(left.repair_actions ?? []),
+      repairActionCodes(right.repair_actions ?? []),
+    )
   );
 }
 
@@ -217,7 +225,7 @@ function greedyPointMatches(left, right, tolerance) {
 function segmentCost(left, right) {
   return Math.min(
     pointDistance(left.a, right.a) + pointDistance(left.b, right.b),
-    pointDistance(left.a, right.b) + pointDistance(left.b, right.a)
+    pointDistance(left.a, right.b) + pointDistance(left.b, right.a),
   );
 }
 

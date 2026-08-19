@@ -11,7 +11,10 @@ const vertical: SymmetryAxis = { loc: { x: 0.5, y: 0.5 }, angle: 90 };
 describe('symmetryGeometry', () => {
   it('reflection is an involution across the axis', () => {
     const p = { x: 0.2, y: 0.31 };
-    const back = reflectPointAcrossSymmetryAxis(reflectPointAcrossSymmetryAxis(p, vertical), vertical);
+    const back = reflectPointAcrossSymmetryAxis(
+      reflectPointAcrossSymmetryAxis(p, vertical),
+      vertical,
+    );
     expect(back.x).toBeCloseTo(p.x);
     expect(back.y).toBeCloseTo(p.y);
   });

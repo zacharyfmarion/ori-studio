@@ -225,9 +225,7 @@ function trackWebSave(mode: WebSaveMode): void {
   track('project save target', { mode });
 }
 
-async function saveBrowserTextFile(
-  options: SaveTextFileOptions
-): Promise<SaveFileResult | null> {
+async function saveBrowserTextFile(options: SaveTextFileOptions): Promise<SaveFileResult | null> {
   const name = ensureExtension(options.suggestedName, options.extensions[0] ?? 'txt');
 
   const existing = options.path ? webSaveTargets.get(options.path) : undefined;
@@ -299,7 +297,7 @@ function downloadBlob(blob: Blob, filename: string): void {
  * upgrades it at the first save.
  */
 async function openBrowserTextFile(
-  options: OpenTextFileOptions
+  options: OpenTextFileOptions,
 ): Promise<OpenTextFileResult | null> {
   const showOpenFilePicker = window.showOpenFilePicker;
   if (!showOpenFilePicker) return openBrowserTextFileInput(options);
@@ -330,7 +328,7 @@ async function openBrowserTextFile(
 }
 
 function openBrowserTextFileInput(
-  options: OpenTextFileOptions
+  options: OpenTextFileOptions,
 ): Promise<OpenTextFileResult | null> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
@@ -353,7 +351,7 @@ function openBrowserTextFileInput(
           .then((text) => resolve({ text, name: file.name, path: null }))
           .catch(() => resolve(null));
       },
-      { once: true }
+      { once: true },
     );
 
     // Dismissing the picker fires `cancel`, never `change`, so without this the
@@ -366,7 +364,7 @@ function openBrowserTextFileInput(
         input.remove();
         resolve(null);
       },
-      { once: true }
+      { once: true },
     );
 
     input.click();
@@ -374,7 +372,7 @@ function openBrowserTextFileInput(
 }
 
 function openBrowserBinaryFile(
-  options: OpenBinaryFileOptions
+  options: OpenBinaryFileOptions,
 ): Promise<OpenBinaryFileResult | null> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
@@ -401,11 +399,11 @@ function openBrowserBinaryFile(
               name: file.name,
               path: null,
               mimeType: file.type || 'application/octet-stream',
-            })
+            }),
           )
           .catch(() => resolve(null));
       },
-      { once: true }
+      { once: true },
     );
 
     // Dismissing the picker fires `cancel`, never `change`, so without this the
@@ -418,7 +416,7 @@ function openBrowserBinaryFile(
         input.remove();
         resolve(null);
       },
-      { once: true }
+      { once: true },
     );
 
     input.click();
@@ -506,7 +504,7 @@ class TauriFileService implements FileService {
   private async chooseSavePath(
     title: string,
     suggestedName: string,
-    extensions: string[]
+    extensions: string[],
   ): Promise<string | null> {
     const { save } = await import('@tauri-apps/plugin-dialog');
     const selected = await save({
@@ -560,7 +558,7 @@ function withExportTracking(service: FileService): FileService {
 
 export function createFileService(surface: RuntimeSurface): FileService {
   return withExportTracking(
-    surface === 'desktop' ? new TauriFileService() : new BrowserFileService()
+    surface === 'desktop' ? new TauriFileService() : new BrowserFileService(),
   );
 }
 

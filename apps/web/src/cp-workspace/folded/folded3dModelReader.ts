@@ -43,10 +43,7 @@ export interface PlaneFrame {
   v: Vec3;
 }
 
-export function planeFrame(
-  model: OristudioCpFolded3dRenderModel,
-  plane: number
-): PlaneFrame {
+export function planeFrame(model: OristudioCpFolded3dRenderModel, plane: number): PlaneFrame {
   const base = plane * FOLDED_3D_PLANE_FRAME_STRIDE;
   const at = (offset: number): Vec3 => [
     model.plane_frames[base + offset] ?? 0,
@@ -90,10 +87,7 @@ export function faceNormal(model: OristudioCpFolded3dRenderModel, face: number):
   ];
 }
 
-export function edgeEnds(
-  model: OristudioCpFolded3dRenderModel,
-  edge: number
-): [Vec3, Vec3] {
+export function edgeEnds(model: OristudioCpFolded3dRenderModel, edge: number): [Vec3, Vec3] {
   const at = edge * 6;
   return [
     [model.edge_points[at] ?? 0, model.edge_points[at + 1] ?? 0, model.edge_points[at + 2] ?? 0],
@@ -328,8 +322,7 @@ export function buildFolded3dInk(model: OristudioCpFolded3dRenderModel): Folded3
         entry.slot * (model.cell_attr[entry.cell * FOLDED_3D_CELL_ATTR_STRIDE + 2] ?? 0) +
         entry.segment;
       hingePlane[at] = planeOfFace(partner.face);
-      hingeMask[at] =
-        (partner.slot === 0 ? 1 : 0) | (partner.slot === partnerStack - 1 ? 2 : 0);
+      hingeMask[at] = (partner.slot === 0 ? 1 : 0) | (partner.slot === partnerStack - 1 ? 2 : 0);
     }
   }
 
@@ -401,8 +394,8 @@ export function modelRadius(model: OristudioCpFolded3dRenderModel): number {
       Math.hypot(
         (model.cell_points[i * 3] ?? 0) - centre[0],
         (model.cell_points[i * 3 + 1] ?? 0) - centre[1],
-        (model.cell_points[i * 3 + 2] ?? 0) - centre[2]
-      )
+        (model.cell_points[i * 3 + 2] ?? 0) - centre[2],
+      ),
     );
   }
   return radius;

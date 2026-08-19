@@ -22,10 +22,7 @@ import type { FoldedFigureActionIcon } from './foldedFigureActions';
  * `foldedFigureActions` names icons rather than importing them so it can stay
  * JSX-free and directly unit-testable; this is where names become elements.
  */
-export function foldedFigureActionIconNode(
-  icon: FoldedFigureActionIcon,
-  size = 14
-): ReactNode {
+export function foldedFigureActionIconNode(icon: FoldedFigureActionIcon, size = 14): ReactNode {
   switch (icon) {
     // A sheet with a turn arrow, not a mirror glyph: Flip turns the paper over
     // to show its other side, which is not the same as mirroring the shape.

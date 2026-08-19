@@ -43,9 +43,10 @@ const DEFAULT_STROKE_WIDTH = 1;
 const TEXT_FONT_SIZE = 12;
 
 function colorAttr(color: OristudioCpRgbaColor): { value: string; opacity: number } {
-  const hex = (channel: number) => Math.max(0, Math.min(255, Math.round(channel)))
-    .toString(16)
-    .padStart(2, '0');
+  const hex = (channel: number) =>
+    Math.max(0, Math.min(255, Math.round(channel)))
+      .toString(16)
+      .padStart(2, '0');
   return {
     value: `#${hex(color.red)}${hex(color.green)}${hex(color.blue)}`,
     opacity: color.alpha / 255,
@@ -132,7 +133,7 @@ function flattenCubic(from: Point, c1: Point, c2: Point, to: Point): Point[] {
 /** Bounding box of a snapshot once projected. Null when it draws nothing. */
 export function projectedFoldedFigureBounds(
   snapshot: OristudioCpFoldedRenderSnapshot,
-  project: (point: Point) => Point
+  project: (point: Point) => Point,
 ): FoldedFigureBounds | null {
   let minX = Infinity;
   let minY = Infinity;
@@ -168,7 +169,7 @@ function num(value: number): string {
  */
 export function foldedFigureSvgBody(
   snapshot: OristudioCpFoldedRenderSnapshot,
-  options: FoldedFigureSvgOptions
+  options: FoldedFigureSvgOptions,
 ): string {
   const { project, scale } = options;
   const prefix = options.idPrefix ?? 'folded';
@@ -196,7 +197,7 @@ function paintAttr(
   paint: OristudioCpFoldedRenderPaint,
   id: string,
   project: (point: Point) => Point,
-  defs: string[]
+  defs: string[],
 ): { value: string; opacity: number } | null {
   if (paint.kind === 'color') return colorAttr(paint.color);
   if (paint.kind !== 'gradient') return null;
@@ -209,7 +210,7 @@ function paintAttr(
     `    <linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${num(from.x)}" y1="${num(from.y)}" x2="${num(to.x)}" y2="${num(to.y)}"${paint.cyclic ? ' spreadMethod="reflect"' : ''}>` +
       `<stop offset="0" stop-color="${start.value}" stop-opacity="${num(start.opacity)}"/>` +
       `<stop offset="1" stop-color="${end.value}" stop-opacity="${num(end.opacity)}"/>` +
-      `</linearGradient>`
+      `</linearGradient>`,
   );
   return { value: `url(#${id})`, opacity: 1 };
 }
@@ -218,7 +219,7 @@ function geometryElement(
   geometry: OristudioCpFoldedRenderGeometry,
   style: string,
   project: (point: Point) => Point,
-  scale: number
+  scale: number,
 ): string | null {
   switch (geometry.kind) {
     case 'path': {
@@ -262,7 +263,7 @@ function geometryElement(
 
 function pathData(
   commands: readonly OristudioCpFoldedRenderPathCommand[],
-  project: (point: Point) => Point
+  project: (point: Point) => Point,
 ): string {
   const parts: string[] = [];
   for (const command of commands) {

@@ -14,12 +14,7 @@
  */
 
 /** Why a key's category matters: see `shift-non-letter-unrepresentable`. */
-export type KeyStrokeKeyCategory =
-  | 'letter'
-  | 'digit'
-  | 'punctuation'
-  | 'named'
-  | 'function';
+export type KeyStrokeKeyCategory = 'letter' | 'digit' | 'punctuation' | 'named' | 'function';
 
 export interface KeyStrokeKeyName {
   /** The normalized `event.key` name a real keydown would carry. */
@@ -29,7 +24,7 @@ export interface KeyStrokeKeyName {
 
 function entries(
   category: KeyStrokeKeyCategory,
-  table: Record<string, string>
+  table: Record<string, string>,
 ): Array<[string, KeyStrokeKeyName]> {
   return Object.entries(table).map(([vk, key]) => [vk, { key, category }]);
 }
@@ -38,11 +33,11 @@ const LETTERS: Record<string, string> = Object.fromEntries(
   Array.from({ length: 26 }, (_, index) => {
     const letter = String.fromCharCode(65 + index);
     return [letter, letter.toLowerCase()];
-  })
+  }),
 );
 
 const DIGITS: Record<string, string> = Object.fromEntries(
-  Array.from({ length: 10 }, (_, digit) => [String(digit), String(digit)])
+  Array.from({ length: 10 }, (_, digit) => [String(digit), String(digit)]),
 );
 
 /**
@@ -50,7 +45,7 @@ const DIGITS: Record<string, string> = Object.fromEntries(
  * high ones on the keyboards that have them, and `normalizeKey` lowercases.
  */
 const FUNCTION_KEYS: Record<string, string> = Object.fromEntries(
-  Array.from({ length: 24 }, (_, index) => [`F${index + 1}`, `f${index + 1}`])
+  Array.from({ length: 24 }, (_, index) => [`F${index + 1}`, `f${index + 1}`]),
 );
 
 const NAMED_KEYS: Record<string, string> = {

@@ -14,10 +14,7 @@
  */
 import { useMemo } from 'react';
 
-import {
-  getOrieditaGridBasis,
-  visibleOrieditaGridMetadata,
-} from '../../lib/creasePatternViewport';
+import { getOrieditaGridBasis, visibleOrieditaGridMetadata } from '../../lib/creasePatternViewport';
 import { useWorkspaceStore } from '../../store/workspaceStore/store';
 
 export function useCpGridWidth(): number | undefined {

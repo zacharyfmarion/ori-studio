@@ -171,7 +171,7 @@ describe('the window cap', () => {
         document: { crease_pattern: { line_segments: [], points: [], circles: [] } },
       } as never,
       oristudioCpInlineSimulations: Array.from({ length: MAX_CONCURRENT_SIMULATIONS }, (_, i) =>
-        windowAt(`sim-${i}`)
+        windowAt(`sim-${i}`),
       ),
     });
 
@@ -186,7 +186,7 @@ describe('the window cap', () => {
       oristudioCpInlineSimulations: [],
     });
     expect(await useWorkspaceStore.getState().addOristudioCpInlineSimulation(anyRegion)).toBe(
-      'unavailable'
+      'unavailable',
     );
   });
 });

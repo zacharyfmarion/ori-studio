@@ -20,9 +20,7 @@ import { createExploriDocument, serializeExploriDocument } from './document';
 
 function exploriProject(text: string) {
   return createNativeProjectFile({
-    designs: [
-      { id: 'design-1', title: 'Search', kind: 'explori', text, format: 'explori-json' },
-    ],
+    designs: [{ id: 'design-1', title: 'Search', kind: 'explori', text, format: 'explori-json' }],
     workspaceTitle: 'Untitled',
     filename: 'project.osf',
     path: null,
@@ -82,7 +80,7 @@ describe('a build that has never heard of the kind', () => {
       creasePattern: null,
       appVersion: '0.0.0-test',
       now: new Date('2026-08-06T00:00:00.000Z'),
-    })
+    }),
   );
 
   it('opens the file and keeps the designs it understands', () => {
@@ -119,8 +117,8 @@ describe('a build that has never heard of the kind', () => {
           creasePattern: null,
           appVersion: '0.0.0-test',
           now: new Date('2026-08-06T00:00:00.000Z'),
-        })
-      )
+        }),
+      ),
     );
     expect(resaved.workspace.unknownDesigns).toEqual(reopened.workspace.unknownDesigns);
     // And the file says so: a project carrying a design this build cannot read

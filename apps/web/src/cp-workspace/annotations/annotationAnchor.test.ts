@@ -24,12 +24,16 @@ describe('boundingScreenRect', () => {
   });
 
   it('bounds a rotated box by its extremes', () => {
-    const rect = annotationScreenRect(view, { left: 0, top: 0 }, {
-      center: { x: 0, y: 0 },
-      width: 2,
-      height: 2,
-      rotation: Math.PI / 4,
-    });
+    const rect = annotationScreenRect(
+      view,
+      { left: 0, top: 0 },
+      {
+        center: { x: 0, y: 0 },
+        width: 2,
+        height: 2,
+        rotation: Math.PI / 4,
+      },
+    );
     // A 2×2 square rotated 45° spans ±√2 in model space on both axes.
     const half = Math.SQRT2 * 10;
     expect(rect?.left).toBeCloseTo(100 - half);

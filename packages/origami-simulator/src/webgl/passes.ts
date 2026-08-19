@@ -383,7 +383,6 @@ export const VELOCITY_CALC = `${FORCE_SHADER_HEAD}${FORCE_SHADER_MAIN}
 }
 `;
 
-
 /**
  * Verlet position integration: the same force, applied straight to position from
  * two steps of history instead of through velocity. Matches upstream's

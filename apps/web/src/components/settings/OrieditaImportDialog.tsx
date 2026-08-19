@@ -66,22 +66,22 @@ function archiveFailureMessage(t: TFunction, reason: OriconfigArchiveFailureReas
     case 'not-a-zip':
       return t(
         'dialogs:orieditaImport.error.notAnExport',
-        'That is not an Oriedita settings export. In Oriedita, open Preferences and choose Export.'
+        'That is not an Oriedita settings export. In Oriedita, open Preferences and choose Export.',
       );
     case 'truncated':
       return t(
         'dialogs:orieditaImport.error.damaged',
-        'This settings export is incomplete and could not be read.'
+        'This settings export is incomplete and could not be read.',
       );
     case 'no-decompression-support':
       return t(
         'dialogs:orieditaImport.error.noDecompression',
-        'This browser cannot unpack a settings export. Try the desktop app, or a current browser.'
+        'This browser cannot unpack a settings export. Try the desktop app, or a current browser.',
       );
     case 'entry-failed':
       return t(
         'dialogs:orieditaImport.error.unreadableHotkeys',
-        'The hotkeys inside this settings export could not be unpacked.'
+        'The hotkeys inside this settings export could not be unpacked.',
       );
   }
 }
@@ -94,36 +94,39 @@ function rejectReasonText(t: TFunction, reason: KeyStrokeRejectReason): string {
     case 'released-not-supported':
       return t(
         'dialogs:orieditaImport.reason.released',
-        'Fires when the key is let go, which Ori Studio does not do.'
+        'Fires when the key is let go, which Ori Studio does not do.',
       );
     case 'alt-graph-not-supported':
-      return t('dialogs:orieditaImport.reason.altGraph', 'Uses AltGr, which Ori Studio cannot match.');
+      return t(
+        'dialogs:orieditaImport.reason.altGraph',
+        'Uses AltGr, which Ori Studio cannot match.',
+      );
     case 'shift-non-letter-unrepresentable':
       return t(
         'dialogs:orieditaImport.reason.shiftNonLetter',
-        'Shift with a number or punctuation key means a different character in a browser, so this shortcut could never fire.'
+        'Shift with a number or punctuation key means a different character in a browser, so this shortcut could never fire.',
       );
     case 'key-location-unrepresentable':
       return t(
         'dialogs:orieditaImport.reason.keyLocation',
-        'Uses a numeric keypad key, which a browser cannot tell apart from the main keyboard.'
+        'Uses a numeric keypad key, which a browser cannot tell apart from the main keyboard.',
       );
     case 'unknown-key-name':
       return t('dialogs:orieditaImport.reason.unknownKey', 'Uses a key Ori Studio does not know.');
     case 'ctrl-meta-unrepresentable':
       return t(
         'dialogs:orieditaImport.reason.ctrlMeta',
-        'Holds Control and Command together, which Ori Studio treats as one modifier.'
+        'Holds Control and Command together, which Ori Studio treats as one modifier.',
       );
     case 'modifier-only':
       return t(
         'dialogs:orieditaImport.reason.modifierOnly',
-        'Records only modifier keys, with nothing to press with them.'
+        'Records only modifier keys, with nothing to press with them.',
       );
     case 'typed-unrepresentable':
       return t(
         'dialogs:orieditaImport.reason.typedCharacter',
-        'Records a typed character rather than a key, so the key to bind depends on the keyboard layout.'
+        'Records a typed character rather than a key, so the key to bind depends on the keyboard layout.',
       );
   }
 }
@@ -149,12 +152,12 @@ function skipReasonText(t: TFunction, row: OrieditaImportRow): string {
       // file cannot say which one this was, and acting either way would guess.
       return t(
         'dialogs:orieditaImport.reason.ambiguousEmpty',
-        'Left blank in Oriedita. Oriedita writes the same blank when a hotkey is reset to its default, so this one is left alone.'
+        'Left blank in Oriedita. Oriedita writes the same blank when a hotkey is reset to its default, so this one is left alone.',
       );
     case 'unmapped-action':
       return t(
         'dialogs:orieditaImport.reason.unmappedAction',
-        'Ori Studio has no matching action.'
+        'Ori Studio has no matching action.',
       );
     case 'unparseable':
       return row.detail.rejectReason
@@ -163,14 +166,14 @@ function skipReasonText(t: TFunction, row: OrieditaImportRow): string {
     case 'reserved-chord':
       return t(
         'dialogs:orieditaImport.reason.reserved',
-        'The browser keeps this shortcut for itself.'
+        'The browser keeps this shortcut for itself.',
       );
     case 'shadowed': {
       const shadowing = row.detail.shadowing;
       if (!shadowing) {
         return t(
           'dialogs:orieditaImport.reason.shadowedWithinImport',
-          'Another hotkey in this import already wants this key.'
+          'Another hotkey in this import already wants this key.',
         );
       }
       const other = actionLabel(t, shadowing.actionId, shadowing.label);
@@ -178,7 +181,7 @@ function skipReasonText(t: TFunction, row: OrieditaImportRow): string {
         ? t(
             'dialogs:orieditaImport.reason.shadowedTakes',
             'Would take this key away from {{action}}.',
-            { action: other }
+            { action: other },
           )
         : t('dialogs:orieditaImport.reason.shadowedLoses', '{{action}} answers this key first.', {
             action: other,
@@ -187,12 +190,12 @@ function skipReasonText(t: TFunction, row: OrieditaImportRow): string {
     case 'action-not-bindable':
       return t(
         'dialogs:orieditaImport.reason.notBindable',
-        'This action cannot take an imported shortcut.'
+        'This action cannot take an imported shortcut.',
       );
     case 'menu-accelerator-unsupported':
       return t(
         'dialogs:orieditaImport.reason.menuAccelerator',
-        'Menu shortcuts cannot use this key.'
+        'Menu shortcuts cannot use this key.',
       );
   }
 }
@@ -246,7 +249,7 @@ function PlanRow({
                 aria-label={t(
                   'dialogs:orieditaImport.useAnywayLabel',
                   'Use this key anyway, leaving {{action}} unassigned',
-                  { action: actionLabel(t, offer.evictedId, offer.evictedLabel) }
+                  { action: actionLabel(t, offer.evictedId, offer.evictedLabel) },
                 )}
                 /* `takenById` is this row's own target — the key `allowEvictionFor`
                    is named by — not the blocker's. */
@@ -321,10 +324,7 @@ function UnbindSection({
       </h3>
       <div className="settings-shortcuts__table">
         {evictions.map((eviction) => (
-          <div
-            key={eviction.evictedId}
-            className="settings-shortcuts__row oriedita-import__row"
-          >
+          <div key={eviction.evictedId} className="settings-shortcuts__row oriedita-import__row">
             <div className="oriedita-import__copy">
               <span className="oriedita-import__action">
                 {actionLabel(t, eviction.evictedId, eviction.evictedLabel)}
@@ -333,7 +333,7 @@ function UnbindSection({
                 {t(
                   'dialogs:orieditaImport.unbindNote',
                   'Gives up this key to {{takenBy}}, and is left unassigned.',
-                  { takenBy: actionLabel(t, eviction.takenById, eviction.takenByLabel) }
+                  { takenBy: actionLabel(t, eviction.takenById, eviction.takenByLabel) },
                 )}
               </span>
               <div>
@@ -368,7 +368,7 @@ export function OrieditaImportDialog({ onClose }: { onClose: () => void }) {
   const [stage, setStage] = useState<ImportStage>({ kind: 'choose' });
   /** Rows the user pressed "Use anyway" on, by target action. */
   const [allowEvictionFor, setAllowEvictionFor] = useState<ReadonlySet<ShortcutActionId>>(
-    () => new Set()
+    () => new Set(),
   );
 
   useEffect(() => {
@@ -496,7 +496,7 @@ export function OrieditaImportDialog({ onClose }: { onClose: () => void }) {
             allowEvictionFor,
           })
         : null,
-    [allowEvictionFor, defaultsSource, overrides, stage]
+    [allowEvictionFor, defaultsSource, overrides, stage],
   );
 
   const applied = plan?.rows.filter((row) => row.outcome.kind === 'apply') ?? [];
@@ -564,7 +564,7 @@ export function OrieditaImportDialog({ onClose }: { onClose: () => void }) {
               <p className="simple-modal__message">
                 {t(
                   'dialogs:orieditaImport.intro',
-                  'In Oriedita, open Preferences and choose Export to write a .oriconfig file.'
+                  'In Oriedita, open Preferences and choose Export to write a .oriconfig file.',
                 )}
               </p>
               {stage.kind === 'failed' && (
@@ -582,11 +582,11 @@ export function OrieditaImportDialog({ onClose }: { onClose: () => void }) {
                   {stage.hotkeys.size === 0
                     ? t(
                         'dialogs:orieditaImport.noCustomizations',
-                        "This export has no edited hotkeys, so there is nothing to carry over. To use Oriedita's layout, turn on Oriedita defaults in Settings ▸ Shortcuts."
+                        "This export has no edited hotkeys, so there is nothing to carry over. To use Oriedita's layout, turn on Oriedita defaults in Settings ▸ Shortcuts.",
                       )
                     : t(
                         'dialogs:orieditaImport.summary',
-                        "This applies the hotkeys you changed in Oriedita. Every other shortcut keeps the key it has now — to move the whole keyboard, turn on Oriedita defaults in Settings ▸ Shortcuts."
+                        'This applies the hotkeys you changed in Oriedita. Every other shortcut keeps the key it has now — to move the whole keyboard, turn on Oriedita defaults in Settings ▸ Shortcuts.',
                       )}
                 </p>
               </section>
@@ -626,7 +626,7 @@ export function OrieditaImportDialog({ onClose }: { onClose: () => void }) {
                          so a number here would undercount its own effect. */
                       aria-label={t(
                         'dialogs:orieditaImport.useAllLabel',
-                        'Use every skipped key that can override what holds it'
+                        'Use every skipped key that can override what holds it',
                       )}
                     >
                       {t('dialogs:orieditaImport.useAll', 'Override all')}

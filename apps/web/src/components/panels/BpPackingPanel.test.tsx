@@ -1,4 +1,8 @@
-import { patchBoxPleatDesign, selectOristudioBpSymmetry, singleBoxPleatDesignTab } from '../../store/workspaceStore/designTabs';
+import {
+  patchBoxPleatDesign,
+  selectOristudioBpSymmetry,
+  singleBoxPleatDesignTab,
+} from '../../store/workspaceStore/designTabs';
 import { selectOristudioBpSelection } from '../../store/workspaceStore/designTabs';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -35,7 +39,7 @@ vi.mock('react-zoom-pan-pinch', async () => {
   return {
     TransformWrapper: React.forwardRef<unknown, MockProps>(function MockTransformWrapper(
       { children, onInit, onTransformed },
-      ref
+      ref,
     ) {
       const didInit = React.useRef(false);
       React.useImperativeHandle(ref, () => api, []);
@@ -155,16 +159,48 @@ function packingDocument(): OristudioBpDocumentState {
           },
         ],
         edges: [
-          { id: 1, vertices: [0, 1], length: 1, maxLength: null, isLeafEdge: true, dualRiverId: null },
-          { id: 2, vertices: [0, 2], length: 1, maxLength: null, isLeafEdge: false, dualRiverId: 1 },
+          {
+            id: 1,
+            vertices: [0, 1],
+            length: 1,
+            maxLength: null,
+            isLeafEdge: true,
+            dualRiverId: null,
+          },
+          {
+            id: 2,
+            vertices: [0, 2],
+            length: 1,
+            maxLength: null,
+            isLeafEdge: false,
+            dualRiverId: 1,
+          },
         ],
       },
       packing: {
         sheet,
         // minimal_repro_circle_issue.osf: two unit leaves whose flaps conflict.
         flaps: [
-          { id: 5, vertexId: 5, name: '', anchor: { x: 9, y: 8 }, width: 0, height: 0, radius: 1, constrained: true },
-          { id: 7, vertexId: 7, name: '', anchor: { x: 11, y: 6 }, width: 0, height: 0, radius: 1, constrained: true },
+          {
+            id: 5,
+            vertexId: 5,
+            name: '',
+            anchor: { x: 9, y: 8 },
+            width: 0,
+            height: 0,
+            radius: 1,
+            constrained: true,
+          },
+          {
+            id: 7,
+            vertexId: 7,
+            name: '',
+            anchor: { x: 11, y: 6 },
+            width: 0,
+            height: 0,
+            radius: 1,
+            constrained: true,
+          },
         ],
         rivers: [{ id: 1, edgeId: 2, vertices: [0, 2], width: 1 }],
         // Each flap's square of paper: its anchor grown by its radius.
@@ -311,10 +347,11 @@ function renderPacking(customize?: (document_: OristudioBpDocumentState) => void
     {
       ...useWorkspaceStore.getInitialState(),
       ...singleBoxPleatDesignTab({
-      document: document_,
-      selection: { kind: 'bp-none' }
-      })},
-    true
+        document: document_,
+        selection: { kind: 'bp-none' },
+      }),
+    },
+    true,
   );
   container = window.document.createElement('div');
   window.document.body.append(container);
@@ -323,7 +360,7 @@ function renderPacking(customize?: (document_: OristudioBpDocumentState) => void
     root?.render(
       <TooltipProvider>
         <BpPackingPanel document={document_} />
-      </TooltipProvider>
+      </TooltipProvider>,
     );
   });
   return container;
@@ -478,7 +515,7 @@ describe('BP packing pane — conflicts never paint outside a flap', () => {
     expect(id).toBeTruthy();
 
     const clip = [...(host.querySelector('defs')?.children ?? [])].find(
-      (node) => node.getAttribute('id') === id
+      (node) => node.getAttribute('id') === id,
     );
     expect(clip).toBeDefined();
     // One shape per flap, matching what the clearance circles draw.
@@ -527,7 +564,7 @@ describe('BP packing pane — conflicts never paint outside a flap', () => {
       expect(move).not.toBeNull();
       const point = { x: Number(move![1]), y: Number(move![2]) };
       const onACircle = circles.some(
-        (c) => Math.abs(Math.hypot(point.x - c.cx, point.y - c.cy) - c.r) < 0.5
+        (c) => Math.abs(Math.hypot(point.x - c.cx, point.y - c.cy) - c.r) < 0.5,
       );
       expect(onACircle).toBe(true);
     }
@@ -546,7 +583,7 @@ describe('BP packing pane — the whole flap is draggable', () => {
       // Pair by centre: the shade is concentric with the flap it grabs.
       const hit = hits.find(
         (candidate) =>
-          Math.abs(candidate.cx - flap.cx) < 0.01 && Math.abs(candidate.cy - flap.cy) < 0.01
+          Math.abs(candidate.cx - flap.cx) < 0.01 && Math.abs(candidate.cy - flap.cy) < 0.01,
       );
       expect(hit).toBeDefined();
       // BP Studio hits on the flap's filled contour — the drawn shape grown by
@@ -600,7 +637,7 @@ describe('BP packing pane — a flap is shaded like a river band', () => {
     expect(shade?.getAttribute('class')).not.toContain('--selected');
     press(shade);
     expect(host.querySelector('.bp-packing-flap-shade')?.getAttribute('class')).toContain(
-      'bp-packing-flap-shade--selected'
+      'bp-packing-flap-shade--selected',
     );
   });
 
@@ -621,7 +658,7 @@ describe('BP packing pane — a flap is shaded like a river band', () => {
     press(host.querySelector('.bp-packing-flap-shade'));
     // The layer turns off shading, the way it does for a river band...
     expect(host.querySelector('.bp-packing-flap-shade')?.getAttribute('class')).not.toContain(
-      '--selected'
+      '--selected',
     );
     // ...but the selection must still be visible somewhere, so the outline
     // recolours regardless — as a selected river's contour does.
@@ -703,7 +740,10 @@ describe('BP packing pane — a river is grabbed by its band', () => {
     act(() => {
       band?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
     });
-    expect(selectOristudioBpSelection(useWorkspaceStore.getState())).toEqual({ kind: 'bp-river', id: 1 });
+    expect(selectOristudioBpSelection(useWorkspaceStore.getState())).toEqual({
+      kind: 'bp-river',
+      id: 1,
+    });
   });
 
   it('selects the river when its contour is pressed', () => {
@@ -713,7 +753,10 @@ describe('BP packing pane — a river is grabbed by its band', () => {
     act(() => {
       contour?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
     });
-    expect(selectOristudioBpSelection(useWorkspaceStore.getState())).toEqual({ kind: 'bp-river', id: 1 });
+    expect(selectOristudioBpSelection(useWorkspaceStore.getState())).toEqual({
+      kind: 'bp-river',
+      id: 1,
+    });
   });
 
   /**
@@ -739,9 +782,9 @@ describe('BP packing pane — a river is grabbed by its band', () => {
     act(() => {
       band?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
     });
-    expect(
-      host.querySelector('.bp-packing-river-band-group')?.getAttribute('class')
-    ).toContain('bp-packing-river-band-group--selected');
+    expect(host.querySelector('.bp-packing-river-band-group')?.getAttribute('class')).toContain(
+      'bp-packing-river-band-group--selected',
+    );
   });
 
   /**
@@ -754,9 +797,7 @@ describe('BP packing pane — a river is grabbed by its band', () => {
     const inner = host.querySelector('[aria-label*="river"] .bp-packing-device-shade');
     expect(inner).toBeNull();
     expect(host.querySelectorAll('.bp-packing-device-shade')).toHaveLength(0);
-    expect(
-      host.querySelectorAll('.bp-packing-primitive-hit-polyline').length
-    ).toBeGreaterThan(0);
+    expect(host.querySelectorAll('.bp-packing-primitive-hit-polyline').length).toBeGreaterThan(0);
   });
 
   it('draws the band under every crease, gadget and flap', () => {
@@ -765,7 +806,11 @@ describe('BP packing pane — a river is grabbed by its band', () => {
     const bands = host.querySelector('.bp-packing-river-bands');
     expect(canvas).not.toBeNull();
     expect(bands).not.toBeNull();
-    for (const selector of ['.bp-packing-primitive', '.bp-packing-flaps', '.bp-packing-flap-shades']) {
+    for (const selector of [
+      '.bp-packing-primitive',
+      '.bp-packing-flaps',
+      '.bp-packing-flap-shades',
+    ]) {
       const later = canvas?.querySelector(selector);
       expect(later, selector).not.toBeNull();
       // SVG paints in document order, so "under" means "earlier".
@@ -878,7 +923,9 @@ describe('BP packing pane — a stretch selection shades its gadget', () => {
     // No wash, but still selected: the outline recolours either way.
     expect(host.querySelectorAll('.bp-packing-device-shade--selected')).toHaveLength(0);
     expect(
-      host.querySelectorAll('[data-bp-select="device:5,7:device:0"].bp-packing-primitive--selected')
+      host.querySelectorAll(
+        '[data-bp-select="device:5,7:device:0"].bp-packing-primitive--selected',
+      ),
     ).toHaveLength(1);
   });
 
@@ -921,13 +968,15 @@ describe('BP packing pane — Delete reaches the node delete', () => {
   it('hands Delete to edit.delete', () => {
     renderPacking();
     useWorkspaceStore.setState({
-      ...patchBoxPleatDesign(useWorkspaceStore.getState(), { selection: { kind: 'bp-vertex', id: 1 } 
-      }),});
+      ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
+        selection: { kind: 'bp-vertex', id: 1 },
+      }),
+    });
     const menu = vi.fn();
     act(() => {
       handleShortcutRuntimeKeyDown(
         new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }),
-        { context: { activeEditingContext: 'bp-packing' }, menu }
+        { context: { activeEditingContext: 'bp-packing' }, menu },
       );
     });
     expect(menu).toHaveBeenCalledWith('edit.delete');
@@ -1022,13 +1071,15 @@ describe('BP packing pane — moves ask for the mirror', () => {
     const { moveFlap } = stubMoves();
     act(() => {
       useWorkspaceStore.setState(
-        patchBoxPleatDesign(useWorkspaceStore.getState(), { selection: { kind: 'bp-flap', id: 5 } })
+        patchBoxPleatDesign(useWorkspaceStore.getState(), {
+          selection: { kind: 'bp-flap', id: 5 },
+        }),
       );
     });
     const body = host.querySelector('.bp-packing-panel__body');
     act(() => {
       body?.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true })
+        new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }),
       );
     });
     // The fixture's flap 5 sits at (9, 8); one cell up is (9, 9).
@@ -1040,13 +1091,13 @@ describe('BP packing pane — moves ask for the mirror', () => {
     const { moveFlaps } = stubMoves();
     act(() => {
       useWorkspaceStore.setState(
-        patchBoxPleatDesign(useWorkspaceStore.getState(), { selection: bpFlapSelection([5, 7]) })
+        patchBoxPleatDesign(useWorkspaceStore.getState(), { selection: bpFlapSelection([5, 7]) }),
       );
     });
     const body = host.querySelector('.bp-packing-panel__body');
     act(() => {
       body?.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true })
+        new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }),
       );
     });
     expect(moveFlaps).toHaveBeenCalledWith([5, 7], { x: 10, y: 8 }, false);
@@ -1057,7 +1108,9 @@ describe('BP packing pane — a selected river gets a width pill', () => {
   function selectRiver() {
     act(() => {
       useWorkspaceStore.setState(
-        patchBoxPleatDesign(useWorkspaceStore.getState(), { selection: { kind: 'bp-river', id: 1 } })
+        patchBoxPleatDesign(useWorkspaceStore.getState(), {
+          selection: { kind: 'bp-river', id: 1 },
+        }),
       );
     });
   }
@@ -1106,7 +1159,7 @@ describe('BP packing pane — sheet size fields', () => {
       useWorkspaceStore.setState({ setOristudioBpLayoutSheet: setSheet });
     });
     const toggle = [...host.querySelectorAll<HTMLButtonElement>('button')].find(
-      (button) => button.getAttribute('aria-label') === 'Sheet size & grid'
+      (button) => button.getAttribute('aria-label') === 'Sheet size & grid',
     );
     expect(toggle).toBeDefined();
     act(() => toggle?.click());
@@ -1120,12 +1173,12 @@ describe('BP packing pane — sheet size fields', () => {
     act(() => {
       const setter = Object.getOwnPropertyDescriptor(
         window.HTMLInputElement.prototype,
-        'value'
+        'value',
       )?.set;
       setter?.call(input, value);
       input?.dispatchEvent(new Event('input', { bubbles: true }));
       input?.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
       );
     });
   }

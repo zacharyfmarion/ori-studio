@@ -50,7 +50,11 @@ export const EXPLORI_USER_AGENT = 'OriStudio/1.0 (+https://github.com/zacharyfma
 /** Upstream is a single small server; a slow query is better than a wrong one. */
 export const UPSTREAM_TIMEOUT_MS = 40_000;
 
-export function jsonResponse(status: number, payload: unknown, headers: HeadersInit = {}): Response {
+export function jsonResponse(
+  status: number,
+  payload: unknown,
+  headers: HeadersInit = {},
+): Response {
   return new Response(JSON.stringify(payload), {
     status,
     headers: { 'Content-Type': 'application/json; charset=utf-8', ...headers },
@@ -104,7 +108,11 @@ export async function callExplori(env: Env, call: UpstreamCall): Promise<Respons
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
   } catch {
-    return errorResponse(504, 'upstream_unreachable', 'The ExplOri search service did not respond.');
+    return errorResponse(
+      504,
+      'upstream_unreachable',
+      'The ExplOri search service did not respond.',
+    );
   }
 
   const text = await upstream.text();
@@ -115,7 +123,7 @@ export async function callExplori(env: Env, call: UpstreamCall): Promise<Respons
     return errorResponse(
       upstream.status === 400 ? 400 : 502,
       isHtml ? 'upstream_timeout' : 'upstream_error',
-      isHtml ? 'The search service timed out.' : text.slice(0, 200) || 'The search service failed.'
+      isHtml ? 'The search service timed out.' : text.slice(0, 200) || 'The search service failed.',
     );
   }
 

@@ -72,8 +72,21 @@ describe('oristudioBpProjectStateFromRaw', () => {
         {
           id: 'f2',
           data: {
-            contours: [{ outer: [{ x: 1, y: 1 }, { x: 3, y: 1 }, { x: 3, y: 3 }] }],
-            ridges: [[{ x: 1, y: 1 }, { x: 3, y: 3 }]],
+            contours: [
+              {
+                outer: [
+                  { x: 1, y: 1 },
+                  { x: 3, y: 1 },
+                  { x: 3, y: 3 },
+                ],
+              },
+            ],
+            ridges: [
+              [
+                { x: 1, y: 1 },
+                { x: 3, y: 3 },
+              ],
+            ],
           },
         },
       ],
@@ -81,9 +94,22 @@ describe('oristudioBpProjectStateFromRaw', () => {
         {
           id: 'stretch:device:0',
           data: {
-            contours: [{ outer: [{ x: 4, y: 4 }, { x: 5, y: 4 }, { x: 5, y: 5 }] }],
+            contours: [
+              {
+                outer: [
+                  { x: 4, y: 4 },
+                  { x: 5, y: 4 },
+                  { x: 5, y: 5 },
+                ],
+              },
+            ],
             ridges: [],
-            axisParallel: [[{ x: 4, y: 4 }, { x: 5, y: 5 }]],
+            axisParallel: [
+              [
+                { x: 4, y: 4 },
+                { x: 5, y: 5 },
+              ],
+            ],
             location: { x: 4.5, y: 4.5 },
           },
         },
@@ -93,7 +119,13 @@ describe('oristudioBpProjectStateFromRaw', () => {
           id: '2,3',
           flapIds: [2, 3],
           narrowness: -0.5,
-          polygon: [[{ x: 2, y: 2 }, { x: 2.5, y: 2 }, { x: 2.5, y: 2.5 }]],
+          polygon: [
+            [
+              { x: 2, y: 2 },
+              { x: 2.5, y: 2 },
+              { x: 2.5, y: 2.5 },
+            ],
+          ],
         },
       ],
       stretches: [],
@@ -123,13 +155,19 @@ describe('oristudioBpProjectStateFromRaw', () => {
         expect.objectContaining({ id: 'f2:contour:0', layer: 'hinge' }),
         expect.objectContaining({ id: 'f2:ridge:0', layer: 'ridge' }),
         expect.objectContaining({ id: 'stretch:device:0:axis:0', layer: 'axis-parallel' }),
-      ])
+      ]),
     );
     expect(state.snapshot.packing.invalidJunctions[0]).toMatchObject({
       id: '2,3',
       flapIds: [2, 3],
       overlap: -0.5,
-      paths: [[{ x: 2, y: 2 }, { x: 2.5, y: 2 }, { x: 2.5, y: 2.5 }]],
+      paths: [
+        [
+          { x: 2, y: 2 },
+          { x: 2.5, y: 2 },
+          { x: 2.5, y: 2.5 },
+        ],
+      ],
     });
     expect(state.snapshot.diagnostics.map((diagnostic) => diagnostic.kind)).toEqual([
       'pattern-not-found',
@@ -137,11 +175,11 @@ describe('oristudioBpProjectStateFromRaw', () => {
       'invalid-junction',
     ]);
     expect(state.snapshot.diagnostics[1].message).toBe(
-      'Current packing violates distance 4 between flaps 2 and 3.'
+      'Current packing violates distance 4 between flaps 2 and 3.',
     );
     expect(state.snapshot.stale.reasons).toContain('Packing has invalid flap junctions');
     expect(state.snapshot.stale.reasons).toContain(
-      'Packing violates current tree, sheet, or distance constraints'
+      'Packing violates current tree, sheet, or distance constraints',
     );
   });
 
@@ -221,7 +259,15 @@ describe('oristudioBpProjectStateFromRaw', () => {
           {
             id: 'f2',
             data: {
-              contours: [{ outer: [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 2 }] }],
+              contours: [
+                {
+                  outer: [
+                    { x: 0, y: 0 },
+                    { x: 2, y: 0 },
+                    { x: 2, y: 2 },
+                  ],
+                },
+              ],
               ridges: [],
             },
           },
@@ -230,11 +276,24 @@ describe('oristudioBpProjectStateFromRaw', () => {
             data: {
               contours: [
                 {
-                  outer: [{ x: 3, y: 3 }, { x: 8, y: 3 }, { x: 8, y: 8 }, { x: 3, y: 8 }],
+                  outer: [
+                    { x: 3, y: 3 },
+                    { x: 8, y: 3 },
+                    { x: 8, y: 8 },
+                    { x: 3, y: 8 },
+                  ],
                   inner: [
-                    [{ x: 4, y: 4 }, { x: 7, y: 4 }, { x: 7, y: 7 }, { x: 4, y: 7 }],
+                    [
+                      { x: 4, y: 4 },
+                      { x: 7, y: 4 },
+                      { x: 7, y: 7 },
+                      { x: 4, y: 7 },
+                    ],
                     // A degenerate ring encloses no paper, so it cuts nothing.
-                    [{ x: 5, y: 5 }, { x: 6, y: 5 }],
+                    [
+                      { x: 5, y: 5 },
+                      { x: 6, y: 5 },
+                    ],
                   ],
                 },
               ],
@@ -253,13 +312,29 @@ describe('oristudioBpProjectStateFromRaw', () => {
     expect(state.snapshot.packing.coverage).toEqual([
       {
         id: 'f2:contour:0',
-        outer: [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 2 }],
+        outer: [
+          { x: 0, y: 0 },
+          { x: 2, y: 0 },
+          { x: 2, y: 2 },
+        ],
         holes: [],
       },
       {
         id: 'r1,2:contour:0',
-        outer: [{ x: 3, y: 3 }, { x: 8, y: 3 }, { x: 8, y: 8 }, { x: 3, y: 8 }],
-        holes: [[{ x: 4, y: 4 }, { x: 7, y: 4 }, { x: 7, y: 7 }, { x: 4, y: 7 }]],
+        outer: [
+          { x: 3, y: 3 },
+          { x: 8, y: 3 },
+          { x: 8, y: 8 },
+          { x: 3, y: 8 },
+        ],
+        holes: [
+          [
+            { x: 4, y: 4 },
+            { x: 7, y: 4 },
+            { x: 7, y: 7 },
+            { x: 4, y: 7 },
+          ],
+        ],
       },
     ]);
   });
@@ -339,7 +414,7 @@ describe('oristudioBpProjectStateFromRaw — a layout the kernel refused', () =>
   it('reports the reason the kernel gave as an error diagnostic', () => {
     const state = withLayoutError('overlap ox must be integral for BP GOPS generation');
     const diagnostic = state.snapshot.diagnostics.find(
-      (candidate) => candidate.kind === 'layout-graphics-error'
+      (candidate) => candidate.kind === 'layout-graphics-error',
     );
     expect(diagnostic).toMatchObject({
       id: 'bp-layout-graphics-error',
@@ -350,17 +425,17 @@ describe('oristudioBpProjectStateFromRaw — a layout the kernel refused', () =>
 
   it('marks the packing stale, so it does not read as current', () => {
     expect(withLayoutError('boom').snapshot.stale.reasons).toContain(
-      'Layout graphics could not be computed for the current packing'
+      'Layout graphics could not be computed for the current packing',
     );
   });
 
   it('says nothing when the layout is merely absent', () => {
     const state = withLayoutError(null);
     expect(
-      state.snapshot.diagnostics.some((candidate) => candidate.kind === 'layout-graphics-error')
+      state.snapshot.diagnostics.some((candidate) => candidate.kind === 'layout-graphics-error'),
     ).toBe(false);
     expect(state.snapshot.stale.reasons).not.toContain(
-      'Layout graphics could not be computed for the current packing'
+      'Layout graphics could not be computed for the current packing',
     );
   });
 });

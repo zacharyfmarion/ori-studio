@@ -36,23 +36,15 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
   const setSetting = useWorkspaceStore((state) => state.setSimulatorSetting);
   const simulations = useWorkspaceStore((state) => state.oristudioCpInlineSimulations);
   const focusedId = useWorkspaceStore((state) => state.oristudioCpFocusedInlineSimulationId);
-  const updateSimulation = useWorkspaceStore(
-    (state) => state.updateOristudioCpInlineSimulation
-  );
-  const removeSimulation = useWorkspaceStore(
-    (state) => state.removeOristudioCpInlineSimulation
-  );
+  const updateSimulation = useWorkspaceStore((state) => state.updateOristudioCpInlineSimulation);
+  const removeSimulation = useWorkspaceStore((state) => state.removeOristudioCpInlineSimulation);
   const focusSimulation = useWorkspaceStore((state) => state.focusOristudioCpInlineSimulation);
-  const refreshSimulation = useWorkspaceStore(
-    (state) => state.refreshOristudioCpInlineSimulation
-  );
-  const recordHistory = useWorkspaceStore(
-    (state) => state.recordInlineSimulationHistory
-  );
+  const refreshSimulation = useWorkspaceStore((state) => state.refreshOristudioCpInlineSimulation);
+  const recordHistory = useWorkspaceStore((state) => state.recordInlineSimulationHistory);
 
   const transformableObjects = useMemo(
     () => simulations.map(inlineSimulationAsTransformable),
-    [simulations]
+    [simulations],
   );
 
   /**
@@ -70,12 +62,12 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
 
   const selected = useMemo(
     () => simulations.find((simulation) => simulation.id === focusedId) ?? null,
-    [simulations, focusedId]
+    [simulations, focusedId],
   );
 
   const isInlineSimulationId = useCallback(
     (id: string) => simulations.some((simulation) => simulation.id === id),
-    [simulations]
+    [simulations],
   );
 
   const [playing, setPlaying] = useState(false);
@@ -95,10 +87,7 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
    * drag aimed at the simulation moved the window instead. Handles are untouched,
    * so it can still be resized and rotated.
    */
-  const inertBodyIds = useMemo(
-    () => new Set(focusedId ? [focusedId] : []),
-    [focusedId]
-  );
+  const inertBodyIds = useMemo(() => new Set(focusedId ? [focusedId] : []), [focusedId]);
 
   /**
    * The gesture protocol the other two canvas-object kinds already use: snapshot
@@ -117,7 +106,7 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
       preGestureRef.current = null;
       if (previous) recordHistory([...previous], label);
     },
-    [recordHistory]
+    [recordHistory],
   );
 
   const gestureLabel = useCallback(
@@ -132,7 +121,7 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
           return t('panels:creasePattern.resizeSimulationWindow', 'Resize simulation window');
       }
     },
-    [t]
+    [t],
   );
 
   const applyBoxUpdate = useCallback(
@@ -150,7 +139,7 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
         },
       });
     },
-    [updateSimulation]
+    [updateSimulation],
   );
 
   /** Focus a window, pausing it if focus actually moved to a different one. */
@@ -159,7 +148,7 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
       if (id !== focusedId) setPlaying(false);
       focusSimulation(id);
     },
-    [focusedId, focusSimulation]
+    [focusedId, focusSimulation],
   );
 
   /** Hand the solver back, so at most one window is ever live. */
@@ -203,7 +192,7 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
     (format: SimulatorViewExportFormat) => {
       if (focusedId) void exportInlineSimulation(focusedId, format);
     },
-    [focusedId]
+    [focusedId],
   );
 
   /**
@@ -236,11 +225,11 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
       toast.error(
         t(
           'toasts:creasePattern.inlineSimulationRegionGone',
-          'That region is no longer in the crease pattern, so this window cannot be rebuilt.'
-        )
+          'That region is no longer in the crease pattern, so this window cannot be rebuilt.',
+        ),
       );
     },
-    [refreshSimulation, t]
+    [refreshSimulation, t],
   );
 
   return {

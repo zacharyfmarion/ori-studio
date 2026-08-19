@@ -1,7 +1,4 @@
-import type {
-  OristudioBpDocumentState,
-  OristudioBpSelection,
-} from '../engine/oristudioBpTypes';
+import type { OristudioBpDocumentState, OristudioBpSelection } from '../engine/oristudioBpTypes';
 
 export interface OristudioBpLinkedSelection {
   vertices: Set<number>;
@@ -15,7 +12,7 @@ export interface OristudioBpLinkedSelection {
 
 export function bpLinkedSelection(
   selection: OristudioBpSelection,
-  document: OristudioBpDocumentState
+  document: OristudioBpDocumentState,
 ): OristudioBpLinkedSelection {
   const linked: OristudioBpLinkedSelection = {
     vertices: new Set(),
@@ -80,7 +77,7 @@ export function bpLinkedSelection(
   const addInvalidJunction = (id: string) => {
     linked.invalidJunctions.add(id);
     const junction = document.snapshot.packing.invalidJunctions.find(
-      (candidate) => candidate.id === id
+      (candidate) => candidate.id === id,
     );
     if (!junction) return;
     for (const flapId of junction.flapIds) addFlap(flapId);
@@ -131,10 +128,7 @@ export function isBpRiverSelected(selection: OristudioBpSelection, id: number): 
   return false;
 }
 
-export function isBpInvalidJunctionSelected(
-  selection: OristudioBpSelection,
-  id: string
-): boolean {
+export function isBpInvalidJunctionSelected(selection: OristudioBpSelection, id: string): boolean {
   if (selection.kind === 'bp-invalid-junction') return selection.id === id;
   if (selection.kind === 'bp-multi') return selection.invalidJunctions.includes(id);
   return false;
@@ -156,7 +150,7 @@ export function bpSelectionSize(selection: OristudioBpSelection): number {
 
 export function toggleBpVertexSelection(
   selection: OristudioBpSelection,
-  id: number
+  id: number,
 ): OristudioBpSelection {
   const multi = toBpMultiSelection(selection);
   const vertices = multi.vertices.includes(id)
@@ -167,7 +161,7 @@ export function toggleBpVertexSelection(
 
 export function toggleBpEdgeSelection(
   selection: OristudioBpSelection,
-  id: number
+  id: number,
 ): OristudioBpSelection {
   const multi = toBpMultiSelection(selection);
   const edges = multi.edges.includes(id)
@@ -197,7 +191,7 @@ export function bpFlapSelection(ids: readonly number[]): OristudioBpSelection {
 
 export function toggleBpFlapSelection(
   selection: OristudioBpSelection,
-  id: number
+  id: number,
 ): OristudioBpSelection {
   const multi = toBpMultiSelection(selection);
   const flaps = multi.flaps.includes(id)
@@ -208,7 +202,7 @@ export function toggleBpFlapSelection(
 
 export function toggleBpRiverSelection(
   selection: OristudioBpSelection,
-  id: number
+  id: number,
 ): OristudioBpSelection {
   const multi = toBpMultiSelection(selection);
   const rivers = multi.rivers.includes(id)
@@ -219,7 +213,7 @@ export function toggleBpRiverSelection(
 
 export function toggleBpInvalidJunctionSelection(
   selection: OristudioBpSelection,
-  id: string
+  id: string,
 ): OristudioBpSelection {
   const multi = toBpMultiSelection(selection);
   const invalidJunctions = multi.invalidJunctions.includes(id)
@@ -230,7 +224,7 @@ export function toggleBpInvalidJunctionSelection(
 
 export function toggleBpDeviceSelection(
   selection: OristudioBpSelection,
-  id: string
+  id: string,
 ): OristudioBpSelection {
   const multi = toBpMultiSelection(selection);
   const devices = multi.devices.includes(id)
@@ -263,7 +257,7 @@ export function bpSelectionSummary(selection: OristudioBpSelection): string {
 }
 
 function toBpMultiSelection(
-  selection: OristudioBpSelection
+  selection: OristudioBpSelection,
 ): Extract<OristudioBpSelection, { kind: 'bp-multi' }> {
   if (selection.kind === 'bp-multi') return selection;
   return {
@@ -279,7 +273,7 @@ function toBpMultiSelection(
 }
 
 function normalizeBpMultiSelection(
-  selection: Extract<OristudioBpSelection, { kind: 'bp-multi' }>
+  selection: Extract<OristudioBpSelection, { kind: 'bp-multi' }>,
 ): OristudioBpSelection {
   const size = bpSelectionSize(selection);
   if (size === 0) return { kind: 'bp-none' };

@@ -85,7 +85,7 @@ const cameraListeners = new Map<string, Set<(camera: FoldedFigureCamera) => void
  */
 function sceneFramesOf(
   next: ReadonlyMap<string, Folded3dOrbitFrame>,
-  previous: ReadonlyMap<string, Folded3dOrbitFrame>
+  previous: ReadonlyMap<string, Folded3dOrbitFrame>,
 ): ReadonlyMap<string, Folded3dOrbitFrame> {
   const scene = new Map<string, Folded3dOrbitFrame>();
   for (const [id, frame] of next) {
@@ -121,7 +121,7 @@ export function subscribeFolded3dOrbit(listener: () => void): () => void {
  */
 export function subscribeFolded3dOrbitCamera(
   id: string,
-  listener: (camera: FoldedFigureCamera) => void
+  listener: (camera: FoldedFigureCamera) => void,
 ): () => void {
   const existing = cameraListeners.get(id);
   const set = existing ?? new Set<(camera: FoldedFigureCamera) => void>();

@@ -57,8 +57,16 @@ describe('recovering the source face', () => {
 });
 
 describe('choosing runs to merge', () => {
-  const left: Point[] = [[0, 0], [10, 0], [10, 10]];
-  const right: Point[] = [[0, 0], [10, 10], [0, 10]];
+  const left: Point[] = [
+    [0, 0],
+    [10, 0],
+    [10, 10],
+  ];
+  const right: Point[] = [
+    [0, 0],
+    [10, 10],
+    [0, 10],
+  ];
 
   it('takes consecutive pieces of one face that share an edge', () => {
     expect(coplanarRuns([piece(1, left), piece(1, right)])).toEqual([[0, 2]]);
@@ -71,7 +79,14 @@ describe('choosing runs to merge', () => {
   it('stops at a crease, which never merges', () => {
     // A crease drawn between two pieces of one face is drawn *over* the first;
     // merging across it would lift the paper above its own fold line.
-    const runs = coplanarRuns([piece(1, left), piece(-1, [[0, 0], [1, 1]]), piece(1, right)]);
+    const runs = coplanarRuns([
+      piece(1, left),
+      piece(-1, [
+        [0, 0],
+        [1, 1],
+      ]),
+      piece(1, right),
+    ]);
     expect(runs).toEqual([]);
   });
 
@@ -80,7 +95,11 @@ describe('choosing runs to merge', () => {
   });
 
   it('stops at a piece that only touches at a corner', () => {
-    const corner: Point[] = [[10, 10], [20, 10], [20, 20]];
+    const corner: Point[] = [
+      [10, 10],
+      [20, 10],
+      [20, 20],
+    ];
     expect(coplanarRuns([piece(1, left), piece(1, corner)])).toEqual([]);
   });
 
@@ -88,7 +107,10 @@ describe('choosing runs to merge', () => {
     const runs = coplanarRuns([
       piece(1, left),
       piece(1, right),
-      piece(-1, [[0, 0], [1, 1]]),
+      piece(-1, [
+        [0, 0],
+        [1, 1],
+      ]),
       piece(2, left),
       piece(2, right),
     ]);
@@ -102,14 +124,22 @@ describe('choosing runs to merge', () => {
 describe('outlining a merged run', () => {
   it('drops the shared edge of two triangles', () => {
     const outline = outlineOf([
-      [[0, 0], [10, 0], [10, 10]],
-      [[0, 0], [10, 10], [0, 10]],
+      [
+        [0, 0],
+        [10, 0],
+        [10, 10],
+      ],
+      [
+        [0, 0],
+        [10, 10],
+        [0, 10],
+      ],
     ]);
     expect(outline).not.toBeNull();
     // The square's four corners, and not the diagonal.
     expect(outline).toHaveLength(4);
     expect(new Set(outline!.map(([x, y]) => `${x},${y}`))).toEqual(
-      new Set(['0,0', '10,0', '10,10', '0,10'])
+      new Set(['0,0', '10,0', '10,10', '0,10']),
     );
   });
 
@@ -117,8 +147,18 @@ describe('outlining a merged run', () => {
     // A square cut down the middle: the two halves meet along x = 5, and the
     // points at (5,0) and (5,10) are on the outline but not corners of it.
     const outline = outlineOf([
-      [[0, 0], [5, 0], [5, 10], [0, 10]],
-      [[5, 0], [10, 0], [10, 10], [5, 10]],
+      [
+        [0, 0],
+        [5, 0],
+        [5, 10],
+        [0, 10],
+      ],
+      [
+        [5, 0],
+        [10, 0],
+        [10, 10],
+        [5, 10],
+      ],
     ]);
     expect(outline).toHaveLength(4);
   });
@@ -127,10 +167,30 @@ describe('outlining a merged run', () => {
     // Four pieces around a gap. There are two boundary loops and no way to write
     // that as one polygon, so the caller keeps the pieces.
     const ring: Point[][] = [
-      [[0, 0], [30, 0], [30, 10], [0, 10]],
-      [[0, 20], [30, 20], [30, 30], [0, 30]],
-      [[0, 10], [10, 10], [10, 20], [0, 20]],
-      [[20, 10], [30, 10], [30, 20], [20, 20]],
+      [
+        [0, 0],
+        [30, 0],
+        [30, 10],
+        [0, 10],
+      ],
+      [
+        [0, 20],
+        [30, 20],
+        [30, 30],
+        [0, 30],
+      ],
+      [
+        [0, 10],
+        [10, 10],
+        [10, 20],
+        [0, 20],
+      ],
+      [
+        [20, 10],
+        [30, 10],
+        [30, 20],
+        [20, 20],
+      ],
     ];
     expect(outlineOf(ring)).toBeNull();
   });
@@ -139,9 +199,24 @@ describe('outlining a merged run', () => {
     // The left piece spans the full height; the right is two stacked halves, so
     // the shared boundary has no matching partner to cancel against.
     const outline = outlineOf([
-      [[0, 0], [5, 0], [5, 10], [0, 10]],
-      [[5, 0], [10, 0], [10, 5], [5, 5]],
-      [[5, 5], [10, 5], [10, 10], [5, 10]],
+      [
+        [0, 0],
+        [5, 0],
+        [5, 10],
+        [0, 10],
+      ],
+      [
+        [5, 0],
+        [10, 0],
+        [10, 5],
+        [5, 5],
+      ],
+      [
+        [5, 5],
+        [10, 5],
+        [10, 10],
+        [5, 10],
+      ],
     ]);
     expect(outline).toBeNull();
   });
@@ -150,16 +225,34 @@ describe('outlining a merged run', () => {
     // Two squares meeting at one corner: the walk would have to choose which way
     // to leave that vertex.
     const bowtie: Point[][] = [
-      [[0, 0], [10, 0], [10, 10], [0, 10]],
-      [[10, 10], [20, 10], [20, 20], [10, 20]],
+      [
+        [0, 0],
+        [10, 0],
+        [10, 10],
+        [0, 10],
+      ],
+      [
+        [10, 10],
+        [20, 10],
+        [20, 20],
+        [10, 20],
+      ],
     ];
     expect(outlineOf(bowtie)).toBeNull();
   });
 
   it('keeps the area it was given', () => {
     const pieces: Point[][] = [
-      [[0, 0], [10, 0], [10, 10]],
-      [[0, 0], [10, 10], [0, 10]],
+      [
+        [0, 0],
+        [10, 0],
+        [10, 10],
+      ],
+      [
+        [0, 0],
+        [10, 10],
+        [0, 10],
+      ],
     ];
     const area = (points: readonly Point[]): number => {
       let sum = 0;

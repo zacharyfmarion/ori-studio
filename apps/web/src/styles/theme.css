@@ -1395,7 +1395,6 @@
   width: min(680px, calc(100vw - var(--space-6)));
 }
 
-
 /* The body is the only part that scrolls, so the header and the action row stay
    put while a long plan moves under them. */
 .oriedita-import__body {
@@ -1701,7 +1700,6 @@
   font-size: 0.7rem;
   line-height: 1.55;
 }
-
 
 /* Box-Pleat layout optimizer dialog. Wider than the default modal because its
    option labels are full sentences ("Keep widths and heights of flaps"), which
@@ -2518,7 +2516,10 @@
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
-  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+  transition:
+    border-color 120ms ease,
+    color 120ms ease,
+    background 120ms ease;
 }
 
 .settings-shortcuts__filter:hover {
@@ -2853,7 +2854,9 @@
   font-weight: 500;
   text-decoration: none;
   border-bottom: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);
-  transition: color 0.15s ease, border-color 0.15s ease;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .about-modal__intro a:hover,
@@ -3011,7 +3014,9 @@
   border-right: 1px solid var(--border-subtle);
   color: var(--text-tertiary);
   background: transparent;
-  transition: background 120ms ease, color 120ms ease;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
 }
 
 .design-tab:hover {
@@ -3973,7 +3978,10 @@ button.cp-folded-figure-toolbar__notice:hover {
 
 .cp-text {
   fill: var(--text-primary);
-  font: 600 12px Inter, system-ui, sans-serif;
+  font:
+    600 12px Inter,
+    system-ui,
+    sans-serif;
   paint-order: stroke;
   stroke: var(--bg-primary);
   stroke-width: 3px;
@@ -4635,7 +4643,9 @@ button.cp-folded-figure-toolbar__notice:hover {
   color: var(--text-secondary);
   cursor: pointer;
   overflow: hidden;
-  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
 }
 
 .segment-card:hover {
@@ -6110,8 +6120,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   cursor: pointer;
 }
 
-.simulator-view-controls-panel__section-toggle:hover
-  .simulator-view-controls-panel__section-title {
+.simulator-view-controls-panel__section-toggle:hover .simulator-view-controls-panel__section-title {
   color: var(--text-primary);
 }
 
@@ -6121,8 +6130,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   transition: transform 0.12s ease;
 }
 
-.simulator-view-controls-panel__section[data-open]
-  .simulator-view-controls-panel__section-chevron {
+.simulator-view-controls-panel__section[data-open] .simulator-view-controls-panel__section-chevron {
   transform: rotate(90deg);
 }
 
@@ -6384,7 +6392,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   padding: 4px;
   transform: translateX(-50%);
 }
-
 
 /* Line-type chips share a single row: they are glyphs, not icons, so they do
    not need the tool button's footprint. Flex rather than a fixed column count
@@ -6904,7 +6911,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   .cp-tool-rail__button {
     height: 32px;
   }
-
 }
 
 .facet {
@@ -6951,18 +6957,24 @@ button.cp-folded-figure-toolbar__notice:hover {
 }
 
 /* Mountain: one-dot chain (color+shape / black one-dot), two-dot chain (black two-dot). */
-.cp-canvas[data-cp-line-style='color-and-shape'] .crease[data-cp-line-color='mountain']:not(.crease--selected),
-.cp-canvas[data-cp-line-style='black-one-dot'] .crease[data-cp-line-color='mountain']:not(.crease--selected) {
+.cp-canvas[data-cp-line-style='color-and-shape']
+  .crease[data-cp-line-color='mountain']:not(.crease--selected),
+.cp-canvas[data-cp-line-style='black-one-dot']
+  .crease[data-cp-line-color='mountain']:not(.crease--selected) {
   stroke-dasharray: 10 3 3 3;
 }
-.cp-canvas[data-cp-line-style='black-two-dot'] .crease[data-cp-line-color='mountain']:not(.crease--selected) {
+.cp-canvas[data-cp-line-style='black-two-dot']
+  .crease[data-cp-line-color='mountain']:not(.crease--selected) {
   stroke-dasharray: 10 3 3 3 3 3;
 }
 
 /* Valley: dashed for every shape/black style. */
-.cp-canvas[data-cp-line-style='color-and-shape'] .crease[data-cp-line-color='valley']:not(.crease--selected),
-.cp-canvas[data-cp-line-style='black-one-dot'] .crease[data-cp-line-color='valley']:not(.crease--selected),
-.cp-canvas[data-cp-line-style='black-two-dot'] .crease[data-cp-line-color='valley']:not(.crease--selected) {
+.cp-canvas[data-cp-line-style='color-and-shape']
+  .crease[data-cp-line-color='valley']:not(.crease--selected),
+.cp-canvas[data-cp-line-style='black-one-dot']
+  .crease[data-cp-line-color='valley']:not(.crease--selected),
+.cp-canvas[data-cp-line-style='black-two-dot']
+  .crease[data-cp-line-color='valley']:not(.crease--selected) {
   stroke-dasharray: 8 8;
 }
 
@@ -6973,11 +6985,14 @@ button.cp-folded-figure-toolbar__notice:hover {
 }
 
 /* Black & white: edge + mountain black, valley grey. */
-.cp-canvas[data-cp-line-style='black-white'] .crease[data-cp-line-color='edge']:not(.crease--selected),
-.cp-canvas[data-cp-line-style='black-white'] .crease[data-cp-line-color='mountain']:not(.crease--selected) {
+.cp-canvas[data-cp-line-style='black-white']
+  .crease[data-cp-line-color='edge']:not(.crease--selected),
+.cp-canvas[data-cp-line-style='black-white']
+  .crease[data-cp-line-color='mountain']:not(.crease--selected) {
   stroke: #000;
 }
-.cp-canvas[data-cp-line-style='black-white'] .crease[data-cp-line-color='valley']:not(.crease--selected) {
+.cp-canvas[data-cp-line-style='black-white']
+  .crease[data-cp-line-color='valley']:not(.crease--selected) {
   stroke: #a2a2a2;
 }
 
@@ -7880,8 +7895,8 @@ button.bp-packing-alert:focus-visible {
 
 @media (pointer: coarse) {
   .bp-packing-dpad[data-enabled='true'] {
-      display: grid;
-    }
+    display: grid;
+  }
 }
 
 .bp-design-empty {
@@ -8240,7 +8255,6 @@ button.bp-packing-alert:focus-visible {
 .bp-optimizer__hint--warn {
   color: var(--text-warning, var(--text-secondary));
 }
-
 
 /* The active tool's option window: a transparent frame around the geometry the
    chosen answer would change, with its header attached to the top edge. The

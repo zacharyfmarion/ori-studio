@@ -50,7 +50,7 @@ export async function onRequestPost(context: CpShareContext): Promise<Response> 
     const tooLarge = typeof body.payload === 'string' && body.payload.length > MAX_PAYLOAD_BYTES;
     return json(
       { error: payloadError, code: tooLarge ? 'payload_too_large' : 'bad_request' },
-      { status: tooLarge ? 413 : 400 }
+      { status: tooLarge ? 413 : 400 },
     );
   }
 
@@ -85,7 +85,7 @@ export async function onRequestPost(context: CpShareContext): Promise<Response> 
     if (!id) {
       return json(
         { error: 'Could not create a share link right now.', code: 'id_collision' },
-        { status: 500 }
+        { status: 500 },
       );
     }
 

@@ -212,7 +212,8 @@ export interface CpDetectWorkerRunOptions {
   vertexRefinerBatchSize?: number;
   threshold?: number;
   executionProvider?: CpDetectExecutionProvider;
-  decoderBackend?: 'legacy_v2_decoder' | 'constraint_compiler_v1' | 'legacy_candidate_exact_solve_v1';
+  decoderBackend?:
+    'legacy_v2_decoder' | 'constraint_compiler_v1' | 'legacy_candidate_exact_solve_v1';
   exactSolveTimeoutSeconds?: number;
 }
 

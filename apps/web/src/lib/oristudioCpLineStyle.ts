@@ -81,7 +81,7 @@ export function cpLineStyleDashSlot(style: OristudioCpLineStyle, color: string):
  * Empty for the two solid styles.
  */
 export function cpLineStyleDashPatterns(
-  style: OristudioCpLineStyle
+  style: OristudioCpLineStyle,
 ): readonly (readonly number[])[] {
   switch (style) {
     case 'color':
@@ -98,7 +98,7 @@ export function cpLineStyleDashPatterns(
 /** The dash pattern a line colour draws with under `style`, or `null` if solid. */
 export function cpLineStyleDashPattern(
   style: OristudioCpLineStyle,
-  color: string
+  color: string,
 ): readonly number[] | null {
   const slot = cpLineStyleDashSlot(style, color);
   return slot === SOLID_DASH_SLOT ? null : cpLineStyleDashPatterns(style)[slot - 1];

@@ -1,8 +1,6 @@
 import { singleBoxPleatDesignTab } from '../store/workspaceStore/designTabs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type {
-  OristudioBpDocumentState,
-} from '../engine/oristudioBpTypes';
+import type { OristudioBpDocumentState } from '../engine/oristudioBpTypes';
 import type { OristudioCpDocumentState } from '../engine/oristudioCpTypes';
 import type { OristudioCpSelection } from '../lib/creasePatternViewport';
 import { getWorkspaceCapabilities } from '../lib/workspaceCapabilities';
@@ -78,7 +76,8 @@ function createDeps() {
       addLargestStubForSelectedNodes: vi.fn().mockResolvedValue(undefined),
       addLargestStubForSelectedPoly: vi.fn().mockResolvedValue(undefined),
       triangulateTree: vi.fn().mockResolvedValue(undefined),
-      activeEditingContext: 'treemaker-tree' as import('../workspaces/editingContext').EditingContext,
+      activeEditingContext:
+        'treemaker-tree' as import('../workspaces/editingContext').EditingContext,
       // The BP document and selection are per-design now, so the stub carries a
       // design tab rather than flat fields.
       ...singleBoxPleatDesignTab(),
@@ -252,10 +251,9 @@ describe('menu actions', () => {
     expect(deps.workspace.executeOristudioCpCommand).toHaveBeenCalledWith('CheckCamv');
     expect(deps.workspace.executeOristudioCpCommand).toHaveBeenCalledWith('Check1');
     expect(deps.workspace.executeOristudioCpCommand).toHaveBeenCalledWith('Fix2');
-    expect(deps.workspace.executeOristudioCpCommand).toHaveBeenCalledWith(
-      'LineSegmentDelete',
-      { line_ids: [1, 2] }
-    );
+    expect(deps.workspace.executeOristudioCpCommand).toHaveBeenCalledWith('LineSegmentDelete', {
+      line_ids: [1, 2],
+    });
     expect(deps.workspace.executeOristudioCpCommand).toHaveBeenCalledWith('ChangeCreaseType', {
       line_ids: [1, 2],
     });
@@ -271,7 +269,7 @@ describe('menu actions', () => {
     expect(deps.workspace.executeOristudioCpCommand).toHaveBeenCalledWith('OrganizeCircles');
     expect(deps.workspace.executeOristudioCpCommand).toHaveBeenCalledWith('DeleteExtraVertices');
     expect(deps.workspace.executeOristudioCpCommand).toHaveBeenCalledWith(
-      'DeleteExtraVerticesIgnoreColor'
+      'DeleteExtraVerticesIgnoreColor',
     );
     expect(deps.workspace.requestOristudioCpAction).toHaveBeenCalledWith('FixInaccurate');
     expect(deps.workspace.requestOristudioCpAction).toHaveBeenCalledWith('ReplaceLineTypeSelect');
@@ -453,10 +451,10 @@ describe('menu actions', () => {
       faces: [],
     });
     expect(deps.workspace.clearOristudioCpSelection).toHaveBeenCalledOnce();
-    expect(deps.workspace.executeOristudioCpCommand).toHaveBeenCalledWith(
-      'LineSegmentDelete',
-      { line_ids: [1, 2], circle_ids: [] }
-    );
+    expect(deps.workspace.executeOristudioCpCommand).toHaveBeenCalledWith('LineSegmentDelete', {
+      line_ids: [1, 2],
+      circle_ids: [],
+    });
     expect(deps.workspace.selectAll).not.toHaveBeenCalled();
     expect(deps.workspace.selectNone).not.toHaveBeenCalled();
     expect(deps.workspace.deleteSelection).not.toHaveBeenCalled();
@@ -623,7 +621,13 @@ describe('menu actions', () => {
       it(`deletes the selected vertex from the ${context} pane`, async () => {
         const deps = createDeps();
         deps.workspace.activeEditingContext = context;
-        Object.assign(deps.workspace, singleBoxPleatDesignTab({ document: bpDocument(), selection: { kind: 'bp-vertex', id: 1 } }));
+        Object.assign(
+          deps.workspace,
+          singleBoxPleatDesignTab({
+            document: bpDocument(),
+            selection: { kind: 'bp-vertex', id: 1 },
+          }),
+        );
 
         await expect(createMenuActionHandler(deps)('edit.delete')).resolves.toBe(true);
 
@@ -634,7 +638,10 @@ describe('menu actions', () => {
     it('deletes the child endpoint of a selected edge', async () => {
       const deps = createDeps();
       deps.workspace.activeEditingContext = 'bp-tree';
-      Object.assign(deps.workspace, singleBoxPleatDesignTab({ document: bpDocument(), selection: { kind: 'bp-edge', id: 1 } }));
+      Object.assign(
+        deps.workspace,
+        singleBoxPleatDesignTab({ document: bpDocument(), selection: { kind: 'bp-edge', id: 1 } }),
+      );
 
       await expect(createMenuActionHandler(deps)('edit.delete')).resolves.toBe(true);
 
@@ -644,7 +651,13 @@ describe('menu actions', () => {
     it('leaves the root alone', async () => {
       const deps = createDeps();
       deps.workspace.activeEditingContext = 'bp-tree';
-      Object.assign(deps.workspace, singleBoxPleatDesignTab({ document: bpDocument(), selection: { kind: 'bp-vertex', id: 0 } }));
+      Object.assign(
+        deps.workspace,
+        singleBoxPleatDesignTab({
+          document: bpDocument(),
+          selection: { kind: 'bp-vertex', id: 0 },
+        }),
+      );
 
       await expect(createMenuActionHandler(deps)('edit.delete')).resolves.toBe(false);
 
@@ -666,7 +679,7 @@ describe('menu actions', () => {
 
     expect(deps.requestPositiveNumber).toHaveBeenNthCalledWith(
       1,
-      expect.objectContaining({ title: 'Split Edge', initialValue: '0.5' })
+      expect.objectContaining({ title: 'Split Edge', initialValue: '0.5' }),
     );
     expect(deps.workspace.splitSelectedEdge).toHaveBeenCalledWith(0.25);
     expect(deps.workspace.setSelectedEdgeLengths).toHaveBeenCalledWith(2);
@@ -720,29 +733,29 @@ describe('menu actions', () => {
       ...createDeps(),
       capabilities: () =>
         getWorkspaceCapabilities({
-        activeEditingContext: 'crease-pattern',
-        engineReady: true,
-        status: 'crease_pattern_ready',
-        edgeCount: 0,
-        creaseCount: 4,
-        facetCount: 1,
-        hasEditableCreasePattern: false,
-        hasImportedCreasePattern: true,
-        hasBoxPleatDocument: false,
-        boxPleatTreeEdgeCount: 0,
-        boxPleatBusy: false,
-        boxPleatCanSubdivide: true,
-        boxPleatCanUnsubdivide: false,
-        hasSimulationModel: true,
-        oristudioCpSelectedLineCount: 0,
-        oristudioCpSelectedPointCount: 0,
-        oristudioCpSelectedCircleCount: 0,
-        hasDeletableDesignSelection: false,
-        canSaveDesign: true,
-        historyPastCount: 0,
-        historyFutureCount: 0,
-        clipboard: null,
-        selection: { kind: 'tree' },
+          activeEditingContext: 'crease-pattern',
+          engineReady: true,
+          status: 'crease_pattern_ready',
+          edgeCount: 0,
+          creaseCount: 4,
+          facetCount: 1,
+          hasEditableCreasePattern: false,
+          hasImportedCreasePattern: true,
+          hasBoxPleatDocument: false,
+          boxPleatTreeEdgeCount: 0,
+          boxPleatBusy: false,
+          boxPleatCanSubdivide: true,
+          boxPleatCanUnsubdivide: false,
+          hasSimulationModel: true,
+          oristudioCpSelectedLineCount: 0,
+          oristudioCpSelectedPointCount: 0,
+          oristudioCpSelectedCircleCount: 0,
+          hasDeletableDesignSelection: false,
+          canSaveDesign: true,
+          historyPastCount: 0,
+          historyFutureCount: 0,
+          clipboard: null,
+          selection: { kind: 'tree' },
         }),
     };
 

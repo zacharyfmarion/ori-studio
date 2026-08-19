@@ -41,17 +41,23 @@ function renderList(): HTMLDivElement {
 }
 
 function triggers(): HTMLButtonElement[] {
-  return Array.from(container?.querySelectorAll<HTMLButtonElement>('.landing-features__trigger') ?? []);
+  return Array.from(
+    container?.querySelectorAll<HTMLButtonElement>('.landing-features__trigger') ?? [],
+  );
 }
 
 function openTitle(): string | undefined {
-  return triggers().find((t) => t.getAttribute('aria-expanded') === 'true')?.textContent ?? undefined;
+  return (
+    triggers().find((t) => t.getAttribute('aria-expanded') === 'true')?.textContent ?? undefined
+  );
 }
 
 function visibleBody(): string | undefined {
-  return Array.from(container?.querySelectorAll('.landing-features__body') ?? [])
-    .find((body) => !body.hasAttribute('hidden'))
-    ?.textContent ?? undefined;
+  return (
+    Array.from(container?.querySelectorAll('.landing-features__body') ?? []).find(
+      (body) => !body.hasAttribute('hidden'),
+    )?.textContent ?? undefined
+  );
 }
 
 function figureSrc(): string | null | undefined {
@@ -93,8 +99,8 @@ describe('LandingFeatureList', () => {
     expect(expanded).toHaveLength(1);
     expect(
       Array.from(rendered.querySelectorAll('.landing-features__body')).filter(
-        (b) => !b.hasAttribute('hidden')
-      )
+        (b) => !b.hasAttribute('hidden'),
+      ),
     ).toHaveLength(1);
   });
 

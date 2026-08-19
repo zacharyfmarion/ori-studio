@@ -102,9 +102,7 @@ describe('validateCpImages', () => {
 
   it('drops entries missing required geometry or src', () => {
     expect(validateCpImages([{ id: 'a', src: '' }])).toEqual([]);
-    expect(
-      validateCpImages([{ id: 'a', src: 'data:...', naturalWidth: 10 }])
-    ).toEqual([]); // missing center/size
+    expect(validateCpImages([{ id: 'a', src: 'data:...', naturalWidth: 10 }])).toEqual([]); // missing center/size
     expect(
       validateCpImages([
         {
@@ -115,7 +113,7 @@ describe('validateCpImages', () => {
           width: 0, // non-positive → dropped
           height: 1,
         },
-      ])
+      ]),
     ).toEqual([]);
   });
 

@@ -77,8 +77,22 @@ function bpDocument(kind: 'rectangular' | 'diagonal' = 'rectangular'): Oristudio
         // Leaf 1 sits two cells left of the root along -x, so a radius of 5 puts
         // it five cells out in the same direction.
         edges: [
-          { id: 10, vertices: [0, 1], length: 2, maxLength: null, isLeafEdge: true, dualRiverId: null },
-          { id: 11, vertices: [0, 2], length: 2, maxLength: null, isLeafEdge: true, dualRiverId: null },
+          {
+            id: 10,
+            vertices: [0, 1],
+            length: 2,
+            maxLength: null,
+            isLeafEdge: true,
+            dualRiverId: null,
+          },
+          {
+            id: 11,
+            vertices: [0, 2],
+            length: 2,
+            maxLength: null,
+            isLeafEdge: true,
+            dualRiverId: null,
+          },
         ],
         maxTreeHeight: null,
       },
@@ -90,11 +104,13 @@ function bpDocument(kind: 'rectangular' | 'diagonal' = 'rectangular'): Oristudio
   } as unknown as OristudioBpDocumentState;
 }
 
-function setUp(options: {
-  fold?: 'book' | 'diagonal';
-  kind?: 'rectangular' | 'diagonal';
-  pairs?: { v1: number; v2: number }[];
-} = {}) {
+function setUp(
+  options: {
+    fold?: 'book' | 'diagonal';
+    kind?: 'rectangular' | 'diagonal';
+    pairs?: { v1: number; v2: number }[];
+  } = {},
+) {
   const kind = options.kind ?? 'rectangular';
   runtimeMocks.reshapeOristudioBpLayoutFlap.mockImplementation(async () => bpDocument(kind));
   useWorkspaceStore.setState(
@@ -112,7 +128,7 @@ function setUp(options: {
         },
       }),
     },
-    true
+    true,
   );
 }
 
@@ -137,7 +153,7 @@ describe('reshapeOristudioBpFlap', () => {
   it('sends the whole footprint for the flap that was grabbed', async () => {
     setUp();
     await expect(
-      useWorkspaceStore.getState().reshapeOristudioBpFlap(1, FOOTPRINT, true)
+      useWorkspaceStore.getState().reshapeOristudioBpFlap(1, FOOTPRINT, true),
     ).resolves.toBe(true);
     expect(reshapes()[0]).toEqual([
       1,
@@ -237,7 +253,7 @@ describe('reshapeOristudioBpFlap', () => {
           },
         }),
       },
-      true
+      true,
     );
 
     await useWorkspaceStore.getState().reshapeOristudioBpFlap(1, FOOTPRINT, false);
@@ -267,7 +283,7 @@ describe('reshapeOristudioBpFlap', () => {
           },
         }),
       },
-      true
+      true,
     );
     await useWorkspaceStore.getState().reshapeOristudioBpFlap(1, FOOTPRINT, true);
     expect(reshapes().map(([id]) => id)).toEqual([1]);

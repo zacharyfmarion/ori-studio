@@ -65,7 +65,7 @@ describe('SimulationClock budget', () => {
     const expensive = fakeBackend({ msPerStep: 5 });
 
     const cheapTick = new SimulationClock({ budgetMs: 8, chunkSteps: 1, now: cheap.now }).runFrame(
-      cheap.backend
+      cheap.backend,
     );
     const expensiveTick = new SimulationClock({
       budgetMs: 8,
@@ -176,7 +176,11 @@ describe('SimulationClock blow-up guard', () => {
   });
 
   it('leaves a healthy solve alone', () => {
-    const { backend, now } = fakeBackend({ msPerStep: 0.01, strain: () => 0.2, velocity: () => 0.1 });
+    const { backend, now } = fakeBackend({
+      msPerStep: 0.01,
+      strain: () => 0.2,
+      velocity: () => 0.1,
+    });
     const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 5, blowupStrain: 3, now });
     clock.runFrame(backend);
     expect((backend as unknown as { arrests(): number }).arrests()).toBe(0);

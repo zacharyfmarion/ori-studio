@@ -2,11 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it } from 'vitest';
 import { DISCORD_URL, REPOSITORY_URL } from '../../constants/release';
-import {
-  FIRST_LANDING_SECTION_ID,
-  LANDING_SECTIONS,
-  WelcomeLanding,
-} from './WelcomeLanding';
+import { FIRST_LANDING_SECTION_ID, LANDING_SECTIONS, WelcomeLanding } from './WelcomeLanding';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -23,7 +19,7 @@ function renderLanding(): HTMLDivElement {
 
 function link(label: string): HTMLAnchorElement {
   const match = Array.from(container?.querySelectorAll('a') ?? []).find((element) =>
-    element.textContent?.includes(label)
+    element.textContent?.includes(label),
   );
   expect(match, `no link labelled "${label}"`).toBeDefined();
   return match as HTMLAnchorElement;
@@ -68,7 +64,7 @@ describe('WelcomeLanding', () => {
   it('names the three design methods', () => {
     const rendered = renderLanding();
     const titles = Array.from(rendered.querySelectorAll('#landing-design [role="tab"]')).map(
-      (tab) => tab.textContent
+      (tab) => tab.textContent,
     );
 
     expect(titles).toEqual(['Box Pleating', 'Circle Packing', 'ExplOri']);
@@ -91,7 +87,7 @@ describe('WelcomeLanding', () => {
   it('shows the interchange formats, which is the claim this audience checks', () => {
     const rendered = renderLanding();
     const formats = Array.from(rendered.querySelectorAll('.landing-file__ext')).map(
-      (file) => file.textContent
+      (file) => file.textContent,
     );
 
     for (const extension of ['.ori', '.cp', '.fold', '.bps', '.tmd5', '.svg', '.osf']) {
@@ -124,8 +120,9 @@ describe('WelcomeLanding', () => {
 
   it('asks for a themed screenshot per figure', () => {
     const rendered = renderLanding();
-    const sources = Array.from(rendered.querySelectorAll<HTMLImageElement>('.landing-figure__image'))
-      .map((image) => image.getAttribute('src'));
+    const sources = Array.from(
+      rendered.querySelectorAll<HTMLImageElement>('.landing-figure__image'),
+    ).map((image) => image.getAttribute('src'));
 
     // The Edit carousel mounts only its selected slide; the Design one is a
     // scroll track, so all three of its slides are present — that is what there
@@ -152,7 +149,7 @@ describe('WelcomeLanding', () => {
     });
 
     const wanted = Array.from(
-      rendered.querySelectorAll('.landing-figure--placeholder .landing-figure__path')
+      rendered.querySelectorAll('.landing-figure--placeholder .landing-figure__path'),
     ).map((code) => code.textContent);
 
     expect(wanted).toEqual([

@@ -125,7 +125,12 @@ export async function onRequestPost(context: ExploriContext): Promise<Response> 
     const { u, v } = edge;
     // Endpoints must name nodes that exist: upstream indexes its graph by id and
     // raises out of the handler thread when one is absent.
-    if (!Number.isInteger(u) || !Number.isInteger(v) || !ids.has(u as number) || !ids.has(v as number)) {
+    if (
+      !Number.isInteger(u) ||
+      !Number.isInteger(v) ||
+      !ids.has(u as number) ||
+      !ids.has(v as number)
+    ) {
       return errorResponse(400, 'invalid_tree', 'That tree has a branch with no endpoint.');
     }
     // `length` is the query signal, not decoration: upstream weights the graph
@@ -171,7 +176,8 @@ export async function onRequestPost(context: ExploriContext): Promise<Response> 
     dbConfigs.push({ N: N as number, symmetry });
   }
 
-  const n = typeof payload.n === 'number' ? Math.min(MAX_RESULTS, Math.max(1, Math.round(payload.n))) : 5;
+  const n =
+    typeof payload.n === 'number' ? Math.min(MAX_RESULTS, Math.max(1, Math.round(payload.n))) : 5;
 
   return callExplori(env, {
     path: '/api/query',

@@ -14,7 +14,7 @@ function crease(
   color: string,
   y: number,
   foldMagnitude?: number,
-  length = 200
+  length = 200,
 ): OristudioCpLineSegment {
   return {
     a: { x: 0, y },
@@ -146,8 +146,9 @@ describe('CpFoldAngleLayer', () => {
 
       // Midpoint (50, 40) through a 2x basis, and the accumulated pan offset is
       // back to zero because the badges carry their own new positions again.
-      expect((host.querySelector('.cp-fold-angle-layer__badge') as HTMLElement).style.transform)
-        .toContain('translate(100px, 80px)');
+      expect(
+        (host.querySelector('.cp-fold-angle-layer__badge') as HTMLElement).style.transform,
+      ).toContain('translate(100px, 80px)');
       expect(layer().style.transform).toBe('');
     });
 
@@ -165,14 +166,17 @@ describe('CpFoldAngleLayer', () => {
       color: string,
       y: number,
       foldMagnitude?: number,
-      length = 200
+      length = 200,
     ): ToolPreviewSegment => ({
       a: { x: 0, y },
       b: { x: length, y },
       crease: { color, ...(foldMagnitude === undefined ? {} : { foldMagnitude }) },
     });
 
-    const renderCandidates = (candidates: ToolPreviewSegment[], segments: OristudioCpLineSegment[] = []) => {
+    const renderCandidates = (
+      candidates: ToolPreviewSegment[],
+      segments: OristudioCpLineSegment[] = [],
+    ) => {
       act(() => {
         root.render(<CpFoldAngleLayer lineSegments={segments} toolCandidates={candidates} />);
       });
@@ -198,7 +202,10 @@ describe('CpFoldAngleLayer', () => {
       useWorkspaceStore.setState((state) => ({
         oristudioCpViewport: { ...state.oristudioCpViewport, foldAngleLabelsVisible: false },
       }));
-      const badges = renderCandidates([candidate('Red1', 10, deg(45))], [crease('Red1', 20, deg(90))]);
+      const badges = renderCandidates(
+        [candidate('Red1', 10, deg(45))],
+        [crease('Red1', 20, deg(90))],
+      );
       expect(badges).toHaveLength(1);
       expect((badges[0] as HTMLElement).dataset.candidate).toBe('true');
       useWorkspaceStore.setState((state) => ({
@@ -212,7 +219,7 @@ describe('CpFoldAngleLayer', () => {
           <CpFoldAngleLayer
             lineSegments={[]}
             toolCandidates={[{ a: { x: 0, y: 0 }, b: { x: 200, y: 0 } }]}
-          />
+          />,
         );
       });
       expect(host.querySelectorAll('.cp-fold-angle-layer__badge')).toHaveLength(0);

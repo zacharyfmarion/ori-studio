@@ -91,7 +91,9 @@ describe('folded-figure gate on a pattern that cannot fold flat', () => {
   });
 
   function toggleIn(container: ParentNode): HTMLInputElement | HTMLButtonElement | null {
-    return container.querySelector('.share-link-modal__toggle-row input, .share-link-modal__toggle-row button');
+    return container.querySelector(
+      '.share-link-modal__toggle-row input, .share-link-modal__toggle-row button',
+    );
   }
 
   it('share modal offers the toggle for a flat pattern', async () => {
@@ -126,9 +128,7 @@ describe('folded-figure gate on a pattern that cannot fold flat', () => {
     };
     await act(async () => root.render(<CreaseExportDialog dialog={dialog} />));
 
-    const toggles = Array.from(
-      document.querySelectorAll<HTMLElement>('.export-modal__toggle-row')
-    );
+    const toggles = Array.from(document.querySelectorAll<HTMLElement>('.export-modal__toggle-row'));
     const foldedRow = toggles.find((row) => row.textContent?.includes('folded figure'));
     expect(foldedRow).toBeDefined();
     expect(foldedRow?.querySelector('input,button')?.hasAttribute('disabled')).toBe(true);

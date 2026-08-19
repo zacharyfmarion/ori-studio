@@ -40,7 +40,7 @@ describe('buildSequenceStepSimulation', () => {
         after_state: 'after',
       },
       simpleFold(['B', 'B', 'B', 'B', 'F', 'F'], [null, null, null, null, 0, 0]),
-      after
+      after,
     );
 
     const result = buildSequenceStepSimulation(plan, 'manual');
@@ -82,7 +82,7 @@ describe('buildSequenceStepSimulation', () => {
 function planWithStep(
   step: SequencePlan['steps'][number],
   before = simpleFold(['B', 'B', 'B', 'B', 'F', 'F'], [null, null, null, null, 0, 0]),
-  after = simpleFold(['B', 'B', 'B', 'B', 'V', 'F'], [null, null, null, null, 180, 0])
+  after = simpleFold(['B', 'B', 'B', 'B', 'V', 'F'], [null, null, null, null, 180, 0]),
 ): SequencePlan {
   return {
     status: 'complete',
@@ -118,7 +118,7 @@ function sequenceState(id: string, document: FoldDocument): SequenceStateSnapsho
 
 function simpleFold(
   assignments: FoldDocument['edges_assignment'],
-  foldAngles: FoldDocument['edges_foldAngle']
+  foldAngles: FoldDocument['edges_foldAngle'],
 ): FoldDocument {
   return {
     file_spec: 1.2,

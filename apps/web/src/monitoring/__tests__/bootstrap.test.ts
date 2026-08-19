@@ -59,7 +59,7 @@ describe('initializeSentry', () => {
     initializeSentry(client, { monitoringEnabled: true }, DSN_ENV);
 
     const filter = initConfig(client).integrations as (
-      defaults: Array<{ name: string }>
+      defaults: Array<{ name: string }>,
     ) => Array<{ name: string }>;
     const kept = filter([{ name: 'BrowserSession' }, { name: 'Breadcrumbs' }]);
     expect(kept.map((i) => i.name)).toEqual(['Breadcrumbs']);

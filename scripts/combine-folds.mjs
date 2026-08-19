@@ -72,10 +72,7 @@ export function combineFolds(documents, { cell = 400 } = {}) {
 
     const offset = vertices.length;
     for (const [x, y] of fold.vertices_coords) {
-      vertices.push([
-        originX + (x - bounds.minX) * scale,
-        originY + (y - bounds.minY) * scale,
-      ]);
+      vertices.push([originX + (x - bounds.minX) * scale, originY + (y - bounds.minY) * scale]);
     }
     fold.edges_vertices.forEach(([a, b], edgeIndex) => {
       edges.push([a + offset, b + offset]);
@@ -85,9 +82,7 @@ export function combineFolds(documents, { cell = 400 } = {}) {
     layout.push({ name, row, column, edges: fold.edges_vertices.length });
   });
 
-  const description = layout
-    .map(({ name, row, column }) => `r${row}c${column} ${name}`)
-    .join('; ');
+  const description = layout.map(({ name, row, column }) => `r${row}c${column} ${name}`).join('; ');
 
   return {
     fold: {
@@ -117,7 +112,7 @@ function main() {
   const cellIndex = args.indexOf('--cell');
   const cell = cellIndex >= 0 ? Number(args[cellIndex + 1]) : 400;
   const inputs = args.filter(
-    (a, i) => !a.startsWith('--') && args[i - 1] !== '--out' && args[i - 1] !== '--cell'
+    (a, i) => !a.startsWith('--') && args[i - 1] !== '--out' && args[i - 1] !== '--cell',
   );
   if (inputs.length === 0) {
     console.error('usage: node scripts/combine-folds.mjs <dir|file...> --out combined.fold');
@@ -130,7 +125,7 @@ function main() {
           .filter((f) => extname(f).toLowerCase() === '.fold')
           .sort()
           .map((f) => join(input, f))
-      : [input]
+      : [input],
   );
 
   const documents = [];
@@ -154,12 +149,12 @@ function main() {
         layout
           .filter((entry) => entry.row === row)
           .map((entry) => entry.name)
-          .join(', ')
+          .join(', '),
     );
   }
   console.log(
     `\n${layout.length} patterns, ${fold.vertices_coords.length} vertices, ` +
-      `${fold.edges_vertices.length} edges -> ${out}`
+      `${fold.edges_vertices.length} edges -> ${out}`,
   );
 }
 

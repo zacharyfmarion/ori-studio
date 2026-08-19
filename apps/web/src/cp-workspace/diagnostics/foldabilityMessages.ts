@@ -72,12 +72,7 @@ export const FOLDABILITY_COLORS = [
  * `the_spatial_check_emits_only_the_four_rules_the_frontend_words`). Neither
  * language can see the other's table, so a rename needs both gates to catch it.
  */
-export const SPATIAL_RULES = [
-  'Closure',
-  'Rigid',
-  'SelfIntersection',
-  'InteriorBorder',
-] as const;
+export const SPATIAL_RULES = ['Closure', 'Rigid', 'SelfIntersection', 'InteriorBorder'] as const;
 
 export type FoldabilityRule = (typeof FOLDABILITY_RULES)[number];
 export type FoldabilityColor = (typeof FOLDABILITY_COLORS)[number];
@@ -105,7 +100,7 @@ function colorPhrase(t: TFunction, color: FoldabilityColor): string | null {
     case 'Equal':
       return t(
         'panels:creasePattern.foldability.equalMountainValley',
-        'equal amount of mountain and valley folds'
+        'equal amount of mountain and valley folds',
       );
     // `Correct` means the fold types are fine and only the shape's own fact is
     // wrong; `Unknown` is the edge-line case, which each shape words itself.
@@ -133,7 +128,7 @@ function compose(t: TFunction, lead: string, tail: string | null): string {
 export function foldabilityViolationMessage(
   t: TFunction,
   rule: FoldabilityRule,
-  color: FoldabilityColor
+  color: FoldabilityColor,
 ): string | null {
   switch (rule) {
     // Triangle. The odd count is a fact the colour does not carry, so it leads.
@@ -141,7 +136,7 @@ export function foldabilityViolationMessage(
       if (color === 'Unknown') {
         return t(
           'panels:creasePattern.foldability.edgeLineCount',
-          'Too many or not enough edge lines'
+          'Too many or not enough edge lines',
         );
       }
       const oddFolds = t('panels:creasePattern.foldability.oddFolds', 'Odd number of folds');
@@ -154,7 +149,7 @@ export function foldabilityViolationMessage(
       if (color === 'Unknown') {
         return t(
           'panels:creasePattern.foldability.edgeLineConfiguration',
-          'Invalid configuration of edge lines'
+          'Invalid configuration of edge lines',
         );
       }
       const phrase = colorPhrase(t, color);
@@ -168,7 +163,7 @@ export function foldabilityViolationMessage(
     case 'Angles': {
       const incorrectAngles = t(
         'panels:creasePattern.foldability.incorrectAngles',
-        'Incorrect angles'
+        'Incorrect angles',
       );
       return compose(t, incorrectAngles, colorPhrase(t, color));
     }
@@ -178,7 +173,7 @@ export function foldabilityViolationMessage(
     case 'BigLittleBig':
       return t(
         'panels:creasePattern.foldability.bigLittleBig',
-        'Angles cannot nest (big-little-big)'
+        'Angles cannot nest (big-little-big)',
       );
 
     // A violation is never reported with no rule; the kernel's message stands.
@@ -197,7 +192,7 @@ export function foldabilityViolationMessage(
 export function spatialRuleMessage(
   t: TFunction,
   rule: SpatialRule,
-  entry?: Pick<OristudioCpDiagnosticEntry, 'residual_degrees'>
+  entry?: Pick<OristudioCpDiagnosticEntry, 'residual_degrees'>,
 ): string {
   // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
   switch (rule) {
@@ -211,7 +206,7 @@ export function spatialRuleMessage(
         : t(
             'panels:creasePattern.foldability.closureResidual',
             'The creases here do not close up: {{degrees}}° off',
-            { degrees: Math.round(residual * 100) / 100 }
+            { degrees: Math.round(residual * 100) / 100 },
           );
     }
     // Not a conflict to fix. A degree-1 or developable degree-3 vertex has one
@@ -220,14 +215,14 @@ export function spatialRuleMessage(
     case 'Rigid':
       return t(
         'panels:creasePattern.foldability.rigidVertex',
-        'This vertex is rigid, so every crease here must be flat'
+        'This vertex is rigid, so every crease here must be flat',
       );
     // Not one of Oriedita's rules: this branch's own check, that the paper does
     // not pass through itself at a vertex whose fold angles do agree.
     case 'SelfIntersection':
       return t(
         'panels:creasePattern.foldability.selfIntersection',
-        'Paper passes through itself here'
+        'Paper passes through itself here',
       );
     // Also not Oriedita's: an edge drawn inside the sheet rather than around it.
     // The point of the entry is that the check *cannot see* the vertices on it —
@@ -235,7 +230,7 @@ export function spatialRuleMessage(
     case 'InteriorBorder':
       return t(
         'panels:creasePattern.foldability.interiorBorder',
-        'Edge with paper on both sides — foldability is not checked along it'
+        'Edge with paper on both sides — foldability is not checked along it',
       );
   }
 }
@@ -243,7 +238,7 @@ export function spatialRuleMessage(
 /** The sentence for a diagnostic entry, or `null` if it is not one of ours. */
 export function foldabilityEntryMessage(
   t: TFunction,
-  entry: OristudioCpDiagnosticEntry
+  entry: OristudioCpDiagnosticEntry,
 ): string | null {
   if (isSpatialRule(entry.rule)) return spatialRuleMessage(t, entry.rule, entry);
   if (!isRule(entry.rule) || !isColor(entry.violation_color)) return null;

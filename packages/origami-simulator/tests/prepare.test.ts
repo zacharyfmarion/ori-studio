@@ -102,7 +102,7 @@ describe('prepareFoldModel', () => {
         const pa = prepared.positions.slice(a * 3, a * 3 + 3);
         const pb = prepared.positions.slice(b * 3, b * 3 + 3);
         return Math.hypot(pa[0]! - pb[0]!, pa[1]! - pb[1]!, pa[2]! - pb[2]!) > 0;
-      })
+      }),
     ).toBe(true);
 
     const simulator = createOrigamiSimulator({ model: prepared, options: { foldPercent: 100 } });
@@ -217,7 +217,7 @@ describe('n-gon triangulation', () => {
     return (Math.acos(Math.max(-1, Math.min(1, cosine))) * 180) / Math.PI;
   };
 
-  it('winds n-gon triangles the same way as the sheet\'s 3-vertex faces', () => {
+  it("winds n-gon triangles the same way as the sheet's 3-vertex faces", () => {
     // Both faces below are wound clockwise, which is what Oriedita writes. The
     // triangle passes through untouched while earcut normalises the n-gon's ring
     // to its own winding, so the two disagree unless the output is re-oriented.
@@ -231,10 +231,7 @@ describe('n-gon triangulation', () => {
       edges_vertices: [...strip.edges_vertices, [0, apex], [apex, 1]],
       edges_assignment: [...strip.edges_assignment, 'B', 'B'],
       edges_foldAngle: [...strip.edges_foldAngle, null, null],
-      faces_vertices: [
-        strip.faces_vertices[0]!.slice().reverse(),
-        [0, 1, apex],
-      ],
+      faces_vertices: [strip.faces_vertices[0]!.slice().reverse(), [0, 1, apex]],
     });
 
     const windings = new Set(prepared.facesVertices.map((f) => Math.sign(signedArea(prepared, f))));
@@ -270,7 +267,9 @@ describe('n-gon triangulation', () => {
       expect(prepared.diagnostics.warnings).toEqual([]);
       // A 20x1 strip with unit subdivisions: 40 unit right triangles.
       expect(prepared.faceCount).toBe(40);
-      expect(Math.min(...prepared.facesVertices.map((f) => smallestAngleDeg(prepared, f)))).toBeGreaterThan(44);
+      expect(
+        Math.min(...prepared.facesVertices.map((f) => smallestAngleDeg(prepared, f))),
+      ).toBeGreaterThan(44);
     }
   });
 });
@@ -365,7 +364,7 @@ describe('createOrigamiSimulator', () => {
     expect(maxPositionDelta(standardBefore, standardAfter)).toBeGreaterThan(0);
     expect(maxPositionDelta(accurateBefore, accurateAfter)).toBeGreaterThan(0);
     expect(maxPositionDelta(accurateBefore, accurateAfter)).toBeLessThan(
-      maxPositionDelta(standardBefore, standardAfter)
+      maxPositionDelta(standardBefore, standardAfter),
     );
     standard.dispose();
     accurate.dispose();
@@ -476,7 +475,7 @@ describe('redundant vertex removal', () => {
 
   function edgeOf(prepared: PreparedOrigamiModel, a: number, b: number): number {
     return prepared.edgesVertices.findIndex(
-      ([from, to]) => (from === a && to === b) || (from === b && to === a)
+      ([from, to]) => (from === a && to === b) || (from === b && to === a),
     );
   }
 
@@ -623,7 +622,7 @@ describe('redundant vertex removal', () => {
 
     expect(prepared.vertexCount).toBe(6);
     expect(
-      prepared.diagnostics.warnings.some((w) => w.includes('different edge assignments'))
+      prepared.diagnostics.warnings.some((w) => w.includes('different edge assignments')),
     ).toBe(true);
   });
 
@@ -634,7 +633,7 @@ describe('redundant vertex removal', () => {
     // they neither folded nor drew. The hand-built fixtures above are the same
     // defect in miniature; this one is the shape it actually takes in the wild.
     const fold = JSON.parse(
-      readFileSync(new URL('./fixtures/iguana-split-crease.fold', import.meta.url), 'utf8')
+      readFileSync(new URL('./fixtures/iguana-split-crease.fold', import.meta.url), 'utf8'),
     ) as FoldDocument;
     const prepared = prepareFoldModel(fold);
 

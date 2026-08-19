@@ -113,7 +113,7 @@ export function resetDesignTabIds(): void {
  */
 export function uniqueDesignTitle(
   existing: readonly DesignTab[],
-  base: string = DEFAULT_DESIGN_TITLE
+  base: string = DEFAULT_DESIGN_TITLE,
 ): string {
   const taken = new Set(existing.map((tab) => tab.title));
   if (!taken.has(base)) return base;
@@ -129,7 +129,7 @@ export function createDesignTab(
     title?: string;
     paneLayout?: SerializedDockview | null;
     pendingHydration?: boolean;
-  } = {}
+  } = {},
 ): DesignTab {
   const identity: DesignTabIdentity = {
     id: nextDesignTabId(existing),
@@ -186,7 +186,7 @@ export function activeDesignTab(state: DesignTabsSlice): DesignTab {
   if (active) return active;
   if (import.meta.env.DEV) {
     console.error(
-      `[ori-studio] activeDesignId "${state.activeDesignId}" matches no tab; falling back to the first`
+      `[ori-studio] activeDesignId "${state.activeDesignId}" matches no tab; falling back to the first`,
     );
   }
   return state.designTabs[0];
@@ -243,7 +243,7 @@ export function isDesignTouched(tab: DesignTab): boolean {
 function mapDesignTab(
   state: DesignTabsSlice,
   designId: string,
-  next: (tab: DesignTab) => DesignTab
+  next: (tab: DesignTab) => DesignTab,
 ): Pick<DesignTabsSlice, 'designTabs'> {
   return {
     designTabs: state.designTabs.map((tab) => (tab.id === designId ? next(tab) : tab)),
@@ -265,7 +265,7 @@ function designTabById(state: DesignTabsSlice, designId: string): DesignTab | nu
  */
 export function withActiveTab(
   state: DesignTabsSlice,
-  patch: { title: string }
+  patch: { title: string },
 ): Pick<DesignTabsSlice, 'designTabs'> {
   return mapDesignTab(state, state.activeDesignId, (tab) => ({ ...tab, title: patch.title }));
 }
@@ -279,7 +279,7 @@ export function withActiveTab(
  */
 export function markDesignTabHydrated(
   state: DesignTabsSlice,
-  designId: string
+  designId: string,
 ): Pick<DesignTabsSlice, 'designTabs'> {
   return mapDesignTab(state, designId, (tab) => ({ ...tab, pendingHydration: false }));
 }
@@ -288,7 +288,7 @@ export function markDesignTabHydrated(
 export function withDesignPaneLayout(
   state: DesignTabsSlice,
   designId: string,
-  paneLayout: SerializedDockview | null
+  paneLayout: SerializedDockview | null,
 ): Pick<DesignTabsSlice, 'designTabs'> {
   return mapDesignTab(state, designId, (tab) => ({ ...tab, paneLayout }));
 }
@@ -302,9 +302,10 @@ export function withDesignPaneLayout(
  */
 export function selectTreemakerDesign(
   state: DesignTabsSlice,
-  designId: string = state.activeDesignId
+  designId: string = state.activeDesignId,
 ): TreemakerDesignState | null {
-  const tab = designId === state.activeDesignId ? activeDesignTab(state) : designTabById(state, designId);
+  const tab =
+    designId === state.activeDesignId ? activeDesignTab(state) : designTabById(state, designId);
   return tab?.kind === 'treemaker' ? tab.treemaker : null;
 }
 
@@ -319,7 +320,7 @@ export function selectTreemakerDesign(
  */
 export function selectTreemakerDesignOrEmpty(
   state: DesignTabsSlice,
-  designId?: string
+  designId?: string,
 ): TreemakerDesignState {
   return selectTreemakerDesign(state, designId) ?? EMPTY_TREEMAKER_DESIGN;
 }
@@ -349,7 +350,10 @@ export function selectToolMode(state: DesignTabsSlice): ToolMode {
   return selectTreemakerDesignOrEmpty(state).toolMode;
 }
 
-export function selectSymmetryAuthoringPairs(state: DesignTabsSlice, designId?: string): SymmetryAuthoringPair[] {
+export function selectSymmetryAuthoringPairs(
+  state: DesignTabsSlice,
+  designId?: string,
+): SymmetryAuthoringPair[] {
   return selectTreemakerDesignOrEmpty(state, designId).symmetryAuthoringPairs;
 }
 
@@ -367,7 +371,7 @@ export function selectLastOptimization(state: DesignTabsSlice): OptimizationRepo
 
 export function selectDesignViewportFitRequestId(
   state: DesignTabsSlice,
-  designId?: string
+  designId?: string,
 ): number {
   return selectTreemakerDesignOrEmpty(state, designId).viewportFitRequestId;
 }
@@ -382,7 +386,7 @@ export function selectDesignViewportFitRequestId(
 export function installTreemakerDesign(
   state: DesignTabsSlice,
   design: Partial<TreemakerDesignState> = {},
-  designId: string = state.activeDesignId
+  designId: string = state.activeDesignId,
 ): Pick<DesignTabsSlice, 'designTabs'> {
   return mapDesignTab(state, designId, (tab) => ({
     ...identityOf(tab),
@@ -402,7 +406,7 @@ export function installTreemakerDesign(
 export function patchTreemakerDesign(
   state: DesignTabsSlice,
   patch: Partial<TreemakerDesignState>,
-  designId: string = state.activeDesignId
+  designId: string = state.activeDesignId,
 ): Pick<DesignTabsSlice, 'designTabs'> {
   const current = selectTreemakerDesign(state, designId);
   if (!current) {
@@ -412,7 +416,7 @@ export function patchTreemakerDesign(
       console.error(
         '[ori-studio] patchTreemakerDesign ran against a design that is not TreeMaker; ignoring',
         patch,
-        new Error('patchTreemakerDesign caller').stack
+        new Error('patchTreemakerDesign caller').stack,
       );
     }
     return { designTabs: state.designTabs };
@@ -430,16 +434,17 @@ export function patchTreemakerDesign(
  */
 export function selectBoxPleatDesign(
   state: DesignTabsSlice,
-  designId: string = state.activeDesignId
+  designId: string = state.activeDesignId,
 ): BoxPleatDesignState | null {
-  const tab = designId === state.activeDesignId ? activeDesignTab(state) : designTabById(state, designId);
+  const tab =
+    designId === state.activeDesignId ? activeDesignTab(state) : designTabById(state, designId);
   return tab?.kind === 'box-pleat' ? tab.boxPleat : null;
 }
 
 /** The active design's Box-Pleat state, falling back to an empty one. */
 export function selectBoxPleatDesignOrEmpty(
   state: DesignTabsSlice,
-  designId?: string
+  designId?: string,
 ): BoxPleatDesignState {
   return selectBoxPleatDesign(state, designId) ?? EMPTY_BOX_PLEAT_DESIGN;
 }
@@ -453,7 +458,7 @@ export function selectBoxPleatDesignOrEmpty(
 export function installExploriDesign(
   state: DesignTabsSlice,
   design: Partial<ExploriDesignState> = {},
-  designId: string = state.activeDesignId
+  designId: string = state.activeDesignId,
 ): Pick<DesignTabsSlice, 'designTabs'> {
   return mapDesignTab(state, designId, (tab) => ({
     ...identityOf(tab),
@@ -468,7 +473,7 @@ export function installExploriDesign(
  */
 export function selectExploriDesign(
   state: DesignTabsSlice,
-  designId: string = state.activeDesignId
+  designId: string = state.activeDesignId,
 ): ExploriDesignState | null {
   const tab =
     designId === state.activeDesignId ? activeDesignTab(state) : designTabById(state, designId);
@@ -478,7 +483,7 @@ export function selectExploriDesign(
 /** The active design's ExplOri state, falling back to an empty one. */
 export function selectExploriDesignOrEmpty(
   state: DesignTabsSlice,
-  designId?: string
+  designId?: string,
 ): ExploriDesignState {
   return selectExploriDesign(state, designId) ?? EMPTY_EXPLORI_DESIGN;
 }
@@ -494,7 +499,7 @@ export function selectExploriDesignOrEmpty(
 export function patchExploriDesign(
   state: DesignTabsSlice,
   designId: string,
-  patch: Partial<ExploriDesignState>
+  patch: Partial<ExploriDesignState>,
 ): Pick<DesignTabsSlice, 'designTabs'> {
   const current = selectExploriDesign(state, designId);
   if (!current) {
@@ -502,7 +507,7 @@ export function patchExploriDesign(
       console.error(
         '[ori-studio] patchExploriDesign ran against a design that is not ExplOri; ignoring',
         patch,
-        new Error('patchExploriDesign caller').stack
+        new Error('patchExploriDesign caller').stack,
       );
     }
     return { designTabs: state.designTabs };
@@ -548,7 +553,7 @@ export function selectOristudioBpSymmetry(state: DesignTabsSlice, designId?: str
 export function installBoxPleatDesign(
   state: DesignTabsSlice,
   design: Partial<BoxPleatDesignState> = {},
-  designId: string = state.activeDesignId
+  designId: string = state.activeDesignId,
 ): Pick<DesignTabsSlice, 'designTabs'> {
   return mapDesignTab(state, designId, (tab) => ({
     ...identityOf(tab),
@@ -566,7 +571,7 @@ export function installBoxPleatDesign(
 export function patchBoxPleatDesign(
   state: DesignTabsSlice,
   patch: Partial<BoxPleatDesignState>,
-  designId: string = state.activeDesignId
+  designId: string = state.activeDesignId,
 ): Pick<DesignTabsSlice, 'designTabs'> {
   const current = selectBoxPleatDesign(state, designId);
   if (!current) {
@@ -574,7 +579,7 @@ export function patchBoxPleatDesign(
       console.error(
         '[ori-studio] patchBoxPleatDesign ran against a design that is not box-pleat; ignoring',
         patch,
-        new Error('patchBoxPleatDesign caller').stack
+        new Error('patchBoxPleatDesign caller').stack,
       );
     }
     return { designTabs: state.designTabs };
@@ -595,7 +600,7 @@ export function patchBoxPleatDesign(
  */
 export function markActiveTabBoxPleat(
   state: DesignTabsSlice,
-  designId: string = state.activeDesignId
+  designId: string = state.activeDesignId,
 ): Pick<DesignTabsSlice, 'designTabs'> {
   return installBoxPleatDesign(state, {}, designId);
 }
@@ -620,7 +625,7 @@ export function resetDesignTabs(state: DesignTabsSlice): DesignTabsSlice {
 /** Clear the active tab back to the chooser, dropping whatever it was authoring. */
 export function clearActiveDesignContent(
   state: DesignTabsSlice,
-  designId: string = state.activeDesignId
+  designId: string = state.activeDesignId,
 ): Pick<DesignTabsSlice, 'designTabs'> {
   // Rebuilt rather than spread-with-undefined so a discarded arm cannot linger on
   // the object and resurface through a stale cast.
@@ -635,7 +640,7 @@ export function clearActiveDesignContent(
  */
 export function singleTreemakerDesignTab(
   design: Partial<TreemakerDesignState> = {},
-  title?: string
+  title?: string,
 ): DesignTabsSlice {
   const seeded = singleDesignTab('treemaker', title);
   return { ...seeded, ...installTreemakerDesign(seeded, design) };
@@ -647,17 +652,14 @@ export function singleTreemakerDesignTab(
  */
 export function singleBoxPleatDesignTab(
   design: Partial<BoxPleatDesignState> = {},
-  title?: string
+  title?: string,
 ): DesignTabsSlice {
   const seeded = singleDesignTab('box-pleat', title);
   return { ...seeded, ...installBoxPleatDesign(seeded, design) };
 }
 
 /** A one-tab workspace authoring `kind`. Seeds the initial state and tests. */
-export function singleDesignTab(
-  kind: DesignKindId | null = null,
-  title?: string
-): DesignTabsSlice {
+export function singleDesignTab(kind: DesignKindId | null = null, title?: string): DesignTabsSlice {
   const tab = createDesignTab([], { kind, title });
   return { designTabs: [tab], activeDesignId: tab.id };
 }

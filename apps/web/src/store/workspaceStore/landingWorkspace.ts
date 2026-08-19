@@ -19,7 +19,7 @@ import type { WorkspaceState } from './types';
  * whichever loader happened to run last.
  */
 export function landingWorkspace(
-  state: Pick<WorkspaceState, 'oristudioCpDocument' | 'importedCreasePattern'>
+  state: Pick<WorkspaceState, 'oristudioCpDocument' | 'importedCreasePattern'>,
 ): WorkspaceId {
   return state.oristudioCpDocument !== null || state.importedCreasePattern !== null
     ? 'edit'

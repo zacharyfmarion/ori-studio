@@ -10,7 +10,7 @@ function caps(visibility: Record<string, boolean>): WorkspaceCapabilities {
     Object.entries(visibility).map(([id, visible]) => [
       id,
       { visible, enabled: visible, label: id, reason: '' },
-    ])
+    ]),
   );
   return entries as unknown as WorkspaceCapabilities;
 }
@@ -35,7 +35,7 @@ describe('pruneMenuItems', () => {
         'file.exportCp': false,
         'file.exportBps': true,
         'file.exportSvg': false,
-      })
+      }),
     );
     expect(pruned).toEqual([{ type: 'action', id: 'file.exportBps', label: 'Export .bps...' }]);
   });
@@ -49,7 +49,7 @@ describe('pruneMenuItems', () => {
         'file.exportCp': false,
         'file.exportBps': false,
         'file.exportSvg': true,
-      })
+      }),
     );
     expect(pruned.map((item) => (item.type === 'action' ? item.id : item.type))).toEqual([
       'file.exportV5',

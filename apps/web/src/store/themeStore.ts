@@ -66,6 +66,6 @@ export const useThemeStore = create<ThemeState>()(
         },
       };
     },
-    { name: 'ThemeStore' }
-  )
+    { name: 'ThemeStore' },
+  ),
 );

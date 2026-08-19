@@ -45,7 +45,8 @@ const SKIP_UNPORTABLE = !WRITE && Boolean(process.env.CI);
 // Large fixtures would add megabytes of binary to the repo for no extra signal:
 // a solver change that alters an 81-vertex Miura alters a 6561-vertex one too.
 const TRACED = FIXTURES.filter(
-  (fixture) => fixture.scale === 'tiny' || fixture.scale === 'small' || fixture.name === 'boxpleat-24'
+  (fixture) =>
+    fixture.scale === 'tiny' || fixture.scale === 'small' || fixture.name === 'boxpleat-24',
 );
 
 function tracePath(name: string): string {
@@ -90,43 +91,47 @@ describe('golden traces', () => {
   }
 
   for (const fixture of TRACED) {
-    it.skipIf(SKIP_UNPORTABLE)(`${fixture.name} matches its committed trace`, () => {
-      const path = tracePath(fixture.name);
-      expect(
-        existsSync(path),
-        `Missing golden trace for ${fixture.name}. Generate with GOLDEN_WRITE=1.`
-      ).toBe(true);
+    it.skipIf(SKIP_UNPORTABLE)(
+      `${fixture.name} matches its committed trace`,
+      () => {
+        const path = tracePath(fixture.name);
+        expect(
+          existsSync(path),
+          `Missing golden trace for ${fixture.name}. Generate with GOLDEN_WRITE=1.`,
+        ).toBe(true);
 
-      const raw = readFileSync(path);
-      const expected = new Float32Array(
-        raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength)
-      );
-      const actual = computeTrace(fixture.name);
-
-      expect(actual.length).toBe(expected.length);
-
-      // Report the worst divergence and where, rather than just "not equal".
-      let worstIndex = -1;
-      let worst = 0;
-      for (let i = 0; i < expected.length; i += 1) {
-        const delta = Math.abs(actual[i]! - expected[i]!);
-        if (delta > worst) {
-          worst = delta;
-          worstIndex = i;
-        }
-      }
-
-      if (worst !== 0) {
-        const perStep = expected.length / STEP_COUNTS.length;
-        const stepIndex = Math.floor(worstIndex / perStep);
-        throw new Error(
-          `${fixture.name} diverged from its golden trace.\n` +
-            `  worst delta ${worst.toExponential(3)} at value ${worstIndex} ` +
-            `(after ${STEP_COUNTS[stepIndex]} steps, vertex ${Math.floor((worstIndex % perStep) / 3)})\n` +
-            `  expected ${expected[worstIndex]}, got ${actual[worstIndex]}\n` +
-            `  If this change is intended, re-bless with GOLDEN_WRITE=1.`
+        const raw = readFileSync(path);
+        const expected = new Float32Array(
+          raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength),
         );
-      }
-    }, 300_000);
+        const actual = computeTrace(fixture.name);
+
+        expect(actual.length).toBe(expected.length);
+
+        // Report the worst divergence and where, rather than just "not equal".
+        let worstIndex = -1;
+        let worst = 0;
+        for (let i = 0; i < expected.length; i += 1) {
+          const delta = Math.abs(actual[i]! - expected[i]!);
+          if (delta > worst) {
+            worst = delta;
+            worstIndex = i;
+          }
+        }
+
+        if (worst !== 0) {
+          const perStep = expected.length / STEP_COUNTS.length;
+          const stepIndex = Math.floor(worstIndex / perStep);
+          throw new Error(
+            `${fixture.name} diverged from its golden trace.\n` +
+              `  worst delta ${worst.toExponential(3)} at value ${worstIndex} ` +
+              `(after ${STEP_COUNTS[stepIndex]} steps, vertex ${Math.floor((worstIndex % perStep) / 3)})\n` +
+              `  expected ${expected[worstIndex]}, got ${actual[worstIndex]}\n` +
+              `  If this change is intended, re-bless with GOLDEN_WRITE=1.`,
+          );
+        }
+      },
+      300_000,
+    );
   }
 });

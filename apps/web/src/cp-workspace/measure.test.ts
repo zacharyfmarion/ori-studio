@@ -108,7 +108,7 @@ describe('formatCpLength / formatCpAngle', () => {
     expect(formatCpAngle(Number.POSITIVE_INFINITY)).toBe('-');
   });
 
-  it('folds the kernel\'s directed angle onto the interior one you can see', () => {
+  it("folds the kernel's directed angle onto the interior one you can see", () => {
     // Oriedita's angle() is directed 0-360, so the same 90-degree corner reads 90
     // or 270 depending on pick order. Both must read 90.
     expect(interiorCpAngle(90)).toBe(90);
@@ -146,23 +146,23 @@ describe('exactCpLengthLabel', () => {
 
 describe('formatCpMeasurement / copyTextForCpMeasurement', () => {
   it('formats each kind in its own terms', () => {
-    expect(
-      formatCpMeasurement({ kind: 'distance', value: 200, points: [] }, 'paper', SCALE)
-    ).toBe('0.5');
+    expect(formatCpMeasurement({ kind: 'distance', value: 200, points: [] }, 'paper', SCALE)).toBe(
+      '0.5',
+    );
     expect(formatCpMeasurement({ kind: 'angle', value: 45, points: [] }, 'paper', SCALE)).toBe(
-      '45°'
+      '45°',
     );
   });
 
-  it('copies the interior angle, not the kernel\'s directed one', () => {
-    expect(copyTextForCpMeasurement({ kind: 'angle', value: 270, points: [] }, 'paper', SCALE)).toBe(
-      '90'
-    );
+  it("copies the interior angle, not the kernel's directed one", () => {
+    expect(
+      copyTextForCpMeasurement({ kind: 'angle', value: 270, points: [] }, 'paper', SCALE),
+    ).toBe('90');
   });
 
   it('copies an angle in the chosen angle unit', () => {
     expect(
-      copyTextForCpMeasurement({ kind: 'angle', value: 180, points: [] }, 'paper', SCALE, 'rad')
+      copyTextForCpMeasurement({ kind: 'angle', value: 180, points: [] }, 'paper', SCALE, 'rad'),
     ).toBe(String(Math.PI));
   });
 

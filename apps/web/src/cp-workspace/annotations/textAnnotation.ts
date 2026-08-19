@@ -211,7 +211,7 @@ export function textBoxFromDragCorners(
     { x: number; y: number },
   ],
   minExtent: number,
-  rotation: number
+  rotation: number,
 ): {
   center: { x: number; y: number };
   width: number;
@@ -258,9 +258,10 @@ export function validateTextAnnotation(value: unknown): TextAnnotation | null {
   if (!isRecord(value) || value.kind !== 'text') return null;
   const center = validatePoint(value.center);
   if (!center) return null;
-  const doc = isRecord(value.doc) && isRecord((value.doc as { root?: unknown }).root)
-    ? (value.doc as unknown as SerializedEditorState)
-    : null;
+  const doc =
+    isRecord(value.doc) && isRecord((value.doc as { root?: unknown }).root)
+      ? (value.doc as unknown as SerializedEditorState)
+      : null;
   if (!doc) return null;
   const width = positiveNumber(value.width);
   const height = positiveNumber(value.height);
@@ -278,9 +279,7 @@ export function validateTextAnnotation(value: unknown): TextAnnotation | null {
     hidden: value.hidden === true,
     doc,
     plainText:
-      typeof value.plainText === 'string'
-        ? value.plainText
-        : serializedStateToPlainText(doc),
+      typeof value.plainText === 'string' ? value.plainText : serializedStateToPlainText(doc),
     fontSize: positiveNumber(value.fontSize) ?? DEFAULT_TEXT_FONT_SIZE,
     autoHeight: value.autoHeight !== false,
     minHeight: Math.max(0, finiteNumber(value.minHeight) ?? 0),

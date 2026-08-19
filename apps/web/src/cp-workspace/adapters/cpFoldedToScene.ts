@@ -1,8 +1,5 @@
 import earcut from 'earcut';
-import {
-  CP_PAPER_RECT,
-  cpModelToSvg,
-} from '../../lib/creasePatternViewport';
+import { CP_PAPER_RECT, cpModelToSvg } from '../../lib/creasePatternViewport';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
 import type {
@@ -353,7 +350,7 @@ const localGeometryCache = new WeakMap<
  * skipped.
  */
 export function foldedFigureLocalGeometry(
-  snapshot: OristudioCpFoldedRenderSnapshot
+  snapshot: OristudioCpFoldedRenderSnapshot,
 ): FoldedFigureLocalGeometry {
   const cached = localGeometryCache.get(snapshot);
   if (cached) return cached;
@@ -361,7 +358,7 @@ export function foldedFigureLocalGeometry(
   const builder = new FoldedBuilder();
   const toUser = cpModelToSvg;
   const primitives: OristudioCpFoldedRenderPrimitive[] = [...snapshot.primitives].sort(
-    (l, r) => l.sequence - r.sequence
+    (l, r) => l.sequence - r.sequence,
   );
 
   for (const [index, primitive] of primitives.entries()) {
@@ -413,10 +410,7 @@ export function foldedFigureLocalGeometry(
  * so switching a figure from one to the other does not move it — only what its
  * rotation and scale turn about.
  */
-function foldedFigurePivot(
-  figure: OristudioCpFoldedFigureEntry,
-  local: { center: Point }
-): Point {
+function foldedFigurePivot(figure: OristudioCpFoldedFigureEntry, local: { center: Point }): Point {
   const frameRadius = figure.frameRadius ?? null;
   return frameRadius !== null && frameRadius > 0 ? FRAMED_PIVOT : local.center;
 }
@@ -446,7 +440,7 @@ const USER_UNITS_PER_MODEL_UNIT: number =
  */
 function placementAffine(
   placement: FoldedFigurePlacement,
-  center: Point
+  center: Point,
 ): { a: number; b: number; tx: number; ty: number } {
   const cos = Math.cos(placement.rotation) * placement.scale;
   const sin = Math.sin(placement.rotation) * placement.scale;
@@ -462,7 +456,7 @@ function placementAffine(
 export function applyFoldedPlacementToPoint(
   point: Point,
   placement: FoldedFigurePlacement,
-  center: Point
+  center: Point,
 ): Point {
   const { a, b, tx, ty } = placementAffine(placement, center);
   return { x: a * point.x - b * point.y + tx, y: b * point.x + a * point.y + ty };
@@ -487,7 +481,7 @@ export function cpFoldedToScene(
    * snapshot, so a figure changing opacity would otherwise keep serving its
    * previous vertices.
    */
-  figureOpacity?: (figure: OristudioCpFoldedFigureEntry) => number
+  figureOpacity?: (figure: OristudioCpFoldedFigureEntry) => number,
 ): FoldedGeometry {
   const fillPos: number[] = [];
   const fillColor: number[] = [];
@@ -572,7 +566,7 @@ export function cpFoldedToScene(
  */
 export function foldedGeometryFromShapes(
   faces: readonly { ring: readonly Point[]; color: Rgba }[],
-  edges: readonly { a: Point; b: Point; color: Rgba; width: number }[]
+  edges: readonly { a: Point; b: Point; color: Rgba; width: number }[],
 ): FoldedGeometry {
   const builder = new FoldedBuilder();
   for (const face of faces) builder.addFillRing([...face.ring], face.color);
@@ -598,7 +592,7 @@ export const CONTRADICTION_FILL: Rgba = [1, 0, 0, 75 / 255];
  * no coordinate mapping, unlike the folded scene. Empty when nothing contradicts.
  */
 export function cpContradictionFaceFills(
-  figures: readonly OristudioCpFoldedFigureEntry[]
+  figures: readonly OristudioCpFoldedFigureEntry[],
 ): FillGeometry {
   const position: number[] = [];
   const color: number[] = [];
@@ -608,7 +602,12 @@ export function cpContradictionFaceFills(
     for (const p of ring) flat.push(p.x, p.y);
     for (const i of earcut(flat)) {
       position.push(flat[i * 2], flat[i * 2 + 1]);
-      color.push(CONTRADICTION_FILL[0], CONTRADICTION_FILL[1], CONTRADICTION_FILL[2], CONTRADICTION_FILL[3]);
+      color.push(
+        CONTRADICTION_FILL[0],
+        CONTRADICTION_FILL[1],
+        CONTRADICTION_FILL[2],
+        CONTRADICTION_FILL[3],
+      );
     }
   };
   for (const figure of figures) {
@@ -699,7 +698,7 @@ export type FoldedFigureAnchor = BesideAnchor;
 export function cpUserAnchorForLineIds(
   document: { crease_pattern: { line_segments: readonly { a: Point; b: Point }[] } },
   lineIds: readonly number[],
-  frameAngle = 0
+  frameAngle = 0,
 ): FoldedFigureAnchor {
   const segments = document.crease_pattern.line_segments;
   let minY = Infinity;
@@ -719,7 +718,7 @@ export function cpUserAnchorForLineIds(
   if (!Number.isFinite(minY) || !Number.isFinite(maxX)) {
     const fallback = pointToFrame(
       { x: CP_PAPER_RECT.x + CP_PAPER_RECT.width, y: CP_PAPER_RECT.y },
-      frameAngle
+      frameAngle,
     );
     return { right: fallback.x, top: fallback.y };
   }
@@ -746,7 +745,7 @@ export function placeFoldedFigureBesideCp(
   figure: OristudioCpFoldedFigureEntry,
   existing: readonly OristudioCpFoldedFigureEntry[],
   paper: FoldedFigureAnchor,
-  frameAngle = 0
+  frameAngle = 0,
 ): FoldedFigurePlacement {
   // The box this figure will *have*, at identity placement — not the extent of
   // what it draws.
@@ -835,7 +834,7 @@ export function foldedFigureUserAabb(figure: OristudioCpFoldedFigureEntry): Aabb
 }
 
 export function foldedFigureUserBounds(
-  figures: readonly OristudioCpFoldedFigureEntry[]
+  figures: readonly OristudioCpFoldedFigureEntry[],
 ): FoldedFigureBounds[] {
   const result: FoldedFigureBounds[] = [];
   for (const figure of figures) {

@@ -1,10 +1,7 @@
 import { act, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  useBpPackingDragRequests,
-  type BpPackingDragRequests,
-} from './useBpPackingDragRequests';
+import { useBpPackingDragRequests, type BpPackingDragRequests } from './useBpPackingDragRequests';
 import type { BpFlapFootprint } from '../lib/bpFlapReshape';
 
 /**
@@ -24,11 +21,9 @@ const actions = {
   moveFlap: vi.fn(async (_id: number, _loc: Loc, _dragging: boolean) => true),
   moveFlaps: vi.fn(async (_ids: number[], _loc: Loc, _dragging: boolean) => true),
   moveDevice: vi.fn(
-    async (_stretchId: string, _index: number, _loc: Loc, _dragging: boolean) => true
+    async (_stretchId: string, _index: number, _loc: Loc, _dragging: boolean) => true,
   ),
-  reshapeFlap: vi.fn(
-    async (_id: number, _footprint: BpFlapFootprint, _dragging: boolean) => true
-  ),
+  reshapeFlap: vi.fn(async (_id: number, _footprint: BpFlapFootprint, _dragging: boolean) => true),
 };
 
 const footprint = (width: number, height: number, radius: number): BpFlapFootprint => ({

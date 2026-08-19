@@ -31,7 +31,7 @@ describe('isRestingCpTool', () => {
     // If the default action moves, so does this — the assertion is that the two
     // agree, not that either is `CreaseSelect`.
     expect(restingCommand.operationId).toBe(
-      (cpActionById(DEFAULT_ORISTUDIO_CP_ACTION_ID) as typeof restingAction).command.operationId
+      (cpActionById(DEFAULT_ORISTUDIO_CP_ACTION_ID) as typeof restingAction).command.operationId,
     );
   });
 });

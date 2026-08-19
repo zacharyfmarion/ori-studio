@@ -22,13 +22,13 @@ describe('shortcut runtime', () => {
     expect(
       shortcutScopeStackForContext({
         activeEditingContext: 'crease-pattern',
-      })
+      }),
     ).toEqual(['viewport', 'crease-pattern', 'global']);
 
     expect(
       shortcutScopeStackForContext({
         activeEditingContext: 'treemaker-tree',
-      })
+      }),
     ).toEqual(['viewport', 'global']);
   });
 
@@ -53,7 +53,7 @@ describe('shortcut runtime', () => {
           activeViewportSurface: 'crease-pattern',
         },
         menu,
-      })
+      }),
     ).toBe(true);
 
     expect(cpViewport).toHaveBeenCalledWith('viewport.zoomIn');
@@ -78,7 +78,7 @@ describe('shortcut runtime', () => {
           activeEditingContext: 'crease-pattern',
         },
         menu,
-      })
+      }),
     ).toBe(true);
 
     expect(cpAction).toHaveBeenCalledWith('cp.action.inward');
@@ -105,7 +105,7 @@ describe('shortcut runtime', () => {
           activeEditingContext: 'treemaker-tree',
         },
         menu,
-      })
+      }),
     ).toBe(true);
 
     expect(designViewport).toHaveBeenCalledWith('viewport.zoomIn');
@@ -174,7 +174,7 @@ describe('shortcut runtime', () => {
 
         const event = pressDelete();
         expect(
-          handleShortcutRuntimeKeyDown(event, { context: { activeEditingContext: context }, menu })
+          handleShortcutRuntimeKeyDown(event, { context: { activeEditingContext: context }, menu }),
         ).toBe(true);
         expect(menu).toHaveBeenCalledWith('edit.delete');
       });
@@ -186,10 +186,7 @@ describe('shortcut runtime', () => {
     it('treats a viewport executor that answers nothing as declining', () => {
       const menu = vi.fn();
       cleanupWith(
-        registerViewportShortcutExecutor(
-          'tree',
-          (() => undefined) as unknown as () => boolean
-        )
+        registerViewportShortcutExecutor('tree', (() => undefined) as unknown as () => boolean),
       );
 
       const event = pressDelete();
@@ -197,7 +194,7 @@ describe('shortcut runtime', () => {
         handleShortcutRuntimeKeyDown(event, {
           context: { activeEditingContext: 'treemaker-tree' },
           menu,
-        })
+        }),
       ).toBe(true);
       expect(menu).toHaveBeenCalledWith('edit.delete');
     });
@@ -217,7 +214,7 @@ describe('shortcut runtime', () => {
         context: { activeEditingContext: 'crease-pattern' },
         defaultsSource: 'oriedita',
         menu,
-      }
+      },
     );
 
     // F is Auxiliary under our layout and Fold under upstream's.
@@ -238,7 +235,7 @@ describe('shortcut runtime', () => {
           activeEditingContext: 'crease-pattern',
         },
         menu,
-      })
+      }),
     ).toBe(true);
 
     expect(menu).toHaveBeenCalledWith('edit.delete');

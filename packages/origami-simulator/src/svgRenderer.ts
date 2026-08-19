@@ -130,7 +130,7 @@ export function renderMeshToSvg(
   topology: SvgMeshTopology,
   camera: CameraUniforms,
   frameSettings: RenderSettings,
-  options: RenderMeshToSvgOptions = {}
+  options: RenderMeshToSvgOptions = {},
 ): SvgRenderResult | null {
   // Resolved once, up front, so every crease measurement below — the BSP's ink
   // allowance, the crop padding, the cap-reach test, the stroke itself — reads
@@ -176,7 +176,11 @@ export function renderMeshToSvg(
     items.push({
       kind: 1,
       ref: index,
-      points: screenPoints(projected, [crease.from, crease.to], CREASE_DEPTH_BIAS_NDC * camera.depthRange),
+      points: screenPoints(
+        projected,
+        [crease.from, crease.to],
+        CREASE_DEPTH_BIAS_NDC * camera.depthRange,
+      ),
     });
   });
   // Depth is a plain comparison in this space, so the view is orthographic and
@@ -196,7 +200,7 @@ export function renderMeshToSvg(
 
   const padding = Math.max(
     settings.creaseWidthPx,
-    Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY) * PADDING_RATIO
+    Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY) * PADDING_RATIO,
   );
   const minX = bounds.minX - padding;
   const minY = bounds.minY - padding;
@@ -207,7 +211,7 @@ export function renderMeshToSvg(
   if (options.background !== false) {
     elements.push(
       `  <rect x="${num(minX)}" y="${num(minY)}" width="${num(width)}" height="${num(height)}" ` +
-        `fill="${hex(settings.background)}"${opacityAttr('fill', settings.backgroundAlpha ?? 1)}/>`
+        `fill="${hex(settings.background)}"${opacityAttr('fill', settings.backgroundAlpha ?? 1)}/>`,
     );
   }
   const groups = sourceFaceGroups(topology);
@@ -229,7 +233,7 @@ export function renderMeshToSvg(
         points: screen,
         strokeWidth: triangle ? 0 : settings.creaseWidthPx,
         // A crease never merges, and neither does a face whose group is missing.
-        group: triangle ? groups[triangle.source] ?? -1 : -1,
+        group: triangle ? (groups[triangle.source] ?? -1) : -1,
         fill,
       });
     }
@@ -309,7 +313,7 @@ interface Crease {
 function screenPoints(
   projected: ProjectedVertices,
   indices: readonly number[],
-  depthBias = 0
+  depthBias = 0,
 ): Vec3[] {
   return indices.map((v) => [
     projected.screen[v * 2]!,
@@ -326,9 +330,7 @@ interface Bounds {
 }
 
 /** Bounding box of the pieces actually emitted. Null when nothing is drawn. */
-function pieceBounds(
-  pieces: ReadonlyArray<{ screen: [number, number][] }>
-): Bounds | null {
+function pieceBounds(pieces: ReadonlyArray<{ screen: [number, number][] }>): Bounds | null {
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
@@ -349,7 +351,7 @@ function pieceBounds(
 /** Triangles worth drawing, with the side of the paper each one shows. */
 function collectFaces(
   topology: SvgMeshTopology,
-  projected: ProjectedVertices
+  projected: ProjectedVertices,
 ): { triangles: Triangle[] } {
   const triangles: Triangle[] = [];
   const faceCount = Math.floor(topology.faceIndices.length / 3);
@@ -425,7 +427,7 @@ interface Bounds {
 function artworkBounds(
   projected: ProjectedVertices,
   triangles: readonly Triangle[],
-  creases: readonly Crease[]
+  creases: readonly Crease[],
 ): Bounds | null {
   let minX = Infinity;
   let minY = Infinity;
@@ -465,7 +467,7 @@ function artworkBounds(
 function facePolygon(
   screen: ReadonlyArray<readonly [number, number]>,
   fill: string,
-  settings: RenderSettings
+  settings: RenderSettings,
 ): string {
   const points = screen.map(([x, y]) => `${num(x)},${num(y)}`).join(' ');
   // Opaque faces close their own antialiasing seams; translucent ones must not,
@@ -481,7 +483,7 @@ function faceColor(
   triangle: Triangle,
   projected: ProjectedVertices,
   settings: RenderSettings,
-  strain: Float32Array | null
+  strain: Float32Array | null,
 ): readonly [number, number, number] {
   if (settings.colorMode === 'strain' && strain) {
     // Flat-shaded, as the face shader is in strain mode: lighting would read as
@@ -515,7 +517,7 @@ function strainColor(fraction: number, clip: number): [number, number, number] {
 function lightIntensity(
   triangle: Triangle,
   projected: ProjectedVertices,
-  settings: RenderSettings
+  settings: RenderSettings,
 ): number {
   const at = (vertex: number) =>
     [
@@ -554,7 +556,7 @@ function lightIntensity(
 /** Multiply below 1, lift toward white above it — the shader's `base*shade`. */
 function shade(
   color: readonly [number, number, number],
-  intensity: number
+  intensity: number,
 ): [number, number, number] {
   return [
     clampUnit(color[0] * intensity),
@@ -566,7 +568,7 @@ function shade(
 function creaseElement(
   crease: Crease,
   screen: readonly [number, number][],
-  settings: RenderSettings
+  settings: RenderSettings,
 ): string {
   const color =
     crease.assignment === MOUNTAIN

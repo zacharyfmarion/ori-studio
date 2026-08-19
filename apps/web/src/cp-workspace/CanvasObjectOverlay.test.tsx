@@ -50,7 +50,7 @@ function render(props: Partial<Parameters<typeof CanvasObjectOverlay>[0]> = {}):
         onSelect={() => {}}
         onUpdate={() => {}}
         {...props}
-      />
+      />,
     );
   });
 }
@@ -99,7 +99,7 @@ describe('CanvasObjectOverlay body interactivity', () => {
           interactive
           onSelect={() => {}}
           onUpdate={() => {}}
-        />
+        />,
       );
     });
 
@@ -118,7 +118,9 @@ describe('CanvasObjectOverlay wheel forwarding', () => {
     const received: WheelEvent[] = [];
     canvas.addEventListener('wheel', (event) => received.push(event as WheelEvent));
 
-    container?.querySelector('svg')?.dispatchEvent(new WheelEvent('wheel', { ...init, cancelable: true }));
+    container
+      ?.querySelector('svg')
+      ?.dispatchEvent(new WheelEvent('wheel', { ...init, cancelable: true }));
 
     expect(received).toHaveLength(1);
     return received[0];

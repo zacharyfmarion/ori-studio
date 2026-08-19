@@ -1,11 +1,8 @@
 import { selectProject } from '../../store/workspaceStore/designTabs';
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
-import {
-  simulatorAccuracyLabel,
-  simulatorAccuracyTitle,
-} from "../../i18n/enumLabels";
-import type { TFunction } from "i18next";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { simulatorAccuracyLabel, simulatorAccuracyTitle } from '../../i18n/enumLabels';
+import type { TFunction } from 'i18next';
 import {
   AlertTriangle,
   ArrowUpToLine,
@@ -15,48 +12,38 @@ import {
   RotateCcw,
   StepForward,
   Waves,
-} from "lucide-react";
-import type { FoldDocument as SimulatorFoldDocument } from "@treemaker/origami-simulator";
-import {
-  useSimulatorRuntime,
-  type SimulatorFrameView,
-} from "../../simulator/useSimulatorRuntime";
-import { buildSequenceStepSimulation } from "../../lib/sequenceSimulation";
-import {
-  buildSegmentSimulationFold,
-  resolveCpSegments,
-} from "../../lib/creasePatternSegmentation";
-import { SimulatorSegmentsSidebar } from "./SimulatorSegmentsPanel";
+} from 'lucide-react';
+import type { FoldDocument as SimulatorFoldDocument } from '@treemaker/origami-simulator';
+import { useSimulatorRuntime, type SimulatorFrameView } from '../../simulator/useSimulatorRuntime';
+import { buildSequenceStepSimulation } from '../../lib/sequenceSimulation';
+import { buildSegmentSimulationFold, resolveCpSegments } from '../../lib/creasePatternSegmentation';
+import { SimulatorSegmentsSidebar } from './SimulatorSegmentsPanel';
 import {
   STEP_SIMULATION_ACCURACY_OPTIONS,
   simulatorRunConfig,
   type StepSimulationAccuracy,
-} from "../../lib/simulatorRunConfig";
-import {
-  SimulatorViewport,
-  type SimulatorViewportHandle,
-} from "../../simulator/SimulatorViewport";
-import { announceUprightSet } from "../../lib/uprightFeedback";
-import { useSimulatorShortcuts } from "../../simulator/useSimulatorShortcuts";
-import { FoldPlayhead } from "../../simulator/foldPlayhead";
-import { SimulatorExportMenu } from "../../simulator/SimulatorExportMenu";
-import { useSimulatorViewExport } from "../../simulator/useSimulatorViewExport";
+} from '../../lib/simulatorRunConfig';
+import { SimulatorViewport, type SimulatorViewportHandle } from '../../simulator/SimulatorViewport';
+import { announceUprightSet } from '../../lib/uprightFeedback';
+import { useSimulatorShortcuts } from '../../simulator/useSimulatorShortcuts';
+import { FoldPlayhead } from '../../simulator/foldPlayhead';
+import { SimulatorExportMenu } from '../../simulator/SimulatorExportMenu';
+import { useSimulatorViewExport } from '../../simulator/useSimulatorViewExport';
 import {
   foldNeedsTriangulation,
   type SimulatorHighlights,
   EMPTY_HIGHLIGHTS,
-} from "../../simulator/canvas2dFrame";
-import { simulatorMaterialOptions } from "../../lib/simulatorSettings";
-import { useWorkspaceStore } from "../../store/workspaceStore";
-import { useWorkspaceCapabilities } from "../../store/workspaceStore/useWorkspaceCapabilities";
-import { IconButton } from "../ui/IconButton";
-import { SegmentedControl } from "../ui/SegmentedControl";
-import { NextDocumentAction } from "./NextDocumentAction";
+} from '../../simulator/canvas2dFrame';
+import { simulatorMaterialOptions } from '../../lib/simulatorSettings';
+import { useWorkspaceStore } from '../../store/workspaceStore';
+import { useWorkspaceCapabilities } from '../../store/workspaceStore/useWorkspaceCapabilities';
+import { IconButton } from '../ui/IconButton';
+import { SegmentedControl } from '../ui/SegmentedControl';
+import { NextDocumentAction } from './NextDocumentAction';
 // Registers `__simCapabilityProbe()` in dev builds; no-op in production.
-import "../../simulator/capabilityProbe";
+import '../../simulator/capabilityProbe';
 
-type LoadState = "idle" | "loading" | "ready" | "empty" | "error";
-
+type LoadState = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
 
 // Readouts (step/strain/fold%) update at most this often; see handleFrame.
 const READOUT_INTERVAL_MS = 66;
@@ -76,76 +63,47 @@ export function SimulatorPanel() {
   // re-runs once it exists and can transfer it to the worker.
   const [canvasEl, setCanvasEl] = useState<HTMLCanvasElement | null>(null);
 
-  const creaseCount = useWorkspaceStore(
-    (state) => selectProject(state).creases.length,
-  );
+  const creaseCount = useWorkspaceStore((state) => selectProject(state).creases.length);
   // Editable (hand-drawn / imported) crease patterns live in the oristudio CP
   // document, not `project.creases`, so they are a valid simulation source even
   // when `creaseCount` is 0.
-  const hasEditableCp = useWorkspaceStore(
-    (state) => state.oristudioCpDocument !== null,
-  );
+  const hasEditableCp = useWorkspaceStore((state) => state.oristudioCpDocument !== null);
   const foldArtifacts = useWorkspaceStore((state) => state.foldArtifacts);
-  const foldArtifactRevision = useWorkspaceStore(
-    (state) => state.foldArtifactRevision,
-  );
-  const selectedSegmentId = useWorkspaceStore(
-    (state) => state.selectedSegmentId,
-  );
-  const foldArtifactError = useWorkspaceStore(
-    (state) => state.foldArtifactError,
-  );
-  const foldArtifactStatus = useWorkspaceStore(
-    (state) => state.foldArtifactStatus,
-  );
+  const foldArtifactRevision = useWorkspaceStore((state) => state.foldArtifactRevision);
+  const selectedSegmentId = useWorkspaceStore((state) => state.selectedSegmentId);
+  const foldArtifactError = useWorkspaceStore((state) => state.foldArtifactError);
+  const foldArtifactStatus = useWorkspaceStore((state) => state.foldArtifactStatus);
   const sequencePlan = useWorkspaceStore((state) => state.sequencePlan);
-  const sequenceSimulationFocus = useWorkspaceStore(
-    (state) => state.sequenceSimulationFocus,
-  );
-  const setSequenceSimulationFocus = useWorkspaceStore(
-    (state) => state.setSequenceSimulationFocus,
-  );
-  const ensureFoldArtifacts = useWorkspaceStore(
-    (state) => state.ensureFoldArtifacts,
-  );
-  const refreshFoldArtifacts = useWorkspaceStore(
-    (state) => state.refreshFoldArtifacts,
-  );
+  const sequenceSimulationFocus = useWorkspaceStore((state) => state.sequenceSimulationFocus);
+  const setSequenceSimulationFocus = useWorkspaceStore((state) => state.setSequenceSimulationFocus);
+  const ensureFoldArtifacts = useWorkspaceStore((state) => state.ensureFoldArtifacts);
+  const refreshFoldArtifacts = useWorkspaceStore((state) => state.refreshFoldArtifacts);
   const capabilities = useWorkspaceCapabilities();
 
   const [foldPercent, setFoldPercent] = useState(INITIAL_FOLD_PERCENT);
-  const [loadState, setLoadState] = useState<LoadState>("idle");
+  const [loadState, setLoadState] = useState<LoadState>('idle');
   const [modelError, setModelError] = useState<string | null>(null);
   const [step, setStep] = useState(0);
   const [strain, setStrain] = useState(0);
   const [modelStats, setModelStats] = useState({ vertices: 0, triangles: 0 });
-  const [backend, setBackend] = useState<"webgl2" | "reference" | null>(null);
+  const [backend, setBackend] = useState<'webgl2' | 'reference' | null>(null);
   // Render/material/solver settings live in the store: the options pane is a
   // sibling panel, so this panel applies them but does not own them.
   const viewSettings = useWorkspaceStore((state) => state.simulatorSettings);
   const setSimulatorSetting = useWorkspaceStore((state) => state.setSimulatorSetting);
-  const [stepAccuracy, setStepAccuracy] =
-    useState<StepSimulationAccuracy>("fast");
-  const refreshCapability = capabilities["simulator.refresh"];
+  const [stepAccuracy, setStepAccuracy] = useState<StepSimulationAccuracy>('fast');
+  const refreshCapability = capabilities['simulator.refresh'];
   const stepSimulationResult = useMemo(
     () =>
-      sequenceSimulationFocus.kind === "sequence_step"
-        ? buildSequenceStepSimulation(
-            sequencePlan,
-            sequenceSimulationFocus.stepId,
-          )
+      sequenceSimulationFocus.kind === 'sequence_step'
+        ? buildSequenceStepSimulation(sequencePlan, sequenceSimulationFocus.stepId)
         : null,
     [sequencePlan, sequenceSimulationFocus],
   );
-  const activeStepSimulation = stepSimulationResult?.ok
-    ? stepSimulationResult.simulation
-    : null;
+  const activeStepSimulation = stepSimulationResult?.ok ? stepSimulationResult.simulation : null;
   const stepSimulationError =
-    stepSimulationResult && !stepSimulationResult.ok
-      ? stepSimulationResult.reason
-      : null;
-  const simulatorMode =
-    sequenceSimulationFocus.kind === "sequence_step" ? "step" : "whole";
+    stepSimulationResult && !stepSimulationResult.ok ? stepSimulationResult.reason : null;
+  const simulatorMode = sequenceSimulationFocus.kind === 'sequence_step' ? 'step' : 'whole';
   const runConfig = useMemo(
     () => simulatorRunConfig(simulatorMode, stepAccuracy),
     [simulatorMode, stepAccuracy],
@@ -154,67 +112,55 @@ export function SimulatorPanel() {
   // Memoized so a new sub-fold object is not produced on every render (which
   // would thrash the prepare/dispose effect). Sequence-step mode is unaffected.
   const activeSegmentId = useMemo(() => {
-    if (activeStepSimulation || simulatorMode !== "whole") return null;
+    if (activeStepSimulation || simulatorMode !== 'whole') return null;
     const segments = resolveCpSegments(foldArtifacts);
     if (segments.length <= 1) return null;
-    const segment =
-      segments.find((candidate) => candidate.id === selectedSegmentId) ??
-      segments[0];
+    const segment = segments.find((candidate) => candidate.id === selectedSegmentId) ?? segments[0];
     return segment?.id ?? null;
   }, [activeStepSimulation, foldArtifacts, selectedSegmentId, simulatorMode]);
   const simulationFold = useMemo(() => {
     if (activeStepSimulation) return activeStepSimulation.fold;
-    const wholeFold =
-      foldArtifacts?.simulation_model?.fold ?? foldArtifacts?.fold ?? null;
+    const wholeFold = foldArtifacts?.simulation_model?.fold ?? foldArtifacts?.fold ?? null;
     if (!wholeFold) return null;
     if (activeSegmentId !== null) {
-      const segment = resolveCpSegments(foldArtifacts).find(
-        (c) => c.id === activeSegmentId,
-      );
+      const segment = resolveCpSegments(foldArtifacts).find((c) => c.id === activeSegmentId);
       if (segment && foldArtifacts) return buildSegmentSimulationFold(foldArtifacts, segment);
     }
     return wholeFold;
   }, [activeStepSimulation, foldArtifacts, activeSegmentId]);
   const simulationFoldProfile = activeStepSimulation?.foldProfile ?? null;
   const simulationModelError =
-    stepSimulationError ??
-    (!activeStepSimulation ? foldArtifacts?.simulation_model_error : null);
+    stepSimulationError ?? (!activeStepSimulation ? foldArtifacts?.simulation_model_error : null);
   const simulationSourceKey = activeStepSimulation
     ? `step:${activeStepSimulation.step.id}:${activeStepSimulation.beforeState.id}:${activeStepSimulation.afterState.id}`
-    : sequenceSimulationFocus.kind === "sequence_step"
-      ? `step-error:${sequenceSimulationFocus.stepId}:${stepSimulationError ?? "unknown"}`
-      : `whole:${foldArtifacts ? foldArtifactRevision : "empty"}:${activeSegmentId ?? "all"}`;
+    : sequenceSimulationFocus.kind === 'sequence_step'
+      ? `step-error:${sequenceSimulationFocus.stepId}:${stepSimulationError ?? 'unknown'}`
+      : `whole:${foldArtifacts ? foldArtifactRevision : 'empty'}:${activeSegmentId ?? 'all'}`;
 
-  const handleFrame = useCallback(
-    (frame: SimulatorFrameView) => {
-      // Reported, not assigned: a frame carries the target as it was when the
-      // worker ticked, so during playback it is a round-trip out of date and
-      // writing it would drag the fold back to where it had already been. The
-      // playhead is what decides which of the two writers is in charge.
-      playheadRef.current.report(frame.foldPercent);
-      // Straight to the viewport, not through state: at 60fps a re-render per
-      // frame would starve the loop this is reporting on.
-      viewportRef.current?.showFrame(frame);
+  const handleFrame = useCallback((frame: SimulatorFrameView) => {
+    // Reported, not assigned: a frame carries the target as it was when the
+    // worker ticked, so during playback it is a round-trip out of date and
+    // writing it would drag the fold back to where it had already been. The
+    // playhead is what decides which of the two writers is in charge.
+    playheadRef.current.report(frame.foldPercent);
+    // Straight to the viewport, not through state: at 60fps a re-render per
+    // frame would starve the loop this is reporting on.
+    viewportRef.current?.showFrame(frame);
 
-      // Throttle the readout state to ~15Hz. These three setStates re-render the
-      // whole panel, and at 60fps that re-render was starving the main-thread rAF
-      // that drives the solver loop -- so the readouts, meant to *reflect*
-      // progress, were throttling it. A step counter and strain value do not need
-      // 60Hz; the frame itself (canvas) still updates every frame. Always flush
-      // the final converged frame so the readouts land on the settled values.
-      const now = performance.now();
-      if (
-        frame.converged ||
-        now - lastReadoutRef.current > READOUT_INTERVAL_MS
-      ) {
-        lastReadoutRef.current = now;
-        setStep(frame.step);
-        setStrain(frame.maxStrain);
-        setFoldPercent(frame.foldPercent);
-      }
-    },
-    [],
-  );
+    // Throttle the readout state to ~15Hz. These three setStates re-render the
+    // whole panel, and at 60fps that re-render was starving the main-thread rAF
+    // that drives the solver loop -- so the readouts, meant to *reflect*
+    // progress, were throttling it. A step counter and strain value do not need
+    // 60Hz; the frame itself (canvas) still updates every frame. Always flush
+    // the final converged frame so the readouts land on the settled values.
+    const now = performance.now();
+    if (frame.converged || now - lastReadoutRef.current > READOUT_INTERVAL_MS) {
+      lastReadoutRef.current = now;
+      setStep(frame.step);
+      setStrain(frame.maxStrain);
+      setFoldPercent(frame.foldPercent);
+    }
+  }, []);
 
   // A fold profile (segment/sequence-step simulation) uses a solver path the GPU
   // renderer does not cover, so those keep the canvas-2D path.
@@ -258,7 +204,7 @@ export function SimulatorPanel() {
   // fold -- so the pane's changes reach the solver through here instead. Both
   // backends recompute their timestep on a material change.
   useEffect(() => {
-    if (runtimeStatus !== "ready") return;
+    if (runtimeStatus !== 'ready') return;
     pushMaterial(simulatorMaterialOptions(viewSettings));
   }, [runtimeStatus, pushMaterial, viewSettings]);
 
@@ -301,21 +247,18 @@ export function SimulatorPanel() {
   // Load/error state is derived from the runtime plus the surrounding document
   // state; there is no separate solver lifecycle to track any more.
   useEffect(() => {
-    if (simulatorMode === "step") {
+    if (simulatorMode === 'step') {
       if (stepSimulationError) {
         setModelError(stepSimulationError);
-        setLoadState("error");
+        setLoadState('error');
       } else if (activeStepSimulation) {
         setModelError(null);
-        setLoadState(runtimeStatus === "ready" ? "ready" : "loading");
+        setLoadState(runtimeStatus === 'ready' ? 'ready' : 'loading');
       } else {
         setModelError(
-          t(
-            "panels:simulator.stepSimulationUnavailable",
-            "Step simulation unavailable.",
-          ),
+          t('panels:simulator.stepSimulationUnavailable', 'Step simulation unavailable.'),
         );
-        setLoadState("error");
+        setLoadState('error');
       }
       return;
     }
@@ -323,40 +266,39 @@ export function SimulatorPanel() {
     if (creaseCount === 0 && !hasEditableCp) {
       setPlaying(false);
       setModelError(null);
-      setLoadState("empty");
+      setLoadState('empty');
       return;
     }
 
     if (runtime.error) {
       setModelError(runtime.error);
-      setLoadState("error");
+      setLoadState('error');
       return;
     }
 
     if (foldArtifacts) {
       setModelError(simulationModelError ?? null);
       if (simulationModelError) {
-        setLoadState("error");
+        setLoadState('error');
         return;
       }
-      setLoadState(runtimeStatus === "ready" ? "ready" : "loading");
+      setLoadState(runtimeStatus === 'ready' ? 'ready' : 'loading');
       return;
     }
 
     setModelError(null);
-    if (foldArtifactStatus === "loading") {
-      setLoadState("loading");
+    if (foldArtifactStatus === 'loading') {
+      setLoadState('loading');
       return;
     }
-    if (foldArtifactStatus === "error") {
+    if (foldArtifactStatus === 'error') {
       setModelError(
-        foldArtifactError ??
-          t("panels:simulator.unavailable", "Simulator unavailable"),
+        foldArtifactError ?? t('panels:simulator.unavailable', 'Simulator unavailable'),
       );
-      setLoadState("error");
+      setLoadState('error');
       return;
     }
-    setLoadState("loading");
+    setLoadState('loading');
     void ensureFoldArtifacts();
   }, [
     creaseCount,
@@ -408,8 +350,7 @@ export function SimulatorPanel() {
   // Play advances the fold target over time; the worker does the solving, so
   // this callback only ever computes a number and hands it over.
   useEffect(() => {
-    if (!playing || typeof window === "undefined" || runtimeStatus !== "ready")
-      return;
+    if (!playing || typeof window === 'undefined' || runtimeStatus !== 'ready') return;
 
     const playhead = playheadRef.current;
     if (playhead.begin().rewound) {
@@ -422,10 +363,7 @@ export function SimulatorPanel() {
       if (previousTime === null) previousTime = time;
       const elapsedSeconds = Math.min(0.08, (time - previousTime) / 1000);
       previousTime = time;
-      const nextPercent = playhead.advance(
-        elapsedSeconds,
-        viewSettings.foldPlayPercentPerSecond,
-      );
+      const nextPercent = playhead.advance(elapsedSeconds, viewSettings.foldPlayPercentPerSecond);
 
       pushFoldPercent(nextPercent);
 
@@ -439,8 +377,7 @@ export function SimulatorPanel() {
 
     playRafRef.current = window.requestAnimationFrame(tick);
     return () => {
-      if (playRafRef.current !== null)
-        window.cancelAnimationFrame(playRafRef.current);
+      if (playRafRef.current !== null) window.cancelAnimationFrame(playRafRef.current);
       playRafRef.current = null;
       playhead.end();
     };
@@ -480,7 +417,7 @@ export function SimulatorPanel() {
   // listener of our own. The panel is no longer the only thing that can hold a
   // simulation, so "only mounted here" stopped being a scoping argument.
   useSimulatorShortcuts({
-    active: loadState === "ready",
+    active: loadState === 'ready',
     foldStepPercent: runConfig.foldStepPercent,
     handlers: {
       playPause: () => setPlaying(!playing),
@@ -491,7 +428,7 @@ export function SimulatorPanel() {
       zoomBy,
       toggleSetting: (key) => {
         // Hidden lines only mean anything while crease lines are drawn.
-        if (key === "showHiddenLines" && !viewSettings.showEdges) return;
+        if (key === 'showHiddenLines' && !viewSettings.showEdges) return;
         setSimulatorSetting(key, !viewSettings[key]);
       },
     },
@@ -501,24 +438,20 @@ export function SimulatorPanel() {
     stepSimulationError ??
     modelError ??
     foldArtifactError ??
-    t("panels:simulator.unavailable", "Simulator unavailable");
+    t('panels:simulator.unavailable', 'Simulator unavailable');
   const statusLabel =
-    loadState === "ready"
-      ? t(
-          "panels:simulator.stats",
-          "{{vertices}} vertices | {{triangles}} triangles",
-          {
-            vertices: modelStats.vertices,
-            triangles: modelStats.triangles,
-          },
-        )
-      : loadState === "loading"
-        ? t("panels:simulator.loading", "Loading")
-        : loadState === "empty"
-          ? t("panels:simulator.noCreasePattern", "No crease pattern")
-          : loadState === "error"
+    loadState === 'ready'
+      ? t('panels:simulator.stats', '{{vertices}} vertices | {{triangles}} triangles', {
+          vertices: modelStats.vertices,
+          triangles: modelStats.triangles,
+        })
+      : loadState === 'loading'
+        ? t('panels:simulator.loading', 'Loading')
+        : loadState === 'empty'
+          ? t('panels:simulator.noCreasePattern', 'No crease pattern')
+          : loadState === 'error'
             ? shortStatus(errorDetail, t)
-            : t("panels:simulator.idle", "Idle");
+            : t('panels:simulator.idle', 'Idle');
 
   return (
     <div className="simulator-workspace">
@@ -527,9 +460,7 @@ export function SimulatorPanel() {
         <div className="panel-toolbar">
           <div className="panel-toolbar__group">
             <Waves size={14} />
-            <span className="panel-title">
-              {t("panels:simulator.title", "Simulator")}
-            </span>
+            <span className="panel-title">{t('panels:simulator.title', 'Simulator')}</span>
           </div>
           <div className="panel-toolbar__group">
             {/*
@@ -552,8 +483,8 @@ export function SimulatorPanel() {
             <IconButton
               size="sm"
               variant="toolbar"
-              title={t("panels:simulator.setUpright", "Set upright")}
-              disabled={loadState !== "ready"}
+              title={t('panels:simulator.setUpright', 'Set upright')}
+              disabled={loadState !== 'ready'}
               onClick={() => {
                 viewportRef.current?.setUpright();
                 announceUprightSet(t);
@@ -561,55 +492,49 @@ export function SimulatorPanel() {
             >
               <ArrowUpToLine size={14} />
             </IconButton>
-            <SimulatorExportMenu
-              onExport={exportView}
-              disabled={loadState !== "ready"}
-            />
+            <SimulatorExportMenu onExport={exportView} disabled={loadState !== 'ready'} />
           </div>
           {/* Scope controls hidden while the Sequence panel is hidden (always "whole"). */}
           <div
             className="panel-toolbar__group simulator-scope-controls"
-            style={{ display: "none" }}
+            style={{ display: 'none' }}
           >
             <SegmentedControl
-              aria-label={t("panels:simulator.scope", "Simulator scope")}
+              aria-label={t('panels:simulator.scope', 'Simulator scope')}
               value={simulatorMode}
               onChange={(mode) => {
-                if (mode === "whole") {
-                  setSequenceSimulationFocus({ kind: "whole" });
+                if (mode === 'whole') {
+                  setSequenceSimulationFocus({ kind: 'whole' });
                   return;
                 }
-                if (sequenceSimulationFocus.kind === "sequence_step") return;
+                if (sequenceSimulationFocus.kind === 'sequence_step') return;
                 const firstStep = sequencePlan?.steps[0];
                 if (firstStep) {
                   setSequenceSimulationFocus({
-                    kind: "sequence_step",
+                    kind: 'sequence_step',
                     stepId: firstStep.id,
                   });
                 }
               }}
               options={[
                 {
-                  value: "whole",
-                  label: t("panels:simulator.scopeWhole", "Whole"),
-                  title: t(
-                    "panels:simulator.scopeWholeTitle",
-                    "Simulate the whole crease pattern",
-                  ),
+                  value: 'whole',
+                  label: t('panels:simulator.scopeWhole', 'Whole'),
+                  title: t('panels:simulator.scopeWholeTitle', 'Simulate the whole crease pattern'),
                 },
                 {
-                  value: "step",
-                  label: t("panels:simulator.scopeStep", "Step"),
+                  value: 'step',
+                  label: t('panels:simulator.scopeStep', 'Step'),
                   title: t(
-                    "panels:simulator.scopeStepTitle",
-                    "Simulate the selected sequence step",
+                    'panels:simulator.scopeStepTitle',
+                    'Simulate the selected sequence step',
                   ),
                 },
               ]}
             />
             {activeStepSimulation && (
               <span className="simulator-step-chip">
-                {t("panels:simulator.stepChip", "Step {{n}}: {{kind}}", {
+                {t('panels:simulator.stepChip', 'Step {{n}}: {{kind}}', {
                   n: activeStepSimulation.stepIndex + 1,
                   kind: formatKind(activeStepSimulation.step.kind),
                 })}
@@ -618,16 +543,13 @@ export function SimulatorPanel() {
             {activeStepSimulation?.warning && (
               <span className="simulator-step-chip simulator-step-chip--warn">
                 <AlertTriangle size={12} />
-                {t("panels:simulator.manualPreview", "Manual preview")}
+                {t('panels:simulator.manualPreview', 'Manual preview')}
               </span>
             )}
-            {simulatorMode === "step" && (
+            {simulatorMode === 'step' && (
               <div className="simulator-accuracy-controls">
                 <SegmentedControl
-                  aria-label={t(
-                    "panels:simulator.stepAccuracy",
-                    "Step simulation accuracy",
-                  )}
+                  aria-label={t('panels:simulator.stepAccuracy', 'Step simulation accuracy')}
                   value={stepAccuracy}
                   onChange={setStepAccuracy}
                   options={STEP_SIMULATION_ACCURACY_OPTIONS.map((option) => ({
@@ -643,9 +565,9 @@ export function SimulatorPanel() {
         <div className="panel-body simulator-panel__body">
           <SimulatorViewport
             ref={viewportRef}
-            canvasKey={allowGpuRender ? "gl" : "2d"}
+            canvasKey={allowGpuRender ? 'gl' : '2d'}
             onCanvasChange={setCanvasEl}
-            interactive={loadState === "ready"}
+            interactive={loadState === 'ready'}
             gpuActive={gpuActive}
             viewSettings={viewSettings}
             highlights={highlights}
@@ -653,32 +575,30 @@ export function SimulatorPanel() {
             pushRenderSettings={pushRenderSettings}
             className="simulator-canvas"
             ariaLabel={t(
-              "panels:simulator.canvasAriaLabel",
-              "Origami folded-base simulator. Drag to rotate, scroll to zoom, double-click to reset view.",
+              'panels:simulator.canvasAriaLabel',
+              'Origami folded-base simulator. Drag to rotate, scroll to zoom, double-click to reset view.',
             )}
             title={t(
-              "panels:simulator.canvasTitle",
-              "Drag to rotate, scroll to zoom, double-click to reset view",
+              'panels:simulator.canvasTitle',
+              'Drag to rotate, scroll to zoom, double-click to reset view',
             )}
           />
-          {loadState !== "ready" && (
+          {loadState !== 'ready' && (
             <div className="simulator-panel__empty">
-              <span title={loadState === "error" ? errorDetail : undefined}>
-                {statusLabel}
-              </span>
-              {loadState === "error" && <small>{errorDetail}</small>}
-              {loadState === "empty" && <NextDocumentAction />}
+              <span title={loadState === 'error' ? errorDetail : undefined}>{statusLabel}</span>
+              {loadState === 'error' && <small>{errorDetail}</small>}
+              {loadState === 'empty' && <NextDocumentAction />}
             </div>
           )}
         </div>
         <div className="simulator-controls">
           <div
             className="simulator-transport"
-            aria-label={t("panels:simulator.controls", "Simulation controls")}
+            aria-label={t('panels:simulator.controls', 'Simulation controls')}
           >
             <IconButton
               size="sm"
-              title={t("panels:simulator.refresh", "Refresh")}
+              title={t('panels:simulator.refresh', 'Refresh')}
               tooltipSide="top"
               onClick={() => {
                 setPlaying(false);
@@ -692,97 +612,86 @@ export function SimulatorPanel() {
             <IconButton
               size="sm"
               title={`${
-                playing
-                  ? t("panels:simulator.pause", "Pause")
-                  : t("panels:simulator.play", "Play")
+                playing ? t('panels:simulator.pause', 'Pause') : t('panels:simulator.play', 'Play')
               } (Space)`}
               aria-label={
-                playing
-                  ? t("panels:simulator.pause", "Pause")
-                  : t("panels:simulator.play", "Play")
+                playing ? t('panels:simulator.pause', 'Pause') : t('panels:simulator.play', 'Play')
               }
               tooltipSide="top"
               onClick={() => setPlaying(!playing)}
-              disabled={loadState !== "ready"}
+              disabled={loadState !== 'ready'}
             >
               {playing ? <Pause size={14} /> : <Play size={14} />}
             </IconButton>
             <IconButton
               size="sm"
-              title={`${t("panels:simulator.step", "Step")} (→)`}
-              aria-label={t("panels:simulator.step", "Step")}
+              title={`${t('panels:simulator.step', 'Step')} (→)`}
+              aria-label={t('panels:simulator.step', 'Step')}
               tooltipSide="top"
               onClick={stepFoldTarget}
-              disabled={loadState !== "ready"}
+              disabled={loadState !== 'ready'}
             >
               <StepForward size={14} />
             </IconButton>
             <IconButton
               size="sm"
-              title={`${t("panels:simulator.reset", "Reset")} (R)`}
-              aria-label={t("panels:simulator.reset", "Reset")}
+              title={`${t('panels:simulator.reset', 'Reset')} (R)`}
+              aria-label={t('panels:simulator.reset', 'Reset')}
               tooltipSide="top"
               onClick={replayFromFlat}
-              disabled={loadState !== "ready"}
+              disabled={loadState !== 'ready'}
             >
               <RotateCcw size={14} />
             </IconButton>
           </div>
           <label className="simulator-slider">
             <span>
-              {simulatorMode === "step"
-                ? t("panels:simulator.step", "Step")
-                : t("panels:simulator.fold", "Fold")}
+              {simulatorMode === 'step'
+                ? t('panels:simulator.step', 'Step')
+                : t('panels:simulator.fold', 'Fold')}
             </span>
             <input
               aria-label={
-                simulatorMode === "step"
-                  ? t("panels:simulator.stepPercent", "Step percent")
-                  : t("panels:simulator.foldPercent", "Fold percent")
+                simulatorMode === 'step'
+                  ? t('panels:simulator.stepPercent', 'Step percent')
+                  : t('panels:simulator.foldPercent', 'Fold percent')
               }
               type="range"
               min="0"
               max="100"
               step="1"
               value={Math.round(foldPercent)}
-              onChange={(event) =>
-                setFoldTarget(Number(event.currentTarget.value))
-              }
-              disabled={loadState !== "ready"}
+              onChange={(event) => setFoldTarget(Number(event.currentTarget.value))}
+              disabled={loadState !== 'ready'}
             />
             <output>
-              {t("panels:simulator.percent", "{{value}}%", {
+              {t('panels:simulator.percent', '{{value}}%', {
                 value: Math.round(foldPercent),
               })}
             </output>
           </label>
           <div className="simulator-readout">
             <span>{statusLabel}</span>
+            <span>{t('panels:simulator.stepReadout', 'Step {{n}}', { n: step })}</span>
             <span>
-              {t("panels:simulator.stepReadout", "Step {{n}}", { n: step })}
-            </span>
-            <span>
-              {t("panels:simulator.strain", "Strain {{value}}", {
+              {t('panels:simulator.strain', 'Strain {{value}}', {
                 value: strain.toFixed(4),
               })}
             </span>
             {backend && (
               <span
                 title={
-                  backend === "webgl2"
-                    ? t(
-                        "panels:simulator.backendGpuTitle",
-                        "Solving on the GPU (WebGL2)",
-                      )
+                  backend === 'webgl2'
+                    ? t('panels:simulator.backendGpuTitle', 'Solving on the GPU (WebGL2)')
                     : t(
-                        "panels:simulator.backendCpuTitle",
-                        "Solving on the CPU (WebGL2 unavailable)",
+                        'panels:simulator.backendCpuTitle',
+                        'Solving on the CPU (WebGL2 unavailable)',
                       )
                 }
               >
-                {backend === "webgl2"
-                  ? t("panels:simulator.backendGpu", "GPU")
-                  : t("panels:simulator.backendCpu", "CPU")}
+                {backend === 'webgl2'
+                  ? t('panels:simulator.backendGpu', 'GPU')
+                  : t('panels:simulator.backendCpu', 'CPU')}
               </span>
             )}
           </div>
@@ -798,13 +707,11 @@ function clamp(value: number, min: number, max: number): number {
 
 function shortStatus(message: string, t: TFunction): string {
   const trimmed = message.trim();
-  if (!trimmed)
-    return t("panels:simulator.unavailable", "Simulator unavailable");
+  if (!trimmed) return t('panels:simulator.unavailable', 'Simulator unavailable');
   const sentence = trimmed.split(/[.;]\s+/u)[0] ?? trimmed;
   return sentence.length > 54 ? `${sentence.slice(0, 51)}...` : sentence;
 }
 
 function formatKind(kind: string): string {
-  return kind.replaceAll("_", " ");
+  return kind.replaceAll('_', ' ');
 }
-

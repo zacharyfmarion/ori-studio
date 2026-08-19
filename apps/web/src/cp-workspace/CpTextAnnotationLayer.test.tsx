@@ -49,7 +49,7 @@ function renderLayer(editing: boolean): HTMLElement {
         onExitEdit={() => {}}
         onDelete={() => {}}
         onSyncHeight={() => {}}
-      />
+      />,
     );
   });
   const element = container?.querySelector<HTMLElement>('.cp-text-box');

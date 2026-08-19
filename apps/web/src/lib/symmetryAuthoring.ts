@@ -43,7 +43,7 @@ export function findPairedNodeId(project: TreeProject, nodeId: number): number |
 export function addSymmetryAuthoringPair(
   pairs: SymmetryAuthoringPair[],
   node1: number,
-  node2: number
+  node2: number,
 ): SymmetryAuthoringPair[] {
   if (node1 === node2) return pairs;
   const nextPair = {
@@ -58,26 +58,26 @@ export function addSymmetryAuthoringPair(
 
 export function filterSymmetryAuthoringPairs(
   project: TreeProject,
-  pairs: SymmetryAuthoringPair[]
+  pairs: SymmetryAuthoringPair[],
 ): SymmetryAuthoringPair[] {
   return pairs.filter(
     (pair) =>
       pair.node1 !== pair.node2 &&
       nodeExists(project, pair.node1) &&
-      nodeExists(project, pair.node2)
+      nodeExists(project, pair.node2),
   );
 }
 
 export function findSymmetryAuthoringPairId(
   project: TreeProject,
   pairs: SymmetryAuthoringPair[],
-  nodeId: number
+  nodeId: number,
 ): number | null {
   const pair = pairs.find(
     (candidate) =>
       (candidate.node1 === nodeId || candidate.node2 === nodeId) &&
       nodeExists(project, candidate.node1) &&
-      nodeExists(project, candidate.node2)
+      nodeExists(project, candidate.node2),
   );
   if (!pair) return null;
   return pair.node1 === nodeId ? pair.node2 : pair.node1;
@@ -86,7 +86,7 @@ export function findSymmetryAuthoringPairId(
 export function findMirrorNodeId(
   project: TreeProject,
   pairs: SymmetryAuthoringPair[],
-  nodeId: number
+  nodeId: number,
 ): number | null {
   return findPairedNodeId(project, nodeId) ?? findSymmetryAuthoringPairId(project, pairs, nodeId);
 }
@@ -94,7 +94,7 @@ export function findMirrorNodeId(
 function mirroredNodeForEdgeEndpoint(
   project: TreeProject,
   pairs: SymmetryAuthoringPair[],
-  nodeId: number
+  nodeId: number,
 ): number | null {
   const paired = findMirrorNodeId(project, pairs, nodeId);
   if (paired) return paired;
@@ -106,7 +106,7 @@ function mirroredNodeForEdgeEndpoint(
 export function findMirrorEdgeId(
   project: TreeProject,
   pairs: SymmetryAuthoringPair[],
-  edgeId: number
+  edgeId: number,
 ): number | null {
   const edge = project.edges.find((candidate) => candidate.id === edgeId);
   if (!edge || !project.hasSymmetry) return null;
@@ -117,7 +117,7 @@ export function findMirrorEdgeId(
     (candidate) =>
       candidate.id !== edge.id &&
       ((candidate.nodes[0] === node1 && candidate.nodes[1] === node2) ||
-        (candidate.nodes[0] === node2 && candidate.nodes[1] === node1))
+        (candidate.nodes[0] === node2 && candidate.nodes[1] === node1)),
   );
   return mirrored?.id ?? null;
 }

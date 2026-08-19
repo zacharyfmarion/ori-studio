@@ -35,7 +35,7 @@ export interface PreviewStrokeGroup {
  */
 export function previewGroupsToStrokes(
   groups: readonly PreviewStrokeGroup[],
-  dashed = false
+  dashed = false,
 ): StrokeGeometry {
   const count = groups.reduce((total, group) => total + group.segments.length, 0);
   const a = new Float32Array(count * 2);
@@ -78,7 +78,7 @@ export function previewGroupsToStrokes(
 export function previewSegmentsToStrokes(
   segments: readonly ToolPreviewSegment[],
   color: Rgba,
-  dashed = false
+  dashed = false,
 ): StrokeGeometry {
   return previewGroupsToStrokes([{ segments, color }], dashed);
 }

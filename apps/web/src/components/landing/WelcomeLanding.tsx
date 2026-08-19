@@ -54,14 +54,14 @@ export function WelcomeLanding() {
         title={t('landing:what.title', 'A free, open-source workspace for origami design')}
         lead={t(
           'landing:what.lead',
-          'Sketch a base, draw the crease pattern, and fold it to see whether it works — in one place, in the browser, with nothing to install and no account.'
+          'Sketch a base, draw the crease pattern, and fold it to see whether it works — in one place, in the browser, with nothing to install and no account.',
         )}
       >
         <LandingFigure
           name="overview"
           alt={t(
             'landing:what.figureAlt',
-            'The Ori Studio workspace: a crease pattern on the canvas with the tool rail and inspector panels around it.'
+            'The Ori Studio workspace: a crease pattern on the canvas with the tool rail and inspector panels around it.',
           )}
         />
       </LandingSection>
@@ -73,7 +73,7 @@ export function WelcomeLanding() {
         title={t('landing:edit.title', 'An editor that keeps up')}
         lead={t(
           'landing:edit.lead',
-          'Draw with a full set of construction and transform tools, snapped to the grid and to angles, and see foldability problems the moment you make them. Reference photos, notes and a folded preview all live on the same canvas.'
+          'Draw with a full set of construction and transform tools, snapped to the grid and to angles, and see foldability problems the moment you make them. Reference photos, notes and a folded preview all live on the same canvas.',
         )}
       >
         <EditFeatures
@@ -85,11 +85,11 @@ export function WelcomeLanding() {
               title: t('landing:edit.angles.title', 'Support for non-flat creases'),
               body: t(
                 'landing:edit.angles.body',
-                'Draw, simulate, and solve origami models with non-flat creases.'
+                'Draw, simulate, and solve origami models with non-flat creases.',
               ),
               figureAlt: t(
                 'landing:edit.angles.figureAlt',
-                'A crease pattern with fold-angle labels on its creases.'
+                'A crease pattern with fold-angle labels on its creases.',
               ),
             },
             {
@@ -98,11 +98,11 @@ export function WelcomeLanding() {
               title: t('landing:edit.media.title', 'Rich Images and Text'),
               body: t(
                 'landing:edit.media.body',
-                'Put a reference photo of the subject next to the paper and annotate the canvas with rich text. Both are saved with the project and dropped cleanly when you export to a format that has no room for them.'
+                'Put a reference photo of the subject next to the paper and annotate the canvas with rich text. Both are saved with the project and dropped cleanly when you export to a format that has no room for them.',
               ),
               figureAlt: t(
                 'landing:edit.media.figureAlt',
-                'A reference photo and a text annotation placed beside a crease pattern.'
+                'A reference photo and a text annotation placed beside a crease pattern.',
               ),
             },
             {
@@ -111,11 +111,11 @@ export function WelcomeLanding() {
               title: t('landing:edit.diagnostics.title', 'Foldability you can check as you go'),
               body: t(
                 'landing:edit.diagnostics.body',
-                'Kawasaki and Maekawa where the paper folds flat. Where it does not, each vertex is checked in three dimensions — walking its creases around to see whether the folds close back up, and by how far they miss.'
+                'Kawasaki and Maekawa where the paper folds flat. Where it does not, each vertex is checked in three dimensions — walking its creases around to see whether the folds close back up, and by how far they miss.',
               ),
               figureAlt: t(
                 'landing:edit.diagnostics.figureAlt',
-                'Foldability diagnostics marking problem vertices on a crease pattern.'
+                'Foldability diagnostics marking problem vertices on a crease pattern.',
               ),
             },
             {
@@ -124,9 +124,12 @@ export function WelcomeLanding() {
               title: t('landing:edit.share.title', 'Share a pattern with a link'),
               body: t(
                 'landing:edit.share.body',
-                'Send someone a crease pattern as a URL. They open it in their browser with nothing to install.'
+                'Send someone a crease pattern as a URL. They open it in their browser with nothing to install.',
               ),
-              figureAlt: t('landing:edit.share.figureAlt', 'The share-link dialog with a copyable URL.'),
+              figureAlt: t(
+                'landing:edit.share.figureAlt',
+                'The share-link dialog with a copyable URL.',
+              ),
             },
           ]}
         />
@@ -138,7 +141,7 @@ export function WelcomeLanding() {
         title={t('landing:design.title', 'A tabbed design workspace')}
         lead={t(
           'landing:design.lead',
-          'Pack your model with whichever method suits it, with several designs open side by side in tabs. Each one builds a crease pattern you can send straight to the editor.'
+          'Pack your model with whichever method suits it, with several designs open side by side in tabs. Each one builds a crease pattern you can send straight to the editor.',
         )}
       >
         <LandingSwipeCarousel
@@ -157,11 +160,11 @@ export function WelcomeLanding() {
               title: t('landing:design.bp.title', 'Box Pleating'),
               body: t(
                 'landing:design.bp.body',
-                'Lay flaps out on a grid, with rivers, stretch devices and symmetry constraints, and read the crease pattern off the packing.'
+                'Lay flaps out on a grid, with rivers, stretch devices and symmetry constraints, and read the crease pattern off the packing.',
               ),
               figureAlt: t(
                 'landing:design.bp.figureAlt',
-                'Flaps packed onto a box-pleating grid with its crease pattern alongside.'
+                'Flaps packed onto a box-pleating grid with its crease pattern alongside.',
               ),
             },
             {
@@ -170,11 +173,11 @@ export function WelcomeLanding() {
               title: t('landing:design.treemaker.title', 'Circle Packing'),
               body: t(
                 'landing:design.treemaker.body',
-                'Sketch a tree, set edge lengths and strain, and let the optimizer pack circles and rivers into a base.'
+                'Sketch a tree, set edge lengths and strain, and let the optimizer pack circles and rivers into a base.',
               ),
               figureAlt: t(
                 'landing:design.treemaker.figureAlt',
-                'A tree structure beside the circle packing the optimizer found for it.'
+                'A tree structure beside the circle packing the optimizer found for it.',
               ),
             },
             {
@@ -183,11 +186,11 @@ export function WelcomeLanding() {
               title: t('landing:design.explori.title', 'ExplOri'),
               body: t(
                 'landing:design.explori.body',
-                "Send your tree to Brandon Wong's searchable archive of 22.5° crease patterns and browse the closest matches it returns."
+                "Send your tree to Brandon Wong's searchable archive of 22.5° crease patterns and browse the closest matches it returns.",
               ),
               figureAlt: t(
                 'landing:design.explori.figureAlt',
-                'A grid of 22.5° crease patterns returned from an ExplOri search.'
+                'A grid of 22.5° crease patterns returned from an ExplOri search.',
               ),
             },
           ]}
@@ -202,14 +205,14 @@ export function WelcomeLanding() {
         title={t('landing:simulate.title', 'Fold it without leaving the pattern')}
         lead={t(
           'landing:simulate.lead',
-          'Open a simulation in a window right next to the crease pattern you are drawing, so checking an idea costs a glance instead of a round trip through another program. A full Simulate workspace is there when you want the model on its own.'
+          'Open a simulation in a window right next to the crease pattern you are drawing, so checking an idea costs a glance instead of a round trip through another program. A full Simulate workspace is there when you want the model on its own.',
         )}
       >
         <LandingFigure
           name="simulate"
           alt={t(
             'landing:simulate.figureAlt',
-            'A folded 3D model simulating inline beside its crease pattern.'
+            'A folded 3D model simulating inline beside its crease pattern.',
           )}
         />
       </LandingSection>
@@ -221,7 +224,7 @@ export function WelcomeLanding() {
         title={t('landing:compatibility.title', 'Built on the tools you already use')}
         lead={t(
           'landing:compatibility.lead',
-          'Much of Ori Studio is a careful port of work the community already built — Oriedita, TreeMaker and Box Pleating Studio — and keeping import and export interoperability with those tools is a commitment.'
+          'Much of Ori Studio is a careful port of work the community already built — Oriedita, TreeMaker and Box Pleating Studio — and keeping import and export interoperability with those tools is a commitment.',
         )}
       >
         <LandingFormatRing />
@@ -234,7 +237,7 @@ export function WelcomeLanding() {
         title={t('landing:get.title', 'It runs in the browser. Nothing to install.')}
         lead={t(
           'landing:get.lead',
-          'Scroll back up and start a crease pattern — that is the whole setup. Discord is the best place to report a bug or suggest something, and where new work is announced first.'
+          'Scroll back up and start a crease pattern — that is the whole setup. Discord is the best place to report a bug or suggest something, and where new work is announced first.',
         )}
       >
         <div className="landing-actions">
@@ -282,4 +285,3 @@ function EditFeatures({ label, items }: { label: string; items: readonly Landing
 export function trackCta(cta: LandingCta): void {
   track('landing cta clicked', { cta });
 }
-

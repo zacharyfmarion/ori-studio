@@ -28,15 +28,11 @@ describe('foldedFigureCycling', () => {
   // both snapshots, which is the whole reason one solution verb can bind to
   // either. These factories are deliberately minimal: the accessor must not
   // reach past those four fields.
-  function flat(
-    snapshot: Partial<OristudioCpFoldedFigureSnapshot>
-  ): OristudioCpFoldedFigureEntry {
+  function flat(snapshot: Partial<OristudioCpFoldedFigureSnapshot>): OristudioCpFoldedFigureEntry {
     return { snapshot, folded3d: null } as unknown as OristudioCpFoldedFigureEntry;
   }
 
-  function spatial(
-    snapshot: Partial<OristudioCpFolded3dSnapshot>
-  ): OristudioCpFoldedFigureEntry {
+  function spatial(snapshot: Partial<OristudioCpFolded3dSnapshot>): OristudioCpFoldedFigureEntry {
     return { snapshot: null, folded3d: snapshot } as unknown as OristudioCpFoldedFigureEntry;
   }
 
@@ -47,8 +43,8 @@ describe('foldedFigureCycling', () => {
           find_another_overlap_valid: true,
           discovered_fold_cases: 3,
           current_fold_case: 2,
-        })
-      )
+        }),
+      ),
     ).toEqual({ hasNext: true, discovered: 3, current: 2, wrapsToFirst: false });
   });
 
@@ -59,8 +55,8 @@ describe('foldedFigureCycling', () => {
           find_another_overlap_valid: true,
           discovered_fold_cases: 3,
           current_fold_case: 2,
-        })
-      )
+        }),
+      ),
     ).toEqual({ hasNext: true, discovered: 3, current: 2, wrapsToFirst: false });
   });
 
@@ -68,15 +64,14 @@ describe('foldedFigureCycling', () => {
     const exhausted = { find_another_overlap_valid: false, discovered_fold_cases: 4 };
     expect(foldedFigureCycling(spatial(exhausted)).wrapsToFirst).toBe(true);
     expect(
-      foldedFigureCycling(spatial({ ...exhausted, discovered_fold_cases: 1 })).wrapsToFirst
+      foldedFigureCycling(spatial({ ...exhausted, discovered_fold_cases: 1 })).wrapsToFirst,
     ).toBe(false);
   });
 
   it('falls back to the discovered count for a figure saved before the two split', () => {
     expect(
-      foldedFigureCycling(
-        flat({ find_another_overlap_valid: false, discovered_fold_cases: 5 })
-      ).current
+      foldedFigureCycling(flat({ find_another_overlap_valid: false, discovered_fold_cases: 5 }))
+        .current,
     ).toBe(5);
   });
 
@@ -88,7 +83,7 @@ describe('foldedFigureCycling', () => {
       wrapsToFirst: false,
     });
     expect(
-      foldedFigureCycling({ snapshot: null, folded3d: null } as OristudioCpFoldedFigureEntry)
+      foldedFigureCycling({ snapshot: null, folded3d: null } as OristudioCpFoldedFigureEntry),
     ).toEqual({ hasNext: false, discovered: 0, current: 0, wrapsToFirst: false });
   });
 });

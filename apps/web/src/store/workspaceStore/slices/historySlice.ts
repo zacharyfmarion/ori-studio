@@ -1,4 +1,15 @@
-import { patchBoxPleatDesign, patchTreemakerDesign, selectHistoryFuture, selectHistoryPast, selectOristudioBpDocument, selectOristudioBpHistoryFuture, selectOristudioBpHistoryPast, selectOristudioBpSelection, selectOristudioBpSymmetry, selectProject } from '../designTabs';
+import {
+  patchBoxPleatDesign,
+  patchTreemakerDesign,
+  selectHistoryFuture,
+  selectHistoryPast,
+  selectOristudioBpDocument,
+  selectOristudioBpHistoryFuture,
+  selectOristudioBpHistoryPast,
+  selectOristudioBpSelection,
+  selectOristudioBpSymmetry,
+  selectProject,
+} from '../designTabs';
 import {
   engineError,
   ensureTreeHandle,
@@ -8,10 +19,7 @@ import {
   statusFromSnapshot,
 } from '../engineRuntime';
 import { staleFoldArtifactResourceState } from '../foldArtifactResource';
-import {
-  oristudioCpError,
-  restoreOristudioCpDocumentInPlace,
-} from '../oristudioCpRuntime';
+import { oristudioCpError, restoreOristudioCpDocumentInPlace } from '../oristudioCpRuntime';
 import {
   exportOristudioBpProjectAsSessionBps,
   oristudioBpError,
@@ -65,7 +73,7 @@ function cpHistoryEntry(
   activeFoldedFigureId: string | null,
   inlineSimulations: InlineSimulation[],
   label = 'Edit',
-  overlayOnly = false
+  overlayOnly = false,
 ): OristudioCpHistoryEntry {
   return {
     document,
@@ -125,7 +133,10 @@ function retainedCpHistoryEntry(
 }
 
 /** Release the handles of an entry that has just left a stack. */
-function releasedFrom<T extends OristudioCpHistoryEntry[]>(remaining: T, leaving: OristudioCpHistoryEntry): T {
+function releasedFrom<T extends OristudioCpHistoryEntry[]>(
+  remaining: T,
+  leaving: OristudioCpHistoryEntry,
+): T {
   releaseFoldedFigureHandles(leaving.foldedFigures ?? []);
   return remaining;
 }
@@ -133,7 +144,7 @@ function releasedFrom<T extends OristudioCpHistoryEntry[]>(remaining: T, leaving
 function setRestoredCreasePatternState(
   restored: OristudioCpDocumentState,
   selection: OristudioCpSelection,
-  camvResult: OristudioCpCommandResult | null
+  camvResult: OristudioCpCommandResult | null,
 ) {
   return {
     oristudioCpDocument: restored,
@@ -157,9 +168,12 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
   const navigateBpHistory = async (
     pick: (
       history: SnapshotHistory<BpHistorySnapshot>,
-      current: SnapshotEntry<BpHistorySnapshot>
-    ) => { restore: SnapshotEntry<BpHistorySnapshot>; history: SnapshotHistory<BpHistorySnapshot> } | null,
-    verb: 'Undid' | 'Redid'
+      current: SnapshotEntry<BpHistorySnapshot>,
+    ) => {
+      restore: SnapshotEntry<BpHistorySnapshot>;
+      history: SnapshotHistory<BpHistorySnapshot>;
+    } | null,
+    verb: 'Undid' | 'Redid',
   ): Promise<boolean> => {
     // Captured before the first await. Restoring a snapshot is a worker round
     // trip, and a tab switch during it would otherwise write this design's
@@ -180,7 +194,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           selection: selectOristudioBpSelection(get(), designId),
           symmetry: bpDocumentSymmetry(selectOristudioBpSymmetry(get(), designId)),
         },
-        document.history.activeLabel ?? 'edit'
+        document.history.activeLabel ?? 'edit',
       );
       const step = pick(history, current);
       if (!step) {
@@ -209,21 +223,23 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
             // because the selection was stored as part of the document.
             selection: step.restore.snapshot.selection,
           },
-          designId
+          designId,
         ),
         oristudioBpHistoryBusy: false,
         dirty: true,
         error: null,
         oristudioBpError: null,
         projectMessage: `${verb} ${step.restore.label}`,
-        oristudioCpLineage: markGeneratedCpLineageStale(get().oristudioCpLineage)});
+        oristudioCpLineage: markGeneratedCpLineageStale(get().oristudioCpLineage),
+      });
     } catch (error) {
       const normalized = oristudioBpError(error);
       set({
-      oristudioBpHistoryBusy: false,
+        oristudioBpHistoryBusy: false,
         status: 'error',
         error: normalized,
-        oristudioBpError: normalized.message});
+        oristudioBpError: normalized.message,
+      });
     }
     return true;
   };
@@ -237,70 +253,128 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
     oristudioBpHistoryBusy: false,
 
     beginHistoryCheckpoint: async () => {
-    if (get().activeEditingContext !== 'treemaker-tree') return null;
-    // Captured before the await, and carried through to the commit: the edit
-    // between them is an engine round trip, and the user can switch tabs during
-    // it. See `mapDesignTab`.
-    const designId = get().activeDesignId;
-    try {
-      const { api, treeHandle } = await ensureTreeHandle();
-      return { text: await api.saveTmd5(treeHandle), designId };
-    } catch {
-      return null;
-    }
-  },
-
-  commitHistoryCheckpoint: (checkpoint, label = 'Edit') => {
-    if (!checkpoint || get().historyBusy) return;
-    const { text, designId } = checkpoint;
-    const past = selectHistoryPast(get(), designId);
-    if (past.at(-1)?.text === text) {
-      set({
-      ...patchTreemakerDesign(get(), { historyFuture: [] }, designId),});
-      return;
-    }
-    set({
-      ...patchTreemakerDesign(get(), {
-      historyPast: [...past, historyEntry(text, label)].slice(-MAX_HISTORY),
-      historyFuture: []
-      }, designId),});
-  },
-
-  clearHistory: () => {
-    // Entries own their figures' wasm handles; dropping the stacks lets go.
-    for (const entry of [...get().oristudioCpHistoryPast, ...get().oristudioCpHistoryFuture]) {
-      releaseFoldedFigureHandles(entry.foldedFigures ?? []);
-    }
-    set({
-      ...patchTreemakerDesign(get(), {
-      historyPast: [],
-      historyFuture: []
-      }),
-      oristudioCpHistoryPast: [],
-      oristudioCpHistoryFuture: [],
-      oristudioCpActiveDiagnosticId: null,
-      oristudioCpCamvResult: null});
-  },
-
-  undo: async () => {
-    const undoCreasePattern = async () => {
-      const past = get().oristudioCpHistoryPast;
-      const previous = past.at(-1);
-      const current = get().oristudioCpDocument;
-      if (!previous || !current || get().oristudioCpHistoryBusy) return false;
-      const currentSelection = get().oristudioCpSelection;
-      const currentAnnotations = get().oristudioCpAnnotations;
-      const currentFoldedFigures = get().oristudioCpFoldedFigures;
-      const currentActiveFoldedId = get().oristudioCpActiveFoldedFigureId;
-      const currentInlineSimulations = get().oristudioCpInlineSimulations;
-      set({
-      oristudioCpHistoryBusy: true, error: null, oristudioCpError: null });
+      if (get().activeEditingContext !== 'treemaker-tree') return null;
+      // Captured before the await, and carried through to the commit: the edit
+      // between them is an engine round trip, and the user can switch tabs during
+      // it. See `mapDesignTab`.
+      const designId = get().activeDesignId;
       try {
-        // Overlay-only edits (annotations, folded figures): swap those layers
-        // without reloading the (unchanged) wasm document, so they stay cheap.
-        if (previous.overlayOnly) {
+        const { api, treeHandle } = await ensureTreeHandle();
+        return { text: await api.saveTmd5(treeHandle), designId };
+      } catch {
+        return null;
+      }
+    },
+
+    commitHistoryCheckpoint: (checkpoint, label = 'Edit') => {
+      if (!checkpoint || get().historyBusy) return;
+      const { text, designId } = checkpoint;
+      const past = selectHistoryPast(get(), designId);
+      if (past.at(-1)?.text === text) {
+        set({
+          ...patchTreemakerDesign(get(), { historyFuture: [] }, designId),
+        });
+        return;
+      }
+      set({
+        ...patchTreemakerDesign(
+          get(),
+          {
+            historyPast: [...past, historyEntry(text, label)].slice(-MAX_HISTORY),
+            historyFuture: [],
+          },
+          designId,
+        ),
+      });
+    },
+
+    clearHistory: () => {
+      // Entries own their figures' wasm handles; dropping the stacks lets go.
+      for (const entry of [...get().oristudioCpHistoryPast, ...get().oristudioCpHistoryFuture]) {
+        releaseFoldedFigureHandles(entry.foldedFigures ?? []);
+      }
+      set({
+        ...patchTreemakerDesign(get(), {
+          historyPast: [],
+          historyFuture: [],
+        }),
+        oristudioCpHistoryPast: [],
+        oristudioCpHistoryFuture: [],
+        oristudioCpActiveDiagnosticId: null,
+        oristudioCpCamvResult: null,
+      });
+    },
+
+    undo: async () => {
+      const undoCreasePattern = async () => {
+        const past = get().oristudioCpHistoryPast;
+        const previous = past.at(-1);
+        const current = get().oristudioCpDocument;
+        if (!previous || !current || get().oristudioCpHistoryBusy) return false;
+        const currentSelection = get().oristudioCpSelection;
+        const currentAnnotations = get().oristudioCpAnnotations;
+        const currentFoldedFigures = get().oristudioCpFoldedFigures;
+        const currentActiveFoldedId = get().oristudioCpActiveFoldedFigureId;
+        const currentInlineSimulations = get().oristudioCpInlineSimulations;
+        set({
+          oristudioCpHistoryBusy: true,
+          error: null,
+          oristudioCpError: null,
+        });
+        try {
+          // Overlay-only edits (annotations, folded figures): swap those layers
+          // without reloading the (unchanged) wasm document, so they stay cheap.
+          if (previous.overlayOnly) {
+            set({
+              oristudioCpHistoryBusy: false,
+              oristudioCpAnnotations: previous.annotations,
+              oristudioCpSelectedAnnotationId: null,
+              ...restoredFoldedFigureState(previous),
+              ...restoredInlineSimulationState(previous),
+              oristudioCpHistoryPast: releasedFrom(past.slice(0, -1), previous),
+              oristudioCpHistoryFuture: [
+                retainedCpHistoryEntry(
+                  current.document,
+                  currentSelection,
+                  currentAnnotations,
+                  currentFoldedFigures,
+                  currentActiveFoldedId,
+                  currentInlineSimulations,
+                  previous.label,
+                  true,
+                ),
+                ...get().oristudioCpHistoryFuture,
+              ].slice(0, MAX_HISTORY),
+              dirty: true,
+              projectMessage: `Undid ${previous.label}`,
+            });
+            // The state swap above is web-side only, so the kernel still holds the
+            // model this step just undid. Reconcile after the synchronous `set`,
+            // never awaited: making the branch async would make `historyBusy` a
+            // real gate and silently drop undos held down on the keyboard.
+            get().reconcileFoldedFigureModels(previous.foldedFigures?.map((f) => f.id) ?? []);
+            // A restored window's fold is rebuilt, not held by history — see
+            // `restoreOristudioCpInlineSimulationSources`. Fire-and-forget after
+            // the synchronous `set`, for the same reason as the reconcile above:
+            // awaiting here would make `historyBusy` a real gate and silently drop
+            // undos held down on the keyboard. No-ops when no fold is missing.
+            void get().restoreOristudioCpInlineSimulationSources();
+            return true;
+          }
+          const restored = await restoreOristudioCpDocumentInPlace(
+            previous.document,
+            current.source,
+            null,
+          );
+          // Apply immediately; the always-on CAMV overlay recomputes off the critical
+          // path (keeps the previous result until the deferred refresh lands).
           set({
-      oristudioCpHistoryBusy: false,
+            oristudioCpHistoryBusy: false,
+            ...setRestoredCreasePatternState(
+              restored,
+              previous.selection,
+              get().oristudioCpCamvResult,
+            ),
             oristudioCpAnnotations: previous.annotations,
             oristudioCpSelectedAnnotationId: null,
             ...restoredFoldedFigureState(previous),
@@ -315,159 +389,161 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
                 currentActiveFoldedId,
                 currentInlineSimulations,
                 previous.label,
-                true
+                false,
               ),
               ...get().oristudioCpHistoryFuture,
             ].slice(0, MAX_HISTORY),
-            dirty: true,
-            projectMessage: `Undid ${previous.label}`});
-          // The state swap above is web-side only, so the kernel still holds the
-          // model this step just undid. Reconcile after the synchronous `set`,
-          // never awaited: making the branch async would make `historyBusy` a
-          // real gate and silently drop undos held down on the keyboard.
-          get().reconcileFoldedFigureModels(previous.foldedFigures?.map((f) => f.id) ?? []);
-          // A restored window's fold is rebuilt, not held by history — see
-          // `restoreOristudioCpInlineSimulationSources`. Fire-and-forget after
-          // the synchronous `set`, for the same reason as the reconcile above:
-          // awaiting here would make `historyBusy` a real gate and silently drop
-          // undos held down on the keyboard. No-ops when no fold is missing.
+            ...staleFoldArtifactResourceState(get().foldArtifactRevision),
+            projectMessage: `Undid ${previous.label}`,
+          });
+          get().scheduleOristudioCamvRefresh();
+          // Windows restored by a document-level undo need their folds too; see
+          // the overlay branch above for why this is not awaited.
           void get().restoreOristudioCpInlineSimulationSources();
-          return true;
-        }
-        const restored = await restoreOristudioCpDocumentInPlace(
-          previous.document,
-          current.source,
-          null
-        );
-        // Apply immediately; the always-on CAMV overlay recomputes off the critical
-        // path (keeps the previous result until the deferred refresh lands).
-        set({
-      oristudioCpHistoryBusy: false,
-          ...setRestoredCreasePatternState(
-            restored,
-            previous.selection,
-            get().oristudioCpCamvResult
-          ),
-          oristudioCpAnnotations: previous.annotations,
-          oristudioCpSelectedAnnotationId: null,
-          ...restoredFoldedFigureState(previous),
-          ...restoredInlineSimulationState(previous),
-          oristudioCpHistoryPast: releasedFrom(past.slice(0, -1), previous),
-          oristudioCpHistoryFuture: [
-            retainedCpHistoryEntry(
-              current.document,
-              currentSelection,
-              currentAnnotations,
-              currentFoldedFigures,
-              currentActiveFoldedId,
-              currentInlineSimulations,
-              previous.label,
-              false
-            ),
-            ...get().oristudioCpHistoryFuture,
-          ].slice(0, MAX_HISTORY),
-          ...staleFoldArtifactResourceState(get().foldArtifactRevision),
-          projectMessage: `Undid ${previous.label}`});
-        get().scheduleOristudioCamvRefresh();
-        // Windows restored by a document-level undo need their folds too; see
-        // the overlay branch above for why this is not awaited.
-        void get().restoreOristudioCpInlineSimulationSources();
-      } catch (error) {
-        const normalized = oristudioCpError(error);
-        set({
-      oristudioCpHistoryBusy: false,
-          status: 'error',
-          error: normalized,
-          oristudioCpError: normalized.message});
-      }
-      return true;
-    };
-
-    const undoTree = async () => {
-      if (get().activeEditingContext !== 'treemaker-tree') return false;
-      // Addressed write: an undo round-trips the tree through `.tmd5`, and the
-      // user can switch tabs while the engine reloads it. See `mapDesignTab`.
-      const designId = get().activeDesignId;
-      const past = selectHistoryPast(get(), designId);
-      const previous = past.at(-1);
-      if (!previous || get().historyBusy) return false;
-      set({
-      historyBusy: true, error: null });
-      try {
-        const { api, treeHandle } = await ensureTreeHandle();
-        const current = await api.saveTmd5(treeHandle);
-        const engine = await getEngine();
-        const snapshot = await loadTreeFromText(engine, previous.text);
-        set({
-          // The restored history rides *inside* the install rather than beside
-          // it: both write `designTabs`, so a sibling spread would simply be
-          // overwritten by whichever came second.
-          ...projectStateFromSnapshot(
-            get(),
-            snapshot,
-            selectProject(get(), designId).title,
-            {
-              historyPast: past.slice(0, -1),
-              historyFuture: [
-                historyEntry(current, previous.label),
-                ...selectHistoryFuture(get(), designId),
-              ].slice(0, MAX_HISTORY),
-              selection: { kind: 'tree' },
-              symmetryAuthoringPairs: [],
-              lastOptimization: null,
-            },
-            designId
-          ),
-          historyBusy: false,
-          status: statusFromSnapshot(snapshot),
-          dirty: true,
-          projectMessage: `Undid ${previous.label}`,
-          ...staleFoldArtifactResourceState(get().foldArtifactRevision),
-          oristudioCpLineage: markGeneratedCpLineageStale(get().oristudioCpLineage)});
-      } catch (error) {
-        set({
-      historyBusy: false, status: 'error', error: engineError(error)});
-      }
-      return true;
-    };
-
-    const context = get().activeEditingContext;
-    if (context === 'bp-tree' || context === 'bp-packing') {
-      await navigateBpHistory(undoSnapshot, 'Undid');
-      return;
-    }
-    if (context === 'explori-tree' || context === 'explori-results') {
-      await get().undoExplori();
-      return;
-    }
-    if (context === 'design-nux' || context === 'simulate') return;
-
-    if (get().activeEditingContext === 'crease-pattern') {
-      if (await undoCreasePattern()) return;
-      await undoTree();
-    } else {
-      if (await undoTree()) return;
-      await undoCreasePattern();
-    }
-  },
-
-  redo: async () => {
-    const redoCreasePattern = async () => {
-      const future = get().oristudioCpHistoryFuture;
-      const next = future[0];
-      const current = get().oristudioCpDocument;
-      if (!next || !current || get().oristudioCpHistoryBusy) return false;
-      const currentSelection = get().oristudioCpSelection;
-      const currentAnnotations = get().oristudioCpAnnotations;
-      const currentFoldedFigures = get().oristudioCpFoldedFigures;
-      const currentActiveFoldedId = get().oristudioCpActiveFoldedFigureId;
-      const currentInlineSimulations = get().oristudioCpInlineSimulations;
-      set({
-      oristudioCpHistoryBusy: true, error: null, oristudioCpError: null });
-      try {
-        if (next.overlayOnly) {
+        } catch (error) {
+          const normalized = oristudioCpError(error);
           set({
-      oristudioCpHistoryBusy: false,
+            oristudioCpHistoryBusy: false,
+            status: 'error',
+            error: normalized,
+            oristudioCpError: normalized.message,
+          });
+        }
+        return true;
+      };
+
+      const undoTree = async () => {
+        if (get().activeEditingContext !== 'treemaker-tree') return false;
+        // Addressed write: an undo round-trips the tree through `.tmd5`, and the
+        // user can switch tabs while the engine reloads it. See `mapDesignTab`.
+        const designId = get().activeDesignId;
+        const past = selectHistoryPast(get(), designId);
+        const previous = past.at(-1);
+        if (!previous || get().historyBusy) return false;
+        set({
+          historyBusy: true,
+          error: null,
+        });
+        try {
+          const { api, treeHandle } = await ensureTreeHandle();
+          const current = await api.saveTmd5(treeHandle);
+          const engine = await getEngine();
+          const snapshot = await loadTreeFromText(engine, previous.text);
+          set({
+            // The restored history rides *inside* the install rather than beside
+            // it: both write `designTabs`, so a sibling spread would simply be
+            // overwritten by whichever came second.
+            ...projectStateFromSnapshot(
+              get(),
+              snapshot,
+              selectProject(get(), designId).title,
+              {
+                historyPast: past.slice(0, -1),
+                historyFuture: [
+                  historyEntry(current, previous.label),
+                  ...selectHistoryFuture(get(), designId),
+                ].slice(0, MAX_HISTORY),
+                selection: { kind: 'tree' },
+                symmetryAuthoringPairs: [],
+                lastOptimization: null,
+              },
+              designId,
+            ),
+            historyBusy: false,
+            status: statusFromSnapshot(snapshot),
+            dirty: true,
+            projectMessage: `Undid ${previous.label}`,
+            ...staleFoldArtifactResourceState(get().foldArtifactRevision),
+            oristudioCpLineage: markGeneratedCpLineageStale(get().oristudioCpLineage),
+          });
+        } catch (error) {
+          set({
+            historyBusy: false,
+            status: 'error',
+            error: engineError(error),
+          });
+        }
+        return true;
+      };
+
+      const context = get().activeEditingContext;
+      if (context === 'bp-tree' || context === 'bp-packing') {
+        await navigateBpHistory(undoSnapshot, 'Undid');
+        return;
+      }
+      if (context === 'explori-tree' || context === 'explori-results') {
+        await get().undoExplori();
+        return;
+      }
+      if (context === 'design-nux' || context === 'simulate') return;
+
+      if (get().activeEditingContext === 'crease-pattern') {
+        if (await undoCreasePattern()) return;
+        await undoTree();
+      } else {
+        if (await undoTree()) return;
+        await undoCreasePattern();
+      }
+    },
+
+    redo: async () => {
+      const redoCreasePattern = async () => {
+        const future = get().oristudioCpHistoryFuture;
+        const next = future[0];
+        const current = get().oristudioCpDocument;
+        if (!next || !current || get().oristudioCpHistoryBusy) return false;
+        const currentSelection = get().oristudioCpSelection;
+        const currentAnnotations = get().oristudioCpAnnotations;
+        const currentFoldedFigures = get().oristudioCpFoldedFigures;
+        const currentActiveFoldedId = get().oristudioCpActiveFoldedFigureId;
+        const currentInlineSimulations = get().oristudioCpInlineSimulations;
+        set({
+          oristudioCpHistoryBusy: true,
+          error: null,
+          oristudioCpError: null,
+        });
+        try {
+          if (next.overlayOnly) {
+            set({
+              oristudioCpHistoryBusy: false,
+              oristudioCpAnnotations: next.annotations,
+              oristudioCpSelectedAnnotationId: null,
+              ...restoredFoldedFigureState(next),
+              ...restoredInlineSimulationState(next),
+              oristudioCpHistoryPast: [
+                ...get().oristudioCpHistoryPast,
+                retainedCpHistoryEntry(
+                  current.document,
+                  currentSelection,
+                  currentAnnotations,
+                  currentFoldedFigures,
+                  currentActiveFoldedId,
+                  currentInlineSimulations,
+                  next.label,
+                  true,
+                ),
+              ].slice(-MAX_HISTORY),
+              oristudioCpHistoryFuture: releasedFrom(future.slice(1), next),
+              dirty: true,
+              projectMessage: `Redid ${next.label}`,
+            });
+            get().reconcileFoldedFigureModels(next.foldedFigures?.map((f) => f.id) ?? []);
+            // A restored window's fold is rebuilt, not held by history — see
+            // `restoreOristudioCpInlineSimulationSources`. Fire-and-forget after
+            // the synchronous `set`, for the same reason as the reconcile above:
+            // awaiting here would make `historyBusy` a real gate and silently drop
+            // undos held down on the keyboard. No-ops when no fold is missing.
+            void get().restoreOristudioCpInlineSimulationSources();
+            return true;
+          }
+          const restored = await restoreOristudioCpDocumentInPlace(
+            next.document,
+            current.source,
+            null,
+          );
+          set({
+            oristudioCpHistoryBusy: false,
+            ...setRestoredCreasePatternState(restored, next.selection, get().oristudioCpCamvResult),
             oristudioCpAnnotations: next.annotations,
             oristudioCpSelectedAnnotationId: null,
             ...restoredFoldedFigureState(next),
@@ -482,128 +558,99 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
                 currentActiveFoldedId,
                 currentInlineSimulations,
                 next.label,
-                true
+                false,
               ),
             ].slice(-MAX_HISTORY),
             oristudioCpHistoryFuture: releasedFrom(future.slice(1), next),
-            dirty: true,
-            projectMessage: `Redid ${next.label}`});
-          get().reconcileFoldedFigureModels(next.foldedFigures?.map((f) => f.id) ?? []);
-          // A restored window's fold is rebuilt, not held by history — see
-          // `restoreOristudioCpInlineSimulationSources`. Fire-and-forget after
-          // the synchronous `set`, for the same reason as the reconcile above:
-          // awaiting here would make `historyBusy` a real gate and silently drop
-          // undos held down on the keyboard. No-ops when no fold is missing.
+            ...staleFoldArtifactResourceState(get().foldArtifactRevision),
+            projectMessage: `Redid ${next.label}`,
+          });
+          get().scheduleOristudioCamvRefresh();
+          // Windows restored by a document-level undo need their folds too; see
+          // the overlay branch above for why this is not awaited.
           void get().restoreOristudioCpInlineSimulationSources();
-          return true;
+        } catch (error) {
+          const normalized = oristudioCpError(error);
+          set({
+            oristudioCpHistoryBusy: false,
+            status: 'error',
+            error: normalized,
+            oristudioCpError: normalized.message,
+          });
         }
-        const restored = await restoreOristudioCpDocumentInPlace(
-          next.document,
-          current.source,
-          null
-        );
+        return true;
+      };
+
+      const redoTree = async () => {
+        if (get().activeEditingContext !== 'treemaker-tree') return false;
+        // Addressed write; see the note in `undoTree`.
+        const designId = get().activeDesignId;
+        const future = selectHistoryFuture(get(), designId);
+        const next = future[0];
+        if (!next || get().historyBusy) return false;
         set({
-      oristudioCpHistoryBusy: false,
-          ...setRestoredCreasePatternState(restored, next.selection, get().oristudioCpCamvResult),
-          oristudioCpAnnotations: next.annotations,
-          oristudioCpSelectedAnnotationId: null,
-          ...restoredFoldedFigureState(next),
-          ...restoredInlineSimulationState(next),
-          oristudioCpHistoryPast: [
-            ...get().oristudioCpHistoryPast,
-            retainedCpHistoryEntry(
-              current.document,
-              currentSelection,
-              currentAnnotations,
-              currentFoldedFigures,
-              currentActiveFoldedId,
-              currentInlineSimulations,
-              next.label,
-              false
+          historyBusy: true,
+          error: null,
+        });
+        try {
+          const { api, treeHandle } = await ensureTreeHandle();
+          const current = await api.saveTmd5(treeHandle);
+          const engine = await getEngine();
+          const snapshot = await loadTreeFromText(engine, next.text);
+          set({
+            // See the note in `undoTree`: the history must be installed with the
+            // tree, not spread next to it.
+            ...projectStateFromSnapshot(
+              get(),
+              snapshot,
+              selectProject(get(), designId).title,
+              {
+                historyPast: [
+                  ...selectHistoryPast(get(), designId),
+                  historyEntry(current, next.label),
+                ].slice(-MAX_HISTORY),
+                historyFuture: future.slice(1),
+                selection: { kind: 'tree' },
+                symmetryAuthoringPairs: [],
+                lastOptimization: null,
+              },
+              designId,
             ),
-          ].slice(-MAX_HISTORY),
-          oristudioCpHistoryFuture: releasedFrom(future.slice(1), next),
-          ...staleFoldArtifactResourceState(get().foldArtifactRevision),
-          projectMessage: `Redid ${next.label}`});
-        get().scheduleOristudioCamvRefresh();
-        // Windows restored by a document-level undo need their folds too; see
-        // the overlay branch above for why this is not awaited.
-        void get().restoreOristudioCpInlineSimulationSources();
-      } catch (error) {
-        const normalized = oristudioCpError(error);
-        set({
-      oristudioCpHistoryBusy: false,
-          status: 'error',
-          error: normalized,
-          oristudioCpError: normalized.message});
+            historyBusy: false,
+            status: statusFromSnapshot(snapshot),
+            dirty: true,
+            projectMessage: `Redid ${next.label}`,
+            ...staleFoldArtifactResourceState(get().foldArtifactRevision),
+            oristudioCpLineage: markGeneratedCpLineageStale(get().oristudioCpLineage),
+          });
+        } catch (error) {
+          set({
+            historyBusy: false,
+            status: 'error',
+            error: engineError(error),
+          });
+        }
+        return true;
+      };
+
+      const context = get().activeEditingContext;
+      if (context === 'bp-tree' || context === 'bp-packing') {
+        await navigateBpHistory(redoSnapshot, 'Redid');
+        return;
       }
-      return true;
-    };
-
-    const redoTree = async () => {
-      if (get().activeEditingContext !== 'treemaker-tree') return false;
-      // Addressed write; see the note in `undoTree`.
-      const designId = get().activeDesignId;
-      const future = selectHistoryFuture(get(), designId);
-      const next = future[0];
-      if (!next || get().historyBusy) return false;
-      set({
-      historyBusy: true, error: null });
-      try {
-        const { api, treeHandle } = await ensureTreeHandle();
-        const current = await api.saveTmd5(treeHandle);
-        const engine = await getEngine();
-        const snapshot = await loadTreeFromText(engine, next.text);
-        set({
-          // See the note in `undoTree`: the history must be installed with the
-          // tree, not spread next to it.
-          ...projectStateFromSnapshot(
-            get(),
-            snapshot,
-            selectProject(get(), designId).title,
-            {
-              historyPast: [
-                ...selectHistoryPast(get(), designId),
-                historyEntry(current, next.label),
-              ].slice(-MAX_HISTORY),
-              historyFuture: future.slice(1),
-              selection: { kind: 'tree' },
-              symmetryAuthoringPairs: [],
-              lastOptimization: null,
-            },
-            designId
-          ),
-          historyBusy: false,
-          status: statusFromSnapshot(snapshot),
-          dirty: true,
-          projectMessage: `Redid ${next.label}`,
-          ...staleFoldArtifactResourceState(get().foldArtifactRevision),
-          oristudioCpLineage: markGeneratedCpLineageStale(get().oristudioCpLineage)});
-      } catch (error) {
-        set({
-      historyBusy: false, status: 'error', error: engineError(error)});
+      if (context === 'explori-tree' || context === 'explori-results') {
+        await get().redoExplori();
+        return;
       }
-      return true;
-    };
+      if (context === 'design-nux' || context === 'simulate') return;
 
-    const context = get().activeEditingContext;
-    if (context === 'bp-tree' || context === 'bp-packing') {
-      await navigateBpHistory(redoSnapshot, 'Redid');
-      return;
-    }
-    if (context === 'explori-tree' || context === 'explori-results') {
-      await get().redoExplori();
-      return;
-    }
-    if (context === 'design-nux' || context === 'simulate') return;
-
-    if (get().activeEditingContext === 'crease-pattern') {
-      if (await redoCreasePattern()) return;
-      await redoTree();
-    } else {
-      if (await redoTree()) return;
-      await redoCreasePattern();
-    }
-  },
+      if (get().activeEditingContext === 'crease-pattern') {
+        if (await redoCreasePattern()) return;
+        await redoTree();
+      } else {
+        if (await redoTree()) return;
+        await redoCreasePattern();
+      }
+    },
   };
 };

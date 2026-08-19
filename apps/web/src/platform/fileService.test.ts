@@ -59,7 +59,7 @@ describe('dropped file service', () => {
 
   it('resolves the dropped file as bytes, keeping its MIME type', async () => {
     const service = createDroppedFileService(
-      new File([new Uint8Array([1, 2, 3])], 'photo.png', { type: 'image/png' })
+      new File([new Uint8Array([1, 2, 3])], 'photo.png', { type: 'image/png' }),
     );
 
     const result = await service.openBinaryFile({ title: 'ignored', extensions: [] });
@@ -104,11 +104,9 @@ describe('browser document saves', () => {
       failNextWrite: false,
       getFile: async () => new File([''], name),
       queryPermission: undefined as
-        | undefined
-        | ((descriptor?: { mode?: 'read' | 'readwrite' }) => Promise<PermissionState>),
+        undefined | ((descriptor?: { mode?: 'read' | 'readwrite' }) => Promise<PermissionState>),
       requestPermission: undefined as
-        | undefined
-        | ((descriptor?: { mode?: 'read' | 'readwrite' }) => Promise<PermissionState>),
+        undefined | ((descriptor?: { mode?: 'read' | 'readwrite' }) => Promise<PermissionState>),
       createWritable: vi.fn(async () => {
         if (handle.failNextWrite) throw new DOMException('denied', 'NotAllowedError');
         let buffer = '';
@@ -125,7 +123,9 @@ describe('browser document saves', () => {
     return handle;
   }
 
-  function saveOptions(overrides: Partial<Parameters<ReturnType<typeof createFileService>['saveTextFile']>[0]> = {}) {
+  function saveOptions(
+    overrides: Partial<Parameters<ReturnType<typeof createFileService>['saveTextFile']>[0]> = {},
+  ) {
     return {
       title: 'Save Ori Studio Project',
       contents: 'first',
@@ -243,7 +243,7 @@ describe('browser document saves', () => {
     expect(first?.path).toBeTruthy();
 
     const second = await service.saveTextFile(
-      saveOptions({ contents: 'second', path: first?.path })
+      saveOptions({ contents: 'second', path: first?.path }),
     );
 
     expect(second?.path).toBe(first?.path);
@@ -294,7 +294,7 @@ describe('browser document saves', () => {
     handle.failNextWrite = true;
 
     const second = await service.saveTextFile(
-      saveOptions({ contents: 'second', path: first?.path })
+      saveOptions({ contents: 'second', path: first?.path }),
     );
 
     expect(picker).toHaveBeenCalledTimes(2);
@@ -321,7 +321,7 @@ describe('browser document saves', () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
     const result = await service.saveTextFile(
-      saveOptions({ suggestedName: 'pattern.cp', extensions: ['cp'], reusableTarget: false })
+      saveOptions({ suggestedName: 'pattern.cp', extensions: ['cp'], reusableTarget: false }),
     );
 
     expect(picker).not.toHaveBeenCalled();

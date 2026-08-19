@@ -65,7 +65,8 @@ export function CpDetectImportModal() {
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState<QuadHandle | null>(null);
   const [dropActive, setDropActive] = useState(false);
-  const [previewOverlays, setPreviewOverlays] = useState<PreviewOverlayState>(DEFAULT_PREVIEW_OVERLAYS);
+  const [previewOverlays, setPreviewOverlays] =
+    useState<PreviewOverlayState>(DEFAULT_PREVIEW_OVERLAYS);
   const sourceImageRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
@@ -110,23 +111,26 @@ export function CpDetectImportModal() {
     setDropActive(false);
   }, [busy]);
 
-  const loadImageFile = useCallback(async (file: OpenBinaryFileResult) => {
-    const nextSource = await sourceImageFromFile(file, t);
-    setSource((previous) => {
-      if (previous?.url) URL.revokeObjectURL(previous.url);
-      return nextSource;
-    });
-    setQuad(null);
-    setRectified(null);
-    setDetection(null);
-    setPreviewOverlays(DEFAULT_PREVIEW_OVERLAYS);
+  const loadImageFile = useCallback(
+    async (file: OpenBinaryFileResult) => {
+      const nextSource = await sourceImageFromFile(file, t);
+      setSource((previous) => {
+        if (previous?.url) URL.revokeObjectURL(previous.url);
+        return nextSource;
+      });
+      setQuad(null);
+      setRectified(null);
+      setDetection(null);
+      setPreviewOverlays(DEFAULT_PREVIEW_OVERLAYS);
 
-    const client = await getCpDetectClient();
-    setBusy('rectifying');
-    const auto = await client.autoRectifyImage(nextSource.image, DETECT_IMAGE_SIZE);
-    setRectified(auto);
-    setQuad(auto.report.detected_source_quad ?? auto.report.source_quad);
-  }, [t]);
+      const client = await getCpDetectClient();
+      setBusy('rectifying');
+      const auto = await client.autoRectifyImage(nextSource.image, DETECT_IMAGE_SIZE);
+      setRectified(auto);
+      setQuad(auto.report.detected_source_quad ?? auto.report.source_quad);
+    },
+    [t],
+  );
 
   const chooseImage = useCallback(async () => {
     setBusy('opening');
@@ -151,7 +155,9 @@ export function CpDetectImportModal() {
       setError(null);
       try {
         if (!isSupportedImageFile(file)) {
-          throw new Error(t('errors:cpDetectImport.unsupportedImage', 'Use a PNG, JPEG, or WebP image.'));
+          throw new Error(
+            t('errors:cpDetectImport.unsupportedImage', 'Use a PNG, JPEG, or WebP image.'),
+          );
         }
         await loadImageFile(await openBinaryFileFromBrowserFile(file));
       } catch (caught) {
@@ -160,7 +166,7 @@ export function CpDetectImportModal() {
         setBusy(null);
       }
     },
-    [loadImageFile, t]
+    [loadImageFile, t],
   );
 
   const rerunManualRectification = useCallback(async () => {
@@ -219,7 +225,10 @@ export function CpDetectImportModal() {
         'Check4',
         'FlatFoldableCheck',
       ] as const) {
-        await useWorkspaceStore.getState().executeOristudioCpCommand(operation).catch(() => false);
+        await useWorkspaceStore
+          .getState()
+          .executeOristudioCpCommand(operation)
+          .catch(() => false);
       }
       track('cp detect imported');
       setOpen(false);
@@ -238,7 +247,7 @@ export function CpDetectImportModal() {
       const file = event.dataTransfer.files?.[0];
       if (file) void chooseDroppedImage(file);
     },
-    [busy, chooseDroppedImage, modelManifest]
+    [busy, chooseDroppedImage, modelManifest],
   );
 
   const rectificationWarnings = rectified?.report.warnings ?? [];
@@ -247,7 +256,7 @@ export function CpDetectImportModal() {
   const compilerOverlay = useMemo(() => compilerPreviewOverlay(detection), [detection]);
   const foldPreview = useMemo(
     () => (detection ? parseFoldPreview(detection.foldJson) : null),
-    [detection]
+    [detection],
   );
   const stage: ModalStage =
     busy === 'detecting' ? 'detecting' : detection ? 'review' : source ? 'crop' : 'upload';
@@ -272,7 +281,12 @@ export function CpDetectImportModal() {
             <h2>{t('dialogs:cpDetectImport.title', 'Detect CP from Image')}</h2>
             {source && <p>{source.name}</p>}
           </div>
-          <IconButton title={t('common:close', 'Close')} size="sm" onClick={close} disabled={busy !== null}>
+          <IconButton
+            title={t('common:close', 'Close')}
+            size="sm"
+            onClick={close}
+            disabled={busy !== null}
+          >
             <X size={15} />
           </IconButton>
         </header>
@@ -295,7 +309,9 @@ export function CpDetectImportModal() {
               <ImagePlus size={16} />
               {t('dialogs:cpDetectImport.chooseImage', 'Choose Image')}
             </Button>
-            <div className="cp-detect-modal__drop-hint">{t('dialogs:cpDetectImport.dropImageHere', 'Drop image here')}</div>
+            <div className="cp-detect-modal__drop-hint">
+              {t('dialogs:cpDetectImport.dropImageHere', 'Drop image here')}
+            </div>
             {status && (
               <div className="cp-detect-modal__inline-status">
                 <Loader2 size={14} className="cp-detect-modal__spinner" />
@@ -312,11 +328,20 @@ export function CpDetectImportModal() {
                 <ImagePlus size={14} />
                 {t('dialogs:cpDetectImport.chooseImage', 'Choose Image')}
               </Button>
-              <Button size="sm" onClick={rerunManualRectification} disabled={!quad || busy !== null}>
+              <Button
+                size="sm"
+                onClick={rerunManualRectification}
+                disabled={!quad || busy !== null}
+              >
                 <RefreshCw size={14} />
                 {t('dialogs:cpDetectImport.updateCrop', 'Update Crop')}
               </Button>
-              <Button size="sm" variant="primary" onClick={runDetection} disabled={!rectified || busy !== null}>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={runDetection}
+                disabled={!rectified || busy !== null}
+              >
                 <Play size={14} />
                 {t('dialogs:cpDetectImport.detect', 'Detect')}
               </Button>
@@ -339,7 +364,11 @@ export function CpDetectImportModal() {
 
               <section className="cp-detect-modal__pane">
                 <h3>{t('dialogs:cpDetectImport.rectified', 'Rectified')}</h3>
-                {rectified ? <CanvasImage image={rectified.image} /> : <div className="cp-detect-modal__empty" />}
+                {rectified ? (
+                  <CanvasImage image={rectified.image} />
+                ) : (
+                  <div className="cp-detect-modal__empty" />
+                )}
               </section>
             </div>
           </>
@@ -360,15 +389,29 @@ export function CpDetectImportModal() {
                 <ImagePlus size={14} />
                 {t('dialogs:cpDetectImport.chooseImage', 'Choose Image')}
               </Button>
-              <Button size="sm" onClick={rerunManualRectification} disabled={!source || !quad || busy !== null}>
+              <Button
+                size="sm"
+                onClick={rerunManualRectification}
+                disabled={!source || !quad || busy !== null}
+              >
                 <RefreshCw size={14} />
                 {t('dialogs:cpDetectImport.updateCrop', 'Update Crop')}
               </Button>
-              <Button size="sm" variant="primary" onClick={runDetection} disabled={!rectified || busy !== null}>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={runDetection}
+                disabled={!rectified || busy !== null}
+              >
                 <Play size={14} />
                 {t('dialogs:cpDetectImport.detect', 'Detect')}
               </Button>
-              <Button size="sm" variant="primary" onClick={importDetection} disabled={!detection || busy !== null}>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={importDetection}
+                disabled={!detection || busy !== null}
+              >
                 <Upload size={14} />
                 {t('dialogs:cpDetectImport.import', 'Import')}
               </Button>
@@ -379,7 +422,11 @@ export function CpDetectImportModal() {
             <div className="cp-detect-modal__review-grid">
               <section className="cp-detect-modal__pane">
                 <h3>{t('dialogs:cpDetectImport.rectified', 'Rectified')}</h3>
-                {rectified ? <CanvasImage image={rectified.image} /> : <div className="cp-detect-modal__empty" />}
+                {rectified ? (
+                  <CanvasImage image={rectified.image} />
+                ) : (
+                  <div className="cp-detect-modal__empty" />
+                )}
               </section>
 
               <section className="cp-detect-modal__pane">
@@ -387,13 +434,19 @@ export function CpDetectImportModal() {
                   <h3>{t('dialogs:cpDetectImport.detected', 'Detected')}</h3>
                   <CompilerPreviewControls
                     overlay={previewOverlays}
-                    hasInferred={foldPreview?.edgeProvenance.some(edgeHasInferredProvenance) ?? false}
+                    hasInferred={
+                      foldPreview?.edgeProvenance.some(edgeHasInferredProvenance) ?? false
+                    }
                     hasAssignments={compilerOverlay.assignmentEdgeIds.size > 0}
                     onToggle={togglePreviewOverlay}
                   />
                 </div>
                 {foldPreview ? (
-                  <FoldPreview preview={foldPreview} overlay={previewOverlays} compilerOverlay={compilerOverlay} />
+                  <FoldPreview
+                    preview={foldPreview}
+                    overlay={previewOverlays}
+                    compilerOverlay={compilerOverlay}
+                  />
                 ) : (
                   <div className="cp-detect-modal__empty" />
                 )}
@@ -403,15 +456,22 @@ export function CpDetectImportModal() {
         )}
 
         {stage !== 'upload' &&
-          (modelManifest || rectificationWarnings.length > 0 || detectorWarnings.length > 0 || detection) && (
+          (modelManifest ||
+            rectificationWarnings.length > 0 ||
+            detectorWarnings.length > 0 ||
+            detection) && (
             <div className="cp-detect-modal__report">
               {modelManifest && <span>{modelManifest.id}</span>}
               {detection && (
                 <span>
-                  {t('dialogs:cpDetectImport.report.counts', '{{vertices}} vertices, {{edges}} edges', {
-                    vertices: detection.detectorReport.vertex_count,
-                    edges: detection.detectorReport.edge_count,
-                  })}
+                  {t(
+                    'dialogs:cpDetectImport.report.counts',
+                    '{{vertices}} vertices, {{edges}} edges',
+                    {
+                      vertices: detection.detectorReport.vertex_count,
+                      edges: detection.detectorReport.edge_count,
+                    },
+                  )}
                 </span>
               )}
               {detection && (
@@ -478,7 +538,10 @@ function SourceCropEditor({
     >
       <img ref={sourceImageRef} src={source.url} alt="" draggable={false} />
       {quad && (
-        <svg className="cp-detect-modal__overlay" viewBox={`0 0 ${source.image.width} ${source.image.height}`}>
+        <svg
+          className="cp-detect-modal__overlay"
+          viewBox={`0 0 ${source.image.width} ${source.image.height}`}
+        >
           <polygon points={quadPolygon(quad)} className="cp-detect-modal__quad" />
           {QUAD_HANDLES.map((handle) => (
             <circle
@@ -617,7 +680,7 @@ function provenanceLine(
   a: number,
   b: number,
   index: number,
-  kind: 'inferred' | 'assignment'
+  kind: 'inferred' | 'assignment',
 ) {
   const start = preview.vertices[a];
   const end = preview.vertices[b];
@@ -645,7 +708,8 @@ async function sourceImageFromFile(file: OpenBinaryFileResult, t: TFunction): Pr
     canvas.width = bitmap.width;
     canvas.height = bitmap.height;
     const context = canvas.getContext('2d');
-    if (!context) throw new Error(t('errors:cpDetectImport.canvasUnavailable', 'Canvas 2D is unavailable'));
+    if (!context)
+      throw new Error(t('errors:cpDetectImport.canvasUnavailable', 'Canvas 2D is unavailable'));
     context.drawImage(bitmap, 0, 0);
     bitmap.close?.();
     return {
@@ -675,7 +739,11 @@ function isSupportedImageFile(file: File): boolean {
   return IMAGE_EXTENSIONS.includes(extension);
 }
 
-function pointFromPointer(event: ReactPointerEvent, element: HTMLElement, image: ImageData): CpDetectPoint {
+function pointFromPointer(
+  event: ReactPointerEvent,
+  element: HTMLElement,
+  image: ImageData,
+): CpDetectPoint {
   const rect = element.getBoundingClientRect();
   return {
     x: ((event.clientX - rect.left) / rect.width) * image.width,
@@ -723,7 +791,7 @@ function publishDetectionResult(source: SourceImage | null, detection: CpDetectF
         sourcePath: source?.path ?? null,
         detection,
       },
-    })
+    }),
   );
 }
 
@@ -767,7 +835,10 @@ function edgeIdAt(preview: FoldPreviewData, index: number): number {
 }
 
 function edgeIsInferred(preview: FoldPreviewData, index: number): boolean {
-  return preview.edgeSources[index] === 'inferred' || edgeHasInferredProvenance(preview.edgeProvenance[index] ?? []);
+  return (
+    preview.edgeSources[index] === 'inferred' ||
+    edgeHasInferredProvenance(preview.edgeProvenance[index] ?? [])
+  );
 }
 
 function edgeHasInferredProvenance(provenance: string[]): boolean {
@@ -796,7 +867,8 @@ function compilerPreviewOverlay(detection: CpDetectFoldResult | null): CompilerP
   const compilerReport = (report as { compiler_report?: unknown }).compiler_report;
   if (!compilerReport || typeof compilerReport !== 'object') return { assignmentEdgeIds };
   if (!compilerOutputWasEmitted(compilerReport)) return { assignmentEdgeIds };
-  const decisions = (compilerReport as { assignments?: { decisions?: unknown[] } }).assignments?.decisions ?? [];
+  const decisions =
+    (compilerReport as { assignments?: { decisions?: unknown[] } }).assignments?.decisions ?? [];
   for (const decision of decisions) {
     if (!decision || typeof decision !== 'object') continue;
     const record = decision as { edge_id?: unknown; provenance?: unknown };
@@ -824,26 +896,36 @@ function compilerReportMetadata(t: TFunction, detection: CpDetectFoldResult | nu
   if (!emitted && data.output?.selected === 'legacy_fallback') {
     items.push(t('dialogs:cpDetectImport.report.compilerFallback', 'compiler fallback'));
   }
-  const moves = emitted ? data.topology?.accepted_moves?.length ?? 0 : 0;
+  const moves = emitted ? (data.topology?.accepted_moves?.length ?? 0) : 0;
   if (moves > 0) {
     items.push(
       moves === 1
-        ? t('dialogs:cpDetectImport.report.topologyMove', '{{count}} topology move', { count: moves })
-        : t('dialogs:cpDetectImport.report.topologyMoves', '{{count}} topology moves', { count: moves })
+        ? t('dialogs:cpDetectImport.report.topologyMove', '{{count}} topology move', {
+            count: moves,
+          })
+        : t('dialogs:cpDetectImport.report.topologyMoves', '{{count}} topology moves', {
+            count: moves,
+          }),
     );
   }
-  const decisions = emitted ? data.assignments?.decisions?.filter((decision) => {
-    return (
-      decision &&
-      typeof decision === 'object' &&
-      (decision as { provenance?: unknown }).provenance !== 'assignment_observed'
-    );
-  }).length ?? 0 : 0;
+  const decisions = emitted
+    ? (data.assignments?.decisions?.filter((decision) => {
+        return (
+          decision &&
+          typeof decision === 'object' &&
+          (decision as { provenance?: unknown }).provenance !== 'assignment_observed'
+        );
+      }).length ?? 0)
+    : 0;
   if (decisions > 0) {
     items.push(
       decisions === 1
-        ? t('dialogs:cpDetectImport.report.assignmentChange', '{{count}} assignment change', { count: decisions })
-        : t('dialogs:cpDetectImport.report.assignmentChanges', '{{count}} assignment changes', { count: decisions })
+        ? t('dialogs:cpDetectImport.report.assignmentChange', '{{count}} assignment change', {
+            count: decisions,
+          })
+        : t('dialogs:cpDetectImport.report.assignmentChanges', '{{count}} assignment changes', {
+            count: decisions,
+          }),
     );
   }
   if (data.topology?.ambiguous || data.assignments?.ambiguous) {

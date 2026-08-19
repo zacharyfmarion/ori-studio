@@ -29,7 +29,7 @@ describe('oristudio BP DTO contract', () => {
         'invalid-junction',
         'stretch',
         'device',
-      ])
+      ]),
     );
   });
 

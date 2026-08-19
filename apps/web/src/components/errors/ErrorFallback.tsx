@@ -102,7 +102,7 @@ export function ErrorFallback({
     () => () => {
       if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
     },
-    []
+    [],
   );
 
   // What the disclosure shows is exactly what the button copies — no second
@@ -115,7 +115,7 @@ export function ErrorFallback({
         context: context ?? unavailableContext(surface),
         timestamp: new Date().toISOString(),
       }),
-    [componentStack, context, error, surface]
+    [componentStack, context, error, surface],
   );
 
   const handleCopy = useCallback(async () => {
@@ -133,11 +133,11 @@ export function ErrorFallback({
     variant === 'app'
       ? t(
           'errors:boundary.appDescription',
-          'Your work is still in memory but the interface could not recover on its own. Copy the details below before reloading — they tell a developer exactly what went wrong.'
+          'Your work is still in memory but the interface could not recover on its own. Copy the details below before reloading — they tell a developer exactly what went wrong.',
         )
       : t(
           'errors:boundary.description',
-          'The rest of Ori Studio is still running. Try again, or copy the details and report it.'
+          'The rest of Ori Studio is still running. Try again, or copy the details and report it.',
         );
 
   const copyLabel =

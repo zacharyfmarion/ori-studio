@@ -31,11 +31,7 @@ function edge(nodes: [number, number], length: number, strain = 0) {
   return { nodes, length, strain };
 }
 
-function bpSheet(
-  kind: OristudioBpSheet['kind'],
-  width: number,
-  height = width
-): OristudioBpSheet {
+function bpSheet(kind: OristudioBpSheet['kind'], width: number, height = width): OristudioBpSheet {
   return {
     kind,
     width,
@@ -116,9 +112,7 @@ describe('boxPleatPackingCircles', () => {
   const sheet = bpSheet('rectangular', 16);
 
   it('emits a circle at the anchor, flipped into the .cp export’s space', () => {
-    expect(boxPleatPackingCircles([bpFlap(8, 7, 1)], sheet)).toEqual([
-      { cx: 8, cy: 9, r: 1 },
-    ]);
+    expect(boxPleatPackingCircles([bpFlap(8, 7, 1)], sheet)).toEqual([{ cx: 8, cy: 9, r: 1 }]);
   });
 
   it('skips flaps that are not circles', () => {
@@ -163,9 +157,7 @@ describe('boxPleatPackingCircles', () => {
     it('has no shift on an even size', () => {
       const diagonal = bpSheet('diagonal', 6);
       expect(boxPleatCpBounds(diagonal)).toEqual([0, 0, 6, 6]);
-      expect(boxPleatPackingCircles([bpFlap(2, 3, 1)], diagonal)).toEqual([
-        { cx: 2, cy: 3, r: 1 },
-      ]);
+      expect(boxPleatPackingCircles([bpFlap(2, 3, 1)], diagonal)).toEqual([{ cx: 2, cy: 3, r: 1 }]);
     });
   });
 

@@ -14,7 +14,7 @@ import { foldedFigureActionIconNode } from './foldedFigureActionIcons';
  */
 export function foldedFigureMenuItems(
   figure: OristudioCpFoldedFigureEntry,
-  deps: FoldedFigureActionDeps
+  deps: FoldedFigureActionDeps,
 ): ContextMenuItem[] {
   return buildFoldedFigureActions(figure, deps).map((action): ContextMenuItem => {
     switch (action.kind) {
@@ -59,7 +59,7 @@ export function foldedFigureMenuItems(
                   id: option.id,
                   label: option.label,
                   onSelect: option.run,
-                }
+                },
           ),
         };
       case 'command':
@@ -80,7 +80,7 @@ export function foldedFigureMenuItems(
 export function foldedFigureMenuItemsWith(
   figure: OristudioCpFoldedFigureEntry,
   deps: Omit<FoldedFigureActionDeps, 't'>,
-  t: TFunction
+  t: TFunction,
 ): ContextMenuItem[] {
   return foldedFigureMenuItems(figure, { ...deps, t });
 }

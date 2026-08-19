@@ -27,9 +27,7 @@ export type DiscardConfirmationCopy = {
  * asking different questions ("close the app?" vs "restart into the update?"),
  * and translation happens at the call site where `t` is in scope.
  */
-export async function confirmDiscardUnsavedWork(
-  copy: DiscardConfirmationCopy
-): Promise<boolean> {
+export async function confirmDiscardUnsavedWork(copy: DiscardConfirmationCopy): Promise<boolean> {
   if (!hasUnsavedWork()) return true;
   return requestConfirmation({
     title: copy.title,

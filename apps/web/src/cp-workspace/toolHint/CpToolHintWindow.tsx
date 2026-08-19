@@ -90,6 +90,6 @@ export function CpToolHintWindow({
       {headerAction}
       {!collapsed && <div className="cp-context-panel__body">{children}</div>}
     </section>,
-    document.body
+    document.body,
   );
 }

@@ -12,9 +12,9 @@ describe('resolveEditingContext', () => {
   it('maps the design panel by design state', () => {
     expect(resolveEditingContext({ ...base, designMethod: 'none' })).toBe('design-nux');
     expect(resolveEditingContext(base)).toBe('treemaker-tree');
-    expect(
-      resolveEditingContext({ ...base, designMethod: 'box-pleat', hasBpDocument: true })
-    ).toBe('bp-tree');
+    expect(resolveEditingContext({ ...base, designMethod: 'box-pleat', hasBpDocument: true })).toBe(
+      'bp-tree',
+    );
   });
 
   it('offers nothing while a box-pleat document is still loading', () => {
@@ -23,9 +23,9 @@ describe('resolveEditingContext', () => {
     // to run them on) nor TreeMaker's (this is not a tree) apply, so the answer
     // is the context that offers neither. It used to be `treemaker-tree`, which
     // put Optimize and Build in the toolbar of a box-pleat design.
-    expect(resolveEditingContext({ ...base, designMethod: 'box-pleat', hasBpDocument: false })).toBe(
-      'design-nux'
-    );
+    expect(
+      resolveEditingContext({ ...base, designMethod: 'box-pleat', hasBpDocument: false }),
+    ).toBe('design-nux');
   });
 
   it('maps the BP packing pane, of a box-pleat design', () => {
@@ -38,11 +38,11 @@ describe('resolveEditingContext', () => {
         activePanelId: 'bp-editor',
         designMethod: 'box-pleat',
         hasBpDocument: true,
-      })
+      }),
     ).toBe('bp-packing');
   });
 
-  it('falls back to the active design\'s canvas for a pane its kind does not have', () => {
+  it("falls back to the active design's canvas for a pane its kind does not have", () => {
     // One render after a tab switch, `activePanelId` still names the outgoing
     // design's pane. Answering with the incoming design's canvas is what stops
     // the menus flickering through the other kind's commands.
@@ -53,14 +53,16 @@ describe('resolveEditingContext', () => {
         activePanelId: 'inspector',
         designMethod: 'box-pleat',
         hasBpDocument: true,
-      })
+      }),
     ).toBe('bp-tree');
   });
 
   it('maps the crease-pattern pane and its side controls', () => {
-    expect(resolveEditingContext({ ...base, activePanelId: 'crease-pattern' })).toBe('crease-pattern');
+    expect(resolveEditingContext({ ...base, activePanelId: 'crease-pattern' })).toBe(
+      'crease-pattern',
+    );
     expect(resolveEditingContext({ ...base, activePanelId: 'cp-view-controls' })).toBe(
-      'crease-pattern'
+      'crease-pattern',
     );
   });
 
@@ -83,7 +85,7 @@ describe('resolveEditingContext', () => {
         activePanelId: null,
         designMethod: 'box-pleat',
         hasBpDocument: true,
-      })
+      }),
     ).toBe('bp-tree');
   });
 });
@@ -111,10 +113,9 @@ describe('contexts come from the kind descriptor', () => {
             activePanelId: pane.component,
             designMethod: method,
             hasBpDocument,
-          })
+          }),
         ).toBe(pane.editingContext);
       }
     });
   }
 });
-

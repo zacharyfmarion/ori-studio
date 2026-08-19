@@ -14,10 +14,7 @@
  * So: on change, a few hundred milliseconds late.
  */
 import { useEffect, useState } from 'react';
-import {
-  readCpToolOptions,
-  writeCpToolOptions,
-} from '../../lib/cpToolOptionPersistence';
+import { readCpToolOptions, writeCpToolOptions } from '../../lib/cpToolOptionPersistence';
 import type { OristudioCpToolOptions } from '../../lib/oristudioCpToolSettings';
 
 /** Long enough to coalesce typing, short enough to survive a quick tab close. */

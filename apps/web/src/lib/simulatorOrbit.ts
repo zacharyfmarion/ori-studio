@@ -1,9 +1,4 @@
-import {
-  multiplyMat3,
-  transposeMat3,
-  viewRotation,
-  type Mat3,
-} from '@treemaker/origami-simulator';
+import { multiplyMat3, transposeMat3, viewRotation, type Mat3 } from '@treemaker/origami-simulator';
 
 export interface SimulatorOrbitView {
   yaw: number;
@@ -61,7 +56,7 @@ export function simulatorWheelZoomFactor(deltaY: number): number {
 export function nextSimulatorOrbitView(
   view: SimulatorOrbitView,
   drag: SimulatorOrbitDrag,
-  point: SimulatorOrbitPoint
+  point: SimulatorOrbitPoint,
 ): SimulatorOrbitView {
   return {
     ...view,
@@ -123,5 +118,3 @@ export function setUprightView(view: SimulatorOrbitView): SimulatorOrbitView {
     orient: multiplyMat3(transposeMat3(viewRotation(0, UPRIGHT_PITCH)), total),
   };
 }
-
-

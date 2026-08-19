@@ -22,7 +22,7 @@ describe('cpToolUnavailableMessage', () => {
   it('has a distinct sentence for every kernel code', () => {
     const messages = CP_TOOL_UNAVAILABLE_CODES.map((code) => cpToolUnavailableMessage(t, code));
     expect(messages.every((message) => typeof message === 'string' && message.length > 0)).toBe(
-      true
+      true,
     );
     expect(new Set(messages).size).toBe(CP_TOOL_UNAVAILABLE_CODES.length);
   });
@@ -47,9 +47,7 @@ describe('forcedAssignmentNotice', () => {
   it('stays quiet when the candidates disagree with each other', () => {
     // A spatial vertex can force a mountain in one gap and a valley in another;
     // "this must be a valley" would then be false for half the screen.
-    expect(
-      forcedAssignmentNotice(t, [candidate('Red1'), candidate('Blue2')], 'Red1')
-    ).toBeNull();
+    expect(forcedAssignmentNotice(t, [candidate('Red1'), candidate('Blue2')], 'Red1')).toBeNull();
   });
 
   it('stays quiet when a candidate carries no assignment at all', () => {

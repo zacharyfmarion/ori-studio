@@ -83,10 +83,7 @@ export function bpCanSubdivideSheet(sheet: OristudioBpSheet): boolean {
  * whole grid line — otherwise the coarser grid could not represent the design
  * exactly, and the engine silently declines (`unsubdivide_sheet`).
  */
-export function bpCanUnsubdivideSheet(
-  sheet: OristudioBpSheet,
-  flaps: OristudioBpFlap[]
-): boolean {
+export function bpCanUnsubdivideSheet(sheet: OristudioBpSheet, flaps: OristudioBpFlap[]): boolean {
   const min = minSheetSize(sheet);
   const halves = (value: number) => value % 2 === 0 && value / 2 >= min;
   if (sheet.kind === 'diagonal') {
@@ -115,7 +112,7 @@ export function bpCanUnsubdivideSheet(
 export function bpSteppedSheetSize(
   sheet: OristudioBpSheet,
   flaps: OristudioBpFlap[],
-  grow: boolean
+  grow: boolean,
 ): BpSheetSize | null {
   const delta = grow ? 1 : -1;
   const size = { width: sheet.width + delta, height: sheet.height + delta };

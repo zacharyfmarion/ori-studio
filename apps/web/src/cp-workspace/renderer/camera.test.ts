@@ -199,7 +199,11 @@ describe('UserCamera under rotation', () => {
       for (const factor of [1.35, 1 / 1.35]) {
         const cam: UserCamera = { centerX: -3, centerY: 11, zoom: 2, rotation };
         const anchorDevice = { x: 610, y: 155 };
-        const anchor = unprojectDevicePoint(userCameraToView(cam, vp), anchorDevice.x, anchorDevice.y);
+        const anchor = unprojectDevicePoint(
+          userCameraToView(cam, vp),
+          anchorDevice.x,
+          anchorDevice.y,
+        );
         zoomUserCameraAt(cam, vp, anchorDevice.x, anchorDevice.y, factor);
         const after = projectModelPoint(userCameraToView(cam, vp), anchor!.x, anchor!.y);
         expect(after.x).toBeCloseTo(anchorDevice.x);

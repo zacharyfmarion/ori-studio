@@ -65,7 +65,7 @@ export interface ExploriDocument {
  * a search that was quietly narrower than it looked.
  */
 export const DEFAULT_DB_CONFIGS: ExploriDbConfig[] = EXPLORI_SIZES.flatMap((N) =>
-  EXPLORI_SYMMETRIES.map((symmetry) => ({ N, symmetry }))
+  EXPLORI_SYMMETRIES.map((symmetry) => ({ N, symmetry })),
 );
 
 /** As many as upstream asks for by default. */
@@ -150,7 +150,7 @@ export function exploriEdgeLength(document: ExploriDocument, edge: ExploriTreeEd
  */
 export function exploriTreeIsSymmetric(
   document: ExploriDocument,
-  tolerance = EXPLORI_SYMMETRY_TOLERANCE
+  tolerance = EXPLORI_SYMMETRY_TOLERANCE,
 ): boolean {
   if (document.nodes.length === 0) return true;
   return document.nodes.every((node) => {
@@ -159,7 +159,7 @@ export function exploriTreeIsSymmetric(
       (other) =>
         other.id !== node.id &&
         Math.abs(other.loc.x + node.loc.x) <= tolerance &&
-        Math.abs(other.loc.y - node.loc.y) <= tolerance
+        Math.abs(other.loc.y - node.loc.y) <= tolerance,
     );
   });
 }

@@ -1,7 +1,7 @@
 name: Feature request
 description: Suggest a new tool, workflow, or improvement for Ori Studio.
-title: "[Feature]: "
-labels: ["feature request"]
+title: '[Feature]: '
+labels: ['feature request']
 body:
   - type: markdown
     attributes:

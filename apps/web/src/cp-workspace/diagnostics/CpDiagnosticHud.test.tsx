@@ -68,7 +68,7 @@ function renderHud(options: {
         camvIssuesVisible: options.camvIssuesVisible ?? true,
       },
     },
-    true
+    true,
   );
   container = document.createElement('div');
   document.body.append(container);
@@ -169,10 +169,13 @@ beforeAll(() => {
 
 afterAll(() => {
   if (realScrollTop) Object.defineProperty(Element.prototype, 'scrollTop', realScrollTop);
-  if (realOffsetHeight) Object.defineProperty(HTMLElement.prototype, 'offsetHeight', realOffsetHeight);
+  if (realOffsetHeight)
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', realOffsetHeight);
   if (realOffsetWidth) Object.defineProperty(HTMLElement.prototype, 'offsetWidth', realOffsetWidth);
-  if (realClientHeight) Object.defineProperty(HTMLElement.prototype, 'clientHeight', realClientHeight);
-  if (realScrollHeight) Object.defineProperty(HTMLElement.prototype, 'scrollHeight', realScrollHeight);
+  if (realClientHeight)
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', realClientHeight);
+  if (realScrollHeight)
+    Object.defineProperty(HTMLElement.prototype, 'scrollHeight', realScrollHeight);
 });
 
 function scrollListTo(view: HTMLElement, top: number) {
@@ -193,7 +196,7 @@ function expand(view: HTMLElement) {
 // in the row's textContent.
 function rowIds(view: HTMLElement): string[] {
   return [...view.querySelectorAll('.cp-diagnostic-hud__row')].map(
-    (row) => row.querySelector('span')?.textContent?.trim() ?? ''
+    (row) => row.querySelector('span')?.textContent?.trim() ?? '',
   );
 }
 
@@ -247,12 +250,12 @@ describe('CpDiagnosticHud', () => {
     // own entries, so it said 21 over a list holding 22.
     const camvResult = result(
       'CheckCamv',
-      Array.from({ length: 21 }, (_, i) => `camv-${i + 1}`)
+      Array.from({ length: 21 }, (_, i) => `camv-${i + 1}`),
     );
     const lastCommandResult = result('Check1', ['check1-1']);
     const view = renderHud({ camvResult, lastCommandResult });
     expect(view.querySelector('.cp-diagnostic-hud__copy span')?.textContent).toBe(
-      '22 Foldability Errors'
+      '22 Foldability Errors',
     );
   });
 

@@ -55,7 +55,7 @@ export function GlobalErrorReporter() {
           });
         },
       }),
-    [t]
+    [t],
   );
 
   return null;

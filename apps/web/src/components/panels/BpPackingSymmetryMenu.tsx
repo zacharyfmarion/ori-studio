@@ -69,14 +69,12 @@ export function BpPackingSymmetryMenu({ symmetry }: { symmetry: BpPackingSymmetr
             />
           </div>
           {/*
-            * Below the toggle rather than behind it: the fold and the status are
-            * facts about the design, not about whether the next node is drawn
-            * with a twin. A design keeps its pairs — and keeps mirroring their
-            * moves — after mirror draw is switched off.
-            */}
-          <div className="symmetry-menu__section-label">
-            {t('panels:bpPacking.fold', 'Fold')}
-          </div>
+           * Below the toggle rather than behind it: the fold and the status are
+           * facts about the design, not about whether the next node is drawn
+           * with a twin. A design keeps its pairs — and keeps mirroring their
+           * moves — after mirror draw is switched off.
+           */}
+          <div className="symmetry-menu__section-label">{t('panels:bpPacking.fold', 'Fold')}</div>
           <div className="bp-sheet-menu__segment">
             {SYMMETRY_FOLDS.map((fold) => {
               const unavailable = symmetry.foldUnavailable(fold);

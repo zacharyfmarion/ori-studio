@@ -33,7 +33,7 @@ function render(open: boolean, items: ContextMenuItem[], onOpenChange = () => {}
   root = createRoot(container);
   act(() => {
     root?.render(
-      <ContextMenu open={open} x={10} y={20} items={items} onOpenChange={onOpenChange} />
+      <ContextMenu open={open} x={10} y={20} items={items} onOpenChange={onOpenChange} />,
     );
   });
 }
@@ -127,9 +127,7 @@ describe('ContextMenu', () => {
     // The trigger is itself a menuitem (Radix SubTrigger), distinguished by
     // aria-haspopup rather than by being absent from the item list. Scoped to
     // menuitems so it does not match the menu's own invisible cursor anchor.
-    const trigger = menuItems().find(
-      (element) => element.getAttribute('aria-haspopup') === 'menu'
-    );
+    const trigger = menuItems().find((element) => element.getAttribute('aria-haspopup') === 'menu');
     expect(trigger?.textContent).toContain('Display style');
     // Closed submenu: its options are not in the document yet, so they cannot be
     // reached by a stray click on the parent menu.

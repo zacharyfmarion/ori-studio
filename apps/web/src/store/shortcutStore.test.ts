@@ -76,7 +76,7 @@ describe('shortcutStore', () => {
         JSON.stringify({
           version: 1,
           bindings: { 'file.save': [{ primary: true, alt: true, key: 's' }] },
-        })
+        }),
       );
 
       vi.resetModules();
@@ -119,7 +119,7 @@ describe('shortcutStore', () => {
     it('reads an unrecognized source as the Ori Studio layout', async () => {
       localStorage.setItem(
         SHORTCUT_STORAGE_KEY,
-        JSON.stringify({ version: 2, bindings: {}, defaultsSource: 'emacs' })
+        JSON.stringify({ version: 2, bindings: {}, defaultsSource: 'emacs' }),
       );
 
       vi.resetModules();
@@ -144,11 +144,11 @@ describe('shortcutStore', () => {
       const { overrides, defaultsSource } = useShortcutStore.getState();
       expect(overrides['cp.action.line-type.valley']).toEqual([{ key: 'q' }]);
       expect(
-        getResolvedShortcuts('cp.action.line-type.valley', { overrides, defaultsSource })
+        getResolvedShortcuts('cp.action.line-type.valley', { overrides, defaultsSource }),
       ).toEqual([{ key: 'q' }]);
       // An unoverridden action does move with the source.
       expect(
-        getResolvedShortcuts('cp.action.line-type.mountain', { overrides, defaultsSource })
+        getResolvedShortcuts('cp.action.line-type.mountain', { overrides, defaultsSource }),
       ).toEqual([{ key: 'm' }]);
     });
 
@@ -167,7 +167,7 @@ describe('shortcutStore', () => {
       let { overrides, defaultsSource } = useShortcutStore.getState();
       expect(defaultsSource).toBe('oriedita');
       expect(
-        getResolvedShortcuts('cp.action.line-type.mountain', { overrides, defaultsSource })
+        getResolvedShortcuts('cp.action.line-type.mountain', { overrides, defaultsSource }),
       ).toEqual([{ key: 'm' }]);
 
       useShortcutStore.getState().setShortcut('cp.action.line-type.valley', { key: 'q' });
@@ -177,7 +177,7 @@ describe('shortcutStore', () => {
       expect(defaultsSource).toBe('oriedita');
       expect(overrides).toEqual({});
       expect(
-        getResolvedShortcuts('cp.action.line-type.valley', { overrides, defaultsSource })
+        getResolvedShortcuts('cp.action.line-type.valley', { overrides, defaultsSource }),
       ).toEqual([{ key: 'v' }]);
     });
 
@@ -202,7 +202,7 @@ describe('shortcutStore', () => {
     it('dispatches M to Mountain when the Oriedita layout was persisted', async () => {
       localStorage.setItem(
         SHORTCUT_STORAGE_KEY,
-        JSON.stringify({ version: 2, bindings: {}, defaultsSource: 'oriedita' })
+        JSON.stringify({ version: 2, bindings: {}, defaultsSource: 'oriedita' }),
       );
       vi.resetModules();
       const { useShortcutStore } = await import('./shortcutStore');
@@ -221,7 +221,7 @@ describe('shortcutStore', () => {
           getShortcutOverrides: () => useShortcutStore.getState().overrides,
           getShortcutDefaultsSource: () => useShortcutStore.getState().defaultsSource,
         },
-        document
+        document,
       );
 
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'm', bubbles: true }));
@@ -245,7 +245,7 @@ describe('shortcutStore', () => {
         .assignShortcut(
           'cp.action.line-type.mountain',
           { key: 'm' },
-          { unbind: ['cp.action.symmetric-draw'] }
+          { unbind: ['cp.action.symmetric-draw'] },
         );
       unsubscribe();
 
@@ -270,7 +270,7 @@ describe('shortcutStore', () => {
         .assignShortcut(
           'cp.action.line-type.mountain',
           { key: 'm' },
-          { unbind: ['cp.action.symmetric-draw'] }
+          { unbind: ['cp.action.symmetric-draw'] },
         );
 
       const stored = JSON.parse(localStorage.getItem(SHORTCUT_STORAGE_KEY) ?? '{}') as {
@@ -294,11 +294,13 @@ describe('shortcutStore', () => {
     it('never unbinds a shortcut that keeps its defaults', () => {
       useShortcutStore.getState().setShortcut('edit.undo', { primary: true, alt: true, key: 'z' });
 
-      useShortcutStore
-        .getState()
-        .assignShortcut('cp.action.line-type.mountain', { primary: true, key: 'z' }, {
+      useShortcutStore.getState().assignShortcut(
+        'cp.action.line-type.mountain',
+        { primary: true, key: 'z' },
+        {
           unbind: ['edit.undo'],
-        });
+        },
+      );
 
       const { overrides } = useShortcutStore.getState();
       expect(overrides['edit.undo']).toEqual([{ primary: true, alt: true, key: 'z' }]);
@@ -309,11 +311,13 @@ describe('shortcutStore', () => {
     });
 
     it('honours the assignment when an id names itself as displaced', () => {
-      useShortcutStore
-        .getState()
-        .assignShortcut('cp.action.line-type.mountain', { key: 'm' }, {
+      useShortcutStore.getState().assignShortcut(
+        'cp.action.line-type.mountain',
+        { key: 'm' },
+        {
           unbind: ['cp.action.line-type.mountain'],
-        });
+        },
+      );
 
       expect(useShortcutStore.getState().overrides['cp.action.line-type.mountain']).toEqual([
         { key: 'm' },
@@ -403,7 +407,7 @@ describe('shortcutStore', () => {
       const reloaded = await import('./shortcutStore');
 
       expect(reloaded.useShortcutStore.getState().overrides['cp.action.line-type.mountain']).toBe(
-        null
+        null,
       );
       expect(reloaded.useShortcutStore.getState().overrides['file.save']).toEqual([
         { primary: true, key: 's' },

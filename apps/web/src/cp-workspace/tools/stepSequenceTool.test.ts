@@ -20,7 +20,12 @@ describe('stepSequenceTool', () => {
     ]);
     expect(outs[0].commit).toBeNull();
     expect(outs[0].livePoints).toEqual([{ x: 1, y: 2 }]);
-    expect(outs[1].commit).toEqual({ points: [{ x: 1, y: 2 }, { x: 9, y: 9 }] });
+    expect(outs[1].commit).toEqual({
+      points: [
+        { x: 1, y: 2 },
+        { x: 9, y: 9 },
+      ],
+    });
     expect(outs[1].state).toEqual({ points: [] });
   });
 
@@ -29,7 +34,10 @@ describe('stepSequenceTool', () => {
       { kind: 'down', point: { x: 1, y: 1 } },
       { kind: 'move', point: { x: 5, y: 5 } },
     ]);
-    expect(outs[1].livePoints).toEqual([{ x: 1, y: 1 }, { x: 5, y: 5 }]);
+    expect(outs[1].livePoints).toEqual([
+      { x: 1, y: 1 },
+      { x: 5, y: 5 },
+    ]);
     expect(outs[1].commit).toBeNull();
   });
 
@@ -42,7 +50,11 @@ describe('stepSequenceTool', () => {
     expect(outs[0].commit).toBeNull();
     expect(outs[1].commit).toBeNull();
     expect(outs[2].commit).toEqual({
-      points: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }],
+      points: [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 1, y: 1 },
+      ],
     });
   });
 

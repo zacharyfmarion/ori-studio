@@ -6,10 +6,7 @@ import type {
 } from '../engine/oristudioCpTypes';
 import type { FoldDocument } from '../engine/types';
 import type { Point } from './geometry';
-import {
-  isOrieditaFoldableLineColor,
-  selectedFoldableCpLineIds,
-} from './creasePatternClipboard';
+import { isOrieditaFoldableLineColor, selectedFoldableCpLineIds } from './creasePatternClipboard';
 import { emptyOristudioCpSelection } from './creasePatternViewport';
 import {
   buildSegmentFold,
@@ -29,13 +26,13 @@ export interface CreaseExportFoldRuntime {
     startingFaceId: number,
     order: 'Order5',
     model: OristudioCpFoldedFigureModel | undefined,
-    lineIds: number[]
+    lineIds: number[],
   ) => Promise<FoldedFigureState>;
   /** Advance the figure to a later layer-ordering solution. */
   foldToCase: (handle: number, objective: number) => Promise<Omit<FoldedFigureState, 'handle'>>;
   renderSnapshot: (
     handle: number,
-    displayStyle: OristudioCpFoldedFigureDisplayStyle
+    displayStyle: OristudioCpFoldedFigureDisplayStyle,
   ) => Promise<OristudioCpFoldedRenderSnapshot | null>;
   free: (handle: number) => Promise<void>;
 }
@@ -164,25 +161,25 @@ function boundsOf(points: readonly Point[]): Bounds | null {
  */
 export function cpModelToFoldTransform(
   fold: FoldDocument,
-  document: OristudioCpDocumentSnapshot
+  document: OristudioCpDocumentSnapshot,
 ): CpModelToFoldTransform {
   const axes = flatPlaneAxes(fold);
   const foldBounds = boundsOf(
     (fold.vertices_coords ?? []).map((coord) => ({
       x: coord[axes[0]] ?? 0,
       y: coord[axes[1]] ?? 0,
-    }))
+    })),
   );
   const modelBounds = boundsOf(
     document.crease_pattern.line_segments
       .filter((line) => isOrieditaFoldableLineColor(line.color))
-      .flatMap((line) => [line.a, line.b])
+      .flatMap((line) => [line.a, line.b]),
   );
   if (!foldBounds || !modelBounds) return IDENTITY_CP_MODEL_TO_FOLD;
 
   const modelSpan = Math.max(
     modelBounds.maxX - modelBounds.minX,
-    modelBounds.maxY - modelBounds.minY
+    modelBounds.maxY - modelBounds.minY,
   );
   const foldSpan = Math.max(foldBounds.maxX - foldBounds.minX, foldBounds.maxY - foldBounds.minY);
   if (modelSpan <= 0 || foldSpan <= 0) return IDENTITY_CP_MODEL_TO_FOLD;
@@ -210,7 +207,7 @@ export function cpModelToFoldTransform(
 export function foldableLineIdsForSegment(
   document: OristudioCpDocumentSnapshot,
   segment: CpSegment | null,
-  transform: CpModelToFoldTransform = IDENTITY_CP_MODEL_TO_FOLD
+  transform: CpModelToFoldTransform = IDENTITY_CP_MODEL_TO_FOLD,
 ): number[] {
   const lines = document.crease_pattern.line_segments;
   const candidates: number[] = [];
@@ -220,7 +217,7 @@ export function foldableLineIdsForSegment(
     if (segment) {
       const midpoint = applyCpModelToFold(
         { x: (line.a.x + line.b.x) / 2, y: (line.a.y + line.b.y) / 2 },
-        transform
+        transform,
       );
       // A border crease lies *on* the boundary, where the inside test is
       // undefined — so it counts as belonging to the pattern it bounds.
@@ -250,7 +247,7 @@ export async function foldSegmentForExport(
   segment: CpSegment | null,
   model?: OristudioCpFoldedFigureModel,
   foldCase = 1,
-  transform: CpModelToFoldTransform = IDENTITY_CP_MODEL_TO_FOLD
+  transform: CpModelToFoldTransform = IDENTITY_CP_MODEL_TO_FOLD,
 ): Promise<CreaseExportFoldResult> {
   const lineIds = foldableLineIdsForSegment(document, segment, transform);
   if (lineIds.length === 0) {

@@ -114,7 +114,7 @@ export function resolveCpSegments(artifacts: FoldArtifacts | null | undefined): 
  */
 export function simulationFacesForSegment(
   simulationFold: FoldDocument,
-  segment: CpSegment
+  segment: CpSegment,
 ): number[] {
   const faces = simulationFold.faces_vertices ?? [];
   const coords = simulationFold.vertices_coords ?? [];
@@ -151,7 +151,7 @@ export function simulationFacesForSegment(
  */
 export function buildSegmentSimulationFold(
   artifacts: FoldArtifacts,
-  segment: CpSegment
+  segment: CpSegment,
 ): FoldDocument {
   const simulationFold = simulationFoldOf(artifacts);
   if (simulationFold === artifacts.fold) return buildSegmentFold(simulationFold, segment);
@@ -284,7 +284,7 @@ export function buildAssignmentByKey(fold: FoldDocument): Map<string, string> {
 function boundsOfFaces(
   fold: FoldDocument,
   faceIndices: number[],
-  axes: [number, number]
+  axes: [number, number],
 ): SegmentBounds {
   const coords = fold.vertices_coords ?? [];
   const faces = fold.faces_vertices ?? [];
@@ -315,7 +315,7 @@ function boundsOfFaces(
 function traceBoundaryRings(
   fold: FoldDocument,
   faceIndices: number[],
-  axes: [number, number]
+  axes: [number, number],
 ): Point[][] {
   const faces = fold.faces_vertices ?? [];
   const coords = fold.vertices_coords ?? [];
@@ -365,7 +365,7 @@ function traceBoundaryRings(
         ring.push(toPoint(current));
         const options = adjacency.get(current) ?? [];
         let next = options.find(
-          (candidate) => candidate !== previous && !visitedEdges.has(edgeKey(current, candidate))
+          (candidate) => candidate !== previous && !visitedEdges.has(edgeKey(current, candidate)),
         );
         if (next === undefined) {
           next = options.find((candidate) => !visitedEdges.has(edgeKey(current, candidate)));
@@ -473,7 +473,7 @@ const ANNOTATION_EXTRA_GROUPS: Array<{ coords: string; parallel: string[] }> = [
 function scopeAnnotationExtrasToSegment(
   next: FoldDocument,
   source: FoldDocument,
-  segment: CpSegment
+  segment: CpSegment,
 ): void {
   for (const group of ANNOTATION_EXTRA_GROUPS) {
     const coords = source[group.coords];
@@ -523,7 +523,7 @@ const THUMBNAIL_STROKES: Record<string, { color: string; width: number; dash?: s
 export function cpThumbnailSvg(
   fold: FoldDocument,
   segments: readonly CpSegment[],
-  options: SegmentThumbnailOptions = {}
+  options: SegmentThumbnailOptions = {},
 ): string {
   const size = options.size ?? 96;
   const padding = options.padding ?? 6;
@@ -551,8 +551,8 @@ export function cpThumbnailSvg(
 
   const span = Math.max(maxX - minX, maxY - minY, 1e-6);
   const scale = (size - padding * 2) / span;
-  const offsetX = padding + ((size - padding * 2) - (maxX - minX) * scale) / 2;
-  const offsetY = padding + ((size - padding * 2) - (maxY - minY) * scale) / 2;
+  const offsetX = padding + (size - padding * 2 - (maxX - minX) * scale) / 2;
+  const offsetY = padding + (size - padding * 2 - (maxY - minY) * scale) / 2;
   const project = (vertex: number): [number, number] => {
     const p = planePoint(coords[vertex], axes);
     const x = offsetX + (p.x - minX) * scale;
@@ -582,7 +582,7 @@ export function cpThumbnailSvg(
         const [x2, y2] = project(b);
         const dash = style.dash ? ` stroke-dasharray="${style.dash}"` : '';
         lines.push(
-          `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="${color}" stroke-width="${style.width}"${dash} stroke-linecap="round"/>`
+          `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="${color}" stroke-width="${style.width}"${dash} stroke-linecap="round"/>`,
         );
       }
     }
@@ -595,7 +595,7 @@ export function cpThumbnailSvg(
 export function segmentThumbnailSvg(
   fold: FoldDocument,
   segment: CpSegment,
-  options: SegmentThumbnailOptions = {}
+  options: SegmentThumbnailOptions = {},
 ): string {
   return cpThumbnailSvg(fold, [segment], options);
 }
@@ -607,11 +607,7 @@ export function segmentThumbnailSvg(
  * that *is* the paper's edge has its midpoint precisely there — which is how a
  * square loses half its border to a plain inside test.
  */
-export function pointOnSegmentBoundary(
-  segment: CpSegment,
-  point: Point,
-  epsilon = 1e-6
-): boolean {
+export function pointOnSegmentBoundary(segment: CpSegment, point: Point, epsilon = 1e-6): boolean {
   for (const ring of segment.boundary) {
     for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
       const a = ring[i]!;

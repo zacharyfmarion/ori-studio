@@ -7,9 +7,8 @@ import type {
 import { diagnosticHudStatus, isDiagnosticResultOperation } from './hudStatus';
 
 const t = ((_key: string, fallback: string, vars?: Record<string, string | number>) =>
-  fallback.replace(
-    /\{\{(\w+)\}\}/gu,
-    (_, name: string) => String(vars?.[name] ?? '')
+  fallback.replace(/\{\{(\w+)\}\}/gu, (_, name: string) =>
+    String(vars?.[name] ?? ''),
   )) as unknown as TFunction;
 
 function violation(index: number, rule = 'Maekawa', color = 'NotEnoughMountain') {
@@ -85,11 +84,7 @@ describe('tone and count', () => {
   });
 
   it('pluralises each clause on its own count', () => {
-    const entries = [
-      violation(1),
-      violation(2),
-      { ...violation(3), severity: 'warning' },
-    ];
+    const entries = [violation(1), violation(2), { ...violation(3), severity: 'warning' }];
     expect(diagnosticHudStatus(t, camv(entries))?.label).toBe('2 Foldability Errors, 1 Warning');
   });
 
@@ -131,7 +126,7 @@ describe('which results the HUD summarises', () => {
       diagnosticHudStatus(t, {
         ...camv([violation(1)]),
         operation: 'CreaseSetFoldAngle' as OristudioCpCommandResult['operation'],
-      })
+      }),
     ).toBeNull();
   });
 

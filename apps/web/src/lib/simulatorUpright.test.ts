@@ -5,7 +5,12 @@ import {
   setUprightView,
   type SimulatorOrbitView,
 } from './simulatorOrbit';
-import { toViewSpace, viewRotation, type CameraUniforms, type Mat3 } from '@treemaker/origami-simulator';
+import {
+  toViewSpace,
+  viewRotation,
+  type CameraUniforms,
+  type Mat3,
+} from '@treemaker/origami-simulator';
 
 /**
  * Setting which way is up.

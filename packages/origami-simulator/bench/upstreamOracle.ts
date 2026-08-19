@@ -50,7 +50,7 @@ export class UpstreamOracle {
   private constructor(
     private readonly server: ViteDevServer,
     private readonly browser: Browser,
-    private readonly page: Page
+    private readonly page: Page,
   ) {}
 
   static async launch(): Promise<UpstreamOracle> {
@@ -78,7 +78,7 @@ export class UpstreamOracle {
     await page.waitForFunction(
       () => Boolean((window as never as UpstreamWindow).globals?.model?.sync),
       undefined,
-      { timeout: 30_000 }
+      { timeout: 30_000 },
     );
 
     return new UpstreamOracle(server, browser, page);
@@ -99,7 +99,8 @@ export class UpstreamOracle {
 
         if (optionsArg.integration) g.integrationType = optionsArg.integration;
         if (optionsArg.axialStiffness !== undefined) g.axialStiffness = optionsArg.axialStiffness;
-        if (optionsArg.creaseStiffness !== undefined) g.creaseStiffness = optionsArg.creaseStiffness;
+        if (optionsArg.creaseStiffness !== undefined)
+          g.creaseStiffness = optionsArg.creaseStiffness;
         if (optionsArg.panelStiffness !== undefined) g.panelStiffness = optionsArg.panelStiffness;
         if (optionsArg.faceStiffness !== undefined) g.faceStiffness = optionsArg.faceStiffness;
         if (optionsArg.damping !== undefined) g.percentDamping = optionsArg.damping;
@@ -125,7 +126,7 @@ export class UpstreamOracle {
           maxStrain: typeof g.maxStrain === 'number' ? g.maxStrain : null,
         };
       },
-      { fold, options }
+      { fold, options },
     );
 
     return {

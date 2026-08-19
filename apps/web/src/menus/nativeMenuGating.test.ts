@@ -32,7 +32,7 @@ describe('native menu gating', () => {
   it('renders the in-app MenuBar unless the OS menu can host the commands', () => {
     // The ternary that chooses between the plain title and <MenuBar />.
     const branch = /\{(\w+)\s*\?\s*<span className="toolbar__title">[\s\S]*?<MenuBar \/>\}/.exec(
-      shell
+      shell,
     );
     expect(branch, 'the MenuBar branch in WorkspaceShell has moved').not.toBeNull();
 

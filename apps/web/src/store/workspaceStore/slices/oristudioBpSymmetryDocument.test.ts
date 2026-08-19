@@ -1,4 +1,9 @@
-import { patchBoxPleatDesign, selectOristudioBpHistoryPast, selectOristudioBpSymmetry, singleBoxPleatDesignTab } from '../designTabs';
+import {
+  patchBoxPleatDesign,
+  selectOristudioBpHistoryPast,
+  selectOristudioBpSymmetry,
+  singleBoxPleatDesignTab,
+} from '../designTabs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultBpDocumentSymmetry } from '../../../lib/bpTreeSymmetry';
 import type { OristudioBpDocumentState } from '../../../engine/oristudioBpTypes';
@@ -93,12 +98,13 @@ describe('symmetry is document state', () => {
   it('marks the project dirty when a pair is broken', () => {
     useWorkspaceStore.setState({
       ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
-      symmetry: {
-        ...selectOristudioBpSymmetry(useWorkspaceStore.getState()),
-        pairs: [{ v1: 1, v2: 2 }],
-      }
+        symmetry: {
+          ...selectOristudioBpSymmetry(useWorkspaceStore.getState()),
+          pairs: [{ v1: 1, v2: 2 }],
+        },
       }),
-      dirty: false});
+      dirty: false,
+    });
     useWorkspaceStore.getState().unpairOristudioBpTreeSymmetry(1);
     expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).pairs).toEqual([]);
     expect(useWorkspaceStore.getState().dirty).toBe(true);
@@ -107,12 +113,13 @@ describe('symmetry is document state', () => {
   it('leaves the project clean when unpairing a vertex that was not paired', () => {
     useWorkspaceStore.setState({
       ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
-      symmetry: {
-        ...selectOristudioBpSymmetry(useWorkspaceStore.getState()),
-        pairs: [{ v1: 1, v2: 2 }],
-      }
+        symmetry: {
+          ...selectOristudioBpSymmetry(useWorkspaceStore.getState()),
+          pairs: [{ v1: 1, v2: 2 }],
+        },
       }),
-      dirty: false});
+      dirty: false,
+    });
     useWorkspaceStore.getState().unpairOristudioBpTreeSymmetry(9);
     expect(useWorkspaceStore.getState().dirty).toBe(false);
   });
@@ -171,17 +178,20 @@ describe('symmetry rides the undo stack', () => {
   it('undoes an unpair, putting the pair back', async () => {
     useWorkspaceStore.setState({
       ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
-      symmetry: {
-        ...selectOristudioBpSymmetry(useWorkspaceStore.getState()),
-        pairs: [{ v1: 1, v2: 2 }],
-      }
-      }),});
+        symmetry: {
+          ...selectOristudioBpSymmetry(useWorkspaceStore.getState()),
+          pairs: [{ v1: 1, v2: 2 }],
+        },
+      }),
+    });
     useWorkspaceStore.getState().unpairOristudioBpTreeSymmetry(1);
     expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).pairs).toEqual([]);
 
     await useWorkspaceStore.getState().undo();
 
-    expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).pairs).toEqual([{ v1: 1, v2: 2 }]);
+    expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).pairs).toEqual([
+      { v1: 1, v2: 2 },
+    ]);
   });
 
   it('does not rebuild the design for a change that only touched symmetry', async () => {
@@ -197,12 +207,13 @@ describe('symmetry rides the undo stack', () => {
   it('leaves the derived axis alone when restoring', async () => {
     useWorkspaceStore.setState({
       ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
-      symmetry: {
-        ...selectOristudioBpSymmetry(useWorkspaceStore.getState()),
-        angle: 90,
-        loc: { x: 4, y: 4 },
-      }
-      }),});
+        symmetry: {
+          ...selectOristudioBpSymmetry(useWorkspaceStore.getState()),
+          angle: 90,
+          loc: { x: 4, y: 4 },
+        },
+      }),
+    });
     useWorkspaceStore.getState().setOristudioBpSymmetry({ enabled: false });
 
     await useWorkspaceStore.getState().undo();
@@ -218,33 +229,36 @@ describe('symmetry rides the undo stack', () => {
     runtimeMocks.restoreOristudioBpProjectSnapshot.mockResolvedValue(bpDocument());
     useWorkspaceStore.setState({
       ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
-      symmetry: {
-        ...selectOristudioBpSymmetry(useWorkspaceStore.getState()),
-        pairs: [],
-      },
-      historyPast: [
-        {
-          snapshot: {
-            bps: '<before/>',
-            selection: { kind: 'bp-none' },
-            symmetry: {
-              enabled: true,
-              fold: 'book',
-              quarterTurn: false,
-              sidesSwapped: false,
-              pairs: [{ v1: 1, v2: 2 }],
-            },
-          },
-          label: 'Delete flap',
-          timestamp: '2026-01-01T00:00:00.000Z',
+        symmetry: {
+          ...selectOristudioBpSymmetry(useWorkspaceStore.getState()),
+          pairs: [],
         },
-      ]
-      }),});
+        historyPast: [
+          {
+            snapshot: {
+              bps: '<before/>',
+              selection: { kind: 'bp-none' },
+              symmetry: {
+                enabled: true,
+                fold: 'book',
+                quarterTurn: false,
+                sidesSwapped: false,
+                pairs: [{ v1: 1, v2: 2 }],
+              },
+            },
+            label: 'Delete flap',
+            timestamp: '2026-01-01T00:00:00.000Z',
+          },
+        ],
+      }),
+    });
 
     await useWorkspaceStore.getState().undo();
 
     expect(runtimeMocks.restoreOristudioBpProjectSnapshot).toHaveBeenCalledWith('<before/>');
-    expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).pairs).toEqual([{ v1: 1, v2: 2 }]);
+    expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).pairs).toEqual([
+      { v1: 1, v2: 2 },
+    ]);
   });
 
   it('records nothing when the update changes nothing', () => {
@@ -258,15 +272,16 @@ describe('symmetry rides the undo stack', () => {
   it('does not hand the live pairs array to a snapshot', () => {
     useWorkspaceStore.setState({
       ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
-      symmetry: {
-        ...selectOristudioBpSymmetry(useWorkspaceStore.getState()),
-        pairs: [{ v1: 1, v2: 2 }],
-      }
-      }),});
+        symmetry: {
+          ...selectOristudioBpSymmetry(useWorkspaceStore.getState()),
+          pairs: [{ v1: 1, v2: 2 }],
+        },
+      }),
+    });
     useWorkspaceStore.getState().setOristudioBpSymmetry({ enabled: false });
     const recorded = selectOristudioBpHistoryPast(useWorkspaceStore.getState()).at(-1);
     expect(recorded?.snapshot.symmetry.pairs).not.toBe(
-      selectOristudioBpSymmetry(useWorkspaceStore.getState()).pairs
+      selectOristudioBpSymmetry(useWorkspaceStore.getState()).pairs,
     );
   });
 
@@ -277,8 +292,8 @@ describe('symmetry rides the undo stack', () => {
 
   it('records nothing with no design open', () => {
     useWorkspaceStore.setState({
-      ...singleBoxPleatDesignTab({ document: null 
-      }),});
+      ...singleBoxPleatDesignTab({ document: null }),
+    });
     useWorkspaceStore.getState().setOristudioBpSymmetry({ enabled: false });
     expect(selectOristudioBpHistoryPast(useWorkspaceStore.getState())).toEqual([]);
   });

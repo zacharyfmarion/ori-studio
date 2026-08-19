@@ -56,8 +56,22 @@ function squareWithDiagonals(jitter = 0) {
       [8, 4],
     ],
     edges_assignment: [
-      'B', 'B', 'B', 'B', 'B', 'B', 'B', 'B',
-      'M', 'M', 'V', 'V', 'M', 'V', 'M', 'V',
+      'B',
+      'B',
+      'B',
+      'B',
+      'B',
+      'B',
+      'B',
+      'B',
+      'M',
+      'M',
+      'V',
+      'V',
+      'M',
+      'V',
+      'M',
+      'V',
     ],
   };
 }
@@ -167,7 +181,10 @@ test('a genuinely off-system crease is left free, and the rest still snap', () =
   assert.ok(Math.abs(directionOf(result.fold, 16) - 37) < 0.5);
   // ...and everything else still came out exact.
   for (let i = 0; i < 16; i += 1) {
-    assert.ok(deviationOf(result.fold, i) < 1e-9, `edge ${i} is ${deviationOf(result.fold, i)} off`);
+    assert.ok(
+      deviationOf(result.fold, i) < 1e-9,
+      `edge ${i} is ${deviationOf(result.fold, i)} off`,
+    );
   }
 });
 
@@ -187,7 +204,10 @@ test('the coarsest angle system that fits is the one chosen', () => {
   // A 22.5-degree design must not be reported as a 3.75-degree one: every
   // multiple of 22.5 is also a multiple of 3.75, so the finer base is the weaker
   // claim and accepts six times as much by chance.
-  assert.equal(classify(squareWithDiagonals(0).vertices_coords, squareWithDiagonals(0).edges_vertices).base, 22.5);
+  assert.equal(
+    classify(squareWithDiagonals(0).vertices_coords, squareWithDiagonals(0).edges_vertices).base,
+    22.5,
+  );
 
   const eighth = { vertices_coords: [[0, 0]], edges_vertices: [] };
   for (let k = 1; k <= 8; k += 1) {

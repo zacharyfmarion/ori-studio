@@ -57,7 +57,7 @@ describe('arcPath', () => {
     const path = arcPath(
       { x: 0, y: 0 },
       { x: 10, y: 0 },
-      { x: Math.cos(rad(190)) * 10, y: Math.sin(rad(190)) * 10 }
+      { x: Math.cos(rad(190)) * 10, y: Math.sin(rad(190)) * 10 },
     )!;
     expect(path).toContain('0 0 ');
   });
@@ -69,7 +69,7 @@ describe('labelAnchor', () => {
       labelAnchor('distance', [
         { x: 0, y: 0 },
         { x: 100, y: 50 },
-      ])
+      ]),
     ).toEqual({ x: 50, y: 25 });
   });
 
@@ -90,7 +90,7 @@ describe('labelAnchor', () => {
       labelAnchor('angle', [
         { x: 0, y: 0 },
         { x: 1, y: 1 },
-      ])
+      ]),
     ).toBeNull();
   });
 });

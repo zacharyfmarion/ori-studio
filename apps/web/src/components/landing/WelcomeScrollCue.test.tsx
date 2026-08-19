@@ -36,8 +36,12 @@ function renderCue(options: { onActivate?: () => void } = {}) {
   root = createRoot(mount);
   act(() =>
     root?.render(
-      <WelcomeScrollCue scrollerRef={ref} targetId="landing-what" onActivate={options.onActivate} />
-    )
+      <WelcomeScrollCue
+        scrollerRef={ref}
+        targetId="landing-what"
+        onActivate={options.onActivate}
+      />,
+    ),
   );
 
   return { scroller, target, cue: () => mount.querySelector('.welcome-scroll-cue')! };

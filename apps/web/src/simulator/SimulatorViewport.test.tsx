@@ -36,7 +36,7 @@ function render(interactive: boolean, claimsWheel?: () => boolean) {
         pushCamera={pushCamera}
         pushRenderSettings={() => {}}
         ariaLabel="simulator"
-      />
+      />,
     );
   });
   // Mounting pushes the initial camera; the tests are about what the gesture

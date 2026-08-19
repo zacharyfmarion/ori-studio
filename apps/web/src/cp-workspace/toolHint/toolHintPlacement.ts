@@ -71,7 +71,7 @@ export interface CpToolHintPlacement {
 export function cpToolHintPlacement(
   anchor: CpToolHintAnchorRect,
   windowSize: CpToolHintWindowSize,
-  obstacle?: CpToolHintObstacleRect | null
+  obstacle?: CpToolHintObstacleRect | null,
 ): CpToolHintPlacement {
   // Only shrinks on a browser window too narrow to hold the window at all; the
   // normal case is the constant.
@@ -96,9 +96,7 @@ export function cpToolHintPlacement(
     obstacle !== null &&
     left < obstacle.right &&
     left + width > obstacle.left;
-  const cleared = overlapsHorizontally
-    ? windowSize.height - obstacle.top + OBSTACLE_GAP
-    : flush;
+  const cleared = overlapsHorizontally ? windowSize.height - obstacle.top + OBSTACLE_GAP : flush;
 
   const bottom = Math.max(cleared, EDGE_GUARD);
 

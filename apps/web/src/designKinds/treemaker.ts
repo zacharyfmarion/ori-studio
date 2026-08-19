@@ -53,9 +53,7 @@ const BLANK_PAPER = { paper_width: 1, paper_height: 1 } as const;
  * this module carries no runtime dependency on `engineRuntime` — the descriptor
  * is imported by the capability layer, which must not drag the engine in with it.
  */
-export function createTreemakerCodec(
-  getClient: () => Promise<EngineClient>
-): DesignKindCodec {
+export function createTreemakerCodec(getClient: () => Promise<EngineClient>): DesignKindCodec {
   return {
     async create() {
       const api = await getClient();
@@ -82,7 +80,7 @@ export function createTreemakerCodec(
 export function createTreemakerSendToEdit(getClient: () => Promise<EngineClient>) {
   return async function sendToEdit(
     handle: number,
-    request: SendToEditRequest
+    request: SendToEditRequest,
   ): Promise<SendToEditPayload> {
     const api = await getClient();
     // Build creases first: `exportFold` reads what the last build produced, so
@@ -112,7 +110,7 @@ export function createTreemakerSendToEdit(getClient: () => Promise<EngineClient>
 }
 
 export function createTreemakerDesignKind(
-  getClient: () => Promise<EngineClient>
+  getClient: () => Promise<EngineClient>,
 ): DesignKindDescriptor {
   return {
     id: 'treemaker',
@@ -127,7 +125,7 @@ export function createTreemakerDesignKind(
         title: t('panels:design.methodChooser.circlePacked.title', 'Circle-packed'),
         description: t(
           'panels:design.methodChooser.circlePacked.description',
-          'Sketch a tree and let circle/river packing optimize the base, TreeMaker-style.'
+          'Sketch a tree and let circle/river packing optimize the base, TreeMaker-style.',
         ),
       }),
       Icon: DraftingCompass,

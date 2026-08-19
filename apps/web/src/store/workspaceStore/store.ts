@@ -33,8 +33,8 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       ...createExploriSlice(...args),
       ...createSimulatorSlice(...args),
     }),
-    { name: 'treemaker-workspace' }
-  )
+    { name: 'treemaker-workspace' },
+  ),
 );
 
 // Let the engine runtimes resolve the active design, so a tree handle belongs to

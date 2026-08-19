@@ -30,9 +30,9 @@ export function frameActiveCpDiagnostic(state: WorkspaceState): void {
     visibleCpDiagnosticEntries(
       state.oristudioCpCamvResult,
       state.oristudioCpDocument?.lastCommandResult ?? null,
-      state.oristudioCpViewport.camvIssuesVisible !== false
+      state.oristudioCpViewport.camvIssuesVisible !== false,
     ),
-    state.oristudioCpActiveDiagnosticId
+    state.oristudioCpActiveDiagnosticId,
   );
   if (!entry) return;
   const bounds = diagnosticEntryBounds(entry);

@@ -33,10 +33,7 @@ export function useTauriNativeMenu(): void {
   // the menu would keep the chords it was built with until something else
   // happened to invalidate the signature.
   const defaultsSource = useShortcutStore((state) => state.defaultsSource);
-  const resolution = useMemo(
-    () => ({ overrides, defaultsSource }),
-    [overrides, defaultsSource]
-  );
+  const resolution = useMemo(() => ({ overrides, defaultsSource }), [overrides, defaultsSource]);
   const capabilities = useWorkspaceCapabilities();
   // Translated menu labels so the native macOS bar localizes with the app; the signature
   // below then includes the localized text, so switching language rebuilds the OS menu.
@@ -49,7 +46,7 @@ export function useTauriNativeMenu(): void {
   // time, avoiding stale closures without widening the dependency list.
   const signature = useMemo(
     () => nativeMenuSignature(menuDef, capabilities, resolution),
-    [menuDef, capabilities, resolution]
+    [menuDef, capabilities, resolution],
   );
   const buildToken = useRef(0);
 
@@ -61,7 +58,7 @@ export function useTauriNativeMenu(): void {
     void buildNativeMenu(
       freshCapabilities,
       { overrides: freshOverrides, defaultsSource: freshSource },
-      translate
+      translate,
     )
       .then(async (menu) => {
         // A newer rebuild started while this one was in flight — drop this menu

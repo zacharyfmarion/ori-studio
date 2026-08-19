@@ -60,7 +60,7 @@ describe('the workspace canvas grid', () => {
       expect(
         placedClasses().has(className),
         `\`${className}\` is handed to a layout component, which may wrap it — ` +
-          `place a wrapper this file renders instead`
+          `place a wrapper this file renders instead`,
       ).toBe(false);
     }
   });

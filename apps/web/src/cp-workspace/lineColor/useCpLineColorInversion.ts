@@ -46,7 +46,7 @@ export interface CpLineColorInversion {
  */
 export function useCpLineColorInversion(
   base: OristudioCpLineColor,
-  enabled = true
+  enabled = true,
 ): CpLineColorInversion {
   const held = useSyncExternalStore(subscribeHeldModifiers, isLineColorInversionModifierHeld);
   const swapped = toggledCpLineColor(base);

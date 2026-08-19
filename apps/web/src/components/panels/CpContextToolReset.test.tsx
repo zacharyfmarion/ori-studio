@@ -25,11 +25,7 @@ describe('CpContextToolReset', () => {
   const render = (options: OristudioCpToolOptions, groups: string[]) => {
     act(() => {
       root.render(
-        <CpContextToolReset
-          options={options}
-          setOptions={() => {}}
-          groups={groups as never}
-        />
+        <CpContextToolReset options={options} setOptions={() => {}} groups={groups as never} />,
       );
     });
     return host.querySelector('.cp-context-panel__reset');
@@ -67,7 +63,7 @@ describe('CpContextToolReset', () => {
             options = typeof update === 'function' ? update(options) : update;
           }}
           groups={['angle-system'] as never}
-        />
+        />,
       );
     });
     act(() => {

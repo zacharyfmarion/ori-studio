@@ -1,6 +1,10 @@
 import { Fragment, memo, type CSSProperties, type ReactNode } from 'react';
 import type { SerializedEditorState } from 'lexical';
-import { decodeInlineMarks, normalizeTextAlign, type TextAlign } from './annotations/textFormatting';
+import {
+  decodeInlineMarks,
+  normalizeTextAlign,
+  type TextAlign,
+} from './annotations/textFormatting';
 
 /**
  * A pure, read-only renderer for a Lexical {@link SerializedEditorState}. It
@@ -66,7 +70,11 @@ function renderBlock(node: SerializedNode, key: number): ReactNode {
   if (node.type === 'heading') {
     const Tag = (node.tag === 'h2' ? 'h2' : 'h1') as 'h1' | 'h2';
     return (
-      <Tag key={key} className={`cp-text-view__block cp-text-view__${node.tag ?? 'h1'}`} style={style}>
+      <Tag
+        key={key}
+        className={`cp-text-view__block cp-text-view__${node.tag ?? 'h1'}`}
+        style={style}
+      >
         {content}
       </Tag>
     );
@@ -81,11 +89,7 @@ function renderBlock(node: SerializedNode, key: number): ReactNode {
 // Memoized: the text layer re-renders every camera frame to reposition boxes, but
 // the rich content only changes on edit — skip re-reconciling it when the doc ref
 // is unchanged (the box's `style` still updates for the new font size/position).
-export const CpTextView = memo(function CpTextView({
-  state,
-}: {
-  state: SerializedEditorState;
-}) {
+export const CpTextView = memo(function CpTextView({ state }: { state: SerializedEditorState }) {
   const root = (state as unknown as { root?: SerializedNode }).root;
   const blocks = Array.isArray(root?.children) ? root.children : [];
   return <>{blocks.map((block, i) => renderBlock(block, i))}</>;

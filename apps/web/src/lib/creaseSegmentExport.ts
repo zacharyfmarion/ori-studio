@@ -27,7 +27,9 @@ export const SEGMENT_EXPORT_FORMATS: readonly SegmentExportFormatMeta[] = [
   { format: 'png', extension: 'png', kind: 'image' },
 ];
 
-export function isSegmentImageFormat(format: SegmentExportFormat): format is SegmentImageExportFormat {
+export function isSegmentImageFormat(
+  format: SegmentExportFormat,
+): format is SegmentImageExportFormat {
   return format === 'svg' || format === 'png';
 }
 
@@ -43,7 +45,7 @@ export function isSegmentImageFormat(format: SegmentExportFormat): format is Seg
  */
 export function buildSegmentSubFold(
   foldArtifacts: FoldArtifacts | null | undefined,
-  segmentId: number
+  segmentId: number,
 ): FoldDocument | null {
   if (!foldArtifacts) return null;
   const fold = foldArtifacts.fold;

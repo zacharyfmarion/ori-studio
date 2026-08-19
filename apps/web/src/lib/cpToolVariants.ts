@@ -67,21 +67,21 @@ const CP_TOOL_VARIANT_GROUPS: Readonly<Record<CpToolVariantGroupId, CpToolVarian
 const GROUP_BY_OPERATION = new Map<OristudioCpOperationId, CpToolVariantGroupId>(
   Object.entries(CP_TOOL_VARIANT_GROUPS).flatMap(([groupId, group]) =>
     Object.values(group.byValue).map(
-      (operationId) => [operationId, groupId as CpToolVariantGroupId] as const
-    )
-  )
+      (operationId) => [operationId, groupId as CpToolVariantGroupId] as const,
+    ),
+  ),
 );
 
 /** The option value that selects a given operation, for the reverse lookup. */
 const VALUE_BY_OPERATION = new Map<OristudioCpOperationId, string>(
   Object.values(CP_TOOL_VARIANT_GROUPS).flatMap((group) =>
-    Object.entries(group.byValue).map(([value, operationId]) => [operationId, value] as const)
-  )
+    Object.entries(group.byValue).map(([value, operationId]) => [operationId, value] as const),
+  ),
 );
 
 /** Which variant group an operation belongs to, or `null` for an ordinary tool. */
 export function cpVariantGroupForOperation(
-  operationId: OristudioCpOperationId | null | undefined
+  operationId: OristudioCpOperationId | null | undefined,
 ): CpToolVariantGroupId | null {
   return operationId ? (GROUP_BY_OPERATION.get(operationId) ?? null) : null;
 }
@@ -94,7 +94,7 @@ export function cpVariantGroupForOperation(
  */
 export function resolveCpVariantOperation(
   operationId: OristudioCpOperationId,
-  options: OristudioCpToolOptions
+  options: OristudioCpToolOptions,
 ): OristudioCpOperationId {
   const groupId = GROUP_BY_OPERATION.get(operationId);
   if (!groupId) return operationId;
@@ -109,7 +109,7 @@ export function resolveCpVariantOperation(
  * `hidden-ui-only`, kept only so upstream mouse-mode lookups keep working.
  */
 export function cpVariantHostOperation(
-  operationId: OristudioCpOperationId
+  operationId: OristudioCpOperationId,
 ): OristudioCpOperationId {
   const groupId = GROUP_BY_OPERATION.get(operationId);
   return groupId ? CP_TOOL_VARIANT_GROUPS[groupId].hostOperationId : operationId;
@@ -120,7 +120,7 @@ export function cpVariantHostOperation(
  * document saved with a non-host variant active. Empty for an ordinary tool.
  */
 export function cpVariantOptionPatch(
-  operationId: OristudioCpOperationId
+  operationId: OristudioCpOperationId,
 ): Partial<OristudioCpToolOptions> {
   const groupId = GROUP_BY_OPERATION.get(operationId);
   const value = VALUE_BY_OPERATION.get(operationId);
@@ -138,7 +138,7 @@ export function cpVariantOptionPatch(
  * shortcut bound to a variant by name is the opposite — it says which variant.
  */
 export function cpVariantModeForNamedAction(
-  action: OristudioCpCommandActionDefinition
+  action: OristudioCpCommandActionDefinition,
 ): Partial<OristudioCpToolOptions> | undefined {
   const patch = cpVariantOptionPatch(action.operationId);
   return Object.keys(patch).length > 0 ? patch : undefined;
@@ -153,7 +153,7 @@ export function cpVariantModeForNamedAction(
  * while being armed.
  */
 export function cpVariantHostAction(
-  action: OristudioCpCommandActionDefinition
+  action: OristudioCpCommandActionDefinition,
 ): OristudioCpCommandActionDefinition {
   const hostOperationId = cpVariantHostOperation(action.operationId);
   if (hostOperationId === action.operationId) return action;

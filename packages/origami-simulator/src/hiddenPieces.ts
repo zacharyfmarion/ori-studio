@@ -64,7 +64,7 @@ type SpanSink = (row: number, from: number, to: number) => void;
  */
 export function findVisiblePieces(
   pieces: readonly DrawnPiece[],
-  options: VisibilityOptions
+  options: VisibilityOptions,
 ): boolean[] {
   const visible = new Array<boolean>(pieces.length).fill(false);
   if (pieces.length === 0) return visible;
@@ -84,7 +84,7 @@ export function findVisiblePieces(
   for (let index = pieces.length - 1; index >= 0; index -= 1) {
     const piece = pieces[index]!;
     const points = piece.points.map(
-      ([x, y]) => [(x - options.minX) * scale, (y - options.minY) * scale] as [number, number]
+      ([x, y]) => [(x - options.minX) * scale, (y - options.minY) * scale] as [number, number],
     );
     let shows = false;
     const claim: SpanSink = (row, from, to) => {
@@ -115,7 +115,7 @@ export function findVisiblePieces(
 function polygonSpans(
   points: ReadonlyArray<readonly [number, number]>,
   rows: number,
-  emit: SpanSink
+  emit: SpanSink,
 ): void {
   if (points.length < 3) return;
   let minY = Infinity;
@@ -152,7 +152,7 @@ function capsuleSpans(
   b: readonly [number, number],
   radius: number,
   rows: number,
-  emit: SpanSink
+  emit: SpanSink,
 ): void {
   if (!(radius > 0)) return;
   const dx = b[0] - a[0];
@@ -169,7 +169,7 @@ function capsuleSpans(
         [a[0] - nx, a[1] - ny],
       ],
       rows,
-      emit
+      emit,
     );
   }
   discSpans(a, radius, rows, emit);
@@ -180,7 +180,7 @@ function discSpans(
   centre: readonly [number, number],
   radius: number,
   rows: number,
-  emit: SpanSink
+  emit: SpanSink,
 ): void {
   const first = Math.max(0, Math.ceil(centre[1] - radius - 0.5));
   const last = Math.min(rows - 1, Math.floor(centre[1] + radius - 0.5));

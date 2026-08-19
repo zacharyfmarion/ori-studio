@@ -4,39 +4,21 @@
     {
       "name": "web",
       "runtimeExecutable": "npx",
-      "runtimeArgs": [
-        "vite",
-        "apps/web",
-        "--port",
-        "5224"
-      ],
+      "runtimeArgs": ["vite", "apps/web", "--port", "5224"],
       "port": 5224,
       "autoPort": true
     },
     {
       "name": "web-prod",
       "runtimeExecutable": "npx",
-      "runtimeArgs": [
-        "vite",
-        "preview",
-        "apps/web",
-        "--port",
-        "5230",
-        "--strictPort"
-      ],
+      "runtimeArgs": ["vite", "preview", "apps/web", "--port", "5230", "--strictPort"],
       "port": 5230,
       "autoPort": false
     },
     {
       "name": "upstream-oracle",
       "runtimeExecutable": "npx",
-      "runtimeArgs": [
-        "vite",
-        "third_party/origami-simulator",
-        "--port",
-        "5193",
-        "--strictPort"
-      ],
+      "runtimeArgs": ["vite", "third_party/origami-simulator", "--port", "5193", "--strictPort"],
       "port": 5193,
       "autoPort": false
     }

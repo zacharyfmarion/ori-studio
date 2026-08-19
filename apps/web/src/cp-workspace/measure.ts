@@ -39,7 +39,7 @@ const CP_MEASUREMENT_OPERATION_IDS: readonly OristudioCpOperationId[] = [
 
 /** What the active operation measures, or null when it is not a measure tool. */
 export function cpMeasureKindForOperation(
-  operationId: OristudioCpOperationId | null | undefined
+  operationId: OristudioCpOperationId | null | undefined,
 ): CpMeasureKind | null {
   if (!isCpMeasurementOperation(operationId)) return null;
   return operationId === 'DisplayLengthBetweenPoints1' ||
@@ -54,7 +54,7 @@ export function cpMeasurePointCount(kind: CpMeasureKind): number {
 }
 
 export function isCpMeasurementOperation(
-  operationId: OristudioCpOperationId | null | undefined
+  operationId: OristudioCpOperationId | null | undefined,
 ): boolean {
   return operationId != null && CP_MEASUREMENT_OPERATION_IDS.includes(operationId);
 }
@@ -67,7 +67,6 @@ export interface CpMeasurement {
   /** The points it was taken from — 2 for a distance, 3 (rays about [1]) for an angle. */
   points: readonly { x: number; y: number }[];
 }
-
 
 /* ---------------------------------------------------------------------------
  * Units
@@ -82,7 +81,14 @@ export interface CpMeasurement {
 /** Units a *length* can read in. An angle has its own set — see {@link CpAngleUnit}. */
 export type CpMeasureUnit = 'paper' | 'grid' | 'mm' | 'cm' | 'in' | 'model';
 
-export const CP_MEASURE_UNITS: readonly CpMeasureUnit[] = ['paper', 'grid', 'mm', 'cm', 'in', 'model'];
+export const CP_MEASURE_UNITS: readonly CpMeasureUnit[] = [
+  'paper',
+  'grid',
+  'mm',
+  'cm',
+  'in',
+  'model',
+];
 
 /** Units an *angle* can read in. Nothing about the paper affects these. */
 export type CpAngleUnit = 'deg' | 'rad';
@@ -111,7 +117,7 @@ const MM_PER_INCH = 25.4;
 export function convertCpLength(
   modelValue: number,
   unit: CpMeasureUnit,
-  scale: CpMeasureScale
+  scale: CpMeasureScale,
 ): number {
   const paperEdge = scale.paperEdge > 0 ? scale.paperEdge : 1;
   switch (unit) {
@@ -159,7 +165,7 @@ function suffixForUnit(unit: CpMeasureUnit): string {
 export function formatCpLength(
   modelValue: number,
   unit: CpMeasureUnit,
-  scale: CpMeasureScale
+  scale: CpMeasureScale,
 ): string {
   if (!Number.isFinite(modelValue)) return '-';
   const converted = convertCpLength(modelValue, unit, scale);
@@ -263,7 +269,7 @@ export function formatCpMeasurement(
   measurement: CpMeasurement,
   unit: CpMeasureUnit,
   scale: CpMeasureScale,
-  angleUnit: CpAngleUnit = 'deg'
+  angleUnit: CpAngleUnit = 'deg',
 ): string {
   return measurement.kind === 'angle'
     ? formatCpAngle(measurement.value, angleUnit)
@@ -279,7 +285,7 @@ export function copyTextForCpMeasurement(
   measurement: CpMeasurement,
   unit: CpMeasureUnit,
   scale: CpMeasureScale,
-  angleUnit: CpAngleUnit = 'deg'
+  angleUnit: CpAngleUnit = 'deg',
 ): string {
   return measurement.kind === 'angle'
     ? String(convertCpAngle(snapExactCpAngle(interiorCpAngle(measurement.value)), angleUnit))

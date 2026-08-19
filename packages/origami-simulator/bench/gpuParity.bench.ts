@@ -65,17 +65,20 @@ describe('GPU solver parity', () => {
       page.on('pageerror', (error) => pageErrors.push(error.message));
 
       await page.goto(`${base}bench/gpuParityHarness/index.html`, { waitUntil: 'networkidle' });
-      await page.waitForFunction(() => typeof (window as unknown as { runGpuParity?: unknown }).runGpuParity === 'function', undefined, {
-        timeout: 30_000,
-      });
+      await page.waitForFunction(
+        () => typeof (window as unknown as { runGpuParity?: unknown }).runGpuParity === 'function',
+        undefined,
+        {
+          timeout: 30_000,
+        },
+      );
 
       const rows = (await page.evaluate(
         ([foldPercent, stepCounts]) =>
-          (window as unknown as { runGpuParity: (p: number, s: number[]) => GpuParityRow[] }).runGpuParity(
-            foldPercent as number,
-            stepCounts as number[]
-          ),
-        [FOLD_PERCENT, STEP_COUNTS] as const
+          (
+            window as unknown as { runGpuParity: (p: number, s: number[]) => GpuParityRow[] }
+          ).runGpuParity(foldPercent as number, stepCounts as number[]),
+        [FOLD_PERCENT, STEP_COUNTS] as const,
       )) as GpuParityRow[];
 
       const lines = rows.map(
@@ -84,26 +87,34 @@ describe('GPU solver parity', () => {
           `v=${String(row.vertices).padStart(5)} | ` +
           (row.error
             ? `ERROR: ${row.error}`
-            : `max ${row.maxAbs.toExponential(2)}  mean ${row.meanAbs.toExponential(2)}`)
+            : `max ${row.maxAbs.toExponential(2)}  mean ${row.meanAbs.toExponential(2)}`),
       );
       process.stdout.write(`\n${lines.join('\n')}\n\n`);
       if (pageErrors.length) process.stdout.write(`page errors:\n${pageErrors.join('\n')}\n\n`);
 
       const supported = rows.filter((row) => row.gpuSupported && !row.error);
-      expect(supported.length, `no fixtures ran on the GPU; page errors: ${pageErrors.join('; ')}`).toBeGreaterThan(0);
+      expect(
+        supported.length,
+        `no fixtures ran on the GPU; page errors: ${pageErrors.join('; ')}`,
+      ).toBeGreaterThan(0);
 
       const worst = supported.reduce((max, row) => Math.max(max, row.maxAbs), 0);
-      process.stdout.write(`worst GPU-vs-reference divergence: ${worst.toExponential(3)} (Tier C ${TIER_C})\n\n`);
+      process.stdout.write(
+        `worst GPU-vs-reference divergence: ${worst.toExponential(3)} (Tier C ${TIER_C})\n\n`,
+      );
 
       for (const row of supported) {
-        expect(row.maxAbs, `${row.fixture} ${row.integrator} @ ${row.steps} steps diverged`).toBeLessThan(TIER_C);
+        expect(
+          row.maxAbs,
+          `${row.fixture} ${row.integrator} @ ${row.steps} steps diverged`,
+        ).toBeLessThan(TIER_C);
       }
 
       // Headless render coverage. Not a visual check -- it only catches shaders
       // that fail to compile/link and renders that draw nothing or one flat
       // colour. The visual result is user-verified in a visible window.
       const renderRows = (await page.evaluate(() =>
-        (window as unknown as { runRenderCheck: () => RenderCheckRow[] }).runRenderCheck()
+        (window as unknown as { runRenderCheck: () => RenderCheckRow[] }).runRenderCheck(),
       )) as RenderCheckRow[];
 
       const renderLines = renderRows.map(
@@ -112,14 +123,17 @@ describe('GPU solver parity', () => {
           (row.error
             ? `ERROR: ${row.error}`
             : `coverage ${(row.coverage * 100).toFixed(1)}%  colors ${row.distinctColors}  ` +
-              `strain ${row.strainDiffers ? 'differs' : 'SAME'}  ${row.ok ? 'ok' : 'FAIL'}`)
+              `strain ${row.strainDiffers ? 'differs' : 'SAME'}  ${row.ok ? 'ok' : 'FAIL'}`),
       );
       process.stdout.write(`render check:\n${renderLines.join('\n')}\n\n`);
 
       const renderable = renderRows.filter((row) => !row.error);
       expect(renderable.length, 'no fixtures rendered on the GPU').toBeGreaterThan(0);
       for (const row of renderable) {
-        expect(row.ok, `${row.fixture} rendered an implausible frame (coverage ${row.coverage}, colors ${row.distinctColors})`).toBe(true);
+        expect(
+          row.ok,
+          `${row.fixture} rendered an implausible frame (coverage ${row.coverage}, colors ${row.distinctColors})`,
+        ).toBe(true);
         // Strain visualization must actually change the image; it used to be a stub.
         expect(row.strainDiffers, `${row.fixture} strain colour mode changed nothing`).toBe(true);
       }

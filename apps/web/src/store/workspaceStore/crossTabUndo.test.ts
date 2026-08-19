@@ -136,7 +136,7 @@ beforeEach(() => {
   });
   engineMocks.getEngine.mockResolvedValue({});
   engineMocks.loadTreeFromText.mockImplementation(async (_api: unknown, text: string) =>
-    snapshotTitled(text)
+    snapshotTitled(text),
   );
 });
 

@@ -32,7 +32,7 @@ import {
  */
 export async function resolveInlineSimulationRegion(
   document: OristudioCpDocumentSnapshot | null | undefined,
-  lineIds: readonly number[]
+  lineIds: readonly number[],
 ): Promise<SelectedSegmentMatch | null> {
   if (!document || lineIds.length === 0) return null;
   const artifacts =
@@ -40,6 +40,6 @@ export async function resolveInlineSimulationRegion(
   return resolveSelectedSegment(
     document,
     { ...emptyOristudioCpSelection(), lines: [...lineIds] },
-    artifacts
+    artifacts,
   );
 }

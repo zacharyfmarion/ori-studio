@@ -31,7 +31,12 @@ describe('dragPathTool', () => {
       { kind: 'move', point: { x: 1, y: 1 } },
       { kind: 'up', point: { x: 1, y: 1 } },
     ]);
-    expect(outs[3].commit).toEqual({ points: [{ x: 0, y: 0 }, { x: 1, y: 1 }] });
+    expect(outs[3].commit).toEqual({
+      points: [
+        { x: 0, y: 0 },
+        { x: 1, y: 1 },
+      ],
+    });
   });
 
   it('does not commit a single-point path', () => {

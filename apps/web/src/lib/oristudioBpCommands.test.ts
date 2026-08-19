@@ -11,11 +11,9 @@ import {
 describe('oristudio BP command contract', () => {
   it('keeps command ids unique and capability ids aligned', () => {
     expect(new Set(ORISTUDIO_BP_COMMAND_IDS).size).toBe(ORISTUDIO_BP_COMMAND_IDS.length);
-    expect(new Set(ORISTUDIO_BP_CAPABILITY_IDS).size).toBe(
-      ORISTUDIO_BP_CAPABILITY_IDS.length
-    );
+    expect(new Set(ORISTUDIO_BP_CAPABILITY_IDS).size).toBe(ORISTUDIO_BP_CAPABILITY_IDS.length);
     expect(ORISTUDIO_BP_COMMANDS.map((command) => command.capability)).toEqual(
-      ORISTUDIO_BP_COMMAND_IDS
+      ORISTUDIO_BP_COMMAND_IDS,
     );
   });
 
@@ -43,7 +41,7 @@ describe('oristudio BP command contract', () => {
         'bp.file.exportSvg',
         'bp.file.exportPng',
         'bp.workspace.saveAll',
-      ])
+      ]),
     );
   });
 

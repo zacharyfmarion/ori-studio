@@ -112,7 +112,7 @@ describe('GlCore context loss', () => {
     // A lost context makes every call a silent no-op and every read return
     // zeros, which a solver would happily report as a settled, motionless mesh.
     expect(() => core!.createTexture('u_position', { width: 2, height: 2, data: null })).toThrow(
-      WebGlContextLostError
+      WebGlContextLostError,
     );
     expect(() => core!.readTexture('u_position')).toThrow(WebGlContextLostError);
   });

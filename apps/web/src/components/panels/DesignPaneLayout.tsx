@@ -45,7 +45,7 @@ export function DesignPaneLayout() {
       useLayoutStore.getState().setDesignPaneApi(null);
       if (saveTimer.current) clearTimeout(saveTimer.current);
     },
-    []
+    [],
   );
 
   const kind = tab.kind === null ? null : (designKind(tab.kind) ?? null);
@@ -74,7 +74,7 @@ export function DesignPaneLayout() {
     // `savedLayout` is deliberately absent: it is the *initial* layout, read once
     // per mount. Re-running on every save would restore over the user's drag.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [kind, setActivePanelId, setDesignPaneLayout, t, tab.id]
+    [kind, setActivePanelId, setDesignPaneLayout, t, tab.id],
   );
 
   // A tab that has not chosen a kind has no panes to lay out — its kind is what
@@ -113,7 +113,7 @@ export function DesignPaneLayout() {
 export function restoreLayout(
   api: DockviewApi,
   kind: DesignKindDescriptor,
-  saved: SerializedDockview | null
+  saved: SerializedDockview | null,
 ): boolean {
   if (!saved) return false;
   const expected = new Set(kind.panes.map((pane) => pane.component));
@@ -169,7 +169,7 @@ function addSecondaryPane(
   pane: DesignPaneSpec,
   primaryId: string,
   sideGroupLead: Map<string, string>,
-  t: TFunction
+  t: TFunction,
 ): void {
   const base = { id: pane.component, component: pane.component, title: pane.title(t) };
 

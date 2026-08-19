@@ -16,7 +16,7 @@ const SNAP_STEP_RATIO = 0.1;
 export function visibleGridBounds(
   view: ViewTransform,
   deviceWidth: number,
-  deviceHeight: number
+  deviceHeight: number,
 ): CpModelBounds | null {
   const corners = [
     unprojectDevicePoint(view, 0, 0),

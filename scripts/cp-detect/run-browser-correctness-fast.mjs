@@ -47,7 +47,11 @@ async function main() {
       const result = await runSample(page, sample, imageBase64, options, vertexRefinerFrame);
       await writeFile(reportPath, `${JSON.stringify(result.report, null, 2)}\n`, 'utf8');
       if (result.ok) {
-        await writeFile(foldPath, `${JSON.stringify(JSON.parse(result.foldJson), null, 2)}\n`, 'utf8');
+        await writeFile(
+          foldPath,
+          `${JSON.stringify(JSON.parse(result.foldJson), null, 2)}\n`,
+          'utf8',
+        );
       }
       const row = {
         id: sample.id,
@@ -92,7 +96,9 @@ async function main() {
     vertex_refiner_proposal_mode:
       options.vertexRefinerProposalMode ?? DEFAULT_VERTEX_REFINER_PROPOSAL_MODE,
     vertex_refiner_proposal_cap:
-      options.vertexRefinerProposalCap === undefined ? null : Number(options.vertexRefinerProposalCap),
+      options.vertexRefinerProposalCap === undefined
+        ? null
+        : Number(options.vertexRefinerProposalCap),
     vertex_refiner_dense_region_junction_threshold:
       options.vertexRefinerDenseRegionJunctionThreshold === undefined
         ? DEFAULT_VERTEX_REFINER_DENSE_REGION_JUNCTION_THRESHOLD
@@ -117,7 +123,11 @@ async function main() {
     samples: rows,
     browser_errors: browserErrors,
   };
-  await writeFile(resolve(outDir, 'run_manifest.json'), `${JSON.stringify(runManifest, null, 2)}\n`, 'utf8');
+  await writeFile(
+    resolve(outDir, 'run_manifest.json'),
+    `${JSON.stringify(runManifest, null, 2)}\n`,
+    'utf8',
+  );
   if (browserErrors.length > 0) {
     process.stderr.write(`browser errors:\n${browserErrors.join('\n')}\n`);
   }
@@ -194,7 +204,9 @@ async function runSampleOnce(page, sample, imageBase64, options, vertexRefinerFr
         const blob = new Blob([bytes], { type: 'image/png' });
         const bitmap = await createImageBitmap(blob);
         if (bitmap.width !== imageSize || bitmap.height !== imageSize) {
-          throw new Error(`Expected ${imageSize}x${imageSize}, got ${bitmap.width}x${bitmap.height}`);
+          throw new Error(
+            `Expected ${imageSize}x${imageSize}, got ${bitmap.width}x${bitmap.height}`,
+          );
         }
         const canvas = document.createElement('canvas');
         canvas.width = bitmap.width;
@@ -212,18 +224,30 @@ async function runSampleOnce(page, sample, imageBase64, options, vertexRefinerFr
         if (vertexRefinerManifestUrl) options.vertexRefinerManifestUrl = vertexRefinerManifestUrl;
         if (vertexRefinerModelUrl) options.vertexRefinerModelUrl = vertexRefinerModelUrl;
         if (vertexRefinerFallback) options.vertexRefinerFallback = vertexRefinerFallback;
-        if (vertexRefinerProposalMode) options.vertexRefinerProposalMode = vertexRefinerProposalMode;
+        if (vertexRefinerProposalMode)
+          options.vertexRefinerProposalMode = vertexRefinerProposalMode;
         if (vertexRefinerProposalCap !== null && vertexRefinerProposalCap !== undefined) {
           options.vertexRefinerProposalCap = vertexRefinerProposalCap;
         }
-        if (vertexRefinerDenseRegionJunctionThreshold !== null && vertexRefinerDenseRegionJunctionThreshold !== undefined) {
-          options.vertexRefinerDenseRegionJunctionThreshold = vertexRefinerDenseRegionJunctionThreshold;
+        if (
+          vertexRefinerDenseRegionJunctionThreshold !== null &&
+          vertexRefinerDenseRegionJunctionThreshold !== undefined
+        ) {
+          options.vertexRefinerDenseRegionJunctionThreshold =
+            vertexRefinerDenseRegionJunctionThreshold;
         }
-        if (vertexRefinerDenseRegionMinPeaks !== null && vertexRefinerDenseRegionMinPeaks !== undefined) {
+        if (
+          vertexRefinerDenseRegionMinPeaks !== null &&
+          vertexRefinerDenseRegionMinPeaks !== undefined
+        ) {
           options.vertexRefinerDenseRegionMinPeaks = vertexRefinerDenseRegionMinPeaks;
         }
-        if (vertexRefinerDenseRegionMaxOverlapFraction !== null && vertexRefinerDenseRegionMaxOverlapFraction !== undefined) {
-          options.vertexRefinerDenseRegionMaxOverlapFraction = vertexRefinerDenseRegionMaxOverlapFraction;
+        if (
+          vertexRefinerDenseRegionMaxOverlapFraction !== null &&
+          vertexRefinerDenseRegionMaxOverlapFraction !== undefined
+        ) {
+          options.vertexRefinerDenseRegionMaxOverlapFraction =
+            vertexRefinerDenseRegionMaxOverlapFraction;
         }
         if (vertexRefinerFrame) options.vertexRefinerFrame = vertexRefinerFrame;
         if (exactSolveTimeoutSeconds !== null && exactSolveTimeoutSeconds !== undefined) {
@@ -265,7 +289,9 @@ async function runSampleOnce(page, sample, imageBase64, options, vertexRefinerFr
         vertexRefinerProposalMode:
           options.vertexRefinerProposalMode ?? DEFAULT_VERTEX_REFINER_PROPOSAL_MODE,
         vertexRefinerProposalCap:
-          options.vertexRefinerProposalCap === undefined ? null : Number(options.vertexRefinerProposalCap),
+          options.vertexRefinerProposalCap === undefined
+            ? null
+            : Number(options.vertexRefinerProposalCap),
         vertexRefinerDenseRegionJunctionThreshold:
           options.vertexRefinerDenseRegionJunctionThreshold === undefined
             ? DEFAULT_VERTEX_REFINER_DENSE_REGION_JUNCTION_THRESHOLD
@@ -283,7 +309,7 @@ async function runSampleOnce(page, sample, imageBase64, options, vertexRefinerFr
           options.exactSolveTimeoutSeconds === undefined
             ? null
             : Number(options.exactSolveTimeoutSeconds),
-      }
+      },
     );
     return {
       ok: true,
@@ -294,9 +320,14 @@ async function runSampleOnce(page, sample, imageBase64, options, vertexRefinerFr
         status: detection.status,
         ...detection.detectorReport,
         manifest_id: detection.manifest?.id ?? null,
-        junction_source: detection.junctionSource ?? detection.detectorReport?.quality_report?.junction_source ?? null,
+        junction_source:
+          detection.junctionSource ??
+          detection.detectorReport?.quality_report?.junction_source ??
+          null,
         line_evidence_source:
-          detection.lineEvidenceSource ?? detection.detectorReport?.quality_report?.line_evidence_source ?? null,
+          detection.lineEvidenceSource ??
+          detection.detectorReport?.quality_report?.line_evidence_source ??
+          null,
         vertex_refiner: detection.vertexRefiner ?? null,
       },
     };
@@ -396,7 +427,9 @@ function parseArgs(args) {
     options.vertexRefinerProposalMode !== undefined &&
     !['full-coverage', 'dense-junction-regions'].includes(options.vertexRefinerProposalMode)
   ) {
-    throw new Error("--vertex-refiner-proposal-mode must be 'full-coverage' or 'dense-junction-regions'");
+    throw new Error(
+      "--vertex-refiner-proposal-mode must be 'full-coverage' or 'dense-junction-regions'",
+    );
   }
   return options;
 }

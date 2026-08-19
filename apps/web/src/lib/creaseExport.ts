@@ -1,9 +1,5 @@
 import type { FoldDocument } from '../engine/types';
-import {
-  buildSegmentFold,
-  flatPlaneAxes,
-  type CpSegment,
-} from './creasePatternSegmentation';
+import { buildSegmentFold, flatPlaneAxes, type CpSegment } from './creasePatternSegmentation';
 import { escapeXml } from './xmlEscape';
 import { foldedFigureSvgBody, projectedFoldedFigureBounds } from './foldedFigureSvg';
 import {
@@ -250,7 +246,7 @@ function edgeLineColor(assignment: string): string {
 function edgeAppearance(
   assignment: string,
   lineStyle: OristudioCpLineStyle,
-  palette: CreaseExportPalette
+  palette: CreaseExportPalette,
 ): EdgeAppearance {
   const lineColor = edgeLineColor(assignment);
   const ink = cpLineStyleInk(lineStyle, lineColor);
@@ -433,7 +429,7 @@ export function layoutCreaseExport(
   caption: CreaseExportCaption,
   palette: CreaseExportPalette,
   foldedBox: CreaseExportFoldedBox | null = null,
-  inset: CreaseExportInset = NO_CREASE_EXPORT_INSET
+  inset: CreaseExportInset = NO_CREASE_EXPORT_INSET,
 ): CreaseExportLayout {
   // The crease pattern's box already ends in a margin, which becomes the gap to
   // the folded figure; the figure's own box is tight, so it takes a matching
@@ -536,11 +532,11 @@ export function serializeCreasePatternSvg(
   fold: FoldDocument,
   segments: CpSegment[],
   options: CreaseExportOptions = DEFAULT_CREASE_EXPORT_OPTIONS,
-  content: CreaseExportContent = EMPTY_CREASE_EXPORT_CONTENT
+  content: CreaseExportContent = EMPTY_CREASE_EXPORT_CONTENT,
 ): string {
   return composeCreaseExportSvg(
     buildCreaseExportArtwork(fold, segments, options, content),
-    options.caption
+    options.caption,
   ).svg;
 }
 
@@ -589,11 +585,13 @@ export function buildCreaseExportArtwork(
   fold: FoldDocument,
   segments: CpSegment[],
   options: CreaseExportOptions,
-  content: CreaseExportContent = EMPTY_CREASE_EXPORT_CONTENT
+  content: CreaseExportContent = EMPTY_CREASE_EXPORT_CONTENT,
 ): CreaseExportArtwork {
   const palette = creaseExportPalette(options.theme);
   const segment =
-    options.segmentId != null ? segments.find((entry) => entry.id === options.segmentId) : undefined;
+    options.segmentId != null
+      ? segments.find((entry) => entry.id === options.segmentId)
+      : undefined;
   const targetFold = segment ? buildSegmentFold(fold, segment) : fold;
   const { project, projectPoint, scale, contentTop, contentHeight } = foldProjector(targetFold);
 
@@ -639,7 +637,7 @@ export function buildCreaseExportArtwork(
         drawn.add(vertex);
         const point = project(vertex);
         dots.push(
-          `  <circle cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="${radius.toFixed(2)}" fill="${palette.point}"/>`
+          `  <circle cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="${radius.toFixed(2)}" fill="${palette.point}"/>`,
         );
       }
     }
@@ -692,7 +690,7 @@ export function buildCreaseExportArtwork(
 /** Place artwork and caption on the page and emit the standalone SVG. */
 export function composeCreaseExportSvg(
   artwork: CreaseExportArtwork,
-  caption: CreaseExportCaption
+  caption: CreaseExportCaption,
 ): CreaseExportDocument {
   const { palette } = artwork;
   const layout = layoutCreaseExport(caption, palette, artwork.foldedBox, artwork.inset);
@@ -764,11 +762,11 @@ export function renderCreasePatternPng(
   fold: FoldDocument,
   segments: CpSegment[],
   options: CreaseExportOptions = DEFAULT_CREASE_EXPORT_OPTIONS,
-  content: CreaseExportContent = EMPTY_CREASE_EXPORT_CONTENT
+  content: CreaseExportContent = EMPTY_CREASE_EXPORT_CONTENT,
 ): Promise<Uint8Array> {
   const page = composeCreaseExportSvg(
     buildCreaseExportArtwork(fold, segments, options, content),
-    options.caption
+    options.caption,
   );
   return svgToPng(page.svg, page.width, page.height);
 }
@@ -813,7 +811,7 @@ export function computeShareCardFrame(
   sourceHeight: number,
   cardWidth: number = SHARE_CARD_WIDTH,
   cardHeight: number = SHARE_CARD_HEIGHT,
-  padding: number = SHARE_CARD_PADDING
+  padding: number = SHARE_CARD_PADDING,
 ): ShareCardFrame {
   const safeSourceWidth = Number.isFinite(sourceWidth) && sourceWidth > 0 ? sourceWidth : 1;
   const safeSourceHeight = Number.isFinite(sourceHeight) && sourceHeight > 0 ? sourceHeight : 1;
@@ -823,8 +821,8 @@ export function computeShareCardFrame(
     0,
     Math.min(
       Number.isFinite(padding) && padding > 0 ? padding : 0,
-      (Math.min(cardWidth, cardHeight) - 1) / 2
-    )
+      (Math.min(cardWidth, cardHeight) - 1) / 2,
+    ),
   );
   const boxWidth = cardWidth - safePadding * 2;
   const boxHeight = cardHeight - safePadding * 2;
@@ -858,7 +856,7 @@ export async function svgToPngCard(
   svg: string,
   sourceWidth: number,
   sourceHeight: number,
-  options: ShareCardOptions
+  options: ShareCardOptions,
 ): Promise<Uint8Array> {
   const cardWidth = options.width ?? SHARE_CARD_WIDTH;
   const cardHeight = options.height ?? SHARE_CARD_HEIGHT;
@@ -867,7 +865,7 @@ export async function svgToPngCard(
     sourceHeight,
     cardWidth,
     cardHeight,
-    options.padding ?? SHARE_CARD_PADDING
+    options.padding ?? SHARE_CARD_PADDING,
   );
 
   const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
@@ -911,7 +909,7 @@ export function renderCreasePatternCardPng(
   fold: FoldDocument,
   segments: CpSegment[],
   options: CreaseExportOptions = DEFAULT_CREASE_EXPORT_OPTIONS,
-  content: CreaseExportContent = EMPTY_CREASE_EXPORT_CONTENT
+  content: CreaseExportContent = EMPTY_CREASE_EXPORT_CONTENT,
 ): Promise<Uint8Array> {
   const artwork = buildCreaseExportArtwork(fold, segments, options, content);
   const page = composeCreaseExportSvg(artwork, options.caption);

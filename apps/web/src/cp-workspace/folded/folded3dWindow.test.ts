@@ -8,10 +8,7 @@ import type {
   OristudioCpFoldedFigureEntry,
 } from '../../engine/oristudioCpTypes';
 import { SIMULATOR_MAX_ZOOM, SIMULATOR_MIN_ZOOM } from '../../lib/simulatorOrbit';
-import {
-  resetFolded3dRenderModels,
-  setFolded3dRenderModel,
-} from './folded3dRenderModels';
+import { resetFolded3dRenderModels, setFolded3dRenderModel } from './folded3dRenderModels';
 import {
   canWindowFolded3dFigure,
   folded3dFrameFillZoom,
@@ -41,7 +38,7 @@ function meshOf(name: string): Folded3dMesh {
 }
 
 function figure(
-  overrides: Partial<OristudioCpFoldedFigureEntry> = {}
+  overrides: Partial<OristudioCpFoldedFigureEntry> = {},
 ): OristudioCpFoldedFigureEntry {
   return {
     id: 'folded-1',
@@ -107,8 +104,12 @@ describe('deciding which figures become windows', () => {
   it('collects the windowed ids, and only those', () => {
     setFolded3dRenderModel(7, fixture('pinwheel'));
     const ids = folded3dWindowIds(
-      [figure(), figure({ id: 'folded-2', handle: 99 }), figure({ id: 'folded-3', folded3d: null })],
-      GPU
+      [
+        figure(),
+        figure({ id: 'folded-2', handle: 99 }),
+        figure({ id: 'folded-3', folded3d: null }),
+      ],
+      GPU,
     );
     expect([...ids]).toEqual(['folded-1']);
   });
@@ -125,13 +126,7 @@ describe('framing a figure inside its window', () => {
       [97, 64],
     ]) {
       const zoom = folded3dFrameFillZoom(width!, height!);
-      const camera = cameraUniforms(
-        { yaw: 0, pitch: 0, zoom },
-        [0, 0, 0],
-        1,
-        width!,
-        height!
-      );
+      const camera = cameraUniforms({ yaw: 0, pitch: 0, zoom }, [0, 0, 0], 1, width!, height!);
       // scale maps world units to pixels, so a unit-radius model spans the short
       // edge exactly.
       expect(camera.scale * 2).toBeCloseTo(Math.min(width!, height!), 6);
@@ -262,7 +257,7 @@ describe('drawing a figure in its own colours', () => {
   it('never paints the frame, so the crease pattern shows through', () => {
     expect(
       folded3dWindowRenderSettings({ style: STYLE, displayStyle: 'Paper5', devicePixelRatio: 2 })
-        .backgroundAlpha
+        .backgroundAlpha,
     ).toBe(0);
   });
 });

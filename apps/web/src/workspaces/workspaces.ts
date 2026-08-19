@@ -33,7 +33,7 @@ export const WORKSPACE_DEFINITIONS: WorkspaceDefinition[] = [
 ];
 
 export const WORKSPACE_IDS = WORKSPACE_DEFINITIONS.map(
-  (workspace) => workspace.id
+  (workspace) => workspace.id,
 ) as WorkspaceId[];
 
 const WORKSPACE_BY_PANEL_ID: Record<string, WorkspaceId> = {

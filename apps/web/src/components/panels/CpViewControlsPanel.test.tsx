@@ -44,10 +44,7 @@ function editableCpState(): OristudioCpDocumentState {
 }
 
 function renderPanel(state: Partial<ReturnType<typeof useWorkspaceStore.getState>>) {
-  useWorkspaceStore.setState(
-    { ...useWorkspaceStore.getInitialState(), ...state },
-    true
-  );
+  useWorkspaceStore.setState({ ...useWorkspaceStore.getInitialState(), ...state }, true);
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -58,10 +55,7 @@ function renderPanel(state: Partial<ReturnType<typeof useWorkspaceStore.getState
 }
 
 function setNumberInputValue(input: HTMLInputElement, value: string) {
-  const setter = Object.getOwnPropertyDescriptor(
-    window.HTMLInputElement.prototype,
-    'value'
-  )?.set;
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
   setter?.call(input, value);
   input.dispatchEvent(new Event('input', { bubbles: true }));
 }
@@ -100,7 +94,9 @@ describe('CpViewControlsPanel', () => {
     expect(useWorkspaceStore.getState().oristudioCpViewport.snapToVertices).toBe(false);
     expect(useWorkspaceStore.getState().oristudioCpViewport.snapToLines).toBe(false);
 
-    const camvToggle = view.querySelector<HTMLButtonElement>('button[aria-label="Foldability issues"]');
+    const camvToggle = view.querySelector<HTMLButtonElement>(
+      'button[aria-label="Foldability issues"]',
+    );
     act(() => camvToggle?.click());
     expect(useWorkspaceStore.getState().oristudioCpViewport.camvIssuesVisible).toBe(false);
 
@@ -139,13 +135,13 @@ describe('CpViewControlsPanel', () => {
     const view = renderPanel({ oristudioCpDocument: editableCpState() });
 
     const increaseWidth = view.querySelector<HTMLButtonElement>(
-      'button[aria-label="Increase Line width"]'
+      'button[aria-label="Increase Line width"]',
     );
     act(() => increaseWidth?.click());
     expect(useWorkspaceStore.getState().oristudioCpViewport.lineWidth).toBe(2);
 
     const decreaseWidth = view.querySelector<HTMLButtonElement>(
-      'button[aria-label="Decrease Line width"]'
+      'button[aria-label="Decrease Line width"]',
     );
     act(() => decreaseWidth?.click());
     expect(useWorkspaceStore.getState().oristudioCpViewport.lineWidth).toBe(1);
@@ -153,7 +149,7 @@ describe('CpViewControlsPanel', () => {
     expect(decreaseWidth?.disabled).toBe(true);
 
     const increasePoint = view.querySelector<HTMLButtonElement>(
-      'button[aria-label="Increase Point size"]'
+      'button[aria-label="Increase Point size"]',
     );
     act(() => increasePoint?.click());
     expect(useWorkspaceStore.getState().oristudioCpViewport.pointSize).toBe(2);
@@ -178,33 +174,33 @@ describe('CpViewControlsPanel', () => {
     commitNumberInput(angleInput, '30');
     expect(updateOristudioCpGrid).toHaveBeenLastCalledWith(
       { grid_angle: 30 },
-      'Set grid angle to 30°'
+      'Set grid angle to 30°',
     );
 
     // Out-of-range angle is clamped to Oriedita's [1, 179] window.
     commitNumberInput(angleInput, '400');
     expect(updateOristudioCpGrid).toHaveBeenLastCalledWith(
       { grid_angle: 179 },
-      'Set grid angle to 179°'
+      'Set grid angle to 179°',
     );
 
     const xConstant = view.querySelector<HTMLInputElement>(
-      'input[aria-label="X scale constant term"]'
+      'input[aria-label="X scale constant term"]',
     );
     if (!xConstant) throw new Error('X scale input did not render');
     commitNumberInput(xConstant, '2');
     expect(updateOristudioCpGrid).toHaveBeenLastCalledWith(
       { grid_xa: 2, grid_xb: 0, grid_xc: 1 },
-      'Set grid X scale'
+      'Set grid X scale',
     );
 
     const diagonalToggle = view.querySelector<HTMLButtonElement>(
-      'button[aria-label="Diagonal gridlines"]'
+      'button[aria-label="Diagonal gridlines"]',
     );
     act(() => diagonalToggle?.click());
     expect(updateOristudioCpGrid).toHaveBeenLastCalledWith(
       { draw_diagonal_gridlines: true },
-      'Show diagonal gridlines'
+      'Show diagonal gridlines',
     );
 
     const reset = view.querySelector<HTMLButtonElement>('.grid-settings__reset');
@@ -219,7 +215,7 @@ describe('CpViewControlsPanel', () => {
         grid_yc: 1,
         grid_angle: 90,
       },
-      'Reset grid shape'
+      'Reset grid shape',
     );
   });
 });

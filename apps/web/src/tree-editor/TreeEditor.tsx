@@ -1,19 +1,9 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type PointerEvent,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import { clientPointToDesignWorld } from '../lib/designViewport';
 import { hasPassedDragThreshold } from '../lib/pointerGesture';
 import { type Point } from '../lib/geometry';
-import {
-  reflectPointAcrossSymmetryAxis,
-  snapPointToSymmetryAxis,
-} from '../lib/symmetryGeometry';
+import { reflectPointAcrossSymmetryAxis, snapPointToSymmetryAxis } from '../lib/symmetryGeometry';
 import { setActiveShortcutViewportSurface } from '../keyboard/shortcutRuntime';
 import { useEventCallback } from '../hooks/useEventCallback';
 import {
@@ -123,12 +113,12 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
   // an O(n) scan quietly becomes O(n²).
   const vertexById = useMemo(
     () => new Map(tree.vertices.map((vertex) => [vertex.id, vertex] as const)),
-    [tree.vertices]
+    [tree.vertices],
   );
   /** Just the locations, which is the shape the drag rule works from. */
   const vertexLocationsById = useMemo(
     () => new Map([...vertexById].map(([id, vertex]) => [id, vertex.loc] as const)),
-    [vertexById]
+    [vertexById],
   );
 
   const subtreeOf = useCallback((id: number) => subtreeIds(topology, id), [topology]);
@@ -168,7 +158,7 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
         },
       };
     },
-    [symmetry]
+    [symmetry],
   );
   // The vertex a canvas click attaches a new leaf to. This is exactly the
   // selected vertex — with no fallback to the root, so a tree opens inert and
@@ -223,8 +213,7 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
   // Half the visible snap band, in tree units. A tip landing inside it snaps onto
   // the axis — so this is derived from the band's *drawn* width, keeping what the
   // user sees and what the click does the same thing at every zoom.
-  const symmetryAxisTolerance =
-    SYMMETRY_LANE_PX / cameraScale(zoomPercent) / 2 / frame.unitSvg;
+  const symmetryAxisTolerance = SYMMETRY_LANE_PX / cameraScale(zoomPercent) / 2 / frame.unitSvg;
 
   const findVertex = useCallback((id: number) => vertexById.get(id), [vertexById]);
 
@@ -252,11 +241,11 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
         tree.edges.find(
           (edge) =>
             (edge.vertices[0] === vertexId && edge.vertices[1] === parentId) ||
-            (edge.vertices[1] === vertexId && edge.vertices[0] === parentId)
+            (edge.vertices[1] === vertexId && edge.vertices[0] === parentId),
         ) ?? null
       );
     },
-    [topology, tree.edges]
+    [topology, tree.edges],
   );
 
   // Ghost preview of the leaf a click would add (and its mirror), mirroring what
@@ -398,7 +387,7 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
       // The toolbar's readout still wants this, and rounding to whole percent
       // keeps a pan — which does not change scale — from touching React at all.
       onTransformed(ref, state);
-    }
+    },
   );
 
   /** Show the ghost where the cursor last put it, coalesced to one frame. */
@@ -441,14 +430,14 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
     () => () => {
       if (ghostFrameRef.current !== null) cancelAnimationFrame(ghostFrameRef.current);
     },
-    []
+    [],
   );
 
   // One call → the host runs length + reposition as a single undo entry.
   const setEdgeLength = useEventCallback(async (edgeId: number, length: number) => {
     await host.setEdgeLength(
       [{ edgeId, length }],
-      edgeLengthRepositions(tree, topology, edgeId, length)
+      edgeLengthRepositions(tree, topology, edgeId, length),
     );
   });
 
@@ -488,11 +477,11 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
       if (!rect) return { x: 0, y: 0 };
       return frame.fromSvg(clientPointToDesignWorld(client, rect, frame.worldRect));
     },
-    [frame, svgRect]
+    [frame, svgRect],
   );
   const eventToTreePoint = useCallback(
     (event: PointerEvent): Point => clientToTreePoint({ x: event.clientX, y: event.clientY }),
-    [clientToTreePoint]
+    [clientToTreePoint],
   );
 
   const onCanvasAddPointerDown = (event: PointerEvent<Element>) => {
@@ -513,7 +502,7 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
     if (!down || event.button !== 0 || spacePressed) return;
     const dragged = hasPassedDragThreshold(
       { x: down.clientX, y: down.clientY },
-      { x: event.clientX, y: event.clientY }
+      { x: event.clientX, y: event.clientY },
     );
     if (dragged) return;
     // A plain click on the canvas adds a leaf to the selected vertex, pointing
@@ -534,7 +523,7 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
     // that the capture-phase handler armed (edges, unlike vertices, don't capture
     // the pointer, so pointerup would otherwise reach onCanvasAddPointerUp).
     paperDownRef.current = null;
-    const target = { kind: "edge" as const, id: edgeId };
+    const target = { kind: 'edge' as const, id: edgeId };
     if (event.shiftKey || event.metaKey || event.ctrlKey) host.toggleSelection(target);
     else host.select(target);
     host.onLongPress?.(event);
@@ -544,7 +533,7 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
     (event: PointerEvent<SVGCircleElement>, vertexId: number) => {
       if (event.button !== 0 || spacePressed) return;
       event.stopPropagation();
-      const target = { kind: "vertex" as const, id: vertexId };
+      const target = { kind: 'vertex' as const, id: vertexId };
       if (event.shiftKey || event.metaKey || event.ctrlKey) {
         host.toggleSelection(target);
         return;
@@ -601,7 +590,7 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
         toSvgPoint: (loc) => frame.toSvg(loc),
         chromePx,
       });
-    }
+    },
   );
 
   /** Ends a drag if one is running. Answers whether it consumed the pointerup. */
@@ -741,7 +730,9 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
         layers={host.layers}
         onLayerChange={host.setLayer}
         symmetry={symmetry}
-        canUnpair={selectedVertex !== null && (symmetry?.partnerOf(selectedVertex) ?? null) !== null}
+        canUnpair={
+          selectedVertex !== null && (symmetry?.partnerOf(selectedVertex) ?? null) !== null
+        }
         onUnpair={() => selectedVertex !== null && symmetry?.unpair(selectedVertex)}
         zoomIn={zoomIn}
         zoomOut={zoomOut}

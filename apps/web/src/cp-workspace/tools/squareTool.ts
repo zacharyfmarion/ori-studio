@@ -42,7 +42,7 @@ const EDGE_LINE_COLOR: OristudioCpLineColor = 'Black0';
  */
 export function squareSizeUnitScale(
   unit: OristudioCpSquareSizeUnit,
-  gridWidth: number | undefined
+  gridWidth: number | undefined,
 ): number {
   if (unit === 'paper') return ORIEDITA_PAPER_SIZE;
   return gridWidth !== undefined && Number.isFinite(gridWidth) && gridWidth > 0
@@ -54,7 +54,7 @@ export function squareSizeUnitScale(
 export function squareExtentInModelUnits(
   size: number,
   unit: OristudioCpSquareSizeUnit,
-  gridWidth: number | undefined
+  gridWidth: number | undefined,
 ): number {
   return size * squareSizeUnitScale(unit, gridWidth);
 }
@@ -70,7 +70,7 @@ export function convertSquareSize(
   size: number,
   from: OristudioCpSquareSizeUnit,
   to: OristudioCpSquareSizeUnit,
-  gridWidth: number | undefined
+  gridWidth: number | undefined,
 ): number {
   if (from === to) return size;
   const converted =
@@ -92,17 +92,10 @@ export function squareCommandPayload(
     OristudioCpToolOptions,
     'squareSize' | 'squareSizeUnit' | 'squareOrientation' | 'squareAnchor'
   >,
-  gridWidth: number | undefined
-): Pick<
-  OristudioCpCommandPayload,
-  'square_extent' | 'square_orientation' | 'square_anchor'
-> {
+  gridWidth: number | undefined,
+): Pick<OristudioCpCommandPayload, 'square_extent' | 'square_orientation' | 'square_anchor'> {
   return {
-    square_extent: squareExtentInModelUnits(
-      options.squareSize,
-      options.squareSizeUnit,
-      gridWidth
-    ),
+    square_extent: squareExtentInModelUnits(options.squareSize, options.squareSizeUnit, gridWidth),
     square_orientation: squareOrientationPayload(options.squareOrientation),
     square_anchor: squareAnchorPayload(options.squareAnchor),
   };
@@ -129,13 +122,13 @@ const SQUARE_ANCHOR_PAYLOAD: Record<OristudioCpSquareAnchor, OristudioCpSquareAn
 };
 
 export function squareOrientationPayload(
-  orientation: OristudioCpSquareOrientation
+  orientation: OristudioCpSquareOrientation,
 ): OristudioCpSquareOrientationPayload {
   return SQUARE_ORIENTATION_PAYLOAD[orientation];
 }
 
 export function squareAnchorPayload(
-  anchor: OristudioCpSquareAnchor
+  anchor: OristudioCpSquareAnchor,
 ): OristudioCpSquareAnchorPayload {
   return SQUARE_ANCHOR_PAYLOAD[anchor];
 }
@@ -151,7 +144,7 @@ export function squareAnchorPayload(
 export function resolveCpToolLineColor(
   operationId: OristudioCpOperationId | null | undefined,
   options: Pick<OristudioCpToolOptions, 'squareLineType'>,
-  activeLineColor: OristudioCpLineColor
+  activeLineColor: OristudioCpLineColor,
 ): OristudioCpLineColor {
   if (operationId !== 'SquareGenerate') return activeLineColor;
   return options.squareLineType === 'edge' ? EDGE_LINE_COLOR : activeLineColor;

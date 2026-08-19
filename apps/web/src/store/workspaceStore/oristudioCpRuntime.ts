@@ -119,7 +119,7 @@ export async function loadOristudioCpDocumentFromText(
     path?: string | null;
     title?: string;
     acceptUnknownVersion?: boolean;
-  }
+  },
 ): Promise<OristudioCpDocumentState> {
   const api = await getOristudioCpClient();
   const nextHandle =
@@ -150,7 +150,7 @@ export async function loadOristudioCpDocumentFromText(
 
 export async function createBlankOristudioCpDocument(
   title = 'Untitled CP',
-  filename = 'Untitled.cp'
+  filename = 'Untitled.cp',
 ): Promise<OristudioCpDocumentState> {
   const api = await getOristudioCpClient();
   const source = {
@@ -188,7 +188,7 @@ export async function createBlankOristudioCpDocument(
  */
 export async function openSharedCpPayload(
   payload: string,
-  filename = 'Shared.cp'
+  filename = 'Shared.cp',
 ): Promise<OristudioCpDocumentState> {
   const api = await getOristudioCpClient();
   const source = { format: 'cp' as const, filename, path: null };
@@ -220,14 +220,14 @@ export async function openSharedCpPayload(
  */
 async function fetchDocumentAndGeometry(
   api: OristudioCpClient,
-  targetHandle: number
+  targetHandle: number,
 ): Promise<{ document: OristudioCpDocumentSnapshot; geometry: CpGeometryTransport }> {
   const geometry = await api.documentGeometry(targetHandle);
   return { document: decodeCpGeometryToSnapshot(geometry), geometry };
 }
 
 export async function refreshOristudioCpDocument(
-  lastCommandResult: OristudioCpCommandResult | null = null
+  lastCommandResult: OristudioCpCommandResult | null = null,
 ): Promise<OristudioCpDocumentState | null> {
   if (handle === null) return null;
   const api = await getOristudioCpClient();
@@ -241,7 +241,7 @@ export async function refreshOristudioCpDocument(
 export async function restoreOristudioCpDocument(
   document: OristudioCpDocumentSnapshot,
   source: OristudioCpDocumentState['source'],
-  lastCommandResult: OristudioCpCommandResult | null = null
+  lastCommandResult: OristudioCpCommandResult | null = null,
 ): Promise<OristudioCpDocumentState> {
   const api = await getOristudioCpClient();
   const nextHandle = await api.loadDocument(document);
@@ -269,7 +269,7 @@ export async function restoreOristudioCpDocument(
 export async function restoreOristudioCpDocumentInPlace(
   document: OristudioCpDocumentSnapshot,
   source?: OristudioCpDocumentState['source'],
-  lastCommandResult: OristudioCpCommandResult | null = null
+  lastCommandResult: OristudioCpCommandResult | null = null,
 ): Promise<OristudioCpDocumentState> {
   if (handle === null) {
     return restoreOristudioCpDocument(
@@ -280,12 +280,13 @@ export async function restoreOristudioCpDocumentInPlace(
           filename: document.title ? `${document.title}.cp` : 'Untitled.cp',
           path: null,
         },
-      lastCommandResult
+      lastCommandResult,
     );
   }
   const api = await getOristudioCpClient();
   await api.restoreDocument(handle, document);
-  const nextSource = source ?? currentSource ?? { format: 'cp', filename: 'Untitled.cp', path: null };
+  const nextSource = source ??
+    currentSource ?? { format: 'cp', filename: 'Untitled.cp', path: null };
   const nextState = await buildDocumentState(api, handle, nextSource, lastCommandResult);
   currentSource = nextState.source;
   return nextState;
@@ -293,7 +294,7 @@ export async function restoreOristudioCpDocumentInPlace(
 
 export async function executeOristudioCpCommand(
   operationId: OristudioCpOperationId,
-  payload: OristudioCpCommandPayload = {}
+  payload: OristudioCpCommandPayload = {},
 ): Promise<OristudioCpDocumentState> {
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
@@ -314,7 +315,7 @@ export async function executeOristudioCpCommand(
  */
 export async function runOristudioCpCheckCommand(
   operationId: OristudioCpOperationId,
-  payload: OristudioCpCommandPayload = {}
+  payload: OristudioCpCommandPayload = {},
 ): Promise<OristudioCpCommandResult> {
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
@@ -325,7 +326,7 @@ export async function runOristudioCpCheckCommand(
 
 export async function previewOristudioCpCommand(
   operationId: OristudioCpOperationId,
-  payload: OristudioCpCommandPayload = {}
+  payload: OristudioCpCommandPayload = {},
 ): Promise<OristudioCpCommandPreview> {
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
@@ -335,7 +336,7 @@ export async function previewOristudioCpCommand(
 }
 
 export async function insertOristudioCpLineSegments(
-  segments: OristudioCpLineSegment[]
+  segments: OristudioCpLineSegment[],
 ): Promise<OristudioCpDocumentState> {
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
@@ -379,7 +380,7 @@ export async function importAddOristudioCpDocumentFromText(
      */
     circles?: readonly SendToEditCircle[];
     circleSourceBounds?: readonly [number, number, number, number];
-  }
+  },
 ): Promise<OristudioCpDocumentState> {
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
@@ -410,7 +411,7 @@ export async function importAddOristudioCpDocumentFromText(
 
 export async function replaceOristudioCpLineSegments(
   lineIds: number[],
-  segments: OristudioCpLineSegment[]
+  segments: OristudioCpLineSegment[],
 ): Promise<OristudioCpDocumentState> {
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
@@ -434,7 +435,7 @@ export async function foldOristudioCpDocument(
   order: OristudioCpEstimationOrder = 'Order5',
   model?: OristudioCpFoldedFigureModel,
   selectedLineIds: number[] = [],
-  runId: number = FOLD_RUN_NONE
+  runId: number = FOLD_RUN_NONE,
 ): Promise<OristudioCpFoldedFigureResult> {
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
@@ -444,7 +445,7 @@ export async function foldOristudioCpDocument(
 }
 
 export async function getOristudioCpFoldedFigureSnapshot(
-  foldedFigureHandle: number
+  foldedFigureHandle: number,
 ): Promise<OristudioCpFoldedFigureSnapshot> {
   const api = await getOristudioCpClient();
   return api.foldedFigureSnapshot(foldedFigureHandle);
@@ -453,7 +454,7 @@ export async function getOristudioCpFoldedFigureSnapshot(
 export async function getOristudioCpFoldedFigureRenderSnapshot(
   foldedFigureHandle: number,
   displayStyle?: OristudioCpFoldedFigureSnapshot['display_style'],
-  options?: OristudioCpFoldedFigureRenderOptions
+  options?: OristudioCpFoldedFigureRenderOptions,
 ): Promise<OristudioCpFoldedRenderSnapshot | null> {
   const api = await getOristudioCpClient();
   return api.foldedFigureRenderSnapshot(foldedFigureHandle, displayStyle, options);
@@ -461,14 +462,14 @@ export async function getOristudioCpFoldedFigureRenderSnapshot(
 
 export async function setOristudioCpFoldedFigureModel(
   foldedFigureHandle: number,
-  model: OristudioCpFoldedFigureModel
+  model: OristudioCpFoldedFigureModel,
 ): Promise<OristudioCpFoldedFigureSnapshot> {
   const api = await getOristudioCpClient();
   return api.setFoldedFigureModel(foldedFigureHandle, model);
 }
 
 export async function duplicateOristudioCpFoldedFigure(
-  foldedFigureHandle: number
+  foldedFigureHandle: number,
 ): Promise<OristudioCpFoldedFigureResult> {
   const api = await getOristudioCpClient();
   return api.duplicateFoldedFigure(foldedFigureHandle);
@@ -476,7 +477,7 @@ export async function duplicateOristudioCpFoldedFigure(
 
 export async function foldOristudioCpFigureAnother(
   foldedFigureHandle: number,
-  runId: number = FOLD_RUN_NONE
+  runId: number = FOLD_RUN_NONE,
 ): Promise<OristudioCpFoldedFigureSnapshot> {
   const api = await getOristudioCpClient();
   return api.foldFigureAnother(foldedFigureHandle, runId);
@@ -486,7 +487,7 @@ export async function foldOristudioCpFigureToCase(
   foldedFigureHandle: number,
   objective: number,
   initialOrder: OristudioCpEstimationOrder = 'Order5',
-  runId: number = FOLD_RUN_NONE
+  runId: number = FOLD_RUN_NONE,
 ): Promise<OristudioCpFoldedFigureBatchResult> {
   const api = await getOristudioCpClient();
   return api.foldFigureToCase(foldedFigureHandle, objective, initialOrder, runId);
@@ -509,7 +510,7 @@ export async function fold3dOristudioCpDocument(
   selectedLineIds: number[],
   startingFaceId = 1,
   model?: OristudioCpFoldedFigureModel,
-  runId: number = FOLD_RUN_NONE
+  runId: number = FOLD_RUN_NONE,
 ): Promise<OristudioCpFold3dFoldResult> {
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
@@ -520,14 +521,14 @@ export async function fold3dOristudioCpDocument(
 
 export async function fold3dOristudioCpFigureAnother(
   foldedFigureHandle: number,
-  runId: number = FOLD_RUN_NONE
+  runId: number = FOLD_RUN_NONE,
 ): Promise<OristudioCpFold3dStepResult> {
   const api = await getOristudioCpClient();
   return api.fold3dAnother(foldedFigureHandle, runId);
 }
 
 export async function duplicateOristudioCp3dFoldedFigure(
-  foldedFigureHandle: number
+  foldedFigureHandle: number,
 ): Promise<OristudioCpFold3dFoldResult> {
   const api = await getOristudioCpClient();
   return api.duplicateFolded3dFigure(foldedFigureHandle);
@@ -553,7 +554,7 @@ export async function exportOristudioCpDocumentAsCp(): Promise<string> {
  */
 export async function exportOristudioCpDocumentAsFold(
   texts: FlatText[] = [],
-  foldedHandles: readonly number[] = []
+  foldedHandles: readonly number[] = [],
 ): Promise<string> {
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
@@ -587,7 +588,7 @@ export async function exportOristudioCpDocumentAsOrh(texts: FlatText[] = []): Pr
  */
 export async function exportFoldFrameAsFormat(
   foldJson: string,
-  format: 'cp' | 'fold' | 'ori' | 'orh'
+  format: 'cp' | 'fold' | 'ori' | 'orh',
 ): Promise<string> {
   const api = await getOristudioCpClient();
   const scratch = await api.loadFold(foldJson);
@@ -660,7 +661,7 @@ async function buildDocumentState(
   api: OristudioCpClient,
   documentHandle: number,
   source: OristudioCpDocumentState['source'] | null,
-  lastCommandResult: OristudioCpCommandResult | null
+  lastCommandResult: OristudioCpCommandResult | null,
 ): Promise<OristudioCpDocumentState> {
   const [{ document, geometry }, summary, operationDescriptors] = await Promise.all([
     fetchDocumentAndGeometry(api, documentHandle),

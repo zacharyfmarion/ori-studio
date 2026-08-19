@@ -28,10 +28,7 @@ function option(overrides: Partial<CpToolOptionWindow> = {}): CpToolOptionWindow
 class StubResizeObserver implements ResizeObserver {
   constructor(private readonly callback: ResizeObserverCallback) {}
   observe() {
-    this.callback(
-      [{ contentRect: { width: 1000, height: 800 } } as ResizeObserverEntry],
-      this
-    );
+    this.callback([{ contentRect: { width: 1000, height: 800 } } as ResizeObserverEntry], this);
   }
   unobserve() {}
   disconnect() {}
@@ -113,7 +110,7 @@ describe('CpToolOptionLayer', () => {
     const find = (label: string) =>
       buttons.find(
         (button) =>
-          button.getAttribute('aria-label') === label || button.textContent?.trim() === label
+          button.getAttribute('aria-label') === label || button.textContent?.trim() === label,
       )!;
     act(() => find('Next option').click());
     expect(value.onStep).toHaveBeenCalledWith(1);
@@ -134,9 +131,7 @@ describe('CpToolOptionLayer', () => {
 
   it('carries the note the drawing cannot', () => {
     render(option({ note: 'one of infinitely many' }));
-    expect(host.querySelector('.cp-tool-option__note')?.textContent).toBe(
-      'one of infinitely many'
-    );
+    expect(host.querySelector('.cp-tool-option__note')?.textContent).toBe('one of infinitely many');
   });
 
   it('resizes the frame with the camera but not the header', () => {

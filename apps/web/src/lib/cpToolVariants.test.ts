@@ -20,20 +20,20 @@ function options(overrides: Partial<OristudioCpToolOptions> = {}): OristudioCpTo
 
 describe('resolveCpVariantOperation', () => {
   it('picks the lengthen operation from the colour mode', () => {
-    expect(resolveCpVariantOperation('LengthenCrease', options({ lengthenColorMode: 'active' }))).toBe(
-      'LengthenCrease'
-    );
-    expect(resolveCpVariantOperation('LengthenCrease', options({ lengthenColorMode: 'same' }))).toBe(
-      'LengthenCreaseSameColor'
-    );
+    expect(
+      resolveCpVariantOperation('LengthenCrease', options({ lengthenColorMode: 'active' })),
+    ).toBe('LengthenCrease');
+    expect(
+      resolveCpVariantOperation('LengthenCrease', options({ lengthenColorMode: 'same' })),
+    ).toBe('LengthenCreaseSameColor');
   });
 
   it('picks the divide operation from the divide mode', () => {
     expect(resolveCpVariantOperation('LineSegmentDivision', options({ divideMode: 'count' }))).toBe(
-      'LineSegmentDivision'
+      'LineSegmentDivision',
     );
     expect(resolveCpVariantOperation('LineSegmentDivision', options({ divideMode: 'ratio' }))).toBe(
-      'LineSegmentRatioSet'
+      'LineSegmentRatioSet',
     );
   });
 
@@ -41,10 +41,13 @@ describe('resolveCpVariantOperation', () => {
   // it too keeps the seam total, so no caller needs to normalise first.
   it('resolves from a non-host variant as well as from the host', () => {
     expect(
-      resolveCpVariantOperation('LengthenCreaseSameColor', options({ lengthenColorMode: 'active' }))
+      resolveCpVariantOperation(
+        'LengthenCreaseSameColor',
+        options({ lengthenColorMode: 'active' }),
+      ),
     ).toBe('LengthenCrease');
     expect(resolveCpVariantOperation('LineSegmentRatioSet', options({ divideMode: 'count' }))).toBe(
-      'LineSegmentDivision'
+      'LineSegmentDivision',
     );
   });
 
@@ -93,7 +96,7 @@ describe('cpVariantOptionPatch', () => {
       const patch = cpVariantOptionPatch(operationId);
       expect(Object.keys(patch)).toHaveLength(1);
       expect(resolveCpVariantOperation(cpVariantHostOperation(operationId), options(patch))).toBe(
-        operationId
+        operationId,
       );
     }
   });
@@ -128,11 +131,8 @@ describe('cpToolSelectionForMouseMode', () => {
       const selection = cpToolSelectionForMouseMode(mouseMode);
       expect(selection, mouseMode).not.toBeNull();
       expect(
-        resolveCpVariantOperation(
-          selection!.action.operationId,
-          options(selection!.options ?? {})
-        ),
-        mouseMode
+        resolveCpVariantOperation(selection!.action.operationId, options(selection!.options ?? {})),
+        mouseMode,
       ).toBe(operationId);
     }
   });
@@ -181,7 +181,7 @@ describe('naming a variant', () => {
       const armed = cpVariantHostAction(named);
       const mode = cpVariantModeForNamedAction(named);
       expect(resolveCpVariantOperation(armed.operationId, options(mode)), operationId).toBe(
-        operationId
+        operationId,
       );
     }
   });

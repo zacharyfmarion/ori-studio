@@ -23,8 +23,7 @@ import type { CpSelectionTransform } from '../lib/creasePatternClipboard';
 import type { Point } from '../lib/geometry';
 import type { OristudioCpOperationId } from '../lib/oristudioCpCommands';
 import type { EditingContext } from '../workspaces/editingContext';
-import type {
-} from '../engine/oristudioBpTypes';
+import type {} from '../engine/oristudioBpTypes';
 import type { CreaseExportOptions } from '../lib/creaseExport';
 
 import { runUpdateCheck } from '../lib/updateController';
@@ -192,14 +191,14 @@ export interface WorkspaceCommands {
   requestOristudioCpAction(operationId: OristudioCpOperationId): void;
   executeOristudioCpCommand(
     operationId: OristudioCpOperationId,
-    payload?: OristudioCpCommandPayload
+    payload?: OristudioCpCommandPayload,
   ): Promise<boolean>;
   transformOristudioCpSelection(transform: CpSelectionTransform): Promise<boolean>;
 }
 
 function selectedCpDeletePoints(
   selection: OristudioCpSelection,
-  documentState: OristudioCpDocumentState | null
+  documentState: OristudioCpDocumentState | null,
 ): Point[] {
   if (!documentState) return [];
 
@@ -486,7 +485,7 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
           const circleIds = deps.workspace.oristudioCpSelection.circles;
           const points = selectedCpDeletePoints(
             deps.workspace.oristudioCpSelection,
-            deps.workspace.oristudioCpDocument
+            deps.workspace.oristudioCpDocument,
           );
           if (lineIds.length === 0 && circleIds.length === 0 && points.length === 0) return false;
           let succeeded = false;

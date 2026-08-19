@@ -69,13 +69,10 @@ export class FoldedMeshSource {
      * displacement is budgeted against — see `folded3dMesh.ts`. 24 everywhere we
      * have looked, but 16 is legal WebGL2 and at 16 a deep stack collides.
      */
-    readonly depthBits: number
+    readonly depthBits: number,
   ) {}
 
-  static create(
-    canvas: OffscreenCanvas,
-    payload: Folded3dMeshPayload
-  ): FoldedMeshSource | null {
+  static create(canvas: OffscreenCanvas, payload: Folded3dMeshPayload): FoldedMeshSource | null {
     const core = GlCore.create(canvas);
     if (!core) return null;
     const dim = payload.textureDim;
@@ -110,7 +107,7 @@ export class FoldedMeshSource {
         payload.translucent,
         payload.undetermined,
         payload.undeterminedFaceAlpha,
-        readDepthBits(core)
+        readDepthBits(core),
       );
     } catch {
       core.dispose();
@@ -138,7 +135,7 @@ export class FoldedMeshSource {
   render(
     camera: CameraUniforms,
     settings: RenderSettings,
-    target: WebGLFramebuffer | null = null
+    target: WebGLFramebuffer | null = null,
   ): void {
     const orthographic = withoutPerspective(camera);
     const passes = folded3dDrawPasses(
@@ -149,7 +146,7 @@ export class FoldedMeshSource {
         undeterminedFaceAlpha: this.undeterminedFaceAlpha,
       },
       settings,
-      camera
+      camera,
     );
     for (const pass of passes) {
       this.mesh.render(
@@ -160,7 +157,7 @@ export class FoldedMeshSource {
           clear: pass.clear,
           faceRange: pass.faceRange ?? undefined,
           edgeRange: pass.edgeRange ?? undefined,
-        }
+        },
       );
     }
   }
@@ -260,7 +257,7 @@ export function folded3dDrawPasses(
     undeterminedFaceAlpha: number;
   },
   settings: Pick<RenderSettings, 'showFaces' | 'showEdges' | 'faceAlpha'>,
-  camera: CameraUniforms
+  camera: CameraUniforms,
 ): Folded3dDrawPass[] {
   const passes: Folded3dDrawPass[] = [];
   const axis = viewDepthAxis(camera.rotation);
@@ -297,8 +294,7 @@ export function folded3dDrawPasses(
       .filter((skin) => skinFacesEye(skin, camera))
       .map((skin) => ({
         skin,
-        depth:
-          skin.centroid[0] * axis[0] + skin.centroid[1] * axis[1] + skin.centroid[2] * axis[2],
+        depth: skin.centroid[0] * axis[0] + skin.centroid[1] * axis[1] + skin.centroid[2] * axis[2],
       }))
       .sort((l, r) => l.depth - r.depth)
       .map((entry) => entry.skin);

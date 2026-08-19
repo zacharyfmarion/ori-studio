@@ -1,5 +1,9 @@
 import { foldAngleInk } from '../foldAngle/foldAngleRamp';
-import { lineColorName, SEG_ATTR_STRIDE, type CpGeometryTransport } from '../../engine/oristudioCpGeometry';
+import {
+  lineColorName,
+  SEG_ATTR_STRIDE,
+  type CpGeometryTransport,
+} from '../../engine/oristudioCpGeometry';
 import type { StrokeGeometry } from '../renderer/types';
 import type { CpLineAppearance } from './cpLineStyle';
 import type {
@@ -32,7 +36,7 @@ export function cpGeometryStrokesToScene(
   move?: CpTransformPreview,
   /** How a non-180 crease shows its angle. Omit to disable the treatment. */
   foldAngle?: CpFoldAngleStyle,
-  replaced?: CpReplacedLines
+  replaced?: CpReplacedLines,
 ): { strokes: StrokeGeometry } {
   const endpoints = transport.segEndpoints;
   const attr = transport.segAttr;

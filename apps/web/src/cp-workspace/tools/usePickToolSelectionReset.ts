@@ -20,7 +20,7 @@ import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import { cpInputModel } from './inputModelRegistry';
 
 export function usePickToolSelectionReset(
-  activeOperationId: OristudioCpOperationId | undefined
+  activeOperationId: OristudioCpOperationId | undefined,
 ): void {
   const clearSelection = useWorkspaceStore((state) => state.clearOristudioCpSelection);
   useEffect(() => {

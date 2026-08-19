@@ -208,15 +208,14 @@ const DEFAULT_CREASE_SHRINK_EXPONENT = 1;
  * Shared with the SVG renderer, which is what keeps an exported view the view
  * that was on screen.
  */
-export function creaseFrameScale(
-  settings: RenderSettings,
-  width: number,
-  height: number
-): number {
+export function creaseFrameScale(settings: RenderSettings, width: number, height: number): number {
   const reference = settings.creaseWidthReferenceEdge ?? 0;
   const edge = Math.min(width, height);
   if (!(reference > 0) || !(edge > 0) || edge >= reference) return 1;
-  return Math.pow(edge / reference, settings.creaseWidthShrinkExponent ?? DEFAULT_CREASE_SHRINK_EXPONENT);
+  return Math.pow(
+    edge / reference,
+    settings.creaseWidthShrinkExponent ?? DEFAULT_CREASE_SHRINK_EXPONENT,
+  );
 }
 
 /**
@@ -244,7 +243,7 @@ const TRANSPARENT: readonly [number, number, number] = [0, 0, 0];
 export function rasterCreaseInk(
   settings: RenderSettings,
   width: number,
-  height: number
+  height: number,
 ): { widthPx: number; alpha: number } {
   const wanted = settings.creaseWidthPx * creaseFrameScale(settings, width, height);
   const widthPx = Math.max(wanted, MIN_RASTER_CREASE_WIDTH_PX);
@@ -286,7 +285,7 @@ export function meshTopologyFor(
    * vertex shader finds a position, not a property of the topology. A vector
    * renderer has no textures and can leave it out.
    */
-  textureDim = 0
+  textureDim = 0,
 ): MeshTopology {
   const edgeIndices = new Uint32Array(prepared.edgesVertices.length * 2);
   const edgeAssignments = new Uint8Array(prepared.edgesVertices.length);
@@ -648,7 +647,7 @@ export class MeshRenderer {
 
   constructor(
     private readonly core: GlCore,
-    topology: MeshTopology
+    topology: MeshTopology,
   ) {
     const gl = core.gl;
     this.gl = gl;
@@ -690,7 +689,7 @@ export class MeshRenderer {
     camera: CameraUniforms,
     settings: RenderSettings,
     target: WebGLFramebuffer | null,
-    options: MeshDrawOptions = {}
+    options: MeshDrawOptions = {},
   ): void {
     const gl = this.gl;
     gl.bindFramebuffer(gl.FRAMEBUFFER, target);
@@ -748,18 +747,13 @@ export class MeshRenderer {
         this.faceProgram,
         this.faceUniforms,
         'u_strainMode',
-        settings.colorMode === 'strain' ? 1 : 0
+        settings.colorMode === 'strain' ? 1 : 0,
       );
-      this.setFloat(
-        this.faceProgram,
-        this.faceUniforms,
-        'u_strainClip',
-        settings.strainClip ?? 5
-      );
+      this.setFloat(this.faceProgram, this.faceUniforms, 'u_strainClip', settings.strainClip ?? 5);
       const first = clampRange(options.faceRange?.start ?? 0, this.faceCount);
       const count = clampRange(
         options.faceRange?.count ?? this.faceCount - first,
-        this.faceCount - first
+        this.faceCount - first,
       );
       // UNSIGNED_INT indices, so the byte offset is four per index.
       if (count > 0) gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_INT, first * 4);
@@ -795,7 +789,7 @@ export class MeshRenderer {
         this.edgeProgram,
         this.edgeUniforms,
         'u_depthBias',
-        settings.creaseDepthBias ?? DEFAULT_CREASE_DEPTH_BIAS
+        settings.creaseDepthBias ?? DEFAULT_CREASE_DEPTH_BIAS,
       );
       // Dash runs are lengths along the crease in the same device pixels, so a
       // shrinking crease has to take its pattern with it or a thumbnail reads as
@@ -803,7 +797,10 @@ export class MeshRenderer {
       this.setDash(settings.creaseDash, creaseFrameScale(settings, camera.width, camera.height));
       const edges = this.edgeVertexStart.length - 1;
       const firstEdge = clampRange(options.edgeRange?.start ?? 0, edges);
-      const edgeCount = clampRange(options.edgeRange?.count ?? edges - firstEdge, edges - firstEdge);
+      const edgeCount = clampRange(
+        options.edgeRange?.count ?? edges - firstEdge,
+        edges - firstEdge,
+      );
       const firstVertex = this.edgeVertexStart[firstEdge]!;
       const vertexCount = this.edgeVertexStart[firstEdge + edgeCount]! - firstVertex;
       if (vertexCount > 0) gl.drawArrays(gl.TRIANGLES, firstVertex, vertexCount);
@@ -831,7 +828,7 @@ export class MeshRenderer {
   private bindCommon(
     program: WebGLProgram,
     cache: Map<string, WebGLUniformLocation | null>,
-    camera: CameraUniforms
+    camera: CameraUniforms,
   ): void {
     const gl = this.gl;
     // Position textures live in the solver's GlCore; bind them to units 0/1.
@@ -869,7 +866,7 @@ export class MeshRenderer {
   private location(
     program: WebGLProgram,
     cache: Map<string, WebGLUniformLocation | null>,
-    name: string
+    name: string,
   ): WebGLUniformLocation | null {
     let location = cache.get(name);
     if (location === undefined) {
@@ -879,20 +876,35 @@ export class MeshRenderer {
     return location;
   }
 
-  private setInt(p: WebGLProgram, c: Map<string, WebGLUniformLocation | null>, n: string, v: number): void {
+  private setInt(
+    p: WebGLProgram,
+    c: Map<string, WebGLUniformLocation | null>,
+    n: string,
+    v: number,
+  ): void {
     this.gl.uniform1i(this.location(p, c, n), v);
   }
-  private setFloat(p: WebGLProgram, c: Map<string, WebGLUniformLocation | null>, n: string, v: number): void {
+  private setFloat(
+    p: WebGLProgram,
+    c: Map<string, WebGLUniformLocation | null>,
+    n: string,
+    v: number,
+  ): void {
     this.gl.uniform1f(this.location(p, c, n), v);
   }
-  private setVec2(p: WebGLProgram, c: Map<string, WebGLUniformLocation | null>, n: string, v: [number, number]): void {
+  private setVec2(
+    p: WebGLProgram,
+    c: Map<string, WebGLUniformLocation | null>,
+    n: string,
+    v: [number, number],
+  ): void {
     this.gl.uniform2f(this.location(p, c, n), v[0], v[1]);
   }
   private setVec3(
     p: WebGLProgram,
     c: Map<string, WebGLUniformLocation | null>,
     n: string,
-    v: [number, number, number]
+    v: [number, number, number],
   ): void {
     this.gl.uniform3f(this.location(p, c, n), v[0], v[1], v[2]);
   }
@@ -905,13 +917,17 @@ export class MeshRenderer {
     p: WebGLProgram,
     c: Map<string, WebGLUniformLocation | null>,
     n: string,
-    v: Mat3
+    v: Mat3,
   ): void {
     this.gl.uniformMatrix3fv(this.location(p, c, n), true, v as unknown as number[]);
   }
 }
 
-function compile(gl: WebGL2RenderingContext, vertexSource: string, fragmentSource: string): WebGLProgram {
+function compile(
+  gl: WebGL2RenderingContext,
+  vertexSource: string,
+  fragmentSource: string,
+): WebGLProgram {
   const vertex = compileShader(gl, gl.VERTEX_SHADER, vertexSource);
   const fragment = compileShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
   const program = gl.createProgram();

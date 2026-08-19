@@ -19,8 +19,7 @@ const button = cva(['ui-button', CONTROL_RADIUS_CLASS].join(' '), {
 });
 
 export interface ButtonProps
-  extends ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof button> {
+  extends ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof button> {
   isActive?: boolean;
 }
 
@@ -33,14 +32,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       data-active={isActive || undefined}
       {...props}
     />
-  )
+  ),
 );
 
 Button.displayName = 'Button';
 
 export interface ButtonLinkProps
-  extends AnchorHTMLAttributes<HTMLAnchorElement>,
-    VariantProps<typeof button> {}
+  extends AnchorHTMLAttributes<HTMLAnchorElement>, VariantProps<typeof button> {}
 
 /**
  * A link that acts as a button, wearing the button's own classes.
@@ -55,7 +53,7 @@ export interface ButtonLinkProps
 export const ButtonLink = forwardRef<HTMLAnchorElement, ButtonLinkProps>(
   ({ variant, size, className = '', ...props }, ref) => (
     <a ref={ref} className={button({ variant, size, className })} {...props} />
-  )
+  ),
 );
 
 ButtonLink.displayName = 'ButtonLink';

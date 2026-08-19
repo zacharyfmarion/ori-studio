@@ -37,7 +37,9 @@ async function main() {
   const debugRoot = dirname(debugRunPath);
   const pack = JSON.parse(await readFile(packPath, 'utf8'));
   const debugRun = JSON.parse(await readFile(debugRunPath, 'utf8'));
-  const debugById = new Map((debugRun.samples ?? []).map((sample: { id: string }) => [sample.id, sample]));
+  const debugById = new Map(
+    (debugRun.samples ?? []).map((sample: { id: string }) => [sample.id, sample]),
+  );
 
   const cropSize = numberOption(options.cropSize, 96);
   const mergeRadiusPx = numberOption(options.mergeRadiusPx, 5);
@@ -49,7 +51,8 @@ async function main() {
   const rows = [];
 
   for (const packSample of pack.samples as PackSample[]) {
-    const debugRow = debugById.get(packSample.id) as { ok?: boolean; debug?: string; frame?: VertexRefinerFrame } | undefined;
+    const debugRow = debugById.get(packSample.id) as
+      { ok?: boolean; debug?: string; frame?: VertexRefinerFrame } | undefined;
     if (!debugRow?.ok || !debugRow.debug) {
       rows.push({ id: packSample.id, ok: false, debug: null });
       continue;
@@ -107,17 +110,25 @@ async function main() {
     process.stdout.write(`${JSON.stringify(rows[rows.length - 1])}\n`);
   }
 
-  await writeFile(resolve(outDir, 'run_manifest.json'), `${JSON.stringify({
-    schema: 'oristudio/cp-vertex-refiner-perfect-merge-run/v1',
-    implementation: 'perfect-vertex-refiner-merge-simulation',
-    generated_by: 'scripts/cp-detect/simulate-perfect-vertex-refiner-merge.ts',
-    generated_at: new Date().toISOString(),
-    source_debug_run: debugRunPath,
-    pack: packPath,
-    sample_count: rows.length,
-    ok_count: rows.filter((row) => row.ok).length,
-    samples: rows,
-  }, null, 2)}\n`, 'utf8');
+  await writeFile(
+    resolve(outDir, 'run_manifest.json'),
+    `${JSON.stringify(
+      {
+        schema: 'oristudio/cp-vertex-refiner-perfect-merge-run/v1',
+        implementation: 'perfect-vertex-refiner-merge-simulation',
+        generated_by: 'scripts/cp-detect/simulate-perfect-vertex-refiner-merge.ts',
+        generated_at: new Date().toISOString(),
+        source_debug_run: debugRunPath,
+        pack: packPath,
+        sample_count: rows.length,
+        ok_count: rows.filter((row) => row.ok).length,
+        samples: rows,
+      },
+      null,
+      2,
+    )}\n`,
+    'utf8',
+  );
 }
 
 function perfectRawVertices(args: {
@@ -155,7 +166,11 @@ function perfectRawVertices(args: {
   return vertices;
 }
 
-function proposalContainsPoint(proposal: VertexRefinerProposal, point: Point, cropSize: number): boolean {
+function proposalContainsPoint(
+  proposal: VertexRefinerProposal,
+  point: Point,
+  cropSize: number,
+): boolean {
   const half = cropSize / 2;
   return Math.abs(point.x - proposal.x) <= half && Math.abs(point.y - proposal.y) <= half;
 }
@@ -183,14 +198,23 @@ function boundarySideForPoint(
   return nearSides[0] ?? null;
 }
 
-function snapPointToFrame(point: Point, frame: VertexRefinerFrame, side: VertexRefinerBoundarySide): [number, number] {
+function snapPointToFrame(
+  point: Point,
+  frame: VertexRefinerFrame,
+  side: VertexRefinerBoundarySide,
+): [number, number] {
   if (side === 'top') return [clamp(point.x, frame.x_min, frame.x_max), frame.y_min];
   if (side === 'right') return [frame.x_max, clamp(point.y, frame.y_min, frame.y_max)];
   if (side === 'bottom') return [clamp(point.x, frame.x_min, frame.x_max), frame.y_max];
   return [frame.x_min, clamp(point.y, frame.y_min, frame.y_max)];
 }
 
-function sideCoordinate(x: number, y: number, frame: VertexRefinerFrame, side: VertexRefinerBoundarySide): number {
+function sideCoordinate(
+  x: number,
+  y: number,
+  frame: VertexRefinerFrame,
+  side: VertexRefinerBoundarySide,
+): number {
   const spanX = Math.max(1, frame.x_max - frame.x_min);
   const spanY = Math.max(1, frame.y_max - frame.y_min);
   if (side === 'top' || side === 'bottom') return clamp01((x - frame.x_min) / spanX);
@@ -211,10 +235,10 @@ function loadFrame(value: unknown): VertexRefinerFrame {
   if (!value || typeof value !== 'object') throw new Error('Missing frame');
   const frame = value as Partial<VertexRefinerFrame>;
   if (
-    typeof frame.x_min !== 'number'
-    || typeof frame.y_min !== 'number'
-    || typeof frame.x_max !== 'number'
-    || typeof frame.y_max !== 'number'
+    typeof frame.x_min !== 'number' ||
+    typeof frame.y_min !== 'number' ||
+    typeof frame.x_max !== 'number' ||
+    typeof frame.y_max !== 'number'
   ) {
     throw new Error(`Unsupported frame: ${JSON.stringify(value)}`);
   }

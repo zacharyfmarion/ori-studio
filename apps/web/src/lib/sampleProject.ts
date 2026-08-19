@@ -158,9 +158,33 @@ export function createSampleProject(): TreeProject {
       },
     ],
     edges: [
-      { id: 1, label: 'e1', nodes: [1, 2], length: 1, strain: 0, stiffness: 1, isConditioned: false },
-      { id: 2, label: 'e2', nodes: [1, 3], length: 1, strain: 0, stiffness: 1, isConditioned: false },
-      { id: 3, label: 'e3', nodes: [1, 4], length: 1, strain: 0, stiffness: 1, isConditioned: false },
+      {
+        id: 1,
+        label: 'e1',
+        nodes: [1, 2],
+        length: 1,
+        strain: 0,
+        stiffness: 1,
+        isConditioned: false,
+      },
+      {
+        id: 2,
+        label: 'e2',
+        nodes: [1, 3],
+        length: 1,
+        strain: 0,
+        stiffness: 1,
+        isConditioned: false,
+      },
+      {
+        id: 3,
+        label: 'e3',
+        nodes: [1, 4],
+        length: 1,
+        strain: 0,
+        stiffness: 1,
+        isConditioned: false,
+      },
     ],
     paths: [
       {

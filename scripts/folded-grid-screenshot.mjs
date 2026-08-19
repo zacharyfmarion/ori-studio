@@ -107,13 +107,13 @@ const TOLERANCES = {
  */
 async function projected3dSnapshot(server, fixtureName) {
   const projector = await server.ssrLoadModule(
-    '/src/cp-workspace/folded/foldedFigure3dProjection.ts'
+    '/src/cp-workspace/folded/foldedFigure3dProjection.ts',
   );
   const model = JSON.parse(
     await readFile(
       path.join(webRoot, 'src/cp-workspace/folded/__fixtures__', `${fixtureName}.rendermodel.json`),
-      'utf8'
-    )
+      'utf8',
+    ),
   );
   const camera = projector.defaultFolded3dCamera(model, FOLDED_MODEL.state);
   return {
@@ -162,7 +162,7 @@ async function settle(page) {
     () =>
       new Promise((resolve) => {
         requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined)));
-      })
+      }),
   );
 }
 
@@ -183,7 +183,7 @@ try {
   await page.goto(url, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'Create a CP' }).click();
   await page.waitForFunction(() =>
-    Boolean(window.__treemakerWorkspaceStore?.getState().oristudioCpDocument)
+    Boolean(window.__treemakerWorkspaceStore?.getState().oristudioCpDocument),
   );
 
   const body = page.locator('.cp-panel__body');

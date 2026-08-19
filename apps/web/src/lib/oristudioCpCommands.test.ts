@@ -203,7 +203,10 @@ describe('oristudio CP command registry', () => {
     ]);
 
     for (const group of ORISTUDIO_CP_COMMAND_GROUPS) {
-      expect(cpCommandsForGroup(group.id).length, `${group.id} should have commands`).toBeGreaterThan(0);
+      expect(
+        cpCommandsForGroup(group.id).length,
+        `${group.id} should have commands`,
+      ).toBeGreaterThan(0);
     }
     expect(cpRailCommands().some((command) => command.group === 'file')).toBe(false);
     expect(cpRailCommands().some((command) => command.group === 'draw')).toBe(true);
@@ -273,9 +276,9 @@ describe('cpCommandUsesActiveLineColor', () => {
    * committed in the active crease colour, so the line changed colour on release.
    */
   it('is not a restatement of the command group', () => {
-    const drawGrouped = ORISTUDIO_CP_COMMANDS.filter(
-      (command) => command.group === 'draw'
-    ).map((command) => command.operationId);
+    const drawGrouped = ORISTUDIO_CP_COMMANDS.filter((command) => command.group === 'draw').map(
+      (command) => command.operationId,
+    );
     const usesColor = ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS.filter(cpCommandUsesActiveLineColor);
 
     expect(usesColor.length).toBeGreaterThan(drawGrouped.length);

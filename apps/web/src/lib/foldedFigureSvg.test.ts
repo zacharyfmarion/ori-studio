@@ -37,7 +37,7 @@ describe('folded figure SVG', () => {
           },
         },
       ]),
-      { project, scale: 2 }
+      { project, scale: 2 },
     );
 
     expect(svg).toContain('<polygon points="0.00,0.00 20.00,0.00 20.00,20.00"');
@@ -65,7 +65,7 @@ describe('folded figure SVG', () => {
           },
         },
       ]),
-      { project, scale: 2 }
+      { project, scale: 2 },
     );
 
     expect(svg).toContain('<path d="M 0.00 0.00 L 10.00 10.00 Z"');
@@ -95,7 +95,7 @@ describe('folded figure SVG', () => {
           geometry: { kind: 'rect', x: 0, y: 0, width: 10, height: 10 },
         },
       ]),
-      { project, scale: 2, idPrefix: 'fig' }
+      { project, scale: 2, idPrefix: 'fig' },
     );
 
     expect(svg).toContain('<linearGradient id="fig-0"');
@@ -118,7 +118,7 @@ describe('folded figure SVG', () => {
           },
         },
       ]),
-      { project, scale: 1 }
+      { project, scale: 1 },
     );
 
     expect(svg).toBe('');
@@ -144,7 +144,7 @@ describe('folded figure SVG', () => {
           geometry: { kind: 'polygon', points: [{ x: 1000, y: 1000 }] },
         },
       ]),
-      project
+      project,
     );
 
     expect(bounds).toEqual({ minX: -10, minY: 0, maxX: 20, maxY: 8 });

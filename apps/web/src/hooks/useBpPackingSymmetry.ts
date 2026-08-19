@@ -96,9 +96,7 @@ export interface BpPackingSymmetryView {
    * anywhere. The move path enforces the same rule through
    * `constrainBpFlapGroupToAxisSides`.
    */
-  mirrorSideGuard:
-    | ((flap: OristudioBpFlap, candidate: BpFlapFootprintLike) => boolean)
-    | null;
+  mirrorSideGuard: ((flap: OristudioBpFlap, candidate: BpFlapFootprintLike) => boolean) | null;
   /** The selected flap's explicit partner, if any. Null means nothing to unpair. */
   unpairableId: number | null;
   unpair: (vertexId: number) => void;
@@ -107,14 +105,14 @@ export interface BpPackingSymmetryView {
 function foldStatus(
   t: TFunction,
   tree: OristudioBpTreeView,
-  symmetry: Parameters<typeof resolveOptimizerSymmetry>[1]
+  symmetry: Parameters<typeof resolveOptimizerSymmetry>[1],
 ): string {
   const resolved = resolveOptimizerSymmetry(tree, symmetry);
   if (!resolved.ok) return resolved.reason;
   if (resolved.inconsistentPairs.length > 0) {
     return t(
       'panels:bpPacking.symmetryInconsistent',
-      'Every flap has a partner, but some pairs are not interchangeable in the tree.'
+      'Every flap has a partner, but some pairs are not interchangeable in the tree.',
     );
   }
   return t('panels:bpPacking.symmetryReady', 'Every flap has a partner.');
@@ -154,13 +152,13 @@ export function useBpPackingSymmetry(
   tree: OristudioBpTreeView,
   sheet: OristudioBpSheet,
   paperRect: ReturnType<typeof bpPackingPaperRect>,
-  selectedFlapIds: readonly number[]
+  selectedFlapIds: readonly number[],
 ): BpPackingSymmetryView {
   const { t } = useTranslation();
   const symmetry = useWorkspaceStore((state) => selectOristudioBpSymmetry(state));
   const setOristudioBpSymmetry = useWorkspaceStore((state) => state.setOristudioBpSymmetry);
   const unpairOristudioBpTreeSymmetry = useWorkspaceStore(
-    (state) => state.unpairOristudioBpTreeSymmetry
+    (state) => state.unpairOristudioBpTreeSymmetry,
   );
 
   // Enabling rebuilds the tree-space axis from the tree sheet, exactly as the
@@ -180,7 +178,7 @@ export function useBpPackingSymmetry(
 
   const setFold = useCallback(
     (fold: SymmetryFold) => setOristudioBpSymmetry({ fold }),
-    [setOristudioBpSymmetry]
+    [setOristudioBpSymmetry],
   );
 
   // Asks about a fold the design may not have — the menu offers both — so it
@@ -191,7 +189,7 @@ export function useBpPackingSymmetry(
       bpPackingSheetSupportsAxis(sheet, bpPackingSymmetryAxis(sheet, { ...symmetry, fold }))
         ? null
         : t('panels:bpPacking.symmetryNeedsSquare', 'Needs a square sheet.'),
-    [sheet, symmetry, t]
+    [sheet, symmetry, t],
   );
 
   const axisLine = useMemo(() => {
@@ -206,7 +204,7 @@ export function useBpPackingSymmetry(
 
   const treeAxis: SymmetryAxis = useMemo(
     () => ({ loc: symmetry.loc, angle: symmetry.angle }),
-    [symmetry.loc, symmetry.angle]
+    [symmetry.loc, symmetry.angle],
   );
 
   // Not gated on mirror draw: a move carries the partner whatever the toggle

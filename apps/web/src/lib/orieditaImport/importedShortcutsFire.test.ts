@@ -41,7 +41,7 @@ import { shortcutScopeStackForContext } from '../../keyboard/shortcutRuntime';
 const FIXTURE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '__fixtures__',
-  'sample.oriconfig'
+  'sample.oriconfig',
 );
 
 type Hotkeys = ReadonlyMap<string, JavaPropertyValue>;
@@ -144,7 +144,7 @@ interface DispatchResult {
 function dispatch(
   chord: KeyChord,
   overrides: ShortcutOverrides,
-  platform: 'mac' | 'windows' = 'windows'
+  platform: 'mac' | 'windows' = 'windows',
 ): DispatchResult {
   let firedId: ShortcutActionId | null = null;
   const record = (id: ShortcutActionId): void => {
@@ -213,8 +213,7 @@ beforeAll(async () => {
 });
 
 describe.each(CASES)('imported bindings fire — $name', (planCase) => {
-  const plan = (): OrieditaImportPlan =>
-    buildOrieditaImportPlan({ hotkeys: planCase.hotkeys() });
+  const plan = (): OrieditaImportPlan => buildOrieditaImportPlan({ hotkeys: planCase.hotkeys() });
 
   it('runs the action the preview named, for every applied row', () => {
     const built = plan();

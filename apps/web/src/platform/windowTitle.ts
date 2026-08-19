@@ -37,7 +37,10 @@ export function formatWindowTitle({
   return `${dirtyMark}${title} - ${suffix}`;
 }
 
-export async function applyWindowTitle(title: string, surface: RuntimeSurface = getRuntimeSurface()) {
+export async function applyWindowTitle(
+  title: string,
+  surface: RuntimeSurface = getRuntimeSurface(),
+) {
   if (typeof document !== 'undefined') {
     document.title = title;
   }

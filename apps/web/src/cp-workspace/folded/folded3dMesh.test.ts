@@ -144,10 +144,7 @@ function creaseSources(model: OristudioCpFolded3dRenderModel, mesh: Folded3dMesh
   return sources;
 }
 
-function cellStackOf(
-  model: OristudioCpFolded3dRenderModel,
-  cell: number
-): number[] {
+function cellStackOf(model: OristudioCpFolded3dRenderModel, cell: number): number[] {
   const start = model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE + 3] ?? 0;
   const length = model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE + 4] ?? 0;
   return model.cell_stack.slice(start, start + length);
@@ -166,7 +163,7 @@ function cellStackOf(
 function cellFarToNear(
   model: OristudioCpFolded3dRenderModel,
   cell: number,
-  camera: FoldedFigureCamera
+  camera: FoldedFigureCamera,
 ): number[] {
   const stack = cellStackOf(model, cell);
   const up = planeFrame(model, model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE] ?? 0).up;
@@ -209,20 +206,16 @@ function everyCrease(mesh: Folded3dMesh): number[] {
 /** A world point in the mesh's own space: simulator basis, centroid-relative. */
 function simBasisRelative(
   model: OristudioCpFolded3dRenderModel,
-  point: readonly [number, number, number]
+  point: readonly [number, number, number],
 ): [number, number, number] {
   const centre = modelCentroid(model);
-  return [
-    point[0] - centre[0],
-    point[2] - centre[2],
-    -(point[1] - centre[1]),
-  ];
+  return [point[0] - centre[0], point[2] - centre[2], -(point[1] - centre[1])];
 }
 
 function distanceToSegment(
   p: readonly [number, number, number],
   a: readonly [number, number, number],
-  b: readonly [number, number, number]
+  b: readonly [number, number, number],
 ): number {
   const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]] as const;
   const ap = [p[0] - a[0], p[1] - a[1], p[2] - a[2]] as const;
@@ -253,8 +246,6 @@ function uniformsFor(mesh: Folded3dMesh, camera: FoldedFigureCamera): CameraUnif
   return cameraUniforms(orbit(camera), mesh.center, mesh.radius, FRAME, FRAME);
 }
 
-
-
 /**
  * Which end of a cell's plane faces the eye — the projector's own rule, asked
  * independently. `cell_stack` is top-first with respect to `up`, so `stack[0]` is
@@ -263,7 +254,7 @@ function uniformsFor(mesh: Folded3dMesh, camera: FoldedFigureCamera): CameraUnif
 function upTowardEye(
   model: OristudioCpFolded3dRenderModel,
   plane: number,
-  camera: FoldedFigureCamera
+  camera: FoldedFigureCamera,
 ): number {
   const { up } = planeFrame(model, plane);
   const eye = folded3dEyeDirection(camera);
@@ -275,12 +266,7 @@ function upTowardEye(
  * the signed area in pixel space, negated because pixel y points down while NDC
  * y points up. Front-facing — and so `u_frontColor` — when this is positive.
  */
-function screenWinding(
-  projected: ProjectedVertices,
-  a: number,
-  b: number,
-  c: number
-): number {
+function screenWinding(projected: ProjectedVertices, a: number, b: number, c: number): number {
   const ax = projected.screen[a * 2]!;
   const ay = projected.screen[a * 2 + 1]!;
   return -(
@@ -294,7 +280,7 @@ function screenWinding(
 function viewNormalOf(
   model: OristudioCpFolded3dRenderModel,
   face: number,
-  uniforms: CameraUniforms
+  uniforms: CameraUniforms,
 ): [number, number, number] {
   const n = faceNormal(model, face);
   return toViewSpace(n[0], n[2], -n[1], { ...uniforms, center: [0, 0, 0] });
@@ -332,22 +318,20 @@ describe('folded3dMesh', () => {
       }
       expect(mesh.slots.indexStart.length).toBe(mesh.slots.count + 1);
       expect(mesh.slots.indexStart[mesh.slots.count]).toBe(mesh.topology.faceIndices.length);
-      expect(mesh.topology.edgeIndices.length).toBe(
-        mesh.topology.edgeAssignments.length * 2
-      );
+      expect(mesh.topology.edgeIndices.length).toBe(mesh.topology.edgeAssignments.length * 2);
       // The fallback sits at the head, before the first skin.
       const firstSkinEdge = mesh.skins[0]?.edgeStart ?? mesh.translucent.edgeStart;
       expect(firstSkinEdge).toBe(mesh.fallbackEdgeCount);
       // The translucent and undetermined runs tile the tail exactly: every layer
       // once, nothing missed, nothing counted twice.
       expect(mesh.translucent.faceIndexStart + mesh.translucent.faceIndexCount).toBe(
-        mesh.undetermined.faceIndexStart
+        mesh.undetermined.faceIndexStart,
       );
       expect(mesh.undetermined.faceIndexStart + mesh.undetermined.faceIndexCount).toBe(
-        mesh.topology.faceIndices.length
+        mesh.topology.faceIndices.length,
       );
       expect(mesh.undetermined.edgeStart + mesh.undetermined.edgeCount).toBe(
-        mesh.topology.edgeAssignments.length
+        mesh.topology.edgeAssignments.length,
       );
     });
 
@@ -375,7 +359,11 @@ describe('folded3dMesh', () => {
         for (let slot = 0; slot < mesh.slots.count; slot += 1) {
           const cell = mesh.slots.cell[slot]!;
           if ((model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE] ?? 0) !== skin.plane) continue;
-          if ((model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE + 5] ?? 0) === FOLDED_3D_CELL_UNDETERMINED) continue;
+          if (
+            (model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE + 5] ?? 0) ===
+            FOLDED_3D_CELL_UNDETERMINED
+          )
+            continue;
           const stack = cellStack(model, cell);
           const depth = mesh.slots.depth[slot]!;
           if (depth !== (skin.side === 1 ? 0 : stack.length - 1)) continue;
@@ -398,7 +386,11 @@ describe('folded3dMesh', () => {
         for (let slot = 0; slot < mesh.slots.count; slot += 1) {
           const cell = mesh.slots.cell[slot]!;
           if ((model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE] ?? 0) !== skin.plane) continue;
-          if ((model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE + 5] ?? 0) === FOLDED_3D_CELL_UNDETERMINED) continue;
+          if (
+            (model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE + 5] ?? 0) ===
+            FOLDED_3D_CELL_UNDETERMINED
+          )
+            continue;
           const stack = cellStack(model, cell);
           const depth = mesh.slots.depth[slot]!;
           if (depth !== (skin.side === 1 ? 0 : stack.length - 1)) continue;
@@ -425,9 +417,7 @@ describe('folded3dMesh', () => {
       for (const [cell, slots] of byCell) {
         const stack = cellStack(model, cell);
         expect(slots.map((slot) => mesh.slots.face[slot])).toEqual(stack);
-        expect(slots.map((slot) => mesh.slots.depth[slot])).toEqual(
-          stack.map((_, index) => index)
-        );
+        expect(slots.map((slot) => mesh.slots.depth[slot])).toEqual(stack.map((_, index) => index));
       }
     });
 
@@ -537,7 +527,7 @@ describe('folded3dMesh', () => {
               projected,
               mesh.topology.faceIndices[i]!,
               mesh.topology.faceIndices[i + 1]!,
-              mesh.topology.faceIndices[i + 2]!
+              mesh.topology.faceIndices[i + 2]!,
             );
             // A face seen exactly edge-on shows no side to the viewer and its
             // triangles project to segments, so neither rule has an answer.
@@ -546,7 +536,7 @@ describe('folded3dMesh', () => {
               continue;
             }
             expect(winding >= 0, `${name} @ ${label}, slot ${slot}, face ${face}`).toBe(
-              projectorSaysFront
+              projectorSaysFront,
             );
             checked += 1;
           }
@@ -579,7 +569,8 @@ describe('folded3dMesh', () => {
         const second = slots.find((slot) => facing(mesh.slots.face[slot]!) < 0)!;
         const order = (slot: number): number[] => {
           const start = mesh.slots.indexStart[slot]!;
-          const base = start === mesh.slots.indexStart[slot + 1]! ? 0 : mesh.topology.faceIndices[start]!;
+          const base =
+            start === mesh.slots.indexStart[slot + 1]! ? 0 : mesh.topology.faceIndices[start]!;
           const out: number[] = [];
           for (let i = start; i < mesh.slots.indexStart[slot + 1]!; i += 1) {
             out.push(mesh.topology.faceIndices[i]! - base);
@@ -722,12 +713,12 @@ describe('folded3dMesh', () => {
         const meshLength = Math.hypot(
           mesh.positions[a * 3]! - mesh.positions[b * 3]!,
           mesh.positions[a * 3 + 1]! - mesh.positions[b * 3 + 1]!,
-          mesh.positions[a * 3 + 2]! - mesh.positions[b * 3 + 2]!
+          mesh.positions[a * 3 + 2]! - mesh.positions[b * 3 + 2]!,
         );
         const payloadLength = Math.hypot(
           ends[0][0] - ends[1][0],
           ends[0][1] - ends[1][1],
-          ends[0][2] - ends[1][2]
+          ends[0][2] - ends[1][2],
         );
         expect(meshLength).toBeLessThanOrEqual(payloadLength + 1e-6 * model.span);
       }
@@ -830,10 +821,3 @@ describe('the exported drawing and the mesh agree', () => {
     expect(compared).toBeGreaterThan(0);
   });
 });
-
-
-
-
-
-
-

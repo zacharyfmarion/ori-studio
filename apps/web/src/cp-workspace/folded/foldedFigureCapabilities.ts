@@ -32,7 +32,7 @@ import type {
 
 /** Whether this entry is the 3D kind. The one witness the UI branches on. */
 export function isFolded3dFigure(
-  figure: Pick<OristudioCpFoldedFigureEntry, 'folded3d'> | null | undefined
+  figure: Pick<OristudioCpFoldedFigureEntry, 'folded3d'> | null | undefined,
 ): boolean {
   return (figure?.folded3d ?? null) !== null;
 }
@@ -86,7 +86,7 @@ export const FOLDED_FIGURE_STYLE_CHOICES: readonly OristudioCpFoldedFigureDispla
 ];
 
 export function foldedFigureCapabilities(
-  figure: Pick<OristudioCpFoldedFigureEntry, 'folded3d'> | null | undefined
+  figure: Pick<OristudioCpFoldedFigureEntry, 'folded3d'> | null | undefined,
 ): FoldedFigureCapabilities {
   if (isFolded3dFigure(figure)) {
     return {

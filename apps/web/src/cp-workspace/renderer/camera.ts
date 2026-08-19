@@ -73,7 +73,7 @@ export function userCameraToView(cam: UserCamera, viewport: Viewport): ViewTrans
 function deviceDeltaToUser(
   cam: UserCamera,
   dxDevice: number,
-  dyDevice: number
+  dyDevice: number,
 ): { x: number; y: number } {
   const { cos, sin } = cameraTrig(cam.rotation);
   return {
@@ -89,7 +89,7 @@ function deviceDeltaToUser(
 export function modelViewFromCamera(
   cam: UserCamera,
   viewport: Viewport,
-  modelToSvg: (point: ModelPoint) => ModelPoint
+  modelToSvg: (point: ModelPoint) => ModelPoint,
 ): ViewTransform {
   const u2d = userCameraToView(cam, viewport);
   const toDevice = (mx: number, my: number): ModelPoint => {
@@ -120,7 +120,7 @@ export function fitUserCamera(
   bounds: UserBounds,
   viewport: Viewport,
   padding = 0.7,
-  rotation = 0
+  rotation = 0,
 ): UserCamera {
   const { cos, sin } = cameraTrig(rotation);
   const halfW = Math.max(1e-6, (bounds.maxX - bounds.minX) / 2);
@@ -161,7 +161,7 @@ export function frameUserCameraOnBounds(
   bounds: UserBounds,
   viewport: Viewport,
   camera: UserCamera,
-  documentBounds: UserBounds | null
+  documentBounds: UserBounds | null,
 ): UserCamera {
   const target = fitUserCamera(bounds, viewport, FRAME_PADDING, camera.rotation);
   const documentFitZoom = documentBounds
@@ -172,7 +172,7 @@ export function frameUserCameraOnBounds(
     centerY: target.centerY,
     zoom: Math.max(
       camera.zoom,
-      Math.min(target.zoom, documentFitZoom * FRAME_MAX_ZOOM_OVER_DOCUMENT_FIT)
+      Math.min(target.zoom, documentFitZoom * FRAME_MAX_ZOOM_OVER_DOCUMENT_FIT),
     ),
     rotation: camera.rotation,
   };
@@ -203,7 +203,7 @@ export function zoomUserCameraAt(
   viewport: Viewport,
   deviceX: number,
   deviceY: number,
-  factor: number
+  factor: number,
 ): void {
   const offX = deviceX - viewport.width / 2;
   const offY = deviceY - viewport.height / 2;
@@ -227,7 +227,7 @@ export function zoomUserCameraAt(
 export function viewTransformFromSamples(
   originSample: ModelPoint,
   unitXSample: ModelPoint,
-  unitYSample: ModelPoint
+  unitYSample: ModelPoint,
 ): ViewTransform {
   return {
     origin: [originSample.x, originSample.y],
@@ -248,7 +248,11 @@ export function projectModelPoint(view: ViewTransform, x: number, y: number): Mo
  * Invert a {@link ViewTransform}: map a device-pixel point back to model coords.
  * Returns `null` if the transform is degenerate (zero-area basis).
  */
-export function unprojectDevicePoint(view: ViewTransform, dx: number, dy: number): ModelPoint | null {
+export function unprojectDevicePoint(
+  view: ViewTransform,
+  dx: number,
+  dy: number,
+): ModelPoint | null {
   const [ax, ay] = view.ex;
   const [bx, by] = view.ey;
   const det = ax * by - ay * bx;

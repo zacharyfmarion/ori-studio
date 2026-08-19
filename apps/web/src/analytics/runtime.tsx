@@ -44,10 +44,7 @@ export interface AnalyticsErrorContext {
 export interface AnalyticsApi {
   track: (eventName: string, properties?: AnalyticsProperties) => void;
   trackError: (context: AnalyticsErrorContext) => void;
-  setAnalyticsEnabled: (
-    enabled: boolean,
-    options?: { capturePreferenceChange?: boolean }
-  ) => void;
+  setAnalyticsEnabled: (enabled: boolean, options?: { capturePreferenceChange?: boolean }) => void;
 }
 
 const NOOP_ANALYTICS: AnalyticsApi = {

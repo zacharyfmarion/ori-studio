@@ -104,11 +104,7 @@ export function toolOptionFrame(view: CpOverlayView, bounds: CpToolOptionBounds)
  * vertices is the only thing it is saying. Escape, the arrows and Enter all
  * dispatch focus-independently, so the tool stays operable either way.
  */
-export function toolOptionHeaderOffset(
-  frame: Box,
-  headerHeight: number,
-  viewport: Size
-): number {
+export function toolOptionHeaderOffset(frame: Box, headerHeight: number, viewport: Size): number {
   const above = frame.top - headerHeight;
   const fitsAbove = above >= VIEWPORT_MARGIN_CSS && above + headerHeight <= viewport.height;
   return fitsAbove ? -headerHeight : 0;

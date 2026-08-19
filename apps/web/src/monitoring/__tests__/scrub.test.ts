@@ -5,7 +5,7 @@ import { scrubBreadcrumb, scrubEvent, scrubUrl } from '../scrub';
 describe('scrubUrl', () => {
   it('keeps origin and path but drops the query and hash', () => {
     expect(scrubUrl('https://oristudio.pages.dev/s/abc123?token=xyz#payload')).toBe(
-      'https://oristudio.pages.dev/s/abc123'
+      'https://oristudio.pages.dev/s/abc123',
     );
   });
 
@@ -95,7 +95,7 @@ describe('scrubEvent', () => {
             },
           ],
         },
-      })
+      }),
     );
 
     const value = event.exception?.values?.[0];
@@ -117,7 +117,7 @@ describe('scrubEvent', () => {
           headers: { Referer: 'https://x.dev/edit?doc=secret' },
           cookies: { session: 'nope' },
         },
-      })
+      }),
     );
     expect(event.request).toEqual({ url: 'https://x.dev/s/abc', method: 'GET' });
   });
@@ -129,7 +129,7 @@ describe('scrubEvent', () => {
 
   it('reduces user to the anonymous id, dropping anything else', () => {
     const event = scrubEvent(
-      eventWith({ user: { id: 'anon-1', ip_address: '1.2.3.4', email: 'x@y.z' } })
+      eventWith({ user: { id: 'anon-1', ip_address: '1.2.3.4', email: 'x@y.z' } }),
     );
     expect(event.user).toEqual({ id: 'anon-1' });
   });
@@ -137,10 +137,8 @@ describe('scrubEvent', () => {
   it('scrubs breadcrumbs carried on the event', () => {
     const event = scrubEvent(
       eventWith({
-        breadcrumbs: [
-          { category: 'fetch', data: { url: 'https://x.dev/api/cp/a?secret=1' } },
-        ],
-      })
+        breadcrumbs: [{ category: 'fetch', data: { url: 'https://x.dev/api/cp/a?secret=1' } }],
+      }),
     );
     expect(event.breadcrumbs?.[0]?.data?.url).toBe('https://x.dev/api/cp/a');
   });

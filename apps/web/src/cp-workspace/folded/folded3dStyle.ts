@@ -67,7 +67,11 @@ export const TRANSPARENT_FACE_ALPHA = 0.45;
 /** Paper style from a kernel figure model, so a 3D figure honours its colours. */
 export function folded3dPaperStyle(model: OristudioCpFoldedFigureModel): Folded3dPaperStyle {
   return {
-    front: [model.front_color.red / 255, model.front_color.green / 255, model.front_color.blue / 255],
+    front: [
+      model.front_color.red / 255,
+      model.front_color.green / 255,
+      model.front_color.blue / 255,
+    ],
     back: [model.back_color.red / 255, model.back_color.green / 255, model.back_color.blue / 255],
     line: [model.line_color.red / 255, model.line_color.green / 255, model.line_color.blue / 255],
     faceAlpha: 1,
@@ -109,7 +113,7 @@ export function folded3dStylePlan(
    * Defaulted so `folded3dBspItems` — which only wants to know *whether* fills
    * and strokes are drawn — does not have to carry a style it never reads.
    */
-  transparentAlpha: number = TRANSPARENT_FACE_ALPHA
+  transparentAlpha: number = TRANSPARENT_FACE_ALPHA,
 ): StylePlan {
   switch (style) {
     case 'None0':

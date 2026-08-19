@@ -49,7 +49,11 @@ function NoticeChip({ action }: { action: FoldedFigureNoteAction }) {
   );
   if (!action.run) {
     return (
-      <span className="cp-folded-figure-toolbar__notice" data-tone={notice.tone} title={notice.detail}>
+      <span
+        className="cp-folded-figure-toolbar__notice"
+        data-tone={notice.tone}
+        title={notice.detail}
+      >
         {content}
       </span>
     );
@@ -85,11 +89,7 @@ function ChoiceMenu({ action }: { action: FoldedFigureChoice }) {
           loop
         >
           {action.options.map((option) => (
-            <DropdownMenu.Item
-              key={option.id}
-              className="context-menu__item"
-              onSelect={option.run}
-            >
+            <DropdownMenu.Item key={option.id} className="context-menu__item" onSelect={option.run}>
               {/* The check column is reserved for an exclusive set only, so its
                   labels stay put as the check moves. A list of one-shot actions
                   has nothing to check, and an always-empty column just reads as
@@ -138,7 +138,7 @@ export function CpFoldedFigureToolbar({
   const anchorRect = useCanvasObjectAnchor(box, 'user', container);
   const actions = useMemo(
     () => buildFoldedFigureActions(figure, { ...deps, t }),
-    [figure, deps, t]
+    [figure, deps, t],
   );
 
   // A figure that draws nothing (still folding, errored, empty) has no box to

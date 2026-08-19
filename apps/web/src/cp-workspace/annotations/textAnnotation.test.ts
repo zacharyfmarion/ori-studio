@@ -152,7 +152,9 @@ describe('validateTextAnnotation', () => {
 
   it('rejects entries missing a doc or the text kind', () => {
     expect(validateTextAnnotation({ kind: 'image' })).toBeNull();
-    expect(validateTextAnnotation({ kind: 'text', center: { x: 0, y: 0 }, width: 1, height: 1 })).toBeNull();
+    expect(
+      validateTextAnnotation({ kind: 'text', center: { x: 0, y: 0 }, width: 1, height: 1 }),
+    ).toBeNull();
     expect(validateTextAnnotations('nope')).toEqual([]);
   });
 });

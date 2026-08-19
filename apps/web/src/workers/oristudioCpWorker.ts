@@ -84,7 +84,7 @@ function exportWithTexts(handle: number, texts: FlatText[], exporter: () => stri
   set_texts(
     handle,
     coords,
-    texts.map((entry) => entry.text)
+    texts.map((entry) => entry.text),
   );
   try {
     return exporter();
@@ -193,21 +193,20 @@ const api = {
   async executeCommand(
     handle: number,
     operationId: OristudioCpOperationId,
-    payload: OristudioCpCommandPayload = {}
+    payload: OristudioCpCommandPayload = {},
   ): Promise<OristudioCpCommandResult> {
     return call(() => execute_cp_command(handle, operationId, payload) as OristudioCpCommandResult);
   },
   async previewCommand(
     handle: number,
     operationId: OristudioCpOperationId,
-    payload: OristudioCpCommandPayload = {}
+    payload: OristudioCpCommandPayload = {},
   ): Promise<OristudioCpCommandPreview> {
-    return call(() => preview_cp_command(handle, operationId, payload) as OristudioCpCommandPreview);
+    return call(
+      () => preview_cp_command(handle, operationId, payload) as OristudioCpCommandPreview,
+    );
   },
-  async insertLineSegments(
-    handle: number,
-    segments: OristudioCpLineSegment[]
-  ): Promise<number> {
+  async insertLineSegments(handle: number, segments: OristudioCpLineSegment[]): Promise<number> {
     return call(() => insert_line_segments(handle, segments));
   },
   async deselectAll(handle: number): Promise<number> {
@@ -219,7 +218,7 @@ const api = {
   async replaceLineSegments(
     handle: number,
     lineIds: number[],
-    segments: OristudioCpLineSegment[]
+    segments: OristudioCpLineSegment[],
   ): Promise<number> {
     return call(() => replace_line_segments(handle, lineIds, segments));
   },
@@ -235,26 +234,25 @@ const api = {
     order: OristudioCpEstimationOrder = 'Order5',
     model?: OristudioCpFoldedFigureModel,
     selectedLineIds: number[] = [],
-    runId = 0
+    runId = 0,
   ): Promise<OristudioCpFoldedFigureResult> {
-    return call(
-      () =>
-        selectedLineIds.length > 0
-          ? (folded_figure_fold_selected(
-              handle,
-              selectedLineIds,
-              startingFaceId,
-              order,
-              model ?? null,
-              runId
-            ) as OristudioCpFoldedFigureResult)
-          : (folded_figure_fold(
-              handle,
-              startingFaceId,
-              order,
-              model ?? null,
-              runId
-            ) as OristudioCpFoldedFigureResult)
+    return call(() =>
+      selectedLineIds.length > 0
+        ? (folded_figure_fold_selected(
+            handle,
+            selectedLineIds,
+            startingFaceId,
+            order,
+            model ?? null,
+            runId,
+          ) as OristudioCpFoldedFigureResult)
+        : (folded_figure_fold(
+            handle,
+            startingFaceId,
+            order,
+            model ?? null,
+            runId,
+          ) as OristudioCpFoldedFigureResult),
     );
   },
   async foldedFigureSnapshot(handle: number): Promise<OristudioCpFoldedFigureSnapshot> {
@@ -263,37 +261,34 @@ const api = {
   async foldedFigureRenderSnapshot(
     handle: number,
     displayStyle?: OristudioCpFoldedFigureSnapshot['display_style'],
-    options?: OristudioCpFoldedFigureRenderOptions
+    options?: OristudioCpFoldedFigureRenderOptions,
   ): Promise<OristudioCpFoldedRenderSnapshot | null> {
     return call(
       () =>
         folded_figure_render_snapshot(
           handle,
           displayStyle ?? null,
-          options ?? null
-        ) as OristudioCpFoldedRenderSnapshot | null
+          options ?? null,
+        ) as OristudioCpFoldedRenderSnapshot | null,
     );
   },
   async setFoldedFigureModel(
     handle: number,
-    model: OristudioCpFoldedFigureModel
+    model: OristudioCpFoldedFigureModel,
   ): Promise<OristudioCpFoldedFigureSnapshot> {
     return call(() => folded_figure_set_model(handle, model) as OristudioCpFoldedFigureSnapshot);
   },
   async duplicateFoldedFigure(handle: number): Promise<OristudioCpFoldedFigureResult> {
     return call(() => folded_figure_duplicate(handle) as OristudioCpFoldedFigureResult);
   },
-  async foldFigureAnother(
-    handle: number,
-    runId = 0
-  ): Promise<OristudioCpFoldedFigureSnapshot> {
+  async foldFigureAnother(handle: number, runId = 0): Promise<OristudioCpFoldedFigureSnapshot> {
     return call(() => folded_figure_fold_another(handle, runId) as OristudioCpFoldedFigureSnapshot);
   },
   async foldFigureToCase(
     handle: number,
     objective: number,
     initialOrder: OristudioCpEstimationOrder = 'Order5',
-    runId = 0
+    runId = 0,
   ): Promise<OristudioCpFoldedFigureBatchResult> {
     return call(
       () =>
@@ -301,8 +296,8 @@ const api = {
           handle,
           objective,
           initialOrder,
-          runId
-        ) as OristudioCpFoldedFigureBatchResult
+          runId,
+        ) as OristudioCpFoldedFigureBatchResult,
     );
   },
   /**
@@ -318,7 +313,7 @@ const api = {
     selectedLineIds: number[],
     startingFaceId = 1,
     model?: OristudioCpFoldedFigureModel,
-    runId = 0
+    runId = 0,
   ): Promise<OristudioCpFold3dFoldResult> {
     return call(
       () =>
@@ -327,8 +322,8 @@ const api = {
           selectedLineIds,
           startingFaceId,
           model ?? null,
-          runId
-        ) as OristudioCpFold3dFoldResult
+          runId,
+        ) as OristudioCpFold3dFoldResult,
     );
   },
   async fold3dAnother(handle: number, runId = 0): Promise<OristudioCpFold3dStepResult> {
@@ -350,12 +345,12 @@ const api = {
   async exportFoldFile(
     handle: number,
     texts: FlatText[] = [],
-    foldedHandles: number[] = []
+    foldedHandles: number[] = [],
   ): Promise<string> {
     return call(() =>
       exportWithTexts(handle, texts, () =>
-        export_fold_file(handle, new Uint32Array(foldedHandles))
-      )
+        export_fold_file(handle, new Uint32Array(foldedHandles)),
+      ),
     );
   },
   async exportOri(handle: number, texts: FlatText[] = []): Promise<string> {
@@ -380,14 +375,14 @@ const api = {
       set_texts(
         handle,
         coords,
-        texts.map((entry) => entry.text)
-      )
+        texts.map((entry) => entry.text),
+      ),
     );
   },
   async placeCircles(
     handle: number,
     sourceBounds: readonly [number, number, number, number],
-    circles: readonly SendToEditCircle[]
+    circles: readonly SendToEditCircle[],
   ): Promise<void> {
     const coords = new Float64Array(circles.length * 2);
     const radii = new Float64Array(circles.length);
@@ -396,9 +391,7 @@ const api = {
       coords[i * 2 + 1] = circles[i].cy;
       radii[i] = circles[i].r;
     }
-    return call(() =>
-      place_circles(handle, Float64Array.from(sourceBounds), coords, radii)
-    );
+    return call(() => place_circles(handle, Float64Array.from(sourceBounds), coords, radii));
   },
   async freeDocument(handle: number): Promise<void> {
     return call(() => free_document(handle));

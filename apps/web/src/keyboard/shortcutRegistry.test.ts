@@ -37,7 +37,7 @@ describe('shortcut registry invariants', () => {
 
   it('binds no hard-reserved browser chords by default', () => {
     const hardReserved = getShortcutRegistryDiagnostics().reservedDefaultChords.filter(
-      (entry) => entry.classification === 'hard-reserved'
+      (entry) => entry.classification === 'hard-reserved',
     );
     expect(hardReserved).toEqual([]);
   });
@@ -47,21 +47,23 @@ describe('shortcut registry invariants', () => {
     // there. Everything must go through `primary` instead. Alt is the
     // designated third modifier.
     const bareCtrl = boundDefinitions().filter((definition) =>
-      definition.defaultChords.some((chord) => chord.ctrl)
+      definition.defaultChords.some((chord) => chord.ctrl),
     );
     expect(bareCtrl.map((definition) => definition.id)).toEqual([]);
   });
 
   it('only binds crease-pattern defaults to actions the UI can run', () => {
     const actionById = new Map<string, (typeof ORISTUDIO_CP_ACTIONS)[number]>(
-      ORISTUDIO_CP_ACTIONS.map((action) => [action.id, action])
+      ORISTUDIO_CP_ACTIONS.map((action) => [action.id, action]),
     );
 
     const notReady = boundDefinitions()
       .filter((definition) => definition.scope === 'crease-pattern')
       .filter((definition) => !ROUTED_CHORD_EXCEPTIONS.has(definition.id))
       .filter((definition) => actionById.get(definition.id)?.uiStatus !== 'ready')
-      .map((definition) => `${definition.id}=${definition.defaultChords.map(keyChordId).join(',')}`);
+      .map(
+        (definition) => `${definition.id}=${definition.defaultChords.map(keyChordId).join(',')}`,
+      );
 
     expect(notReady).toEqual([]);
   });
@@ -79,15 +81,17 @@ describe('shortcut registry invariants', () => {
     const hiddenIds = new Set<string>(
       cpHiddenActions()
         .filter(
-          (action) => action.kind !== 'command' || cpVariantHostAction(action).id === action.id
+          (action) => action.kind !== 'command' || cpVariantHostAction(action).id === action.id,
         )
-        .map((action) => action.id)
+        .map((action) => action.id),
     );
 
     const boundButHidden = boundDefinitions()
       .filter((definition) => hiddenIds.has(definition.id))
       .filter((definition) => !ROUTED_CHORD_EXCEPTIONS.has(definition.id))
-      .map((definition) => `${definition.id}=${definition.defaultChords.map(keyChordId).join(',')}`);
+      .map(
+        (definition) => `${definition.id}=${definition.defaultChords.map(keyChordId).join(',')}`,
+      );
 
     expect(boundButHidden).toEqual([]);
   });
@@ -155,8 +159,8 @@ describe('adopted single-key layout', () => {
   it('reuses crease-pattern keys in the simulator scope, deliberately', () => {
     const simulatorChords = new Set(
       SHORTCUT_DEFINITIONS.filter((d) => d.scope === 'simulator').flatMap((d) =>
-        d.defaultChords.map(keyChordId)
-      )
+        d.defaultChords.map(keyChordId),
+      ),
     );
     // If these stop overlapping the layout above, the scope stack has become
     // unnecessary and should be reconsidered rather than left in place.
@@ -197,7 +201,7 @@ describe('adopted single-key layout', () => {
     // ordinary blocker the user may evict. Membership mirrors the arms of
     // `CreasePatternPanel`'s viewport switch that can answer `false`.
     const declining = SHORTCUT_DEFINITIONS.filter((definition) =>
-      shortcutMayDecline(definition.id)
+      shortcutMayDecline(definition.id),
     ).map((definition) => definition.id);
     expect(declining).toEqual([
       'viewport.solveAnglesPrevious',

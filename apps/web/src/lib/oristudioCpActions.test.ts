@@ -37,20 +37,20 @@ describe('oristudio CP action registry', () => {
     // Unassigned stays a real line type (imported patterns carry it) but is not
     // worth a chip, so it is the one kept out of the rail.
     const shown = ORISTUDIO_CP_LINE_TYPE_ACTIONS.filter(
-      (action) => action.placement === 'left-rail'
+      (action) => action.placement === 'left-rail',
     );
     expect(shown.map((action) => action.railLabel)).toEqual(['M', 'V', 'E', 'A']);
     expect(
       ORISTUDIO_CP_LINE_TYPE_ACTIONS.filter((action) => action.placement === 'hidden-ui-only').map(
-        (action) => action.railLabel
-      )
+        (action) => action.railLabel,
+      ),
     ).toEqual(['U']);
 
     // The rail is their only home, and they lead it (group order 5).
     const rail = cpRailActions();
     expect(rail.filter((action) => action.kind === 'line-type')).toHaveLength(shown.length);
     expect(rail.slice(0, shown.length).map((action) => action.id)).toEqual(
-      shown.map((action) => action.id)
+      shown.map((action) => action.id),
     );
   });
 
@@ -58,7 +58,7 @@ describe('oristudio CP action registry', () => {
     const operationActionIds = new Set(
       cpRailActions()
         .filter((action) => action.kind === 'command')
-        .map((action) => action.operationId)
+        .map((action) => action.operationId),
     );
 
     for (const command of ORISTUDIO_CP_COMMANDS) {
@@ -90,12 +90,21 @@ describe('oristudio CP action registry', () => {
     // Angle-restricted variants that remain in the curated rail keep their Oriedita
     // override mappings. (Offset Restricted Line / Flat Foldable Line (extend) and the
     // other non-Oriedita-UI tools were deliberately hidden from the rail.)
-    expect(cpRailActions().find((action) => action.kind === 'command' && action.operationId === 'DrawCreaseAngleRestricted5')).toMatchObject({
+    expect(
+      cpRailActions().find(
+        (action) =>
+          action.kind === 'command' && action.operationId === 'DrawCreaseAngleRestricted5',
+      ),
+    ).toMatchObject({
       label: 'Angle Restricted Line',
       upstreamAction: 'deg2Action',
       upstreamMouseMode: 'DRAW_CREASE_ANGLE_RESTRICTED_5_37',
     });
-    expect(cpRailActions().find((action) => action.kind === 'command' && action.operationId === 'DrawCreaseAngleRestricted')).toMatchObject({
+    expect(
+      cpRailActions().find(
+        (action) => action.kind === 'command' && action.operationId === 'DrawCreaseAngleRestricted',
+      ),
+    ).toMatchObject({
       label: 'Converging Lines',
       upstreamAction: 'deg1Action',
       upstreamMouseMode: 'DRAW_CREASE_ANGLE_RESTRICTED_13',
@@ -106,7 +115,7 @@ describe('oristudio CP action registry', () => {
     expect(
       cpRailActions()
         .filter((action) => action.group === 'generators')
-        .map((action) => action.label)
+        .map((action) => action.label),
     ).toEqual([
       // Square opens the section: the shape people reach for most, and the one
       // generator that needs no drawing at all.
@@ -125,8 +134,8 @@ describe('oristudio CP action registry', () => {
         (action) =>
           action.group === 'draw' &&
           action.kind === 'command' &&
-          (action.operationId === 'PolygonSetNoCorners' || action.operationId === 'VoronoiCreate')
-      )
+          (action.operationId === 'PolygonSetNoCorners' || action.operationId === 'VoronoiCreate'),
+      ),
     ).toBe(false);
   });
 
@@ -138,7 +147,7 @@ describe('oristudio CP action registry', () => {
           label: action.label,
           upstreamAction: action.upstreamAction,
           upstreamMouseMode: action.kind === 'command' ? action.upstreamMouseMode : undefined,
-        }))
+        })),
     ).toEqual([
       {
         label: 'Eraser',
@@ -240,7 +249,7 @@ describe('oristudio CP action registry', () => {
     // that is always wrong, because the operation always has a real action id
     // available — all twelve did.
     const handlerBacked = ORISTUDIO_CP_ACTIONS.filter((action) =>
-      action.upstreamAction.startsWith('MouseHandler')
+      action.upstreamAction.startsWith('MouseHandler'),
     ).map((action) => `${action.id} -> ${action.upstreamAction}`);
 
     expect(handlerBacked).toEqual([]);
@@ -253,7 +262,7 @@ describe('oristudio CP action registry', () => {
     expect(shortcutIdForOrieditaAction('toMountainAction')).toBe('cp.action.crease-make-mountain');
     expect(shortcutIdForOrieditaAction('toValleyAction')).toBe('cp.action.crease-make-valley');
     expect(shortcutIdForOrieditaAction('replace_lineAction')).toBe(
-      'cp.action.replace-line-type-select'
+      'cp.action.replace-line-type-select',
     );
   });
 

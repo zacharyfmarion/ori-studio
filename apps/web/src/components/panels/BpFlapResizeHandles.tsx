@@ -141,15 +141,13 @@ export function BpFlapResizeHandles({
               onPointerCancel={resize.onHandlePointerUp}
             />
             <rect
-              className={
-                [
-                  'bp-packing-flap-handle',
-                  corner ? 'bp-packing-flap-handle--corner' : 'bp-packing-flap-handle--edge',
-                  resize.active === handle ? 'bp-packing-flap-handle--active' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')
-              }
+              className={[
+                'bp-packing-flap-handle',
+                corner ? 'bp-packing-flap-handle--corner' : 'bp-packing-flap-handle--edge',
+                resize.active === handle ? 'bp-packing-flap-handle--active' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
               x={at.x - size.w / 2}
               y={at.y - size.h / 2}
               width={size.w}

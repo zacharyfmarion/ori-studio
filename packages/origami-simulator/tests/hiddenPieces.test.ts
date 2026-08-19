@@ -35,19 +35,37 @@ describe('finding the pieces nothing shows', () => {
   });
 
   it('drops a crease buried under a face', () => {
-    const crease: DrawnPiece = { points: [[20, 30], [40, 30]], strokeWidth: 2 };
+    const crease: DrawnPiece = {
+      points: [
+        [20, 30],
+        [40, 30],
+      ],
+      strokeWidth: 2,
+    };
     expect(findVisiblePieces([crease, square(10, 10, 40)], PAGE)).toEqual([false, true]);
   });
 
   it('keeps a crease that runs out from under a face', () => {
-    const crease: DrawnPiece = { points: [[20, 30], [80, 30]], strokeWidth: 2 };
+    const crease: DrawnPiece = {
+      points: [
+        [20, 30],
+        [80, 30],
+      ],
+      strokeWidth: 2,
+    };
     expect(findVisiblePieces([crease, square(10, 10, 40)], PAGE)).toEqual([true, true]);
   });
 
   it('counts a crease by the stroke it draws, not by its centreline', () => {
     // The covering face stops just short of the crease's centreline, so the
     // centreline alone would call it hidden while half the stroke still shows.
-    const crease: DrawnPiece = { points: [[20, 50], [60, 50]], strokeWidth: 6 };
+    const crease: DrawnPiece = {
+      points: [
+        [20, 50],
+        [60, 50],
+      ],
+      strokeWidth: 6,
+    };
     const face = square(10, 10, 40); // covers y up to 50
     expect(findVisiblePieces([crease, face], PAGE)).toEqual([true, true]);
   });
@@ -70,8 +88,20 @@ describe('finding the pieces nothing shows', () => {
     expect(findVisiblePieces([], PAGE)).toEqual([]);
     const degenerate: DrawnPiece[] = [
       { points: [[10, 10]], strokeWidth: 0 },
-      { points: [[10, 10], [10, 10]], strokeWidth: 0 },
-      { points: [[20, 20], [20, 20]], strokeWidth: 2 },
+      {
+        points: [
+          [10, 10],
+          [10, 10],
+        ],
+        strokeWidth: 0,
+      },
+      {
+        points: [
+          [20, 20],
+          [20, 20],
+        ],
+        strokeWidth: 2,
+      },
     ];
     const visible = findVisiblePieces(degenerate, PAGE);
     expect(visible.slice(0, 2)).toEqual([false, false]);

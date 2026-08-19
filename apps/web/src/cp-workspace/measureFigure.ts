@@ -47,7 +47,10 @@ export function arcPath(center: Vec2, from: Vec2, to: Vec2): string | null {
   let delta = a1 - a0;
   while (delta > Math.PI) delta -= 2 * Math.PI;
   while (delta < -Math.PI) delta += 2 * Math.PI;
-  const start = { x: center.x + Math.cos(a0) * ARC_RADIUS, y: center.y + Math.sin(a0) * ARC_RADIUS };
+  const start = {
+    x: center.x + Math.cos(a0) * ARC_RADIUS,
+    y: center.y + Math.sin(a0) * ARC_RADIUS,
+  };
   const end = { x: center.x + Math.cos(a1) * ARC_RADIUS, y: center.y + Math.sin(a1) * ARC_RADIUS };
   const sweep = delta > 0 ? 1 : 0;
   return `M ${start.x} ${start.y} A ${ARC_RADIUS} ${ARC_RADIUS} 0 0 ${sweep} ${end.x} ${end.y}`;

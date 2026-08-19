@@ -21,7 +21,12 @@ export class FastSolver {
   private readonly opts: Required<
     Pick<
       SimulatorOptions,
-      'axialStiffness' | 'creaseStiffness' | 'panelStiffness' | 'faceStiffness' | 'damping' | 'foldPercent'
+      | 'axialStiffness'
+      | 'creaseStiffness'
+      | 'panelStiffness'
+      | 'faceStiffness'
+      | 'damping'
+      | 'foldPercent'
     >
   >;
 
@@ -201,13 +206,21 @@ export class FastSolver {
       let bcy = op[ic + 1]! - op[ib + 1]!;
       let bcz = op[ic + 2]! - op[ib + 2]!;
       let l = Math.sqrt(abx * abx + aby * aby + abz * abz) || 1;
-      abx /= l; aby /= l; abz /= l;
+      abx /= l;
+      aby /= l;
+      abz /= l;
       l = Math.sqrt(acx * acx + acy * acy + acz * acz) || 1;
-      acx /= l; acy /= l; acz /= l;
+      acx /= l;
+      acy /= l;
+      acz /= l;
       l = Math.sqrt(bcx * bcx + bcy * bcy + bcz * bcz) || 1;
-      bcx /= l; bcy /= l; bcz /= l;
+      bcx /= l;
+      bcy /= l;
+      bcz /= l;
       this.nominalAngles[fi * 3] = Math.acos(clamp(abx * acx + aby * acy + abz * acz, -1, 1));
-      this.nominalAngles[fi * 3 + 1] = Math.acos(clamp(-(abx * bcx + aby * bcy + abz * bcz), -1, 1));
+      this.nominalAngles[fi * 3 + 1] = Math.acos(
+        clamp(-(abx * bcx + aby * bcy + abz * bcz), -1, 1),
+      );
       this.nominalAngles[fi * 3 + 2] = Math.acos(clamp(acx * bcx + acy * bcy + acz * bcz, -1, 1));
     }
 
@@ -266,9 +279,13 @@ export class FastSolver {
       let nz = bx * cy - by * cx;
       const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
       if (len <= EPSILON) {
-        nx = 0; ny = 1; nz = 0;
+        nx = 0;
+        ny = 1;
+        nz = 0;
       } else {
-        nx /= len; ny /= len; nz /= len;
+        nx /= len;
+        ny /= len;
+        nz /= len;
       }
       normals[fi * 3] = nx;
       normals[fi * 3 + 1] = ny;
@@ -283,21 +300,33 @@ export class FastSolver {
     for (let ci = 0; ci < this.creaseCount; ci += 1) {
       const f1 = this.creaseFace1[ci]! * 3;
       const f2 = this.creaseFace2[ci]! * 3;
-      const n1x = normals[f1]!, n1y = normals[f1 + 1]!, n1z = normals[f1 + 2]!;
-      const n2x = normals[f2]!, n2y = normals[f2 + 1]!, n2z = normals[f2 + 2]!;
+      const n1x = normals[f1]!,
+        n1y = normals[f1 + 1]!,
+        n1z = normals[f1 + 2]!;
+      const n2x = normals[f2]!,
+        n2y = normals[f2 + 1]!,
+        n2z = normals[f2 + 2]!;
       const i0 = this.creaseE0[ci]! * 3;
       const i1 = this.creaseE1[ci]! * 3;
       let vx = op[i1]! + rel[i1]! - op[i0]! - rel[i0]!;
       let vy = op[i1 + 1]! + rel[i1 + 1]! - op[i0 + 1]! - rel[i0 + 1]!;
       let vz = op[i1 + 2]! + rel[i1 + 2]! - op[i0 + 2]! - rel[i0 + 2]!;
       const len = Math.sqrt(vx * vx + vy * vy + vz * vz);
-      if (len <= EPSILON) { vx = 0; vy = 1; vz = 0; } else { vx /= len; vy /= len; vz /= len; }
+      if (len <= EPSILON) {
+        vx = 0;
+        vy = 1;
+        vz = 0;
+      } else {
+        vx /= len;
+        vy /= len;
+        vz /= len;
+      }
       const cx = n1y * vz - n1z * vy;
       const cy = n1z * vx - n1x * vz;
       const cz = n1x * vy - n1y * vx;
       const theta = Math.atan2(
         cx * n2x + cy * n2y + cz * n2z,
-        clamp(n1x * n2x + n1y * n2y + n1z * n2z, -1, 1)
+        clamp(n1x * n2x + n1y * n2y + n1z * n2z, -1, 1),
       );
       let diff = theta - this.theta[ci]!;
       if (diff < -5) diff += TWO_PI;
@@ -315,14 +344,21 @@ export class FastSolver {
       const i2 = this.creaseV2[ci]! * 3;
       const i3 = this.creaseE0[ci]! * 3;
       const i4 = this.creaseE1[ci]! * 3;
-      const n3x = op[i3]! + rel[i3]!, n3y = op[i3 + 1]! + rel[i3 + 1]!, n3z = op[i3 + 2]! + rel[i3 + 2]!;
+      const n3x = op[i3]! + rel[i3]!,
+        n3y = op[i3 + 1]! + rel[i3 + 1]!,
+        n3z = op[i3 + 2]! + rel[i3 + 2]!;
       const cvx = op[i4]! + rel[i4]! - n3x;
       const cvy = op[i4 + 1]! + rel[i4 + 1]! - n3y;
       const cvz = op[i4 + 2]! + rel[i4 + 2]! - n3z;
       const clen = Math.sqrt(cvx * cvx + cvy * cvy + cvz * cvz);
       const o = ci * 4;
-      if (clen < EPSILON) { geo[o] = -1; continue; }
-      const ux = cvx / clen, uy = cvy / clen, uz = cvz / clen;
+      if (clen < EPSILON) {
+        geo[o] = -1;
+        continue;
+      }
+      const ux = cvx / clen,
+        uy = cvy / clen,
+        uz = cvz / clen;
       const v1x = op[i1]! + rel[i1]! - n3x;
       const v1y = op[i1 + 1]! + rel[i1 + 1]! - n3y;
       const v1z = op[i1 + 2]! + rel[i1 + 2]! - n3z;
@@ -333,7 +369,10 @@ export class FastSolver {
       const p2 = ux * v2x + uy * v2y + uz * v2z;
       const h1 = Math.sqrt(Math.abs(v1x * v1x + v1y * v1y + v1z * v1z - p1 * p1));
       const h2 = Math.sqrt(Math.abs(v2x * v2x + v2y * v2y + v2z * v2z - p2 * p2));
-      if (h1 < EPSILON || h2 < EPSILON) { geo[o] = -1; continue; }
+      if (h1 < EPSILON || h2 < EPSILON) {
+        geo[o] = -1;
+        continue;
+      }
       geo[o] = h1;
       geo[o + 1] = h2;
       geo[o + 2] = p1 / clen;
@@ -356,12 +395,20 @@ export class FastSolver {
 
     for (let v = 0; v < this.vertexCount; v += 1) {
       const vo = v * 3;
-      let fx = 0, fy = 0, fz = 0;
+      let fx = 0,
+        fy = 0,
+        fz = 0;
 
       // ---- beam force ----
-      const lpx = rel[vo]!, lpy = rel[vo + 1]!, lpz = rel[vo + 2]!;
-      const lvx = lastVel[vo]!, lvy = lastVel[vo + 1]!, lvz = lastVel[vo + 2]!;
-      const opx = op[vo]!, opy = op[vo + 1]!, opz = op[vo + 2]!;
+      const lpx = rel[vo]!,
+        lpy = rel[vo + 1]!,
+        lpz = rel[vo + 2]!;
+      const lvx = lastVel[vo]!,
+        lvy = lastVel[vo + 1]!,
+        lvz = lastVel[vo + 2]!;
+      const opx = op[vo]!,
+        opy = op[vo + 1]!,
+        opz = op[vo + 2]!;
       const bEnd = this.beamOffsets[v + 1]!;
       for (let bi = this.beamOffsets[v]!; bi < bEnd; bi += 1) {
         const other = this.beamOther[bi]! * 3;
@@ -374,7 +421,9 @@ export class FastSolver {
         const stiffness = axial / rest;
         const beamDamping = damping * 2 * Math.sqrt(stiffness);
         const k = rest / dpLen;
-        dpx -= dpx * k; dpy -= dpy * k; dpz -= dpz * k;
+        dpx -= dpx * k;
+        dpy -= dpy * k;
+        dpz -= dpz * k;
         fx += dpx * stiffness + (lastVel[other]! - lvx) * beamDamping;
         fy += dpy * stiffness + (lastVel[other + 1]! - lvy) * beamDamping;
         fz += dpz * stiffness + (lastVel[other + 2]! - lvz) * beamDamping;
@@ -399,7 +448,10 @@ export class FastSolver {
         if (nodeNumber > 2) {
           let c1 = geo[o + 2]!;
           let c2 = geo[o + 3]!;
-          if (nodeNumber === 3) { c1 = 1 - c1; c2 = 1 - c2; }
+          if (nodeNumber === 3) {
+            c1 = 1 - c1;
+            c2 = 1 - c2;
+          }
           const a = c1 / h1;
           const b = c2 / h2;
           fx += -(normals[f1]! * a + normals[f2]! * b) * angularForce;
@@ -417,7 +469,9 @@ export class FastSolver {
 
       // ---- face force ----
       if (faceStiff > 0) {
-        const px = opx + lpx, py = opy + lpy, pz = opz + lpz;
+        const px = opx + lpx,
+          py = opy + lpy,
+          pz = opz + lpz;
         const fEnd = this.faceOffsets[v + 1]!;
         for (let k = this.faceOffsets[v]!; k < fEnd; k += 1) {
           const fi = this.faceIdx[k]!;
@@ -434,23 +488,37 @@ export class FastSolver {
           const cx0 = off === 2 ? px : op[i2]! + rel[i2]!;
           const cy0 = off === 2 ? py : op[i2 + 1]! + rel[i2 + 1]!;
           const cz0 = off === 2 ? pz : op[i2 + 2]! + rel[i2 + 2]!;
-          let abx = bx - ax, aby = by - ay, abz = bz - az;
-          let acx = cx0 - ax, acy = cy0 - ay, acz = cz0 - az;
-          let bcx = cx0 - bx, bcy = cy0 - by, bcz = cz0 - bz;
+          let abx = bx - ax,
+            aby = by - ay,
+            abz = bz - az;
+          let acx = cx0 - ax,
+            acy = cy0 - ay,
+            acz = cz0 - az;
+          let bcx = cx0 - bx,
+            bcy = cy0 - by,
+            bcz = cz0 - bz;
           const lab = Math.sqrt(abx * abx + aby * aby + abz * abz);
           const lac = Math.sqrt(acx * acx + acy * acy + acz * acz);
           const lbc = Math.sqrt(bcx * bcx + bcy * bcy + bcz * bcz);
           if (lab < EPSILON || lac < EPSILON || lbc < EPSILON) continue;
-          abx /= lab; aby /= lab; abz /= lab;
-          acx /= lac; acy /= lac; acz /= lac;
-          bcx /= lbc; bcy /= lbc; bcz /= lbc;
+          abx /= lab;
+          aby /= lab;
+          abz /= lab;
+          acx /= lac;
+          acy /= lac;
+          acz /= lac;
+          bcx /= lbc;
+          bcy /= lbc;
+          bcz /= lbc;
           const a0 = Math.acos(clamp(abx * acx + aby * acy + abz * acz, -1, 1));
           const a1 = Math.acos(clamp(-(abx * bcx + aby * bcy + abz * bcz), -1, 1));
           const a2 = Math.acos(clamp(acx * bcx + acy * bcy + acz * bcz, -1, 1));
           const d0 = (this.nominalAngles[fi * 3]! - a0) * faceStiff;
           const d1 = (this.nominalAngles[fi * 3 + 1]! - a1) * faceStiff;
           const d2 = (this.nominalAngles[fi * 3 + 2]! - a2) * faceStiff;
-          const nx = normals[fi * 3]!, ny = normals[fi * 3 + 1]!, nz = normals[fi * 3 + 2]!;
+          const nx = normals[fi * 3]!,
+            ny = normals[fi * 3 + 1]!,
+            nz = normals[fi * 3 + 2]!;
           if (off === 0) {
             const acX = (ny * acz - nz * acy) / lac;
             const acY = (nz * acx - nx * acz) / lac;

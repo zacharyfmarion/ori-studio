@@ -66,7 +66,7 @@ export interface FoldedFigureNotice {
  */
 export function crossingLineIds(
   figure: Pick<OristudioCpFoldedFigureEntry, 'sourceLineIds'>,
-  crossings: readonly OristudioCpFold3dCrossing[]
+  crossings: readonly OristudioCpFold3dCrossing[],
 ): number[] {
   const order = kernelLineOrder(figure.sourceLineIds ?? []);
   const indices: number[] = [];
@@ -101,7 +101,7 @@ export function crossingLineIds(
  * behaviour.
  */
 export function foldedFigureSimulationLineIds(
-  figure: Pick<OristudioCpFoldedFigureEntry, 'sourceLineIds' | 'sourceScopedLineIds'>
+  figure: Pick<OristudioCpFoldedFigureEntry, 'sourceLineIds' | 'sourceScopedLineIds'>,
 ): number[] {
   const scoped = figure.sourceScopedLineIds ?? [];
   return scoped.length > 0 ? [...scoped] : [...(figure.sourceLineIds ?? [])];
@@ -114,14 +114,14 @@ export function orderReasonDetail(t: TFunction, reason: OristudioCpFold3dOrderRe
     case 'contradictory_seeds':
       return t(
         'panels:fold3dVerdict.noLayerOrderContradictorySeeds',
-        'Two faces each have to be above the other, so no stacking can satisfy both.'
+        'Two faces each have to be above the other, so no stacking can satisfy both.',
       );
     // "We stopped looking" is not "there is nothing to find", and the figure
     // says so rather than blaming the crease pattern for our budget.
     case 'search_exhausted':
       return t(
         'panels:fold3dVerdict.noLayerOrderExhausted',
-        'Ori Studio stopped searching before it found a layer order for this figure.'
+        'Ori Studio stopped searching before it found a layer order for this figure.',
       );
     case 'overlap_without_cell':
     case 'cell_without_overlap':
@@ -131,7 +131,7 @@ export function orderReasonDetail(t: TFunction, reason: OristudioCpFold3dOrderRe
     case 'search_failed':
       return t(
         'panels:fold3dVerdict.noLayerOrderGeneric',
-        'The layers of this figure could not be put in order.'
+        'The layers of this figure could not be put in order.',
       );
   }
 }
@@ -145,7 +145,7 @@ export function orderReasonDetail(t: TFunction, reason: OristudioCpFold3dOrderRe
  */
 export function foldedFigureNotice(
   t: TFunction,
-  figure: OristudioCpFoldedFigureEntry | null | undefined
+  figure: OristudioCpFoldedFigureEntry | null | undefined,
 ): FoldedFigureNotice | null {
   const snapshot = figure?.folded3d ?? null;
   if (!figure || !snapshot) return null;
@@ -218,7 +218,7 @@ export function foldedFigureNotice(
 export function foldedFigureSubtitle(
   t: TFunction,
   figure: OristudioCpFoldedFigureEntry,
-  stale: boolean
+  stale: boolean,
 ): string {
   if (stale) return t('panels:creasePattern.stale', 'Stale');
   // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
@@ -262,52 +262,49 @@ export function fold3dRefusalMessage(t: TFunction, refusal: OristudioCpFold3dRef
       return t(
         'dialogs:fold3dRefused.vertexClosure',
         'The creases at one vertex do not close up: they are {{degrees}}° short of meeting.',
-        { degrees: formatDegrees(refusal.residual_degrees) }
+        { degrees: formatDegrees(refusal.residual_degrees) },
       );
     case 'interior_cut':
       return t(
         'panels:creasePattern.foldability.interiorBorder',
-        'Edge with paper on both sides — foldability is not checked along it'
+        'Edge with paper on both sides — foldability is not checked along it',
       );
     case 'disconnected':
       return t(
         'errors:fold.disconnected',
-        "This selection falls into separate pieces that don't touch, so it can't be folded as one model. Select one piece and fold again."
+        "This selection falls into separate pieces that don't touch, so it can't be folded as one model. Select one piece and fold again.",
       );
     case 'no_faces':
-      return t(
-        'dialogs:fold3dRefused.noFaces',
-        'These creases enclose no piece of paper to fold.'
-      );
+      return t('dialogs:fold3dRefused.noFaces', 'These creases enclose no piece of paper to fold.');
     case 'faces_unresolved':
       return t(
         'dialogs:fold3dRefused.facesUnresolved',
-        'The faces of this crease pattern could not be worked out. Creases that cross without a vertex, or stop short of one, are the usual cause.'
+        'The faces of this crease pattern could not be worked out. Creases that cross without a vertex, or stop short of one, are the usual cause.',
       );
     case 'non_crease_join':
       return t(
         'dialogs:fold3dRefused.nonCreaseJoin',
-        'Two faces meet along an edge that is not a crease.'
+        'Two faces meet along an edge that is not a crease.',
       );
     case 'vertex_indeterminate':
       return refusal.cause === 'unassigned_crease'
         ? t(
             'dialogs:fold3dRefused.vertexUnassignedCrease',
-            'A crease at one vertex has no fold assigned, so the vertex cannot be folded.'
+            'A crease at one vertex has no fold assigned, so the vertex cannot be folded.',
           )
         : t(
             'dialogs:fold3dRefused.vertexUnsplitJunction',
-            'Creases meet at a point that is not a vertex, so the vertex cannot be folded.'
+            'Creases meet at a point that is not a vertex, so the vertex cannot be folded.',
           );
     case 'loop_not_closed':
       return t(
         'dialogs:fold3dRefused.loopNotClosed',
-        'Folding around a loop of faces does not return to where it started, so these angles cannot all hold at once.'
+        'Folding around a loop of faces does not return to where it started, so these angles cannot all hold at once.',
       );
     case 'tolerance_window_closed':
       return t(
         'dialogs:fold3dRefused.toleranceWindowClosed',
-        'Two faces are too close to the same plane to tell apart.'
+        'Two faces are too close to the same plane to tell apart.',
       );
   }
 }
@@ -323,7 +320,7 @@ export function fold3dRefusalMessage(t: TFunction, refusal: OristudioCpFold3dRef
  */
 export function flatFoldabilityRuleMessage(
   t: TFunction,
-  rule: OristudioCpFlatFoldabilityRuleCode
+  rule: OristudioCpFlatFoldabilityRuleCode,
 ): string {
   // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
   switch (rule) {
@@ -336,12 +333,12 @@ export function flatFoldabilityRuleMessage(
     case 'big_little_big':
       return t(
         'panels:creasePattern.foldability.bigLittleBig',
-        'Angles cannot nest (big-little-big)'
+        'Angles cannot nest (big-little-big)',
       );
     case 'none':
       return t(
         'dialogs:fold3dRefused.flatFoldabilityGeneric',
-        'One vertex of this crease pattern cannot fold.'
+        'One vertex of this crease pattern cannot fold.',
       );
   }
 }

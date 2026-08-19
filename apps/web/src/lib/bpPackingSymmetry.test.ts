@@ -34,7 +34,7 @@ import {
 function sheet(
   kind: OristudioBpSheet['kind'] = 'rectangular',
   width = 16,
-  height = 16
+  height = 16,
 ): OristudioBpSheet {
   return { kind, width, height, grid: { kind: 'rectangular', interval: 1, snap: true } };
 }
@@ -163,20 +163,35 @@ describe('bpFlapKeepsMirrorSide', () => {
 
   it('accepts a candidate that stays on its own side', () => {
     expect(
-      bpFlapKeepsMirrorSide(paired, { anchor: { x: 9, y: 8 }, width: 3, height: 0 }, sheet('rectangular', 16, 16), BOOK)
+      bpFlapKeepsMirrorSide(
+        paired,
+        { anchor: { x: 9, y: 8 }, width: 3, height: 0 },
+        sheet('rectangular', 16, 16),
+        BOOK,
+      ),
     ).toBe(true);
   });
 
   it('refuses one that reaches across the line', () => {
     expect(
-      bpFlapKeepsMirrorSide(paired, { anchor: { x: 6, y: 8 }, width: 3, height: 0 }, sheet('rectangular', 16, 16), BOOK)
+      bpFlapKeepsMirrorSide(
+        paired,
+        { anchor: { x: 6, y: 8 }, width: 3, height: 0 },
+        sheet('rectangular', 16, 16),
+        BOOK,
+      ),
     ).toBe(false);
   });
 
   it('refuses one that merely comes to rest on the line', () => {
     // A zero-extent flap sitting exactly on the mirror *is* its own reflection.
     expect(
-      bpFlapKeepsMirrorSide(paired, { anchor: { x: 8, y: 8 }, width: 0, height: 0 }, sheet('rectangular', 16, 16), BOOK)
+      bpFlapKeepsMirrorSide(
+        paired,
+        { anchor: { x: 8, y: 8 }, width: 0, height: 0 },
+        sheet('rectangular', 16, 16),
+        BOOK,
+      ),
     ).toBe(false);
   });
 
@@ -186,7 +201,12 @@ describe('bpFlapKeepsMirrorSide', () => {
     // rather than freezing it where it is.
     const straddling = flap(1, 6, 8, 4, 0);
     expect(
-      bpFlapKeepsMirrorSide(straddling, { anchor: { x: 5, y: 8 }, width: 6, height: 0 }, sheet('rectangular', 16, 16), BOOK)
+      bpFlapKeepsMirrorSide(
+        straddling,
+        { anchor: { x: 5, y: 8 }, width: 6, height: 0 },
+        sheet('rectangular', 16, 16),
+        BOOK,
+      ),
     ).toBe(true);
   });
 });
@@ -231,25 +251,25 @@ describe('mirrorBpFlapFootprint', () => {
 describe('isBpFlapOnAxis', () => {
   it('accepts a box centred on a vertical mirror', () => {
     expect(isBpFlapOnAxis({ x: 6.5, y: 3 }, { width: 3, height: 1 }, CENTER, 'verticalHalf')).toBe(
-      true
+      true,
     );
   });
 
   it('rejects one that is merely near it', () => {
     expect(isBpFlapOnAxis({ x: 5, y: 3 }, { width: 3, height: 1 }, CENTER, 'verticalHalf')).toBe(
-      false
+      false,
     );
   });
 
   it('accepts a square flap on the main diagonal', () => {
     expect(isBpFlapOnAxis({ x: 3, y: 3 }, { width: 2, height: 2 }, CENTER, 'mainDiagonal')).toBe(
-      true
+      true,
     );
   });
 
   it('rejects a non-square flap on the main diagonal, which a mirror turns', () => {
     expect(isBpFlapOnAxis({ x: 3, y: 3 }, { width: 2, height: 1 }, CENTER, 'mainDiagonal')).toBe(
-      false
+      false,
     );
   });
 });
@@ -257,7 +277,7 @@ describe('isBpFlapOnAxis', () => {
 describe('projectBpFlapAnchorOntoAxis', () => {
   it('pins x and leaves the flap free along a vertical mirror', () => {
     expect(
-      projectBpFlapAnchorOntoAxis({ x: 1, y: 12 }, { width: 3, height: 1 }, CENTER, 'verticalHalf')
+      projectBpFlapAnchorOntoAxis({ x: 1, y: 12 }, { width: 3, height: 1 }, CENTER, 'verticalHalf'),
     ).toEqual({ x: 6.5, y: 12 });
   });
 
@@ -314,13 +334,13 @@ describe('mirrorAfterSheetTransform', () => {
   const axisAfter = (
     kind: 'rectangular' | 'diagonal',
     mirror: BpMirrorOrientation,
-    transform: BpSheetTransform
+    transform: BpSheetTransform,
   ) => bpPackingSymmetryAxis(sheet(kind), mirrorAfterSheetTransform(kind, mirror, transform));
 
   const apply = (mirror: BpMirrorOrientation, ...transforms: BpSheetTransform[]) =>
     transforms.reduce(
       (current, transform) => mirrorAfterSheetTransform('rectangular', current, transform),
-      mirror as BpMirrorOrientation
+      mirror as BpMirrorOrientation,
     );
 
   it('leaves the mirror alone when the sheet only changes scale', () => {
@@ -391,7 +411,9 @@ describe('mirrorAfterSheetTransform', () => {
     expect(axisAfter('rectangular', BOOK, FLIP_H)).toBe('verticalHalf');
     expect(axisAfter('rectangular', { ...BOOK, quarterTurn: true }, FLIP_H)).toBe('horizontalHalf');
     expect(axisAfter('rectangular', DIAGONAL, FLIP_H)).toBe('antiDiagonal');
-    expect(axisAfter('rectangular', { ...DIAGONAL, quarterTurn: true }, FLIP_H)).toBe('mainDiagonal');
+    expect(axisAfter('rectangular', { ...DIAGONAL, quarterTurn: true }, FLIP_H)).toBe(
+      'mainDiagonal',
+    );
   });
 
   it('exchanges the halves only when the flip is across the mirror', () => {
@@ -483,14 +505,19 @@ describe('a transformed layout keeps its partners', () => {
         const center = bpPackingSheetCenter(layout);
         // A pair, placed by reflecting one member so it starts exactly mirrored.
         const first = { x: 3, y: 5 };
-        const second = mirrorBpFlapAnchor(first, BOX, center, bpPackingSymmetryAxis(layout, mirror));
+        const second = mirrorBpFlapAnchor(
+          first,
+          BOX,
+          center,
+          bpPackingSymmetryAxis(layout, mirror),
+        );
 
         const movedMirror = mirrorAfterSheetTransform('rectangular', mirror, transform);
         const movedFirst = moveFlap(first, transform);
         const movedSecond = moveFlap(second, transform);
 
         expect(
-          mirrorBpFlapAnchor(movedFirst, BOX, center, bpPackingSymmetryAxis(layout, movedMirror))
+          mirrorBpFlapAnchor(movedFirst, BOX, center, bpPackingSymmetryAxis(layout, movedMirror)),
         ).toEqual(movedSecond);
       });
     }
@@ -504,13 +531,14 @@ describe('a transformed layout keeps its partners', () => {
     const center = bpPackingSheetCenter(layout);
     const sideOf = (anchor: Point, mirror: BpMirrorOrientation) => {
       const axis = bpPackingSymmetryAxis(layout, mirror);
-      const [nx, ny] = axis === 'verticalHalf'
-        ? [1, 0]
-        : axis === 'horizontalHalf'
-          ? [0, 1]
-          : axis === 'mainDiagonal'
-            ? [1, -1]
-            : [1, 1];
+      const [nx, ny] =
+        axis === 'verticalHalf'
+          ? [1, 0]
+          : axis === 'horizontalHalf'
+            ? [0, 1]
+            : axis === 'mainDiagonal'
+              ? [1, -1]
+              : [1, 1];
       return Math.sign(nx * (anchor.x - center.x) + ny * (anchor.y - center.y));
     };
 
@@ -533,7 +561,7 @@ describe('buildMirroredBpFlapMoves', () => {
 
   function build(
     moves: { id: number; loc: { x: number; y: number } }[],
-    options: { mirror?: BpMirrorOrientation; sheetSize?: [number, number] } = {}
+    options: { mirror?: BpMirrorOrientation; sheetSize?: [number, number] } = {},
   ) {
     const [width, height] = options.sheetSize ?? [16, 16];
     return buildMirroredBpFlapMoves({
@@ -583,7 +611,7 @@ describe('buildMirroredBpFlapMoves', () => {
       build([
         { id: 1, loc: { x: 3, y: 9 } },
         { id: 2, loc: { x: 11, y: 9 } },
-      ])
+      ]),
     ).toEqual([]);
   });
 
@@ -596,9 +624,9 @@ describe('buildMirroredBpFlapMoves', () => {
   });
 
   it('returns nothing when the fold has no mirror on this sheet', () => {
-    expect(build([{ id: 1, loc: { x: 3, y: 9 } }], { mirror: DIAGONAL, sheetSize: [16, 10] })).toEqual(
-      []
-    );
+    expect(
+      build([{ id: 1, loc: { x: 3, y: 9 } }], { mirror: DIAGONAL, sheetSize: [16, 10] }),
+    ).toEqual([]);
   });
 });
 
@@ -625,7 +653,7 @@ describe('constrainBpFlapMoveToAxis', () => {
   it('leaves everything unconstrained when the fold has no mirror here', () => {
     const centred = flap(1, 7, 4, 2, 2);
     expect(
-      constrainBpFlapMoveToAxis(centred, { x: 2, y: 11 }, sheet('rectangular', 16, 10), DIAGONAL)
+      constrainBpFlapMoveToAxis(centred, { x: 2, y: 11 }, sheet('rectangular', 16, 10), DIAGONAL),
     ).toBeNull();
   });
 });
@@ -646,7 +674,7 @@ describe('constrainBpFlapGroupToAxisSides', () => {
         sheet: sheet(),
         mirror: BOOK,
         pairedIds: paired([1]),
-      })
+      }),
     ).toEqual({ x: 8, y: 5 });
   });
 
@@ -661,7 +689,7 @@ describe('constrainBpFlapGroupToAxisSides', () => {
         sheet: sheet(),
         mirror: BOOK,
         pairedIds: paired([1]),
-      })
+      }),
     ).toEqual({ x: 8, y: 13 });
   });
 
@@ -674,7 +702,7 @@ describe('constrainBpFlapGroupToAxisSides', () => {
         sheet: sheet(),
         mirror: BOOK,
         pairedIds: paired([1]),
-      })
+      }),
     ).toEqual({ x: 5, y: 4 });
   });
 
@@ -687,7 +715,7 @@ describe('constrainBpFlapGroupToAxisSides', () => {
         sheet: sheet(),
         mirror: BOOK,
         pairedIds: paired([]),
-      })
+      }),
     ).toEqual({ x: 2, y: 4 });
   });
 
@@ -702,7 +730,7 @@ describe('constrainBpFlapGroupToAxisSides', () => {
         sheet: sheet(),
         mirror: BOOK,
         pairedIds: paired([1, 2]),
-      })
+      }),
       // Flap 2 may give up 1 cell, so the reference gives up 1 too: 12 -> 11.
     ).toEqual({ x: 11, y: 4 });
   });
@@ -715,7 +743,7 @@ describe('constrainBpFlapGroupToAxisSides', () => {
         sheet: sheet(),
         mirror: BOOK,
         pairedIds: paired([1, 2]),
-      })
+      }),
       // The y comes through; the x cannot, because flap 2's right edge is already
       // on the mirror.
     ).toEqual({ x: 8, y: 9 });
@@ -745,7 +773,7 @@ describe('constrainBpFlapGroupToAxisSides', () => {
         sheet: sheet(),
         mirror: BOOK,
         pairedIds: paired([1]),
-      })
+      }),
     ).toEqual({ x: 4, y: 4 });
   });
 });
@@ -786,7 +814,7 @@ describe('constrainBpFlapGroupToAxisSides keeps flaps on the grid', () => {
         sheet: sheet(),
         mirror: BOOK,
         pairedIds: paired([3]),
-      })
+      }),
       // 9 is the closest grid position still strictly off the mirror at x = 8.
     ).toEqual({ x: 9, y: 11 });
   });
@@ -799,7 +827,7 @@ describe('constrainBpFlapGroupToAxisSides keeps flaps on the grid', () => {
         sheet: sheet(),
         mirror: BOOK,
         pairedIds: paired([4]),
-      })
+      }),
     ).toEqual({ x: 7, y: 11 });
   });
 
@@ -814,7 +842,7 @@ describe('constrainBpFlapGroupToAxisSides keeps flaps on the grid', () => {
         sheet: sheet('rectangular', 15, 15),
         mirror: BOOK,
         pairedIds: paired([3]),
-      })
+      }),
     ).toEqual({ x: 8, y: 11 });
   });
 
@@ -857,7 +885,7 @@ describe('constrainBpFlapGroupToAxisSides keeps flaps on the grid', () => {
         sheet: sheet(),
         mirror: BOOK,
         pairedIds: paired([1]),
-      })
+      }),
     ).toEqual({ x: 8, y: 4 });
   });
 });

@@ -155,7 +155,7 @@ function renderPanel(): HTMLDivElement {
       engineReady: true,
       foldArtifacts: { fold: simpleFold() },
     },
-    true
+    true,
   );
 
   container = document.createElement('div');
@@ -165,7 +165,7 @@ function renderPanel(): HTMLDivElement {
     root?.render(
       <TooltipProvider>
         <SimulatorPanel />
-      </TooltipProvider>
+      </TooltipProvider>,
     );
   });
   return container;

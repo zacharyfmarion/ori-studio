@@ -101,8 +101,7 @@ export function validateInlineSimulation(value: unknown): InlineSimulation | nul
     view: { yaw, pitch, zoom },
     sourceBoundary: rings,
     sourceBounds: sourceBounds(value.sourceBounds),
-    sourceFingerprint:
-      typeof value.sourceFingerprint === 'string' ? value.sourceFingerprint : null,
+    sourceFingerprint: typeof value.sourceFingerprint === 'string' ? value.sourceFingerprint : null,
     segmentIdHint: finiteNumber(value.segmentIdHint),
   };
 }

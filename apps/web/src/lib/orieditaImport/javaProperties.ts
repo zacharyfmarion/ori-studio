@@ -25,8 +25,7 @@
  * "the user unbound this" — it has to reach the caller as its own case.
  */
 export type JavaPropertyValue =
-  | { readonly kind: 'value'; readonly value: string }
-  | { readonly kind: 'empty' };
+  { readonly kind: 'value'; readonly value: string } | { readonly kind: 'empty' };
 
 /** Java treats exactly these three as whitespace when splitting a line. */
 function isPropertiesSpace(char: string): boolean {

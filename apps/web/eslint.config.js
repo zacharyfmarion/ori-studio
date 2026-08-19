@@ -1,4 +1,5 @@
 import js from '@eslint/js';
+import eslintConfigPrettier from 'eslint-config-prettier';
 import globals from 'globals';
 import i18next from 'eslint-plugin-i18next';
 import reactHooks from 'eslint-plugin-react-hooks';
@@ -208,7 +209,13 @@ const OVERSIZED_PANELS = {
   // move verbs already there, the hook call with its camera scale and its two
   // symmetry fields, the layer's mount, and one guard so a click that began on a
   // handle does not feed the stacked-selection cycle.
-  'BpPackingPanel.tsx': 1885,
+  //
+  // 1885 -> 1907: Prettier, and nothing else. No code was added or moved — the
+  // formatter broke long calls and JSX attribute lists across more lines than
+  // they were hand-written on. This is the one kind of raise that carries no
+  // judgement about the panel: the file does exactly what it did before, in 22
+  // more lines. It happens once, at the commit that introduced the formatter.
+  'BpPackingPanel.tsx': 1907,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
   'BpTreePanel.tsx': 890,
@@ -271,7 +278,13 @@ const OVERSIZED_PANELS = {
   // `CpContextToolGroup` is a ~560-line change that would dwarf the feature
   // carrying it, and the note above already says it should not ride on whichever
   // feature next trips the cap. It is filed separately.
-  'CpContextToolPanel.tsx': 1171,
+  //
+  // 1171 -> 1226: Prettier, and nothing else — the same mechanical rebase as
+  // BpPackingPanel above, no code added or moved. Worth reading alongside the
+  // paragraph above rather than as a new data point: this file's real problem
+  // is still the ~560-line `CpContextToolGroup` switch, and 55 lines of
+  // reflowed JSX says nothing about that either way.
+  'CpContextToolPanel.tsx': 1226,
 };
 
 const PANEL_MAX_LINES = 800;
@@ -399,5 +412,11 @@ export default tseslint.config(
     rules: {
       'i18next/no-literal-string': ['error', { mode: 'jsx-text-only' }],
     },
-  }
+  },
+  // Last, so it wins: turns off every ESLint rule that would argue with
+  // Prettier about layout. Nothing here needs it today — neither recommended
+  // set ships formatting rules any more — but it is what stops someone
+  // enabling one later and getting two tools fighting over the same file.
+  // Formatting is `npm run format:check`; this config is for everything else.
+  eslintConfigPrettier,
 );

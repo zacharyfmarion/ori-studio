@@ -116,7 +116,7 @@ describe('a design tab owns the box-pleat document it creates', () => {
 });
 
 describe('reads resolve through the active design', () => {
-  it('exports the active design\'s document, not a remembered handle', async () => {
+  it("exports the active design's document, not a remembered handle", async () => {
     registerActiveDesignSource(() => ({ id: 'design-9', kind: 'box-pleat' }));
     handles.acquireDesignHandle.mockResolvedValue(77);
 
@@ -159,7 +159,7 @@ describe('a design remembers where its own document came from', () => {
     expect((second as { source: { filename: string } }).source.filename).toBe('kabuto.bps');
   });
 
-  it('drops a closed design\'s document and its source', async () => {
+  it("drops a closed design's document and its source", async () => {
     registerActiveDesignSource(() => ({ id: 'design-1', kind: 'box-pleat' }));
     await runtime.loadOristudioBpProjectFromText('{}', { filename: 'crane.bps' });
 

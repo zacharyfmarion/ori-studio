@@ -4,10 +4,7 @@ import {
   selectOristudioBpSymmetry,
   singleBoxPleatDesignTab,
 } from '../designTabs';
-import type {
-  OristudioBpDocumentState,
-  OristudioBpSheet,
-} from '../../../engine/oristudioBpTypes';
+import type { OristudioBpDocumentState, OristudioBpSheet } from '../../../engine/oristudioBpTypes';
 
 /**
  * The sheet transforms carry the mirror with them.
@@ -57,7 +54,7 @@ function setUp(
     sidesSwapped?: boolean;
     enabled?: boolean;
     kind?: OristudioBpSheet['kind'];
-  } = {}
+  } = {},
 ) {
   const kind = options.kind ?? 'rectangular';
   for (const run of [
@@ -84,13 +81,13 @@ function setUp(
         },
       }),
     },
-    true
+    true,
   );
 }
 
 const orientation = () => {
   const { fold, quarterTurn, sidesSwapped } = selectOristudioBpSymmetry(
-    useWorkspaceStore.getState()
+    useWorkspaceStore.getState(),
   );
   return { fold, quarterTurn, sidesSwapped };
 };

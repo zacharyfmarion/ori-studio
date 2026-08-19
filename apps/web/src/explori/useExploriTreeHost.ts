@@ -101,7 +101,7 @@ export function useExploriTreeHost(): TreeEditorHost {
   // Built once: it depends on nothing that an edit changes.
   const frame = useMemo(
     () => createCenteredTreeFrame({ unitSvg: UNIT_SVG, halfExtent: HALF_EXTENT }),
-    []
+    [],
   );
 
   // What the camera opens on: the drawing, not the whole drawing area. Recomputed
@@ -113,9 +113,9 @@ export function useExploriTreeHost(): TreeEditorHost {
     () =>
       centeredTreeFitRect(
         document.nodes.map((node) => node.loc),
-        { unitSvg: UNIT_SVG, minHalfSpan: FIT_MIN_HALF_SPAN, padding: FIT_PADDING }
+        { unitSvg: UNIT_SVG, minHalfSpan: FIT_MIN_HALF_SPAN, padding: FIT_PADDING },
       ),
-    [document.nodes]
+    [document.nodes],
   );
 
   const selection = useMemo<TreeSelectionView>(() => {
@@ -140,9 +140,7 @@ export function useExploriTreeHost(): TreeEditorHost {
       axis: EXPLORI_SYMMETRY_AXIS,
       // Hidden with the toggle, as box-pleat's is: a mirror line drawn while
       // mirror draw is off describes a rule that is not in force.
-      axisLine: document.symmetry.enabled
-        ? { x1: x, y1: top, x2: x, y2: bottom }
-        : null,
+      axisLine: document.symmetry.enabled ? { x1: x, y1: top, x2: x, y2: bottom } : null,
       pairs: document.symmetry.pairs,
       partnerOf: (nodeId) => explicitExploriPairId(document.symmetry.pairs, nodeId),
       resolveMirrorOf: (nodeId) => mirrorExploriNodeId(document, nodeId),
@@ -186,7 +184,7 @@ export function useExploriTreeHost(): TreeEditorHost {
         setSelection(
           (target.kind === 'vertex' ? selection.vertexId : selection.edgeId) === target.id
             ? null
-            : target
+            : target,
         ),
       clearSelection: () => setSelection(null),
       addLeaf: async (parentId, loc, axisTolerance) => {
@@ -230,6 +228,6 @@ export function useExploriTreeHost(): TreeEditorHost {
       renameNode,
       symmetry,
       labels,
-    ]
+    ],
   );
 }

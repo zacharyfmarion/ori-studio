@@ -33,11 +33,7 @@ interface ShortcutState {
   overrides: ShortcutOverrides;
   defaultsSource: ShortcutDefaultsSource;
   setShortcut: (id: ShortcutActionId, chord: KeyChord) => void;
-  assignShortcut: (
-    id: ShortcutActionId,
-    chord: KeyChord,
-    options?: AssignShortcutOptions
-  ) => void;
+  assignShortcut: (id: ShortcutActionId, chord: KeyChord, options?: AssignShortcutOptions) => void;
   clearShortcut: (id: ShortcutActionId) => void;
   resetShortcut: (id: ShortcutActionId) => void;
   resetAllShortcuts: () => void;
@@ -89,8 +85,8 @@ function saveShortcutState(state: LoadedShortcutState): void {
     version: PERSISTED_VERSION,
     bindings: Object.fromEntries(
       Object.entries(state.overrides).filter(
-        (entry): entry is [string, KeyChord[] | null] => entry[1] !== undefined
-      )
+        (entry): entry is [string, KeyChord[] | null] => entry[1] !== undefined,
+      ),
     ),
     defaultsSource: state.defaultsSource,
   };
@@ -185,6 +181,6 @@ export const useShortcutStore = create<ShortcutState>()(
         set({ overrides });
       },
     }),
-    { name: 'ShortcutStore' }
-  )
+    { name: 'ShortcutStore' },
+  ),
 );

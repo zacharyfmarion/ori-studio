@@ -41,7 +41,7 @@ export function isViewportInteractiveTarget(target: EventTarget | null): boolean
   // space-to-pan swallowing the space bar mid-edit).
   if (target instanceof HTMLElement && target.isContentEditable) return true;
   return Boolean(
-    target.closest('button, input, textarea, select, [role="menu"], [contenteditable="true"]')
+    target.closest('button, input, textarea, select, [role="menu"], [contenteditable="true"]'),
   );
 }
 
@@ -118,7 +118,12 @@ export function ViewportToolbar({
 
   return (
     <div className="viewport-toolbar" aria-label={ariaLabel}>
-      <IconButton size="sm" variant="toolbar" title={t('tools:viewport.zoomOut', 'Zoom Out')} onClick={zoomOut}>
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title={t('tools:viewport.zoomOut', 'Zoom Out')}
+        onClick={zoomOut}
+      >
         <ZoomOut size={14} />
       </IconButton>
       <div className="viewport-toolbar__menu-anchor" ref={zoomMenuRef}>
@@ -149,11 +154,21 @@ export function ViewportToolbar({
           </div>
         )}
       </div>
-      <IconButton size="sm" variant="toolbar" title={t('tools:viewport.zoomIn', 'Zoom In')} onClick={zoomIn}>
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title={t('tools:viewport.zoomIn', 'Zoom In')}
+        onClick={zoomIn}
+      >
         <ZoomIn size={14} />
       </IconButton>
       <ViewportToolbarSeparator />
-      <IconButton size="sm" variant="toolbar" title={t('tools:viewport.fit', 'Fit')} onClick={fitToView}>
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title={t('tools:viewport.fit', 'Fit')}
+        onClick={fitToView}
+      >
         <Maximize2 size={14} />
       </IconButton>
       {togglePanTool && (
@@ -162,10 +177,14 @@ export function ViewportToolbar({
           variant="toolbar"
           title={
             panShortcutLabel
-              ? t('tools:viewport.panWithShortcut', 'Pan ({{shortcut}}) — or hold {{modifier}} and drag', {
-                  shortcut: panShortcutLabel,
-                  modifier: primaryModifierLabel(),
-                })
+              ? t(
+                  'tools:viewport.panWithShortcut',
+                  'Pan ({{shortcut}}) — or hold {{modifier}} and drag',
+                  {
+                    shortcut: panShortcutLabel,
+                    modifier: primaryModifierLabel(),
+                  },
+                )
               : t('tools:viewport.panWithModifier', 'Pan — or hold {{modifier}} and drag', {
                   modifier: primaryModifierLabel(),
                 })
@@ -184,7 +203,7 @@ export function ViewportToolbar({
             variant="toolbar"
             title={withShortcut(
               t('tools:viewport.rotateCcw', 'Rotate view left'),
-              rotateCcwShortcutLabel
+              rotateCcwShortcutLabel,
             )}
             aria-label={t('tools:viewport.rotateCcw', 'Rotate view left')}
             onClick={() => rotateView(-1)}
@@ -226,7 +245,7 @@ export function ViewportToolbar({
             variant="toolbar"
             title={withShortcut(
               t('tools:viewport.rotateCw', 'Rotate view right'),
-              rotateCwShortcutLabel
+              rotateCwShortcutLabel,
             )}
             aria-label={t('tools:viewport.rotateCw', 'Rotate view right')}
             onClick={() => rotateView(1)}

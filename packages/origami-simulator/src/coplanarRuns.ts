@@ -69,7 +69,11 @@ export function sourceFaceGroups(topology: Topology): Int32Array {
     const a = topology.faceIndices[face * 3]!;
     const b = topology.faceIndices[face * 3 + 1]!;
     const c = topology.faceIndices[face * 3 + 2]!;
-    for (const [from, to] of [[a, b], [b, c], [c, a]] as const) {
+    for (const [from, to] of [
+      [a, b],
+      [b, c],
+      [c, a],
+    ] as const) {
       const key = vertexKey(from, to);
       if (!facet.has(key)) continue;
       const other = seen.get(key);

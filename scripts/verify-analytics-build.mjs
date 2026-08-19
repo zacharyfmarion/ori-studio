@@ -78,7 +78,7 @@ if (missing.length > 0) {
     '\nThe corresponding SDK will never initialize in this build. Check the `env:`\n' +
       'block on the build step in .github/workflows/deploy-web.yml, and that any\n' +
       'secret it references exists under exactly that name (a missing secret is\n' +
-      'silently empty).'
+      'silently empty).',
   );
   process.exit(1);
 }

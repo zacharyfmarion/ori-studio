@@ -46,7 +46,7 @@ function segment(a: ModelPoint, b: ModelPoint) {
 function out(
   state: DragLineState,
   preview: ToolOutput<DragLineState>['preview'],
-  commit: ToolOutput<DragLineState>['commit'] = null
+  commit: ToolOutput<DragLineState>['commit'] = null,
 ): ToolOutput<DragLineState> {
   const livePoints = state.armed && state.start ? [state.start] : undefined;
   return { state, preview, commit, livePoints };
