@@ -590,6 +590,11 @@
       "tooltip": "Aplicar a cor personalizada contextual aos círculos e linhas auxiliares selecionados",
       "disabledReason": "Pronto"
     },
+    "cp_action_crease_make_unassigned": {
+      "label": "Tornar não atribuído",
+      "tooltip": "Esquecer a atribuição de monte/vale dos vincos selecionados",
+      "disabledReason": "Selecione vincos primeiro"
+    },
     "cp_action_crease_make_aux": {
       "label": "Definir como auxiliar",
       "tooltip": "Converter linhas de dobra selecionadas em linhas auxiliares",

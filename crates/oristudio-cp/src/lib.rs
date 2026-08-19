@@ -477,6 +477,7 @@ pub enum OperationId {
     CreaseToggleMv,
     CircleChangeColor,
     CreaseMakeAux,
+    CreaseMakeUnassigned,
     OperationFrameCreate,
     VoronoiCreate,
     FlatFoldableCheck,
@@ -1082,6 +1083,14 @@ const OPERATION_DESCRIPTORS: &[OperationDescriptor] = &[
         Kernel,
         6,
         OracleTested
+    ),
+    descriptor!(
+        native CreaseMakeUnassigned,
+        "OriStudioCreaseMakeUnassigned",
+        "operations::native::unassign::make_unassigned",
+        Kernel,
+        6,
+        UnitTested
     ),
     descriptor!(
         OperationFrameCreate,
@@ -1801,6 +1810,13 @@ pub fn execute_command(
         OperationId::CreaseMakeAux => {
             let line_indices = required_line_indices(&command)?;
             operations::color::make_aux(&mut document.crease_pattern, &line_indices)
+        }
+        OperationId::CreaseMakeUnassigned => {
+            let line_indices = required_line_indices(&command)?;
+            operations::native::unassign::make_unassigned(
+                &mut document.crease_pattern,
+                &line_indices,
+            )
         }
         OperationId::CreaseToggleMv => {
             // Oriedita `CREASE_TOGGLE_MV_58` is a box-select tool: a single crease

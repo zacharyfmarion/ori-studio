@@ -204,6 +204,7 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   CircleChangeColor: { model: 'select-apply' },
   CreaseAdvanceType: { model: 'select-apply' },
   CreaseMakeAux: { model: 'select-apply' },
+  CreaseMakeUnassigned: { model: 'select-apply' },
   CreaseMakeEdge: { model: 'select-apply' },
   CreaseMakeMountain: { model: 'select-apply' },
   CreaseMakeValley: { model: 'select-apply' },

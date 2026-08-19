@@ -590,6 +590,11 @@
       "tooltip": "コンテキストのカスタム色を選択した円と補助線に適用します",
       "disabledReason": "準備完了"
     },
+    "cp_action_crease_make_unassigned": {
+      "label": "未割り当てにする",
+      "tooltip": "選択した折り線の山谷の指定を取り消します",
+      "disabledReason": "折り線を選択してください"
+    },
     "cp_action_crease_make_aux": {
       "label": "補助線にする",
       "tooltip": "選択した折り線を補助線に変換します",

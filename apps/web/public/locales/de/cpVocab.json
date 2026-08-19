@@ -590,6 +590,11 @@
       "tooltip": "Die kontextbezogene benutzerdefinierte Farbe auf ausgewählte Kreise und Hilfslinien anwenden",
       "disabledReason": "Bereit"
     },
+    "cp_action_crease_make_unassigned": {
+      "label": "Nicht zugewiesen setzen",
+      "tooltip": "Berg-/Tal-Zuordnung der gewählten Falten verwerfen",
+      "disabledReason": "Zuerst Falten auswählen"
+    },
     "cp_action_crease_make_aux": {
       "label": "Als Hilfslinie festlegen",
       "tooltip": "Ausgewählte Faltlinien in Hilfslinien umwandeln",

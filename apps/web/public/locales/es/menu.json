@@ -30,6 +30,7 @@
     "makeAuxiliary": "Marcar como auxiliar",
     "makeEdge": "Marcar como borde",
     "makeMountain": "Marcar como monte",
+    "makeUnassigned": "Marcar sin asignar",
     "makeValley": "Marcar como valle",
     "organizeCircles": "Organizar círculos",
     "repair": "Reparar",

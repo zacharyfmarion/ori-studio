@@ -590,6 +590,11 @@
       "tooltip": "Aplicar el color personalizado contextual a los círculos y líneas auxiliares seleccionados",
       "disabledReason": "Listo"
     },
+    "cp_action_crease_make_unassigned": {
+      "label": "Marcar sin asignar",
+      "tooltip": "Olvidar la asignación de monte/valle de los pliegues seleccionados",
+      "disabledReason": "Selecciona pliegues primero"
+    },
     "cp_action_crease_make_aux": {
       "label": "Marcar como auxiliar",
       "tooltip": "Convertir las líneas de plegado seleccionadas en líneas auxiliares",

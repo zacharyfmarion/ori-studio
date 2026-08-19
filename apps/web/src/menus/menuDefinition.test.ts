@@ -84,6 +84,7 @@ describe('web menu definition', () => {
       'cp.makeValley',
       'cp.makeEdge',
       'cp.makeAuxiliary',
+      'cp.makeUnassigned',
       'cp.replaceLineType',
       'cp.deleteLineType',
       'cp.transformFlipHorizontal',

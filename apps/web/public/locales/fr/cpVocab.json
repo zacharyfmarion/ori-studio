@@ -590,6 +590,11 @@
       "tooltip": "Appliquer la couleur personnalisée contextuelle aux cercles et lignes auxiliaires sélectionnés",
       "disabledReason": "Prêt"
     },
+    "cp_action_crease_make_unassigned": {
+      "label": "Rendre non assigné",
+      "tooltip": "Oublier l'affectation montagne/vallée des plis sélectionnés",
+      "disabledReason": "Sélectionnez d'abord des plis"
+    },
     "cp_action_crease_make_aux": {
       "label": "Définir comme auxiliaire",
       "tooltip": "Convertir les lignes de pliage sélectionnées en lignes auxiliaires",

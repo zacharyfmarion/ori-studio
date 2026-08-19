@@ -531,6 +531,18 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     selectionRequirement: 'selected circles or auxiliary lines',
     tooltip: 'Apply the contextual custom color to selected circles and auxiliary lines',
   }),
+  ready(
+    'CreaseMakeUnassigned',
+    'Make unassigned',
+    'color',
+    'circle-dashed',
+    'OriStudioCreaseMakeUnassigned',
+    {
+      placement: 'menu',
+      selectionRequirement: 'selected lines',
+      tooltip: 'Forget the mountain/valley decision on selected creases',
+    }
+  ),
   ready('CreaseMakeAux', 'Make auxiliary', 'color', 'scan-line', 'MouseHandlerCreaseMakeAux', {
     placement: 'menu',
     selectionRequirement: 'selected folding lines',
@@ -898,6 +910,7 @@ export const ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS = [
   'CreaseToggleMv',
   'CircleChangeColor',
   'CreaseMakeAux',
+  'CreaseMakeUnassigned',
   'OperationFrameCreate',
   'VoronoiCreate',
   'FlatFoldableCheck',

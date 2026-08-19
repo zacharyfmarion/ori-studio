@@ -2495,7 +2495,11 @@
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
     "dialogs:updateGuard.title": "470e7ee2a579",
-    "common:update.dismiss": "48845bff334a"
+    "common:update.dismiss": "48845bff334a",
+    "menu:cp.makeUnassigned": "ac1caca4b514",
+    "cpVocab:action.cp_action_crease_make_unassigned.label": "7cdc3db0066d",
+    "cpVocab:action.cp_action_crease_make_unassigned.tooltip": "b6ede5c35584",
+    "cpVocab:action.cp_action_crease_make_unassigned.disabledReason": "5fa7aac5375c"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4993,7 +4997,11 @@
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
     "dialogs:updateGuard.title": "470e7ee2a579",
-    "common:update.dismiss": "48845bff334a"
+    "common:update.dismiss": "48845bff334a",
+    "menu:cp.makeUnassigned": "ac1caca4b514",
+    "cpVocab:action.cp_action_crease_make_unassigned.label": "7cdc3db0066d",
+    "cpVocab:action.cp_action_crease_make_unassigned.tooltip": "b6ede5c35584",
+    "cpVocab:action.cp_action_crease_make_unassigned.disabledReason": "5fa7aac5375c"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7491,7 +7499,11 @@
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
     "dialogs:updateGuard.title": "470e7ee2a579",
-    "common:update.dismiss": "48845bff334a"
+    "common:update.dismiss": "48845bff334a",
+    "menu:cp.makeUnassigned": "ac1caca4b514",
+    "cpVocab:action.cp_action_crease_make_unassigned.label": "7cdc3db0066d",
+    "cpVocab:action.cp_action_crease_make_unassigned.tooltip": "b6ede5c35584",
+    "cpVocab:action.cp_action_crease_make_unassigned.disabledReason": "5fa7aac5375c"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9950,7 +9962,11 @@
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
     "dialogs:updateGuard.title": "470e7ee2a579",
-    "common:update.dismiss": "48845bff334a"
+    "common:update.dismiss": "48845bff334a",
+    "menu:cp.makeUnassigned": "ac1caca4b514",
+    "cpVocab:action.cp_action_crease_make_unassigned.label": "7cdc3db0066d",
+    "cpVocab:action.cp_action_crease_make_unassigned.tooltip": "b6ede5c35584",
+    "cpVocab:action.cp_action_crease_make_unassigned.disabledReason": "5fa7aac5375c"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12409,7 +12425,11 @@
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
     "dialogs:updateGuard.title": "470e7ee2a579",
-    "common:update.dismiss": "48845bff334a"
+    "common:update.dismiss": "48845bff334a",
+    "menu:cp.makeUnassigned": "ac1caca4b514",
+    "cpVocab:action.cp_action_crease_make_unassigned.label": "7cdc3db0066d",
+    "cpVocab:action.cp_action_crease_make_unassigned.tooltip": "b6ede5c35584",
+    "cpVocab:action.cp_action_crease_make_unassigned.disabledReason": "5fa7aac5375c"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -14907,7 +14927,11 @@
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
     "dialogs:updateGuard.title": "470e7ee2a579",
-    "common:update.dismiss": "48845bff334a"
+    "common:update.dismiss": "48845bff334a",
+    "menu:cp.makeUnassigned": "ac1caca4b514",
+    "cpVocab:action.cp_action_crease_make_unassigned.label": "7cdc3db0066d",
+    "cpVocab:action.cp_action_crease_make_unassigned.tooltip": "b6ede5c35584",
+    "cpVocab:action.cp_action_crease_make_unassigned.disabledReason": "5fa7aac5375c"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17405,7 +17429,11 @@
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
     "dialogs:updateGuard.title": "470e7ee2a579",
-    "common:update.dismiss": "48845bff334a"
+    "common:update.dismiss": "48845bff334a",
+    "menu:cp.makeUnassigned": "ac1caca4b514",
+    "cpVocab:action.cp_action_crease_make_unassigned.label": "7cdc3db0066d",
+    "cpVocab:action.cp_action_crease_make_unassigned.tooltip": "b6ede5c35584",
+    "cpVocab:action.cp_action_crease_make_unassigned.disabledReason": "5fa7aac5375c"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -19864,6 +19892,10 @@
     "dialogs:updateGuard.discard": "8260ec88cdb0",
     "dialogs:updateGuard.message": "f4abb961a038",
     "dialogs:updateGuard.title": "470e7ee2a579",
-    "common:update.dismiss": "48845bff334a"
+    "common:update.dismiss": "48845bff334a",
+    "menu:cp.makeUnassigned": "ac1caca4b514",
+    "cpVocab:action.cp_action_crease_make_unassigned.label": "7cdc3db0066d",
+    "cpVocab:action.cp_action_crease_make_unassigned.tooltip": "b6ede5c35584",
+    "cpVocab:action.cp_action_crease_make_unassigned.disabledReason": "5fa7aac5375c"
   }
 }

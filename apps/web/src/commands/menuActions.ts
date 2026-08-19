@@ -102,6 +102,7 @@ export const MENU_ACTION_IDS = [
   'cp.makeValley',
   'cp.makeEdge',
   'cp.makeAuxiliary',
+  'cp.makeUnassigned',
   'cp.toggleMountainValley',
   'cp.transformFlipHorizontal',
   'cp.transformFlipVertical',
@@ -278,6 +279,7 @@ const CP_SELECTED_LINE_ACTIONS: Partial<Record<MenuActionId, OristudioCpOperatio
   'cp.makeValley': 'CreaseMakeValley',
   'cp.makeEdge': 'CreaseMakeEdge',
   'cp.makeAuxiliary': 'CreaseMakeAux',
+  'cp.makeUnassigned': 'CreaseMakeUnassigned',
   'cp.toggleMountainValley': 'CreaseToggleMv',
 };
 

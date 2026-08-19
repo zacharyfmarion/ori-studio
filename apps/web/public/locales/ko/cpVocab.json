@@ -590,6 +590,11 @@
       "tooltip": "선택한 원과 보조선에 상황별 사용자 지정 색상 적용",
       "disabledReason": "준비됨"
     },
+    "cp_action_crease_make_unassigned": {
+      "label": "미지정으로 설정",
+      "tooltip": "선택한 접힘선의 산/골 지정을 해제합니다",
+      "disabledReason": "먼저 접힘선을 선택하세요"
+    },
     "cp_action_crease_make_aux": {
       "label": "보조선으로 지정",
       "tooltip": "선택한 접힘선을 보조선으로 변환",

@@ -590,6 +590,11 @@
       "tooltip": "将上下文自定义颜色应用到所选圆和辅助线",
       "disabledReason": "就绪"
     },
+    "cp_action_crease_make_unassigned": {
+      "label": "设为未指定",
+      "tooltip": "取消所选折痕的山谷指定",
+      "disabledReason": "请先选择折痕"
+    },
     "cp_action_crease_make_aux": {
       "label": "设为辅助线",
       "tooltip": "将所选折线转换为辅助线",

@@ -590,6 +590,11 @@
       "tooltip": "Apply the contextual custom color to selected circles and auxiliary lines",
       "disabledReason": "Ready"
     },
+    "cp_action_crease_make_unassigned": {
+      "label": "Make unassigned",
+      "tooltip": "Forget the mountain/valley decision on selected creases",
+      "disabledReason": "Ready"
+    },
     "cp_action_crease_make_aux": {
       "label": "Make auxiliary",
       "tooltip": "Convert selected folding lines to auxiliary lines",

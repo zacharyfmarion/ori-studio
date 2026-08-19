@@ -17,3 +17,4 @@
 //! dispatches, previews, and crosses the wasm bridge exactly like a ported one.
 
 pub mod square;
+pub mod unassign;
