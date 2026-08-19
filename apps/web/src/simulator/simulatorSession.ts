@@ -1406,22 +1406,54 @@ function peakRequestedSize(): { width: number; height: number } {
   return { width, height };
 }
 
-function sizeRenderCanvas(width: number, height: number, at = nowMs()): void {
-  if (!renderCanvas) return;
+/**
+ * The whole resize policy, as a pure function.
+ *
+ * Exported and taking every input explicitly — the elapsed time and the peak,
+ * rather than reading a clock and a session map — because the interesting half
+ * of this policy is *when shrinking is allowed*, and a test that calls
+ * {@link nextRenderCanvasSize} with the flag already set proves nothing about
+ * whether anything ever sets it. jsdom has no `OffscreenCanvas`, so driving
+ * `sizeRenderCanvas` itself is not an option; this is the seam that makes the
+ * reachable behaviour testable instead of just the leaf.
+ */
+export function renderCanvasResize(options: {
+  current: { width: number; height: number };
+  /** What the window being drawn asked for. */
+  callerRequest: { width: number; height: number };
+  /** The largest request across every live window, or null if none has a size. */
+  peak: { width: number; height: number } | null;
+  mode: PresentMode;
+  /** Time since the buffer last changed size. */
+  msSinceResize: number;
+}): { width: number; height: number } | null {
+  const { current, callerRequest, peak, mode, msSinceResize } = options;
+  // Canvas mode is not shared: the buffer *is* the visible surface, it must
+  // match the drawing exactly or the compositor stretches it, and there is one
+  // consumer. The peak is a bitmap-mode idea and consulting it here could size
+  // the visible canvas to some other window's request.
+  if (mode === 'canvas') return nextRenderCanvasSize(current, callerRequest, mode);
   // Growth is decided by the caller's own request, so a window that needs more
   // pixels gets them on the frame it asks. Shrinking is decided by the peak
-  // across every live window, and only once it has held — see
+  // across every live window, and only once the last resize has held — see
   // {@link SHRINK_HOLD_MS}.
-  const settled = at - lastCanvasResizeMs >= SHRINK_HOLD_MS;
-  const requested = settled ? peakRequestedSize() : { width, height };
-  const next = nextRenderCanvasSize(
-    renderCanvas,
-    // A peak of zero means no session has been given a size yet; fall back to
-    // the caller's, rather than collapsing the buffer to the floor.
-    requested.width && requested.height ? requested : { width, height },
-    presentMode,
-    settled
-  );
+  const allowShrink = msSinceResize >= SHRINK_HOLD_MS;
+  // A peak of zero means no window has been given a size yet; fall back to the
+  // caller's request rather than collapsing the buffer to the floor.
+  const usable = allowShrink && peak && peak.width > 0 && peak.height > 0;
+  const requested = usable ? peak : callerRequest;
+  return nextRenderCanvasSize(current, requested, mode, allowShrink);
+}
+
+function sizeRenderCanvas(width: number, height: number, at = nowMs()): void {
+  if (!renderCanvas) return;
+  const next = renderCanvasResize({
+    current: renderCanvas,
+    callerRequest: { width, height },
+    peak: peakRequestedSize(),
+    mode: presentMode,
+    msSinceResize: at - lastCanvasResizeMs,
+  });
   if (!next) return;
   renderCanvas.width = next.width;
   renderCanvas.height = next.height;

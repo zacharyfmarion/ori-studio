@@ -4,6 +4,7 @@ import {
   bitmapCanvasEdge,
   fitRenderWithin,
   nextRenderCanvasSize,
+  renderCanvasResize,
 } from './simulatorSession';
 
 const at = (width: number, height: number) => ({ width, height });
@@ -180,5 +181,63 @@ describe('the render viewport keeps the window\'s shape', () => {
     const canvas = { width: MAX_BITMAP_RENDER_EDGE, height: MAX_BITMAP_RENDER_EDGE };
     const fitted = fitRenderWithin({ width: 9000, height: 9000 }, canvas);
     expect(fitted.width).toBe(MAX_BITMAP_RENDER_EDGE);
+  });
+});
+
+describe('the resize policy as the session actually applies it', () => {
+  // The tests above set `allowShrink` themselves, which proves the leaf handles
+  // it and nothing about whether anything ever asks. These drive the policy the
+  // way `sizeRenderCanvas` does, so a shrink that is unreachable in practice
+  // fails here rather than passing everywhere.
+  const policy = (over: Partial<Parameters<typeof renderCanvasResize>[0]> = {}) =>
+    renderCanvasResize({
+      current: at(2048, 2048),
+      callerRequest: at(234, 234),
+      peak: at(234, 234),
+      mode: 'bitmap',
+      msSinceResize: 10_000,
+      ...over,
+    });
+
+  it('hands the buffer back once every window is small and the hold has passed', () => {
+    // The reported bug, end to end: zoom in far, zoom back out, and the buffer
+    // stops being charged for the zoom.
+    expect(policy()).toEqual(at(256, 256));
+  });
+
+  it('keeps the buffer while the hold is still running', () => {
+    // Otherwise a zoom-out reallocates once per frame of the gesture, which is
+    // the thrash grow-only was introduced to remove.
+    expect(policy({ msSinceResize: 100 })).toBeNull();
+  });
+
+  it('keeps the buffer for a small window while a large one is still open', () => {
+    // The buffer is shared. Sizing it to whoever is drawing right now is how two
+    // windows of different sizes thrash it against each other.
+    expect(policy({ peak: at(1800, 1800) })).toBeNull();
+  });
+
+  it('grows for the caller immediately, without waiting out the hold', () => {
+    // A window that needs more pixels gets them on the frame it asks, even mid
+    // gesture — only shrinking waits.
+    expect(
+      policy({ current: at(256, 256), callerRequest: at(900, 900), msSinceResize: 0 })
+    ).toEqual(at(1024, 1024));
+  });
+
+  it('does not collapse to the floor before any window has a size', () => {
+    // `peakRequestedSize` reports zeros when no session has been given a size
+    // yet, and taking that literally would size the buffer to the minimum and
+    // then immediately regrow it.
+    expect(policy({ peak: at(0, 0), callerRequest: at(1500, 1500) })).toBeNull();
+  });
+
+  it('ignores the peak in canvas mode, where the buffer is the visible surface', () => {
+    // It must match the drawing exactly or the compositor stretches it, and
+    // there is one consumer — so the caller's request wins over any other
+    // window's, whatever the peak says.
+    expect(
+      policy({ mode: 'canvas', callerRequest: at(400, 400), peak: at(2048, 2048) })
+    ).toEqual(at(400, 400));
   });
 });
