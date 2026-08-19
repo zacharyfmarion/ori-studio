@@ -64,9 +64,16 @@ for key in $(jq -r '.platforms | keys[]' "$work/latest.json"); do
     --pattern "$payload" --pattern "$sig_name" --dir "$work" --clobber
   [ -f "$work/$sig_name" ] || error "release has no $sig_name — did the build sign it?"
 
-  minisign -V -p "$work/oristudio.pub" -x "$work/$sig_name" -m "$work/$payload" >/dev/null \
+  # Both the .sig and the pubkey are base64-encoded wrappers around the real
+  # minisign files — Tauri stores them that way so they survive being pasted
+  # into a JSON config. minisign itself wants the decoded form, and feeding it
+  # the base64 fails with "Untrusted signature comment too long" rather than
+  # anything that sounds like an encoding problem.
+  base64 -d < "$work/$sig_name" > "$work/$sig_name.decoded"
+  minisign -V -p "$work/oristudio.pub" -x "$work/$sig_name.decoded" -m "$work/$payload" >/dev/null \
     || error "signature for $key does NOT verify against the pubkey compiled into the app"
 
+  # The manifest carries the *base64* form, which is what the plugin expects.
   signature="$(cat "$work/$sig_name")"
   jq --arg k "$key" --arg s "$signature" '.platforms[$k].signature = $s' \
     "$work/latest.json" > "$work/latest.next.json"
