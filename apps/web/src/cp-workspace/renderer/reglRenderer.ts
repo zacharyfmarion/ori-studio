@@ -290,16 +290,6 @@ export function createReglRenderer(
         if (items.length > 0) images.draw({ view: frame.view, viewport, items });
       }
       strokes.draw({ view: frame.view, viewport, widthPx: frame.strokeWidthPx });
-      // Folded figures are placed objects in user space; fills first, then their
-      // edges. Fold stroke widths are in user px (non-scaling): base = 1 css px
-      // (dpr device px) scaled per-segment by the width multiplier.
-      foldedFills.draw({ view: frame.userView, viewport });
-      foldedStrokes.draw({ view: frame.userView, viewport, widthPx: viewport.dpr });
-      // Imported .fold folded-form frames are placed the same way, in user space.
-      if (hasImportedForms) {
-        importedFills.draw({ view: frame.userView, viewport });
-        importedStrokes.draw({ view: frame.userView, viewport, widthPx: viewport.dpr });
-      }
       // Points and vertices sit on top of the crease lines.
       // Crease points and vertices are content: they ride `pointScalePx` and
       // shrink in lockstep with the pattern. Circles in this same layer are real
@@ -315,6 +305,20 @@ export function createReglRenderer(
         userOpacity: 1,
         markerOpacity: frame.pointOpacity,
       });
+      // Folded figures are placed objects in user space, so they occlude the whole
+      // crease pattern they sit over — vertices included. A vertex punching through
+      // an opaque folded face read as the figure being translucent rather than on
+      // top of the paper. Fills first, then their edges; fold stroke widths are in
+      // user px (non-scaling): base = 1 css px (dpr device px) scaled per-segment
+      // by the width multiplier.
+      foldedFills.draw({ view: frame.userView, viewport });
+      foldedStrokes.draw({ view: frame.userView, viewport, widthPx: viewport.dpr });
+      // Imported .fold folded-form frames are placed the same way, in user space,
+      // and stay in the same band as the generated figures above them.
+      if (hasImportedForms) {
+        importedFills.draw({ view: frame.userView, viewport });
+        importedStrokes.draw({ view: frame.userView, viewport, widthPx: viewport.dpr });
+      }
       // Diagnostic overlays sit above the crease pattern: fills (sector wedges /
       // frame region) under the segment highlights, with the shape markers on top.
       if (hasDiagnosticFills) {
