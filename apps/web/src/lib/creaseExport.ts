@@ -250,7 +250,9 @@ function edgeLineColor(assignment: string): string {
 function edgeAppearance(
   assignment: string,
   lineStyle: OristudioCpLineStyle,
-  palette: CreaseExportPalette
+  palette: CreaseExportPalette,
+  /** 0 none, 1 mountain, 2 valley — `oristudio:edges_fold_direction_hint`. */
+  directionHint = 0
 ): EdgeAppearance {
   const lineColor = edgeLineColor(assignment);
   const ink = cpLineStyleInk(lineStyle, lineColor);
@@ -261,7 +263,40 @@ function edgeAppearance(
         ? palette.monochromeValley
         : assignmentColor(assignment, palette);
   const pattern = cpLineStyleDashPattern(lineStyle, lineColor);
+  // A hinted crease paints its direction's colour washed toward the unassigned
+  // grey, matching the canvas exactly. Same wash, same reasoning: the picture a
+  // user exports has to be a picture of the document they are looking at, and a
+  // hint is visible state rather than a working note.
+  const hintAssignment = directionHint === 1 ? 'M' : directionHint === 2 ? 'V' : null;
+  if (hintAssignment && ink !== 'black' && ink !== 'grey') {
+    return {
+      stroke: washHex(assignmentColor(hintAssignment, palette), stroke),
+      dash: pattern ? scaleDash(pattern) : '',
+    };
+  }
   return { stroke, dash: pattern ? scaleDash(pattern) : '' };
+}
+
+/**
+ * Blend `from` toward `to`, matching `directionHintInk`'s wash so the exported
+ * image and the canvas agree. Kept here rather than shared because the export
+ * works in hex strings and the renderer in premultiplied floats; the constant is
+ * the thing that must not drift, and it is named in both.
+ */
+const HINT_WASH = 0.55;
+
+function washHex(from: string, to: string): string {
+  const parse = (hex: string): [number, number, number] | null => {
+    const match = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+    if (!match) return null;
+    const value = Number.parseInt(match[1], 16);
+    return [(value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff];
+  };
+  const a = parse(from);
+  const b = parse(to);
+  if (!a || !b) return from;
+  const mixed = a.map((channel, i) => Math.round(channel + (b[i] - channel) * HINT_WASH));
+  return `#${mixed.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
 }
 
 function scaleDash(pattern: readonly number[]): string {
@@ -600,6 +635,12 @@ export function buildCreaseExportArtwork(
   const faces = targetFold.faces_vertices ?? [];
   const edges = targetFold.edges_vertices ?? [];
   const assignments = targetFold.edges_assignment ?? [];
+  // Only the *direction* rides in the extension; the unknown-ness is in
+  // `edges_assignment` itself, so a fold without this array simply draws its
+  // unassigned creases plain.
+  const directionHints = (targetFold as { 'oristudio:edges_fold_direction_hint'?: number[] })[
+    'oristudio:edges_fold_direction_hint'
+  ] ?? [];
   const strokeWidth = Math.max(0.5, options.lineWidth * 1.5 * VIEW_SCALE);
 
   const backgrounds =
@@ -619,7 +660,12 @@ export function buildCreaseExportArtwork(
     .map((edge, index) => {
       const assignment = assignments[index] ?? 'U';
       if (!options.includeUnassigned && isUnassigned(assignment)) return '';
-      const { stroke, dash } = edgeAppearance(assignment, options.lineStyle, palette);
+      const { stroke, dash } = edgeAppearance(
+        assignment,
+        options.lineStyle,
+        palette,
+        directionHints[index] ?? 0
+      );
       const a = project(edge[0]);
       const b = project(edge[1]);
       const dashAttr = dash ? ` stroke-dasharray="${dash}"` : '';

@@ -1,5 +1,6 @@
 import { foldAngleInk } from '../foldAngle/foldAngleRamp';
 import { lineColorName, SEG_ATTR_STRIDE, type CpGeometryTransport } from '../../engine/oristudioCpGeometry';
+import { directionHintInk, hintColorName, HINT_NONE } from '../foldAngle/directionHintInk';
 import type { StrokeGeometry } from '../renderer/types';
 import type { CpLineAppearance } from './cpLineStyle';
 import type {
@@ -46,6 +47,7 @@ export function cpGeometryStrokesToScene(
   // Memoise appearance lookups by color number — a dense CP has thousands of
   // segments but only a handful of distinct assignments.
   const appearanceCache = new Map<number, CpLineAppearance>();
+  const hintAppearanceCache = new Map<number, CpLineAppearance>();
 
   const m = move?.matrix;
 
@@ -88,10 +90,23 @@ export function cpGeometryStrokesToScene(
     }
     // Applied after the colour-keyed cache: the crease's *direction* is what
     // the cache keys on, and its magnitude is per segment.
-    const rgba =
+    let rgba =
       foldAngle === undefined
         ? appearance.color
         : foldAngleInk(appearance.color, transport.segFoldMagnitude?.[i], foldAngle);
+    // A hinted crease paints in its direction's colour, washed toward the
+    // unassigned grey it would otherwise be. Per segment, and after the cache,
+    // for the same reason the fold-angle ramp is.
+    const hint = attr[i * SEG_ATTR_STRIDE + 4] ?? HINT_NONE;
+    const hintName = hintColorName(hint);
+    if (hintName) {
+      let directionAppearance = hintAppearanceCache.get(hint);
+      if (!directionAppearance) {
+        directionAppearance = appearanceFor(hintName);
+        hintAppearanceCache.set(hint, directionAppearance);
+      }
+      rgba = directionHintInk(directionAppearance.color, appearance.color);
+    }
     color[i * 4] = rgba[0];
     color[i * 4 + 1] = rgba[1];
     color[i * 4 + 2] = rgba[2];

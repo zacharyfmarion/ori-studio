@@ -1,4 +1,5 @@
 import { foldAngleInk } from '../foldAngle/foldAngleRamp';
+import { directionHintInk, HINT_MOUNTAIN, HINT_VALLEY, hintColorName } from '../foldAngle/directionHintInk';
 import type { OristudioCpFoldAngleDisplay } from '../../lib/creasePatternViewport';
 import type { ModelPoint, Rgba, StrokeGeometry } from '../renderer/types';
 import type { CpLineAppearance } from './cpLineStyle';
@@ -36,6 +37,12 @@ export interface CpLineSegmentInput {
    * `segFoldMagnitude` on the transport so both builders stay byte-identical.
    */
   fold_magnitude?: number;
+  /**
+   * Which way this crease folded before its angle was forgotten. Mirrors
+   * `seg_attr`'s fifth slot on the transport so both builders stay
+   * byte-identical — see `fold_direction_hint` on the kernel's `LineSegment`.
+   */
+  fold_direction_hint?: 'Mountain' | 'Valley';
 }
 
 /** Selection highlighting: 1-based line ids, their colour, and width multiplier. */
@@ -129,6 +136,7 @@ export function cpSnapshotToScene(
   // Memoise appearance lookups — a dense CP has thousands of segments but only a
   // handful of distinct assignments.
   const appearanceCache = new Map<string, CpLineAppearance>();
+  const hintAppearanceCache = new Map<number, CpLineAppearance>();
 
   const m = move?.matrix;
 
@@ -168,10 +176,27 @@ export function cpSnapshotToScene(
       appearance = appearanceFor(seg.color);
       appearanceCache.set(seg.color, appearance);
     }
-    const rgba =
+    let rgba =
       foldAngle === undefined
         ? appearance.color
         : foldAngleInk(appearance.color, seg.fold_magnitude, foldAngle);
+    // Must match `cpGeometryToScene`'s hint branch exactly; the two are pinned
+    // byte-for-byte against each other.
+    const hint =
+      seg.fold_direction_hint === 'Mountain'
+        ? HINT_MOUNTAIN
+        : seg.fold_direction_hint === 'Valley'
+          ? HINT_VALLEY
+          : 0;
+    const hintName = hintColorName(hint);
+    if (hintName) {
+      let directionAppearance = hintAppearanceCache.get(hint);
+      if (!directionAppearance) {
+        directionAppearance = appearanceFor(hintName);
+        hintAppearanceCache.set(hint, directionAppearance);
+      }
+      rgba = directionHintInk(directionAppearance.color, appearance.color);
+    }
     color[i * 4] = rgba[0];
     color[i * 4 + 1] = rgba[1];
     color[i * 4 + 2] = rgba[2];
