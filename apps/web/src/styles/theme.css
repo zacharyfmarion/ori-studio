@@ -8282,6 +8282,14 @@ button.bp-packing-alert:focus-visible {
   width: max-content;
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
+  font-size: 0.72rem;
+  /* The header owns its own gestures; a drag started on it must not also draw a
+     crease on the canvas underneath. These three belong to EVERY header, not
+     just the actions-only one: a modifier that quietly took ownership of them
+     left the titled and stepper windows drawing creases from a header drag and
+     rendering 39% larger than every other floating control. */
+  touch-action: none;
+  user-select: none;
 }
 
 /* Apply/Cancel and nothing else: there is no left-hand group to distribute
@@ -8289,11 +8297,6 @@ button.bp-packing-alert:focus-visible {
    Shrink-wrapping keeps them where `right: 0` already pins the bar. */
 .cp-tool-option__header--actions-only {
   min-width: 0;
-  font-size: 0.72rem;
-  /* The header owns its own gestures; a drag started on it must not also draw a
-     crease on the canvas underneath. */
-  touch-action: none;
-  user-select: none;
 }
 
 .cp-tool-option__stepper {
