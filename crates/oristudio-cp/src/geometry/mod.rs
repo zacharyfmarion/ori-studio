@@ -19,7 +19,9 @@ pub use circle::{Circle, CircleIntersection};
 pub use epsilon::{Epsilon, HighEpsilon};
 pub use line::Line;
 pub use line_color::{LineColor, LineColorParseError};
-pub use line_segment::{ActiveState, FoldMagnitude, Intersection, LineSegment, RgbColor};
+pub use line_segment::{
+    ActiveState, FoldDirection, FoldMagnitude, Intersection, LineSegment, RgbColor,
+};
 pub use orita_calc::{
     ParallelJudgement, angle, angle_between_0_360, angle_between_0_kmax, angle_between_m180_180,
     bisection, center, change_length, circle_to_circle_intersection,

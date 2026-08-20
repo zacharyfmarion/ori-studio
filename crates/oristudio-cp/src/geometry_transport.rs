@@ -367,6 +367,12 @@ fn decode_segments(
             color,
             selected: attr[a + 2],
             customized: attr[a + 3],
+            // Not yet carried across the compact boundary: that is an OCG2 ->
+            // OCG3 bump, which is five surfaces plus a byte-exact golden. Until
+            // it lands the canvas cannot draw a hint, so the *renderer* half of
+            // this feature is gated on it. Decoding `None` is the safe reading —
+            // it loses the hint rather than inventing one.
+            fold_direction_hint: None,
             customized_color: RgbColor::new(custom[c], custom[c + 1], custom[c + 2]),
             fold_magnitude: fold_magnitude
                 .get(i)
@@ -517,6 +523,7 @@ mod tests {
             customized,
             customized_color: RgbColor::new(rgb.0, rgb.1, rgb.2),
             fold_magnitude: None,
+            fold_direction_hint: None,
         }
     }
 
