@@ -57,6 +57,8 @@
     "foldAngle": "접기 각도",
     "foldAngleDegrees": "도",
     "foldAngleMixed": "혼합",
+    "foldAngleUnassigned": "미지정",
+    "foldAngleUnassignedDescription": "접힘 각도를 미정으로 두고 산/골은 유지합니다",
     "from": "시작",
     "index": "인덱스",
     "instructions": "설명",

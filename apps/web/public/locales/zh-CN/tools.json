@@ -57,6 +57,8 @@
     "foldAngle": "折叠角度",
     "foldAngleDegrees": "度",
     "foldAngleMixed": "混合",
+    "foldAngleUnassigned": "未指定",
+    "foldAngleUnassignedDescription": "折叠角度暂不确定，保留山谷方向",
     "from": "从",
     "index": "索引",
     "instructions": "说明",

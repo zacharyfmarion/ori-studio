@@ -31,6 +31,7 @@
     "makeEdge": "Définir comme bord",
     "makeMountain": "Définir comme montagne",
     "makeUnassigned": "Rendre non assigné",
+    "makeUnassignedKeepDirection": "Rendre non assigné (conserver la direction)",
     "makeValley": "Définir comme vallée",
     "organizeCircles": "Organiser les cercles",
     "repair": "Réparer",

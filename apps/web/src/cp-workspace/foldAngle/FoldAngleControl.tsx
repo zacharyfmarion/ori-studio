@@ -16,7 +16,7 @@ import { useFoldAngleSelection } from './useFoldAngleSelection';
 
 export function FoldAngleControl() {
   const { t } = useTranslation();
-  const { summary, enabled, setDegrees } = useFoldAngleSelection();
+  const { summary, enabled, setDegrees, setUnassigned } = useFoldAngleSelection();
   const [draft, setDraft] = useState('');
 
   // Follow the selection, but leave a mixed selection blank rather than
@@ -54,6 +54,21 @@ export function FoldAngleControl() {
             {preset.label}
           </button>
         ))}
+        {/* Beside the presets rather than below them, because it answers the
+            same question they do — how far does this fold — with "I have not
+            decided". It keeps the direction; forgetting that too is the menu's
+            explicit ask. */}
+        <button
+          type="button"
+          className="cp-context-panel__chip"
+          aria-label={t(
+            'tools:cpContext.foldAngleUnassignedDescription',
+            'Leave the fold angle undecided, keeping mountain or valley'
+          )}
+          onClick={() => void setUnassigned()}
+        >
+          {t('tools:cpContext.foldAngleUnassigned', 'Unassigned')}
+        </button>
       </div>
       <label className="cp-context-panel__field">
         <span>{t('tools:cpContext.foldAngleDegrees', 'Degrees')}</span>

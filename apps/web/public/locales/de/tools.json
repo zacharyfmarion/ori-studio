@@ -61,6 +61,8 @@
     "foldAngle": "Faltwinkel",
     "foldAngleDegrees": "Grad",
     "foldAngleMixed": "Gemischt",
+    "foldAngleUnassigned": "Nicht zugewiesen",
+    "foldAngleUnassignedDescription": "Faltwinkel offen lassen, Berg oder Tal beibehalten",
     "from": "Von",
     "index": "Index",
     "instructions": "Anweisungen",

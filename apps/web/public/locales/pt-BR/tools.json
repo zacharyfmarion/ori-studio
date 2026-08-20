@@ -65,6 +65,8 @@
     "foldAngle": "Ângulo de dobra",
     "foldAngleDegrees": "Graus",
     "foldAngleMixed": "Misto",
+    "foldAngleUnassigned": "Não atribuído",
+    "foldAngleUnassignedDescription": "Deixar o ângulo indefinido, mantendo monte ou vale",
     "from": "De",
     "index": "Índice",
     "instructions": "Instruções",

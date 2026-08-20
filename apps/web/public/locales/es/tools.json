@@ -65,6 +65,8 @@
     "foldAngle": "Ángulo de plegado",
     "foldAngleDegrees": "Grados",
     "foldAngleMixed": "Mixto",
+    "foldAngleUnassigned": "Sin asignar",
+    "foldAngleUnassignedDescription": "Dejar el ángulo sin decidir, conservando monte o valle",
     "from": "Desde",
     "index": "Índice",
     "instructions": "Instrucciones",

@@ -61,6 +61,8 @@
     "foldAngle": "Fold angle",
     "foldAngleDegrees": "Degrees",
     "foldAngleMixed": "Mixed",
+    "foldAngleUnassigned": "Unassigned",
+    "foldAngleUnassignedDescription": "Leave the fold angle undecided, keeping mountain or valley",
     "from": "From",
     "index": "Index",
     "instructions": "Instructions",

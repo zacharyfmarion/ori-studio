@@ -217,6 +217,7 @@ export function getMenuBarDef(
             { type: 'action', id: 'cp.makeValley', label: t('menu:cp.makeValley', 'Make Valley') },
             { type: 'action', id: 'cp.makeEdge', label: t('menu:cp.makeEdge', 'Make Edge') },
             { type: 'action', id: 'cp.makeAuxiliary', label: t('menu:cp.makeAuxiliary', 'Make Auxiliary') },
+            { type: 'action', id: 'cp.makeUnassignedKeepDirection', label: t('menu:cp.makeUnassignedKeepDirection', 'Make Unassigned (Keep Direction)') },
             { type: 'action', id: 'cp.makeUnassigned', label: t('menu:cp.makeUnassigned', 'Make Unassigned') },
             { type: 'separator' },
             { type: 'action', id: 'cp.replaceLineType', label: t('menu:cp.replaceLineType', 'Replace Selected Line Type...') },

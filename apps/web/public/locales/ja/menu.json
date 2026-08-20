@@ -31,6 +31,7 @@
     "makeEdge": "境界線にする",
     "makeMountain": "山折りにする",
     "makeUnassigned": "未割り当てにする",
+    "makeUnassignedKeepDirection": "未割り当てにする（方向を保持）",
     "makeValley": "谷折りにする",
     "organizeCircles": "円を整理",
     "repair": "修復",

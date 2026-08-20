@@ -1052,6 +1052,11 @@ export interface OristudioCpCommandPayload {
    * re-run without the answer sliding back.
    */
   pinned_angles?: [number, number][];
+  /**
+   * Discard the mountain/valley direction as well when unassigning. Absent or
+   * `false` keeps it, because that is the common intent.
+   */
+  forget_direction?: boolean;
   /** Largest number of unknowns at a vertex a propagation commit may come from. */
   max_commit_k?: number;
   fix_precision?: number;

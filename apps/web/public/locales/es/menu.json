@@ -31,6 +31,7 @@
     "makeEdge": "Marcar como borde",
     "makeMountain": "Marcar como monte",
     "makeUnassigned": "Marcar sin asignar",
+    "makeUnassignedKeepDirection": "Marcar sin asignar (conservar dirección)",
     "makeValley": "Marcar como valle",
     "organizeCircles": "Organizar círculos",
     "repair": "Reparar",

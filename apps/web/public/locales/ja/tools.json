@@ -57,6 +57,8 @@
     "foldAngle": "折り角度",
     "foldAngleDegrees": "度",
     "foldAngleMixed": "混在",
+    "foldAngleUnassigned": "未指定",
+    "foldAngleUnassignedDescription": "折り角度を未定のままにし、山谷は保持します",
     "from": "元",
     "index": "インデックス",
     "instructions": "手順",

@@ -31,6 +31,7 @@
     "makeEdge": "경계로 지정",
     "makeMountain": "산으로 지정",
     "makeUnassigned": "미지정으로 설정",
+    "makeUnassignedKeepDirection": "미지정으로 설정(방향 유지)",
     "makeValley": "골로 지정",
     "organizeCircles": "원 정리",
     "repair": "복구",

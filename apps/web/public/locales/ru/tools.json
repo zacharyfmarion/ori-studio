@@ -69,6 +69,8 @@
     "foldAngle": "Угол сгиба",
     "foldAngleDegrees": "Градусы",
     "foldAngleMixed": "Смешанный",
+    "foldAngleUnassigned": "Не назначено",
+    "foldAngleUnassignedDescription": "Оставить угол неопределённым, сохранив «гору» или «долину»",
     "from": "От",
     "index": "Индекс",
     "instructions": "Инструкции",

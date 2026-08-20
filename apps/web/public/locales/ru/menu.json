@@ -31,6 +31,7 @@
     "makeEdge": "Сделать краем",
     "makeMountain": "Сделать горной",
     "makeUnassigned": "Сделать неназначенной",
+    "makeUnassignedKeepDirection": "Сделать неназначенной (сохранить направление)",
     "makeValley": "Сделать долинной",
     "organizeCircles": "Упорядочить круги",
     "repair": "Исправление",

@@ -103,6 +103,7 @@ export const MENU_ACTION_IDS = [
   'cp.makeEdge',
   'cp.makeAuxiliary',
   'cp.makeUnassigned',
+  'cp.makeUnassignedKeepDirection',
   'cp.toggleMountainValley',
   'cp.transformFlipHorizontal',
   'cp.transformFlipVertical',
@@ -272,14 +273,30 @@ const CP_OPERATION_ACTIONS: Partial<Record<MenuActionId, OristudioCpOperationId>
   'cp.deleteExtraVerticesIgnoreColor': 'DeleteExtraVerticesIgnoreColor',
 };
 
-const CP_SELECTED_LINE_ACTIONS: Partial<Record<MenuActionId, OristudioCpOperationId>> = {
+/**
+ * A selected-lines entry is either a bare operation or one with extra payload.
+ * Widened for the two unassign variants, which are one kernel operation
+ * distinguished by a flag rather than two operations — no second descriptor, so
+ * PORTING.md's origin rules need nothing.
+ */
+type CpSelectedLineAction =
+  | OristudioCpOperationId
+  | { operation: OristudioCpOperationId; payload: OristudioCpCommandPayload };
+
+const CP_SELECTED_LINE_ACTIONS: Partial<Record<MenuActionId, CpSelectedLineAction>> = {
   'cp.changeCreaseType': 'ChangeCreaseType',
   'cp.advanceCreaseType': 'CreaseAdvanceType',
   'cp.makeMountain': 'CreaseMakeMountain',
   'cp.makeValley': 'CreaseMakeValley',
   'cp.makeEdge': 'CreaseMakeEdge',
   'cp.makeAuxiliary': 'CreaseMakeAux',
-  'cp.makeUnassigned': 'CreaseMakeUnassigned',
+  // Keeping the direction is the default and the common intent; forgetting it
+  // as well is the explicit ask, so it is the one that names itself.
+  'cp.makeUnassigned': {
+    operation: 'CreaseMakeUnassigned',
+    payload: { forget_direction: true },
+  },
+  'cp.makeUnassignedKeepDirection': 'CreaseMakeUnassigned',
   'cp.toggleMountainValley': 'CreaseToggleMv',
 };
 
@@ -395,8 +412,15 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
     if (cpSelectedLineOperation) {
       const lineIds = deps.workspace.oristudioCpSelection.lines;
       if (lineIds.length === 0) return false;
-      return deps.workspace.executeOristudioCpCommand(cpSelectedLineOperation, {
+      const operation =
+        typeof cpSelectedLineOperation === 'string'
+          ? cpSelectedLineOperation
+          : cpSelectedLineOperation.operation;
+      const extra =
+        typeof cpSelectedLineOperation === 'string' ? {} : cpSelectedLineOperation.payload;
+      return deps.workspace.executeOristudioCpCommand(operation, {
         line_ids: lineIds,
+        ...extra,
       });
     }
 

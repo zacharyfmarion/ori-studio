@@ -206,6 +206,13 @@ pub struct CreasePatternCommandPayload {
     /// adjust one crease and re-run without the answer sliding back.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub pinned_angles: Vec<(usize, f64)>,
+    /// Discard the mountain/valley direction as well when unassigning.
+    ///
+    /// Absent or `false` keeps it, because that is the common intent and the
+    /// one the fold-angle chip performs; a hint is what lets the solver settle
+    /// the mountain/valley question closure cannot.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub forget_direction: Option<bool>,
     /// Largest number of unknowns at a vertex a propagation commit may come
     /// from. `None` uses
     /// [`operations::native::fold_propagation::DEFAULT_MAX_COMMIT_K`].
@@ -1900,10 +1907,20 @@ pub fn execute_command(
         }
         OperationId::CreaseMakeUnassigned => {
             let line_indices = required_line_indices(&command)?;
-            operations::native::unassign::make_unassigned(
-                &mut document.crease_pattern,
-                &line_indices,
-            )
+            // One operation, two intents. Keeping the direction is the common
+            // one — it is what the fold-angle chip performs — so it is the
+            // default, and forgetting it as well is the explicit ask.
+            if command.payload.forget_direction.unwrap_or(false) {
+                operations::native::unassign::make_unassigned(
+                    &mut document.crease_pattern,
+                    &line_indices,
+                )
+            } else {
+                operations::native::unassign::make_unassigned_keeping_direction(
+                    &mut document.crease_pattern,
+                    &line_indices,
+                )
+            }
         }
         OperationId::PropagateFoldAngles => {
             // Commit is the *same* draft the preview showed, recomputed from the

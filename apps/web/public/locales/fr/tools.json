@@ -65,6 +65,8 @@
     "foldAngle": "Angle de pliage",
     "foldAngleDegrees": "Degrés",
     "foldAngleMixed": "Mixte",
+    "foldAngleUnassigned": "Non assigné",
+    "foldAngleUnassignedDescription": "Laisser l'angle indécis en conservant montagne ou vallée",
     "from": "De",
     "index": "Index",
     "instructions": "Instructions",
