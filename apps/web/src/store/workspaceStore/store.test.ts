@@ -6324,6 +6324,23 @@ describe('workspace store slices', () => {
     );
   });
 
+  it('unselects one crease without touching the rest of the selection', () => {
+    resetStores(seedSnapshot());
+    const state = () => useWorkspaceStore.getState();
+
+    state().toggleOristudioCpLineSelection(2);
+    state().toggleOristudioCpLineSelection(5, true);
+    state().toggleOristudioCpPointSelection(1, true);
+
+    // The deselect tools' click. A crease that is not selected is left alone,
+    // where the toggle above would have added it.
+    state().unselectOristudioCpLine(4);
+    expect(state().oristudioCpSelection).toMatchObject({ lines: [2, 5], points: [1] });
+
+    state().unselectOristudioCpLine(2);
+    expect(state().oristudioCpSelection).toMatchObject({ lines: [5], points: [1] });
+  });
+
   it('updates editable CP grid size as undoable document metadata', async () => {
     resetStores(seedSnapshot());
     const documentState = blankCpDocumentState();

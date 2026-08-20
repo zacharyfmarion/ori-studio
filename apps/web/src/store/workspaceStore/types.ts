@@ -979,6 +979,11 @@ export interface CreasePatternSliceActions {
   clearOristudioCpFoldedFigures: () => Promise<void>;
   clearOristudioCpSelection: () => void;
   toggleOristudioCpLineSelection: (id: number, additive?: boolean) => void;
+  /**
+   * Take one crease out of the selection, leaving one that is not in it alone —
+   * the deselect tools' click, which no toggle can express.
+   */
+  unselectOristudioCpLine: (id: number) => void;
   toggleOristudioCpPointSelection: (id: number, additive?: boolean) => void;
   toggleOristudioCpCircleSelection: (id: number, additive?: boolean) => void;
   toggleOristudioCpTextSelection: (id: number, additive?: boolean) => void;
