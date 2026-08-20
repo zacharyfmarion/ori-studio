@@ -1501,6 +1501,16 @@ export function CreasePatternPanel() {
     if (activeCpOperationId !== 'VertexSolveFoldAngles') vertexSolve.cancel();
   }, [activeCpOperationId, propagation, vertexSolve]);
 
+  /**
+   * The window a solve tool is currently asking a question through, if any.
+   *
+   * One source of truth for two decisions: which window the single
+   * `CpToolOptionLayer` renders, and whether the selection toolbar stands down.
+   * The mutual-exclusion effect above guarantees at most one is ever open, so
+   * the `??` is a choice between "one" and "none", never a tiebreak.
+   */
+  const openToolOptionWindow = propagation.option ?? vertexSolve.option;
+
   useEffect(() => {
     const documentKey = editableCp
       ? String(editableCpHandle ?? `editable-cp-${projectLoadId}`)
@@ -3106,7 +3116,7 @@ export function CreasePatternPanel() {
                 {/* One layer, two tools: whichever currently holds a window
                     owns it. They cannot both be open — arming one disarms the
                     other, which the effect beside the two hooks enforces. */}
-                <CpToolOptionLayer option={propagation.option ?? vertexSolve.option} />
+                <CpToolOptionLayer option={openToolOptionWindow} />
                 {webglOverlayView && (oristudioCpAnnotations.length > 0 || editingTextId) && (
                   <CpTextAnnotationLayer
                     annotations={oristudioCpAnnotations}
@@ -3198,10 +3208,17 @@ export function CreasePatternPanel() {
                     is mid-gesture, and it is false for exactly the tools that
                     produce crease selections (Box Select and friends), which
                     would hide these actions whenever they are relevant. Only the
-                    other floating toolbars are mutually exclusive with this one. */}
-                {!editingTextId && !selectedCpImage && !selectedFoldedFigure && (
-                  <CpSelectionToolbar container={toolbarContainer} />
-                )}
+                    other floating toolbars are mutually exclusive with this one.
+
+                    A solve tool's option window is one of those. It occupies the
+                    same corner and it is asking a question — its verbs are the
+                    only ones that make sense until the user answers, and the
+                    toolbar's (fold, simulate, export) would all act on a
+                    document the pending proposal has not been applied to. */}
+                {!editingTextId &&
+                  !selectedCpImage &&
+                  !selectedFoldedFigure &&
+                  !openToolOptionWindow && <CpSelectionToolbar container={toolbarContainer} />}
                 </>
               ) : (
                 <div className="cp-panel__unopened" role="status">
