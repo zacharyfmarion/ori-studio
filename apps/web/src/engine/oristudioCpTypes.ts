@@ -171,12 +171,43 @@ export interface OristudioCpPropagationCrease {
 export interface OristudioCpPropagationStall {
   point: Point;
   /**
-   * `underdetermined` | `branching` | `unsolvable` | `above_cap`. The two the
-   * user acts on differently are `branching` ("I have a question") and
-   * everything else ("I need another angle from you") — do not share copy.
+   * `underdetermined` | `branching` | `unsolvable` | `above_cap` |
+   * `out_of_scope`. The two the user acts on differently are `branching` ("I
+   * have a question") and everything else ("I need another angle from you") —
+   * do not share copy. `out_of_scope` is a third: the vertex was solvable and
+   * was skipped because some of its unknowns were outside what may be written,
+   * so the move is to widen the scope rather than to supply an angle.
    */
   reason: string;
   unknowns: number;
+}
+
+/**
+ * What a propagation draft was allowed to write to.
+ *
+ * Sent because the user got the *scope* wrong — running across every pattern on
+ * the canvas at once — so the window has to name which one it used rather than
+ * leave it to be inferred from a count. Resolved kernel-side for both the
+ * preview and the commit, so nothing here re-derives it.
+ */
+export interface OristudioCpPropagationScope {
+  /** `selection` | `component` | `document`, as a stable kernel code. */
+  kind: string;
+  /** Creases the scope names. */
+  creases: number;
+  /** Vertices propagation was allowed to visit. */
+  vertices: number;
+  /**
+   * Unassigned creases still inside the scope afterwards — the same number as
+   * `propagation_free`, and deliberately not a document total.
+   */
+  free: number;
+  /**
+   * Vertices skipped because some of their unknowns fell outside the scope. The
+   * one finding with an action attached: select those creases too, or clear the
+   * selection and click the pattern.
+   */
+  out_of_scope: number;
 }
 
 export interface OristudioCpCommandPreview {
@@ -213,7 +244,10 @@ export interface OristudioCpCommandPreview {
   candidate_is_current?: boolean | null;
   /** How many creases a propagation draft worked out. */
   propagation_solved?: number | null;
-  /** How many creases are still free after the draft. */
+  /**
+   * How many creases are still free after the draft — **scope-relative**, so a
+   * draft over one of five patterns reports that pattern rather than the canvas.
+   */
   propagation_free?: number | null;
   /**
    * The creases the draft would set, and what it would set them to.
@@ -232,6 +266,11 @@ export interface OristudioCpCommandPreview {
   propagation_stalls?: OristudioCpPropagationStall[];
   /** Vertices that ended fully known and do not close. */
   propagation_conflicts?: Point[];
+  /**
+   * What the run was allowed to write to. Absent when the scope named nothing,
+   * which is the case `unavailable` reports.
+   */
+  propagation_scope?: OristudioCpPropagationScope | null;
 }
 
 export type OristudioCpEstimationOrder =
@@ -1028,6 +1067,11 @@ export interface OristudioCpSnapCandidates {
 export type OristudioCpGridState = 'Hidden' | 'WithinPaper' | 'Full';
 
 export interface OristudioCpCommandPayload {
+  /**
+   * One-based line ids. Most operations read this as *what to act on*;
+   * `PropagateFoldAngles` reads it as **what it may write to**, and takes
+   * precedence over `points` there — see `usePropagationDraft`.
+   */
   line_ids?: number[];
   line_segments?: OristudioCpLineSegment[];
   circle_ids?: number[];

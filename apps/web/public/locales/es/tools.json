@@ -7,6 +7,7 @@
     "applyColor": "Aplicar color",
     "applyGeneratedLines": "Aplicar las líneas generadas por esta herramienta.",
     "applyLines": "Aplicar líneas",
+    "applyPropagate": "Propagar en la selección",
     "applyToSelection": "Aplicar a la selección",
     "applyVoronoi": "Aplicar Voronoi",
     "ariaLabel": "Opciones de la herramienta de patrón de pliegues",
@@ -99,10 +100,18 @@
     "precision": "Precisión",
     "propagation": {
       "conflicts": "Vértices que ya no cierran: {{vertices}} — algo en lo que esto se apoya no concuerda.",
+      "noComponentAtPoint": "Aquí no hay nada que propagar. Haz clic en un pliegue o un vértice del patrón que quieras.",
+      "noScope": "Haz clic en un pliegue o un vértice desde donde propagar, o selecciona los pliegues a resolver.",
       "nothingDecidable": "No se pudo deducir nada de los ángulos ya definidos. Da un ángulo a un pliegue más e inténtalo de nuevo.",
       "nothingFree": "Todos los pliegues ya tienen ángulo. Marca algunos sin asignar y vuelve a propagar.",
-      "partial": "Sin decidir: {{creases}}",
-      "title": "Ángulos de plegado — {{creases}} resueltos"
+      "nothingInScope": "La selección ya no nombra ningún pliegue. Vuelve a seleccionar, o borra la selección y haz clic en un patrón.",
+      "outOfScope": "Vértices que necesitan pliegues no seleccionados: {{vertices}} — selecciónalos también, o borra la selección y haz clic en el patrón.",
+      "partial": "Sin decidir aquí: {{creases}}",
+      "selectionNothingFree": "Todos los pliegues de la selección ya tienen ángulo. Selecciona algunos sin asignar, o borra la selección y haz clic en un patrón.",
+      "title": "Ángulos de plegado — {{creases}} resueltos",
+      "titleComponent": "Este patrón — {{creases}} ángulos de plegado resueltos",
+      "titleDocument": "Todo el documento — {{creases}} ángulos de plegado resueltos",
+      "titleSelection": "Selección — {{creases}} ángulos de plegado resueltos"
     },
     "ratioFieldAria": "Proporción {{letter}}",
     "ratioPresets": "Ajustes preestablecidos de proporción",

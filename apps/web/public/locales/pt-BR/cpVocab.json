@@ -409,10 +409,10 @@
     },
     "cp_action_propagate_fold_angles": {
       "label": "Propagar ângulos de dobra",
-      "tooltip": "Deduzir os ângulos dos vincos não atribuídos, partindo de um ponto",
+      "tooltip": "Deduzir os ângulos dos vincos não atribuídos, dentro de um padrão ou dentro da seleção",
       "disabledReason": "Pronto",
       "steps": {
-        "0": "Escolha de onde propagar"
+        "0": "Clique em um vinco ou vértice de onde propagar, ou selecione vincos e aplique"
       }
     },
     "cp_action_vertex_solve_fold_angles": {

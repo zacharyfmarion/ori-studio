@@ -6,6 +6,12 @@
  * in the only way that matters: the answer still appears on the canvas, just on
  * top of the creases it was meant to replace, so it reads as already applied and
  * Cancel reads as broken.
+ *
+ * The second half is the scope. Propagation used to run over every pattern on
+ * the canvas at once, so what a draft was *allowed to change* is now as much a
+ * claim as which creases it names — and the failure mode there is the same
+ * shape: a commit wider than the draft that was confirmed leaves no trace on
+ * screen of having been wider.
  */
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -50,6 +56,14 @@ function previewOf(
   };
 }
 
+/** The scope block the kernel reports back, with everything else at rest. */
+function scopeOf(
+  kind: string,
+  extra: Partial<OristudioCpCommandPreview['propagation_scope'] & object> = {}
+): OristudioCpCommandPreview['propagation_scope'] {
+  return { kind, creases: 1, vertices: 1, free: 0, out_of_scope: 0, ...extra };
+}
+
 /** A preview call whose answer is handed over by the test, not by a timer. */
 function deferred() {
   let settle: (preview: OristudioCpCommandPreview | null) => void = () => {};
@@ -61,19 +75,27 @@ function deferred() {
 
 interface Harness {
   controller: () => PropagationDraftController;
-  render: (documentVersion: unknown) => void;
+  /** Re-render with a new document identity and/or a new selection. */
+  render: (documentVersion: unknown, scopeLineIds?: readonly number[]) => void;
   previewCalls: OristudioCpCommandPayload[];
   executeCalls: { operationId: OristudioCpOperationId; payload: OristudioCpCommandPayload }[];
 }
 
 function mount(
-  preview: (payload: OristudioCpCommandPayload) => Promise<OristudioCpCommandPreview | null>
+  preview: (payload: OristudioCpCommandPayload) => Promise<OristudioCpCommandPreview | null>,
+  initialScope: readonly number[] = []
 ): Harness {
   const previewCalls: OristudioCpCommandPayload[] = [];
   const executeCalls: Harness['executeCalls'] = [];
   let latest: PropagationDraftController | null = null;
 
-  function Probe({ documentVersion }: { documentVersion: unknown }) {
+  function Probe({
+    documentVersion,
+    scopeLineIds,
+  }: {
+    documentVersion: unknown;
+    scopeLineIds: readonly number[];
+  }) {
     latest = usePropagationDraft({
       preview: (_operationId, payload) => {
         previewCalls.push(payload);
@@ -85,13 +107,16 @@ function mount(
       },
       buildPayload: (payload) => payload,
       documentVersion,
+      scopeLineIds,
     });
     return null;
   }
 
-  const render = (documentVersion: unknown) => {
+  let scope = initialScope;
+  const render = (documentVersion: unknown, scopeLineIds: readonly number[] = scope) => {
+    scope = scopeLineIds;
     act(() => {
-      root?.render(<Probe documentVersion={documentVersion} />);
+      root?.render(<Probe documentVersion={documentVersion} scopeLineIds={scopeLineIds} />);
     });
   };
   render('doc-1');
@@ -274,5 +299,133 @@ describe('usePropagationDraft', () => {
     expect(harness.executeCalls).toEqual([
       { operationId: 'PropagateFoldAngles', payload: { points: [{ x: 3, y: 5 }] } },
     ]);
+  });
+
+  it('sends the selection as the scope, in the kernel’s one-based ids', async () => {
+    // An off-by-one here is silent: it scopes in the neighbouring crease and
+    // scopes out one the user picked, and both are ordinary creases.
+    const harness = mount(async () => previewOf([[4, 180]]), [4, 5, 9]);
+
+    await act(async () => {
+      await harness.controller().begin(null);
+    });
+
+    expect(harness.previewCalls[0].line_ids).toEqual([4, 5, 9]);
+  });
+
+  it('runs from the selection alone, with no seed to click', async () => {
+    // The selection path has no canvas click at all — the scope is stated by
+    // what is selected, and the kernel declines when given neither.
+    const harness = mount(async () => previewOf([[4, 180]]), [4]);
+
+    await act(async () => {
+      await harness.controller().begin(null);
+    });
+
+    expect(harness.previewCalls[0].points).toBeUndefined();
+    expect(harness.controller().draft?.seed).toBeNull();
+  });
+
+  it('commits the scope it previewed, not the one live at Apply', async () => {
+    // The whole reason the draft snapshots its scope. The effect below cancels a
+    // draft whose selection changed, but only once React has re-rendered — so
+    // the case this pins is the gap before that: the selection has moved on and
+    // the Apply is already in flight. Modelled by mutating the live list without
+    // a render, which is the one thing that reaches `apply` past the guard.
+    const live = [4, 5];
+    const harness = mount(async () => previewOf([[4, 180]]), live);
+    await act(async () => {
+      await harness.controller().begin(null);
+    });
+
+    live.push(6);
+    await act(async () => {
+      await harness.controller().apply();
+    });
+
+    expect(harness.executeCalls[0].payload.line_ids).toEqual([4, 5]);
+    // The commit and the preview describe the same request, which is what makes
+    // the confirmed draft and the landed change the same thing.
+    expect(harness.executeCalls[0].payload).toEqual(harness.previewCalls[0]);
+  });
+
+  it('drops the draft when the selection changes underneath it', async () => {
+    // The sibling of the document check: a draft is an answer about a scope, and
+    // the selection is half of what states one.
+    const harness = mount(async () => previewOf([[4, 180]]), [4, 5]);
+    await act(async () => {
+      await harness.controller().begin(null);
+    });
+    expect(harness.controller().replacedLineIds).toEqual([4]);
+
+    harness.render('doc-1', [4, 5, 6]);
+
+    expect(harness.controller().draft).toBeNull();
+    expect(harness.controller().replacedLineIds).toEqual([]);
+  });
+
+  it('keeps the draft when the selection is re-created with the same ids', async () => {
+    // The store hands out a fresh array on every change, so identity is not the
+    // question — otherwise an unrelated re-render would cancel the draft.
+    const harness = mount(async () => previewOf([[4, 180]]), [4, 5]);
+    await act(async () => {
+      await harness.controller().begin(null);
+    });
+
+    harness.render('doc-1', [4, 5]);
+
+    expect(harness.controller().draft).not.toBeNull();
+  });
+
+  it('titles the window with the scope the kernel used', async () => {
+    // The user got the *scope* wrong, so a title carrying only a count cannot
+    // say whether that count is this pattern, the selection, or the sheet.
+    const titleFor = async (kind: string) => {
+      const harness = mount(async () =>
+        previewOf([[4, 180]], { propagation_scope: scopeOf(kind) })
+      );
+      await act(async () => {
+        await harness.controller().begin({ x: 1, y: 1 });
+      });
+      return harness.controller().option?.title ?? '';
+    };
+
+    expect(await titleFor('selection')).toContain('Selection');
+    expect(await titleFor('component')).toContain('This pattern');
+    expect(await titleFor('document')).toContain('Whole document');
+    // A kind this frontend does not know still gets a true sentence rather than
+    // a raw identifier.
+    expect(await titleFor('something-newer')).toContain('Fold angles');
+  });
+
+  it('says which vertices need creases outside the selection, ahead of the count', async () => {
+    // The only note with an action attached — widen the selection, or clear it
+    // and click the pattern — so it outranks "still undecided".
+    const harness = mount(async () =>
+      previewOf([[4, 180]], {
+        propagation_free: 3,
+        propagation_scope: scopeOf('selection', { free: 3, out_of_scope: 2 }),
+      })
+    );
+
+    await act(async () => {
+      await harness.controller().begin(null);
+    });
+
+    const note = harness.controller().option?.note ?? '';
+    expect(note).toContain('2');
+    expect(note).not.toContain('Still undecided');
+  });
+
+  it('still frames the change when there was no seed to frame', async () => {
+    // A selection-scoped draft has no click. A null standing in for one would
+    // drag the frame to the origin, around a corner nothing happened in.
+    const harness = mount(async () => previewOf([[4, 180], [9, 180]]), [4, 9]);
+
+    await act(async () => {
+      await harness.controller().begin(null);
+    });
+
+    expect(harness.controller().option?.bounds).toEqual({ minX: 4, minY: 0, maxX: 9, maxY: 10 });
   });
 });

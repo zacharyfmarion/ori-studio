@@ -409,10 +409,10 @@
     },
     "cp_action_propagate_fold_angles": {
       "label": "Propagate fold angles",
-      "tooltip": "Work out the fold angles of unassigned creases, spreading out from a point",
+      "tooltip": "Work out the fold angles of unassigned creases, within one pattern or within the selection",
       "disabledReason": "Ready",
       "steps": {
-        "0": "Pick where to propagate from"
+        "0": "Click a crease or vertex to propagate from, or select creases and Apply"
       }
     },
     "cp_action_vertex_solve_fold_angles": {

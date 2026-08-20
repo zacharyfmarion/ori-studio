@@ -180,6 +180,13 @@ describe('cpCommandRequiresContextApply', () => {
   it('does not require Apply for the Text tool (authored inline on the canvas)', () => {
     expect(cpCommandRequiresContextApply(cpCommandByOperation('Text')!)).toBe(false);
   });
+
+  it('requires an Apply for propagation, whose scope can be the selection', () => {
+    // It has a canvas step *and* needs the button: with creases already
+    // selected there is nothing left to click, and without this the button
+    // never mounts, so the selection route would exist with no way in.
+    expect(cpCommandRequiresContextApply(cpCommandByOperation('PropagateFoldAngles')!)).toBe(true);
+  });
 });
 
 describe('isWholeDocumentCpCommand', () => {

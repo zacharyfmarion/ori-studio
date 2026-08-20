@@ -409,10 +409,10 @@
     },
     "cp_action_propagate_fold_angles": {
       "label": "접힘 각도 전파",
-      "tooltip": "한 점에서 퍼져 나가며 미지정 접힘선의 각도를 구합니다",
+      "tooltip": "전개도 하나 안에서 또는 선택 항목 안에서 미지정 접힘선의 각도를 구합니다",
       "disabledReason": "준비됨",
       "steps": {
-        "0": "전파를 시작할 지점 선택"
+        "0": "전파를 시작할 접힘선이나 꼭짓점을 클릭하거나, 접힘선을 선택하고 적용"
       }
     },
     "cp_action_vertex_solve_fold_angles": {

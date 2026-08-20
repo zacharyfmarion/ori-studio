@@ -1483,11 +1483,16 @@ export function CreasePatternPanel() {
     documentVersion: editableCp?.crease_pattern.line_segments,
   });
 
+  // Propagation is the one tool whose scope is the selection *or* a click, so it
+  // takes the selection separately rather than through the shared payload
+  // closure above — which the three-angle solve uses too, and which must not
+  // acquire one.
   const propagation = usePropagationDraft({
     preview: previewOristudioCpCommand,
     execute: executeOristudioCpCommand,
     buildPayload: buildActiveCpCommandPayload,
     documentVersion: editableCp?.crease_pattern.line_segments,
+    scopeLineIds: oristudioCpSelection.lines,
   });
 
   // Arming one fold-angle tool disarms the other, which is the invariant the
@@ -1674,6 +1679,14 @@ export function CreasePatternPanel() {
   }, [clearOristudioCpActionRequest, handleCpToolAction, oristudioCpActionRequest]);
 
   const handleApplyActiveContextCommand = useCallback(() => {
+    // Propagation's Apply *opens* a draft rather than committing one: with
+    // creases selected the scope is the selection and there is nothing left to
+    // click, so this is the seed click's counterpart. The change itself still
+    // waits for the draft window's own Apply.
+    if (activeCpCommand?.operationId === 'PropagateFoldAngles') {
+      if (editableCp) void propagation.begin(null);
+      return;
+    }
     if (
       !editableCp ||
       !activeCpCommand ||
@@ -1729,6 +1742,7 @@ export function CreasePatternPanel() {
     executeOristudioCpCommand,
     oristudioCpSelection.circles,
     oristudioCpSelection.lines,
+    propagation,
     t,
   ]);
 

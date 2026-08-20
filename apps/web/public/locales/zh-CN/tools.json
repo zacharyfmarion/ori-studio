@@ -7,6 +7,7 @@
     "applyColor": "应用颜色",
     "applyGeneratedLines": "应用此工具生成的线。",
     "applyLines": "应用线",
+    "applyPropagate": "在所选内容中传播",
     "applyToSelection": "应用到所选内容",
     "applyVoronoi": "应用 Voronoi",
     "ariaLabel": "折痕图工具选项",
@@ -91,10 +92,18 @@
     "precision": "精度",
     "propagation": {
       "conflicts": "不再闭合的顶点: {{vertices}} — 所依据的条件存在矛盾。",
+      "noComponentAtPoint": "这里没有可传播的内容。请点击目标折纸图的折痕或顶点。",
+      "noScope": "点击一条折痕或顶点作为传播起点，或选择要求解的折痕。",
       "nothingDecidable": "根据已设定的角度无法推算出任何结果。请再为一条折痕指定角度后重试。",
       "nothingFree": "每条折痕都已有折叠角度。请先将部分折痕设为未指定，再进行传播。",
-      "partial": "未确定: {{creases}}",
-      "title": "折叠角度 — 已求解 {{creases}}"
+      "nothingInScope": "所选内容已不再指向任何折痕。请重新选择，或清除选择后点击某个折纸图。",
+      "outOfScope": "需要未选中折痕的顶点: {{vertices}} — 请一并选中，或清除选择后点击该折纸图。",
+      "partial": "此处未确定: {{creases}}",
+      "selectionNothingFree": "所选的每条折痕都已有折叠角度。请选择一些未指定的折痕，或清除选择后点击某个折纸图。",
+      "title": "折叠角度 — 已求解 {{creases}}",
+      "titleComponent": "本折纸图 — 已求解 {{creases}} 个折叠角度",
+      "titleDocument": "整个文档 — 已求解 {{creases}} 个折叠角度",
+      "titleSelection": "所选内容 — 已求解 {{creases}} 个折叠角度"
     },
     "ratioFieldAria": "比率 {{letter}}",
     "ratioPresets": "比率预设",

@@ -7,6 +7,7 @@
     "applyColor": "Apply color",
     "applyGeneratedLines": "Apply the generated lines from this tool.",
     "applyLines": "Apply lines",
+    "applyPropagate": "Propagate in selection",
     "applyToSelection": "Apply to selection",
     "applyVoronoi": "Apply Voronoi",
     "ariaLabel": "Crease pattern tool options",
@@ -95,10 +96,18 @@
     "precision": "Precision",
     "propagation": {
       "conflicts": "Vertices that no longer close: {{vertices}} — something this rests on disagrees.",
+      "noComponentAtPoint": "Nothing to propagate here. Click on a crease or a vertex of the pattern you want.",
+      "noScope": "Click a crease or vertex to propagate from, or select the creases to solve.",
       "nothingDecidable": "Nothing could be worked out from the angles already set. Give one more crease an angle and try again.",
       "nothingFree": "Every crease already has a fold angle. Make some unassigned first, then propagate.",
-      "partial": "Still undecided: {{creases}}",
-      "title": "Fold angles — {{creases}} solved"
+      "nothingInScope": "The selection no longer names any creases. Select some again, or clear the selection and click a pattern.",
+      "outOfScope": "Vertices needing creases you did not select: {{vertices}} — select those too, or clear the selection and click the pattern.",
+      "partial": "Still undecided here: {{creases}}",
+      "selectionNothingFree": "Every crease in the selection already has a fold angle. Select some unassigned creases, or clear the selection and click a pattern.",
+      "title": "Fold angles — {{creases}} solved",
+      "titleComponent": "This pattern — {{creases}} fold angles solved",
+      "titleDocument": "Whole document — {{creases}} fold angles solved",
+      "titleSelection": "Selection — {{creases}} fold angles solved"
     },
     "ratioFieldAria": "Ratio {{letter}}",
     "ratioPresets": "Ratio presets",

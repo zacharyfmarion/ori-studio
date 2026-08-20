@@ -30,6 +30,22 @@
  * live in **one** piece of state: they have to appear and disappear in the same
  * render, or creases would blink out for a frame.
  *
+ * # A draft is also a claim about *what it was allowed to change*
+ *
+ * Propagation used to run over every crease pattern on the canvas at once. The
+ * kernel now takes a scope, and the two ways to state one are the two ways a
+ * user says "this pattern": a selection (`line_ids`, one-based), or a click
+ * (`points[0]`, resolved to the connected component it lands in). The kernel
+ * gives a selection precedence and **declines** when it is given neither —
+ * "no scope means the whole canvas" is the bug, not the fallback.
+ *
+ * So the hook sends the scope, and — the part that is easy to get wrong — the
+ * held draft *snapshots* it. `apply` re-executes from the snapshot, not from the
+ * live selection, or a selection change between the preview and Apply would
+ * commit a different set of creases than the one on screen. The same reasoning
+ * makes a selection change while a draft is held cancel it, exactly as a
+ * document change does.
+ *
  * # Pins
  *
  * The kernel takes `pinned_angles` — angles the user fixed by hand, treated as
@@ -53,6 +69,13 @@ import { cpToolUnavailableMessage } from '../tools/toolUnavailable';
 import { toolPreviewSegments } from '../tools/toolPreviewSegments';
 import type { ToolPreviewSegment } from '../tools/types';
 import { boundsOfPoints, type CpToolOptionWindow } from '../toolOptions/toolOptionWindow';
+import {
+  propagationScopeSummary,
+  propagationWindowNote,
+  propagationWindowTitle,
+  sameLineIds,
+  type PropagationScopeSummary,
+} from './propagationScope';
 
 const OPERATION: OristudioCpOperationId = 'PropagateFoldAngles';
 
@@ -69,6 +92,21 @@ export interface UsePropagationDraftOptions {
   buildPayload: (payload: OristudioCpCommandPayload) => OristudioCpCommandPayload;
   /** Anything whose identity changes when the document's creases do. */
   documentVersion: unknown;
+  /**
+   * The creases currently selected, as **one-based** ids — the scope, when there
+   * is one. Read at `begin` and snapshotted onto the draft, never read again on
+   * the way to the commit.
+   *
+   * The panel does not fold this into `buildPayload`: that closure is shared
+   * with the three-angle solve, which must not acquire a selection.
+   */
+  scopeLineIds: readonly number[];
+}
+
+/** The scope a draft ran in, as sent — a seed, a selection, or both. */
+interface PropagationScopeRequest {
+  readonly seed: Point | null;
+  readonly lineIds: readonly number[];
 }
 
 /** One crease the draft would set. */
@@ -92,8 +130,19 @@ export interface PropagationStall {
 
 /** What the kernel worked out, held uncommitted. */
 export interface PropagationDraft {
-  /** Where the user asked propagation to start. */
-  readonly seed: Point;
+  /**
+   * Where the user asked propagation to start, or null when the scope was a
+   * selection and there was nothing to click.
+   */
+  readonly seed: Point | null;
+  /**
+   * The selection this draft was computed against, snapshotted. What `apply`
+   * sends — reading the live selection there would let a change between the
+   * preview and Apply commit a different set than the one shown.
+   */
+  readonly scopeLineIds: readonly number[];
+  /** What the kernel resolved the scope to, so the window can name it. */
+  readonly scope: PropagationScopeSummary | null;
   /** The creases it would set, named so the document can stop drawing them. */
   readonly creases: readonly PropagationDraftCrease[];
   /**
@@ -129,12 +178,15 @@ export interface PropagationDraftController {
    * Take the tool's seed click — **the whole point of the hook**, which is that
    * nothing is executed until the draft has been looked at.
    *
+   * `null` is the selection path: there is no click, the scope is whatever is
+   * selected, and the kernel declines if that is nothing.
+   *
    * The hook always takes the commit: there is no fallback that could apply a
    * propagation without showing it first. So the boolean reports whether a draft
    * is now held, not whether the caller should act. `false` means the kernel
    * refused the preview, which the hook has already reported.
    */
-  begin: (seed: Point) => Promise<boolean>;
+  begin: (seed: Point | null) => Promise<boolean>;
   apply: () => Promise<void>;
   cancel: () => void;
 }
@@ -171,8 +223,17 @@ export function usePropagationDraft(
    */
   const request = useRef(0);
 
+  /**
+   * The request for one scope. Both keys are sent when both exist: the kernel
+   * states the precedence (a selection wins), and dropping the seed here would
+   * put a second copy of that rule on this side to drift from it.
+   */
   const payloadFor = useCallback(
-    (seed: Point): OristudioCpCommandPayload => latest.current.buildPayload({ points: [seed] }),
+    (scope: PropagationScopeRequest): OristudioCpCommandPayload =>
+      latest.current.buildPayload({
+        ...(scope.lineIds.length > 0 ? { line_ids: [...scope.lineIds] } : {}),
+        ...(scope.seed ? { points: [scope.seed] } : {}),
+      }),
     []
   );
 
@@ -183,9 +244,15 @@ export function usePropagationDraft(
   }, []);
 
   const begin = useCallback(
-    async (seed: Point) => {
+    async (seed: Point | null) => {
       const id = ++request.current;
-      const response = await latest.current.preview(OPERATION, payloadFor(seed));
+      // Snapshotted here, once. Everything downstream — the commit, the
+      // staleness check — reads this copy rather than the live selection.
+      const scope: PropagationScopeRequest = {
+        seed,
+        lineIds: [...latest.current.scopeLineIds],
+      };
+      const response = await latest.current.preview(OPERATION, payloadFor(scope));
       // Superseded. The click was still ours, so the caller must not execute it.
       if (id !== request.current) return true;
       if (!response) {
@@ -213,6 +280,8 @@ export function usePropagationDraft(
       documentAtDraft.current = latest.current.documentVersion;
       setDraft({
         seed,
+        scopeLineIds: scope.lineIds,
+        scope: propagationScopeSummary(response),
         creases,
         segments: response.segments ?? [],
         free: response.propagation_free ?? 0,
@@ -240,8 +309,13 @@ export function usePropagationDraft(
     // reaching the staleness effect below.
     cancel();
     // Recomputed kernel-side from the same payload rather than sent back, so
-    // the draft that was shown and the commit that lands cannot disagree.
-    await latest.current.execute(OPERATION, payloadFor(held.seed));
+    // the draft that was shown and the commit that lands cannot disagree — and
+    // from the draft's *own* scope, so a selection changed since the preview
+    // cannot widen or move what lands.
+    await latest.current.execute(
+      OPERATION,
+      payloadFor({ seed: held.seed, lineIds: held.scopeLineIds })
+    );
   }, [cancel, draft, payloadFor]);
 
   // A draft is an answer about a document. When the creases change underneath
@@ -253,6 +327,19 @@ export function usePropagationDraft(
     if (!draft || documentVersion === documentAtDraft.current) return;
     cancel();
   }, [cancel, draft, documentVersion]);
+
+  // The same argument one step out: a draft is an answer about a *scope*, and
+  // the selection is half of what states one. Changing it while a draft is held
+  // leaves a window offering creases that are no longer what "the selection"
+  // means, and the user has already moved on. Compared by content and only
+  // while a draft is held, so an unchanged selection costs nothing and a
+  // 15k-crease one is not walked on every render.
+  const { scopeLineIds } = options;
+  const scopeChanged = draft ? !sameLineIds(draft.scopeLineIds, scopeLineIds) : false;
+  useEffect(() => {
+    if (!draft || !scopeChanged) return;
+    cancel();
+  }, [cancel, draft, scopeChanged]);
 
   const segments = useMemo(() => toolPreviewSegments(draft?.segments, OPERATION), [draft]);
 
@@ -272,39 +359,27 @@ export function usePropagationDraft(
     // Accepted: Enter and Escape reach the window wherever it sits, and a frame
     // that fits the screen by not framing the change is the bug being fixed.
     const bounds = boundsOfPoints([
-      draft.seed,
+      // The seed only when there was one. A selection-scoped draft has no click
+      // to frame, and a null standing in for one would drag the frame to the
+      // origin — a window around the sheet plus a corner nothing happened in.
+      ...(draft.seed ? [draft.seed] : []),
       ...draft.segments.flatMap((segment) => [segment.a, segment.b]),
     ]);
     if (!bounds) return null;
-    const conflicts = draft.conflicts.length;
-    // Deliberately not `{{count}}`: that name is i18next's plural trigger, and
-    // it would demand a full set of plural forms per locale for a readout that
-    // is a bare number. Phrasing the label so the number trails it reads
-    // correctly at every value in every language, for one key instead of five.
-    const note =
-      conflicts > 0
-        ? t(
-            'tools:cpContext.propagation.conflicts',
-            'Vertices that no longer close: {{vertices}} — something this rests on disagrees.',
-            { vertices: conflicts }
-          )
-        : draft.free > 0
-          ? t('tools:cpContext.propagation.partial', 'Still undecided: {{creases}}', {
-              creases: draft.free,
-            })
-          : null;
     return {
       bounds,
-      title: t('tools:cpContext.propagation.title', 'Fold angles — {{creases}} solved', {
-        creases: draft.creases.length,
-      }),
+      title: propagationWindowTitle(t, draft.creases.length, draft.scope),
       index: 0,
       // Nothing to step through: a draft is one answer, not a menu. `0` rather
       // than `1` because "1 of 1" would claim a set with a second member to
       // reach; the layer renders the title instead of a stepper for both, so
       // this is about the descriptor staying honest.
       count: 0,
-      note,
+      note: propagationWindowNote(t, {
+        conflicts: draft.conflicts.length,
+        free: draft.free,
+        scope: draft.scope,
+      }),
       // Unreachable, and provably so: the layer only offers a stepper above a
       // count of one.
       onStep: () => {},

@@ -409,10 +409,10 @@
     },
     "cp_action_propagate_fold_angles": {
       "label": "Propagar ángulos de plegado",
-      "tooltip": "Deducir los ángulos de los pliegues sin asignar, extendiéndose desde un punto",
+      "tooltip": "Deducir los ángulos de los pliegues sin asignar, dentro de un patrón o dentro de la selección",
       "disabledReason": "Listo",
       "steps": {
-        "0": "Elige desde dónde propagar"
+        "0": "Haz clic en un pliegue o vértice desde donde propagar, o selecciona pliegues y aplica"
       }
     },
     "cp_action_vertex_solve_fold_angles": {

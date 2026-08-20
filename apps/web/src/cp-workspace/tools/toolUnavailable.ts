@@ -37,6 +37,14 @@ export const CP_TOOL_UNAVAILABLE_CODES = [
   'CreasesDoNotMeet',
   'PropagationNothingFree',
   'PropagationNothingDecidable',
+  // The four scope codes. Each names a different next move, which is the bar for
+  // a code of its own: pick a scope, pick a different point, select different
+  // creases, or select creases that still exist. Collapsing them into one
+  // "nothing to propagate" would answer none of those.
+  'PropagationNoScope',
+  'PropagationNoComponentAtPoint',
+  'PropagationSelectionNothingFree',
+  'PropagationNothingInScope',
 ] as const;
 
 export type CpToolUnavailableCode = (typeof CP_TOOL_UNAVAILABLE_CODES)[number];
@@ -81,6 +89,31 @@ export function cpToolUnavailableMessage(
       return t(
         'tools:cpContext.propagation.nothingDecidable',
         'Nothing could be worked out from the angles already set. Give one more crease an angle and try again.'
+      );
+    // The kernel declines rather than falling back to the whole document, so
+    // this is the sentence that stands where "propagate everything" used to be.
+    case 'PropagationNoScope':
+      return t(
+        'tools:cpContext.propagation.noScope',
+        'Click a crease or vertex to propagate from, or select the creases to solve.'
+      );
+    case 'PropagationNoComponentAtPoint':
+      return t(
+        'tools:cpContext.propagation.noComponentAtPoint',
+        'Nothing to propagate here. Click on a crease or a vertex of the pattern you want.'
+      );
+    // Not `PropagationNothingFree`: "every crease already has a fold angle" is a
+    // lie when the rest of the canvas is full of unassigned creases and the user
+    // simply selected the wrong ones. Different next move, different sentence.
+    case 'PropagationSelectionNothingFree':
+      return t(
+        'tools:cpContext.propagation.selectionNothingFree',
+        'Every crease in the selection already has a fold angle. Select some unassigned creases, or clear the selection and click a pattern.'
+      );
+    case 'PropagationNothingInScope':
+      return t(
+        'tools:cpContext.propagation.nothingInScope',
+        'The selection no longer names any creases. Select some again, or clear the selection and click a pattern.'
       );
     case 'BoundaryVertex':
       return t(

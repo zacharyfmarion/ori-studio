@@ -7,6 +7,7 @@
     "applyColor": "色を適用",
     "applyGeneratedLines": "このツールで生成された線を適用します。",
     "applyLines": "線を適用",
+    "applyPropagate": "選択範囲で伝播",
     "applyToSelection": "選択範囲に適用",
     "applyVoronoi": "Voronoi を適用",
     "ariaLabel": "展開図ツールのオプション",
@@ -91,10 +92,18 @@
     "precision": "精度",
     "propagation": {
       "conflicts": "閉じなくなった頂点: {{vertices}} — 前提のどれかが矛盾しています。",
+      "noComponentAtPoint": "ここには伝播するものがありません。目的の展開図の折り線か頂点をクリックしてください。",
+      "noScope": "伝播の起点となる折り線か頂点をクリックするか、解きたい折り線を選択してください。",
       "nothingDecidable": "設定済みの角度からは何も決まりませんでした。もう1本の折り線に角度を与えて再試行してください。",
       "nothingFree": "すべての折り線に折り角度があります。まず未割り当てにしてから伝播してください。",
-      "partial": "未決定: {{creases}}",
-      "title": "折り角度 — {{creases}} 本を解決"
+      "nothingInScope": "選択範囲はもう折り線を指していません。選び直すか、選択を解除して展開図をクリックしてください。",
+      "outOfScope": "選択されていない折り線を必要とする頂点: {{vertices}} — それらも選択するか、選択を解除して展開図をクリックしてください。",
+      "partial": "ここで未決定: {{creases}}",
+      "selectionNothingFree": "選択範囲のすべての折り線にすでに折り角度があります。未割り当ての折り線を選択するか、選択を解除して展開図をクリックしてください。",
+      "title": "折り角度 — {{creases}} 本を解決",
+      "titleComponent": "この展開図 — 折り角度 {{creases}} 本を解決",
+      "titleDocument": "ドキュメント全体 — 折り角度 {{creases}} 本を解決",
+      "titleSelection": "選択範囲 — 折り角度 {{creases}} 本を解決"
     },
     "ratioFieldAria": "比率 {{letter}}",
     "ratioPresets": "比率のプリセット",

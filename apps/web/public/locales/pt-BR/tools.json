@@ -7,6 +7,7 @@
     "applyColor": "Aplicar cor",
     "applyGeneratedLines": "Aplicar as linhas geradas por esta ferramenta.",
     "applyLines": "Aplicar linhas",
+    "applyPropagate": "Propagar na seleção",
     "applyToSelection": "Aplicar à seleção",
     "applyVoronoi": "Aplicar Voronoi",
     "ariaLabel": "Opções da ferramenta de padrão de vincos",
@@ -99,10 +100,18 @@
     "precision": "Precisão",
     "propagation": {
       "conflicts": "Vértices que não fecham mais: {{vertices}} — algo em que isto se apoia discorda.",
+      "noComponentAtPoint": "Nada a propagar aqui. Clique em um vinco ou vértice do padrão que você quer.",
+      "noScope": "Clique em um vinco ou vértice de onde propagar, ou selecione os vincos a resolver.",
       "nothingDecidable": "Nada pôde ser deduzido dos ângulos já definidos. Dê um ângulo a mais um vinco e tente novamente.",
       "nothingFree": "Todos os vincos já têm ângulo de dobra. Torne alguns não atribuídos e propague.",
-      "partial": "Indefinidos: {{creases}}",
-      "title": "Ângulos de dobra — {{creases}} resolvidos"
+      "nothingInScope": "A seleção não nomeia mais nenhum vinco. Selecione novamente, ou limpe a seleção e clique em um padrão.",
+      "outOfScope": "Vértices que precisam de vincos não selecionados: {{vertices}} — selecione-os também, ou limpe a seleção e clique no padrão.",
+      "partial": "Indefinidos aqui: {{creases}}",
+      "selectionNothingFree": "Todos os vincos da seleção já têm ângulo de dobra. Selecione alguns não atribuídos, ou limpe a seleção e clique em um padrão.",
+      "title": "Ângulos de dobra — {{creases}} resolvidos",
+      "titleComponent": "Este padrão — {{creases}} ângulos de dobra resolvidos",
+      "titleDocument": "Documento inteiro — {{creases}} ângulos de dobra resolvidos",
+      "titleSelection": "Seleção — {{creases}} ângulos de dobra resolvidos"
     },
     "ratioFieldAria": "Proporção {{letter}}",
     "ratioPresets": "Predefinições de proporção",

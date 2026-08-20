@@ -422,8 +422,12 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     'angle-solve',
     'OriStudioPropagateFoldAngles',
     {
-      toolSteps: ['Pick where to propagate from'],
-      tooltip: 'Work out the fold angles of unassigned creases, spreading out from a point',
+      // Two routes, because the tool takes two kinds of scope: a click resolves
+      // to the pattern it lands in, a selection is the scope itself. One step
+      // naming both beats a step that is wrong half the time.
+      toolSteps: ['Click a crease or vertex to propagate from, or select creases and Apply'],
+      tooltip:
+        'Work out the fold angles of unassigned creases, within one pattern or within the selection',
     }
   ),
   ready('VertexSolveFoldAngles', 'Solve fold angles', 'construct', 'angle-solve', 'OriStudioSolveVertexFoldAngles', {

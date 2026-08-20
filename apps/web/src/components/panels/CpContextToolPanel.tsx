@@ -111,7 +111,7 @@ export function cpLineTypeStatusLabel(
   return entry ? cpPaletteStatusLabel(t, entry) : `Line ${cpLineAssignmentLabel(lineColor)}`;
 }
 
-function contextApplyDisabledForCommand(
+export function contextApplyDisabledForCommand(
   command: OristudioCpCommandDefinition,
   selection: OristudioCpSelection,
   pendingPointCount: number
@@ -119,6 +119,11 @@ function contextApplyDisabledForCommand(
   switch (command.operationId) {
     case 'VoronoiCreate':
       return pendingPointCount === 0;
+    // Propagation's button is the selection path only. Without a selection the
+    // tool still works — by clicking the pattern — so an enabled button here
+    // would offer a second route to a scope the kernel would decline.
+    case 'PropagateFoldAngles':
+      return selection.lines.length === 0;
     case 'CircleChangeColor':
       return selection.circles.length === 0 && selection.lines.length === 0;
     case 'CircleDrawTangentLine':
@@ -282,9 +287,13 @@ export function CpContextToolPanel({
             ? t('tools:cpContext.applyVoronoi', 'Apply Voronoi')
             : command.operationId === 'CircleChangeColor'
               ? t('tools:cpContext.applyColor', 'Apply color')
-              : isSelectionCircleApplyOperation(command.operationId)
-                ? t('tools:cpContext.applyCircle', 'Apply circle')
-                : t('tools:cpContext.applyToSelection', 'Apply to selection')}
+              : // Not "Apply to selection": this one opens a draft to look at,
+                // and the change lands from the draft's own Apply.
+                command.operationId === 'PropagateFoldAngles'
+                ? t('tools:cpContext.applyPropagate', 'Propagate in selection')
+                : isSelectionCircleApplyOperation(command.operationId)
+                  ? t('tools:cpContext.applyCircle', 'Apply circle')
+                  : t('tools:cpContext.applyToSelection', 'Apply to selection')}
         </button>
       )}
       {onClearInput && (

@@ -139,7 +139,15 @@ const OVERSIZED_PANELS = {
   // body did not grow — `hasCreasePattern` gained a disjunct on the same line,
   // and gained it because a crease pattern is no longer inferred from a phantom
   // tree. The cap moves for the import alone.
-  'CreasePatternPanel.tsx': 2752,
+  //
+  // 2752 -> 2753: one line, net. Propagation now takes a scope — the selection,
+  // or the pattern a click lands in — and the two things that cannot live
+  // anywhere else are the prop carrying the selection into
+  // `usePropagationDraft` and an arm routing the context Apply to
+  // `propagation.begin(null)`, beside the Voronoi arm already there. Everything
+  // that decides what a scope *means* is kernel-side; everything that decides
+  // what the window says about it is `foldPropagation/propagationScope`.
+  'CreasePatternPanel.tsx': 2753,
   // 2085 -> 2095: the "no crease pattern" marking. The warning used to name an
   // internal class and point at nothing, so this adds the canvas layer that
   // shows which flaps it means, its Layers toggle, and the alert copy that
@@ -271,7 +279,15 @@ const OVERSIZED_PANELS = {
   // `CpContextToolGroup` is a ~560-line change that would dwarf the feature
   // carrying it, and the note above already says it should not ride on whichever
   // feature next trips the cap. It is filed separately.
-  'CpContextToolPanel.tsx': 1171,
+  //
+  // 1171 -> 1176: propagation's scope. Five lines — one arm in
+  // `contextApplyDisabledForCommand`, one in the Apply button's label chain,
+  // and the export that lets the first be tested. The tool now takes its scope
+  // from the selection as well as from a click, so it needs the Apply button
+  // this file already renders; deciding whether that button is live for a given
+  // command is what this file's predicate is for, and both arms sit beside the
+  // ones already there.
+  'CpContextToolPanel.tsx': 1176,
 };
 
 const PANEL_MAX_LINES = 800;

@@ -7,6 +7,7 @@
     "applyColor": "Appliquer la couleur",
     "applyGeneratedLines": "Appliquer les lignes générées par cet outil.",
     "applyLines": "Appliquer les lignes",
+    "applyPropagate": "Propager dans la sélection",
     "applyToSelection": "Appliquer à la sélection",
     "applyVoronoi": "Appliquer Voronoi",
     "ariaLabel": "Options de l'outil de patron de plis",
@@ -99,10 +100,18 @@
     "precision": "Précision",
     "propagation": {
       "conflicts": "Sommets qui ne se ferment plus : {{vertices}} — quelque chose sur quoi ceci repose est incohérent.",
+      "noComponentAtPoint": "Rien à propager ici. Cliquez sur un pli ou un sommet du patron voulu.",
+      "noScope": "Cliquez sur un pli ou un sommet d’où propager, ou sélectionnez les plis à résoudre.",
       "nothingDecidable": "Rien n'a pu être déduit des angles déjà définis. Donnez un angle à un pli de plus et réessayez.",
       "nothingFree": "Tous les plis ont déjà un angle. Rendez-en quelques-uns non assignés, puis propagez.",
-      "partial": "Indécis : {{creases}}",
-      "title": "Angles de pli — {{creases}} résolus"
+      "nothingInScope": "La sélection ne désigne plus aucun pli. Sélectionnez-en à nouveau, ou effacez la sélection et cliquez sur un patron.",
+      "outOfScope": "Sommets ayant besoin de plis non sélectionnés : {{vertices}} — sélectionnez-les aussi, ou effacez la sélection et cliquez sur le patron.",
+      "partial": "Indécis ici : {{creases}}",
+      "selectionNothingFree": "Tous les plis de la sélection ont déjà un angle. Sélectionnez-en des non assignés, ou effacez la sélection et cliquez sur un patron.",
+      "title": "Angles de pli — {{creases}} résolus",
+      "titleComponent": "Ce patron — {{creases}} angles de pli résolus",
+      "titleDocument": "Tout le document — {{creases}} angles de pli résolus",
+      "titleSelection": "Sélection — {{creases}} angles de pli résolus"
     },
     "ratioFieldAria": "Rapport {{letter}}",
     "ratioPresets": "Préréglages de rapport",
