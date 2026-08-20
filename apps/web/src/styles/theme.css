@@ -3000,7 +3000,21 @@
 }
 
 .design-tab {
+  /* One gutter, both ends. The label's left padding and the close button's
+     right offset are the two sides of the same inset; written as independent
+     literals they drifted, and a tab read 12px in on the left and 4px on the
+     right. */
+  --design-tab-pad-x: var(--space-3);
   --design-tab-close-size: 18px;
+  /* Mirrors the `<X size={12} />` the close button renders. */
+  --design-tab-close-icon-size: 12px;
+  /* The gutter is measured to the *glyph*, not to the button around it: the
+     button is wider than its icon, so insetting its box by the full gutter
+     would sit the X further from the tab's edge than the label is from the
+     opposite one. */
+  --design-tab-close-inset: calc(
+    var(--design-tab-pad-x) - (var(--design-tab-close-size) - var(--design-tab-close-icon-size)) / 2
+  );
   /* Containing block for the close button, which floats above the trigger
      rather than sitting beside it — see `.design-tab__close`. */
   position: relative;
@@ -3042,7 +3056,7 @@
   flex: 1 1 auto;
   gap: var(--space-2);
   min-width: 0;
-  padding: 0 var(--space-1) 0 var(--space-3);
+  padding: 0 var(--design-tab-pad-x);
   border: 0;
   font: inherit;
   font-size: 12px;
@@ -3053,7 +3067,9 @@
 
 /* The close button overlaps the trigger, so the label stops short of it. */
 .design-tab:has(.design-tab__close) .design-tab__trigger {
-  padding-right: calc(var(--design-tab-close-size) + var(--space-2));
+  padding-right: calc(
+    var(--design-tab-close-inset) + var(--design-tab-close-size) + var(--space-2)
+  );
 }
 
 .design-tab__trigger:focus-visible {
@@ -3074,12 +3090,18 @@
 .design-tab__close {
   position: absolute;
   top: 50%;
-  right: var(--space-1);
+  right: var(--design-tab-close-inset);
   transform: translateY(-50%);
   display: grid;
   place-items: center;
   width: var(--design-tab-close-size);
   height: var(--design-tab-close-size);
+  /* Not redundant: a button carries `padding: 1px 6px` from the UA sheet, which
+     under `border-box` leaves this 18px box a 6px content box. The 12px icon
+     then overflows it, and Chrome resolves that overflow to one side only — so
+     `place-items: center` still rendered the X flush against the right edge.
+     Every shared icon button (`.ui-icon-control--*`) zeroes it for this reason. */
+  padding: 0;
   border: 0;
   border-radius: var(--radius-sm);
   color: var(--text-muted);

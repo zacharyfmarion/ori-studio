@@ -337,23 +337,22 @@ describe('drag reorder', () => {
  * element carrying `role="tab"` fills its wrapper, and nothing else in the tab
  * takes flow space away from it except the close button.**
  */
-describe('the tab hit area', () => {
-  const here = dirname(new URL(import.meta.url).pathname);
-  const themeCss = readFileSync(join(here, '../../styles/theme.css'), 'utf8').replace(
-    /\/\*[\s\S]*?\*\//g,
-    ''
-  );
+const themeCss = readFileSync(
+  join(dirname(new URL(import.meta.url).pathname), '../../styles/theme.css'),
+  'utf8'
+).replace(/\/\*[\s\S]*?\*\//g, '');
 
-  /** The declaration block of the rule whose selector is exactly `selector`. */
-  function declarations(selector: string): string {
-    const rule = /([^{}]+)\{([^{}]*)\}/g;
-    let match: RegExpExecArray | null;
-    while ((match = rule.exec(themeCss)) !== null) {
-      if (match[1].trim() === selector) return match[2];
-    }
-    throw new Error(`no rule for ${selector}`);
+/** The declaration block of the rule whose selector is exactly `selector`. */
+function declarations(selector: string): string {
+  const rule = /([^{}]+)\{([^{}]*)\}/g;
+  let match: RegExpExecArray | null;
+  while ((match = rule.exec(themeCss)) !== null) {
+    if (match[1].trim() === selector) return match[2];
   }
+  throw new Error(`no rule for ${selector}`);
+}
 
+describe('the tab hit area', () => {
   it('stretches the trigger over the whole tab', () => {
     const trigger = declarations('.design-tab__trigger');
 
@@ -370,6 +369,44 @@ describe('the tab hit area', () => {
     expect(declarations('.design-tab__close')).toMatch(/position:\s*absolute/);
     // Which only lands inside the tab if the tab is its containing block.
     expect(declarations('.design-tab')).toMatch(/position:\s*relative/);
+  });
+});
+
+/**
+ * The tab's two ends.
+ *
+ * Nothing here is visible to jsdom — it does no layout, so the only thing a test
+ * can hold is the shape of the rules the spacing comes out of. Both regressions
+ * these cover were invisible in code review and obvious on screen.
+ */
+describe('the horizontal gutter', () => {
+  it('insets both ends of the trigger from one value', () => {
+    // Written as two literals, the sides drifted: the label sat 12px from the
+    // tab's left edge and 4px from its right.
+    expect(declarations('.design-tab__trigger')).toMatch(
+      /padding:\s*0\s+var\(--design-tab-pad-x\)\s*;/
+    );
+    // And the close button is the right end of that same gutter, not its own
+    // spacing decision.
+    expect(declarations('.design-tab__close')).toMatch(/right:\s*var\(--design-tab-close-inset\)/);
+    expect(declarations('.design-tab')).toMatch(/--design-tab-close-inset:\s*calc\(/);
+  });
+
+  it('reserves room for the close button at its real inset', () => {
+    // The label is ellipsized against this padding, so it has to cover where the
+    // button actually sits. Reserving only the button's own width let a long
+    // title run under it once the inset grew.
+    expect(declarations('.design-tab:has(.design-tab__close) .design-tab__trigger')).toMatch(
+      /padding-right:\s*calc\(\s*var\(--design-tab-close-inset\)\s*\+\s*var\(--design-tab-close-size\)/
+    );
+  });
+
+  it('zeroes the close button so its glyph can centre', () => {
+    // Not redundant with `place-items: center`. A button carries `padding: 1px
+    // 6px` from the UA sheet, which under `border-box` leaves the 18px box a 6px
+    // content box; the 12px icon overflows it, and Chrome resolves that overflow
+    // to one side — the X rendered flush against the button's right edge.
+    expect(declarations('.design-tab__close')).toMatch(/padding:\s*0\s*;/);
   });
 });
 
