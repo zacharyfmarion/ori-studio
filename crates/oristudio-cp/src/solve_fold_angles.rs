@@ -301,7 +301,12 @@ fn reject(vector: [f64; 3], axis: [f64; 3]) -> [f64; 3] {
 /// order. Which of the three plays `b` changes the elimination, so all three
 /// rotations are tried by the caller — cheaply, and it costs nothing to be
 /// thorough about which degeneracies get dodged.
-fn branch_angles(fan: &VertexFan, a: usize, b: usize, c: usize) -> Vec<[(usize, f64); 3]> {
+pub(crate) fn branch_angles(
+    fan: &VertexFan,
+    a: usize,
+    b: usize,
+    c: usize,
+) -> Vec<[(usize, f64); 3]> {
     let degree = fan.creases.len();
     let q1 = product_of(fan, &between(degree, c, a));
     let q2 = product_of(fan, &between(degree, a, b));

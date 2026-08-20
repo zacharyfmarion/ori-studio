@@ -334,6 +334,17 @@ pub fn solve_k(
         };
     }
 
+    // k = 3 is exactly determined, and `solve_fold_angles` already solves it
+    // end to end — closed form, damped least squares, the coarsest-grid snap,
+    // and the acceptance gate, with four transcription corrections that were
+    // measured rather than read. Delegate the **whole pipeline**, not just its
+    // seeds: an earlier version re-ran the seeds through this module's own
+    // refinement and lost answers the shipped solver returns, because the two
+    // lattices and the two refinements are not the same. One copy of that math.
+    if unknowns.len() == 3 {
+        return delegate_three(fan, unknowns, closed_bar);
+    }
+
     let seeds = closed_form_seeds(fan, unknowns);
     let mut accepted: Vec<KSolution> = Vec::new();
     for seed in seeds {
@@ -407,6 +418,71 @@ pub fn solve_k(
         verdict,
         residual_degrees: 0.0,
         vertex_dof: vertex_dof(&fan.as_vertex_fan(&[], &[])),
+        no_solution: (verdict == Determinacy::Unsolvable).then_some(NoSolution::Unreachable),
+    }
+}
+
+/// The k = 3 case, answered by [`crate::solve_fold_angles`] and translated.
+///
+/// The placeholder angles handed over for the unknowns are never read as
+/// inputs: `branch_angles` builds its known runs from the creases *between* the
+/// unknowns and treats the unknowns purely as axes, which
+/// `solve_fold_angles`' own `the isolated branches are independent of the
+/// creases' current angles` pins. They do reach `is_current`, which is why that
+/// flag is not carried across — "this is the state you are already in" has no
+/// meaning for a crease that has no state.
+fn delegate_three(fan: &SolveFan, unknowns: &[usize], closed_bar: f64) -> KSolveReport {
+    let placeholder = fan.as_vertex_fan(&[], &[]);
+    let triple = [unknowns[0], unknowns[1], unknowns[2]];
+    let solutions =
+        match crate::solve_fold_angles::solve_fold_angles(&placeholder, triple, closed_bar) {
+            Ok(solutions) => solutions,
+            Err(reason) => {
+                return KSolveReport {
+                    solutions: Vec::new(),
+                    isolated_count: 0,
+                    verdict: Determinacy::Unsolvable,
+                    residual_degrees: 0.0,
+                    vertex_dof: vertex_dof(&placeholder),
+                    no_solution: Some(reason),
+                };
+            }
+        };
+
+    let converted: Vec<KSolution> = solutions
+        .iter()
+        .map(|solution| KSolution {
+            angles: solution
+                .creases
+                .iter()
+                .map(|(position, degrees)| (fan.sources[*position], *degrees))
+                .collect(),
+            isolated: solution.isolated,
+            residual_degrees: solution.residual_degrees,
+            // `AngleSolution` reports isolation as a bool rather than the rank
+            // it came from, and the two agree by construction at k = 3:
+            // isolated is exactly `rank == 3`.
+            jacobian_rank: if solution.isolated { 3 } else { 2 },
+        })
+        .collect();
+
+    let isolated_count = converted.iter().filter(|entry| entry.isolated).count();
+    let verdict = if converted.is_empty() {
+        Determinacy::Unsolvable
+    } else if isolated_count < converted.len() {
+        Determinacy::Underdetermined
+    } else if converted.len() == 1 {
+        Determinacy::Determined
+    } else {
+        Determinacy::Branching
+    };
+
+    KSolveReport {
+        solutions: converted,
+        isolated_count,
+        verdict,
+        residual_degrees: 0.0,
+        vertex_dof: vertex_dof(&placeholder),
         no_solution: (verdict == Determinacy::Unsolvable).then_some(NoSolution::Unreachable),
     }
 }
@@ -661,9 +737,7 @@ fn closed_form_seeds(fan: &SolveFan, unknowns: &[usize]) -> Vec<Vec<f64>> {
                 solve_two(&reduced)
             }
         }
-        // k = 3 is exactly determined and already solved, correctly and with
-        // four transcription corrections measured rather than read, by
-        // `solve_fold_angles`. Delegating keeps one copy of that math.
+        // k = 3 never reaches here: `solve_k` delegates it whole.
         _ => Vec::new(),
     };
 
@@ -1003,6 +1077,55 @@ mod tests {
             }
         }
         panic!("no full-fold k=2 vertex found in the fixture");
+    }
+
+    /// **k=3 must actually delegate.** The module doc claims it does, and for a
+    /// while it did not: the arm returned no seeds at all, so a k=3 solve got
+    /// only the coarse lattice and agreed with the shipped three-crease tool on
+    /// 15.56% of triples instead of all of them. A comment claiming delegation
+    /// is not delegation, so this compares the two solvers on the same input.
+    #[test]
+    fn three_unknowns_agree_with_the_shipped_three_crease_solver() {
+        use crate::solve_fold_angles::vertex_angle_solutions;
+        let model = kabuto();
+        let mut compared = 0;
+        for segment in model.line_segments.clone() {
+            for point in [segment.a, segment.b] {
+                let fan = solve_fan_at(&model, point);
+                if fan.degree() < 4 || fan.creases.iter().any(|(_, rho)| rho.is_none()) {
+                    continue;
+                }
+                let unknowns = [0usize, 1, 2];
+                let chosen: Vec<usize> = unknowns.iter().map(|slot| fan.sources[*slot]).collect();
+                let shipped = vertex_angle_solutions(
+                    &model,
+                    point,
+                    &chosen,
+                    CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
+                );
+                if shipped.no_solution.is_some() || shipped.solutions.is_empty() {
+                    continue;
+                }
+                let mine = solve_k(&model, &fan, &unknowns, bar());
+                compared += 1;
+                // Every answer the shipped solver found must be reachable here.
+                for wanted in &shipped.solutions {
+                    let found = mine.solutions.iter().any(|have| {
+                        wanted.creases.iter().all(|(line, degrees)| {
+                            have.angles
+                                .iter()
+                                .any(|(at, mine)| at == line && (mine - degrees).abs() < 0.05)
+                        })
+                    });
+                    assert!(
+                        found,
+                        "k=3 lost an answer the shipped solver returns at {point:?}: {:?}",
+                        wanted.creases
+                    );
+                }
+            }
+        }
+        assert!(compared >= 4, "expected real k=3 coverage, got {compared}");
     }
 
     /// The arity refusal, which is structural rather than a cutoff.
