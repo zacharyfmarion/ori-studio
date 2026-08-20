@@ -192,8 +192,15 @@ magnitude nobody supplied.
 | share link | native | new extension tag | — |
 | `.ori` / `.orh` | `NONE` — **already lossless today** | dropped | degrades to plain unassigned |
 | `.cp` | **lost** (collapses to aux) | lost | superset warning |
-| `.dxf` | lost | lost | superset warning |
-| `.obj` | **no exporter exists** | n/a | n/a |
+
+**`.cp` is the only reachable format that loses anything here.** `ExportDxf` is
+registered `notImplemented` (`oristudioCpCommands.ts:717`) and is absent from the
+export menu, whose entries are CP, FOLD, .bps, ORI, ORH, SVG, PNG; the kernel's
+`export_dxf_string` is called only from tests and the Oriedita oracle. `.obj` has
+no exporter at all — only `import_obj_str`. So `supersetFeatures.ts` currently
+names `dxf` and `obj` in `droppedByFormats` and `FOLD_ANGLE_LOSSY_FORMATS` for
+paths a user cannot reach. That is pre-existing, and this feature should not add
+to it: **do not add `dxf` or `obj` rows for the hint.**
 
 `.ori`/`.orh` must keep writing `NONE` — they round-trip `LineColor::None`
 perfectly today (`io/ori.rs:617,636`, pinned by `tests/io.rs:456,550`), and
@@ -203,6 +210,50 @@ format that currently loses nothing.
 `.fold` note: `tests/io.rs:993` asserts "every crease exports an angle". Writing
 `null` for an unassigned crease breaks that stated invariant — restate it
 deliberately rather than letting a test that happens not to cover it stay green.
+
+### Rendering — ink, not a dash slot, and the same in both surfaces
+
+**Decided by the owner.** A hinted crease draws in its **direction's colour**
+(red for mountain, blue for valley) at **reduced saturation**, keeping whatever
+dash that direction would carry. It reads as *"this is going to be a mountain, we
+just do not know how far."* Plain unassigned stays grey.
+
+Why not a dash: `MAX_DASH_SLOTS = 2` and **both slots are already spent** on
+mountain-dash and valley-dash in the `color-and-shape`, `black-one-dot` and
+`black-two-dot` styles. There is no free slot in three of the five line styles,
+and inventing a third would be a renderer change. Ink costs nothing, survives all
+five styles, and degrades sensibly in the monochrome ones to a lighter grey.
+
+There are **two** render surfaces, not three: the share card is built from the
+same `creaseExport` primitives as image export (`ShareLinkModal.tsx:117`,
+`svgToPngCard`). So share preview and SVG/PNG are one path.
+
+**The hint renders the same in both.** This is a deliberate reversal of the
+first draft, which proposed hiding it in export on the grounds that an image is a
+deliverable and a hint is a working note. The owner's call is consistency, and it
+is the better one: a hinted crease is *visible state in the document*, and a
+picture of the document that omits it is a picture of a different document.
+
+Cost of that decision, stated plainly:
+
+- The canvas needs the appearance key widened. The resolver is
+  `CpLineAppearanceFor = (color: string) => CpLineAppearance`, consumed at six
+  sites plus a byte-identical parity test, and a hinted crease has the *same*
+  colour string as a plain one. The fallback if that gets ugly is an overlay pass
+  (`CpRenderer` already has `setPreview` / `setDiagnostic*`), which leaves the key
+  alone at the cost of another draw.
+- The export path needs the hint at all. `creaseExport` renders from
+  `edges_assignment` alone (`assignments[index] ?? 'U'` → `edgeAppearance`) and
+  reads **no** extension arrays today, so the hint has to reach it through
+  whatever `creaseExportFold` builds.
+
+**A pre-existing inconsistency to fix while here.** The canvas and the export
+already disagree about a *plain* unassigned crease: it draws solid grey on the
+canvas (`cpLineStyleColorKind('None')` → `'other'` → `SOLID_DASH_SLOT`) while the
+theme's dashed `--fold-unassigned` rule is dead as CSS — its only consumer splits
+the class string for a variable name. Consistency across the two surfaces is the
+owner's stated goal, so settle plain-unassigned too rather than leaving the new
+state consistent and the old one not.
 
 ### Wrong hints must be loud
 
@@ -279,7 +330,8 @@ A wrong hint stalls rather than lies — 0 wrong commits in 92,395 subsets. The
 
 ### Phase 3 — formats and warnings
 
-- [ ] `SUPERSET_FEATURES` entry for `.cp`/`.dxf`; no `.obj` row (no exporter)
+- [ ] `SUPERSET_FEATURES` entry for **`.cp` only** — `.dxf` is `notImplemented`
+      and unreachable, `.obj` has no exporter
 - [ ] OCG3 across all five surfaces + the golden
 
 ### Phase 4 — UI
@@ -290,7 +342,9 @@ A wrong hint stalls rather than lies — 0 wrong commits in 92,395 subsets. The
 - [ ] `Make Unassigned (keep direction)` — **one operation with a payload flag**,
       not a second operation (no new descriptor, so PORTING.md's origin rules are
       satisfied for free)
-- [ ] Four-state visual language; widen the appearance key
+- [ ] Hint ink on the canvas: widen the appearance key (or an overlay pass)
+- [ ] Hint ink in `creaseExport`, so SVG/PNG and the share card match the canvas
+- [ ] Settle plain-unassigned's canvas-vs-export disagreement in the same pass
 - [ ] ~10 new i18n keys × 8 locales + `cpVocab` regeneration
 
 ## Top risks
