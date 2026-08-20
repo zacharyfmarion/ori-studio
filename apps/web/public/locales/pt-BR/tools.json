@@ -28,11 +28,13 @@
     "completion": {
       "alreadyClosed": "Este vértice já dobra de forma consistente — não falta nenhum vinco.",
       "boundaryVertex": "Este ponto está na borda do papel, então não há nada a fechar — escolha um vértice dentro da folha.",
+      "creasesDoNotMeet": "Estes vincos não se encontram todos em um ponto, então não há um vértice único a fechar.",
       "exceedsFullFold": "Nenhum vinco sozinho pode fechar este vértice: ele teria de dobrar além de 180°.",
       "forcedMountain": "Este vinco tem de ser montanha: é desenhado assim, não no tipo de linha selecionado.",
       "forcedValley": "Este vinco tem de ser vale: é desenhado assim, não no tipo de linha selecionado.",
       "indeterminate": "Não é possível determinar: há um vinco sem atribuição aqui, ou outro vinco passa por este ponto sem terminar nele.",
-      "overdetermined": "Nenhum vinco sozinho fecha este vértice — seriam necessários pelo menos dois."
+      "overdetermined": "Nenhum vinco sozinho fecha este vértice — seriam necessários pelo menos dois.",
+      "tooManyUnknowns": "Outro vinco neste vértice ainda não tem ângulo, então há incógnitas demais. Dê um ângulo a ele ou execute Propagar ângulos de dobra."
     },
     "completionStops": "Estender até",
     "computedRatio": "Proporção calculada {{s}} : {{t}}",

@@ -28,11 +28,13 @@
     "completion": {
       "alreadyClosed": "Este vértice ya pliega de forma consistente: no falta ningún pliegue.",
       "boundaryVertex": "Este punto está en el borde del papel, así que no hay nada que cerrar: elige un vértice dentro de la hoja.",
+      "creasesDoNotMeet": "Estos pliegues no se encuentran todos en un punto, así que no hay un vértice único que cerrar.",
       "exceedsFullFold": "Ningún pliegue por sí solo puede cerrar este vértice: tendría que plegarse más de 180°.",
       "forcedMountain": "Este pliegue tiene que ser monte: se traza así, no con el tipo de línea seleccionado.",
       "forcedValley": "Este pliegue tiene que ser valle: se traza así, no con el tipo de línea seleccionado.",
       "indeterminate": "No se puede determinar: aquí hay un pliegue sin asignar, o otro pliegue pasa por este punto sin terminar en él.",
-      "overdetermined": "Ningún pliegue por sí solo cierra este vértice: harían falta al menos dos."
+      "overdetermined": "Ningún pliegue por sí solo cierra este vértice: harían falta al menos dos.",
+      "tooManyUnknowns": "Otro pliegue de este vértice aún no tiene ángulo, así que hay demasiadas incógnitas. Dale un ángulo o ejecuta Propagar ángulos de plegado."
     },
     "completionStops": "Extender hasta",
     "computedRatio": "Proporción calculada {{s}} : {{t}}",

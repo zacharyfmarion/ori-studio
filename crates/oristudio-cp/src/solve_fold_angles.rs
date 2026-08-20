@@ -111,7 +111,7 @@
 use crate::checks_spatial::{
     Quat, VertexFan, axis_quat, closure_product, crease_quat, cross, dot, incident_lines_at,
     is_interior_vertex, jacobian_rank, norm, quat_conj, quat_mul, quat_residual, quat_rotate,
-    vertex_closure_residual, vertex_dof, vertex_fan_at_with_sources,
+    vertex_closure_residual, vertex_dof,
 };
 use crate::geometry::{FoldMagnitude, LineColor, Point};
 use crate::model::CreasePatternModel;
@@ -212,6 +212,12 @@ pub enum NoSolution {
     /// The chosen creases do not all end at one point, so there is no single
     /// vertex whose closure they could be solving.
     CreasesDoNotMeet,
+    /// Another crease at this vertex has no fold angle either, so the honest
+    /// unknown count is four or more against closure's three scalar equations.
+    /// Not a failure of the pick — measured, that extra crease is itself
+    /// determined at k = 1 from the current state, so the next move is to
+    /// propagate rather than to choose a different three.
+    TooManyUnknowns,
     /// The three chosen creases cannot close this vertex at any angles. The
     /// ordinary answer, not a failure — 62% of randomly chosen triples on
     /// freely-angled vertices — and the next move is to choose a different
@@ -750,8 +756,39 @@ pub fn vertex_angle_solutions(
     closed_bar: f64,
 ) -> VertexAngleSolutions {
     let lines = incident_lines_at(model, vertex);
-    let (fan, sources) = vertex_fan_at_with_sources(model, vertex);
-    let residual_degrees = if fan.indeterminate.is_none() {
+    // The **solver's** fan, not the checker's. `vertex_fan_at_with_sources`
+    // drops every unassigned crease and flags the fan indeterminate, which is
+    // right for a checker — an unassigned crease means the vertex's fold state
+    // is unknown, so there is nothing to check — and wrong here, because those
+    // creases are precisely what the user is asking to solve.
+    //
+    // Dropping them also made the refusal *incoherent*. The message was picked
+    // from the surviving crease count, so the same mistake said
+    // `NotEnoughCreases` at a degree-4 vertex ("fewer than three creases meet
+    // here", at a vertex with four) and `CreaseNotInFan` at a degree-8 one.
+    // Which sentence you got was a function of the vertex's degree rather than
+    // of anything you did.
+    let solve_fan = crate::solve_k::solve_fan_at(model, vertex);
+    let sources = solve_fan.sources.clone();
+    // Placeholder angles for the unknowns. Never read as inputs: `branch_angles`
+    // builds its known runs from the creases *between* the unknowns and treats
+    // the unknowns purely as axes, which
+    // `the isolated branches are independent of the creases' current angles`
+    // pins. They would reach `is_current`, which is why that flag is cleared
+    // below for a crease that has no current state.
+    let fan = VertexFan {
+        point: solve_fan.point,
+        creases: solve_fan
+            .creases
+            .iter()
+            .map(|(theta, rho)| (*theta, rho.unwrap_or(0.0)))
+            .collect(),
+        indeterminate: solve_fan
+            .unsplit_junction
+            .then_some(crate::checks_spatial::Indeterminate::UnsplitJunction),
+    };
+    let free = solve_fan.unknown_positions();
+    let residual_degrees = if fan.indeterminate.is_none() && free.is_empty() {
         vertex_closure_residual(&fan).to_degrees()
     } else {
         0.0
@@ -775,9 +812,23 @@ pub fn vertex_angle_solutions(
         });
     };
 
+    // Every free crease is necessarily an unknown — it has no value to hold
+    // fixed — so the honest unknown count is the picked three plus any free
+    // crease outside them. One more than three is already `k >= 4`: four
+    // unknowns against closure's three scalar equations, rank <= 3 by
+    // construction, so no answer could ever be isolated.
+    //
+    // Worth saying in the message rather than just declining: measured, that
+    // extra crease is itself determined at k = 1 from the current state in every
+    // case sampled, so the user's next move is to run Propagate.
+    if free.iter().any(|position| !triple.contains(position)) {
+        return decline(NoSolution::TooManyUnknowns);
+    }
+
     match solve_fold_angles(&fan, triple, closed_bar) {
         Err(reason) => decline(reason),
         Ok(solutions) => {
+            let any_free = !free.is_empty();
             let solutions: Vec<AngleSolution> = solutions
                 .into_iter()
                 .map(|solution| AngleSolution {
@@ -786,6 +837,10 @@ pub fn vertex_angle_solutions(
                         (sources[solution.creases[1].0], solution.creases[1].1),
                         (sources[solution.creases[2].0], solution.creases[2].1),
                     ],
+                    // "This is the state you are already in" has no meaning for
+                    // a crease that has no state, and the placeholder would make
+                    // a 0-degree answer claim it.
+                    is_current: solution.is_current && !any_free,
                     ..solution
                 })
                 .collect();
@@ -843,10 +898,25 @@ pub fn solvable_partners(
     if !is_interior_vertex(&lines) {
         return Vec::new();
     }
-    let (fan, sources) = vertex_fan_at_with_sources(model, vertex);
-    if fan.indeterminate.is_some() || fan.creases.len() < 3 {
+    // Same fan swap as `vertex_angle_solutions`, and for the same reason. Both
+    // halves of the old guard went dark on any vertex with an unassigned crease:
+    // the checker fan flagged it indeterminate, *and* its crease count excluded
+    // the very creases the affordance is about. Fixing only the first half would
+    // still leave a degree-4 vertex with two blanked creases counting 2.
+    let solve_fan = crate::solve_k::solve_fan_at(model, vertex);
+    if solve_fan.unsplit_junction || solve_fan.degree() < 3 {
         return Vec::new();
     }
+    let sources = solve_fan.sources.clone();
+    let fan = VertexFan {
+        point: solve_fan.point,
+        creases: solve_fan
+            .creases
+            .iter()
+            .map(|(theta, rho)| (*theta, rho.unwrap_or(0.0)))
+            .collect(),
+        indeterminate: None,
+    };
     sources
         .iter()
         .filter(|candidate| !chosen.contains(candidate))
@@ -862,6 +932,122 @@ pub fn solvable_partners(
 
 #[cfg(test)]
 mod tests {
+    /// The bug in the screenshot: unassigning creases at a vertex made the tool
+    /// say "fewer than three creases meet here" at a vertex with four. The fan
+    /// dropped them, so the message was picked from the surviving count — a
+    /// function of the vertex's degree rather than of anything the user did.
+    #[test]
+    fn the_creases_a_user_just_unassigned_are_the_ones_it_solves() {
+        use crate::geometry::LineColor;
+        use crate::io::fold::import_fold_document;
+        use treemaker_fold::FoldDocument;
+
+        let text = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../tests/fixtures/flat-folder/kabuto.fold"),
+        )
+        .expect("fixture");
+        let document: FoldDocument = serde_json::from_str(&text).expect("fold json");
+        let model = import_fold_document(&document).expect("import");
+        let bar = crate::CLOSURE_RESIDUAL_BAR_DEGREES.to_radians();
+
+        let mut solved_somewhere = false;
+        for point in model
+            .line_segments
+            .iter()
+            .flat_map(|segment| [segment.a, segment.b])
+        {
+            let fan = crate::solve_k::solve_fan_at(&model, point);
+            if fan.degree() < 4 || fan.creases.iter().any(|(_, rho)| rho.is_none()) {
+                continue;
+            }
+            let chosen: Vec<usize> = fan.sources.iter().take(3).copied().collect();
+            let mut blanked = model.clone();
+            for &index in &chosen {
+                blanked.line_segments[index] =
+                    blanked.line_segments[index].with_line_color(LineColor::None);
+            }
+            let solved = super::vertex_angle_solutions(&blanked, point, &chosen, bar);
+            assert_ne!(
+                solved.no_solution,
+                Some(super::NoSolution::NotEnoughCreases),
+                "a degree-{} vertex must not report NotEnoughCreases",
+                fan.degree()
+            );
+            if solved.no_solution.is_none() && !solved.solutions.is_empty() {
+                solved_somewhere = true;
+            }
+        }
+        assert!(
+            solved_somewhere,
+            "unassigning three creases at a vertex must leave something solvable"
+        );
+    }
+
+    /// A *fourth* free crease is honestly unsolvable — four unknowns against
+    /// three equations — and must say so rather than blaming the pick.
+    #[test]
+    fn a_fourth_free_crease_is_reported_as_too_many_unknowns() {
+        use crate::geometry::LineColor;
+        use crate::io::fold::import_fold_document;
+        use treemaker_fold::FoldDocument;
+
+        let text = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../tests/fixtures/flat-folder/kabuto.fold"),
+        )
+        .expect("fixture");
+        let document: FoldDocument = serde_json::from_str(&text).expect("fold json");
+        let model = import_fold_document(&document).expect("import");
+        let bar = crate::CLOSURE_RESIDUAL_BAR_DEGREES.to_radians();
+
+        for point in model
+            .line_segments
+            .iter()
+            .flat_map(|segment| [segment.a, segment.b])
+        {
+            let fan = crate::solve_k::solve_fan_at(&model, point);
+            if fan.degree() < 4 || fan.creases.iter().any(|(_, rho)| rho.is_none()) {
+                continue;
+            }
+            let mut blanked = model.clone();
+            for &index in fan.sources.iter().take(4) {
+                blanked.line_segments[index] =
+                    blanked.line_segments[index].with_line_color(LineColor::None);
+            }
+            let chosen: Vec<usize> = fan.sources.iter().take(3).copied().collect();
+            let solved = super::vertex_angle_solutions(&blanked, point, &chosen, bar);
+            assert_eq!(solved.no_solution, Some(super::NoSolution::TooManyUnknowns));
+            return;
+        }
+        panic!("no degree-4+ vertex found in the fixture");
+    }
+
+    /// Every `NoSolution` maps to a code, and `NO_SOLUTION_CODES` lists exactly
+    /// those. The frontend's `CP_TOOL_UNAVAILABLE_CODES` is a closed union that
+    /// silently renders **nothing** for a code it does not know, so a drift here
+    /// is invisible in the product — which is how `CreasesDoNotMeet` shipped
+    /// emitted-but-unhandled.
+    #[test]
+    fn every_no_solution_reason_has_a_listed_code() {
+        use crate::NO_SOLUTION_CODES;
+        for reason in [
+            super::NoSolution::BoundaryVertex,
+            super::NoSolution::Indeterminate,
+            super::NoSolution::NotEnoughCreases,
+            super::NoSolution::CreaseNotInFan,
+            super::NoSolution::CreasesDoNotMeet,
+            super::NoSolution::TooManyUnknowns,
+            super::NoSolution::Unreachable,
+        ] {
+            let code = crate::no_solution_code_for_test(reason);
+            assert!(
+                NO_SOLUTION_CODES.contains(&code.as_str()),
+                "{reason:?} maps to {code}, which NO_SOLUTION_CODES does not list"
+            );
+        }
+    }
+
     use super::*;
     use crate::geometry::LineSegment;
 
@@ -1429,7 +1615,8 @@ mod tests {
     #[test]
     fn fan_sources_align_with_the_fan() {
         let (model, _) = model_with_fan(&[(0.0, 90.0), (200.0, -90.0), (95.0, 180.0)]);
-        let (fan, sources) = vertex_fan_at_with_sources(&model, Point::new(0.0, 0.0));
+        let (fan, sources) =
+            crate::checks_spatial::vertex_fan_at_with_sources(&model, Point::new(0.0, 0.0));
         assert_eq!(fan.creases.len(), sources.len());
         // The same fan the checker would build, in the same order.
         let plain = crate::checks_spatial::vertex_fan_at(&model, Point::new(0.0, 0.0));

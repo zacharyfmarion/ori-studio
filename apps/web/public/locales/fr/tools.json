@@ -28,11 +28,13 @@
     "completion": {
       "alreadyClosed": "Ce sommet se plie déjà de façon cohérente : aucun pli ne manque.",
       "boundaryVertex": "Ce point est sur le bord du papier, il n’y a donc rien à fermer : choisissez un sommet à l’intérieur de la feuille.",
+      "creasesDoNotMeet": "Ces plis ne se rejoignent pas en un seul point, il n'y a donc aucun sommet à fermer.",
       "exceedsFullFold": "Aucun pli seul ne peut fermer ce sommet : il devrait se plier au-delà de 180°.",
       "forcedMountain": "Ce pli doit être un mont : il est tracé ainsi, et non dans le type de ligne sélectionné.",
       "forcedValley": "Ce pli doit être une vallée : il est tracé ainsi, et non dans le type de ligne sélectionné.",
       "indeterminate": "Impossible de déterminer : un pli n’est pas assigné ici, ou un autre pli passe par ce point sans s’y terminer.",
-      "overdetermined": "Aucun pli seul ne ferme ce sommet : il en faudrait au moins deux."
+      "overdetermined": "Aucun pli seul ne ferme ce sommet : il en faudrait au moins deux.",
+      "tooManyUnknowns": "Un autre pli de ce sommet n'a pas encore d'angle, il y a donc trop d'inconnues. Donnez-lui un angle ou lancez Propager les angles de pli."
     },
     "completionStops": "Prolonger jusqu’à",
     "computedRatio": "Rapport calculé {{s}} : {{t}}",

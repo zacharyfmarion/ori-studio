@@ -3148,6 +3148,27 @@ fn chosen_angle_solution(
 ///
 /// Same division as [`no_completion_code`], for the same reason: eight locales
 /// are gated in CI and a Rust string literal cannot pass that gate.
+/// Every stable code [`no_solution_code`] can emit.
+///
+/// Exists so the frontend's closed union can be pinned against it. Without that,
+/// the two drift silently and the user is told **nothing** — `CreasesDoNotMeet`
+/// was emitted here and absent from `CP_TOOL_UNAVAILABLE_CODES` for exactly that
+/// reason, and an unrecognised code returns `null` rather than complaining.
+pub const NO_SOLUTION_CODES: &[&str] = &[
+    "BoundaryVertex",
+    "Indeterminate",
+    "NotEnoughCreases",
+    "CreaseNotInFan",
+    "CreasesDoNotMeet",
+    "TooManyUnknowns",
+    "AnglesUnreachable",
+];
+
+#[cfg(test)]
+pub(crate) fn no_solution_code_for_test(reason: solve_fold_angles::NoSolution) -> String {
+    no_solution_code(reason)
+}
+
 fn no_solution_code(reason: solve_fold_angles::NoSolution) -> String {
     match reason {
         solve_fold_angles::NoSolution::BoundaryVertex => "BoundaryVertex",
@@ -3155,6 +3176,7 @@ fn no_solution_code(reason: solve_fold_angles::NoSolution) -> String {
         solve_fold_angles::NoSolution::NotEnoughCreases => "NotEnoughCreases",
         solve_fold_angles::NoSolution::CreaseNotInFan => "CreaseNotInFan",
         solve_fold_angles::NoSolution::CreasesDoNotMeet => "CreasesDoNotMeet",
+        solve_fold_angles::NoSolution::TooManyUnknowns => "TooManyUnknowns",
         solve_fold_angles::NoSolution::Unreachable => "AnglesUnreachable",
     }
     .to_string()

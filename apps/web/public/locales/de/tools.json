@@ -26,11 +26,13 @@
     "completion": {
       "alreadyClosed": "Dieser Knoten faltet bereits konsistent — es fehlt keine Falte.",
       "boundaryVertex": "Dieser Punkt liegt am Papierrand, es gibt also nichts zu schließen — wählen Sie einen Knoten im Inneren des Blattes.",
+      "creasesDoNotMeet": "Diese Falten treffen sich nicht in einem Punkt, es gibt also keinen Knoten zu schließen.",
       "exceedsFullFold": "Keine einzelne Falte kann diesen Knoten schließen: sie müsste über 180° hinaus falten.",
       "forcedMountain": "Diese Falte muss ein Berg sein — sie wird so gezeichnet, nicht im gewählten Linientyp.",
       "forcedValley": "Diese Falte muss ein Tal sein — sie wird so gezeichnet, nicht im gewählten Linientyp.",
       "indeterminate": "Nicht bestimmbar: Hier ist eine Falte nicht zugewiesen, oder eine andere Falte verläuft durch diesen Punkt, ohne dort zu enden.",
-      "overdetermined": "Keine einzelne Falte schließt diesen Knoten — es wären mindestens zwei nötig."
+      "overdetermined": "Keine einzelne Falte schließt diesen Knoten — es wären mindestens zwei nötig.",
+      "tooManyUnknowns": "Eine weitere Falte an diesem Punkt hat noch keinen Winkel, also gibt es zu viele Unbekannte. Gib ihr einen Winkel oder führe Faltwinkel ausbreiten aus."
     },
     "completionStops": "Verlängern bis",
     "computedRatio": "Berechnetes Verhältnis {{s}} : {{t}}",

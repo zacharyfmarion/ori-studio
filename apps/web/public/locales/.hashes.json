@@ -2505,7 +2505,9 @@
     "cpVocab:action.cp_action_propagate_fold_angles.label": "7bed24f6ce5c",
     "cpVocab:action.cp_action_propagate_fold_angles.tooltip": "568df00a1c39",
     "cpVocab:action.cp_action_propagate_fold_angles.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_propagate_fold_angles.steps.0": "0fcb354bb4be"
+    "cpVocab:action.cp_action_propagate_fold_angles.steps.0": "0fcb354bb4be",
+    "tools:cpContext.completion.creasesDoNotMeet": "a5f6ba5560da",
+    "tools:cpContext.completion.tooManyUnknowns": "424d39c6937a"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5013,7 +5015,9 @@
     "cpVocab:action.cp_action_propagate_fold_angles.label": "7bed24f6ce5c",
     "cpVocab:action.cp_action_propagate_fold_angles.tooltip": "568df00a1c39",
     "cpVocab:action.cp_action_propagate_fold_angles.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_propagate_fold_angles.steps.0": "0fcb354bb4be"
+    "cpVocab:action.cp_action_propagate_fold_angles.steps.0": "0fcb354bb4be",
+    "tools:cpContext.completion.creasesDoNotMeet": "a5f6ba5560da",
+    "tools:cpContext.completion.tooManyUnknowns": "424d39c6937a"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7521,7 +7525,9 @@
     "cpVocab:action.cp_action_propagate_fold_angles.label": "7bed24f6ce5c",
     "cpVocab:action.cp_action_propagate_fold_angles.tooltip": "568df00a1c39",
     "cpVocab:action.cp_action_propagate_fold_angles.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_propagate_fold_angles.steps.0": "0fcb354bb4be"
+    "cpVocab:action.cp_action_propagate_fold_angles.steps.0": "0fcb354bb4be",
+    "tools:cpContext.completion.creasesDoNotMeet": "a5f6ba5560da",
+    "tools:cpContext.completion.tooManyUnknowns": "424d39c6937a"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9990,7 +9996,9 @@
     "cpVocab:action.cp_action_propagate_fold_angles.label": "7bed24f6ce5c",
     "cpVocab:action.cp_action_propagate_fold_angles.tooltip": "568df00a1c39",
     "cpVocab:action.cp_action_propagate_fold_angles.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_propagate_fold_angles.steps.0": "0fcb354bb4be"
+    "cpVocab:action.cp_action_propagate_fold_angles.steps.0": "0fcb354bb4be",
+    "tools:cpContext.completion.creasesDoNotMeet": "a5f6ba5560da",
+    "tools:cpContext.completion.tooManyUnknowns": "424d39c6937a"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12459,7 +12467,9 @@
     "cpVocab:action.cp_action_propagate_fold_angles.label": "7bed24f6ce5c",
     "cpVocab:action.cp_action_propagate_fold_angles.tooltip": "568df00a1c39",
     "cpVocab:action.cp_action_propagate_fold_angles.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_propagate_fold_angles.steps.0": "0fcb354bb4be"
+    "cpVocab:action.cp_action_propagate_fold_angles.steps.0": "0fcb354bb4be",
+    "tools:cpContext.completion.creasesDoNotMeet": "a5f6ba5560da",
+    "tools:cpContext.completion.tooManyUnknowns": "424d39c6937a"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -14967,7 +14977,9 @@
     "cpVocab:action.cp_action_propagate_fold_angles.label": "7bed24f6ce5c",
     "cpVocab:action.cp_action_propagate_fold_angles.tooltip": "568df00a1c39",
     "cpVocab:action.cp_action_propagate_fold_angles.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_propagate_fold_angles.steps.0": "0fcb354bb4be"
+    "cpVocab:action.cp_action_propagate_fold_angles.steps.0": "0fcb354bb4be",
+    "tools:cpContext.completion.creasesDoNotMeet": "a5f6ba5560da",
+    "tools:cpContext.completion.tooManyUnknowns": "424d39c6937a"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17475,7 +17487,9 @@
     "cpVocab:action.cp_action_propagate_fold_angles.label": "7bed24f6ce5c",
     "cpVocab:action.cp_action_propagate_fold_angles.tooltip": "568df00a1c39",
     "cpVocab:action.cp_action_propagate_fold_angles.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_propagate_fold_angles.steps.0": "0fcb354bb4be"
+    "cpVocab:action.cp_action_propagate_fold_angles.steps.0": "0fcb354bb4be",
+    "tools:cpContext.completion.creasesDoNotMeet": "a5f6ba5560da",
+    "tools:cpContext.completion.tooManyUnknowns": "424d39c6937a"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -19944,6 +19958,8 @@
     "cpVocab:action.cp_action_propagate_fold_angles.label": "7bed24f6ce5c",
     "cpVocab:action.cp_action_propagate_fold_angles.tooltip": "568df00a1c39",
     "cpVocab:action.cp_action_propagate_fold_angles.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_propagate_fold_angles.steps.0": "0fcb354bb4be"
+    "cpVocab:action.cp_action_propagate_fold_angles.steps.0": "0fcb354bb4be",
+    "tools:cpContext.completion.creasesDoNotMeet": "a5f6ba5560da",
+    "tools:cpContext.completion.tooManyUnknowns": "424d39c6937a"
   }
 }

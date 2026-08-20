@@ -33,6 +33,8 @@ export const CP_TOOL_UNAVAILABLE_CODES = [
   'NotEnoughCreases',
   'CreaseNotInFan',
   'AnglesUnreachable',
+  'TooManyUnknowns',
+  'CreasesDoNotMeet',
   'PropagationNothingFree',
   'PropagationNothingDecidable',
 ] as const;
@@ -54,6 +56,20 @@ export function cpToolUnavailableMessage(
 ): string | null {
   if (!isCode(code)) return null;
   switch (code) {
+    // Not "pick a different three". The vertex has a fourth crease with no angle
+    // either, so there are four unknowns against closure's three equations and
+    // nothing could be isolated. Measured, that crease is itself solvable at
+    // k = 1 from the current state, so propagating is the actual next move.
+    case 'TooManyUnknowns':
+      return t(
+        'tools:cpContext.completion.tooManyUnknowns',
+        'Another crease here has no fold angle yet, so there is more than one unknown too many. Give it an angle, or run Propagate fold angles.'
+      );
+    case 'CreasesDoNotMeet':
+      return t(
+        'tools:cpContext.completion.creasesDoNotMeet',
+        'These creases do not all meet at one point, so there is no single vertex to close.'
+      );
     case 'PropagationNothingFree':
       return t(
         'tools:cpContext.propagation.nothingFree',

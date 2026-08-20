@@ -26,11 +26,13 @@
     "completion": {
       "alreadyClosed": "This vertex already folds consistently — no crease is missing.",
       "boundaryVertex": "This point is on the edge of the paper, so there is nothing to close — pick a vertex inside the sheet.",
+      "creasesDoNotMeet": "These creases do not all meet at one point, so there is no single vertex to close.",
       "exceedsFullFold": "No single crease can close this vertex: it would have to fold past 180°.",
       "forcedMountain": "This crease has to be a mountain — drawn as one, not in the selected line type.",
       "forcedValley": "This crease has to be a valley — drawn as one, not in the selected line type.",
       "indeterminate": "Cannot tell: a crease here is unassigned, or another crease passes through without ending here.",
-      "overdetermined": "No single crease closes this vertex — at least two would be needed."
+      "overdetermined": "No single crease closes this vertex — at least two would be needed.",
+      "tooManyUnknowns": "Another crease here has no fold angle yet, so there is more than one unknown too many. Give it an angle, or run Propagate fold angles."
     },
     "completionStops": "Extend to",
     "computedRatio": "Computed ratio {{s}} : {{t}}",
