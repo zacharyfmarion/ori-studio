@@ -90,6 +90,11 @@ pub struct Stall {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Propagation {
     /// `(document line index, signed degrees)`, negative a mountain.
+    ///
+    /// Every entry is a crease that really changes — `write_angle` declines to
+    /// report a write that would leave the segment as it was — and no index
+    /// appears twice, so a caller can use these ids directly as the set of
+    /// creases a draft stands in for.
     pub solved: Vec<(usize, f64)>,
     pub stalls: Vec<Stall>,
     /// Vertices that ended fully known and **do not close**. Propagation reached
@@ -121,7 +126,18 @@ pub fn propagate(
     // the caller's document. The draft is the diff between the two.
     let mut working = model.clone();
     let mut solved: Vec<(usize, f64)> = Vec::new();
+    // The same crease pinned twice would otherwise be written twice and reported
+    // twice, and `solved` is the set of creases a surface stops drawing on the
+    // draft's behalf — a duplicate there is a lie about how much changed. Last
+    // value wins, the way any map assignment would.
+    let mut effective: Vec<(usize, f64)> = Vec::with_capacity(pins.len());
     for &(index, degrees) in pins {
+        match effective.iter_mut().find(|(at, _)| *at == index) {
+            Some(held) => held.1 = degrees,
+            None => effective.push((index, degrees)),
+        }
+    }
+    for &(index, degrees) in &effective {
         if write_angle(&mut working, index, degrees) {
             solved.push((index, degrees));
         }
@@ -523,6 +539,44 @@ mod tests {
             reported,
             "an inconsistent neighbourhood must surface somewhere, got {:?} stalls",
             draft.stalls.len()
+        );
+    }
+
+    /// `solved` is the set of creases a draft would change, and a surface uses
+    /// those ids to stop drawing them. One crease pinned twice must therefore
+    /// appear once, carrying the value the caller assigned last.
+    #[test]
+    fn a_repeated_pin_is_not_reported_twice() {
+        let model = kabuto();
+        let mut blanked = model.clone();
+        let mut cleared = Vec::new();
+        for index in 0..model.line_segments.len() {
+            let segment = model.line_segments[index].clone();
+            if crease_fold_angle(&segment).is_some() && cleared.len() < 4 {
+                blanked.line_segments[index] = segment.with_line_color(LineColor::None);
+                cleared.push(index);
+            }
+        }
+        let pin = cleared[0];
+        let truth = crease_fold_angle(&model.line_segments[pin]).expect("crease");
+        let draft = propagate(
+            &blanked,
+            None,
+            &[(pin, truth / 2.0), (pin, truth)],
+            DEFAULT_MAX_COMMIT_K,
+            bar(),
+        );
+        let entries: Vec<_> = draft.solved.iter().filter(|(at, _)| *at == pin).collect();
+        assert_eq!(
+            entries.len(),
+            1,
+            "the pin was reported {} times",
+            entries.len()
+        );
+        assert!(
+            (entries[0].1 - truth).abs() < 1e-9,
+            "the last value must win, got {}",
+            entries[0].1
         );
     }
 

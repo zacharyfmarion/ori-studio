@@ -155,6 +155,18 @@ export interface OristudioCpDiagnosticBigLittleBigSegment {
   violating: boolean;
 }
 
+/** One crease a propagation draft would set. */
+export interface OristudioCpPropagationCrease {
+  /**
+   * **One-based** line id — the same space `line_ids`, `pinned_angles` and
+   * `toolReplacedLineIds` use. The kernel converts from its own zero-based
+   * indices once, in the preview arm, so nothing on this side subtracts one.
+   */
+  line_id: number;
+  /** Signed fold angle in degrees; negative is a mountain. */
+  degrees: number;
+}
+
 /** One place a propagation draft stopped. */
 export interface OristudioCpPropagationStall {
   point: Point;
@@ -203,6 +215,19 @@ export interface OristudioCpCommandPreview {
   propagation_solved?: number | null;
   /** How many creases are still free after the draft. */
   propagation_free?: number | null;
+  /**
+   * The creases the draft would set, and what it would set them to.
+   *
+   * Index-aligned with `segments`, and emitted from the same kernel loop, so
+   * `propagation_creases[i]` names the document crease that `segments[i]` is
+   * standing in for. That is what lets the canvas *hide* those creases through
+   * `toolReplacedLineIds` rather than paint the draft on top of them — a draft
+   * that changed nothing otherwise looks already applied.
+   *
+   * Order is the order the draft resolved in: pins first, then outward from the
+   * seed. Every entry is a crease that really changes, and no id appears twice.
+   */
+  propagation_creases?: OristudioCpPropagationCrease[];
   /** Where propagation stopped and is waiting on the user. */
   propagation_stalls?: OristudioCpPropagationStall[];
   /** Vertices that ended fully known and do not close. */
@@ -1047,9 +1072,14 @@ export interface OristudioCpCommandPayload {
   custom_line_type?: OristudioCpCustomLineType;
   /**
    * Fold angles the user fixed by hand during a propagation draft, as
-   * `[line index, signed degrees]`. Propagation treats these as known and never
-   * re-derives them, which is what lets one crease be adjusted and the draft
-   * re-run without the answer sliding back.
+   * `[one-based line id, signed degrees]` — the same id space as `line_ids`,
+   * and the same one `propagation_creases` hands back. Propagation treats these
+   * as known and never re-derives them, which is what lets one crease be
+   * adjusted and the draft re-run without the answer sliding back.
+   *
+   * Send back the `line_id` from the preview unchanged. Do not subtract one:
+   * the kernel converts, and an id that is off by one names a real, adjacent
+   * crease and silently recolours it. `0` is rejected.
    */
   pinned_angles?: [number, number][];
   /**

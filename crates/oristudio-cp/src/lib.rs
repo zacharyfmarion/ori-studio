@@ -199,11 +199,18 @@ pub struct CreasePatternCommandPayload {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fix_precision: Option<f64>,
     /// Fold angles the user has fixed by hand during a propagation draft, as
-    /// `(line index, signed degrees)`.
+    /// `(one-based line id, signed degrees)` — the same id space as `line_ids`,
+    /// and the same the preview hands back in
+    /// [`CommandPreview::propagation_creases`].
     ///
     /// These are the draft's real input. Propagation treats them as known before
     /// its first solve and never re-derives them, which is what lets the user
-    /// adjust one crease and re-run without the answer sliding back.
+    /// adjust one crease and re-run without the answer sliding back. A pin is
+    /// therefore normally an id read straight out of the previous preview, which
+    /// is why it must be the same base: the round trip is the loop.
+    ///
+    /// The same id twice is not an error — the last value wins — but it is
+    /// reported once, so the draft's crease list stays a set.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub pinned_angles: Vec<(usize, f64)>,
     /// Discard the mountain/valley direction as well when unassigning.
@@ -362,6 +369,22 @@ pub struct CommandPreview {
     /// How many creases are still free after the draft.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub propagation_free: Option<usize>,
+    /// The creases the draft would set, and what it would set them to.
+    ///
+    /// Index-aligned with the entries this preview appends to `segments`, and
+    /// pushed from the same loop so the two cannot drift. That alignment is the
+    /// whole point: it is what lets a caller say *which document creases* the
+    /// draft stands in for, and therefore stop drawing them, instead of painting
+    /// the answer on top of the originals. `propagation_solved` is only a count
+    /// and `segments` carries no identity, so before this existed a surface had
+    /// no way to tell the two apart.
+    ///
+    /// The same discipline `VertexSolveFoldAngles` keeps for its pick order, for
+    /// the same reason: matching a preview segment back to a document crease by
+    /// its endpoints would be comparing coordinates that had round-tripped
+    /// through a serialiser.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub propagation_creases: Vec<PropagationDraftCrease>,
     /// Vertices where propagation stopped and is waiting on the user.
     ///
     /// Deliberately **not** `points`, which is documented as candidate commit
@@ -373,6 +396,25 @@ pub struct CommandPreview {
     /// rests on is inconsistent.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub propagation_conflicts: Vec<geometry::Point>,
+}
+
+/// One crease a propagation draft would set.
+///
+/// Named fields rather than a tuple because this is a wire type a caller zips
+/// against `CommandPreview::segments`, and `[7, -45.0]` says nothing about which
+/// number is which. `PropagationStall` already made the same choice.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PropagationDraftCrease {
+    /// **One-based** line id — the same space `payload.line_ids` and
+    /// `payload.pinned_angles` use, and *not* the zero-based index the solver
+    /// works in. The conversion happens once, in the preview arm, so that no
+    /// consumer has to know there are two conventions.
+    ///
+    /// Getting this wrong is silent: an off-by-one names a real, adjacent crease
+    /// and recolours it.
+    pub line_id: usize,
+    /// Signed fold angle in degrees; negative is a mountain.
+    pub degrees: f64,
 }
 
 /// One place a propagation draft stopped, for the tool to show.
@@ -394,19 +436,39 @@ pub struct PropagationStall {
 fn propagation_draft(
     document: &CreasePatternDocument,
     command: &CreasePatternCommand,
-) -> operations::native::fold_propagation::Propagation {
+) -> Result<operations::native::fold_propagation::Propagation> {
     let seed = command.payload.points.first().copied();
     let max_commit_k = command
         .payload
         .max_commit_k
         .unwrap_or(operations::native::fold_propagation::DEFAULT_MAX_COMMIT_K);
-    operations::native::fold_propagation::propagate(
+    // A pin is built from a line id the *preview* handed out, so the two ends of
+    // the loop have to agree about what that id means. They do, because both are
+    // one-based, and this is the single place the payload's ids become the
+    // solver's zero-based indices. The alternative — a payload with two
+    // conventions in it — has no symptom: an unconverted pin lands on the next
+    // crease along and silently recolours it.
+    let pins = command
+        .payload
+        .pinned_angles
+        .iter()
+        .map(|&(line_id, degrees)| {
+            line_id
+                .checked_sub(1)
+                .map(|index| (index, degrees))
+                .ok_or_else(|| CommandError::InvalidInput {
+                    operation: command.operation,
+                    message: "line IDs are one-based".to_string(),
+                })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    Ok(operations::native::fold_propagation::propagate(
         &document.crease_pattern,
         seed,
-        &command.payload.pinned_angles,
+        &pins,
         max_commit_k,
         CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
-    )
+    ))
 }
 
 /// Stable code per stall reason. The frontend turns these into sentences, and
@@ -1927,7 +1989,7 @@ pub fn execute_command(
             // same inputs rather than carried across the boundary. The solve is
             // deterministic, so the two agree; sending the draft back would mean
             // trusting a client-held answer about the document's geometry.
-            let draft = propagation_draft(document, &command);
+            let draft = propagation_draft(document, &command)?;
             operations::native::fold_propagation::apply(&mut document.crease_pattern, &draft.solved)
         }
         OperationId::CreaseToggleMv => {
@@ -3739,32 +3801,31 @@ pub fn preview_command(
             }
         }
         OperationId::PropagateFoldAngles => {
-            let draft = propagation_draft(document, &command);
-            preview.propagation_solved = Some(draft.solved.len());
-            preview.propagation_free = Some(
-                operations::native::fold_propagation::free_line_indices(&document.crease_pattern)
-                    .len()
-                    .saturating_sub(draft.solved.len()),
-            );
-            preview.propagation_stalls = draft
-                .stalls
-                .iter()
-                .map(|stall| PropagationStall {
-                    point: stall.point,
-                    reason: stall_reason_code(stall.reason).to_owned(),
-                    unknowns: stall.unknowns,
-                })
-                .collect();
-            preview.propagation_conflicts = draft.closure_failures.clone();
+            let draft = propagation_draft(document, &command)?;
+            let free =
+                operations::native::fold_propagation::free_line_indices(&document.crease_pattern);
             // The draft creases as they would become, carrying their solved
             // colour and magnitude so the canvas ramp and the angle badges show
             // what confirming would do — the same channel the three-crease
             // solver uses, and the reason this operation must be in
             // `CP_KERNEL_DECIDED_CANDIDATE_OPERATIONS` on the frontend.
+            //
+            // The id and the geometry are pushed together, from one loop, so a
+            // skipped entry skips both and the caller can zip the two lists.
+            // Two loops with a `continue` each is exactly how a parallel-array
+            // contract rots.
+            //
+            // Order is the order the draft resolved in — pins first, then
+            // outward from the seed — which is the order the user watched it
+            // spread in.
             for &(index, degrees) in &draft.solved {
                 let Some(segment) = document.crease_pattern.line_segments.get(index) else {
                     continue;
                 };
+                preview.propagation_creases.push(PropagationDraftCrease {
+                    line_id: index + 1,
+                    degrees,
+                });
                 preview.segments.push(
                     segment
                         .with_line_color(if degrees < 0.0 {
@@ -3775,13 +3836,24 @@ pub fn preview_command(
                         .with_fold_magnitude(geometry::FoldMagnitude::from_degrees(degrees.abs())),
                 );
             }
-            if draft.solved.is_empty() {
+            // Counted off the emitted list rather than the draft, so the scalar
+            // cannot claim more creases than the preview actually names.
+            let named = preview.propagation_creases.len();
+            preview.propagation_solved = Some(named);
+            preview.propagation_free = Some(free.len().saturating_sub(named));
+            preview.propagation_stalls = draft
+                .stalls
+                .iter()
+                .map(|stall| PropagationStall {
+                    point: stall.point,
+                    reason: stall_reason_code(stall.reason).to_owned(),
+                    unknowns: stall.unknowns,
+                })
+                .collect();
+            preview.propagation_conflicts = draft.closure_failures.clone();
+            if named == 0 {
                 preview.unavailable = Some(
-                    if operations::native::fold_propagation::free_line_indices(
-                        &document.crease_pattern,
-                    )
-                    .is_empty()
-                    {
+                    if free.is_empty() {
                         "PropagationNothingFree"
                     } else {
                         "PropagationNothingDecidable"
@@ -4756,6 +4828,249 @@ mod tests {
                 ..Default::default()
             },
         )
+    }
+
+    /// A real, fully-assigned crease pattern. Propagation needs a document that
+    /// already closes to have anything to be about, and a synthetic fan does
+    /// not: recovering a blanked crease is the k=1 contraction, and that needs
+    /// neighbours whose angles are actually consistent.
+    fn kabuto_document() -> CreasePatternDocument {
+        let text = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../tests/fixtures/flat-folder/kabuto.fold"),
+        )
+        .expect("fixture");
+        let fold: treemaker_fold::FoldDocument = serde_json::from_str(&text).expect("fold json");
+        CreasePatternDocument {
+            crease_pattern: io::fold::import_fold_document(&fold).expect("import"),
+            ..Default::default()
+        }
+    }
+
+    /// `pins` are zero-based document indices, as the solver reports them; the
+    /// payload carries one-based ids, as `line_ids` does.
+    fn propagate_command(seed: Option<Point>, pins: &[(usize, f64)]) -> CreasePatternCommand {
+        CreasePatternCommand::new(OperationId::PropagateFoldAngles).with_payload(
+            CreasePatternCommandPayload {
+                points: seed.into_iter().collect(),
+                pinned_angles: pins
+                    .iter()
+                    .map(|(index, degrees)| (index + 1, *degrees))
+                    .collect(),
+                ..Default::default()
+            },
+        )
+    }
+
+    /// Kabuto with one crease blanked, chosen so that propagation can put it
+    /// back — the smallest document that produces a non-empty draft.
+    fn kabuto_with_one_blanked_crease() -> (CreasePatternDocument, usize) {
+        let complete = kabuto_document();
+        for index in 0..complete.crease_pattern.line_segments.len() {
+            let segment = complete.crease_pattern.line_segments[index].clone();
+            if model::crease_fold_angle(&segment).is_none() {
+                continue;
+            }
+            let mut blanked = complete.clone();
+            blanked.crease_pattern.line_segments[index] = segment.with_line_color(LineColor::None);
+            let preview =
+                preview_command(&blanked, propagate_command(None, &[])).expect("preview succeeds");
+            if !preview.propagation_creases.is_empty() {
+                return (blanked, index);
+            }
+        }
+        panic!("no crease in the fixture is recoverable by propagation");
+    }
+
+    /// The draft has to say *which* document creases it would change, not just
+    /// how many and what they would look like.
+    ///
+    /// Without this the preview was a count plus anonymous geometry, so a
+    /// surface could only draw the answer *over* the creases it replaces — which
+    /// is how a draft that had changed nothing looked already applied. The ids
+    /// are the mechanism that lets the document stop drawing them instead.
+    #[test]
+    fn the_propagation_preview_names_the_creases_it_would_change() {
+        let (document, blanked) = kabuto_with_one_blanked_crease();
+        let preview =
+            preview_command(&document, propagate_command(None, &[])).expect("preview succeeds");
+
+        assert!(!preview.propagation_creases.is_empty());
+        assert_eq!(
+            preview.propagation_creases.len(),
+            preview.segments.len(),
+            "the ids and the geometry must be index-aligned"
+        );
+        // The redundant scalar cannot be allowed to drift from the list.
+        assert_eq!(
+            preview.propagation_solved,
+            Some(preview.propagation_creases.len())
+        );
+        assert!(
+            preview
+                .propagation_creases
+                .iter()
+                .any(|crease| crease.line_id == blanked + 1),
+            "the blanked crease must be named, one-based"
+        );
+
+        let mut seen = HashSet::new();
+        for (crease, segment) in preview
+            .propagation_creases
+            .iter()
+            .zip(preview.segments.iter())
+        {
+            assert!(
+                seen.insert(crease.line_id),
+                "line {} named twice, so the ids are not a set",
+                crease.line_id
+            );
+            // One-based, and pointing at the crease whose geometry sits beside
+            // it. An off-by-one lands on a real, adjacent crease, so only
+            // comparing the endpoints catches it.
+            let named = &document.crease_pattern.line_segments[crease.line_id - 1];
+            assert_eq!(named.a, segment.a, "line {}", crease.line_id);
+            assert_eq!(named.b, segment.b, "line {}", crease.line_id);
+        }
+    }
+
+    /// The named creases are exactly what the commit writes, and nothing else
+    /// moves.
+    ///
+    /// The frontend hides the creases this list names while the draft is up, so
+    /// a list that named the wrong ones would blank geometry the draft never
+    /// touched — and applying would then recolour creases the user never saw
+    /// change.
+    #[test]
+    fn the_previewed_creases_are_exactly_what_the_commit_writes() {
+        let (document, _) = kabuto_with_one_blanked_crease();
+        let preview =
+            preview_command(&document, propagate_command(None, &[])).expect("preview succeeds");
+
+        let mut applied = document.clone();
+        execute_command(&mut applied, propagate_command(None, &[])).expect("commit succeeds");
+
+        let named: HashSet<usize> = preview
+            .propagation_creases
+            .iter()
+            .map(|crease| crease.line_id)
+            .collect();
+        for crease in &preview.propagation_creases {
+            let written = &applied.crease_pattern.line_segments[crease.line_id - 1];
+            assert_eq!(
+                written.color,
+                if crease.degrees < 0.0 {
+                    LineColor::Red1
+                } else {
+                    LineColor::Blue2
+                },
+                "line {}",
+                crease.line_id
+            );
+            let angle = model::crease_fold_angle(written).expect("a written crease has an angle");
+            assert!(
+                (angle.abs() - crease.degrees.abs()).abs() < 1e-6,
+                "line {} previewed {} and committed {angle}",
+                crease.line_id,
+                crease.degrees
+            );
+        }
+        for index in 0..document.crease_pattern.line_segments.len() {
+            if named.contains(&(index + 1)) {
+                continue;
+            }
+            assert_eq!(
+                document.crease_pattern.line_segments[index],
+                applied.crease_pattern.line_segments[index],
+                "line {} changed without being named",
+                index + 1
+            );
+        }
+    }
+
+    /// A document with nothing free names nothing — no empty list dressed up as
+    /// a draft, and the reason is a code the frontend can translate.
+    #[test]
+    fn a_complete_document_names_nothing() {
+        let document = kabuto_document();
+        let preview =
+            preview_command(&document, propagate_command(None, &[])).expect("preview succeeds");
+        assert!(preview.propagation_creases.is_empty());
+        assert_eq!(preview.propagation_solved, Some(0));
+        assert_eq!(
+            preview.unavailable.as_deref(),
+            Some("PropagationNothingFree")
+        );
+    }
+
+    /// A pin names a crease in the same one-based space the preview handed back,
+    /// because that round trip *is* the adjust-and-re-propagate loop.
+    ///
+    /// If the two ends disagreed there would be no symptom: the pin would land
+    /// on the next crease along and quietly recolour it.
+    #[test]
+    fn a_one_based_pin_reaches_the_crease_it_names() {
+        let complete = kabuto_document();
+        let mut blanked = complete.clone();
+        let mut cleared = Vec::new();
+        for index in 0..complete.crease_pattern.line_segments.len() {
+            let segment = complete.crease_pattern.line_segments[index].clone();
+            if model::crease_fold_angle(&segment).is_some() && cleared.len() < 6 {
+                blanked.crease_pattern.line_segments[index] =
+                    segment.with_line_color(LineColor::None);
+                cleared.push(index);
+            }
+        }
+        let pinned = cleared[0];
+        // Deliberately an angle nothing else in the fixture carries. Kabuto is
+        // flat-folded, so every other crease is +-180 and a neighbour would
+        // otherwise stand in for the pinned crease and hide an off-by-one.
+        let angle = -137.0;
+
+        let preview = preview_command(&blanked, propagate_command(None, &[(pinned, angle)]))
+            .expect("preview succeeds");
+        let named = preview
+            .propagation_creases
+            .iter()
+            .find(|crease| crease.line_id == pinned + 1)
+            .expect("the pinned crease must be named by the id it was pinned with");
+        assert!(
+            (named.degrees - angle).abs() < 1e-9,
+            "the pin must not be moved, got {}",
+            named.degrees
+        );
+        assert!(
+            !preview
+                .propagation_creases
+                .iter()
+                .any(|crease| crease.line_id != pinned + 1
+                    && (crease.degrees - angle).abs() < 1e-9),
+            "the pin reached a crease other than the one it named"
+        );
+
+        // And the commit puts it on that same crease, which is what the id is
+        // ultimately a promise about.
+        let mut applied = blanked.clone();
+        execute_command(&mut applied, propagate_command(None, &[(pinned, angle)]))
+            .expect("commit succeeds");
+        let written = model::crease_fold_angle(&applied.crease_pattern.line_segments[pinned])
+            .expect("the pinned crease is assigned after the commit");
+        assert!(
+            (written - angle).abs() < 1e-6,
+            "line {} was pinned to {angle} and committed {written}",
+            pinned + 1
+        );
+    }
+
+    /// Zero is not a line id. Accepting it would make the pin space ambiguous —
+    /// zero-based-index-0 and one-based-id-0 look identical on the wire.
+    #[test]
+    fn a_zero_pin_id_is_rejected() {
+        let document = kabuto_document();
+        let mut command = propagate_command(None, &[]);
+        command.payload.pinned_angles = vec![(0, 90.0)];
+        assert!(preview_command(&document, command.clone()).is_err());
+        assert!(execute_command(&mut document.clone(), command).is_err());
     }
 
     /// The whole command path: a vertex that does not close, three creases
