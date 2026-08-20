@@ -8282,6 +8282,13 @@ button.bp-packing-alert:focus-visible {
   width: max-content;
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
+}
+
+/* Apply/Cancel and nothing else: there is no left-hand group to distribute
+   away from, so spanning the frame would strand the buttons at its far left.
+   Shrink-wrapping keeps them where `right: 0` already pins the bar. */
+.cp-tool-option__header--actions-only {
+  min-width: 0;
   font-size: 0.72rem;
   /* The header owns its own gestures; a drag started on it must not also draw a
      crease on the canvas underneath. */

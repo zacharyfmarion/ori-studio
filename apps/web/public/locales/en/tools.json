@@ -103,11 +103,7 @@
       "nothingInScope": "The selection no longer names any creases. Select some again, or clear the selection and click a pattern.",
       "outOfScope": "Vertices needing creases you did not select: {{vertices}} — select those too, or clear the selection and click the pattern.",
       "partial": "Still undecided here: {{creases}}",
-      "selectionNothingFree": "Every crease in the selection already has a fold angle. Select some unassigned creases, or clear the selection and click a pattern.",
-      "title": "Fold angles — {{creases}} solved",
-      "titleComponent": "This pattern — {{creases}} fold angles solved",
-      "titleDocument": "Whole document — {{creases}} fold angles solved",
-      "titleSelection": "Selection — {{creases}} fold angles solved"
+      "selectionNothingFree": "Every crease in the selection already has a fold angle. Select some unassigned creases, or clear the selection and click a pattern."
     },
     "ratioFieldAria": "Ratio {{letter}}",
     "ratioPresets": "Ratio presets",
@@ -183,6 +179,7 @@
   "cpToolOption": {
     "apply": "Apply",
     "count": "{{index}} of {{total}}",
+    "label": "Tool options",
     "next": "Next option",
     "previous": "Previous option"
   },

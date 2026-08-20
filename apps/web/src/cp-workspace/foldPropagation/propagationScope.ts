@@ -1,14 +1,19 @@
 /**
- * The scope a propagation draft ran in, and what the window calls it.
+ * The scope a propagation draft ran in, and the one sentence the drawing about
+ * it cannot carry.
  *
- * # Why the window has to name the scope
+ * # The scope is reported, not re-derived
  *
- * Propagation used to run across every crease pattern on the canvas at once. The
- * thing the user got wrong was therefore never the *count* — it was the scope —
- * so a window titled only "12 solved" cannot say whether that twelve is this
- * pattern, the selection, or the whole sheet. The kernel resolves the scope for
- * the preview and the commit together and reports it back; this turns that
- * report into a sentence, and nothing on this side re-derives it.
+ * Propagation used to run across every crease pattern on the canvas at once, so
+ * the thing a user got wrong was never the *count* — it was the scope. The
+ * kernel now resolves the scope for the preview and the commit together and
+ * reports it back, and nothing on this side second-guesses that report.
+ *
+ * The window no longer *titles* itself with the scope. It frames the creases it
+ * changed and they are redrawn in their solved colours, so the frame answers
+ * "which creases" better than a sentence did. What survives here is the part
+ * the drawing genuinely cannot show: creases still undecided, vertices that
+ * need creases outside the scope, and vertices that stopped closing.
  *
  * React-free and store-free on purpose: it is copy and comparison over a plain
  * descriptor, which is what makes both testable without mounting anything.
@@ -25,7 +30,10 @@ import { cpToolUnavailableMessage } from '../tools/toolUnavailable';
  */
 export type PropagationScopeKind = 'selection' | 'component' | 'document' | 'unknown';
 
-/** What a draft was allowed to write to, as the tool needs it. */
+/**
+ * What a draft was allowed to write to — the full mirror of the kernel's scope
+ * report, though only `outOfScope` currently has a reader (the note).
+ */
 export interface PropagationScopeSummary {
   readonly kind: PropagationScopeKind;
   /** Creases the scope names. */
@@ -69,44 +77,6 @@ export function sameLineIds(a: readonly number[], b: readonly number[]): boolean
   if (a === b) return true;
   if (a.length !== b.length) return false;
   return a.every((id, index) => id === b[index]);
-}
-
-/**
- * The window title, which leads with the scope rather than the count.
- *
- * Deliberately not `{{count}}`: that name is i18next's plural trigger, and it
- * would demand a full set of plural forms per locale for a readout that is a
- * bare number.
- */
-export function propagationWindowTitle(
-  t: TFunction,
-  creases: number,
-  scope: PropagationScopeSummary | null
-): string {
-  switch (scope?.kind) {
-    case 'selection':
-      return t(
-        'tools:cpContext.propagation.titleSelection',
-        'Selection — {{creases}} fold angles solved',
-        { creases }
-      );
-    case 'component':
-      return t(
-        'tools:cpContext.propagation.titleComponent',
-        'This pattern — {{creases}} fold angles solved',
-        { creases }
-      );
-    case 'document':
-      return t(
-        'tools:cpContext.propagation.titleDocument',
-        'Whole document — {{creases}} fold angles solved',
-        { creases }
-      );
-    default:
-      return t('tools:cpContext.propagation.title', 'Fold angles — {{creases}} solved', {
-        creases,
-      });
-  }
 }
 
 /**

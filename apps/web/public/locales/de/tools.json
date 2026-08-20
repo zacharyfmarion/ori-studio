@@ -103,11 +103,7 @@
       "nothingInScope": "Die Auswahl benennt keine Falten mehr. Wähle erneut, oder hebe die Auswahl auf und klicke auf ein Muster.",
       "outOfScope": "Knoten, die nicht ausgewählte Falten benötigen: {{vertices}} — wähle diese ebenfalls, oder hebe die Auswahl auf und klicke auf das Muster.",
       "partial": "Hier unentschieden: {{creases}}",
-      "selectionNothingFree": "Alle Falten in der Auswahl haben bereits einen Faltwinkel. Wähle nicht zugewiesene Falten, oder hebe die Auswahl auf und klicke auf ein Muster.",
-      "title": "Faltwinkel — {{creases}} gelöst",
-      "titleComponent": "Dieses Muster — {{creases}} Faltwinkel gelöst",
-      "titleDocument": "Gesamtes Dokument — {{creases}} Faltwinkel gelöst",
-      "titleSelection": "Auswahl — {{creases}} Faltwinkel gelöst"
+      "selectionNothingFree": "Alle Falten in der Auswahl haben bereits einen Faltwinkel. Wähle nicht zugewiesene Falten, oder hebe die Auswahl auf und klicke auf ein Muster."
     },
     "ratioFieldAria": "Verhältnis {{letter}}",
     "ratioPresets": "Verhältnisvorgaben",
@@ -183,6 +179,7 @@
   "cpToolOption": {
     "apply": "Anwenden",
     "count": "{{index}} von {{total}}",
+    "label": "Werkzeugoptionen",
     "next": "Nächste Option",
     "previous": "Vorherige Option"
   },

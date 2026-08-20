@@ -51,9 +51,8 @@
  * selection survives a tool switch, and `CreaseMakeUnassigned` does not clear
  * it, which is precisely the workflow that precedes propagating. So: creases
  * left selected in one pattern, a deliberate click in another, and the *first*
- * one gets solved. Nothing on screen says so except the window title reading
- * "Selection" — and the window frame, which spans from the click to the draft on
- * the far side of the canvas.
+ * one gets solved. The only thing on screen that says so is the window frame,
+ * which spans from the click to the draft on the far side of the canvas.
  *
  * The fix is not to clear the selection when the tool is armed. That destroys
  * state the user did not ask us to touch, and select-then-propagate is a real
@@ -92,7 +91,6 @@ import {
   propagationScopeSummary,
   propagationUnavailableMessage,
   propagationWindowNote,
-  propagationWindowTitle,
   sameLineIds,
   type PropagationScopeSummary,
 } from './propagationScope';
@@ -408,12 +406,14 @@ export function usePropagationDraft(
     if (!bounds) return null;
     return {
       bounds,
-      title: propagationWindowTitle(t, draft.creases.length, draft.scope),
+      // No title. The window frames the creases that changed and they are
+      // already redrawn in their solved colours and badged with their angles,
+      // so a header restating the count said nothing the canvas was not
+      // already saying. What the user cannot see is in `note`.
       index: 0,
       // Nothing to step through: a draft is one answer, not a menu. `0` rather
       // than `1` because "1 of 1" would claim a set with a second member to
-      // reach; the layer renders the title instead of a stepper for both, so
-      // this is about the descriptor staying honest.
+      // reach.
       count: 0,
       note: propagationWindowNote(t, {
         conflicts: draft.conflicts.length,

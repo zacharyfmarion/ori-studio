@@ -166,7 +166,7 @@ describe('usePropagationDraft', () => {
     expect(harness.controller().segments).toHaveLength(2);
   });
 
-  it('offers an Apply/Cancel window titled with what it found, and no stepper', async () => {
+  it('offers a bare Apply/Cancel window — no title, no stepper', async () => {
     const harness = mount(async () => previewOf([[4, 180]], { propagation_free: 3 }));
 
     await act(async () => {
@@ -174,10 +174,14 @@ describe('usePropagationDraft', () => {
     });
 
     const option = harness.controller().option;
-    expect(option?.title).toContain('1');
+    // No title: the frame and the recoloured creases already say what changed,
+    // so a header restating the count was noise. The layer renders no title
+    // span at all for this, rather than an empty one.
+    expect(option?.title).toBeUndefined();
     // `0`, not `1`: there is no second answer to step to, and the descriptor
     // documents `0` as "nothing to step through".
     expect(option?.count).toBe(0);
+    // The note is the part the drawing cannot carry, and it stays.
     expect(option?.note).toContain('3');
   });
 
@@ -452,27 +456,6 @@ describe('usePropagationDraft', () => {
     harness.render('doc-1', [4, 5]);
 
     expect(harness.controller().draft).not.toBeNull();
-  });
-
-  it('titles the window with the scope the kernel used', async () => {
-    // The user got the *scope* wrong, so a title carrying only a count cannot
-    // say whether that count is this pattern, the selection, or the sheet.
-    const titleFor = async (kind: string) => {
-      const harness = mount(async () =>
-        previewOf([[4, 180]], { propagation_scope: scopeOf(kind) })
-      );
-      await act(async () => {
-        await harness.controller().beginAtPoint({ x: 1, y: 1 });
-      });
-      return harness.controller().option?.title ?? '';
-    };
-
-    expect(await titleFor('selection')).toContain('Selection');
-    expect(await titleFor('component')).toContain('This pattern');
-    expect(await titleFor('document')).toContain('Whole document');
-    // A kind this frontend does not know still gets a true sentence rather than
-    // a raw identifier.
-    expect(await titleFor('something-newer')).toContain('Fold angles');
   });
 
   it('says which vertices need creases outside the selection, ahead of the count', async () => {

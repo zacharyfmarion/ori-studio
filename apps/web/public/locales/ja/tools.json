@@ -99,11 +99,7 @@
       "nothingInScope": "選択範囲はもう折り線を指していません。選び直すか、選択を解除して展開図をクリックしてください。",
       "outOfScope": "選択されていない折り線を必要とする頂点: {{vertices}} — それらも選択するか、選択を解除して展開図をクリックしてください。",
       "partial": "ここで未決定: {{creases}}",
-      "selectionNothingFree": "選択範囲のすべての折り線にすでに折り角度があります。未割り当ての折り線を選択するか、選択を解除して展開図をクリックしてください。",
-      "title": "折り角度 — {{creases}} 本を解決",
-      "titleComponent": "この展開図 — 折り角度 {{creases}} 本を解決",
-      "titleDocument": "ドキュメント全体 — 折り角度 {{creases}} 本を解決",
-      "titleSelection": "選択範囲 — 折り角度 {{creases}} 本を解決"
+      "selectionNothingFree": "選択範囲のすべての折り線にすでに折り角度があります。未割り当ての折り線を選択するか、選択を解除して展開図をクリックしてください。"
     },
     "ratioFieldAria": "比率 {{letter}}",
     "ratioPresets": "比率のプリセット",
@@ -175,6 +171,7 @@
   "cpToolOption": {
     "apply": "適用",
     "count": "{{total}} 件中 {{index}} 件目",
+    "label": "ツールオプション",
     "next": "次の候補",
     "previous": "前の候補"
   },

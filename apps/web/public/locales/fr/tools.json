@@ -107,11 +107,7 @@
       "nothingInScope": "La sélection ne désigne plus aucun pli. Sélectionnez-en à nouveau, ou effacez la sélection et cliquez sur un patron.",
       "outOfScope": "Sommets ayant besoin de plis non sélectionnés : {{vertices}} — sélectionnez-les aussi, ou effacez la sélection et cliquez sur le patron.",
       "partial": "Indécis ici : {{creases}}",
-      "selectionNothingFree": "Tous les plis de la sélection ont déjà un angle. Sélectionnez-en des non assignés, ou effacez la sélection et cliquez sur un patron.",
-      "title": "Angles de pli — {{creases}} résolus",
-      "titleComponent": "Ce patron — {{creases}} angles de pli résolus",
-      "titleDocument": "Tout le document — {{creases}} angles de pli résolus",
-      "titleSelection": "Sélection — {{creases}} angles de pli résolus"
+      "selectionNothingFree": "Tous les plis de la sélection ont déjà un angle. Sélectionnez-en des non assignés, ou effacez la sélection et cliquez sur un patron."
     },
     "ratioFieldAria": "Rapport {{letter}}",
     "ratioPresets": "Préréglages de rapport",
@@ -191,6 +187,7 @@
   "cpToolOption": {
     "apply": "Appliquer",
     "count": "{{index}} sur {{total}}",
+    "label": "Options de l'outil",
     "next": "Option suivante",
     "previous": "Option précédente"
   },

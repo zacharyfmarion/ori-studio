@@ -99,11 +99,7 @@
       "nothingInScope": "선택 항목이 더 이상 어떤 접힘선도 가리키지 않습니다. 다시 선택하거나, 선택을 해제하고 전개도를 클릭하세요.",
       "outOfScope": "선택하지 않은 접힘선이 필요한 꼭짓점: {{vertices}} — 그것도 함께 선택하거나, 선택을 해제하고 전개도를 클릭하세요.",
       "partial": "여기서 미정: {{creases}}",
-      "selectionNothingFree": "선택한 접힘선에는 모두 이미 각도가 있습니다. 미지정 접힘선을 선택하거나, 선택을 해제하고 전개도를 클릭하세요.",
-      "title": "접힘 각도 — {{creases}}개 해결",
-      "titleComponent": "이 전개도 — 접힘 각도 {{creases}}개 해결",
-      "titleDocument": "문서 전체 — 접힘 각도 {{creases}}개 해결",
-      "titleSelection": "선택 항목 — 접힘 각도 {{creases}}개 해결"
+      "selectionNothingFree": "선택한 접힘선에는 모두 이미 각도가 있습니다. 미지정 접힘선을 선택하거나, 선택을 해제하고 전개도를 클릭하세요."
     },
     "ratioFieldAria": "비율 {{letter}}",
     "ratioPresets": "비율 프리셋",
@@ -175,6 +171,7 @@
   "cpToolOption": {
     "apply": "적용",
     "count": "{{total}}개 중 {{index}}번째",
+    "label": "도구 옵션",
     "next": "다음 옵션",
     "previous": "이전 옵션"
   },

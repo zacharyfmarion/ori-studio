@@ -107,11 +107,7 @@
       "nothingInScope": "A seleção não nomeia mais nenhum vinco. Selecione novamente, ou limpe a seleção e clique em um padrão.",
       "outOfScope": "Vértices que precisam de vincos não selecionados: {{vertices}} — selecione-os também, ou limpe a seleção e clique no padrão.",
       "partial": "Indefinidos aqui: {{creases}}",
-      "selectionNothingFree": "Todos os vincos da seleção já têm ângulo de dobra. Selecione alguns não atribuídos, ou limpe a seleção e clique em um padrão.",
-      "title": "Ângulos de dobra — {{creases}} resolvidos",
-      "titleComponent": "Este padrão — {{creases}} ângulos de dobra resolvidos",
-      "titleDocument": "Documento inteiro — {{creases}} ângulos de dobra resolvidos",
-      "titleSelection": "Seleção — {{creases}} ângulos de dobra resolvidos"
+      "selectionNothingFree": "Todos os vincos da seleção já têm ângulo de dobra. Selecione alguns não atribuídos, ou limpe a seleção e clique em um padrão."
     },
     "ratioFieldAria": "Proporção {{letter}}",
     "ratioPresets": "Predefinições de proporção",
@@ -191,6 +187,7 @@
   "cpToolOption": {
     "apply": "Aplicar",
     "count": "{{index}} de {{total}}",
+    "label": "Opções da ferramenta",
     "next": "Próxima opção",
     "previous": "Opção anterior"
   },

@@ -2511,7 +2511,6 @@
     "tools:cpContext.foldAngleUnassignedDescription": "482b1ec8209f",
     "tools:cpContext.propagation.conflicts": "6cf2cfdfb37a",
     "tools:cpContext.propagation.partial": "29263bebd7c1",
-    "tools:cpContext.propagation.title": "334e1560884e",
     "tools:cpContext.propagation.nothingDecidable": "0adda7d61182",
     "tools:cpContext.propagation.nothingFree": "dd45e60c41a2",
     "tools:cpContext.applyPropagate": "c760923c1f7d",
@@ -2520,9 +2519,7 @@
     "tools:cpContext.propagation.nothingInScope": "8d1027d64a2b",
     "tools:cpContext.propagation.outOfScope": "50504c7866e9",
     "tools:cpContext.propagation.selectionNothingFree": "8748761e3bb8",
-    "tools:cpContext.propagation.titleComponent": "8719e4c694fe",
-    "tools:cpContext.propagation.titleDocument": "ab6f3e57edab",
-    "tools:cpContext.propagation.titleSelection": "b4a1f7c8a346"
+    "tools:cpToolOption.label": "7ea862ee67d6"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5036,7 +5033,6 @@
     "tools:cpContext.foldAngleUnassignedDescription": "482b1ec8209f",
     "tools:cpContext.propagation.conflicts": "6cf2cfdfb37a",
     "tools:cpContext.propagation.partial": "29263bebd7c1",
-    "tools:cpContext.propagation.title": "334e1560884e",
     "tools:cpContext.propagation.nothingDecidable": "0adda7d61182",
     "tools:cpContext.propagation.nothingFree": "dd45e60c41a2",
     "tools:cpContext.applyPropagate": "c760923c1f7d",
@@ -5045,9 +5041,7 @@
     "tools:cpContext.propagation.nothingInScope": "8d1027d64a2b",
     "tools:cpContext.propagation.outOfScope": "50504c7866e9",
     "tools:cpContext.propagation.selectionNothingFree": "8748761e3bb8",
-    "tools:cpContext.propagation.titleComponent": "8719e4c694fe",
-    "tools:cpContext.propagation.titleDocument": "ab6f3e57edab",
-    "tools:cpContext.propagation.titleSelection": "b4a1f7c8a346"
+    "tools:cpToolOption.label": "7ea862ee67d6"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7561,7 +7555,6 @@
     "tools:cpContext.foldAngleUnassignedDescription": "482b1ec8209f",
     "tools:cpContext.propagation.conflicts": "6cf2cfdfb37a",
     "tools:cpContext.propagation.partial": "29263bebd7c1",
-    "tools:cpContext.propagation.title": "334e1560884e",
     "tools:cpContext.propagation.nothingDecidable": "0adda7d61182",
     "tools:cpContext.propagation.nothingFree": "dd45e60c41a2",
     "tools:cpContext.applyPropagate": "c760923c1f7d",
@@ -7570,9 +7563,7 @@
     "tools:cpContext.propagation.nothingInScope": "8d1027d64a2b",
     "tools:cpContext.propagation.outOfScope": "50504c7866e9",
     "tools:cpContext.propagation.selectionNothingFree": "8748761e3bb8",
-    "tools:cpContext.propagation.titleComponent": "8719e4c694fe",
-    "tools:cpContext.propagation.titleDocument": "ab6f3e57edab",
-    "tools:cpContext.propagation.titleSelection": "b4a1f7c8a346"
+    "tools:cpToolOption.label": "7ea862ee67d6"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -10047,7 +10038,6 @@
     "tools:cpContext.foldAngleUnassignedDescription": "482b1ec8209f",
     "tools:cpContext.propagation.conflicts": "6cf2cfdfb37a",
     "tools:cpContext.propagation.partial": "29263bebd7c1",
-    "tools:cpContext.propagation.title": "334e1560884e",
     "tools:cpContext.propagation.nothingDecidable": "0adda7d61182",
     "tools:cpContext.propagation.nothingFree": "dd45e60c41a2",
     "tools:cpContext.applyPropagate": "c760923c1f7d",
@@ -10056,9 +10046,7 @@
     "tools:cpContext.propagation.nothingInScope": "8d1027d64a2b",
     "tools:cpContext.propagation.outOfScope": "50504c7866e9",
     "tools:cpContext.propagation.selectionNothingFree": "8748761e3bb8",
-    "tools:cpContext.propagation.titleComponent": "8719e4c694fe",
-    "tools:cpContext.propagation.titleDocument": "ab6f3e57edab",
-    "tools:cpContext.propagation.titleSelection": "b4a1f7c8a346"
+    "tools:cpToolOption.label": "7ea862ee67d6"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12533,7 +12521,6 @@
     "tools:cpContext.foldAngleUnassignedDescription": "482b1ec8209f",
     "tools:cpContext.propagation.conflicts": "6cf2cfdfb37a",
     "tools:cpContext.propagation.partial": "29263bebd7c1",
-    "tools:cpContext.propagation.title": "334e1560884e",
     "tools:cpContext.propagation.nothingDecidable": "0adda7d61182",
     "tools:cpContext.propagation.nothingFree": "dd45e60c41a2",
     "tools:cpContext.applyPropagate": "c760923c1f7d",
@@ -12542,9 +12529,7 @@
     "tools:cpContext.propagation.nothingInScope": "8d1027d64a2b",
     "tools:cpContext.propagation.outOfScope": "50504c7866e9",
     "tools:cpContext.propagation.selectionNothingFree": "8748761e3bb8",
-    "tools:cpContext.propagation.titleComponent": "8719e4c694fe",
-    "tools:cpContext.propagation.titleDocument": "ab6f3e57edab",
-    "tools:cpContext.propagation.titleSelection": "b4a1f7c8a346"
+    "tools:cpToolOption.label": "7ea862ee67d6"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -15058,7 +15043,6 @@
     "tools:cpContext.foldAngleUnassignedDescription": "482b1ec8209f",
     "tools:cpContext.propagation.conflicts": "6cf2cfdfb37a",
     "tools:cpContext.propagation.partial": "29263bebd7c1",
-    "tools:cpContext.propagation.title": "334e1560884e",
     "tools:cpContext.propagation.nothingDecidable": "0adda7d61182",
     "tools:cpContext.propagation.nothingFree": "dd45e60c41a2",
     "tools:cpContext.applyPropagate": "c760923c1f7d",
@@ -15067,9 +15051,7 @@
     "tools:cpContext.propagation.nothingInScope": "8d1027d64a2b",
     "tools:cpContext.propagation.outOfScope": "50504c7866e9",
     "tools:cpContext.propagation.selectionNothingFree": "8748761e3bb8",
-    "tools:cpContext.propagation.titleComponent": "8719e4c694fe",
-    "tools:cpContext.propagation.titleDocument": "ab6f3e57edab",
-    "tools:cpContext.propagation.titleSelection": "b4a1f7c8a346"
+    "tools:cpToolOption.label": "7ea862ee67d6"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17583,7 +17565,6 @@
     "tools:cpContext.foldAngleUnassignedDescription": "482b1ec8209f",
     "tools:cpContext.propagation.conflicts": "6cf2cfdfb37a",
     "tools:cpContext.propagation.partial": "29263bebd7c1",
-    "tools:cpContext.propagation.title": "334e1560884e",
     "tools:cpContext.propagation.nothingDecidable": "0adda7d61182",
     "tools:cpContext.propagation.nothingFree": "dd45e60c41a2",
     "tools:cpContext.applyPropagate": "c760923c1f7d",
@@ -17592,9 +17573,7 @@
     "tools:cpContext.propagation.nothingInScope": "8d1027d64a2b",
     "tools:cpContext.propagation.outOfScope": "50504c7866e9",
     "tools:cpContext.propagation.selectionNothingFree": "8748761e3bb8",
-    "tools:cpContext.propagation.titleComponent": "8719e4c694fe",
-    "tools:cpContext.propagation.titleDocument": "ab6f3e57edab",
-    "tools:cpContext.propagation.titleSelection": "b4a1f7c8a346"
+    "tools:cpToolOption.label": "7ea862ee67d6"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -20069,7 +20048,6 @@
     "tools:cpContext.foldAngleUnassignedDescription": "482b1ec8209f",
     "tools:cpContext.propagation.conflicts": "6cf2cfdfb37a",
     "tools:cpContext.propagation.partial": "29263bebd7c1",
-    "tools:cpContext.propagation.title": "334e1560884e",
     "tools:cpContext.propagation.nothingDecidable": "0adda7d61182",
     "tools:cpContext.propagation.nothingFree": "dd45e60c41a2",
     "tools:cpContext.applyPropagate": "c760923c1f7d",
@@ -20078,8 +20056,6 @@
     "tools:cpContext.propagation.nothingInScope": "8d1027d64a2b",
     "tools:cpContext.propagation.outOfScope": "50504c7866e9",
     "tools:cpContext.propagation.selectionNothingFree": "8748761e3bb8",
-    "tools:cpContext.propagation.titleComponent": "8719e4c694fe",
-    "tools:cpContext.propagation.titleDocument": "ab6f3e57edab",
-    "tools:cpContext.propagation.titleSelection": "b4a1f7c8a346"
+    "tools:cpToolOption.label": "7ea862ee67d6"
   }
 }

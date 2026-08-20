@@ -107,11 +107,7 @@
       "nothingInScope": "La selección ya no nombra ningún pliegue. Vuelve a seleccionar, o borra la selección y haz clic en un patrón.",
       "outOfScope": "Vértices que necesitan pliegues no seleccionados: {{vertices}} — selecciónalos también, o borra la selección y haz clic en el patrón.",
       "partial": "Sin decidir aquí: {{creases}}",
-      "selectionNothingFree": "Todos los pliegues de la selección ya tienen ángulo. Selecciona algunos sin asignar, o borra la selección y haz clic en un patrón.",
-      "title": "Ángulos de plegado — {{creases}} resueltos",
-      "titleComponent": "Este patrón — {{creases}} ángulos de plegado resueltos",
-      "titleDocument": "Todo el documento — {{creases}} ángulos de plegado resueltos",
-      "titleSelection": "Selección — {{creases}} ángulos de plegado resueltos"
+      "selectionNothingFree": "Todos los pliegues de la selección ya tienen ángulo. Selecciona algunos sin asignar, o borra la selección y haz clic en un patrón."
     },
     "ratioFieldAria": "Proporción {{letter}}",
     "ratioPresets": "Ajustes preestablecidos de proporción",
@@ -191,6 +187,7 @@
   "cpToolOption": {
     "apply": "Aplicar",
     "count": "{{index}} de {{total}}",
+    "label": "Opciones de herramienta",
     "next": "Opción siguiente",
     "previous": "Opción anterior"
   },
