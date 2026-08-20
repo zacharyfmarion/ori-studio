@@ -49,14 +49,15 @@ describe('decodeCompactGeometryBytes', () => {
   // Fails first, and most legibly, when the encoder moves on.
   it('is a current-version buffer, not a stale one', () => {
     const magic = new DataView(bufferOf(GOLDEN_BYTES)).getUint32(0, true);
-    expect(String.fromCharCode(...GOLDEN_BYTES.slice(0, 4))).toBe('2GCO'); // "OCG2", little-endian
-    expect(magic).toBe(0x4f_43_47_32);
+    expect(String.fromCharCode(...GOLDEN_BYTES.slice(0, 4))).toBe('3GCO'); // "OCG3", little-endian
+    expect(magic).toBe(0x4f_43_47_33);
   });
 
   it('decodes the real Rust-encoded golden buffer', () => {
     const geometry = decodeCompactGeometryBytes(bufferOf(GOLDEN_BYTES));
     expect(Array.from(geometry.segEndpoints)).toEqual([1, 2, 3, 4]);
-    expect(Array.from(geometry.segAttr)).toEqual([5, 6, 7, 8]);
+    // Five per segment since OCG3: colour, active, selected, customized, hint.
+    expect(Array.from(geometry.segAttr)).toEqual([5, 6, 7, 8, 0]);
     expect(Array.from(geometry.segCustomColor)).toEqual([9, 10, 11]);
     // Empty means "every segment is classic" — the common case, and what the
     // encoder writes when no segment carries a magnitude.
@@ -82,7 +83,7 @@ describe('decodeCompactGeometryBytes', () => {
   // buffer must be refused outright rather than misparsed.
   it('refuses a previous-version (OCG1) buffer', () => {
     const bytes = GOLDEN_BYTES.slice();
-    bytes[0] = '1'.charCodeAt(0); // OCG2 -> OCG1
+    bytes[0] = '1'.charCodeAt(0); // OCG3 -> OCG1
     expect(() => decodeCompactGeometryBytes(bufferOf(bytes))).toThrow(
       expect.objectContaining({ code: 'geometry_decode' })
     );

@@ -35,7 +35,15 @@ import type {
 } from './oristudioCpTypes';
 
 /** Per-segment attribute stride: `[color, active, selected, customized]`. */
-export const SEG_ATTR_STRIDE = 4;
+/**
+ * Per-segment integer attributes: colour, active, selected, customized, and the
+ * fold-direction hint (0 none, 1 mountain, 2 valley).
+ *
+ * OCG3 widened this from 4. Must stay in lockstep with `SEG_ATTR_STRIDE` in
+ * `crates/oristudio-cp/src/geometry_transport.rs` — the magic bump is what stops
+ * a stale decoder misreading rather than failing.
+ */
+export const SEG_ATTR_STRIDE = 5;
 /** Per-circle attribute stride: `[color, customized]`. */
 export const CIRCLE_ATTR_STRIDE = 2;
 

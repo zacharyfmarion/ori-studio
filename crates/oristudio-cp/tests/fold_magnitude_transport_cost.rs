@@ -91,5 +91,8 @@ fn measure_compact_transport_cost() {
         encode_ms + to_bytes_ms + from_bytes_ms + decode_ms
     );
 
-    assert_eq!(per_segment.round() as i64, 51);
+    // 51 -> 55: OCG3 widened `seg_attr` by one i32 per segment to carry the
+    // fold-direction hint. A measured number, not a budget — this test exists to
+    // make the cost visible when it moves, and this move was deliberate.
+    assert_eq!(per_segment.round() as i64, 55);
 }

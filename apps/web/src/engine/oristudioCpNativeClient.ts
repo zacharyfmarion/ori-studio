@@ -83,7 +83,7 @@ type PlainCompactGeometry = {
 // Keep the magic, the count, and the field order in step with the Rust encoder:
 // it rejects an unrecognised magic outright, so a decoder left on the previous
 // version fails every payload rather than misparsing one.
-const COMPACT_GEOMETRY_MAGIC = 0x4f_43_47_32; // "OCG2" — adds seg_fold_magnitude
+const COMPACT_GEOMETRY_MAGIC = 0x4f_43_47_33; // "OCG3" — widens seg_attr with the fold-direction hint
 const COMPACT_GEOMETRY_COUNTS = 11;
 const COMPACT_GEOMETRY_HEADER_U32S = COMPACT_GEOMETRY_COUNTS + 2; // magic + counts + tail_byte_len
 

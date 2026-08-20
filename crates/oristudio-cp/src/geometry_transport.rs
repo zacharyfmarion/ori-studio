@@ -17,13 +17,19 @@ use std::collections::BTreeMap;
 
 use crate::CreasePatternDocument;
 use crate::geometry::{
-    ActiveState, Circle, FoldMagnitude, LineColor, LineSegment, Point, RgbColor,
+    ActiveState, Circle, FoldDirection, FoldMagnitude, LineColor, LineSegment, Point, RgbColor,
 };
 use crate::model::{CreasePatternModel, GridMetadata, TextElement};
 use crate::operations::transform::OperationFrame;
 
 /// Per-segment attribute stride: `[color, active, selected, customized]`.
-const SEG_ATTR_STRIDE: usize = 4;
+/// Per-segment integer attributes: colour, active, selected, customized, and
+/// the fold-direction hint.
+///
+/// OCG3 widened this from 4 rather than adding a twelfth array, because a hint
+/// is one small integer per segment and a whole array would cost a header slot
+/// and a length check to carry it.
+const SEG_ATTR_STRIDE: usize = 5;
 /// Per-circle attribute stride: `[color, customized]`.
 const CIRCLE_ATTR_STRIDE: usize = 2;
 
@@ -65,9 +71,10 @@ pub struct CompactGeometry {
 /// Magic + version header for [`CompactGeometry::to_bytes`] ("OCG2"). Bumping
 /// the last byte is how the format version advances.
 ///
-/// OCG2 added `seg_fold_magnitude`. A reader rejects an unrecognised magic
+/// OCG3 widened `seg_attr` to carry the fold-direction hint. OCG2 added
+/// `seg_fold_magnitude`. A reader rejects an unrecognised magic
 /// outright, so a version mismatch is a loud error rather than a misparse.
-const COMPACT_GEOMETRY_MAGIC: u32 = 0x4f43_4732;
+const COMPACT_GEOMETRY_MAGIC: u32 = 0x4f43_4733;
 
 /// Single-buffer binary codec for the native (Tauri) IPC path.
 ///
@@ -293,6 +300,26 @@ fn active_state_from_code(code: i32) -> ActiveState {
     }
 }
 
+/// The hint as a small integer: 0 none, 1 mountain, 2 valley.
+const fn fold_direction_hint_code(hint: Option<FoldDirection>) -> i32 {
+    match hint {
+        None => 0,
+        Some(FoldDirection::Mountain) => 1,
+        Some(FoldDirection::Valley) => 2,
+    }
+}
+
+/// Inverse of [`fold_direction_hint_code`]. An unrecognised code reads as no
+/// hint rather than erroring — this is our own format on both ends, and losing
+/// a hint is the safe misreading where inventing one is not.
+const fn fold_direction_hint_from_code(code: i32) -> Option<FoldDirection> {
+    match code {
+        1 => Some(FoldDirection::Mountain),
+        2 => Some(FoldDirection::Valley),
+        _ => None,
+    }
+}
+
 fn encode_segments(segments: &[LineSegment]) -> (Vec<f64>, Vec<i32>, Vec<u8>) {
     let mut endpoints = Vec::with_capacity(segments.len() * 4);
     let mut attr = Vec::with_capacity(segments.len() * SEG_ATTR_STRIDE);
@@ -306,6 +333,7 @@ fn encode_segments(segments: &[LineSegment]) -> (Vec<f64>, Vec<i32>, Vec<u8>) {
         attr.push(active_state_code(segment.active));
         attr.push(segment.selected);
         attr.push(segment.customized);
+        attr.push(fold_direction_hint_code(segment.fold_direction_hint));
         custom.push(segment.customized_color.red);
         custom.push(segment.customized_color.green);
         custom.push(segment.customized_color.blue);
@@ -367,12 +395,7 @@ fn decode_segments(
             color,
             selected: attr[a + 2],
             customized: attr[a + 3],
-            // Not yet carried across the compact boundary: that is an OCG2 ->
-            // OCG3 bump, which is five surfaces plus a byte-exact golden. Until
-            // it lands the canvas cannot draw a hint, so the *renderer* half of
-            // this feature is gated on it. Decoding `None` is the safe reading —
-            // it loses the hint rather than inventing one.
-            fold_direction_hint: None,
+            fold_direction_hint: fold_direction_hint_from_code(attr[a + 4]),
             customized_color: RgbColor::new(custom[c], custom[c + 1], custom[c + 2]),
             fold_magnitude: fold_magnitude
                 .get(i)
@@ -691,6 +714,45 @@ mod tests {
         }
     }
 
+    /// The OCG3 addition. A hint that does not survive the transport cannot be
+    /// drawn, which is the whole reason the bump exists.
+    #[test]
+    fn a_direction_hint_survives_the_binary_codec() {
+        let mut document = CreasePatternDocument::default();
+        for (index, color) in [LineColor::Red1, LineColor::Blue2].into_iter().enumerate() {
+            let y = index as f64;
+            document.crease_pattern.line_segments.push(
+                segment(
+                    (0.0, y),
+                    (1.0, y),
+                    color,
+                    ActiveState::Inactive0,
+                    0,
+                    0,
+                    (0, 0, 0),
+                )
+                .with_direction_kept(),
+            );
+        }
+        document.crease_pattern.line_segments.push(segment(
+            (0.0, 9.0),
+            (1.0, 9.0),
+            LineColor::Red1,
+            ActiveState::Inactive0,
+            0,
+            0,
+            (0, 0, 0),
+        ));
+
+        let bytes = encode(&document).to_bytes().expect("to_bytes");
+        let restored =
+            decode(&CompactGeometry::from_bytes(&bytes).expect("from_bytes")).expect("decode");
+        let back = &restored.crease_pattern.line_segments;
+        assert_eq!(back[0].fold_direction_hint, Some(FoldDirection::Mountain));
+        assert_eq!(back[1].fold_direction_hint, Some(FoldDirection::Valley));
+        assert_eq!(back[2].fold_direction_hint, None);
+    }
+
     #[test]
     fn magnitude_survives_the_binary_codec() {
         let ninety = FoldMagnitude::from_degrees(90.0).expect("in range");
@@ -772,7 +834,9 @@ mod tests {
     fn golden_geometry() -> CompactGeometry {
         CompactGeometry {
             seg_endpoints: vec![1.0, 2.0, 3.0, 4.0],
-            seg_attr: vec![5, 6, 7, 8],
+            // Five per segment since OCG3: colour, active, selected, customized,
+            // and the fold-direction hint. Must stay `SEG_ATTR_STRIDE` long.
+            seg_attr: vec![5, 6, 7, 8, 0],
             seg_custom_color: vec![9, 10, 11],
             seg_fold_magnitude: vec![],
             aux_endpoints: vec![],
@@ -856,7 +920,11 @@ mod tests {
         let counts_at =
             |i: usize| u32::from_le_bytes(bytes[4 + i * 4..8 + i * 4].try_into().unwrap()) as usize;
         assert_eq!(counts_at(0), 4, "seg_endpoints count");
-        assert_eq!(counts_at(1), 4, "seg_attr count");
+        assert_eq!(
+            counts_at(1),
+            5,
+            "seg_attr count (OCG3: one segment x stride 5)"
+        );
         assert_eq!(counts_at(2), 3, "seg_custom_color count");
         assert_eq!(counts_at(3), 0, "seg_fold_magnitude count (OCG2)");
         assert_eq!(counts_at(7), 2, "point_coords count");
