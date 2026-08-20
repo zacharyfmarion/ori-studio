@@ -9,6 +9,7 @@ pub mod cancel;
 pub mod canonical;
 pub mod checks;
 pub mod checks_spatial;
+mod crease_graph;
 mod fold_graph;
 pub mod fold_profiling;
 pub mod folding;
@@ -396,6 +397,32 @@ pub struct CommandPreview {
     /// rests on is inconsistent.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub propagation_conflicts: Vec<geometry::Point>,
+    /// What the run was scoped to. Absent when the scope named nothing, which
+    /// is the case `unavailable` reports.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub propagation_scope: Option<PropagationScope>,
+}
+
+/// The scope a propagation draft ran in, so the tool can name it.
+///
+/// The user got the *scope* wrong, which is why the window has to say which one
+/// it used rather than leaving it to be inferred from a count.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PropagationScope {
+    /// `selection` | `component` | `document`, as a stable code.
+    pub kind: String,
+    /// Creases the scope names.
+    pub creases: usize,
+    /// Vertices propagation was allowed to visit.
+    pub vertices: usize,
+    /// Unassigned creases still inside the scope after the draft. Scope-relative
+    /// — the same number as `propagation_free`, and deliberately not a document
+    /// total.
+    pub free: usize,
+    /// Vertices skipped because some of their unknowns were outside the scope.
+    /// The one finding with an action attached: widen the selection, or clear it
+    /// and click the pattern.
+    pub out_of_scope: usize,
 }
 
 /// One crease a propagation draft would set.
@@ -429,15 +456,38 @@ pub struct PropagationStall {
     pub unknowns: usize,
 }
 
+/// What a propagation command resolved to.
+enum PropagationDraft {
+    /// The scope named nothing to work on. The payload carries the stable code
+    /// the frontend turns into a sentence; the commit path writes nothing.
+    Declined(&'static str),
+    Ready(operations::native::fold_propagation::Propagation),
+}
+
 /// The draft a propagation run produces, from a command's payload.
 ///
 /// One helper for both dispatch paths, so the preview a user confirms and the
-/// commit that lands cannot disagree about what the answer was.
+/// commit that lands cannot disagree about what the answer was — **including
+/// about the scope**, which is the whole reason scope resolution lives here
+/// rather than in either arm.
+///
+/// # Precedence, stated once
+///
+/// A selection wins over the seed, the same way `CreaseToggleMv` and
+/// `CreaseSelect` prioritise `line_ids` over their box. Neither means the whole
+/// document: with no selection and no seed this **declines**, because "no scope
+/// means the whole canvas" is exactly the behaviour scoping exists to remove.
+/// `Scope::document` stays reachable from Rust tests and headless callers only.
+///
+/// Note the hazard this sits next to: the frontend's generic preview path
+/// forwards the ambient selection into `line_ids` for every tool, and
+/// propagation is spared only because the panel returns early for it. If that
+/// early return is ever removed, propagation silently acquires a scope from
+/// whatever happens to be selected.
 fn propagation_draft(
     document: &CreasePatternDocument,
     command: &CreasePatternCommand,
-) -> Result<operations::native::fold_propagation::Propagation> {
-    let seed = command.payload.points.first().copied();
+) -> Result<PropagationDraft> {
     let max_commit_k = command
         .payload
         .max_commit_k
@@ -462,13 +512,56 @@ fn propagation_draft(
                 })
         })
         .collect::<Result<Vec<_>>>()?;
-    Ok(operations::native::fold_propagation::propagate(
-        &document.crease_pattern,
-        seed,
-        &pins,
-        max_commit_k,
-        CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
+    // Both id lists are validated before anything is resolved: a zero id is a
+    // malformed payload, not a scope that named nothing.
+    let selected = optional_line_indices(command)?;
+
+    let model = &document.crease_pattern;
+    let scope = if selected.is_empty() {
+        let Some(seed) = command.payload.points.first().copied() else {
+            return Ok(PropagationDraft::Declined("PropagationNoScope"));
+        };
+        match operations::native::fold_propagation::Scope::component_at(
+            model,
+            seed,
+            selection_distance(command),
+        ) {
+            Some(scope) => scope,
+            None => return Ok(PropagationDraft::Declined("PropagationNoComponentAtPoint")),
+        }
+    } else {
+        let named: Vec<usize> = selected
+            .into_iter()
+            .filter(|index| *index < model.line_segments.len())
+            .collect();
+        let scope = operations::native::fold_propagation::Scope::creases(model, &named);
+        // An id list that names nothing must **not** fall through to the whole
+        // document. That silent widening is the bug this scoping fixes.
+        if scope.creases_named().is_empty() {
+            return Ok(PropagationDraft::Declined("PropagationNothingInScope"));
+        }
+        scope
+    };
+
+    Ok(PropagationDraft::Ready(
+        operations::native::fold_propagation::propagate(
+            model,
+            &scope,
+            &pins,
+            max_commit_k,
+            CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
+        ),
     ))
+}
+
+/// Stable code per scope kind, for a window that has to name what it worked on.
+fn scope_kind_code(kind: operations::native::fold_propagation::ScopeKind) -> &'static str {
+    use operations::native::fold_propagation::ScopeKind;
+    match kind {
+        ScopeKind::Selection => "selection",
+        ScopeKind::Component => "component",
+        ScopeKind::Document => "document",
+    }
 }
 
 /// Stable code per stall reason. The frontend turns these into sentences, and
@@ -481,6 +574,7 @@ fn stall_reason_code(reason: operations::native::fold_propagation::StallReason) 
         StallReason::Branching => "branching",
         StallReason::Unsolvable => "unsolvable",
         StallReason::AboveCap => "above_cap",
+        StallReason::OutOfScope => "out_of_scope",
     }
 }
 
@@ -1988,9 +2082,16 @@ pub fn execute_command(
             // Commit is the *same* draft the preview showed, recomputed from the
             // same inputs rather than carried across the boundary. The solve is
             // deterministic, so the two agree; sending the draft back would mean
-            // trusting a client-held answer about the document's geometry.
-            let draft = propagation_draft(document, &command)?;
-            operations::native::fold_propagation::apply(&mut document.crease_pattern, &draft.solved)
+            // trusting a client-held answer about the document's geometry. That
+            // includes the scope: both paths resolve it in `propagation_draft`,
+            // so a commit cannot be wider than the draft the user confirmed.
+            match propagation_draft(document, &command)? {
+                PropagationDraft::Declined(_) => 0,
+                PropagationDraft::Ready(draft) => operations::native::fold_propagation::apply(
+                    &mut document.crease_pattern,
+                    &draft.solved,
+                ),
+            }
         }
         OperationId::CreaseToggleMv => {
             // Oriedita `CREASE_TOGGLE_MV_58` is a box-select tool: a single crease
@@ -3801,9 +3902,14 @@ pub fn preview_command(
             }
         }
         OperationId::PropagateFoldAngles => {
-            let draft = propagation_draft(document, &command)?;
-            let free =
-                operations::native::fold_propagation::free_line_indices(&document.crease_pattern);
+            let draft = match propagation_draft(document, &command)? {
+                PropagationDraft::Declined(code) => {
+                    preview.propagation_solved = Some(0);
+                    preview.unavailable = Some(code.to_owned());
+                    return Ok(preview);
+                }
+                PropagationDraft::Ready(draft) => draft,
+            };
             // The draft creases as they would become, carrying their solved
             // colour and magnitude so the canvas ramp and the angle badges show
             // what confirming would do — the same channel the three-crease
@@ -3839,8 +3945,12 @@ pub fn preview_command(
             // Counted off the emitted list rather than the draft, so the scalar
             // cannot claim more creases than the preview actually names.
             let named = preview.propagation_creases.len();
+            // **Scope-relative.** Counted from the creases inside the scope, not
+            // from the document: a window saying "still undecided: 40" over a
+            // draft that covers one of five patterns is reporting the canvas.
+            let still_free = draft.scope.free.saturating_sub(named);
             preview.propagation_solved = Some(named);
-            preview.propagation_free = Some(free.len().saturating_sub(named));
+            preview.propagation_free = Some(still_free);
             preview.propagation_stalls = draft
                 .stalls
                 .iter()
@@ -3851,12 +3961,32 @@ pub fn preview_command(
                 })
                 .collect();
             preview.propagation_conflicts = draft.closure_failures.clone();
+            preview.propagation_scope = Some(PropagationScope {
+                kind: scope_kind_code(draft.scope.kind).to_owned(),
+                creases: draft.scope.creases,
+                vertices: draft.scope.vertices,
+                free: still_free,
+                out_of_scope: draft
+                    .stalls
+                    .iter()
+                    .filter(|stall| {
+                        stall.reason
+                            == operations::native::fold_propagation::StallReason::OutOfScope
+                    })
+                    .count(),
+            });
             if named == 0 {
+                use operations::native::fold_propagation::ScopeKind;
                 preview.unavailable = Some(
-                    if free.is_empty() {
-                        "PropagationNothingFree"
-                    } else {
-                        "PropagationNothingDecidable"
+                    match (draft.scope.free == 0, draft.scope.kind) {
+                        // Not `PropagationNothingFree`: its sentence is "every
+                        // crease already has a fold angle", which is a lie when
+                        // the rest of the canvas is full of unassigned creases
+                        // and the user simply selected the wrong ones. Different
+                        // next move, different code.
+                        (true, ScopeKind::Selection) => "PropagationSelectionNothingFree",
+                        (true, _) => "PropagationNothingFree",
+                        (false, _) => "PropagationNothingDecidable",
                     }
                     .to_owned(),
                 );
@@ -4849,6 +4979,9 @@ mod tests {
 
     /// `pins` are zero-based document indices, as the solver reports them; the
     /// payload carries one-based ids, as `line_ids` does.
+    ///
+    /// A seed or a selection is now required — with neither, the command
+    /// declines rather than falling back to the whole canvas.
     fn propagate_command(seed: Option<Point>, pins: &[(usize, f64)]) -> CreasePatternCommand {
         CreasePatternCommand::new(OperationId::PropagateFoldAngles).with_payload(
             CreasePatternCommandPayload {
@@ -4862,6 +4995,70 @@ mod tests {
         )
     }
 
+    /// The same, scoped to a selection instead of a click.
+    fn propagate_selection_command(lines: &[usize], pins: &[(usize, f64)]) -> CreasePatternCommand {
+        CreasePatternCommand::new(OperationId::PropagateFoldAngles).with_payload(
+            CreasePatternCommandPayload {
+                line_ids: lines.iter().map(|index| index + 1).collect(),
+                pinned_angles: pins
+                    .iter()
+                    .map(|(index, degrees)| (index + 1, *degrees))
+                    .collect(),
+                ..Default::default()
+            },
+        )
+    }
+
+    /// Any vertex of the document, for the tests that only need *a* scope. The
+    /// fixture is a single connected pattern, so this is the whole of it.
+    fn a_seed_on(document: &CreasePatternDocument) -> Point {
+        document.crease_pattern.line_segments[0].a
+    }
+
+    /// Two copies of the fixture, translated apart — the reported bug in
+    /// miniature. Returns the document and the offset of the second copy.
+    fn two_kabutos() -> (CreasePatternDocument, f64) {
+        const SHIFT: f64 = 1000.0;
+        let one = kabuto_document();
+        let mut both = one.clone();
+        for segment in &one.crease_pattern.line_segments {
+            let mut moved = segment.clone();
+            moved.a = Point::new(segment.a.x + SHIFT, segment.a.y);
+            moved.b = Point::new(segment.b.x + SHIFT, segment.b.y);
+            both.crease_pattern.line_segments.push(moved);
+        }
+        (both, SHIFT)
+    }
+
+    /// Two disjoint patterns with one recoverable crease blanked in each.
+    fn two_kabutos_with_one_blanked_crease_each() -> (CreasePatternDocument, usize, usize) {
+        let (both, _) = two_kabutos();
+        let half = both.crease_pattern.line_segments.len() / 2;
+        for index in 0..half {
+            let segment = both.crease_pattern.line_segments[index].clone();
+            if model::crease_fold_angle(&segment).is_none() {
+                continue;
+            }
+            let mut blanked = both.clone();
+            for at in [index, index + half] {
+                blanked.crease_pattern.line_segments[at] = blanked.crease_pattern.line_segments[at]
+                    .clone()
+                    .with_line_color(LineColor::None);
+            }
+            let seed = blanked.crease_pattern.line_segments[index].a;
+            let preview = preview_command(&blanked, propagate_command(Some(seed), &[]))
+                .expect("preview succeeds");
+            if preview
+                .propagation_creases
+                .iter()
+                .any(|crease| crease.line_id == index + 1)
+            {
+                return (blanked, index, index + half);
+            }
+        }
+        panic!("no crease is recoverable in both copies");
+    }
+
     /// Kabuto with one crease blanked, chosen so that propagation can put it
     /// back — the smallest document that produces a non-empty draft.
     fn kabuto_with_one_blanked_crease() -> (CreasePatternDocument, usize) {
@@ -4873,8 +5070,9 @@ mod tests {
             }
             let mut blanked = complete.clone();
             blanked.crease_pattern.line_segments[index] = segment.with_line_color(LineColor::None);
-            let preview =
-                preview_command(&blanked, propagate_command(None, &[])).expect("preview succeeds");
+            let seed = a_seed_on(&blanked);
+            let preview = preview_command(&blanked, propagate_command(Some(seed), &[]))
+                .expect("preview succeeds");
             if !preview.propagation_creases.is_empty() {
                 return (blanked, index);
             }
@@ -4892,8 +5090,9 @@ mod tests {
     #[test]
     fn the_propagation_preview_names_the_creases_it_would_change() {
         let (document, blanked) = kabuto_with_one_blanked_crease();
-        let preview =
-            preview_command(&document, propagate_command(None, &[])).expect("preview succeeds");
+        let seed = a_seed_on(&document);
+        let preview = preview_command(&document, propagate_command(Some(seed), &[]))
+            .expect("preview succeeds");
 
         assert!(!preview.propagation_creases.is_empty());
         assert_eq!(
@@ -4944,11 +5143,12 @@ mod tests {
     #[test]
     fn the_previewed_creases_are_exactly_what_the_commit_writes() {
         let (document, _) = kabuto_with_one_blanked_crease();
-        let preview =
-            preview_command(&document, propagate_command(None, &[])).expect("preview succeeds");
+        let seed = a_seed_on(&document);
+        let preview = preview_command(&document, propagate_command(Some(seed), &[]))
+            .expect("preview succeeds");
 
         let mut applied = document.clone();
-        execute_command(&mut applied, propagate_command(None, &[])).expect("commit succeeds");
+        execute_command(&mut applied, propagate_command(Some(seed), &[])).expect("commit succeeds");
 
         let named: HashSet<usize> = preview
             .propagation_creases
@@ -4993,8 +5193,9 @@ mod tests {
     #[test]
     fn a_complete_document_names_nothing() {
         let document = kabuto_document();
-        let preview =
-            preview_command(&document, propagate_command(None, &[])).expect("preview succeeds");
+        let seed = a_seed_on(&document);
+        let preview = preview_command(&document, propagate_command(Some(seed), &[]))
+            .expect("preview succeeds");
         assert!(preview.propagation_creases.is_empty());
         assert_eq!(preview.propagation_solved, Some(0));
         assert_eq!(
@@ -5027,7 +5228,8 @@ mod tests {
         // otherwise stand in for the pinned crease and hide an off-by-one.
         let angle = -137.0;
 
-        let preview = preview_command(&blanked, propagate_command(None, &[(pinned, angle)]))
+        let seed = a_seed_on(&blanked);
+        let preview = preview_command(&blanked, propagate_command(Some(seed), &[(pinned, angle)]))
             .expect("preview succeeds");
         let named = preview
             .propagation_creases
@@ -5051,8 +5253,11 @@ mod tests {
         // And the commit puts it on that same crease, which is what the id is
         // ultimately a promise about.
         let mut applied = blanked.clone();
-        execute_command(&mut applied, propagate_command(None, &[(pinned, angle)]))
-            .expect("commit succeeds");
+        execute_command(
+            &mut applied,
+            propagate_command(Some(seed), &[(pinned, angle)]),
+        )
+        .expect("commit succeeds");
         let written = model::crease_fold_angle(&applied.crease_pattern.line_segments[pinned])
             .expect("the pinned crease is assigned after the commit");
         assert!(
@@ -5067,10 +5272,258 @@ mod tests {
     #[test]
     fn a_zero_pin_id_is_rejected() {
         let document = kabuto_document();
-        let mut command = propagate_command(None, &[]);
+        // A real scope, so this tests the id validation rather than the scope
+        // refusal — and it pins the order: a malformed payload is an error, not
+        // a scope that named nothing.
+        let mut command = propagate_command(Some(a_seed_on(&document)), &[]);
         command.payload.pinned_angles = vec![(0, 90.0)];
         assert!(preview_command(&document, command.clone()).is_err());
         assert!(execute_command(&mut document.clone(), command).is_err());
+    }
+
+    /// Zero is not a line id in the scope either.
+    #[test]
+    fn a_zero_scope_id_is_rejected() {
+        let document = kabuto_document();
+        let mut command = propagate_command(None, &[]);
+        command.payload.line_ids = vec![0];
+        assert!(preview_command(&document, command.clone()).is_err());
+        assert!(execute_command(&mut document.clone(), command).is_err());
+    }
+
+    // -----------------------------------------------------------------------
+    // Scope
+    // -----------------------------------------------------------------------
+
+    /// **The command-path regression test for the filed bug.** Two patterns on
+    /// one canvas, a click in the first: the second must come out of the commit
+    /// byte-identical.
+    #[test]
+    fn a_click_never_writes_into_another_pattern() {
+        let (document, in_a, in_b) = two_kabutos_with_one_blanked_crease_each();
+        let half = document.crease_pattern.line_segments.len() / 2;
+        let seed = document.crease_pattern.line_segments[in_a].a;
+
+        let preview = preview_command(&document, propagate_command(Some(seed), &[]))
+            .expect("preview succeeds");
+        assert!(
+            preview
+                .propagation_creases
+                .iter()
+                .any(|crease| crease.line_id == in_a + 1),
+            "the clicked pattern must still be solved"
+        );
+        assert!(
+            preview
+                .propagation_creases
+                .iter()
+                .all(|crease| crease.line_id <= half),
+            "the draft named a crease in the other pattern"
+        );
+        assert_eq!(
+            preview
+                .propagation_scope
+                .as_ref()
+                .map(|scope| scope.kind.as_str()),
+            Some("component")
+        );
+
+        let mut applied = document.clone();
+        execute_command(&mut applied, propagate_command(Some(seed), &[])).expect("commit succeeds");
+        for index in half..document.crease_pattern.line_segments.len() {
+            assert_eq!(
+                document.crease_pattern.line_segments[index],
+                applied.crease_pattern.line_segments[index],
+                "line {} in the second pattern changed",
+                index + 1
+            );
+        }
+        assert!(
+            model::crease_fold_angle(&applied.crease_pattern.line_segments[in_b]).is_none(),
+            "the second pattern's blanked crease was solved by a click on the first"
+        );
+    }
+
+    /// A selection names the scope in the same one-based space `line_ids`
+    /// already uses. An off-by-one here scopes in the neighbouring crease, and
+    /// nothing about the result would look wrong.
+    #[test]
+    fn a_one_based_scope_reaches_the_creases_it_names() {
+        let (document, in_a, in_b) = two_kabutos_with_one_blanked_crease_each();
+        let preview = preview_command(&document, propagate_selection_command(&[in_a], &[]))
+            .expect("preview succeeds");
+
+        assert_eq!(
+            preview
+                .propagation_scope
+                .as_ref()
+                .map(|scope| scope.kind.as_str()),
+            Some("selection")
+        );
+        assert_eq!(
+            preview
+                .propagation_scope
+                .as_ref()
+                .map(|scope| scope.creases),
+            Some(1)
+        );
+        assert!(
+            preview
+                .propagation_creases
+                .iter()
+                .all(|crease| crease.line_id == in_a + 1),
+            "the draft reached outside the one crease it was given: {:?}",
+            preview.propagation_creases
+        );
+
+        let mut applied = document.clone();
+        execute_command(&mut applied, propagate_selection_command(&[in_a], &[]))
+            .expect("commit succeeds");
+        for index in 0..document.crease_pattern.line_segments.len() {
+            if index == in_a {
+                continue;
+            }
+            assert_eq!(
+                document.crease_pattern.line_segments[index],
+                applied.crease_pattern.line_segments[index],
+                "line {} changed without being selected",
+                index + 1
+            );
+        }
+        assert!(model::crease_fold_angle(&applied.crease_pattern.line_segments[in_b]).is_none());
+    }
+
+    /// "Still undecided" is scope-relative. Reporting the canvas total under a
+    /// draft that covers one pattern is reporting somebody else's problem.
+    #[test]
+    fn still_undecided_counts_only_the_scope() {
+        let (document, in_a, _) = two_kabutos_with_one_blanked_crease_each();
+        let half = document.crease_pattern.line_segments.len() / 2;
+        // Blank a second crease in the first pattern that propagation cannot
+        // recover, so the scope has a non-zero remainder of its own.
+        let mut document = document;
+        let extra = (0..half)
+            .find(|index| {
+                *index != in_a
+                    && model::crease_fold_angle(&document.crease_pattern.line_segments[*index])
+                        .is_some()
+            })
+            .expect("another assigned crease");
+        document.crease_pattern.line_segments[extra] = document.crease_pattern.line_segments[extra]
+            .clone()
+            .with_line_color(LineColor::None);
+
+        let seed = document.crease_pattern.line_segments[in_a].a;
+        let preview = preview_command(&document, propagate_command(Some(seed), &[]))
+            .expect("preview succeeds");
+        let scope = preview
+            .propagation_scope
+            .as_ref()
+            .expect("a resolved scope");
+        let free_everywhere = document
+            .crease_pattern
+            .line_segments
+            .iter()
+            .filter(|segment| segment.color == LineColor::None)
+            .count();
+        assert!(
+            preview.propagation_free.unwrap_or(usize::MAX) < free_everywhere,
+            "the free count is the document's, not the scope's"
+        );
+        assert_eq!(preview.propagation_free, Some(scope.free));
+    }
+
+    /// A stall belongs to the pattern the user is looking at.
+    #[test]
+    fn stalls_are_reported_only_inside_the_scope() {
+        let (mut document, shift) = two_kabutos();
+        let half = document.crease_pattern.line_segments.len() / 2;
+        for index in half..document.crease_pattern.line_segments.len() {
+            let segment = document.crease_pattern.line_segments[index].clone();
+            if model::crease_fold_angle(&segment).is_some() {
+                document.crease_pattern.line_segments[index] =
+                    segment.with_line_color(LineColor::None);
+            }
+        }
+        let seed = document.crease_pattern.line_segments[0].a;
+        let preview = preview_command(&document, propagate_command(Some(seed), &[]))
+            .expect("preview succeeds");
+        for stall in &preview.propagation_stalls {
+            assert!(
+                stall.point.x < shift / 2.0,
+                "a stall at {:?} belongs to the other pattern",
+                stall.point
+            );
+        }
+    }
+
+    /// Neither a selection nor a seed means the caller has not said what to work
+    /// on. Falling back to the whole canvas is the bug.
+    #[test]
+    fn no_selection_and_no_seed_declines() {
+        let (document, _) = kabuto_with_one_blanked_crease();
+        let preview =
+            preview_command(&document, propagate_command(None, &[])).expect("preview succeeds");
+        assert_eq!(preview.unavailable.as_deref(), Some("PropagationNoScope"));
+        assert_eq!(preview.propagation_solved, Some(0));
+        assert!(preview.propagation_creases.is_empty());
+
+        let mut applied = document.clone();
+        execute_command(&mut applied, propagate_command(None, &[])).expect("the command succeeds");
+        assert_eq!(
+            document.crease_pattern.line_segments, applied.crease_pattern.line_segments,
+            "a declined command must write nothing"
+        );
+    }
+
+    /// A click on empty canvas names no pattern, and says so rather than
+    /// silently picking one.
+    #[test]
+    fn a_seed_nowhere_near_anything_declines() {
+        let (document, _) = kabuto_with_one_blanked_crease();
+        let preview = preview_command(
+            &document,
+            propagate_command(Some(Point::new(1e6, 1e6)), &[]),
+        )
+        .expect("preview succeeds");
+        assert_eq!(
+            preview.unavailable.as_deref(),
+            Some("PropagationNoComponentAtPoint")
+        );
+    }
+
+    /// A selection of creases that all already have angles gets its own code.
+    /// `PropagationNothingFree` says "every crease already has a fold angle",
+    /// which is a lie when the rest of the canvas is full of unassigned ones.
+    #[test]
+    fn a_selection_of_only_assigned_creases_declines_with_its_own_code() {
+        let (document, in_a, _) = two_kabutos_with_one_blanked_crease_each();
+        let assigned = (0..document.crease_pattern.line_segments.len())
+            .find(|index| {
+                *index != in_a
+                    && model::crease_fold_angle(&document.crease_pattern.line_segments[*index])
+                        .is_some()
+            })
+            .expect("an assigned crease");
+        let preview = preview_command(&document, propagate_selection_command(&[assigned], &[]))
+            .expect("preview succeeds");
+        assert_eq!(
+            preview.unavailable.as_deref(),
+            Some("PropagationSelectionNothingFree")
+        );
+    }
+
+    /// An id list that names nothing must refuse, not widen to the document.
+    #[test]
+    fn an_empty_after_filtering_scope_does_not_widen() {
+        let (document, _) = kabuto_with_one_blanked_crease();
+        let preview = preview_command(&document, propagate_selection_command(&[999_999], &[]))
+            .expect("preview succeeds");
+        assert_eq!(
+            preview.unavailable.as_deref(),
+            Some("PropagationNothingInScope")
+        );
+        assert!(preview.propagation_creases.is_empty());
     }
 
     /// The whole command path: a vertex that does not close, three creases
