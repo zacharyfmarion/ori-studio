@@ -98,8 +98,11 @@
     "polygonCorners": "Sommets du polygone",
     "precision": "Précision",
     "propagation": {
+      "conflicts": "Sommets qui ne se ferment plus : {{vertices}} — quelque chose sur quoi ceci repose est incohérent.",
       "nothingDecidable": "Rien n'a pu être déduit des angles déjà définis. Donnez un angle à un pli de plus et réessayez.",
-      "nothingFree": "Tous les plis ont déjà un angle. Rendez-en quelques-uns non assignés, puis propagez."
+      "nothingFree": "Tous les plis ont déjà un angle. Rendez-en quelques-uns non assignés, puis propagez.",
+      "partial": "Indécis : {{creases}}",
+      "title": "Angles de pli — {{creases}} résolus"
     },
     "ratioFieldAria": "Rapport {{letter}}",
     "ratioPresets": "Préréglages de rapport",

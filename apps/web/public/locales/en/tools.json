@@ -94,8 +94,11 @@
     "polygonCorners": "Polygon corners",
     "precision": "Precision",
     "propagation": {
+      "conflicts": "Vertices that no longer close: {{vertices}} — something this rests on disagrees.",
       "nothingDecidable": "Nothing could be worked out from the angles already set. Give one more crease an angle and try again.",
-      "nothingFree": "Every crease already has a fold angle. Make some unassigned first, then propagate."
+      "nothingFree": "Every crease already has a fold angle. Make some unassigned first, then propagate.",
+      "partial": "Still undecided: {{creases}}",
+      "title": "Fold angles — {{creases}} solved"
     },
     "ratioFieldAria": "Ratio {{letter}}",
     "ratioPresets": "Ratio presets",

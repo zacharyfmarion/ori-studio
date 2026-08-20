@@ -90,8 +90,11 @@
     "polygonCorners": "多边形角数",
     "precision": "精度",
     "propagation": {
+      "conflicts": "不再闭合的顶点: {{vertices}} — 所依据的条件存在矛盾。",
       "nothingDecidable": "根据已设定的角度无法推算出任何结果。请再为一条折痕指定角度后重试。",
-      "nothingFree": "每条折痕都已有折叠角度。请先将部分折痕设为未指定，再进行传播。"
+      "nothingFree": "每条折痕都已有折叠角度。请先将部分折痕设为未指定，再进行传播。",
+      "partial": "未确定: {{creases}}",
+      "title": "折叠角度 — 已求解 {{creases}}"
     },
     "ratioFieldAria": "比率 {{letter}}",
     "ratioPresets": "比率预设",

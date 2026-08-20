@@ -90,8 +90,11 @@
     "polygonCorners": "多角形の頂点数",
     "precision": "精度",
     "propagation": {
+      "conflicts": "閉じなくなった頂点: {{vertices}} — 前提のどれかが矛盾しています。",
       "nothingDecidable": "設定済みの角度からは何も決まりませんでした。もう1本の折り線に角度を与えて再試行してください。",
-      "nothingFree": "すべての折り線に折り角度があります。まず未割り当てにしてから伝播してください。"
+      "nothingFree": "すべての折り線に折り角度があります。まず未割り当てにしてから伝播してください。",
+      "partial": "未決定: {{creases}}",
+      "title": "折り角度 — {{creases}} 本を解決"
     },
     "ratioFieldAria": "比率 {{letter}}",
     "ratioPresets": "比率のプリセット",

@@ -132,6 +132,7 @@ import { CpTextAnnotationLayer } from '../../cp-workspace/CpTextAnnotationLayer'
 import { CpMeasureLayer } from '../../cp-workspace/CpMeasureLayer';
 import { CpFoldAngleLayer } from '../../cp-workspace/foldAngle/CpFoldAngleLayer';
 import { useVertexSolve } from '../../cp-workspace/foldAngleSolve/useVertexSolve';
+import { usePropagationDraft } from '../../cp-workspace/foldPropagation/usePropagationDraft';
 import { CpToolOptionLayer } from '../../cp-workspace/toolOptions/CpToolOptionLayer';
 import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
 import { CpSelectionToolbar } from '../../cp-workspace/CpSelectionToolbar';
@@ -1476,6 +1477,17 @@ export function CreasePatternPanel() {
     documentVersion: editableCp?.crease_pattern.line_segments,
   });
 
+  const propagation = usePropagationDraft({
+    preview: previewOristudioCpCommand,
+    execute: executeOristudioCpCommand,
+    buildPayload: useCallback(
+      (payload: OristudioCpCommandPayload) =>
+        activeCpCommand ? buildCpCommandPayload(activeCpCommand, payload) : payload,
+      [activeCpCommand, buildCpCommandPayload]
+    ),
+    documentVersion: editableCp?.crease_pattern.line_segments,
+  });
+
   useEffect(() => {
     const documentKey = editableCp
       ? String(editableCpHandle ?? `editable-cp-${projectLoadId}`)
@@ -1870,6 +1882,20 @@ export function CreasePatternPanel() {
 
       // The three-angle solve does not apply on its final pick. It hands the
       // answers to the review state, which applies one when asked.
+      // Propagation does not apply on its seed click either. It can rewrite
+      // hundreds of creases at once, and a change that large is looked at before
+      // it lands — the draft waits for an explicit Confirm.
+      if (command.operationId === 'PropagateFoldAngles') {
+        const seed = points[0];
+        if (seed) void propagation.begin(seed);
+        setCpToolState((state) =>
+          state.activeOperationId === command.operationId
+            ? transitionOristudioCpToolState(state, { type: 'commit', keepActive: true })
+            : state
+        );
+        return;
+      }
+
       if (command.operationId === 'VertexSolveFoldAngles') {
         void vertexSolve.begin(pickedLineIds);
         setCpToolState((state) =>
@@ -1969,6 +1995,7 @@ export function CreasePatternPanel() {
       })();
     },
     [
+      propagation,
       activeCpCommand,
       buildCpCommandPayload,
       editableCp?.crease_pattern.line_segments,
@@ -2165,10 +2192,12 @@ export function CreasePatternPanel() {
   // fold-angle ramp and the angle badges pick them up with nothing new added.
   const cpPreviewSegments = useMemo(
     () =>
-      vertexSolve.segments.length > 0
+      propagation.segments.length > 0
+        ? [...webglToolPreviewSegments, ...propagation.segments]
+        : vertexSolve.segments.length > 0
         ? [...webglToolPreviewSegments, ...vertexSolve.segments]
         : webglToolPreviewSegments,
-    [vertexSolve.segments, webglToolPreviewSegments]
+    [propagation.segments, vertexSolve.segments, webglToolPreviewSegments]
   );
 
   const cpToolForcedAssignment = useMemo(
@@ -2641,6 +2670,10 @@ export function CreasePatternPanel() {
     // A fold-angle solve waiting for a choice is an in-progress gesture, and
     // Escape discards it — leaving the three creases exactly as they were,
     // because nothing has been applied yet.
+    if (propagation.draft) {
+      propagation.cancel();
+      return true;
+    }
     if (vertexSolve.review) {
       vertexSolve.cancel();
       return;
@@ -2669,6 +2702,7 @@ export function CreasePatternPanel() {
     }
     if (editableSelectionSize > 0) clearOristudioCpSelection();
   }, [
+    propagation,
     clearOristudioCpSelection,
     stopOristudioCpFolds,
     cpToolPath.length,
@@ -2743,6 +2777,10 @@ export function CreasePatternPanel() {
           vertexSolve.step(1);
           return true;
         case 'viewport.solveAnglesApply':
+          if (propagation.draft) {
+            void propagation.apply();
+            return true;
+          }
           if (!vertexSolve.review) return false;
           void vertexSolve.apply();
           return true;
@@ -2773,6 +2811,7 @@ export function CreasePatternPanel() {
       }
     },
     [
+      propagation,
       cancelActiveCpInput,
       simulateSelectionInline,
       vertexSolve,
@@ -3027,7 +3066,10 @@ export function CreasePatternPanel() {
                 )}
                 {/* Subscribes to the camera itself and renders nothing without
                     an option, so it needs no gate of its own. */}
-                <CpToolOptionLayer option={vertexSolve.option} />
+                {/* One layer, two tools: whichever currently holds a window
+                    owns it. They cannot both be open — arming one disarms the
+                    other. */}
+                <CpToolOptionLayer option={propagation.option ?? vertexSolve.option} />
                 {webglOverlayView && (oristudioCpAnnotations.length > 0 || editingTextId) && (
                   <CpTextAnnotationLayer
                     annotations={oristudioCpAnnotations}

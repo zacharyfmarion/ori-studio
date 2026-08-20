@@ -98,8 +98,11 @@
     "polygonCorners": "Vértices do polígono",
     "precision": "Precisão",
     "propagation": {
+      "conflicts": "Vértices que não fecham mais: {{vertices}} — algo em que isto se apoia discorda.",
       "nothingDecidable": "Nada pôde ser deduzido dos ângulos já definidos. Dê um ângulo a mais um vinco e tente novamente.",
-      "nothingFree": "Todos os vincos já têm ângulo de dobra. Torne alguns não atribuídos e propague."
+      "nothingFree": "Todos os vincos já têm ângulo de dobra. Torne alguns não atribuídos e propague.",
+      "partial": "Indefinidos: {{creases}}",
+      "title": "Ângulos de dobra — {{creases}} resolvidos"
     },
     "ratioFieldAria": "Proporção {{letter}}",
     "ratioPresets": "Predefinições de proporção",

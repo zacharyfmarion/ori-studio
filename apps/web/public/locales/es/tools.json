@@ -98,8 +98,11 @@
     "polygonCorners": "Vértices del polígono",
     "precision": "Precisión",
     "propagation": {
+      "conflicts": "Vértices que ya no cierran: {{vertices}} — algo en lo que esto se apoya no concuerda.",
       "nothingDecidable": "No se pudo deducir nada de los ángulos ya definidos. Da un ángulo a un pliegue más e inténtalo de nuevo.",
-      "nothingFree": "Todos los pliegues ya tienen ángulo. Marca algunos sin asignar y vuelve a propagar."
+      "nothingFree": "Todos los pliegues ya tienen ángulo. Marca algunos sin asignar y vuelve a propagar.",
+      "partial": "Sin decidir: {{creases}}",
+      "title": "Ángulos de plegado — {{creases}} resueltos"
     },
     "ratioFieldAria": "Proporción {{letter}}",
     "ratioPresets": "Ajustes preestablecidos de proporción",
