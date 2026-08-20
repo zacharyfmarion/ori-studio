@@ -16,6 +16,7 @@
 import type { TFunction } from 'i18next';
 
 import type { OristudioCpCommandPreview } from '../../engine/oristudioCpTypes';
+import { cpToolUnavailableMessage } from '../tools/toolUnavailable';
 
 /**
  * `unknown` is not a kernel kind — it is what an older frontend calls a scope a
@@ -127,14 +128,8 @@ export function propagationWindowNote(
       { vertices: draft.conflicts }
     );
   }
-  const outOfScope = draft.scope?.outOfScope ?? 0;
-  if (outOfScope > 0) {
-    return t(
-      'tools:cpContext.propagation.outOfScope',
-      'Vertices needing creases you did not select: {{vertices}} — select those too, or clear the selection and click the pattern.',
-      { vertices: outOfScope }
-    );
-  }
+  const outOfScope = propagationOutOfScopeNote(t, draft.scope?.outOfScope ?? 0);
+  if (outOfScope) return outOfScope;
   // "here" is load-bearing: the number is scope-relative, and without it the
   // sentence reads as a document total.
   if (draft.free > 0) {
@@ -143,4 +138,47 @@ export function propagationWindowNote(
     });
   }
   return null;
+}
+
+/**
+ * "Some vertices here need creases you did not select", or null when none do.
+ *
+ * One sentence, two callers — the note on a held draft, and the toast for a run
+ * that produced no draft at all. The second is the case it was written for and
+ * the one it could not reach: the note only renders inside the draft window, and
+ * a run that solves nothing opens none, so the user got the generic "give one
+ * more crease an angle" instead of the move that actually works. That is the
+ * *default* outcome of Propagate in selection on a small selection.
+ */
+export function propagationOutOfScopeNote(t: TFunction, vertices: number): string | null {
+  if (vertices <= 0) return null;
+  return t(
+    'tools:cpContext.propagation.outOfScope',
+    'Vertices needing creases you did not select: {{vertices}} — select those too, or clear the selection and click the pattern.',
+    { vertices }
+  );
+}
+
+/**
+ * The sentence for a propagation that worked nothing out.
+ *
+ * Everything is the shared code table's, except the one code whose sentence
+ * needs a number: `PropagationOutOfScope` carries its count in the scope report
+ * rather than in the code, so it is answered from there. That is also why it is
+ * not in `CP_TOOL_UNAVAILABLE_CODES` — an entry there would be a second,
+ * countless copy of a sentence that already exists in eight locales.
+ */
+export function propagationUnavailableMessage(
+  t: TFunction,
+  code: string | null | undefined,
+  scope: PropagationScopeSummary | null
+): string | null {
+  if (code !== 'PropagationOutOfScope') return cpToolUnavailableMessage(t, code);
+  // A kernel that reports this code reports the count with it, from the same
+  // list of stalls. The fallback is for the payload that somehow does not: a
+  // less specific sentence beats a silent toast.
+  return (
+    propagationOutOfScopeNote(t, scope?.outOfScope ?? 0) ??
+    cpToolUnavailableMessage(t, 'PropagationNothingDecidable')
+  );
 }

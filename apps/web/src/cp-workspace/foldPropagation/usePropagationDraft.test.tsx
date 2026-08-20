@@ -15,6 +15,7 @@
  */
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
@@ -152,7 +153,7 @@ describe('usePropagationDraft', () => {
     const harness = mount(async () => previewOf([[4, 180], [9, -45.5]]));
 
     await act(async () => {
-      await harness.controller().begin({ x: 1, y: 1 });
+      await harness.controller().beginAtPoint({ x: 1, y: 1 });
     });
 
     expect(harness.controller().replacedLineIds).toEqual([4, 9]);
@@ -169,7 +170,7 @@ describe('usePropagationDraft', () => {
     const harness = mount(async () => previewOf([[4, 180]], { propagation_free: 3 }));
 
     await act(async () => {
-      await harness.controller().begin({ x: 1, y: 1 });
+      await harness.controller().beginAtPoint({ x: 1, y: 1 });
     });
 
     const option = harness.controller().option;
@@ -187,7 +188,7 @@ describe('usePropagationDraft', () => {
     const harness = mount(async () => previewOf([[4, 180], [9, 180]]));
 
     await act(async () => {
-      await harness.controller().begin({ x: 0, y: 0 });
+      await harness.controller().beginAtPoint({ x: 0, y: 0 });
     });
 
     expect(harness.controller().option?.bounds).toEqual({ minX: 0, minY: 0, maxX: 9, maxY: 10 });
@@ -196,7 +197,7 @@ describe('usePropagationDraft', () => {
   it('drops the draft on cancel, so nothing is left hidden or drawn', async () => {
     const harness = mount(async () => previewOf([[4, 180]]));
     await act(async () => {
-      await harness.controller().begin({ x: 1, y: 1 });
+      await harness.controller().beginAtPoint({ x: 1, y: 1 });
     });
 
     act(() => harness.controller().cancel());
@@ -214,7 +215,7 @@ describe('usePropagationDraft', () => {
     // hide, and then rewrite, whatever now occupies those slots.
     const harness = mount(async () => previewOf([[4, 180]]));
     await act(async () => {
-      await harness.controller().begin({ x: 1, y: 1 });
+      await harness.controller().beginAtPoint({ x: 1, y: 1 });
     });
     expect(harness.controller().replacedLineIds).toEqual([4]);
 
@@ -236,8 +237,8 @@ describe('usePropagationDraft', () => {
     let firstBegin: Promise<boolean> | null = null;
     let secondBegin: Promise<boolean> | null = null;
     act(() => {
-      firstBegin = harness.controller().begin({ x: 1, y: 1 });
-      secondBegin = harness.controller().begin({ x: 2, y: 2 });
+      firstBegin = harness.controller().beginAtPoint({ x: 1, y: 1 });
+      secondBegin = harness.controller().beginAtPoint({ x: 2, y: 2 });
     });
 
     await act(async () => {
@@ -258,7 +259,7 @@ describe('usePropagationDraft', () => {
 
     let begun: Promise<boolean> | null = null;
     act(() => {
-      begun = harness.controller().begin({ x: 1, y: 1 });
+      begun = harness.controller().beginAtPoint({ x: 1, y: 1 });
     });
     act(() => harness.controller().cancel());
 
@@ -270,13 +271,39 @@ describe('usePropagationDraft', () => {
     expect(harness.controller().draft).toBeNull();
   });
 
+  it('tells a selection that stopped at the scope edge to widen, not to set an angle', async () => {
+    // The case the out-of-scope sentence was written for, and could not reach:
+    // it renders as the *note* on a held draft, and a run that works nothing out
+    // holds none. So the user got "give one more crease an angle and try again"
+    // for a stall whose fix is "select the other crease too" — which the kernel
+    // already knew, having counted the vertices it skipped.
+    const harness = mount(async () =>
+      previewOf([], {
+        unavailable: 'PropagationOutOfScope',
+        propagation_scope: scopeOf('selection', { free: 1, out_of_scope: 2 }),
+      })
+    );
+
+    await act(async () => {
+      expect(await harness.controller().beginInSelection()).toBe(true);
+    });
+
+    expect(harness.controller().draft).toBeNull();
+    const said = String(vi.mocked(toast.info).mock.calls.at(-1)?.[0] ?? '');
+    expect(said).toContain('select those too');
+    // The count travels with the code, from the scope report the same run
+    // produced — the reason this sentence is not in the code table.
+    expect(said).toContain('2');
+    expect(said).not.toContain('Give one more crease an angle');
+  });
+
   it('holds nothing when the kernel says there was nothing to work out', async () => {
     const harness = mount(async () =>
       previewOf([], { unavailable: 'PropagationNothingDecidable' })
     );
 
     await act(async () => {
-      expect(await harness.controller().begin({ x: 1, y: 1 })).toBe(true);
+      expect(await harness.controller().beginAtPoint({ x: 1, y: 1 })).toBe(true);
     });
 
     expect(harness.controller().draft).toBeNull();
@@ -288,7 +315,7 @@ describe('usePropagationDraft', () => {
     // while the ones replacing them landed.
     const harness = mount(async () => previewOf([[4, 180]]));
     await act(async () => {
-      await harness.controller().begin({ x: 3, y: 5 });
+      await harness.controller().beginAtPoint({ x: 3, y: 5 });
     });
 
     await act(async () => {
@@ -307,7 +334,7 @@ describe('usePropagationDraft', () => {
     const harness = mount(async () => previewOf([[4, 180]]), [4, 5, 9]);
 
     await act(async () => {
-      await harness.controller().begin(null);
+      await harness.controller().beginInSelection();
     });
 
     expect(harness.previewCalls[0].line_ids).toEqual([4, 5, 9]);
@@ -319,11 +346,61 @@ describe('usePropagationDraft', () => {
     const harness = mount(async () => previewOf([[4, 180]]), [4]);
 
     await act(async () => {
-      await harness.controller().begin(null);
+      await harness.controller().beginInSelection();
     });
 
     expect(harness.previewCalls[0].points).toBeUndefined();
-    expect(harness.controller().draft?.seed).toBeNull();
+    expect(harness.controller().draft?.scopeRequest).toEqual({ kind: 'selection', lineIds: [4] });
+  });
+
+  it('drafts the pattern a click landed in, ignoring creases still selected', async () => {
+    // The bug this pins, in the order it happens: creases are selected in one
+    // pattern — `CreaseMakeUnassigned` leaves them selected, and a tool switch
+    // does not clear them — and the user then clicks a *different* pattern. Both
+    // keys in one payload made that click ambiguous, and the kernel's tiebreak
+    // (a selection wins) solved the pattern nobody was looking at, with only the
+    // window title to say so.
+    //
+    // So the click sends no `line_ids` at all. The gesture states the scope.
+    const stale = [4, 5, 9];
+    const harness = mount(async () => previewOf([[12, 180]]), stale);
+
+    await act(async () => {
+      await harness.controller().beginAtPoint({ x: 7, y: 7 });
+    });
+
+    expect(harness.previewCalls[0].line_ids).toBeUndefined();
+    expect(harness.previewCalls[0].points).toEqual([{ x: 7, y: 7 }]);
+    expect(harness.controller().draft?.scopeRequest).toEqual({
+      kind: 'component',
+      seed: { x: 7, y: 7 },
+    });
+    // And the draft survives being made next to a selection: it is not an answer
+    // about one, so the selection-changed guard must not fire on it. Without
+    // this the window would open and shut in the same breath.
+    expect(harness.controller().replacedLineIds).toEqual([12]);
+
+    // Committing it stays a click, too — the selection cannot leak in on the way
+    // to the document.
+    await act(async () => {
+      await harness.controller().apply();
+    });
+    expect(harness.executeCalls[0].payload).toEqual({ points: [{ x: 7, y: 7 }] });
+  });
+
+  it('keeps a click-scoped draft when the selection changes under it', async () => {
+    // The sibling of the guard below. A component draft names creases by the
+    // click, so a selection moving is nothing to do with it — cancelling would
+    // throw away an answer the user is still looking at.
+    const harness = mount(async () => previewOf([[12, 180]]), [4]);
+    await act(async () => {
+      await harness.controller().beginAtPoint({ x: 7, y: 7 });
+    });
+
+    harness.render('doc-1', [4, 5, 6]);
+
+    expect(harness.controller().draft).not.toBeNull();
+    expect(harness.controller().replacedLineIds).toEqual([12]);
   });
 
   it('commits the scope it previewed, not the one live at Apply', async () => {
@@ -335,7 +412,7 @@ describe('usePropagationDraft', () => {
     const live = [4, 5];
     const harness = mount(async () => previewOf([[4, 180]]), live);
     await act(async () => {
-      await harness.controller().begin(null);
+      await harness.controller().beginInSelection();
     });
 
     live.push(6);
@@ -354,7 +431,7 @@ describe('usePropagationDraft', () => {
     // the selection is half of what states one.
     const harness = mount(async () => previewOf([[4, 180]]), [4, 5]);
     await act(async () => {
-      await harness.controller().begin(null);
+      await harness.controller().beginInSelection();
     });
     expect(harness.controller().replacedLineIds).toEqual([4]);
 
@@ -369,7 +446,7 @@ describe('usePropagationDraft', () => {
     // question — otherwise an unrelated re-render would cancel the draft.
     const harness = mount(async () => previewOf([[4, 180]]), [4, 5]);
     await act(async () => {
-      await harness.controller().begin(null);
+      await harness.controller().beginInSelection();
     });
 
     harness.render('doc-1', [4, 5]);
@@ -385,7 +462,7 @@ describe('usePropagationDraft', () => {
         previewOf([[4, 180]], { propagation_scope: scopeOf(kind) })
       );
       await act(async () => {
-        await harness.controller().begin({ x: 1, y: 1 });
+        await harness.controller().beginAtPoint({ x: 1, y: 1 });
       });
       return harness.controller().option?.title ?? '';
     };
@@ -409,7 +486,7 @@ describe('usePropagationDraft', () => {
     );
 
     await act(async () => {
-      await harness.controller().begin(null);
+      await harness.controller().beginInSelection();
     });
 
     const note = harness.controller().option?.note ?? '';
@@ -423,7 +500,7 @@ describe('usePropagationDraft', () => {
     const harness = mount(async () => previewOf([[4, 180], [9, 180]]), [4, 9]);
 
     await act(async () => {
-      await harness.controller().begin(null);
+      await harness.controller().beginInSelection();
     });
 
     expect(harness.controller().option?.bounds).toEqual({ minX: 4, minY: 0, maxX: 9, maxY: 10 });

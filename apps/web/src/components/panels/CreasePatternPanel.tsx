@@ -1679,12 +1679,13 @@ export function CreasePatternPanel() {
   }, [clearOristudioCpActionRequest, handleCpToolAction, oristudioCpActionRequest]);
 
   const handleApplyActiveContextCommand = useCallback(() => {
-    // Propagation's Apply *opens* a draft rather than committing one: with
-    // creases selected the scope is the selection and there is nothing left to
-    // click, so this is the seed click's counterpart. The change itself still
-    // waits for the draft window's own Apply.
+    // Propagation's Apply *opens* a draft rather than committing one: this is
+    // the "Propagate in selection" button, the gesture that says the scope is
+    // the selection — the seed click's counterpart, and the only one of the two
+    // that consults it. The change itself still waits for the draft window's own
+    // Apply.
     if (activeCpCommand?.operationId === 'PropagateFoldAngles') {
-      if (editableCp) void propagation.begin(null);
+      if (editableCp) void propagation.beginInSelection();
       return;
     }
     if (
@@ -1924,7 +1925,10 @@ export function CreasePatternPanel() {
       // it lands — the draft waits for an explicit Confirm.
       if (command.operationId === 'PropagateFoldAngles') {
         const seed = points[0];
-        if (seed) void propagation.begin(seed);
+        // Scoped to the pattern the click landed in, and never to the selection:
+        // a click is a statement about a place, and the selection here may be
+        // minutes old and about another pattern entirely.
+        if (seed) void propagation.beginAtPoint(seed);
         setCpToolState((state) =>
           state.activeOperationId === command.operationId
             ? transitionOristudioCpToolState(state, { type: 'commit', keepActive: true })

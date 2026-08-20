@@ -45,6 +45,11 @@ export const CP_TOOL_UNAVAILABLE_CODES = [
   'PropagationNoComponentAtPoint',
   'PropagationSelectionNothingFree',
   'PropagationNothingInScope',
+  // `PropagationOutOfScope` is deliberately absent: its sentence interpolates a
+  // vertex count that arrives in the scope report rather than in the code, so
+  // `propagationUnavailableMessage` answers it from there. Adding it here would
+  // mean a second, countless copy of a sentence that already exists in eight
+  // locales.
 ] as const;
 
 export type CpToolUnavailableCode = (typeof CP_TOOL_UNAVAILABLE_CODES)[number];

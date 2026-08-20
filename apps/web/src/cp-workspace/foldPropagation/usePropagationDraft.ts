@@ -36,15 +36,35 @@
  * kernel now takes a scope, and the two ways to state one are the two ways a
  * user says "this pattern": a selection (`line_ids`, one-based), or a click
  * (`points[0]`, resolved to the connected component it lands in). The kernel
- * gives a selection precedence and **declines** when it is given neither —
- * "no scope means the whole canvas" is the bug, not the fallback.
+ * **declines** when it is given neither — "no scope means the whole canvas" is
+ * the bug, not the fallback.
  *
- * So the hook sends the scope, and — the part that is easy to get wrong — the
- * held draft *snapshots* it. `apply` re-executes from the snapshot, not from the
- * live selection, or a selection change between the preview and Apply would
- * commit a different set of creases than the one on screen. The same reasoning
- * makes a selection change while a draft is held cancel it, exactly as a
- * document change does.
+ * # The gesture states the scope
+ *
+ * Which is why there are two entry points and not one with a nullable argument.
+ * A canvas click means "this component"; the Propagate-in-selection button means
+ * "the selection". Each sends exactly the key that says so, and a click sends no
+ * `line_ids` at all.
+ *
+ * Sending both — as this did — reads as harmless and is not, because the kernel
+ * has to break the tie and a selection outlives the tool that made it. The CP
+ * selection survives a tool switch, and `CreaseMakeUnassigned` does not clear
+ * it, which is precisely the workflow that precedes propagating. So: creases
+ * left selected in one pattern, a deliberate click in another, and the *first*
+ * one gets solved. Nothing on screen says so except the window title reading
+ * "Selection" — and the window frame, which spans from the click to the draft on
+ * the far side of the canvas.
+ *
+ * The fix is not to clear the selection when the tool is armed. That destroys
+ * state the user did not ask us to touch, and select-then-propagate is a real
+ * workflow. It is for the gesture to state the scope unambiguously.
+ *
+ * The held draft *snapshots* what it sent. `apply` re-executes from the
+ * snapshot, not from the live selection, or a selection change between the
+ * preview and Apply would commit a different set of creases than the one on
+ * screen. The same reasoning makes a selection change cancel a
+ * selection-scoped draft, exactly as a document change cancels any draft — a
+ * component-scoped one is not about the selection and does not care.
  *
  * # Pins
  *
@@ -65,12 +85,12 @@ import type {
 } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
-import { cpToolUnavailableMessage } from '../tools/toolUnavailable';
 import { toolPreviewSegments } from '../tools/toolPreviewSegments';
 import type { ToolPreviewSegment } from '../tools/types';
 import { boundsOfPoints, type CpToolOptionWindow } from '../toolOptions/toolOptionWindow';
 import {
   propagationScopeSummary,
+  propagationUnavailableMessage,
   propagationWindowNote,
   propagationWindowTitle,
   sameLineIds,
@@ -93,9 +113,10 @@ export interface UsePropagationDraftOptions {
   /** Anything whose identity changes when the document's creases do. */
   documentVersion: unknown;
   /**
-   * The creases currently selected, as **one-based** ids — the scope, when there
-   * is one. Read at `begin` and snapshotted onto the draft, never read again on
-   * the way to the commit.
+   * The creases currently selected, as **one-based** ids — the scope of a
+   * `beginInSelection` run, and of nothing else. Read there and snapshotted onto
+   * the draft, never read again on the way to the commit, and **not read at all
+   * by `beginAtPoint`**: see the gesture note in the header.
    *
    * The panel does not fold this into `buildPayload`: that closure is shared
    * with the three-angle solve, which must not acquire a selection.
@@ -103,11 +124,15 @@ export interface UsePropagationDraftOptions {
   scopeLineIds: readonly number[];
 }
 
-/** The scope a draft ran in, as sent — a seed, a selection, or both. */
-interface PropagationScopeRequest {
-  readonly seed: Point | null;
-  readonly lineIds: readonly number[];
-}
+/**
+ * The scope a draft ran in, as sent — one gesture, one key in the payload.
+ *
+ * A union rather than two optional fields, so "a click plus whatever happened to
+ * be selected" is not a state this can be in.
+ */
+export type PropagationScopeRequest =
+  | { readonly kind: 'component'; readonly seed: Point }
+  | { readonly kind: 'selection'; readonly lineIds: readonly number[] };
 
 /** One crease the draft would set. */
 export interface PropagationDraftCrease {
@@ -131,16 +156,11 @@ export interface PropagationStall {
 /** What the kernel worked out, held uncommitted. */
 export interface PropagationDraft {
   /**
-   * Where the user asked propagation to start, or null when the scope was a
-   * selection and there was nothing to click.
+   * The scope this draft was computed against, snapshotted — exactly what
+   * `apply` sends. Reading the live selection there would let a change between
+   * the preview and Apply commit a different set than the one shown.
    */
-  readonly seed: Point | null;
-  /**
-   * The selection this draft was computed against, snapshotted. What `apply`
-   * sends — reading the live selection there would let a change between the
-   * preview and Apply commit a different set than the one shown.
-   */
-  readonly scopeLineIds: readonly number[];
+  readonly scopeRequest: PropagationScopeRequest;
   /** What the kernel resolved the scope to, so the window can name it. */
   readonly scope: PropagationScopeSummary | null;
   /** The creases it would set, named so the document can stop drawing them. */
@@ -178,15 +198,22 @@ export interface PropagationDraftController {
    * Take the tool's seed click — **the whole point of the hook**, which is that
    * nothing is executed until the draft has been looked at.
    *
-   * `null` is the selection path: there is no click, the scope is whatever is
-   * selected, and the kernel declines if that is nothing.
+   * Scoped to the connected component the click lands in, and to that alone: the
+   * selection is not consulted, however recent it looks. A click is a statement
+   * about a place.
    *
    * The hook always takes the commit: there is no fallback that could apply a
    * propagation without showing it first. So the boolean reports whether a draft
    * is now held, not whether the caller should act. `false` means the kernel
    * refused the preview, which the hook has already reported.
    */
-  begin: (seed: Point | null) => Promise<boolean>;
+  beginAtPoint: (seed: Point) => Promise<boolean>;
+  /**
+   * The other gesture: no click at all, the scope is what is selected, and the
+   * kernel declines if that is nothing. Same return meaning as
+   * {@link beginAtPoint}.
+   */
+  beginInSelection: () => Promise<boolean>;
   apply: () => Promise<void>;
   cancel: () => void;
 }
@@ -224,16 +251,15 @@ export function usePropagationDraft(
   const request = useRef(0);
 
   /**
-   * The request for one scope. Both keys are sent when both exist: the kernel
-   * states the precedence (a selection wins), and dropping the seed here would
-   * put a second copy of that rule on this side to drift from it.
+   * The request for one scope — one key, never both. The kernel does have a
+   * precedence rule for a payload carrying both, but reaching it means this side
+   * asked it to guess which gesture the user made, and it cannot.
    */
   const payloadFor = useCallback(
     (scope: PropagationScopeRequest): OristudioCpCommandPayload =>
-      latest.current.buildPayload({
-        ...(scope.lineIds.length > 0 ? { line_ids: [...scope.lineIds] } : {}),
-        ...(scope.seed ? { points: [scope.seed] } : {}),
-      }),
+      latest.current.buildPayload(
+        scope.kind === 'component' ? { points: [scope.seed] } : { line_ids: [...scope.lineIds] }
+      ),
     []
   );
 
@@ -244,14 +270,8 @@ export function usePropagationDraft(
   }, []);
 
   const begin = useCallback(
-    async (seed: Point | null) => {
+    async (scope: PropagationScopeRequest) => {
       const id = ++request.current;
-      // Snapshotted here, once. Everything downstream — the commit, the
-      // staleness check — reads this copy rather than the live selection.
-      const scope: PropagationScopeRequest = {
-        seed,
-        lineIds: [...latest.current.scopeLineIds],
-      };
       const response = await latest.current.preview(OPERATION, payloadFor(scope));
       // Superseded. The click was still ours, so the caller must not execute it.
       if (id !== request.current) return true;
@@ -262,10 +282,17 @@ export function usePropagationDraft(
         toast.error(latest.current.t('panels:creasePattern.commandFailed', 'Command failed'));
         return false;
       }
+      const summary = propagationScopeSummary(response);
       if (response.unavailable) {
         // An expected answer rather than a complaint — "nothing could be worked
-        // out from what you have set" is a conversation, not an error.
-        const message = cpToolUnavailableMessage(latest.current.t, response.unavailable);
+        // out from what you have set" is a conversation, not an error. The scope
+        // goes with the code because one of the answers is *about* the scope and
+        // counts the vertices it left out.
+        const message = propagationUnavailableMessage(
+          latest.current.t,
+          response.unavailable,
+          summary
+        );
         if (message) toast.info(message);
         return true;
       }
@@ -279,9 +306,8 @@ export function usePropagationDraft(
       if (creases.length === 0) return true;
       documentAtDraft.current = latest.current.documentVersion;
       setDraft({
-        seed,
-        scopeLineIds: scope.lineIds,
-        scope: propagationScopeSummary(response),
+        scopeRequest: scope,
+        scope: summary,
         creases,
         segments: response.segments ?? [],
         free: response.propagation_free ?? 0,
@@ -300,6 +326,16 @@ export function usePropagationDraft(
     [payloadFor]
   );
 
+  const beginAtPoint = useCallback((seed: Point) => begin({ kind: 'component', seed }), [begin]);
+
+  // The selection is read here and nowhere else on the way to the commit: copied
+  // once, so the draft, the staleness check and the commit all describe the same
+  // set even as the live one moves.
+  const beginInSelection = useCallback(
+    () => begin({ kind: 'selection', lineIds: [...latest.current.scopeLineIds] }),
+    [begin]
+  );
+
   const apply = useCallback(async () => {
     const held = draft;
     if (!held) return;
@@ -312,10 +348,7 @@ export function usePropagationDraft(
     // the draft that was shown and the commit that lands cannot disagree — and
     // from the draft's *own* scope, so a selection changed since the preview
     // cannot widen or move what lands.
-    await latest.current.execute(
-      OPERATION,
-      payloadFor({ seed: held.seed, lineIds: held.scopeLineIds })
-    );
+    await latest.current.execute(OPERATION, payloadFor(held.scopeRequest));
   }, [cancel, draft, payloadFor]);
 
   // A draft is an answer about a document. When the creases change underneath
@@ -329,13 +362,20 @@ export function usePropagationDraft(
   }, [cancel, draft, documentVersion]);
 
   // The same argument one step out: a draft is an answer about a *scope*, and
-  // the selection is half of what states one. Changing it while a draft is held
+  // for a selection-scoped one the selection is what states it. Changing it
   // leaves a window offering creases that are no longer what "the selection"
   // means, and the user has already moved on. Compared by content and only
-  // while a draft is held, so an unchanged selection costs nothing and a
+  // while such a draft is held, so an unchanged selection costs nothing and a
   // 15k-crease one is not walked on every render.
+  //
+  // A component-scoped draft is exempt because the selection is not part of what
+  // it is an answer to — and the exemption is load-bearing, not tidiness: a
+  // click made while creases are selected would otherwise open a window and
+  // close it in the same breath.
   const { scopeLineIds } = options;
-  const scopeChanged = draft ? !sameLineIds(draft.scopeLineIds, scopeLineIds) : false;
+  const heldSelection =
+    draft?.scopeRequest.kind === 'selection' ? draft.scopeRequest.lineIds : null;
+  const scopeChanged = heldSelection ? !sameLineIds(heldSelection, scopeLineIds) : false;
   useEffect(() => {
     if (!draft || !scopeChanged) return;
     cancel();
@@ -360,9 +400,9 @@ export function usePropagationDraft(
     // that fits the screen by not framing the change is the bug being fixed.
     const bounds = boundsOfPoints([
       // The seed only when there was one. A selection-scoped draft has no click
-      // to frame, and a null standing in for one would drag the frame to the
-      // origin — a window around the sheet plus a corner nothing happened in.
-      ...(draft.seed ? [draft.seed] : []),
+      // to frame, and a stand-in for one would drag the frame to the origin — a
+      // window around the sheet plus a corner nothing happened in.
+      ...(draft.scopeRequest.kind === 'component' ? [draft.scopeRequest.seed] : []),
       ...draft.segments.flatMap((segment) => [segment.a, segment.b]),
     ]);
     if (!bounds) return null;
@@ -389,7 +429,16 @@ export function usePropagationDraft(
   }, [apply, cancel, draft, t]);
 
   return useMemo(
-    () => ({ draft, segments, replacedLineIds, option, begin, apply, cancel }),
-    [apply, begin, cancel, draft, option, replacedLineIds, segments]
+    () => ({
+      draft,
+      segments,
+      replacedLineIds,
+      option,
+      beginAtPoint,
+      beginInSelection,
+      apply,
+      cancel,
+    }),
+    [apply, beginAtPoint, beginInSelection, cancel, draft, option, replacedLineIds, segments]
   );
 }

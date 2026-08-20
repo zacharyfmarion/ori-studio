@@ -471,19 +471,24 @@ enum PropagationDraft {
 /// about the scope**, which is the whole reason scope resolution lives here
 /// rather than in either arm.
 ///
-/// # Precedence, stated once
+/// # One payload states one scope
 ///
-/// A selection wins over the seed, the same way `CreaseToggleMv` and
-/// `CreaseSelect` prioritise `line_ids` over their box. Neither means the whole
-/// document: with no selection and no seed this **declines**, because "no scope
-/// means the whole canvas" is exactly the behaviour scoping exists to remove.
-/// `Scope::document` stays reachable from Rust tests and headless callers only.
+/// `line_ids` means "these creases"; `points[0]` means "the pattern this click
+/// landed in". A caller sends **one**, because the gesture is what states the
+/// scope: a click says "this component" and the Propagate-in-selection button
+/// says "the selection". Sending both asks this function to guess which the
+/// user meant, and it cannot — a payload carrying a click *and* a selection
+/// looks identical whether the selection was made a second ago or is left over
+/// from another pattern ten minutes back. It was the latter that bit: the seed
+/// click landed in one pattern and a forgotten selection solved a different one,
+/// with nothing on screen to say so but the window title.
 ///
-/// Note the hazard this sits next to: the frontend's generic preview path
-/// forwards the ambient selection into `line_ids` for every tool, and
-/// propagation is spared only because the panel returns early for it. If that
-/// early return is ever removed, propagation silently acquires a scope from
-/// whatever happens to be selected.
+/// A caller that sends both anyway gets the selection, the same way
+/// `CreaseToggleMv` and `CreaseSelect` prioritise `line_ids` over their box.
+/// Neither key means the whole document: with no selection and no seed this
+/// **declines**, because "no scope means the whole canvas" is exactly the
+/// behaviour scoping exists to remove. `Scope::document` stays reachable from
+/// Rust tests and headless callers only.
 fn propagation_draft(
     document: &CreasePatternDocument,
     command: &CreasePatternCommand,
@@ -3961,19 +3966,22 @@ pub fn preview_command(
                 })
                 .collect();
             preview.propagation_conflicts = draft.closure_failures.clone();
+            // Vertices left alone because some of their unknowns sit outside the
+            // scope. Computed once: the scope report carries it, and the
+            // `unavailable` code below turns on it.
+            let out_of_scope = draft
+                .stalls
+                .iter()
+                .filter(|stall| {
+                    stall.reason == operations::native::fold_propagation::StallReason::OutOfScope
+                })
+                .count();
             preview.propagation_scope = Some(PropagationScope {
                 kind: scope_kind_code(draft.scope.kind).to_owned(),
                 creases: draft.scope.creases,
                 vertices: draft.scope.vertices,
                 free: still_free,
-                out_of_scope: draft
-                    .stalls
-                    .iter()
-                    .filter(|stall| {
-                        stall.reason
-                            == operations::native::fold_propagation::StallReason::OutOfScope
-                    })
-                    .count(),
+                out_of_scope,
             });
             if named == 0 {
                 use operations::native::fold_propagation::ScopeKind;
@@ -3986,6 +3994,16 @@ pub fn preview_command(
                         // next move, different code.
                         (true, ScopeKind::Selection) => "PropagationSelectionNothingFree",
                         (true, _) => "PropagationNothingFree",
+                        // The scope is *why* nothing came out: a vertex here has
+                        // unknowns the scope excludes, and half a simultaneous
+                        // answer is not an answer. The next move is to widen the
+                        // selection, which the generic "give one more crease an
+                        // angle" sentence sends the user away from — and this is
+                        // the ordinary outcome of propagating in a small
+                        // selection, not a corner. Ranked below the two above
+                        // because with nothing free in scope there is nothing to
+                        // solve here whatever lies outside it.
+                        (false, _) if out_of_scope > 0 => "PropagationOutOfScope",
                         (false, _) => "PropagationNothingDecidable",
                     }
                     .to_owned(),
@@ -5059,6 +5077,59 @@ mod tests {
         panic!("no crease is recoverable in both copies");
     }
 
+    /// Kabuto with two creases blanked at one shared vertex, such that a
+    /// selection naming only one of them can work nothing out — the reviewer's
+    /// repro, and the ordinary outcome of Propagate-in-selection on a small
+    /// selection.
+    ///
+    /// The pair is *searched for* by that outcome and then *diagnosed* by the
+    /// test, which is the split that keeps the test from asserting its own
+    /// search: finding an empty draft is easy, and what the test pins is that
+    /// the kernel says which move fixes it. The fixture also has to be genuinely
+    /// fixable, so the search additionally requires that selecting both solves
+    /// both — otherwise "select the other one too" would be advice that fails.
+    fn kabuto_with_a_jointly_recoverable_vertex() -> (CreasePatternDocument, usize, usize) {
+        let complete = kabuto_document();
+        let count = complete.crease_pattern.line_segments.len();
+        for left in 0..count {
+            let left_segment = complete.crease_pattern.line_segments[left].clone();
+            if model::crease_fold_angle(&left_segment).is_none() {
+                continue;
+            }
+            for right in (left + 1)..count {
+                let right_segment = complete.crease_pattern.line_segments[right].clone();
+                if model::crease_fold_angle(&right_segment).is_none() {
+                    continue;
+                }
+                let shares_a_vertex = [left_segment.a, left_segment.b].iter().any(|end| {
+                    end.distance(right_segment.a) < 1e-9 || end.distance(right_segment.b) < 1e-9
+                });
+                if !shares_a_vertex {
+                    continue;
+                }
+                let mut blanked = complete.clone();
+                for at in [left, right] {
+                    blanked.crease_pattern.line_segments[at] = blanked.crease_pattern.line_segments
+                        [at]
+                        .clone()
+                        .with_line_color(LineColor::None);
+                }
+                let alone = preview_command(&blanked, propagate_selection_command(&[left], &[]))
+                    .expect("preview succeeds");
+                if !alone.propagation_creases.is_empty() {
+                    continue;
+                }
+                let together =
+                    preview_command(&blanked, propagate_selection_command(&[left, right], &[]))
+                        .expect("preview succeeds");
+                if together.propagation_creases.len() == 2 {
+                    return (blanked, left, right);
+                }
+            }
+        }
+        panic!("no vertex in the fixture needs two creases solved together");
+    }
+
     /// Kabuto with one crease blanked, chosen so that propagation can put it
     /// back — the smallest document that produces a non-empty draft.
     fn kabuto_with_one_blanked_crease() -> (CreasePatternDocument, usize) {
@@ -5347,6 +5418,13 @@ mod tests {
     /// A selection names the scope in the same one-based space `line_ids`
     /// already uses. An off-by-one here scopes in the neighbouring crease, and
     /// nothing about the result would look wrong.
+    ///
+    /// Which is what happened to this test: it asserted only that every drafted
+    /// crease was the selected one, and an off-by-one drafts *nothing* — a
+    /// neighbouring crease already has an angle, so the scope has nothing free
+    /// and the run declines. `all` over an empty list is true, so the assertion
+    /// passed over the bug it was written for. It now names the crease it
+    /// expects and demands it be there.
     #[test]
     fn a_one_based_scope_reaches_the_creases_it_names() {
         let (document, in_a, in_b) = two_kabutos_with_one_blanked_crease_each();
@@ -5367,13 +5445,22 @@ mod tests {
                 .map(|scope| scope.creases),
             Some(1)
         );
-        assert!(
+        // The crease the selection named, and only it. Stated as the whole
+        // expected list rather than as a predicate over whatever came back, so
+        // an empty draft is a failure rather than a vacuous pass.
+        assert_eq!(
             preview
                 .propagation_creases
                 .iter()
-                .all(|crease| crease.line_id == in_a + 1),
-            "the draft reached outside the one crease it was given: {:?}",
-            preview.propagation_creases
+                .map(|crease| crease.line_id)
+                .collect::<Vec<_>>(),
+            vec![in_a + 1],
+            "the draft did not name exactly the crease the selection did"
+        );
+        assert_eq!(preview.propagation_solved, Some(1));
+        assert_eq!(
+            preview.unavailable, None,
+            "a scoped run that lands declines nothing"
         );
 
         let mut applied = document.clone();
@@ -5511,6 +5598,43 @@ mod tests {
             preview.unavailable.as_deref(),
             Some("PropagationSelectionNothingFree")
         );
+    }
+
+    /// A selection that stops because its vertex needs creases *outside* it must
+    /// say so, not fall back to "give one more crease an angle".
+    ///
+    /// The two sentences send the user in different directions. The kernel has
+    /// already worked out which applies — it counts the out-of-scope stalls for
+    /// the scope report — and the frontend's actionable sentence ("select those
+    /// too") is reachable only through this code: the note that carries it
+    /// renders inside the draft window, and a draft that solved nothing opens
+    /// none.
+    #[test]
+    fn a_selection_missing_half_a_joint_answer_says_so() {
+        let (document, left, right) = kabuto_with_a_jointly_recoverable_vertex();
+
+        let preview = preview_command(&document, propagate_selection_command(&[left], &[]))
+            .expect("preview succeeds");
+        assert_eq!(preview.propagation_solved, Some(0));
+        assert_eq!(
+            preview.unavailable.as_deref(),
+            Some("PropagationOutOfScope"),
+            "the user was told to set another angle when the move is to widen the selection"
+        );
+        // The code and the count travel together: the sentence interpolates the
+        // number of vertices, and it comes from here.
+        let scope = preview
+            .propagation_scope
+            .as_ref()
+            .expect("a resolved scope");
+        assert!(scope.out_of_scope > 0);
+        assert_eq!(scope.kind.as_str(), "selection");
+
+        // And the advice works: selecting the other crease too solves both.
+        let widened = preview_command(&document, propagate_selection_command(&[left, right], &[]))
+            .expect("preview succeeds");
+        assert_eq!(widened.unavailable, None);
+        assert_eq!(widened.propagation_solved, Some(2));
     }
 
     /// An id list that names nothing must refuse, not widen to the document.
