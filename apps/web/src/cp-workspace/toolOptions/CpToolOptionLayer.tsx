@@ -89,9 +89,23 @@ export function CpToolOptionLayer({ option }: { option: CpToolOptionWindow | nul
         inset: 0,
         pointerEvents: 'none',
         overflow: 'visible',
-        // Above the fold-angle badges and the measure layer, below the
-        // annotation overlay's direct-manipulation handles.
-        zIndex: 8,
+        // Above the fold-angle badges, the measure layer, **and the foldability
+        // HUD** (12); below the annotation overlay's direct-manipulation
+        // handles (15).
+        //
+        // The HUD is why this is not 8. At 8 its summary sat over this layer's
+        // header, and `elementFromPoint` at either button's centre returned the
+        // HUD — so clicking Cancel expanded the diagnostics panel and left the
+        // draft untouched, which reads exactly like "Cancel does nothing". It
+        // bites the solve tools hardest because a pattern with unassigned or
+        // non-closing creases is *both* what raises a foldability warning and
+        // what you reach for these tools to fix, so the HUD is showing whenever
+        // they are in use.
+        //
+        // Raising the layer is safe rather than merely expedient: it is
+        // `pointer-events: none` and fully transparent, so the only thing that
+        // moves above the HUD is the header the user is being asked to click.
+        zIndex: 13,
       }}
     >
       <div
