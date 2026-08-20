@@ -89,6 +89,10 @@
     "parallelWidthAria": "Parallelbreite",
     "polygonCorners": "Polygonecken",
     "precision": "Präzision",
+    "propagation": {
+      "nothingDecidable": "Aus den bereits gesetzten Winkeln ließ sich nichts ableiten. Gib einer weiteren Falte einen Winkel und versuche es erneut.",
+      "nothingFree": "Alle Falten haben bereits einen Winkel. Setze zuerst einige auf nicht zugewiesen."
+    },
     "ratioFieldAria": "Verhältnis {{letter}}",
     "ratioPresets": "Verhältnisvorgaben",
     "regularPolygon": "Regelmäßiges Polygon",

@@ -407,6 +407,14 @@
         "1": "Choisissez le pli à ajouter"
       }
     },
+    "cp_action_propagate_fold_angles": {
+      "label": "Propager les angles de pli",
+      "tooltip": "Déduire les angles des plis non assignés, en partant d'un point",
+      "disabledReason": "Prêt",
+      "steps": {
+        "0": "Choisissez le point de départ"
+      }
+    },
     "cp_action_vertex_solve_fold_angles": {
       "label": "Résoudre les angles de pliage",
       "tooltip": "Choisissez trois plis à un sommet et résolvez leurs angles pour que le sommet se ferme, sans rien déplacer",

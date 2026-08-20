@@ -93,6 +93,10 @@
     "parallelWidthAria": "Largeur parallèle",
     "polygonCorners": "Sommets du polygone",
     "precision": "Précision",
+    "propagation": {
+      "nothingDecidable": "Rien n'a pu être déduit des angles déjà définis. Donnez un angle à un pli de plus et réessayez.",
+      "nothingFree": "Tous les plis ont déjà un angle. Rendez-en quelques-uns non assignés, puis propagez."
+    },
     "ratioFieldAria": "Rapport {{letter}}",
     "ratioPresets": "Préréglages de rapport",
     "regularPolygon": "Polygone régulier",

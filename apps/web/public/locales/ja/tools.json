@@ -85,6 +85,10 @@
     "parallelWidthAria": "平行幅",
     "polygonCorners": "多角形の頂点数",
     "precision": "精度",
+    "propagation": {
+      "nothingDecidable": "設定済みの角度からは何も決まりませんでした。もう1本の折り線に角度を与えて再試行してください。",
+      "nothingFree": "すべての折り線に折り角度があります。まず未割り当てにしてから伝播してください。"
+    },
     "ratioFieldAria": "比率 {{letter}}",
     "ratioPresets": "比率のプリセット",
     "regularPolygon": "正多角形",

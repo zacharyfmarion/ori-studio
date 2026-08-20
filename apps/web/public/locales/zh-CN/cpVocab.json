@@ -407,6 +407,14 @@
         "1": "选取要添加的折痕"
       }
     },
+    "cp_action_propagate_fold_angles": {
+      "label": "传播折叠角度",
+      "tooltip": "从一个点出发，推算未指定折痕的折叠角度",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选择传播起点"
+      }
+    },
     "cp_action_vertex_solve_fold_angles": {
       "label": "求解折叠角度",
       "tooltip": "在一个顶点选择三条折线，在不移动任何线的前提下求解其折叠角度，使该顶点闭合",

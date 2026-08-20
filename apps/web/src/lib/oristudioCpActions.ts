@@ -412,6 +412,11 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
     upstreamMouseMode: 'CREASE_TOGGLE_MV_58',
     railOrder: 30,
   },
+  PropagateFoldAngles: {
+    group: 'color',
+    railOrder: 50,
+    upstreamAction: 'propagateFoldAnglesAction',
+  },
   VertexSolveFoldAngles: {
     label: 'Solve Fold Angles',
     group: 'color',

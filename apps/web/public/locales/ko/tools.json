@@ -85,6 +85,10 @@
     "parallelWidthAria": "평행 폭",
     "polygonCorners": "다각형 꼭짓점",
     "precision": "정밀도",
+    "propagation": {
+      "nothingDecidable": "이미 설정된 각도로는 아무것도 알아낼 수 없었습니다. 접힘선 하나에 각도를 더 지정한 뒤 다시 시도하세요.",
+      "nothingFree": "모든 접힘선에 이미 각도가 있습니다. 먼저 일부를 미지정으로 설정하세요."
+    },
     "ratioFieldAria": "비율 {{letter}}",
     "ratioPresets": "비율 프리셋",
     "regularPolygon": "정다각형",

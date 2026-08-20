@@ -198,6 +198,19 @@ pub struct CreasePatternCommandPayload {
     /// Optional precision percentage for fix-inaccurate commands.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fix_precision: Option<f64>,
+    /// Fold angles the user has fixed by hand during a propagation draft, as
+    /// `(line index, signed degrees)`.
+    ///
+    /// These are the draft's real input. Propagation treats them as known before
+    /// its first solve and never re-derives them, which is what lets the user
+    /// adjust one crease and re-run without the answer sliding back.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pinned_angles: Vec<(usize, f64)>,
+    /// Largest number of unknowns at a vertex a propagation commit may come
+    /// from. `None` uses
+    /// [`operations::native::fold_propagation::DEFAULT_MAX_COMMIT_K`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_commit_k: Option<usize>,
     /// Optional toggle for BP fix-inaccurate targets.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fix_precision_use_bp: Option<bool>,
@@ -336,6 +349,70 @@ pub struct CommandPreview {
     /// change.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub candidate_is_current: Option<bool>,
+    /// How many creases a propagation draft worked out.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub propagation_solved: Option<usize>,
+    /// How many creases are still free after the draft.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub propagation_free: Option<usize>,
+    /// Vertices where propagation stopped and is waiting on the user.
+    ///
+    /// Deliberately **not** `points`, which is documented as candidate commit
+    /// points and is drawn through the overlay channel. A stall is not a commit
+    /// point, and there can be hundreds of them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub propagation_stalls: Vec<PropagationStall>,
+    /// Vertices that ended fully known and do not close, so something the draft
+    /// rests on is inconsistent.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub propagation_conflicts: Vec<geometry::Point>,
+}
+
+/// One place a propagation draft stopped, for the tool to show.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PropagationStall {
+    pub point: geometry::Point,
+    /// `underdetermined` | `branching` | `unsolvable` | `above_cap`, as a stable
+    /// code the frontend turns into a sentence. The two the user acts on
+    /// differently are `branching` ("I have a question") and everything else
+    /// ("I need another angle from you"), and they must not share copy.
+    pub reason: String,
+    pub unknowns: usize,
+}
+
+/// The draft a propagation run produces, from a command's payload.
+///
+/// One helper for both dispatch paths, so the preview a user confirms and the
+/// commit that lands cannot disagree about what the answer was.
+fn propagation_draft(
+    document: &CreasePatternDocument,
+    command: &CreasePatternCommand,
+) -> operations::native::fold_propagation::Propagation {
+    let seed = command.payload.points.first().copied();
+    let max_commit_k = command
+        .payload
+        .max_commit_k
+        .unwrap_or(operations::native::fold_propagation::DEFAULT_MAX_COMMIT_K);
+    operations::native::fold_propagation::propagate(
+        &document.crease_pattern,
+        seed,
+        &command.payload.pinned_angles,
+        max_commit_k,
+        CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
+    )
+}
+
+/// Stable code per stall reason. The frontend turns these into sentences, and
+/// `branching` must not share copy with the rest: it means "I have a question",
+/// where the others mean "I need another angle from you".
+fn stall_reason_code(reason: operations::native::fold_propagation::StallReason) -> &'static str {
+    use operations::native::fold_propagation::StallReason;
+    match reason {
+        StallReason::Underdetermined => "underdetermined",
+        StallReason::Branching => "branching",
+        StallReason::Unsolvable => "unsolvable",
+        StallReason::AboveCap => "above_cap",
+    }
 }
 
 /// Error returned by command dispatch.
@@ -479,6 +556,7 @@ pub enum OperationId {
     CircleChangeColor,
     CreaseMakeAux,
     CreaseMakeUnassigned,
+    PropagateFoldAngles,
     OperationFrameCreate,
     VoronoiCreate,
     FlatFoldableCheck,
@@ -1089,6 +1167,14 @@ const OPERATION_DESCRIPTORS: &[OperationDescriptor] = &[
         native CreaseMakeUnassigned,
         "OriStudioCreaseMakeUnassigned",
         "operations::native::unassign::make_unassigned",
+        Kernel,
+        6,
+        UnitTested
+    ),
+    descriptor!(
+        native PropagateFoldAngles,
+        "OriStudioPropagateFoldAngles",
+        "operations::native::fold_propagation::propagate",
         Kernel,
         6,
         UnitTested
@@ -1818,6 +1904,14 @@ pub fn execute_command(
                 &mut document.crease_pattern,
                 &line_indices,
             )
+        }
+        OperationId::PropagateFoldAngles => {
+            // Commit is the *same* draft the preview showed, recomputed from the
+            // same inputs rather than carried across the boundary. The solve is
+            // deterministic, so the two agree; sending the draft back would mean
+            // trusting a client-held answer about the document's geometry.
+            let draft = propagation_draft(document, &command);
+            operations::native::fold_propagation::apply(&mut document.crease_pattern, &draft.solved)
         }
         OperationId::CreaseToggleMv => {
             // Oriedita `CREASE_TOGGLE_MV_58` is a box-select tool: a single crease
@@ -3603,6 +3697,58 @@ pub fn preview_command(
             // snap that did not happen.
             if release.snapped {
                 preview.points.push(release.point);
+            }
+        }
+        OperationId::PropagateFoldAngles => {
+            let draft = propagation_draft(document, &command);
+            preview.propagation_solved = Some(draft.solved.len());
+            preview.propagation_free = Some(
+                operations::native::fold_propagation::free_line_indices(&document.crease_pattern)
+                    .len()
+                    .saturating_sub(draft.solved.len()),
+            );
+            preview.propagation_stalls = draft
+                .stalls
+                .iter()
+                .map(|stall| PropagationStall {
+                    point: stall.point,
+                    reason: stall_reason_code(stall.reason).to_owned(),
+                    unknowns: stall.unknowns,
+                })
+                .collect();
+            preview.propagation_conflicts = draft.closure_failures.clone();
+            // The draft creases as they would become, carrying their solved
+            // colour and magnitude so the canvas ramp and the angle badges show
+            // what confirming would do — the same channel the three-crease
+            // solver uses, and the reason this operation must be in
+            // `CP_KERNEL_DECIDED_CANDIDATE_OPERATIONS` on the frontend.
+            for &(index, degrees) in &draft.solved {
+                let Some(segment) = document.crease_pattern.line_segments.get(index) else {
+                    continue;
+                };
+                preview.segments.push(
+                    segment
+                        .with_line_color(if degrees < 0.0 {
+                            LineColor::Red1
+                        } else {
+                            LineColor::Blue2
+                        })
+                        .with_fold_magnitude(geometry::FoldMagnitude::from_degrees(degrees.abs())),
+                );
+            }
+            if draft.solved.is_empty() {
+                preview.unavailable = Some(
+                    if operations::native::fold_propagation::free_line_indices(
+                        &document.crease_pattern,
+                    )
+                    .is_empty()
+                    {
+                        "PropagationNothingFree"
+                    } else {
+                        "PropagationNothingDecidable"
+                    }
+                    .to_owned(),
+                );
             }
         }
         OperationId::VertexSolveFoldAngles => {

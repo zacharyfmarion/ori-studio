@@ -407,6 +407,14 @@
         "1": "Hinzuzufügende Falte wählen"
       }
     },
+    "cp_action_propagate_fold_angles": {
+      "label": "Faltwinkel ausbreiten",
+      "tooltip": "Die Faltwinkel nicht zugewiesener Falten von einem Punkt aus bestimmen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Startpunkt der Ausbreitung wählen"
+      }
+    },
     "cp_action_vertex_solve_fold_angles": {
       "label": "Faltwinkel lösen",
       "tooltip": "Wählen Sie drei Falten an einem Knoten und lösen Sie ihre Faltwinkel, sodass der Knoten schließt, ohne etwas zu verschieben",

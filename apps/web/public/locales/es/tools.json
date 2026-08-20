@@ -93,6 +93,10 @@
     "parallelWidthAria": "Ancho paralelo",
     "polygonCorners": "Vértices del polígono",
     "precision": "Precisión",
+    "propagation": {
+      "nothingDecidable": "No se pudo deducir nada de los ángulos ya definidos. Da un ángulo a un pliegue más e inténtalo de nuevo.",
+      "nothingFree": "Todos los pliegues ya tienen ángulo. Marca algunos sin asignar y vuelve a propagar."
+    },
     "ratioFieldAria": "Proporción {{letter}}",
     "ratioPresets": "Ajustes preestablecidos de proporción",
     "regularPolygon": "Polígono regular",

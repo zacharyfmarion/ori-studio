@@ -33,6 +33,8 @@ export const CP_TOOL_UNAVAILABLE_CODES = [
   'NotEnoughCreases',
   'CreaseNotInFan',
   'AnglesUnreachable',
+  'PropagationNothingFree',
+  'PropagationNothingDecidable',
 ] as const;
 
 export type CpToolUnavailableCode = (typeof CP_TOOL_UNAVAILABLE_CODES)[number];
@@ -52,6 +54,18 @@ export function cpToolUnavailableMessage(
 ): string | null {
   if (!isCode(code)) return null;
   switch (code) {
+    case 'PropagationNothingFree':
+      return t(
+        'tools:cpContext.propagation.nothingFree',
+        'Every crease already has a fold angle. Make some unassigned first, then propagate.'
+      );
+    // Deliberately an instruction rather than an error. Nothing was decidable
+    // means "you have not told me enough", which is a conversation.
+    case 'PropagationNothingDecidable':
+      return t(
+        'tools:cpContext.propagation.nothingDecidable',
+        'Nothing could be worked out from the angles already set. Give one more crease an angle and try again.'
+      );
     case 'BoundaryVertex':
       return t(
         'tools:cpContext.completion.boundaryVertex',

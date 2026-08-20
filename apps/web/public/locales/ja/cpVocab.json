@@ -407,6 +407,14 @@
         "1": "追加する折り線を選択"
       }
     },
+    "cp_action_propagate_fold_angles": {
+      "label": "折り角度を伝播",
+      "tooltip": "未割り当ての折り線の折り角度を、ある点から広げて求めます",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "伝播の開始点を選択"
+      }
+    },
     "cp_action_vertex_solve_fold_angles": {
       "label": "折り角度を解く",
       "tooltip": "1 つの頂点で 3 本の折り線を選ぶと、位置を動かさずに頂点が閉じるようそれらの折り角度を解きます",

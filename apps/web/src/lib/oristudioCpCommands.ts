@@ -415,6 +415,17 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick vertex', 'Pick the crease to add'],
     tooltip: 'Add the crease that makes a vertex fold consistently, solving its fold angle when the vertex is not flat',
   }),
+  ready(
+    'PropagateFoldAngles',
+    'Propagate fold angles',
+    'construct',
+    'angle-solve',
+    'OriStudioPropagateFoldAngles',
+    {
+      toolSteps: ['Pick where to propagate from'],
+      tooltip: 'Work out the fold angles of unassigned creases, spreading out from a point',
+    }
+  ),
   ready('VertexSolveFoldAngles', 'Solve fold angles', 'construct', 'angle-solve', 'OriStudioSolveVertexFoldAngles', {
     toolSteps: [
       'Pick the first crease to change',
@@ -911,6 +922,7 @@ export const ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS = [
   'CircleChangeColor',
   'CreaseMakeAux',
   'CreaseMakeUnassigned',
+  'PropagateFoldAngles',
   'OperationFrameCreate',
   'VoronoiCreate',
   'FlatFoldableCheck',
@@ -1108,6 +1120,7 @@ const CP_KERNEL_DECIDED_CANDIDATE_OPERATIONS = new Set<OristudioCpOperationId>([
   'VertexMakeAngularlyFlatFoldable',
   'FoldableLineDraw',
   'VertexSolveFoldAngles',
+  'PropagateFoldAngles',
 ]);
 
 /** Whether `operationId`'s candidates carry their own crease type and angle. */

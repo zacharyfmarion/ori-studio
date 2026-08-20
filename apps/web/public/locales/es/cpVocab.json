@@ -407,6 +407,14 @@
         "1": "Elige el pliegue a añadir"
       }
     },
+    "cp_action_propagate_fold_angles": {
+      "label": "Propagar ángulos de plegado",
+      "tooltip": "Deducir los ángulos de los pliegues sin asignar, extendiéndose desde un punto",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige desde dónde propagar"
+      }
+    },
     "cp_action_vertex_solve_fold_angles": {
       "label": "Resolver ángulos de plegado",
       "tooltip": "Elige tres pliegues en un vértice y resuelve sus ángulos para que el vértice cierre, sin mover nada",

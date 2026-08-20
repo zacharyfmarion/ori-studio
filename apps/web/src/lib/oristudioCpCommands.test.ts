@@ -296,6 +296,7 @@ describe('Ori Studio native operations', () => {
       'CreaseMakeUnassigned',
       'CreaseSetFoldAngle',
       'CreaseSetLineColor',
+      'PropagateFoldAngles',
       'SquareGenerate',
       'VertexSolveFoldAngles',
     ]);

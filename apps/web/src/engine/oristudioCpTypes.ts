@@ -155,6 +155,18 @@ export interface OristudioCpDiagnosticBigLittleBigSegment {
   violating: boolean;
 }
 
+/** One place a propagation draft stopped. */
+export interface OristudioCpPropagationStall {
+  point: Point;
+  /**
+   * `underdetermined` | `branching` | `unsolvable` | `above_cap`. The two the
+   * user acts on differently are `branching` ("I have a question") and
+   * everything else ("I need another angle from you") — do not share copy.
+   */
+  reason: string;
+  unknowns: number;
+}
+
 export interface OristudioCpCommandPreview {
   segments: OristudioCpLineSegment[];
   circles: OristudioCpCircle[];
@@ -187,6 +199,14 @@ export interface OristudioCpCommandPreview {
    * the UI can say "this is what you have" rather than offering it as a change.
    */
   candidate_is_current?: boolean | null;
+  /** How many creases a propagation draft worked out. */
+  propagation_solved?: number | null;
+  /** How many creases are still free after the draft. */
+  propagation_free?: number | null;
+  /** Where propagation stopped and is waiting on the user. */
+  propagation_stalls?: OristudioCpPropagationStall[];
+  /** Vertices that ended fully known and do not close. */
+  propagation_conflicts?: Point[];
 }
 
 export type OristudioCpEstimationOrder =
@@ -1025,6 +1045,15 @@ export interface OristudioCpCommandPayload {
   custom_from_line_type?: OristudioCpCustomLineType;
   custom_to_line_type?: OristudioCpCustomLineType;
   custom_line_type?: OristudioCpCustomLineType;
+  /**
+   * Fold angles the user fixed by hand during a propagation draft, as
+   * `[line index, signed degrees]`. Propagation treats these as known and never
+   * re-derives them, which is what lets one crease be adjusted and the draft
+   * re-run without the answer sliding back.
+   */
+  pinned_angles?: [number, number][];
+  /** Largest number of unknowns at a vertex a propagation commit may come from. */
+  max_commit_k?: number;
   fix_precision?: number;
   fix_precision_use_bp?: boolean;
   fix_precision_use_22_5?: boolean;

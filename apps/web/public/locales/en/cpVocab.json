@@ -407,6 +407,14 @@
         "1": "Pick the crease to add"
       }
     },
+    "cp_action_propagate_fold_angles": {
+      "label": "Propagate fold angles",
+      "tooltip": "Work out the fold angles of unassigned creases, spreading out from a point",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick where to propagate from"
+      }
+    },
     "cp_action_vertex_solve_fold_angles": {
       "label": "Solve Fold Angles",
       "tooltip": "Pick three creases at one vertex and solve their fold angles so the vertex closes, without moving anything",

@@ -89,6 +89,10 @@
     "parallelWidthAria": "Parallel width",
     "polygonCorners": "Polygon corners",
     "precision": "Precision",
+    "propagation": {
+      "nothingDecidable": "Nothing could be worked out from the angles already set. Give one more crease an angle and try again.",
+      "nothingFree": "Every crease already has a fold angle. Make some unassigned first, then propagate."
+    },
     "ratioFieldAria": "Ratio {{letter}}",
     "ratioPresets": "Ratio presets",
     "regularPolygon": "Regular polygon",

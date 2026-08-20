@@ -93,6 +93,10 @@
     "parallelWidthAria": "Largura paralela",
     "polygonCorners": "Vértices do polígono",
     "precision": "Precisão",
+    "propagation": {
+      "nothingDecidable": "Nada pôde ser deduzido dos ângulos já definidos. Dê um ângulo a mais um vinco e tente novamente.",
+      "nothingFree": "Todos os vincos já têm ângulo de dobra. Torne alguns não atribuídos e propague."
+    },
     "ratioFieldAria": "Proporção {{letter}}",
     "ratioPresets": "Predefinições de proporção",
     "regularPolygon": "Polígono regular",

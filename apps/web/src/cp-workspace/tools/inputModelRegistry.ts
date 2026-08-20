@@ -205,6 +205,7 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   CreaseAdvanceType: { model: 'select-apply' },
   CreaseMakeAux: { model: 'select-apply' },
   CreaseMakeUnassigned: { model: 'select-apply' },
+  PropagateFoldAngles: { model: 'point-sequence', pointCount: 1, snapPerStep: ['point'] },
   CreaseMakeEdge: { model: 'select-apply' },
   CreaseMakeMountain: { model: 'select-apply' },
   CreaseMakeValley: { model: 'select-apply' },
