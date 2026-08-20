@@ -82,12 +82,17 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
     free_document(handle);
   });
 
+  // Every field either builder reads. Hand-projecting it is what lets this gate
+  // compare like with like — but it is also how the gate went blind to direction
+  // hints: the transport builder read `seg_attr[4]` while this side had no hint
+  // to give it. A field added to `CpLineSegmentInput` belongs here too.
   const segmentsInput = () =>
     structured.crease_pattern.line_segments.map((s) => ({
       a: s.a,
       b: s.b,
       color: s.color,
       fold_magnitude: s.fold_magnitude,
+      fold_direction_hint: s.fold_direction_hint,
     }));
 
   it('plain (no selection, no move)', () => {

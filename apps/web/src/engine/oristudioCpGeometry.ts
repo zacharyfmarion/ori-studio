@@ -21,7 +21,7 @@
  * must stay in lockstep with the Rust enums.
  */
 import type { Point } from '../lib/geometry';
-import { FOLD_MAGNITUDE_CLASSIC } from '../lib/foldAngle';
+import { FOLD_MAGNITUDE_CLASSIC, foldDirectionHintFromCode } from '../lib/foldAngle';
 import type {
   OristudioCpCircle,
   OristudioCpDocumentSnapshot,
@@ -34,7 +34,6 @@ import type {
   OristudioCpTextElement,
 } from './oristudioCpTypes';
 
-/** Per-segment attribute stride: `[color, active, selected, customized]`. */
 /**
  * Per-segment integer attributes: colour, active, selected, customized, and the
  * fold-direction hint (0 none, 1 mountain, 2 valley).
@@ -60,7 +59,7 @@ export interface CpGeometryTail {
 export interface CpGeometryTransport {
   /** `[ax, ay, bx, by]` per line segment. */
   segEndpoints: Float64Array;
-  /** `[color, active, selected, customized]` per line segment. */
+  /** `[color, active, selected, customized, foldDirectionHint]` per line segment. */
   segAttr: Int32Array;
   /** `[r, g, b]` per line segment (meaningful only when `customized`). */
   segCustomColor: Uint8Array;
@@ -254,6 +253,14 @@ function readSegment(
   const raw = foldMagnitude?.[index];
   if (raw !== undefined && raw !== FOLD_MAGNITUDE_CLASSIC) {
     segment.fold_magnitude = raw;
+  }
+  // OCG3's fifth attribute slot. Set only when hinted, for the same structural
+  // reason as `fold_magnitude` above — an unhinted segment must decode to
+  // exactly what it did before hints existed, or the parity gate trips on every
+  // document.
+  const hint = foldDirectionHintFromCode(attr[a + 4]);
+  if (hint !== undefined) {
+    segment.fold_direction_hint = hint;
   }
   return segment;
 }

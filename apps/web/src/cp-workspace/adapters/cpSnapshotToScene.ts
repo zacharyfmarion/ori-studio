@@ -1,6 +1,7 @@
 import { foldAngleInk } from '../foldAngle/foldAngleRamp';
 import { directionHintInk, HINT_MOUNTAIN, HINT_VALLEY, hintColorName } from '../foldAngle/directionHintInk';
 import type { OristudioCpFoldAngleDisplay } from '../../lib/creasePatternViewport';
+import type { OristudioCpFoldDirectionHint } from '../../engine/oristudioCpTypes';
 import type { ModelPoint, Rgba, StrokeGeometry } from '../renderer/types';
 import type { CpLineAppearance } from './cpLineStyle';
 
@@ -41,8 +42,13 @@ export interface CpLineSegmentInput {
    * Which way this crease folded before its angle was forgotten. Mirrors
    * `seg_attr`'s fifth slot on the transport so both builders stay
    * byte-identical — see `fold_direction_hint` on the kernel's `LineSegment`.
+   *
+   * Typed from the engine's union rather than restating it: this interface is a
+   * structural subset of `OristudioCpLineSegment` on purpose (it keeps the
+   * scene builders free of the engine's full segment shape), but the *values*
+   * must not be free to drift.
    */
-  fold_direction_hint?: 'Mountain' | 'Valley';
+  fold_direction_hint?: OristudioCpFoldDirectionHint;
 }
 
 /** Selection highlighting: 1-based line ids, their colour, and width multiplier. */

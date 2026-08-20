@@ -63,6 +63,15 @@ export function batterySegments(): OristudioCpLineSegment[] {
     for (const active of ACTIVE_STATES) {
       const selected = SELECTED_VALUES[n % SELECTED_VALUES.length];
       const customized = n % 2;
+      // Only an unassigned crease may carry a direction hint -- the kernel
+      // clears it in `with_line_color` on the way out of `LineColor::None` --
+      // so hints rotate across the `None` row rather than the whole battery.
+      // Leaving one `None` segment unhinted keeps both states covered.
+      const directionHint =
+        color !== 'None' ? undefined
+        : n % 4 === 1 ? ('Mountain' as const)
+        : n % 4 === 2 ? ('Valley' as const)
+        : undefined;
       // Give some creases a non-180 fold angle so the battery exercises the
       // magnitude path -- transport round-trip, the render ramp, and export
       // gating all key off it. Only Red1/Blue2 can carry one; the kernel drops
@@ -80,6 +89,7 @@ export function batterySegments(): OristudioCpLineSegment[] {
         customized,
         customized_color: { red: (n * 7) % 256, green: (n * 13) % 256, blue: (n * 29) % 256 },
         ...(foldMagnitude === undefined ? {} : { fold_magnitude: foldMagnitude }),
+        ...(directionHint === undefined ? {} : { fold_direction_hint: directionHint }),
       });
       n += 1;
     }
@@ -130,6 +140,19 @@ export function batterySnapshot(title = 'battery 折り紙 🦀'): OristudioCpDo
           selected: 1,
           customized: 1,
           customized_color: { red: 200, green: 100, blue: 50 },
+        },
+        // Aux segments are encoded by the same `encode_segments` and read by the
+        // same `readSegment`, so they carry hints too -- but they get no
+        // magnitude array, which is the one place the two paths differ. Cover it.
+        {
+          a: { x: -20, y: 5 },
+          b: { x: 20, y: -5 },
+          color: 'None',
+          active: 'Inactive0',
+          selected: 0,
+          customized: 0,
+          customized_color: { red: 0, green: 0, blue: 0 },
+          fold_direction_hint: 'Valley',
         },
       ],
       points: [

@@ -1,13 +1,13 @@
 import type { Rgba } from '../renderer/types';
+import { HINT_MOUNTAIN, HINT_NONE, HINT_VALLEY } from '../../lib/foldAngle';
 
 /**
- * The hint code the compact transport carries per segment, in `seg_attr`'s
- * fifth slot. Mirrors `fold_direction_hint_code` in
- * `crates/oristudio-cp/src/geometry_transport.rs`.
+ * The transport's hint codes, re-exported so render code has one import for
+ * "everything about drawing a hint". They are *defined* in `lib/foldAngle`
+ * beside the rest of the fold-state mirror, because the engine decoder needs
+ * them too and cannot import from `cp-workspace/`.
  */
-export const HINT_NONE = 0;
-export const HINT_MOUNTAIN = 1;
-export const HINT_VALLEY = 2;
+export { HINT_NONE, HINT_MOUNTAIN, HINT_VALLEY };
 
 /** The line-colour name a hint's direction would paint with. */
 export function hintColorName(code: number): string | null {

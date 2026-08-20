@@ -41,6 +41,16 @@ export interface OristudioCpRgbaColor extends OristudioCpRgbColor {
   alpha: number;
 }
 
+/**
+ * Which way an unassigned crease folded before its angle was forgotten — the
+ * kernel's `FoldDirection`.
+ *
+ * Only ever present alongside `color: 'None'`: the kernel clears it in
+ * `with_line_color` on the way out of `LineColor::None`, because a crease that
+ * has a direction does not need a hint about one.
+ */
+export type OristudioCpFoldDirectionHint = 'Mountain' | 'Valley';
+
 export interface OristudioCpLineSegment {
   a: Point;
   b: Point;
@@ -58,6 +68,19 @@ export interface OristudioCpLineSegment {
    * from `lib/foldAngle`, which combines it with the colour's direction.
    */
   fold_magnitude?: number;
+  /**
+   * The direction this crease folded before it was unassigned, when one was
+   * kept. **Absent** unless the crease is unassigned *and* hinted, so an
+   * unhinted segment stays structurally identical to what it was before hints
+   * existed.
+   *
+   * This field is why `.osf` save, undo and paste were dropping hints: it is
+   * the JS mirror of the kernel's `fold_direction_hint`, and everything that
+   * persists or restores a document round-trips through this interface. A new
+   * kernel field is not carried until it is declared here *and* read in
+   * `readSegment` (`engine/oristudioCpGeometry.ts`).
+   */
+  fold_direction_hint?: OristudioCpFoldDirectionHint;
 }
 
 export interface OristudioCpCircle {
