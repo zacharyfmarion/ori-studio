@@ -45,6 +45,7 @@ use std::collections::VecDeque;
 
 use crate::geometry::{Epsilon, LineColor, Point};
 use crate::model::{CreasePatternModel, crease_fold_angle};
+use crate::solve_fold_angles::NoSolution;
 use crate::solve_k::{Determinacy, solve_fan_at, solve_k};
 
 /// The largest `k` a commit is allowed to come from.
@@ -201,8 +202,31 @@ pub fn propagate(
             continue;
         }
         let report = solve_k(&working, &fan, &unknowns, closed_bar);
-        if report.no_solution.is_some() {
-            continue;
+        // `Unreachable` is not a reason to say nothing — it *is* the finding.
+        // `solve_k` sets `no_solution = Some(Unreachable)` on exactly the
+        // vertices whose verdict is `Unsolvable`, so skipping every
+        // `no_solution` swallowed the whole category: measured, 383 genuinely
+        // unsolvable vertices across seven real files were reported as **zero**
+        // stalls, which made `StallReason::Unsolvable` dead code. It matters
+        // because that is how a *wrong* pin surfaces — the vertex it poisons
+        // stops closing, and without this the only symptom is quietly fewer
+        // creases solved.
+        //
+        // The other `no_solution` reasons really are silence: a boundary vertex
+        // has no closure condition, and an unsplit junction or a mis-picked
+        // crease is a fan this pass cannot read at all.
+        match report.no_solution {
+            Some(NoSolution::Unreachable) => {
+                stalls.push(Stall {
+                    point,
+                    reason: StallReason::Unsolvable,
+                    unknowns: unknowns.len(),
+                    options: Vec::new(),
+                });
+                continue;
+            }
+            Some(_) => continue,
+            None => {}
         }
         let reason = match report.verdict {
             Determinacy::Branching => StallReason::Branching,
@@ -452,6 +476,53 @@ mod tests {
                 .any(|stall| stall.reason == StallReason::AboveCap),
             "expected at least one arity stall, got {:?}",
             draft.stalls.iter().map(|s| s.reason).collect::<Vec<_>>()
+        );
+    }
+
+    /// A vertex that cannot close must be *reported*, not skipped.
+    ///
+    /// `solve_k` returns `no_solution = Some(Unreachable)` on exactly the
+    /// vertices whose verdict is `Unsolvable`, so an early `continue` on any
+    /// `no_solution` made `StallReason::Unsolvable` unreachable — measured, 383
+    /// genuinely unsolvable vertices across seven real files reported as zero
+    /// stalls. That is the channel a wrong pin surfaces through, so its silence
+    /// was the expensive kind.
+    #[test]
+    fn a_vertex_that_cannot_close_is_reported() {
+        let model = kabuto();
+        // Poison one crease with an angle its neighbours cannot accommodate,
+        // then blank a neighbour so the vertex has something to solve for.
+        let mut broken = model.clone();
+        let mut poisoned = None;
+        for index in 0..broken.line_segments.len() {
+            let segment = broken.line_segments[index].clone();
+            if crease_fold_angle(&segment).is_some() {
+                broken.line_segments[index] = segment
+                    .with_line_color(LineColor::Blue2)
+                    .with_fold_magnitude(crate::geometry::FoldMagnitude::from_degrees(37.0));
+                poisoned = Some(index);
+                break;
+            }
+        }
+        assert!(poisoned.is_some());
+        for index in 0..broken.line_segments.len() {
+            let segment = broken.line_segments[index].clone();
+            if Some(index) != poisoned && crease_fold_angle(&segment).is_some() {
+                broken.line_segments[index] = segment.with_line_color(LineColor::None);
+                break;
+            }
+        }
+        let draft = propagate(&broken, None, &[], DEFAULT_MAX_COMMIT_K, bar());
+        let reported = draft.stalls.iter().any(|stall| {
+            matches!(
+                stall.reason,
+                StallReason::Unsolvable | StallReason::Underdetermined | StallReason::Branching
+            )
+        }) || !draft.closure_failures.is_empty();
+        assert!(
+            reported,
+            "an inconsistent neighbourhood must surface somewhere, got {:?} stalls",
+            draft.stalls.len()
         );
     }
 
