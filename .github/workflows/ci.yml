@@ -24,6 +24,7 @@ jobs:
   web-client:
     name: Web client lint, typecheck, tests
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -123,6 +124,7 @@ jobs:
   windows-file-formats:
     name: Windows file-format crates
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -149,11 +151,17 @@ jobs:
   native-oracle:
     name: Native Rust + C++ oracle
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install Tauri Linux dependencies
+        # Bounded separately from the job because this is the step that stalls:
+        # apt on a hosted runner can hang on an unreachable mirror indefinitely,
+        # and `-y` does not help — there is no prompt, just no data. It normally
+        # finishes in about two minutes.
+        timeout-minutes: 10
         run: |
           sudo apt-get update
           sudo apt-get install -y \
