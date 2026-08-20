@@ -35,18 +35,51 @@ export function isLineEraseClickTool(operationId: OpId): boolean {
 }
 
 /**
- * What a click (press with no drag) does while a drag-box tool is active. Oriedita's
- * `BoxSelectStepNode.runReleaseAction` runs the box action only for a gesture that
- * actually moved, and otherwise applies the tool to the crease nearest the cursor —
- * so every box tool below is equally a click tool.
+ * What a click (press with no drag) does while a region or box tool is active.
+ * Oriedita's `BoxSelectStepNode.runReleaseAction` runs the box action only for a
+ * gesture that actually moved, and otherwise applies the tool to the crease nearest
+ * the cursor — so every tool below is equally a click tool.
  */
 export type ToolClickAction = 'select' | 'crease' | 'erase';
 
 export function toolClickAction(operationId: OpId): ToolClickAction | null {
-  if (isLineClickSelectionOperation(operationId)) return 'select';
+  if (regionSelectionClick(operationId)) return 'select';
   if (isCreaseToggleMvClickTool(operationId)) return 'crease';
   if (isLineEraseClickTool(operationId)) return 'erase';
   return null;
+}
+
+/** Which way a region-select tool's click moves the crease it lands on. */
+export type RegionSelectionClick = 'select' | 'unselect';
+
+/**
+ * The region-select family, and the direction a click applies it in.
+ *
+ * Box Select/Deselect rubber-band a rectangle, the lasso pair draws a freehand
+ * region, the (hidden) polygon pair draws a closed one. The region's shape is the
+ * only thing that differs between them — and a click has no region at all — so a
+ * click means the same thing in every one: apply the tool to the crease under the
+ * cursor.
+ *
+ * Upstream states that rule for the box half (`BoxSelectStepNode.runReleaseAction`,
+ * above). Its lasso has no click behaviour — `BaseMouseHandlerLasso.mouseReleased`
+ * closes a degenerate path, which selects nothing — so carrying it across is ours,
+ * alongside the modern-selection divergence these tools already have (a plain drag
+ * replaces the selection where upstream's lasso is always additive).
+ */
+export function regionSelectionClick(operationId: OpId): RegionSelectionClick | null {
+  switch (operationId) {
+    case 'CreaseSelect':
+    case 'SelectLasso':
+    case 'SelectPolygon':
+      return 'select';
+    case 'CreaseUnselect':
+    case 'UnselectLasso':
+    case 'UnselectPolygon':
+      return 'unselect';
+    default:
+      return null;
+  }
 }
 
 export function allowsDirectEntitySelection(operationId: OpId): boolean {
@@ -214,16 +247,20 @@ export function shouldPreferPointSnapForStep(
   );
 }
 
-/** The plain box/click select mode: CreaseSelect active with no in-progress sequence. */
-export function isDefaultSelectionMode(
+/**
+ * What a click on a crease does right now: the armed region-select tool's
+ * direction, or null when no such tool is armed.
+ *
+ * Null too while one is mid-sequence — a tool holding placed points or a path is
+ * collecting input, and the click belongs to that rather than to the selection.
+ * The box tools have a kernel-side click path to fall back to there; the lasso
+ * tools have none, so their click is simply ignored, as it is today.
+ */
+export function creaseClickSelection(
   state: { activeOperationId: string | null; phase: string },
   pendingPointCount: number,
   pendingPathCount: number
-): boolean {
-  return (
-    state.phase === 'active' &&
-    state.activeOperationId === 'CreaseSelect' &&
-    pendingPointCount === 0 &&
-    pendingPathCount === 0
-  );
+): RegionSelectionClick | null {
+  if (state.phase !== 'active' || pendingPointCount !== 0 || pendingPathCount !== 0) return null;
+  return regionSelectionClick(state.activeOperationId);
 }

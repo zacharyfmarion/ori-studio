@@ -6,16 +6,17 @@ import {
 import {
   allowsDirectEntitySelection,
   cpCommandRequiresContextApply,
+  creaseClickSelection,
   creaseTransformTool,
   isCircleTangentPointOperation,
   isCreaseToggleMvClickTool,
-  isDefaultSelectionMode,
   isLengthenCreaseOperation,
   isLineClickSelectionOperation,
   isLineEraseClickTool,
   isReflectSelectionOperation,
   isModelAlignedBoxOperation,
   isRestrictedDrawOperation,
+  regionSelectionClick,
   toolClickAction,
   isSelectionCircleApplyOperation,
   isSquareBisectorOperation,
@@ -117,29 +118,67 @@ describe('shouldPreferPointSnapForStep', () => {
   });
 });
 
-describe('isDefaultSelectionMode', () => {
-  it('is the active CreaseSelect tool with no in-progress sequence', () => {
-    expect(
-      isDefaultSelectionMode({ activeOperationId: 'CreaseSelect', phase: 'active' }, 0, 0)
-    ).toBe(true);
-    // A pending point or path means a sequence is in progress → not default select.
-    expect(
-      isDefaultSelectionMode({ activeOperationId: 'CreaseSelect', phase: 'active' }, 1, 0)
-    ).toBe(false);
-    expect(
-      isDefaultSelectionMode({ activeOperationId: 'DrawCreaseFree', phase: 'active' }, 0, 0)
-    ).toBe(false);
-    expect(
-      isDefaultSelectionMode({ activeOperationId: 'CreaseSelect', phase: 'idle' }, 0, 0)
-    ).toBe(false);
+describe('regionSelectionClick', () => {
+  it('covers every region-select tool, box and freehand alike', () => {
+    // The lasso pair is Box Select/Deselect with a freehand region, so a click —
+    // which has no region — applies the same way in both.
+    expect(regionSelectionClick('CreaseSelect')).toBe('select');
+    expect(regionSelectionClick('SelectLasso')).toBe('select');
+    expect(regionSelectionClick('SelectPolygon')).toBe('select');
+    expect(regionSelectionClick('CreaseUnselect')).toBe('unselect');
+    expect(regionSelectionClick('UnselectLasso')).toBe('unselect');
+    expect(regionSelectionClick('UnselectPolygon')).toBe('unselect');
+  });
+
+  it('is null for tools that select by other means, and for no tool at all', () => {
+    // Dragged *lines*, not regions: they resolve their creases from the drawn
+    // segment kernel-side, and a click has nothing to apply.
+    expect(regionSelectionClick('SelectLineIntersecting')).toBeNull();
+    expect(regionSelectionClick('UnselectLineIntersecting')).toBeNull();
+    expect(regionSelectionClick('DrawCreaseFree')).toBeNull();
+    expect(regionSelectionClick(null)).toBeNull();
   });
 });
 
+describe('creaseClickSelection', () => {
+  it('answers with the armed region tool’s direction', () => {
+    expect(
+      creaseClickSelection({ activeOperationId: 'CreaseSelect', phase: 'active' }, 0, 0)
+    ).toBe('select');
+    expect(
+      creaseClickSelection({ activeOperationId: 'SelectLasso', phase: 'active' }, 0, 0)
+    ).toBe('select');
+    expect(
+      creaseClickSelection({ activeOperationId: 'UnselectLasso', phase: 'active' }, 0, 0)
+    ).toBe('unselect');
+  });
+
+  it('is null with no region tool armed, or one mid-sequence', () => {
+    // A pending point or path means a tool is collecting input, and the click
+    // belongs to that rather than to the selection.
+    expect(
+      creaseClickSelection({ activeOperationId: 'CreaseSelect', phase: 'active' }, 1, 0)
+    ).toBeNull();
+    expect(
+      creaseClickSelection({ activeOperationId: 'SelectLasso', phase: 'active' }, 0, 1)
+    ).toBeNull();
+    expect(
+      creaseClickSelection({ activeOperationId: 'DrawCreaseFree', phase: 'active' }, 0, 0)
+    ).toBeNull();
+    expect(
+      creaseClickSelection({ activeOperationId: 'CreaseSelect', phase: 'idle' }, 0, 0)
+    ).toBeNull();
+  });
+});
 
 describe('toolClickAction', () => {
   it('names the click behaviour of each box tool, and nothing else', () => {
     expect(toolClickAction('CreaseSelect')).toBe('select');
     expect(toolClickAction('CreaseUnselect')).toBe('select');
+    // The lasso tools take a click too — without this the canvas discards the
+    // gesture, since their drag engine needs two points to commit anything.
+    expect(toolClickAction('SelectLasso')).toBe('select');
+    expect(toolClickAction('UnselectLasso')).toBe('select');
     // Oriedita's CREASE_TOGGLE_MV_58 flips the crease under a bare click, so the
     // flip tool must not need a drag first.
     expect(toolClickAction('CreaseToggleMv')).toBe('crease');

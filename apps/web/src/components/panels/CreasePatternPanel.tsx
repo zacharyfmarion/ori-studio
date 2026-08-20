@@ -176,9 +176,9 @@ import {
 import {
   allowsDirectEntitySelection,
   cpCommandRequiresContextApply,
+  creaseClickSelection,
   creaseTransformTool,
   isCreaseToggleMvClickTool,
-  isDefaultSelectionMode,
   isLengthenCreaseOperation,
   isLineClickSelectionOperation,
   isLineEraseClickTool,
@@ -909,6 +909,7 @@ export function CreasePatternPanel() {
   const toggleOristudioCpLineSelection = useWorkspaceStore(
     (state) => state.toggleOristudioCpLineSelection
   );
+  const unselectOristudioCpLine = useWorkspaceStore((state) => state.unselectOristudioCpLine);
   const toggleOristudioCpPointSelection = useWorkspaceStore(
     (state) => state.toggleOristudioCpPointSelection
   );
@@ -2429,18 +2430,32 @@ export function CreasePatternPanel() {
         return;
       }
 
-      if (
-        activeCpCommand?.operationId === 'CreaseSelect' &&
-        isDefaultSelectionMode(
-          {
-            activeOperationId: activeCpCommand.operationId,
-            phase: cpToolState.phase,
-          },
-          cpToolPoints.length,
-          cpToolPath.length
-        )
-      ) {
+      // Box Select / Lasso Select and their deselect twins: a click has no region
+      // to resolve, so it applies the tool to the crease under the cursor. Select
+      // takes just that crease, or with Shift adds it / takes it back out; deselect
+      // removes it and leaves an unselected crease alone.
+      //
+      // Straight to the selection store rather than through a kernel select
+      // command, which is what Box Select's click has always done and the only path
+      // that composes with itself: a kernel select rebuilds the whole selection from
+      // the document's own `selected` flags, and those flags never see a click.
+      // Running Box Deselect's click through the kernel is why a click there used to
+      // drop every crease that had been *clicked* into the selection — and mark the
+      // document dirty for a change that is only a selection.
+      const clickSelection = creaseClickSelection(
+        {
+          activeOperationId: activeCpCommand?.operationId ?? null,
+          phase: cpToolState.phase,
+        },
+        cpToolPoints.length,
+        cpToolPath.length
+      );
+      if (clickSelection === 'select') {
         toggleOristudioCpLineSelection(id, additive);
+        return;
+      }
+      if (clickSelection === 'unselect') {
+        unselectOristudioCpLine(id);
         return;
       }
 
@@ -2539,6 +2554,7 @@ export function CreasePatternPanel() {
       pendingLengthenLineId,
       pendingSquareBisectorLineIds,
       toggleOristudioCpLineSelection,
+      unselectOristudioCpLine,
       t,
     ]
   );
