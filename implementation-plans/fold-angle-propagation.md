@@ -488,53 +488,63 @@ k≤3 buys ~4pp of coverage for a solve pass over a large branching population.
 menu / command-palette path both funnel into the same `handleCpToolAction`, so a
 menu row needs its own arm in `commands/menuActions.ts` to actually run.
 
-### Blocking: five UI mechanisms that do not exist yet
+### The UX: one armed tool holding a draft
 
-Each was assumed reusable and is not. These are the real frontend work.
+**Decided by the owner, 2026-08-19, and it removes most of the frontend risk.**
+This is not a fire-and-return verb. It is a *stepped tool* that arms and holds
+state, exactly as `VertexSolveFoldAngles` does:
 
-1. **There is no channel to deliver a run summary or a stall message.**
-   `cpToolUnavailable` is written in exactly three places
-   (`CreasePatternPanel.tsx:2204`, `:2248`, `:2289`), **all inside
-   `handleWebglToolPreviewInput`**, and `:2198-2205` resets it to `null` whenever
-   `points.length === 0`. A `select-apply` tool that never places a canvas point
-   never populates it. The same is true of `toolNotice`. So adding codes to
-   `CP_TOOL_UNAVAILABLE_CODES` **buys nothing on its own** — decide between a new
-   result channel threaded into `CpContextToolPanel`, or shipping the summary and
-   the stalls as `diagnostic_entries` (see 2).
-2. **The diagnostics route has two catches.** `visibleEntries.ts:29-33` gates the
-   command half on `isDiagnosticResultOperation` (`hudStatus.ts:39-48`), so the
-   operation must be added there. And `projectSlice.ts:2278-2280` sets the active
-   diagnostic to `null` for a **mutating** operation — propagation mutates, so
-   entries list but never auto-focus. The unconditional primitive underneath is
-   `cpCamera()?.frameModelBounds(bounds)` (`cpCameraRegistry.ts:50-52`).
-3. **`CpToolOptionWindow` cannot express the branch picker.** Its whole interface
-   is `{bounds, title, index, count, note?, onStep, onApply, onCancel}`
-   (`toolOptionWindow.ts:49-68`) — one prose slot, no per-option data, no queue.
-   Worse, **`title` is invisible on any branch**: `CpToolOptionLayer.tsx:132-159`
-   renders the stepper *instead of* the title whenever `count > 1`. The layer also
-   never moves the camera, and **exactly one is mounted**
-   (`CreasePatternPanel.tsx:3030`) — a second tool needs a resolver. The
+1. Select the CP, activate the tool, **pick the propagation point** — that pick
+   is the tool's one step.
+2. It propagates everything it can into an **uncommitted draft**, drawn on
+   canvas through the preview channel, with a summary in the tool window.
+3. The user **adjusts any crease in the draft**, which re-propagates from there.
+   One gesture serves as both branch resolution and re-seeding.
+4. Repeat until satisfied. **Confirm** commits the whole draft as one undo entry;
+   Escape throws it away.
+
+Three things that were planned are now **out**, and the reasons are structural
+rather than preference:
+
+- **No diagnostics route, and no new store channel.** The earlier finding that
+  `cpToolUnavailable` is only written from the pointer-preview handler is true
+  and no longer blocking: an armed tool holds its own state in its hook and
+  renders through the tool window, which is how `useVertexSolve` already works.
+- **No separate question queue.** Adjust-and-re-propagate replaces it. There is
+  no list to navigate because the draft *is* the answer, and the user edits it
+  directly.
+- **No coverage gate.** How far a single seed propagates stops being a product
+  risk once the loop is iterative — the user reseeds by adjusting. This is why
+  the global frontier solve stays out of scope (see Non-goals).
+
+**The registration falls out of this.** A command with one or more `toolSteps`
+entries returns early at `CreasePatternPanel.tsx:1560`, *before* the execute
+call at `:1567` — so the seed pick is both the UX and the escape from
+firing-on-rail-click. No settings group is needed for that purpose; keep
+`max_commit_k` as a group only if the knob is wanted for its own sake.
+
+### Two UI mechanisms that still do not exist
+
+1. **`CpToolOptionWindow` cannot express a multi-answer picker.** Its whole
+   interface is `{bounds, title, index, count, note?, onStep, onApply, onCancel}`
+   (`toolOptionWindow.ts:49-68`) — one prose slot, no per-option data. And
+   `title` is **invisible on any branch**: `CpToolOptionLayer.tsx:132-159`
+   renders the stepper *instead of* the title whenever `count > 1`. The layer
+   also never moves the camera, and **exactly one is mounted**
+   (`CreasePatternPanel.tsx:3030`), so a second tool needs a resolver. The
    descriptor has to grow, staying React-free and store-free per
    `toolOptionWindow.ts:31-38`.
-4. **"Select creases → make them Unassigned" has no route, and cannot get one via
-   Replace-line-type.** The four Make-M/V/E/Aux menu entries
-   (`menuDefinition.ts:216-219`) do not include it, and
-   `ORISTUDIO_CP_REPLACE_TARGET_LINE_TYPE_OPTIONS` derives from
-   `OristudioCpCustomLineType` — a **kernel enum** (`predicates.ts:171-191`) with
-   no `Unassigned` member. So Replace, Delete-by-type and the eraser filter cannot
-   target it without a kernel change. A `Make Unassigned` menu entry plus its
-   `menuActions.ts` arm is the door.
-5. **A free crease draws SOLID grey on the WebGL canvas.** The dashed
-   `--fold-unassigned` style (`theme.css:7032-7036`) is SVG-only; the panel
-   renders `CreasePatternWebglCanvas`, whose dash comes from
-   `cpLineStyleDashSlot`, and `cpLineStyleColorKind('None')` → `'other'` →
-   `SOLID_DASH_SLOT` under every style. SVG/PNG *export* does dash it. If dashed
-   on canvas is wanted, that is a new dash slot.
+2. **A free crease draws SOLID grey on the WebGL canvas** — confirmed in the
+   browser. The dashed `--fold-unassigned` style (`theme.css:7032-7036`) is
+   SVG-only; `cpLineStyleColorKind('None')` resolves to `'other'` and then
+   `SOLID_DASH_SLOT` under every line style. SVG/PNG *export* does dash it.
+   Dashed on canvas is a new dash slot, and the draft needs *some* way to
+   distinguish "solved in this draft" from "committed" and from "still free".
 
    Related: a preview segment that is still `LineColor::None` carries **no
-   crease** at all — `isFoldingCrease` is `Red1 || Blue2` only
-   (`lib/foldAngle.ts:44-46`) — so the dry-run preview cannot show "still
-   unassigned" through the preview channel even after the allow-list entry.
+   crease** — `isFoldingCrease` is `Red1 || Blue2` only (`lib/foldAngle.ts:44-46`)
+   — so the preview channel cannot show "still unassigned" even after the
+   allow-list entry.
 
 ### Blocking: the preview allow-list
 
