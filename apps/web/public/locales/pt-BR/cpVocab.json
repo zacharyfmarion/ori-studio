@@ -286,6 +286,11 @@
       "tooltip": "Define o quanto os vincos selecionados dobram",
       "disabledReason": "Pronto"
     },
+    "cp_action_crease_set_direction_hint": {
+      "label": "Definir dica de direção da dobra",
+      "tooltip": "Indicar para que lado os vincos indefinidos selecionados dobravam",
+      "disabledReason": "Pronto"
+    },
     "cp_action_background_change_position": {
       "label": "Mover plano de fundo",
       "tooltip": "A manipulação da imagem de fundo é apenas da interface e não faz parte do núcleo de CP",

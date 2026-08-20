@@ -221,6 +221,14 @@ pub struct CreasePatternCommandPayload {
     /// the mountain/valley question closure cannot.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub forget_direction: Option<bool>,
+    /// What [`OperationId::CreaseSetDirectionHint`] writes to each selected
+    /// unassigned crease. Required by that operation, ignored by every other.
+    ///
+    /// Spelled as a three-state change rather than an `Option<FoldDirection>`
+    /// so that "clear the hint" and "the client forgot the field" are different
+    /// messages on the wire.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub direction_hint: Option<operations::native::direction_hint::DirectionHintChange>,
     /// Largest number of unknowns at a vertex a propagation commit may come
     /// from. `None` uses
     /// [`operations::native::fold_propagation::DEFAULT_MAX_COMMIT_K`].
@@ -724,6 +732,7 @@ pub enum OperationId {
     CircleChangeColor,
     CreaseMakeAux,
     CreaseMakeUnassigned,
+    CreaseSetDirectionHint,
     PropagateFoldAngles,
     OperationFrameCreate,
     VoronoiCreate,
@@ -1335,6 +1344,14 @@ const OPERATION_DESCRIPTORS: &[OperationDescriptor] = &[
         native CreaseMakeUnassigned,
         "OriStudioCreaseMakeUnassigned",
         "operations::native::unassign::make_unassigned",
+        Kernel,
+        6,
+        UnitTested
+    ),
+    descriptor!(
+        native CreaseSetDirectionHint,
+        "OriStudioCreaseSetDirectionHint",
+        "operations::native::direction_hint::set_direction_hint",
         Kernel,
         6,
         UnitTested
@@ -2082,6 +2099,27 @@ pub fn execute_command(
                     &line_indices,
                 )
             }
+        }
+        OperationId::CreaseSetDirectionHint => {
+            let line_indices = required_line_indices(&command)?;
+            // No default. Mountain, valley and clear are three deliberate
+            // intents and none of them is the obvious one to assume, so a
+            // payload that omits the field is a caller bug rather than a
+            // request to guess.
+            let change =
+                command
+                    .payload
+                    .direction_hint
+                    .ok_or_else(|| CommandError::InvalidInput {
+                        operation: command.operation,
+                        message: "direction_hint is required (Mountain, Valley or Clear)"
+                            .to_string(),
+                    })?;
+            operations::native::direction_hint::set_direction_hint(
+                &mut document.crease_pattern,
+                &line_indices,
+                change,
+            )
         }
         OperationId::PropagateFoldAngles => {
             // Commit is the *same* draft the preview showed, recomputed from the

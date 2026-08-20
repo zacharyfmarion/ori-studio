@@ -286,6 +286,11 @@
       "tooltip": "Legt fest, wie weit die ausgewählten Falten gefaltet werden",
       "disabledReason": "Bereit"
     },
+    "cp_action_crease_set_direction_hint": {
+      "label": "Hinweis zur Faltrichtung setzen",
+      "tooltip": "Angeben, in welche Richtung die ausgewählten unentschiedenen Falten gefaltet waren",
+      "disabledReason": "Bereit"
+    },
     "cp_action_background_change_position": {
       "label": "Hintergrund verschieben",
       "tooltip": "Die Bearbeitung des Hintergrundbilds ist nur UI und nicht Teil des CP-Kernels",

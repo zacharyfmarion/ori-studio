@@ -296,6 +296,29 @@ impl LineSegment {
         }
     }
 
+    /// Set (or clear) the direction hint on an already-unassigned crease.
+    ///
+    /// The counterpart to [`Self::with_direction_kept`], which can only ever
+    /// recover a direction from the colour it is *leaving*. A crease that is
+    /// already [`LineColor::None`] has no such colour, so its hint can only come
+    /// from the user saying which way it goes.
+    ///
+    /// **A no-op on anything that is not `LineColor::None`**, which is the same
+    /// enforcement point as [`Self::with_line_color`] approached from the other
+    /// side: that one clears the hint on the way *out* of unassigned, and this
+    /// one refuses to introduce one anywhere else. Between them the illegal
+    /// pairing — a hint beside a real direction, two disagreeing sources of
+    /// truth for one fact — cannot be constructed.
+    pub fn with_direction_hint(&self, hint: Option<FoldDirection>) -> Self {
+        if !matches!(self.color, LineColor::None) {
+            return self.clone();
+        }
+        Self {
+            fold_direction_hint: hint,
+            ..*self
+        }
+    }
+
     /// Copy `source`'s whole fold state — direction, magnitude and hint.
     ///
     /// Derived geometry needs this rather than [`Self::with_fold_magnitude_of`]:

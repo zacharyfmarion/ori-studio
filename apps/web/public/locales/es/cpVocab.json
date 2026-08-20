@@ -286,6 +286,11 @@
       "tooltip": "Define cuánto se pliegan los pliegues seleccionados",
       "disabledReason": "Listo"
     },
+    "cp_action_crease_set_direction_hint": {
+      "label": "Definir pista de dirección de plegado",
+      "tooltip": "Indicar hacia dónde se plegaban los pliegues sin decidir seleccionados",
+      "disabledReason": "Listo"
+    },
     "cp_action_background_change_position": {
       "label": "Mover fondo",
       "tooltip": "La manipulación de la imagen de fondo es solo de la interfaz y no forma parte del núcleo de CP",

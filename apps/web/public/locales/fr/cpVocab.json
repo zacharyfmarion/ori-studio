@@ -286,6 +286,11 @@
       "tooltip": "Définit de combien les plis sélectionnés se plient",
       "disabledReason": "Prêt"
     },
+    "cp_action_crease_set_direction_hint": {
+      "label": "Définir l’indice de sens du pli",
+      "tooltip": "Indiquer dans quel sens les plis indécis sélectionnés étaient pliés",
+      "disabledReason": "Prêt"
+    },
     "cp_action_background_change_position": {
       "label": "Déplacer l'arrière-plan",
       "tooltip": "La manipulation de l'image d'arrière-plan est purement liée à l'interface et ne fait pas partie du noyau CP",

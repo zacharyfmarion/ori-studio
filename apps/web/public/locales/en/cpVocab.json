@@ -286,6 +286,11 @@
       "tooltip": "Set how far the selected creases fold",
       "disabledReason": "Ready"
     },
+    "cp_action_crease_set_direction_hint": {
+      "label": "Set fold direction hint",
+      "tooltip": "Say which way the selected undecided creases folded",
+      "disabledReason": "Ready"
+    },
     "cp_action_background_change_position": {
       "label": "Move background",
       "tooltip": "Background image manipulation is UI-only and not part of the CP kernel",

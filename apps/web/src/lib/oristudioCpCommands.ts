@@ -339,6 +339,23 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     selectionRequirement: 'selected lines',
     tooltip: 'Set how far the selected creases fold',
   }),
+  // `palette`, like its sibling above: both are driven from the context panel's
+  // selection controls rather than the rail, and both are worth reaching by
+  // name. This one is the only way to hint a crease that is *already*
+  // unassigned -- `CreaseMakeUnassigned` reads the direction off the colour it
+  // is leaving, so it cannot touch one.
+  ready(
+    'CreaseSetDirectionHint',
+    'Set fold direction hint',
+    'color',
+    'circle-dashed',
+    'OriStudioCreaseSetDirectionHint',
+    {
+      placement: 'palette',
+      selectionRequirement: 'selected lines',
+      tooltip: 'Say which way the selected undecided creases folded',
+    }
+  ),
   outOfScopeUi(
     'BackgroundChangePosition',
     'Move background',
@@ -926,6 +943,7 @@ export const ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS = [
   'CircleChangeColor',
   'CreaseMakeAux',
   'CreaseMakeUnassigned',
+  'CreaseSetDirectionHint',
   'PropagateFoldAngles',
   'OperationFrameCreate',
   'VoronoiCreate',

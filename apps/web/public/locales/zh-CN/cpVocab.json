@@ -286,6 +286,11 @@
       "tooltip": "设置所选折痕的折叠程度",
       "disabledReason": "就绪"
     },
+    "cp_action_crease_set_direction_hint": {
+      "label": "设置折叠方向提示",
+      "tooltip": "指明所选未定折痕原本朝哪个方向折叠",
+      "disabledReason": "就绪"
+    },
     "cp_action_background_change_position": {
       "label": "移动背景",
       "tooltip": "背景图像操作仅限 UI，不属于折痕图内核",

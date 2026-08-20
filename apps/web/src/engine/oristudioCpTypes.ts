@@ -1154,6 +1154,15 @@ export interface OristudioCpCommandPayload {
    * `false` keeps it, because that is the common intent.
    */
   forget_direction?: boolean;
+  /**
+   * What `CreaseSetDirectionHint` writes to each selected *unassigned* crease.
+   * Required by that operation, ignored by every other.
+   *
+   * `'Clear'` is spelled out rather than sent as an absent field so that
+   * "forget the hint" and "the caller forgot to set this" cannot look alike on
+   * the wire — the kernel rejects the payload that omits it.
+   */
+  direction_hint?: OristudioCpFoldDirectionHint | 'Clear';
   /** Largest number of unknowns at a vertex a propagation commit may come from. */
   max_commit_k?: number;
   fix_precision?: number;

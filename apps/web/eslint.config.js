@@ -287,7 +287,21 @@ const OVERSIZED_PANELS = {
   // this file already renders; deciding whether that button is live for a given
   // command is what this file's predicate is for, and both arms sit beside the
   // ones already there.
-  'CpContextToolPanel.tsx': 1176,
+  //
+  // 1176 -> 1185: the fold-direction-hint control. A second selection-scoped
+  // group beside `FoldAngleControl`, and the same shape of change the fold-angle
+  // badges were: an import, a mount, and one more term in `hasContent`. All of
+  // the behaviour — the chips, the mixed-state summariser, the store binding —
+  // is in `cp-workspace/foldAngle/`, tested there without mounting this panel.
+  //
+  // The extra term is why this is not two lines. `hasContent` decides whether
+  // the window renders *at all*, before any child mounts, so a control that
+  // self-hides still has to be counted here or a selection of purely unassigned
+  // creases would hide the one control that could act on it. Prettier then
+  // splits the widened boolean across five lines. That is formatting, not
+  // behaviour, and shaving it back is the "make the count go down without making
+  // the code better" move this file warns about.
+  'CpContextToolPanel.tsx': 1185,
 };
 
 const PANEL_MAX_LINES = 800;

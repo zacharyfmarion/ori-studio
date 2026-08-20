@@ -286,6 +286,11 @@
       "tooltip": "選択した折り線の折り角度を設定します",
       "disabledReason": "準備完了"
     },
+    "cp_action_crease_set_direction_hint": {
+      "label": "折り方向のヒントを設定",
+      "tooltip": "選択した未決定の折り線がどちら向きに折られていたかを指定します",
+      "disabledReason": "準備完了"
+    },
     "cp_action_background_change_position": {
       "label": "背景を移動",
       "tooltip": "背景画像の操作は UI のみで、CP カーネルの一部ではありません",

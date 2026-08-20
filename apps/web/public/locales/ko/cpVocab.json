@@ -286,6 +286,11 @@
       "tooltip": "선택한 접는 선이 얼마나 접힐지 설정합니다",
       "disabledReason": "준비됨"
     },
+    "cp_action_crease_set_direction_hint": {
+      "label": "접기 방향 힌트 설정",
+      "tooltip": "선택한 미정 접는 선이 어느 쪽으로 접혔는지 지정합니다",
+      "disabledReason": "준비됨"
+    },
     "cp_action_background_change_position": {
       "label": "배경 이동",
       "tooltip": "배경 이미지 조작은 UI 전용이며 전개도 커널의 일부가 아닙니다",

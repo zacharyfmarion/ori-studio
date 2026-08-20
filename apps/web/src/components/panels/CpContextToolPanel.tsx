@@ -53,6 +53,8 @@ import { isRestingCpTool } from '../../cp-workspace/toolHint/restingTool';
 import { useFoldAngleAvailable } from '../../cp-workspace/foldAngle/useFoldAngleSelection';
 import { copyTextToClipboard } from '../../lib/clipboardText';
 import { FoldAngleControl } from '../../cp-workspace/foldAngle/FoldAngleControl';
+import { DirectionHintControl } from '../../cp-workspace/foldAngle/DirectionHintControl';
+import { useDirectionHintAvailable } from '../../cp-workspace/foldAngle/useDirectionHintSelection';
 import {
   CP_ANGLE_UNITS,
   CP_MEASURE_UNITS,
@@ -205,6 +207,7 @@ export function CpContextToolPanel({
 }) {
   const { t } = useTranslation();
   const foldAngleAvailable = useFoldAngleAvailable();
+  const directionHintAvailable = useDirectionHintAvailable();
   const groups = cpToolSettingGroupsForCommand(command);
   // The resting tool is where Escape and every new document land, so its hint
   // would be on screen most of the time telling you how to drag a box. Only the
@@ -227,9 +230,18 @@ export function CpContextToolPanel({
   // `FoldAngleControl` counts, and for the resting tool it is the only thing
   // that does. It is not a hint — it is the sole route to setting a fold angle
   // on a selection, and select-then-assign is exactly how that workflow goes, so
-  // suppressing the hint must not take it with it.
+  // suppressing the hint must not take it with it. `DirectionHintControl` is the
+  // same argument for undecided creases, and it has to be counted separately:
+  // a selection of purely unassigned creases makes `foldAngleAvailable` false,
+  // so without this the panel would return null and hide the only control that
+  // *could* have acted on it.
   const hasContent =
-    groups.length > 0 || !!instructions || !!unavailableMessage || !!toolNotice || foldAngleAvailable;
+    groups.length > 0 ||
+    !!instructions ||
+    !!unavailableMessage ||
+    !!toolNotice ||
+    foldAngleAvailable ||
+    directionHintAvailable;
   if (!hasContent) return null;
 
   return (
@@ -273,9 +285,13 @@ export function CpContextToolPanel({
           selection={selection}
         />
       ))}
-      {/* Selection-scoped, so it renders outside `groups` -- the active
-          tool does not decide whether you can set a fold angle. */}
+      {/* Selection-scoped, so they render outside `groups` -- the active
+          tool does not decide whether you can set a fold angle, or say which
+          way an undecided crease went. The two gate on disjoint colours, so a
+          mixed selection shows both and neither shows for a selection it
+          cannot act on. */}
       <FoldAngleControl />
+      <DirectionHintControl />
       {onApply && (
         <button
           className="cp-context-panel__apply"
