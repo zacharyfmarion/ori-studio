@@ -155,9 +155,6 @@
     },
     "clear": "Effacer",
     "editor": "Éditeur",
-    "imported": {
-      "message": "Les patrons de plis importés n'ont pas de conditions d'arbre modifiables."
-    },
     "list": "Liste",
     "noConditions": "Aucune condition",
     "paper": {
@@ -394,12 +391,10 @@
     "axisY": "Y",
     "axisYAria": "Axe Y de symétrie de conception",
     "canvas": "Canevas de conception d'arbre",
-    "editCp": "Modifier le CP",
     "emptyStateBody": "Utilisez des branches pour les rabats, les membres et les éléments dont la base pliée a besoin.",
     "emptyStateTitle": "Esquissez l'arbre derrière votre conception",
     "flipPresetAxis": "Inverser l'axe prédéfini",
     "flipToPreset": "Basculer vers {{preset}}",
-    "importedCreasePatternSuffix": "est un patron de plis importé sans arbre modifiable.",
     "layerCircles": "Cercles",
     "layerLabels": "Étiquettes",
     "layerPaths": "Chemins",
@@ -426,9 +421,6 @@
       "subtitle": "Choisissez comment créer ce modèle.",
       "title": "Démarrer une nouvelle conception"
     },
-    "newTree": "Nouvel arbre",
-    "noEditableTree": "Ce document n'a pas d'arbre modifiable.",
-    "open": "Ouvrir",
     "paneTitle": {
       "bpPacking": "Éditeur BP",
       "bpTree": "Éditeur d'arbre",
@@ -485,11 +477,6 @@
     "optimizerInfeasible": "L'optimiseur a signalé un système contraint irréalisable",
     "optimizingScale": "Optimisation de l'échelle",
     "paths": "Chemins"
-  },
-  "documentModeEmpty": {
-    "editCp": "Modifier le CP",
-    "newTree": "Nouvel arbre",
-    "open": "Ouvrir"
   },
   "explori": {
     "advancedDatabases": "Choisir les tailles de topologie",

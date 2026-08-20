@@ -31,17 +31,6 @@ export const createConditionSlice: WorkspaceSliceCreator<ConditionSlice> = (
     };
   }
 
-  function rejectReadOnly() {
-    if (!get().importedCreasePattern) return false;
-    set({
-      error: {
-        code: "invalid_operation",
-        message: "Conditions require an editable tree document",
-      },
-    });
-    return true;
-  }
-
   async function applyConditionEdit(
     edit:
       | { type: "update_paper"; width: number; height: number }
@@ -56,7 +45,6 @@ export const createConditionSlice: WorkspaceSliceCreator<ConditionSlice> = (
       | { type: "delete_condition"; id: number },
     label: string,
   ) {
-    if (rejectReadOnly()) return;
     set({ error: null });
     const checkpoint = await get().beginHistoryCheckpoint();
     try {
@@ -92,7 +80,6 @@ export const createConditionSlice: WorkspaceSliceCreator<ConditionSlice> = (
   }
 
   async function deleteConditionIds(ids: number[], label: string) {
-    if (rejectReadOnly()) return;
     const sortedIds = Array.from(new Set(ids)).sort((a, b) => b - a);
     if (sortedIds.length === 0) {
       set({ projectMessage: "No matching conditions" });

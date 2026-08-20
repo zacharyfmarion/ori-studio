@@ -155,9 +155,6 @@
     },
     "clear": "Limpar",
     "editor": "Editor",
-    "imported": {
-      "message": "Padrões de vincos importados não possuem condições de árvore editáveis."
-    },
     "list": "Lista",
     "noConditions": "Sem condições",
     "paper": {
@@ -394,12 +391,10 @@
     "axisY": "Y",
     "axisYAria": "Eixo Y de simetria do design",
     "canvas": "Canvas de design da árvore",
-    "editCp": "Editar CP",
     "emptyStateBody": "Use ramos para as abas, membros e detalhes de que a base dobrada precisa.",
     "emptyStateTitle": "Esboce a árvore por trás do seu design",
     "flipPresetAxis": "Inverter eixo predefinido",
     "flipToPreset": "Inverter para {{preset}}",
-    "importedCreasePatternSuffix": "é um padrão de vincos importado sem uma árvore editável.",
     "layerCircles": "Círculos",
     "layerLabels": "Rótulos",
     "layerPaths": "Caminhos",
@@ -426,9 +421,6 @@
       "subtitle": "Escolha como deseja criar este modelo.",
       "title": "Iniciar um novo design"
     },
-    "newTree": "Nova Árvore",
-    "noEditableTree": "Este documento não possui uma árvore editável.",
-    "open": "Abrir",
     "paneTitle": {
       "bpPacking": "Editor BP",
       "bpTree": "Editor de árvore",
@@ -485,11 +477,6 @@
     "optimizerInfeasible": "O otimizador relatou um sistema com restrições inviável",
     "optimizingScale": "Otimizando escala",
     "paths": "Caminhos"
-  },
-  "documentModeEmpty": {
-    "editCp": "Editar CP",
-    "newTree": "Nova Árvore",
-    "open": "Abrir"
   },
   "explori": {
     "advancedDatabases": "Escolher tamanhos de topologia",

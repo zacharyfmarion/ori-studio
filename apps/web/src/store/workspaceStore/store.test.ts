@@ -2032,6 +2032,46 @@ describe('workspace store slices', () => {
     expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('none');
   });
 
+  it('a Circle-packed design started over an opened crease pattern is editable', async () => {
+    // Opening a `.fold` leaves a read-only import on the always-live Edit
+    // canvas; `chooseDesignMethod` deliberately preserves it. Tree editing then
+    // read that workspace-level flag as a statement about the *design* and
+    // rejected every edit with "Imported crease patterns are read-only" — the
+    // rule from when one workspace held one document. A bare crease pattern now
+    // establishes no design at all (`discardAllDesigns`), so reaching a tree
+    // edit means the user made a tree, and it is theirs to edit.
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText(editableCpFoldText, {
+      filename: 'Untitled CP.fold',
+    });
+    expect(useWorkspaceStore.getState().importedCreasePattern).not.toBeNull();
+
+    await useWorkspaceStore.getState().chooseDesignMethod('treemaker');
+    const before = selectProject(useWorkspaceStore.getState()).nodes.length;
+
+    await useWorkspaceStore.getState().addNodeAt({ x: 0.4, y: 0.4 });
+
+    expect(useWorkspaceStore.getState().error).toBeNull();
+    expect(selectProject(useWorkspaceStore.getState()).nodes.length).toBe(before + 1);
+    // And the import it was authored beside is still on the Edit canvas.
+    expect(useWorkspaceStore.getState().importedCreasePattern).not.toBeNull();
+  });
+
+  it('conditions on a design started over an opened crease pattern are editable', async () => {
+    // Same conflation, second guard: `addCondition` rejected with "Conditions
+    // require an editable tree document" for the same workspace-level reason.
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText(editableCpFoldText, {
+      filename: 'Untitled CP.fold',
+    });
+    await useWorkspaceStore.getState().chooseDesignMethod('treemaker');
+
+    await useWorkspaceStore.getState().updatePaper({ width: 2 });
+
+    expect(useWorkspaceStore.getState().error).toBeNull();
+    expect(selectProject(useWorkspaceStore.getState()).paper.width).toBe(2);
+  });
+
   it('opens native tree projects and keeps Save on the native file path', async () => {
     const api = resetStores(seedSnapshot());
     loadSnapshotIntoStore(seedSnapshot());

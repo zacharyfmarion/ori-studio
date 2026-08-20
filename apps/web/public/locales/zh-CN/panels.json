@@ -151,9 +151,6 @@
     },
     "clear": "清除",
     "editor": "编辑器",
-    "imported": {
-      "message": "导入的折痕图没有可编辑的树条件。"
-    },
     "list": "列表",
     "noConditions": "无条件",
     "paper": {
@@ -370,12 +367,10 @@
     "axisY": "Y",
     "axisYAria": "设计对称轴 Y",
     "canvas": "树设计画布",
-    "editCp": "编辑 CP",
     "emptyStateBody": "用分支表示折叠基础所需的瓣、肢和特征。",
     "emptyStateTitle": "勾勒设计背后的树",
     "flipPresetAxis": "翻转预设轴",
     "flipToPreset": "翻转到 {{preset}}",
-    "importedCreasePatternSuffix": "是导入的折痕图，没有可编辑的树。",
     "layerCircles": "圆",
     "layerLabels": "标签",
     "layerPaths": "路径",
@@ -402,9 +397,6 @@
       "subtitle": "选择你想要编写此模型的方式。",
       "title": "开始新设计"
     },
-    "newTree": "新建树",
-    "noEditableTree": "此文档没有可编辑的树。",
-    "open": "打开",
     "paneTitle": {
       "bpPacking": "BP 编辑器",
       "bpTree": "树编辑器",
@@ -457,11 +449,6 @@
     "optimizerInfeasible": "优化器报告了不可行的约束系统",
     "optimizingScale": "正在优化比例",
     "paths": "路径"
-  },
-  "documentModeEmpty": {
-    "editCp": "编辑 CP",
-    "newTree": "新建树",
-    "open": "打开"
   },
   "explori": {
     "advancedDatabases": "选择拓扑尺寸",
