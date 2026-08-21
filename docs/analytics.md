@@ -202,6 +202,7 @@ the person chose it or is following their OS. Two things it is deliberately not:
 | `optimizer run` | `kind`, `succeeded`, `feasible` | A TreeMaker optimizer runs |
 | `project opened` | `source` (`file`/`example`/`new`) | A project is opened/created |
 | `project saved` | `format` (`osf`) | A project is saved |
+| `project save target` | `mode` (`overwrite` \| `picker` \| `download`) | How a browser save found its file — whether it wrote over the file the document was already saved to, opened a dialog, or fell back to a download |
 | `file exported` | `format` | An export writes a file |
 | `design method chosen` | `method` (`treemaker`/`box-pleat`) | The NUX design chooser |
 | `design tab opened` | `source` (`strip`/`duplicate`/`file`/`replace-last`), `open_count_bucket` | A design tab is created |

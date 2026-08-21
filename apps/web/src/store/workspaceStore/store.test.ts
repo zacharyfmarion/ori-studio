@@ -2190,6 +2190,132 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().savedNotice).toBe('line.osf');
   });
 
+  /**
+   * The design-project save path is the one most users take — any TreeMaker or
+   * Box-Pleat tab routes here — and it is a different function from the
+   * crease-pattern save the tests above cover. Deleting `reusableTarget` from it
+   * left all 414 store tests green while silently restoring the duplicate-file
+   * bug this whole change exists to fix.
+   */
+  /**
+   * The browser's File System Access write is real wall-clock work against disk
+   * with no modal over it, so the canvas stays live for its whole duration. An
+   * edit that lands in that window must survive the save committing: writing the
+   * snapshot captured before the write back over it made the new geometry
+   * disappear from the canvas while the kernel still held it, and left the
+   * project reported as saved when it was not.
+   */
+  it('keeps an edit made while the write was in flight, and stays dirty for it', async () => {
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText(
+      JSON.stringify({
+        file_spec: 1.1,
+        vertices_coords: [
+          [0, 0],
+          [1, 0],
+        ],
+        edges_vertices: [[0, 1]],
+        edges_assignment: ['B'],
+      }),
+      { filename: 'line.fold', path: null }
+    );
+    const beforeSave = useWorkspaceStore.getState().oristudioCpDocument;
+    const fileService = createFileService();
+    // The edit lands while the write is in flight, exactly as a stroke drawn
+    // during a slow save does.
+    fileService.saveTextFile.mockImplementation(async (options: SaveTextFileOptions) => {
+      const state = useWorkspaceStore.getState();
+      useWorkspaceStore.setState({
+        oristudioCpDocument: { ...state.oristudioCpDocument!, loadSerial: 99 },
+        oristudioCpRevision: state.oristudioCpRevision + 1,
+        dirty: true,
+      });
+      return { name: options.suggestedName, path: 'web-save:1' };
+    });
+
+    await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+
+    const after = useWorkspaceStore.getState();
+    expect(after.oristudioCpDocument?.loadSerial).toBe(99);
+    expect(after.oristudioCpDocument?.loadSerial).not.toBe(beforeSave?.loadSerial);
+    // The file on disk predates that edit, so the project is still unsaved.
+    expect(after.dirty).toBe(true);
+    // ...and the save is still recorded, so the next Save overwrites.
+    expect(after.currentFilePath).toBe('web-save:1');
+  });
+
+  /**
+   * Not every loader throws. The box-pleat loader catches its own parse failure,
+   * sets `status: 'error'` and returns false, so `openProject` used to report
+   * success for a file that established nothing — and the caller now navigates
+   * on success, which would leave the start screen for an empty workspace and
+   * take the error message with it.
+   */
+  it('reports failure when a loader rejected the file without throwing', async () => {
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    // The kernel is what rejects it; the loader catches that, records the error
+    // and returns false rather than rethrowing.
+    bpMocks.loadOristudioBpProjectFromText.mockRejectedValueOnce(new Error('not a bps document'));
+    const fileService = createFileService({
+      text: 'not a bps document',
+      name: 'broken.bps',
+      path: null,
+    });
+
+    await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(false);
+    expect(useWorkspaceStore.getState().status).toBe('error');
+  });
+
+  it('asks for a reusable target when saving a project that has a design', async () => {
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    useWorkspaceStore.setState({ ...singleDesignTab('treemaker') });
+    const fileService = createFileService();
+
+    await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+
+    const save = fileService.saveTextFile.mock.lastCall?.[0] as SaveTextFileOptions;
+    expect(save.extensions).toEqual(['osf']);
+    expect(save.reusableTarget).toBe(true);
+  });
+
+  /**
+   * Desktop writes straight to a path and has always saved silently; the notice
+   * is scoped to the browser, where the save API leaves nothing to see. Every
+   * other test here builds a web service, so without this the surface half of
+   * the predicate could be deleted with the suite green.
+   */
+  it('stays silent on desktop, which has always saved without saying so', async () => {
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText(
+      JSON.stringify({
+        file_spec: 1.1,
+        vertices_coords: [
+          [0, 0],
+          [1, 0],
+        ],
+        edges_vertices: [[0, 1]],
+        edges_assignment: ['B'],
+      }),
+      { filename: 'line.fold', path: null }
+    );
+    const fileService = {
+      ...createFileService(),
+      surface: 'desktop' as const,
+      supportsNativeDialogs: true,
+    };
+    // A real filesystem path, which is what the desktop service returns.
+    fileService.saveTextFile.mockImplementation(async (options: SaveTextFileOptions) => ({
+      name: options.suggestedName,
+      path: `/tmp/${options.suggestedName}`,
+    }));
+
+    await expect(useWorkspaceStore.getState().saveProject(fileService)).resolves.toBe(true);
+
+    expect(useWorkspaceStore.getState().savedNotice).toBeNull();
+  });
+
   it('says nothing about a download, which the browser reports itself', async () => {
     resetStores(seedSnapshot());
     await useWorkspaceStore.getState().loadCreasePatternText(
