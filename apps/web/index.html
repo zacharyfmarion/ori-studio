@@ -2,7 +2,16 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- `viewport-fit=cover` lets the app paint under the rounded corners and the
+         home indicator; `env(safe-area-inset-*)` (see theme.css `--safe-*`) is what
+         keeps the chrome out of them. Deliberately no `maximum-scale` or
+         `user-scalable=no`: those stop iOS zooming a focused field, but they also
+         kill pinch-zoom for everyone. The field sizes in the coarse-pointer layer
+         are the fix instead. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
     <meta
       name="description"
       content="Ori Studio is a web and desktop workspace for origami design: draw and edit crease patterns, design from a tree structure or a box-pleating grid, and fold the result in the simulator."

@@ -128,9 +128,9 @@ import { BpFlapResizeHandles } from './BpFlapResizeHandles';
 import { BpRiverEditor } from './BpRiverEditor';
 import {
   isViewportInteractiveTarget,
-  ViewportLayerMenu,
   ViewportToolbar,
-  ViewportToolbarSeparator,
+  viewportLayerItems,
+  type ViewportToolbarGroupSpec,
 } from './ViewportToolbar';
 
 type BpPackingNudgeDirection = 'up' | 'down' | 'left' | 'right';
@@ -471,6 +471,132 @@ function BpPackingViewportToolbar({
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, [sheetOpen]);
 
+  const sheetMenu = (
+    <div className="viewport-toolbar__menu-anchor" ref={sheetMenuRef}>
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title={t('panels:bpPacking.sheetSizeGrid', 'Sheet size & grid')}
+        isActive={sheetOpen}
+        onClick={() => setSheetOpen((open) => !open)}
+      >
+        <Ruler size={14} />
+      </IconButton>
+      {sheetOpen && (
+        <div className="design-layer-menu bp-sheet-menu" role="menu">
+          <div className="bp-sheet-menu__row">
+            <span className="bp-sheet-menu__label">{t('panels:bpPacking.grid', 'Grid')}</span>
+            <div className="bp-sheet-menu__segment">
+              <button
+                type="button"
+                className={sheet.kind === 'rectangular' ? 'is-active' : undefined}
+                // A grid-type change carries the current sheet's render size
+                // across in the engine, so it names no dimension of its own.
+                onClick={() => void setSheet('rectangular', null, null)}
+              >
+                {t('panels:bpPacking.rect', 'Rect')}
+              </button>
+              <button
+                type="button"
+                className={sheet.kind === 'diagonal' ? 'is-active' : undefined}
+                onClick={() =>
+                  // A diagonal grid is a square placed as a diamond; the engine
+                  // collapses the current dimensions to one size when converting.
+                  void setSheet('diagonal', null, null)
+                }
+              >
+                {t('panels:bpPacking.diagonal', 'Diagonal')}
+              </button>
+            </div>
+          </div>
+          {/*
+            Each field names only the dimension it owns and leaves the other
+            `null`, so the engine fills it from its own sheet. Restating the
+            partner from `sheet` would restate the value this render was built
+            with, and a height edit issued before the width edit's result
+            landed would put the old width back.
+          */}
+          {sheet.kind === 'diagonal' ? (
+            <BpSheetSizeInput
+              label={t('panels:bpPacking.size', 'Size')}
+              value={sheet.width}
+              min={BP_MIN_DIAG_SIZE}
+              onCommit={(s) => setSheet('diagonal', s, null)}
+            />
+          ) : (
+            <>
+              <BpSheetSizeInput
+                label={t('panels:bpPacking.width', 'Width')}
+                value={sheet.width}
+                min={BP_MIN_RECT_SIZE}
+                onCommit={(w) => setSheet(sheet.kind, w, null)}
+              />
+              <BpSheetSizeInput
+                label={t('panels:bpPacking.height', 'Height')}
+                value={sheet.height}
+                min={BP_MIN_RECT_SIZE}
+                onCommit={(h) => setSheet(sheet.kind, null, h)}
+              />
+            </>
+          )}
+          <BpSheetTransformRow />
+        </div>
+      )}
+    </div>
+  );
+
+  const groups: ViewportToolbarGroupSpec[] = [
+    {
+      id: 'sheet',
+      items: [
+        {
+          kind: 'action',
+          id: 'grow-sheet',
+          label: t('panels:bpPacking.growSheet', 'Increase Grid Size'),
+          icon: <Plus size={14} />,
+          disabled: !canGrowSheet,
+          onSelect: () => void setSheet(sheet.kind, sheet.width + 1, sheet.height + 1),
+        },
+        {
+          kind: 'action',
+          id: 'shrink-sheet',
+          label: t('panels:bpPacking.shrinkSheet', 'Decrease Grid Size'),
+          icon: <Minus size={14} />,
+          disabled: !canShrinkSheet,
+          onSelect: () => void setSheet(sheet.kind, sheet.width - 1, sheet.height - 1),
+        },
+        // The sheet form itself stays put: a grid-type picker and two number
+        // fields are not menu rows.
+        { kind: 'node', id: 'sheet-menu', node: sheetMenu },
+      ],
+    },
+    {
+      id: 'symmetry',
+      items: [
+        { kind: 'node', id: 'symmetry-menu', node: <BpPackingSymmetryMenu symmetry={symmetry} /> },
+        symmetry.unpairableId !== null && {
+          kind: 'action' as const,
+          id: 'unpair',
+          label: t('panels:bpPacking.unpair', 'Unpair from mirror'),
+          icon: <Unlink size={14} />,
+          onSelect: () => symmetry.unpair(symmetry.unpairableId as number),
+        },
+      ],
+    },
+    {
+      id: 'layers',
+      items: viewportLayerItems({
+        title: t('panels:bpPacking.layers', 'Layers'),
+        options: LAYER_OPTIONS.map((option) => ({
+          ...option,
+          label: bpPackingLayerLabel(t, option.key),
+        })),
+        visible: layers,
+        onChange: onLayerChange,
+      }),
+    },
+  ];
+
   return (
     <ViewportToolbar
       ariaLabel={t('panels:bpPacking.viewportControls', 'Box Pleat packing viewport controls')}
@@ -479,120 +605,8 @@ function BpPackingViewportToolbar({
       zoomOut={zoomOut}
       fitToView={fitToView}
       setZoomLevel={setZoomLevel}
-    >
-      <ViewportToolbarSeparator />
-      <IconButton
-        size="sm"
-        variant="toolbar"
-        title={t('panels:bpPacking.growSheet', 'Increase Grid Size')}
-        onClick={() => void setSheet(sheet.kind, sheet.width + 1, sheet.height + 1)}
-        disabled={!canGrowSheet}
-      >
-        <Plus size={14} />
-      </IconButton>
-      <IconButton
-        size="sm"
-        variant="toolbar"
-        title={t('panels:bpPacking.shrinkSheet', 'Decrease Grid Size')}
-        onClick={() => void setSheet(sheet.kind, sheet.width - 1, sheet.height - 1)}
-        disabled={!canShrinkSheet}
-      >
-        <Minus size={14} />
-      </IconButton>
-      <div className="viewport-toolbar__menu-anchor" ref={sheetMenuRef}>
-        <IconButton
-          size="sm"
-          variant="toolbar"
-          title={t('panels:bpPacking.sheetSizeGrid', 'Sheet size & grid')}
-          isActive={sheetOpen}
-          onClick={() => setSheetOpen((open) => !open)}
-        >
-          <Ruler size={14} />
-        </IconButton>
-        {sheetOpen && (
-          <div className="design-layer-menu bp-sheet-menu" role="menu">
-            <div className="bp-sheet-menu__row">
-              <span className="bp-sheet-menu__label">{t('panels:bpPacking.grid', 'Grid')}</span>
-              <div className="bp-sheet-menu__segment">
-                <button
-                  type="button"
-                  className={sheet.kind === 'rectangular' ? 'is-active' : undefined}
-                  // A grid-type change carries the current sheet's render size
-                  // across in the engine, so it names no dimension of its own.
-                  onClick={() => void setSheet('rectangular', null, null)}
-                >
-                  {t('panels:bpPacking.rect', 'Rect')}
-                </button>
-                <button
-                  type="button"
-                  className={sheet.kind === 'diagonal' ? 'is-active' : undefined}
-                  onClick={() =>
-                    // A diagonal grid is a square placed as a diamond; the engine
-                    // collapses the current dimensions to one size when converting.
-                    void setSheet('diagonal', null, null)
-                  }
-                >
-                  {t('panels:bpPacking.diagonal', 'Diagonal')}
-                </button>
-              </div>
-            </div>
-            {/*
-              Each field names only the dimension it owns and leaves the other
-              `null`, so the engine fills it from its own sheet. Restating the
-              partner from `sheet` would restate the value this render was built
-              with, and a height edit issued before the width edit's result
-              landed would put the old width back.
-            */}
-            {sheet.kind === 'diagonal' ? (
-              <BpSheetSizeInput
-                label={t('panels:bpPacking.size', 'Size')}
-                value={sheet.width}
-                min={BP_MIN_DIAG_SIZE}
-                onCommit={(s) => setSheet('diagonal', s, null)}
-              />
-            ) : (
-              <>
-                <BpSheetSizeInput
-                  label={t('panels:bpPacking.width', 'Width')}
-                  value={sheet.width}
-                  min={BP_MIN_RECT_SIZE}
-                  onCommit={(w) => setSheet(sheet.kind, w, null)}
-                />
-                <BpSheetSizeInput
-                  label={t('panels:bpPacking.height', 'Height')}
-                  value={sheet.height}
-                  min={BP_MIN_RECT_SIZE}
-                  onCommit={(h) => setSheet(sheet.kind, null, h)}
-                />
-              </>
-            )}
-            <BpSheetTransformRow />
-          </div>
-        )}
-      </div>
-      <ViewportToolbarSeparator />
-      <BpPackingSymmetryMenu symmetry={symmetry} />
-      {symmetry.unpairableId !== null && (
-        <IconButton
-          size="sm"
-          variant="toolbar"
-          title={t('panels:bpPacking.unpair', 'Unpair from mirror')}
-          onClick={() => symmetry.unpair(symmetry.unpairableId as number)}
-        >
-          <Unlink size={14} />
-        </IconButton>
-      )}
-      <ViewportToolbarSeparator />
-      <ViewportLayerMenu
-        title={t('panels:bpPacking.layers', 'Layers')}
-        options={LAYER_OPTIONS.map((option) => ({
-          ...option,
-          label: bpPackingLayerLabel(t, option.key),
-        }))}
-        visible={layers}
-        onChange={onLayerChange}
-      />
-    </ViewportToolbar>
+      groups={groups}
+    />
   );
 }
 

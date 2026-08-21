@@ -217,9 +217,11 @@
   },
   "viewport": {
     "fit": "Einpassen",
+    "more": "Weitere Ansichtssteuerung",
     "pan": "Schwenken",
     "panWithModifier": "Schwenken – oder {{modifier}} halten und ziehen",
     "panWithShortcut": "Schwenken ({{shortcut}}) – oder {{modifier}} halten und ziehen",
+    "resetRotation": "Ansichtsdrehung zurücksetzen",
     "rotateCcw": "Ansicht nach links drehen",
     "rotateCw": "Ansicht nach rechts drehen",
     "rotation": "Ansichtsdrehung in Grad",

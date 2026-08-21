@@ -30,6 +30,60 @@ function keepTauriFrontendDistPath(): Plugin {
   };
 }
 
+/** Everything `workers/cpDetectWorker.ts` imports from ONNX Runtime. */
+const ORT_RUNTIME_IDS = new Set([
+  'onnxruntime-web/webgpu',
+  'onnxruntime-web/ort-wasm-simd-threaded.asyncify.mjs?url',
+  'onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url',
+]);
+
+const ORT_RUNTIME_STUB = '\0ori-ort-runtime-stub';
+
+/**
+ * Keep ONNX Runtime out of builds that cannot reach the CP detector.
+ *
+ * `cpDetectWorker.ts` gates its ORT `import()` on `import.meta.env.DEV`, the
+ * same gate the "Detect CP from Image..." menu entry uses, and Rollup does
+ * tree-shake the JS back out of a production build. That is not enough on its
+ * own, because assets are emitted while the graph is still being *built*:
+ * Rollup loads and transforms a module before deciding it is unreachable, and
+ * anything `emitFile`d during that transform is written regardless. Two
+ * separate things emitted the runtime that way — the worker's own `?url`
+ * imports, and `ort.webgpu.bundle.min.mjs`, which carries a
+ * `new URL('…asyncify.wasm', import.meta.url)` that Vite rewrites into an
+ * emitted asset. Between them production `dist` kept 22.6 MiB that no chunk
+ * referenced and no user could ever fetch.
+ *
+ * Resolving the imports to an inert stub is what actually drops them, and it
+ * has to cover the JS entry point as well as the two URLs — stubbing only the
+ * URLs leaves ORT's own `new URL` to re-emit the `.wasm`.
+ *
+ * `isProduction` is the config-side spelling of `!import.meta.env.DEV`, so the
+ * stub is in place for exactly the builds whose gate in the worker is shut.
+ */
+function dropUnreachableOrtRuntime(): Plugin {
+  let gated = false;
+  return {
+    name: 'ori-drop-unreachable-ort-runtime',
+    // Ahead of `vite:resolve`, which would otherwise resolve these first and
+    // emit the assets before this hook ever sees them.
+    enforce: 'pre',
+    configResolved(config) {
+      gated = config.isProduction;
+    },
+    resolveId(source) {
+      return gated && ORT_RUNTIME_IDS.has(source) ? ORT_RUNTIME_STUB : null;
+    },
+    load(id) {
+      // Only ever reached if the worker's gate is somehow open in a build that
+      // stubbed the runtime, and a rejected `import()` is the honest answer.
+      return id === ORT_RUNTIME_STUB
+        ? 'throw new Error("ONNX Runtime is excluded from this build");'
+        : null;
+    },
+  };
+}
+
 /** Where {@link simPerfLogSink} appends. Gitignored (`artifacts/`). */
 const SIM_PERF_LOG = 'artifacts/sim-perf/sim-perf.log';
 
@@ -171,6 +225,20 @@ export default defineConfig({
   define: {
     __APP_COMMIT__: JSON.stringify(appCommit()),
     __SENTRY_RELEASE__: JSON.stringify(sentryRelease()),
+  },
+  // `cpDetectWorker.ts` is a worker, and Vite builds workers through their own
+  // plugin container seeded from `worker.plugins` alone — a plugin registered
+  // above never sees a worker's imports. This is where the ORT stub has to be.
+  worker: {
+    // Every `new Worker` in the app passes `type: 'module'`, so this only makes
+    // the output match how it is loaded — but it is also load-bearing. Vite
+    // defaults to `'iife'`, which cannot code-split, and `cpDetectWorker.ts`
+    // splits the moment its ORT `import()` is reachable. Under the default the
+    // build fails with "UMD and IIFE output formats are not supported for
+    // code-splitting builds", and only in the build that un-gates the detector
+    // — which is the one build nobody runs until they need it to work.
+    format: 'es',
+    plugins: () => [dropUnreachableOrtRuntime()],
   },
   server: {
     headers: crossOriginIsolationHeaders,

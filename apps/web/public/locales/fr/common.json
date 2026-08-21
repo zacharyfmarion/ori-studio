@@ -273,6 +273,11 @@
     "downloading": "Téléchargement de la mise à jour…",
     "relaunch": "Redémarrer pour mettre à jour"
   },
+  "viewDrawer": {
+    "close": "Fermer les options d'affichage",
+    "open": "Affichage",
+    "title": "Options d'affichage"
+  },
   "workspaceRail": {
     "design": "Espace de travail Conception",
     "edit": "Espace de travail Édition",

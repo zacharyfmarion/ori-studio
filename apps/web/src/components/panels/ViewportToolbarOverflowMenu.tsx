@@ -1,0 +1,106 @@
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { Check, MoreHorizontal } from 'lucide-react';
+import { MenuIconButton } from '../ui/MenuIconButton';
+import {
+  hasUnseenActiveMode,
+  viewportToolbarSlots,
+  type ViewportToolbarAction,
+  type ViewportToolbarOverflowGroup,
+} from './viewportToolbarLayout';
+
+function OverflowItem({ action }: { action: ViewportToolbarAction }) {
+  // The leading slot is the action's own icon, swapped for a tick while the mode
+  // is on — the shape `ContextMenu` already uses for a checked item, so a row
+  // here is the same width as a row anywhere else in the app.
+  const leading = <span className="context-menu__icon">{action.checked ? <Check size={12} /> : action.icon}</span>;
+
+  if (action.checked === undefined) {
+    return (
+      <DropdownMenu.Item
+        className="context-menu__item"
+        disabled={action.disabled}
+        onSelect={action.onSelect}
+      >
+        {leading}
+        <span className="context-menu__label">{action.label}</span>
+      </DropdownMenu.Item>
+    );
+  }
+
+  return (
+    <DropdownMenu.CheckboxItem
+      className="context-menu__item"
+      checked={action.checked}
+      disabled={action.disabled}
+      // A verb closes the menu; a mode does not. Radix closes on select unless
+      // the event is canceled, and the modes here arrive in runs — the packing
+      // pane collapses twelve layer toggles into this menu, and closing after
+      // each one would cost twelve reopenings to set three of them.
+      onSelect={(event) => {
+        event.preventDefault();
+        action.onSelect();
+      }}
+    >
+      {leading}
+      <span className="context-menu__label">{action.label}</span>
+    </DropdownMenu.CheckboxItem>
+  );
+}
+
+/**
+ * The `⋯` end of the viewport toolbar on a touch device, and everything the bar
+ * gave up to fit on one line.
+ *
+ * A **portalled** Radix menu, which is the point: the bar's own popovers are
+ * `position: absolute` children of it opening upward out of its box, so the
+ * obvious way to make a too-wide row fit — `overflow-x: auto` — would compute
+ * `overflow-y` to `auto` as well and trap every one of them in a scroll box.
+ * Nothing here introduces an overflow context, so all of them keep working
+ * untouched; this menu escapes the bar entirely by rendering into `body`.
+ *
+ * `role="menu"` comes from Radix, which matters beyond a11y:
+ * `isViewportInteractiveTarget` claims it, so space-to-pan does not fire while
+ * the menu has focus.
+ */
+export function ViewportToolbarOverflowMenu({
+  groups,
+}: {
+  groups: readonly ViewportToolbarOverflowGroup[];
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <DropdownMenu.Root open={open} onOpenChange={setOpen}>
+      <MenuIconButton
+        label={t('tools:viewport.more', 'More view controls')}
+        icon={<MoreHorizontal size={14} />}
+        // Pressed while open, and while a mode it hides is switched on with
+        // nothing else on screen to say so.
+        isActive={open || hasUnseenActiveMode(groups)}
+      />
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          className="context-menu viewport-toolbar__overflow-menu"
+          // Upward, like every other menu on this bar — the bar sits on the
+          // bottom edge of the canvas, so there is nowhere below to open into.
+          side="top"
+          align="end"
+          sideOffset={8}
+          collisionPadding={8}
+          loop
+        >
+          {viewportToolbarSlots(groups).map((slot) =>
+            slot.kind === 'separator' ? (
+              <DropdownMenu.Separator key={slot.id} className="context-menu__separator" />
+            ) : (
+              slot.group.items.map((action) => <OverflowItem key={action.id} action={action} />)
+            )
+          )}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+}

@@ -2463,7 +2463,7 @@
     "toasts:upright.set": "a8108f3358e8",
     "panels:simulator.setUpright": "86e47d266ac9",
     "panels:creasePattern.rendererUnavailable": "7ab55ace332e",
-    "panels:creasePattern.rendererUnavailableHint": "08aba426bfa6",
+    "panels:creasePattern.rendererUnavailableHint": "1987c1b82e12",
     "common:update.available": "ff8b555d818f",
     "common:update.download": "4f494b22379b",
     "common:update.downloading": "b99a39070daf",
@@ -2493,7 +2493,14 @@
     "dialogs:settings.general.privacy": "54a57c3147c4",
     "dialogs:settings.general.showWelcome": "92d9169a02d0",
     "dialogs:settings.general.startup": "65d48235a91e",
-    "dialogs:settings.tab.general": "c910d474dcd7"
+    "dialogs:settings.tab.general": "c910d474dcd7",
+    "panels:creasePattern.rendererContextLost": "caa9c30a1a5b",
+    "panels:creasePattern.rendererContextLostHint": "6602812ae1cb",
+    "common:viewDrawer.close": "16549d33434a",
+    "common:viewDrawer.open": "dcc839a4015c",
+    "common:viewDrawer.title": "1d55ff7c387c",
+    "tools:viewport.more": "ae5f306f08ed",
+    "tools:viewport.resetRotation": "7c5b0e938f02"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4959,7 +4966,7 @@
     "toasts:upright.set": "a8108f3358e8",
     "panels:simulator.setUpright": "86e47d266ac9",
     "panels:creasePattern.rendererUnavailable": "7ab55ace332e",
-    "panels:creasePattern.rendererUnavailableHint": "08aba426bfa6",
+    "panels:creasePattern.rendererUnavailableHint": "1987c1b82e12",
     "common:update.available": "ff8b555d818f",
     "common:update.download": "4f494b22379b",
     "common:update.downloading": "b99a39070daf",
@@ -4989,7 +4996,14 @@
     "dialogs:settings.general.privacy": "54a57c3147c4",
     "dialogs:settings.general.showWelcome": "92d9169a02d0",
     "dialogs:settings.general.startup": "65d48235a91e",
-    "dialogs:settings.tab.general": "c910d474dcd7"
+    "dialogs:settings.tab.general": "c910d474dcd7",
+    "panels:creasePattern.rendererContextLost": "caa9c30a1a5b",
+    "panels:creasePattern.rendererContextLostHint": "6602812ae1cb",
+    "common:viewDrawer.close": "16549d33434a",
+    "common:viewDrawer.open": "dcc839a4015c",
+    "common:viewDrawer.title": "1d55ff7c387c",
+    "tools:viewport.more": "ae5f306f08ed",
+    "tools:viewport.resetRotation": "7c5b0e938f02"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7455,7 +7469,7 @@
     "toasts:upright.set": "a8108f3358e8",
     "panels:simulator.setUpright": "86e47d266ac9",
     "panels:creasePattern.rendererUnavailable": "7ab55ace332e",
-    "panels:creasePattern.rendererUnavailableHint": "08aba426bfa6",
+    "panels:creasePattern.rendererUnavailableHint": "1987c1b82e12",
     "common:update.available": "ff8b555d818f",
     "common:update.download": "4f494b22379b",
     "common:update.downloading": "b99a39070daf",
@@ -7485,7 +7499,14 @@
     "dialogs:settings.general.privacy": "54a57c3147c4",
     "dialogs:settings.general.showWelcome": "92d9169a02d0",
     "dialogs:settings.general.startup": "65d48235a91e",
-    "dialogs:settings.tab.general": "c910d474dcd7"
+    "dialogs:settings.tab.general": "c910d474dcd7",
+    "panels:creasePattern.rendererContextLost": "caa9c30a1a5b",
+    "panels:creasePattern.rendererContextLostHint": "6602812ae1cb",
+    "common:viewDrawer.close": "16549d33434a",
+    "common:viewDrawer.open": "dcc839a4015c",
+    "common:viewDrawer.title": "1d55ff7c387c",
+    "tools:viewport.more": "ae5f306f08ed",
+    "tools:viewport.resetRotation": "7c5b0e938f02"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9912,7 +9933,7 @@
     "toasts:upright.set": "a8108f3358e8",
     "panels:simulator.setUpright": "86e47d266ac9",
     "panels:creasePattern.rendererUnavailable": "7ab55ace332e",
-    "panels:creasePattern.rendererUnavailableHint": "08aba426bfa6",
+    "panels:creasePattern.rendererUnavailableHint": "1987c1b82e12",
     "common:update.available": "ff8b555d818f",
     "common:update.download": "4f494b22379b",
     "common:update.downloading": "b99a39070daf",
@@ -9942,7 +9963,14 @@
     "dialogs:settings.general.privacy": "54a57c3147c4",
     "dialogs:settings.general.showWelcome": "92d9169a02d0",
     "dialogs:settings.general.startup": "65d48235a91e",
-    "dialogs:settings.tab.general": "c910d474dcd7"
+    "dialogs:settings.tab.general": "c910d474dcd7",
+    "panels:creasePattern.rendererContextLost": "caa9c30a1a5b",
+    "panels:creasePattern.rendererContextLostHint": "6602812ae1cb",
+    "common:viewDrawer.close": "16549d33434a",
+    "common:viewDrawer.open": "dcc839a4015c",
+    "common:viewDrawer.title": "1d55ff7c387c",
+    "tools:viewport.more": "ae5f306f08ed",
+    "tools:viewport.resetRotation": "7c5b0e938f02"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12369,7 +12397,7 @@
     "toasts:upright.set": "a8108f3358e8",
     "panels:simulator.setUpright": "86e47d266ac9",
     "panels:creasePattern.rendererUnavailable": "7ab55ace332e",
-    "panels:creasePattern.rendererUnavailableHint": "08aba426bfa6",
+    "panels:creasePattern.rendererUnavailableHint": "1987c1b82e12",
     "common:update.available": "ff8b555d818f",
     "common:update.download": "4f494b22379b",
     "common:update.downloading": "b99a39070daf",
@@ -12399,7 +12427,14 @@
     "dialogs:settings.general.privacy": "54a57c3147c4",
     "dialogs:settings.general.showWelcome": "92d9169a02d0",
     "dialogs:settings.general.startup": "65d48235a91e",
-    "dialogs:settings.tab.general": "c910d474dcd7"
+    "dialogs:settings.tab.general": "c910d474dcd7",
+    "panels:creasePattern.rendererContextLost": "caa9c30a1a5b",
+    "panels:creasePattern.rendererContextLostHint": "6602812ae1cb",
+    "common:viewDrawer.close": "16549d33434a",
+    "common:viewDrawer.open": "dcc839a4015c",
+    "common:viewDrawer.title": "1d55ff7c387c",
+    "tools:viewport.more": "ae5f306f08ed",
+    "tools:viewport.resetRotation": "7c5b0e938f02"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -14865,7 +14900,7 @@
     "toasts:upright.set": "a8108f3358e8",
     "panels:simulator.setUpright": "86e47d266ac9",
     "panels:creasePattern.rendererUnavailable": "7ab55ace332e",
-    "panels:creasePattern.rendererUnavailableHint": "08aba426bfa6",
+    "panels:creasePattern.rendererUnavailableHint": "1987c1b82e12",
     "common:update.available": "ff8b555d818f",
     "common:update.download": "4f494b22379b",
     "common:update.downloading": "b99a39070daf",
@@ -14895,7 +14930,14 @@
     "dialogs:settings.general.privacy": "54a57c3147c4",
     "dialogs:settings.general.showWelcome": "92d9169a02d0",
     "dialogs:settings.general.startup": "65d48235a91e",
-    "dialogs:settings.tab.general": "c910d474dcd7"
+    "dialogs:settings.tab.general": "c910d474dcd7",
+    "panels:creasePattern.rendererContextLost": "caa9c30a1a5b",
+    "panels:creasePattern.rendererContextLostHint": "6602812ae1cb",
+    "common:viewDrawer.close": "16549d33434a",
+    "common:viewDrawer.open": "dcc839a4015c",
+    "common:viewDrawer.title": "1d55ff7c387c",
+    "tools:viewport.more": "ae5f306f08ed",
+    "tools:viewport.resetRotation": "7c5b0e938f02"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17361,7 +17403,7 @@
     "toasts:upright.set": "a8108f3358e8",
     "panels:simulator.setUpright": "86e47d266ac9",
     "panels:creasePattern.rendererUnavailable": "7ab55ace332e",
-    "panels:creasePattern.rendererUnavailableHint": "08aba426bfa6",
+    "panels:creasePattern.rendererUnavailableHint": "1987c1b82e12",
     "common:update.available": "ff8b555d818f",
     "common:update.download": "4f494b22379b",
     "common:update.downloading": "b99a39070daf",
@@ -17391,7 +17433,14 @@
     "dialogs:settings.general.privacy": "54a57c3147c4",
     "dialogs:settings.general.showWelcome": "92d9169a02d0",
     "dialogs:settings.general.startup": "65d48235a91e",
-    "dialogs:settings.tab.general": "c910d474dcd7"
+    "dialogs:settings.tab.general": "c910d474dcd7",
+    "panels:creasePattern.rendererContextLost": "caa9c30a1a5b",
+    "panels:creasePattern.rendererContextLostHint": "6602812ae1cb",
+    "common:viewDrawer.close": "16549d33434a",
+    "common:viewDrawer.open": "dcc839a4015c",
+    "common:viewDrawer.title": "1d55ff7c387c",
+    "tools:viewport.more": "ae5f306f08ed",
+    "tools:viewport.resetRotation": "7c5b0e938f02"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -19818,7 +19867,7 @@
     "toasts:upright.set": "a8108f3358e8",
     "panels:simulator.setUpright": "86e47d266ac9",
     "panels:creasePattern.rendererUnavailable": "7ab55ace332e",
-    "panels:creasePattern.rendererUnavailableHint": "08aba426bfa6",
+    "panels:creasePattern.rendererUnavailableHint": "1987c1b82e12",
     "common:update.available": "ff8b555d818f",
     "common:update.download": "4f494b22379b",
     "common:update.downloading": "b99a39070daf",
@@ -19848,6 +19897,13 @@
     "dialogs:settings.general.privacy": "54a57c3147c4",
     "dialogs:settings.general.showWelcome": "92d9169a02d0",
     "dialogs:settings.general.startup": "65d48235a91e",
-    "dialogs:settings.tab.general": "c910d474dcd7"
+    "dialogs:settings.tab.general": "c910d474dcd7",
+    "panels:creasePattern.rendererContextLost": "caa9c30a1a5b",
+    "panels:creasePattern.rendererContextLostHint": "6602812ae1cb",
+    "common:viewDrawer.close": "16549d33434a",
+    "common:viewDrawer.open": "dcc839a4015c",
+    "common:viewDrawer.title": "1d55ff7c387c",
+    "tools:viewport.more": "ae5f306f08ed",
+    "tools:viewport.resetRotation": "7c5b0e938f02"
   }
 }

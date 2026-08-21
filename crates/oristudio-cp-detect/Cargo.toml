@@ -3,7 +3,9 @@ name = "oristudio-cp-detect"
 version.workspace = true
 publish.workspace = true
 edition.workspace = true
-license.workspace = true
+# Not the workspace GPL default: the detection stack is original work over
+# `oristudio-cp*`, and no edge from here reaches the TreeMaker port.
+license = "MIT OR Apache-2.0"
 description = "Browser crease-pattern detection core types and oracle fixture plumbing"
 repository.workspace = true
 homepage.workspace = true

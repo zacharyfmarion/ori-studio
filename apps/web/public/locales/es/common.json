@@ -273,6 +273,11 @@
     "downloading": "Descargando actualización…",
     "relaunch": "Reiniciar para actualizar"
   },
+  "viewDrawer": {
+    "close": "Cerrar opciones de vista",
+    "open": "Ver",
+    "title": "Opciones de vista"
+  },
   "workspaceRail": {
     "design": "Espacio de trabajo de diseño",
     "edit": "Espacio de trabajo de edición",

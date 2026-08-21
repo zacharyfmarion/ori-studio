@@ -21,6 +21,7 @@ export function MenuIconButton({
   label,
   icon,
   disabled,
+  isActive,
   size = 'sm',
   variant = 'toolbar',
   tooltipSide,
@@ -29,6 +30,11 @@ export function MenuIconButton({
   label: string;
   icon: ReactNode;
   disabled?: boolean;
+  /**
+   * Draws the button pressed. For a menu whose contents carry state the closed
+   * button would otherwise hide — a mode that is switched on behind it.
+   */
+  isActive?: boolean;
   size?: 'sm' | 'md';
   variant?: 'default' | 'toolbar';
   tooltipSide?: 'top' | 'right' | 'bottom' | 'left';
@@ -39,7 +45,13 @@ export function MenuIconButton({
         <DropdownMenu.Trigger asChild>
           {/* No `title` here: that is what would re-introduce the competing
               tooltip trigger this component exists to avoid. */}
-          <IconButton size={size} variant={variant} aria-label={label} disabled={disabled}>
+          <IconButton
+            size={size}
+            variant={variant}
+            aria-label={label}
+            disabled={disabled}
+            isActive={isActive}
+          >
             {icon}
           </IconButton>
         </DropdownMenu.Trigger>

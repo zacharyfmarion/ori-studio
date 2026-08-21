@@ -33,8 +33,8 @@ distributions.
 
 | Upstream | Upstream license | Ported into | Crate/package license | Attribution |
 | --- | --- | --- | --- | --- |
-| Box Pleating Studio (Mu-Tsun Tsai) | MIT | `oristudio-bp`, `oristudio-bp-wasm` | `oristudio-bp`: MIT; wasm wrapper: GPL-2.0-or-later (workspace) | `crates/oristudio-bp/LICENSE` + `NOTICE` |
-| Oriedita / Orihime | MIT | `oristudio-cp`, `oristudio-cp-wasm` | `oristudio-cp`: MIT OR Apache-2.0; wasm wrapper: GPL-2.0-or-later (workspace) | `crates/oristudio-cp/LICENSE` + `NOTICE` |
+| Box Pleating Studio (Mu-Tsun Tsai) | MIT | `oristudio-bp`, `oristudio-bp-wasm` | MIT (both) | `crates/oristudio-bp/LICENSE` + `NOTICE` |
+| Oriedita / Orihime | MIT | `oristudio-cp`, `oristudio-cp-wasm` | MIT OR Apache-2.0 (both) | `crates/oristudio-cp/LICENSE` + `NOTICE` |
 | Flat-Folder (Jason S. Ku) | MIT | `treemaker-flatfold` | MIT OR Apache-2.0 | `crates/treemaker-flatfold/LICENSE-MIT`, `LICENSE-APACHE` + `NOTICE` |
 | Origami Simulator (Amanda Ghassaei) | MIT | `packages/origami-simulator` | MIT | `packages/origami-simulator/LICENSE` + `NOTICE` |
 
@@ -43,15 +43,99 @@ terms; each retains its upstream copyright notice so that reuse stays compliant.
 When such a crate is combined into a shipped Ori Studio binary/wasm alongside the
 GPL TreeMaker port, the combined distribution as a whole is governed by the GPL.
 
-JavaScript/npm dependencies of the web and desktop apps are all permissive
-(MIT/Apache-2.0/ISC/BSD); there are no GPL/AGPL/LGPL npm dependencies imposing
-additional obligations.
+## ExplOri (a Service, Not a Port)
+
+The **Search 22.5°** design kind is the one upstream that ships no upstream code.
+It sends the user's tree to ExplOri (`225.designorigami.net`, Brandon Wong /
+theplantpsychologist, built on
+[`theplantpsychologist/SEARCH-22.5`](https://github.com/theplantpsychologist/SEARCH-22.5))
+and renders the crease patterns that service returns from its precomputed archive
+of 22.5° tilings.
+
+| What | Where | Status |
+| --- | --- | --- |
+| Client + document model | `apps/web/src/explori/` | Original work; ships under the app's terms. No SEARCH-22.5 code is vendored or ported. |
+| CORS/trim proxy | `apps/web/functions/api/explori/`, `apps/web/functions/_lib/explori.ts` | Original work. Required — upstream sends no `Access-Control-Allow-Origin` and answers `OPTIONS` with 501, so the browser cannot call it directly. |
+| Search results | fetched per query | **Upstream's data, not ours.** Nothing is cached or redistributed. The archive carries no stated license and the service publishes no terms. |
+| Test fixture | `apps/web/src/explori/__fixtures__/queryResponse.json` | The only copy of upstream data in this repository: one captured `/api/query` response, kept so the parsing tests run offline. |
+
+Two consequences worth keeping in view. First, the feature has a **runtime
+dependency on a third party's personal server** — if it goes away, so does the
+design kind; nothing here degrades to a local implementation. Second, upstream
+logs the query tree, the caller's IP, and the request headers, so the app tells
+users their tree leaves the machine. That notice is a feature notice and is
+deliberately not gated on the analytics opt-out.
+
+Permission to build the integration was given by theplantpsychologist; see
+`implementation-plans/explori-design-type.md` for that exchange and for what was
+agreed about the unversioned API.
+
+## Which Crates Are Actually GPL
+
+The workspace default in the root `Cargo.toml` is `GPL-2.0-or-later`, and for a
+long time most crates simply took it via `license.workspace = true`. That was
+over-broad: a crate is only bound by TreeMaker's GPL if it has a dependency edge
+reaching the TreeMaker port. Most do not.
+
+The GPL roots are `treemaker-core` (the port itself) and the two crates that link
+it, `treemaker-cli` and `treemaker-wasm`. Everything reachable *from* them is
+still permissive on its own terms; it is the combined binary that is GPL.
+
+| Crate | Workspace deps (normal) | Declared license |
+| --- | --- | --- |
+| `treemaker-core` | `treemaker-fold` | `GPL-2.0-or-later` — the port |
+| `treemaker-cli` | `treemaker-core`, `oristudio-cp-compiler`, `oristudio-cp`, `treemaker-flatfold`, `treemaker-fold` | `GPL-2.0-or-later` |
+| `treemaker-wasm` | `treemaker-core`, `treemaker-sequence`, `treemaker-flatfold`, `treemaker-fold` | `GPL-2.0-or-later` |
+| `oracle-tests` | none (dev-only: `treemaker-core`, `treemaker-flatfold`, `treemaker-fold`) | `GPL-2.0-or-later` — the edge is a dev-dependency, but the crate is nothing but tests and every test binary links `treemaker-core` |
+| `treemaker-fold` | none | MIT OR Apache-2.0 |
+| `treemaker-flatfold` | `treemaker-fold` | MIT OR Apache-2.0 |
+| `treemaker-sequence` | `treemaker-flatfold`, `treemaker-fold` | MIT OR Apache-2.0 |
+| `oristudio-cp` | `treemaker-fold` | MIT OR Apache-2.0 |
+| `oristudio-cp-wasm` | `oristudio-cp`, `treemaker-fold` | MIT OR Apache-2.0 |
+| `oristudio-cp-compiler` | `oristudio-cp`, `treemaker-flatfold`, `treemaker-fold` | MIT OR Apache-2.0 |
+| `oristudio-cp-eval` | none | MIT OR Apache-2.0 |
+| `oristudio-cp-detect` | `oristudio-cp-compiler`, `oristudio-cp-eval`, + their closure | MIT OR Apache-2.0 |
+| `oristudio-cp-detect-inspector` | `oristudio-cp-detect`, `oristudio-cp-compiler`, `oristudio-cp-eval` | MIT OR Apache-2.0 |
+| `oristudio-cp-detect-wasm` | `oristudio-cp-detect`, `oristudio-cp-detect-inspector`, + their closure | MIT OR Apache-2.0 |
+| `oristudio-bp` | none | MIT |
+| `oristudio-bp-wasm` | `oristudio-bp` | MIT |
+| `ori-studio` (`apps/tauri/src-tauri`) | `oristudio-cp`, `treemaker-fold` | `GPL-2.0-or-later` (workspace) |
+
+Regenerate the middle column with
+`cargo tree -p <crate> --edges normal --prefix none`.
+
+Two of those rows deserve a sentence each.
+
+`treemaker-sequence` is **not** a TreeMaker derivative on any evidence in the
+tree: it declares `MIT OR Apache-2.0`, its module docs describe original
+folding-sequence research, and it imports only `treemaker-flatfold` and
+`treemaker-fold`. `NOTICE` used to list it among the crates TreeMaker was ported
+into and no longer does. That is a scope correction, not a settled authorship
+finding — establishing what its code derives from would take a source review, not
+a dependency graph. Note that the practical reachability is unchanged either way:
+the crate enters a build only through `treemaker-wasm`, so it ships exactly when
+the TreeMaker design kind does.
+
+The Tauri shell, `ori-studio`, has no native dependency edge to `treemaker-core`
+— the TreeMaker engine reaches the desktop app as wasm loaded by the renderer,
+not as a linked Rust crate. It nonetheless keeps the workspace GPL default,
+because what it *distributes* is the whole product including that wasm. This is
+the one place where the declared license describes the shipped bundle rather than
+the crate's own link graph, and it should stay that way.
+
+Six crates that carry no upstream LICENSE file of their own now declare a
+permissive license: `oristudio-bp-wasm`, `oristudio-cp-wasm`, `oristudio-cp-eval`,
+`oristudio-cp-detect`, `oristudio-cp-detect-inspector`, and
+`oristudio-cp-detect-wasm`. The two wasm wrappers are covered by their kernel's
+LICENSE file, which names the wrapper explicitly; the four detection crates are
+original work with no upstream and no LICENSE file at all. If any of them is ever
+published on its own, give it the license text before it goes out.
 
 ## What Is Covered
 
 | Path or artifact | License / status | Notes |
 | --- | --- | --- |
-| Rust workspace crates | `GPL-2.0-or-later` | `treemaker-core`, `treemaker-cli`, `treemaker-wasm`, and `oracle-tests`. |
+| Rust workspace crates | Mixed | `treemaker-core`, `treemaker-cli`, `treemaker-wasm`, `oracle-tests`, and the `ori-studio` Tauri shell are `GPL-2.0-or-later`; the rest are permissive. See "Which Crates Are Actually GPL" above for the edge list. |
 | `LICENSE.txt` | GPL v2 text from TreeMaker 5.0.1 | Keep this file in source distributions. |
 | `third_party/treemaker-5.0.1` | TreeMaker GPL source distribution | Vendored as the behavioral baseline and C++ oracle source. Preserve notices. |
 | `third_party/box-pleating-studio` | MIT (Mu-Tsun Tsai) | Vendored reference/oracle source for the BP port. Preserve `LICENSE.md`. |
@@ -64,7 +148,29 @@ additional obligations.
 | `tests/corpus` | Documentation only | Real-user corpora stay external unless redistribution permission is explicit. |
 | `crates/treemaker-wasm/LICENSE.txt` | GPL v2 text | Included so the generated wasm/npm package carries the license text. |
 | `crates/treemaker-wasm/pkg` | Generated GPL package output | Ignored by git; if published, publish with license/source availability. |
+| `apps/web/public/models/cp-detector-*`, `cp-vertex-refiner-*` | **No license declared** — see below | ONNX exports of in-house detector weights. Ignored by git; the tracked pointer is `scripts/cp-detect/current-model.json`, and the checkpoints live in the separate `create-pattern-detector` repository. |
+| `apps/web/src/explori/__fixtures__/queryResponse.json` | Upstream ExplOri data, no stated license | One captured `/api/query` response, kept so the ExplOri parsing tests run offline. Not redistributed as product data. |
 | `target/` and other build outputs | Generated from GPL source | Ignored by git; distribution triggers GPL source obligations. |
+
+**The model assets are the one artifact with no licensing record at all**, and
+this row exists to say so rather than to imply the question is answered. They are
+not in the repository today — every `cp-detector-*` and `cp-vertex-refiner-*`
+directory is gitignored, and the browser detector is dev-gated — so nothing is
+being distributed under unclear terms right now. Three things need deciding
+before that changes:
+
+1. **A license for the weights.** They carry no copyright header, no
+   `LICENSE`, and no manifest field for either. Whatever ships alongside the app
+   needs one, and it need not match the app's.
+2. **A provenance record for the training data.** The weights are derived from
+   whatever the model was trained on, and the model id in
+   `scripts/cp-detect/current-model.json` names 22.5° tiling and box-pleat
+   sources whose own terms have not been written down here. The datasets live
+   outside this repository, so this file cannot settle it — but the answer
+   belongs in the training repo and should be pointed at from here.
+3. **Where they are served from.** A published model becomes a distributed
+   artifact wherever it is hosted, so the license decision has to precede the
+   hosting decision, not follow it.
 
 ## Optimizer Backends
 
@@ -92,10 +198,17 @@ Before publishing a repository, CLI binary, wasm package, or npm package:
 2. Publish the corresponding source for any binary or wasm artifact.
 3. Do not include CFSQP/RFSQP source or binaries unless you have a separate
    redistribution license that is compatible with the GPL.
-4. Make package metadata say `GPL-2.0-or-later`.
+4. Make the *combined* artifact's metadata say `GPL-2.0-or-later`. Individual
+   crates keep their own `license` — check it against the edge list above rather
+   than assuming the workspace default, and give any permissive crate a LICENSE
+   file before publishing it alone.
 5. Keep generated package outputs from hiding the source dependency: link back
    to this repository or otherwise provide the exact source used to build them.
-6. If you add new dependencies, check their licenses before release.
+6. If you add new dependencies, check their licenses before release. For npm,
+   check whether the addition belongs in `devDependencies` — the FSL note below
+   is the case where that distinction carries weight.
+7. Do not ship the CP detector model assets until they have a license and a
+   training-data provenance record; see "What Is Covered".
 
 ## Rust Dependency License Inventory
 
@@ -227,6 +340,61 @@ generated from `cargo metadata` against the checked-in `Cargo.lock`.
 | `zerocopy-derive` | `0.8.48` | `BSD-2-Clause OR Apache-2.0 OR MIT` |
 | `zmij` | `1.0.21` | `MIT` |
 
+
+## npm Dependency License Inventory
+
+This file used to say the npm tree was "all permissive (MIT/Apache-2.0/ISC/BSD)".
+That was close enough to be misleading: the installed tree also contains
+BlueOak-1.0.0, MIT-0, 0BSD, CC0-1.0, CC-BY-4.0, Python-2.0, FSL-1.1-MIT, and two
+compound expressions. None of them is a problem, but a reviewer skimming for
+"anything unusual" would have found nothing and stopped looking.
+
+Counted below is the **installed** tree, not the declared one — 578 third-party
+packages, split by whether they are reachable from the shipped app's runtime
+dependencies:
+
+```bash
+npm ls --all --parseable                       # everything installed
+npm ls --all --omit=dev --parseable -w @treemaker/web   # what ships
+```
+
+Read `license` out of each resulting directory's `package.json`; workspace
+packages (`@treemaker/*`) are our own and excluded.
+
+| License | Runtime | Dev/build | Notes |
+| --- | ---: | ---: | --- |
+| MIT | 163 | 287 | |
+| BSD-3-Clause | 11 | 5 | Runtime count is mostly `protobufjs` sub-packages under `onnxruntime-web`. |
+| Apache-2.0 | 7 | 21 | Compatible because the project is GPL v2 **or later**. |
+| ISC | 3 | 36 | |
+| `MIT OR Apache-2.0` | 3 | 0 | Tauri plugins. |
+| `Apache-2.0 OR MIT` | 1 | 2 | `@tauri-apps/api`; the CLI is dev-only. |
+| BSD-2-Clause | 1 | 19 | |
+| 0BSD | 1 | 0 | `tslib`. |
+| `(Apache-2.0 AND MIT)` | 1 | 0 | `posthog-js` — **AND**, not OR: different files carry different terms. Both permissive. |
+| `(MPL-2.0 OR Apache-2.0)` | 1 | 0 | `dompurify`, pulled in by `posthog-js`. Dual-licensed, so take the Apache-2.0 arm; the MPL arm never has to be exercised. |
+| BlueOak-1.0.0 | 0 | 9 | Permissive; the `glob`/`minimatch` family. |
+| MIT-0 | 0 | 2 | |
+| FSL-1.1-MIT | 0 | 2 | `@sentry/cli` — see below. |
+| CC-BY-4.0 | 0 | 1 | `caniuse-lite`, a browser-support data table. Attribution-only, and build-time. |
+| CC0-1.0 | 0 | 1 | `mdn-data`. |
+| Python-2.0 | 0 | 1 | `argparse`. |
+
+There are no GPL, AGPL, or LGPL npm dependencies.
+
+**`@sentry/cli` must stay a devDependency.** The Functional Source License is not
+an open-source license: it carries a competing-use restriction (it forbids use in
+anything that competes with Sentry) and only converts to MIT two years after each
+release. It reaches us through `@sentry/vite-plugin`, which uploads source maps at
+build time, so it never enters a shipped bundle and the restriction never touches
+a user. Promoting it — or anything else FSL — to a runtime dependency would change
+that, and would also put a non-GPL-compatible term inside a GPL distribution.
+
+One trap when regenerating this: `npm ls --omit=dev` **from the repo root** is not
+the runtime set. `apps/cp-detect-architecture-inspector` is a dev tool that
+declares `vite` and `@vitejs/plugin-react` as ordinary `dependencies`, which drags
+Babel and `caniuse-lite` into the root's "production" tree. Scoping to
+`-w @treemaker/web` is what makes the runtime column mean what it says.
 
 ## Source References
 

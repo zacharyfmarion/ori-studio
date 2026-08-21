@@ -215,7 +215,7 @@ import { NextDocumentAction } from './NextDocumentAction';
 import {
   isViewportInteractiveTarget,
   ViewportToolbar,
-  ViewportToolbarSeparator,
+  type ViewportToolbarGroupSpec,
 } from './ViewportToolbar';
 import type { FoldDocument } from '../../engine/types';
 
@@ -2834,6 +2834,64 @@ export function CreasePatternPanel() {
     }
   }, [cpToolState.activeOperationId, cpToolState.phase]);
 
+  // What this surface adds to the shared view controls. Insert-image collapses
+  // into the touch overflow menu — it is a once-per-document errand — while Fold
+  // and its figure menu stay on the bar: after drawing, folding is the verb, and
+  // no gesture stands in for it.
+  const viewportGroups: ViewportToolbarGroupSpec[] = editableCp
+    ? [
+        {
+          id: 'image',
+          items: [
+            {
+              kind: 'action',
+              id: 'insert-image',
+              label: t('panels:creasePattern.insertImage', 'Insert image...'),
+              icon: <ImagePlus size={14} />,
+              onSelect: () => imageFileInputRef.current?.click(),
+            },
+          ],
+        },
+        {
+          id: 'fold',
+          items: [
+            {
+              kind: 'node',
+              id: 'fold',
+              node: (
+                <div className="cp-folded-figure-actions">
+                  <IconButton
+                    size="sm"
+                    variant="toolbar"
+                    title={foldShortcutLabel
+                      ? `${t('panels:creasePattern.fold', 'Fold')} (${foldShortcutLabel})`
+                      : t('panels:creasePattern.fold', 'Fold')}
+                    disabled={!canFoldSelectedModel}
+                    onClick={folded.foldModel}
+                  >
+                    <Origami size={14} />
+                  </IconButton>
+                  {/* "Another solution" lives on the figure's own contextual
+                      bar, which acts on the figure you clicked. This copy
+                      acted on the *active* figure — after a fold, a fallback
+                      to whichever was made most recently. */}
+                  <FoldedFigureMenuButton
+                    figures={oristudioCpFoldedFigures}
+                    activeFigure={activeFoldedFigure}
+                    staleFigureIds={staleFoldedFigureIds}
+                    onSelectFigure={setOristudioCpActiveFoldedFigure}
+                    onDisplayStyle={folded.setDisplayStyle}
+                    onModelUpdate={folded.updateModel}
+                    onModelGestureEnd={folded.endModelGesture}
+                  />
+                </div>
+              ),
+            },
+          ],
+        },
+      ]
+    : [];
+
   // A shared link opened by id is the one provisioning path that waits on the network, and
   // it can wait up to a minute while KV propagates. Without this it looks like an ordinary
   // empty editor, which is indistinguishable from the link having failed.
@@ -3175,63 +3233,30 @@ export function CreasePatternPanel() {
                 }
                 rotateCcwShortcutLabel={shortcutLabelForAction('viewport.rotateCcw', shortcutResolution)}
                 rotateCwShortcutLabel={shortcutLabelForAction('viewport.rotateCw', shortcutResolution)}
-              >
-                {editableCp && (
-                  <>
-                    <ViewportToolbarSeparator />
-                    <IconButton
-                      size="sm"
-                      variant="toolbar"
-                      title={t('panels:creasePattern.insertImage', 'Insert image...')}
-                      onClick={() => imageFileInputRef.current?.click()}
-                    >
-                      <ImagePlus size={14} />
-                    </IconButton>
-                    <input
-                      ref={imageFileInputRef}
-                      type="file"
-                      // Extensions, not `image/*`: the wildcard resolves through
-                      // the platform's type table, which offers `.ori` as an
-                      // Olympus raw image and lands a crease pattern in a picker
-                      // that can only fail to decode it.
-                      accept={DECODABLE_IMAGE_ACCEPT}
-                      style={{ display: 'none' }}
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        event.target.value = '';
-                        if (file) void addImageFromFile(file, null);
-                      }}
-                    />
-                    <ViewportToolbarSeparator />
-                    <div className="cp-folded-figure-actions">
-                      <IconButton
-                        size="sm"
-                        variant="toolbar"
-                        title={foldShortcutLabel
-                          ? `${t('panels:creasePattern.fold', 'Fold')} (${foldShortcutLabel})`
-                          : t('panels:creasePattern.fold', 'Fold')}
-                        disabled={!canFoldSelectedModel}
-                        onClick={folded.foldModel}
-                      >
-                        <Origami size={14} />
-                      </IconButton>
-                      {/* "Another solution" lives on the figure's own contextual
-                          bar, which acts on the figure you clicked. This copy
-                          acted on the *active* figure — after a fold, a fallback
-                          to whichever was made most recently. */}
-                      <FoldedFigureMenuButton
-                        figures={oristudioCpFoldedFigures}
-                        activeFigure={activeFoldedFigure}
-                        staleFigureIds={staleFoldedFigureIds}
-                        onSelectFigure={setOristudioCpActiveFoldedFigure}
-                        onDisplayStyle={folded.setDisplayStyle}
-                        onModelUpdate={folded.updateModel}
-                        onModelGestureEnd={folded.endModelGesture}
-                      />
-                    </div>
-                  </>
-                )}
-              </ViewportToolbar>
+                resetViewRotation={() => cpCamera()?.rotateReset()}
+                groups={viewportGroups}
+              />
+              {/* Outside the bar rather than in it: the picker is
+                  `display: none`, so as a toolbar item it would be a group with
+                  nothing visible in it — and the bar draws a hairline between
+                  groups. */}
+              {editableCp && (
+                <input
+                  ref={imageFileInputRef}
+                  type="file"
+                  // Extensions, not `image/*`: the wildcard resolves through
+                  // the platform's type table, which offers `.ori` as an
+                  // Olympus raw image and lands a crease pattern in a picker
+                  // that can only fail to decode it.
+                  accept={DECODABLE_IMAGE_ACCEPT}
+                  style={{ display: 'none' }}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    event.target.value = '';
+                    if (file) void addImageFromFile(file, null);
+                  }}
+                />
+              )}
               {editableCp && activeCpCommand && (
                 <CpContextToolPanel
                   container={toolbarContainer}

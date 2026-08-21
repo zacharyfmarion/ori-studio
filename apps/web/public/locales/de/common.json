@@ -273,6 +273,11 @@
     "downloading": "Update wird heruntergeladen…",
     "relaunch": "Neu starten zum Aktualisieren"
   },
+  "viewDrawer": {
+    "close": "Ansichtsoptionen schließen",
+    "open": "Ansicht",
+    "title": "Ansichtsoptionen"
+  },
   "workspaceRail": {
     "design": "Design-Arbeitsbereich",
     "edit": "Bearbeiten-Arbeitsbereich",

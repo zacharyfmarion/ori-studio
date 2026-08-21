@@ -225,9 +225,11 @@
   },
   "viewport": {
     "fit": "Ajuster",
+    "more": "Plus de commandes d'affichage",
     "pan": "Panoramique",
     "panWithModifier": "Panoramique — ou maintenez {{modifier}} et faites glisser",
     "panWithShortcut": "Panoramique ({{shortcut}}) — ou maintenez {{modifier}} et faites glisser",
+    "resetRotation": "Réinitialiser la rotation de la vue",
     "rotateCcw": "Pivoter la vue à gauche",
     "rotateCw": "Pivoter la vue à droite",
     "rotation": "Rotation de la vue en degrés",

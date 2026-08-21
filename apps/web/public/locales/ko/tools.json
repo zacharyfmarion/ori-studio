@@ -209,9 +209,11 @@
   },
   "viewport": {
     "fit": "맞춤",
+    "more": "기타 보기 컨트롤",
     "pan": "화면 이동",
     "panWithModifier": "화면 이동 — 또는 {{modifier}} 를 누른 채 드래그",
     "panWithShortcut": "화면 이동 ({{shortcut}}) — 또는 {{modifier}} 를 누른 채 드래그",
+    "resetRotation": "보기 회전 초기화",
     "rotateCcw": "보기 왼쪽으로 회전",
     "rotateCw": "보기 오른쪽으로 회전",
     "rotation": "보기 회전 각도(도)",

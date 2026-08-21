@@ -208,7 +208,17 @@ const OVERSIZED_PANELS = {
   // move verbs already there, the hook call with its camera scale and its two
   // symmetry fields, the layer's mount, and one guard so a click that began on a
   // handle does not feed the stacked-selection cycle.
-  'BpPackingPanel.tsx': 1885,
+  //
+  // 1885 -> 1895: the viewport toolbar became declarative. Its controls are now
+  // descriptors — `ViewportToolbar` decides which of them fit on a touch device
+  // and which move into an overflow menu, so what they are can no longer be JSX
+  // the caller renders itself. A descriptor is a few lines longer than the
+  // `IconButton` it replaces, and that difference is the whole of this raise:
+  // nothing moved in, and the two collapsible verbs (grow/shrink grid) plus the
+  // layer list came out of the markup. Shaving those lines back would mean
+  // hand-writing each control twice, once per pointer, which is exactly what
+  // the descriptor exists to prevent.
+  'BpPackingPanel.tsx': 1895,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
   'BpTreePanel.tsx': 890,

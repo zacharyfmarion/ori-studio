@@ -16,8 +16,31 @@ import { getRuntimeSurface } from './runtime';
  * layout reflows. Tablets keep it too — a large touch screen with a keyboard is
  * closer to the desktop case than to the phone one, and the gate is meant to stop
  * people who cannot possibly succeed, not everyone who might struggle.
+ *
+ * The real question is **the shorter side**, not the width, so the query asks
+ * about both and the comma ORs them. Width alone answers correctly only in
+ * portrait: an iPhone SE in landscape is 667 CSS px wide and would sail through
+ * a width-only gate, even though turning a phone sideways does not make it a
+ * drafting table.
+ *
+ * 600px because one number separates both dimensions cleanly and there is a wide
+ * gap to sit in. Every phone's short side is at most ~440 (the 16 Pro Max, in
+ * either orientation); every iPad's short side is at least 744 (the mini; 768 on
+ * older models). Landing near the middle of 440–744 means neither a future
+ * slightly-larger phone nor a future slightly-smaller tablet reclassifies on a
+ * point release.
+ *
+ * The boundary also has to fall where no device stands, because `max-width` is
+ * inclusive: it was 820px, and a base iPad in portrait is *exactly* 820 (measured
+ * on an iPad A16 simulator), so the cheapest iPad was told it was a phone by one
+ * pixel. A threshold no shipping device can equal cannot lose that way.
+ *
+ * Known consequence: an iPad in a narrow Split View (~507px) reads as a phone.
+ * That is the honest answer — the workspace genuinely does not fit — and the
+ * "open it anyway" override is one tap away and persists.
  */
-export const PHONE_MEDIA_QUERY = '(pointer: coarse) and (max-width: 820px)';
+export const PHONE_MEDIA_QUERY =
+  '(pointer: coarse) and (max-width: 600px), (pointer: coarse) and (max-height: 600px)';
 
 const PHONE_OVERRIDE_KEY = storageKey(STORAGE_KEYS.phoneOverride);
 

@@ -23,6 +23,7 @@ import { DesignTabStrip } from './panels/DesignTabStrip';
 import { FixedDockTab } from './panels/FixedDockTab';
 import { ErrorBoundary } from './errors/ErrorBoundary';
 import { FileDropOverlay } from './FileDropOverlay';
+import { WorkspaceViewDrawer } from './WorkspaceViewDrawer';
 import { panelComponents } from './panels/PanelComponents';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
@@ -31,8 +32,14 @@ import { useSendToEditActions } from '../designKinds/useSendToEditActions';
 import { handleMenuAction } from '../commands/menuActions';
 import { useFileDropTarget } from '../hooks/useFileDropTarget';
 import type { DropTargetPolicy } from '../lib/fileDrop';
+import { useIsCoarsePointerSurface } from '../platform/pointerSurface';
 import { usesNativeAppMenu } from '../platform/runtime';
-import { applyDefaultLayout, clearPersistedLayout, useLayoutStore } from '../store/layoutStore';
+import {
+  applyDefaultLayout,
+  clearPersistedLayout,
+  reconcileViewPanel,
+  useLayoutStore,
+} from '../store/layoutStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useWorkspaceCapabilities } from '../store/workspaceStore/useWorkspaceCapabilities';
@@ -269,6 +276,22 @@ export function WorkspaceShell() {
   const saveLayout = useLayoutStore((state) => state.saveLayout);
   const { dropTargetProps, isDragActive } = useFileDropTarget({ policy: WORKSPACE_DROP_POLICY });
 
+  // Dockview moves a panel with HTML5 drag-and-drop — `dragstart` plus a
+  // `dataTransfer` payload — and iOS Safari fires neither for a finger. Under a
+  // coarse pointer the tab is therefore a handle that leads nowhere: press it,
+  // pull, and the app looks broken rather than merely fixed. `disableDnd` says
+  // so to dockview, which stops marking tabs draggable and stops the drop
+  // overlays, and the layout can no longer be rearranged by anyone who could not
+  // rearrange it anyway.
+  //
+  // Only the arranging goes. Sashes are driven by pointer events, so resizing
+  // survives (widened for a fingertip in App.css), and every panel stays
+  // reachable without a drag — tabs activate on tap, the workspace rail and the
+  // design tab strip switch on tap, and the View menu activates panels by id.
+  // Nothing here can be closed (see `FixedDockTab`), so no panel can go missing
+  // and need dragging back.
+  const coarsePointer = useIsCoarsePointerSurface();
+
   // The workspace/variant the URL targets at mount, captured in a ref so onReady
   // (fired once by Dockview, possibly before the route effect runs) builds the
   // right layout instead of the stale store default. onReady fires at mount, so
@@ -309,6 +332,14 @@ export function WorkspaceShell() {
       if (!loaded) {
         applyDefaultLayout(api, workspace);
       }
+
+      // A restored layout carries the panel set from whenever it was captured,
+      // which need not be the set this pointer wants — see `reconcileViewPanel`.
+      // Idempotent, so the freshly built path above pays nothing for it. Ahead of
+      // the `onDidLayoutChange` subscription below on purpose: a repair is not an
+      // arrangement the user made, so it should not be what gets written back
+      // before they have touched anything.
+      reconcileViewPanel(api, workspace);
 
       // The active panel drives the active editing context (menus, history,
       // shortcuts). Seed it and keep it in sync as the user focuses panels.
@@ -357,11 +388,19 @@ export function WorkspaceShell() {
                 defaultTabComponent={FixedDockTab}
                 onReady={onReady}
                 className="dockview-theme-treemaker workspace-shell__dockview"
+                disableDnd={coarsePointer}
                 disableFloatingGroups
               />
             </ErrorBoundary>
           </div>
           <DesignWorkspaceFooter />
+          {/*
+            Touch only, and a no-op everywhere else — under a coarse pointer the
+            View pane is not docked at all, and this is what reaches it.
+          */}
+          <ErrorBoundary surface="shell:view-drawer" variant="mini">
+            <WorkspaceViewDrawer />
+          </ErrorBoundary>
           <FileDropOverlay visible={isDragActive} policy={WORKSPACE_DROP_POLICY} />
         </div>
       </div>

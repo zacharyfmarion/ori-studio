@@ -46,6 +46,7 @@ vi.mock('regl', () => ({
     destroy: () => {},
     buffer: () => ({ destroy: () => {} }),
     texture: () => ({ destroy: () => {} }),
+    on: () => ({ cancel: () => {} }),
   }),
 }));
 

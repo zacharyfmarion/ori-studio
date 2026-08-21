@@ -2,6 +2,8 @@
 name = "oracle-tests"
 version.workspace = true
 edition.workspace = true
+# Keeps the workspace GPL default: the edge is a dev-dependency, but this crate
+# is nothing but tests, and every one of those binaries links `treemaker-core`.
 license.workspace = true
 description = "Fixture and oracle tests for the TreeMaker 5.0.1 Rust port"
 repository.workspace = true

@@ -217,9 +217,11 @@
   },
   "viewport": {
     "fit": "Fit",
+    "more": "More view controls",
     "pan": "Pan",
     "panWithModifier": "Pan — or hold {{modifier}} and drag",
     "panWithShortcut": "Pan ({{shortcut}}) — or hold {{modifier}} and drag",
+    "resetRotation": "Reset view rotation",
     "rotateCcw": "Rotate view left",
     "rotateCw": "Rotate view right",
     "rotation": "View rotation in degrees",

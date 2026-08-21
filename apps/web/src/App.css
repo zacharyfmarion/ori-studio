@@ -3,7 +3,24 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   width: 100vw;
+  /*
+   * `dvh`, with `vh` left above it as the fallback. On iOS `vh` measures the
+   * *large* viewport — the page as it would be with the browser's chrome
+   * retracted — so a `100vh` shell is taller than what is on screen and its
+   * bottom row hangs below the fold, taking the crease pattern's viewport
+   * toolbar with it. The shell is clipped, so nothing can scroll it back.
+   */
   height: 100vh;
+  height: 100dvh;
+  /*
+   * Under `viewport-fit=cover` (see index.html) the shell spans the whole
+   * screen, rounded corners and home indicator included. Insetting here rather
+   * than per surface is what makes it hold for every workspace: this is the one
+   * element they all render inside, and its background is the same
+   * `--bg-primary` the toolbar and the dock paint, so the inset reads as part of
+   * the app rather than as a letterbox.
+   */
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
   min-width: 0;
   overflow: hidden;
   background: var(--bg-primary);
@@ -19,7 +36,7 @@
  * away.
  *
  * The scrolling deliberately happens *here* and not on `.app-layout--start`,
- * which stays clipped at `100vh`. `.file-drop-overlay` is absolutely positioned
+ * which stays clipped at `100dvh`. `.file-drop-overlay` is absolutely positioned
  * against that ancestor, and a scrolling positioning context would stretch it to
  * the height of the whole document — a dashed border running past the fold with
  * its label centered somewhere off screen.
@@ -746,7 +763,9 @@
 .error-fallback--overlay {
   position: fixed;
   z-index: var(--z-modal);
-  inset-block-end: var(--space-4);
+  /* Fixed to the viewport, which `.app-layout`'s safe-area padding does not
+     inset — without the `max()` this sits under the home indicator. */
+  inset-block-end: max(var(--space-4), var(--safe-bottom));
   inset-inline-start: 50%;
   transform: translateX(-50%);
   max-width: min(520px, calc(100vw - var(--space-6)));
@@ -1023,12 +1042,19 @@
     min-height: 0;
   }
 
-  .workspace-shell {
-    grid-template-columns: 44px minmax(0, 1fr);
-  }
-
   .workspace-rail {
     padding: var(--space-2) 0;
+  }
+}
+
+/*
+ * Narrowing the rail below the 44px guidance is a cursor-only trade — the rail
+ * is how you leave the workspace you are in, so on touch it keeps its width and
+ * pays for it out of the dock instead.
+ */
+@media (max-width: 680px) and (pointer: fine) {
+  .workspace-shell {
+    grid-template-columns: 44px minmax(0, 1fr);
   }
 
   .workspace-rail__button[data-active]::before {
@@ -1036,9 +1062,18 @@
   }
 }
 
-@media (max-width: 460px) {
+/* Shrinking the padding shrinks the target; on touch the toolbar wraps instead. */
+@media (max-width: 460px) and (pointer: fine) {
   .toolbar__actions .ui-control--sm {
     padding: 0 8px;
+  }
+}
+
+/* The active marker is offset from the button's box, so a button grown to the
+   touch target pushes it past the rail's own 50px column and over the dock. */
+@media (pointer: coarse) {
+  .workspace-rail__button[data-active]::before {
+    left: -3px;
   }
 }
 
@@ -1079,6 +1114,38 @@
 }
 
 /*
+ * A fingertip-sized grab band on the sash, in the one part of the dock layout
+ * that still works by touch: sashes are driven by pointer events, so resizing
+ * survives on an iPad even though panel dragging does not.
+ *
+ * The band has to grow on both sides, not one. Dockview hardcodes the sash at
+ * 4px in two places — this rule's counterpart in its stylesheet, and the JS that
+ * positions it (`sashWidth = 4`, subtracting half of it so the box straddles the
+ * pane boundary). Widening the box alone would leave its left edge where it is
+ * and push the whole band into the pane on the right, so the negative margin
+ * gives the extra width back to the other side.
+ *
+ * 20px, not the 44px a standalone touch target would ask for: the sash floats
+ * over pane content at z-index 99, and a 44px band would eat taps on anything
+ * within 22px of a pane edge. A sash is aimed at a visible seam between two
+ * panes, which is a far easier target than a lone control.
+ */
+@media (pointer: coarse) {
+  .dockview-theme-treemaker
+    .dv-split-view-container.dv-horizontal
+    > .dv-sash-container
+    > .dv-sash {
+    width: 20px;
+    margin-left: -8px;
+  }
+
+  .dockview-theme-treemaker .dv-split-view-container.dv-vertical > .dv-sash-container > .dv-sash {
+    height: 20px;
+    margin-top: -8px;
+  }
+}
+
+/*
  * The update affordance: a card floating over the bottom-left of whatever is on
  * screen.
  *
@@ -1097,8 +1164,10 @@
  */
 .update-card {
   position: fixed;
-  left: var(--space-4);
-  bottom: var(--space-4);
+  /* Same reason as `.error-fallback--overlay`: fixed elements sit outside
+     `.app-layout`'s safe-area padding and have to clear the insets themselves. */
+  left: max(var(--space-4), var(--safe-left));
+  bottom: max(var(--space-4), var(--safe-bottom));
   z-index: 30;
   display: flex;
   align-items: stretch;

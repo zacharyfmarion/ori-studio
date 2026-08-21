@@ -273,6 +273,11 @@
     "downloading": "Downloading update…",
     "relaunch": "Relaunch to update"
   },
+  "viewDrawer": {
+    "close": "Close view options",
+    "open": "View",
+    "title": "View options"
+  },
   "workspaceRail": {
     "design": "Design workspace",
     "edit": "Edit workspace",

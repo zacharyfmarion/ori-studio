@@ -16,7 +16,6 @@ import {
   Axis3d,
   Circle,
   CircleDot,
-  Layers,
   Plus,
   SlidersHorizontal,
   Tag,
@@ -73,9 +72,10 @@ import { IconButton } from '../ui/IconButton';
 import { SurfaceLoading } from '../ui/SurfaceLoading';
 import {
   isViewportInteractiveTarget,
-  ViewportSymmetryToggle,
   ViewportToolbar,
-  ViewportToolbarSeparator,
+  viewportLayerItems,
+  viewportSymmetryItems,
+  type ViewportToolbarGroupSpec,
 } from './ViewportToolbar';
 
 const DOT_SIZES: TreeDotSizes = { leafPx: 7, branchPx: 8 };
@@ -341,19 +341,51 @@ function DesignViewportToolbar({
   setZoomLevel,
 }: DesignViewportToolbarProps) {
   const { t } = useTranslation();
-  const [layersOpen, setLayersOpen] = useState(false);
-  const layersMenuRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    if (!layersOpen) return undefined;
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (layersMenuRef.current?.contains(target)) return;
-      setLayersOpen(false);
-    };
-    document.addEventListener('mousedown', onPointerDown);
-    return () => document.removeEventListener('mousedown', onPointerDown);
-  }, [layersOpen]);
+  const groups: ViewportToolbarGroupSpec[] = [
+    {
+      id: 'symmetry',
+      items: [
+        ...viewportSymmetryItems({
+          enabled: symmetryMode !== 'none',
+          label: t('panels:design.symmetryToolbar', 'Symmetry'),
+          title: t('panels:design.symmetryButton', 'Design symmetry'),
+          onToggle: () => onSymmetryEnabledChange(symmetryMode === 'none'),
+        }),
+        {
+          kind: 'node',
+          id: 'symmetry-options',
+          // Stays a popover on every pointer: presets, an angle and a position
+          // are a form, and a form has no menu-item shape.
+          node: (
+            <DesignSymmetryOptionsButton
+              symmetryMode={symmetryMode}
+              symmetryAngle={symmetryAngle}
+              symmetryLoc={symmetryLoc}
+              paperWidth={paperWidth}
+              paperHeight={paperHeight}
+              nextSymmetryPresetLabel={nextSymmetryPresetLabel}
+              onSymmetryPreset={onSymmetryPreset}
+              onFlipSymmetryPreset={onFlipSymmetryPreset}
+              onCustomSymmetryChange={onCustomSymmetryChange}
+            />
+          ),
+        },
+      ],
+    },
+    {
+      id: 'layers',
+      items: viewportLayerItems({
+        title: t('panels:design.layers', 'Layers'),
+        options: LAYER_OPTIONS.map((option) => ({
+          ...option,
+          label: designLayerLabel(t, option.key),
+        })),
+        visible: layers,
+        onChange: onLayerChange,
+      }),
+    },
+  ];
 
   return (
     <ViewportToolbar
@@ -363,53 +395,8 @@ function DesignViewportToolbar({
       zoomOut={zoomOut}
       fitToView={fitToView}
       setZoomLevel={setZoomLevel}
-    >
-      <ViewportToolbarSeparator />
-      <ViewportSymmetryToggle
-        enabled={symmetryMode !== 'none'}
-        label={t('panels:design.symmetryToolbar', 'Symmetry')}
-        title={t('panels:design.symmetryButton', 'Design symmetry')}
-        onToggle={() => onSymmetryEnabledChange(symmetryMode === 'none')}
-      />
-      <DesignSymmetryOptionsButton
-        symmetryMode={symmetryMode}
-        symmetryAngle={symmetryAngle}
-        symmetryLoc={symmetryLoc}
-        paperWidth={paperWidth}
-        paperHeight={paperHeight}
-        nextSymmetryPresetLabel={nextSymmetryPresetLabel}
-        onSymmetryPreset={onSymmetryPreset}
-        onFlipSymmetryPreset={onFlipSymmetryPreset}
-        onCustomSymmetryChange={onCustomSymmetryChange}
-      />
-      <ViewportToolbarSeparator />
-      <div className="viewport-toolbar__menu-anchor" ref={layersMenuRef}>
-        <IconButton
-          size="sm"
-          variant="toolbar"
-          title={t('panels:design.layers', 'Layers')}
-          isActive={layersOpen}
-          onClick={() => setLayersOpen((open) => !open)}
-        >
-          <Layers size={14} />
-        </IconButton>
-        {layersOpen && (
-          <div className="design-layer-menu" role="menu">
-            {LAYER_OPTIONS.map((option) => (
-              <label key={option.key} className="design-layer-option">
-                <input
-                  type="checkbox"
-                  checked={layers[option.key]}
-                  onChange={(event) => onLayerChange(option.key, event.target.checked)}
-                />
-                <span className="design-layer-option__icon">{option.icon}</span>
-                <span>{designLayerLabel(t, option.key)}</span>
-              </label>
-            ))}
-          </div>
-        )}
-      </div>
-    </ViewportToolbar>
+      groups={groups}
+    />
   );
 }
 

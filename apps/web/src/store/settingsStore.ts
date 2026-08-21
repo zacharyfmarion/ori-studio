@@ -1,7 +1,11 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { ANALYTICS_EVENTS, bucketCount, CP_SNAP_RADIUS_BUCKETS, track } from '../analytics';
-import { clampCpSnapRadius, CP_DEFAULT_SNAP_RADIUS } from '../lib/cpSnapRadiusSetting';
+import {
+  hasCoarsePointer,
+  resolveCpSnapRadius,
+  subscribeCoarsePointer,
+} from '../lib/cpSnapRadiusSetting';
 import {
   DEFAULT_BP_PACKING_VIEW_LAYERS,
   DEFAULT_BP_TREE_VIEW_LAYERS,
@@ -43,9 +47,23 @@ function readCpWheelGesture(): WheelGesturePreference {
   return readString(CP_WHEEL_GESTURE_KEY) === 'pan' ? 'pan' : 'zoom';
 }
 
-/** Same contract, on a number: unreadable degrades, out-of-range clamps in. */
+/**
+ * The radius someone actually chose, or `null` when nobody has.
+ *
+ * The key is only ever written by the settings field, so its absence is the
+ * whole difference between "picked 10" and "never picked" — which is what lets
+ * the coarse-pointer default move without overwriting a number set on a desktop.
+ * Unreadable degrades the same way absent does: a hand-edited key is not a
+ * choice either.
+ */
+function storedCpSnapRadius(): number | null {
+  const stored = readNumber(CP_SNAP_RADIUS_KEY, Number.NaN);
+  return Number.isFinite(stored) ? stored : null;
+}
+
+/** A choice if there is one; otherwise the default this pointer deserves. */
 function readCpSnapRadius(): number {
-  return clampCpSnapRadius(readNumber(CP_SNAP_RADIUS_KEY, CP_DEFAULT_SNAP_RADIUS));
+  return resolveCpSnapRadius(storedCpSnapRadius(), hasCoarsePointer());
 }
 
 interface SettingsState {
@@ -137,7 +155,7 @@ export const useSettingsStore = create<SettingsState>()(
         track(ANALYTICS_EVENTS.cpWheelGestureChanged, { wheel_gesture: value });
       },
       setCpSnapRadius: (value) => {
-        const radius = clampCpSnapRadius(value);
+        const radius = resolveCpSnapRadius(value, hasCoarsePointer());
         writeNumber(CP_SNAP_RADIUS_KEY, radius);
         set({ cpSnapRadius: radius });
         // Hand-placed because no chokepoint sees a preference change. Bucketed
@@ -151,3 +169,13 @@ export const useSettingsStore = create<SettingsState>()(
     { name: 'SettingsStore' }
   )
 );
+
+// An unset radius follows the pointer, not just the pointer at boot: attaching an
+// iPad's Magic Keyboard flips the primary pointer to `fine` in a live tab, and
+// detaching it flips back. Once the key is written this stops mattering —
+// `readCpSnapRadius` returns the stored number on either pointer — so the
+// subscription only ever moves a default. It lasts as long as the store, which is
+// the session, so nothing unsubscribes it.
+subscribeCoarsePointer(() => {
+  useSettingsStore.setState({ cpSnapRadius: readCpSnapRadius() });
+});

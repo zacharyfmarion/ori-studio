@@ -225,9 +225,11 @@
   },
   "viewport": {
     "fit": "Ajustar",
+    "more": "Mais controles de vista",
     "pan": "Deslocar",
     "panWithModifier": "Deslocar — ou segure {{modifier}} e arraste",
     "panWithShortcut": "Deslocar ({{shortcut}}) — ou segure {{modifier}} e arraste",
+    "resetRotation": "Redefinir a rotação da vista",
     "rotateCcw": "Girar vista à esquerda",
     "rotateCw": "Girar vista à direita",
     "rotation": "Rotação da vista em graus",

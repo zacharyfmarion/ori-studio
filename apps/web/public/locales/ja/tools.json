@@ -209,9 +209,11 @@
   },
   "viewport": {
     "fit": "フィット",
+    "more": "その他のビュー操作",
     "pan": "パン",
     "panWithModifier": "パン — または {{modifier}} を押しながらドラッグ",
     "panWithShortcut": "パン ({{shortcut}}) — または {{modifier}} を押しながらドラッグ",
+    "resetRotation": "ビューの回転をリセット",
     "rotateCcw": "左に回転",
     "rotateCw": "右に回転",
     "rotation": "ビューの回転角度（度）",

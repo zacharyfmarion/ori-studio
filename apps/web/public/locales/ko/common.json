@@ -273,6 +273,11 @@
     "downloading": "업데이트 다운로드 중…",
     "relaunch": "다시 시작하여 업데이트"
   },
+  "viewDrawer": {
+    "close": "보기 옵션 닫기",
+    "open": "보기",
+    "title": "보기 옵션"
+  },
   "workspaceRail": {
     "design": "디자인 작업 공간",
     "edit": "편집 작업 공간",

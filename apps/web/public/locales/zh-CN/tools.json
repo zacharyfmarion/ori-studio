@@ -209,9 +209,11 @@
   },
   "viewport": {
     "fit": "适应",
+    "more": "更多视图控件",
     "pan": "平移",
     "panWithModifier": "平移 — 或按住 {{modifier}} 拖动",
     "panWithShortcut": "平移 ({{shortcut}}) — 或按住 {{modifier}} 拖动",
+    "resetRotation": "重置视图旋转",
     "rotateCcw": "向左旋转视图",
     "rotateCw": "向右旋转视图",
     "rotation": "视图旋转角度（度）",

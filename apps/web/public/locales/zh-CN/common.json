@@ -273,6 +273,11 @@
     "downloading": "正在下载更新…",
     "relaunch": "重启以更新"
   },
+  "viewDrawer": {
+    "close": "关闭视图选项",
+    "open": "视图",
+    "title": "视图选项"
+  },
   "workspaceRail": {
     "design": "设计工作区",
     "edit": "编辑工作区",

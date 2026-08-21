@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createReglRenderer } from './renderer/reglRenderer';
-import { CpRendererUnavailable } from './CpRendererUnavailable';
+import { CpRendererUnavailable, type CpRendererStatus } from './CpRendererUnavailable';
+import { cpWebglSupport, describeCpWebglGap } from './renderer/webglSupport';
 import { reportError } from '../monitoring';
 import type { CpRenderer } from './renderer/CpRenderer';
 import { readCssVarColor } from './renderer/cssColor';
@@ -31,6 +32,12 @@ import {
   segmentIntersectsConvexQuad,
 } from './picking/convexQuad';
 import { viewAlignedBoxCorners, type BoxCorners } from './tools/viewAlignedBox';
+import {
+  createCpTouchArbiter,
+  isCoarsePointer,
+} from './gestures/cpTouchArbiter';
+import { applyPinchToCamera } from './gestures/pinchCamera';
+import type { GesturePoint, PinchTransform } from './gestures/pinchTransform';
 import { previewGroupsToStrokes, previewSegmentsToStrokes } from './renderer/previewStrokes';
 import { candidatePreviewGroups } from './adapters/candidatePreviewGroups';
 import {
@@ -1002,13 +1009,14 @@ export function CreasePatternWebglCanvas({
   const gridKeyRef = useRef<string | null>(null);
   // Owned camera (Phase 2). Null until seeded from the SVG's current fit.
   const cameraRef = useRef<UserCamera | null>(null);
-  // Bumped when the GL context is lost, to rebuild the renderer. The camera is
-  // stashed across that rebuild so recovery does not also throw away wherever the
-  // user had panned and zoomed to.
+  // Bumped when a lost GL context is restored, to rebuild the renderer. The
+  // camera is stashed across that rebuild so recovery does not also throw away
+  // wherever the user had panned and zoomed to.
   const [rendererGeneration, setRendererGeneration] = useState(0);
-  // Non-null once a WebGL2 context could not be created, which replaces the
-  // (blank) canvas with an explanation. See `CpRendererUnavailable`.
-  const [rendererError, setRendererError] = useState<string | null>(null);
+  // Non-null while the canvas cannot draw — no usable WebGL, or a context the
+  // system took back. Replaces the (blank) canvas with an explanation of which
+  // of the two it is. See `CpRendererUnavailable`.
+  const [rendererStatus, setRendererStatus] = useState<CpRendererStatus | null>(null);
   const preservedCameraRef = useRef<UserCamera | null>(null);
   // A saved camera armed by the framingKey effect, consumed by the first
   // `ensureCamera` after it. One-shot: once adopted, the user owns the camera,
@@ -1509,30 +1517,45 @@ export function CreasePatternWebglCanvas({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    // Asked before regl, so the unavailable state can name the missing
+    // capability instead of relaying regl's "upgrade your browser or graphics
+    // drivers", which is not advice an iPad user can act on.
+    const support = cpWebglSupport();
+    if (!support.supported) {
+      setRendererStatus({ kind: 'unsupported', detail: describeCpWebglGap(support.gap) });
+      return;
+    }
+
     let renderer: CpRenderer;
     try {
       renderer = createReglRenderer(canvas, {
         // Redraw once an async image texture finishes decoding.
         onAsyncLoad: () => renderNowRef.current(),
-        // The context and every regl resource on it are gone. Nothing here can
-        // repair that, so keep the camera the user was working at and rebuild
-        // the whole renderer from scratch on the next tick.
+        // The context and every regl resource on it are gone, and rebuilding
+        // now would only hand regl the same dead context. Say so and wait.
         onContextLost: () => {
-          console.warn('[cp-webgl] WebGL context lost; rebuilding the renderer');
           preservedCameraRef.current = cameraRef.current;
-          setRendererGeneration((generation) => generation + 1);
+          setRendererStatus({ kind: 'context-lost' });
         },
+        // Live context again: tear the dead renderer down and build a new one,
+        // which re-runs every upload effect below and so restores the textures
+        // regl's own restore leaves empty. The camera stashed at loss brings the
+        // user back to wherever they had panned and zoomed to.
+        onContextRestored: () => setRendererGeneration((generation) => generation + 1),
       });
     } catch (error) {
       // Surfaced, not logged. A packaged desktop build has no console anyone
       // reads, so the old console.error left this as a silently blank editor —
-      // which is exactly what WebKitGTK produces with no usable WebGL2.
+      // which is exactly what WebKitGTK produces with no usable WebGL.
       reportError(error, { surface: 'cp-workspace:webgl' });
-      setRendererError(error instanceof Error ? error.message : String(error));
+      setRendererStatus({
+        kind: 'unsupported',
+        detail: error instanceof Error ? error.message : String(error),
+      });
       return;
     }
     // A rebuild after context loss succeeded, so clear any earlier failure.
-    setRendererError(null);
+    setRendererStatus(null);
     rendererRef.current = renderer;
 
     const viewportOf = (ratio: number): Viewport => ({
@@ -2745,7 +2768,180 @@ export function CreasePatternWebglCanvas({
     let lastY = 0;
     let pressX = 0;
     let pressY = 0;
+
+    // --- Multi-touch arbitration ---
+    // Which pointer owns this surface, when more than one is on it. The rules
+    // and the state machine are in `gestures/cpTouchArbiter`, unit-tested over
+    // whole pointer sequences; what stays here is acting on its verdict, which
+    // is the half that has to reach into a dozen pieces of gesture state.
+    const gestures = createCpTouchArbiter();
+
+    /**
+     * Drop the live half of a crease-draw preview — the rubber band and the snap
+     * ring — while keeping a *parked* start visible as its placed dot. Reports
+     * whether there was in fact a parked start.
+     *
+     * Two callers, for the same reason: the cursor has gone away (it left the
+     * canvas) or has been taken away (a second contact claimed the gesture). In
+     * both there is no cursor left to stretch a band to, and in neither is the
+     * parked start the departing gesture's to discard.
+     */
+    const parkDrawPreview = (): boolean => {
+      const mode = liveRef.current.activeToolInputMode;
+      // Guarded on the mode as well as the ref, so a parked point cannot outlive the
+      // tool that placed it if a reset is ever missed.
+      const parked = (toolModeSnapsDrawPoint(mode) && armedDrawPointRef.current) || null;
+      if (!parked) {
+        renderer.setOverlayPoints(null);
+        return false;
+      }
+      clearPreview();
+      if (mode === 'angle-drag') liveRef.current.onToolPreviewInput([], []);
+      renderer.setOverlayPoints(
+        sequenceOverlayPoints(
+          [parked],
+          null,
+          readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK)
+        )
+      );
+      return true;
+    };
+
+    /**
+     * Take back whatever the in-flight single-pointer gesture started, because
+     * something else has claimed the surface — a second finger arriving for a
+     * pinch, a Pencil preempting a hand, or a long press turning into the
+     * secondary gesture.
+     *
+     * The rule, and it is the whole design: **abort takes back only what *this
+     * pointer sequence* created.** State that outlived the previous gesture — a
+     * crease-draw tool's parked start, a half-collected point sequence, a
+     * Lengthen selection waiting on its target — is not this gesture's to
+     * destroy, because "tap to place, pinch to zoom in, tap to place the next
+     * point" is precisely the tablet workflow this change exists to enable. That
+     * distinction is already drawn in the code, between the per-press runtimes
+     * (`toolRuntime`) and the cross-gesture ones (`armedDrawRuntimeRef`,
+     * `persistentToolRuntimeRef`); this only has to respect it.
+     *
+     * One thing abort cannot undo, and should not: a `sequence` tool at its last
+     * step commits inside `feedSequenceTool` on *pointerdown*, and two fingers
+     * land tens of milliseconds apart, so that commit is already dispatched. It
+     * lands in the undo stack, which is the honest place for it.
+     *
+     * Inlined rather than extracted because it closes over eight mutable flags
+     * plus five feed functions, and a fifteen-argument signature would be worse
+     * than the inlining — the case AGENTS.md names. What went to `gestures/` is
+     * the decision, not the rollback.
+     */
+    const abortInFlightGesture = () => {
+      if (orbiting) {
+        // Committed, not rolled back. The figure has been drawn turned on every
+        // move and commit is the only thing that writes its camera to the store,
+        // so abandoning it would leave the figure drawn at a camera nothing
+        // records — the same reasoning `onPointerUp` gives for a cancelled orbit.
+        orbiting = false;
+        setOrbitPointer('none');
+        liveRef.current.foldedOrbit?.commit();
+      }
+      if (erasing) {
+        clearPreview();
+        eraseRuntime?.feed({ kind: 'cancel', point: { x: 0, y: 0 } });
+        erasing = false;
+        eraseRuntime = null;
+      }
+      if (drawing) {
+        const mode = liveRef.current.activeToolInputMode;
+        if (!toolModeSnapsDrawPoint(mode)) {
+          // A box or path tool opened a fresh engine for this press, so the whole
+          // engine is this gesture's: cancel it and drop it, as the release does.
+          feedTool('cancel', 0, 0);
+          toolRuntime = null;
+          renderer.setOverlayPoints(null);
+        } else if (!parkDrawPreview()) {
+          // Nothing was parked when the press landed, so the press itself opened
+          // the gesture (`{start, armed: false}`) and cancelling costs nothing
+          // older than it. Had a start been parked, `dragLineTool`'s armed `down`
+          // would have returned the state unchanged — the press's only effects
+          // being the rubber band and the snap ring, which `parkDrawPreview` has
+          // just taken back on its own.
+          feedTool('cancel', 0, 0);
+        }
+        drawing = false;
+      }
+      if (liveRef.current.activeToolInputMode === 'lengthen') {
+        if (lengthenRef.current.phase === 'select') {
+          // Gesture 1 was in flight: this press drew the selection line, so it
+          // goes — through the tool's own cancel, which is what Escape and a
+          // cancelled release already route to. Unpicking the state by hand here
+          // would be a second answer to "what does abandoning a Lengthen
+          // selection mean", and the two would drift the moment the phase grows
+          // a field.
+          feedLengthen('cancel', 0, 0);
+        } else {
+          // Phase `extend` keeps its picked creases — gesture 1 was a complete
+          // act that finished before the second contact arrived — and loses only
+          // the target dot the cursor was carrying.
+          renderer.setOverlayPoints(null);
+        }
+      }
+      if (movingSelection) {
+        // Restore the un-shifted strokes. The document was never touched: the
+        // translation only commits on release.
+        renderer.setStrokes(liveRef.current.buildStrokes());
+        renderer.setPoints(liveRef.current.buildPoints());
+        movingSelection = false;
+        moveStart = null;
+        moveDelta = { x: 0, y: 0 };
+      }
+      // The camera has already moved and the gesture taking over goes on moving
+      // it, so a pan has nothing to roll back — only its flag and cursor to drop.
+      panning = false;
+      setPanDragging(false);
+      selecting = false;
+      textPressStarted = false;
+      dragShift = false;
+      moved = false;
+      marquee.style.display = 'none';
+      marquee.classList.remove('cp-webgl-marquee--text');
+      renderNow();
+    };
+
+    /**
+     * Drive the camera from one recognised multi-touch sample. The order the two
+     * halves are applied in — and why it is what makes the paper stay under the
+     * fingers — is `gestures/pinchCamera`; this only puts the anchor in the
+     * canvas' own coordinates and repaints.
+     *
+     * Applied straight through with no rAF coalescing, because there is no frame
+     * loop here to coalesce into: `renderNow` is synchronous, and the mouse pan
+     * and the wheel both already drive the camera imperatively per event.
+     */
+    const applyPinch = (transform: PinchTransform, anchor: GesturePoint) => {
+      const cam = cameraRef.current;
+      if (!cam) return;
+      const ratio = dpr();
+      const rect = canvas.getBoundingClientRect();
+      applyPinchToCamera(
+        cam,
+        viewportOf(ratio),
+        transform,
+        { x: anchor.x - rect.left, y: anchor.y - rect.top },
+        ratio
+      );
+      renderNow();
+    };
+
     const onPointerDown = (e: PointerEvent) => {
+      const verdict = gestures.down(e);
+      if (verdict.abortInFlight) abortInFlightGesture();
+      if (verdict.action !== 'forward') {
+        // A camera contact, or a palm beside a Pencil. Either way it must never
+        // reach the tool branches below — the bug this whole layer exists for was
+        // a second finger re-entering them and drawing a crease.
+        e.preventDefault();
+        canvas.setPointerCapture(e.pointerId);
+        return;
+      }
       lastX = pressX = e.clientX;
       lastY = pressY = e.clientY;
       moved = false;
@@ -2864,6 +3060,12 @@ export function CreasePatternWebglCanvas({
       canvas.setPointerCapture(e.pointerId);
     };
     const onPointerMove = (e: PointerEvent) => {
+      const verdict = gestures.move(e);
+      if (verdict.action === 'transform') {
+        applyPinch(verdict.transform, verdict.anchor);
+        return;
+      }
+      if (verdict.action === 'ignore') return;
       // Adopt the modifier state the pointer reports, as upstream does on every
       // canvas mouseMoved (`Canvas.java:245`). Focus loss clears held modifiers
       // because no keyup will arrive, which is right — except when the key is
@@ -2987,6 +3189,14 @@ export function CreasePatternWebglCanvas({
       }
     };
     const onPointerUp = (e: PointerEvent) => {
+      if (gestures.up(e).action !== 'forward') {
+        // A camera contact lifting, or an inert one. The release routing below
+        // must not run: it is what would box-select or commit a translation from
+        // a gesture the tool chain never owned. Lifting one finger of a pinch
+        // also leaves the other still driving the camera — the arbiter keeps it.
+        if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+        return;
+      }
       const cancelled = e.type === 'pointercancel';
       if (orbiting) {
         // Handled before `cpPointerReleaseRoute` rather than as a case in it:
@@ -3101,7 +3311,17 @@ export function CreasePatternWebglCanvas({
         // A crease-draw tool keeps its runtime (a click may have just armed its start)
         // and its overlay, which feedTool has already set to the armed dot + snap ring.
       } else if (route === 'move-selection') {
-        if (moved && (Math.abs(moveDelta.x) > 1e-9 || Math.abs(moveDelta.y) > 1e-9)) {
+        // `cancelled` is honoured here and in `select` below, which it was not
+        // before touch: on a desktop a `pointercancel` mid-drag is rare, but iOS
+        // raises one whenever the system claims a touch — and a cancel that
+        // committed a translation would be a document edit the user never
+        // released. `cpPointerReleaseRoute` has always carried the flag for
+        // exactly this; these two routes were the ones ignoring it.
+        if (
+          !cancelled &&
+          moved &&
+          (Math.abs(moveDelta.x) > 1e-9 || Math.abs(moveDelta.y) > 1e-9)
+        ) {
           // Commit: the document update re-renders the strokes at their final
           // position, so we leave the shifted strokes in place (no snap-back).
           liveRef.current.onTranslateSelection(moveDelta);
@@ -3111,9 +3331,11 @@ export function CreasePatternWebglCanvas({
           renderer.setStrokes(liveRef.current.buildStrokes());
           renderer.setPoints(liveRef.current.buildPoints());
           renderNow();
-          if (!moved) liveRef.current.onSelect(hitTest(e.clientX, e.clientY), e.shiftKey);
+          if (!moved && !cancelled) {
+            liveRef.current.onSelect(hitTest(e.clientX, e.clientY), e.shiftKey);
+          }
         }
-      } else if (route === 'select') {
+      } else if (route === 'select' && !cancelled) {
         if (moved) boxSelect(e.clientX, e.clientY, e.shiftKey);
         else liveRef.current.onSelect(hitTest(e.clientX, e.clientY), e.shiftKey);
       }
@@ -3196,25 +3418,16 @@ export function CreasePatternWebglCanvas({
     // Drop the hover snap indicator when the cursor leaves the canvas. A parked crease
     // start stays put — the cursor is coming back — but its rubber band goes, since
     // there is no cursor left to stretch it to.
-    const onPointerLeave = () => {
+    const onPointerLeave = (e: PointerEvent) => {
+      // Only a pointer that can hover can leave. A finger fires `pointerleave`
+      // every time it lifts, which is not the same event at all — and running the
+      // hover teardown on it would blank the rubber band of the Pencil stroke
+      // still in progress beside a palm that just came off the glass. Filtering
+      // by type rather than by contact count keeps the mouse and Pencil paths
+      // bit-identical to before touch existed.
+      if (isCoarsePointer(e.pointerType)) return;
       if (!orbiting) setOrbitPointer('none');
-      const mode = liveRef.current.activeToolInputMode;
-      // Guarded on the mode as well as the ref, so a parked point cannot outlive the
-      // tool that placed it if a reset is ever missed.
-      const parked = (toolModeSnapsDrawPoint(mode) && armedDrawPointRef.current) || null;
-      if (parked) {
-        clearPreview();
-        if (mode === 'angle-drag') liveRef.current.onToolPreviewInput([], []);
-        renderer.setOverlayPoints(
-          sequenceOverlayPoints(
-            [parked],
-            null,
-            readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK)
-          )
-        );
-      } else {
-        renderer.setOverlayPoints(null);
-      }
+      parkDrawPreview();
       renderNow();
     };
     // Escape abandons an in-progress point sequence, entity pick, or armed draw.
@@ -3241,6 +3454,11 @@ export function CreasePatternWebglCanvas({
 
     return () => {
       observer.disconnect();
+      // Before the listeners go: a pending long press would otherwise fire into
+      // a disposed renderer, and contacts held here would make the rebuilt
+      // surface believe fingers were already on it (this effect re-runs on WebGL
+      // context loss, which is exactly when nobody lifts anything).
+      gestures.reset();
       canvas.removeEventListener('pointerdown', onPointerDown);
       canvas.removeEventListener('pointermove', onPointerMove);
       canvas.removeEventListener('pointerup', onPointerUp);
@@ -3257,9 +3475,9 @@ export function CreasePatternWebglCanvas({
     };
     // Live inputs are read through liveRef rather than deps, so this runs once
     // per mount. `rendererGeneration` is the only dep that ever changes -- it
-    // does so on context loss, where the dead renderer must be torn down and
-    // replaced. (`clearPreview` and `tryLoneCandidateAutoPick` are stable
-    // callbacks, listed to satisfy the exhaustive-deps rule.)
+    // does so when a lost context is restored, where the dead renderer must be
+    // torn down and replaced. (`clearPreview` and `tryLoneCandidateAutoPick`
+    // are stable callbacks, listed to satisfy the exhaustive-deps rule.)
   }, [rendererGeneration, clearPreview, tryLoneCandidateAutoPick]);
 
   // Upload creases and points whenever they are rebuilt, then redraw immediately.
@@ -3551,7 +3769,7 @@ export function CreasePatternWebglCanvas({
       />
       {/* Absolutely positioned over `.cp-panel__viewport`, which is the
           positioning context and already hosts the other canvas overlays. */}
-      {rendererError !== null && <CpRendererUnavailable reason={rendererError} />}
+      {rendererStatus !== null && <CpRendererUnavailable status={rendererStatus} />}
     </>
   );
 }
