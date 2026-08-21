@@ -13,6 +13,9 @@ keywords = ["origami", "oriedita", "crease-pattern"]
 categories = ["wasm", "algorithms"]
 include = ["Cargo.toml", "src/**", "tests/**", "!pkg/**"]
 
+[lints]
+workspace = true
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 

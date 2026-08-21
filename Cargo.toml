@@ -32,6 +32,21 @@ homepage = "https://github.com/zacharyfmarion/ori-studio"
 # first minor bump from failing every `^0.1.x` req in the workspace.
 publish = false
 
+[workspace.lints.clippy]
+# Rust 1.98 added `chunks_exact_to_as_chunks`, and CI runs
+# `dtolnay/rust-toolchain@stable` unpinned with `-D warnings`, so it turned 25
+# pre-existing call sites across six crates into hard errors the day the
+# toolchain rolled. None of them changed; the lint did.
+#
+# Allowed rather than migrated because the migration is not the mechanical
+# find-and-replace it looks like. `as_chunks::<N>()` yields `&[T; N]` instead of
+# `&[T]`, which is exactly why it is an improvement — `geometry_transport.rs`
+# would drop a `try_into().unwrap()` and `checks.rs` a `copy_from_slice` — but
+# the sites live in `oristudio-cp` and `oristudio-cp-detect`, where PORTING.md
+# asks for oracle runs behind changes to geometry and image code. That is worth
+# doing on its own, with its own review, not folded into an unrelated change.
+chunks_exact_to_as_chunks = "allow"
+
 [workspace.dependencies]
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }

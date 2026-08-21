@@ -13,6 +13,9 @@ keywords = ["origami", "crease-pattern", "evaluation", "metrics"]
 categories = ["algorithms", "mathematics"]
 include = ["Cargo.toml", "README.md", "src/**"]
 
+[lints]
+workspace = true
+
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true

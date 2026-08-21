@@ -9,6 +9,9 @@ description = "Fixture and oracle tests for the TreeMaker 5.0.1 Rust port"
 repository.workspace = true
 publish = false
 
+[lints]
+workspace = true
+
 [dev-dependencies]
 serde_json.workspace = true
 serde.workspace = true

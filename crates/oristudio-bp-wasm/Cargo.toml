@@ -13,6 +13,9 @@ keywords = ["origami", "box-pleating", "wasm"]
 categories = ["wasm", "algorithms"]
 include = ["Cargo.toml", "src/**", "tests/**", "!pkg/**"]
 
+[lints]
+workspace = true
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 
