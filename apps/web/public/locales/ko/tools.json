@@ -11,6 +11,7 @@
     "applyVoronoi": "Voronoi 적용",
     "ariaLabel": "전개도 도구 옵션",
     "autoNearest": "자동 최근접",
+    "cancelInput": "이 단계 취소",
     "candidate": "후보",
     "candidateIndex": "후보 인덱스",
     "circleColor": "원 색상",
@@ -149,6 +150,7 @@
     "width": "폭"
   },
   "cpRail": {
+    "addToSelection": "선택에 추가",
     "ariaLabel": "전개도 도구",
     "openEditableFirst": "편집 가능한 전개도를 먼저 여세요"
   },
@@ -157,6 +159,10 @@
     "count": "{{total}}개 중 {{index}}번째",
     "next": "다음 옵션",
     "previous": "이전 옵션"
+  },
+  "cpToolPicker": {
+    "close": "도구 목록 닫기",
+    "title": "모든 도구"
   },
   "divideMode": {
     "count": "개수",

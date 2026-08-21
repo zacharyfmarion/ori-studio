@@ -1,7 +1,9 @@
 import { act, type ComponentProps } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { storageKey, STORAGE_KEYS } from '../../lib/storage';
+import { resetShiftLatch } from '../../cp-workspace/touchModifiers/shiftLatch';
+import { TOUCH_LABEL_HOLD_MS } from '../ui/useTouchLabel';
 import { TooltipProvider } from '../ui/Tooltip';
 import { CpToolRail } from './CpToolRail';
 
@@ -20,9 +22,31 @@ afterEach(() => {
   container?.remove();
   container = null;
   localStorage.clear();
+  resetShiftLatch();
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
-function renderRail(active: Partial<CpToolRailActive> = {}): HTMLDivElement {
+/**
+ * The rail's touch affordances are gated on the primary pointer, and jsdom has
+ * no opinion about one. Stubbed rather than mocked away so the fine-pointer
+ * assertions run through the same code path the desktop does.
+ */
+function stubPointer(coarse: boolean) {
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn((query: string) => ({
+      matches: query.includes('pointer: coarse') ? coarse : false,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+  );
+}
+
+function renderRail(
+  active: Partial<CpToolRailActive> = {},
+  onSelectAction: ComponentProps<typeof CpToolRail>['onSelectAction'] = () => {}
+): HTMLDivElement {
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
@@ -34,7 +58,7 @@ function renderRail(active: Partial<CpToolRailActive> = {}): HTMLDivElement {
           activeOperationId={active.activeOperationId ?? null}
           activeLineColor="Red1"
           editable
-          onSelectAction={() => {}}
+          onSelectAction={onSelectAction}
         />
       </TooltipProvider>
     );
@@ -145,5 +169,107 @@ describe('CpToolRail merged tools', () => {
       activeOperationId: 'DrawCreaseFree',
     });
     expect(buttonFor(host, 'Divided Line').textContent).toBe('\uE011');
+  });
+});
+
+/*
+ * The rail is 52 icon-only tools whose only visible label is a Radix tooltip,
+ * and Radix deliberately has no touch path for one. These are the two ways a
+ * finger gets the label instead: a visible picker, and a press-and-hold.
+ *
+ * Neither exists on a fine pointer, and neither takes any of the rail's width.
+ */
+describe('CpToolRail touch affordances', () => {
+  it('adds nothing to the rail on a fine pointer', () => {
+    stubPointer(false);
+    const host = renderRail();
+
+    expect(host.querySelector('.cp-tool-rail__picker-trigger')).toBeNull();
+    expect(host.querySelector('.cp-tool-rail__latch')).toBeNull();
+  });
+
+  it('offers the picker and the Shift latch on a coarse pointer', () => {
+    stubPointer(true);
+    const host = renderRail();
+
+    expect(host.querySelector('.cp-tool-rail__picker-trigger')).not.toBeNull();
+    expect(host.querySelector('.cp-tool-rail__latch')).not.toBeNull();
+  });
+
+  it('keeps the button grid exactly as wide as it was', () => {
+    stubPointer(true);
+    const host = renderRail();
+
+    // The affordances are rows above the grid, not columns beside it: the
+    // iPad's constraint is horizontal, and a rail that got wider to fit labels
+    // would trade one problem for another.
+    const header = host.querySelector('.cp-tool-rail__touch-header');
+    const buttons = host.querySelector('.cp-tool-rail__buttons');
+    expect(header?.contains(buttons ?? null)).toBe(false);
+    expect(header?.nextElementSibling?.className).toBe('cp-tool-rail__groups');
+  });
+
+  it('names a tool on a press-and-hold without arming it', () => {
+    vi.useFakeTimers();
+    stubPointer(true);
+    const selected: string[] = [];
+    const host = renderRail({}, (action) => selected.push(action.id));
+    const button = buttonFor(host, 'Eraser');
+
+    act(() => {
+      button.dispatchEvent(touchPointer('pointerdown'));
+    });
+    act(() => {
+      vi.advanceTimersByTime(TOUCH_LABEL_HOLD_MS);
+    });
+    expect(document.querySelector('.tooltip-content')?.textContent).toContain('Eraser');
+
+    act(() => {
+      button.dispatchEvent(touchPointer('pointerup'));
+      button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    // The press that asked what a tool is must not also select it — that is the
+    // difference between this and the canvas long-press that was removed.
+    expect(selected).toEqual([]);
+  });
+
+  it('still selects a tool on a plain tap', () => {
+    vi.useFakeTimers();
+    stubPointer(true);
+    const selected: string[] = [];
+    const host = renderRail({}, (action) => selected.push(action.id));
+    const button = buttonFor(host, 'Eraser');
+
+    act(() => {
+      button.dispatchEvent(touchPointer('pointerdown'));
+      button.dispatchEvent(touchPointer('pointerup'));
+      button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(selected).toHaveLength(1);
+  });
+});
+
+/** jsdom has no `PointerEvent`; the fields the hold reads are a MouseEvent's plus this one. */
+function touchPointer(type: string): Event {
+  const event = new MouseEvent(type, { bubbles: true, clientX: 0, clientY: 0 });
+  Object.defineProperty(event, 'pointerType', { value: 'touch' });
+  return event;
+}
+
+/*
+ * `.cp-tool-rail` is a grid with one explicit row, so an empty header div would
+ * still open a second implicit one — the fine-pointer rail must not gain a child
+ * at all.
+ */
+describe('CpToolRail desktop layout', () => {
+  it('has exactly the children it had before the touch work', () => {
+    stubPointer(false);
+    const host = renderRail();
+    const rail = host.querySelector('.cp-tool-rail');
+
+    expect([...(rail?.children ?? [])].map((node) => node.className)).toEqual([
+      'cp-tool-rail__groups',
+    ]);
   });
 });

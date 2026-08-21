@@ -211,6 +211,7 @@ import { SurfaceLoading } from '../ui/SurfaceLoading';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Toggle } from '../ui/Toggle';
 import { CpToolRail } from './CpToolRail';
+import { withShiftLatch } from '../../cp-workspace/touchModifiers/shiftLatch';
 import { NextDocumentAction } from './NextDocumentAction';
 import {
   isViewportInteractiveTarget,
@@ -774,6 +775,20 @@ export function CreasePatternPanel() {
   // Points placed so far in the current measure pick, for the step prompt. A
   // sequence tool's points live on the canvas, so this mirrors its pick progress.
   const [cpMeasurePicked, setCpMeasurePicked] = useState(0);
+  /**
+   * The same count for *any* tool, not just the measuring ones.
+   *
+   * Every other signal the panel has for "this tool is holding input" is
+   * derived: `cpToolState.stepIndex` is clamped to `steps.length - 1` by
+   * `advanceStep`, so a parked start on a single-step tool still reads 0, and
+   * the four `cpInputPending` terms below only ever go non-empty for three
+   * tools. The canvas's own raw count is the one unclamped answer, and it
+   * already arrives here — the 45 point-sequence tools, the line-entity one and
+   * the parked draw start of the snap-draw tools all report through
+   * `onToolPickProgress`. Reading it directly is what lets the on-screen Cancel
+   * appear for all of them rather than for three.
+   */
+  const [cpToolPicked, setCpToolPicked] = useState(0);
   // The pick in progress — placed points plus the cursor — so the on-canvas figure
   // and its value track the mouse before anything is committed.
   const [cpMeasureLivePoints, setCpMeasureLivePoints] = useState<readonly Point[]>([]);
@@ -1907,6 +1922,7 @@ export function CreasePatternPanel() {
           }
         });
         setCpMeasurePicked(0);
+        setCpToolPicked(0);
         setCpMeasureLivePoints([]);
         setCpMeasureLiveValue(null);
         setCpToolState((state) =>
@@ -1950,7 +1966,7 @@ export function CreasePatternPanel() {
               command.operationId === 'CreaseSelect' ||
               command.operationId === 'SelectLasso' ||
               command.operationId === 'SelectPolygon'
-                ? !commit.additive
+                ? !withShiftLatch(commit.additive)
                 : undefined,
           })
         );
@@ -1994,6 +2010,7 @@ export function CreasePatternPanel() {
       const command = activeCpCommand;
       if (!command || command.uiStatus !== 'ready') return;
       if (isCpMeasurementOperation(command.operationId)) setCpMeasurePicked(picked);
+      setCpToolPicked(picked);
       setCpToolState((state) => {
         if (state.activeOperationId !== command.operationId) return state;
         let next = transitionOristudioCpToolState(state, { type: 'cancel', keepActive: true });
@@ -2616,6 +2633,21 @@ export function CreasePatternPanel() {
   );
 
   /**
+   * The active tool is holding input the user has not finished placing.
+   *
+   * Escape's ladder asks this, and so does the hint window's on-screen Cancel:
+   * abandoning a half-placed point sequence is one of the two rungs with no
+   * pointer path at all, and a touch user who picked the wrong first point had
+   * to finish the gesture and undo it.
+   */
+  const cpInputPending =
+    cpToolPicked > 0 ||
+    cpToolPoints.length > 0 ||
+    cpToolPath.length > 0 ||
+    pendingLengthenLineId !== null ||
+    pendingSquareBisectorLineIds.length > 0;
+
+  /**
    * Escape, as a layered cancel: stop a running fold, else leave the hand tool,
    * else drop the selection, else deactivate the tool. Matches Oriedita, and
    * fixes "select-all, Escape, select-one ⇒ everything selected again" for
@@ -2662,13 +2694,9 @@ export function CreasePatternPanel() {
       return;
     }
     // A selection takes priority as long as no gesture is in progress; a second
-    // Escape then cancels the tool.
-    const gestureInProgress =
-      cpToolPoints.length > 0 ||
-      cpToolPath.length > 0 ||
-      pendingLengthenLineId !== null ||
-      pendingSquareBisectorLineIds.length > 0 ||
-      cpToolDragRef.current !== null;
+    // Escape then cancels the tool. The drag ref is only readable at event time,
+    // so it joins the rendered half here rather than in it.
+    const gestureInProgress = cpInputPending || cpToolDragRef.current !== null;
     if (editableSelectionSize > 0 && !gestureInProgress) {
       clearOristudioCpSelection();
       return;
@@ -2677,6 +2705,11 @@ export function CreasePatternPanel() {
     if (cancellation.handled) {
       setCpToolPoints([]);
       setCpToolPath([]);
+      // Cleared here rather than left to the canvas's own reset, which does
+      // report `onToolPickProgress(0)` on its way through — but this rung is
+      // what makes the Cancel button disappear, and a control that outlives the
+      // thing it cancels is the bug it was added to fix.
+      setCpToolPicked(0);
       setPendingLengthenLineId(null);
       setPendingSquareBisectorLineIds([]);
       cpToolDragRef.current = null;
@@ -2687,8 +2720,7 @@ export function CreasePatternPanel() {
   }, [
     clearOristudioCpSelection,
     stopOristudioCpFolds,
-    cpToolPath.length,
-    cpToolPoints.length,
+    cpInputPending,
     cpToolState,
     editableCp,
     editableSelectionSize,
@@ -2696,8 +2728,6 @@ export function CreasePatternPanel() {
     annotations,
     panToolActive,
     vertexSolve,
-    pendingLengthenLineId,
-    pendingSquareBisectorLineIds.length,
   ]);
 
   /**
@@ -2816,6 +2846,7 @@ export function CreasePatternPanel() {
   useEffect(() => {
     setCpMeasurements([]);
     setCpMeasurePicked(0);
+    setCpToolPicked(0);
   }, [editableCpHandle]);
 
   // V1 measurement lifetime: a reading lives only while the measure tool is active.
@@ -2829,6 +2860,7 @@ export function CreasePatternPanel() {
       setCpMeasurements([]);
       setCpHoveredMeasureIndex(null);
       setCpMeasurePicked(0);
+      setCpToolPicked(0);
       setCpMeasureLivePoints([]);
       setCpMeasureLiveValue(null);
     }
@@ -2952,7 +2984,15 @@ export function CreasePatternPanel() {
                   selectedLineIds={oristudioCpSelection.lines}
                   selectedPointIds={oristudioCpSelection.points}
                   selectedCircleIds={oristudioCpSelection.circles}
-                  onSelect={(hit, additive) => {
+                  onSelect={(hit, shiftHeld) => {
+                    // The canvas reports the Shift key; the rail's latch is how
+                    // a device with no Shift key says the same thing. Merged
+                    // here, at the boundary, so everything past this line sees
+                    // one `additive` with one meaning — and so the latch
+                    // inherits exactly the behaviour Shift has today, including
+                    // the store-ids-versus-kernel-flags split it already lives
+                    // with (see `implementation-plans/lasso-click-selection.md`).
+                    const additive = withShiftLatch(shiftHeld);
                     // Any click on the canvas is a click outside every canvas
                     // object — the overlay captures presses that land on one and
                     // they never reach here. So deselect first, whether or not
@@ -2968,7 +3008,8 @@ export function CreasePatternPanel() {
                     else if (hit.kind === 'point') handleEditablePointClick(hit.id, additive);
                     else handleEditableCircleClick(hit.id, additive);
                   }}
-                  onBoxSelect={(sets, additive) => {
+                  onBoxSelect={(sets, shiftHeld) => {
+                    const additive = withShiftLatch(shiftHeld);
                     const merge = (prev: number[], next: number[]) =>
                       Array.from(new Set([...prev, ...next]));
                     const base = additive ? oristudioCpSelection : emptyOristudioCpSelection();
@@ -3287,6 +3328,7 @@ export function CreasePatternPanel() {
                       ? handleClearActiveContextInput
                       : undefined
                   }
+                  onCancelInput={cpInputPending ? cancelActiveCpInput : undefined}
                 />
               )}
               <div className="viewport-status-readout">

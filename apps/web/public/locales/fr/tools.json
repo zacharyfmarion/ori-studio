@@ -11,6 +11,7 @@
     "applyVoronoi": "Appliquer Voronoi",
     "ariaLabel": "Options de l'outil de patron de plis",
     "autoNearest": "Plus proche automatique",
+    "cancelInput": "Annuler cette étape",
     "candidate": "Candidat",
     "candidateIndex": "Index du candidat",
     "circleColor": "Couleur du cercle",
@@ -165,6 +166,7 @@
     "width": "Largeur"
   },
   "cpRail": {
+    "addToSelection": "Ajouter à la sélection",
     "ariaLabel": "Outils de patron de plis",
     "openEditableFirst": "Ouvrez d'abord un patron de plis modifiable"
   },
@@ -173,6 +175,10 @@
     "count": "{{index}} sur {{total}}",
     "next": "Option suivante",
     "previous": "Option précédente"
+  },
+  "cpToolPicker": {
+    "close": "Fermer la liste des outils",
+    "title": "Tous les outils"
   },
   "divideMode": {
     "count": "Nombre",

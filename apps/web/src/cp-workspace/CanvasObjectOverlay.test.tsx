@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cpOverlayViewStore } from './cpOverlayViewStore';
 import { CanvasObjectOverlay } from './CanvasObjectOverlay';
 import type { TransformableCanvasObject } from './canvasObjects/transformableObject';
+import { resetShiftLatch, setShiftLatched } from './touchModifiers/shiftLatch';
 
 // Identity camera, so a model-space box lands on the same CSS coordinates.
 const IDENTITY = { origin: [0, 0] as const, ex: [1, 0] as const, ey: [0, 1] as const };
@@ -150,5 +151,69 @@ describe('CanvasObjectOverlay wheel forwarding', () => {
     expect(forwarded.deltaX).toBe(7);
     expect(forwarded.deltaY).toBe(3);
     expect(forwarded.deltaMode).toBe(1);
+  });
+});
+
+/*
+ * Shift during a resize decides the aspect ratio, and a touch device has no
+ * Shift key — so the rail's latch has to reach this code path or a text box can
+ * never be constrained and a reference image can never be freed. The overlay
+ * reads `withShiftLatch(event.shiftKey)`, and these drive the drag with the key
+ * down in neither hand.
+ */
+describe('CanvasObjectOverlay aspect lock', () => {
+  function dragCornerBy(dx: number, dy: number): { width: number; height: number } | null {
+    let last: { width?: number; height?: number } | null = null;
+    render({ onUpdate: (_id, patch) => (last = patch) });
+
+    // Handle order is `nw n ne e se s sw w`, so index 4 is the south-east
+    // corner. A corner is what the aspect lock applies to.
+    const corner = (container?.querySelectorAll('rect') ?? [])[4];
+    if (!(corner instanceof SVGElement)) throw new Error('no corner handle');
+    stubCapture(corner);
+
+    // The identity camera in this file means model units and CSS px agree, so
+    // the box's corner is at (70, 70) and the drag target is that plus the delta.
+    act(() => {
+      corner.dispatchEvent(pointerEvent('pointerdown', 70, 70));
+      corner.dispatchEvent(pointerEvent('pointermove', 70 + dx, 70 + dy));
+    });
+    if (!last) return null;
+    const patch = last as { width?: number; height?: number };
+    return patch.width !== undefined && patch.height !== undefined
+      ? { width: patch.width, height: patch.height }
+      : null;
+  }
+
+  function stubCapture(element: SVGElement) {
+    const target = element as unknown as Record<string, unknown>;
+    target.setPointerCapture = () => {};
+    target.hasPointerCapture = () => false;
+    target.releasePointerCapture = () => {};
+  }
+
+  function pointerEvent(type: string, clientX: number, clientY: number): Event {
+    const event = new MouseEvent(type, { bubbles: true, button: 0, clientX, clientY });
+    Object.defineProperty(event, 'pointerId', { value: 1 });
+    Object.defineProperty(event, 'pointerType', { value: 'touch' });
+    return event;
+  }
+
+  afterEach(() => {
+    resetShiftLatch();
+  });
+
+  it('resizes freely with the latch off, as a bare drag always has', () => {
+    const size = dragCornerBy(20, 0);
+    expect(size).not.toBeNull();
+    // `default-off`: width moved, height did not.
+    expect(size?.width).toBeGreaterThan(size?.height ?? 0);
+  });
+
+  it('keeps the proportions with the latch on, which is what Shift does', () => {
+    setShiftLatched(true);
+    const size = dragCornerBy(20, 0);
+    expect(size).not.toBeNull();
+    expect(size?.width).toBeCloseTo(size?.height ?? 0, 6);
   });
 });

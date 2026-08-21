@@ -281,7 +281,15 @@ const OVERSIZED_PANELS = {
   // `CpContextToolGroup` is a ~560-line change that would dwarf the feature
   // carrying it, and the note above already says it should not ride on whichever
   // feature next trips the cap. It is filed separately.
-  'CpContextToolPanel.tsx': 1171,
+  //
+  // 1171 -> 1186: the on-screen Cancel for a half-placed tool gesture. A prop, a
+  // pointer-surface read, one more term in `hasContent`, and a five-line button
+  // beside the "Clear seeds" it copies. The verb itself is `cancelActiveCpInput`
+  // in `CreasePatternPanel`, which owns the tool state it unwinds; nothing new
+  // is decided here. Same shape as the Square-tool entry above, and the same
+  // answer: the seam this file wants is still `CpContextToolGroup`, and it is
+  // still not this change's to take.
+  'CpContextToolPanel.tsx': 1186,
 };
 
 const PANEL_MAX_LINES = 800;

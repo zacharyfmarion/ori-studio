@@ -2500,7 +2500,11 @@
     "common:viewDrawer.open": "dcc839a4015c",
     "common:viewDrawer.title": "1d55ff7c387c",
     "tools:viewport.more": "ae5f306f08ed",
-    "tools:viewport.resetRotation": "7c5b0e938f02"
+    "tools:viewport.resetRotation": "7c5b0e938f02",
+    "tools:cpContext.cancelInput": "80966222363a",
+    "tools:cpRail.addToSelection": "7f9e6e964175",
+    "tools:cpToolPicker.close": "07614bd7445a",
+    "tools:cpToolPicker.title": "81c151f98a19"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5003,7 +5007,11 @@
     "common:viewDrawer.open": "dcc839a4015c",
     "common:viewDrawer.title": "1d55ff7c387c",
     "tools:viewport.more": "ae5f306f08ed",
-    "tools:viewport.resetRotation": "7c5b0e938f02"
+    "tools:viewport.resetRotation": "7c5b0e938f02",
+    "tools:cpContext.cancelInput": "80966222363a",
+    "tools:cpRail.addToSelection": "7f9e6e964175",
+    "tools:cpToolPicker.close": "07614bd7445a",
+    "tools:cpToolPicker.title": "81c151f98a19"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7506,7 +7514,11 @@
     "common:viewDrawer.open": "dcc839a4015c",
     "common:viewDrawer.title": "1d55ff7c387c",
     "tools:viewport.more": "ae5f306f08ed",
-    "tools:viewport.resetRotation": "7c5b0e938f02"
+    "tools:viewport.resetRotation": "7c5b0e938f02",
+    "tools:cpContext.cancelInput": "80966222363a",
+    "tools:cpRail.addToSelection": "7f9e6e964175",
+    "tools:cpToolPicker.close": "07614bd7445a",
+    "tools:cpToolPicker.title": "81c151f98a19"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9970,7 +9982,11 @@
     "common:viewDrawer.open": "dcc839a4015c",
     "common:viewDrawer.title": "1d55ff7c387c",
     "tools:viewport.more": "ae5f306f08ed",
-    "tools:viewport.resetRotation": "7c5b0e938f02"
+    "tools:viewport.resetRotation": "7c5b0e938f02",
+    "tools:cpContext.cancelInput": "80966222363a",
+    "tools:cpRail.addToSelection": "7f9e6e964175",
+    "tools:cpToolPicker.close": "07614bd7445a",
+    "tools:cpToolPicker.title": "81c151f98a19"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12434,7 +12450,11 @@
     "common:viewDrawer.open": "dcc839a4015c",
     "common:viewDrawer.title": "1d55ff7c387c",
     "tools:viewport.more": "ae5f306f08ed",
-    "tools:viewport.resetRotation": "7c5b0e938f02"
+    "tools:viewport.resetRotation": "7c5b0e938f02",
+    "tools:cpContext.cancelInput": "80966222363a",
+    "tools:cpRail.addToSelection": "7f9e6e964175",
+    "tools:cpToolPicker.close": "07614bd7445a",
+    "tools:cpToolPicker.title": "81c151f98a19"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -14937,7 +14957,11 @@
     "common:viewDrawer.open": "dcc839a4015c",
     "common:viewDrawer.title": "1d55ff7c387c",
     "tools:viewport.more": "ae5f306f08ed",
-    "tools:viewport.resetRotation": "7c5b0e938f02"
+    "tools:viewport.resetRotation": "7c5b0e938f02",
+    "tools:cpContext.cancelInput": "80966222363a",
+    "tools:cpRail.addToSelection": "7f9e6e964175",
+    "tools:cpToolPicker.close": "07614bd7445a",
+    "tools:cpToolPicker.title": "81c151f98a19"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17440,7 +17464,11 @@
     "common:viewDrawer.open": "dcc839a4015c",
     "common:viewDrawer.title": "1d55ff7c387c",
     "tools:viewport.more": "ae5f306f08ed",
-    "tools:viewport.resetRotation": "7c5b0e938f02"
+    "tools:viewport.resetRotation": "7c5b0e938f02",
+    "tools:cpContext.cancelInput": "80966222363a",
+    "tools:cpRail.addToSelection": "7f9e6e964175",
+    "tools:cpToolPicker.close": "07614bd7445a",
+    "tools:cpToolPicker.title": "81c151f98a19"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -19904,6 +19932,10 @@
     "common:viewDrawer.open": "dcc839a4015c",
     "common:viewDrawer.title": "1d55ff7c387c",
     "tools:viewport.more": "ae5f306f08ed",
-    "tools:viewport.resetRotation": "7c5b0e938f02"
+    "tools:viewport.resetRotation": "7c5b0e938f02",
+    "tools:cpContext.cancelInput": "80966222363a",
+    "tools:cpRail.addToSelection": "7f9e6e964175",
+    "tools:cpToolPicker.close": "07614bd7445a",
+    "tools:cpToolPicker.title": "81c151f98a19"
   }
 }

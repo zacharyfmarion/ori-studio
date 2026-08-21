@@ -9423,3 +9423,255 @@ button.bp-packing-alert:focus-visible {
     animation: none;
   }
 }
+
+/*
+ * ---------------------------------------------------------------------------
+ * Reading a label with a finger.
+ *
+ * Radix's tooltip has no touch path — its trigger returns early from
+ * `onPointerMove` for `pointerType === "touch"`, closes on `onPointerDown`, and
+ * suppresses the `onFocus` open whenever a pointer is down. So under a coarse
+ * pointer an icon button's only visible label is unreachable, and `useTouchLabel`
+ * adds press-and-hold to summon it.
+ *
+ * Two surfaces answer that press with something else unless told not to: iOS
+ * raises the callout/selection UI, and both engines start a text selection on the
+ * label glyph. Neither is a rule the fine-pointer stylesheet has, and neither
+ * changes anything a mouse does.
+ * ---------------------------------------------------------------------------
+ */
+@media (pointer: coarse) {
+  .ui-button,
+  .ui-button-tooltip-trigger,
+  .cp-tool-rail__button {
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+
+  /*
+   * `.cp-tool-rail` ships one explicit row, `minmax(0, 1fr)`, sized for its only
+   * child being the scrolling group list. The touch header takes that row simply
+   * by being first, which demotes the group list to an implicit `auto` one — and
+   * an `auto` track holding an `overflow-y: auto` child reports a min-content
+   * contribution of 0 and a max-content contribution of the whole list, so it
+   * absorbs the rail's full height and the `fr` track resolves to 0. Measured on
+   * a base iPad: `grid-template-rows` came out `0px 700px`, and the header's two
+   * 44px buttons painted on top of the Type group instead of above it.
+   *
+   * So the rows are named here, where the header exists. Unconditional inside
+   * this block because the header's own gate is `useIsCoarsePointerSurface()`,
+   * which is this media query — under a coarse pointer the rail always has both
+   * children, and under a fine one it keeps the single-row rule above.
+   */
+  .cp-tool-rail {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  /*
+   * The rail's two touch-only rows: the tool picker's trigger and the Shift
+   * latch. Full width on purpose — the rail's constraint is horizontal, the
+   * button grid below keeps every pixel it has, and what these spend is height
+   * in a column that already scrolls.
+   */
+  .cp-tool-rail__touch-header {
+    display: grid;
+    gap: var(--space-1);
+    padding: var(--space-2) 5px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  /*
+   * "Cancel this step" renders only under this media query — it is the one
+   * control in the hint window that exists purely because there is no Escape
+   * key — and it inherited a 24px `min-height` from the fine-pointer rule it
+   * shares with "Clear seeds". A finger-only affordance under the target size is
+   * the defect this whole pass exists to remove, so both grow here.
+   */
+  .cp-context-panel__secondary {
+    min-height: var(--touch-target);
+    padding-inline: var(--space-3);
+  }
+
+  .cp-tool-rail__picker-trigger,
+  .cp-tool-rail__latch {
+    justify-content: flex-start;
+    gap: var(--space-2);
+    width: 100%;
+    min-height: var(--touch-target);
+    padding-inline: var(--space-2);
+    text-align: left;
+  }
+
+  /*
+   * The latch is a mode, and a mode that is on with nothing on screen saying so
+   * is how a user ends up adding to a selection they meant to replace. `ghost`
+   * gives `[data-active]` no fill of its own, so it gets one here.
+   */
+  .cp-tool-rail__latch[data-active] {
+    border-color: color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
+    background: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-tertiary));
+    color: var(--text-primary);
+  }
+
+  /*
+   * The tool picker: every rail tool with its name, its description and its
+   * shortcut. `position: fixed`, so like the View drawer it sits outside
+   * `.app-layout` for layout purposes and insets itself past the safe area.
+   */
+  .cp-tool-picker {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    display: flex;
+    justify-content: flex-start;
+    padding: var(--safe-top) 0 var(--safe-bottom) var(--safe-left);
+    background: var(--overlay-dim);
+    backdrop-filter: blur(4px);
+  }
+
+  .cp-tool-picker__sheet {
+    display: flex;
+    flex-direction: column;
+    /* Wide enough for the longest name plus its shortcut: "Concentric from two
+       circles" is 27 characters, and truncating it here would defeat the point
+       of the sheet existing. */
+    width: min(380px, 92vw);
+    min-height: 0;
+    border-right: 1px solid var(--border-default);
+    background: var(--bg-secondary);
+    box-shadow: var(--shadow-context-menu);
+    animation: cp-tool-picker-in 0.18s ease-out;
+  }
+
+  .cp-tool-picker__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border-default);
+    background: var(--bg-primary);
+  }
+
+  .cp-tool-picker__title {
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-weight: 750;
+    letter-spacing: 0;
+  }
+
+  .cp-tool-picker__body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    /* Reaching the end of the list must not start scrolling the app behind it. */
+    overscroll-behavior: contain;
+    padding-bottom: var(--space-4);
+  }
+
+  .cp-tool-picker__group-title {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-secondary);
+    color: var(--text-tertiary);
+    font-size: 0.62rem;
+    font-weight: 750;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .cp-tool-picker__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .cp-tool-picker__item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: var(--touch-target);
+    padding: var(--space-2) var(--space-3);
+    border: 0;
+    background: transparent;
+    color: var(--text-primary);
+    text-align: left;
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+
+  .cp-tool-picker__item[data-active] {
+    background: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-tertiary));
+    box-shadow: inset 2px 0 0 var(--accent-primary);
+  }
+
+  .cp-tool-picker__item[aria-disabled='true'] {
+    color: var(--text-tertiary);
+    opacity: 0.55;
+  }
+
+  .cp-tool-picker__icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    color: var(--text-secondary);
+  }
+
+  .cp-tool-picker__item[data-active] .cp-tool-picker__icon {
+    color: var(--text-primary);
+  }
+
+  .cp-tool-picker__text {
+    display: grid;
+    flex: 1;
+    min-width: 0;
+    gap: 1px;
+  }
+
+  .cp-tool-picker__label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  /* The description the tooltip used to be the only home for. Two lines at most:
+     past that the row stops being scannable and the list stops being a list. */
+  .cp-tool-picker__hint {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--text-tertiary);
+    font-size: 0.7rem;
+    line-height: 1.3;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .cp-tool-picker__shortcut {
+    flex: 0 0 auto;
+    padding: 2px 6px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-tertiary);
+    font-family: inherit;
+    font-size: 0.66rem;
+  }
+
+  @keyframes cp-tool-picker-in {
+    from {
+      transform: translateX(-100%);
+    }
+  }
+}
+
+@media (pointer: coarse) and (prefers-reduced-motion: reduce) {
+  .cp-tool-picker__sheet {
+    animation: none;
+  }
+}

@@ -11,6 +11,7 @@
     "applyVoronoi": "Apply Voronoi",
     "ariaLabel": "Crease pattern tool options",
     "autoNearest": "Auto nearest",
+    "cancelInput": "Cancel this step",
     "candidate": "Candidate",
     "candidateIndex": "Candidate index",
     "circleColor": "Circle color",
@@ -157,6 +158,7 @@
     "width": "Width"
   },
   "cpRail": {
+    "addToSelection": "Add to selection",
     "ariaLabel": "Crease pattern tools",
     "openEditableFirst": "Open an editable crease pattern first"
   },
@@ -165,6 +167,10 @@
     "count": "{{index}} of {{total}}",
     "next": "Next option",
     "previous": "Previous option"
+  },
+  "cpToolPicker": {
+    "close": "Close tool list",
+    "title": "All tools"
   },
   "divideMode": {
     "count": "Count",

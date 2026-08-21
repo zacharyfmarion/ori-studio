@@ -11,6 +11,7 @@
     "applyVoronoi": "Voronoi を適用",
     "ariaLabel": "展開図ツールのオプション",
     "autoNearest": "最近傍を自動選択",
+    "cancelInput": "この手順を取り消す",
     "candidate": "候補",
     "candidateIndex": "候補インデックス",
     "circleColor": "円の色",
@@ -149,6 +150,7 @@
     "width": "幅"
   },
   "cpRail": {
+    "addToSelection": "選択に追加",
     "ariaLabel": "展開図ツール",
     "openEditableFirst": "まず編集可能な展開図を開いてください"
   },
@@ -157,6 +159,10 @@
     "count": "{{total}} 件中 {{index}} 件目",
     "next": "次の候補",
     "previous": "前の候補"
+  },
+  "cpToolPicker": {
+    "close": "ツール一覧を閉じる",
+    "title": "すべてのツール"
   },
   "divideMode": {
     "count": "個数",
