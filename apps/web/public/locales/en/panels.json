@@ -243,6 +243,8 @@
       "bigLittleBig": "Angles cannot nest (big-little-big)",
       "closure": "The creases here do not close up",
       "closureResidual": "The creases here do not close up: {{degrees}}° off",
+      "closureUnreachable": "No angle for the undecided crease here can close it",
+      "closureUnreachableClosest": "No angle for the undecided crease here can close it — the closest is {{degrees}}° off",
       "compose": "{{lead}} — {{tail}}",
       "edgeLineConfiguration": "Invalid configuration of edge lines",
       "edgeLineCount": "Too many or not enough edge lines",

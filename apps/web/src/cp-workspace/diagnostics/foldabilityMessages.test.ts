@@ -135,7 +135,7 @@ describe('borders inside the paper', () => {
 
 describe('the spatial rules', () => {
   // A separate vocabulary from Oriedita's five, with its own gate. The pair on
-  // the kernel side is `the_spatial_check_emits_only_the_four_rules_the_frontend_words`
+  // the kernel side is `the_spatial_check_emits_only_the_rules_the_frontend_words`
   // in `crates/oristudio-cp/tests/checks_spatial.rs`; neither language can see
   // the other's table, so a rename needs both to catch it.
   it.each(SPATIAL_RULES)('answers %s with a sentence, not a rule name', (rule) => {
@@ -161,6 +161,31 @@ describe('the spatial rules', () => {
       )
     ).toBe('The creases here do not close up: 53° off');
     expect(spatialRuleMessage(t, 'Closure')).toBe('The creases here do not close up');
+  });
+
+  it('does not send the user to adjust angles that are not the problem', () => {
+    // `ClosureUnreachable` is a different failure from `Closure` and asks for a
+    // different move. The kernel used to report neither: the vertex has an
+    // undecided crease, so it had no residual, so it produced no entry at all
+    // and the check came back clean on a pattern that cannot be folded.
+    const message = cpDiagnosticEntryMessage(
+      t,
+      entry({
+        kind: 'SpatialClosure',
+        rule: 'ClosureUnreachable',
+        residual_degrees: 65.957_924,
+        message: 'No angle for the undecided crease here closes this vertex',
+      })
+    );
+    expect(message).toBe(
+      'No angle for the undecided crease here can close it — the closest is 65.96° off'
+    );
+    // The number is how close the vertex can be brought, not how far off it is,
+    // so the sentence must not be `Closure`'s.
+    expect(message).not.toBe(spatialRuleMessage(t, 'Closure'));
+    expect(spatialRuleMessage(t, 'ClosureUnreachable')).toBe(
+      'No angle for the undecided crease here can close it'
+    );
   });
 
   it('does not read a rigid vertex as a disagreement to fix', () => {

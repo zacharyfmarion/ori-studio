@@ -233,6 +233,8 @@
       "bigLittleBig": "角度无法嵌套（大-小-大）",
       "closure": "此处的折线无法闭合",
       "closureResidual": "此处的折线无法闭合：相差 {{degrees}}°",
+      "closureUnreachable": "此处未指定折线取任何角度都无法闭合该顶点",
+      "closureUnreachableClosest": "此处未指定折线取任何角度都无法闭合该顶点：最接近时仍相差 {{degrees}}°",
       "compose": "{{lead}}：{{tail}}",
       "edgeLineConfiguration": "边界线配置无效",
       "edgeLineCount": "边界线过多或不足",

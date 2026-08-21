@@ -2533,7 +2533,9 @@
     "tools:cpContext.foldDirectionValleyDescription": "8e1842e67362",
     "cpVocab:action.cp_action_crease_set_direction_hint.label": "735ba8f3c45c",
     "cpVocab:action.cp_action_crease_set_direction_hint.tooltip": "f5758556cd70",
-    "cpVocab:action.cp_action_crease_set_direction_hint.disabledReason": "5fa7aac5375c"
+    "cpVocab:action.cp_action_crease_set_direction_hint.disabledReason": "5fa7aac5375c",
+    "panels:creasePattern.foldability.closureUnreachable": "cc2036255bdd",
+    "panels:creasePattern.foldability.closureUnreachableClosest": "6d970ff50d39"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5069,7 +5071,9 @@
     "tools:cpContext.foldDirectionValleyDescription": "8e1842e67362",
     "cpVocab:action.cp_action_crease_set_direction_hint.label": "735ba8f3c45c",
     "cpVocab:action.cp_action_crease_set_direction_hint.tooltip": "f5758556cd70",
-    "cpVocab:action.cp_action_crease_set_direction_hint.disabledReason": "5fa7aac5375c"
+    "cpVocab:action.cp_action_crease_set_direction_hint.disabledReason": "5fa7aac5375c",
+    "panels:creasePattern.foldability.closureUnreachable": "cc2036255bdd",
+    "panels:creasePattern.foldability.closureUnreachableClosest": "6d970ff50d39"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7605,7 +7609,9 @@
     "tools:cpContext.foldDirectionValleyDescription": "8e1842e67362",
     "cpVocab:action.cp_action_crease_set_direction_hint.label": "735ba8f3c45c",
     "cpVocab:action.cp_action_crease_set_direction_hint.tooltip": "f5758556cd70",
-    "cpVocab:action.cp_action_crease_set_direction_hint.disabledReason": "5fa7aac5375c"
+    "cpVocab:action.cp_action_crease_set_direction_hint.disabledReason": "5fa7aac5375c",
+    "panels:creasePattern.foldability.closureUnreachable": "cc2036255bdd",
+    "panels:creasePattern.foldability.closureUnreachableClosest": "6d970ff50d39"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -10102,7 +10108,9 @@
     "tools:cpContext.foldDirectionValleyDescription": "8e1842e67362",
     "cpVocab:action.cp_action_crease_set_direction_hint.label": "735ba8f3c45c",
     "cpVocab:action.cp_action_crease_set_direction_hint.tooltip": "f5758556cd70",
-    "cpVocab:action.cp_action_crease_set_direction_hint.disabledReason": "5fa7aac5375c"
+    "cpVocab:action.cp_action_crease_set_direction_hint.disabledReason": "5fa7aac5375c",
+    "panels:creasePattern.foldability.closureUnreachable": "cc2036255bdd",
+    "panels:creasePattern.foldability.closureUnreachableClosest": "6d970ff50d39"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12599,7 +12607,9 @@
     "tools:cpContext.foldDirectionValleyDescription": "8e1842e67362",
     "cpVocab:action.cp_action_crease_set_direction_hint.label": "735ba8f3c45c",
     "cpVocab:action.cp_action_crease_set_direction_hint.tooltip": "f5758556cd70",
-    "cpVocab:action.cp_action_crease_set_direction_hint.disabledReason": "5fa7aac5375c"
+    "cpVocab:action.cp_action_crease_set_direction_hint.disabledReason": "5fa7aac5375c",
+    "panels:creasePattern.foldability.closureUnreachable": "cc2036255bdd",
+    "panels:creasePattern.foldability.closureUnreachableClosest": "6d970ff50d39"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -15135,7 +15145,9 @@
     "tools:cpContext.foldDirectionValleyDescription": "8e1842e67362",
     "cpVocab:action.cp_action_crease_set_direction_hint.label": "735ba8f3c45c",
     "cpVocab:action.cp_action_crease_set_direction_hint.tooltip": "f5758556cd70",
-    "cpVocab:action.cp_action_crease_set_direction_hint.disabledReason": "5fa7aac5375c"
+    "cpVocab:action.cp_action_crease_set_direction_hint.disabledReason": "5fa7aac5375c",
+    "panels:creasePattern.foldability.closureUnreachable": "cc2036255bdd",
+    "panels:creasePattern.foldability.closureUnreachableClosest": "6d970ff50d39"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17671,7 +17683,9 @@
     "tools:cpContext.foldDirectionValleyDescription": "8e1842e67362",
     "cpVocab:action.cp_action_crease_set_direction_hint.label": "735ba8f3c45c",
     "cpVocab:action.cp_action_crease_set_direction_hint.tooltip": "f5758556cd70",
-    "cpVocab:action.cp_action_crease_set_direction_hint.disabledReason": "5fa7aac5375c"
+    "cpVocab:action.cp_action_crease_set_direction_hint.disabledReason": "5fa7aac5375c",
+    "panels:creasePattern.foldability.closureUnreachable": "cc2036255bdd",
+    "panels:creasePattern.foldability.closureUnreachableClosest": "6d970ff50d39"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -20168,6 +20182,8 @@
     "tools:cpContext.foldDirectionValleyDescription": "8e1842e67362",
     "cpVocab:action.cp_action_crease_set_direction_hint.label": "735ba8f3c45c",
     "cpVocab:action.cp_action_crease_set_direction_hint.tooltip": "f5758556cd70",
-    "cpVocab:action.cp_action_crease_set_direction_hint.disabledReason": "5fa7aac5375c"
+    "cpVocab:action.cp_action_crease_set_direction_hint.disabledReason": "5fa7aac5375c",
+    "panels:creasePattern.foldability.closureUnreachable": "cc2036255bdd",
+    "panels:creasePattern.foldability.closureUnreachableClosest": "6d970ff50d39"
   }
 }

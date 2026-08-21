@@ -253,6 +253,8 @@
       "bigLittleBig": "Os ângulos não podem se aninhar (grande-pequeno-grande)",
       "closure": "Os vincos aqui não fecham",
       "closureResidual": "Os vincos aqui não fecham: {{degrees}}° de diferença",
+      "closureUnreachable": "Nenhum ângulo do vinco não atribuído fecha este vértice",
+      "closureUnreachableClosest": "Nenhum ângulo do vinco não atribuído fecha este vértice: o mais próximo fica a {{degrees}}° de diferença",
       "compose": "{{lead}} — {{tail}}",
       "edgeLineConfiguration": "Configuração inválida das linhas de borda",
       "edgeLineCount": "Linhas de borda demais ou de menos",

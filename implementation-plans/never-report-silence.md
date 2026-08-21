@@ -61,9 +61,14 @@ each arity, with measured determinacy:
 | k | What `solve_k` returns | What we can honestly say |
 | --- | --- | --- |
 | **1** | **100.00% determined** (115,560 / 115,560 real fans) | *"This closes if that crease is X°"* — or, if unsolvable, **a real error**. Never abstain. |
-| **2** | 29% determined as stored, **79% with a direction hint**, branching otherwise | Determined → the angle. Branching → *"two ways to close this"*. Family → not pinnable. |
-| **3** | Exactly determined; unique ~5% of the time | Same three outcomes, mostly branching |
+| **2** | **79.93% determined as stored, no hint needed** (215/269 blanked Tier A fans); 14.9% branching, 4.8% family | Determined → the angle. Branching → *"two ways to close this"*. Family → not pinnable. |
+| **3** | **0 determined out of 10** measured; 3 branching, 7 underdetermined — and 9× the per-vertex cost of k = 1 | Off the live path outright. Not merely gated. |
 | **≥4** | **Structurally underdetermined** (Jacobian is k×3) | *"Too many undecided creases here to say"* — the one honest abstention, and it names why |
+
+> Phase 0 corrected two rows here. The k = 2 "29% as stored / 79% with a
+> direction hint" figure came from generic 3D angle states; on designed patterns
+> k = 2 already behaves like the hinted row, so the deep-check mode needs no
+> direction hint built first. And k = 3 does not pay for itself at any price.
 
 > **The failing vertex in `failure_case.osf` is k = 1.** The app could have told
 > the owner the exact angle that closes it, or that none does. It said nothing.
@@ -71,11 +76,21 @@ each arity, with measured determinacy:
 **This settles the earlier proposal to "ignore unassigned creases and check the
 rest".** That is already what `find_flat_foldability_violation` does
 (`checks.rs:294` — the match arm is `_ => {}` and `is_folding_line()` excludes
-`None`), and it is the cause of the false clean. On this vertex it would drop
-degree 3 to degree 2 and report nothing useful. Worse, Maekawa needs
-`|M − V| = 2` with `M + V = degree`, and those share parity — so it can only hold
-at **even** degree. Dropping one crease from a degree-4 vertex guarantees a
-false *error*. The rule fails in both directions depending on parity.
+`None`). On this vertex it would drop the fan's degree by one and report nothing
+useful. Worse, Maekawa needs `|M − V| = 2` with `M + V = degree`, and those share
+parity — so it can only hold at **even** degree. Dropping one crease from a
+degree-4 vertex guarantees a false *error*. The rule fails in both directions
+depending on parity.
+
+Phase 0 measured which direction it fails in, and it is the loud one: blanking an
+eighth of the assigned creases across the corpus took `check4` from **0
+violations to 2,030**, every one invented at a vertex that was clean before, 89%
+of them the odd-degree `NumberOfFolds` arm. So case 6 is really two populations —
+spatial-regime vertices, which are silent, and flat-regime ones, which are the
+larger group and shout. The false *clean* has a separate cause: `report_for`
+setting `residual: None` and `spatial_closure_diagnostics` skipping every report
+without one. Two mechanisms, and Phase 1 has to fix both or the loud bug outlives
+the quiet one.
 
 **Solve the unknown instead of deleting it.**
 
@@ -168,20 +183,42 @@ for every vertex propagation stopped at, and **nothing reads it**. The answer to
 
 ### Phase 0 — the census
 
-- [ ] For every vertex in the validated corpus, record what each of the four
+- [x] For every vertex in the validated corpus, record what each of the four
       verdicts *would* be, and where they disagree with today's output. Without
       this the change swaps one silent wrongness for another.
-- [ ] Measure `solve_k`-in-the-checker cost on the live edit path at k ≤ 1,
+      **Result:** 9,132 vertices over 13 Tier A documents. 125 change from "not
+      examined, displayed as success" to a named verdict — **1 Broken, 124
+      Unknowable** (112 spatial boundary, 12 excused by an interior border), 0
+      Undecided, because Tier A as shipped holds exactly one unassigned crease
+      and it is the broken one. Zero unsplit junctions anywhere. Case 8
+      confirmed: `airplane.fold` and `cubeunwrapping.fold` have no interior
+      vertex at all and report clean.
+- [x] Measure `solve_k`-in-the-checker cost on the live edit path at k ≤ 1,
       ≤ 2, ≤ 3. `CheckCamv` runs after every mutation, and one non-classic crease
       already costs 4.7×–33.5×.
+      **Result:** 46 of the ~100 µs per k = 1 vertex was two whole-document
+      rescans the caller already had in hand, and both are now passed in. k ≤ 1
+      is **1.86×** the existing check on a 9,162-segment document with an eighth
+      of its creases blanked, covering both halves of case 6. k ≤ 2 is the
+      deep-check button; k ≤ 3 is nine times the per-vertex cost for nothing.
 
 ### Phase 1 — kernel verdicts
 
-- [ ] A verdict on every vertex report; declines become Unknowable, not absences.
-- [ ] Case 6 routed through `solve_k`, with the arity gate from Phase 0.
-- [ ] `Unsolvable` at k ≥ 1 becomes a **Broken** verdict — the `failure_case.osf`
+- [x] A verdict on every vertex report; declines become Unknowable, not absences.
+- [x] Case 6 routed through `solve_k`, with the arity gate from Phase 0.
+- [x] `Unsolvable` at k ≥ 1 becomes a **Broken** verdict — the `failure_case.osf`
       vertex must report.
-- [ ] Test with that file as a fixture: 1 broken vertex, named, at k = 1.
+- [x] Test with that file as a fixture: 1 broken vertex, named, at k = 1.
+      Committed as `tests/fixtures/fold-angle/unreachable-undecided-vertex.fold`
+      (that vertex minimised, runs in CI) and against the real `.osf` in
+      `non_flat_corpus.rs`.
+- [x] Not on the original list, and Phase 0 said it had to be: the flat-regime
+      half of case 6, where dropping the undecided crease invented 2,030 errors.
+
+Phase 1 also ships one **error** sentence — `ClosureUnreachable` — because a
+kernel verdict nobody can read is the bug again. Undecided and Unknowable
+deliberately produce no diagnostic entry yet; they need the fourth tone and their
+own counts, which is Phase 2.
 
 ### Phase 2 — the HUD
 
@@ -197,12 +234,16 @@ for every vertex propagation stopped at, and **nothing reads it**. The answer to
 
 ## Open questions
 
-1. **How much solving belongs on the live edit path?** k = 1 is cheap and is the
-   case that bit. k = 3 may not be affordable after every keystroke. Phase 0
-   decides; a "check deeply" button is the fallback if it is not.
-2. **Should Undecided count as a foldability issue?** It is not an error, and a
-   pattern mid-design is full of them. Probably its own count beside the error
-   count, not folded into it — but that is a product call.
+1. ~~**How much solving belongs on the live edit path?**~~ **Answered: k ≤ 1.**
+   Measured at 1.86× the existing check, after removing the two whole-document
+   rescans the caller already had. k = 2 is 79.93% determined on real patterns
+   and belongs behind a "check deeply" action; k = 3 belongs nowhere near the
+   edit path.
+2. ~~**Should Undecided count as a foldability issue?**~~ **Answered: no, its
+   own count.** A lightly in-progress pattern is already 17–18% Undecided and a
+   quarter-blanked one is ~60%, so folding them into the error count destroys the
+   count. And 99.27% of k = 1 Undecided vertices carry an answer — "1,464
+   vertices whose angle we can name" wants an apply-all action, not a list.
 3. **Interior borders (case 7).** The warning says the vertices are not checked
    and nothing computes what checking would find — measured at 82.8° of hidden
    holonomy on `known-good/byu solar driven.fold`, a curated, clean, shipping

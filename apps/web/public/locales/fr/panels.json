@@ -253,6 +253,8 @@
       "bigLittleBig": "Les angles ne peuvent pas s'imbriquer (grand-petit-grand)",
       "closure": "Les plis ne se referment pas ici",
       "closureResidual": "Les plis ne se referment pas ici : {{degrees}}° d’écart",
+      "closureUnreachable": "Aucun angle du pli non assigné ne referme ce sommet",
+      "closureUnreachableClosest": "Aucun angle du pli non assigné ne referme ce sommet : au plus près, {{degrees}}° d’écart",
       "compose": "{{lead}} — {{tail}}",
       "edgeLineConfiguration": "Configuration des lignes de bord non valide",
       "edgeLineCount": "Trop ou pas assez de lignes de bord",

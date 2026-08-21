@@ -67,13 +67,14 @@ export const FOLDABILITY_COLORS = [
  * two of them before the `isRule` guard and everything else fell through to the
  * kernel's raw English message, in all eight locales.
  *
- * Paired with a Rust test over the same four literals
+ * Paired with a Rust test over the same literals
  * (`crates/oristudio-cp/tests/checks_spatial.rs`,
- * `the_spatial_check_emits_only_the_four_rules_the_frontend_words`). Neither
+ * `the_spatial_check_emits_only_the_rules_the_frontend_words`). Neither
  * language can see the other's table, so a rename needs both gates to catch it.
  */
 export const SPATIAL_RULES = [
   'Closure',
+  'ClosureUnreachable',
   'Rigid',
   'SelfIntersection',
   'InteriorBorder',
@@ -212,6 +213,25 @@ export function spatialRuleMessage(
             'panels:creasePattern.foldability.closureResidual',
             'The creases here do not close up: {{degrees}}° off',
             { degrees: Math.round(residual * 100) / 100 }
+          );
+    }
+    // A different failure from `Closure`, and it asks the user for a different
+    // thing. `Closure` says the angles you set disagree, and the fix is to
+    // change one of them. This says the crease you have *not* set has no value
+    // that helps, so the fix is elsewhere in the pattern — and the residual is
+    // not how far off the vertex is but how close it can be brought, which is
+    // what keeps "nothing helps" from being a refusal nobody can check.
+    case 'ClosureUnreachable': {
+      const closest = entry?.residual_degrees;
+      return closest == null
+        ? t(
+            'panels:creasePattern.foldability.closureUnreachable',
+            'No angle for the undecided crease here can close it'
+          )
+        : t(
+            'panels:creasePattern.foldability.closureUnreachableClosest',
+            'No angle for the undecided crease here can close it — the closest is {{degrees}}° off',
+            { degrees: Math.round(closest * 100) / 100 }
           );
     }
     // Not a conflict to fix. A degree-1 or developable degree-3 vertex has one

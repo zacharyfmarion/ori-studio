@@ -233,6 +233,8 @@
       "bigLittleBig": "角度を入れ子にできません（大-小-大）",
       "closure": "ここの折り線が閉じません",
       "closureResidual": "ここの折り線が閉じません：{{degrees}}° のずれ",
+      "closureUnreachable": "ここの未割り当ての折り線にどの角度を与えても、この頂点は閉じません",
+      "closureUnreachableClosest": "ここの未割り当ての折り線にどの角度を与えても、この頂点は閉じません：最も近くて {{degrees}}° のずれ",
       "compose": "{{lead}}：{{tail}}",
       "edgeLineConfiguration": "外周線の構成が不正です",
       "edgeLineCount": "外周線が多すぎるか足りません",

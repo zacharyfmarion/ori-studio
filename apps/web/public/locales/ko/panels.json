@@ -233,6 +233,8 @@
       "bigLittleBig": "각도를 중첩할 수 없음(크게-작게-크게)",
       "closure": "여기의 접힘선이 닫히지 않습니다",
       "closureResidual": "여기의 접힘선이 닫히지 않습니다: {{degrees}}° 차이",
+      "closureUnreachable": "여기의 미지정 접힘선에 어떤 각도를 주어도 이 꼭짓점은 닫히지 않습니다",
+      "closureUnreachableClosest": "여기의 미지정 접힘선에 어떤 각도를 주어도 이 꼭짓점은 닫히지 않습니다: 가장 가까워도 {{degrees}}° 차이",
       "compose": "{{lead}} — {{tail}}",
       "edgeLineConfiguration": "가장자리 선 구성이 올바르지 않음",
       "edgeLineCount": "가장자리 선이 너무 많거나 부족함",

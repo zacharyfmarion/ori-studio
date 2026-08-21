@@ -243,6 +243,8 @@
       "bigLittleBig": "Winkel lassen sich nicht schachteln (groß-klein-groß)",
       "closure": "Die Falten hier schließen sich nicht",
       "closureResidual": "Die Falten hier schließen sich nicht: {{degrees}}° Abweichung",
+      "closureUnreachable": "Kein Winkel für die nicht zugewiesene Falte hier schließt diesen Knotenpunkt",
+      "closureUnreachableClosest": "Kein Winkel für die nicht zugewiesene Falte hier schließt diesen Knotenpunkt — am nächsten sind {{degrees}}° Abweichung",
       "compose": "{{lead}} — {{tail}}",
       "edgeLineConfiguration": "Ungültige Anordnung der Randlinien",
       "edgeLineCount": "Zu viele oder zu wenige Randlinien",

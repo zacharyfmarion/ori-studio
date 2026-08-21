@@ -3463,82 +3463,126 @@ fn interior_border_diagnostics(
         .collect()
 }
 
+/// The spatial half of `CheckCamv`, as diagnostic entries.
+///
+/// Driven by the verdict rather than by the residual, which is the change
+/// `implementation-plans/never-report-silence.md` exists for. The residual test
+/// alone could only say "these angles conflict"; a vertex with an undecided
+/// crease has no residual to test, so it produced no entry, so the check came
+/// back clean having declined to look. Both halves of that are now verdicts, and
+/// one of them is an error.
+///
+/// [`checks_spatial::VertexVerdict::Undecided`] and
+/// [`checks_spatial::VertexVerdict::Unknowable`] deliberately produce nothing
+/// here yet: they are not errors, a pattern mid-design is full of the first, and
+/// they want counts and a tone of their own rather than a seat in the error list.
+/// That is Phase 2 of the plan.
 fn spatial_closure_diagnostics(
     reports: &[checks_spatial::SpatialVertexReport],
 ) -> Vec<CommandDiagnostic> {
     let mut diagnostics = Vec::new();
     for (index, report) in reports.iter().enumerate() {
-        // An indeterminate vertex reports nothing. Both causes -- an unassigned
-        // crease and an unsplit T-junction -- produce a residual identical to a
-        // real parity failure, so reporting one would be a false positive.
-        let Some(residual) = report.residual else {
-            continue;
-        };
-        let residual_degrees = residual.to_degrees();
-        if residual_degrees <= CLOSURE_RESIDUAL_BAR_DEGREES {
-            // The vertex closes. Now ask the second, independent question:
-            // does the paper pass through itself getting there? Only reachable
-            // once closure holds, since a vertex that does not close has no
-            // folded state whose geometry means anything.
+        match &report.verdict {
+            // The vertex closes. Now ask the second, independent question: does
+            // the paper pass through itself getting there? Only reachable once
+            // closure holds, since a vertex that does not close has no folded
+            // state whose geometry means anything.
             // `StackedLayers` deliberately falls through to no diagnostic: it
             // means the link cannot answer, not that anything is wrong.
-            if report.link.is_some_and(|link| link.self_intersects()) {
+            checks_spatial::VertexVerdict::Fine => {
+                if report.link.is_some_and(|link| link.self_intersects()) {
+                    diagnostics.push(CommandDiagnostic {
+                        id: format!("SpatialSelfIntersection-{}", index + 1),
+                        kind: "SpatialSelfIntersection".to_string(),
+                        severity: "error".to_string(),
+                        // No crossing count: it is a property of the link
+                        // geometry, not something the user acts on one at a
+                        // time. The fix is always to change the fold angles at
+                        // this vertex.
+                        message: "Paper passes through itself at this vertex".to_string(),
+                        point: Some(report.point),
+                        segments: Vec::new(),
+                        rule: Some("SelfIntersection".to_string()),
+                        residual_degrees: None,
+                        violation_color: None,
+                        big_little_big: Vec::new(),
+                    });
+                }
+            }
+            // Rigidity is not a conflict. A degree-1 or developable degree-3
+            // vertex has a unique solution and it is zero, so telling the user
+            // their angles disagree would invite an adjustment that cannot help.
+            // The link of a vertex is a closed spherical linkage, and a triangle
+            // is a rigid truss. Worded without the degree, so the frontend can
+            // translate it with no second structural field.
+            checks_spatial::VertexVerdict::Broken(checks_spatial::Broken::Rigid) => {
                 diagnostics.push(CommandDiagnostic {
-                    id: format!("SpatialSelfIntersection-{}", index + 1),
-                    kind: "SpatialSelfIntersection".to_string(),
+                    id: format!("SpatialClosure-{}", index + 1),
+                    kind: "SpatialClosure".to_string(),
                     severity: "error".to_string(),
-                    // No crossing count: it is a property of the link geometry,
-                    // not something the user acts on one at a time. The fix is
-                    // always to change the fold angles at this vertex.
-                    message: "Paper passes through itself at this vertex".to_string(),
+                    message: "Vertex cannot fold: it is rigid, so every crease here must be 0 \
+                              degrees"
+                        .to_string(),
                     point: Some(report.point),
                     segments: Vec::new(),
-                    rule: Some("SelfIntersection".to_string()),
+                    rule: Some("Rigid".to_string()),
                     residual_degrees: None,
                     violation_color: None,
                     big_little_big: Vec::new(),
                 });
             }
-            continue;
+            // The residual rides on `residual_degrees`, which is the one number
+            // the closure sentence genuinely needs and cannot be recovered from
+            // a formatted string.
+            checks_spatial::VertexVerdict::Broken(checks_spatial::Broken::DoesNotClose) => {
+                let residual_degrees = report.residual.unwrap_or_default().to_degrees();
+                diagnostics.push(CommandDiagnostic {
+                    id: format!("SpatialClosure-{}", index + 1),
+                    kind: "SpatialClosure".to_string(),
+                    severity: "error".to_string(),
+                    message: format!("Creases do not close: {residual_degrees:.4} degrees off"),
+                    point: Some(report.point),
+                    segments: Vec::new(),
+                    rule: Some("Closure".to_string()),
+                    residual_degrees: Some(residual_degrees),
+                    violation_color: None,
+                    big_little_big: Vec::new(),
+                });
+            }
+            // **The entry that did not exist.** A separate rule from `Closure`,
+            // because the two ask the user for different things: `Closure` says
+            // the angles you set disagree, and the fix is to change one of them.
+            // This says no value of the crease you have *not* set can help, and
+            // the fix is elsewhere in the pattern. Reusing `Closure` would send
+            // the user to adjust angles that are not the problem.
+            checks_spatial::VertexVerdict::Broken(checks_spatial::Broken::NoAngleCloses {
+                closest,
+                ..
+            }) => {
+                diagnostics.push(CommandDiagnostic {
+                    id: format!("SpatialClosureUnreachable-{}", index + 1),
+                    kind: "SpatialClosure".to_string(),
+                    severity: "error".to_string(),
+                    message: match closest {
+                        Some(degrees) => format!(
+                            "No angle for the undecided crease here closes this vertex: the \
+                             closest is {degrees:.4} degrees off"
+                        ),
+                        None => {
+                            "No angle for the undecided crease here closes this vertex".to_string()
+                        }
+                    },
+                    point: Some(report.point),
+                    segments: Vec::new(),
+                    rule: Some("ClosureUnreachable".to_string()),
+                    residual_degrees: *closest,
+                    violation_color: None,
+                    big_little_big: Vec::new(),
+                });
+            }
+            checks_spatial::VertexVerdict::Undecided(_)
+            | checks_spatial::VertexVerdict::Unknowable(_) => {}
         }
-
-        // Rigidity is not a conflict. A degree-1 or developable degree-3 vertex
-        // has a unique solution and it is zero, so telling the user their angles
-        // disagree would invite an adjustment that cannot help. The link of a
-        // vertex is a closed spherical linkage, and a triangle is a rigid truss.
-        // Worded without the degree, so the frontend can translate it with no
-        // second structural field. The residual itself rides on
-        // `residual_degrees`, which is the one number the closure sentence
-        // genuinely needs and cannot be recovered from a formatted string.
-        let message = if report.is_rigid() {
-            "Vertex cannot fold: it is rigid, so every crease here must be 0 degrees".to_string()
-        } else {
-            format!("Creases do not close: {residual_degrees:.4} degrees off")
-        };
-
-        diagnostics.push(CommandDiagnostic {
-            id: format!("SpatialClosure-{}", index + 1),
-            kind: "SpatialClosure".to_string(),
-            severity: "error".to_string(),
-            message,
-            point: Some(report.point),
-            segments: Vec::new(),
-            rule: Some(
-                if report.is_rigid() {
-                    "Rigid"
-                } else {
-                    "Closure"
-                }
-                .to_string(),
-            ),
-            residual_degrees: if report.is_rigid() {
-                None
-            } else {
-                Some(residual_degrees)
-            },
-            violation_color: None,
-            big_little_big: Vec::new(),
-        });
     }
     diagnostics
 }

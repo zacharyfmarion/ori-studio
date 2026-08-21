@@ -253,6 +253,8 @@
       "bigLittleBig": "Los ángulos no pueden anidarse (grande-pequeño-grande)",
       "closure": "Los pliegues aquí no cierran",
       "closureResidual": "Los pliegues aquí no cierran: {{degrees}}° de desfase",
+      "closureUnreachable": "Ningún ángulo del pliegue sin asignar cierra este vértice",
+      "closureUnreachableClosest": "Ningún ángulo del pliegue sin asignar cierra este vértice: lo más cerca son {{degrees}}° de desfase",
       "compose": "{{lead}} — {{tail}}",
       "edgeLineConfiguration": "Configuración de líneas de borde no válida",
       "edgeLineCount": "Demasiadas o insuficientes líneas de borde",
