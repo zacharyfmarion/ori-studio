@@ -10,17 +10,29 @@ homepage.workspace = true
 [lints]
 workspace = true
 
+# iOS and Android do not run a Rust `main`. The platform owns the process and
+# links the app in as a library, so without a `staticlib` there is nothing for
+# the generated Xcode project to link against and the build fails looking for an
+# archive Cargo never produced. `rlib` is what `src/main.rs` links on desktop, so
+# it has to stay in the list — naming any `crate-type` replaces the default
+# rather than adding to it. This is the Tauri v2 template's own set.
+[lib]
+name = "ori_studio"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
 # Native desktop runs the fold with rayon-parallel condition generation.
 oristudio-cp = { workspace = true, features = ["parallel"] }
+# Decodes the `path` header on the raw-body binary write. Already in the tree
+# under `url`, so this pulls nothing new in.
+percent-encoding = "2"
 serde.workspace = true
 serde_json.workspace = true
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
-tauri-plugin-window-state = "2"
 
 # Desktop only. The updater replaces the running application, which has no
 # meaning on mobile, and `tauri-plugin-updater` does not build for those targets.
@@ -28,6 +40,20 @@ tauri-plugin-window-state = "2"
 tauri-plugin-updater = "2"
 # `relaunch()` after the update installs. Separate plugin from the updater.
 tauri-plugin-process = "2"
+
+# `tauri-plugin-window-state`'s entire body is behind
+# `#![cfg(not(any(target_os = "android", target_os = "ios")))]`, so on mobile it
+# still *resolves* as a dependency and then compiles to an empty crate — every
+# path into it fails at `use`, with an error that names the item rather than the
+# platform. Gating the dependency instead makes the reason legible.
+#
+# The predicate is the exact complement of the plugin's own, which is also what
+# `tauri-build` aliases as `cfg(desktop)`; the use sites are gated on that alias,
+# so the two cannot drift apart. Deliberately *not* folded into the
+# macOS/Windows/Linux block above — that one is narrower than this plugin's real
+# support, and reusing it would gate the plugin off a platform it works on.
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-window-state = "2"
 
 # Windows and Linux only. macOS enforces one instance per .app bundle itself and
 # routes a double-clicked document through `RunEvent::Opened`; on the other two a

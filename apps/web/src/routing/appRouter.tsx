@@ -3,8 +3,8 @@ import App from '../App';
 import { RouteErrorElement } from '../components/errors/RouteErrorElement';
 import { WorkspaceShell } from '../components/WorkspaceShell';
 import { readBoolean, storageKey, STORAGE_KEYS } from '../lib/storage';
+import { surfaceSupports } from '../platform/capabilities';
 import { isWorkspaceBlocked } from '../platform/mobileSurface';
-import { getRuntimeSurface } from '../platform/runtime';
 import { DESIGN_PATH, EDIT_PATH, LEGACY_DESIGN_PATHS, WELCOME_PATH } from './paths';
 import { ShareRoute } from './ShareRoute';
 import { WelcomeRoute } from './WelcomeRoute';
@@ -117,9 +117,9 @@ export function createAppRouter(): AppRouter {
     },
   ];
 
-  if (getRuntimeSurface() === 'desktop') {
+  if (!surfaceSupports('browserHistoryRouting')) {
     // Start at the index so `startupRedirect` applies the welcome/Edit preference
-    // on desktop too (there's no address bar to deep-link from).
+    // in the Tauri shells too (there's no address bar to deep-link from).
     return createMemoryRouter(routes, { initialEntries: ['/'] });
   }
 

@@ -20,11 +20,13 @@ export function shareApiBase(): string {
  *
  * Off in dev unless explicitly opted in, because a dev build points at the *production*
  * API unless `VITE_SHARE_API_URL` says otherwise, and nobody wants a stray test link in
- * the real namespace. Also off on desktop: Tauri routes through `createMemoryRouter` and
- * has no address bar, so a share link has nowhere to land.
+ * the real namespace. Also off in both Tauri shells: they route through
+ * `createMemoryRouter` and have no address bar, so a share link has nowhere to land.
+ * The caller passes the `shareLinks` capability rather than a surface name, so this
+ * module stays free of platform knowledge.
  */
-export function isShareEnabled(runtimeIsDesktop: boolean): boolean {
-  if (runtimeIsDesktop) return false;
+export function isShareEnabled(surfaceAllowsSharing: boolean): boolean {
+  if (!surfaceAllowsSharing) return false;
   if (import.meta.env.PROD) return true;
   return import.meta.env.VITE_SHARE_API_URL !== undefined;
 }

@@ -21,7 +21,7 @@ import {
 // Registers `__cpToolbarDebug()` in dev builds; no-op in production.
 import { toolbarRenderProbe } from './cpSelectionToolbarDebug';
 import { isShareEnabled } from './share/cpShareService';
-import { getRuntimeSurface } from '../platform/runtime';
+import { surfaceSupports } from '../platform/capabilities';
 
 // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
 function exportFormatLabel(format: SegmentExportFormat, t: TFunction): string {
@@ -92,9 +92,9 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
   const simulateSegment = useWorkspaceStore((s) => s.simulateOristudioCpSegment);
   const shareSegment = useWorkspaceStore((s) => s.shareOristudioCpSegment);
   // Web-only, and off in dev unless opted in: a dev build points at the production share
-  // API unless VITE_SHARE_API_URL says otherwise, and Tauri has no address bar for a
-  // link to land in.
-  const shareEnabled = isShareEnabled(getRuntimeSurface() === 'desktop');
+  // API unless VITE_SHARE_API_URL says otherwise, and neither Tauri shell has an address
+  // bar for a link to land in.
+  const shareEnabled = isShareEnabled(surfaceSupports('shareLinks'));
   const clearSelection = useWorkspaceStore((s) => s.clearOristudioCpSelection);
   const simulateSelectionInline = useSimulateSelection();
 

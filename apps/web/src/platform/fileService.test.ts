@@ -9,6 +9,9 @@ import {
   resetWebSaveTargets,
 } from './fileService';
 
+const { invokeMock } = vi.hoisted(() => ({ invokeMock: vi.fn() }));
+vi.mock('@tauri-apps/api/core', () => ({ invoke: invokeMock }));
+
 describe('file service selection', () => {
   it('creates a browser service for web runtime', () => {
     const service = createFileService('web');
@@ -35,14 +38,29 @@ describe('file service selection', () => {
     expect(ensureExtension('base.tmd5', '.tmd5')).toBe('base.tmd5');
   });
 
-  it('creates a desktop file service for Finder-opened paths', () => {
-    const service = createOpenedPathFileService('/tmp/project.osf');
+  it('creates a native file service for Finder-opened paths', () => {
+    // Reads the live surface rather than hard-coding `'desktop'`. jsdom's
+    // navigator is not an Apple mobile one, so the surface resolved here is
+    // `'desktop'` — what this asserts is that the *lookup happens at all*, which
+    // is what lets the same hook label an `.osf` opened from Files.app on iPadOS
+    // `'ios'` instead of shipping a service that claims to be a Mac. The `'ios'`
+    // answer itself is covered by `runtime.test.ts`, which can drive the probe.
+    Object.defineProperty(window, '__TAURI_INTERNALS__', {
+      configurable: true,
+      writable: true,
+      value: {},
+    });
+    try {
+      const service = createOpenedPathFileService('/tmp/project.osf');
 
-    expect(service.surface).toBe('desktop');
-    expect(service.supportsNativeDialogs).toBe(true);
-    expect(service.openTextFile).toBeTypeOf('function');
-    expect(service.saveTextFile).toBeTypeOf('function');
-    expect(service.saveBinaryFile).toBeTypeOf('function');
+      expect(service.surface).toBe('desktop');
+      expect(service.supportsNativeDialogs).toBe(true);
+      expect(service.openTextFile).toBeTypeOf('function');
+      expect(service.saveTextFile).toBeTypeOf('function');
+      expect(service.saveBinaryFile).toBeTypeOf('function');
+    } finally {
+      Reflect.deleteProperty(window, '__TAURI_INTERNALS__');
+    }
   });
 });
 
@@ -338,5 +356,82 @@ describe('filesystemPathOrNull', () => {
     expect(filesystemPathOrNull('C:\\work\\project.osf')).toBe('C:\\work\\project.osf');
     expect(filesystemPathOrNull(null)).toBeNull();
     expect(filesystemPathOrNull('web-save:1')).toBeNull();
+  });
+});
+
+/**
+ * How the bytes of a binary file cross the Tauri bridge.
+ *
+ * Nothing else in the repo can catch a mistake here. `invoke` takes its arguments
+ * as `unknown`, so the wire shape is invisible to `tsc`; the Rust half's tests
+ * start from an `InvokeBody` and a `HeaderMap` that *this* side is responsible for
+ * producing. Rename the `path` header, drop the `encodeURIComponent`, or go back
+ * to passing an args object, and every check in this repo still passes while
+ * saving a reference image on desktop fails at runtime.
+ *
+ * Both response shapes are asserted for the same reason `readNativeBinaryFile`
+ * handles both: Tauri picks its transport at runtime, and the postMessage
+ * fallback answers with an array of numbers where the custom protocol answers
+ * with an `ArrayBuffer`. Decoding one as the other yields silent garbage rather
+ * than an error.
+ */
+describe('native binary file transport', () => {
+  // Spans the values a signed/unsigned mix-up would corrupt, so a round trip
+  // that merely preserves the length still fails.
+  const BYTES = new Uint8Array([0, 1, 127, 128, 254, 255]);
+
+  beforeEach(() => {
+    invokeMock.mockReset();
+  });
+
+  afterEach(() => {
+    invokeMock.mockReset();
+  });
+
+  it('reads a raw ArrayBuffer response back as the exact bytes', async () => {
+    invokeMock.mockResolvedValue(BYTES.slice().buffer);
+
+    const opened = await createOpenedPathFileService('/tmp/reference.png').openBinaryFile({
+      title: 'Open',
+      extensions: ['png'],
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith('read_binary_file', { path: '/tmp/reference.png' });
+    expect(Array.from(opened!.bytes)).toEqual(Array.from(BYTES));
+  });
+
+  it('reads a number[] response back as the exact bytes', async () => {
+    // The postMessage IPC fallback, which is latched for the rest of the session
+    // once the custom protocol fails once.
+    invokeMock.mockResolvedValue(Array.from(BYTES));
+
+    const opened = await createOpenedPathFileService('/tmp/reference.png').openBinaryFile({
+      title: 'Open',
+      extensions: ['png'],
+    });
+
+    expect(Array.from(opened!.bytes)).toEqual(Array.from(BYTES));
+  });
+
+  it('writes the bytes as the whole argument, with the path in a header', async () => {
+    invokeMock.mockResolvedValue(undefined);
+
+    const saved = await createFileService('desktop').saveBinaryFile({
+      title: 'Save',
+      bytes: BYTES,
+      suggestedName: 'design.png',
+      path: '/tmp/My Design.png',
+      extensions: ['png'],
+      mimeType: 'image/png',
+    });
+
+    // The bytes are the args, not a field of them: that is the only shape Tauri
+    // sends as a raw body, and it is what leaves the path nowhere to go but a
+    // header. The literal is spelled out rather than computed so that swapping
+    // `encodeURIComponent` for `encodeURI` — which leaves `/` alone — fails here.
+    expect(invokeMock).toHaveBeenCalledWith('write_binary_file', BYTES, {
+      headers: { path: '%2Ftmp%2FMy%20Design.png' },
+    });
+    expect(saved).toEqual({ name: 'My Design.png', path: '/tmp/My Design.png' });
   });
 });

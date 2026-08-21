@@ -1,0 +1,98 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "fileAssociations": [
+      {
+        "ext": ["osf"],
+        "name": "Ori Studio Project",
+        "description": "Ori Studio Project",
+        "mimeType": "application/vnd.oristudio.project+json",
+        "role": "Editor",
+        "rank": "Owner",
+        "contentTypes": ["com.zacharymarion.oristudio.project"],
+        "exportedType": {
+          "identifier": "com.zacharymarion.oristudio.project",
+          "conformsTo": ["public.json"]
+        }
+      },
+      {
+        "ext": ["fold"],
+        "name": "FOLD Crease Pattern",
+        "description": "FOLD Crease Pattern",
+        "mimeType": "application/json",
+        "role": "Editor",
+        "rank": "Alternate",
+        "contentTypes": ["com.zacharymarion.oristudio.fold"],
+        "exportedType": {
+          "identifier": "com.zacharymarion.oristudio.fold",
+          "conformsTo": ["public.json"]
+        }
+      },
+      {
+        "ext": ["cp"],
+        "name": "Crease Pattern",
+        "description": "Crease Pattern",
+        "mimeType": "text/plain",
+        "role": "Editor",
+        "rank": "Alternate",
+        "contentTypes": ["com.zacharymarion.oristudio.cp"],
+        "exportedType": {
+          "identifier": "com.zacharymarion.oristudio.cp",
+          "conformsTo": ["public.plain-text"]
+        }
+      },
+      {
+        "ext": ["ori"],
+        "name": "Oriedita Project",
+        "description": "Oriedita Project",
+        "mimeType": "application/json",
+        "role": "Editor",
+        "rank": "Alternate",
+        "contentTypes": ["com.zacharymarion.oristudio.ori"],
+        "exportedType": {
+          "identifier": "com.zacharymarion.oristudio.ori",
+          "conformsTo": ["public.json"]
+        }
+      },
+      {
+        "ext": ["orh"],
+        "name": "Oriedita History",
+        "description": "Oriedita History",
+        "mimeType": "text/plain",
+        "role": "Editor",
+        "rank": "Alternate",
+        "contentTypes": ["com.zacharymarion.oristudio.orh"],
+        "exportedType": {
+          "identifier": "com.zacharymarion.oristudio.orh",
+          "conformsTo": ["public.utf8-plain-text"]
+        }
+      },
+      {
+        "ext": ["bps"],
+        "name": "Box Pleating Studio Project",
+        "description": "Box Pleating Studio Project",
+        "mimeType": "application/json",
+        "role": "Editor",
+        "rank": "Alternate",
+        "contentTypes": ["com.zacharymarion.oristudio.bps"],
+        "exportedType": {
+          "identifier": "com.zacharymarion.oristudio.bps",
+          "conformsTo": ["public.json"]
+        }
+      },
+      {
+        "ext": ["tmd", "tmd4", "tmd5"],
+        "name": "TreeMaker Tree",
+        "description": "TreeMaker Tree",
+        "mimeType": "text/plain",
+        "role": "Editor",
+        "rank": "Alternate",
+        "contentTypes": ["com.zacharymarion.oristudio.treemaker"],
+        "exportedType": {
+          "identifier": "com.zacharymarion.oristudio.treemaker",
+          "conformsTo": ["public.plain-text"]
+        }
+      }
+    ]
+  }
+}

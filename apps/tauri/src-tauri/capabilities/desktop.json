@@ -1,0 +1,7 @@
+{
+  "identifier": "desktop",
+  "description": "Self-update permissions, for the targets that ship their own updater. The updater and process plugins are cfg'd off mobile in Cargo.toml, so on iOS and Android these permissions name plugins that are not linked in — and tauri-build's permission resolver treats an unresolvable permission as a hard error, not a warning. `platforms` is per-capability rather than per-permission, which is why these two live in their own file rather than in `default.json`.",
+  "platforms": ["macOS", "windows", "linux"],
+  "windows": ["main"],
+  "permissions": ["updater:default", "process:allow-restart"]
+}

@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "Default permissions for Ori Studio",
+  "description": "Permissions every Ori Studio target has",
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -8,8 +8,6 @@
     "core:menu:default",
     "core:window:allow-destroy",
     "core:window:allow-set-title",
-    "dialog:default",
-    "updater:default",
-    "process:allow-restart"
+    "dialog:default"
   ]
 }

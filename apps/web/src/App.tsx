@@ -25,8 +25,8 @@ import { useTauriNativeMenu } from './menus/useTauriNativeMenu';
 import { useUpdateCheck } from './hooks/useUpdateCheck';
 import { UpdateCard } from './components/UpdateCard';
 import { createOpenedPathFileService } from './platform/fileService';
+import { surfaceSupports } from './platform/capabilities';
 import { useIsWorkspaceBlocked } from './platform/mobileSurface';
-import { getRuntimeSurface } from './platform/runtime';
 import { confirmDiscardUnsavedWork, hasUnsavedWork } from './lib/unsavedWork';
 import { navigateTo } from './routing/appRouter';
 import { currentWorkspacePath } from './routing/landing';
@@ -103,7 +103,10 @@ export default function App() {
   useEffect(() => {
     let unlisten: (() => void) | null = null;
 
-    if (getRuntimeSurface() !== 'desktop') return undefined;
+    // There is no close to intercept without a window the app owns — iOS
+    // backgrounds and reaps the webview instead, which fires nothing at all.
+    // (That is the autosave gap, not something a guard can cover.)
+    if (!surfaceSupports('nativeWindowChrome')) return undefined;
     import('@tauri-apps/api/window')
       .then(({ getCurrentWindow }) => {
         const appWindow = getCurrentWindow();

@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { isDesktopRuntime } from '../platform/runtime';
+import { surfaceSupports } from '../platform/capabilities';
 import type { OristudioCpWorkerApi } from '../workers/oristudioCpWorker';
 
 /**
@@ -15,8 +15,9 @@ import type { OristudioCpWorkerApi } from '../workers/oristudioCpWorker';
  * - **web** — a `SharedArrayBuffer` slot the main thread writes with
  *   `Atomics.store` and the kernel reads at every checkpoint. Synchronous, no
  *   `await`, no worker hop. That is the entire point.
- * - **desktop** — `cp_fold_cancel`, a synchronous Tauri command that stores into
- *   an `AtomicU32` managed beside (never inside) the engine.
+ * - **native** — `cp_fold_cancel`, a synchronous Tauri command that stores into
+ *   an `AtomicU32` managed beside (never inside) the engine. Every surface with
+ *   the `nativeCpEngine` capability, which is desktop and iOS.
  *
  * Ids are matched **exactly**, never as a watermark, so stopping the fold on
  * screen cannot collaterally kill a background one, and an unbound fold (id 0)
@@ -74,15 +75,15 @@ export function foldCancellationBuffer(): SharedArrayBuffer | null {
 /**
  * Whether a fold started now could be stopped.
  *
- * **A property of the resolved engine client, not of the page.** Desktop runs the
- * native client and needs no shared memory at all; a packaged Tauri build serves
- * over a custom protocol with no COOP/COEP, so a `SharedArrayBuffer &&
- * crossOriginIsolated` predicate would ship Stop permanently disabled on the one
- * platform where it works best. (`npm run dev:desktop` hides that: its devUrl is
+ * **A property of the resolved engine client, not of the page.** The native
+ * client needs no shared memory at all; a packaged Tauri build serves over a
+ * custom protocol with no COOP/COEP, so a `SharedArrayBuffer &&
+ * crossOriginIsolated` predicate would ship Stop permanently disabled on the
+ * platforms where it works best. (`npm run dev:desktop` hides that: its devUrl is
  * vite, which does set the headers.)
  */
 export function foldCancellationAvailable(): boolean {
-  if (isDesktopRuntime()) return true;
+  if (surfaceSupports('nativeCpEngine')) return true;
   return foldCancellationBuffer() !== null;
 }
 
@@ -108,7 +109,7 @@ export function beginFoldRun(): number {
  */
 export function cancelFoldRun(runId: number): void {
   if (runId === FOLD_RUN_NONE || runId === FOLD_RUN_BACKGROUND) return;
-  if (isDesktopRuntime()) {
+  if (surfaceSupports('nativeCpEngine')) {
     // Fire-and-forget: the command is synchronous on the Rust side and answers
     // without touching the engine mutex, so there is nothing to await and
     // nothing a failure here could usefully tell the user.
@@ -137,9 +138,9 @@ type FoldCancellationClient = Pick<OristudioCpWorkerApi, 'setCancelBuffer'>;
  * any fold the client is later asked for.
  */
 export function installFoldCancellation(client: FoldCancellationClient): void {
-  if (isDesktopRuntime()) {
-    // Desktop carries the run id on the fold command itself, so there is no
-    // buffer to install — but there *is* a flag to reset. It lives in the Tauri
+  if (surfaceSupports('nativeCpEngine')) {
+    // The native path carries the run id on the fold command itself, so there is
+    // no buffer to install — but there *is* a flag to reset. It lives in the Tauri
     // process and nothing clears it; `nextRunId` lives in this webview's module
     // state and restarts at 1 on every reload, which the error boundaries offer
     // as a recovery path. Stop run 3, reload, fold three times, and the third

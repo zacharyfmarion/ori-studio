@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { APP_VERSION } from '../../constants/release';
 import { runUpdateCheck } from '../../lib/updateController';
 import { announceUpdateCheck } from '../../lib/updateFeedback';
-import { isDesktopRuntime } from '../../platform/runtime';
+import { surfaceSupports } from '../../platform/capabilities';
 import { useUpdateStore, type UpdateDelivery } from '../../store/updateStore';
 import { Button } from '../ui/Button';
 
@@ -89,7 +89,7 @@ export function UpdatesSection() {
     void runUpdateCheck('manual').then((outcome) => announceUpdateCheck(outcome, t));
   }, [t]);
 
-  if (!isDesktopRuntime()) return null;
+  if (!surfaceSupports('selfUpdate')) return null;
 
   return (
     <section className="settings-section">

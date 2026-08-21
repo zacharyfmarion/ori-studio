@@ -1,6 +1,6 @@
 import type { MenuActionId } from '../commands/menuActions';
 import { shortcutLabelForAction, type ShortcutResolutionInput } from '../keyboard/shortcuts';
-import { isDesktopRuntime } from '../platform/runtime';
+import { surfaceSupports } from '../platform/capabilities';
 
 /**
  * Minimal translator shape: `(key, englishDefault) => localized`. The app passes
@@ -268,9 +268,10 @@ export function getMenuBarDef(
     {
       label: t('menu:menubar.help', 'Help'),
       items: [
-        // Desktop only: the browser build updates by reloading. Spread-gated
-        // the same way as the other desktop-only entries in this file.
-        ...(isDesktopRuntime()
+        // Only where the app can replace itself: the browser build updates by
+        // reloading, and iOS updates through the App Store. Spread-gated the
+        // same way as the other conditional entries in this file.
+        ...(surfaceSupports('selfUpdate')
           ? ([
               {
                 type: 'action',

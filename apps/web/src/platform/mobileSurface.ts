@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { readBoolean, storageKey, STORAGE_KEYS, writeBoolean } from '../lib/storage';
+import { surfaceSupports } from './capabilities';
 import { isPhoneLayout, PHONE_MEDIA_QUERY } from './phoneLayout';
-import { getRuntimeSurface } from './runtime';
 
 /**
  * Whether the app should refuse to open a workspace on this device.
@@ -34,14 +34,16 @@ function mediaHost(): Window | null {
 /**
  * True on a phone-sized touch device the gate applies to.
  *
- * The Tauri shell short-circuits to `false` before any media query runs. It has
- * no address bar and runs on a memory router, so a gate misfiring there would
- * strand the user on `/welcome` with no way back. It still *lays out* as a phone
- * when the viewport says so — that is `isPhoneLayout`'s question, and the split
- * between the two is the whole reason this module no longer owns the query.
+ * Both Tauri shells short-circuit to `false` before any media query runs; see the
+ * `phoneGate` capability. Neither has an address bar and both run on a memory
+ * router, so a gate misfiring there would strand the user on `/welcome` with no
+ * way back — and on iPadOS it *would* misfire, because a narrow Split View is
+ * under the threshold. Both still *lay out* as phones when the viewport says so;
+ * that is `isPhoneLayout`'s question, and keeping the two apart is why a native
+ * iPhone does not get the desktop chrome.
  */
 export function isPhoneSurface(): boolean {
-  if (getRuntimeSurface() === 'desktop') return false;
+  if (!surfaceSupports('phoneGate')) return false;
   return isPhoneLayout(mediaHost());
 }
 

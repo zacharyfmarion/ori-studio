@@ -72,7 +72,7 @@ describe('initializeSentry', () => {
     const config = initConfig(client);
     expect(String(config.release)).toMatch(/^ori-studio@/);
     expect(config.initialScope).toMatchObject({
-      tags: { runtime_surface: expect.stringMatching(/^(web|desktop)$/) },
+      tags: { runtime_surface: expect.stringMatching(/^(web|desktop|ios)$/) },
     });
   });
 
