@@ -33,19 +33,36 @@ homepage = "https://github.com/zacharyfmarion/ori-studio"
 publish = false
 
 [workspace.lints.clippy]
-# Rust 1.98 added `chunks_exact_to_as_chunks`, and CI runs
-# `dtolnay/rust-toolchain@stable` unpinned with `-D warnings`, so it turned 25
-# pre-existing call sites across six crates into hard errors the day the
-# toolchain rolled. None of them changed; the lint did.
+# Three lints Rust 1.98 turned on. CI runs `dtolnay/rust-toolchain@stable`
+# unpinned with `-D warnings`, so the day the toolchain rolled they became hard
+# errors across code nobody had touched — `main` went latently red at the same
+# moment, it just had not been re-run. Enumerated with
+# `cargo +1.98.0 clippy --workspace --all-targets --keep-going`, so this is the
+# whole set rather than whichever crate clippy happened to abort on first.
 #
-# Allowed rather than migrated because the migration is not the mechanical
-# find-and-replace it looks like. `as_chunks::<N>()` yields `&[T; N]` instead of
-# `&[T]`, which is exactly why it is an improvement — `geometry_transport.rs`
-# would drop a `try_into().unwrap()` and `checks.rs` a `copy_from_slice` — but
-# the sites live in `oristudio-cp` and `oristudio-cp-detect`, where PORTING.md
-# asks for oracle runs behind changes to geometry and image code. That is worth
-# doing on its own, with its own review, not folded into an unrelated change.
+# Each is allowed for its own reason, not as a blanket.
+
+# 25 call sites across six crates. The migration is a real improvement and not a
+# find-and-replace: `as_chunks::<N>()` yields `&[T; N]` rather than `&[T]`, which
+# is what would let `geometry_transport.rs` drop a `try_into().unwrap()` and
+# `checks.rs` a `copy_from_slice`. But the sites are in `oristudio-cp` and
+# `oristudio-cp-detect`, where PORTING.md wants oracle runs behind changes to
+# geometry and image code. Worth its own change and its own review.
 chunks_exact_to_as_chunks = "allow"
+
+# `oristudio-bp/src/math/kamiya.rs`. The suggested rewrite is semantics-
+# preserving, but this is ported Box Pleating Studio math sitting beside its
+# vendored original in `third_party/`, and the port's value is partly that it
+# still reads like what it was ported from. A style lint is not a good enough
+# reason to move it away from that.
+needless_late_init = "allow"
+
+# `oristudio-bp/src/tree.rs`. Here the suggestion is wrong for this call site:
+# `pending_remove` is a scratch buffer drained on every flush, and `drain(..)`
+# empties it while *keeping its capacity*. `std::mem::take` leaves a zero-
+# capacity `Vec` behind, so taking the advice trades one allocation per flush
+# for a reallocation on every subsequent push.
+drain_collect = "allow"
 
 [workspace.dependencies]
 anyhow = "1.0"
