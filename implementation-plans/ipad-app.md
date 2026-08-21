@@ -222,6 +222,11 @@ and paper; **drawing a crease by touch works**, with snapping; the engine runs
 
 ### One architectural consequence worth stating plainly
 
+*(Written before the Phase 4 widening landed. `isDesktopRuntime` is gone and the
+surface is now `'web' | 'desktop' | 'ios'`; read the predicate below as "the app
+is hosted by Tauri". The consequence itself is unchanged and deliberate — see
+the `nativeCpEngine` row of `platform/capabilities.ts`.)*
+
 **A Tauri iOS build satisfies `isDesktopRuntime()`** (it sets
 `__TAURI_INTERNALS__`), so the entire frontend takes the *desktop* branch: the
 native Rust CP engine (`oristudioCpNativeClient.ts`, 436 LOC, 40+ commands),
@@ -258,7 +263,12 @@ this:
   already exists for BP.
 - **Platform seam.** `RuntimeSurface = 'web' | 'desktop'` with ~11 detection
   sites and 5 files importing `@tauri-apps`; `platform/features.ts` is a small
-  record keyed by surface. Adding `'ios'` is a widening, not a rewrite.
+  record keyed by surface. Adding `'ios'` is a widening, not a rewrite. **Borne
+  out:** the widening landed in Phase 4 and touched 13 files. One correction to
+  the survey — `platform/features.ts` was *dead* (imported only by its own test),
+  so it could not have carried the audit; it was replaced by
+  `platform/capabilities.ts`, which is the same idea wired to real call sites and
+  made exhaustive over the surface.
 - **PWA storage eviction.** Home-screen web apps on iPadOS are **exempt** from
   ITP's seven-day script-writable-storage cap. The most-cited PWA objection does
   not apply.
@@ -553,66 +563,203 @@ reintroduce a long-press on the canvas.**
 
 ### Phase 3 — Ship the PWA (~1.5–3 weeks)
 
-- [ ] Web app manifest, icon set, `apple-touch-icon`, theme-color.
-- [ ] Service worker precaching the wasm bundles.
-- [ ] Verify install-to-home-screen, offline start, and storage persistence on a
-      real iPad.
-- [ ] Add a WebKit lane to CI — today an iPad regression is invisible until a
-      user reports it.
+- [x] Web app manifest, icon set, `apple-touch-icon`, theme-color.
+      Icons are generated from `apps/web/public/favicon.png` by
+      `apps/web/scripts/gen-pwa-icons.sh`, which is committed so the PNGs are a
+      recipe rather than opaque binaries. `index.html` also stops pointing the
+      tab icon at that 1024px, 2.2 MB source.
+- [x] Service worker (`apps/web/src/pwa/`), emitted by a ~60-line Vite plugin
+      rather than `vite-plugin-pwa` — see the header of `sw.ts` for why a
+      generated worker was the wrong trade here.
+
+      **It does not precache, and the plan's wording above was wrong about
+      that.** Measured on the real build, counting requests the server received
+      on a first visit: an install-time precache re-downloaded **5.83 MB** in
+      WebKit and **0 bytes** in Chromium, because a service-worker `fetch()` in
+      WebKit 26.4 does not read the page's HTTP cache. Delaying the install six
+      seconds changed nothing, so it is not a race. That put the entire cost on
+      the platform this phase exists for, and bought nothing: registration
+      happens on `load`, so a first visit has already fetched everything before
+      the worker can claim it. The cache fills on the first *controlled* load
+      instead — for free, from responses the page was fetching anyway.
+
+      **With one exception, which "for free" could not cover:** the scripts
+      passed to `new Worker()`. WebKit answers those out of the web process's own
+      resource cache, without a network request and without a `fetch` event, so
+      the worker never saw `oristudioCpWorker` and never stored it — a cache with
+      every entry the editor needs bar the editor. Those five files are fetched
+      explicitly now, on the first navigation the worker serves, which a first
+      visit does not have: measured warm-on against warm-off, a first visit is
+      byte-identical at 7,138,573 B with nothing fetched twice, and the second
+      load carries the whole cost at **+187,754 B**.
+- [x] Offline start and storage: verified in WebKit 26.4 (= Safari 26.4) by
+      `scripts/webkit-pwa-check.mjs` — the editor boots offline with a live
+      canvas and zero failed resource loads, still cross-origin isolated, at
+      7.4 MB of a 1049 MB quota across 21 entries.
+      `navigator.storage.persist()` exists and is called when running installed;
+      it returns `false` in a headless context, and whether iPadOS grants it to a
+      home-screen app is not observable from here.
+
+      **The first version of this claim was measured through a hole.** The check
+      went offline in the same page that had just filled the cache, and WebKit's
+      in-process resource cache covered for the missing worker script — so the
+      lane reported a working offline editor while a real relaunch would have got
+      a rendered shell and a dead editor. Offline start now runs in a page that
+      has never loaded the app, and the difference is not theoretical: against a
+      build with the warm disabled it turns three checks red rather than one.
+      Confirmed two further ways off the lane, both with the editor booting and
+      zero console errors — after `Clear-Site-Data: "cache"` (Cache Storage and
+      the registration survive it; 21 entries did), and with every asset served
+      `no-store` start to finish, so nothing could have been in an HTTP or memory
+      cache to begin with.
+- [ ] **Install to a real iPad home screen** and confirm the icon, the
+      standalone launch, and that `display_mode: standalone` shows up in
+      PostHog. The only item left that no harness can stand in for.
+- [x] Add a WebKit lane to CI — 22 checks, ~9s, in the `web-client` job. It
+      catches the failures by construction: injecting the `new Response(body)`
+      trap turns three checks red, un-bypassing `/s` turns two red, deleting
+      `Cross-Origin-Opener-Policy` from `_headers` turns three red, and
+      disabling the worker-script warm turns three red.
 
 **Kill gate:** if nobody uses the PWA on an iPad, stop here. That is the cheap
 answer to "does anyone want this", bought for ~3 weeks instead of ~6 months.
+The measurement is the `display_mode` super property (`standalone` | `browser`)
+on every PostHog event — a share of sessions, which an "installed" event could
+never have given.
 
 ### Phase 4 — App Store via Tauri iOS (~12–20 weeks, gated on Phase 0)
 
-- [ ] The three mechanical build fixes, all **hard compile breaks**, not
+- [x] The three mechanical build fixes, all **hard compile breaks**, not
       niceties:
       1. `capabilities/default.json` grants `updater:default` and
          `process:allow-restart` with no platform scoping — the `Cargo.toml`
          `cfg` guards are already there, but the capability manifest is not.
+         `platforms` is a *per-capability* key, so the two moved to their own
+         `capabilities/desktop.json` rather than gaining a field in place.
       2. `tauri-plugin-window-state` is an unconditional dependency, imported at
          `lib.rs:8` and registered at `:254`, but the crate's entire body is
          `#![cfg(not(any(target_os = "android", target_os = "ios")))]` — so on
-         iOS the plugin resolves to nothing and the call fails to compile.
+         iOS the plugin resolves to nothing and the call fails to compile. Now a
+         dependency under `cfg(not(any(android, ios)))`, the exact complement of
+         the plugin's own gate and of `tauri-build`'s `cfg(desktop)` alias, so the
+         dependency and its use site cannot drift apart.
       3. `apps/tauri/src-tauri/Cargo.toml` has **no `[lib]` section at all**, so
          the crate builds only an rlib while Tauri iOS links a static library.
          The v2 template ships
          `crate-type = ["staticlib", "cdylib", "rlib"]`.
-- [ ] Widen `RuntimeSurface` to include `'ios'` — and make the widening visible
-      to the type system so the ~24 branch sites are audited, not guessed.
+
+      Verified: `cargo build --target aarch64-apple-ios -p ori-studio` succeeds
+      with zero warnings and emits `libori_studio.a`, and a full
+      `tauri ios build --debug --target aarch64-sim` produces a launchable
+      `Ori Studio.app`.
+- [x] Widen `RuntimeSurface` to include `'ios'` — and make the widening visible
+      to the type system so the ~24 branch sites are audited, not guessed. Done
+      by deleting `isDesktopRuntime` outright (which broke all nine of its call
+      sites at once) and replacing the dead `platform/features.ts` with
+      `platform/capabilities.ts` — a `Record<SurfaceCapability,
+      Record<RuntimeSurface, boolean>>`, so a fourth surface is a compile error in
+      every row rather than a silent inheritance. A guard test keeps bare
+      `=== 'desktop'` out of everything but `platform/`, the same way
+      `nativeMenuGating.test.ts` guards the menu predicate.
 - [ ] iOS file layer: security-scoped URLs, `UIDocumentPicker`, and a decision on
       app-container vs Files.app documents. The four Rust file commands use bare
       `std::fs` and will not survive the sandbox. ~2–3 wk, most likely to slip.
 - [ ] Autosave / session restore — iOS reaps backgrounded webviews and fires
       neither `unload` nor a reliable warning. Today work is lost silently.
-- [ ] Register the remaining 7 of 9 openable formats as UTTypes.
-- [ ] Remove the self-updater on iOS; replace with App Store/TestFlight.
+- [x] Register the remaining 7 of 9 openable formats as UTTypes. In
+      `tauri.ios.conf.json`, not the base config: `fileAssociations` also drives
+      the *desktop* bundlers, and claiming `.fold`/`.cp`/`.bps`/`.tmd*` in Finder,
+      Explorer and the Linux MIME database is a separate product decision — one
+      the desktop open handler is not ready for either, since it filters
+      `RunEvent::Opened` and argv down to `.osf`. Merge is RFC 7396, so the
+      platform file *replaces* the array and lists all nine. Verified in the
+      built bundle: nine extensions across seven `CFBundleDocumentTypes` and seven
+      `UTExportedTypeDeclarations` entries.
+
+      Two things an eventual document picker has to know. `.ori` already resolves
+      to a *system* Olympus RAW type, which outranks a third-party exported
+      declaration — so a filter built by mapping extension → `UTType` gets an
+      *image* type for `.ori`, and building the filter from our own identifiers
+      is what avoids that. And Tauri emits only `UTExportedTypeDeclarations`;
+      seven of these are formats this app does not own, where
+      `UTImportedTypeDeclarations` would be the correct key. Neither blocks
+      anything today.
+- [ ] Remove the self-updater on iOS; replace with App Store/TestFlight. Half
+      done: nothing in the frontend can reach it any more (`selfUpdate` is false
+      on `'ios'`, which removes the menu entry, the Settings section, the periodic
+      check and the service calls), and the plugins were already `cfg`'d out of
+      the iOS binary. What remains is the *replacement* — a TestFlight/App Store
+      update path and whatever the UI should say instead.
 - [ ] Privacy policy, nutrition labels, privacy manifest (PostHog + Sentry).
 - [ ] TreeMaker excision behind a **build flag** (not a deletion) if Lang has not
       granted an exception — desktop keeps it, iPad drops it from one config,
       and it is reversible the day he replies. ~3–5 wk.
 - [ ] Graceful failure opening `.osf` files containing TreeMaker designs.
-- [ ] `cfg`-gate `clamp_window_to_min` off iOS — otherwise every rotation and
+- [x] `cfg`-gate `clamp_window_to_min` off iOS — otherwise every rotation and
       Split View transition fires `Resized` below 900pt and it calls `set_size`.
-- [ ] Fix `opened_osf_paths` (`lib.rs:57-67`): `url.to_file_path().ok()` discards
-      the security-scoped `file://` URL and hands the frontend a bare path.
-- [ ] Replace the `number[]` binary IPC marshalling (10–20× size blowup) before
-      it meets a large `.osf` on a tablet.
-- [ ] Pin `@tauri-apps/cli` to `^2.11.0` — iOS file associations only exist from
-      2.11.0, and `apps/tauri/package.json:13` currently pins `^2.0.0`, so a
-      lockfile resolution below that **silently drops the `.osf` UTI**.
+      Gated `cfg(desktop)` together with `tauri-plugin-window-state`, since both
+      are the same claim: on mobile the window is the screen and neither its size
+      nor its position is the app's to choose.
+- [x] Fix `opened_osf_paths` (`lib.rs:57-67`): `url.to_file_path().ok()` discards
+      the security-scoped `file://` URL and hands the frontend a bare path. The
+      command and the `opened-files` event now carry `{ url, path }`; desktop
+      behaviour is byte-identical and the URL survives for the iOS file layer to
+      use. **Reading through the scope is still not implemented** — that is
+      `startAccessingSecurityScopedResource`, and it belongs with the file-layer
+      item above. This change stops the URL being thrown away before it gets
+      there; it does not make an iPad open the file.
+- [x] Replace the `number[]` binary IPC marshalling before it meets a large
+      `.osf` on a tablet. Both directions now use Tauri's raw IPC body — a
+      `tauri::ipc::Response` back, and a raw request body with the path
+      percent-encoded in a header out, which is the arrangement
+      `tauri-plugin-fs` uses.
+
+      **The 10–20x in the first draft of this plan was wrong.** Measured on this
+      repo's fixtures, `JSON.stringify({ bytes: Array.from(u8) })` costs **3.34x**
+      on the 3.5 MB `iguana_24.osf`, **3.10x** on `box_90.osf` and **3.57x** on
+      2 MiB of high-entropy bytes (the shape of a PNG export). 4x is the ceiling,
+      at `"255,"` per byte — nothing can reach 10x. The cost is real but it is a
+      constant factor plus a `JSON.stringify` of the whole payload (67 ms for
+      2 MiB) and a multi-megabyte intermediate string on each side, not an
+      order-of-magnitude blowup. This is a desktop cost today, not an iOS one.
+- [x] Pin `@tauri-apps/cli` to `^2.11.0` — `apps/tauri/package.json:13` pinned
+      `^2.0.0`, so a lockfile resolution below that could silently drop the
+      `.osf` UTI. Note the *reason* given here does not survive checking: the
+      CLI changelog puts `UTExportedTypeDeclarations` and `LSItemContentTypes`
+      support in **2.9.0** (#14128), not 2.11.0, and 2.11.0's entries are about
+      NSIS, Android and Wix. The pin is still right — 2.9.0 is a long way above
+      `^2.0.0` — but pin it for 2.9.0's reason, and read `^2.11.0` as "the
+      version this was verified on" rather than as the floor for the feature.
 - [ ] Decide device family: iPad-only (`TARGETED_DEVICE_FAMILY = 2`) vs Universal.
       Universal requires iPhone screenshots and puts the app on a reviewer's
       iPhone — where the 820px phone gate would block it.
-- [ ] Ship `LICENSE.txt` + `NOTICE` in `bundle.resources` (GPL source-availability
-      survives a Lang grant).
-- [ ] `ITSAppUsesNonExemptEncryption` in Info.plist, or App Store Connect
-      re-presents the export-compliance questionnaire on every upload.
+- [x] Ship `LICENSE.txt` + `NOTICE` in `bundle.resources` (GPL source-availability
+      survives a Lang grant). Verified present at `Ori Studio.app/assets/` in the
+      iOS bundle. **Nothing in the app surfaces them yet** — carrying the files is
+      the obligation's floor, not the whole of it; see owner question 5.
+- [x] `ITSAppUsesNonExemptEncryption` in Info.plist, or App Store Connect
+      re-presents the export-compliance questionnaire on every upload. In
+      `Info.ios.plist`, which Tauri auto-discovers beside `tauri.conf.json` for
+      iOS only, so the macOS `Info.plist` is untouched. Verified `false` in the
+      built bundle's plist.
 - [ ] App Store Connect metadata: iPad screenshots at Apple's required sizes,
       description, keywords, category, support URL, age rating. None exists today.
 - [ ] iOS CI leg: signing, App Store Connect API key, TestFlight upload. Note
       Apple has required builds against the **iOS 26 SDK since 2026-04-28**, which
       fixes the runner image at `macos-26` — a requirement, not a preference.
+- [ ] Answer `LSSupportsOpeningDocumentsInPlace` / `UISupportsDocumentBrowser`.
+      Xcode now warns on every build: *"The application supports opening files,
+      but doesn't declare whether it supports opening them in place."* The warning
+      only appeared once the document types above existed, and it is asking the
+      app-container-vs-Files.app question directly — in place means editing the
+      user's file where it lives, which is what needs the security scope. Answer
+      it with the file layer, not before.
+- [ ] Decide whether `apps/tauri/src-tauri/gen/apple/` is tracked. `tauri ios
+      init` generates ~1 MB of Xcode project (`project.yml`, `.xcodeproj`,
+      `Sources/`, `Podfile`, `LaunchScreen.storyboard`) plus build output. It is
+      currently untracked and *not* in `.gitignore`, so `git status` will show it
+      on any machine that has run an iOS build. Note the generated
+      `ExportOptions.plist` is where signing settings land.
 
 **Risks to budget for:** 43 open Tauri iOS issues, including #15367 (WKWebView
 shrinks to half width after backgrounding — a hard usability bug for a design

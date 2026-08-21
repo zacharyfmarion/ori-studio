@@ -16,6 +16,7 @@ import {
 import { appBuildInfo } from '../lib/appBuildInfo';
 import { redactSensitiveText } from '../lib/redact';
 import { getRuntimeSurface } from '../platform/runtime';
+import { getDisplayMode } from '../pwa/register';
 import type { AnalyticsErrorDomain } from './events';
 import { getOrCreateStableId } from './stableId';
 
@@ -86,6 +87,14 @@ export function getBootstrapSharedProperties(options: BootstrapOptions): Record<
     app_version: build.version,
     app_commit: build.commit,
     runtime_surface: getRuntimeSurface(),
+    // A super property rather than an event, because the question it exists to
+    // answer is about the *population*: what share of sessions come off a home
+    // screen rather than a browser tab. That is the kill gate for the PWA phase
+    // — "if nobody uses it on an iPad, stop here" — and an `installed` event
+    // could only ever count the people who installed while instrumented, never
+    // the ones who already had it. Registered before the first event for the
+    // same reason `runtime_surface` is.
+    display_mode: getDisplayMode(),
     analytics_enabled: options.analyticsEnabled,
     ...getLocaleProperties(resolveLanguage(preference), preference),
   };

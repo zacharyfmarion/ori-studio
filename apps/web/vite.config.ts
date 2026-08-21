@@ -1,9 +1,12 @@
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vitest/config';
+import { build as bundle, type Rollup } from 'vite';
 import react from '@vitejs/plugin-react';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
+import type { ServiceWorkerManifest } from './src/pwa/swRoutes';
 
 const DIST_PLACEHOLDER = 'apps/web/dist/.gitkeep';
 const DIST_PLACEHOLDER_TEXT =
@@ -84,6 +87,24 @@ function dropUnreachableOrtRuntime(): Plugin {
   };
 }
 
+/**
+ * Emitted, but unreachable in production — so caching it would be pure cost.
+ *
+ * `cpDetectWorker` is only instantiated by `store/workspaceStore/cpDetectRuntime.ts`
+ * behind the same `import.meta.env.DEV` gate as the menu entry, and it is what
+ * references the detector wasm. Between them that is 2.3 MB nobody can fetch.
+ * `dropUnreachableOrtRuntime` above already removed the far larger ONNX runtime;
+ * this is the remainder, which is genuinely part of the graph and so cannot be
+ * dropped the same way.
+ *
+ * Unlike the precache patterns these are allowed to match nothing: a build that
+ * stops emitting the detector is a build with nothing to exclude.
+ */
+const UNCACHEABLE_PATTERNS: readonly RegExp[] = [
+  /^assets\/cpDetectWorker-[^/]+\.js$/,
+  /^assets\/oristudio_cp_detect_wasm_bg-[^/]+\.wasm$/,
+];
+
 /** Where {@link simPerfLogSink} appends. Gitignored (`artifacts/`). */
 const SIM_PERF_LOG = 'artifacts/sim-perf/sim-perf.log';
 
@@ -130,6 +151,134 @@ function simPerfLogSink(): Plugin {
         });
       });
       server.config.logger.info(`  ➜  sim-perf log:  ${SIM_PERF_LOG}`);
+    },
+  };
+}
+
+/**
+ * Read the build's own output into the facts `src/pwa/sw.ts` needs.
+ *
+ * The service worker cannot discover any of this at runtime: the filenames are
+ * content-hashed, and which of them a user can actually reach is a build-time
+ * decision (see {@link UNCACHEABLE_PATTERNS}).
+ */
+function serviceWorkerManifest(
+  bundleOutput: Rollup.OutputBundle,
+  fail: (message: string) => never
+): ServiceWorkerManifest & { buildId: string } {
+  const assets = Object.keys(bundleOutput)
+    .sort()
+    .filter((name) => name.startsWith('assets/'));
+
+  const entry = Object.values(bundleOutput).find((file) => file.type === 'chunk' && file.isEntry);
+  if (!entry) fail('no entry chunk — the service worker has nothing to gate the shell on');
+
+  const uncacheable = assets
+    .filter((name) => UNCACHEABLE_PATTERNS.some((pattern) => pattern.test(name)))
+    .map((name) => `/${name}`);
+
+  // Vite builds each `new Worker(new URL(...))` through its own plugin container
+  // and `emitFile`s the result, so a worker bundle lands in the output as an
+  // `asset` while every chunk Rollup itself produced — entry, dynamic import,
+  // shared — is a `chunk`. That distinction is the whole test, and it beats
+  // matching `*Worker-*.js`: it keeps holding the day someone names one
+  // `cpKernelHost.ts`. Verified against this build — six assets, six workers,
+  // and every other `/assets/*.js` a chunk.
+  //
+  // Empty is a legal answer (an app that spawns no workers has nothing to warm),
+  // so this does not fail the build. What would catch a miss is the WebKit lane,
+  // which asserts every asset the page loads ends up in the cache.
+  const workers = assets
+    .filter((name) => name.endsWith('.js') && bundleOutput[name]?.type === 'asset')
+    .map((name) => `/${name}`)
+    .filter((path) => !uncacheable.includes(path));
+
+  const body = {
+    entry: `/${entry.fileName}`,
+    assets: assets.map((name) => `/${name}`),
+    uncacheable,
+    workers,
+  };
+  return {
+    ...body,
+    // Provenance for the banner, and nothing else — `sw.ts` never reads it. The
+    // first draft put it *in* the manifest and esbuild dead-code-eliminated it,
+    // which was the right answer: what makes a new worker install is `sw.js`
+    // being byte-different, and the asset list above already changes whenever
+    // anything the worker caches does. Hashed here rather than stamped from the
+    // commit so a deploy that rebuilt identical output stays identical, instead
+    // of running every client through an install-and-wait cycle for nothing.
+    buildId: createHash('sha256').update(JSON.stringify(body)).digest('hex').slice(0, 12),
+  };
+}
+
+/**
+ * Emit `dist/sw.js` and `dist/sw-kill.js`.
+ *
+ * Hand-rolled rather than `vite-plugin-pwa@1.3.0`, which depends on
+ * `workbox-build` and its 37 direct dependencies — `@babel/core`,
+ * `@babel/preset-env`, `@rollup/plugin-terser` — to solve the one problem this
+ * repo does not have. What Workbox is for is not knowing your own output
+ * filenames, and `dropUnreachableOrtRuntime` above already decides what ships by
+ * reading the graph.
+ *
+ * The part that mattered more: a service worker's effect on cross-origin
+ * isolation is invisible, shows up only on the second load, and can only be
+ * checked by *reading* the worker. Workbox's precaching would most likely have
+ * preserved it — it does `cache.put` the network response — but "most likely" is
+ * the wrong confidence for a silent failure, in a generated file nobody opens.
+ *
+ * Bundled as a classic (IIFE) script even though WebKit 26.4 accepts
+ * `{ type: 'module' }` — measured. Vite inlines the imports either way, so
+ * classic costs nothing and removes a compatibility variable on a target that is
+ * whatever iPadOS the user happens to be on.
+ */
+function oriServiceWorker(): Plugin {
+  let manifest: ReturnType<typeof serviceWorkerManifest> | null = null;
+  let outDir = '';
+
+  return {
+    name: 'ori-service-worker',
+    apply: 'build',
+    configResolved(config) {
+      outDir = resolve(config.root, config.build.outDir);
+    },
+    generateBundle(_options, bundleOutput) {
+      manifest = serviceWorkerManifest(bundleOutput, (message) => this.error(message));
+    },
+    async closeBundle() {
+      if (!manifest) return;
+      const { buildId, ...runtimeManifest } = manifest;
+      for (const [entry, fileName] of [
+        ['src/pwa/sw.ts', 'sw.js'],
+        ['src/pwa/swKill.ts', 'sw-kill.js'],
+      ]) {
+        const output = await bundle({
+          configFile: false,
+          logLevel: 'warn',
+          define: { __ORI_SW_MANIFEST__: JSON.stringify(runtimeManifest) },
+          build: {
+            write: false,
+            // Left readable on purpose. It is a few kilobytes either way, and it
+            // is the one script in the build whose behaviour cannot be observed
+            // from the page — the first thing anyone debugging a stale-cache
+            // report will do is open it. esbuild drops the comments even so,
+            // hence the banner pointing at the source that still has them.
+            minify: false,
+            target: 'es2022',
+            lib: { entry: resolve(__dirname, entry), formats: ['iife'], name: 'oriServiceWorker' },
+          },
+        });
+        // `build()` widens to include the watcher it cannot return here.
+        const built = Array.isArray(output) ? output[0] : output;
+        if (!('output' in built)) this.error(`${entry} produced a watcher, not a build`);
+        const chunk = built.output[0];
+        if (chunk.type !== 'chunk') this.error(`${entry} produced no code`);
+        // Prepended here rather than through `rollupOptions.output.banner`,
+        // which lib mode overrides with its own output config and silently drops.
+        const banner = `// Generated from apps/web/${entry} — do not edit. Build ${buildId}.\n`;
+        writeFileSync(resolve(outDir, fileName), banner + chunk.code);
+      }
     },
   };
 }
@@ -197,6 +346,7 @@ export default defineConfig({
   plugins: [
     react(),
     keepTauriFrontendDistPath(),
+    oriServiceWorker(),
     simPerfLogSink(),
     ...(uploadSourcemaps
       ? [

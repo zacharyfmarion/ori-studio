@@ -15,9 +15,11 @@ safeguards that keep it that way.
 **One switch governs both.** Settings → General → Privacy is a single toggle;
 opting out of usage analytics also stops crash reports.
 
-The browser build and the Tauri desktop build share the same renderer code, so
-one implementation covers both. A `runtime_surface` property/tag (`web` |
-`desktop`) distinguishes them.
+The browser build and the Tauri builds share the same renderer code, so one
+implementation covers all of them. A `runtime_surface` property/tag (`web` |
+`desktop` | `ios`) distinguishes them. `ios` is a Tauri build on iPadOS/iOS: it
+has the same IPC bridge as `desktop` and none of the window chrome, so it is a
+third value rather than a flavour of the second.
 
 ## Principles
 
@@ -175,7 +177,14 @@ crash. If you want *frequency*, that is a PostHog event, not a Sentry one.
 ## Tracked events
 
 Every event also carries the super properties `app_version`, `app_commit`,
-`runtime_surface`, `analytics_enabled`, `locale`, and `locale_source`.
+`runtime_surface`, `display_mode`, `analytics_enabled`, `locale`, and
+`locale_source`.
+
+**`display_mode`** is `standalone` or `browser` — whether the session came off a
+home screen (the installed PWA) or out of a browser tab. It is a super property
+and not an event on purpose: the question is what *share* of sessions are
+installed, which is the kill gate for the iPad PWA phase, and an "installed"
+event could only ever count people who installed while instrumented.
 
 **`locale` is the language the app is running in** — one of the nine codes in
 `SUPPORTED_LOCALES` — and `locale_source` is `system` or `pinned`, i.e. whether
