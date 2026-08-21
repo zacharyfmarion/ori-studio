@@ -39,6 +39,7 @@
  */
 import type { TFunction } from 'i18next';
 import type { OristudioCpDiagnosticEntry } from '../../engine/oristudioCpTypes';
+import { formatFoldAngle } from '../../lib/foldAngle';
 
 /** `checks::FlatFoldabilityRule`, as it crosses the wasm boundary. */
 export const FOLDABILITY_RULES = [
@@ -78,11 +79,33 @@ export const SPATIAL_RULES = [
   'Rigid',
   'SelfIntersection',
   'InteriorBorder',
+  'Undecided',
+  'UndecidedChoice',
+  'UnsplitJunction',
+  'NotEnoughCreases',
+  'TooManyUnknowns',
+  'NoUniqueAnswer',
 ] as const;
+
+/**
+ * The rules that describe a vertex the check **could** decide but has not.
+ *
+ * The dividing line of `implementation-plans/never-report-silence.md`: these
+ * carry an action — set that crease to this angle — where the remaining
+ * informational rules carry an explanation of why nothing can be said. They are
+ * counted apart for the same reason they are worded apart, and a user with 700
+ * of the first and 2 of the second has two different facts about their document.
+ */
+const UNDECIDED_RULES = ['Undecided', 'UndecidedChoice'] as const;
 
 export type FoldabilityRule = (typeof FOLDABILITY_RULES)[number];
 export type FoldabilityColor = (typeof FOLDABILITY_COLORS)[number];
 export type SpatialRule = (typeof SPATIAL_RULES)[number];
+
+/** Whether a rule names a vertex with an answer waiting, rather than one nothing can be said about. */
+export function isUndecidedRule(value: string | null | undefined): boolean {
+  return (UNDECIDED_RULES as readonly string[]).includes(value ?? '');
+}
 
 function isRule(value: string | null | undefined): value is FoldabilityRule {
   return FOLDABILITY_RULES.includes(value as FoldabilityRule);
@@ -198,7 +221,7 @@ export function foldabilityViolationMessage(
 export function spatialRuleMessage(
   t: TFunction,
   rule: SpatialRule,
-  entry?: Pick<OristudioCpDiagnosticEntry, 'residual_degrees'>
+  entry?: Pick<OristudioCpDiagnosticEntry, 'residual_degrees' | 'fold_angle_degrees'>
 ): string {
   // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
   switch (rule) {
@@ -256,6 +279,56 @@ export function spatialRuleMessage(
       return t(
         'panels:creasePattern.foldability.interiorBorder',
         'Edge with paper on both sides — foldability is not checked along it'
+      );
+
+    // Undecided: an answer exists and this is it. The angle is the whole value
+    // of the row — "this crease has no angle yet" is something the user already
+    // knows, and repeating it would be a nag. Formatted by the same function the
+    // canvas badge uses, so the number here and the number on the crease cannot
+    // disagree about sign or precision.
+    case 'Undecided': {
+      const degrees = entry?.fold_angle_degrees;
+      return degrees == null
+        ? t('panels:creasePattern.foldability.undecided', 'This crease has no angle yet')
+        : t(
+            'panels:creasePattern.foldability.undecidedAngle',
+            'Set this crease to {{angle}} and this vertex closes',
+            { angle: formatFoldAngle(degrees) }
+          );
+    }
+    // Also undecided, and deliberately without a number: more than one angle
+    // closes the vertex, so naming one of them would be the app making a design
+    // decision. Mountain against valley is the commonest such pair.
+    case 'UndecidedChoice':
+      return t(
+        'panels:creasePattern.foldability.undecidedChoice',
+        'More than one angle closes this vertex, so this crease is a choice'
+      );
+
+    // The four below are the honest abstentions. They share a leading phrase
+    // because they share a fact — the check did not answer here — and differ
+    // only in why, which is what the user needs in order to make it answerable.
+    case 'UnsplitJunction':
+      return t(
+        'panels:creasePattern.foldability.unsplitJunction',
+        'Not checked — a crease passes through this point without ending here'
+      );
+    case 'NotEnoughCreases':
+      return t(
+        'panels:creasePattern.foldability.notEnoughCreases',
+        'Not checked — fewer than three creases meet here'
+      );
+    case 'TooManyUnknowns':
+      return t(
+        'panels:creasePattern.foldability.tooManyUnknowns',
+        'Not checked — too many undecided creases meet here'
+      );
+    // The one that was checked and still cannot be stated: the angles that close
+    // it form a continuous family rather than a value.
+    case 'NoUniqueAnswer':
+      return t(
+        'panels:creasePattern.foldability.noUniqueAnswer',
+        'Not pinned down — many different angles close this vertex'
       );
   }
 }

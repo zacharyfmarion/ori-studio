@@ -297,6 +297,18 @@ pub struct CommandResult {
     /// Structured diagnostic markers emitted by non-mutating check commands.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub diagnostic_entries: Vec<CommandDiagnostic>,
+    /// How many vertices a foldability check produced an answer for.
+    ///
+    /// `None` on every command that does not check vertices, so nothing else
+    /// changes shape. Zero is not the same as "clean": it means the check
+    /// affirmed nothing at all, which is what `known-good/airplane.fold` — every
+    /// vertex on the paper edge — has always displayed as success.
+    ///
+    /// Carried beside `diagnostic_entries` rather than inside them because it is
+    /// not a finding. It is the count the *absence* of findings is about, and
+    /// there is no vertex to attach it to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checked_vertices: Option<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -320,6 +332,17 @@ pub struct CommandDiagnostic {
     /// `CheckCamv` result is byte-identical to what it was before this existed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub residual_degrees: Option<f64>,
+    /// The signed fold angle that would close an undecided vertex, in degrees —
+    /// negative a mountain, matching every other fold angle the app displays.
+    ///
+    /// Deliberately **not** `residual_degrees`: one is how far a vertex is from
+    /// closing and the other is a value to set, and a reader that cannot tell
+    /// them apart would offer the user a number to type in that is the size of
+    /// their mistake. Present only when exactly one angle closes the vertex;
+    /// with a branch there is more than one answer and naming one of them would
+    /// be a choice the app is not entitled to make.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fold_angle_degrees: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub violation_color: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -1899,6 +1922,7 @@ pub fn execute_command(
 
     let mut diagnostic_entries = Vec::new();
     let mut diagnostics_override = None;
+    let mut checked_vertices = None;
     let changed = match command.operation {
         OperationId::DrawCreaseFree | OperationId::DrawCreaseRestricted => {
             let points = required_points(&command, 2)?;
@@ -2951,6 +2975,7 @@ pub fn execute_command(
             // mixed design therefore keeps its full flat diagnostics everywhere
             // it is still flat.
             let dispatched = checks_spatial::dispatched_camv(&document.crease_pattern);
+            checked_vertices = Some(dispatched.checked_vertices);
             diagnostic_entries = flat_foldability_diagnostics("CheckCamv", dispatched.flat);
             diagnostic_entries.extend(spatial_closure_diagnostics(&dispatched.spatial));
             diagnostic_entries.extend(interior_border_diagnostics(
@@ -3138,6 +3163,7 @@ pub fn execute_command(
         status,
         diagnostics,
         diagnostic_entries,
+        checked_vertices,
     })
 }
 
@@ -3170,6 +3196,7 @@ fn line_pair_diagnostics(
             segments: pair.to_vec(),
             rule: Some(format!("{operation:?}")),
             residual_degrees: None,
+            fold_angle_degrees: None,
             violation_color: None,
             big_little_big: Vec::new(),
         })
@@ -3189,6 +3216,7 @@ fn point_marker_diagnostics(kind: &str, markers: Vec<LineSegment>) -> Vec<Comman
             segments: vec![marker],
             rule: Some("VertexFlatFoldability".to_string()),
             residual_degrees: None,
+            fold_angle_degrees: None,
             violation_color: None,
             big_little_big: Vec::new(),
         })
@@ -3226,6 +3254,7 @@ fn flat_foldability_diagnostics(
                 segments,
                 rule: Some(rule.to_string()),
                 residual_degrees: None,
+                fold_angle_degrees: None,
                 violation_color: Some(violation_color.to_string()),
                 big_little_big,
             }
@@ -3457,6 +3486,7 @@ fn interior_border_diagnostics(
                 .collect(),
             rule: Some("InteriorBorder".to_string()),
             residual_degrees: None,
+            fold_angle_degrees: None,
             violation_color: None,
             big_little_big: Vec::new(),
         })
@@ -3472,11 +3502,28 @@ fn interior_border_diagnostics(
 /// back clean having declined to look. Both halves of that are now verdicts, and
 /// one of them is an error.
 ///
-/// [`checks_spatial::VertexVerdict::Undecided`] and
-/// [`checks_spatial::VertexVerdict::Unknowable`] deliberately produce nothing
-/// here yet: they are not errors, a pattern mid-design is full of the first, and
-/// they want counts and a tone of their own rather than a seat in the error list.
-/// That is Phase 2 of the plan.
+/// # Three severities, because there are three kinds of thing to say
+///
+/// `error` is a vertex that cannot fold. `info` is everything the check *did not
+/// decide*, and it is a separate severity rather than a quiet error because the
+/// counts must not mix: a pattern a quarter of the way through design is about
+/// 60% undecided, so folding those into the error count destroys the count —
+/// and `countCpDiagnosticErrors`, which gates Oriedita's "continue to fold?"
+/// modal, would raise it on every document mid-edit.
+///
+/// The `info` entries split again, and the split is the one that matters to a
+/// user: [`checks_spatial::VertexVerdict::Undecided`] has an **action** — here
+/// is the angle that closes it — and [`checks_spatial::VertexVerdict::Unknowable`]
+/// has an **explanation**. Separate `rule` codes, so the frontend words them
+/// separately and counts them separately.
+///
+/// [`checks_spatial::Unknowable::PaperEdge`] is the one verdict with no entry at
+/// all, and it is not an oversight: it is the only one where no closure
+/// condition exists, so there is nothing unexamined to report. Every 3D document
+/// has a rim of them — 33 on `ALL-combined.fold` — and a row apiece saying "not
+/// checked" would turn the honest answer "nothing to check here" into a standing
+/// complaint. [`checks_spatial::DispatchedCamv::checked_vertices`] is where a
+/// document made *entirely* of them gets caught.
 fn spatial_closure_diagnostics(
     reports: &[checks_spatial::SpatialVertexReport],
 ) -> Vec<CommandDiagnostic> {
@@ -3504,6 +3551,7 @@ fn spatial_closure_diagnostics(
                         segments: Vec::new(),
                         rule: Some("SelfIntersection".to_string()),
                         residual_degrees: None,
+                        fold_angle_degrees: None,
                         violation_color: None,
                         big_little_big: Vec::new(),
                     });
@@ -3527,6 +3575,7 @@ fn spatial_closure_diagnostics(
                     segments: Vec::new(),
                     rule: Some("Rigid".to_string()),
                     residual_degrees: None,
+                    fold_angle_degrees: None,
                     violation_color: None,
                     big_little_big: Vec::new(),
                 });
@@ -3545,6 +3594,7 @@ fn spatial_closure_diagnostics(
                     segments: Vec::new(),
                     rule: Some("Closure".to_string()),
                     residual_degrees: Some(residual_degrees),
+                    fold_angle_degrees: None,
                     violation_color: None,
                     big_little_big: Vec::new(),
                 });
@@ -3576,12 +3626,103 @@ fn spatial_closure_diagnostics(
                     segments: Vec::new(),
                     rule: Some("ClosureUnreachable".to_string()),
                     residual_degrees: *closest,
+                    fold_angle_degrees: None,
                     violation_color: None,
                     big_little_big: Vec::new(),
                 });
             }
-            checks_spatial::VertexVerdict::Undecided(_)
-            | checks_spatial::VertexVerdict::Unknowable(_) => {}
+            // Not a problem: a vertex whose undecided crease has an answer. The
+            // entry exists so the answer can be *read* — "set this crease to
+            // -70.53 degrees" is the difference between a diagnostic and a nag,
+            // and it is the sentence the owner of `failure_case.osf` needed at
+            // every vertex propagation had already solved.
+            checks_spatial::VertexVerdict::Undecided(undecided) => {
+                // The creases are the same in every option — only the angles
+                // differ — so the first option names them for all of them.
+                let segments = undecided
+                    .options
+                    .first()
+                    .map(|option| {
+                        option
+                            .angles
+                            .iter()
+                            .map(|(segment, _)| segment.clone())
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                // One angle for one crease is the only shape that can be stated
+                // as a value to apply. Anything else is a choice.
+                let single = match undecided.options.as_slice() {
+                    [only] => match only.angles.as_slice() {
+                        [(_, degrees)] => Some(*degrees),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                diagnostics.push(CommandDiagnostic {
+                    id: format!("SpatialUndecided-{}", index + 1),
+                    kind: "SpatialUndecided".to_string(),
+                    severity: "info".to_string(),
+                    message: match single {
+                        Some(degrees) => format!(
+                            "Undecided: setting this crease to {degrees:.4} degrees closes this \
+                             vertex"
+                        ),
+                        None => "Undecided: more than one angle closes this vertex".to_string(),
+                    },
+                    point: Some(report.point),
+                    segments,
+                    rule: Some(
+                        if single.is_some() {
+                            "Undecided"
+                        } else {
+                            "UndecidedChoice"
+                        }
+                        .to_string(),
+                    ),
+                    residual_degrees: None,
+                    fold_angle_degrees: single,
+                    violation_color: None,
+                    big_little_big: Vec::new(),
+                });
+            }
+            // Nothing is wrong and nothing was learned. Each of these names a
+            // different next move, which is why they are four rules and not one
+            // — and why `PaperEdge` is none of them.
+            checks_spatial::VertexVerdict::Unknowable(unknowable) => {
+                let (rule, message) = match unknowable {
+                    checks_spatial::Unknowable::PaperEdge => continue,
+                    checks_spatial::Unknowable::UnsplitJunction => (
+                        "UnsplitJunction",
+                        "Not checked: a crease passes through this point without ending here",
+                    ),
+                    checks_spatial::Unknowable::NotEnoughCreases => (
+                        "NotEnoughCreases",
+                        "Not checked: fewer than three creases meet here",
+                    ),
+                    checks_spatial::Unknowable::TooManyUnknowns { .. } => (
+                        "TooManyUnknowns",
+                        "Not checked: too many undecided creases meet here",
+                    ),
+                    checks_spatial::Unknowable::NoUniqueAnswer { .. } => (
+                        "NoUniqueAnswer",
+                        "Not pinned down: many angles close this vertex",
+                    ),
+                };
+                diagnostics.push(CommandDiagnostic {
+                    id: format!("SpatialUnknowable-{}", index + 1),
+                    kind: "SpatialUnknowable".to_string(),
+                    severity: "info".to_string(),
+                    message: message.to_string(),
+                    point: Some(report.point),
+                    segments: Vec::new(),
+                    rule: Some(rule.to_string()),
+                    residual_degrees: None,
+                    fold_angle_degrees: None,
+                    violation_color: None,
+                    big_little_big: Vec::new(),
+                });
+            }
         }
     }
     diagnostics
@@ -3667,6 +3808,7 @@ fn flat_foldable_boundary_input_diagnostics(
         segments,
         rule: Some("BoundaryLoop".to_string()),
         residual_degrees: None,
+        fold_angle_degrees: None,
         violation_color: None,
         big_little_big: Vec::new(),
     }]
@@ -3696,6 +3838,7 @@ fn flat_foldable_boundary_result_diagnostics(
         segments,
         rule: Some("FlatFoldableBoundary".to_string()),
         residual_degrees: None,
+        fold_angle_degrees: None,
         violation_color: None,
         big_little_big: Vec::new(),
     }]

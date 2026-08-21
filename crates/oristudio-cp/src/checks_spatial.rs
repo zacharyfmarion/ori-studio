@@ -1388,6 +1388,23 @@ pub struct DispatchedCamv {
     /// checked something, and on an all-classic document this list is empty by
     /// construction because nothing consults it.
     pub interior_borders: Vec<InteriorBorder>,
+    /// How many vertices this call produced an answer for.
+    ///
+    /// Neither `flat.len()` nor `spatial.len()`: the first counts violations and
+    /// the second counts reports, and a report can be an
+    /// [`Unknowable`]. This is the **denominator** the phrase "no errors" is
+    /// implicitly about, and it is the only thing that separates a pattern the
+    /// check affirmed from one it never got to.
+    ///
+    /// Zero is case 8 of `implementation-plans/never-report-silence.md`:
+    /// `known-good/airplane.fold` has twenty vertices, every one of them on the
+    /// paper edge, so no foldability condition exists anywhere in it — and it
+    /// reported "Foldability OK" having examined nothing.
+    ///
+    /// A flat vertex counts when Oriedita's rules apply to it at all, which is
+    /// [`is_interior_vertex`], the same test the spatial branch gates on. A
+    /// spatial vertex counts when its verdict was not [`Unknowable`].
+    pub checked_vertices: usize,
 }
 
 /// A border segment with paper on **both** sides.
@@ -1532,6 +1549,7 @@ pub(crate) fn dispatched_camv_in(
     };
     let mut flat = Vec::new();
     let mut spatial = Vec::new();
+    let mut checked_vertices = 0usize;
 
     for vertex in &vertices {
         // The spatial branch owns a vertex whose creases are not all full folds,
@@ -1544,12 +1562,21 @@ pub(crate) fn dispatched_camv_in(
             // is exactly when the index was built, so this never skips a real
             // vertex — it just avoids an unwrap on the invariant.
             if let Some(through) = through.as_ref() {
-                spatial.push(report_for(vertex, through));
+                let report = report_for(vertex, through);
+                checked_vertices += usize::from(report.verdict.was_checked());
+                spatial.push(report);
             }
-        } else if let Some(violation) =
-            crate::checks::find_flat_foldability_violation(vertex.point, &vertex.lines)
-        {
-            flat.push(violation);
+        } else {
+            // Counted from the same predicate the spatial branch gates on, not
+            // from whether a violation came back: a clean vertex and a vertex
+            // with no condition to violate both produce `None` here, and telling
+            // them apart is the whole point of the number.
+            checked_vertices += usize::from(is_interior_vertex(&vertex.lines));
+            if let Some(violation) =
+                crate::checks::find_flat_foldability_violation(vertex.point, &vertex.lines)
+            {
+                flat.push(violation);
+            }
         }
     }
 
@@ -1557,5 +1584,6 @@ pub(crate) fn dispatched_camv_in(
         flat,
         spatial,
         interior_borders,
+        checked_vertices,
     }
 }

@@ -122,6 +122,16 @@ export const MARKER_SHAPE = {
   square: 3,
   pentagon: 4,
   cross: 5,
+  /**
+   * The one shape that is not part of Oriedita's error vocabulary.
+   *
+   * Every marker above means "this is wrong"; the diamond means "this is not
+   * settled", and it carries both of the check's undecided states — filled where
+   * an answer is waiting, hollow where none can be given. Hollowness is a fill
+   * alpha the geometry builder chooses, exactly as it is for the ring, so this
+   * is one shader branch and not two.
+   */
+  diamond: 6,
 } as const;
 
 /**

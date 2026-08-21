@@ -3669,9 +3669,17 @@ button.cp-folded-figure-toolbar__notice:hover {
   color: var(--diagnostic-unknown);
 }
 
+/* Neither good nor bad: the check has not decided about this vertex. */
+.cp-diagnostic-glyph[data-tone='info'] {
+  color: var(--status-info);
+}
+
 /* Hollow by definition: Oriedita's empty circle is "only the angles are wrong,
-   everything else is correct", and a cross is a stroke, not an outline. */
+   everything else is correct", and a cross is a stroke, not an outline. The
+   unexamined diamond joins them for the same reason its canvas marker is drawn
+   with a zero-alpha fill — there is no answer to put inside it. */
 .cp-diagnostic-glyph[data-shape='ring'],
+.cp-diagnostic-glyph[data-shape='unexamined'],
 .cp-diagnostic-glyph[data-shape='self-intersection'],
 .cp-diagnostic-glyph[data-shape='generic'] {
   fill: none;
@@ -3695,6 +3703,15 @@ button.cp-folded-figure-toolbar__notice:hover {
 .cp-diagnostic-hud[data-tone='ok'] {
   border-color: color-mix(in srgb, var(--status-success) 72%, transparent);
   color: var(--status-success);
+}
+
+/* The fourth tone: the check has not finished with this document. Deliberately
+   not amber — a pattern mid-design is majority undecided, so a warning colour
+   would be a permanent false alarm — and deliberately not green, which is the
+   claim never-report-silence.md exists to stop the app making. */
+.cp-diagnostic-hud[data-tone='info'] {
+  border-color: color-mix(in srgb, var(--status-info) 60%, transparent);
+  color: var(--status-info);
 }
 
 .cp-tool-rail {

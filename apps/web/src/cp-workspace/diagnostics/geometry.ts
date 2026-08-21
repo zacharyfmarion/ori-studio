@@ -6,6 +6,7 @@ import type {
 import { readCssVarColor } from '../renderer/cssColor';
 import { MARKER_SHAPE } from '../renderer/types';
 import type { MarkerGeometry, Rgba, StrokeGeometry, WedgeGeometry } from '../renderer/types';
+import { cpDiagnosticClass } from './severity';
 
 /**
  * Pure builders that turn CAMV / check-fix diagnostic entries into the WebGL surface's
@@ -31,6 +32,14 @@ export type CpDiagnosticMarkerShape =
   | 'ring'
   | 'big-little-big'
   | 'self-intersection'
+  // A vertex with an answer waiting: a diamond, filled. Not one of Oriedita's
+  // shapes, because it is not one of Oriedita's facts — every marker upstream
+  // draws means "this is wrong", and this one means "this is not settled".
+  | 'undecided'
+  // A vertex nothing can be said about: the same diamond, hollow. Sharing the
+  // silhouette is deliberate — the two are the same kind of statement, and the
+  // fill is what says whether there is something to do about it.
+  | 'unexamined'
   | 'none';
 
 export type CpDiagnosticMarkerTone =
@@ -39,7 +48,9 @@ export type CpDiagnosticMarkerTone =
   | 'mountain'
   | 'valley'
   | 'neutral'
-  | 'unknown';
+  | 'unknown'
+  /** Neither good nor bad: the check has not decided. */
+  | 'info';
 
 export interface CpDiagnosticMarkerStyle {
   shape: CpDiagnosticMarkerShape;
@@ -59,10 +70,26 @@ const CP_DIAGNOSTIC_MARKER_SHAPE_ID: Record<CpDiagnosticMarkerShape, number | nu
   // upstream does not have. The cross reads as "these cross", which is the
   // thing being reported.
   'self-intersection': MARKER_SHAPE.cross,
+  undecided: MARKER_SHAPE.diamond,
+  unexamined: MARKER_SHAPE.diamond,
   generic: MARKER_SHAPE.cross,
   none: null,
 };
 const CP_DIAGNOSTIC_MARKER_PX = 10;
+
+/**
+ * Undecided and unexamined markers, smaller.
+ *
+ * They are the only diagnostics that appear in bulk on a *healthy* document — a
+ * pattern a fraction of the way through design carries hundreds — so at the
+ * error size they would be the loudest thing on the canvas, and the loudest
+ * thing would be the part that is going fine.
+ */
+const CP_DIAGNOSTIC_QUIET_MARKER_PX = 7;
+
+function isQuietMarker(shape: CpDiagnosticMarkerShape): boolean {
+  return shape === 'undecided' || shape === 'unexamined';
+}
 
 // Fill opacity for the big-little-big sectors: the violating sectors read strongly,
 // the rest stay lighter (but still legible) so the angular breakdown reads without
@@ -101,6 +128,11 @@ export function diagnosticEntryBounds(entry: OristudioCpDiagnosticEntry): CpDiag
   return boundsFromPoints(diagnosticEntryPoints(entry));
 }
 
+function isUndecidedOrUnexamined(entry: OristudioCpDiagnosticEntry): boolean {
+  const kind = cpDiagnosticClass(entry);
+  return kind === 'undecided' || kind === 'unexamined';
+}
+
 function isFlatFoldabilityDiagnostic(entry: OristudioCpDiagnosticEntry): boolean {
   return (
     entry.kind === 'Check4' ||
@@ -113,6 +145,11 @@ function isFlatFoldabilityDiagnostic(entry: OristudioCpDiagnosticEntry): boolean
 }
 
 export function cpDiagnosticMarkerTone(entry: OristudioCpDiagnosticEntry): CpDiagnosticMarkerTone {
+  // Ahead of the colour table, because these entries carry no violation colour
+  // and the table's default arm is `danger`. An undecided vertex drawn in the
+  // error colour would be the plan's bug inverted: silence read as success, and
+  // now an ordinary unfinished crease reading as a fault.
+  if (isUndecidedOrUnexamined(entry)) return 'info';
   switch (entry.violation_color) {
     case 'NotEnoughMountain':
       return 'mountain';
@@ -133,6 +170,16 @@ export function cpDiagnosticMarkerStyle(entry: OristudioCpDiagnosticEntry): CpDi
   // vertex not closing — the angles agree, the result is just not reachable.
   if (entry.rule === 'SelfIntersection') {
     return { shape: 'self-intersection', tone: 'danger' };
+  }
+
+  // One silhouette for "not settled", filled when there is something to apply
+  // and hollow when there is not. Ahead of the flat-foldability table, whose
+  // `CheckCamv` kind these entries also carry.
+  if (isUndecidedOrUnexamined(entry)) {
+    return {
+      shape: cpDiagnosticClass(entry) === 'undecided' ? 'undecided' : 'unexamined',
+      tone: 'info',
+    };
   }
 
   if (!isFlatFoldabilityDiagnostic(entry)) {
@@ -170,6 +217,7 @@ export function resolveCpDiagnosticToneColors(root: Element): Record<CpDiagnosti
     valley: readCssVarColor(root, '--fold-valley', [0.38, 0.65, 0.98, 1]),
     neutral: readCssVarColor(root, '--fold-unassigned', [0.6, 0.6, 0.65, 1]),
     unknown: readCssVarColor(root, '--diagnostic-unknown', [1, 0, 0.576, 1]),
+    info: readCssVarColor(root, '--status-info', [0.49, 0.718, 0.91, 1]),
   };
 }
 
@@ -198,7 +246,7 @@ export function buildCpDiagnosticMarkers(
   entries: readonly OristudioCpDiagnosticEntry[],
   toneColors: Record<CpDiagnosticMarkerTone, Rgba>
 ): MarkerGeometry {
-  const markers: { center: Point; shape: number; fill: Rgba; stroke: Rgba }[] = [];
+  const markers: { center: Point; shape: number; sizePx: number; fill: Rgba; stroke: Rgba }[] = [];
   for (const entry of entries) {
     if (!entry.point) continue;
     // BLB vertices with real sectors render as wedges, not the pentagon fallback.
@@ -207,23 +255,30 @@ export function buildCpDiagnosticMarkers(
     const shape = CP_DIAGNOSTIC_MARKER_SHAPE_ID[style.shape];
     if (shape === null) continue;
     const base = toneColors[style.tone];
-    const ring = style.shape === 'ring';
+    // Hollow says "nothing is filled in here" in both places it is used: the
+    // ring, where Oriedita means only the angles are wrong, and the unexamined
+    // diamond, where the check has no answer to put inside it.
+    const hollow = style.shape === 'ring' || style.shape === 'unexamined';
     markers.push({
       center: entry.point,
       shape,
-      fill: ring ? [base[0], base[1], base[2], 0] : withAlpha(base, 0.18),
+      sizePx: isQuietMarker(style.shape)
+        ? CP_DIAGNOSTIC_QUIET_MARKER_PX
+        : CP_DIAGNOSTIC_MARKER_PX,
+      fill: hollow ? [base[0], base[1], base[2], 0] : withAlpha(base, 0.18),
       stroke: withAlpha(base, 0.7),
     });
   }
   const count = markers.length;
   const center = new Float32Array(count * 2);
-  const size = new Float32Array(count).fill(CP_DIAGNOSTIC_MARKER_PX);
+  const size = new Float32Array(count);
   const shape = new Float32Array(count);
   const fill = new Float32Array(count * 4);
   const stroke = new Float32Array(count * 4);
   markers.forEach((m, i) => {
     center[i * 2] = m.center.x;
     center[i * 2 + 1] = m.center.y;
+    size[i] = m.sizePx;
     shape[i] = m.shape;
     fill.set(m.fill, i * 4);
     stroke.set(m.stroke, i * 4);

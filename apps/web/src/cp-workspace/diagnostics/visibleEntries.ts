@@ -3,6 +3,7 @@ import type {
   OristudioCpDiagnosticEntry,
 } from '../../engine/oristudioCpTypes';
 import { isDiagnosticResultOperation } from './hudStatus';
+import { sortedCpDiagnosticEntries } from './severity';
 
 const NONE: readonly OristudioCpDiagnosticEntry[] = [];
 
@@ -18,6 +19,12 @@ const NONE: readonly OristudioCpDiagnosticEntry[] = [];
  * Returned as one list because everything downstream — markers, the HUD list,
  * what a jump-to-diagnostic can reach — asks the same question: what can the user
  * see right now.
+ *
+ * Ordered worst-first by {@link sortedCpDiagnosticEntries}, and here rather than
+ * in the HUD so the list, the markers and the framing agree. Kernel order is
+ * vertex order, which was fine while every entry was an error and became useless
+ * the moment a mid-design pattern could contribute hundreds of informational
+ * rows for the three errors to hide among.
  */
 export function visibleCpDiagnosticEntries(
   camvResult: OristudioCpCommandResult | null,
@@ -35,10 +42,10 @@ export function visibleCpDiagnosticEntries(
 
   // A CheckCamv command result *is* the overlay recomputed, so showing both would
   // double every entry.
-  if (lastCommandResult?.operation === 'CheckCamv') return command;
-  if (overlay.length === 0) return command;
-  if (command.length === 0) return overlay;
-  return [...overlay, ...command];
+  if (lastCommandResult?.operation === 'CheckCamv') return sortedCpDiagnosticEntries(command);
+  if (overlay.length === 0) return sortedCpDiagnosticEntries(command);
+  if (command.length === 0) return sortedCpDiagnosticEntries(overlay);
+  return sortedCpDiagnosticEntries([...overlay, ...command]);
 }
 
 /** The visible entry with this id, or null — including when it is currently hidden. */

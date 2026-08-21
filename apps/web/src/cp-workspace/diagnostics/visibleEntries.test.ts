@@ -63,6 +63,29 @@ describe('visibleCpDiagnosticEntries', () => {
     ]);
   });
 
+  it('lifts the errors above the informational rows, in every combination', () => {
+    // The ordering has to be applied here rather than in the HUD, or the list,
+    // the canvas markers and the jump-to-diagnostic would each hold a different
+    // idea of which entry is which.
+    const mixed = {
+      ...result('CheckCamv', []),
+      diagnostic_entries: [
+        { ...entry('undecided-1'), severity: 'info', rule: 'Undecided' },
+        entry('error-1'),
+      ],
+    } as OristudioCpCommandResult;
+    expect(visibleCpDiagnosticEntries(mixed, null, true).map((e) => e.id)).toEqual([
+      'error-1',
+      'undecided-1',
+    ]);
+    const check1 = result('Check1', ['check1-1']);
+    expect(visibleCpDiagnosticEntries(mixed, check1, true).map((e) => e.id)).toEqual([
+      'error-1',
+      'check1-1',
+      'undecided-1',
+    ]);
+  });
+
   it('ignores a command that reports no diagnostics', () => {
     const fix = result('Fix1', []);
     expect(visibleCpDiagnosticEntries(camv, fix, true).map((e) => e.id)).toEqual([

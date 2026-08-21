@@ -151,6 +151,16 @@ export interface OristudioCpCommandResult {
   status: OristudioCpOperationStatus;
   diagnostics: string[];
   diagnostic_entries?: OristudioCpDiagnosticEntry[];
+  /**
+   * How many vertices a foldability check produced an answer for.
+   *
+   * Absent on every command that does not check vertices. Zero is **not** the
+   * clean case: it means the check affirmed nothing, which is what a pattern
+   * whose every vertex sits on the paper edge has always displayed as success.
+   * It is the denominator "no errors" is implicitly about, and there is no
+   * vertex to hang it on — hence a result field rather than an entry.
+   */
+  checked_vertices?: number | null;
 }
 
 export interface OristudioCpDiagnosticEntry {
@@ -169,6 +179,16 @@ export interface OristudioCpDiagnosticEntry {
    * already formatted English — a formatted string cannot be un-formatted.
    */
   residual_degrees?: number | null;
+  /**
+   * The signed fold angle that would close an undecided vertex, in degrees —
+   * negative a mountain, the same convention {@link formatFoldAngle} prints.
+   *
+   * Deliberately a second number rather than a reuse of `residual_degrees`: one
+   * is how far a vertex is from closing and this is a value to set. Present only
+   * when exactly one angle closes the vertex; a branch has more than one answer
+   * and naming one of them would be a choice the app is not entitled to make.
+   */
+  fold_angle_degrees?: number | null;
   violation_color?: string | null;
   big_little_big?: OristudioCpDiagnosticBigLittleBigSegment[];
 }

@@ -103,8 +103,8 @@ Four kinds, not two. The HUD tone union is `'ok' | 'warn' | 'error'` today
 | --- | --- | --- |
 | **Fine** | Checked, it closes | Counts toward "OK"; no entry |
 | **Broken** | Checked, it does not close, or violates a flat rule | Error entry, glyph, click-to-locate. **Exists** |
-| **Undecided** | Solvable in principle, not yet decided | **New** — its own count and glyph, and where possible the *answer*: the angle that would close it, or the two that would |
-| **Unknowable** | Boundary, unsplit junction, k ≥ 4, or excused by an interior border | **New** — quiet, but present, so a document of them never reads as clean |
+| **Undecided** | Solvable in principle, not yet decided | Its own count, a filled diamond, and the *answer*: "Set this crease to -143.2° and this vertex closes" |
+| **Unknowable** | Boundary, unsplit junction, k ≥ 4, or excused by an interior border | Its own count and a hollow diamond — except a paper edge, which has no condition to be unexamined about and is caught by `checked_vertices` instead |
 
 The distinction that matters to a user is **Undecided vs Unknowable**: the first
 has an action ("set this crease to 70.53°", "pick one of these two"), the second
@@ -222,9 +222,36 @@ own counts, which is Phase 2.
 
 ### Phase 2 — the HUD
 
-- [ ] The fourth tone, and counts that distinguish Undecided from Unknowable.
-- [ ] Case 8 (no interior vertices) stops reading as clean.
-- [ ] Glyphs and click-to-locate for the new states.
+- [x] The fourth tone, and counts that distinguish Undecided from Unknowable.
+      `info`, blue, and it **survives `issueOnly`** — the always-on overlay says
+      "18 vertices undecided" where it used to say nothing at all, and counts
+      down to silence as the user commits creases. Errors still own the headline
+      when there are any; informational rows are not issues, which is the rule
+      the list's own aria-label already stated.
+- [x] Case 8 (no interior vertices) stops reading as clean. `checked_vertices`
+      rides on `CommandResult` — it is the denominator "no errors" is about, and
+      there is no vertex to hang it on. Zero under an explicit check gives
+      "Foldability: nothing to check"; the overlay stays quiet, or an empty
+      document would wear a permanent badge.
+- [x] Glyphs and click-to-locate for the new states. One diamond for both —
+      filled where an answer is waiting, hollow where none can be given — at 7px
+      against the error markers' 10, because these are the only diagnostics that
+      appear in bulk on a *healthy* document.
+- [x] Not on the original list: the list is now ordered worst-first. Kernel order
+      is vertex order, which was fine while every entry was an error and useless
+      the moment three errors could hide among seven hundred informational rows.
+
+Two decisions Phase 2 made that are worth carrying forward:
+
+- **`Unknowable::PaperEdge` gets no entry.** It is the one verdict where no
+  closure condition exists, so there is nothing unexamined to report — and every
+  3D document has a rim of them (33 on `ALL-combined.fold`). A row apiece would
+  turn "nothing to check here" into a standing complaint. `checked_vertices` is
+  where a document made *entirely* of them gets caught instead.
+- **Undecided carries the angle, not the fact.** `fold_angle_degrees` is a second
+  number beside `residual_degrees` rather than a reuse of it: one is a value to
+  type in and the other is the size of a mistake. "This crease has no angle yet"
+  is something the user already knows; `-143.2°` is not.
 
 ### Phase 3 — the other surfaces
 

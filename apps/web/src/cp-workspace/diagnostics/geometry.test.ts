@@ -48,6 +48,7 @@ const tones: Record<ReturnType<typeof cpDiagnosticMarkerTone>, Rgba> = {
   valley: [0, 0.5, 1, 1],
   neutral: [0.5, 0.5, 0.5, 1],
   unknown: [1, 0, 0.5, 1],
+  info: [0.5, 0.7, 0.9, 1],
 };
 
 describe('cpDiagnosticMarkerStyle', () => {
@@ -66,6 +67,23 @@ describe('cpDiagnosticMarkerStyle', () => {
       'big-little-big'
     );
     expect(cpDiagnosticMarkerStyle(entry({ ...base, rule: 'None' })).shape).toBe('none');
+  });
+
+  it('draws undecided and unexamined vertices as one diamond, not as a fault', () => {
+    // These arrive with `kind: 'CheckCamv'`-adjacent kinds and no violation
+    // colour, and the colour table's default arm is `danger` — so without their
+    // own branch every unfinished crease on a healthy pattern would be drawn in
+    // the error colour. Same silhouette for both: they are the same kind of
+    // statement, and the fill is what says which.
+    const base = { kind: 'SpatialUndecided', severity: 'info', point: { x: 0, y: 0 } };
+    expect(cpDiagnosticMarkerStyle(entry({ ...base, rule: 'Undecided' }))).toEqual({
+      shape: 'undecided',
+      tone: 'info',
+    });
+    expect(cpDiagnosticMarkerStyle(entry({ ...base, rule: 'TooManyUnknowns' }))).toEqual({
+      shape: 'unexamined',
+      tone: 'info',
+    });
   });
 
   it('Angles is a ring when correct, a disc otherwise', () => {
@@ -99,6 +117,28 @@ describe('buildCpDiagnosticMarkers', () => {
     expect(geo.count).toBe(1);
     expect(geo.shape[0]).toBe(MARKER_SHAPE.cross);
     expect([geo.center[0], geo.center[1]]).toEqual([1, 2]);
+  });
+
+  it('draws the undecided diamond filled, the unexamined one hollow, and both smaller', () => {
+    // They are the only diagnostics that appear in bulk on a *healthy* document,
+    // so at the error size the loudest thing on the canvas would be the part
+    // that is going fine.
+    const base = { kind: 'SpatialUndecided', severity: 'info', point: { x: 0, y: 0 } };
+    const geo = buildCpDiagnosticMarkers(
+      [
+        entry({ ...base, rule: 'Undecided' }),
+        entry({ ...base, id: 'd2', rule: 'TooManyUnknowns' }),
+        entry({ id: 'e1', point: { x: 0, y: 0 } }),
+      ],
+      tones
+    );
+    expect([geo.shape[0], geo.shape[1]]).toEqual([MARKER_SHAPE.diamond, MARKER_SHAPE.diamond]);
+    expect(geo.size[0]).toBeLessThan(geo.size[2] ?? 0);
+    expect(geo.size[0]).toBe(geo.size[1]);
+    // Fill alpha, not a second shape: hollowness is the geometry builder's job
+    // here exactly as it is for the ring.
+    expect(geo.fill[3]).toBeGreaterThan(0);
+    expect(geo.fill[7]).toBe(0);
   });
 
   it('skips an BLB vertex that has wedges (the wedges represent it instead)', () => {
