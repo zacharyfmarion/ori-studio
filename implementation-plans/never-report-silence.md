@@ -257,7 +257,15 @@ Two decisions Phase 2 made that are worth carrying forward:
 
 - [ ] The fold-blocked dialog links to the vertex entry.
 - [ ] Propagation stalls become navigable.
-- [ ] Unassigned creases get a canvas dash, matched in `creaseExport`.
+- [x] Unassigned creases get a canvas dash, matched in `creaseExport`. A third
+      dash slot, which turned out to cost two `vec3` uniforms and one comparison
+      in the vertex stage — nothing per segment, since `dashSlot` was already an
+      attribute. The pattern is the `3 7` the SVG canvas used before the WebGL
+      migration dropped it, so this restores a signal rather than inventing one.
+      It dashes under **all five** line styles, including the two solid ones:
+      `black-white` paints an undecided crease within a few units per channel of
+      its valley grey, and the black-dot styles paint it the same black as a
+      paper edge, so colour cannot carry the difference there at all.
 
 ## Open questions
 

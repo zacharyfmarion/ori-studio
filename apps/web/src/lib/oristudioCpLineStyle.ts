@@ -27,12 +27,28 @@ export const ORIEDITA_DASH_ONE_DOT: readonly number[] = [10, 3, 3, 3]; // dash_M
 export const ORIEDITA_DASH_TWO_DOT: readonly number[] = [10, 3, 3, 3, 3, 3]; // dash_M2, 二点鎖線
 export const ORIEDITA_DASH_VALLEY: readonly number[] = [8, 8]; // dash_V, 破線
 
+/**
+ * The dots an undecided crease draws with — ours, not Oriedita's, because
+ * `LineColor.NONE` is a state Oriedita never draws (see `cpLineStyleColorKind`).
+ *
+ * The runs are the `stroke-dasharray: 3 7` the SVG canvas gave
+ * `.crease--line-color-unassigned` before the WebGL migration, which dropped it:
+ * short marks with wide gaps read as *provisional* next to the mountain chain
+ * and the valley dash, and stay distinct from both at every zoom because
+ * Oriedita's patterns are screen-space too. Sparse ink is the point — a crease
+ * with no angle yet should look like less than a crease — and it costs no
+ * reachability, since hit-testing is geometric and never consults the dash.
+ */
+export const ORISTUDIO_DASH_UNASSIGNED: readonly number[] = [3, 7];
+
 /** Dash slots addressed by {@link cpLineStyleDashSlot}; 0 is always solid. */
 export const SOLID_DASH_SLOT = 0;
 /** Slot of the mountain chain pattern within {@link cpLineStyleDashPatterns}. */
 export const MOUNTAIN_DASH_SLOT = 1;
 /** Slot of the valley dash pattern within {@link cpLineStyleDashPatterns}. */
 export const VALLEY_DASH_SLOT = 2;
+/** Slot of the undecided-crease dots within {@link cpLineStyleDashPatterns}. */
+export const UNASSIGNED_DASH_SLOT = 3;
 
 /** Which ink a crease draws with once the line style has had its say. */
 export type CpLineInk = 'own' | 'black' | 'grey';
@@ -60,10 +76,19 @@ export function cpLineStyleInk(style: OristudioCpLineStyle, color: string): CpLi
 /**
  * The dash slot a line colour draws with under `style`, indexing the table
  * {@link cpLineStyleDashPatterns} returns for that same style.
+ *
+ * An undecided crease dashes under **every** style, including the two whose
+ * whole premise is that shape carries nothing. That is not an exception to the
+ * port so much as a case outside it: Oriedita's styles trade off *which* of
+ * mountain and valley a reader can tell apart, and an undecided crease is
+ * neither. Leaving it to colour alone is what the monochrome styles cannot
+ * afford — `black-white` paints it the same grey as a valley, and the two
+ * black-dot styles paint it the same black as a paper edge.
  */
 export function cpLineStyleDashSlot(style: OristudioCpLineStyle, color: string): number {
   const kind = cpLineStyleColorKind(color);
   if (kind === 'aux') return SOLID_DASH_SLOT;
+  if (kind === 'unassigned') return UNASSIGNED_DASH_SLOT;
   switch (style) {
     case 'color':
     case 'black-white':
@@ -76,9 +101,19 @@ export function cpLineStyleDashSlot(style: OristudioCpLineStyle, color: string):
   }
 }
 
+/** A slot this style leaves solid, so the slots below it keep their numbers. */
+const NO_DASH: readonly number[] = [];
+
 /**
- * The dash patterns `style` puts in play, ordered so entry `i` is slot `i + 1`.
- * Empty for the two solid styles.
+ * The pattern each dash slot holds under `style`, ordered so entry `i` is slot
+ * `i + 1`.
+ *
+ * A slot means the same thing under every style — 1 mountain, 2 valley, 3
+ * undecided — so a style that dashes nothing for one of them still reserves its
+ * place with an empty pattern rather than shifting the rest down. An empty
+ * pattern has period 0, which both the shader and the SVG exporter draw solid,
+ * so the two solid styles reach the same output through a table instead of
+ * through an absence.
  */
 export function cpLineStyleDashPatterns(
   style: OristudioCpLineStyle
@@ -86,12 +121,12 @@ export function cpLineStyleDashPatterns(
   switch (style) {
     case 'color':
     case 'black-white':
-      return [];
+      return [NO_DASH, NO_DASH, ORISTUDIO_DASH_UNASSIGNED];
     case 'color-and-shape':
     case 'black-one-dot':
-      return [ORIEDITA_DASH_ONE_DOT, ORIEDITA_DASH_VALLEY];
+      return [ORIEDITA_DASH_ONE_DOT, ORIEDITA_DASH_VALLEY, ORISTUDIO_DASH_UNASSIGNED];
     case 'black-two-dot':
-      return [ORIEDITA_DASH_TWO_DOT, ORIEDITA_DASH_VALLEY];
+      return [ORIEDITA_DASH_TWO_DOT, ORIEDITA_DASH_VALLEY, ORISTUDIO_DASH_UNASSIGNED];
   }
 }
 

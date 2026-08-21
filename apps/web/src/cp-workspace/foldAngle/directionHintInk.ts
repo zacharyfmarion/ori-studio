@@ -29,12 +29,14 @@ const WASH = 0.55;
 /**
  * A hinted crease's ink: its direction's colour, washed toward neutral.
  *
- * **Ink rather than a dash**, and that is forced rather than preferred: there
- * are two dash slots and both are already spent on mountain and valley in the
- * `color-and-shape`, `black-one-dot` and `black-two-dot` styles, so a
- * dash-based hint would need a renderer change. Ink costs nothing, works in all
- * five line styles, and degrades in the monochrome ones to a lighter grey —
- * which still reads as "not decided" even where it cannot read as "mountain".
+ * **Ink rather than a dash**, and now by choice rather than by constraint. It
+ * was written when there were two dash slots and both were spent on mountain and
+ * valley; there is a third one since, and it is spent on the undecided crease
+ * itself. That is the right owner: the dash answers "is this settled?" and the
+ * ink answers "which way did it lean?", so a hinted crease wears both and each
+ * one still means one thing. Ink also works in all five line styles, and
+ * degrades in the monochrome ones to a lighter grey — which still reads as "not
+ * decided" even where it cannot read as "mountain".
  *
  * Applied per segment *after* the colour-keyed appearance cache, for the same
  * reason `foldAngleInk` is: direction is what the cache keys on, and whether a

@@ -14,10 +14,14 @@ import {
   type CreaseExportOptions,
 } from './creaseExport';
 import {
+  cpLineStyleDashPatterns,
   ORIEDITA_DASH_ONE_DOT,
   ORIEDITA_DASH_TWO_DOT,
   ORIEDITA_DASH_VALLEY,
+  ORISTUDIO_DASH_UNASSIGNED,
+  UNASSIGNED_DASH_SLOT,
 } from './oristudioCpLineStyle';
+import { ORISTUDIO_CP_LINE_STYLES } from './creasePatternViewport';
 
 // A square (border) split by a mountain and a valley diagonal, plus a second
 // disjoint square, so segmentation yields two crease patterns.
@@ -121,6 +125,60 @@ describe('crease pattern export', () => {
     });
     expect(twoDot).toContain(`stroke-dasharray="${scaled(ORIEDITA_DASH_TWO_DOT)}"`);
     expect(twoDot).not.toContain('stroke="#ff4d5d"');
+  });
+
+  it('dots an undecided crease under every line style, as the canvas does', () => {
+    // One square with a diagonal nobody has assigned yet — the state the whole
+    // "never report silence" work exists for. The export has to look like the
+    // canvas here or the picture a user shares claims a pattern is finished when
+    // the app they exported it from does not.
+    const fold: FoldDocument = {
+      vertices_coords: [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 1],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+        [0, 2],
+      ],
+      edges_assignment: ['B', 'B', 'B', 'B', 'U'],
+      faces_vertices: [
+        [0, 1, 2],
+        [0, 2, 3],
+      ],
+    };
+    const segments = segmentFoldDocument(fold);
+    const scaled = (pattern: readonly number[]) =>
+      pattern.map((run) => (run * (1024 / 720)).toFixed(2)).join(' ');
+
+    for (const lineStyle of ORISTUDIO_CP_LINE_STYLES) {
+      const svg = serializeCreasePatternSvg(fold, segments, {
+        ...DEFAULT_CREASE_EXPORT_OPTIONS,
+        lineStyle,
+      });
+      expect(svg).toContain(`stroke-dasharray="${scaled(ORISTUDIO_DASH_UNASSIGNED)}"`);
+      // The four borders around it stay solid under the solid styles, so the
+      // dash is the undecided crease's and not something the style did.
+      if (lineStyle === 'color' || lineStyle === 'black-white') {
+        expect(svg.match(/stroke-dasharray/g)).toHaveLength(1);
+      }
+    }
+  });
+
+  it('takes the undecided dots from the same slot the canvas reads', () => {
+    // The canvas resolves a slot index into this table; the export resolves the
+    // pattern directly. They agree only while the slot the export's colour maps
+    // to holds the pattern the export draws.
+    for (const style of ORISTUDIO_CP_LINE_STYLES) {
+      expect(cpLineStyleDashPatterns(style)[UNASSIGNED_DASH_SLOT - 1]).toBe(
+        ORISTUDIO_DASH_UNASSIGNED
+      );
+    }
   });
 
   it('exports a single segment when a segmentId is given', () => {

@@ -131,8 +131,18 @@ export const DEFAULT_ORISTUDIO_CP_POINT_SIZE = 1;
 
 export type OristudioCpViewportOptionKey = keyof OristudioCpViewportOptions;
 
-// Maps an Oriedita LineColor to the crease-kind used by line-style dash rules.
-export function cpLineStyleColorKind(color: string): 'mountain' | 'valley' | 'edge' | 'aux' | 'other' {
+/**
+ * Maps an Oriedita LineColor to the crease-kind used by line-style dash rules.
+ *
+ * `unassigned` is the one kind with no upstream behaviour behind it: `NONE(-1)`
+ * is declared in Oriedita's `LineColor` enum and drawn by nothing in its source,
+ * because a crease whose fold angle is not yet decided is an Ori Studio state.
+ * It is split out from `other` — the extra palette colours, which stay solid
+ * under every style — so it can carry a signal of its own.
+ */
+export function cpLineStyleColorKind(
+  color: string
+): 'mountain' | 'valley' | 'edge' | 'aux' | 'unassigned' | 'other' {
   switch (color) {
     case 'Red1':
       return 'mountain';
@@ -142,6 +152,8 @@ export function cpLineStyleColorKind(color: string): 'mountain' | 'valley' | 'ed
       return 'edge';
     case 'Cyan3':
       return 'aux';
+    case 'None':
+      return 'unassigned';
     default:
       return 'other';
   }
