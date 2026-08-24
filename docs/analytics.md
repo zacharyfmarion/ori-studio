@@ -242,6 +242,7 @@ the person chose it or is following their OS. Two things it is deliberately not:
 | `cp snap radius changed` | `snap_radius` (bucketed) | The crease-pattern snap radius is changed in Settings. Bucketed, never the number: it is a continuous per-user value, and the question it answers — tighter than the default, or more forgiving — is a bucket already. Fires only on an actual change, so the event existing already means the default was left |
 | `cp wheel gesture changed` | `wheel_gesture` | What an unmodified scroll does on the crease-pattern canvas is changed in Settings. An enum of two, and it only fires on a deliberate switch, so the counts read as departures from the shipped default (`zoom`) rather than as a population split |
 | `view drawer opened` | `workspace` | The touch-only View drawer is opened. It has no fine-pointer counterpart — the pane is docked there — so every one of these is a touch session going looking for the view options, which is the question undocking the pane raises. No menu action reaches it, so the `command invoked` chokepoint cannot see it |
+| `cp tool picker opened` | — | The phone layout's tool sheet is opened. Phone-only, because that is the one layout with no tool rail, so every one of these is somebody who found the Tools pill that replaced it. `cp tool used` counts what was picked; this counts whether the surface was found at all |
 
 **Nothing about a 3D fold's geometry is sent.** Not the closure residual, the
 loop gap, the plane separation, the crossing points, or any face, line, plane or
