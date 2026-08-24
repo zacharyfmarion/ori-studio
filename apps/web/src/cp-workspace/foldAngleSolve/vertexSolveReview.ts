@@ -52,6 +52,15 @@ export interface VertexSolveReview {
    * "here are two options" and "here is yours, and here is the alternative".
    */
   readonly isCurrent: boolean;
+  /**
+   * Whether the shown answer folds a crease against a direction the user marked
+   * on it.
+   *
+   * Applying overwrites the mark, so this is the one thing about an answer that
+   * has to be seen *before* it is applied rather than noticed afterwards — which
+   * is why it also suppresses the single-answer auto-apply below.
+   */
+  readonly contradictsHint: boolean;
 }
 
 export type VertexSolveOutcome =
@@ -67,6 +76,20 @@ export type VertexSolveOutcome =
   | { readonly kind: 'review'; readonly review: VertexSolveReview }
   | { readonly kind: 'none'; readonly reason: string | null };
 
+/**
+ * Whether an answer may commit on the third pick without being looked at.
+ *
+ * Only when it is the sole isolated answer, is not already the document, and
+ * does not fold anything against a direction the user marked. That last clause
+ * is the whole reason this is a function: a lone answer that contradicts a hint
+ * is still the *right* answer — it closes the vertex and the hint is a belief,
+ * not a fact — but committing it unseen would erase the mark and say nothing.
+ * Holding it for review costs one click and makes the trade visible.
+ */
+function mayCommitUnseen(count: number, isCurrent: boolean, contradictsHint: boolean): boolean {
+  return count === 1 && !isCurrent && !contradictsHint;
+}
+
 /** What to do with a kernel preview of the three picked creases. */
 export function outcomeForPreview(
   lineIds: readonly number[],
@@ -81,10 +104,14 @@ export function outcomeForPreview(
   // a stale response or a document that changed underneath it.
   if (count === 0 && !isFamily) return { kind: 'none', reason: null };
   const isCurrent = preview.candidate_is_current === true;
+  const contradictsHint = preview.candidate_contradicts_hint === true;
   // Nothing to apply: this *is* the document. Offering it as a one-click change
   // would be offering a no-op, so it holds for review with the alternatives.
-  if (count === 1 && !isCurrent) return { kind: 'apply' };
-  return { kind: 'review', review: { lineIds, index: 0, count, isFamily, isCurrent } };
+  if (mayCommitUnseen(count, isCurrent, contradictsHint)) return { kind: 'apply' };
+  return {
+    kind: 'review',
+    review: { lineIds, index: 0, count, isFamily, isCurrent, contradictsHint },
+  };
 }
 
 /**
@@ -98,9 +125,12 @@ export function outcomeForPreview(
 export function stepReview(review: VertexSolveReview, delta: number): VertexSolveReview {
   if (review.count <= 1) return review;
   const next = (((review.index + delta) % review.count) + review.count) % review.count;
-  // `isCurrent` describes the *shown* answer, so stepping invalidates it until
-  // the new preview lands. Assuming it carried over would label the wrong one.
-  return next === review.index ? review : { ...review, index: next, isCurrent: false };
+  // Both flags describe the *shown* answer, so stepping invalidates them until
+  // the new preview lands. Assuming either carried over would label the wrong
+  // one, and they are refreshed together from the same response.
+  return next === review.index
+    ? review
+    : { ...review, index: next, isCurrent: false, contradictsHint: false };
 }
 
 /** Whether the stepper should be shown at all. */

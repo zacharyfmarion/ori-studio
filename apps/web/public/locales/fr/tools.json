@@ -143,6 +143,7 @@
     "settingCountOther_many": "{{count}} paramètres",
     "settingCountOther_other": "{{count}} paramètres",
     "solveAngles": {
+      "againstHint": "Ceci plie un pli dans le sens opposé au sens mémorisé pour lui — l’appliquer le remplace.",
       "creaseNotInFan": "Choisissez trois plis différents qui se rejoignent au même sommet.",
       "current": "C'est ce que le sommet fait déjà — avancez pour voir l'alternative.",
       "family": "Ces trois plis laissent un degré de liberté ; c'est donc une réponse parmi une infinité — choisissez un autre troisième pli pour en obtenir une définie.",

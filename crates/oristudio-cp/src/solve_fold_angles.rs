@@ -162,6 +162,34 @@ pub struct AngleSolution {
     /// them apart is the difference between "here are two options" and "here is
     /// yours, and here is the alternative".
     pub is_current: bool,
+    /// Per slot, whether this solution folds that crease **against** an explicit
+    /// direction hint.
+    ///
+    /// # The hint does not constrain the solve
+    ///
+    /// A hint is the user saying *"I know this one is a valley, I just don't
+    /// know how far"*. That is a belief about the crease, not a fact about the
+    /// geometry — and a vertex closes the ways it closes. Filtering the answer
+    /// set by it would mean declining a vertex that plainly closes because the
+    /// only way it closes is one the user did not expect, which is the
+    /// substitution this crate refuses everywhere else. Measured on the reported
+    /// failure case, the hint would have removed one of three real branches.
+    ///
+    /// Nor does it reorder them. The order is nearest-to-current and that is a
+    /// statement about the document; a second sort key that outranked it would
+    /// make "step to the next answer" mean two things at once.
+    ///
+    /// # What it does earn is a say
+    ///
+    /// Applying a contradicting solution overwrites the hint with the opposite
+    /// direction — `with_line_color` clears it, because the invariant forbids a
+    /// hint on a decided crease — and the user gets no second chance to notice.
+    /// So the answer carries the conflict and the surface shows it before Apply.
+    ///
+    /// Always `[false; 3]` out of [`solve_fold_angles`], which is handed a
+    /// [`VertexFan`] and so has no hints to read; [`vertex_angle_solutions`]
+    /// fills it in from the document.
+    pub contradicts_hint: [bool; 3],
 }
 
 impl AngleSolution {
@@ -177,8 +205,19 @@ impl AngleSolution {
     }
 
     /// The stored magnitude, with 180 normalised to `None` as everywhere else.
+    ///
+    /// The `filter` is not a dropped case: absent **means** 180, so clearing the
+    /// field and setting a full fold are the same write, and this mirrors what
+    /// [`crate::geometry::LineSegment::with_fold_magnitude`] does on the way in
+    /// so that what this predicts is what the commit stores. Pinned by
+    /// `solutions_close_at_the_resolution_they_are_stored_at`.
     pub fn fold_magnitude(&self, slot: usize) -> Option<FoldMagnitude> {
         FoldMagnitude::from_degrees(self.creases[slot].1.abs()).filter(|value| !value.is_full())
+    }
+
+    /// Whether any of the three creases would be folded against its hint.
+    pub fn contradicts_a_hint(&self) -> bool {
+        self.contradicts_hint.iter().any(|conflict| *conflict)
     }
 
     /// How far this moves the three creases from where they are now, as the
@@ -696,6 +735,9 @@ pub fn solve_fold_angles(
                 .iter()
                 .zip(&degrees)
                 .all(|(now, solved)| (now.to_degrees() - solved).abs() < 1e-7),
+            // A fan carries directions and angles, never hints. The document
+            // entry point fills these in.
+            contradicts_hint: [false; 3],
         });
     }
 
@@ -825,23 +867,46 @@ pub fn vertex_angle_solutions(
         return decline(NoSolution::TooManyUnknowns);
     }
 
+    // Only an unassigned crease can carry a hint — `with_line_color` enforces
+    // that — so this is the same set as `free`, read through the document rather
+    // than assumed.
+    let hint_at = |line: usize| {
+        model
+            .line_segments
+            .get(line)
+            .and_then(|segment| segment.fold_direction_hint)
+    };
+
     match solve_fold_angles(&fan, triple, closed_bar) {
         Err(reason) => decline(reason),
         Ok(solutions) => {
             let any_free = !free.is_empty();
             let solutions: Vec<AngleSolution> = solutions
                 .into_iter()
-                .map(|solution| AngleSolution {
-                    creases: [
+                .map(|solution| {
+                    let creases = [
                         (sources[solution.creases[0].0], solution.creases[0].1),
                         (sources[solution.creases[1].0], solution.creases[1].1),
                         (sources[solution.creases[2].0], solution.creases[2].1),
-                    ],
-                    // "This is the state you are already in" has no meaning for
-                    // a crease that has no state, and the placeholder would make
-                    // a 0-degree answer claim it.
-                    is_current: solution.is_current && !any_free,
-                    ..solution
+                    ];
+                    let mut contradicts_hint = [false; 3];
+                    for (slot, (line, degrees)) in creases.iter().enumerate() {
+                        // `FoldDirection::admits` is the one predicate for "does
+                        // this angle fold the way that direction says", and it
+                        // answers no for zero — a crease that does not fold has
+                        // no direction to agree with.
+                        contradicts_hint[slot] =
+                            hint_at(*line).is_some_and(|hint| !hint.admits(*degrees));
+                    }
+                    AngleSolution {
+                        creases,
+                        // "This is the state you are already in" has no meaning
+                        // for a crease that has no state, and the placeholder
+                        // would make a 0-degree answer claim it.
+                        is_current: solution.is_current && !any_free,
+                        contradicts_hint,
+                        ..solution
+                    }
                 })
                 .collect();
             VertexAngleSolutions {

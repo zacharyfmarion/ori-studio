@@ -143,6 +143,7 @@
     "settingCountOther_many": "{{count}} configurações",
     "settingCountOther_other": "{{count}} configurações",
     "solveAngles": {
+      "againstHint": "Isto dobra um vinco no sentido oposto à direção lembrada para ele — aplicar a substitui.",
       "creaseNotInFan": "Escolha três vincos diferentes que se encontrem no mesmo vértice.",
       "current": "Isto é o que o vértice já faz — avance para ver a alternativa.",
       "family": "Estes três vincos deixam um grau de liberdade, então esta é uma entre infinitas respostas — escolha outro terceiro vinco para obter uma definida.",

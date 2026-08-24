@@ -193,11 +193,15 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
           anchor: preview?.points?.[0] ?? null,
         });
         // Only the kernel knows whether the answer now shown is the one the
-        // creases already hold, so the flag is refreshed from the same response
+        // creases already hold, or whether it folds one of them against a
+        // direction the user marked. Both are refreshed from the same response
         // that produced the segments rather than guessed at step time.
         const isCurrent = preview?.candidate_is_current === true;
+        const contradictsHint = preview?.candidate_contradicts_hint === true;
         setReview((current) =>
-          current && current.isCurrent !== isCurrent ? { ...current, isCurrent } : current
+          current && (current.isCurrent !== isCurrent || current.contradictsHint !== contradictsHint)
+            ? { ...current, isCurrent, contradictsHint }
+            : current
         );
       });
     // `key` is the identity of what is being previewed; `review` itself is a new
@@ -242,17 +246,27 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
       ...(solved.anchor ? [solved.anchor] : []),
     ]);
     if (!bounds) return null;
-    const note = review.isFamily
+    // Ordered by what the user stands to lose, not by how interesting each note
+    // is. The hint clash comes first because it is the only one that *destroys*
+    // something — applying replaces the direction mark, and there is no way to
+    // notice afterwards that it was ever there. The other two describe an answer
+    // that costs nothing to look at again.
+    const note = review.contradictsHint
       ? t(
-          'tools:cpContext.solveAngles.family',
-          'These three creases leave one degree of freedom, so this is one of infinitely many answers — pick a different third crease for a definite one.'
+          'tools:cpContext.solveAngles.againstHint',
+          'This folds a crease the opposite way from the direction remembered for it — applying replaces that.'
         )
-      : review.isCurrent
+      : review.isFamily
         ? t(
-            'tools:cpContext.solveAngles.current',
-            'This is what the vertex already does — step to see the alternative.'
+            'tools:cpContext.solveAngles.family',
+            'These three creases leave one degree of freedom, so this is one of infinitely many answers — pick a different third crease for a definite one.'
           )
-        : null;
+        : review.isCurrent
+          ? t(
+              'tools:cpContext.solveAngles.current',
+              'This is what the vertex already does — step to see the alternative.'
+            )
+          : null;
     return {
       bounds,
       title: t('tools:cpContext.solveAngles.title', 'Fold angles'),

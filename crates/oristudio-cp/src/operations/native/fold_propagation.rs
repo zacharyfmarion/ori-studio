@@ -592,42 +592,23 @@ fn all_writable(fan: &SolveFan, unknowns: &[usize], writable: &[bool]) -> bool {
 
 /// Apply a draft to the document. Returns how many creases changed.
 pub fn apply(model: &mut CreasePatternModel, solved: &[(usize, f64)]) -> usize {
-    solved
-        .iter()
-        .filter(|(index, degrees)| write_angle(model, *index, *degrees))
-        .count()
+    crate::operations::color::set_signed_fold_angles(model, solved)
 }
 
 /// Write one signed angle, turning an unassigned crease into a real one.
 ///
-/// [`crate::operations::color::set_signed_fold_angles`] cannot be used here: it
-/// skips anything that is not already `Red1`/`Blue2`, which is a documented
-/// invariant of the three-crease tool and is exactly the case propagation needs.
+/// A thin call into the shared chain, kept only because the propagation loop
+/// needs to know whether *this* crease moved, and a count over a one-element
+/// slice is the same question.
+///
+/// It used to be a near-copy of that chain, on the stated grounds that
+/// [`crate::operations::color::set_signed_fold_angles`] "skips anything that is
+/// not already `Red1`/`Blue2`". That skip turned out to be a bug in the
+/// three-crease solve rather than an invariant to work around — it made the tool
+/// apply two thirds of its own answer — so the copy has outlived its reason.
+/// Two chains for one write is how they came to disagree in the first place.
 fn write_angle(model: &mut CreasePatternModel, index: usize, degrees: f64) -> bool {
-    let Some(segment) = model.line_segments.get(index) else {
-        return false;
-    };
-    let color = if degrees < 0.0 {
-        LineColor::Red1
-    } else {
-        LineColor::Blue2
-    };
-    let magnitude = crate::geometry::FoldMagnitude::from_degrees(degrees.abs());
-    let Some(magnitude) = magnitude else {
-        return false;
-    };
-    // `with_fold_magnitude` normalises a full fold to `None`, which is the one
-    // canonical form for 180 degrees and is what keeps a classic document
-    // classic — and therefore off the three cost paths that a single non-classic
-    // crease switches on for the whole document.
-    let updated = segment
-        .with_line_color(color)
-        .with_fold_magnitude(Some(magnitude));
-    if updated == *segment {
-        return false;
-    }
-    model.line_segments[index] = updated;
-    true
+    crate::operations::color::set_signed_fold_angles(model, &[(index, degrees)]) == 1
 }
 
 fn endpoints(model: &CreasePatternModel, index: usize) -> Vec<Point> {

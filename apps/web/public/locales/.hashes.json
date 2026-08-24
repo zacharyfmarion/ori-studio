@@ -2560,7 +2560,8 @@
     "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
     "dialogs:fold3dRefused.showVertex": "10c25a4190a6",
     "dialogs:fold3dRefused.showDisagreement": "33bbca676765",
-    "dialogs:fold3dRefused.showPointDescription": "d638e97171ac"
+    "dialogs:fold3dRefused.showPointDescription": "d638e97171ac",
+    "tools:cpContext.solveAngles.againstHint": "94fab2e02207"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5123,7 +5124,8 @@
     "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
     "dialogs:fold3dRefused.showVertex": "10c25a4190a6",
     "dialogs:fold3dRefused.showDisagreement": "33bbca676765",
-    "dialogs:fold3dRefused.showPointDescription": "d638e97171ac"
+    "dialogs:fold3dRefused.showPointDescription": "d638e97171ac",
+    "tools:cpContext.solveAngles.againstHint": "94fab2e02207"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7686,7 +7688,8 @@
     "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
     "dialogs:fold3dRefused.showVertex": "10c25a4190a6",
     "dialogs:fold3dRefused.showDisagreement": "33bbca676765",
-    "dialogs:fold3dRefused.showPointDescription": "d638e97171ac"
+    "dialogs:fold3dRefused.showPointDescription": "d638e97171ac",
+    "tools:cpContext.solveAngles.againstHint": "94fab2e02207"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -10206,7 +10209,8 @@
     "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
     "dialogs:fold3dRefused.showVertex": "10c25a4190a6",
     "dialogs:fold3dRefused.showDisagreement": "33bbca676765",
-    "dialogs:fold3dRefused.showPointDescription": "d638e97171ac"
+    "dialogs:fold3dRefused.showPointDescription": "d638e97171ac",
+    "tools:cpContext.solveAngles.againstHint": "94fab2e02207"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12726,7 +12730,8 @@
     "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
     "dialogs:fold3dRefused.showVertex": "10c25a4190a6",
     "dialogs:fold3dRefused.showDisagreement": "33bbca676765",
-    "dialogs:fold3dRefused.showPointDescription": "d638e97171ac"
+    "dialogs:fold3dRefused.showPointDescription": "d638e97171ac",
+    "tools:cpContext.solveAngles.againstHint": "94fab2e02207"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -15289,7 +15294,8 @@
     "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
     "dialogs:fold3dRefused.showVertex": "10c25a4190a6",
     "dialogs:fold3dRefused.showDisagreement": "33bbca676765",
-    "dialogs:fold3dRefused.showPointDescription": "d638e97171ac"
+    "dialogs:fold3dRefused.showPointDescription": "d638e97171ac",
+    "tools:cpContext.solveAngles.againstHint": "94fab2e02207"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17852,7 +17858,8 @@
     "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
     "dialogs:fold3dRefused.showVertex": "10c25a4190a6",
     "dialogs:fold3dRefused.showDisagreement": "33bbca676765",
-    "dialogs:fold3dRefused.showPointDescription": "d638e97171ac"
+    "dialogs:fold3dRefused.showPointDescription": "d638e97171ac",
+    "tools:cpContext.solveAngles.againstHint": "94fab2e02207"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -20372,6 +20379,7 @@
     "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
     "dialogs:fold3dRefused.showVertex": "10c25a4190a6",
     "dialogs:fold3dRefused.showDisagreement": "33bbca676765",
-    "dialogs:fold3dRefused.showPointDescription": "d638e97171ac"
+    "dialogs:fold3dRefused.showPointDescription": "d638e97171ac",
+    "tools:cpContext.solveAngles.againstHint": "94fab2e02207"
   }
 }

@@ -143,6 +143,7 @@
     "settingCountOther_many": "{{count}} ajustes",
     "settingCountOther_other": "{{count}} ajustes",
     "solveAngles": {
+      "againstHint": "Esto pliega un pliegue en sentido contrario a la dirección recordada para él: aplicarlo la sustituye.",
       "creaseNotInFan": "Elige tres pliegues distintos que coincidan en el mismo vértice.",
       "current": "Esto es lo que el vértice ya hace: avanza para ver la alternativa.",
       "family": "Estos tres pliegues dejan un grado de libertad, así que esta es una de infinitas respuestas: elige otro tercer pliegue para obtener una definida.",

@@ -135,6 +135,7 @@
     "settingCountOther_one": "{{count}} settings",
     "settingCountOther_other": "{{count}} settings",
     "solveAngles": {
+      "againstHint": "This folds a crease the opposite way from the direction remembered for it — applying replaces that.",
       "creaseNotInFan": "Pick three different creases that all meet at the same vertex.",
       "current": "This is what the vertex already does — step to see the alternative.",
       "family": "These three creases leave one degree of freedom, so this is one of infinitely many answers — pick a different third crease for a definite one.",

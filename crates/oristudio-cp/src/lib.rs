@@ -395,6 +395,15 @@ pub struct CommandPreview {
     /// change.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub candidate_is_current: Option<bool>,
+    /// Whether the previewed solution folds a crease against a direction the
+    /// user marked on it.
+    ///
+    /// Applying replaces that hint with the opposite direction and there is no
+    /// second chance to notice, so the surface has to say so first. It is a
+    /// warning and never a refusal: see `AngleSolution::contradicts_hint` for
+    /// why a hint does not get to veto a real answer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candidate_contradicts_hint: Option<bool>,
     /// How many creases a propagation draft worked out.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub propagation_solved: Option<usize>,
@@ -4258,6 +4267,7 @@ pub fn preview_command(
                 if let Ok(solution) = chosen_angle_solution(&command, &solved) {
                     preview.candidate_is_family = Some(!solution.isolated);
                     preview.candidate_is_current = Some(solution.is_current);
+                    preview.candidate_contradicts_hint = Some(solution.contradicts_a_hint());
                     // The vertex the solve is about, so a UI anchored to it does
                     // not have to re-derive which endpoint the three creases
                     // share and risk disagreeing with the solve about it.
@@ -5956,6 +5966,215 @@ mod tests {
         assert!(execute_command(&mut document, command).is_err());
     }
 
+    /// The reported vertex, rebuilt: `failure_case.osf`'s degree-6 point at
+    /// (550, 1450), with one unassigned crease hinted Valley.
+    ///
+    /// Its five decided creases are two full-fold valleys at 109.4712206, two
+    /// mountains at 90 and a valley at 70.5287794 — real angles off a real
+    /// design, kept rather than rounded because 109.47 and 70.53 are
+    /// supplementary and the vertex closes on exactly that.
+    fn reported_failure_case_vertex() -> (CreasePatternDocument, Vec<usize>) {
+        const VERTEX: Point = Point {
+            x: 550.0,
+            y: 1450.0,
+        };
+        let mut document = CreasePatternDocument::default();
+        let corners = [
+            (450.0, 1350.0),
+            (650.0, 1350.0),
+            (650.0, 1550.0),
+            (450.0, 1550.0),
+        ];
+        for index in 0..4 {
+            let (ax, ay) = corners[index];
+            let (bx, by) = corners[(index + 1) % 4];
+            document
+                .crease_pattern
+                .line_segments
+                .push(geometry::LineSegment::with_color(
+                    Point::new(ax, ay),
+                    Point::new(bx, by),
+                    LineColor::Black0,
+                ));
+        }
+        // `(bearing in degrees, signed fold angle)`, or `None` for the
+        // unassigned crease. Bearings are the document's: the two 109.47 valleys
+        // run along the axes and the unassigned one runs up out of the vertex.
+        let creases: [(f64, Option<f64>); 6] = [
+            (180.0, Some(109.4712206)),
+            (-90.0, None),
+            (0.0, Some(109.4712206)),
+            (45.0, Some(-90.0)),
+            (90.0, Some(70.5287794)),
+            (135.0, Some(-90.0)),
+        ];
+        let mut indices = Vec::new();
+        for (bearing, rho) in creases {
+            let radians = bearing.to_radians();
+            indices.push(document.crease_pattern.line_segments.len());
+            let far = Point::new(
+                VERTEX.x + 50.0 * radians.cos(),
+                VERTEX.y + 50.0 * radians.sin(),
+            );
+            let segment = match rho {
+                Some(degrees) => geometry::LineSegment::with_color(
+                    VERTEX,
+                    far,
+                    if degrees < 0.0 {
+                        LineColor::Red1
+                    } else {
+                        LineColor::Blue2
+                    },
+                )
+                .with_fold_magnitude(geometry::FoldMagnitude::from_degrees(degrees.abs())),
+                None => geometry::LineSegment::with_color(VERTEX, far, LineColor::None)
+                    .with_direction_hint(Some(geometry::FoldDirection::Valley)),
+            };
+            document.crease_pattern.line_segments.push(segment);
+        }
+        (document, indices)
+    }
+
+    /// **The reported bug.** A solve that names an unassigned crease has to
+    /// decide it, not skip it.
+    ///
+    /// The apply gated on `Red1`/`Blue2` — "only creases that already fold" —
+    /// while the tool's fan deliberately keeps unassigned creases, because those
+    /// are what a user nominates it to work out. So the commit wrote the two
+    /// decided creases and dropped the third, leaving it undecided at a vertex
+    /// the tool had just reported closed. On screen it kept the undecided dash
+    /// and read as an auxiliary line.
+    ///
+    /// What makes this worth a test of its own rather than a line in another:
+    /// the *preview* never had the guard, so it showed the crease folded
+    /// correctly and the commit then wrote something else. Two write chains for
+    /// one operation, and only one of them was wrong.
+    #[test]
+    fn a_solve_decides_the_unassigned_crease_it_was_given() {
+        let (mut document, lines) = reported_failure_case_vertex();
+        let vertex = Point::new(550.0, 1450.0);
+        // The three the owner picked: the unassigned crease and the two 109.47
+        // valleys opposite each other.
+        let unassigned = lines[1];
+        let chosen = [unassigned, lines[0], lines[2]];
+
+        let solved = solve_fold_angles::vertex_angle_solutions(
+            &document.crease_pattern,
+            vertex,
+            &chosen,
+            CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
+        );
+        assert_eq!(solved.no_solution, None);
+        // "1 of 3" is what the tool reported, and all three are isolated.
+        assert_eq!(solved.isolated_count, 3);
+        let first = solved.solutions[0];
+
+        execute_command(&mut document, solve_command(vertex, &chosen, None))
+            .expect("the solve applies");
+
+        let segment = &document.crease_pattern.line_segments[unassigned];
+        assert_ne!(
+            segment.color,
+            LineColor::None,
+            "the solved crease is still undecided: the apply skipped it"
+        );
+        // A solved angle names a direction, so the crease leaves with the colour
+        // its sign implies — and without the hint, which the invariant forbids
+        // on a decided crease.
+        let slot = first
+            .creases
+            .iter()
+            .position(|(line, _)| *line == unassigned)
+            .expect("the answer names the crease");
+        assert_eq!(segment.color, first.line_color(slot));
+        assert_eq!(segment.fold_magnitude, first.fold_magnitude(slot));
+        assert_eq!(segment.fold_direction_hint, None);
+        // The measured answer: arccos(1/3), the same 70.5287794 the vertex's
+        // remaining valley already carries.
+        assert!((first.creases[slot].1 - 70.5287793).abs() < 1e-6);
+
+        // And the other two land as well — the whole answer, not two thirds of
+        // it. Both solve to a full fold, where "clear the magnitude" and "store
+        // 180" are the same write.
+        for (other, (line, degrees)) in first.creases.iter().enumerate() {
+            if other == slot {
+                continue;
+            }
+            let segment = &document.crease_pattern.line_segments[*line];
+            assert_eq!(segment.color, first.line_color(other), "line {line}");
+            assert_eq!(segment.fold_magnitude, None, "line {line} at {degrees}");
+            assert_eq!(crate::model::crease_fold_angle(segment), Some(180.0));
+        }
+    }
+
+    /// A hint is a belief about a crease, not a fact about the geometry, so it
+    /// does not get to remove a branch that genuinely closes the vertex — but
+    /// applying one that contradicts it destroys the mark, so the answer says so.
+    ///
+    /// On the reported vertex all three branches survive and exactly one folds
+    /// the Valley-hinted crease into a mountain.
+    #[test]
+    fn a_hint_flags_the_branch_that_contradicts_it_without_removing_it() {
+        let (document, lines) = reported_failure_case_vertex();
+        let vertex = Point::new(550.0, 1450.0);
+        let unassigned = lines[1];
+        let chosen = [unassigned, lines[0], lines[2]];
+
+        let solved = solve_fold_angles::vertex_angle_solutions(
+            &document.crease_pattern,
+            vertex,
+            &chosen,
+            CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
+        );
+        assert_eq!(
+            solved.solutions.len(),
+            3,
+            "the hint must not filter answers"
+        );
+
+        let mut contradicting = 0;
+        for solution in &solved.solutions {
+            let slot = solution
+                .creases
+                .iter()
+                .position(|(line, _)| *line == unassigned)
+                .expect("the answer names the crease");
+            let against_the_hint = solution.creases[slot].1 < 0.0;
+            assert_eq!(
+                solution.contradicts_hint[slot], against_the_hint,
+                "{:?} disagrees with its own sign",
+                solution.creases
+            );
+            assert_eq!(solution.contradicts_a_hint(), against_the_hint);
+            // The two decided creases carry no hint, so nothing there can clash.
+            for other in 0..3 {
+                if other != slot {
+                    assert!(!solution.contradicts_hint[other]);
+                }
+            }
+            contradicting += usize::from(against_the_hint);
+        }
+        assert_eq!(
+            contradicting, 1,
+            "the mountain branch is a real answer and must still be offered"
+        );
+
+        // And it reaches the surface, which is the only thing that stops the
+        // apply erasing the mark silently.
+        let index = solved
+            .solutions
+            .iter()
+            .position(solve_fold_angles::AngleSolution::contradicts_a_hint)
+            .expect("one branch contradicts");
+        let preview = preview_command(&document, solve_command(vertex, &chosen, Some(index)))
+            .expect("preview succeeds");
+        assert_eq!(preview.candidate_contradicts_hint, Some(true));
+        let agreeing = (0..3).find(|slot| *slot != index).expect("another branch");
+        let preview = preview_command(&document, solve_command(vertex, &chosen, Some(agreeing)))
+            .expect("preview succeeds");
+        assert_eq!(preview.candidate_contradicts_hint, Some(false));
+    }
+
     /// The colour and the magnitude have to land in one step. Closing a vertex
     /// can require a mountain to become a valley, and a two-operation apply
     /// would put a crease carrying the new angle with the old direction on the
@@ -5994,43 +6213,64 @@ mod tests {
     /// `candidate_index` picks the branch, and it must pick the same one for the
     /// preview and for the commit — otherwise the user steps to one answer and
     /// applies another.
+    ///
+    /// Run over **two** fixtures, and the second is why the first was not
+    /// enough. This assertion was already here and already right when the
+    /// unassigned-crease bug shipped: the preview wrote through a chain with no
+    /// colour gate and the commit through one with, so they disagreed on exactly
+    /// one input — a crease that is `LineColor::None` — and every fan this test
+    /// had was fully assigned. The invariant was fine; nothing ever handed it
+    /// the case that breaks it.
     #[test]
     fn the_preview_and_the_commit_agree_on_which_solution_is_chosen() {
-        let (document, lines) =
+        let (fully_assigned, lines) =
             document_with_vertex_fan(&[(0.0, 90.0), (45.0, 180.0), (90.0, -90.0), (225.0, 30.0)]);
-        let vertex = Point::new(0.0, 0.0);
-        let chosen = [lines[0], lines[2], lines[3]];
-        let solved = solve_fold_angles::vertex_angle_solutions(
-            &document.crease_pattern,
-            vertex,
-            &chosen,
-            CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
-        );
-        assert!(solved.solutions.len() >= 2, "need a branch to step through");
-
-        for index in 0..solved.solutions.len() {
-            let preview = preview_command(&document, solve_command(vertex, &chosen, Some(index)))
-                .expect("preview succeeds");
-            assert_eq!(preview.segments.len(), 3);
-            assert_eq!(preview.candidate_count, Some(solved.isolated_count));
-            assert_eq!(
-                preview.candidate_is_family,
-                Some(!solved.solutions[index].isolated)
+        let (with_an_unassigned_crease, reported) = reported_failure_case_vertex();
+        for (document, vertex, chosen) in [
+            (
+                fully_assigned,
+                Point::new(0.0, 0.0),
+                [lines[0], lines[2], lines[3]],
+            ),
+            (
+                with_an_unassigned_crease,
+                Point::new(550.0, 1450.0),
+                [reported[1], reported[0], reported[2]],
+            ),
+        ] {
+            let solved = solve_fold_angles::vertex_angle_solutions(
+                &document.crease_pattern,
+                vertex,
+                &chosen,
+                CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
             );
+            assert!(solved.solutions.len() >= 2, "need a branch to step through");
 
-            let mut applied = document.clone();
-            execute_command(&mut applied, solve_command(vertex, &chosen, Some(index)))
-                .expect("commit succeeds");
-            // Every previewed segment is exactly what the commit wrote.
-            for segment in &preview.segments {
-                assert!(
-                    applied
-                        .crease_pattern
-                        .line_segments
-                        .iter()
-                        .any(|written| written == segment),
-                    "preview showed {segment:?}, which the commit did not write"
+            for index in 0..solved.solutions.len() {
+                let preview =
+                    preview_command(&document, solve_command(vertex, &chosen, Some(index)))
+                        .expect("preview succeeds");
+                assert_eq!(preview.segments.len(), 3);
+                assert_eq!(preview.candidate_count, Some(solved.isolated_count));
+                assert_eq!(
+                    preview.candidate_is_family,
+                    Some(!solved.solutions[index].isolated)
                 );
+
+                let mut applied = document.clone();
+                execute_command(&mut applied, solve_command(vertex, &chosen, Some(index)))
+                    .expect("commit succeeds");
+                // Every previewed segment is exactly what the commit wrote.
+                for segment in &preview.segments {
+                    assert!(
+                        applied
+                            .crease_pattern
+                            .line_segments
+                            .iter()
+                            .any(|written| written == segment),
+                        "preview showed {segment:?}, which the commit did not write"
+                    );
+                }
             }
         }
     }

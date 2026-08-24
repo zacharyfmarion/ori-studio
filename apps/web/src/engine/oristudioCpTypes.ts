@@ -285,6 +285,17 @@ export interface OristudioCpCommandPreview {
    * the UI can say "this is what you have" rather than offering it as a change.
    */
   candidate_is_current?: boolean | null;
+  /**
+   * Whether the previewed solution folds a crease against a direction the user
+   * marked on it.
+   *
+   * Applying replaces that mark with the opposite direction and there is no
+   * second chance to notice it happened, so this has to reach the user before
+   * Apply does. A warning and never a refusal — the kernel's
+   * `AngleSolution::contradicts_hint` says why a hint does not get to veto an
+   * answer that genuinely closes the vertex.
+   */
+  candidate_contradicts_hint?: boolean | null;
   /** How many creases a propagation draft worked out. */
   propagation_solved?: number | null;
   /**
