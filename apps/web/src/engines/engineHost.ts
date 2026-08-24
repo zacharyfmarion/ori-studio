@@ -1,7 +1,7 @@
 import { wrap, type Remote } from 'comlink';
 import { createOristudioCpNativeClient } from '../engine/oristudioCpNativeClient';
 import { attachWorkerDiagnostics, type WorkerFailure } from '../lib/workerDiagnostics';
-import { isDesktopRuntime } from '../platform/runtime';
+import { surfaceSupports } from '../platform/capabilities';
 import { installFoldCancellation } from '../lib/foldCancellation';
 import type { OristudioBpWorkerApi } from '../workers/oristudioBpWorker';
 import type { OristudioCpWorkerApi } from '../workers/oristudioCpWorker';
@@ -63,13 +63,13 @@ const CONNECTORS: { [E in EngineId]: () => Connection<E> } = {
     return { worker, client: wrap<TreemakerWorkerApi>(worker) };
   },
   'oristudio-cp': () => {
-    if (isDesktopRuntime()) {
-      // Desktop: native Rust engine via Tauri commands (no wasm worker). The
-      // native client implements the same OristudioCpWorkerApi surface.
+    if (surfaceSupports('nativeCpEngine')) {
+      // Native Rust engine via Tauri commands (no wasm worker). The native
+      // client implements the same OristudioCpWorkerApi surface.
       const client = createOristudioCpNativeClient() as unknown as Remote<OristudioCpWorkerApi>;
-      // Desktop has no buffer to install, but its cancel flag outlives this
-      // webview's run-id counter — so cancellation is prepared on both branches,
-      // not just the one with a worker.
+      // The native path has no buffer to install, but its cancel flag outlives
+      // this webview's run-id counter — so cancellation is prepared on both
+      // branches, not just the one with a worker.
       installFoldCancellation(client);
       return { worker: null, client };
     }

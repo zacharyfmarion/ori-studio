@@ -2966,6 +2966,7 @@ name = "ori-studio"
 version = "0.2.1"
 dependencies = [
  "oristudio-cp",
+ "percent-encoding",
  "serde",
  "serde_json",
  "tauri",

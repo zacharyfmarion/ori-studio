@@ -1,4 +1,4 @@
-import { isDesktopRuntime } from './runtime';
+import { surfaceSupports } from './capabilities';
 
 /**
  * Which bundle format this build was installed from. Mirrors `InstallKind` in
@@ -24,10 +24,16 @@ export type AvailableUpdate = {
   publishedAt?: string;
 };
 
-/** The web build must never pull the Tauri updater into its bundle. */
-function assertDesktop(): void {
-  if (!isDesktopRuntime()) {
-    throw new Error('the updater is desktop-only');
+/**
+ * The web build must never pull the Tauri updater into its bundle — and the iOS
+ * build must never reach it either. There the updater plugin is cfg'd out of
+ * `Cargo.toml` altogether, so the commands behind these calls are not registered
+ * and an unguarded call would surface as an opaque IPC error rather than as
+ * "this platform updates through the App Store".
+ */
+function assertSelfUpdateSupported(): void {
+  if (!surfaceSupports('selfUpdate')) {
+    throw new Error('the updater is not available on this surface');
   }
 }
 
@@ -47,7 +53,7 @@ export function resetUpdateServiceForTest(): void {
 }
 
 export async function readUpdateEnvironment(): Promise<UpdateEnvironment> {
-  assertDesktop();
+  assertSelfUpdateSupported();
   const { invoke } = await import('@tauri-apps/api/core');
   return invoke<UpdateEnvironment>('update_environment');
 }
@@ -60,7 +66,7 @@ export async function readUpdateEnvironment(): Promise<UpdateEnvironment> {
  * wrong key looks perfectly healthy here.
  */
 export async function checkForUpdate(): Promise<AvailableUpdate | null> {
-  assertDesktop();
+  assertSelfUpdateSupported();
   const { check } = await import('@tauri-apps/plugin-updater');
   const update = await check();
   if (!update) {
@@ -79,7 +85,7 @@ export async function checkForUpdate(): Promise<AvailableUpdate | null> {
  * "Relaunch to update" is a true statement rather than the start of a download.
  */
 export async function downloadUpdate(version: string): Promise<void> {
-  assertDesktop();
+  assertSelfUpdateSupported();
   if (pendingUpdate?.version !== version) {
     throw new Error(`no pending update for ${version}`);
   }
@@ -95,7 +101,7 @@ export async function downloadUpdate(version: string): Promise<void> {
  * window-close handler.
  */
 export async function installUpdateAndRelaunch(version: string): Promise<void> {
-  assertDesktop();
+  assertSelfUpdateSupported();
   if (pendingUpdate?.version !== version) {
     throw new Error(`no pending update for ${version}`);
   }

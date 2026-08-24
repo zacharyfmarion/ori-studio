@@ -1,4 +1,19 @@
-export type RuntimeSurface = 'web' | 'desktop';
+/**
+ * Which shell is hosting this copy of the frontend.
+ *
+ * Three, not two. `'desktop'` and `'ios'` are both Tauri — they share the IPC
+ * bridge, the native CP engine and the `tauri://` origin — but they differ on
+ * everything the OS supplies around it: a resizable window, a menu bar, a
+ * self-updater, an address bar. Before `'ios'` existed, an iPad build answered
+ * `'desktop'` (it sets `__TAURI_INTERNALS__` like the desktop shell does) and
+ * silently took the desktop branch of all of it.
+ *
+ * There is deliberately no *predicate* for "is this Tauri". Ask
+ * {@link surfaceSupports} for the capability the call site actually depends on
+ * instead — that record has to answer for every surface, so a fourth one cannot
+ * be added without every question being re-asked.
+ */
+export type RuntimeSurface = 'web' | 'desktop' | 'ios';
 
 type RuntimeHost = Record<string, unknown>;
 
@@ -12,15 +27,26 @@ function defaultHost(): RuntimeHost | undefined {
   return undefined;
 }
 
-export function getRuntimeSurface(host: RuntimeHost | undefined = defaultHost()): RuntimeSurface {
+/**
+ * Both halves are needed and neither is sufficient. The host globals say Tauri
+ * or browser but nothing about the OS; the platform probe says iPadOS but
+ * answers the same for an iPad running the *web* build in Safari, which is a
+ * `'web'` surface and must not take any native branch.
+ *
+ * A Tauri Android build would land in `'desktop'` here. There is no Android
+ * target, and inventing a surface with no build behind it would be a table of
+ * guesses; when one exists, the compiler will demand an answer for it at every
+ * entry in {@link SURFACE_CAPABILITIES}.
+ */
+export function getRuntimeSurface(
+  host: RuntimeHost | undefined = defaultHost(),
+  probe?: PlatformProbe
+): RuntimeSurface {
   if (!host) return 'web';
-  return TAURI_INTERNALS_KEY in host || TAURI_V1_KEY in host || host[TAURI_FLAG_KEY] === true
-    ? 'desktop'
-    : 'web';
-}
-
-export function isDesktopRuntime(host?: RuntimeHost): boolean {
-  return getRuntimeSurface(host) === 'desktop';
+  const isTauri =
+    TAURI_INTERNALS_KEY in host || TAURI_V1_KEY in host || host[TAURI_FLAG_KEY] === true;
+  if (!isTauri) return 'web';
+  return isAppleMobilePlatform(probe) ? 'ios' : 'desktop';
 }
 
 export function isWebRuntime(host?: RuntimeHost): boolean {
@@ -108,15 +134,17 @@ export function isAppleMobilePlatform(probe: PlatformProbe | undefined = default
  * `ShowAll`) are macOS-only, and `setAsAppMenu` does not attach the same way
  * off macOS — so the menu that renders on those platforms has to be ours.
  *
- * iPadOS and iOS are Apple platforms that fall back the same way. A Tauri iOS
- * build sets `__TAURI_INTERNALS__`, so the runtime half of this reads "desktop"
- * there; without the mobile test an iPad would suppress {@link MenuBar} in favour
- * of a menu bar the OS does not have, and no menu command would be reachable.
+ * iPadOS and iOS are Apple platforms that fall back the same way. That is now
+ * carried by the surface itself: a Tauri iOS build sets `__TAURI_INTERNALS__`
+ * exactly as the desktop shell does, so {@link getRuntimeSurface} separates them
+ * on the same {@link isAppleMobilePlatform} test this used to apply here.
+ * Suppressing {@link MenuBar} in favour of a menu bar the OS does not have leaves
+ * no menu command reachable at all, which is the bug this shape prevents.
  *
  * Read synchronously during the first render — `WorkspaceShell` mounts the menu
  * bar off this answer, and a frame without menus is a visible flash, so no part
  * of it may wait on IPC.
  */
 export function usesNativeAppMenu(host?: RuntimeHost, probe?: PlatformProbe): boolean {
-  return isDesktopRuntime(host) && isApplePlatform(probe) && !isAppleMobilePlatform(probe);
+  return getRuntimeSurface(host, probe) === 'desktop' && isApplePlatform(probe);
 }

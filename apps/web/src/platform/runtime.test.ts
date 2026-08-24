@@ -3,7 +3,6 @@ import {
   getRuntimeSurface,
   isAppleMobilePlatform,
   isApplePlatform,
-  isDesktopRuntime,
   isWebRuntime,
   usesNativeAppMenu,
 } from './runtime';
@@ -36,14 +35,28 @@ describe('runtime detection', () => {
   });
 
   it('detects Tauri internals as desktop', () => {
-    const host = { __TAURI_INTERNALS__: {} };
-    expect(getRuntimeSurface(host)).toBe('desktop');
-    expect(isDesktopRuntime(host)).toBe(true);
+    expect(getRuntimeSurface({ __TAURI_INTERNALS__: {} }, MACOS)).toBe('desktop');
   });
 
   it('detects explicit Tauri flags as desktop', () => {
-    expect(getRuntimeSurface({ isTauri: true })).toBe('desktop');
-    expect(getRuntimeSurface({ __TAURI__: {} })).toBe('desktop');
+    expect(getRuntimeSurface({ isTauri: true }, MACOS)).toBe('desktop');
+    expect(getRuntimeSurface({ __TAURI__: {} }, MACOS)).toBe('desktop');
+  });
+
+  it('separates a Tauri iPad build from a Tauri Mac build', () => {
+    // The whole reason `'ios'` exists. The iOS shell sets the same
+    // `__TAURI_INTERNALS__` the desktop one does, so without the platform probe
+    // both answer `'desktop'` and an iPad silently takes every desktop branch:
+    // the self-updater, the window title, the close guard.
+    expect(getRuntimeSurface({ __TAURI_INTERNALS__: {} }, IPADOS)).toBe('ios');
+    expect(getRuntimeSurface({ __TAURI_INTERNALS__: {} }, MACOS)).toBe('desktop');
+  });
+
+  it('calls an iPad running the *web* build web, not ios', () => {
+    // Same device, same probe — the difference is the shell. Answering `'ios'`
+    // here would send Safari down the Tauri IPC paths, which do not exist.
+    expect(getRuntimeSurface({}, IPADOS)).toBe('web');
+    expect(isWebRuntime({})).toBe(true);
   });
 });
 
@@ -130,7 +143,8 @@ describe('isAppleMobilePlatform', () => {
 
 describe('usesNativeAppMenu', () => {
   const windows = { platform: 'Win32' };
-  const desktop = { __TAURI_INTERNALS__: {} };
+  const TAURI_INTERNALS_KEY = '__TAURI_INTERNALS__';
+  const desktop = { [TAURI_INTERNALS_KEY]: {} };
 
   it('is true only for desktop macOS', () => {
     expect(usesNativeAppMenu(desktop, MACOS)).toBe(true);
@@ -150,7 +164,11 @@ describe('usesNativeAppMenu', () => {
     // says Mac — so both halves of the old predicate answered "desktop macOS"
     // and `WorkspaceShell` rendered a spacer where <MenuBar /> belongs. Nothing
     // else in the app can reach File ▸ Open or Settings.
-    expect(isDesktopRuntime(desktop)).toBe(true);
+    //
+    // The surface now carries that distinction, so guard both links in the
+    // chain: the host alone still looks like Tauri, and the UA still looks like
+    // a Mac. Only the two read together answer correctly.
+    expect(TAURI_INTERNALS_KEY in desktop).toBe(true);
     expect(isApplePlatform(IPADOS)).toBe(true);
     expect(usesNativeAppMenu(desktop, IPADOS)).toBe(false);
   });

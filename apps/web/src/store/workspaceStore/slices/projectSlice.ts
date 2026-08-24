@@ -166,7 +166,8 @@ import {
   type SaveFileResult,
 } from '../../../platform/fileService';
 import { exportFilename as defaultFilename } from '../../../platform/exportFilename';
-import { getRuntimeSurface, isApplePlatform } from '../../../platform/runtime';
+import { surfaceSupports } from '../../../platform/capabilities';
+import { isApplePlatform } from '../../../platform/runtime';
 import i18n from '../../../i18n';
 import { requestConfirmation, requestCreasePatternExportOptions } from '../../commandDialogStore';
 import {
@@ -960,11 +961,13 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           {
             filename,
             format,
-            // Desktop runs the native Rust CP engine over Tauri commands, web
+            // The Tauri shells run the native Rust CP engine over commands, web
             // runs the wasm worker (see `getOristudioCpClient`). They are
             // separate implementations of the same surface, so a file that
             // opens on one can fail on the other — always record which refused.
-            engine: getRuntimeSurface() === 'desktop' ? 'native (tauri)' : 'wasm (worker)',
+            // Read from the same capability the connector branches on, so this
+            // label cannot drift from the engine it names.
+            engine: surfaceSupports('nativeCpEngine') ? 'native (tauri)' : 'wasm (worker)',
             characters: text.length,
             vertices: parsed.document.stats.vertices,
             edges: parsed.document.stats.edges,
@@ -1920,11 +1923,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
    * toast is the only confirmation there is. A null path is the download
    * fallback: nothing to write to a second time, nothing to confirm.
    *
-   * Desktop saves silently too. It is deliberately not included: it has always
-   * behaved this way, and this is scoped to the browser change.
+   * The native services save silently too. They are deliberately not included:
+   * that has always been the behaviour, and this is scoped to the browser change.
+   * Asked as a capability rather than `surface === 'web'` so it keeps naming the
+   * *implementation* that wrote the file — which is the thing with no UI — rather
+   * than one surface that happens to use it.
    */
   const savedWithoutTrace = (fileService: FileService, result: SaveFileResult) =>
-    fileService.surface === 'web' && result.path !== null;
+    !surfaceSupports('nativeFileIo', fileService.surface) && result.path !== null;
 
   const saveActiveProject = async (fileService: FileService, forceSaveAs: boolean) => {
     // "Is there a design" is a question about the **tabs**, not about the active

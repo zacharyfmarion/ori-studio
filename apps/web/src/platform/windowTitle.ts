@@ -1,3 +1,4 @@
+import { surfaceSupports } from './capabilities';
 import { getRuntimeSurface, type RuntimeSurface } from './runtime';
 
 export interface WindowTitleInput {
@@ -42,7 +43,9 @@ export async function applyWindowTitle(title: string, surface: RuntimeSurface = 
     document.title = title;
   }
 
-  if (surface !== 'desktop') return;
+  // `document.title` above is the whole job everywhere else: a browser tab shows
+  // it, and an iOS app has no title bar for the second half to write into.
+  if (!surfaceSupports('nativeWindowChrome', surface)) return;
 
   try {
     const { getCurrentWindow } = await import('@tauri-apps/api/window');

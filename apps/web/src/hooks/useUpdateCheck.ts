@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { runUpdateCheck } from '../lib/updateController';
-import { isDesktopRuntime } from '../platform/runtime';
+import { surfaceSupports } from '../platform/capabilities';
 import { useUpdateStore } from '../store/updateStore';
 
 /** Long enough that a cold start is done contending for the network. */
@@ -34,7 +34,7 @@ export function resetUpdateScheduleForTest(): void {
  */
 export function useUpdateCheck(): void {
   useEffect(() => {
-    if (!isDesktopRuntime()) return;
+    if (!surfaceSupports('selfUpdate')) return;
     if (scheduleStarted) return;
     scheduleStarted = true;
 

@@ -216,7 +216,12 @@ and paper; **drawing a crease by touch works**, with snapping; the engine runs
 - **Binary IPC is a memory hazard.** `fileService.ts:478` receives
   `invoke<number[]>('read_binary_file')` and `:502` sends
   `Array.from(options.bytes)` — a `Uint8Array` marshalled as a JSON array of
-  decimal numbers, roughly a **10–20× blowup** across the bridge.
+  decimal numbers. ~~roughly a **10–20× blowup**~~ **Measured at 3.1–3.6×**, not
+  10–20×: 3.34× on the 3.5 MB `iguana_24.osf`, 3.10× on `box_90.osf`, 3.57× on
+  2 MiB of high-entropy bytes, plus 67 ms of `JSON.stringify`. `"255,"` puts the
+  arithmetic ceiling at 4×, so the original figure was not reachable. A real
+  cost at the wrong magnitude — corrected here rather than left to be
+  rediscovered, and fixed for every platform since desktop pays it today.
 - **No viewport meta hardening**: no `viewport-fit=cover`, and
   `env(safe-area-inset-*)` appears nowhere in `apps/web/src`.
 

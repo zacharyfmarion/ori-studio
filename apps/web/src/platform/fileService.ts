@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { track } from '../analytics';
+import { surfaceSupports } from './capabilities';
 import { getRuntimeSurface, type RuntimeSurface } from './runtime';
 
 export type FileCommand =
@@ -426,8 +427,9 @@ function openBrowserBinaryFile(
 }
 
 class BrowserFileService implements FileService {
-  readonly surface = 'web' as const;
   readonly supportsNativeDialogs = false;
+
+  constructor(readonly surface: RuntimeSurface) {}
 
   async openTextFile(options: OpenTextFileOptions): Promise<OpenTextFileResult | null> {
     return openBrowserTextFile(options);
@@ -453,8 +455,9 @@ class BrowserFileService implements FileService {
 }
 
 class TauriFileService implements FileService {
-  readonly surface = 'desktop' as const;
   readonly supportsNativeDialogs = true;
+
+  constructor(readonly surface: RuntimeSurface) {}
 
   async openTextFile(options: OpenTextFileOptions): Promise<OpenTextFileResult | null> {
     const { open } = await import('@tauri-apps/plugin-dialog');
@@ -476,9 +479,8 @@ class TauriFileService implements FileService {
       filters: [{ name: 'Image', extensions: options.extensions }],
     });
     if (typeof selected !== 'string') return null;
-    const bytes = await invoke<number[]>('read_binary_file', { path: selected });
     return {
-      bytes: new Uint8Array(bytes),
+      bytes: await readNativeBinaryFile(selected),
       name: filenameFromPath(selected),
       path: selected,
       mimeType: mimeTypeFromFilename(selected),
@@ -499,7 +501,7 @@ class TauriFileService implements FileService {
       options.path ??
       (await this.chooseSavePath(options.title, options.suggestedName, options.extensions));
     if (!path) return null;
-    await invoke('write_binary_file', { path, bytes: Array.from(options.bytes) });
+    await writeNativeBinaryFile(path, options.bytes);
     return { name: filenameFromPath(path), path };
   }
 
@@ -516,6 +518,40 @@ class TauriFileService implements FileService {
     });
     return selected || null;
   }
+}
+
+/**
+ * Read a file's bytes over the Tauri bridge.
+ *
+ * The bytes cross as an `application/octet-stream` body rather than as JSON.
+ * They used to cross as `number[]` — `invoke` JSON-serializes a `Uint8Array`
+ * nested inside an args object by way of `Array.from`, so every byte became up to
+ * four characters of decimal text. Measured on this repo's fixtures that is
+ * **3.6x** the payload for a PNG and 3.1x for an `.osf`, plus a `JSON.stringify`
+ * of the whole thing on the way through (67 ms for 2 MiB) and a multi-megabyte
+ * intermediate string on each side. This is not an iOS-specific fix; it is what
+ * every desktop reference-image import has been paying.
+ *
+ * The `number[]` arm is kept deliberately, and mirrors `tauri-plugin-fs`'s own
+ * `readFile`: the raw response arrives as an `ArrayBuffer` over the custom
+ * protocol, but a host that falls back to the `postMessage` IPC still answers
+ * with an array, and decoding one as the other yields silent garbage.
+ */
+async function readNativeBinaryFile(path: string): Promise<Uint8Array> {
+  const body = await invoke<ArrayBuffer | number[]>('read_binary_file', { path });
+  return body instanceof ArrayBuffer ? new Uint8Array(body) : Uint8Array.from(body);
+}
+
+/**
+ * Write bytes to a file over the Tauri bridge, the mirror of
+ * {@link readNativeBinaryFile}.
+ *
+ * The bytes are the *whole* argument — that is the only shape `invoke` sends as a
+ * raw body — so the path has to travel beside them in a header, and be
+ * percent-encoded to survive one. `write_binary_file` decodes it.
+ */
+async function writeNativeBinaryFile(path: string, bytes: Uint8Array): Promise<void> {
+  await invoke('write_binary_file', bytes, { headers: { path: encodeURIComponent(path) } });
 }
 
 function mimeTypeFromFilename(filename: string): string {
@@ -560,7 +596,9 @@ function withExportTracking(service: FileService): FileService {
 
 export function createFileService(surface: RuntimeSurface): FileService {
   return withExportTracking(
-    surface === 'desktop' ? new TauriFileService() : new BrowserFileService()
+    surfaceSupports('nativeFileIo', surface)
+      ? new TauriFileService(surface)
+      : new BrowserFileService(surface)
   );
 }
 
@@ -597,25 +635,26 @@ export function createDroppedFileService(file: File): FileService {
 }
 
 export function createOpenedPathFileService(path: string): FileService {
-  const desktopService = createFileService('desktop');
+  // The live surface, not a hard-coded `'desktop'`: this is only ever reached
+  // from the Tauri opened-file hook, and on iOS that is the iOS shell.
+  const nativeService = createFileService(getRuntimeSurface());
   return {
-    surface: desktopService.surface,
-    supportsNativeDialogs: desktopService.supportsNativeDialogs,
+    surface: nativeService.surface,
+    supportsNativeDialogs: nativeService.supportsNativeDialogs,
     async openTextFile(): Promise<OpenTextFileResult | null> {
       const text = await invoke<string>('read_text_file', { path });
       return { text, name: filenameFromPath(path), path };
     },
     async openBinaryFile(): Promise<OpenBinaryFileResult | null> {
-      const bytes = await invoke<number[]>('read_binary_file', { path });
       return {
-        bytes: new Uint8Array(bytes),
+        bytes: await readNativeBinaryFile(path),
         name: filenameFromPath(path),
         path,
         mimeType: mimeTypeFromFilename(path),
       };
     },
-    saveTextFile: (options) => desktopService.saveTextFile(options),
-    saveBinaryFile: (options) => desktopService.saveBinaryFile(options),
+    saveTextFile: (options) => nativeService.saveTextFile(options),
+    saveBinaryFile: (options) => nativeService.saveBinaryFile(options),
   };
 }
 

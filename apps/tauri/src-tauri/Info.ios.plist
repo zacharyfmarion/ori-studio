@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  iOS-only Info.plist additions. Tauri looks for this filename beside
+  tauri.conf.json and merges it into the generated iOS plist; the sibling
+  Info.plist (which macOS bundling uses) is left alone.
+
+  Document types are deliberately NOT here — they come from
+  tauri.ios.conf.json, so that the one list drives both CFBundleDocumentTypes
+  and UTExportedTypeDeclarations and the two cannot disagree.
+-->
+<plist version="1.0">
+<dict>
+    <!--
+      Answers App Store Connect's export-compliance question at upload time
+      instead of re-asking it for every build. False is the accurate answer:
+      the app ships no encryption of its own, and its only network use is
+      HTTPS to the update endpoint and to PostHog/Sentry — which is exempt
+      under the "uses only encryption provided by the OS" category.
+
+      Note this is what makes the *question* stop appearing. It is not a
+      substitute for the France-specific declaration, should that ever apply.
+    -->
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
+</dict>
+</plist>
