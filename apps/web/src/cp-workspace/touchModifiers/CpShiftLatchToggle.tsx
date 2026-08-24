@@ -23,12 +23,19 @@ export function CpShiftLatchToggle() {
   const latched = useShiftLatched();
 
   // The latch is module state and this button is the only thing that can clear
-  // it, so it has to go out with the button. A convertible flipped out of tablet
-  // mode reports `fine` from that moment on, which unmounts this and leaves a
-  // latch nobody can see or reach — every click on that fine-pointer session
-  // additive, with no Shift key held. Same close-on-flip `useCpToolsTrigger`
-  // does, and the teardown `resetShiftLatch` was written for.
-  useEffect(() => resetShiftLatch, []);
+  // it, so a convertible flipped out of tablet mode must not leave one behind:
+  // it reports `fine` from that moment on, and a latch nobody can see or reach
+  // makes every click of that session additive with no Shift key held.
+  //
+  // Keyed on the flip, not on unmount. As an unmount cleanup this was correct on
+  // a tablet, where the button lives in the rail for as long as the rail does,
+  // and useless on a phone, where its only mount site is inside the tool sheet —
+  // so closing the sheet cleared the latch and there was no path where it was on
+  // while a finger was on the canvas. Measured: toggled on, closed via the X,
+  // reopened, and it read `false` again.
+  useEffect(() => {
+    if (!coarsePointer) resetShiftLatch();
+  }, [coarsePointer]);
 
   if (!coarsePointer) return null;
 

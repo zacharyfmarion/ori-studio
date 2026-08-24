@@ -5,6 +5,7 @@ import { handleMenuAction } from '../commands/menuActions';
 import { getMenuBarDef, type MenuDef, type MenuItemDef } from '../menus/menuDefinition';
 import { isMenuItemVisible, menuHasVisibleItems, pruneMenuItems } from '../menus/menuVisibility';
 import { useIsPhoneLayout } from '../platform/phoneLayout';
+import { useIsCoarsePointerSurface } from '../platform/pointerSurface';
 import { useShortcutStore } from '../store/shortcutStore';
 import { useWorkspaceCapabilities } from '../store/workspaceStore/useWorkspaceCapabilities';
 import type { WorkspaceCapabilities, WorkspaceCapabilityId } from '../lib/workspaceCapabilities';
@@ -243,6 +244,9 @@ export function MenuBar() {
   // bar the only way to reach them, which made its 28px rows the smallest
   // targets on the surface built for fingertips.
   const phone = useIsPhoneLayout();
+  // Layout is a phone question (inline submenus, a scroll cap); dismissal is a
+  // pointer question. See `onTouchOutside`.
+  const coarsePointer = useIsCoarsePointerSurface();
   const visibleMenus = useMemo<MenuDef[]>(
     () => menuDef.filter((menu) => menuHasVisibleItems(menu, capabilities)),
     [menuDef, capabilities]
@@ -264,30 +268,49 @@ export function MenuBar() {
         setOpenMenu(null);
       }
     };
+    /**
+     * The touch dismissal, which has to do two things a mouse's does not.
+     *
+     * **Close at all.** `mousedown` cannot dismiss a menu over the canvas: on
+     * touch it is a *compatibility* event, synthesised after `touchend` and not
+     * synthesised at all when the page claims the contact — and the crease
+     * pattern canvas claims every one. Measured with File open: the tap left the
+     * menu standing, so the largest region of the screen was not a way out.
+     * `pointerdown` is a real event, and a capture listener runs before the
+     * canvas can claim it.
+     *
+     * **Not also act.** A capture listener that only closes still lets the
+     * contact through, so the tap that dismissed the menu goes on to draw a
+     * crease. Measured on a tablet: two taps to get out of an open File menu
+     * committed a line. Swallowing the contact is what makes a dismissal only a
+     * dismissal, which is what every native menu does.
+     *
+     * Keyed on the **pointer**, not on phone size. The reason above is that
+     * touch suppresses `mousedown`, and that is as true of an 820px tablet as of
+     * a 393px phone — an earlier version gated this on the phone layout and left
+     * every tablet unable to close a menu without editing the document. A fine
+     * pointer keeps `mousedown` and keeps its long-standing behaviour, including
+     * that a click outside both dismisses and acts.
+     */
+    const onTouchOutside = (event: PointerEvent) => {
+      if (menuRef.current?.contains(event.target as Node)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setOpenMenu(null);
+    };
     const onEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpenMenu(null);
     };
 
     document.addEventListener('mousedown', onClickOutside);
-    // `mousedown` alone cannot dismiss a phone menu over the canvas. On touch it
-    // is a *compatibility* event, synthesised after `touchend` and suppressed
-    // outright when the page handles the touch itself — and the crease-pattern
-    // canvas does, on every contact. Measured in Mobile Safari: with File open,
-    // one tap on the canvas selected a crease and left the menu standing, so the
-    // largest region of the phone was not a way out of the menu.
-    //
-    // `pointerdown` is a real event rather than a synthesised one, and a capture
-    // listener here runs before the canvas' own handler can claim the contact,
-    // so it fires whatever the target does. Phone-only: a mouse already closes
-    // on `mousedown`, and this must not change what a fine pointer does.
-    if (phone) document.addEventListener('pointerdown', onClickOutside, true);
+    if (coarsePointer) document.addEventListener('pointerdown', onTouchOutside, true);
     document.addEventListener('keydown', onEscape);
     return () => {
       document.removeEventListener('mousedown', onClickOutside);
-      document.removeEventListener('pointerdown', onClickOutside, true);
+      document.removeEventListener('pointerdown', onTouchOutside, true);
       document.removeEventListener('keydown', onEscape);
     };
-  }, [openMenu, phone]);
+  }, [openMenu, coarsePointer]);
 
   return (
     <div className="menubar" ref={menuRef}>

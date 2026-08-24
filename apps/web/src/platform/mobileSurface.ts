@@ -6,10 +6,13 @@ import { getRuntimeSurface } from './runtime';
 /**
  * Whether the app should refuse to open a workspace on this device.
  *
- * Ori Studio's surfaces are built for a mouse and a keyboard — the crease-pattern
- * canvas has no touch gestures, and the panels assume a pointer that can hover.
- * On a phone the honest answer is the landing page plus a note saying so, which
- * is what this module decides for the router, the engine boot, and `/welcome`.
+ * The reason has narrowed. This used to read "the crease-pattern canvas has no
+ * touch gestures, and the panels assume a pointer that can hover" — neither is
+ * true now: the canvas has a multi-touch arbiter and the panels have a phone
+ * layout. What is still true is that a phone is a small screen for a drafting
+ * tool, so the default answer there is the landing page plus a note, with an
+ * "open it anyway" override for anyone who wants to try. That is what this
+ * module decides for the router, the engine boot, and `/welcome`.
  *
  * This is the **gate**, and nothing else. What a phone-shaped viewport *is* — and
  * how the app lays out on one — belongs to `platform/phoneLayout`, which this

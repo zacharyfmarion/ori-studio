@@ -6,10 +6,10 @@ import type { MediaHost } from './pointerSurface';
  * app: bottom tabs, no side rails, one toolbar row.
  *
  * Deliberately **not** `platform/mobileSurface`. That module asks whether the app
- * should *refuse to open* here, which is a product decision with a capability
- * behind it (`phoneGate`, off for both Tauri shells) — so `isPhoneSurface()` is
- * `false` on a native iPhone, and a layout gated on it would hand a 393px screen
- * the desktop chrome. This module asks only about the viewport, the same way
+ * should *refuse to open* here, which is a product decision and which exempts the
+ * Tauri shell — so `isPhoneSurface()` is `false` in a native build whatever the
+ * viewport says, and a layout gated on it would hand a 393px screen the desktop
+ * chrome. This module asks only about the viewport, the same way
  * `platform/pointerSurface` asks only about the pointer, and answers the same on
  * every runtime.
  *

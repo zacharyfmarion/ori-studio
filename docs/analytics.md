@@ -15,11 +15,9 @@ safeguards that keep it that way.
 **One switch governs both.** Settings → General → Privacy is a single toggle;
 opting out of usage analytics also stops crash reports.
 
-The browser build and the Tauri builds share the same renderer code, so one
-implementation covers all of them. A `runtime_surface` property/tag (`web` |
-`desktop` | `ios`) distinguishes them. `ios` is a Tauri build on iPadOS/iOS: it
-has the same IPC bridge as `desktop` and none of the window chrome, so it is a
-third value rather than a flavour of the second.
+The browser build and the Tauri build share the same renderer code, so one
+implementation covers both. A `runtime_surface` property/tag (`web` | `desktop`)
+distinguishes them.
 
 ## Principles
 

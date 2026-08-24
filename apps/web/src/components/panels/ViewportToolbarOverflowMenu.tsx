@@ -91,6 +91,29 @@ export function ViewportToolbarOverflowMenu({
           sideOffset={8}
           collisionPadding={8}
           loop
+          /*
+            Swallow the contact that dismissed the menu, on touch.
+            `DropdownMenu.Root` is modal, so Radix puts `pointer-events: none` on
+            the body while the menu is open. The `pointerdown` therefore lands on
+            `<html>`, the menu unmounts, and the *click* then hit-tests fresh
+            against a toolbar whose pointer events are back — so the tap that
+            dismissed the menu also presses whatever it landed on. Measured: a
+            backdrop tap over Zoom In took the canvas from 68% to 92% on a tablet
+            and 47% to 63% on a phone, and the same strip covers Fit, Fold and
+            Insert image.
+            This is the hazard the View drawer and the tool sheet each fixed by
+            dismissing on `click` rather than `pointerdown`; a Radix layer cannot
+            be moved that way, so the original event is neutered instead while
+            Radix's own dismissal proceeds. Coarse-pointer only, because a mouse
+            is already handled — the modal layer blocks its click — and because
+            an outside click that both dismisses and acts is long-standing
+            desktop behaviour that is not this change's to alter.
+          */
+          onPointerDownOutside={(event) => {
+            if (event.detail.originalEvent.pointerType === 'mouse') return;
+            event.detail.originalEvent.preventDefault();
+            event.detail.originalEvent.stopPropagation();
+          }}
         >
           {viewportToolbarSlots(groups).map((slot) =>
             slot.kind === 'separator' ? (

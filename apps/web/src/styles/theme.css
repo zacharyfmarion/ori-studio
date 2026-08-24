@@ -5392,13 +5392,19 @@ button.cp-folded-figure-toolbar__notice:hover {
   box-shadow: 0 8px 24px var(--shadow-overlay);
 }
 
-/* Narrow panes only — the strip shrinks to fit, so wherever its fields fit on one
-   line neither declaration does anything. Once they do not (a long step prompt on
-   a portrait tablet, a pane dragged small), the cap stops the strip at the
-   viewport's edge instead of letting it run past and be clipped, and wrapping at
-   the gaps moves whole fields to a second line rather than breaking the prompt
+/* Narrow panes. The cap stops the strip at the viewport's edge instead of letting
+   it run past and be clipped by `.app-layout`'s `overflow: hidden`, and wrapping
+   at the gaps moves whole fields to a second line rather than breaking the prompt
    mid-sentence. That second line is the height the diagnostic HUD stacks below —
-   see cp-workspace/diagnostics/hudPlacement.ts. */
+   see cp-workspace/diagnostics/hudPlacement.ts.
+
+   This is **not** inert for a mouse, which an earlier version of this comment
+   claimed. Measured at fine pointer: one line from 1440 down to 720, two lines at
+   700 and below. So a desktop user with a narrow pane sees a two-line readout
+   where they used to see one — but what they used to see was a *clipped* one,
+   with the tail of the step prompt cut off against the pane edge and no way to
+   read it. Left unscoped deliberately: the old behaviour was worse, and the HUD
+   measures the box rather than assuming its height, so it follows. */
 .viewport-status-readout {
   flex-wrap: wrap;
   max-width: calc(100% - var(--space-3) * 2);

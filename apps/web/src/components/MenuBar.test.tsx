@@ -2,6 +2,7 @@ import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { pruneMenuItems } from '../menus/menuVisibility';
+import { COARSE_POINTER_QUERY } from '../platform/pointerSurface';
 import { PHONE_MEDIA_QUERY } from '../platform/phoneLayout';
 import type { MenuItemDef } from '../menus/menuDefinition';
 import type { WorkspaceCapabilities } from '../lib/workspaceCapabilities';
@@ -78,17 +79,30 @@ describe('pruneMenuItems', () => {
 });
 
 /**
- * jsdom has no `matchMedia`, so the phone predicate answers `false` and the bar
+ * jsdom has no `matchMedia`, so both predicates answer `false` and the bar
  * renders its desktop arm — which is what every other test in this file wants,
- * and why the phone arm needs this. A stub, not a boolean: `useIsPhoneLayout`
- * subscribes to the query, and one that cannot be subscribed to would throw on
- * mount rather than fail on an assertion.
+ * and why the touch arms need this. A stub, not a boolean: both hooks
+ * *subscribe* to their query, and one that cannot be subscribed to would throw
+ * on mount rather than fail on an assertion.
+ *
+ * Two independent axes, because the bar asks two independent questions: the
+ * phone layout decides inline submenus and the scroll cap, and the *pointer*
+ * decides how the menu is dismissed. `isCoarse` defaults to `isPhone` because
+ * every phone is a touch device — but the case that matters is the one in
+ * between, coarse and not phone, and conflating the two is exactly how every
+ * tablet ended up unable to close a menu without drawing on the canvas. There
+ * was no test for that combination at all.
  */
-function stubViewport(isPhone: boolean): void {
+function stubViewport(isPhone: boolean, isCoarse: boolean = isPhone): void {
   vi.stubGlobal(
     'matchMedia',
     vi.fn((query: string) => ({
-      matches: query === PHONE_MEDIA_QUERY ? isPhone : false,
+      matches:
+        query === PHONE_MEDIA_QUERY
+          ? isPhone
+          : query === COARSE_POINTER_QUERY
+            ? isCoarse
+            : false,
       media: query,
       addEventListener: () => {},
       removeEventListener: () => {},
@@ -208,6 +222,36 @@ describe('the menu bar on a phone', () => {
       document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
     });
     expect(host.querySelector('.menu-dropdown')).toBeNull();
+  });
+
+  it('dismisses on a tablet too, and swallows the tap that did it', () => {
+    // Coarse but not phone — the combination that had no test, and the one an
+    // iPad is. Gating the listener on the phone layout left every tablet with
+    // `mousedown`, which Safari does not synthesise over a canvas that claims
+    // the contact: measured at 820x1180, the menu stayed open and two taps
+    // aimed at dismissing it committed a crease instead.
+    stubViewport(false, true);
+    const host = renderMenuBar();
+    openMenu(host, 'File');
+    expect(host.querySelector('.menu-dropdown')).not.toBeNull();
+
+    const outside = document.createElement('div');
+    document.body.append(outside);
+    const event = new Event('pointerdown', { bubbles: true, cancelable: true });
+    let reachedTheCanvas = false;
+    document.body.addEventListener('pointerdown', () => {
+      reachedTheCanvas = true;
+    });
+
+    act(() => {
+      outside.dispatchEvent(event);
+    });
+
+    expect(host.querySelector('.menu-dropdown')).toBeNull();
+    // The second half. Closing is not enough if the same contact goes on to
+    // reach the tool underneath — a dismissal has to be only a dismissal.
+    expect(reachedTheCanvas).toBe(false);
+    outside.remove();
   });
 
   it('leaves a pointerdown on its own rows alone', () => {
