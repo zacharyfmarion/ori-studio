@@ -93,6 +93,11 @@ const DEVICES = {
   iPhone16ProMaxLandscape: { pointer: 'coarse', width: 956, height: 440 },
   iPadMiniLandscape: { pointer: 'coarse', width: 1133, height: 744 },
   iPadLandscape: { pointer: 'coarse', width: 1180, height: 820 },
+
+  // A landscape iPad narrowed to Split View's smaller pane. Classified as a
+  // phone, deliberately — see the note in `platform/phoneLayout`. It is here so
+  // the reactive test can flip a viewport without also changing the device.
+  iPadSplitView: { pointer: 'coarse', width: 507, height: 820 },
 } satisfies Record<string, Device>;
 
 /** Make `getRuntimeSurface()` report the Tauri desktop shell. */
@@ -238,6 +243,45 @@ describe('the reactive bindings', () => {
     expect(container.textContent).toBe('true');
 
     act(() => setPhoneOverride(true));
+    expect(container.textContent).toBe('false');
+
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  /**
+   * The path nobody had exercised. Everything gated on the viewport — the View
+   * drawer, the bottom tabs, the phone toolbar — assumes a rotation or a Split
+   * View drag re-renders it, and until this test that assumption rested on
+   * `subscribe` merely having *registered* a listener.
+   *
+   * It could not be checked on a device: CDP viewport emulation resizes the page
+   * without dispatching `MediaQueryList` change events, so a real tablet flipping
+   * orientation is unreachable from the harness that drove the rest of this work.
+   * A stub can do it, because the only thing in question is our own plumbing —
+   * that the callback handed to `addEventListener` is the one that reaches
+   * `useSyncExternalStore`. WebKit's own dispatch is not ours to test.
+   */
+  it('re-renders when the viewport itself flips', () => {
+    mockDevice(DEVICES.iPadLandscape);
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+
+    act(() => root.render(createElement(() => `${useIsPhoneSurface()}`)));
+    expect(container.textContent).toBe('false');
+
+    // Split View, narrowing an iPad past the threshold. `matchMedia` now answers
+    // as the smaller viewport, and the change listener is what has to notice.
+    mockDevice(DEVICES.iPadSplitView);
+    const notifyChange = listeners.add.mock.calls.at(-1)?.[1] as (() => void) | undefined;
+    expect(notifyChange).toBeTypeOf('function');
+    act(() => notifyChange?.());
+    expect(container.textContent).toBe('true');
+
+    // And back, so this cannot pass by latching one way.
+    mockDevice(DEVICES.iPadLandscape);
+    act(() => notifyChange?.());
     expect(container.textContent).toBe('false');
 
     act(() => root.unmount());
