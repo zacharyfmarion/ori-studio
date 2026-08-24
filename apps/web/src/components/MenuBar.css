@@ -174,7 +174,7 @@
 
 /*
  * ---------------------------------------------------------------------------
- * Phones: full-size rows, and submenus that expand in place.
+ * Phones: submenus that expand in place, and a dropdown that fits the band.
  *
  * Scoped by a class rather than by a copy of `PHONE_MEDIA_QUERY`, and the class
  * comes from `useIsPhoneLayout()` — the same predicate, read through the module
@@ -185,16 +185,15 @@
  * two stylesheets that do restate the query are listed in
  * `platform/phoneLayout.test.ts`; this file deliberately stays off that list.
  *
- * Why it is this change's problem: the phone toolbar hides New, Open and Save
- * because the File menu still reaches all three, which made these rows
- * load-bearing on touch. Every other portalled menu row — `.select-item`,
- * `.context-menu__item`, `.viewport-toolbar__dropdown-item` and the rest — was
- * given the touch minimum in theme.css's coarse block. These were missed.
+ * Row height is **not** here, and that is the point of the split. It is a
+ * question about the finger rather than about the screen, so it sits in
+ * theme.css's coarse block beside `.select-item`, `.context-menu__item` and the
+ * other portalled rows. It was briefly in this block, which quietly left every
+ * tablet on the 28px default. What belongs here is only what is genuinely about
+ * a phone: a fly-out has nowhere to go on a 393px screen, and the dropdown has
+ * to fit the band between two bars.
  * ---------------------------------------------------------------------------
  */
-.menu-dropdown--phone .menu-dropdown__item {
-  min-height: var(--touch-target);
-}
 
 /*
  * The dropdown is capped to the band between the toolbar and the tab bar, and

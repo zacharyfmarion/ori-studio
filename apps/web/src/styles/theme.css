@@ -9107,12 +9107,21 @@ button.bp-packing-alert:focus-visible {
     min-height: 32px;
   }
 
-  /* Rows in a portalled menu. Nothing sits beside them, so height is free. */
+  /* Rows in a portalled menu. Nothing sits beside them, so height is free.
+
+     `.menu-dropdown__item` is the menu bar's own row, and it belongs here for
+     the same reason as the rest: row height is a question about the finger, not
+     about the screen. It was first given the target inside `MenuBar.css`'s phone
+     block, which left every tablet on the 28px default — the menu bar is the
+     only way to reach a large part of the app, and on an iPad it had the one
+     kind of row a finger could not reliably hit. Same predicate as its
+     siblings now, in the same place. */
   .select-item,
   .context-menu__item,
   .viewport-toolbar__dropdown-item,
   .symmetry-menu__item,
-  .folded-figure-menu__figure {
+  .folded-figure-menu__figure,
+  .menu-dropdown__item {
     min-height: var(--touch-target);
   }
 
