@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 import type { DockviewApi, SerializedDockview } from 'dockview';
 import type { TFunction } from 'i18next';
 import { designKind, type DesignKindDescriptor } from '../../designKinds';
+import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 
@@ -54,6 +55,7 @@ afterEach(() => {
   dockviewProps.length = 0;
   vi.unstubAllGlobals();
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
+  useLayoutStore.setState({ designPaneId: null });
 });
 
 /** The phone query (`platform/phoneLayout`), which also contains "pointer: coarse". */
@@ -455,12 +457,12 @@ describe('the design pane dock', () => {
  * each, which is not a design surface. The phone layout shows one and switches.
  */
 describe('DesignPaneLayout on a phone', () => {
-  function renderPhone(kind: 'treemaker' | 'box-pleat' | 'explori', activePanelId?: string) {
+  function renderPhone(kind: 'treemaker' | 'box-pleat' | 'explori', designPaneId?: string) {
     vi.stubGlobal('matchMedia', vi.fn(matchPhone));
-    return render({
-      ...singleDesignTab(kind),
-      ...(activePanelId ? { activePanelId } : {}),
-    });
+    // The *layout* store owns which pane is on screen — see `designPaneId`, and
+    // the bug that made it its own field rather than a read of `activePanelId`.
+    useLayoutStore.setState({ designPaneId: designPaneId ?? null });
+    return render({ ...singleDesignTab(kind) });
   }
 
   it('mounts no dock at all', () => {
@@ -497,37 +499,64 @@ describe('DesignPaneLayout on a phone', () => {
     renderPhone('box-pleat', 'bp-editor');
 
     expect(useWorkspaceStore.getState().activePanelId).toBe('bp-editor');
+    expect(useLayoutStore.getState().designPaneId).toBe('bp-editor');
   });
 
-  it('falls back to the primary pane when the active id is not this kind’s', () => {
-    // A tab switch leaves the previous design's pane in `activePanelId` until
-    // something re-reports; rendering nothing would be the alternative.
+  it('stays put when something re-reports the workspace pane', () => {
+    // The reported bug, and the reason `designPaneId` exists. Every
+    // `activatePanel` for a design pane calls `activateWorkspace('design')` on
+    // the way, whose no-op path re-reports `activePanelId()`. The Design
+    // workspace's one dock panel is `design-workspace`, which no workspace
+    // claims, so that answered `primaryPanelIdFor('design')` — and with no dock
+    // to correct it, selecting a flap in the BP editor threw the user back to
+    // the tree editor.
+    renderPhone('box-pleat', 'bp-editor');
+
+    act(() => useLayoutStore.getState().activateWorkspace('design'));
+
+    expect(useLayoutStore.getState().designPaneId).toBe('bp-editor');
+    expect(useWorkspaceStore.getState().activePanelId).toBe('bp-editor');
+  });
+
+  it('clears its pane when the phone layout unmounts', () => {
+    // A stale `designPaneId` would make `activePanelId()` keep answering with a
+    // pane that is no longer how this device shows anything — a rotation into
+    // the tablet layout, or a workspace switch.
+    renderPhone('box-pleat', 'bp-editor');
+    act(() => root?.unmount());
+    root = null;
+
+    expect(useLayoutStore.getState().designPaneId).toBeNull();
+  });
+
+  it('falls back to the primary pane when the stored id is not this kind’s', () => {
+    // A tab switch leaves the previous design's pane behind until something
+    // re-reports; rendering nothing would be the alternative.
     renderPhone('explori', 'bp-editor');
 
     expect(useWorkspaceStore.getState().activePanelId).toBe('explori-tree');
   });
 
-  it('lets activatePanel reach a pane that is not docked', async () => {
-    // `activatePanel('inspector')` is the BP long-press and the View menu. With
-    // no dock there is no `IDockviewPanel` to call `setActive` on, so without
-    // the registered selector it would silently do nothing.
-    const { useLayoutStore } = await import('../../store/layoutStore');
+  it('lets activatePanel reach a pane that is not docked', () => {
+    // `activatePanel('conditions')` is a View-menu entry. With no dock there is
+    // no `IDockviewPanel` to call `setActive` on, so without the registered
+    // validator it would silently do nothing.
     renderPhone('treemaker');
 
     act(() => useLayoutStore.getState().activatePanel('conditions'));
 
+    expect(useLayoutStore.getState().designPaneId).toBe('conditions');
     expect(useWorkspaceStore.getState().activePanelId).toBe('conditions');
   });
 
-  it('declines an id this design does not own', async () => {
+  it('declines an id this design does not own', () => {
     // The layout store has no business knowing a kind's panes, so it asks — and
-    // an unrecognised id has to leave the active pane alone rather than setting
-    // an editing context nothing can render.
-    const { useLayoutStore } = await import('../../store/layoutStore');
+    // an unrecognised id has to leave the visible pane alone rather than
+    // rendering nothing.
     renderPhone('box-pleat');
 
     act(() => useLayoutStore.getState().activatePanel('conditions'));
 
-    expect(useWorkspaceStore.getState().activePanelId).toBe('design');
+    expect(useLayoutStore.getState().designPaneId).toBe('design');
   });
 });

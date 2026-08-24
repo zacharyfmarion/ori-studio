@@ -130,6 +130,26 @@ property — the pane's declared `id` (`tree` / `packing` / `results` / `inspect
 / …), never a title. Follows `viewDrawerOpened` / `cpToolPickerOpened`, which are
 the two events this control is modelled on.
 
+### Two corrections from using it
+
+- **The visible pane needed its own state.** It was first derived from
+  `activePanelId`, which is a *cache of what Dockview owns* — and
+  `activateWorkspace` re-reports it on every call, including the no-op path
+  `activatePanel` takes on the way to a design pane. The Design workspace's one
+  dock panel is `design-workspace`, which no workspace claims in
+  `WORKSPACE_BY_PANEL_ID`, so that reconcile answered `primaryPanelIdFor(
+  'design')`. On a desktop the design dock corrects it a moment later; with no
+  dock it stuck, and selecting a flap in the BP editor — which activates a panel
+  to move dock focus — threw the user back to the tree editor. It is
+  `layoutStore.designPaneId` now, which only the switcher and a validated
+  `activatePanel` touch, and `activePanelId()` consults it before falling back.
+- **ExplOri declines the pill.** Its two panes are a flow, not a split: Search
+  takes you to the results and Back brings you home, both inside the panes, so a
+  floating control in the corner was a third affordance for the same move. The
+  kind says so with `phonePaneSwitcher: false`, which makes the back button the
+  only way home — so it renders in every non-detail state, not just over the
+  grid.
+
 **Out of scope:** the tablet layout, and the `.osf` pane-layout format.
 
 ## Phase 3 — The vertical budget on a phone

@@ -8668,6 +8668,17 @@ button.bp-packing-alert:focus-visible {
   min-height: 0;
 }
 
+/*
+ * The way back to the search, on a phone — and the only one, since ExplOri
+ * declines the floating pane switcher. `align-self: flex-start` so it is a
+ * button rather than a full-width bar in the column above; `flex: 0 0 auto` so
+ * a status state that fills the pane does not squeeze it away.
+ */
+.explori-results__back {
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+
 .explori-results__error {
   margin: 0;
   padding: 12px;

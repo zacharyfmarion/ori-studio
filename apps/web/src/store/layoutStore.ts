@@ -43,26 +43,21 @@ export function registerActivePanelSink(sink: (panelId: string | null) => void):
 }
 
 /**
- * Show a design pane where there is no dock to activate it in.
+ * Whether a panel id is a pane of the design currently on screen.
  *
- * The phone Design layout mounts one pane and puts the rest behind a switcher
- * (see `useDesignPaneSwitcher`), so `activatePanel('inspector')` — the BP
- * long-press, and the View menu — has no `IDockviewPanel` to call `setActive`
- * on and would silently do nothing.
- *
- * Returns whether it recognised the id, and that answer is the point: this store
- * has no business knowing which panes a design kind declares, so the id is
- * validated by whoever is rendering them. An unregistered selector answers
- * `false`, which is exactly right on a desktop where the dock already handled it.
+ * Asked by {@link LayoutState.activatePanel} before it moves the phone layout's
+ * visible pane, because this store has no business knowing which panes a design
+ * kind declares. An unregistered validator answers `false`, which is right on a
+ * desktop where the dock already handled the activation.
  */
-let selectDesignPane: (panelId: string) => boolean = () => false;
+let isDesignPaneOfActiveKind: (panelId: string) => boolean = () => false;
 
-export function registerDesignPaneSelector(select: (panelId: string) => boolean): () => void {
-  selectDesignPane = select;
+export function registerDesignPaneValidator(isPane: (panelId: string) => boolean): () => void {
+  isDesignPaneOfActiveKind = isPane;
   // Identity-checked, so a remount that registers before the old one cleans up
   // cannot leave the seam pointing at nothing.
   return () => {
-    if (selectDesignPane === select) selectDesignPane = () => false;
+    if (isDesignPaneOfActiveKind === isPane) isDesignPaneOfActiveKind = () => false;
   };
 }
 
@@ -311,9 +306,29 @@ interface LayoutState {
    * layout store looks in both.
    */
   designPaneApi: DockviewApi | null;
+  /**
+   * The design pane the **phone** layout is showing, and null on every layout
+   * that has a dock to answer for itself.
+   *
+   * Its own field rather than a read of `activePanelId`, and that is the whole
+   * of a bug worth not repeating. `activePanelId` is a *cache of what Dockview
+   * owns*, and `activateWorkspace` re-reports it on every call — including the
+   * no-op path that `activatePanel` takes on the way to a design pane. The
+   * Design workspace's one dock panel is `design-workspace`, which is not in
+   * `WORKSPACE_BY_PANEL_ID`, so that reconcile answers `primaryPanelIdFor(
+   * 'design')` = `design`. On a desktop the design-pane dock corrects it a
+   * moment later and nobody notices; with no dock it stuck, so selecting a flap
+   * in the BP editor — which activates a panel to move dock focus — threw the
+   * user back to the tree editor.
+   *
+   * Kept here rather than in the workspace store because it is a layout fact,
+   * and because `activePanelId` below has to consult it.
+   */
+  designPaneId: string | null;
   activeWorkspace: WorkspaceId;
   setDockviewApi: (api: DockviewApi | null) => void;
   setDesignPaneApi: (api: DockviewApi | null) => void;
+  setDesignPaneId: (panelId: string | null) => void;
   setActiveWorkspace: (workspace: WorkspaceId) => void;
   activateWorkspace: (workspace: WorkspaceId) => void;
   /**
@@ -331,9 +346,11 @@ interface LayoutState {
 export const useLayoutStore = create<LayoutState>((set, get) => ({
   dockviewApi: null,
   designPaneApi: null,
+  designPaneId: null,
   activeWorkspace: 'design',
   setDockviewApi: (api) => set({ dockviewApi: api }),
   setDesignPaneApi: (api) => set({ designPaneApi: api }),
+  setDesignPaneId: (panelId) => set({ designPaneId: panelId }),
   setActiveWorkspace: (workspace) => set({ activeWorkspace: workspace }),
   /**
    * Navigate to a workspace, and settle which pane is active in it.
@@ -389,6 +406,12 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     // (or never will, on the no-op path). The workspace's own primary pane is
     // the honest answer for that moment, and the answer headless has always.
     if (active && workspaceForPanelId(active) === get().activeWorkspace) return active;
+    // Except where the phone layout is showing a design pane. There is no dock
+    // to have caught up, so "primary pane" is not a stale answer that will be
+    // corrected — it is a wrong one that sticks, and it would drag the user back
+    // to the tree editor on every activation. See `designPaneId`.
+    const designPane = get().designPaneId;
+    if (designPane && workspaceForPanelId(designPane) === get().activeWorkspace) return designPane;
     return primaryPanelIdFor(get().activeWorkspace);
   },
   activatePanel: (id) => {
@@ -401,10 +424,13 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
       return;
     }
     // No dock holds it. On a phone that is the ordinary case for a design pane —
-    // the layout mounts one and switches rather than docking them side by side —
-    // so ask whoever is rendering them. Everywhere else this is a no-op, which
-    // is the same nothing the bare `panel?.api.setActive()` used to do.
-    selectDesignPane(id);
+    // the layout mounts one and switches rather than docking them side by side.
+    // Everywhere else the validator answers `false` and this is the same nothing
+    // the bare `panel?.api.setActive()` used to do.
+    if (isDesignPaneOfActiveKind(id)) {
+      set({ designPaneId: id });
+      reportActivePanel(id);
+    }
   },
   saveLayout: (workspace = get().activeWorkspace) => {
     const { dockviewApi } = get();

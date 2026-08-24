@@ -22,10 +22,15 @@ import { IconButton } from './ui/IconButton';
  * that is already spending a quarter of its height on chrome; the lane costs
  * nothing and is where the touch layout already puts controls with nowhere to
  * dock.
+ *
+ * A kind can decline it — `phonePaneSwitcher: false` — when its panes are a
+ * flow rather than a split and it carries its own navigation. ExplOri does:
+ * Search takes you to the results and Back brings you home, both inside the
+ * panes, and a floating pill would be a third control for the same move.
  */
 export function DesignPaneSwitcher() {
-  const { panes, active, show } = useDesignPaneSwitcher();
-  if (!panes || !active || panes.length < 2) return null;
+  const { panes, active, floating, show } = useDesignPaneSwitcher();
+  if (!floating || !panes || !active || panes.length < 2) return null;
   if (panes.length === 2) return <PaneToggle panes={panes} active={active} show={show} />;
   return <PaneList panes={panes} active={active} show={show} />;
 }

@@ -9,8 +9,8 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { designKind, type DesignKindDescriptor, type DesignPaneSpec } from '../../designKinds';
 import {
-  useDesignPaneSelectorSeam,
   useDesignPaneSwitcher,
+  useOwnDesignPane,
   visibleDesignPane,
 } from '../../hooks/useDesignPaneSwitcher';
 import { useIsPhoneLayout } from '../../platform/phoneLayout';
@@ -138,20 +138,20 @@ export function DesignPaneLayout() {
  * shape of "rendered outside a dock", not a missing prop.
  */
 function PhoneDesignPane({ kind }: { kind: DesignKindDescriptor }) {
-  const { panes, show } = useDesignPaneSwitcher();
-  const activePanelId = useWorkspaceStore((state) => state.activePanelId);
+  const { panes } = useDesignPaneSwitcher();
+  const designPaneId = useLayoutStore((state) => state.designPaneId);
   const setActivePanelId = useWorkspaceStore((state) => state.setActivePanelId);
-  const pane = visibleDesignPane(kind, activePanelId);
+  const pane = visibleDesignPane(kind, designPaneId);
+
+  useOwnDesignPane(panes, pane.component);
 
   // Report the pane on screen, the way `onDidActivePanelChange` does for the
   // dock. Without it `activeEditingContext` keeps whatever the last dock said —
   // so the Edit menu, the undo stack and the shortcut scope would all belong to
   // a pane this device is not showing.
   useEffect(() => {
-    if (activePanelId !== pane.component) setActivePanelId(pane.component);
-  }, [activePanelId, pane.component, setActivePanelId]);
-
-  useDesignPaneSelectorSeam(show, panes);
+    setActivePanelId(pane.component);
+  }, [pane.component, setActivePanelId]);
 
   const Pane = panelComponents[pane.component];
   if (!Pane) return null;

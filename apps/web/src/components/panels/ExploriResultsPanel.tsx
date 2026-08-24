@@ -138,11 +138,17 @@ function ExploriDetailFigure({
 /**
  * Back to the tree, on a phone.
  *
- * The phone layout shows one design pane at a time, and a search moves you here
- * — so the way back is a thing this pane has to offer rather than something the
- * user has to know about. The switcher pill in the canvas lane does the same
- * job and is always there; this is the one at the top of the content, where an
- * eye that has just finished reading a result already is.
+ * The phone layout shows one design pane at a time and a search moves you here,
+ * so this is the *only* way back: the kind declares `phonePaneSwitcher: false`,
+ * because these two panes are a flow rather than a split and a floating pill in
+ * the corner would be a second control for the same move. It therefore has to
+ * appear in every state this pane can be in — the grid, both empty states, and
+ * mid-search — which is why it is rendered by each branch rather than tucked
+ * into the results header where it started.
+ *
+ * The detail view is the exception, and deliberately: it has its own "Back to
+ * results", and two backs meaning different distances in one header is worse
+ * than one extra tap.
  *
  * Nothing on a tablet or a desktop, where the tree is on screen beside this.
  */
@@ -204,6 +210,7 @@ export function ExploriResultsPanel() {
   if (searching) {
     return (
       <section className="panel-shell explori-results-panel">
+        <BackToSearch />
         <ExploriResultsStatus
           busy
           icon={<Loader2 size={24} className="explori-results__spinner" />}
@@ -319,6 +326,7 @@ export function ExploriResultsPanel() {
 
   return (
     <section className="panel-shell explori-results-panel">
+      <BackToSearch />
       {error && <p className="explori-results__error">{error}</p>}
       {results.length === 0 ? (
         /* "Nothing here" is two states, and they ask for different things: one
@@ -346,7 +354,6 @@ export function ExploriResultsPanel() {
       ) : (
         <>
           <header className="explori-results__header">
-            <BackToSearch />
             <span>
               {results.length === 1
                 ? t('panels:explori.resultCountOne', '{{count}} result', { count: results.length })
