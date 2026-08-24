@@ -22,7 +22,11 @@ import {
   ORISTUDIO_DASH_UNASSIGNED,
   UNASSIGNED_DASH_SLOT,
 } from './oristudioCpLineStyle';
-import { ORISTUDIO_CP_LINE_STYLES } from './creasePatternViewport';
+import {
+  ORISTUDIO_CP_LINE_STYLES,
+  ORISTUDIO_CP_MAX_LINE_WIDTH,
+  ORISTUDIO_CP_MIN_LINE_WIDTH,
+} from './creasePatternViewport';
 
 const countLines = (svg: string) => svg.match(/<line /g)?.length ?? 0;
 
@@ -171,6 +175,233 @@ describe('crease pattern export', () => {
         expect(svg.match(/stroke-dasharray/g)).toHaveLength(1);
       }
     }
+  });
+
+  /**
+   * A dash array is not a picture.
+   *
+   * Every assertion above this point reads the runs the export *emits*, and that
+   * is how an undecided crease came to export as a solid line while all of them
+   * passed: the runs were right at every line width, and the file rasterized
+   * with no gap in it from width 5 up. `stroke-linecap="round"` adds half the
+   * stroke width past each end of each mark, so a dash's marks grow by the
+   * stroke width and its gaps shrink by it — a cap is decoration on two ends of
+   * a stroke until a dash gives the stroke 2n of them, and then it is the
+   * pattern. The line-width slider reaches 8, where the stroke is 17.07 units
+   * against the undecided dash's 9.96-unit gaps.
+   *
+   * So what is swept here is what a renderer paints, across the whole slider.
+   * The model is the SVG cap rule and nothing else — painted mark = run +
+   * extend, painted gap = gap - extend, extend = the stroke width under a round
+   * cap and zero under butt — and it was checked against Chromium rasterizing
+   * these very files at 1024 px: 100% ink at widths 5-8 under the round cap,
+   * and 31.5% (the pattern's 30%, plus antialiasing) at every width under butt.
+   */
+  describe('what the export paints, not what it emits', () => {
+    const LINE_WIDTHS = Array.from(
+      { length: ORISTUDIO_CP_MAX_LINE_WIDTH - ORISTUDIO_CP_MIN_LINE_WIDTH + 1 },
+      (_, index) => ORISTUDIO_CP_MIN_LINE_WIDTH + index
+    );
+
+    /** One of every dash the export can draw: mountain, valley, undecided, hint. */
+    function everyDashFold(): FoldDocument {
+      return {
+        vertices_coords: [
+          [0, 0],
+          [1, 0],
+          [1, 1],
+          [0, 1],
+          [0.5, 0],
+          [1, 0.5],
+          [0.5, 1],
+          [0, 0.5],
+        ],
+        edges_vertices: [
+          [0, 4],
+          [4, 1],
+          [1, 5],
+          [5, 2],
+          [2, 6],
+          [6, 3],
+          [3, 7],
+          [7, 0],
+          [4, 6],
+          [7, 5],
+          [0, 2],
+          [1, 3],
+        ],
+        edges_assignment: [
+          ...['B', 'B', 'B', 'B', 'B', 'B', 'B', 'B'],
+          'M',
+          'V',
+          'U',
+          'U',
+        ],
+        'oristudio:edges_fold_direction_hint': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
+        faces_vertices: [[0, 4, 1, 5, 2, 6, 3, 7]],
+      } as FoldDocument;
+    }
+
+    interface PaintedStroke {
+      stroke: string;
+      runs: number[];
+      /** Smallest gap surviving between two marks once the caps have had theirs. */
+      minGap: number;
+      /** Fraction of the crease this stroke inks. */
+      inkFraction: number;
+      /** Length of the crease it is drawn on, and of one pattern repeat. */
+      length: number;
+      period: number;
+    }
+
+    function paintedStrokes(svg: string): PaintedStroke[] {
+      return [...svg.matchAll(/<line ([^>]*)\/>/g)].flatMap(([, attrs]) => {
+        const runs = /stroke-dasharray="([^"]+)"/
+          .exec(attrs)?.[1]
+          ?.split(' ')
+          .map(Number);
+        if (!runs) return [];
+        const width = Number(/stroke-width="([\d.]+)"/.exec(attrs)?.[1]);
+        const extend = /stroke-linecap="round"/.test(attrs) ? width : 0;
+        const ends = /x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)" y2="([\d.]+)"/.exec(attrs) ?? [];
+        const [x1, y1, x2, y2] = ends.slice(1).map(Number) as number[];
+        const period = runs.reduce((sum, run) => sum + run, 0);
+        return [
+          {
+            stroke: /stroke="([^"]+)"/.exec(attrs)?.[1] ?? '',
+            runs,
+            minGap: Math.min(...runs.filter((_, i) => i % 2 === 1).map((gap) => gap - extend)),
+            inkFraction:
+              runs.filter((_, i) => i % 2 === 0).reduce((sum, run) => sum + run + extend, 0) /
+              period,
+            length: Math.hypot((x2 ?? 0) - (x1 ?? 0), (y2 ?? 0) - (y1 ?? 0)),
+            period,
+          },
+        ];
+      });
+    }
+
+    const svgAt = (lineStyle: CreaseExportOptions['lineStyle'], lineWidth: number) => {
+      const fold = everyDashFold();
+      return serializeCreasePatternSvg(fold, segmentFoldDocument(fold), {
+        ...DEFAULT_CREASE_EXPORT_OPTIONS,
+        lineStyle,
+        lineWidth,
+      });
+    };
+
+    it('leaves a gap in every dash it draws, at every width the slider offers', () => {
+      // The one that would have caught it. An undecided crease that paints
+      // solid is a shared picture claiming a crease the user has not decided;
+      // the same closure takes the mountain chain from width 2, where a
+      // mountain becomes indistinguishable from a paper edge.
+      for (const lineStyle of ORISTUDIO_CP_LINE_STYLES) {
+        for (const lineWidth of LINE_WIDTHS) {
+          for (const painted of paintedStrokes(svgAt(lineStyle, lineWidth))) {
+            const at = { lineStyle, lineWidth, runs: painted.runs };
+            expect({ ...at, gapped: painted.minGap > 0 }).toEqual({ ...at, gapped: true });
+          }
+        }
+      }
+    });
+
+    it('inks an undecided crease at the fraction the canvas inks it, at every width', () => {
+      // Not merely "some gap survives": the whole argument for these runs is
+      // that sparse ink reads as less than a crease (see
+      // `ORISTUDIO_DASH_UNASSIGNED`), and a picture at 45% ink where the canvas
+      // shows 30% has spent half of that. The hint's 15% goes the same way.
+      const fraction = (pattern: readonly number[]) =>
+        pattern.filter((_, i) => i % 2 === 0).reduce((sum, run) => sum + run, 0) /
+        pattern.reduce((sum, run) => sum + run, 0);
+      const { unassigned, valley } = CREASE_EXPORT_PALETTES.light;
+
+      for (const lineWidth of LINE_WIDTHS) {
+        const painted = paintedStrokes(svgAt('color', lineWidth));
+        const inkOf = (stroke: string) =>
+          Number(painted.find((entry) => entry.stroke === stroke)?.inkFraction.toFixed(2));
+        expect({ lineWidth, base: inkOf(unassigned), hint: inkOf(valley) }).toEqual({
+          lineWidth,
+          base: Number(fraction(ORISTUDIO_DASH_UNASSIGNED).toFixed(2)),
+          hint: Number(fraction(ORISTUDIO_DASH_HINT).toFixed(2)),
+        });
+      }
+    });
+
+    it('keeps the round cap where a cap is still decoration: on a solid crease', () => {
+      // Butting every stroke would trade one defect for another. On a solid
+      // crease the two half-discs are just its ends, and they fill the notch
+      // where several creases meet a vertex — there is no pattern for them to
+      // eat. The split is the fix; "no round caps anywhere" is not.
+      const caps = (svg: string, stroke: string) =>
+        [...svg.matchAll(/<line ([^>]*)\/>/g)]
+          .map(([, attrs]) => attrs)
+          .filter((attrs) => attrs.includes(`stroke="${stroke}"`))
+          .map((attrs) => ({
+            dashed: attrs.includes('stroke-dasharray'),
+            cap: /stroke-linecap="([a-z]+)"/.exec(attrs)?.[1],
+          }));
+      const svg = svgAt('color', ORISTUDIO_CP_MAX_LINE_WIDTH);
+
+      expect(caps(svg, CREASE_EXPORT_PALETTES.light.border)).toContainEqual({
+        dashed: false,
+        cap: 'round',
+      });
+      expect(caps(svg, CREASE_EXPORT_PALETTES.light.unassigned)).toContainEqual({
+        dashed: true,
+        cap: 'butt',
+      });
+    });
+
+    it('dashes at a rate the document sets, which the canvas has no term for', () => {
+      // Deliberate, not incidental — the reasoning is on `edgeAppearance`, and
+      // this is here so the divergence is a decision on the record rather than
+      // something a later reader discovers. The export fits the drawn
+      // document's bounding box to the page, so widening that box shrinks
+      // everything in it: the *same* crease, unchanged, carries a quarter of
+      // the marks once a second pattern four times as wide shares the file.
+      // Nothing on the canvas does this — `cpModelToSvg` is one fixed affine,
+      // so that crease is the same length on screen either way.
+      const diagonal = (extra: number[][], extraEdges: number[][]): FoldDocument =>
+        ({
+          vertices_coords: [[0, 0], [1, 0], [1, 1], [0, 1], ...extra],
+          edges_vertices: [[0, 1], [1, 2], [2, 3], [3, 0], [0, 2], ...extraEdges],
+          edges_assignment: ['B', 'B', 'B', 'B', 'U', ...extraEdges.map(() => 'B')],
+          faces_vertices: [
+            [0, 1, 2],
+            [0, 2, 3],
+          ],
+        }) as FoldDocument;
+
+      const alone = diagonal([], []);
+      // A second square out at x = 3..4, which widens the bounding box 4x and
+      // touches nothing else.
+      const beside = diagonal(
+        [
+          [3, 0],
+          [4, 0],
+          [4, 1],
+          [3, 1],
+        ],
+        [
+          [4, 5],
+          [5, 6],
+          [6, 7],
+          [7, 4],
+        ]
+      );
+      const marks = (fold: FoldDocument) => {
+        const painted = paintedStrokes(
+          serializeCreasePatternSvg(fold, segmentFoldDocument(fold), {
+            ...DEFAULT_CREASE_EXPORT_OPTIONS,
+            lineStyle: 'color',
+          })
+        );
+        const dash = painted[0]!;
+        return dash.length / dash.period;
+      };
+
+      expect(marks(alone) / marks(beside)).toBeCloseTo(4, 1);
+    });
   });
 
   /**

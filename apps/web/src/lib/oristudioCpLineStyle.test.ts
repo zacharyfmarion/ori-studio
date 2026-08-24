@@ -198,11 +198,17 @@ describe('the alternate dash a hint paints on', () => {
   it('is what SVG can take verbatim, which is why there is one encoding', () => {
     // The sweep above covers the export too, but only because the export hands
     // SVG this very array at no `stroke-dashoffset` (pinned in
-    // `creaseExport.test.ts`). Two properties of the array make that safe, and
-    // both were what forced a second encoding before: SVG repeats an
-    // odd-length dasharray doubled, and a zero-length run under
-    // `stroke-linecap="round"` prints a dot where the shader's butt-ended quad
-    // prints nothing.
+    // `creaseExport.test.ts`). Two properties of the array make that safe: SVG
+    // repeats an odd-length dasharray doubled, so an odd list would not be the
+    // pattern the shader walks; and a zero-length run is a length the two need
+    // not agree about, since the shader's quad collapses where SVG paints a mark
+    // whose whole extent comes from its caps.
+    //
+    // Neither is what forced a second encoding before — the phase was. The two
+    // spell a phase differently (see `alternateDashRuns`), and it was the
+    // *shader* side that had to carry a leading zero-length run for it; the SVG
+    // side reached the same marks through `stroke-dashoffset` and never held a
+    // zero at all.
     expect(ORISTUDIO_DASH_HINT.length % 2).toBe(0);
     for (const run of ORISTUDIO_DASH_HINT) expect(run).toBeGreaterThan(0);
   });

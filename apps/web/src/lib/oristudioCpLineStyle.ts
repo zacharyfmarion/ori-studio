@@ -38,6 +38,11 @@ export const ORIEDITA_DASH_VALLEY: readonly number[] = [8, 8]; // dash_V, 破線
  * Oriedita's patterns are screen-space too. Sparse ink is the point — a crease
  * with no angle yet should look like less than a crease — and it costs no
  * reachability, since hit-testing is geometric and never consults the dash.
+ *
+ * Sparse ink is also a claim about what a renderer does with these runs, not
+ * only about the runs: both of ours ink exactly them and no more, which is why
+ * the export's dashed strokes are butt-ended (see `strokeLinecap` in
+ * `lib/creaseExport`). A round cap pays for itself out of the gaps.
  */
 export const ORISTUDIO_DASH_UNASSIGNED: readonly number[] = [3, 7];
 
@@ -75,10 +80,13 @@ export const ORISTUDIO_DASH_UNASSIGNED: readonly number[] = [3, 7];
  * zoom corrects it, where omitting one is invisible and teaches the reader the
  * hint never took.
  *
- * With no leading zero-length run, this array is also exactly what SVG's
+ * With no phase to carry, this array is also exactly what SVG's
  * `stroke-dasharray` wants, at no `stroke-dashoffset` — one encoding for both
- * consumers, where a phase would have needed two (a zero-length run under
- * `stroke-linecap="round"` prints a dot).
+ * consumers. A phase is what needed two, because the two spell one differently:
+ * the shader has no dash offset, so its phase had to be a leading zero-length
+ * run (`[0, mark + gap, mark, gap]`), while SVG's was a `stroke-dashoffset` on a
+ * run list that never held a zero at all
+ * (`{array: [mark, mark + gap * 2], offset: mark + gap}`).
  */
 export function alternateDashRuns(pattern: readonly number[]): readonly number[] {
   const [mark, gap] = pattern;
