@@ -42,46 +42,47 @@ export const ORIEDITA_DASH_VALLEY: readonly number[] = [8, 8]; // dash_V, 破線
 export const ORISTUDIO_DASH_UNASSIGNED: readonly number[] = [3, 7];
 
 /**
- * The same dash, moved along by exactly one mark, so its marks land in the gaps
- * the original leaves.
+ * The same dash at half the rate, so its marks land on every *other* mark of
+ * the original — the 1st, 3rd, 5th — starting with the first.
  *
- * Drawing a pattern over itself under this shift is how a crease carries two
- * colours: the crease is stroked once with `pattern` and once, in another
- * colour, with this — and the second stroke covers every *other* mark of the
- * first. That is what a hinted undecided crease is (see `directionHint`), and
- * it is the only shape that says "undecided" and "this way" at once without
- * spending saturation on either.
+ * Drawing a pattern over itself like this is how a crease carries two colours:
+ * the crease is stroked once with `pattern` and once, in another colour, with
+ * this, and the second stroke repaints alternate marks of the first rather than
+ * adding ink beside them. That is what a hinted undecided crease is (see
+ * `directionHint`), and it is the only shape that says "undecided" and "this
+ * way" at once without spending saturation on either.
  *
- * Expressed as a leading **zero-length mark** rather than as a phase offset,
- * because the stroke shader has no phase: `vDist` is distance from the segment's
- * own start and nothing offsets it. A zero-length run costs no ink there (the
- * quads are butt-ended), and the run walk skips straight past it into the gap —
- * which is an offset by another name. SVG *does* have a phase, and a
- * zero-length dash under `stroke-linecap="round"` would print a dot, so the
- * export takes {@link alternateDashSvg} instead. Same marks, two encodings, one
- * derivation.
+ * **It starts at distance 0, and that is the whole design constraint.** The
+ * stroke shader has no dash phase — `vDist` is distance from the segment's own
+ * `a` endpoint and nothing offsets it — so a pattern whose first ink is `mark +
+ * gap` along inks *nothing at all* on any segment shorter than that, while the
+ * base it is meant to alternate with inks from 0. Two strokes that were
+ * designed to be congruent then are not, and the only one that can vanish is
+ * the one carrying the information: a hinted crease under one base period reads
+ * as a plain undecided crease, with the direction silently gone. Creases are
+ * mostly short — at fit-to-window, 91% of those in the densest corpus file are
+ * under 10 CSS px, and dashing is screen-space, so zooming out makes it
+ * unconditional everywhere. Whatever phase we might prefer at legible zoom is
+ * not worth buying with a hint that disappears on most of the canvas.
+ *
+ * **What a very short crease shows, decided on purpose.** Below the base period
+ * a crease has room for one mark, and one mark can only be one colour: either
+ * the hint takes it and the crease reads as decided, or the base keeps it and
+ * the hint is invisible. There is no third answer with two strokes and one
+ * mark. Splitting the mark between them was the alternative, and it trades the
+ * alternation's identity at every zoom for a distinction that is sub-pixel at
+ * the size it is for. So the hint takes it: overstating a hint is visible and a
+ * zoom corrects it, where omitting one is invisible and teaches the reader the
+ * hint never took.
+ *
+ * With no leading zero-length run, this array is also exactly what SVG's
+ * `stroke-dasharray` wants, at no `stroke-dashoffset` — one encoding for both
+ * consumers, where a phase would have needed two (a zero-length run under
+ * `stroke-linecap="round"` prints a dot).
  */
 export function alternateDashRuns(pattern: readonly number[]): readonly number[] {
   const [mark, gap] = pattern;
-  return [0, mark + gap, mark, gap];
-}
-
-/** A dash as SVG spells it: the array plus the phase to start it at. */
-export interface SvgDash {
-  array: readonly number[];
-  offset: number;
-}
-
-/**
- * {@link alternateDashRuns} for SVG — the same marks, reached through
- * `stroke-dashoffset` because SVG has one and the shader does not.
- *
- * The array skips a mark (`mark`, then a gap wide enough for the one being
- * skipped) and the offset winds it forward past the original's first mark.
- */
-export function alternateDashSvg(pattern: readonly number[]): SvgDash {
-  const [mark, gap] = pattern;
-  return { array: [mark, mark + gap * 2], offset: mark + gap };
+  return [mark, mark + gap * 2];
 }
 
 /** The coloured half of a hinted crease's dash. See {@link alternateDashRuns}. */

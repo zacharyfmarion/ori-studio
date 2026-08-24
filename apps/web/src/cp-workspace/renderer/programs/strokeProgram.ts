@@ -25,11 +25,11 @@ type Buffer = ReturnType<Regl['buffer']>;
  *
  * There is no dash *phase*: every segment's pattern starts at its own `a`
  * endpoint, because `vDist` is distance from that endpoint and nothing offsets
- * it. A pattern that needs to start part-way through says so with a leading
- * zero-length "on" run, which the walk below skips over exactly like an offset
- * would (`alternateDashRuns` in `lib/oristudioCpLineStyle` is the one caller).
- * A zero-length run draws nothing here — these are butt-ended quads, not capped
- * strokes — so the leading run costs no ink.
+ * it. Patterns are written to want none — a pattern whose first ink is `d` px
+ * along inks nothing whatsoever on a segment shorter than `d`, and most
+ * segments are short, so a phase here is a pattern that vanishes rather than a
+ * pattern that shifts. See `alternateDashRuns` in `lib/oristudioCpLineStyle`,
+ * which is where that was learned.
  */
 const VERT = `
 precision highp float;

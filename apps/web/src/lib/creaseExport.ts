@@ -18,7 +18,7 @@ import {
   DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
   type OristudioCpLineStyle,
 } from './creasePatternViewport';
-import { alternateDashSvg, cpLineStyleDashPattern, cpLineStyleInk } from './oristudioCpLineStyle';
+import { alternateDashRuns, cpLineStyleDashPattern, cpLineStyleInk } from './oristudioCpLineStyle';
 
 /** Side of the square content box the crease pattern is drawn into. */
 const CP_SIZE = 1024;
@@ -226,7 +226,7 @@ interface EdgeAppearance {
    * The direction half of a hinted crease: a second stroke over the same line,
    * taking the alternate marks of its dash. `null` when there is nothing to say.
    */
-  hint: { stroke: string; dash: string; offset: number } | null;
+  hint: { stroke: string; dash: string } | null;
 }
 
 /**
@@ -265,10 +265,18 @@ function edgeAppearance(
   const base = { stroke, dash: pattern ? scaleDash(pattern) : '' };
   // A hinted crease keeps the undecided grey and dash and takes the alternate
   // marks of that dash in its direction's own full-strength colour — the canvas
-  // treatment exactly, reached through SVG's dash phase because SVG has one
-  // (see `alternateDashSvg`). The picture a user exports has to be a picture of
-  // the document they are looking at, and a hint is visible state rather than a
-  // working note.
+  // treatment exactly, and now through the same run list, since
+  // `alternateDashRuns` needs no phase for either consumer. A hint is visible
+  // state rather than a working note, so it belongs in the picture.
+  //
+  // The two are not the same picture, and cannot be. This dash is in paper
+  // units and the canvas's is in screen px, so they agree on *whether* a hint
+  // shows — both ink the crease's own first mark, at distance 0, which is the
+  // property that used to fail here — and disagree on how many marks it shows.
+  // That is a rate, and a rate cannot be zoom-invariant and screen-space at
+  // once; the two coincide only where the canvas draws one view unit per CSS px
+  // (`VIEW_SCALE`), alternating faster than the export above that and slower
+  // below.
   //
   // The `stroke` comparison is the canvas's rule too: under the black-dot styles
   // the direction resolves to the ink the crease already has, so the overlay
@@ -277,15 +285,7 @@ function edgeAppearance(
   if (!hintAssignment || !pattern) return { ...base, hint: null };
   const hintStroke = styleInk(hintAssignment, edgeLineColor(hintAssignment), lineStyle, palette);
   if (hintStroke === stroke) return { ...base, hint: null };
-  const alternate = alternateDashSvg(pattern);
-  return {
-    ...base,
-    hint: {
-      stroke: hintStroke,
-      dash: scaleDash(alternate.array),
-      offset: alternate.offset * VIEW_SCALE,
-    },
-  };
+  return { ...base, hint: { stroke: hintStroke, dash: scaleDash(alternateDashRuns(pattern)) } };
 }
 
 /** A line colour's stroke under `lineStyle`, in the export palette. */
@@ -679,8 +679,10 @@ export function buildCreaseExportArtwork(
       const line = `  <line ${ends} stroke="${stroke}" stroke-width="${strokeWidth.toFixed(2)}"${dashAttr} stroke-linecap="round"/>`;
       if (!hint) return line;
       // Second, over the first: the marks are congruent, so this repaints half
-      // of them rather than adding ink beside them.
-      return `${line}\n  <line ${ends} stroke="${hint.stroke}" stroke-width="${strokeWidth.toFixed(2)}" stroke-dasharray="${hint.dash}" stroke-dashoffset="${hint.offset.toFixed(2)}" stroke-linecap="round"/>`;
+      // of them rather than adding ink beside them. No `stroke-dashoffset` —
+      // both strokes start their pattern at the crease's own start, which is
+      // what makes a short crease show its direction at all.
+      return `${line}\n  <line ${ends} stroke="${hint.stroke}" stroke-width="${strokeWidth.toFixed(2)}" stroke-dasharray="${hint.dash}" stroke-linecap="round"/>`;
     })
     .filter(Boolean)
     .join('\n');

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ORISTUDIO_CP_LINE_STYLES, type OristudioCpLineStyle } from './creasePatternViewport';
 import {
-  alternateDashSvg,
   cpLineStyleDashPattern,
   cpLineStyleDashPatterns,
   cpLineStyleDashSlot,
@@ -145,41 +144,81 @@ describe('dash slots', () => {
 /**
  * The alternate dash exists to be drawn *over* the pattern it comes from, so the
  * property that matters is where its marks land — not what the run list looks
- * like. Both encodings are checked against the same measurement, because the two
- * consumers spell the phase shift differently (the shader has no phase; SVG has
- * nothing that draws a zero-length mark without a dot on it).
+ * like.
+ *
+ * Everything here sweeps the crease's **length**, because the defect this
+ * replaces was invisible at any single length. The shipped pattern started its
+ * ink one base period along, so on a crease shorter than that it drew nothing
+ * while the grey underneath drew normally, and a hinted crease was pixel-
+ * identical to an unhinted one. A fixture at one long span could not see it: at
+ * `span = 100` every property below still held, because "the hint is the base's
+ * alternate marks" is satisfied just as well by `[] === []`.
  */
 describe('the alternate dash a hint paints on', () => {
   const BASE = ORISTUDIO_DASH_UNASSIGNED;
   const SPAN = 100;
+  /** Crease lengths to check, in the pattern's own units (CSS px on canvas). */
+  const SPANS = Array.from({ length: 240 }, (_, i) => (i + 1) / 4);
 
-  it('inks exactly the marks the original skips', () => {
-    const base = shaderMarks(BASE, SPAN);
-    const alternate = shaderMarks(ORISTUDIO_DASH_HINT, SPAN);
-    // Every alternate mark is one of the base's, and they alternate: taking
-    // every second base mark from the first skipped one reproduces it exactly.
-    expect(alternate).toEqual(base.filter((_, index) => index % 2 === 1));
-    expect(alternate.length).toBeGreaterThan(2);
+  it('inks wherever the crease under it inks, at every crease length', () => {
+    // The one that would have caught it. A hint is the only thing on a crease
+    // saying which way it leans, so there must be no length at which the crease
+    // draws and the hint does not.
+    for (const span of SPANS) {
+      const base = shaderMarks(BASE, span);
+      const hint = shaderMarks(ORISTUDIO_DASH_HINT, span);
+      expect({ span, inked: hint.length > 0 }).toEqual({ span, inked: base.length > 0 });
+      // Not merely "somewhere": the two strokes are meant to be congruent, so
+      // the hint's first mark has to *be* the crease's first mark.
+      expect({ span, first: hint[0] }).toEqual({ span, first: base[0] });
+    }
   });
 
-  it('reaches the same marks through the SVG phase', () => {
-    const { array, offset } = alternateDashSvg(BASE);
-    expect(svgMarks(array, offset, SPAN)).toEqual(shaderMarks(ORISTUDIO_DASH_HINT, SPAN));
+  it('takes every other mark, at every crease length', () => {
+    // The alternation itself, stated without reference to a fixture's span:
+    // half the marks, rounded up, because the hint owns the first one.
+    for (const span of SPANS) {
+      const base = shaderMarks(BASE, span);
+      const hint = shaderMarks(ORISTUDIO_DASH_HINT, span);
+      expect({ span, marks: hint }).toEqual({
+        span,
+        marks: base.filter((_, index) => index % 2 === 0),
+      });
+    }
   });
 
   it('leaves the two strokes covering the original between them', () => {
     // Nothing gained, nothing lost: a hinted crease is the same ink as an
     // unhinted one, in two colours instead of one.
-    const grey = shaderMarks(BASE, SPAN).filter((_, index) => index % 2 === 0);
+    const grey = shaderMarks(BASE, SPAN).filter((_, index) => index % 2 === 1);
     const colored = shaderMarks(ORISTUDIO_DASH_HINT, SPAN);
     expect([...grey, ...colored].sort(byStart)).toEqual(shaderMarks(BASE, SPAN));
+  });
+
+  it('is what SVG can take verbatim, which is why there is one encoding', () => {
+    // The sweep above covers the export too, but only because the export hands
+    // SVG this very array at no `stroke-dashoffset` (pinned in
+    // `creaseExport.test.ts`). Two properties of the array make that safe, and
+    // both were what forced a second encoding before: SVG repeats an
+    // odd-length dasharray doubled, and a zero-length run under
+    // `stroke-linecap="round"` prints a dot where the shader's butt-ended quad
+    // prints nothing.
+    expect(ORISTUDIO_DASH_HINT.length % 2).toBe(0);
+    for (const run of ORISTUDIO_DASH_HINT) expect(run).toBeGreaterThan(0);
   });
 });
 
 type Mark = [number, number];
 const byStart = (a: Mark, b: Mark) => a[0] - b[0];
 
-/** The intervals a run list inks over `span`, read the way `strokeProgram` does. */
+/**
+ * The intervals a run list inks over `span`, read the way `strokeProgram` does.
+ *
+ * A mark running past the end is **clipped, not dropped**: a crease is a segment
+ * of some length and the shader inks whatever part of the pattern fits on it, so
+ * dropping the overhang would model a 2 px crease as blank when it is really a
+ * 2 px mark. That distinction is the whole regime this file's sweep is about.
+ */
 function shaderMarks(runs: readonly number[], span: number): Mark[] {
   const period = runs.reduce((sum, run) => sum + run, 0);
   const marks: Mark[] = [];
@@ -187,21 +226,12 @@ function shaderMarks(runs: readonly number[], span: number): Mark[] {
     let at = base;
     for (let i = 0; i < runs.length; i += 2) {
       const mark = runs[i];
-      if (mark > 0 && at + mark <= span) marks.push([at, at + mark]);
+      const end = Math.min(at + mark, span);
+      if (mark > 0 && end > at) marks.push([at, end]);
       at += mark + (runs[i + 1] ?? 0);
     }
   }
   return marks;
-}
-
-/** The same, read the way SVG reads `stroke-dasharray` + `stroke-dashoffset`. */
-function svgMarks(array: readonly number[], offset: number, span: number): Mark[] {
-  const period = array.reduce((sum, run) => sum + run, 0);
-  // A positive dashoffset winds the pattern forward, so the path starts that far
-  // into it — which is the same as starting the pattern `-offset` back.
-  return shaderMarks(array, span + period)
-    .map(([from, to]) => [from - offset, to - offset] as Mark)
-    .filter(([from, to]) => from >= 0 && to <= span);
 }
 
 /**

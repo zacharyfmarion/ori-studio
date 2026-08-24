@@ -14,11 +14,11 @@ import {
   type CreaseExportOptions,
 } from './creaseExport';
 import {
-  alternateDashSvg,
   cpLineStyleDashPatterns,
   ORIEDITA_DASH_ONE_DOT,
   ORIEDITA_DASH_TWO_DOT,
   ORIEDITA_DASH_VALLEY,
+  ORISTUDIO_DASH_HINT,
   ORISTUDIO_DASH_UNASSIGNED,
   UNASSIGNED_DASH_SLOT,
 } from './oristudioCpLineStyle';
@@ -175,15 +175,14 @@ describe('crease pattern export', () => {
 
   /**
    * A hinted crease is the undecided dash with every other mark taken in the
-   * direction's own colour. The export reaches that through SVG's dash phase and
-   * the canvas through a shifted run list, so what is checked here is the marks
-   * and the ink — the two encodings are pinned against each other in
-   * `oristudioCpLineStyle.test.ts`.
+   * direction's own colour. Where those marks land is swept over crease length
+   * in `oristudioCpLineStyle.test.ts`; that sweep speaks for the export only
+   * while the export hands SVG the same run list unaltered, so what is checked
+   * here is that it does — the array verbatim, and no phase on top of it.
    */
   describe('a hinted undecided crease', () => {
     const scaled = (pattern: readonly number[]) =>
       pattern.map((run) => (run * (1024 / 720)).toFixed(2)).join(' ');
-    const alternate = alternateDashSvg(ORISTUDIO_DASH_UNASSIGNED);
 
     function hintedFold(hint: number): FoldDocument {
       return {
@@ -228,13 +227,17 @@ describe('crease pattern export', () => {
     it('takes the alternate marks of the dash the crease already has', () => {
       const svg = svgFor(2, 'color');
       expect(svg).toContain(`stroke-dasharray="${scaled(ORISTUDIO_DASH_UNASSIGNED)}"`);
-      expect(svg).toContain(
-        `stroke-dasharray="${scaled(alternate.array)}" stroke-dashoffset="${(
-          alternate.offset *
-          (1024 / 720)
-        ).toFixed(2)}"`
-      );
+      expect(svg).toContain(`stroke-dasharray="${scaled(ORISTUDIO_DASH_HINT)}"`);
       expect(svg).toContain(`stroke="${CREASE_EXPORT_PALETTES.light.valley}"`);
+    });
+
+    it('starts both strokes at the crease, so a short crease keeps its direction', () => {
+      // A phase here would be a hint that vanishes rather than a hint that
+      // shifts: the export's dash is in paper units, so any crease shorter than
+      // the offset would draw its grey and drop its colour. Nothing may wind
+      // either stroke forward.
+      expect(svgFor(1, 'color')).not.toContain('stroke-dashoffset');
+      expect(scaled(ORISTUDIO_DASH_HINT).startsWith('0.00')).toBe(false);
     });
 
     it('is a second line over the first, not a line beside it', () => {
@@ -258,7 +261,10 @@ describe('crease pattern export', () => {
     });
 
     it('leaves an unhinted undecided crease exactly as it was', () => {
-      expect(svgFor(0, 'color')).not.toContain('stroke-dashoffset');
+      const plain = svgFor(0, 'color');
+      expect(plain).toContain(`stroke-dasharray="${scaled(ORISTUDIO_DASH_UNASSIGNED)}"`);
+      expect(plain).not.toContain(`stroke-dasharray="${scaled(ORISTUDIO_DASH_HINT)}"`);
+      expect(plain).not.toContain(`stroke="${CREASE_EXPORT_PALETTES.light.mountain}"`);
     });
   });
 
