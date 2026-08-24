@@ -572,7 +572,7 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     {
       placement: 'menu',
       selectionRequirement: 'selected lines',
-      tooltip: 'Forget the mountain/valley decision on selected creases',
+      tooltip: 'Forget what the selected lines do, leaving them undecided',
     }
   ),
   ready('CreaseMakeAux', 'Make auxiliary', 'color', 'scan-line', 'MouseHandlerCreaseMakeAux', {

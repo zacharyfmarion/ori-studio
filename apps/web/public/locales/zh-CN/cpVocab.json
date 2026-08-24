@@ -605,7 +605,7 @@
     },
     "cp_action_crease_make_unassigned": {
       "label": "设为未指定",
-      "tooltip": "取消所选折痕的山谷指定",
+      "tooltip": "忘记所选线条的作用，使其保持未定",
       "disabledReason": "请先选择折痕"
     },
     "cp_action_crease_make_aux": {

@@ -605,7 +605,7 @@
     },
     "cp_action_crease_make_unassigned": {
       "label": "미지정으로 설정",
-      "tooltip": "선택한 접힘선의 산/골 지정을 해제합니다",
+      "tooltip": "선택한 선의 역할을 잊고 미결정 상태로 둡니다",
       "disabledReason": "먼저 접힘선을 선택하세요"
     },
     "cp_action_crease_make_aux": {

@@ -605,7 +605,7 @@
     },
     "cp_action_crease_make_unassigned": {
       "label": "Marcar sin asignar",
-      "tooltip": "Olvidar la asignación de monte/valle de los pliegues seleccionados",
+      "tooltip": "Olvidar qué hacen las líneas seleccionadas y dejarlas sin decidir",
       "disabledReason": "Selecciona pliegues primero"
     },
     "cp_action_crease_make_aux": {

@@ -605,7 +605,7 @@
     },
     "cp_action_crease_make_unassigned": {
       "label": "未割り当てにする",
-      "tooltip": "選択した折り線の山谷の指定を取り消します",
+      "tooltip": "選択した線の役割を忘れ、未決定の状態にします",
       "disabledReason": "折り線を選択してください"
     },
     "cp_action_crease_make_aux": {

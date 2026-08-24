@@ -605,7 +605,7 @@
     },
     "cp_action_crease_make_unassigned": {
       "label": "Make unassigned",
-      "tooltip": "Forget the mountain/valley decision on selected creases",
+      "tooltip": "Forget what the selected lines do, leaving them undecided",
       "disabledReason": "Ready"
     },
     "cp_action_crease_make_aux": {

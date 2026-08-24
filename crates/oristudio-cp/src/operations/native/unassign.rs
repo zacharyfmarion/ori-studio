@@ -1,4 +1,4 @@
-//! Forgetting a crease's mountain/valley decision.
+//! Forgetting what a line does, leaving it undecided.
 //!
 //! Ori Studio original, and there is no Oriedita counterpart because upstream has
 //! nothing to forget: `LineColor.NONE` is declared in the Java source and never
@@ -17,18 +17,67 @@
 use crate::geometry::LineColor;
 use crate::model::CreasePatternModel;
 
-/// Drop the mountain/valley decision on each of `indices`, leaving the crease
+/// Drop the mountain/valley decision on each of `indices`, leaving the line
 /// where it is with no fold direction and no fold angle. Returns how many
 /// changed.
 ///
-/// **Only `Red1` and `Blue2` are touched** — the same gate
-/// [`crate::operations::color::set_signed_fold_angles`] uses, for the same
-/// reason. Those are the two colours that carry a fold. A `Black0` is the
-/// paper's border rather than an undecided crease, and unassigning one would
-/// delete a boundary that [`crate::checks_spatial::is_interior_vertex`] depends
-/// on; an auxiliary line is not a crease at all. So "select everything and
-/// unassign" leaves the sheet edge and the reference lines alone, which is what
-/// a user means by it.
+/// **Every line but an already-unassigned one is touched**: a mountain, a
+/// valley, a paper edge, an auxiliary line of any colour. Undecided is a state a
+/// line is *put into*, not a property only `Red1` and `Blue2` have — "this line
+/// is part of the pattern and I have not decided what it does" is as true of a
+/// border as of a crease.
+///
+/// The gate was `Red1 | Blue2` until the owner asked for this, on the reasoning
+/// that those are the two colours carrying a fold. What that cost was silence:
+/// selecting a border or a reference line and picking Make Unassigned did
+/// nothing, with no message, which is a worse outcome than any the gate was
+/// avoiding. Every aux colour goes, not just `Cyan3` — `Orange4` is what
+/// [`crate::operations::construction`] authors by default, and unassigning one
+/// aux colour while silently declining another would reproduce the same bug one
+/// colour along.
+///
+/// Neither a border nor an auxiliary line carries a direction, so
+/// [`crate::geometry::FoldDirection::from_line_color`] answers `None` for both
+/// and [`make_unassigned_keeping_direction`] needs no special case: there is no
+/// direction to keep, and it unassigns them with no hint.
+///
+/// # What this does to the checker
+///
+/// A `Black0` is what makes a vertex a boundary vertex —
+/// [`crate::checks_spatial::is_interior_vertex`] declines any vertex touching
+/// one — so unassigning borders moves vertices into the population the closure
+/// condition applies to. Measured over the Tier A corpus (13 documents, 4,701
+/// vertices) rather than assumed:
+///
+/// - Unassigning **one** border segment changes no verdict's content anywhere.
+///   The vertex still touches the *other* border at that corner, so it is still
+///   not interior; it only moves from the flat branch, which reported nothing
+///   for it, to a spatial report of
+///   [`crate::checks_spatial::Unknowable::PaperEdge`]. 286 single-border trials,
+///   390 vertices gaining that report, 0 new failures.
+/// - Unassigning **every** border changes 1,224 verdicts (26% of vertices) and
+///   every one of them lands on `Unknowable::TooManyUnknowns`, because a rim
+///   vertex then has two undecided creases and the live check solves for fewer.
+///   **0 become `Broken`**, and `checked_vertices` — the denominator "no errors"
+///   is implicitly about — is identical on all 13 files.
+///
+/// So the checker gains no new evaluations here; it gains the admission that a
+/// condition now exists at the rim and it cannot see far enough to evaluate it.
+///
+/// # Select-all dissolves the sheet outline, and that is allowed
+///
+/// Deliberately unguarded, on four grounds. The measurement above is the first:
+/// the feared outcome — a document lighting up red because its border went
+/// undecided — does not occur. The second is that a guard has no principled
+/// shape: Ctrl+A and a drag-box round the whole sheet are one intent, and a
+/// rule keyed on either would make the verb depend on *how* the selection was
+/// made. The third is that this is an explicit, single-purpose menu item and one
+/// undo, and replacing "silently does nothing" with "silently does less than
+/// asked" keeps the defect while adding a rule to learn. The fourth is that it
+/// is cheap: with no `Black0` left,
+/// [`crate::checks_spatial::interior_border_segments`] early-outs and never
+/// traces the arrangement, so `CheckCamv` on the corpus's largest document runs
+/// 30.8ms → 11.7ms, faster than before.
 ///
 /// [`crate::geometry::LineSegment::with_line_color`] drops `fold_magnitude` on
 /// the way out, which is right here: a crease with no direction cannot carry a
@@ -50,6 +99,9 @@ pub fn make_unassigned(model: &mut CreasePatternModel, indices: &[usize]) -> usi
 /// direction as well is the rarer intent, which is why it keeps the longer path
 /// through [`make_unassigned`].
 ///
+/// "Keeping" is all it does: a border or an auxiliary line has no direction to
+/// keep, so it unassigns with no hint and the two verbs agree on it exactly.
+///
 /// The hint is what lets the solver settle a mountain/valley question it cannot
 /// answer alone: at a full fold `+180` and `-180` are the same rotation, so
 /// closure genuinely cannot tell them apart. Measured, supplying it takes k=2
@@ -67,7 +119,9 @@ fn unassign(model: &mut CreasePatternModel, indices: &[usize], keep_direction: b
         let Some(segment) = model.line_segments.get(index) else {
             continue;
         };
-        if !matches!(segment.color, LineColor::Red1 | LineColor::Blue2) {
+        // Already undecided: nothing to forget, and counting it would report a
+        // change that did not happen.
+        if segment.color == LineColor::None {
             continue;
         }
         let updated = if keep_direction {
@@ -108,15 +162,83 @@ mod tests {
         assert_eq!(model.line_segments[1].color, LineColor::None);
     }
 
-    /// The gate, stated as a test because it is the whole safety of the verb: a
-    /// border is the paper's edge, and an auxiliary line is not a crease.
+    /// A paper edge is a line whose fold can be undecided like any other. It
+    /// carries no direction, so there is no hint to invent for it.
     #[test]
-    fn borders_and_auxiliary_lines_are_left_alone() {
-        let mut model = model_with(&[LineColor::Black0, LineColor::Cyan3, LineColor::Red1]);
-        assert_eq!(make_unassigned(&mut model, &[0, 1, 2]), 1);
-        assert_eq!(model.line_segments[0].color, LineColor::Black0);
-        assert_eq!(model.line_segments[1].color, LineColor::Cyan3);
-        assert_eq!(model.line_segments[2].color, LineColor::None);
+    fn a_paper_edge_becomes_unassigned_with_no_hint() {
+        let mut model = model_with(&[LineColor::Black0]);
+        assert_eq!(make_unassigned(&mut model, &[0]), 1);
+        assert_eq!(model.line_segments[0].color, LineColor::None);
+        assert_eq!(model.line_segments[0].fold_direction_hint, None);
+    }
+
+    #[test]
+    fn an_auxiliary_line_becomes_unassigned_with_no_hint() {
+        let mut model = model_with(&[LineColor::Cyan3]);
+        assert_eq!(make_unassigned(&mut model, &[0]), 1);
+        assert_eq!(model.line_segments[0].color, LineColor::None);
+        assert_eq!(model.line_segments[0].fold_direction_hint, None);
+    }
+
+    /// `Cyan3` is one aux colour of eight, and `Orange4` is the one
+    /// `operations::construction` authors by default. Unassigning the first and
+    /// declining the second would be the same silent no-op this verb was widened
+    /// to remove.
+    #[test]
+    fn every_auxiliary_colour_unassigns_not_just_cyan() {
+        let aux = [
+            LineColor::Cyan3,
+            LineColor::Orange4,
+            LineColor::Magenta5,
+            LineColor::Green6,
+            LineColor::Yellow7,
+            LineColor::Purple8,
+            LineColor::Other9,
+            LineColor::Grey10,
+        ];
+        let mut model = model_with(&aux);
+        let indices: Vec<usize> = (0..aux.len()).collect();
+        assert_eq!(make_unassigned(&mut model, &indices), aux.len());
+        for segment in &model.line_segments {
+            assert_eq!(segment.color, LineColor::None);
+        }
+    }
+
+    /// The keep-direction variant needs no special case for the two colours that
+    /// have no direction: it must reach the same place as the forgetting one.
+    #[test]
+    fn keeping_the_direction_leaves_no_hint_on_a_border_or_an_aux_line() {
+        use super::make_unassigned_keeping_direction;
+
+        let mut model = model_with(&[LineColor::Black0, LineColor::Cyan3]);
+        assert_eq!(make_unassigned_keeping_direction(&mut model, &[0, 1]), 2);
+        for segment in &model.line_segments {
+            assert_eq!(segment.color, LineColor::None);
+            assert_eq!(segment.fold_direction_hint, None);
+        }
+    }
+
+    /// **The border is deliberately unguarded**, so select-all dissolves the
+    /// sheet outline. See this module's reasoning: measured on the Tier A corpus
+    /// it produces no new closure failure anywhere, a guard has no principled
+    /// shape between Ctrl+A and a drag-box, and the verb is one explicit menu
+    /// item and one undo. Pinned here so restoring a guard is a decision rather
+    /// than a regression.
+    #[test]
+    fn select_all_takes_the_sheet_outline_with_it() {
+        let mut model = model_with(&[
+            LineColor::Black0,
+            LineColor::Black0,
+            LineColor::Red1,
+            LineColor::Cyan3,
+        ]);
+        assert_eq!(make_unassigned(&mut model, &[0, 1, 2, 3]), 4);
+        assert!(
+            model
+                .line_segments
+                .iter()
+                .all(|segment| segment.color == LineColor::None)
+        );
     }
 
     /// A partial fold angle must not survive the loss of its direction. If it

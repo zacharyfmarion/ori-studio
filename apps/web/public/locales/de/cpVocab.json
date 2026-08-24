@@ -605,7 +605,7 @@
     },
     "cp_action_crease_make_unassigned": {
       "label": "Nicht zugewiesen setzen",
-      "tooltip": "Berg-/Tal-Zuordnung der gewählten Falten verwerfen",
+      "tooltip": "Vergessen, was die gewählten Linien tun, und sie unentschieden lassen",
       "disabledReason": "Zuerst Falten auswählen"
     },
     "cp_action_crease_make_aux": {

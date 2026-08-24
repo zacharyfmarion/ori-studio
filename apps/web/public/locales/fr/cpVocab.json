@@ -605,7 +605,7 @@
     },
     "cp_action_crease_make_unassigned": {
       "label": "Rendre non assigné",
-      "tooltip": "Oublier l'affectation montagne/vallée des plis sélectionnés",
+      "tooltip": "Oublier ce que font les lignes sélectionnées et les laisser indécises",
       "disabledReason": "Sélectionnez d'abord des plis"
     },
     "cp_action_crease_make_aux": {
