@@ -14,6 +14,7 @@ import {
   type CreaseExportOptions,
 } from './creaseExport';
 import {
+  alternateDashSvg,
   cpLineStyleDashPatterns,
   ORIEDITA_DASH_ONE_DOT,
   ORIEDITA_DASH_TWO_DOT,
@@ -22,6 +23,8 @@ import {
   UNASSIGNED_DASH_SLOT,
 } from './oristudioCpLineStyle';
 import { ORISTUDIO_CP_LINE_STYLES } from './creasePatternViewport';
+
+const countLines = (svg: string) => svg.match(/<line /g)?.length ?? 0;
 
 // A square (border) split by a mountain and a valley diagonal, plus a second
 // disjoint square, so segmentation yields two crease patterns.
@@ -170,6 +173,95 @@ describe('crease pattern export', () => {
     }
   });
 
+  /**
+   * A hinted crease is the undecided dash with every other mark taken in the
+   * direction's own colour. The export reaches that through SVG's dash phase and
+   * the canvas through a shifted run list, so what is checked here is the marks
+   * and the ink — the two encodings are pinned against each other in
+   * `oristudioCpLineStyle.test.ts`.
+   */
+  describe('a hinted undecided crease', () => {
+    const scaled = (pattern: readonly number[]) =>
+      pattern.map((run) => (run * (1024 / 720)).toFixed(2)).join(' ');
+    const alternate = alternateDashSvg(ORISTUDIO_DASH_UNASSIGNED);
+
+    function hintedFold(hint: number): FoldDocument {
+      return {
+        vertices_coords: [
+          [0, 0],
+          [1, 0],
+          [1, 1],
+          [0, 1],
+        ],
+        edges_vertices: [
+          [0, 1],
+          [1, 2],
+          [2, 3],
+          [3, 0],
+          [0, 2],
+        ],
+        edges_assignment: ['B', 'B', 'B', 'B', 'U'],
+        'oristudio:edges_fold_direction_hint': [0, 0, 0, 0, hint],
+        faces_vertices: [
+          [0, 1, 2],
+          [0, 2, 3],
+        ],
+      } as FoldDocument;
+    }
+
+    const svgFor = (hint: number, lineStyle: CreaseExportOptions['lineStyle']) => {
+      const fold = hintedFold(hint);
+      return serializeCreasePatternSvg(fold, segmentFoldDocument(fold), {
+        ...DEFAULT_CREASE_EXPORT_OPTIONS,
+        lineStyle,
+      });
+    };
+
+    it('draws the direction at full strength, not washed toward the grey', () => {
+      // The wash this replaced put the stroke somewhere between the two, which
+      // read as faded. Nothing between them may appear.
+      const svg = svgFor(1, 'color');
+      expect(svg).toContain(`stroke="${CREASE_EXPORT_PALETTES.light.mountain}"`);
+      expect(svg).toContain(`stroke="${CREASE_EXPORT_PALETTES.light.unassigned}"`);
+    });
+
+    it('takes the alternate marks of the dash the crease already has', () => {
+      const svg = svgFor(2, 'color');
+      expect(svg).toContain(`stroke-dasharray="${scaled(ORISTUDIO_DASH_UNASSIGNED)}"`);
+      expect(svg).toContain(
+        `stroke-dasharray="${scaled(alternate.array)}" stroke-dashoffset="${(
+          alternate.offset *
+          (1024 / 720)
+        ).toFixed(2)}"`
+      );
+      expect(svg).toContain(`stroke="${CREASE_EXPORT_PALETTES.light.valley}"`);
+    });
+
+    it('is a second line over the first, not a line beside it', () => {
+      const hinted = svgFor(1, 'color');
+      const plain = svgFor(0, 'color');
+      expect(countLines(hinted)).toBe(countLines(plain) + 1);
+      // Same endpoints: whatever the two strokes say, they say it about one
+      // crease. Both lines carry the diagonal's coordinates.
+      const diagonal = /x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)" y2="([\d.]+)"/g;
+      const ends = [...hinted.matchAll(diagonal)].map((m) => m[0]);
+      expect(new Set(ends).size).toBe(ends.length - 1);
+    });
+
+    it('says nothing under the styles that ink every crease the same', () => {
+      // The black-dot styles paint mountain, valley and undecided as one ink, so
+      // an overlay would repaint the crease in its own colour. The canvas
+      // declines for exactly this reason; see `appendDirectionHintDash`.
+      for (const lineStyle of ['black-one-dot', 'black-two-dot'] as const) {
+        expect(countLines(svgFor(1, lineStyle))).toBe(countLines(svgFor(0, lineStyle)));
+      }
+    });
+
+    it('leaves an unhinted undecided crease exactly as it was', () => {
+      expect(svgFor(0, 'color')).not.toContain('stroke-dashoffset');
+    });
+  });
+
   it('takes the undecided dots from the same slot the canvas reads', () => {
     // The canvas resolves a slot index into this table; the export resolves the
     // pattern directly. They agree only while the slot the export's colour maps
@@ -191,7 +283,6 @@ describe('crease pattern export', () => {
     });
 
     // The whole document has more lines than a single pattern.
-    const countLines = (svg: string) => svg.match(/<line /g)?.length ?? 0;
     expect(segments).toHaveLength(2);
     expect(countLines(one)).toBeLessThan(countLines(all));
   });

@@ -22,6 +22,14 @@ type Buffer = ReturnType<Regl['buffer']>;
  * runs in the vertex stage — GLSL ES 1.0 cannot index a uniform array by a
  * non-constant expression in the fragment stage — and the fragment stage
  * discards whatever lands in a gap.
+ *
+ * There is no dash *phase*: every segment's pattern starts at its own `a`
+ * endpoint, because `vDist` is distance from that endpoint and nothing offsets
+ * it. A pattern that needs to start part-way through says so with a leading
+ * zero-length "on" run, which the walk below skips over exactly like an offset
+ * would (`alternateDashRuns` in `lib/oristudioCpLineStyle` is the one caller).
+ * A zero-length run draws nothing here — these are butt-ended quads, not capped
+ * strokes — so the leading run costs no ink.
  */
 const VERT = `
 precision highp float;
@@ -45,6 +53,8 @@ uniform vec3 u_dashOn2;
 uniform vec3 u_dashOff2;
 uniform vec3 u_dashOn3;
 uniform vec3 u_dashOff3;
+uniform vec3 u_dashOn4;
+uniform vec3 u_dashOff4;
 varying vec4 vColor;
 varying float vDist;     // device px along the segment (for screen-space dashing)
 varying vec3 vDashOn;
@@ -65,7 +75,10 @@ void main() {
   gl_Position = vec4(clip, 1.0 - 2.0 * aDepth, 1.0);
   vColor = aColor;
   vDist = corner.x * len;
-  if (aDashSlot > 2.5) {
+  if (aDashSlot > 3.5) {
+    vDashOn = u_dashOn4;
+    vDashOff = u_dashOff4;
+  } else if (aDashSlot > 2.5) {
     vDashOn = u_dashOn3;
     vDashOff = u_dashOff3;
   } else if (aDashSlot > 1.5) {
@@ -180,6 +193,8 @@ interface StrokeDrawParams {
   dashOff2: Vec3;
   dashOn3: Vec3;
   dashOff3: Vec3;
+  dashOn4: Vec3;
+  dashOff4: Vec3;
   aBuf: Buffer;
   bBuf: Buffer;
   colorBuf: Buffer;
@@ -202,6 +217,8 @@ interface StrokeUniforms {
   u_dashOff2: Vec3;
   u_dashOn3: Vec3;
   u_dashOff3: Vec3;
+  u_dashOn4: Vec3;
+  u_dashOff4: Vec3;
 }
 
 /** Attribute key shapes; values are regl attribute configs (kept permissive). */
@@ -276,6 +293,8 @@ export function createStrokeProgram(
       u_dashOff2: (_ctx, props) => props.dashOff2,
       u_dashOn3: (_ctx, props) => props.dashOn3,
       u_dashOff3: (_ctx, props) => props.dashOff3,
+      u_dashOn4: (_ctx, props) => props.dashOn4,
+      u_dashOff4: (_ctx, props) => props.dashOff4,
     },
     // Premultiplied-alpha blend: a no-op for opaque creases (alpha 1), and lets
     // semi-transparent strokes (e.g. grid lines) composite over the background.
@@ -312,7 +331,7 @@ export function createStrokeProgram(
     draw({ view, viewport, widthPx }) {
       if (count === 0 || !aBuf || !bBuf || !colorBuf || !widthMulBuf || !dashSlotBuf || !depthBuf)
         return;
-      const [slot1, slot2, slot3] = dashTableUniforms(dashPatterns, viewport.dpr);
+      const [slot1, slot2, slot3, slot4] = dashTableUniforms(dashPatterns, viewport.dpr);
       draw({
         originArr: [view.origin[0], view.origin[1]],
         exArr: [view.ex[0], view.ex[1]],
@@ -325,6 +344,8 @@ export function createStrokeProgram(
         dashOff2: slot2.off,
         dashOn3: slot3.on,
         dashOff3: slot3.off,
+        dashOn4: slot4.on,
+        dashOff4: slot4.off,
         aBuf,
         bBuf,
         colorBuf,

@@ -18,7 +18,7 @@ import {
   DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
   type OristudioCpLineStyle,
 } from './creasePatternViewport';
-import { cpLineStyleDashPattern, cpLineStyleInk } from './oristudioCpLineStyle';
+import { alternateDashSvg, cpLineStyleDashPattern, cpLineStyleInk } from './oristudioCpLineStyle';
 
 /** Side of the square content box the crease pattern is drawn into. */
 const CP_SIZE = 1024;
@@ -222,6 +222,11 @@ function isUnassigned(assignment: string): boolean {
 interface EdgeAppearance {
   stroke: string;
   dash: string;
+  /**
+   * The direction half of a hinted crease: a second stroke over the same line,
+   * taking the alternate marks of its dash. `null` when there is nothing to say.
+   */
+  hint: { stroke: string; dash: string; offset: number } | null;
 }
 
 /**
@@ -255,48 +260,49 @@ function edgeAppearance(
   directionHint = 0
 ): EdgeAppearance {
   const lineColor = edgeLineColor(assignment);
-  const ink = cpLineStyleInk(lineStyle, lineColor);
-  const stroke =
-    ink === 'black'
-      ? palette.monochromeInk
-      : ink === 'grey'
-        ? palette.monochromeValley
-        : assignmentColor(assignment, palette);
+  const stroke = styleInk(assignment, lineColor, lineStyle, palette);
   const pattern = cpLineStyleDashPattern(lineStyle, lineColor);
-  // A hinted crease paints its direction's colour washed toward the unassigned
-  // grey, matching the canvas exactly. Same wash, same reasoning: the picture a
-  // user exports has to be a picture of the document they are looking at, and a
-  // hint is visible state rather than a working note.
+  const base = { stroke, dash: pattern ? scaleDash(pattern) : '' };
+  // A hinted crease keeps the undecided grey and dash and takes the alternate
+  // marks of that dash in its direction's own full-strength colour — the canvas
+  // treatment exactly, reached through SVG's dash phase because SVG has one
+  // (see `alternateDashSvg`). The picture a user exports has to be a picture of
+  // the document they are looking at, and a hint is visible state rather than a
+  // working note.
+  //
+  // The `stroke` comparison is the canvas's rule too: under the black-dot styles
+  // the direction resolves to the ink the crease already has, so the overlay
+  // would repaint it in its own colour and say nothing.
   const hintAssignment = directionHint === 1 ? 'M' : directionHint === 2 ? 'V' : null;
-  if (hintAssignment && ink !== 'black' && ink !== 'grey') {
-    return {
-      stroke: washHex(assignmentColor(hintAssignment, palette), stroke),
-      dash: pattern ? scaleDash(pattern) : '',
-    };
-  }
-  return { stroke, dash: pattern ? scaleDash(pattern) : '' };
+  if (!hintAssignment || !pattern) return { ...base, hint: null };
+  const hintStroke = styleInk(hintAssignment, edgeLineColor(hintAssignment), lineStyle, palette);
+  if (hintStroke === stroke) return { ...base, hint: null };
+  const alternate = alternateDashSvg(pattern);
+  return {
+    ...base,
+    hint: {
+      stroke: hintStroke,
+      dash: scaleDash(alternate.array),
+      offset: alternate.offset * VIEW_SCALE,
+    },
+  };
 }
 
-/**
- * Blend `from` toward `to`, matching `directionHintInk`'s wash so the exported
- * image and the canvas agree. Kept here rather than shared because the export
- * works in hex strings and the renderer in premultiplied floats; the constant is
- * the thing that must not drift, and it is named in both.
- */
-const HINT_WASH = 0.55;
-
-function washHex(from: string, to: string): string {
-  const parse = (hex: string): [number, number, number] | null => {
-    const match = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
-    if (!match) return null;
-    const value = Number.parseInt(match[1], 16);
-    return [(value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff];
-  };
-  const a = parse(from);
-  const b = parse(to);
-  if (!a || !b) return from;
-  const mixed = a.map((channel, i) => Math.round(channel + (b[i] - channel) * HINT_WASH));
-  return `#${mixed.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
+/** A line colour's stroke under `lineStyle`, in the export palette. */
+function styleInk(
+  assignment: string,
+  lineColor: string,
+  lineStyle: OristudioCpLineStyle,
+  palette: CreaseExportPalette
+): string {
+  switch (cpLineStyleInk(lineStyle, lineColor)) {
+    case 'black':
+      return palette.monochromeInk;
+    case 'grey':
+      return palette.monochromeValley;
+    case 'own':
+      return assignmentColor(assignment, palette);
+  }
 }
 
 function scaleDash(pattern: readonly number[]): string {
@@ -660,7 +666,7 @@ export function buildCreaseExportArtwork(
     .map((edge, index) => {
       const assignment = assignments[index] ?? 'U';
       if (!options.includeUnassigned && isUnassigned(assignment)) return '';
-      const { stroke, dash } = edgeAppearance(
+      const { stroke, dash, hint } = edgeAppearance(
         assignment,
         options.lineStyle,
         palette,
@@ -668,8 +674,13 @@ export function buildCreaseExportArtwork(
       );
       const a = project(edge[0]);
       const b = project(edge[1]);
+      const ends = `x1="${a.x.toFixed(2)}" y1="${a.y.toFixed(2)}" x2="${b.x.toFixed(2)}" y2="${b.y.toFixed(2)}"`;
       const dashAttr = dash ? ` stroke-dasharray="${dash}"` : '';
-      return `  <line x1="${a.x.toFixed(2)}" y1="${a.y.toFixed(2)}" x2="${b.x.toFixed(2)}" y2="${b.y.toFixed(2)}" stroke="${stroke}" stroke-width="${strokeWidth.toFixed(2)}"${dashAttr} stroke-linecap="round"/>`;
+      const line = `  <line ${ends} stroke="${stroke}" stroke-width="${strokeWidth.toFixed(2)}"${dashAttr} stroke-linecap="round"/>`;
+      if (!hint) return line;
+      // Second, over the first: the marks are congruent, so this repaints half
+      // of them rather than adding ink beside them.
+      return `${line}\n  <line ${ends} stroke="${hint.stroke}" stroke-width="${strokeWidth.toFixed(2)}" stroke-dasharray="${hint.dash}" stroke-dashoffset="${hint.offset.toFixed(2)}" stroke-linecap="round"/>`;
     })
     .filter(Boolean)
     .join('\n');

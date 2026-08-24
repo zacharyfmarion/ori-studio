@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { ORISTUDIO_CP_LINE_STYLES, type OristudioCpLineStyle } from './creasePatternViewport';
 import {
+  alternateDashSvg,
   cpLineStyleDashPattern,
   cpLineStyleDashPatterns,
   cpLineStyleDashSlot,
   cpLineStyleInk,
+  HINT_DASH_SLOT,
   MOUNTAIN_DASH_SLOT,
   ORIEDITA_DASH_ONE_DOT,
   ORIEDITA_DASH_TWO_DOT,
   ORIEDITA_DASH_VALLEY,
+  ORISTUDIO_DASH_HINT,
   ORISTUDIO_DASH_UNASSIGNED,
   SOLID_DASH_SLOT,
   UNASSIGNED_DASH_SLOT,
@@ -115,13 +118,91 @@ describe('dash slots', () => {
 
   it('leaves the solid styles solid apart from the undecided crease', () => {
     for (const style of ['color', 'black-white'] as const) {
-      expect(cpLineStyleDashPatterns(style)).toEqual([[], [], ORISTUDIO_DASH_UNASSIGNED]);
+      expect(cpLineStyleDashPatterns(style)).toEqual([
+        [],
+        [],
+        ORISTUDIO_DASH_UNASSIGNED,
+        ORISTUDIO_DASH_HINT,
+      ]);
       for (const color of [MOUNTAIN, VALLEY, EDGE, AUX, OTHER]) {
         expect(cpLineStyleDashSlot(style, color)).toBe(SOLID_DASH_SLOT);
       }
     }
   });
+
+  it('gives the hint slot the same pattern under every style, and no colour', () => {
+    // It belongs to a second stroke over an undecided crease, not to a crease of
+    // its own, so no line colour may resolve to it.
+    for (const style of ORISTUDIO_CP_LINE_STYLES) {
+      expect(cpLineStyleDashPatterns(style)[HINT_DASH_SLOT - 1]).toBe(ORISTUDIO_DASH_HINT);
+      for (const color of [MOUNTAIN, VALLEY, EDGE, AUX, OTHER, UNASSIGNED]) {
+        expect(cpLineStyleDashSlot(style, color)).not.toBe(HINT_DASH_SLOT);
+      }
+    }
+  });
 });
+
+/**
+ * The alternate dash exists to be drawn *over* the pattern it comes from, so the
+ * property that matters is where its marks land — not what the run list looks
+ * like. Both encodings are checked against the same measurement, because the two
+ * consumers spell the phase shift differently (the shader has no phase; SVG has
+ * nothing that draws a zero-length mark without a dot on it).
+ */
+describe('the alternate dash a hint paints on', () => {
+  const BASE = ORISTUDIO_DASH_UNASSIGNED;
+  const SPAN = 100;
+
+  it('inks exactly the marks the original skips', () => {
+    const base = shaderMarks(BASE, SPAN);
+    const alternate = shaderMarks(ORISTUDIO_DASH_HINT, SPAN);
+    // Every alternate mark is one of the base's, and they alternate: taking
+    // every second base mark from the first skipped one reproduces it exactly.
+    expect(alternate).toEqual(base.filter((_, index) => index % 2 === 1));
+    expect(alternate.length).toBeGreaterThan(2);
+  });
+
+  it('reaches the same marks through the SVG phase', () => {
+    const { array, offset } = alternateDashSvg(BASE);
+    expect(svgMarks(array, offset, SPAN)).toEqual(shaderMarks(ORISTUDIO_DASH_HINT, SPAN));
+  });
+
+  it('leaves the two strokes covering the original between them', () => {
+    // Nothing gained, nothing lost: a hinted crease is the same ink as an
+    // unhinted one, in two colours instead of one.
+    const grey = shaderMarks(BASE, SPAN).filter((_, index) => index % 2 === 0);
+    const colored = shaderMarks(ORISTUDIO_DASH_HINT, SPAN);
+    expect([...grey, ...colored].sort(byStart)).toEqual(shaderMarks(BASE, SPAN));
+  });
+});
+
+type Mark = [number, number];
+const byStart = (a: Mark, b: Mark) => a[0] - b[0];
+
+/** The intervals a run list inks over `span`, read the way `strokeProgram` does. */
+function shaderMarks(runs: readonly number[], span: number): Mark[] {
+  const period = runs.reduce((sum, run) => sum + run, 0);
+  const marks: Mark[] = [];
+  for (let base = 0; base < span; base += period) {
+    let at = base;
+    for (let i = 0; i < runs.length; i += 2) {
+      const mark = runs[i];
+      if (mark > 0 && at + mark <= span) marks.push([at, at + mark]);
+      at += mark + (runs[i + 1] ?? 0);
+    }
+  }
+  return marks;
+}
+
+/** The same, read the way SVG reads `stroke-dasharray` + `stroke-dashoffset`. */
+function svgMarks(array: readonly number[], offset: number, span: number): Mark[] {
+  const period = array.reduce((sum, run) => sum + run, 0);
+  // A positive dashoffset winds the pattern forward, so the path starts that far
+  // into it — which is the same as starting the pattern `-offset` back.
+  return shaderMarks(array, span + period)
+    .map(([from, to]) => [from - offset, to - offset] as Mark)
+    .filter(([from, to]) => from >= 0 && to <= span);
+}
 
 /**
  * `LineColor.NONE` is declared in Oriedita's enum and drawn by nothing in its

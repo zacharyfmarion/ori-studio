@@ -3,6 +3,7 @@ import { dashSlotUniforms, dashTableUniforms } from './strokeProgram';
 import { MAX_DASH_SLOTS } from '../types';
 import {
   cpLineStyleDashPatterns,
+  HINT_DASH_SLOT,
   ORIEDITA_DASH_ONE_DOT,
   ORIEDITA_DASH_TWO_DOT,
   ORIEDITA_DASH_VALLEY,
@@ -80,6 +81,21 @@ describe('dashTableUniforms', () => {
       const undecided = slots[UNASSIGNED_DASH_SLOT - 1];
       expect(period(undecided)).toBe(
         ORISTUDIO_DASH_UNASSIGNED.reduce((sum, run) => sum + run, 0)
+      );
+    }
+  });
+
+  it('carries the hint pattern to the lane the shader reads it from', () => {
+    // The one slot whose leading run is empty: it is the undecided dash shifted
+    // by a mark, and the shift *is* that empty run (the shader has no phase).
+    // Landing it in the wrong lane draws a hinted crease with the plain dash in
+    // the direction's colour — the grey marks gone, and no way to tell from a
+    // decided crease under a solid style.
+    for (const style of ORISTUDIO_CP_LINE_STYLES) {
+      const hint = dashTableUniforms(cpLineStyleDashPatterns(style), 1)[HINT_DASH_SLOT - 1];
+      expect(hint).toEqual({ on: [0, 3, 0], off: [10, 7, 0] });
+      expect(period(hint)).toBe(
+        2 * ORISTUDIO_DASH_UNASSIGNED.reduce((sum, run) => sum + run, 0)
       );
     }
   });
