@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   MAX_BITMAP_RENDER_EDGE,
+  activePeakSize,
   bitmapCanvasEdge,
   fitRenderWithin,
   nextRenderCanvasSize,
@@ -287,5 +288,51 @@ describe('the resize policy as the session actually applies it', () => {
     expect(
       policy({ mode: 'canvas', callerRequest: at(400, 400), peak: at(2048, 2048) })
     ).toEqual(at(400, 400));
+  });
+});
+
+describe('which windows the buffer is sized from', () => {
+  const view = (edge: number, lastRenderedAt: number) => ({
+    width: edge,
+    height: edge,
+    lastRenderedAt,
+  });
+
+  it('ignores a window that has stopped drawing', () => {
+    // The bug this exists for. An inline window zoomed large once and then left
+    // alone kept its claim on the shared buffer forever, pinning it at the 2048
+    // cap — so the small window actually being orbited paid ~25ms a frame
+    // instead of ~8ms, for a neighbour nobody was looking at. A render costs
+    // buffer area whatever is drawn into it, so that is the whole session
+    // taxed by one idle window.
+    const peak = activePeakSize([view(783, 9_500), view(3648, 1_000)], 10_000, 1_000);
+    expect(peak).toEqual({ width: 783, height: 783 });
+  });
+
+  it('still honours a window that is drawing', () => {
+    // The other half, and the reason this is recency rather than "the caller
+    // only": two windows both in use still share a buffer sized for the larger,
+    // which is what stops them reallocating it against each other every frame.
+    const peak = activePeakSize([view(783, 9_500), view(3648, 9_600)], 10_000, 1_000);
+    expect(peak).toEqual({ width: 3648, height: 3648 });
+  });
+
+  it('reports zero when nothing has drawn recently', () => {
+    // Not an error: `renderCanvasResize` reads a zero peak as "no window has a
+    // size yet" and falls back to the caller's request rather than collapsing
+    // the buffer to its floor.
+    expect(activePeakSize([view(783, 0), view(3648, 0)], 10_000, 1_000)).toEqual({
+      width: 0,
+      height: 0,
+    });
+  });
+
+  it('counts a window that has never drawn as idle', () => {
+    // `lastRenderedAt` starts at -Infinity, so a freshly loaded session cannot
+    // hold the buffer up before it has drawn anything.
+    expect(activePeakSize([view(4096, -Infinity)], 10_000, 1_000)).toEqual({
+      width: 0,
+      height: 0,
+    });
   });
 });

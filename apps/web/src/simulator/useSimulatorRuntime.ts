@@ -15,7 +15,11 @@ import {
   type SimulatorClient,
 } from '../store/workspaceStore/simulatorRuntime';
 import { inflateRenderModel, type SimulatorRenderModel } from './renderModel';
-import { recordSimulatorProbe } from './simulatorPerfProbe';
+import {
+  beginCameraMessage,
+  endCameraMessage,
+  recordSimulatorProbe,
+} from './simulatorPerfProbe';
 import { useSimulatorPerfLog } from './useSimulatorPerfLog';
 import type { SimulatorExportBackground } from '../lib/simulatorSettings';
 
@@ -32,6 +36,13 @@ import type { SimulatorExportBackground } from '../lib/simulatorSettings';
 // Either way no solver work runs on this thread.
 
 export type SimulatorStatus = 'idle' | 'loading' | 'ready' | 'error';
+
+/** One orbit camera push: where to look from, and at what drawing-buffer size. */
+interface SimulatorCameraRequest {
+  view: OrbitView;
+  width: number;
+  height: number;
+}
 
 export interface SimulatorFrameView {
   /** Null in GPU-render mode: the worker already drew, nothing to draw here. */
@@ -528,24 +539,84 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
 
   // Orbit/zoom and view-setting changes forward to the worker, which redraws
   // from the position texture. No solver work, no readback -- this is what makes
-  // camera manipulation cheap at any model size. Fire-and-forget: the draw
-  // happens on the worker's own schedule and must not block the pointer handler.
-  const setCamera = useCallback((view: OrbitView, width: number, height: number) => {
-    if (!gpuActiveRef.current) return;
+  // camera manipulation cheap at any model size. Still non-blocking for the
+  // pointer handler, which is what "fire-and-forget" meant here; what changed is
+  // that the number of forgotten messages is now bounded.
+  /**
+   * At most one camera message outstanding, with the newest view queued behind
+   * it. The loop is self-clocking: the next send is triggered by the previous
+   * reply, so the rate matches whatever the worker can actually draw.
+   *
+   * This used to dispatch unconditionally, once per pointermove. That is not a
+   * throttle, it is an unbounded queue — measured on the desktop shell at 108
+   * moves/s against ~40 renders/s, which peaked at 164 messages in flight and
+   * kept painting for 3.0s after the pointer came up. Each render was
+   * individually fine, which is why every per-render average looked healthy
+   * throughout.
+   *
+   * Dropping the intermediate views is not an approximation: a camera is
+   * absolute state, not a delta, so the newest one is the only one whose picture
+   * anyone wants. Coalescing to the latest is lossless in the only sense that
+   * matters — and `moves` vs `msgs` in the orbit readout is what shows it
+   * working.
+   */
+  const cameraBusyRef = useRef(false);
+  const pendingCameraRef = useRef<SimulatorCameraRequest | null>(null);
+
+  // A named function expression so the trailing send can call itself, and
+  // `useCallback([])` because it closes over refs only — no prop, no state. That
+  // is also why it is not a ref assigned during render, which this file avoids
+  // deliberately (see `onFrameRef`): a ref written during render can be left
+  // stale when React discards a render pass.
+  const sendCamera = useCallback(function send(payload: SimulatorCameraRequest): void {
+    // Read once rather than through `?.`: optional chaining short-circuits the
+    // whole chain, so a null client would skip the `finally` too and leave both
+    // the in-flight count and `cameraBusyRef` permanently stuck.
+    const client = clientRef.current;
+    if (!client) return;
+    cameraBusyRef.current = true;
     // Time the synchronous main-thread cost of dispatching the camera message
     // (comlink proxy + structured clone). If orbit lag lives on the main thread,
     // it shows up here.
     const started = performance.now();
-    void clientRef.current
-      ?.setCamera({ view, width, height }, tokenRef.current)
+    // And separately, the wait for the reply — see `beginCameraMessage`. Kept
+    // now that the queue is bounded, because it is what would show the bound
+    // being lost again.
+    const message = beginCameraMessage();
+    void client
+      .setCamera(payload, tokenRef.current)
       .then((bitmap) => {
         // Bitmap-present mode: an orbit redraw comes back as a frame, and the
         // consumer has to be handed it or the view would not move.
         if (bitmap) onFrameRef.current?.({ ...lastScalarsRef.current, bitmap });
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        endCameraMessage(message);
+        cameraBusyRef.current = false;
+        const next = pendingCameraRef.current;
+        pendingCameraRef.current = null;
+        // Trailing send, so the view the gesture ended on is always drawn.
+        // Without it a coalesced run would settle on whatever the last
+        // *dispatched* frame happened to be, leaving the model a few degrees
+        // from where the pointer was released.
+        if (next) send(next);
+      });
     recordSimulatorProbe('cameraDispatch', performance.now() - started);
   }, []);
+
+  const setCamera = useCallback(
+    (view: OrbitView, width: number, height: number) => {
+      if (!gpuActiveRef.current) return;
+      const payload = { view, width, height };
+      if (cameraBusyRef.current) {
+        pendingCameraRef.current = payload;
+        return;
+      }
+      sendCamera(payload);
+    },
+    [sendCamera]
+  );
 
   const setRenderSettings = useCallback((settings: RenderSettings) => {
     if (!gpuActiveRef.current) return;

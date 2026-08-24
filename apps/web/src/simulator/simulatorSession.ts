@@ -15,10 +15,13 @@ import {
   cameraUniforms,
   centroid,
   boundingRadius,
+  glContextAttributeOverrides,
   meshTopologyFor,
   prepareFoldModel,
   renderMeshToSvg,
+  setGlContextAttributeOverrides,
   type CameraUniforms,
+  type GlContextAttributeOverrides,
   type FoldDocument,
   type FoldProfile,
   type OrbitView,
@@ -204,6 +207,14 @@ interface SessionView {
   center: [number, number, number];
   radius: number;
   fitted: boolean;
+  /**
+   * When this view last actually drew, so the shared buffer can be sized from
+   * the windows in use rather than from every window that exists.
+   *
+   * `-Infinity` until the first render: a window that has never drawn has no
+   * claim on the buffer's size.
+   */
+  lastRenderedAt: number;
 }
 
 const DEFAULT_RENDER_SETTINGS: RenderSettings = {
@@ -529,6 +540,18 @@ export interface PerfSnapshot {
   snapshotMaxMs: number;
   /** Device-pixel size the window asked for, uncapped. */
   request: { width: number; height: number };
+  /**
+   * The largest size *any* live session or mesh currently wants — what the
+   * buffer is actually sized from.
+   *
+   * Separate from {@link PerfSnapshot.request}, which is only the window that
+   * drew last, because the two answer different questions and the gap between
+   * them is the interesting part: a small `request` against a large `canvas`
+   * says the buffer is being held up by something, and only this says by how
+   * much and therefore whether the shrink policy is wrong or is being fed a
+   * stale size by a window that is not drawing.
+   */
+  peak: { width: number; height: number };
   /** The shared, grow-only render canvas. */
   canvas: { width: number; height: number };
   /** What GL actually backed it with, which the browser may clamp. */
@@ -554,6 +577,91 @@ export interface PerfSnapshot {
   solveAvgMs: number;
   solveMaxMs: number;
   stepsTotal: number;
+}
+
+/** Distribution of one timing series, in ms. */
+export interface GlBenchStat {
+  p50: number;
+  p95: number;
+  max: number;
+  mean: number;
+}
+
+/**
+ * One arm of the context-attribute experiment.
+ *
+ * Carries the sizes as well as the timings, because a result is only meaningful
+ * against the buffer it was measured at — and the sizes are what prove the arms
+ * were comparable rather than accidentally measured at different buffers.
+ */
+export interface GlBenchResult {
+  /**
+   * Fraction of the frame that was actually painted, 0 to 1.
+   *
+   * The honesty check. A blank frame is fast, so timings alone can rank a
+   * configuration that renders nothing as the winner — see `measureCoverage`.
+   */
+  coverage: number;
+  attributes: { antialias: boolean; preserveDrawingBuffer: boolean };
+  frames: number;
+  request: { width: number; height: number };
+  canvas: { width: number; height: number };
+  buffer: { width: number; height: number };
+  crop: { width: number; height: number };
+  draw: GlBenchStat;
+  /** `createImageBitmap`. Watched as closely as `draw`: a change that merely
+   * moves cost from one to the other is not a win, and only the pair can tell. */
+  snapshot: GlBenchStat;
+  /** Reallocating the shared buffer — the price of sizing it to the caller. */
+  resize: GlBenchStat;
+  /** Wall time for the whole render call — the number that has to come down. */
+  total: GlBenchStat;
+}
+
+/**
+ * Fraction of the cropped frame that actually got painted, 0 to 1.
+ *
+ * A timing harness cannot see the failure mode this codebase has already been
+ * bitten by: when the drawing buffer is larger than the browser will back, GL
+ * reports no error, `isContextLost()` stays false, and `createImageBitmap`
+ * hands back a fully transparent image. Every window blanks at once and every
+ * measurement looks fine, because drawing nothing is fast.
+ *
+ * So a bench that only reports milliseconds can award first place to a
+ * configuration that renders nothing at all. This is the guard: any arm whose
+ * coverage is zero produced no pixels and its timings mean nothing.
+ */
+async function measureCoverage(source: MeshRenderSource, state: SessionView): Promise<number> {
+  const bitmap = await renderGpu(source, state);
+  if (!bitmap) return 0;
+  try {
+    const probe = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const context = probe.getContext('2d');
+    if (!context) return 0;
+    context.drawImage(bitmap, 0, 0);
+    const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height);
+    let painted = 0;
+    // Every 64th pixel: this runs once per arm, and a blank frame is blank
+    // everywhere, so a full scan of four megapixels buys nothing.
+    for (let i = 3; i < data.length; i += 4 * 64) {
+      if (data[i]! > 0) painted += 1;
+    }
+    return painted / Math.max(1, Math.ceil(data.length / (4 * 64)));
+  } finally {
+    bitmap.close();
+  }
+}
+
+function summarise(samples: readonly number[]): GlBenchStat {
+  if (!samples.length) return { p50: 0, p95: 0, max: 0, mean: 0 };
+  const sorted = [...samples].sort((a, b) => a - b);
+  const at = (q: number) => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))] ?? 0;
+  return {
+    p50: at(0.5),
+    p95: at(0.95),
+    max: sorted[sorted.length - 1] ?? 0,
+    mean: samples.reduce((sum, value) => sum + value, 0) / samples.length,
+  };
 }
 
 // Cheap counters, always on (a few adds per op). getPerfStats() reads and
@@ -681,6 +789,108 @@ function scratchFrom(recycled: ArrayBuffer | undefined, floats: number): Float32
 
 const api = {
   /**
+   * Set the GL context attributes the *next* context will be created with.
+   *
+   * Only meaningful before a context exists, which in practice means before the
+   * first `load` or `attachBitmapOutput`. Exists so `glBench` can cross
+   * `antialias` against `preserveDrawingBuffer` on the real render path instead
+   * of on a replica of it — see {@link GlContextAttributeOverrides}.
+   */
+  configureGl(overrides: GlContextAttributeOverrides): void {
+    setGlContextAttributeOverrides(overrides);
+  },
+
+  /**
+   * Render one fixed camera N times and report the distribution.
+   *
+   * The whole point is that it takes no gesture and no animation frame: the
+   * cost under investigation is per-render, so N sequential renders measure it
+   * exactly, and a scripted loop pins the camera, the buffer and the crop that a
+   * hand-driven orbit would drift. It also bypasses the main thread's camera
+   * coalescing by construction — that lives in the runtime hook, and this talks
+   * to the session directly, so N calls really are N renders.
+   *
+   * Percentiles rather than a mean: the suspected cost may be charged on only
+   * some frames, and an average would smear that into something that merely
+   * looks like a uniformly slower renderer.
+   */
+  async glBench(options: {
+    token?: SimulatorSessionToken;
+    frames: number;
+    warmup: number;
+    /** Device-pixel size to request per render — what the window would ask for. */
+    request: { width: number; height: number };
+    /**
+     * Alternate with a second size every frame.
+     *
+     * The worst case for sizing the buffer from the caller rather than from the
+     * peak across windows: two windows in different quantisation buckets take
+     * turns, so every render reallocates. Phase 1 rejected caller-sizing on
+     * exactly this, before the standing cost of an oversized buffer was known —
+     * so it is the trade that has to be re-priced, not re-argued.
+     */
+    alternateWith?: { width: number; height: number };
+  }): Promise<GlBenchResult | null> {
+    const active = sessionFor(options.token);
+    const source = active?.gpuRender;
+    if (!active || !source) return null;
+    // Pinned rather than inherited: buffer size follows the largest request
+    // across every live session, so leaving it to whatever the window last
+    // reported is the one confound that would invalidate the comparison.
+    active.view.width = options.request.width;
+    active.view.height = options.request.height;
+
+    const draw: number[] = [];
+    const snapshot: number[] = [];
+    const resize: number[] = [];
+    const total: number[] = [];
+
+    for (let frame = 0; frame < options.warmup + options.frames; frame += 1) {
+      if (options.alternateWith) {
+        const size = frame % 2 === 0 ? options.request : options.alternateWith;
+        active.view.width = size.width;
+        active.view.height = size.height;
+      }
+      const before = {
+        draw: perf.drawTotalMs,
+        snapshot: perf.snapshotTotalMs,
+        resize: perf.resizeTotalMs,
+      };
+      const started = nowMs();
+      // Straight at `renderGpu`, so this covers exactly the path a camera
+      // message takes and nothing else.
+      const bitmap = await renderGpu(source, active.view);
+      const elapsed = nowMs() - started;
+      // Closed immediately. 200 uncollected 2048-square bitmaps is gigabytes,
+      // and the GC pressure would land inside the thing being measured.
+      bitmap?.close();
+      if (frame < options.warmup) continue;
+      draw.push(perf.drawTotalMs - before.draw);
+      snapshot.push(perf.snapshotTotalMs - before.snapshot);
+      resize.push(perf.resizeTotalMs - before.resize);
+      total.push(elapsed);
+    }
+
+    const buffer = source.drawingBufferSize;
+    const crop = fitRenderWithin(active.view, buffer);
+    return {
+      coverage: await measureCoverage(source, active.view),
+      attributes: glContextAttributeOverrides(),
+      frames: options.frames,
+      request: { ...options.request },
+      canvas: renderCanvas
+        ? { width: renderCanvas.width, height: renderCanvas.height }
+        : { width: 0, height: 0 },
+      buffer: { width: buffer.width, height: buffer.height },
+      crop,
+      draw: summarise(draw),
+      snapshot: summarise(snapshot),
+      resize: summarise(resize),
+      total: summarise(total),
+    };
+  },
+
+  /**
    * Transfer a caller-owned canvas to the worker, once. The solver renders
    * straight to it and no pixels cross back.
    */
@@ -777,6 +987,7 @@ const api = {
         center: [0, 0, 0],
         radius: 1,
         fitted: false,
+        lastRenderedAt: -Infinity,
       },
       // A fresh load counts as the most recent use, so a window that has just
       // opened is the last thing eviction would reach for rather than the first.
@@ -1066,6 +1277,10 @@ const api = {
       snapshotAvgMs: perf.renders ? perf.snapshotTotalMs / perf.renders : 0,
       snapshotMaxMs: perf.snapshotMaxMs,
       request: perf.lastRequest,
+      // Read live rather than sampled at render time: it is the current state of
+      // the session map, and the question it answers is what the buffer would be
+      // sized to *now*.
+      peak: peakRequestedSize(),
       canvas: perf.lastCanvas,
       buffer: perf.lastBuffer,
       crop: perf.lastCrop,
@@ -1115,6 +1330,7 @@ const api = {
         // mesh is centroid-relative and reports the same radius the figure's
         // frame was sized from. Nothing to settle and nothing to re-fit.
         fitted: true,
+        lastRenderedAt: -Infinity,
       },
       lastUsed: ++useCounter,
     });
@@ -1387,23 +1603,65 @@ export function nextRenderCanvasSize(options: {
 }
 
 /**
- * The largest render any live window currently wants.
+ * How recently a window must have drawn to have a say in the buffer's size.
  *
- * The buffer is shared, so its size is a property of the whole set rather than
- * of whichever window is drawing now — sizing it to the caller alone would make
- * two windows of different sizes thrash it against each other on every message,
- * which is the regression `inline-simulation-performance.md` removed.
+ * Comfortably longer than a frame, so a window being orbited or stepped always
+ * counts, and comfortably shorter than a person's attention, so one that has
+ * stopped stops paying for its size almost immediately.
  */
-function peakRequestedSize(): { width: number; height: number } {
+const ACTIVE_RENDER_MS = 1000;
+
+/**
+ * The largest render any window *in use* currently wants.
+ *
+ * The buffer is shared, so its size is a property of a set rather than of
+ * whichever window is drawing now: sizing it to the caller alone makes two
+ * windows of different sizes thrash it against each other on every message,
+ * which is the regression `inline-simulation-performance.md` removed and which
+ * this deliberately does not reintroduce.
+ *
+ * The set is the mistake being fixed. It was every *live* window, and liveness
+ * is not use — an inline window that was zoomed large once and then left alone
+ * kept its claim forever, pinning the buffer at its 2048 cap. Measured in the
+ * desktop shell: the window being dragged wanted 783px, the peak said 3648, and
+ * every render cost ~25ms instead of ~8ms because of a window nobody was
+ * looking at. A render costs buffer area regardless of what is drawn into it,
+ * so that is a tax the whole session pays for one idle neighbour.
+ *
+ * Recency is what distinguishes the two. A window that is drawing still gets
+ * its size honoured on the frame it asks — that is what stops the thrash — and
+ * one that has not drawn for {@link ACTIVE_RENDER_MS} stops holding the buffer
+ * up for everyone else. Shrinking is still rate-limited by `SHRINK_HOLD_MS`, so
+ * a window that goes quiet and comes back pays one reallocation, not a stream
+ * of them.
+ */
+function peakRequestedSize(at = nowMs()): { width: number; height: number } {
+  const views: Array<Pick<SessionView, 'width' | 'height' | 'lastRenderedAt'>> = [];
+  for (const session of sessions.values()) views.push(session.view);
+  for (const mesh of meshes.values()) views.push(mesh.view);
+  return activePeakSize(views, at);
+}
+
+/**
+ * The peak over the views that have drawn recently, as a pure function.
+ *
+ * Exported and taking the views and the clock explicitly, for the same reason
+ * {@link renderCanvasResize} is: the interesting half of this policy is *which
+ * windows count*, and that is exactly the half a test driving the session map
+ * could not reach. jsdom has no `OffscreenCanvas`, so there is no way to build
+ * real sessions there at all.
+ */
+export function activePeakSize(
+  views: ReadonlyArray<{ width: number; height: number; lastRenderedAt: number }>,
+  at: number,
+  activeWithinMs = ACTIVE_RENDER_MS
+): { width: number; height: number } {
   let width = 0;
   let height = 0;
-  for (const session of sessions.values()) {
-    width = Math.max(width, session.view.width);
-    height = Math.max(height, session.view.height);
-  }
-  for (const mesh of meshes.values()) {
-    width = Math.max(width, mesh.view.width);
-    height = Math.max(height, mesh.view.height);
+  for (const view of views) {
+    if (at - view.lastRenderedAt > activeWithinMs) continue;
+    width = Math.max(width, view.width);
+    height = Math.max(height, view.height);
   }
   return { width, height };
 }
@@ -1476,6 +1734,10 @@ async function renderGpu(
   // work that turned out to dominate — the instrumentation meant to catch this
   // could not see it.
   const started = nowMs();
+  // Stamped before the resize, so this render's own size counts towards the peak
+  // it is about to be sized against. Stamping afterwards would let a window's
+  // first frame back be measured as though the window were still idle.
+  state.lastRenderedAt = started;
   // The canvas is quantised so it rarely reallocates; the viewport inside it is
   // the window's true shape, because changing a viewport is free and the bitmap
   // is stretched to the window's box when it is presented. Rounding the viewport

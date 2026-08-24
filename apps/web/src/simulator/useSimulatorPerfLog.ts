@@ -45,7 +45,18 @@ function formatLines(
   // An idle page reports zeros every second, which buries the few seconds of
   // gesture this exists to capture. Drained first, so a skipped second still
   // clears its counters rather than folding them into the next one.
-  if (!stats.renders && !stats.ticks && !stats.cameraCalls && !probes.measure.count) return [];
+  if (
+    !stats.renders &&
+    !stats.ticks &&
+    !stats.cameraCalls &&
+    !probes.measure.count &&
+    // Reprojection is the one kind of work that touches no worker counter, so
+    // omitting it here would suppress the line for the surface it is the entire
+    // cost of.
+    !probes.reproject.count
+  ) {
+    return [];
+  }
   return [
     `[sim] ${stats.backend}${stats.gpuRender ? '+gpuRender' : '+cpuRender'} | ` +
       `${stats.liveSessions} sessions, ${stats.liveMeshes} meshes | ` +
@@ -54,8 +65,18 @@ function formatLines(
       `render ${stats.renderAvgMs.toFixed(2)}ms avg / ${stats.renderMaxMs.toFixed(2)} max, ` +
       `${perSec(stats.renders)} draws/s | ` +
       `camera ${perSec(stats.cameraCalls)} msg/s, ` +
-      `main-dispatch ${probes.cameraDispatch.avgMs.toFixed(2)}ms | ` +
-      `tick round-trip ${probes.tickRoundTrip.avgMs.toFixed(1)}ms`,
+      `main-dispatch ${probes.cameraDispatch.avgMs.toFixed(2)}ms, ` +
+      // The wait, as opposed to the send. A round trip far above the per-render
+      // cost on the second line is the queue, not the drawing.
+      `round-trip ${probes.cameraRoundTrip.avgMs.toFixed(1)}ms avg / ` +
+      `${probes.cameraRoundTrip.maxMs.toFixed(1)} max | ` +
+      `tick round-trip ${probes.tickRoundTrip.avgMs.toFixed(1)}ms` +
+      // Only for an unwindowed folded figure, so it stays off the line entirely
+      // rather than printing a zero that reads as "measured, and free".
+      (probes.reproject.count
+        ? ` | reproject ${probes.reproject.avgMs.toFixed(1)}ms avg / ` +
+          `${probes.reproject.maxMs.toFixed(1)} max (${perSec(probes.reproject.count)}/s)`
+        : ''),
     // Second line: where a render's time went, and the sizes that explain it.
     // Split out because the first line's totals cannot distinguish "the draw is
     // slow" from "the snapshot is slow", and those have opposite fixes. `req` is
@@ -66,7 +87,11 @@ function formatLines(
     `[sim] render split: resize ${stats.resizeAvgMs.toFixed(2)}ms, ` +
       `draw ${stats.drawAvgMs.toFixed(2)}ms, ` +
       `snapshot ${stats.snapshotAvgMs.toFixed(2)}ms avg / ${stats.snapshotMaxMs.toFixed(2)} max | ` +
-      `req ${size(stats.request)}, canvas ${size(stats.canvas)}, ` +
+      // `peak` sits next to `req` because their difference is the diagnosis: a
+      // buffer far above what the drawing window needs is either the shrink
+      // policy failing, or some other window still claiming a size it no longer
+      // uses — and those have different fixes.
+      `req ${size(stats.request)}, peak ${size(stats.peak)}, canvas ${size(stats.canvas)}, ` +
       `buffer ${size(stats.buffer)}, crop ${size(stats.crop)} | ` +
       `main-thread: measure ${probes.measure.avgMs.toFixed(2)}ms avg / ` +
       `${probes.measure.maxMs.toFixed(2)} max (${perSec(probes.measure.count)}/s), ` +

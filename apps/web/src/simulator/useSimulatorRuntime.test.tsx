@@ -2,7 +2,7 @@ import { act, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FoldDocument } from '@treemaker/origami-simulator';
-import type { SimulatorFramePayload } from './simulatorSession';
+import type { SimulatorBackendId, SimulatorFramePayload } from './simulatorSession';
 
 /**
  * The worker, as far as the hook can tell. `load` resolves only when the test
@@ -49,7 +49,10 @@ const client = {
     await new Promise<void>((resolve) => pendingLoads.push(resolve));
     return {
       token,
-      backend: 'reference' as const,
+      // Widened deliberately: `load` really can answer either backend, and
+      // pinning the mock to one made the GPU path untestable — a test that
+      // overrides it could not be assigned to the mock's own inferred type.
+      backend: 'reference' as SimulatorBackendId,
       edgeCount: 0,
       creaseCount: 0,
       diagnostics: null,
@@ -65,7 +68,14 @@ const client = {
   attachBitmapOutput: vi.fn(async () => undefined),
   attachCanvas: vi.fn(async () => undefined),
   tick: vi.fn(async () => liveFrame()),
-  setCamera: vi.fn(async () => undefined),
+  // Typed to the real signature so `mock.calls` carries the camera through and
+  // a test can assert *which* view was sent, not merely how many were.
+  setCamera: vi.fn(
+    async (
+      _camera: { view: { yaw: number; pitch: number; zoom: number }; width: number; height: number },
+      _token?: number
+    ): Promise<undefined> => undefined
+  ),
   setRenderSettings: vi.fn(async () => undefined),
   setFoldPercent: vi.fn(async () => undefined),
   reset: vi.fn(async () => undefined),
@@ -215,5 +225,164 @@ describe('recovering from an eviction', () => {
     const afterFirstRecovery = client.load.mock.calls.length;
     await pump(() => false, 5);
     expect(client.load.mock.calls.length).toBe(afterFirstRecovery);
+  });
+});
+
+/**
+ * Orbit backpressure.
+ *
+ * `setCamera` used to dispatch once per pointermove with nothing bounding how
+ * many could be outstanding. Measured on the desktop shell that was 108 moves/s
+ * against ~40 renders/s: 164 messages in flight at the peak, and the fold went
+ * on turning for 3.0s after the pointer came up. Every per-render average
+ * stayed healthy throughout, which is why it survived a release — the cost was
+ * never in a frame, it was in the queue.
+ *
+ * These assert the bound itself, because that is the part a future edit can
+ * silently remove. A render test cannot see it: the picture is the same either
+ * way, only *when* it arrives differs.
+ */
+describe('camera coalescing', () => {
+  let cameraResolvers: Array<() => void> = [];
+  let contextSpy: ReturnType<typeof vi.spyOn> | null = null;
+  /** The mounted runtime, refreshed on every commit. Scope-local, not a prop. */
+  let live: ReturnType<typeof useSimulatorRuntime> | null = null;
+
+  beforeEach(() => {
+    live = null;
+    cameraResolvers = [];
+    // The GPU path is the one that has a camera message at all, and
+    // `webglRenderSupported` gates it on two things jsdom lacks: an
+    // `OffscreenCanvas` global, which it refuses on *before* probing anything,
+    // and a WebGL2 context with the float-render-target extension. Both have to
+    // be answered rather than discovered.
+    vi.stubGlobal('OffscreenCanvas', class {});
+    contextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      getExtension: () => ({ loseContext: () => undefined }),
+    } as unknown as RenderingContext);
+    client.load.mockImplementation(async () => {
+      const token = ++nextToken;
+      await new Promise<void>((resolve) => pendingLoads.push(resolve));
+      return {
+        token,
+        backend: 'webgl2' as const,
+        edgeCount: 0,
+        creaseCount: 0,
+        diagnostics: null,
+        positions: null,
+        indices: new Int32Array(0),
+        vertexCount: 0,
+      };
+    });
+    client.setCamera.mockReset();
+    // Held open, so a test can pile requests up behind one in-flight message —
+    // which is the entire situation being tested.
+    client.setCamera.mockImplementation(
+      () => new Promise<undefined>((resolve) => cameraResolvers.push(() => resolve(undefined)))
+    );
+  });
+
+  afterEach(() => {
+    contextSpy?.mockRestore();
+    vi.unstubAllGlobals();
+    client.setCamera.mockReset();
+    client.setCamera.mockImplementation(async () => undefined);
+  });
+
+  function GpuProbe() {
+    const runtime = useSimulatorRuntime({
+      fold: FOLD,
+      solverOptions: {},
+      triangulate: false,
+      canvas: null,
+      bitmapOutput: { width: 64, height: 64 },
+      paused: true,
+    });
+    // In an effect, not during render: a write during render is a mutation React
+    // may discard, the same rule this hook follows for `onFrameRef`. No dep
+    // array, so it is current after every commit.
+    useEffect(() => {
+      live = runtime;
+    });
+    return null;
+  }
+
+  /** Flush the microtask queue so a settled camera promise runs its trailing send. */
+  async function flush() {
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  }
+
+  async function mounted() {
+    await act(async () => root?.render(<GpuProbe />));
+    await settleLoads();
+  }
+
+  const view = (yaw: number) => ({ yaw, pitch: 0, zoom: 1 });
+
+  it('keeps at most one camera message in flight', async () => {
+    await mounted();
+    expect(live?.gpuActive).toBe(true);
+
+    // Ten pointer samples arrive before the worker has answered the first.
+    act(() => {
+      for (let i = 0; i < 10; i += 1) live?.setCamera(view(i), 64, 64);
+    });
+
+    // Nine of them coalesced into one pending request rather than nine messages.
+    expect(client.setCamera).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends the newest view once the worker answers, and drops the rest', async () => {
+    await mounted();
+    act(() => {
+      for (let i = 0; i < 10; i += 1) live?.setCamera(view(i), 64, 64);
+    });
+    expect(client.setCamera).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      cameraResolvers.shift()?.();
+    });
+    await flush();
+
+    // Exactly one follow-up, carrying the last view rather than the second —
+    // a camera is absolute state, so the newest is the only one worth drawing.
+    expect(client.setCamera).toHaveBeenCalledTimes(2);
+    expect(client.setCamera.mock.calls[1]?.[0]).toMatchObject({ view: view(9) });
+  });
+
+  it('settles on the released view rather than the last one dispatched', async () => {
+    // The reason for a *trailing* send. Without it the model stops a few degrees
+    // from where the pointer let go, which reads as the drag not having taken.
+    await mounted();
+    act(() => {
+      live?.setCamera(view(1), 64, 64);
+      live?.setCamera(view(2), 64, 64);
+    });
+    await act(async () => cameraResolvers.shift()?.());
+    await flush();
+    await act(async () => cameraResolvers.shift()?.());
+    await flush();
+
+    expect(client.setCamera).toHaveBeenCalledTimes(2);
+    expect(client.setCamera.mock.calls[1]?.[0]).toMatchObject({ view: view(2) });
+    // And the queue is empty: nothing is still owed once the last view is drawn.
+    expect(cameraResolvers).toHaveLength(0);
+  });
+
+  it('accepts a new gesture after an earlier one drained', async () => {
+    // The busy flag has to be cleared on the reply, not just on the trailing
+    // send — otherwise the first drag works and every later one is ignored.
+    await mounted();
+    act(() => live?.setCamera(view(1), 64, 64));
+    await act(async () => cameraResolvers.shift()?.());
+    await flush();
+
+    act(() => live?.setCamera(view(5), 64, 64));
+    expect(client.setCamera).toHaveBeenCalledTimes(2);
+    expect(client.setCamera.mock.calls[1]?.[0]).toMatchObject({ view: view(5) });
   });
 });

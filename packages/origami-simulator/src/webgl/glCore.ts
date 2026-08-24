@@ -16,6 +16,45 @@
 
 const QUAD = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
 
+/**
+ * Context attributes that measurably change what a *read* of the drawing buffer
+ * costs, left overridable so the two can be measured rather than argued about.
+ *
+ * Both defaults oblige the browser to touch the whole drawing buffer on every
+ * frame that is read back, which is how a 783x783 window drawing into a
+ * 2048x2048 shared buffer came to cost ~8ms a frame in WebKit:
+ *
+ *   - `preserveDrawingBuffer: false` means the contents are undefined after a
+ *     read, which implementations satisfy by clearing the buffer.
+ *   - `antialias: true` makes the buffer multisampled, so every read has to
+ *     resolve 4 samples down to 1.
+ *
+ * They scale identically — buffer area times samples — so no measurement that
+ * varies buffer size alone can tell them apart. Hence the seam: an experiment
+ * crosses the two and reads off which one moves.
+ *
+ * Applied at context creation, so a change only takes effect on the next
+ * context. Set through `configureGl` on the worker API.
+ */
+export interface GlContextAttributeOverrides {
+  antialias?: boolean;
+  preserveDrawingBuffer?: boolean;
+}
+
+let glAttributeOverrides: GlContextAttributeOverrides = {};
+
+export function setGlContextAttributeOverrides(next: GlContextAttributeOverrides): void {
+  glAttributeOverrides = { ...next };
+}
+
+/** What {@link GlCore.create} would ask for now. Reported alongside measurements. */
+export function glContextAttributeOverrides(): Required<GlContextAttributeOverrides> {
+  return {
+    antialias: glAttributeOverrides.antialias ?? true,
+    preserveDrawingBuffer: glAttributeOverrides.preserveDrawingBuffer ?? false,
+  };
+}
+
 export interface FloatTextureData {
   width: number;
   height: number;
@@ -78,14 +117,14 @@ export class GlCore {
 
   static create(canvas: HTMLCanvasElement | OffscreenCanvas): GlCore | null {
     const gl = canvas.getContext('webgl2', {
-      antialias: true,
+      antialias: glAttributeOverrides.antialias ?? true,
       // The default framebuffer (the visible canvas) needs a depth buffer so the
       // mesh render pass can occlude far faces with near ones -- without it the
       // paper renders see-through. The solver's compute passes render to their
       // own depthless FBOs and are unaffected.
       depth: true,
       premultipliedAlpha: false,
-      preserveDrawingBuffer: false,
+      preserveDrawingBuffer: glAttributeOverrides.preserveDrawingBuffer ?? false,
     });
     if (!gl) return null;
     let core: GlCore;

@@ -651,6 +651,7 @@ export function SimulatorPanel() {
             highlights={highlights}
             pushCamera={pushCamera}
             pushRenderSettings={pushRenderSettings}
+            perfSurface="simulate-panel"
             className="simulator-canvas"
             ariaLabel={t(
               "panels:simulator.canvasAriaLabel",

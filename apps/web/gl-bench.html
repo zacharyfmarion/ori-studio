@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GL context attribute bench</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 16px;
+        font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+        background: #14171c;
+        color: #d7dbe0;
+      }
+      h1 {
+        font-size: 13px;
+        font-weight: 600;
+        margin: 0 0 12px;
+      }
+      #status {
+        color: #7fb2ff;
+        margin-bottom: 12px;
+      }
+      pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      Dev-only entry, deliberately outside the app: it needs its own workers and
+      its own GL contexts per arm, and mounting it inside the router would put
+      the app's own simulator surfaces beside the thing being measured.
+
+      Not an app route and not in the production build — vite builds only
+      index.html, so this is reachable in dev and nowhere else.
+    -->
+    <h1>GL context attribute bench</h1>
+    <div id="status">starting…</div>
+    <pre id="out"></pre>
+    <script type="module">
+      import { runGlBench } from './src/dev/glBench.ts';
+
+      const status = document.getElementById('status');
+      const out = document.getElementById('out');
+      const append = (text) => {
+        out.textContent += `${text}\n`;
+      };
+
+      runGlBench(append)
+        .then(() => {
+          status.textContent = 'done — results posted to artifacts/sim-perf/sim-perf.log';
+        })
+        .catch((error) => {
+          status.textContent = `failed: ${error?.message ?? error}`;
+          append(String(error?.stack ?? error));
+          // Posted too: the desktop shell has no console anyone can read, so a
+          // failure that only reached the screen would be a failure that
+          // silently produced no data.
+          void fetch('/__sim-perf', {
+            method: 'POST',
+            body: `[glbench] FAILED ${error?.stack ?? error}\n`,
+          }).catch(() => undefined);
+        });
+    </script>
+  </body>
+</html>
