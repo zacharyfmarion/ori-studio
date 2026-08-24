@@ -3411,7 +3411,7 @@ describe('workspace store slices', () => {
         analyticsMocks.track.mock.calls
           .filter(([name]) => name === 'fold completed')
           .map(([, properties]) => properties)
-      ).toMatchObject([{ verdict: 'located', refusal: 'vertex_closure' }]);
+      ).toMatchObject([{ verdict: 'located', refusal: 'vertex_closure', located_by: 'row' }]);
     });
 
     it('warns the reader when the row it hands over reads the vertex differently', async () => {
@@ -3440,8 +3440,11 @@ describe('workspace store slices', () => {
         expect(dialog.options[0]).toMatchObject({
           id: 'locate',
           label: 'Show me the vertex',
+          // The disagreement is a *prefix*: the sentence describing the action
+          // itself is the same one the agreeing branch shows, from the same key.
           description:
-            'The foldability check reads it differently: Set this crease to -70.53° and this vertex closes. Zooms to it on the crease pattern.',
+            'The foldability check reads it differently: Set this crease to -70.53° and this vertex closes. ' +
+            'Zooms to it on the crease pattern and turns on the foldability issues.',
         });
         resolveCommandDialog(dialog.id, 'locate');
         await expect(folding).resolves.toBe(false);
@@ -3471,36 +3474,67 @@ describe('workspace store slices', () => {
       expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBeNull();
     });
 
-    it('keeps the old dialog when the refusal names a place nothing reports on', async () => {
-      // A fold scoped to a selection can refuse where the whole-document overlay
-      // has nothing to say. Offering to show a row that does not exist would be
-      // worse than the dialog this replaced, so it does not degrade — it stays.
+    it('shows the place itself when the refusal names one nothing reports on', async () => {
+      // Measured, this is the *common* case for a scoped fold, not the margin:
+      // over 5,100 region-shaped refusals across the Tier A corpus the overlay
+      // had a row at the named place 121 times, and three quarters of the misses
+      // were in documents it reports nothing about at all. Withholding the offer
+      // here put those users back on a dialog that says a vertex is broken and
+      // not which — the complaint the offer exists to answer.
       resetStores(seedSnapshot());
+      const frameModelBounds = vi.fn();
+      unregisterCamera = registerCpCamera({
+        zoomIn: vi.fn(),
+        zoomOut: vi.fn(),
+        fit: vi.fn(),
+        setZoomPercent: vi.fn(),
+        rotateBy: vi.fn(),
+        rotateTo: vi.fn(),
+        rotateReset: vi.fn(),
+        frameModelBounds,
+      });
       seedDocument(nonFlatSquare(), WHOLE_REGION);
       oristudioCpMocks.fold3dOristudioCpDocument.mockResolvedValueOnce({
         status: 'refused',
         refusal: { code: 'vertex_closure', point: { x: 0.5, y: 0.5 }, residual_degrees: 70.5288 },
       });
+      // Hidden, so "did not turn it on" is a statement the assertion can make.
+      useWorkspaceStore.getState().setOristudioCpViewportOption('camvIssuesVisible', false);
 
       const unregisterDialogHost = registerCommandDialogHost();
       try {
         const folding = useWorkspaceStore.getState().foldOristudioCpDocument();
         const dialog = await nextDialog();
-        if (!dialog || dialog.type !== 'confirm') {
-          throw new Error('expected the 3D refusal confirmation');
-        }
-        expect(dialog.confirmLabel).toBe('Simulate');
-        // The trailer is back, because there is only one offer to make — and the
-        // residual is still gone, which is a property of the sentence and not of
-        // which dialog carries it.
-        expect(dialog.message).toBe(
-          'The creases at one vertex do not close up. The simulator can fold it approximately.'
-        );
-        resolveCommandDialog(dialog.id, false);
+        if (!dialog || dialog.type !== 'choice') throw new Error('expected the refusal choice');
+        // The residual is still gone, which is a property of the sentence and not
+        // of which dialog carries it.
+        expect(dialog.message).toBe('The creases at one vertex do not close up.');
+        expect(dialog.options[0]).toMatchObject({
+          id: 'locate',
+          label: 'Show me the vertex',
+          description:
+            'Zooms to it on the crease pattern. The foldability check lists no issue there.',
+        });
+        resolveCommandDialog(dialog.id, 'locate');
         await expect(folding).resolves.toBe(false);
       } finally {
         unregisterDialogHost();
       }
+
+      const state = useWorkspaceStore.getState();
+      // Framed, on the point the kernel named.
+      expect(frameModelBounds).toHaveBeenCalledTimes(1);
+      expect(frameModelBounds.mock.calls[0][0]).toMatchObject({ minX: 0.5, minY: 0.5 });
+      // And nothing else touched: there is no row to activate, and switching on
+      // an overlay with nothing to draw here is a state change the user did not
+      // ask for and cannot see the point of.
+      expect(state.oristudioCpActiveDiagnosticId).toBeNull();
+      expect(state.oristudioCpViewport.camvIssuesVisible).toBe(false);
+      expect(
+        analyticsMocks.track.mock.calls
+          .filter(([name]) => name === 'fold completed')
+          .map(([, properties]) => properties)
+      ).toMatchObject([{ verdict: 'located', refusal: 'vertex_closure', located_by: 'point' }]);
     });
 
     it('falls back to the Simulate panel when the fold is not scoped to one region', async () => {

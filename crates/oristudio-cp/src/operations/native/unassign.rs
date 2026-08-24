@@ -42,10 +42,8 @@ use crate::model::CreasePatternModel;
 /// that those are the two colours carrying a fold. What that cost was silence:
 /// selecting a border or a reference line and picking Make Unassigned did
 /// nothing, with no message, which is a worse outcome than any the gate was
-/// avoiding. Every aux colour goes, not just `Cyan3` — `Orange4` is what
-/// [`crate::operations::construction`] authors by default, and unassigning one
-/// aux colour while silently declining another would reproduce the same bug one
-/// colour along.
+/// avoiding. Every aux colour goes, not just `Cyan3` — see below for why that is
+/// not merely a symmetry argument.
 ///
 /// Neither a border nor an auxiliary line carries a direction, so
 /// [`crate::geometry::FoldDirection::from_line_color`] answers `None` for both
@@ -74,6 +72,54 @@ use crate::model::CreasePatternModel;
 ///
 /// So the checker gains no new evaluations here; it gains the admission that a
 /// condition now exists at the rim and it cannot see far enough to evaluate it.
+///
+/// # An auxiliary line is a different question, and it had to be measured separately
+///
+/// The numbers above are about `Black0` and cover the aux case not at all — the
+/// **Tier A corpus contains zero auxiliary lines** (every segment is `M`, `V` or
+/// `B`, plus one `LineColor::None`), so the 286 trials never touched one. And
+/// they would not have transferred: what a border does to the checker is stop a
+/// vertex being interior, and what an aux line does is nothing, because
+/// [`crate::checks_spatial::vertex_fan`] has no fold angle to read off it. Turning
+/// one undecided is what puts an *unknown* at both its ends.
+///
+/// So the population had to be constructed, and it is: chords between existing
+/// endpoints, capped at one per twenty segments — 954 lines over the 12 documents
+/// this applies to — authored at both `Cyan3` and `Orange4` and then unassigned.
+/// That models construction scaffolding; it is nobody's real scaffolding, and it
+/// is written down as a construction for that reason.
+///
+/// From the aux-free document to every aux line unassigned:
+///
+/// - `checked_vertices` **7,907 → 7,519** (−4.9%), and diagnostic rows **13 →
+///   1,726**. The same shape as the border case: coverage down, admission up.
+/// - **0 new failures**, which is the load-bearing one. `Broken` is 1 before and
+///   1 after — the one `failure_case.osf` already had.
+///
+/// One caveat on the rows, because the construction is visible in them: these
+/// chords cut across faces, which by itself takes the 13 baseline rows to 1
+/// before anything is unassigned. The 12 lost are `InteriorBorder` findings on
+/// two files, and they went to the *geometry* being added rather than to this
+/// verb — a chord through a face leaves no border with paper on both sides. The
+/// coverage and failure numbers are unaffected by it:
+/// [`crate::checks::point_line_map`] is per endpoint, not per face.
+///
+/// # The colour split is why the gate could not stay selective
+///
+/// [`crate::checks::point_line_map`] **skips `Cyan3`** and skips nothing else,
+/// which is Oriedita's own quirk carried over. So while they are still aux, the
+/// two colours are not interchangeable to the checker, and it is measurable:
+/// drawing all 954 chords as `Cyan3` moves `checked_vertices` by **0**, and
+/// drawing the same 954 as `Orange4` moves it **7,907 → 7,658**, on 7 of the 12
+/// files. Unassigning takes both to the identical 7,519 — so **64% of the total
+/// coverage cost of an `Orange4` line is already paid the moment it is drawn**,
+/// and none of a `Cyan3` line's is.
+///
+/// That is what a colour-selective gate would have cost, and it is not a symmetry
+/// argument. Reaching `Cyan3` while declining `Orange4` would leave two reference
+/// lines on the same spot in states the checker reports differently. `Orange4` is
+/// also what [`crate::operations::construction`] authors by default, so it is the
+/// colour most users would be holding when they asked.
 ///
 /// # What a dissolved border costs: one finding stops being sayable
 ///
@@ -159,9 +205,30 @@ pub fn make_unassigned(model: &mut CreasePatternModel, indices: &[usize]) -> usi
 /// "Keeping" is all it does: a border or an auxiliary line has no direction to
 /// keep, so it unassigns with no hint and the two verbs agree on it exactly.
 ///
-/// On an *already* unassigned crease this does nothing and reports nothing, hint
-/// or no hint — there is no colour left to read a direction off, and a crease
-/// that already keeps its direction is being asked for what it has.
+/// # On an already-unassigned crease it does nothing, and says nothing
+///
+/// Decided rather than inherited, because it reads at a glance like the defect
+/// [`make_unassigned`] was just widened to remove — one menu item along, the same
+/// selection, the same zero, and the frontend surfaces the count nowhere, so the
+/// user gets no message at all.
+///
+/// It is not the same defect, and the thing that separates them is the
+/// postcondition rather than the count. This verb's is *"unassigned, whatever
+/// direction it had preserved"*, and an already-unassigned crease satisfies it
+/// already — hinted or bare. Reporting zero is then the honest answer to "how
+/// many did you have to change", not a decline. What made the old
+/// [`make_unassigned`] a defect is that its postcondition is *"unassigned, and
+/// nothing remembered"*, which a hinted crease does **not** satisfy: it returned
+/// zero with work still to do.
+///
+/// So the law is `changed == 0` **iff** the requested state already holds, for
+/// both verbs, and `zero_means_the_state_already_holds` pins it exhaustively over
+/// every colour × hint. That is what makes silence defensible here, and it is
+/// what the old kernel failed.
+///
+/// Acting anyway is not available as an alternative: there is no colour left to
+/// read a direction off, so [`crate::geometry::LineSegment::with_direction_kept`]
+/// would *clear* the hint this verb is named for.
 /// [`super::direction_hint::set_direction_hint`] is the verb that writes a hint
 /// from scratch; [`make_unassigned`] is the one that takes it away.
 ///
@@ -402,6 +469,87 @@ mod tests {
         for segment in &model.line_segments {
             assert_eq!(segment.color, LineColor::None);
             assert_eq!(segment.fold_direction_hint, None);
+        }
+    }
+
+    /// **A zero from either verb means the requested state already held.**
+    ///
+    /// The law that makes a silent no-op defensible, and the one the old kernel
+    /// broke: `make_unassigned` returned zero on a hinted unassigned crease while
+    /// its own postcondition — no colour *and* no hint — did not hold there. Each
+    /// verb's postcondition is written out here independently of the code under
+    /// test, so this cannot be satisfied by whatever the gate happens to skip.
+    ///
+    /// Exhaustive over colour x hint, which is where the miss hid: the two old
+    /// gates were written in terms of colour alone.
+    #[test]
+    fn zero_means_the_state_already_holds() {
+        use super::make_unassigned_keeping_direction;
+        use crate::geometry::FoldDirection;
+
+        let colors = [
+            LineColor::Black0,
+            LineColor::Red1,
+            LineColor::Blue2,
+            LineColor::Cyan3,
+            LineColor::Orange4,
+            LineColor::Magenta5,
+            LineColor::Green6,
+            LineColor::Yellow7,
+            LineColor::Purple8,
+            LineColor::Other9,
+            LineColor::Grey10,
+            LineColor::None,
+        ];
+        let hints = [
+            None,
+            Some(FoldDirection::Mountain),
+            Some(FoldDirection::Valley),
+        ];
+
+        for color in colors {
+            for hint in hints {
+                let mut model = model_with(&[color]);
+                // Only an unassigned crease can carry a hint at all, which is
+                // `with_direction_hint`'s own rule; a hint on a coloured crease
+                // is not a state to test because it is not a state that exists.
+                if hint.is_some() {
+                    if color != LineColor::None {
+                        continue;
+                    }
+                    model.line_segments[0] = model.line_segments[0].with_direction_hint(hint);
+                }
+                let before = model.line_segments[0].clone();
+
+                // Forgetting: undecided, and nothing remembered.
+                let forget_holds =
+                    before.color == LineColor::None && before.fold_direction_hint.is_none();
+                let mut forgetting = model.clone();
+                assert_eq!(
+                    make_unassigned(&mut forgetting, &[0]) == 0,
+                    forget_holds,
+                    "make_unassigned on {color:?}/{hint:?}"
+                );
+                assert_eq!(forgetting.line_segments[0].color, LineColor::None);
+                assert_eq!(forgetting.line_segments[0].fold_direction_hint, None);
+
+                // Keeping: undecided, with whatever direction it had preserved.
+                let keep_holds = before.color == LineColor::None;
+                let mut keeping = model.clone();
+                assert_eq!(
+                    make_unassigned_keeping_direction(&mut keeping, &[0]) == 0,
+                    keep_holds,
+                    "make_unassigned_keeping_direction on {color:?}/{hint:?}"
+                );
+                assert_eq!(keeping.line_segments[0].color, LineColor::None);
+                if keep_holds {
+                    // Nothing to do also means nothing taken away.
+                    assert_eq!(
+                        keeping.line_segments[0].fold_direction_hint,
+                        before.fold_direction_hint
+                    );
+                }
+            }
         }
     }
 

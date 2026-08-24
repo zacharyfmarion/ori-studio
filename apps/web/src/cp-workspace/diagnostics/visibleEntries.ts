@@ -23,6 +23,31 @@ const NONE: readonly OristudioCpDiagnosticEntry[] = [];
  * half-width admits the corners, which are √2 × `SAME_VERTEX` apart — points the
  * kernel would not have merged — and that slack would be exactly the second
  * definition the paragraph above disclaims.
+ *
+ * # The narrowing to a distance costs nothing, and the epsilon itself earns its keep
+ *
+ * Both halves of that are measured rather than argued, because the two point
+ * sets this compares are not bit-identical by construction: the 3D refusal is
+ * measured on the snapped, selection-scoped segments and the overlay on the whole
+ * document, and `point_line_map` canonicalises a vertex to the *first* endpoint
+ * it sees in that cluster — so dropping a segment can move the canonical point,
+ * by up to the kernel's own merge epsilon.
+ *
+ * Over 5,102 refusals that name a place, across the Tier A corpus (5,100 from
+ * region-shaped box selections, 2 from folding a whole document):
+ *
+ * - **0** fall in `(SAME_VERTEX, √2 × SAME_VERTEX]` — the band the per-axis box
+ *   used to admit. Nothing was lost by narrowing it.
+ * - **37** fall in `(0, SAME_VERTEX]`. Those are real pairs that an exact-equality
+ *   test would drop, so the epsilon is doing work and is not decoration.
+ * - **86** are exact.
+ * - The remaining 4,979 have no row within any radius worth the name: 3,778 are in
+ *   documents the overlay reports nothing about at all, and across the rest the
+ *   *closest* miss anywhere is 14.3 paper units, with per-file medians of 100 and
+ *   165. That is a different vertex, not a rounding difference.
+ *
+ * A wider epsilon is therefore not the answer to a refusal with no row, and
+ * `fold3dRefusalNotice` does not ask for one; it falls back to the place itself.
  */
 const SAME_VERTEX = 1e-6;
 

@@ -76,7 +76,7 @@ import { useLayoutStore } from '../../layoutStore';
 import { useSettingsStore } from '../../settingsStore';
 import { selectWorkspaceCapabilities } from '../capabilities';
 import { designKind } from '../../../designKinds/registry';
-import { frameActiveCpDiagnostic } from '../cpDiagnosticFocus';
+import { frameActiveCpDiagnostic, frameCpModelPoint } from '../cpDiagnosticFocus';
 import { freshEditableCpState } from '../freshCreasePattern';
 import {
   emptyFoldArtifactResourceState,
@@ -206,15 +206,18 @@ type Fold3dRefusalAnswer = 'locate' | 'simulate' | 'cancel';
  * Tell the user their pattern has no 3D figure, and offer the two next moves.
  *
  * Two dialog shapes, because there are two situations and one of them has an
- * extra thing to offer. When the refusal names a place the overlay is already
- * reporting on, the user gets a real choice — go and look at it, or simulate —
- * and the message is the fact alone. When it does not, this is the confirm
- * dialog it has always been, word for word.
+ * extra thing to offer. When the refusal names a **place**, the user gets a real
+ * choice — go and look at it, or simulate — and the message is the fact alone.
+ * When it names none, this is the confirm dialog it has always been, word for
+ * word.
  *
- * Which shape it takes is `notice.locate`, not the refusal code: a refusal can
- * name a vertex the overlay has nothing to say about (the fold is scoped to a
- * selection; the overlay reports on the document), and offering to show the user
- * a row that does not exist would be worse than the old dialog.
+ * Which shape it takes is `notice.locate`, not the refusal code. It used to also
+ * turn on whether the overlay had a row at that place, which put the four
+ * refusals that *do* name a vertex back into the shape that names none — the
+ * original defect. Measured over region-shaped selections across the corpus, that
+ * is where they landed 4,979 times out of 5,100. `notice.locate` now carries the
+ * place either way and says which route it is offering; this function does not
+ * need to know, because the sentence it renders comes with it.
  */
 async function requestFold3dRefusal(notice: Fold3dRefusalNotice): Promise<Fold3dRefusalAnswer> {
   const title = i18n.t('dialogs:fold3dRefused.title', 'This pattern can’t be folded in 3D');
@@ -2054,7 +2057,16 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       const completed = (
         verdict: FoldVerdict,
         solutionCount?: number,
-        extra?: { refusal?: OristudioCpFold3dRefusal['code']; order_reason?: string }
+        extra?: {
+          refusal?: OristudioCpFold3dRefusal['code'];
+          order_reason?: string;
+          /**
+           * Which half of the offer the user got: the overlay's own row, or the
+           * bare point. Measured on the corpus, the point is the common one, and
+           * the split is the only way to tell whether that holds in the wild.
+           */
+          located_by?: 'row' | 'point';
+        }
       ): void => {
         track(ANALYTICS_EVENTS.foldCompleted, {
           mode,
@@ -2167,15 +2179,27 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             );
             const answer = await requestFold3dRefusal(notice);
             if (answer === 'locate' && notice.locate) {
-              // Visibility first. `setOristudioCpActiveDiagnostic` frames from
-              // committed state via `frameActiveCpDiagnostic`, which rebuilds
-              // the list from `visibleCpDiagnosticEntries` on the same two
-              // results — so once the overlay is on, that list is the one the
-              // offer was built from, and activating before revealing would
-              // jump nowhere and leave a row selected that nothing draws.
-              get().setOristudioCpViewportOption('camvIssuesVisible', true);
-              get().setOristudioCpActiveDiagnostic(notice.locate.entryId);
-              completed('located', 0, { refusal: result.refusal.code });
+              const target = notice.locate.target;
+              if (target.kind === 'entry') {
+                // Visibility first. `setOristudioCpActiveDiagnostic` frames from
+                // committed state via `frameActiveCpDiagnostic`, which rebuilds
+                // the list from `visibleCpDiagnosticEntries` on the same two
+                // results — so once the overlay is on, that list is the one the
+                // offer was built from, and activating before revealing would
+                // jump nowhere and leave a row selected that nothing draws.
+                get().setOristudioCpViewportOption('camvIssuesVisible', true);
+                get().setOristudioCpActiveDiagnostic(target.entryId);
+              } else {
+                // No row to activate, and deliberately no overlay toggle either:
+                // there is nothing at this place for it to draw, and switching on
+                // a layer that adds nothing visible is a state change the user
+                // did not ask for and cannot see the point of.
+                frameCpModelPoint(target.point);
+              }
+              completed('located', 0, {
+                refusal: result.refusal.code,
+                located_by: target.kind === 'entry' ? 'row' : 'point',
+              });
               return false;
             }
             if (answer === 'simulate') {

@@ -413,19 +413,44 @@ export function fold3dRefusalPlace(
   }
 }
 
-/** Why a fold produced no figure, and the row that can show the user where. */
+/**
+ * Where "Show me the …" goes, and by which route.
+ *
+ * `entry` is the good case: the overlay is already reporting on this place, so
+ * the offer hands the user its row. `entryId` is what
+ * `setOristudioCpActiveDiagnostic` takes — it frames the canvas on the entry and
+ * marks its row active — so acting on it reuses the HUD's own click-to-locate
+ * rather than adding a second way to reach a vertex.
+ *
+ * `point` is the fallback, and it is the *common* case rather than the exotic
+ * one. See {@link fold3dRefusalNotice} for the measurement.
+ */
+export type Fold3dRefusalTarget =
+  | { kind: 'entry'; entryId: string }
+  | { kind: 'point'; point: Point };
+
+/**
+ * The offer attached to a refusal: one place, one label, one sentence.
+ *
+ * `description` is a function of `target.kind` **alone** — one key per distinct
+ * action — and a disagreement is prefixed to it rather than selecting a second
+ * copy of it. That is deliberate and it is the fix for a real drift: the
+ * disagreeing branch used to carry its own whole sentence, which said the action
+ * zooms and omitted that it also switches the overlay on. Two strings describing
+ * one action will always eventually disagree; one string cannot.
+ */
+export interface Fold3dRefusalLocate {
+  target: Fold3dRefusalTarget;
+  label: string;
+  description: string;
+}
+
+/** Why a fold produced no figure, and how to show the user where. */
 export interface Fold3dRefusalNotice {
   /** One sentence: what is wrong. */
   message: string;
-  /**
-   * The diagnostic entry already reporting on the place the refusal named, or
-   * `null` when there is none to point at.
-   *
-   * `entryId` is what `setOristudioCpActiveDiagnostic` takes — it frames the
-   * canvas on the entry and marks its row active — so acting on this reuses the
-   * HUD's own click-to-locate rather than adding a second way to reach a vertex.
-   */
-  locate: { entryId: string; label: string; description: string } | null;
+  /** `null` only for a refusal that names no place at all. */
+  locate: Fold3dRefusalLocate | null;
 }
 
 /**
@@ -442,6 +467,33 @@ export interface Fold3dRefusalNotice {
  * treated as on**, because the action turns it on: asking with the toggle off
  * would find nothing and drop the offer for a user whose only mistake was hiding
  * the markers.
+ *
+ * # When there is no row, the place is still worth showing
+ *
+ * A refusal that names a point used to produce **no offer at all** unless a row
+ * sat on that exact point, which is the original complaint — *"then I was like
+ * what the fuck, which vertex?"* — surviving inside the fix for it.
+ *
+ * Measured, that is the majority of the time, not the margin. Folding
+ * region-shaped selections across the Tier A corpus (5,177 box selections over
+ * 10 documents; 5,100 refused, all 5,100 naming a place) the overlay had a row
+ * within `SAME_VERTEX` of that place **121 times**. The other 4,979 got nothing.
+ * And 3,778 of those are in documents where `CheckCamv` emits **no rows at all**:
+ * the whole pattern is clean, a *scoped* fold still refuses, and no lookup of any
+ * radius can ever produce a row. That is not a lookup that failed, it is a
+ * question the overlay was never asked — the fold is scoped to a selection and
+ * the overlay reports on the document.
+ *
+ * So a missing row withholds the label, the sentence and the jump; it should
+ * withhold only the row. The offer is made either way, and a `point` target
+ * frames the place on the canvas. A location with no row still beats no
+ * location.
+ *
+ * Widening `SAME_VERTEX` was the other candidate and the measurement rules it
+ * out: **zero** of the 5,100 landed in the band the epsilon's narrowing removed,
+ * and where a row exists at all but misses, the closest miss anywhere is 14.3
+ * paper units — a different vertex, not a rounding difference. See
+ * `visibleEntries.ts`.
  *
  * # When the row does not back the sentence up
  *
@@ -468,6 +520,9 @@ export interface Fold3dRefusalNotice {
  * second thing broken there. A row that reports no problem where the refusal
  * says there is one — or the reverse — is the contradiction, and it is exactly
  * `cpDiagnosticClass(entry) === 'error'` against {@link Fold3dRefusalClaim}.
+ *
+ * The disagreement is a **prefix** to the action's own sentence, never a
+ * replacement for it. See {@link Fold3dRefusalLocate}.
  */
 export function fold3dRefusalNotice(
   t: TFunction,
@@ -476,36 +531,56 @@ export function fold3dRefusalNotice(
 ): Fold3dRefusalNotice {
   const message = fold3dRefusalMessage(t, refusal);
   const place = fold3dRefusalPlace(refusal);
-  const entry = cpDiagnosticEntryAt(entries, place?.point);
-  // No entry is an ordinary outcome, not a fault: the fold is scoped to a
-  // selection while the overlay reports on the whole document, so the two can
-  // disagree about whether a place is worth a row. The dialog falls back to
-  // exactly what it said before.
-  if (!place || !entry) return { message, locate: null };
+  // Seven of the eleven refusals describe the pattern as a whole, so there is no
+  // place to jump to and none is invented.
+  if (!place) return { message, locate: null };
+  // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
+  const label =
+    place.subject === 'edge'
+      ? t('dialogs:fold3dRefused.showEdge', 'Show me the edge')
+      : t('dialogs:fold3dRefused.showVertex', 'Show me the vertex');
+
+  const entry = cpDiagnosticEntryAt(entries, place.point);
+  if (!entry) {
+    return {
+      message,
+      locate: {
+        target: { kind: 'point', point: place.point },
+        label,
+        // Says what this action does and, in the same breath, what will not be
+        // waiting there — because on a clean document the answer to "show me
+        // the vertex" is a bare piece of paper, and a user who expected a
+        // marker would read that as the jump having failed.
+        description: t(
+          'dialogs:fold3dRefused.showPointDescription',
+          'Zooms to it on the crease pattern. The foldability check lists no issue there.'
+        ),
+      },
+    };
+  }
+
   const rowStatesAProblem = cpDiagnosticClass(entry) === 'error';
   const agrees = rowStatesAProblem === (place.claim === 'violation');
-  // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
+  const action = t(
+    'dialogs:fold3dRefused.showDescription',
+    'Zooms to it on the crease pattern and turns on the foldability issues.'
+  );
+  const disagreement = agrees
+    ? null
+    : t(
+        'dialogs:fold3dRefused.showDisagreement',
+        'The foldability check reads it differently: {{finding}}.',
+        // The row's sentence as the HUD words it, through the same function the
+        // list renders with, so the dialog cannot quote it one way and the row
+        // show it another.
+        { finding: cpDiagnosticEntryMessage(t, entry) }
+      );
   return {
     message,
     locate: {
-      entryId: entry.id,
-      label:
-        place.subject === 'edge'
-          ? t('dialogs:fold3dRefused.showEdge', 'Show me the edge')
-          : t('dialogs:fold3dRefused.showVertex', 'Show me the vertex'),
-      description: agrees
-        ? t(
-            'dialogs:fold3dRefused.showDescription',
-            'Zooms to it on the crease pattern and turns on the foldability issues.'
-          )
-        : t(
-            'dialogs:fold3dRefused.showDescriptionDiffers',
-            'The foldability check reads it differently: {{finding}}. Zooms to it on the crease pattern.',
-            // The row's sentence as the HUD words it, through the same
-            // function the list renders with, so the dialog cannot quote it
-            // one way and the row show it another.
-            { finding: cpDiagnosticEntryMessage(t, entry) }
-          ),
+      target: { kind: 'entry', entryId: entry.id },
+      label,
+      description: disagreement ? `${disagreement} ${action}` : action,
     },
   };
 }
