@@ -1,6 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { COARSE_POINTER_QUERY } from '../platform/pointerSurface';
 import { cpOverlayViewStore } from './cpOverlayViewStore';
 import { CanvasObjectOverlay } from './CanvasObjectOverlay';
 import type { TransformableCanvasObject } from './canvasObjects/transformableObject';
@@ -199,8 +200,30 @@ describe('CanvasObjectOverlay aspect lock', () => {
     return event;
   }
 
+  // The latch only exists on a touch device, so these have to be run on one.
+  // The events below already say `pointerType: 'touch'`, but the latch asks the
+  // media query rather than the event — it stands in for a key the *device* does
+  // not have, which is a property of the device and not of one gesture.
+  beforeEach(() => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: vi.fn((query: string) => ({
+        matches: query === COARSE_POINTER_QUERY,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+  });
+
   afterEach(() => {
     resetShiftLatch();
+    Reflect.deleteProperty(window, 'matchMedia');
   });
 
   it('resizes freely with the latch off, as a bare drag always has', () => {
