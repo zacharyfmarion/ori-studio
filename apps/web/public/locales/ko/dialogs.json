@@ -152,6 +152,7 @@
     "noFaces": "이 접힘선들은 접을 종이 면을 이루지 않습니다.",
     "nonCreaseJoin": "두 면이 접힘선이 아닌 모서리에서 맞닿아 있습니다.",
     "showDescription": "전개도에서 해당 위치로 확대하고 접힘 가능성 문제를 켭니다.",
+    "showDescriptionDiffers": "접힘 가능성 검사는 이곳을 다르게 봅니다: {{finding}}. 전개도에서 해당 위치로 확대합니다.",
     "showEdge": "그 경계선 보기",
     "showVertex": "그 꼭짓점 보기",
     "simulate": "시뮬레이션",

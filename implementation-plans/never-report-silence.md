@@ -255,7 +255,17 @@ Two decisions Phase 2 made that are worth carrying forward:
 
 ### Phase 3 — the other surfaces
 
-- [ ] The fold-blocked dialog links to the vertex entry.
+- [x] The fold-blocked dialog links to the vertex entry. Joined by position at
+      `checks_spatial::CELL`, since a refusal carries a point and nothing else,
+      and resolved through `setOristudioCpActiveDiagnostic` so it reveals, frames
+      and highlights by the HUD's own click-to-locate. Two things the offer had
+      to get right beyond existing at all: it is built with the overlay treated
+      as **on**, because accepting is what turns it on, and it says up front when
+      the row it hands over reads the vertex differently — the folder measures a
+      fan `selected_folding_segments` built after dropping every undecided
+      crease, so "these creases do not close up" and "set this crease to −70.53°"
+      are both true of one vertex. It is never withheld for that, because
+      withholding puts "which vertex?" back where it started.
 - [ ] Propagation stalls become navigable.
 - [x] Unassigned creases get a canvas dash, matched in `creaseExport`. A third
       dash slot, which turned out to cost two `vec3` uniforms and one comparison

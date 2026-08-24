@@ -17,6 +17,12 @@ const NONE: readonly OristudioCpDiagnosticEntry[] = [];
  * they are one vertex to everything that produced them. Any looser number would
  * be this module inventing a second definition of "the same vertex"; any tighter
  * would reject points the kernel already merged.
+ *
+ * Measured the way the kernel measures it: as a **distance**
+ * (`point.distance(segment.a) < CELL`), not as a per-axis box. A box of the same
+ * half-width admits the corners, which are √2 × `SAME_VERTEX` apart — points the
+ * kernel would not have merged — and that slack would be exactly the second
+ * definition the paragraph above disclaims.
  */
 const SAME_VERTEX = 1e-6;
 
@@ -94,8 +100,7 @@ export function cpDiagnosticEntryAt(
     entries.find(
       (entry) =>
         entry.point != null &&
-        Math.abs(entry.point.x - point.x) <= SAME_VERTEX &&
-        Math.abs(entry.point.y - point.y) <= SAME_VERTEX
+        Math.hypot(entry.point.x - point.x, entry.point.y - point.y) <= SAME_VERTEX
     ) ?? null
   );
 }

@@ -2558,7 +2558,8 @@
     "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435",
     "dialogs:fold3dRefused.showDescription": "2800f37537e5",
     "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
-    "dialogs:fold3dRefused.showVertex": "10c25a4190a6"
+    "dialogs:fold3dRefused.showVertex": "10c25a4190a6",
+    "dialogs:fold3dRefused.showDescriptionDiffers": "7a1e68243cff"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5119,7 +5120,8 @@
     "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435",
     "dialogs:fold3dRefused.showDescription": "2800f37537e5",
     "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
-    "dialogs:fold3dRefused.showVertex": "10c25a4190a6"
+    "dialogs:fold3dRefused.showVertex": "10c25a4190a6",
+    "dialogs:fold3dRefused.showDescriptionDiffers": "7a1e68243cff"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7680,7 +7682,8 @@
     "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435",
     "dialogs:fold3dRefused.showDescription": "2800f37537e5",
     "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
-    "dialogs:fold3dRefused.showVertex": "10c25a4190a6"
+    "dialogs:fold3dRefused.showVertex": "10c25a4190a6",
+    "dialogs:fold3dRefused.showDescriptionDiffers": "7a1e68243cff"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -10198,7 +10201,8 @@
     "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435",
     "dialogs:fold3dRefused.showDescription": "2800f37537e5",
     "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
-    "dialogs:fold3dRefused.showVertex": "10c25a4190a6"
+    "dialogs:fold3dRefused.showVertex": "10c25a4190a6",
+    "dialogs:fold3dRefused.showDescriptionDiffers": "7a1e68243cff"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12716,7 +12720,8 @@
     "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435",
     "dialogs:fold3dRefused.showDescription": "2800f37537e5",
     "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
-    "dialogs:fold3dRefused.showVertex": "10c25a4190a6"
+    "dialogs:fold3dRefused.showVertex": "10c25a4190a6",
+    "dialogs:fold3dRefused.showDescriptionDiffers": "7a1e68243cff"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -15277,7 +15282,8 @@
     "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435",
     "dialogs:fold3dRefused.showDescription": "2800f37537e5",
     "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
-    "dialogs:fold3dRefused.showVertex": "10c25a4190a6"
+    "dialogs:fold3dRefused.showVertex": "10c25a4190a6",
+    "dialogs:fold3dRefused.showDescriptionDiffers": "7a1e68243cff"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17838,7 +17844,8 @@
     "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435",
     "dialogs:fold3dRefused.showDescription": "2800f37537e5",
     "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
-    "dialogs:fold3dRefused.showVertex": "10c25a4190a6"
+    "dialogs:fold3dRefused.showVertex": "10c25a4190a6",
+    "dialogs:fold3dRefused.showDescriptionDiffers": "7a1e68243cff"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -20356,6 +20363,7 @@
     "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435",
     "dialogs:fold3dRefused.showDescription": "2800f37537e5",
     "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
-    "dialogs:fold3dRefused.showVertex": "10c25a4190a6"
+    "dialogs:fold3dRefused.showVertex": "10c25a4190a6",
+    "dialogs:fold3dRefused.showDescriptionDiffers": "7a1e68243cff"
   }
 }

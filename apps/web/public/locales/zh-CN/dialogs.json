@@ -152,6 +152,7 @@
     "noFaces": "这些折线没有围出可折叠的纸面。",
     "nonCreaseJoin": "两个面沿着一条并非折线的边相接。",
     "showDescription": "在折痕图上缩放到该处，并打开可折叠性问题。",
+    "showDescriptionDiffers": "可折叠性检查对该处的判断不同：{{finding}}。在折痕图上缩放到该处。",
     "showEdge": "显示该边界线",
     "showVertex": "显示该顶点",
     "simulate": "模拟",

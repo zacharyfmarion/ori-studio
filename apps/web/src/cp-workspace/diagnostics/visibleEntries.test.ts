@@ -133,8 +133,19 @@ describe('cpDiagnosticEntryAt', () => {
   it('accepts anything the kernel would have merged into one vertex', () => {
     // 1e-6 is `checks_spatial::CELL`. A point inside it is not "near" the
     // vertex, it *is* the vertex as far as every check that ships is concerned.
-    expect(cpDiagnosticEntryAt(entries, { x: 9e-7, y: -100 + 9e-7 })?.id).toBe('closure');
+    expect(cpDiagnosticEntryAt(entries, { x: 9e-7, y: -100 })?.id).toBe('closure');
     expect(cpDiagnosticEntryAt(entries, { x: 2e-6, y: -100 })).toBeNull();
+  });
+
+  it('measures a distance, not a per-axis box', () => {
+    // 9e-7 on each axis is inside a box of half-width 1e-6 and 1.27e-6 away — so
+    // a box would admit a pair the kernel's own `point.distance(..) < CELL`
+    // rejects, and the corner slack would be this module's invention rather than
+    // the epsilon it cites.
+    expect(Math.hypot(9e-7, 9e-7)).toBeGreaterThan(1e-6);
+    expect(cpDiagnosticEntryAt(entries, { x: 9e-7, y: -100 + 9e-7 })).toBeNull();
+    // Inside the circle on the same diagonal still matches.
+    expect(cpDiagnosticEntryAt(entries, { x: 7e-7, y: -100 + 7e-7 })?.id).toBe('closure');
   });
 
   it('answers null rather than guessing', () => {

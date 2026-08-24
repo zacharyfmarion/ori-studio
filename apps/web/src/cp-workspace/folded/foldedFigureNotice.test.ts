@@ -302,22 +302,30 @@ describe('fold3dRefusalPlace / fold3dRefusalNotice', () => {
   };
 
   it('names a place for every refusal that carries one, and none for the rest', () => {
-    expect(fold3dRefusalPlace(closure)).toEqual({ point: { x: 0, y: -100 }, subject: 'vertex' });
+    expect(fold3dRefusalPlace(closure)).toEqual({
+      point: { x: 0, y: -100 },
+      subject: 'vertex',
+      claim: 'violation',
+    });
     expect(
       fold3dRefusalPlace({ code: 'flat_foldability', point: { x: 1, y: 2 }, rule: 'maekawa' })
-    ).toEqual({ point: { x: 1, y: 2 }, subject: 'vertex' });
+    ).toEqual({ point: { x: 1, y: 2 }, subject: 'vertex', claim: 'violation' });
+    // Not a violation: this one says a crease has no assignment, which is a
+    // statement about what is undetermined there.
     expect(
       fold3dRefusalPlace({
         code: 'vertex_indeterminate',
         point: { x: 1, y: 2 },
         cause: 'unassigned_crease',
       })
-    ).toEqual({ point: { x: 1, y: 2 }, subject: 'vertex' });
+    ).toEqual({ point: { x: 1, y: 2 }, subject: 'vertex', claim: 'undetermined' });
     // A cut is a segment with paper on both sides, so it is an edge and the
-    // offer must not say "vertex".
+    // offer must not say "vertex". Its sentence is the coverage one — the check
+    // declines to look along it — so it claims nothing is wrong either.
     expect(fold3dRefusalPlace({ code: 'interior_cut', line: 3, point: { x: 4, y: 5 } })).toEqual({
       point: { x: 4, y: 5 },
       subject: 'edge',
+      claim: 'undetermined',
     });
     expect(fold3dRefusalPlace({ code: 'no_faces' })).toBeNull();
     expect(fold3dRefusalPlace({ code: 'faces_unresolved' })).toBeNull();
@@ -341,14 +349,91 @@ describe('fold3dRefusalPlace / fold3dRefusalNotice', () => {
     const notice = fold3dRefusalNotice(t, closure, [vertexEntry('SpatialClosureUnreachable-10', 0, -100)]);
     expect(notice.locate?.entryId).toBe('SpatialClosureUnreachable-10');
     expect(notice.locate?.label).toBe('Show me the vertex');
+    expect(notice.locate?.description).toBe(
+      'Zooms to it on the crease pattern and turns on the foldability issues.'
+    );
     expect(notice.message).toBe('The creases at one vertex do not close up.');
   });
 
   it('says "edge" when the refusal names one', () => {
     const notice = fold3dRefusalNotice(t, { code: 'interior_cut', line: 3, point: { x: 4, y: 5 } }, [
-      vertexEntry('SpatialInteriorBorder-1', 4, 5),
+      { ...vertexEntry('SpatialInteriorBorder-1', 4, 5), severity: 'warning', rule: 'InteriorBorder' },
     ]);
     expect(notice.locate?.label).toBe('Show me the edge');
+    // Both say the same thing — the check declines to look along this edge, in
+    // the same words from the same key — so gating the offer on the row being an
+    // `error` would have called the one exact match a disagreement.
+    expect(notice.locate?.description).toBe(
+      'Zooms to it on the crease pattern and turns on the foldability issues.'
+    );
+  });
+
+  it('quotes the row up front when it reads the place differently', () => {
+    // The pairing this exists for. `selected_folding_segments` drops undecided
+    // creases before the folder builds its fan, so the refusal is measured
+    // without the very crease the document's own check solved — and the user
+    // used to read "these creases do not close up", click, and land on "set this
+    // crease to −70.53°" with nothing accounting for the two.
+    const notice = fold3dRefusalNotice(t, closure, [
+      {
+        ...vertexEntry('SpatialUndecided-4', 0, -100),
+        severity: 'info',
+        rule: 'Undecided',
+        fold_angle_degrees: -70.5288,
+      },
+    ]);
+    expect(notice.locate?.entryId).toBe('SpatialUndecided-4');
+    // Still offered. Dropping it would answer "which vertex?" with silence
+    // again, which is the defect the offer was added to fix.
+    expect(notice.locate?.label).toBe('Show me the vertex');
+    expect(notice.locate?.description).toBe(
+      'The foldability check reads it differently: Set this crease to -70.53° and this vertex closes. Zooms to it on the crease pattern.'
+    );
+  });
+
+  it('reads an undetermined refusal against an undetermined row as agreement', () => {
+    // "A crease here has no fold assigned" and "too many undecided creases meet
+    // here" are the same fact from two sides. Nothing about that ambushes the
+    // reader, so it gets the plain description.
+    const notice = fold3dRefusalNotice(
+      t,
+      { code: 'vertex_indeterminate', point: { x: 1, y: 2 }, cause: 'unassigned_crease' },
+      [
+        {
+          ...vertexEntry('SpatialUnknowable-7', 1, 2),
+          severity: 'info',
+          rule: 'TooManyUnknowns',
+        },
+      ]
+    );
+    expect(notice.locate?.description).toBe(
+      'Zooms to it on the crease pattern and turns on the foldability issues.'
+    );
+  });
+
+  it('flags the reverse mismatch too', () => {
+    // The refusal says only that something is undetermined there; the row says
+    // the vertex is broken. That is the same ambush pointing the other way.
+    const notice = fold3dRefusalNotice(
+      t,
+      { code: 'vertex_indeterminate', point: { x: 1, y: 2 }, cause: 'unsplit_junction' },
+      [{ ...vertexEntry('SpatialSelfIntersection-2', 1, 2), rule: 'SelfIntersection' }]
+    );
+    expect(notice.locate?.description).toBe(
+      'The foldability check reads it differently: Paper passes through itself here. Zooms to it on the crease pattern.'
+    );
+  });
+
+  it('treats a second error at the same vertex as detail, not contradiction', () => {
+    // Two errors is not the failure mode: a user who came to fix a broken vertex
+    // is not ambushed by a second thing broken there, and wording it as a
+    // disagreement would cry wolf on the commonest agreeing case.
+    const notice = fold3dRefusalNotice(t, closure, [
+      { ...vertexEntry('SpatialSelfIntersection-2', 0, -100), rule: 'SelfIntersection' },
+    ]);
+    expect(notice.locate?.description).toBe(
+      'Zooms to it on the crease pattern and turns on the foldability issues.'
+    );
   });
 
   it('offers nothing to point at when no entry sits there', () => {

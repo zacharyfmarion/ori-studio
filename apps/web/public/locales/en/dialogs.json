@@ -157,6 +157,7 @@
     "noFaces": "These creases enclose no piece of paper to fold.",
     "nonCreaseJoin": "Two faces meet along an edge that is not a crease.",
     "showDescription": "Zooms to it on the crease pattern and turns on the foldability issues.",
+    "showDescriptionDiffers": "The foldability check reads it differently: {{finding}}. Zooms to it on the crease pattern.",
     "showEdge": "Show me the edge",
     "showVertex": "Show me the vertex",
     "simulate": "Simulate",

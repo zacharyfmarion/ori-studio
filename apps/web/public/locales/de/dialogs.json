@@ -157,6 +157,7 @@
     "noFaces": "Diese Falten umschließen keine Papierfläche zum Falten.",
     "nonCreaseJoin": "Zwei Flächen treffen entlang einer Kante zusammen, die keine Falte ist.",
     "showDescription": "Zoomt im Faltmuster darauf und schaltet die Faltbarkeitsprobleme ein.",
+    "showDescriptionDiffers": "Die Faltbarkeitsprüfung sieht das anders: {{finding}}. Zoomt im Faltmuster darauf.",
     "showEdge": "Kante zeigen",
     "showVertex": "Knotenpunkt zeigen",
     "simulate": "Simulieren",

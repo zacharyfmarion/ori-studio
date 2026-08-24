@@ -342,8 +342,28 @@ A wrong hint stalls rather than lies — 0 wrong commits in 92,395 subsets. The
 - [ ] `Make Unassigned (keep direction)` — **one operation with a payload flag**,
       not a second operation (no new descriptor, so PORTING.md's origin rules are
       satisfied for free)
-- [ ] Hint ink on the canvas: widen the appearance key (or an overlay pass)
-- [ ] Hint ink in `creaseExport`, so SVG/PNG and the share card match the canvas
+- [x] Hint ink on the canvas: **an overlay pass**, not a widened appearance key.
+      Both were tried and the key lost: a wash of the direction's colour toward
+      the unassigned grey made one stroke carry two claims and produced a third
+      nobody meant — the crease read *faint*, which is the signal a shallow fold
+      angle already uses — and it was not even-handed, since the grey is blue-ish
+      and a mountain kept 43.6% of its chroma against a valley's 53.0%. The two
+      claims are split across the two things a dashed line already has instead:
+      the dash still says "undecided" and the colour keeps every bit of its
+      saturation, on **alternate marks** of that dash. That is one extra instance
+      appended past the creases in the same batch, ten floats, so painter order
+      puts it over the mark it replaces — not a second draw call. The overlay
+      declines when the active line style resolves the direction to the ink the
+      crease already has, which is what the two black-dot styles do to
+      everything.
+- [x] Hint ink in `creaseExport`, so SVG/PNG and the share card match the canvas.
+      Both encodings come off one derivation and are measured against each other,
+      but they cannot share an encoding: the shader has no phase offset — `vDist`
+      is distance from the segment's own start — so the canvas shifts phase with
+      a leading zero-length mark, which the run walk steps straight over. SVG
+      cannot use that trick, because a zero-length dash under `stroke-linecap`
+      `round` prints a dot, so it reaches the same marks through a real
+      `stroke-dashoffset`.
 - [ ] Settle plain-unassigned's canvas-vs-export disagreement in the same pass
 - [ ] ~10 new i18n keys × 8 locales + `cpVocab` regeneration
 

@@ -93,72 +93,6 @@ import {
 import { withDesignHandle } from '../../../engines/designHandles';
 import { onEngineLost } from '../../../engines/engineHost';
 import { fetchCpShareWithRetry } from '../../../cp-workspace/share/cpShareService';
-
-/**
- * Opening a shared link over an existing document discards it, so ask first — the same
- * question File > Open asks, for the same reason.
- */
-async function confirmDiscardDirtyProject(dirty: boolean): Promise<boolean> {
-  if (!dirty) return true;
-  return requestConfirmation({
-    title: 'Discard unsaved changes?',
-    message: 'Opening this shared crease pattern will replace your current work. Continue and discard it?',
-    confirmLabel: 'Discard',
-    tone: 'danger',
-  });
-}
-
-/** What the user did with a refused 3D fold. */
-type Fold3dRefusalAnswer = 'locate' | 'simulate' | 'cancel';
-
-/**
- * Tell the user their pattern has no 3D figure, and offer the two next moves.
- *
- * Two dialog shapes, because there are two situations and one of them has an
- * extra thing to offer. When the refusal names a place the overlay is already
- * reporting on, the user gets a real choice — go and look at it, or simulate —
- * and the message is the fact alone. When it does not, this is the confirm
- * dialog it has always been, word for word.
- *
- * Which shape it takes is `notice.locate`, not the refusal code: a refusal can
- * name a vertex the overlay has nothing to say about (the fold is scoped to a
- * selection; the overlay reports on the document), and offering to show the user
- * a row that does not exist would be worse than the old dialog.
- */
-async function requestFold3dRefusal(notice: Fold3dRefusalNotice): Promise<Fold3dRefusalAnswer> {
-  const title = i18n.t('dialogs:fold3dRefused.title', 'This pattern can’t be folded in 3D');
-  const simulateLabel = i18n.t('dialogs:fold3dRefused.simulate', 'Simulate');
-  const simulateTrailer = i18n.t(
-    'dialogs:fold3dRefused.simulateTrailer',
-    'The simulator can fold it approximately.'
-  );
-  const cancelLabel = i18n.t('dialogs:common.cancel', 'Cancel');
-  if (!notice.locate) {
-    const simulate = await requestConfirmation({
-      title,
-      message: i18n.t('dialogs:fold3dRefused.message', '{{reason}} {{trailer}}', {
-        reason: notice.message,
-        trailer: simulateTrailer,
-      }),
-      confirmLabel: simulateLabel,
-      cancelLabel,
-    });
-    return simulate ? 'simulate' : 'cancel';
-  }
-  // The trailer becomes the simulate option's own description rather than a
-  // second clause of the message: it describes that button, and stacked options
-  // are where this dialog states consequences (see `requestOpenOrImportChoice`).
-  const picked = await requestChoice({
-    title,
-    message: notice.message,
-    options: [
-      { id: 'locate', label: notice.locate.label, description: notice.locate.description },
-      { id: 'simulate', label: simulateLabel, description: simulateTrailer },
-    ],
-    cancelLabel,
-  });
-  return picked === 'locate' || picked === 'simulate' ? picked : 'cancel';
-}
 import {
   createBlankOristudioCpDocument,
   openSharedCpPayload,
@@ -250,6 +184,72 @@ import {
   sameFolded3dFrame,
 } from '../../../cp-workspace/folded/folded3dRehydrate';
 import type { WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
+
+/**
+ * Opening a shared link over an existing document discards it, so ask first — the same
+ * question File > Open asks, for the same reason.
+ */
+async function confirmDiscardDirtyProject(dirty: boolean): Promise<boolean> {
+  if (!dirty) return true;
+  return requestConfirmation({
+    title: 'Discard unsaved changes?',
+    message: 'Opening this shared crease pattern will replace your current work. Continue and discard it?',
+    confirmLabel: 'Discard',
+    tone: 'danger',
+  });
+}
+
+/** What the user did with a refused 3D fold. */
+type Fold3dRefusalAnswer = 'locate' | 'simulate' | 'cancel';
+
+/**
+ * Tell the user their pattern has no 3D figure, and offer the two next moves.
+ *
+ * Two dialog shapes, because there are two situations and one of them has an
+ * extra thing to offer. When the refusal names a place the overlay is already
+ * reporting on, the user gets a real choice — go and look at it, or simulate —
+ * and the message is the fact alone. When it does not, this is the confirm
+ * dialog it has always been, word for word.
+ *
+ * Which shape it takes is `notice.locate`, not the refusal code: a refusal can
+ * name a vertex the overlay has nothing to say about (the fold is scoped to a
+ * selection; the overlay reports on the document), and offering to show the user
+ * a row that does not exist would be worse than the old dialog.
+ */
+async function requestFold3dRefusal(notice: Fold3dRefusalNotice): Promise<Fold3dRefusalAnswer> {
+  const title = i18n.t('dialogs:fold3dRefused.title', 'This pattern can’t be folded in 3D');
+  const simulateLabel = i18n.t('dialogs:fold3dRefused.simulate', 'Simulate');
+  const simulateTrailer = i18n.t(
+    'dialogs:fold3dRefused.simulateTrailer',
+    'The simulator can fold it approximately.'
+  );
+  const cancelLabel = i18n.t('dialogs:common.cancel', 'Cancel');
+  if (!notice.locate) {
+    const simulate = await requestConfirmation({
+      title,
+      message: i18n.t('dialogs:fold3dRefused.message', '{{reason}} {{trailer}}', {
+        reason: notice.message,
+        trailer: simulateTrailer,
+      }),
+      confirmLabel: simulateLabel,
+      cancelLabel,
+    });
+    return simulate ? 'simulate' : 'cancel';
+  }
+  // The trailer becomes the simulate option's own description rather than a
+  // second clause of the message: it describes that button, and stacked options
+  // are where this dialog states consequences (see `requestOpenOrImportChoice`).
+  const picked = await requestChoice({
+    title,
+    message: notice.message,
+    options: [
+      { id: 'locate', label: notice.locate.label, description: notice.locate.description },
+      { id: 'simulate', label: simulateLabel, description: simulateTrailer },
+    ],
+    cancelLabel,
+  });
+  return picked === 'locate' || picked === 'simulate' ? picked : 'cancel';
+}
 
 /** Cap on the CP undo stack (matches historySlice's MAX_HISTORY). */
 const MAX_CP_HISTORY = 100;

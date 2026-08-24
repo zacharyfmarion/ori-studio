@@ -26,6 +26,8 @@ import type {
   OristudioCpFoldedFigureEntry,
 } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
+import { cpDiagnosticEntryMessage } from '../diagnostics/foldabilityMessages';
+import { cpDiagnosticClass } from '../diagnostics/severity';
 import { cpDiagnosticEntryAt } from '../diagnostics/visibleEntries';
 import { documentLineIdsForKernelLines, kernelLineOrder } from './foldRoute';
 import { foldedFigureCurrentCase } from './foldedFigureState';
@@ -363,27 +365,44 @@ export function flatFoldabilityRuleMessage(
 }
 
 /**
- * The place a refusal names, and what kind of thing is there.
+ * What a refusal is saying about the place it names.
+ *
+ * Two of the four placed refusals say something is **wrong** there; two say
+ * something is **undetermined** there — an interior cut publishes the coverage
+ * sentence ("foldability is not checked along it"), and `vertex_indeterminate`
+ * says a crease has no assignment. {@link fold3dRefusalNotice} compares the
+ * diagnostic row against this, so the split is load-bearing rather than
+ * descriptive.
+ */
+export type Fold3dRefusalClaim = 'violation' | 'undetermined';
+
+/**
+ * The place a refusal names, what kind of thing is there, and what is being
+ * claimed about it.
  *
  * Four of the eleven arms carry a `point`, and they are the four whose sentences
  * say "one vertex" or "an edge" without ever saying *which* — the complaint this
  * exists to answer. The other seven describe the pattern as a whole (no faces,
  * disconnected pieces, a loop that does not close), so there is no place to jump
- * to and none is invented.
+ * to and none is invented. The `claim` rides here rather than on its own total
+ * function for that reason: the seven place-less arms make no claim about a
+ * place, and returning one for them would be a value with nothing to mean.
  *
- * The `subject` is not decoration: an interior cut is a segment with paper on
- * both sides, and offering to show "the vertex" would name the wrong object.
+ * The `subject` is not decoration either: an interior cut is a segment with
+ * paper on both sides, and offering to show "the vertex" would name the wrong
+ * object.
  */
 export function fold3dRefusalPlace(
   refusal: OristudioCpFold3dRefusal
-): { point: Point; subject: 'vertex' | 'edge' } | null {
+): { point: Point; subject: 'vertex' | 'edge'; claim: Fold3dRefusalClaim } | null {
   switch (refusal.code) {
     case 'interior_cut':
-      return { point: refusal.point, subject: 'edge' };
-    case 'flat_foldability':
+      return { point: refusal.point, subject: 'edge', claim: 'undetermined' };
     case 'vertex_indeterminate':
+      return { point: refusal.point, subject: 'vertex', claim: 'undetermined' };
+    case 'flat_foldability':
     case 'vertex_closure':
-      return { point: refusal.point, subject: 'vertex' };
+      return { point: refusal.point, subject: 'vertex', claim: 'violation' };
     case 'no_faces':
     case 'faces_unresolved':
     case 'disconnected':
@@ -423,6 +442,32 @@ export interface Fold3dRefusalNotice {
  * treated as on**, because the action turns it on: asking with the toggle off
  * would find nothing and drop the offer for a user whose only mistake was hiding
  * the markers.
+ *
+ * # When the row does not back the sentence up
+ *
+ * The two are measured on different things and can therefore say different
+ * things about one vertex. `selected_folding_segments` drops every undecided
+ * crease before the folder builds its fan, so a refusal reading "the creases at
+ * one vertex do not close up" can land on a row reading "set this crease to
+ * −70.53° and this vertex closes" — the document's own answer, with the crease
+ * the folder threw away put back. Letting a paper edge be unassigned makes that
+ * pairing *more* likely, not less: a rim vertex moves off
+ * `Unknowable::PaperEdge`, the one verdict that emits no row at all, onto
+ * `TooManyUnknowns`, which emits one apiece.
+ *
+ * The offer is **not withheld** for it. Withholding trades this defect for the
+ * one that started the whole thread — a dialog that names no vertex — and the
+ * row is the better-measured of the two answers anyway, so the user should go
+ * and read it. What changes is that the offer stops implying the row will agree:
+ * it hands over that row's own sentence up front, so the disagreement is read
+ * before the click rather than discovered after it.
+ *
+ * The test is whether the row makes the refusal's **kind** of claim, not whether
+ * it uses its words: two different errors at one vertex are more detail, not a
+ * contradiction, and a user who came to fix a broken vertex is not ambushed by a
+ * second thing broken there. A row that reports no problem where the refusal
+ * says there is one — or the reverse — is the contradiction, and it is exactly
+ * `cpDiagnosticClass(entry) === 'error'` against {@link Fold3dRefusalClaim}.
  */
 export function fold3dRefusalNotice(
   t: TFunction,
@@ -437,6 +482,8 @@ export function fold3dRefusalNotice(
   // disagree about whether a place is worth a row. The dialog falls back to
   // exactly what it said before.
   if (!place || !entry) return { message, locate: null };
+  const rowStatesAProblem = cpDiagnosticClass(entry) === 'error';
+  const agrees = rowStatesAProblem === (place.claim === 'violation');
   // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
   return {
     message,
@@ -446,10 +493,19 @@ export function fold3dRefusalNotice(
         place.subject === 'edge'
           ? t('dialogs:fold3dRefused.showEdge', 'Show me the edge')
           : t('dialogs:fold3dRefused.showVertex', 'Show me the vertex'),
-      description: t(
-        'dialogs:fold3dRefused.showDescription',
-        'Zooms to it on the crease pattern and turns on the foldability issues.'
-      ),
+      description: agrees
+        ? t(
+            'dialogs:fold3dRefused.showDescription',
+            'Zooms to it on the crease pattern and turns on the foldability issues.'
+          )
+        : t(
+            'dialogs:fold3dRefused.showDescriptionDiffers',
+            'The foldability check reads it differently: {{finding}}. Zooms to it on the crease pattern.',
+            // The row's sentence as the HUD words it, through the same
+            // function the list renders with, so the dialog cannot quote it
+            // one way and the row show it another.
+            { finding: cpDiagnosticEntryMessage(t, entry) }
+          ),
     },
   };
 }

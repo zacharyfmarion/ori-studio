@@ -162,6 +162,7 @@
     "noFaces": "Estos pliegues no encierran ninguna cara de papel que plegar.",
     "nonCreaseJoin": "Dos caras se encuentran a lo largo de una arista que no es un pliegue.",
     "showDescription": "Amplía hasta él en el patrón de pliegue y activa los problemas de plegabilidad.",
+    "showDescriptionDiffers": "La comprobación de plegabilidad lo interpreta de otra forma: {{finding}}. Amplía hasta él en el patrón de pliegue.",
     "showEdge": "Mostrarme la arista",
     "showVertex": "Mostrarme el vértice",
     "simulate": "Simular",
