@@ -61,6 +61,15 @@ export interface VertexSolveReview {
    * is why it also suppresses the single-answer auto-apply below.
    */
   readonly contradictsHint: boolean;
+  /**
+   * Whether the shown answer leaves one of the three picked creases undecided.
+   *
+   * It folds that crease by nothing, and nothing names no direction — so a
+   * crease that had none keeps none. Every other answer moves all three, which
+   * is what makes this worth saying: without it the tool counts "1 of 3", the
+   * user applies, and one of their picks sits there unchanged.
+   */
+  readonly leavesUndecided: boolean;
 }
 
 export type VertexSolveOutcome =
@@ -80,14 +89,20 @@ export type VertexSolveOutcome =
  * Whether an answer may commit on the third pick without being looked at.
  *
  * Only when it is the sole isolated answer, is not already the document, and
- * does not fold anything against a direction the user marked. That last clause
- * is the whole reason this is a function: a lone answer that contradicts a hint
- * is still the *right* answer — it closes the vertex and the hint is a belief,
- * not a fact — but committing it unseen would erase the mark and say nothing.
- * Holding it for review costs one click and makes the trade visible.
+ * has nothing to say about the creases it is about to change. The last two
+ * clauses are the whole reason this is a function, and both are cases where the
+ * answer is still *right* — it closes the vertex — while committing it unseen
+ * would leave the user with something they never agreed to and no way to notice
+ * it: a direction mark erased, or one of their three picks silently unmoved.
+ * Holding it for review costs one click and makes either trade visible.
  */
-function mayCommitUnseen(count: number, isCurrent: boolean, contradictsHint: boolean): boolean {
-  return count === 1 && !isCurrent && !contradictsHint;
+function mayCommitUnseen(
+  count: number,
+  isCurrent: boolean,
+  contradictsHint: boolean,
+  leavesUndecided: boolean
+): boolean {
+  return count === 1 && !isCurrent && !contradictsHint && !leavesUndecided;
 }
 
 /** What to do with a kernel preview of the three picked creases. */
@@ -105,12 +120,15 @@ export function outcomeForPreview(
   if (count === 0 && !isFamily) return { kind: 'none', reason: null };
   const isCurrent = preview.candidate_is_current === true;
   const contradictsHint = preview.candidate_contradicts_hint === true;
+  const leavesUndecided = preview.candidate_leaves_undecided === true;
   // Nothing to apply: this *is* the document. Offering it as a one-click change
   // would be offering a no-op, so it holds for review with the alternatives.
-  if (mayCommitUnseen(count, isCurrent, contradictsHint)) return { kind: 'apply' };
+  if (mayCommitUnseen(count, isCurrent, contradictsHint, leavesUndecided)) {
+    return { kind: 'apply' };
+  }
   return {
     kind: 'review',
-    review: { lineIds, index: 0, count, isFamily, isCurrent, contradictsHint },
+    review: { lineIds, index: 0, count, isFamily, isCurrent, contradictsHint, leavesUndecided },
   };
 }
 
@@ -125,12 +143,18 @@ export function outcomeForPreview(
 export function stepReview(review: VertexSolveReview, delta: number): VertexSolveReview {
   if (review.count <= 1) return review;
   const next = (((review.index + delta) % review.count) + review.count) % review.count;
-  // Both flags describe the *shown* answer, so stepping invalidates them until
-  // the new preview lands. Assuming either carried over would label the wrong
+  // All three flags describe the *shown* answer, so stepping invalidates them
+  // until the new preview lands. Assuming any carried over would label the wrong
   // one, and they are refreshed together from the same response.
   return next === review.index
     ? review
-    : { ...review, index: next, isCurrent: false, contradictsHint: false };
+    : {
+        ...review,
+        index: next,
+        isCurrent: false,
+        contradictsHint: false,
+        leavesUndecided: false,
+      };
 }
 
 /** Whether the stepper should be shown at all. */

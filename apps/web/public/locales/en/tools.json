@@ -139,6 +139,7 @@
       "creaseNotInFan": "Pick three different creases that all meet at the same vertex.",
       "current": "This is what the vertex already does — step to see the alternative.",
       "family": "These three creases leave one degree of freedom, so this is one of infinitely many answers — pick a different third crease for a definite one.",
+      "leavesUndecided": "This answer does not fold one of the creases at all, so it stays undecided — step to see an answer that decides all three.",
       "notEnoughCreases": "Fewer than three creases meet here, so there are no three angles to solve.",
       "title": "Fold angles",
       "unreachable": "These three creases cannot close this vertex at any fold angles — try a different three."

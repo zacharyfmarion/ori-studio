@@ -140,20 +140,44 @@ impl FoldDirection {
         }
     }
 
-    /// The sign a solved angle must carry to agree with this hint. Negative is
-    /// mountain, positive is valley — the FOLD convention, fixed by our own
-    /// FOLD I/O.
-    pub const fn sign(self) -> f64 {
-        match self {
-            Self::Mountain => -1.0,
-            Self::Valley => 1.0,
+    /// The direction a signed fold angle names, or `None` when it names none.
+    ///
+    /// Negative is mountain, positive is valley — the FOLD convention, fixed by
+    /// our own FOLD I/O.
+    ///
+    /// # The one place a fold angle's sign is read
+    ///
+    /// Zero names neither direction, and this crate had **two** predicates that
+    /// disagreed about which zero: `degrees < 0.0` reads `-0.0` as positive
+    /// while `degrees.is_sign_negative()` reads it as negative, so the same
+    /// float came out a valley on the write path and a mountain on the check
+    /// path. IEEE 754 gives zero a sign bit; a fold angle does not. `== 0.0` is
+    /// true of both zeros, which is what makes this total.
+    ///
+    /// So every caller asks here rather than testing the sign itself, and
+    /// `None` is a real answer they must handle: a crease that does not fold has
+    /// no direction to be, and inventing one is what
+    /// [`LineSegment::with_signed_fold_angle`] and
+    /// `AngleSolution::contradicts_hint` each got wrong on their own.
+    ///
+    /// Non-finite is `None` for the same reason: NaN has a sign bit too, and
+    /// `FoldMagnitude::from_degrees` already refuses it, so the sign of one has
+    /// no meaning worth reporting.
+    pub fn of_signed_angle(degrees: f64) -> Option<Self> {
+        if !degrees.is_finite() || degrees == 0.0 {
+            return None;
         }
+        Some(if degrees < 0.0 {
+            Self::Mountain
+        } else {
+            Self::Valley
+        })
     }
 
     /// Whether `degrees` folds the way this hint says. Zero agrees with neither:
     /// a crease that does not fold has no direction.
     pub fn admits(self, degrees: f64) -> bool {
-        degrees != 0.0 && degrees.is_sign_negative() == (self.sign() < 0.0)
+        Self::of_signed_angle(degrees) == Some(self)
     }
 
     /// The other direction.
@@ -358,6 +382,61 @@ impl LineSegment {
         Self {
             fold_magnitude: magnitude.filter(|value| !value.is_full()),
             ..*self
+        }
+    }
+
+    /// Apply a signed fold angle — direction *and* magnitude — in one step.
+    ///
+    /// **The single definition of what a solved angle does to a crease.** The
+    /// three-angle solve and fold propagation write through
+    /// [`crate::operations::color::set_signed_fold_angles`], and the preview
+    /// draws what a write would produce; both ask this, so "what the preview
+    /// showed" and "what the commit stored" are the same expression rather than
+    /// two that happen to agree. They did not always: the preview had no
+    /// not-a-crease guard while the write did, and the solve applied two thirds
+    /// of its own answer for a release.
+    ///
+    /// A no-op on anything that is not a crease, and on an angle outside
+    /// `-180..=180` — a caller offering one has a bug, and clamping would hide
+    /// it behind a plausible-looking crease.
+    ///
+    /// # Zero sets a magnitude and never a direction
+    ///
+    /// `0` is the answer *"this crease does not fold"*, and
+    /// [`FoldDirection::of_signed_angle`] says it names no direction. So:
+    ///
+    /// - a **decided** crease keeps the mountain or valley the user already gave
+    ///   it and goes flat. Its direction was never the solve's to revise here —
+    ///   reading `degrees < 0.0` used to silently turn every zero-angled
+    ///   mountain into a valley, `-0.0` included.
+    /// - an **unassigned** crease has no direction to keep, so it stays
+    ///   unassigned, hint intact. There is no third state to move it to: this
+    ///   model spells a flat crease as a coloured crease with magnitude zero
+    ///   (FOLD's `F` maps to an auxiliary line, which is not a crease at all),
+    ///   so deciding it would mean picking a direction the answer did not
+    ///   determine. `with_fold_magnitude` is already a no-op on
+    ///   [`LineColor::None`], so that falls out rather than being special-cased.
+    ///
+    /// The surface has to say so — see `AngleSolution::leaves_undecided`.
+    pub fn with_signed_fold_angle(&self, degrees: f64) -> Self {
+        if !matches!(
+            self.color,
+            LineColor::Red1 | LineColor::Blue2 | LineColor::None
+        ) {
+            return self.clone();
+        }
+        let Some(magnitude) = FoldMagnitude::from_degrees(degrees.abs()) else {
+            return self.clone();
+        };
+        match FoldDirection::of_signed_angle(degrees) {
+            // Colour first, and not as a matter of taste: `with_fold_magnitude`
+            // is a no-op on anything that is not `Red1`/`Blue2`, so on an
+            // unassigned crease the reverse order would drop the angle on the
+            // floor.
+            Some(direction) => self
+                .with_line_color(direction.line_color())
+                .with_fold_magnitude(Some(magnitude)),
+            None => self.with_fold_magnitude(Some(magnitude)),
         }
     }
 

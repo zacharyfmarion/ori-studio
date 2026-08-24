@@ -32,6 +32,7 @@ describe('outcomeForPreview', () => {
         isFamily: false,
         isCurrent: false,
         contradictsHint: false,
+        leavesUndecided: false,
       },
     });
   });
@@ -53,6 +54,7 @@ describe('outcomeForPreview', () => {
         isFamily: true,
         isCurrent: false,
         contradictsHint: false,
+        leavesUndecided: false,
       },
     });
   });
@@ -102,6 +104,20 @@ describe('outcomeForPreview', () => {
     ).toEqual({ kind: 'apply' });
   });
 
+  it('holds a lone answer for review when it leaves one of the picks undecided', () => {
+    // The other case a single answer must not commit unseen. It folds one of the
+    // three by nothing, and nothing names no direction, so that crease comes out
+    // exactly as it went in — while the counter says all three were answered.
+    const outcome = outcomeForPreview(
+      LINES,
+      preview({ candidate_count: 1, candidate_leaves_undecided: true })
+    );
+    expect(outcome).toMatchObject({
+      kind: 'review',
+      review: { leavesUndecided: true, count: 1 },
+    });
+  });
+
   it('reports the kernel reason when there is no answer', () => {
     expect(outcomeForPreview(LINES, preview({ unavailable: 'AnglesUnreachable' }))).toEqual({
       kind: 'none',
@@ -123,6 +139,7 @@ describe('stepReview', () => {
     isFamily: false,
     isCurrent: false,
     contradictsHint: false,
+    leavesUndecided: false,
   };
 
   it('wraps at both ends', () => {
@@ -133,12 +150,19 @@ describe('stepReview', () => {
     expect(stepReview({ ...review, index: 2 }, 1).index).toBe(0);
   });
 
-  it('drops both answer-describing flags on a step, until the new preview says otherwise', () => {
-    // They describe the answer being *shown*. Carrying either across a step
-    // would label the wrong one for as long as the preview took to land, and
-    // the two are refreshed together from the same response.
-    const stepped = stepReview({ ...review, isCurrent: true, contradictsHint: true }, 1);
-    expect(stepped).toMatchObject({ isCurrent: false, contradictsHint: false });
+  it('drops every answer-describing flag on a step, until the new preview says otherwise', () => {
+    // They describe the answer being *shown*. Carrying any across a step would
+    // label the wrong one for as long as the preview took to land, and they are
+    // refreshed together from the same response.
+    const stepped = stepReview(
+      { ...review, isCurrent: true, contradictsHint: true, leavesUndecided: true },
+      1
+    );
+    expect(stepped).toMatchObject({
+      isCurrent: false,
+      contradictsHint: false,
+      leavesUndecided: false,
+    });
   });
 
   it('stands still when there is nothing to step through', () => {
@@ -158,6 +182,7 @@ describe('isSteppable', () => {
       isFamily: false,
       isCurrent: false,
       contradictsHint: false,
+      leavesUndecided: false,
     };
     expect(isSteppable({ ...review, count: 1 })).toBe(false);
     expect(isSteppable({ ...review, count: 0, isFamily: true })).toBe(false);

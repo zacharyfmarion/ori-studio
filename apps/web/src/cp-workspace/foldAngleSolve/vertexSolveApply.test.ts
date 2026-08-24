@@ -81,8 +81,24 @@ function segment(overrides: Partial<OristudioCpLineSegment>): OristudioCpLineSeg
   };
 }
 
+/**
+ * The same vertex one edit along, where a branch answers zero for a crease that
+ * has no direction.
+ *
+ * The crease that was unassigned now carries its solved 70.5287793 valley, and
+ * one of the 109.4712206 valleys is unassigned in its place, keeping its
+ * direction. The first branch then folds *that* crease by `-0.0`.
+ */
+const ZERO_ANSWER_FAN = FAN.map((crease, index) => {
+  if (index === 1) return { bearing: crease.bearing, color: 'Blue2' as const, degrees: 70.5287793 };
+  if (index === 2) {
+    return { bearing: crease.bearing, color: 'None' as const, hint: 'Valley' as const };
+  }
+  return crease;
+});
+
 /** The reported vertex inside a square sheet, and a handle to the document. */
-function reportedFailureCase(): number {
+function reportedFailureCase(fan: typeof FAN = FAN): number {
   const corners = [
     [450, 1350],
     [650, 1350],
@@ -97,7 +113,7 @@ function reportedFailureCase(): number {
       color: 'Black0',
     });
   });
-  for (const crease of FAN) {
+  for (const crease of fan) {
     const radians = (crease.bearing * Math.PI) / 180;
     segments.push(
       segment({
@@ -226,6 +242,50 @@ describe('VertexSolveFoldAngles against the real kernel', () => {
     });
     // Still applied, and applied as a mountain — the branch is real.
     expect(linesOf(handle)[UNASSIGNED - 1]).toMatchObject({ color: 'Red1' });
+
+    free_document(handle);
+  });
+
+  it('leaves a crease undecided rather than deciding it a valley that folds by nothing', () => {
+    // The zero hole. `contradicts_hint` asked *not this direction* rather than
+    // *the other direction*, and zero is neither — so the tool told the user, in
+    // nine languages, that this branch folds the crease the opposite way from
+    // its mark, and then wrote `Blue2`: the mark's own direction, at a magnitude
+    // of zero. Neither half was true, and the write was the worse half — a
+    // decided valley that folds by nothing is non-classic, which blocks `.cp`
+    // export and the 2D folded view for the whole document.
+    const handle = reportedFailureCase(ZERO_ANSWER_FAN);
+    const before = linesOf(handle)[SECOND_VALLEY - 1];
+    expect(before).toMatchObject({ color: 'None', fold_direction_hint: 'Valley' });
+
+    const previews = [0, 1, 2].map((index) => solve(handle, index));
+    expect(previews[0].candidate_leaves_undecided).toBe(true);
+    expect(previews[0].candidate_contradicts_hint).toBe(false);
+    // The other branches fold it to a real +/-180, so they decide it — and the
+    // one that folds it mountain against a Valley mark is still flagged.
+    expect(previews.filter((preview) => preview.candidate_leaves_undecided).length).toBe(1);
+    expect(previews.filter((preview) => preview.candidate_contradicts_hint).length).toBe(1);
+
+    execute_cp_command(handle, 'VertexSolveFoldAngles', {
+      points: [VERTEX],
+      line_ids: CHOSEN,
+      candidate_index: 0,
+    });
+
+    const after = linesOf(handle)[SECOND_VALLEY - 1];
+    expect(after.color).toBe('None');
+    expect(after.fold_direction_hint).toBe('Valley');
+    expect(after.fold_magnitude ?? null).toBeNull();
+
+    // A zero answer on a crease that *does* have a direction keeps it, rather
+    // than flipping it to the valley `degrees < 0.0` used to imply, and the
+    // rest of the answer still lands.
+    const flattened = linesOf(handle)[FIRST_VALLEY - 1];
+    expect(flattened.color).toBe('Blue2');
+    expect(flattened.fold_magnitude).toBe(0);
+    const folded = linesOf(handle)[UNASSIGNED - 1];
+    expect(folded.color).toBe('Red1');
+    expect(folded.fold_magnitude).toBeCloseTo(70.5287793 * UNITS_PER_DEGREE, -1);
 
     free_document(handle);
   });

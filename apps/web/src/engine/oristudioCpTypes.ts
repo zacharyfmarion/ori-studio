@@ -296,6 +296,19 @@ export interface OristudioCpCommandPreview {
    * answer that genuinely closes the vertex.
    */
   candidate_contradicts_hint?: boolean | null;
+  /**
+   * Whether the previewed solution leaves one of the three picked creases
+   * undecided.
+   *
+   * The answer for that crease is zero — it does not fold — and zero names no
+   * direction, so an unassigned crease has nothing to be decided as. The preview
+   * segments already show it staying dashed; this is what lets the tool say so
+   * in words, because "one of your three does not move" is a thing to read
+   * before Apply rather than notice afterwards. The kernel's
+   * `AngleSolution::leaves_undecided` says why the alternative — a valley that
+   * folds by zero degrees — is worse.
+   */
+  candidate_leaves_undecided?: boolean | null;
   /** How many creases a propagation draft worked out. */
   propagation_solved?: number | null;
   /**

@@ -113,7 +113,7 @@ use crate::checks_spatial::{
     is_interior_vertex, jacobian_rank, norm, quat_conj, quat_mul, quat_residual, quat_rotate,
     vertex_closure_residual, vertex_dof,
 };
-use crate::geometry::{FoldMagnitude, LineColor, Point};
+use crate::geometry::{FoldDirection, FoldMagnitude, LineColor, Point};
 use crate::model::CreasePatternModel;
 
 /// Below this, a quantity that should be zero counts as zero. The same order as
@@ -190,18 +190,41 @@ pub struct AngleSolution {
     /// [`VertexFan`] and so has no hints to read; [`vertex_angle_solutions`]
     /// fills it in from the document.
     pub contradicts_hint: [bool; 3],
+    /// Per slot, whether applying this solution would leave that crease
+    /// **undecided** — the one thing an answer can decline to say.
+    ///
+    /// True exactly when the crease is unassigned and the answer for it is zero.
+    /// Zero names no direction, and this model has no way to spell "a crease
+    /// that folds by nothing" without also naming one, so
+    /// [`crate::geometry::LineSegment::with_signed_fold_angle`] leaves the crease
+    /// alone rather than inventing a mountain or a valley for it.
+    ///
+    /// That is the honest write, and it is still a surprise: the user nominated
+    /// three creases and one of them does not move. It is a *quieter* surprise
+    /// than the alternative — a decided valley folding by zero degrees, which
+    /// would flip the whole document non-classic and block `.cp` export for a
+    /// crease that does not fold — but a surprise the surface has to name, or
+    /// this is the "applied two thirds of its own answer" report again with the
+    /// preview agreeing.
+    ///
+    /// Same shape and same source as [`Self::contradicts_hint`], and mutually
+    /// exclusive with it per slot: contradicting the hint means folding the
+    /// *other* way, and zero folds neither.
+    pub leaves_undecided: [bool; 3],
 }
 
 impl AngleSolution {
-    /// The line colour crease `slot` must take. Direction is part of the answer:
-    /// closing the vertex can require a mountain to become a valley, and the
-    /// user nominated these three as changeable.
-    pub fn line_color(&self, slot: usize) -> LineColor {
-        if self.creases[slot].1 < 0.0 {
-            LineColor::Red1
-        } else {
-            LineColor::Blue2
-        }
+    /// The direction crease `slot` must take, or `None` when the answer names
+    /// none.
+    ///
+    /// Direction is part of the answer: closing the vertex can require a
+    /// mountain to become a valley, and the user nominated these three as
+    /// changeable. But a zero angle names no direction — see
+    /// [`FoldDirection::of_signed_angle`] — and `None` is what the caller must
+    /// handle rather than a case it can round to valley, which is what returning
+    /// a bare `LineColor` invited.
+    pub fn direction(&self, slot: usize) -> Option<FoldDirection> {
+        FoldDirection::of_signed_angle(self.creases[slot].1)
     }
 
     /// The stored magnitude, with 180 normalised to `None` as everywhere else.
@@ -211,6 +234,13 @@ impl AngleSolution {
     /// [`crate::geometry::LineSegment::with_fold_magnitude`] does on the way in
     /// so that what this predicts is what the commit stores. Pinned by
     /// `solutions_close_at_the_resolution_they_are_stored_at`.
+    ///
+    /// It is the magnitude *this answer names*, which is not always the one the
+    /// crease ends up with: a zero answer on an unassigned crease is not written
+    /// at all, because there is no direction to write it beside. Only
+    /// [`crate::geometry::LineSegment::with_signed_fold_angle`] knows what a
+    /// crease becomes; ask it rather than composing this with
+    /// [`Self::direction`].
     pub fn fold_magnitude(&self, slot: usize) -> Option<FoldMagnitude> {
         FoldMagnitude::from_degrees(self.creases[slot].1.abs()).filter(|value| !value.is_full())
     }
@@ -218,6 +248,11 @@ impl AngleSolution {
     /// Whether any of the three creases would be folded against its hint.
     pub fn contradicts_a_hint(&self) -> bool {
         self.contradicts_hint.iter().any(|conflict| *conflict)
+    }
+
+    /// Whether any of the three creases would come out of this still undecided.
+    pub fn leaves_any_undecided(&self) -> bool {
+        self.leaves_undecided.iter().any(|undecided| *undecided)
     }
 
     /// How far this moves the three creases from where they are now, as the
@@ -735,9 +770,11 @@ pub fn solve_fold_angles(
                 .iter()
                 .zip(&degrees)
                 .all(|(now, solved)| (now.to_degrees() - solved).abs() < 1e-7),
-            // A fan carries directions and angles, never hints. The document
-            // entry point fills these in.
+            // A fan carries directions and angles, never hints, and never the
+            // document colours a write would land on. The document entry point
+            // fills both of these in.
             contradicts_hint: [false; 3],
+            leaves_undecided: [false; 3],
         });
     }
 
@@ -877,6 +914,17 @@ pub fn vertex_angle_solutions(
             .and_then(|segment| segment.fold_direction_hint)
     };
 
+    // What the crease would become, asked of the write itself rather than
+    // predicted alongside it. An answer that leaves the segment where it was,
+    // on a crease that has no direction, is an answer that declines to decide
+    // it — and there is exactly one place that knows which answers those are.
+    let leaves_undecided_at = |line: usize, degrees: f64| {
+        model.line_segments.get(line).is_some_and(|segment| {
+            matches!(segment.color, LineColor::None)
+                && segment.with_signed_fold_angle(degrees) == *segment
+        })
+    };
+
     match solve_fold_angles(&fan, triple, closed_bar) {
         Err(reason) => decline(reason),
         Ok(solutions) => {
@@ -890,13 +938,18 @@ pub fn vertex_angle_solutions(
                         (sources[solution.creases[2].0], solution.creases[2].1),
                     ];
                     let mut contradicts_hint = [false; 3];
+                    let mut leaves_undecided = [false; 3];
                     for (slot, (line, degrees)) in creases.iter().enumerate() {
-                        // `FoldDirection::admits` is the one predicate for "does
-                        // this angle fold the way that direction says", and it
-                        // answers no for zero — a crease that does not fold has
-                        // no direction to agree with.
+                        // *Folds the other way*, not *does not fold this way*.
+                        // The two differ on exactly one input and it is a
+                        // reachable one: a zero answer folds neither way, so
+                        // `!admits` called it a contradiction and the user was
+                        // told the solve folds the crease opposite its hint
+                        // while the write painted it the hint's own direction.
+                        // Neither half was true.
                         contradicts_hint[slot] =
-                            hint_at(*line).is_some_and(|hint| !hint.admits(*degrees));
+                            hint_at(*line).is_some_and(|hint| hint.flipped().admits(*degrees));
+                        leaves_undecided[slot] = leaves_undecided_at(*line, *degrees);
                     }
                     AngleSolution {
                         creases,
@@ -905,6 +958,7 @@ pub fn vertex_angle_solutions(
                         // would make a 0-degree answer claim it.
                         is_current: solution.is_current && !any_free,
                         contradicts_hint,
+                        leaves_undecided,
                         ..solution
                     }
                 })
@@ -1615,12 +1669,15 @@ mod tests {
                             (stored - degrees.abs()).abs() < 1e-9,
                             "{degrees} does not survive storage as {stored}"
                         );
+                        // Not `degrees < 0.0` as the expectation: that reading is
+                        // the bug this method exists to keep out of callers, and
+                        // an oracle that shares it would agree with anything.
                         assert_eq!(
-                            solution.line_color(slot),
-                            if degrees < 0.0 {
-                                LineColor::Red1
-                            } else {
-                                LineColor::Blue2
+                            solution.direction(slot),
+                            match degrees.partial_cmp(&0.0) {
+                                Some(std::cmp::Ordering::Less) => Some(FoldDirection::Mountain),
+                                Some(std::cmp::Ordering::Greater) => Some(FoldDirection::Valley),
+                                _ => None,
                             }
                         );
                     }

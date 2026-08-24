@@ -404,6 +404,17 @@ pub struct CommandPreview {
     /// why a hint does not get to veto a real answer.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub candidate_contradicts_hint: Option<bool>,
+    /// Whether the previewed solution leaves one of the picked creases
+    /// undecided.
+    ///
+    /// The answer for it is zero, which names no direction, so the write has
+    /// nothing to store on a crease that has none either — see
+    /// `AngleSolution::leaves_undecided`. The preview segments already show it
+    /// staying dashed, and this is what lets the tool *say* so: "one of your
+    /// three does not move" is the thing a user is entitled to read before
+    /// applying rather than work out from the canvas afterwards.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candidate_leaves_undecided: Option<bool>,
     /// How many creases a propagation draft worked out.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub propagation_solved: Option<usize>,
@@ -4184,15 +4195,14 @@ pub fn preview_command(
                     line_id: index + 1,
                     degrees,
                 });
-                preview.segments.push(
-                    segment
-                        .with_line_color(if degrees < 0.0 {
-                            LineColor::Red1
-                        } else {
-                            LineColor::Blue2
-                        })
-                        .with_fold_magnitude(geometry::FoldMagnitude::from_degrees(degrees.abs())),
-                );
+                // The commit's own write. Propagation applies through
+                // `set_signed_fold_angles`, so previewing anything but
+                // `with_signed_fold_angle` would be a second statement of the
+                // same rule sitting next to the first — which is how the
+                // three-angle solve's preview came to disagree with its commit.
+                preview
+                    .segments
+                    .push(segment.with_signed_fold_angle(degrees));
             }
             // Counted off the emitted list rather than the draft, so the scalar
             // cannot claim more creases than the preview actually names.
@@ -4281,6 +4291,7 @@ pub fn preview_command(
                     preview.candidate_is_family = Some(!solution.isolated);
                     preview.candidate_is_current = Some(solution.is_current);
                     preview.candidate_contradicts_hint = Some(solution.contradicts_a_hint());
+                    preview.candidate_leaves_undecided = Some(solution.leaves_any_undecided());
                     // The vertex the solve is about, so a UI anchored to it does
                     // not have to re-derive which endpoint the three creases
                     // share and risk disagreeing with the solve about it.
@@ -4311,17 +4322,12 @@ pub fn preview_command(
                         let Some(segment) = document.crease_pattern.line_segments.get(index) else {
                             continue;
                         };
-                        preview.segments.push(
-                            segment
-                                .with_line_color(if degrees < 0.0 {
-                                    LineColor::Red1
-                                } else {
-                                    LineColor::Blue2
-                                })
-                                .with_fold_magnitude(geometry::FoldMagnitude::from_degrees(
-                                    degrees.abs(),
-                                )),
-                        );
+                        // The commit's own write, not a restatement of it. A
+                        // restatement is what this was, and it disagreed with
+                        // the commit on the only inputs anyone noticed.
+                        preview
+                            .segments
+                            .push(segment.with_signed_fold_angle(degrees));
                     }
                 }
             }
@@ -5168,7 +5174,7 @@ fn delete_lines_along(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::geometry::{Circle, LineColor, Point, RgbColor};
+    use crate::geometry::{Circle, FoldDirection, LineColor, Point, RgbColor};
     use std::collections::HashSet;
 
     /// A square sheet with `creases` radiating from the origin, and the
@@ -5476,13 +5482,14 @@ mod tests {
             .collect();
         for crease in &preview.propagation_creases {
             let written = &applied.crease_pattern.line_segments[crease.line_id - 1];
+            // Asked of the write rather than restated as `degrees < 0.0`: that
+            // restatement is what the preview used to carry, and it disagreed
+            // with the commit on a zero angle — including on `-0.0`, which the
+            // two spellings of "is it negative" read opposite ways.
             assert_eq!(
-                written.color,
-                if crease.degrees < 0.0 {
-                    LineColor::Red1
-                } else {
-                    LineColor::Blue2
-                },
+                *written,
+                document.crease_pattern.line_segments[crease.line_id - 1]
+                    .with_signed_fold_angle(crease.degrees),
                 "line {}",
                 crease.line_id
             );
@@ -6099,7 +6106,10 @@ mod tests {
             .iter()
             .position(|(line, _)| *line == unassigned)
             .expect("the answer names the crease");
-        assert_eq!(segment.color, first.line_color(slot));
+        assert_eq!(
+            Some(segment.color),
+            first.direction(slot).map(FoldDirection::line_color)
+        );
         assert_eq!(segment.fold_magnitude, first.fold_magnitude(slot));
         assert_eq!(segment.fold_direction_hint, None);
         // The measured answer: arccos(1/3), the same 70.5287794 the vertex's
@@ -6114,7 +6124,11 @@ mod tests {
                 continue;
             }
             let segment = &document.crease_pattern.line_segments[*line];
-            assert_eq!(segment.color, first.line_color(other), "line {line}");
+            assert_eq!(
+                Some(segment.color),
+                first.direction(other).map(FoldDirection::line_color),
+                "line {line}"
+            );
             assert_eq!(segment.fold_magnitude, None, "line {line} at {degrees}");
             assert_eq!(crate::model::crease_fold_angle(segment), Some(180.0));
         }
@@ -6152,7 +6166,9 @@ mod tests {
                 .iter()
                 .position(|(line, _)| *line == unassigned)
                 .expect("the answer names the crease");
-            let against_the_hint = solution.creases[slot].1 < 0.0;
+            // The hint is Valley, so folding against it means folding *mountain*
+            // — asked of the one sign predicate rather than restated here.
+            let against_the_hint = solution.direction(slot) == Some(FoldDirection::Mountain);
             assert_eq!(
                 solution.contradicts_hint[slot], against_the_hint,
                 "{:?} disagrees with its own sign",
@@ -6188,6 +6204,190 @@ mod tests {
         assert_eq!(preview.candidate_contradicts_hint, Some(false));
     }
 
+    /// The reported vertex, one edit along: the crease that *was* unassigned now
+    /// carries its solved angle, and one of the 109.47 valleys is unassigned in
+    /// its place, keeping its direction.
+    ///
+    /// This is where a zero answer reaches an unassigned crease. The first
+    /// branch folds it by `-0.0`, and both halves of the old behaviour were
+    /// wrong at once: the tool said *"this folds a crease the opposite way from
+    /// the direction remembered for it"* — because `contradicts_hint` asked *not
+    /// this direction* rather than *the other direction*, and zero is neither —
+    /// and then the commit painted it Blue2, which is the direction the hint
+    /// stated, at a magnitude of zero.
+    fn a_zero_answer_at_the_reported_vertex() -> (CreasePatternDocument, Point, [usize; 3], usize) {
+        let (mut document, lines) = reported_failure_case_vertex();
+        let segments = &mut document.crease_pattern.line_segments;
+        segments[lines[1]] = segments[lines[1]].with_signed_fold_angle(70.5287793);
+        segments[lines[2]] = segments[lines[2]].with_direction_kept();
+        (
+            document,
+            Point::new(550.0, 1450.0),
+            [lines[0], lines[1], lines[2]],
+            lines[2],
+        )
+    }
+
+    /// Zero folds neither way, so it does not contradict a hint that says one.
+    ///
+    /// `contradicts_hint` was `!admits(degrees)` — *not this direction* — and
+    /// `admits` answers no for zero by design. So a crease the answer declines
+    /// to fold was reported as folding against the mark, in nine languages, on
+    /// the branch `candidate_index: None` applies.
+    #[test]
+    fn a_zero_answer_does_not_contradict_a_hint() {
+        let (document, vertex, chosen, undecided) = a_zero_answer_at_the_reported_vertex();
+        let solved = solve_fold_angles::vertex_angle_solutions(
+            &document.crease_pattern,
+            vertex,
+            &chosen,
+            CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
+        );
+        let slot = solved.solutions[0]
+            .creases
+            .iter()
+            .position(|(line, _)| *line == undecided)
+            .expect("the answer names the crease");
+        assert_eq!(
+            solved.solutions[0].creases[slot].1, 0.0,
+            "this branch is the one that does not fold the hinted crease"
+        );
+        assert!(
+            !solved.solutions[0].contradicts_hint[slot],
+            "an answer that does not fold the crease cannot fold it the wrong way"
+        );
+        // The mark still earns its warning where it means something: another
+        // branch folds the Valley-hinted crease to -180, and that one is a real
+        // clash the apply would erase.
+        assert!(
+            solved
+                .solutions
+                .iter()
+                .any(solve_fold_angles::AngleSolution::contradicts_a_hint),
+            "the mountain branch is still flagged"
+        );
+        let preview = preview_command(&document, solve_command(vertex, &chosen, None))
+            .expect("preview succeeds");
+        assert_eq!(preview.candidate_contradicts_hint, Some(false));
+    }
+
+    /// A zero answer names no direction, so it does not decide an undecided
+    /// crease — and the preview and the commit say the same thing about that.
+    ///
+    /// The alternative the fix rejects is what shipped: `Blue2` with magnitude
+    /// zero, a decided valley that folds by nothing. `is_classic_crease` is
+    /// false for it, so one such crease flips the whole document non-classic —
+    /// `.cp` export blocked, the 2D folded view blocked, all three cost paths on
+    /// — for a crease that does not fold, while `FoldDirection::admits` says
+    /// elsewhere in this crate that it has no direction at all.
+    #[test]
+    fn a_zero_answer_leaves_an_unassigned_crease_undecided() {
+        let (mut document, vertex, chosen, undecided) = a_zero_answer_at_the_reported_vertex();
+        let before = document.crease_pattern.line_segments[undecided].clone();
+        assert_eq!(before.color, LineColor::None);
+        assert_eq!(before.fold_direction_hint, Some(FoldDirection::Valley));
+
+        let solved = solve_fold_angles::vertex_angle_solutions(
+            &document.crease_pattern,
+            vertex,
+            &chosen,
+            CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
+        );
+        let slot = solved.solutions[0]
+            .creases
+            .iter()
+            .position(|(line, _)| *line == undecided)
+            .expect("the answer names the crease");
+        assert!(solved.solutions[0].leaves_undecided[slot]);
+        assert!(solved.solutions[0].leaves_any_undecided());
+
+        // The surface is told before Apply, rather than left to infer it from a
+        // crease that did not move.
+        let preview = preview_command(&document, solve_command(vertex, &chosen, None))
+            .expect("preview succeeds");
+        assert_eq!(preview.candidate_leaves_undecided, Some(true));
+        // And the preview draws it as it will be: still undecided, hint intact.
+        let shown = preview
+            .segments
+            .iter()
+            .find(|segment| segment.a == before.a && segment.b == before.b)
+            .expect("the preview shows all three picks");
+        assert_eq!(*shown, before, "the preview promised a different crease");
+
+        execute_command(&mut document, solve_command(vertex, &chosen, None))
+            .expect("the solve applies");
+        let after = &document.crease_pattern.line_segments[undecided];
+        assert_eq!(
+            *after, before,
+            "a zero answer decided a crease it has no direction for"
+        );
+        assert_eq!(after.fold_direction_hint, Some(FoldDirection::Valley));
+        assert!(
+            model::is_classic_crease(after),
+            "an undecided crease must not turn the document non-classic"
+        );
+
+        // The rest of the answer still lands — leaving one crease alone is not a
+        // licence to skip the other two.
+        for (line, degrees) in solved.solutions[0].creases {
+            if line == undecided {
+                continue;
+            }
+            assert_eq!(
+                model::crease_fold_angle(&document.crease_pattern.line_segments[line])
+                    .expect("a decided crease has an angle")
+                    .abs(),
+                degrees.abs(),
+                "line {line}"
+            );
+        }
+    }
+
+    /// The same zero hole on the path that predates the unassigned one: a
+    /// decided crease keeps the direction the user already gave it.
+    ///
+    /// `set_signed_fold_angles` served `Red1`/`Blue2` long before a solve could
+    /// reach an unassigned crease, and `degrees < 0.0` turned every zero answer
+    /// into a valley — silently flipping a mountain the solve never asked to
+    /// move. `-0.0` flipped it too, because `-0.0 < 0.0` is false, so the
+    /// solver's own sign was discarded on the one input where the two spellings
+    /// of "negative" disagree.
+    #[test]
+    fn a_zero_answer_keeps_the_direction_a_decided_crease_already_has() {
+        for zero in [0.0_f64, -0.0_f64] {
+            for (color, hint) in [
+                (LineColor::Red1, FoldDirection::Mountain),
+                (LineColor::Blue2, FoldDirection::Valley),
+            ] {
+                let mut model = CreasePatternModel::default();
+                model.line_segments.push(
+                    geometry::LineSegment::with_color(
+                        Point::new(0.0, 0.0),
+                        Point::new(100.0, 0.0),
+                        color,
+                    )
+                    .with_fold_magnitude(geometry::FoldMagnitude::from_degrees(120.0)),
+                );
+                let changed = operations::color::set_signed_fold_angles(&mut model, &[(0, zero)]);
+                let written = &model.line_segments[0];
+                assert_eq!(changed, 1, "{color:?} at {zero}");
+                assert_eq!(
+                    written.color, color,
+                    "{color:?} changed direction on a {zero} answer"
+                );
+                assert_eq!(
+                    written.fold_magnitude,
+                    Some(geometry::FoldMagnitude::FLAT),
+                    "{color:?} at {zero}"
+                );
+                // The colour still means what it meant: this crease is a `hint`
+                // that happens to fold by nothing, not a crease of the opposite
+                // family.
+                assert_eq!(FoldDirection::from_line_color(written.color), Some(hint));
+            }
+        }
+    }
+
     /// The colour and the magnitude have to land in one step. Closing a vertex
     /// can require a mountain to become a valley, and a two-operation apply
     /// would put a crease carrying the new angle with the old direction on the
@@ -6214,7 +6414,11 @@ mod tests {
 
         for (slot, (line, degrees)) in expected.creases.iter().enumerate() {
             let segment = &document.crease_pattern.line_segments[*line];
-            assert_eq!(segment.color, expected.line_color(slot), "line {line}");
+            assert_eq!(
+                Some(segment.color),
+                expected.direction(slot).map(FoldDirection::line_color),
+                "line {line}"
+            );
             assert_eq!(
                 segment.fold_magnitude,
                 expected.fold_magnitude(slot),

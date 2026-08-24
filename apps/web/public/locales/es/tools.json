@@ -147,6 +147,7 @@
       "creaseNotInFan": "Elige tres pliegues distintos que coincidan en el mismo vértice.",
       "current": "Esto es lo que el vértice ya hace: avanza para ver la alternativa.",
       "family": "Estos tres pliegues dejan un grado de libertad, así que esta es una de infinitas respuestas: elige otro tercer pliegue para obtener una definida.",
+      "leavesUndecided": "Esta respuesta no pliega uno de los pliegues en absoluto, así que queda sin decidir: avanza para ver una respuesta que decida los tres.",
       "notEnoughCreases": "Aquí coinciden menos de tres pliegues, así que no hay tres ángulos que resolver.",
       "title": "Ángulos de plegado",
       "unreachable": "Estos tres pliegues no pueden cerrar este vértice con ningún ángulo: prueba con otros tres."

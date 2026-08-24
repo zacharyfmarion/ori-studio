@@ -147,6 +147,7 @@
       "creaseNotInFan": "Escolha três vincos diferentes que se encontrem no mesmo vértice.",
       "current": "Isto é o que o vértice já faz — avance para ver a alternativa.",
       "family": "Estes três vincos deixam um grau de liberdade, então esta é uma entre infinitas respostas — escolha outro terceiro vinco para obter uma definida.",
+      "leavesUndecided": "Esta resposta não dobra um dos vincos, então ele fica indefinido — avance para ver uma resposta que define os três.",
       "notEnoughCreases": "Menos de três vincos se encontram aqui, então não há três ângulos a resolver.",
       "title": "Ângulos de dobra",
       "unreachable": "Estes três vincos não fecham este vértice com nenhum ângulo de dobra — tente outros três."

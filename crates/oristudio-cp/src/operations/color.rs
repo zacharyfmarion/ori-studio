@@ -406,57 +406,27 @@ pub fn set_fold_magnitude_for_indices(
 /// stack that the solve never proposed — a crease carrying the new angle with
 /// the old direction, which is a different fold.
 ///
-/// # An unassigned crease is a crease this may decide
+/// # This decides nothing itself
 ///
-/// `LineColor::None` is admitted alongside `Red1`/`Blue2`, and that is the whole
-/// point of the operation rather than a leniency. A solved angle *is* a
-/// decision: the sign names the direction, so a crease that had none comes out
-/// with one, and `with_line_color` drops the direction hint on the way past
-/// because the invariant forbids a hint on a decided crease.
+/// The whole per-crease rule — which colours are eligible (unassigned included:
+/// deciding one is the point of the operation, and excluding it made the
+/// three-angle solve apply **two thirds** of its own answer), what the sign
+/// names, what a zero does, how 180 normalises — lives in
+/// [`LineSegment::with_signed_fold_angle`], because the *preview* has to produce
+/// the identical segment and a second copy of the rule is how these two came to
+/// disagree in the first place. This is the loop and the change count around it,
+/// and nothing more. See `a_solve_decides_the_unassigned_crease_it_was_given`.
 ///
-/// Excluding it made the three-angle solve apply **two thirds** of its own
-/// answer. The tool's fan deliberately keeps unassigned creases — they are
-/// precisely what the user nominates it to work out — so every solve that
-/// included one wrote the other two and silently skipped it, leaving the crease
-/// undecided at a vertex the solve had just declared closed. The preview never
-/// had the guard, so it showed the right answer and the commit wrote a different
-/// one. See `a_solve_decides_the_unassigned_crease_it_was_given`.
-///
-/// Borders and auxiliary lines stay out: those are not creases and no solve
-/// names them. Angles outside `-180..=180` are skipped rather than clamped — a
-/// caller offering one has a bug, and clamping would hide it behind a
-/// plausible-looking crease.
+/// The count is creases that really moved: a write landing on the state the
+/// crease is already in is not one, which is what lets propagation use it to ask
+/// "did this crease move".
 pub fn set_signed_fold_angles(model: &mut CreasePatternModel, angles: &[(usize, f64)]) -> usize {
     let mut changed = 0;
     for &(index, degrees) in angles {
         let Some(segment) = model.line_segments.get(index) else {
             continue;
         };
-        if !matches!(
-            segment.color,
-            LineColor::Red1 | LineColor::Blue2 | LineColor::None
-        ) {
-            continue;
-        }
-        let Some(magnitude) = FoldMagnitude::from_degrees(degrees.abs()) else {
-            continue;
-        };
-        let color = if degrees < 0.0 {
-            LineColor::Red1
-        } else {
-            LineColor::Blue2
-        };
-        // Colour first, and not as a matter of taste: `with_fold_magnitude` is a
-        // no-op on anything that is not `Red1`/`Blue2`, so on an unassigned
-        // crease the reverse order would drop the angle on the floor.
-        //
-        // It also normalises a full fold to `None`, which is the one canonical
-        // form for 180 degrees and is what keeps a classic document classic —
-        // and therefore off the three cost paths that a single non-classic
-        // crease switches on for the whole document.
-        let updated = segment
-            .with_line_color(color)
-            .with_fold_magnitude(Some(magnitude));
+        let updated = segment.with_signed_fold_angle(degrees);
         if updated == *segment {
             continue;
         }

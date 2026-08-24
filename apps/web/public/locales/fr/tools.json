@@ -147,6 +147,7 @@
       "creaseNotInFan": "Choisissez trois plis différents qui se rejoignent au même sommet.",
       "current": "C'est ce que le sommet fait déjà — avancez pour voir l'alternative.",
       "family": "Ces trois plis laissent un degré de liberté ; c'est donc une réponse parmi une infinité — choisissez un autre troisième pli pour en obtenir une définie.",
+      "leavesUndecided": "Cette réponse ne plie pas du tout l'un des plis, il reste donc indécis — avancez pour voir une réponse qui décide les trois.",
       "notEnoughCreases": "Moins de trois plis se rejoignent ici, il n'y a donc pas trois angles à résoudre.",
       "title": "Angles de pliage",
       "unreachable": "Ces trois plis ne peuvent fermer ce sommet à aucun angle — essayez-en trois autres."
