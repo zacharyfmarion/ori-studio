@@ -1,0 +1,24 @@
+# Pin the toolchain, rather than letting CI float on whatever `stable` is today.
+#
+# CI installs Rust with `dtolnay/rust-toolchain@stable`, so the compiler version
+# was decided by the calendar rather than by this repository. On 2026-08-18
+# stable became 1.98.0, which added three clippy lints — `chunks_exact_to_as_chunks`,
+# `needless_late_init` and `drain_collect` — that fire on about twenty-six
+# existing call sites. Because CI runs clippy with `-D warnings`, every pull
+# request went red at once, including ones touching no Rust at all, and main
+# would fail today on a commit that passed four days earlier.
+#
+# rustup honours this file regardless of which toolchain the workflow installed,
+# so pinning here fixes all of it without editing four workflow files, and the
+# version stops being a property of when a job happened to run.
+#
+# This is deliberately a *hold*, not a verdict on the lints: they are reasonable
+# and the migration is worth doing. It is separated so that the migration —
+# which rewrites lines inside `oristudio-bp` and `oristudio-cp`, ports whose
+# discipline is to stay close to vendored upstream — can be reviewed on its own
+# terms rather than as collateral in whatever PR happened to be open. Raise this
+# in the same change that lands those fixes.
+[toolchain]
+channel = "1.96.1"
+components = ["clippy", "rustfmt"]
+targets = ["wasm32-unknown-unknown"]
