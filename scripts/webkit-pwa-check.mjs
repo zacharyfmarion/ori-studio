@@ -363,14 +363,44 @@ async function main() {
     // Cache Storage holds decoded bytes, so the number here is the raw size, not
     // the gzipped one — the figure worth knowing before asking anyone to install
     // this on a tablet.
+    //
+    // `navigator.storage` is absent from the Linux WebKit build Playwright ships,
+    // and present in the macOS one — so this read threw an uncaught TypeError on
+    // CI while passing locally, thirteen checks in. The quota half is therefore
+    // best-effort: when the API is missing the cache is measured by summing its
+    // own entries, which is the part this check actually exists to assert. Quota
+    // headroom is a nice-to-have that only one of the two engines can answer.
     const storage = await page.evaluate(async () => {
-      const { usage, quota } = await navigator.storage.estimate();
-      return { usage, quota, persisted: await navigator.storage.persisted() };
+      const estimate =
+        typeof navigator.storage?.estimate === 'function'
+          ? await navigator.storage.estimate()
+          : null;
+      let usage = estimate?.usage ?? 0;
+      if (estimate === null) {
+        for (const name of await caches.keys()) {
+          const cache = await caches.open(name);
+          for (const request of await cache.keys()) {
+            const response = await cache.match(request);
+            if (response) usage += (await response.clone().blob()).size;
+          }
+        }
+      }
+      return {
+        usage,
+        quota: estimate?.quota ?? null,
+        persisted:
+          typeof navigator.storage?.persisted === 'function'
+            ? await navigator.storage.persisted()
+            : null,
+      };
     });
     check(
       'the cache is real, measurable, and small against quota',
-      storage.usage > 2_000_000 && storage.usage < storage.quota / 10,
-      `${(storage.usage / 1e6).toFixed(1)} MB used of ${Math.round(storage.quota / 1e6)} MB quota` +
+      storage.usage > 2_000_000 && (storage.quota === null || storage.usage < storage.quota / 10),
+      `${(storage.usage / 1e6).toFixed(1)} MB used of ` +
+        (storage.quota === null
+          ? 'an unreported quota (no navigator.storage on this engine)'
+          : `${Math.round(storage.quota / 1e6)} MB quota`) +
         `, persisted=${storage.persisted}`
     );
 
@@ -463,4 +493,23 @@ async function main() {
   if (failed.length) process.exit(1);
 }
 
-await main();
+/**
+ * A throw is a failed lane, not a crashed one.
+ *
+ * Without this an unexpected error exits on an uncaught exception, which reports
+ * a stack trace and *nothing about the checks* — including how many never ran.
+ * That is how a missing `navigator.storage` on the Linux WebKit build read as
+ * "the PWA check is broken" when what it meant was "check 14 of 22 hit an API
+ * this engine does not have, and 15 through 22 were never attempted".
+ *
+ * Same exit code either way, so CI is no less strict; the difference is entirely
+ * in what the log says happened.
+ */
+await main().catch((error) => {
+  console.error(`\nThe lane threw before it finished: ${error?.stack ?? error}`);
+  console.error(
+    'Checks after this point did not run. If this is an API the engine lacks, ' +
+      'guard the read rather than deleting the check.'
+  );
+  process.exit(1);
+});
