@@ -1211,17 +1211,38 @@
   transform: translateX(21px);
 }
 
+/*
+ * Every full-screen overlay's inset, in one place.
+ *
+ * They are `position: fixed`, so `.app-layout`'s safe-area padding does not
+ * reach them: a dialog centred in the raw viewport sits under the camera housing
+ * in landscape, and under the status bar in a standalone PWA. Each edge takes
+ * whichever is larger, the gutter or the inset.
+ *
+ * The *gutter* is the only part an override may change, which is the whole point
+ * of routing it through a custom property. Both narrow-width blocks below used
+ * to re-declare `padding` outright, and a shorthand replaces all four edges — so
+ * on a phone the Settings dialog stretched to the full viewport with an 8px
+ * inset, and its close button (moved to `top: 0` by the phone layout) landed
+ * under the status bar with no way to reach it. Measured on a 16 Pro Max in
+ * standalone, where the top inset is ~62pt; in Safari it is 0 in portrait, which
+ * is why the browser could never show the bug. A gutter cannot express it.
+ */
+.settings-modal,
+.simple-modal,
+.help-modal {
+  --modal-gutter: var(--space-4);
+
+  padding: max(var(--modal-gutter), var(--safe-top)) max(var(--modal-gutter), var(--safe-right))
+    max(var(--modal-gutter), var(--safe-bottom)) max(var(--modal-gutter), var(--safe-left));
+}
+
 .settings-modal {
   position: fixed;
   inset: 0;
   z-index: var(--z-modal);
   display: grid;
   place-items: center;
-  /* Fixed to the viewport, so `.app-layout`'s safe-area padding does not reach
-     it: a dialog centred in the raw viewport can sit under the camera housing in
-     landscape. Each edge takes whichever is larger, the gutter or the inset. */
-  padding: max(var(--space-4), var(--safe-top)) max(var(--space-4), var(--safe-right))
-    max(var(--space-4), var(--safe-bottom)) max(var(--space-4), var(--safe-left));
   background: var(--overlay-dim);
   backdrop-filter: blur(4px);
 }
@@ -1338,8 +1359,6 @@
   z-index: var(--z-modal);
   display: grid;
   place-items: center;
-  padding: max(var(--space-4), var(--safe-top)) max(var(--space-4), var(--safe-right))
-    max(var(--space-4), var(--safe-bottom)) max(var(--space-4), var(--safe-left));
   background: var(--overlay-dim);
   backdrop-filter: blur(4px);
 }
@@ -2667,7 +2686,9 @@
 @media (max-width: 620px) {
   .settings-modal {
     place-items: stretch;
-    padding: var(--space-2);
+    /* The gutter, not the padding: the safe-area insets are added around it by
+       the shared rule above, and a `padding` here would replace them. */
+    --modal-gutter: var(--space-2);
   }
 
   .simple-modal__document--export {
@@ -2752,8 +2773,6 @@
   z-index: var(--z-modal);
   display: grid;
   place-items: center;
-  padding: max(var(--space-4), var(--safe-top)) max(var(--space-4), var(--safe-right))
-    max(var(--space-4), var(--safe-bottom)) max(var(--space-4), var(--safe-left));
   background: var(--overlay-dim);
   backdrop-filter: blur(4px);
 }
@@ -2956,7 +2975,10 @@
 @media (max-width: 680px) {
   .help-modal {
     place-items: stretch;
-    padding: var(--space-2);
+    /* See `.settings-modal`'s counterpart: the gutter, never the padding. The
+       About dialog stretches to the viewport here too, so its close button is
+       under the status bar the moment the insets stop applying. */
+    --modal-gutter: var(--space-2);
   }
 
   .help-modal__document--about {
