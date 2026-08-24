@@ -13,9 +13,9 @@ import { getRuntimeSurface } from './runtime';
  *
  * This is the **gate**, and nothing else. What a phone-shaped viewport *is* — and
  * how the app lays out on one — belongs to `platform/phoneLayout`, which this
- * module composes with a capability. Keeping them apart is not tidiness: the
- * capability is `false` on both Tauri shells, so a layout asking this question
- * would give a native iPhone the desktop chrome.
+ * module composes with a runtime check. Keeping them apart is not tidiness: the
+ * exemption below is false for the Tauri shell, so a layout asking *this*
+ * question would give a native phone build the desktop chrome.
  */
 export { PHONE_MEDIA_QUERY };
 
