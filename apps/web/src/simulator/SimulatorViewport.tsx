@@ -20,7 +20,12 @@ import {
 } from "./simulatorPalette";
 import type { SimulatorFrameView } from "./useSimulatorRuntime";
 import type { SimulatorRenderModel } from "./renderModel";
-import { recordSimulatorProbe } from "./simulatorPerfProbe";
+import {
+  beginOrbitGesture,
+  endOrbitGesture,
+  recordOrbitMove,
+  recordSimulatorProbe,
+} from "./simulatorPerfProbe";
 import {
   clampSimulatorZoom,
   nextSimulatorOrbitView,
@@ -214,6 +219,17 @@ export interface SimulatorViewportProps {
   className?: string;
   ariaLabel: string;
   title?: string;
+  /**
+   * Which surface this is, in the `sim-perf` orbit log.
+   *
+   * Three surfaces share this component and one worker, so a global readout
+   * cannot otherwise say which of them was dragged — and they differ in the way
+   * that matters here: the Simulate panel owns a transferred canvas the worker
+   * draws straight into, while an inline window and a folded figure are drawn
+   * into the shared buffer and cropped out as bitmaps. Debug-only; not a
+   * user-visible string, so not localized.
+   */
+  perfSurface?: string;
 }
 
 export function SimulatorViewport({
@@ -237,6 +253,7 @@ export function SimulatorViewport({
   className,
   ariaLabel,
   title,
+  perfSurface = 'viewport',
 }: SimulatorViewportProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const modelRef = useRef<SimulatorRenderModel | null>(null);
@@ -518,6 +535,8 @@ export function SimulatorViewport({
   const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     if (!interactiveRef.current) return;
     event.currentTarget.setPointerCapture(event.pointerId);
+    // A drag is the unit the orbit readout reports on; see `beginOrbitGesture`.
+    beginOrbitGesture(perfSurface);
     dragRef.current = {
       pointerId: event.pointerId,
       x: event.clientX,
@@ -530,6 +549,10 @@ export function SimulatorViewport({
   const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
+    // Counted before the push, so the log compares pointer input against
+    // messages sent rather than against itself. They are equal today — nothing
+    // coalesces — which is the baseline any fix has to move.
+    recordOrbitMove();
     viewRef.current = nextSimulatorOrbitView(viewRef.current, drag, {
       x: event.clientX,
       y: event.clientY,
@@ -543,6 +566,9 @@ export function SimulatorViewport({
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
     dragRef.current = null;
+    // The line lands once the backlog drains, which is the measurement: how long
+    // the fold keeps moving after the pointer stopped.
+    endOrbitGesture();
   };
 
   // Zoom, as a native listener rather than an `onWheel` prop.
