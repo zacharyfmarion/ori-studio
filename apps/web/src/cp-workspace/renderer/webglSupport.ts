@@ -35,7 +35,19 @@ export const CP_GL_ATTRIBUTES: WebGLContextAttributes = {
 /** The one extension the renderer cannot run without. */
 export const CP_REQUIRED_EXTENSION = 'ANGLE_instanced_arrays';
 
-export type CpWebglGap = 'no-context' | 'no-instanced-arrays';
+export type CpWebglGap =
+  | 'no-context'
+  | 'no-instanced-arrays'
+  /**
+   * A context was granted and was already dead when regl asked it anything.
+   *
+   * Distinct from `no-context` because the cause and the advice are different:
+   * this is a document that has run out of GL contexts, not a stack that cannot
+   * provide one. Every `getExtension` on a lost context returns null, so left
+   * unnamed this arrives as a missing-extension error and reads as a decade-old
+   * GPU — see {@link classifyCpWebglFailure}.
+   */
+  | 'context-lost-at-start';
 
 export type CpWebglSupport = { supported: true } | { supported: false; gap: CpWebglGap };
 
@@ -44,9 +56,14 @@ export type CpWebglSupport = { supported: true } | { supported: false; gap: CpWe
  * register as the raw error message that line otherwise carries.
  */
 export function describeCpWebglGap(gap: CpWebglGap): string {
-  return gap === 'no-context'
-    ? 'no WebGL context (getContext("webgl") returned null)'
-    : `WebGL context without ${CP_REQUIRED_EXTENSION}`;
+  switch (gap) {
+    case 'no-context':
+      return 'no WebGL context (getContext("webgl") returned null)';
+    case 'context-lost-at-start':
+      return 'WebGL context was already lost when the renderer started';
+    case 'no-instanced-arrays':
+      return `WebGL context without ${CP_REQUIRED_EXTENSION}`;
+  }
 }
 
 /**
@@ -88,6 +105,47 @@ export function probeCpWebglSupport(): CpWebglSupport {
   } finally {
     gl.getExtension('WEBGL_lose_context')?.loseContext();
   }
+}
+
+/**
+ * Why the renderer failed on *this* canvas, asked after regl has thrown on it.
+ *
+ * The probe and regl can disagree, and when they do the user is told the wrong
+ * thing. The probe runs on a throwaway 1×1 canvas and hands the context slot
+ * straight back; the renderer runs on the real one, moments later, on a document
+ * that may by then hold several live contexts. A stack that granted the first
+ * can still fail the second — and WebKit fails it by handing back a context that
+ * is already lost rather than by returning null. Every `getExtension` on a lost
+ * context returns null, so regl raises its missing-extension error and the
+ * editor tells someone with a perfectly capable GPU to upgrade their system.
+ *
+ * Asking the canvas itself is what separates those. `getContext` returns the
+ * context regl already created rather than making a second one, so this observes
+ * the failure instead of reconstructing it.
+ *
+ * Returns `null` when the canvas looks healthy — regl throws for reasons that
+ * are not capability gaps (a shader that would not compile, for one), and
+ * claiming a gap we cannot see would be the same mistake in the other direction.
+ * The caller keeps the raw message in that case.
+ *
+ * Deliberately **not** the probe: nothing here calls `loseContext`, which on the
+ * real canvas would destroy the context the caller is about to report on.
+ */
+export function classifyCpWebglFailure(canvas: HTMLCanvasElement): CpWebglGap | null {
+  let gl: WebGLRenderingContext | null;
+  try {
+    gl = acquireProbeContext(canvas);
+  } catch {
+    return 'no-context';
+  }
+  if (!gl) return 'no-context';
+  if (gl.isContextLost()) return 'context-lost-at-start';
+  try {
+    if (!gl.getExtension(CP_REQUIRED_EXTENSION)) return 'no-instanced-arrays';
+  } catch {
+    return 'no-instanced-arrays';
+  }
+  return null;
 }
 
 let cached: CpWebglSupport | null = null;

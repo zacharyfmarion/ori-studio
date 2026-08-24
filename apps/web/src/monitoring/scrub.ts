@@ -91,6 +91,53 @@ export function scrubBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb | null {
   };
 }
 
+/**
+ * Where this app's own JavaScript lives, in every build that reports.
+ *
+ * Vite emits one content-hashed bundle under `/assets/`, and the service worker
+ * treats that prefix as the whole of the build output (`swRoutes.ts`). Workers
+ * ship there too. The desktop shell serves the same tree from `tauri://`, so the
+ * path is what identifies us rather than the origin.
+ */
+const APP_SCRIPT_PATH = '/assets/';
+
+/**
+ * Whether an event's stack is entirely somebody else's code.
+ *
+ * `denyUrls` already drops the easy half of this — anything whose frames name a
+ * `chrome-extension://` URL. What it cannot drop is an extension or in-app
+ * browser that *injects* a script into the document, because injected inline
+ * code is attributed to the page's own URL. Those arrived looking exactly like a
+ * crash in the welcome screen (ORI-STUDIO-3: `Properties can only be defined on
+ * Objects`, whose entire stack was `/welcome` plus `[native code]`), and the app
+ * has no inline script for them to have come from — `index.html` carries one
+ * module tag pointing at `/assets/`, and the only thing ever injected into it is
+ * a `type="application/json"` block on the share route, which does not execute.
+ *
+ * So the test is positive, not a denylist: an event whose stack contains no
+ * frame from our bundle at all is not about our bundle. It is deliberately
+ * conservative in the two directions that matter —
+ *
+ * - **No frames at all is not foreign.** A rejected `import()` reports no
+ *   stacktrace in several engines, and those are real (ORI-STUDIO-5/6). Only a
+ *   stack that exists and names only strangers counts.
+ * - **One frame of ours is enough.** Third-party code sitting between our frames
+ *   — a polyfill, a wrapper an extension monkey-patched over a DOM method — is
+ *   still our crash to explain.
+ *
+ * Runs before symbolication, on the client, so `filename` here is the URL the
+ * browser loaded and not the source path Sentry later maps it to.
+ */
+export function isForeignScriptEvent(event: ErrorEvent): boolean {
+  const frames = (event.exception?.values ?? []).flatMap(
+    (value) => value.stacktrace?.frames ?? []
+  );
+  if (frames.length === 0) return false;
+  return !frames.some((frame) =>
+    [frame.filename, frame.abs_path].some((path) => path?.includes(APP_SCRIPT_PATH))
+  );
+}
+
 /** Redact an event in place and return it, per Sentry's `beforeSend` contract. */
 export function scrubEvent(event: ErrorEvent): ErrorEvent {
   if (event.message) event.message = redactSensitiveText(event.message);

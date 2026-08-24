@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  classifyCpWebglFailure,
   CP_REQUIRED_EXTENSION,
   cpWebglSupport,
   describeCpWebglGap,
@@ -10,19 +11,31 @@ import {
  * Stub `getContext` for the probe's throwaway canvas. `extensions` names the
  * extensions the fake context admits to; anything else answers null, which is
  * what a real context does for one it does not implement.
+ *
+ * `lost` models the case a real lost context presents: `isContextLost()` is true
+ * *and* every `getExtension` answers null, which is why the two have to be asked
+ * in that order to tell them apart.
  */
-function stubContext(options: { context: boolean; extensions?: readonly string[] }) {
+function stubContext(options: {
+  context: boolean;
+  extensions?: readonly string[];
+  lost?: boolean;
+}) {
   const lose = vi.fn();
   const extensions = new Set(options.extensions ?? []);
   const getExtension = (name: string) =>
     name === 'WEBGL_lose_context'
       ? { loseContext: lose }
-      : extensions.has(name)
+      : !options.lost && extensions.has(name)
         ? {}
         : null;
   const spy = vi
     .spyOn(HTMLCanvasElement.prototype, 'getContext')
-    .mockImplementation(() => (options.context ? ({ getExtension } as unknown as null) : null));
+    .mockImplementation(() =>
+      options.context
+        ? ({ getExtension, isContextLost: () => options.lost === true } as unknown as null)
+        : null
+    );
   return { lose, spy };
 }
 
@@ -75,9 +88,52 @@ describe('probeCpWebglSupport', () => {
   });
 
   it('names each gap distinctly', () => {
-    expect(describeCpWebglGap('no-context')).not.toEqual(
-      describeCpWebglGap('no-instanced-arrays')
+    const described = (['no-context', 'no-instanced-arrays', 'context-lost-at-start'] as const).map(
+      describeCpWebglGap
     );
+    expect(new Set(described).size).toBe(described.length);
     expect(describeCpWebglGap('no-instanced-arrays')).toContain(CP_REQUIRED_EXTENSION);
+  });
+});
+
+/**
+ * The classifier exists because the probe passing and regl throwing is a real
+ * combination, and the user was being told the wrong thing when it happened
+ * (ORI-STUDIO-4). What it must never do is agree with regl by default.
+ */
+describe('classifyCpWebglFailure', () => {
+  const canvas = () => document.createElement('canvas');
+
+  it('separates an exhausted document from an incapable one', () => {
+    stubContext({ context: true, extensions: [CP_REQUIRED_EXTENSION], lost: true });
+    expect(classifyCpWebglFailure(canvas())).toBe('context-lost-at-start');
+  });
+
+  // The same observable symptom as above — every getExtension answers null — and
+  // the only thing that distinguishes them is that this context is alive.
+  it('reports no-instanced-arrays for a live context missing the extension', () => {
+    stubContext({ context: true, extensions: [] });
+    expect(classifyCpWebglFailure(canvas())).toBe('no-instanced-arrays');
+  });
+
+  it('reports no-context when the canvas has none', () => {
+    stubContext({ context: false });
+    expect(classifyCpWebglFailure(canvas())).toBe('no-context');
+  });
+
+  // regl throws for things that are not capability gaps at all — a shader that
+  // will not compile, say. Naming a gap here would be the same wrong answer the
+  // classifier was added to stop, pointing the other way.
+  it('declines to name a gap on a healthy canvas, so the raw error survives', () => {
+    stubContext({ context: true, extensions: [CP_REQUIRED_EXTENSION] });
+    expect(classifyCpWebglFailure(canvas())).toBeNull();
+  });
+
+  // The probe may throw this away; the real canvas may not. The caller is about
+  // to report on the context this just inspected.
+  it('leaves the inspected context alive', () => {
+    const { lose } = stubContext({ context: true, extensions: [CP_REQUIRED_EXTENSION] });
+    classifyCpWebglFailure(canvas());
+    expect(lose).not.toHaveBeenCalled();
   });
 });

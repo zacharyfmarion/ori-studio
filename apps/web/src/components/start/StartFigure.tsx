@@ -182,7 +182,24 @@ export function StartFigure() {
         return;
       }
 
-      const { StartFigureMesh } = await import('./startFigureMesh');
+      // Allowed to fail, and not a crash when it does. This chunk is fetched
+      // long after the page loaded, and its name is content-hashed: once a
+      // deploy lands, the build this tab is running no longer exists on the
+      // origin. Pages has no 404 for it either — every unmatched path answers
+      // with `index.html` at 200 (see `public/_headers`), so the module arrives
+      // as HTML and the browser rejects it on MIME type rather than on status.
+      // Unguarded, that rejected `import()` left `begin` as an unhandled
+      // rejection, which is a decoration taking down the welcome screen's error
+      // reporting for a figure the fallback image already covers.
+      let StartFigureMesh: typeof import('./startFigureMesh').StartFigureMesh;
+      try {
+        ({ StartFigureMesh } = await import('./startFigureMesh'));
+      } catch {
+        if (cancelled) return;
+        track(ANALYTICS_EVENTS.startFigureFallback, { reason: 'module_failed' });
+        setStatus('fallback');
+        return;
+      }
       const canvas = canvasRef.current;
       if (cancelled || !canvas) return;
 
