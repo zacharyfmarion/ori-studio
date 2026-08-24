@@ -11,6 +11,9 @@ keywords = ["origami", "crease-pattern", "compiler", "wasm"]
 categories = ["algorithms", "mathematics"]
 include = ["Cargo.toml", "src/**", "tests/**"]
 
+[lints]
+workspace = true
+
 [dependencies]
 levenberg-marquardt.workspace = true
 nalgebra.workspace = true

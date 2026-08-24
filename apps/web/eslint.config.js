@@ -208,7 +208,17 @@ const OVERSIZED_PANELS = {
   // move verbs already there, the hook call with its camera scale and its two
   // symmetry fields, the layer's mount, and one guard so a click that began on a
   // handle does not feed the stacked-selection cycle.
-  'BpPackingPanel.tsx': 1885,
+  //
+  // 1885 -> 1895: the viewport toolbar became declarative. Its controls are now
+  // descriptors — `ViewportToolbar` decides which of them fit on a touch device
+  // and which move into an overflow menu, so what they are can no longer be JSX
+  // the caller renders itself. A descriptor is a few lines longer than the
+  // `IconButton` it replaces, and that difference is the whole of this raise:
+  // nothing moved in, and the two collapsible verbs (grow/shrink grid) plus the
+  // layer list came out of the markup. Shaving those lines back would mean
+  // hand-writing each control twice, once per pointer, which is exactly what
+  // the descriptor exists to prevent.
+  'BpPackingPanel.tsx': 1895,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
   'BpTreePanel.tsx': 890,
@@ -271,7 +281,15 @@ const OVERSIZED_PANELS = {
   // `CpContextToolGroup` is a ~560-line change that would dwarf the feature
   // carrying it, and the note above already says it should not ride on whichever
   // feature next trips the cap. It is filed separately.
-  'CpContextToolPanel.tsx': 1171,
+  //
+  // 1171 -> 1186: the on-screen Cancel for a half-placed tool gesture. A prop, a
+  // pointer-surface read, one more term in `hasContent`, and a five-line button
+  // beside the "Clear seeds" it copies. The verb itself is `cancelActiveCpInput`
+  // in `CreasePatternPanel`, which owns the tool state it unwinds; nothing new
+  // is decided here. Same shape as the Square-tool entry above, and the same
+  // answer: the seam this file wants is still `CpContextToolGroup`, and it is
+  // still not this change's to take.
+  'CpContextToolPanel.tsx': 1186,
 };
 
 const PANEL_MAX_LINES = 800;

@@ -1,7 +1,5 @@
 import { expose } from 'comlink';
-import * as ort from 'onnxruntime-web/webgpu';
-import ortWasmMjsUrl from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.mjs?url';
-import ortWasmUrl from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url';
+import type * as ort from 'onnxruntime-web/webgpu';
 import init, {
   cp_detect_ablate_dense_outputs,
   cp_detect_auto_rectify_rgba,
@@ -47,12 +45,27 @@ let manifestKey: string | null = null;
 let modelPresencePromise: Promise<void> | null = null;
 let modelPresenceKey: string | null = null;
 let sessionKey: string | null = null;
-let ortRuntimeConfigured = false;
+let ortPromise: Promise<OrtModule> | null = null;
 let ortWasmThreads = 1;
 // ORT WebGPU is not reliable when sessions compile or dispatch concurrently in one worker.
 let ortOperationQueue: Promise<void> = Promise.resolve();
 
 type ActiveExecutionProvider = 'webgpu' | 'wasm';
+
+type OrtModule = typeof import('onnxruntime-web/webgpu');
+
+/**
+ * The same gate the "Detect CP from Image..." menu entry uses
+ * (`menus/menuDefinition.ts`): the detector is experimental and dev-only, and
+ * the model assets it needs are gitignored, so no deployed build can reach it.
+ *
+ * Its cost, though, is paid by every deployed build: ONNX Runtime's WebGPU
+ * entry point drags a 22.6 MiB `.wasm` runtime behind it, which is more than
+ * half of `dist`. Constant-folding this to `false` takes the `import()` below
+ * out of the production module graph, so the runtime is neither bundled nor
+ * emitted. Un-gating the menu means un-gating this too.
+ */
+const CP_DETECT_RUNTIME_AVAILABLE = import.meta.env.DEV;
 
 interface CpDetectSessionRuntime {
   session: ort.InferenceSession;
@@ -89,7 +102,9 @@ async function ensureSession(
   manifestUrl: string,
   options: CpDetectWorkerRunOptions = {}
 ): Promise<CpDetectSessionRuntime> {
-  configureOrtRuntime();
+  // Awaited before the cache key is built — the key covers `ortWasmThreads`,
+  // which is not settled until the runtime has loaded.
+  const ortModule = await loadOrt();
   const modelUrl = options.modelUrl ?? resolveModelUrl(manifest.model.url, manifestUrl);
   const requestedProvider = options.executionProvider ?? 'auto';
   const key = JSON.stringify({
@@ -99,7 +114,7 @@ async function ensureSession(
   });
   if (sessionPromise && sessionKey === key) return sessionPromise;
   sessionKey = key;
-  sessionPromise = createSessionRuntime(modelUrl, requestedProvider).catch((error) => {
+  sessionPromise = createSessionRuntime(ortModule, modelUrl, requestedProvider).catch((error) => {
     if (sessionKey === key) {
       sessionKey = null;
       sessionPromise = null;
@@ -109,19 +124,44 @@ async function ensureSession(
   return sessionPromise;
 }
 
-function configureOrtRuntime(): void {
-  if (ortRuntimeConfigured) return;
+/**
+ * ONNX Runtime, fetched and configured on first use.
+ *
+ * Dynamic so the runtime lands in its own chunk rather than this worker's entry
+ * chunk — constructing the worker (which the import dialog does on open, before
+ * the user has picked an image) should not pull ORT down with it.
+ *
+ * The `.mjs` glue and `.wasm` binary are `?url` imports rather than ORT's
+ * built-in defaults so that they are content-hashed emitted assets; ORT would
+ * otherwise resolve them relative to the worker chunk, where nothing of that
+ * name exists.
+ */
+async function loadOrt(): Promise<OrtModule> {
+  ortPromise ??= importOrt();
+  return ortPromise;
+}
+
+async function importOrt(): Promise<OrtModule> {
+  if (!CP_DETECT_RUNTIME_AVAILABLE) {
+    throw new Error('CP detection is not available in this build');
+  }
+  const [ortModule, wasmMjsUrl, wasmUrl] = await Promise.all([
+    import('onnxruntime-web/webgpu'),
+    import('onnxruntime-web/ort-wasm-simd-threaded.asyncify.mjs?url'),
+    import('onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url'),
+  ]);
   ortWasmThreads = chooseWasmThreadCount();
-  ort.env.wasm.numThreads = ortWasmThreads;
-  ort.env.wasm.wasmPaths = {
-    mjs: ortWasmMjsUrl,
-    wasm: ortWasmUrl,
+  ortModule.env.wasm.numThreads = ortWasmThreads;
+  ortModule.env.wasm.wasmPaths = {
+    mjs: wasmMjsUrl.default,
+    wasm: wasmUrl.default,
   };
-  ort.env.webgpu.powerPreference = 'high-performance';
-  ortRuntimeConfigured = true;
+  ortModule.env.webgpu.powerPreference = 'high-performance';
+  return ortModule;
 }
 
 async function createSessionRuntime(
+  ortModule: OrtModule,
   modelUrl: string,
   requestedProvider: CpDetectExecutionProvider
 ): Promise<CpDetectSessionRuntime> {
@@ -131,7 +171,7 @@ async function createSessionRuntime(
     const startedAt = performance.now();
     try {
       const session = await enqueueOrtOperation(() =>
-        ort.InferenceSession.create(modelUrl, sessionOptions(provider))
+        ortModule.InferenceSession.create(modelUrl, sessionOptions(provider))
       );
       return {
         session,
@@ -355,11 +395,12 @@ async function denseInferenceForImage(
     },
   };
   const sessionRuntime = await ensureSession(manifest, manifestUrl, options);
+  const ortModule = await loadOrt();
   const inference = await runCpDetectDenseInference(
     cpDetectSessionFromOrt(sessionRuntime.session),
     {
       float32(data, dims) {
-        return new ort.Tensor('float32', data, Array.from(dims));
+        return new ortModule.Tensor('float32', data, Array.from(dims));
       },
     },
     image,

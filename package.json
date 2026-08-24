@@ -20,6 +20,7 @@
     "test:web": "npm --workspace @treemaker/web run test",
     "test:scripts": "node --test \"scripts/*.test.mjs\" \"scripts/**/*.test.mjs\"",
     "test:web:folded-screenshot": "node scripts/folded-grid-screenshot.mjs",
+    "test:web:webkit-pwa": "node scripts/webkit-pwa-check.mjs",
     "typecheck:web": "npm --workspace @treemaker/web run typecheck",
     "check:desktop": "npm --workspace @treemaker/tauri run check",
     "i18n:extract": "npm --workspace @treemaker/web run i18n:extract",

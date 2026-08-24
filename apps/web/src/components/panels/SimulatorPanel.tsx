@@ -757,7 +757,14 @@ export function SimulatorPanel() {
               })}
             </output>
           </label>
-          <div className="simulator-readout">
+          {/*
+            `data-state` so the touch layout can hide the *stats* without hiding
+            the *errors*. `statusLabel` is both: on `ready` it is the vertex and
+            triangle count, and on `empty` or `error` it is the only place the
+            reason surfaces. A blanket `display: none` under a coarse pointer
+            would have made a failed simulator look like an idle one.
+          */}
+          <div className="simulator-readout" data-state={loadState}>
             <span>{statusLabel}</span>
             <span>
               {t("panels:simulator.stepReadout", "Step {{n}}", { n: step })}

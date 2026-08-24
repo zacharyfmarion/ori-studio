@@ -7,6 +7,23 @@ import type { TFunction } from 'i18next';
 import { designKind, type DesignKindDescriptor } from '../../designKinds';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
+
+/**
+ * The real dock needs a laid-out DOM jsdom cannot give it, and the tests below
+ * drive its api directly anyway. Mounting it here only has to record the options
+ * it was handed.
+ */
+const { dockviewProps } = vi.hoisted(() => ({
+  dockviewProps: [] as Record<string, unknown>[],
+}));
+
+vi.mock('dockview', () => ({
+  DockviewReact: (props: Record<string, unknown>) => {
+    dockviewProps.push(props);
+    return null;
+  },
+}));
+
 import { DesignPaneLayout, buildLayout, restoreLayout } from './DesignPaneLayout';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -34,6 +51,8 @@ afterEach(() => {
   container?.remove();
   root = null;
   container = null;
+  dockviewProps.length = 0;
+  vi.unstubAllGlobals();
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
 });
 
@@ -337,5 +356,43 @@ describe('the chooser while a design is being created', () => {
     // The chooser is still on screen — leaving it dead would strand the tab.
     expect(cards()[0].getAttribute('aria-busy')).toBe('false');
     expect(cards().some((card) => !card.disabled)).toBe(true);
+  });
+});
+
+/**
+ * This dock's arrangement is the only layout that leaves the device: it rides in
+ * the `.osf` as `viewState.paneLayout`, where the workspace dock's lives in local
+ * storage and stays put. So it must be written back under the same rules
+ * everywhere — a pointer-dependent lock here would let an iPad session hand the
+ * desktop an arrangement the desktop would not have produced.
+ */
+describe('the design pane dock', () => {
+  function stubPointer(coarse: boolean) {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({
+        matches: query.includes('pointer: coarse') ? coarse : false,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }))
+    );
+  }
+
+  function mountedProps(coarse: boolean) {
+    stubPointer(coarse);
+    render(singleDesignTab('treemaker'));
+    return dockviewProps.at(-1) ?? {};
+  }
+
+  it('locks panel drag-and-drop on every device, not only touch ones', () => {
+    expect(mountedProps(false).disableDnd).toBe(true);
+  });
+
+  it('is no more locked on a touch device than on a desktop', () => {
+    const desktop = mountedProps(false);
+    act(() => root?.unmount());
+    dockviewProps.length = 0;
+
+    expect(mountedProps(true).disableDnd).toBe(desktop.disableDnd);
   });
 });

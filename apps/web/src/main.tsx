@@ -15,6 +15,7 @@ import {
 } from './monitoring';
 import { AppErrorBoundary } from './components/errors/AppErrorBoundary';
 import { readBoolean, storageKey, STORAGE_KEYS } from './lib/storage';
+import { registerServiceWorker } from './pwa/register';
 import { createAppRouter, setAppRouter } from './routing/appRouter';
 import './i18n';
 import './index.css';
@@ -65,3 +66,9 @@ createRoot(document.getElementById('root')!).render(
     </AnalyticsRuntimeProvider>
   </StrictMode>
 );
+
+// Last, and it waits for `load` on top of that: registration kicks off an
+// install that refetches most of what the page is already downloading, and the
+// only thing it buys on this visit is a cache for the next one. Production web
+// builds only — see `pwa/register.ts`.
+registerServiceWorker();

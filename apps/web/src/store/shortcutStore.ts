@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import {
@@ -7,6 +8,7 @@ import {
   type ShortcutActionId,
   type ShortcutDefaultsSource,
   type ShortcutOverrides,
+  type ShortcutResolution,
 } from '../keyboard/shortcuts';
 import { readJson, storageKey, STORAGE_KEYS, writeJson } from '../lib/storage';
 
@@ -188,3 +190,18 @@ export const useShortcutStore = create<ShortcutState>()(
     { name: 'ShortcutStore' }
   )
 );
+
+/**
+ * The live resolution to label a shortcut against: the user's overrides on top
+ * of whichever defaults layout is in force.
+ *
+ * A hint that names a key the user has rebound is worse than no hint, and a
+ * surface reading only `overrides` gets exactly that as soon as someone switches
+ * to the Oriedita defaults. Both halves travel together, so they are read
+ * together here rather than at each surface that draws a hint.
+ */
+export function useShortcutResolution(): ShortcutResolution {
+  const overrides = useShortcutStore((state) => state.overrides);
+  const defaultsSource = useShortcutStore((state) => state.defaultsSource);
+  return useMemo(() => ({ overrides, defaultsSource }), [overrides, defaultsSource]);
+}

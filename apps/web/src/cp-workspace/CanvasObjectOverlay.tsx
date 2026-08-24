@@ -22,6 +22,7 @@ import {
   type AnnotationResizeHandle,
   type Vec2,
 } from './annotations/annotationTransform';
+import { withShiftLatch } from './touchModifiers/shiftLatch';
 import type { TransformableCanvasObject } from './canvasObjects/transformableObject';
 
 /**
@@ -282,7 +283,11 @@ export function CanvasObjectOverlay({
           drag.startObject.box,
           drag.handle,
           pointer,
-          resizeAspectLock(drag.startObject.aspectLock, event.shiftKey)
+          // Shift, or the rail's latch standing in for it. Without the latch a
+          // touch device cannot escape the aspect lock at all: a reference image
+          // is `default-on`, so it can never be distorted, and a text box is
+          // `default-off`, so it can never be constrained.
+          resizeAspectLock(drag.startObject.aspectLock, withShiftLatch(event.shiftKey))
         );
         onUpdate(drag.id, { center: next.center, width: next.width, height: next.height });
         return;
@@ -291,7 +296,7 @@ export function CanvasObjectOverlay({
       drag.moved = true;
       const angle = Math.atan2(pointer.y - drag.center.y, pointer.x - drag.center.x);
       let rotation = drag.startRotation + (angle - drag.startPointerAngle);
-      if (event.shiftKey) rotation = snapAngle(rotation, IMAGE_ROTATION_SNAP_RADIANS);
+      if (withShiftLatch(event.shiftKey)) rotation = snapAngle(rotation, IMAGE_ROTATION_SNAP_RADIANS);
       onUpdate(drag.id, { rotation });
     },
     [views, pointerToObject, onUpdate, onCropUpdate]

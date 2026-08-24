@@ -273,10 +273,18 @@
     "downloading": "Update wird heruntergeladen…",
     "relaunch": "Neu starten zum Aktualisieren"
   },
+  "viewDrawer": {
+    "close": "Ansichtsoptionen schließen",
+    "open": "Ansicht",
+    "title": "Ansichtsoptionen"
+  },
   "workspaceRail": {
     "design": "Design-Arbeitsbereich",
     "edit": "Bearbeiten-Arbeitsbereich",
     "label": "Arbeitsbereiche",
-    "simulate": "Simulieren-Arbeitsbereich"
+    "simulate": "Simulieren-Arbeitsbereich",
+    "tabDesign": "Design",
+    "tabEdit": "Bearbeiten",
+    "tabSimulate": "Simulieren"
   }
 }

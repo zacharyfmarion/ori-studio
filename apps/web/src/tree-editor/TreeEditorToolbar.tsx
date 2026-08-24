@@ -1,10 +1,9 @@
 import { Tag, Unlink } from 'lucide-react';
-import { IconButton } from '../components/ui/IconButton';
 import {
-  ViewportLayerMenu,
-  ViewportSymmetryToggle,
   ViewportToolbar,
-  ViewportToolbarSeparator,
+  viewportLayerItems,
+  viewportSymmetryItems,
+  type ViewportToolbarGroupSpec,
 } from '../components/panels/ViewportToolbar';
 import type { TreeEditorCopy, TreeSymmetryHost, TreeViewLayers } from './host';
 
@@ -40,6 +39,40 @@ export function TreeEditorToolbar({
   fitToView: () => void;
   setZoomLevel: (scale: number) => void;
 }) {
+  const groups: ViewportToolbarGroupSpec[] = [
+    ...(symmetry
+      ? [
+          {
+            id: 'symmetry',
+            items: [
+              ...viewportSymmetryItems({
+                enabled: symmetry.enabled,
+                label: copy.symmetry,
+                title: symmetry.enabled ? copy.mirrorDrawOn : copy.mirrorDraw,
+                onToggle: symmetry.toggle,
+              }),
+              canUnpair && {
+                kind: 'action' as const,
+                id: 'unpair',
+                label: copy.unpair,
+                icon: <Unlink size={14} />,
+                onSelect: onUnpair,
+              },
+            ],
+          },
+        ]
+      : []),
+    {
+      id: 'layers',
+      items: viewportLayerItems({
+        title: copy.layers,
+        options: [{ key: 'labels' as const, icon: <Tag size={13} />, label: copy.layerLabels }],
+        visible: layers,
+        onChange: onLayerChange,
+      }),
+    },
+  ];
+
   return (
     <ViewportToolbar
       ariaLabel={copy.viewportControls}
@@ -48,30 +81,7 @@ export function TreeEditorToolbar({
       zoomOut={zoomOut}
       fitToView={fitToView}
       setZoomLevel={setZoomLevel}
-    >
-      {symmetry && (
-        <>
-          <ViewportToolbarSeparator />
-          <ViewportSymmetryToggle
-            enabled={symmetry.enabled}
-            label={copy.symmetry}
-            title={symmetry.enabled ? copy.mirrorDrawOn : copy.mirrorDraw}
-            onToggle={symmetry.toggle}
-          />
-          {canUnpair && (
-            <IconButton size="sm" variant="toolbar" title={copy.unpair} onClick={onUnpair}>
-              <Unlink size={14} />
-            </IconButton>
-          )}
-        </>
-      )}
-      <ViewportToolbarSeparator />
-      <ViewportLayerMenu
-        title={copy.layers}
-        options={[{ key: 'labels', icon: <Tag size={13} />, label: copy.layerLabels }]}
-        visible={layers}
-        onChange={onLayerChange}
-      />
-    </ViewportToolbar>
+      groups={groups}
+    />
   );
 }

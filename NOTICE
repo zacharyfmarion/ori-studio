@@ -11,16 +11,31 @@ licenses are permissive and GPL-compatible. Their copyright and permission
 notices are reproduced here to satisfy their attribution requirements. Nothing
 in this file narrows the GPL obligations that govern the combined distribution.
 
+The last section is different in kind: it records a third-party *service* the
+product calls rather than a work it bundles. It grants nothing and requires
+nothing, and is here so that the list of outside parties Ori Studio depends on
+is complete in one place.
+
 --------------------------------------------------------------------------------
 1. TreeMaker 5.0.1 — Robert J. Lang
 --------------------------------------------------------------------------------
 License:  GNU GPL, version 2 or later
 Upstream: https://langorigami.com/article/treemaker/
-Ported into: crates/treemaker-core, crates/treemaker-cli, crates/treemaker-wasm,
-             crates/treemaker-sequence
+Ported into: crates/treemaker-core, crates/treemaker-cli, crates/treemaker-wasm
 Vendored source: third_party/treemaker-5.0.1 (see its LICENSE.txt). The wnlib
              directory within it is distributable with no restrictions per the
              bundled TreeMaker license notice.
+Note: crates/treemaker-sequence was listed here and is not any longer. It shares
+             the `treemaker-` name prefix but not the lineage: it declares
+             `MIT OR Apache-2.0`, its module docs describe original
+             folding-sequence research, and it depends only on
+             treemaker-flatfold and treemaker-fold, both permissive. Nothing in
+             the crate has been shown to derive from TreeMaker. This is a scope
+             correction, not a finding about who wrote what — the authorship
+             question is open, and settling it needs a source review rather than
+             a dependency graph. Reachability is unchanged either way: the crate
+             enters a build only through crates/treemaker-wasm, which is GPL, so
+             it ships exactly when the TreeMaker design kind does.
 
 --------------------------------------------------------------------------------
 2. Box Pleating Studio — Mu-Tsun Tsai
@@ -93,3 +108,34 @@ Ported into: packages/origami-simulator (@treemaker/origami-simulator)
 
   See packages/origami-simulator/LICENSE and packages/origami-simulator/NOTICE
   for the full MIT text and the list of upstream source files used.
+
+--------------------------------------------------------------------------------
+6. ExplOri 22.5 — Brandon Wong (theplantpsychologist)
+--------------------------------------------------------------------------------
+Service, not a port. Nothing from ExplOri is vendored, ported, or bundled, so
+this section carries no license grant to reproduce — it is here because the
+Search 22.5° design method does not work without someone else's server, and a
+reader of this file should know that.
+
+Upstream service: https://225.designorigami.net (built on
+             https://github.com/theplantpsychologist/SEARCH-22.5)
+Consumed by: apps/web/src/explori/ (client) and
+             apps/web/functions/api/explori/ + functions/_lib/explori.ts (the
+             Cloudflare Pages Function that proxies it; the browser cannot call
+             upstream directly, since it sends no CORS headers)
+
+  The Search 22.5° design kind sends a user's drawn tree to that service and
+  displays the crease patterns it returns from a precomputed archive of 22.5°
+  tilings. There is no optimizer and no local archive: every result is upstream
+  data, fetched per query and not redistributed by us.
+
+  Permission to build the integration was given by theplantpsychologist; see
+  implementation-plans/explori-design-type.md. The service's own terms are not
+  published, and the archive contents carry no stated license — so results are
+  treated as the service's to give, and the only copy of any of it in this
+  repository is the single captured response used as a test fixture
+  (apps/web/src/explori/__fixtures__/queryResponse.json).
+
+  Upstream logs the query tree, the caller's IP, and request headers. The app
+  tells users their tree leaves the machine; that notice is a feature notice and
+  is deliberately not gated on the analytics opt-out.

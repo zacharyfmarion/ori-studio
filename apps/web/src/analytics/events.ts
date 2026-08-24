@@ -262,6 +262,26 @@ export const ANALYTICS_EVENTS = {
   cpSnapRadiusChanged: 'cp snap radius changed',
   cpWheelGestureChanged: 'cp wheel gesture changed',
   /**
+   * The touch-only View drawer was opened.
+   *
+   * Fires nowhere else: under a fine pointer the pane is docked and there is no
+   * drawer to open, so this counts *touch* sessions that went looking for the
+   * view options. That is the question undocking the pane raises — whether the
+   * canvas width was bought at the cost of controls nobody finds again — and it
+   * cannot be answered from `command invoked`, since no menu action reaches it.
+   */
+  viewDrawerOpened: 'view drawer opened',
+  /**
+   * The phone layout's tool sheet was opened.
+   *
+   * Phone-only, because that layout is the only one without a tool rail — so
+   * every one of these is somebody who found the Tools pill, which is the whole
+   * question replacing a visible rail with a button raises. No menu action
+   * reaches it, so the `command invoked` chokepoint cannot see it, and `cp tool
+   * used` counts what was picked rather than whether the surface was found.
+   */
+  cpToolPickerOpened: 'cp tool picker opened',
+  /**
    * The start screen's 3D figure declined to start, and the static image is
    * standing in.
    *

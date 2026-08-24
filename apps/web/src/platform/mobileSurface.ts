@@ -1,23 +1,26 @@
 import { useSyncExternalStore } from 'react';
 import { readBoolean, storageKey, STORAGE_KEYS, writeBoolean } from '../lib/storage';
+import { isPhoneLayout, PHONE_MEDIA_QUERY } from './phoneLayout';
 import { getRuntimeSurface } from './runtime';
 
 /**
- * Whether this device is a phone, and whether the app should therefore refuse to
- * open a workspace on it.
+ * Whether the app should refuse to open a workspace on this device.
  *
- * Ori Studio's surfaces are built for a mouse and a keyboard — the crease-pattern
- * canvas has no touch gestures, and the panels assume a pointer that can hover.
- * On a phone the honest answer is the landing page plus a note saying so, which
- * is what this module decides for the router, the engine boot, and `/welcome`.
+ * The reason has narrowed. This used to read "the crease-pattern canvas has no
+ * touch gestures, and the panels assume a pointer that can hover" — neither is
+ * true now: the canvas has a multi-touch arbiter and the panels have a phone
+ * layout. What is still true is that a phone is a small screen for a drafting
+ * tool, so the default answer there is the landing page plus a note, with an
+ * "open it anyway" override for anyone who wants to try. That is what this
+ * module decides for the router, the engine boot, and `/welcome`.
  *
- * Pointer-coarse **and** a phone-width viewport, rather than width alone: a
- * desktop user who drags their window narrow keeps the working app, and only the
- * layout reflows. Tablets keep it too — a large touch screen with a keyboard is
- * closer to the desktop case than to the phone one, and the gate is meant to stop
- * people who cannot possibly succeed, not everyone who might struggle.
+ * This is the **gate**, and nothing else. What a phone-shaped viewport *is* — and
+ * how the app lays out on one — belongs to `platform/phoneLayout`, which this
+ * module composes with a runtime check. Keeping them apart is not tidiness: the
+ * exemption below is false for the Tauri shell, so a layout asking *this*
+ * question would give a native phone build the desktop chrome.
  */
-export const PHONE_MEDIA_QUERY = '(pointer: coarse) and (max-width: 820px)';
+export { PHONE_MEDIA_QUERY };
 
 const PHONE_OVERRIDE_KEY = storageKey(STORAGE_KEYS.phoneOverride);
 
@@ -32,15 +35,17 @@ function mediaHost(): Window | null {
 }
 
 /**
- * True on a phone-sized touch device.
+ * True on a phone-sized touch device the gate applies to.
  *
  * The Tauri shell short-circuits to `false` before any media query runs. It has
  * no address bar and runs on a memory router, so a gate misfiring there would
- * strand the user on `/welcome` with no way back.
+ * strand the user on `/welcome` with no way back. It still *lays out* as a phone
+ * when the viewport says so — that is `isPhoneLayout`'s question, and the split
+ * between the two is the whole reason this module no longer owns the query.
  */
 export function isPhoneSurface(): boolean {
   if (getRuntimeSurface() === 'desktop') return false;
-  return mediaHost()?.matchMedia(PHONE_MEDIA_QUERY).matches ?? false;
+  return isPhoneLayout(mediaHost());
 }
 
 /** Whether someone took the "open it anyway" link past the desktop-only notice. */

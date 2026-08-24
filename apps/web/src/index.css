@@ -44,6 +44,48 @@ textarea {
   font: inherit;
 }
 
+/*
+ * The grey rectangle WebKit flashes over whatever an element boundary happens to
+ * be when a tap lands. On a tool rail it fires on every stroke of a drawing
+ * gesture, and it is drawn from the *element* box, so it does not even match the
+ * control's own rounded highlight. The property is inherited, so the root
+ * element covers the whole tree.
+ */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/*
+ * Touch hygiene for a direct-manipulation app.
+ *
+ * Pressing and holding on the canvas or a tool label is a drawing or dragging
+ * gesture here, but iOS reads a hold over selectable text as "select this word"
+ * and raises the callout — the selection handles and the Copy/Look Up bubble —
+ * on top of the gesture that is still in progress. Refusing selection on the
+ * chrome is what stops that; the exception list is everything the user has a
+ * real reason to select, which is text they can edit.
+ *
+ * `pointer: coarse` and not `any-pointer`: on a touchscreen laptop driven by a
+ * mouse the callout never appears and selecting UI text is ordinary behaviour.
+ */
+@media (pointer: coarse) {
+  body {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  input,
+  textarea,
+  select,
+  [contenteditable='true'],
+  [contenteditable='true'] * {
+    -webkit-touch-callout: default;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

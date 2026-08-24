@@ -24,7 +24,12 @@ import { SettingsToggleRow } from './settings/SettingsToggleRow';
 import { UpdatesSection } from './settings/UpdatesSection';
 import { ANALYTICS_EVENTS, track, useAnalytics } from '../analytics';
 import { detectSystemLocale, SUPPORTED_LOCALES, SYSTEM_LOCALE } from '../i18n/locales';
-import { clampCpSnapRadius, CP_MAX_SNAP_RADIUS, CP_MIN_SNAP_RADIUS } from '../lib/cpSnapRadiusSetting';
+import {
+  CP_MAX_SNAP_RADIUS,
+  CP_MIN_SNAP_RADIUS,
+  hasCoarsePointer,
+  resolveCpSnapRadius,
+} from '../lib/cpSnapRadiusSetting';
 import {
   shortcutActionLabel,
   shortcutCategoryLabel,
@@ -258,6 +263,19 @@ function GeneralTab() {
   );
 }
 
+/**
+ * The field's bound, resolved against the live pointer so that it and the
+ * store's hydration are the same law rather than two that happen to agree.
+ *
+ * `NumberField` already refuses to commit an entry it cannot read, so this only
+ * ever sees a finite number and today returns exactly what `clampCpSnapRadius`
+ * would. It goes through the resolver anyway to keep one entry point, not
+ * because a second default is reachable here.
+ */
+function normalizeCpSnapRadius(value: number): number {
+  return resolveCpSnapRadius(value, hasCoarsePointer());
+}
+
 function WorkspaceTab() {
   const { t } = useTranslation();
   const resetLayout = useLayoutStore((state) => state.resetLayout);
@@ -340,7 +358,7 @@ function WorkspaceTab() {
               min={CP_MIN_SNAP_RADIUS}
               max={CP_MAX_SNAP_RADIUS}
               step={1}
-              normalize={clampCpSnapRadius}
+              normalize={normalizeCpSnapRadius}
               onCommit={setCpSnapRadius}
             />
           </span>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   FlipHorizontal2,
@@ -7,13 +7,56 @@ import {
   Maximize2,
   RotateCcwSquare,
   RotateCwSquare,
+  Undo2,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
 import { IconButton } from '../ui/IconButton';
 import { primaryModifierLabel } from '../../lib/platform';
+import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
+import { ViewportToolbarOverflowMenu } from './ViewportToolbarOverflowMenu';
+import {
+  planViewportToolbar,
+  viewportToolbarSlots,
+  type ViewportToolbarEntry,
+  type ViewportToolbarGroupSpec,
+  type ViewportToolbarItem,
+} from './viewportToolbarLayout';
+
+export type { ViewportToolbarEntry, ViewportToolbarGroupSpec } from './viewportToolbarLayout';
 
 const ZOOM_PRESETS = [25, 50, 100, 200, 400];
+
+/**
+ * Close an open popover when the press lands outside its anchor.
+ *
+ * `pointerdown` and not `mousedown`, which is what the bar's three popovers used
+ * and what made them undismissable on an iPad. The compatibility mouse events a
+ * touch produces are suppressed entirely when `pointerdown` is canceled, and the
+ * crease-pattern canvas cancels it on essentially every press (see
+ * `CreasePatternWebglCanvas`'s `onPointerDown`) — so tapping the paper to put a
+ * menu away fired no `mousedown`, and the menu stayed up over the canvas.
+ *
+ * Dismissing this early cannot mis-route the rest of the tap the way the View
+ * drawer's did: these popovers cover only their own box, so whatever the press
+ * landed on was already its target.
+ */
+function useToolbarPopover() {
+  const [open, setOpen] = useState(false);
+  const anchorRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onPointerDown = (event: PointerEvent) => {
+      if (anchorRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [open]);
+
+  return { open, setOpen, anchorRef };
+}
 
 /** `Label (Chord)` when the action has a chord bound, plain label otherwise. */
 function withShortcut(label: string, shortcut: string | undefined): string {
@@ -45,6 +88,126 @@ export function isViewportInteractiveTarget(target: EventTarget | null): boolean
   );
 }
 
+/** The zoom percentage, and the preset list behind it. */
+function ZoomReadout({
+  zoomPercent,
+  setZoomLevel,
+}: {
+  zoomPercent: number;
+  setZoomLevel: (scale: number) => void;
+}) {
+  const { open, setOpen, anchorRef } = useToolbarPopover();
+
+  return (
+    <div className="viewport-toolbar__menu-anchor" ref={anchorRef}>
+      <button
+        type="button"
+        className="viewport-toolbar__zoom-button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((wasOpen) => !wasOpen)}
+      >
+        {zoomPercent}%
+      </button>
+      {open && (
+        <div className="viewport-toolbar__dropdown" role="menu">
+          {ZOOM_PRESETS.map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              className="viewport-toolbar__dropdown-item"
+              onClick={() => {
+                setZoomLevel(preset / 100);
+                setOpen(false);
+              }}
+            >
+              {preset}%
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The editable view-rotation readout.
+ *
+ * Fine pointers only. On touch the field is 52px wide with a mandatory 16px font
+ * (below that, Safari zooms the page on focus and `body { overflow: hidden }`
+ * leaves no gesture to get back), so `-168.75°` already runs out of its box —
+ * and a text field cannot live in the overflow menu, whose rows are
+ * `role="menuitem"` with typeahead. The rotate buttons and a reset go there
+ * instead.
+ */
+function RotationField({
+  viewRotation,
+  setViewRotation,
+}: {
+  viewRotation: number;
+  setViewRotation: (degrees: number) => void;
+}) {
+  const { t } = useTranslation();
+  // Null while the field is idle, so it tracks the camera; a string while the
+  // user is editing, so their partial input is not overwritten mid-frame.
+  const [draft, setDraft] = useState<string | null>(null);
+
+  const commit = () => {
+    if (draft === null) return;
+    const degrees = Number.parseFloat(draft);
+    setDraft(null);
+    if (Number.isFinite(degrees)) setViewRotation(degrees);
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      className="viewport-toolbar__rotation-input"
+      aria-label={t('tools:viewport.rotation', 'View rotation in degrees')}
+      title={t('tools:viewport.rotation', 'View rotation in degrees')}
+      value={draft ?? formatRotation(viewRotation)}
+      onFocus={(event) => {
+        // Drop the degree sign while editing so the field holds a plain
+        // number, and select it so typing replaces the angle outright.
+        setDraft(formatRotationValue(viewRotation));
+        event.currentTarget.select();
+      }}
+      onChange={(event) => setDraft(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          commit();
+          event.currentTarget.blur();
+        } else if (event.key === 'Escape') {
+          setDraft(null);
+          event.currentTarget.blur();
+        }
+        // Digits typed here cannot reach the canvas shortcuts:
+        // `isShortcutEditingTarget` bails on any input at the
+        // capture-phase listener, before dispatch.
+      }}
+      onBlur={commit}
+    />
+  );
+}
+
+function InlineItem({ item }: { item: ViewportToolbarItem }) {
+  if (item.kind === 'node') return <>{item.node}</>;
+  return (
+    <IconButton
+      size="sm"
+      variant="toolbar"
+      title={item.title ?? item.label}
+      aria-label={item.label}
+      isActive={item.checked}
+      disabled={item.disabled}
+      onClick={item.onSelect}
+    >
+      {item.icon}
+    </IconButton>
+  );
+}
+
 interface ViewportToolbarProps {
   ariaLabel: string;
   zoomPercent: number;
@@ -69,11 +232,36 @@ interface ViewportToolbarProps {
   rotateView?: (direction: 1 | -1) => void;
   /** Set an absolute view rotation, in degrees, from the readout field. */
   setViewRotation?: (degrees: number) => void;
+  /**
+   * Back to square. Offered on touch in place of the readout field, where it is
+   * the only way to undo a rotation in one step — `viewport.resetRotation` ships
+   * with no default chord, so on a device with no keyboard it was unreachable.
+   */
+  resetViewRotation?: () => void;
   rotateCcwShortcutLabel?: string;
   rotateCwShortcutLabel?: string;
-  children?: ReactNode;
+  /**
+   * Everything the surface adds after the shared view controls, as runs that
+   * belong together. A run is never split by a line break, and the hairline
+   * between two runs is drawn by the bar rather than by the caller.
+   */
+  groups?: readonly ViewportToolbarGroupSpec[];
 }
 
+/**
+ * The floating pill of view controls over a canvas.
+ *
+ * Four surfaces render it — the crease-pattern editor, the circle-packing design
+ * canvas, the box-pleating packing pane, and the two tree editors — with control
+ * sets that overlap only in zoom and fit. So what belongs inline and what can
+ * collapse is declared per call site, in `groups`, rather than decided here.
+ *
+ * On a coarse pointer every control is 44px and the row no longer fits any iPad
+ * in portrait (the crease-pattern bar wants 615px against a 470px pane on an
+ * iPad mini). Collapsing the verbs a touch gesture already covers — pan is a
+ * two-finger drag on the canvas — gets it onto one line; anything still too wide
+ * wraps between groups, never inside one.
+ */
 export function ViewportToolbar({
   ariaLabel,
   zoomPercent,
@@ -87,161 +275,155 @@ export function ViewportToolbar({
   viewRotation = 0,
   rotateView,
   setViewRotation,
+  resetViewRotation,
   rotateCcwShortcutLabel,
   rotateCwShortcutLabel,
-  children,
+  groups = [],
 }: ViewportToolbarProps) {
   const { t } = useTranslation();
-  const [zoomMenuOpen, setZoomMenuOpen] = useState(false);
-  const zoomMenuRef = useRef<HTMLDivElement | null>(null);
-  // Null while the field is idle, so it tracks the camera; a string while the
-  // user is editing, so their partial input is not overwritten mid-frame.
-  const [rotationDraft, setRotationDraft] = useState<string | null>(null);
+  const coarse = useIsCoarsePointerSurface();
 
-  const commitRotationDraft = () => {
-    if (rotationDraft === null) return;
-    const degrees = Number.parseFloat(rotationDraft);
-    setRotationDraft(null);
-    if (Number.isFinite(degrees)) setViewRotation?.(degrees);
-  };
+  const rotateCcwLabel = t('tools:viewport.rotateCcw', 'Rotate view left');
+  const rotateCwLabel = t('tools:viewport.rotateCw', 'Rotate view right');
 
-  useEffect(() => {
-    if (!zoomMenuOpen) return undefined;
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (zoomMenuRef.current?.contains(target)) return;
-      setZoomMenuOpen(false);
-    };
-    document.addEventListener('mousedown', onPointerDown);
-    return () => document.removeEventListener('mousedown', onPointerDown);
-  }, [zoomMenuOpen]);
-
-  return (
-    <div className="viewport-toolbar" aria-label={ariaLabel}>
-      <IconButton size="sm" variant="toolbar" title={t('tools:viewport.zoomOut', 'Zoom Out')} onClick={zoomOut}>
-        <ZoomOut size={14} />
-      </IconButton>
-      <div className="viewport-toolbar__menu-anchor" ref={zoomMenuRef}>
-        <button
-          type="button"
-          className="viewport-toolbar__zoom-button"
-          aria-haspopup="menu"
-          aria-expanded={zoomMenuOpen}
-          onClick={() => setZoomMenuOpen((open) => !open)}
-        >
-          {zoomPercent}%
-        </button>
-        {zoomMenuOpen && (
-          <div className="viewport-toolbar__dropdown" role="menu">
-            {ZOOM_PRESETS.map((preset) => (
-              <button
-                key={preset}
-                type="button"
-                className="viewport-toolbar__dropdown-item"
-                onClick={() => {
-                  setZoomLevel(preset / 100);
-                  setZoomMenuOpen(false);
-                }}
-              >
-                {preset}%
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-      <IconButton size="sm" variant="toolbar" title={t('tools:viewport.zoomIn', 'Zoom In')} onClick={zoomIn}>
-        <ZoomIn size={14} />
-      </IconButton>
-      <ViewportToolbarSeparator />
-      <IconButton size="sm" variant="toolbar" title={t('tools:viewport.fit', 'Fit')} onClick={fitToView}>
-        <Maximize2 size={14} />
-      </IconButton>
-      {togglePanTool && (
-        <IconButton
-          size="sm"
-          variant="toolbar"
-          title={
-            panShortcutLabel
+  const plan = planViewportToolbar(
+    [
+      {
+        id: 'zoom',
+        items: [
+          {
+            kind: 'action',
+            id: 'zoom-out',
+            label: t('tools:viewport.zoomOut', 'Zoom Out'),
+            icon: <ZoomOut size={14} />,
+            onSelect: zoomOut,
+            // Pinch scales about the finger centroid, so it moves the view as
+            // well; these are the only way to change scale without panning, and
+            // a stylus is excluded from pinching outright.
+            pinned: true,
+          },
+          {
+            kind: 'node',
+            id: 'zoom-readout',
+            node: <ZoomReadout zoomPercent={zoomPercent} setZoomLevel={setZoomLevel} />,
+          },
+          {
+            kind: 'action',
+            id: 'zoom-in',
+            label: t('tools:viewport.zoomIn', 'Zoom In'),
+            icon: <ZoomIn size={14} />,
+            onSelect: zoomIn,
+            pinned: true,
+          },
+        ],
+      },
+      {
+        id: 'view',
+        items: [
+          {
+            kind: 'action',
+            id: 'fit',
+            label: t('tools:viewport.fit', 'Fit'),
+            icon: <Maximize2 size={14} />,
+            onSelect: fitToView,
+            // No gesture frames the paper, and it is what a hand reaches for
+            // straight after a pinch.
+            pinned: true,
+          },
+          togglePanTool && {
+            kind: 'action',
+            id: 'pan',
+            label: t('tools:viewport.pan', 'Pan'),
+            title: panShortcutLabel
               ? t('tools:viewport.panWithShortcut', 'Pan ({{shortcut}}) — or hold {{modifier}} and drag', {
                   shortcut: panShortcutLabel,
                   modifier: primaryModifierLabel(),
                 })
               : t('tools:viewport.panWithModifier', 'Pan — or hold {{modifier}} and drag', {
                   modifier: primaryModifierLabel(),
-                })
-          }
-          aria-label={t('tools:viewport.pan', 'Pan')}
-          isActive={panToolActive}
-          onClick={togglePanTool}
-        >
-          <Hand size={14} />
-        </IconButton>
+                }),
+            icon: <Hand size={14} />,
+            checked: panToolActive ?? false,
+            // Left-drag panning instead of drawing is not visible until you
+            // drag, so the trigger says so while the button is behind it.
+            unseenWhenCollapsed: true,
+            onSelect: togglePanTool,
+          },
+          rotateView && {
+            kind: 'action',
+            id: 'rotate-ccw',
+            label: rotateCcwLabel,
+            title: withShortcut(rotateCcwLabel, rotateCcwShortcutLabel),
+            icon: <RotateCcwSquare size={14} />,
+            onSelect: () => rotateView(-1),
+          },
+          rotateView &&
+            setViewRotation && {
+              kind: 'node',
+              id: 'rotation',
+              only: 'fine',
+              node: <RotationField viewRotation={viewRotation} setViewRotation={setViewRotation} />,
+            },
+          rotateView && {
+            kind: 'action',
+            id: 'rotate-cw',
+            label: rotateCwLabel,
+            title: withShortcut(rotateCwLabel, rotateCwShortcutLabel),
+            icon: <RotateCwSquare size={14} />,
+            onSelect: () => rotateView(1),
+          },
+          resetViewRotation && {
+            kind: 'action',
+            id: 'rotate-reset',
+            only: 'coarse',
+            label: t('tools:viewport.resetRotation', 'Reset view rotation'),
+            icon: <Undo2 size={14} />,
+            // Disabled at square, which is also how the menu says whether the
+            // view is rotated at all now that the readout field is gone.
+            disabled: viewRotation === 0,
+            onSelect: resetViewRotation,
+          },
+        ],
+      },
+      ...groups,
+    ],
+    coarse
+  );
+
+  const inlineGroups =
+    plan.overflow.length > 0
+      ? [
+          ...plan.inline,
+          {
+            id: 'overflow',
+            items: [
+              {
+                kind: 'node' as const,
+                id: 'overflow',
+                node: <ViewportToolbarOverflowMenu groups={plan.overflow} />,
+              },
+            ],
+          },
+        ]
+      : plan.inline;
+
+  return (
+    <div className="viewport-toolbar" aria-label={ariaLabel}>
+      {viewportToolbarSlots(inlineGroups).map((slot) =>
+        slot.kind === 'separator' ? (
+          <span key={slot.id} className="viewport-toolbar__separator" />
+        ) : (
+          <div key={slot.id} className="viewport-toolbar__group">
+            {slot.group.items.map((item) => (
+              <Fragment key={item.id}>
+                <InlineItem item={item} />
+              </Fragment>
+            ))}
+          </div>
+        )
       )}
-      {rotateView && (
-        <>
-          <IconButton
-            size="sm"
-            variant="toolbar"
-            title={withShortcut(
-              t('tools:viewport.rotateCcw', 'Rotate view left'),
-              rotateCcwShortcutLabel
-            )}
-            aria-label={t('tools:viewport.rotateCcw', 'Rotate view left')}
-            onClick={() => rotateView(-1)}
-          >
-            <RotateCcwSquare size={14} />
-          </IconButton>
-          {setViewRotation && (
-            <input
-              type="text"
-              inputMode="decimal"
-              className="viewport-toolbar__rotation-input"
-              aria-label={t('tools:viewport.rotation', 'View rotation in degrees')}
-              title={t('tools:viewport.rotation', 'View rotation in degrees')}
-              value={rotationDraft ?? formatRotation(viewRotation)}
-              onFocus={(event) => {
-                // Drop the degree sign while editing so the field holds a plain
-                // number, and select it so typing replaces the angle outright.
-                setRotationDraft(formatRotationValue(viewRotation));
-                event.currentTarget.select();
-              }}
-              onChange={(event) => setRotationDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  commitRotationDraft();
-                  event.currentTarget.blur();
-                } else if (event.key === 'Escape') {
-                  setRotationDraft(null);
-                  event.currentTarget.blur();
-                }
-                // Digits typed here cannot reach the canvas shortcuts:
-                // `isShortcutEditingTarget` bails on any input at the
-                // capture-phase listener, before dispatch.
-              }}
-              onBlur={commitRotationDraft}
-            />
-          )}
-          <IconButton
-            size="sm"
-            variant="toolbar"
-            title={withShortcut(
-              t('tools:viewport.rotateCw', 'Rotate view right'),
-              rotateCwShortcutLabel
-            )}
-            aria-label={t('tools:viewport.rotateCw', 'Rotate view right')}
-            onClick={() => rotateView(1)}
-          >
-            <RotateCwSquare size={14} />
-          </IconButton>
-        </>
-      )}
-      {children}
     </div>
   );
-}
-
-export function ViewportToolbarSeparator() {
-  return <span className="viewport-toolbar__separator" />;
 }
 
 /**
@@ -288,10 +470,94 @@ export function ViewportSymmetryToggle({
   );
 }
 
+/**
+ * The mirror toggle as toolbar items: the named button on a pointer device, a
+ * checkable menu row on touch.
+ *
+ * Declared as two mutually exclusive items rather than one that renders two
+ * ways, because they are genuinely different controls — the button carries its
+ * label as text, which is what makes it 92px wide and what makes it worth
+ * collapsing on a pane that has 323px to spend.
+ */
+export function viewportSymmetryItems({
+  enabled,
+  label,
+  title,
+  onToggle,
+}: {
+  enabled: boolean;
+  label: string;
+  title: string;
+  onToggle: () => void;
+}): ViewportToolbarEntry[] {
+  return [
+    {
+      kind: 'node',
+      id: 'symmetry',
+      only: 'fine',
+      node: (
+        <ViewportSymmetryToggle enabled={enabled} label={label} title={title} onToggle={onToggle} />
+      ),
+    },
+    {
+      kind: 'action',
+      id: 'symmetry',
+      only: 'coarse',
+      label,
+      title,
+      icon: <FlipHorizontal2 size={14} />,
+      checked: enabled,
+      onSelect: onToggle,
+    },
+  ];
+}
+
 export interface ViewportLayerOption<Key extends string> {
   key: Key;
   icon: ReactNode;
   label: string;
+}
+
+/**
+ * The layer popover as toolbar items: the popover on a pointer device, one
+ * checkable menu row per layer on touch.
+ *
+ * The popover survives the move intact because it is already a data-driven
+ * option list; what it gains is a 44px row per layer in place of a 24px native
+ * checkbox, and the trigger's 46px back for the row.
+ */
+export function viewportLayerItems<Key extends string>({
+  title,
+  options,
+  visible,
+  onChange,
+}: {
+  title: string;
+  options: readonly ViewportLayerOption<Key>[];
+  visible: Record<Key, boolean>;
+  onChange: (key: Key, next: boolean) => void;
+}): ViewportToolbarEntry[] {
+  return [
+    {
+      kind: 'node',
+      id: 'layers',
+      only: 'fine',
+      node: (
+        <ViewportLayerMenu title={title} options={options} visible={visible} onChange={onChange} />
+      ),
+    },
+    ...options.map(
+      (option): ViewportToolbarEntry => ({
+        kind: 'action',
+        id: `layer-${option.key}`,
+        only: 'coarse',
+        label: option.label,
+        icon: option.icon,
+        checked: visible[option.key],
+        onSelect: () => onChange(option.key, !visible[option.key]),
+      })
+    ),
+  ];
 }
 
 /**
@@ -313,18 +579,7 @@ export function ViewportLayerMenu<Key extends string>({
   visible: Record<Key, boolean>;
   onChange: (key: Key, next: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const anchorRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const onPointerDown = (event: MouseEvent) => {
-      if (anchorRef.current?.contains(event.target as Node)) return;
-      setOpen(false);
-    };
-    document.addEventListener('mousedown', onPointerDown);
-    return () => document.removeEventListener('mousedown', onPointerDown);
-  }, [open]);
+  const { open, setOpen, anchorRef } = useToolbarPopover();
 
   return (
     <div className="viewport-toolbar__menu-anchor" ref={anchorRef}>
@@ -378,18 +633,7 @@ export function ViewportChoiceMenu<Value extends string | number>({
   value: Value;
   onChange: (value: Value) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const anchorRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const onPointerDown = (event: MouseEvent) => {
-      if (anchorRef.current?.contains(event.target as Node)) return;
-      setOpen(false);
-    };
-    document.addEventListener('mousedown', onPointerDown);
-    return () => document.removeEventListener('mousedown', onPointerDown);
-  }, [open]);
+  const { open, setOpen, anchorRef } = useToolbarPopover();
 
   return (
     <div className="viewport-toolbar__menu-anchor" ref={anchorRef}>

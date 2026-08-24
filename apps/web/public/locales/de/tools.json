@@ -11,6 +11,7 @@
     "applyVoronoi": "Voronoi anwenden",
     "ariaLabel": "Faltmuster-Werkzeugoptionen",
     "autoNearest": "Automatisch nächstgelegen",
+    "cancelInput": "Diesen Schritt abbrechen",
     "candidate": "Kandidat",
     "candidateIndex": "Kandidatenindex",
     "circleColor": "Kreisfarbe",
@@ -157,6 +158,7 @@
     "width": "Breite"
   },
   "cpRail": {
+    "addToSelection": "Zur Auswahl hinzufügen",
     "ariaLabel": "Faltmuster-Werkzeuge",
     "openEditableFirst": "Öffnen Sie zuerst ein bearbeitbares Faltmuster"
   },
@@ -165,6 +167,11 @@
     "count": "{{index}} von {{total}}",
     "next": "Nächste Option",
     "previous": "Vorherige Option"
+  },
+  "cpToolPicker": {
+    "close": "Werkzeugliste schließen",
+    "title": "Werkzeuge",
+    "trigger": "Werkzeuge"
   },
   "divideMode": {
     "count": "Anzahl",
@@ -217,9 +224,11 @@
   },
   "viewport": {
     "fit": "Einpassen",
+    "more": "Weitere Ansichtssteuerung",
     "pan": "Schwenken",
     "panWithModifier": "Schwenken – oder {{modifier}} halten und ziehen",
     "panWithShortcut": "Schwenken ({{shortcut}}) – oder {{modifier}} halten und ziehen",
+    "resetRotation": "Ansichtsdrehung zurücksetzen",
     "rotateCcw": "Ansicht nach links drehen",
     "rotateCw": "Ansicht nach rechts drehen",
     "rotation": "Ansichtsdrehung in Grad",

@@ -2,9 +2,10 @@
  * The diagnostic HUD: a collapsed headline over the canvas, expanding to the
  * list of issues behind it.
  *
- * Takes no props. Its store bindings are in {@link useCpDiagnosticList} and its
- * headline rule is in `hudStatus.ts`; what is here is the surface itself — the
- * expand toggle and the windowed list.
+ * Takes no props. Its store bindings are in {@link useCpDiagnosticList}, its
+ * headline rule is in `hudStatus.ts`, and where it sits relative to the tool
+ * hint's status readout is in `hudPlacement.ts`; what is here is the surface
+ * itself — the expand toggle and the windowed list.
  *
  * # Why the list is windowed
  *
@@ -28,6 +29,7 @@ import type { OristudioCpDiagnosticEntry } from '../../engine/oristudioCpTypes';
 import { cpDiagnosticEntryMessage } from './foldabilityMessages';
 import { CpDiagnosticGlyph } from './CpDiagnosticGlyph';
 import { useCpDiagnosticList } from './useCpDiagnosticList';
+import { useCpDiagnosticHudLane } from './useCpDiagnosticHudLane';
 
 /**
  * A one-line row, from the stylesheet: 7px padding twice, 0.72rem at line-height
@@ -95,6 +97,11 @@ export function CpDiagnosticHud() {
   const { entries, status, activeId, selectDiagnostic } = useCpDiagnosticList();
   const [expanded, setExpanded] = useState(false);
   const listRef = useRef<HTMLDivElement | null>(null);
+  // State rather than a ref: the lane is measured from this element, so the hook
+  // has to be told when it arrives. The HUD unmounts whenever there is nothing to
+  // report, so that is not a one-time event.
+  const [hudEl, setHudEl] = useState<HTMLDivElement | null>(null);
+  const laneTop = useCpDiagnosticHudLane(hudEl);
 
   // Nothing to report means nothing to expand — otherwise the HUD would come
   // back already open the next time an issue appears.
@@ -140,9 +147,14 @@ export function CpDiagnosticHud() {
 
   return (
     <div
+      ref={setHudEl}
       className="cp-diagnostic-hud"
       data-tone={status.tone}
       data-expanded={expanded || undefined}
+      // Nothing at all while the HUD clears the status readout, which is every
+      // desktop width — the stylesheet's own `top` stays in charge there. See
+      // `hudPlacement.ts`.
+      style={laneTop === null ? undefined : { top: `${laneTop}px` }}
       aria-live="polite"
     >
       <button

@@ -15,6 +15,20 @@
   --radius-lg: 8px;
   --radius-full: 999px;
 
+  /* Apple's minimum pick target, 44pt. Read only from the coarse-pointer layer at
+     the end of this file — a mouse hits a 26px control fine, and sizing the
+     desktop UI to a fingertip would cost the density the inspectors depend on. */
+  --touch-target: 44px;
+
+  /* The screen's unusable margins under `viewport-fit=cover` (see index.html):
+     rounded corners, the camera housing, the home indicator. Named here so a
+     rule can `max()` an inset against its own spacing without repeating the
+     `env()` fallback, and so they read as 0 on every desktop browser. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+
   --bg-primary: #101417;
   --bg-secondary: #171d22;
   --bg-tertiary: #202832;
@@ -1203,7 +1217,11 @@
   z-index: var(--z-modal);
   display: grid;
   place-items: center;
-  padding: var(--space-4);
+  /* Fixed to the viewport, so `.app-layout`'s safe-area padding does not reach
+     it: a dialog centred in the raw viewport can sit under the camera housing in
+     landscape. Each edge takes whichever is larger, the gutter or the inset. */
+  padding: max(var(--space-4), var(--safe-top)) max(var(--space-4), var(--safe-right))
+    max(var(--space-4), var(--safe-bottom)) max(var(--space-4), var(--safe-left));
   background: var(--overlay-dim);
   backdrop-filter: blur(4px);
 }
@@ -1320,7 +1338,8 @@
   z-index: var(--z-modal);
   display: grid;
   place-items: center;
-  padding: var(--space-4);
+  padding: max(var(--space-4), var(--safe-top)) max(var(--space-4), var(--safe-right))
+    max(var(--space-4), var(--safe-bottom)) max(var(--space-4), var(--safe-left));
   background: var(--overlay-dim);
   backdrop-filter: blur(4px);
 }
@@ -2733,7 +2752,8 @@
   z-index: var(--z-modal);
   display: grid;
   place-items: center;
-  padding: var(--space-4);
+  padding: max(var(--space-4), var(--safe-top)) max(var(--space-4), var(--safe-right))
+    max(var(--space-4), var(--safe-bottom)) max(var(--space-4), var(--safe-left));
   background: var(--overlay-dim);
   backdrop-filter: blur(4px);
 }
@@ -5372,6 +5392,24 @@ button.cp-folded-figure-toolbar__notice:hover {
   box-shadow: 0 8px 24px var(--shadow-overlay);
 }
 
+/* Narrow panes. The cap stops the strip at the viewport's edge instead of letting
+   it run past and be clipped by `.app-layout`'s `overflow: hidden`, and wrapping
+   at the gaps moves whole fields to a second line rather than breaking the prompt
+   mid-sentence. That second line is the height the diagnostic HUD stacks below —
+   see cp-workspace/diagnostics/hudPlacement.ts.
+
+   This is **not** inert for a mouse, which an earlier version of this comment
+   claimed. Measured at fine pointer: one line from 1440 down to 720, two lines at
+   700 and below. So a desktop user with a narrow pane sees a two-line readout
+   where they used to see one — but what they used to see was a *clipped* one,
+   with the tail of the step prompt cut off against the pane edge and no way to
+   read it. Left unscoped deliberately: the old behaviour was worse, and the HUD
+   measures the box rather than assuming its height, so it follows. */
+.viewport-status-readout {
+  flex-wrap: wrap;
+  max-width: calc(100% - var(--space-3) * 2);
+}
+
 /* Quiet full-width attribution bar pinned to the bottom of a design pane. As a
    flex child of `.panel-shell` (below the `flex: 1` canvas body) it spans the
    pane and reserves its own height rather than overlaying the canvas. */
@@ -6014,11 +6052,43 @@ button.cp-folded-figure-toolbar__notice:hover {
   white-space: nowrap;
 }
 
+/*
+ * A run of controls that belongs together.
+ *
+ * `display: contents` here rather than a box, so on a pointer device the bar's
+ * flex container still sees exactly the flat sequence of controls it always did
+ * — the grouping is structure the markup carries and this stylesheet ignores.
+ * The coarse block at the end of the file is where it becomes a box, and with it
+ * the unit that a line break has to respect.
+ */
+.viewport-toolbar__group {
+  display: contents;
+}
+
 .viewport-toolbar__separator {
   width: 1px;
   height: 18px;
   margin: 0 5px;
   background: var(--border-default);
+}
+
+/*
+ * The `⋯` menu scrolls where `.context-menu` alone would truncate.
+ *
+ * That base rule caps itself at Radix's available height and leaves
+ * `overflow: hidden`, which is survivable for a menu of a handful of 28px rows
+ * and is not for this one: on a coarse pointer every row is `--touch-target`,
+ * and the packing pane's menu is fifteen of them plus two seams — around 690px,
+ * against roughly 530px of room above the bar on a small tablet in landscape.
+ * The remainder had no way to be reached, since the bar sits on the bottom edge
+ * and there is nowhere below for Radix to flip into.
+ *
+ * Only the vertical axis is offered, and the chain stops here so reaching the
+ * end of the list does not start moving whatever is behind it.
+ */
+.viewport-toolbar__overflow-menu {
+  overflow: hidden auto;
+  overscroll-behavior: contain;
 }
 
 .viewport-toolbar .ui-button--icon {
@@ -6910,23 +6980,44 @@ button.cp-folded-figure-toolbar__notice:hover {
     display: none;
   }
 
+  .cp-tool-rail__header {
+    display: none;
+  }
+}
+
+/*
+ * A narrow *mouse* window. Width alone used to gate these, which made the one
+ * responsive rule in the app an anti-touch rule: a phone or a split-screen iPad
+ * matched it and got 32px tools. Trading target size for canvas is only the
+ * right trade when the pointer is a cursor — see the coarse-pointer twin below,
+ * which spends the same space on fewer, bigger columns instead.
+ */
+@media (max-width: 720px) and (pointer: fine) {
   .cp-panel__body--with-tools {
     grid-template-columns: 156px minmax(0, 1fr);
   }
 
-  .cp-tool-rail__header {
-    display: none;
-  }
-
   .cp-tool-rail__buttons {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
     width: min(100%, 148px);
   }
 
   .cp-tool-rail__button {
     height: 32px;
   }
+}
 
+/* Three 44px columns rather than four narrow ones: the rail comes out narrower
+   than the fine-pointer layout above, so the canvas is no worse off, and every
+   tool is still a full-size target. */
+@media (max-width: 720px) and (pointer: coarse) {
+  .cp-panel__body--with-tools {
+    grid-template-columns: 152px minmax(0, 1fr);
+  }
+
+  .cp-tool-rail__buttons {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: min(100%, 140px);
+  }
 }
 
 .facet {
@@ -8942,4 +9033,864 @@ button.bp-packing-alert:focus-visible {
     var(--accent-tertiary) 0 12px,
     transparent 12px 20px
   );
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * Coarse pointer: the touch layer.
+ *
+ * Everything below is scoped to a device whose primary input is a fingertip, so
+ * none of it reaches the desktop UI. It is the last block in the file on
+ * purpose — several of these restate a size the sheet already set at equal
+ * specificity, and source order is what settles those.
+ *
+ * Sizes are written as `min-width` / `min-height` rather than `width` /
+ * `height`. A minimum clamps whatever height the original rule set regardless of
+ * how specific that rule was, which keeps this block from having to mirror
+ * every selector that ever sized a control.
+ * ---------------------------------------------------------------------------
+ */
+@media (pointer: coarse) {
+  .ui-control--sm,
+  .ui-control--md,
+  .ui-control--lg,
+  .ui-icon-control--sm,
+  .ui-icon-control--md,
+  .ui-icon-control--lg,
+  .select-trigger,
+  .segmented__option,
+  .viewport-toolbar__zoom-button,
+  .viewport-toolbar__symmetry-button,
+  .cp-selection-transform__menu button,
+  .bp-packing-dpad button,
+  .number-field__step {
+    min-height: var(--touch-target);
+  }
+
+  /* Square controls need the width too — their `width` is what makes them square,
+     and it is set alongside `padding: 0`, which stays untouched here so
+     `justify-content: center` keeps doing the centring. */
+  .ui-icon-control--sm,
+  .ui-icon-control--md,
+  .ui-icon-control--lg,
+  .cp-selection-transform__menu button,
+  .bp-packing-dpad button,
+  .number-field__step {
+    min-width: var(--touch-target);
+  }
+
+  /* Growing the steppers to 44px makes a number field need
+     44 + 4 + 44 + 4 + 44 = 140px, but `.control-row`'s two columns each claim a
+     floor of 80px and the steppers are `flex: 0 0 auto` — so on a narrow panel
+     the field is handed ~112px and the `+` overflows the row and clips against
+     the panel's edge instead of shrinking. Measured on a base iPad in portrait:
+     the increment button was cut in half by the screen edge.
+
+     The label is what should give way. It can truncate and still be read; a
+     control the finger cannot reach is simply gone. */
+  .control-row {
+    grid-template-columns: minmax(0, 1fr) minmax(140px, auto);
+  }
+
+  .control-row__label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .cp-tool-rail__button {
+    min-height: var(--touch-target);
+  }
+
+  /* The group headers are the rail's only way to collapse a section, and at
+     `font-size: 0.56rem` the toggle is a hairline. */
+  .cp-tool-rail__group-toggle {
+    min-height: 32px;
+  }
+
+  /* Rows in a portalled menu. Nothing sits beside them, so height is free.
+
+     `.menu-dropdown__item` is the menu bar's own row, and it belongs here for
+     the same reason as the rest: row height is a question about the finger, not
+     about the screen. It was first given the target inside `MenuBar.css`'s phone
+     block, which left every tablet on the 28px default — the menu bar is the
+     only way to reach a large part of the app, and on an iPad it had the one
+     kind of row a finger could not reliably hit. Same predicate as its
+     siblings now, in the same place. */
+  .select-item,
+  .context-menu__item,
+  .viewport-toolbar__dropdown-item,
+  .symmetry-menu__item,
+  .folded-figure-menu__figure,
+  .menu-dropdown__item {
+    min-height: var(--touch-target);
+  }
+
+  /*
+   * The switch keeps its 44x24 pill — growing it would put the 20px thumb in a
+   * lozenge and break the translate that moves it — and gets the missing 20px of
+   * target from a transparent box instead. It grows vertically only: the settings
+   * rows it lives in have room above and below, whereas a wider box would reach
+   * into the label beside it and swallow taps meant for the row's own control.
+   */
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: var(--touch-target);
+    transform: translateY(-50%);
+  }
+
+  /*
+   * Native boxes are replaced elements, so there is no pseudo-element to hang a
+   * hit box on and the box itself has to grow. 24px is not the 44px guidance —
+   * a checkbox that size reads as a button — but it is double the 12px these
+   * were, and the clickable label beside each one carries the rest.
+   */
+  input[type='checkbox'],
+  input[type='radio'] {
+    width: 24px;
+    height: 24px;
+  }
+
+  /*
+   * The bottom toolbar.
+   *
+   * Bigger targets make it wider than a portrait canvas column, and it is a
+   * flex row pinned to `left: 50%` — so left alone it overflows off screen on
+   * both sides and buttons become unreachable. Most of that width is now given
+   * back by the overflow menu (`ViewportToolbarOverflowMenu`), which is why the
+   * crease-pattern bar fits one line on an iPad mini where it wanted 615px
+   * against a 470px pane. Wrapping stays as the fallback for whatever is still
+   * too wide — a docked pair of panes, Split View — and spends height, which
+   * the bar has: it is anchored by its bottom edge and grows upward.
+   *
+   * What it must not do is wrap *raggedly*. That is what the group below is
+   * for: the break can only fall on a seam the surface chose.
+   */
+  .viewport-toolbar {
+    /*
+     * The bar could never use the width its `max-width` promises, and this is
+     * the larger half of why it wrapped three times on an iPad.
+     *
+     * It is absolutely positioned with `left: 50%` and no `right`, so its width
+     * is shrink-to-fit — and the "available space" that feeds shrink-to-fit is
+     * *containing block minus left*, i.e. half the pane. Measured on the CP
+     * editor at 744px: a 494px pane, `max-width` resolving to 470px, and a used
+     * width of 247px. The `translateX(-50%)` centres the box afterwards, which
+     * hides the cause: the bar looks centred and simply refuses to grow.
+     *
+     * Anchoring both edges and centring with auto margins instead makes the
+     * available space the whole pane, so `fit-content` can reach the row's real
+     * width and `max-width` becomes the cap it was written to be. Same 382px row
+     * as `left: 50%` produced — on one line rather than two.
+     */
+    left: 0;
+    right: 0;
+    width: fit-content;
+    margin-inline: auto;
+    transform: none;
+
+    flex-wrap: wrap;
+    justify-content: center;
+    /* Row seam, then group seam. The group seam replaces the hairline below,
+       which is worth 11px a piece the row does not have to spend. */
+    gap: 6px 10px;
+  }
+
+  .viewport-toolbar__group {
+    display: flex;
+    align-items: center;
+    /* The spacing the bar itself used before the groups existed, so a run looks
+       the same as it always did. */
+    gap: 4px;
+    /* Belt and braces: a group is an atomic flex item, and nothing inside it
+       may break to the next line. */
+    flex-wrap: nowrap;
+  }
+
+  .viewport-toolbar__separator {
+    display: none;
+  }
+
+  /*
+   * Safari zooms the whole page in whenever a field below 16px takes focus, and
+   * `body { overflow: hidden }` means there is no scroll gesture to get back —
+   * the app is simply left magnified with its chrome off screen. So the size is
+   * a correctness constraint on touch rather than a style choice.
+   *
+   * `min-height` handles the boxes generically, but font size cannot be clamped
+   * the same way, so every rule in this sheet that sizes text in a field is
+   * restated here at its own specificity. Excluded on purpose:
+   * `.cp-text-editor__content`, the Lexical editable inside a canvas text
+   * object, whose font size is the user's chosen type size and not chrome.
+   */
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+  select,
+  textarea {
+    min-height: var(--touch-target);
+    font-size: 16px;
+  }
+
+  .control-row__input,
+  .share-link-modal__field input,
+  .bp-optimizer__count input,
+  .export-modal__input,
+  .export-modal__select,
+  .field-row input,
+  .settings-shortcuts__toolbar input[type='search'],
+  .design-tab__name-input,
+  .cp-text-toolbar__select,
+  .cp-text-toolbar__color-select,
+  .condition-number input,
+  .cp-context-panel__field input:not(.number-field__input),
+  .cp-context-panel__field select,
+  .cp-context-panel__field textarea,
+  .viewport-toolbar__rotation-input,
+  .folded-figure-menu__field input,
+  .folded-figure-menu__field select,
+  .bp-sheet-menu__input,
+  .symmetry-menu__field input,
+  .bp-tree-edge-editor__input,
+  .bp-name-editor__input,
+  .bp-flap-editor__input {
+    font-size: 16px;
+  }
+}
+
+/*
+ * The rail's own width, on a touch device with room for it: four columns of a
+ * full-size target plus the rail's gaps and padding. Bounded above 720px because
+ * the narrow-viewport pair earlier in the file spends that width differently —
+ * three columns in a *narrower* rail — and this block would otherwise outrank it
+ * on source order.
+ */
+@media (pointer: coarse) and (min-width: 721px) {
+  .cp-panel__body--with-tools {
+    grid-template-columns: 200px minmax(0, 1fr);
+  }
+
+  .cp-tool-rail__buttons {
+    width: min(100%, 188px);
+  }
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * The View drawer.
+ *
+ * Under a coarse pointer the workspace's View pane is not docked (see
+ * `reconcileViewPanel`): its 260px column plus the tool rail leaves an iPad in
+ * portrait almost no canvas, and on a base iPad the pane's own controls ran off
+ * the right edge. What replaces it is a pill floating over the top-right of the
+ * canvas and a sheet that comes in from the right.
+ *
+ * Every rule below is inside the coarse query, and there is no fine-pointer
+ * counterpart anywhere: the desktop stylesheet is unchanged, byte for byte.
+ * ---------------------------------------------------------------------------
+ */
+@media (pointer: coarse) {
+  :root {
+    /*
+     * How far down the canvas's top-right corner the trigger reaches: its own
+     * inset, plus the touch target the block above clamps it to, plus a gap.
+     * Anything else that wants that corner clears this rather than guessing.
+     */
+    --view-drawer-lane: calc(var(--space-3) + var(--touch-target) + var(--space-2));
+  }
+
+  /*
+   * The trigger's containing block, and a grid item of `.workspace-shell__canvas`
+   * (see App.css) sharing row 2 with `.workspace-shell__dock` so it overlays the
+   * dock exactly.
+   *
+   * A row of its own rather than an absolute child of the canvas. The canvas
+   * spans three rows — the design tab strip, the dock, the attribution footer —
+   * so an inset measured against it is measured from whatever chrome happens to
+   * sit above the dock. Owning a grid item pins the reference to the dock cell
+   * instead, the same reason `.workspace-shell__dock` owns its own.
+   */
+  .view-drawer-anchor {
+    position: relative;
+    grid-row: 2;
+    z-index: var(--z-canvas-overlay);
+    min-width: 0;
+    min-height: 0;
+    /* The dock underneath keeps every tap that is not on the pill itself. */
+    pointer-events: none;
+
+    /*
+     * Vertical inset, per pane. Zero chrome above the canvas is the common case.
+     */
+    --view-drawer-inset-top: var(--space-3);
+  }
+
+  /*
+   * The Simulate pane opens with a real `.panel-toolbar` whose right end already
+   * holds Set upright and the export menu, so the pill drops below it rather than
+   * covering two controls that would then be unreachable. The toolbar's own
+   * `min-height` is 36px, but on touch its buttons are clamped to
+   * `--touch-target` and that is what actually sets the height — so the offset is
+   * written in the same token rather than in the number it happens to produce.
+   */
+  .view-drawer-anchor[data-view-panel='simulator-view-controls'] {
+    --view-drawer-inset-top: calc(var(--touch-target) + var(--space-2));
+  }
+
+  /*
+   * The pill row. The inset lives here rather than on the trigger because more
+   * than one pill can be in it — the phone layout puts Tools to the left of View
+   * — and "left of View" has to be a layout fact rather than an offset somebody
+   * computed from View's width, which changes with the locale.
+   *
+   * Anchored by its *right* edge, which is why the row can be zero-width: the
+   * anchor is a grid item spanning the dock, and `right` is measured against
+   * that regardless of what the row contains.
+   */
+  .view-drawer-anchor__row {
+    position: absolute;
+    top: var(--view-drawer-inset-top);
+    right: var(--space-3);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    /* Inherited from the anchor, and re-asserted per pill below: the dock keeps
+       every tap that is not on one of them, including in the gap between. */
+    pointer-events: none;
+  }
+
+  .view-drawer-anchor__trigger,
+  .cp-tools-trigger {
+    gap: var(--space-2);
+    border-color: var(--border-default);
+    box-shadow: var(--shadow-context-menu);
+    pointer-events: auto;
+  }
+
+  /*
+   * The active tool's mark, at about the size the View pill draws its icon. A
+   * box of its own because `CpToolGlyph` renders three different things — an
+   * Oriedita glyph from an icon font, a two-letter line-type label, or a Lucide
+   * icon — and only a fixed box makes all three sit on the same line as the word
+   * beside them.
+   *
+   * The font-size here covers the text glyph; the Oriedita icon font carries its
+   * own, tuned for a 44px rail button, so it is re-set below. Its baseline nudge
+   * goes with it — a 2px drop inside an 18px box is visible, where inside a rail
+   * button it was the correction that made it invisible.
+   */
+  .cp-tools-trigger__glyph {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    font-size: 0.72rem;
+    font-weight: 750;
+    line-height: 1;
+  }
+
+  .cp-tools-trigger__glyph .cp-tool-rail__oriedita-icon {
+    font-size: 18px;
+    transform: none;
+  }
+
+  /*
+   * The diagnostic HUD owns the same corner of the crease-pattern viewport, so it
+   * moves down out of the lane.
+   *
+   * `margin-top` and not `top`: `useCpDiagnosticHudLane` writes an inline `top`
+   * whenever the HUD would collide with the viewport status readout, and an
+   * inline style beats any stylesheet rule. A margin composes with whichever
+   * `top` is in force instead of racing it. The subtraction is the HUD's own
+   * inset, which already counts toward the lane.
+   */
+  .cp-diagnostic-hud {
+    margin-top: calc(var(--view-drawer-lane) - var(--space-4));
+  }
+
+  /*
+   * The sheet. `position: fixed`, so unlike the trigger it is *not* inside
+   * `.app-layout` for layout purposes and does not inherit the safe-area padding
+   * that element applies once for the whole app — it has to inset itself.
+   */
+  .view-drawer {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    display: flex;
+    justify-content: flex-end;
+    padding: var(--safe-top) var(--safe-right) var(--safe-bottom) 0;
+    background: var(--overlay-dim);
+    backdrop-filter: blur(4px);
+  }
+
+  .view-drawer__sheet {
+    display: flex;
+    flex-direction: column;
+    /* Wider than the 260px column it replaces: the pane's controls are what ran
+       out of room in the dock, and a sheet has the width to spare. */
+    width: min(340px, 88vw);
+    min-height: 0;
+    border-left: 1px solid var(--border-default);
+    background: var(--bg-secondary);
+    box-shadow: var(--shadow-context-menu);
+    animation: view-drawer-in 0.18s ease-out;
+  }
+
+  .view-drawer__sheet:focus {
+    outline: none;
+  }
+
+  .view-drawer__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border-default);
+    background: var(--bg-primary);
+  }
+
+  .view-drawer__title {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-weight: 750;
+    letter-spacing: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* The pane inside is a `.panel-shell`, which is `height: 100%` — so the body
+     has to be a definite box for its `.panel-body` to scroll rather than grow. */
+  .view-drawer__body {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    /* Reaching the end of the pane must not start scrolling the app behind it. */
+    overscroll-behavior: contain;
+  }
+
+  @keyframes view-drawer-in {
+    from {
+      transform: translateX(100%);
+    }
+  }
+}
+
+@media (pointer: coarse) and (prefers-reduced-motion: reduce) {
+  .view-drawer__sheet {
+    animation: none;
+  }
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * Reading a label with a finger.
+ *
+ * Radix's tooltip has no touch path — its trigger returns early from
+ * `onPointerMove` for `pointerType === "touch"`, closes on `onPointerDown`, and
+ * suppresses the `onFocus` open whenever a pointer is down. So under a coarse
+ * pointer an icon button's only visible label is unreachable, and `useTouchLabel`
+ * adds press-and-hold to summon it.
+ *
+ * Two surfaces answer that press with something else unless told not to: iOS
+ * raises the callout/selection UI, and both engines start a text selection on the
+ * label glyph. Neither is a rule the fine-pointer stylesheet has, and neither
+ * changes anything a mouse does.
+ * ---------------------------------------------------------------------------
+ */
+@media (pointer: coarse) {
+  .ui-button,
+  .ui-button-tooltip-trigger,
+  .cp-tool-rail__button {
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+
+  /*
+   * `.cp-tool-rail` ships one explicit row, `minmax(0, 1fr)`, sized for its only
+   * child being the scrolling group list. The touch header takes that row simply
+   * by being first, which demotes the group list to an implicit `auto` one — and
+   * an `auto` track holding an `overflow-y: auto` child reports a min-content
+   * contribution of 0 and a max-content contribution of the whole list, so it
+   * absorbs the rail's full height and the `fr` track resolves to 0. Measured on
+   * a base iPad: `grid-template-rows` came out `0px 700px`, and the header's
+   * buttons painted on top of the Type group instead of above it.
+   *
+   * So the rows are named here, where the header exists. Unconditional inside
+   * this block even though the header's gate is now narrower than it —
+   * `useIsCoarsePointerSurface() && !useIsPhoneLayout()`, so a phone-sized coarse
+   * viewport has a header-less rail whose group list would land back in the
+   * `auto` row and collapse the `fr` one to 0 all over again. That never paints
+   * only because the phone block at the end of this file hides `.cp-tool-rail`
+   * outright, off the same query string the predicate reads — so anything that
+   * un-hides the rail at phone width has to bring a row assignment with it.
+   * Under a fine pointer the rail keeps the single-row rule above.
+   */
+  .cp-tool-rail {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  /*
+   * The rail's one touch-only row: the Shift latch. Full width on purpose — the
+   * rail's constraint is horizontal, the button grid below keeps every pixel it
+   * has, and what this spends is height in a column that already scrolls.
+   */
+  .cp-tool-rail__touch-header {
+    display: grid;
+    gap: var(--space-1);
+    padding: var(--space-2) 5px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  /*
+   * "Cancel this step" renders only under this media query — it is the one
+   * control in the hint window that exists purely because there is no Escape
+   * key — and it inherited a 24px `min-height` from the fine-pointer rule it
+   * shares with "Clear seeds". A finger-only affordance under the target size is
+   * the defect this whole pass exists to remove, so both grow here.
+   */
+  .cp-context-panel__secondary {
+    min-height: var(--touch-target);
+    padding-inline: var(--space-3);
+  }
+
+  .cp-tool-rail__latch {
+    justify-content: flex-start;
+    gap: var(--space-2);
+    width: 100%;
+    min-height: var(--touch-target);
+    padding-inline: var(--space-2);
+    text-align: left;
+  }
+
+  /*
+   * The latch is a mode, and a mode that is on with nothing on screen saying so
+   * is how a user ends up adding to a selection they meant to replace. `ghost`
+   * gives `[data-active]` no fill of its own, so it gets one here.
+   */
+  .cp-tool-rail__latch[data-active] {
+    border-color: color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
+    background: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-tertiary));
+    color: var(--text-primary);
+  }
+
+  /*
+   * The tool picker: every rail tool with its name, its description and its
+   * shortcut. `position: fixed`, so like the View drawer it sits outside
+   * `.app-layout` for layout purposes and insets itself past the safe area.
+   */
+  .cp-tool-picker {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    display: flex;
+    justify-content: flex-start;
+    padding: var(--safe-top) 0 var(--safe-bottom) var(--safe-left);
+    background: var(--overlay-dim);
+    backdrop-filter: blur(4px);
+  }
+
+  .cp-tool-picker__sheet {
+    display: flex;
+    flex-direction: column;
+    /* Wide enough for the longest name plus its shortcut: "Concentric from two
+       circles" is 27 characters, and truncating it here would defeat the point
+       of the sheet existing. */
+    width: min(380px, 92vw);
+    min-height: 0;
+    border-right: 1px solid var(--border-default);
+    background: var(--bg-secondary);
+    box-shadow: var(--shadow-context-menu);
+    animation: cp-tool-picker-in 0.18s ease-out;
+  }
+
+  /* Focused on open so `aria-modal` has somewhere to put a screen reader, which
+     is not a reason to draw a ring around the whole sheet. Same as the View
+     drawer's. */
+  .cp-tool-picker__sheet:focus {
+    outline: none;
+  }
+
+  .cp-tool-picker__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border-default);
+    background: var(--bg-primary);
+  }
+
+  /*
+   * The Shift latch, which on a phone has nowhere else to be — the rail it used
+   * to sit in is not rendered at that width. Above the catalogue and separated
+   * from it, because it is a mode rather than a tool and picking it does not
+   * close the sheet the way picking a tool does.
+   */
+  .cp-tool-picker__modes {
+    display: grid;
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .cp-tool-picker__title {
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-weight: 750;
+    letter-spacing: 0;
+  }
+
+  .cp-tool-picker__body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    /* Reaching the end of the list must not start scrolling the app behind it. */
+    overscroll-behavior: contain;
+    padding-bottom: var(--space-4);
+  }
+
+  .cp-tool-picker__group-title {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-secondary);
+    color: var(--text-tertiary);
+    font-size: 0.62rem;
+    font-weight: 750;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .cp-tool-picker__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .cp-tool-picker__item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: var(--touch-target);
+    padding: var(--space-2) var(--space-3);
+    border: 0;
+    background: transparent;
+    color: var(--text-primary);
+    text-align: left;
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+
+  .cp-tool-picker__item[data-active] {
+    background: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-tertiary));
+    box-shadow: inset 2px 0 0 var(--accent-primary);
+  }
+
+  .cp-tool-picker__item[aria-disabled='true'] {
+    color: var(--text-tertiary);
+    opacity: 0.55;
+  }
+
+  .cp-tool-picker__icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    color: var(--text-secondary);
+  }
+
+  .cp-tool-picker__item[data-active] .cp-tool-picker__icon {
+    color: var(--text-primary);
+  }
+
+  .cp-tool-picker__text {
+    display: grid;
+    flex: 1;
+    min-width: 0;
+    gap: 1px;
+  }
+
+  .cp-tool-picker__label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  /* The description the tooltip used to be the only home for. Two lines at most:
+     past that the row stops being scannable and the list stops being a list. */
+  .cp-tool-picker__hint {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--text-tertiary);
+    font-size: 0.7rem;
+    line-height: 1.3;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .cp-tool-picker__shortcut {
+    flex: 0 0 auto;
+    padding: 2px 6px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-tertiary);
+    font-family: inherit;
+    font-size: 0.66rem;
+  }
+
+  @keyframes cp-tool-picker-in {
+    from {
+      transform: translateX(-100%);
+    }
+  }
+}
+
+@media (pointer: coarse) and (prefers-reduced-motion: reduce) {
+  .cp-tool-picker__sheet {
+    animation: none;
+  }
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * The phone layout: no tool rail, and the whole width for the canvas.
+ *
+ * The prelude is a literal copy of `PHONE_MEDIA_QUERY` (platform/phoneLayout.ts),
+ * because CSS cannot import a constant. `platform/phoneLayout.test.ts` reads this
+ * file and fails if the two drift; `App.css` carries the only other copy.
+ *
+ * Measured at 375x812 before this block existed: a 50px workspace rail plus a
+ * 152px tool rail left the crease-pattern viewport 173px of a 375px screen —
+ * chrome taking 54% of the width on the device with the least of it. The
+ * workspace rail moves to the bottom (App.css) and the tool rail moves into a
+ * sheet, which between them hand the canvas all 375.
+ *
+ * A tablet is untouched: it keeps its rail, and every rule that shapes it lives
+ * in the `max-width: 720px` pair above, outside this block.
+ * ---------------------------------------------------------------------------
+ */
+@media (pointer: coarse) and (max-width: 600px), (pointer: coarse) and (max-height: 600px) {
+  /*
+   * Two diagnostic readouts, hidden.
+   *
+   * Both are pure output — no control lives in either — so nothing becomes
+   * unreachable, and both say things a phone user can already see elsewhere:
+   * the zoom percent is in the viewport toolbar, the active tool is the Tools
+   * pill's own glyph, and a tool's instructions are what the hint window is for.
+   * What they cost is a box over the corner of a canvas that, on a phone, is
+   * the scarcest thing on the screen.
+   *
+   * Phone-only, not every coarse pointer. A tablet has room for both and keeps
+   * the ambient step prompt, which is the part with no equivalent anywhere else.
+   *
+   * The simulator's block is hidden **only in its `ready` state**, because
+   * `statusLabel` is doing two jobs: the vertex and triangle count when things
+   * are working, and the reason when they are not. Hiding it outright would
+   * make a failed or empty simulator look like an idle one. The stats beside it
+   * — step, strain, backend — are diagnostics in every state, so they go
+   * regardless, and `:not(:first-child)` is exactly that set because the status
+   * span leads.
+   */
+  .viewport-status-readout,
+  .simulator-readout[data-state='ready'] {
+    display: none;
+  }
+
+  .simulator-readout > *:not(:first-child) {
+    display: none;
+  }
+
+  /*
+   * The zoom percent goes too, leaving the − and + it sat between. The readout
+   * is a `button` that opens a preset menu, so unlike the two above this one
+   * *is* a control — but every preset in it is reachable by pinching, and Fit
+   * is its own button two positions along, so nothing is lost. What it buys is
+   * the width: the bar is a single scrolling row on a phone and the percent is
+   * the one item in it that is text rather than a target.
+   */
+  .viewport-toolbar__zoom-button {
+    display: none;
+  }
+
+  /*
+   * Settings loses its section heading and puts Close in the corner.
+   *
+   * The heading repeats the active tab, which is two rows above it and marked
+   * with an underline — so on a screen this narrow it spends a 56px band saying
+   * something already on screen. Close moves to the document's own top-right,
+   * where a phone dialog's close belongs.
+   *
+   * Done by moving the existing header rather than rendering a second button in
+   * the sidebar: one close button in the DOM stays one in the accessibility
+   * tree, and the alternative is two controls with the same label that have to
+   * be kept from appearing at once. With the header out of flow,
+   * `.settings-modal__content`'s `auto` row collapses and the body takes the
+   * height the heading was using.
+   */
+  .settings-modal__document {
+    position: relative;
+  }
+
+  .settings-modal__header {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 1;
+    min-height: 0;
+    padding: var(--space-2);
+    border-bottom: 0;
+  }
+
+  .settings-modal__header h2 {
+    display: none;
+  }
+
+  /*
+   * Keeps the tab strip from scrolling underneath the close button that now
+   * shares its corner. `--touch-target` because that is what sizes the button.
+   */
+  .settings-modal__sidebar {
+    padding-right: calc(var(--touch-target) + var(--space-2));
+  }
+
+  /*
+   * The tools reach the user through `CpToolsTrigger` instead — a pill beside
+   * View drawing the active tool's glyph, opening the sheet below. Hidden rather
+   * than unmounted because the rail is a stylesheet's worth of grid tracks and
+   * one `display: none` is the whole change; the Shift latch it used to carry is
+   * moved in the markup, not hidden, so there is only ever one of it.
+   */
+  .cp-tool-rail {
+    display: none;
+  }
+
+  .cp-panel__body--with-tools {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+
+  /*
+   * With no rail beside it the sheet is the only tool surface, so it takes all
+   * the width it can — but not the last 44px.
+   *
+   * Its 92vw default leaves a 30px strip of backdrop at 375px, and the backdrop
+   * is how the sheet is dismissed by tapping: a phone has no Escape key, so the
+   * strip and the close button are the only two ways out. A dismissal target
+   * under the touch minimum is the defect this whole pass exists to remove, so
+   * the strip is written as exactly one target rather than as a percentage that
+   * happens to land near one.
+   */
+  .cp-tool-picker__sheet {
+    width: calc(100% - var(--touch-target));
+  }
 }

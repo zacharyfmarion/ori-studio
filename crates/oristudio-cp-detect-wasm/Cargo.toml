@@ -3,13 +3,18 @@ name = "oristudio-cp-detect-wasm"
 version.workspace = true
 publish.workspace = true
 edition.workspace = true
-license.workspace = true
+# Not the workspace GPL default: this wrapper reaches only the detection crates,
+# which are themselves permissive.
+license = "MIT OR Apache-2.0"
 description = "wasm-bindgen package for browser crease-pattern detection"
 repository.workspace = true
 homepage.workspace = true
 keywords = ["origami", "crease-pattern", "wasm", "detection"]
 categories = ["wasm", "algorithms"]
 include = ["Cargo.toml", "src/**", "tests/**", "!pkg/**"]
+
+[lints]
+workspace = true
 
 [lib]
 crate-type = ["cdylib", "rlib"]

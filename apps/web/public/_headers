@@ -8,7 +8,24 @@
 # unmatched paths, which is the SPA fallback every share link depends on: `/s/<id>` calls
 # `context.next()` expecting `index.html`, and would render the error page instead. The
 # post-deploy smoke test (scripts/share-smoke.mjs) asserts against exactly this.
+#
+# The `/*` rule also covers `/sw.js`, which is what makes the service worker legal to
+# register on a `require-corp` page at all. Narrowing it to `/assets/*` would break the
+# worker as well as the page. `scripts/webkit-pwa-check.mjs` reads this file rather than
+# hardcoding the two headers, so removing them fails that check instead of shipping.
 
 /*
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: require-corp
+
+# Belt and braces on the one file whose staleness has no recovery path: a browser that
+# holds an old `sw.js` keeps serving from it, and the fix would be asking people to clear
+# site data — which for an installed app means deleting it. Registration's default
+# `updateViaCache: 'imports'` already bypasses the HTTP cache for the top-level worker
+# script, and Pages already serves unhashed files `max-age=0`; this only means neither has
+# to stay true for the recovery in `src/pwa/swKill.ts` to reach anybody.
+/sw.js
+  Cache-Control: no-cache
+
+/sw-kill.js
+  Cache-Control: no-cache

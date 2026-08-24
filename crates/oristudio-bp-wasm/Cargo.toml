@@ -3,13 +3,18 @@ name = "oristudio-bp-wasm"
 version.workspace = true
 publish.workspace = true
 edition.workspace = true
-license.workspace = true
+# Not the workspace GPL default: this wrapper reaches only `oristudio-bp`, so it
+# carries the Box Pleating Studio lineage's MIT instead. See LICENSING.md.
+license = "MIT"
 description = "wasm-bindgen package for the Box Pleating Studio-compatible kernel"
 repository.workspace = true
 homepage.workspace = true
 keywords = ["origami", "box-pleating", "wasm"]
 categories = ["wasm", "algorithms"]
 include = ["Cargo.toml", "src/**", "tests/**", "!pkg/**"]
+
+[lints]
+workspace = true
 
 [lib]
 crate-type = ["cdylib", "rlib"]

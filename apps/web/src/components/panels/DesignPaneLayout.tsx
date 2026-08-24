@@ -96,6 +96,12 @@ export function DesignPaneLayout() {
       // A pane dragged out of here would land in the *workspace* dock, beside
       // Edit and Simulate, orphaned from the design that owns it. Resizing —
       // the thing this nesting exists for — does not go through drag-and-drop.
+      //
+      // Unconditional, unlike the workspace dock's pointer-dependent one: this
+      // arrangement is the only layout that leaves the device, riding in the
+      // `.osf` as `viewState.paneLayout`. Every device therefore writes it back
+      // under the same rules, and a session on an iPad cannot hand the desktop
+      // an arrangement the desktop would not have produced.
       disableDnd
       disableFloatingGroups
     />

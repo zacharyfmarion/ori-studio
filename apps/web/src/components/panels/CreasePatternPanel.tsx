@@ -110,6 +110,7 @@ import { useShortcutStore } from '../../store/shortcutStore';
 import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglCanvas';
 import type { CpOverlayView, StepKind } from '../../cp-workspace/CreasePatternWebglCanvas';
 import { cpCamera } from '../../cp-workspace/renderer/cpCameraRegistry';
+import { publishCpToolSurface } from '../../cp-workspace/toolCatalog/cpToolSurface';
 import type { CpContextMenuRequest } from '../../cp-workspace/contextMenuTarget';
 import { isFoldedFigureReady } from '../../cp-workspace/folded/foldedFigureActions';
 import { foldedFigureCapabilities } from '../../cp-workspace/folded/foldedFigureCapabilities';
@@ -211,11 +212,12 @@ import { SurfaceLoading } from '../ui/SurfaceLoading';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Toggle } from '../ui/Toggle';
 import { CpToolRail } from './CpToolRail';
+import { withShiftLatch } from '../../cp-workspace/touchModifiers/shiftLatch';
 import { NextDocumentAction } from './NextDocumentAction';
 import {
   isViewportInteractiveTarget,
   ViewportToolbar,
-  ViewportToolbarSeparator,
+  type ViewportToolbarGroupSpec,
 } from './ViewportToolbar';
 import type { FoldDocument } from '../../engine/types';
 
@@ -774,6 +776,20 @@ export function CreasePatternPanel() {
   // Points placed so far in the current measure pick, for the step prompt. A
   // sequence tool's points live on the canvas, so this mirrors its pick progress.
   const [cpMeasurePicked, setCpMeasurePicked] = useState(0);
+  /**
+   * The same count for *any* tool, not just the measuring ones.
+   *
+   * Every other signal the panel has for "this tool is holding input" is
+   * derived: `cpToolState.stepIndex` is clamped to `steps.length - 1` by
+   * `advanceStep`, so a parked start on a single-step tool still reads 0, and
+   * the four `cpInputPending` terms below only ever go non-empty for three
+   * tools. The canvas's own raw count is the one unclamped answer, and it
+   * already arrives here — the 45 point-sequence tools, the line-entity one and
+   * the parked draw start of the snap-draw tools all report through
+   * `onToolPickProgress`. Reading it directly is what lets the on-screen Cancel
+   * appear for all of them rather than for three.
+   */
+  const [cpToolPicked, setCpToolPicked] = useState(0);
   // The pick in progress — placed points plus the cursor — so the on-canvas figure
   // and its value track the mouse before anything is committed.
   const [cpMeasureLivePoints, setCpMeasureLivePoints] = useState<readonly Point[]>([]);
@@ -1628,6 +1644,33 @@ export function CreasePatternPanel() {
     [handleCpShortcutAction]
   );
 
+  // The phone layout's Tools button is mounted in the app shell, outside the
+  // dock, so it has no props to read the active tool from and nothing to arm it
+  // with. Published rather than lifted into a store: this is panel-local state
+  // with one subscriber, and the registration is identity-checked on the way out
+  // the same way the shortcut executor above is.
+  useEffect(
+    () => {
+      // No editable crease pattern means no tools, so nothing is published and
+      // the Tools button does not exist — the same condition the rail mounts
+      // under.
+      if (!editableCp) return undefined;
+      return publishCpToolSurface({
+        activeActionId: cpToolState.activeActionId,
+        activeOperationId: cpToolState.activeOperationId,
+        activeLineColor: effectiveCpLineColor,
+        onSelectAction: handleCpToolAction,
+      });
+    },
+    [
+      cpToolState.activeActionId,
+      cpToolState.activeOperationId,
+      editableCp,
+      effectiveCpLineColor,
+      handleCpToolAction,
+    ]
+  );
+
   useEffect(() => {
     if (!oristudioCpActionRequest) return;
 
@@ -1907,6 +1950,7 @@ export function CreasePatternPanel() {
           }
         });
         setCpMeasurePicked(0);
+        setCpToolPicked(0);
         setCpMeasureLivePoints([]);
         setCpMeasureLiveValue(null);
         setCpToolState((state) =>
@@ -1950,7 +1994,7 @@ export function CreasePatternPanel() {
               command.operationId === 'CreaseSelect' ||
               command.operationId === 'SelectLasso' ||
               command.operationId === 'SelectPolygon'
-                ? !commit.additive
+                ? !withShiftLatch(commit.additive)
                 : undefined,
           })
         );
@@ -1994,6 +2038,7 @@ export function CreasePatternPanel() {
       const command = activeCpCommand;
       if (!command || command.uiStatus !== 'ready') return;
       if (isCpMeasurementOperation(command.operationId)) setCpMeasurePicked(picked);
+      setCpToolPicked(picked);
       setCpToolState((state) => {
         if (state.activeOperationId !== command.operationId) return state;
         let next = transitionOristudioCpToolState(state, { type: 'cancel', keepActive: true });
@@ -2616,6 +2661,21 @@ export function CreasePatternPanel() {
   );
 
   /**
+   * The active tool is holding input the user has not finished placing.
+   *
+   * Escape's ladder asks this, and so does the hint window's on-screen Cancel:
+   * abandoning a half-placed point sequence is one of the two rungs with no
+   * pointer path at all, and a touch user who picked the wrong first point had
+   * to finish the gesture and undo it.
+   */
+  const cpInputPending =
+    cpToolPicked > 0 ||
+    cpToolPoints.length > 0 ||
+    cpToolPath.length > 0 ||
+    pendingLengthenLineId !== null ||
+    pendingSquareBisectorLineIds.length > 0;
+
+  /**
    * Escape, as a layered cancel: stop a running fold, else leave the hand tool,
    * else drop the selection, else deactivate the tool. Matches Oriedita, and
    * fixes "select-all, Escape, select-one ⇒ everything selected again" for
@@ -2662,13 +2722,9 @@ export function CreasePatternPanel() {
       return;
     }
     // A selection takes priority as long as no gesture is in progress; a second
-    // Escape then cancels the tool.
-    const gestureInProgress =
-      cpToolPoints.length > 0 ||
-      cpToolPath.length > 0 ||
-      pendingLengthenLineId !== null ||
-      pendingSquareBisectorLineIds.length > 0 ||
-      cpToolDragRef.current !== null;
+    // Escape then cancels the tool. The drag ref is only readable at event time,
+    // so it joins the rendered half here rather than in it.
+    const gestureInProgress = cpInputPending || cpToolDragRef.current !== null;
     if (editableSelectionSize > 0 && !gestureInProgress) {
       clearOristudioCpSelection();
       return;
@@ -2677,6 +2733,11 @@ export function CreasePatternPanel() {
     if (cancellation.handled) {
       setCpToolPoints([]);
       setCpToolPath([]);
+      // Cleared here rather than left to the canvas's own reset, which does
+      // report `onToolPickProgress(0)` on its way through — but this rung is
+      // what makes the Cancel button disappear, and a control that outlives the
+      // thing it cancels is the bug it was added to fix.
+      setCpToolPicked(0);
       setPendingLengthenLineId(null);
       setPendingSquareBisectorLineIds([]);
       cpToolDragRef.current = null;
@@ -2687,8 +2748,7 @@ export function CreasePatternPanel() {
   }, [
     clearOristudioCpSelection,
     stopOristudioCpFolds,
-    cpToolPath.length,
-    cpToolPoints.length,
+    cpInputPending,
     cpToolState,
     editableCp,
     editableSelectionSize,
@@ -2696,8 +2756,6 @@ export function CreasePatternPanel() {
     annotations,
     panToolActive,
     vertexSolve,
-    pendingLengthenLineId,
-    pendingSquareBisectorLineIds.length,
   ]);
 
   /**
@@ -2816,6 +2874,7 @@ export function CreasePatternPanel() {
   useEffect(() => {
     setCpMeasurements([]);
     setCpMeasurePicked(0);
+    setCpToolPicked(0);
   }, [editableCpHandle]);
 
   // V1 measurement lifetime: a reading lives only while the measure tool is active.
@@ -2829,10 +2888,69 @@ export function CreasePatternPanel() {
       setCpMeasurements([]);
       setCpHoveredMeasureIndex(null);
       setCpMeasurePicked(0);
+      setCpToolPicked(0);
       setCpMeasureLivePoints([]);
       setCpMeasureLiveValue(null);
     }
   }, [cpToolState.activeOperationId, cpToolState.phase]);
+
+  // What this surface adds to the shared view controls. Insert-image collapses
+  // into the touch overflow menu — it is a once-per-document errand — while Fold
+  // and its figure menu stay on the bar: after drawing, folding is the verb, and
+  // no gesture stands in for it.
+  const viewportGroups: ViewportToolbarGroupSpec[] = editableCp
+    ? [
+        {
+          id: 'image',
+          items: [
+            {
+              kind: 'action',
+              id: 'insert-image',
+              label: t('panels:creasePattern.insertImage', 'Insert image...'),
+              icon: <ImagePlus size={14} />,
+              onSelect: () => imageFileInputRef.current?.click(),
+            },
+          ],
+        },
+        {
+          id: 'fold',
+          items: [
+            {
+              kind: 'node',
+              id: 'fold',
+              node: (
+                <div className="cp-folded-figure-actions">
+                  <IconButton
+                    size="sm"
+                    variant="toolbar"
+                    title={foldShortcutLabel
+                      ? `${t('panels:creasePattern.fold', 'Fold')} (${foldShortcutLabel})`
+                      : t('panels:creasePattern.fold', 'Fold')}
+                    disabled={!canFoldSelectedModel}
+                    onClick={folded.foldModel}
+                  >
+                    <Origami size={14} />
+                  </IconButton>
+                  {/* "Another solution" lives on the figure's own contextual
+                      bar, which acts on the figure you clicked. This copy
+                      acted on the *active* figure — after a fold, a fallback
+                      to whichever was made most recently. */}
+                  <FoldedFigureMenuButton
+                    figures={oristudioCpFoldedFigures}
+                    activeFigure={activeFoldedFigure}
+                    staleFigureIds={staleFoldedFigureIds}
+                    onSelectFigure={setOristudioCpActiveFoldedFigure}
+                    onDisplayStyle={folded.setDisplayStyle}
+                    onModelUpdate={folded.updateModel}
+                    onModelGestureEnd={folded.endModelGesture}
+                  />
+                </div>
+              ),
+            },
+          ],
+        },
+      ]
+    : [];
 
   // A shared link opened by id is the one provisioning path that waits on the network, and
   // it can wait up to a minute while KV propagates. Without this it looks like an ordinary
@@ -2894,7 +3012,15 @@ export function CreasePatternPanel() {
                   selectedLineIds={oristudioCpSelection.lines}
                   selectedPointIds={oristudioCpSelection.points}
                   selectedCircleIds={oristudioCpSelection.circles}
-                  onSelect={(hit, additive) => {
+                  onSelect={(hit, shiftHeld) => {
+                    // The canvas reports the Shift key; the rail's latch is how
+                    // a device with no Shift key says the same thing. Merged
+                    // here, at the boundary, so everything past this line sees
+                    // one `additive` with one meaning — and so the latch
+                    // inherits exactly the behaviour Shift has today, including
+                    // the store-ids-versus-kernel-flags split it already lives
+                    // with (see `implementation-plans/lasso-click-selection.md`).
+                    const additive = withShiftLatch(shiftHeld);
                     // Any click on the canvas is a click outside every canvas
                     // object — the overlay captures presses that land on one and
                     // they never reach here. So deselect first, whether or not
@@ -2910,7 +3036,8 @@ export function CreasePatternPanel() {
                     else if (hit.kind === 'point') handleEditablePointClick(hit.id, additive);
                     else handleEditableCircleClick(hit.id, additive);
                   }}
-                  onBoxSelect={(sets, additive) => {
+                  onBoxSelect={(sets, shiftHeld) => {
+                    const additive = withShiftLatch(shiftHeld);
                     const merge = (prev: number[], next: number[]) =>
                       Array.from(new Set([...prev, ...next]));
                     const base = additive ? oristudioCpSelection : emptyOristudioCpSelection();
@@ -3175,63 +3302,30 @@ export function CreasePatternPanel() {
                 }
                 rotateCcwShortcutLabel={shortcutLabelForAction('viewport.rotateCcw', shortcutResolution)}
                 rotateCwShortcutLabel={shortcutLabelForAction('viewport.rotateCw', shortcutResolution)}
-              >
-                {editableCp && (
-                  <>
-                    <ViewportToolbarSeparator />
-                    <IconButton
-                      size="sm"
-                      variant="toolbar"
-                      title={t('panels:creasePattern.insertImage', 'Insert image...')}
-                      onClick={() => imageFileInputRef.current?.click()}
-                    >
-                      <ImagePlus size={14} />
-                    </IconButton>
-                    <input
-                      ref={imageFileInputRef}
-                      type="file"
-                      // Extensions, not `image/*`: the wildcard resolves through
-                      // the platform's type table, which offers `.ori` as an
-                      // Olympus raw image and lands a crease pattern in a picker
-                      // that can only fail to decode it.
-                      accept={DECODABLE_IMAGE_ACCEPT}
-                      style={{ display: 'none' }}
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        event.target.value = '';
-                        if (file) void addImageFromFile(file, null);
-                      }}
-                    />
-                    <ViewportToolbarSeparator />
-                    <div className="cp-folded-figure-actions">
-                      <IconButton
-                        size="sm"
-                        variant="toolbar"
-                        title={foldShortcutLabel
-                          ? `${t('panels:creasePattern.fold', 'Fold')} (${foldShortcutLabel})`
-                          : t('panels:creasePattern.fold', 'Fold')}
-                        disabled={!canFoldSelectedModel}
-                        onClick={folded.foldModel}
-                      >
-                        <Origami size={14} />
-                      </IconButton>
-                      {/* "Another solution" lives on the figure's own contextual
-                          bar, which acts on the figure you clicked. This copy
-                          acted on the *active* figure — after a fold, a fallback
-                          to whichever was made most recently. */}
-                      <FoldedFigureMenuButton
-                        figures={oristudioCpFoldedFigures}
-                        activeFigure={activeFoldedFigure}
-                        staleFigureIds={staleFoldedFigureIds}
-                        onSelectFigure={setOristudioCpActiveFoldedFigure}
-                        onDisplayStyle={folded.setDisplayStyle}
-                        onModelUpdate={folded.updateModel}
-                        onModelGestureEnd={folded.endModelGesture}
-                      />
-                    </div>
-                  </>
-                )}
-              </ViewportToolbar>
+                resetViewRotation={() => cpCamera()?.rotateReset()}
+                groups={viewportGroups}
+              />
+              {/* Outside the bar rather than in it: the picker is
+                  `display: none`, so as a toolbar item it would be a group with
+                  nothing visible in it — and the bar draws a hairline between
+                  groups. */}
+              {editableCp && (
+                <input
+                  ref={imageFileInputRef}
+                  type="file"
+                  // Extensions, not `image/*`: the wildcard resolves through
+                  // the platform's type table, which offers `.ori` as an
+                  // Olympus raw image and lands a crease pattern in a picker
+                  // that can only fail to decode it.
+                  accept={DECODABLE_IMAGE_ACCEPT}
+                  style={{ display: 'none' }}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    event.target.value = '';
+                    if (file) void addImageFromFile(file, null);
+                  }}
+                />
+              )}
               {editableCp && activeCpCommand && (
                 <CpContextToolPanel
                   container={toolbarContainer}
@@ -3262,6 +3356,7 @@ export function CreasePatternPanel() {
                       ? handleClearActiveContextInput
                       : undefined
                   }
+                  onCancelInput={cpInputPending ? cancelActiveCpInput : undefined}
                 />
               )}
               <div className="viewport-status-readout">
