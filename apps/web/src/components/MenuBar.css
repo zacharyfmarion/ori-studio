@@ -171,3 +171,98 @@
     left: 8px;
   }
 }
+
+/*
+ * ---------------------------------------------------------------------------
+ * Phones: full-size rows, and submenus that expand in place.
+ *
+ * Scoped by a class rather than by a copy of `PHONE_MEDIA_QUERY`, and the class
+ * comes from `useIsPhoneLayout()` — the same predicate, read through the module
+ * that owns it. The markup already has to branch in React (`aria-expanded` is
+ * only knowable when React holds the open state, and a collapsed group has to
+ * leave the accessibility tree), so a media query here could only ever be a
+ * second answer to a question already answered, free to disagree with it. The
+ * two stylesheets that do restate the query are listed in
+ * `platform/phoneLayout.test.ts`; this file deliberately stays off that list.
+ *
+ * Why it is this change's problem: the phone toolbar hides New, Open and Save
+ * because the File menu still reaches all three, which made these rows
+ * load-bearing on touch. Every other portalled menu row — `.select-item`,
+ * `.context-menu__item`, `.viewport-toolbar__dropdown-item` and the rest — was
+ * given the touch minimum in theme.css's coarse block. These were missed.
+ * ---------------------------------------------------------------------------
+ */
+.menu-dropdown--phone .menu-dropdown__item {
+  min-height: var(--touch-target);
+}
+
+/*
+ * The dropdown is capped to the band between the toolbar and the tab bar, and
+ * scrolls inside it. That is the normal case rather than an edge: at 44px a row
+ * every menu here is taller than a phone in landscape, where the band is 284px.
+ *
+ * `hidden auto` states both axes deliberately. Setting one to a non-visible
+ * value computes the other from `visible` to `auto` anyway, and left implicit
+ * that would give the box a pannable x-axis, since the rows are `nowrap` and the
+ * expanded ones are indented. The label ellipsises already, so clipping x is
+ * free — and it is the same spec rule that makes any overflow here fatal to a
+ * fly-out submenu, which is the other half of why they expand inline.
+ *
+ * The cap itself arrives as `--menu-dropdown-max-height` from
+ * `usePhoneMenuMaxHeight`, in the same layout pass. The fallback is what shows
+ * if that never runs: the viewport minus the two bars the menu sits between,
+ * minus one more target of slack because both of those are minimums rather than
+ * fixed heights.
+ */
+.menu-dropdown--phone {
+  max-height: var(
+    --menu-dropdown-max-height,
+    calc(100dvh - var(--safe-top) - var(--safe-bottom) - 3 * var(--touch-target))
+  );
+  /*
+   * Pinned to the width it already had, rather than left to shrink-to-fit. The
+   * box is `position: absolute; left: 0` with no `right`, so its used width is
+   * its content's, and indenting a group's rows adds 28px to that.
+   *
+   * Be honest about what this buys, because an earlier version of this comment
+   * was not. Measured at 375x812: Crease Pattern's trigger sits at left 121.10
+   * and the box's natural width with Repair expanded is 247.28, for a right edge
+   * of 368.38 — *inside* the 375px viewport. So nothing is being saved from
+   * clipping at that width. What the cap actually does is bound the box on the
+   * narrowest phones (320px), where the same content would run past the edge and
+   * be clipped by `.app-layout`'s `overflow: hidden`.
+   *
+   * It is not free: at 375px it puts an ellipsis on two rows that would
+   * otherwise fit whole. That is the trade as it stands. The clean fix is not a
+   * bigger cap — the cap bounds *width* and the overflow is a function of
+   * *position* — but taking the dropdown off `left: 0` and pinning it to the
+   * viewport as a sheet, which is a larger change than a touch-target pass.
+   *
+   * Mirrors the `min-width` the 460px block sets, so the two cannot disagree.
+   */
+  max-width: min(218px, calc(100vw - 16px));
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+}
+
+/*
+ * An expanded submenu: the same rows indented under their trigger, marked by a
+ * rule down the left, instead of a second box floating over the canvas.
+ */
+.menu-dropdown__group {
+  margin-left: 12px;
+  border-left: 2px solid var(--border-default);
+}
+
+.menu-dropdown__group .menu-dropdown__item {
+  padding-left: 14px;
+}
+
+/* The chevron points at what the row will do: down to expand, up to collapse. */
+.menu-dropdown--phone .menu-dropdown__submenu-arrow {
+  transform: rotate(90deg);
+}
+
+.menu-dropdown--phone .menu-dropdown__item--expanded .menu-dropdown__submenu-arrow {
+  transform: rotate(-90deg);
+}
