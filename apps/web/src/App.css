@@ -1188,6 +1188,14 @@
    */
   .toolbar {
     grid-template-columns: auto minmax(var(--touch-target), 1fr);
+    /*
+     * The 680px block above pads 5px top and bottom, which was right while it
+     * also stacked the toolbar into two rows — the padding was the gap between
+     * them. This block puts it back on one row, and the row's own contents are
+     * already `--touch-target` tall, so the padding is 10px of nothing. Measured
+     * with a coarse pointer at 375px: 55px for a 44px row.
+     */
+    padding-block: 0;
   }
 
   .toolbar__brand,
@@ -1304,13 +1312,20 @@
    * The bar paints *through* the home-indicator inset instead of floating above
    * it, which is what makes it read as a tab bar rather than as a strip with a
    * gap under it. `.app-layout` insets the whole app once (see the top of this
-   * file); the negative margin gives that much back and the padding re-spends it
-   * inside the rail's own background. Clipped at the border box by
-   * `.app-layout`'s `overflow: hidden`, so it can never paint off-screen.
+   * file) and the negative margin here gives that much back; the row itself
+   * still measures `--touch-target`, because the extra height is inside the
+   * buttons. Clipped at the border box by `.app-layout`'s `overflow: hidden`,
+   * so it can never paint off-screen.
+   *
+   * The inset used to be padding on *this* element, which painted the strip and
+   * left it inert: 34pt at the bottom of the screen that looked like part of the
+   * tab bar and answered no taps. It belongs to the buttons instead — see below.
    */
   .workspace-rail {
     grid-row: 2;
-    padding: 0 0 var(--safe-bottom);
+    /* `0`, not omitted: the base rule pads `--space-3` top and bottom for a
+       vertical rail, which on a horizontal one is 24px of nothing. */
+    padding: 0;
     margin-bottom: calc(-1 * var(--safe-bottom));
     border-right: 0;
     border-top: 1px solid var(--border-subtle);
@@ -1327,15 +1342,23 @@
    * Equal thirds, icon over caption. `height: auto` undoes the icon-button size
    * class, which is square; `min-height` is what holds the target, and the whole
    * third is tappable rather than just the glyph.
+   *
+   * Including the home-indicator inset, which is the point. The button's box now
+   * runs to the bottom of the screen, so the strip that already *looks* like part
+   * of the tab bar behaves like it — which is what a native tab bar does, and is
+   * why a thumb resting low on the phone hits the tab rather than nothing.
+   * `--touch-target` is still what the visible icon-and-caption block gets; the
+   * inset is added below it as padding, so nothing moves.
    */
   .workspace-rail__button {
     flex: 1 1 0;
     flex-direction: column;
+    justify-content: flex-start;
     gap: 2px;
     width: auto;
     height: auto;
-    min-height: var(--touch-target);
-    padding: 6px 0 4px;
+    min-height: calc(var(--touch-target) + var(--safe-bottom));
+    padding: 6px 0 calc(4px + var(--safe-bottom));
     border-radius: 0;
   }
 
@@ -1345,6 +1368,23 @@
     font-weight: 650;
     line-height: 1.1;
     letter-spacing: 0;
+  }
+
+  /*
+   * The upstream credit strip, hidden on a phone only.
+   *
+   * It is a full-width band under the design canvas — measured at 22px of a 812px
+   * screen already spending 262px on chrome — carrying one line of prose that
+   * nothing on it is interactive. Box Pleating Studio is MIT, and MIT asks for
+   * the notice to travel with the software rather than to be on screen: `NOTICE`
+   * carries it, and the Help dialog credits Mu-Tsun Tsai by name with a link to
+   * the upstream. Nothing is lost but the band.
+   *
+   * Phone only, deliberately. A tablet has the height for it, and every other
+   * surface keeps it exactly as it was.
+   */
+  .design-attribution {
+    display: none;
   }
 
   /*

@@ -163,10 +163,46 @@ a native iOS tab bar does (49 + 34) — so the honest levers are small:
   tappable, which today it is not.
 - Drop the captions under the icons on the narrowest phones (~12pt).
 
-**Measure before scoping.** The screenshot shows noticeably more empty space
-below the tab bar than the 34pt the stylesheet accounts for — my read of it is
-~60pt more, which if real is a bug rather than a budget question, and would
-change what this phase is. So step one is a measurement, not an edit:
+**Measured, and the "~60pt more" reading of the screenshot was wrong.** Taken in
+a real engine at 375×812 with a coarse pointer and the 16 Pro Max insets stood
+up (`--safe-top: 62px`, `--safe-bottom: 34px`), the Design workspace was:
+
+| Band | height | note |
+| --- | --- | --- |
+| `--safe-top` | 62 | status bar; not reclaimable |
+| Toolbar | **55** | for a 44pt row — 10pt of leftover padding |
+| Design tab strip | 45 | |
+| *the design* | **549** | 68% of the screen |
+| Attribution footer | 22 | one line of prose, nothing interactive |
+| Tab bar buttons | 44 | |
+| `--safe-bottom` | 34 | painted rail background, **inert** |
+
+Chrome is 262 of 812 — a third of the screen, but there is no unexplained gap:
+the rail's border box ends exactly at 812 and the 34pt below the buttons is the
+home-indicator inset, painted with the bar's own background. So this is the
+budget question, not a bug.
+
+What landed, and why the bottom is the smallest of the three:
+
+- **Toolbar, −10pt.** `@media (max-width: 680px)` pads 5px top and bottom, which
+  was right while that width also stacked the toolbar into two rows. The phone
+  block puts it back on one row whose contents are already `--touch-target`
+  tall, so the padding was 10px of nothing.
+- **Attribution footer, −22pt, phone only.** Box Pleating Studio is MIT, and MIT
+  asks for the notice to travel with the software rather than to be on screen:
+  `NOTICE` carries it and the Help dialog credits Mu-Tsun Tsai by name with a
+  link. A tablet keeps the band.
+- **The bottom inset now belongs to the buttons.** This saves nothing and is
+  still the item the report named: 34pt at the very bottom edge — where a thumb
+  rests — looked like part of the tab bar and answered no taps, because the inset
+  was padding on the rail rather than on the tabs. It is inside the button box
+  now, so the strip is tappable, which is what a native tab bar does. Verified:
+  a tap 12px above the bottom edge answers "Edit workspace".
+
+Together the Design canvas went **549 → 581pt (+5.8%)**, and Edit's gained the
+toolbar's 10.
+
+Original measurement plan, kept because it is what a repeat would need:
 
 - Launch standalone (Add to Home Screen) on a 16 Pro Max — or the 17 Pro Max
   simulator, which is the same 440×956pt class — and read back
@@ -179,12 +215,12 @@ change what this phase is. So step one is a measurement, not an edit:
   small. If it is ~90pt, find what is spending the extra before touching any of
   them.
 
-**The larger wins, if the measurement says the budget is the problem.** In
-descending value: hide the design attribution on phones and credit upstreams in
-About instead (−23pt — check first whether any upstream licence requires in-app
-attribution); merge the design tab strip into the toolbar row when a phone shows
-one tab (−32pt); auto-hide the toolbar while the canvas is being manipulated
-(−45pt, and by far the most work and the most risk).
+**Still on the table, and deliberately not taken.** Merging the design tab strip
+into the toolbar row when a phone shows one tab (−45pt), and auto-hiding the
+toolbar while the canvas is being manipulated (−45pt, by far the most work and
+the most risk). Dropping the tab captions would buy ~12pt at the cost of the
+labels; the bar is otherwise already tighter than a native one (44 + 34 against
+iOS's 49 + 34), so there is very little left at the bottom.
 
 Reclaiming `--safe-top` by painting the toolbar through it is **not** a space win
 — the status bar still has to stay legible — but it does make the top band read
@@ -383,14 +419,15 @@ Per phase, the smallest set that covers it:
 
 ### Phase 3 — Vertical budget
 
-- [ ] **Measure first**: standalone launch on a 16/17 Pro Max, read the four
-      `--safe-*` values, `innerHeight`, `visualViewport.height` and every band's
-      rect. Decide from the numbers whether this is a budget question or a bug
-- [ ] Move `--safe-bottom` from the rail onto the rail buttons, so the inset is
+- [x] **Measure first** — done in a real engine at 375x812 with the 16 Pro Max
+      insets stood up. No unexplained gap: it is a budget question, not a bug
+- [x] Move `--safe-bottom` from the rail onto the rail buttons, so the inset is
       part of the touch target
-- [ ] Decide on the attribution footer on phones (check the upstream licences
-      before removing it)
-- [ ] Decide on merging the design tab strip into the toolbar row
+- [x] Drop the attribution band on phones — MIT is satisfied by `NOTICE` and the
+      Help dialog, and a tablet keeps it
+- [x] Remove the toolbar's leftover two-row padding
+- [ ] Decide on merging the design tab strip into the toolbar row (−45pt)
+- [ ] Decide on auto-hiding the toolbar during canvas manipulation (−45pt)
 
 ### Phase 4 — Settings dialog inset
 

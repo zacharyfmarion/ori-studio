@@ -142,3 +142,50 @@ describe('the stylesheet copies of the query', () => {
     }
   });
 });
+
+/**
+ * The bottom bar spends the home-indicator inset on its *buttons*, not on itself.
+ *
+ * It used to be padding on `.workspace-rail`, which painted the strip and left
+ * it inert — 34pt at the bottom of the screen that looked like part of the tab
+ * bar and answered no taps, on the edge a thumb rests against. A native tab bar
+ * makes the whole thing tappable, and moving the inset into the button's box is
+ * what does that here: the visible icon-and-caption block is unchanged, the row
+ * still measures `--touch-target`, and the strip below it now belongs to a tab.
+ *
+ * Asserted against the text because the geometry only exists on a device with a
+ * non-zero inset, which no headless run has. Verified in a real engine at
+ * 375x812 with the insets stood up by hand: a tap 12px above the bottom edge
+ * answered "Edit workspace".
+ */
+describe('the phone tab bar and the home-indicator inset', () => {
+  const phoneBlock = () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/App.css'), 'utf8');
+    const start = css.indexOf(`@media ${PHONE_MEDIA_QUERY} {`);
+    expect(start, 'the phone block moved; this test reads it by its media query').toBeGreaterThan(0);
+    // Everything up to the first line-start `}`, which closes the media block.
+    const end = css.indexOf('\n}', start);
+    return css.slice(start, end);
+  };
+
+  const rule = (block: string, selector: string) => {
+    const start = block.indexOf(`${selector} {`);
+    return start === -1 ? null : block.slice(start, block.indexOf('}', start));
+  };
+
+  it('puts the inset on the button, so it is part of the target', () => {
+    const button = rule(phoneBlock(), '.workspace-rail__button');
+    expect(button).not.toBeNull();
+    expect(button).toContain('var(--safe-bottom)');
+  });
+
+  it('does not also spend it on the rail, which would double the band', () => {
+    const rail = rule(phoneBlock(), '.workspace-rail');
+    expect(rail).not.toBeNull();
+    // The negative margin stays — it is what hands back `.app-layout`'s own
+    // inset so the bar paints through it. A `padding` naming `--safe-bottom`
+    // would be the old arrangement, and the two together would reserve 68pt.
+    expect(rail).toContain('margin-bottom: calc(-1 * var(--safe-bottom))');
+    expect(/padding:[^;]*--safe-bottom/u.test(rail ?? '')).toBe(false);
+  });
+});
