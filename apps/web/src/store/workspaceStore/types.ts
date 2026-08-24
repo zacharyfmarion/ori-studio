@@ -303,7 +303,8 @@ export interface ProjectSliceState {
 
 export interface ProjectSliceActions {
   initEngine: () => Promise<void>;
-  createNewProject: (options?: { preserveEditCanvas?: boolean }) => Promise<void>;
+  /** Whether a project now exists — false if the engine failed or a discard was refused. */
+  createNewProject: (options?: { preserveEditCanvas?: boolean }) => Promise<boolean>;
   createNewCreasePattern: () => Promise<void>;
   loadStarterProject: () => Promise<void>;
   loadProjectText: (
@@ -476,7 +477,13 @@ export interface ProjectSliceActions {
   /** Copy a design into a new tab beside it. Fresh history; nothing inherited. */
   duplicateDesignTab: (designId: string) => Promise<void>;
   /** Resolve the Design pane NUX chooser into a concrete design method. */
-  chooseDesignMethod: (target: WorkflowTarget) => Promise<void>;
+  /**
+   * Establish a design of this kind on the active tab.
+   *
+   * Resolves to whether one was created. Every creator catches its own error, so
+   * this never rejects and the boolean is the only failure signal a caller gets.
+   */
+  chooseDesignMethod: (target: WorkflowTarget) => Promise<boolean>;
 }
 
 export type ProjectSlice = ProjectSliceState & ProjectSliceActions;

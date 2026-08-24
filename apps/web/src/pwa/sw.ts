@@ -114,6 +114,29 @@
  * failure above was reproduced — so a later online relaunch would eventually
  * store it unprompted. That is not a guarantee worth resting offline start on:
  * it needs a relaunch, while online, before the first launch without a network.
+ *
+ * ## 5. And the engine kernels, on the page's say-so
+ *
+ * Invariant 3 also rests on "the page fetches it", and one class of asset is
+ * fetched only if the session happened to *use* that engine: the wasm kernels.
+ * `initEngine` pulls the CP and TreeMaker bridges at boot, so any session that
+ * reached a workspace caches those two. The box-pleat kernel is fetched when the
+ * first BP document is created, and the detector's not at all.
+ *
+ * So an installed app whose only online session opened the Edit canvas has a
+ * cache with every kernel it will need bar box-pleat — and offline, choosing
+ * "Box-pleated" hits a `cacheFirst` miss and a `fetch` that cannot resolve.
+ * Reported from a real device, and it is the same shape as invariant 4: an
+ * offline app that boots and then cannot do one specific thing.
+ *
+ * Warmed on a **message from the page**, not from the `fetch` handler like the
+ * worker scripts. The trigger has to be different because the cost is: these are
+ * megabytes, and two of the three are ones the page itself is fetching on the
+ * same load. Warming them from a navigation would race the page for the CP
+ * kernel — `cache.match` only sees a response once it has been stored — and
+ * double-download 2.1 MB to save nothing. The page asks when it is idle instead
+ * (see `register.ts`), by which time its own fetches have landed and this
+ * reduces to the one kernel nobody asked for.
  */
 
 import {
@@ -121,6 +144,7 @@ import {
   isStorableResponse,
   routeRequest,
   shellEntryPath,
+  WARM_KERNELS,
   type ServiceWorkerManifest,
 } from './swRoutes';
 
@@ -145,6 +169,10 @@ interface FetchEventLike extends ExtendableEventLike {
   respondWith(response: Response | Promise<Response>): void;
 }
 
+interface MessageEventLike extends ExtendableEventLike {
+  readonly data: unknown;
+}
+
 interface ServiceWorkerGlobalScopeLike {
   readonly clients: { claim(): Promise<void> };
   readonly location: Location;
@@ -153,6 +181,7 @@ interface ServiceWorkerGlobalScopeLike {
     listener: (event: ExtendableEventLike) => void
   ): void;
   addEventListener(type: 'fetch', listener: (event: FetchEventLike) => void): void;
+  addEventListener(type: 'message', listener: (event: MessageEventLike) => void): void;
 }
 
 const worker = self as unknown as ServiceWorkerGlobalScopeLike;
@@ -185,32 +214,35 @@ async function put(cache: Cache, key: RequestInfo, response: Response): Promise<
 }
 
 /**
- * Store the `new Worker()` scripts, which are the only part of the cold-start
- * set the page cannot cache for us. See invariant 4.
+ * Fetch and store paths the page will not fetch for us.
  *
  * Sequential, and each entry is checked before it is fetched — so this takes one
- * connection at a time from a page that is still loading, and a later call over
- * a warm cache reaches the network not at all.
+ * connection at a time from a page that may still be loading, and a later call
+ * over a warm cache reaches the network not at all.
  */
-async function storeWorkerScripts(): Promise<void> {
+async function storeAll(paths: readonly string[]): Promise<void> {
   const cache = await caches.open(CACHE_NAME);
-  for (const path of manifest.workers) {
+  for (const path of paths) {
     if (await cache.match(path)) continue;
     const response = await fetch(path);
     if (isStorableResponse(response)) await put(cache, path, response);
   }
 }
 
-/** The one warm in this worker's lifetime, in flight or finished. */
-let warmingWorkerScripts: Promise<void> | null = null;
+/** One warm per set per worker lifetime, in flight or finished. */
+const warming = new Map<string, Promise<void>>();
 
-function warmWorkerScripts(): Promise<void> {
-  return (warmingWorkerScripts ??= storeWorkerScripts().catch(() => {
+function warmOnce(key: string, paths: readonly string[]): Promise<void> {
+  const existing = warming.get(key);
+  if (existing) return existing;
+  const started = storeAll(paths).catch(() => {
     // Woke up offline, or a deploy moved these paths mid-flight. Forget the
-    // attempt, so the next navigation tries again rather than this worker
-    // spending its life believing it has warmed.
-    warmingWorkerScripts = null;
-  }));
+    // attempt, so the next trigger tries again rather than this worker spending
+    // its life believing it has warmed.
+    warming.delete(key);
+  });
+  warming.set(key, started);
+  return started;
 }
 
 /** Drop `/assets/` entries this build did not emit — i.e. the previous build's. */
@@ -317,6 +349,18 @@ worker.addEventListener('activate', (event) => {
   );
 });
 
+/**
+ * The one message this worker answers: the page reporting that it is idle and
+ * the engine kernels can be fetched now. Invariant 5.
+ *
+ * Everything else is ignored rather than logged — a page can post anything, and
+ * an unknown message is not an error worth carrying a branch for.
+ */
+worker.addEventListener('message', (event) => {
+  if ((event.data as { type?: unknown } | null)?.type !== WARM_KERNELS) return;
+  event.waitUntil(warmOnce('kernels', manifest.kernels));
+});
+
 worker.addEventListener('fetch', (event) => {
   const route = routeRequest(event.request, worker.location.origin, uncacheable);
   switch (route) {
@@ -324,7 +368,7 @@ worker.addEventListener('fetch', (event) => {
       // A navigation reaching here is a load this worker already controls, so
       // it is never the first visit — which is the whole of why warming the
       // worker scripts costs a first visit nothing. Invariant 4.
-      event.waitUntil(warmWorkerScripts());
+      event.waitUntil(warmOnce('workers', manifest.workers));
       event.respondWith(shellFirst(event.request));
       return;
     case 'immutable':

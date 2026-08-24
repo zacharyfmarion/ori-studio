@@ -9,6 +9,7 @@
  */
 
 import { isWebRuntime } from '../platform/runtime';
+import { WARM_KERNELS } from './swRoutes';
 
 /**
  * The registered script.
@@ -53,8 +54,64 @@ interface RegistrationHost {
   serviceWorker?: {
     register(url: string): Promise<unknown>;
     getRegistrations?(): Promise<readonly { unregister(): Promise<boolean> }[]>;
+    controller?: { postMessage(message: unknown): void } | null;
   };
   storage?: { persisted?(): Promise<boolean>; persist?(): Promise<boolean> };
+  /** The Network Information API. Absent in Safari, which is fine — see below. */
+  connection?: { saveData?: boolean };
+}
+
+/**
+ * Whether to ask the worker to fetch the engine kernels it has not seen.
+ *
+ * Two conditions, and the first one is the expensive lesson.
+ *
+ * **The load must already have been controlled** — `controller` read *before*
+ * registering, not after. On a first visit the page fetches everything itself
+ * over the network while uncontrolled, and only then registers; the worker
+ * claims it moments later, so by the time any callback runs `controller` is set
+ * and the page looks controlled while holding a cache the worker never saw.
+ * Warming there re-downloads what was just fetched: measured by the WebKit lane
+ * as **2,240,930 duplicate bytes**, the CP kernel, on a first visit — which is
+ * the exact cost invariant 3 in `sw.ts` exists to keep off this platform. Read
+ * early, a first visit answers false and pays nothing; the next launch is
+ * genuinely controlled and warms then.
+ *
+ * **And Save-Data is a refusal.** It is an explicit statement that bytes cost
+ * the user something, and prefetching a design type they may never open is
+ * exactly what it is for. Nothing breaks: the kernel is still fetched on demand,
+ * as before this existed. Safari does not implement the API, so `connection` is
+ * undefined there and only the first condition applies.
+ */
+export function shouldWarmKernels(
+  host: RegistrationHost | undefined,
+  controlledAtLoad: boolean
+): boolean {
+  return controlledAtLoad && host?.connection?.saveData !== true;
+}
+
+/**
+ * Ask the controlling worker to fill in the kernels this session did not touch.
+ *
+ * On idle, which is the reason this lives in the page rather than in the
+ * worker's `fetch` handler beside the worker-script warm. Two of the three
+ * kernels are ones the page fetches during startup, and the cache only reflects
+ * a response once it has been stored — so a warm that started with the
+ * navigation would race the page for the CP kernel and fetch it twice even on a
+ * controlled load. By the time the browser reports idle, the page's own fetches
+ * have landed and `storeAll`'s per-entry cache check skips them, leaving the one
+ * kernel nobody asked for.
+ */
+function warmKernelsWhenIdle(host: RegistrationHost, controlledAtLoad: boolean): void {
+  if (!shouldWarmKernels(host, controlledAtLoad)) return;
+  const ask = () => host.serviceWorker?.controller?.postMessage({ type: WARM_KERNELS });
+  const idle = (window as unknown as { requestIdleCallback?: (fn: () => void) => void })
+    .requestIdleCallback;
+  // A timeout rather than nothing on Safari, which shipped `requestIdleCallback`
+  // only recently: the point is "after the app has settled", and a few seconds
+  // is a fair approximation of that on any engine.
+  if (idle) idle(ask);
+  else window.setTimeout(ask, 5000);
 }
 
 /**
@@ -120,10 +177,19 @@ export function registerServiceWorker(
     return;
   }
 
+  // Read now, synchronously, and not inside `start` or the `then` below. This is
+  // called during module evaluation — long before `load`, and long before a
+  // fresh worker's `clients.claim()` can set it — so it answers "was this
+  // *navigation* served by a worker", which is the question. Later it answers
+  // "is there a worker now", which on a first visit is true and wrong. See
+  // `shouldWarmKernels`.
+  const controlledAtLoad = Boolean(host.serviceWorker.controller);
+
   const start = () => {
     void host.serviceWorker
       ?.register(SERVICE_WORKER_URL)
       .then(() => {
+        warmKernelsWhenIdle(host, controlledAtLoad);
         if (getDisplayMode() === 'standalone') return requestPersistentStorage(host);
         return undefined;
       })

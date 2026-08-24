@@ -65,10 +65,12 @@ import {
   symmetryAxisForProject,
   symmetrySide,
 } from '../../lib/symmetryAuthoring';
+import { resetEngine } from '../../engines/engineHost';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { DesignAttributionFooter } from '../DesignAttributionFooter';
 import { BpTreePanel } from './BpTreePanel';
 import { IconButton } from '../ui/IconButton';
+import { SurfaceFailure } from '../ui/SurfaceFailure';
 import { SurfaceLoading } from '../ui/SurfaceLoading';
 import {
   isViewportInteractiveTarget,
@@ -436,7 +438,7 @@ export function DesignPanel() {
     }
     // Box-pleat chosen but the BP worker hasn't produced the document yet — show
     // a loading state (gated on the BP worker) instead of flashing the tree
-    // editor. On failure, fall through to the tree editor's error surface.
+    // editor.
     if (!oristudioBpError) {
       return (
         <section className="panel-shell design-panel">
@@ -446,8 +448,55 @@ export function DesignPanel() {
         </section>
       );
     }
+    // And on failure, say so here.
+    //
+    // This used to fall through to the tree editor, on the reasoning that it has
+    // an error surface of its own. It does not have *this* error: a box-pleat tab
+    // would render the TreeMaker canvas, and if the TreeMaker engine was also
+    // down — which is the common case, because the reason is usually offline and
+    // shared — it rendered "Preparing the tree editor…" forever, over a design
+    // that was never a tree. That is the hang, and it looked nothing like its
+    // cause.
+    return (
+      <section className="panel-shell design-panel">
+        <BoxPleatFailure reason={oristudioBpError} />
+      </section>
+    );
   }
   return <TreeMakerDesignPanel />;
+}
+
+/**
+ * The box-pleat surface, when its kernel did not load.
+ *
+ * The retry replaces the worker before trying again. `oristudioBpWorker` holds
+ * `ready ??= init()`, so a rejected init is memoized for the worker's whole
+ * life — without the reset, "Try again" re-reads the same rejection however long
+ * the network has been back.
+ */
+function BoxPleatFailure({ reason }: { reason: string }) {
+  const { t } = useTranslation();
+  const ensureBoxPleatProject = useWorkspaceStore((state) => state.ensureBoxPleatProject);
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+
+  return (
+    <SurfaceFailure
+      label={t('panels:design.boxPleatEditorFailed', 'The box-pleat editor did not load')}
+      detail={
+        offline
+          ? t(
+              'panels:design.boxPleatEditorOffline',
+              'This design type has not been downloaded yet, and you are offline. Connect once and it will work offline from then on.'
+            )
+          : reason
+      }
+      retryLabel={t('panels:design.retry', 'Try again')}
+      onRetry={() => {
+        resetEngine('oristudio-bp');
+        void ensureBoxPleatProject();
+      }}
+    />
+  );
 }
 
 function TreeMakerDesignPanel() {

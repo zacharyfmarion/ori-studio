@@ -239,6 +239,26 @@ async function settleCache(page) {
   return previous;
 }
 
+/**
+ * Wait for the kernel warm, which is deliberately late.
+ *
+ * `settleCache` cannot stand in for it: the warm is scheduled on
+ * `requestIdleCallback` with a five-second timer where that is absent, and
+ * settling returns as soon as two readings a half-second apart agree — so it
+ * reports a quiet cache several seconds before the warm starts. Waited for
+ * explicitly, with its own bound.
+ */
+async function waitForKernels(page, expected) {
+  for (let i = 0; i < 40; i += 1) {
+    const cached = await cacheKeys(page);
+    const found = expected.filter((name) => cached.some((p) => p.includes(name)));
+    if (found.length === expected.length) return found.length;
+    await page.waitForTimeout(500);
+  }
+  const cached = await cacheKeys(page);
+  return expected.filter((name) => cached.some((p) => p.includes(name))).length;
+}
+
 async function main() {
   if (!existsSync(path.join(distDir, 'sw.js'))) {
     console.error('apps/web/dist/sw.js is missing. Run `npm run build:web` first.');
@@ -338,6 +358,20 @@ async function main() {
       'the dev-gated CP detector is never cached',
       !cached.some((p) => p.includes('cp_detect') || p.includes('cpDetect')),
       '2.3MB that ships and nobody can reach'
+    );
+
+    // An engine's wasm is fetched only if the session used that engine, and
+    // `initEngine` pulls two of the three at boot. So an installed app whose one
+    // online session opened the Edit canvas has every kernel it needs bar
+    // box-pleat — and offline, choosing "Box-pleated" hit a cache miss and a
+    // fetch that could not resolve, which is a real report from a real device.
+    // The page asks for the rest once it is idle (`pwa/register.ts`).
+    const kernels = ['oristudio_cp_wasm_bg', 'treemaker_wasm_bg', 'oristudio_bp_wasm_bg'];
+    const warmed = await waitForKernels(page, kernels);
+    check(
+      'an idle controlled load fetches the kernels this session never used',
+      warmed === kernels.length,
+      `${warmed}/${kernels.length} engine kernels cached`
     );
 
     // Everything the page loaded has to be in the *worker's* cache, stated

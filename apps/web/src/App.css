@@ -457,6 +457,40 @@
 }
 
 /*
+ * Why the last attempt failed, above the cards rather than on one of them: the
+ * detail is a sentence or two (the offline case is the long one) and a card is
+ * a fixed-width tile in a grid.
+ */
+.design-method-chooser__failure {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--status-danger);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.design-method-chooser__failure svg {
+  flex: 0 0 auto;
+  color: var(--status-danger);
+}
+
+.design-method-chooser__failure-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+  font-size: 0.8rem;
+}
+
+.design-method-chooser__failure-copy span {
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+/*
  * Fits every kind on one row where there is room, rather than a fixed two —
  * a third card wrapped onto a line of its own and read as an afterthought.
  * `auto-fit` still wraps when the pane is genuinely too narrow.
@@ -668,6 +702,43 @@
 
 .surface-loading__spinner {
   animation: surface-loading-spin 0.9s linear infinite;
+}
+
+/* Its counterpart (see components/ui/SurfaceFailure.tsx): same box, so a pane
+   that stops loading and starts failing does not also move. */
+.surface-failure {
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  text-align: center;
+}
+
+.surface-failure__icon {
+  color: var(--status-danger);
+}
+
+.surface-failure__label {
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.surface-failure__detail {
+  /* The offline case is two sentences; a full-pane message set to the pane's
+     width is unreadable at a dock's aspect ratio. */
+  max-width: 44ch;
+  font-size: 0.8rem;
+  line-height: 1.5;
 }
 
 @keyframes surface-loading-spin {

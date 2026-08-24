@@ -8,6 +8,16 @@
  * cache costs a round trip; an asset we cache by accident is a support thread.
  */
 
+/**
+ * The page's "I am idle, fetch the kernels now" message.
+ *
+ * Here rather than spelled twice, because the two halves are bundled separately
+ * — `sw.ts` through its own Vite build in `vite.config.ts`, `register.ts` into
+ * the app — so a typo in either would be a message that is simply never
+ * answered, with nothing to fail.
+ */
+export const WARM_KERNELS = 'ori:warm-kernels';
+
 /** What `sw.ts` does with a request. */
 export type ServiceWorkerRoute =
   /** Don't call `respondWith` — the browser fetches it itself. */
@@ -49,6 +59,12 @@ export interface ServiceWorkerManifest {
    * answers these without asking it. Warmed instead; see invariant 4 in `sw.ts`.
    */
   readonly workers: readonly string[];
+  /**
+   * The engine wasm binaries, which a session caches only if it happened to use
+   * that engine. Warmed for the same reason as {@link workers} but a different
+   * cause; see invariant 5 in `sw.ts`.
+   */
+  readonly kernels: readonly string[];
 }
 
 /**

@@ -302,10 +302,10 @@ describe('a third design kind lays out with no code change', () => {
  */
 describe('the chooser while a design is being created', () => {
   it('marks the chosen card busy and refuses a second click', async () => {
-    let resolveChoice: (() => void) | undefined;
+    let resolveChoice: ((created: boolean) => void) | undefined;
     const choose = vi.fn(
       () =>
-        new Promise<void>((resolve) => {
+        new Promise<boolean>((resolve) => {
           resolveChoice = resolve;
         })
     );
@@ -333,8 +333,44 @@ describe('the chooser while a design is being created', () => {
     expect(choose).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      resolveChoice?.();
+      resolveChoice?.(true);
     });
+  });
+
+  it('recovers when creation fails instead of spinning forever', async () => {
+    // The creators catch their own errors and report `false`; the chooser used
+    // to clear its spinner in a `.catch()`, so the rejection it waited for never
+    // came. Offline, choosing box-pleat left every card disabled and one of them
+    // spinning — with the failure already in the store, unread.
+    let resolveChoice: ((created: boolean) => void) | undefined;
+    const choose = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolveChoice = resolve;
+        })
+    );
+    const host = render({
+      ...singleDesignTab(null),
+      engineReady: true,
+      status: 'ready',
+      chooseDesignMethod: choose,
+      oristudioBpError: 'failed to fetch',
+    });
+    const cards = () => Array.from(host.querySelectorAll<HTMLButtonElement>('.design-method-card'));
+
+    act(() => {
+      cards()[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {
+      resolveChoice?.(false);
+    });
+
+    expect(cards().every((card) => card.disabled)).toBe(false);
+    expect(cards()[0].getAttribute('aria-busy')).toBe('false');
+    const failure = host.querySelector('.design-method-chooser__failure');
+    expect(failure).not.toBeNull();
+    expect(failure?.textContent).toContain('failed to fetch');
+    expect(failure?.querySelector('button')).not.toBeNull();
   });
 
   it('becomes usable again when the creation fails', async () => {
