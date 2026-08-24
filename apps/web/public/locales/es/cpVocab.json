@@ -592,7 +592,7 @@
     },
     "cp_action_crease_toggle_mv": {
       "label": "Alternar monte/valle",
-      "tooltip": "Haz clic en un pliegue o arrastra un recuadro para invertir las asignaciones de monte/valle",
+      "tooltip": "Haz clic en un pliegue o arrastra un recuadro para invertir su sentido de plegado",
       "disabledReason": "Listo",
       "steps": {
         "0": "Haz clic en un pliegue o arrastra un recuadro para invertir"

@@ -155,6 +155,19 @@ impl FoldDirection {
     pub fn admits(self, degrees: f64) -> bool {
         degrees != 0.0 && degrees.is_sign_negative() == (self.sign() < 0.0)
     }
+
+    /// The other direction.
+    ///
+    /// The hint's counterpart to Oriedita's `LineColor.changeMV`, and total where
+    /// that one is partial: `changeMV` returns `this` for eleven of its thirteen
+    /// inputs because most line colours are not directions at all, whereas both
+    /// of this enum's values are — which is the reason it is a type of its own.
+    pub const fn flipped(self) -> Self {
+        match self {
+            Self::Mountain => Self::Valley,
+            Self::Valley => Self::Mountain,
+        }
+    }
 }
 
 /// Immutable Oriedita line segment carrier.

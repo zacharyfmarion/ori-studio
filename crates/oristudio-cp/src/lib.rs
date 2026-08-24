@@ -2174,6 +2174,15 @@ pub fn execute_command(
             // click flips that crease, a dragged box flips every mountain/valley
             // line it encloses. `toggle_mountain_valley` already ignores non-M/V
             // lines, matching Oriedita's `LineColor::changeMV` filter.
+            //
+            // The tool reverses a *stated* fold direction, and an unassigned
+            // crease carrying a hint states one — so the flip reaches it too,
+            // through an additive Ori Studio limb rather than by teaching the
+            // ported filter about a concept upstream does not have. The two
+            // gates are disjoint (`Red1`/`Blue2` against `LineColor::None`), so
+            // the counts simply add and no line is flipped twice. Recorded in
+            // PORTING.md; see `operations::native::direction_hint` for why a
+            // *bare* unassigned crease is left alone.
             let line_indices = if command.payload.line_ids.is_empty() {
                 let polygon = required_selection_polygon(&command)?;
                 operations::selection::line_indices_in_box(&document.crease_pattern, &polygon)
@@ -2181,6 +2190,10 @@ pub fn execute_command(
                 required_line_indices(&command)?
             };
             operations::color::toggle_mountain_valley(&mut document.crease_pattern, &line_indices)
+                + operations::native::direction_hint::flip_direction_hints(
+                    &mut document.crease_pattern,
+                    &line_indices,
+                )
         }
         OperationId::CircleChangeColor => {
             let circle_indices = optional_circle_indices(&command)?;

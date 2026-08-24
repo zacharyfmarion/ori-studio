@@ -592,7 +592,7 @@
     },
     "cp_action_crease_toggle_mv": {
       "label": "Inverter montanha/vale",
-      "tooltip": "Clique em um vinco ou arraste uma caixa para inverter as atribuições de montanha/vale",
+      "tooltip": "Clique em um vinco ou arraste uma caixa para inverter o sentido da dobra",
       "disabledReason": "Pronto",
       "steps": {
         "0": "Clique em um vinco ou arraste uma caixa para inverter"

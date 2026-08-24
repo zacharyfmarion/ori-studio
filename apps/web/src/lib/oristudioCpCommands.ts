@@ -551,12 +551,18 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     placement: 'hidden-ui-only',
     toolSteps: ['Pick first point', 'Pick vertex point', 'Pick second point'],
   }),
+  // Reverses a *stated* fold direction: a mountain or valley states one in its
+  // colour, and an unassigned crease carrying a direction hint states one in the
+  // hint (the kernel dispatch runs the port plus a native limb for that — see
+  // PORTING.md). A crease with no direction at all is left alone, so the tooltip
+  // says "which way it folds" rather than naming mountain and valley, which
+  // would exclude the hint by its own wording.
   ready('CreaseToggleMv', 'Toggle mountain/valley', 'color', 'repeat-2', 'MouseHandlerCreaseToggleMV', {
     placement: 'left-rail',
-    selectionRequirement: 'selected mountain or valley lines',
+    selectionRequirement: 'selected creases stating a fold direction',
     toolSteps: ['Click a crease or drag a box to flip'],
     inputMode: 'drag-box',
-    tooltip: 'Click a crease or drag a box to flip mountain/valley assignments',
+    tooltip: 'Click a crease or drag a box to reverse which way it folds',
   }),
   ready('CircleChangeColor', 'Change circle color', 'annotations', 'palette', 'MouseHandlerCircleChangeColor', {
     placement: 'menu',

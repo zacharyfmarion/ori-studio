@@ -592,7 +592,7 @@
     },
     "cp_action_crease_toggle_mv": {
       "label": "翻转山折/谷折",
-      "tooltip": "点击折痕或拖动方框以翻转山折/谷折指定",
+      "tooltip": "点击折痕或拖动方框以翻转其折叠方向",
       "disabledReason": "就绪",
       "steps": {
         "0": "点击折痕或拖动方框以翻转"

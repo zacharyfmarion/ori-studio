@@ -592,7 +592,7 @@
     },
     "cp_action_crease_toggle_mv": {
       "label": "Flip Mountain/Valley",
-      "tooltip": "Click a crease or drag a box to flip mountain/valley assignments",
+      "tooltip": "Click a crease or drag a box to reverse which way it folds",
       "disabledReason": "Ready",
       "steps": {
         "0": "Click a crease or drag a box to flip"

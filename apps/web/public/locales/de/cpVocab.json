@@ -592,7 +592,7 @@
     },
     "cp_action_crease_toggle_mv": {
       "label": "Berg/Tal umschalten",
-      "tooltip": "Auf eine Falte klicken oder ein Rechteck ziehen, um Berg/Tal-Zuweisungen umzuschalten",
+      "tooltip": "Auf eine Falte klicken oder ein Rechteck ziehen, um ihre Faltrichtung umzukehren",
       "disabledReason": "Bereit",
       "steps": {
         "0": "Auf eine Falte klicken oder ein Rechteck ziehen, um umzuschalten"

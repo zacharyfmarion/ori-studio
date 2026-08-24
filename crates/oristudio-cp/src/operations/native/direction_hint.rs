@@ -1,7 +1,13 @@
-//! Saying which way an *already unassigned* crease folds.
+//! Saying which way an *already unassigned* crease folds, and changing that mind.
 //!
 //! Ori Studio original, for the same reason as its sibling
 //! [`super::unassign`]: Oriedita has no unassigned crease to hint about.
+//!
+//! Two verbs, because the two questions are different. [`set_direction_hint`] is
+//! *"this crease goes this way"* — an answer supplied from outside, which is why
+//! it takes the direction as a payload and can also clear one. [`flip_direction_hints`]
+//! is *"whichever way I said, make it the other"*, needs no payload, and is the
+//! Ori Studio half of the ported Flip Mountain/Valley tool.
 //!
 //! # Why this is not part of `CreaseMakeUnassigned`
 //!
@@ -24,6 +30,75 @@
 
 use crate::geometry::{FoldDirection, LineColor};
 use crate::model::CreasePatternModel;
+
+/// Flip the fold-direction hint on every *hinted* unassigned crease in
+/// `indices`, mountain <-> valley. Returns how many changed.
+///
+/// Ori Studio native, and the additive half of the Flip Mountain/Valley tool
+/// (`CreaseToggleMv`). The ported half is
+/// [`crate::operations::color::toggle_mountain_valley`], a transcription of
+/// `LineColor.changeMV`, and it stays exactly as it is: Oriedita has no
+/// unassigned crease and therefore no opinion to be faithful to about one. The
+/// two gates are disjoint by construction — that one reads `Red1`/`Blue2`, this
+/// one reads `LineColor::None` — so the dispatch runs both over the same
+/// selection and no line is touched twice.
+///
+/// # What the tool flips is a *stated* direction
+///
+/// That is the rule the whole gate follows from, and it is what makes a hint
+/// belong here in the first place. A mountain states a direction in its colour;
+/// a hinted unassigned crease states one in its hint. Both are the user having
+/// said which way this crease goes, and the tool whose entire job is to reverse
+/// that answer had no business reaching one and not the other. Neither says
+/// anything about *how far* — flipping a mountain leaves `|rho|` alone
+/// ([`crate::geometry::LineSegment::with_line_color`] keeps the magnitude across
+/// the swap), and a hint never had a magnitude to keep.
+///
+/// # A bare unassigned crease is skipped, and that is not the silent-no-op bug
+///
+/// It states no direction, so there is nothing to reverse. The alternative is to
+/// *invent* one — some arbitrary mountain, chosen by the software rather than by
+/// the user — which is the one thing this tool has never done to any line.
+/// Upstream's own filter is `color == BLUE_2 || color == RED_1` on the box, the
+/// click and the hover highlight alike, so "does nothing to a line that folds no
+/// particular way" is what the C tool already does to every border and every
+/// auxiliary line in the document, and has since it was ported.
+///
+/// The law that separates this from the defect [`super::unassign`] documents is
+/// the postcondition, not the count: **`changed == 0` iff the line states no
+/// direction to flip**, uniformly over borders, auxiliary lines and bare
+/// unassigned creases. `make_unassigned` returned zero on a hinted crease while
+/// its own postcondition — unassigned *and* nothing remembered — did not hold
+/// there, which is a lie about work left undone. Here there is no work: the
+/// request is unsatisfiable rather than unperformed.
+///
+/// Saying which way a bare crease goes is a real thing to want and it already has
+/// a verb — [`set_direction_hint`], which the fold-angle panel offers as
+/// Mountain / Valley / None chips. Giving the same power to a flip tool would put
+/// a second, worse spelling of it behind a gesture that reads as "reverse this",
+/// and would make a drag-box over a region full of undecided creases silently
+/// decide all of them.
+///
+/// Geometry is untouched, so there is deliberately no `fix2` sweep, for the same
+/// reason as its neighbours: no crossing can appear from a hint, and `fix2` would
+/// clear the selection the user is still working with.
+pub fn flip_direction_hints(model: &mut CreasePatternModel, indices: &[usize]) -> usize {
+    let mut changed = 0;
+    for &index in indices {
+        let Some(segment) = model.line_segments.get(index) else {
+            continue;
+        };
+        if !matches!(segment.color, LineColor::None) {
+            continue;
+        }
+        let Some(hint) = segment.fold_direction_hint else {
+            continue;
+        };
+        model.line_segments[index] = segment.with_direction_hint(Some(hint.flipped()));
+        changed += 1;
+    }
+    changed
+}
 
 /// What a hint-setting command does to each selected crease.
 ///
@@ -250,6 +325,106 @@ mod tests {
         let mut model = model_with(&[LineColor::None]);
         let before = (model.line_segments[0].a, model.line_segments[0].b);
         set_direction_hint(&mut model, &[0], DirectionHintChange::Mountain);
+        assert_eq!((model.line_segments[0].a, model.line_segments[0].b), before);
+    }
+
+    /// The ask: a hinted crease is a crease whose direction the user stated, so
+    /// the tool that reverses a stated direction reverses this one, and the
+    /// crease stays undecided while it does.
+    #[test]
+    fn a_hint_flips_and_the_crease_stays_undecided() {
+        use super::flip_direction_hints;
+
+        let mut model = model_with(&[LineColor::None]);
+        set_direction_hint(&mut model, &[0], DirectionHintChange::Mountain);
+
+        assert_eq!(flip_direction_hints(&mut model, &[0]), 1);
+        assert_eq!(
+            model.line_segments[0].fold_direction_hint,
+            Some(FoldDirection::Valley)
+        );
+        assert_eq!(model.line_segments[0].color, LineColor::None);
+
+        // And back, because a flip is its own inverse.
+        assert_eq!(flip_direction_hints(&mut model, &[0]), 1);
+        assert_eq!(
+            model.line_segments[0].fold_direction_hint,
+            Some(FoldDirection::Mountain)
+        );
+    }
+
+    /// **`changed == 0` iff the line states no direction to flip.** The rule that
+    /// makes this verb's silence honest rather than the `make_unassigned` defect
+    /// wearing a different hat: a border, an auxiliary line and a bare unassigned
+    /// crease all state nothing, so the request is unsatisfiable rather than
+    /// unperformed. Nothing acquires a hint it did not have.
+    #[test]
+    fn a_line_stating_no_direction_is_left_exactly_as_it_was() {
+        use super::flip_direction_hints;
+
+        let stateless = [
+            LineColor::Black0,
+            LineColor::Cyan3,
+            LineColor::Orange4,
+            LineColor::None,
+        ];
+        let mut model = model_with(&stateless);
+        let before = model.line_segments.clone();
+
+        let indices: Vec<usize> = (0..stateless.len()).collect();
+        assert_eq!(flip_direction_hints(&mut model, &indices), 0);
+        assert_eq!(model.line_segments, before);
+    }
+
+    /// The complement of the gate, and the reason the two limbs of the tool can
+    /// simply add their counts: a decided crease is the ported half's business,
+    /// and this one must not touch it. Reaching it would also be unrepresentable
+    /// — `with_direction_hint` refuses a hint beside a real colour — so a gate
+    /// written the other way round would fail silently rather than loudly.
+    #[test]
+    fn a_decided_crease_belongs_to_the_ported_half() {
+        use super::flip_direction_hints;
+
+        let mut model = model_with(&[LineColor::Red1, LineColor::Blue2]);
+        assert_eq!(flip_direction_hints(&mut model, &[0, 1]), 0);
+        assert_eq!(model.line_segments[0].color, LineColor::Red1);
+        assert_eq!(model.line_segments[1].color, LineColor::Blue2);
+        assert_eq!(model.line_segments[0].fold_direction_hint, None);
+        assert_eq!(model.line_segments[1].fold_direction_hint, None);
+    }
+
+    #[test]
+    fn flipping_ignores_out_of_range_indices() {
+        use super::flip_direction_hints;
+
+        let mut model = model_with(&[LineColor::None]);
+        set_direction_hint(&mut model, &[0], DirectionHintChange::Valley);
+        assert_eq!(flip_direction_hints(&mut model, &[0, 99]), 1);
+        assert_eq!(
+            model.line_segments[0].fold_direction_hint,
+            Some(FoldDirection::Mountain)
+        );
+    }
+
+    /// A hint says which way, never how far, and a flip must not change that.
+    #[test]
+    fn flipping_introduces_no_fold_magnitude() {
+        use super::flip_direction_hints;
+
+        let mut model = model_with(&[LineColor::None]);
+        set_direction_hint(&mut model, &[0], DirectionHintChange::Mountain);
+        flip_direction_hints(&mut model, &[0]);
+        assert_eq!(model.line_segments[0].fold_magnitude, None);
+    }
+
+    #[test]
+    fn flipping_leaves_geometry_untouched() {
+        use super::flip_direction_hints;
+
+        let mut model = model_with(&[LineColor::None]);
+        set_direction_hint(&mut model, &[0], DirectionHintChange::Mountain);
+        let before = (model.line_segments[0].a, model.line_segments[0].b);
+        flip_direction_hints(&mut model, &[0]);
         assert_eq!((model.line_segments[0].a, model.line_segments[0].b), before);
     }
 }

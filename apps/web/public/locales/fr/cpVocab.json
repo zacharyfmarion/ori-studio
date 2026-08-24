@@ -592,7 +592,7 @@
     },
     "cp_action_crease_toggle_mv": {
       "label": "Inverser montagne/vallée",
-      "tooltip": "Cliquez sur un pli ou tracez un rectangle pour inverser les attributions montagne/vallée",
+      "tooltip": "Cliquez sur un pli ou tracez un rectangle pour inverser son sens de pliage",
       "disabledReason": "Prêt",
       "steps": {
         "0": "Cliquez sur un pli ou tracez un rectangle pour inverser"
