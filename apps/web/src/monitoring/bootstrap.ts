@@ -15,7 +15,7 @@ import { getOrCreateStableId } from '../analytics/stableId';
 import { appBuildInfo } from '../lib/appBuildInfo';
 import { getRuntimeSurface } from '../platform/runtime';
 import { isMonitoringConsented, setMonitoringEnabled } from './runtime';
-import { scrubBreadcrumb, scrubEvent } from './scrub';
+import { isForeignScriptEvent, scrubBreadcrumb, scrubEvent } from './scrub';
 import type { SentryClientLike, SentryEnvironment } from './types';
 
 export interface MonitoringBootstrapOptions {
@@ -38,7 +38,13 @@ const IGNORED_ERRORS: Array<string | RegExp> = [
   /^Non-Error promise rejection captured/,
 ];
 
-/** Injected extension scripts are not our bundle and not our bug. */
+/**
+ * Injected extension scripts are not our bundle and not our bug.
+ *
+ * Only catches the ones that stay in their own URL scheme. An extension that
+ * injects a script *into the document* is attributed to the page, which this
+ * list cannot express — `isForeignScriptEvent` is the half that covers those.
+ */
 const DENY_URLS: Array<string | RegExp> = [
   /^chrome-extension:\/\//,
   /^moz-extension:\/\//,
@@ -118,7 +124,7 @@ export function initializeSentry(
     integrations: (defaults: Array<{ name: string }>) =>
       defaults.filter((integration) => integration.name !== BROWSER_SESSION_INTEGRATION),
     beforeSend: (event: Parameters<typeof scrubEvent>[0]) =>
-      isMonitoringConsented() ? scrubEvent(event) : null,
+      isMonitoringConsented() && !isForeignScriptEvent(event) ? scrubEvent(event) : null,
     beforeBreadcrumb: (breadcrumb: Parameters<typeof scrubBreadcrumb>[0]) =>
       scrubBreadcrumb(breadcrumb),
     ignoreErrors: IGNORED_ERRORS,

@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createReglRenderer } from './renderer/reglRenderer';
 import { CpRendererUnavailable, type CpRendererStatus } from './CpRendererUnavailable';
-import { cpWebglSupport, describeCpWebglGap } from './renderer/webglSupport';
+import {
+  classifyCpWebglFailure,
+  cpWebglSupport,
+  describeCpWebglGap,
+} from './renderer/webglSupport';
 import { reportError } from '../monitoring';
 import type { CpRenderer } from './renderer/CpRenderer';
 import { readCssVarColor } from './renderer/cssColor';
@@ -1544,13 +1548,30 @@ export function CreasePatternWebglCanvas({
         onContextRestored: () => setRendererGeneration((generation) => generation + 1),
       });
     } catch (error) {
+      // The probe just said this stack was fine, so something about *this*
+      // canvas is not — ask it which, rather than repeating regl. Left to regl
+      // the detail line reads "try upgrading your system or a different
+      // browser", which is both unactionable on a tablet and, when the real
+      // cause is a document out of GL contexts, simply untrue.
+      const gap = classifyCpWebglFailure(canvas);
       // Surfaced, not logged. A packaged desktop build has no console anyone
       // reads, so the old console.error left this as a silently blank editor —
       // which is exactly what WebKitGTK produces with no usable WebGL.
-      reportError(error, { surface: 'cp-workspace:webgl' });
+      //
+      // The gap rides as a tag so the *next* one of these is diagnosable: the
+      // exception's own message is regl's either way, so two very different
+      // failures group into one Sentry issue without it.
+      reportError(error, {
+        surface: 'cp-workspace:webgl',
+        tags: { webgl_gap: gap ?? 'unclassified' },
+      });
       setRendererStatus({
         kind: 'unsupported',
-        detail: error instanceof Error ? error.message : String(error),
+        detail: gap
+          ? describeCpWebglGap(gap)
+          : error instanceof Error
+            ? error.message
+            : String(error),
       });
       return;
     }

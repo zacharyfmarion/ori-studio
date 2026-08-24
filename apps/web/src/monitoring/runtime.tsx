@@ -45,6 +45,17 @@ export interface MonitoringErrorContext {
   componentStack?: string | null;
   /** Whether the app recovered (true) or the error propagated (false). */
   handled?: boolean;
+  /**
+   * Extra facts to tag the event with, as `scrub.ts` prescribes: a message is
+   * redacted on the way out, so anything that has to stay readable in Sentry
+   * travels as a bounded tag instead of as interpolated text.
+   *
+   * **Bounded values only** — an enum member, a bucket name, a capability
+   * label. Never a filename, a path, a count, or anything measured off the
+   * user's document. Tag *values* are indexed and searchable in Sentry, which
+   * is the point and also why an unbounded one is worse here than in a message.
+   */
+  tags?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -60,7 +71,8 @@ export function reportError(error: unknown, context: MonitoringErrorContext = {}
     activeClient.captureException(error, {
       mechanism: { type: 'generic', handled: context.handled ?? true },
       captureContext: {
-        tags: { surface: context.surface ?? 'unknown' },
+        // `surface` last, so a caller's `tags` can never take the name over.
+        tags: { ...context.tags, surface: context.surface ?? 'unknown' },
         contexts: context.componentStack
           ? { react: { component_stack: context.componentStack } }
           : undefined,
