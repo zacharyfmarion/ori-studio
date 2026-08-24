@@ -21,6 +21,7 @@ import { MenuBar } from './MenuBar';
 import { CanvasHistoryPills } from './CanvasHistoryPills';
 import { CanvasPillLane } from './CanvasPillLane';
 import { DesignAttributionFooter } from './DesignAttributionFooter';
+import { DesignPaneSwitcher } from './DesignPaneSwitcher';
 import { DesignTabStrip } from './panels/DesignTabStrip';
 import { FixedDockTab } from './panels/FixedDockTab';
 import { ErrorBoundary } from './errors/ErrorBoundary';
@@ -450,6 +451,7 @@ export function WorkspaceShell() {
           <ErrorBoundary surface="shell:canvas-pills" variant="mini">
             <CanvasPillLane>
               <CanvasHistoryPills />
+              <DesignPaneSwitcher />
               <CpToolsTrigger />
               <WorkspaceViewDrawer />
             </CanvasPillLane>

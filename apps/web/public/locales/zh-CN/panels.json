@@ -405,6 +405,10 @@
       "subtitle": "选择你想要编写此模型的方式。",
       "title": "开始新设计"
     },
+    "paneSwitcher": {
+      "close": "关闭面板列表",
+      "title": "面板"
+    },
     "paneTitle": {
       "bpPacking": "BP 编辑器",
       "bpTree": "树编辑器",
@@ -462,6 +466,7 @@
   "explori": {
     "advancedDatabases": "选择拓扑尺寸",
     "backToResults": "返回结果",
+    "backToSearch": "搜索",
     "canvas": "搜索树画布",
     "databaseCell": "{{symmetry}}，尺寸 {{size}}",
     "decreaseLength": "缩短",
@@ -476,12 +481,12 @@
     "needDatabase": "请至少选择一种对称性再搜索。",
     "needMoreBranches": "请至少绘制四条分支再搜索。",
     "nextResult": "下一个结果",
-    "nodeNameAria": "节点 {{id}} 的名称",
-    "nodeTitle": "节点 {{id}}",
     "noMatches": "没有匹配的折痕图",
     "noMatchesDetail": "存档中没有与该树接近的结果。请调整分支，或搜索更多对称性。",
     "noResultsYet": "绘制一棵树并搜索存档，即可查看匹配的折痕图。",
     "noResultsYetTitle": "暂无结果",
+    "nodeNameAria": "节点 {{id}} 的名称",
+    "nodeTitle": "节点 {{id}}",
     "openInExplori": "在 ExplOri 中打开",
     "openResult": "打开结果 {{id}}",
     "previousResult": "上一个结果",
@@ -497,10 +502,10 @@
     "resultCountOther_other": "{{count}} 个结果",
     "resultPosition": "第 {{index}} / {{total}} 个",
     "search": "搜索",
+    "searchSize": "数量",
     "searching": "搜索中…",
     "searchingDetail": "正在将你的树与所选数据库中的每个拓扑进行比较。",
     "searchingStatus": "正在搜索存档…",
-    "searchSize": "数量",
     "selectEdge": "选择分支 {{id}}，长度 {{length}}",
     "selectNode": "选择节点 {{id}}",
     "selectNodeWithLabel": "选择节点 {{id}}，{{label}}",
@@ -515,9 +520,9 @@
     "viewCp": "折痕图",
     "viewFold": "折叠形态",
     "viewPacking": "排布",
-    "viewportControls": "搜索树视图控件",
     "viewTree": "树",
-    "viewTreeAndCp": "树与折痕图"
+    "viewTreeAndCp": "树与折痕图",
+    "viewportControls": "搜索树视图控件"
   },
   "fold3dVerdict": {
     "localCrossing_one": "纸张在 1 个顶点处穿过了自身。",

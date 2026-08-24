@@ -429,6 +429,10 @@
       "subtitle": "Choisissez comment créer ce modèle.",
       "title": "Démarrer une nouvelle conception"
     },
+    "paneSwitcher": {
+      "close": "Fermer la liste des volets",
+      "title": "Volets"
+    },
     "paneTitle": {
       "bpPacking": "Éditeur BP",
       "bpTree": "Éditeur d'arbre",
@@ -490,6 +494,7 @@
   "explori": {
     "advancedDatabases": "Choisir les tailles de topologie",
     "backToResults": "Retour aux résultats",
+    "backToSearch": "Recherche",
     "canvas": "Canevas de l’arbre de recherche",
     "databaseCell": "{{symmetry}}, taille {{size}}",
     "decreaseLength": "Raccourcir",
@@ -504,12 +509,12 @@
     "needDatabase": "Choisissez au moins une symétrie à rechercher.",
     "needMoreBranches": "Dessinez au moins quatre branches pour lancer la recherche.",
     "nextResult": "Résultat suivant",
-    "nodeNameAria": "Nom du nœud {{id}}",
-    "nodeTitle": "Nœud {{id}}",
     "noMatches": "Aucun patron correspondant",
     "noMatchesDetail": "L’archive ne contient rien de proche de cet arbre. Essayez d’ajuster les branches ou d’interroger davantage de symétries.",
     "noResultsYet": "Dessinez un arbre et interrogez l’archive pour voir les patrons correspondants.",
     "noResultsYetTitle": "Pas encore de résultats",
+    "nodeNameAria": "Nom du nœud {{id}}",
+    "nodeTitle": "Nœud {{id}}",
     "openInExplori": "Ouvrir dans ExplOri",
     "openResult": "Ouvrir le résultat {{id}}",
     "previousResult": "Résultat précédent",
@@ -519,18 +524,18 @@
     "qualityPoor": "Correspondance médiocre",
     "qualityTerrible": "Correspondance lointaine",
     "quickSendToEdit": "Envoyer ce patron vers Édition",
-    "resultCountOne_one": "{{count}} résultat",
     "resultCountOne_many": "{{count}} résultats",
+    "resultCountOne_one": "{{count}} résultat",
     "resultCountOne_other": "{{count}} résultats",
-    "resultCountOther_one": "{{count}} résultat",
     "resultCountOther_many": "{{count}} résultats",
+    "resultCountOther_one": "{{count}} résultat",
     "resultCountOther_other": "{{count}} résultats",
     "resultPosition": "{{index}} sur {{total}}",
     "search": "Rechercher",
+    "searchSize": "Résultats",
     "searching": "Recherche…",
     "searchingDetail": "Comparaison de votre arbre avec toutes les topologies des bases choisies.",
     "searchingStatus": "Recherche dans l’archive…",
-    "searchSize": "Résultats",
     "selectEdge": "Sélectionner la branche {{id}}, longueur {{length}}",
     "selectNode": "Sélectionner le nœud {{id}}",
     "selectNodeWithLabel": "Sélectionner le nœud {{id}}, {{label}}",
@@ -545,9 +550,9 @@
     "viewCp": "Patron de pliage",
     "viewFold": "Forme pliée",
     "viewPacking": "Empilement",
-    "viewportControls": "Commandes d’affichage de l’arbre de recherche",
     "viewTree": "Arbre",
-    "viewTreeAndCp": "Arbre et patron de pliage"
+    "viewTreeAndCp": "Arbre et patron de pliage",
+    "viewportControls": "Commandes d’affichage de l’arbre de recherche"
   },
   "fold3dVerdict": {
     "localCrossing_one": "Le papier se traverse lui-même en un sommet.",

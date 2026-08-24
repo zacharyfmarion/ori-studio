@@ -417,6 +417,10 @@
       "subtitle": "Choose how you want to author this model.",
       "title": "Start a new design"
     },
+    "paneSwitcher": {
+      "close": "Close pane list",
+      "title": "Panes"
+    },
     "paneTitle": {
       "bpPacking": "BP Editor",
       "bpTree": "Tree editor",
@@ -476,6 +480,7 @@
   "explori": {
     "advancedDatabases": "Choose topology sizes",
     "backToResults": "Back to results",
+    "backToSearch": "Search",
     "canvas": "Search tree canvas",
     "databaseCell": "{{symmetry}}, size {{size}}",
     "decreaseLength": "Shorten",

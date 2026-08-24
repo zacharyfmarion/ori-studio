@@ -2515,7 +2515,10 @@
     "panels:design.methodChooser.failedTitle": "0f29a7c1071e",
     "panels:design.methodChooser.failedUnknown": "e3ce8a9d1926",
     "panels:design.methodChooser.retry": "d8b8392e2c54",
-    "panels:design.retry": "d8b8392e2c54"
+    "panels:design.retry": "d8b8392e2c54",
+    "panels:design.paneSwitcher.close": "496d27a35bf5",
+    "panels:design.paneSwitcher.title": "f86aa4d338ff",
+    "panels:explori.backToSearch": "49c266baaaa7"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5033,7 +5036,10 @@
     "panels:design.methodChooser.failedTitle": "0f29a7c1071e",
     "panels:design.methodChooser.failedUnknown": "e3ce8a9d1926",
     "panels:design.methodChooser.retry": "d8b8392e2c54",
-    "panels:design.retry": "d8b8392e2c54"
+    "panels:design.retry": "d8b8392e2c54",
+    "panels:design.paneSwitcher.close": "496d27a35bf5",
+    "panels:design.paneSwitcher.title": "f86aa4d338ff",
+    "panels:explori.backToSearch": "49c266baaaa7"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7551,7 +7557,10 @@
     "panels:design.methodChooser.failedTitle": "0f29a7c1071e",
     "panels:design.methodChooser.failedUnknown": "e3ce8a9d1926",
     "panels:design.methodChooser.retry": "d8b8392e2c54",
-    "panels:design.retry": "d8b8392e2c54"
+    "panels:design.retry": "d8b8392e2c54",
+    "panels:design.paneSwitcher.close": "496d27a35bf5",
+    "panels:design.paneSwitcher.title": "f86aa4d338ff",
+    "panels:explori.backToSearch": "49c266baaaa7"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -10030,7 +10039,10 @@
     "panels:design.methodChooser.failedTitle": "0f29a7c1071e",
     "panels:design.methodChooser.failedUnknown": "e3ce8a9d1926",
     "panels:design.methodChooser.retry": "d8b8392e2c54",
-    "panels:design.retry": "d8b8392e2c54"
+    "panels:design.retry": "d8b8392e2c54",
+    "panels:design.paneSwitcher.close": "496d27a35bf5",
+    "panels:design.paneSwitcher.title": "f86aa4d338ff",
+    "panels:explori.backToSearch": "49c266baaaa7"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12509,7 +12521,10 @@
     "panels:design.methodChooser.failedTitle": "0f29a7c1071e",
     "panels:design.methodChooser.failedUnknown": "e3ce8a9d1926",
     "panels:design.methodChooser.retry": "d8b8392e2c54",
-    "panels:design.retry": "d8b8392e2c54"
+    "panels:design.retry": "d8b8392e2c54",
+    "panels:design.paneSwitcher.close": "496d27a35bf5",
+    "panels:design.paneSwitcher.title": "f86aa4d338ff",
+    "panels:explori.backToSearch": "49c266baaaa7"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -15027,7 +15042,10 @@
     "panels:design.methodChooser.failedTitle": "0f29a7c1071e",
     "panels:design.methodChooser.failedUnknown": "e3ce8a9d1926",
     "panels:design.methodChooser.retry": "d8b8392e2c54",
-    "panels:design.retry": "d8b8392e2c54"
+    "panels:design.retry": "d8b8392e2c54",
+    "panels:design.paneSwitcher.close": "496d27a35bf5",
+    "panels:design.paneSwitcher.title": "f86aa4d338ff",
+    "panels:explori.backToSearch": "49c266baaaa7"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17545,7 +17563,10 @@
     "panels:design.methodChooser.failedTitle": "0f29a7c1071e",
     "panels:design.methodChooser.failedUnknown": "e3ce8a9d1926",
     "panels:design.methodChooser.retry": "d8b8392e2c54",
-    "panels:design.retry": "d8b8392e2c54"
+    "panels:design.retry": "d8b8392e2c54",
+    "panels:design.paneSwitcher.close": "496d27a35bf5",
+    "panels:design.paneSwitcher.title": "f86aa4d338ff",
+    "panels:explori.backToSearch": "49c266baaaa7"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -20024,6 +20045,9 @@
     "panels:design.methodChooser.failedTitle": "0f29a7c1071e",
     "panels:design.methodChooser.failedUnknown": "e3ce8a9d1926",
     "panels:design.methodChooser.retry": "d8b8392e2c54",
-    "panels:design.retry": "d8b8392e2c54"
+    "panels:design.retry": "d8b8392e2c54",
+    "panels:design.paneSwitcher.close": "496d27a35bf5",
+    "panels:design.paneSwitcher.title": "f86aa4d338ff",
+    "panels:explori.backToSearch": "49c266baaaa7"
   }
 }

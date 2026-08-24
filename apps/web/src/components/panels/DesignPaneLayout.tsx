@@ -1,8 +1,19 @@
-import { DockviewReact, type DockviewApi, type SerializedDockview } from 'dockview';
+import {
+  DockviewReact,
+  type DockviewApi,
+  type IDockviewPanelProps,
+  type SerializedDockview,
+} from 'dockview';
 import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { designKind, type DesignKindDescriptor, type DesignPaneSpec } from '../../designKinds';
+import {
+  useDesignPaneSelectorSeam,
+  useDesignPaneSwitcher,
+  visibleDesignPane,
+} from '../../hooks/useDesignPaneSwitcher';
+import { useIsPhoneLayout } from '../../platform/phoneLayout';
 import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { activeDesignTab } from '../../store/workspaceStore/designTabs';
@@ -31,6 +42,7 @@ import { panelComponents } from './PanelComponents';
  */
 export function DesignPaneLayout() {
   const { t } = useTranslation();
+  const phoneLayout = useIsPhoneLayout();
   const tab = useWorkspaceStore(activeDesignTab);
   const setActivePanelId = useWorkspaceStore((state) => state.setActivePanelId);
   const setDesignPaneLayout = useWorkspaceStore((state) => state.setDesignPaneLayout);
@@ -82,6 +94,14 @@ export function DesignPaneLayout() {
   // exists, so it belongs to the host rather than to any kind's pane list.
   if (!kind) return <DesignMethodChooser />;
 
+  // A phone shows one pane and switches (`DesignPaneSwitcher`). Not a Dockview
+  // with hidden groups — no dock at all, which is what keeps the two promises
+  // below: `onDidLayoutChange` cannot fire, so nothing writes a one-pane
+  // arrangement into `tab.paneLayout` and out into the `.osf`; and the layout
+  // the file arrived with is still there, untouched, for the next desktop that
+  // opens it.
+  if (phoneLayout) return <PhoneDesignPane kind={kind} />;
+
   return (
     <DockviewReact
       // Keyed by the design **and its kind**. The pane set is chosen once, in
@@ -105,6 +125,40 @@ export function DesignPaneLayout() {
       disableDnd
       disableFloatingGroups
     />
+  );
+}
+
+/**
+ * The one pane a phone shows, and the seam that lets anything else reach the rest.
+ *
+ * The pane component comes from `panelComponents`, the same map the dock is
+ * built from, so a pane gets its error boundary here exactly as it would there.
+ * `IDockviewPanelProps` is what those components are typed against and none of
+ * this kind's panes read it — they read the store — so the cast is the honest
+ * shape of "rendered outside a dock", not a missing prop.
+ */
+function PhoneDesignPane({ kind }: { kind: DesignKindDescriptor }) {
+  const { panes, show } = useDesignPaneSwitcher();
+  const activePanelId = useWorkspaceStore((state) => state.activePanelId);
+  const setActivePanelId = useWorkspaceStore((state) => state.setActivePanelId);
+  const pane = visibleDesignPane(kind, activePanelId);
+
+  // Report the pane on screen, the way `onDidActivePanelChange` does for the
+  // dock. Without it `activeEditingContext` keeps whatever the last dock said —
+  // so the Edit menu, the undo stack and the shortcut scope would all belong to
+  // a pane this device is not showing.
+  useEffect(() => {
+    if (activePanelId !== pane.component) setActivePanelId(pane.component);
+  }, [activePanelId, pane.component, setActivePanelId]);
+
+  useDesignPaneSelectorSeam(show, panes);
+
+  const Pane = panelComponents[pane.component];
+  if (!Pane) return null;
+  return (
+    <div className="design-pane-single">
+      <Pane {...({} as IDockviewPanelProps)} />
+    </div>
   );
 }
 

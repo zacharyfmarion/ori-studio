@@ -21,6 +21,7 @@ import {
 } from '../../explori/renderers';
 import { exploriMatchQuality, exploriMatchQualityLabel } from '../../explori/matchQuality';
 import { exploriResultUrl, exploriTilingLabel, type ExploriResult } from '../../explori/types';
+import { useDesignPaneSwitcher } from '../../hooks/useDesignPaneSwitcher';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { selectExploriDesignOrEmpty } from '../../store/workspaceStore/designTabs';
 
@@ -131,6 +132,34 @@ function ExploriDetailFigure({
       </div>
       <figcaption className="explori-detail__caption">{label}</figcaption>
     </figure>
+  );
+}
+
+/**
+ * Back to the tree, on a phone.
+ *
+ * The phone layout shows one design pane at a time, and a search moves you here
+ * — so the way back is a thing this pane has to offer rather than something the
+ * user has to know about. The switcher pill in the canvas lane does the same
+ * job and is always there; this is the one at the top of the content, where an
+ * eye that has just finished reading a result already is.
+ *
+ * Nothing on a tablet or a desktop, where the tree is on screen beside this.
+ */
+function BackToSearch() {
+  const { t } = useTranslation();
+  const { panes, show } = useDesignPaneSwitcher();
+  if (!panes) return null;
+  return (
+    <Button
+      size="sm"
+      variant="secondary"
+      className="explori-results__back"
+      onClick={() => show('explori-tree', 'switcher')}
+    >
+      <ArrowLeft size={14} aria-hidden="true" />
+      {t('panels:explori.backToSearch', 'Search')}
+    </Button>
   );
 }
 
@@ -317,6 +346,7 @@ export function ExploriResultsPanel() {
       ) : (
         <>
           <header className="explori-results__header">
+            <BackToSearch />
             <span>
               {results.length === 1
                 ? t('panels:explori.resultCountOne', '{{count}} result', { count: results.length })

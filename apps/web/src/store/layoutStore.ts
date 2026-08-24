@@ -43,6 +43,30 @@ export function registerActivePanelSink(sink: (panelId: string | null) => void):
 }
 
 /**
+ * Show a design pane where there is no dock to activate it in.
+ *
+ * The phone Design layout mounts one pane and puts the rest behind a switcher
+ * (see `useDesignPaneSwitcher`), so `activatePanel('inspector')` — the BP
+ * long-press, and the View menu — has no `IDockviewPanel` to call `setActive`
+ * on and would silently do nothing.
+ *
+ * Returns whether it recognised the id, and that answer is the point: this store
+ * has no business knowing which panes a design kind declares, so the id is
+ * validated by whoever is rendering them. An unregistered selector answers
+ * `false`, which is exactly right on a desktop where the dock already handled it.
+ */
+let selectDesignPane: (panelId: string) => boolean = () => false;
+
+export function registerDesignPaneSelector(select: (panelId: string) => boolean): () => void {
+  selectDesignPane = select;
+  // Identity-checked, so a remount that registers before the old one cleans up
+  // cannot leave the seam pointing at nothing.
+  return () => {
+    if (selectDesignPane === select) selectDesignPane = () => false;
+  };
+}
+
+/**
  * Persisted-layout scope — one per workspace, and nothing else.
  *
  * The Design workspace used to have three (`design`, `design:box-pleat`,
@@ -372,7 +396,15 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     if (targetWorkspace) get().activateWorkspace(targetWorkspace);
     const { dockviewApi, designPaneApi } = get();
     const panel = dockviewApi?.getPanel(id) ?? designPaneApi?.getPanel(id);
-    panel?.api.setActive();
+    if (panel) {
+      panel.api.setActive();
+      return;
+    }
+    // No dock holds it. On a phone that is the ordinary case for a design pane —
+    // the layout mounts one and switches rather than docking them side by side —
+    // so ask whoever is rendering them. Everywhere else this is a no-op, which
+    // is the same nothing the bare `panel?.api.setActive()` used to do.
+    selectDesignPane(id);
   },
   saveLayout: (workspace = get().activeWorkspace) => {
     const { dockviewApi } = get();

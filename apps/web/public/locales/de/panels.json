@@ -417,6 +417,10 @@
       "subtitle": "Wählen Sie, wie Sie dieses Modell erstellen möchten.",
       "title": "Ein neues Design beginnen"
     },
+    "paneSwitcher": {
+      "close": "Bereichsliste schließen",
+      "title": "Bereiche"
+    },
     "paneTitle": {
       "bpPacking": "BP-Editor",
       "bpTree": "Baum-Editor",
@@ -476,6 +480,7 @@
   "explori": {
     "advancedDatabases": "Topologiegrößen wählen",
     "backToResults": "Zurück zu den Ergebnissen",
+    "backToSearch": "Suche",
     "canvas": "Suchbaum-Zeichenfläche",
     "databaseCell": "{{symmetry}}, Größe {{size}}",
     "decreaseLength": "Verkürzen",
@@ -490,12 +495,12 @@
     "needDatabase": "Wähle mindestens eine Symmetrie zum Durchsuchen.",
     "needMoreBranches": "Zeichne mindestens vier Zweige, um zu suchen.",
     "nextResult": "Nächstes Ergebnis",
-    "nodeNameAria": "Name von Knoten {{id}}",
-    "nodeTitle": "Knoten {{id}}",
     "noMatches": "Keine passenden Faltmuster",
     "noMatchesDetail": "Das Archiv enthält nichts, das diesem Baum ähnelt. Passe die Zweige an oder durchsuche mehr Symmetrien.",
     "noResultsYet": "Zeichne einen Baum und durchsuche das Archiv, um passende Faltmuster zu sehen.",
     "noResultsYetTitle": "Noch keine Ergebnisse",
+    "nodeNameAria": "Name von Knoten {{id}}",
+    "nodeTitle": "Knoten {{id}}",
     "openInExplori": "In ExplOri öffnen",
     "openResult": "Ergebnis {{id}} öffnen",
     "previousResult": "Vorheriges Ergebnis",
@@ -511,10 +516,10 @@
     "resultCountOther_other": "{{count}} Ergebnisse",
     "resultPosition": "{{index}} von {{total}}",
     "search": "Suchen",
+    "searchSize": "Ergebnisse",
     "searching": "Suche läuft…",
     "searchingDetail": "Dein Baum wird mit jeder Topologie in den gewählten Datenbanken verglichen.",
     "searchingStatus": "Archiv wird durchsucht…",
-    "searchSize": "Ergebnisse",
     "selectEdge": "Zweig {{id}} auswählen, Länge {{length}}",
     "selectNode": "Knoten {{id}} auswählen",
     "selectNodeWithLabel": "Knoten {{id}} auswählen, {{label}}",
@@ -529,9 +534,9 @@
     "viewCp": "Faltmuster",
     "viewFold": "Gefaltete Form",
     "viewPacking": "Packung",
-    "viewportControls": "Ansichtssteuerung des Suchbaums",
     "viewTree": "Baum",
-    "viewTreeAndCp": "Baum und Faltmuster"
+    "viewTreeAndCp": "Baum und Faltmuster",
+    "viewportControls": "Ansichtssteuerung des Suchbaums"
   },
   "fold3dVerdict": {
     "localCrossing_one": "Das Papier durchdringt sich an einem Knotenpunkt selbst.",

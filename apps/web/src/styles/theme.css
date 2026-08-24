@@ -9392,6 +9392,122 @@ button.bp-packing-alert:focus-visible {
   }
 
   /*
+   * The design pane switcher's label is a pane name, which the locale sets the
+   * length of ("Diagnostics", "Diagnostik", "Диагностика"). Capped and
+   * truncating, so it can never push the pills to its right off the row — the
+   * lane is anchored by its right edge, so an overflowing pill would take the
+   * others with it rather than spilling off the left.
+   */
+  .design-pane-switcher {
+    max-width: 40vw;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  /*
+   * The pane list, for a kind with more than two. Bottom-anchored rather than
+   * centred: it is opened from a pill at the top of the screen with a thumb, and
+   * the rows should land where that thumb already is.
+   */
+  .design-pane-sheet {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+    background: var(--overlay-dim);
+    backdrop-filter: blur(4px);
+  }
+
+  .design-pane-sheet__sheet {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-top: 1px solid var(--border-default);
+    background: var(--bg-secondary);
+    box-shadow: var(--shadow-context-menu);
+    animation: design-pane-sheet-in 0.18s ease-out;
+  }
+
+  .design-pane-sheet__sheet:focus {
+    outline: none;
+  }
+
+  .design-pane-sheet__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border-default);
+    background: var(--bg-primary);
+  }
+
+  .design-pane-sheet__title {
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-weight: 750;
+  }
+
+  .design-pane-sheet__list {
+    margin: 0;
+    padding: var(--space-2);
+    min-height: 0;
+    overflow-y: auto;
+    /* Reaching the end of the list must not start scrolling the app behind it. */
+    overscroll-behavior: contain;
+    list-style: none;
+  }
+
+  .design-pane-sheet__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: var(--touch-target);
+    padding: 0 var(--space-3);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: left;
+  }
+
+  .design-pane-sheet__item[data-active] {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+  }
+
+  @keyframes design-pane-sheet-in {
+    from {
+      transform: translateY(100%);
+    }
+  }
+
+  /* One pane, filling the design workspace's dock cell. */
+  .design-pane-single {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .design-pane-single > * {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  /*
    * What the lane's `pointer-events: none` exempts. Written against the row
    * rather than listing the pill classes, because the second selector cannot be
    * one of them: `IconButton` wraps a **disabled** button in
@@ -9518,7 +9634,8 @@ button.bp-packing-alert:focus-visible {
 }
 
 @media (pointer: coarse) and (prefers-reduced-motion: reduce) {
-  .view-drawer__sheet {
+  .view-drawer__sheet,
+  .design-pane-sheet__sheet {
     animation: none;
   }
 }
