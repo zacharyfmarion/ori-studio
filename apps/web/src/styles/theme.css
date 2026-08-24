@@ -9045,34 +9045,6 @@ button.bp-packing-alert:focus-visible {
  * ---------------------------------------------------------------------------
  */
 @media (pointer: coarse) {
-  /*
-   * Two diagnostic readouts, hidden on touch.
-   *
-   * Both are pure output — no control lives in either — so nothing becomes
-   * unreachable, and both say things a touch user can already see elsewhere:
-   * the zoom percent is in the viewport toolbar, the active tool is the Tools
-   * pill's own glyph on a phone and the selected rail button on a tablet, and
-   * the tool's instructions are what the hint window exists for. What they cost
-   * is a box over the corner of a canvas that is already the scarcest thing on
-   * the screen.
-   *
-   * The simulator's block is hidden **only in its `ready` state**, because
-   * `statusLabel` is doing two jobs: the vertex and triangle count when things
-   * are working, and the reason when they are not. Hiding it outright would
-   * make a failed or empty simulator look like an idle one. The stats beside it
-   * — step, strain, backend — are diagnostics in every state, so they go
-   * regardless, and `:not(:first-child)` is exactly that set because the status
-   * span leads.
-   */
-  .viewport-status-readout,
-  .simulator-readout[data-state='ready'] {
-    display: none;
-  }
-
-  .simulator-readout > *:not(:first-child) {
-    display: none;
-  }
-
   .ui-control--sm,
   .ui-control--md,
   .ui-control--lg,
@@ -9793,6 +9765,89 @@ button.bp-packing-alert:focus-visible {
  * ---------------------------------------------------------------------------
  */
 @media (pointer: coarse) and (max-width: 600px), (pointer: coarse) and (max-height: 600px) {
+  /*
+   * Two diagnostic readouts, hidden.
+   *
+   * Both are pure output — no control lives in either — so nothing becomes
+   * unreachable, and both say things a phone user can already see elsewhere:
+   * the zoom percent is in the viewport toolbar, the active tool is the Tools
+   * pill's own glyph, and a tool's instructions are what the hint window is for.
+   * What they cost is a box over the corner of a canvas that, on a phone, is
+   * the scarcest thing on the screen.
+   *
+   * Phone-only, not every coarse pointer. A tablet has room for both and keeps
+   * the ambient step prompt, which is the part with no equivalent anywhere else.
+   *
+   * The simulator's block is hidden **only in its `ready` state**, because
+   * `statusLabel` is doing two jobs: the vertex and triangle count when things
+   * are working, and the reason when they are not. Hiding it outright would
+   * make a failed or empty simulator look like an idle one. The stats beside it
+   * — step, strain, backend — are diagnostics in every state, so they go
+   * regardless, and `:not(:first-child)` is exactly that set because the status
+   * span leads.
+   */
+  .viewport-status-readout,
+  .simulator-readout[data-state='ready'] {
+    display: none;
+  }
+
+  .simulator-readout > *:not(:first-child) {
+    display: none;
+  }
+
+  /*
+   * The zoom percent goes too, leaving the − and + it sat between. The readout
+   * is a `button` that opens a preset menu, so unlike the two above this one
+   * *is* a control — but every preset in it is reachable by pinching, and Fit
+   * is its own button two positions along, so nothing is lost. What it buys is
+   * the width: the bar is a single scrolling row on a phone and the percent is
+   * the one item in it that is text rather than a target.
+   */
+  .viewport-toolbar__zoom-button {
+    display: none;
+  }
+
+  /*
+   * Settings loses its section heading and puts Close in the corner.
+   *
+   * The heading repeats the active tab, which is two rows above it and marked
+   * with an underline — so on a screen this narrow it spends a 56px band saying
+   * something already on screen. Close moves to the document's own top-right,
+   * where a phone dialog's close belongs.
+   *
+   * Done by moving the existing header rather than rendering a second button in
+   * the sidebar: one close button in the DOM stays one in the accessibility
+   * tree, and the alternative is two controls with the same label that have to
+   * be kept from appearing at once. With the header out of flow,
+   * `.settings-modal__content`'s `auto` row collapses and the body takes the
+   * height the heading was using.
+   */
+  .settings-modal__document {
+    position: relative;
+  }
+
+  .settings-modal__header {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 1;
+    min-height: 0;
+    padding: var(--space-2);
+    border-bottom: 0;
+  }
+
+  .settings-modal__header h2 {
+    display: none;
+  }
+
+  /*
+   * Keeps the tab strip from scrolling underneath the close button that now
+   * shares its corner. `--touch-target` because that is what sizes the button.
+   */
+  .settings-modal__sidebar {
+    padding-right: calc(var(--touch-target) + var(--space-2));
+  }
+
   /*
    * The tools reach the user through `CpToolsTrigger` instead — a pill beside
    * View drawing the active tool's glyph, opening the sheet below. Hidden rather
