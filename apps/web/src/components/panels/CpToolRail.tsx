@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ChevronDown } from 'lucide-react';
@@ -11,7 +11,7 @@ import type { OristudioCpLineColor } from '../../engine/oristudioCpTypes';
 import { shortcutLabelForAction, type ShortcutResolution } from '../../keyboard/shortcuts';
 import { readJson, storageKey, writeJson, STORAGE_KEYS } from '../../lib/storage';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
-import { useShortcutStore } from '../../store/shortcutStore';
+import { useShortcutResolution } from '../../store/shortcutStore';
 import {
   cpActionLabel,
   cpActionTooltip,
@@ -21,9 +21,9 @@ import {
 } from '../../i18n/cpVocab';
 import { cpRailGroups } from '../../cp-workspace/toolCatalog/cpRailActions';
 import { CpToolGlyph } from '../../cp-workspace/toolCatalog/cpToolGlyph';
-import { CpToolPicker } from '../../cp-workspace/toolCatalog/CpToolPicker';
 import { CpShiftLatchToggle } from '../../cp-workspace/touchModifiers/CpShiftLatchToggle';
 import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
+import { useIsPhoneLayout } from '../../platform/phoneLayout';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip';
 import { useTouchLabel } from '../ui/useTouchLabel';
 
@@ -63,36 +63,33 @@ export const CpToolRail = memo(function CpToolRail({
 }: CpToolRailProps) {
   const { t } = useTranslation();
   const coarsePointer = useIsCoarsePointerSurface();
-  const shortcutOverrides = useShortcutStore((state) => state.overrides);
-  const shortcutDefaultsSource = useShortcutStore((state) => state.defaultsSource);
+  // The phone layout hides this rail entirely and moves the latch into the tool
+  // sheet that replaces it, so the header must not also render one here — two
+  // buttons over one module-level latch, one of them invisible.
+  const phoneLayout = useIsPhoneLayout();
   // The rail's hints have to name the key that actually fires, so they resolve
   // against the active layout rather than the shipped table.
-  const shortcutResolution = useMemo<ShortcutResolution>(
-    () => ({ overrides: shortcutOverrides, defaultsSource: shortcutDefaultsSource }),
-    [shortcutOverrides, shortcutDefaultsSource]
-  );
+  const shortcutResolution = useShortcutResolution();
 
   return (
     <aside className="cp-tool-rail" aria-label={t('tools:cpRail.ariaLabel', 'Crease pattern tools')}>
       {/*
-        Two full-width rows: the rail's constraint is horizontal, so its button
-        grid keeps every pixel it has today and what these spend is height, in a
-        column that already scrolls.
+        One full-width row for the Shift latch: the rail's constraint is
+        horizontal, so its button grid keeps every pixel it has today and what
+        this spends is height, in a column that already scrolls.
 
-        Gated here as well as inside each child, which is not belt and braces.
+        It used to carry an "All tools" button above the latch, and that is gone.
+        On a tablet the rail is right there and scrolls, and press-and-hold
+        (`useTouchLabel`) names any glyph in place — so the button bought a row of
+        height and nothing else. The sheet it opened survives as the *phone* tool
+        surface, where there is no rail at all (see `CpToolsTrigger`).
+
+        Gated here as well as inside the child, which is not belt and braces.
         `.cp-tool-rail` is a grid with one explicit row, so an *empty* header div
         would still open a second implicit one and move the desktop rail.
       */}
-      {coarsePointer && (
+      {coarsePointer && !phoneLayout && (
         <div className="cp-tool-rail__touch-header">
-          <CpToolPicker
-            activeActionId={activeActionId}
-            activeOperationId={activeOperationId}
-            activeLineColor={activeLineColor}
-            editable={editable}
-            onSelectAction={onSelectAction}
-            shortcutResolution={shortcutResolution}
-          />
           <CpShiftLatchToggle />
         </div>
       )}

@@ -282,6 +282,9 @@
     "design": "Design workspace",
     "edit": "Edit workspace",
     "label": "Workspaces",
-    "simulate": "Simulate workspace"
+    "simulate": "Simulate workspace",
+    "tabDesign": "Design",
+    "tabEdit": "Edit",
+    "tabSimulate": "Simulate"
   }
 }

@@ -170,7 +170,8 @@
   },
   "cpToolPicker": {
     "close": "Werkzeugliste schließen",
-    "title": "Alle Werkzeuge"
+    "title": "Werkzeuge",
+    "trigger": "Werkzeuge"
   },
   "divideMode": {
     "count": "Anzahl",

@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ComponentType } from 'react';
+import { useEffect, useRef, type ComponentType, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, X } from 'lucide-react';
 import { useWorkspaceViewDrawer } from '../hooks/useWorkspaceViewDrawer';
@@ -37,7 +37,19 @@ const VIEW_DRAWER_BODIES: Record<ViewPanelId, ComponentType> = {
  * Mounting it inside a dock panel instead would mean one copy per workspace and
  * would put shell chrome in a composition site.
  */
-export function WorkspaceViewDrawer() {
+export function WorkspaceViewDrawer({
+  leading,
+}: {
+  /**
+   * A pill to sit to the *left* of View, in the same row.
+   *
+   * A slot rather than a second absolutely-positioned box: "left of View" needs
+   * View's rendered width, which changes with the locale, and two boxes insetting
+   * from the same corner would have to agree about a number neither of them
+   * knows. One row, two flex children, and the row owns the inset.
+   */
+  leading?: ReactNode;
+}) {
   const { t } = useTranslation();
   const { spec, open, drawerId, openDrawer, close, triggerRef } = useWorkspaceViewDrawer();
   const dialogRef = useRef<HTMLDivElement | null>(null);
@@ -62,19 +74,22 @@ export function WorkspaceViewDrawer() {
         against whatever chrome sits above the dock. See `.view-drawer-anchor`.
       */}
       <div className="view-drawer-anchor" data-view-panel={spec.id}>
-        <Button
-          ref={triggerRef}
-          size="md"
-          variant="secondary"
-          className="view-drawer-anchor__trigger"
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          aria-controls={drawerId}
-          onClick={openDrawer}
-        >
-          <SlidersHorizontal size={15} aria-hidden="true" />
-          {t('common:viewDrawer.open', 'View')}
-        </Button>
+        <div className="view-drawer-anchor__row">
+          {leading}
+          <Button
+            ref={triggerRef}
+            size="md"
+            variant="secondary"
+            className="view-drawer-anchor__trigger"
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            aria-controls={drawerId}
+            onClick={openDrawer}
+          >
+            <SlidersHorizontal size={15} aria-hidden="true" />
+            {t('common:viewDrawer.open', 'View')}
+          </Button>
+        </div>
       </div>
       {open && (
         <div

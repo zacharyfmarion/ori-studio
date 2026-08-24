@@ -902,6 +902,14 @@
   gap: var(--space-2);
 }
 
+/* The tab caption, which only the phone layout has room for — everywhere else
+   the rail is 50px wide and the name is the tooltip. Always in the DOM so that
+   the phone block below is a stylesheet change and not a second predicate; it is
+   `aria-hidden`, and the button's own `aria-label` carries the name regardless. */
+.workspace-rail__label {
+  display: none;
+}
+
 .workspace-rail__button {
   position: relative;
   background: transparent;
@@ -1074,6 +1082,207 @@
 @media (pointer: coarse) {
   .workspace-rail__button[data-active]::before {
     left: -3px;
+  }
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * The phone layout: one toolbar row, and the workspace rail as bottom tabs.
+ *
+ * The prelude is a literal copy of `PHONE_MEDIA_QUERY` (platform/phoneLayout.ts),
+ * because CSS cannot import a constant. `platform/phoneLayout.test.ts` reads this
+ * file and fails if the two drift; `theme.css` carries the only other copy.
+ *
+ * Everything here is additive to the coarse-pointer and `max-width: 680px` rules
+ * above, and nothing outside this block changed — a tablet keeps both rails, and
+ * a narrow *mouse* window keeps them too.
+ * ---------------------------------------------------------------------------
+ */
+@media (pointer: coarse) and (max-width: 600px), (pointer: coarse) and (max-height: 600px) {
+  /*
+   * Back to two columns. The single-column rule at 680px is what actually put the
+   * toolbar on two lines — the icons always fit on one row — so hiding three of
+   * them only pays off once the menu bar and the actions share a row again.
+   *
+   * The *menu bar* is the intrinsic track and the actions are the flexible one,
+   * which is the opposite of the desktop rule and the whole reason this fits.
+   * An `fr` track takes only leftover space, so the menu bar gets its full width
+   * first and the actions live on what is left; the desktop arrangement gives the
+   * actions their content width and hands the menu bar the remainder, which in
+   * the Design workspace (Optimize Scale + a Send split button, ~285px) left it
+   * 122px and truncated all five triggers to two letters each. Measured at 375.
+   *
+   * The floor keeps Settings — the one control with no menu entry on macOS — at
+   * a full touch target however wide the menu bar wants to be.
+   */
+  .toolbar {
+    grid-template-columns: auto minmax(var(--touch-target), 1fr);
+  }
+
+  .toolbar__brand,
+  .toolbar__actions {
+    width: auto;
+  }
+
+  /*
+   * New, Open and Save. All three are unconditional File-menu entries, and
+   * `capability()` hard-codes `visible: true` for every capability it builds — so
+   * they can be disabled but never hidden, and the icons are pure duplication at
+   * a width that cannot afford them. Settings stays: on macOS it has no menu
+   * entry at all (see the note in `WorkspaceShell`).
+   *
+   * A class rather than `:nth-child`, because the actions row's contents are
+   * conditional — an index would start hiding Optimize the moment a capability
+   * flipped.
+   *
+   * The `:has()` half is not belt and braces. `IconButton` wraps a *disabled*
+   * button in `.ui-button-tooltip-trigger`, because a disabled control receives
+   * no pointer events and could otherwise never show its reason — so hiding the
+   * button alone would leave three empty flex items and their gaps behind, and
+   * Save is disabled whenever nothing is open.
+   */
+  .toolbar__action--file,
+  .ui-button-tooltip-trigger:has(> .toolbar__action--file) {
+    display: none;
+  }
+
+  /*
+   * `nowrap` is the rule that keeps the promise: the Design workspace also puts
+   * Optimize Scale and a Send split button in here, and wrapping is what would
+   * re-create the second line. They scroll instead — safe to scroll, because the
+   * split button's caret menu is a Radix portal rather than an absolutely
+   * positioned child that a scroll container would clip.
+   */
+  .toolbar__actions {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .toolbar__actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  /*
+   * Right-aligned by a spacer rather than by `justify-content: flex-end`, which
+   * would make the overflow unreachable: a flex row aligned to the end overflows
+   * off its *start* edge, and `scrollLeft` does not go negative. An auto margin
+   * absorbs the free space when there is some and collapses to nothing when
+   * there is not, so the row sits right when it fits and scrolls when it does
+   * not.
+   *
+   * A pseudo-element and not `:first-child`, because the first three children are
+   * the File icons this block hides and an auto margin on `display: none` moves
+   * nothing.
+   */
+  .toolbar__actions::before {
+    content: '';
+    flex: 0 0 auto;
+    /*
+     * The auto margin aligns; the negative one cancels the row's own `gap`,
+     * which otherwise reserves 4px beside a spacer that is 0 wide — enough to
+     * push Settings past the track's floor and out of reach in Russian, where
+     * the menu bar claims everything else.
+     */
+    margin-inline: auto calc(-1 * var(--space-1));
+  }
+
+  /*
+   * The menu bar shrinks by truncating its widest trigger rather than by
+   * scrolling. A scroll container would clip the dropdown — it is an absolutely
+   * positioned child of the trigger's wrapper — and the File menu is now the only
+   * way to reach New/Open/Save, so clipping it is the one failure this change
+   * must not have. Truncation happens on the button's own text, which the
+   * dropdown is a sibling of.
+   *
+   * Flexbox shrinks in proportion to base size, so "Crease Pattern" gives way
+   * first and File stays whole. In English at 375px nothing truncates at all;
+   * this is for Russian, for a 320px SE, and for the Design workspace's wider
+   * actions column.
+   */
+  .toolbar__brand .menubar__menu-wrapper {
+    min-width: 0;
+  }
+
+  .toolbar__brand .menubar__trigger {
+    min-width: 0;
+    min-height: var(--touch-target);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /*
+   * Bottom tabs, the way a phone app has them: the rail stops being column 1 and
+   * becomes row 2, full width, under the canvas.
+   *
+   * The rows are assigned explicitly rather than left to auto-placement, which
+   * would put the rail first in source order and hang it above the canvas — the
+   * same reason `.workspace-shell__canvas` names its rows.
+   */
+  .workspace-shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .workspace-shell__canvas {
+    grid-row: 1;
+  }
+
+  /*
+   * The bar paints *through* the home-indicator inset instead of floating above
+   * it, which is what makes it read as a tab bar rather than as a strip with a
+   * gap under it. `.app-layout` insets the whole app once (see the top of this
+   * file); the negative margin gives that much back and the padding re-spends it
+   * inside the rail's own background. Clipped at the border box by
+   * `.app-layout`'s `overflow: hidden`, so it can never paint off-screen.
+   */
+  .workspace-rail {
+    grid-row: 2;
+    padding: 0 0 var(--safe-bottom);
+    margin-bottom: calc(-1 * var(--safe-bottom));
+    border-right: 0;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .workspace-rail__items {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 0;
+    width: 100%;
+  }
+
+  /*
+   * Equal thirds, icon over caption. `height: auto` undoes the icon-button size
+   * class, which is square; `min-height` is what holds the target, and the whole
+   * third is tappable rather than just the glyph.
+   */
+  .workspace-rail__button {
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: 2px;
+    width: auto;
+    height: auto;
+    min-height: var(--touch-target);
+    padding: 6px 0 4px;
+    border-radius: 0;
+  }
+
+  .workspace-rail__label {
+    display: block;
+    font-size: 0.64rem;
+    font-weight: 650;
+    line-height: 1.1;
+    letter-spacing: 0;
+  }
+
+  /*
+   * The active bar was a marker down the left edge of a vertical rail, which on a
+   * horizontal one lands beside the wrong tab. The tint plus the caption is how
+   * a phone tab bar says the same thing.
+   */
+  .workspace-rail__button[data-active]::before {
+    display: none;
   }
 }
 

@@ -282,6 +282,9 @@
     "design": "Espace de travail Conception",
     "edit": "Espace de travail Édition",
     "label": "Espaces de travail",
-    "simulate": "Espace de travail Simuler"
+    "simulate": "Espace de travail Simuler",
+    "tabDesign": "Conception",
+    "tabEdit": "Édition",
+    "tabSimulate": "Simuler"
   }
 }

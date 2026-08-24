@@ -162,7 +162,8 @@
   },
   "cpToolPicker": {
     "close": "도구 목록 닫기",
-    "title": "모든 도구"
+    "title": "도구",
+    "trigger": "도구"
   },
   "divideMode": {
     "count": "개수",

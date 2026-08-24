@@ -1,46 +1,23 @@
 import { useSyncExternalStore } from 'react';
 import { readBoolean, storageKey, STORAGE_KEYS, writeBoolean } from '../lib/storage';
+import { isPhoneLayout, PHONE_MEDIA_QUERY } from './phoneLayout';
 import { getRuntimeSurface } from './runtime';
 
 /**
- * Whether this device is a phone, and whether the app should therefore refuse to
- * open a workspace on it.
+ * Whether the app should refuse to open a workspace on this device.
  *
  * Ori Studio's surfaces are built for a mouse and a keyboard — the crease-pattern
  * canvas has no touch gestures, and the panels assume a pointer that can hover.
  * On a phone the honest answer is the landing page plus a note saying so, which
  * is what this module decides for the router, the engine boot, and `/welcome`.
  *
- * Pointer-coarse **and** a phone-width viewport, rather than width alone: a
- * desktop user who drags their window narrow keeps the working app, and only the
- * layout reflows. Tablets keep it too — a large touch screen with a keyboard is
- * closer to the desktop case than to the phone one, and the gate is meant to stop
- * people who cannot possibly succeed, not everyone who might struggle.
- *
- * The real question is **the shorter side**, not the width, so the query asks
- * about both and the comma ORs them. Width alone answers correctly only in
- * portrait: an iPhone SE in landscape is 667 CSS px wide and would sail through
- * a width-only gate, even though turning a phone sideways does not make it a
- * drafting table.
- *
- * 600px because one number separates both dimensions cleanly and there is a wide
- * gap to sit in. Every phone's short side is at most ~440 (the 16 Pro Max, in
- * either orientation); every iPad's short side is at least 744 (the mini; 768 on
- * older models). Landing near the middle of 440–744 means neither a future
- * slightly-larger phone nor a future slightly-smaller tablet reclassifies on a
- * point release.
- *
- * The boundary also has to fall where no device stands, because `max-width` is
- * inclusive: it was 820px, and a base iPad in portrait is *exactly* 820 (measured
- * on an iPad A16 simulator), so the cheapest iPad was told it was a phone by one
- * pixel. A threshold no shipping device can equal cannot lose that way.
- *
- * Known consequence: an iPad in a narrow Split View (~507px) reads as a phone.
- * That is the honest answer — the workspace genuinely does not fit — and the
- * "open it anyway" override is one tap away and persists.
+ * This is the **gate**, and nothing else. What a phone-shaped viewport *is* — and
+ * how the app lays out on one — belongs to `platform/phoneLayout`, which this
+ * module composes with a capability. Keeping them apart is not tidiness: the
+ * capability is `false` on both Tauri shells, so a layout asking this question
+ * would give a native iPhone the desktop chrome.
  */
-export const PHONE_MEDIA_QUERY =
-  '(pointer: coarse) and (max-width: 600px), (pointer: coarse) and (max-height: 600px)';
+export { PHONE_MEDIA_QUERY };
 
 const PHONE_OVERRIDE_KEY = storageKey(STORAGE_KEYS.phoneOverride);
 
@@ -55,15 +32,17 @@ function mediaHost(): Window | null {
 }
 
 /**
- * True on a phone-sized touch device.
+ * True on a phone-sized touch device the gate applies to.
  *
  * The Tauri shell short-circuits to `false` before any media query runs. It has
  * no address bar and runs on a memory router, so a gate misfiring there would
- * strand the user on `/welcome` with no way back.
+ * strand the user on `/welcome` with no way back. It still *lays out* as a phone
+ * when the viewport says so — that is `isPhoneLayout`'s question, and the split
+ * between the two is the whole reason this module no longer owns the query.
  */
 export function isPhoneSurface(): boolean {
   if (getRuntimeSurface() === 'desktop') return false;
-  return mediaHost()?.matchMedia(PHONE_MEDIA_QUERY).matches ?? false;
+  return isPhoneLayout(mediaHost());
 }
 
 /** Whether someone took the "open it anyway" link past the desktop-only notice. */

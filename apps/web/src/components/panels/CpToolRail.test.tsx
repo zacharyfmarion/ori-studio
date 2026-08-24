@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { storageKey, STORAGE_KEYS } from '../../lib/storage';
 import { resetShiftLatch } from '../../cp-workspace/touchModifiers/shiftLatch';
+import { PHONE_MEDIA_QUERY } from '../../platform/phoneLayout';
 import { TOUCH_LABEL_HOLD_MS } from '../ui/useTouchLabel';
 import { TooltipProvider } from '../ui/Tooltip';
 import { CpToolRail } from './CpToolRail';
@@ -31,12 +32,19 @@ afterEach(() => {
  * The rail's touch affordances are gated on the primary pointer, and jsdom has
  * no opinion about one. Stubbed rather than mocked away so the fine-pointer
  * assertions run through the same code path the desktop does.
+ *
+ * The two queries are answered independently, because the rail's touch header
+ * turns on for one and off for the other: a tablet is coarse and keeps it, and a
+ * phone hides the whole rail and moves the latch into the tool sheet. Defaulting
+ * `phone` to false makes the unqualified coarse case the tablet, which is the
+ * only device that renders this header at all.
  */
-function stubPointer(coarse: boolean) {
+function stubPointer(coarse: boolean, phone = false) {
   vi.stubGlobal(
     'matchMedia',
     vi.fn((query: string) => ({
-      matches: query.includes('pointer: coarse') ? coarse : false,
+      matches:
+        query === PHONE_MEDIA_QUERY ? phone : query.includes('pointer: coarse') ? coarse : false,
       addEventListener: () => {},
       removeEventListener: () => {},
     }))
@@ -174,26 +182,37 @@ describe('CpToolRail merged tools', () => {
 
 /*
  * The rail is 52 icon-only tools whose only visible label is a Radix tooltip,
- * and Radix deliberately has no touch path for one. These are the two ways a
- * finger gets the label instead: a visible picker, and a press-and-hold.
+ * and Radix deliberately has no touch path for one. Press-and-hold is how a
+ * finger gets the label instead, and it takes none of the rail's width.
  *
- * Neither exists on a fine pointer, and neither takes any of the rail's width.
+ * The rail also carries the Shift latch, which is the one modifier a device with
+ * no keyboard cannot otherwise have.
  */
 describe('CpToolRail touch affordances', () => {
   it('adds nothing to the rail on a fine pointer', () => {
     stubPointer(false);
     const host = renderRail();
 
-    expect(host.querySelector('.cp-tool-rail__picker-trigger')).toBeNull();
+    expect(host.querySelector('.cp-tool-rail__touch-header')).toBeNull();
     expect(host.querySelector('.cp-tool-rail__latch')).toBeNull();
   });
 
-  it('offers the picker and the Shift latch on a coarse pointer', () => {
+  it('offers the Shift latch on a tablet', () => {
     stubPointer(true);
     const host = renderRail();
 
-    expect(host.querySelector('.cp-tool-rail__picker-trigger')).not.toBeNull();
     expect(host.querySelector('.cp-tool-rail__latch')).not.toBeNull();
+  });
+
+  // The phone layout hides this rail and puts the latch in the tool sheet that
+  // replaces it. Rendering one here too would be two buttons over one
+  // module-level latch, with the invisible one able to disagree.
+  it('leaves the latch to the tool sheet on a phone', () => {
+    stubPointer(true, true);
+    const host = renderRail();
+
+    expect(host.querySelector('.cp-tool-rail__touch-header')).toBeNull();
+    expect(host.querySelector('.cp-tool-rail__latch')).toBeNull();
   });
 
   it('keeps the button grid exactly as wide as it was', () => {

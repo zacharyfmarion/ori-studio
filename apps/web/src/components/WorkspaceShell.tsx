@@ -24,6 +24,7 @@ import { FixedDockTab } from './panels/FixedDockTab';
 import { ErrorBoundary } from './errors/ErrorBoundary';
 import { FileDropOverlay } from './FileDropOverlay';
 import { WorkspaceViewDrawer } from './WorkspaceViewDrawer';
+import { CpToolsTrigger } from '../cp-workspace/toolCatalog/CpToolsTrigger';
 import { panelComponents } from './panels/PanelComponents';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
@@ -73,6 +74,25 @@ function workspaceTooltip(t: TFunction, id: WorkspaceId): string {
   }
 }
 
+/**
+ * The caption under a bottom tab, which only the phone layout shows.
+ *
+ * Its own strings rather than the tooltip's: "Design workspace" under a 125px
+ * tab is a truncation, and the word the tab bar wants is the one the workspace
+ * is called. Not the View menu's labels either — a menu item renamed should not
+ * silently rename the tabs.
+ */
+function workspaceTabLabel(t: TFunction, id: WorkspaceId): string {
+  switch (id) {
+    case 'design':
+      return t('common:workspaceRail.tabDesign', 'Design');
+    case 'edit':
+      return t('common:workspaceRail.tabEdit', 'Edit');
+    case 'simulate':
+      return t('common:workspaceRail.tabSimulate', 'Simulate');
+  }
+}
+
 function WorkspaceRail() {
   const { t } = useTranslation();
   const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
@@ -96,6 +116,15 @@ function WorkspaceRail() {
               onClick={() => navigate(pathForWorkspace(workspace.id))}
             >
               <Icon size={19} />
+              {/*
+                Hidden by the stylesheet everywhere but the phone layout, which is
+                the one place the rail is wide enough to caption. The button
+                already carries the same name as its `aria-label`, so this is
+                decoration to a screen reader and would otherwise be read twice.
+              */}
+              <span className="workspace-rail__label" aria-hidden="true">
+                {workspaceTabLabel(t, workspace.id)}
+              </span>
             </IconButton>
           );
         })}
@@ -131,8 +160,15 @@ function Toolbar() {
         {hasNativeMenu ? <span className="toolbar__title">Ori Studio</span> : <MenuBar />}
       </div>
       <div className="toolbar__actions">
+        {/*
+          `toolbar__action--file` marks the three the phone layout drops. All
+          three are unconditional File-menu entries and no capability can hide
+          them, so the icons are a shortcut rather than the only path — see the
+          phone block in App.css.
+        */}
         <IconButton
           size="sm"
+          className="toolbar__action--file"
           title={t('common:toolbar.new', 'New')}
           tooltipSide="bottom"
           disabled={!capabilities['file.new'].enabled}
@@ -142,6 +178,7 @@ function Toolbar() {
         </IconButton>
         <IconButton
           size="sm"
+          className="toolbar__action--file"
           title={t('common:toolbar.open', 'Open')}
           tooltipSide="bottom"
           disabled={!capabilities['file.open'].enabled}
@@ -151,6 +188,7 @@ function Toolbar() {
         </IconButton>
         <IconButton
           size="sm"
+          className="toolbar__action--file"
           title={t('common:toolbar.save', 'Save')}
           tooltipSide="bottom"
           disabled={!capabilities['file.save'].enabled}
@@ -397,9 +435,14 @@ export function WorkspaceShell() {
           {/*
             Touch only, and a no-op everywhere else — under a coarse pointer the
             View pane is not docked at all, and this is what reaches it.
+
+            The Tools pill rides in its `leading` slot so that the two share one
+            row and "left of View" needs nobody to know View's width. It gates
+            itself down to the phone layout in the Edit workspace; everywhere
+            else it renders nothing and the row holds View alone.
           */}
           <ErrorBoundary surface="shell:view-drawer" variant="mini">
-            <WorkspaceViewDrawer />
+            <WorkspaceViewDrawer leading={<CpToolsTrigger />} />
           </ErrorBoundary>
           <FileDropOverlay visible={isDragActive} policy={WORKSPACE_DROP_POLICY} />
         </div>

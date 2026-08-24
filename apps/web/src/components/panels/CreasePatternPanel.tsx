@@ -110,6 +110,7 @@ import { useShortcutStore } from '../../store/shortcutStore';
 import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglCanvas';
 import type { CpOverlayView, StepKind } from '../../cp-workspace/CreasePatternWebglCanvas';
 import { cpCamera } from '../../cp-workspace/renderer/cpCameraRegistry';
+import { publishCpToolSurface } from '../../cp-workspace/toolCatalog/cpToolSurface';
 import type { CpContextMenuRequest } from '../../cp-workspace/contextMenuTarget';
 import { isFoldedFigureReady } from '../../cp-workspace/folded/foldedFigureActions';
 import { foldedFigureCapabilities } from '../../cp-workspace/folded/foldedFigureCapabilities';
@@ -1641,6 +1642,33 @@ export function CreasePatternPanel() {
   useEffect(
     () => registerCpActionShortcutExecutor(handleCpShortcutAction),
     [handleCpShortcutAction]
+  );
+
+  // The phone layout's Tools button is mounted in the app shell, outside the
+  // dock, so it has no props to read the active tool from and nothing to arm it
+  // with. Published rather than lifted into a store: this is panel-local state
+  // with one subscriber, and the registration is identity-checked on the way out
+  // the same way the shortcut executor above is.
+  useEffect(
+    () => {
+      // No editable crease pattern means no tools, so nothing is published and
+      // the Tools button does not exist — the same condition the rail mounts
+      // under.
+      if (!editableCp) return undefined;
+      return publishCpToolSurface({
+        activeActionId: cpToolState.activeActionId,
+        activeOperationId: cpToolState.activeOperationId,
+        activeLineColor: effectiveCpLineColor,
+        onSelectAction: handleCpToolAction,
+      });
+    },
+    [
+      cpToolState.activeActionId,
+      cpToolState.activeOperationId,
+      editableCp,
+      effectiveCpLineColor,
+      handleCpToolAction,
+    ]
   );
 
   useEffect(() => {

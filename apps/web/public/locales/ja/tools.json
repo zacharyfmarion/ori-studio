@@ -162,7 +162,8 @@
   },
   "cpToolPicker": {
     "close": "ツール一覧を閉じる",
-    "title": "すべてのツール"
+    "title": "ツール",
+    "trigger": "ツール"
   },
   "divideMode": {
     "count": "個数",

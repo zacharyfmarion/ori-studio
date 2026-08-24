@@ -9,7 +9,7 @@ import {
 import { isShiftLatched, resetShiftLatch } from '../touchModifiers/shiftLatch';
 import { CpShiftLatchToggle } from '../touchModifiers/CpShiftLatchToggle';
 import { cpRailGroups } from './cpRailActions';
-import { CpToolPicker } from './CpToolPicker';
+import { CpToolPickerSheet } from './CpToolPickerSheet';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -38,67 +38,41 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function renderPicker(
-  coarse: boolean,
-  onSelectAction: (action: OristudioCpActionDefinition) => void = () => {}
-): HTMLDivElement {
-  stubPointer(coarse);
+function renderSheet(
+  onSelectAction: (action: OristudioCpActionDefinition) => void = () => {},
+  close: () => void = () => {}
+): HTMLElement {
+  stubPointer(true);
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
   act(() => {
     root?.render(
       <TooltipProvider delayDuration={0}>
-        <CpToolPicker
+        <CpToolPickerSheet
+          pickerId="tool-picker"
+          close={close}
           activeActionId="cp.action.crease-select"
           activeOperationId="CreaseSelect"
           activeLineColor="Red1"
-          editable
           onSelectAction={onSelectAction}
-          shortcutResolution={{}}
         />
       </TooltipProvider>
     );
   });
-  return container;
+  const sheet = container.querySelector('.cp-tool-picker');
+  if (!(sheet instanceof HTMLElement)) throw new Error('no sheet');
+  return sheet;
 }
 
-function trigger(host: HTMLDivElement): HTMLElement {
-  const button = host.querySelector('.cp-tool-rail__picker-trigger');
-  if (!(button instanceof HTMLElement)) throw new Error('no picker trigger');
-  return button;
-}
-
-function sheet(): HTMLElement | null {
-  return document.querySelector('.cp-tool-picker');
-}
-
-describe('CpToolPicker pointer branch', () => {
-  it('offers nothing on a fine pointer, where hover already names every tool', () => {
-    const host = renderPicker(false);
-    expect(host.querySelector('.cp-tool-rail__picker-trigger')).toBeNull();
-  });
-
-  it('shows a visible trigger on a coarse pointer', () => {
-    const host = renderPicker(true);
-    expect(trigger(host).textContent).toContain('All tools');
-    expect(sheet()).toBeNull();
-  });
-});
-
-describe('CpToolPicker sheet', () => {
+describe('CpToolPickerSheet catalogue', () => {
   it('names every tool the rail draws, and nothing the rail does not', () => {
-    const host = renderPicker(true);
-    act(() => {
-      trigger(host).click();
-    });
+    const sheet = renderSheet();
 
-    const labels = [...(sheet()?.querySelectorAll('.cp-tool-picker__label') ?? [])].map(
+    const labels = [...sheet.querySelectorAll('.cp-tool-picker__label')].map(
       (node) => node.textContent
     );
-    const expected = cpRailGroups().flatMap((entry) =>
-      entry.actions.map((action) => action.label)
-    );
+    const expected = cpRailGroups().flatMap((entry) => entry.actions.map((action) => action.label));
 
     expect(labels).toEqual(expected);
     // Not a fixed number: the assertion is "the rail's set", and it should
@@ -107,12 +81,7 @@ describe('CpToolPicker sheet', () => {
   });
 
   it('carries the full label, not the truncation the rail cannot avoid', () => {
-    const host = renderPicker(true);
-    act(() => {
-      trigger(host).click();
-    });
-
-    const labels = [...(sheet()?.querySelectorAll('.cp-tool-picker__label') ?? [])].map(
+    const labels = [...renderSheet().querySelectorAll('.cp-tool-picker__label')].map(
       (node) => node.textContent
     );
     expect(labels).toContain('Parallel Alternating Lines');
@@ -121,12 +90,10 @@ describe('CpToolPicker sheet', () => {
 
   it('selects a tool and closes', () => {
     const selected: string[] = [];
-    const host = renderPicker(true, (action) => selected.push(action.id));
-    act(() => {
-      trigger(host).click();
-    });
+    const closed = vi.fn();
+    const sheet = renderSheet((action) => selected.push(action.id), closed);
 
-    const rows = [...(sheet()?.querySelectorAll('.cp-tool-picker__item') ?? [])];
+    const rows = [...sheet.querySelectorAll('.cp-tool-picker__item')];
     const eraser = rows.find((row) => row.textContent?.includes('Eraser'));
     if (!(eraser instanceof HTMLElement)) throw new Error('no Eraser row');
     act(() => {
@@ -134,15 +101,12 @@ describe('CpToolPicker sheet', () => {
     });
 
     expect(selected).toHaveLength(1);
-    expect(sheet()).toBeNull();
+    expect(closed).toHaveBeenCalledTimes(1);
   });
 
   it('refuses a tool that is not ready, rather than hiding it', () => {
     const selected: string[] = [];
-    const host = renderPicker(true, (action) => selected.push(action.id));
-    act(() => {
-      trigger(host).click();
-    });
+    const sheet = renderSheet((action) => selected.push(action.id));
 
     const notReady = ORISTUDIO_CP_ACTIONS.find(
       (action) =>
@@ -151,7 +115,7 @@ describe('CpToolPicker sheet', () => {
     );
     if (!notReady) return; // Every rail tool shipped; nothing to assert.
 
-    const rows = [...(sheet()?.querySelectorAll('.cp-tool-picker__item') ?? [])];
+    const rows = [...sheet.querySelectorAll('.cp-tool-picker__item')];
     const row = rows.find((node) => node.textContent?.includes(notReady.label));
     if (!(row instanceof HTMLElement)) throw new Error(`no row for ${notReady.label}`);
     expect(row.getAttribute('aria-disabled')).toBe('true');
@@ -161,30 +125,40 @@ describe('CpToolPicker sheet', () => {
     expect(selected).toHaveLength(0);
   });
 
-  it('closes on a backdrop tap', () => {
-    const host = renderPicker(true);
-    act(() => {
-      trigger(host).click();
-    });
+  // `aria-modal` hides everything outside this dialog from a screen reader, so a
+  // sheet that opens without taking focus leaves VoiceOver parked on the trigger
+  // it can no longer see: nothing announced, and the catalogue reachable only by
+  // exploring the screen. The View drawer solves it the same way.
+  it('takes focus when it opens, so the dialog is what a screen reader is on', () => {
+    const sheet = renderSheet();
 
-    const backdrop = sheet();
-    if (!(backdrop instanceof HTMLElement)) throw new Error('no backdrop');
-    act(() => {
-      backdrop.click();
-    });
-    expect(sheet()).toBeNull();
+    const panel = sheet.querySelector('.cp-tool-picker__sheet');
+    expect(document.activeElement).toBe(panel);
   });
 
-  it('closes on Escape from wherever focus is inside it', () => {
-    const host = renderPicker(true);
+  it('closes on a backdrop tap', () => {
+    const closed = vi.fn();
+    const sheet = renderSheet(() => {}, closed);
     act(() => {
-      trigger(host).click();
+      sheet.click();
+    });
+    expect(closed).toHaveBeenCalledTimes(1);
+  });
+
+  // The phone layout hides the rail this used to live in, so the sheet is the
+  // only place left that a finger can reach Shift from.
+  it('carries the Shift latch, and toggling it does not close the sheet', () => {
+    const closed = vi.fn();
+    const sheet = renderSheet(() => {}, closed);
+
+    const latch = sheet.querySelector('.cp-tool-rail__latch');
+    if (!(latch instanceof HTMLElement)) throw new Error('no latch in the sheet');
+    act(() => {
+      latch.click();
     });
 
-    act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    });
-    expect(sheet()).toBeNull();
+    expect(isShiftLatched()).toBe(true);
+    expect(closed).not.toHaveBeenCalled();
   });
 });
 

@@ -272,6 +272,16 @@ export const ANALYTICS_EVENTS = {
    */
   viewDrawerOpened: 'view drawer opened',
   /**
+   * The phone layout's tool sheet was opened.
+   *
+   * Phone-only, because that layout is the only one without a tool rail — so
+   * every one of these is somebody who found the Tools pill, which is the whole
+   * question replacing a visible rail with a button raises. No menu action
+   * reaches it, so the `command invoked` chokepoint cannot see it, and `cp tool
+   * used` counts what was picked rather than whether the surface was found.
+   */
+  cpToolPickerOpened: 'cp tool picker opened',
+  /**
    * The start screen's 3D figure declined to start, and the static image is
    * standing in.
    *

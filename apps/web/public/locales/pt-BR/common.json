@@ -282,6 +282,9 @@
     "design": "Workspace de Design",
     "edit": "Workspace de Edição",
     "label": "Workspaces",
-    "simulate": "Workspace de Simulação"
+    "simulate": "Workspace de Simulação",
+    "tabDesign": "Design",
+    "tabEdit": "Editar",
+    "tabSimulate": "Simular"
   }
 }

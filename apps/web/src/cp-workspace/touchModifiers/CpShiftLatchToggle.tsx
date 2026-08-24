@@ -26,8 +26,8 @@ export function CpShiftLatchToggle() {
   // it, so it has to go out with the button. A convertible flipped out of tablet
   // mode reports `fine` from that moment on, which unmounts this and leaves a
   // latch nobody can see or reach — every click on that fine-pointer session
-  // additive, with no Shift key held. Same close-on-flip `useCpToolPicker` does,
-  // and the teardown `resetShiftLatch` was written for.
+  // additive, with no Shift key held. Same close-on-flip `useCpToolsTrigger`
+  // does, and the teardown `resetShiftLatch` was written for.
   useEffect(() => resetShiftLatch, []);
 
   if (!coarsePointer) return null;

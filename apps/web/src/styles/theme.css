@@ -9323,14 +9323,62 @@ button.bp-packing-alert:focus-visible {
     --view-drawer-inset-top: calc(var(--touch-target) + var(--space-2));
   }
 
-  .view-drawer-anchor__trigger {
+  /*
+   * The pill row. The inset lives here rather than on the trigger because more
+   * than one pill can be in it — the phone layout puts Tools to the left of View
+   * — and "left of View" has to be a layout fact rather than an offset somebody
+   * computed from View's width, which changes with the locale.
+   *
+   * Anchored by its *right* edge, which is why the row can be zero-width: the
+   * anchor is a grid item spanning the dock, and `right` is measured against
+   * that regardless of what the row contains.
+   */
+  .view-drawer-anchor__row {
     position: absolute;
     top: var(--view-drawer-inset-top);
     right: var(--space-3);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    /* Inherited from the anchor, and re-asserted per pill below: the dock keeps
+       every tap that is not on one of them, including in the gap between. */
+    pointer-events: none;
+  }
+
+  .view-drawer-anchor__trigger,
+  .cp-tools-trigger {
     gap: var(--space-2);
     border-color: var(--border-default);
     box-shadow: var(--shadow-context-menu);
     pointer-events: auto;
+  }
+
+  /*
+   * The active tool's mark, at about the size the View pill draws its icon. A
+   * box of its own because `CpToolGlyph` renders three different things — an
+   * Oriedita glyph from an icon font, a two-letter line-type label, or a Lucide
+   * icon — and only a fixed box makes all three sit on the same line as the word
+   * beside them.
+   *
+   * The font-size here covers the text glyph; the Oriedita icon font carries its
+   * own, tuned for a 44px rail button, so it is re-set below. Its baseline nudge
+   * goes with it — a 2px drop inside an 18px box is visible, where inside a rail
+   * button it was the correction that made it invisible.
+   */
+  .cp-tools-trigger__glyph {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    font-size: 0.72rem;
+    font-weight: 750;
+    line-height: 1;
+  }
+
+  .cp-tools-trigger__glyph .cp-tool-rail__oriedita-icon {
+    font-size: 18px;
+    transform: none;
   }
 
   /*
@@ -9455,23 +9503,27 @@ button.bp-packing-alert:focus-visible {
    * an `auto` track holding an `overflow-y: auto` child reports a min-content
    * contribution of 0 and a max-content contribution of the whole list, so it
    * absorbs the rail's full height and the `fr` track resolves to 0. Measured on
-   * a base iPad: `grid-template-rows` came out `0px 700px`, and the header's two
-   * 44px buttons painted on top of the Type group instead of above it.
+   * a base iPad: `grid-template-rows` came out `0px 700px`, and the header's
+   * buttons painted on top of the Type group instead of above it.
    *
    * So the rows are named here, where the header exists. Unconditional inside
-   * this block because the header's own gate is `useIsCoarsePointerSurface()`,
-   * which is this media query — under a coarse pointer the rail always has both
-   * children, and under a fine one it keeps the single-row rule above.
+   * this block even though the header's gate is now narrower than it —
+   * `useIsCoarsePointerSurface() && !useIsPhoneLayout()`, so a phone-sized coarse
+   * viewport has a header-less rail whose group list would land back in the
+   * `auto` row and collapse the `fr` one to 0 all over again. That never paints
+   * only because the phone block at the end of this file hides `.cp-tool-rail`
+   * outright, off the same query string the predicate reads — so anything that
+   * un-hides the rail at phone width has to bring a row assignment with it.
+   * Under a fine pointer the rail keeps the single-row rule above.
    */
   .cp-tool-rail {
     grid-template-rows: auto minmax(0, 1fr);
   }
 
   /*
-   * The rail's two touch-only rows: the tool picker's trigger and the Shift
-   * latch. Full width on purpose — the rail's constraint is horizontal, the
-   * button grid below keeps every pixel it has, and what these spend is height
-   * in a column that already scrolls.
+   * The rail's one touch-only row: the Shift latch. Full width on purpose — the
+   * rail's constraint is horizontal, the button grid below keeps every pixel it
+   * has, and what this spends is height in a column that already scrolls.
    */
   .cp-tool-rail__touch-header {
     display: grid;
@@ -9492,7 +9544,6 @@ button.bp-packing-alert:focus-visible {
     padding-inline: var(--space-3);
   }
 
-  .cp-tool-rail__picker-trigger,
   .cp-tool-rail__latch {
     justify-content: flex-start;
     gap: var(--space-2);
@@ -9543,6 +9594,13 @@ button.bp-packing-alert:focus-visible {
     animation: cp-tool-picker-in 0.18s ease-out;
   }
 
+  /* Focused on open so `aria-modal` has somewhere to put a screen reader, which
+     is not a reason to draw a ring around the whole sheet. Same as the View
+     drawer's. */
+  .cp-tool-picker__sheet:focus {
+    outline: none;
+  }
+
   .cp-tool-picker__header {
     display: flex;
     align-items: center;
@@ -9551,6 +9609,18 @@ button.bp-packing-alert:focus-visible {
     padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
     border-bottom: 1px solid var(--border-default);
     background: var(--bg-primary);
+  }
+
+  /*
+   * The Shift latch, which on a phone has nowhere else to be — the rail it used
+   * to sit in is not rendered at that width. Above the catalogue and separated
+   * from it, because it is a mode rather than a tool and picking it does not
+   * close the sheet the way picking a tool does.
+   */
+  .cp-tool-picker__modes {
+    display: grid;
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border-subtle);
   }
 
   .cp-tool-picker__title {
@@ -9673,5 +9743,72 @@ button.bp-packing-alert:focus-visible {
 @media (pointer: coarse) and (prefers-reduced-motion: reduce) {
   .cp-tool-picker__sheet {
     animation: none;
+  }
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * The phone layout: no tool rail, and the whole width for the canvas.
+ *
+ * The prelude is a literal copy of `PHONE_MEDIA_QUERY` (platform/phoneLayout.ts),
+ * because CSS cannot import a constant. `platform/phoneLayout.test.ts` reads this
+ * file and fails if the two drift; `App.css` carries the only other copy.
+ *
+ * Measured at 375x812 before this block existed: a 50px workspace rail plus a
+ * 152px tool rail left the crease-pattern viewport 173px of a 375px screen —
+ * chrome taking 54% of the width on the device with the least of it. The
+ * workspace rail moves to the bottom (App.css) and the tool rail moves into a
+ * sheet, which between them hand the canvas all 375.
+ *
+ * A tablet is untouched: it keeps its rail, and every rule that shapes it lives
+ * in the `max-width: 720px` pair above, outside this block.
+ * ---------------------------------------------------------------------------
+ */
+@media (pointer: coarse) and (max-width: 600px), (pointer: coarse) and (max-height: 600px) {
+  /*
+   * The tools reach the user through `CpToolsTrigger` instead — a pill beside
+   * View drawing the active tool's glyph, opening the sheet below. Hidden rather
+   * than unmounted because the rail is a stylesheet's worth of grid tracks and
+   * one `display: none` is the whole change; the Shift latch it used to carry is
+   * moved in the markup, not hidden, so there is only ever one of it.
+   */
+  .cp-tool-rail {
+    display: none;
+  }
+
+  .cp-panel__body--with-tools {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /*
+   * The status readout drops below the pill lane.
+   *
+   * Giving the canvas the full width also gave the readout the full width, and
+   * the Tools pill put a second box in the corner it runs into: measured at
+   * 375px, the two pills covered the tail of every step prompt. Dropping a row
+   * rather than capping the width, because the readout wraps at its gaps — a cap
+   * turns one line into a four-line stack down the side of the canvas.
+   *
+   * `--view-drawer-lane` is the token the corner already publishes for this, and
+   * the diagnostic HUD needs no counterpart rule: it *measures* the readout's box
+   * instead of assuming where it starts (see `diagnostics/hudPlacement.ts`).
+   */
+  .viewport-status-readout {
+    top: var(--view-drawer-lane);
+  }
+
+  /*
+   * With no rail beside it the sheet is the only tool surface, so it takes all
+   * the width it can — but not the last 44px.
+   *
+   * Its 92vw default leaves a 30px strip of backdrop at 375px, and the backdrop
+   * is how the sheet is dismissed by tapping: a phone has no Escape key, so the
+   * strip and the close button are the only two ways out. A dismissal target
+   * under the touch minimum is the defect this whole pass exists to remove, so
+   * the strip is written as exactly one target rather than as a percentage that
+   * happens to land near one.
+   */
+  .cp-tool-picker__sheet {
+    width: calc(100% - var(--touch-target));
   }
 }

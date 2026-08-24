@@ -282,6 +282,9 @@
     "design": "디자인 작업 공간",
     "edit": "편집 작업 공간",
     "label": "작업 공간",
-    "simulate": "시뮬레이션 작업 공간"
+    "simulate": "시뮬레이션 작업 공간",
+    "tabDesign": "디자인",
+    "tabEdit": "편집",
+    "tabSimulate": "시뮬레이션"
   }
 }

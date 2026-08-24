@@ -178,7 +178,8 @@
   },
   "cpToolPicker": {
     "close": "Fermer la liste des outils",
-    "title": "Tous les outils"
+    "title": "Outils",
+    "trigger": "Outils"
   },
   "divideMode": {
     "count": "Nombre",

@@ -282,6 +282,9 @@
     "design": "Espacio de trabajo de diseño",
     "edit": "Espacio de trabajo de edición",
     "label": "Espacios de trabajo",
-    "simulate": "Espacio de trabajo de simulación"
+    "simulate": "Espacio de trabajo de simulación",
+    "tabDesign": "Diseño",
+    "tabEdit": "Editar",
+    "tabSimulate": "Simular"
   }
 }

@@ -282,6 +282,9 @@
     "design": "设计工作区",
     "edit": "编辑工作区",
     "label": "工作区",
-    "simulate": "模拟工作区"
+    "simulate": "模拟工作区",
+    "tabDesign": "设计",
+    "tabEdit": "编辑",
+    "tabSimulate": "模拟"
   }
 }

@@ -282,6 +282,9 @@
     "design": "デザインワークスペース",
     "edit": "編集ワークスペース",
     "label": "ワークスペース",
-    "simulate": "シミュレートワークスペース"
+    "simulate": "シミュレートワークスペース",
+    "tabDesign": "デザイン",
+    "tabEdit": "編集",
+    "tabSimulate": "シミュレート"
   }
 }

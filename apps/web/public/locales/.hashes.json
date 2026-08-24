@@ -2504,7 +2504,11 @@
     "tools:cpContext.cancelInput": "80966222363a",
     "tools:cpRail.addToSelection": "7f9e6e964175",
     "tools:cpToolPicker.close": "07614bd7445a",
-    "tools:cpToolPicker.title": "81c151f98a19"
+    "tools:cpToolPicker.title": "ea93d6a262ec",
+    "common:workspaceRail.tabDesign": "0072e6b93494",
+    "common:workspaceRail.tabEdit": "464c4ffd019e",
+    "common:workspaceRail.tabSimulate": "66154a084145",
+    "tools:cpToolPicker.trigger": "ea93d6a262ec"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5011,7 +5015,11 @@
     "tools:cpContext.cancelInput": "80966222363a",
     "tools:cpRail.addToSelection": "7f9e6e964175",
     "tools:cpToolPicker.close": "07614bd7445a",
-    "tools:cpToolPicker.title": "81c151f98a19"
+    "tools:cpToolPicker.title": "ea93d6a262ec",
+    "common:workspaceRail.tabDesign": "0072e6b93494",
+    "common:workspaceRail.tabEdit": "464c4ffd019e",
+    "common:workspaceRail.tabSimulate": "66154a084145",
+    "tools:cpToolPicker.trigger": "ea93d6a262ec"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7518,7 +7526,11 @@
     "tools:cpContext.cancelInput": "80966222363a",
     "tools:cpRail.addToSelection": "7f9e6e964175",
     "tools:cpToolPicker.close": "07614bd7445a",
-    "tools:cpToolPicker.title": "81c151f98a19"
+    "tools:cpToolPicker.title": "ea93d6a262ec",
+    "common:workspaceRail.tabDesign": "0072e6b93494",
+    "common:workspaceRail.tabEdit": "464c4ffd019e",
+    "common:workspaceRail.tabSimulate": "66154a084145",
+    "tools:cpToolPicker.trigger": "ea93d6a262ec"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9986,7 +9998,11 @@
     "tools:cpContext.cancelInput": "80966222363a",
     "tools:cpRail.addToSelection": "7f9e6e964175",
     "tools:cpToolPicker.close": "07614bd7445a",
-    "tools:cpToolPicker.title": "81c151f98a19"
+    "tools:cpToolPicker.title": "ea93d6a262ec",
+    "common:workspaceRail.tabDesign": "0072e6b93494",
+    "common:workspaceRail.tabEdit": "464c4ffd019e",
+    "common:workspaceRail.tabSimulate": "66154a084145",
+    "tools:cpToolPicker.trigger": "ea93d6a262ec"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12454,7 +12470,11 @@
     "tools:cpContext.cancelInput": "80966222363a",
     "tools:cpRail.addToSelection": "7f9e6e964175",
     "tools:cpToolPicker.close": "07614bd7445a",
-    "tools:cpToolPicker.title": "81c151f98a19"
+    "tools:cpToolPicker.title": "ea93d6a262ec",
+    "common:workspaceRail.tabDesign": "0072e6b93494",
+    "common:workspaceRail.tabEdit": "464c4ffd019e",
+    "common:workspaceRail.tabSimulate": "66154a084145",
+    "tools:cpToolPicker.trigger": "ea93d6a262ec"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -14961,7 +14981,11 @@
     "tools:cpContext.cancelInput": "80966222363a",
     "tools:cpRail.addToSelection": "7f9e6e964175",
     "tools:cpToolPicker.close": "07614bd7445a",
-    "tools:cpToolPicker.title": "81c151f98a19"
+    "tools:cpToolPicker.title": "ea93d6a262ec",
+    "common:workspaceRail.tabDesign": "0072e6b93494",
+    "common:workspaceRail.tabEdit": "464c4ffd019e",
+    "common:workspaceRail.tabSimulate": "66154a084145",
+    "tools:cpToolPicker.trigger": "ea93d6a262ec"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17468,7 +17492,11 @@
     "tools:cpContext.cancelInput": "80966222363a",
     "tools:cpRail.addToSelection": "7f9e6e964175",
     "tools:cpToolPicker.close": "07614bd7445a",
-    "tools:cpToolPicker.title": "81c151f98a19"
+    "tools:cpToolPicker.title": "ea93d6a262ec",
+    "common:workspaceRail.tabDesign": "0072e6b93494",
+    "common:workspaceRail.tabEdit": "464c4ffd019e",
+    "common:workspaceRail.tabSimulate": "66154a084145",
+    "tools:cpToolPicker.trigger": "ea93d6a262ec"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -19936,6 +19964,10 @@
     "tools:cpContext.cancelInput": "80966222363a",
     "tools:cpRail.addToSelection": "7f9e6e964175",
     "tools:cpToolPicker.close": "07614bd7445a",
-    "tools:cpToolPicker.title": "81c151f98a19"
+    "tools:cpToolPicker.title": "ea93d6a262ec",
+    "common:workspaceRail.tabDesign": "0072e6b93494",
+    "common:workspaceRail.tabEdit": "464c4ffd019e",
+    "common:workspaceRail.tabSimulate": "66154a084145",
+    "tools:cpToolPicker.trigger": "ea93d6a262ec"
   }
 }

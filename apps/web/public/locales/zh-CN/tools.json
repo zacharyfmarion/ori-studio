@@ -162,7 +162,8 @@
   },
   "cpToolPicker": {
     "close": "关闭工具列表",
-    "title": "所有工具"
+    "title": "工具",
+    "trigger": "工具"
   },
   "divideMode": {
     "count": "数量",
