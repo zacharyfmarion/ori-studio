@@ -3127,6 +3127,7 @@ export function CreasePatternPanel() {
                   <CpFoldAngleLayer
                     lineSegments={editableCp?.crease_pattern.line_segments}
                     toolCandidates={cpPreviewSegments}
+                    toolReplacedLineIds={cpReplacedLineIds}
                   />
                 )}
                 {/* Subscribes to the camera itself and renders nothing without

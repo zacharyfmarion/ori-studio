@@ -147,7 +147,15 @@ const OVERSIZED_PANELS = {
   // `propagation.begin(null)`, beside the Voronoi arm already there. Everything
   // that decides what a scope *means* is kernel-side; everything that decides
   // what the window says about it is `foldPropagation/propagationScope`.
-  'CreasePatternPanel.tsx': 2753,
+  //
+  // 2753 -> 2754: one prop, and the reason it is here is the bug it fixes. The
+  // panel already computed `cpReplacedLineIds` for the canvas; the fold-angle
+  // badge layer mounted beside it never received it, so a solve under review
+  // showed the reviewed crease's old angle next to the answer replacing it. The
+  // creases a tool stands in for are the panel's to know — it is what unions the
+  // two tools that produce them — and the two surfaces that draw them are
+  // mounted here, so this line is the composition and cannot be anywhere else.
+  'CreasePatternPanel.tsx': 2754,
   // 2085 -> 2095: the "no crease pattern" marking. The warning used to name an
   // internal class and point at nothing, so this adds the canvas layer that
   // shows which flaps it means, its Layers toggle, and the alert copy that

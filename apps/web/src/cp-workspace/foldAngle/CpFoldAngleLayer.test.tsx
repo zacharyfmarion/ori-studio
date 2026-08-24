@@ -50,7 +50,7 @@ describe('CpFoldAngleLayer', () => {
 
   const render = (segments: OristudioCpLineSegment[]) => {
     act(() => {
-      root.render(<CpFoldAngleLayer lineSegments={segments} />);
+      root.render(<CpFoldAngleLayer lineSegments={segments} toolReplacedLineIds={[]} />);
     });
     return [...host.querySelectorAll('.cp-fold-angle-layer__badge')];
   };
@@ -105,7 +105,7 @@ describe('CpFoldAngleLayer', () => {
 
   it('renders nothing when there is no camera yet', () => {
     // Matches the other overlay layers: no view published means no projection.
-    act(() => root.render(<CpFoldAngleLayer lineSegments={undefined} />));
+    act(() => root.render(<CpFoldAngleLayer lineSegments={undefined} toolReplacedLineIds={[]} />));
     expect(host.querySelectorAll('.cp-fold-angle-layer__badge')).toHaveLength(0);
   });
 
@@ -174,7 +174,13 @@ describe('CpFoldAngleLayer', () => {
 
     const renderCandidates = (candidates: ToolPreviewSegment[], segments: OristudioCpLineSegment[] = []) => {
       act(() => {
-        root.render(<CpFoldAngleLayer lineSegments={segments} toolCandidates={candidates} />);
+        root.render(
+          <CpFoldAngleLayer
+            lineSegments={segments}
+            toolCandidates={candidates}
+            toolReplacedLineIds={[]}
+          />
+        );
       });
       return [...host.querySelectorAll('.cp-fold-angle-layer__badge')];
     };
@@ -212,10 +218,82 @@ describe('CpFoldAngleLayer', () => {
           <CpFoldAngleLayer
             lineSegments={[]}
             toolCandidates={[{ a: { x: 0, y: 0 }, b: { x: 200, y: 0 } }]}
+            toolReplacedLineIds={[]}
           />
         );
       });
       expect(host.querySelectorAll('.cp-fold-angle-layer__badge')).toHaveLength(0);
+    });
+  });
+
+  describe('creases a tool has taken the place of', () => {
+    const candidate = (color: string, y: number, foldMagnitude?: number): ToolPreviewSegment => ({
+      a: { x: 0, y },
+      b: { x: 200, y },
+      crease: { color, ...(foldMagnitude === undefined ? {} : { foldMagnitude }) },
+    });
+
+    const renderReview = (
+      segments: OristudioCpLineSegment[],
+      candidates: ToolPreviewSegment[],
+      replaced: number[]
+    ) => {
+      act(() => {
+        root.render(
+          <CpFoldAngleLayer
+            lineSegments={segments}
+            toolCandidates={candidates}
+            toolReplacedLineIds={replaced}
+          />
+        );
+      });
+      return [...host.querySelectorAll('.cp-fold-angle-layer__badge')].map((badge) => ({
+        text: badge.textContent,
+        candidate: (badge as HTMLElement).dataset.candidate === 'true',
+      }));
+    };
+
+    it('shows the answer alone, not the answer beside the angle it replaces', () => {
+      // The reported case, minus the geometry: the second solution takes a
+      // crease sitting at 109.47° down to flat. The canvas has already stopped
+      // drawing that crease, so the only number left should be the tool's.
+      expect(
+        renderReview([crease('Blue2', 10, deg(109.47))], [candidate('Blue2', 10, 0)], [1])
+      ).toEqual([{ text: '0°', candidate: true }]);
+    });
+
+    it('leaves every crease the tool did not name alone', () => {
+      // The set is a claim about three creases at one vertex, not about the
+      // document — a filter that reached further would blank a pattern whenever
+      // any tool opened.
+      expect(
+        renderReview(
+          [crease('Red1', 10, deg(90)), crease('Blue2', 20, deg(45))],
+          [candidate('Red1', 10, 0)],
+          [1]
+        )
+      ).toEqual([
+        { text: '45°', candidate: false },
+        { text: '0°', candidate: true },
+      ]);
+    });
+
+    it('reads the ids one-based, the space the kernel and the canvas both use', () => {
+      // Off by one and this drops a bystander's badge while leaving the stale
+      // one it was aimed at — which looks like the bug it fixes, one crease over.
+      expect(renderReview([crease('Red1', 10, deg(90)), crease('Blue2', 20, deg(45))], [], [2])).toEqual(
+        [{ text: '-90°', candidate: false }]
+      );
+    });
+
+    it('says nothing at all where the answer decided nothing', () => {
+      // A zero answer leaves an unassigned crease undecided rather than picking
+      // a direction for it, so the candidate carries no angle and gets no badge.
+      // The old number must go with the stroke regardless: it is the one thing
+      // on screen that would still claim the solve had chosen something.
+      expect(renderReview([crease('Blue2', 10, deg(109.47))], [candidate('None', 10)], [1])).toEqual(
+        []
+      );
     });
   });
 });
