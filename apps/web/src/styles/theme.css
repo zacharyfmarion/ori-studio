@@ -9045,6 +9045,34 @@ button.bp-packing-alert:focus-visible {
  * ---------------------------------------------------------------------------
  */
 @media (pointer: coarse) {
+  /*
+   * Two diagnostic readouts, hidden on touch.
+   *
+   * Both are pure output — no control lives in either — so nothing becomes
+   * unreachable, and both say things a touch user can already see elsewhere:
+   * the zoom percent is in the viewport toolbar, the active tool is the Tools
+   * pill's own glyph on a phone and the selected rail button on a tablet, and
+   * the tool's instructions are what the hint window exists for. What they cost
+   * is a box over the corner of a canvas that is already the scarcest thing on
+   * the screen.
+   *
+   * The simulator's block is hidden **only in its `ready` state**, because
+   * `statusLabel` is doing two jobs: the vertex and triangle count when things
+   * are working, and the reason when they are not. Hiding it outright would
+   * make a failed or empty simulator look like an idle one. The stats beside it
+   * — step, strain, backend — are diagnostics in every state, so they go
+   * regardless, and `:not(:first-child)` is exactly that set because the status
+   * span leads.
+   */
+  .viewport-status-readout,
+  .simulator-readout[data-state='ready'] {
+    display: none;
+  }
+
+  .simulator-readout > *:not(:first-child) {
+    display: none;
+  }
+
   .ui-control--sm,
   .ui-control--md,
   .ui-control--lg,
@@ -9780,22 +9808,6 @@ button.bp-packing-alert:focus-visible {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  /*
-   * The status readout drops below the pill lane.
-   *
-   * Giving the canvas the full width also gave the readout the full width, and
-   * the Tools pill put a second box in the corner it runs into: measured at
-   * 375px, the two pills covered the tail of every step prompt. Dropping a row
-   * rather than capping the width, because the readout wraps at its gaps — a cap
-   * turns one line into a four-line stack down the side of the canvas.
-   *
-   * `--view-drawer-lane` is the token the corner already publishes for this, and
-   * the diagnostic HUD needs no counterpart rule: it *measures* the readout's box
-   * instead of assuming where it starts (see `diagnostics/hudPlacement.ts`).
-   */
-  .viewport-status-readout {
-    top: var(--view-drawer-lane);
-  }
 
   /*
    * With no rail beside it the sheet is the only tool surface, so it takes all
