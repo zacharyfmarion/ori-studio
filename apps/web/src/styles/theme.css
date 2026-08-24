@@ -9301,9 +9301,9 @@ button.bp-packing-alert:focus-visible {
   }
 
   /*
-   * The trigger's containing block, and a grid item of `.workspace-shell__canvas`
-   * (see App.css) sharing row 2 with `.workspace-shell__dock` so it overlays the
-   * dock exactly.
+   * The pill lane's containing block, and a grid item of
+   * `.workspace-shell__canvas` (see App.css) sharing row 2 with
+   * `.workspace-shell__dock` so it overlays the dock exactly.
    *
    * A row of its own rather than an absolute child of the canvas. The canvas
    * spans three rows — the design tab strip, the dock, the attribution footer —
@@ -9311,7 +9311,7 @@ button.bp-packing-alert:focus-visible {
    * sit above the dock. Owning a grid item pins the reference to the dock cell
    * instead, the same reason `.workspace-shell__dock` owns its own.
    */
-  .view-drawer-anchor {
+  .canvas-pill-lane {
     position: relative;
     grid-row: 2;
     z-index: var(--z-canvas-overlay);
@@ -9334,37 +9334,51 @@ button.bp-packing-alert:focus-visible {
    * `--touch-target` and that is what actually sets the height — so the offset is
    * written in the same token rather than in the number it happens to produce.
    */
-  .view-drawer-anchor[data-view-panel='simulator-view-controls'] {
+  .canvas-pill-lane[data-view-panel='simulator-view-controls'] {
     --view-drawer-inset-top: calc(var(--touch-target) + var(--space-2));
   }
 
   /*
-   * The pill row. The inset lives here rather than on the trigger because more
-   * than one pill can be in it — the phone layout puts Tools to the left of View
-   * — and "left of View" has to be a layout fact rather than an offset somebody
-   * computed from View's width, which changes with the locale.
+   * The pill row. The inset lives here rather than on any one pill because
+   * several share it — undo/redo, Tools, View — and "left of View" has to be a
+   * layout fact rather than an offset somebody computed from View's width, which
+   * changes with the locale.
    *
    * Anchored by its *right* edge, which is why the row can be zero-width: the
-   * anchor is a grid item spanning the dock, and `right` is measured against
-   * that regardless of what the row contains.
+   * lane is a grid item spanning the dock, and `right` is measured against that
+   * regardless of what the row contains.
    */
-  .view-drawer-anchor__row {
+  .canvas-pill-lane__row {
     position: absolute;
     top: var(--view-drawer-inset-top);
     right: var(--space-3);
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    /* Inherited from the anchor, and re-asserted per pill below: the dock keeps
+    /* Inherited from the lane, and re-asserted per pill below: the dock keeps
        every tap that is not on one of them, including in the gap between. */
     pointer-events: none;
   }
 
-  .view-drawer-anchor__trigger,
+  /* The pill look, shared by everything the lane holds. */
+  .canvas-pill,
+  .view-drawer__trigger,
   .cp-tools-trigger {
     gap: var(--space-2);
     border-color: var(--border-default);
     box-shadow: var(--shadow-context-menu);
+  }
+
+  /*
+   * What the lane's `pointer-events: none` exempts. Written against the row
+   * rather than listing the pill classes, because the second selector cannot be
+   * one of them: `IconButton` wraps a **disabled** button in
+   * `.ui-button-tooltip-trigger` so its label stays reachable (a disabled
+   * control receives no pointer events of its own), and without the wrapper
+   * exempted, press-and-hold on a greyed-out Undo would do nothing at all.
+   */
+  .canvas-pill-lane__row .ui-button,
+  .canvas-pill-lane__row .ui-button-tooltip-trigger {
     pointer-events: auto;
   }
 
