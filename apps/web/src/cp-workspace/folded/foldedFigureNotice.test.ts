@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { TFunction } from 'i18next';
 import type {
+  OristudioCpDiagnosticEntry,
   OristudioCpFold3dCrossing,
   OristudioCpFold3dOrderReason,
   OristudioCpFold3dRefusal,
@@ -9,6 +10,8 @@ import type {
 } from '../../engine/oristudioCpTypes';
 import {
   fold3dRefusalMessage,
+  fold3dRefusalNotice,
+  fold3dRefusalPlace,
   foldedFigureNotice,
   foldedFigureSubtitle,
   crossingLineIds,
@@ -271,14 +274,95 @@ describe('fold3dRefusalMessage', () => {
     ).toBe('Odd number of folds');
   });
 
-  it('rounds a closure residual rather than publishing it', () => {
+  it('never quotes the folder’s own closure residual', () => {
+    // `residual_degrees` is measured after `selected_folding_segments` has
+    // dropped every undecided crease, so it is the vertex with its unknown read
+    // as zero. On `solve/failure_case.osf` the folder says 70.53 and the
+    // document's own check says no angle closes it at all, closest 65.96 — one
+    // number, two fans, and the dialog used to print the wrong one.
+    const message = fold3dRefusalMessage(t, {
+      code: 'vertex_closure',
+      point: { x: 0, y: 0 },
+      residual_degrees: 70.52877934826353,
+    });
+    expect(message).not.toContain('70');
+    expect(message).not.toMatch(/\d/u);
+  });
+});
+
+describe('fold3dRefusalPlace / fold3dRefusalNotice', () => {
+  function vertexEntry(id: string, x: number, y: number): OristudioCpDiagnosticEntry {
+    return { id, kind: 'CheckCamv', severity: 'error', message: id, point: { x, y } };
+  }
+
+  const closure: OristudioCpFold3dRefusal = {
+    code: 'vertex_closure',
+    point: { x: 0, y: -100 },
+    residual_degrees: 70.53,
+  };
+
+  it('names a place for every refusal that carries one, and none for the rest', () => {
+    expect(fold3dRefusalPlace(closure)).toEqual({ point: { x: 0, y: -100 }, subject: 'vertex' });
     expect(
-      fold3dRefusalMessage(t, {
-        code: 'vertex_closure',
-        point: { x: 0, y: 0 },
-        residual_degrees: 12.3456789,
+      fold3dRefusalPlace({ code: 'flat_foldability', point: { x: 1, y: 2 }, rule: 'maekawa' })
+    ).toEqual({ point: { x: 1, y: 2 }, subject: 'vertex' });
+    expect(
+      fold3dRefusalPlace({
+        code: 'vertex_indeterminate',
+        point: { x: 1, y: 2 },
+        cause: 'unassigned_crease',
       })
-    ).toContain('12.35');
+    ).toEqual({ point: { x: 1, y: 2 }, subject: 'vertex' });
+    // A cut is a segment with paper on both sides, so it is an edge and the
+    // offer must not say "vertex".
+    expect(fold3dRefusalPlace({ code: 'interior_cut', line: 3, point: { x: 4, y: 5 } })).toEqual({
+      point: { x: 4, y: 5 },
+      subject: 'edge',
+    });
+    expect(fold3dRefusalPlace({ code: 'no_faces' })).toBeNull();
+    expect(fold3dRefusalPlace({ code: 'faces_unresolved' })).toBeNull();
+    expect(fold3dRefusalPlace({ code: 'disconnected', reached: 1, unreached: 2 })).toBeNull();
+    expect(fold3dRefusalPlace({ code: 'non_crease_join', line: 0 })).toBeNull();
+    expect(
+      fold3dRefusalPlace({ code: 'loop_not_closed', worst_edge: 1, gap_radians: 0, gap_offset: 0 })
+    ).toBeNull();
+    expect(
+      fold3dRefusalPlace({
+        code: 'tolerance_window_closed',
+        faces: [1, 2],
+        normal_radians: 0,
+        offset_relative: 0,
+        min_inter_separation: null,
+      })
+    ).toBeNull();
+  });
+
+  it('hands over the entry already reporting on that vertex', () => {
+    const notice = fold3dRefusalNotice(t, closure, [vertexEntry('SpatialClosureUnreachable-10', 0, -100)]);
+    expect(notice.locate?.entryId).toBe('SpatialClosureUnreachable-10');
+    expect(notice.locate?.label).toBe('Show me the vertex');
+    expect(notice.message).toBe('The creases at one vertex do not close up.');
+  });
+
+  it('says "edge" when the refusal names one', () => {
+    const notice = fold3dRefusalNotice(t, { code: 'interior_cut', line: 3, point: { x: 4, y: 5 } }, [
+      vertexEntry('SpatialInteriorBorder-1', 4, 5),
+    ]);
+    expect(notice.locate?.label).toBe('Show me the edge');
+  });
+
+  it('offers nothing to point at when no entry sits there', () => {
+    // The ordinary case, not a fault: a fold scoped to a selection can refuse at
+    // a place the whole-document overlay has nothing to say about. Offering a
+    // row that does not exist would be worse than the dialog this replaced.
+    expect(fold3dRefusalNotice(t, closure, []).locate).toBeNull();
+    expect(fold3dRefusalNotice(t, closure, [vertexEntry('elsewhere', 300, 300)]).locate).toBeNull();
+  });
+
+  it('offers nothing for a refusal that names no place', () => {
+    const notice = fold3dRefusalNotice(t, { code: 'no_faces' }, [vertexEntry('any', 0, 0)]);
+    expect(notice.locate).toBeNull();
+    expect(notice.message).toBe('These creases enclose no piece of paper to fold.');
   });
 });
 

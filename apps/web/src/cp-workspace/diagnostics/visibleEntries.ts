@@ -2,10 +2,23 @@ import type {
   OristudioCpCommandResult,
   OristudioCpDiagnosticEntry,
 } from '../../engine/oristudioCpTypes';
+import type { Point } from '../../lib/geometry';
 import { isDiagnosticResultOperation } from './hudStatus';
 import { sortedCpDiagnosticEntries } from './severity';
 
 const NONE: readonly OristudioCpDiagnosticEntry[] = [];
+
+/**
+ * How close two points have to be to name the same vertex.
+ *
+ * The kernel's own answer: `checks_spatial::CELL`, which is Oriedita's
+ * `Epsilon::UNKNOWN_1EN4` (0.01 × 1e-4). Every check that ships clusters
+ * incidences at it, so two points inside it are not merely near each other —
+ * they are one vertex to everything that produced them. Any looser number would
+ * be this module inventing a second definition of "the same vertex"; any tighter
+ * would reject points the kernel already merged.
+ */
+const SAME_VERTEX = 1e-6;
 
 /**
  * The diagnostic entries currently on the canvas.
@@ -55,4 +68,34 @@ export function visibleCpDiagnosticEntry(
 ): OristudioCpDiagnosticEntry | null {
   if (!id) return null;
   return entries.find((entry) => entry.id === id) ?? null;
+}
+
+/**
+ * The entry that reports on the vertex at `point`, or null.
+ *
+ * The same question as {@link visibleCpDiagnosticEntry}, keyed by where instead
+ * of by which — for a caller holding a *place* the kernel named and needing the
+ * row that already speaks for it. The 3D fold's refusal is the one that has it:
+ * it names a point and nothing else, so a dialog with only the refusal can say
+ * what is wrong and never where.
+ *
+ * **First match, not nearest.** Inside {@link SAME_VERTEX} there is no
+ * meaningful "nearer" — the kernel would have merged them — and the list arrives
+ * from {@link visibleCpDiagnosticEntries} already ordered worst-first, so taking
+ * the first is taking the most severe thing said about that vertex. Ranking by
+ * distance here would silently overrule that order with floating-point noise.
+ */
+export function cpDiagnosticEntryAt(
+  entries: readonly OristudioCpDiagnosticEntry[],
+  point: Point | null | undefined
+): OristudioCpDiagnosticEntry | null {
+  if (!point) return null;
+  return (
+    entries.find(
+      (entry) =>
+        entry.point != null &&
+        Math.abs(entry.point.x - point.x) <= SAME_VERTEX &&
+        Math.abs(entry.point.y - point.y) <= SAME_VERTEX
+    ) ?? null
+  );
 }

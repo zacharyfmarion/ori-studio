@@ -50,6 +50,7 @@ import {
 import { uprightRotationForView } from '../../../cp-workspace/annotations/annotationTransform';
 import { cpOverlayViewStore } from '../../../cp-workspace/cpOverlayViewStore';
 import { countCpDiagnosticErrors } from '../../../cp-workspace/diagnostics/severity';
+import { visibleCpDiagnosticEntries } from '../../../cp-workspace/diagnostics/visibleEntries';
 import { foldedFigureUserAabb } from '../../../cp-workspace/adapters/cpFoldedToScene';
 import { cpSelectionSize, cpSvgToModel } from '../../../lib/creasePatternViewport';
 import type { Aabb } from '../../../cp-workspace/picking/lineHitIndex';
@@ -66,7 +67,11 @@ import {
   placeFoldedFigureBesideCp,
 } from '../../../cp-workspace/adapters/cpFoldedToScene';
 import i18n from '../../../i18n';
-import { requestConfirmation, requestConfirmationWithOption } from '../../commandDialogStore';
+import {
+  requestChoice,
+  requestConfirmation,
+  requestConfirmationWithOption,
+} from '../../commandDialogStore';
 import { useLayoutStore } from '../../layoutStore';
 import { useSettingsStore } from '../../settingsStore';
 import { selectWorkspaceCapabilities } from '../capabilities';
@@ -101,6 +106,58 @@ async function confirmDiscardDirtyProject(dirty: boolean): Promise<boolean> {
     confirmLabel: 'Discard',
     tone: 'danger',
   });
+}
+
+/** What the user did with a refused 3D fold. */
+type Fold3dRefusalAnswer = 'locate' | 'simulate' | 'cancel';
+
+/**
+ * Tell the user their pattern has no 3D figure, and offer the two next moves.
+ *
+ * Two dialog shapes, because there are two situations and one of them has an
+ * extra thing to offer. When the refusal names a place the overlay is already
+ * reporting on, the user gets a real choice — go and look at it, or simulate —
+ * and the message is the fact alone. When it does not, this is the confirm
+ * dialog it has always been, word for word.
+ *
+ * Which shape it takes is `notice.locate`, not the refusal code: a refusal can
+ * name a vertex the overlay has nothing to say about (the fold is scoped to a
+ * selection; the overlay reports on the document), and offering to show the user
+ * a row that does not exist would be worse than the old dialog.
+ */
+async function requestFold3dRefusal(notice: Fold3dRefusalNotice): Promise<Fold3dRefusalAnswer> {
+  const title = i18n.t('dialogs:fold3dRefused.title', 'This pattern can’t be folded in 3D');
+  const simulateLabel = i18n.t('dialogs:fold3dRefused.simulate', 'Simulate');
+  const simulateTrailer = i18n.t(
+    'dialogs:fold3dRefused.simulateTrailer',
+    'The simulator can fold it approximately.'
+  );
+  const cancelLabel = i18n.t('dialogs:common.cancel', 'Cancel');
+  if (!notice.locate) {
+    const simulate = await requestConfirmation({
+      title,
+      message: i18n.t('dialogs:fold3dRefused.message', '{{reason}} {{trailer}}', {
+        reason: notice.message,
+        trailer: simulateTrailer,
+      }),
+      confirmLabel: simulateLabel,
+      cancelLabel,
+    });
+    return simulate ? 'simulate' : 'cancel';
+  }
+  // The trailer becomes the simulate option's own description rather than a
+  // second clause of the message: it describes that button, and stacked options
+  // are where this dialog states consequences (see `requestOpenOrImportChoice`).
+  const picked = await requestChoice({
+    title,
+    message: notice.message,
+    options: [
+      { id: 'locate', label: notice.locate.label, description: notice.locate.description },
+      { id: 'simulate', label: simulateLabel, description: simulateTrailer },
+    ],
+    cancelLabel,
+  });
+  return picked === 'locate' || picked === 'simulate' ? picked : 'cancel';
 }
 import {
   createBlankOristudioCpDocument,
@@ -163,7 +220,11 @@ import {
   foldedModelsEqual,
 } from '../../../cp-workspace/folded/foldedFigureState';
 import { resolveFoldRoute } from '../../../cp-workspace/folded/foldRoute';
-import { fold3dRefusalMessage } from '../../../cp-workspace/folded/foldedFigureNotice';
+import {
+  fold3dRefusalMessage,
+  fold3dRefusalNotice,
+  type Fold3dRefusalNotice,
+} from '../../../cp-workspace/folded/foldedFigureNotice';
 import {
   defaultFolded3dCamera,
   folded3dFrameRadius,
@@ -2090,22 +2151,34 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           );
 
           if (result.status === 'refused') {
-            const simulate = await requestConfirmation({
-              title: i18n.t(
-                'dialogs:fold3dRefused.title',
-                'This pattern can’t be folded in 3D'
-              ),
-              message: i18n.t('dialogs:fold3dRefused.message', '{{reason}} {{trailer}}', {
-                reason: fold3dRefusalMessage(i18n.t, result.refusal),
-                trailer: i18n.t(
-                  'dialogs:fold3dRefused.simulateTrailer',
-                  'The simulator can fold it approximately.'
-                ),
-              }),
-              confirmLabel: i18n.t('dialogs:fold3dRefused.simulate', 'Simulate'),
-              cancelLabel: i18n.t('dialogs:common.cancel', 'Cancel'),
-            });
-            if (simulate) {
+            // Asked with the overlay treated as **on**, because accepting the
+            // offer is what turns it on: reading the live toggle would find no
+            // entries for a user who had hidden the markers, and drop the one
+            // affordance that answers "which vertex?" for exactly the people
+            // who cannot see the answer already.
+            const notice = fold3dRefusalNotice(
+              i18n.t,
+              result.refusal,
+              visibleCpDiagnosticEntries(
+                get().oristudioCpCamvResult,
+                get().oristudioCpDocument?.lastCommandResult ?? null,
+                true
+              )
+            );
+            const answer = await requestFold3dRefusal(notice);
+            if (answer === 'locate' && notice.locate) {
+              // Visibility first. `setOristudioCpActiveDiagnostic` frames from
+              // committed state via `frameActiveCpDiagnostic`, which rebuilds
+              // the list from `visibleCpDiagnosticEntries` on the same two
+              // results — so once the overlay is on, that list is the one the
+              // offer was built from, and activating before revealing would
+              // jump nowhere and leave a row selected that nothing draws.
+              get().setOristudioCpViewportOption('camvIssuesVisible', true);
+              get().setOristudioCpActiveDiagnostic(notice.locate.entryId);
+              completed('located', 0, { refusal: result.refusal.code });
+              return false;
+            }
+            if (answer === 'simulate') {
               track(ANALYTICS_EVENTS.foldSimulationRun, {
                 source: 'fold-3d-refused',
                 crease_count_bucket: bucketCount(selectedLineIds.length, COUNT_BUCKETS),
@@ -2116,7 +2189,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
               // selection the moment it dispatches.
               await simulateNonFlatRegion(oristudioCpDocument.document, scopedLineIds);
             }
-            completed(simulate ? 'simulated' : 'cancelled', 0, {
+            completed(answer === 'simulate' ? 'simulated' : 'cancelled', 0, {
               refusal: result.refusal.code,
             });
             return false;

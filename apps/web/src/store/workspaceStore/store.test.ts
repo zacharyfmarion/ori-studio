@@ -3316,6 +3316,154 @@ describe('workspace store slices', () => {
       expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual(WHOLE_REGION);
     });
 
+    /**
+     * A refusal at a vertex the always-on overlay is already reporting on — the
+     * `solve/failure_case.osf` shape, minimised.
+     *
+     * The two numbers are the measured ones from that file, and they disagree on
+     * purpose: 70.53 is the folder's, taken after `selected_folding_segments`
+     * dropped the undecided crease, and 65.96 is the document's own. The dialog
+     * must publish neither and hand over the row that owns the second.
+     */
+    function seedRefusalAtAReportedVertex() {
+      seedDocument(nonFlatSquare(), WHOLE_REGION);
+      useWorkspaceStore.setState({
+        oristudioCpCamvResult: {
+          operation: 'CheckCamv',
+          status: 'OracleTested',
+          diagnostics: [],
+          diagnostic_entries: [
+            {
+              id: 'SpatialClosureUnreachable-10',
+              kind: 'SpatialClosure',
+              severity: 'error',
+              message: 'No angle for the undecided crease here closes this vertex',
+              rule: 'ClosureUnreachable',
+              residual_degrees: 65.9579,
+              point: { x: 0.5, y: 0.5 },
+            },
+          ],
+        },
+      });
+      oristudioCpMocks.fold3dOristudioCpDocument.mockResolvedValueOnce({
+        status: 'refused',
+        refusal: {
+          code: 'vertex_closure',
+          point: { x: 0.5, y: 0.5 },
+          residual_degrees: 70.5288,
+        },
+      });
+    }
+
+    it('offers the vertex the refusal named instead of a number nobody can place', async () => {
+      resetStores(seedSnapshot());
+      const frameModelBounds = vi.fn();
+      unregisterCamera = registerCpCamera({
+        zoomIn: vi.fn(),
+        zoomOut: vi.fn(),
+        fit: vi.fn(),
+        setZoomPercent: vi.fn(),
+        rotateBy: vi.fn(),
+        rotateTo: vi.fn(),
+        rotateReset: vi.fn(),
+        frameModelBounds,
+      });
+      seedRefusalAtAReportedVertex();
+      // The overlay hidden, which is the case that would have found no entry if
+      // the offer were built from what is visible right now.
+      useWorkspaceStore.getState().setOristudioCpViewportOption('camvIssuesVisible', false);
+
+      const unregisterDialogHost = registerCommandDialogHost();
+      try {
+        const folding = useWorkspaceStore.getState().foldOristudioCpDocument();
+        const dialog = await nextDialog();
+        expect(dialog).toMatchObject({
+          type: 'choice',
+          title: 'This pattern can’t be folded in 3D',
+          // The fact, and not the folder's residual measured on a fan the
+          // document does not have.
+          message: 'The creases at one vertex do not close up.',
+        });
+        if (!dialog || dialog.type !== 'choice') throw new Error('expected the refusal choice');
+        expect(dialog.options.map((option) => option.id)).toEqual(['locate', 'simulate']);
+        expect(dialog.options[0]?.label).toBe('Show me the vertex');
+        expect(dialog.message).not.toContain('70');
+        resolveCommandDialog(dialog.id, 'locate');
+        await expect(folding).resolves.toBe(false);
+      } finally {
+        unregisterDialogHost();
+      }
+
+      const state = useWorkspaceStore.getState();
+      expect(state.oristudioCpActiveDiagnosticId).toBe('SpatialClosureUnreachable-10');
+      // Revealed *and* framed. Activating without revealing first resolves the
+      // entry through the same visibility rule and jumps nowhere.
+      expect(state.oristudioCpViewport.camvIssuesVisible).toBe(true);
+      expect(frameModelBounds).toHaveBeenCalledTimes(1);
+      // Still a refusal: no figure, no simulation, no error.
+      expect(state.oristudioCpFoldedFigures).toEqual([]);
+      expect(state.oristudioCpInlineSimulations).toEqual([]);
+      expect(state.error).toBeNull();
+      // Its own verdict, not a `cancelled`: this user went to fix the pattern,
+      // and folding the two together makes the offer unmeasurable.
+      expect(
+        analyticsMocks.track.mock.calls
+          .filter(([name]) => name === 'fold completed')
+          .map(([, properties]) => properties)
+      ).toMatchObject([{ verdict: 'located', refusal: 'vertex_closure' }]);
+    });
+
+    it('still simulates from the choice dialog', async () => {
+      resetStores(seedSnapshot());
+      seedRefusalAtAReportedVertex();
+
+      const unregisterDialogHost = registerCommandDialogHost();
+      try {
+        const folding = useWorkspaceStore.getState().foldOristudioCpDocument();
+        const dialog = await nextDialog();
+        if (!dialog) throw new Error('expected the refusal choice');
+        resolveCommandDialog(dialog.id, 'simulate');
+        await expect(folding).resolves.toBe(false);
+      } finally {
+        unregisterDialogHost();
+      }
+
+      expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toHaveLength(1);
+      expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBeNull();
+    });
+
+    it('keeps the old dialog when the refusal names a place nothing reports on', async () => {
+      // A fold scoped to a selection can refuse where the whole-document overlay
+      // has nothing to say. Offering to show a row that does not exist would be
+      // worse than the dialog this replaced, so it does not degrade — it stays.
+      resetStores(seedSnapshot());
+      seedDocument(nonFlatSquare(), WHOLE_REGION);
+      oristudioCpMocks.fold3dOristudioCpDocument.mockResolvedValueOnce({
+        status: 'refused',
+        refusal: { code: 'vertex_closure', point: { x: 0.5, y: 0.5 }, residual_degrees: 70.5288 },
+      });
+
+      const unregisterDialogHost = registerCommandDialogHost();
+      try {
+        const folding = useWorkspaceStore.getState().foldOristudioCpDocument();
+        const dialog = await nextDialog();
+        if (!dialog || dialog.type !== 'confirm') {
+          throw new Error('expected the 3D refusal confirmation');
+        }
+        expect(dialog.confirmLabel).toBe('Simulate');
+        // The trailer is back, because there is only one offer to make — and the
+        // residual is still gone, which is a property of the sentence and not of
+        // which dialog carries it.
+        expect(dialog.message).toBe(
+          'The creases at one vertex do not close up. The simulator can fold it approximately.'
+        );
+        resolveCommandDialog(dialog.id, false);
+        await expect(folding).resolves.toBe(false);
+      } finally {
+        unregisterDialogHost();
+      }
+    });
+
     it('falls back to the Simulate panel when the fold is not scoped to one region', async () => {
       // The folded-figure inspector folds whatever creases are selected, which
       // need not be a closed piece of paper — and only a closed one can be
@@ -4569,6 +4717,7 @@ describe('workspace store slices', () => {
         'contradiction',
         'not-drawable',
         'simulated',
+        'located',
         'cancelled',
         'halted',
         'error',

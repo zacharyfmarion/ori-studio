@@ -18,12 +18,15 @@
 
 import type { TFunction } from 'i18next';
 import type {
+  OristudioCpDiagnosticEntry,
   OristudioCpFlatFoldabilityRuleCode,
   OristudioCpFold3dCrossing,
   OristudioCpFold3dOrderReason,
   OristudioCpFold3dRefusal,
   OristudioCpFoldedFigureEntry,
 } from '../../engine/oristudioCpTypes';
+import type { Point } from '../../lib/geometry';
+import { cpDiagnosticEntryAt } from '../diagnostics/visibleEntries';
 import { documentLineIdsForKernelLines, kernelLineOrder } from './foldRoute';
 import { foldedFigureCurrentCase } from './foldedFigureState';
 
@@ -258,11 +261,24 @@ export function fold3dRefusalMessage(t: TFunction, refusal: OristudioCpFold3dRef
   switch (refusal.code) {
     case 'flat_foldability':
       return flatFoldabilityRuleMessage(t, refusal.rule);
+    // **No residual, deliberately.** `residual_degrees` is measured on the
+    // segments the folder was handed, and `selected_folding_segments` keeps only
+    // `is_folding_line()` colours — so every undecided crease is dropped before
+    // the fan is built, and the number is the vertex's residual with its unknown
+    // read as zero. On `solve/failure_case.osf` that reports 70.53° at a vertex
+    // whose real bracket is 65.96°, and the whole-document check says something
+    // else again: no angle for the undecided crease closes it at all. Printing
+    // the folder's number sends the user to adjust angles that are not the
+    // problem, which is exactly what `ClosureUnreachable` exists to prevent.
+    //
+    // The trustworthy number is on the diagnostic entry at this point, measured
+    // over the document the user actually has — so the sentence states the fact
+    // and {@link fold3dRefusalNotice} hands over the row that carries the
+    // measurement.
     case 'vertex_closure':
       return t(
         'dialogs:fold3dRefused.vertexClosure',
-        'The creases at one vertex do not close up: they are {{degrees}}° short of meeting.',
-        { degrees: formatDegrees(refusal.residual_degrees) }
+        'The creases at one vertex do not close up.'
       );
     case 'interior_cut':
       return t(
@@ -346,8 +362,94 @@ export function flatFoldabilityRuleMessage(
   }
 }
 
-/** Degrees, trimmed — a residual is a magnitude, not a measurement to publish. */
-function formatDegrees(value: number): string {
-  const rounded = Math.round(value * 100) / 100;
-  return String(rounded);
+/**
+ * The place a refusal names, and what kind of thing is there.
+ *
+ * Four of the eleven arms carry a `point`, and they are the four whose sentences
+ * say "one vertex" or "an edge" without ever saying *which* — the complaint this
+ * exists to answer. The other seven describe the pattern as a whole (no faces,
+ * disconnected pieces, a loop that does not close), so there is no place to jump
+ * to and none is invented.
+ *
+ * The `subject` is not decoration: an interior cut is a segment with paper on
+ * both sides, and offering to show "the vertex" would name the wrong object.
+ */
+export function fold3dRefusalPlace(
+  refusal: OristudioCpFold3dRefusal
+): { point: Point; subject: 'vertex' | 'edge' } | null {
+  switch (refusal.code) {
+    case 'interior_cut':
+      return { point: refusal.point, subject: 'edge' };
+    case 'flat_foldability':
+    case 'vertex_indeterminate':
+    case 'vertex_closure':
+      return { point: refusal.point, subject: 'vertex' };
+    case 'no_faces':
+    case 'faces_unresolved':
+    case 'disconnected':
+    case 'non_crease_join':
+    case 'loop_not_closed':
+    case 'tolerance_window_closed':
+      return null;
+  }
+}
+
+/** Why a fold produced no figure, and the row that can show the user where. */
+export interface Fold3dRefusalNotice {
+  /** One sentence: what is wrong. */
+  message: string;
+  /**
+   * The diagnostic entry already reporting on the place the refusal named, or
+   * `null` when there is none to point at.
+   *
+   * `entryId` is what `setOristudioCpActiveDiagnostic` takes — it frames the
+   * canvas on the entry and marks its row active — so acting on this reuses the
+   * HUD's own click-to-locate rather than adding a second way to reach a vertex.
+   */
+  locate: { entryId: string; label: string; description: string } | null;
+}
+
+/**
+ * What the "can't be folded" dialog should say and offer.
+ *
+ * The dialog used to re-word the refusal into a sentence with a number in it and
+ * no location, which left the one question a user actually has — *which* vertex?
+ * — unanswered, while the HUD behind the modal was already naming that vertex
+ * correctly and marking it on the canvas. So the sentence stops carrying a
+ * measurement (see the `vertex_closure` arm above for why the folder's is not
+ * the document's) and the dialog carries a way to get there instead.
+ *
+ * `entries` is what `visibleCpDiagnosticEntries` returns **with the overlay
+ * treated as on**, because the action turns it on: asking with the toggle off
+ * would find nothing and drop the offer for a user whose only mistake was hiding
+ * the markers.
+ */
+export function fold3dRefusalNotice(
+  t: TFunction,
+  refusal: OristudioCpFold3dRefusal,
+  entries: readonly OristudioCpDiagnosticEntry[]
+): Fold3dRefusalNotice {
+  const message = fold3dRefusalMessage(t, refusal);
+  const place = fold3dRefusalPlace(refusal);
+  const entry = cpDiagnosticEntryAt(entries, place?.point);
+  // No entry is an ordinary outcome, not a fault: the fold is scoped to a
+  // selection while the overlay reports on the whole document, so the two can
+  // disagree about whether a place is worth a row. The dialog falls back to
+  // exactly what it said before.
+  if (!place || !entry) return { message, locate: null };
+  // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
+  return {
+    message,
+    locate: {
+      entryId: entry.id,
+      label:
+        place.subject === 'edge'
+          ? t('dialogs:fold3dRefused.showEdge', 'Show me the edge')
+          : t('dialogs:fold3dRefused.showVertex', 'Show me the vertex'),
+      description: t(
+        'dialogs:fold3dRefused.showDescription',
+        'Zooms to it on the crease pattern and turns on the foldability issues.'
+      ),
+    },
+  };
 }

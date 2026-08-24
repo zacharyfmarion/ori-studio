@@ -2264,7 +2264,7 @@
     "dialogs:fold3dRefused.simulateTrailer": "6833c7df4a17",
     "dialogs:fold3dRefused.title": "77a10d64753b",
     "dialogs:fold3dRefused.toleranceWindowClosed": "023563cdf7ae",
-    "dialogs:fold3dRefused.vertexClosure": "f322f6d273d6",
+    "dialogs:fold3dRefused.vertexClosure": "0bf84cbb7bc3",
     "dialogs:fold3dRefused.vertexUnassignedCrease": "d4291702d1dc",
     "dialogs:fold3dRefused.vertexUnsplitJunction": "7c31b02c0ee1",
     "dialogs:foldWarning.spatialMessage": "7ca069675617",
@@ -2555,7 +2555,10 @@
     "panels:creasePattern.foldability.undecided": "a39156bf81a7",
     "panels:creasePattern.foldability.undecidedAngle": "8d4bcb84caf7",
     "panels:creasePattern.foldability.undecidedChoice": "3cf4199a82b5",
-    "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435"
+    "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435",
+    "dialogs:fold3dRefused.showDescription": "2800f37537e5",
+    "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
+    "dialogs:fold3dRefused.showVertex": "10c25a4190a6"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4822,7 +4825,7 @@
     "dialogs:fold3dRefused.simulateTrailer": "6833c7df4a17",
     "dialogs:fold3dRefused.title": "77a10d64753b",
     "dialogs:fold3dRefused.toleranceWindowClosed": "023563cdf7ae",
-    "dialogs:fold3dRefused.vertexClosure": "f322f6d273d6",
+    "dialogs:fold3dRefused.vertexClosure": "0bf84cbb7bc3",
     "dialogs:fold3dRefused.vertexUnassignedCrease": "d4291702d1dc",
     "dialogs:fold3dRefused.vertexUnsplitJunction": "7c31b02c0ee1",
     "dialogs:foldWarning.spatialMessage": "7ca069675617",
@@ -5113,7 +5116,10 @@
     "panels:creasePattern.foldability.undecided": "a39156bf81a7",
     "panels:creasePattern.foldability.undecidedAngle": "8d4bcb84caf7",
     "panels:creasePattern.foldability.undecidedChoice": "3cf4199a82b5",
-    "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435"
+    "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435",
+    "dialogs:fold3dRefused.showDescription": "2800f37537e5",
+    "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
+    "dialogs:fold3dRefused.showVertex": "10c25a4190a6"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7380,7 +7386,7 @@
     "dialogs:fold3dRefused.simulateTrailer": "6833c7df4a17",
     "dialogs:fold3dRefused.title": "77a10d64753b",
     "dialogs:fold3dRefused.toleranceWindowClosed": "023563cdf7ae",
-    "dialogs:fold3dRefused.vertexClosure": "f322f6d273d6",
+    "dialogs:fold3dRefused.vertexClosure": "0bf84cbb7bc3",
     "dialogs:fold3dRefused.vertexUnassignedCrease": "d4291702d1dc",
     "dialogs:fold3dRefused.vertexUnsplitJunction": "7c31b02c0ee1",
     "dialogs:foldWarning.spatialMessage": "7ca069675617",
@@ -7671,7 +7677,10 @@
     "panels:creasePattern.foldability.undecided": "a39156bf81a7",
     "panels:creasePattern.foldability.undecidedAngle": "8d4bcb84caf7",
     "panels:creasePattern.foldability.undecidedChoice": "3cf4199a82b5",
-    "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435"
+    "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435",
+    "dialogs:fold3dRefused.showDescription": "2800f37537e5",
+    "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
+    "dialogs:fold3dRefused.showVertex": "10c25a4190a6"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9908,7 +9917,7 @@
     "dialogs:fold3dRefused.simulateTrailer": "6833c7df4a17",
     "dialogs:fold3dRefused.title": "77a10d64753b",
     "dialogs:fold3dRefused.toleranceWindowClosed": "023563cdf7ae",
-    "dialogs:fold3dRefused.vertexClosure": "f322f6d273d6",
+    "dialogs:fold3dRefused.vertexClosure": "0bf84cbb7bc3",
     "dialogs:fold3dRefused.vertexUnassignedCrease": "d4291702d1dc",
     "dialogs:fold3dRefused.vertexUnsplitJunction": "7c31b02c0ee1",
     "dialogs:foldWarning.spatialMessage": "7ca069675617",
@@ -10186,7 +10195,10 @@
     "panels:creasePattern.foldability.undecided": "a39156bf81a7",
     "panels:creasePattern.foldability.undecidedAngle": "8d4bcb84caf7",
     "panels:creasePattern.foldability.undecidedChoice": "3cf4199a82b5",
-    "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435"
+    "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435",
+    "dialogs:fold3dRefused.showDescription": "2800f37537e5",
+    "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
+    "dialogs:fold3dRefused.showVertex": "10c25a4190a6"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12423,7 +12435,7 @@
     "dialogs:fold3dRefused.simulateTrailer": "6833c7df4a17",
     "dialogs:fold3dRefused.title": "77a10d64753b",
     "dialogs:fold3dRefused.toleranceWindowClosed": "023563cdf7ae",
-    "dialogs:fold3dRefused.vertexClosure": "f322f6d273d6",
+    "dialogs:fold3dRefused.vertexClosure": "0bf84cbb7bc3",
     "dialogs:fold3dRefused.vertexUnassignedCrease": "d4291702d1dc",
     "dialogs:fold3dRefused.vertexUnsplitJunction": "7c31b02c0ee1",
     "dialogs:foldWarning.spatialMessage": "7ca069675617",
@@ -12701,7 +12713,10 @@
     "panels:creasePattern.foldability.undecided": "a39156bf81a7",
     "panels:creasePattern.foldability.undecidedAngle": "8d4bcb84caf7",
     "panels:creasePattern.foldability.undecidedChoice": "3cf4199a82b5",
-    "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435"
+    "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435",
+    "dialogs:fold3dRefused.showDescription": "2800f37537e5",
+    "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
+    "dialogs:fold3dRefused.showVertex": "10c25a4190a6"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -14968,7 +14983,7 @@
     "dialogs:fold3dRefused.simulateTrailer": "6833c7df4a17",
     "dialogs:fold3dRefused.title": "77a10d64753b",
     "dialogs:fold3dRefused.toleranceWindowClosed": "023563cdf7ae",
-    "dialogs:fold3dRefused.vertexClosure": "f322f6d273d6",
+    "dialogs:fold3dRefused.vertexClosure": "0bf84cbb7bc3",
     "dialogs:fold3dRefused.vertexUnassignedCrease": "d4291702d1dc",
     "dialogs:fold3dRefused.vertexUnsplitJunction": "7c31b02c0ee1",
     "dialogs:foldWarning.spatialMessage": "7ca069675617",
@@ -15259,7 +15274,10 @@
     "panels:creasePattern.foldability.undecided": "a39156bf81a7",
     "panels:creasePattern.foldability.undecidedAngle": "8d4bcb84caf7",
     "panels:creasePattern.foldability.undecidedChoice": "3cf4199a82b5",
-    "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435"
+    "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435",
+    "dialogs:fold3dRefused.showDescription": "2800f37537e5",
+    "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
+    "dialogs:fold3dRefused.showVertex": "10c25a4190a6"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17526,7 +17544,7 @@
     "dialogs:fold3dRefused.simulateTrailer": "6833c7df4a17",
     "dialogs:fold3dRefused.title": "77a10d64753b",
     "dialogs:fold3dRefused.toleranceWindowClosed": "023563cdf7ae",
-    "dialogs:fold3dRefused.vertexClosure": "f322f6d273d6",
+    "dialogs:fold3dRefused.vertexClosure": "0bf84cbb7bc3",
     "dialogs:fold3dRefused.vertexUnassignedCrease": "d4291702d1dc",
     "dialogs:fold3dRefused.vertexUnsplitJunction": "7c31b02c0ee1",
     "dialogs:foldWarning.spatialMessage": "7ca069675617",
@@ -17817,7 +17835,10 @@
     "panels:creasePattern.foldability.undecided": "a39156bf81a7",
     "panels:creasePattern.foldability.undecidedAngle": "8d4bcb84caf7",
     "panels:creasePattern.foldability.undecidedChoice": "3cf4199a82b5",
-    "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435"
+    "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435",
+    "dialogs:fold3dRefused.showDescription": "2800f37537e5",
+    "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
+    "dialogs:fold3dRefused.showVertex": "10c25a4190a6"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -20054,7 +20075,7 @@
     "dialogs:fold3dRefused.simulateTrailer": "6833c7df4a17",
     "dialogs:fold3dRefused.title": "77a10d64753b",
     "dialogs:fold3dRefused.toleranceWindowClosed": "023563cdf7ae",
-    "dialogs:fold3dRefused.vertexClosure": "f322f6d273d6",
+    "dialogs:fold3dRefused.vertexClosure": "0bf84cbb7bc3",
     "dialogs:fold3dRefused.vertexUnassignedCrease": "d4291702d1dc",
     "dialogs:fold3dRefused.vertexUnsplitJunction": "7c31b02c0ee1",
     "dialogs:foldWarning.spatialMessage": "7ca069675617",
@@ -20332,6 +20353,9 @@
     "panels:creasePattern.foldability.undecided": "a39156bf81a7",
     "panels:creasePattern.foldability.undecidedAngle": "8d4bcb84caf7",
     "panels:creasePattern.foldability.undecidedChoice": "3cf4199a82b5",
-    "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435"
+    "panels:creasePattern.foldability.unsplitJunction": "fd0f98608435",
+    "dialogs:fold3dRefused.showDescription": "2800f37537e5",
+    "dialogs:fold3dRefused.showEdge": "5a45aa933ef0",
+    "dialogs:fold3dRefused.showVertex": "10c25a4190a6"
   }
 }
