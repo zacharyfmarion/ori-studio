@@ -380,6 +380,8 @@
     "axisXAria": "Design symmetry axis X",
     "axisY": "Y",
     "axisYAria": "Design symmetry axis Y",
+    "boxPleatEditorFailed": "The box-pleat editor did not load",
+    "boxPleatEditorOffline": "This design type has not been downloaded yet, and you are offline. Connect once and it will work offline from then on.",
     "canvas": "Tree design canvas",
     "emptyStateBody": "Use branches for the flaps, limbs, and features the folded base needs.",
     "emptyStateTitle": "Sketch the tree behind your design",
@@ -407,9 +409,17 @@
         "description": "Draw a tree and find crease patterns that match it, from the ExplOri archive.",
         "title": "Search 22.5°"
       },
+      "failedOffline": "This design type has not been downloaded yet, and you are offline. Connect once and it will work offline from then on.",
+      "failedTitle": "Could not start a {{method}} design",
+      "failedUnknown": "The editor for this design type did not load.",
       "groupLabel": "Design method",
+      "retry": "Try again",
       "subtitle": "Choose how you want to author this model.",
       "title": "Start a new design"
+    },
+    "paneSwitcher": {
+      "close": "Close pane list",
+      "title": "Panes"
     },
     "paneTitle": {
       "bpPacking": "BP Editor",
@@ -426,6 +436,7 @@
     "preset": "Preset",
     "presetBook": "Book",
     "presetDiag": "Diag",
+    "retry": "Try again",
     "symmetry": "Symmetry",
     "symmetryButton": "Design symmetry",
     "symmetryControls": "Design symmetry controls",
@@ -469,6 +480,7 @@
   "explori": {
     "advancedDatabases": "Choose topology sizes",
     "backToResults": "Back to results",
+    "backToSearch": "Search",
     "canvas": "Search tree canvas",
     "databaseCell": "{{symmetry}}, size {{size}}",
     "decreaseLength": "Shorten",

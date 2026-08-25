@@ -35,8 +35,8 @@ export type DesignTabSource = 'strip' | 'duplicate' | 'file' | 'replace-last';
 export type ProjectOpenSource = 'file' | 'example' | 'new' | 'drop' | 'share';
 
 /**
- * Which register the `/welcome` landing page rendered in: the start screen, or
- * the desktop-only notice a phone gets instead.
+ * Which register the `/welcome` landing page rendered in: the desktop start
+ * screen, or the compact masthead a phone gets instead.
  */
 export type LandingSurface = 'desktop' | 'phone';
 
@@ -254,8 +254,6 @@ export const ANALYTICS_EVENTS = {
   landingSectionViewed: 'landing section viewed',
   landingFeatureOpened: 'landing feature opened',
   landingCtaClicked: 'landing cta clicked',
-  mobileBlockShown: 'mobile block shown',
-  mobileBlockBypassed: 'mobile block bypassed',
   orieditaShortcutsImported: 'oriedita shortcuts imported',
   orieditaShortcutsOverrideAll: 'oriedita shortcuts override all',
   shortcutDefaultsSourceChanged: 'shortcut defaults source changed',
@@ -281,6 +279,21 @@ export const ANALYTICS_EVENTS = {
    * used` counts what was picked rather than whether the surface was found.
    */
   cpToolPickerOpened: 'cp tool picker opened',
+  /**
+   * The phone layout moved between a design's panes.
+   *
+   * Phone-only, because that layout is the only one that shows a design's panes
+   * one at a time — everywhere else they are side by side and there is nothing
+   * to switch. `pane` is the kind's own pane id (`tree` | `packing` |
+   * `results` | `inspector` | …), which is its vocabulary rather than a panel
+   * component name, so it survives a component rename.
+   *
+   * `source` separates the pill from everything else that can move the pane —
+   * the BP long-press inspector, a View menu entry — because the question the
+   * pill raises is whether people find it, and a switch it did not cause would
+   * flatter the number.
+   */
+  designPaneSwitched: 'design pane switched',
   /**
    * The start screen's 3D figure declined to start, and the static image is
    * standing in.

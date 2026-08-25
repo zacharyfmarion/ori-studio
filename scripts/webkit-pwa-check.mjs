@@ -107,7 +107,7 @@ function headersFor(rules, pathname) {
  * and enough of `functions/s/[[shareId]].ts` to tell an intercepted share from a
  * served one.
  */
-async function startServer() {
+async function startServer(port = 0) {
   const rules = parseHeadersFile(await readFile(path.join(distDir, '_headers'), 'utf8'));
   const sockets = new Set();
   const seen = [];
@@ -163,7 +163,7 @@ async function startServer() {
     socket.on('close', () => sockets.delete(socket));
   });
 
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  await new Promise((resolve) => server.listen(port, '127.0.0.1', resolve));
   return {
     origin: `http://127.0.0.1:${server.address().port}`,
     seen,
@@ -239,13 +239,33 @@ async function settleCache(page) {
   return previous;
 }
 
+/**
+ * Wait for the kernel warm, which is deliberately late.
+ *
+ * `settleCache` cannot stand in for it: the warm is scheduled on
+ * `requestIdleCallback` with a five-second timer where that is absent, and
+ * settling returns as soon as two readings a half-second apart agree — so it
+ * reports a quiet cache several seconds before the warm starts. Waited for
+ * explicitly, with its own bound.
+ */
+async function waitForKernels(page, expected) {
+  for (let i = 0; i < 40; i += 1) {
+    const cached = await cacheKeys(page);
+    const found = expected.filter((name) => cached.some((p) => p.includes(name)));
+    if (found.length === expected.length) return found.length;
+    await page.waitForTimeout(500);
+  }
+  const cached = await cacheKeys(page);
+  return expected.filter((name) => cached.some((p) => p.includes(name))).length;
+}
+
 async function main() {
   if (!existsSync(path.join(distDir, 'sw.js'))) {
     console.error('apps/web/dist/sw.js is missing. Run `npm run build:web` first.');
     process.exit(1);
   }
 
-  const server = await startServer();
+  let server = await startServer();
   const browser = await webkit.launch();
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -276,19 +296,20 @@ async function main() {
     check('cold load is cross-origin isolated', cold.isolated && cold.sharedArrayBuffer);
     check('service worker takes control without a reload', cold.controlled);
 
-    // The worker must not make a first visit more expensive than no worker at
-    // all. It did, once: an install-time precache refetched every entry it
-    // warmed, because a service-worker `fetch()` in WebKit does not read the
-    // page's HTTP cache — 5.83 MB of duplicate download on the exact platform
-    // this ships for, and none on Chromium, so nothing but this would have
-    // noticed. Waited out rather than sampled: the point is that no refetch
-    // happens at all, not that none has happened yet.
+    // What a first visit costs, priced rather than forbidden.
     //
-    // The worker-script warm (invariant 4 in `sw.ts`) is deliberately hung off a
-    // navigation this worker served, and a first visit has none — so it belongs
-    // to the load after this one and this stays at zero. Priced as well as
-    // named, so a regression reports what it costs rather than only that it
-    // happened.
+    // It used to assert *nothing* is downloaded twice, and that was the wrong
+    // bar. It was right about the mechanism — a service-worker `fetch()` in
+    // WebKit does not read the page's HTTP cache, so anything the worker warms
+    // is a second download of a file the page already has, and Chromium pays
+    // none of it — but the conclusion it drove was an app that could not work
+    // offline until its second load. See invariant 5 in `sw.ts`.
+    //
+    // So the guard becomes a shape: the app may keep exactly one offline copy of
+    // itself, and nothing may be fetched a third time. That still catches the
+    // failure this was built for (an install-time precache refetching the whole
+    // set *on top of* the idle warm scores three) while allowing the one copy
+    // that makes the feature real.
     //
     // Over every path the server was asked for, not only `/assets/`. The
     // precache that caused this was all hashed assets, so scoping it there
@@ -305,17 +326,58 @@ async function main() {
     await settleServer(page, server);
     const requested = [...server.seen];
     const count = (url) => requested.filter((seen) => seen === url).length;
-    const repeated = [...new Set(requested)].filter((url) => count(url) > 1);
-    const duplicateBytes = repeated.reduce(
-      (total, url) => total + (count(url) - 1) * (server.sizes.get(url) ?? 0),
-      0
-    );
+    const overCopied = [...new Set(requested)].filter((url) => count(url) > 2);
+    const copied = [...new Set(requested)].filter((url) => count(url) === 2);
+    const copyBytes = copied.reduce((total, url) => total + (server.sizes.get(url) ?? 0), 0);
     check(
-      'a first visit downloads nothing twice',
-      repeated.length === 0,
-      repeated.length
-        ? `${duplicateBytes} duplicate bytes — ${repeated.join(', ')}`
-        : `0 duplicate bytes over ${new Set(requested).size} paths`
+      'a first visit keeps one offline copy, and fetches nothing three times',
+      overCopied.length === 0,
+      overCopied.length
+        ? `fetched ${overCopied.length} path(s) 3+ times — ${overCopied.join(', ')}`
+        : `${copyBytes} B of offline copy over ${copied.length} of ${new Set(requested).size} paths`
+    );
+
+    // ---- The sequence a real first-time user has, and the one this lane did
+    // not have: install it, use it once, quit, come back with no network. There
+    // is no reload anywhere in that, and every other offline check below runs
+    // after several controlled navigations — so they all pass over a cache the
+    // first session never actually produces.
+    //
+    // Reported from a phone on airplane mode as "Safari can't open the page.
+    // FetchEvent.respondWith received an error: TypeError: Load failed", which
+    // is what `shellFirst` rethrowing looks like on WebKit.
+    //
+    // `setOffline` rather than killing the server, so the rest of the lane still
+    // has one to talk to. A fresh page for the same reason the relaunch below
+    // uses one: WebKit's in-process resource cache would otherwise answer for
+    // the page that just filled it.
+    await settleCache(page);
+
+    // Taking the server away, not `context.setOffline`. Measured: `setOffline`
+    // in Playwright WebKit fails the navigation with "WebKit encountered an
+    // internal error" whether or not the worker can serve it, so it reports a
+    // failure for a cache that is complete — it cannot tell the two apart. The
+    // port is reclaimed afterwards so the rest of the lane still has a server,
+    // and the origin has to be identical or the cache (keyed per origin) would
+    // be a different one.
+    const port = new URL(server.origin).port;
+    await server.kill();
+    const relaunchAfterFirstSession = await context.newPage();
+    let firstSessionOffline = '';
+    await relaunchAfterFirstSession
+      .goto(`${server.origin}/edit`, { waitUntil: 'load' })
+      .catch((error) => (firstSessionOffline = String(error.message).split('\n')[0]));
+    const bootedOffline =
+      firstSessionOffline === '' &&
+      (await relaunchAfterFirstSession
+        .evaluate(() => !!document.querySelector('#root')?.firstElementChild)
+        .catch(() => false));
+    await relaunchAfterFirstSession.close();
+    server = await startServer(Number(port));
+    check(
+      'offline start works after one online session, with no reload',
+      bootedOffline,
+      firstSessionOffline || (bootedOffline ? '' : 'shell served but the app did not render')
     );
 
     // ---- First controlled load. This is where the cache actually fills.
@@ -338,6 +400,20 @@ async function main() {
       'the dev-gated CP detector is never cached',
       !cached.some((p) => p.includes('cp_detect') || p.includes('cpDetect')),
       '2.3MB that ships and nobody can reach'
+    );
+
+    // An engine's wasm is fetched only if the session used that engine, and
+    // `initEngine` pulls two of the three at boot. So an installed app whose one
+    // online session opened the Edit canvas has every kernel it needs bar
+    // box-pleat — and offline, choosing "Box-pleated" hit a cache miss and a
+    // fetch that could not resolve, which is a real report from a real device.
+    // The page asks for the rest once it is idle (`pwa/register.ts`).
+    const kernels = ['oristudio_cp_wasm_bg', 'treemaker_wasm_bg', 'oristudio_bp_wasm_bg'];
+    const warmed = await waitForKernels(page, kernels);
+    check(
+      'an idle controlled load fetches the kernels this session never used',
+      warmed === kernels.length,
+      `${warmed}/${kernels.length} engine kernels cached`
     );
 
     // Everything the page loaded has to be in the *worker's* cache, stated

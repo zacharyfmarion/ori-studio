@@ -13,6 +13,7 @@ import { exploriDocument, replaceExploriDocument } from '../../../explori/handle
 import { queryExplori, ExploriError } from '../../../explori/exploriService';
 import { exploriMatchQuality } from '../../../explori/matchQuality';
 import { exploriTilingLabel, type ExploriDbConfig, type ExploriResult } from '../../../explori/types';
+import { isPhoneLayout } from '../../../platform/phoneLayout';
 import type { Point } from '../../../lib/geometry';
 import { reflectPointAcrossSymmetryAxis } from '../../../lib/symmetryGeometry';
 import {
@@ -443,6 +444,17 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
           duration_ms_bucket: bucketCount(performance.now() - startedAt, DURATION_MS_BUCKETS),
           mirror_draw: held.document.symmetry.enabled,
         });
+        // A search is what makes the results pane worth looking at, and on a
+        // phone it is not on screen: the layout shows one pane and this one was
+        // the tree. Moving there is the answer to "where did my results go", and
+        // the switcher pill is the way back.
+        //
+        // Gated on the phone layout, not called unconditionally. On a desktop
+        // both panes are already visible, so the only thing this would do is
+        // move `activeEditingContext` to `explori-results` behind the user —
+        // changing which menu items are live while they are still holding the
+        // tree they just searched with.
+        if (isPhoneLayout()) useLayoutStore.getState().activatePanel('explori-results');
         return true;
       } catch (error) {
         set(

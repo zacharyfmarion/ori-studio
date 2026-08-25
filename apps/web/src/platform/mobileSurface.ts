@@ -1,28 +1,24 @@
 import { useSyncExternalStore } from 'react';
-import { readBoolean, storageKey, STORAGE_KEYS, writeBoolean } from '../lib/storage';
 import { isPhoneLayout, PHONE_MEDIA_QUERY } from './phoneLayout';
 import { getRuntimeSurface } from './runtime';
 
 /**
- * Whether the app should refuse to open a workspace on this device.
+ * Whether this is a phone-shaped *browser* session, for the handful of places
+ * that need to know the device rather than the viewport.
  *
- * The reason has narrowed. This used to read "the crease-pattern canvas has no
- * touch gestures, and the panels assume a pointer that can hover" — neither is
- * true now: the canvas has a multi-touch arbiter and the panels have a phone
- * layout. What is still true is that a phone is a small screen for a drafting
- * tool, so the default answer there is the landing page plus a note, with an
- * "open it anyway" override for anyone who wants to try. That is what this
- * module decides for the router, the engine boot, and `/welcome`.
+ * There used to be a gate here as well: a phone was refused the workspaces
+ * outright and offered an "Open App (unoptimized on mobile)" escape hatch that
+ * set a persisted override. Every reason for it is gone — the canvas has a
+ * multi-touch arbiter, the panels have a phone layout, the design panes show one
+ * at a time and the chrome fits — so a phone now follows the same routing and
+ * the same startup preference as everything else. What is left is a fact about
+ * the device, with no policy attached.
  *
- * This is the **gate**, and nothing else. What a phone-shaped viewport *is* — and
- * how the app lays out on one — belongs to `platform/phoneLayout`, which this
- * module composes with a runtime check. Keeping them apart is not tidiness: the
- * exemption below is false for the Tauri shell, so a layout asking *this*
- * question would give a native phone build the desktop chrome.
+ * The split from `platform/phoneLayout` survives the gate, and is not tidiness:
+ * the Tauri exemption below is false for the desktop shell, so a *layout* asking
+ * this question would give a native build the wrong chrome.
  */
 export { PHONE_MEDIA_QUERY };
-
-const PHONE_OVERRIDE_KEY = storageKey(STORAGE_KEYS.phoneOverride);
 
 /**
  * `window`, when it can answer media queries. jsdom without a stub, and any
@@ -48,27 +44,6 @@ export function isPhoneSurface(): boolean {
   return isPhoneLayout(mediaHost());
 }
 
-/** Whether someone took the "open it anyway" link past the desktop-only notice. */
-export function hasPhoneOverride(): boolean {
-  return readBoolean(PHONE_OVERRIDE_KEY, false);
-}
-
-export function setPhoneOverride(value: boolean): void {
-  writeBoolean(PHONE_OVERRIDE_KEY, value);
-  notify();
-}
-
-/**
- * Whether the workspaces are closed on this device: a phone, with nobody having
- * asked to get in anyway.
- *
- * This is the question the router loaders, the engine boot, and `/welcome` all
- * ask — one predicate rather than each of them recombining the two halves.
- */
-export function isWorkspaceBlocked(): boolean {
-  return isPhoneSurface() && !hasPhoneOverride();
-}
-
 // --- Reactive bindings ------------------------------------------------------
 
 const listeners = new Set<() => void>();
@@ -80,9 +55,7 @@ function notify(): void {
 
 /**
  * One media-query listener for however many hooks are mounted, installed with
- * the first subscriber and removed with the last. `setPhoneOverride` notifies
- * through the same path, so the override — which is localStorage, not an
- * observable — still re-renders whoever is watching.
+ * the first subscriber and removed with the last.
  */
 function subscribe(onChange: () => void): () => void {
   if (listeners.size === 0) {
@@ -101,9 +74,4 @@ function subscribe(onChange: () => void): () => void {
 /** Reactive {@link isPhoneSurface}, for layout that follows the viewport. */
 export function useIsPhoneSurface(): boolean {
   return useSyncExternalStore(subscribe, isPhoneSurface, () => false);
-}
-
-/** Reactive {@link isWorkspaceBlocked}, for choosing what `/welcome` leads with. */
-export function useIsWorkspaceBlocked(): boolean {
-  return useSyncExternalStore(subscribe, isWorkspaceBlocked, () => false);
 }

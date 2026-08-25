@@ -114,13 +114,69 @@
  * failure above was reproduced — so a later online relaunch would eventually
  * store it unprompted. That is not a guarantee worth resting offline start on:
  * it needs a relaunch, while online, before the first launch without a network.
+ *
+ * ## 5. The first session has to be told to keep a copy
+ *
+ * **Invariant 3's "practical shape" was wrong, and this is the correction.** It
+ * claimed "install, launch once online, offline works from then on", on the
+ * reasoning that a controlled load stores everything for free. The first half of
+ * that is true; the second does not follow. Registration happens on `load`, so a
+ * first visit fetches its whole cold-start set *before* the worker exists —
+ * shell, entry chunk, stylesheet, CP worker, CP kernel — and none of it is ever
+ * seen. Measured on the real build, the cache after one online session held
+ * **two entries**: the TreeMaker worker and its kernel, and only because
+ * `initEngine` happens to fetch them late enough to land after `clients.claim()`.
+ *
+ * The next launch offline then fails on the navigation itself. Reported from a
+ * phone in airplane mode as *"Safari can't open the page. FetchEvent.respondWith
+ * received an error: TypeError: Load failed"* — which is `shellFirst` finding no
+ * shell and rethrowing. Every offline check in the WebKit lane passed anyway,
+ * because the lane reloads before going offline and the second load *is*
+ * controlled. So the doc promised one online session, the lane tested two, and
+ * the difference was exactly the bug.
+ *
+ * So the cold-start set is warmed explicitly, and the page decides what is in
+ * it: it sends `performance.getEntriesByType('resource')` once it is idle, which
+ * is the only source that knows what this build's routes actually load — the
+ * manifest lists every asset the *build* emitted, most of which nobody fetches.
+ * The worker adds the shell and the two lists the page cannot see (invariants 4
+ * and 6), and stores whatever it is missing.
+ *
+ * **This costs a first visit real bytes, and that is the trade being made.** A
+ * service-worker `fetch()` in WebKit does not read the page's HTTP cache, so
+ * warming re-downloads what the page just fetched; invariant 3 measured that at
+ * 5.83 MB and rejected it. What it bought instead was an app that is not offline
+ * capable until its second load, which is not the feature. The difference from
+ * the arrangement invariant 3 rejected is *when*: `install` fires during the
+ * load and competes with first paint, `requestIdleCallback` fires after it. Same
+ * bytes, off the critical path, and only ever on the visit that has no copy yet
+ * — every later one finds the cache warm and fetches nothing.
+ *
+ * `Save-Data` declines it (see `register.ts`), which leaves that user exactly
+ * where the old behaviour left everyone.
+ *
+ * ## 6. The engine kernels ride along
+ *
+ * One class of asset is fetched only if the session happened to *use* that
+ * engine: the wasm kernels. `initEngine` pulls the CP and TreeMaker bridges at
+ * boot, so any session that reached a workspace loads those two. The box-pleat
+ * kernel is fetched when the first BP document is created, and the detector's
+ * not at all.
+ *
+ * So an app whose only session opened the Edit canvas would have every kernel it
+ * needs bar box-pleat, and offline, choosing "Box-pleated" hit a `cacheFirst`
+ * miss and a `fetch` that could not resolve. Also reported from a real device.
+ * They are in the warm set for that reason, and the page cannot name them
+ * because it never fetched them.
  */
 
 import {
   isShellResponse,
   isStorableResponse,
+  isWarmablePath,
   routeRequest,
   shellEntryPath,
+  WARM_COLD_START,
   type ServiceWorkerManifest,
 } from './swRoutes';
 
@@ -145,6 +201,10 @@ interface FetchEventLike extends ExtendableEventLike {
   respondWith(response: Response | Promise<Response>): void;
 }
 
+interface MessageEventLike extends ExtendableEventLike {
+  readonly data: unknown;
+}
+
 interface ServiceWorkerGlobalScopeLike {
   readonly clients: { claim(): Promise<void> };
   readonly location: Location;
@@ -153,6 +213,7 @@ interface ServiceWorkerGlobalScopeLike {
     listener: (event: ExtendableEventLike) => void
   ): void;
   addEventListener(type: 'fetch', listener: (event: FetchEventLike) => void): void;
+  addEventListener(type: 'message', listener: (event: MessageEventLike) => void): void;
 }
 
 const worker = self as unknown as ServiceWorkerGlobalScopeLike;
@@ -185,32 +246,45 @@ async function put(cache: Cache, key: RequestInfo, response: Response): Promise<
 }
 
 /**
- * Store the `new Worker()` scripts, which are the only part of the cold-start
- * set the page cannot cache for us. See invariant 4.
+ * Fetch and store paths the page cannot store for us.
  *
  * Sequential, and each entry is checked before it is fetched — so this takes one
- * connection at a time from a page that is still loading, and a later call over
- * a warm cache reaches the network not at all.
+ * connection at a time from a page that may still be loading, and a later call
+ * over a warm cache reaches the network not at all. That check is what makes
+ * this cheap on every visit but the first.
+ *
+ * `cache: 'force-cache'` asks the HTTP cache before the network. It is not
+ * enough on its own — WebKit answers a service-worker `fetch()` from a separate
+ * partition, which is the measurement behind invariant 3 — but it costs nothing
+ * to ask, and on Chromium it turns the whole warm into zero network traffic.
  */
-async function storeWorkerScripts(): Promise<void> {
+async function storeAll(paths: readonly string[]): Promise<void> {
   const cache = await caches.open(CACHE_NAME);
-  for (const path of manifest.workers) {
+  for (const path of paths) {
     if (await cache.match(path)) continue;
-    const response = await fetch(path);
-    if (isStorableResponse(response)) await put(cache, path, response);
+    const response = await fetch(path, { cache: 'force-cache' });
+    // The shell is the one entry whose *kind* matters: a redirect or an error
+    // page stored under `/` would be replayed to every offline navigation.
+    if (path === SHELL_KEY ? isShellResponse(response) : isStorableResponse(response)) {
+      await put(cache, path, response);
+    }
   }
 }
 
-/** The one warm in this worker's lifetime, in flight or finished. */
-let warmingWorkerScripts: Promise<void> | null = null;
+/** One warm per set per worker lifetime, in flight or finished. */
+const warming = new Map<string, Promise<void>>();
 
-function warmWorkerScripts(): Promise<void> {
-  return (warmingWorkerScripts ??= storeWorkerScripts().catch(() => {
+function warmOnce(key: string, paths: readonly string[]): Promise<void> {
+  const existing = warming.get(key);
+  if (existing) return existing;
+  const started = storeAll(paths).catch(() => {
     // Woke up offline, or a deploy moved these paths mid-flight. Forget the
-    // attempt, so the next navigation tries again rather than this worker
-    // spending its life believing it has warmed.
-    warmingWorkerScripts = null;
-  }));
+    // attempt, so the next trigger tries again rather than this worker spending
+    // its life believing it has warmed.
+    warming.delete(key);
+  });
+  warming.set(key, started);
+  return started;
 }
 
 /** Drop `/assets/` entries this build did not emit — i.e. the previous build's. */
@@ -317,6 +391,36 @@ worker.addEventListener('activate', (event) => {
   );
 });
 
+/**
+ * The one message this worker answers: the page reporting that it is idle, with
+ * the list of what it loaded. Invariants 5 and 6.
+ *
+ * Three sources, because no one of them knows the whole set. The page knows what
+ * its routes actually fetched, which the manifest cannot — the manifest is every
+ * asset the *build* emitted. The worker knows the shell, which the page fetched
+ * as a navigation before this worker existed. And the manifest knows the
+ * `new Worker()` scripts and the engine kernels, which the page never fetched
+ * over the network at all.
+ *
+ * Paths from the page are validated, not trusted (`isWarmablePath`): a message
+ * is a message, and cache-first is the wrong policy for anything that is not
+ * content-hashed build output.
+ *
+ * Everything else is ignored rather than logged — a page can post anything, and
+ * an unknown message is not an error worth carrying a branch for.
+ */
+worker.addEventListener('message', (event) => {
+  const data = event.data as { type?: unknown; paths?: unknown } | null;
+  if (data?.type !== WARM_COLD_START) return;
+  const fromPage = Array.isArray(data.paths) ? data.paths.filter(isWarmablePath) : [];
+  event.waitUntil(
+    warmOnce('cold-start', [
+      SHELL_KEY,
+      ...new Set([...fromPage, ...manifest.workers, ...manifest.kernels]),
+    ])
+  );
+});
+
 worker.addEventListener('fetch', (event) => {
   const route = routeRequest(event.request, worker.location.origin, uncacheable);
   switch (route) {
@@ -324,7 +428,7 @@ worker.addEventListener('fetch', (event) => {
       // A navigation reaching here is a load this worker already controls, so
       // it is never the first visit — which is the whole of why warming the
       // worker scripts costs a first visit nothing. Invariant 4.
-      event.waitUntil(warmWorkerScripts());
+      event.waitUntil(warmOnce('workers', manifest.workers));
       event.respondWith(shellFirst(event.request));
       return;
     case 'immutable':

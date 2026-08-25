@@ -3,7 +3,6 @@ import App from '../App';
 import { RouteErrorElement } from '../components/errors/RouteErrorElement';
 import { WorkspaceShell } from '../components/WorkspaceShell';
 import { readBoolean, storageKey, STORAGE_KEYS } from '../lib/storage';
-import { isWorkspaceBlocked } from '../platform/mobileSurface';
 import { getRuntimeSurface } from '../platform/runtime';
 import { DESIGN_PATH, EDIT_PATH, LEGACY_DESIGN_PATHS, WELCOME_PATH } from './paths';
 import { ShareRoute } from './ShareRoute';
@@ -15,11 +14,11 @@ import { WorkspaceRoute } from './WorkspaceRoute';
  * welcome on startup" preference is a synchronously-readable routing choice — the
  * welcome screen (the default) or straight into Edit.
  *
- * A blocked phone ignores the preference: `/welcome` is the only page it has, so
- * "start in Edit" would strand it somewhere it cannot be.
+ * Every device answers it the same way. A phone used to be forced to `/welcome`
+ * whatever the preference said, because the workspaces were closed to it; they
+ * are not any more.
  */
 export function startupHomePath(): string {
-  if (isWorkspaceBlocked()) return WELCOME_PATH;
   const showWelcome = readBoolean(storageKey(STORAGE_KEYS.showWelcomeOnStartup), true);
   return showWelcome ? WELCOME_PATH : EDIT_PATH;
 }
@@ -29,20 +28,20 @@ function startupRedirect() {
   return redirect(startupHomePath());
 }
 
-/**
- * Keep a phone out of the workspaces, however it got pointed at one — a deep
- * link, a bookmark, a shared URL.
+/*
+ * The workspace routes have **no guard at all**, and that is deliberate twice
+ * over.
  *
- * This is a *device-capability* gate, and it is the only guard the workspace
- * routes have. There is deliberately no provisioning guard: every surface stands
- * on its own (Edit and Design/box-pleat self-provision their documents, the
- * Design chooser establishes itself, TreeMaker opens an empty tree, Simulate
- * shows its own empty state), so on a device that can run them a cold reload or
- * deep link into any workspace is always honored rather than bounced.
+ * There is no provisioning guard because every surface stands on its own — Edit
+ * and Design/box-pleat self-provision their documents, the Design chooser
+ * establishes itself, TreeMaker opens an empty tree, Simulate shows its own
+ * empty state — so a cold reload or a deep link into any workspace is honored
+ * rather than bounced.
+ *
+ * And there is no longer a device gate. A phone was redirected to `/welcome`
+ * however it got pointed at a workspace: a deep link, a bookmark, a shared URL.
+ * The touch work removed the reason, so a shared link now opens what it names.
  */
-function blockedDeviceRedirect() {
-  return isWorkspaceBlocked() ? redirect(WELCOME_PATH) : null;
-}
 
 type AppRouter = ReturnType<typeof createBrowserRouter>;
 
@@ -85,20 +84,10 @@ export function createAppRouter(): AppRouter {
         //
         // Both shapes: `/s/<id>` for server-stored links, and bare `/s` for the
         // original `#<payload>` fragment scheme, which must keep working.
-        //
-        // The device gate is a loader here for the same reason it is one on the
-        // workspace shell, and it matters more: a share captured during render
-        // would be stashed in the store and left waiting to import itself the
-        // next time this browser reached a workspace. A loader runs first, so
-        // `ShareRoute` never mounts and nothing is captured.
-        { path: 's', element: <ShareRoute />, loader: blockedDeviceRedirect },
-        { path: 's/:shareId', element: <ShareRoute />, loader: blockedDeviceRedirect },
+        { path: 's', element: <ShareRoute /> },
+        { path: 's/:shareId', element: <ShareRoute /> },
         {
           element: <WorkspaceShell />,
-          // On the shell rather than on each workspace: one gate covers all
-          // three plus the legacy Design sub-paths, and a parent loader's
-          // redirect short-circuits before any of their loaders run.
-          loader: blockedDeviceRedirect,
           children: [
             { path: 'design', element: <WorkspaceRoute workspace="design" /> },
             // The retired method sub-routes. A bookmark or a link from an older

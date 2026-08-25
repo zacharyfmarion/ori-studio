@@ -70,10 +70,6 @@
     "lead": "Remontez et commencez un patron de pliage : voilà toute la mise en route. Discord est le meilleur endroit pour signaler un bug ou proposer une idée, et c’est là que les nouveautés sont annoncées en premier.",
     "title": "Ça tourne dans le navigateur. Rien à installer."
   },
-  "mobileHero": {
-    "tagline": "Concevez, modifiez et pliez de l’origami, entièrement dans le navigateur."
-  },
-  "openApp": "Ouvrir l’app (non optimisée sur mobile)",
   "scrollCue": "Voir ce qu’il fait",
   "simulate": {
     "eyebrow": "Simuler",

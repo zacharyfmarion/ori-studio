@@ -18,7 +18,10 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { MenuBar } from './MenuBar';
+import { CanvasHistoryPills } from './CanvasHistoryPills';
+import { CanvasPillLane } from './CanvasPillLane';
 import { DesignAttributionFooter } from './DesignAttributionFooter';
+import { DesignPaneSwitcher } from './DesignPaneSwitcher';
 import { DesignTabStrip } from './panels/DesignTabStrip';
 import { FixedDockTab } from './panels/FixedDockTab';
 import { ErrorBoundary } from './errors/ErrorBoundary';
@@ -32,6 +35,7 @@ import { SplitButton } from './ui/SplitButton';
 import { useSendToEditActions } from '../designKinds/useSendToEditActions';
 import { handleMenuAction } from '../commands/menuActions';
 import { useFileDropTarget } from '../hooks/useFileDropTarget';
+import { useViewPanelReconcile } from '../hooks/useWorkspaceViewDrawer';
 import type { DropTargetPolicy } from '../lib/fileDrop';
 import { useIsCoarsePointerSurface } from '../platform/pointerSurface';
 import { usesNativeAppMenu } from '../platform/runtime';
@@ -330,6 +334,12 @@ export function WorkspaceShell() {
   // and need dragging back.
   const coarsePointer = useIsCoarsePointerSurface();
 
+  // The other half of "is the View pane docked, or drawered?". It lives on the
+  // shell rather than beside the drawer because the repair it performs is the
+  // flip *to* a fine pointer, and on a fine pointer the pill lane — and every
+  // component in it — is unmounted. See `useViewPanelReconcile`.
+  useViewPanelReconcile();
+
   // The workspace/variant the URL targets at mount, captured in a ref so onReady
   // (fired once by Dockview, possibly before the route effect runs) builds the
   // right layout instead of the stale store default. onReady fires at mount, so
@@ -433,16 +443,18 @@ export function WorkspaceShell() {
           </div>
           <DesignWorkspaceFooter />
           {/*
-            Touch only, and a no-op everywhere else — under a coarse pointer the
-            View pane is not docked at all, and this is what reaches it.
-
-            The Tools pill rides in its `leading` slot so that the two share one
-            row and "left of View" needs nobody to know View's width. It gates
-            itself down to the phone layout in the Edit workspace; everywhere
-            else it renders nothing and the row holds View alone.
+            Touch only, and nothing at all under a fine pointer. Each pill gates
+            itself further — Tools down to the phone layout in Edit, View to the
+            workspaces that dock a View pane — so the lane can be empty, and DOM
+            order here is what puts undo/redo left of both.
           */}
-          <ErrorBoundary surface="shell:view-drawer" variant="mini">
-            <WorkspaceViewDrawer leading={<CpToolsTrigger />} />
+          <ErrorBoundary surface="shell:canvas-pills" variant="mini">
+            <CanvasPillLane>
+              <CanvasHistoryPills />
+              <DesignPaneSwitcher />
+              <CpToolsTrigger />
+              <WorkspaceViewDrawer />
+            </CanvasPillLane>
           </ErrorBoundary>
           <FileDropOverlay visible={isDragActive} policy={WORKSPACE_DROP_POLICY} />
         </div>

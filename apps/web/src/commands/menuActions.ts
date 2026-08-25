@@ -130,7 +130,7 @@ export const MENU_ACTION_IDS = [
 export type MenuActionId = (typeof MENU_ACTION_IDS)[number];
 
 export interface WorkspaceCommands {
-  createNewProject(): Promise<void>;
+  createNewProject(): Promise<boolean>;
   subdivideOristudioBpLayoutSheet(): Promise<boolean>;
   unsubdivideOristudioBpLayoutSheet(): Promise<boolean>;
   rotateOristudioBpLayoutSheet(clockwise: boolean): Promise<boolean>;

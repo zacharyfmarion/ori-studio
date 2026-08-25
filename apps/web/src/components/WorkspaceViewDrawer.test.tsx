@@ -1,7 +1,6 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DockviewApi } from 'dockview';
 
 /**
  * The real view-controls panes read the workspace store, which pulls in workers
@@ -66,8 +65,14 @@ function render() {
   act(() => root?.render(<WorkspaceViewDrawer />));
 }
 
-const trigger = () => container?.querySelector<HTMLButtonElement>('.view-drawer-anchor__trigger');
-const dialog = () => container?.querySelector<HTMLElement>('[role="dialog"]');
+const trigger = () => container?.querySelector<HTMLButtonElement>('.view-drawer__trigger');
+/**
+ * `document`, not `container`. The sheet is portaled to `document.body` because
+ * the pill lane it renders inside is `pointer-events: none` and a stacking
+ * context — see the comment at the `createPortal` call.
+ */
+const dialog = () => document.querySelector<HTMLElement>('[role="dialog"]');
+const sheet = () => document.querySelector<HTMLElement>('.view-drawer__sheet');
 
 function press(element: Element | null | undefined) {
   act(() => element?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
@@ -133,7 +138,7 @@ describe('the workspace View drawer', () => {
     expect(dialog()?.getAttribute('aria-label')).toBe('View options');
     // The trigger names the thing it opened, which is the dialog it opened.
     expect(dialog()?.id).toBe(trigger()?.getAttribute('aria-controls'));
-    expect(container?.querySelector('input[aria-label="grid size"]')).not.toBeNull();
+    expect(document.querySelector('input[aria-label="grid size"]')).not.toBeNull();
   });
 
   it('shows the workspace its own controls', () => {
@@ -175,7 +180,7 @@ describe('the workspace View drawer', () => {
   it('closes on Escape and hands focus back to the trigger', () => {
     render();
     press(trigger());
-    expect(document.activeElement).toBe(container?.querySelector('.view-drawer__sheet'));
+    expect(document.activeElement).toBe(sheet());
 
     pressEscape();
 
@@ -190,7 +195,7 @@ describe('the workspace View drawer', () => {
     // *and* closing the sheet is two wrong answers to one key.
     render();
     press(trigger());
-    const field = container?.querySelector<HTMLInputElement>('input[aria-label="grid size"]');
+    const field = document.querySelector<HTMLInputElement>('input[aria-label="grid size"]');
     act(() => field?.focus());
 
     pressEscape(field as EventTarget);
@@ -202,7 +207,7 @@ describe('the workspace View drawer', () => {
     render();
     press(trigger());
 
-    press(container?.querySelector('.view-drawer__sheet'));
+    press(sheet());
     expect(dialog()).not.toBeNull();
 
     press(dialog());
@@ -245,34 +250,8 @@ describe('the workspace View drawer', () => {
 
     expect(dialog()).toBeNull();
   });
-
-  it('makes the dock agree with the pointer, in both directions', () => {
-    // The wiring, not the reconcile itself (that is `layoutStore.test.ts`). One
-    // deleted line here is a feature that silently does nothing while every other
-    // test stays green.
-    const docked = new Map<string, { id: string }>([
-      ['crease-pattern', { id: 'crease-pattern' }],
-      ['cp-view-controls', { id: 'cp-view-controls' }],
-    ]);
-    const dockviewApi = {
-      getPanel: vi.fn((id: string) => docked.get(id) ?? null),
-      removePanel: vi.fn((panel: { id: string }) => void docked.delete(panel.id)),
-      addPanel: vi.fn((options: { id: string }) => {
-        docked.set(options.id, { id: options.id });
-        return options;
-      }),
-    } as unknown as DockviewApi;
-    useLayoutStore.setState({ dockviewApi });
-
-    render();
-
-    expect(dockviewApi.removePanel).toHaveBeenCalledWith({ id: 'cp-view-controls' });
-    expect([...docked.keys()]).toEqual(['crease-pattern']);
-
-    flipPointer(false);
-
-    expect(dockviewApi.addPanel).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'cp-view-controls', initialWidth: 260 })
-    );
-  });
 });
+// The dock reconcile that pairs with this drawer moved to `useViewPanelReconcile`,
+// called by `WorkspaceShell` — it has to keep running on the pointer where this
+// component does not render at all. Its wiring test moved with it, to
+// `WorkspaceShell.test.tsx`.

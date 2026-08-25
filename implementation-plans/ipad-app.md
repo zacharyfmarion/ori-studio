@@ -615,7 +615,7 @@ reintroduce a long-press on the canvas.**
 - [ ] **Install to a real iPad home screen** and confirm the icon, the
       standalone launch, and that `display_mode: standalone` shows up in
       PostHog. The only item left that no harness can stand in for.
-- [x] Add a WebKit lane to CI — 22 checks, ~9s, in the `web-client` job. It
+- [x] Add a WebKit lane to CI — 23 checks, ~9s, in the `web-client` job. It
       catches the failures by construction: injecting the `new Response(body)`
       trap turns three checks red, un-bypassing `/s` turns two red, deleting
       `Cross-Origin-Opener-Policy` from `_headers` turns three red, and

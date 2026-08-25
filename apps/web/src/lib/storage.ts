@@ -22,13 +22,6 @@ export const STORAGE_KEYS = {
   shortcuts: 'shortcuts',
   locale: 'locale',
   showWelcomeOnStartup: 'show-welcome-on-startup',
-  /**
-   * Set when someone on a phone takes the "open it anyway" link past the
-   * desktop-only notice. Persisted so the choice survives a reload — being sent
-   * back to the landing page on every refresh would make the escape hatch
-   * useless.
-   */
-  phoneOverride: 'phone-override',
   foldWarning: 'fold-warning',
   /** What an unmodified scroll does on the crease-pattern canvas: pan or zoom. */
   cpWheelGesture: 'cp-wheel-gesture',

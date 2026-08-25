@@ -26,18 +26,43 @@ export interface WorkspaceViewDrawerState {
 }
 
 /**
- * The touch-only View drawer: its open state, and the dock reconcile that is the
- * other half of the same decision.
+ * Make the dock's View pane agree with the pointer, for as long as the caller is
+ * mounted.
  *
- * Both halves live here rather than in `WorkspaceShell` because they are one
- * question — *is the View pane docked, or drawered?* — and splitting it would
- * put a dock mutation in the shell and the state beside it, with nothing saying
- * they have to agree. The shell mounts one component and reads none of this.
+ * The other half of the same decision as {@link useWorkspaceViewDrawer} — *is the
+ * View pane docked, or drawered?* — and it used to live in that hook, on the
+ * reasoning that one question should have one owner. It cannot any more: the
+ * drawer is a pill inside `CanvasPillLane`, which renders nothing at all under a
+ * fine pointer, so the drawer's hooks stop running exactly when this repair is
+ * needed. `WorkspaceShell` calls it instead, because the shell is mounted for
+ * every workspace on every pointer.
+ *
+ * The pointer can change under a live app, and the dock keeps whatever panel set
+ * `addPanel`/`fromJSON` last gave it — nothing re-runs on its own. Without this,
+ * a flip to fine leaves the workspace with no View pane *and* no trigger, and the
+ * only way back is View -> Reset Layout. A null api (before `onReady`, and
+ * throughout any test that mocks dockview away) is a no-op.
+ */
+export function useViewPanelReconcile(): void {
+  const coarsePointer = useIsCoarsePointerSurface();
+  const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
+  const dockviewApi = useLayoutStore((state) => state.dockviewApi);
+
+  useEffect(() => {
+    if (!dockviewApi) return;
+    reconcileViewPanel(dockviewApi, activeWorkspace, coarsePointer);
+  }, [dockviewApi, activeWorkspace, coarsePointer]);
+}
+
+/**
+ * The touch-only View drawer: which pane it offers, and whether it is open.
+ *
+ * The dock reconcile that pairs with it is {@link useViewPanelReconcile}, called
+ * by `WorkspaceShell`; see the note there for why the two are no longer one hook.
  */
 export function useWorkspaceViewDrawer(): WorkspaceViewDrawerState {
   const coarsePointer = useIsCoarsePointerSurface();
   const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
-  const dockviewApi = useLayoutStore((state) => state.dockviewApi);
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const drawerId = useId();
@@ -54,16 +79,6 @@ export function useWorkspaceViewDrawer(): WorkspaceViewDrawerState {
   useEffect(() => {
     openRef.current = open;
   }, [open]);
-
-  // The pointer can change under a live app, and the dock keeps whatever panel
-  // set `addPanel`/`fromJSON` last gave it — nothing re-runs on its own. Without
-  // this, a flip to fine leaves the workspace with no View pane *and* no trigger,
-  // and the only way back is View -> Reset Layout. A null api (before `onReady`,
-  // and throughout any test that mocks dockview away) is a no-op.
-  useEffect(() => {
-    if (!dockviewApi) return;
-    reconcileViewPanel(dockviewApi, activeWorkspace, coarsePointer);
-  }, [dockviewApi, activeWorkspace, coarsePointer]);
 
   const close = useCallback(() => {
     setOpen(false);

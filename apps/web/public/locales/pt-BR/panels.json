@@ -392,6 +392,8 @@
     "axisXAria": "Eixo X de simetria do design",
     "axisY": "Y",
     "axisYAria": "Eixo Y de simetria do design",
+    "boxPleatEditorFailed": "O editor de pregas em caixa não carregou",
+    "boxPleatEditorOffline": "Este tipo de design ainda não foi baixado e você está off-line. Conecte-se uma vez e ele funcionará off-line a partir de então.",
     "canvas": "Canvas de design da árvore",
     "emptyStateBody": "Use ramos para as abas, membros e detalhes de que a base dobrada precisa.",
     "emptyStateTitle": "Esboce a árvore por trás do seu design",
@@ -419,9 +421,17 @@
         "description": "Desenhe uma árvore e encontre padrões de vinco correspondentes no acervo ExplOri.",
         "title": "Pesquisar 22,5°"
       },
+      "failedOffline": "Este tipo de design ainda não foi baixado e você está off-line. Conecte-se uma vez e ele funcionará off-line a partir de então.",
+      "failedTitle": "Não foi possível iniciar um design {{method}}",
+      "failedUnknown": "O editor deste tipo de design não carregou.",
       "groupLabel": "Método de design",
+      "retry": "Tentar novamente",
       "subtitle": "Escolha como deseja criar este modelo.",
       "title": "Iniciar um novo design"
+    },
+    "paneSwitcher": {
+      "close": "Fechar a lista de painéis",
+      "title": "Painéis"
     },
     "paneTitle": {
       "bpPacking": "Editor BP",
@@ -438,6 +448,7 @@
     "preset": "Predefinição",
     "presetBook": "Livro",
     "presetDiag": "Diag",
+    "retry": "Tentar novamente",
     "symmetry": "Simetria",
     "symmetryButton": "Simetria do design",
     "symmetryControls": "Controles de simetria do design",
@@ -483,6 +494,7 @@
   "explori": {
     "advancedDatabases": "Escolher tamanhos de topologia",
     "backToResults": "Voltar aos resultados",
+    "backToSearch": "Buscar",
     "canvas": "Tela da árvore de busca",
     "databaseCell": "{{symmetry}}, tamanho {{size}}",
     "decreaseLength": "Encurtar",

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 import type { DockviewApi, SerializedDockview } from 'dockview';
 import type { TFunction } from 'i18next';
 import { designKind, type DesignKindDescriptor } from '../../designKinds';
+import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 
@@ -54,7 +55,27 @@ afterEach(() => {
   dockviewProps.length = 0;
   vi.unstubAllGlobals();
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
+  useLayoutStore.setState({ designPaneId: null });
 });
+
+/** The phone query (`platform/phoneLayout`), which also contains "pointer: coarse". */
+const PHONE_QUERY = 'max-width: 600px';
+
+function matchTablet(query: string, coarse: boolean) {
+  return {
+    matches: query.includes('pointer: coarse') && !query.includes(PHONE_QUERY) ? coarse : false,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  };
+}
+
+function matchPhone(query: string) {
+  return {
+    matches: query.includes('pointer: coarse'),
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  };
+}
 
 /**
  * A tab that has chosen no kind has no panes — its kind is what declares them —
@@ -302,10 +323,10 @@ describe('a third design kind lays out with no code change', () => {
  */
 describe('the chooser while a design is being created', () => {
   it('marks the chosen card busy and refuses a second click', async () => {
-    let resolveChoice: (() => void) | undefined;
+    let resolveChoice: ((created: boolean) => void) | undefined;
     const choose = vi.fn(
       () =>
-        new Promise<void>((resolve) => {
+        new Promise<boolean>((resolve) => {
           resolveChoice = resolve;
         })
     );
@@ -333,8 +354,44 @@ describe('the chooser while a design is being created', () => {
     expect(choose).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      resolveChoice?.();
+      resolveChoice?.(true);
     });
+  });
+
+  it('recovers when creation fails instead of spinning forever', async () => {
+    // The creators catch their own errors and report `false`; the chooser used
+    // to clear its spinner in a `.catch()`, so the rejection it waited for never
+    // came. Offline, choosing box-pleat left every card disabled and one of them
+    // spinning — with the failure already in the store, unread.
+    let resolveChoice: ((created: boolean) => void) | undefined;
+    const choose = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolveChoice = resolve;
+        })
+    );
+    const host = render({
+      ...singleDesignTab(null),
+      engineReady: true,
+      status: 'ready',
+      chooseDesignMethod: choose,
+      oristudioBpError: 'failed to fetch',
+    });
+    const cards = () => Array.from(host.querySelectorAll<HTMLButtonElement>('.design-method-card'));
+
+    act(() => {
+      cards()[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {
+      resolveChoice?.(false);
+    });
+
+    expect(cards().every((card) => card.disabled)).toBe(false);
+    expect(cards()[0].getAttribute('aria-busy')).toBe('false');
+    const failure = host.querySelector('.design-method-chooser__failure');
+    expect(failure).not.toBeNull();
+    expect(failure?.textContent).toContain('failed to fetch');
+    expect(failure?.querySelector('button')).not.toBeNull();
   });
 
   it('becomes usable again when the creation fails', async () => {
@@ -368,14 +425,11 @@ describe('the chooser while a design is being created', () => {
  */
 describe('the design pane dock', () => {
   function stubPointer(coarse: boolean) {
-    vi.stubGlobal(
-      'matchMedia',
-      vi.fn((query: string) => ({
-        matches: query.includes('pointer: coarse') ? coarse : false,
-        addEventListener: () => {},
-        removeEventListener: () => {},
-      }))
-    );
+    // A *tablet*: coarse, and wide enough that the phone layout does not apply.
+    // The distinction is load-bearing here — `PHONE_MEDIA_QUERY` also contains
+    // "pointer: coarse", so a stub matching on that substring alone would put
+    // this dock-lock test on the phone branch, where there is no dock at all.
+    vi.stubGlobal('matchMedia', vi.fn((query: string) => matchTablet(query, coarse)));
   }
 
   function mountedProps(coarse: boolean) {
@@ -394,5 +448,115 @@ describe('the design pane dock', () => {
     dockviewProps.length = 0;
 
     expect(mountedProps(true).disableDnd).toBe(desktop.disableDnd);
+  });
+});
+
+/**
+ * A design's panes are a split — a tree beside a packing editor, a tree beside
+ * its results, a canvas beside a tabbed tool column. At 440pt that is ~220pt
+ * each, which is not a design surface. The phone layout shows one and switches.
+ */
+describe('DesignPaneLayout on a phone', () => {
+  function renderPhone(kind: 'treemaker' | 'box-pleat' | 'explori', designPaneId?: string) {
+    vi.stubGlobal('matchMedia', vi.fn(matchPhone));
+    // The *layout* store owns which pane is on screen — see `designPaneId`, and
+    // the bug that made it its own field rather than a read of `activePanelId`.
+    useLayoutStore.setState({ designPaneId: designPaneId ?? null });
+    return render({ ...singleDesignTab(kind) });
+  }
+
+  it('mounts no dock at all', () => {
+    // Not a dock with hidden groups: no dock is what makes the two promises
+    // below structural rather than remembered — `onDidLayoutChange` cannot fire
+    // if there is nothing to fire it.
+    renderPhone('box-pleat');
+
+    expect(dockviewProps).toHaveLength(0);
+    expect(container?.querySelector('.design-pane-single')).not.toBeNull();
+  });
+
+  it('never writes a pane layout into the document', () => {
+    // This dock's arrangement rides in the `.osf` as `viewState.paneLayout`, so
+    // a one-pane layout written here would travel to the author's desktop and to
+    // anyone they sent the file to.
+    const setDesignPaneLayout = vi.fn();
+    vi.stubGlobal('matchMedia', vi.fn(matchPhone));
+    render({ ...singleDesignTab('box-pleat'), setDesignPaneLayout });
+
+    expect(setDesignPaneLayout).not.toHaveBeenCalled();
+  });
+
+  it('opens on the kind’s primary pane', () => {
+    renderPhone('box-pleat');
+
+    expect(useWorkspaceStore.getState().activePanelId).toBe('design');
+  });
+
+  it('shows the pane the store names, and reports it', () => {
+    // `activePanelId` is what drives `activeEditingContext` — the menus, the
+    // undo stack, the shortcut scope — so a pane on screen that the store does
+    // not know about is a workspace operating on something else.
+    renderPhone('box-pleat', 'bp-editor');
+
+    expect(useWorkspaceStore.getState().activePanelId).toBe('bp-editor');
+    expect(useLayoutStore.getState().designPaneId).toBe('bp-editor');
+  });
+
+  it('stays put when something re-reports the workspace pane', () => {
+    // The reported bug, and the reason `designPaneId` exists. Every
+    // `activatePanel` for a design pane calls `activateWorkspace('design')` on
+    // the way, whose no-op path re-reports `activePanelId()`. The Design
+    // workspace's one dock panel is `design-workspace`, which no workspace
+    // claims, so that answered `primaryPanelIdFor('design')` — and with no dock
+    // to correct it, selecting a flap in the BP editor threw the user back to
+    // the tree editor.
+    renderPhone('box-pleat', 'bp-editor');
+
+    act(() => useLayoutStore.getState().activateWorkspace('design'));
+
+    expect(useLayoutStore.getState().designPaneId).toBe('bp-editor');
+    expect(useWorkspaceStore.getState().activePanelId).toBe('bp-editor');
+  });
+
+  it('clears its pane when the phone layout unmounts', () => {
+    // A stale `designPaneId` would make `activePanelId()` keep answering with a
+    // pane that is no longer how this device shows anything — a rotation into
+    // the tablet layout, or a workspace switch.
+    renderPhone('box-pleat', 'bp-editor');
+    act(() => root?.unmount());
+    root = null;
+
+    expect(useLayoutStore.getState().designPaneId).toBeNull();
+  });
+
+  it('falls back to the primary pane when the stored id is not this kind’s', () => {
+    // A tab switch leaves the previous design's pane behind until something
+    // re-reports; rendering nothing would be the alternative.
+    renderPhone('explori', 'bp-editor');
+
+    expect(useWorkspaceStore.getState().activePanelId).toBe('explori-tree');
+  });
+
+  it('lets activatePanel reach a pane that is not docked', () => {
+    // `activatePanel('conditions')` is a View-menu entry. With no dock there is
+    // no `IDockviewPanel` to call `setActive` on, so without the registered
+    // validator it would silently do nothing.
+    renderPhone('treemaker');
+
+    act(() => useLayoutStore.getState().activatePanel('conditions'));
+
+    expect(useLayoutStore.getState().designPaneId).toBe('conditions');
+    expect(useWorkspaceStore.getState().activePanelId).toBe('conditions');
+  });
+
+  it('declines an id this design does not own', () => {
+    // The layout store has no business knowing a kind's panes, so it asks — and
+    // an unrecognised id has to leave the visible pane alone rather than
+    // rendering nothing.
+    renderPhone('box-pleat');
+
+    act(() => useLayoutStore.getState().activatePanel('conditions'));
+
+    expect(useLayoutStore.getState().designPaneId).toBe('design');
   });
 });

@@ -368,6 +368,8 @@
     "axisXAria": "デザインの対称軸 X",
     "axisY": "Y",
     "axisYAria": "デザインの対称軸 Y",
+    "boxPleatEditorFailed": "ボックスプリーツエディタを読み込めませんでした",
+    "boxPleatEditorOffline": "この設計タイプはまだダウンロードされておらず、現在オフラインです。一度接続すれば、以降はオフラインでも使えます。",
     "canvas": "ツリーデザインキャンバス",
     "emptyStateBody": "折りベースに必要なフラップ、手足、特徴を枝で表現します。",
     "emptyStateTitle": "デザインの背後にあるツリーをスケッチ",
@@ -395,9 +397,17 @@
         "description": "ツリーを描いて、ExplOri アーカイブから一致する展開図を探します。",
         "title": "22.5° を検索"
       },
+      "failedOffline": "この設計タイプはまだダウンロードされておらず、現在オフラインです。一度接続すれば、以降はオフラインでも使えます。",
+      "failedTitle": "{{method}} の設計を開始できませんでした",
+      "failedUnknown": "この設計タイプのエディタを読み込めませんでした。",
       "groupLabel": "デザイン方法",
+      "retry": "再試行",
       "subtitle": "このモデルの作成方法を選択してください。",
       "title": "新しいデザインを開始"
+    },
+    "paneSwitcher": {
+      "close": "ペイン一覧を閉じる",
+      "title": "ペイン"
     },
     "paneTitle": {
       "bpPacking": "BP エディター",
@@ -414,6 +424,7 @@
     "preset": "プリセット",
     "presetBook": "ブック",
     "presetDiag": "対角",
+    "retry": "再試行",
     "symmetry": "対称",
     "symmetryButton": "デザインの対称",
     "symmetryControls": "デザインの対称操作",
@@ -455,6 +466,7 @@
   "explori": {
     "advancedDatabases": "トポロジーサイズを選択",
     "backToResults": "結果に戻る",
+    "backToSearch": "検索",
     "canvas": "検索ツリーキャンバス",
     "databaseCell": "{{symmetry}}、サイズ {{size}}",
     "decreaseLength": "短くする",

@@ -9,6 +9,7 @@
  */
 
 import { isWebRuntime } from '../platform/runtime';
+import { WARM_COLD_START } from './swRoutes';
 
 /**
  * The registered script.
@@ -49,12 +50,92 @@ export function getDisplayMode(
   return probe.matchMedia?.('(display-mode: standalone)').matches ? 'standalone' : 'browser';
 }
 
+/** Whatever this registration gives us to post to — `active`, or the controller. */
+interface MessageTarget {
+  postMessage(message: unknown): void;
+}
+
 interface RegistrationHost {
   serviceWorker?: {
-    register(url: string): Promise<unknown>;
+    register(url: string): Promise<{ active?: MessageTarget | null } | unknown>;
     getRegistrations?(): Promise<readonly { unregister(): Promise<boolean> }[]>;
+    ready?: Promise<{ active?: MessageTarget | null }>;
+    controller?: MessageTarget | null;
   };
   storage?: { persisted?(): Promise<boolean>; persist?(): Promise<boolean> };
+  /** The Network Information API. Absent in Safari, which is fine — see below. */
+  connection?: { saveData?: boolean };
+}
+
+/**
+ * Whether to ask the worker to keep an offline copy of this session.
+ *
+ * `Save-Data` is the one refusal, and it is the whole condition. It is an
+ * explicit statement that bytes cost the user something, and downloading a
+ * second copy of an app they may not come back to is exactly what it is for.
+ * Nothing breaks — that user gets the behaviour everyone had before this
+ * existed, which is an app that works online. Safari does not implement the API,
+ * so `connection` is undefined there and the default holds.
+ *
+ * It used to also require the load to have been *controlled*, to keep a first
+ * visit from re-downloading what it had just fetched. That was the wrong call:
+ * a first visit is precisely the one with nothing in the cache, so declining
+ * there meant an installed app was not offline capable until its second launch —
+ * which is the bug this now exists to fix. See invariant 5 in `sw.ts`.
+ */
+export function shouldWarmColdStart(host: RegistrationHost | undefined): boolean {
+  return host?.connection?.saveData !== true;
+}
+
+/**
+ * What this page loaded, as paths the worker can re-fetch.
+ *
+ * Resource timing rather than the build manifest, because the manifest is every
+ * asset the build emitted and a given route loads a fraction of it. Filtered to
+ * `/assets/` here as well as in the worker: the page has no business asking for
+ * anything else stored cache-first, and sending less is better than sending more
+ * and having it rejected.
+ */
+export function loadedAssetPaths(host: { performance?: Performance } = window): string[] {
+  const entries = host.performance?.getEntriesByType?.('resource') ?? [];
+  const paths = new Set<string>();
+  for (const entry of entries) {
+    try {
+      const url = new URL(entry.name, window.location.href);
+      if (url.origin === window.location.origin && url.pathname.startsWith('/assets/')) {
+        paths.add(url.pathname);
+      }
+    } catch {
+      // A resource entry with an unparseable name is not one we can re-fetch.
+    }
+  }
+  return [...paths];
+}
+
+/**
+ * Ask the worker to store this session's cold-start set, once the page is idle.
+ *
+ * On idle rather than on `load`, and that is the difference from the
+ * install-time precache invariant 3 measured and rejected: the same bytes, but
+ * after first paint instead of competing with it. On every visit after the first
+ * the worker's per-entry cache check finds everything already stored and this
+ * costs nothing.
+ *
+ * `registration.active` and not `controller`: a first visit is uncontrolled at
+ * the moment it registers — the worker claims it a beat later — and a first
+ * visit is exactly the one that needs this.
+ */
+function warmColdStartWhenIdle(host: RegistrationHost, worker: MessageTarget | null): void {
+  if (!shouldWarmColdStart(host) || !worker) return;
+  const ask = () =>
+    worker.postMessage({ type: WARM_COLD_START, paths: loadedAssetPaths() });
+  const idle = (window as unknown as { requestIdleCallback?: (fn: () => void) => void })
+    .requestIdleCallback;
+  // A timeout rather than nothing on Safari, which shipped `requestIdleCallback`
+  // only recently: the point is "after the app has settled", and a few seconds
+  // is a fair approximation of that on any engine.
+  if (idle) idle(ask);
+  else window.setTimeout(ask, 5000);
 }
 
 /**
@@ -123,7 +204,19 @@ export function registerServiceWorker(
   const start = () => {
     void host.serviceWorker
       ?.register(SERVICE_WORKER_URL)
-      .then(() => {
+      .then((registration) => {
+        // `active`, falling back to the controller. A registration that has just
+        // been created is `installing`, not `active`, so the fallback is what a
+        // *first* visit lands on once `activate` has claimed it — and a first
+        // visit is the one with an empty cache. `ready` resolves on both.
+        const activated = (registration as { active?: MessageTarget | null } | undefined)?.active;
+        const target = activated ?? host.serviceWorker?.controller ?? null;
+        if (target) warmColdStartWhenIdle(host, target);
+        else {
+          void host.serviceWorker?.ready
+            ?.then((ready) => warmColdStartWhenIdle(host, ready.active ?? null))
+            .catch(() => undefined);
+        }
         if (getDisplayMode() === 'standalone') return requestPersistentStorage(host);
         return undefined;
       })

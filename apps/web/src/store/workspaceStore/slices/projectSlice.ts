@@ -2053,10 +2053,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
 
     createNewProject: async (options = {}) => {
       const preserveEditCanvas = options.preserveEditCanvas ?? false;
-      if (rejectDisabled('file.new')) return;
+      // Reports whether a project now exists, for the same reason the box-pleat
+      // and ExplOri creators do: `chooseDesignMethod` cannot tell a refused
+      // discard or a dead engine from a success otherwise, and the chooser it
+      // answers to would spin forever. Callers that ignore it are unaffected.
+      if (rejectDisabled('file.new')) return false;
       // When preserving the Edit canvas (design-method chooser) there is nothing
       // to discard and the CP handle must stay alive, so skip the prompt + release.
-      if (!preserveEditCanvas && !(await confirmDiscardDirty(get().dirty))) return;
+      if (!preserveEditCanvas && !(await confirmDiscardDirty(get().dirty))) return false;
       set({ status: 'loading_engine', error: null, projectMessage: null });
       try {
         if (!preserveEditCanvas) await releaseEditableCreasePattern();
@@ -2109,8 +2113,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         // Only real File > New is a "project opened"; the design-method chooser
         // (preserveEditCanvas) is recorded as `design method chosen` instead.
         if (!preserveEditCanvas) track('project opened', { source: 'new' });
+        return true;
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
+        return false;
       }
     },
 
@@ -3373,14 +3379,25 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       set({ projectEstablished: true });
       track('design method chosen', { method: target });
       const wasDirty = get().dirty;
-      if (target === 'box-pleat') {
-        await get().createOristudioBpProject({ confirmDiscard: false, preserveEditCanvas: true });
-      } else if (target === 'explori') {
-        await get().createExploriDesign();
-      } else {
-        await get().createNewProject({ preserveEditCanvas: true });
-      }
+      // Every creator catches its own error and reports it as a return value, so
+      // this resolves either way and the boolean is the *only* signal that the
+      // design was not created. It used to be discarded, and the chooser cleared
+      // its spinner in a `.catch()` that therefore never ran: a box-pleat design
+      // created offline set an error, returned false, and left every card
+      // disabled with one of them spinning forever. Reproduced by relaunching an
+      // installed PWA in airplane mode, where the BP kernel is not in the cache.
+      const created =
+        target === 'box-pleat'
+          ? await get().createOristudioBpProject({ confirmDiscard: false, preserveEditCanvas: true })
+          : target === 'explori'
+            ? await get().createExploriDesign()
+            : await get().createNewProject({ preserveEditCanvas: true });
       if (get().dirty !== wasDirty) set({ dirty: get().dirty || wasDirty });
+      // The tab has no kind when creation failed, so the chooser is still what
+      // the workspace shows — and claiming a project is established over it
+      // would let a route guard treat an empty workspace as a live design.
+      if (!created) set({ projectEstablished: false });
+      return created;
     },
   };
 };

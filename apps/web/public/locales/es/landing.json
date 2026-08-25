@@ -70,10 +70,6 @@
     "lead": "Vuelve arriba y empieza un patrón de pliegues: esa es toda la preparación. Discord es el mejor sitio para informar de un error o proponer algo, y donde primero se anuncian las novedades.",
     "title": "Funciona en el navegador. Nada que instalar."
   },
-  "mobileHero": {
-    "tagline": "Diseña, edita y pliega origami, todo en el navegador."
-  },
-  "openApp": "Abrir la app (sin optimizar para móvil)",
   "scrollCue": "Mira lo que hace",
   "simulate": {
     "eyebrow": "Simular",

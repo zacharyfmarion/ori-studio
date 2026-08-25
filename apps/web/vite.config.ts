@@ -193,11 +193,23 @@ function serviceWorkerManifest(
     .map((name) => `/${name}`)
     .filter((path) => !uncacheable.includes(path));
 
+  // The engine kernels. Every `.wasm` this build emits, minus the ones no user
+  // can reach — which today is exactly the CP detector's, already listed in
+  // `uncacheable`. An extension match rather than a name pattern, for the same
+  // reason `workers` uses a bundle-type test: `oristudio_bp_wasm_bg-*.wasm` is
+  // wasm-bindgen's naming, not ours, and a regex over it stops matching the day
+  // the crate is renamed. See invariant 5 in `sw.ts` for why these are warmed.
+  const kernels = assets
+    .filter((name) => name.endsWith('.wasm'))
+    .map((name) => `/${name}`)
+    .filter((path) => !uncacheable.includes(path));
+
   const body = {
     entry: `/${entry.fileName}`,
     assets: assets.map((name) => `/${name}`),
     uncacheable,
     workers,
+    kernels,
   };
   return {
     ...body,

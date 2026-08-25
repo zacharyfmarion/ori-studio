@@ -39,7 +39,7 @@ export const LANDING_SECTIONS = [
  * behind `import.meta.env.DEV` and the desktop build is not released.
  *
  * The same content serves the desktop page and the phone one; only what sits
- * above it differs (the start screen, or the desktop-only notice).
+ * above it differs (the desktop start screen, or the phone masthead).
  */
 export function WelcomeLanding() {
   const { t } = useTranslation();
