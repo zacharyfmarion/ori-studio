@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   getDisplayMode,
+  loadedAssetPaths,
   registerServiceWorker,
   shouldRegisterServiceWorker,
-  shouldWarmKernels,
+  shouldWarmColdStart,
 } from './register';
-import { WARM_KERNELS } from './swRoutes';
+import { WARM_COLD_START } from './swRoutes';
 
 const HOST = { serviceWorker: { register: async () => undefined } };
 
@@ -68,14 +69,13 @@ describe('registerServiceWorker', () => {
   });
 
   /**
-   * The engine kernels are fetched only if a session used that engine, so an
-   * installed app whose one online session opened the Edit canvas has every
-   * kernel it needs bar box-pleat — and offline, choosing it fails. The page
-   * asks the worker to fill the gap once it is idle; the worker cannot decide
-   * this for itself, because two of the three kernels are ones the page is
-   * fetching on the same load and a warm from the `fetch` handler would race it.
+   * A first visit fetches its whole cold-start set before the worker exists —
+   * registration happens on `load` — so nothing it loaded is in the cache and
+   * the next launch offline fails on the navigation itself. Measured on the real
+   * build: two entries after one online session. The page therefore has to hand
+   * the worker its own resource list once it is idle.
    */
-  it('asks the worker to warm the kernels once idle', async () => {
+  it('asks the worker to store this session, once idle', async () => {
     // jsdom has no `requestIdleCallback`, and the production fallback is a five
     // second timer — so the idle hook is stubbed rather than waited out. Which
     // hook fires is not the subject; that the message is sent from one is.
@@ -86,25 +86,31 @@ describe('registerServiceWorker', () => {
     try {
       const postMessage = vi.fn();
       const { host } = devHost();
-      const withController = {
+      const withWorker = {
         ...host,
-        serviceWorker: { ...host.serviceWorker, controller: { postMessage } },
+        serviceWorker: {
+          ...host.serviceWorker,
+          register: vi.fn(async () => ({ active: { postMessage } })),
+        },
       };
 
-      registerServiceWorker(withController, true);
+      registerServiceWorker(withWorker, true);
 
-      await vi.waitFor(() => expect(postMessage).toHaveBeenCalledWith({ type: WARM_KERNELS }));
+      await vi.waitFor(() =>
+        expect(postMessage).toHaveBeenCalledWith(
+          expect.objectContaining({ type: WARM_COLD_START })
+        )
+      );
     } finally {
       vi.unstubAllGlobals();
     }
   });
 
-  it('does not warm on a first visit, which was never controlled', async () => {
-    // The expensive case. A first visit fetches everything itself over the
-    // network and only then registers; the worker claims it moments later, so a
-    // late `controller` read says "controlled" while the cache holds nothing the
-    // page loaded. Warming there re-downloads it — the WebKit lane measured
-    // 2,240,930 duplicate bytes, the CP kernel, before this was read early.
+  it('warms a first visit, which has nothing cached at all', async () => {
+    // The regression this replaced: gating on "was the load controlled" declined
+    // exactly the visit with an empty cache, so an installed app was not offline
+    // capable until its second launch. A fresh registration is `installing`, not
+    // `active`, so the page waits on `ready`.
     vi.stubGlobal('requestIdleCallback', (fn: () => void) => {
       fn();
       return 1;
@@ -112,48 +118,76 @@ describe('registerServiceWorker', () => {
     try {
       const postMessage = vi.fn();
       const { host } = devHost();
-      const claimedLater = {
+      const firstVisit = {
         ...host,
         serviceWorker: {
           ...host.serviceWorker,
-          // Absent when `registerServiceWorker` reads it, present afterwards —
-          // which is exactly what `clients.claim()` does to a first visit.
-          controller: undefined as { postMessage: typeof postMessage } | undefined,
+          // No controller and no active worker at registration time.
+          controller: null,
+          register: vi.fn(async () => ({ active: null })),
+          ready: Promise.resolve({ active: { postMessage } }),
         },
       };
-      registerServiceWorker(claimedLater, true);
-      claimedLater.serviceWorker.controller = { postMessage };
 
-      await vi.waitFor(() => expect(host.serviceWorker.register).toHaveBeenCalled());
-      expect(postMessage).not.toHaveBeenCalled();
+      registerServiceWorker(firstVisit, true);
+
+      await vi.waitFor(() =>
+        expect(postMessage).toHaveBeenCalledWith(
+          expect.objectContaining({ type: WARM_COLD_START })
+        )
+      );
     } finally {
       vi.unstubAllGlobals();
     }
   });
 });
 
-describe('shouldWarmKernels', () => {
-  it('warms a controlled load by default', () => {
+describe('shouldWarmColdStart', () => {
+  it('keeps an offline copy by default', () => {
     // Safari does not implement the Network Information API, so `connection` is
     // undefined there — and it is the platform this whole phase exists for.
-    expect(shouldWarmKernels({}, true)).toBe(true);
-    expect(shouldWarmKernels(undefined, true)).toBe(true);
-    expect(shouldWarmKernels({ connection: {} }, true)).toBe(true);
-    expect(shouldWarmKernels({ connection: { saveData: false } }, true)).toBe(true);
-  });
-
-  it('never warms a load that was not controlled', () => {
-    // The page fetched everything itself; nothing it loaded is in the cache, so
-    // a warm re-downloads rather than fills in.
-    expect(shouldWarmKernels({}, false)).toBe(false);
-    expect(shouldWarmKernels({ connection: { saveData: false } }, false)).toBe(false);
+    expect(shouldWarmColdStart({})).toBe(true);
+    expect(shouldWarmColdStart(undefined)).toBe(true);
+    expect(shouldWarmColdStart({ connection: {} })).toBe(true);
+    expect(shouldWarmColdStart({ connection: { saveData: false } })).toBe(true);
   });
 
   it('respects Save-Data', () => {
-    // An explicit statement that bytes cost the user something. Prefetching a
-    // design type they may never open is exactly what it is for; the kernel is
-    // still fetched on demand, as before.
-    expect(shouldWarmKernels({ connection: { saveData: true } }, true)).toBe(false);
+    // An explicit statement that bytes cost the user something. That user gets
+    // the behaviour everyone had before this existed: an app that works online.
+    expect(shouldWarmColdStart({ connection: { saveData: true } })).toBe(false);
+  });
+});
+
+describe('loadedAssetPaths', () => {
+  const perf = (names: string[]) =>
+    ({ getEntriesByType: () => names.map((name) => ({ name })) }) as unknown as Performance;
+
+  it('reports this build output, deduplicated', () => {
+    const paths = loadedAssetPaths({
+      performance: perf([
+        `${window.location.origin}/assets/index-abc.js`,
+        `${window.location.origin}/assets/index-abc.js`,
+        `${window.location.origin}/assets/index-abc.css`,
+      ]),
+    });
+
+    expect(paths.sort()).toEqual(['/assets/index-abc.css', '/assets/index-abc.js']);
+  });
+
+  it('reports nothing it has no business caching first', () => {
+    // Locales and icons are stale-while-revalidate for a reason, `/api` and `/s`
+    // are Pages Functions, and a third-party URL is not ours to store at all.
+    const paths = loadedAssetPaths({
+      performance: perf([
+        `${window.location.origin}/locales/en/common.json`,
+        `${window.location.origin}/api/explori/query`,
+        `${window.location.origin}/icons/icon-192.png`,
+        'https://example.com/assets/other-build.js',
+      ]),
+    });
+
+    expect(paths).toEqual([]);
   });
 });
 

@@ -9,14 +9,14 @@
  */
 
 /**
- * The page's "I am idle, fetch the kernels now" message.
+ * The page's "I am idle; here is what I loaded, store what you are missing".
  *
  * Here rather than spelled twice, because the two halves are bundled separately
  * — `sw.ts` through its own Vite build in `vite.config.ts`, `register.ts` into
  * the app — so a typo in either would be a message that is simply never
  * answered, with nothing to fail.
  */
-export const WARM_KERNELS = 'ori:warm-kernels';
+export const WARM_COLD_START = 'ori:warm-cold-start';
 
 /** What `sw.ts` does with a request. */
 export type ServiceWorkerRoute =
@@ -78,6 +78,20 @@ const FUNCTION_PATHS = ['/api', '/s'];
 
 /** Content-hashed build output. Immutable by construction. */
 const ASSET_PREFIX = '/assets/';
+
+/**
+ * Which of the page's own resource paths the worker will accept and store.
+ *
+ * The page sends what it actually loaded (`performance.getEntriesByType`),
+ * which is the only source that knows the real cold-start set — the worker's
+ * manifest lists every asset the *build* emitted, most of which a given route
+ * never touches. Validated here rather than trusted: a message is a message,
+ * and content-hashed build output is the one shape worth storing under a
+ * cache-first policy.
+ */
+export function isWarmablePath(candidate: unknown): candidate is string {
+  return typeof candidate === 'string' && candidate.startsWith(ASSET_PREFIX);
+}
 
 /**
  * Static files under `public/`, which are *not* content-hashed — so they are
