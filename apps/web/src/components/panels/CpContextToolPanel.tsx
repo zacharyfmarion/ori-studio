@@ -323,7 +323,7 @@ export function CpContextToolPanel({
               : // Not "Apply to selection": this one opens a draft to look at,
                 // and the change lands from the draft's own Apply.
                 command.operationId === 'PropagateFoldAngles'
-                ? t('tools:cpContext.applyPropagate', 'Propagate in selection')
+                ? t('tools:cpContext.applyPropagate', 'Solve in selection')
                 : isSelectionCircleApplyOperation(command.operationId)
                   ? t('tools:cpContext.applyCircle', 'Apply circle')
                   : t('tools:cpContext.applyToSelection', 'Apply to selection')}

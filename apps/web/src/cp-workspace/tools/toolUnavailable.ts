@@ -87,7 +87,7 @@ export function cpToolUnavailableMessage(
     case 'PropagationNothingFree':
       return t(
         'tools:cpContext.propagation.nothingFree',
-        'Every crease already has a fold angle. Make some unassigned first, then propagate.'
+        'Every crease already has a fold angle. Make some unassigned first, then solve.'
       );
     // Deliberately an instruction rather than an error. Nothing was decidable
     // means "you have not told me enough", which is a conversation.
@@ -110,12 +110,12 @@ export function cpToolUnavailableMessage(
     case 'PropagationNoScope':
       return t(
         'tools:cpContext.propagation.noScope',
-        'Click a crease or vertex to propagate from, or select the creases to solve.'
+        'Click a crease or vertex to solve outward from, or select the creases to solve.'
       );
     case 'PropagationNoComponentAtPoint':
       return t(
         'tools:cpContext.propagation.noComponentAtPoint',
-        'Nothing to propagate here. Click on a crease or a vertex of the pattern you want.'
+        'Nothing to solve here. Click on a crease or a vertex of the pattern you want.'
       );
     // Not `PropagationNothingFree`: "every crease already has a fold angle" is a
     // lie when the rest of the canvas is full of unassigned creases and the user
