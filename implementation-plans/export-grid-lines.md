@@ -72,4 +72,4 @@ grid to draw (a TreeMaker design has no kernel document).
 - [x] Store wiring for both export entry points and the share draft
 - [x] i18n extract, translate 8 locales, stamp, check
 - [x] lint / typecheck / web unit tests
-- [ ] Draft PR
+- [x] Draft PR — https://github.com/zacharyfmarion/ori-studio/pull/305
