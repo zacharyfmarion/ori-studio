@@ -69,10 +69,11 @@ export interface CpRenderer {
   setOverlayPoints(points: PointGeometry | null): void;
   /**
    * Diagnostic overlays (CAMV / check-fix), drawn above the crease pattern in model
-   * coordinates. Strokes = segment highlights + operation-frame outline; fills =
-   * sector wedges + frame region; markers = the fixed-size shape markers.
+   * coordinates. Fills = sector wedges + frame region; markers = the fixed-size
+   * shape markers. There is deliberately no per-crease channel: a diagnostic that
+   * recoloured a crease was read as changing its *type*, since that is what colour
+   * on a crease means everywhere else in this app.
    */
-  setDiagnosticStrokes(strokes: StrokeGeometry | null): void;
   setDiagnosticFills(fills: FillGeometry | null): void;
   setDiagnosticMarkers(markers: MarkerGeometry | null): void;
   /**

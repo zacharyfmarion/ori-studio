@@ -9,7 +9,6 @@ import { MARKER_SHAPE } from '../renderer/types';
 import {
   boundsFromPoints,
   buildCpDiagnosticMarkers,
-  buildCpDiagnosticStrokes,
   buildCpDiagnosticWedges,
   cpDiagnosticMarkerStyle,
   cpDiagnosticMarkerTone,
@@ -109,7 +108,7 @@ describe('cpDiagnosticMarkerTone', () => {
 });
 
 describe('buildCpDiagnosticMarkers', () => {
-  it('emits one marker per renderable entry with its shape id, skipping point-less ones', () => {
+  it('emits one marker per renderable entry with its shape id, skipping ones that name nowhere', () => {
     const geo = buildCpDiagnosticMarkers(
       [entry({ point: { x: 1, y: 2 } }), entry({ id: 'd2', point: null })],
       tones
@@ -117,6 +116,24 @@ describe('buildCpDiagnosticMarkers', () => {
     expect(geo.count).toBe(1);
     expect(geo.shape[0]).toBe(MARKER_SHAPE.cross);
     expect([geo.center[0], geo.center[1]]).toEqual([1, 2]);
+  });
+
+  it('marks a check that names creases and no vertex, at the centre of what it names', () => {
+    // The two boundary rules and an operation's self-intersecting pairs carry
+    // `segments` and no `point`. They were once drawn by recolouring those
+    // creases; a marker is the only thing left, so it has to appear or the
+    // check goes silent on the canvas.
+    const boundary = entry({
+      kind: 'FlatFoldableCheck',
+      rule: 'BoundaryLoop',
+      point: null,
+      segments: [seg({ x: 0, y: 0 }, { x: 4, y: 0 }), seg({ x: 4, y: 0 }, { x: 4, y: 2 })],
+    });
+    const geo = buildCpDiagnosticMarkers([boundary], tones);
+    expect(geo.count).toBe(1);
+    // The same centre `diagnosticEntryBounds` gives, so the marker sits where
+    // "Show me the vertex" frames.
+    expect([geo.center[0], geo.center[1]]).toEqual([2, 1]);
   });
 
   it('draws the undecided diamond filled, the unexamined one hollow, and both smaller', () => {
@@ -153,22 +170,6 @@ describe('buildCpDiagnosticMarkers', () => {
     });
     expect(cpHasBlbWedges(blb)).toBe(true);
     expect(buildCpDiagnosticMarkers([blb], tones).count).toBe(0);
-  });
-});
-
-describe('buildCpDiagnosticStrokes', () => {
-  it('emits one stroke per segment, skipping big-little-big entries', () => {
-    const normal = entry({ point: { x: 0, y: 0 }, segments: [seg({ x: 0, y: 0 }, { x: 2, y: 0 })] });
-    const blb = entry({
-      id: 'd2',
-      kind: 'Check4',
-      rule: 'BigLittleBig',
-      point: { x: 0, y: 0 },
-      segments: [seg({ x: 0, y: 0 }, { x: 1, y: 1 })],
-    });
-    const geo = buildCpDiagnosticStrokes([normal, blb], tones);
-    expect(geo.count).toBe(1);
-    expect([geo.a[0], geo.a[1], geo.b[0], geo.b[1]]).toEqual([0, 0, 2, 0]);
   });
 });
 

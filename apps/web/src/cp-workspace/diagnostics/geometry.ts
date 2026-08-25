@@ -5,7 +5,7 @@ import type {
 } from '../../engine/oristudioCpTypes';
 import { readCssVarColor } from '../renderer/cssColor';
 import { MARKER_SHAPE } from '../renderer/types';
-import type { MarkerGeometry, Rgba, StrokeGeometry, WedgeGeometry } from '../renderer/types';
+import type { MarkerGeometry, Rgba, WedgeGeometry } from '../renderer/types';
 import { cpDiagnosticClass } from './severity';
 
 /**
@@ -248,7 +248,13 @@ export function buildCpDiagnosticMarkers(
 ): MarkerGeometry {
   const markers: { center: Point; shape: number; sizePx: number; fill: Rgba; stroke: Rgba }[] = [];
   for (const entry of entries) {
-    if (!entry.point) continue;
+    // Three checks name creases and no vertex — the two boundary rules and an
+    // operation's self-intersecting pairs. They used to be drawn by colouring
+    // the creases themselves; with that gone, the centre of what they name is
+    // the only place left to put them, and it is where framing already goes.
+    // Without this they would have no mark on the canvas at all.
+    const center = entry.point ?? diagnosticEntryBounds(entry)?.center;
+    if (!center) continue;
     // BLB vertices with real sectors render as wedges, not the pentagon fallback.
     if (cpHasBlbWedges(entry)) continue;
     const style = cpDiagnosticMarkerStyle(entry);
@@ -260,7 +266,7 @@ export function buildCpDiagnosticMarkers(
     // diamond, where the check has no answer to put inside it.
     const hollow = style.shape === 'ring' || style.shape === 'unexamined';
     markers.push({
-      center: entry.point,
+      center,
       shape,
       sizePx: isQuietMarker(style.shape)
         ? CP_DIAGNOSTIC_QUIET_MARKER_PX
@@ -286,31 +292,19 @@ export function buildCpDiagnosticMarkers(
   return { center, size, shape, fill, stroke, count };
 }
 
-/** Build model-space segment-highlight strokes for the diagnostic entries. */
-export function buildCpDiagnosticStrokes(
-  entries: readonly OristudioCpDiagnosticEntry[],
-  toneColors: Record<CpDiagnosticMarkerTone, Rgba>
-): StrokeGeometry {
-  const segs: { a: Point; b: Point; color: Rgba }[] = [];
-  for (const entry of entries) {
-    if (cpDiagnosticMarkerStyle(entry).shape === 'big-little-big') continue;
-    const color = withAlpha(toneColors[cpDiagnosticMarkerTone(entry)], 0.85);
-    for (const segment of entry.segments ?? []) segs.push({ a: segment.a, b: segment.b, color });
-  }
-  const count = segs.length;
-  const a = new Float32Array(count * 2);
-  const b = new Float32Array(count * 2);
-  const color = new Float32Array(count * 4);
-  const widthMul = new Float32Array(count).fill(1.6);
-  segs.forEach((s, i) => {
-    a[i * 2] = s.a.x;
-    a[i * 2 + 1] = s.a.y;
-    b[i * 2] = s.b.x;
-    b[i * 2 + 1] = s.b.y;
-    color.set(s.color, i * 4);
-  });
-  return { a, b, color, widthMul, count };
-}
+/*
+ * There is deliberately no segment-highlight builder here.
+ *
+ * A diagnostic used to lay a thick tone-coloured stroke over each crease it
+ * named. It read as a statement about the *crease* rather than about the check:
+ * everywhere else in this app colour on a crease is its fold direction, so a
+ * diagnostic recolouring one says "this is a different kind of crease", which is
+ * never what a CAMV entry means. A vertex marker says the same thing without
+ * borrowing the one channel that is already spoken for.
+ *
+ * `entry.segments` is still read — by `diagnosticEntryPoints`, so framing a
+ * diagnostic includes the creases it is about even though nothing paints them.
+ */
 
 /**
  * Build big-little-big sector wedges: for each pair of consecutive crease rays

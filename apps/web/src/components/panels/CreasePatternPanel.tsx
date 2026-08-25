@@ -155,7 +155,6 @@ import { useCpAnnotations } from '../../cp-workspace/annotations/useCpAnnotation
 import { CpContextToolPanel, cpLineTypeStatusLabel } from './CpContextToolPanel';
 import {
   buildCpDiagnosticMarkers,
-  buildCpDiagnosticStrokes,
   buildCpDiagnosticWedges,
   resolveCpDiagnosticToneColors,
 } from '../../cp-workspace/diagnostics/geometry';
@@ -1378,14 +1377,13 @@ export function CreasePatternPanel() {
     () => visibleCpDiagnosticEntries(oristudioCpCamvResult, lastCommandResult, camvIssuesVisible),
     [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult]
   );
-  // WebGL diagnostic overlay geometry (markers + segment highlights). Rebuilt when
+  // WebGL diagnostic overlay geometry (vertex markers + BLB wedges). Rebuilt when
   // the entries or theme change; the tone colours read the current theme's CSS vars.
   const cpDiagnosticGeometry = useMemo(() => {
     void currentTheme;
     const toneColors = resolveCpDiagnosticToneColors(document.documentElement);
     return {
       markers: buildCpDiagnosticMarkers(latestDiagnosticEntries, toneColors),
-      strokes: buildCpDiagnosticStrokes(latestDiagnosticEntries, toneColors),
       wedges: buildCpDiagnosticWedges(latestDiagnosticEntries, toneColors),
     };
   }, [latestDiagnosticEntries, currentTheme]);
@@ -3050,7 +3048,6 @@ export function CreasePatternPanel() {
                   toolCommandPreviewPoints={webglToolPreviewPoints}
                   toolPreviewColor={toolPreviewColor}
                   diagnosticMarkers={cpDiagnosticGeometry.markers}
-                  diagnosticStrokes={cpDiagnosticGeometry.strokes}
                   diagnosticWedges={cpDiagnosticGeometry.wedges}
                   operationFrame={cpOperationFrameStrokes}
                   panToolActive={panToolActive}

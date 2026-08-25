@@ -715,9 +715,8 @@ export interface CreasePatternWebglCanvasProps {
   toolCommandPreviewPoints: readonly ModelPoint[];
   /** Colour of the in-progress candidate crease (the resolved active line colour). */
   toolPreviewColor: Rgba;
-  /** Diagnostic overlay geometry (CAMV / check-fix): shape markers + segment highlights. */
+  /** Diagnostic overlay geometry (CAMV / check-fix): shape markers at the vertex. */
   diagnosticMarkers: MarkerGeometry;
-  diagnosticStrokes: StrokeGeometry;
   /** Big-little-big sector wedges (screen-scaled fills), or empty when none. */
   diagnosticWedges: WedgeGeometry;
   /** The Oriedita operation-frame outline (dashed closed loop), or null when inactive. */
@@ -881,7 +880,6 @@ export function CreasePatternWebglCanvas({
   toolCommandPreviewPoints,
   toolPreviewColor,
   diagnosticMarkers,
-  diagnosticStrokes,
   diagnosticWedges,
   operationFrame,
   onZoomPercentChange,
@@ -3387,12 +3385,6 @@ export function CreasePatternWebglCanvas({
     );
     renderNowRef.current();
   }, [diagnosticMarkers, rendererGeneration]);
-  useEffect(() => {
-    rendererRef.current?.setDiagnosticStrokes(
-      diagnosticStrokes.count > 0 ? diagnosticStrokes : null
-    );
-    renderNowRef.current();
-  }, [diagnosticStrokes, rendererGeneration]);
   useEffect(() => {
     rendererRef.current?.setDiagnosticWedges(
       diagnosticWedges.count > 0 ? diagnosticWedges : null
