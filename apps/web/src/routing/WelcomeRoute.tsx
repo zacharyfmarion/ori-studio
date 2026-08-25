@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLandingSectionViewedEvents, useLandingViewedEvent } from '../analytics';
 import { FileDropOverlay } from '../components/FileDropOverlay';
-import { MobileLandingHeader } from '../components/landing/MobileLandingHeader';
 import {
   FIRST_LANDING_SECTION_ID,
   LANDING_SECTIONS,
@@ -52,12 +51,12 @@ function resetStatus(engineReady: boolean): AppStatus {
  * clears transient project state (a discarded dirty flag, a stale error/message)
  * so the start screen is a clean slate.
  *
- * A phone gets no start screen, no drop target, no "show welcome on startup"
- * toggle and no scroll cue. Not because it cannot reach a workspace — it can,
- * and the gate that said otherwise is gone — but because the desktop start
- * screen is a full-height hero with a 3D figure and three cards beside it, and
- * there is no file picker worth offering next to the OS one. It gets a masthead,
- * one button in, and then the landing. The landing itself is the same on both.
+ * Every device gets the same page. A phone used to get a compact masthead with a
+ * single "Open App (unoptimized on mobile)" button instead, and the start screen
+ * only appeared once you had clicked past it — so the three ways in and the
+ * "Show welcome on startup" toggle were behind a warning. The stylesheet already
+ * stacks the hero and the three actions into one column below 680px, which is
+ * what that click revealed; it is the default now.
  *
  * Whether a cold start lands here or straight in Edit is decided by the router's
  * index redirect (the "Show welcome on startup" preference), not this component —
@@ -66,10 +65,8 @@ function resetStatus(engineReady: boolean): AppStatus {
 export function WelcomeRoute() {
   const navigate = useNavigate();
   const pageRef = useRef<HTMLElement | null>(null);
-  // One question now. It used to be two — a `blocked` gate deciding what the
-  // page led with, and `phone` deciding how it laid out — and the gate is gone:
-  // a phone reaches the workspaces like anything else. What is left is the
-  // layout, which is a real difference and stays.
+  // Only for `data-surface`, which the landing sections below read. The page
+  // itself no longer branches on it.
   const phone = useIsPhoneSurface();
   const status = useWorkspaceStore((state) => state.status);
   const errorText = useWorkspaceErrorText();
@@ -113,29 +110,20 @@ export function WelcomeRoute() {
 
   return (
     <div
-      className={`app-layout app-layout--start${phone ? '' : ' file-drop-region'}`}
+      className="app-layout app-layout--start file-drop-region"
       data-surface={phone ? 'phone' : undefined}
-      {...(phone ? {} : dropTargetProps)}
+      {...dropTargetProps}
     >
       <main className="welcome-page" ref={pageRef}>
-        {phone ? (
-          // A phone gets a masthead and a way in, and the landing right under
-          // it. Not because the workspaces are closed to it — they are not any
-          // more — but because the desktop start screen is a full-height hero
-          // with a 3D figure and three cards beside it, which on a 375px screen
-          // is several screenfuls before the page says what it is.
-          <MobileLandingHeader onOpenApp={() => navigate(currentWorkspacePath())} />
-        ) : (
-          <StartScreen
-            status={status}
-            errorMessage={errorText}
-            onCreateCreasePattern={() => void handleCreateCreasePattern()}
-            onCreateDesign={() => void handleCreateDesign()}
-            onOpenFile={() => void handleOpenFile()}
-            showWelcomeOnStartup={showWelcomeOnStartup}
-            onToggleShowWelcomeOnStartup={setShowWelcomeOnStartup}
-          />
-        )}
+        <StartScreen
+          status={status}
+          errorMessage={errorText}
+          onCreateCreasePattern={() => void handleCreateCreasePattern()}
+          onCreateDesign={() => void handleCreateDesign()}
+          onOpenFile={() => void handleOpenFile()}
+          showWelcomeOnStartup={showWelcomeOnStartup}
+          onToggleShowWelcomeOnStartup={setShowWelcomeOnStartup}
+        />
         <WelcomeLanding />
       </main>
       {/*
@@ -143,14 +131,12 @@ export function WelcomeRoute() {
         hero there is no first screenful to get past — the landing is already
         the top of the page — so on a phone it would point at what is on screen.
       */}
-      {phone ? null : (
-        <WelcomeScrollCue
-          scrollerRef={pageRef}
-          targetId={FIRST_LANDING_SECTION_ID}
-          onActivate={() => trackCta('scroll')}
-        />
-      )}
-      {phone ? null : <FileDropOverlay visible={isDragActive} policy={WELCOME_DROP_POLICY} />}
+      <WelcomeScrollCue
+        scrollerRef={pageRef}
+        targetId={FIRST_LANDING_SECTION_ID}
+        onActivate={() => trackCta('scroll')}
+      />
+      <FileDropOverlay visible={isDragActive} policy={WELCOME_DROP_POLICY} />
     </div>
   );
 }

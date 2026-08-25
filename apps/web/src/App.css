@@ -31,9 +31,8 @@
 }
 
 /*
- * The welcome page's scroll container: on a desktop, one screenful of start
- * screen with the landing sections below it; on a phone, the landing straight
- * away.
+ * The welcome page's scroll container: one screenful of start screen, with the
+ * landing sections below it.
  *
  * The scrolling deliberately happens *here* and not on `.app-layout--start`,
  * which stays clipped at `100dvh`. `.file-drop-overlay` is absolutely positioned
@@ -57,8 +56,10 @@
 }
 
 /*
- * The first screenful, on a device that gets one. A phone has no hero at all —
- * the landing is the top of the page there — so this is the start screen only.
+ * The first screenful. Every device gets one — a phone used to get a compact
+ * masthead instead, and the start screen only after clicking past an
+ * "unoptimized on mobile" warning; the `max-width: 680px` block below is what
+ * makes it fit, by stacking the hero and the three actions into one column.
  *
  * `safe center` rather than plain centering: when the content is taller than the
  * viewport, centering pushes its top above the scroll origin where nothing can
@@ -76,108 +77,6 @@
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--bg-secondary) 88%, var(--bg-primary)), var(--bg-primary)),
     var(--bg-primary);
-}
-
-/*
- * The phone's page header: a way into the app, the masthead, then the folded
- * figure.
- *
- * The bar has real space under it. The button used to sit flush on the first
- * section's top border, which read as a rendering mistake rather than a divider.
- *
- * The whole header is bounded to the viewport so its three parts land above the
- * fold together. `100svh` and not `100vh`: on a phone the large viewport unit
- * measures the screen with the browser's own chrome retracted, which it is not
- * on arrival, so `vh` here would push the tagline under the address bar on the
- * one visit that matters.
- */
-.welcome-mobile-header {
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
-  gap: var(--space-4);
-  max-height: 100svh;
-  padding: var(--space-3) var(--space-5) var(--space-6);
-}
-
-/*
- * The figure's share of the header.
- *
- * The third term is what keeps the masthead above the fold: the figure is
- * square, so capping its *width* by the height left over after everything else
- * caps its height too. Without it `aspect-ratio` sizes purely from width and the
- * header runs past the bottom of a short phone, taking the tagline with it —
- * a grid row of `1fr` does not help, because the aspect ratio wins over it.
- *
- * 300px is measured, not guessed: the bar, the masthead and this element's own
- * gaps and padding come to just under it at the type sizes above.
- *
- * `svh` and not `vh`: the large viewport unit measures the screen with the
- * browser's chrome retracted, which it is not on arrival — the one visit where
- * being above the fold matters.
- */
-.welcome-mobile-header__figure {
-  justify-self: center;
-  align-self: center;
-  width: min(100%, 320px, calc(100svh - 300px));
-  /* A floor, so the figure stays a folded object rather than a mark on a very
-     short screen. Below this it is allowed to push the tagline down: unreadable
-     and above the fold is worse than readable and just under it. */
-  min-width: 150px;
-  aspect-ratio: 1;
-}
-
-.welcome-mobile-header__bar {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.welcome-mobile-header__open {
-  padding: 8px 14px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-full);
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  font-family: inherit;
-  font-size: 0.78rem;
-  font-weight: 640;
-  line-height: 1.2;
-  cursor: pointer;
-}
-
-.welcome-mobile-header__open:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent-primary) 72%, transparent);
-  outline-offset: 2px;
-}
-
-.welcome-mobile-header__brand {
-  display: grid;
-  justify-items: start;
-  gap: var(--space-3);
-}
-
-.welcome-mobile-header__icon {
-  display: block;
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
-}
-
-.welcome-mobile-header__title {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: clamp(2.4rem, 12vw, 3.2rem);
-  font-weight: 780;
-  line-height: 1;
-  letter-spacing: -0.01em;
-}
-
-.welcome-mobile-header__tagline {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 1rem;
-  font-weight: 520;
-  line-height: 1.5;
-  text-wrap: balance;
 }
 
 .start-screen__content {
