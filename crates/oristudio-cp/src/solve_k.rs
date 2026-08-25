@@ -44,24 +44,19 @@
 //! elimination in [`solve_two`] would divide by ~0. [`solve_parallel_pair`] is
 //! that arm.
 //!
-//! # The rank test is sound in one direction only
+//! # The rank is right about the geometry and answers the wrong question
 //!
-//! Full rank implies an isolated root. **Rank deficiency does not imply a
-//! family**, and this code reads it as though it does — `isolated: rank ==
-//! unknowns.len()`.
+//! Rank deficiency really does mean a flat direction — [`solve_parallel_pair`]
+//! is correct that a collinear pair's solution set is a line, and the residual
+//! is measurably zero along it. What does not follow is that the *user* has a
+//! continuum to choose from.
 //!
-//! The gap is that [`closure_jacobian`] differentiates the *vector* part of the
-//! closure quaternion and drops `w`. Near `q = 1` that is the closure condition
-//! to first order, so it is the right thing to *solve* on. It is the wrong thing
-//! to test *uniqueness* with, because `w` is what separates a closed vertex from
-//! one whose product is `-1` — see [`crate::checks_spatial::quat_residual`].
-//!
-//! Measured on a square with both diagonals creased, one decided and the other
-//! two halves unknown: the only closures are `(-180, -180)` and `(+180, +180)`,
-//! the residual rises linearly away from each, and the two Jacobian rows are the
-//! *same vector* at every angle sampled. Rank 1, two isolated roots, verdict
-//! `Underdetermined`, answers discarded. See
-//! `implementation-plans/collinear-unknown-isolation.md`.
+//! Every member of that line except the endpoint needs an angle past ±180, and
+//! [`crate::geometry::LineSegment::with_signed_fold_angle`] refuses those. So
+//! the family cannot be stored, drawn or exported, and reporting
+//! `Underdetermined` because of it declines a vertex whose only *reachable*
+//! answers are a two-way mountain/valley choice. See [`is_isolated`], and
+//! `implementation-plans/collinear-unknown-isolation.md` for the measurements.
 //!
 //! # `+180` and `-180` are the same rotation and different creases
 //!
@@ -477,7 +472,7 @@ pub fn solve_k_in(
                 .zip(&snapped)
                 .map(|(position, degrees)| (fan.sources[*position], *degrees))
                 .collect(),
-            isolated: rank == unknowns.len(),
+            isolated: is_isolated(fan, unknowns, &snapped, rank),
             residual_degrees: residual,
             jacobian_rank: rank,
         };
@@ -815,12 +810,11 @@ fn solve_two(reduced: &Reduced) -> Vec<Vec<f64>> {
 /// would divide by ~0 here rather than rarely. Sampling the line gives the
 /// refinement something to start from, which is all this arm claims.
 ///
-/// **It does not follow that the answer is a family.** That line solves the
-/// vector-part system; closure also requires the scalar part, and on the
-/// reported vertex only two points on it close. The doc here used to say the
-/// solution set *is* the line and that "the rank test downstream reports it
-/// honestly as a family" — the rank test cannot tell a family from an isolated
-/// root it happens to be blind to. See
+/// The line is real — the residual is measurably zero along it. What the old
+/// wording added, and [`is_isolated`] now takes back, is that the rank test
+/// "reports it honestly as a family": most of that line lies outside ±180, which
+/// is not a range this model can store, so a vertex whose reachable answers are
+/// just the two endpoints was being declined as a continuum. See
 /// `implementation-plans/collinear-unknown-isolation.md`.
 fn solve_parallel_pair(reduced: &Reduced) -> Vec<Vec<f64>> {
     let u1 = reduced.axes[0];
@@ -939,6 +933,126 @@ fn closure_jacobian(fan: &SolveFan, unknowns: &[usize], angles: &[f64]) -> Vec<[
             ]
         })
         .collect()
+}
+
+/// How far from a solution the flatness probe looks, in degrees, and the
+/// residual that counts as "this direction climbs".
+///
+/// Three radii rather than one, and **isolation must hold at every one**. The
+/// classifier disagreed with itself across radii on 70 of 1,038 scraped-corpus
+/// vertices — a shallow curved valley reads as flat close in and as climbing
+/// further out — and the safe reading of a disagreement is the one that keeps
+/// today's behaviour, which is to decline. So an ambiguous vertex stays
+/// `Underdetermined`, exactly as before this probe existed.
+///
+/// How far from an answer the flatness probe looks, in degrees.
+///
+/// Three radii, and isolation must hold at **every** one, so a shallow curved
+/// valley that reads flat close in cannot pass by being sampled at one distance.
+const FLATNESS_RADII_DEGREES: [f64; 3] = [0.1, 0.5, 5.0];
+
+/// The bar **scales with the radius**, and must: on an isolated root the
+/// residual rises at roughly the probe radius itself, so at 0.1 degrees out it
+/// has climbed only 0.1 degrees. A fixed bar rejects every root at the small
+/// radii and the probe recovers nothing. A tenth of the radius separates the two
+/// populations by an order of magnitude either way, with an absolute floor so
+/// the smallest radius cannot be answered by storage noise.
+const FLATNESS_SLOPE: f64 = 0.1;
+const FLATNESS_FLOOR_DEGREES: f64 = 0.05;
+
+/// Does the residual climb in every direction away from this answer that the
+/// document could actually store?
+///
+/// # The rank is right about the geometry and wrong about the question
+///
+/// When two unknown creases are collinear their rotation axes are antiparallel,
+/// [`closure_jacobian`]'s rows coincide, and the rank is deficient. That is not
+/// a defect: [`solve_parallel_pair`] is correct that the solution set is the
+/// line `rho_2 = total -/+ rho_1`, and the flat direction is really there. On
+/// the reported square-with-both-diagonals the residual is **exactly zero**
+/// along `(-0.707, +0.707)` out of `(-180, -180)`, at every radius sampled.
+///
+/// **But every member of that line except the endpoint needs an angle past
+/// ±180**, and [`crate::geometry::LineSegment::with_signed_fold_angle`] refuses
+/// those — "a caller offering one has a bug". So the family is unreachable: it
+/// cannot be stored, drawn, exported, or meant. Splitting the same probe by
+/// domain says it plainly, at the reported vertex:
+///
+/// ```text
+/// radius  0.1: in-domain dirs  9 min   0.100000 | out-of-domain min   0.000000
+/// radius  5.0: in-domain dirs  9 min   5.000000 | out-of-domain min   0.000000
+/// ```
+///
+/// Nine of thirty-two directions stay representable, and the answer climbs at
+/// the full probe radius in all nine. Judged on what the model can hold, the
+/// root is isolated and the user has a real mountain/valley choice — which the
+/// rank test was answering "family" to, so propagation declined a vertex it had
+/// already solved.
+///
+/// Full rank still implies isolation, so it stays the cheap first answer and
+/// this only runs when the rank is deficient. At k = 1 the rank is 1 whenever
+/// the answer is real, so the live check never pays for it.
+fn is_isolated(fan: &SolveFan, unknowns: &[usize], degrees: &[f64], rank: usize) -> bool {
+    if rank == unknowns.len() {
+        return true;
+    }
+    FLATNESS_RADII_DEGREES.iter().all(|&radius| {
+        let bar = (radius * FLATNESS_SLOPE).max(FLATNESS_FLOOR_DEGREES);
+        let mut representable = 0usize;
+        let climbs = flatness_directions(unknowns.len()).iter().all(|direction| {
+            let probed: Vec<f64> = degrees
+                .iter()
+                .zip(direction)
+                .map(|(value, step)| value + radius * step)
+                .collect();
+            // Skipped, not counted as flat. A direction leaving the storable
+            // range is not an answer that was passed over.
+            if probed.iter().any(|value| value.abs() > 180.0 + 1e-9) {
+                return true;
+            }
+            representable += 1;
+            residual_degrees_of(fan, unknowns, &probed) > bar
+        });
+        // No representable neighbours at all means nothing was tested, and
+        // "untested" must not read as "isolated".
+        climbs && representable > 0
+    })
+}
+
+/// Unit directions to probe, for `k` unknowns.
+///
+/// Dense enough that a flat valley cannot slip between two of them: at k = 2
+/// that is 32 around a circle, 11.25 degrees apart. Missing one would be the
+/// dangerous error — it turns a family into a committed answer — where an extra
+/// direction only costs a quaternion product on a vertex that is already rare.
+///
+/// k = 3 gets the 26 sign-and-axis combinations of a cube, coarser and
+/// deliberately so: k = 3 is delegated to `solve_fold_angles` before reaching
+/// here, so this arm is unreachable today and exists to avoid a silent wrong
+/// answer if that ever changes. k >= 4 never reaches the solver at all.
+fn flatness_directions(k: usize) -> Vec<Vec<f64>> {
+    if k == 2 {
+        return (0..32)
+            .map(|step| {
+                let phi = std::f64::consts::TAU * f64::from(step) / 32.0;
+                vec![phi.cos(), phi.sin()]
+            })
+            .collect();
+    }
+    let mut out = Vec::new();
+    let steps = [-1.0_f64, 0.0, 1.0];
+    for x in steps {
+        for y in steps {
+            for z in steps {
+                let length = (x * x + y * y + z * z).sqrt();
+                if length == 0.0 {
+                    continue;
+                }
+                out.push([x, y, z].iter().take(k).map(|v| v / length).collect());
+            }
+        }
+    }
+    out
 }
 
 fn rank_at(fan: &SolveFan, unknowns: &[usize], degrees: &[f64]) -> usize {
@@ -1086,6 +1200,99 @@ fn snap_to_the_coarsest_grid_that_closes(
 
 #[cfg(test)]
 mod tests {
+    /// A degree-4 vertex of two straight lines crossing, one decided, the other
+    /// two halves unknown. The reported shape: a square with both diagonals.
+    fn crossed_diagonals(known: (f64, f64)) -> (SolveFan, Vec<usize>) {
+        let bearings = [-135.0_f64, -45.0, 45.0, 135.0];
+        let fan = SolveFan {
+            point: crate::geometry::Point::new(0.0, 0.0),
+            creases: vec![
+                (bearings[0].to_radians(), Some(known.0.to_radians())),
+                (bearings[1].to_radians(), None),
+                (bearings[2].to_radians(), Some(known.1.to_radians())),
+                (bearings[3].to_radians(), None),
+            ],
+            sources: vec![0, 1, 2, 3],
+            unsplit_junction: false,
+        };
+        (fan, vec![1, 3])
+    }
+
+    /// Two collinear unknowns make [`closure_jacobian`]'s rows coincide, so the
+    /// rank is deficient and every answer used to be called a family. The flat
+    /// direction is real — the residual is exactly zero along `(-0.707, +0.707)`
+    /// — but it runs straight out of the storable range, and an angle past ±180
+    /// is one `with_signed_fold_angle` refuses to write.
+    ///
+    /// So the user has a genuine mountain/valley choice here, and propagation
+    /// used to decline a vertex it had already solved. Reported as: a flat
+    /// square with both diagonals creased, one decided, and clicking the centre
+    /// doing nothing.
+    #[test]
+    fn a_family_that_leaves_the_storable_range_is_not_a_choice_the_user_has() {
+        let bar = crate::CLOSURE_RESIDUAL_BAR_DEGREES.to_radians();
+        // Every decided pair that still admits the full folds, so the recovery
+        // is not an artefact of one arrangement.
+        for known in [
+            (-180.0_f64, 180.0_f64),
+            (-90.0, 90.0),
+            (-45.0, 45.0),
+            (-120.0, 120.0),
+        ] {
+            let (fan, unknowns) = crossed_diagonals(known);
+            let report = super::solve_k_in(&fan, &unknowns, bar, true);
+            assert_eq!(
+                report.verdict,
+                Determinacy::Branching,
+                "knowns {known:?} should be a two-way choice, not a family"
+            );
+            assert!(
+                report.solutions.iter().all(|answer| answer.isolated),
+                "knowns {known:?}: every answer is isolated within the storable range"
+            );
+            let angles: Vec<(f64, f64)> = report
+                .solutions
+                .iter()
+                .map(|answer| (answer.angles[0].1, answer.angles[1].1))
+                .collect();
+            assert_eq!(angles, vec![(-180.0, -180.0), (180.0, 180.0)]);
+        }
+
+        // The reported arrangement specifically, where the rank *is* deficient:
+        // the recovery has to come from the probe rather than from the rank test
+        // quietly agreeing, or this test would pass without the fix.
+        let (fan, unknowns) = crossed_diagonals((-180.0, 180.0));
+        let report = super::solve_k_in(&fan, &unknowns, bar, true);
+        assert!(
+            report
+                .solutions
+                .iter()
+                .all(|answer| answer.jacobian_rank < unknowns.len()),
+            "the reported vertex is rank-deficient; that is the case under test"
+        );
+    }
+
+    /// The other half, and the reason the probe cannot simply trust collinearity:
+    /// an *uncreased* sheet with one straight line through it folds by any angle,
+    /// and every one of those angles is storable. That is a real family and it
+    /// must keep declining.
+    #[test]
+    fn a_family_that_stays_in_range_still_declines() {
+        let bar = crate::CLOSURE_RESIDUAL_BAR_DEGREES.to_radians();
+        let (fan, unknowns) = crossed_diagonals((0.0, 0.0));
+        let report = super::solve_k_in(&fan, &unknowns, bar, true);
+        assert_eq!(report.verdict, Determinacy::Underdetermined);
+        assert!(
+            report.solutions.len() > 2,
+            "a swept family, not a pair: {} answers",
+            report.solutions.len()
+        );
+        assert!(
+            report.solutions.iter().all(|answer| !answer.isolated),
+            "no member of a reachable family is isolated"
+        );
+    }
+
     use super::{Determinacy, SolveFan, solve_fan_at, solve_k};
     use crate::CLOSURE_RESIDUAL_BAR_DEGREES;
     use crate::geometry::{LineColor, LineSegment, Point};
