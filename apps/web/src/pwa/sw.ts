@@ -1,0 +1,444 @@
+/**
+ * The Ori Studio service worker. Bundled to `dist/sw.js` by `oriServiceWorker()`
+ * in `vite.config.ts`, which is also where its manifest is injected.
+ *
+ * This file is wiring. Every decision it makes is in `swRoutes.ts`, which is
+ * pure and has tests; what is here is the `Cache` plumbing those decisions drive,
+ * plus the two invariants below, which are the reason the worker is hand-written
+ * rather than generated.
+ *
+ * ## 1. Never build a `Response`
+ *
+ * The document's cross-origin isolation is decided by the headers on whatever
+ * `Response` object reaches `respondWith` — HTML's *obtain an embedder policy*
+ * reads `Cross-Origin-Embedder-Policy` off the response's header list and does
+ * not care whether it came from the network or from here. So a
+ * `new Response(body)` silently drops `COOP`/`COEP`, and with them
+ * `SharedArrayBuffer` — which is the channel `lib/foldCancellation.ts` uses to
+ * stop a running fold. Nothing throws; the Stop button just reports itself
+ * unavailable.
+ *
+ * Measured, in Playwright WebKit 26.4 and Chromium 148, against a page served
+ * with both headers:
+ *
+ * | worker returns                        | 1st load | 2nd load |
+ * | ------------------------------------- | -------- | -------- |
+ * | the cached `Response` untouched       | isolated | isolated |
+ * | `new Response(body, {headers})`       | isolated | isolated |
+ * | `new Response(body)`                  | isolated | **not**  |
+ *
+ * Note the second column. The first load is still isolated because the cache was
+ * empty and the network response passed through — so a smoke test that loads
+ * once and reloads once passes. `scripts/webkit-pwa-check.mjs` asserts on the
+ * *second* load for exactly this reason.
+ *
+ * Cache Storage preserves both headers verbatim, so replaying a hit as-is is
+ * safe. This file therefore only ever returns a `Response` it got from `fetch`
+ * or from `Cache.match`, and constructs none.
+ *
+ * ## 2. One cache, pruned by manifest — not a cache per build
+ *
+ * Cloudflare Pages deploys on every merge, and `/assets/` names are content
+ * hashed, so entries from two builds can never collide. Keying the cache on the
+ * build id would therefore re-download every unchanged byte — including the
+ * 2.2 MB CP kernel, which changes rarely — on every deploy. Instead there is one
+ * cache, and `activate` deletes the `/assets/` entries this build did not emit.
+ *
+ * ## 3. Nothing is precached on install
+ *
+ * This started as an install-time precache of the editor's cold-start set, which
+ * is what every guide to writing one of these says to do. Measured against the
+ * real build, in both engines, counting requests the server actually received on
+ * a first visit:
+ *
+ * | engine   | bytes re-downloaded by the precache |
+ * | -------- | ----------------------------------- |
+ * | Chromium | 0                                   |
+ * | WebKit   | **5.83 MB** (every entry, twice)    |
+ *
+ * A service-worker `fetch()` in WebKit 26.4 does not read the page's HTTP cache,
+ * so `install` refetched the entry chunk, the CSS, the CP worker and the 2.2 MB
+ * CP kernel that the page had just downloaded — and delaying the install by six
+ * seconds changed nothing, so it is not a race. Chromium serves all of it from
+ * the HTTP cache and pays nothing.
+ *
+ * Which puts the whole cost on the platform this exists for: a tablet, often on
+ * cellular. And it bought nothing — a first visit registers on `load`, so the
+ * page has already fetched everything by the time the worker can claim it, and
+ * the precached subset was never enough to boot offline on its own anyway.
+ * Everything the app touches is cached by the first *controlled* load instead,
+ * for free, because those responses were being fetched regardless.
+ *
+ * The practical shape: install, launch once online, offline works from then on.
+ * For a home-screen app the launch after installing is that load.
+ *
+ * ## 4. Except the worker scripts, which are warmed on a load this worker serves
+ *
+ * Invariant 3 rests on "the page fetches it, so we see it and store it", and
+ * there is exactly one thing a controlled page fetches that this worker never
+ * sees: the script passed to `new Worker()`. Measured on the reload that fills
+ * the cache — WebKit answers that one request out of the web process's own
+ * in-memory resource cache, with no network request and **no `fetch` event**,
+ * while every other asset on the same load goes through here and is stored. The
+ * result was a cache holding all seventeen entries the page needs bar one.
+ *
+ * That one is `oristudioCpWorker`, which is the editor. Offline start then does
+ * something worse than fail: `shellFirst` finds the shell and the entry chunk
+ * cached, serves them, React renders — and the CP worker cannot be constructed.
+ * A dead editor, rather than the browser's offline page. Reproduced by launching
+ * offline in a *fresh* page, which is what a relaunch is and what the in-process
+ * cache above does not survive: shell renders, `#root` fills, the request for
+ * `/assets/oristudioCpWorker-*.js` fails, no canvas.
+ *
+ * So `manifest.workers` is fetched and stored here instead. Three things keep
+ * that from being the precache invariant 3 removed:
+ *
+ * - **It is triggered by a navigation this worker handled**, which a first visit
+ *   does not have — the page was uncontrolled when it navigated, and registers
+ *   only on `load`. Measured against this build, warm on and warm off: a first
+ *   visit is byte-identical either way, 7 asset requests and 7,138,573 B with
+ *   nothing fetched twice. The cost lands on the second load — 7,099,526 B →
+ *   7,287,280 B, **+187,754 B**, which is the five files exactly.
+ * - **That is 2.6% of the load it lands on**, against 5.83 MB for the precache,
+ *   and unlike the precache it is the only way those bytes reach the cache at all.
+ * - **It is sequential**, so it takes one connection at a time from a page that
+ *   is still loading rather than five.
+ *
+ * All five, not the two `/edit` happens to construct: a warm that covered only
+ * the editor would leave the Design and Simulate workspaces failing offline in
+ * exactly the way described above. Which worker scripts exist is a build fact;
+ * which ones a given route constructs is a runtime accident that changes the
+ * next time someone moves an import.
+ *
+ * A fresh page *does* reach this worker for a worker script — that is how the
+ * failure above was reproduced — so a later online relaunch would eventually
+ * store it unprompted. That is not a guarantee worth resting offline start on:
+ * it needs a relaunch, while online, before the first launch without a network.
+ *
+ * ## 5. The first session has to be told to keep a copy
+ *
+ * **Invariant 3's "practical shape" was wrong, and this is the correction.** It
+ * claimed "install, launch once online, offline works from then on", on the
+ * reasoning that a controlled load stores everything for free. The first half of
+ * that is true; the second does not follow. Registration happens on `load`, so a
+ * first visit fetches its whole cold-start set *before* the worker exists —
+ * shell, entry chunk, stylesheet, CP worker, CP kernel — and none of it is ever
+ * seen. Measured on the real build, the cache after one online session held
+ * **two entries**: the TreeMaker worker and its kernel, and only because
+ * `initEngine` happens to fetch them late enough to land after `clients.claim()`.
+ *
+ * The next launch offline then fails on the navigation itself. Reported from a
+ * phone in airplane mode as *"Safari can't open the page. FetchEvent.respondWith
+ * received an error: TypeError: Load failed"* — which is `shellFirst` finding no
+ * shell and rethrowing. Every offline check in the WebKit lane passed anyway,
+ * because the lane reloads before going offline and the second load *is*
+ * controlled. So the doc promised one online session, the lane tested two, and
+ * the difference was exactly the bug.
+ *
+ * So the cold-start set is warmed explicitly, and the page decides what is in
+ * it: it sends `performance.getEntriesByType('resource')` once it is idle, which
+ * is the only source that knows what this build's routes actually load — the
+ * manifest lists every asset the *build* emitted, most of which nobody fetches.
+ * The worker adds the shell and the two lists the page cannot see (invariants 4
+ * and 6), and stores whatever it is missing.
+ *
+ * **This costs a first visit real bytes, and that is the trade being made.** A
+ * service-worker `fetch()` in WebKit does not read the page's HTTP cache, so
+ * warming re-downloads what the page just fetched; invariant 3 measured that at
+ * 5.83 MB and rejected it. What it bought instead was an app that is not offline
+ * capable until its second load, which is not the feature. The difference from
+ * the arrangement invariant 3 rejected is *when*: `install` fires during the
+ * load and competes with first paint, `requestIdleCallback` fires after it. Same
+ * bytes, off the critical path, and only ever on the visit that has no copy yet
+ * — every later one finds the cache warm and fetches nothing.
+ *
+ * `Save-Data` declines it (see `register.ts`), which leaves that user exactly
+ * where the old behaviour left everyone.
+ *
+ * ## 6. The engine kernels ride along
+ *
+ * One class of asset is fetched only if the session happened to *use* that
+ * engine: the wasm kernels. `initEngine` pulls the CP and TreeMaker bridges at
+ * boot, so any session that reached a workspace loads those two. The box-pleat
+ * kernel is fetched when the first BP document is created, and the detector's
+ * not at all.
+ *
+ * So an app whose only session opened the Edit canvas would have every kernel it
+ * needs bar box-pleat, and offline, choosing "Box-pleated" hit a `cacheFirst`
+ * miss and a `fetch` that could not resolve. Also reported from a real device.
+ * They are in the warm set for that reason, and the page cannot name them
+ * because it never fetched them.
+ */
+
+import {
+  isShellResponse,
+  isStorableResponse,
+  isWarmablePath,
+  routeRequest,
+  shellEntryPath,
+  WARM_COLD_START,
+  type ServiceWorkerManifest,
+} from './swRoutes';
+
+/** Injected by `oriServiceWorker()` at build time. */
+declare const __ORI_SW_MANIFEST__: ServiceWorkerManifest;
+
+/**
+ * The service-worker globals this file touches.
+ *
+ * Declared here rather than pulled in from `lib.webworker.d.ts`: that lib
+ * redeclares `self`, `caches`, `fetch` and friends with worker types, and adding
+ * it to a project whose `lib` includes `DOM` makes every one of them a duplicate
+ * identifier. Everything else the worker uses — `Cache`, `Request`, `Response`,
+ * `URL` — is in the DOM lib already and identical in both.
+ */
+interface ExtendableEventLike {
+  waitUntil(promise: Promise<unknown>): void;
+}
+
+interface FetchEventLike extends ExtendableEventLike {
+  readonly request: Request;
+  respondWith(response: Response | Promise<Response>): void;
+}
+
+interface MessageEventLike extends ExtendableEventLike {
+  readonly data: unknown;
+}
+
+interface ServiceWorkerGlobalScopeLike {
+  readonly clients: { claim(): Promise<void> };
+  readonly location: Location;
+  addEventListener(
+    type: 'install' | 'activate',
+    listener: (event: ExtendableEventLike) => void
+  ): void;
+  addEventListener(type: 'fetch', listener: (event: FetchEventLike) => void): void;
+  addEventListener(type: 'message', listener: (event: MessageEventLike) => void): void;
+}
+
+const worker = self as unknown as ServiceWorkerGlobalScopeLike;
+
+const manifest = __ORI_SW_MANIFEST__;
+const uncacheable = new Set(manifest.uncacheable);
+const currentAssets = new Set(manifest.assets);
+
+/**
+ * Bumped by hand, and only when the *shape* of what is stored changes. The build
+ * id deliberately does not appear: see invariant 2 above.
+ */
+const CACHE_NAME = 'oristudio-v1';
+
+/**
+ * The offline fallback's key. `/` rather than `/index.html` because Pages
+ * redirects the latter, and a redirected response cannot be replayed to a
+ * navigation.
+ */
+const SHELL_KEY = '/';
+
+/** Swallow a cache write. Quota is the caller's problem, not the page's. */
+async function put(cache: Cache, key: RequestInfo, response: Response): Promise<void> {
+  try {
+    await cache.put(key, response);
+  } catch {
+    // Out of quota, or a response the cache refuses. Either way the network
+    // answer already went to the page; there is nothing to recover.
+  }
+}
+
+/**
+ * Fetch and store paths the page cannot store for us.
+ *
+ * Sequential, and each entry is checked before it is fetched — so this takes one
+ * connection at a time from a page that may still be loading, and a later call
+ * over a warm cache reaches the network not at all. That check is what makes
+ * this cheap on every visit but the first.
+ *
+ * `cache: 'force-cache'` asks the HTTP cache before the network. It is not
+ * enough on its own — WebKit answers a service-worker `fetch()` from a separate
+ * partition, which is the measurement behind invariant 3 — but it costs nothing
+ * to ask, and on Chromium it turns the whole warm into zero network traffic.
+ */
+async function storeAll(paths: readonly string[]): Promise<void> {
+  const cache = await caches.open(CACHE_NAME);
+  for (const path of paths) {
+    if (await cache.match(path)) continue;
+    const response = await fetch(path, { cache: 'force-cache' });
+    // The shell is the one entry whose *kind* matters: a redirect or an error
+    // page stored under `/` would be replayed to every offline navigation.
+    if (path === SHELL_KEY ? isShellResponse(response) : isStorableResponse(response)) {
+      await put(cache, path, response);
+    }
+  }
+}
+
+/** One warm per set per worker lifetime, in flight or finished. */
+const warming = new Map<string, Promise<void>>();
+
+function warmOnce(key: string, paths: readonly string[]): Promise<void> {
+  const existing = warming.get(key);
+  if (existing) return existing;
+  const started = storeAll(paths).catch(() => {
+    // Woke up offline, or a deploy moved these paths mid-flight. Forget the
+    // attempt, so the next trigger tries again rather than this worker spending
+    // its life believing it has warmed.
+    warming.delete(key);
+  });
+  warming.set(key, started);
+  return started;
+}
+
+/** Drop `/assets/` entries this build did not emit — i.e. the previous build's. */
+async function pruneStaleAssets(): Promise<void> {
+  const cache = await caches.open(CACHE_NAME);
+  const keys = await cache.keys();
+  await Promise.all(
+    keys.map(async (request) => {
+      const path = new URL(request.url).pathname;
+      if (!path.startsWith('/assets/') || currentAssets.has(path)) return;
+      await cache.delete(request);
+    })
+  );
+}
+
+/**
+ * Network first, cached shell second.
+ *
+ * This is what stops a service worker from stranding anyone on an old build. The
+ * HTML is fetched fresh on every navigation, so a deploy is picked up on the
+ * *first* launch after it, and the new hashed asset URLs it names miss the cache
+ * and go to the network by themselves. Pages serves HTML `max-age=0,
+ * must-revalidate` with an ETag, so online this is usually a 304.
+ */
+async function shellFirst(request: Request): Promise<Response> {
+  try {
+    const response = await fetch(request);
+    if (isShellResponse(response)) {
+      const copy = response.clone();
+      void caches.open(CACHE_NAME).then((cache) => put(cache, SHELL_KEY, copy));
+    }
+    return response;
+  } catch (error) {
+    const cache = await caches.open(CACHE_NAME);
+    const shell = await cache.match(SHELL_KEY);
+    // Both, not just the shell. A cache holding `index.html` but not the script
+    // it loads — a tab closed halfway through its first controlled load, or a
+    // rollback whose assets this worker pruned — would otherwise "work" offline
+    // by rendering an empty `<div id="root">` and failing silently. The
+    // browser's own offline page is better than that.
+    //
+    // The entry asked for is the one the *cached shell* names, not this build's:
+    // see `shellEntryPath`, and the sequence it was written against. Reading the
+    // clone leaves `shell` itself untouched, which invariant 1 requires — what
+    // is returned has to be the cached `Response`, headers and all.
+    if (shell) {
+      const html = await shell.clone().text();
+      if (await cache.match(shellEntryPath(html, manifest.entry))) return shell;
+    }
+    // Rethrow so the browser shows its offline page. A hand-written one would
+    // be the `new Response` trap in invariant 1.
+    throw error;
+  }
+}
+
+/** Cache first. Sound only for content-hashed names, which is where it is used. */
+async function cacheFirst(request: Request): Promise<Response> {
+  const cache = await caches.open(CACHE_NAME);
+  const hit = await cache.match(request);
+  if (hit) return hit;
+  const response = await fetch(request);
+  if (isStorableResponse(response)) {
+    const copy = response.clone();
+    void put(cache, request, copy);
+  }
+  return response;
+}
+
+/**
+ * Serve the cached copy, refresh it behind the page. For the unhashed files
+ * under `public/` — locales, images, the manifest — where cache-first would
+ * pin a translation fix behind a cache nobody can clear.
+ */
+async function staleWhileRevalidate(event: FetchEventLike): Promise<Response> {
+  const cache = await caches.open(CACHE_NAME);
+  const hit = await cache.match(event.request);
+  const update = fetch(event.request).then(async (response) => {
+    if (isStorableResponse(response)) await put(cache, event.request, response.clone());
+    return response;
+  });
+  if (!hit) return update;
+  // Legal after the `await`s above: a `FetchEvent` stays active while the
+  // promise handed to `respondWith` is pending, and this is that promise.
+  event.waitUntil(update.catch(() => undefined));
+  return hit;
+}
+
+// No `install` listener: there is nothing to do there (invariant 3), and an
+// empty one would only suggest otherwise.
+
+worker.addEventListener('activate', (event) => {
+  event.waitUntil(
+    (async () => {
+      await pruneStaleAssets();
+      // Claim the page that registered us, so whatever it fetches from here on
+      // — the locale catalogs, a lazily imported chunk — is already cached
+      // rather than waiting for the next load. There is deliberately no
+      // `skipWaiting()` anywhere in this file: swapping the controller
+      // mid-session can hand a running page chunks from a different build, and
+      // network-first navigation already means nobody is waiting on it for
+      // fresh content.
+      await worker.clients.claim();
+    })()
+  );
+});
+
+/**
+ * The one message this worker answers: the page reporting that it is idle, with
+ * the list of what it loaded. Invariants 5 and 6.
+ *
+ * Three sources, because no one of them knows the whole set. The page knows what
+ * its routes actually fetched, which the manifest cannot — the manifest is every
+ * asset the *build* emitted. The worker knows the shell, which the page fetched
+ * as a navigation before this worker existed. And the manifest knows the
+ * `new Worker()` scripts and the engine kernels, which the page never fetched
+ * over the network at all.
+ *
+ * Paths from the page are validated, not trusted (`isWarmablePath`): a message
+ * is a message, and cache-first is the wrong policy for anything that is not
+ * content-hashed build output.
+ *
+ * Everything else is ignored rather than logged — a page can post anything, and
+ * an unknown message is not an error worth carrying a branch for.
+ */
+worker.addEventListener('message', (event) => {
+  const data = event.data as { type?: unknown; paths?: unknown } | null;
+  if (data?.type !== WARM_COLD_START) return;
+  const fromPage = Array.isArray(data.paths) ? data.paths.filter(isWarmablePath) : [];
+  event.waitUntil(
+    warmOnce('cold-start', [
+      SHELL_KEY,
+      ...new Set([...fromPage, ...manifest.workers, ...manifest.kernels]),
+    ])
+  );
+});
+
+worker.addEventListener('fetch', (event) => {
+  const route = routeRequest(event.request, worker.location.origin, uncacheable);
+  switch (route) {
+    case 'shell':
+      // A navigation reaching here is a load this worker already controls, so
+      // it is never the first visit — which is the whole of why warming the
+      // worker scripts costs a first visit nothing. Invariant 4.
+      event.waitUntil(warmOnce('workers', manifest.workers));
+      event.respondWith(shellFirst(event.request));
+      return;
+    case 'immutable':
+      event.respondWith(cacheFirst(event.request));
+      return;
+    case 'revalidate':
+      event.respondWith(staleWhileRevalidate(event));
+      return;
+    case 'bypass':
+      // No `respondWith`: the browser fetches it, exactly as with no worker.
+      return;
+  }
+});

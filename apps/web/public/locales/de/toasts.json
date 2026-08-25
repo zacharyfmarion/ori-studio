@@ -23,6 +23,12 @@
     "failed": "Diese Ansicht konnte nicht exportiert werden",
     "saved": "{{name}} exportiert"
   },
+  "update": {
+    "available": "Version {{version}} ist verfügbar",
+    "checkFailed": "Nach Updates konnte nicht gesucht werden",
+    "checkFailedHint": "Ori Studio konnte den Update-Server nicht erreichen. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+    "upToDate": "Ori Studio ist auf dem neuesten Stand"
+  },
   "upright": {
     "set": "Oben-Richtung festgelegt — zum Drehen darum ziehen"
   }

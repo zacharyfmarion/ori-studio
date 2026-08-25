@@ -12,6 +12,7 @@
     "applyVoronoi": "Appliquer Voronoi",
     "ariaLabel": "Options de l'outil de patron de plis",
     "autoNearest": "Plus proche automatique",
+    "cancelInput": "Annuler cette étape",
     "candidate": "Candidat",
     "candidateIndex": "Index du candidat",
     "circleColor": "Couleur du cercle",
@@ -195,6 +196,7 @@
     "width": "Largeur"
   },
   "cpRail": {
+    "addToSelection": "Ajouter à la sélection",
     "ariaLabel": "Outils de patron de plis",
     "openEditableFirst": "Ouvrez d'abord un patron de plis modifiable"
   },
@@ -204,6 +206,11 @@
     "label": "Options de l'outil",
     "next": "Option suivante",
     "previous": "Option précédente"
+  },
+  "cpToolPicker": {
+    "close": "Fermer la liste des outils",
+    "title": "Outils",
+    "trigger": "Outils"
   },
   "divideMode": {
     "count": "Nombre",
@@ -256,9 +263,11 @@
   },
   "viewport": {
     "fit": "Ajuster",
+    "more": "Plus de commandes d'affichage",
     "pan": "Panoramique",
     "panWithModifier": "Panoramique — ou maintenez {{modifier}} et faites glisser",
     "panWithShortcut": "Panoramique ({{shortcut}}) — ou maintenez {{modifier}} et faites glisser",
+    "resetRotation": "Réinitialiser la rotation de la vue",
     "rotateCcw": "Pivoter la vue à gauche",
     "rotateCw": "Pivoter la vue à droite",
     "rotation": "Rotation de la vue en degrés",

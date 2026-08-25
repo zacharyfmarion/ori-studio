@@ -1,18 +1,7 @@
 import { selectProject, selectSelection } from '../../store/workspaceStore/designTabs';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  FileQuestionMark,
-  FileText,
-  FolderOpen,
-  Link2,
-  LockKeyhole,
-  Plus,
-  Ruler,
-  ScanLine,
-  Trash2,
-} from 'lucide-react';
-import { handleMenuAction } from '../../commands/menuActions';
+import { Link2, LockKeyhole, Plus, Ruler, Trash2 } from 'lucide-react';
 import type { ConditionKind } from '../../engine/types';
 import type { TreeCondition } from '../../lib/sampleProject';
 import { conditionDetail, conditionTitle } from '../../lib/conditionLabels';
@@ -25,13 +14,11 @@ import {
   toggleConditionSelection,
 } from '../../lib/selection';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { Button } from '../ui/Button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip';
 
 export function ConditionsPanel() {
   const { t } = useTranslation();
   const project = useWorkspaceStore((state) => selectProject(state));
-  const importedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern);
   const selection = useWorkspaceStore((state) => selectSelection(state));
   const select = useWorkspaceStore((state) => state.select);
   const updatePaper = useWorkspaceStore((state) => state.updatePaper);
@@ -70,38 +57,6 @@ export function ConditionsPanel() {
   const add = (kind: ConditionKind) => {
     void addCondition(kind);
   };
-
-  if (importedCreasePattern) {
-    return (
-      <section className="panel-shell conditions-panel">
-        <div className="panel-body document-mode-empty">
-          <div className="document-mode-empty__icon" aria-hidden="true">
-            <FileQuestionMark size={30} />
-          </div>
-          <span className="document-mode-empty__message">
-            {t(
-              'panels:conditions.imported.message',
-              'Imported crease patterns do not have editable tree conditions.'
-            )}
-          </span>
-          <div className="document-mode-empty__actions">
-            <Button size="sm" variant="primary" onClick={() => void handleMenuAction('view.edit')}>
-              <ScanLine size={14} />
-              {t('panels:documentModeEmpty.editCp', 'Edit CP')}
-            </Button>
-            <Button size="sm" variant="secondary" onClick={() => void handleMenuAction('file.new')}>
-              <FileText size={14} />
-              {t('panels:documentModeEmpty.newTree', 'New Tree')}
-            </Button>
-            <Button size="sm" variant="secondary" onClick={() => void handleMenuAction('file.open')}>
-              <FolderOpen size={14} />
-              {t('panels:documentModeEmpty.open', 'Open')}
-            </Button>
-          </div>
-        </div>
-      </section>
-    );
-  }
 
   return (
     <section className="panel-shell conditions-panel">

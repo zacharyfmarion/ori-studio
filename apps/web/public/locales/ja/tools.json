@@ -12,6 +12,7 @@
     "applyVoronoi": "Voronoi を適用",
     "ariaLabel": "展開図ツールのオプション",
     "autoNearest": "最近傍を自動選択",
+    "cancelInput": "この手順を取り消す",
     "candidate": "候補",
     "candidateIndex": "候補インデックス",
     "circleColor": "円の色",
@@ -179,6 +180,7 @@
     "width": "幅"
   },
   "cpRail": {
+    "addToSelection": "選択に追加",
     "ariaLabel": "展開図ツール",
     "openEditableFirst": "まず編集可能な展開図を開いてください"
   },
@@ -188,6 +190,11 @@
     "label": "ツールオプション",
     "next": "次の候補",
     "previous": "前の候補"
+  },
+  "cpToolPicker": {
+    "close": "ツール一覧を閉じる",
+    "title": "ツール",
+    "trigger": "ツール"
   },
   "divideMode": {
     "count": "個数",
@@ -240,9 +247,11 @@
   },
   "viewport": {
     "fit": "フィット",
+    "more": "その他のビュー操作",
     "pan": "パン",
     "panWithModifier": "パン — または {{modifier}} を押しながらドラッグ",
     "panWithShortcut": "パン ({{shortcut}}) — または {{modifier}} を押しながらドラッグ",
+    "resetRotation": "ビューの回転をリセット",
     "rotateCcw": "左に回転",
     "rotateCw": "右に回転",
     "rotation": "ビューの回転角度（度）",

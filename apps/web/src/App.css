@@ -3,7 +3,24 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   width: 100vw;
+  /*
+   * `dvh`, with `vh` left above it as the fallback. On iOS `vh` measures the
+   * *large* viewport — the page as it would be with the browser's chrome
+   * retracted — so a `100vh` shell is taller than what is on screen and its
+   * bottom row hangs below the fold, taking the crease pattern's viewport
+   * toolbar with it. The shell is clipped, so nothing can scroll it back.
+   */
   height: 100vh;
+  height: 100dvh;
+  /*
+   * Under `viewport-fit=cover` (see index.html) the shell spans the whole
+   * screen, rounded corners and home indicator included. Insetting here rather
+   * than per surface is what makes it hold for every workspace: this is the one
+   * element they all render inside, and its background is the same
+   * `--bg-primary` the toolbar and the dock paint, so the inset reads as part of
+   * the app rather than as a letterbox.
+   */
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
   min-width: 0;
   overflow: hidden;
   background: var(--bg-primary);
@@ -14,12 +31,11 @@
 }
 
 /*
- * The welcome page's scroll container: on a desktop, one screenful of start
- * screen with the landing sections below it; on a phone, the landing straight
- * away.
+ * The welcome page's scroll container: one screenful of start screen, with the
+ * landing sections below it.
  *
  * The scrolling deliberately happens *here* and not on `.app-layout--start`,
- * which stays clipped at `100vh`. `.file-drop-overlay` is absolutely positioned
+ * which stays clipped at `100dvh`. `.file-drop-overlay` is absolutely positioned
  * against that ancestor, and a scrolling positioning context would stretch it to
  * the height of the whole document — a dashed border running past the fold with
  * its label centered somewhere off screen.
@@ -40,8 +56,10 @@
 }
 
 /*
- * The first screenful, on a device that gets one. A phone has no hero at all —
- * the landing is the top of the page there — so this is the start screen only.
+ * The first screenful. Every device gets one — a phone used to get a compact
+ * masthead instead, and the start screen only after clicking past an
+ * "unoptimized on mobile" warning; the `max-width: 680px` block below is what
+ * makes it fit, by stacking the hero and the three actions into one column.
  *
  * `safe center` rather than plain centering: when the content is taller than the
  * viewport, centering pushes its top above the scroll origin where nothing can
@@ -59,108 +77,6 @@
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--bg-secondary) 88%, var(--bg-primary)), var(--bg-primary)),
     var(--bg-primary);
-}
-
-/*
- * The phone's page header: a way into the app, the masthead, then the folded
- * figure.
- *
- * The bar has real space under it. The button used to sit flush on the first
- * section's top border, which read as a rendering mistake rather than a divider.
- *
- * The whole header is bounded to the viewport so its three parts land above the
- * fold together. `100svh` and not `100vh`: on a phone the large viewport unit
- * measures the screen with the browser's own chrome retracted, which it is not
- * on arrival, so `vh` here would push the tagline under the address bar on the
- * one visit that matters.
- */
-.welcome-mobile-header {
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
-  gap: var(--space-4);
-  max-height: 100svh;
-  padding: var(--space-3) var(--space-5) var(--space-6);
-}
-
-/*
- * The figure's share of the header.
- *
- * The third term is what keeps the masthead above the fold: the figure is
- * square, so capping its *width* by the height left over after everything else
- * caps its height too. Without it `aspect-ratio` sizes purely from width and the
- * header runs past the bottom of a short phone, taking the tagline with it —
- * a grid row of `1fr` does not help, because the aspect ratio wins over it.
- *
- * 300px is measured, not guessed: the bar, the masthead and this element's own
- * gaps and padding come to just under it at the type sizes above.
- *
- * `svh` and not `vh`: the large viewport unit measures the screen with the
- * browser's chrome retracted, which it is not on arrival — the one visit where
- * being above the fold matters.
- */
-.welcome-mobile-header__figure {
-  justify-self: center;
-  align-self: center;
-  width: min(100%, 320px, calc(100svh - 300px));
-  /* A floor, so the figure stays a folded object rather than a mark on a very
-     short screen. Below this it is allowed to push the tagline down: unreadable
-     and above the fold is worse than readable and just under it. */
-  min-width: 150px;
-  aspect-ratio: 1;
-}
-
-.welcome-mobile-header__bar {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.welcome-mobile-header__open {
-  padding: 8px 14px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-full);
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  font-family: inherit;
-  font-size: 0.78rem;
-  font-weight: 640;
-  line-height: 1.2;
-  cursor: pointer;
-}
-
-.welcome-mobile-header__open:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent-primary) 72%, transparent);
-  outline-offset: 2px;
-}
-
-.welcome-mobile-header__brand {
-  display: grid;
-  justify-items: start;
-  gap: var(--space-3);
-}
-
-.welcome-mobile-header__icon {
-  display: block;
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
-}
-
-.welcome-mobile-header__title {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: clamp(2.4rem, 12vw, 3.2rem);
-  font-weight: 780;
-  line-height: 1;
-  letter-spacing: -0.01em;
-}
-
-.welcome-mobile-header__tagline {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 1rem;
-  font-weight: 520;
-  line-height: 1.5;
-  text-wrap: balance;
 }
 
 .start-screen__content {
@@ -440,6 +356,40 @@
 }
 
 /*
+ * Why the last attempt failed, above the cards rather than on one of them: the
+ * detail is a sentence or two (the offline case is the long one) and a card is
+ * a fixed-width tile in a grid.
+ */
+.design-method-chooser__failure {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--status-danger);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.design-method-chooser__failure svg {
+  flex: 0 0 auto;
+  color: var(--status-danger);
+}
+
+.design-method-chooser__failure-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+  font-size: 0.8rem;
+}
+
+.design-method-chooser__failure-copy span {
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+/*
  * Fits every kind on one row where there is room, rather than a fixed two —
  * a third card wrapped onto a line of its own and read as an afterthought.
  * `auto-fit` still wraps when the pane is genuinely too narrow.
@@ -653,6 +603,43 @@
   animation: surface-loading-spin 0.9s linear infinite;
 }
 
+/* Its counterpart (see components/ui/SurfaceFailure.tsx): same box, so a pane
+   that stops loading and starts failing does not also move. */
+.surface-failure {
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  text-align: center;
+}
+
+.surface-failure__icon {
+  color: var(--status-danger);
+}
+
+.surface-failure__label {
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.surface-failure__detail {
+  /* The offline case is two sentences; a full-pane message set to the pane's
+     width is unreadable at a dock's aspect ratio. */
+  max-width: 44ch;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
 @keyframes surface-loading-spin {
   to {
     transform: rotate(360deg);
@@ -746,7 +733,9 @@
 .error-fallback--overlay {
   position: fixed;
   z-index: var(--z-modal);
-  inset-block-end: var(--space-4);
+  /* Fixed to the viewport, which `.app-layout`'s safe-area padding does not
+     inset — without the `max()` this sits under the home indicator. */
+  inset-block-end: max(var(--space-4), var(--safe-bottom));
   inset-inline-start: 50%;
   transform: translateX(-50%);
   max-width: min(520px, calc(100vw - var(--space-6)));
@@ -881,6 +870,14 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
+}
+
+/* The tab caption, which only the phone layout has room for — everywhere else
+   the rail is 50px wide and the name is the tooltip. Always in the DOM so that
+   the phone block below is a stylesheet change and not a second predicate; it is
+   `aria-hidden`, and the button's own `aria-label` carries the name regardless. */
+.workspace-rail__label {
+  display: none;
 }
 
 .workspace-rail__button {
@@ -1023,12 +1020,19 @@
     min-height: 0;
   }
 
-  .workspace-shell {
-    grid-template-columns: 44px minmax(0, 1fr);
-  }
-
   .workspace-rail {
     padding: var(--space-2) 0;
+  }
+}
+
+/*
+ * Narrowing the rail below the 44px guidance is a cursor-only trade — the rail
+ * is how you leave the workspace you are in, so on touch it keeps its width and
+ * pays for it out of the dock instead.
+ */
+@media (max-width: 680px) and (pointer: fine) {
+  .workspace-shell {
+    grid-template-columns: 44px minmax(0, 1fr);
   }
 
   .workspace-rail__button[data-active]::before {
@@ -1036,9 +1040,259 @@
   }
 }
 
-@media (max-width: 460px) {
+/* Shrinking the padding shrinks the target; on touch the toolbar wraps instead. */
+@media (max-width: 460px) and (pointer: fine) {
   .toolbar__actions .ui-control--sm {
     padding: 0 8px;
+  }
+}
+
+/* The active marker is offset from the button's box, so a button grown to the
+   touch target pushes it past the rail's own 50px column and over the dock. */
+@media (pointer: coarse) {
+  .workspace-rail__button[data-active]::before {
+    left: -3px;
+  }
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * The phone layout: one toolbar row, and the workspace rail as bottom tabs.
+ *
+ * The prelude is a literal copy of `PHONE_MEDIA_QUERY` (platform/phoneLayout.ts),
+ * because CSS cannot import a constant. `platform/phoneLayout.test.ts` reads this
+ * file and fails if the two drift; `theme.css` carries the only other copy.
+ *
+ * Everything here is additive to the coarse-pointer and `max-width: 680px` rules
+ * above, and nothing outside this block changed — a tablet keeps both rails, and
+ * a narrow *mouse* window keeps them too.
+ * ---------------------------------------------------------------------------
+ */
+@media (pointer: coarse) and (max-width: 600px), (pointer: coarse) and (max-height: 600px) {
+  /*
+   * Back to two columns. The single-column rule at 680px is what actually put the
+   * toolbar on two lines — the icons always fit on one row — so hiding three of
+   * them only pays off once the menu bar and the actions share a row again.
+   *
+   * The *menu bar* is the intrinsic track and the actions are the flexible one,
+   * which is the opposite of the desktop rule and the whole reason this fits.
+   * An `fr` track takes only leftover space, so the menu bar gets its full width
+   * first and the actions live on what is left; the desktop arrangement gives the
+   * actions their content width and hands the menu bar the remainder, which in
+   * the Design workspace (Optimize Scale + a Send split button, ~285px) left it
+   * 122px and truncated all five triggers to two letters each. Measured at 375.
+   *
+   * The floor keeps Settings — the one control with no menu entry on macOS — at
+   * a full touch target however wide the menu bar wants to be.
+   */
+  .toolbar {
+    grid-template-columns: auto minmax(var(--touch-target), 1fr);
+    /*
+     * The 680px block above pads 5px top and bottom, which was right while it
+     * also stacked the toolbar into two rows — the padding was the gap between
+     * them. This block puts it back on one row, and the row's own contents are
+     * already `--touch-target` tall, so the padding is 10px of nothing. Measured
+     * with a coarse pointer at 375px: 55px for a 44px row.
+     */
+    padding-block: 0;
+  }
+
+  .toolbar__brand,
+  .toolbar__actions {
+    width: auto;
+  }
+
+  /*
+   * New, Open and Save. All three are unconditional File-menu entries, and
+   * `capability()` hard-codes `visible: true` for every capability it builds — so
+   * they can be disabled but never hidden, and the icons are pure duplication at
+   * a width that cannot afford them. Settings stays: on macOS it has no menu
+   * entry at all (see the note in `WorkspaceShell`).
+   *
+   * A class rather than `:nth-child`, because the actions row's contents are
+   * conditional — an index would start hiding Optimize the moment a capability
+   * flipped.
+   *
+   * The `:has()` half is not belt and braces. `IconButton` wraps a *disabled*
+   * button in `.ui-button-tooltip-trigger`, because a disabled control receives
+   * no pointer events and could otherwise never show its reason — so hiding the
+   * button alone would leave three empty flex items and their gaps behind, and
+   * Save is disabled whenever nothing is open.
+   */
+  .toolbar__action--file,
+  .ui-button-tooltip-trigger:has(> .toolbar__action--file) {
+    display: none;
+  }
+
+  /*
+   * `nowrap` is the rule that keeps the promise: the Design workspace also puts
+   * Optimize Scale and a Send split button in here, and wrapping is what would
+   * re-create the second line. They scroll instead — safe to scroll, because the
+   * split button's caret menu is a Radix portal rather than an absolutely
+   * positioned child that a scroll container would clip.
+   */
+  .toolbar__actions {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .toolbar__actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  /*
+   * Right-aligned by a spacer rather than by `justify-content: flex-end`, which
+   * would make the overflow unreachable: a flex row aligned to the end overflows
+   * off its *start* edge, and `scrollLeft` does not go negative. An auto margin
+   * absorbs the free space when there is some and collapses to nothing when
+   * there is not, so the row sits right when it fits and scrolls when it does
+   * not.
+   *
+   * A pseudo-element and not `:first-child`, because the first three children are
+   * the File icons this block hides and an auto margin on `display: none` moves
+   * nothing.
+   */
+  .toolbar__actions::before {
+    content: '';
+    flex: 0 0 auto;
+    /*
+     * The auto margin aligns; the negative one cancels the row's own `gap`,
+     * which otherwise reserves 4px beside a spacer that is 0 wide — enough to
+     * push Settings past the track's floor and out of reach in Russian, where
+     * the menu bar claims everything else.
+     */
+    margin-inline: auto calc(-1 * var(--space-1));
+  }
+
+  /*
+   * The menu bar shrinks by truncating its widest trigger rather than by
+   * scrolling. A scroll container would clip the dropdown — it is an absolutely
+   * positioned child of the trigger's wrapper — and the File menu is now the only
+   * way to reach New/Open/Save, so clipping it is the one failure this change
+   * must not have. Truncation happens on the button's own text, which the
+   * dropdown is a sibling of.
+   *
+   * Flexbox shrinks in proportion to base size, so "Crease Pattern" gives way
+   * first and File stays whole. In English at 375px nothing truncates at all;
+   * this is for Russian, for a 320px SE, and for the Design workspace's wider
+   * actions column.
+   */
+  .toolbar__brand .menubar__menu-wrapper {
+    min-width: 0;
+  }
+
+  .toolbar__brand .menubar__trigger {
+    min-width: 0;
+    min-height: var(--touch-target);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /*
+   * Bottom tabs, the way a phone app has them: the rail stops being column 1 and
+   * becomes row 2, full width, under the canvas.
+   *
+   * The rows are assigned explicitly rather than left to auto-placement, which
+   * would put the rail first in source order and hang it above the canvas — the
+   * same reason `.workspace-shell__canvas` names its rows.
+   */
+  .workspace-shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .workspace-shell__canvas {
+    grid-row: 1;
+  }
+
+  /*
+   * The bar paints *through* the home-indicator inset instead of floating above
+   * it, which is what makes it read as a tab bar rather than as a strip with a
+   * gap under it. `.app-layout` insets the whole app once (see the top of this
+   * file) and the negative margin here gives that much back; the row itself
+   * still measures `--touch-target`, because the extra height is inside the
+   * buttons. Clipped at the border box by `.app-layout`'s `overflow: hidden`,
+   * so it can never paint off-screen.
+   *
+   * The inset used to be padding on *this* element, which painted the strip and
+   * left it inert: 34pt at the bottom of the screen that looked like part of the
+   * tab bar and answered no taps. It belongs to the buttons instead — see below.
+   */
+  .workspace-rail {
+    grid-row: 2;
+    /* `0`, not omitted: the base rule pads `--space-3` top and bottom for a
+       vertical rail, which on a horizontal one is 24px of nothing. */
+    padding: 0;
+    margin-bottom: calc(-1 * var(--safe-bottom));
+    border-right: 0;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .workspace-rail__items {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 0;
+    width: 100%;
+  }
+
+  /*
+   * Equal thirds, icon over caption. `height: auto` undoes the icon-button size
+   * class, which is square; `min-height` is what holds the target, and the whole
+   * third is tappable rather than just the glyph.
+   *
+   * Including the home-indicator inset, which is the point. The button's box now
+   * runs to the bottom of the screen, so the strip that already *looks* like part
+   * of the tab bar behaves like it — which is what a native tab bar does, and is
+   * why a thumb resting low on the phone hits the tab rather than nothing.
+   * `--touch-target` is still what the visible icon-and-caption block gets; the
+   * inset is added below it as padding, so nothing moves.
+   */
+  .workspace-rail__button {
+    flex: 1 1 0;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 2px;
+    width: auto;
+    height: auto;
+    min-height: calc(var(--touch-target) + var(--safe-bottom));
+    padding: 6px 0 calc(4px + var(--safe-bottom));
+    border-radius: 0;
+  }
+
+  .workspace-rail__label {
+    display: block;
+    font-size: 0.64rem;
+    font-weight: 650;
+    line-height: 1.1;
+    letter-spacing: 0;
+  }
+
+  /*
+   * The upstream credit strip, hidden on a phone only.
+   *
+   * It is a full-width band under the design canvas — measured at 22px of a 812px
+   * screen already spending 262px on chrome — carrying one line of prose that
+   * nothing on it is interactive. Box Pleating Studio is MIT, and MIT asks for
+   * the notice to travel with the software rather than to be on screen: `NOTICE`
+   * carries it, and the Help dialog credits Mu-Tsun Tsai by name with a link to
+   * the upstream. Nothing is lost but the band.
+   *
+   * Phone only, deliberately. A tablet has the height for it, and every other
+   * surface keeps it exactly as it was.
+   */
+  .design-attribution {
+    display: none;
+  }
+
+  /*
+   * The active bar was a marker down the left edge of a vertical rail, which on a
+   * horizontal one lands beside the wrong tab. The tint plus the caption is how
+   * a phone tab bar says the same thing.
+   */
+  .workspace-rail__button[data-active]::before {
+    display: none;
   }
 }
 
@@ -1079,6 +1333,38 @@
 }
 
 /*
+ * A fingertip-sized grab band on the sash, in the one part of the dock layout
+ * that still works by touch: sashes are driven by pointer events, so resizing
+ * survives on an iPad even though panel dragging does not.
+ *
+ * The band has to grow on both sides, not one. Dockview hardcodes the sash at
+ * 4px in two places — this rule's counterpart in its stylesheet, and the JS that
+ * positions it (`sashWidth = 4`, subtracting half of it so the box straddles the
+ * pane boundary). Widening the box alone would leave its left edge where it is
+ * and push the whole band into the pane on the right, so the negative margin
+ * gives the extra width back to the other side.
+ *
+ * 20px, not the 44px a standalone touch target would ask for: the sash floats
+ * over pane content at z-index 99, and a 44px band would eat taps on anything
+ * within 22px of a pane edge. A sash is aimed at a visible seam between two
+ * panes, which is a far easier target than a lone control.
+ */
+@media (pointer: coarse) {
+  .dockview-theme-treemaker
+    .dv-split-view-container.dv-horizontal
+    > .dv-sash-container
+    > .dv-sash {
+    width: 20px;
+    margin-left: -8px;
+  }
+
+  .dockview-theme-treemaker .dv-split-view-container.dv-vertical > .dv-sash-container > .dv-sash {
+    height: 20px;
+    margin-top: -8px;
+  }
+}
+
+/*
  * The update affordance: a card floating over the bottom-left of whatever is on
  * screen.
  *
@@ -1097,8 +1383,10 @@
  */
 .update-card {
   position: fixed;
-  left: var(--space-4);
-  bottom: var(--space-4);
+  /* Same reason as `.error-fallback--overlay`: fixed elements sit outside
+     `.app-layout`'s safe-area padding and have to clear the insets themselves. */
+  left: max(var(--space-4), var(--safe-left));
+  bottom: max(var(--space-4), var(--safe-bottom));
   z-index: 30;
   display: flex;
   align-items: stretch;

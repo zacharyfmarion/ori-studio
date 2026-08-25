@@ -155,9 +155,6 @@
     },
     "clear": "Limpar",
     "editor": "Editor",
-    "imported": {
-      "message": "Padrões de vincos importados não possuem condições de árvore editáveis."
-    },
     "list": "Lista",
     "noConditions": "Sem condições",
     "paper": {
@@ -370,8 +367,10 @@
     "orbitFoldedForm": "Girar a figura dobrada",
     "preparing": "Preparando o editor…",
     "refoldFoldedModelAction": "Dobrar o modelo novamente",
+    "rendererContextLost": "Restaurando a tela do padrão de vincos…",
+    "rendererContextLostHint": "O sistema retomou a memória gráfica desta tela, o que pode acontecer quando o dispositivo fica com pouca. Seu padrão de vincos está seguro — a visualização volta assim que o contexto gráfico voltar. Se ele não voltar, recarregue o Ori Studio.",
     "rendererUnavailable": "Não foi possível iniciar a tela do padrão de vincos.",
-    "rendererUnavailableHint": "O Ori Studio desenha padrões de vincos com WebGL2, que este sistema não forneceu. Atualizar os drivers gráficos costuma resolver.",
+    "rendererUnavailableHint": "O Ori Studio desenha padrões de vincos com WebGL e renderização por instâncias, que este sistema não forneceu. Atualizar os drivers gráficos costuma resolver.",
     "resetFoldedModelView": "Redefinir a vista do modelo dobrado",
     "resizeAnnotation": "Redimensionar anotação",
     "resizeFoldedForm": "Redimensionar forma dobrada",
@@ -419,13 +418,13 @@
     "axisXAria": "Eixo X de simetria do design",
     "axisY": "Y",
     "axisYAria": "Eixo Y de simetria do design",
+    "boxPleatEditorFailed": "O editor de pregas em caixa não carregou",
+    "boxPleatEditorOffline": "Este tipo de design ainda não foi baixado e você está off-line. Conecte-se uma vez e ele funcionará off-line a partir de então.",
     "canvas": "Canvas de design da árvore",
-    "editCp": "Editar CP",
     "emptyStateBody": "Use ramos para as abas, membros e detalhes de que a base dobrada precisa.",
     "emptyStateTitle": "Esboce a árvore por trás do seu design",
     "flipPresetAxis": "Inverter eixo predefinido",
     "flipToPreset": "Inverter para {{preset}}",
-    "importedCreasePatternSuffix": "é um padrão de vincos importado sem uma árvore editável.",
     "layerCircles": "Círculos",
     "layerLabels": "Rótulos",
     "layerPaths": "Caminhos",
@@ -448,13 +447,18 @@
         "description": "Desenhe uma árvore e encontre padrões de vinco correspondentes no acervo ExplOri.",
         "title": "Pesquisar 22,5°"
       },
+      "failedOffline": "Este tipo de design ainda não foi baixado e você está off-line. Conecte-se uma vez e ele funcionará off-line a partir de então.",
+      "failedTitle": "Não foi possível iniciar um design {{method}}",
+      "failedUnknown": "O editor deste tipo de design não carregou.",
       "groupLabel": "Método de design",
+      "retry": "Tentar novamente",
       "subtitle": "Escolha como deseja criar este modelo.",
       "title": "Iniciar um novo design"
     },
-    "newTree": "Nova Árvore",
-    "noEditableTree": "Este documento não possui uma árvore editável.",
-    "open": "Abrir",
+    "paneSwitcher": {
+      "close": "Fechar a lista de painéis",
+      "title": "Painéis"
+    },
     "paneTitle": {
       "bpPacking": "Editor BP",
       "bpTree": "Editor de árvore",
@@ -470,6 +474,7 @@
     "preset": "Predefinição",
     "presetBook": "Livro",
     "presetDiag": "Diag",
+    "retry": "Tentar novamente",
     "symmetry": "Simetria",
     "symmetryButton": "Simetria do design",
     "symmetryControls": "Controles de simetria do design",
@@ -512,14 +517,10 @@
     "optimizingScale": "Otimizando escala",
     "paths": "Caminhos"
   },
-  "documentModeEmpty": {
-    "editCp": "Editar CP",
-    "newTree": "Nova Árvore",
-    "open": "Abrir"
-  },
   "explori": {
     "advancedDatabases": "Escolher tamanhos de topologia",
     "backToResults": "Voltar aos resultados",
+    "backToSearch": "Buscar",
     "canvas": "Tela da árvore de busca",
     "databaseCell": "{{symmetry}}, tamanho {{size}}",
     "decreaseLength": "Encurtar",

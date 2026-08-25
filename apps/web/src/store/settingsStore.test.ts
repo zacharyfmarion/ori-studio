@@ -1,5 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  CP_COARSE_POINTER_QUERY,
+  CP_COARSE_POINTER_SNAP_RADIUS,
   CP_DEFAULT_SNAP_RADIUS,
   CP_MAX_SNAP_RADIUS,
   CP_MIN_SNAP_RADIUS,
@@ -18,27 +20,69 @@ const initialSettingsState = useSettingsStore.getInitialState();
 const CP_SNAP_RADIUS_KEY = 'oristudio:cp-snap-radius';
 const CP_WHEEL_GESTURE_KEY = 'oristudio:cp-wheel-gesture';
 
+/**
+ * Stub `matchMedia` — jsdom has none — so {@link CP_COARSE_POINTER_QUERY} answers
+ * as the given pointer would, and hand back a `set` that changes the answer and
+ * fires the listener, the way attaching an iPad's Magic Keyboard does.
+ */
+function mockPointer(pointer: 'coarse' | 'fine') {
+  const state = { pointer };
+  const listeners = new Set<() => void>();
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: vi.fn((query: string) => ({
+      matches: query === CP_COARSE_POINTER_QUERY && state.pointer === 'coarse',
+      media: query,
+      onchange: null,
+      addEventListener: (_type: string, listener: () => void) => listeners.add(listener),
+      removeEventListener: (_type: string, listener: () => void) => listeners.delete(listener),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+  return {
+    set(next: 'coarse' | 'fine') {
+      state.pointer = next;
+      for (const listener of listeners) listener();
+    },
+  };
+}
+
 /** Hydration runs once, at store creation, so a stored value needs a fresh one. */
-async function hydrateWith(stored: string): Promise<number> {
-  localStorage.setItem(CP_SNAP_RADIUS_KEY, stored);
+async function freshSettingsStore(): Promise<typeof useSettingsStore> {
   vi.resetModules();
   const { useSettingsStore: freshStore } = await import('./settingsStore');
-  return freshStore.getState().cpSnapRadius;
+  return freshStore;
+}
+
+/** `null` stands for a snap-radius key nobody ever wrote. */
+async function hydrateWith(
+  stored: string | null,
+  pointer: 'coarse' | 'fine' = 'fine'
+): Promise<number> {
+  if (stored === null) localStorage.removeItem(CP_SNAP_RADIUS_KEY);
+  else localStorage.setItem(CP_SNAP_RADIUS_KEY, stored);
+  mockPointer(pointer);
+  return (await freshSettingsStore()).getState().cpSnapRadius;
 }
 
 /** Same, for the wheel preference; `null` stands for a key nobody ever wrote. */
 async function hydrateWheelGestureWith(stored: string | null): Promise<string> {
   if (stored === null) localStorage.removeItem(CP_WHEEL_GESTURE_KEY);
   else localStorage.setItem(CP_WHEEL_GESTURE_KEY, stored);
-  vi.resetModules();
-  const { useSettingsStore: freshStore } = await import('./settingsStore');
-  return freshStore.getState().cpWheelGesture;
+  return (await freshSettingsStore()).getState().cpWheelGesture;
 }
 
 beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
   useSettingsStore.setState(initialSettingsState, true);
+});
+
+afterEach(() => {
+  Reflect.deleteProperty(window, 'matchMedia');
 });
 
 describe('settingsStore', () => {
@@ -134,5 +178,30 @@ describe('settingsStore', () => {
     expect(await hydrateWith('9000')).toBe(CP_MAX_SNAP_RADIUS);
     expect(await hydrateWith('tiny')).toBe(CP_DEFAULT_SNAP_RADIUS);
     expect(await hydrateWith('')).toBe(CP_DEFAULT_SNAP_RADIUS);
+  });
+
+  it('starts a coarse pointer wider, and still lets a stored choice win', async () => {
+    expect(await hydrateWith(null, 'coarse')).toBe(CP_COARSE_POINTER_SNAP_RADIUS);
+    expect(await hydrateWith(null, 'fine')).toBe(CP_DEFAULT_SNAP_RADIUS);
+    // Storing upstream's own number is the case a "is it still the default"
+    // check would get wrong: this is a choice, and survives onto a touch screen.
+    expect(await hydrateWith(String(CP_DEFAULT_SNAP_RADIUS), 'coarse')).toBe(
+      CP_DEFAULT_SNAP_RADIUS
+    );
+    expect(await hydrateWith('9000', 'coarse')).toBe(CP_MAX_SNAP_RADIUS);
+  });
+
+  it('follows the pointer changing under a live session, until a choice is stored', async () => {
+    const pointer = mockPointer('fine');
+    const freshStore = await freshSettingsStore();
+    expect(freshStore.getState().cpSnapRadius).toBe(CP_DEFAULT_SNAP_RADIUS);
+
+    // Detaching an iPad's keyboard hands the session back to a fingertip.
+    pointer.set('coarse');
+    expect(freshStore.getState().cpSnapRadius).toBe(CP_COARSE_POINTER_SNAP_RADIUS);
+
+    freshStore.getState().setCpSnapRadius(30);
+    pointer.set('fine');
+    expect(freshStore.getState().cpSnapRadius).toBe(30);
   });
 });

@@ -576,6 +576,7 @@ function InlineSimulationWindow({
         viewSettings={viewSettings}
         pushCamera={pushCamera}
         pushRenderSettings={runtime.setRenderSettings}
+        perfSurface="inline-window"
         className="cp-inline-simulation__canvas"
         ariaLabel={t(
           'panels:creasePattern.inlineSimulation.canvasAriaLabel',

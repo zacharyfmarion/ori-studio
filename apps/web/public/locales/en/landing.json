@@ -70,10 +70,6 @@
     "lead": "Scroll back up and start a crease pattern — that is the whole setup. Discord is the best place to report a bug or suggest something, and where new work is announced first.",
     "title": "It runs in the browser. Nothing to install."
   },
-  "mobileHero": {
-    "tagline": "Design, edit and fold origami, all in the browser."
-  },
-  "openApp": "Open App (unoptimized on mobile)",
   "scrollCue": "See what it does",
   "simulate": {
     "eyebrow": "Simulate",

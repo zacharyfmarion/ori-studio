@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { FoldDocument } from '../engine/types';
 import { segmentFoldDocument } from './creasePatternSegmentation';
-import type { OristudioCpFoldedRenderSnapshot } from '../engine/oristudioCpTypes';
+import type {
+  OristudioCpDocumentSnapshot,
+  OristudioCpFoldedRenderSnapshot,
+} from '../engine/oristudioCpTypes';
 import {
   buildCreaseExportArtwork,
+  creaseExportGridSource,
   foldProjector,
   serializeCreasePatternSvg,
   layoutCreaseExport,
@@ -11,6 +15,7 @@ import {
   CREASE_EXPORT_PALETTES,
   DEFAULT_CREASE_EXPORT_OPTIONS,
   type CreaseExportCaption,
+  type CreaseExportGridSource,
   type CreaseExportOptions,
 } from './creaseExport';
 import {
@@ -538,6 +543,291 @@ describe('crease pattern export', () => {
 
     expect(withPoints).toContain('<circle');
     expect(noPoints).not.toContain('<circle');
+  });
+});
+
+/**
+ * A unit-square fold with the Oriedita grid behind it: `scale` and the offsets
+ * are what `cpModelToFoldTransform` recovers when a document drawn on the
+ * 400-unit Oriedita sheet has been rescaled into [0,1] by the import pipeline,
+ * so the paper's corners land on the fold's.
+ */
+const GRID_SOURCE: CreaseExportGridSource = {
+  metadata: {
+    interval_grid_size: 4,
+    grid_size: 8,
+    grid_xa: 1,
+    grid_xb: 0,
+    grid_xc: 1,
+    grid_ya: 1,
+    grid_yb: 0,
+    grid_yc: 1,
+    grid_angle: 90,
+    base_state: 'WithinPaper',
+    vertical_scale_position: 0,
+    horizontal_scale_position: 0,
+    draw_diagonal_gridlines: false,
+  },
+  transform: { scale: 1 / 400, offsetX: 0.5, offsetY: 0.5 },
+};
+
+/** One sheet filling the [0,1] square the transform above places the grid on. */
+function unitSquareFold(): FoldDocument {
+  return {
+    vertices_coords: [
+      [0, 0],
+      [1, 0],
+      [1, 1],
+      [0, 1],
+      [0.5, 0.5],
+    ],
+    edges_vertices: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 0],
+      [0, 4],
+      [4, 2],
+      [1, 4],
+      [4, 3],
+    ],
+    edges_assignment: ['B', 'B', 'B', 'B', 'M', 'M', 'V', 'V'],
+    faces_vertices: [
+      [0, 1, 4],
+      [1, 2, 4],
+      [2, 3, 4],
+      [3, 0, 4],
+    ],
+  };
+}
+
+/**
+ * A regular hexagon on the Oriedita sheet, with the 60° triangular grid a
+ * hexagonal tessellation is drawn on. Its bounding box is visibly larger than
+ * the paper, which is what makes it the case a box clip gets wrong.
+ */
+function hexagonFold(): FoldDocument {
+  const corners: [number, number][] = [
+    [-200, 26.794919243112275],
+    [-100, -146.41016151377545],
+    [100, -146.41016151377545],
+    [200, 26.794919243112275],
+    [100, 200],
+    [-100, 200],
+  ];
+  return {
+    vertices_coords: [...corners, [0, 26.794919243112272]],
+    edges_vertices: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 4],
+      [4, 5],
+      [5, 0],
+      [0, 6],
+      [1, 6],
+      [2, 6],
+      [3, 6],
+      [4, 6],
+      [5, 6],
+    ],
+    edges_assignment: ['B', 'B', 'B', 'B', 'B', 'B', 'M', 'M', 'V', 'M', 'M', 'V'],
+    faces_vertices: [
+      [0, 6, 1],
+      [1, 6, 2],
+      [2, 6, 3],
+      [3, 6, 4],
+      [4, 6, 5],
+      [5, 6, 0],
+    ],
+  };
+}
+
+const HEX_GRID_SOURCE: CreaseExportGridSource = {
+  metadata: {
+    ...GRID_SOURCE.metadata,
+    interval_grid_size: 2,
+    grid_angle: 60,
+    draw_diagonal_gridlines: true,
+  },
+  // Already in the document's own coordinates.
+  transform: { scale: 1, offsetX: 0, offsetY: 0 },
+};
+
+function gridSvg(
+  patch: Partial<CreaseExportOptions> = {},
+  content: { grid: CreaseExportGridSource | null } = { grid: GRID_SOURCE },
+  fold: FoldDocument = unitSquareFold()
+): string {
+  return serializeCreasePatternSvg(
+    fold,
+    segmentFoldDocument(fold),
+    { ...DEFAULT_CREASE_EXPORT_OPTIONS, showGrid: true, ...patch },
+    { foldedFigure: null, ...content }
+  );
+}
+
+function countStroke(svg: string, color: string): number {
+  return svg.split(`stroke="${color}"`).length - 1;
+}
+
+/** The vertex loops of the grid's clip path, as projected page points. */
+function clipLoops(svg: string): { x: number; y: number }[][] {
+  const path = /<clipPath id="cp-export-grid-clip"><path d="([^"]+)"/.exec(svg);
+  if (!path) return [];
+  return path[1]!
+    .split('M ')
+    .filter(Boolean)
+    .map((loop) =>
+      loop
+        .replace(/\s*Z\s*$/, '')
+        .split(' L ')
+        .map((pair) => {
+          const [x, y] = pair.trim().split(',');
+          return { x: Number(x), y: Number(y) };
+        })
+    );
+}
+
+describe('crease pattern export grid', () => {
+  it('draws the document grid when asked', () => {
+    const svg = gridSvg();
+
+    // 8 divisions over the sheet is 9 lines each way.
+    expect(countStroke(svg, CREASE_EXPORT_PALETTES.light.grid)).toBe(18);
+  });
+
+  it('draws one weight, so no grid line can be mistaken for a crease', () => {
+    // `interval_grid_size: 4` marks every fourth line as an interval line, which
+    // the canvas draws heavier. At export size that reads as a crease, so the
+    // lattice is deliberately uniform: one stroke width, one colour.
+    const pattern = new RegExp(
+      `stroke="${CREASE_EXPORT_PALETTES.light.grid}" stroke-width="([\\d.]+)"`,
+      'g'
+    );
+    const widths = new Set(Array.from(gridSvg().matchAll(pattern), (match) => match[1]));
+
+    expect(widths.size).toBe(1);
+  });
+
+  it('draws nothing without the option, and nothing without a grid', () => {
+    expect(gridSvg({ showGrid: false })).not.toContain(CREASE_EXPORT_PALETTES.light.grid);
+    expect(gridSvg({}, { grid: null })).not.toContain(CREASE_EXPORT_PALETTES.light.grid);
+  });
+
+  it('is off by default, so an untouched export is what it always was', () => {
+    expect(DEFAULT_CREASE_EXPORT_OPTIONS.showGrid).toBe(false);
+    const fold = unitSquareFold();
+    const segments = segmentFoldDocument(fold);
+    expect(
+      serializeCreasePatternSvg(fold, segments, DEFAULT_CREASE_EXPORT_OPTIONS, {
+        foldedFigure: null,
+        grid: GRID_SOURCE,
+      })
+    ).toBe(serializeCreasePatternSvg(fold, segments, DEFAULT_CREASE_EXPORT_OPTIONS));
+  });
+
+  it('takes its colours from the export theme', () => {
+    const svg = gridSvg({ theme: 'dark' });
+
+    expect(svg).toContain(`stroke="${CREASE_EXPORT_PALETTES.dark.grid}"`);
+    expect(svg).not.toContain(`stroke="${CREASE_EXPORT_PALETTES.light.grid}"`);
+  });
+
+  it('draws under every crease, so the pattern still reads first', () => {
+    const svg = gridSvg();
+
+    expect(svg.indexOf(`stroke="${CREASE_EXPORT_PALETTES.light.grid}"`)).toBeLessThan(
+      svg.indexOf(`stroke="${CREASE_EXPORT_PALETTES.light.mountain}"`)
+    );
+    // And over the paper, which would otherwise cover it.
+    expect(svg.indexOf('<polygon')).toBeLessThan(
+      svg.indexOf(`stroke="${CREASE_EXPORT_PALETTES.light.grid}"`)
+    );
+  });
+
+  it('clips the lattice to the sheet, not to its box', () => {
+    // A hexagon is the case a bounding box gets wrong: four corners of ruling
+    // would float outside the paper with nothing under them.
+    const loops = clipLoops(gridSvg({}, { grid: HEX_GRID_SOURCE }, hexagonFold()));
+
+    expect(loops).toHaveLength(1);
+    expect(loops[0]).toHaveLength(6);
+  });
+
+  it('follows the sheet on a square too, corner for corner', () => {
+    const loops = clipLoops(gridSvg());
+    const projector = foldProjector(unitSquareFold());
+
+    expect(loops).toHaveLength(1);
+    expect(loops[0]).toHaveLength(4);
+    // The projected sheet, so no ruling reaches the export's margin.
+    expect(Math.min(...loops[0]!.map((point) => point.y))).toBeCloseTo(projector.contentTop, 1);
+    expect(Math.max(...loops[0]!.map((point) => point.y))).toBeCloseTo(
+      projector.contentTop + projector.contentHeight,
+      1
+    );
+  });
+
+  it('keeps disjoint patterns as separate loops', () => {
+    // Two squares: one box around both would rule the empty gap between them.
+    const svg = serializeCreasePatternSvg(
+      twoPatternFold(),
+      segmentFoldDocument(twoPatternFold()),
+      { ...DEFAULT_CREASE_EXPORT_OPTIONS, showGrid: true },
+      { foldedFigure: null, grid: GRID_SOURCE }
+    );
+
+    expect(clipLoops(svg)).toHaveLength(2);
+  });
+
+  it('falls back to the pattern box when the fold has no faces', () => {
+    const faceless: FoldDocument = { ...unitSquareFold(), faces_vertices: [] };
+    const svg = serializeCreasePatternSvg(
+      faceless,
+      segmentFoldDocument(faceless),
+      { ...DEFAULT_CREASE_EXPORT_OPTIONS, showGrid: true },
+      { foldedFigure: null, grid: GRID_SOURCE }
+    );
+
+    expect(svg).toContain(`<clipPath id="cp-export-grid-clip"><rect `);
+  });
+
+  it('draws a grid the document itself is hiding', () => {
+    // Upstream keeps grid visibility in the same tri-state as its extent, so a
+    // hidden document grid must not turn the export option into a dead switch.
+    expect(
+      gridSvg({}, { grid: { ...GRID_SOURCE, metadata: { ...GRID_SOURCE.metadata, base_state: 'Hidden' } } })
+    ).toContain(`stroke="${CREASE_EXPORT_PALETTES.light.grid}"`);
+  });
+});
+
+describe('creaseExportGridSource', () => {
+  const document = {
+    crease_pattern: {
+      line_segments: [
+        { a: { x: -200, y: -200 }, b: { x: 200, y: -200 }, color: 'Black0' },
+        { a: { x: 200, y: -200 }, b: { x: 200, y: 200 }, color: 'Black0' },
+        { a: { x: 200, y: 200 }, b: { x: -200, y: 200 }, color: 'Black0' },
+        { a: { x: -200, y: 200 }, b: { x: -200, y: -200 }, color: 'Black0' },
+      ],
+      grid: GRID_SOURCE.metadata,
+    },
+  } as unknown as OristudioCpDocumentSnapshot;
+
+  it('is null without a document to take a grid from', () => {
+    expect(creaseExportGridSource(twoPatternFold(), null)).toBeNull();
+  });
+
+  it('carries the grid and the transform onto a rescaled fold', () => {
+    const source = creaseExportGridSource(twoPatternFold(), document);
+
+    expect(source?.metadata).toBe(GRID_SOURCE.metadata);
+    // twoPatternFold spans 4 units wide against the document's 400, and its
+    // centre sits at (2, 0.5) rather than the sheet's origin.
+    expect(source?.transform.scale).toBeCloseTo(1 / 100, 6);
+    expect(source?.transform.offsetX).toBeCloseTo(2, 6);
+    expect(source?.transform.offsetY).toBeCloseTo(0.5, 6);
   });
 });
 

@@ -500,7 +500,11 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     selectionRequirement: 'selected circle',
     toolSteps: ['Pick radius start', 'Pick radius end'],
   }),
-  ready('CircleDrawConcentricSelect', 'Concentric from selection', 'advanced', 'circle-dot', 'MouseHandlerCircleDrawConcentricSelect', {
+  // `target` and not `circle-dot`, which is what "Circle through three points"
+  // draws two rows above: those were the only two rail tools that rendered the
+  // same mark, and neither has an Oriedita glyph to tell them apart. Concentric
+  // rings are also just a better picture of the thing.
+  ready('CircleDrawConcentricSelect', 'Concentric from selection', 'advanced', 'target', 'MouseHandlerCircleDrawConcentricSelect', {
     selectionRequirement: 'three selected circles',
     tooltip: 'Create a concentric circle from a target circle and two reference circle radii',
   }),

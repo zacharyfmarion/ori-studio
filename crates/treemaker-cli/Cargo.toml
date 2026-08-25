@@ -17,6 +17,9 @@ include = ["Cargo.toml", "LICENSE.txt", "README.md", "src/**"]
 name = "treemaker"
 path = "src/main.rs"
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow.workspace = true
 clap.workspace = true

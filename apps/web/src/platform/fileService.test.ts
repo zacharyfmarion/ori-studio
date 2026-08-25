@@ -330,6 +330,131 @@ describe('browser document saves', () => {
   });
 });
 
+/**
+ * What a download is handed to the browser as.
+ *
+ * iOS Safari names a downloaded file from its MIME type, so `text/plain` — which
+ * every text save used to claim — turned `Untitled.osf` into `Untitled.osf.txt`
+ * in the Files app, a name this app cannot open. Reported from a phone, and
+ * invisible on every desktop browser, which honours the `download` attribute
+ * regardless of type.
+ */
+/**
+ * What the open picker will let you select.
+ *
+ * iOS resolves every `accept` entry to a `UTType` and greys out anything it
+ * cannot match, and none of this app's formats is registered — so a saved
+ * `.osf` sitting in the Files app was reported unselectable. The extensions stay
+ * (they are the filter everywhere that can honour them) with a `public.data`
+ * equivalent alongside, so a document the app wrote is never one it cannot offer
+ * to reopen.
+ */
+describe('what a browser open picker accepts', () => {
+  function captureAccept(open: (service: ReturnType<typeof createFileService>) => void) {
+    const accepts: string[] = [];
+    const realCreate = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+      const element = realCreate(tag);
+      if (tag === 'input') {
+        // The value is set after creation, so read it when the click lands.
+        const input = element as HTMLInputElement;
+        input.click = () => accepts.push(input.accept);
+      }
+      return element;
+    });
+    delete window.showOpenFilePicker;
+    open(createFileService('web'));
+    return accepts[0] ?? '';
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('offers every extension it can open', () => {
+    const accept = captureAccept((service) => {
+      void service.openTextFile({ title: 'Open', extensions: ['osf', 'cp', 'fold'] });
+    });
+
+    expect(accept.split(',')).toEqual(
+      expect.arrayContaining(['.osf', '.cp', '.fold'])
+    );
+  });
+
+  it('also offers a type that matches any file, so iOS cannot grey ours out', () => {
+    const accept = captureAccept((service) => {
+      void service.openTextFile({ title: 'Open', extensions: ['osf'] });
+    });
+
+    expect(accept.split(',')).toContain('application/octet-stream');
+  });
+
+  it('leaves the binary picker filtered, where the types are real', () => {
+    // Reference images are `image/png` and friends — registered, so iOS resolves
+    // them, and widening this one would offer any file as a photo.
+    const accept = captureAccept((service) => {
+      void service.openBinaryFile({
+        title: 'Open image',
+        extensions: ['png'],
+        mimeTypes: ['image/png'],
+      });
+    });
+
+    expect(accept.split(',')).toEqual(['.png', 'image/png']);
+  });
+});
+
+describe('the type a browser download claims', () => {
+  function captureDownloadType(suggestedName: string, extensions: string[]) {
+    const types: string[] = [];
+    const createObjectURL = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockImplementation((blob: Blob | MediaSource) => {
+        types.push((blob as Blob).type);
+        return 'blob:stub';
+      });
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    // No `showSaveFilePicker`, which is Safari and Firefox — and the path that
+    // produces a download rather than a save dialog.
+    delete window.showSaveFilePicker;
+    const service = createFileService('web');
+    return service
+      .saveTextFile({
+        title: 'Save',
+        contents: 'x',
+        suggestedName,
+        extensions,
+        reusableTarget: true,
+      })
+      .then(() => {
+        createObjectURL.mockRestore();
+        return types[0];
+      });
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it.each(['project.osf', 'pattern.cp', 'model.fold', 'design.bps', 'tree.tmd5'])(
+    'claims opaque bytes for %s, so Safari keeps the name',
+    async (name) => {
+      const extension = name.slice(name.lastIndexOf('.') + 1);
+      await expect(captureDownloadType(name, [extension])).resolves.toBe(
+        'application/octet-stream'
+      );
+    }
+  );
+
+  it('does not claim octet-stream where a real type exists', async () => {
+    // `.svg` is registered and has a viewer to open in, so saying so is both
+    // true and useful — and Safari has no reason to rename it.
+    await expect(captureDownloadType('view.svg', ['svg'])).resolves.toBe(
+      'image/svg+xml;charset=utf-8'
+    );
+  });
+});
+
 describe('filesystemPathOrNull', () => {
   it('keeps a real path and drops a web save-target token', () => {
     // The token is local to the page that minted it, so writing one into a

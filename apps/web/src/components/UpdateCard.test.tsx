@@ -28,7 +28,7 @@ function seed(overrides: Partial<UpdateState>): void {
       downloadProgress: null,
       downloadWasRequested: false,
       readyAt: null,
-      lastCheckedAt: null,
+      lastCheck: null,
       skippedVersion: null,
       snoozed: false,
       ...overrides,

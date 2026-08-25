@@ -12,6 +12,7 @@
     "applyVoronoi": "应用 Voronoi",
     "ariaLabel": "折痕图工具选项",
     "autoNearest": "自动最近",
+    "cancelInput": "取消此步骤",
     "candidate": "候选",
     "candidateIndex": "候选索引",
     "circleColor": "圆的颜色",
@@ -179,6 +180,7 @@
     "width": "宽度"
   },
   "cpRail": {
+    "addToSelection": "添加到选区",
     "ariaLabel": "折痕图工具",
     "openEditableFirst": "请先打开可编辑折痕图"
   },
@@ -188,6 +190,11 @@
     "label": "工具选项",
     "next": "下一个选项",
     "previous": "上一个选项"
+  },
+  "cpToolPicker": {
+    "close": "关闭工具列表",
+    "title": "工具",
+    "trigger": "工具"
   },
   "divideMode": {
     "count": "数量",
@@ -240,9 +247,11 @@
   },
   "viewport": {
     "fit": "适应",
+    "more": "更多视图控件",
     "pan": "平移",
     "panWithModifier": "平移 — 或按住 {{modifier}} 拖动",
     "panWithShortcut": "平移 ({{shortcut}}) — 或按住 {{modifier}} 拖动",
+    "resetRotation": "重置视图旋转",
     "rotateCcw": "向左旋转视图",
     "rotateCw": "向右旋转视图",
     "rotation": "视图旋转角度（度）",

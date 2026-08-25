@@ -128,6 +128,7 @@ const oristudioCpMocks = vi.hoisted(() => ({
 const exportMocks = vi.hoisted(() => ({
   renderCreasePatternPng: vi.fn(async () => new Uint8Array([1, 2, 3])),
   serializeCreasePatternSvg: vi.fn(() => '<svg role="img"></svg>'),
+  creaseExportGridSource: vi.fn(() => null),
   EMPTY_CREASE_EXPORT_CAPTION: { title: '', subtitle: '', description: '' },
   EMPTY_CREASE_EXPORT_CONTENT: { foldedFigure: null },
   DEFAULT_CREASE_EXPORT_OPTIONS: {
@@ -137,6 +138,7 @@ const exportMocks = vi.hoisted(() => ({
     pointSize: 0,
     includeUnassigned: true,
     showBackgroundColor: true,
+    showGrid: false,
     theme: 'light',
     includeFoldedFigure: false,
     caption: { title: '', subtitle: '', description: '' },
@@ -1774,7 +1776,7 @@ describe('workspace store slices', () => {
       expect.objectContaining({ edges_vertices: expect.any(Array) }),
       expect.any(Array),
       expect.objectContaining({ segmentId: null, includeUnassigned: true, showBackgroundColor: true }),
-      { foldedFigure: null }
+      { foldedFigure: null, grid: null }
     );
 
     await expect(useWorkspaceStore.getState().exportPng(fileService)).resolves.toBe(true);
@@ -1782,7 +1784,7 @@ describe('workspace store slices', () => {
       expect.objectContaining({ edges_vertices: expect.any(Array) }),
       expect.any(Array),
       expect.objectContaining({ segmentId: null, includeUnassigned: true, showBackgroundColor: true }),
-      { foldedFigure: null }
+      { foldedFigure: null, grid: null }
     );
     expect(fileService.saveBinaryFile).toHaveBeenCalledWith(
       expect.objectContaining({ extensions: ['png'], mimeType: 'image/png' })
@@ -2031,6 +2033,46 @@ describe('workspace store slices', () => {
     await useWorkspaceStore.getState().ensureEditCreasePattern();
 
     expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('none');
+  });
+
+  it('a Circle-packed design started over an opened crease pattern is editable', async () => {
+    // Opening a `.fold` leaves a read-only import on the always-live Edit
+    // canvas; `chooseDesignMethod` deliberately preserves it. Tree editing then
+    // read that workspace-level flag as a statement about the *design* and
+    // rejected every edit with "Imported crease patterns are read-only" — the
+    // rule from when one workspace held one document. A bare crease pattern now
+    // establishes no design at all (`discardAllDesigns`), so reaching a tree
+    // edit means the user made a tree, and it is theirs to edit.
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText(editableCpFoldText, {
+      filename: 'Untitled CP.fold',
+    });
+    expect(useWorkspaceStore.getState().importedCreasePattern).not.toBeNull();
+
+    await useWorkspaceStore.getState().chooseDesignMethod('treemaker');
+    const before = selectProject(useWorkspaceStore.getState()).nodes.length;
+
+    await useWorkspaceStore.getState().addNodeAt({ x: 0.4, y: 0.4 });
+
+    expect(useWorkspaceStore.getState().error).toBeNull();
+    expect(selectProject(useWorkspaceStore.getState()).nodes.length).toBe(before + 1);
+    // And the import it was authored beside is still on the Edit canvas.
+    expect(useWorkspaceStore.getState().importedCreasePattern).not.toBeNull();
+  });
+
+  it('conditions on a design started over an opened crease pattern are editable', async () => {
+    // Same conflation, second guard: `addCondition` rejected with "Conditions
+    // require an editable tree document" for the same workspace-level reason.
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText(editableCpFoldText, {
+      filename: 'Untitled CP.fold',
+    });
+    await useWorkspaceStore.getState().chooseDesignMethod('treemaker');
+
+    await useWorkspaceStore.getState().updatePaper({ width: 2 });
+
+    expect(useWorkspaceStore.getState().error).toBeNull();
+    expect(selectProject(useWorkspaceStore.getState()).paper.width).toBe(2);
   });
 
   it('opens native tree projects and keeps Save on the native file path', async () => {
@@ -6504,6 +6546,23 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().oristudioCpSelection).toEqual(
       emptyOristudioCpSelection()
     );
+  });
+
+  it('unselects one crease without touching the rest of the selection', () => {
+    resetStores(seedSnapshot());
+    const state = () => useWorkspaceStore.getState();
+
+    state().toggleOristudioCpLineSelection(2);
+    state().toggleOristudioCpLineSelection(5, true);
+    state().toggleOristudioCpPointSelection(1, true);
+
+    // The deselect tools' click. A crease that is not selected is left alone,
+    // where the toggle above would have added it.
+    state().unselectOristudioCpLine(4);
+    expect(state().oristudioCpSelection).toMatchObject({ lines: [2, 5], points: [1] });
+
+    state().unselectOristudioCpLine(2);
+    expect(state().oristudioCpSelection).toMatchObject({ lines: [5], points: [1] });
   });
 
   it('updates editable CP grid size as undoable document metadata', async () => {

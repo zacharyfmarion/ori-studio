@@ -118,6 +118,8 @@
     "pointSize": "Tamaño de punto",
     "preview": "Vista previa de exportación",
     "showBackgroundColor": "Mostrar color de fondo",
+    "showGrid": "Mostrar líneas de la cuadrícula",
+    "showGridNeedsCp": "Abre un patrón de pliegues editable para dibujar su cuadrícula",
     "subtitle": "Subtítulo",
     "subtitlePlaceholder": "Opcional",
     "textSection": "Texto",
@@ -298,6 +300,12 @@
       "light": "Claro"
     },
     "close": "Cerrar configuración",
+    "general": {
+      "analytics": "Enviar analíticas de uso anónimas e informes de fallos para ayudar a mejorar Ori Studio",
+      "privacy": "Privacidad",
+      "showWelcome": "Mostrar la pantalla de bienvenida al iniciar",
+      "startup": "Inicio"
+    },
     "language": {
       "system": "Predeterminado del sistema",
       "title": "Idioma"
@@ -369,36 +377,35 @@
     },
     "tab": {
       "appearance": "Apariencia",
+      "general": "General",
       "shortcuts": "Atajos",
       "workspace": "Espacio de trabajo"
     },
     "title": "Configuración",
     "updates": {
       "automatic": "Descargar actualizaciones automáticamente",
+      "checkFailed": "No se pudo buscar actualizaciones — último intento {{when}}",
       "checking": "Buscando…",
       "checkNow": "Buscar ahora",
       "currentVersion": "Versión {{version}}",
       "description": "Las actualizaciones se descargan completas: Ori Studio no tiene actualizaciones parciales. No se instala nada hasta que reinicies.",
-      "lastChecked": "Última comprobación {{when}}",
       "neverChecked": "Aún sin comprobar",
       "notify": "Avisarme, pero iniciar la descarga yo",
       "off": "No buscar actualizaciones",
-      "title": "Actualizaciones"
+      "offered": "La versión {{version}} está disponible",
+      "title": "Actualizaciones",
+      "upToDate": "Actualizado — comprobado {{when}}"
     },
     "workspace": {
-      "analytics": "Enviar analíticas de uso anónimas e informes de fallos para ayudar a mejorar Ori Studio",
       "creasePatternCanvas": "Lienzo del patrón de pliegues",
       "folding": "Plegado",
       "foldWarning": "Avisar antes de plegar un patrón de pliegues con errores de plegado plano",
       "layout": "Disposición",
-      "privacy": "Privacidad",
       "resetButton": "Restablecer disposición del espacio de trabajo",
       "resetMessage": "¿Restaurar la disposición predeterminada del espacio de trabajo actual?",
       "resetTitle": "Restablecer disposición del espacio de trabajo",
-      "showWelcome": "Mostrar la pantalla de bienvenida al iniciar",
       "snapRadius": "Radio de ajuste",
       "snapRadiusHint": "A qué distancia debe llegar el puntero de un vértice, un pliegue o un punto de la cuadrícula para ajustarse a él, en unidades de papel: el papel mide 400 de ancho, así que es el mismo número que usa Oriedita.",
-      "startup": "Inicio",
       "wheelGestureHint": "El pellizco y Cmd/Ctrl+desplazamiento siempre amplían, elijas lo que elijas.",
       "wheelPans": "Desplazar mueve, pellizcar amplía",
       "wheelZooms": "Desplazar amplía"
@@ -414,6 +421,8 @@
     "foldedFigureNeedsFlat": "Esta vista previa solo pliega en plano y este patrón tiene pliegues que no son completos",
     "folding": "Plegando…",
     "frontColor": "Color del anverso",
+    "grid": "Mostrar líneas de la cuadrícula",
+    "gridNeedsCp": "Abre un patrón de pliegues editable para dibujar su cuadrícula",
     "linkPreview": "Vista previa del enlace",
     "notPublished": "No se publica nada hasta que crees el enlace.",
     "previewAlt": "Vista previa del patrón de pliegues compartido",

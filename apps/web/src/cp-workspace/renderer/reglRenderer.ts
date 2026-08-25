@@ -8,6 +8,7 @@ import { createFillProgram } from './programs/fillProgram';
 import { createMarkerProgram } from './programs/markerProgram';
 import { createWedgeProgram } from './programs/wedgeProgram';
 import { createImageProgram, type ImageDrawItem } from './programs/imageProgram';
+import { CP_GL_ATTRIBUTES, CP_REQUIRED_EXTENSION } from './webglSupport';
 
 // regl ships as a UMD module (`export = REGL`), so its instance type is reached
 // via the factory's return type rather than a named export.
@@ -22,15 +23,29 @@ export interface ReglRendererOptions {
    */
   onAsyncLoad?: () => void;
   /**
-   * Invoked when the canvas loses its WebGL context. Every regl resource dies
-   * with it, so there is nothing this module can repair — the host has to build
-   * a new renderer. Loss is silent otherwise: draws become no-ops and the
-   * surface simply freezes on its last frame, which reads as a hung editor.
+   * Invoked when the canvas loses its WebGL context. This is the one graphics
+   * failure that strikes a device which was drawing fine a second ago: iOS
+   * reclaims GL contexts under memory pressure. Loss is silent otherwise —
+   * draws become no-ops and the surface freezes on its last frame, which reads
+   * as a hung editor.
    *
-   * The event is preventDefault()ed first, which is what keeps the context
-   * eligible for restoration rather than gone for good.
+   * Nothing the host does here can bring the context back; it can only say so
+   * and wait for {@link onContextRestored}.
    */
   onContextLost?: () => void;
+  /**
+   * Invoked once the browser has handed the canvas a live context back and regl
+   * has re-created its own GL objects on it. The host rebuilds the renderer
+   * *here*, not at loss: until this fires, `getContext` returns the same dead
+   * context and every `getExtension` on it returns null, so a rebuild attempted
+   * at loss fails with the same error a machine with no WebGL at all produces —
+   * turning a recoverable blip into a permanent "canvas could not start".
+   *
+   * A rebuild rather than a redraw, because regl's restore is only partial: it
+   * re-uploads buffers from its own copies but re-creates textures empty, so the
+   * reference-image layer comes back blank unless the host re-uploads it.
+   */
+  onContextRestored?: () => void;
 }
 
 /** Decode an image `src` (data URL) to a GPU-ready bitmap, off the main thread. */
@@ -48,7 +63,9 @@ async function decodeImageBitmap(src: string): Promise<ImageBitmap | null> {
  * regl-backed {@link CpRenderer}. Owns the WebGL context for a single canvas and
  * composes the per-layer draw programs (currently strokes).
  *
- * @throws if a WebGL context cannot be created (caller should fall back to SVG).
+ * @throws if a WebGL context or {@link CP_REQUIRED_EXTENSION} cannot be had.
+ * There is no software path, so the caller's only recourse is to say why — see
+ * `cpWebglSupport` for the probe that names the gap ahead of this throw.
  */
 export function createReglRenderer(
   canvas: HTMLCanvasElement,
@@ -58,23 +75,24 @@ export function createReglRenderer(
     canvas,
     // Instanced strokes drive the whole renderer; require the extension up front
     // so failures surface here rather than at first draw.
-    extensions: ['ANGLE_instanced_arrays'],
-    attributes: {
-      antialias: true,
-      alpha: false,
-      premultipliedAlpha: true,
-      // On-demand renderer: we only redraw on mount/resize/state change, not
-      // every frame, so preserve the buffer to survive compositor repaints
-      // between renders. (Revisit if we move to continuous per-frame drawing.)
-      preserveDrawingBuffer: true,
-    },
+    extensions: [CP_REQUIRED_EXTENSION],
+    attributes: CP_GL_ATTRIBUTES,
   });
 
-  const onContextLost = (event: Event) => {
-    event.preventDefault();
+  // regl already owns the canvas's context-loss listeners: it preventDefault()s
+  // the loss — which is what keeps the context eligible for restoration rather
+  // than gone for good — and re-creates its GL objects before running the
+  // restore callbacks. Hooking regl rather than the canvas is what puts the
+  // host's rebuild after that work, on a context that is live again.
+  let contextLost = false;
+  regl.on('lost', () => {
+    contextLost = true;
     options.onContextLost?.();
-  };
-  canvas.addEventListener('webglcontextlost', onContextLost);
+  });
+  regl.on('restore', () => {
+    contextLost = false;
+    options.onContextRestored?.();
+  });
 
   const strokes = createStrokeProgram(regl);
   const gridStrokes = createStrokeProgram(regl);
@@ -264,7 +282,9 @@ export function createReglRenderer(
     },
 
     render(frame: CpRenderFrame) {
-      if (disposed) return;
+      // A lost context accepts draw calls and discards them; skipping the work
+      // also keeps the frame the host presents from claiming to be current.
+      if (disposed || contextLost) return;
       // Nothing to draw into a zero-area buffer (e.g. a collapsed panel).
       if (viewport.width === 0 || viewport.height === 0) return;
       // We drive regl outside regl.frame(), so poll() to sync its cached GL
@@ -282,16 +302,6 @@ export function createReglRenderer(
         if (items.length > 0) images.draw({ view: frame.view, viewport, items });
       }
       strokes.draw({ view: frame.view, viewport, widthPx: frame.strokeWidthPx });
-      // Folded figures are placed objects in user space; fills first, then their
-      // edges. Fold stroke widths are in user px (non-scaling): base = 1 css px
-      // (dpr device px) scaled per-segment by the width multiplier.
-      foldedFills.draw({ view: frame.userView, viewport });
-      foldedStrokes.draw({ view: frame.userView, viewport, widthPx: viewport.dpr });
-      // Imported .fold folded-form frames are placed the same way, in user space.
-      if (hasImportedForms) {
-        importedFills.draw({ view: frame.userView, viewport });
-        importedStrokes.draw({ view: frame.userView, viewport, widthPx: viewport.dpr });
-      }
       // Points and vertices sit on top of the crease lines.
       // Crease points and vertices are content: they ride `pointScalePx` and
       // shrink in lockstep with the pattern. Circles in this same layer are real
@@ -307,6 +317,20 @@ export function createReglRenderer(
         userOpacity: 1,
         markerOpacity: frame.pointOpacity,
       });
+      // Folded figures are placed objects in user space, so they occlude the whole
+      // crease pattern they sit over — vertices included. A vertex punching through
+      // an opaque folded face read as the figure being translucent rather than on
+      // top of the paper. Fills first, then their edges; fold stroke widths are in
+      // user px (non-scaling): base = 1 css px (dpr device px) scaled per-segment
+      // by the width multiplier.
+      foldedFills.draw({ view: frame.userView, viewport });
+      foldedStrokes.draw({ view: frame.userView, viewport, widthPx: viewport.dpr });
+      // Imported .fold folded-form frames are placed the same way, in user space,
+      // and stay in the same band as the generated figures above them.
+      if (hasImportedForms) {
+        importedFills.draw({ view: frame.userView, viewport });
+        importedStrokes.draw({ view: frame.userView, viewport, widthPx: viewport.dpr });
+      }
       // Diagnostic overlays sit above the crease pattern: fills (sector wedges /
       // frame region) underneath, with the shape markers on top. Nothing here
       // draws over a crease — see `CpDiagnosticMarkerStyle` for why.
@@ -355,7 +379,6 @@ export function createReglRenderer(
     dispose() {
       if (disposed) return;
       disposed = true;
-      canvas.removeEventListener('webglcontextlost', onContextLost);
       strokes.dispose();
       gridStrokes.dispose();
       images.dispose();

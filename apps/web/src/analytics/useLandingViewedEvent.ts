@@ -5,10 +5,11 @@ import { track } from './runtime';
 /**
  * Emit `landing viewed` when `/welcome` mounts, saying which register it drew.
  *
- * The `surface` split is the point of it. It is the denominator for
- * `mobile block bypassed` — how many people hit the desktop-only notice against
- * how many pushed past it — and that ratio is what decides whether phone support
- * is worth building.
+ * The `surface` split used to be the denominator for `mobile block bypassed` —
+ * how many people met the desktop-only notice against how many pushed past it,
+ * which is what decided whether phone support was worth building. It was, the
+ * gate is gone, and the split now answers the plainer question of how much of
+ * the audience arrives on a phone at all.
  *
  * Lives in the view component, the idiomatic home for a "viewed" event, rather
  * than in a store subscription.

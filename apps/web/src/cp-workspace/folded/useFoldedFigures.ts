@@ -43,6 +43,12 @@ import {
   publishFolded3dOrbit,
 } from './folded3dRuntime';
 import { reproject3dFigureAt } from './folded3dReproject';
+import {
+  beginOrbitGesture,
+  endOrbitGesture,
+  recordOrbitMove,
+  recordOrbitReproject,
+} from '../../simulator/simulatorPerfProbe';
 import { useFolded3dRehydration } from './useFolded3dRehydration';
 import type { Vec2 } from '../annotations/annotationTransform';
 import {
@@ -415,10 +421,19 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       if (!id) return false;
       const figure = figureById(id);
       if (!figure) return false;
+      const windowed = canWindowFolded3dFigure(figure, {
+        gpuAvailable: webglRenderSupported(),
+      });
+      // This surface orbits from the crease-pattern canvas rather than from
+      // `SimulatorViewport` (whose own pointer handlers are switched off for a
+      // folded window), so the gesture has to be opened here or a figure would
+      // be the one surface the orbit readout never covered. The two paths cost
+      // entirely different things, so the label names which one ran.
+      beginOrbitGesture(windowed ? 'folded-3d-window' : 'folded-2d-reproject');
       orbitDragRef.current = {
         id,
         drag: beginFoldedFigureOrbit(liveFigureCamera(figure), point),
-        windowed: canWindowFolded3dFigure(figure, { gpuAvailable: webglRenderSupported() }),
+        windowed,
         // The undo snapshot is deliberately NOT taken here. A press and release
         // that never moves is a click, and snapshotting on press would put a
         // no-op entry on the stack that the user has to undo past. Taken on the
@@ -444,6 +459,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       if (!session) return;
       const figure = figureById(session.id);
       if (!figure) return;
+      recordOrbitMove();
       const before = liveFigureCamera(figure);
       const next = advanceFoldedFigureOrbit(before, session.drag, point);
       if (!foldedFigureOrbitChanged(before, next)) return;
@@ -459,12 +475,15 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       // commit is the wrong place for that work. Null when the figure has no
       // render model (reopened from a file), which the side table carries through
       // as "keep the picture you have".
-      publishFolded3dOrbit(session.id, {
-        camera: next,
-        snapshot: session.windowed
-          ? null
-          : reproject3dFigureAt(figure, figure.displayStyle, next),
-      });
+      let snapshot = null;
+      if (!session.windowed) {
+        // Timed: this is the whole cost of turning an unwindowed figure, it runs
+        // on this thread once per pointermove, and no worker counter can see it.
+        const started = performance.now();
+        snapshot = reproject3dFigureAt(figure, figure.displayStyle, next);
+        recordOrbitReproject(performance.now() - started);
+      }
+      publishFolded3dOrbit(session.id, { camera: next, snapshot });
     },
     [beginFoldedFigureGesture, figureById]
   );
@@ -476,6 +495,10 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
   const commitOrbit = useCallback(() => {
     const session = orbitDragRef.current;
     orbitDragRef.current = null;
+    // Before the early return: a press that never turned anything still opened a
+    // gesture in `beginOrbit`, and leaving it open would attribute the next
+    // drag's traffic to it.
+    endOrbitGesture();
     if (!session) return;
     const live = getFolded3dOrbit(session.id);
     // `recording` is set by the first move that changed the camera, and that

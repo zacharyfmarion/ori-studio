@@ -36,6 +36,7 @@ import type { FileService } from '../../platform/fileService';
 import type { ImportedCreasePatternDocument } from '../../lib/creasePatternImport';
 import type {
   CreaseExportFoldedFigureSettings,
+  CreaseExportGridSource,
   CreaseExportOptions,
 } from '../../lib/creaseExport';
 import type { CpSegment } from '../../lib/creasePatternSegmentation';
@@ -145,6 +146,8 @@ export interface OristudioCpShareDraft {
    */
   fold: FoldDocument;
   segments: CpSegment[];
+  /** The grid the card's "Show grid lines" option draws, when there is one. */
+  grid: CreaseExportGridSource | null;
   /** The published link, once created. */
   url: string | null;
 }
@@ -303,7 +306,8 @@ export interface ProjectSliceState {
 
 export interface ProjectSliceActions {
   initEngine: () => Promise<void>;
-  createNewProject: (options?: { preserveEditCanvas?: boolean }) => Promise<void>;
+  /** Whether a project now exists — false if the engine failed or a discard was refused. */
+  createNewProject: (options?: { preserveEditCanvas?: boolean }) => Promise<boolean>;
   createNewCreasePattern: () => Promise<void>;
   loadStarterProject: () => Promise<void>;
   loadProjectText: (
@@ -476,7 +480,13 @@ export interface ProjectSliceActions {
   /** Copy a design into a new tab beside it. Fresh history; nothing inherited. */
   duplicateDesignTab: (designId: string) => Promise<void>;
   /** Resolve the Design pane NUX chooser into a concrete design method. */
-  chooseDesignMethod: (target: WorkflowTarget) => Promise<void>;
+  /**
+   * Establish a design of this kind on the active tab.
+   *
+   * Resolves to whether one was created. Every creator catches its own error, so
+   * this never rejects and the boolean is the only failure signal a caller gets.
+   */
+  chooseDesignMethod: (target: WorkflowTarget) => Promise<boolean>;
 }
 
 export type ProjectSlice = ProjectSliceState & ProjectSliceActions;
@@ -979,6 +989,11 @@ export interface CreasePatternSliceActions {
   clearOristudioCpFoldedFigures: () => Promise<void>;
   clearOristudioCpSelection: () => void;
   toggleOristudioCpLineSelection: (id: number, additive?: boolean) => void;
+  /**
+   * Take one crease out of the selection, leaving one that is not in it alone —
+   * the deselect tools' click, which no toggle can express.
+   */
+  unselectOristudioCpLine: (id: number) => void;
   toggleOristudioCpPointSelection: (id: number, additive?: boolean) => void;
   toggleOristudioCpCircleSelection: (id: number, additive?: boolean) => void;
   toggleOristudioCpTextSelection: (id: number, additive?: boolean) => void;

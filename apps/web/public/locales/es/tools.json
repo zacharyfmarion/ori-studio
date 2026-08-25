@@ -12,6 +12,7 @@
     "applyVoronoi": "Aplicar Voronoi",
     "ariaLabel": "Opciones de la herramienta de patrón de pliegues",
     "autoNearest": "Automático más cercano",
+    "cancelInput": "Cancelar este paso",
     "candidate": "Candidato",
     "candidateIndex": "Índice de candidato",
     "circleColor": "Color del círculo",
@@ -195,6 +196,7 @@
     "width": "Ancho"
   },
   "cpRail": {
+    "addToSelection": "Añadir a la selección",
     "ariaLabel": "Herramientas de patrón de pliegues",
     "openEditableFirst": "Abre primero un patrón de pliegues editable"
   },
@@ -204,6 +206,11 @@
     "label": "Opciones de herramienta",
     "next": "Opción siguiente",
     "previous": "Opción anterior"
+  },
+  "cpToolPicker": {
+    "close": "Cerrar la lista de herramientas",
+    "title": "Herramientas",
+    "trigger": "Herramientas"
   },
   "divideMode": {
     "count": "Cantidad",
@@ -256,9 +263,11 @@
   },
   "viewport": {
     "fit": "Ajustar",
+    "more": "Más controles de vista",
     "pan": "Desplazar",
     "panWithModifier": "Desplazar: o mantén {{modifier}} y arrastra",
     "panWithShortcut": "Desplazar ({{shortcut}}): o mantén {{modifier}} y arrastra",
+    "resetRotation": "Restablecer el giro de la vista",
     "rotateCcw": "Girar vista a la izquierda",
     "rotateCw": "Girar vista a la derecha",
     "rotation": "Rotación de la vista en grados",

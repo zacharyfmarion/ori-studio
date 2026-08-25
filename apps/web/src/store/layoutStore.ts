@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { DockviewApi, IDockviewPanel, SerializedDockview } from 'dockview';
+import { isCoarsePointerSurface } from '../platform/pointerSurface';
 import type { WorkspaceId } from '../workspaces/workspaces';
 import { primaryPanelIdFor, workspaceForPanelId } from '../workspaces/workspaces';
 import { readJson, readString, removeKey, storageKey, STORAGE_KEYS, writeJson, writeString } from '../lib/storage';
@@ -39,6 +40,25 @@ let reportActivePanel: (panelId: string | null) => void = () => {};
 
 export function registerActivePanelSink(sink: (panelId: string | null) => void): void {
   reportActivePanel = sink;
+}
+
+/**
+ * Whether a panel id is a pane of the design currently on screen.
+ *
+ * Asked by {@link LayoutState.activatePanel} before it moves the phone layout's
+ * visible pane, because this store has no business knowing which panes a design
+ * kind declares. An unregistered validator answers `false`, which is right on a
+ * desktop where the dock already handled the activation.
+ */
+let isDesignPaneOfActiveKind: (panelId: string) => boolean = () => false;
+
+export function registerDesignPaneValidator(isPane: (panelId: string) => boolean): () => void {
+  isDesignPaneOfActiveKind = isPane;
+  // Identity-checked, so a remount that registers before the old one cleans up
+  // cannot leave the seam pointing at nothing.
+  return () => {
+    if (isDesignPaneOfActiveKind === isPane) isDesignPaneOfActiveKind = () => false;
+  };
 }
 
 /**
@@ -98,16 +118,136 @@ interface PrimaryPanelOptions {
   title: string;
 }
 
-export function applyDefaultLayout(api: DockviewApi, workspace: WorkspaceId = 'design'): void {
+/**
+ * The shape of a workspace's View pane, in the form `addPanel` wants it.
+ *
+ * It exists because the pane is no longer built in exactly one place: under a
+ * coarse pointer it is not docked at all, and the drawer that replaces it has to
+ * name the same panel. The default build, the reconcile and the drawer all read
+ * this one record, which is what keeps "which pane is the View pane" from being
+ * answered by three hand-written literals that can drift — which is how the id,
+ * component, title and width used to live.
+ */
+interface ViewPanelDefinition {
+  id: string;
+  component: string;
+  title: string;
+  initialWidth: number;
+  /** The primary pane it docks to the right of. */
+  referencePanelId: string;
+}
+
+const WORKSPACE_VIEW_PANELS = {
+  edit: {
+    id: 'cp-view-controls',
+    component: 'cp-view-controls',
+    title: 'View',
+    initialWidth: 260,
+    referencePanelId: 'crease-pattern',
+  },
+  simulate: {
+    id: 'simulator-view-controls',
+    component: 'simulator-view-controls',
+    title: 'View',
+    initialWidth: 260,
+    referencePanelId: 'simulator',
+  },
+} as const satisfies Partial<Record<WorkspaceId, ViewPanelDefinition>>;
+
+export type ViewPanelSpec = (typeof WORKSPACE_VIEW_PANELS)[keyof typeof WORKSPACE_VIEW_PANELS];
+
+/**
+ * The ids in the table, as a union rather than `string`.
+ *
+ * The drawer keys its content map on this, so a workspace that gains a View pane
+ * without gaining a drawer body is a compile error rather than an empty sheet.
+ */
+export type ViewPanelId = ViewPanelSpec['id'];
+
+export function viewPanelFor(workspace: WorkspaceId): ViewPanelSpec | null {
+  return workspace in WORKSPACE_VIEW_PANELS
+    ? WORKSPACE_VIEW_PANELS[workspace as keyof typeof WORKSPACE_VIEW_PANELS]
+    : null;
+}
+
+function addViewPanel(api: DockviewApi, spec: ViewPanelSpec): void {
+  // Dockview throws when a `referencePanel` is not in the dock, and reconciling
+  // runs against layouts we did not build (a restored `fromJSON`, an error path
+  // that left the dock empty). Nothing to dock beside is a reason to leave the
+  // dock alone, not to take the workspace down.
+  if (!api.getPanel(spec.referencePanelId)) return;
+  api.addPanel({
+    id: spec.id,
+    component: spec.component,
+    title: spec.title,
+    position: { referencePanel: spec.referencePanelId, direction: 'right' },
+    initialWidth: spec.initialWidth,
+  });
+}
+
+/**
+ * Make the dock's View pane agree with the pointer, in either direction.
+ *
+ * Under a coarse pointer the pane is not docked: a 260px column beside the
+ * canvas is most of an iPad's width in portrait, and the same controls are one
+ * tap away in the drawer (see `WorkspaceViewDrawer`). Removing it rather than
+ * hiding it is the point — `removePanel` takes the emptied group with it, so the
+ * canvas gets the width back instead of dockview holding an invisible column.
+ *
+ * Total and idempotent, because it has to run at several unrelated moments:
+ * after each of the two `fromJSON` restores, once more at the end of `onReady`
+ * whichever way that went, and again whenever the primary pointer changes under
+ * a live app. A default build needs none of it — `applyDefaultLayout` is handed
+ * the pointer and builds the right set — so that call is the free no-op.
+ *
+ * **Why this instead of a pointer-scoped storage bucket.** A separate
+ * `…:edit:coarse` key would not touch the dock that is already built, so the
+ * live flip needs this function regardless — and once it exists, the second
+ * bucket buys nothing while doubling the scopes to invalidate. Repairing also
+ * beats discarding: the difference between the two layouts is exactly one panel
+ * whose full options this module owns, so there is nothing here that a version
+ * bump's throw-it-away semantics would be the right tool for.
+ *
+ * The cost, stated: a device that really does flip (a convertible, devtools
+ * emulation) gets the pane back at `initialWidth` rather than at whatever width
+ * the user had dragged it to, because the debounced save will have overwritten
+ * the stored sash position while the pane was gone. An iPad does not flip —
+ * `pointer` stays `coarse` with a Magic Keyboard attached — so this is not the
+ * case the feature is for.
+ */
+export function reconcileViewPanel(
+  api: DockviewApi,
+  workspace: WorkspaceId,
+  coarsePointer: boolean = isCoarsePointerSurface()
+): void {
+  // The Design workspace is deliberately not in the table. Its panes live in the
+  // active tab's own dock and persist into the `.osf`, so reconciling there would
+  // write a pane-less layout into a document that travels to other devices and
+  // other users — a much worse bug than the local one this fixes.
+  const spec = viewPanelFor(workspace);
+  if (!spec) return;
+  const panel = api.getPanel(spec.id);
+  if (coarsePointer) {
+    if (panel) api.removePanel(panel);
+    return;
+  }
+  if (!panel) addViewPanel(api, spec);
+}
+
+export function applyDefaultLayout(
+  api: DockviewApi,
+  workspace: WorkspaceId = 'design',
+  coarsePointer: boolean = isCoarsePointerSurface()
+): void {
   switch (workspace) {
     case 'design':
       applyDesignLayout(api);
       return;
     case 'edit':
-      applyEditLayout(api);
+      applyEditLayout(api, coarsePointer);
       return;
     case 'simulate':
-      applySimulateLayout(api);
+      applySimulateLayout(api, coarsePointer);
       return;
   }
 }
@@ -134,34 +274,24 @@ function applyDesignLayout(api: DockviewApi): void {
   }).api.setActive();
 }
 
-function applyEditLayout(api: DockviewApi): void {
+function applyEditLayout(api: DockviewApi, coarsePointer: boolean): void {
   addHeaderlessPanel(api, {
     id: 'crease-pattern',
     component: 'crease-pattern',
     title: 'Crease Pattern',
   });
-  api.addPanel({
-    id: 'cp-view-controls',
-    component: 'cp-view-controls',
-    title: 'View',
-    position: { referencePanel: 'crease-pattern', direction: 'right' },
-    initialWidth: 260,
-  });
+  // Built rather than built-and-reconciled, so a touch device never mounts the
+  // pane's controls for the one frame it would take to remove them again.
+  if (!coarsePointer) addViewPanel(api, WORKSPACE_VIEW_PANELS.edit);
 }
 
-function applySimulateLayout(api: DockviewApi): void {
+function applySimulateLayout(api: DockviewApi, coarsePointer: boolean): void {
   const simulator = addHeaderlessPanel(api, {
     id: 'simulator',
     component: 'simulator',
     title: 'Simulator',
   });
-  api.addPanel({
-    id: 'simulator-view-controls',
-    component: 'simulator-view-controls',
-    title: 'View',
-    position: { referencePanel: 'simulator', direction: 'right' },
-    initialWidth: 260,
-  });
+  if (!coarsePointer) addViewPanel(api, WORKSPACE_VIEW_PANELS.simulate);
   simulator.api.setActive();
 }
 
@@ -176,9 +306,29 @@ interface LayoutState {
    * layout store looks in both.
    */
   designPaneApi: DockviewApi | null;
+  /**
+   * The design pane the **phone** layout is showing, and null on every layout
+   * that has a dock to answer for itself.
+   *
+   * Its own field rather than a read of `activePanelId`, and that is the whole
+   * of a bug worth not repeating. `activePanelId` is a *cache of what Dockview
+   * owns*, and `activateWorkspace` re-reports it on every call — including the
+   * no-op path that `activatePanel` takes on the way to a design pane. The
+   * Design workspace's one dock panel is `design-workspace`, which is not in
+   * `WORKSPACE_BY_PANEL_ID`, so that reconcile answers `primaryPanelIdFor(
+   * 'design')` = `design`. On a desktop the design-pane dock corrects it a
+   * moment later and nobody notices; with no dock it stuck, so selecting a flap
+   * in the BP editor — which activates a panel to move dock focus — threw the
+   * user back to the tree editor.
+   *
+   * Kept here rather than in the workspace store because it is a layout fact,
+   * and because `activePanelId` below has to consult it.
+   */
+  designPaneId: string | null;
   activeWorkspace: WorkspaceId;
   setDockviewApi: (api: DockviewApi | null) => void;
   setDesignPaneApi: (api: DockviewApi | null) => void;
+  setDesignPaneId: (panelId: string | null) => void;
   setActiveWorkspace: (workspace: WorkspaceId) => void;
   activateWorkspace: (workspace: WorkspaceId) => void;
   /**
@@ -196,9 +346,11 @@ interface LayoutState {
 export const useLayoutStore = create<LayoutState>((set, get) => ({
   dockviewApi: null,
   designPaneApi: null,
+  designPaneId: null,
   activeWorkspace: 'design',
   setDockviewApi: (api) => set({ dockviewApi: api }),
   setDesignPaneApi: (api) => set({ designPaneApi: api }),
+  setDesignPaneId: (panelId) => set({ designPaneId: panelId }),
   setActiveWorkspace: (workspace) => set({ activeWorkspace: workspace }),
   /**
    * Navigate to a workspace, and settle which pane is active in it.
@@ -234,6 +386,9 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     if (saved) {
       try {
         dockviewApi.fromJSON(saved);
+        // A restored layout is a panel set from whenever it was captured, which
+        // need not be the panel set this pointer wants. See `reconcileViewPanel`.
+        reconcileViewPanel(dockviewApi, workspace);
         reportActivePanel(get().activePanelId());
         return;
       } catch (error) {
@@ -251,6 +406,12 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     // (or never will, on the no-op path). The workspace's own primary pane is
     // the honest answer for that moment, and the answer headless has always.
     if (active && workspaceForPanelId(active) === get().activeWorkspace) return active;
+    // Except where the phone layout is showing a design pane. There is no dock
+    // to have caught up, so "primary pane" is not a stale answer that will be
+    // corrected — it is a wrong one that sticks, and it would drag the user back
+    // to the tree editor on every activation. See `designPaneId`.
+    const designPane = get().designPaneId;
+    if (designPane && workspaceForPanelId(designPane) === get().activeWorkspace) return designPane;
     return primaryPanelIdFor(get().activeWorkspace);
   },
   activatePanel: (id) => {
@@ -258,7 +419,18 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     if (targetWorkspace) get().activateWorkspace(targetWorkspace);
     const { dockviewApi, designPaneApi } = get();
     const panel = dockviewApi?.getPanel(id) ?? designPaneApi?.getPanel(id);
-    panel?.api.setActive();
+    if (panel) {
+      panel.api.setActive();
+      return;
+    }
+    // No dock holds it. On a phone that is the ordinary case for a design pane —
+    // the layout mounts one and switches rather than docking them side by side.
+    // Everywhere else the validator answers `false` and this is the same nothing
+    // the bare `panel?.api.setActive()` used to do.
+    if (isDesignPaneOfActiveKind(id)) {
+      set({ designPaneId: id });
+      reportActivePanel(id);
+    }
   },
   saveLayout: (workspace = get().activeWorkspace) => {
     const { dockviewApi } = get();

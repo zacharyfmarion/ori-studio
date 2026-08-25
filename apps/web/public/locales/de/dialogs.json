@@ -113,6 +113,8 @@
     "pointSize": "Punktgröße",
     "preview": "Export-Vorschau",
     "showBackgroundColor": "Hintergrundfarbe anzeigen",
+    "showGrid": "Rasterlinien anzeigen",
+    "showGridNeedsCp": "Öffne ein bearbeitbares Faltmuster, um sein Raster zu zeichnen",
     "subtitle": "Untertitel",
     "subtitlePlaceholder": "Optional",
     "textSection": "Text",
@@ -288,6 +290,12 @@
       "light": "Hell"
     },
     "close": "Einstellungen schließen",
+    "general": {
+      "analytics": "Anonyme Nutzungsstatistiken und Absturzberichte senden, um Ori Studio zu verbessern",
+      "privacy": "Datenschutz",
+      "showWelcome": "Willkommensbildschirm beim Start anzeigen",
+      "startup": "Start"
+    },
     "language": {
       "system": "Systemstandard",
       "title": "Sprache"
@@ -355,36 +363,35 @@
     },
     "tab": {
       "appearance": "Darstellung",
+      "general": "Allgemein",
       "shortcuts": "Tastenkürzel",
       "workspace": "Arbeitsbereich"
     },
     "title": "Einstellungen",
     "updates": {
       "automatic": "Updates automatisch herunterladen",
+      "checkFailed": "Nach Updates konnte nicht gesucht werden — letzter Versuch {{when}}",
       "checking": "Wird geprüft…",
       "checkNow": "Jetzt prüfen",
       "currentVersion": "Version {{version}}",
       "description": "Updates werden vollständig heruntergeladen — Ori Studio hat keine Teil-Updates. Es wird nichts installiert, bis Sie neu starten.",
-      "lastChecked": "Zuletzt geprüft {{when}}",
       "neverChecked": "Noch nicht geprüft",
       "notify": "Benachrichtigen, aber Download selbst starten",
       "off": "Nicht nach Updates suchen",
-      "title": "Updates"
+      "offered": "Version {{version}} ist verfügbar",
+      "title": "Updates",
+      "upToDate": "Auf dem neuesten Stand — geprüft {{when}}"
     },
     "workspace": {
-      "analytics": "Anonyme Nutzungsstatistiken und Absturzberichte senden, um Ori Studio zu verbessern",
       "creasePatternCanvas": "Faltmuster-Zeichenfläche",
       "folding": "Falten",
       "foldWarning": "Vor dem Falten eines Faltmusters mit Flachfaltbarkeitsfehlern warnen",
       "layout": "Layout",
-      "privacy": "Datenschutz",
       "resetButton": "Arbeitsbereichslayout zurücksetzen",
       "resetMessage": "Das Standardlayout für den aktuellen Arbeitsbereich wiederherstellen?",
       "resetTitle": "Arbeitsbereichslayout zurücksetzen",
-      "showWelcome": "Willkommensbildschirm beim Start anzeigen",
       "snapRadius": "Einrastradius",
       "snapRadiusHint": "Wie nah der Zeiger an einen Eckpunkt, eine Falzlinie oder einen Rasterpunkt kommen muss, damit er dort einrastet – in Papiereinheiten: Das Papier ist 400 breit, also ist es dieselbe Zahl wie in Oriedita.",
-      "startup": "Start",
       "wheelGestureHint": "Zwei-Finger-Geste und Cmd/Strg+Scrollen zoomen immer, unabhängig von der Auswahl.",
       "wheelPans": "Scrollen verschiebt, Zwei-Finger-Geste zoomt",
       "wheelZooms": "Scrollen zoomt"
@@ -400,6 +407,8 @@
     "foldedFigureNeedsFlat": "Diese Vorschau faltet nur flach, und dieses Faltmuster enthält Falten, die keine vollen Faltungen sind",
     "folding": "Wird gefaltet…",
     "frontColor": "Vorderseitenfarbe",
+    "grid": "Rasterlinien anzeigen",
+    "gridNeedsCp": "Öffne ein bearbeitbares Faltmuster, um sein Raster zu zeichnen",
     "linkPreview": "Linkvorschau",
     "notPublished": "Bis du den Link erstellst, wird nichts veröffentlicht.",
     "previewAlt": "Vorschau des geteilten Faltmusters",

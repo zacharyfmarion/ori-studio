@@ -12,12 +12,12 @@ safeguards that keep it that way.
   can fix it. Code under `apps/web/src/monitoring/`. Errors only: no tracing, no
   profiling, no session replay.
 
-**One switch governs both.** Settings → Workspace → Privacy is a single toggle;
+**One switch governs both.** Settings → General → Privacy is a single toggle;
 opting out of usage analytics also stops crash reports.
 
-The browser build and the Tauri desktop build share the same renderer code, so
-one implementation covers both. A `runtime_surface` property/tag (`web` |
-`desktop`) distinguishes them.
+The browser build and the Tauri build share the same renderer code, so one
+implementation covers both. A `runtime_surface` property/tag (`web` | `desktop`)
+distinguishes them.
 
 ## Principles
 
@@ -33,7 +33,7 @@ one implementation covers both. A `runtime_surface` property/tag (`web` |
   mints a new one, so the two sessions are not linkable. Sentry uses the *same*
   id as its `user.id`, so a crash and a session are correlatable without either
   system knowing who the user is.
-- **Opt-out, honored immediately.** Settings → Workspace → Privacy has a toggle
+- **Opt-out, honored immediately.** Settings → General → Privacy has a toggle
   (default on). Turning it off sends a final `analytics preference changed`
   event, then resets identity and stops all capture — including autocapture. For
   Sentry it flips the `beforeSend` gate to drop every event, clears the identity,
@@ -175,7 +175,14 @@ crash. If you want *frequency*, that is a PostHog event, not a Sentry one.
 ## Tracked events
 
 Every event also carries the super properties `app_version`, `app_commit`,
-`runtime_surface`, `analytics_enabled`, `locale`, and `locale_source`.
+`runtime_surface`, `display_mode`, `analytics_enabled`, `locale`, and
+`locale_source`.
+
+**`display_mode`** is `standalone` or `browser` — whether the session came off a
+home screen (the installed PWA) or out of a browser tab. It is a super property
+and not an event on purpose: the question is what *share* of sessions are
+installed, which is the kill gate for the iPad PWA phase, and an "installed"
+event could only ever count people who installed while instrumented.
 
 **`locale` is the language the app is running in** — one of the nine codes in
 `SUPPORTED_LOCALES` — and `locale_source` is `system` or `pinned`, i.e. whether
@@ -232,6 +239,8 @@ the person chose it or is following their OS. Two things it is deliberately not:
 | `oriedita shortcuts imported` | `mode`, `applied_count`, `skipped_count` | An Oriedita `.oriconfig` keymap is applied |
 | `cp snap radius changed` | `snap_radius` (bucketed) | The crease-pattern snap radius is changed in Settings. Bucketed, never the number: it is a continuous per-user value, and the question it answers — tighter than the default, or more forgiving — is a bucket already. Fires only on an actual change, so the event existing already means the default was left |
 | `cp wheel gesture changed` | `wheel_gesture` | What an unmodified scroll does on the crease-pattern canvas is changed in Settings. An enum of two, and it only fires on a deliberate switch, so the counts read as departures from the shipped default (`zoom`) rather than as a population split |
+| `view drawer opened` | `workspace` | The touch-only View drawer is opened. It has no fine-pointer counterpart — the pane is docked there — so every one of these is a touch session going looking for the view options, which is the question undocking the pane raises. No menu action reaches it, so the `command invoked` chokepoint cannot see it |
+| `cp tool picker opened` | — | The phone layout's tool sheet is opened. Phone-only, because that is the one layout with no tool rail, so every one of these is somebody who found the Tools pill that replaced it. `cp tool used` counts what was picked; this counts whether the surface was found at all |
 
 **Nothing about a 3D fold's geometry is sent.** Not the closure residual, the
 loop gap, the plane separation, the crossing points, or any face, line, plane or

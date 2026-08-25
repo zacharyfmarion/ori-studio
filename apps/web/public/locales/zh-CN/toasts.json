@@ -23,6 +23,12 @@
     "failed": "无法导出此视图",
     "saved": "已导出 {{name}}"
   },
+  "update": {
+    "available": "版本 {{version}} 可用",
+    "checkFailed": "无法检查更新",
+    "checkFailedHint": "Ori Studio 无法连接到更新服务器。请检查网络连接后重试。",
+    "upToDate": "Ori Studio 已是最新版本"
+  },
   "upright": {
     "set": "已设置向上方向 — 拖动即可绕该轴旋转"
   }

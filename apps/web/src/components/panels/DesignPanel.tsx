@@ -16,17 +16,11 @@ import {
   Axis3d,
   Circle,
   CircleDot,
-  FileQuestionMark,
-  FileText,
-  FolderOpen,
-  Layers,
   Plus,
-  ScanLine,
   SlidersHorizontal,
   Tag,
   Waypoints,
 } from 'lucide-react';
-import { handleMenuAction } from '../../commands/menuActions';
 import {
   registerViewportShortcutExecutor,
   setActiveShortcutViewportSurface,
@@ -71,17 +65,19 @@ import {
   symmetryAxisForProject,
   symmetrySide,
 } from '../../lib/symmetryAuthoring';
+import { resetEngine } from '../../engines/engineHost';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { DesignAttributionFooter } from '../DesignAttributionFooter';
 import { BpTreePanel } from './BpTreePanel';
-import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
+import { SurfaceFailure } from '../ui/SurfaceFailure';
 import { SurfaceLoading } from '../ui/SurfaceLoading';
 import {
   isViewportInteractiveTarget,
-  ViewportSymmetryToggle,
   ViewportToolbar,
-  ViewportToolbarSeparator,
+  viewportLayerItems,
+  viewportSymmetryItems,
+  type ViewportToolbarGroupSpec,
 } from './ViewportToolbar';
 
 const DOT_SIZES: TreeDotSizes = { leafPx: 7, branchPx: 8 };
@@ -347,19 +343,51 @@ function DesignViewportToolbar({
   setZoomLevel,
 }: DesignViewportToolbarProps) {
   const { t } = useTranslation();
-  const [layersOpen, setLayersOpen] = useState(false);
-  const layersMenuRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    if (!layersOpen) return undefined;
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (layersMenuRef.current?.contains(target)) return;
-      setLayersOpen(false);
-    };
-    document.addEventListener('mousedown', onPointerDown);
-    return () => document.removeEventListener('mousedown', onPointerDown);
-  }, [layersOpen]);
+  const groups: ViewportToolbarGroupSpec[] = [
+    {
+      id: 'symmetry',
+      items: [
+        ...viewportSymmetryItems({
+          enabled: symmetryMode !== 'none',
+          label: t('panels:design.symmetryToolbar', 'Symmetry'),
+          title: t('panels:design.symmetryButton', 'Design symmetry'),
+          onToggle: () => onSymmetryEnabledChange(symmetryMode === 'none'),
+        }),
+        {
+          kind: 'node',
+          id: 'symmetry-options',
+          // Stays a popover on every pointer: presets, an angle and a position
+          // are a form, and a form has no menu-item shape.
+          node: (
+            <DesignSymmetryOptionsButton
+              symmetryMode={symmetryMode}
+              symmetryAngle={symmetryAngle}
+              symmetryLoc={symmetryLoc}
+              paperWidth={paperWidth}
+              paperHeight={paperHeight}
+              nextSymmetryPresetLabel={nextSymmetryPresetLabel}
+              onSymmetryPreset={onSymmetryPreset}
+              onFlipSymmetryPreset={onFlipSymmetryPreset}
+              onCustomSymmetryChange={onCustomSymmetryChange}
+            />
+          ),
+        },
+      ],
+    },
+    {
+      id: 'layers',
+      items: viewportLayerItems({
+        title: t('panels:design.layers', 'Layers'),
+        options: LAYER_OPTIONS.map((option) => ({
+          ...option,
+          label: designLayerLabel(t, option.key),
+        })),
+        visible: layers,
+        onChange: onLayerChange,
+      }),
+    },
+  ];
 
   return (
     <ViewportToolbar
@@ -369,53 +397,8 @@ function DesignViewportToolbar({
       zoomOut={zoomOut}
       fitToView={fitToView}
       setZoomLevel={setZoomLevel}
-    >
-      <ViewportToolbarSeparator />
-      <ViewportSymmetryToggle
-        enabled={symmetryMode !== 'none'}
-        label={t('panels:design.symmetryToolbar', 'Symmetry')}
-        title={t('panels:design.symmetryButton', 'Design symmetry')}
-        onToggle={() => onSymmetryEnabledChange(symmetryMode === 'none')}
-      />
-      <DesignSymmetryOptionsButton
-        symmetryMode={symmetryMode}
-        symmetryAngle={symmetryAngle}
-        symmetryLoc={symmetryLoc}
-        paperWidth={paperWidth}
-        paperHeight={paperHeight}
-        nextSymmetryPresetLabel={nextSymmetryPresetLabel}
-        onSymmetryPreset={onSymmetryPreset}
-        onFlipSymmetryPreset={onFlipSymmetryPreset}
-        onCustomSymmetryChange={onCustomSymmetryChange}
-      />
-      <ViewportToolbarSeparator />
-      <div className="viewport-toolbar__menu-anchor" ref={layersMenuRef}>
-        <IconButton
-          size="sm"
-          variant="toolbar"
-          title={t('panels:design.layers', 'Layers')}
-          isActive={layersOpen}
-          onClick={() => setLayersOpen((open) => !open)}
-        >
-          <Layers size={14} />
-        </IconButton>
-        {layersOpen && (
-          <div className="design-layer-menu" role="menu">
-            {LAYER_OPTIONS.map((option) => (
-              <label key={option.key} className="design-layer-option">
-                <input
-                  type="checkbox"
-                  checked={layers[option.key]}
-                  onChange={(event) => onLayerChange(option.key, event.target.checked)}
-                />
-                <span className="design-layer-option__icon">{option.icon}</span>
-                <span>{designLayerLabel(t, option.key)}</span>
-              </label>
-            ))}
-          </div>
-        )}
-      </div>
-    </ViewportToolbar>
+      groups={groups}
+    />
   );
 }
 
@@ -455,7 +438,7 @@ export function DesignPanel() {
     }
     // Box-pleat chosen but the BP worker hasn't produced the document yet — show
     // a loading state (gated on the BP worker) instead of flashing the tree
-    // editor. On failure, fall through to the tree editor's error surface.
+    // editor.
     if (!oristudioBpError) {
       return (
         <section className="panel-shell design-panel">
@@ -465,8 +448,55 @@ export function DesignPanel() {
         </section>
       );
     }
+    // And on failure, say so here.
+    //
+    // This used to fall through to the tree editor, on the reasoning that it has
+    // an error surface of its own. It does not have *this* error: a box-pleat tab
+    // would render the TreeMaker canvas, and if the TreeMaker engine was also
+    // down — which is the common case, because the reason is usually offline and
+    // shared — it rendered "Preparing the tree editor…" forever, over a design
+    // that was never a tree. That is the hang, and it looked nothing like its
+    // cause.
+    return (
+      <section className="panel-shell design-panel">
+        <BoxPleatFailure reason={oristudioBpError} />
+      </section>
+    );
   }
   return <TreeMakerDesignPanel />;
+}
+
+/**
+ * The box-pleat surface, when its kernel did not load.
+ *
+ * The retry replaces the worker before trying again. `oristudioBpWorker` holds
+ * `ready ??= init()`, so a rejected init is memoized for the worker's whole
+ * life — without the reset, "Try again" re-reads the same rejection however long
+ * the network has been back.
+ */
+function BoxPleatFailure({ reason }: { reason: string }) {
+  const { t } = useTranslation();
+  const ensureBoxPleatProject = useWorkspaceStore((state) => state.ensureBoxPleatProject);
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+
+  return (
+    <SurfaceFailure
+      label={t('panels:design.boxPleatEditorFailed', 'The box-pleat editor did not load')}
+      detail={
+        offline
+          ? t(
+              'panels:design.boxPleatEditorOffline',
+              'This design type has not been downloaded yet, and you are offline. Connect once and it will work offline from then on.'
+            )
+          : reason
+      }
+      retryLabel={t('panels:design.retry', 'Try again')}
+      onRetry={() => {
+        resetEngine('oristudio-bp');
+        void ensureBoxPleatProject();
+      }}
+    />
+  );
 }
 
 function TreeMakerDesignPanel() {
@@ -487,7 +517,6 @@ function TreeMakerDesignPanel() {
   const [symmetryModeOverride, setSymmetryModeOverride] = useState<SymmetrySelectValue | null>(null);
   const project = useWorkspaceStore((state) => selectProject(state));
   const engineReady = useWorkspaceStore((state) => state.engineReady);
-  const importedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern);
   const selection = useWorkspaceStore((state) => selectSelection(state));
   const symmetryAuthoringPairs = useWorkspaceStore((state) => selectSymmetryAuthoringPairs(state));
   const select = useWorkspaceStore((state) => state.select);
@@ -899,49 +928,6 @@ function TreeMakerDesignPanel() {
     return (
       <section className="panel-shell design-panel">
         <SurfaceLoading label={t('panels:design.preparingTreeEditor', 'Preparing the tree editor…')} />
-      </section>
-    );
-  }
-
-  if (importedCreasePattern) {
-    return (
-      <section className="panel-shell design-panel">
-        <div className="panel-body document-mode-empty">
-          <div className="document-mode-empty__icon" aria-hidden="true">
-            <FileQuestionMark size={30} />
-          </div>
-          <span className="document-mode-empty__message">
-            {importedCreasePattern
-              ? (
-                <>
-                  <span className="document-mode-empty__filename">
-                    {importedCreasePattern.source.filename}
-                  </span>{' '}
-                  {t(
-                    'panels:design.importedCreasePatternSuffix',
-                    'is an imported crease pattern without an editable tree.'
-                  )}
-                </>
-              )
-              : (
-                t('panels:design.noEditableTree', 'This document does not have an editable tree.')
-              )}
-          </span>
-          <div className="document-mode-empty__actions">
-            <Button size="sm" variant="primary" onClick={() => void handleMenuAction('view.edit')}>
-              <ScanLine size={14} />
-              {t('panels:design.editCp', 'Edit CP')}
-            </Button>
-            <Button size="sm" variant="secondary" onClick={() => void handleMenuAction('file.new')}>
-              <FileText size={14} />
-              {t('panels:design.newTree', 'New Tree')}
-            </Button>
-            <Button size="sm" variant="secondary" onClick={() => void handleMenuAction('file.open')}>
-              <FolderOpen size={14} />
-              {t('panels:design.open', 'Open')}
-            </Button>
-          </div>
-        </div>
       </section>
     );
   }

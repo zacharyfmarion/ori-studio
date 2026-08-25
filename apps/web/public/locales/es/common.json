@@ -273,10 +273,18 @@
     "downloading": "Descargando actualización…",
     "relaunch": "Reiniciar para actualizar"
   },
+  "viewDrawer": {
+    "close": "Cerrar opciones de vista",
+    "open": "Ver",
+    "title": "Opciones de vista"
+  },
   "workspaceRail": {
     "design": "Espacio de trabajo de diseño",
     "edit": "Espacio de trabajo de edición",
     "label": "Espacios de trabajo",
-    "simulate": "Espacio de trabajo de simulación"
+    "simulate": "Espacio de trabajo de simulación",
+    "tabDesign": "Diseño",
+    "tabEdit": "Editar",
+    "tabSimulate": "Simular"
   }
 }

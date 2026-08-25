@@ -108,6 +108,8 @@
     "pointSize": "点のサイズ",
     "preview": "エクスポートのプレビュー",
     "showBackgroundColor": "背景色を表示",
+    "showGrid": "グリッド線を表示",
+    "showGridNeedsCp": "グリッドを描画するには編集可能な展開図を開いてください",
     "subtitle": "サブタイトル",
     "subtitlePlaceholder": "任意",
     "textSection": "テキスト",
@@ -278,6 +280,12 @@
       "light": "ライト"
     },
     "close": "設定を閉じる",
+    "general": {
+      "analytics": "Ori Studio の改善に役立てるため、匿名の利用状況データとクラッシュレポートを送信する",
+      "privacy": "プライバシー",
+      "showWelcome": "起動時にようこそ画面を表示する",
+      "startup": "起動"
+    },
     "language": {
       "system": "システムのデフォルト",
       "title": "言語"
@@ -341,36 +349,35 @@
     },
     "tab": {
       "appearance": "外観",
+      "general": "一般",
       "shortcuts": "ショートカット",
       "workspace": "ワークスペース"
     },
     "title": "設定",
     "updates": {
       "automatic": "アップデートを自動的にダウンロードする",
+      "checkFailed": "アップデートを確認できませんでした — 最終試行 {{when}}",
       "checking": "確認中…",
       "checkNow": "今すぐ確認",
       "currentVersion": "バージョン {{version}}",
       "description": "アップデートは常に全体がダウンロードされます（差分更新はありません）。再起動するまで何もインストールされません。",
-      "lastChecked": "最終確認 {{when}}",
       "neverChecked": "未確認",
       "notify": "通知のみ、ダウンロードは自分で開始する",
       "off": "アップデートを確認しない",
-      "title": "アップデート"
+      "offered": "バージョン {{version}} が利用可能です",
+      "title": "アップデート",
+      "upToDate": "最新の状態です — 確認 {{when}}"
     },
     "workspace": {
-      "analytics": "Ori Studio の改善に役立てるため、匿名の利用状況データとクラッシュレポートを送信する",
       "creasePatternCanvas": "展開図キャンバス",
       "folding": "折り",
       "foldWarning": "平坦折りエラーのある展開図を折る前に警告する",
       "layout": "レイアウト",
-      "privacy": "プライバシー",
       "resetButton": "ワークスペースレイアウトをリセット",
       "resetMessage": "現在のワークスペースの既定のレイアウトに戻しますか？",
       "resetTitle": "ワークスペースレイアウトをリセット",
-      "showWelcome": "起動時にようこそ画面を表示する",
       "snapRadius": "スナップ半径",
       "snapRadiusHint": "頂点・折り線・グリッド点にスナップさせるために、ポインターをどれだけ近づける必要があるかを用紙単位で指定します。用紙の幅は 400 なので、Oriedita と同じ数値です。",
-      "startup": "起動",
       "wheelGestureHint": "どちらを選んでも、ピンチと Cmd/Ctrl+スクロールは常に拡大縮小します。",
       "wheelPans": "スクロールで移動、ピンチで拡大縮小",
       "wheelZooms": "スクロールで拡大縮小"
@@ -386,6 +393,8 @@
     "foldedFigureNeedsFlat": "このプレビューは平坦折りのみに対応しており、この展開図には完全に折らない折り線があります",
     "folding": "折りたたみ中…",
     "frontColor": "表面の色",
+    "grid": "グリッド線を表示",
+    "gridNeedsCp": "グリッドを描画するには編集可能な展開図を開いてください",
     "linkPreview": "リンクプレビュー",
     "notPublished": "リンクを作成するまで何も公開されません。",
     "previewAlt": "共有する展開図のプレビュー",

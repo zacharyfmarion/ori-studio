@@ -273,10 +273,18 @@
     "downloading": "アップデートをダウンロード中…",
     "relaunch": "再起動してアップデート"
   },
+  "viewDrawer": {
+    "close": "表示オプションを閉じる",
+    "open": "表示",
+    "title": "表示オプション"
+  },
   "workspaceRail": {
     "design": "デザインワークスペース",
     "edit": "編集ワークスペース",
     "label": "ワークスペース",
-    "simulate": "シミュレートワークスペース"
+    "simulate": "シミュレートワークスペース",
+    "tabDesign": "デザイン",
+    "tabEdit": "編集",
+    "tabSimulate": "シミュレート"
   }
 }

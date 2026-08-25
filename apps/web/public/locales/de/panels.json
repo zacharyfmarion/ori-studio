@@ -153,9 +153,6 @@
     },
     "clear": "Löschen",
     "editor": "Editor",
-    "imported": {
-      "message": "Importierte Faltmuster haben keine bearbeitbaren Baumbedingungen."
-    },
     "list": "Liste",
     "noConditions": "Keine Bedingungen",
     "paper": {
@@ -355,8 +352,10 @@
     "orbitFoldedForm": "Gefaltete Figur drehen",
     "preparing": "Editor wird vorbereitet…",
     "refoldFoldedModelAction": "Gefaltetes Modell neu falten",
+    "rendererContextLost": "Faltmuster-Zeichenfläche wird wiederhergestellt…",
+    "rendererContextLostHint": "Das System hat den Grafikspeicher dieser Zeichenfläche zurückgefordert, was passieren kann, wenn dem Gerät der Speicher ausgeht. Ihr Faltmuster ist sicher – die Ansicht kehrt zurück, sobald der Grafikkontext wieder da ist. Falls er nicht zurückkommt, laden Sie Ori Studio neu.",
     "rendererUnavailable": "Die Faltmuster-Zeichenfläche konnte nicht gestartet werden.",
-    "rendererUnavailableHint": "Ori Studio zeichnet Faltmuster mit WebGL2, das dieses System nicht bereitgestellt hat. Eine Aktualisierung der Grafiktreiber behebt das meistens.",
+    "rendererUnavailableHint": "Ori Studio zeichnet Faltmuster mit WebGL und instanziertem Rendering, das dieses System nicht bereitgestellt hat. Eine Aktualisierung der Grafiktreiber behebt das meistens.",
     "resetFoldedModelView": "Ansicht des gefalteten Modells zurücksetzen",
     "resizeAnnotation": "Anmerkungsgröße ändern",
     "resizeFoldedForm": "Größe der gefalteten Form ändern",
@@ -403,13 +402,13 @@
     "axisXAria": "Design-Symmetrieachse X",
     "axisY": "Y",
     "axisYAria": "Design-Symmetrieachse Y",
+    "boxPleatEditorFailed": "Der Box-Pleat-Editor konnte nicht geladen werden",
+    "boxPleatEditorOffline": "Dieser Entwurfstyp wurde noch nicht heruntergeladen, und Sie sind offline. Verbinden Sie sich einmal, danach funktioniert er auch offline.",
     "canvas": "Baumdesign-Leinwand",
-    "editCp": "CP bearbeiten",
     "emptyStateBody": "Verwenden Sie Zweige für die Klappen, Gliedmaßen und Merkmale, die die gefaltete Basis benötigt.",
     "emptyStateTitle": "Skizzieren Sie den Baum hinter Ihrem Design",
     "flipPresetAxis": "Voreingestellte Achse spiegeln",
     "flipToPreset": "Auf {{preset}} spiegeln",
-    "importedCreasePatternSuffix": "ist ein importiertes Faltmuster ohne bearbeitbaren Baum.",
     "layerCircles": "Kreise",
     "layerLabels": "Beschriftungen",
     "layerPaths": "Pfade",
@@ -432,13 +431,18 @@
         "description": "Zeichne einen Baum und finde passende Faltmuster aus dem ExplOri-Archiv.",
         "title": "22,5° durchsuchen"
       },
+      "failedOffline": "Dieser Entwurfstyp wurde noch nicht heruntergeladen, und Sie sind offline. Verbinden Sie sich einmal, danach funktioniert er auch offline.",
+      "failedTitle": "{{method}}-Entwurf konnte nicht gestartet werden",
+      "failedUnknown": "Der Editor für diesen Entwurfstyp konnte nicht geladen werden.",
       "groupLabel": "Designmethode",
+      "retry": "Erneut versuchen",
       "subtitle": "Wählen Sie, wie Sie dieses Modell erstellen möchten.",
       "title": "Ein neues Design beginnen"
     },
-    "newTree": "Neuer Baum",
-    "noEditableTree": "Dieses Dokument hat keinen bearbeitbaren Baum.",
-    "open": "Öffnen",
+    "paneSwitcher": {
+      "close": "Bereichsliste schließen",
+      "title": "Bereiche"
+    },
     "paneTitle": {
       "bpPacking": "BP-Editor",
       "bpTree": "Baum-Editor",
@@ -454,6 +458,7 @@
     "preset": "Voreinstellung",
     "presetBook": "Buch",
     "presetDiag": "Diag.",
+    "retry": "Erneut versuchen",
     "symmetry": "Symmetrie",
     "symmetryButton": "Design-Symmetrie",
     "symmetryControls": "Steuerung der Design-Symmetrie",
@@ -494,14 +499,10 @@
     "optimizingScale": "Skalierung wird optimiert",
     "paths": "Pfade"
   },
-  "documentModeEmpty": {
-    "editCp": "CP bearbeiten",
-    "newTree": "Neuer Baum",
-    "open": "Öffnen"
-  },
   "explori": {
     "advancedDatabases": "Topologiegrößen wählen",
     "backToResults": "Zurück zu den Ergebnissen",
+    "backToSearch": "Suche",
     "canvas": "Suchbaum-Zeichenfläche",
     "databaseCell": "{{symmetry}}, Größe {{size}}",
     "decreaseLength": "Verkürzen",

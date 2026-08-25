@@ -3,13 +3,18 @@ name = "oristudio-cp-eval"
 version.workspace = true
 publish.workspace = true
 edition.workspace = true
-license.workspace = true
+# Not the workspace GPL default: original work with no workspace dependency at
+# all, so it takes the permissive terms the other originals use.
+license = "MIT OR Apache-2.0"
 description = "Crease-pattern evaluation metrics for Ori Studio detection and compiler benchmarks"
 repository.workspace = true
 homepage.workspace = true
 keywords = ["origami", "crease-pattern", "evaluation", "metrics"]
 categories = ["algorithms", "mathematics"]
 include = ["Cargo.toml", "README.md", "src/**"]
+
+[lints]
+workspace = true
 
 [dependencies]
 serde.workspace = true

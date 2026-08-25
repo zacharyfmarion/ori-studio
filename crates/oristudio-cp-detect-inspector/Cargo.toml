@@ -2,7 +2,9 @@
 name = "oristudio-cp-detect-inspector"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+# Not the workspace GPL default: same detection stack as `oristudio-cp-detect`,
+# with no edge to the TreeMaker port.
+license = "MIT OR Apache-2.0"
 description = "Local Rust API server for inspecting crease-pattern detection stages"
 repository.workspace = true
 homepage.workspace = true
@@ -11,6 +13,9 @@ publish = false
 [[bin]]
 name = "oristudio-cp-detect-inspector"
 path = "src/main.rs"
+
+[lints]
+workspace = true
 
 [dependencies]
 anyhow.workspace = true

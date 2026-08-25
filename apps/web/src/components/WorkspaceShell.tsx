@@ -18,11 +18,16 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { MenuBar } from './MenuBar';
+import { CanvasHistoryPills } from './CanvasHistoryPills';
+import { CanvasPillLane } from './CanvasPillLane';
 import { DesignAttributionFooter } from './DesignAttributionFooter';
+import { DesignPaneSwitcher } from './DesignPaneSwitcher';
 import { DesignTabStrip } from './panels/DesignTabStrip';
 import { FixedDockTab } from './panels/FixedDockTab';
 import { ErrorBoundary } from './errors/ErrorBoundary';
 import { FileDropOverlay } from './FileDropOverlay';
+import { WorkspaceViewDrawer } from './WorkspaceViewDrawer';
+import { CpToolsTrigger } from '../cp-workspace/toolCatalog/CpToolsTrigger';
 import { panelComponents } from './panels/PanelComponents';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
@@ -30,9 +35,16 @@ import { SplitButton } from './ui/SplitButton';
 import { useSendToEditActions } from '../designKinds/useSendToEditActions';
 import { handleMenuAction } from '../commands/menuActions';
 import { useFileDropTarget } from '../hooks/useFileDropTarget';
+import { useViewPanelReconcile } from '../hooks/useWorkspaceViewDrawer';
 import type { DropTargetPolicy } from '../lib/fileDrop';
+import { useIsCoarsePointerSurface } from '../platform/pointerSurface';
 import { usesNativeAppMenu } from '../platform/runtime';
-import { applyDefaultLayout, clearPersistedLayout, useLayoutStore } from '../store/layoutStore';
+import {
+  applyDefaultLayout,
+  clearPersistedLayout,
+  reconcileViewPanel,
+  useLayoutStore,
+} from '../store/layoutStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useWorkspaceCapabilities } from '../store/workspaceStore/useWorkspaceCapabilities';
@@ -66,6 +78,25 @@ function workspaceTooltip(t: TFunction, id: WorkspaceId): string {
   }
 }
 
+/**
+ * The caption under a bottom tab, which only the phone layout shows.
+ *
+ * Its own strings rather than the tooltip's: "Design workspace" under a 125px
+ * tab is a truncation, and the word the tab bar wants is the one the workspace
+ * is called. Not the View menu's labels either — a menu item renamed should not
+ * silently rename the tabs.
+ */
+function workspaceTabLabel(t: TFunction, id: WorkspaceId): string {
+  switch (id) {
+    case 'design':
+      return t('common:workspaceRail.tabDesign', 'Design');
+    case 'edit':
+      return t('common:workspaceRail.tabEdit', 'Edit');
+    case 'simulate':
+      return t('common:workspaceRail.tabSimulate', 'Simulate');
+  }
+}
+
 function WorkspaceRail() {
   const { t } = useTranslation();
   const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
@@ -89,6 +120,15 @@ function WorkspaceRail() {
               onClick={() => navigate(pathForWorkspace(workspace.id))}
             >
               <Icon size={19} />
+              {/*
+                Hidden by the stylesheet everywhere but the phone layout, which is
+                the one place the rail is wide enough to caption. The button
+                already carries the same name as its `aria-label`, so this is
+                decoration to a screen reader and would otherwise be read twice.
+              */}
+              <span className="workspace-rail__label" aria-hidden="true">
+                {workspaceTabLabel(t, workspace.id)}
+              </span>
             </IconButton>
           );
         })}
@@ -124,8 +164,15 @@ function Toolbar() {
         {hasNativeMenu ? <span className="toolbar__title">Ori Studio</span> : <MenuBar />}
       </div>
       <div className="toolbar__actions">
+        {/*
+          `toolbar__action--file` marks the three the phone layout drops. All
+          three are unconditional File-menu entries and no capability can hide
+          them, so the icons are a shortcut rather than the only path — see the
+          phone block in App.css.
+        */}
         <IconButton
           size="sm"
+          className="toolbar__action--file"
           title={t('common:toolbar.new', 'New')}
           tooltipSide="bottom"
           disabled={!capabilities['file.new'].enabled}
@@ -135,6 +182,7 @@ function Toolbar() {
         </IconButton>
         <IconButton
           size="sm"
+          className="toolbar__action--file"
           title={t('common:toolbar.open', 'Open')}
           tooltipSide="bottom"
           disabled={!capabilities['file.open'].enabled}
@@ -144,6 +192,7 @@ function Toolbar() {
         </IconButton>
         <IconButton
           size="sm"
+          className="toolbar__action--file"
           title={t('common:toolbar.save', 'Save')}
           tooltipSide="bottom"
           disabled={!capabilities['file.save'].enabled}
@@ -269,6 +318,28 @@ export function WorkspaceShell() {
   const saveLayout = useLayoutStore((state) => state.saveLayout);
   const { dropTargetProps, isDragActive } = useFileDropTarget({ policy: WORKSPACE_DROP_POLICY });
 
+  // Dockview moves a panel with HTML5 drag-and-drop — `dragstart` plus a
+  // `dataTransfer` payload — and iOS Safari fires neither for a finger. Under a
+  // coarse pointer the tab is therefore a handle that leads nowhere: press it,
+  // pull, and the app looks broken rather than merely fixed. `disableDnd` says
+  // so to dockview, which stops marking tabs draggable and stops the drop
+  // overlays, and the layout can no longer be rearranged by anyone who could not
+  // rearrange it anyway.
+  //
+  // Only the arranging goes. Sashes are driven by pointer events, so resizing
+  // survives (widened for a fingertip in App.css), and every panel stays
+  // reachable without a drag — tabs activate on tap, the workspace rail and the
+  // design tab strip switch on tap, and the View menu activates panels by id.
+  // Nothing here can be closed (see `FixedDockTab`), so no panel can go missing
+  // and need dragging back.
+  const coarsePointer = useIsCoarsePointerSurface();
+
+  // The other half of "is the View pane docked, or drawered?". It lives on the
+  // shell rather than beside the drawer because the repair it performs is the
+  // flip *to* a fine pointer, and on a fine pointer the pill lane — and every
+  // component in it — is unmounted. See `useViewPanelReconcile`.
+  useViewPanelReconcile();
+
   // The workspace/variant the URL targets at mount, captured in a ref so onReady
   // (fired once by Dockview, possibly before the route effect runs) builds the
   // right layout instead of the stale store default. onReady fires at mount, so
@@ -309,6 +380,14 @@ export function WorkspaceShell() {
       if (!loaded) {
         applyDefaultLayout(api, workspace);
       }
+
+      // A restored layout carries the panel set from whenever it was captured,
+      // which need not be the set this pointer wants — see `reconcileViewPanel`.
+      // Idempotent, so the freshly built path above pays nothing for it. Ahead of
+      // the `onDidLayoutChange` subscription below on purpose: a repair is not an
+      // arrangement the user made, so it should not be what gets written back
+      // before they have touched anything.
+      reconcileViewPanel(api, workspace);
 
       // The active panel drives the active editing context (menus, history,
       // shortcuts). Seed it and keep it in sync as the user focuses panels.
@@ -357,11 +436,26 @@ export function WorkspaceShell() {
                 defaultTabComponent={FixedDockTab}
                 onReady={onReady}
                 className="dockview-theme-treemaker workspace-shell__dockview"
+                disableDnd={coarsePointer}
                 disableFloatingGroups
               />
             </ErrorBoundary>
           </div>
           <DesignWorkspaceFooter />
+          {/*
+            Touch only, and nothing at all under a fine pointer. Each pill gates
+            itself further — Tools down to the phone layout in Edit, View to the
+            workspaces that dock a View pane — so the lane can be empty, and DOM
+            order here is what puts undo/redo left of both.
+          */}
+          <ErrorBoundary surface="shell:canvas-pills" variant="mini">
+            <CanvasPillLane>
+              <CanvasHistoryPills />
+              <DesignPaneSwitcher />
+              <CpToolsTrigger />
+              <WorkspaceViewDrawer />
+            </CanvasPillLane>
+          </ErrorBoundary>
           <FileDropOverlay visible={isDragActive} policy={WORKSPACE_DROP_POLICY} />
         </div>
       </div>

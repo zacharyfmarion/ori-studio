@@ -153,9 +153,6 @@
     },
     "clear": "Clear",
     "editor": "Editor",
-    "imported": {
-      "message": "Imported crease patterns do not have editable tree conditions."
-    },
     "list": "List",
     "noConditions": "No conditions",
     "paper": {
@@ -355,8 +352,10 @@
     "orbitFoldedForm": "Turn folded form",
     "preparing": "Preparing the editor…",
     "refoldFoldedModelAction": "Refold folded model",
+    "rendererContextLost": "Restoring the crease-pattern canvas…",
+    "rendererContextLostHint": "The system took this canvas’s graphics memory back, which can happen when the device runs low on it. Your crease pattern is safe — the view returns as soon as the graphics context does. If it does not come back, reload Ori Studio.",
     "rendererUnavailable": "The crease-pattern canvas could not start.",
-    "rendererUnavailableHint": "Ori Studio draws crease patterns with WebGL2, which this system did not provide. Updating your graphics drivers usually resolves it.",
+    "rendererUnavailableHint": "Ori Studio draws crease patterns with WebGL and instanced rendering, which this system did not provide. Updating your graphics drivers usually resolves it.",
     "resetFoldedModelView": "Reset folded model view",
     "resizeAnnotation": "Resize annotation",
     "resizeFoldedForm": "Resize folded form",
@@ -403,13 +402,13 @@
     "axisXAria": "Design symmetry axis X",
     "axisY": "Y",
     "axisYAria": "Design symmetry axis Y",
+    "boxPleatEditorFailed": "The box-pleat editor did not load",
+    "boxPleatEditorOffline": "This design type has not been downloaded yet, and you are offline. Connect once and it will work offline from then on.",
     "canvas": "Tree design canvas",
-    "editCp": "Edit CP",
     "emptyStateBody": "Use branches for the flaps, limbs, and features the folded base needs.",
     "emptyStateTitle": "Sketch the tree behind your design",
     "flipPresetAxis": "Flip preset axis",
     "flipToPreset": "Flip to {{preset}}",
-    "importedCreasePatternSuffix": "is an imported crease pattern without an editable tree.",
     "layerCircles": "Circles",
     "layerLabels": "Labels",
     "layerPaths": "Paths",
@@ -432,13 +431,18 @@
         "description": "Draw a tree and find crease patterns that match it, from the ExplOri archive.",
         "title": "Search 22.5°"
       },
+      "failedOffline": "This design type has not been downloaded yet, and you are offline. Connect once and it will work offline from then on.",
+      "failedTitle": "Could not start a {{method}} design",
+      "failedUnknown": "The editor for this design type did not load.",
       "groupLabel": "Design method",
+      "retry": "Try again",
       "subtitle": "Choose how you want to author this model.",
       "title": "Start a new design"
     },
-    "newTree": "New Tree",
-    "noEditableTree": "This document does not have an editable tree.",
-    "open": "Open",
+    "paneSwitcher": {
+      "close": "Close pane list",
+      "title": "Panes"
+    },
     "paneTitle": {
       "bpPacking": "BP Editor",
       "bpTree": "Tree editor",
@@ -454,6 +458,7 @@
     "preset": "Preset",
     "presetBook": "Book",
     "presetDiag": "Diag",
+    "retry": "Try again",
     "symmetry": "Symmetry",
     "symmetryButton": "Design symmetry",
     "symmetryControls": "Design symmetry controls",
@@ -494,14 +499,10 @@
     "optimizingScale": "Optimizing scale",
     "paths": "Paths"
   },
-  "documentModeEmpty": {
-    "editCp": "Edit CP",
-    "newTree": "New Tree",
-    "open": "Open"
-  },
   "explori": {
     "advancedDatabases": "Choose topology sizes",
     "backToResults": "Back to results",
+    "backToSearch": "Search",
     "canvas": "Search tree canvas",
     "databaseCell": "{{symmetry}}, size {{size}}",
     "decreaseLength": "Shorten",

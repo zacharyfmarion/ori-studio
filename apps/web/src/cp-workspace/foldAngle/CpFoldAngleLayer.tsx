@@ -26,8 +26,11 @@
  * re-rendering is what lets a promoted layer stay promoted.
  */
 import { usePannedOverlayView } from '../camera/usePannedOverlayView';
+import { useCpTransformPreview } from '../cpTransformPreviewStore';
 import { useWorkspaceStore } from '../../store/workspaceStore/store';
 import { overlayModelToCss } from '../annotations/annotationTransform';
+import { applyAffine, type CpTransformPreview } from '../adapters/cpSnapshotToScene';
+import type { ModelPoint } from '../renderer/types';
 import type { OristudioCpLineSegment } from '../../engine/oristudioCpTypes';
 import {
   creaseFoldAngle,
@@ -42,6 +45,27 @@ import {
   planFoldAngleBadges,
   type FoldAngleBadgeInput,
 } from './foldAngleBadges';
+
+/**
+ * Where a crease is *drawn* right now: its stored endpoint, or that endpoint
+ * through the gesture the surface is previewing.
+ *
+ * The same predicate and the same affine the stroke builder applies (see the
+ * `moved` branch in `cpSnapshotToScene`), so a badge cannot land anywhere but on
+ * the stroke it labels — including under a four-point transform, where the
+ * projected length changes and the plan is entitled to change with it. That is
+ * why the matrix goes on the model point rather than on the finished badge: it
+ * puts the transform *upstream* of every decision `planFoldAngleBadges` makes,
+ * all of which are made on screen length.
+ */
+function drawnAt(
+  move: CpTransformPreview | null,
+  lineId: number,
+  point: ModelPoint
+): ModelPoint {
+  if (!move || !move.ids.has(lineId)) return point;
+  return applyAffine(move.matrix, point.x, point.y);
+}
 
 export function CpFoldAngleLayer({
   lineSegments,
@@ -82,6 +106,13 @@ export function CpFoldAngleLayer({
   toolReplacedLineIds: readonly number[];
 }) {
   const { view, containerRef } = usePannedOverlayView();
+  // A move-drag or a transform tool draws the selected creases somewhere the
+  // document does not yet say they are, and only the canvas knows where. Without
+  // this the numbers sat at the stored midpoints for the length of the gesture —
+  // survivable while dragging, but the four-point tools hold their preview
+  // between clicks and turn and scale it, so a whole pattern's worth of labels
+  // hung in the old lattice while the creases went elsewhere.
+  const move = useCpTransformPreview();
   // The layer owns its own visibility rather than the panel deciding for it.
   // Note this gates the *badges* only — crease colour is unconditional, and
   // lives in the stroke builders where no visibility flag reaches it.
@@ -108,10 +139,11 @@ export function CpFoldAngleLayer({
       // teaches nothing and quietly implies they are the same fold.
       const degrees = creaseFoldAngle(segment);
       if (degrees === null) return;
+      const lineId = index + 1;
       creases.push({
-        lineId: index + 1,
-        a: overlayModelToCss(view, segment.a),
-        b: overlayModelToCss(view, segment.b),
+        lineId,
+        a: overlayModelToCss(view, drawnAt(move, lineId, segment.a)),
+        b: overlayModelToCss(view, drawnAt(move, lineId, segment.b)),
         degrees,
       });
     });

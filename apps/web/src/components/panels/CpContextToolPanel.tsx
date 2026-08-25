@@ -24,6 +24,7 @@ import type {
 } from '../../engine/oristudioCpTypes';
 import type { OristudioCpActionDefinition } from '../../lib/oristudioCpActions';
 import type { OristudioCpCommandDefinition } from '../../lib/oristudioCpCommands';
+import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
 import {
   ORISTUDIO_CP_CUSTOM_LINE_TYPE_OPTIONS,
   ORISTUDIO_CP_DIVIDE_MODES,
@@ -167,6 +168,7 @@ export function CpContextToolPanel({
   toolNotice,
   onApply,
   onClearInput,
+  onCancelInput,
 }: {
   /**
    * The crease-pattern viewport element the window anchors to. Its right edge is
@@ -204,8 +206,19 @@ export function CpContextToolPanel({
   toolNotice?: string | null;
   onApply?: () => void;
   onClearInput?: () => void;
+  /**
+   * Escape's "abandon the input placed so far" rung, as a control — set only
+   * while there is input to abandon.
+   *
+   * Rendered under a coarse pointer only. Escape is the shortest route on a
+   * keyboard and a second button beside it would be clutter, but a bare iPad has
+   * no Escape at all: without this, backing out of a half-placed point sequence
+   * meant finishing the gesture and undoing it.
+   */
+  onCancelInput?: () => void;
 }) {
   const { t } = useTranslation();
+  const coarsePointer = useIsCoarsePointerSurface();
   const foldAngleAvailable = useFoldAngleAvailable();
   const directionHintAvailable = useDirectionHintAvailable();
   const groups = cpToolSettingGroupsForCommand(command);
@@ -235,13 +248,17 @@ export function CpContextToolPanel({
   // a selection of purely unassigned creases makes `foldAngleAvailable` false,
   // so without this the panel would return null and hide the only control that
   // *could* have acted on it.
+  // The Cancel counts too: for a tool whose whole window is instructions, a
+  // hidden window would take the only way out with it.
+  const cancelInput = coarsePointer ? onCancelInput : undefined;
   const hasContent =
     groups.length > 0 ||
     !!instructions ||
     !!unavailableMessage ||
     !!toolNotice ||
     foldAngleAvailable ||
-    directionHintAvailable;
+    directionHintAvailable ||
+    !!cancelInput;
   if (!hasContent) return null;
 
   return (
@@ -315,6 +332,11 @@ export function CpContextToolPanel({
       {onClearInput && (
         <button className="cp-context-panel__secondary" type="button" onClick={onClearInput}>
           {t('tools:cpContext.clearSeeds', 'Clear seeds')}
+        </button>
+      )}
+      {cancelInput && (
+        <button className="cp-context-panel__secondary" type="button" onClick={cancelInput}>
+          {t('tools:cpContext.cancelInput', 'Cancel this step')}
         </button>
       )}
     </CpToolHintWindow>

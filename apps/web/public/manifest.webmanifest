@@ -1,0 +1,22 @@
+{
+  "id": "/",
+  "name": "Ori Studio",
+  "short_name": "Ori Studio",
+  "description": "Draw and edit crease patterns, design from a tree structure or a box-pleating grid, and fold the result.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#101417",
+  "background_color": "#101417",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

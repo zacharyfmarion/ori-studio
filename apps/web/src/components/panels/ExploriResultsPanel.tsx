@@ -21,6 +21,7 @@ import {
 } from '../../explori/renderers';
 import { exploriMatchQuality, exploriMatchQualityLabel } from '../../explori/matchQuality';
 import { exploriResultUrl, exploriTilingLabel, type ExploriResult } from '../../explori/types';
+import { useDesignPaneSwitcher } from '../../hooks/useDesignPaneSwitcher';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { selectExploriDesignOrEmpty } from '../../store/workspaceStore/designTabs';
 
@@ -134,6 +135,40 @@ function ExploriDetailFigure({
   );
 }
 
+/**
+ * Back to the tree, on a phone.
+ *
+ * The phone layout shows one design pane at a time and a search moves you here,
+ * so this is the *only* way back: the kind declares `phonePaneSwitcher: false`,
+ * because these two panes are a flow rather than a split and a floating pill in
+ * the corner would be a second control for the same move. It therefore has to
+ * appear in every state this pane can be in — the grid, both empty states, and
+ * mid-search — which is why it is rendered by each branch rather than tucked
+ * into the results header where it started.
+ *
+ * The detail view is the exception, and deliberately: it has its own "Back to
+ * results", and two backs meaning different distances in one header is worse
+ * than one extra tap.
+ *
+ * Nothing on a tablet or a desktop, where the tree is on screen beside this.
+ */
+function BackToSearch() {
+  const { t } = useTranslation();
+  const { panes, show } = useDesignPaneSwitcher();
+  if (!panes) return null;
+  return (
+    <Button
+      size="sm"
+      variant="secondary"
+      className="explori-results__back"
+      onClick={() => show('explori-tree', 'switcher')}
+    >
+      <ArrowLeft size={14} aria-hidden="true" />
+      {t('panels:explori.backToSearch', 'Search')}
+    </Button>
+  );
+}
+
 export function ExploriResultsPanel() {
   const { t } = useTranslation();
   const design = useWorkspaceStore((state) => selectExploriDesignOrEmpty(state));
@@ -175,6 +210,7 @@ export function ExploriResultsPanel() {
   if (searching) {
     return (
       <section className="panel-shell explori-results-panel">
+        <BackToSearch />
         <ExploriResultsStatus
           busy
           icon={<Loader2 size={24} className="explori-results__spinner" />}
@@ -290,6 +326,7 @@ export function ExploriResultsPanel() {
 
   return (
     <section className="panel-shell explori-results-panel">
+      <BackToSearch />
       {error && <p className="explori-results__error">{error}</p>}
       {results.length === 0 ? (
         /* "Nothing here" is two states, and they ask for different things: one

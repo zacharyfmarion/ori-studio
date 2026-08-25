@@ -27,7 +27,9 @@ import type {
 } from '../engine/oristudioBpTypes';
 import type { CreaseExportOptions } from '../lib/creaseExport';
 
+import i18n from '../i18n';
 import { runUpdateCheck } from '../lib/updateController';
+import { announceUpdateCheck } from '../lib/updateFeedback';
 
 export const MENU_ACTION_IDS = [
   'app.about',
@@ -130,7 +132,7 @@ export const MENU_ACTION_IDS = [
 export type MenuActionId = (typeof MENU_ACTION_IDS)[number];
 
 export interface WorkspaceCommands {
-  createNewProject(): Promise<void>;
+  createNewProject(): Promise<boolean>;
   subdivideOristudioBpLayoutSheet(): Promise<boolean>;
   unsubdivideOristudioBpLayoutSheet(): Promise<boolean>;
   rotateOristudioBpLayoutSheet(clockwise: boolean): Promise<boolean>;
@@ -710,9 +712,9 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
       // Dispatching through here means `command invoked` is captured at the
       // chokepoint; no second hand-placed event for the same thing.
       case 'help.checkForUpdates':
-        void runUpdateCheck('manual').catch(() => {
-          // The controller records the failure; a menu action must not throw.
-        });
+        // No settings pane is open on this path, so the toast is the only thing
+        // that can answer the press.
+        void runUpdateCheck('manual').then((outcome) => announceUpdateCheck(outcome, i18n.t));
         return true;
     }
 

@@ -1,7 +1,9 @@
-import { useCallback, useState } from 'react';
+import type { TFunction } from 'i18next';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { APP_VERSION } from '../../constants/release';
 import { runUpdateCheck } from '../../lib/updateController';
+import { announceUpdateCheck } from '../../lib/updateFeedback';
 import { isDesktopRuntime } from '../../platform/runtime';
 import { useUpdateStore, type UpdateDelivery } from '../../store/updateStore';
 import { Button } from '../ui/Button';
@@ -24,6 +26,48 @@ function deliveryLabel(t: ReturnType<typeof useTranslation>['t'], value: UpdateD
 }
 
 /**
+ * What the last check came to, in one line under the version.
+ *
+ * Pure and exported so every branch is reachable from a test. The failing branch
+ * is the point: a check that could not reach the server used to leave this
+ * reading "Not checked yet" forever, so the one press that most needed an answer
+ * was the one that looked like nothing had happened.
+ */
+export function updateCheckSummary(
+  t: TFunction,
+  state: {
+    lastCheck: { readonly at: number; readonly ok: boolean } | null;
+    version: string | null;
+  }
+): string {
+  if (!state.lastCheck) {
+    return t('dialogs:settings.updates.neverChecked', 'Not checked yet');
+  }
+
+  const when = new Date(state.lastCheck.at).toLocaleString();
+
+  if (!state.lastCheck.ok) {
+    return t(
+      'dialogs:settings.updates.checkFailed',
+      "Couldn't check for updates — last tried {{when}}",
+      { when }
+    );
+  }
+
+  // `setNoUpdate` clears it, so a version surviving a successful check is an
+  // offer standing right now.
+  if (state.version) {
+    return t('dialogs:settings.updates.offered', 'Version {{version}} is available', {
+      version: state.version,
+    });
+  }
+
+  return t('dialogs:settings.updates.upToDate', 'Up to date — checked {{when}}', {
+    when,
+  });
+}
+
+/**
  * Update preferences, and the only place the running version is visible.
  *
  * Desktop-only: the browser build updates by reloading. `off` is a real option
@@ -34,19 +78,16 @@ export function UpdatesSection() {
   const { t } = useTranslation();
   const delivery = useUpdateStore((state) => state.delivery);
   const setDelivery = useUpdateStore((state) => state.setDelivery);
-  const lastCheckedAt = useUpdateStore((state) => state.lastCheckedAt);
+  const lastCheck = useUpdateStore((state) => state.lastCheck);
   const status = useUpdateStore((state) => state.status);
-  const [checking, setChecking] = useState(false);
+  const version = useUpdateStore((state) => state.version);
+  const checking = status === 'checking';
 
   const onCheckNow = useCallback(() => {
-    setChecking(true);
-    void runUpdateCheck('manual')
-      .catch(() => {
-        // Surfaced by status below; a manual check that fails must not throw
-        // out of a click handler.
-      })
-      .finally(() => setChecking(false));
-  }, []);
+    // `runUpdateCheck` resolves even when the check fails, so the outcome is
+    // always here to report.
+    void runUpdateCheck('manual').then((outcome) => announceUpdateCheck(outcome, t));
+  }, [t]);
 
   if (!isDesktopRuntime()) return null;
 
@@ -78,13 +119,7 @@ export function UpdatesSection() {
           <div>{t('dialogs:settings.updates.currentVersion', 'Version {{version}}', {
             version: APP_VERSION,
           })}</div>
-          <p className="settings-toggle-row__desc">
-            {lastCheckedAt
-              ? t('dialogs:settings.updates.lastChecked', 'Last checked {{when}}', {
-                  when: new Date(lastCheckedAt).toLocaleString(),
-                })
-              : t('dialogs:settings.updates.neverChecked', 'Not checked yet')}
-          </p>
+          <p className="settings-toggle-row__desc">{updateCheckSummary(t, { lastCheck, version })}</p>
         </div>
         <Button
           size="sm"

@@ -13,6 +13,9 @@ keywords = ["origami", "fold", "crease-pattern", "planning"]
 categories = ["algorithms", "mathematics"]
 include = ["Cargo.toml", "README.md", "src/**", "tests/**", "examples/**"]
 
+[lints]
+workspace = true
+
 [dependencies]
 serde.workspace = true
 thiserror.workspace = true

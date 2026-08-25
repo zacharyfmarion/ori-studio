@@ -41,30 +41,41 @@ This has two consequences that shape the whole design:
 
 Unlike the Apple certificate, it cannot be revoked and reissued.
 
-**Decided: the minisign private key stays on the laptop, off GitHub.** CI builds,
-signs (Apple), notarizes and uploads the artifacts to a draft release; a local
-`scripts/sign-updater-manifest.sh` — invoked by `/ori-release`, which already runs
-on your laptop — downloads the draft's updater bundles, runs `tauri signer sign`,
-uploads the `.sig` files and `latest.json`, and publishes.
+**Decided: the minisign private key lives in GitHub Actions secrets.**
 
-This is not a second *producer* (CI still builds everything, so the drift argument
-for moving macOS to CI is untouched); it is a second *signer*, over artifacts CI
-already made. It costs one local step in a flow that is already local, and it
-removes the unrevocable key from everything a GitHub token can reach.
+This reverses the original decision, which was to keep it on the laptop and sign
+the manifest locally after CI built the artifacts. That is not something Tauri
+supports, and the first real release proved it: every one of the four platform
+legs failed with
 
-The rejected alternative, for the record: putting `TAURI_SIGNING_PRIVATE_KEY` in
-the `release-signing` environment is a one-line change and makes the release fully
-hands-off after the tag. It was rejected because a GitHub environment gates *when*
-secrets are released, not *which code* reads them — a workflow file runs as it
-exists at the tagged ref, and the approval prompt shows no diff — so the tag
-ruleset would be carrying the entire defence for a secret that can never be
-revoked. Since `/ori-release` already runs locally, the laptop-signing step costs
-almost nothing.
+    A public key has been found, but no private key.
+    Make sure to set `TAURI_SIGNING_PRIVATE_KEY` environment variable.
 
-Consequence to accept: **a release cannot be completed without your laptop.** CI
-still produces every artifact, so the build is reproducible and platform-complete
-without you; what needs the laptop is signing the manifest and arming. A release
-therefore parks safely as an unsigned prerelease until you get to a machine.
+Tauri signs updater payloads **during the build**, and refuses to emit them at
+all when a `pubkey` is configured and the private key is absent. It is not
+limited to the `.app.tar.gz`: `.nsis`, `.deb` and `.AppImage` are themselves
+update payloads and hit the same gate, so the failure is every platform, not
+just macOS. The one escape hatch, `--no-sign`, skips Apple code signing too, so
+it trades an unsigned update for an unnotarized app.
+
+That leaves two possibilities, and the rejected one is worth recording. CI could
+stop producing anything the updater can consume, and the payloads could be
+hand-assembled locally from the published installers — re-tarring the notarized
+`.app` out of the DMG, zipping the NSIS installer. It keeps the key off GitHub,
+and it makes every release depend on a hand-built payload that CI never produced
+and nothing verifies. That is a worse trade than it looks.
+
+**So the control moved rather than disappeared.** The key's location was never
+the real defence; what gates a signed build is *who can create a `v*` tag*. A
+ruleset on `refs/tags/v*` with "Restrict creations" and a bypass list of one
+account is what actually stops a leaked token minting a release — and it stops it
+whether or not the key is in CI. That ruleset is no longer optional hardening; it
+is the control. See [desktop-ci-release.md](desktop-ci-release.md) Phase 0.
+
+What is genuinely given up: a compromise of the repository's Actions environment
+now reaches a secret that cannot be revoked. The mitigations are the tag ruleset,
+SHA-pinned actions, no shared build cache in the signing job, and `Cargo.lock`
+being committed — none of which make it as good as the key never being there.
 
 Key handling:
 
@@ -356,7 +367,7 @@ than a fuzzy "touches the `.osf` codec."
 | Area | Files |
 | --- | --- |
 | Tauri shell | `apps/tauri/src-tauri/{Cargo.toml,tauri.conf.json,capabilities/default.json,src/lib.rs}`, new `src/updater.rs` |
-| Release | new `scripts/release-lib/compose-manifest.cjs`, new `scripts/sign-updater-manifest.sh`, `.github/workflows/release.yml` |
+| Release | new `scripts/release-lib/compose-manifest.mjs`, new `scripts/publish-updater-manifest.sh`, `.github/workflows/release.yml` |
 | Frontend | new `platform/updateService.ts`, `store/updateStore.ts`, `hooks/useUpdateCheck.ts`, `components/UpdateChip.tsx`; edits to `App.tsx`, `WorkspaceShell.tsx`, `App.css`, `SettingsModal.tsx`, `HelpModal.tsx`, `menus/menuDefinition.ts`, `menus/nativeMenu.ts:132-153`, `commands/menuActions.ts`, `lib/storage.ts`, `analytics/events.ts` |
 | Docs | `RELEASE.md` (incident runbook, key restore drill) |
 
@@ -373,8 +384,8 @@ than a fuzzy "touches the `.osf` codec."
 - [ ] `capabilities/default.json` gains `updater:default` and `process:allow-restart`
 - [ ] `tauri.conf.json`: `createUpdaterArtifacts: true`, `pubkey` (content, not a path), the single GitHub endpoint, `windows.installMode: "passive"`
 - [ ] `apps/tauri/src-tauri/src/updater.rs`: `self_update_supported()` and `latest_version_only()` returning **version only**
-- [ ] `compose-manifest.cjs` discovering assets by regex against the actual asset list; emit the bundle list for verification
-- [ ] `scripts/sign-updater-manifest.sh` for local signing
+- [x] `compose-manifest.mjs` discovering assets by regex against the actual asset list, refusing any platform whose `.sig` is missing
+- [x] `scripts/publish-updater-manifest.sh` — composes `latest.json`, inlines the `.sig` contents CI produced, and verifies each against the compiled-in pubkey before uploading
 - [ ] minisign verification against the pubkey read from `tauri.conf.json`, **with a cardinality assertion**
 - [ ] Extract the `.app.tar.gz` and run `stapler validate` + `spctl` on the extracted `.app`
 - [ ] `publish` gains `needs: [..., manifest]`, flips the draft to a **prerelease**, and carries `latest.json` / `.sig` in its expected-name map — an exact count per platform, since one `.sig` otherwise satisfies a `/\.sig$/` check for all three
@@ -397,7 +408,7 @@ and `gh release edit --prerelease=false` demonstrably starts the offer while
 - [ ] Highest-version-seen persistence and `stale_manifest` rejection
 - [ ] Extract `confirmDiscardUnsaved()`; call it from the chip, `beforeunload` and `onCloseRequested`
 - [ ] `lib/storage.ts` keys: `updateAutoDownload`, `updateSkippedVersion`, `updateHighestSeenVersion`
-- [ ] Settings ▸ Workspace ▸ Updates: **Automatic / Notify only / Off**, "Check now", "Last checked", current version. Tauri has no delta updates, so every check is a full download; a user on hotel wifi needs a way to stop it
+- [ ] Settings ▸ General ▸ Updates: **Automatic / Notify only / Off**, "Check now", "Last checked", current version. Tauri has no delta updates, so every check is a full download; a user on hotel wifi needs a way to stop it
 - [ ] Measure the payload size before defaulting to automatic; if it is large, default to notify-only
 - [ ] Menu entry in `menuDefinition.ts`, desktop-gated — **and `menus/nativeMenu.ts:132-153`**, since the macOS app submenu is hand-built and not generated from `menuDefinition`
 - [ ] Surface the current version in `HelpModal.tsx` — `APP_VERSION` is rendered nowhere in the UI today, which is odd if the chip names v0.3.0 while nothing says you're on v0.2.0

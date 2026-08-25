@@ -2,13 +2,43 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- `viewport-fit=cover` lets the app paint under the rounded corners and the
+         home indicator; `env(safe-area-inset-*)` (see theme.css `--safe-*`) is what
+         keeps the chrome out of them. Deliberately no `maximum-scale` or
+         `user-scalable=no`: those stop iOS zooming a focused field, but they also
+         kill pinch-zoom for everyone. The field sizes in the coarse-pointer layer
+         are the fix instead. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
     <meta
       name="description"
       content="Ori Studio is a web and desktop workspace for origami design: draw and edit crease patterns, design from a tree structure or a box-pleating grid, and fold the result in the simulator."
     />
     <link rel="canonical" href="https://oristudio.pages.dev/" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
+    <!-- Small first, and no `/favicon.png` in the list: that file is a 1024px
+         PNG weighing 2.2MB, which every tab was downloading to draw a 16px
+         icon. It stays in `public/` — the Help dialog renders it deliberately —
+         but nothing fetches it just to open the app. -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- Overrides the manifest's `icons` on iOS, which is why it is a separate
+         file: the manifest icons keep the artwork's transparent corners, and iOS
+         composites transparency onto black. This one is opaque and full-bleed
+         (see `scripts/gen-pwa-icons.sh`), so iOS's own mask is the only rounding
+         that shows. -->
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <!-- Honoured from iOS 15 for the status bar, and by Android and desktop
+         Chrome for the window chrome. `--bg-primary` from the default dark
+         theme; the app has 23 presets and a manifest has room for one colour. -->
+    <meta name="theme-color" content="#101417" />
+    <!-- Optional since iOS 11.3 for standalone launch, but still what enables
+         the standalone status-bar treatment. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Ori Studio" />
     <meta property="og:title" content="Ori Studio" />
     <meta
       property="og:description"

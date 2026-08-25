@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DESIGN_PAPER_RECT } from '../../lib/designViewport';
+import type { ImportedCreasePatternDocument } from '../../lib/creasePatternImport';
 import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
 import { createEmptyProject, createSampleProject, type TreeProject } from '../../lib/sampleProject';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -173,6 +174,22 @@ describe('DesignPanel', () => {
     renderPanel();
 
     expect(container?.textContent).not.toContain('Sketch the tree behind your design');
+  });
+
+  it('draws the tree canvas while the Edit canvas holds an imported crease pattern', () => {
+    // `importedCreasePattern` describes the always-live Edit canvas, not this
+    // design. It used to replace the canvas with "<file> is an imported crease
+    // pattern without an editable tree" — true when a workspace held one
+    // document, and wrong once a Circle-packed design can be started beside an
+    // opened `.fold`. The tab's kind is the signal that a tree exists.
+    renderPanel(createSampleProject(), {
+      importedCreasePattern: {
+        source: { format: 'fold', filename: 'Untitled CP.fold', path: null },
+      } as ImportedCreasePatternDocument,
+    });
+
+    expect(container?.querySelector('svg.design-canvas')).toBeTruthy();
+    expect(container?.textContent).not.toContain('imported crease pattern');
   });
 
   it('fits the paper viewport after scale optimization requests a design fit', () => {

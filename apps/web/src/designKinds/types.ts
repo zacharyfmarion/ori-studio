@@ -224,6 +224,20 @@ export interface DesignKindDescriptor {
   analyticsId: string;
   chooser: DesignKindChooser;
   panes: readonly DesignPaneSpec[];
+  /**
+   * Whether a phone gets the floating pane-switcher pill for this kind.
+   *
+   * Defaults to true, because for most kinds the panes are a *split* the phone
+   * cannot show at once — a tree beside a packing editor — and the pill is the
+   * only thing naming the half you are not looking at.
+   *
+   * `false` says the panes are a **flow**, and the kind carries its own
+   * navigation: ExplOri is a search that produces results, so Search takes you
+   * there and Back brings you home, both inside the panes. A floating pill
+   * beside them would be a third control saying the same thing, in a corner
+   * nobody is looking at when they just pressed Search.
+   */
+  phonePaneSwitcher?: boolean;
   capabilities: DesignKindCapabilities;
   codec: DesignKindCodec;
   sendToEdit(handle: number, request: SendToEditRequest): Promise<SendToEditPayload>;

@@ -3548,6 +3548,14 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           : { ...emptyOristudioCpSelection(), lines: [id] }
       ),
 
+    // Box / Lasso Deselect's click. Not a toggle: a click on a crease that is not
+    // selected leaves the selection alone, where a toggle would add it.
+    unselectOristudioCpLine: (id) =>
+      applyCreaseSelection({
+        ...get().oristudioCpSelection,
+        lines: get().oristudioCpSelection.lines.filter((lineId) => lineId !== id),
+      }),
+
     toggleOristudioCpPointSelection: (id, additive = false) =>
       applyCreaseSelection(
         additive

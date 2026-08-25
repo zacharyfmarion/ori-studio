@@ -118,6 +118,8 @@
     "pointSize": "Taille des points",
     "preview": "Aperçu de l'exportation",
     "showBackgroundColor": "Afficher la couleur d'arrière-plan",
+    "showGrid": "Afficher les lignes de la grille",
+    "showGridNeedsCp": "Ouvrez un patron de plis modifiable pour dessiner sa grille",
     "subtitle": "Sous-titre",
     "subtitlePlaceholder": "Facultatif",
     "textSection": "Texte",
@@ -298,6 +300,12 @@
       "light": "Clair"
     },
     "close": "Fermer les paramètres",
+    "general": {
+      "analytics": "Envoyer des statistiques d’utilisation anonymes et des rapports de plantage pour améliorer Ori Studio",
+      "privacy": "Confidentialité",
+      "showWelcome": "Afficher l'écran d'accueil au démarrage",
+      "startup": "Démarrage"
+    },
     "language": {
       "system": "Par défaut du système",
       "title": "Langue"
@@ -369,36 +377,35 @@
     },
     "tab": {
       "appearance": "Apparence",
+      "general": "Général",
       "shortcuts": "Raccourcis",
       "workspace": "Espace de travail"
     },
     "title": "Paramètres",
     "updates": {
       "automatic": "Télécharger les mises à jour automatiquement",
+      "checkFailed": "Impossible de rechercher des mises à jour — dernier essai {{when}}",
       "checking": "Vérification…",
       "checkNow": "Vérifier maintenant",
       "currentVersion": "Version {{version}}",
       "description": "Les mises à jour sont téléchargées en entier — Ori Studio n’a pas de mises à jour partielles. Rien ne s’installe avant que vous ne redémarriez.",
-      "lastChecked": "Dernière vérification {{when}}",
       "neverChecked": "Pas encore vérifié",
       "notify": "Me prévenir, mais me laisser lancer le téléchargement",
       "off": "Ne pas rechercher de mises à jour",
-      "title": "Mises à jour"
+      "offered": "La version {{version}} est disponible",
+      "title": "Mises à jour",
+      "upToDate": "À jour — vérifié {{when}}"
     },
     "workspace": {
-      "analytics": "Envoyer des statistiques d’utilisation anonymes et des rapports de plantage pour améliorer Ori Studio",
       "creasePatternCanvas": "Zone de dessin du patron de plis",
       "folding": "Pliage",
       "foldWarning": "Avertir avant de plier un patron de plis comportant des erreurs de pliabilité à plat",
       "layout": "Disposition",
-      "privacy": "Confidentialité",
       "resetButton": "Réinitialiser la disposition de l'espace de travail",
       "resetMessage": "Restaurer la disposition par défaut de l'espace de travail actuel ?",
       "resetTitle": "Réinitialiser la disposition de l'espace de travail",
-      "showWelcome": "Afficher l'écran d'accueil au démarrage",
       "snapRadius": "Rayon d'aimantation",
       "snapRadiusHint": "À quelle distance le pointeur doit arriver d'un sommet, d'un pli ou d'un point de grille pour s'y aimanter, en unités de papier\u00a0: le papier fait 400 de large, c'est donc le même nombre que dans Oriedita.",
-      "startup": "Démarrage",
       "wheelGestureHint": "Le pincement et Cmd/Ctrl+défilement zooment toujours, quel que soit votre choix.",
       "wheelPans": "Le défilement déplace, le pincement zoome",
       "wheelZooms": "Le défilement zoome"
@@ -414,6 +421,8 @@
     "foldedFigureNeedsFlat": "Cet aperçu ne plie qu’à plat, et ce patron comporte des plis qui ne sont pas complets",
     "folding": "Pliage en cours…",
     "frontColor": "Couleur du recto",
+    "grid": "Afficher les lignes de la grille",
+    "gridNeedsCp": "Ouvrez un patron de plis modifiable pour dessiner sa grille",
     "linkPreview": "Aperçu du lien",
     "notPublished": "Rien n'est publié tant que vous n'avez pas créé le lien.",
     "previewAlt": "Aperçu du patron de pliage partagé",

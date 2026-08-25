@@ -88,6 +88,11 @@ export function createExploriDesignKind(): DesignKindDescriptor {
         editingContext: 'explori-results',
       },
     ],
+    // These two panes are a flow, not a split: you search, and the results are
+    // what searching produced. Search takes you there and Back brings you home,
+    // both inside the panes — a floating pill would be a third control for the
+    // same move, in the corner nobody is looking at.
+    phonePaneSwitcher: false,
     capabilities: {
       owned: [],
       hiddenIds: EXPLORI_HIDDEN_CAPABILITIES,

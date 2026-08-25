@@ -113,6 +113,8 @@
     "pointSize": "Point size",
     "preview": "Export preview",
     "showBackgroundColor": "Show background color",
+    "showGrid": "Show grid lines",
+    "showGridNeedsCp": "Open an editable crease pattern to draw its grid",
     "subtitle": "Subtitle",
     "subtitlePlaceholder": "Optional",
     "textSection": "Text",
@@ -288,6 +290,12 @@
       "light": "Light"
     },
     "close": "Close settings",
+    "general": {
+      "analytics": "Send anonymous usage analytics and crash reports to help improve Ori Studio",
+      "privacy": "Privacy",
+      "showWelcome": "Show welcome screen on startup",
+      "startup": "Startup"
+    },
     "language": {
       "system": "System default",
       "title": "Language"
@@ -355,36 +363,35 @@
     },
     "tab": {
       "appearance": "Appearance",
+      "general": "General",
       "shortcuts": "Shortcuts",
       "workspace": "Workspace"
     },
     "title": "Settings",
     "updates": {
       "automatic": "Download updates automatically",
+      "checkFailed": "Couldn't check for updates — last tried {{when}}",
       "checking": "Checking…",
       "checkNow": "Check now",
       "currentVersion": "Version {{version}}",
       "description": "Updates are downloaded in full — Ori Studio has no partial updates. Nothing installs until you choose to relaunch.",
-      "lastChecked": "Last checked {{when}}",
       "neverChecked": "Not checked yet",
       "notify": "Tell me, but let me start the download",
       "off": "Don't check for updates",
-      "title": "Updates"
+      "offered": "Version {{version}} is available",
+      "title": "Updates",
+      "upToDate": "Up to date — checked {{when}}"
     },
     "workspace": {
-      "analytics": "Send anonymous usage analytics and crash reports to help improve Ori Studio",
       "creasePatternCanvas": "Crease pattern canvas",
       "folding": "Folding",
       "foldWarning": "Warn before folding a crease pattern with flat-foldability errors",
       "layout": "Layout",
-      "privacy": "Privacy",
       "resetButton": "Reset Workspace Layout",
       "resetMessage": "Restore the default layout for the current workspace?",
       "resetTitle": "Reset Workspace Layout",
-      "showWelcome": "Show welcome screen on startup",
       "snapRadius": "Snap radius",
       "snapRadiusHint": "How close the pointer has to come to a vertex, crease or grid point to snap to it, in paper units — the paper is 400 across, so this is the same number as Oriedita uses.",
-      "startup": "Startup",
       "wheelGestureHint": "Pinch and Cmd/Ctrl+scroll always zoom, whichever you choose.",
       "wheelPans": "Scroll pans, pinch zooms",
       "wheelZooms": "Scroll zooms"
@@ -400,6 +407,8 @@
     "foldedFigureNeedsFlat": "This preview folds flat only, and this pattern has creases that are not full folds",
     "folding": "Folding…",
     "frontColor": "Front color",
+    "grid": "Show grid lines",
+    "gridNeedsCp": "Open an editable crease pattern to draw its grid",
     "linkPreview": "Link preview",
     "notPublished": "Nothing is published until you create the link.",
     "previewAlt": "Preview of the shared crease pattern",

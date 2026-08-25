@@ -416,6 +416,18 @@ jobs:
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # action-v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Tauri signs updater payloads *during* the build and refuses to emit
+          # them at all when a pubkey is configured but this is missing — on
+          # every platform, because .nsis/.deb/.AppImage are themselves update
+          # payloads. There is no "build now, sign later": `--no-sign` would skip
+          # Apple code signing too. So the key has to be here.
+          #
+          # It is the one secret that cannot be revoked, so the control that
+          # matters is the ruleset restricting who can create a `v*` tag — that
+          # is what gates every signed build. See
+          # implementation-plans/desktop-auto-update.md.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # Empty when the Apple secrets are absent, which is how an unsigned
           # build falls out rather than a failing one.
           APPLE_SIGNING_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY }}

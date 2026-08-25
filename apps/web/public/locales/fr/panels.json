@@ -155,9 +155,6 @@
     },
     "clear": "Effacer",
     "editor": "Éditeur",
-    "imported": {
-      "message": "Les patrons de plis importés n'ont pas de conditions d'arbre modifiables."
-    },
     "list": "Liste",
     "noConditions": "Aucune condition",
     "paper": {
@@ -370,8 +367,10 @@
     "orbitFoldedForm": "Tourner la figure pliée",
     "preparing": "Préparation de l'éditeur…",
     "refoldFoldedModelAction": "Replier le modèle",
+    "rendererContextLost": "Restauration du canevas du patron de plis…",
+    "rendererContextLostHint": "Le système a repris la mémoire graphique de ce canevas, ce qui peut arriver quand l’appareil vient à en manquer. Votre patron de plis est intact : la vue revient dès que le contexte graphique revient. S’il ne revient pas, rechargez Ori Studio.",
     "rendererUnavailable": "Le canevas du patron de plis n’a pas pu démarrer.",
-    "rendererUnavailableHint": "Ori Studio dessine les patrons de plis avec WebGL2, que ce système n’a pas fourni. Mettre à jour les pilotes graphiques résout généralement le problème.",
+    "rendererUnavailableHint": "Ori Studio dessine les patrons de plis avec WebGL et le rendu instancié, que ce système n’a pas fourni. Mettre à jour les pilotes graphiques résout généralement le problème.",
     "resetFoldedModelView": "Réinitialiser la vue du modèle plié",
     "resizeAnnotation": "Redimensionner l’annotation",
     "resizeFoldedForm": "Redimensionner la forme pliée",
@@ -419,13 +418,13 @@
     "axisXAria": "Axe X de symétrie de conception",
     "axisY": "Y",
     "axisYAria": "Axe Y de symétrie de conception",
+    "boxPleatEditorFailed": "L'éditeur de plissage en boîte n'a pas pu être chargé",
+    "boxPleatEditorOffline": "Ce type de conception n'a pas encore été téléchargé et vous êtes hors ligne. Connectez-vous une fois et il fonctionnera hors ligne ensuite.",
     "canvas": "Canevas de conception d'arbre",
-    "editCp": "Modifier le CP",
     "emptyStateBody": "Utilisez des branches pour les rabats, les membres et les éléments dont la base pliée a besoin.",
     "emptyStateTitle": "Esquissez l'arbre derrière votre conception",
     "flipPresetAxis": "Inverser l'axe prédéfini",
     "flipToPreset": "Basculer vers {{preset}}",
-    "importedCreasePatternSuffix": "est un patron de plis importé sans arbre modifiable.",
     "layerCircles": "Cercles",
     "layerLabels": "Étiquettes",
     "layerPaths": "Chemins",
@@ -448,13 +447,18 @@
         "description": "Dessinez un arbre et trouvez les patrons correspondants dans l’archive ExplOri.",
         "title": "Rechercher en 22,5°"
       },
+      "failedOffline": "Ce type de conception n'a pas encore été téléchargé et vous êtes hors ligne. Connectez-vous une fois et il fonctionnera hors ligne ensuite.",
+      "failedTitle": "Impossible de démarrer une conception {{method}}",
+      "failedUnknown": "L'éditeur de ce type de conception n'a pas pu être chargé.",
       "groupLabel": "Méthode de conception",
+      "retry": "Réessayer",
       "subtitle": "Choisissez comment créer ce modèle.",
       "title": "Démarrer une nouvelle conception"
     },
-    "newTree": "Nouvel arbre",
-    "noEditableTree": "Ce document n'a pas d'arbre modifiable.",
-    "open": "Ouvrir",
+    "paneSwitcher": {
+      "close": "Fermer la liste des volets",
+      "title": "Volets"
+    },
     "paneTitle": {
       "bpPacking": "Éditeur BP",
       "bpTree": "Éditeur d'arbre",
@@ -470,6 +474,7 @@
     "preset": "Préréglage",
     "presetBook": "Livre",
     "presetDiag": "Diag",
+    "retry": "Réessayer",
     "symmetry": "Symétrie",
     "symmetryButton": "Symétrie de conception",
     "symmetryControls": "Commandes de symétrie de conception",
@@ -512,14 +517,10 @@
     "optimizingScale": "Optimisation de l'échelle",
     "paths": "Chemins"
   },
-  "documentModeEmpty": {
-    "editCp": "Modifier le CP",
-    "newTree": "Nouvel arbre",
-    "open": "Ouvrir"
-  },
   "explori": {
     "advancedDatabases": "Choisir les tailles de topologie",
     "backToResults": "Retour aux résultats",
+    "backToSearch": "Recherche",
     "canvas": "Canevas de l’arbre de recherche",
     "databaseCell": "{{symmetry}}, taille {{size}}",
     "decreaseLength": "Raccourcir",

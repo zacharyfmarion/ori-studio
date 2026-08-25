@@ -42,12 +42,14 @@ export function useUpdateCheck(): void {
 
     const checkIfDue = () => {
       if (disposed) return;
-      const { lastCheckedAt, delivery } = useUpdateStore.getState();
+      const { lastCheck, delivery } = useUpdateStore.getState();
       if (delivery === 'off') return;
-      if (lastCheckedAt !== null && Date.now() - lastCheckedAt < CHECK_INTERVAL_MS) return;
-      void runUpdateCheck('automatic').catch(() => {
-        // Automatic failures are silent by design; the controller records them.
-      });
+      // Failures count against the interval as much as successes do. They did
+      // not, once, and a server that was down was retried on every tick and
+      // every visibility change for as long as it stayed down.
+      if (lastCheck !== null && Date.now() - lastCheck.at < CHECK_INTERVAL_MS) return;
+      // Silent by design: the controller records the failure and resolves.
+      void runUpdateCheck('automatic');
     };
 
     const firstCheck = window.setTimeout(checkIfDue, FIRST_CHECK_DELAY_MS);

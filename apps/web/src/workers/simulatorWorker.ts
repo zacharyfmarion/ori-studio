@@ -8,6 +8,8 @@ export type {
   SimulatorLoadOptions,
   SimulatorModelInfo,
   SimulatorFramePayload,
+  GlBenchResult,
+  GlBenchStat,
 } from '../simulator/simulatorSession';
 export { EDGE_ASSIGNMENT_CODES } from '../simulator/simulatorSession';
 

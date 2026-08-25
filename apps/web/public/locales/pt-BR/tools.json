@@ -12,6 +12,7 @@
     "applyVoronoi": "Aplicar Voronoi",
     "ariaLabel": "Opções da ferramenta de padrão de vincos",
     "autoNearest": "Automático mais próximo",
+    "cancelInput": "Cancelar esta etapa",
     "candidate": "Candidato",
     "candidateIndex": "Índice do candidato",
     "circleColor": "Cor do círculo",
@@ -195,6 +196,7 @@
     "width": "Largura"
   },
   "cpRail": {
+    "addToSelection": "Adicionar à seleção",
     "ariaLabel": "Ferramentas de padrão de vincos",
     "openEditableFirst": "Abra primeiro um padrão de vincos editável"
   },
@@ -204,6 +206,11 @@
     "label": "Opções da ferramenta",
     "next": "Próxima opção",
     "previous": "Opção anterior"
+  },
+  "cpToolPicker": {
+    "close": "Fechar a lista de ferramentas",
+    "title": "Ferramentas",
+    "trigger": "Ferramentas"
   },
   "divideMode": {
     "count": "Quantidade",
@@ -256,9 +263,11 @@
   },
   "viewport": {
     "fit": "Ajustar",
+    "more": "Mais controles de vista",
     "pan": "Deslocar",
     "panWithModifier": "Deslocar — ou segure {{modifier}} e arraste",
     "panWithShortcut": "Deslocar ({{shortcut}}) — ou segure {{modifier}} e arraste",
+    "resetRotation": "Redefinir a rotação da vista",
     "rotateCcw": "Girar vista à esquerda",
     "rotateCw": "Girar vista à direita",
     "rotation": "Rotação da vista em graus",

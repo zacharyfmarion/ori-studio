@@ -5,6 +5,7 @@ import {
   type CreaseExportContent,
   type CreaseExportFoldedFigureSettings,
   type CreaseExportFormat,
+  type CreaseExportGridSource,
   type CreaseExportOptions,
 } from '../lib/creaseExport';
 import type { CreaseExportFoldResult } from '../lib/creaseExportFold';
@@ -69,6 +70,12 @@ export type CreasePatternExportDialogOptions = {
   fold: FoldDocument;
   segments: CpSegment[];
   initialOptions: CreaseExportOptions;
+  /**
+   * The grid the "Show grid" option draws, or null when this export has no
+   * document behind it to take one from. Resolved by the caller for the same
+   * reason `foldSegment` is injected: the dialog stays free of the kernel.
+   */
+  grid: CreaseExportGridSource | null;
   /**
    * Folds one crease pattern for the preview, or null when this workspace
    * cannot fold (no editable crease-pattern document). Injected rather than
@@ -231,9 +238,12 @@ export function requestCreasePatternExportOptions(
   options: CreasePatternExportDialogOptions
 ): Promise<CreaseExportDialogResult | null> {
   if (mountedHostCount === 0) {
+    // Headless: no one is here to choose, so the initial options stand — but the
+    // content still has to be everything they can describe, or an option that
+    // needs resolved content would silently draw nothing.
     return Promise.resolve({
       options: options.initialOptions,
-      content: EMPTY_CREASE_EXPORT_CONTENT,
+      content: { ...EMPTY_CREASE_EXPORT_CONTENT, grid: options.grid },
     });
   }
 

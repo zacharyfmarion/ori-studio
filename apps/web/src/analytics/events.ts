@@ -35,8 +35,8 @@ export type DesignTabSource = 'strip' | 'duplicate' | 'file' | 'replace-last';
 export type ProjectOpenSource = 'file' | 'example' | 'new' | 'drop' | 'share';
 
 /**
- * Which register the `/welcome` landing page rendered in: the start screen, or
- * the desktop-only notice a phone gets instead.
+ * Which register the `/welcome` landing page rendered in: the desktop start
+ * screen, or the compact masthead a phone gets instead.
  */
 export type LandingSurface = 'desktop' | 'phone';
 
@@ -261,13 +261,46 @@ export const ANALYTICS_EVENTS = {
   landingSectionViewed: 'landing section viewed',
   landingFeatureOpened: 'landing feature opened',
   landingCtaClicked: 'landing cta clicked',
-  mobileBlockShown: 'mobile block shown',
-  mobileBlockBypassed: 'mobile block bypassed',
   orieditaShortcutsImported: 'oriedita shortcuts imported',
   orieditaShortcutsOverrideAll: 'oriedita shortcuts override all',
   shortcutDefaultsSourceChanged: 'shortcut defaults source changed',
   cpSnapRadiusChanged: 'cp snap radius changed',
   cpWheelGestureChanged: 'cp wheel gesture changed',
+  /**
+   * The touch-only View drawer was opened.
+   *
+   * Fires nowhere else: under a fine pointer the pane is docked and there is no
+   * drawer to open, so this counts *touch* sessions that went looking for the
+   * view options. That is the question undocking the pane raises — whether the
+   * canvas width was bought at the cost of controls nobody finds again — and it
+   * cannot be answered from `command invoked`, since no menu action reaches it.
+   */
+  viewDrawerOpened: 'view drawer opened',
+  /**
+   * The phone layout's tool sheet was opened.
+   *
+   * Phone-only, because that layout is the only one without a tool rail — so
+   * every one of these is somebody who found the Tools pill, which is the whole
+   * question replacing a visible rail with a button raises. No menu action
+   * reaches it, so the `command invoked` chokepoint cannot see it, and `cp tool
+   * used` counts what was picked rather than whether the surface was found.
+   */
+  cpToolPickerOpened: 'cp tool picker opened',
+  /**
+   * The phone layout moved between a design's panes.
+   *
+   * Phone-only, because that layout is the only one that shows a design's panes
+   * one at a time — everywhere else they are side by side and there is nothing
+   * to switch. `pane` is the kind's own pane id (`tree` | `packing` |
+   * `results` | `inspector` | …), which is its vocabulary rather than a panel
+   * component name, so it survives a component rename.
+   *
+   * `source` separates the pill from everything else that can move the pane —
+   * the BP long-press inspector, a View menu entry — because the question the
+   * pill raises is whether people find it, and a switch it did not cause would
+   * flatter the number.
+   */
+  designPaneSwitched: 'design pane switched',
   /**
    * The start screen's 3D figure declined to start, and the static image is
    * standing in.

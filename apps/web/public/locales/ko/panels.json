@@ -151,9 +151,6 @@
     },
     "clear": "지우기",
     "editor": "편집기",
-    "imported": {
-      "message": "가져온 전개도에는 편집 가능한 트리 조건이 없습니다."
-    },
     "list": "목록",
     "noConditions": "조건 없음",
     "paper": {
@@ -340,8 +337,10 @@
     "orbitFoldedForm": "접힌 도형 회전",
     "preparing": "편집기를 준비하는 중…",
     "refoldFoldedModelAction": "접힌 모델 다시 접기",
+    "rendererContextLost": "전개도 캔버스를 복원하는 중…",
+    "rendererContextLostHint": "시스템이 이 캔버스의 그래픽 메모리를 회수했습니다. 기기의 메모리가 부족할 때 일어날 수 있습니다. 전개도는 안전하며, 그래픽 컨텍스트가 돌아오는 즉시 화면도 돌아옵니다. 돌아오지 않으면 Ori Studio를 새로 고치세요.",
     "rendererUnavailable": "전개도 캔버스를 시작할 수 없습니다.",
-    "rendererUnavailableHint": "Ori Studio는 WebGL2로 전개도를 그리지만 이 시스템에서 제공되지 않았습니다. 보통 그래픽 드라이버를 업데이트하면 해결됩니다.",
+    "rendererUnavailableHint": "Ori Studio는 WebGL과 인스턴스 렌더링으로 전개도를 그리지만 이 시스템에서 제공되지 않았습니다. 보통 그래픽 드라이버를 업데이트하면 해결됩니다.",
     "resetFoldedModelView": "접힌 모델 보기 초기화",
     "resizeAnnotation": "주석 크기 조정",
     "resizeFoldedForm": "접힌 형태 크기 조정",
@@ -387,13 +386,13 @@
     "axisXAria": "디자인 대칭 축 X",
     "axisY": "Y",
     "axisYAria": "디자인 대칭 축 Y",
+    "boxPleatEditorFailed": "박스 플리트 편집기를 불러오지 못했습니다",
+    "boxPleatEditorOffline": "이 디자인 유형은 아직 다운로드되지 않았고 현재 오프라인입니다. 한 번만 연결하면 이후에는 오프라인에서도 사용할 수 있습니다.",
     "canvas": "트리 디자인 캔버스",
-    "editCp": "CP 편집",
     "emptyStateBody": "접힌 베이스에 필요한 플랩, 갈래, 세부 요소를 트리 가지로 표현하세요.",
     "emptyStateTitle": "디자인의 바탕이 되는 트리를 스케치하세요",
     "flipPresetAxis": "프리셋 축 뒤집기",
     "flipToPreset": "{{preset}}(으)로 뒤집기",
-    "importedCreasePatternSuffix": "은(는) 편집 가능한 트리가 없는 가져온 전개도입니다.",
     "layerCircles": "원",
     "layerLabels": "레이블",
     "layerPaths": "경로",
@@ -416,13 +415,18 @@
         "description": "트리를 그려 ExplOri 아카이브에서 일치하는 전개도를 찾습니다.",
         "title": "22.5° 검색"
       },
+      "failedOffline": "이 디자인 유형은 아직 다운로드되지 않았고 현재 오프라인입니다. 한 번만 연결하면 이후에는 오프라인에서도 사용할 수 있습니다.",
+      "failedTitle": "{{method}} 디자인을 시작할 수 없습니다",
+      "failedUnknown": "이 디자인 유형의 편집기를 불러오지 못했습니다.",
       "groupLabel": "디자인 방식",
+      "retry": "다시 시도",
       "subtitle": "이 모델을 작성할 방식을 선택하세요.",
       "title": "새 디자인 시작"
     },
-    "newTree": "새 트리",
-    "noEditableTree": "이 문서에는 편집 가능한 트리가 없습니다.",
-    "open": "열기",
+    "paneSwitcher": {
+      "close": "패널 목록 닫기",
+      "title": "패널"
+    },
     "paneTitle": {
       "bpPacking": "BP 편집기",
       "bpTree": "트리 편집기",
@@ -438,6 +442,7 @@
     "preset": "프리셋",
     "presetBook": "책",
     "presetDiag": "대각",
+    "retry": "다시 시도",
     "symmetry": "대칭",
     "symmetryButton": "디자인 대칭",
     "symmetryControls": "디자인 대칭 컨트롤",
@@ -476,14 +481,10 @@
     "optimizingScale": "배율 최적화 중",
     "paths": "경로"
   },
-  "documentModeEmpty": {
-    "editCp": "CP 편집",
-    "newTree": "새 트리",
-    "open": "열기"
-  },
   "explori": {
     "advancedDatabases": "토폴로지 크기 선택",
     "backToResults": "결과로 돌아가기",
+    "backToSearch": "검색",
     "canvas": "검색 트리 캔버스",
     "databaseCell": "{{symmetry}}, 크기 {{size}}",
     "decreaseLength": "짧게",

@@ -39,6 +39,7 @@ import { APP_VERSION } from '../../../constants/release';
 import {
   serializeCreasePatternSvg,
   renderCreasePatternPng,
+  creaseExportGridSource,
   DEFAULT_CREASE_EXPORT_OPTIONS,
   EMPTY_CREASE_EXPORT_CAPTION,
   EMPTY_CREASE_EXPORT_CONTENT,
@@ -713,7 +714,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // (simulation_model.fold is triangulated, which adds spurious diagonals).
     const fold = foldArtifacts.fold;
     const segments = segmentFoldDocument(fold);
-    if (options) return { options, content: EMPTY_CREASE_EXPORT_CONTENT, fold, segments };
+    const grid = creaseExportGridSource(fold, get().oristudioCpDocument?.document);
+    if (options) {
+      return { options, content: { ...EMPTY_CREASE_EXPORT_CONTENT, grid }, fold, segments };
+    }
     const label = format.toUpperCase();
     const resolved = await requestCreasePatternExportOptions({
       title: `Export ${label}`,
@@ -721,6 +725,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       fold,
       segments,
       initialOptions: defaultCreaseExportOptions(get().oristudioCpViewport),
+      grid,
       // Only an editable crease-pattern document can be folded; a TreeMaker
       // design has no kernel handle, so the dialog disables the option.
       foldSegment: get().oristudioCpDocument
@@ -2053,10 +2058,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
 
     createNewProject: async (options = {}) => {
       const preserveEditCanvas = options.preserveEditCanvas ?? false;
-      if (rejectDisabled('file.new')) return;
+      // Reports whether a project now exists, for the same reason the box-pleat
+      // and ExplOri creators do: `chooseDesignMethod` cannot tell a refused
+      // discard or a dead engine from a success otherwise, and the chooser it
+      // answers to would spin forever. Callers that ignore it are unaffected.
+      if (rejectDisabled('file.new')) return false;
       // When preserving the Edit canvas (design-method chooser) there is nothing
       // to discard and the CP handle must stay alive, so skip the prompt + release.
-      if (!preserveEditCanvas && !(await confirmDiscardDirty(get().dirty))) return;
+      if (!preserveEditCanvas && !(await confirmDiscardDirty(get().dirty))) return false;
       set({ status: 'loading_engine', error: null, projectMessage: null });
       try {
         if (!preserveEditCanvas) await releaseEditableCreasePattern();
@@ -2109,8 +2118,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         // Only real File > New is a "project opened"; the design-method chooser
         // (preserveEditCanvas) is recorded as `design method chosen` instead.
         if (!preserveEditCanvas) track('project opened', { source: 'new' });
+        return true;
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
+        return false;
       }
     },
 
@@ -2915,6 +2926,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
             payload,
             fold: foldArtifacts.fold,
             segments: segmentFoldDocument(foldArtifacts.fold),
+            grid: creaseExportGridSource(
+              foldArtifacts.fold,
+              get().oristudioCpDocument?.document
+            ),
             url: null,
           },
         });
@@ -3019,6 +3034,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
             fold,
             segments,
             initialOptions: { ...defaultCreaseExportOptions(get().oristudioCpViewport), segmentId },
+            grid: creaseExportGridSource(fold, get().oristudioCpDocument?.document),
             // Mirrors resolveCreaseExport: only an editable crease pattern has a
             // kernel handle to fold with, so a TreeMaker design disables it.
             foldSegment: get().oristudioCpDocument
@@ -3373,14 +3389,25 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       set({ projectEstablished: true });
       track('design method chosen', { method: target });
       const wasDirty = get().dirty;
-      if (target === 'box-pleat') {
-        await get().createOristudioBpProject({ confirmDiscard: false, preserveEditCanvas: true });
-      } else if (target === 'explori') {
-        await get().createExploriDesign();
-      } else {
-        await get().createNewProject({ preserveEditCanvas: true });
-      }
+      // Every creator catches its own error and reports it as a return value, so
+      // this resolves either way and the boolean is the *only* signal that the
+      // design was not created. It used to be discarded, and the chooser cleared
+      // its spinner in a `.catch()` that therefore never ran: a box-pleat design
+      // created offline set an error, returned false, and left every card
+      // disabled with one of them spinning forever. Reproduced by relaunching an
+      // installed PWA in airplane mode, where the BP kernel is not in the cache.
+      const created =
+        target === 'box-pleat'
+          ? await get().createOristudioBpProject({ confirmDiscard: false, preserveEditCanvas: true })
+          : target === 'explori'
+            ? await get().createExploriDesign()
+            : await get().createNewProject({ preserveEditCanvas: true });
       if (get().dirty !== wasDirty) set({ dirty: get().dirty || wasDirty });
+      // The tab has no kind when creation failed, so the chooser is still what
+      // the workspace shows — and claiming a project is established over it
+      // would let a route guard treat an empty workspace as a live design.
+      if (!created) set({ projectEstablished: false });
+      return created;
     },
   };
 };

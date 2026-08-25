@@ -3,13 +3,18 @@ name = "oristudio-cp-wasm"
 version.workspace = true
 publish.workspace = true
 edition.workspace = true
-license.workspace = true
+# Not the workspace GPL default: this wrapper reaches only `oristudio-cp` and
+# `treemaker-fold`, so it matches their terms. See LICENSING.md.
+license = "MIT OR Apache-2.0"
 description = "wasm-bindgen package for the Ori Studio Oriedita-compatible crease-pattern kernel"
 repository.workspace = true
 homepage.workspace = true
 keywords = ["origami", "oriedita", "crease-pattern"]
 categories = ["wasm", "algorithms"]
 include = ["Cargo.toml", "src/**", "tests/**", "!pkg/**"]
+
+[lints]
+workspace = true
 
 [lib]
 crate-type = ["cdylib", "rlib"]

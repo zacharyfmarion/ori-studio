@@ -151,9 +151,6 @@
     },
     "clear": "清除",
     "editor": "编辑器",
-    "imported": {
-      "message": "导入的折痕图没有可编辑的树条件。"
-    },
     "list": "列表",
     "noConditions": "无条件",
     "paper": {
@@ -340,8 +337,10 @@
     "orbitFoldedForm": "旋转折叠图形",
     "preparing": "正在准备编辑器…",
     "refoldFoldedModelAction": "重新折叠模型",
+    "rendererContextLost": "正在恢复折痕图画布…",
+    "rendererContextLostHint": "系统收回了此画布的图形内存，设备内存不足时可能发生。你的折痕图安然无恙——图形上下文恢复后，视图也会随之恢复。若一直没有恢复，请重新加载 Ori Studio。",
     "rendererUnavailable": "无法启动折痕图画布。",
-    "rendererUnavailableHint": "Ori Studio 使用 WebGL2 绘制折痕图，但此系统未提供该支持。更新显卡驱动通常可以解决此问题。",
+    "rendererUnavailableHint": "Ori Studio 使用 WebGL 和实例化渲染绘制折痕图，但此系统未提供该支持。更新显卡驱动通常可以解决此问题。",
     "resetFoldedModelView": "重置折叠模型视角",
     "resizeAnnotation": "调整批注大小",
     "resizeFoldedForm": "调整折叠图大小",
@@ -387,13 +386,13 @@
     "axisXAria": "设计对称轴 X",
     "axisY": "Y",
     "axisYAria": "设计对称轴 Y",
+    "boxPleatEditorFailed": "箱形褶皱编辑器未能加载",
+    "boxPleatEditorOffline": "尚未下载此设计类型，且当前处于离线状态。联网一次后即可离线使用。",
     "canvas": "树设计画布",
-    "editCp": "编辑 CP",
     "emptyStateBody": "用分支表示折叠基础所需的瓣、肢和特征。",
     "emptyStateTitle": "勾勒设计背后的树",
     "flipPresetAxis": "翻转预设轴",
     "flipToPreset": "翻转到 {{preset}}",
-    "importedCreasePatternSuffix": "是导入的折痕图，没有可编辑的树。",
     "layerCircles": "圆",
     "layerLabels": "标签",
     "layerPaths": "路径",
@@ -416,13 +415,18 @@
         "description": "绘制一棵树，从 ExplOri 存档中找到匹配的折痕图。",
         "title": "搜索 22.5°"
       },
+      "failedOffline": "尚未下载此设计类型，且当前处于离线状态。联网一次后即可离线使用。",
+      "failedTitle": "无法创建 {{method}} 设计",
+      "failedUnknown": "此设计类型的编辑器未能加载。",
       "groupLabel": "设计方法",
+      "retry": "重试",
       "subtitle": "选择你想要编写此模型的方式。",
       "title": "开始新设计"
     },
-    "newTree": "新建树",
-    "noEditableTree": "此文档没有可编辑的树。",
-    "open": "打开",
+    "paneSwitcher": {
+      "close": "关闭面板列表",
+      "title": "面板"
+    },
     "paneTitle": {
       "bpPacking": "BP 编辑器",
       "bpTree": "树编辑器",
@@ -438,6 +442,7 @@
     "preset": "预设",
     "presetBook": "书本",
     "presetDiag": "对角",
+    "retry": "重试",
     "symmetry": "对称",
     "symmetryButton": "设计对称",
     "symmetryControls": "设计对称控件",
@@ -476,14 +481,10 @@
     "optimizingScale": "正在优化比例",
     "paths": "路径"
   },
-  "documentModeEmpty": {
-    "editCp": "编辑 CP",
-    "newTree": "新建树",
-    "open": "打开"
-  },
   "explori": {
     "advancedDatabases": "选择拓扑尺寸",
     "backToResults": "返回结果",
+    "backToSearch": "搜索",
     "canvas": "搜索树画布",
     "databaseCell": "{{symmetry}}，尺寸 {{size}}",
     "decreaseLength": "缩短",

@@ -9,13 +9,27 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { Check, Download, Keyboard, LayoutDashboard, Palette, RotateCcw, X } from 'lucide-react';
+import {
+  Check,
+  Download,
+  Keyboard,
+  LayoutDashboard,
+  Palette,
+  RotateCcw,
+  SlidersHorizontal,
+  X,
+} from 'lucide-react';
 import { OrieditaImportDialog } from './settings/OrieditaImportDialog';
 import { SettingsToggleRow } from './settings/SettingsToggleRow';
 import { UpdatesSection } from './settings/UpdatesSection';
 import { ANALYTICS_EVENTS, track, useAnalytics } from '../analytics';
 import { detectSystemLocale, SUPPORTED_LOCALES, SYSTEM_LOCALE } from '../i18n/locales';
-import { clampCpSnapRadius, CP_MAX_SNAP_RADIUS, CP_MIN_SNAP_RADIUS } from '../lib/cpSnapRadiusSetting';
+import {
+  CP_MAX_SNAP_RADIUS,
+  CP_MIN_SNAP_RADIUS,
+  hasCoarsePointer,
+  resolveCpSnapRadius,
+} from '../lib/cpSnapRadiusSetting';
 import {
   shortcutActionLabel,
   shortcutCategoryLabel,
@@ -56,6 +70,7 @@ import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 
 const TABS: Array<{ key: SettingsTab; icon: typeof Palette }> = [
+  { key: 'general', icon: SlidersHorizontal },
   { key: 'appearance', icon: Palette },
   { key: 'shortcuts', icon: Keyboard },
   { key: 'workspace', icon: LayoutDashboard },
@@ -64,6 +79,8 @@ const TABS: Array<{ key: SettingsTab; icon: typeof Palette }> = [
 /** Localized tab label. Literal `t()` calls keep the keys extractable. */
 function tabLabel(t: TFunction, key: SettingsTab): string {
   switch (key) {
+    case 'general':
+      return t('dialogs:settings.tab.general', 'General');
     case 'appearance':
       return t('dialogs:settings.tab.appearance', 'Appearance');
     case 'shortcuts':
@@ -73,8 +90,18 @@ function tabLabel(t: TFunction, key: SettingsTab): string {
   }
 }
 
+/**
+ * Which pane opens when nothing asked for one — which is every real open, since
+ * both production callers pass no tab.
+ *
+ * Falls back to the *first* tab rather than a named one. Naming it is how the
+ * pane that opens and the pane at the top of the list drift apart: this read
+ * `'appearance'` back when Appearance happened to be first, so putting anything
+ * ahead of it would have opened the dialog on its second entry.
+ */
 function resolveInitialTab(initialTab: SettingsTab | null): SettingsTab {
-  return initialTab && TABS.some((tab) => tab.key === initialTab) ? initialTab : 'appearance';
+  const [first] = TABS;
+  return initialTab && TABS.some((tab) => tab.key === initialTab) ? initialTab : first.key;
 }
 
 function ThemeCard({
@@ -184,55 +211,41 @@ function AppearanceTab() {
   );
 }
 
-function WorkspaceTab() {
+/**
+ * How the application behaves — as distinct from how it edits, which is the
+ * Workspace tab.
+ *
+ * Updates renders nothing off the desktop build, so in a browser this tab is
+ * Startup and Privacy alone.
+ */
+function GeneralTab() {
   const { t } = useTranslation();
-  const resetLayout = useLayoutStore((state) => state.resetLayout);
   const showWelcomeOnStartup = useSettingsStore((state) => state.showWelcomeOnStartup);
   const setShowWelcomeOnStartup = useSettingsStore((state) => state.setShowWelcomeOnStartup);
-  const foldWarningEnabled = useSettingsStore((state) => state.foldWarningEnabled);
-  const setFoldWarningEnabled = useSettingsStore((state) => state.setFoldWarningEnabled);
   const analyticsEnabled = useSettingsStore((state) => state.analyticsEnabled);
   const setAnalyticsEnabled = useSettingsStore((state) => state.setAnalyticsEnabled);
-  const cpWheelGesture = useSettingsStore((state) => state.cpWheelGesture);
-  const setCpWheelGesture = useSettingsStore((state) => state.setCpWheelGesture);
-  const cpSnapRadius = useSettingsStore((state) => state.cpSnapRadius);
-  const setCpSnapRadius = useSettingsStore((state) => state.setCpSnapRadius);
   const analytics = useAnalytics();
-  const snapRadiusId = useId();
-  const snapRadiusLabel = t('dialogs:settings.workspace.snapRadius', 'Snap radius');
 
   return (
     <div className="settings-tab">
       <section className="settings-section">
         <h3 className="settings-section__title">
-          {t('dialogs:settings.workspace.startup', 'Startup')}
+          {t('dialogs:settings.general.startup', 'Startup')}
         </h3>
         <SettingsToggleRow
-          label={t('dialogs:settings.workspace.showWelcome', 'Show welcome screen on startup')}
+          label={t('dialogs:settings.general.showWelcome', 'Show welcome screen on startup')}
           checked={showWelcomeOnStartup}
           onChange={setShowWelcomeOnStartup}
         />
       </section>
+      <UpdatesSection />
       <section className="settings-section">
         <h3 className="settings-section__title">
-          {t('dialogs:settings.workspace.folding', 'Folding')}
+          {t('dialogs:settings.general.privacy', 'Privacy')}
         </h3>
         <SettingsToggleRow
           label={t(
-            'dialogs:settings.workspace.foldWarning',
-            'Warn before folding a crease pattern with flat-foldability errors'
-          )}
-          checked={foldWarningEnabled}
-          onChange={setFoldWarningEnabled}
-        />
-      </section>
-      <section className="settings-section">
-        <h3 className="settings-section__title">
-          {t('dialogs:settings.workspace.privacy', 'Privacy')}
-        </h3>
-        <SettingsToggleRow
-          label={t(
-            'dialogs:settings.workspace.analytics',
+            'dialogs:settings.general.analytics',
             'Send anonymous usage analytics and crash reports to help improve Ori Studio'
           )}
           checked={analyticsEnabled}
@@ -246,7 +259,50 @@ function WorkspaceTab() {
           }}
         />
       </section>
-      <UpdatesSection />
+    </div>
+  );
+}
+
+/**
+ * The field's bound, resolved against the live pointer so that it and the
+ * store's hydration are the same law rather than two that happen to agree.
+ *
+ * `NumberField` already refuses to commit an entry it cannot read, so this only
+ * ever sees a finite number and today returns exactly what `clampCpSnapRadius`
+ * would. It goes through the resolver anyway to keep one entry point, not
+ * because a second default is reachable here.
+ */
+function normalizeCpSnapRadius(value: number): number {
+  return resolveCpSnapRadius(value, hasCoarsePointer());
+}
+
+function WorkspaceTab() {
+  const { t } = useTranslation();
+  const resetLayout = useLayoutStore((state) => state.resetLayout);
+  const foldWarningEnabled = useSettingsStore((state) => state.foldWarningEnabled);
+  const setFoldWarningEnabled = useSettingsStore((state) => state.setFoldWarningEnabled);
+  const cpWheelGesture = useSettingsStore((state) => state.cpWheelGesture);
+  const setCpWheelGesture = useSettingsStore((state) => state.setCpWheelGesture);
+  const cpSnapRadius = useSettingsStore((state) => state.cpSnapRadius);
+  const setCpSnapRadius = useSettingsStore((state) => state.setCpSnapRadius);
+  const snapRadiusId = useId();
+  const snapRadiusLabel = t('dialogs:settings.workspace.snapRadius', 'Snap radius');
+
+  return (
+    <div className="settings-tab">
+      <section className="settings-section">
+        <h3 className="settings-section__title">
+          {t('dialogs:settings.workspace.folding', 'Folding')}
+        </h3>
+        <SettingsToggleRow
+          label={t(
+            'dialogs:settings.workspace.foldWarning',
+            'Warn before folding a crease pattern with flat-foldability errors'
+          )}
+          checked={foldWarningEnabled}
+          onChange={setFoldWarningEnabled}
+        />
+      </section>
       <section className="settings-section">
         <h3 className="settings-section__title">
           {t('dialogs:settings.workspace.creasePatternCanvas', 'Crease pattern canvas')}
@@ -302,7 +358,7 @@ function WorkspaceTab() {
               min={CP_MIN_SNAP_RADIUS}
               max={CP_MAX_SNAP_RADIUS}
               step={1}
-              normalize={clampCpSnapRadius}
+              normalize={normalizeCpSnapRadius}
               onCommit={setCpSnapRadius}
             />
           </span>
@@ -923,6 +979,7 @@ function ShortcutsTab() {
 }
 
 const TAB_COMPONENTS: Record<SettingsTab, () => ReactElement> = {
+  general: GeneralTab,
   appearance: AppearanceTab,
   shortcuts: ShortcutsTab,
   workspace: WorkspaceTab,

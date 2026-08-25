@@ -21,6 +21,13 @@ interface Recorder {
   clears: number[];
   clearColors: [number, number, number, number][];
   draws: DrawCall[];
+  /**
+   * The scissor rect in force at each `clear`, or null if the test was
+   * disabled. The clear has to be bounded to the viewport — see the render
+   * path's own comment — and an unscissored one is not a wrong picture, only a
+   * slow one, so nothing but this would notice it coming back.
+   */
+  clearScissors: ([number, number, number, number] | null)[];
 }
 
 /** A WebGL2 stub that records the calls this test asks questions about. */
@@ -28,6 +35,9 @@ function recorder(): Recorder {
   const clears: number[] = [];
   const clearColors: [number, number, number, number][] = [];
   const draws: DrawCall[] = [];
+  const clearScissors: ([number, number, number, number] | null)[] = [];
+  let scissorEnabled = false;
+  let scissorBox: [number, number, number, number] | null = null;
   const object = () => ({}) as never;
   const gl = {
     VERTEX_SHADER: 1,
@@ -53,6 +63,7 @@ function recorder(): Recorder {
     TEXTURE2: 102,
     COLOR_BUFFER_BIT: 0x4000,
     DEPTH_BUFFER_BIT: 0x0100,
+    SCISSOR_TEST: 19,
 
     createShader: object,
     shaderSource: () => {},
@@ -76,8 +87,15 @@ function recorder(): Recorder {
 
     bindFramebuffer: () => {},
     viewport: () => {},
-    enable: () => {},
-    disable: () => {},
+    enable: (cap: number) => {
+      if (cap === 19) scissorEnabled = true;
+    },
+    disable: (cap: number) => {
+      if (cap === 19) scissorEnabled = false;
+    },
+    scissor: (x: number, y: number, width: number, height: number) => {
+      scissorBox = [x, y, width, height];
+    },
     depthFunc: () => {},
     depthMask: () => {},
     blendFunc: () => {},
@@ -85,7 +103,10 @@ function recorder(): Recorder {
     clearColor: (red: number, green: number, blue: number, alpha: number) =>
       clearColors.push([red, green, blue, alpha]),
     clearDepth: () => {},
-    clear: (mask: number) => clears.push(mask),
+    clear: (mask: number) => {
+      clears.push(mask);
+      clearScissors.push(scissorEnabled ? scissorBox : null);
+    },
     useProgram: () => {},
     activeTexture: () => {},
     bindTexture: () => {},
@@ -107,7 +128,7 @@ function recorder(): Recorder {
     getTexture: () => ({}) as WebGLTexture,
   } as unknown as GlCore;
 
-  return { gl, core, clears, clearColors, draws };
+  return { gl, core, clears, clearColors, draws, clearScissors };
 }
 
 /** Six triangles, so a sub-range can be asked for and be wrong if ignored. */
@@ -155,6 +176,36 @@ describe('composing a frame from several MeshRenderer draws', () => {
     new MeshRenderer(core, topology()).render(CAMERA, SETTINGS, null);
     expect(clears).toHaveLength(1);
     expect(draws).toEqual([{ count: 18, offset: 0 }]);
+  });
+
+  it('scissors the clear to the viewport, not the whole shared buffer', () => {
+    // The buffer is shared by every inline simulation window and grow-only, so
+    // it is sized to the largest window ever opened. An unscissored clear then
+    // costs the whole of it on every render, whatever size the window drawing
+    // is — measured flat at ~7.5ms in WebKit at 2048x2048 against ~2.8ms at
+    // 512x512, and invisible in Chromium, which fast-paths a full clear.
+    //
+    // Only the timing changes, never the picture: the crop reads exactly this
+    // rect either way. So no rendering test can catch a regression here, and
+    // this is the one that has to.
+    const { core, clears, clearScissors } = recorder();
+    new MeshRenderer(core, topology()).render(CAMERA, SETTINGS, null);
+    expect(clears).toHaveLength(1);
+    expect(clearScissors).toEqual([[0, 0, CAMERA.width, CAMERA.height]]);
+  });
+
+  it('leaves the scissor test off once the clear is done', () => {
+    // The context is shared across windows and passes, so a scissor left
+    // enabled would silently clip whatever drew next.
+    const { gl, core } = recorder();
+    new MeshRenderer(core, topology()).render(CAMERA, SETTINGS, null);
+    const disables: number[] = [];
+    const enables: number[] = [];
+    (gl as unknown as { enable: (cap: number) => void }).enable = (cap) => enables.push(cap);
+    (gl as unknown as { disable: (cap: number) => void }).disable = (cap) => disables.push(cap);
+    new MeshRenderer(core, topology()).render(CAMERA, SETTINGS, null);
+    expect(enables.filter((cap) => cap === 19)).toHaveLength(1);
+    expect(disables.filter((cap) => cap === 19)).toHaveLength(1);
   });
 
   it('skips the clear on request, so a later pass keeps the earlier one', () => {
