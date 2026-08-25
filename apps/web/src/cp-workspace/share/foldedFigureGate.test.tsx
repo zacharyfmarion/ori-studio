@@ -60,6 +60,7 @@ function draftFor(fold: FoldDocument) {
     payload: 'T0NTMQEB',
     fold,
     segments: segmentFoldDocument(fold),
+    grid: null,
     url: null,
   };
 }
@@ -90,8 +91,10 @@ describe('folded-figure gate on a pattern that cannot fold flat', () => {
     useWorkspaceStore.setState({ oristudioCpShareDraft: null, oristudioCpDocument: null });
   });
 
+  // By label, not by position: the modal has more than one toggle row, and this
+  // suite is about exactly one of them.
   function toggleIn(container: ParentNode): HTMLInputElement | HTMLButtonElement | null {
-    return container.querySelector('.share-link-modal__toggle-row input, .share-link-modal__toggle-row button');
+    return container.querySelector('[aria-label="Show folded figure"]');
   }
 
   it('share modal offers the toggle for a flat pattern', async () => {
@@ -122,6 +125,7 @@ describe('folded-figure gate on a pattern that cannot fold flat', () => {
       fold: PARTIAL,
       segments: segmentFoldDocument(PARTIAL),
       initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS, segmentId: 0 },
+      grid: null,
       foldSegment: vi.fn(),
     };
     await act(async () => root.render(<CreaseExportDialog dialog={dialog} />));

@@ -147,6 +147,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
     pointSize,
     includeUnassigned,
     showBackgroundColor,
+    showGrid,
     theme,
     includeFoldedFigure,
     foldedFigure: foldedSettings,
@@ -248,20 +249,23 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
           pointSize,
           includeUnassigned,
           showBackgroundColor,
+          showGrid,
           theme,
           includeFoldedFigure,
         },
-        { foldedFigure, foldedFigureTransform: foldedTransform }
+        { foldedFigure, foldedFigureTransform: foldedTransform, grid: dialog.grid }
       ),
     [
       dialog.fold,
       dialog.segments,
+      dialog.grid,
       segmentId,
       lineStyle,
       lineWidth,
       pointSize,
       includeUnassigned,
       showBackgroundColor,
+      showGrid,
       theme,
       includeFoldedFigure,
       foldedFigure,
@@ -313,7 +317,11 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
             event.preventDefault();
             resolveCommandDialog(dialog.id, {
               options,
-              content: { foldedFigure, foldedFigureTransform: foldedTransform },
+              content: {
+                foldedFigure,
+                foldedFigureTransform: foldedTransform,
+                grid: dialog.grid,
+              },
             });
           }}
         >
@@ -454,6 +462,25 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                   checked={showBackgroundColor}
                   onChange={(next) => patch({ showBackgroundColor: next })}
                   aria-label={t('dialogs:export.showBackgroundColor', 'Show background color')}
+                />
+              </div>
+              <div className="export-modal__toggle-row">
+                <div className="export-modal__toggle-copy">
+                  <span>{t('dialogs:export.showGrid', 'Show grid lines')}</span>
+                  {!dialog.grid && (
+                    <small className="export-modal__hint">
+                      {t(
+                        'dialogs:export.showGridNeedsCp',
+                        'Open an editable crease pattern to draw its grid'
+                      )}
+                    </small>
+                  )}
+                </div>
+                <Toggle
+                  checked={showGrid}
+                  disabled={!dialog.grid}
+                  onChange={(next) => patch({ showGrid: next })}
+                  aria-label={t('dialogs:export.showGrid', 'Show grid lines')}
                 />
               </div>
               <div className="export-modal__toggle-row">

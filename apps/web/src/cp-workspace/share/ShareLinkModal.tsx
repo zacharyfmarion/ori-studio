@@ -53,6 +53,7 @@ export function ShareLinkModal() {
 
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
+  const [showGrid, setShowGrid] = useState(false);
   const [showFolded, setShowFolded] = useState(false);
   const [side, setSide] = useState<FoldedFigureSide>('Front0');
   const [frontColor, setFrontColor] = useState(DEFAULT_CREASE_EXPORT_FOLDED_FIGURE.frontColor);
@@ -130,14 +131,19 @@ export function ShareLinkModal() {
       {
         ...DEFAULT_CREASE_EXPORT_OPTIONS,
         segmentId: draft.segmentId,
+        showGrid: showGrid && draft.grid !== null,
         includeFoldedFigure: showFolded && folded.figure !== null,
         foldedFigure: foldedSettings,
       },
-      { foldedFigure: folded.figure, foldedFigureTransform: folded.transform }
+      {
+        foldedFigure: folded.figure,
+        foldedFigureTransform: folded.transform,
+        grid: draft.grid,
+      }
     );
     const page = composeCreaseExportSvg(artwork, EMPTY_CREASE_EXPORT_CAPTION);
     return { ...page, background: artwork.palette.canvas };
-  }, [draft, showFolded, folded.figure, folded.transform, foldedSettings]);
+  }, [draft, showGrid, showFolded, folded.figure, folded.transform, foldedSettings]);
 
   // Exactly what the Worker will write into the OpenGraph tags — same helpers, so the
   // preview cannot promise a card the crawler never receives.
@@ -245,6 +251,26 @@ export function ShareLinkModal() {
             </label>
 
             <div className="share-link-modal__divider" />
+
+            <div className="share-link-modal__toggle-row">
+              <span>
+                {t('dialogs:share.grid', 'Show grid lines')}
+                {!draft.grid && (
+                  <small className="export-modal__hint">
+                    {t(
+                      'dialogs:share.gridNeedsCp',
+                      'Open an editable crease pattern to draw its grid'
+                    )}
+                  </small>
+                )}
+              </span>
+              <Toggle
+                checked={showGrid}
+                disabled={!draft.grid}
+                onChange={setShowGrid}
+                aria-label={t('dialogs:share.grid', 'Show grid lines')}
+              />
+            </div>
 
             <div className="share-link-modal__toggle-row">
               <span>
