@@ -34,17 +34,17 @@ describe('oristudio CP action registry', () => {
       'None',
       'Cyan3',
     ]);
-    // Unassigned stays a real line type (imported patterns carry it) but is not
-    // worth a chip, so it is the one kept out of the rail.
+    // Every line type earns a chip, unassigned included. It was held out of the
+    // rail as "something you reach for while drawing", which was true when an
+    // undecided crease was transient run state; now that you author them on
+    // purpose, the one type you could not pick was the only way to draw one.
     const shown = ORISTUDIO_CP_LINE_TYPE_ACTIONS.filter(
       (action) => action.placement === 'left-rail'
     );
-    expect(shown.map((action) => action.railLabel)).toEqual(['M', 'V', 'E', 'A']);
+    expect(shown.map((action) => action.railLabel)).toEqual(['M', 'V', 'E', 'U', 'A']);
     expect(
-      ORISTUDIO_CP_LINE_TYPE_ACTIONS.filter((action) => action.placement === 'hidden-ui-only').map(
-        (action) => action.railLabel
-      )
-    ).toEqual(['U']);
+      ORISTUDIO_CP_LINE_TYPE_ACTIONS.filter((action) => action.placement === 'hidden-ui-only')
+    ).toEqual([]);
 
     // The rail is their only home, and they lead it (group order 5).
     const rail = cpRailActions();
