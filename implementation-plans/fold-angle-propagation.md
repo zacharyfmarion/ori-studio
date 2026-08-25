@@ -93,6 +93,14 @@ only of the synthetic population.
 *both unknowns at ±180*, 5.35% collinear, 1.63% both ±90, 3.14% genuinely rank-1,
 0.08% real branches.
 
+> **Revisit the "no solver miss" claim.** Three of those buckets — collinear,
+> both ±90, and "genuinely rank-1" — are all *rank* verdicts, and the rank test
+> is now known to be sound in one direction only. On the reported vertex it calls
+> two isolated roots a family. Until Phase 1 of
+> `implementation-plans/collinear-unknown-isolation.md` classifies them by
+> sweeping the residual rather than by reading the rank, some fraction of these
+> 10.12% may be answers that were found and thrown away.
+
 **The ±180 case is a real mountain/valley question, not a spelling artefact.**
 An earlier revision of this plan proposed identifying `+180` with `−180` before
 `solve_fold_angles`' dedupe, on the grounds that they are the same rotation. That
@@ -136,8 +144,11 @@ alternatives refuted** once a neighbour is consulted.
 Two more corrections in the same area. Broken out by what the *blanked pair* is
 (104,623 non-collinear k=2 subsets): both ±180 → **0.00%** determined, 90.26%
 branching; both ±90 → **44.42%**; both arbitrary → **83.50%**. So **±90 is the
-worst non-±180 case**, at half the arbitrary rate, and it fails as a *continuous
-family* (rank 1 at truth for all 1,399), not as a branch.
+worst non-±180 case**, at half the arbitrary rate, and it fails with rank 1 at
+truth for all 1,399 rather than as a branch. Whether that rank means a *family*
+or an isolated root the vector-part Jacobian cannot see is exactly the question
+`collinear-unknown-isolation.md` opens; it was read as the former here without
+sweeping the residual to check.
 
 And the earlier `degree ≥ 4` census filter deleted a real population: **50 real
 fans are degree 2** (mid-crease points, 34 on `spikes_better` alone), 100%
@@ -676,7 +687,12 @@ No panel `keydown` listener.
 - [x] Fan constructor with three states (known ρ / unknown ρ / not a crease),
       **indexed** rather than O(segments) per lookup.
 - [x] `solve_k` for any k, with the k=1/k=2 closed forms and the k=2 parallel-axes
-      arm (two unknowns collinear through the vertex is a 1-parameter family).
+      arm (two unknowns collinear through the vertex). ~~is a 1-parameter
+      family~~ — **wrong as stated**. The parallel axes make the *vector-part*
+      Jacobian rank-deficient, and that was read as a family. On the reported
+      square-with-both-diagonals the solution set is two isolated points, and the
+      rank test discards both. Tracked in
+      `implementation-plans/collinear-unknown-isolation.md`.
 - [x] **A test asserting `+180` and `−180` both survive as separate answers** at a
       full-fold k=2 vertex, and that the verdict is `Branching` — they are the
       same rotation but opposite M/V, and collapsing them is a silent choice.

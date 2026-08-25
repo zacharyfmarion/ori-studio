@@ -40,9 +40,28 @@
 //! reason, and names the case: a point sitting mid-way along a straight crease
 //! collapses the constraints, and those "are everywhere in a real pattern". At
 //! k = 2 the same degeneracy appears as two unknown creases that are collinear
-//! through the vertex, where the two rotation axes are parallel and the answer
-//! is a one-parameter family rather than a point. [`solve_parallel_pair`] is
-//! that arm; without it the forward elimination divides by ~0.
+//! through the vertex, where the two rotation axes are parallel and the forward
+//! elimination in [`solve_two`] would divide by ~0. [`solve_parallel_pair`] is
+//! that arm.
+//!
+//! # The rank test is sound in one direction only
+//!
+//! Full rank implies an isolated root. **Rank deficiency does not imply a
+//! family**, and this code reads it as though it does — `isolated: rank ==
+//! unknowns.len()`.
+//!
+//! The gap is that [`closure_jacobian`] differentiates the *vector* part of the
+//! closure quaternion and drops `w`. Near `q = 1` that is the closure condition
+//! to first order, so it is the right thing to *solve* on. It is the wrong thing
+//! to test *uniqueness* with, because `w` is what separates a closed vertex from
+//! one whose product is `-1` — see [`crate::checks_spatial::quat_residual`].
+//!
+//! Measured on a square with both diagonals creased, one decided and the other
+//! two halves unknown: the only closures are `(-180, -180)` and `(+180, +180)`,
+//! the residual rises linearly away from each, and the two Jacobian rows are the
+//! *same vector* at every angle sampled. Rank 1, two isolated roots, verdict
+//! `Underdetermined`, answers discarded. See
+//! `implementation-plans/collinear-unknown-isolation.md`.
 //!
 //! # `+180` and `-180` are the same rotation and different creases
 //!
@@ -788,15 +807,21 @@ fn solve_two(reduced: &Reduced) -> Vec<Vec<f64>> {
 }
 
 /// The collinear arm of k = 2: the two unknown creases run through the vertex in
-/// a straight line, so their rotation axes are parallel, the two rotations
-/// commute, and the solution set is the **line** `rho_2 = total -/+ rho_1`
-/// rather than a point.
+/// a straight line, so their rotation axes are parallel and the two rotations
+/// commute. `rho_2 = total -/+ rho_1` is the line this samples along.
 ///
 /// `checks_spatial`'s `vertex_dof` singles this case out by name and says it is
 /// "everywhere in a real pattern", so the forward elimination in [`solve_two`]
 /// would divide by ~0 here rather than rarely. Sampling the line gives the
-/// refinement something to start from; the rank test downstream is what reports
-/// it honestly as a family.
+/// refinement something to start from, which is all this arm claims.
+///
+/// **It does not follow that the answer is a family.** That line solves the
+/// vector-part system; closure also requires the scalar part, and on the
+/// reported vertex only two points on it close. The doc here used to say the
+/// solution set *is* the line and that "the rank test downstream reports it
+/// honestly as a family" — the rank test cannot tell a family from an isolated
+/// root it happens to be blind to. See
+/// `implementation-plans/collinear-unknown-isolation.md`.
 fn solve_parallel_pair(reduced: &Reduced) -> Vec<Vec<f64>> {
     let u1 = reduced.axes[0];
     let u2 = reduced.axes[1];

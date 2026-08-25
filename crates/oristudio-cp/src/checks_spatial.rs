@@ -570,6 +570,15 @@ fn within_arc(point: Vec3, a: Vec3, b: Vec3, normal: Vec3) -> bool {
 /// fan is a point sitting mid-way along a straight crease, where the constraints
 /// collapse to `rho_1 = rho_2` and the true answer is 1, not `2 - 3`. Those are
 /// everywhere in a real pattern, so the naive count would be wrong all over it.
+///
+/// This is the degrees of freedom **of the linearization**, and the Jacobian
+/// below is taken on the vector part only — `q.0` is dropped, exactly as in
+/// [`crate::solve_k`]'s `closure_jacobian`. So a deficient rank here does not by
+/// itself establish that the configuration space is locally that large: `w` is
+/// what separates a closed vertex from one whose product is `-1`, and a rank
+/// that cannot see `w` cannot see that separation either. Sound as a count of
+/// what the linear constraints pin down; not a uniqueness proof. See
+/// `implementation-plans/collinear-unknown-isolation.md`.
 pub fn vertex_dof(fan: &VertexFan) -> usize {
     let n = fan.creases.len();
     if n == 0 {
