@@ -77,7 +77,7 @@ export const ORISTUDIO_CP_LINE_TYPE_ACTIONS = [
       entry.lineColor,
       upstreamLineColorAction(entry.lineColor),
       `line-type-${entry.cssClass}`,
-      // Keep palette order (M, V, E, U, A) explicit rather than leaning on a
+      // Keep palette order (M, V, E, A, U) explicit rather than leaning on a
       // stable sort, since the rail sorts every group by `railOrder`.
       index + 1,
       // Unassigned used to be withheld here, as "something you reach for while

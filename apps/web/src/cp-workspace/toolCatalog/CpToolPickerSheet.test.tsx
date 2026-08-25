@@ -69,9 +69,17 @@ describe('CpToolPickerSheet catalogue', () => {
   it('names every tool the rail draws, and nothing the rail does not', () => {
     const sheet = renderSheet();
 
-    const labels = [...sheet.querySelectorAll('.cp-tool-picker__label')].map(
-      (node) => node.textContent
-    );
+    // The line types are chips rather than rows -- five one-letter choices cost
+    // a third of the sheet as rows -- so they are named by `aria-label`. Reading
+    // both is the point: every tool is still reachable *and* still named, which
+    // is what this test is for, and a chip that dropped its label would be a
+    // regression the row query alone could not see.
+    const labels = [
+      ...[...sheet.querySelectorAll('.cp-tool-picker__type')].map((node) =>
+        node.getAttribute('aria-label')
+      ),
+      ...[...sheet.querySelectorAll('.cp-tool-picker__label')].map((node) => node.textContent),
+    ];
     const expected = cpRailGroups().flatMap((entry) => entry.actions.map((action) => action.label));
 
     expect(labels).toEqual(expected);

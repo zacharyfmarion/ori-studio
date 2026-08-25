@@ -122,6 +122,42 @@ export function CpToolPickerSheet({
           {cpRailGroups().map(({ group, actions }) => (
             <section key={group.id} className="cp-tool-picker__group">
               <h3 className="cp-tool-picker__group-title">{cpGroupLabel(t, group)}</h3>
+              {/* The line types are five one-letter choices, so as full rows
+                  they cost a third of the sheet to say what five chips say —
+                  and the same segmented group the rail uses is already the
+                  clearer picture of "one control, one answer". Every other
+                  group stays a list: those are tools with names worth reading,
+                  which is what the rows are for. */}
+              {group.id === 'line-type' ? (
+                <div
+                  className="cp-tool-picker__types"
+                  role="radiogroup"
+                  aria-label={cpGroupLabel(t, group)}
+                >
+                  {actions.map((action) => {
+                    const isActive =
+                      action.kind === 'line-type' && activeLineColor === action.lineColor;
+                    return (
+                      <button
+                        key={action.id}
+                        type="button"
+                        className="cp-tool-picker__type"
+                        role="radio"
+                        aria-checked={isActive}
+                        aria-label={cpActionLabel(t, action)}
+                        data-active={isActive || undefined}
+                        data-line-color={action.kind === 'line-type' ? action.lineColor : undefined}
+                        onClick={() => {
+                          onSelectAction(action);
+                          close();
+                        }}
+                      >
+                        {action.railLabel}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
               <ul className="cp-tool-picker__list">
                 {actions.map((action) => (
                   <li key={action.id}>
@@ -143,6 +179,7 @@ export function CpToolPickerSheet({
                   </li>
                 ))}
               </ul>
+              )}
             </section>
           ))}
         </div>

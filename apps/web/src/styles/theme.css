@@ -9893,6 +9893,58 @@ button.bp-packing-alert:focus-visible {
     list-style: none;
   }
 
+  /* The line types, as the same segmented group the rail draws — see
+     `.cp-tool-rail__buttons[data-group='line-type']`. Not shared markup: this
+     one is sized for a thumb rather than a cursor, and the sheet's buttons
+     close it on select where the rail's do not. */
+  .cp-tool-picker__types {
+    display: flex;
+    margin: 0 var(--space-3) var(--space-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+
+  .cp-tool-picker__type {
+    flex: 1 1 0;
+    min-width: 0;
+    /* The rail's chips are 38px, which is under the 44px a thumb wants. */
+    min-height: 44px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    font-weight: 780;
+    cursor: pointer;
+  }
+
+  .cp-tool-picker__type + .cp-tool-picker__type {
+    border-left: 1px solid var(--border-default);
+  }
+
+  .cp-tool-picker__type[data-active] {
+    background: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-tertiary));
+    box-shadow: inset 0 0 0 1px
+      color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
+  }
+
+  .cp-tool-picker__type[data-line-color='Red1'] {
+    color: var(--fold-mountain);
+  }
+
+  .cp-tool-picker__type[data-line-color='Blue2'] {
+    color: var(--fold-valley);
+  }
+
+  .cp-tool-picker__type[data-line-color='Cyan3'] {
+    color: var(--fold-flat);
+  }
+
+  .cp-tool-picker__type[data-line-color='None'] {
+    color: var(--fold-unassigned);
+  }
+
   .cp-tool-picker__item {
     display: flex;
     align-items: center;

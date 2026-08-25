@@ -24,15 +24,15 @@ describe('oristudio CP action registry', () => {
       'M',
       'V',
       'E',
-      'U',
       'A',
+      'U',
     ]);
     expect(ORISTUDIO_CP_LINE_TYPE_ACTIONS.map((action) => action.lineColor)).toEqual([
       'Red1',
       'Blue2',
       'Black0',
-      'None',
       'Cyan3',
+      'None',
     ]);
     // Every line type earns a chip, unassigned included. It was held out of the
     // rail as "something you reach for while drawing", which was true when an
@@ -41,7 +41,7 @@ describe('oristudio CP action registry', () => {
     const shown = ORISTUDIO_CP_LINE_TYPE_ACTIONS.filter(
       (action) => action.placement === 'left-rail'
     );
-    expect(shown.map((action) => action.railLabel)).toEqual(['M', 'V', 'E', 'U', 'A']);
+    expect(shown.map((action) => action.railLabel)).toEqual(['M', 'V', 'E', 'A', 'U']);
     expect(
       ORISTUDIO_CP_LINE_TYPE_ACTIONS.filter((action) => action.placement === 'hidden-ui-only')
     ).toEqual([]);
