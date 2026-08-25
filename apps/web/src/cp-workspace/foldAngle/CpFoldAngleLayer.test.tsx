@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { OristudioCpLineSegment } from '../../engine/oristudioCpTypes';
 import { FOLD_MAGNITUDE_UNITS_PER_DEGREE } from '../../lib/foldAngle';
 import { cpOverlayViewStore } from '../cpOverlayViewStore';
+import { cpTransformPreviewStore } from '../cpTransformPreviewStore';
+import { translationMatrix, type CpAffineMatrix } from '../adapters/cpSnapshotToScene';
 import { useWorkspaceStore } from '../../store/workspaceStore/store';
 import type { ToolPreviewSegment } from '../tools/types';
 import { CpFoldAngleLayer } from './CpFoldAngleLayer';
@@ -46,6 +48,7 @@ describe('CpFoldAngleLayer', () => {
   afterEach(() => {
     act(() => root.unmount());
     host.remove();
+    cpTransformPreviewStore.set(null);
   });
 
   const render = (segments: OristudioCpLineSegment[]) => {
@@ -157,6 +160,75 @@ describe('CpFoldAngleLayer', () => {
       // The delta is measured from the re-planned view, not the original one.
       setView([15, 25], [2, 0], [0, 2]);
       expect(layer().style.transform).toBe('translate(15px, 25px)');
+    });
+  });
+
+  describe('live transform', () => {
+    const setMove = (ids: number[], matrix: CpAffineMatrix | null) => {
+      act(() => {
+        cpTransformPreviewStore.set(matrix === null ? null : { ids: new Set(ids), matrix });
+      });
+    };
+    const transforms = () =>
+      [...host.querySelectorAll('.cp-fold-angle-layer__badge')].map(
+        (badge) => (badge as HTMLElement).style.transform
+      );
+
+    it('follows the creases the surface is drawing through a transform', () => {
+      // The gesture never touches the document, so without the published matrix
+      // the number stays at the stored midpoint while its crease follows the
+      // cursor. Only the ids in the gesture move: crease 2 is not selected.
+      render([crease('Red1', 10, deg(90)), crease('Blue2', 20, deg(45))]);
+
+      setMove([1], translationMatrix({ x: 0, y: 60 }));
+
+      expect(transforms()[0]).toContain('translate(100px, 70px)');
+      expect(transforms()[1]).toContain('translate(100px, 20px)');
+    });
+
+    it('re-plans under the transform, because the plan is made on screen length', () => {
+      // Why the matrix goes on the model point rather than on the finished badge.
+      // A four-point transform scales, so a crease with room for its number can
+      // lose it mid-gesture — 200 units down to 20 is below the number threshold
+      // but still above the dot one, and the badge has to degrade with it.
+      render([crease('Blue2', 40, deg(60), 200)]);
+
+      setMove([1], [0.1, 0, 0, 0.1, 0, 0]);
+
+      const badge = host.querySelector('.cp-fold-angle-layer__badge') as HTMLElement;
+      expect(badge.dataset.detail).toBe('dot');
+      expect(badge.textContent).toBe('');
+      expect(badge.style.transform).toContain('translate(10px, 4px)');
+    });
+
+    it('puts the badge back when the transform is cleared', () => {
+      render([crease('Red1', 10, deg(90))]);
+      setMove([1], translationMatrix({ x: 0, y: 60 }));
+
+      setMove([], null);
+
+      expect(transforms()[0]).toContain('translate(100px, 10px)');
+    });
+
+    it('leaves tool candidates where the tool put them', () => {
+      // Candidate ids are an index within their own set, so they collide with
+      // real line ids by construction — and a candidate is already at the
+      // position it would commit at. Transforming one would move the tool's
+      // answer because some unrelated crease happened to share its number.
+      act(() => {
+        root.render(
+          <CpFoldAngleLayer
+            lineSegments={[]}
+            toolCandidates={[
+              { a: { x: 0, y: 10 }, b: { x: 200, y: 10 }, crease: { color: 'Red1', foldMagnitude: deg(90) } },
+            ]}
+          />
+        );
+      });
+
+      setMove([1], translationMatrix({ x: 0, y: 60 }));
+
+      expect(transforms()[0]).toContain('translate(100px, 10px)');
     });
   });
 
