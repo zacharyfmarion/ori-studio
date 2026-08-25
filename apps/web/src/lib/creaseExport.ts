@@ -8,14 +8,23 @@ import { escapeXml } from './xmlEscape';
 import { foldedFigureSvgBody, projectedFoldedFigureBounds } from './foldedFigureSvg';
 import {
   applyCpModelToFold,
+  cpModelToFoldTransform,
   IDENTITY_CP_MODEL_TO_FOLD,
   type CpModelToFoldTransform,
 } from './creaseExportFold';
-import type { OristudioCpFoldedRenderSnapshot } from '../engine/oristudioCpTypes';
+import type {
+  OristudioCpDocumentSnapshot,
+  OristudioCpFoldedRenderSnapshot,
+  OristudioCpGridMetadata,
+} from '../engine/oristudioCpTypes';
+import type { Point } from './geometry';
 import type { FoldedFigureSide } from './foldedFigureSides';
 import {
   DEFAULT_ORISTUDIO_CP_LINE_STYLE,
   DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
+  expandedModelBoundsFromPoints,
+  orieditaGridLinesForModelBounds,
+  visibleOrieditaGridMetadata,
   type OristudioCpLineStyle,
 } from './creasePatternViewport';
 import { cpLineStyleDashPattern, cpLineStyleInk } from './oristudioCpLineStyle';
@@ -26,6 +35,21 @@ const MARGIN = 48;
 // Export viewBox (1024) is larger than the editable canvas viewBox (~720); scale
 // stroke widths / point radii so exports look like the live crease-pattern view.
 const VIEW_SCALE = CP_SIZE / 720;
+
+/**
+ * Grid stroke width, in the same page units as the crease strokes.
+ *
+ * `0.95` is the canvas grid's own CSS width (see `reglRenderer`'s
+ * `GRID_WIDTH_CSS`), scaled into the export's larger box. Fixed rather than
+ * derived from the chosen line width, because it is fixed on the canvas too:
+ * the grid is a backdrop, and thickening it with the creases would let it
+ * compete with them.
+ */
+const GRID_STROKE_WIDTH = 0.95 * VIEW_SCALE;
+/** Interval lines are drawn wider, matching the canvas `MAJOR_WIDTH_MUL`. */
+const GRID_MAJOR_WIDTH_MULTIPLIER = 1.8;
+/** One crease pattern per exported page, so a fixed id stays unique. */
+const GRID_CLIP_ID = 'cp-export-grid-clip';
 
 // Caption typography, in the same user units as the content box.
 const TITLE_FONT_SIZE = 52;
@@ -105,6 +129,12 @@ export interface CreaseExportOptions {
   pointSize: number;
   includeUnassigned: boolean;
   showBackgroundColor: boolean;
+  /**
+   * Draw the document's grid under the crease pattern. Needs a grid to draw —
+   * see {@link CreaseExportGridSource}; without one this option does nothing and
+   * the dialogs disable it.
+   */
+  showGrid: boolean;
   theme: CreaseExportTheme;
   /**
    * Draw the folded figure beside the crease pattern. Only meaningful for a
@@ -130,6 +160,9 @@ export const DEFAULT_CREASE_EXPORT_OPTIONS: CreaseExportOptions = {
   pointSize: 0,
   includeUnassigned: true,
   showBackgroundColor: true,
+  // The grid is a reading aid for tessellations and box pleating, not part of
+  // the pattern, so it is opt-in.
+  showGrid: false,
   // Exports default to light whatever the app theme is: a light crease pattern
   // is what prints, embeds, and reads as a crease pattern everywhere else.
   theme: 'light',
@@ -150,6 +183,9 @@ export interface CreaseExportPalette {
   flat: string;
   unassigned: string;
   point: string;
+  /** Grid line, and its heavier counterpart on the interval lines. */
+  grid: string;
+  gridMajor: string;
   /** The "black" of the monochrome line styles. */
   monochromeInk: string;
   /** Its muted counterpart (the black-and-white style's valley). */
@@ -170,6 +206,10 @@ export const CREASE_EXPORT_PALETTES: Record<CreaseExportTheme, CreaseExportPalet
     flat: '#64c8c8',
     unassigned: '#9aa4ad',
     point: '#111417',
+    // Light enough to read as ruling on the cream paper rather than as an
+    // unassigned crease, which is the nearest thing to it on the page.
+    grid: '#ccd3da',
+    gridMajor: '#a7b1bb',
     monochromeInk: '#000000',
     monochromeValley: '#a2a2a2',
     title: '#111417',
@@ -188,6 +228,8 @@ export const CREASE_EXPORT_PALETTES: Record<CreaseExportTheme, CreaseExportPalet
     flat: '#5fd4d4',
     unassigned: '#7c8894',
     point: '#e8edf2',
+    grid: '#333c46',
+    gridMajor: '#4c5762',
     monochromeInk: '#f2f4f7',
     monochromeValley: '#8b949e',
     title: '#f2f5f8',
@@ -581,9 +623,213 @@ export interface CreaseExportContent {
    * identity; see {@link CpModelToFoldTransform}.
    */
   foldedFigureTransform?: CpModelToFoldTransform;
+  /**
+   * The grid `showGrid` draws, or null when this export has no grid behind it —
+   * a TreeMaker design, or any fold with no editable crease-pattern document.
+   */
+  grid?: CreaseExportGridSource | null;
+}
+
+/**
+ * The document's grid, and where the document's coordinates sit in the fold
+ * being exported.
+ *
+ * Both are needed because neither is recoverable from the fold alone: FOLD
+ * carries no grid, and an imported fold has been rescaled into the unit square
+ * while the document's own creases are still in file coordinates (see
+ * {@link CpModelToFoldTransform}).
+ */
+export interface CreaseExportGridSource {
+  metadata: OristudioCpGridMetadata;
+  transform: CpModelToFoldTransform;
 }
 
 export const EMPTY_CREASE_EXPORT_CONTENT: CreaseExportContent = { foldedFigure: null };
+
+/**
+ * The grid an export of `fold` should draw, or null when `document` is absent.
+ *
+ * The single place the two halves are resolved together, so every caller that
+ * opens an export or share preview hands the artwork the same pair.
+ */
+export function creaseExportGridSource(
+  fold: FoldDocument,
+  document: OristudioCpDocumentSnapshot | null | undefined
+): CreaseExportGridSource | null {
+  if (!document) return null;
+  return {
+    metadata: document.crease_pattern.grid,
+    transform: cpModelToFoldTransform(fold, document),
+  };
+}
+
+/**
+ * Grid lines under one exported crease pattern, in content-box coordinates.
+ *
+ * The lattice comes from the same generator the live canvas draws with, over the
+ * *drawn pattern's* own extent rather than a viewport: an exported image has no
+ * scrollable region, so a grid that ran past the artwork would only add margin
+ * ruling. `visibleOrieditaGridMetadata` is what makes a document whose grid state
+ * is `Hidden` still export a grid — asking for one here is the same act as
+ * showing it on the canvas, and upstream stores visibility in that state.
+ */
+function creaseExportGridSvg(
+  source: CreaseExportGridSource,
+  fold: FoldDocument,
+  projectPoint: (point: Point) => Point,
+  palette: CreaseExportPalette
+): string {
+  const { transform } = source;
+  if (!Number.isFinite(transform.scale) || transform.scale === 0) return '';
+  const axes = flatPlaneAxes(fold);
+  const coords = fold.vertices_coords ?? [];
+  if (coords.length === 0) return '';
+
+  // Grid indices are counted in the document's own space, so the fold's extent
+  // has to travel back through the transform before it can bound them.
+  const toModel = (point: Point): Point => ({
+    x: (point.x - transform.offsetX) / transform.scale,
+    y: (point.y - transform.offsetY) / transform.scale,
+  });
+  const bounds = expandedModelBoundsFromPoints(
+    coords.map((coord) => toModel({ x: coord[axes[0]] ?? 0, y: coord[axes[1]] ?? 0 })),
+    0
+  );
+
+  const lines = orieditaGridLinesForModelBounds(
+    bounds,
+    visibleOrieditaGridMetadata(source.metadata)
+  );
+  if (lines.length === 0) return '';
+
+  const project = (point: Point) => projectPoint(applyCpModelToFold(point, transform));
+  const body = lines
+    .map((line) => {
+      const a = project(line.a);
+      const b = project(line.b);
+      const width = GRID_STROKE_WIDTH * (line.major ? GRID_MAJOR_WIDTH_MULTIPLIER : 1);
+      const stroke = line.major ? palette.gridMajor : palette.grid;
+      return `    <line x1="${a.x.toFixed(2)}" y1="${a.y.toFixed(2)}" x2="${b.x.toFixed(2)}" y2="${b.y.toFixed(2)}" stroke="${stroke}" stroke-width="${width.toFixed(2)}"/>`;
+    })
+    .join('\n');
+
+  // A lattice is generated in whole cells, so it always overhangs the sheet.
+  // Clip it to the sheet's own outline rather than to a box: paper is not
+  // necessarily rectangular, and on a hexagon a box leaves ruling floating in
+  // the corners with nothing under it.
+  const projectVertex = (vertex: number) => {
+    const coord = coords[vertex];
+    return projectPoint({ x: coord?.[axes[0]] ?? 0, y: coord?.[axes[1]] ?? 0 });
+  };
+  const outline = foldOutlineLoops(fold)
+    .map(
+      (loop) =>
+        `M ${loop
+          .map((vertex) => {
+            const point = projectVertex(vertex);
+            return `${point.x.toFixed(2)},${point.y.toFixed(2)}`;
+          })
+          .join(' L ')} Z`
+    )
+    .join(' ');
+
+  // Falls back to the pattern's box when the fold carries no faces to take an
+  // outline from — a box is still better than ruling across the whole page.
+  const clipShape = outline
+    ? `<path d="${outline}" clip-rule="evenodd"/>`
+    : boundingRectSvg([
+        project({ x: bounds.minX, y: bounds.minY }),
+        project({ x: bounds.maxX, y: bounds.minY }),
+        project({ x: bounds.minX, y: bounds.maxY }),
+        project({ x: bounds.maxX, y: bounds.maxY }),
+      ]);
+
+  return [
+    `  <defs><clipPath id="${GRID_CLIP_ID}">${clipShape}</clipPath></defs>`,
+    `  <g clip-path="url(#${GRID_CLIP_ID})">`,
+    body,
+    '  </g>',
+  ].join('\n');
+}
+
+function boundingRectSvg(points: Point[]): string {
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${(Math.max(...xs) - x).toFixed(2)}" height="${(Math.max(...ys) - y).toFixed(2)}"/>`;
+}
+
+/**
+ * Closed vertex loops bounding the sheet, as indices into `vertices_coords`.
+ *
+ * An edge used by exactly one face is on the boundary of the union of the faces,
+ * which is the paper. Derived from the faces rather than from `B` assignments,
+ * which say what a crease *is* — a document is free to draw an edge crease
+ * across the middle of a sheet, and upstream files do.
+ *
+ * Disjoint patterns come back as separate loops, and so does a hole; drawn as
+ * one even-odd path, that is exactly the region to keep.
+ */
+function foldOutlineLoops(fold: FoldDocument): number[][] {
+  const faces = fold.faces_vertices ?? [];
+  if (faces.length === 0) return [];
+
+  const uses = new Map<string, { a: number; b: number; count: number }>();
+  for (const face of faces) {
+    for (let index = 0; index < face.length; index += 1) {
+      const a = face[index] ?? 0;
+      const b = face[(index + 1) % face.length] ?? 0;
+      if (a === b) continue;
+      const key = a < b ? `${a}:${b}` : `${b}:${a}`;
+      const entry = uses.get(key);
+      if (entry) entry.count += 1;
+      else uses.set(key, { a, b, count: 1 });
+    }
+  }
+
+  const unwalked = new Map<number, number[]>();
+  const link = (from: number, to: number) => {
+    const list = unwalked.get(from);
+    if (list) list.push(to);
+    else unwalked.set(from, [to]);
+  };
+  for (const { a, b, count } of uses.values()) {
+    if (count !== 1) continue;
+    link(a, b);
+    link(b, a);
+  }
+
+  const walk = (from: number, to: number) => {
+    const list = unwalked.get(from);
+    const at = list?.indexOf(to) ?? -1;
+    if (list && at >= 0) list.splice(at, 1);
+  };
+
+  const loops: number[][] = [];
+  for (const start of unwalked.keys()) {
+    for (;;) {
+      const first = unwalked.get(start)?.[0];
+      if (first === undefined) break;
+      const loop = [start];
+      let current = first;
+      walk(start, current);
+      walk(current, start);
+      while (current !== start) {
+        loop.push(current);
+        const next = unwalked.get(current)?.[0];
+        // Only reachable on a boundary that does not close — malformed faces.
+        // The path's own `Z` closes what is left.
+        if (next === undefined) break;
+        walk(current, next);
+        walk(next, current);
+        current = next;
+      }
+      loops.push(loop);
+    }
+  }
+  return loops;
+}
 
 export function buildCreaseExportArtwork(
   fold: FoldDocument,
@@ -627,6 +873,11 @@ export function buildCreaseExportArtwork(
     })
     .filter(Boolean)
     .join('\n');
+
+  const grid =
+    options.showGrid && content.grid
+      ? creaseExportGridSvg(content.grid, targetFold, projectPoint, palette)
+      : '';
 
   let points = '';
   if (options.pointSize > 0) {
@@ -681,7 +932,9 @@ export function buildCreaseExportArtwork(
   }
 
   return {
-    cp: [backgrounds, lines, points].filter(Boolean).join('\n'),
+    // Grid between the paper and the creases: it is ruling *on* the sheet, and
+    // nothing in the pattern should have to compete with it.
+    cp: [backgrounds, grid, lines, points].filter(Boolean).join('\n'),
     inset: { top: contentTop, bottom: contentTop },
     folded,
     foldedBox,

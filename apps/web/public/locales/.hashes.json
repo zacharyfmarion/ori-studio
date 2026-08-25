@@ -2516,7 +2516,11 @@
     "panels:design.retry": "d8b8392e2c54",
     "panels:design.paneSwitcher.close": "496d27a35bf5",
     "panels:design.paneSwitcher.title": "f86aa4d338ff",
-    "panels:explori.backToSearch": "49c266baaaa7"
+    "panels:explori.backToSearch": "49c266baaaa7",
+    "dialogs:export.showGrid": "0246699d921a",
+    "dialogs:export.showGridNeedsCp": "0268d3bdab28",
+    "dialogs:share.grid": "0246699d921a",
+    "dialogs:share.gridNeedsCp": "0268d3bdab28"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5035,7 +5039,11 @@
     "panels:design.retry": "d8b8392e2c54",
     "panels:design.paneSwitcher.close": "496d27a35bf5",
     "panels:design.paneSwitcher.title": "f86aa4d338ff",
-    "panels:explori.backToSearch": "49c266baaaa7"
+    "panels:explori.backToSearch": "49c266baaaa7",
+    "dialogs:export.showGrid": "0246699d921a",
+    "dialogs:export.showGridNeedsCp": "0268d3bdab28",
+    "dialogs:share.grid": "0246699d921a",
+    "dialogs:share.gridNeedsCp": "0268d3bdab28"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7554,7 +7562,11 @@
     "panels:design.retry": "d8b8392e2c54",
     "panels:design.paneSwitcher.close": "496d27a35bf5",
     "panels:design.paneSwitcher.title": "f86aa4d338ff",
-    "panels:explori.backToSearch": "49c266baaaa7"
+    "panels:explori.backToSearch": "49c266baaaa7",
+    "dialogs:export.showGrid": "0246699d921a",
+    "dialogs:export.showGridNeedsCp": "0268d3bdab28",
+    "dialogs:share.grid": "0246699d921a",
+    "dialogs:share.gridNeedsCp": "0268d3bdab28"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -10034,7 +10046,11 @@
     "panels:design.retry": "d8b8392e2c54",
     "panels:design.paneSwitcher.close": "496d27a35bf5",
     "panels:design.paneSwitcher.title": "f86aa4d338ff",
-    "panels:explori.backToSearch": "49c266baaaa7"
+    "panels:explori.backToSearch": "49c266baaaa7",
+    "dialogs:export.showGrid": "0246699d921a",
+    "dialogs:export.showGridNeedsCp": "0268d3bdab28",
+    "dialogs:share.grid": "0246699d921a",
+    "dialogs:share.gridNeedsCp": "0268d3bdab28"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12514,7 +12530,11 @@
     "panels:design.retry": "d8b8392e2c54",
     "panels:design.paneSwitcher.close": "496d27a35bf5",
     "panels:design.paneSwitcher.title": "f86aa4d338ff",
-    "panels:explori.backToSearch": "49c266baaaa7"
+    "panels:explori.backToSearch": "49c266baaaa7",
+    "dialogs:export.showGrid": "0246699d921a",
+    "dialogs:export.showGridNeedsCp": "0268d3bdab28",
+    "dialogs:share.grid": "0246699d921a",
+    "dialogs:share.gridNeedsCp": "0268d3bdab28"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -15033,7 +15053,11 @@
     "panels:design.retry": "d8b8392e2c54",
     "panels:design.paneSwitcher.close": "496d27a35bf5",
     "panels:design.paneSwitcher.title": "f86aa4d338ff",
-    "panels:explori.backToSearch": "49c266baaaa7"
+    "panels:explori.backToSearch": "49c266baaaa7",
+    "dialogs:export.showGrid": "0246699d921a",
+    "dialogs:export.showGridNeedsCp": "0268d3bdab28",
+    "dialogs:share.grid": "0246699d921a",
+    "dialogs:share.gridNeedsCp": "0268d3bdab28"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17552,7 +17576,11 @@
     "panels:design.retry": "d8b8392e2c54",
     "panels:design.paneSwitcher.close": "496d27a35bf5",
     "panels:design.paneSwitcher.title": "f86aa4d338ff",
-    "panels:explori.backToSearch": "49c266baaaa7"
+    "panels:explori.backToSearch": "49c266baaaa7",
+    "dialogs:export.showGrid": "0246699d921a",
+    "dialogs:export.showGridNeedsCp": "0268d3bdab28",
+    "dialogs:share.grid": "0246699d921a",
+    "dialogs:share.gridNeedsCp": "0268d3bdab28"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -20032,6 +20060,10 @@
     "panels:design.retry": "d8b8392e2c54",
     "panels:design.paneSwitcher.close": "496d27a35bf5",
     "panels:design.paneSwitcher.title": "f86aa4d338ff",
-    "panels:explori.backToSearch": "49c266baaaa7"
+    "panels:explori.backToSearch": "49c266baaaa7",
+    "dialogs:export.showGrid": "0246699d921a",
+    "dialogs:export.showGridNeedsCp": "0268d3bdab28",
+    "dialogs:share.grid": "0246699d921a",
+    "dialogs:share.gridNeedsCp": "0268d3bdab28"
   }
 }

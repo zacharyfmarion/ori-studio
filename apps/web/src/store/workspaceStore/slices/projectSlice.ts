@@ -39,6 +39,7 @@ import { APP_VERSION } from '../../../constants/release';
 import {
   serializeCreasePatternSvg,
   renderCreasePatternPng,
+  creaseExportGridSource,
   DEFAULT_CREASE_EXPORT_OPTIONS,
   EMPTY_CREASE_EXPORT_CAPTION,
   EMPTY_CREASE_EXPORT_CONTENT,
@@ -713,7 +714,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // (simulation_model.fold is triangulated, which adds spurious diagonals).
     const fold = foldArtifacts.fold;
     const segments = segmentFoldDocument(fold);
-    if (options) return { options, content: EMPTY_CREASE_EXPORT_CONTENT, fold, segments };
+    const grid = creaseExportGridSource(fold, get().oristudioCpDocument?.document);
+    if (options) {
+      return { options, content: { ...EMPTY_CREASE_EXPORT_CONTENT, grid }, fold, segments };
+    }
     const label = format.toUpperCase();
     const resolved = await requestCreasePatternExportOptions({
       title: `Export ${label}`,
@@ -721,6 +725,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       fold,
       segments,
       initialOptions: defaultCreaseExportOptions(get().oristudioCpViewport),
+      grid,
       // Only an editable crease-pattern document can be folded; a TreeMaker
       // design has no kernel handle, so the dialog disables the option.
       foldSegment: get().oristudioCpDocument
@@ -2921,6 +2926,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
             payload,
             fold: foldArtifacts.fold,
             segments: segmentFoldDocument(foldArtifacts.fold),
+            grid: creaseExportGridSource(
+              foldArtifacts.fold,
+              get().oristudioCpDocument?.document
+            ),
             url: null,
           },
         });
@@ -3025,6 +3034,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
             fold,
             segments,
             initialOptions: { ...defaultCreaseExportOptions(get().oristudioCpViewport), segmentId },
+            grid: creaseExportGridSource(fold, get().oristudioCpDocument?.document),
             // Mirrors resolveCreaseExport: only an editable crease pattern has a
             // kernel handle to fold with, so a TreeMaker design disables it.
             foldSegment: get().oristudioCpDocument

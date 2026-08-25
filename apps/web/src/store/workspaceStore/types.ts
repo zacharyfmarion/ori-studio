@@ -36,6 +36,7 @@ import type { FileService } from '../../platform/fileService';
 import type { ImportedCreasePatternDocument } from '../../lib/creasePatternImport';
 import type {
   CreaseExportFoldedFigureSettings,
+  CreaseExportGridSource,
   CreaseExportOptions,
 } from '../../lib/creaseExport';
 import type { CpSegment } from '../../lib/creasePatternSegmentation';
@@ -145,6 +146,8 @@ export interface OristudioCpShareDraft {
    */
   fold: FoldDocument;
   segments: CpSegment[];
+  /** The grid the card's "Show grid lines" option draws, when there is one. */
+  grid: CreaseExportGridSource | null;
   /** The published link, once created. */
   url: string | null;
 }

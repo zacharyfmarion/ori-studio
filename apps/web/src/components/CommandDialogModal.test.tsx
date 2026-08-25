@@ -233,6 +233,7 @@ describe('CommandDialogModal', () => {
         fold,
         segments,
         initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        grid: null,
         foldSegment: null,
         confirmLabel: 'Export SVG',
       });
@@ -258,7 +259,7 @@ describe('CommandDialogModal', () => {
         includeUnassigned: false,
         showBackgroundColor: false,
       },
-      content: { foldedFigure: null },
+      content: { foldedFigure: null, grid: null },
     });
   });
 
@@ -275,6 +276,7 @@ describe('CommandDialogModal', () => {
         fold,
         segments,
         initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        grid: null,
         foldSegment: null,
         confirmLabel: 'Export SVG',
       });
@@ -310,6 +312,7 @@ describe('CommandDialogModal', () => {
         fold,
         segments,
         initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        grid: null,
         foldSegment: null,
         confirmLabel: 'Export SVG',
       });
@@ -331,6 +334,7 @@ describe('CommandDialogModal', () => {
         fold,
         segments,
         initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        grid: null,
         foldSegment: null,
         confirmLabel: 'Export PNG',
       });
@@ -382,6 +386,7 @@ describe('CommandDialogModal', () => {
         fold,
         segments,
         initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        grid: null,
         foldSegment,
         confirmLabel: 'Export SVG',
       });
@@ -427,6 +432,7 @@ describe('CommandDialogModal', () => {
         fold,
         segments,
         initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        grid: null,
         foldSegment,
         confirmLabel: 'Export SVG',
       });
@@ -448,6 +454,89 @@ describe('CommandDialogModal', () => {
     ).toEqual(['Front', 'Back']);
   });
 
+  it('draws the grid into the preview and carries it into the export', async () => {
+    const rendered = renderModalHost();
+    const fold = exportFold();
+    const segments = segmentFoldDocument(fold);
+    const grid = {
+      metadata: {
+        interval_grid_size: 4,
+        grid_size: 8,
+        grid_xa: 1,
+        grid_xb: 0,
+        grid_xc: 1,
+        grid_ya: 1,
+        grid_yb: 0,
+        grid_yc: 1,
+        grid_angle: 90,
+        base_state: 'WithinPaper',
+        vertical_scale_position: 0,
+        horizontal_scale_position: 0,
+        draw_diagonal_gridlines: false,
+      },
+      transform: { scale: 1 / 400, offsetX: 0.5, offsetY: 0.5 },
+    };
+    let result = Promise.resolve<CreaseExportDialogResult | null>(null);
+
+    act(() => {
+      result = requestCreasePatternExportOptions({
+        title: 'Export SVG',
+        format: 'svg',
+        fold,
+        segments,
+        initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        grid,
+        foldSegment: null,
+        confirmLabel: 'Export SVG',
+      });
+    });
+
+    const toggle = rendered.querySelector('[aria-label="Show grid lines"]') as HTMLButtonElement;
+    expect(toggle.hasAttribute('disabled')).toBe(false);
+
+    const previewBefore = rendered.querySelector('.export-modal__preview img')?.getAttribute('src');
+    await act(async () => {
+      toggle.click();
+    });
+    // The preview is the contract: it has to change before the export can claim to.
+    expect(rendered.querySelector('.export-modal__preview img')?.getAttribute('src')).not.toBe(
+      previewBefore
+    );
+
+    await act(async () => {
+      findButton('Export SVG').click();
+      await result;
+    });
+
+    await expect(result).resolves.toMatchObject({
+      options: { showGrid: true },
+      content: { grid },
+    });
+  });
+
+  it('disables the grid without a crease pattern to take one from', () => {
+    const rendered = renderModalHost();
+    const fold = exportFold();
+
+    act(() => {
+      void requestCreasePatternExportOptions({
+        title: 'Export SVG',
+        format: 'svg',
+        fold,
+        segments: segmentFoldDocument(fold),
+        initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        grid: null,
+        foldSegment: null,
+        confirmLabel: 'Export SVG',
+      });
+    });
+
+    expect(
+      rendered.querySelector('[aria-label="Show grid lines"]')?.hasAttribute('disabled')
+    ).toBe(true);
+    expect(rendered.textContent).toContain('Open an editable crease pattern to draw its grid');
+  });
+
   it('disables the folded figure without an editable crease pattern', () => {
     const rendered = renderModalHost();
     const fold = exportFold();
@@ -460,6 +549,7 @@ describe('CommandDialogModal', () => {
         fold,
         segments,
         initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        grid: null,
         foldSegment: null,
         confirmLabel: 'Export SVG',
       });
@@ -486,6 +576,7 @@ describe('CommandDialogModal', () => {
         fold,
         segments,
         initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        grid: null,
         foldSegment,
         confirmLabel: 'Export SVG',
       });
