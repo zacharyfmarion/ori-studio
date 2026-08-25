@@ -1,15 +1,7 @@
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  hasPhoneOverride,
-  isPhoneSurface,
-  isWorkspaceBlocked,
-  PHONE_MEDIA_QUERY,
-  setPhoneOverride,
-  useIsPhoneSurface,
-  useIsWorkspaceBlocked,
-} from './mobileSurface';
+import { isPhoneSurface, PHONE_MEDIA_QUERY, useIsPhoneSurface } from './mobileSurface';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -177,39 +169,6 @@ describe('isPhoneSurface', () => {
   });
 });
 
-describe('isWorkspaceBlocked', () => {
-  it('blocks a phone that has not asked to get in', () => {
-    mockDevice(DEVICES.iPhone15);
-    expect(isWorkspaceBlocked()).toBe(true);
-  });
-
-  it('lets a phone through once the override is set', () => {
-    mockDevice(DEVICES.iPhone15);
-    setPhoneOverride(true);
-    expect(hasPhoneOverride()).toBe(true);
-    expect(isWorkspaceBlocked()).toBe(false);
-    // The device is still a phone — only the gate opened. Layout keys off this.
-    expect(isPhoneSurface()).toBe(true);
-  });
-
-  it('never blocks a desktop viewport', () => {
-    expect(isWorkspaceBlocked()).toBe(false);
-  });
-});
-
-describe('the override', () => {
-  it('persists under the namespaced key so a reload keeps the choice', () => {
-    setPhoneOverride(true);
-    expect(localStorage.getItem('oristudio:phone-override')).toBe('true');
-  });
-
-  it('can be taken back', () => {
-    setPhoneOverride(true);
-    setPhoneOverride(false);
-    expect(hasPhoneOverride()).toBe(false);
-  });
-});
-
 describe('the reactive bindings', () => {
   it('installs one media listener for two hooks and removes it with the last', () => {
     mockDevice(DEVICES.iPhone15);
@@ -218,9 +177,9 @@ describe('the reactive bindings', () => {
     const root = createRoot(container);
 
     function Probe() {
-      // Both hooks share one subscription, so mounting them together must not
+      // Every mounted hook shares one subscription, so two of them must not
       // register the change listener twice.
-      return `${useIsPhoneSurface()}/${useIsWorkspaceBlocked()}`;
+      return `${useIsPhoneSurface()}/${useIsPhoneSurface()}`;
     }
 
     act(() => root.render(createElement(Probe)));
@@ -233,35 +192,6 @@ describe('the reactive bindings', () => {
     container.remove();
   });
 
-  it('re-renders when the override opens the gate', () => {
-    mockDevice(DEVICES.iPhone15);
-    const container = document.createElement('div');
-    document.body.append(container);
-    const root = createRoot(container);
-
-    act(() => root.render(createElement(() => `${useIsWorkspaceBlocked()}`)));
-    expect(container.textContent).toBe('true');
-
-    act(() => setPhoneOverride(true));
-    expect(container.textContent).toBe('false');
-
-    act(() => root.unmount());
-    container.remove();
-  });
-
-  /**
-   * The path nobody had exercised. Everything gated on the viewport — the View
-   * drawer, the bottom tabs, the phone toolbar — assumes a rotation or a Split
-   * View drag re-renders it, and until this test that assumption rested on
-   * `subscribe` merely having *registered* a listener.
-   *
-   * It could not be checked on a device: CDP viewport emulation resizes the page
-   * without dispatching `MediaQueryList` change events, so a real tablet flipping
-   * orientation is unreachable from the harness that drove the rest of this work.
-   * A stub can do it, because the only thing in question is our own plumbing —
-   * that the callback handed to `addEventListener` is the one that reaches
-   * `useSyncExternalStore`. WebKit's own dispatch is not ours to test.
-   */
   it('re-renders when the viewport itself flips', () => {
     mockDevice(DEVICES.iPadLandscape);
     const container = document.createElement('div');

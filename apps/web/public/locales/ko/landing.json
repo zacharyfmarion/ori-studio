@@ -73,7 +73,7 @@
   "mobileHero": {
     "tagline": "종이접기를 설계하고, 편집하고, 접습니다. 모두 브라우저에서."
   },
-  "openApp": "앱 열기 (모바일 최적화 안 됨)",
+  "openApp": "앱 열기",
   "scrollCue": "무엇을 하는지 보기",
   "simulate": {
     "eyebrow": "시뮬레이션",

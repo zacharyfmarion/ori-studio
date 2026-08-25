@@ -15,19 +15,21 @@ const publicAssetBase = import.meta.env.BASE_URL.endsWith('/')
 const appIconSrc = `${publicAssetBase}landing/app-icon.webp`;
 
 export interface MobileLandingHeaderProps {
-  /** Take the escape hatch: the caller opens the gate and lets the app load. */
-  onOpenAnyway: () => void;
+  /** Go to the app. The caller decides which workspace that means. */
+  onOpenApp: () => void;
 }
 
 /**
  * The phone's page header: a way into the app, and the masthead the landing
  * needs before it starts making its case.
  *
- * This replaced a full-screen "Desktop only, for now" notice. That notice was
- * honest and spent every pixel above the fold being so, pushing what someone
- * came to read out of sight — on a page whose entire job is the part below. The
- * caveat now rides in the button's label, which is where the decision gets made
- * and says the same thing the two paragraphs did.
+ * This replaced a full-screen "Desktop only, for now" notice, and then the
+ * caveat that succeeded it — the button used to read "Open App (unoptimized on
+ * mobile)" and set a persisted override. Both are gone: a phone opens the app
+ * like anything else, and the button is a way in rather than a warning to click
+ * past. The header stays because the desktop start screen is a full-height hero
+ * with a 3D figure and three cards beside it, which is several screenfuls on a
+ * 375px display before the page has said what it is.
  *
  * The brand block earns its place separately. Without it the page opened on
  * "WHAT IT IS" with nothing having said *what* it is, and there was no `h1` on
@@ -42,7 +44,7 @@ export interface MobileLandingHeaderProps {
  * is the same component the desktop start screen uses, so a phone gets the real
  * turning figure and not a screenshot of one.
  */
-export function MobileLandingHeader({ onOpenAnyway }: MobileLandingHeaderProps) {
+export function MobileLandingHeader({ onOpenApp }: MobileLandingHeaderProps) {
   const { t } = useTranslation();
 
   return (
@@ -51,9 +53,9 @@ export function MobileLandingHeader({ onOpenAnyway }: MobileLandingHeaderProps) 
         <button
           type="button"
           className="welcome-mobile-header__open"
-          onClick={onOpenAnyway}
+          onClick={onOpenApp}
         >
-          {t('landing:openApp', 'Open App (unoptimized on mobile)')}
+          {t('landing:openApp', 'Open App')}
         </button>
       </div>
 

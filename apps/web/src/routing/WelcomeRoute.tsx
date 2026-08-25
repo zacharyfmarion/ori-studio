@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  track,
-  useLandingSectionViewedEvents,
-  useLandingViewedEvent,
-} from '../analytics';
+import { useLandingSectionViewedEvents, useLandingViewedEvent } from '../analytics';
 import { FileDropOverlay } from '../components/FileDropOverlay';
 import { MobileLandingHeader } from '../components/landing/MobileLandingHeader';
 import {
@@ -20,9 +16,7 @@ import { useWorkspaceErrorText } from '../hooks/useWorkspaceErrorText';
 import type { DropTargetPolicy } from '../lib/fileDrop';
 import type { AppStatus } from '../lib/sampleProject';
 import {
-  setPhoneOverride,
   useIsPhoneSurface,
-  useIsWorkspaceBlocked,
 } from '../platform/mobileSurface';
 import { useLayoutStore } from '../store/layoutStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -40,11 +34,12 @@ const WELCOME_DROP_POLICY: DropTargetPolicy = 'open-only';
 /**
  * The status to reset to on arrival.
  *
- * On a blocked phone the engine is never started, so writing `loading_engine`
- * here would announce a load that never resolves — leave whatever is there.
+ * It used to take a third argument, for a phone whose engine was never started —
+ * writing `loading_engine` there would have announced a load that never
+ * resolved. Every device boots the engine now, so the answer is the same one
+ * everywhere.
  */
-function resetStatus(current: AppStatus, engineReady: boolean, blocked: boolean): AppStatus {
-  if (blocked) return current;
+function resetStatus(engineReady: boolean): AppStatus {
   return engineReady ? 'ready' : 'loading_engine';
 }
 
@@ -58,9 +53,11 @@ function resetStatus(current: AppStatus, engineReady: boolean, blocked: boolean)
  * so the start screen is a clean slate.
  *
  * A phone gets no start screen, no drop target, no "show welcome on startup"
- * toggle and no scroll cue — every one of them is about a workspace it cannot
- * reach, or a fold that is not there. It gets a masthead, one button out, and
- * then the landing. The landing itself is the same on both.
+ * toggle and no scroll cue. Not because it cannot reach a workspace — it can,
+ * and the gate that said otherwise is gone — but because the desktop start
+ * screen is a full-height hero with a 3D figure and three cards beside it, and
+ * there is no file picker worth offering next to the OS one. It gets a masthead,
+ * one button in, and then the landing. The landing itself is the same on both.
  *
  * Whether a cold start lands here or straight in Edit is decided by the router's
  * index redirect (the "Show welcome on startup" preference), not this component —
@@ -69,10 +66,10 @@ function resetStatus(current: AppStatus, engineReady: boolean, blocked: boolean)
 export function WelcomeRoute() {
   const navigate = useNavigate();
   const pageRef = useRef<HTMLElement | null>(null);
-  // Two questions, not one: `blocked` decides what the page leads with, `phone`
-  // decides how it lays out. Taking the escape hatch changes the first and not
-  // the second — the screen is still small.
-  const blocked = useIsWorkspaceBlocked();
+  // One question now. It used to be two — a `blocked` gate deciding what the
+  // page led with, and `phone` deciding how it laid out — and the gate is gone:
+  // a phone reaches the workspaces like anything else. What is left is the
+  // layout, which is a real difference and stays.
   const phone = useIsPhoneSurface();
   const status = useWorkspaceStore((state) => state.status);
   const errorText = useWorkspaceErrorText();
@@ -82,19 +79,8 @@ export function WelcomeRoute() {
   const setShowWelcomeOnStartup = useSettingsStore((state) => state.setShowWelcomeOnStartup);
   const { dropTargetProps, isDragActive } = useFileDropTarget({ policy: WELCOME_DROP_POLICY });
 
-  useLandingViewedEvent(blocked ? 'phone' : 'desktop');
+  useLandingViewedEvent(phone ? 'phone' : 'desktop');
   useLandingSectionViewedEvents(pageRef, LANDING_SECTIONS);
-
-  useEffect(() => {
-    if (blocked) track('mobile block shown', {});
-  }, [blocked]);
-
-  const handleOpenAnyway = useCallback(() => {
-    // Ordered so the event describes the state it was fired about: the override
-    // re-renders this component the moment it lands.
-    track('mobile block bypassed', {});
-    setPhoneOverride(true);
-  }, []);
 
   useEffect(() => {
     const state = useWorkspaceStore.getState();
@@ -102,10 +88,10 @@ export function WelcomeRoute() {
       dirty: false,
       error: null,
       projectMessage: null,
-      status: resetStatus(state.status, state.engineReady, blocked),
+      status: resetStatus(state.engineReady),
     });
     useLayoutStore.getState().setActiveWorkspace('design');
-  }, [blocked]);
+  }, []);
 
   const handleCreateCreasePattern = useCallback(async () => {
     await createNewCreasePattern();
@@ -127,17 +113,18 @@ export function WelcomeRoute() {
 
   return (
     <div
-      className={`app-layout app-layout--start${blocked ? '' : ' file-drop-region'}`}
+      className={`app-layout app-layout--start${phone ? '' : ' file-drop-region'}`}
       data-surface={phone ? 'phone' : undefined}
-      {...(blocked ? {} : dropTargetProps)}
+      {...(phone ? {} : dropTargetProps)}
     >
       <main className="welcome-page" ref={pageRef}>
-        {blocked ? (
-          // A phone gets a masthead and a way in, not a screenful of apology:
-          // the landing starts right under it. The full-screen "desktop only"
-          // notice this replaced spent every pixel above the fold explaining
-          // what you could not do.
-          <MobileLandingHeader onOpenAnyway={handleOpenAnyway} />
+        {phone ? (
+          // A phone gets a masthead and a way in, and the landing right under
+          // it. Not because the workspaces are closed to it — they are not any
+          // more — but because the desktop start screen is a full-height hero
+          // with a 3D figure and three cards beside it, which on a 375px screen
+          // is several screenfuls before the page says what it is.
+          <MobileLandingHeader onOpenApp={() => navigate(currentWorkspacePath())} />
         ) : (
           <StartScreen
             status={status}
@@ -156,14 +143,14 @@ export function WelcomeRoute() {
         hero there is no first screenful to get past — the landing is already
         the top of the page — so on a phone it would point at what is on screen.
       */}
-      {blocked ? null : (
+      {phone ? null : (
         <WelcomeScrollCue
           scrollerRef={pageRef}
           targetId={FIRST_LANDING_SECTION_ID}
           onActivate={() => trackCta('scroll')}
         />
       )}
-      {blocked ? null : <FileDropOverlay visible={isDragActive} policy={WELCOME_DROP_POLICY} />}
+      {phone ? null : <FileDropOverlay visible={isDragActive} policy={WELCOME_DROP_POLICY} />}
     </div>
   );
 }

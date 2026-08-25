@@ -8,12 +8,12 @@ import { MobileLandingHeader } from './MobileLandingHeader';
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
-function renderLink(onOpenAnyway = vi.fn()) {
+function renderLink(onOpenApp = vi.fn()) {
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
-  act(() => root?.render(<MobileLandingHeader onOpenAnyway={onOpenAnyway} />));
-  return { container, onOpenAnyway };
+  act(() => root?.render(<MobileLandingHeader onOpenApp={onOpenApp} />));
+  return { container, onOpenApp };
 }
 
 afterEach(() => {
@@ -31,15 +31,15 @@ describe('MobileLandingHeader', () => {
     const { container: rendered } = renderLink();
     const button = rendered.querySelector('button')!;
 
-    expect(button.textContent).toBe('Open App (unoptimized on mobile)');
+    expect(button.textContent).toBe('Open App');
   });
 
   it('opens the app when taken', () => {
-    const { container: rendered, onOpenAnyway } = renderLink();
+    const { container: rendered, onOpenApp } = renderLink();
 
     act(() => rendered.querySelector('button')!.click());
 
-    expect(onOpenAnyway).toHaveBeenCalledOnce();
+    expect(onOpenApp).toHaveBeenCalledOnce();
   });
 
   it('gives the page a masthead, and the outline its missing h1', () => {

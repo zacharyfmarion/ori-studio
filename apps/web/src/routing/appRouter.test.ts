@@ -4,7 +4,6 @@ import { PHONE_MEDIA_QUERY } from '../platform/mobileSurface';
 import { createAppRouter, startupHomePath } from './appRouter';
 
 const WELCOME_KEY = storageKey(STORAGE_KEYS.showWelcomeOnStartup);
-const OVERRIDE_KEY = storageKey(STORAGE_KEYS.phoneOverride);
 
 /** Report a phone-sized coarse-pointer viewport to `platform/mobileSurface`. */
 function mockPhoneViewport() {
@@ -65,43 +64,42 @@ describe('startupHomePath', () => {
     expect(startupHomePath()).toBe('/edit');
   });
 
-  it('is the welcome screen on a phone even with the preference off', () => {
+  it('honors the preference on a phone, like everywhere else', () => {
+    // A phone used to be forced to `/welcome` whatever the preference said,
+    // because the workspaces were closed to it. Nothing is closed now, so
+    // "start in Edit" means what it says on every device.
     mockPhoneViewport();
     localStorage.setItem(WELCOME_KEY, 'false');
-    expect(startupHomePath()).toBe('/welcome');
-  });
-
-  it('honors the preference again once a phone takes the override', () => {
-    mockPhoneViewport();
-    localStorage.setItem(WELCOME_KEY, 'false');
-    localStorage.setItem(OVERRIDE_KEY, 'true');
     expect(startupHomePath()).toBe('/edit');
   });
 });
 
-describe('the blocked-device gate on the workspace routes', () => {
+/**
+ * The workspace routes have no device gate, and these hold that open.
+ *
+ * A phone used to be redirected to `/welcome` however it got pointed at one —
+ * a deep link, a bookmark, a shared URL — with a persisted "open it anyway"
+ * override as the way past. The touch work removed the reason, and a shared
+ * link that opens the landing page instead of the pattern someone sent you is
+ * the failure worth pinning against.
+ */
+describe('the workspace routes on a phone', () => {
   it('leaves a deep link alone on a device that can run the app', async () => {
     await expect(resolve('/edit')).resolves.toBe('/edit');
   });
 
-  it.each(['/edit', '/design', '/simulate'])('bounces %s to the welcome page on a phone', async (path) => {
+  it.each(['/edit', '/design', '/simulate'])('opens %s on a phone', async (path) => {
     mockPhoneViewport();
-    await expect(resolve(path)).resolves.toBe('/welcome');
+    await expect(resolve(path)).resolves.toBe(path);
   });
 
-  it('bounces a legacy Design sub-path too, without following its redirect first', async () => {
+  it('still resolves a legacy Design sub-path to the Design workspace', async () => {
     mockPhoneViewport();
-    await expect(resolve('/design/treemaker')).resolves.toBe('/welcome');
+    await expect(resolve('/design/treemaker')).resolves.toBe('/design');
   });
 
-  it('bounces a share link, which would otherwise land in Edit', async () => {
+  it('opens a share link rather than the landing page', async () => {
     mockPhoneViewport();
-    await expect(resolve('/s/abcd1234')).resolves.toBe('/welcome');
-  });
-
-  it('lets a phone through once the override is set', async () => {
-    mockPhoneViewport();
-    localStorage.setItem(OVERRIDE_KEY, 'true');
-    await expect(resolve('/edit')).resolves.toBe('/edit');
+    await expect(resolve('/s/abcd1234')).resolves.toBe('/s/abcd1234');
   });
 });

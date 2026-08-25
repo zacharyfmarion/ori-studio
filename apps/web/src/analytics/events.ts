@@ -35,8 +35,8 @@ export type DesignTabSource = 'strip' | 'duplicate' | 'file' | 'replace-last';
 export type ProjectOpenSource = 'file' | 'example' | 'new' | 'drop' | 'share';
 
 /**
- * Which register the `/welcome` landing page rendered in: the start screen, or
- * the desktop-only notice a phone gets instead.
+ * Which register the `/welcome` landing page rendered in: the desktop start
+ * screen, or the compact masthead a phone gets instead.
  */
 export type LandingSurface = 'desktop' | 'phone';
 
@@ -254,8 +254,6 @@ export const ANALYTICS_EVENTS = {
   landingSectionViewed: 'landing section viewed',
   landingFeatureOpened: 'landing feature opened',
   landingCtaClicked: 'landing cta clicked',
-  mobileBlockShown: 'mobile block shown',
-  mobileBlockBypassed: 'mobile block bypassed',
   orieditaShortcutsImported: 'oriedita shortcuts imported',
   orieditaShortcutsOverrideAll: 'oriedita shortcuts override all',
   shortcutDefaultsSourceChanged: 'shortcut defaults source changed',
