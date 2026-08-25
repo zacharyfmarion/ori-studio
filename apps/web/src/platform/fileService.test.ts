@@ -339,6 +339,71 @@ describe('browser document saves', () => {
  * invisible on every desktop browser, which honours the `download` attribute
  * regardless of type.
  */
+/**
+ * What the open picker will let you select.
+ *
+ * iOS resolves every `accept` entry to a `UTType` and greys out anything it
+ * cannot match, and none of this app's formats is registered — so a saved
+ * `.osf` sitting in the Files app was reported unselectable. The extensions stay
+ * (they are the filter everywhere that can honour them) with a `public.data`
+ * equivalent alongside, so a document the app wrote is never one it cannot offer
+ * to reopen.
+ */
+describe('what a browser open picker accepts', () => {
+  function captureAccept(open: (service: ReturnType<typeof createFileService>) => void) {
+    const accepts: string[] = [];
+    const realCreate = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+      const element = realCreate(tag);
+      if (tag === 'input') {
+        // The value is set after creation, so read it when the click lands.
+        const input = element as HTMLInputElement;
+        input.click = () => accepts.push(input.accept);
+      }
+      return element;
+    });
+    delete window.showOpenFilePicker;
+    open(createFileService('web'));
+    return accepts[0] ?? '';
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('offers every extension it can open', () => {
+    const accept = captureAccept((service) => {
+      void service.openTextFile({ title: 'Open', extensions: ['osf', 'cp', 'fold'] });
+    });
+
+    expect(accept.split(',')).toEqual(
+      expect.arrayContaining(['.osf', '.cp', '.fold'])
+    );
+  });
+
+  it('also offers a type that matches any file, so iOS cannot grey ours out', () => {
+    const accept = captureAccept((service) => {
+      void service.openTextFile({ title: 'Open', extensions: ['osf'] });
+    });
+
+    expect(accept.split(',')).toContain('application/octet-stream');
+  });
+
+  it('leaves the binary picker filtered, where the types are real', () => {
+    // Reference images are `image/png` and friends — registered, so iOS resolves
+    // them, and widening this one would offer any file as a photo.
+    const accept = captureAccept((service) => {
+      void service.openBinaryFile({
+        title: 'Open image',
+        extensions: ['png'],
+        mimeTypes: ['image/png'],
+      });
+    });
+
+    expect(accept.split(',')).toEqual(['.png', 'image/png']);
+  });
+});
+
 describe('the type a browser download claims', () => {
   function captureDownloadType(suggestedName: string, extensions: string[]) {
     const types: string[] = [];

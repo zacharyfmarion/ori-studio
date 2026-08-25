@@ -157,6 +157,28 @@ function textSaveMimeType(filename: string): string {
   return REGISTERED_MIME_TYPES[extension] ?? 'application/octet-stream';
 }
 
+/**
+ * The `accept` for an `<input type=file>`, from the extensions a caller wants.
+ *
+ * The bare extensions are the filter. `application/octet-stream` rides along
+ * because iOS resolves every `accept` entry to a `UTType` and *greys out
+ * anything it cannot match* — and none of this app's formats is registered, so
+ * on a device where the mapping fails the user's own `.osf` is unselectable in
+ * the Files picker. Reported from a phone, with the saved file sitting there
+ * greyed out. `application/octet-stream` maps to `public.data`, which matches
+ * any file, so a document the app wrote can never be one it cannot offer to
+ * reopen.
+ *
+ * The cost is that Safari and Firefox stop filtering the picker — Chromium is
+ * unaffected, since it takes the File System Access path above and never reaches
+ * here. That is the right way round: a filter that hides the file you are
+ * looking for is a worse failure than one that shows a few extra, and the open
+ * path already validates what it is handed.
+ */
+function inputAccept(extensions: string[]): string {
+  return [...extensions.map((extension) => `.${extension}`), 'application/octet-stream'].join(',');
+}
+
 /** The picker's file-type filter, from the extensions a caller accepts. */
 function pickerTypes(extensions: string[]) {
   return [
@@ -367,7 +389,7 @@ function openBrowserTextFileInput(
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = options.extensions.map((extension) => `.${extension}`).join(',');
+    input.accept = inputAccept(options.extensions);
     input.style.display = 'none';
     document.body.append(input);
 
