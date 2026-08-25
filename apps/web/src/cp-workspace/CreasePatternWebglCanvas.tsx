@@ -56,6 +56,7 @@ import {
   type WedgeGeometry,
 } from './renderer/types';
 import type { CpOverlayViews } from './cpOverlayViewStore';
+import { cpTransformPreviewStore } from './cpTransformPreviewStore';
 import {
   applyAffine,
   cpSnapshotToScene,
@@ -1005,6 +1006,7 @@ export function CreasePatternWebglCanvas({
       const pts = buildPointsRef.current;
       if (strokes) renderer.setStrokes(strokes());
       if (pts) renderer.setPoints(pts());
+      cpTransformPreviewStore.set(null);
     } else {
       clearPreview();
     }
@@ -2182,6 +2184,12 @@ export function CreasePatternWebglCanvas({
         const move = { ids, matrix };
         renderer.setStrokes(liveRef.current.buildStrokes(move));
         renderer.setPoints(liveRef.current.buildPoints(move));
+        // The DOM overlays draw the same creases from the document, which still
+        // holds their old coordinates — see `cpTransformPreviewStore`. This is
+        // the case that makes the channel worth having: a four-point transform
+        // is a similarity held live between clicks, so a label left behind is
+        // not lagging its crease, it is labelling nothing.
+        cpTransformPreviewStore.set(move);
         return;
       }
       // Copy: snapshot the selection once per gesture, then transform in place.
@@ -2910,6 +2918,7 @@ export function CreasePatternWebglCanvas({
         // translation only commits on release.
         renderer.setStrokes(liveRef.current.buildStrokes());
         renderer.setPoints(liveRef.current.buildPoints());
+        cpTransformPreviewStore.set(null);
         movingSelection = false;
         moveStart = null;
         moveDelta = { x: 0, y: 0 };
@@ -3185,6 +3194,7 @@ export function CreasePatternWebglCanvas({
             };
             renderer.setStrokes(liveRef.current.buildStrokes(move));
             renderer.setPoints(liveRef.current.buildPoints(move));
+            cpTransformPreviewStore.set(move);
             renderNow();
           }
         }
@@ -3351,6 +3361,7 @@ export function CreasePatternWebglCanvas({
           // was a plain click, run normal selection (lets a point on top win).
           renderer.setStrokes(liveRef.current.buildStrokes());
           renderer.setPoints(liveRef.current.buildPoints());
+          cpTransformPreviewStore.set(null);
           renderNow();
           if (!moved && !cancelled) {
             liveRef.current.onSelect(hitTest(e.clientX, e.clientY), e.shiftKey);
@@ -3491,6 +3502,10 @@ export function CreasePatternWebglCanvas({
       marquee.remove();
       renderNowRef.current = () => {};
       cameraRef.current = null;
+      // Module state, so a gesture interrupted by a context loss or a workspace
+      // switch would otherwise hand the next surface a transform belonging to a
+      // document it never drew.
+      cpTransformPreviewStore.set(null);
       renderer.dispose();
       rendererRef.current = null;
     };
@@ -3507,6 +3522,14 @@ export function CreasePatternWebglCanvas({
     if (!renderer) return;
     renderer.setStrokes(strokeGeometry);
     renderer.setPoints(pointGeometry);
+    // These buffers hold the document's own coordinates, so nothing is being
+    // drawn through a transform any more — which is the whole of what the
+    // overlays read. Same argument as the ghost below, and the same reason to
+    // say it *here*: a move-drag leaves its shifted strokes up through the
+    // commit, and clearing at the commit instead would send every fold-angle
+    // badge back to where the crease used to be for the frames until the new
+    // coordinates arrive, turning a lag into a flicker.
+    cpTransformPreviewStore.set(null);
     // A copy gesture's ghost was deliberately left up through the commit; now that
     // the document's own strokes carry the new creases, take it down. Doing it here
     // rather than at commit means the geometry never blinks out in between.
