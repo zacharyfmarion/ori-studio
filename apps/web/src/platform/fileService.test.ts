@@ -330,6 +330,66 @@ describe('browser document saves', () => {
   });
 });
 
+/**
+ * What a download is handed to the browser as.
+ *
+ * iOS Safari names a downloaded file from its MIME type, so `text/plain` — which
+ * every text save used to claim — turned `Untitled.osf` into `Untitled.osf.txt`
+ * in the Files app, a name this app cannot open. Reported from a phone, and
+ * invisible on every desktop browser, which honours the `download` attribute
+ * regardless of type.
+ */
+describe('the type a browser download claims', () => {
+  function captureDownloadType(suggestedName: string, extensions: string[]) {
+    const types: string[] = [];
+    const createObjectURL = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockImplementation((blob: Blob | MediaSource) => {
+        types.push((blob as Blob).type);
+        return 'blob:stub';
+      });
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    // No `showSaveFilePicker`, which is Safari and Firefox — and the path that
+    // produces a download rather than a save dialog.
+    delete window.showSaveFilePicker;
+    const service = createFileService('web');
+    return service
+      .saveTextFile({
+        title: 'Save',
+        contents: 'x',
+        suggestedName,
+        extensions,
+        reusableTarget: true,
+      })
+      .then(() => {
+        createObjectURL.mockRestore();
+        return types[0];
+      });
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it.each(['project.osf', 'pattern.cp', 'model.fold', 'design.bps', 'tree.tmd5'])(
+    'claims opaque bytes for %s, so Safari keeps the name',
+    async (name) => {
+      const extension = name.slice(name.lastIndexOf('.') + 1);
+      await expect(captureDownloadType(name, [extension])).resolves.toBe(
+        'application/octet-stream'
+      );
+    }
+  );
+
+  it('does not claim octet-stream where a real type exists', async () => {
+    // `.svg` is registered and has a viewer to open in, so saying so is both
+    // true and useful — and Safari has no reason to rename it.
+    await expect(captureDownloadType('view.svg', ['svg'])).resolves.toBe(
+      'image/svg+xml;charset=utf-8'
+    );
+  });
+});
+
 describe('filesystemPathOrNull', () => {
   it('keeps a real path and drops a web save-target token', () => {
     // The token is local to the page that minted it, so writing one into a

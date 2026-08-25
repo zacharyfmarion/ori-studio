@@ -125,6 +125,38 @@ declare global {
   }
 }
 
+/**
+ * Extensions that have a real registered MIME type, and what it is.
+ *
+ * Everything else the app writes — `.osf`, `.cp`, `.fold`, `.ori`, `.orh`,
+ * `.tmd4`, `.tmd5`, `.bps` — has none, so {@link textSaveMimeType} answers
+ * `application/octet-stream` for them. See there for why that is not a shrug.
+ */
+const REGISTERED_MIME_TYPES: Record<string, string> = {
+  svg: 'image/svg+xml;charset=utf-8',
+};
+
+/**
+ * The type a saved file is handed to the browser as.
+ *
+ * This used to be `text/plain;charset=utf-8` for every text save, which is true
+ * of the bytes and wrong about the file: **iOS Safari names a download from its
+ * MIME type**, so `Untitled.osf` written as text arrived in the Files app as
+ * `Untitled.osf.txt` — a name the app cannot open, from a Save the user thought
+ * had worked. Reported from a phone.
+ *
+ * `application/octet-stream` is the answer for a format nobody has registered:
+ * it says "opaque bytes, keep the name you were given", which is exactly the
+ * claim being made. It is also what {@link pickerTypes} already tells the File
+ * System Access picker, so the two paths now agree rather than differing by
+ * which browser you are in.
+ */
+function textSaveMimeType(filename: string): string {
+  const dot = filename.lastIndexOf('.');
+  const extension = dot === -1 ? '' : filename.slice(dot + 1).toLowerCase();
+  return REGISTERED_MIME_TYPES[extension] ?? 'application/octet-stream';
+}
+
 /** The picker's file-type filter, from the extensions a caller accepts. */
 function pickerTypes(extensions: string[]) {
   return [
@@ -254,7 +286,7 @@ async function saveBrowserTextFile(
     // An export, or a browser with no File System Access API (Firefox, Safari).
     // A download is still a save; it just cannot be written to again, so the
     // next one makes a copy.
-    downloadBlob(new Blob([options.contents], { type: 'text/plain;charset=utf-8' }), name);
+    downloadBlob(new Blob([options.contents], { type: textSaveMimeType(name) }), name);
     if (options.reusableTarget) trackWebSave('download');
     return { name, path: null };
   }
