@@ -428,7 +428,19 @@ impl LineSegment {
         let Some(magnitude) = FoldMagnitude::from_degrees(degrees.abs()) else {
             return self.clone();
         };
-        match FoldDirection::of_signed_angle(degrees) {
+        // Ask the question *storage* asks, not the one the caller's float
+        // answers. Reading the sign off `degrees` while writing the quantised
+        // magnitude makes the two disagree on `0 < |d| < 5e-8`: `+1e-9` on a
+        // `Red1` at 120 degrees named a valley and then stored a magnitude of
+        // zero, so the crease came out `Blue2` and flat — the mountain silently
+        // turned valley, and the non-classic document, that this rule exists to
+        // prevent, both surviving one band along from the literal zeros it
+        // checked. Unreachable from either solver, which quantise before
+        // emitting, and reachable through `pinned_angles`, which does not.
+        let direction = (magnitude != FoldMagnitude::FLAT)
+            .then(|| FoldDirection::of_signed_angle(degrees))
+            .flatten();
+        match direction {
             // Colour first, and not as a matter of taste: `with_fold_magnitude`
             // is a no-op on anything that is not `Red1`/`Blue2`, so on an
             // unassigned crease the reverse order would drop the angle on the

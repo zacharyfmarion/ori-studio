@@ -672,26 +672,32 @@ No panel `keydown` listener.
 
 ### Phase 1 — the k-unknown solver
 
-- [ ] `operations/native/` module; visibility bumps.
-- [ ] Fan constructor with three states (known ρ / unknown ρ / not a crease),
+- [x] `operations/native/` module; visibility bumps.
+- [x] Fan constructor with three states (known ρ / unknown ρ / not a crease),
       **indexed** rather than O(segments) per lookup.
-- [ ] `solve_k` for any k, with the k=1/k=2 closed forms and the k=2 parallel-axes
+- [x] `solve_k` for any k, with the k=1/k=2 closed forms and the k=2 parallel-axes
       arm (two unknowns collinear through the vertex is a 1-parameter family).
-- [ ] **A test asserting `+180` and `−180` both survive as separate answers** at a
+- [x] **A test asserting `+180` and `−180` both survive as separate answers** at a
       full-fold k=2 vertex, and that the verdict is `Branching` — they are the
       same rotation but opposite M/V, and collapsing them is a silent choice.
       Repro: `kabuto.fold` vertex 5, unknowns 18,12 → `[-180,-180]` and
       `[180,180]`, both rank 2, both isolated.
-- [ ] Widen the dedupe tolerance enough to absorb the sub-degree numerical
+- [x] Widen the dedupe tolerance enough to absorb the sub-degree numerical
       near-duplicates (§3), **without** touching the ±180 pair above.
-- [ ] The commit rule **with its guard**, plus a near-degenerate-fan test.
+- [x] The commit rule **with its guard**, plus a near-degenerate-fan test.
 - [ ] Pin as **two** tests: **100% at k=1 on real files**, and ≥99.9% at k=2 on a
       *regenerated generic-3D* population. Do not pin k=2 ≥ 99.9% against real
       files — it is 28.52% on `known-good`.
 
 ### Phase 2 — the propagator
 
-- [ ] Worklist to fixpoint; k≥4 short-circuit (structural, and a correctness
+> **Status.** The propagator shipped; the unticked items below are the parts
+> that did not, and each is genuinely open rather than merely unrecorded.
+> Provenance and deferred questions were skipped because the draft-and-re-run
+> loop covers what they were for: every user adjustment is already a fresh seed,
+> and a run is cheap enough not to need incremental invalidation.
+
+- [x] Worklist to fixpoint; k≥4 short-circuit (structural, and a correctness
       feature).
 - [ ] Per-crease provenance; transitive-closure invalidation for contradicting
       pins. **Measure it against a from-scratch run** — never done.
@@ -699,12 +705,17 @@ No panel `keydown` listener.
 - [ ] **One-hop lookahead** filtering the menu (required, not optional).
 - [ ] Report what `interior_border_segments` hides, rather than adding a second
       gate. **Do not** count `Black0` components.
-- [ ] The one-storage-unit `FULL → None` clamp on write-back.
-- [ ] A sibling of `set_signed_fold_angles` that accepts a `LineColor::None`
-      source. Do **not** relax the `Red1|Blue2` gate at `color.rs:419`, and note
-      the identical gate at `:387`.
-- [ ] A cancelled run leaves the document byte-identical.
-- [ ] `cargo fmt --check`, `clippy -D warnings`, `cargo test --workspace`. Update
+- [x] The one-storage-unit `FULL → None` clamp on write-back.
+- [x] A sibling of `set_signed_fold_angles` that accepts a `LineColor::None`
+      source. ~~Do **not** relax the `Red1|Blue2` gate at `color.rs:419`~~ —
+      **superseded**. Shipped by relaxing that gate rather than adding a
+      sibling: `solve_fan_at` only ever names `Red1`/`Blue2`/`None` segments, so
+      the gate's sole live effect was skipping the one crease the solve was
+      asked about, and the preview had no such gate and therefore showed an
+      answer the commit then declined to write. A sibling would have left two
+      write paths to keep in step, which is the shape of that bug.
+- [x] A cancelled run leaves the document byte-identical.
+- [x] `cargo fmt --check`, `clippy -D warnings`, `cargo test --workspace`. Update
       `PORTING.md`.
 
 ### Phase 3 — the two blockers, before the Unassigned chip is reachable

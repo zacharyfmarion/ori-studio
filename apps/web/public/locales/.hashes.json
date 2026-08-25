@@ -2562,7 +2562,8 @@
     "dialogs:fold3dRefused.showDisagreement": "33bbca676765",
     "dialogs:fold3dRefused.showPointDescription": "d638e97171ac",
     "tools:cpContext.solveAngles.againstHint": "94fab2e02207",
-    "tools:cpContext.solveAngles.leavesUndecided": "28609972f90b"
+    "tools:cpContext.solveAngles.leavesUndecided": "28609972f90b",
+    "tools:cpContext.propagation.answeredFlat": "15b6fbe5d21f"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5127,7 +5128,8 @@
     "dialogs:fold3dRefused.showDisagreement": "33bbca676765",
     "dialogs:fold3dRefused.showPointDescription": "d638e97171ac",
     "tools:cpContext.solveAngles.againstHint": "94fab2e02207",
-    "tools:cpContext.solveAngles.leavesUndecided": "28609972f90b"
+    "tools:cpContext.solveAngles.leavesUndecided": "28609972f90b",
+    "tools:cpContext.propagation.answeredFlat": "15b6fbe5d21f"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7692,7 +7694,8 @@
     "dialogs:fold3dRefused.showDisagreement": "33bbca676765",
     "dialogs:fold3dRefused.showPointDescription": "d638e97171ac",
     "tools:cpContext.solveAngles.againstHint": "94fab2e02207",
-    "tools:cpContext.solveAngles.leavesUndecided": "28609972f90b"
+    "tools:cpContext.solveAngles.leavesUndecided": "28609972f90b",
+    "tools:cpContext.propagation.answeredFlat": "15b6fbe5d21f"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -10214,7 +10217,8 @@
     "dialogs:fold3dRefused.showDisagreement": "33bbca676765",
     "dialogs:fold3dRefused.showPointDescription": "d638e97171ac",
     "tools:cpContext.solveAngles.againstHint": "94fab2e02207",
-    "tools:cpContext.solveAngles.leavesUndecided": "28609972f90b"
+    "tools:cpContext.solveAngles.leavesUndecided": "28609972f90b",
+    "tools:cpContext.propagation.answeredFlat": "15b6fbe5d21f"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12736,7 +12740,8 @@
     "dialogs:fold3dRefused.showDisagreement": "33bbca676765",
     "dialogs:fold3dRefused.showPointDescription": "d638e97171ac",
     "tools:cpContext.solveAngles.againstHint": "94fab2e02207",
-    "tools:cpContext.solveAngles.leavesUndecided": "28609972f90b"
+    "tools:cpContext.solveAngles.leavesUndecided": "28609972f90b",
+    "tools:cpContext.propagation.answeredFlat": "15b6fbe5d21f"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -15301,7 +15306,8 @@
     "dialogs:fold3dRefused.showDisagreement": "33bbca676765",
     "dialogs:fold3dRefused.showPointDescription": "d638e97171ac",
     "tools:cpContext.solveAngles.againstHint": "94fab2e02207",
-    "tools:cpContext.solveAngles.leavesUndecided": "28609972f90b"
+    "tools:cpContext.solveAngles.leavesUndecided": "28609972f90b",
+    "tools:cpContext.propagation.answeredFlat": "15b6fbe5d21f"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17866,7 +17872,8 @@
     "dialogs:fold3dRefused.showDisagreement": "33bbca676765",
     "dialogs:fold3dRefused.showPointDescription": "d638e97171ac",
     "tools:cpContext.solveAngles.againstHint": "94fab2e02207",
-    "tools:cpContext.solveAngles.leavesUndecided": "28609972f90b"
+    "tools:cpContext.solveAngles.leavesUndecided": "28609972f90b",
+    "tools:cpContext.propagation.answeredFlat": "15b6fbe5d21f"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -20388,6 +20395,7 @@
     "dialogs:fold3dRefused.showDisagreement": "33bbca676765",
     "dialogs:fold3dRefused.showPointDescription": "d638e97171ac",
     "tools:cpContext.solveAngles.againstHint": "94fab2e02207",
-    "tools:cpContext.solveAngles.leavesUndecided": "28609972f90b"
+    "tools:cpContext.solveAngles.leavesUndecided": "28609972f90b",
+    "tools:cpContext.propagation.answeredFlat": "15b6fbe5d21f"
   }
 }

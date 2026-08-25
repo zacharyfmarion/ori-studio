@@ -110,6 +110,7 @@
     "polygonCorners": "Vértices do polígono",
     "precision": "Precisão",
     "propagation": {
+      "answeredFlat": "Estes vincos foram resolvidos e não dobram, portanto não há ângulo a definir. Eles permanecem não atribuídos.",
       "conflicts": "Vértices que não fecham mais: {{vertices}} — algo em que isto se apoia discorda.",
       "noComponentAtPoint": "Nada a propagar aqui. Clique em um vinco ou vértice do padrão que você quer.",
       "noScope": "Clique em um vinco ou vértice de onde propagar, ou selecione os vincos a resolver.",

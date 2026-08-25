@@ -106,6 +106,7 @@
     "polygonCorners": "Polygonecken",
     "precision": "Präzision",
     "propagation": {
+      "answeredFlat": "Diese Falten wurden berechnet und sie falten sich nicht, es gibt also keinen Winkel einzustellen. Sie bleiben nicht zugewiesen.",
       "conflicts": "Knoten, die nicht mehr schließen: {{vertices}} — etwas, worauf dies aufbaut, widerspricht sich.",
       "noComponentAtPoint": "Hier gibt es nichts auszubreiten. Klicke auf eine Falte oder einen Knoten des gewünschten Musters.",
       "noScope": "Klicke auf eine Falte oder einen Knoten als Ausgangspunkt, oder wähle die zu lösenden Falten aus.",

@@ -102,6 +102,7 @@
     "polygonCorners": "多边形角数",
     "precision": "精度",
     "propagation": {
+      "answeredFlat": "这些折痕已计算完成，结果是它们不会折叠，因此没有角度可设置。它们将保持未指定状态。",
       "conflicts": "不再闭合的顶点: {{vertices}} — 所依据的条件存在矛盾。",
       "noComponentAtPoint": "这里没有可传播的内容。请点击目标折纸图的折痕或顶点。",
       "noScope": "点击一条折痕或顶点作为传播起点，或选择要求解的折痕。",

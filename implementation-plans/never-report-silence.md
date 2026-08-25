@@ -266,7 +266,11 @@ Two decisions Phase 2 made that are worth carrying forward:
       crease, so "these creases do not close up" and "set this crease to −70.53°"
       are both true of one vertex. It is never withheld for that, because
       withholding puts "which vertex?" back where it started.
-- [ ] Propagation stalls become navigable.
+- [ ] Propagation stalls become navigable. **Still open.** Note the kernel no
+      longer carries the branch options to draw a question from: `Stall` had an
+      `options` field that no caller and no transport field ever read, so it was
+      removed rather than left as a payload nobody checks. This item has to
+      bring it back *with* the code that reads it.
 - [x] Unassigned creases get a canvas dash, matched in `creaseExport`. A third
       dash slot, which turned out to cost two `vec3` uniforms and one comparison
       in the vertex stage — nothing per segment, since `dashSlot` was already an

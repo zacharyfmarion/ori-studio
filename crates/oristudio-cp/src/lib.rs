@@ -622,7 +622,9 @@ fn scope_kind_code(kind: operations::native::fold_propagation::ScopeKind) -> &'s
 
 /// Stable code per stall reason. The frontend turns these into sentences, and
 /// `branching` must not share copy with the rest: it means "I have a question",
-/// where the others mean "I need another angle from you".
+/// where the others mean "I need another angle from you". `answered_flat` is a
+/// third: nothing is being asked for at all, the answer just happens to be that
+/// these creases do not fold.
 fn stall_reason_code(reason: operations::native::fold_propagation::StallReason) -> &'static str {
     use operations::native::fold_propagation::StallReason;
     match reason {
@@ -631,6 +633,7 @@ fn stall_reason_code(reason: operations::native::fold_propagation::StallReason) 
         StallReason::Unsolvable => "unsolvable",
         StallReason::AboveCap => "above_cap",
         StallReason::OutOfScope => "out_of_scope",
+        StallReason::AnsweredFlat => "answered_flat",
     }
 }
 
@@ -4233,6 +4236,13 @@ pub fn preview_command(
                     stall.reason == operations::native::fold_propagation::StallReason::OutOfScope
                 })
                 .count();
+            let answered_flat = draft
+                .stalls
+                .iter()
+                .filter(|stall| {
+                    stall.reason == operations::native::fold_propagation::StallReason::AnsweredFlat
+                })
+                .count();
             preview.propagation_scope = Some(PropagationScope {
                 kind: scope_kind_code(draft.scope.kind).to_owned(),
                 creases: draft.scope.creases,
@@ -4261,6 +4271,13 @@ pub fn preview_command(
                         // because with nothing free in scope there is nothing to
                         // solve here whatever lies outside it.
                         (false, _) if out_of_scope > 0 => "PropagationOutOfScope",
+                        // Ahead of the generic sentence, which asks for another
+                        // angle. Nothing more is wanted here: these vertices are
+                        // solved, and their answer is that the creases do not
+                        // fold, so there is no angle to give and no crease to
+                        // decide. Ranked below `OutOfScope` because a vertex the
+                        // scope excluded is a thing the user can still act on.
+                        (false, _) if answered_flat > 0 => "PropagationAnsweredFlat",
                         (false, _) => "PropagationNothingDecidable",
                     }
                     .to_owned(),
@@ -6352,6 +6369,63 @@ mod tests {
     /// move. `-0.0` flipped it too, because `-0.0 < 0.0` is false, so the
     /// solver's own sign was discarded on the one input where the two spellings
     /// of "negative" disagree.
+    /// The same rule, for every angle that *stores* as zero rather than only
+    /// the two that are spelled zero.
+    ///
+    /// The direction was read off the caller's float while the magnitude was
+    /// written from the quantised value, and the two disagree on the band below
+    /// one storage unit: `+1e-9` on a `Red1` named a valley and then stored a
+    /// magnitude of zero, so the crease came out `Blue2` and flat. That is the
+    /// mountain-turned-valley and the non-classic document the rule above
+    /// exists to prevent, surviving one band along from the literal zeros it
+    /// checked. Unreachable from either solver — both quantise before emitting
+    /// — and reachable through `pinned_angles`, which does not.
+    #[test]
+    fn an_angle_that_stores_as_flat_names_no_direction_either() {
+        let sub_unit = [1e-9_f64, -1e-9, 4.99e-8, -4.99e-8, f64::MIN_POSITIVE];
+        for degrees in sub_unit {
+            for (color, other) in [
+                (LineColor::Red1, LineColor::Blue2),
+                (LineColor::Blue2, LineColor::Red1),
+            ] {
+                let mut model = CreasePatternModel::default();
+                model.line_segments.push(
+                    geometry::LineSegment::with_color(
+                        Point::new(0.0, 0.0),
+                        Point::new(100.0, 0.0),
+                        color,
+                    )
+                    .with_fold_magnitude(geometry::FoldMagnitude::from_degrees(120.0)),
+                );
+                operations::color::set_signed_fold_angles(&mut model, &[(0, degrees)]);
+                let written = &model.line_segments[0];
+                assert_ne!(
+                    written.color, other,
+                    "{color:?} flipped direction on {degrees:e}, which stores as flat"
+                );
+                assert_eq!(
+                    written.fold_magnitude,
+                    Some(geometry::FoldMagnitude::FLAT),
+                    "{color:?} at {degrees:e}"
+                );
+            }
+        }
+
+        // The first angle that does *not* store as flat still takes its sign
+        // from the caller, so the fix is a floor rather than a new rule.
+        let mut model = CreasePatternModel::default();
+        model.line_segments.push(
+            geometry::LineSegment::with_color(
+                Point::new(0.0, 0.0),
+                Point::new(100.0, 0.0),
+                LineColor::Red1,
+            )
+            .with_fold_magnitude(geometry::FoldMagnitude::from_degrees(120.0)),
+        );
+        operations::color::set_signed_fold_angles(&mut model, &[(0, 5.01e-8)]);
+        assert_eq!(model.line_segments[0].color, LineColor::Blue2);
+    }
+
     #[test]
     fn a_zero_answer_keeps_the_direction_a_decided_crease_already_has() {
         for zero in [0.0_f64, -0.0_f64] {

@@ -86,8 +86,38 @@ use crate::solve_k::{Determinacy, SolveFan, solve_fan_at, solve_k};
 ///
 /// k = 3 is exactly determined but yields a unique answer only ~5% of the time
 /// on real geometry, so most of what it produces is a question rather than a
-/// commit. k <= 2 is the useful default; the cap is a caller's knob rather than
-/// a constant so the tool can offer it.
+/// commit. The cap is a caller's knob rather than a constant so the tool can
+/// offer it.
+///
+/// # k = 2 is not the free win the first version of this comment claimed
+///
+/// Measured over 1,600 runs on 200 scraped crease patterns, blanking a
+/// connected run of creases each time and comparing every commit against the
+/// original document:
+///
+/// | cap | committed | wrong |
+/// | --- | --- | --- |
+/// | k <= 1 | 9,123 | 8 (0.09%) |
+/// | k <= 2 | 9,182 | 29 (0.32%) |
+/// | k <= 3 | 9,182 | 29 (0.32%) |
+///
+/// Raising the cap to 2 buys **59 commits, 0.6% more coverage**, and triples
+/// the error rate: **36% of the creases the raise adds are wrong**. k = 3 adds
+/// nothing at all on this population, which is the ~5% figure above showing up
+/// as zero.
+///
+/// The reason a *forced* answer can be wrong at all is worth stating, because
+/// "determined" sounds like a proof and is not one at k = 2:
+/// [`Determinacy::Determined`] means the solver found one solution and its
+/// Jacobian has full rank there, which establishes that the answer is
+/// **locally isolated** — not that no other root exists elsewhere in the
+/// domain. At k = 1 a one-dimensional sweep effectively settles it, which is
+/// why the error rate there is a tenth of a percent rather than zero only
+/// through numerical noise.
+///
+/// Left at 2 because that is what this shipped with and what the tool has been
+/// used against; the measurement says 1 is the better default and that is a
+/// product call, not a cleanup.
 pub const DEFAULT_MAX_COMMIT_K: usize = 2;
 
 /// Why propagation stopped at a vertex.
@@ -103,6 +133,15 @@ pub enum StallReason {
     Unsolvable,
     /// Above the caller's `max_commit_k`, so it was never attempted.
     AboveCap,
+    /// Solved, and the answer is that these creases do not fold.
+    ///
+    /// The only stall that is not a request for more information. Zero names no
+    /// direction, so a crease answered zero stays undecided — there is no flat
+    /// crease to move it to, since this model spells one as a coloured crease
+    /// with magnitude zero and the answer did not pick a colour. So the vertex
+    /// is finished and its creases are still blank, which looks exactly like
+    /// the thing propagation could not do until you read this.
+    AnsweredFlat,
     /// Solvable, but at least one of its unknowns is outside the scope, so the
     /// answer is one this run is not allowed to act on.
     ///
@@ -138,10 +177,15 @@ pub struct Stall {
     pub reason: StallReason,
     /// How many creases at this vertex are still free.
     pub unknowns: usize,
-    /// The distinct foldings on offer, when the reason is
-    /// [`StallReason::Branching`]. Each is `(line index, signed degrees)`.
-    pub options: Vec<Vec<(usize, f64)>>,
 }
+
+// A `Branching` stall used to carry the foldings on offer. Nothing read them:
+// no Rust caller, and the wasm payload carries `point`, `reason` and `unknowns`
+// only — so they were cloned out of every branching solve and dropped at the
+// boundary. Removed rather than left for the consumer that would want them,
+// because "we will need it later" is how a payload nobody checks accretes.
+// `implementation-plans/never-report-silence.md` records that making stalls
+// navigable has to bring them back *with* the code that reads them.
 
 /// How a scope was arrived at, for a tool that has to name it to the user.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -552,7 +596,6 @@ pub fn propagate(
                 point,
                 reason: StallReason::OutOfScope,
                 unknowns: unknowns.len(),
-                options: Vec::new(),
             });
             continue;
         }
@@ -561,7 +604,6 @@ pub fn propagate(
                 point,
                 reason: StallReason::AboveCap,
                 unknowns: unknowns.len(),
-                options: Vec::new(),
             });
             continue;
         }
@@ -585,7 +627,6 @@ pub fn propagate(
                     point,
                     reason: StallReason::Unsolvable,
                     unknowns: unknowns.len(),
-                    options: Vec::new(),
                 });
                 continue;
             }
@@ -596,23 +637,21 @@ pub fn propagate(
             Determinacy::Branching => StallReason::Branching,
             Determinacy::Underdetermined => StallReason::Underdetermined,
             Determinacy::Unsolvable => StallReason::Unsolvable,
-            // Determined here would mean the fixpoint was not reached.
-            Determinacy::Determined | Determinacy::Check => continue,
-        };
-        let options = if reason == StallReason::Branching {
-            report
-                .solutions
-                .iter()
-                .map(|solution| solution.angles.clone())
-                .collect()
-        } else {
-            Vec::new()
+            // `Determined` used to mean the fixpoint was not reached, and the
+            // branch simply skipped it. Since a solved angle of zero leaves its
+            // crease undecided — zero names no direction, so there is nothing to
+            // decide it *to* — a vertex can now be answered and still arrive
+            // here with its unknowns intact, forever. Skipping it reported
+            // "nothing could be worked out from the angles already set", which
+            // was false of the one state that reaches this branch: it *was*
+            // worked out, and the answer is that these creases do not fold.
+            Determinacy::Determined => StallReason::AnsweredFlat,
+            Determinacy::Check => continue,
         };
         stalls.push(Stall {
             point,
             reason,
             unknowns: unknowns.len(),
-            options,
         });
     }
 
@@ -948,6 +987,74 @@ mod tests {
             (entries[0].1 - truth).abs() < 1e-9,
             "the last value must win, got {}",
             entries[0].1
+        );
+    }
+
+    /// A vertex answered zero is answered, and must not be reported as a
+    /// vertex nothing could be worked out from.
+    ///
+    /// Zero names no direction, so the crease stays undecided and the model
+    /// does not change — and `write_angle` keys on "did the model change", so
+    /// the vertex arrives at the census still carrying its unknowns and
+    /// verdict `Determined`. That branch used to `continue`, which made the run
+    /// say *"Nothing could be worked out from the angles already set. Give one
+    /// more crease an angle and try again."* about a vertex that was solved and
+    /// wants nothing.
+    #[test]
+    fn a_vertex_answered_zero_says_so_instead_of_asking_for_more() {
+        // Four creases at right angles, all flat. The closure product of a fan
+        // whose angles are all zero is the identity, so the vertex closes and
+        // any one of them solves to zero.
+        // A square of border around the origin, so the vertex is interior.
+        let mut model = CreasePatternModel::default();
+        let corners = [
+            (-200.0, -200.0),
+            (200.0, -200.0),
+            (200.0, 200.0),
+            (-200.0, 200.0),
+        ];
+        for step in 0..4 {
+            let (ax, ay) = corners[step];
+            let (bx, by) = corners[(step + 1) % 4];
+            model
+                .line_segments
+                .push(crate::geometry::LineSegment::with_color(
+                    Point::new(ax, ay),
+                    Point::new(bx, by),
+                    LineColor::Black0,
+                ));
+        }
+        let mut spokes = Vec::new();
+        for step in 0..4 {
+            let angle = std::f64::consts::FRAC_PI_2 * step as f64;
+            spokes.push(model.line_segments.len());
+            model.line_segments.push(
+                crate::geometry::LineSegment::with_color(
+                    Point::new(0.0, 0.0),
+                    Point::new(120.0 * angle.cos(), 120.0 * angle.sin()),
+                    LineColor::Red1,
+                )
+                .with_fold_magnitude(Some(crate::geometry::FoldMagnitude::FLAT)),
+            );
+        }
+        model.line_segments[spokes[0]] =
+            model.line_segments[spokes[0]].with_line_color(LineColor::None);
+
+        let outcome = propagate(&model, &whole(&model), &[], DEFAULT_MAX_COMMIT_K, bar());
+        assert!(
+            outcome.solved.is_empty(),
+            "zero has no direction, so nothing should be written"
+        );
+        let answered = outcome
+            .stalls
+            .iter()
+            .filter(|stall| stall.reason == StallReason::AnsweredFlat)
+            .count();
+        assert_eq!(
+            answered,
+            1,
+            "the vertex was solved and must say so; stalls were {:?}",
+            outcome.stalls.iter().map(|s| s.reason).collect::<Vec<_>>()
         );
     }
 

@@ -110,6 +110,7 @@
     "polygonCorners": "Vértices del polígono",
     "precision": "Precisión",
     "propagation": {
+      "answeredFlat": "Estos pliegues se han resuelto y no se pliegan, así que no hay ningún ángulo que definir. Quedan sin asignar.",
       "conflicts": "Vértices que ya no cierran: {{vertices}} — algo en lo que esto se apoya no concuerda.",
       "noComponentAtPoint": "Aquí no hay nada que propagar. Haz clic en un pliegue o un vértice del patrón que quieras.",
       "noScope": "Haz clic en un pliegue o un vértice desde donde propagar, o selecciona los pliegues a resolver.",

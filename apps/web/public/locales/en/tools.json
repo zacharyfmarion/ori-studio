@@ -106,6 +106,7 @@
     "polygonCorners": "Polygon corners",
     "precision": "Precision",
     "propagation": {
+      "answeredFlat": "These creases were worked out and they do not fold, so there is no angle to set. They stay unassigned.",
       "conflicts": "Vertices that no longer close: {{vertices}} — something this rests on disagrees.",
       "noComponentAtPoint": "Nothing to propagate here. Click on a crease or a vertex of the pattern you want.",
       "noScope": "Click a crease or vertex to propagate from, or select the creases to solve.",

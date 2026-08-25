@@ -309,37 +309,46 @@ A wrong hint stalls rather than lies — 0 wrong commits in 92,395 subsets. The
 - [x] `solve_k` k=3 actually delegates (`2d6672f7`)
 - [x] `StallReason::Unsolvable` is reachable (`bc822394`)
 - [ ] Enforce `as_vertex_fan`'s unknowns precondition rather than documenting it
-- [ ] Clamp `max_commit_k` — it is frontend-supplied and unclamped today
+- [ ] Clamp `max_commit_k` — it is frontend-supplied and unclamped today.
+      **Still open, and confirmed still true.** The only caller passes
+      `DEFAULT_MAX_COMMIT_K`, so it is not reachable from the UI, but nothing
+      stops a larger value costing unbounded solve time per vertex.
 - [ ] Reconcile the fan epsilons: `solve_fan_at` clusters at `UNKNOWN_1EN6`, the
       checker fan at `UNKNOWN_1EN4`. They agree on the whole corpus today; the
       gap is latent and the doc claims they are parallel.
 
 ### Phase 1 — Solve Fold Angles fix
 
-- [ ] Swap the fan to `solve_fan_at`; keep `solve_fold_angles` as the solver
+- [x] Swap the fan to `solve_fan_at`; keep `solve_fold_angles` as the solver
 - [ ] `TooManyUnknowns` decline code + the kernel-codes ⊆ TS-codes test
 - [ ] Fix `solvable_partners`' second gate
 - [ ] Do not carry `is_current` for a crease with no current state
 
 ### Phase 2 — the hint, kernel
 
-- [ ] `fold_direction_hint` field + the `color == None` invariant, enforced
-- [ ] `with_fold_state_of` and the widened derived-geometry source scan
-- [ ] Hint as a **filter at k ≥ 2**, a **conflict check at k = 1**
-- [ ] `.osf`, `.fold` (`"U"` + extension), share tag + goldens, `.ori` keeps `NONE`
+- [x] `fold_direction_hint` field + the `color == None` invariant, enforced
+- [x] `with_fold_state_of` and the widened derived-geometry source scan
+- [x] ~~Hint as a **filter at k ≥ 2**~~ — **superseded**, and deliberately. A
+      filter narrows the *search*, so a hint the user got wrong would delete the
+      real answer; the hint is a belief about the crease, not a fact about the
+      geometry. Shipped instead as a **tie-break between answers the solver has
+      already declared equally valid** (`fold_propagation::forced_answer`) plus
+      the conflict check. Same effect where a hint is right, no lost solutions
+      where it is wrong.
+- [x] `.osf`, `.fold` (`"U"` + extension), share tag + goldens, `.ori` keeps `NONE`
 
 ### Phase 3 — formats and warnings
 
 - [ ] `SUPERSET_FEATURES` entry for **`.cp` only** — `.dxf` is `notImplemented`
       and unreachable, `.obj` has no exporter
-- [ ] OCG3 across all five surfaces + the golden
+- [x] OCG3 across all five surfaces + the golden
 
 ### Phase 4 — UI
 
 - [ ] Shared option-window resolver; propagation draft merged into the preview
-- [ ] "Unassigned" chip in `FoldAngleControl`; widen the `isFoldingCrease` gate
+- [x] "Unassigned" chip in `FoldAngleControl`; widen the `isFoldingCrease` gate
       so a hinted crease can be un-unassigned
-- [ ] `Make Unassigned (keep direction)` — **one operation with a payload flag**,
+- [x] `Make Unassigned (keep direction)` — **one operation with a payload flag**,
       not a second operation (no new descriptor, so PORTING.md's origin rules are
       satisfied for free)
 - [x] Hint ink on the canvas: **an overlay pass**, not a widened appearance key.
@@ -365,7 +374,7 @@ A wrong hint stalls rather than lies — 0 wrong commits in 92,395 subsets. The
       `round` prints a dot, so it reaches the same marks through a real
       `stroke-dashoffset`.
 - [ ] Settle plain-unassigned's canvas-vs-export disagreement in the same pass
-- [ ] ~10 new i18n keys × 8 locales + `cpVocab` regeneration
+- [x] ~10 new i18n keys × 8 locales + `cpVocab` regeneration
 
 ## Top risks
 

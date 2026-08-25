@@ -37,6 +37,7 @@ export const CP_TOOL_UNAVAILABLE_CODES = [
   'CreasesDoNotMeet',
   'PropagationNothingFree',
   'PropagationNothingDecidable',
+  'PropagationAnsweredFlat',
   // The four scope codes. Each names a different next move, which is the bar for
   // a code of its own: pick a scope, pick a different point, select different
   // creases, or select creases that still exist. Collapsing them into one
@@ -94,6 +95,15 @@ export function cpToolUnavailableMessage(
       return t(
         'tools:cpContext.propagation.nothingDecidable',
         'Nothing could be worked out from the angles already set. Give one more crease an angle and try again.'
+      );
+    // Not an instruction, because there is nothing to instruct: unlike every
+    // other code here, this one is an answer. Asking for one more angle would
+    // send the user looking for a crease to set when the solve has already
+    // finished and found that these do not fold.
+    case 'PropagationAnsweredFlat':
+      return t(
+        'tools:cpContext.propagation.answeredFlat',
+        'These creases were worked out and they do not fold, so there is no angle to set. They stay unassigned.'
       );
     // The kernel declines rather than falling back to the whole document, so
     // this is the sentence that stands where "propagate everything" used to be.
