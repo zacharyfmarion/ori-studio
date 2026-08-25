@@ -36,10 +36,18 @@
 //!
 //! # What it refuses to do
 //!
-//! Commit anything that is not the single, isolated answer. A vertex with two
-//! valid foldings is a **question**, not a coin flip — see [`crate::solve_k`] on
-//! why `+180` and `-180` are a real mountain/valley choice that the closure math
-//! cannot settle. Those surface as [`StallReason::Branching`] and wait.
+//! Commit anything it cannot tell apart. A vertex with two valid foldings is a
+//! real mountain/valley choice — see [`crate::solve_k`] on why `+180` and
+//! `-180` are different creases that the closure math cannot separate.
+//!
+//! A **direction hint separates them**, and where one does, this commits: see
+//! [`forced_answer`]. That is not the solver guessing, it is the solver reading
+//! an answer the user already gave, so confluence survives — a hint is a fixed
+//! property of the document rather than of the traversal, so "committable" still
+//! only grows and the fixpoint is still order-independent.
+//!
+//! Where no hint separates them, they surface as [`StallReason::Branching`] and
+//! wait.
 //!
 //! # Scope: the fan sees the whole document, the scope limits the commits
 //!
@@ -303,6 +311,46 @@ impl Scope {
     }
 }
 
+/// The one answer this pass may commit, or `None` to leave the vertex open.
+///
+/// A [`Determinacy::Determined`] vertex has exactly one folding and that is it.
+///
+/// A [`Determinacy::Branching`] vertex has several, and the closure condition
+/// cannot rank them — `+180` against `-180` is the commonest pair, the same
+/// rotation with the opposite mountain/valley, and SO(3) does not know the
+/// difference. **A direction hint does.** It is not geometry, so it must never
+/// narrow the search — a hint the user got wrong would delete the real answer,
+/// which is why [`crate::solve_fold_angles`] reports a clash rather than
+/// filtering on it. But choosing *between foldings the solver has already
+/// declared equally valid* is not narrowing anything: the hint is the only
+/// evidence in the document about which one was meant, and ignoring it means
+/// stalling on a question the user already answered.
+///
+/// Unanimity, and uniqueness, deliberately. Every hinted crease in the option
+/// must agree, and exactly one option may survive — two survivors is a hint that
+/// does not discriminate, and zero is a hint that contradicts the geometry.
+/// Both are real questions and both still stall.
+fn forced_answer<'a>(
+    model: &CreasePatternModel,
+    report: &'a crate::solve_k::KSolveReport,
+) -> Option<&'a crate::solve_k::KSolution> {
+    match report.verdict {
+        Determinacy::Determined => report.solutions.first(),
+        Determinacy::Branching => {
+            let mut matching = report.solutions.iter().filter(|option| {
+                option.angles.iter().all(|&(index, degrees)| {
+                    model.line_segments[index]
+                        .fold_direction_hint
+                        .is_none_or(|hint| hint.admits(degrees))
+                })
+            });
+            let first = matching.next()?;
+            matching.next().is_none().then_some(first)
+        }
+        _ => None,
+    }
+}
+
 /// Ordering is presentation, not correctness — the fixpoint is the same either
 /// way — but it decides which region resolves under the user's eye.
 fn sort_by_distance(points: &mut [Point], seed: Point) {
@@ -452,10 +500,10 @@ pub fn propagate(
             continue;
         }
         let report = solve_k(&working, &fan, &unknowns, closed_bar);
-        if report.no_solution.is_some() || report.verdict != Determinacy::Determined {
+        if report.no_solution.is_some() {
             continue;
         }
-        let Some(answer) = report.solutions.first() else {
+        let Some(answer) = forced_answer(&working, &report) else {
             continue;
         };
         let mut changed = false;
@@ -901,6 +949,94 @@ mod tests {
             "the last value must win, got {}",
             entries[0].1
         );
+    }
+
+    /// A ring of undecided creases has no k = 1 way in — every vertex on it
+    /// sees two unknowns and each unknown's far end is another unknown — so
+    /// every corner branches and the whole ring stalls. The branches are the
+    /// `+/-180` pair, and a hint is the only thing that separates them.
+    ///
+    /// From the reported case: unassigning a connected triangle of `penguin_90`
+    /// left three creases propagation could not recover, even though the right
+    /// answer was in its own options list at all three corners. With the hints
+    /// read, all 8 blanked creases come back at the original angles.
+    ///
+    /// Driven through [`forced_answer`] rather than a fixture because the shape
+    /// that provokes it is a *cycle*, and no committed fixture has one.
+    #[test]
+    fn a_hint_picks_the_branch_the_closure_math_cannot() {
+        fn report(options: &[&[(usize, f64)]]) -> crate::solve_k::KSolveReport {
+            crate::solve_k::KSolveReport {
+                solutions: options
+                    .iter()
+                    .map(|angles| crate::solve_k::KSolution {
+                        angles: angles.to_vec(),
+                        isolated: true,
+                        residual_degrees: 0.0,
+                        jacobian_rank: angles.len(),
+                    })
+                    .collect(),
+                isolated_count: options.len(),
+                verdict: if options.len() == 1 {
+                    crate::solve_k::Determinacy::Determined
+                } else {
+                    crate::solve_k::Determinacy::Branching
+                },
+                residual_degrees: 0.0,
+                best_residual_degrees: None,
+                no_solution: None,
+                vertex_dof: 0,
+            }
+        }
+
+        // Two creases, hinted valley and mountain, and the +/-180 pair over them.
+        let mut model = kabuto();
+        let hints = [
+            Some(crate::geometry::FoldDirection::Valley),
+            Some(crate::geometry::FoldDirection::Mountain),
+        ];
+        let first = model.line_segments.len();
+        for (offset, hint) in hints.iter().enumerate() {
+            let angle = (offset as f64) * 1.1;
+            let segment = crate::geometry::LineSegment::with_color(
+                Point::new(0.0, 0.0),
+                Point::new(100.0 * angle.cos(), 100.0 * angle.sin()),
+                LineColor::None,
+            );
+            model.line_segments.push(match hint {
+                Some(direction) => segment.with_direction_hint(Some(*direction)),
+                None => segment,
+            });
+        }
+        let (valley, mountain) = (first, first + 1);
+
+        // The pair the hints separate: valley wants +180, mountain -180.
+        let split = report(&[
+            &[(valley, -180.0), (mountain, 180.0)],
+            &[(valley, 180.0), (mountain, -180.0)],
+        ]);
+        let chosen = super::forced_answer(&model, &split).expect("the hints name one option");
+        assert_eq!(chosen.angles, vec![(valley, 180.0), (mountain, -180.0)]);
+
+        // Both options agree with the hints: the hint does not discriminate, so
+        // it is still a question.
+        let indistinct = report(&[
+            &[(valley, 180.0), (mountain, -180.0)],
+            &[(valley, 90.0), (mountain, -90.0)],
+        ]);
+        assert!(super::forced_answer(&model, &indistinct).is_none());
+
+        // Neither option agrees: the hint contradicts the geometry, which is a
+        // finding rather than a licence to pick.
+        let contradicted = report(&[
+            &[(valley, -180.0), (mountain, 180.0)],
+            &[(valley, -90.0), (mountain, 90.0)],
+        ]);
+        assert!(super::forced_answer(&model, &contradicted).is_none());
+
+        // A lone answer still commits whether or not a hint agrees with it.
+        let lone = report(&[&[(valley, -180.0), (mountain, 180.0)]]);
+        assert!(super::forced_answer(&model, &lone).is_some());
     }
 
     /// Confluence: the fixpoint does not depend on where the user clicked.
