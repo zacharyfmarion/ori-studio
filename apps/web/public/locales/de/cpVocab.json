@@ -413,11 +413,11 @@
       }
     },
     "cp_action_propagate_fold_angles": {
-      "label": "Faltwinkel ausbreiten",
-      "tooltip": "Die Faltwinkel nicht zugewiesener Falten innerhalb eines Musters oder innerhalb der Auswahl bestimmen",
+      "label": "Unentschiedene Falten lösen",
+      "tooltip": "Berechnet die Falten, die Sie unentschieden gelassen haben, innerhalb eines Musters oder der Auswahl",
       "disabledReason": "Bereit",
       "steps": {
-        "0": "Auf eine Falte oder einen Knoten als Ausgangspunkt klicken, oder Falten wählen und anwenden"
+        "0": "Auf eine Falte oder einen Punkt klicken, von dem aus gelöst wird, oder Falten auswählen und anwenden"
       }
     },
     "cp_action_vertex_solve_fold_angles": {

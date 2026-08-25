@@ -34,7 +34,7 @@
       "forcedValley": "This crease has to be a valley — drawn as one, not in the selected line type.",
       "indeterminate": "Cannot tell: a crease here is unassigned, or another crease passes through without ending here.",
       "overdetermined": "No single crease closes this vertex — at least two would be needed.",
-      "tooManyUnknowns": "Another crease here has no fold angle yet, so there is more than one unknown too many. Give it an angle, or run Propagate fold angles."
+      "tooManyUnknowns": "Another crease here has no fold angle yet, so there is more than one unknown too many. Give it an angle, or run Solve Undecided Creases."
     },
     "completionStops": "Extend to",
     "computedRatio": "Computed ratio {{s}} : {{t}}",

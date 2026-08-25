@@ -34,7 +34,7 @@
       "forcedValley": "Diese Falte muss ein Tal sein — sie wird so gezeichnet, nicht im gewählten Linientyp.",
       "indeterminate": "Nicht bestimmbar: Hier ist eine Falte nicht zugewiesen, oder eine andere Falte verläuft durch diesen Punkt, ohne dort zu enden.",
       "overdetermined": "Keine einzelne Falte schließt diesen Knoten — es wären mindestens zwei nötig.",
-      "tooManyUnknowns": "Eine weitere Falte an diesem Punkt hat noch keinen Winkel, also gibt es zu viele Unbekannte. Gib ihr einen Winkel oder führe Faltwinkel ausbreiten aus."
+      "tooManyUnknowns": "Eine weitere Falte an diesem Punkt hat noch keinen Winkel, also gibt es zu viele Unbekannte. Gib ihr einen Winkel oder führe Unentschiedene Falten lösen aus."
     },
     "completionStops": "Verlängern bis",
     "computedRatio": "Berechnetes Verhältnis {{s}} : {{t}}",

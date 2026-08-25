@@ -77,7 +77,7 @@ export function cpToolUnavailableMessage(
     case 'TooManyUnknowns':
       return t(
         'tools:cpContext.completion.tooManyUnknowns',
-        'Another crease here has no fold angle yet, so there is more than one unknown too many. Give it an angle, or run Propagate fold angles.'
+        'Another crease here has no fold angle yet, so there is more than one unknown too many. Give it an angle, or run Solve Undecided Creases.'
       );
     case 'CreasesDoNotMeet':
       return t(

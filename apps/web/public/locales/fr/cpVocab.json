@@ -413,11 +413,11 @@
       }
     },
     "cp_action_propagate_fold_angles": {
-      "label": "Propager les angles de pli",
-      "tooltip": "Déduire les angles des plis non assignés, au sein d’un patron ou au sein de la sélection",
+      "label": "Résoudre les plis indécis",
+      "tooltip": "Calcule les plis que vous avez laissés indécis, dans un seul patron ou dans la sélection",
       "disabledReason": "Prêt",
       "steps": {
-        "0": "Cliquez sur un pli ou un sommet d’où propager, ou sélectionnez des plis puis appliquez"
+        "0": "Cliquez sur un pli ou un sommet d'où partir, ou sélectionnez des plis et appliquez"
       }
     },
     "cp_action_vertex_solve_fold_angles": {

@@ -36,7 +36,7 @@
       "forcedValley": "Ce pli doit être une vallée : il est tracé ainsi, et non dans le type de ligne sélectionné.",
       "indeterminate": "Impossible de déterminer : un pli n’est pas assigné ici, ou un autre pli passe par ce point sans s’y terminer.",
       "overdetermined": "Aucun pli seul ne ferme ce sommet : il en faudrait au moins deux.",
-      "tooManyUnknowns": "Un autre pli de ce sommet n'a pas encore d'angle, il y a donc trop d'inconnues. Donnez-lui un angle ou lancez Propager les angles de pli."
+      "tooManyUnknowns": "Un autre pli de ce sommet n'a pas encore d'angle, il y a donc trop d'inconnues. Donnez-lui un angle ou lancez Résoudre les plis indécis."
     },
     "completionStops": "Prolonger jusqu’à",
     "computedRatio": "Rapport calculé {{s}} : {{t}}",

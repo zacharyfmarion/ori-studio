@@ -36,7 +36,7 @@
       "forcedValley": "Este pliegue tiene que ser valle: se traza así, no con el tipo de línea seleccionado.",
       "indeterminate": "No se puede determinar: aquí hay un pliegue sin asignar, o otro pliegue pasa por este punto sin terminar en él.",
       "overdetermined": "Ningún pliegue por sí solo cierra este vértice: harían falta al menos dos.",
-      "tooManyUnknowns": "Otro pliegue de este vértice aún no tiene ángulo, así que hay demasiadas incógnitas. Dale un ángulo o ejecuta Propagar ángulos de plegado."
+      "tooManyUnknowns": "Otro pliegue de este vértice aún no tiene ángulo, así que hay demasiadas incógnitas. Dale un ángulo o ejecuta Resolver pliegues sin decidir."
     },
     "completionStops": "Extender hasta",
     "computedRatio": "Proporción calculada {{s}} : {{t}}",

@@ -434,7 +434,15 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   }),
   ready(
     'PropagateFoldAngles',
-    'Propagate fold angles',
+    // Named for its *input*, not its output. "Propagate fold angles" read as
+    // non-flat-only — in a flat pattern you think in mountain and valley, not
+    // angles, even though +/-180 is a fold angle — and the flat case is a first
+    // class use: of the answers the isolation fix recovered, 906 of 1,038 came
+    // from the flat corpus. A crease is undecided whether its answer turns out
+    // to be +/-180 or 70.53, so the input is the one word true in both worlds.
+    // "Propagate" also described the algorithm rather than the result; it stays
+    // the operation id, where it is the right word.
+    'Solve Undecided Creases',
     'construct',
     'angle-propagate',
     'OriStudioPropagateFoldAngles',
@@ -442,9 +450,9 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
       // Two routes, because the tool takes two kinds of scope: a click resolves
       // to the pattern it lands in, a selection is the scope itself. One step
       // naming both beats a step that is wrong half the time.
-      toolSteps: ['Click a crease or vertex to propagate from, or select creases and Apply'],
+      toolSteps: ['Click a crease or vertex to solve outward from, or select creases and Apply'],
       tooltip:
-        'Work out the fold angles of unassigned creases, within one pattern or within the selection',
+        'Work out the creases you have left undecided, within one pattern or within the selection',
     }
   ),
   ready('VertexSolveFoldAngles', 'Solve fold angles', 'construct', 'angle-solve', 'OriStudioSolveVertexFoldAngles', {

@@ -413,11 +413,11 @@
       }
     },
     "cp_action_propagate_fold_angles": {
-      "label": "传播折叠角度",
-      "tooltip": "在一个折纸图内或所选内容内，推算未指定折痕的折叠角度",
+      "label": "求解未定折痕",
+      "tooltip": "求出你留作未定的折痕，可在单个展开图内或选区内进行",
       "disabledReason": "就绪",
       "steps": {
-        "0": "点击折痕或顶点作为传播起点，或选择折痕后应用"
+        "0": "点击作为起点的折痕或顶点，或选择折痕后应用"
       }
     },
     "cp_action_vertex_solve_fold_angles": {

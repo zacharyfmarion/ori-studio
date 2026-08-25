@@ -36,7 +36,7 @@
       "forcedValley": "Este vinco tem de ser vale: é desenhado assim, não no tipo de linha selecionado.",
       "indeterminate": "Não é possível determinar: há um vinco sem atribuição aqui, ou outro vinco passa por este ponto sem terminar nele.",
       "overdetermined": "Nenhum vinco sozinho fecha este vértice — seriam necessários pelo menos dois.",
-      "tooManyUnknowns": "Outro vinco neste vértice ainda não tem ângulo, então há incógnitas demais. Dê um ângulo a ele ou execute Propagar ângulos de dobra."
+      "tooManyUnknowns": "Outro vinco neste vértice ainda não tem ângulo, então há incógnitas demais. Dê um ângulo a ele ou execute Resolver vincos indecisos."
     },
     "completionStops": "Estender até",
     "computedRatio": "Proporção calculada {{s}} : {{t}}",

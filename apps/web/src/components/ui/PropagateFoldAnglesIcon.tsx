@@ -1,7 +1,7 @@
 import type { LucideProps } from 'lucide-react';
 
 /**
- * The Propagate Fold Angles tool: a bulb whose glass is a crease pattern.
+ * The Solve Undecided Creases tool: a bulb whose glass is a crease pattern.
  *
  * Drawn rather than composed, for the same reason as {@link SolveFoldAnglesIcon}
  * — the idea is the *pair*, a solution arriving and the pattern it arrives in,

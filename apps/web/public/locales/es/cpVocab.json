@@ -413,11 +413,11 @@
       }
     },
     "cp_action_propagate_fold_angles": {
-      "label": "Propagar ángulos de plegado",
-      "tooltip": "Deducir los ángulos de los pliegues sin asignar, dentro de un patrón o dentro de la selección",
+      "label": "Resolver pliegues sin decidir",
+      "tooltip": "Calcula los pliegues que has dejado sin decidir, dentro de un patrón o dentro de la selección",
       "disabledReason": "Listo",
       "steps": {
-        "0": "Haz clic en un pliegue o vértice desde donde propagar, o selecciona pliegues y aplica"
+        "0": "Haz clic en un pliegue o vértice desde el que resolver, o selecciona pliegues y aplica"
       }
     },
     "cp_action_vertex_solve_fold_angles": {
