@@ -436,7 +436,7 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     'PropagateFoldAngles',
     'Propagate fold angles',
     'construct',
-    'angle-solve',
+    'angle-propagate',
     'OriStudioPropagateFoldAngles',
     {
       // Two routes, because the tool takes two kinds of scope: a click resolves

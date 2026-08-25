@@ -101,10 +101,15 @@ import {
 } from '../../i18n/cpVocab';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip';
 import { ProtractorIcon } from '../ui/ProtractorIcon';
+import { PropagateFoldAnglesIcon } from '../ui/PropagateFoldAnglesIcon';
 import { SolveFoldAnglesIcon } from '../ui/SolveFoldAnglesIcon';
 
 /** A rail icon: any lucide icon, or a local component with the same props. */
-type CpToolIcon = LucideIcon | typeof ProtractorIcon | typeof SolveFoldAnglesIcon;
+type CpToolIcon =
+  | LucideIcon
+  | typeof ProtractorIcon
+  | typeof SolveFoldAnglesIcon
+  | typeof PropagateFoldAnglesIcon;
 
 const RAIL_GROUPS_STORAGE_KEY = storageKey(STORAGE_KEYS.cpToolRailGroups);
 
@@ -136,6 +141,7 @@ interface CpToolRailProps {
 const LUCIDE_ICONS: Record<string, CpToolIcon> = {
   ProtractorIcon,
   SolveFoldAnglesIcon,
+  PropagateFoldAnglesIcon,
   AlignJustify,
   BadgeAlert,
   BadgeCheck,
@@ -225,11 +231,17 @@ const RAIL_ICON_SIZE = 20;
  * Keyed by the component rather than by name, so an icon that is never rendered
  * here cannot leave a stale string behind.
  */
-const RAIL_ICON_SIZES = new Map<CpToolIcon, number>([[SolveFoldAnglesIcon, 23]]);
+const RAIL_ICON_SIZES = new Map<CpToolIcon, number>([
+  [SolveFoldAnglesIcon, 23],
+  // The bulb is height-bound where its neighbour is width-bound, so it needs
+  // the opposite correction to sit at the same visual weight in the slot.
+  [PropagateFoldAnglesIcon, 21],
+]);
 
 const ICON_ALIASES: Record<string, string> = {
   angle: 'ProtractorIcon',
   'angle-solve': 'SolveFoldAnglesIcon',
+  'angle-propagate': 'PropagateFoldAnglesIcon',
   compass: 'DraftingCompass',
   divide: 'Divide',
   frame: 'Scan',
