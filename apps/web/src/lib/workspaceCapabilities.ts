@@ -78,6 +78,8 @@ export type WorkspaceCapabilityId =
   | 'cp.deleteSelectedLines'
   | 'cp.changeCreaseType'
   | 'cp.advanceCreaseType'
+  | 'cp.makeUnassigned'
+  | 'cp.makeUnassignedKeepDirection'
   | 'cp.makeMountain'
   | 'cp.makeValley'
   | 'cp.makeEdge'
@@ -748,6 +750,26 @@ export function getWorkspaceCapabilities(
       hasSelectedCpLines,
       t('common:capability.advanceCreaseType', 'Advance Crease Type'),
       t('common:capability.advanceSelectedCpLineTypes', 'Advance selected crease-pattern line types'),
+      t
+    ),
+    // Both unassign verbs, for the same reason every sibling here has an entry:
+    // without one the menu item never disables, so on an empty selection these
+    // two were the only live items in a list of greyed-out ones.
+    'cp.makeUnassignedKeepDirection': selectedCpLineCapability(
+      canEditCp,
+      hasSelectedCpLines,
+      t('common:capability.makeUnassignedKeepDirection', 'Make Unassigned (Keep Direction)'),
+      t(
+        'common:capability.makeSelectedLinesUnassignedKeepDirection',
+        'Leave selected lines undecided, remembering which way they folded'
+      ),
+      t
+    ),
+    'cp.makeUnassigned': selectedCpLineCapability(
+      canEditCp,
+      hasSelectedCpLines,
+      t('common:capability.makeUnassigned', 'Make Unassigned'),
+      t('common:capability.makeSelectedLinesUnassigned', 'Leave selected lines undecided'),
       t
     ),
     'cp.makeMountain': selectedCpLineCapability(

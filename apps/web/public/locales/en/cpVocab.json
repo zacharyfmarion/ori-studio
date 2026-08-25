@@ -604,7 +604,7 @@
       "disabledReason": "Ready"
     },
     "cp_action_crease_make_unassigned": {
-      "label": "Make unassigned",
+      "label": "Make unassigned (keep direction)",
       "tooltip": "Forget what the selected lines do, leaving them undecided",
       "disabledReason": "Ready"
     },

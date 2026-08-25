@@ -573,9 +573,15 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     selectionRequirement: 'selected circles or auxiliary lines',
     tooltip: 'Apply the contextual custom color to selected circles and auxiliary lines',
   }),
+  // Named for the variant it actually performs. The bare operation keeps the
+  // direction — forgetting it needs `forget_direction` in the payload — so a
+  // shortcut bound here keeps it, and calling that "Make unassigned" gave the
+  // one bindable action the *other* menu item's name. The forgetting variant is
+  // bound separately, as a menu shortcut, since one kernel operation cannot
+  // produce two entries in a registry keyed on operations.
   ready(
     'CreaseMakeUnassigned',
-    'Make unassigned',
+    'Make unassigned (keep direction)',
     'color',
     'circle-dashed',
     'OriStudioCreaseMakeUnassigned',

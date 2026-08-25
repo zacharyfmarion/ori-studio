@@ -250,6 +250,11 @@ const MENU_SHORTCUTS: ShortcutDefinition[] = [
   menuShortcut('edit.selectAll', 'Select All', 'Edit', { primary: true, key: 'a' }, 'selectAllAction'),
   menuShortcut('optimize.scale', 'Optimize Scale', 'Design', { primary: true, key: 'r' }),
   menuShortcut('cp.build', 'Build Crease Pattern', 'Design', { primary: true, key: 'b' }),
+  // The other half of `cp.action.crease-make-unassigned`, which keeps the
+  // direction. Bound through the menu id rather than as a CP action because the
+  // two verbs are one kernel operation and a payload flag, and
+  // `buildCpShortcutDefinitions` is one-per-operation.
+  menuShortcut('cp.makeUnassigned', 'Make Unassigned', 'Crease Pattern', null),
   menuShortcut('cp.checkCamv', 'Check foldability', 'Crease Pattern', {
     primary: true,
     shift: true,
