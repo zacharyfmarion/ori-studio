@@ -44,6 +44,11 @@ It is drawn through `visibleOrieditaGridMetadata`, the existing helper for "a
 viewport that is *showing* the grid", so a document whose grid state is `Hidden`
 still exports a grid when asked rather than leaving a dead toggle.
 
+The lattice is drawn at **one weight**. The canvas draws its interval lines
+heavier, and copying that into an export made every fourth line read as a crease
+— the one thing a backdrop must not do — so `CpGridLine.major` is deliberately
+ignored here.
+
 Painting order inside the artwork: facet backgrounds, grid, creases, points —
 the grid sits on the paper and under every crease.
 

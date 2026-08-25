@@ -46,8 +46,6 @@ const VIEW_SCALE = CP_SIZE / 720;
  * compete with them.
  */
 const GRID_STROKE_WIDTH = 0.95 * VIEW_SCALE;
-/** Interval lines are drawn wider, matching the canvas `MAJOR_WIDTH_MUL`. */
-const GRID_MAJOR_WIDTH_MULTIPLIER = 1.8;
 /** One crease pattern per exported page, so a fixed id stays unique. */
 const GRID_CLIP_ID = 'cp-export-grid-clip';
 
@@ -183,9 +181,12 @@ export interface CreaseExportPalette {
   flat: string;
   unassigned: string;
   point: string;
-  /** Grid line, and its heavier counterpart on the interval lines. */
+  /**
+   * Grid line. One weight for the whole lattice — the canvas draws its interval
+   * lines heavier, but at export size that reads as a crease rather than as
+   * ruling, which is the one thing the grid must not do.
+   */
   grid: string;
-  gridMajor: string;
   /** The "black" of the monochrome line styles. */
   monochromeInk: string;
   /** Its muted counterpart (the black-and-white style's valley). */
@@ -209,7 +210,6 @@ export const CREASE_EXPORT_PALETTES: Record<CreaseExportTheme, CreaseExportPalet
     // Light enough to read as ruling on the cream paper rather than as an
     // unassigned crease, which is the nearest thing to it on the page.
     grid: '#ccd3da',
-    gridMajor: '#a7b1bb',
     monochromeInk: '#000000',
     monochromeValley: '#a2a2a2',
     title: '#111417',
@@ -229,7 +229,6 @@ export const CREASE_EXPORT_PALETTES: Record<CreaseExportTheme, CreaseExportPalet
     unassigned: '#7c8894',
     point: '#e8edf2',
     grid: '#333c46',
-    gridMajor: '#4c5762',
     monochromeInk: '#f2f4f7',
     monochromeValley: '#8b949e',
     title: '#f2f5f8',
@@ -707,9 +706,7 @@ function creaseExportGridSvg(
     .map((line) => {
       const a = project(line.a);
       const b = project(line.b);
-      const width = GRID_STROKE_WIDTH * (line.major ? GRID_MAJOR_WIDTH_MULTIPLIER : 1);
-      const stroke = line.major ? palette.gridMajor : palette.grid;
-      return `    <line x1="${a.x.toFixed(2)}" y1="${a.y.toFixed(2)}" x2="${b.x.toFixed(2)}" y2="${b.y.toFixed(2)}" stroke="${stroke}" stroke-width="${width.toFixed(2)}"/>`;
+      return `    <line x1="${a.x.toFixed(2)}" y1="${a.y.toFixed(2)}" x2="${b.x.toFixed(2)}" y2="${b.y.toFixed(2)}" stroke="${palette.grid}" stroke-width="${GRID_STROKE_WIDTH.toFixed(2)}"/>`;
     })
     .join('\n');
 

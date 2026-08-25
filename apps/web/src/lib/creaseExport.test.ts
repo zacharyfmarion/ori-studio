@@ -307,10 +307,21 @@ describe('crease pattern export grid', () => {
   it('draws the document grid when asked', () => {
     const svg = gridSvg();
 
-    // 8 divisions over the sheet is 9 lines each way; every fourth is an
-    // interval line, so 3 per axis are drawn heavier.
-    expect(countStroke(svg, CREASE_EXPORT_PALETTES.light.grid)).toBe(12);
-    expect(countStroke(svg, CREASE_EXPORT_PALETTES.light.gridMajor)).toBe(6);
+    // 8 divisions over the sheet is 9 lines each way.
+    expect(countStroke(svg, CREASE_EXPORT_PALETTES.light.grid)).toBe(18);
+  });
+
+  it('draws one weight, so no grid line can be mistaken for a crease', () => {
+    // `interval_grid_size: 4` marks every fourth line as an interval line, which
+    // the canvas draws heavier. At export size that reads as a crease, so the
+    // lattice is deliberately uniform: one stroke width, one colour.
+    const pattern = new RegExp(
+      `stroke="${CREASE_EXPORT_PALETTES.light.grid}" stroke-width="([\\d.]+)"`,
+      'g'
+    );
+    const widths = new Set(Array.from(gridSvg().matchAll(pattern), (match) => match[1]));
+
+    expect(widths.size).toBe(1);
   });
 
   it('draws nothing without the option, and nothing without a grid', () => {
