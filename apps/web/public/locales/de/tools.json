@@ -203,8 +203,6 @@
     "addFavorite": "{{tool}} zu Favoriten hinzufügen",
     "close": "Werkzeugliste schließen",
     "favorites": "Favoriten",
-    "moveFavoriteDown": "{{tool}} nach unten verschieben",
-    "moveFavoriteUp": "{{tool}} nach oben verschieben",
     "removeFavorite": "{{tool}} aus Favoriten entfernen",
     "title": "Werkzeuge",
     "trigger": "Werkzeuge"

@@ -2599,8 +2599,6 @@
     "dialogs:share.foldAngleDisplay": "192d0384d265",
     "tools:cpToolPicker.addFavorite": "5689f26d59cf",
     "tools:cpToolPicker.favorites": "7a1f2a83aca9",
-    "tools:cpToolPicker.moveFavoriteDown": "53a5cf2e2ffe",
-    "tools:cpToolPicker.moveFavoriteUp": "24c818b4b8b1",
     "tools:cpToolPicker.removeFavorite": "b589cbd61d68"
   },
   "es": {
@@ -5203,8 +5201,6 @@
     "dialogs:share.foldAngleDisplay": "192d0384d265",
     "tools:cpToolPicker.addFavorite": "5689f26d59cf",
     "tools:cpToolPicker.favorites": "7a1f2a83aca9",
-    "tools:cpToolPicker.moveFavoriteDown": "53a5cf2e2ffe",
-    "tools:cpToolPicker.moveFavoriteUp": "24c818b4b8b1",
     "tools:cpToolPicker.removeFavorite": "b589cbd61d68"
   },
   "fr": {
@@ -7807,8 +7803,6 @@
     "dialogs:share.foldAngleDisplay": "192d0384d265",
     "tools:cpToolPicker.addFavorite": "5689f26d59cf",
     "tools:cpToolPicker.favorites": "7a1f2a83aca9",
-    "tools:cpToolPicker.moveFavoriteDown": "53a5cf2e2ffe",
-    "tools:cpToolPicker.moveFavoriteUp": "24c818b4b8b1",
     "tools:cpToolPicker.removeFavorite": "b589cbd61d68"
   },
   "ja": {
@@ -10368,8 +10362,6 @@
     "dialogs:share.foldAngleDisplay": "192d0384d265",
     "tools:cpToolPicker.addFavorite": "5689f26d59cf",
     "tools:cpToolPicker.favorites": "7a1f2a83aca9",
-    "tools:cpToolPicker.moveFavoriteDown": "53a5cf2e2ffe",
-    "tools:cpToolPicker.moveFavoriteUp": "24c818b4b8b1",
     "tools:cpToolPicker.removeFavorite": "b589cbd61d68"
   },
   "ko": {
@@ -12929,8 +12921,6 @@
     "dialogs:share.foldAngleDisplay": "192d0384d265",
     "tools:cpToolPicker.addFavorite": "5689f26d59cf",
     "tools:cpToolPicker.favorites": "7a1f2a83aca9",
-    "tools:cpToolPicker.moveFavoriteDown": "53a5cf2e2ffe",
-    "tools:cpToolPicker.moveFavoriteUp": "24c818b4b8b1",
     "tools:cpToolPicker.removeFavorite": "b589cbd61d68"
   },
   "pt-BR": {
@@ -15533,8 +15523,6 @@
     "dialogs:share.foldAngleDisplay": "192d0384d265",
     "tools:cpToolPicker.addFavorite": "5689f26d59cf",
     "tools:cpToolPicker.favorites": "7a1f2a83aca9",
-    "tools:cpToolPicker.moveFavoriteDown": "53a5cf2e2ffe",
-    "tools:cpToolPicker.moveFavoriteUp": "24c818b4b8b1",
     "tools:cpToolPicker.removeFavorite": "b589cbd61d68"
   },
   "ru": {
@@ -18137,8 +18125,6 @@
     "dialogs:share.foldAngleDisplay": "192d0384d265",
     "tools:cpToolPicker.addFavorite": "5689f26d59cf",
     "tools:cpToolPicker.favorites": "7a1f2a83aca9",
-    "tools:cpToolPicker.moveFavoriteDown": "53a5cf2e2ffe",
-    "tools:cpToolPicker.moveFavoriteUp": "24c818b4b8b1",
     "tools:cpToolPicker.removeFavorite": "b589cbd61d68"
   },
   "zh-CN": {
@@ -20698,8 +20684,6 @@
     "dialogs:share.foldAngleDisplay": "192d0384d265",
     "tools:cpToolPicker.addFavorite": "5689f26d59cf",
     "tools:cpToolPicker.favorites": "7a1f2a83aca9",
-    "tools:cpToolPicker.moveFavoriteDown": "53a5cf2e2ffe",
-    "tools:cpToolPicker.moveFavoriteUp": "24c818b4b8b1",
     "tools:cpToolPicker.removeFavorite": "b589cbd61d68"
   }
 }

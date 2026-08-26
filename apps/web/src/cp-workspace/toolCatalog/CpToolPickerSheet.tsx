@@ -37,9 +37,7 @@ import { X } from 'lucide-react';
 import type { OristudioCpActionDefinition, OristudioCpActionId } from '../../lib/oristudioCpActions';
 import type { OristudioCpLineColor } from '../../engine/oristudioCpTypes';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
-import { shortcutLabelForAction } from '../../keyboard/shortcuts';
 import { cpActionLabel, cpGroupLabel } from '../../i18n/cpVocab';
-import { useShortcutResolution } from '../../store/shortcutStore';
 import { IconButton } from '../../components/ui/IconButton';
 import { CpShiftLatchToggle } from '../touchModifiers/CpShiftLatchToggle';
 import { cpRailGroups } from './cpRailActions';
@@ -65,12 +63,9 @@ export function CpToolPickerSheet({
   onSelectAction: (action: OristudioCpActionDefinition) => void;
 }) {
   const { t } = useTranslation();
-  // Read here rather than passed in: this sheet is mounted by the shell, so its
-  // hints have nobody upstream to resolve them and must name the key that
-  // actually fires under the active layout.
-  const shortcutResolution = useShortcutResolution();
-  // Same reasoning — favorites are a user preference the shell knows nothing
-  // about, so the sheet subscribes rather than being handed them.
+  // Read here rather than passed in: favorites are a user preference the shell
+  // this sheet is mounted by knows nothing about, so it subscribes rather than
+  // being handed them.
   const favorites = useCpToolFavorites();
   const toggleFavorite = useCpToolFavoriteToggle('picker-sheet');
   const title = t('tools:cpToolPicker.title', 'Tools');
@@ -174,7 +169,6 @@ export function CpToolPickerSheet({
                       isActive={activeActionId === action.id}
                       glyphOperationId={activeActionId === action.id ? activeOperationId : null}
                       available={action.uiStatus === 'ready'}
-                      shortcutLabel={shortcutLabelForAction(action.id, shortcutResolution)}
                       favorited={favorites.isFavorite(action.id)}
                       onToggleFavorite={() => toggleFavorite(action.id)}
                       onSelect={() => {
@@ -194,7 +188,6 @@ export function CpToolPickerSheet({
                 <CpToolPickerFavorites
                   activeActionId={activeActionId}
                   activeOperationId={activeOperationId}
-                  shortcutResolution={shortcutResolution}
                   onSelectAction={(action) => {
                     onSelectAction(action);
                     close();

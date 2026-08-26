@@ -19,7 +19,6 @@ export type {
   AnalyticsPropertyValue,
   AnalyticsErrorDomain,
   CommandGroup,
-  CpFavoriteReorderMethod,
   CpFavoriteSurface,
   DesignMethod,
   DesignTabSource,

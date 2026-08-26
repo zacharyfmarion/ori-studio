@@ -324,18 +324,16 @@ describe('CpToolPickerSheet favorites', () => {
     ).not.toContain('Favorites');
   });
 
-  it('moves a favorite down with the button, and only the two ends are disabled', () => {
+  /*
+   * A phone has no keyboard, so a row spends its width on the tool and nothing
+   * else: no chord badge naming a key the device cannot press, and no move
+   * buttons offering a pointer-free route it does not need.
+   */
+  it('carries neither a shortcut badge nor move buttons', () => {
     const sheet = renderSheet();
-    const before = favoriteLabels(sheet);
-
-    const firstRow = favoriteRows(sheet)[0];
-    const moveButtons = [...firstRow.querySelectorAll<HTMLElement>('.cp-tool-picker__move-button')];
-    expect(moveButtons[0]?.hasAttribute('disabled')).toBe(true);
-    act(() => {
-      moveButtons[1]?.click();
-    });
-
-    expect(favoriteLabels(sheet)).toEqual([before[1], before[0], ...before.slice(2)]);
+    expect(sheet.querySelector('.cp-tool-picker__shortcut')).toBeNull();
+    expect(sheet.querySelector('.cp-tool-picker__move-button')).toBeNull();
+    expect(sheet.querySelector('kbd')).toBeNull();
   });
 
   /*

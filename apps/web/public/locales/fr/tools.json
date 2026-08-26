@@ -211,8 +211,6 @@
     "addFavorite": "Ajouter {{tool}} aux favoris",
     "close": "Fermer la liste des outils",
     "favorites": "Favoris",
-    "moveFavoriteDown": "Déplacer {{tool}} vers le bas",
-    "moveFavoriteUp": "Déplacer {{tool}} vers le haut",
     "removeFavorite": "Retirer {{tool}} des favoris",
     "title": "Outils",
     "trigger": "Outils"

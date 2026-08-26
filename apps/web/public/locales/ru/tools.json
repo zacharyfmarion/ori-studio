@@ -219,8 +219,6 @@
     "addFavorite": "Добавить {{tool}} в избранное",
     "close": "Закрыть список инструментов",
     "favorites": "Избранное",
-    "moveFavoriteDown": "Переместить {{tool}} вниз",
-    "moveFavoriteUp": "Переместить {{tool}} вверх",
     "removeFavorite": "Удалить {{tool}} из избранного",
     "title": "Инструменты",
     "trigger": "Инструменты"

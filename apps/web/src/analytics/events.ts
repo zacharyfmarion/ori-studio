@@ -305,11 +305,13 @@ export const ANALYTICS_EVENTS = {
    * Once per completed gesture, never from the store's move — that runs at
    * pointer-move rate and would emit dozens of events per drag.
    *
-   * `method` separates the drag from the Move up / Move down menu entries, and
-   * is the point of the event. Long-press reorder has no visible affordance, so
-   * if the menu carries the traffic the gesture is undiscoverable; against
-   * `cp tool picker opened` it also says how many people who found the sheet
-   * ever curate it at all.
+   * Carries no `method`: long press and drag is the only route, so the property
+   * would be a constant. It gets one back when a second surface offers a second
+   * way, and not before.
+   *
+   * The question it answers is discoverability. The gesture has no visible
+   * affordance at all, so this count against `cp tool picker opened` is the only
+   * evidence that anyone finds it.
    */
   cpToolFavoritesReordered: 'cp tool favorites reordered',
   /**
@@ -397,9 +399,6 @@ export const DESIGN_TAB_COUNT_BUCKETS = [1, 2, 3, 5, 10] as const;
  * into `<=10`.
  */
 export const CP_FAVORITE_COUNT_BUCKETS = [0, 3, 6, 10, 20] as const;
-
-/** How a favorite got to its new position. */
-export type CpFavoriteReorderMethod = 'drag' | 'menu';
 
 /** Which surface a favorite was starred or moved from. */
 export type CpFavoriteSurface = 'picker-sheet';

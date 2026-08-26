@@ -10024,31 +10024,6 @@ button.bp-packing-alert:focus-visible {
     opacity: 0.55;
   }
 
-  /* Stacked, because two 44px-wide targets beside the star would take a third of
-     the row. Half-height each is still a comfortable aim for what is the backup
-     route to a gesture, and it keeps the row one line tall. */
-  .cp-tool-picker__move {
-    display: grid;
-    flex: 0 0 auto;
-    padding-right: var(--space-2);
-  }
-
-  .cp-tool-picker__move-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    width: 28px;
-    height: calc(var(--touch-target) / 2);
-    border: 0;
-    background: transparent;
-    color: var(--text-tertiary);
-  }
-
-  .cp-tool-picker__move-button:disabled {
-    opacity: 0.3;
-  }
-
   .cp-tool-picker__icon {
     display: inline-flex;
     flex: 0 0 auto;
@@ -10086,16 +10061,6 @@ button.bp-packing-alert:focus-visible {
     line-height: 1.3;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
-  }
-
-  .cp-tool-picker__shortcut {
-    flex: 0 0 auto;
-    padding: 2px 6px;
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
-    color: var(--text-tertiary);
-    font-family: inherit;
-    font-size: 0.66rem;
   }
 
   @keyframes cp-tool-picker-in {

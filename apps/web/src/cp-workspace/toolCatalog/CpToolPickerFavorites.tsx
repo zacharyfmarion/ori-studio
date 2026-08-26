@@ -9,13 +9,17 @@
  * is a *view* of the catalogue, not a member of it, which is also why it has no
  * `OristudioCpActionGroupId`.
  *
- * # Reordering, and its keyboard equivalent
+ * # Reordering
  *
- * Long press and drag. The gesture has no visible affordance, so it is not the
- * only route: each row also offers Move up / Move down, which is what
- * `DesignTabStrip` reached for and documents as the accessible equivalent of a
- * drag rather than a convenience. Here it is doing double duty, since it is also
- * the only route for anyone who never discovers the hold.
+ * Long press and drag, and nothing else. A pair of Move up / Move down buttons
+ * shipped here first — `DesignTabStrip`'s answer, where they are the pointer-free
+ * equivalent of its drag — and they were removed on purpose: this is the phone
+ * surface, they spent 36px of a 375px row, and the two chevrons pushed most
+ * descriptions onto a third line to offer a route for a keyboard the device does
+ * not have. What that trade costs is real and worth writing down — with the
+ * buttons gone, the drag is the only way to reorder, so VoiceOver, which claims
+ * touch and cannot perform one, has none. The cheap fix if that matters later is
+ * to bring them back visually hidden rather than to redesign the row.
  *
  * Reorder-as-you-go, like that strip: the stored array permutes live and the DOM
  * follows, so there is no placeholder to manage and no drop indicator to keep in
@@ -28,15 +32,11 @@
  * every row, and a permanent instructional row would spend height on the surface
  * with the least of it.
  */
-import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronUp } from 'lucide-react';
 import { trackCpToolFavoritesReordered } from '../../analytics';
 import { useLongPressReorder } from '../../hooks/useLongPressReorder';
-import { cpActionLabel } from '../../i18n/cpVocab';
 import type { OristudioCpActionDefinition, OristudioCpActionId } from '../../lib/oristudioCpActions';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
-import { shortcutLabelForAction, type ShortcutResolution } from '../../keyboard/shortcuts';
 import { cpFavoriteToolActions, useCpToolFavorites } from './cpToolFavorites';
 import { CpToolPickerRow } from './CpToolPickerRow';
 import { useCpToolFavoriteToggle } from './useCpToolFavoriteToggle';
@@ -47,12 +47,10 @@ const FAVORITE_ATTRIBUTE = 'data-cp-favorite';
 export function CpToolPickerFavorites({
   activeActionId,
   activeOperationId,
-  shortcutResolution,
   onSelectAction,
 }: {
   activeActionId: OristudioCpActionId | null;
   activeOperationId: OristudioCpOperationId | null;
-  shortcutResolution: ShortcutResolution;
   onSelectAction: (action: OristudioCpActionDefinition) => void;
 }) {
   const { t } = useTranslation();
@@ -62,24 +60,17 @@ export function CpToolPickerFavorites({
   const actions = cpFavoriteToolActions();
   const toggleFavorite = useCpToolFavoriteToggle('picker-sheet');
 
-  const reportReorder = useCallback(
-    (toIndex: number, method: 'drag' | 'menu') => {
-      trackCpToolFavoritesReordered({
-        method,
-        surface: 'picker-sheet',
-        toIndex,
-        favoriteCount: ids.length,
-      });
-    },
-    [ids.length]
-  );
-
   const { draggingId, handlers, consumeClick } = useLongPressReorder({
     itemAttribute: FAVORITE_ATTRIBUTE,
     onReorder: (id, toIndex) => move(id as OristudioCpActionId, toIndex),
     // Once per gesture, on release. `move` runs at pointer-move rate and would
     // otherwise emit dozens of events for one drag.
-    onDragEnd: (_id, toIndex) => reportReorder(toIndex, 'drag'),
+    onDragEnd: (_id, toIndex) =>
+      trackCpToolFavoritesReordered({
+        surface: 'picker-sheet',
+        toIndex,
+        favoriteCount: ids.length,
+      }),
   });
 
   if (actions.length === 0) return null;
@@ -89,7 +80,7 @@ export function CpToolPickerFavorites({
     <section className="cp-tool-picker__group">
       <h3 className="cp-tool-picker__group-title">{title}</h3>
       <ul className="cp-tool-picker__list" aria-label={title}>
-        {actions.map((action, index) => (
+        {actions.map((action) => (
           // Namespaced, because this same action also renders in its own group
           // below and two identical keys in one tree is a collision.
           <CpToolPickerRow
@@ -98,83 +89,13 @@ export function CpToolPickerFavorites({
             isActive={activeActionId === action.id}
             glyphOperationId={activeActionId === action.id ? activeOperationId : null}
             available={action.uiStatus === 'ready'}
-            shortcutLabel={shortcutLabelForAction(action.id, shortcutResolution)}
             favorited
             onToggleFavorite={() => toggleFavorite(action.id)}
             onSelect={() => onSelectAction(action)}
             reorder={{ handlers, dragging: draggingId === action.id, consumeClick }}
-            trailing={
-              <CpToolMoveControls
-                toolLabel={cpActionLabel(t, action)}
-                index={index}
-                canMoveUp={index > 0}
-                canMoveDown={index < actions.length - 1}
-                onMove={(toIndex) => {
-                  move(action.id, toIndex);
-                  reportReorder(toIndex, 'menu');
-                }}
-              />
-            }
           />
         ))}
       </ul>
     </section>
-  );
-}
-
-/**
- * Move up / Move down, the keyboard-reachable half of the reorder.
- *
- * Rendered as real buttons in the row rather than hidden behind a context menu:
- * this surface is a phone, where there is no right-click to hide them behind,
- * and they double as the visible hint that the list is orderable at all — which
- * a long press with no affordance badly needs.
- */
-function CpToolMoveControls({
-  toolLabel,
-  index,
-  canMoveUp,
-  canMoveDown,
-  onMove,
-}: {
-  toolLabel: string;
-  index: number;
-  canMoveUp: boolean;
-  canMoveDown: boolean;
-  onMove: (toIndex: number) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <span className="cp-tool-picker__move">
-      <button
-        type="button"
-        className="cp-tool-picker__move-button"
-        aria-label={t('tools:cpToolPicker.moveFavoriteUp', 'Move {{tool}} up', { tool: toolLabel })}
-        disabled={!canMoveUp}
-        // The row owns a press-and-hold; a press starting here is not a drag.
-        onPointerDown={(event) => event.stopPropagation()}
-        onClick={(event) => {
-          event.stopPropagation();
-          onMove(index - 1);
-        }}
-      >
-        <ChevronUp size={14} />
-      </button>
-      <button
-        type="button"
-        className="cp-tool-picker__move-button"
-        aria-label={t('tools:cpToolPicker.moveFavoriteDown', 'Move {{tool}} down', {
-          tool: toolLabel,
-        })}
-        disabled={!canMoveDown}
-        onPointerDown={(event) => event.stopPropagation()}
-        onClick={(event) => {
-          event.stopPropagation();
-          onMove(index + 1);
-        }}
-      >
-        <ChevronDown size={14} />
-      </button>
-    </span>
   );
 }

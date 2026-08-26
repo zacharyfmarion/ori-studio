@@ -195,8 +195,6 @@
     "addFavorite": "{{tool}}을(를) 즐겨찾기에 추가",
     "close": "도구 목록 닫기",
     "favorites": "즐겨찾기",
-    "moveFavoriteDown": "{{tool}} 아래로 이동",
-    "moveFavoriteUp": "{{tool}} 위로 이동",
     "removeFavorite": "{{tool}}을(를) 즐겨찾기에서 제거",
     "title": "도구",
     "trigger": "도구"

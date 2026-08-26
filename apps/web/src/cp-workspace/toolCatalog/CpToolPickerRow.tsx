@@ -1,6 +1,11 @@
 /**
  * One tool in the picker: a star, a glyph, a name and a description.
  *
+ * It used to carry the tool's keyboard shortcut too, and no longer does. This
+ * sheet is the *phone* tool surface — the layout with no rail — so the chord it
+ * was naming is one nothing on that device can press, and a `kbd` badge spent
+ * width on the narrowest screen to say something untrue of it.
+ *
  * # Two buttons, not one
  *
  * This row was a single `<button>` end to end until the star arrived. A control
@@ -17,7 +22,6 @@
  * Draw when starred would make the sheet's structure shift underfoot. So this
  * renders in two lists, and `reorder` is the only difference between them.
  */
-import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { OristudioCpActionDefinition } from '../../lib/oristudioCpActions';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
@@ -38,25 +42,20 @@ export function CpToolPickerRow({
   isActive,
   glyphOperationId,
   available,
-  shortcutLabel,
   favorited,
   onToggleFavorite,
   onSelect,
   reorder,
-  trailing,
 }: {
   action: OristudioCpActionDefinition;
   isActive: boolean;
   glyphOperationId: OristudioCpOperationId | null;
   available: boolean;
-  shortcutLabel?: string;
   favorited: boolean;
   onToggleFavorite: () => void;
   onSelect: () => void;
   /** Present only in the Favorites section, which is the one list you can reorder. */
   reorder?: CpToolPickerRowReorder;
-  /** Controls after the select target — the Favorites section's move buttons. */
-  trailing?: ReactNode;
 }) {
   const { t } = useTranslation();
   const label = cpActionLabel(t, action);
@@ -98,9 +97,7 @@ export function CpToolPickerRow({
           */}
           <span className="cp-tool-picker__hint">{cpActionTooltip(t, action)}</span>
         </span>
-        {shortcutLabel && <kbd className="cp-tool-picker__shortcut">{shortcutLabel}</kbd>}
       </button>
-      {trailing}
     </li>
   );
 }
