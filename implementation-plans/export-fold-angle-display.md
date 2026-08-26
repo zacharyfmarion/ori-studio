@@ -314,6 +314,7 @@ what `AGENTS.md` tells us not to do.
       `cp-workspace/` import is exactly the kind of thing that bundles
       differently than it tests, so the production build was worth running
 - [ ] Browser checklist below
+- [x] Draft PR — https://github.com/zacharyfmarion/ori-studio/pull/307
 
 ## Browser checklist (author)
 
