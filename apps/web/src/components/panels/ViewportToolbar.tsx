@@ -14,6 +14,7 @@ import {
 import { IconButton } from '../ui/IconButton';
 import { primaryModifierLabel } from '../../lib/platform';
 import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
+import { useIsPhoneLayout } from '../../platform/phoneLayout';
 import { ViewportToolbarOverflowMenu } from './ViewportToolbarOverflowMenu';
 import {
   planViewportToolbar,
@@ -246,6 +247,25 @@ interface ViewportToolbarProps {
    * between two runs is drawn by the bar rather than by the caller.
    */
   groups?: readonly ViewportToolbarGroupSpec[];
+  /**
+   * What the shared view controls do on the **phone** layout.
+   *
+   * `'inline'`, the default, is today's behaviour everywhere. `'collapsed'`
+   * hands the bar over to {@link groups}: the zoom buttons and their readout go
+   * entirely, and Fit, pan and the rotation controls fall into the overflow
+   * menu despite being pinned.
+   *
+   * Opt-in per call site rather than a blanket phone rule, because the trade is
+   * only worth it where the caller has something better to put there. A phone
+   * has no tool rail, so its bar is the only strip a surface owns — but that is
+   * an argument for spending it, not for emptying it, and a surface with no
+   * groups of its own would just end up with a bar holding one button.
+   *
+   * What it costs is real: pinch scales about the finger centroid, so it pans
+   * while it zooms, and the buttons were the only way to change scale without
+   * moving the view. Fit, one tap away in the menu, is the recovery.
+   */
+  phoneViewControls?: 'inline' | 'collapsed';
 }
 
 /**
@@ -279,12 +299,25 @@ export function ViewportToolbar({
   rotateCcwShortcutLabel,
   rotateCwShortcutLabel,
   groups = [],
+  phoneViewControls = 'inline',
 }: ViewportToolbarProps) {
   const { t } = useTranslation();
   const coarse = useIsCoarsePointerSurface();
+  // `useIsPhoneLayout`, not `useIsPhoneSurface`: this is a question about the
+  // viewport, and the latter is false on both Tauri shells — a native iPhone
+  // build would take the tablet arrangement through it.
+  const phoneLayout = useIsPhoneLayout();
+  const handOverBar = phoneLayout && phoneViewControls === 'collapsed';
 
   const rotateCcwLabel = t('tools:viewport.rotateCcw', 'Rotate view left');
   const rotateCwLabel = t('tools:viewport.rotateCw', 'Rotate view right');
+
+  // Two answers, applied to every shared control below: zoom leaves outright
+  // because a pinch replaces it, and everything else keeps a home in the menu
+  // because nothing replaces it. Named here rather than repeated so the split
+  // is one decision instead of six.
+  const zoomOnPhone = handOverBar ? ('omit' as const) : undefined;
+  const viewOnPhone = handOverBar ? ('collapse' as const) : undefined;
 
   const plan = planViewportToolbar(
     [
@@ -301,11 +334,20 @@ export function ViewportToolbar({
             // well; these are the only way to change scale without panning, and
             // a stylus is excluded from pinching outright.
             pinned: true,
+            // Dropped rather than collapsed where a caller has handed the bar
+            // over. A two-finger pinch is on every phone and covers this well
+            // enough that two menu rows for it would crowd out the verbs that
+            // have no gesture at all.
+            onPhone: zoomOnPhone,
           },
           {
             kind: 'node',
             id: 'zoom-readout',
             node: <ZoomReadout zoomPercent={zoomPercent} setZoomLevel={setZoomLevel} />,
+            // Goes with the buttons it reads for. A percentage alone, with
+            // nothing beside it to change, is a diagnostic rather than a
+            // control.
+            onPhone: zoomOnPhone,
           },
           {
             kind: 'action',
@@ -314,6 +356,7 @@ export function ViewportToolbar({
             icon: <ZoomIn size={14} />,
             onSelect: zoomIn,
             pinned: true,
+            onPhone: zoomOnPhone,
           },
         ],
       },
@@ -329,6 +372,10 @@ export function ViewportToolbar({
             // No gesture frames the paper, and it is what a hand reaches for
             // straight after a pinch.
             pinned: true,
+            // The one control the phone handover keeps rather than drops: with
+            // the zoom buttons gone this is the only way back from a pinch that
+            // has wandered, so it collapses into the menu instead of leaving.
+            onPhone: viewOnPhone,
           },
           togglePanTool && {
             kind: 'action',
@@ -387,7 +434,8 @@ export function ViewportToolbar({
       },
       ...groups,
     ],
-    coarse
+    coarse,
+    phoneLayout
   );
 
   const inlineGroups =

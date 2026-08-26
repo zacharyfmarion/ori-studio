@@ -200,6 +200,7 @@
     "changeFoldedColor": "折り上がり図の色を変更",
     "changeFoldedDisplayStyle": "折り上がり図の表示スタイルを変更",
     "changeFoldedModel": "折り上がり図を変更",
+    "closeFoldedModels": "折り上がりモデルを閉じる",
     "commandFailed": "コマンドが失敗しました",
     "couldNotOpenForEditing": "この展開図は編集用に開けませんでした。",
     "couldNotOpenForEditingHint": "読み取り専用で表示されています。表示、折り、書き出しは引き続き行えます。",

@@ -29,8 +29,6 @@ import type {
   OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureModel,
-  OristudioCpFoldedFigureState,
-  OristudioCpRgbColor,
   OristudioCpLineColor,
   OristudioCpLineSegment,
   OristudioCpSnapCandidates,
@@ -111,17 +109,16 @@ import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglC
 import type { CpOverlayView, StepKind } from '../../cp-workspace/CreasePatternWebglCanvas';
 import { cpCamera } from '../../cp-workspace/renderer/cpCameraRegistry';
 import { publishCpToolSurface } from '../../cp-workspace/toolCatalog/cpToolSurface';
+import { FoldedFigureControls } from '../../cp-workspace/folded/FoldedFigureControls';
+import { FoldedFigureModal } from '../../cp-workspace/folded/FoldedFigureModal';
+import { useCpFavoriteToolbarGroup } from '../../cp-workspace/toolCatalog/useCpFavoriteToolbarGroup';
+import { useIsPhoneLayout } from '../../platform/phoneLayout';
 import type { CpContextMenuRequest } from '../../cp-workspace/contextMenuTarget';
-import { isFoldedFigureReady } from '../../cp-workspace/folded/foldedFigureActions';
-import { foldedFigureCapabilities } from '../../cp-workspace/folded/foldedFigureCapabilities';
-import { foldedFigureSubtitle } from '../../cp-workspace/folded/foldedFigureNotice';
 // Registers `__foldedStaleDebug()` in dev builds; no-op in production.
 import '../../cp-workspace/folded/foldedFigureStalenessDebug';
 // Registers `__inlineSimStaleDebug()` in dev builds; no-op in production.
 import '../../cp-workspace/inlineSimulation/inlineSimulationStalenessDebug';
-import { hexToRgbColor, rgbColorToHex } from '../../lib/rgbColor';
 import { DECODABLE_IMAGE_ACCEPT } from '../../lib/imageFormats';
-import { FOLDED_FIGURE_SIDES, type FoldedFigureSide } from '../../lib/foldedFigureSides';
 import { useWorkspaceErrorText } from '../../hooks/useWorkspaceErrorText';
 import { ContextMenu } from '../ui/ContextMenu';
 import type { ContextMenuRequest } from '../ui/contextMenuTypes';
@@ -141,7 +138,6 @@ import { CpFoldedFigureToolbar } from '../../cp-workspace/folded/CpFoldedFigureT
 import { useFoldedFigures } from '../../cp-workspace/folded/useFoldedFigures';
 import { foldedFigureMenuItemsWith } from '../../cp-workspace/folded/foldedFigureMenuItems';
 import { selectedCanvasObjectId as selectedCanvasObjectIdOf } from '../../cp-workspace/canvasObjects/transformableObject';
-import { foldedAppearanceEnabled } from '../../cp-workspace/folded/foldedFigureAppearance';
 import { InlineSimulationLayer } from '../../cp-workspace/InlineSimulationLayer';
 import { Folded3dWindowLayer } from '../../cp-workspace/Folded3dWindowLayer';
 import { InlineSimulationInspector } from '../../cp-workspace/InlineSimulationInspector';
@@ -206,11 +202,8 @@ import {
   readCpMeasurePreferences,
   writeCpMeasurePreferences,
 } from '../../cp-workspace/measurePreferences';
-import { ColorField } from '../ui/ColorField';
 import { IconButton } from '../ui/IconButton';
 import { SurfaceLoading } from '../ui/SurfaceLoading';
-import { SegmentedControl } from '../ui/SegmentedControl';
-import { Toggle } from '../ui/Toggle';
 import { CpToolRail } from './CpToolRail';
 import { withShiftLatch } from '../../cp-workspace/touchModifiers/shiftLatch';
 import { NextDocumentAction } from './NextDocumentAction';
@@ -232,66 +225,6 @@ function formatZoom(scale: number): string {
  * origami work is laid out along.
  */
 const VIEW_ROTATION_STEP_RADIANS = Math.PI / 16;
-
-const FOLDED_DISPLAY_STYLE_OPTIONS: OristudioCpFoldedFigureDisplayStyle[] = [
-  'Paper5',
-  'Transparent3',
-  'Wire2',
-];
-
-function foldedDisplayStyleLabel(t: TFunction, value: OristudioCpFoldedFigureDisplayStyle): string {
-  switch (value) {
-    case 'Paper5':
-      return t('panels:creasePattern.foldedStyle.paper', 'Paper');
-    case 'Transparent3':
-      return t('panels:creasePattern.foldedStyle.transparent', 'Transparent');
-    case 'Wire2':
-      return t('panels:creasePattern.foldedStyle.wire', 'Wire');
-    case 'Development1':
-      return t('panels:creasePattern.foldedStyle.dev1', 'Dev 1');
-    case 'Development4':
-      return t('panels:creasePattern.foldedStyle.dev4', 'Dev 4');
-    case 'None0':
-      return t('panels:creasePattern.foldedStyle.none', 'None');
-    default:
-      return value;
-  }
-}
-
-// Spelled out rather than initialled. Two options no longer need the abbreviation,
-// and the word is its own tooltip.
-function foldedStateLabel(t: TFunction, value: FoldedFigureSide): string {
-  switch (value) {
-    case 'Front0':
-      return t('panels:creasePattern.foldedState.front', 'Front');
-    case 'Back1':
-      return t('panels:creasePattern.foldedState.back', 'Back');
-  }
-}
-
-// Front/back/line color pickers for a folded model (Oriedita's Front/Back/Line
-// color actions). Fallbacks mirror the Rust FoldedFigureModel defaults.
-type FoldedColorKey = 'front_color' | 'back_color' | 'line_color';
-const FOLDED_COLOR_FIELDS: Array<{ key: FoldedColorKey; fallback: OristudioCpRgbColor }> = [
-  { key: 'front_color', fallback: { red: 255, green: 255, blue: 50 } },
-  { key: 'back_color', fallback: { red: 233, green: 233, blue: 233 } },
-  { key: 'line_color', fallback: { red: 0, green: 0, blue: 0 } },
-];
-
-// Named "… color" rather than "Front" / "Back", which the Side control directly
-// above these rows already uses for the view.
-function foldedColorLabel(t: TFunction, key: FoldedColorKey): string {
-  switch (key) {
-    case 'front_color':
-      return t('panels:creasePattern.foldedColor.front', 'Front color');
-    case 'back_color':
-      return t('panels:creasePattern.foldedColor.back', 'Back color');
-    case 'line_color':
-      return t('panels:creasePattern.foldedColor.line', 'Line color');
-    default:
-      return key;
-  }
-}
 
 /**
  * The measure tool's per-step prompt. Literal `t()` keys so the i18n extractor
@@ -546,28 +479,6 @@ function FoldedFigureMenuButton({
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  // A flat figure keeps its model in the kernel snapshot, a 3D one on
-  // `folded3d`. Reading only the first left every control on this menu
-  // showing its fallback for a 3D figure.
-  const model = activeFigure?.snapshot?.model ?? activeFigure?.folded3d?.model ?? null;
-  const capabilities = foldedFigureCapabilities(activeFigure);
-  // A 3D figure is "ready" without a flat snapshot — that is the kind witness,
-  // not a missing field — but its *model* controls stay off, because it keeps no
-  // appearance in the kernel to change.
-  const activeReady = activeFigure ? isFoldedFigureReady(activeFigure) : false;
-  const modelReady = activeReady && capabilities.editModel;
-
-  // Keep any display style already saved on a document selectable even if it is no
-  // longer offered as a fresh choice (e.g. legacy Dev/None figures).
-  const currentDisplayStyle = activeFigure?.displayStyle ?? 'Paper5';
-  // Filtered rather than replaced, so this dropdown keeps its own order while
-  // the capability list decides membership.
-  const offeredDisplayStyles = FOLDED_DISPLAY_STYLE_OPTIONS.filter((value) =>
-    capabilities.styleChoices.includes(value)
-  );
-  const foldedDisplayStyleOptions = offeredDisplayStyles.includes(currentDisplayStyle)
-    ? offeredDisplayStyles
-    : [...offeredDisplayStyles, currentDisplayStyle];
 
   useEffect(() => {
     if (!open) return undefined;
@@ -599,120 +510,15 @@ function FoldedFigureMenuButton({
           role="menu"
           aria-label={t('panels:creasePattern.foldedModelControls', 'Folded model controls')}
         >
-          <div className="folded-figure-menu__header">
-            <span>{t('panels:creasePattern.foldedModels', 'Folded models')}</span>
-            <span>{activeFigure ? activeFigure.title : t('panels:creasePattern.none', 'None')}</span>
-          </div>
-          {figures.length > 0 && (
-            <div className="folded-figure-menu__list">
-              {figures.map((figure) => (
-                <button
-                  key={figure.id}
-                  type="button"
-                  className="folded-figure-menu__figure"
-                  data-active={figure.id === activeFigure?.id ? true : undefined}
-                  data-status={figure.status}
-                  role="menuitemradio"
-                  aria-checked={figure.id === activeFigure?.id}
-                  onClick={() => onSelectFigure(figure.id)}
-                >
-                  <span>{figure.title}</span>
-                  <small data-stale={staleFigureIds.has(figure.id) || undefined}>
-                    {foldedFigureSubtitle(t, figure, staleFigureIds.has(figure.id))}
-                  </small>
-                </button>
-              ))}
-            </div>
-          )}
-          <label className="folded-figure-menu__field">
-            <span>{t('panels:creasePattern.display', 'Display')}</span>
-            <select
-              aria-label={t('panels:creasePattern.foldedDisplayStyle', 'Folded display style')}
-              value={activeFigure?.displayStyle ?? 'Paper5'}
-              disabled={!activeReady}
-              onChange={(event) =>
-                onDisplayStyle(event.currentTarget.value as OristudioCpFoldedFigureDisplayStyle)
-              }
-            >
-              {foldedDisplayStyleOptions.map((value) => (
-                <option key={value} value={value}>
-                  {foldedDisplayStyleLabel(t, value)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="folded-figure-menu__field folded-figure-menu__field--segmented">
-            <span>{t('panels:creasePattern.side', 'Side')}</span>
-            {/* The value is the kernel's full state, not just the two offered
-                sides: a figure loaded from Oriedita in an overlay state keeps
-                rendering as saved, and marks neither side current until one is
-                picked. */}
-            <SegmentedControl<OristudioCpFoldedFigureState>
-              aria-label={t('panels:creasePattern.foldedModelSide', 'Folded model side')}
-              options={FOLDED_FIGURE_SIDES.map((value) => ({
-                value,
-                label: foldedStateLabel(t, value),
-              }))}
-              value={model?.state ?? 'Front0'}
-              disabled={!modelReady}
-              onChange={(state) => onModelUpdate({ state })}
-            />
-          </div>
-          {/* `inline`, not `row`: a dropdown is not an options pane, and the ruled,
-              padded rows a `control-row` draws would not match the fields above. */}
-          {FOLDED_COLOR_FIELDS.map((field) => (
-            <ColorField
-              key={field.key}
-              layout="inline"
-              label={foldedColorLabel(t, field.key)}
-              value={rgbColorToHex(model?.[field.key] ?? field.fallback)}
-              disabled={!modelReady}
-              onChange={(value) =>
-                onModelUpdate({ [field.key]: hexToRgbColor(value) }, `color:${field.key}`)
-              }
-              onCommit={() =>
-                onModelGestureEnd(
-                  `color:${field.key}`,
-                  t('panels:creasePattern.changeFoldedColor', 'Change folded model color')
-                )
-              }
-            />
-          ))}
-          {/* No Case field: stepping through the layer-ordering solutions is
-              "Another solution" on the figure's own toolbar and context menu. */}
-          <div
-            className="folded-figure-menu__toggle-row"
-            // Shown but disabled on a 3D figure rather than hidden: a control
-            // that disappears between figure kinds reads as a bug, and one that
-            // is enabled and does nothing is worse than either. The title says
-            // which case this is. See `foldedFigureAppearance`.
-            title={
-              activeFigure && !foldedAppearanceEnabled(activeFigure, 'shadow')
-                ? t(
-                    'panels:creasePattern.shadowUnsupported3d',
-                    'Shadows are not drawn for a 3D folded model yet'
-                  )
-                : undefined
-            }
-          >
-            <span>{t('panels:creasePattern.shadow', 'Shadow')}</span>
-            <Toggle
-              checked={model?.display_shadows ?? false}
-              disabled={
-                !modelReady || (activeFigure ? !foldedAppearanceEnabled(activeFigure, 'shadow') : false)
-              }
-              onChange={(display_shadows) => onModelUpdate({ display_shadows })}
-              aria-label={t('panels:creasePattern.showFoldedModelShadow', 'Show folded model shadow')}
-            />
-          </div>
-          {/* No Color alpha toggle: it only reaches the Transparent display
-              style, and transparency is not a supported surface right now. The
-              model keeps `transparency_color` so Oriedita files round-trip.
-
-              No Duplicate or Delete either: both act on one figure, and the
-              figure's own toolbar and context menu already carry them — from
-              `foldedFigureActions`, acting on the figure you clicked rather than
-              on whichever happens to be active. */}
+          <FoldedFigureControls
+            figures={figures}
+            activeFigure={activeFigure}
+            staleFigureIds={staleFigureIds}
+            onSelectFigure={onSelectFigure}
+            onDisplayStyle={onDisplayStyle}
+            onModelUpdate={onModelUpdate}
+            onModelGestureEnd={onModelGestureEnd}
+          />
         </div>
       )}
     </div>
@@ -1300,6 +1106,12 @@ export function CreasePatternPanel() {
     return foldedGeometryFromShapes(faces, edges);
   }, [importedFoldedForms, generatedFoldedFigures, currentTheme]);
   const camvIssuesVisible = oristudioCpViewport.camvIssuesVisible !== false;
+  // The layout with no tool rail, which is the one that hands its viewport bar
+  // over to the favorites.
+  const phoneLayout = useIsPhoneLayout();
+  // Phone-only: the same controls the dropdown holds, in a frame that needs no
+  // anchor. See `FoldedFigureModal`.
+  const [foldedModalOpen, setFoldedModalOpen] = useState(false);
   const hasEditableCreasePattern = !!editableCp;
   // `importedCreasePattern` is named directly rather than inferred from
   // `project.creases`. A crease pattern is not a design, so a `.cp` opened on its
@@ -3016,7 +2828,35 @@ export function CreasePatternPanel() {
         },
         {
           id: 'fold',
-          items: [
+          items: phoneLayout
+            ? // Two actions rather than the node below, so both can collapse
+              // into the overflow menu — a node cannot, by design, and the bar
+              // this used to sit on now belongs to the favorites. Fold keeps
+              // its verb; the figure menu becomes a modal, because a popover
+              // anchored to a menu item would be a popover inside that menu's
+              // focus trap.
+              [
+                {
+                  kind: 'action' as const,
+                  id: 'fold',
+                  label: t('panels:creasePattern.fold', 'Fold'),
+                  disabled: !canFoldSelectedModel,
+                  icon: <Origami size={14} />,
+                  onSelect: folded.foldModel,
+                },
+                {
+                  kind: 'action' as const,
+                  id: 'folded-models',
+                  label: t('panels:creasePattern.foldedModels', 'Folded models'),
+                  icon: <ListChecks size={14} />,
+                  // Without this the menu's focus restore lands after the
+                  // modal's own, and the dialog opens with focus on the
+                  // toolbar button behind it.
+                  opensDialog: true,
+                  onSelect: () => setFoldedModalOpen(true),
+                },
+              ]
+            : [
             {
               kind: 'node',
               id: 'fold',
@@ -3049,10 +2889,21 @@ export function CreasePatternPanel() {
                 </div>
               ),
             },
-          ],
+              ],
         },
       ]
     : [];
+
+  // The phone's bar carries tools instead of view controls — see
+  // `useCpFavoriteToolbarGroup` for why, and `phoneViewControls` below for what
+  // the controls it displaced do instead. Last, so the favorites sit where the
+  // overflow trigger is nearest.
+  const favoriteToolbarGroup = useCpFavoriteToolbarGroup({
+    enabled: hasEditableCreasePattern && phoneLayout,
+    activeActionId: cpToolState.activeActionId,
+    activeOperationId: cpToolState.activeOperationId,
+    onSelectAction: handleCpToolAction,
+  });
 
   // A shared link opened by id is the one provisioning path that waits on the network, and
   // it can wait up to a minute while KV propagates. Without this it looks like an ordinary
@@ -3415,8 +3266,29 @@ export function CreasePatternPanel() {
                 rotateCcwShortcutLabel={shortcutLabelForAction('viewport.rotateCcw', shortcutResolution)}
                 rotateCwShortcutLabel={shortcutLabelForAction('viewport.rotateCw', shortcutResolution)}
                 resetViewRotation={() => cpCamera()?.rotateReset()}
-                groups={viewportGroups}
+                groups={
+                  favoriteToolbarGroup ? [...viewportGroups, favoriteToolbarGroup] : viewportGroups
+                }
+                phoneViewControls="collapsed"
               />
+              {/* Mounted beside the bar rather than inside it: it is a dialog,
+                  not a control, and the bar's own stacking context would cap a
+                  `--z-modal` layer at the canvas-overlay band. Gated on the
+                  layout as well as the flag so a rotation into the tablet
+                  arrangement takes the dropdown back rather than stranding a
+                  modal with no way to have been opened. */}
+              {editableCp && phoneLayout && foldedModalOpen && (
+                <FoldedFigureModal
+                  close={() => setFoldedModalOpen(false)}
+                  figures={oristudioCpFoldedFigures}
+                  activeFigure={activeFoldedFigure}
+                  staleFigureIds={staleFoldedFigureIds}
+                  onSelectFigure={setOristudioCpActiveFoldedFigure}
+                  onDisplayStyle={folded.setDisplayStyle}
+                  onModelUpdate={folded.updateModel}
+                  onModelGestureEnd={folded.endModelGesture}
+                />
+              )}
               {/* Outside the bar rather than in it: the picker is
                   `display: none`, so as a toolbar item it would be a group with
                   nothing visible in it — and the bar draws a hairline between

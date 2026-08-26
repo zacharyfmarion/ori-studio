@@ -211,6 +211,7 @@
     "addFavorite": "Ajouter {{tool}} aux favoris",
     "close": "Fermer la liste des outils",
     "favorites": "Favoris",
+    "favoritesHint": "Les {{limit}} premiers favoris de cette liste apparaissent dans la barre du bas. Appuyez longuement et faites glisser pour les réorganiser.",
     "removeFavorite": "Retirer {{tool}} des favoris",
     "title": "Outils",
     "trigger": "Outils"

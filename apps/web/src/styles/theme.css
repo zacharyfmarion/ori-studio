@@ -1379,6 +1379,27 @@
   max-height: calc(100vh - var(--space-6));
 }
 
+/*
+ * Eleven controls, on the shortest screen the app runs on. The dropdown this
+ * replaces could size to its content because it hung over the canvas; a modal is
+ * centred, so it caps and scrolls instead — otherwise the header and the last
+ * colour field leave the viewport together.
+ */
+.folded-figure-modal__document {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - var(--safe-top) - var(--safe-bottom) - var(--space-6));
+}
+
+.folded-figure-modal__body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  /* Reaching the end must not start scrolling the canvas behind it. */
+  overscroll-behavior: contain;
+}
+
 .simple-modal__header,
 .simple-modal__footer {
   display: flex;
@@ -9891,6 +9912,16 @@ button.bp-packing-alert:focus-visible {
     margin: 0;
     padding: 0;
     list-style: none;
+  }
+
+  /* Indented to the row text rather than the section, so it reads as belonging
+     to the list under it and not to the heading above. */
+  .cp-tool-picker__note {
+    margin: 0;
+    padding: 0 var(--space-3) var(--space-2) calc(var(--touch-target) + var(--space-1));
+    color: var(--text-tertiary);
+    font-size: 0.68rem;
+    line-height: 1.35;
   }
 
   /* The line types, as the same segmented group the rail draws — see

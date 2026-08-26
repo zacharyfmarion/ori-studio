@@ -195,6 +195,7 @@
     "addFavorite": "将{{tool}}添加到收藏",
     "close": "关闭工具列表",
     "favorites": "收藏",
+    "favoritesHint": "这里的前 {{limit}} 个收藏会显示在底部工具栏中。长按并拖动即可重新排序。",
     "removeFavorite": "从收藏中移除{{tool}}",
     "title": "工具",
     "trigger": "工具"

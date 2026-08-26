@@ -208,6 +208,7 @@
     "changeFoldedColor": "Cambiar color del modelo plegado",
     "changeFoldedDisplayStyle": "Cambiar estilo de visualización plegada",
     "changeFoldedModel": "Cambiar modelo plegado",
+    "closeFoldedModels": "Cerrar modelos plegados",
     "commandFailed": "El comando falló",
     "couldNotOpenForEditing": "No se pudo abrir este patrón de pliegues para editarlo.",
     "couldNotOpenForEditingHint": "Se muestra en modo de solo lectura. Aún puedes verlo, plegarlo y exportarlo.",

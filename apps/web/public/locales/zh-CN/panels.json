@@ -200,6 +200,7 @@
     "changeFoldedColor": "更改折叠模型颜色",
     "changeFoldedDisplayStyle": "更改折叠显示样式",
     "changeFoldedModel": "更改折叠模型",
+    "closeFoldedModels": "关闭折叠模型",
     "commandFailed": "命令失败",
     "couldNotOpenForEditing": "无法打开此折痕图进行编辑。",
     "couldNotOpenForEditingHint": "以只读方式显示。你仍然可以查看、折叠和导出它。",

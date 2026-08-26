@@ -37,7 +37,11 @@ import { trackCpToolFavoritesReordered } from '../../analytics';
 import { useLongPressReorder } from '../../hooks/useLongPressReorder';
 import type { OristudioCpActionDefinition, OristudioCpActionId } from '../../lib/oristudioCpActions';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
-import { cpFavoriteToolActions, useCpToolFavorites } from './cpToolFavorites';
+import {
+  CP_TOOLBAR_FAVORITE_LIMIT,
+  cpFavoriteToolActions,
+  useCpToolFavorites,
+} from './cpToolFavorites';
 import { CpToolPickerRow } from './CpToolPickerRow';
 import { useCpToolFavoriteToggle } from './useCpToolFavoriteToggle';
 
@@ -79,6 +83,21 @@ export function CpToolPickerFavorites({
   return (
     <section className="cp-tool-picker__group">
       <h3 className="cp-tool-picker__group-title">{title}</h3>
+      {/* Both halves of this are things the surface cannot show on its own: the
+          cap is invisible until someone stars a seventh tool and nothing
+          happens, and the drag has no affordance at all. Naming the number from
+          the constant keeps the promise and the slice the same six. */}
+      <p className="cp-tool-picker__note">
+        {/* `limit`, not `count`: `count` is i18next's plural selector, and it
+            would split one sentence about a fixed number into a per-locale set
+            of plural forms — six of them in Russian — none of which this can
+            ever exercise. */}
+        {t(
+          'tools:cpToolPicker.favoritesHint',
+          'The first {{limit}} favorites here are shown in the bottom toolbar. Long press and drag to reorder.',
+          { limit: CP_TOOLBAR_FAVORITE_LIMIT }
+        )}
+      </p>
       <ul className="cp-tool-picker__list" aria-label={title}>
         {actions.map((action) => (
           // Namespaced, because this same action also renders in its own group

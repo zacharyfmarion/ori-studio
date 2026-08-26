@@ -203,6 +203,7 @@
     "addFavorite": "Add {{tool}} to favorites",
     "close": "Close tool list",
     "favorites": "Favorites",
+    "favoritesHint": "The first {{limit}} favorites here are shown in the bottom toolbar. Long press and drag to reorder.",
     "removeFavorite": "Remove {{tool}} from favorites",
     "title": "Tools",
     "trigger": "Tools"

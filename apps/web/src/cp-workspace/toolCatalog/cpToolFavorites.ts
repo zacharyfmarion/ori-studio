@@ -75,6 +75,30 @@ export const CP_DEFAULT_FAVORITE_ACTION_IDS: readonly OristudioCpActionId[] = [
   'cp.action.draw-crease-angle-restricted5',
 ];
 
+/**
+ * How many favorites the phone's bottom toolbar shows.
+ *
+ * The store itself has no cap — starring is free, and a list that refused a
+ * seventh would be refusing the thing the sheet is for. The bar has one because
+ * it is a single row on a 375px screen, and this is where the two meet: the
+ * first N in the user's order go on the bar, the rest live in the sheet.
+ *
+ * **Five because six does not fit**, measured rather than guessed. On a 375px
+ * viewport the bar has 351px of usable width, each control is a 44px touch
+ * target with a 10px gap, and the overflow trigger and its separator take a
+ * further 56px. Six tools want 296px, which leaves 351 − 296 − 56 = −1: the
+ * group wraps as a unit, so the trigger drops to a second row and the bar
+ * doubles in height over the canvas it floats on. Five want 242px and leave 53px
+ * spare — comfortable, and enough that a wider glyph or a locale with a fatter
+ * separator does not tip it back.
+ *
+ * One constant because three places need the same number for different reasons:
+ * the bar slices by it, the sheet's helper text names it, and the test asserts
+ * it. A bar showing six while the text promised five is the sort of thing
+ * nothing catches.
+ */
+export const CP_TOOLBAR_FAVORITE_LIMIT = 5;
+
 /** Version 1 of the stored shape. Present so a migration has something to branch on. */
 const STORED_VERSION = 1;
 
@@ -161,9 +185,16 @@ export function moveCpToolFavorite(actionId: OristudioCpActionId, toIndex: numbe
  * Unresolvable ids are dropped *here* rather than at read time, so a tool that
  * is temporarily absent from the catalogue does not permanently delete itself
  * from someone's favorites — it comes back when the catalogue does.
+ *
+ * Takes the ids rather than only reading them, so a caller memoizing on the
+ * stored array can name that array as its dependency and have the claim be
+ * true. Reading the store internally would make every such memo a lie the
+ * exhaustive-deps rule is right to flag.
  */
-export function cpFavoriteToolActions(): readonly OristudioCpActionDefinition[] {
-  return cpToolFavoriteIds()
+export function cpFavoriteToolActions(
+  ids: readonly OristudioCpActionId[] = cpToolFavoriteIds()
+): readonly OristudioCpActionDefinition[] {
+  return ids
     .map((id) => cpActionById(id))
     .filter((action): action is OristudioCpActionDefinition => action !== undefined);
 }
