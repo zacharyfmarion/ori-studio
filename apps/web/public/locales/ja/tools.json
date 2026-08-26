@@ -192,7 +192,12 @@
     "previous": "前の候補"
   },
   "cpToolPicker": {
+    "addFavorite": "{{tool}}をお気に入りに追加",
     "close": "ツール一覧を閉じる",
+    "favorites": "お気に入り",
+    "moveFavoriteDown": "{{tool}}を下に移動",
+    "moveFavoriteUp": "{{tool}}を上に移動",
+    "removeFavorite": "{{tool}}をお気に入りから削除",
     "title": "ツール",
     "trigger": "ツール"
   },

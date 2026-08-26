@@ -200,7 +200,12 @@
     "previous": "Previous option"
   },
   "cpToolPicker": {
+    "addFavorite": "Add {{tool}} to favorites",
     "close": "Close tool list",
+    "favorites": "Favorites",
+    "moveFavoriteDown": "Move {{tool}} down",
+    "moveFavoriteUp": "Move {{tool}} up",
+    "removeFavorite": "Remove {{tool}} from favorites",
     "title": "Tools",
     "trigger": "Tools"
   },

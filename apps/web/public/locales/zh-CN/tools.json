@@ -192,7 +192,12 @@
     "previous": "上一个选项"
   },
   "cpToolPicker": {
+    "addFavorite": "将{{tool}}添加到收藏",
     "close": "关闭工具列表",
+    "favorites": "收藏",
+    "moveFavoriteDown": "将{{tool}}下移",
+    "moveFavoriteUp": "将{{tool}}上移",
+    "removeFavorite": "从收藏中移除{{tool}}",
     "title": "工具",
     "trigger": "工具"
   },

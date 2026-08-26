@@ -208,7 +208,12 @@
     "previous": "Opção anterior"
   },
   "cpToolPicker": {
+    "addFavorite": "Adicionar {{tool}} aos favoritos",
     "close": "Fechar a lista de ferramentas",
+    "favorites": "Favoritos",
+    "moveFavoriteDown": "Mover {{tool}} para baixo",
+    "moveFavoriteUp": "Mover {{tool}} para cima",
+    "removeFavorite": "Remover {{tool}} dos favoritos",
     "title": "Ferramentas",
     "trigger": "Ferramentas"
   },
