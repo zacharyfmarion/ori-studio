@@ -9914,11 +9914,14 @@ button.bp-packing-alert:focus-visible {
     list-style: none;
   }
 
-  /* Indented to the row text rather than the section, so it reads as belonging
-     to the list under it and not to the heading above. */
+  /* Flush with the FAVORITES heading above it, which is the only left edge this
+     section has. It was indented to the row text past the star, on the idea that
+     it belonged to the list — but the stars are a column inside the rows, not a
+     margin the section is laid out against, so aligning to them just read as a
+     stray indent. */
   .cp-tool-picker__note {
     margin: 0;
-    padding: 0 var(--space-3) var(--space-2) calc(var(--touch-target) + var(--space-1));
+    padding: 0 var(--space-3) var(--space-2);
     color: var(--text-tertiary);
     font-size: 0.68rem;
     line-height: 1.35;
