@@ -287,6 +287,32 @@ export const ANALYTICS_EVENTS = {
    */
   cpToolPickerOpened: 'cp tool picker opened',
   /**
+   * A crease-pattern tool was starred or un-starred.
+   *
+   * Fires in both directions on purpose. The question this exists to answer is
+   * whether the six shipped defaults were the right six, and a star-only event
+   * cannot see a default being *rejected* — which is the sharper signal of the
+   * two, since the defaults arrive without anyone asking for them.
+   *
+   * `action` is a CP action id: an enum drawn from a fixed shipped catalogue,
+   * the same class of value as `cp tool used`'s `operation`, and no more user
+   * content than that one is.
+   */
+  cpToolFavorited: 'cp tool favorited',
+  /**
+   * A favorite was moved to a new position in the list.
+   *
+   * Once per completed gesture, never from the store's move — that runs at
+   * pointer-move rate and would emit dozens of events per drag.
+   *
+   * `method` separates the drag from the Move up / Move down menu entries, and
+   * is the point of the event. Long-press reorder has no visible affordance, so
+   * if the menu carries the traffic the gesture is undiscoverable; against
+   * `cp tool picker opened` it also says how many people who found the sheet
+   * ever curate it at all.
+   */
+  cpToolFavoritesReordered: 'cp tool favorites reordered',
+  /**
    * The phone layout moved between a design's panes.
    *
    * Phone-only, because that layout is the only one that shows a design's panes
@@ -361,6 +387,22 @@ export const COUNT_BUCKETS = [1, 5, 10, 20, 50, 100, 200, 500] as const;
  * element ladder would put every realistic workspace in the same bucket.
  */
 export const DESIGN_TAB_COUNT_BUCKETS = [1, 2, 3, 5, 10] as const;
+
+/**
+ * Threshold ladder for how many CP tools someone has starred.
+ *
+ * Straddles the shipped six so the three answers worth telling apart stay
+ * apart: fewer than shipped (they pruned), the six they were given, and more
+ * than six (they are curating). The element ladder would collapse all three
+ * into `<=10`.
+ */
+export const CP_FAVORITE_COUNT_BUCKETS = [0, 3, 6, 10, 20] as const;
+
+/** How a favorite got to its new position. */
+export type CpFavoriteReorderMethod = 'drag' | 'menu';
+
+/** Which surface a favorite was starred or moved from. */
+export type CpFavoriteSurface = 'picker-sheet';
 
 /**
  * Threshold ladder for how many stretches in one packing found no pattern.

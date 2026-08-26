@@ -31,19 +31,22 @@
  * capability rather than a convenience (see `touchModifiers/shiftLatch`), so it
  * moves into the surface that replaced the rail rather than disappearing with it.
  */
-import { useEffect, useRef } from 'react';
+import { Fragment, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import type { OristudioCpActionDefinition, OristudioCpActionId } from '../../lib/oristudioCpActions';
 import type { OristudioCpLineColor } from '../../engine/oristudioCpTypes';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import { shortcutLabelForAction } from '../../keyboard/shortcuts';
-import { cpActionLabel, cpActionTooltip, cpGroupLabel } from '../../i18n/cpVocab';
+import { cpActionLabel, cpGroupLabel } from '../../i18n/cpVocab';
 import { useShortcutResolution } from '../../store/shortcutStore';
 import { IconButton } from '../../components/ui/IconButton';
 import { CpShiftLatchToggle } from '../touchModifiers/CpShiftLatchToggle';
 import { cpRailGroups } from './cpRailActions';
-import { CpToolGlyph } from './cpToolGlyph';
+import { useCpToolFavorites } from './cpToolFavorites';
+import { CpToolPickerFavorites } from './CpToolPickerFavorites';
+import { CpToolPickerRow } from './CpToolPickerRow';
+import { useCpToolFavoriteToggle } from './useCpToolFavoriteToggle';
 
 export function CpToolPickerSheet({
   pickerId,
@@ -66,6 +69,10 @@ export function CpToolPickerSheet({
   // hints have nobody upstream to resolve them and must name the key that
   // actually fires under the active layout.
   const shortcutResolution = useShortcutResolution();
+  // Same reasoning — favorites are a user preference the shell knows nothing
+  // about, so the sheet subscribes rather than being handed them.
+  const favorites = useCpToolFavorites();
+  const toggleFavorite = useCpToolFavoriteToggle('picker-sheet');
   const title = t('tools:cpToolPicker.title', 'Tools');
 
   // Focus the sheet itself, the way the View drawer does and for the same
@@ -120,116 +127,84 @@ export function CpToolPickerSheet({
         </div>
         <div className="cp-tool-picker__body">
           {cpRailGroups().map(({ group, actions }) => (
-            <section key={group.id} className="cp-tool-picker__group">
-              <h3 className="cp-tool-picker__group-title">{cpGroupLabel(t, group)}</h3>
-              {/* The line types are five one-letter choices, so as full rows
-                  they cost a third of the sheet to say what five chips say —
-                  and the same segmented group the rail uses is already the
-                  clearer picture of "one control, one answer". Every other
-                  group stays a list: those are tools with names worth reading,
-                  which is what the rows are for. */}
-              {group.id === 'line-type' ? (
-                <div
-                  className="cp-tool-picker__types"
-                  role="radiogroup"
-                  aria-label={cpGroupLabel(t, group)}
-                >
-                  {actions.map((action) => {
-                    const isActive =
-                      action.kind === 'line-type' && activeLineColor === action.lineColor;
-                    return (
-                      <button
-                        key={action.id}
-                        type="button"
-                        className="cp-tool-picker__type"
-                        role="radio"
-                        aria-checked={isActive}
-                        aria-label={cpActionLabel(t, action)}
-                        data-active={isActive || undefined}
-                        data-line-color={action.kind === 'line-type' ? action.lineColor : undefined}
-                        onClick={() => {
-                          onSelectAction(action);
-                          close();
-                        }}
-                      >
-                        {action.railLabel}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-              <ul className="cp-tool-picker__list">
-                {actions.map((action) => (
-                  <li key={action.id}>
+            <Fragment key={group.id}>
+              <section className="cp-tool-picker__group">
+                <h3 className="cp-tool-picker__group-title">{cpGroupLabel(t, group)}</h3>
+                {/* The line types are five one-letter choices, so as full rows
+                    they cost a third of the sheet to say what five chips say —
+                    and the same segmented group the rail uses is already the
+                    clearer picture of "one control, one answer". Every other
+                    group stays a list: those are tools with names worth reading,
+                    which is what the rows are for. */}
+                {group.id === 'line-type' ? (
+                  <div
+                    className="cp-tool-picker__types"
+                    role="radiogroup"
+                    aria-label={cpGroupLabel(t, group)}
+                  >
+                    {actions.map((action) => {
+                      const isActive =
+                        action.kind === 'line-type' && activeLineColor === action.lineColor;
+                      return (
+                        <button
+                          key={action.id}
+                          type="button"
+                          className="cp-tool-picker__type"
+                          role="radio"
+                          aria-checked={isActive}
+                          aria-label={cpActionLabel(t, action)}
+                          data-active={isActive || undefined}
+                          data-line-color={action.kind === 'line-type' ? action.lineColor : undefined}
+                          onClick={() => {
+                            onSelectAction(action);
+                            close();
+                          }}
+                        >
+                          {action.railLabel}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                <ul className="cp-tool-picker__list">
+                  {actions.map((action) => (
                     <CpToolPickerRow
+                      key={action.id}
                       action={action}
-                      isActive={
-                        action.kind === 'line-type'
-                          ? activeLineColor === action.lineColor
-                          : activeActionId === action.id
-                      }
+                      isActive={activeActionId === action.id}
                       glyphOperationId={activeActionId === action.id ? activeOperationId : null}
                       available={action.uiStatus === 'ready'}
                       shortcutLabel={shortcutLabelForAction(action.id, shortcutResolution)}
+                      favorited={favorites.isFavorite(action.id)}
+                      onToggleFavorite={() => toggleFavorite(action.id)}
                       onSelect={() => {
                         onSelectAction(action);
                         close();
                       }}
                     />
-                  </li>
-                ))}
-              </ul>
+                  ))}
+                </ul>
+                )}
+              </section>
+              {/* Directly below the crease types, which is the one group that is
+                  not a tool and the thing everything else hangs off. Rendered
+                  inside the same map so the two stay adjacent if the catalogue
+                  ever reorders its groups. */}
+              {group.id === 'line-type' && (
+                <CpToolPickerFavorites
+                  activeActionId={activeActionId}
+                  activeOperationId={activeOperationId}
+                  shortcutResolution={shortcutResolution}
+                  onSelectAction={(action) => {
+                    onSelectAction(action);
+                    close();
+                  }}
+                />
               )}
-            </section>
+            </Fragment>
           ))}
         </div>
       </div>
     </div>
-  );
-}
-
-function CpToolPickerRow({
-  action,
-  isActive,
-  glyphOperationId,
-  available,
-  shortcutLabel,
-  onSelect,
-}: {
-  action: OristudioCpActionDefinition;
-  isActive: boolean;
-  glyphOperationId: OristudioCpOperationId | null;
-  available: boolean;
-  shortcutLabel?: string;
-  onSelect: () => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <button
-      type="button"
-      className="cp-tool-picker__item"
-      data-active={isActive || undefined}
-      data-line-color={action.kind === 'line-type' ? action.lineColor : undefined}
-      aria-disabled={!available}
-      onClick={() => {
-        if (!available) return;
-        onSelect();
-      }}
-    >
-      <span className="cp-tool-picker__icon">
-        <CpToolGlyph action={action} glyphOperationId={glyphOperationId} size={18} />
-      </span>
-      <span className="cp-tool-picker__text">
-        <span className="cp-tool-picker__label">{cpActionLabel(t, action)}</span>
-        {/*
-          The one-line description the tooltip carried, which on a fine pointer
-          was the only place it appeared. There is room for it here, and "what
-          does Parallel Alternating Lines mean" is the question the picker is
-          open to answer.
-        */}
-        <span className="cp-tool-picker__hint">{cpActionTooltip(t, action)}</span>
-      </span>
-      {shortcutLabel && <kbd className="cp-tool-picker__shortcut">{shortcutLabel}</kbd>}
-    </button>
   );
 }

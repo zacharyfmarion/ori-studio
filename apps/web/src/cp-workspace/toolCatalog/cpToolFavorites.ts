@@ -80,7 +80,7 @@ const STORED_VERSION = 1;
 
 interface StoredCpToolFavorites {
   version: number;
-  ids: string[];
+  ids: readonly string[];
 }
 
 /**
