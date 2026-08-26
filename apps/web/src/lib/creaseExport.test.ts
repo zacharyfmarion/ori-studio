@@ -27,6 +27,7 @@ import {
   ORISTUDIO_DASH_UNASSIGNED,
   UNASSIGNED_DASH_SLOT,
 } from './oristudioCpLineStyle';
+import { hexToRgbColor, mixHexColors } from './rgbColor';
 import {
   ORISTUDIO_CP_LINE_STYLES,
   ORISTUDIO_CP_MAX_LINE_WIDTH,
@@ -857,6 +858,180 @@ describe('crease pattern export theme', () => {
 
     expect(svg).toContain(`stroke="${CREASE_EXPORT_PALETTES.dark.monochromeInk}"`);
     expect(svg).not.toContain('stroke="#000000"');
+  });
+});
+
+describe('crease pattern export fold angles', () => {
+  const LIGHT = CREASE_EXPORT_PALETTES.light;
+
+  /** {@link twoPatternFold} with fold angles: borders at 0, and the diagonals as given. */
+  function foldWithAngles(mountain: number | null, valley: number | null): FoldDocument {
+    const fold = twoPatternFold();
+    // Borders carry 0 by construction, which is exactly the trap: read without the
+    // assignment they look like fully-unfolded creases.
+    fold.edges_foldAngle = [0, 0, 0, 0, mountain, mountain, valley, valley, 0, 0, 0, 0];
+    return fold;
+  }
+
+  const exported = (
+    fold: FoldDocument,
+    options: Partial<CreaseExportOptions> = {}
+  ): string =>
+    serializeCreasePatternSvg(fold, segmentFoldDocument(fold), {
+      ...DEFAULT_CREASE_EXPORT_OPTIONS,
+      ...options,
+    });
+
+  const strokes = (svg: string): string[] =>
+    [...svg.matchAll(/stroke="(#[0-9a-f]{6})"/g)].map((match) => match[1]);
+
+  /**
+   * A stroke within one 8-bit step of `expected`, per channel.
+   *
+   * The export blends in floats and {@link mixHexColors} in integers, so a channel
+   * landing on exactly .5 can round either way — `#9d76f4` against `#9d76f5`. One
+   * step is imperceptible, and which way it went is not what these tests are about.
+   */
+  const expectStrokeNear = (svg: string, expected: string): void => {
+    const want = hexToRgbColor(expected);
+    const found = strokes(svg).some((stroke) => {
+      const got = hexToRgbColor(stroke);
+      return (
+        Math.abs(got.red - want.red) <= 1 &&
+        Math.abs(got.green - want.green) <= 1 &&
+        Math.abs(got.blue - want.blue) <= 1
+      );
+    });
+    expect(found, `no stroke near ${expected}; found ${strokes(svg).join(', ')}`).toBe(true);
+  };
+
+  it('shifts a partial fold toward the anchor hue in the color mode', () => {
+    const svg = exported(foldWithAngles(-90, 90), { foldAngleDisplay: 'color' });
+
+    // Half a fold is half the distance to the anchor — the same lerp the canvas runs,
+    // reached here through `foldAngleInk` rather than a second implementation.
+    expectStrokeNear(svg, mixHexColors(LIGHT.mountain, LIGHT.foldAngleAnchor, 0.5));
+    expectStrokeNear(svg, mixHexColors(LIGHT.valley, LIGHT.foldAngleAnchor, 0.5));
+    expect(svg).not.toContain(`stroke="${LIGHT.mountain}"`);
+    expect(svg).not.toContain(`stroke="${LIGHT.valley}"`);
+    // Colour spends hue, never alpha.
+    expect(svg).not.toContain('stroke-opacity');
+  });
+
+  it('fades a partial fold in the opacity mode, leaving mountain and valley their own colours', () => {
+    const svg = exported(foldWithAngles(-90, 90), { foldAngleDisplay: 'opacity' });
+
+    // The point of this mode: a 90-degree mountain is still plain mountain red.
+    expect(svg).toContain(`stroke="${LIGHT.mountain}"`);
+    expect(svg).toContain(`stroke="${LIGHT.valley}"`);
+    // FOLD_ANGLE_MIN_OPACITY + (MAX - MIN) * 0.5 = 0.2 + 0.6 * 0.5.
+    expect(svg).toContain('stroke-opacity="0.500"');
+  });
+
+  it('draws the two modes differently, so neither is a no-op', () => {
+    const fold = foldWithAngles(-90, 90);
+    expect(exported(fold, { foldAngleDisplay: 'color' })).not.toEqual(
+      exported(fold, { foldAngleDisplay: 'opacity' })
+    );
+  });
+
+  it('leaves borders and auxiliary creases alone, though both carry an angle of 0', () => {
+    for (const foldAngleDisplay of ['color', 'opacity'] as const) {
+      const svg = exported(foldWithAngles(-90, 90), { foldAngleDisplay });
+      // Every border in the fixture is at 0. Fading the sheet outline to the opacity
+      // floor is the obvious way to get this wrong.
+      expect(svg).toContain(`stroke="${LIGHT.border}"`);
+
+      // The four diagonals become auxiliary (Oriedita CYAN_3), which round-trips
+      // through FOLD as `F` and carries an angle of 0.
+      const auxiliary = foldWithAngles(-180, 180);
+      auxiliary.edges_assignment = ['B', 'B', 'B', 'B', 'F', 'F', 'F', 'F', 'B', 'B', 'B', 'B'];
+      auxiliary.edges_foldAngle = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      const auxiliarySvg = exported(auxiliary, { foldAngleDisplay });
+      expect(auxiliarySvg).toContain(`stroke="${LIGHT.flat}"`);
+      expect(auxiliarySvg).not.toContain('stroke-opacity');
+    }
+  });
+
+  it('treats a 180 that arrived as 179.9999999 as a full fold', () => {
+    // Angles reach FOLD through the kernel's unit conversion. Without the epsilon this
+    // lands one tick below a full fold and steps *every* crease down to the ceiling.
+    for (const foldAngleDisplay of ['color', 'opacity'] as const) {
+      const svg = exported(foldWithAngles(-179.9999999, 179.9999999), { foldAngleDisplay });
+      expect(svg).toContain(`stroke="${LIGHT.mountain}"`);
+      expect(svg).toContain(`stroke="${LIGHT.valley}"`);
+      expect(svg).not.toContain('stroke-opacity');
+    }
+  });
+
+  it('renders a classic pattern identically in both modes, and identically to before', () => {
+    // The regression pin: a document with no partial folds must serialize byte-for-byte
+    // what it did when the export knew nothing about fold angles.
+    const classic = exported(foldWithAngles(-180, 180), { foldAngleDisplay: 'color' });
+    expect(exported(foldWithAngles(-180, 180), { foldAngleDisplay: 'opacity' })).toEqual(classic);
+    // `twoPatternFold` carries no `edges_foldAngle` at all — an absent angle is classic.
+    expect(exported(twoPatternFold())).toEqual(classic);
+  });
+
+  it('fades rather than recolours under a monochrome line style, in the opacity mode', () => {
+    // The interaction that makes this mode worth offering: `color` would turn a
+    // black-and-white export's creases magenta.
+    const svg = exported(foldWithAngles(-90, 90), {
+      foldAngleDisplay: 'opacity',
+      lineStyle: 'black-white',
+    });
+    expect(svg).toContain(`stroke="${LIGHT.monochromeInk}"`);
+    expect(svg).toContain('stroke-opacity="0.500"');
+  });
+
+  it('leaves an undecided crease and its direction hint alone in both modes', () => {
+    // The two features meet here. A hint is only ever carried by an *unassigned*
+    // crease (`fold_direction_hint` is absent otherwise), and only `M`/`V` are ever
+    // encoded — so the hint overlay must come out at full strength whatever the
+    // fold-angle mode says, and the grey underneath it must not fade.
+    const fold = {
+      vertices_coords: [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 1],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+        [0, 2],
+      ],
+      edges_assignment: ['B', 'B', 'B', 'B', 'U'],
+      // A hinted crease still carries an angle of 0, which is exactly the shape
+      // that would fade if the encoding read the angle without the assignment.
+      edges_foldAngle: [0, 0, 0, 0, 0],
+      'oristudio:edges_fold_direction_hint': [0, 0, 0, 0, 1],
+      faces_vertices: [
+        [0, 1, 2],
+        [0, 2, 3],
+      ],
+    } as FoldDocument;
+
+    for (const foldAngleDisplay of ['color', 'opacity'] as const) {
+      const svg = exported(fold, { foldAngleDisplay });
+      expect(svg).toContain(`stroke="${LIGHT.unassigned}"`);
+      expect(svg).toContain(`stroke="${LIGHT.mountain}"`);
+      expect(svg).not.toContain('stroke-opacity');
+    }
+  });
+
+  it('uses the same anchor on a dark page', () => {
+    // `--fold-angle-anchor` is defined once at :root with no per-theme override, so the
+    // export's two palettes carry the same value on purpose.
+    const dark = CREASE_EXPORT_PALETTES.dark;
+    expect(dark.foldAngleAnchor).toEqual(LIGHT.foldAngleAnchor);
+    const svg = exported(foldWithAngles(-90, 90), {
+      foldAngleDisplay: 'color',
+      theme: 'dark',
+    });
+    expectStrokeNear(svg, mixHexColors(dark.mountain, dark.foldAngleAnchor, 0.5));
   });
 });
 

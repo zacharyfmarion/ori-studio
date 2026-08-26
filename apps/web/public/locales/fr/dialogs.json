@@ -96,6 +96,7 @@
     "creasePatternToExport": "Patron de plis à exporter",
     "description": "Description",
     "descriptionPlaceholder": "Facultatif",
+    "foldAngleDisplay": "Style d’angle de pliage",
     "foldedBackColor": "Verso",
     "foldedCase": "Cas de pliage",
     "foldedCasesFound_one": "{{count}} trouvé(s) jusqu’ici",
@@ -180,8 +181,8 @@
   },
   "foldWarning": {
     "dontShowAgain": "Ne plus afficher",
-    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage ?",
-    "spatialMessage": "Des erreurs ont été détectées dans la façon dont ces plis se plient. Continuer le pliage ?",
+    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage\u00a0?",
+    "spatialMessage": "Des erreurs ont été détectées dans la façon dont ces plis se plient. Continuer le pliage\u00a0?",
     "title": "Avertissement"
   },
   "help": {
@@ -407,7 +408,7 @@
       "resetMessage": "Restaurer la disposition par défaut de l'espace de travail actuel ?",
       "resetTitle": "Réinitialiser la disposition de l'espace de travail",
       "snapRadius": "Rayon d'aimantation",
-      "snapRadiusHint": "À quelle distance le pointeur doit arriver d'un sommet, d'un pli ou d'un point de grille pour s'y aimanter, en unités de papier : le papier fait 400 de large, c'est donc le même nombre que dans Oriedita.",
+      "snapRadiusHint": "À quelle distance le pointeur doit arriver d'un sommet, d'un pli ou d'un point de grille pour s'y aimanter, en unités de papier\u00a0: le papier fait 400 de large, c'est donc le même nombre que dans Oriedita.",
       "wheelGestureHint": "Le pincement et Cmd/Ctrl+défilement zooment toujours, quel que soit votre choix.",
       "wheelPans": "Le défilement déplace, le pincement zoome",
       "wheelZooms": "Le défilement zoome"
@@ -419,6 +420,7 @@
     "backColor": "Couleur du verso",
     "create": "Créer le lien",
     "creating": "Création du lien…",
+    "foldAngleDisplay": "Style d’angle de pliage",
     "foldedFigure": "Afficher la figure pliée",
     "foldedFigureNeedsFlat": "Cet aperçu ne plie qu’à plat, et ce patron comporte des plis qui ne sont pas complets",
     "folding": "Pliage en cours…",

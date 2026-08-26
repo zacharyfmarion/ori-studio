@@ -10,8 +10,17 @@ import {
   applyCpModelToFold,
   cpModelToFoldTransform,
   IDENTITY_CP_MODEL_TO_FOLD,
+  isClassicFoldAngle,
   type CpModelToFoldTransform,
 } from './creaseExportFold';
+// The fold-angle encoding is the canvas's, not a second one written in hex: see
+// `foldAngleRamp`'s own tests, which pin each mode to a single channel. The
+// import direction (`lib/` -> `cp-workspace/`) follows `nativeProjectFile.ts`.
+import { foldAngleInk } from '../cp-workspace/foldAngle/foldAngleRamp';
+import { parseCssColor } from '../cp-workspace/renderer/cssColor';
+import type { Rgba } from '../cp-workspace/renderer/types';
+import { degreesToFoldMagnitude } from './foldAngle';
+import { rgbColorToHex } from './rgbColor';
 import type {
   OristudioCpDocumentSnapshot,
   OristudioCpFoldedRenderSnapshot,
@@ -20,11 +29,13 @@ import type {
 import type { Point } from './geometry';
 import type { FoldedFigureSide } from './foldedFigureSides';
 import {
+  DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
   DEFAULT_ORISTUDIO_CP_LINE_STYLE,
   DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
   expandedModelBoundsFromPoints,
   orieditaGridLinesForModelBounds,
   visibleOrieditaGridMetadata,
+  type OristudioCpFoldAngleDisplay,
   type OristudioCpLineStyle,
 } from './creasePatternViewport';
 import { alternateDashRuns, cpLineStyleDashPattern, cpLineStyleInk } from './oristudioCpLineStyle';
@@ -123,6 +134,13 @@ export interface CreaseExportOptions {
   /** Segment id to export, or null for the whole document (all patterns). */
   segmentId: number | null;
   lineStyle: OristudioCpLineStyle;
+  /**
+   * Which channel carries a non-180 fold angle, exactly as the View panel's own
+   * dropdown chooses it for the canvas. Does nothing for a pattern whose creases
+   * are all full folds, which is why the dialogs hide the control there — see
+   * `hasNonClassicCreases`.
+   */
+  foldAngleDisplay: OristudioCpFoldAngleDisplay;
   lineWidth: number;
   pointSize: number;
   includeUnassigned: boolean;
@@ -153,6 +171,7 @@ export const EMPTY_CREASE_EXPORT_CAPTION: CreaseExportCaption = {
 export const DEFAULT_CREASE_EXPORT_OPTIONS: CreaseExportOptions = {
   segmentId: null,
   lineStyle: DEFAULT_ORISTUDIO_CP_LINE_STYLE,
+  foldAngleDisplay: DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
   lineWidth: DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
   // Points are off by default for exports (they add visual noise to a CP image).
   pointSize: 0,
@@ -187,6 +206,15 @@ export interface CreaseExportPalette {
    * ruling, which is the one thing the grid must not do.
    */
   grid: string;
+  /**
+   * Hue a shallower crease shifts toward under the `color` fold-angle mode.
+   *
+   * The same value in both themes, which is not an oversight: `--fold-angle-anchor`
+   * is defined once at `:root` in `theme.css` with no per-theme override, so a
+   * single anchor here is the faithful transcription of the canvas rather than a
+   * shortcut. See `cp-workspace/foldAngle/foldAngleRamp.ts` for why magenta.
+   */
+  foldAngleAnchor: string;
   /** The "black" of the monochrome line styles. */
   monochromeInk: string;
   /** Its muted counterpart (the black-and-white style's valley). */
@@ -210,6 +238,7 @@ export const CREASE_EXPORT_PALETTES: Record<CreaseExportTheme, CreaseExportPalet
     // Light enough to read as ruling on the cream paper rather than as an
     // unassigned crease, which is the nearest thing to it on the page.
     grid: '#ccd3da',
+    foldAngleAnchor: '#d946ef',
     monochromeInk: '#000000',
     monochromeValley: '#a2a2a2',
     title: '#111417',
@@ -229,6 +258,7 @@ export const CREASE_EXPORT_PALETTES: Record<CreaseExportTheme, CreaseExportPalet
     unassigned: '#7c8894',
     point: '#e8edf2',
     grid: '#333c46',
+    foldAngleAnchor: '#d946ef',
     monochromeInk: '#f2f4f7',
     monochromeValley: '#8b949e',
     title: '#f2f5f8',
@@ -262,6 +292,14 @@ function isUnassigned(assignment: string): boolean {
 
 interface EdgeAppearance {
   stroke: string;
+  /**
+   * 1 for every classic crease, and under the `color` fold-angle mode. Only the
+   * `opacity` mode produces anything else, and it is emitted as SVG
+   * `stroke-opacity` rather than blended into {@link stroke} — creases draw over
+   * the facet fill, the grid, and whatever a reference image left behind, so a
+   * colour pre-mixed with the page paints the wrong colour over all of them.
+   */
+  strokeOpacity: number;
   dash: string;
   /**
    * The direction half of a hinted crease: a second stroke over the same line,
@@ -290,64 +328,146 @@ function edgeLineColor(assignment: string): string {
   }
 }
 
-// The ported line-style table (see lib/oristudioCpLineStyle), rendered with the
-// export palette: its monochrome ink and grey stand in for Oriedita's black and
-// GREY_10 so a dark export stays legible.
-function edgeAppearance(
+/**
+ * `|ρ|` in kernel magnitude units for a crease that is not a full fold, or
+ * `null` for anything the fold-angle encoding must leave alone.
+ *
+ * Three rules, each of which is a bug if dropped:
+ *
+ * - **Only `M` and `V` are creases.** `B` and `F` carry a fold angle of `0` by
+ *   construction (`defaultFoldAngle`, and the kernel writes 0 for borders), so
+ *   reading the angle alone would fade every sheet outline in the document to
+ *   the opacity floor.
+ * - **An absent angle is classic**, matching `foldAngleFromParts`, which reads an
+ *   absent magnitude as a full ±180 fold.
+ * - **±180 needs an epsilon.** A classic crease reaches FOLD through the kernel's
+ *   unit conversion and can arrive as `179.9999999`; see
+ *   {@link isClassicFoldAngle}.
+ */
+function nonClassicMagnitudeUnits(
   assignment: string,
+  angle: number | null | undefined
+): number | null {
+  if (assignment !== 'M' && assignment !== 'V') return null;
+  if (typeof angle !== 'number' || !Number.isFinite(angle)) return null;
+  if (isClassicFoldAngle(angle)) return null;
+  // Clamped rather than rejected: a hand-written file can carry |ρ| > 180, and a
+  // full fold is the safe reading of it. `degreesToFoldMagnitude` returns null
+  // outside 0..180, which would silently skip the crease instead.
+  return degreesToFoldMagnitude(Math.min(180, Math.abs(angle)));
+}
+
+/**
+ * Resolve one edge's stroke, dash and opacity — the line-style table first, then
+ * the fold-angle encoding on top of whatever ink it produced.
+ *
+ * Built once per artwork rather than called as a free function, so the palette
+ * colours are parsed into {@link Rgba} once instead of once per crease. The
+ * dialog rebuilds the whole artwork on every slider drag.
+ *
+ * The line-style half is the ported table (see lib/oristudioCpLineStyle),
+ * rendered with the export palette: its monochrome ink and grey stand in for
+ * Oriedita's black and GREY_10 so a dark export stays legible. The fold-angle
+ * half is {@link foldAngleInk}, the canvas's own encoder — so the two surfaces
+ * cannot drift. What differs is the starting ink: the export runs the same
+ * construction over its own palette, so an exported 90° mountain is not
+ * pixel-equal to the canvas's.
+ */
+function edgeAppearances(
   lineStyle: OristudioCpLineStyle,
-  palette: CreaseExportPalette,
+  display: OristudioCpFoldAngleDisplay,
+  palette: CreaseExportPalette
+): (
+  assignment: string,
+  angle: number | null | undefined,
   /** 0 none, 1 mountain, 2 valley — `oristudio:edges_fold_direction_hint`. */
-  directionHint = 0
-): EdgeAppearance {
-  const lineColor = edgeLineColor(assignment);
-  const stroke = styleInk(assignment, lineColor, lineStyle, palette);
-  const pattern = cpLineStyleDashPattern(lineStyle, lineColor);
-  const base = { stroke, dash: pattern ? scaleDash(pattern) : '' };
-  // A hinted crease keeps the undecided grey and dash and takes the alternate
-  // marks of that dash in its direction's own full-strength colour — the canvas
-  // treatment exactly, and now through the same run list, since
-  // `alternateDashRuns` needs no phase for either consumer. A hint is visible
-  // state rather than a working note, so it belongs in the picture.
-  //
-  // The two are not the same picture, and cannot be. They agree on *whether* a
-  // hint shows — both ink the crease's own first mark, at distance 0, which is
-  // the property that used to fail here — and disagree on how many marks it
-  // shows. That is a rate, and there is no zoom at which the rates meet, in
-  // either direction:
-  //
-  // - The canvas's geometry goes through one fixed affine (`cpModelToSvg`, the
-  //   400-unit paper across `CP_PAPER_RECT`'s 588 user units) and its dash is in
-  //   screen px, so its rate follows the *camera*.
-  // - The export fits the drawn document's **bounding box** into
-  //   `CP_SIZE - 2 * MARGIN` = 928 and scales the dash by the fixed `VIEW_SCALE`,
-  //   so its rate follows the *document*. A pattern drawn across a quarter of
-  //   the paper is blown up 4x to fill the page, so its creases carry four
-  //   times the marks the canvas gives them at the fit view, where a
-  //   paper-filling one carries about the same — and even that one is 10% off,
-  //   its geometry landing at 928/588 = 1.578 page units per canvas user unit
-  //   against the dash's 1.422.
-  //
-  // Left that way deliberately, and it is a real divergence from upstream:
-  // Oriedita's `SvgExporter` puts every line through `camera.object2TV` and
-  // writes its dash arrays as literal user units, so it exports *the view* and
-  // its dash keeps exactly the relation to the geometry the screen had. Ours
-  // exports the *document* — bounding box fitted to a fixed square page — so
-  // that one file gives one picture wherever the user happened to be scrolled,
-  // and the price of that is a dash rate the camera no longer sets. Tying the
-  // dash to the projector would only move the dependency: a single segment
-  // exported alone, blown up to fill the page, would get marks as long as its
-  // creases. The property that has to hold is the first mark, and that is
-  // pinned in `creaseExport.test.ts`.
-  //
-  // The `stroke` comparison is the canvas's rule too: under the black-dot styles
-  // the direction resolves to the ink the crease already has, so the overlay
-  // would repaint it in its own colour and say nothing.
-  const hintAssignment = directionHint === 1 ? 'M' : directionHint === 2 ? 'V' : null;
-  if (!hintAssignment || !pattern) return { ...base, hint: null };
-  const hintStroke = styleInk(hintAssignment, edgeLineColor(hintAssignment), lineStyle, palette);
-  if (hintStroke === stroke) return { ...base, hint: null };
-  return { ...base, hint: { stroke: hintStroke, dash: scaleDash(alternateDashRuns(pattern)) } };
+  directionHint?: number
+) => EdgeAppearance {
+  const anchor = parseCssColor(palette.foldAngleAnchor);
+  const parsed = new Map<string, Rgba | null>();
+  const toRgba = (hex: string): Rgba | null => {
+    const cached = parsed.get(hex);
+    if (cached !== undefined) return cached;
+    const rgba = parseCssColor(hex);
+    parsed.set(hex, rgba);
+    return rgba;
+  };
+  /** The fold-angle encoding on an ink the line-style table has already chosen. */
+  const encode = (
+    ink: string,
+    magnitude: number | null
+  ): Pick<EdgeAppearance, 'stroke' | 'strokeOpacity'> => {
+    const base = magnitude === null ? null : toRgba(ink);
+    if (magnitude === null || base === null || anchor === null) {
+      return { stroke: ink, strokeOpacity: 1 };
+    }
+    const encoded = foldAngleInk(base, magnitude, { display, anchor });
+    return {
+      stroke: rgbColorToHex({
+        red: encoded[0] * 255,
+        green: encoded[1] * 255,
+        blue: encoded[2] * 255,
+      }),
+      strokeOpacity: encoded[3],
+    };
+  };
+
+  return (assignment, angle, directionHint = 0) => {
+    const lineColor = edgeLineColor(assignment);
+    const ink = styleInk(assignment, lineColor, lineStyle, palette);
+    const pattern = cpLineStyleDashPattern(lineStyle, lineColor);
+    const base = {
+      ...encode(ink, nonClassicMagnitudeUnits(assignment, angle)),
+      dash: pattern ? scaleDash(pattern) : '',
+    };
+    // A hinted crease keeps the undecided grey and dash and takes the alternate
+    // marks of that dash in its direction's own full-strength colour — the canvas
+    // treatment exactly, and now through the same run list, since
+    // `alternateDashRuns` needs no phase for either consumer. A hint is visible
+    // state rather than a working note, so it belongs in the picture.
+    //
+    // The two are not the same picture, and cannot be. They agree on *whether* a
+    // hint shows — both ink the crease's own first mark, at distance 0, which is
+    // the property that used to fail here — and disagree on how many marks it
+    // shows. That is a rate, and there is no zoom at which the rates meet, in
+    // either direction:
+    //
+    // - The canvas's geometry goes through one fixed affine (`cpModelToSvg`, the
+    //   400-unit paper across `CP_PAPER_RECT`'s 588 user units) and its dash is in
+    //   screen px, so its rate follows the *camera*.
+    // - The export fits the drawn document's **bounding box** into
+    //   `CP_SIZE - 2 * MARGIN` = 928 and scales the dash by the fixed `VIEW_SCALE`,
+    //   so its rate follows the *document*. A pattern drawn across a quarter of
+    //   the paper is blown up 4x to fill the page, so its creases carry four
+    //   times the marks the canvas gives them at the fit view, where a
+    //   paper-filling one carries about the same — and even that one is 10% off,
+    //   its geometry landing at 928/588 = 1.578 page units per canvas user unit
+    //   against the dash's 1.422.
+    //
+    // Left that way deliberately, and it is a real divergence from upstream:
+    // Oriedita's `SvgExporter` puts every line through `camera.object2TV` and
+    // writes its dash arrays as literal user units, so it exports *the view* and
+    // its dash keeps exactly the relation to the geometry the screen had. Ours
+    // exports the *document* — bounding box fitted to a fixed square page — so
+    // that one file gives one picture wherever the user happened to be scrolled,
+    // and the price of that is a dash rate the camera no longer sets. Tying the
+    // dash to the projector would only move the dependency: a single segment
+    // exported alone, blown up to fill the page, would get marks as long as its
+    // creases. The property that has to hold is the first mark, and that is
+    // pinned in `creaseExport.test.ts`.
+    //
+    // The `stroke` comparison is the canvas's rule too: under the black-dot styles
+    // the direction resolves to the ink the crease already has, so the overlay
+    // would repaint it in its own colour and say nothing. It compares the ink the
+    // line style chose, *before* any fold-angle encoding: that is the question the
+    // rule is asking, and a hinted crease is unassigned, so no encoding applies to
+    // it anyway (see {@link nonClassicMagnitudeUnits}).
+    const hintAssignment = directionHint === 1 ? 'M' : directionHint === 2 ? 'V' : null;
+    if (!hintAssignment || !pattern) return { ...base, hint: null };
+    const hintStroke = styleInk(hintAssignment, edgeLineColor(hintAssignment), lineStyle, palette);
+    if (hintStroke === ink) return { ...base, hint: null };
+    return { ...base, hint: { stroke: hintStroke, dash: scaleDash(alternateDashRuns(pattern)) } };
+  };
 }
 
 /** A line colour's stroke under `lineStyle`, in the export palette. */
@@ -956,27 +1076,36 @@ export function buildCreaseExportArtwork(
           .join('\n')
       : '';
 
+  const foldAngles = targetFold.edges_foldAngle;
+  const appearanceFor = edgeAppearances(options.lineStyle, options.foldAngleDisplay, palette);
   const lines = edges
     .map((edge, index) => {
       const assignment = assignments[index] ?? 'U';
       if (!options.includeUnassigned && isUnassigned(assignment)) return '';
-      const { stroke, dash, hint } = edgeAppearance(
+      const { stroke, strokeOpacity, dash, hint } = appearanceFor(
         assignment,
-        options.lineStyle,
-        palette,
+        foldAngles?.[index],
         directionHints[index] ?? 0
       );
       const a = project(edge[0]);
       const b = project(edge[1]);
       const ends = `x1="${a.x.toFixed(2)}" y1="${a.y.toFixed(2)}" x2="${b.x.toFixed(2)}" y2="${b.y.toFixed(2)}"`;
       const dashAttr = dash ? ` stroke-dasharray="${dash}"` : '';
-      const line = `  <line ${ends} stroke="${stroke}" stroke-width="${strokeWidth.toFixed(2)}"${dashAttr} stroke-linecap="${strokeLinecap(dash)}"/>`;
+      // Omitted at full opacity, so a pattern of classic creases still serializes
+      // byte-for-byte what it did before fold angles reached the export.
+      const opacityAttr =
+        strokeOpacity < 1 ? ` stroke-opacity="${strokeOpacity.toFixed(3)}"` : '';
+      const line = `  <line ${ends} stroke="${stroke}" stroke-width="${strokeWidth.toFixed(2)}"${opacityAttr}${dashAttr} stroke-linecap="${strokeLinecap(dash)}"/>`;
       if (!hint) return line;
       // Second, over the first: the marks are congruent, so this repaints half
       // of them rather than adding ink beside them. No `stroke-dashoffset` —
       // both strokes start their pattern at the crease's own start, which is
       // what makes a short crease show its direction at all.
-      return `${line}\n  <line ${ends} stroke="${hint.stroke}" stroke-width="${strokeWidth.toFixed(2)}" stroke-dasharray="${hint.dash}" stroke-linecap="${strokeLinecap(hint.dash)}"/>`;
+      //
+      // It carries the base crease's opacity so the two halves of one crease can
+      // never drift apart. Today that is always 1: a hinted crease is unassigned,
+      // and only `M`/`V` are ever faded.
+      return `${line}\n  <line ${ends} stroke="${hint.stroke}" stroke-width="${strokeWidth.toFixed(2)}"${opacityAttr} stroke-dasharray="${hint.dash}" stroke-linecap="${strokeLinecap(hint.dash)}"/>`;
     })
     .filter(Boolean)
     .join('\n');

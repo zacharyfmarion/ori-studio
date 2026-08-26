@@ -2594,7 +2594,9 @@
     "common:capability.makeUnassigned": "ac1caca4b514",
     "common:capability.makeUnassignedKeepDirection": "88b9271eb4e2",
     "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
-    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6"
+    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6",
+    "dialogs:export.foldAngleDisplay": "192d0384d265",
+    "dialogs:share.foldAngleDisplay": "192d0384d265"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5191,7 +5193,9 @@
     "common:capability.makeUnassigned": "ac1caca4b514",
     "common:capability.makeUnassignedKeepDirection": "88b9271eb4e2",
     "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
-    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6"
+    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6",
+    "dialogs:export.foldAngleDisplay": "192d0384d265",
+    "dialogs:share.foldAngleDisplay": "192d0384d265"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7788,7 +7792,9 @@
     "common:capability.makeUnassigned": "ac1caca4b514",
     "common:capability.makeUnassignedKeepDirection": "88b9271eb4e2",
     "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
-    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6"
+    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6",
+    "dialogs:export.foldAngleDisplay": "192d0384d265",
+    "dialogs:share.foldAngleDisplay": "192d0384d265"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -10342,7 +10348,9 @@
     "common:capability.makeUnassigned": "ac1caca4b514",
     "common:capability.makeUnassignedKeepDirection": "88b9271eb4e2",
     "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
-    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6"
+    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6",
+    "dialogs:export.foldAngleDisplay": "192d0384d265",
+    "dialogs:share.foldAngleDisplay": "192d0384d265"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12896,7 +12904,9 @@
     "common:capability.makeUnassigned": "ac1caca4b514",
     "common:capability.makeUnassignedKeepDirection": "88b9271eb4e2",
     "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
-    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6"
+    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6",
+    "dialogs:export.foldAngleDisplay": "192d0384d265",
+    "dialogs:share.foldAngleDisplay": "192d0384d265"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -15493,7 +15503,9 @@
     "common:capability.makeUnassigned": "ac1caca4b514",
     "common:capability.makeUnassignedKeepDirection": "88b9271eb4e2",
     "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
-    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6"
+    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6",
+    "dialogs:export.foldAngleDisplay": "192d0384d265",
+    "dialogs:share.foldAngleDisplay": "192d0384d265"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -18090,7 +18102,9 @@
     "common:capability.makeUnassigned": "ac1caca4b514",
     "common:capability.makeUnassignedKeepDirection": "88b9271eb4e2",
     "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
-    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6"
+    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6",
+    "dialogs:export.foldAngleDisplay": "192d0384d265",
+    "dialogs:share.foldAngleDisplay": "192d0384d265"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -20644,6 +20658,8 @@
     "common:capability.makeUnassigned": "ac1caca4b514",
     "common:capability.makeUnassignedKeepDirection": "88b9271eb4e2",
     "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
-    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6"
+    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6",
+    "dialogs:export.foldAngleDisplay": "192d0384d265",
+    "dialogs:share.foldAngleDisplay": "192d0384d265"
   }
 }

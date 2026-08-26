@@ -8,7 +8,7 @@ import {
   requestPositiveNumber,
   useCommandDialogStore,
 } from '../store/commandDialogStore';
-import { DEFAULT_CREASE_EXPORT_OPTIONS } from '../lib/creaseExport';
+import { CREASE_EXPORT_PALETTES, DEFAULT_CREASE_EXPORT_OPTIONS } from '../lib/creaseExport';
 import type { CreaseExportDialogResult } from '../store/commandDialogStore';
 import { segmentFoldDocument } from '../lib/creasePatternSegmentation';
 import type { FoldDocument } from '../engine/types';
@@ -37,6 +37,11 @@ function exportFold(): FoldDocument {
       [0, 2, 3],
     ],
   };
+}
+
+/** {@link exportFold} with its diagonal folded to 90 degrees rather than flat. */
+function partialFoldExportFold(): FoldDocument {
+  return { ...exportFold(), edges_foldAngle: [0, 0, 0, 0, -90] };
 }
 
 /** Two disjoint squares, so segmentation yields two crease patterns. */
@@ -535,6 +540,107 @@ describe('CommandDialogModal', () => {
       rendered.querySelector('[aria-label="Show grid lines"]')?.hasAttribute('disabled')
     ).toBe(true);
     expect(rendered.textContent).toContain('Open an editable crease pattern to draw its grid');
+  });
+
+  it('offers the fold-angle style only when there is an angle to encode', () => {
+    const rendered = renderModalHost();
+    const classic = exportFold();
+
+    act(() => {
+      void requestCreasePatternExportOptions({
+        title: 'Export SVG',
+        format: 'svg',
+        fold: classic,
+        segments: segmentFoldDocument(classic),
+        initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        grid: null,
+        foldSegment: null,
+        confirmLabel: 'Export SVG',
+      });
+    });
+    // A pattern of full folds should not have to read past a control that would
+    // change nothing — the View panel's permanent row is a different situation.
+    expect(rendered.querySelector('[aria-label="Fold angle style"]')).toBeNull();
+
+    act(() => {
+      useCommandDialogStore.setState(useCommandDialogStore.getInitialState(), true);
+    });
+    const partial = partialFoldExportFold();
+    act(() => {
+      void requestCreasePatternExportOptions({
+        title: 'Export SVG',
+        format: 'svg',
+        fold: partial,
+        segments: segmentFoldDocument(partial),
+        initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        grid: null,
+        foldSegment: null,
+        confirmLabel: 'Export SVG',
+      });
+    });
+    expect(rendered.querySelector('[aria-label="Fold angle style"]')).not.toBeNull();
+  });
+
+  it('draws the chosen fold-angle style into the preview and carries it into the export', async () => {
+    const rendered = renderModalHost();
+    const fold = partialFoldExportFold();
+    let result = Promise.resolve<CreaseExportDialogResult | null>(null);
+
+    act(() => {
+      result = requestCreasePatternExportOptions({
+        title: 'Export SVG',
+        format: 'svg',
+        fold,
+        segments: segmentFoldDocument(fold),
+        // Seeded from the editor's own View panel setting, the way line style is.
+        initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS, foldAngleDisplay: 'opacity' },
+        grid: null,
+        foldSegment: null,
+        confirmLabel: 'Export SVG',
+      });
+    });
+
+    const preview = () =>
+      decodeURIComponent(
+        rendered.querySelector('.export-modal__preview img')?.getAttribute('src') ?? ''
+      );
+    // The preview is the contract: the mode has to reach the drawn artwork, not just
+    // sit in the options the dialog is holding.
+    expect(preview()).toContain('stroke-opacity');
+    expect(preview()).toContain(`stroke="${CREASE_EXPORT_PALETTES.light.mountain}"`);
+
+    await act(async () => {
+      findButton('Export SVG').click();
+      await result;
+    });
+
+    await expect(result).resolves.toMatchObject({
+      options: { foldAngleDisplay: 'opacity' },
+    });
+  });
+
+  it('spends hue rather than alpha in the color fold-angle style', async () => {
+    const rendered = renderModalHost();
+    const fold = partialFoldExportFold();
+
+    act(() => {
+      void requestCreasePatternExportOptions({
+        title: 'Export SVG',
+        format: 'svg',
+        fold,
+        segments: segmentFoldDocument(fold),
+        initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS, foldAngleDisplay: 'color' },
+        grid: null,
+        foldSegment: null,
+        confirmLabel: 'Export SVG',
+      });
+    });
+
+    const preview = decodeURIComponent(
+      rendered.querySelector('.export-modal__preview img')?.getAttribute('src') ?? ''
+    );
+    expect(preview).not.toContain('stroke-opacity');
+    expect(preview).not.toContain(`stroke="${CREASE_EXPORT_PALETTES.light.mountain}"`);
   });
 
   it('disables the folded figure without an editable crease pattern', () => {

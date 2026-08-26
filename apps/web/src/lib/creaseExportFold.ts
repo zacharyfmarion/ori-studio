@@ -68,10 +68,20 @@ export interface CreaseExportFoldResult {
  */
 const FLAT_ANGLE_EPSILON = 1e-6;
 
+/**
+ * Whether a FOLD fold angle is a full ±180 fold — the kernel's classic crease.
+ *
+ * The epsilon is the whole point. A classic crease reaches FOLD through the
+ * kernel's unit conversion and can arrive as `179.9999999`; exact equality reads
+ * that as a 179.9999999° partial fold, which is the difference between "draw
+ * this crease normally" and "fade every crease in the document".
+ */
+export function isClassicFoldAngle(angle: number): boolean {
+  return Math.abs(Math.abs(angle) - 180) < FLAT_ANGLE_EPSILON;
+}
+
 function isFlatAngle(angle: number): boolean {
-  return (
-    Math.abs(angle) < FLAT_ANGLE_EPSILON || Math.abs(Math.abs(angle) - 180) < FLAT_ANGLE_EPSILON
-  );
+  return Math.abs(angle) < FLAT_ANGLE_EPSILON || isClassicFoldAngle(angle);
 }
 
 /**
@@ -100,6 +110,36 @@ export function isFlatFoldableFold(fold: FoldDocument, segment?: CpSegment | nul
   const angles = scoped.edges_foldAngle;
   if (!angles) return true;
   return angles.every((angle) => angle === null || angle === undefined || isFlatAngle(angle));
+}
+
+/**
+ * Whether any crease in `fold` folds to something other than a full ±180 — the question
+ * "is there a fold angle here worth encoding".
+ *
+ * **Not the negation of {@link isFlatFoldableFold}**, and the gap is deliberate. That one
+ * asks whether the layer-order solver can run, so it counts 0° as flat: an unfolded crease
+ * leaves every face in the plane. This one asks what the ink has to say, and a 0° mountain
+ * is emphatically not a full fold — the canvas draws it at the ramp's anchor, or at the
+ * opacity floor. Gating the export's fold-angle control on flat-foldability would hide it
+ * for a document made entirely of 0° creases and then draw them faded anyway.
+ *
+ * Only `M` and `V` are asked. `B` and `F` carry an angle of 0 by construction (see
+ * `defaultFoldAngle` in `creasePatternImport.ts`, and the kernel writes 0 for borders), so
+ * reading the angle alone would call every bordered pattern non-classic.
+ */
+export function hasNonClassicCreases(fold: FoldDocument, segment?: CpSegment | null): boolean {
+  const scoped = segment ? buildSegmentFold(fold, segment) : fold;
+  const angles = scoped.edges_foldAngle;
+  if (!angles) return false;
+  const assignments = scoped.edges_assignment ?? [];
+  return angles.some((angle, index) => {
+    const assignment = assignments[index];
+    if (assignment !== 'M' && assignment !== 'V') return false;
+    // An absent angle is a classic crease, matching `foldAngleFromParts`, which reads an
+    // absent magnitude as a full ±180 fold.
+    if (typeof angle !== 'number' || !Number.isFinite(angle)) return false;
+    return !isClassicFoldAngle(angle);
+  });
 }
 
 /**

@@ -20,11 +20,13 @@ import {
 } from '../lib/creaseExport';
 import { cpThumbnailSvg, type CpSegment } from '../lib/creasePatternSegmentation';
 import {
+  hasNonClassicCreases,
   isFlatFoldableFold,
   type CpModelToFoldTransform,
   type CreaseExportFoldResult,
 } from '../lib/creaseExportFold';
 import {
+  ORISTUDIO_CP_FOLD_ANGLE_DISPLAYS,
   ORISTUDIO_CP_LINE_STYLES,
   ORISTUDIO_CP_MIN_LINE_WIDTH,
   ORISTUDIO_CP_MAX_LINE_WIDTH,
@@ -34,7 +36,7 @@ import {
 import type { FoldDocument } from '../engine/types';
 import type { OristudioCpFoldedRenderSnapshot } from '../engine/oristudioCpTypes';
 import { FOLDED_FIGURE_SIDES, type FoldedFigureSide } from '../lib/foldedFigureSides';
-import { cpLineStyleLabel } from '../i18n/enumLabels';
+import { cpFoldAngleDisplayLabel, cpLineStyleLabel } from '../i18n/enumLabels';
 import { Button } from './ui/Button';
 import { ColorField } from './ui/ColorField';
 import { IconButton } from './ui/IconButton';
@@ -143,6 +145,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
   const {
     segmentId,
     lineStyle,
+    foldAngleDisplay,
     lineWidth,
     pointSize,
     includeUnassigned,
@@ -155,16 +158,23 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
   } = options;
 
   const multiPattern = dialog.segments.length > 1;
+  const scopedSegment = useMemo(
+    () =>
+      segmentId != null ? (dialog.segments.find((entry) => entry.id === segmentId) ?? null) : null,
+    [dialog.segments, segmentId]
+  );
   // The layer-order solver assumes every face lands in a plane, so a pattern with
   // partial folds cannot produce a figure — it fails inside the solver with a message
   // about its own data structures. Gate the option rather than let it fail.
   const isFlat = useMemo(
-    () =>
-      isFlatFoldableFold(
-        dialog.fold,
-        segmentId != null ? (dialog.segments.find((entry) => entry.id === segmentId) ?? null) : null
-      ),
-    [dialog.fold, dialog.segments, segmentId]
+    () => isFlatFoldableFold(dialog.fold, scopedSegment),
+    [dialog.fold, scopedSegment]
+  );
+  // Deliberately not `!isFlat`: a 0° crease is flat-foldable but is not a full fold,
+  // and the export draws it faded either way. See `hasNonClassicCreases`.
+  const hasFoldAngles = useMemo(
+    () => hasNonClassicCreases(dialog.fold, scopedSegment),
+    [dialog.fold, scopedSegment]
   );
   // Folding needs a kernel document, and one pattern at a time: "All patterns"
   // has no single folded form to draw beside the sheet.
@@ -191,10 +201,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
     let cancelled = false;
     setFolding(true);
     setFoldError(null);
-    void foldSegment(
-      dialog.segments.find((entry) => entry.id === segmentId) ?? null,
-      foldedSettings
-    )
+    void foldSegment(scopedSegment, foldedSettings)
       .then((result) => {
         foldCache.current.set(key, result);
         if (cancelled) return;
@@ -217,7 +224,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
     return () => {
       cancelled = true;
     };
-  }, [includeFoldedFigure, canFold, foldSegment, segmentId, foldedSettings, dialog.segments]);
+  }, [includeFoldedFigure, canFold, foldSegment, segmentId, foldedSettings, scopedSegment]);
 
   const toggleSection = (id: SectionId) =>
     setOpenSections((current) => ({ ...current, [id]: !current[id] }));
@@ -245,6 +252,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
           ...DEFAULT_CREASE_EXPORT_OPTIONS,
           segmentId,
           lineStyle,
+          foldAngleDisplay,
           lineWidth,
           pointSize,
           includeUnassigned,
@@ -261,6 +269,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
       dialog.grid,
       segmentId,
       lineStyle,
+      foldAngleDisplay,
       lineWidth,
       pointSize,
       includeUnassigned,
@@ -407,6 +416,36 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                   </SelectContent>
                 </Select>
               </div>
+              {/* Only where there is an angle to encode. Unlike the View panel's
+                  permanent row, this is a modal: a pattern of full folds should not
+                  have to read past a control that would change nothing. */}
+              {hasFoldAngles && (
+                <div className="export-modal__control-group">
+                  <span className="export-modal__label">
+                    {t('dialogs:export.foldAngleDisplay', 'Fold angle style')}
+                  </span>
+                  <Select
+                    value={foldAngleDisplay}
+                    onValueChange={(next) =>
+                      patch({ foldAngleDisplay: next as CreaseExportOptions['foldAngleDisplay'] })
+                    }
+                  >
+                    <SelectTrigger
+                      aria-label={t('dialogs:export.foldAngleDisplay', 'Fold angle style')}
+                      className="export-modal__select"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ORISTUDIO_CP_FOLD_ANGLE_DISPLAYS.map((display) => (
+                        <SelectItem key={display} value={display}>
+                          {cpFoldAngleDisplayLabel(t, display)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="export-modal__control-group">
                 <label className="export-modal__label" htmlFor="export-line-width">
                   {t('dialogs:export.lineWidth', 'Line width')}
