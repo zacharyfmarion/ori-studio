@@ -1,4 +1,5 @@
-import { diagnosticEntryBounds } from '../../cp-workspace/diagnostics/geometry';
+import { boundsFromPoints, diagnosticEntryBounds } from '../../cp-workspace/diagnostics/geometry';
+import type { Point } from '../../lib/geometry';
 import {
   visibleCpDiagnosticEntries,
   visibleCpDiagnosticEntry,
@@ -36,5 +37,24 @@ export function frameActiveCpDiagnostic(state: WorkspaceState): void {
   );
   if (!entry) return;
   const bounds = diagnosticEntryBounds(entry);
+  if (bounds) cpCamera()?.frameModelBounds(bounds);
+}
+
+/**
+ * Jump the canvas to a place the kernel named, with no diagnostic behind it.
+ *
+ * The 3D fold's refusal is the caller: it names a point, and on a scoped fold the
+ * whole-document overlay usually has no row there to activate (measured — see
+ * `foldedFigureNotice.ts`). Framing the point directly is the difference between
+ * answering "which vertex?" and not.
+ *
+ * Here rather than in the slice so that `cpCamera` has exactly one consumer, and
+ * so both ways of moving the canvas frame identically: a diagnostic carrying only
+ * a `point` already reduces to this same degenerate box through
+ * {@link boundsFromPoints}, and `frameUserCameraOnBounds` clamps the zoom of one
+ * against the document fit.
+ */
+export function frameCpModelPoint(point: Point): void {
+  const bounds = boundsFromPoints([point]);
   if (bounds) cpCamera()?.frameModelBounds(bounds);
 }

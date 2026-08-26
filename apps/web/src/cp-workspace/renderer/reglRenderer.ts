@@ -117,9 +117,8 @@ export function createReglRenderer(
   const previewStrokes = createStrokeProgram(regl);
   const points = createPointProgram(regl);
   const overlayPoints = createPointProgram(regl);
-  // Diagnostic overlays (CAMV / check-fix markers + segment highlights + operation
+  // Diagnostic overlays (CAMV / check-fix markers + sector wedges + operation
   // frame): sparse, on top of the crease pattern.
-  const diagnosticStrokes = createStrokeProgram(regl);
   const diagnosticFills = createFillProgram(regl);
   const diagnosticMarkers = createMarkerProgram(regl);
   // Big-little-big sector wedges: screen-scaled fills at a vertex.
@@ -131,7 +130,6 @@ export function createReglRenderer(
   let hasImportedForms = false;
   let hasPreview = false;
   let hasOverlayPoints = false;
-  let hasDiagnosticStrokes = false;
   let hasDiagnosticFills = false;
   let hasDiagnosticMarkers = false;
   let hasDiagnosticWedges = false;
@@ -259,12 +257,6 @@ export function createReglRenderer(
       if (next) overlayPoints.setData(next);
     },
 
-    setDiagnosticStrokes(next) {
-      if (disposed) return;
-      hasDiagnosticStrokes = next !== null && next.count > 0;
-      if (next) diagnosticStrokes.setData(next);
-    },
-
     setDiagnosticFills(next) {
       if (disposed) return;
       hasDiagnosticFills = next !== null && next.count > 0;
@@ -340,12 +332,10 @@ export function createReglRenderer(
         importedStrokes.draw({ view: frame.userView, viewport, widthPx: viewport.dpr });
       }
       // Diagnostic overlays sit above the crease pattern: fills (sector wedges /
-      // frame region) under the segment highlights, with the shape markers on top.
+      // frame region) underneath, with the shape markers on top. Nothing here
+      // draws over a crease — see `CpDiagnosticMarkerStyle` for why.
       if (hasDiagnosticFills) {
         diagnosticFills.draw({ view: frame.view, viewport });
-      }
-      if (hasDiagnosticStrokes) {
-        diagnosticStrokes.draw({ view: frame.view, viewport, widthPx: frame.strokeWidthPx });
       }
       // BLB sector wedges scale with the markers (markerScalePx), under the shapes.
       if (hasDiagnosticWedges) {
@@ -401,7 +391,6 @@ export function createReglRenderer(
       previewStrokes.dispose();
       points.dispose();
       overlayPoints.dispose();
-      diagnosticStrokes.dispose();
       diagnosticFills.dispose();
       diagnosticMarkers.dispose();
       diagnosticWedges.dispose();

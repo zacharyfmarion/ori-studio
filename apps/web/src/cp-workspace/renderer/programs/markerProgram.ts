@@ -9,8 +9,8 @@ type Buffer = ReturnType<Regl['buffer']>;
  * Instanced screen-space marker program: draws diagnostic markers as fixed-pixel
  * shapes anchored at model points. A unit quad is projected at the anchor and
  * expanded to the marker's device size; the fragment shader evaluates a per-shape
- * signed-distance field (disc / ring / triangle / square / pentagon / cross) to
- * fill the interior and straddle-stroke the border, antialiased.
+ * signed-distance field (disc / ring / triangle / square / pentagon / cross /
+ * diamond) to fill the interior and straddle-stroke the border, antialiased.
  *
  * Markers are sized in screen space, shrinking with `u_scalePx` as the view zooms
  * out past the fit. They are far larger than the crease points they annotate
@@ -99,6 +99,13 @@ float sdCross(vec2 p, float r) {
   float by = max(a.x - t, a.y - r);
   return min(bx, by);
 }
+// A diamond: the square's SDF in a frame rotated 45 degrees. Inscribed in the
+// same half-extent, so it sits visibly lighter than the square it shares a
+// silhouette family with.
+float sdDiamond(vec2 p, float r) {
+  const float s = 0.70710678;   // sqrt(2) / 2
+  return sdBox(vec2(p.x + p.y, p.x - p.y) * s, r * s);
+}
 
 void main() {
   float r = vSizePx;
@@ -111,6 +118,7 @@ void main() {
   else if (shape == 3) { sdf = sdBox(p, r); }                       // square
   else if (shape == 4) { sdf = sdPentagon(vec2(p.x, -p.y), r); }    // pentagon (point up)
   else if (shape == 5) { sdf = sdCross(p, r); }                     // cross
+  else if (shape == 6) { sdf = sdDiamond(p, r); }                   // diamond
   else { sdf = sdCircle(p, r); }                                    // disc
 
   float aa = 1.0;

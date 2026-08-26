@@ -339,6 +339,23 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     selectionRequirement: 'selected lines',
     tooltip: 'Set how far the selected creases fold',
   }),
+  // `palette`, like its sibling above: both are driven from the context panel's
+  // selection controls rather than the rail, and both are worth reaching by
+  // name. This one is the only way to hint a crease that is *already*
+  // unassigned -- `CreaseMakeUnassigned` reads the direction off the colour it
+  // is leaving, so it cannot touch one.
+  ready(
+    'CreaseSetDirectionHint',
+    'Set fold direction hint',
+    'color',
+    'circle-dashed',
+    'OriStudioCreaseSetDirectionHint',
+    {
+      placement: 'palette',
+      selectionRequirement: 'selected lines',
+      tooltip: 'Say which way the selected undecided creases folded',
+    }
+  ),
   outOfScopeUi(
     'BackgroundChangePosition',
     'Move background',
@@ -415,6 +432,29 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick vertex', 'Pick the crease to add'],
     tooltip: 'Add the crease that makes a vertex fold consistently, solving its fold angle when the vertex is not flat',
   }),
+  ready(
+    'PropagateFoldAngles',
+    // Named for its *input*, not its output. "Propagate fold angles" read as
+    // non-flat-only — in a flat pattern you think in mountain and valley, not
+    // angles, even though +/-180 is a fold angle — and the flat case is a first
+    // class use: of the answers the isolation fix recovered, 906 of 1,038 came
+    // from the flat corpus. A crease is undecided whether its answer turns out
+    // to be +/-180 or 70.53, so the input is the one word true in both worlds.
+    // "Propagate" also described the algorithm rather than the result; it stays
+    // the operation id, where it is the right word.
+    'Solve Undecided Creases',
+    'construct',
+    'angle-propagate',
+    'OriStudioPropagateFoldAngles',
+    {
+      // Two routes, because the tool takes two kinds of scope: a click resolves
+      // to the pattern it lands in, a selection is the scope itself. One step
+      // naming both beats a step that is wrong half the time.
+      toolSteps: ['Click a crease or vertex to solve outward from, or select creases and Apply'],
+      tooltip:
+        'Work out the creases you have left undecided, within one pattern or within the selection',
+    }
+  ),
   ready('VertexSolveFoldAngles', 'Solve fold angles', 'construct', 'angle-solve', 'OriStudioSolveVertexFoldAngles', {
     toolSteps: [
       'Pick the first crease to change',
@@ -523,18 +563,42 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     placement: 'hidden-ui-only',
     toolSteps: ['Pick first point', 'Pick vertex point', 'Pick second point'],
   }),
+  // Reverses a *stated* fold direction: a mountain or valley states one in its
+  // colour, and an unassigned crease carrying a direction hint states one in the
+  // hint (the kernel dispatch runs the port plus a native limb for that — see
+  // PORTING.md). A crease with no direction at all is left alone, so the tooltip
+  // says "which way it folds" rather than naming mountain and valley, which
+  // would exclude the hint by its own wording.
   ready('CreaseToggleMv', 'Toggle mountain/valley', 'color', 'repeat-2', 'MouseHandlerCreaseToggleMV', {
     placement: 'left-rail',
-    selectionRequirement: 'selected mountain or valley lines',
+    selectionRequirement: 'selected creases stating a fold direction',
     toolSteps: ['Click a crease or drag a box to flip'],
     inputMode: 'drag-box',
-    tooltip: 'Click a crease or drag a box to flip mountain/valley assignments',
+    tooltip: 'Click a crease or drag a box to reverse which way it folds',
   }),
   ready('CircleChangeColor', 'Change circle color', 'annotations', 'palette', 'MouseHandlerCircleChangeColor', {
     placement: 'menu',
     selectionRequirement: 'selected circles or auxiliary lines',
     tooltip: 'Apply the contextual custom color to selected circles and auxiliary lines',
   }),
+  // Named for the variant it actually performs. The bare operation keeps the
+  // direction — forgetting it needs `forget_direction` in the payload — so a
+  // shortcut bound here keeps it, and calling that "Make unassigned" gave the
+  // one bindable action the *other* menu item's name. The forgetting variant is
+  // bound separately, as a menu shortcut, since one kernel operation cannot
+  // produce two entries in a registry keyed on operations.
+  ready(
+    'CreaseMakeUnassigned',
+    'Make unassigned (keep direction)',
+    'color',
+    'circle-dashed',
+    'OriStudioCreaseMakeUnassigned',
+    {
+      placement: 'menu',
+      selectionRequirement: 'selected lines',
+      tooltip: 'Forget what the selected lines do, leaving them undecided',
+    }
+  ),
   ready('CreaseMakeAux', 'Make auxiliary', 'color', 'scan-line', 'MouseHandlerCreaseMakeAux', {
     placement: 'menu',
     selectionRequirement: 'selected folding lines',
@@ -902,6 +966,9 @@ export const ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS = [
   'CreaseToggleMv',
   'CircleChangeColor',
   'CreaseMakeAux',
+  'CreaseMakeUnassigned',
+  'CreaseSetDirectionHint',
+  'PropagateFoldAngles',
   'OperationFrameCreate',
   'VoronoiCreate',
   'FlatFoldableCheck',
@@ -1099,6 +1166,7 @@ const CP_KERNEL_DECIDED_CANDIDATE_OPERATIONS = new Set<OristudioCpOperationId>([
   'VertexMakeAngularlyFlatFoldable',
   'FoldableLineDraw',
   'VertexSolveFoldAngles',
+  'PropagateFoldAngles',
 ]);
 
 /** Whether `operationId`'s candidates carry their own crease type and angle. */

@@ -526,6 +526,15 @@ describe('Oriedita line-style helpers', () => {
     expect(cpLineStyleColorKind('Purple8')).toBe('other');
   });
 
+  it('separates the undecided crease from the spare palette colours', () => {
+    // Both fell in `other` until the undecided crease needed a dash of its own,
+    // and the spare colours must not follow it there.
+    expect(cpLineStyleColorKind('None')).toBe('unassigned');
+    for (const color of ['Orange4', 'Magenta5', 'Green6', 'Yellow7', 'Other9', 'Grey10']) {
+      expect(cpLineStyleColorKind(color)).toBe('other');
+    }
+  });
+
   it('cycles through the five Oriedita line styles', () => {
     expect(advanceOristudioCpLineStyle('color')).toBe('black-white');
     expect(advanceOristudioCpLineStyle('black-white')).toBe('color-and-shape');

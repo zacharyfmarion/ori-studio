@@ -89,14 +89,20 @@ import { ORISTUDIO_CP_ACTIONS, type OristudioCpActionDefinition } from '../../li
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import { cpActionRailLabel } from '../../i18n/cpVocab';
 import { ProtractorIcon } from '../../components/ui/ProtractorIcon';
+import { PropagateFoldAnglesIcon } from '../../components/ui/PropagateFoldAnglesIcon';
 import { SolveFoldAnglesIcon } from '../../components/ui/SolveFoldAnglesIcon';
 
 /** A tool icon: any lucide icon, or a local component with the same props. */
-export type CpToolIcon = LucideIcon | typeof ProtractorIcon | typeof SolveFoldAnglesIcon;
+export type CpToolIcon =
+  | LucideIcon
+  | typeof ProtractorIcon
+  | typeof SolveFoldAnglesIcon
+  | typeof PropagateFoldAnglesIcon;
 
 const LUCIDE_ICONS: Record<string, CpToolIcon> = {
   ProtractorIcon,
   SolveFoldAnglesIcon,
+  PropagateFoldAnglesIcon,
   AlignJustify,
   BadgeAlert,
   BadgeCheck,
@@ -187,11 +193,17 @@ export const CP_TOOL_ICON_SIZE = 20;
  * Keyed by the component rather than by name, so an icon that is never rendered
  * here cannot leave a stale string behind.
  */
-const CP_TOOL_ICON_SIZES = new Map<CpToolIcon, number>([[SolveFoldAnglesIcon, 23]]);
+const CP_TOOL_ICON_SIZES = new Map<CpToolIcon, number>([
+  [SolveFoldAnglesIcon, 23],
+  // The bulb is height-bound where its neighbour is width-bound, so it needs
+  // the opposite correction to sit at the same visual weight in the slot.
+  [PropagateFoldAnglesIcon, 21],
+]);
 
 const ICON_ALIASES: Record<string, string> = {
   angle: 'ProtractorIcon',
   'angle-solve': 'SolveFoldAnglesIcon',
+  'angle-propagate': 'PropagateFoldAnglesIcon',
   compass: 'DraftingCompass',
   divide: 'Divide',
   frame: 'Scan',

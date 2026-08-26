@@ -139,7 +139,30 @@ const OVERSIZED_PANELS = {
   // body did not grow — `hasCreasePattern` gained a disjunct on the same line,
   // and gained it because a crease pattern is no longer inferred from a phantom
   // tree. The cap moves for the import alone.
-  'CreasePatternPanel.tsx': 2752,
+  //
+  // 2752 -> 2753: one line, net. Propagation now takes a scope — the selection,
+  // or the pattern a click lands in — and the two things that cannot live
+  // anywhere else are the prop carrying the selection into
+  // `usePropagationDraft` and an arm routing the context Apply to
+  // `propagation.begin(null)`, beside the Voronoi arm already there. Everything
+  // that decides what a scope *means* is kernel-side; everything that decides
+  // what the window says about it is `foldPropagation/propagationScope`.
+  //
+  // 2753 -> 2754: one prop, and the reason it is here is the bug it fixes. The
+  // panel already computed `cpReplacedLineIds` for the canvas; the fold-angle
+  // badge layer mounted beside it never received it, so a solve under review
+  // showed the reviewed crease's old angle next to the answer replacing it. The
+  // creases a tool stands in for are the panel's to know — it is what unions the
+  // two tools that produce them — and the two surfaces that draw them are
+  // mounted here, so this line is the composition and cannot be anywhere else.
+  //
+  // 2754 -> 2800: the merge, not a change. Two branches grew this panel
+  // independently — the fold-angle work above, and `main`'s own additions — and
+  // the cap is the sum of both. Nothing new landed here in resolving them, and
+  // shaving either side's lines to fit a number neither branch chose is the
+  // "make the count go down without making the code better" move this file
+  // warns about.
+  'CreasePatternPanel.tsx': 2800,
   // 2085 -> 2095: the "no crease pattern" marking. The warning used to name an
   // internal class and point at nothing, so this adds the canvas layer that
   // shows which flaps it means, its Layers toggle, and the alert copy that
@@ -282,6 +305,27 @@ const OVERSIZED_PANELS = {
   // carrying it, and the note above already says it should not ride on whichever
   // feature next trips the cap. It is filed separately.
   //
+  // 1171 -> 1176: propagation's scope. Five lines — one arm in
+  // `contextApplyDisabledForCommand`, one in the Apply button's label chain,
+  // and the export that lets the first be tested. The tool now takes its scope
+  // from the selection as well as from a click, so it needs the Apply button
+  // this file already renders; deciding whether that button is live for a given
+  // command is what this file's predicate is for, and both arms sit beside the
+  // ones already there.
+  //
+  // 1176 -> 1185: the fold-direction-hint control. A second selection-scoped
+  // group beside `FoldAngleControl`, and the same shape of change the fold-angle
+  // badges were: an import, a mount, and one more term in `hasContent`. All of
+  // the behaviour — the chips, the mixed-state summariser, the store binding —
+  // is in `cp-workspace/foldAngle/`, tested there without mounting this panel.
+  //
+  // The extra term is why this is not two lines. `hasContent` decides whether
+  // the window renders *at all*, before any child mounts, so a control that
+  // self-hides still has to be counted here or a selection of purely unassigned
+  // creases would hide the one control that could act on it. Prettier then
+  // splits the widened boolean across five lines. That is formatting, not
+  // behaviour, and shaving it back is the "make the count go down without making
+  // the code better" move this file warns about.
   // 1171 -> 1186: the on-screen Cancel for a half-placed tool gesture. A prop, a
   // pointer-surface read, one more term in `hasContent`, and a five-line button
   // beside the "Clear seeds" it copies. The verb itself is `cancelActiveCpInput`
@@ -289,7 +333,7 @@ const OVERSIZED_PANELS = {
   // is decided here. Same shape as the Square-tool entry above, and the same
   // answer: the seam this file wants is still `CpContextToolGroup`, and it is
   // still not this change's to take.
-  'CpContextToolPanel.tsx': 1186,
+  'CpContextToolPanel.tsx': 1200,
 };
 
 const PANEL_MAX_LINES = 800;

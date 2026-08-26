@@ -86,8 +86,7 @@ So: `|deg|` → classic check → `degreesToFoldMagnitude` → `foldAngleInk`.
 
 ### 3. Alpha becomes `stroke-opacity`, not a baked colour
 
-`edgeAppearance` currently returns `{ stroke, dash }`. It gains
-`strokeOpacity`, and splits by what the mode touched:
+`edgeAppearance` gains `strokeOpacity`, and splits by what the mode touched:
 
 | mode | `foldAngleInk` changes | export emits |
 | --- | --- | --- |
@@ -348,6 +347,36 @@ What that leaves is everything a look has to settle:
    is, the answer is a card-specific floor, not a global one.
 5. **A `black-white` export with `color` selected**, to see how bad the magenta
    contradiction actually looks before deciding it stays documented-not-fixed.
+
+## Merging with the unassigned-crease work (PR #306)
+
+That branch landed in the same function while this was open, and the two meet
+cleanly because they are about different creases:
+
+- It made `edgeAppearance` take a `directionHint` and return a second `hint`
+  stroke over the alternate marks of the crease's dash, extracted `styleInk`,
+  and switched dashed strokes to `stroke-linecap="butt"` so a round cap could
+  not close the gaps that say "undecided".
+- The merged shape keeps all of that inside this change's per-artwork factory,
+  so the palette is still parsed once.
+
+**A hint and a fold angle can never appear on the same crease.**
+`fold_direction_hint` is absent unless a crease is unassigned, and only `M`/`V`
+are ever encoded — so the two features address disjoint sets. Two decisions
+follow, both pinned by `'leaves an undecided crease and its direction hint alone
+in both modes'`:
+
+- The hint's "does this overlay say anything" test compares the ink the *line
+  style* chose, before any fold-angle encoding. That is the question the rule is
+  asking.
+- The hint overlay carries the base crease's `stroke-opacity` anyway, so the two
+  halves of one crease cannot drift apart if that invariant ever changes. Today
+  it is always 1.
+
+That branch also changed `crates/oristudio-cp`, and none of the generated wasm is
+tracked — so merging it turned six kernel-backed test files red in this worktree
+until `build:oristudio-cp-wasm` was re-run. Not a conflict; worth naming, because
+it presents as 35 failures in code the merge never touched.
 
 ## Risks and mitigations
 

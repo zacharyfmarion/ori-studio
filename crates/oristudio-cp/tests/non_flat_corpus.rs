@@ -84,6 +84,12 @@ const COVERAGE: &[(&str, &str)] = &[
         "the harness is reading the corpus and not an empty directory",
     ),
     (
+        "tier_a_verdicts_name_the_one_broken_vertex_and_no_others",
+        "the vertex verdict over the validated roster: which vertices are \
+         Broken, and that solve/failure_case.osf's one undecided crease is \
+         reported rather than skipped",
+    ),
+    (
         "moosers_train_pair_is_a_usable_placement_oracle",
         "the only ground-truth folded state available, and the noise floor \
          that bounds what may be concluded from it",
@@ -161,18 +167,48 @@ fn measurable_files(root: &Path) -> Vec<PathBuf> {
     files
 }
 
+/// Where an `.osf` workspace keeps its crease pattern.
+///
+/// Two shapes exist in the corpus and both are live: a workspace saved before
+/// per-kind designs keeps it under `documents[0]`, one saved after keeps it
+/// under `creasePattern`.
+const OSF_CREASE_PATTERN_POINTERS: [&str; 2] = [
+    "/workspace/documents/0/creasePattern/foldProjection",
+    "/workspace/creasePattern/creasePattern/foldProjection",
+];
+
 /// Read a `.fold`, or the crease pattern out of an Ori Studio `.osf`.
 ///
 /// Deliberately **not** `import_fold_document`: that drops the z coordinate
 /// (`io/fold.rs`), which is fine for a crease pattern and destroys a folded
 /// form. Anything reading a `foldedForm` frame has to come through here.
+///
+/// Reads the first shape only, and that is a **recorded** narrowness rather than
+/// an oversight. A file in the second shape is not a parse error — it reports
+/// "unreadable" and drops out of the scan — so widening this is a
+/// re-measurement of every census below, not a bug fix: it takes the corpus from
+/// 55 distinct models to 77, and adds five files to
+/// `corpus_ordering_reports_every_model`'s roster of admitted-but-unorderable
+/// models. Each of those is a claim about a design nobody has looked at yet.
+/// Callers that need one specific file out of the second shape take
+/// [`read_fold_any_workspace_shape`].
 fn read_fold(path: &Path) -> Result<FoldDocument, String> {
+    read_fold_with(path, &OSF_CREASE_PATTERN_POINTERS[..1])
+}
+
+/// [`read_fold`] over both workspace shapes, for a roster named file by file.
+fn read_fold_any_workspace_shape(path: &Path) -> Result<FoldDocument, String> {
+    read_fold_with(path, &OSF_CREASE_PATTERN_POINTERS)
+}
+
+fn read_fold_with(path: &Path, pointers: &[&str]) -> Result<FoldDocument, String> {
     let raw = std::fs::read_to_string(path).map_err(|error| error.to_string())?;
     if path.extension().is_some_and(|e| e == "osf") {
         let project: serde_json::Value =
             serde_json::from_str(&raw).map_err(|error| error.to_string())?;
-        let projection = project
-            .pointer("/workspace/documents/0/creasePattern/foldProjection")
+        let projection = pointers
+            .iter()
+            .find_map(|pointer| project.pointer(pointer))
             .ok_or_else(|| "no creasePattern.foldProjection".to_string())?;
         return serde_json::from_value(projection.clone()).map_err(|error| error.to_string());
     }
@@ -1223,8 +1259,15 @@ fn corpus_landmarks_are_where_the_harness_expects_them() {
         assert_eq!(model.line_segments.len(), *segments, "{relative}: segments");
         let dispatched = dispatched_camv(&model);
         assert_eq!(dispatched.flat.len(), *flat, "{relative}: flat violations");
+        // Vertices with a closure condition, not reports: the spatial list now
+        // carries a verdict for the boundary vertices too, and those have no
+        // condition to examine.
         assert_eq!(
-            dispatched.spatial.len(),
+            dispatched
+                .spatial
+                .iter()
+                .filter(|report| report.has_closure_condition())
+                .count(),
             *spatial,
             "{relative}: spatial vertices examined"
         );
@@ -1243,6 +1286,139 @@ fn corpus_landmarks_are_where_the_harness_expects_them() {
         "corpus landmarks verified: {} files present, {} landmarks measured",
         files.len(),
         landmarks.len()
+    );
+}
+
+/// The validated roster — Tier A — and nothing else.
+///
+/// The whole-corpus scans above are report-only because
+/// `origami-simulator-corpus`' fold angles are relaxation targets rather than
+/// solved states, so 68.6% of its vertices fail closure and no assertion about
+/// correctness can be made over it. These files are the ones whose answers are
+/// known: curated third-party designs that fold, plus the owner's own.
+const TIER_A: &[&str] = &[
+    "known-good/ALL-combined.fold",
+    "known-good/airplane.fold",
+    "known-good/birdBase.fold",
+    "known-good/byu solar driven.fold",
+    "known-good/cross.fold",
+    "known-good/cubeunwrapping.fold",
+    "known-good/frogBase.fold",
+    "known-good/helloworld.fold",
+    "known-good/origamisimulator.fold",
+    "known-good/waterbombBase.fold",
+    "spikes_better.fold",
+    "non-flat-harder_final.osf",
+    "solve/failure_case.osf",
+];
+
+/// **The regression this plan exists for, on the file it came from.**
+///
+/// `solve/failure_case.osf` is a document its author solved with fold-angle
+/// propagation, believed complete, and then could not fold. The checker examined
+/// nine of its twenty-five vertices, reported no closure failure, and never
+/// looked at the tenth at all: `vertex_fan_at_with_sources` found an unassigned
+/// crease there, flagged the fan indeterminate and declined, and a declined fan
+/// produced no report — so the UI drew abstention as success. That vertex is the
+/// one the folder refuses on.
+///
+/// Two claims, and the second is what keeps the first from being bought with
+/// false positives:
+///
+/// 1. That vertex is **Broken**, at k = 1, with a bracket on how close it gets.
+/// 2. Across the rest of the roster, **nothing** is Broken. 3,476 vertices that
+///    read as clean before still read as clean, and the 124 that were declined
+///    in silence now say so.
+///
+/// The committed half of this is
+/// `tests/fixtures/fold-angle/unreachable-undecided-vertex.fold`, which is that
+/// vertex minimised and runs with no corpus at all. This is the breadth.
+#[test]
+fn tier_a_verdicts_name_the_one_broken_vertex_and_no_others() {
+    use oristudio_cp::checks_spatial::{Broken, VertexVerdict};
+
+    let Some(root) = corpus("tier_a_verdicts_name_the_one_broken_vertex_and_no_others") else {
+        return;
+    };
+
+    let (mut fine, mut broken, mut undecided, mut unknowable) = (0usize, 0usize, 0usize, 0usize);
+    let mut broken_vertices: Vec<(String, f64, f64, Broken)> = Vec::new();
+    println!(
+        "{:<44}{:>8}{:>8}{:>10}{:>11}",
+        "model", "fine", "broken", "undecided", "unknowable"
+    );
+    for relative in TIER_A {
+        let path = root.join(relative);
+        assert!(
+            path.is_file(),
+            "Tier A file missing from the corpus: {relative}"
+        );
+        let fold = read_fold_any_workspace_shape(&path)
+            .unwrap_or_else(|error| panic!("{relative}: {error}"));
+        let model =
+            import_fold_document(&fold).unwrap_or_else(|error| panic!("{relative}: {error:?}"));
+        let dispatched = dispatched_camv(&model);
+        let (mut f, mut b, mut d, mut u) = (0usize, 0usize, 0usize, 0usize);
+        for report in &dispatched.spatial {
+            match &report.verdict {
+                VertexVerdict::Fine => f += 1,
+                VertexVerdict::Broken(cause) => {
+                    b += 1;
+                    broken_vertices.push((
+                        (*relative).to_string(),
+                        report.point.x,
+                        report.point.y,
+                        *cause,
+                    ));
+                }
+                VertexVerdict::Undecided(_) => d += 1,
+                VertexVerdict::Unknowable(_) => u += 1,
+            }
+        }
+        println!("{relative:<44}{f:>8}{b:>8}{d:>10}{u:>11}");
+        fine += f;
+        broken += b;
+        undecided += d;
+        unknowable += u;
+    }
+    println!(
+        "\nTier A: {fine} fine, {broken} broken, {undecided} undecided, {unknowable} unknowable"
+    );
+
+    assert_eq!(
+        broken_vertices.len(),
+        1,
+        "Tier A holds exactly one vertex that cannot fold, and these are the ones \
+         reported: {broken_vertices:?}"
+    );
+    let (file, x, y, cause) = &broken_vertices[0];
+    assert_eq!(file, "solve/failure_case.osf");
+    assert!(
+        (*x - 0.0).abs() < 1e-6 && (*y + 100.0).abs() < 1e-6,
+        "the broken vertex is at (0, -100) after the importer re-centres, not ({x}, {y})"
+    );
+    let Broken::NoAngleCloses { unknowns, closest } = cause else {
+        panic!("expected an unreachable-closure vertex, got {cause:?}");
+    };
+    assert_eq!(*unknowns, 1, "the vertex has one undecided crease");
+    let closest = closest.expect("the refusal must carry how close it gets");
+    assert!(
+        (closest - 65.9579).abs() < 1e-3,
+        "swept independently at 0.001 degrees, the best achievable residual is \
+         65.958 degrees; the solver reports {closest}"
+    );
+
+    // Counts rather than tolerances: a count that changes is a changed answer.
+    assert_eq!(fine, 3476, "Tier A vertices that close");
+    assert_eq!(
+        unknowable, 124,
+        "Tier A vertices with nothing to say — 112 on a paper edge in the spatial \
+         regime, 12 excused by an interior border. Before the verdicts these were \
+         absences from the report list and read as clean."
+    );
+    assert_eq!(
+        undecided, 0,
+        "Tier A carries one undecided crease and it is the broken one"
     );
 }
 

@@ -76,16 +76,16 @@
       "tooltip": "Set active line type to edge",
       "disabledReason": "Ready"
     },
-    "cp_action_line_type_unassigned": {
-      "label": "Unassigned",
-      "railLabel": "U",
-      "tooltip": "Set active line type to unassigned",
-      "disabledReason": "Ready"
-    },
     "cp_action_line_type_auxiliary": {
       "label": "Auxiliary",
       "railLabel": "A",
       "tooltip": "Set active line type to auxiliary",
+      "disabledReason": "Ready"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "Unassigned",
+      "railLabel": "U",
+      "tooltip": "Set active line type to unassigned",
       "disabledReason": "Ready"
     },
     "cp_action_draw_crease": {
@@ -286,6 +286,11 @@
       "tooltip": "Set how far the selected creases fold",
       "disabledReason": "Ready"
     },
+    "cp_action_crease_set_direction_hint": {
+      "label": "Set fold direction hint",
+      "tooltip": "Say which way the selected undecided creases folded",
+      "disabledReason": "Ready"
+    },
     "cp_action_background_change_position": {
       "label": "Move background",
       "tooltip": "Background image manipulation is UI-only and not part of the CP kernel",
@@ -405,6 +410,14 @@
       "steps": {
         "0": "Pick vertex",
         "1": "Pick the crease to add"
+      }
+    },
+    "cp_action_propagate_fold_angles": {
+      "label": "Solve Undecided Creases",
+      "tooltip": "Work out the creases you have left undecided, within one pattern or within the selection",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Click a crease or vertex to solve outward from, or select creases and Apply"
       }
     },
     "cp_action_vertex_solve_fold_angles": {
@@ -579,7 +592,7 @@
     },
     "cp_action_crease_toggle_mv": {
       "label": "Flip Mountain/Valley",
-      "tooltip": "Click a crease or drag a box to flip mountain/valley assignments",
+      "tooltip": "Click a crease or drag a box to reverse which way it folds",
       "disabledReason": "Ready",
       "steps": {
         "0": "Click a crease or drag a box to flip"
@@ -588,6 +601,11 @@
     "cp_action_circle_change_color": {
       "label": "Change circle color",
       "tooltip": "Apply the contextual custom color to selected circles and auxiliary lines",
+      "disabledReason": "Ready"
+    },
+    "cp_action_crease_make_unassigned": {
+      "label": "Make unassigned (keep direction)",
+      "tooltip": "Forget what the selected lines do, leaving them undecided",
       "disabledReason": "Ready"
     },
     "cp_action_crease_make_aux": {

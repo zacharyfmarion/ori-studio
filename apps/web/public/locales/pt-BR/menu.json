@@ -30,6 +30,8 @@
     "makeAuxiliary": "Definir como auxiliar",
     "makeEdge": "Definir como borda",
     "makeMountain": "Definir como montanha",
+    "makeUnassigned": "Tornar não atribuído",
+    "makeUnassignedKeepDirection": "Tornar não atribuído (manter direção)",
     "makeValley": "Definir como vale",
     "organizeCircles": "Organizar círculos",
     "repair": "Reparar",

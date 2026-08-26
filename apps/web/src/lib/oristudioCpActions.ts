@@ -68,13 +68,6 @@ export type OristudioCpActionDefinition =
   | OristudioCpLineTypeActionDefinition
   | OristudioCpCommandActionDefinition;
 
-/**
- * Line types that stay out of the rail. Unassigned is a real crease colour —
- * imported patterns carry it and the renderer draws it — but it is not
- * something you reach for while drawing, so it does not earn a chip.
- */
-const HIDDEN_LINE_TYPE_IDS = new Set(['unassigned']);
-
 export const ORISTUDIO_CP_LINE_TYPE_ACTIONS = [
   ...ORISTUDIO_CP_PRIMARY_LINE_COLOR_PALETTE.map((entry, index) =>
     lineTypeAction(
@@ -84,10 +77,15 @@ export const ORISTUDIO_CP_LINE_TYPE_ACTIONS = [
       entry.lineColor,
       upstreamLineColorAction(entry.lineColor),
       `line-type-${entry.cssClass}`,
-      // Keep palette order (M, V, E, A) explicit rather than leaning on a
+      // Keep palette order (M, V, E, A, U) explicit rather than leaning on a
       // stable sort, since the rail sorts every group by `railOrder`.
       index + 1,
-      HIDDEN_LINE_TYPE_IDS.has(entry.id) ? 'hidden-ui-only' : 'left-rail'
+      // Unassigned used to be withheld here, as "something you reach for while
+      // drawing, so it does not earn a chip". That was written when an
+      // undecided crease was transient run state; it is now a thing you author
+      // on purpose, and the one type you cannot pick was the only way to draw
+      // one.
+      'left-rail'
     )
   ),
 ] as const satisfies readonly OristudioCpLineTypeActionDefinition[];
@@ -411,6 +409,11 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
     upstreamAction: 'senbun_henkan2Action',
     upstreamMouseMode: 'CREASE_TOGGLE_MV_58',
     railOrder: 30,
+  },
+  PropagateFoldAngles: {
+    group: 'color',
+    railOrder: 50,
+    upstreamAction: 'propagateFoldAnglesAction',
   },
   VertexSolveFoldAngles: {
     label: 'Solve Fold Angles',

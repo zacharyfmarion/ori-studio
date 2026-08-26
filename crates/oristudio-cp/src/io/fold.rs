@@ -3,7 +3,7 @@ use crate::CreasePatternDocument;
 use crate::fold_graph::FoldGraph;
 use crate::folding3d::interchange;
 use crate::geometry::{
-    Circle, FoldMagnitude, LineColor, LineSegment, Point, angle, point_rotate_scaled,
+    Circle, FoldDirection, FoldMagnitude, LineColor, LineSegment, Point, angle, point_rotate_scaled,
 };
 use crate::model::{
     CreasePatternModel, GridState, TextElement, crease_fold_angle, custom_color_from_hex,
@@ -15,6 +15,18 @@ use treemaker_fold::FoldDocument;
 
 const ORIEDITA_VERSION: &str = "dev";
 const ORISTUDIO_EDGES_LINE_COLORS: &str = "oristudio:edges_line_colors";
+/// Which way an unassigned crease folded before its angle was forgotten:
+/// `0` none, `1` mountain, `2` valley, one per edge.
+///
+/// **The unknown-ness itself stays in FOLD's own `edges_assignment: "U"`**, and
+/// only the direction lives here. That ordering is the whole safety of the
+/// encoding: a reader that has never heard of Ori Studio, or one that drops
+/// extension arrays, degrades a hinted crease to a plain unassigned one —
+/// information lost, meaning preserved. The inverse spelling (write "M" with a
+/// null angle and keep the unknown-ness in the extension) imports as a *decided*
+/// mountain the moment the extension goes missing, with every remaining field
+/// asserting the opposite and nothing left inconsistent to detect.
+const ORISTUDIO_EDGES_FOLD_DIRECTION_HINT: &str = "oristudio:edges_fold_direction_hint";
 pub const FOLD_FILE_METADATA_KEY: &str = "oristudio:fold:file";
 
 /// Parse a full FOLD file document without flattening embedded frames.
@@ -259,6 +271,16 @@ pub fn import_fold_document(fold: &FoldDocument) -> Result<CreasePatternModel> {
     reject_unrepresentable_geometry(fold)?;
     let mut model = CreasePatternModel::default();
     let edge_line_colors = line_color_array_extra(fold, ORISTUDIO_EDGES_LINE_COLORS)?;
+    let edge_direction_hints = fold
+        .extra
+        .get(ORISTUDIO_EDGES_FOLD_DIRECTION_HINT)
+        .and_then(Value::as_array)
+        .map(|values| {
+            values
+                .iter()
+                .map(|value| value.as_i64().unwrap_or(0))
+                .collect::<Vec<_>>()
+        });
     let edge_colors = string_array_extra(fold, "oriedita:edges_colors")?;
     let mut bounds = FoldImportBounds::default();
 
@@ -281,6 +303,23 @@ pub fn import_fold_document(fold: &FoldDocument) -> Result<CreasePatternModel> {
             segment = segment.with_customized_color(custom_color_from_hex(hex)?);
         }
 
+        // Only on a crease that is actually unassigned. A hint beside a decided
+        // direction is a contradiction, and the file is not the place to
+        // adjudicate it — drop it and keep the direction the file states.
+        if line_color == LineColor::None
+            && let Some(code) = edge_direction_hints
+                .as_ref()
+                .and_then(|hints| hints.get(index))
+        {
+            segment = LineSegment {
+                fold_direction_hint: match code {
+                    1 => Some(FoldDirection::Mountain),
+                    2 => Some(FoldDirection::Valley),
+                    _ => None,
+                },
+                ..segment
+            };
+        }
         model.add_line_segment(segment);
     }
     normalize_imported_fold_lines(&mut model, bounds);
@@ -298,6 +337,7 @@ pub fn export_fold_document(model: &CreasePatternModel, title: Option<String>) -
     let mut assignments = Vec::new();
     let mut fold_angles = Vec::new();
     let mut edge_line_colors = Vec::new();
+    let mut edge_direction_hints: Vec<i32> = Vec::new();
     let mut edge_custom_colors = Vec::new();
 
     for segment in &topology.segments {
@@ -308,6 +348,11 @@ pub fn export_fold_document(model: &CreasePatternModel, title: Option<String>) -
             crease_fold_angle(segment).unwrap_or_else(|| fold_angle_for_line_color(segment.color)),
         ));
         edge_line_colors.push(segment.color.number());
+        edge_direction_hints.push(match segment.fold_direction_hint {
+            None => 0,
+            Some(FoldDirection::Mountain) => 1,
+            Some(FoldDirection::Valley) => 2,
+        });
         edge_custom_colors.push(if segment.customized == 1 {
             custom_color_hex(segment.customized_color)
         } else {
@@ -345,6 +390,14 @@ pub fn export_fold_document(model: &CreasePatternModel, title: Option<String>) -
         ORISTUDIO_EDGES_LINE_COLORS.to_string(),
         json!(edge_line_colors),
     );
+    // Omitted entirely when nothing is hinted, so an ordinary document's FOLD is
+    // byte-identical to what it was before this existed.
+    if edge_direction_hints.iter().any(|code| *code != 0) {
+        fold.extra.insert(
+            ORISTUDIO_EDGES_FOLD_DIRECTION_HINT.to_string(),
+            json!(edge_direction_hints),
+        );
+    }
     export_circles(model, &mut fold);
     export_texts(model, &mut fold);
     fold.extra.insert(
@@ -721,4 +774,46 @@ fn integer_extra(fold: &FoldDocument, key: &'static str) -> Result<Option<i32>> 
             field: key,
             message: error.to_string(),
         })
+}
+
+#[cfg(test)]
+mod hint_tests {
+    use super::{export_fold_document, import_fold_document};
+    use crate::geometry::{FoldDirection, LineColor, LineSegment, Point};
+    use crate::model::CreasePatternModel;
+
+    /// The encoding's safety property, stated as a test. Unknown-ness lives in
+    /// FOLD's own `edges_assignment: "U"` and only the direction lives in our
+    /// extension, so a reader that drops extension arrays degrades a hinted
+    /// crease to a plain unassigned one. The inverse spelling would import as a
+    /// *decided* mountain with nothing inconsistent left to detect.
+    #[test]
+    fn losing_the_extension_degrades_a_hint_to_plain_unassigned() {
+        let mut model = CreasePatternModel::default();
+        model.line_segments.clear();
+        model.line_segments.push(
+            LineSegment::new(Point::new(0.0, 0.0), Point::new(100.0, 0.0))
+                .with_line_color(LineColor::Red1)
+                .with_direction_kept(),
+        );
+
+        let fold = export_fold_document(&model, None);
+        assert_eq!(
+            fold.assignment_for_edge(0),
+            treemaker_fold::Assignment::Unassigned
+        );
+
+        let kept = import_fold_document(&fold).expect("import");
+        assert_eq!(
+            kept.line_segments[0].fold_direction_hint,
+            Some(FoldDirection::Mountain)
+        );
+
+        let mut stripped = fold.clone();
+        stripped.extra.remove("oristudio:edges_fold_direction_hint");
+        stripped.extra.remove("oristudio:edges_line_colors");
+        let degraded = import_fold_document(&stripped).expect("import stripped");
+        assert_eq!(degraded.line_segments[0].color, LineColor::None);
+        assert_eq!(degraded.line_segments[0].fold_direction_hint, None);
+    }
 }

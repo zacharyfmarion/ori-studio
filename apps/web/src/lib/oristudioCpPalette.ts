@@ -24,14 +24,22 @@ export const ORISTUDIO_CP_LINE_COLOR_PALETTE = [
   paletteEntry('other', 'Other', 'X', 'Other9', 'other', 'Line other', false),
 ] as const satisfies readonly OristudioCpPaletteEntry[];
 
-export const ORISTUDIO_CP_PRIMARY_LINE_COLOR_PALETTE = ORISTUDIO_CP_LINE_COLOR_PALETTE.filter(
-  (entry) =>
-    entry.id === 'mountain' ||
-    entry.id === 'valley' ||
-    entry.id === 'edge' ||
-    entry.id === 'unassigned' ||
-    entry.id === 'auxiliary'
-);
+/**
+ * The five that get a chip in the rail, **in the order they sit there**.
+ *
+ * Listed rather than filtered, because the rail order is decided here and a
+ * filter would silently inherit whatever order the full palette happens to be
+ * in. Unassigned is last on purpose: the first three are the crease types a
+ * pattern is made of and the last two are the ones that are not creases yet, so
+ * the divide reads left to right.
+ */
+const PRIMARY_LINE_COLOR_IDS = ['mountain', 'valley', 'edge', 'auxiliary', 'unassigned'] as const;
+
+export const ORISTUDIO_CP_PRIMARY_LINE_COLOR_PALETTE = PRIMARY_LINE_COLOR_IDS.map((id) => {
+  const entry = ORISTUDIO_CP_LINE_COLOR_PALETTE.find((candidate) => candidate.id === id);
+  if (!entry) throw new Error(`unknown primary line colour: ${id}`);
+  return entry;
+});
 
 export const ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE = ORISTUDIO_CP_LINE_COLOR_PALETTE.filter(
   (entry) =>

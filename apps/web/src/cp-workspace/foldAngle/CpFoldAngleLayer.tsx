@@ -70,6 +70,7 @@ function drawnAt(
 export function CpFoldAngleLayer({
   lineSegments,
   toolCandidates,
+  toolReplacedLineIds,
 }: {
   /** Crease line segments in model space, indexed so id === index + 1. */
   lineSegments: readonly OristudioCpLineSegment[] | undefined;
@@ -82,6 +83,27 @@ export function CpFoldAngleLayer({
    * rays without saying which folds how far has not told the user anything.
    */
   toolCandidates?: readonly ToolPreviewSegment[];
+  /**
+   * The document creases those candidates stand in for, as 1-based ids — the
+   * same set, from the same memo, that stops the canvas drawing them.
+   *
+   * These three props are one fact in three parts, and holding two of them was
+   * worse than holding none: the canvas replaced the reviewed crease with its
+   * proposal while the badge went on reading the angle that crease *had*, so a
+   * solve under review showed `109.47°` and `0°` on one line and looked like it
+   * had produced both. A number outliving the stroke it labels is the failure
+   * mode of every overlay that tracks the document separately, so the rule is
+   * that whatever the canvas stops drawing, this stops labelling.
+   *
+   * Required, not optional, and that is the whole guard on the wiring: the layer
+   * mounts only once the WebGL camera has published a view, so jsdom — which has
+   * no GL context — cannot reach it through the panel at all, and a test that
+   * mocked the canvas away to watch one prop would be checking its own mock.
+   * Demanding the prop makes dropping it a compile error instead, which is why
+   * the canvas declares the same id set the same way. An empty array is the
+   * honest way to say "no tool is standing in for anything".
+   */
+  toolReplacedLineIds: readonly number[];
 }) {
   const { view, containerRef } = usePannedOverlayView();
   // A move-drag or a transform tool draws the selected creases somewhere the
@@ -99,9 +121,17 @@ export function CpFoldAngleLayer({
   );
   if (!view) return null;
 
+  // Built the way the canvas builds its own: a set only when there is something
+  // in it, so the ordinary render pays nothing for a tool that is not open.
+  const replaced = toolReplacedLineIds.length > 0 ? new Set(toolReplacedLineIds) : undefined;
+
   const creases: FoldAngleBadgeInput[] = [];
   if (lineSegments && labelsVisible) {
     lineSegments.forEach((segment, index) => {
+      // Before the fold-state filters, matching the scene builders: a replaced
+      // crease drops out whatever it is, so the rule stays "the canvas is not
+      // drawing it" rather than a second opinion about which creases count.
+      if (replaced?.has(index + 1)) return;
       if (!isFoldingCrease(segment.color) || isClassicCrease(segment)) return;
       // Signed, not |rho|. The sign duplicates what the colour already says, and
       // that redundancy is the point: a red crease reading -90 teaches the

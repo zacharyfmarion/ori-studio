@@ -53,7 +53,16 @@ export interface CpToolOptionWindow {
    * is what the user sees change as they step.
    */
   bounds: CpToolOptionBounds;
-  title: string;
+  /**
+   * What the header calls this window, shown only when there is no stepper.
+   *
+   * **Optional, because a title is not always worth its width.** A tool whose
+   * window frames the change and states its finding in `note` can say
+   * everything it has to say without one; propagation does exactly that. When
+   * it is absent the header shrink-wraps to Apply/Cancel rather than stretching
+   * a mostly-empty bar across the frame.
+   */
+  title?: string;
   /** 0-based; `count` of 0 means there is nothing to step through. */
   index: number;
   count: number;

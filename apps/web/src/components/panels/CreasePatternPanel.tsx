@@ -133,6 +133,7 @@ import { CpTextAnnotationLayer } from '../../cp-workspace/CpTextAnnotationLayer'
 import { CpMeasureLayer } from '../../cp-workspace/CpMeasureLayer';
 import { CpFoldAngleLayer } from '../../cp-workspace/foldAngle/CpFoldAngleLayer';
 import { useVertexSolve } from '../../cp-workspace/foldAngleSolve/useVertexSolve';
+import { usePropagationDraft } from '../../cp-workspace/foldPropagation/usePropagationDraft';
 import { CpToolOptionLayer } from '../../cp-workspace/toolOptions/CpToolOptionLayer';
 import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
 import { CpSelectionToolbar } from '../../cp-workspace/CpSelectionToolbar';
@@ -155,7 +156,6 @@ import { useCpAnnotations } from '../../cp-workspace/annotations/useCpAnnotation
 import { CpContextToolPanel, cpLineTypeStatusLabel } from './CpContextToolPanel';
 import {
   buildCpDiagnosticMarkers,
-  buildCpDiagnosticStrokes,
   buildCpDiagnosticWedges,
   resolveCpDiagnosticToneColors,
 } from '../../cp-workspace/diagnostics/geometry';
@@ -1394,14 +1394,13 @@ export function CreasePatternPanel() {
     () => visibleCpDiagnosticEntries(oristudioCpCamvResult, lastCommandResult, camvIssuesVisible),
     [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult]
   );
-  // WebGL diagnostic overlay geometry (markers + segment highlights). Rebuilt when
+  // WebGL diagnostic overlay geometry (vertex markers + BLB wedges). Rebuilt when
   // the entries or theme change; the tone colours read the current theme's CSS vars.
   const cpDiagnosticGeometry = useMemo(() => {
     void currentTheme;
     const toneColors = resolveCpDiagnosticToneColors(document.documentElement);
     return {
       markers: buildCpDiagnosticMarkers(latestDiagnosticEntries, toneColors),
-      strokes: buildCpDiagnosticStrokes(latestDiagnosticEntries, toneColors),
       wedges: buildCpDiagnosticWedges(latestDiagnosticEntries, toneColors),
     };
   }, [latestDiagnosticEntries, currentTheme]);
@@ -1478,6 +1477,16 @@ export function CreasePatternPanel() {
 
   const [cpToolUnavailable, setCpToolUnavailable] = useState<string | null>(null);
 
+  // Both fold-angle tools hold a proposal instead of committing on their final
+  // click, and both need the panel's own payload defaults to preview it. One
+  // closure, because two copies of it drifting apart would mean two tools
+  // previewing against different grid widths.
+  const buildActiveCpCommandPayload = useCallback(
+    (payload: OristudioCpCommandPayload) =>
+      activeCpCommand ? buildCpCommandPayload(activeCpCommand, payload) : payload,
+    [activeCpCommand, buildCpCommandPayload]
+  );
+
   // The three-angle solve holds its answers for review instead of committing on
   // the third pick, because closing a vertex generally admits more than one set
   // of fold angles and there is no basis for the software to choose. All of that
@@ -1485,13 +1494,42 @@ export function CreasePatternPanel() {
   const vertexSolve = useVertexSolve({
     preview: previewOristudioCpCommand,
     execute: executeOristudioCpCommand,
-    buildPayload: useCallback(
-      (payload: OristudioCpCommandPayload) =>
-        activeCpCommand ? buildCpCommandPayload(activeCpCommand, payload) : payload,
-      [activeCpCommand, buildCpCommandPayload]
-    ),
+    buildPayload: buildActiveCpCommandPayload,
     documentVersion: editableCp?.crease_pattern.line_segments,
   });
+
+  // Propagation is the one tool whose scope is the selection *or* a click, so it
+  // takes the selection separately rather than through the shared payload
+  // closure above — which the three-angle solve uses too, and which must not
+  // acquire one.
+  const propagation = usePropagationDraft({
+    preview: previewOristudioCpCommand,
+    execute: executeOristudioCpCommand,
+    buildPayload: buildActiveCpCommandPayload,
+    documentVersion: editableCp?.crease_pattern.line_segments,
+    scopeLineIds: oristudioCpSelection.lines,
+  });
+
+  // Arming one fold-angle tool disarms the other, which is the invariant the
+  // shared option layer and the Enter/Escape rungs below already assume. Left
+  // to itself a held proposal outlives the tool that made it: its window is
+  // hidden behind the other's, while its replaced ids go on hiding creases with
+  // nothing on screen to explain why.
+  const activeCpOperationId = activeCpCommand?.operationId;
+  useEffect(() => {
+    if (activeCpOperationId !== 'PropagateFoldAngles') propagation.cancel();
+    if (activeCpOperationId !== 'VertexSolveFoldAngles') vertexSolve.cancel();
+  }, [activeCpOperationId, propagation, vertexSolve]);
+
+  /**
+   * The window a solve tool is currently asking a question through, if any.
+   *
+   * One source of truth for two decisions: which window the single
+   * `CpToolOptionLayer` renders, and whether the selection toolbar stands down.
+   * The mutual-exclusion effect above guarantees at most one is ever open, so
+   * the `??` is a choice between "one" and "none", never a tiebreak.
+   */
+  const openToolOptionWindow = propagation.option ?? vertexSolve.option;
 
   useEffect(() => {
     const documentKey = editableCp
@@ -1683,6 +1721,15 @@ export function CreasePatternPanel() {
   }, [clearOristudioCpActionRequest, handleCpToolAction, oristudioCpActionRequest]);
 
   const handleApplyActiveContextCommand = useCallback(() => {
+    // Propagation's Apply *opens* a draft rather than committing one: this is
+    // the "Propagate in selection" button, the gesture that says the scope is
+    // the selection — the seed click's counterpart, and the only one of the two
+    // that consults it. The change itself still waits for the draft window's own
+    // Apply.
+    if (activeCpCommand?.operationId === 'PropagateFoldAngles') {
+      if (editableCp) void propagation.beginInSelection();
+      return;
+    }
     if (
       !editableCp ||
       !activeCpCommand ||
@@ -1738,6 +1785,7 @@ export function CreasePatternPanel() {
     executeOristudioCpCommand,
     oristudioCpSelection.circles,
     oristudioCpSelection.lines,
+    propagation,
     t,
   ]);
 
@@ -1914,6 +1962,23 @@ export function CreasePatternPanel() {
 
       // The three-angle solve does not apply on its final pick. It hands the
       // answers to the review state, which applies one when asked.
+      // Propagation does not apply on its seed click either. It can rewrite
+      // hundreds of creases at once, and a change that large is looked at before
+      // it lands — the draft waits for an explicit Confirm.
+      if (command.operationId === 'PropagateFoldAngles') {
+        const seed = points[0];
+        // Scoped to the pattern the click landed in, and never to the selection:
+        // a click is a statement about a place, and the selection here may be
+        // minutes old and about another pattern entirely.
+        if (seed) void propagation.beginAtPoint(seed);
+        setCpToolState((state) =>
+          state.activeOperationId === command.operationId
+            ? transitionOristudioCpToolState(state, { type: 'commit', keepActive: true })
+            : state
+        );
+        return;
+      }
+
       if (command.operationId === 'VertexSolveFoldAngles') {
         void vertexSolve.begin(pickedLineIds);
         setCpToolState((state) =>
@@ -2014,6 +2079,7 @@ export function CreasePatternPanel() {
       })();
     },
     [
+      propagation,
       activeCpCommand,
       buildCpCommandPayload,
       editableCp?.crease_pattern.line_segments,
@@ -2209,12 +2275,23 @@ export function CreasePatternPanel() {
   // While the solve is in review the three creases-as-they-would-be are the
   // preview. They ride the same channel as every other tool candidate, so the
   // fold-angle ramp and the angle badges pick them up with nothing new added.
+  // A union rather than a chain: the two tools are mutually exclusive by the
+  // effect above, and a chain would silently hide one of them if that ever
+  // stopped being true.
   const cpPreviewSegments = useMemo(
     () =>
-      vertexSolve.segments.length > 0
-        ? [...webglToolPreviewSegments, ...vertexSolve.segments]
-        : webglToolPreviewSegments,
-    [vertexSolve.segments, webglToolPreviewSegments]
+      propagation.segments.length === 0 && vertexSolve.segments.length === 0
+        ? webglToolPreviewSegments
+        : [...webglToolPreviewSegments, ...propagation.segments, ...vertexSolve.segments],
+    [propagation.segments, vertexSolve.segments, webglToolPreviewSegments]
+  );
+
+  // One prop, two tools, one id space: the creases either of them is standing in
+  // for. The canvas skips drawing these, which is what makes a held proposal
+  // read as a proposal instead of painting over the creases it would replace.
+  const cpReplacedLineIds = useMemo(
+    () => [...propagation.replacedLineIds, ...vertexSolve.replacedLineIds],
+    [propagation.replacedLineIds, vertexSolve.replacedLineIds]
   );
 
   const cpToolForcedAssignment = useMemo(
@@ -2248,6 +2325,21 @@ export function CreasePatternPanel() {
         setWebglToolHighlightSegments(highlight);
         setWebglToolPreviewPoints([]);
         setCpToolUnavailable(null);
+        return;
+      }
+      // Propagation owns its own preview channel — the hook holds the draft and
+      // the canvas draws it from there. Running the generic per-move preview as
+      // well would paint the entire answer under the cursor before a seed had
+      // been picked, and, the draft being confluent, the same answer wherever
+      // the cursor went. Cancel then reads as a no-op, because what it discards
+      // is one of two copies on screen. Cleared identity-preservingly so an
+      // armed tool does not re-render this panel on every pointer move.
+      if (command.operationId === 'PropagateFoldAngles') {
+        webglPreviewRequestRef.current += 1;
+        setWebglToolPreviewSegments((current) => (current.length === 0 ? current : []));
+        setWebglToolHighlightSegments((current) =>
+          current.length === 0 && highlight.length === 0 ? current : highlight
+        );
         return;
       }
       // Show a hovered-crease highlight immediately, but when there is none don't blank
@@ -2717,6 +2809,10 @@ export function CreasePatternPanel() {
     // A fold-angle solve waiting for a choice is an in-progress gesture, and
     // Escape discards it — leaving the three creases exactly as they were,
     // because nothing has been applied yet.
+    if (propagation.draft) {
+      propagation.cancel();
+      return;
+    }
     if (vertexSolve.review) {
       vertexSolve.cancel();
       return;
@@ -2746,6 +2842,7 @@ export function CreasePatternPanel() {
     }
     if (editableSelectionSize > 0) clearOristudioCpSelection();
   }, [
+    propagation,
     clearOristudioCpSelection,
     stopOristudioCpFolds,
     cpInputPending,
@@ -2817,6 +2914,10 @@ export function CreasePatternPanel() {
           vertexSolve.step(1);
           return true;
         case 'viewport.solveAnglesApply':
+          if (propagation.draft) {
+            void propagation.apply();
+            return true;
+          }
           if (!vertexSolve.review) return false;
           void vertexSolve.apply();
           return true;
@@ -2847,6 +2948,7 @@ export function CreasePatternPanel() {
       }
     },
     [
+      propagation,
       cancelActiveCpInput,
       simulateSelectionInline,
       vertexSolve,
@@ -3085,11 +3187,10 @@ export function CreasePatternPanel() {
                   onToolSnapKind={setCpMeasureSnapKind}
                   toolCommandPreviewSegments={cpPreviewSegments}
                   toolCommandHighlightSegments={webglToolHighlightSegments}
-                  toolReplacedLineIds={vertexSolve.replacedLineIds}
+                  toolReplacedLineIds={cpReplacedLineIds}
                   toolCommandPreviewPoints={webglToolPreviewPoints}
                   toolPreviewColor={toolPreviewColor}
                   diagnosticMarkers={cpDiagnosticGeometry.markers}
-                  diagnosticStrokes={cpDiagnosticGeometry.strokes}
                   diagnosticWedges={cpDiagnosticGeometry.wedges}
                   operationFrame={cpOperationFrameStrokes}
                   panToolActive={panToolActive}
@@ -3166,11 +3267,15 @@ export function CreasePatternPanel() {
                   <CpFoldAngleLayer
                     lineSegments={editableCp?.crease_pattern.line_segments}
                     toolCandidates={cpPreviewSegments}
+                    toolReplacedLineIds={cpReplacedLineIds}
                   />
                 )}
                 {/* Subscribes to the camera itself and renders nothing without
                     an option, so it needs no gate of its own. */}
-                <CpToolOptionLayer option={vertexSolve.option} />
+                {/* One layer, two tools: whichever currently holds a window
+                    owns it. They cannot both be open — arming one disarms the
+                    other, which the effect beside the two hooks enforces. */}
+                <CpToolOptionLayer option={openToolOptionWindow} />
                 {webglOverlayView && (oristudioCpAnnotations.length > 0 || editingTextId) && (
                   <CpTextAnnotationLayer
                     annotations={oristudioCpAnnotations}
@@ -3262,10 +3367,17 @@ export function CreasePatternPanel() {
                     is mid-gesture, and it is false for exactly the tools that
                     produce crease selections (Box Select and friends), which
                     would hide these actions whenever they are relevant. Only the
-                    other floating toolbars are mutually exclusive with this one. */}
-                {!editingTextId && !selectedCpImage && !selectedFoldedFigure && (
-                  <CpSelectionToolbar container={toolbarContainer} />
-                )}
+                    other floating toolbars are mutually exclusive with this one.
+
+                    A solve tool's option window is one of those. It occupies the
+                    same corner and it is asking a question — its verbs are the
+                    only ones that make sense until the user answers, and the
+                    toolbar's (fold, simulate, export) would all act on a
+                    document the pending proposal has not been applied to. */}
+                {!editingTextId &&
+                  !selectedCpImage &&
+                  !selectedFoldedFigure &&
+                  !openToolOptionWindow && <CpSelectionToolbar container={toolbarContainer} />}
                 </>
               ) : (
                 <div className="cp-panel__unopened" role="status">

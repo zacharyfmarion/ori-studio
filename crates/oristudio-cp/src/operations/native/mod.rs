@@ -16,4 +16,7 @@
 //! operation is an ordinary operation that happens to have no upstream: it
 //! dispatches, previews, and crosses the wasm bridge exactly like a ported one.
 
+pub mod direction_hint;
+pub mod fold_propagation;
 pub mod square;
+pub mod unassign;

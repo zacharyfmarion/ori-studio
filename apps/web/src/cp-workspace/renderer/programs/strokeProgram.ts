@@ -18,10 +18,18 @@ type Buffer = ReturnType<Regl['buffer']>;
  * line width is controlled explicitly (matching the SVG's rendered stroke).
  *
  * Segments may dash: each instance carries a slot index into a small table of
- * patterns (Oriedita's line styles need at most two live at once). The slot is
- * resolved to its on/off runs in the vertex stage — GLSL ES 1.0 cannot index a
- * uniform array by a non-constant expression in the fragment stage — and the
- * fragment stage discards whatever lands in a gap.
+ * patterns ({@link MAX_DASH_SLOTS} of them). The slot is resolved to its on/off
+ * runs in the vertex stage — GLSL ES 1.0 cannot index a uniform array by a
+ * non-constant expression in the fragment stage — and the fragment stage
+ * discards whatever lands in a gap.
+ *
+ * There is no dash *phase*: every segment's pattern starts at its own `a`
+ * endpoint, because `vDist` is distance from that endpoint and nothing offsets
+ * it. Patterns are written to want none — a pattern whose first ink is `d` px
+ * along inks nothing whatsoever on a segment shorter than `d`, and most
+ * segments are short, so a phase here is a pattern that vanishes rather than a
+ * pattern that shifts. See `alternateDashRuns` in `lib/oristudioCpLineStyle`,
+ * which is where that was learned.
  */
 const VERT = `
 precision highp float;
@@ -43,6 +51,10 @@ uniform vec3 u_dashOn1;  // slot 1 "on" run lengths, device px
 uniform vec3 u_dashOff1; // slot 1 gap lengths, device px
 uniform vec3 u_dashOn2;
 uniform vec3 u_dashOff2;
+uniform vec3 u_dashOn3;
+uniform vec3 u_dashOff3;
+uniform vec3 u_dashOn4;
+uniform vec3 u_dashOff4;
 varying vec4 vColor;
 varying float vDist;     // device px along the segment (for screen-space dashing)
 varying vec3 vDashOn;
@@ -63,7 +75,13 @@ void main() {
   gl_Position = vec4(clip, 1.0 - 2.0 * aDepth, 1.0);
   vColor = aColor;
   vDist = corner.x * len;
-  if (aDashSlot > 1.5) {
+  if (aDashSlot > 3.5) {
+    vDashOn = u_dashOn4;
+    vDashOff = u_dashOff4;
+  } else if (aDashSlot > 2.5) {
+    vDashOn = u_dashOn3;
+    vDashOff = u_dashOff3;
+  } else if (aDashSlot > 1.5) {
     vDashOn = u_dashOn2;
     vDashOff = u_dashOff2;
   } else if (aDashSlot > 0.5) {
@@ -173,6 +191,10 @@ interface StrokeDrawParams {
   dashOff1: Vec3;
   dashOn2: Vec3;
   dashOff2: Vec3;
+  dashOn3: Vec3;
+  dashOff3: Vec3;
+  dashOn4: Vec3;
+  dashOff4: Vec3;
   aBuf: Buffer;
   bBuf: Buffer;
   colorBuf: Buffer;
@@ -193,6 +215,10 @@ interface StrokeUniforms {
   u_dashOff1: Vec3;
   u_dashOn2: Vec3;
   u_dashOff2: Vec3;
+  u_dashOn3: Vec3;
+  u_dashOff3: Vec3;
+  u_dashOn4: Vec3;
+  u_dashOff4: Vec3;
 }
 
 /** Attribute key shapes; values are regl attribute configs (kept permissive). */
@@ -265,6 +291,10 @@ export function createStrokeProgram(
       u_dashOff1: (_ctx, props) => props.dashOff1,
       u_dashOn2: (_ctx, props) => props.dashOn2,
       u_dashOff2: (_ctx, props) => props.dashOff2,
+      u_dashOn3: (_ctx, props) => props.dashOn3,
+      u_dashOff3: (_ctx, props) => props.dashOff3,
+      u_dashOn4: (_ctx, props) => props.dashOn4,
+      u_dashOff4: (_ctx, props) => props.dashOff4,
     },
     // Premultiplied-alpha blend: a no-op for opaque creases (alpha 1), and lets
     // semi-transparent strokes (e.g. grid lines) composite over the background.
@@ -301,7 +331,7 @@ export function createStrokeProgram(
     draw({ view, viewport, widthPx }) {
       if (count === 0 || !aBuf || !bBuf || !colorBuf || !widthMulBuf || !dashSlotBuf || !depthBuf)
         return;
-      const [slot1, slot2] = dashTableUniforms(dashPatterns, viewport.dpr);
+      const [slot1, slot2, slot3, slot4] = dashTableUniforms(dashPatterns, viewport.dpr);
       draw({
         originArr: [view.origin[0], view.origin[1]],
         exArr: [view.ex[0], view.ex[1]],
@@ -312,6 +342,10 @@ export function createStrokeProgram(
         dashOff1: slot1.off,
         dashOn2: slot2.on,
         dashOff2: slot2.off,
+        dashOn3: slot3.on,
+        dashOff3: slot3.off,
+        dashOn4: slot4.on,
+        dashOff4: slot4.off,
         aBuf,
         bBuf,
         colorBuf,

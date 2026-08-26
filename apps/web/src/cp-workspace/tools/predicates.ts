@@ -170,6 +170,11 @@ export function isCircleTangentPointOperation(operationId: OpId): boolean {
  */
 export function cpCommandRequiresContextApply(command: OristudioCpCommandDefinition): boolean {
   if (command.operationId === 'VoronoiCreate') return true;
+  // Propagation takes its scope from the selection *or* from a click. Above the
+  // `toolSteps` line for the same reason Voronoi is: the tool has a canvas step
+  // and still needs a button, because with creases already selected there is
+  // nothing left to click. What the button opens is the draft, not the commit.
+  if (command.operationId === 'PropagateFoldAngles') return true;
   if (isSelectionCircleApplyOperation(command.operationId)) return true;
   if ((command.toolSteps?.length ?? 0) > 0) return false;
   return cpToolSettingGroupsForCommand(command).some(

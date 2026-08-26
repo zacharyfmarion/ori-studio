@@ -30,6 +30,8 @@
     "makeAuxiliary": "设为辅助线",
     "makeEdge": "设为边界线",
     "makeMountain": "设为山折",
+    "makeUnassigned": "设为未指定",
+    "makeUnassignedKeepDirection": "设为未指定（保留方向）",
     "makeValley": "设为谷折",
     "organizeCircles": "整理圆",
     "repair": "修复",

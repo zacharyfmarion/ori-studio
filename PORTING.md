@@ -136,6 +136,41 @@ are unchanged:
   not touch the parallel test, the intersection solve, or any accepted output,
   and `lengthen_crease_matches_oriedita_oracle` remains the gate.
 
+- **Flip Mountain/Valley also flips a direction hint.** `CreaseToggleMv`'s
+  dispatch runs the port and then
+  `operations::native::direction_hint::flip_direction_hints`, so the tool
+  reverses a *stated* fold direction wherever the document states one — in a
+  crease's colour, or in the `fold_direction_hint` an unassigned crease carries.
+  The ported half is untouched: `operations::color::toggle_mountain_valley` is
+  still exactly `LineColor.changeMV`, still `Red1 <-> Blue2` and identity on
+  everything else, and still gated by the `foldline-change-mv` case in
+  `crates/oristudio-cp/tests/oriedita_operations_oracle.rs`. The two gates are
+  disjoint (`Red1`/`Blue2` against `LineColor::None`), so the counts add and no
+  line is flipped twice.
+
+  Upstream could not have an opinion here. `MouseHandlerCreaseToggleMV` filters
+  with `l.getColor() == BLUE_2 || l.getColor() == RED_1` — applied by
+  `BoxSelectLinesStepNode` to the box, the click fallback *and* the hover
+  highlight — and `LineColor.NONE` is declared in the Java source but never
+  reached by a handler, so an unassigned crease is not a state Oriedita's C tool
+  can encounter. The hint is ours (see `operations/native/direction_hint.rs`).
+
+  Both input paths move together, because a divergence that held for the click
+  and not the drag box would make one tool mean two things: the box flips every
+  stated direction it encloses. A *bare* unassigned crease is skipped — it
+  states no direction, and seeding one would be the tool inventing a decision;
+  `CreaseSetDirectionHint` is the verb for stating one.
+  `crates/oristudio-cp/tests/toggle_mv_command.rs` pins both paths.
+
+  `CreaseAdvanceType` (`CREASE_ADVANCE_TYPE_30`) deliberately does **not** get
+  the same treatment. Its cycle is Oriedita's list of line *types* — unselected
+  edge, selected edge, mountain, valley — and unassigned is not one of them
+  (`LineColor.isFoldingLine()` excludes it, and `CustomLineType` has no member
+  for it), so inserting it would be a fabricated extension of a ported cycle
+  rather than an additive divergence. An unassigned crease reaches it as the
+  handler's final `else`: removed and re-added unchanged, which is upstream's
+  own behaviour for every colour outside the cycle.
+
 ### Folding search coverage
 
 The layer-ordering search is ported whole, and this section exists to say which

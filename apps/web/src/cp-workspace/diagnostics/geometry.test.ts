@@ -9,7 +9,6 @@ import { MARKER_SHAPE } from '../renderer/types';
 import {
   boundsFromPoints,
   buildCpDiagnosticMarkers,
-  buildCpDiagnosticStrokes,
   buildCpDiagnosticWedges,
   cpDiagnosticMarkerStyle,
   cpDiagnosticMarkerTone,
@@ -48,6 +47,7 @@ const tones: Record<ReturnType<typeof cpDiagnosticMarkerTone>, Rgba> = {
   valley: [0, 0.5, 1, 1],
   neutral: [0.5, 0.5, 0.5, 1],
   unknown: [1, 0, 0.5, 1],
+  info: [0.5, 0.7, 0.9, 1],
 };
 
 describe('cpDiagnosticMarkerStyle', () => {
@@ -66,6 +66,23 @@ describe('cpDiagnosticMarkerStyle', () => {
       'big-little-big'
     );
     expect(cpDiagnosticMarkerStyle(entry({ ...base, rule: 'None' })).shape).toBe('none');
+  });
+
+  it('draws undecided and unexamined vertices as one diamond, not as a fault', () => {
+    // These arrive with `kind: 'CheckCamv'`-adjacent kinds and no violation
+    // colour, and the colour table's default arm is `danger` — so without their
+    // own branch every unfinished crease on a healthy pattern would be drawn in
+    // the error colour. Same silhouette for both: they are the same kind of
+    // statement, and the fill is what says which.
+    const base = { kind: 'SpatialUndecided', severity: 'info', point: { x: 0, y: 0 } };
+    expect(cpDiagnosticMarkerStyle(entry({ ...base, rule: 'Undecided' }))).toEqual({
+      shape: 'undecided',
+      tone: 'info',
+    });
+    expect(cpDiagnosticMarkerStyle(entry({ ...base, rule: 'TooManyUnknowns' }))).toEqual({
+      shape: 'unexamined',
+      tone: 'info',
+    });
   });
 
   it('Angles is a ring when correct, a disc otherwise', () => {
@@ -91,7 +108,7 @@ describe('cpDiagnosticMarkerTone', () => {
 });
 
 describe('buildCpDiagnosticMarkers', () => {
-  it('emits one marker per renderable entry with its shape id, skipping point-less ones', () => {
+  it('emits one marker per renderable entry with its shape id, skipping ones that name nowhere', () => {
     const geo = buildCpDiagnosticMarkers(
       [entry({ point: { x: 1, y: 2 } }), entry({ id: 'd2', point: null })],
       tones
@@ -99,6 +116,46 @@ describe('buildCpDiagnosticMarkers', () => {
     expect(geo.count).toBe(1);
     expect(geo.shape[0]).toBe(MARKER_SHAPE.cross);
     expect([geo.center[0], geo.center[1]]).toEqual([1, 2]);
+  });
+
+  it('marks a check that names creases and no vertex, at the centre of what it names', () => {
+    // The two boundary rules and an operation's self-intersecting pairs carry
+    // `segments` and no `point`. They were once drawn by recolouring those
+    // creases; a marker is the only thing left, so it has to appear or the
+    // check goes silent on the canvas.
+    const boundary = entry({
+      kind: 'FlatFoldableCheck',
+      rule: 'BoundaryLoop',
+      point: null,
+      segments: [seg({ x: 0, y: 0 }, { x: 4, y: 0 }), seg({ x: 4, y: 0 }, { x: 4, y: 2 })],
+    });
+    const geo = buildCpDiagnosticMarkers([boundary], tones);
+    expect(geo.count).toBe(1);
+    // The same centre `diagnosticEntryBounds` gives, so the marker sits where
+    // "Show me the vertex" frames.
+    expect([geo.center[0], geo.center[1]]).toEqual([2, 1]);
+  });
+
+  it('draws the undecided diamond filled, the unexamined one hollow, and both smaller', () => {
+    // They are the only diagnostics that appear in bulk on a *healthy* document,
+    // so at the error size the loudest thing on the canvas would be the part
+    // that is going fine.
+    const base = { kind: 'SpatialUndecided', severity: 'info', point: { x: 0, y: 0 } };
+    const geo = buildCpDiagnosticMarkers(
+      [
+        entry({ ...base, rule: 'Undecided' }),
+        entry({ ...base, id: 'd2', rule: 'TooManyUnknowns' }),
+        entry({ id: 'e1', point: { x: 0, y: 0 } }),
+      ],
+      tones
+    );
+    expect([geo.shape[0], geo.shape[1]]).toEqual([MARKER_SHAPE.diamond, MARKER_SHAPE.diamond]);
+    expect(geo.size[0]).toBeLessThan(geo.size[2] ?? 0);
+    expect(geo.size[0]).toBe(geo.size[1]);
+    // Fill alpha, not a second shape: hollowness is the geometry builder's job
+    // here exactly as it is for the ring.
+    expect(geo.fill[3]).toBeGreaterThan(0);
+    expect(geo.fill[7]).toBe(0);
   });
 
   it('skips an BLB vertex that has wedges (the wedges represent it instead)', () => {
@@ -113,22 +170,6 @@ describe('buildCpDiagnosticMarkers', () => {
     });
     expect(cpHasBlbWedges(blb)).toBe(true);
     expect(buildCpDiagnosticMarkers([blb], tones).count).toBe(0);
-  });
-});
-
-describe('buildCpDiagnosticStrokes', () => {
-  it('emits one stroke per segment, skipping big-little-big entries', () => {
-    const normal = entry({ point: { x: 0, y: 0 }, segments: [seg({ x: 0, y: 0 }, { x: 2, y: 0 })] });
-    const blb = entry({
-      id: 'd2',
-      kind: 'Check4',
-      rule: 'BigLittleBig',
-      point: { x: 0, y: 0 },
-      segments: [seg({ x: 0, y: 0 }, { x: 1, y: 1 })],
-    });
-    const geo = buildCpDiagnosticStrokes([normal, blb], tones);
-    expect(geo.count).toBe(1);
-    expect([geo.a[0], geo.a[1], geo.b[0], geo.b[1]]).toEqual([0, 0, 2, 0]);
   });
 });
 

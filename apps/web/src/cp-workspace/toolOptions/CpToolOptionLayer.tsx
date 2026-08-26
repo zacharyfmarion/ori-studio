@@ -42,7 +42,7 @@ export function CpToolOptionLayer({ option }: { option: CpToolOptionWindow | nul
   // both change the block, and guessing would put it through the frame's edge.
   // A layout effect, so the corrected position is in place before the browser
   // paints and the controls are never seen at the uncorrected one.
-  const chromeKey = option ? `${option.note ?? ''}:${option.count}:${option.title}` : null;
+  const chromeKey = option ? `${option.note ?? ''}:${option.count}:${option.title ?? ''}` : null;
   useLayoutEffect(() => {
     const element = chromeRef.current;
     if (!element) {
@@ -76,6 +76,12 @@ export function CpToolOptionLayer({ option }: { option: CpToolOptionWindow | nul
 
   if (!option || !view) return null;
 
+  const stepper = option.count > 1;
+  // Nothing on the header's left. The bar must then shrink-wrap instead of
+  // spanning the frame: `space-between` over a single child would push
+  // Apply/Cancel to the *left* edge of a wide frame, far from the window they
+  // belong to.
+  const actionsOnly = !stepper && !option.title;
   const frame = toolOptionFrame(view, option.bounds);
   const headerTop =
     chromeSize && viewport ? toolOptionHeaderOffset(frame, chromeSize.height, viewport) : null;
@@ -89,9 +95,23 @@ export function CpToolOptionLayer({ option }: { option: CpToolOptionWindow | nul
         inset: 0,
         pointerEvents: 'none',
         overflow: 'visible',
-        // Above the fold-angle badges and the measure layer, below the
-        // annotation overlay's direct-manipulation handles.
-        zIndex: 8,
+        // Above the fold-angle badges, the measure layer, **and the foldability
+        // HUD** (12); below the annotation overlay's direct-manipulation
+        // handles (15).
+        //
+        // The HUD is why this is not 8. At 8 its summary sat over this layer's
+        // header, and `elementFromPoint` at either button's centre returned the
+        // HUD — so clicking Cancel expanded the diagnostics panel and left the
+        // draft untouched, which reads exactly like "Cancel does nothing". It
+        // bites the solve tools hardest because a pattern with unassigned or
+        // non-closing creases is *both* what raises a foldability warning and
+        // what you reach for these tools to fix, so the HUD is showing whenever
+        // they are in use.
+        //
+        // Raising the layer is safe rather than merely expedient: it is
+        // `pointer-events: none` and fully transparent, so the only thing that
+        // moves above the HUD is the header the user is being asked to click.
+        zIndex: 13,
       }}
     >
       <div
@@ -115,7 +135,9 @@ export function CpToolOptionLayer({ option }: { option: CpToolOptionWindow | nul
           // Wears the shared floating-toolbar look rather than restating it:
           // this is one of several floating controls over the canvas and they
           // must not drift apart. Only its attachment to the frame is local.
-          className="floating-toolbar cp-tool-option__header"
+          className={`floating-toolbar cp-tool-option__header${
+            actionsOnly ? ' cp-tool-option__header--actions-only' : ''
+          }`}
           style={{
             // `right: 0` in CSS pins it to the frame's right edge; this is the
             // only part that varies. `-height` sits it on top of the frame,
@@ -127,9 +149,12 @@ export function CpToolOptionLayer({ option }: { option: CpToolOptionWindow | nul
             visibility: headerTop == null ? 'hidden' : 'visible',
           }}
           role="group"
-          aria-label={option.title}
+          // A title when there is one, otherwise a generic name — a group with
+          // no accessible name is announced as an unlabelled region, and
+          // dropping the title must not cost the header its name.
+          aria-label={option.title ?? t('tools:cpToolOption.label', 'Tool options')}
         >
-          {option.count > 1 ? (
+          {stepper ? (
             <div className="cp-tool-option__stepper">
               <IconButton
                 size="sm"
@@ -154,9 +179,9 @@ export function CpToolOptionLayer({ option }: { option: CpToolOptionWindow | nul
                 <ChevronRight size={14} aria-hidden />
               </IconButton>
             </div>
-          ) : (
+          ) : option.title ? (
             <span className="cp-tool-option__title">{option.title}</span>
-          )}
+          ) : null}
           <div className="cp-tool-option__actions">
             <Button size="sm" variant="primary" onClick={option.onApply}>
               {t('tools:cpToolOption.apply', 'Apply')}
