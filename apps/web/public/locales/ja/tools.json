@@ -9,7 +9,7 @@
     "applyLines": "線を適用",
     "applyPropagate": "選択範囲を解く",
     "applyToSelection": "選択範囲に適用",
-    "applyVoronoi": "Voronoi を適用",
+    "applyVoronoi": "ボロノイ図を適用",
     "ariaLabel": "展開図ツールのオプション",
     "autoNearest": "最近傍を自動選択",
     "cancelInput": "この手順を取り消す",
@@ -176,7 +176,7 @@
     "useBpFixTargets": "BP の修正ターゲットを使用",
     "useFirstCandidate": "最初の候補を使用",
     "useNearestCandidate": "最近傍の候補を使用",
-    "voronoiSeeds": "Voronoi シード",
+    "voronoiSeeds": "ボロノイ図のシード",
     "width": "幅"
   },
   "cpRail": {

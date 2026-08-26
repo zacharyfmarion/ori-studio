@@ -212,7 +212,7 @@
       "errorAndWarning": "{{errors}}、{{warnings}}",
       "errorOne_other": "{{label}} エラー {{count}} 件",
       "errorOther_other": "{{label}} エラー {{count}} 件",
-      "maekawaBlb": "Maekawa/BLB",
+      "maekawaBlb": "前川定理/BLB",
       "nothingToCheck": "{{label}}: 検査対象がありません",
       "nothingToCheckDetail": "ここには折り畳み可能性を判定できる頂点がありません",
       "ok": "{{label}} OK",
@@ -376,9 +376,9 @@
     "zoomFoldedForm": "折り上がり図をズーム"
   },
   "design": {
-    "attributionBoxPleating": "<2>Mu-Tsun Tsai's Box Pleating Studio</2> を基に",
+    "attributionBoxPleating": "<2>蔡牧村's Box Pleating Studio</2> を基に",
     "attributionExplori": "<2>ExplOri 22.5</2>（theplantpsychologist 作）を検索します · <6>寄付する</6>",
-    "attributionTreemaker": "<2>Robert J. Lang's TreeMaker</2> を基に · GPL-2.0",
+    "attributionTreemaker": "<2>Robert J. Lang の TreeMaker</2> を基に · GPL-2.0",
     "axis": "軸",
     "axisAngle": "角度",
     "axisAngleAria": "デザインの対称角度",
