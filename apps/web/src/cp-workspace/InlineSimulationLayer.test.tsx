@@ -29,8 +29,11 @@ const cameras = vi.hoisted(() => [] as { zoom: number }[]);
 
 // The worker runtime is stubbed: what is under test is which element the wheel
 // reaches, and a real solver session would only sit between the two.
+vi.mock('../simulator/workerGpuSupport', () => ({
+  useWorkerGpuSupport: () => true,
+}));
+
 vi.mock('../simulator/useSimulatorRuntime', () => ({
-  webglRenderSupported: () => true,
   useSimulatorRuntime: () => ({
     status: status.current,
     error: null,

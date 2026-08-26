@@ -43,28 +43,42 @@ function liveFrame(): SimulatorFramePayload | null {
   };
 }
 
+/**
+ * A load that lands on the CPU solver, held open until the test releases it.
+ *
+ * Named rather than inlined so `beforeEach` can put it *back*. `mockClear` does
+ * not touch implementations, so a describe block that installs its own `load`
+ * with `mockImplementation` silently keeps it for every test that runs after —
+ * which is how a test asserting the CPU fallback passed alone and failed in the
+ * suite, having been handed a GPU backend by an earlier block.
+ */
+async function defaultLoad() {
+  const token = ++nextToken;
+  await new Promise<void>((resolve) => pendingLoads.push(resolve));
+  return {
+    token,
+    // Widened deliberately: `load` really can answer either backend, and
+    // pinning the mock to one made the GPU path untestable — a test that
+    // overrides it could not be assigned to the mock's own inferred type.
+    backend: 'reference' as SimulatorBackendId,
+    edgeCount: 0,
+    creaseCount: 0,
+    diagnostics: null,
+    positions: null,
+    indices: new Int32Array(0),
+    vertexCount: 0,
+  };
+}
+
 const client = {
-  load: vi.fn(async () => {
-    const token = ++nextToken;
-    await new Promise<void>((resolve) => pendingLoads.push(resolve));
-    return {
-      token,
-      // Widened deliberately: `load` really can answer either backend, and
-      // pinning the mock to one made the GPU path untestable — a test that
-      // overrides it could not be assigned to the mock's own inferred type.
-      backend: 'reference' as SimulatorBackendId,
-      edgeCount: 0,
-      creaseCount: 0,
-      diagnostics: null,
-      positions: null,
-      indices: new Int32Array(0),
-      vertexCount: 0,
-    };
-  }),
+  load: vi.fn(defaultLoad),
   release: vi.fn(async (token: number) => {
     released.push(token);
   }),
   settle: vi.fn(async () => null),
+  // Defaults to a GPU-capable worker. The runtime now asks *this* rather than
+  // probing the main thread, so a test wanting the CPU path says so here.
+  probeGpuRender: vi.fn(async () => true),
   attachBitmapOutput: vi.fn(async () => undefined),
   attachCanvas: vi.fn(async () => undefined),
   tick: vi.fn(async () => liveFrame()),
@@ -91,6 +105,7 @@ vi.mock('./renderModel', () => ({
 }));
 
 const { useSimulatorRuntime } = await import('./useSimulatorRuntime');
+const { resetWorkerGpuSupportForTests } = await import('./workerGpuSupport');
 
 const FOLD = {
   vertices_coords: [[0, 0], [1, 0], [0, 1]],
@@ -124,12 +139,20 @@ beforeEach(() => {
   released.length = 0;
   nextToken = 0;
   pendingLoads = [];
-  client.load.mockClear();
+  // Reset, not cleared: `camera coalescing` installs a webgl2-returning `load`
+  // with `mockImplementation`, which outlives its own block otherwise.
+  client.load.mockReset();
+  client.load.mockImplementation(defaultLoad);
   client.release.mockClear();
   // Restored, not just cleared: the eviction tests replace this with `null` and
   // nothing put it back, so the override outlived the test that set it.
   client.tick.mockReset();
   client.tick.mockImplementation(async () => liveFrame());
+  // Cached for the life of the module, so without this the first test to probe
+  // decides the render path for every test after it.
+  resetWorkerGpuSupportForTests();
+  client.probeGpuRender.mockClear();
+  client.probeGpuRender.mockImplementation(async () => true);
   host = document.createElement('div');
   document.body.appendChild(host);
   root = createRoot(host);
@@ -384,5 +407,153 @@ describe('camera coalescing', () => {
     act(() => live?.setCamera(view(5), 64, 64));
     expect(client.setCamera).toHaveBeenCalledTimes(2);
     expect(client.setCamera.mock.calls[1]?.[0]).toMatchObject({ view: view(5) });
+  });
+});
+
+/**
+ * The canvas commitment, and what decides it.
+ *
+ * `transferControlToOffscreen` is irreversible: the element is in placeholder
+ * mode for good, and `getContext('2d')` on it throws `InvalidStateError` rather
+ * than returning null. So committing on a wrong prediction does not cost a
+ * slower render path, it costs the canvas — the canvas-2D fallback can no longer
+ * draw on the surface it was supposed to fall back to.
+ *
+ * That is the Linux bug these cover: WebKitGTK reports main-thread WebGL2 while
+ * its workers have none, so the old main-thread probe said yes, the canvas was
+ * transferred, the worker fell back to the reference solver, and the first frame
+ * threw on a canvas nobody could draw on.
+ */
+describe('canvas commitment follows the worker, not the main thread', () => {
+  let canvas: HTMLCanvasElement | null = null;
+  let transferred = 0;
+
+  function CanvasProbe() {
+    const runtime = useSimulatorRuntime({
+      fold: FOLD,
+      solverOptions: {},
+      triangulate: false,
+      canvas,
+      paused: true,
+    });
+    // In an effect rather than during render, like `GpuProbe` above: a write
+    // during render is a mutation React may discard.
+    useEffect(() => {
+      generation = runtime.canvasGeneration;
+    });
+    return null;
+  }
+
+  let generation = 0;
+
+  /**
+   * Drain repeatedly rather than once.
+   *
+   * The probe puts an extra `await` in front of `load`, so a single flush can
+   * splice an empty queue and then leave the resolver `load` pushes *after* it
+   * pending for good. Several rounds let each hop reach the next one, and the
+   * recovery this covers lands a state update two hops past the load.
+   */
+  async function drainLoads(rounds = 6) {
+    for (let i = 0; i < rounds; i += 1) {
+      await settleLoads();
+    }
+  }
+
+  beforeEach(() => {
+    generation = 0;
+    transferred = 0;
+    canvas = document.createElement('canvas');
+    // jsdom has neither, and both are load-bearing: the runtime refuses the GPU
+    // path outright without an `OffscreenCanvas` global.
+    vi.stubGlobal('OffscreenCanvas', class {});
+    canvas.transferControlToOffscreen = (() => {
+      transferred += 1;
+      return {} as OffscreenCanvas;
+    }) as HTMLCanvasElement['transferControlToOffscreen'];
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    canvas = null;
+  });
+
+  it('transfers the canvas when the worker reports GPU rendering', async () => {
+    client.load.mockImplementationOnce(async () => {
+      const token = ++nextToken;
+      await new Promise<void>((resolve) => pendingLoads.push(resolve));
+      return {
+        token,
+        backend: 'webgl2' as SimulatorBackendId,
+        edgeCount: 0,
+        creaseCount: 0,
+        diagnostics: null,
+        positions: null,
+        indices: new Int32Array(0),
+        vertexCount: 0,
+      };
+    });
+
+    await act(async () => root?.render(<CanvasProbe />));
+    await drainLoads();
+
+    expect(client.probeGpuRender).toHaveBeenCalled();
+    expect(transferred).toBe(1);
+    expect(client.attachCanvas).toHaveBeenCalled();
+  });
+
+  it('never transfers the canvas when the worker has no GPU rendering', async () => {
+    client.probeGpuRender.mockImplementation(async () => false);
+    client.attachCanvas.mockClear();
+
+    await act(async () => root?.render(<CanvasProbe />));
+    await drainLoads();
+
+    // The whole fix: an untransferred canvas is one canvas-2D can still draw on.
+    expect(transferred).toBe(0);
+    expect(client.attachCanvas).not.toHaveBeenCalled();
+    // And the worker was still asked to load — the CPU path is a working
+    // simulator, not a refusal to run one.
+    expect(client.load).toHaveBeenCalled();
+  });
+
+  it('asks a worker that cannot answer for nothing, and fails closed', async () => {
+    // A dead or mid-terminate worker is not a GPU-capable one. Failing open here
+    // is what commits a canvas that can never be drawn on.
+    client.probeGpuRender.mockImplementation(async () => {
+      throw new Error('worker gone');
+    });
+
+    await act(async () => root?.render(<CanvasProbe />));
+    await drainLoads();
+
+    expect(transferred).toBe(0);
+  });
+
+  it('recovers when the backend contradicts the probe', async () => {
+    // The probe says yes, the load comes back on the reference solver anyway —
+    // a context-cap eviction or a driver losing the context in between. The
+    // canvas is already committed, so the only way back to a drawable surface is
+    // a new element, which is what the generation bump asks the panel for.
+    client.attachCanvas.mockClear();
+
+    await act(async () => root?.render(<CanvasProbe />));
+    await drainLoads();
+
+    expect(transferred).toBe(1);
+    expect(generation).toBe(1);
+
+    // And the retry does not commit a second canvas the same way: the load
+    // result has already marked the worker unsupported, so it cannot loop.
+    canvas = document.createElement('canvas');
+    canvas.transferControlToOffscreen = (() => {
+      transferred += 1;
+      return {} as OffscreenCanvas;
+    }) as HTMLCanvasElement['transferControlToOffscreen'];
+    await act(async () => root?.render(<CanvasProbe />));
+    await drainLoads();
+
+    expect(transferred).toBe(1);
+    expect(generation).toBe(1);
   });
 });

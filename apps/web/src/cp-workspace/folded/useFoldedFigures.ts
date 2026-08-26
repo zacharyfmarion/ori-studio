@@ -25,7 +25,7 @@ import {
 import { foldedFigureListsEqual } from './foldedFigureState';
 import { isFolded3dFigure } from './foldedFigureCapabilities';
 import { canWindowFolded3dFigure, folded3dWindowIds } from './folded3dWindow';
-import { webglRenderSupported } from '../../simulator/useSimulatorRuntime';
+import { useWorkerGpuSupport } from '../../simulator/workerGpuSupport';
 import {
   DEFAULT_FOLDED_3D_CAMERA,
   foldedFigureOtherSideCamera,
@@ -333,10 +333,19 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
    *
    * Memoized on the figure list, which is also when a render model can first
    * appear — a fold adds the entry and the geometry together.
+   *
+   * Gated on the *worker's* GPU answer. These windows render from a worker GL
+   * context, so the main-thread probe was answering someone else's question:
+   * on WebKitGTK it says yes where the worker says no, and every figure then
+   * became a live window that never drew instead of falling back to the 2D
+   * reprojection that works everywhere. `null` (not yet probed) is treated as
+   * no, which costs a reprojected frame or two before the windows appear —
+   * the safe direction, since the opposite commits a canvas.
    */
+  const gpuAvailable = useWorkerGpuSupport() === true;
   const folded3dWindowFigureIds = useMemo(
-    () => folded3dWindowIds(generatedFoldedFigures, { gpuAvailable: webglRenderSupported() }),
-    [generatedFoldedFigures]
+    () => folded3dWindowIds(generatedFoldedFigures, { gpuAvailable }),
+    [generatedFoldedFigures, gpuAvailable]
   );
 
   const folded3dWindowFigures = useMemo(
@@ -421,9 +430,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       if (!id) return false;
       const figure = figureById(id);
       if (!figure) return false;
-      const windowed = canWindowFolded3dFigure(figure, {
-        gpuAvailable: webglRenderSupported(),
-      });
+      const windowed = canWindowFolded3dFigure(figure, { gpuAvailable });
       // This surface orbits from the crease-pattern canvas rather than from
       // `SimulatorViewport` (whose own pointer handlers are switched off for a
       // folded window), so the gesture has to be opened here or a figure would
@@ -442,7 +449,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       };
       return true;
     },
-    [figureById, oristudioCpFocusedFoldedFigureId]
+    [figureById, gpuAvailable, oristudioCpFocusedFoldedFigureId]
   );
 
   /**

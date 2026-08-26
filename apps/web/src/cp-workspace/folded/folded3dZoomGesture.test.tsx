@@ -38,12 +38,12 @@ import { useFoldedFigures } from './useFoldedFigures';
  * once when the wheel goes quiet.
  *
  * WebGL is reported as available because a figure can only be zoomed when it is
- * drawn as a live window — jsdom has no `OffscreenCanvas`, so without this the
+ * drawn as a live window — jsdom has no `Worker`, so the probe fails closed and without this the
  * gesture would decline every event and the tests would pass vacuously.
  */
-vi.mock('../../simulator/useSimulatorRuntime', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../simulator/useSimulatorRuntime')>()),
-  webglRenderSupported: () => true,
+vi.mock('../../simulator/workerGpuSupport', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../simulator/workerGpuSupport')>()),
+  useWorkerGpuSupport: () => true,
 }));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;

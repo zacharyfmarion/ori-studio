@@ -40,13 +40,13 @@ import { useFoldedFigures } from './useFoldedFigures';
  * until someone exports.
  *
  * WebGL is reported as available because none of this is true of a figure that
- * cannot be windowed — jsdom has no `OffscreenCanvas`, so without this every
+ * cannot be windowed — jsdom has no `Worker`, so the probe fails closed and without this every
  * figure would take the fallback path and the tests would pass vacuously. The
  * fallback is asserted separately, at the bottom, as the control.
  */
-vi.mock('../../simulator/useSimulatorRuntime', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../simulator/useSimulatorRuntime')>()),
-  webglRenderSupported: () => true,
+vi.mock('../../simulator/workerGpuSupport', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../simulator/workerGpuSupport')>()),
+  useWorkerGpuSupport: () => true,
 }));
 
 const projector = vi.hoisted(() => ({ calls: 0 }));

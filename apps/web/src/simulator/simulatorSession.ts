@@ -8,6 +8,7 @@ import {
   type Folded3dMeshPayload,
 } from './foldedMeshSource';
 import {
+  GlCore,
   OrigamiModel,
   ReferenceSolver,
   SimulationClock,
@@ -888,6 +889,39 @@ const api = {
       resize: summarise(resize),
       total: summarise(total),
     };
+  },
+
+  /**
+   * Whether this worker can actually render on the GPU.
+   *
+   * The question has to be asked *here*, because the answer differs by thread.
+   * The main thread's `webglRenderSupported()` probes a `document` canvas, and on
+   * WebKitGTK that says yes while a worker's OffscreenCanvas says no — so the
+   * caller committing a canvas on the main-thread answer hands it to a renderer
+   * that will never draw. The commitment is irreversible either way it is made
+   * (`transferControlToOffscreen` puts the element in placeholder mode;
+   * `bitmaprenderer` is exclusive), so the canvas-2D fallback then cannot touch
+   * its own canvas: it throws `InvalidStateError` on the transferred one and
+   * silently draws nothing on the bitmap one.
+   *
+   * Runs the same `GlCore.create` predicate `createBackend` does rather than a
+   * lookalike, so the probe and the real path cannot drift apart.
+   *
+   * The context is explicitly released, not left to GC. Four per worker is the
+   * whole budget, and a probe that kept one would evict a live session — the
+   * same discipline `webglRenderSupported` follows on the main thread.
+   */
+  probeGpuRender(): boolean {
+    if (typeof OffscreenCanvas === 'undefined') return false;
+    try {
+      const core = GlCore.create(new OffscreenCanvas(1, 1));
+      if (!core) return false;
+      core.dispose();
+      core.gl.getExtension('WEBGL_lose_context')?.loseContext();
+      return true;
+    } catch {
+      return false;
+    }
   },
 
   /**

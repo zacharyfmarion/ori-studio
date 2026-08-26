@@ -14,6 +14,7 @@ import {
   retainSimulatorClient,
   type SimulatorClient,
 } from '../store/workspaceStore/simulatorRuntime';
+import { ensureWorkerGpuSupport, markWorkerGpuUnsupported } from './workerGpuSupport';
 import { inflateRenderModel, type SimulatorRenderModel } from './renderModel';
 import {
   beginCameraMessage,
@@ -63,13 +64,19 @@ export interface SimulatorFrameView {
 }
 
 /**
- * True if this canvas can host the WebGL2 float-render-target GPU path.
+ * True if the **main thread** can host a WebGL2 float-render-target context.
+ *
+ * Narrower than it looks, and the narrowness is the point: this says nothing
+ * about the worker, which is where the simulator actually renders. On WebKitGTK
+ * the two disagree — main thread yes, worker no — so anything deciding whether
+ * to commit a canvas to the worker must ask {@link useWorkerGpuSupport} instead.
+ * Using this for that is what shipped the Linux `InvalidStateError`.
  *
  * The probe context is explicitly released. Contexts are a small, hard-capped
- * resource — four per worker, sixteen per page in Chromium 148 — and this runs
- * on every model load, so leaving each probe to garbage collection spends the
- * budget the simulator itself needs. The result is cached because the answer
- * cannot change within a session, which makes the common case free.
+ * resource — four per worker, sixteen per page in Chromium 148 — so leaving each
+ * probe to garbage collection spends the budget the simulator itself needs. The
+ * result is cached because the answer cannot change within a session, which
+ * makes the common case free.
  */
 let webglRenderSupportedCache: boolean | null = null;
 
@@ -146,6 +153,13 @@ export interface SimulatorRuntime {
   setMaterial: (options: Partial<SimulatorOptions>) => void;
   /** True when the worker owns the canvas and renders on the GPU. */
   gpuActive: boolean;
+  /**
+   * Changes when this runtime needs a *different* canvas element than the one it
+   * was given. Consumers that pass a canvas must fold it into that element's
+   * React key; a canvas whose control has been transferred cannot be reclaimed,
+   * so the only way back to a drawable surface is a new one.
+   */
+  canvasGeneration: number;
   /** Push a new orbit camera to the worker (GPU mode); no-op in CPU mode. */
   setCamera: (view: OrbitView, width: number, height: number) => void;
   /** Push render settings to the worker (GPU mode); no-op in CPU mode. */
@@ -187,6 +201,12 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
   const [model, setModel] = useState<SimulatorModelView | null>(null);
   const [playing, setPlaying] = useState(false);
   const [gpuActive, setGpuActive] = useState(false);
+  /**
+   * Bumped when a committed canvas turns out to be unusable, to ask the consumer
+   * for a fresh element. A canvas can only be committed once, so recovery is a
+   * new element rather than a reset of this one.
+   */
+  const [canvasGeneration, setCanvasGeneration] = useState(0);
 
   const clientRef = useRef<SimulatorClient | null>(null);
   // The canvas element whose control was transferred to the worker. A canvas can
@@ -314,21 +334,26 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     setStatus('loading');
     setError(null);
 
-    // Decide the render path before loading. GPU render needs WebGL2, a canvas,
-    // and a source the GPU path covers (no fold profile / Verlet). The canvas is
-    // transferred once; a later CPU-only source keeps the (already transferred)
-    // canvas but the worker falls back to positions, which the panel then cannot
-    // draw -- so the panel swaps the canvas element (React key) when the desired
-    // path changes, giving a fresh untransferred one.
-    const wantsGpu = Boolean(
-      (canvas || wantsBitmapOutput) && allowGpuRender && webglRenderSupported()
-    );
+    // Whether this *source* could use the GPU path at all: it needs somewhere to
+    // draw, and a solver path the GPU renderer covers (no fold profile / Verlet).
+    // Whether the machine can is a separate question, asked below.
+    const gpuRenderPossible = Boolean((canvas || wantsBitmapOutput) && allowGpuRender);
 
     void (async () => {
       try {
         // Retained by the mount effect above; null only while unmounting.
         const client = clientRef.current;
         if (!client) return;
+
+        // Ask the worker before committing the canvas, never the main thread.
+        // Committing is irreversible -- a transferred canvas is in placeholder
+        // mode for good, a `bitmaprenderer` context is exclusive -- so a wrong
+        // answer here does not cost a slow render path, it costs the canvas. The
+        // canvas-2D fallback then cannot draw on its own canvas: it throws
+        // `InvalidStateError` on the transferred one and silently no-ops on the
+        // bitmap one. See `workerGpuSupport`.
+        const wantsGpu = gpuRenderPossible && (await ensureWorkerGpuSupport());
+        if (cancelled || generation !== generationRef.current) return;
 
         if (wantsGpu && bitmapOutputRef.current) {
           await client.attachBitmapOutput(
@@ -367,6 +392,30 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
         // briefly backed by nothing.
         releaseToken(previousToken);
         tokenRef.current = info.token;
+
+        // The worker's own answer outranks the probe's. A load made with
+        // `preferGpu` that comes back on the reference solver means the canvas
+        // just committed can never be drawn on -- not by the worker, which has no
+        // GL, and not here, because committing is irreversible. Record that and
+        // remount a clean canvas.
+        //
+        // This is the recovery for causes a probe cannot see coming: the GL
+        // context cap evicting this session, or a driver losing the context
+        // between the probe and the load. It cannot loop, because the reload runs
+        // against a cache this just set to false, so it takes the fallback rather
+        // than committing a second canvas the same way.
+        //
+        // Only the transferred path needs a new element. A bitmap-output consumer
+        // holds a `bitmaprenderer` canvas it chose from `useWorkerGpuSupport`,
+        // which the same call has just flipped -- so it re-renders into its own
+        // no-GPU state without this runtime reaching into it.
+        if (wantsGpu && info.backend !== 'webgl2') {
+          markWorkerGpuUnsupported();
+          if (canvas && transferredCanvasRef.current === canvas) {
+            setCanvasGeneration((value) => value + 1);
+          }
+          return;
+        }
 
         const gpu = info.backend === 'webgl2' && wantsGpu;
         gpuActiveRef.current = gpu;
@@ -652,6 +701,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     reset,
     setMaterial,
     gpuActive,
+    canvasGeneration,
     setCamera,
     setRenderSettings,
     exportSvg,
