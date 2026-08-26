@@ -2593,8 +2593,8 @@
     "common:capability.makeSelectedLinesUnassignedKeepDirection": "5a5740aef352",
     "common:capability.makeUnassigned": "ac1caca4b514",
     "common:capability.makeUnassignedKeepDirection": "88b9271eb4e2",
-    "dialogs:exportLoss.feature.directionHints": "8334693214cb",
-    "dialogs:exportLoss.feature.undecidedCreases": "85c4d33e8d14"
+    "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
+    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5190,8 +5190,8 @@
     "common:capability.makeSelectedLinesUnassignedKeepDirection": "5a5740aef352",
     "common:capability.makeUnassigned": "ac1caca4b514",
     "common:capability.makeUnassignedKeepDirection": "88b9271eb4e2",
-    "dialogs:exportLoss.feature.directionHints": "8334693214cb",
-    "dialogs:exportLoss.feature.undecidedCreases": "85c4d33e8d14"
+    "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
+    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7787,8 +7787,8 @@
     "common:capability.makeSelectedLinesUnassignedKeepDirection": "5a5740aef352",
     "common:capability.makeUnassigned": "ac1caca4b514",
     "common:capability.makeUnassignedKeepDirection": "88b9271eb4e2",
-    "dialogs:exportLoss.feature.directionHints": "8334693214cb",
-    "dialogs:exportLoss.feature.undecidedCreases": "85c4d33e8d14"
+    "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
+    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -10341,8 +10341,8 @@
     "common:capability.makeSelectedLinesUnassignedKeepDirection": "5a5740aef352",
     "common:capability.makeUnassigned": "ac1caca4b514",
     "common:capability.makeUnassignedKeepDirection": "88b9271eb4e2",
-    "dialogs:exportLoss.feature.directionHints": "8334693214cb",
-    "dialogs:exportLoss.feature.undecidedCreases": "85c4d33e8d14"
+    "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
+    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12895,8 +12895,8 @@
     "common:capability.makeSelectedLinesUnassignedKeepDirection": "5a5740aef352",
     "common:capability.makeUnassigned": "ac1caca4b514",
     "common:capability.makeUnassignedKeepDirection": "88b9271eb4e2",
-    "dialogs:exportLoss.feature.directionHints": "8334693214cb",
-    "dialogs:exportLoss.feature.undecidedCreases": "85c4d33e8d14"
+    "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
+    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -15492,8 +15492,8 @@
     "common:capability.makeSelectedLinesUnassignedKeepDirection": "5a5740aef352",
     "common:capability.makeUnassigned": "ac1caca4b514",
     "common:capability.makeUnassignedKeepDirection": "88b9271eb4e2",
-    "dialogs:exportLoss.feature.directionHints": "8334693214cb",
-    "dialogs:exportLoss.feature.undecidedCreases": "85c4d33e8d14"
+    "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
+    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -18089,8 +18089,8 @@
     "common:capability.makeSelectedLinesUnassignedKeepDirection": "5a5740aef352",
     "common:capability.makeUnassigned": "ac1caca4b514",
     "common:capability.makeUnassignedKeepDirection": "88b9271eb4e2",
-    "dialogs:exportLoss.feature.directionHints": "8334693214cb",
-    "dialogs:exportLoss.feature.undecidedCreases": "85c4d33e8d14"
+    "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
+    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -20643,7 +20643,7 @@
     "common:capability.makeSelectedLinesUnassignedKeepDirection": "5a5740aef352",
     "common:capability.makeUnassigned": "ac1caca4b514",
     "common:capability.makeUnassignedKeepDirection": "88b9271eb4e2",
-    "dialogs:exportLoss.feature.directionHints": "8334693214cb",
-    "dialogs:exportLoss.feature.undecidedCreases": "85c4d33e8d14"
+    "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
+    "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6"
   }
 }

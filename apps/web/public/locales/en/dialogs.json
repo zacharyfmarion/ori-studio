@@ -130,7 +130,7 @@
     "blockedTitle": "Can’t export to {{format}}",
     "confirm": "Export anyway",
     "feature": {
-      "directionHints": "Remembered directions on undecided creases",
+      "directionHints": "Direction hints on unassigned creases",
       "foldAngles": "Non-flat fold angles",
       "foldedForm3d": "3D folded figures",
       "foldedForm3dDetached": "3D folded figures needing a refold",
@@ -138,7 +138,7 @@
       "inlineSimulations": "Simulation windows",
       "richText": "Rich text formatting",
       "symmetry": "Mirror symmetry",
-      "undecidedCreases": "Undecided creases"
+      "unassignedCreases": "Unassigned creases"
     },
     "featureCount": "{{feature}} ({{total}})",
     "message": "This project uses features the {{format}} format can’t store. They’ll be omitted from the export: {{features}}.",

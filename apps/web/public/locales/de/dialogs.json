@@ -130,7 +130,7 @@
     "blockedTitle": "Export nach {{format}} nicht möglich",
     "confirm": "Trotzdem exportieren",
     "feature": {
-      "directionHints": "Gemerkte Richtungen unentschiedener Falten",
+      "directionHints": "Richtungshinweise an nicht zugewiesenen Falten",
       "foldAngles": "Nicht flache Faltwinkel",
       "foldedForm3d": "3D-Faltfiguren",
       "foldedForm3dDetached": "3D-Faltfiguren, die neu gefaltet werden müssen",
@@ -138,7 +138,7 @@
       "inlineSimulations": "Simulationsfenster",
       "richText": "Rich-Text-Formatierung",
       "symmetry": "Spiegelsymmetrie",
-      "undecidedCreases": "Unentschiedene Falten"
+      "unassignedCreases": "Nicht zugewiesene Falten"
     },
     "featureCount": "{{feature}} ({{total}})",
     "message": "Dieses Projekt verwendet Funktionen, die das Format {{format}} nicht speichern kann. Beim Export werden sie weggelassen: {{features}}.",

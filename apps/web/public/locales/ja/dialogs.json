@@ -125,7 +125,7 @@
     "blockedTitle": "{{format}} にエクスポートできません",
     "confirm": "このままエクスポート",
     "feature": {
-      "directionHints": "未決定の折り線に記憶された向き",
+      "directionHints": "未割り当ての折り線の方向ヒント",
       "foldAngles": "平坦でない折り角度",
       "foldedForm3d": "3D折り上がり図",
       "foldedForm3dDetached": "折り直しが必要な3D折り上がり図",
@@ -133,7 +133,7 @@
       "inlineSimulations": "シミュレーションウィンドウ",
       "richText": "リッチテキストの書式",
       "symmetry": "鏡映対称",
-      "undecidedCreases": "未決定の折り線"
+      "unassignedCreases": "未割り当ての折り線"
     },
     "featureCount": "{{feature}}（{{total}}）",
     "message": "このプロジェクトには {{format}} 形式では保存できない要素が含まれています。エクスポート時に次の内容が省略されます: {{features}}。",

@@ -135,7 +135,7 @@
     "blockedTitle": "Impossible d’exporter en {{format}}",
     "confirm": "Exporter quand même",
     "feature": {
-      "directionHints": "Directions mémorisées sur les plis indécis",
+      "directionHints": "Indications de direction sur les plis non attribués",
       "foldAngles": "Angles de pliage non plats",
       "foldedForm3d": "Figures pliées en 3D",
       "foldedForm3dDetached": "Figures pliées en 3D à replier",
@@ -143,7 +143,7 @@
       "inlineSimulations": "Fenêtres de simulation",
       "richText": "Mise en forme du texte enrichi",
       "symmetry": "Symétrie miroir",
-      "undecidedCreases": "Plis indécis"
+      "unassignedCreases": "Plis non attribués"
     },
     "featureCount": "{{feature}} ({{total}})",
     "message": "Ce projet utilise des fonctionnalités que le format {{format}} ne peut pas stocker. Elles seront omises de l’exportation : {{features}}.",

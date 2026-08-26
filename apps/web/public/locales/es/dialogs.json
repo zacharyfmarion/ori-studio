@@ -135,7 +135,7 @@
     "blockedTitle": "No se puede exportar a {{format}}",
     "confirm": "Exportar de todos modos",
     "feature": {
-      "directionHints": "Direcciones recordadas en pliegues sin decidir",
+      "directionHints": "Sugerencias de dirección en pliegues sin asignar",
       "foldAngles": "Ángulos de plegado no planos",
       "foldedForm3d": "Figuras plegadas en 3D",
       "foldedForm3dDetached": "Figuras plegadas en 3D que necesitan replegarse",
@@ -143,7 +143,7 @@
       "inlineSimulations": "Ventanas de simulación",
       "richText": "Formato de texto enriquecido",
       "symmetry": "Simetría especular",
-      "undecidedCreases": "Pliegues sin decidir"
+      "unassignedCreases": "Pliegues sin asignar"
     },
     "featureCount": "{{feature}} ({{total}})",
     "message": "Este proyecto usa funciones que el formato {{format}} no puede almacenar. Se omitirán en la exportación: {{features}}.",

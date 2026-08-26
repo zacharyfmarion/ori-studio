@@ -135,7 +135,7 @@
     "blockedTitle": "Não é possível exportar para {{format}}",
     "confirm": "Exportar mesmo assim",
     "feature": {
-      "directionHints": "Direções lembradas em vincos indecisos",
+      "directionHints": "Dicas de direção em vincos não atribuídos",
       "foldAngles": "Ângulos de dobra não planos",
       "foldedForm3d": "Figuras dobradas em 3D",
       "foldedForm3dDetached": "Figuras dobradas em 3D que precisam ser redobradas",
@@ -143,7 +143,7 @@
       "inlineSimulations": "Janelas de simulação",
       "richText": "Formatação de texto rico",
       "symmetry": "Simetria espelhada",
-      "undecidedCreases": "Vincos indecisos"
+      "unassignedCreases": "Vincos não atribuídos"
     },
     "featureCount": "{{feature}} ({{total}})",
     "message": "Este projeto usa recursos que o formato {{format}} não consegue armazenar. Eles serão omitidos na exportação: {{features}}.",

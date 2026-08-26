@@ -125,7 +125,7 @@
     "blockedTitle": "无法导出为 {{format}}",
     "confirm": "仍然导出",
     "feature": {
-      "directionHints": "未定折痕上记住的方向",
+      "directionHints": "未指定折痕的方向提示",
       "foldAngles": "非平折的折叠角度",
       "foldedForm3d": "3D 折叠图形",
       "foldedForm3dDetached": "需要重新折叠的 3D 折叠图形",
@@ -133,7 +133,7 @@
       "inlineSimulations": "模拟窗口",
       "richText": "富文本格式",
       "symmetry": "镜像对称",
-      "undecidedCreases": "未定折痕"
+      "unassignedCreases": "未指定折痕"
     },
     "featureCount": "{{feature}}（{{total}}）",
     "message": "此项目使用了 {{format}} 格式无法保存的功能，导出时将省略：{{features}}。",

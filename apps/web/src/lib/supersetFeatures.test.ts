@@ -197,7 +197,7 @@ describe('non-flat fold angles block an export rather than warning', () => {
     }
     const lossless = collectExportLossWarnings('fold', presence([hinted])).map((e) => e.id);
     expect(lossless).not.toContain('directionHints');
-    expect(lossless).not.toContain('undecidedCreases');
+    expect(lossless).not.toContain('unassignedCreases');
   });
 
   it('blocks .cp, where an undecided crease comes back as an auxiliary line', () => {
@@ -206,7 +206,7 @@ describe('non-flat fold angles block an export rather than warning', () => {
     // cannot share one warning.
     const undecided = crease('None');
     expect(blockingExportLoss(collectExportLossWarnings('cp', presence([undecided])))).toEqual([
-      { id: 'undecidedCreases', count: 1, blocking: true },
+      { id: 'unassignedCreases', count: 1, blocking: true },
     ]);
     expect(blockingExportLoss(collectExportLossWarnings('ori', presence([undecided])))).toEqual([]);
   });
@@ -215,7 +215,7 @@ describe('non-flat fold angles block an export rather than warning', () => {
     for (const format of ['cp', 'ori', 'fold'] as const) {
       const ids = collectExportLossWarnings(format, presence([crease('Red1')])).map((e) => e.id);
       expect(ids).not.toContain('directionHints');
-      expect(ids).not.toContain('undecidedCreases');
+      expect(ids).not.toContain('unassignedCreases');
     }
   });
 

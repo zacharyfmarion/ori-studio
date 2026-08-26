@@ -84,7 +84,7 @@ export type SupersetFeatureId =
   | 'inlineSimulations'
   | 'symmetry'
   | 'foldAngles'
-  | 'undecidedCreases'
+  | 'unassignedCreases'
   | 'directionHints'
   | 'foldedForm3d'
   | 'foldedForm3dDetached';
@@ -141,7 +141,7 @@ const FOLD_ANGLE_LOSSY_FORMATS: readonly ExportFormat[] = ['cp', 'ori', 'orh', '
  * line, which is not a crease at all. So a `.cp` export does not merely forget
  * which way you meant it to fold, it forgets that it was a crease.
  */
-const UNDECIDED_CREASE_LOSSY_FORMATS: readonly ExportFormat[] = ['cp', 'dxf', 'obj'];
+const UNASSIGNED_CREASE_LOSSY_FORMATS: readonly ExportFormat[] = ['cp', 'dxf', 'obj'];
 
 /** Everything that cannot carry the hint, which is every format but `.fold`. */
 const DIRECTION_HINT_LOSSY_FORMATS: readonly ExportFormat[] = ['cp', 'ori', 'orh', 'dxf', 'obj'];
@@ -188,9 +188,9 @@ const SUPERSET_FEATURES: readonly SupersetFeature[] = [
     blocking: true,
   },
   {
-    id: 'undecidedCreases',
+    id: 'unassignedCreases',
     count: (presence) => presence.lineSegments.filter((segment) => segment.color === 'None').length,
-    droppedByFormats: UNDECIDED_CREASE_LOSSY_FORMATS,
+    droppedByFormats: UNASSIGNED_CREASE_LOSSY_FORMATS,
     /**
      * Blocking, for the same reason `foldAngles` is: the crease does not come
      * back weaker, it comes back *different*. A `.cp` round trip turns it into
