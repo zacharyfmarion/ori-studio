@@ -443,23 +443,23 @@ no dependency is added.
 
 ## Checklist
 
-- [ ] Register `cpToolFavorites` in `STORAGE_KEYS`
-- [ ] `cpToolFavorites.ts`: defaults, store, persistence, `moveCpToolFavorite`, `cpFavoriteToolActions`, hook
-- [ ] Store tests: defaults resolve via `cpActionById`; absent key → defaults; first toggle *and* first move materialize; malformed/unknown-id tolerance; add appends, remove filters, move clamps and no-ops when unchanged
-- [ ] `useLongPressReorder`: touch → long press (reusing `TOUCH_LABEL_HOLD_MS` / `TOUCH_LABEL_SLOP_PX`), mouse/pen → 4px distance, live DOM hit-test, `consumeClick`
-- [ ] Non-passive `touchmove` `preventDefault` while armed, so the sheet does not scroll under the drag
-- [ ] Hook tests: long press arms; movement before the timer cancels; mouse activates on distance not time; the click that ends a drag is consumed
-- [ ] `CpToolFavoriteToggle` — bespoke button (not `IconButton`, which carries `useTouchLabel`), interpolated `aria-label`, `aria-pressed`, `stopPropagation` on `pointerdown`
-- [ ] Restructure `CpToolPickerRow` to `<li>` + two sibling buttons; move `[data-active]` to the row
-- [ ] `CpToolPickerFavorites` section, mounted below the line-type group, hidden when empty
-- [ ] Namespaced React keys so a favorited tool can render in both places
-- [ ] Move up / Move down as the keyboard-reachable equivalent of the drag, per the `DesignTabStrip` precedent
-- [ ] CSS: `__row`, `__star`, `[data-dragging]` lift, touch-target sizing, active-bar relocation, `prefers-reduced-motion`
-- [ ] Both events in `ANALYTICS_EVENTS`; reorder fires once on release, never per pointer move; update `docs/analytics.md`
-- [ ] `i18n:extract`, translate 8 locales, `i18n:stamp`, `i18n:check`
-- [ ] Sheet tests: star toggles without selecting the tool; favorites section reflects the store; both copies of one action stay in sync; line-type chips have no star; a drag reorders and does not select
-- [ ] `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`
-- [ ] Browser-verify on a phone viewport: star hit target does not swallow row taps, long press does not scroll the sheet, drag reorders and persists across reload, section order
+- [x] Register `cpToolFavorites` in `STORAGE_KEYS`
+- [x] `cpToolFavorites.ts`: defaults, store, persistence, `moveCpToolFavorite`, `cpFavoriteToolActions`, hook
+- [x] Store tests: defaults resolve via `cpActionById`; absent key → defaults; first toggle *and* first move materialize; malformed/unknown-id tolerance; add appends, remove filters, move clamps and no-ops when unchanged
+- [x] `useLongPressReorder`: touch → long press (reusing `TOUCH_LABEL_HOLD_MS` / `TOUCH_LABEL_SLOP_PX`), mouse/pen → 4px distance, live DOM hit-test, `consumeClick`
+- [x] Non-passive `touchmove` `preventDefault` while armed, so the sheet does not scroll under the drag
+- [x] Hook tests: long press arms; movement before the timer cancels; mouse activates on distance not time; the click that ends a drag is consumed
+- [x] `CpToolFavoriteToggle` — bespoke button (not `IconButton`, which carries `useTouchLabel`), interpolated `aria-label`, `aria-pressed`, `stopPropagation` on `pointerdown`
+- [x] Restructure `CpToolPickerRow` to `<li>` + two sibling buttons; move `[data-active]` to the row
+- [x] `CpToolPickerFavorites` section, mounted below the line-type group, hidden when empty
+- [x] Namespaced React keys so a favorited tool can render in both places
+- [x] Move up / Move down as the keyboard-reachable equivalent of the drag, per the `DesignTabStrip` precedent
+- [x] CSS: `__row`, `__star`, `[data-dragging]` lift, touch-target sizing, active-bar relocation, `prefers-reduced-motion`
+- [x] Both events in `ANALYTICS_EVENTS`; reorder fires once on release, never per pointer move; update `docs/analytics.md`
+- [x] `i18n:extract`, translate 8 locales, `i18n:stamp`, `i18n:check`
+- [x] Sheet tests: star toggles without selecting the tool; favorites section reflects the store; both copies of one action stay in sync; line-type chips have no star; a drag reorders and does not select
+- [x] `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`
+- [x] Browser-verify on a phone viewport: star hit target does not swallow row taps, long press does not scroll the sheet, drag reorders and persists across reload, section order
 - [ ] Verify the long press in the iOS Simulator — real WebKit, since the scroll-cancel path is the one thing a desktop browser's touch emulation does not faithfully reproduce
 - [ ] Follow-up (separate change): favorites on the tablet/desktop `CpToolRail`
 - [ ] Follow-up (separate change): pinned favorites in the bottom pill toolbar, replacing zoom/pan
