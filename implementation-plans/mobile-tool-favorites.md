@@ -69,10 +69,14 @@ exactly the two-tap round trip this feature exists to remove.
   surface with limited room takes the first N it can show.
 - Reordering anything outside the Favorites section, or dragging a tool *into*
   Favorites from the groups below. Starring is how a tool gets in.
-- Rendering favorites on the tablet/desktop rail, or a pinned bottom toolbar.
-  Both are downstream of this and named in the checklist as follow-ups.
-- Replacing the bottom pill toolbar's zoom/pan controls. That is the other half
-  of the Discord thread and a separate change.
+- Rendering favorites on the tablet/desktop rail. That one is still downstream,
+  and named in the checklist as a follow-up.
+
+The bottom pill toolbar was a non-goal here and is no longer: it and the
+zoom/pan controls it carried were brought into this change rather than deferred,
+because a sheet full of stars while the bar still held zoom buttons was half a
+feature. What that took is written up in the checklist and in
+`useCpFavoriteToolbarGroup`.
 
 ## Approach
 
@@ -380,16 +384,18 @@ On the reorder event:
 - `moved_to_front` — a boolean rather than the destination index, because the
   question worth answering is "does anyone promote a tool to the thumb position",
   and a raw index across a variable-length list answers nothing cleanly.
-- `method` — `'drag'` or `'menu'`, separating the gesture from the keyboard-
-  accessible Move up / Move down route. If the menu route carries the traffic,
-  the drag is undiscoverable and that is worth knowing.
+- No `method`. It was going to separate the drag from a Move up / Move down
+  route; that route shipped and was then removed for the width it cost, so the
+  property would be a constant. A second surface offering a second way earns it
+  back.
 - The permutation itself is never sent. It is high-cardinality and tells us
   nothing that `moved_to_front` plus the favorited set does not.
 
 The numbers this has to answer are **whether the shipped six were right**
 (un-star events against a default id are the direct signal; `cp tool used` for a
 favorited tool before and after is the adoption signal) and **whether long-press
-reorder is findable at all** (`method` breakdown, and reorder events as a share of
+reorder is findable at all** — which now rests entirely on the count, the gesture
+having no visible affordance and no sibling route (reorder events as a share of
 sessions that opened the picker — `cp tool picker opened` already counts those).
 
 ### 7. Strings
@@ -453,7 +459,7 @@ no dependency is added.
 - [x] Restructure `CpToolPickerRow` to `<li>` + two sibling buttons; move `[data-active]` to the row
 - [x] `CpToolPickerFavorites` section, mounted below the line-type group, hidden when empty
 - [x] Namespaced React keys so a favorited tool can render in both places
-- [x] Move up / Move down as the keyboard-reachable equivalent of the drag, per the `DesignTabStrip` precedent
+- [~] Move up / Move down as the keyboard-reachable equivalent of the drag — **shipped, then removed.** On a 375px row the two chevrons cost 36px and pushed most descriptions onto a third line, to offer a keyboard route on a device with no keyboard. The drag is now the only one, so VoiceOver has none; see the note in `CpToolPickerFavorites` for the cheap fix if that changes.
 - [x] CSS: `__row`, `__star`, `[data-dragging]` lift, touch-target sizing, active-bar relocation, `prefers-reduced-motion`
 - [x] Both events in `ANALYTICS_EVENTS`; reorder fires once on release, never per pointer move; update `docs/analytics.md`
 - [x] `i18n:extract`, translate 8 locales, `i18n:stamp`, `i18n:check`
@@ -462,5 +468,9 @@ no dependency is added.
 - [x] Browser-verify on a phone viewport: star hit target does not swallow row taps, long press does not scroll the sheet, drag reorders and persists across reload, section order
 - [ ] Verify the long press in the iOS Simulator — real WebKit, since the scroll-cancel path is the one thing a desktop browser's touch emulation does not faithfully reproduce
 - [ ] Follow-up (separate change): favorites on the tablet/desktop `CpToolRail`
-- [ ] Follow-up (separate change): pinned favorites in the bottom pill toolbar, replacing zoom/pan
+- [x] Pinned favorites in the bottom pill toolbar, replacing zoom/pan — **done here, not deferred.** Brought forward because the sheet alone left the bar carrying view controls nobody needs on a phone. Five, not six: the measurement is in `CP_TOOLBAR_FAVORITE_LIMIT`.
+- [x] Zoom buttons dropped and Fit / pan / rotation / Insert image collapsed, via `phoneViewControls="collapsed"`
+- [x] Folded models as a modal on the phone, sharing one `FoldedFigureControls` body with the dropdown
+- [x] `opensDialog`, so the overflow menu's focus restore does not land after the modal's own
+- [x] Helper text under the Favorites header, interpolating the same constant the bar slices by
 - [ ] Follow-up (only if favorites lists get long): edge auto-scroll during a drag
