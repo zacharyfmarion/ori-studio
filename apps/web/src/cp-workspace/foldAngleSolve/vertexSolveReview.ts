@@ -52,6 +52,24 @@ export interface VertexSolveReview {
    * "here are two options" and "here is yours, and here is the alternative".
    */
   readonly isCurrent: boolean;
+  /**
+   * Whether the shown answer folds a crease against a direction the user marked
+   * on it.
+   *
+   * Applying overwrites the mark, so this is the one thing about an answer that
+   * has to be seen *before* it is applied rather than noticed afterwards — which
+   * is why it also suppresses the single-answer auto-apply below.
+   */
+  readonly contradictsHint: boolean;
+  /**
+   * Whether the shown answer leaves one of the three picked creases undecided.
+   *
+   * It folds that crease by nothing, and nothing names no direction — so a
+   * crease that had none keeps none. Every other answer moves all three, which
+   * is what makes this worth saying: without it the tool counts "1 of 3", the
+   * user applies, and one of their picks sits there unchanged.
+   */
+  readonly leavesUndecided: boolean;
 }
 
 export type VertexSolveOutcome =
@@ -67,6 +85,26 @@ export type VertexSolveOutcome =
   | { readonly kind: 'review'; readonly review: VertexSolveReview }
   | { readonly kind: 'none'; readonly reason: string | null };
 
+/**
+ * Whether an answer may commit on the third pick without being looked at.
+ *
+ * Only when it is the sole isolated answer, is not already the document, and
+ * has nothing to say about the creases it is about to change. The last two
+ * clauses are the whole reason this is a function, and both are cases where the
+ * answer is still *right* — it closes the vertex — while committing it unseen
+ * would leave the user with something they never agreed to and no way to notice
+ * it: a direction mark erased, or one of their three picks silently unmoved.
+ * Holding it for review costs one click and makes either trade visible.
+ */
+function mayCommitUnseen(
+  count: number,
+  isCurrent: boolean,
+  contradictsHint: boolean,
+  leavesUndecided: boolean
+): boolean {
+  return count === 1 && !isCurrent && !contradictsHint && !leavesUndecided;
+}
+
 /** What to do with a kernel preview of the three picked creases. */
 export function outcomeForPreview(
   lineIds: readonly number[],
@@ -81,10 +119,17 @@ export function outcomeForPreview(
   // a stale response or a document that changed underneath it.
   if (count === 0 && !isFamily) return { kind: 'none', reason: null };
   const isCurrent = preview.candidate_is_current === true;
+  const contradictsHint = preview.candidate_contradicts_hint === true;
+  const leavesUndecided = preview.candidate_leaves_undecided === true;
   // Nothing to apply: this *is* the document. Offering it as a one-click change
   // would be offering a no-op, so it holds for review with the alternatives.
-  if (count === 1 && !isCurrent) return { kind: 'apply' };
-  return { kind: 'review', review: { lineIds, index: 0, count, isFamily, isCurrent } };
+  if (mayCommitUnseen(count, isCurrent, contradictsHint, leavesUndecided)) {
+    return { kind: 'apply' };
+  }
+  return {
+    kind: 'review',
+    review: { lineIds, index: 0, count, isFamily, isCurrent, contradictsHint, leavesUndecided },
+  };
 }
 
 /**
@@ -98,9 +143,18 @@ export function outcomeForPreview(
 export function stepReview(review: VertexSolveReview, delta: number): VertexSolveReview {
   if (review.count <= 1) return review;
   const next = (((review.index + delta) % review.count) + review.count) % review.count;
-  // `isCurrent` describes the *shown* answer, so stepping invalidates it until
-  // the new preview lands. Assuming it carried over would label the wrong one.
-  return next === review.index ? review : { ...review, index: next, isCurrent: false };
+  // All three flags describe the *shown* answer, so stepping invalidates them
+  // until the new preview lands. Assuming any carried over would label the wrong
+  // one, and they are refreshed together from the same response.
+  return next === review.index
+    ? review
+    : {
+        ...review,
+        index: next,
+        isCurrent: false,
+        contradictsHint: false,
+        leavesUndecided: false,
+      };
 }
 
 /** Whether the stepper should be shown at all. */

@@ -30,6 +30,8 @@
     "makeAuxiliary": "Make Auxiliary",
     "makeEdge": "Make Edge",
     "makeMountain": "Make Mountain",
+    "makeUnassigned": "Make Unassigned",
+    "makeUnassignedKeepDirection": "Make Unassigned (Keep Direction)",
     "makeValley": "Make Valley",
     "organizeCircles": "Organize Circles",
     "repair": "Repair",

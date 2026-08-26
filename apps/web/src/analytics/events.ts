@@ -116,9 +116,15 @@ export type FoldMode = 'flat' | 'spatial';
  *   the transparent development still renders, with the pair highlighted.
  * - `not-drawable` — the fold returned, and there was nothing to draw.
  * - `simulated` — the user accepted the offer to simulate instead.
+ * - `located` — the user asked to be shown the vertex the refusal named.
  * - `cancelled` — the user declined that offer, or the CAMV warning.
  * - `halted` — the user stopped a fold that was already running.
  * - `error` — the kernel refused.
+ *
+ * `located` is its own value rather than a `cancelled`, and it is the one that
+ * says whether pointing at the diagnostic entry was worth building: a user who
+ * takes it did not give up, they went to fix the pattern. Folding it into
+ * `cancelled` would make the feature unmeasurable by construction.
  *
  * `halted` is deliberately **not** merged into `cancelled`. Declining a dialog
  * takes a couple of hundred milliseconds and says the user changed their mind
@@ -139,6 +145,7 @@ export type FoldVerdict =
   | 'contradiction'
   | 'not-drawable'
   | 'simulated'
+  | 'located'
   | 'cancelled'
   | 'halted'
   | 'error'

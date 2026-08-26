@@ -27,7 +27,7 @@ import {
   visibleOrieditaGridMetadata,
   type OristudioCpLineStyle,
 } from './creasePatternViewport';
-import { cpLineStyleDashPattern, cpLineStyleInk } from './oristudioCpLineStyle';
+import { alternateDashRuns, cpLineStyleDashPattern, cpLineStyleInk } from './oristudioCpLineStyle';
 
 /** Side of the square content box the crease pattern is drawn into. */
 const CP_SIZE = 1024;
@@ -263,6 +263,11 @@ function isUnassigned(assignment: string): boolean {
 interface EdgeAppearance {
   stroke: string;
   dash: string;
+  /**
+   * The direction half of a hinted crease: a second stroke over the same line,
+   * taking the alternate marks of its dash. `null` when there is nothing to say.
+   */
+  hint: { stroke: string; dash: string } | null;
 }
 
 /**
@@ -291,22 +296,109 @@ function edgeLineColor(assignment: string): string {
 function edgeAppearance(
   assignment: string,
   lineStyle: OristudioCpLineStyle,
-  palette: CreaseExportPalette
+  palette: CreaseExportPalette,
+  /** 0 none, 1 mountain, 2 valley — `oristudio:edges_fold_direction_hint`. */
+  directionHint = 0
 ): EdgeAppearance {
   const lineColor = edgeLineColor(assignment);
-  const ink = cpLineStyleInk(lineStyle, lineColor);
-  const stroke =
-    ink === 'black'
-      ? palette.monochromeInk
-      : ink === 'grey'
-        ? palette.monochromeValley
-        : assignmentColor(assignment, palette);
+  const stroke = styleInk(assignment, lineColor, lineStyle, palette);
   const pattern = cpLineStyleDashPattern(lineStyle, lineColor);
-  return { stroke, dash: pattern ? scaleDash(pattern) : '' };
+  const base = { stroke, dash: pattern ? scaleDash(pattern) : '' };
+  // A hinted crease keeps the undecided grey and dash and takes the alternate
+  // marks of that dash in its direction's own full-strength colour — the canvas
+  // treatment exactly, and now through the same run list, since
+  // `alternateDashRuns` needs no phase for either consumer. A hint is visible
+  // state rather than a working note, so it belongs in the picture.
+  //
+  // The two are not the same picture, and cannot be. They agree on *whether* a
+  // hint shows — both ink the crease's own first mark, at distance 0, which is
+  // the property that used to fail here — and disagree on how many marks it
+  // shows. That is a rate, and there is no zoom at which the rates meet, in
+  // either direction:
+  //
+  // - The canvas's geometry goes through one fixed affine (`cpModelToSvg`, the
+  //   400-unit paper across `CP_PAPER_RECT`'s 588 user units) and its dash is in
+  //   screen px, so its rate follows the *camera*.
+  // - The export fits the drawn document's **bounding box** into
+  //   `CP_SIZE - 2 * MARGIN` = 928 and scales the dash by the fixed `VIEW_SCALE`,
+  //   so its rate follows the *document*. A pattern drawn across a quarter of
+  //   the paper is blown up 4x to fill the page, so its creases carry four
+  //   times the marks the canvas gives them at the fit view, where a
+  //   paper-filling one carries about the same — and even that one is 10% off,
+  //   its geometry landing at 928/588 = 1.578 page units per canvas user unit
+  //   against the dash's 1.422.
+  //
+  // Left that way deliberately, and it is a real divergence from upstream:
+  // Oriedita's `SvgExporter` puts every line through `camera.object2TV` and
+  // writes its dash arrays as literal user units, so it exports *the view* and
+  // its dash keeps exactly the relation to the geometry the screen had. Ours
+  // exports the *document* — bounding box fitted to a fixed square page — so
+  // that one file gives one picture wherever the user happened to be scrolled,
+  // and the price of that is a dash rate the camera no longer sets. Tying the
+  // dash to the projector would only move the dependency: a single segment
+  // exported alone, blown up to fill the page, would get marks as long as its
+  // creases. The property that has to hold is the first mark, and that is
+  // pinned in `creaseExport.test.ts`.
+  //
+  // The `stroke` comparison is the canvas's rule too: under the black-dot styles
+  // the direction resolves to the ink the crease already has, so the overlay
+  // would repaint it in its own colour and say nothing.
+  const hintAssignment = directionHint === 1 ? 'M' : directionHint === 2 ? 'V' : null;
+  if (!hintAssignment || !pattern) return { ...base, hint: null };
+  const hintStroke = styleInk(hintAssignment, edgeLineColor(hintAssignment), lineStyle, palette);
+  if (hintStroke === stroke) return { ...base, hint: null };
+  return { ...base, hint: { stroke: hintStroke, dash: scaleDash(alternateDashRuns(pattern)) } };
+}
+
+/** A line colour's stroke under `lineStyle`, in the export palette. */
+function styleInk(
+  assignment: string,
+  lineColor: string,
+  lineStyle: OristudioCpLineStyle,
+  palette: CreaseExportPalette
+): string {
+  switch (cpLineStyleInk(lineStyle, lineColor)) {
+    case 'black':
+      return palette.monochromeInk;
+    case 'grey':
+      return palette.monochromeValley;
+    case 'own':
+      return assignmentColor(assignment, palette);
+  }
 }
 
 function scaleDash(pattern: readonly number[]): string {
   return pattern.map((value) => (value * VIEW_SCALE).toFixed(2)).join(' ');
+}
+
+/**
+ * The cap a crease's stroke ends with: round on a solid one, butt on a dashed
+ * one.
+ *
+ * A cap is decoration on the two ends of a stroke. On a dashed stroke it is
+ * decoration on the ends of every *mark*, which stops being decoration and
+ * becomes the pattern: `stroke-linecap="round"` adds half the stroke width at
+ * each end of each mark, so the marks grow by `strokeWidth` and the gaps shrink
+ * by it. The line-width slider runs to 8, where the stroke is 17.07 units
+ * against the undecided dash's 9.96-unit gaps — the gaps close and the dash is
+ * gone. Measured over the whole slider, rasterized: an undecided crease exports
+ * 100% ink from width 5 up, and the mountain chain (4.27-unit gaps) from width
+ * 2. A picture that says "this is a crease" about a crease the user has not
+ * decided is the one thing this dash exists to prevent.
+ *
+ * Shortening the marks to pay for the caps does not work: at width 8 the stroke
+ * is wider than the undecided pattern's whole 14.22-unit period, so no array
+ * leaves a gap under a round cap. Butt is also what the other two renderings of
+ * these same patterns use — the canvas extrudes butt-ended quads (see
+ * `strokeProgram`) and Oriedita's `SvgExporter` writes no `stroke-linecap` at
+ * all — so with it the export inks exactly the runs it emits, at the canvas's
+ * ink fraction rather than 1.5x it.
+ *
+ * Solid strokes keep the round cap: there the two half-discs are just the ends
+ * of the crease, and they fill the notch where several creases meet a vertex.
+ */
+function strokeLinecap(dash: string): 'butt' | 'round' {
+  return dash ? 'butt' : 'round';
 }
 
 export interface CreaseExportProjector {
@@ -843,6 +935,12 @@ export function buildCreaseExportArtwork(
   const faces = targetFold.faces_vertices ?? [];
   const edges = targetFold.edges_vertices ?? [];
   const assignments = targetFold.edges_assignment ?? [];
+  // Only the *direction* rides in the extension; the unknown-ness is in
+  // `edges_assignment` itself, so a fold without this array simply draws its
+  // unassigned creases plain.
+  const directionHints = (targetFold as { 'oristudio:edges_fold_direction_hint'?: number[] })[
+    'oristudio:edges_fold_direction_hint'
+  ] ?? [];
   const strokeWidth = Math.max(0.5, options.lineWidth * 1.5 * VIEW_SCALE);
 
   const backgrounds =
@@ -862,11 +960,23 @@ export function buildCreaseExportArtwork(
     .map((edge, index) => {
       const assignment = assignments[index] ?? 'U';
       if (!options.includeUnassigned && isUnassigned(assignment)) return '';
-      const { stroke, dash } = edgeAppearance(assignment, options.lineStyle, palette);
+      const { stroke, dash, hint } = edgeAppearance(
+        assignment,
+        options.lineStyle,
+        palette,
+        directionHints[index] ?? 0
+      );
       const a = project(edge[0]);
       const b = project(edge[1]);
+      const ends = `x1="${a.x.toFixed(2)}" y1="${a.y.toFixed(2)}" x2="${b.x.toFixed(2)}" y2="${b.y.toFixed(2)}"`;
       const dashAttr = dash ? ` stroke-dasharray="${dash}"` : '';
-      return `  <line x1="${a.x.toFixed(2)}" y1="${a.y.toFixed(2)}" x2="${b.x.toFixed(2)}" y2="${b.y.toFixed(2)}" stroke="${stroke}" stroke-width="${strokeWidth.toFixed(2)}"${dashAttr} stroke-linecap="round"/>`;
+      const line = `  <line ${ends} stroke="${stroke}" stroke-width="${strokeWidth.toFixed(2)}"${dashAttr} stroke-linecap="${strokeLinecap(dash)}"/>`;
+      if (!hint) return line;
+      // Second, over the first: the marks are congruent, so this repaints half
+      // of them rather than adding ink beside them. No `stroke-dashoffset` —
+      // both strokes start their pattern at the crease's own start, which is
+      // what makes a short crease show its direction at all.
+      return `${line}\n  <line ${ends} stroke="${hint.stroke}" stroke-width="${strokeWidth.toFixed(2)}" stroke-dasharray="${hint.dash}" stroke-linecap="${strokeLinecap(hint.dash)}"/>`;
     })
     .filter(Boolean)
     .join('\n');

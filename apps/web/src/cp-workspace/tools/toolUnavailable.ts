@@ -33,6 +33,24 @@ export const CP_TOOL_UNAVAILABLE_CODES = [
   'NotEnoughCreases',
   'CreaseNotInFan',
   'AnglesUnreachable',
+  'TooManyUnknowns',
+  'CreasesDoNotMeet',
+  'PropagationNothingFree',
+  'PropagationNothingDecidable',
+  'PropagationAnsweredFlat',
+  // The four scope codes. Each names a different next move, which is the bar for
+  // a code of its own: pick a scope, pick a different point, select different
+  // creases, or select creases that still exist. Collapsing them into one
+  // "nothing to propagate" would answer none of those.
+  'PropagationNoScope',
+  'PropagationNoComponentAtPoint',
+  'PropagationSelectionNothingFree',
+  'PropagationNothingInScope',
+  // `PropagationOutOfScope` is deliberately absent: its sentence interpolates a
+  // vertex count that arrives in the scope report rather than in the code, so
+  // `propagationUnavailableMessage` answers it from there. Adding it here would
+  // mean a second, countless copy of a sentence that already exists in eight
+  // locales.
 ] as const;
 
 export type CpToolUnavailableCode = (typeof CP_TOOL_UNAVAILABLE_CODES)[number];
@@ -52,6 +70,66 @@ export function cpToolUnavailableMessage(
 ): string | null {
   if (!isCode(code)) return null;
   switch (code) {
+    // Not "pick a different three". The vertex has a fourth crease with no angle
+    // either, so there are four unknowns against closure's three equations and
+    // nothing could be isolated. Measured, that crease is itself solvable at
+    // k = 1 from the current state, so propagating is the actual next move.
+    case 'TooManyUnknowns':
+      return t(
+        'tools:cpContext.completion.tooManyUnknowns',
+        'Another crease here has no fold angle yet, so there is more than one unknown too many. Give it an angle, or run Solve Undecided Creases.'
+      );
+    case 'CreasesDoNotMeet':
+      return t(
+        'tools:cpContext.completion.creasesDoNotMeet',
+        'These creases do not all meet at one point, so there is no single vertex to close.'
+      );
+    case 'PropagationNothingFree':
+      return t(
+        'tools:cpContext.propagation.nothingFree',
+        'Every crease already has a fold angle. Make some unassigned first, then solve.'
+      );
+    // Deliberately an instruction rather than an error. Nothing was decidable
+    // means "you have not told me enough", which is a conversation.
+    case 'PropagationNothingDecidable':
+      return t(
+        'tools:cpContext.propagation.nothingDecidable',
+        'Nothing could be worked out from the angles already set. Give one more crease an angle and try again.'
+      );
+    // Not an instruction, because there is nothing to instruct: unlike every
+    // other code here, this one is an answer. Asking for one more angle would
+    // send the user looking for a crease to set when the solve has already
+    // finished and found that these do not fold.
+    case 'PropagationAnsweredFlat':
+      return t(
+        'tools:cpContext.propagation.answeredFlat',
+        'These creases were worked out and they do not fold, so there is no angle to set. They stay unassigned.'
+      );
+    // The kernel declines rather than falling back to the whole document, so
+    // this is the sentence that stands where "propagate everything" used to be.
+    case 'PropagationNoScope':
+      return t(
+        'tools:cpContext.propagation.noScope',
+        'Click a crease or vertex to solve outward from, or select the creases to solve.'
+      );
+    case 'PropagationNoComponentAtPoint':
+      return t(
+        'tools:cpContext.propagation.noComponentAtPoint',
+        'Nothing to solve here. Click on a crease or a vertex of the pattern you want.'
+      );
+    // Not `PropagationNothingFree`: "every crease already has a fold angle" is a
+    // lie when the rest of the canvas is full of unassigned creases and the user
+    // simply selected the wrong ones. Different next move, different sentence.
+    case 'PropagationSelectionNothingFree':
+      return t(
+        'tools:cpContext.propagation.selectionNothingFree',
+        'Every crease in the selection already has a fold angle. Select some unassigned creases, or clear the selection and click a pattern.'
+      );
+    case 'PropagationNothingInScope':
+      return t(
+        'tools:cpContext.propagation.nothingInScope',
+        'The selection no longer names any creases. Select some again, or clear the selection and click a pattern.'
+      );
     case 'BoundaryVertex':
       return t(
         'tools:cpContext.completion.boundaryVertex',

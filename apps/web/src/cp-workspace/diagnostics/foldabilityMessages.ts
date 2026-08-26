@@ -39,6 +39,7 @@
  */
 import type { TFunction } from 'i18next';
 import type { OristudioCpDiagnosticEntry } from '../../engine/oristudioCpTypes';
+import { formatFoldAngle } from '../../lib/foldAngle';
 
 /** `checks::FlatFoldabilityRule`, as it crosses the wasm boundary. */
 export const FOLDABILITY_RULES = [
@@ -67,21 +68,44 @@ export const FOLDABILITY_COLORS = [
  * two of them before the `isRule` guard and everything else fell through to the
  * kernel's raw English message, in all eight locales.
  *
- * Paired with a Rust test over the same four literals
+ * Paired with a Rust test over the same literals
  * (`crates/oristudio-cp/tests/checks_spatial.rs`,
- * `the_spatial_check_emits_only_the_four_rules_the_frontend_words`). Neither
+ * `the_spatial_check_emits_only_the_rules_the_frontend_words`). Neither
  * language can see the other's table, so a rename needs both gates to catch it.
  */
 export const SPATIAL_RULES = [
   'Closure',
+  'ClosureUnreachable',
   'Rigid',
   'SelfIntersection',
   'InteriorBorder',
+  'Undecided',
+  'UndecidedChoice',
+  'UnsplitJunction',
+  'NotEnoughCreases',
+  'TooManyUnknowns',
+  'NoUniqueAnswer',
 ] as const;
+
+/**
+ * The rules that describe a vertex the check **could** decide but has not.
+ *
+ * The dividing line of `implementation-plans/never-report-silence.md`: these
+ * carry an action — set that crease to this angle — where the remaining
+ * informational rules carry an explanation of why nothing can be said. They are
+ * counted apart for the same reason they are worded apart, and a user with 700
+ * of the first and 2 of the second has two different facts about their document.
+ */
+const UNDECIDED_RULES = ['Undecided', 'UndecidedChoice'] as const;
 
 export type FoldabilityRule = (typeof FOLDABILITY_RULES)[number];
 export type FoldabilityColor = (typeof FOLDABILITY_COLORS)[number];
 export type SpatialRule = (typeof SPATIAL_RULES)[number];
+
+/** Whether a rule names a vertex with an answer waiting, rather than one nothing can be said about. */
+export function isUndecidedRule(value: string | null | undefined): boolean {
+  return (UNDECIDED_RULES as readonly string[]).includes(value ?? '');
+}
 
 function isRule(value: string | null | undefined): value is FoldabilityRule {
   return FOLDABILITY_RULES.includes(value as FoldabilityRule);
@@ -197,7 +221,7 @@ export function foldabilityViolationMessage(
 export function spatialRuleMessage(
   t: TFunction,
   rule: SpatialRule,
-  entry?: Pick<OristudioCpDiagnosticEntry, 'residual_degrees'>
+  entry?: Pick<OristudioCpDiagnosticEntry, 'residual_degrees' | 'fold_angle_degrees'>
 ): string {
   // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
   switch (rule) {
@@ -212,6 +236,25 @@ export function spatialRuleMessage(
             'panels:creasePattern.foldability.closureResidual',
             'The creases here do not close up: {{degrees}}° off',
             { degrees: Math.round(residual * 100) / 100 }
+          );
+    }
+    // A different failure from `Closure`, and it asks the user for a different
+    // thing. `Closure` says the angles you set disagree, and the fix is to
+    // change one of them. This says the crease you have *not* set has no value
+    // that helps, so the fix is elsewhere in the pattern — and the residual is
+    // not how far off the vertex is but how close it can be brought, which is
+    // what keeps "nothing helps" from being a refusal nobody can check.
+    case 'ClosureUnreachable': {
+      const closest = entry?.residual_degrees;
+      return closest == null
+        ? t(
+            'panels:creasePattern.foldability.closureUnreachable',
+            'No angle for the undecided crease here can close it'
+          )
+        : t(
+            'panels:creasePattern.foldability.closureUnreachableClosest',
+            'No angle for the undecided crease here can close it — the closest is {{degrees}}° off',
+            { degrees: Math.round(closest * 100) / 100 }
           );
     }
     // Not a conflict to fix. A degree-1 or developable degree-3 vertex has one
@@ -236,6 +279,56 @@ export function spatialRuleMessage(
       return t(
         'panels:creasePattern.foldability.interiorBorder',
         'Edge with paper on both sides — foldability is not checked along it'
+      );
+
+    // Undecided: an answer exists and this is it. The angle is the whole value
+    // of the row — "this crease has no angle yet" is something the user already
+    // knows, and repeating it would be a nag. Formatted by the same function the
+    // canvas badge uses, so the number here and the number on the crease cannot
+    // disagree about sign or precision.
+    case 'Undecided': {
+      const degrees = entry?.fold_angle_degrees;
+      return degrees == null
+        ? t('panels:creasePattern.foldability.undecided', 'This crease has no angle yet')
+        : t(
+            'panels:creasePattern.foldability.undecidedAngle',
+            'Set this crease to {{angle}} and this vertex closes',
+            { angle: formatFoldAngle(degrees) }
+          );
+    }
+    // Also undecided, and deliberately without a number: more than one angle
+    // closes the vertex, so naming one of them would be the app making a design
+    // decision. Mountain against valley is the commonest such pair.
+    case 'UndecidedChoice':
+      return t(
+        'panels:creasePattern.foldability.undecidedChoice',
+        'More than one angle closes this vertex, so this crease is a choice'
+      );
+
+    // The four below are the honest abstentions. They share a leading phrase
+    // because they share a fact — the check did not answer here — and differ
+    // only in why, which is what the user needs in order to make it answerable.
+    case 'UnsplitJunction':
+      return t(
+        'panels:creasePattern.foldability.unsplitJunction',
+        'Not checked — a crease passes through this point without ending here'
+      );
+    case 'NotEnoughCreases':
+      return t(
+        'panels:creasePattern.foldability.notEnoughCreases',
+        'Not checked — fewer than three creases meet here'
+      );
+    case 'TooManyUnknowns':
+      return t(
+        'panels:creasePattern.foldability.tooManyUnknowns',
+        'Not checked — too many undecided creases meet here'
+      );
+    // The one that was checked and still cannot be stated: the angles that close
+    // it form a continuous family rather than a value.
+    case 'NoUniqueAnswer':
+      return t(
+        'panels:creasePattern.foldability.noUniqueAnswer',
+        'Not pinned down — many different angles close this vertex'
       );
   }
 }

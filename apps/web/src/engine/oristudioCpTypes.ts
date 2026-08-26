@@ -41,6 +41,16 @@ export interface OristudioCpRgbaColor extends OristudioCpRgbColor {
   alpha: number;
 }
 
+/**
+ * Which way an unassigned crease folded before its angle was forgotten — the
+ * kernel's `FoldDirection`.
+ *
+ * Only ever present alongside `color: 'None'`: the kernel clears it in
+ * `with_line_color` on the way out of `LineColor::None`, because a crease that
+ * has a direction does not need a hint about one.
+ */
+export type OristudioCpFoldDirectionHint = 'Mountain' | 'Valley';
+
 export interface OristudioCpLineSegment {
   a: Point;
   b: Point;
@@ -58,6 +68,19 @@ export interface OristudioCpLineSegment {
    * from `lib/foldAngle`, which combines it with the colour's direction.
    */
   fold_magnitude?: number;
+  /**
+   * The direction this crease folded before it was unassigned, when one was
+   * kept. **Absent** unless the crease is unassigned *and* hinted, so an
+   * unhinted segment stays structurally identical to what it was before hints
+   * existed.
+   *
+   * This field is why `.osf` save, undo and paste were dropping hints: it is
+   * the JS mirror of the kernel's `fold_direction_hint`, and everything that
+   * persists or restores a document round-trips through this interface. A new
+   * kernel field is not carried until it is declared here *and* read in
+   * `readSegment` (`engine/oristudioCpGeometry.ts`).
+   */
+  fold_direction_hint?: OristudioCpFoldDirectionHint;
 }
 
 export interface OristudioCpCircle {
@@ -128,6 +151,16 @@ export interface OristudioCpCommandResult {
   status: OristudioCpOperationStatus;
   diagnostics: string[];
   diagnostic_entries?: OristudioCpDiagnosticEntry[];
+  /**
+   * How many vertices a foldability check produced an answer for.
+   *
+   * Absent on every command that does not check vertices. Zero is **not** the
+   * clean case: it means the check affirmed nothing, which is what a pattern
+   * whose every vertex sits on the paper edge has always displayed as success.
+   * It is the denominator "no errors" is implicitly about, and there is no
+   * vertex to hang it on — hence a result field rather than an entry.
+   */
+  checked_vertices?: number | null;
 }
 
 export interface OristudioCpDiagnosticEntry {
@@ -146,6 +179,16 @@ export interface OristudioCpDiagnosticEntry {
    * already formatted English — a formatted string cannot be un-formatted.
    */
   residual_degrees?: number | null;
+  /**
+   * The signed fold angle that would close an undecided vertex, in degrees —
+   * negative a mountain, the same convention {@link formatFoldAngle} prints.
+   *
+   * Deliberately a second number rather than a reuse of `residual_degrees`: one
+   * is how far a vertex is from closing and this is a value to set. Present only
+   * when exactly one angle closes the vertex; a branch has more than one answer
+   * and naming one of them would be a choice the app is not entitled to make.
+   */
+  fold_angle_degrees?: number | null;
   violation_color?: string | null;
   big_little_big?: OristudioCpDiagnosticBigLittleBigSegment[];
 }
@@ -153,6 +196,61 @@ export interface OristudioCpDiagnosticEntry {
 export interface OristudioCpDiagnosticBigLittleBigSegment {
   segment: OristudioCpLineSegment;
   violating: boolean;
+}
+
+/** One crease a propagation draft would set. */
+export interface OristudioCpPropagationCrease {
+  /**
+   * **One-based** line id — the same space `line_ids`, `pinned_angles` and
+   * `toolReplacedLineIds` use. The kernel converts from its own zero-based
+   * indices once, in the preview arm, so nothing on this side subtracts one.
+   */
+  line_id: number;
+  /** Signed fold angle in degrees; negative is a mountain. */
+  degrees: number;
+}
+
+/** One place a propagation draft stopped. */
+export interface OristudioCpPropagationStall {
+  point: Point;
+  /**
+   * `underdetermined` | `branching` | `unsolvable` | `above_cap` |
+   * `out_of_scope`. The two the user acts on differently are `branching` ("I
+   * have a question") and everything else ("I need another angle from you") —
+   * do not share copy. `out_of_scope` is a third: the vertex was solvable and
+   * was skipped because some of its unknowns were outside what may be written,
+   * so the move is to widen the scope rather than to supply an angle.
+   */
+  reason: string;
+  unknowns: number;
+}
+
+/**
+ * What a propagation draft was allowed to write to.
+ *
+ * Sent because the user got the *scope* wrong — running across every pattern on
+ * the canvas at once — so the window has to name which one it used rather than
+ * leave it to be inferred from a count. Resolved kernel-side for both the
+ * preview and the commit, so nothing here re-derives it.
+ */
+export interface OristudioCpPropagationScope {
+  /** `selection` | `component` | `document`, as a stable kernel code. */
+  kind: string;
+  /** Creases the scope names. */
+  creases: number;
+  /** Vertices propagation was allowed to visit. */
+  vertices: number;
+  /**
+   * Unassigned creases still inside the scope afterwards — the same number as
+   * `propagation_free`, and deliberately not a document total.
+   */
+  free: number;
+  /**
+   * Vertices skipped because some of their unknowns fell outside the scope. The
+   * one finding with an action attached: select those creases too, or clear the
+   * selection and click the pattern.
+   */
+  out_of_scope: number;
 }
 
 export interface OristudioCpCommandPreview {
@@ -187,6 +285,59 @@ export interface OristudioCpCommandPreview {
    * the UI can say "this is what you have" rather than offering it as a change.
    */
   candidate_is_current?: boolean | null;
+  /**
+   * Whether the previewed solution folds a crease against a direction the user
+   * marked on it.
+   *
+   * Applying replaces that mark with the opposite direction and there is no
+   * second chance to notice it happened, so this has to reach the user before
+   * Apply does. A warning and never a refusal — the kernel's
+   * `AngleSolution::contradicts_hint` says why a hint does not get to veto an
+   * answer that genuinely closes the vertex.
+   */
+  candidate_contradicts_hint?: boolean | null;
+  /**
+   * Whether the previewed solution leaves one of the three picked creases
+   * undecided.
+   *
+   * The answer for that crease is zero — it does not fold — and zero names no
+   * direction, so an unassigned crease has nothing to be decided as. The preview
+   * segments already show it staying dashed; this is what lets the tool say so
+   * in words, because "one of your three does not move" is a thing to read
+   * before Apply rather than notice afterwards. The kernel's
+   * `AngleSolution::leaves_undecided` says why the alternative — a valley that
+   * folds by zero degrees — is worse.
+   */
+  candidate_leaves_undecided?: boolean | null;
+  /** How many creases a propagation draft worked out. */
+  propagation_solved?: number | null;
+  /**
+   * How many creases are still free after the draft — **scope-relative**, so a
+   * draft over one of five patterns reports that pattern rather than the canvas.
+   */
+  propagation_free?: number | null;
+  /**
+   * The creases the draft would set, and what it would set them to.
+   *
+   * Index-aligned with `segments`, and emitted from the same kernel loop, so
+   * `propagation_creases[i]` names the document crease that `segments[i]` is
+   * standing in for. That is what lets the canvas *hide* those creases through
+   * `toolReplacedLineIds` rather than paint the draft on top of them — a draft
+   * that changed nothing otherwise looks already applied.
+   *
+   * Order is the order the draft resolved in: pins first, then outward from the
+   * seed. Every entry is a crease that really changes, and no id appears twice.
+   */
+  propagation_creases?: OristudioCpPropagationCrease[];
+  /** Where propagation stopped and is waiting on the user. */
+  propagation_stalls?: OristudioCpPropagationStall[];
+  /** Vertices that ended fully known and do not close. */
+  propagation_conflicts?: Point[];
+  /**
+   * What the run was allowed to write to. Absent when the scope named nothing,
+   * which is the case `unavailable` reports.
+   */
+  propagation_scope?: OristudioCpPropagationScope | null;
 }
 
 export type OristudioCpEstimationOrder =
@@ -983,6 +1134,11 @@ export interface OristudioCpSnapCandidates {
 export type OristudioCpGridState = 'Hidden' | 'WithinPaper' | 'Full';
 
 export interface OristudioCpCommandPayload {
+  /**
+   * One-based line ids. Most operations read this as *what to act on*;
+   * `PropagateFoldAngles` reads it as **what it may write to**, and takes
+   * precedence over `points` there — see `usePropagationDraft`.
+   */
   line_ids?: number[];
   line_segments?: OristudioCpLineSegment[];
   circle_ids?: number[];
@@ -1025,6 +1181,34 @@ export interface OristudioCpCommandPayload {
   custom_from_line_type?: OristudioCpCustomLineType;
   custom_to_line_type?: OristudioCpCustomLineType;
   custom_line_type?: OristudioCpCustomLineType;
+  /**
+   * Fold angles the user fixed by hand during a propagation draft, as
+   * `[one-based line id, signed degrees]` — the same id space as `line_ids`,
+   * and the same one `propagation_creases` hands back. Propagation treats these
+   * as known and never re-derives them, which is what lets one crease be
+   * adjusted and the draft re-run without the answer sliding back.
+   *
+   * Send back the `line_id` from the preview unchanged. Do not subtract one:
+   * the kernel converts, and an id that is off by one names a real, adjacent
+   * crease and silently recolours it. `0` is rejected.
+   */
+  pinned_angles?: [number, number][];
+  /**
+   * Discard the mountain/valley direction as well when unassigning. Absent or
+   * `false` keeps it, because that is the common intent.
+   */
+  forget_direction?: boolean;
+  /**
+   * What `CreaseSetDirectionHint` writes to each selected *unassigned* crease.
+   * Required by that operation, ignored by every other.
+   *
+   * `'Clear'` is spelled out rather than sent as an absent field so that
+   * "forget the hint" and "the caller forgot to set this" cannot look alike on
+   * the wire — the kernel rejects the payload that omits it.
+   */
+  direction_hint?: OristudioCpFoldDirectionHint | 'Clear';
+  /** Largest number of unknowns at a vertex a propagation commit may come from. */
+  max_commit_k?: number;
   fix_precision?: number;
   fix_precision_use_bp?: boolean;
   fix_precision_use_22_5?: boolean;

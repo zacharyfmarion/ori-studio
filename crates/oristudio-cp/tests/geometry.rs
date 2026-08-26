@@ -1,7 +1,7 @@
 use oristudio_cp::geometry::{
-    Circle, CircleIntersection, Epsilon, Intersection, Line, LineColor, LineSegment,
-    ParallelJudgement, Point, Polygon, PolygonIntersection, Rectangle, StraightLine, angle,
-    angle_between_m180_180, bisection, circle_to_circle_intersection,
+    Circle, CircleIntersection, Epsilon, FoldDirection, FoldMagnitude, Intersection, Line,
+    LineColor, LineSegment, ParallelJudgement, Point, Polygon, PolygonIntersection, Rectangle,
+    StraightLine, angle, angle_between_m180_180, bisection, circle_to_circle_intersection,
     determine_line_segment_distance, determine_line_segment_intersection,
     determine_line_segment_intersection_sweet, determine_line_segment_intersection_with_precision,
     equal, find_line_symmetry_point, get_segment_with_length, internal_division_ratio, is_inside,
@@ -270,4 +270,89 @@ fn internal_division_and_bisection_keep_oriedita_sentinel_behavior() {
         Point::new(1.0, 1.0),
         Point::new(1.0, 1.0 + Epsilon::POINT / 2.0)
     ));
+}
+
+/// The sign of a fold angle is read in exactly one place, and zero is not a
+/// direction.
+///
+/// Two predicates used to answer this: `degrees < 0.0` on the write path and
+/// `degrees.is_sign_negative()` on the check path. They agree on every float
+/// except one — IEEE 754 gives zero a sign bit, so `-0.0` is a valley to the
+/// first and a mountain to the second. The solver emits `-0.0`, which is how a
+/// single crease came out painted a valley by the write while the check
+/// reported it folding the other way.
+#[test]
+fn a_fold_angle_of_zero_names_no_direction() {
+    assert_eq!(
+        FoldDirection::of_signed_angle(-90.0),
+        Some(FoldDirection::Mountain)
+    );
+    assert_eq!(
+        FoldDirection::of_signed_angle(90.0),
+        Some(FoldDirection::Valley)
+    );
+    // Both zeros, and they must answer the same.
+    assert_eq!(FoldDirection::of_signed_angle(0.0), None);
+    assert_eq!(FoldDirection::of_signed_angle(-0.0), None);
+    assert_eq!(FoldDirection::of_signed_angle(f64::NAN), None);
+
+    for (direction, folded) in [
+        (FoldDirection::Mountain, -180.0),
+        (FoldDirection::Valley, 180.0),
+    ] {
+        assert!(!direction.admits(0.0), "{direction:?} admitted +0");
+        assert!(!direction.admits(-0.0), "{direction:?} admitted -0");
+        assert!(direction.admits(folded));
+        // "Folds the other way" — what a hint clash actually is. Distinct from
+        // "does not fold this way", which is also true of an angle that does not
+        // fold at all.
+        assert!(!direction.flipped().admits(folded));
+        assert!(!direction.flipped().admits(0.0));
+        assert!(!direction.flipped().admits(-0.0));
+    }
+}
+
+/// A zero answer writes a magnitude and never a direction.
+///
+/// On a decided crease that means the mountain or valley the user gave it
+/// survives — reading `degrees < 0.0` used to turn every zero-angled mountain
+/// into a valley. On an unassigned crease there is nothing to keep, and this
+/// model cannot spell a directionless folding crease, so it stays undecided with
+/// its hint rather than being given a direction the answer never determined.
+#[test]
+fn a_zero_fold_angle_decides_no_directions() {
+    let crease = |color: LineColor| {
+        LineSegment::with_color(Point::new(0.0, 0.0), Point::new(100.0, 0.0), color)
+            .with_fold_magnitude(FoldMagnitude::from_degrees(120.0))
+    };
+
+    for (color, zero) in [
+        (LineColor::Red1, 0.0_f64),
+        (LineColor::Red1, -0.0_f64),
+        (LineColor::Blue2, 0.0_f64),
+        (LineColor::Blue2, -0.0_f64),
+    ] {
+        let written = crease(color).with_signed_fold_angle(zero);
+        assert_eq!(written.color, color, "{color:?} at {zero}");
+        assert_eq!(written.fold_magnitude, Some(FoldMagnitude::FLAT));
+    }
+
+    let undecided = LineSegment::with_color(
+        Point::new(0.0, 0.0),
+        Point::new(100.0, 0.0),
+        LineColor::None,
+    )
+    .with_direction_hint(Some(FoldDirection::Valley));
+    for zero in [0.0_f64, -0.0_f64] {
+        assert_eq!(
+            undecided.with_signed_fold_angle(zero),
+            undecided,
+            "a zero answer decided an unassigned crease at {zero}"
+        );
+    }
+    // A real angle still decides it — that is the whole point of admitting
+    // unassigned creases here.
+    let decided = undecided.with_signed_fold_angle(-70.5);
+    assert_eq!(decided.color, LineColor::Red1);
+    assert_eq!(decided.fold_direction_hint, None);
 }

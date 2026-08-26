@@ -9,6 +9,7 @@ pub mod cancel;
 pub mod canonical;
 pub mod checks;
 pub mod checks_spatial;
+mod crease_graph;
 mod fold_graph;
 pub mod fold_profiling;
 pub mod folding;
@@ -21,6 +22,7 @@ pub mod operations;
 pub mod session;
 pub mod share;
 pub mod solve_fold_angles;
+pub mod solve_k;
 pub mod solve_spatial;
 
 use serde::{Deserialize, Serialize};
@@ -197,6 +199,41 @@ pub struct CreasePatternCommandPayload {
     /// Optional precision percentage for fix-inaccurate commands.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fix_precision: Option<f64>,
+    /// Fold angles the user has fixed by hand during a propagation draft, as
+    /// `(one-based line id, signed degrees)` — the same id space as `line_ids`,
+    /// and the same the preview hands back in
+    /// [`CommandPreview::propagation_creases`].
+    ///
+    /// These are the draft's real input. Propagation treats them as known before
+    /// its first solve and never re-derives them, which is what lets the user
+    /// adjust one crease and re-run without the answer sliding back. A pin is
+    /// therefore normally an id read straight out of the previous preview, which
+    /// is why it must be the same base: the round trip is the loop.
+    ///
+    /// The same id twice is not an error — the last value wins — but it is
+    /// reported once, so the draft's crease list stays a set.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pinned_angles: Vec<(usize, f64)>,
+    /// Discard the mountain/valley direction as well when unassigning.
+    ///
+    /// Absent or `false` keeps it, because that is the common intent and the
+    /// one the fold-angle chip performs; a hint is what lets the solver settle
+    /// the mountain/valley question closure cannot.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub forget_direction: Option<bool>,
+    /// What [`OperationId::CreaseSetDirectionHint`] writes to each selected
+    /// unassigned crease. Required by that operation, ignored by every other.
+    ///
+    /// Spelled as a three-state change rather than an `Option<FoldDirection>`
+    /// so that "clear the hint" and "the client forgot the field" are different
+    /// messages on the wire.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub direction_hint: Option<operations::native::direction_hint::DirectionHintChange>,
+    /// Largest number of unknowns at a vertex a propagation commit may come
+    /// from. `None` uses
+    /// [`operations::native::fold_propagation::DEFAULT_MAX_COMMIT_K`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_commit_k: Option<usize>,
     /// Optional toggle for BP fix-inaccurate targets.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fix_precision_use_bp: Option<bool>,
@@ -260,6 +297,18 @@ pub struct CommandResult {
     /// Structured diagnostic markers emitted by non-mutating check commands.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub diagnostic_entries: Vec<CommandDiagnostic>,
+    /// How many vertices a foldability check produced an answer for.
+    ///
+    /// `None` on every command that does not check vertices, so nothing else
+    /// changes shape. Zero is not the same as "clean": it means the check
+    /// affirmed nothing at all, which is what `known-good/airplane.fold` — every
+    /// vertex on the paper edge — has always displayed as success.
+    ///
+    /// Carried beside `diagnostic_entries` rather than inside them because it is
+    /// not a finding. It is the count the *absence* of findings is about, and
+    /// there is no vertex to attach it to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checked_vertices: Option<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -283,6 +332,17 @@ pub struct CommandDiagnostic {
     /// `CheckCamv` result is byte-identical to what it was before this existed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub residual_degrees: Option<f64>,
+    /// The signed fold angle that would close an undecided vertex, in degrees —
+    /// negative a mountain, matching every other fold angle the app displays.
+    ///
+    /// Deliberately **not** `residual_degrees`: one is how far a vertex is from
+    /// closing and the other is a value to set, and a reader that cannot tell
+    /// them apart would offer the user a number to type in that is the size of
+    /// their mistake. Present only when exactly one angle closes the vertex;
+    /// with a branch there is more than one answer and naming one of them would
+    /// be a choice the app is not entitled to make.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fold_angle_degrees: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub violation_color: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -335,6 +395,246 @@ pub struct CommandPreview {
     /// change.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub candidate_is_current: Option<bool>,
+    /// Whether the previewed solution folds a crease against a direction the
+    /// user marked on it.
+    ///
+    /// Applying replaces that hint with the opposite direction and there is no
+    /// second chance to notice, so the surface has to say so first. It is a
+    /// warning and never a refusal: see `AngleSolution::contradicts_hint` for
+    /// why a hint does not get to veto a real answer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candidate_contradicts_hint: Option<bool>,
+    /// Whether the previewed solution leaves one of the picked creases
+    /// undecided.
+    ///
+    /// The answer for it is zero, which names no direction, so the write has
+    /// nothing to store on a crease that has none either — see
+    /// `AngleSolution::leaves_undecided`. The preview segments already show it
+    /// staying dashed, and this is what lets the tool *say* so: "one of your
+    /// three does not move" is the thing a user is entitled to read before
+    /// applying rather than work out from the canvas afterwards.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candidate_leaves_undecided: Option<bool>,
+    /// How many creases a propagation draft worked out.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub propagation_solved: Option<usize>,
+    /// How many creases are still free after the draft.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub propagation_free: Option<usize>,
+    /// The creases the draft would set, and what it would set them to.
+    ///
+    /// Index-aligned with the entries this preview appends to `segments`, and
+    /// pushed from the same loop so the two cannot drift. That alignment is the
+    /// whole point: it is what lets a caller say *which document creases* the
+    /// draft stands in for, and therefore stop drawing them, instead of painting
+    /// the answer on top of the originals. `propagation_solved` is only a count
+    /// and `segments` carries no identity, so before this existed a surface had
+    /// no way to tell the two apart.
+    ///
+    /// The same discipline `VertexSolveFoldAngles` keeps for its pick order, for
+    /// the same reason: matching a preview segment back to a document crease by
+    /// its endpoints would be comparing coordinates that had round-tripped
+    /// through a serialiser.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub propagation_creases: Vec<PropagationDraftCrease>,
+    /// Vertices where propagation stopped and is waiting on the user.
+    ///
+    /// Deliberately **not** `points`, which is documented as candidate commit
+    /// points and is drawn through the overlay channel. A stall is not a commit
+    /// point, and there can be hundreds of them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub propagation_stalls: Vec<PropagationStall>,
+    /// Vertices that ended fully known and do not close, so something the draft
+    /// rests on is inconsistent.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub propagation_conflicts: Vec<geometry::Point>,
+    /// What the run was scoped to. Absent when the scope named nothing, which
+    /// is the case `unavailable` reports.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub propagation_scope: Option<PropagationScope>,
+}
+
+/// The scope a propagation draft ran in, so the tool can name it.
+///
+/// The user got the *scope* wrong, which is why the window has to say which one
+/// it used rather than leaving it to be inferred from a count.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PropagationScope {
+    /// `selection` | `component` | `document`, as a stable code.
+    pub kind: String,
+    /// Creases the scope names.
+    pub creases: usize,
+    /// Vertices propagation was allowed to visit.
+    pub vertices: usize,
+    /// Unassigned creases still inside the scope after the draft. Scope-relative
+    /// — the same number as `propagation_free`, and deliberately not a document
+    /// total.
+    pub free: usize,
+    /// Vertices skipped because some of their unknowns were outside the scope.
+    /// The one finding with an action attached: widen the selection, or clear it
+    /// and click the pattern.
+    pub out_of_scope: usize,
+}
+
+/// One crease a propagation draft would set.
+///
+/// Named fields rather than a tuple because this is a wire type a caller zips
+/// against `CommandPreview::segments`, and `[7, -45.0]` says nothing about which
+/// number is which. `PropagationStall` already made the same choice.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PropagationDraftCrease {
+    /// **One-based** line id — the same space `payload.line_ids` and
+    /// `payload.pinned_angles` use, and *not* the zero-based index the solver
+    /// works in. The conversion happens once, in the preview arm, so that no
+    /// consumer has to know there are two conventions.
+    ///
+    /// Getting this wrong is silent: an off-by-one names a real, adjacent crease
+    /// and recolours it.
+    pub line_id: usize,
+    /// Signed fold angle in degrees; negative is a mountain.
+    pub degrees: f64,
+}
+
+/// One place a propagation draft stopped, for the tool to show.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PropagationStall {
+    pub point: geometry::Point,
+    /// `underdetermined` | `branching` | `unsolvable` | `above_cap`, as a stable
+    /// code the frontend turns into a sentence. The two the user acts on
+    /// differently are `branching` ("I have a question") and everything else
+    /// ("I need another angle from you"), and they must not share copy.
+    pub reason: String,
+    pub unknowns: usize,
+}
+
+/// What a propagation command resolved to.
+enum PropagationDraft {
+    /// The scope named nothing to work on. The payload carries the stable code
+    /// the frontend turns into a sentence; the commit path writes nothing.
+    Declined(&'static str),
+    Ready(operations::native::fold_propagation::Propagation),
+}
+
+/// The draft a propagation run produces, from a command's payload.
+///
+/// One helper for both dispatch paths, so the preview a user confirms and the
+/// commit that lands cannot disagree about what the answer was — **including
+/// about the scope**, which is the whole reason scope resolution lives here
+/// rather than in either arm.
+///
+/// # One payload states one scope
+///
+/// `line_ids` means "these creases"; `points[0]` means "the pattern this click
+/// landed in". A caller sends **one**, because the gesture is what states the
+/// scope: a click says "this component" and the Propagate-in-selection button
+/// says "the selection". Sending both asks this function to guess which the
+/// user meant, and it cannot — a payload carrying a click *and* a selection
+/// looks identical whether the selection was made a second ago or is left over
+/// from another pattern ten minutes back. It was the latter that bit: the seed
+/// click landed in one pattern and a forgotten selection solved a different one,
+/// with nothing on screen to say so but the window title.
+///
+/// A caller that sends both anyway gets the selection, the same way
+/// `CreaseToggleMv` and `CreaseSelect` prioritise `line_ids` over their box.
+/// Neither key means the whole document: with no selection and no seed this
+/// **declines**, because "no scope means the whole canvas" is exactly the
+/// behaviour scoping exists to remove. `Scope::document` stays reachable from
+/// Rust tests and headless callers only.
+fn propagation_draft(
+    document: &CreasePatternDocument,
+    command: &CreasePatternCommand,
+) -> Result<PropagationDraft> {
+    let max_commit_k = command
+        .payload
+        .max_commit_k
+        .unwrap_or(operations::native::fold_propagation::DEFAULT_MAX_COMMIT_K);
+    // A pin is built from a line id the *preview* handed out, so the two ends of
+    // the loop have to agree about what that id means. They do, because both are
+    // one-based, and this is the single place the payload's ids become the
+    // solver's zero-based indices. The alternative — a payload with two
+    // conventions in it — has no symptom: an unconverted pin lands on the next
+    // crease along and silently recolours it.
+    let pins = command
+        .payload
+        .pinned_angles
+        .iter()
+        .map(|&(line_id, degrees)| {
+            line_id
+                .checked_sub(1)
+                .map(|index| (index, degrees))
+                .ok_or_else(|| CommandError::InvalidInput {
+                    operation: command.operation,
+                    message: "line IDs are one-based".to_string(),
+                })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    // Both id lists are validated before anything is resolved: a zero id is a
+    // malformed payload, not a scope that named nothing.
+    let selected = optional_line_indices(command)?;
+
+    let model = &document.crease_pattern;
+    let scope = if selected.is_empty() {
+        let Some(seed) = command.payload.points.first().copied() else {
+            return Ok(PropagationDraft::Declined("PropagationNoScope"));
+        };
+        match operations::native::fold_propagation::Scope::component_at(
+            model,
+            seed,
+            selection_distance(command),
+        ) {
+            Some(scope) => scope,
+            None => return Ok(PropagationDraft::Declined("PropagationNoComponentAtPoint")),
+        }
+    } else {
+        let named: Vec<usize> = selected
+            .into_iter()
+            .filter(|index| *index < model.line_segments.len())
+            .collect();
+        let scope = operations::native::fold_propagation::Scope::creases(model, &named);
+        // An id list that names nothing must **not** fall through to the whole
+        // document. That silent widening is the bug this scoping fixes.
+        if scope.creases_named().is_empty() {
+            return Ok(PropagationDraft::Declined("PropagationNothingInScope"));
+        }
+        scope
+    };
+
+    Ok(PropagationDraft::Ready(
+        operations::native::fold_propagation::propagate(
+            model,
+            &scope,
+            &pins,
+            max_commit_k,
+            CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
+        ),
+    ))
+}
+
+/// Stable code per scope kind, for a window that has to name what it worked on.
+fn scope_kind_code(kind: operations::native::fold_propagation::ScopeKind) -> &'static str {
+    use operations::native::fold_propagation::ScopeKind;
+    match kind {
+        ScopeKind::Selection => "selection",
+        ScopeKind::Component => "component",
+        ScopeKind::Document => "document",
+    }
+}
+
+/// Stable code per stall reason. The frontend turns these into sentences, and
+/// `branching` must not share copy with the rest: it means "I have a question",
+/// where the others mean "I need another angle from you". `answered_flat` is a
+/// third: nothing is being asked for at all, the answer just happens to be that
+/// these creases do not fold.
+fn stall_reason_code(reason: operations::native::fold_propagation::StallReason) -> &'static str {
+    use operations::native::fold_propagation::StallReason;
+    match reason {
+        StallReason::Underdetermined => "underdetermined",
+        StallReason::Branching => "branching",
+        StallReason::Unsolvable => "unsolvable",
+        StallReason::AboveCap => "above_cap",
+        StallReason::OutOfScope => "out_of_scope",
+        StallReason::AnsweredFlat => "answered_flat",
+    }
 }
 
 /// Error returned by command dispatch.
@@ -477,6 +777,9 @@ pub enum OperationId {
     CreaseToggleMv,
     CircleChangeColor,
     CreaseMakeAux,
+    CreaseMakeUnassigned,
+    CreaseSetDirectionHint,
+    PropagateFoldAngles,
     OperationFrameCreate,
     VoronoiCreate,
     FlatFoldableCheck,
@@ -1084,6 +1387,30 @@ const OPERATION_DESCRIPTORS: &[OperationDescriptor] = &[
         OracleTested
     ),
     descriptor!(
+        native CreaseMakeUnassigned,
+        "OriStudioCreaseMakeUnassigned",
+        "operations::native::unassign::make_unassigned",
+        Kernel,
+        6,
+        UnitTested
+    ),
+    descriptor!(
+        native CreaseSetDirectionHint,
+        "OriStudioCreaseSetDirectionHint",
+        "operations::native::direction_hint::set_direction_hint",
+        Kernel,
+        6,
+        UnitTested
+    ),
+    descriptor!(
+        native PropagateFoldAngles,
+        "OriStudioPropagateFoldAngles",
+        "operations::native::fold_propagation::propagate",
+        Kernel,
+        6,
+        UnitTested
+    ),
+    descriptor!(
         OperationFrameCreate,
         "MouseHandlerOperationFrameCreate",
         "operations::transform::operation_frame_press/drag/release",
@@ -1618,6 +1945,7 @@ pub fn execute_command(
 
     let mut diagnostic_entries = Vec::new();
     let mut diagnostics_override = None;
+    let mut checked_vertices = None;
     let changed = match command.operation {
         OperationId::DrawCreaseFree | OperationId::DrawCreaseRestricted => {
             let points = required_points(&command, 2)?;
@@ -1802,11 +2130,73 @@ pub fn execute_command(
             let line_indices = required_line_indices(&command)?;
             operations::color::make_aux(&mut document.crease_pattern, &line_indices)
         }
+        OperationId::CreaseMakeUnassigned => {
+            let line_indices = required_line_indices(&command)?;
+            // One operation, two intents. Keeping the direction is the common
+            // one — it is what the fold-angle chip performs — so it is the
+            // default, and forgetting it as well is the explicit ask.
+            if command.payload.forget_direction.unwrap_or(false) {
+                operations::native::unassign::make_unassigned(
+                    &mut document.crease_pattern,
+                    &line_indices,
+                )
+            } else {
+                operations::native::unassign::make_unassigned_keeping_direction(
+                    &mut document.crease_pattern,
+                    &line_indices,
+                )
+            }
+        }
+        OperationId::CreaseSetDirectionHint => {
+            let line_indices = required_line_indices(&command)?;
+            // No default. Mountain, valley and clear are three deliberate
+            // intents and none of them is the obvious one to assume, so a
+            // payload that omits the field is a caller bug rather than a
+            // request to guess.
+            let change =
+                command
+                    .payload
+                    .direction_hint
+                    .ok_or_else(|| CommandError::InvalidInput {
+                        operation: command.operation,
+                        message: "direction_hint is required (Mountain, Valley or Clear)"
+                            .to_string(),
+                    })?;
+            operations::native::direction_hint::set_direction_hint(
+                &mut document.crease_pattern,
+                &line_indices,
+                change,
+            )
+        }
+        OperationId::PropagateFoldAngles => {
+            // Commit is the *same* draft the preview showed, recomputed from the
+            // same inputs rather than carried across the boundary. The solve is
+            // deterministic, so the two agree; sending the draft back would mean
+            // trusting a client-held answer about the document's geometry. That
+            // includes the scope: both paths resolve it in `propagation_draft`,
+            // so a commit cannot be wider than the draft the user confirmed.
+            match propagation_draft(document, &command)? {
+                PropagationDraft::Declined(_) => 0,
+                PropagationDraft::Ready(draft) => operations::native::fold_propagation::apply(
+                    &mut document.crease_pattern,
+                    &draft.solved,
+                ),
+            }
+        }
         OperationId::CreaseToggleMv => {
             // Oriedita `CREASE_TOGGLE_MV_58` is a box-select tool: a single crease
             // click flips that crease, a dragged box flips every mountain/valley
             // line it encloses. `toggle_mountain_valley` already ignores non-M/V
             // lines, matching Oriedita's `LineColor::changeMV` filter.
+            //
+            // The tool reverses a *stated* fold direction, and an unassigned
+            // crease carrying a hint states one — so the flip reaches it too,
+            // through an additive Ori Studio limb rather than by teaching the
+            // ported filter about a concept upstream does not have. The two
+            // gates are disjoint (`Red1`/`Blue2` against `LineColor::None`), so
+            // the counts simply add and no line is flipped twice. Recorded in
+            // PORTING.md; see `operations::native::direction_hint` for why a
+            // *bare* unassigned crease is left alone.
             let line_indices = if command.payload.line_ids.is_empty() {
                 let polygon = required_selection_polygon(&command)?;
                 operations::selection::line_indices_in_box(&document.crease_pattern, &polygon)
@@ -1814,6 +2204,10 @@ pub fn execute_command(
                 required_line_indices(&command)?
             };
             operations::color::toggle_mountain_valley(&mut document.crease_pattern, &line_indices)
+                + operations::native::direction_hint::flip_direction_hints(
+                    &mut document.crease_pattern,
+                    &line_indices,
+                )
         }
         OperationId::CircleChangeColor => {
             let circle_indices = optional_circle_indices(&command)?;
@@ -2617,6 +3011,7 @@ pub fn execute_command(
             // mixed design therefore keeps its full flat diagnostics everywhere
             // it is still flat.
             let dispatched = checks_spatial::dispatched_camv(&document.crease_pattern);
+            checked_vertices = Some(dispatched.checked_vertices);
             diagnostic_entries = flat_foldability_diagnostics("CheckCamv", dispatched.flat);
             diagnostic_entries.extend(spatial_closure_diagnostics(&dispatched.spatial));
             diagnostic_entries.extend(interior_border_diagnostics(
@@ -2804,6 +3199,7 @@ pub fn execute_command(
         status,
         diagnostics,
         diagnostic_entries,
+        checked_vertices,
     })
 }
 
@@ -2836,6 +3232,7 @@ fn line_pair_diagnostics(
             segments: pair.to_vec(),
             rule: Some(format!("{operation:?}")),
             residual_degrees: None,
+            fold_angle_degrees: None,
             violation_color: None,
             big_little_big: Vec::new(),
         })
@@ -2855,6 +3252,7 @@ fn point_marker_diagnostics(kind: &str, markers: Vec<LineSegment>) -> Vec<Comman
             segments: vec![marker],
             rule: Some("VertexFlatFoldability".to_string()),
             residual_degrees: None,
+            fold_angle_degrees: None,
             violation_color: None,
             big_little_big: Vec::new(),
         })
@@ -2892,6 +3290,7 @@ fn flat_foldability_diagnostics(
                 segments,
                 rule: Some(rule.to_string()),
                 residual_degrees: None,
+                fold_angle_degrees: None,
                 violation_color: Some(violation_color.to_string()),
                 big_little_big,
             }
@@ -3037,6 +3436,27 @@ fn chosen_angle_solution(
 ///
 /// Same division as [`no_completion_code`], for the same reason: eight locales
 /// are gated in CI and a Rust string literal cannot pass that gate.
+/// Every stable code [`no_solution_code`] can emit.
+///
+/// Exists so the frontend's closed union can be pinned against it. Without that,
+/// the two drift silently and the user is told **nothing** — `CreasesDoNotMeet`
+/// was emitted here and absent from `CP_TOOL_UNAVAILABLE_CODES` for exactly that
+/// reason, and an unrecognised code returns `null` rather than complaining.
+pub const NO_SOLUTION_CODES: &[&str] = &[
+    "BoundaryVertex",
+    "Indeterminate",
+    "NotEnoughCreases",
+    "CreaseNotInFan",
+    "CreasesDoNotMeet",
+    "TooManyUnknowns",
+    "AnglesUnreachable",
+];
+
+#[cfg(test)]
+pub(crate) fn no_solution_code_for_test(reason: solve_fold_angles::NoSolution) -> String {
+    no_solution_code(reason)
+}
+
 fn no_solution_code(reason: solve_fold_angles::NoSolution) -> String {
     match reason {
         solve_fold_angles::NoSolution::BoundaryVertex => "BoundaryVertex",
@@ -3044,6 +3464,7 @@ fn no_solution_code(reason: solve_fold_angles::NoSolution) -> String {
         solve_fold_angles::NoSolution::NotEnoughCreases => "NotEnoughCreases",
         solve_fold_angles::NoSolution::CreaseNotInFan => "CreaseNotInFan",
         solve_fold_angles::NoSolution::CreasesDoNotMeet => "CreasesDoNotMeet",
+        solve_fold_angles::NoSolution::TooManyUnknowns => "TooManyUnknowns",
         solve_fold_angles::NoSolution::Unreachable => "AnglesUnreachable",
     }
     .to_string()
@@ -3101,88 +3522,244 @@ fn interior_border_diagnostics(
                 .collect(),
             rule: Some("InteriorBorder".to_string()),
             residual_degrees: None,
+            fold_angle_degrees: None,
             violation_color: None,
             big_little_big: Vec::new(),
         })
         .collect()
 }
 
+/// The spatial half of `CheckCamv`, as diagnostic entries.
+///
+/// Driven by the verdict rather than by the residual, which is the change
+/// `implementation-plans/never-report-silence.md` exists for. The residual test
+/// alone could only say "these angles conflict"; a vertex with an undecided
+/// crease has no residual to test, so it produced no entry, so the check came
+/// back clean having declined to look. Both halves of that are now verdicts, and
+/// one of them is an error.
+///
+/// # Three severities, because there are three kinds of thing to say
+///
+/// `error` is a vertex that cannot fold. `info` is everything the check *did not
+/// decide*, and it is a separate severity rather than a quiet error because the
+/// counts must not mix: a pattern a quarter of the way through design is about
+/// 60% undecided, so folding those into the error count destroys the count —
+/// and `countCpDiagnosticErrors`, which gates Oriedita's "continue to fold?"
+/// modal, would raise it on every document mid-edit.
+///
+/// The `info` entries split again, and the split is the one that matters to a
+/// user: [`checks_spatial::VertexVerdict::Undecided`] has an **action** — here
+/// is the angle that closes it — and [`checks_spatial::VertexVerdict::Unknowable`]
+/// has an **explanation**. Separate `rule` codes, so the frontend words them
+/// separately and counts them separately.
+///
+/// [`checks_spatial::Unknowable::PaperEdge`] is the one verdict with no entry at
+/// all, and it is not an oversight: it is the only one where no closure
+/// condition exists, so there is nothing unexamined to report. Every 3D document
+/// has a rim of them — 33 on `ALL-combined.fold` — and a row apiece saying "not
+/// checked" would turn the honest answer "nothing to check here" into a standing
+/// complaint. [`checks_spatial::DispatchedCamv::checked_vertices`] is where a
+/// document made *entirely* of them gets caught.
 fn spatial_closure_diagnostics(
     reports: &[checks_spatial::SpatialVertexReport],
 ) -> Vec<CommandDiagnostic> {
     let mut diagnostics = Vec::new();
     for (index, report) in reports.iter().enumerate() {
-        // An indeterminate vertex reports nothing. Both causes -- an unassigned
-        // crease and an unsplit T-junction -- produce a residual identical to a
-        // real parity failure, so reporting one would be a false positive.
-        let Some(residual) = report.residual else {
-            continue;
-        };
-        let residual_degrees = residual.to_degrees();
-        if residual_degrees <= CLOSURE_RESIDUAL_BAR_DEGREES {
-            // The vertex closes. Now ask the second, independent question:
-            // does the paper pass through itself getting there? Only reachable
-            // once closure holds, since a vertex that does not close has no
-            // folded state whose geometry means anything.
+        match &report.verdict {
+            // The vertex closes. Now ask the second, independent question: does
+            // the paper pass through itself getting there? Only reachable once
+            // closure holds, since a vertex that does not close has no folded
+            // state whose geometry means anything.
             // `StackedLayers` deliberately falls through to no diagnostic: it
             // means the link cannot answer, not that anything is wrong.
-            if report.link.is_some_and(|link| link.self_intersects()) {
+            checks_spatial::VertexVerdict::Fine => {
+                if report.link.is_some_and(|link| link.self_intersects()) {
+                    diagnostics.push(CommandDiagnostic {
+                        id: format!("SpatialSelfIntersection-{}", index + 1),
+                        kind: "SpatialSelfIntersection".to_string(),
+                        severity: "error".to_string(),
+                        // No crossing count: it is a property of the link
+                        // geometry, not something the user acts on one at a
+                        // time. The fix is always to change the fold angles at
+                        // this vertex.
+                        message: "Paper passes through itself at this vertex".to_string(),
+                        point: Some(report.point),
+                        segments: Vec::new(),
+                        rule: Some("SelfIntersection".to_string()),
+                        residual_degrees: None,
+                        fold_angle_degrees: None,
+                        violation_color: None,
+                        big_little_big: Vec::new(),
+                    });
+                }
+            }
+            // Rigidity is not a conflict. A degree-1 or developable degree-3
+            // vertex has a unique solution and it is zero, so telling the user
+            // their angles disagree would invite an adjustment that cannot help.
+            // The link of a vertex is a closed spherical linkage, and a triangle
+            // is a rigid truss. Worded without the degree, so the frontend can
+            // translate it with no second structural field.
+            checks_spatial::VertexVerdict::Broken(checks_spatial::Broken::Rigid) => {
                 diagnostics.push(CommandDiagnostic {
-                    id: format!("SpatialSelfIntersection-{}", index + 1),
-                    kind: "SpatialSelfIntersection".to_string(),
+                    id: format!("SpatialClosure-{}", index + 1),
+                    kind: "SpatialClosure".to_string(),
                     severity: "error".to_string(),
-                    // No crossing count: it is a property of the link geometry,
-                    // not something the user acts on one at a time. The fix is
-                    // always to change the fold angles at this vertex.
-                    message: "Paper passes through itself at this vertex".to_string(),
+                    message: "Vertex cannot fold: it is rigid, so every crease here must be 0 \
+                              degrees"
+                        .to_string(),
                     point: Some(report.point),
                     segments: Vec::new(),
-                    rule: Some("SelfIntersection".to_string()),
+                    rule: Some("Rigid".to_string()),
                     residual_degrees: None,
+                    fold_angle_degrees: None,
                     violation_color: None,
                     big_little_big: Vec::new(),
                 });
             }
-            continue;
+            // The residual rides on `residual_degrees`, which is the one number
+            // the closure sentence genuinely needs and cannot be recovered from
+            // a formatted string.
+            checks_spatial::VertexVerdict::Broken(checks_spatial::Broken::DoesNotClose) => {
+                let residual_degrees = report.residual.unwrap_or_default().to_degrees();
+                diagnostics.push(CommandDiagnostic {
+                    id: format!("SpatialClosure-{}", index + 1),
+                    kind: "SpatialClosure".to_string(),
+                    severity: "error".to_string(),
+                    message: format!("Creases do not close: {residual_degrees:.4} degrees off"),
+                    point: Some(report.point),
+                    segments: Vec::new(),
+                    rule: Some("Closure".to_string()),
+                    residual_degrees: Some(residual_degrees),
+                    fold_angle_degrees: None,
+                    violation_color: None,
+                    big_little_big: Vec::new(),
+                });
+            }
+            // **The entry that did not exist.** A separate rule from `Closure`,
+            // because the two ask the user for different things: `Closure` says
+            // the angles you set disagree, and the fix is to change one of them.
+            // This says no value of the crease you have *not* set can help, and
+            // the fix is elsewhere in the pattern. Reusing `Closure` would send
+            // the user to adjust angles that are not the problem.
+            checks_spatial::VertexVerdict::Broken(checks_spatial::Broken::NoAngleCloses {
+                closest,
+                ..
+            }) => {
+                diagnostics.push(CommandDiagnostic {
+                    id: format!("SpatialClosureUnreachable-{}", index + 1),
+                    kind: "SpatialClosure".to_string(),
+                    severity: "error".to_string(),
+                    message: match closest {
+                        Some(degrees) => format!(
+                            "No angle for the undecided crease here closes this vertex: the \
+                             closest is {degrees:.4} degrees off"
+                        ),
+                        None => {
+                            "No angle for the undecided crease here closes this vertex".to_string()
+                        }
+                    },
+                    point: Some(report.point),
+                    segments: Vec::new(),
+                    rule: Some("ClosureUnreachable".to_string()),
+                    residual_degrees: *closest,
+                    fold_angle_degrees: None,
+                    violation_color: None,
+                    big_little_big: Vec::new(),
+                });
+            }
+            // Not a problem: a vertex whose undecided crease has an answer. The
+            // entry exists so the answer can be *read* — "set this crease to
+            // -70.53 degrees" is the difference between a diagnostic and a nag,
+            // and it is the sentence the owner of `failure_case.osf` needed at
+            // every vertex propagation had already solved.
+            checks_spatial::VertexVerdict::Undecided(undecided) => {
+                // The creases are the same in every option — only the angles
+                // differ — so the first option names them for all of them.
+                let segments = undecided
+                    .options
+                    .first()
+                    .map(|option| {
+                        option
+                            .angles
+                            .iter()
+                            .map(|(segment, _)| segment.clone())
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                // One angle for one crease is the only shape that can be stated
+                // as a value to apply. Anything else is a choice.
+                let single = match undecided.options.as_slice() {
+                    [only] => match only.angles.as_slice() {
+                        [(_, degrees)] => Some(*degrees),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                diagnostics.push(CommandDiagnostic {
+                    id: format!("SpatialUndecided-{}", index + 1),
+                    kind: "SpatialUndecided".to_string(),
+                    severity: "info".to_string(),
+                    message: match single {
+                        Some(degrees) => format!(
+                            "Undecided: setting this crease to {degrees:.4} degrees closes this \
+                             vertex"
+                        ),
+                        None => "Undecided: more than one angle closes this vertex".to_string(),
+                    },
+                    point: Some(report.point),
+                    segments,
+                    rule: Some(
+                        if single.is_some() {
+                            "Undecided"
+                        } else {
+                            "UndecidedChoice"
+                        }
+                        .to_string(),
+                    ),
+                    residual_degrees: None,
+                    fold_angle_degrees: single,
+                    violation_color: None,
+                    big_little_big: Vec::new(),
+                });
+            }
+            // Nothing is wrong and nothing was learned. Each of these names a
+            // different next move, which is why they are four rules and not one
+            // — and why `PaperEdge` is none of them.
+            checks_spatial::VertexVerdict::Unknowable(unknowable) => {
+                let (rule, message) = match unknowable {
+                    checks_spatial::Unknowable::PaperEdge => continue,
+                    checks_spatial::Unknowable::UnsplitJunction => (
+                        "UnsplitJunction",
+                        "Not checked: a crease passes through this point without ending here",
+                    ),
+                    checks_spatial::Unknowable::NotEnoughCreases => (
+                        "NotEnoughCreases",
+                        "Not checked: fewer than three creases meet here",
+                    ),
+                    checks_spatial::Unknowable::TooManyUnknowns { .. } => (
+                        "TooManyUnknowns",
+                        "Not checked: too many undecided creases meet here",
+                    ),
+                    checks_spatial::Unknowable::NoUniqueAnswer { .. } => (
+                        "NoUniqueAnswer",
+                        "Not pinned down: many angles close this vertex",
+                    ),
+                };
+                diagnostics.push(CommandDiagnostic {
+                    id: format!("SpatialUnknowable-{}", index + 1),
+                    kind: "SpatialUnknowable".to_string(),
+                    severity: "info".to_string(),
+                    message: message.to_string(),
+                    point: Some(report.point),
+                    segments: Vec::new(),
+                    rule: Some(rule.to_string()),
+                    residual_degrees: None,
+                    fold_angle_degrees: None,
+                    violation_color: None,
+                    big_little_big: Vec::new(),
+                });
+            }
         }
-
-        // Rigidity is not a conflict. A degree-1 or developable degree-3 vertex
-        // has a unique solution and it is zero, so telling the user their angles
-        // disagree would invite an adjustment that cannot help. The link of a
-        // vertex is a closed spherical linkage, and a triangle is a rigid truss.
-        // Worded without the degree, so the frontend can translate it with no
-        // second structural field. The residual itself rides on
-        // `residual_degrees`, which is the one number the closure sentence
-        // genuinely needs and cannot be recovered from a formatted string.
-        let message = if report.is_rigid() {
-            "Vertex cannot fold: it is rigid, so every crease here must be 0 degrees".to_string()
-        } else {
-            format!("Creases do not close: {residual_degrees:.4} degrees off")
-        };
-
-        diagnostics.push(CommandDiagnostic {
-            id: format!("SpatialClosure-{}", index + 1),
-            kind: "SpatialClosure".to_string(),
-            severity: "error".to_string(),
-            message,
-            point: Some(report.point),
-            segments: Vec::new(),
-            rule: Some(
-                if report.is_rigid() {
-                    "Rigid"
-                } else {
-                    "Closure"
-                }
-                .to_string(),
-            ),
-            residual_degrees: if report.is_rigid() {
-                None
-            } else {
-                Some(residual_degrees)
-            },
-            violation_color: None,
-            big_little_big: Vec::new(),
-        });
     }
     diagnostics
 }
@@ -3267,6 +3844,7 @@ fn flat_foldable_boundary_input_diagnostics(
         segments,
         rule: Some("BoundaryLoop".to_string()),
         residual_degrees: None,
+        fold_angle_degrees: None,
         violation_color: None,
         big_little_big: Vec::new(),
     }]
@@ -3296,6 +3874,7 @@ fn flat_foldable_boundary_result_diagnostics(
         segments,
         rule: Some("FlatFoldableBoundary".to_string()),
         residual_degrees: None,
+        fold_angle_degrees: None,
         violation_color: None,
         big_little_big: Vec::new(),
     }]
@@ -3588,6 +4167,123 @@ pub fn preview_command(
                 preview.points.push(release.point);
             }
         }
+        OperationId::PropagateFoldAngles => {
+            let draft = match propagation_draft(document, &command)? {
+                PropagationDraft::Declined(code) => {
+                    preview.propagation_solved = Some(0);
+                    preview.unavailable = Some(code.to_owned());
+                    return Ok(preview);
+                }
+                PropagationDraft::Ready(draft) => draft,
+            };
+            // The draft creases as they would become, carrying their solved
+            // colour and magnitude so the canvas ramp and the angle badges show
+            // what confirming would do — the same channel the three-crease
+            // solver uses, and the reason this operation must be in
+            // `CP_KERNEL_DECIDED_CANDIDATE_OPERATIONS` on the frontend.
+            //
+            // The id and the geometry are pushed together, from one loop, so a
+            // skipped entry skips both and the caller can zip the two lists.
+            // Two loops with a `continue` each is exactly how a parallel-array
+            // contract rots.
+            //
+            // Order is the order the draft resolved in — pins first, then
+            // outward from the seed — which is the order the user watched it
+            // spread in.
+            for &(index, degrees) in &draft.solved {
+                let Some(segment) = document.crease_pattern.line_segments.get(index) else {
+                    continue;
+                };
+                preview.propagation_creases.push(PropagationDraftCrease {
+                    line_id: index + 1,
+                    degrees,
+                });
+                // The commit's own write. Propagation applies through
+                // `set_signed_fold_angles`, so previewing anything but
+                // `with_signed_fold_angle` would be a second statement of the
+                // same rule sitting next to the first — which is how the
+                // three-angle solve's preview came to disagree with its commit.
+                preview
+                    .segments
+                    .push(segment.with_signed_fold_angle(degrees));
+            }
+            // Counted off the emitted list rather than the draft, so the scalar
+            // cannot claim more creases than the preview actually names.
+            let named = preview.propagation_creases.len();
+            // **Scope-relative.** Counted from the creases inside the scope, not
+            // from the document: a window saying "still undecided: 40" over a
+            // draft that covers one of five patterns is reporting the canvas.
+            let still_free = draft.scope.free.saturating_sub(named);
+            preview.propagation_solved = Some(named);
+            preview.propagation_free = Some(still_free);
+            preview.propagation_stalls = draft
+                .stalls
+                .iter()
+                .map(|stall| PropagationStall {
+                    point: stall.point,
+                    reason: stall_reason_code(stall.reason).to_owned(),
+                    unknowns: stall.unknowns,
+                })
+                .collect();
+            preview.propagation_conflicts = draft.closure_failures.clone();
+            // Vertices left alone because some of their unknowns sit outside the
+            // scope. Computed once: the scope report carries it, and the
+            // `unavailable` code below turns on it.
+            let out_of_scope = draft
+                .stalls
+                .iter()
+                .filter(|stall| {
+                    stall.reason == operations::native::fold_propagation::StallReason::OutOfScope
+                })
+                .count();
+            let answered_flat = draft
+                .stalls
+                .iter()
+                .filter(|stall| {
+                    stall.reason == operations::native::fold_propagation::StallReason::AnsweredFlat
+                })
+                .count();
+            preview.propagation_scope = Some(PropagationScope {
+                kind: scope_kind_code(draft.scope.kind).to_owned(),
+                creases: draft.scope.creases,
+                vertices: draft.scope.vertices,
+                free: still_free,
+                out_of_scope,
+            });
+            if named == 0 {
+                use operations::native::fold_propagation::ScopeKind;
+                preview.unavailable = Some(
+                    match (draft.scope.free == 0, draft.scope.kind) {
+                        // Not `PropagationNothingFree`: its sentence is "every
+                        // crease already has a fold angle", which is a lie when
+                        // the rest of the canvas is full of unassigned creases
+                        // and the user simply selected the wrong ones. Different
+                        // next move, different code.
+                        (true, ScopeKind::Selection) => "PropagationSelectionNothingFree",
+                        (true, _) => "PropagationNothingFree",
+                        // The scope is *why* nothing came out: a vertex here has
+                        // unknowns the scope excludes, and half a simultaneous
+                        // answer is not an answer. The next move is to widen the
+                        // selection, which the generic "give one more crease an
+                        // angle" sentence sends the user away from — and this is
+                        // the ordinary outcome of propagating in a small
+                        // selection, not a corner. Ranked below the two above
+                        // because with nothing free in scope there is nothing to
+                        // solve here whatever lies outside it.
+                        (false, _) if out_of_scope > 0 => "PropagationOutOfScope",
+                        // Ahead of the generic sentence, which asks for another
+                        // angle. Nothing more is wanted here: these vertices are
+                        // solved, and their answer is that the creases do not
+                        // fold, so there is no angle to give and no crease to
+                        // decide. Ranked below `OutOfScope` because a vertex the
+                        // scope excluded is a thing the user can still act on.
+                        (false, _) if answered_flat > 0 => "PropagationAnsweredFlat",
+                        (false, _) => "PropagationNothingDecidable",
+                    }
+                    .to_owned(),
+                );
+            }
+        }
         OperationId::VertexSolveFoldAngles => {
             // Fewer than three creases picked is the *normal* state for the
             // first two steps, not a failure — the tool is still collecting, and
@@ -3611,6 +4307,8 @@ pub fn preview_command(
                 if let Ok(solution) = chosen_angle_solution(&command, &solved) {
                     preview.candidate_is_family = Some(!solution.isolated);
                     preview.candidate_is_current = Some(solution.is_current);
+                    preview.candidate_contradicts_hint = Some(solution.contradicts_a_hint());
+                    preview.candidate_leaves_undecided = Some(solution.leaves_any_undecided());
                     // The vertex the solve is about, so a UI anchored to it does
                     // not have to re-derive which endpoint the three creases
                     // share and risk disagreeing with the solve about it.
@@ -3641,17 +4339,12 @@ pub fn preview_command(
                         let Some(segment) = document.crease_pattern.line_segments.get(index) else {
                             continue;
                         };
-                        preview.segments.push(
-                            segment
-                                .with_line_color(if degrees < 0.0 {
-                                    LineColor::Red1
-                                } else {
-                                    LineColor::Blue2
-                                })
-                                .with_fold_magnitude(geometry::FoldMagnitude::from_degrees(
-                                    degrees.abs(),
-                                )),
-                        );
+                        // The commit's own write, not a restatement of it. A
+                        // restatement is what this was, and it disagreed with
+                        // the commit on the only inputs anyone noticed.
+                        preview
+                            .segments
+                            .push(segment.with_signed_fold_angle(degrees));
                     }
                 }
             }
@@ -4498,7 +5191,7 @@ fn delete_lines_along(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::geometry::{Circle, LineColor, Point, RgbColor};
+    use crate::geometry::{Circle, FoldDirection, LineColor, Point, RgbColor};
     use std::collections::HashSet;
 
     /// A square sheet with `creases` radiating from the origin, and the
@@ -4554,6 +5247,679 @@ mod tests {
                 ..Default::default()
             },
         )
+    }
+
+    /// A real, fully-assigned crease pattern. Propagation needs a document that
+    /// already closes to have anything to be about, and a synthetic fan does
+    /// not: recovering a blanked crease is the k=1 contraction, and that needs
+    /// neighbours whose angles are actually consistent.
+    fn kabuto_document() -> CreasePatternDocument {
+        let text = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../tests/fixtures/flat-folder/kabuto.fold"),
+        )
+        .expect("fixture");
+        let fold: treemaker_fold::FoldDocument = serde_json::from_str(&text).expect("fold json");
+        CreasePatternDocument {
+            crease_pattern: io::fold::import_fold_document(&fold).expect("import"),
+            ..Default::default()
+        }
+    }
+
+    /// `pins` are zero-based document indices, as the solver reports them; the
+    /// payload carries one-based ids, as `line_ids` does.
+    ///
+    /// A seed or a selection is now required — with neither, the command
+    /// declines rather than falling back to the whole canvas.
+    fn propagate_command(seed: Option<Point>, pins: &[(usize, f64)]) -> CreasePatternCommand {
+        CreasePatternCommand::new(OperationId::PropagateFoldAngles).with_payload(
+            CreasePatternCommandPayload {
+                points: seed.into_iter().collect(),
+                pinned_angles: pins
+                    .iter()
+                    .map(|(index, degrees)| (index + 1, *degrees))
+                    .collect(),
+                ..Default::default()
+            },
+        )
+    }
+
+    /// The same, scoped to a selection instead of a click.
+    fn propagate_selection_command(lines: &[usize], pins: &[(usize, f64)]) -> CreasePatternCommand {
+        CreasePatternCommand::new(OperationId::PropagateFoldAngles).with_payload(
+            CreasePatternCommandPayload {
+                line_ids: lines.iter().map(|index| index + 1).collect(),
+                pinned_angles: pins
+                    .iter()
+                    .map(|(index, degrees)| (index + 1, *degrees))
+                    .collect(),
+                ..Default::default()
+            },
+        )
+    }
+
+    /// Any vertex of the document, for the tests that only need *a* scope. The
+    /// fixture is a single connected pattern, so this is the whole of it.
+    fn a_seed_on(document: &CreasePatternDocument) -> Point {
+        document.crease_pattern.line_segments[0].a
+    }
+
+    /// Two copies of the fixture, translated apart — the reported bug in
+    /// miniature. Returns the document and the offset of the second copy.
+    fn two_kabutos() -> (CreasePatternDocument, f64) {
+        const SHIFT: f64 = 1000.0;
+        let one = kabuto_document();
+        let mut both = one.clone();
+        for segment in &one.crease_pattern.line_segments {
+            let mut moved = segment.clone();
+            moved.a = Point::new(segment.a.x + SHIFT, segment.a.y);
+            moved.b = Point::new(segment.b.x + SHIFT, segment.b.y);
+            both.crease_pattern.line_segments.push(moved);
+        }
+        (both, SHIFT)
+    }
+
+    /// Two disjoint patterns with one recoverable crease blanked in each.
+    fn two_kabutos_with_one_blanked_crease_each() -> (CreasePatternDocument, usize, usize) {
+        let (both, _) = two_kabutos();
+        let half = both.crease_pattern.line_segments.len() / 2;
+        for index in 0..half {
+            let segment = both.crease_pattern.line_segments[index].clone();
+            if model::crease_fold_angle(&segment).is_none() {
+                continue;
+            }
+            let mut blanked = both.clone();
+            for at in [index, index + half] {
+                blanked.crease_pattern.line_segments[at] = blanked.crease_pattern.line_segments[at]
+                    .clone()
+                    .with_line_color(LineColor::None);
+            }
+            let seed = blanked.crease_pattern.line_segments[index].a;
+            let preview = preview_command(&blanked, propagate_command(Some(seed), &[]))
+                .expect("preview succeeds");
+            if preview
+                .propagation_creases
+                .iter()
+                .any(|crease| crease.line_id == index + 1)
+            {
+                return (blanked, index, index + half);
+            }
+        }
+        panic!("no crease is recoverable in both copies");
+    }
+
+    /// Kabuto with two creases blanked at one shared vertex, such that a
+    /// selection naming only one of them can work nothing out — the reviewer's
+    /// repro, and the ordinary outcome of Propagate-in-selection on a small
+    /// selection.
+    ///
+    /// The pair is *searched for* by that outcome and then *diagnosed* by the
+    /// test, which is the split that keeps the test from asserting its own
+    /// search: finding an empty draft is easy, and what the test pins is that
+    /// the kernel says which move fixes it. The fixture also has to be genuinely
+    /// fixable, so the search additionally requires that selecting both solves
+    /// both — otherwise "select the other one too" would be advice that fails.
+    fn kabuto_with_a_jointly_recoverable_vertex() -> (CreasePatternDocument, usize, usize) {
+        let complete = kabuto_document();
+        let count = complete.crease_pattern.line_segments.len();
+        for left in 0..count {
+            let left_segment = complete.crease_pattern.line_segments[left].clone();
+            if model::crease_fold_angle(&left_segment).is_none() {
+                continue;
+            }
+            for right in (left + 1)..count {
+                let right_segment = complete.crease_pattern.line_segments[right].clone();
+                if model::crease_fold_angle(&right_segment).is_none() {
+                    continue;
+                }
+                let shares_a_vertex = [left_segment.a, left_segment.b].iter().any(|end| {
+                    end.distance(right_segment.a) < 1e-9 || end.distance(right_segment.b) < 1e-9
+                });
+                if !shares_a_vertex {
+                    continue;
+                }
+                let mut blanked = complete.clone();
+                for at in [left, right] {
+                    blanked.crease_pattern.line_segments[at] = blanked.crease_pattern.line_segments
+                        [at]
+                        .clone()
+                        .with_line_color(LineColor::None);
+                }
+                let alone = preview_command(&blanked, propagate_selection_command(&[left], &[]))
+                    .expect("preview succeeds");
+                if !alone.propagation_creases.is_empty() {
+                    continue;
+                }
+                let together =
+                    preview_command(&blanked, propagate_selection_command(&[left, right], &[]))
+                        .expect("preview succeeds");
+                if together.propagation_creases.len() == 2 {
+                    return (blanked, left, right);
+                }
+            }
+        }
+        panic!("no vertex in the fixture needs two creases solved together");
+    }
+
+    /// Kabuto with one crease blanked, chosen so that propagation can put it
+    /// back — the smallest document that produces a non-empty draft.
+    fn kabuto_with_one_blanked_crease() -> (CreasePatternDocument, usize) {
+        let complete = kabuto_document();
+        for index in 0..complete.crease_pattern.line_segments.len() {
+            let segment = complete.crease_pattern.line_segments[index].clone();
+            if model::crease_fold_angle(&segment).is_none() {
+                continue;
+            }
+            let mut blanked = complete.clone();
+            blanked.crease_pattern.line_segments[index] = segment.with_line_color(LineColor::None);
+            let seed = a_seed_on(&blanked);
+            let preview = preview_command(&blanked, propagate_command(Some(seed), &[]))
+                .expect("preview succeeds");
+            if !preview.propagation_creases.is_empty() {
+                return (blanked, index);
+            }
+        }
+        panic!("no crease in the fixture is recoverable by propagation");
+    }
+
+    /// The draft has to say *which* document creases it would change, not just
+    /// how many and what they would look like.
+    ///
+    /// Without this the preview was a count plus anonymous geometry, so a
+    /// surface could only draw the answer *over* the creases it replaces — which
+    /// is how a draft that had changed nothing looked already applied. The ids
+    /// are the mechanism that lets the document stop drawing them instead.
+    #[test]
+    fn the_propagation_preview_names_the_creases_it_would_change() {
+        let (document, blanked) = kabuto_with_one_blanked_crease();
+        let seed = a_seed_on(&document);
+        let preview = preview_command(&document, propagate_command(Some(seed), &[]))
+            .expect("preview succeeds");
+
+        assert!(!preview.propagation_creases.is_empty());
+        assert_eq!(
+            preview.propagation_creases.len(),
+            preview.segments.len(),
+            "the ids and the geometry must be index-aligned"
+        );
+        // The redundant scalar cannot be allowed to drift from the list.
+        assert_eq!(
+            preview.propagation_solved,
+            Some(preview.propagation_creases.len())
+        );
+        assert!(
+            preview
+                .propagation_creases
+                .iter()
+                .any(|crease| crease.line_id == blanked + 1),
+            "the blanked crease must be named, one-based"
+        );
+
+        let mut seen = HashSet::new();
+        for (crease, segment) in preview
+            .propagation_creases
+            .iter()
+            .zip(preview.segments.iter())
+        {
+            assert!(
+                seen.insert(crease.line_id),
+                "line {} named twice, so the ids are not a set",
+                crease.line_id
+            );
+            // One-based, and pointing at the crease whose geometry sits beside
+            // it. An off-by-one lands on a real, adjacent crease, so only
+            // comparing the endpoints catches it.
+            let named = &document.crease_pattern.line_segments[crease.line_id - 1];
+            assert_eq!(named.a, segment.a, "line {}", crease.line_id);
+            assert_eq!(named.b, segment.b, "line {}", crease.line_id);
+        }
+    }
+
+    /// The named creases are exactly what the commit writes, and nothing else
+    /// moves.
+    ///
+    /// The frontend hides the creases this list names while the draft is up, so
+    /// a list that named the wrong ones would blank geometry the draft never
+    /// touched — and applying would then recolour creases the user never saw
+    /// change.
+    #[test]
+    fn the_previewed_creases_are_exactly_what_the_commit_writes() {
+        let (document, _) = kabuto_with_one_blanked_crease();
+        let seed = a_seed_on(&document);
+        let preview = preview_command(&document, propagate_command(Some(seed), &[]))
+            .expect("preview succeeds");
+
+        let mut applied = document.clone();
+        execute_command(&mut applied, propagate_command(Some(seed), &[])).expect("commit succeeds");
+
+        let named: HashSet<usize> = preview
+            .propagation_creases
+            .iter()
+            .map(|crease| crease.line_id)
+            .collect();
+        for crease in &preview.propagation_creases {
+            let written = &applied.crease_pattern.line_segments[crease.line_id - 1];
+            // Asked of the write rather than restated as `degrees < 0.0`: that
+            // restatement is what the preview used to carry, and it disagreed
+            // with the commit on a zero angle — including on `-0.0`, which the
+            // two spellings of "is it negative" read opposite ways.
+            assert_eq!(
+                *written,
+                document.crease_pattern.line_segments[crease.line_id - 1]
+                    .with_signed_fold_angle(crease.degrees),
+                "line {}",
+                crease.line_id
+            );
+            let angle = model::crease_fold_angle(written).expect("a written crease has an angle");
+            assert!(
+                (angle.abs() - crease.degrees.abs()).abs() < 1e-6,
+                "line {} previewed {} and committed {angle}",
+                crease.line_id,
+                crease.degrees
+            );
+        }
+        for index in 0..document.crease_pattern.line_segments.len() {
+            if named.contains(&(index + 1)) {
+                continue;
+            }
+            assert_eq!(
+                document.crease_pattern.line_segments[index],
+                applied.crease_pattern.line_segments[index],
+                "line {} changed without being named",
+                index + 1
+            );
+        }
+    }
+
+    /// A document with nothing free names nothing — no empty list dressed up as
+    /// a draft, and the reason is a code the frontend can translate.
+    #[test]
+    fn a_complete_document_names_nothing() {
+        let document = kabuto_document();
+        let seed = a_seed_on(&document);
+        let preview = preview_command(&document, propagate_command(Some(seed), &[]))
+            .expect("preview succeeds");
+        assert!(preview.propagation_creases.is_empty());
+        assert_eq!(preview.propagation_solved, Some(0));
+        assert_eq!(
+            preview.unavailable.as_deref(),
+            Some("PropagationNothingFree")
+        );
+    }
+
+    /// A pin names a crease in the same one-based space the preview handed back,
+    /// because that round trip *is* the adjust-and-re-propagate loop.
+    ///
+    /// If the two ends disagreed there would be no symptom: the pin would land
+    /// on the next crease along and quietly recolour it.
+    #[test]
+    fn a_one_based_pin_reaches_the_crease_it_names() {
+        let complete = kabuto_document();
+        let mut blanked = complete.clone();
+        let mut cleared = Vec::new();
+        for index in 0..complete.crease_pattern.line_segments.len() {
+            let segment = complete.crease_pattern.line_segments[index].clone();
+            if model::crease_fold_angle(&segment).is_some() && cleared.len() < 6 {
+                blanked.crease_pattern.line_segments[index] =
+                    segment.with_line_color(LineColor::None);
+                cleared.push(index);
+            }
+        }
+        let pinned = cleared[0];
+        // Deliberately an angle nothing else in the fixture carries. Kabuto is
+        // flat-folded, so every other crease is +-180 and a neighbour would
+        // otherwise stand in for the pinned crease and hide an off-by-one.
+        let angle = -137.0;
+
+        let seed = a_seed_on(&blanked);
+        let preview = preview_command(&blanked, propagate_command(Some(seed), &[(pinned, angle)]))
+            .expect("preview succeeds");
+        let named = preview
+            .propagation_creases
+            .iter()
+            .find(|crease| crease.line_id == pinned + 1)
+            .expect("the pinned crease must be named by the id it was pinned with");
+        assert!(
+            (named.degrees - angle).abs() < 1e-9,
+            "the pin must not be moved, got {}",
+            named.degrees
+        );
+        assert!(
+            !preview
+                .propagation_creases
+                .iter()
+                .any(|crease| crease.line_id != pinned + 1
+                    && (crease.degrees - angle).abs() < 1e-9),
+            "the pin reached a crease other than the one it named"
+        );
+
+        // And the commit puts it on that same crease, which is what the id is
+        // ultimately a promise about.
+        let mut applied = blanked.clone();
+        execute_command(
+            &mut applied,
+            propagate_command(Some(seed), &[(pinned, angle)]),
+        )
+        .expect("commit succeeds");
+        let written = model::crease_fold_angle(&applied.crease_pattern.line_segments[pinned])
+            .expect("the pinned crease is assigned after the commit");
+        assert!(
+            (written - angle).abs() < 1e-6,
+            "line {} was pinned to {angle} and committed {written}",
+            pinned + 1
+        );
+    }
+
+    /// Zero is not a line id. Accepting it would make the pin space ambiguous —
+    /// zero-based-index-0 and one-based-id-0 look identical on the wire.
+    #[test]
+    fn a_zero_pin_id_is_rejected() {
+        let document = kabuto_document();
+        // A real scope, so this tests the id validation rather than the scope
+        // refusal — and it pins the order: a malformed payload is an error, not
+        // a scope that named nothing.
+        let mut command = propagate_command(Some(a_seed_on(&document)), &[]);
+        command.payload.pinned_angles = vec![(0, 90.0)];
+        assert!(preview_command(&document, command.clone()).is_err());
+        assert!(execute_command(&mut document.clone(), command).is_err());
+    }
+
+    /// Zero is not a line id in the scope either.
+    #[test]
+    fn a_zero_scope_id_is_rejected() {
+        let document = kabuto_document();
+        let mut command = propagate_command(None, &[]);
+        command.payload.line_ids = vec![0];
+        assert!(preview_command(&document, command.clone()).is_err());
+        assert!(execute_command(&mut document.clone(), command).is_err());
+    }
+
+    // -----------------------------------------------------------------------
+    // Scope
+    // -----------------------------------------------------------------------
+
+    /// **The command-path regression test for the filed bug.** Two patterns on
+    /// one canvas, a click in the first: the second must come out of the commit
+    /// byte-identical.
+    #[test]
+    fn a_click_never_writes_into_another_pattern() {
+        let (document, in_a, in_b) = two_kabutos_with_one_blanked_crease_each();
+        let half = document.crease_pattern.line_segments.len() / 2;
+        let seed = document.crease_pattern.line_segments[in_a].a;
+
+        let preview = preview_command(&document, propagate_command(Some(seed), &[]))
+            .expect("preview succeeds");
+        assert!(
+            preview
+                .propagation_creases
+                .iter()
+                .any(|crease| crease.line_id == in_a + 1),
+            "the clicked pattern must still be solved"
+        );
+        assert!(
+            preview
+                .propagation_creases
+                .iter()
+                .all(|crease| crease.line_id <= half),
+            "the draft named a crease in the other pattern"
+        );
+        assert_eq!(
+            preview
+                .propagation_scope
+                .as_ref()
+                .map(|scope| scope.kind.as_str()),
+            Some("component")
+        );
+
+        let mut applied = document.clone();
+        execute_command(&mut applied, propagate_command(Some(seed), &[])).expect("commit succeeds");
+        for index in half..document.crease_pattern.line_segments.len() {
+            assert_eq!(
+                document.crease_pattern.line_segments[index],
+                applied.crease_pattern.line_segments[index],
+                "line {} in the second pattern changed",
+                index + 1
+            );
+        }
+        assert!(
+            model::crease_fold_angle(&applied.crease_pattern.line_segments[in_b]).is_none(),
+            "the second pattern's blanked crease was solved by a click on the first"
+        );
+    }
+
+    /// A selection names the scope in the same one-based space `line_ids`
+    /// already uses. An off-by-one here scopes in the neighbouring crease, and
+    /// nothing about the result would look wrong.
+    ///
+    /// Which is what happened to this test: it asserted only that every drafted
+    /// crease was the selected one, and an off-by-one drafts *nothing* — a
+    /// neighbouring crease already has an angle, so the scope has nothing free
+    /// and the run declines. `all` over an empty list is true, so the assertion
+    /// passed over the bug it was written for. It now names the crease it
+    /// expects and demands it be there.
+    #[test]
+    fn a_one_based_scope_reaches_the_creases_it_names() {
+        let (document, in_a, in_b) = two_kabutos_with_one_blanked_crease_each();
+        let preview = preview_command(&document, propagate_selection_command(&[in_a], &[]))
+            .expect("preview succeeds");
+
+        assert_eq!(
+            preview
+                .propagation_scope
+                .as_ref()
+                .map(|scope| scope.kind.as_str()),
+            Some("selection")
+        );
+        assert_eq!(
+            preview
+                .propagation_scope
+                .as_ref()
+                .map(|scope| scope.creases),
+            Some(1)
+        );
+        // The crease the selection named, and only it. Stated as the whole
+        // expected list rather than as a predicate over whatever came back, so
+        // an empty draft is a failure rather than a vacuous pass.
+        assert_eq!(
+            preview
+                .propagation_creases
+                .iter()
+                .map(|crease| crease.line_id)
+                .collect::<Vec<_>>(),
+            vec![in_a + 1],
+            "the draft did not name exactly the crease the selection did"
+        );
+        assert_eq!(preview.propagation_solved, Some(1));
+        assert_eq!(
+            preview.unavailable, None,
+            "a scoped run that lands declines nothing"
+        );
+
+        let mut applied = document.clone();
+        execute_command(&mut applied, propagate_selection_command(&[in_a], &[]))
+            .expect("commit succeeds");
+        for index in 0..document.crease_pattern.line_segments.len() {
+            if index == in_a {
+                continue;
+            }
+            assert_eq!(
+                document.crease_pattern.line_segments[index],
+                applied.crease_pattern.line_segments[index],
+                "line {} changed without being selected",
+                index + 1
+            );
+        }
+        assert!(model::crease_fold_angle(&applied.crease_pattern.line_segments[in_b]).is_none());
+    }
+
+    /// "Still undecided" is scope-relative. Reporting the canvas total under a
+    /// draft that covers one pattern is reporting somebody else's problem.
+    #[test]
+    fn still_undecided_counts_only_the_scope() {
+        let (document, in_a, _) = two_kabutos_with_one_blanked_crease_each();
+        let half = document.crease_pattern.line_segments.len() / 2;
+        // Blank a second crease in the first pattern that propagation cannot
+        // recover, so the scope has a non-zero remainder of its own.
+        let mut document = document;
+        let extra = (0..half)
+            .find(|index| {
+                *index != in_a
+                    && model::crease_fold_angle(&document.crease_pattern.line_segments[*index])
+                        .is_some()
+            })
+            .expect("another assigned crease");
+        document.crease_pattern.line_segments[extra] = document.crease_pattern.line_segments[extra]
+            .clone()
+            .with_line_color(LineColor::None);
+
+        let seed = document.crease_pattern.line_segments[in_a].a;
+        let preview = preview_command(&document, propagate_command(Some(seed), &[]))
+            .expect("preview succeeds");
+        let scope = preview
+            .propagation_scope
+            .as_ref()
+            .expect("a resolved scope");
+        let free_everywhere = document
+            .crease_pattern
+            .line_segments
+            .iter()
+            .filter(|segment| segment.color == LineColor::None)
+            .count();
+        assert!(
+            preview.propagation_free.unwrap_or(usize::MAX) < free_everywhere,
+            "the free count is the document's, not the scope's"
+        );
+        assert_eq!(preview.propagation_free, Some(scope.free));
+    }
+
+    /// A stall belongs to the pattern the user is looking at.
+    #[test]
+    fn stalls_are_reported_only_inside_the_scope() {
+        let (mut document, shift) = two_kabutos();
+        let half = document.crease_pattern.line_segments.len() / 2;
+        for index in half..document.crease_pattern.line_segments.len() {
+            let segment = document.crease_pattern.line_segments[index].clone();
+            if model::crease_fold_angle(&segment).is_some() {
+                document.crease_pattern.line_segments[index] =
+                    segment.with_line_color(LineColor::None);
+            }
+        }
+        let seed = document.crease_pattern.line_segments[0].a;
+        let preview = preview_command(&document, propagate_command(Some(seed), &[]))
+            .expect("preview succeeds");
+        for stall in &preview.propagation_stalls {
+            assert!(
+                stall.point.x < shift / 2.0,
+                "a stall at {:?} belongs to the other pattern",
+                stall.point
+            );
+        }
+    }
+
+    /// Neither a selection nor a seed means the caller has not said what to work
+    /// on. Falling back to the whole canvas is the bug.
+    #[test]
+    fn no_selection_and_no_seed_declines() {
+        let (document, _) = kabuto_with_one_blanked_crease();
+        let preview =
+            preview_command(&document, propagate_command(None, &[])).expect("preview succeeds");
+        assert_eq!(preview.unavailable.as_deref(), Some("PropagationNoScope"));
+        assert_eq!(preview.propagation_solved, Some(0));
+        assert!(preview.propagation_creases.is_empty());
+
+        let mut applied = document.clone();
+        execute_command(&mut applied, propagate_command(None, &[])).expect("the command succeeds");
+        assert_eq!(
+            document.crease_pattern.line_segments, applied.crease_pattern.line_segments,
+            "a declined command must write nothing"
+        );
+    }
+
+    /// A click on empty canvas names no pattern, and says so rather than
+    /// silently picking one.
+    #[test]
+    fn a_seed_nowhere_near_anything_declines() {
+        let (document, _) = kabuto_with_one_blanked_crease();
+        let preview = preview_command(
+            &document,
+            propagate_command(Some(Point::new(1e6, 1e6)), &[]),
+        )
+        .expect("preview succeeds");
+        assert_eq!(
+            preview.unavailable.as_deref(),
+            Some("PropagationNoComponentAtPoint")
+        );
+    }
+
+    /// A selection of creases that all already have angles gets its own code.
+    /// `PropagationNothingFree` says "every crease already has a fold angle",
+    /// which is a lie when the rest of the canvas is full of unassigned ones.
+    #[test]
+    fn a_selection_of_only_assigned_creases_declines_with_its_own_code() {
+        let (document, in_a, _) = two_kabutos_with_one_blanked_crease_each();
+        let assigned = (0..document.crease_pattern.line_segments.len())
+            .find(|index| {
+                *index != in_a
+                    && model::crease_fold_angle(&document.crease_pattern.line_segments[*index])
+                        .is_some()
+            })
+            .expect("an assigned crease");
+        let preview = preview_command(&document, propagate_selection_command(&[assigned], &[]))
+            .expect("preview succeeds");
+        assert_eq!(
+            preview.unavailable.as_deref(),
+            Some("PropagationSelectionNothingFree")
+        );
+    }
+
+    /// A selection that stops because its vertex needs creases *outside* it must
+    /// say so, not fall back to "give one more crease an angle".
+    ///
+    /// The two sentences send the user in different directions. The kernel has
+    /// already worked out which applies — it counts the out-of-scope stalls for
+    /// the scope report — and the frontend's actionable sentence ("select those
+    /// too") is reachable only through this code: the note that carries it
+    /// renders inside the draft window, and a draft that solved nothing opens
+    /// none.
+    #[test]
+    fn a_selection_missing_half_a_joint_answer_says_so() {
+        let (document, left, right) = kabuto_with_a_jointly_recoverable_vertex();
+
+        let preview = preview_command(&document, propagate_selection_command(&[left], &[]))
+            .expect("preview succeeds");
+        assert_eq!(preview.propagation_solved, Some(0));
+        assert_eq!(
+            preview.unavailable.as_deref(),
+            Some("PropagationOutOfScope"),
+            "the user was told to set another angle when the move is to widen the selection"
+        );
+        // The code and the count travel together: the sentence interpolates the
+        // number of vertices, and it comes from here.
+        let scope = preview
+            .propagation_scope
+            .as_ref()
+            .expect("a resolved scope");
+        assert!(scope.out_of_scope > 0);
+        assert_eq!(scope.kind.as_str(), "selection");
+
+        // And the advice works: selecting the other crease too solves both.
+        let widened = preview_command(&document, propagate_selection_command(&[left, right], &[]))
+            .expect("preview succeeds");
+        assert_eq!(widened.unavailable, None);
+        assert_eq!(widened.propagation_solved, Some(2));
+    }
+
+    /// An id list that names nothing must refuse, not widen to the document.
+    #[test]
+    fn an_empty_after_filtering_scope_does_not_widen() {
+        let (document, _) = kabuto_with_one_blanked_crease();
+        let preview = preview_command(&document, propagate_selection_command(&[999_999], &[]))
+            .expect("preview succeeds");
+        assert_eq!(
+            preview.unavailable.as_deref(),
+            Some("PropagationNothingInScope")
+        );
+        assert!(preview.propagation_creases.is_empty());
     }
 
     /// The whole command path: a vertex that does not close, three creases
@@ -4637,6 +6003,465 @@ mod tests {
         assert!(execute_command(&mut document, command).is_err());
     }
 
+    /// The reported vertex, rebuilt: `failure_case.osf`'s degree-6 point at
+    /// (550, 1450), with one unassigned crease hinted Valley.
+    ///
+    /// Its five decided creases are two full-fold valleys at 109.4712206, two
+    /// mountains at 90 and a valley at 70.5287794 — real angles off a real
+    /// design, kept rather than rounded because 109.47 and 70.53 are
+    /// supplementary and the vertex closes on exactly that.
+    fn reported_failure_case_vertex() -> (CreasePatternDocument, Vec<usize>) {
+        const VERTEX: Point = Point {
+            x: 550.0,
+            y: 1450.0,
+        };
+        let mut document = CreasePatternDocument::default();
+        let corners = [
+            (450.0, 1350.0),
+            (650.0, 1350.0),
+            (650.0, 1550.0),
+            (450.0, 1550.0),
+        ];
+        for index in 0..4 {
+            let (ax, ay) = corners[index];
+            let (bx, by) = corners[(index + 1) % 4];
+            document
+                .crease_pattern
+                .line_segments
+                .push(geometry::LineSegment::with_color(
+                    Point::new(ax, ay),
+                    Point::new(bx, by),
+                    LineColor::Black0,
+                ));
+        }
+        // `(bearing in degrees, signed fold angle)`, or `None` for the
+        // unassigned crease. Bearings are the document's: the two 109.47 valleys
+        // run along the axes and the unassigned one runs up out of the vertex.
+        let creases: [(f64, Option<f64>); 6] = [
+            (180.0, Some(109.4712206)),
+            (-90.0, None),
+            (0.0, Some(109.4712206)),
+            (45.0, Some(-90.0)),
+            (90.0, Some(70.5287794)),
+            (135.0, Some(-90.0)),
+        ];
+        let mut indices = Vec::new();
+        for (bearing, rho) in creases {
+            let radians = bearing.to_radians();
+            indices.push(document.crease_pattern.line_segments.len());
+            let far = Point::new(
+                VERTEX.x + 50.0 * radians.cos(),
+                VERTEX.y + 50.0 * radians.sin(),
+            );
+            let segment = match rho {
+                Some(degrees) => geometry::LineSegment::with_color(
+                    VERTEX,
+                    far,
+                    if degrees < 0.0 {
+                        LineColor::Red1
+                    } else {
+                        LineColor::Blue2
+                    },
+                )
+                .with_fold_magnitude(geometry::FoldMagnitude::from_degrees(degrees.abs())),
+                None => geometry::LineSegment::with_color(VERTEX, far, LineColor::None)
+                    .with_direction_hint(Some(geometry::FoldDirection::Valley)),
+            };
+            document.crease_pattern.line_segments.push(segment);
+        }
+        (document, indices)
+    }
+
+    /// **The reported bug.** A solve that names an unassigned crease has to
+    /// decide it, not skip it.
+    ///
+    /// The apply gated on `Red1`/`Blue2` — "only creases that already fold" —
+    /// while the tool's fan deliberately keeps unassigned creases, because those
+    /// are what a user nominates it to work out. So the commit wrote the two
+    /// decided creases and dropped the third, leaving it undecided at a vertex
+    /// the tool had just reported closed. On screen it kept the undecided dash
+    /// and read as an auxiliary line.
+    ///
+    /// What makes this worth a test of its own rather than a line in another:
+    /// the *preview* never had the guard, so it showed the crease folded
+    /// correctly and the commit then wrote something else. Two write chains for
+    /// one operation, and only one of them was wrong.
+    #[test]
+    fn a_solve_decides_the_unassigned_crease_it_was_given() {
+        let (mut document, lines) = reported_failure_case_vertex();
+        let vertex = Point::new(550.0, 1450.0);
+        // The three the owner picked: the unassigned crease and the two 109.47
+        // valleys opposite each other.
+        let unassigned = lines[1];
+        let chosen = [unassigned, lines[0], lines[2]];
+
+        let solved = solve_fold_angles::vertex_angle_solutions(
+            &document.crease_pattern,
+            vertex,
+            &chosen,
+            CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
+        );
+        assert_eq!(solved.no_solution, None);
+        // "1 of 3" is what the tool reported, and all three are isolated.
+        assert_eq!(solved.isolated_count, 3);
+        let first = solved.solutions[0];
+
+        execute_command(&mut document, solve_command(vertex, &chosen, None))
+            .expect("the solve applies");
+
+        let segment = &document.crease_pattern.line_segments[unassigned];
+        assert_ne!(
+            segment.color,
+            LineColor::None,
+            "the solved crease is still undecided: the apply skipped it"
+        );
+        // A solved angle names a direction, so the crease leaves with the colour
+        // its sign implies — and without the hint, which the invariant forbids
+        // on a decided crease.
+        let slot = first
+            .creases
+            .iter()
+            .position(|(line, _)| *line == unassigned)
+            .expect("the answer names the crease");
+        assert_eq!(
+            Some(segment.color),
+            first.direction(slot).map(FoldDirection::line_color)
+        );
+        assert_eq!(segment.fold_magnitude, first.fold_magnitude(slot));
+        assert_eq!(segment.fold_direction_hint, None);
+        // The measured answer: arccos(1/3), the same 70.5287794 the vertex's
+        // remaining valley already carries.
+        assert!((first.creases[slot].1 - 70.5287793).abs() < 1e-6);
+
+        // And the other two land as well — the whole answer, not two thirds of
+        // it. Both solve to a full fold, where "clear the magnitude" and "store
+        // 180" are the same write.
+        for (other, (line, degrees)) in first.creases.iter().enumerate() {
+            if other == slot {
+                continue;
+            }
+            let segment = &document.crease_pattern.line_segments[*line];
+            assert_eq!(
+                Some(segment.color),
+                first.direction(other).map(FoldDirection::line_color),
+                "line {line}"
+            );
+            assert_eq!(segment.fold_magnitude, None, "line {line} at {degrees}");
+            assert_eq!(crate::model::crease_fold_angle(segment), Some(180.0));
+        }
+    }
+
+    /// A hint is a belief about a crease, not a fact about the geometry, so it
+    /// does not get to remove a branch that genuinely closes the vertex — but
+    /// applying one that contradicts it destroys the mark, so the answer says so.
+    ///
+    /// On the reported vertex all three branches survive and exactly one folds
+    /// the Valley-hinted crease into a mountain.
+    #[test]
+    fn a_hint_flags_the_branch_that_contradicts_it_without_removing_it() {
+        let (document, lines) = reported_failure_case_vertex();
+        let vertex = Point::new(550.0, 1450.0);
+        let unassigned = lines[1];
+        let chosen = [unassigned, lines[0], lines[2]];
+
+        let solved = solve_fold_angles::vertex_angle_solutions(
+            &document.crease_pattern,
+            vertex,
+            &chosen,
+            CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
+        );
+        assert_eq!(
+            solved.solutions.len(),
+            3,
+            "the hint must not filter answers"
+        );
+
+        let mut contradicting = 0;
+        for solution in &solved.solutions {
+            let slot = solution
+                .creases
+                .iter()
+                .position(|(line, _)| *line == unassigned)
+                .expect("the answer names the crease");
+            // The hint is Valley, so folding against it means folding *mountain*
+            // — asked of the one sign predicate rather than restated here.
+            let against_the_hint = solution.direction(slot) == Some(FoldDirection::Mountain);
+            assert_eq!(
+                solution.contradicts_hint[slot], against_the_hint,
+                "{:?} disagrees with its own sign",
+                solution.creases
+            );
+            assert_eq!(solution.contradicts_a_hint(), against_the_hint);
+            // The two decided creases carry no hint, so nothing there can clash.
+            for other in 0..3 {
+                if other != slot {
+                    assert!(!solution.contradicts_hint[other]);
+                }
+            }
+            contradicting += usize::from(against_the_hint);
+        }
+        assert_eq!(
+            contradicting, 1,
+            "the mountain branch is a real answer and must still be offered"
+        );
+
+        // And it reaches the surface, which is the only thing that stops the
+        // apply erasing the mark silently.
+        let index = solved
+            .solutions
+            .iter()
+            .position(solve_fold_angles::AngleSolution::contradicts_a_hint)
+            .expect("one branch contradicts");
+        let preview = preview_command(&document, solve_command(vertex, &chosen, Some(index)))
+            .expect("preview succeeds");
+        assert_eq!(preview.candidate_contradicts_hint, Some(true));
+        let agreeing = (0..3).find(|slot| *slot != index).expect("another branch");
+        let preview = preview_command(&document, solve_command(vertex, &chosen, Some(agreeing)))
+            .expect("preview succeeds");
+        assert_eq!(preview.candidate_contradicts_hint, Some(false));
+    }
+
+    /// The reported vertex, one edit along: the crease that *was* unassigned now
+    /// carries its solved angle, and one of the 109.47 valleys is unassigned in
+    /// its place, keeping its direction.
+    ///
+    /// This is where a zero answer reaches an unassigned crease. The first
+    /// branch folds it by `-0.0`, and both halves of the old behaviour were
+    /// wrong at once: the tool said *"this folds a crease the opposite way from
+    /// the direction remembered for it"* — because `contradicts_hint` asked *not
+    /// this direction* rather than *the other direction*, and zero is neither —
+    /// and then the commit painted it Blue2, which is the direction the hint
+    /// stated, at a magnitude of zero.
+    fn a_zero_answer_at_the_reported_vertex() -> (CreasePatternDocument, Point, [usize; 3], usize) {
+        let (mut document, lines) = reported_failure_case_vertex();
+        let segments = &mut document.crease_pattern.line_segments;
+        segments[lines[1]] = segments[lines[1]].with_signed_fold_angle(70.5287793);
+        segments[lines[2]] = segments[lines[2]].with_direction_kept();
+        (
+            document,
+            Point::new(550.0, 1450.0),
+            [lines[0], lines[1], lines[2]],
+            lines[2],
+        )
+    }
+
+    /// Zero folds neither way, so it does not contradict a hint that says one.
+    ///
+    /// `contradicts_hint` was `!admits(degrees)` — *not this direction* — and
+    /// `admits` answers no for zero by design. So a crease the answer declines
+    /// to fold was reported as folding against the mark, in nine languages, on
+    /// the branch `candidate_index: None` applies.
+    #[test]
+    fn a_zero_answer_does_not_contradict_a_hint() {
+        let (document, vertex, chosen, undecided) = a_zero_answer_at_the_reported_vertex();
+        let solved = solve_fold_angles::vertex_angle_solutions(
+            &document.crease_pattern,
+            vertex,
+            &chosen,
+            CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
+        );
+        let slot = solved.solutions[0]
+            .creases
+            .iter()
+            .position(|(line, _)| *line == undecided)
+            .expect("the answer names the crease");
+        assert_eq!(
+            solved.solutions[0].creases[slot].1, 0.0,
+            "this branch is the one that does not fold the hinted crease"
+        );
+        assert!(
+            !solved.solutions[0].contradicts_hint[slot],
+            "an answer that does not fold the crease cannot fold it the wrong way"
+        );
+        // The mark still earns its warning where it means something: another
+        // branch folds the Valley-hinted crease to -180, and that one is a real
+        // clash the apply would erase.
+        assert!(
+            solved
+                .solutions
+                .iter()
+                .any(solve_fold_angles::AngleSolution::contradicts_a_hint),
+            "the mountain branch is still flagged"
+        );
+        let preview = preview_command(&document, solve_command(vertex, &chosen, None))
+            .expect("preview succeeds");
+        assert_eq!(preview.candidate_contradicts_hint, Some(false));
+    }
+
+    /// A zero answer names no direction, so it does not decide an undecided
+    /// crease — and the preview and the commit say the same thing about that.
+    ///
+    /// The alternative the fix rejects is what shipped: `Blue2` with magnitude
+    /// zero, a decided valley that folds by nothing. `is_classic_crease` is
+    /// false for it, so one such crease flips the whole document non-classic —
+    /// `.cp` export blocked, the 2D folded view blocked, all three cost paths on
+    /// — for a crease that does not fold, while `FoldDirection::admits` says
+    /// elsewhere in this crate that it has no direction at all.
+    #[test]
+    fn a_zero_answer_leaves_an_unassigned_crease_undecided() {
+        let (mut document, vertex, chosen, undecided) = a_zero_answer_at_the_reported_vertex();
+        let before = document.crease_pattern.line_segments[undecided].clone();
+        assert_eq!(before.color, LineColor::None);
+        assert_eq!(before.fold_direction_hint, Some(FoldDirection::Valley));
+
+        let solved = solve_fold_angles::vertex_angle_solutions(
+            &document.crease_pattern,
+            vertex,
+            &chosen,
+            CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
+        );
+        let slot = solved.solutions[0]
+            .creases
+            .iter()
+            .position(|(line, _)| *line == undecided)
+            .expect("the answer names the crease");
+        assert!(solved.solutions[0].leaves_undecided[slot]);
+        assert!(solved.solutions[0].leaves_any_undecided());
+
+        // The surface is told before Apply, rather than left to infer it from a
+        // crease that did not move.
+        let preview = preview_command(&document, solve_command(vertex, &chosen, None))
+            .expect("preview succeeds");
+        assert_eq!(preview.candidate_leaves_undecided, Some(true));
+        // And the preview draws it as it will be: still undecided, hint intact.
+        let shown = preview
+            .segments
+            .iter()
+            .find(|segment| segment.a == before.a && segment.b == before.b)
+            .expect("the preview shows all three picks");
+        assert_eq!(*shown, before, "the preview promised a different crease");
+
+        execute_command(&mut document, solve_command(vertex, &chosen, None))
+            .expect("the solve applies");
+        let after = &document.crease_pattern.line_segments[undecided];
+        assert_eq!(
+            *after, before,
+            "a zero answer decided a crease it has no direction for"
+        );
+        assert_eq!(after.fold_direction_hint, Some(FoldDirection::Valley));
+        assert!(
+            model::is_classic_crease(after),
+            "an undecided crease must not turn the document non-classic"
+        );
+
+        // The rest of the answer still lands — leaving one crease alone is not a
+        // licence to skip the other two.
+        for (line, degrees) in solved.solutions[0].creases {
+            if line == undecided {
+                continue;
+            }
+            assert_eq!(
+                model::crease_fold_angle(&document.crease_pattern.line_segments[line])
+                    .expect("a decided crease has an angle")
+                    .abs(),
+                degrees.abs(),
+                "line {line}"
+            );
+        }
+    }
+
+    /// The same zero hole on the path that predates the unassigned one: a
+    /// decided crease keeps the direction the user already gave it.
+    ///
+    /// `set_signed_fold_angles` served `Red1`/`Blue2` long before a solve could
+    /// reach an unassigned crease, and `degrees < 0.0` turned every zero answer
+    /// into a valley — silently flipping a mountain the solve never asked to
+    /// move. `-0.0` flipped it too, because `-0.0 < 0.0` is false, so the
+    /// solver's own sign was discarded on the one input where the two spellings
+    /// of "negative" disagree.
+    /// The same rule, for every angle that *stores* as zero rather than only
+    /// the two that are spelled zero.
+    ///
+    /// The direction was read off the caller's float while the magnitude was
+    /// written from the quantised value, and the two disagree on the band below
+    /// one storage unit: `+1e-9` on a `Red1` named a valley and then stored a
+    /// magnitude of zero, so the crease came out `Blue2` and flat. That is the
+    /// mountain-turned-valley and the non-classic document the rule above
+    /// exists to prevent, surviving one band along from the literal zeros it
+    /// checked. Unreachable from either solver — both quantise before emitting
+    /// — and reachable through `pinned_angles`, which does not.
+    #[test]
+    fn an_angle_that_stores_as_flat_names_no_direction_either() {
+        let sub_unit = [1e-9_f64, -1e-9, 4.99e-8, -4.99e-8, f64::MIN_POSITIVE];
+        for degrees in sub_unit {
+            for (color, other) in [
+                (LineColor::Red1, LineColor::Blue2),
+                (LineColor::Blue2, LineColor::Red1),
+            ] {
+                let mut model = CreasePatternModel::default();
+                model.line_segments.push(
+                    geometry::LineSegment::with_color(
+                        Point::new(0.0, 0.0),
+                        Point::new(100.0, 0.0),
+                        color,
+                    )
+                    .with_fold_magnitude(geometry::FoldMagnitude::from_degrees(120.0)),
+                );
+                operations::color::set_signed_fold_angles(&mut model, &[(0, degrees)]);
+                let written = &model.line_segments[0];
+                assert_ne!(
+                    written.color, other,
+                    "{color:?} flipped direction on {degrees:e}, which stores as flat"
+                );
+                assert_eq!(
+                    written.fold_magnitude,
+                    Some(geometry::FoldMagnitude::FLAT),
+                    "{color:?} at {degrees:e}"
+                );
+            }
+        }
+
+        // The first angle that does *not* store as flat still takes its sign
+        // from the caller, so the fix is a floor rather than a new rule.
+        let mut model = CreasePatternModel::default();
+        model.line_segments.push(
+            geometry::LineSegment::with_color(
+                Point::new(0.0, 0.0),
+                Point::new(100.0, 0.0),
+                LineColor::Red1,
+            )
+            .with_fold_magnitude(geometry::FoldMagnitude::from_degrees(120.0)),
+        );
+        operations::color::set_signed_fold_angles(&mut model, &[(0, 5.01e-8)]);
+        assert_eq!(model.line_segments[0].color, LineColor::Blue2);
+    }
+
+    #[test]
+    fn a_zero_answer_keeps_the_direction_a_decided_crease_already_has() {
+        for zero in [0.0_f64, -0.0_f64] {
+            for (color, hint) in [
+                (LineColor::Red1, FoldDirection::Mountain),
+                (LineColor::Blue2, FoldDirection::Valley),
+            ] {
+                let mut model = CreasePatternModel::default();
+                model.line_segments.push(
+                    geometry::LineSegment::with_color(
+                        Point::new(0.0, 0.0),
+                        Point::new(100.0, 0.0),
+                        color,
+                    )
+                    .with_fold_magnitude(geometry::FoldMagnitude::from_degrees(120.0)),
+                );
+                let changed = operations::color::set_signed_fold_angles(&mut model, &[(0, zero)]);
+                let written = &model.line_segments[0];
+                assert_eq!(changed, 1, "{color:?} at {zero}");
+                assert_eq!(
+                    written.color, color,
+                    "{color:?} changed direction on a {zero} answer"
+                );
+                assert_eq!(
+                    written.fold_magnitude,
+                    Some(geometry::FoldMagnitude::FLAT),
+                    "{color:?} at {zero}"
+                );
+                // The colour still means what it meant: this crease is a `hint`
+                // that happens to fold by nothing, not a crease of the opposite
+                // family.
+                assert_eq!(FoldDirection::from_line_color(written.color), Some(hint));
+            }
+        }
+    }
+
     /// The colour and the magnitude have to land in one step. Closing a vertex
     /// can require a mountain to become a valley, and a two-operation apply
     /// would put a crease carrying the new angle with the old direction on the
@@ -4663,7 +6488,11 @@ mod tests {
 
         for (slot, (line, degrees)) in expected.creases.iter().enumerate() {
             let segment = &document.crease_pattern.line_segments[*line];
-            assert_eq!(segment.color, expected.line_color(slot), "line {line}");
+            assert_eq!(
+                Some(segment.color),
+                expected.direction(slot).map(FoldDirection::line_color),
+                "line {line}"
+            );
             assert_eq!(
                 segment.fold_magnitude,
                 expected.fold_magnitude(slot),
@@ -4675,43 +6504,64 @@ mod tests {
     /// `candidate_index` picks the branch, and it must pick the same one for the
     /// preview and for the commit — otherwise the user steps to one answer and
     /// applies another.
+    ///
+    /// Run over **two** fixtures, and the second is why the first was not
+    /// enough. This assertion was already here and already right when the
+    /// unassigned-crease bug shipped: the preview wrote through a chain with no
+    /// colour gate and the commit through one with, so they disagreed on exactly
+    /// one input — a crease that is `LineColor::None` — and every fan this test
+    /// had was fully assigned. The invariant was fine; nothing ever handed it
+    /// the case that breaks it.
     #[test]
     fn the_preview_and_the_commit_agree_on_which_solution_is_chosen() {
-        let (document, lines) =
+        let (fully_assigned, lines) =
             document_with_vertex_fan(&[(0.0, 90.0), (45.0, 180.0), (90.0, -90.0), (225.0, 30.0)]);
-        let vertex = Point::new(0.0, 0.0);
-        let chosen = [lines[0], lines[2], lines[3]];
-        let solved = solve_fold_angles::vertex_angle_solutions(
-            &document.crease_pattern,
-            vertex,
-            &chosen,
-            CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
-        );
-        assert!(solved.solutions.len() >= 2, "need a branch to step through");
-
-        for index in 0..solved.solutions.len() {
-            let preview = preview_command(&document, solve_command(vertex, &chosen, Some(index)))
-                .expect("preview succeeds");
-            assert_eq!(preview.segments.len(), 3);
-            assert_eq!(preview.candidate_count, Some(solved.isolated_count));
-            assert_eq!(
-                preview.candidate_is_family,
-                Some(!solved.solutions[index].isolated)
+        let (with_an_unassigned_crease, reported) = reported_failure_case_vertex();
+        for (document, vertex, chosen) in [
+            (
+                fully_assigned,
+                Point::new(0.0, 0.0),
+                [lines[0], lines[2], lines[3]],
+            ),
+            (
+                with_an_unassigned_crease,
+                Point::new(550.0, 1450.0),
+                [reported[1], reported[0], reported[2]],
+            ),
+        ] {
+            let solved = solve_fold_angles::vertex_angle_solutions(
+                &document.crease_pattern,
+                vertex,
+                &chosen,
+                CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
             );
+            assert!(solved.solutions.len() >= 2, "need a branch to step through");
 
-            let mut applied = document.clone();
-            execute_command(&mut applied, solve_command(vertex, &chosen, Some(index)))
-                .expect("commit succeeds");
-            // Every previewed segment is exactly what the commit wrote.
-            for segment in &preview.segments {
-                assert!(
-                    applied
-                        .crease_pattern
-                        .line_segments
-                        .iter()
-                        .any(|written| written == segment),
-                    "preview showed {segment:?}, which the commit did not write"
+            for index in 0..solved.solutions.len() {
+                let preview =
+                    preview_command(&document, solve_command(vertex, &chosen, Some(index)))
+                        .expect("preview succeeds");
+                assert_eq!(preview.segments.len(), 3);
+                assert_eq!(preview.candidate_count, Some(solved.isolated_count));
+                assert_eq!(
+                    preview.candidate_is_family,
+                    Some(!solved.solutions[index].isolated)
                 );
+
+                let mut applied = document.clone();
+                execute_command(&mut applied, solve_command(vertex, &chosen, Some(index)))
+                    .expect("commit succeeds");
+                // Every previewed segment is exactly what the commit wrote.
+                for segment in &preview.segments {
+                    assert!(
+                        applied
+                            .crease_pattern
+                            .line_segments
+                            .iter()
+                            .any(|written| written == segment),
+                        "preview showed {segment:?}, which the commit did not write"
+                    );
+                }
             }
         }
     }

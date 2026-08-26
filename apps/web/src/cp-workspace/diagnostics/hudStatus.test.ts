@@ -23,12 +23,36 @@ function violation(index: number, rule = 'Maekawa', color = 'NotEnoughMountain')
   } satisfies OristudioCpDiagnosticEntry;
 }
 
+function undecided(index: number, rule = 'Undecided') {
+  return {
+    id: `SpatialUndecided-${index}`,
+    kind: 'SpatialUndecided',
+    severity: 'info',
+    message: 'Undecided',
+    rule,
+    fold_angle_degrees: rule === 'Undecided' ? -90 : undefined,
+  } satisfies OristudioCpDiagnosticEntry;
+}
+
+function unexamined(index: number, rule = 'TooManyUnknowns') {
+  return {
+    id: `SpatialUnknowable-${index}`,
+    kind: 'SpatialUnknowable',
+    severity: 'info',
+    message: 'Not checked',
+    rule,
+  } satisfies OristudioCpDiagnosticEntry;
+}
+
 function camv(entries: OristudioCpDiagnosticEntry[]): OristudioCpCommandResult {
   return {
     operation: 'CheckCamv' as OristudioCpCommandResult['operation'],
     status: 'OracleTested' as OristudioCpCommandResult['status'],
     diagnostics: [`Check CAMV found ${entries.length} issue(s)`],
     diagnostic_entries: entries,
+    // Whatever the entries say, something was examined. Overridden where the
+    // point of the case is that nothing was.
+    checked_vertices: 12,
   };
 }
 
@@ -111,6 +135,77 @@ describe('tone and count', () => {
     // Distinct from a clean result: no diagnostics at all means the check has
     // not run, and the HUD should not appear rather than claim OK.
     expect(diagnosticHudStatus(t, { ...camv([]), diagnostics: [] })).toBeNull();
+  });
+});
+
+describe('the fourth tone', () => {
+  it('counts undecided vertices apart from vertices nothing can be said about', () => {
+    // One has an action — here is the angle that closes it — and the other has
+    // an explanation. A single number over both would mean neither.
+    const status = diagnosticHudStatus(
+      t,
+      camv([undecided(1), undecided(2), undecided(3), unexamined(1)])
+    );
+    expect(status?.tone).toBe('info');
+    expect(status?.label).toBe('3 vertices undecided, 1 vertex not checked');
+  });
+
+  it('says it under the always-on overlay, where a clean result stays silent', () => {
+    // The state the plan is named after. `issueOnly` is what keeps the overlay
+    // quiet on a good document, and letting it swallow this would be the bug
+    // again: not decided, displayed as decided and fine.
+    const status = diagnosticHudStatus(t, camv([undecided(1)]), { issueOnly: true });
+    expect(status?.tone).toBe('info');
+    expect(status?.label).toBe('1 vertex undecided');
+    expect(status?.detail).toBe('Set this crease to -90° and this vertex closes');
+  });
+
+  it('leaves the headline to the errors when there are any', () => {
+    // Informational rows are not issues, and the headline names issues — the
+    // same rule the list's own aria-label already states. What must not happen
+    // is 700 undecided vertices burying one error in the count.
+    const status = diagnosticHudStatus(t, camv([violation(1), undecided(1), unexamined(1)]));
+    expect(status?.tone).toBe('error');
+    expect(status?.label).toBe('1 Foldability Error');
+  });
+
+  it('is not the warning tone, however many there are', () => {
+    const many = Array.from({ length: 700 }, (_, i) => undecided(i + 1));
+    expect(diagnosticHudStatus(t, camv(many))?.tone).toBe('info');
+    expect(diagnosticHudStatus(t, camv(many))?.label).toBe('700 vertices undecided');
+  });
+});
+
+describe('a check that examined nothing', () => {
+  it('says so instead of OK', () => {
+    // Case 8. `known-good/airplane.fold` is twenty vertices, every one on the
+    // paper edge, so no foldability condition exists in it at all — and it has
+    // always reported clean, which is a claim about vertices it never made.
+    const nothing = { ...camv([]), checked_vertices: 0 };
+    const status = diagnosticHudStatus(t, nothing);
+    expect(status?.tone).toBe('info');
+    expect(status?.label).toBe('Foldability: nothing to check');
+    expect(status?.detail).toBe('No vertex here has a foldability condition');
+  });
+
+  it('still stays quiet under the always-on overlay', () => {
+    // Otherwise an empty document wears a permanent badge. The claim belongs to
+    // the check the user ran on purpose, which is the one that would otherwise
+    // have said "OK".
+    expect(diagnosticHudStatus(t, { ...camv([]), checked_vertices: 0 }, { issueOnly: true })).toBe(
+      null
+    );
+  });
+
+  it('reports OK when vertices were checked and are fine', () => {
+    expect(diagnosticHudStatus(t, camv([]))?.label).toBe('Foldability OK');
+  });
+
+  it('reports OK when the command does not check vertices at all', () => {
+    // `checked_vertices` is absent on Check1 and friends, and absent is not
+    // zero: a check that never counts must not be read as having counted none.
+    const { checked_vertices: _unused, ...noCount } = camv([]);
+    expect(diagnosticHudStatus(t, noCount)?.label).toBe('Foldability OK');
   });
 });
 

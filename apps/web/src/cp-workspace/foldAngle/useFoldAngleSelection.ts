@@ -57,6 +57,16 @@ export interface FoldAngleSelectionBinding {
    * kernel, so both routes land in the same place.
    */
   setDegrees: (degrees: number | null) => Promise<boolean>;
+  /**
+   * Forget the magnitude while remembering the direction.
+   *
+   * The chip's counterpart to the presets: the same control that says "fold this
+   * 90 degrees" can say "I have not decided how far". It keeps the direction
+   * because that is the common intent, and because the direction is exactly the
+   * bit the solver cannot recover on its own — at a full fold `+180` and `-180`
+   * are the same rotation.
+   */
+  setUnassigned: () => Promise<boolean>;
 }
 
 export function useFoldAngleSelection(): FoldAngleSelectionBinding {
@@ -72,6 +82,12 @@ export function useFoldAngleSelection(): FoldAngleSelectionBinding {
       .filter((value): value is number => value !== null);
     return summariseFoldAngles(magnitudes, segments.length - creases.length);
   }, [cpDocument, selection]);
+
+  const setUnassigned = useCallback(async () => {
+    if (selection.lines.length === 0) return false;
+    // The default keeps the direction; forgetting it is the menu's explicit ask.
+    return executeCommand('CreaseMakeUnassigned', { line_ids: selection.lines });
+  }, [executeCommand, selection.lines]);
 
   const setDegrees = useCallback(
     async (degrees: number | null) => {
@@ -89,5 +105,6 @@ export function useFoldAngleSelection(): FoldAngleSelectionBinding {
     summary,
     enabled: hasFoldableCpSelection(cpDocument, selection),
     setDegrees,
+    setUnassigned,
   };
 }

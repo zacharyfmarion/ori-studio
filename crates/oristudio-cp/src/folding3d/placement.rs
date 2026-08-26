@@ -1325,11 +1325,15 @@ mod tests {
     /// with its hole **filled** — that half of the old argument is true and
     /// reproduces here. What fails is the inference that per-vertex closure then
     /// covers the loop: `is_interior_vertex` declines every hub vertex for
-    /// touching a border, so the check reports clean having examined nothing.
+    /// touching a border, so the check examines nothing at all here.
     /// The measurement harness stepped over the border joins with an identity
     /// and measured a 1.571 rad gap on the filled disk; the walk instead refuses
     /// the join, which is a truer answer than a gap measured on geometry the
     /// drawing does not describe.
+    ///
+    /// The eight declined vertices are now *reported* as declined rather than
+    /// omitted, which is what stops "examined nothing" from reading as clean.
+    /// The count that matters is still zero.
     #[test]
     fn a_drawn_ring_is_refused_at_the_join_the_closure_check_cannot_see() {
         let segments = annulus_90();
@@ -1338,10 +1342,20 @@ mod tests {
             ..CreasePatternModel::default()
         };
         let camv = dispatched_camv(&model);
+        let examined = camv
+            .spatial
+            .iter()
+            .filter(|report| report.verdict.was_checked())
+            .count();
+        assert_eq!(
+            examined, 0,
+            "the closure check examined {examined} vertices; it is meant to examine none"
+        );
         assert!(
-            camv.spatial.is_empty(),
-            "the closure check examined {} vertices; it is meant to examine none",
-            camv.spatial.len()
+            camv.spatial
+                .iter()
+                .all(|report| !report.has_closure_condition()),
+            "every hub vertex touches a border, so none of them has a closure condition"
         );
         assert_eq!(camv.flat.len(), 0);
         assert_eq!(

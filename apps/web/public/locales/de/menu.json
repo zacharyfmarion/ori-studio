@@ -30,6 +30,8 @@
     "makeAuxiliary": "Als Hilfslinie festlegen",
     "makeEdge": "Als Rand festlegen",
     "makeMountain": "Als Berg festlegen",
+    "makeUnassigned": "Nicht zugewiesen setzen",
+    "makeUnassignedKeepDirection": "Nicht zugewiesen setzen (Richtung behalten)",
     "makeValley": "Als Tal festlegen",
     "organizeCircles": "Kreise organisieren",
     "repair": "Reparieren",

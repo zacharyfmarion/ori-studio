@@ -135,13 +135,15 @@
     "blockedTitle": "Impossible d’exporter en {{format}}",
     "confirm": "Exporter quand même",
     "feature": {
+      "directionHints": "Indications de direction sur les plis non attribués",
       "foldAngles": "Angles de pliage non plats",
       "foldedForm3d": "Figures pliées en 3D",
       "foldedForm3dDetached": "Figures pliées en 3D à replier",
       "images": "Images",
       "inlineSimulations": "Fenêtres de simulation",
       "richText": "Mise en forme du texte enrichi",
-      "symmetry": "Symétrie miroir"
+      "symmetry": "Symétrie miroir",
+      "unassignedCreases": "Plis non attribués"
     },
     "featureCount": "{{feature}} ({{total}})",
     "message": "Ce projet utilise des fonctionnalités que le format {{format}} ne peut pas stocker. Elles seront omises de l’exportation : {{features}}.",
@@ -163,18 +165,23 @@
     "message": "{{reason}} {{trailer}}",
     "noFaces": "Ces plis n’enferment aucune face de papier à plier.",
     "nonCreaseJoin": "Deux faces se rejoignent le long d’une arête qui n’est pas un pli.",
+    "showDescription": "Zoome dessus dans le patron de pliage et active les problèmes de pliabilité.",
+    "showDisagreement": "La vérification de pliabilité l’interprète autrement : {{finding}}.",
+    "showEdge": "Montrez-moi le bord",
+    "showPointDescription": "Zoome dessus dans le patron de pliage. La vérification de pliabilité ne signale aucun problème à cet endroit.",
+    "showVertex": "Montrez-moi le sommet",
     "simulate": "Simuler",
     "simulateTrailer": "Le simulateur peut le plier de façon approximative.",
     "title": "Ce patron ne peut pas être plié en 3D",
     "toleranceWindowClosed": "Deux faces sont trop proches du même plan pour être distinguées.",
-    "vertexClosure": "Les plis d’un sommet ne se referment pas : il manque {{degrees}}°.",
+    "vertexClosure": "Les plis d’un sommet ne se referment pas.",
     "vertexUnassignedCrease": "Un pli d’un sommet n’a aucun pliage attribué, ce sommet ne peut donc pas être plié.",
     "vertexUnsplitJunction": "Des plis se rejoignent en un point qui n’est pas un sommet, ce sommet ne peut donc pas être plié."
   },
   "foldWarning": {
     "dontShowAgain": "Ne plus afficher",
-    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage\u00a0?",
-    "spatialMessage": "Des erreurs ont été détectées dans la façon dont ces plis se plient. Continuer le pliage\u00a0?",
+    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage ?",
+    "spatialMessage": "Des erreurs ont été détectées dans la façon dont ces plis se plient. Continuer le pliage ?",
     "title": "Avertissement"
   },
   "help": {
@@ -400,7 +407,7 @@
       "resetMessage": "Restaurer la disposition par défaut de l'espace de travail actuel ?",
       "resetTitle": "Réinitialiser la disposition de l'espace de travail",
       "snapRadius": "Rayon d'aimantation",
-      "snapRadiusHint": "À quelle distance le pointeur doit arriver d'un sommet, d'un pli ou d'un point de grille pour s'y aimanter, en unités de papier\u00a0: le papier fait 400 de large, c'est donc le même nombre que dans Oriedita.",
+      "snapRadiusHint": "À quelle distance le pointeur doit arriver d'un sommet, d'un pli ou d'un point de grille pour s'y aimanter, en unités de papier : le papier fait 400 de large, c'est donc le même nombre que dans Oriedita.",
       "wheelGestureHint": "Le pincement et Cmd/Ctrl+défilement zooment toujours, quel que soit votre choix.",
       "wheelPans": "Le défilement déplace, le pincement zoome",
       "wheelZooms": "Le défilement zoome"

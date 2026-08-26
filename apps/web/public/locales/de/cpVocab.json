@@ -76,16 +76,16 @@
       "tooltip": "Aktiven Linientyp auf Rand setzen",
       "disabledReason": "Bereit"
     },
-    "cp_action_line_type_unassigned": {
-      "label": "Nicht zugewiesen",
-      "railLabel": "U",
-      "tooltip": "Aktiven Linientyp auf nicht zugewiesen setzen",
-      "disabledReason": "Bereit"
-    },
     "cp_action_line_type_auxiliary": {
       "label": "Hilfslinie",
       "railLabel": "A",
       "tooltip": "Aktiven Linientyp auf Hilfslinie setzen",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "Nicht zugewiesen",
+      "railLabel": "U",
+      "tooltip": "Aktiven Linientyp auf nicht zugewiesen setzen",
       "disabledReason": "Bereit"
     },
     "cp_action_draw_crease": {
@@ -286,6 +286,11 @@
       "tooltip": "Legt fest, wie weit die ausgewählten Falten gefaltet werden",
       "disabledReason": "Bereit"
     },
+    "cp_action_crease_set_direction_hint": {
+      "label": "Hinweis zur Faltrichtung setzen",
+      "tooltip": "Angeben, in welche Richtung die ausgewählten unentschiedenen Falten gefaltet waren",
+      "disabledReason": "Bereit"
+    },
     "cp_action_background_change_position": {
       "label": "Hintergrund verschieben",
       "tooltip": "Die Bearbeitung des Hintergrundbilds ist nur UI und nicht Teil des CP-Kernels",
@@ -405,6 +410,14 @@
       "steps": {
         "0": "Knoten wählen",
         "1": "Hinzuzufügende Falte wählen"
+      }
+    },
+    "cp_action_propagate_fold_angles": {
+      "label": "Unentschiedene Falten lösen",
+      "tooltip": "Berechnet die Falten, die Sie unentschieden gelassen haben, innerhalb eines Musters oder der Auswahl",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Auf eine Falte oder einen Punkt klicken, von dem aus gelöst wird, oder Falten auswählen und anwenden"
       }
     },
     "cp_action_vertex_solve_fold_angles": {
@@ -579,7 +592,7 @@
     },
     "cp_action_crease_toggle_mv": {
       "label": "Berg/Tal umschalten",
-      "tooltip": "Auf eine Falte klicken oder ein Rechteck ziehen, um Berg/Tal-Zuweisungen umzuschalten",
+      "tooltip": "Auf eine Falte klicken oder ein Rechteck ziehen, um ihre Faltrichtung umzukehren",
       "disabledReason": "Bereit",
       "steps": {
         "0": "Auf eine Falte klicken oder ein Rechteck ziehen, um umzuschalten"
@@ -589,6 +602,11 @@
       "label": "Kreisfarbe ändern",
       "tooltip": "Die kontextbezogene benutzerdefinierte Farbe auf ausgewählte Kreise und Hilfslinien anwenden",
       "disabledReason": "Bereit"
+    },
+    "cp_action_crease_make_unassigned": {
+      "label": "Nicht zugewiesen setzen",
+      "tooltip": "Vergessen, was die gewählten Linien tun, und sie unentschieden lassen",
+      "disabledReason": "Zuerst Falten auswählen"
     },
     "cp_action_crease_make_aux": {
       "label": "Als Hilfslinie festlegen",

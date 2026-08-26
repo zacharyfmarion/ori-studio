@@ -19,7 +19,10 @@
  * Sign convention is the FOLD spec's, which this repo already follows:
  * negative is mountain, positive is valley, 0 is unfolded.
  */
-import type { OristudioCpLineSegment } from '../engine/oristudioCpTypes';
+import type {
+  OristudioCpFoldDirectionHint,
+  OristudioCpLineSegment,
+} from '../engine/oristudioCpTypes';
 
 /** Kernel storage units per degree (`FoldMagnitude::UNITS_PER_DEGREE`). */
 export const FOLD_MAGNITUDE_UNITS_PER_DEGREE = 10_000_000;
@@ -43,6 +46,44 @@ export function degreesToFoldMagnitude(degrees: number): number | null {
 /** Whether this colour is a crease at all (as opposed to a border or aux line). */
 export function isFoldingCrease(color: OristudioCpLineSegment['color']): boolean {
   return color === 'Red1' || color === 'Blue2';
+}
+
+/**
+ * The fold-direction hint codes the compact transport carries in `seg_attr`'s
+ * fifth slot. The TS mirror of `fold_direction_hint_code` in
+ * `crates/oristudio-cp/src/geometry_transport.rs`.
+ *
+ * They live here, beside the rest of the fold-state mirror, rather than in the
+ * renderer that first needed them: `engine/oristudioCpGeometry.ts` decodes this
+ * slot and must not import from `cp-workspace/`.
+ */
+export const HINT_NONE = 0;
+export const HINT_MOUNTAIN = 1;
+export const HINT_VALLEY = 2;
+
+/**
+ * Decode a transport hint code, or `undefined` for "no hint".
+ *
+ * An unrecognised code reads as no hint rather than throwing, matching
+ * `fold_direction_hint_from_code` on the Rust side: this is our own format on
+ * both ends, and losing a hint is the safe misreading where inventing one — a
+ * crease that claims to be a decided mountain — is not.
+ */
+export function foldDirectionHintFromCode(
+  code: number | undefined
+): OristudioCpFoldDirectionHint | undefined {
+  if (code === HINT_MOUNTAIN) return 'Mountain';
+  if (code === HINT_VALLEY) return 'Valley';
+  return undefined;
+}
+
+/** Encode a hint back to its transport code. Inverse of {@link foldDirectionHintFromCode}. */
+export function foldDirectionHintCode(
+  hint: OristudioCpFoldDirectionHint | undefined
+): number {
+  if (hint === 'Mountain') return HINT_MOUNTAIN;
+  if (hint === 'Valley') return HINT_VALLEY;
+  return HINT_NONE;
 }
 
 /**

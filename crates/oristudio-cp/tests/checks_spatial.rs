@@ -6,8 +6,9 @@
 //! parity failure.
 
 use oristudio_cp::checks_spatial::{
-    Indeterminate, VertexFan, VertexRegime, dispatched_camv, interior_border_segments,
-    spatial_vertex_reports, vertex_closure_residual, vertex_dof, vertex_fan, vertex_regime,
+    Indeterminate, Unknowable, VertexFan, VertexRegime, VertexVerdict, dispatched_camv,
+    interior_border_segments, spatial_vertex_reports, vertex_closure_residual, vertex_dof,
+    vertex_fan, vertex_regime,
 };
 use oristudio_cp::geometry::{FoldMagnitude, LineColor, LineSegment, Point};
 use oristudio_cp::model::CreasePatternModel;
@@ -353,12 +354,23 @@ fn a_crease_meeting_the_paper_edge_is_not_a_closure_violation() {
 
     let at_edge = spatial_vertex_reports(&model)
         .into_iter()
-        .find(|report| report.point.distance(Point::new(50.0, -250.0)) < 1e-6);
+        .find(|report| report.point.distance(Point::new(50.0, -250.0)) < 1e-6)
+        .expect("a vertex on the paper boundary must still get a verdict");
 
+    assert_eq!(
+        at_edge.verdict,
+        VertexVerdict::Unknowable(Unknowable::PaperEdge),
+        "a vertex on the paper boundary has no closure constraint, so the verdict \
+         must say there was nothing to check — never a violation"
+    );
+    assert_eq!(
+        at_edge.residual, None,
+        "and it must carry no residual: the quaternion product of a boundary fan \
+         is a finite number that describes nothing"
+    );
     assert!(
-        at_edge.is_none(),
-        "a vertex on the paper boundary has no closure constraint, so it must \
-         produce no report at all — got {at_edge:?}"
+        !at_edge.is_rigid(),
+        "a degree-1 crease running to the paper edge is unconstrained, not rigid"
     );
 }
 
@@ -449,15 +461,182 @@ fn annulus(inner_angle_degrees: f64) -> CreasePatternModel {
 fn the_closure_check_examines_nothing_on_an_annulus() {
     // Not the bug — the *reason* the bug is invisible, pinned so a later change
     // to `is_interior_vertex` cannot quietly move it.
+    //
+    // What changed with the verdicts is that "examines nothing" is now *said*
+    // rather than left as an empty list. The count of checks is still zero; the
+    // count of reports is not, and a report carrying `Unknowable(PaperEdge)` is
+    // what keeps the empty error list from reading as a clean bill of health.
     let dispatched = dispatched_camv(&annulus(90.0));
 
     assert!(
-        dispatched.spatial.is_empty(),
-        "every vertex here touches a border, so the closure check declines all of them"
+        dispatched
+            .spatial
+            .iter()
+            .all(|report| report.verdict == VertexVerdict::Unknowable(Unknowable::PaperEdge)),
+        "every vertex here touches a border, so the closure check declines all of them: {:?}",
+        dispatched.spatial
+    );
+    assert!(
+        !dispatched.spatial.is_empty(),
+        "and it must say so, rather than returning nothing at all"
     );
     assert!(
         dispatched.flat.is_empty(),
         "and the flat branch is not reached either"
+    );
+}
+
+// ------------------------------------------- a vertex nothing can be said for
+
+/// The failing vertex of `solve/failure_case.osf`, hand-built.
+///
+/// Six creases at one interior point: five decided, one with no assignment. The
+/// decided five are two tetrahedral valleys at 109.4712206, one at 70.5287794,
+/// and two 90-degree mountains — real design angles, not a synthesised
+/// counterexample. The committed FOLD of this same fan is
+/// `tests/fixtures/fold-angle/unreachable-undecided-vertex.fold`, and
+/// `verify_fold_fixtures.rs` pins that the two agree.
+///
+/// The rim is a closed border through the six crease ends, for the same reason
+/// the shipped fold-angle fixtures have one: without it every ray ends at a
+/// degree-1 *interior* vertex, which is rigid, and the model reports six errors
+/// that are about the drawing rather than about the vertex under test.
+fn unreachable_undecided_vertex() -> CreasePatternModel {
+    let mut model = CreasePatternModel::default();
+    let mut rim: Vec<(f64, f64)> = Vec::new();
+    for (theta_degrees, rho_degrees) in [
+        (-90.0_f64, None),
+        (0.0, Some(109.4712206_f64)),
+        (45.0, Some(-90.0)),
+        (90.0, Some(70.5287794)),
+        (135.0, Some(-90.0)),
+        (180.0, Some(109.4712206)),
+    ] {
+        let radians = theta_degrees.to_radians();
+        let end = (100.0 * radians.cos(), 100.0 * radians.sin());
+        let (color, magnitude) = match rho_degrees {
+            None => (LineColor::None, None),
+            Some(degrees) if degrees < 0.0 => (LineColor::Red1, Some(-degrees)),
+            Some(degrees) => (LineColor::Blue2, Some(degrees)),
+        };
+        model.add_line_segment(crease(0.0, 0.0, end.0, end.1, color, magnitude));
+        rim.push(end);
+    }
+    // The ends are already in ascending angular order, so joining them in order
+    // gives a simple star-shaped polygon.
+    for index in 0..rim.len() {
+        let from = rim[index];
+        let to = rim[(index + 1) % rim.len()];
+        model.add_line_segment(crease(from.0, from.1, to.0, to.1, LineColor::Black0, None));
+    }
+    model
+}
+
+/// **The regression `implementation-plans/never-report-silence.md` exists for.**
+///
+/// One undecided crease, and no angle for it closes the vertex — so the pattern
+/// cannot be folded whatever the user does next at this vertex. The checker used
+/// to say nothing at all about it: `vertex_fan` flags the fan
+/// `UnassignedCrease`, `report_for` set no residual, and `spatial_closure_diagnostics`
+/// skipped every report without one. Zero errors, a clean HUD, and a folder that
+/// refuses.
+///
+/// The two halves of the fix, both asserted here, because either alone is the
+/// old bug in a new place:
+///
+/// 1. The vertex is **Broken**, at k = 1, which means the fan handed to the
+///    solver kept the undecided crease. Dropping it instead — which is what the
+///    flat check does — leaves a degree-5 fan whose residual is 70.53 degrees,
+///    a number about a vertex that does not exist.
+/// 2. It reaches the user, as a `CheckCamv` error entry carrying the bracket.
+#[test]
+fn a_vertex_no_angle_can_close_is_reported_rather_than_skipped() {
+    use oristudio_cp::checks_spatial::Broken;
+
+    let model = unreachable_undecided_vertex();
+    let dispatched = dispatched_camv(&model);
+
+    let broken: Vec<_> = dispatched
+        .spatial
+        .iter()
+        .filter(|report| matches!(report.verdict, VertexVerdict::Broken(_)))
+        .collect();
+    assert_eq!(
+        broken.len(),
+        1,
+        "exactly one vertex here cannot fold: {:?}",
+        dispatched.spatial
+    );
+    let report = broken[0];
+    assert!(report.point.distance(ORIGIN) < 1e-9);
+    assert_eq!(
+        report.residual, None,
+        "there is no residual to report: the vertex has no state yet, which is \
+         precisely why the residual-driven check said nothing"
+    );
+
+    let VertexVerdict::Broken(Broken::NoAngleCloses { unknowns, closest }) = report.verdict else {
+        panic!(
+            "expected an unreachable-closure verdict, got {:?}",
+            report.verdict
+        );
+    };
+    assert_eq!(unknowns, 1);
+    let closest = closest.expect("the refusal must say how close the vertex can get");
+    assert!(
+        (closest - 65.9579).abs() < 1e-3,
+        "swept independently over the whole range at 0.001 degrees, the best \
+         achievable residual is 65.958 degrees; the solver reports {closest}"
+    );
+    assert!(
+        (closest - 70.5288).abs() > 1.0,
+        "70.53 is the residual of the fan with the undecided crease *dropped*. \
+         Reporting it would be describing a vertex the document does not have"
+    );
+}
+
+/// And it reaches the user, in the check they actually run.
+#[test]
+fn the_unreachable_vertex_produces_a_camv_error_entry() {
+    use oristudio_cp::{CreasePatternCommand, CreasePatternDocument, OperationId, execute_command};
+
+    let mut document = CreasePatternDocument {
+        crease_pattern: unreachable_undecided_vertex(),
+        ..CreasePatternDocument::default()
+    };
+    let result = execute_command(
+        &mut document,
+        CreasePatternCommand::new(OperationId::CheckCamv),
+    )
+    .expect("CheckCamv is supported");
+
+    let errors: Vec<_> = result
+        .diagnostic_entries
+        .iter()
+        .filter(|entry| entry.severity == "error")
+        .collect();
+    assert_eq!(
+        errors.len(),
+        1,
+        "the check found {} errors; before the verdicts it found none at all: {:?}",
+        errors.len(),
+        result.diagnostic_entries
+    );
+    let entry = errors[0];
+    assert_eq!(entry.rule.as_deref(), Some("ClosureUnreachable"));
+    assert!(
+        entry
+            .point
+            .is_some_and(|point| point.distance(ORIGIN) < 1e-9),
+        "the entry must locate the vertex — 'which vertex?' is the question the \
+         fold-blocked dialog could not answer"
+    );
+    assert!(
+        entry
+            .residual_degrees
+            .is_some_and(|degrees| (degrees - 65.9579).abs() < 1e-3),
+        "the bracket rides structurally, so the frontend can word it: {:?}",
+        entry.residual_degrees
     );
 }
 
@@ -523,28 +702,82 @@ fn an_all_classic_annulus_reports_no_interior_border_through_the_dispatch() {
     assert_eq!(interior_border_segments(&classic).len(), 4);
 }
 
-/// The spatial half of `CheckCamv` speaks a fixed, four-word vocabulary of
-/// `rule` codes, and the frontend has a translated sentence for each.
+/// The spatial half of `CheckCamv` speaks a fixed vocabulary of `rule` codes,
+/// and the frontend has a translated sentence for each.
 ///
 /// Neither language can see the other's table. The web side has its own
-/// exhaustive switch over the same four literals
+/// exhaustive switch over the same literals
 /// (`cp-workspace/diagnostics/foldabilityMessages.ts`, `SPATIAL_RULES`); this is
 /// the other half of that pair. Renaming a code here without renaming it there
 /// ships a blank message in eight locales, which is exactly the failure a gate
 /// on one side alone cannot catch.
 ///
-/// Asserted as a *superset containment plus a whitelist*: the corpus of shapes
-/// below need not reach all four, but nothing it reaches may be outside them.
+/// Two assertions, because they fail in opposite directions. **Nothing outside
+/// the whitelist may be emitted** — that catches a code the frontend cannot
+/// word. And **every rule in `REACHED` must actually appear** — that catches a
+/// whitelist which has quietly stopped describing anything.
 #[test]
-fn the_spatial_check_emits_only_the_four_rules_the_frontend_words() {
+fn the_spatial_check_emits_only_the_rules_the_frontend_words() {
     use oristudio_cp::{CreasePatternCommand, CreasePatternDocument, OperationId, execute_command};
 
-    const SPATIAL_RULES: [&str; 4] = ["Closure", "Rigid", "SelfIntersection", "InteriorBorder"];
+    const SPATIAL_RULES: [&str; 11] = [
+        "Closure",
+        "ClosureUnreachable",
+        "Rigid",
+        "SelfIntersection",
+        "InteriorBorder",
+        "Undecided",
+        "UndecidedChoice",
+        "UnsplitJunction",
+        "NotEnoughCreases",
+        "TooManyUnknowns",
+        "NoUniqueAnswer",
+    ];
+
+    // Two of the eleven are absent from `REACHED` on purpose, and neither is an
+    // untested path so much as an unbuildable fixture: `UndecidedChoice` needs a
+    // single unknown with more than one isolated answer and `NoUniqueAnswer`
+    // needs one with a continuous family of them, while `solve_k` is 100.00%
+    // determined at k = 1 over 115,560 real fans — and k = 1 is the whole of
+    // what the live check solves. They stay in the whitelist because the verdict
+    // can produce them and the frontend must therefore word them.
+    const REACHED: [&str; 9] = [
+        "Closure",
+        "ClosureUnreachable",
+        "Rigid",
+        "SelfIntersection",
+        "InteriorBorder",
+        "Undecided",
+        "UnsplitJunction",
+        "NotEnoughCreases",
+        "TooManyUnknowns",
+    ];
 
     // Every shape that has ever produced a spatial diagnostic in this suite:
     // an annulus whose inner ring is an interior border, a vertex whose creases
-    // do not close, and a degree-3 rigid vertex.
-    let mut models = vec![annulus(90.0)];
+    // do not close, a degree-3 rigid vertex, and a vertex whose undecided crease
+    // has no closing angle.
+    let mut models = vec![annulus(90.0), unreachable_undecided_vertex()];
+
+    // The same closing degree-5 fan as `crossing` below, with the first one or
+    // two creases left undecided: one unknown is solvable and names its angle,
+    // two are past the live gate.
+    models.push(partly_undecided_fan(1));
+    models.push(partly_undecided_fan(2));
+
+    // A crease running to a dead end inside the paper, and a crease crossing a
+    // vertex without ending on it. Both are ordinary things to have drawn, and
+    // neither has a closure condition the check can evaluate.
+    let mut dangling = CreasePatternModel::default();
+    dangling.add_line_segment(crease(0.0, 0.0, 100.0, 0.0, LineColor::Red1, Some(90.0)));
+    dangling.add_line_segment(crease(0.0, 0.0, 0.0, 100.0, LineColor::None, None));
+    models.push(dangling);
+
+    let mut unsplit = CreasePatternModel::default();
+    unsplit.add_line_segment(crease(-100.0, 0.0, 100.0, 0.0, LineColor::Red1, Some(90.0)));
+    unsplit.add_line_segment(crease(0.0, 0.0, 0.0, 100.0, LineColor::Red1, Some(90.0)));
+    unsplit.add_line_segment(crease(0.0, 0.0, 0.0, -100.0, LineColor::Blue2, Some(90.0)));
+    models.push(unsplit);
 
     let mut open = CreasePatternModel::default();
     for (theta, rho) in [(0.0_f64, 90.0), (90.0, 90.0), (200.0, 90.0), (300.0, 90.0)] {
@@ -630,23 +863,214 @@ fn the_spatial_check_emits_only_the_four_rules_the_frontend_words() {
             );
             // The closure sentence needs the residual structurally: the frontend
             // has to word it, and a formatted string cannot be un-formatted.
-            if rule == "Closure" {
+            // `ClosureUnreachable`'s number is a different one — how close the
+            // vertex can be brought rather than how far off it is — and it is
+            // just as load-bearing, because "no angle helps" without a bracket
+            // is a refusal the user cannot check.
+            if rule == "Closure" || rule == "ClosureUnreachable" {
                 assert!(
                     entry.residual_degrees.is_some(),
-                    "a closure failure must carry its residual, not only spell it",
+                    "{rule} must carry its residual, not only spell it",
                 );
             } else {
                 assert!(entry.residual_degrees.is_none());
             }
+            // The other number, and the reason it is a second field. A residual
+            // is the size of a mistake; this is a value to type in. Offering one
+            // where the other belongs would hand the user their own error as an
+            // instruction.
+            if rule == "Undecided" {
+                assert!(
+                    entry.fold_angle_degrees.is_some(),
+                    "an undecided vertex with one answer must carry the answer",
+                );
+            } else {
+                assert!(entry.fold_angle_degrees.is_none(), "{rule}");
+            }
+            // Undecided and unexamined vertices are not violations, and the
+            // count they must stay out of is the one gating the fold warning.
+            let expected_severity = match rule.as_str() {
+                "Closure" | "ClosureUnreachable" | "Rigid" | "SelfIntersection" => "error",
+                "InteriorBorder" => "warning",
+                _ => "info",
+            };
+            assert_eq!(entry.severity, expected_severity, "{rule}");
             if !seen.contains(&rule) {
                 seen.push(rule);
             }
         }
     }
-    // All four, not merely "some": a whitelist that nothing reaches asserts
-    // nothing at all.
+    // Every rule the fixtures above are meant to reach, not merely "some": a
+    // whitelist that nothing reaches asserts nothing at all.
     seen.sort();
-    let mut expected = SPATIAL_RULES.map(String::from);
+    let mut expected = REACHED.map(String::from);
     expected.sort();
     assert_eq!(seen, expected);
+}
+
+/// The `crossing` degree-5 fan with its first `unknowns` creases left undecided.
+///
+/// The fan closes as authored, so the solver has a real answer to find at k = 1
+/// and none to give at k = 2 — the two sides of the live arity gate, from one
+/// shape.
+fn partly_undecided_fan(unknowns: usize) -> CreasePatternModel {
+    let sectors = [77.7_f64, 75.3, 76.3, 80.9, 49.8];
+    let rhos = [
+        143.2_f64,
+        -144.987_466_057_566,
+        139.510_617_226_054,
+        107.692_082_841_218,
+        70.045_325_473_205,
+    ];
+    let mut model = CreasePatternModel::default();
+    let mut theta = 0.0_f64;
+    for (index, (sector, rho)) in sectors.iter().zip(rhos).enumerate() {
+        let radians = theta.to_radians();
+        let (color, magnitude) = if index < unknowns {
+            (LineColor::None, None)
+        } else if rho < 0.0 {
+            (LineColor::Blue2, Some(-rho))
+        } else {
+            (LineColor::Red1, Some(rho))
+        };
+        model.add_line_segment(crease(
+            0.0,
+            0.0,
+            100.0 * radians.cos(),
+            100.0 * radians.sin(),
+            color,
+            magnitude,
+        ));
+        theta += sector;
+    }
+    model
+}
+
+/// An undecided vertex the check can answer for says **what the answer is**.
+///
+/// The distinction the whole of Phase 2 turns on: `Undecided` has an action and
+/// `Unknowable` has an explanation, and they must not share copy. An entry that
+/// merely said "undecided" would be a nag — the user already knows they have not
+/// set that crease. What they do not know is that -143.2 degrees is the value
+/// that closes the vertex.
+#[test]
+fn an_undecided_vertex_carries_the_angle_that_would_close_it() {
+    use oristudio_cp::{CreasePatternCommand, CreasePatternDocument, OperationId, execute_command};
+
+    let mut document = CreasePatternDocument {
+        crease_pattern: partly_undecided_fan(1),
+        ..CreasePatternDocument::default()
+    };
+    let result = execute_command(
+        &mut document,
+        CreasePatternCommand::new(OperationId::CheckCamv),
+    )
+    .expect("CheckCamv is supported");
+
+    let undecided: Vec<_> = result
+        .diagnostic_entries
+        .iter()
+        .filter(|entry| entry.rule.as_deref() == Some("Undecided"))
+        .collect();
+    assert_eq!(undecided.len(), 1, "{:?}", result.diagnostic_entries);
+    let entry = undecided[0];
+
+    // Signed, and the sign is the fold direction — the same convention every
+    // fold angle in the app is displayed with, so the number can be read
+    // straight into the fold-angle field.
+    let degrees = entry.fold_angle_degrees.expect("the answer");
+    assert!(
+        (degrees - -143.2).abs() < 1e-6,
+        "expected the crease's authored angle back, got {degrees}"
+    );
+    // And which crease it belongs to: an angle with no crease attached is a
+    // number the user cannot act on.
+    assert_eq!(entry.segments.len(), 1);
+    assert_eq!(entry.segments[0].color, LineColor::None);
+    assert_eq!(entry.severity, "info");
+}
+
+/// Case 8: a pattern with nothing to check must not report that it is fine.
+///
+/// `known-good/airplane.fold` is twenty vertices, every one of them on the paper
+/// edge, and it has always come back "Foldability OK" — having evaluated no
+/// condition at all, because none exists. The count below is the only thing that
+/// separates that from a pattern the check actually affirmed; there is no
+/// vertex to hang a diagnostic on, which is why it is not one.
+#[test]
+fn a_pattern_with_no_foldability_condition_says_it_checked_nothing() {
+    use oristudio_cp::{CreasePatternCommand, CreasePatternDocument, OperationId, execute_command};
+
+    let checked = |model: CreasePatternModel| {
+        let mut document = CreasePatternDocument {
+            crease_pattern: model,
+            ..CreasePatternDocument::default()
+        };
+        execute_command(
+            &mut document,
+            CreasePatternCommand::new(OperationId::CheckCamv),
+        )
+        .expect("CheckCamv is supported")
+        .checked_vertices
+    };
+
+    let square = || {
+        let mut model = CreasePatternModel::default();
+        for pair in [
+            ((0.0, 0.0), (200.0, 0.0)),
+            ((200.0, 0.0), (200.0, 200.0)),
+            ((200.0, 200.0), (0.0, 200.0)),
+            ((0.0, 200.0), (0.0, 0.0)),
+        ] {
+            model.add_line_segment(crease(
+                pair.0.0,
+                pair.0.1,
+                pair.1.0,
+                pair.1.1,
+                LineColor::Black0,
+                None,
+            ));
+        }
+        model
+    };
+
+    // One 90-degree crease corner to corner: two vertices, both on the border,
+    // no closure condition anywhere in the sheet.
+    let mut edge_only = square();
+    edge_only.add_line_segment(crease(0.0, 0.0, 200.0, 200.0, LineColor::Red1, Some(90.0)));
+    assert_eq!(checked(edge_only), Some(0));
+
+    // The same claim has to be falsifiable, or "0" is just the value the field
+    // always has. Split both diagonals at the middle of the sheet and there is
+    // one vertex the paper wraps around — the check answers for exactly it, and
+    // still not for the four corners.
+    let mut crossed = square();
+    for pair in [
+        ((0.0, 0.0), (100.0, 100.0)),
+        ((100.0, 100.0), (200.0, 200.0)),
+        ((200.0, 0.0), (100.0, 100.0)),
+        ((100.0, 100.0), (0.0, 200.0)),
+    ] {
+        crossed.add_line_segment(crease(
+            pair.0.0,
+            pair.0.1,
+            pair.1.0,
+            pair.1.1,
+            LineColor::Red1,
+            Some(90.0),
+        ));
+    }
+    assert_eq!(checked(crossed), Some(1));
+
+    // And a command that checks no vertices says nothing rather than zero.
+    let mut document = CreasePatternDocument::default();
+    assert_eq!(
+        execute_command(
+            &mut document,
+            CreasePatternCommand::new(OperationId::Check1)
+        )
+        .expect("Check1 is supported")
+        .checked_vertices,
+        None
+    );
 }

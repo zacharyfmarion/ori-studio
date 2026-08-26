@@ -81,6 +81,109 @@ fn shipped_fold_fixtures_behave_as_documented() {
     }
 }
 
+/// `fold-angle/unreachable-undecided-vertex.fold` must keep saying what its
+/// description claims — that opening it and running Check foldability **names a
+/// vertex**.
+///
+/// It is `solve/failure_case.osf`'s failing vertex, minimised: six creases, one
+/// of them unassigned, and no fold angle for that crease closes the vertex. The
+/// file exists because the checker used to report nothing here at all. The fan
+/// declined on the unassigned crease, `report_for` produced no residual, and the
+/// diagnostic pass skipped every report without one — so a document that cannot
+/// be folded read as clean, and the fold-blocked dialog could not say which
+/// vertex.
+///
+/// The corpus half of this is `non_flat_corpus.rs`'s
+/// `tier_a_verdicts_name_the_one_broken_vertex_and_no_others`, on the real file.
+/// This half needs no corpus and runs in CI.
+#[test]
+fn the_unreachable_undecided_fixture_names_its_vertex() {
+    use oristudio_cp::checks_spatial::{Broken, VertexVerdict};
+
+    let path = fixture_root().join("fold-angle/unreachable-undecided-vertex.fold");
+    let model = import_fold_document(&read(&path)).expect("import");
+
+    let dispatched = dispatched_camv(&model);
+    let broken: Vec<_> = dispatched
+        .spatial
+        .iter()
+        .filter(|report| matches!(report.verdict, VertexVerdict::Broken(_)))
+        .collect();
+    assert_eq!(
+        broken.len(),
+        1,
+        "exactly one vertex in this fixture cannot fold: {:?}",
+        dispatched.spatial
+    );
+
+    let report = broken[0];
+    let VertexVerdict::Broken(Broken::NoAngleCloses { unknowns, closest }) = report.verdict else {
+        panic!(
+            "expected an unreachable-closure verdict, got {:?}",
+            report.verdict
+        );
+    };
+    assert_eq!(unknowns, 1, "the fixture's vertex is k = 1");
+    assert_eq!(
+        report.residual, None,
+        "and it has no residual, which is exactly why the check used to say nothing"
+    );
+
+    let closest = closest.expect("the refusal must say how close the vertex can get");
+    assert!(
+        (closest - 65.9579).abs() < 1e-3,
+        "the fixture's description records 65.96 degrees, measured by sweeping the \
+         undecided crease over its whole range at 0.001 degrees; the solver reports \
+         {closest}"
+    );
+}
+
+/// `Fine` means exactly "a closure residual exists and clears the bar".
+///
+/// The plan's failure arriving in reverse would be a verdict that reads Fine
+/// where the residual does not — a clean HUD over a pattern that does not fold —
+/// and the verdict is now what the diagnostic pass switches on, so the two must
+/// not be able to drift. Run over every committed fixture rather than a
+/// synthetic, because the interesting population is vertices that close.
+#[test]
+fn a_fine_verdict_and_the_closure_residual_never_disagree() {
+    use oristudio_cp::checks_spatial::VertexVerdict;
+
+    let mut fine = 0usize;
+    let mut checked_files = 0usize;
+    for directory in ["fold-angle", "fold-angle-3d"] {
+        let entries = std::fs::read_dir(fixture_root().join(directory)).expect("fixture directory");
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().is_none_or(|extension| extension != "fold") {
+                continue;
+            }
+            let Ok(model) = import_fold_document(&read(&path)) else {
+                continue;
+            };
+            checked_files += 1;
+            for report in dispatched_camv(&model).spatial {
+                let cleared = report
+                    .residual
+                    .is_some_and(|residual| residual.to_degrees() <= CLOSURE_RESIDUAL_BAR_DEGREES);
+                assert_eq!(
+                    report.verdict == VertexVerdict::Fine,
+                    cleared,
+                    "{}: verdict and residual disagree at {:?}: {report:?}",
+                    path.display(),
+                    report.point
+                );
+                fine += usize::from(cleared);
+            }
+        }
+    }
+    assert!(
+        checked_files >= 6,
+        "only {checked_files} fixtures were read"
+    );
+    assert!(fine > 0, "no vertex closed, so the law was never exercised");
+}
+
 /// What one 3D fixture must keep saying about itself.
 ///
 /// Counts rather than tolerances wherever possible: a count that changes is a
@@ -102,10 +205,16 @@ struct Fixture {
     distinct_magnitudes: usize,
     /// Oriedita flat-foldability violations, from the flat branch of CAMV.
     flat_violations: usize,
-    /// Spatial vertices `dispatched_camv` reports on at all.
+    /// Spatial vertices with a closure condition — the ones `dispatched_camv`
+    /// has something to decide about.
+    ///
+    /// **Not `spatial.len()`.** That list now carries a verdict for every vertex
+    /// the spatial branch sees, including every vertex on the paper edge, where
+    /// the paper does not wrap around the point and no closure condition exists.
+    /// Counting those would count the rim of the sheet.
     spatial_vertices: usize,
     /// Of those: closure worse than the bar, link crossing at a closing vertex,
-    /// and indeterminate (reported as nothing).
+    /// and indeterminate (a condition exists and the fan could not be read).
     closure_failures: usize,
     self_intersections: usize,
     indeterminate: usize,
@@ -325,8 +434,16 @@ fn fold_angle_3d_fixtures_reach_their_recorded_verdicts() {
             fixture.flat_violations,
             "{name}: flat-foldability violations"
         );
+        // Vertices with a closure condition, not reports: the list now also
+        // carries the boundary vertices, whose verdict is that there was nothing
+        // to decide. See `Fixture::spatial_vertices`.
+        let constrained: Vec<_> = dispatched
+            .spatial
+            .iter()
+            .filter(|report| report.has_closure_condition())
+            .collect();
         assert_eq!(
-            dispatched.spatial.len(),
+            constrained.len(),
             fixture.spatial_vertices,
             "{name}: spatial vertices examined. A zero here means CAMV never \
              looked, which is not the same verdict as passing"
@@ -335,7 +452,7 @@ fn fold_angle_3d_fixtures_reach_their_recorded_verdicts() {
         let mut closure_failures = 0usize;
         let mut self_intersections = 0usize;
         let mut indeterminate = 0usize;
-        for report in &dispatched.spatial {
+        for report in &constrained {
             let crossing = report.link.is_some_and(|link| link.self_intersects());
             match report.residual {
                 Some(residual) if residual.to_degrees() > CLOSURE_RESIDUAL_BAR_DEGREES => {
@@ -356,6 +473,23 @@ fn fold_angle_3d_fixtures_reach_their_recorded_verdicts() {
         assert_eq!(
             indeterminate, fixture.indeterminate,
             "{name}: indeterminate vertices"
+        );
+        // Nothing new became an error. The verdicts added one way for a vertex
+        // to be Broken that the residual test could not express, and this is
+        // what keeps that from firing anywhere it should not: the count of
+        // Broken verdicts is still the count of closure failures the fixture was
+        // recorded with, and Broken is exactly what the diagnostic pass reports.
+        assert_eq!(
+            dispatched
+                .spatial
+                .iter()
+                .filter(|report| matches!(
+                    report.verdict,
+                    oristudio_cp::checks_spatial::VertexVerdict::Broken(_)
+                ))
+                .count(),
+            fixture.closure_failures,
+            "{name}: vertices reported as broken"
         );
 
         // The fold angles have to survive the importer, not just exist in the

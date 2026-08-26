@@ -85,7 +85,10 @@ export function useCpDiagnosticList(): CpDiagnosticList {
       t,
       diagnosticOperationLabel(t, result.operation),
       entries,
-      { issueOnly }
+      // The coverage count comes from the naming result even though the entries
+      // do not: it is a statement about what that check examined, and there is
+      // no such thing as the union of two checks' coverage.
+      { issueOnly, checkedVertices: result.checked_vertices }
     );
   }, [entries, headline, t]);
 

@@ -76,16 +76,16 @@
       "tooltip": "Definir o tipo de linha ativo como borda",
       "disabledReason": "Pronto"
     },
-    "cp_action_line_type_unassigned": {
-      "label": "Não atribuído",
-      "railLabel": "U",
-      "tooltip": "Definir o tipo de linha ativo como não atribuído",
-      "disabledReason": "Pronto"
-    },
     "cp_action_line_type_auxiliary": {
       "label": "Auxiliar",
       "railLabel": "A",
       "tooltip": "Definir o tipo de linha ativo como auxiliar",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "Não atribuído",
+      "railLabel": "U",
+      "tooltip": "Definir o tipo de linha ativo como não atribuído",
       "disabledReason": "Pronto"
     },
     "cp_action_draw_crease": {
@@ -286,6 +286,11 @@
       "tooltip": "Define o quanto os vincos selecionados dobram",
       "disabledReason": "Pronto"
     },
+    "cp_action_crease_set_direction_hint": {
+      "label": "Definir dica de direção da dobra",
+      "tooltip": "Indicar para que lado os vincos indefinidos selecionados dobravam",
+      "disabledReason": "Pronto"
+    },
     "cp_action_background_change_position": {
       "label": "Mover plano de fundo",
       "tooltip": "A manipulação da imagem de fundo é apenas da interface e não faz parte do núcleo de CP",
@@ -405,6 +410,14 @@
       "steps": {
         "0": "Escolha o vértice",
         "1": "Escolha o vinco a adicionar"
+      }
+    },
+    "cp_action_propagate_fold_angles": {
+      "label": "Resolver vincos indecisos",
+      "tooltip": "Calcula os vincos que você deixou indecisos, dentro de um padrão ou dentro da seleção",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Clique em um vinco ou vértice de onde resolver, ou selecione vincos e aplique"
       }
     },
     "cp_action_vertex_solve_fold_angles": {
@@ -579,7 +592,7 @@
     },
     "cp_action_crease_toggle_mv": {
       "label": "Inverter montanha/vale",
-      "tooltip": "Clique em um vinco ou arraste uma caixa para inverter as atribuições de montanha/vale",
+      "tooltip": "Clique em um vinco ou arraste uma caixa para inverter o sentido da dobra",
       "disabledReason": "Pronto",
       "steps": {
         "0": "Clique em um vinco ou arraste uma caixa para inverter"
@@ -589,6 +602,11 @@
       "label": "Alterar cor do círculo",
       "tooltip": "Aplicar a cor personalizada contextual aos círculos e linhas auxiliares selecionados",
       "disabledReason": "Pronto"
+    },
+    "cp_action_crease_make_unassigned": {
+      "label": "Tornar não atribuído",
+      "tooltip": "Esquecer o que as linhas selecionadas fazem, deixando-as indecisas",
+      "disabledReason": "Selecione vincos primeiro"
     },
     "cp_action_crease_make_aux": {
       "label": "Definir como auxiliar",

@@ -135,7 +135,7 @@ describe('borders inside the paper', () => {
 
 describe('the spatial rules', () => {
   // A separate vocabulary from Oriedita's five, with its own gate. The pair on
-  // the kernel side is `the_spatial_check_emits_only_the_four_rules_the_frontend_words`
+  // the kernel side is `the_spatial_check_emits_only_the_rules_the_frontend_words`
   // in `crates/oristudio-cp/tests/checks_spatial.rs`; neither language can see
   // the other's table, so a rename needs both to catch it.
   it.each(SPATIAL_RULES)('answers %s with a sentence, not a rule name', (rule) => {
@@ -161,6 +161,71 @@ describe('the spatial rules', () => {
       )
     ).toBe('The creases here do not close up: 53° off');
     expect(spatialRuleMessage(t, 'Closure')).toBe('The creases here do not close up');
+  });
+
+  it('does not send the user to adjust angles that are not the problem', () => {
+    // `ClosureUnreachable` is a different failure from `Closure` and asks for a
+    // different move. The kernel used to report neither: the vertex has an
+    // undecided crease, so it had no residual, so it produced no entry at all
+    // and the check came back clean on a pattern that cannot be folded.
+    const message = cpDiagnosticEntryMessage(
+      t,
+      entry({
+        kind: 'SpatialClosure',
+        rule: 'ClosureUnreachable',
+        residual_degrees: 65.957_924,
+        message: 'No angle for the undecided crease here closes this vertex',
+      })
+    );
+    expect(message).toBe(
+      'No angle for the undecided crease here can close it — the closest is 65.96° off'
+    );
+    // The number is how close the vertex can be brought, not how far off it is,
+    // so the sentence must not be `Closure`'s.
+    expect(message).not.toBe(spatialRuleMessage(t, 'Closure'));
+    expect(spatialRuleMessage(t, 'ClosureUnreachable')).toBe(
+      'No angle for the undecided crease here can close it'
+    );
+  });
+
+  it('gives an undecided vertex the answer, not a reminder', () => {
+    // The distinction Phase 2 turns on: undecided has an action and unknowable
+    // has an explanation. "This crease has no angle yet" is something the user
+    // already knows — the value that closes the vertex is not.
+    const message = cpDiagnosticEntryMessage(
+      t,
+      entry({
+        kind: 'SpatialUndecided',
+        severity: 'info',
+        rule: 'Undecided',
+        fold_angle_degrees: -143.200_000_2,
+        message: 'Undecided: setting this crease to -143.2000 degrees closes this vertex',
+      })
+    );
+    // Signed and rounded by `formatFoldAngle`, so the number in the row and the
+    // number on the crease badge cannot disagree.
+    expect(message).toBe('Set this crease to -143.2° and this vertex closes');
+    // And it must not be a residual: one is a value to type in, the other is the
+    // size of a mistake, and offering the wrong one is worse than saying nothing.
+    expect(message).not.toMatch(/off|close up/u);
+  });
+
+  it('will not choose for the user when more than one angle closes a vertex', () => {
+    const message = spatialRuleMessage(t, 'UndecidedChoice');
+    expect(message).toMatch(/more than one/iu);
+    expect(message).not.toMatch(/\d/u);
+  });
+
+  it('words every abstention as an abstention, not a fault', () => {
+    // Four different reasons nothing can be said, sharing a leading phrase
+    // because they share the fact. None of them may read as a defect: they are
+    // the ordinary state of a pattern that is not finished.
+    for (const rule of ['UnsplitJunction', 'NotEnoughCreases', 'TooManyUnknowns'] as const) {
+      const message = spatialRuleMessage(t, rule);
+      expect(message, rule).toMatch(/^Not checked/u);
+      expect(message, rule).not.toMatch(/violation|error|invalid|cannot fold/iu);
+    }
+    expect(spatialRuleMessage(t, 'NoUniqueAnswer')).toMatch(/^Not pinned down/u);
   });
 
   it('does not read a rigid vertex as a disagreement to fix', () => {

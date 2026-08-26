@@ -3733,9 +3733,17 @@ button.cp-folded-figure-toolbar__notice:hover {
   color: var(--diagnostic-unknown);
 }
 
+/* Neither good nor bad: the check has not decided about this vertex. */
+.cp-diagnostic-glyph[data-tone='info'] {
+  color: var(--status-info);
+}
+
 /* Hollow by definition: Oriedita's empty circle is "only the angles are wrong,
-   everything else is correct", and a cross is a stroke, not an outline. */
+   everything else is correct", and a cross is a stroke, not an outline. The
+   unexamined diamond joins them for the same reason its canvas marker is drawn
+   with a zero-alpha fill — there is no answer to put inside it. */
 .cp-diagnostic-glyph[data-shape='ring'],
+.cp-diagnostic-glyph[data-shape='unexamined'],
 .cp-diagnostic-glyph[data-shape='self-intersection'],
 .cp-diagnostic-glyph[data-shape='generic'] {
   fill: none;
@@ -3759,6 +3767,15 @@ button.cp-folded-figure-toolbar__notice:hover {
 .cp-diagnostic-hud[data-tone='ok'] {
   border-color: color-mix(in srgb, var(--status-success) 72%, transparent);
   color: var(--status-success);
+}
+
+/* The fourth tone: the check has not finished with this document. Deliberately
+   not amber — a pattern mid-design is majority undecided, so a warning colour
+   would be a permanent false alarm — and deliberately not green, which is the
+   claim never-report-silence.md exists to stop the app making. */
+.cp-diagnostic-hud[data-tone='info'] {
+  border-color: color-mix(in srgb, var(--status-info) 60%, transparent);
+  color: var(--status-info);
 }
 
 .cp-tool-rail {
@@ -3911,12 +3928,19 @@ button.cp-folded-figure-toolbar__notice:hover {
   color: var(--fold-valley);
 }
 
-.cp-tool-rail__button[data-line-color='Black0'] {
-  color: var(--fold-border);
-}
+/* No `Black0` rule on purpose. `--fold-border` is #111417 and the rail sits on
+   #171d22, so colouring the E chip with it made the letter invisible — about a
+   1.05:1 ratio. The chip is a label rather than a crease, and edge has no hue
+   worth spending legibility on, so it inherits the button's own text colour. */
 
 .cp-tool-rail__button[data-line-color='Cyan3'] {
   color: var(--fold-flat);
+}
+
+.cp-tool-rail__button[data-active] {
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
 }
 
 .cp-tool-rail__button[data-active] {
@@ -3933,9 +3957,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   color: var(--fold-valley);
 }
 
-.cp-tool-rail__button[data-active][data-line-color='Black0'] {
-  color: var(--fold-border);
-}
 
 .cp-tool-rail__button[data-active][data-line-color='Cyan3'] {
   color: var(--fold-flat);
@@ -6505,12 +6526,36 @@ button.cp-folded-figure-toolbar__notice:hover {
    so the row stays correct as chips are shown or hidden. */
 .cp-tool-rail__buttons[data-group='line-type'] {
   display: flex;
-  gap: 4px;
+  /* One control with one answer, so the line types read as a segmented group
+     rather than five loose buttons: one border round the set, hairline dividers
+     between, no gaps. It is also what makes room for the fifth — unassigned was
+     hidden from the rail until now, and a fifth loose button in a four-column
+     grid either orphans onto a second row or squeezes the rest. */
+  gap: 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
 }
 
 .cp-tool-rail__buttons[data-group='line-type'] > * {
   flex: 1 1 0;
   min-width: 0;
+}
+
+.cp-tool-rail__buttons[data-group='line-type'] .cp-tool-rail__button {
+  border: 0;
+  border-radius: 0;
+}
+
+.cp-tool-rail__buttons[data-group='line-type'] .cp-tool-rail__button + .cp-tool-rail__button {
+  border-left: 1px solid var(--border-default);
+}
+
+/* Inset rather than a border, so lighting a segment cannot nudge its
+   neighbours by the pixel a border would add. */
+.cp-tool-rail__buttons[data-group='line-type'] .cp-tool-rail__button[data-active] {
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
 }
 
 .cp-tool-rail__button[data-line-color='None'] {
@@ -8419,9 +8464,19 @@ button.bp-packing-alert:focus-visible {
   border-bottom-right-radius: 0;
   font-size: 0.72rem;
   /* The header owns its own gestures; a drag started on it must not also draw a
-     crease on the canvas underneath. */
+     crease on the canvas underneath. These three belong to EVERY header, not
+     just the actions-only one: a modifier that quietly took ownership of them
+     left the titled and stepper windows drawing creases from a header drag and
+     rendering 39% larger than every other floating control. */
   touch-action: none;
   user-select: none;
+}
+
+/* Apply/Cancel and nothing else: there is no left-hand group to distribute
+   away from, so spanning the frame would strand the buttons at its far left.
+   Shrink-wrapping keeps them where `right: 0` already pins the bar. */
+.cp-tool-option__header--actions-only {
+  min-width: 0;
 }
 
 .cp-tool-option__stepper {
@@ -9836,6 +9891,58 @@ button.bp-packing-alert:focus-visible {
     margin: 0;
     padding: 0;
     list-style: none;
+  }
+
+  /* The line types, as the same segmented group the rail draws — see
+     `.cp-tool-rail__buttons[data-group='line-type']`. Not shared markup: this
+     one is sized for a thumb rather than a cursor, and the sheet's buttons
+     close it on select where the rail's do not. */
+  .cp-tool-picker__types {
+    display: flex;
+    margin: 0 var(--space-3) var(--space-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+
+  .cp-tool-picker__type {
+    flex: 1 1 0;
+    min-width: 0;
+    /* The rail's chips are 38px, which is under the 44px a thumb wants. */
+    min-height: 44px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    font-weight: 780;
+    cursor: pointer;
+  }
+
+  .cp-tool-picker__type + .cp-tool-picker__type {
+    border-left: 1px solid var(--border-default);
+  }
+
+  .cp-tool-picker__type[data-active] {
+    background: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-tertiary));
+    box-shadow: inset 0 0 0 1px
+      color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
+  }
+
+  .cp-tool-picker__type[data-line-color='Red1'] {
+    color: var(--fold-mountain);
+  }
+
+  .cp-tool-picker__type[data-line-color='Blue2'] {
+    color: var(--fold-valley);
+  }
+
+  .cp-tool-picker__type[data-line-color='Cyan3'] {
+    color: var(--fold-flat);
+  }
+
+  .cp-tool-picker__type[data-line-color='None'] {
+    color: var(--fold-unassigned);
   }
 
   .cp-tool-picker__item {

@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { dashSlotUniforms, dashTableUniforms } from './strokeProgram';
+import { MAX_DASH_SLOTS } from '../types';
 import {
+  cpLineStyleDashPatterns,
+  HINT_DASH_SLOT,
   ORIEDITA_DASH_ONE_DOT,
   ORIEDITA_DASH_TWO_DOT,
   ORIEDITA_DASH_VALLEY,
+  ORISTUDIO_DASH_UNASSIGNED,
+  UNASSIGNED_DASH_SLOT,
 } from '../../../lib/oristudioCpLineStyle';
+import { ORISTUDIO_CP_LINE_STYLES } from '../../../lib/creasePatternViewport';
 
 /**
  * The shader walks `on`/`off` run-by-run, so a pattern is correct when its runs
@@ -40,7 +46,12 @@ describe('dashSlotUniforms', () => {
   });
 
   it('keeps each pattern period intact', () => {
-    for (const pattern of [ORIEDITA_DASH_ONE_DOT, ORIEDITA_DASH_TWO_DOT, ORIEDITA_DASH_VALLEY]) {
+    for (const pattern of [
+      ORIEDITA_DASH_ONE_DOT,
+      ORIEDITA_DASH_TWO_DOT,
+      ORIEDITA_DASH_VALLEY,
+      ORISTUDIO_DASH_UNASSIGNED,
+    ]) {
       const total = pattern.reduce((sum, run) => sum + run, 0);
       expect(period(dashSlotUniforms(pattern, 1))).toBe(total);
     }
@@ -50,13 +61,45 @@ describe('dashSlotUniforms', () => {
 describe('dashTableUniforms', () => {
   it('always yields one entry per slot, padding missing slots with solid', () => {
     const slots = dashTableUniforms([ORIEDITA_DASH_VALLEY], 1);
-    expect(slots).toHaveLength(2);
+    expect(slots).toHaveLength(MAX_DASH_SLOTS);
     expect(period(slots[0])).toBe(16);
-    expect(period(slots[1])).toBe(0);
+    for (const slot of slots.slice(1)) expect(period(slot)).toBe(0);
   });
 
   it('is all solid when the geometry declares no patterns', () => {
     for (const slot of dashTableUniforms(undefined, 1)) expect(period(slot)).toBe(0);
     for (const slot of dashTableUniforms([], 1)) expect(period(slot)).toBe(0);
+  });
+
+  it('has a slot for every pattern the line styles can put in play', () => {
+    // The shader reads a fixed number of slots, so a style whose table outgrew
+    // MAX_DASH_SLOTS would silently draw its last pattern solid.
+    for (const style of ORISTUDIO_CP_LINE_STYLES) {
+      const patterns = cpLineStyleDashPatterns(style);
+      expect(patterns.length).toBeLessThanOrEqual(MAX_DASH_SLOTS);
+      const slots = dashTableUniforms(patterns, 1);
+      const undecided = slots[UNASSIGNED_DASH_SLOT - 1];
+      expect(period(undecided)).toBe(
+        ORISTUDIO_DASH_UNASSIGNED.reduce((sum, run) => sum + run, 0)
+      );
+    }
+  });
+
+  it('carries the hint pattern to the lane the shader reads it from', () => {
+    // Landing it in the wrong lane draws a hinted crease with the plain dash in
+    // the direction's colour — the grey marks gone, and no way to tell from a
+    // decided crease under a solid style. Its period identifies it: twice the
+    // undecided dash's, which no other slot's is.
+    const basePeriod = ORISTUDIO_DASH_UNASSIGNED.reduce((sum, run) => sum + run, 0);
+    for (const style of ORISTUDIO_CP_LINE_STYLES) {
+      const hint = dashTableUniforms(cpLineStyleDashPatterns(style), 1)[HINT_DASH_SLOT - 1];
+      expect(period(hint)).toBe(2 * basePeriod);
+      // `inDash` opens with `t < vDashOn.x`, so a positive first run is the
+      // shader-side statement of the rule this pattern exists to keep: the
+      // hint inks from distance 0, like the grey it is drawn over. A zero here
+      // is a hint whose first ink is a whole period along, which on the great
+      // majority of creases is no ink at all (see `alternateDashRuns`).
+      expect(hint.on[0]).toBeGreaterThan(0);
+    }
   });
 });

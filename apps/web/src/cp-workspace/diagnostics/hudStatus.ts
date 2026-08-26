@@ -18,6 +18,19 @@
  * never passed through i18n, under a name the UI stopped using. An earlier
  * version kept it as a fallback for the no-entries case; that case is exactly
  * the clean result, where it was pure noise.
+ *
+ * # Four states, because a check has four things it can say
+ *
+ * Errors and warnings are findings and read loud. **Undecided** and
+ * **unexamined** are not findings, and they share the fourth tone: a pattern
+ * mid-design is majority undecided, so an amber badge over it would be a
+ * permanent false alarm, and green would be the lie this whole plan exists to
+ * remove. They are counted apart from each other because one has an action and
+ * the other an explanation.
+ *
+ * And a check that examined nothing says so. `Foldability OK` is a claim about
+ * vertices, and `known-good/airplane.fold` — twenty vertices, every one on the
+ * paper edge — has always made it having evaluated no condition at all.
  */
 import type { TFunction } from 'i18next';
 import type {
@@ -25,14 +38,20 @@ import type {
   OristudioCpDiagnosticEntry,
 } from '../../engine/oristudioCpTypes';
 import { cpDiagnosticEntryMessage } from './foldabilityMessages';
-import { isCpDiagnosticError, isCpDiagnosticWarning } from './severity';
+import { countCpDiagnostics } from './severity';
 
 const EMPTY_ENTRIES: OristudioCpDiagnosticEntry[] = [];
 
 export interface CpDiagnosticHudStatus {
   label: string;
   detail: string | null;
-  tone: 'ok' | 'warn' | 'error';
+  tone: 'ok' | 'info' | 'warn' | 'error';
+}
+
+/** What the kernel said about coverage, when it said anything. */
+export interface CpDiagnosticCoverage {
+  /** `CommandResult.checked_vertices`; `null` when the command does not check vertices. */
+  checkedVertices?: number | null;
 }
 
 /** Commands whose results the HUD is willing to summarise. */
@@ -77,7 +96,7 @@ export function diagnosticHudStatus(
     t,
     diagnosticOperationLabel(t, result.operation),
     result.diagnostic_entries ?? EMPTY_ENTRIES,
-    options
+    { ...options, checkedVertices: result.checked_vertices }
   );
 }
 
@@ -98,10 +117,14 @@ export function diagnosticHudStatusForEntries(
   t: TFunction,
   label: string,
   entries: readonly OristudioCpDiagnosticEntry[],
-  options: { issueOnly?: boolean } = {}
+  options: { issueOnly?: boolean } & CpDiagnosticCoverage = {}
 ): CpDiagnosticHudStatus | null {
-  const errorCount = entries.filter(isCpDiagnosticError).length;
-  const warningCount = entries.filter(isCpDiagnosticWarning).length;
+  const {
+    error: errorCount,
+    warning: warningCount,
+    undecided: undecidedCount,
+    unexamined: unexaminedCount,
+  } = countCpDiagnostics(entries);
   const detail = entries.length === 1 && entries[0] ? cpDiagnosticEntryMessage(t, entries[0]) : null;
 
   if (errorCount > 0) {
@@ -160,11 +183,69 @@ export function diagnosticHudStatusForEntries(
     };
   }
 
+  // Nothing is wrong, and the check is still not finished with this document.
+  //
+  // This one *does* survive `issueOnly`, which is what keeps the overlay from
+  // going quiet on the state the plan is named after. A silent HUD is how "not
+  // decided" came to look like "decided and fine"; here it counts down as the
+  // user commits creases and disappears when it reaches zero.
+  const undecided = undecidedCount > 0 ? undecidedClause(t, undecidedCount) : null;
+  const unexamined = unexaminedCount > 0 ? unexaminedClause(t, unexaminedCount) : null;
+  if (undecided || unexamined) {
+    // Composed from two separately pluralised clauses for the same reason the
+    // error/warning pair is: i18next pluralises on one `count`.
+    const label =
+      undecided && unexamined
+        ? t('panels:creasePattern.diagnostic.undecidedAndUnexamined', '{{first}}, {{second}}', {
+            first: undecided,
+            second: unexamined,
+          })
+        : (undecided ?? unexamined ?? '');
+    return { label, detail, tone: 'info' };
+  }
+
   if (options.issueOnly) return null;
+
+  // "OK" is a claim about vertices. When the check answered for none of them
+  // there is nothing to affirm, and saying so is the whole of case 8 — a pattern
+  // whose every vertex sits on the paper edge is not clean, it is unexamined.
+  //
+  // Only under an explicit check: the always-on overlay stays silent, or an
+  // empty document would wear a permanent badge.
+  if (options.checkedVertices === 0) {
+    return {
+      label: t('panels:creasePattern.diagnostic.nothingToCheck', '{{label}}: nothing to check', {
+        label,
+      }),
+      detail: t(
+        'panels:creasePattern.diagnostic.nothingToCheckDetail',
+        'No vertex here has a foldability condition'
+      ),
+      tone: 'info',
+    };
+  }
 
   return {
     label: t('panels:creasePattern.diagnostic.ok', '{{label}} OK', { label }),
     detail,
     tone: 'ok',
   };
+}
+
+/** "3 vertices undecided" — a count of answers waiting to be applied. */
+function undecidedClause(t: TFunction, count: number): string {
+  return count === 1
+    ? t('panels:creasePattern.diagnostic.undecidedOne', '{{count}} vertex undecided', { count })
+    : t('panels:creasePattern.diagnostic.undecidedOther', '{{count}} vertices undecided', {
+        count,
+      });
+}
+
+/** "2 not checked" — a count of vertices nothing can be said about. */
+function unexaminedClause(t: TFunction, count: number): string {
+  return count === 1
+    ? t('panels:creasePattern.diagnostic.unexaminedOne', '{{count}} vertex not checked', { count })
+    : t('panels:creasePattern.diagnostic.unexaminedOther', '{{count}} vertices not checked', {
+        count,
+      });
 }

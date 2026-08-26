@@ -1,5 +1,8 @@
 import { foldAngleInk } from '../foldAngle/foldAngleRamp';
+import { appendDirectionHintDash, hintColorName, isHinted } from '../foldAngle/directionHint';
+import { foldDirectionHintCode } from '../../lib/foldAngle';
 import type { OristudioCpFoldAngleDisplay } from '../../lib/creasePatternViewport';
+import type { OristudioCpFoldDirectionHint } from '../../engine/oristudioCpTypes';
 import type { ModelPoint, Rgba, StrokeGeometry } from '../renderer/types';
 import type { CpLineAppearance } from './cpLineStyle';
 
@@ -36,6 +39,17 @@ export interface CpLineSegmentInput {
    * `segFoldMagnitude` on the transport so both builders stay byte-identical.
    */
   fold_magnitude?: number;
+  /**
+   * Which way this crease folded before its angle was forgotten. Mirrors
+   * `seg_attr`'s fifth slot on the transport so both builders stay
+   * byte-identical — see `fold_direction_hint` on the kernel's `LineSegment`.
+   *
+   * Typed from the engine's union rather than restating it: this interface is a
+   * structural subset of `OristudioCpLineSegment` on purpose (it keeps the
+   * scene builders free of the engine's full segment shape), but the *values*
+   * must not be free to drift.
+   */
+  fold_direction_hint?: OristudioCpFoldDirectionHint;
 }
 
 /** Selection highlighting: 1-based line ids, their colour, and width multiplier. */
@@ -120,15 +134,24 @@ export function cpSnapshotToScene(
   replaced?: CpReplacedLines
 ): { strokes: StrokeGeometry } {
   const count = lineSegments.length;
-  const a = new Float32Array(count * 2);
-  const b = new Float32Array(count * 2);
-  const color = new Float32Array(count * 4);
-  const widthMul = new Float32Array(count).fill(1);
-  const dashSlot = new Float32Array(count);
+  // See `cpGeometryStrokesToScene`: an upper bound on the hint overlays, which
+  // are appended past the creases.
+  let hinted = 0;
+  for (const seg of lineSegments) {
+    if (isHinted(foldDirectionHintCode(seg.fold_direction_hint))) hinted++;
+  }
+  const total = count + hinted;
+  const a = new Float32Array(total * 2);
+  const b = new Float32Array(total * 2);
+  const color = new Float32Array(total * 4);
+  const widthMul = new Float32Array(total).fill(1);
+  const dashSlot = new Float32Array(total);
+  let overlays = 0;
 
   // Memoise appearance lookups — a dense CP has thousands of segments but only a
   // handful of distinct assignments.
   const appearanceCache = new Map<string, CpLineAppearance>();
+  const hintAppearanceCache = new Map<number, CpLineAppearance>();
 
   const m = move?.matrix;
 
@@ -177,7 +200,32 @@ export function cpSnapshotToScene(
     color[i * 4 + 2] = rgba[2];
     color[i * 4 + 3] = rgba[3];
     dashSlot[i] = appearance.dashSlot;
+
+    // Must match `cpGeometryToScene`'s hint branch exactly; the two are pinned
+    // byte-for-byte against each other. See it for what the second stroke is.
+    const hint = foldDirectionHintCode(seg.fold_direction_hint);
+    const hintName = hintColorName(hint);
+    if (hintName) {
+      let directionAppearance = hintAppearanceCache.get(hint);
+      if (!directionAppearance) {
+        directionAppearance = appearanceFor(hintName);
+        hintAppearanceCache.set(hint, directionAppearance);
+      }
+      const wrote = appendDirectionHintDash(
+        { a, b, color, dashSlot },
+        count + overlays,
+        a[i * 2],
+        a[i * 2 + 1],
+        b[i * 2],
+        b[i * 2 + 1],
+        directionAppearance.color,
+        appearance.color
+      );
+      if (wrote) overlays++;
+    }
   }
 
-  return { strokes: { a, b, color, widthMul, count, dashPatterns, dashSlot } };
+  return {
+    strokes: { a, b, color, widthMul, count: count + overlays, dashPatterns, dashSlot },
+  };
 }

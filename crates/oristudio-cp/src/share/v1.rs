@@ -16,7 +16,9 @@ use super::bitio::{BitReader, BitWriter, bit_width};
 use super::canon::{Quantised, quantise};
 use super::error::{Result, ShareError};
 use super::varint::{Cursor, write_svarint, write_uvarint};
-use crate::geometry::{Circle, FoldMagnitude, LineColor, LineSegment, Point, RgbColor};
+use crate::geometry::{
+    Circle, FoldDirection, FoldMagnitude, LineColor, LineSegment, Point, RgbColor,
+};
 use crate::model::{CreasePatternModel, TextElement};
 
 pub const VERSION: u8 = 1;
@@ -34,6 +36,7 @@ const TAG_TEXTS: u16 = 0x0005;
 // Critical extensions: an unknown tag in this range is a hard reject, because
 // omitting it would make the geometry wrong rather than merely incomplete.
 const TAG_FOLD_MAGNITUDE: u16 = 0x8001;
+const TAG_FOLD_DIRECTION_HINT: u16 = 0x8003;
 const TAG_CUSTOM_COLOUR: u16 = 0x8002;
 const CRITICAL_TAG_FLOOR: u16 = 0x8000;
 
@@ -85,12 +88,13 @@ struct Block {
 /// out of every share link.
 fn assert_segment_fields_are_handled(segment: &LineSegment) {
     let LineSegment {
-        a: _,                // SECTION A/B/C
-        b: _,                // SECTION A/B/C
-        color: _,            // SECTION E
-        fold_magnitude: _,   // extension 0x8001
-        customized: _,       // extension 0x8002
-        customized_color: _, // extension 0x8002
+        a: _,                   // SECTION A/B/C
+        b: _,                   // SECTION A/B/C
+        color: _,               // SECTION E
+        fold_magnitude: _,      // extension 0x8001
+        fold_direction_hint: _, // extension 0x8003
+        customized: _,          // extension 0x8002
+        customized_color: _,    // extension 0x8002
         // Deliberately not carried: session state. A share link produces a new
         // document, so neither the sharer's selection nor Oriedita's transient
         // active-endpoint marker means anything to the recipient (Oriedita's own
@@ -639,6 +643,10 @@ pub fn encode(
         extensions.push((TAG_FOLD_MAGNITUDE, buf));
     }
 
+    if let Some(buf) = encode_fold_direction_hints(&block, &model.line_segments) {
+        extensions.push((TAG_FOLD_DIRECTION_HINT, buf));
+    }
+
     let customs: Vec<(usize, RgbColor)> = block
         .order
         .iter()
@@ -837,6 +845,7 @@ pub fn decode(body: &[u8]) -> Result<Decoded> {
                 }
             }
             TAG_FOLD_MAGNITUDE => decode_fold_magnitudes(payload, &mut model)?,
+            TAG_FOLD_DIRECTION_HINT => decode_fold_direction_hints(payload, &mut model)?,
             TAG_CUSTOM_COLOUR => {
                 let mut c = Cursor::new(payload);
                 let n = c.count("custom colour count", 32)?;
@@ -879,6 +888,63 @@ pub fn decode(body: &[u8]) -> Result<Decoded> {
 
     out.model = model;
     Ok(out)
+}
+
+/// Two bits per crease in block order: 0 none, 1 mountain, 2 valley.
+///
+/// A fixed-width bitmap rather than the sparse alphabet
+/// [`encode_fold_magnitudes`] uses, because the value space is three, not a
+/// range — an alphabet of three entries costs more than it saves. The tag is
+/// omitted entirely when no crease is hinted, so an ordinary document pays
+/// nothing at all, which is the property this codec's design turns on.
+fn encode_fold_direction_hints(block: &Block, segments: &[LineSegment]) -> Option<Vec<u8>> {
+    let hints: Vec<u8> = block
+        .order
+        .iter()
+        .map(|&i| match segments[i].fold_direction_hint {
+            None => 0u8,
+            Some(FoldDirection::Mountain) => 1,
+            Some(FoldDirection::Valley) => 2,
+        })
+        .collect();
+    if hints.iter().all(|code| *code == 0) {
+        return None;
+    }
+
+    let mut buf = Vec::with_capacity(hints.len().div_ceil(4) + 4);
+    write_uvarint(&mut buf, hints.len() as u64);
+    for chunk in hints.chunks(4) {
+        let mut packed = 0u8;
+        for (slot, code) in chunk.iter().enumerate() {
+            packed |= code << (slot * 2);
+        }
+        buf.push(packed);
+    }
+    Some(buf)
+}
+
+fn decode_fold_direction_hints(payload: &[u8], model: &mut CreasePatternModel) -> Result<()> {
+    let mut c = Cursor::new(payload);
+    let count = c.count("fold direction hints", 1)?;
+    let packed = c.take(count.div_ceil(4), "fold direction hints")?;
+    for index in 0..count {
+        let code = (packed[index / 4] >> ((index % 4) * 2)) & 0b11;
+        let hint = match code {
+            1 => Some(FoldDirection::Mountain),
+            2 => Some(FoldDirection::Valley),
+            _ => None,
+        };
+        if let Some(segment) = model.line_segments.get_mut(index) {
+            // The invariant travels with the value: a hint is meaningful only on
+            // an unassigned crease, and a link claiming otherwise is one we
+            // decline to reproduce rather than one we trust.
+            if hint.is_some() && segment.color != LineColor::None {
+                continue;
+            }
+            segment.fold_direction_hint = hint;
+        }
+    }
+    Ok(())
 }
 
 fn decode_fold_magnitudes(payload: &[u8], model: &mut CreasePatternModel) -> Result<()> {

@@ -193,11 +193,20 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
           anchor: preview?.points?.[0] ?? null,
         });
         // Only the kernel knows whether the answer now shown is the one the
-        // creases already hold, so the flag is refreshed from the same response
-        // that produced the segments rather than guessed at step time.
+        // creases already hold, whether it folds one of them against a direction
+        // the user marked, or whether it declines to fold one at all. All three
+        // are refreshed from the same response that produced the segments rather
+        // than guessed at step time.
         const isCurrent = preview?.candidate_is_current === true;
+        const contradictsHint = preview?.candidate_contradicts_hint === true;
+        const leavesUndecided = preview?.candidate_leaves_undecided === true;
         setReview((current) =>
-          current && current.isCurrent !== isCurrent ? { ...current, isCurrent } : current
+          current &&
+          (current.isCurrent !== isCurrent ||
+            current.contradictsHint !== contradictsHint ||
+            current.leavesUndecided !== leavesUndecided)
+            ? { ...current, isCurrent, contradictsHint, leavesUndecided }
+            : current
         );
       });
     // `key` is the identity of what is being previewed; `review` itself is a new
@@ -242,17 +251,35 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
       ...(solved.anchor ? [solved.anchor] : []),
     ]);
     if (!bounds) return null;
-    const note = review.isFamily
+    // Ordered by what the user stands to lose, not by how interesting each note
+    // is. The hint clash comes first because it is the only one that *destroys*
+    // something — applying replaces the direction mark, and there is no way to
+    // notice afterwards that it was ever there. Next is the answer that declines
+    // to decide one of the three picks: nothing is lost, but a pick that does
+    // not move is the thing a user would otherwise have to spot for themselves
+    // against a counter that says all three are answered. The last two describe
+    // an answer that costs nothing to look at again.
+    const note = review.contradictsHint
       ? t(
-          'tools:cpContext.solveAngles.family',
-          'These three creases leave one degree of freedom, so this is one of infinitely many answers — pick a different third crease for a definite one.'
+          'tools:cpContext.solveAngles.againstHint',
+          'This folds a crease the opposite way from the direction remembered for it — applying replaces that.'
         )
-      : review.isCurrent
+      : review.leavesUndecided
         ? t(
-            'tools:cpContext.solveAngles.current',
-            'This is what the vertex already does — step to see the alternative.'
+            'tools:cpContext.solveAngles.leavesUndecided',
+            'This answer does not fold one of the creases at all, so it stays undecided — step to see an answer that decides all three.'
           )
-        : null;
+        : review.isFamily
+          ? t(
+              'tools:cpContext.solveAngles.family',
+              'These three creases leave one degree of freedom, so this is one of infinitely many answers — pick a different third crease for a definite one.'
+            )
+          : review.isCurrent
+            ? t(
+                'tools:cpContext.solveAngles.current',
+                'This is what the vertex already does — step to see the alternative.'
+              )
+            : null;
     return {
       bounds,
       title: t('tools:cpContext.solveAngles.title', 'Fold angles'),

@@ -34,12 +34,14 @@
 
 use std::collections::HashMap;
 
-use crate::checks::point_line_map;
+use crate::checks::{VertexIncidence, point_line_map};
 use crate::fold_graph::FoldGraph;
 use crate::geometry::{Epsilon, LineColor, LineSegment, Point};
 use crate::model::{
     CreasePatternModel, crease_fold_angle, has_non_classic_creases, is_classic_crease,
 };
+use crate::solve_fold_angles::NoSolution;
+use crate::solve_k::Determinacy;
 
 /// Cell size for the through-line spatial hash. Matches the endpoint-clustering
 /// epsilon in [`crate::checks`] so the two agree on what "at this point" means.
@@ -568,6 +570,13 @@ fn within_arc(point: Vec3, a: Vec3, b: Vec3, normal: Vec3) -> bool {
 /// fan is a point sitting mid-way along a straight crease, where the constraints
 /// collapse to `rho_1 = rho_2` and the true answer is 1, not `2 - 3`. Those are
 /// everywhere in a real pattern, so the naive count would be wrong all over it.
+///
+/// This counts the freedom of the **unconstrained** system. Fold angles are
+/// storable only over ±180, and a degree of freedom that immediately leaves that
+/// range is not one the document can express — see [`crate::solve_k`]'s
+/// `is_isolated`, where reading such a direction as a real choice made
+/// propagation decline vertices it had already solved. Sound as a count of what
+/// the linear constraints leave open; not a count of the answers a user has.
 pub fn vertex_dof(fan: &VertexFan) -> usize {
     let n = fan.creases.len();
     if n == 0 {
@@ -823,19 +832,153 @@ pub fn incident_lines_at(model: &CreasePatternModel, point: Point) -> Vec<LineSe
         .collect()
 }
 
+/// What the app is willing to say about one vertex.
+///
+/// **Total.** Every vertex the dispatch sees lands in exactly one of these, and
+/// none of them is "nothing" — which is the whole point of
+/// `implementation-plans/never-report-silence.md`. Before it, a vertex the fan
+/// declined produced no report at all, so no diagnostic existed, so the UI drew
+/// abstention as success and a document that could not be folded read as clean.
+///
+/// The distinction that matters to a user is [`Undecided`] against
+/// [`Unknowable`]: the first has an action — set that crease to this angle — and
+/// the second has an explanation. They must not share copy.
+///
+/// Scope, arity and verdict are about what we can *say*. They are never about
+/// what the solver may *look at*: the fan behind every one of these carries
+/// every crease at the vertex, including the ones with no angle yet. A fan built
+/// from a subset produces confident wrong answers, which is what
+/// [`crate::solve_k::SolveFan`] exists to prevent.
+#[derive(Debug, Clone, PartialEq)]
+pub enum VertexVerdict {
+    /// Checked, and it closes.
+    Fine,
+    /// Checked, and it does not.
+    Broken(Broken),
+    /// Solvable in principle, not decided yet — with the answer where there is
+    /// one to give.
+    Undecided(Undecided),
+    /// Nothing honest can be said here, and this says why.
+    Unknowable(Unknowable),
+}
+
+/// Why a vertex cannot fold.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Broken {
+    /// The angles as assigned conflict. [`SpatialVertexReport::residual`] is how
+    /// far off they are.
+    DoesNotClose,
+    /// Every crease here is forced to zero, so no adjustment can help. A
+    /// degree-1 or developable degree-3 vertex: the link of a vertex is a closed
+    /// spherical linkage, and a triangle is a rigid truss.
+    Rigid,
+    /// The vertex has undecided creases and **no** angle for them closes it.
+    ///
+    /// The state the owner hit, and the reason this plan exists. `closest`
+    /// brackets it: the smallest residual the solver reached, in degrees, over
+    /// the whole search. Without it the sentence is a bare refusal.
+    NoAngleCloses {
+        unknowns: usize,
+        closest: Option<f64>,
+    },
+}
+
+/// A vertex whose undecided creases have an answer.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Undecided {
+    /// How many creases here carry no angle yet.
+    pub unknowns: usize,
+    /// Each way of closing the vertex, naming an angle for every undecided
+    /// crease. One option is a value to apply; several are a real question, and
+    /// `+180` against `-180` is the commonest of them — the same rotation, the
+    /// opposite mountain/valley, and not ours to choose.
+    ///
+    /// Never empty: a verdict with no options is [`Broken::NoAngleCloses`] or an
+    /// [`Unknowable`], not this.
+    pub options: Vec<ClosingAngles>,
+}
+
+/// One way to close a vertex.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ClosingAngles {
+    /// The undecided crease as it stands in the document, and the signed degrees
+    /// that would close this vertex — negative a mountain.
+    ///
+    /// The crease itself rather than an index into anything: a diagnostic
+    /// already carries segments, and an index would have to name which of two
+    /// numberings it belonged to.
+    pub angles: Vec<(LineSegment, f64)>,
+}
+
+/// Why nothing can be said about a vertex.
+///
+/// Each of these is an ordinary answer rather than a failure, and each wants a
+/// different next move — which is why there are five and not one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Unknowable {
+    /// On a paper edge. The paper does not continue past the border, so there is
+    /// no loop to walk and no closure condition exists. Nothing is wrong here,
+    /// and nothing was checked — and those two have looked identical until now.
+    PaperEdge,
+    /// Another segment passes through this point without ending here, so the
+    /// fan is missing that segment's two rays. See
+    /// [`Indeterminate::UnsplitJunction`].
+    UnsplitJunction,
+    /// Fewer than three creases: there is nothing for the solver to close.
+    NotEnoughCreases,
+    /// More undecided creases than the live check will solve for. Not a property
+    /// of the pattern — k falls as neighbours commit, so this vertex becomes
+    /// answerable by deciding any crease at it.
+    TooManyUnknowns { unknowns: usize },
+    /// Solved, and the answers form a continuous family rather than a point. The
+    /// instruction is the same as above: give one more crease an angle.
+    NoUniqueAnswer { unknowns: usize },
+}
+
+impl VertexVerdict {
+    /// Whether the vertex was evaluated, as opposed to reported on and declined.
+    ///
+    /// `dispatched_camv` now returns a report for every vertex it sees, so a
+    /// count of reports is no longer a count of checks. Callers that mean "how
+    /// many vertices did we actually answer for" must say so.
+    pub fn was_checked(&self) -> bool {
+        !matches!(self, VertexVerdict::Unknowable(_))
+    }
+
+    /// Whether a closure condition exists here at all.
+    ///
+    /// False only on a paper edge. Every other verdict is about a condition that
+    /// exists, whether or not it could be evaluated — which is the difference
+    /// between "there is nothing to check" and "there is something and I cannot
+    /// see it".
+    pub fn has_closure_condition(&self) -> bool {
+        !matches!(self, VertexVerdict::Unknowable(Unknowable::PaperEdge))
+    }
+}
+
 /// One vertex's spatial verdict.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SpatialVertexReport {
     pub point: Point,
-    /// Radians over `[0, 2*pi]`; `None` when the fan could not be evaluated.
+    /// Radians over `[0, 2*pi]`; `None` when there is no closure residual worth
+    /// reading.
+    ///
+    /// Two ways that happens, and they are different facts. The fan could not be
+    /// evaluated — an undecided crease, an unsplit junction — or **no closure
+    /// condition exists here at all**, which is every vertex on a paper edge.
+    /// The second is why this is not simply `indeterminate.is_none()`: the
+    /// quaternion product of a boundary fan is a perfectly finite number that
+    /// means nothing, and a caller reading it would find half the rim of an
+    /// ordinary sheet 90 degrees from closing. `verdict` is what says which.
     pub residual: Option<f64>,
     pub degree: usize,
     /// Remaining freedom; `0` means the vertex is rigid at this geometry.
     pub dof: usize,
-    /// What the folded link says; `None` when the fan could not be evaluated,
-    /// for the same reasons `residual` is `None`.
+    /// What the folded link says; `None` for the same reasons `residual` is.
     pub link: Option<LinkVerdict>,
     pub indeterminate: Option<Indeterminate>,
+    /// What the app is willing to say. Never absent — that is the point.
+    pub verdict: VertexVerdict,
 }
 
 impl SpatialVertexReport {
@@ -845,15 +988,33 @@ impl SpatialVertexReport {
     /// Worth distinguishing in the UI, because "these angles conflict" invites
     /// the user to adjust them and no adjustment will help. The link of a vertex
     /// is a closed spherical linkage, and a triangle is a rigid truss.
+    ///
+    /// Read from the verdict rather than recomputed, so it cannot answer at a
+    /// vertex the verdict declined: a degree-1 crease running to the paper edge
+    /// satisfies `degree > 0 && dof == 0` and is not rigid, it is unconstrained.
+    /// Eight of them were reported as rigid errors once already.
     pub fn is_rigid(&self) -> bool {
-        self.indeterminate.is_none() && self.degree > 0 && self.dof == 0
+        matches!(self.verdict, VertexVerdict::Broken(Broken::Rigid))
     }
+
+    /// [`VertexVerdict::has_closure_condition`] for this vertex.
+    pub fn has_closure_condition(&self) -> bool {
+        self.verdict.has_closure_condition()
+    }
+}
+
+/// The rigidity test, in one place.
+///
+/// [`SpatialVertexReport::is_rigid`] and the verdict below both need it, and a
+/// second spelling of it would be a second answer to one question.
+fn is_rigid(determined: bool, degree: usize, dof: usize) -> bool {
+    determined && degree > 0 && dof == 0
 }
 
 /// Run the spatial check over every vertex the flat checker would not own.
 ///
-/// Vertices whose creases are all classic are skipped entirely — they belong to
-/// [`crate::checks`], which stays the authority for flat patterns.
+/// Vertices whose creases are all classic and all decided are skipped entirely —
+/// they belong to [`crate::checks`], which stays the authority for flat patterns.
 ///
 /// # A classic document must cost nothing
 ///
@@ -867,35 +1028,213 @@ impl SpatialVertexReport {
 /// every existing document for no result. The scan below is linear and settles
 /// it before any index is built.
 pub fn spatial_vertex_reports(model: &CreasePatternModel) -> Vec<SpatialVertexReport> {
-    if !has_non_classic_creases(model) {
+    if !needs_spatial_pass(model) {
         return Vec::new();
     }
     let vertices = point_line_map(model);
     let through = ThroughLineIndex::build(model);
 
     vertices
-        .into_iter()
-        .filter(|(_, lines)| {
-            vertex_regime(lines) == VertexRegime::Spatial && is_interior_vertex(lines)
-        })
-        .map(|(point, lines)| report_for(point, &lines, &through))
+        .iter()
+        .filter(|vertex| owned_by_the_spatial_branch(&vertex.lines))
+        .map(|vertex| report_for(vertex, &through))
         .collect()
 }
 
-fn report_for(
-    point: Point,
-    lines: &[LineSegment],
-    through: &ThroughLineIndex,
-) -> SpatialVertexReport {
-    let fan = vertex_fan(point, lines, through.passes_through(point));
-    let determined = fan.indeterminate.is_none();
+/// Whether the spatial branch has anything to say about this document.
+///
+/// Two triggers, and the second is new. A non-classic crease is the historical
+/// one: it is what makes a vertex's flat rules the wrong question. An
+/// **unassigned** crease is the other, because a vertex with one is not a flat
+/// vertex either — Oriedita's check drops it and answers about the remainder,
+/// which is how a blanked crease invents `NumberOfFolds` and `Maekawa`
+/// violations at vertices that were clean. Measured across the validated corpus
+/// with an eighth of the assigned creases blanked: 0 violations became 2,030,
+/// every one of them at a previously clean vertex.
+///
+/// Both are syntactic scans over the segments, so a document with neither pays
+/// one linear pass and nothing else.
+fn needs_spatial_pass(model: &CreasePatternModel) -> bool {
+    has_non_classic_creases(model)
+        || model
+            .line_segments
+            .iter()
+            .any(|segment| segment.color == LineColor::None)
+}
+
+/// Whether the spatial branch owns this vertex rather than Oriedita's flat check.
+///
+/// # Taking the undecided ones is not a parity divergence
+///
+/// `LineColor::None` is declared in Oriedita's own enum and **used nowhere in
+/// its source** — `grep -rn 'LineColor.NONE' third_party/oriedita` returns
+/// nothing. Oriedita cannot author an unassigned crease, so no document it
+/// produces and no oracle fixture reaches this arm, and `check4`'s output on
+/// everything Oriedita can express is untouched.
+fn owned_by_the_spatial_branch(lines: &[LineSegment]) -> bool {
+    vertex_regime(lines) == VertexRegime::Spatial || has_unassigned_crease(lines)
+}
+
+fn has_unassigned_crease(lines: &[LineSegment]) -> bool {
+    lines.iter().any(|segment| segment.color == LineColor::None)
+}
+
+/// How many undecided creases the live check will solve for.
+///
+/// **One**, and the number is measured rather than chosen. `solve_k` is 100.00%
+/// determined at k = 1 over 115,560 real fans, so one unknown always has an
+/// answer or is a real error, and it is the arity the failure this plan came
+/// from sits at. It is also what the edit path can afford: measured on a
+/// 9,162-segment document with an eighth of its creases blanked, k <= 1 costs
+/// about 1.9x the existing check where k <= 2 costs 2.6x for 13.7% more
+/// vertices, and k <= 3 costs nine times as much per vertex while being
+/// determined 0 times out of 10.
+///
+/// A "check deeply" pass that widens this is the natural home for k = 2, which
+/// measured 79.93% determined on real patterns as stored.
+const SOLVE_GATE_UNKNOWNS: usize = 1;
+
+fn report_for(vertex: &VertexIncidence, through: &ThroughLineIndex) -> SpatialVertexReport {
+    let point = vertex.point;
+    let interior = is_interior_vertex(&vertex.lines);
+    let unsplit = through.passes_through(point);
+    let fan = vertex_fan(point, &vertex.lines, unsplit);
+    // Interiority gates the numbers as well as the verdict. A boundary fan has a
+    // perfectly finite closure product and it describes nothing, because the
+    // paper does not wrap around the point — see `residual`'s doc.
+    let evaluable = interior && fan.indeterminate.is_none();
+    let residual = evaluable.then(|| vertex_closure_residual(&fan));
+    let link = evaluable.then(|| vertex_link_verdict(&fan));
+    let dof = vertex_dof(&fan);
+
+    let verdict = vertex_verdict(vertex, &fan, interior, unsplit, residual, dof);
+
     SpatialVertexReport {
         point,
-        residual: determined.then(|| vertex_closure_residual(&fan)),
+        residual,
         degree: fan.degree(),
-        dof: vertex_dof(&fan),
-        link: determined.then(|| vertex_link_verdict(&fan)),
+        dof,
+        link,
         indeterminate: fan.indeterminate,
+        verdict,
+    }
+}
+
+/// The total function: one verdict per vertex, and never nothing.
+fn vertex_verdict(
+    vertex: &VertexIncidence,
+    fan: &VertexFan,
+    interior: bool,
+    unsplit: bool,
+    residual: Option<f64>,
+    dof: usize,
+) -> VertexVerdict {
+    // Order matters, and it is the order of what is knowable rather than of what
+    // is convenient. A paper edge has no closure condition to evaluate, so it
+    // outranks everything below; an unsplit junction means the fan itself is
+    // wrong, so it outranks the solve.
+    if !interior {
+        return VertexVerdict::Unknowable(Unknowable::PaperEdge);
+    }
+    if unsplit {
+        return VertexVerdict::Unknowable(Unknowable::UnsplitJunction);
+    }
+
+    if let Some(residual) = residual {
+        if residual.to_degrees() > crate::CLOSURE_RESIDUAL_BAR_DEGREES {
+            return VertexVerdict::Broken(
+                if is_rigid(fan.indeterminate.is_none(), fan.degree(), dof) {
+                    Broken::Rigid
+                } else {
+                    Broken::DoesNotClose
+                },
+            );
+        }
+        return VertexVerdict::Fine;
+    }
+
+    solved_verdict(vertex, unsplit)
+}
+
+/// Case 6: a vertex with undecided creases, answered by [`crate::solve_k`]
+/// instead of skipped.
+///
+/// The fan handed to the solver is built from the incident set this vertex was
+/// clustered with, not from a fresh scan of the document — see
+/// [`crate::solve_k::solve_fan_over`]. Two fans for one point is exactly the
+/// trap the invariant above is about.
+fn solved_verdict(vertex: &VertexIncidence, unsplit: bool) -> VertexVerdict {
+    let fan = crate::solve_k::solve_fan_over(vertex.point, &vertex.lines, &vertex.sources, unsplit);
+    let unknowns = fan.unknown_positions();
+    if unknowns.is_empty() {
+        // Nothing unknown and no residual: the fan declined for a reason the
+        // branches above already answered, so there is nothing left to solve.
+        return VertexVerdict::Unknowable(Unknowable::NotEnoughCreases);
+    }
+    if unknowns.len() > SOLVE_GATE_UNKNOWNS {
+        return VertexVerdict::Unknowable(Unknowable::TooManyUnknowns {
+            unknowns: unknowns.len(),
+        });
+    }
+
+    let report = crate::solve_k::solve_k_in(
+        &fan,
+        &unknowns,
+        crate::CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
+        true,
+    );
+
+    // **`no_solution` first, `verdict` second.** Every decline `solve_k` makes
+    // comes back as `Unsolvable`, including the four that mean "I did not look":
+    // reading the verdict alone turns `NotEnoughCreases`, `BoundaryVertex`,
+    // `Indeterminate` and `CreaseNotInFan` into false errors.
+    if let Some(reason) = report.no_solution {
+        return match reason {
+            NoSolution::Unreachable => VertexVerdict::Broken(Broken::NoAngleCloses {
+                unknowns: unknowns.len(),
+                closest: report.best_residual_degrees,
+            }),
+            NoSolution::BoundaryVertex => VertexVerdict::Unknowable(Unknowable::PaperEdge),
+            NoSolution::Indeterminate => VertexVerdict::Unknowable(Unknowable::UnsplitJunction),
+            NoSolution::NotEnoughCreases | NoSolution::CreasesDoNotMeet => {
+                VertexVerdict::Unknowable(Unknowable::NotEnoughCreases)
+            }
+            NoSolution::CreaseNotInFan | NoSolution::TooManyUnknowns => {
+                VertexVerdict::Unknowable(Unknowable::TooManyUnknowns {
+                    unknowns: unknowns.len(),
+                })
+            }
+        };
+    }
+
+    match report.verdict {
+        Determinacy::Determined | Determinacy::Branching => VertexVerdict::Undecided(Undecided {
+            unknowns: unknowns.len(),
+            options: report
+                .solutions
+                .iter()
+                .map(|solution| ClosingAngles {
+                    angles: solution
+                        .angles
+                        .iter()
+                        .filter_map(|(source, degrees)| {
+                            let position = vertex.sources.iter().position(|at| at == source)?;
+                            Some((vertex.lines.get(position)?.clone(), *degrees))
+                        })
+                        .collect(),
+                })
+                .collect(),
+        }),
+        Determinacy::Underdetermined => VertexVerdict::Unknowable(Unknowable::NoUniqueAnswer {
+            unknowns: unknowns.len(),
+        }),
+        // Both unreachable with a non-empty `unknowns` and no `no_solution`, and
+        // both mean the solver declined to commit — which is the honest answer.
+        Determinacy::Check | Determinacy::Unsolvable => {
+            VertexVerdict::Unknowable(Unknowable::NoUniqueAnswer {
+                unknowns: unknowns.len(),
+            })
+        }
     }
 }
 
@@ -1056,6 +1395,23 @@ pub struct DispatchedCamv {
     /// checked something, and on an all-classic document this list is empty by
     /// construction because nothing consults it.
     pub interior_borders: Vec<InteriorBorder>,
+    /// How many vertices this call produced an answer for.
+    ///
+    /// Neither `flat.len()` nor `spatial.len()`: the first counts violations and
+    /// the second counts reports, and a report can be an
+    /// [`Unknowable`]. This is the **denominator** the phrase "no errors" is
+    /// implicitly about, and it is the only thing that separates a pattern the
+    /// check affirmed from one it never got to.
+    ///
+    /// Zero is case 8 of `implementation-plans/never-report-silence.md`:
+    /// `known-good/airplane.fold` has twenty vertices, every one of them on the
+    /// paper edge, so no foldability condition exists anywhere in it — and it
+    /// reported "Foldability OK" having examined nothing.
+    ///
+    /// A flat vertex counts when Oriedita's rules apply to it at all, which is
+    /// [`is_interior_vertex`], the same test the spatial branch gates on. A
+    /// spatial vertex counts when its verdict was not [`Unknowable`].
+    pub checked_vertices: usize,
 }
 
 /// A border segment with paper on **both** sides.
@@ -1182,36 +1538,51 @@ pub(crate) fn dispatched_camv_in(
 ) -> DispatchedCamv {
     let vertices = point_line_map(model);
     // Only the spatial branch consults this, and it walks every segment to
-    // build. `Spatial` requires a non-classic crease somewhere, so on a flat
-    // document there is nothing to consult it for — and this runs after every
-    // edit. Building it unconditionally cost 234ms on a 7,320-segment flat
-    // pattern where Oriedita's own check takes 4.5ms.
-    let non_classic = has_non_classic_creases(model);
-    let through = non_classic.then(|| ThroughLineIndex::build(model));
-    let interior_borders = match (non_classic, arrangement) {
+    // build. A document with neither a non-classic nor an undecided crease has
+    // nothing for that branch to say — and this runs after every edit. Building
+    // it unconditionally cost 234ms on a 7,320-segment flat pattern where
+    // Oriedita's own check takes 4.5ms.
+    let spatial_pass = needs_spatial_pass(model);
+    let through = spatial_pass.then(|| ThroughLineIndex::build(model));
+    // Still gated on a non-classic crease alone, and not widened with the line
+    // above: tracing the arrangement is the expensive half of this call, and an
+    // undecided crease says nothing about whether a border has paper on both
+    // sides. An all-classic document's `CheckCamv` output stays what the
+    // Oriedita oracle gates.
+    let interior_borders = match (has_non_classic_creases(model), arrangement) {
         (false, _) => Vec::new(),
         (true, Some(graph)) => interior_border_segments_in(graph),
         (true, None) => interior_border_segments(model),
     };
     let mut flat = Vec::new();
     let mut spatial = Vec::new();
+    let mut checked_vertices = 0usize;
 
-    for (point, lines) in vertices {
-        match vertex_regime(&lines) {
-            VertexRegime::Flat => {
-                if let Some(violation) =
-                    crate::checks::find_flat_foldability_violation(point, &lines)
-                {
-                    flat.push(violation);
-                }
+    for vertex in &vertices {
+        // The spatial branch owns a vertex whose creases are not all full folds,
+        // and also one carrying an undecided crease — see
+        // `owned_by_the_spatial_branch`. Oriedita's check would drop the
+        // undecided crease and answer about the remainder, which is a false
+        // error at even degree and a false clean at odd.
+        if owned_by_the_spatial_branch(&vertex.lines) {
+            // `owned_by_the_spatial_branch` implies `needs_spatial_pass`, which
+            // is exactly when the index was built, so this never skips a real
+            // vertex — it just avoids an unwrap on the invariant.
+            if let Some(through) = through.as_ref() {
+                let report = report_for(vertex, through);
+                checked_vertices += usize::from(report.verdict.was_checked());
+                spatial.push(report);
             }
-            VertexRegime::Spatial => {
-                // `Spatial` means an incident crease is non-classic, which is
-                // exactly when the index was built, so this never skips a real
-                // vertex — it just avoids an unwrap on the invariant.
-                if let (true, Some(through)) = (is_interior_vertex(&lines), through.as_ref()) {
-                    spatial.push(report_for(point, &lines, through));
-                }
+        } else {
+            // Counted from the same predicate the spatial branch gates on, not
+            // from whether a violation came back: a clean vertex and a vertex
+            // with no condition to violate both produce `None` here, and telling
+            // them apart is the whole point of the number.
+            checked_vertices += usize::from(is_interior_vertex(&vertex.lines));
+            if let Some(violation) =
+                crate::checks::find_flat_foldability_violation(vertex.point, &vertex.lines)
+            {
+                flat.push(violation);
             }
         }
     }
@@ -1220,5 +1591,6 @@ pub(crate) fn dispatched_camv_in(
         flat,
         spatial,
         interior_borders,
+        checked_vertices,
     }
 }

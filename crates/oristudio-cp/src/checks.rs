@@ -224,7 +224,7 @@ pub fn check3(model: &CreasePatternModel) -> Vec<LineSegment> {
 pub fn check4(model: &CreasePatternModel) -> Vec<FlatFoldabilityViolation> {
     point_line_map(model)
         .into_iter()
-        .filter_map(|(point, lines)| find_flat_foldability_violation(point, &lines))
+        .filter_map(|vertex| find_flat_foldability_violation(vertex.point, &vertex.lines))
         .collect()
 }
 
@@ -1159,10 +1159,28 @@ fn orient_big_little_big_segment(point: Point, segment: &LineSegment) -> LineSeg
     }
 }
 
-pub(crate) fn point_line_map(model: &CreasePatternModel) -> Vec<(Point, Vec<LineSegment>)> {
+/// One clustered vertex: where it is, the non-auxiliary segments incident to it,
+/// and where each of those lives in the document.
+///
+/// `sources[i]` indexes `model.line_segments` for `lines[i]`. Parallel to
+/// `lines` rather than zipped into it because [`find_flat_foldability_violation`]
+/// consumes `lines` as a slice and is on the Oriedita-gated path: pairing them
+/// would cost that path an allocation per vertex for a field it never reads.
+///
+/// The spatial half of `CheckCamv` needs the provenance, because a solved fold
+/// angle has to be written back to a named crease — and because building its own
+/// fan by re-scanning the document would cluster at its own epsilon and see a
+/// *different* fan than the one being reported on.
+pub(crate) struct VertexIncidence {
+    pub point: Point,
+    pub lines: Vec<LineSegment>,
+    pub sources: Vec<usize>,
+}
+
+pub(crate) fn point_line_map(model: &CreasePatternModel) -> Vec<VertexIncidence> {
     let eps = Epsilon::UNKNOWN_1EN4;
     let eps_squared = eps * eps;
-    let mut map = Vec::<(Point, Vec<LineSegment>)>::new();
+    let mut map = Vec::<VertexIncidence>::new();
     // Spatial hash keyed by eps-sized cells, so each endpoint is matched only
     // against the points in its 3x3 cell neighbourhood — O(edges) instead of the
     // old O(edges * vertices) linear scan (which hung CheckCamv for ~0.85s on a
@@ -1170,10 +1188,26 @@ pub(crate) fn point_line_map(model: &CreasePatternModel) -> Vec<(Point, Vec<Line
     // share a cell or an adjacent one.
     let mut cells: HashMap<(i64, i64), Vec<usize>> = HashMap::new();
 
-    for segment in &model.line_segments {
+    for (index, segment) in model.line_segments.iter().enumerate() {
         if segment.color != LineColor::Cyan3 {
-            point_line_map_process(&mut map, &mut cells, segment.a, segment, eps, eps_squared);
-            point_line_map_process(&mut map, &mut cells, segment.b, segment, eps, eps_squared);
+            point_line_map_process(
+                &mut map,
+                &mut cells,
+                segment.a,
+                segment,
+                index,
+                eps,
+                eps_squared,
+            );
+            point_line_map_process(
+                &mut map,
+                &mut cells,
+                segment.b,
+                segment,
+                index,
+                eps,
+                eps_squared,
+            );
         }
     }
 
@@ -1187,11 +1221,13 @@ fn point_cell(point: Point, eps: f64) -> (i64, i64) {
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn point_line_map_process(
-    map: &mut Vec<(Point, Vec<LineSegment>)>,
+    map: &mut Vec<VertexIncidence>,
     cells: &mut HashMap<(i64, i64), Vec<usize>>,
     point: Point,
     segment: &LineSegment,
+    source: usize,
     eps: f64,
     eps_squared: f64,
 ) {
@@ -1203,7 +1239,7 @@ fn point_line_map_process(
         for dy in -1..=1 {
             if let Some(indices) = cells.get(&(cx + dx, cy + dy)) {
                 for &index in indices {
-                    if map[index].0.distance_squared(point) < eps_squared {
+                    if map[index].point.distance_squared(point) < eps_squared {
                         best = Some(best.map_or(index, |b| b.min(index)));
                     }
                 }
@@ -1212,10 +1248,15 @@ fn point_line_map_process(
     }
 
     if let Some(index) = best {
-        map[index].1.push(segment.clone());
+        map[index].lines.push(segment.clone());
+        map[index].sources.push(source);
     } else {
         let index = map.len();
-        map.push((point, vec![segment.clone()]));
+        map.push(VertexIncidence {
+            point,
+            lines: vec![segment.clone()],
+            sources: vec![source],
+        });
         cells.entry((cx, cy)).or_default().push(index);
     }
 }

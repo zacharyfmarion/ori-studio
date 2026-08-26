@@ -76,16 +76,16 @@
       "tooltip": "将当前线型设为边界线",
       "disabledReason": "就绪"
     },
-    "cp_action_line_type_unassigned": {
-      "label": "未指定",
-      "railLabel": "U",
-      "tooltip": "将当前线型设为未指定",
-      "disabledReason": "就绪"
-    },
     "cp_action_line_type_auxiliary": {
       "label": "辅助线",
       "railLabel": "A",
       "tooltip": "将当前线型设为辅助线",
+      "disabledReason": "就绪"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "未指定",
+      "railLabel": "U",
+      "tooltip": "将当前线型设为未指定",
       "disabledReason": "就绪"
     },
     "cp_action_draw_crease": {
@@ -286,6 +286,11 @@
       "tooltip": "设置所选折痕的折叠程度",
       "disabledReason": "就绪"
     },
+    "cp_action_crease_set_direction_hint": {
+      "label": "设置折叠方向提示",
+      "tooltip": "指明所选未定折痕原本朝哪个方向折叠",
+      "disabledReason": "就绪"
+    },
     "cp_action_background_change_position": {
       "label": "移动背景",
       "tooltip": "背景图像操作仅限 UI，不属于折痕图内核",
@@ -405,6 +410,14 @@
       "steps": {
         "0": "选取顶点",
         "1": "选取要添加的折痕"
+      }
+    },
+    "cp_action_propagate_fold_angles": {
+      "label": "求解未定折痕",
+      "tooltip": "求出你留作未定的折痕，可在单个展开图内或选区内进行",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "点击作为起点的折痕或顶点，或选择折痕后应用"
       }
     },
     "cp_action_vertex_solve_fold_angles": {
@@ -579,7 +592,7 @@
     },
     "cp_action_crease_toggle_mv": {
       "label": "翻转山折/谷折",
-      "tooltip": "点击折痕或拖动方框以翻转山折/谷折指定",
+      "tooltip": "点击折痕或拖动方框以翻转其折叠方向",
       "disabledReason": "就绪",
       "steps": {
         "0": "点击折痕或拖动方框以翻转"
@@ -589,6 +602,11 @@
       "label": "更改圆的颜色",
       "tooltip": "将上下文自定义颜色应用到所选圆和辅助线",
       "disabledReason": "就绪"
+    },
+    "cp_action_crease_make_unassigned": {
+      "label": "设为未指定",
+      "tooltip": "忘记所选线条的作用，使其保持未定",
+      "disabledReason": "请先选择折痕"
     },
     "cp_action_crease_make_aux": {
       "label": "设为辅助线",

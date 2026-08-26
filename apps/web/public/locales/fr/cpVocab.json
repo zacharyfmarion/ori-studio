@@ -76,16 +76,16 @@
       "tooltip": "Définir le type de ligne actif sur bord",
       "disabledReason": "Prêt"
     },
-    "cp_action_line_type_unassigned": {
-      "label": "Non attribué",
-      "railLabel": "U",
-      "tooltip": "Définir le type de ligne actif sur non attribué",
-      "disabledReason": "Prêt"
-    },
     "cp_action_line_type_auxiliary": {
       "label": "Auxiliaire",
       "railLabel": "A",
       "tooltip": "Définir le type de ligne actif sur auxiliaire",
+      "disabledReason": "Prêt"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "Non attribué",
+      "railLabel": "U",
+      "tooltip": "Définir le type de ligne actif sur non attribué",
       "disabledReason": "Prêt"
     },
     "cp_action_draw_crease": {
@@ -286,6 +286,11 @@
       "tooltip": "Définit de combien les plis sélectionnés se plient",
       "disabledReason": "Prêt"
     },
+    "cp_action_crease_set_direction_hint": {
+      "label": "Définir l’indice de sens du pli",
+      "tooltip": "Indiquer dans quel sens les plis indécis sélectionnés étaient pliés",
+      "disabledReason": "Prêt"
+    },
     "cp_action_background_change_position": {
       "label": "Déplacer l'arrière-plan",
       "tooltip": "La manipulation de l'image d'arrière-plan est purement liée à l'interface et ne fait pas partie du noyau CP",
@@ -405,6 +410,14 @@
       "steps": {
         "0": "Choisissez le sommet",
         "1": "Choisissez le pli à ajouter"
+      }
+    },
+    "cp_action_propagate_fold_angles": {
+      "label": "Résoudre les plis indécis",
+      "tooltip": "Calcule les plis que vous avez laissés indécis, dans un seul patron ou dans la sélection",
+      "disabledReason": "Prêt",
+      "steps": {
+        "0": "Cliquez sur un pli ou un sommet d'où partir, ou sélectionnez des plis et appliquez"
       }
     },
     "cp_action_vertex_solve_fold_angles": {
@@ -579,7 +592,7 @@
     },
     "cp_action_crease_toggle_mv": {
       "label": "Inverser montagne/vallée",
-      "tooltip": "Cliquez sur un pli ou tracez un rectangle pour inverser les attributions montagne/vallée",
+      "tooltip": "Cliquez sur un pli ou tracez un rectangle pour inverser son sens de pliage",
       "disabledReason": "Prêt",
       "steps": {
         "0": "Cliquez sur un pli ou tracez un rectangle pour inverser"
@@ -589,6 +602,11 @@
       "label": "Changer la couleur du cercle",
       "tooltip": "Appliquer la couleur personnalisée contextuelle aux cercles et lignes auxiliaires sélectionnés",
       "disabledReason": "Prêt"
+    },
+    "cp_action_crease_make_unassigned": {
+      "label": "Rendre non assigné",
+      "tooltip": "Oublier ce que font les lignes sélectionnées et les laisser indécises",
+      "disabledReason": "Sélectionnez d'abord des plis"
     },
     "cp_action_crease_make_aux": {
       "label": "Définir comme auxiliaire",

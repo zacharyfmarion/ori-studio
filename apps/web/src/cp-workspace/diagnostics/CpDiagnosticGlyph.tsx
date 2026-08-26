@@ -45,6 +45,15 @@ function shapeTitle(t: TFunction, shape: CpDiagnosticMarkerShape): string | null
         'panels:creasePattern.foldability.shape.selfIntersection',
         'The fold angles agree, but the paper cannot get there without crossing itself'
       );
+    // The two shapes that are not Oriedita's, and not failures. Their headings
+    // say what the fill means, since that is the only thing telling them apart.
+    case 'undecided':
+      return t(
+        'panels:creasePattern.foldability.shape.undecided',
+        'Undecided, and an angle for it is known'
+      );
+    case 'unexamined':
+      return t('panels:creasePattern.foldability.shape.unexamined', 'Not checked');
     default:
       return null;
   }
@@ -61,6 +70,11 @@ function shapePath(shape: CpDiagnosticMarkerShape) {
       return <circle cx="6" cy="6" r="4.25" />;
     case 'big-little-big':
       return <path d="M6 1.4 L10.37 4.58 L8.7 9.72 L3.3 9.72 L1.63 4.58 Z" />;
+    // One silhouette for both, matching the canvas: the fill is what says
+    // whether there is an answer waiting, and the stylesheet hollows the second.
+    case 'undecided':
+    case 'unexamined':
+      return <path d="M6 1.6 L10.4 6 L6 10.4 L1.6 6 Z" />;
     case 'self-intersection':
     case 'generic':
       return <path d="M3 3 L9 9 M9 3 L3 9" />;

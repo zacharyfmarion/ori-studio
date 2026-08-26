@@ -158,13 +158,25 @@ pub fn admit_with(
     let mut spatial_vertices = 0usize;
     let mut worst_closure_residual_degrees: f64 = 0.0;
     let mut local_crossings = Vec::new();
-    for report in &camv.spatial {
-        // The same classification `spatial_closure_diagnostics` makes: set
-        // aside what cannot be evaluated, apply the bar, then ask the second
-        // and independent question. It differs in one way, and deliberately:
-        // that function reports nothing for an indeterminate vertex because a
-        // false positive is worse than silence, while a fold has to place the
-        // vertex and cannot.
+    for report in camv
+        .spatial
+        .iter()
+        .filter(|report| report.has_closure_condition())
+    {
+        // The filter is load-bearing. `dispatched_camv` returns a verdict for
+        // every vertex it sees, including the ones on the paper edge where no
+        // closure condition exists at all — and those carry no residual, so
+        // reading the list unfiltered would refuse every document with a border
+        // as indeterminate. "There is nothing to check here" and "there is
+        // something and I cannot see it" are the two states
+        // `VertexVerdict::has_closure_condition` separates.
+        //
+        // Past that, the same classification `spatial_closure_diagnostics`
+        // makes: set aside what cannot be evaluated, apply the bar, then ask the
+        // second and independent question. It differs in one way, and
+        // deliberately: that function reports no *closure failure* for a vertex
+        // it could not evaluate, while a fold has to place the vertex and
+        // cannot.
         let Some(residual) = report.residual else {
             return Err(Fold3dRefusal::VertexIndeterminate {
                 point: report.point,

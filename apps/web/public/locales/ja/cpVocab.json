@@ -76,16 +76,16 @@
       "tooltip": "アクティブな線種を境界線に設定",
       "disabledReason": "準備完了"
     },
-    "cp_action_line_type_unassigned": {
-      "label": "未割り当て",
-      "railLabel": "U",
-      "tooltip": "アクティブな線種を未割り当てに設定",
-      "disabledReason": "準備完了"
-    },
     "cp_action_line_type_auxiliary": {
       "label": "補助線",
       "railLabel": "A",
       "tooltip": "アクティブな線種を補助線に設定",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "未割り当て",
+      "railLabel": "U",
+      "tooltip": "アクティブな線種を未割り当てに設定",
       "disabledReason": "準備完了"
     },
     "cp_action_draw_crease": {
@@ -286,6 +286,11 @@
       "tooltip": "選択した折り線の折り角度を設定します",
       "disabledReason": "準備完了"
     },
+    "cp_action_crease_set_direction_hint": {
+      "label": "折り方向のヒントを設定",
+      "tooltip": "選択した未決定の折り線がどちら向きに折られていたかを指定します",
+      "disabledReason": "準備完了"
+    },
     "cp_action_background_change_position": {
       "label": "背景を移動",
       "tooltip": "背景画像の操作は UI のみで、CP カーネルの一部ではありません",
@@ -405,6 +410,14 @@
       "steps": {
         "0": "頂点を選択",
         "1": "追加する折り線を選択"
+      }
+    },
+    "cp_action_propagate_fold_angles": {
+      "label": "未決定の折り線を解く",
+      "tooltip": "未決定のままにした折り線を、1 つの展開図の中、または選択範囲の中で求めます",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "解き始める折り線か頂点をクリック、または折り線を選択して適用"
       }
     },
     "cp_action_vertex_solve_fold_angles": {
@@ -579,7 +592,7 @@
     },
     "cp_action_crease_toggle_mv": {
       "label": "山折り／谷折りを反転",
-      "tooltip": "折り線をクリックするか、ボックスをドラッグして山折り／谷折りの割り当てを反転します",
+      "tooltip": "折り線をクリックするか、ボックスをドラッグして折る向きを反転します",
       "disabledReason": "準備完了",
       "steps": {
         "0": "クリックするかボックスをドラッグして反転"
@@ -589,6 +602,11 @@
       "label": "円の色を変更",
       "tooltip": "コンテキストのカスタム色を選択した円と補助線に適用します",
       "disabledReason": "準備完了"
+    },
+    "cp_action_crease_make_unassigned": {
+      "label": "未割り当てにする",
+      "tooltip": "選択した線の役割を忘れ、未決定の状態にします",
+      "disabledReason": "折り線を選択してください"
     },
     "cp_action_crease_make_aux": {
       "label": "補助線にする",

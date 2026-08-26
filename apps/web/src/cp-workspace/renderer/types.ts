@@ -80,8 +80,18 @@ export interface StrokeGeometry {
   dashSlot?: Float32Array;
 }
 
-/** Dash slots a {@link StrokeGeometry} may address beyond solid. */
-export const MAX_DASH_SLOTS = 2;
+/**
+ * Dash slots a {@link StrokeGeometry} may address beyond solid.
+ *
+ * Four: Oriedita's mountain and valley take one each, an undecided crease needs
+ * its own, and the fourth is that same undecided dash shifted along by one mark
+ * so a *hinted* crease can be overdrawn in its direction's colour on alternate
+ * dashes (`lib/oristudioCpLineStyle`). A slot is two `vec3` uniforms and one
+ * comparison in the vertex stage; nothing per segment, since `dashSlot` is
+ * already a float. Raising this cannot disturb a geometry that declares fewer
+ * patterns — `dashTableUniforms` pads the rest with solid.
+ */
+export const MAX_DASH_SLOTS = 4;
 /** Alternating on/off runs a single dash pattern may have. */
 export const MAX_DASH_RUNS = 3;
 /**
@@ -122,6 +132,16 @@ export const MARKER_SHAPE = {
   square: 3,
   pentagon: 4,
   cross: 5,
+  /**
+   * The one shape that is not part of Oriedita's error vocabulary.
+   *
+   * Every marker above means "this is wrong"; the diamond means "this is not
+   * settled", and it carries both of the check's undecided states — filled where
+   * an answer is waiting, hollow where none can be given. Hollowness is a fill
+   * alpha the geometry builder chooses, exactly as it is for the ring, so this
+   * is one shader branch and not two.
+   */
+  diamond: 6,
 } as const;
 
 /**

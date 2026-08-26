@@ -76,16 +76,16 @@
       "tooltip": "Establecer el tipo de línea activo en borde",
       "disabledReason": "Listo"
     },
-    "cp_action_line_type_unassigned": {
-      "label": "Sin asignar",
-      "railLabel": "U",
-      "tooltip": "Establecer el tipo de línea activo en sin asignar",
-      "disabledReason": "Listo"
-    },
     "cp_action_line_type_auxiliary": {
       "label": "Auxiliar",
       "railLabel": "A",
       "tooltip": "Establecer el tipo de línea activo en auxiliar",
+      "disabledReason": "Listo"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "Sin asignar",
+      "railLabel": "U",
+      "tooltip": "Establecer el tipo de línea activo en sin asignar",
       "disabledReason": "Listo"
     },
     "cp_action_draw_crease": {
@@ -286,6 +286,11 @@
       "tooltip": "Define cuánto se pliegan los pliegues seleccionados",
       "disabledReason": "Listo"
     },
+    "cp_action_crease_set_direction_hint": {
+      "label": "Definir pista de dirección de plegado",
+      "tooltip": "Indicar hacia dónde se plegaban los pliegues sin decidir seleccionados",
+      "disabledReason": "Listo"
+    },
     "cp_action_background_change_position": {
       "label": "Mover fondo",
       "tooltip": "La manipulación de la imagen de fondo es solo de la interfaz y no forma parte del núcleo de CP",
@@ -405,6 +410,14 @@
       "steps": {
         "0": "Elige el vértice",
         "1": "Elige el pliegue a añadir"
+      }
+    },
+    "cp_action_propagate_fold_angles": {
+      "label": "Resolver pliegues sin decidir",
+      "tooltip": "Calcula los pliegues que has dejado sin decidir, dentro de un patrón o dentro de la selección",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Haz clic en un pliegue o vértice desde el que resolver, o selecciona pliegues y aplica"
       }
     },
     "cp_action_vertex_solve_fold_angles": {
@@ -579,7 +592,7 @@
     },
     "cp_action_crease_toggle_mv": {
       "label": "Alternar monte/valle",
-      "tooltip": "Haz clic en un pliegue o arrastra un recuadro para invertir las asignaciones de monte/valle",
+      "tooltip": "Haz clic en un pliegue o arrastra un recuadro para invertir su sentido de plegado",
       "disabledReason": "Listo",
       "steps": {
         "0": "Haz clic en un pliegue o arrastra un recuadro para invertir"
@@ -589,6 +602,11 @@
       "label": "Cambiar color del círculo",
       "tooltip": "Aplicar el color personalizado contextual a los círculos y líneas auxiliares seleccionados",
       "disabledReason": "Listo"
+    },
+    "cp_action_crease_make_unassigned": {
+      "label": "Marcar sin asignar",
+      "tooltip": "Olvidar qué hacen las líneas seleccionadas y dejarlas sin decidir",
+      "disabledReason": "Selecciona pliegues primero"
     },
     "cp_action_crease_make_aux": {
       "label": "Marcar como auxiliar",

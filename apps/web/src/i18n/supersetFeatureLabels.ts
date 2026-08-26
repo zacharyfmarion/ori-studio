@@ -26,6 +26,13 @@ export function supersetFeatureLabel(t: TFunction, id: SupersetFeatureId): strin
       return t('dialogs:exportLoss.feature.symmetry', 'Mirror symmetry');
     case 'foldAngles':
       return t('dialogs:exportLoss.feature.foldAngles', 'Non-flat fold angles');
+    case 'unassignedCreases':
+      return t('dialogs:exportLoss.feature.unassignedCreases', 'Unassigned creases');
+    case 'directionHints':
+      return t(
+        'dialogs:exportLoss.feature.directionHints',
+        'Direction hints on unassigned creases'
+      );
     case 'foldedForm3d':
       return t('dialogs:exportLoss.feature.foldedForm3d', '3D folded figures');
     case 'foldedForm3dDetached':

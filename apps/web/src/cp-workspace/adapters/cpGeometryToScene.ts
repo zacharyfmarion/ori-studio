@@ -1,5 +1,11 @@
 import { foldAngleInk } from '../foldAngle/foldAngleRamp';
 import { lineColorName, SEG_ATTR_STRIDE, type CpGeometryTransport } from '../../engine/oristudioCpGeometry';
+import {
+  appendDirectionHintDash,
+  hintColorName,
+  isHinted,
+  HINT_NONE,
+} from '../foldAngle/directionHint';
 import type { StrokeGeometry } from '../renderer/types';
 import type { CpLineAppearance } from './cpLineStyle';
 import type {
@@ -37,15 +43,26 @@ export function cpGeometryStrokesToScene(
   const endpoints = transport.segEndpoints;
   const attr = transport.segAttr;
   const count = endpoints.length / 4;
-  const a = new Float32Array(count * 2);
-  const b = new Float32Array(count * 2);
-  const color = new Float32Array(count * 4);
-  const widthMul = new Float32Array(count).fill(1);
-  const dashSlot = new Float32Array(count);
+  // Room for one hint overlay per hinted crease, appended after the creases.
+  // An upper bound rather than the exact figure: whether a hint *shows* also
+  // depends on the selection, the tool preview and the line style, none of which
+  // are worth a second lookup here. `count` below is the total actually written.
+  let hinted = 0;
+  for (let i = 0; i < count; i++) {
+    if (isHinted(attr[i * SEG_ATTR_STRIDE + 4] ?? HINT_NONE)) hinted++;
+  }
+  const total = count + hinted;
+  const a = new Float32Array(total * 2);
+  const b = new Float32Array(total * 2);
+  const color = new Float32Array(total * 4);
+  const widthMul = new Float32Array(total).fill(1);
+  const dashSlot = new Float32Array(total);
+  let overlays = 0;
 
   // Memoise appearance lookups by color number — a dense CP has thousands of
   // segments but only a handful of distinct assignments.
   const appearanceCache = new Map<number, CpLineAppearance>();
+  const hintAppearanceCache = new Map<number, CpLineAppearance>();
 
   const m = move?.matrix;
 
@@ -97,7 +114,36 @@ export function cpGeometryStrokesToScene(
     color[i * 4 + 2] = rgba[2];
     color[i * 4 + 3] = rgba[3];
     dashSlot[i] = appearance.dashSlot;
+
+    // A hinted crease keeps the undecided grey and the undecided dash, and says
+    // which way it leaned by taking that dash's alternate marks in its
+    // direction's own full-strength colour — a second stroke, appended past the
+    // creases so it lands over the marks it replaces. Per segment, and after the
+    // cache, for the same reason the fold-angle ramp is: direction is what the
+    // cache keys on, and which creases are hinted is not.
+    const hint = attr[i * SEG_ATTR_STRIDE + 4] ?? HINT_NONE;
+    const hintName = hintColorName(hint);
+    if (hintName) {
+      let directionAppearance = hintAppearanceCache.get(hint);
+      if (!directionAppearance) {
+        directionAppearance = appearanceFor(hintName);
+        hintAppearanceCache.set(hint, directionAppearance);
+      }
+      const wrote = appendDirectionHintDash(
+        { a, b, color, dashSlot },
+        count + overlays,
+        a[i * 2],
+        a[i * 2 + 1],
+        b[i * 2],
+        b[i * 2 + 1],
+        directionAppearance.color,
+        appearance.color
+      );
+      if (wrote) overlays++;
+    }
   }
 
-  return { strokes: { a, b, color, widthMul, count, dashPatterns, dashSlot } };
+  return {
+    strokes: { a, b, color, widthMul, count: count + overlays, dashPatterns, dashSlot },
+  };
 }

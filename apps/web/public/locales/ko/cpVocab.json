@@ -76,16 +76,16 @@
       "tooltip": "활성 선 종류를 경계로 설정",
       "disabledReason": "준비됨"
     },
-    "cp_action_line_type_unassigned": {
-      "label": "미지정",
-      "railLabel": "U",
-      "tooltip": "활성 선 종류를 미지정으로 설정",
-      "disabledReason": "준비됨"
-    },
     "cp_action_line_type_auxiliary": {
       "label": "보조선",
       "railLabel": "A",
       "tooltip": "활성 선 종류를 보조선으로 설정",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "미지정",
+      "railLabel": "U",
+      "tooltip": "활성 선 종류를 미지정으로 설정",
       "disabledReason": "준비됨"
     },
     "cp_action_draw_crease": {
@@ -286,6 +286,11 @@
       "tooltip": "선택한 접는 선이 얼마나 접힐지 설정합니다",
       "disabledReason": "준비됨"
     },
+    "cp_action_crease_set_direction_hint": {
+      "label": "접기 방향 힌트 설정",
+      "tooltip": "선택한 미정 접는 선이 어느 쪽으로 접혔는지 지정합니다",
+      "disabledReason": "준비됨"
+    },
     "cp_action_background_change_position": {
       "label": "배경 이동",
       "tooltip": "배경 이미지 조작은 UI 전용이며 전개도 커널의 일부가 아닙니다",
@@ -405,6 +410,14 @@
       "steps": {
         "0": "정점 선택",
         "1": "추가할 접힘선 선택"
+      }
+    },
+    "cp_action_propagate_fold_angles": {
+      "label": "미결정 접는 선 풀기",
+      "tooltip": "미결정으로 남겨 둔 접는 선을 하나의 전개도 또는 선택 영역 안에서 계산합니다",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "풀어 나갈 접는 선이나 꼭짓점을 클릭하거나, 접는 선을 선택한 뒤 적용"
       }
     },
     "cp_action_vertex_solve_fold_angles": {
@@ -579,7 +592,7 @@
     },
     "cp_action_crease_toggle_mv": {
       "label": "산/골 뒤집기",
-      "tooltip": "접힘선을 클릭하거나 상자를 드래그하여 산/골 지정 뒤집기",
+      "tooltip": "접힘선을 클릭하거나 상자를 드래그하여 접히는 방향 뒤집기",
       "disabledReason": "준비됨",
       "steps": {
         "0": "접힘선을 클릭하거나 상자를 드래그하여 뒤집기"
@@ -589,6 +602,11 @@
       "label": "원 색상 변경",
       "tooltip": "선택한 원과 보조선에 상황별 사용자 지정 색상 적용",
       "disabledReason": "준비됨"
+    },
+    "cp_action_crease_make_unassigned": {
+      "label": "미지정으로 설정",
+      "tooltip": "선택한 선의 역할을 잊고 미결정 상태로 둡니다",
+      "disabledReason": "먼저 접힘선을 선택하세요"
     },
     "cp_action_crease_make_aux": {
       "label": "보조선으로 지정",

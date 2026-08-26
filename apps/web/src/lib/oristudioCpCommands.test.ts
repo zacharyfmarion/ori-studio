@@ -293,8 +293,11 @@ describe('Ori Studio native operations', () => {
    */
   it('are exactly the operations with no Oriedita upstream', () => {
     expect(nativeCpOperationIds()).toEqual([
+      'CreaseMakeUnassigned',
+      'CreaseSetDirectionHint',
       'CreaseSetFoldAngle',
       'CreaseSetLineColor',
+      'PropagateFoldAngles',
       'SquareGenerate',
       'VertexSolveFoldAngles',
     ]);

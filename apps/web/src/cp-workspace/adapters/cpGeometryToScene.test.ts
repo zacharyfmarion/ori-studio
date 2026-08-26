@@ -24,6 +24,7 @@ import {
 import {
   cpLineStyleDashPatterns,
   cpLineStyleDashSlot,
+  HINT_DASH_SLOT,
 } from '../../lib/oristudioCpLineStyle';
 import type { Rgba } from '../renderer/types';
 import type { CpLineAppearance } from './cpLineStyle';
@@ -82,13 +83,37 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
     free_document(handle);
   });
 
+  // Every field either builder reads. Hand-projecting it is what lets this gate
+  // compare like with like — but it is also how the gate went blind to direction
+  // hints: the transport builder read `seg_attr[4]` while this side had no hint
+  // to give it. A field added to `CpLineSegmentInput` belongs here too.
   const segmentsInput = () =>
     structured.crease_pattern.line_segments.map((s) => ({
       a: s.a,
       b: s.b,
       color: s.color,
       fold_magnitude: s.fold_magnitude,
+      fold_direction_hint: s.fold_direction_hint,
     }));
+
+  /** 1-based ids of the battery's hinted creases. */
+  const hintedIds = () =>
+    segmentsInput()
+      .map((seg, index) => (seg.fold_direction_hint ? index + 1 : 0))
+      .filter((id) => id !== 0);
+
+  /**
+   * The gate went blind to direction hints once already, by comparing a state no
+   * fixture produced. It cannot do that silently again: everything below reads
+   * the hinted creases out of the battery, so a battery that stopped carrying
+   * them fails here rather than passing vacuously.
+   */
+  it('the battery actually carries hinted creases', () => {
+    expect(hintedIds().length).toBeGreaterThan(1);
+    const hints = new Set(segmentsInput().map((seg) => seg.fold_direction_hint));
+    expect(hints).toContain('Mountain');
+    expect(hints).toContain('Valley');
+  });
 
   it('plain (no selection, no move)', () => {
     expectStrokesEqual(
@@ -270,6 +295,130 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
       cpSnapshotToScene(segmentsInput(), appearanceFor, DASH_PATTERNS, selection, move).strokes,
       cpGeometryStrokesToScene(transport, appearanceFor, DASH_PATTERNS, selection, move).strokes
     );
+  });
+
+  describe('the direction hint, drawn as a second stroke', () => {
+    const segmentCount = () => structured.crease_pattern.line_segments.length;
+
+    it('appends one full-strength instance per hinted crease', () => {
+      const strokes = cpGeometryStrokesToScene(transport, appearanceFor, DASH_PATTERNS).strokes;
+      const hinted = hintedIds();
+      expect(strokes.count).toBe(segmentCount() + hinted.length);
+
+      for (const [offset, id] of hinted.entries()) {
+        const at = segmentCount() + offset;
+        // The direction's own colour, untouched — the whole point of the change
+        // away from a wash. And the same line, so it overdraws rather than
+        // sitting beside the crease.
+        const name = segmentsInput()[id - 1].fold_direction_hint === 'Mountain' ? 'Red1' : 'Blue2';
+        expect(strokes.color.slice(at * 4, at * 4 + 4)).toEqual(
+          Float32Array.from(appearanceFor(name).color)
+        );
+        expect(strokes.dashSlot?.[at]).toBe(HINT_DASH_SLOT);
+        expect(strokes.a.slice(at * 2, at * 2 + 2)).toEqual(
+          strokes.a.slice((id - 1) * 2, (id - 1) * 2 + 2)
+        );
+        expect(strokes.b.slice(at * 2, at * 2 + 2)).toEqual(
+          strokes.b.slice((id - 1) * 2, (id - 1) * 2 + 2)
+        );
+      }
+    });
+
+    it('leaves the crease itself the undecided ink and dash', () => {
+      // The hint used to replace the crease's colour. It must not any more —
+      // the grey marks are half of what makes the crease read as undecided.
+      const withHints = cpSnapshotToScene(segmentsInput(), appearanceFor, DASH_PATTERNS).strokes;
+      const stripped = cpSnapshotToScene(
+        segmentsInput().map(({ fold_direction_hint: _drop, ...seg }) => seg),
+        appearanceFor,
+        DASH_PATTERNS
+      ).strokes;
+      const creases = segmentCount();
+      expect(stripped.count).toBe(creases);
+      expect(withHints.color.slice(0, creases * 4)).toEqual(stripped.color.slice(0, creases * 4));
+      expect(withHints.dashSlot?.slice(0, creases)).toEqual(stripped.dashSlot?.slice(0, creases));
+      // ...and the treatment is not a no-op, which is what the assertion above
+      // would look like if the overlays had quietly stopped being written.
+      expect(withHints.count).toBeGreaterThan(stripped.count);
+    });
+
+    it('says nothing for a crease the selection has taken over', () => {
+      // A selected crease is drawn solid in the selection colour on purpose, so
+      // half of it in mountain red would read as broken geometry.
+      const hinted = hintedIds();
+      const selection: CpSelectionStyle = {
+        selected: new Set(hinted),
+        color: [0.9, 0.1, 0.2, 1],
+        widthMul: 2.5,
+      };
+      const strokes = cpGeometryStrokesToScene(
+        transport,
+        appearanceFor,
+        DASH_PATTERNS,
+        selection
+      ).strokes;
+      expect(strokes.count).toBe(segmentCount());
+      expectStrokesEqual(
+        cpSnapshotToScene(segmentsInput(), appearanceFor, DASH_PATTERNS, selection).strokes,
+        strokes
+      );
+    });
+
+    it('says nothing for a crease a tool preview has replaced', () => {
+      const replaced = new Set(hintedIds());
+      const strokes = cpGeometryStrokesToScene(
+        transport,
+        appearanceFor,
+        DASH_PATTERNS,
+        undefined,
+        undefined,
+        undefined,
+        replaced
+      ).strokes;
+      expect(strokes.count).toBe(segmentCount());
+    });
+
+    it('both builders decline together under a style that inks everything alike', () => {
+      // What the black-dot styles do: mountain, valley and undecided all resolve
+      // to the same ink, so the overlay would repaint the crease in its own
+      // colour. Both builders must drop it, and drop the *same* ones — this is
+      // the one thing that makes the instance count depend on the ink.
+      const monochrome = (name: string): CpLineAppearance => ({
+        color: [0, 0, 0, 1],
+        dashSlot: cpLineStyleDashSlot(LINE_STYLE, name),
+      });
+      const strokes = cpGeometryStrokesToScene(transport, monochrome, DASH_PATTERNS).strokes;
+      expect(strokes.count).toBe(segmentCount());
+      expectStrokesEqual(
+        cpSnapshotToScene(segmentsInput(), monochrome, DASH_PATTERNS).strokes,
+        strokes
+      );
+    });
+
+    it('travels with the crease under a move preview', () => {
+      const hinted = hintedIds();
+      const move: CpTransformPreview = {
+        ids: new Set(hinted),
+        matrix: translationMatrix({ x: 12.5, y: -3.25 }),
+      };
+      const strokes = cpGeometryStrokesToScene(
+        transport,
+        appearanceFor,
+        DASH_PATTERNS,
+        undefined,
+        move
+      ).strokes;
+      for (const [offset, id] of hinted.entries()) {
+        const at = segmentCount() + offset;
+        expect(strokes.a.slice(at * 2, at * 2 + 2)).toEqual(
+          strokes.a.slice((id - 1) * 2, (id - 1) * 2 + 2)
+        );
+      }
+      expectStrokesEqual(
+        cpSnapshotToScene(segmentsInput(), appearanceFor, DASH_PATTERNS, undefined, move).strokes,
+        strokes
+      );
+    });
   });
 
   it('vertexPointsFromTransport matches getCpVertexPoints', () => {
