@@ -47,29 +47,38 @@ import {
 const KEY = storageKey(STORAGE_KEYS.cpToolFavorites);
 
 /**
- * The six tools everyone starts with, most-used first.
+ * The tools everyone starts with, most-used first.
  *
  * Taken from PostHog's `cp tool used`, ranked by distinct users over the full
  * life of that event: `CreaseSelect` (109 users), `LineSegmentDelete` (67),
- * `DrawCreaseFree` (63), `DrawCreaseRestricted` (41), `CreaseToggleMv` (33),
+ * `DrawCreaseRestricted` (41), `CreaseToggleMv` (33),
  * `DrawCreaseAngleRestricted5` (28). Filtering the same query to phone and
- * tablet sessions returns the same six, which is what makes the cut defensible
- * on the surface this ships to first. Seventh place is a cliff — 23 users and
- * an order of magnitude fewer invocations.
+ * tablet sessions returns the same set, which is what makes the cut defensible
+ * on the surface this ships to first.
+ *
+ * **`DrawCreaseFree` — plain Line — is deliberately absent**, and it is the one
+ * omission the ranking does not explain: it sits third by users (63) and second
+ * by invocations. Held out as a product call rather than a data one. Nothing
+ * stops anyone starring it, and it is the first row of the Draw group when they
+ * go looking.
+ *
+ * Five of them, which is {@link CP_TOOLBAR_FAVORITE_LIMIT} exactly — so the
+ * shipped set fills the phone's bar with nothing left over and hidden. That is a
+ * happy accident of this edit rather than a constraint: the two numbers answer
+ * different questions and nothing keeps them equal.
  *
  * Written out rather than computed. The ranking was a one-time input; the list
  * that ships should be a reviewable line in a diff, and a test asserts every id
  * still resolves against the catalogue.
  *
- * `DrawCreaseFree`'s action id is `cp.action.draw-crease`, **not**
- * `cp.action.draw-crease-free` — it is the one command with an id override in
- * `ORIEDITA_RAIL_ACTION_OVERRIDES`. Deriving these by hand from the operation
- * name is exactly how this list goes silently wrong.
+ * Watch the ids: `DrawCreaseFree` would have been `cp.action.draw-crease`, not
+ * `cp.action.draw-crease-free`, because it is the one command carrying an id
+ * override in `ORIEDITA_RAIL_ACTION_OVERRIDES`. Deriving these by hand from the
+ * operation name is exactly how this list goes silently wrong.
  */
 export const CP_DEFAULT_FAVORITE_ACTION_IDS: readonly OristudioCpActionId[] = [
   'cp.action.crease-select',
   'cp.action.line-segment-delete',
-  'cp.action.draw-crease',
   'cp.action.draw-crease-restricted',
   'cp.action.crease-toggle-mv',
   'cp.action.draw-crease-angle-restricted5',

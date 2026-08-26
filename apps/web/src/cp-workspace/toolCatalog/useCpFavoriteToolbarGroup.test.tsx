@@ -52,10 +52,12 @@ function group(options: {
 
 describe('useCpFavoriteToolbarGroup', () => {
   /*
-   * The shipped defaults are the six most-used tools; the bar fits five. So out
-   * of the box the last default is starred and not on the bar — which is the
-   * case the sheet's helper text exists to explain, and which this asserts
-   * rather than leaving to be discovered.
+   * The shipped defaults currently fill the bar exactly, so nothing ships
+   * starred-but-hidden. That is worth knowing and not worth pinning: the two
+   * numbers answer different questions — a product call about which tools, and a
+   * measurement of how many fit — so they are free to diverge again. The
+   * assertion is on the slice, which holds either way; the count is only
+   * asserted as "no more than fits".
    */
   it('offers the shipped defaults up to the cap, in the stored order', () => {
     const spec = group();
@@ -64,7 +66,7 @@ describe('useCpFavoriteToolbarGroup', () => {
         .slice(0, CP_TOOLBAR_FAVORITE_LIMIT)
         .map((id) => `favorite-${id}`)
     );
-    expect(cpToolFavoriteIds().length).toBeGreaterThan(CP_TOOLBAR_FAVORITE_LIMIT);
+    expect(spec?.items.length).toBeLessThanOrEqual(CP_TOOLBAR_FAVORITE_LIMIT);
   });
 
   it('is absent where the rail exists, so nothing duplicates it', () => {

@@ -7,8 +7,8 @@ collected into a Favorites section at the top of that sheet, directly below the
 crease-type chips — so the tools someone actually reaches for stop costing a
 scroll through 52 rows.
 
-Everyone starts with exactly the six most-used tools already starred, taken from
-PostHog rather than guessed — six and no more.
+Everyone starts with a short set of the most-used tools already starred, taken
+from PostHog rather than guessed — with one deliberate omission, below.
 
 Favorites are reorderable by long-press-and-drag from the first release, because
 the order is the whole point once the list is short: the first row is the one
@@ -33,7 +33,7 @@ window returns identical rows):
 | --- | --- | ---: | ---: | --- |
 | 1 | `CreaseSelect` | 109 | 2,798 | `cp.action.crease-select` |
 | 2 | `LineSegmentDelete` | 67 | 7,123 | `cp.action.line-segment-delete` |
-| 3 | `DrawCreaseFree` | 63 | 5,782 | `cp.action.draw-crease` |
+| 3 | `DrawCreaseFree` | 63 | 5,782 | *held out — see below* |
 | 4 | `DrawCreaseRestricted` | 41 | 3,257 | `cp.action.draw-crease-restricted` |
 | 5 | `CreaseToggleMv` | 33 | 3,755 | `cp.action.crease-toggle-mv` |
 | 6 | `DrawCreaseAngleRestricted5` | 28 | 3,019 | `cp.action.draw-crease-angle-restricted5` |
@@ -53,13 +53,23 @@ Two things make this cut trustworthy rather than a coin flip:
   removes the "desktop habits imposed on phones" objection.
 
 This also nearly reproduces the Discord request by hand — grid draw, angle
-constrained draw, delete, change M/V are all in it. The two differences are
-worth stating: the data adds **`CreaseSelect`** and **`DrawCreaseFree`**, and
-does not support **`VertexSolveFoldAngles`** (8 users, 110 uses — rank ~22).
+constrained draw, delete, change M/V are all in it. Two differences are worth
+stating: the data adds **`CreaseSelect`**, and does not support
+**`VertexSolveFoldAngles`** (8 users, 110 uses — rank ~22).
+
+**`DrawCreaseFree` — plain Line — is held out**, and it is the one place the
+shipped set departs from the ranking rather than following it. Third by users and
+second by invocations, pulled as a product call. Nothing stops anyone starring
+it; it is the first row of the Draw group.
+
+That leaves five defaults, which is `CP_TOOLBAR_FAVORITE_LIMIT` exactly, so the
+shipped set fills the phone's bar with nothing left over and hidden. A happy
+accident of that edit rather than a constraint — the two numbers answer different
+questions and nothing keeps them equal.
 
 `CreaseSelect` deserves a note because it is
 `DEFAULT_ORISTUDIO_CP_ACTION_ID`, so every session starts holding it and it is
-"free" in a sense the others are not. It stays in the default six anyway: on a
+"free" in a sense the others are not. It stays in the defaults anyway: on a
 phone there is no rail, so getting *back* to select after using another tool is
 exactly the two-tap round trip this feature exists to remove.
 
@@ -122,17 +132,17 @@ the central `lib/storage.ts` registry (never raw `localStorage`).
 ```ts
 export const CP_DEFAULT_FAVORITE_ACTION_IDS: readonly OristudioCpActionId[] = [
   'cp.action.crease-select',
-  'cp.action.draw-crease',
-  'cp.action.draw-crease-restricted',
-  'cp.action.draw-crease-angle-restricted5',
   'cp.action.line-segment-delete',
+  'cp.action.draw-crease-restricted',
   'cp.action.crease-toggle-mv',
+  'cp.action.draw-crease-angle-restricted5',
 ];
 ```
 
 Authored as an explicit literal, not computed. The PostHog ranking was a
-one-time input; the list that ships should be a reviewable line in a diff. Note
-`DrawCreaseFree`'s action id is `cp.action.draw-crease`, **not**
+one-time input and the set is a product decision on top of it, so the list that
+ships should be a reviewable line in a diff. Watch the ids: `DrawCreaseFree`
+would have been `cp.action.draw-crease`, **not**
 `cp.action.draw-crease-free` — it is the one operation with an id override
 ([oristudioCpActions.ts:163](apps/web/src/lib/oristudioCpActions.ts:163)), and
 deriving the id from the operation name by hand is how this gets silently wrong.
@@ -391,7 +401,7 @@ On the reorder event:
 - The permutation itself is never sent. It is high-cardinality and tells us
   nothing that `moved_to_front` plus the favorited set does not.
 
-The numbers this has to answer are **whether the shipped six were right**
+The numbers this has to answer are **whether the shipped defaults were right**
 (un-star events against a default id are the direct signal; `cp tool used` for a
 favorited tool before and after is the adoption signal) and **whether long-press
 reorder is findable at all** — which now rests entirely on the count, the gesture
@@ -442,8 +452,9 @@ no dependency is added.
 
 - **No cap on favorites.** The store never refuses one. A surface with limited
   room takes the first N it can show.
-- **`CreaseSelect` stays in the default six**, per the reasoning above.
-- **Exactly six defaults.** Not "six plus the obvious ones".
+- **`CreaseSelect` stays in the defaults**, per the reasoning above.
+- **The defaults are a short explicit list**, not "the top N": plain Line was
+  pulled after the first cut despite ranking third.
 - **No drag library.** Built on the repo's own two precedents; rationale and the
   honest costs are in §5.
 

@@ -90,8 +90,8 @@ describe('CpToolPickerSheet catalogue', () => {
     ];
     // Favorites sit between the chips and the groups, and a starred tool keeps
     // its row in its own group as well — starring is a shortcut, not a move. So
-    // the six appear twice, and the expectation says so rather than the test
-    // scoping them out and quietly stopping checking where they render.
+    // each favorite appears twice, and the expectation says so rather than the
+    // test scoping them out and quietly stopping checking where they render.
     const railGroups = cpRailGroups();
     const expected = [
       ...railGroups
@@ -213,9 +213,9 @@ describe('CpToolPickerSheet favorites', () => {
     return star;
   }
 
-  it('shows the six shipped defaults, in order', () => {
+  it('shows the shipped defaults, in order', () => {
     const sheet = renderSheet();
-    expect(favoriteRows(sheet)).toHaveLength(6);
+    expect(favoriteRows(sheet)).toHaveLength(CP_DEFAULT_FAVORITE_ACTION_IDS.length);
     expect(favoriteLabels(sheet)).toEqual(
       cpFavoriteToolActions().map((action) => action.label)
     );
@@ -231,7 +231,9 @@ describe('CpToolPickerSheet favorites', () => {
     );
     expect(titles[0]).toBe('Line type');
     expect(titles[1]).toBe('Favorites');
-    expect(sections[1].querySelectorAll('[data-cp-favorite]')).toHaveLength(6);
+    expect(sections[1].querySelectorAll('[data-cp-favorite]')).toHaveLength(
+      CP_DEFAULT_FAVORITE_ACTION_IDS.length
+    );
   });
 
   it('gives every tool row a star, and the crease-type chips none', () => {
@@ -274,7 +276,7 @@ describe('CpToolPickerSheet favorites', () => {
     });
 
     expect(cpToolFavoriteIds()).not.toContain(firstFavorite.id);
-    expect(favoriteRows(sheet)).toHaveLength(5);
+    expect(favoriteRows(sheet)).toHaveLength(CP_DEFAULT_FAVORITE_ACTION_IDS.length - 1);
   });
 
   // The same action renders twice, so its two stars must not disagree.
@@ -291,7 +293,9 @@ describe('CpToolPickerSheet favorites', () => {
     act(() => {
       stars[1]?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    expect(sheet.querySelectorAll('[data-cp-favorite]')).toHaveLength(5);
+    expect(sheet.querySelectorAll('[data-cp-favorite]')).toHaveLength(
+      CP_DEFAULT_FAVORITE_ACTION_IDS.length - 1
+    );
   });
 
   it('selects from the favorites section and closes, like any other row', () => {

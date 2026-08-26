@@ -47,8 +47,15 @@ describe('the shipped defaults', () => {
     }
   });
 
-  it('is six tools, and they are all real command tools', () => {
-    expect(CP_DEFAULT_FAVORITE_ACTION_IDS).toHaveLength(6);
+  /*
+   * No count asserted. The set is a product decision that has already changed
+   * once (plain Line was pulled after the first cut), and a test that pinned the
+   * number would have to be edited by whoever changes it — which teaches them to
+   * edit tests rather than to think. What must hold is that every entry is a
+   * real, shipped, usable tool.
+   */
+  it('is all real command tools that are ready to use', () => {
+    expect(CP_DEFAULT_FAVORITE_ACTION_IDS.length).toBeGreaterThan(0);
     for (const action of cpFavoriteToolActions()) {
       expect(action.kind).toBe('command');
       expect(action.uiStatus).toBe('ready');
@@ -104,7 +111,7 @@ describe('toggling', () => {
 
   /*
    * An empty array is a decision, not an absence. Someone who un-stars every
-   * tool must not have the six handed back to them on the next reload.
+   * tool must not have the defaults handed back to them on the next reload.
    */
   it('honours an empty list across a reload rather than restoring the defaults', () => {
     for (const id of [...CP_DEFAULT_FAVORITE_ACTION_IDS]) toggleCpToolFavorite(id);

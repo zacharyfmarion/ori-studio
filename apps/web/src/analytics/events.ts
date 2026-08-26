@@ -290,7 +290,7 @@ export const ANALYTICS_EVENTS = {
    * A crease-pattern tool was starred or un-starred.
    *
    * Fires in both directions on purpose. The question this exists to answer is
-   * whether the six shipped defaults were the right six, and a star-only event
+   * whether the shipped defaults were the right ones, and a star-only event
    * cannot see a default being *rejected* — which is the sharper signal of the
    * two, since the defaults arrive without anyone asking for them.
    *
@@ -393,12 +393,17 @@ export const DESIGN_TAB_COUNT_BUCKETS = [1, 2, 3, 5, 10] as const;
 /**
  * Threshold ladder for how many CP tools someone has starred.
  *
- * Straddles the shipped six so the three answers worth telling apart stay
- * apart: fewer than shipped (they pruned), the six they were given, and more
- * than six (they are curating). The element ladder would collapse all three
- * into `<=10`.
+ * Straddles {@link CP_DEFAULT_FAVORITE_ACTION_IDS} — five today — so the three
+ * answers worth telling apart stay apart: fewer than shipped (they pruned), the
+ * set they were given, and more (they are curating). The element ladder would
+ * collapse all three into `<=10`.
+ *
+ * Retune it if the default count moves far, and know what that costs: buckets
+ * are compared across releases, so a boundary that shifts makes the two sides of
+ * the change incomparable. Cheap to get right now, before any of this has
+ * shipped; expensive later.
  */
-export const CP_FAVORITE_COUNT_BUCKETS = [0, 3, 6, 10, 20] as const;
+export const CP_FAVORITE_COUNT_BUCKETS = [0, 2, 5, 10, 20] as const;
 
 /** Which surface a favorite was starred or moved from. */
 export type CpFavoriteSurface = 'picker-sheet';
