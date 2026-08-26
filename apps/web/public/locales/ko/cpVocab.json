@@ -76,16 +76,16 @@
       "tooltip": "활성 선 종류를 경계로 설정",
       "disabledReason": "준비됨"
     },
-    "cp_action_line_type_unassigned": {
-      "label": "미지정",
-      "railLabel": "U",
-      "tooltip": "활성 선 종류를 미지정으로 설정",
-      "disabledReason": "준비됨"
-    },
     "cp_action_line_type_auxiliary": {
       "label": "보조선",
       "railLabel": "A",
       "tooltip": "활성 선 종류를 보조선으로 설정",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "미지정",
+      "railLabel": "U",
+      "tooltip": "활성 선 종류를 미지정으로 설정",
       "disabledReason": "준비됨"
     },
     "cp_action_draw_crease": {

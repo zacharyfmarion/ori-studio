@@ -76,16 +76,16 @@
       "tooltip": "Establecer el tipo de línea activo en borde",
       "disabledReason": "Listo"
     },
-    "cp_action_line_type_unassigned": {
-      "label": "Sin asignar",
-      "railLabel": "U",
-      "tooltip": "Establecer el tipo de línea activo en sin asignar",
-      "disabledReason": "Listo"
-    },
     "cp_action_line_type_auxiliary": {
       "label": "Auxiliar",
       "railLabel": "A",
       "tooltip": "Establecer el tipo de línea activo en auxiliar",
+      "disabledReason": "Listo"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "Sin asignar",
+      "railLabel": "U",
+      "tooltip": "Establecer el tipo de línea activo en sin asignar",
       "disabledReason": "Listo"
     },
     "cp_action_draw_crease": {

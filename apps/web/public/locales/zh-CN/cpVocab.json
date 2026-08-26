@@ -76,16 +76,16 @@
       "tooltip": "将当前线型设为边界线",
       "disabledReason": "就绪"
     },
-    "cp_action_line_type_unassigned": {
-      "label": "未指定",
-      "railLabel": "U",
-      "tooltip": "将当前线型设为未指定",
-      "disabledReason": "就绪"
-    },
     "cp_action_line_type_auxiliary": {
       "label": "辅助线",
       "railLabel": "A",
       "tooltip": "将当前线型设为辅助线",
+      "disabledReason": "就绪"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "未指定",
+      "railLabel": "U",
+      "tooltip": "将当前线型设为未指定",
       "disabledReason": "就绪"
     },
     "cp_action_draw_crease": {

@@ -84,6 +84,8 @@ export type SupersetFeatureId =
   | 'inlineSimulations'
   | 'symmetry'
   | 'foldAngles'
+  | 'undecidedCreases'
+  | 'directionHints'
   | 'foldedForm3d'
   | 'foldedForm3dDetached';
 
@@ -126,6 +128,24 @@ const ALL_LOSSY_FORMATS: readonly ExportFormat[] = [
  */
 const FOLD_ANGLE_LOSSY_FORMATS: readonly ExportFormat[] = ['cp', 'ori', 'orh', 'dxf', 'obj'];
 
+/**
+ * Formats that cannot say "this crease is undecided", and what they do instead.
+ *
+ * `.fold` is not here: it writes `edges_assignment: "U"` and round-trips both
+ * the crease and its hint, which is why the whole encoding was chosen. `.ori`
+ * and `.orh` keep `LineColor::None`, so they lose the hint but not the
+ * undecided-ness — they appear under `directionHints` alone.
+ *
+ * `.cp` is the sharp one. Measured by round-tripping a hinted pair through the
+ * real exporter and importer: both creases come back **`Cyan3`**, an auxiliary
+ * line, which is not a crease at all. So a `.cp` export does not merely forget
+ * which way you meant it to fold, it forgets that it was a crease.
+ */
+const UNDECIDED_CREASE_LOSSY_FORMATS: readonly ExportFormat[] = ['cp', 'dxf', 'obj'];
+
+/** Everything that cannot carry the hint, which is every format but `.fold`. */
+const DIRECTION_HINT_LOSSY_FORMATS: readonly ExportFormat[] = ['cp', 'ori', 'orh', 'dxf', 'obj'];
+
 const SUPERSET_FEATURES: readonly SupersetFeature[] = [
   {
     id: 'images',
@@ -166,6 +186,32 @@ const SUPERSET_FEATURES: readonly SupersetFeature[] = [
       ).length,
     droppedByFormats: FOLD_ANGLE_LOSSY_FORMATS,
     blocking: true,
+  },
+  {
+    id: 'undecidedCreases',
+    count: (presence) => presence.lineSegments.filter((segment) => segment.color === 'None').length,
+    droppedByFormats: UNDECIDED_CREASE_LOSSY_FORMATS,
+    /**
+     * Blocking, for the same reason `foldAngles` is: the crease does not come
+     * back weaker, it comes back *different*. A `.cp` round trip turns it into
+     * an auxiliary line, so a pattern you exported to share is one whose
+     * undecided creases have quietly stopped being creases.
+     */
+    blocking: true,
+  },
+  {
+    id: 'directionHints',
+    count: (presence) =>
+      presence.lineSegments.filter(
+        (segment) => segment.color === 'None' && (segment.fold_direction_hint ?? null) !== null
+      ).length,
+    droppedByFormats: DIRECTION_HINT_LOSSY_FORMATS,
+    /**
+     * Not blocking. Unlike the two above, losing a hint degrades rather than
+     * changes: the crease comes back undecided, which is what it is. The hint
+     * was a note about which way you meant it to go, and the same file reopened
+     * in Ori Studio is still solvable — it just asks you the question again.
+     */
   },
   {
     id: 'foldedForm3d',

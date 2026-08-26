@@ -180,6 +180,45 @@ describe('non-flat fold angles block an export rather than warning', () => {
     expect(blockingExportLoss(warnings)).toEqual([]);
   });
 
+  /**
+   * Measured by round-tripping a hinted pair through each real exporter and
+   * importer, because the formats differ and the differences are not guessable:
+   *
+   *   fold  unassigned 2/2  hints 2/2   ["None", "None"]      <- lossless
+   *   ori   unassigned 2/2  hints 0/2   ["None", "None"]
+   *   orh   unassigned 2/2  hints 0/2   ["None", "None"]
+   *   cp    unassigned 0/2  hints 0/2   ["Cyan3", "Cyan3"]    <- becomes aux
+   */
+  it('warns about a dropped direction hint everywhere but .fold', () => {
+    const hinted: OristudioCpLineSegment = { ...crease('None'), fold_direction_hint: 'Mountain' };
+    for (const format of ['cp', 'ori', 'orh', 'dxf', 'obj'] as const) {
+      const ids = collectExportLossWarnings(format, presence([hinted])).map((entry) => entry.id);
+      expect(ids).toContain('directionHints');
+    }
+    const lossless = collectExportLossWarnings('fold', presence([hinted])).map((e) => e.id);
+    expect(lossless).not.toContain('directionHints');
+    expect(lossless).not.toContain('undecidedCreases');
+  });
+
+  it('blocks .cp, where an undecided crease comes back as an auxiliary line', () => {
+    // Not the same loss as a forgotten hint. `.ori` gives the crease back still
+    // undecided; `.cp` gives back something that is not a crease, so the two
+    // cannot share one warning.
+    const undecided = crease('None');
+    expect(blockingExportLoss(collectExportLossWarnings('cp', presence([undecided])))).toEqual([
+      { id: 'undecidedCreases', count: 1, blocking: true },
+    ]);
+    expect(blockingExportLoss(collectExportLossWarnings('ori', presence([undecided])))).toEqual([]);
+  });
+
+  it('says nothing about a plain crease, so the warning tracks the feature', () => {
+    for (const format of ['cp', 'ori', 'fold'] as const) {
+      const ids = collectExportLossWarnings(format, presence([crease('Red1')])).map((e) => e.id);
+      expect(ids).not.toContain('directionHints');
+      expect(ids).not.toContain('undecidedCreases');
+    }
+  });
+
   it('does not block image formats, which are not re-imported as patterns', () => {
     for (const format of ['svg', 'png'] as const) {
       const warnings = collectExportLossWarnings(format, presence([crease('Red1', ninety)]));

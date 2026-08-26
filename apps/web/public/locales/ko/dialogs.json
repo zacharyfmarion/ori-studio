@@ -125,13 +125,15 @@
     "blockedTitle": "{{format}}(으)로 내보낼 수 없습니다",
     "confirm": "그래도 내보내기",
     "feature": {
+      "directionHints": "미결정 접는 선에 기억된 방향",
       "foldAngles": "평평하지 않은 접기 각도",
       "foldedForm3d": "3D 접힌 도형",
       "foldedForm3dDetached": "다시 접어야 하는 3D 접힌 도형",
       "images": "이미지",
       "inlineSimulations": "시뮬레이션 창",
       "richText": "리치 텍스트 서식",
-      "symmetry": "거울 대칭"
+      "symmetry": "거울 대칭",
+      "undecidedCreases": "미결정 접는 선"
     },
     "featureCount": "{{feature}}({{total}})",
     "message": "이 프로젝트에는 {{format}} 형식이 저장할 수 없는 기능이 있습니다. 내보낼 때 다음 항목이 생략됩니다: {{features}}.",

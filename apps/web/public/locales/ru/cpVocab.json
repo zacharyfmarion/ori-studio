@@ -76,16 +76,16 @@
       "tooltip": "Установить активный тип линии — край",
       "disabledReason": "Готово"
     },
-    "cp_action_line_type_unassigned": {
-      "label": "Не назначено",
-      "railLabel": "U",
-      "tooltip": "Установить активный тип линии — не назначено",
-      "disabledReason": "Готово"
-    },
     "cp_action_line_type_auxiliary": {
       "label": "Вспомогательная",
       "railLabel": "A",
       "tooltip": "Установить активный тип линии — вспомогательная",
+      "disabledReason": "Готово"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "Не назначено",
+      "railLabel": "U",
+      "tooltip": "Установить активный тип линии — не назначено",
       "disabledReason": "Готово"
     },
     "cp_action_draw_crease": {

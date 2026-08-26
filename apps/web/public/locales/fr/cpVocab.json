@@ -76,16 +76,16 @@
       "tooltip": "Définir le type de ligne actif sur bord",
       "disabledReason": "Prêt"
     },
-    "cp_action_line_type_unassigned": {
-      "label": "Non attribué",
-      "railLabel": "U",
-      "tooltip": "Définir le type de ligne actif sur non attribué",
-      "disabledReason": "Prêt"
-    },
     "cp_action_line_type_auxiliary": {
       "label": "Auxiliaire",
       "railLabel": "A",
       "tooltip": "Définir le type de ligne actif sur auxiliaire",
+      "disabledReason": "Prêt"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "Non attribué",
+      "railLabel": "U",
+      "tooltip": "Définir le type de ligne actif sur non attribué",
       "disabledReason": "Prêt"
     },
     "cp_action_draw_crease": {

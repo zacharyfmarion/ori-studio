@@ -76,16 +76,16 @@
       "tooltip": "Definir o tipo de linha ativo como borda",
       "disabledReason": "Pronto"
     },
-    "cp_action_line_type_unassigned": {
-      "label": "Não atribuído",
-      "railLabel": "U",
-      "tooltip": "Definir o tipo de linha ativo como não atribuído",
-      "disabledReason": "Pronto"
-    },
     "cp_action_line_type_auxiliary": {
       "label": "Auxiliar",
       "railLabel": "A",
       "tooltip": "Definir o tipo de linha ativo como auxiliar",
+      "disabledReason": "Pronto"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "Não atribuído",
+      "railLabel": "U",
+      "tooltip": "Definir o tipo de linha ativo como não atribuído",
       "disabledReason": "Pronto"
     },
     "cp_action_draw_crease": {

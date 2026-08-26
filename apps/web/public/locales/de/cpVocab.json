@@ -76,16 +76,16 @@
       "tooltip": "Aktiven Linientyp auf Rand setzen",
       "disabledReason": "Bereit"
     },
-    "cp_action_line_type_unassigned": {
-      "label": "Nicht zugewiesen",
-      "railLabel": "U",
-      "tooltip": "Aktiven Linientyp auf nicht zugewiesen setzen",
-      "disabledReason": "Bereit"
-    },
     "cp_action_line_type_auxiliary": {
       "label": "Hilfslinie",
       "railLabel": "A",
       "tooltip": "Aktiven Linientyp auf Hilfslinie setzen",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "Nicht zugewiesen",
+      "railLabel": "U",
+      "tooltip": "Aktiven Linientyp auf nicht zugewiesen setzen",
       "disabledReason": "Bereit"
     },
     "cp_action_draw_crease": {

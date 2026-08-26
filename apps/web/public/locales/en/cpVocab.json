@@ -76,16 +76,16 @@
       "tooltip": "Set active line type to edge",
       "disabledReason": "Ready"
     },
-    "cp_action_line_type_unassigned": {
-      "label": "Unassigned",
-      "railLabel": "U",
-      "tooltip": "Set active line type to unassigned",
-      "disabledReason": "Ready"
-    },
     "cp_action_line_type_auxiliary": {
       "label": "Auxiliary",
       "railLabel": "A",
       "tooltip": "Set active line type to auxiliary",
+      "disabledReason": "Ready"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "Unassigned",
+      "railLabel": "U",
+      "tooltip": "Set active line type to unassigned",
       "disabledReason": "Ready"
     },
     "cp_action_draw_crease": {

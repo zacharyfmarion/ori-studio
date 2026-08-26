@@ -76,16 +76,16 @@
       "tooltip": "アクティブな線種を境界線に設定",
       "disabledReason": "準備完了"
     },
-    "cp_action_line_type_unassigned": {
-      "label": "未割り当て",
-      "railLabel": "U",
-      "tooltip": "アクティブな線種を未割り当てに設定",
-      "disabledReason": "準備完了"
-    },
     "cp_action_line_type_auxiliary": {
       "label": "補助線",
       "railLabel": "A",
       "tooltip": "アクティブな線種を補助線に設定",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_line_type_unassigned": {
+      "label": "未割り当て",
+      "railLabel": "U",
+      "tooltip": "アクティブな線種を未割り当てに設定",
       "disabledReason": "準備完了"
     },
     "cp_action_draw_crease": {
