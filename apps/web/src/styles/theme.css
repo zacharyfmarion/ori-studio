@@ -1379,6 +1379,27 @@
   max-height: calc(100vh - var(--space-6));
 }
 
+/*
+ * Eleven controls, on the shortest screen the app runs on. The dropdown this
+ * replaces could size to its content because it hung over the canvas; a modal is
+ * centred, so it caps and scrolls instead — otherwise the header and the last
+ * colour field leave the viewport together.
+ */
+.folded-figure-modal__document {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - var(--safe-top) - var(--safe-bottom) - var(--space-6));
+}
+
+.folded-figure-modal__body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  /* Reaching the end must not start scrolling the canvas behind it. */
+  overscroll-behavior: contain;
+}
+
 .simple-modal__header,
 .simple-modal__footer {
   display: flex;
@@ -9893,6 +9914,19 @@ button.bp-packing-alert:focus-visible {
     list-style: none;
   }
 
+  /* Flush with the FAVORITES heading above it, which is the only left edge this
+     section has. It was indented to the row text past the star, on the idea that
+     it belonged to the list — but the stars are a column inside the rows, not a
+     margin the section is laid out against, so aligning to them just read as a
+     stray indent. */
+  .cp-tool-picker__note {
+    margin: 0;
+    padding: 0 var(--space-3) var(--space-2);
+    color: var(--text-tertiary);
+    font-size: 0.68rem;
+    line-height: 1.35;
+  }
+
   /* The line types, as the same segmented group the rail draws — see
      `.cp-tool-rail__buttons[data-group='line-type']`. Not shared markup: this
      one is sized for a thumb rather than a cursor, and the sheet's buttons
@@ -9945,24 +9979,78 @@ button.bp-packing-alert:focus-visible {
     color: var(--fold-unassigned);
   }
 
+  /*
+   * The row holds two sibling buttons — the star and the select target. It used
+   * to be one button end to end, and it cannot be again: a control nested in a
+   * button is invalid, and in practice the outer one takes the tap, so the star
+   * would select the tool it was meant to star.
+   *
+   * The active treatment lives here rather than on `__item` for the same
+   * restructure: its inset left bar has to draw at the row's edge, not between
+   * the star and the glyph.
+   */
+  .cp-tool-picker__row {
+    display: flex;
+    align-items: center;
+    /* No `touch-action: none` — the sheet scrolls, and a permanently
+       unscrollable band at the top of it would cost more than the drag is
+       worth. `useLongPressReorder` cancels the scroll at arm time instead. */
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+
+  .cp-tool-picker__row[data-active] {
+    background: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-tertiary));
+    box-shadow: inset 2px 0 0 var(--accent-primary);
+  }
+
+  /* The row is out of the flow of the list under a finger, so it reads as picked
+     up rather than merely highlighted. */
+  .cp-tool-picker__row[data-dragging] {
+    position: relative;
+    z-index: 2;
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    box-shadow: var(--shadow-context-menu);
+    transform: scale(1.02);
+  }
+
+  /* Its own touch target, so the row's tap area starts after it and a thumb
+     aiming at the tool cannot land on the star by a few pixels. */
+  .cp-tool-picker__star {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    /* Explicit, because a bespoke icon button inherits the UA's button padding
+       and `justify-content` alone will not centre against it. */
+    padding: 0;
+    width: var(--touch-target);
+    min-width: var(--touch-target);
+    height: var(--touch-target);
+    border: 0;
+    background: transparent;
+    color: var(--text-tertiary);
+  }
+
+  .cp-tool-picker__star[data-favorited] {
+    color: var(--accent-primary);
+  }
+
   .cp-tool-picker__item {
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     min-height: var(--touch-target);
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-2) var(--space-3) var(--space-2) 0;
     border: 0;
     background: transparent;
     color: var(--text-primary);
     text-align: left;
     -webkit-touch-callout: none;
     user-select: none;
-  }
-
-  .cp-tool-picker__item[data-active] {
-    background: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-tertiary));
-    box-shadow: inset 2px 0 0 var(--accent-primary);
   }
 
   .cp-tool-picker__item[aria-disabled='true'] {
@@ -9980,7 +10068,7 @@ button.bp-packing-alert:focus-visible {
     color: var(--text-secondary);
   }
 
-  .cp-tool-picker__item[data-active] .cp-tool-picker__icon {
+  .cp-tool-picker__row[data-active] .cp-tool-picker__icon {
     color: var(--text-primary);
   }
 
@@ -10009,16 +10097,6 @@ button.bp-packing-alert:focus-visible {
     -webkit-line-clamp: 2;
   }
 
-  .cp-tool-picker__shortcut {
-    flex: 0 0 auto;
-    padding: 2px 6px;
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
-    color: var(--text-tertiary);
-    font-family: inherit;
-    font-size: 0.66rem;
-  }
-
   @keyframes cp-tool-picker-in {
     from {
       transform: translateX(-100%);
@@ -10029,6 +10107,12 @@ button.bp-packing-alert:focus-visible {
 @media (pointer: coarse) and (prefers-reduced-motion: reduce) {
   .cp-tool-picker__sheet {
     animation: none;
+  }
+
+  /* The lift keeps its shadow and its stacking — those say "picked up" without
+     moving anything. Only the scale goes, which is the part that is motion. */
+  .cp-tool-picker__row[data-dragging] {
+    transform: none;
   }
 }
 

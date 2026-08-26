@@ -2596,7 +2596,12 @@
     "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
     "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6",
     "dialogs:export.foldAngleDisplay": "192d0384d265",
-    "dialogs:share.foldAngleDisplay": "192d0384d265"
+    "dialogs:share.foldAngleDisplay": "192d0384d265",
+    "tools:cpToolPicker.addFavorite": "5689f26d59cf",
+    "tools:cpToolPicker.favorites": "7a1f2a83aca9",
+    "tools:cpToolPicker.removeFavorite": "b589cbd61d68",
+    "panels:creasePattern.closeFoldedModels": "f5e45ee4d9a9",
+    "tools:cpToolPicker.favoritesHint": "8cb735bd2f9c"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5195,7 +5200,12 @@
     "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
     "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6",
     "dialogs:export.foldAngleDisplay": "192d0384d265",
-    "dialogs:share.foldAngleDisplay": "192d0384d265"
+    "dialogs:share.foldAngleDisplay": "192d0384d265",
+    "tools:cpToolPicker.addFavorite": "5689f26d59cf",
+    "tools:cpToolPicker.favorites": "7a1f2a83aca9",
+    "tools:cpToolPicker.removeFavorite": "b589cbd61d68",
+    "panels:creasePattern.closeFoldedModels": "f5e45ee4d9a9",
+    "tools:cpToolPicker.favoritesHint": "8cb735bd2f9c"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7794,7 +7804,12 @@
     "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
     "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6",
     "dialogs:export.foldAngleDisplay": "192d0384d265",
-    "dialogs:share.foldAngleDisplay": "192d0384d265"
+    "dialogs:share.foldAngleDisplay": "192d0384d265",
+    "tools:cpToolPicker.addFavorite": "5689f26d59cf",
+    "tools:cpToolPicker.favorites": "7a1f2a83aca9",
+    "tools:cpToolPicker.removeFavorite": "b589cbd61d68",
+    "panels:creasePattern.closeFoldedModels": "f5e45ee4d9a9",
+    "tools:cpToolPicker.favoritesHint": "8cb735bd2f9c"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -10350,7 +10365,12 @@
     "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
     "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6",
     "dialogs:export.foldAngleDisplay": "192d0384d265",
-    "dialogs:share.foldAngleDisplay": "192d0384d265"
+    "dialogs:share.foldAngleDisplay": "192d0384d265",
+    "tools:cpToolPicker.addFavorite": "5689f26d59cf",
+    "tools:cpToolPicker.favorites": "7a1f2a83aca9",
+    "tools:cpToolPicker.removeFavorite": "b589cbd61d68",
+    "panels:creasePattern.closeFoldedModels": "f5e45ee4d9a9",
+    "tools:cpToolPicker.favoritesHint": "8cb735bd2f9c"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12906,7 +12926,12 @@
     "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
     "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6",
     "dialogs:export.foldAngleDisplay": "192d0384d265",
-    "dialogs:share.foldAngleDisplay": "192d0384d265"
+    "dialogs:share.foldAngleDisplay": "192d0384d265",
+    "tools:cpToolPicker.addFavorite": "5689f26d59cf",
+    "tools:cpToolPicker.favorites": "7a1f2a83aca9",
+    "tools:cpToolPicker.removeFavorite": "b589cbd61d68",
+    "panels:creasePattern.closeFoldedModels": "f5e45ee4d9a9",
+    "tools:cpToolPicker.favoritesHint": "8cb735bd2f9c"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -15505,7 +15530,12 @@
     "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
     "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6",
     "dialogs:export.foldAngleDisplay": "192d0384d265",
-    "dialogs:share.foldAngleDisplay": "192d0384d265"
+    "dialogs:share.foldAngleDisplay": "192d0384d265",
+    "tools:cpToolPicker.addFavorite": "5689f26d59cf",
+    "tools:cpToolPicker.favorites": "7a1f2a83aca9",
+    "tools:cpToolPicker.removeFavorite": "b589cbd61d68",
+    "panels:creasePattern.closeFoldedModels": "f5e45ee4d9a9",
+    "tools:cpToolPicker.favoritesHint": "8cb735bd2f9c"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -18104,7 +18134,12 @@
     "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
     "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6",
     "dialogs:export.foldAngleDisplay": "192d0384d265",
-    "dialogs:share.foldAngleDisplay": "192d0384d265"
+    "dialogs:share.foldAngleDisplay": "192d0384d265",
+    "tools:cpToolPicker.addFavorite": "5689f26d59cf",
+    "tools:cpToolPicker.favorites": "7a1f2a83aca9",
+    "tools:cpToolPicker.removeFavorite": "b589cbd61d68",
+    "panels:creasePattern.closeFoldedModels": "f5e45ee4d9a9",
+    "tools:cpToolPicker.favoritesHint": "8cb735bd2f9c"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -20660,6 +20695,11 @@
     "dialogs:exportLoss.feature.directionHints": "8f0a333d6655",
     "dialogs:exportLoss.feature.unassignedCreases": "92090b8d7aa6",
     "dialogs:export.foldAngleDisplay": "192d0384d265",
-    "dialogs:share.foldAngleDisplay": "192d0384d265"
+    "dialogs:share.foldAngleDisplay": "192d0384d265",
+    "tools:cpToolPicker.addFavorite": "5689f26d59cf",
+    "tools:cpToolPicker.favorites": "7a1f2a83aca9",
+    "tools:cpToolPicker.removeFavorite": "b589cbd61d68",
+    "panels:creasePattern.closeFoldedModels": "f5e45ee4d9a9",
+    "tools:cpToolPicker.favoritesHint": "8cb735bd2f9c"
   }
 }

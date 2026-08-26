@@ -28,6 +28,12 @@ export const STORAGE_KEYS = {
   /** How far the pointer may sit from a snap target, in Oriedita model units. */
   cpSnapRadius: 'cp-snap-radius',
   cpToolRailGroups: 'cp-tool-rail-groups',
+  /**
+   * Which CP tools are starred, in the order the user put them. Absent means
+   * "use the shipped defaults" — see `cpToolFavorites`, where that absence is
+   * load-bearing rather than merely an empty state.
+   */
+  cpToolFavorites: 'cp-tool-favorites',
   cpMeasure: 'cp-measure',
   cpToolOptions: 'cp-tool-options',
   cpToolHintCollapsed: 'cp-tool-hint-collapsed',

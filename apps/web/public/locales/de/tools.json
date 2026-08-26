@@ -200,7 +200,11 @@
     "previous": "Vorherige Option"
   },
   "cpToolPicker": {
+    "addFavorite": "{{tool}} zu Favoriten hinzufügen",
     "close": "Werkzeugliste schließen",
+    "favorites": "Favoriten",
+    "favoritesHint": "Die ersten {{limit}} Favoriten hier werden in der unteren Symbolleiste angezeigt. Zum Umsortieren lange drücken und ziehen.",
+    "removeFavorite": "{{tool}} aus Favoriten entfernen",
     "title": "Werkzeuge",
     "trigger": "Werkzeuge"
   },

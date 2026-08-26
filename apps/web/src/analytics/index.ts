@@ -5,6 +5,7 @@ export {
   ANALYTICS_EVENTS,
   bucketCount,
   COUNT_BUCKETS,
+  CP_FAVORITE_COUNT_BUCKETS,
   CP_SNAP_RADIUS_BUCKETS,
   DESIGN_TAB_COUNT_BUCKETS,
   DURATION_MS_BUCKETS,
@@ -18,6 +19,7 @@ export type {
   AnalyticsPropertyValue,
   AnalyticsErrorDomain,
   CommandGroup,
+  CpFavoriteSurface,
   DesignMethod,
   DesignTabSource,
   DesignVariant,
@@ -52,6 +54,10 @@ export {
 } from './runtime';
 export type { AnalyticsApi, AnalyticsErrorContext } from './runtime';
 
+export {
+  trackCpToolFavorited,
+  trackCpToolFavoritesReordered,
+} from './trackCpToolFavorites';
 export { trackDesignSentToEdit } from './trackSendToEdit';
 
 export { useAppOpenedEvent } from './useAppOpenedEvent';

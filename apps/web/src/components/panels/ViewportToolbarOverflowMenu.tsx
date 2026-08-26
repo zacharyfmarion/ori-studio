@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Check, MoreHorizontal } from 'lucide-react';
@@ -10,7 +10,14 @@ import {
   type ViewportToolbarOverflowGroup,
 } from './viewportToolbarLayout';
 
-function OverflowItem({ action }: { action: ViewportToolbarAction }) {
+function OverflowItem({
+  action,
+  onOpenDialog,
+}: {
+  action: ViewportToolbarAction;
+  /** Told before the select runs, so the close that follows keeps its hands off focus. */
+  onOpenDialog: () => void;
+}) {
   // The leading slot is the action's own icon, swapped for a tick while the mode
   // is on — the shape `ContextMenu` already uses for a checked item, so a row
   // here is the same width as a row anywhere else in the app.
@@ -21,7 +28,10 @@ function OverflowItem({ action }: { action: ViewportToolbarAction }) {
       <DropdownMenu.Item
         className="context-menu__item"
         disabled={action.disabled}
-        onSelect={action.onSelect}
+        onSelect={() => {
+          if (action.opensDialog) onOpenDialog();
+          action.onSelect();
+        }}
       >
         {leading}
         <span className="context-menu__label">{action.label}</span>
@@ -71,9 +81,22 @@ export function ViewportToolbarOverflowMenu({
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  // Set by the one exit that must *not* hand the trigger back — see
+  // `opensDialog`. A ref, not state: it is read inside `onCloseAutoFocus`, which
+  // fires during the same close, and a re-render would be both pointless and
+  // too late.
+  const openedDialogRef = useRef(false);
 
   return (
-    <DropdownMenu.Root open={open} onOpenChange={setOpen}>
+    <DropdownMenu.Root
+      open={open}
+      onOpenChange={(next) => {
+        // Cleared on every open, so a dialog-opening select cannot leave the
+        // flag set and silently swallow the focus return of the *next* visit.
+        if (next) openedDialogRef.current = false;
+        setOpen(next);
+      }}
+    >
       <MenuIconButton
         label={t('tools:viewport.more', 'More view controls')}
         icon={<MoreHorizontal size={14} />}
@@ -114,12 +137,31 @@ export function ViewportToolbarOverflowMenu({
             event.detail.originalEvent.preventDefault();
             event.detail.originalEvent.stopPropagation();
           }}
+          /*
+            Radix hands focus back to the trigger as this unmounts, which is
+            right for Escape and for a tap outside and wrong for the one item
+            that opened a dialog: that restore lands *after* the dialog's own
+            mount effect, so the dialog opens with focus on the toolbar button
+            behind it — inaudible with `aria-modal` in force. Prevented only for
+            that case, so every other exit keeps the behaviour it had.
+          */
+          onCloseAutoFocus={(event) => {
+            if (openedDialogRef.current) event.preventDefault();
+          }}
         >
           {viewportToolbarSlots(groups).map((slot) =>
             slot.kind === 'separator' ? (
               <DropdownMenu.Separator key={slot.id} className="context-menu__separator" />
             ) : (
-              slot.group.items.map((action) => <OverflowItem key={action.id} action={action} />)
+              slot.group.items.map((action) => (
+                <OverflowItem
+                  key={action.id}
+                  action={action}
+                  onOpenDialog={() => {
+                    openedDialogRef.current = true;
+                  }}
+                />
+              ))
             )
           )}
         </DropdownMenu.Content>

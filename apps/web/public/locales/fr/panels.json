@@ -208,6 +208,7 @@
     "changeFoldedColor": "Modifier la couleur du modèle plié",
     "changeFoldedDisplayStyle": "Modifier le style d’affichage plié",
     "changeFoldedModel": "Modifier le modèle plié",
+    "closeFoldedModels": "Fermer les modèles pliés",
     "commandFailed": "Échec de la commande",
     "couldNotOpenForEditing": "Ce patron de plis n'a pas pu être ouvert pour modification.",
     "couldNotOpenForEditingHint": "Affiché en lecture seule. Vous pouvez toujours le visualiser, le plier et l’exporter.",

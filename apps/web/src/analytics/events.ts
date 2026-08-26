@@ -287,6 +287,34 @@ export const ANALYTICS_EVENTS = {
    */
   cpToolPickerOpened: 'cp tool picker opened',
   /**
+   * A crease-pattern tool was starred or un-starred.
+   *
+   * Fires in both directions on purpose. The question this exists to answer is
+   * whether the shipped defaults were the right ones, and a star-only event
+   * cannot see a default being *rejected* — which is the sharper signal of the
+   * two, since the defaults arrive without anyone asking for them.
+   *
+   * `action` is a CP action id: an enum drawn from a fixed shipped catalogue,
+   * the same class of value as `cp tool used`'s `operation`, and no more user
+   * content than that one is.
+   */
+  cpToolFavorited: 'cp tool favorited',
+  /**
+   * A favorite was moved to a new position in the list.
+   *
+   * Once per completed gesture, never from the store's move — that runs at
+   * pointer-move rate and would emit dozens of events per drag.
+   *
+   * Carries no `method`: long press and drag is the only route, so the property
+   * would be a constant. It gets one back when a second surface offers a second
+   * way, and not before.
+   *
+   * The question it answers is discoverability. The gesture has no visible
+   * affordance at all, so this count against `cp tool picker opened` is the only
+   * evidence that anyone finds it.
+   */
+  cpToolFavoritesReordered: 'cp tool favorites reordered',
+  /**
    * The phone layout moved between a design's panes.
    *
    * Phone-only, because that layout is the only one that shows a design's panes
@@ -361,6 +389,24 @@ export const COUNT_BUCKETS = [1, 5, 10, 20, 50, 100, 200, 500] as const;
  * element ladder would put every realistic workspace in the same bucket.
  */
 export const DESIGN_TAB_COUNT_BUCKETS = [1, 2, 3, 5, 10] as const;
+
+/**
+ * Threshold ladder for how many CP tools someone has starred.
+ *
+ * Straddles {@link CP_DEFAULT_FAVORITE_ACTION_IDS} — five today — so the three
+ * answers worth telling apart stay apart: fewer than shipped (they pruned), the
+ * set they were given, and more (they are curating). The element ladder would
+ * collapse all three into `<=10`.
+ *
+ * Retune it if the default count moves far, and know what that costs: buckets
+ * are compared across releases, so a boundary that shifts makes the two sides of
+ * the change incomparable. Cheap to get right now, before any of this has
+ * shipped; expensive later.
+ */
+export const CP_FAVORITE_COUNT_BUCKETS = [0, 2, 5, 10, 20] as const;
+
+/** Which surface a favorite was starred or moved from. */
+export type CpFavoriteSurface = 'picker-sheet';
 
 /**
  * Threshold ladder for how many stretches in one packing found no pattern.

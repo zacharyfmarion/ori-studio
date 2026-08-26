@@ -30,6 +30,18 @@ import type { ReactNode } from 'react';
 export type ViewportToolbarPointer = 'fine' | 'coarse';
 
 /**
+ * What the phone layout does with a control, when the default is wrong for it.
+ *
+ * A third answer beyond `only` and `pinned`, because a phone is not just a
+ * smaller tablet here: it is the one layout with no tool rail, so its bar is the
+ * only horizontal strip a surface has and what earns a place on it is a
+ * different question. `'collapse'` overrides `pinned` and sends the control to
+ * the overflow menu; `'omit'` drops it from both, for the case where a gesture
+ * covers it outright and the menu row would be noise.
+ */
+export type ViewportToolbarPhoneBehavior = 'collapse' | 'omit';
+
+/**
  * A control the bar renders itself, and can therefore also render as a menu
  * item — which is what lets it move into the overflow menu on a touch device.
  */
@@ -67,6 +79,23 @@ export interface ViewportToolbarAction {
    * is one tap away — the zoom cluster, Fit — or one no gesture replaces.
    */
   pinned?: boolean;
+  /** Overrides {@link pinned} on the phone layout. See {@link ViewportToolbarPhoneBehavior}. */
+  onPhone?: ViewportToolbarPhoneBehavior;
+  /**
+   * This action opens a dialog, so the overflow menu must not take focus back
+   * when it closes.
+   *
+   * Radix restores focus to the menu's trigger as it unmounts, asynchronously
+   * and after any mount effect the dialog runs — so without this a dialog opened
+   * from the menu ends up with focus on the toolbar button behind it. That is
+   * invisible with a mouse and total with a screen reader: `aria-modal` hides
+   * everything outside the dialog, and the node holding focus is on the hidden
+   * side of that line, so nothing is announced at all.
+   *
+   * Declared on the action rather than fixed on the menu because the menu's
+   * other exits — Escape, a tap outside — should still hand the trigger back.
+   */
+  opensDialog?: boolean;
 }
 
 /**
@@ -82,6 +111,12 @@ export interface ViewportToolbarNode {
   id: string;
   node: ReactNode;
   only?: ViewportToolbarPointer;
+  /**
+   * Only `'omit'` is meaningful. A node has no menu-item form — that is the
+   * whole reason this kind exists — so it cannot collapse; a surface that wants
+   * one gone from a phone drops it and offers an action in its place.
+   */
+  onPhone?: 'omit';
 }
 
 export type ViewportToolbarItem = ViewportToolbarAction | ViewportToolbarNode;
@@ -120,8 +155,17 @@ function forPointer(item: ViewportToolbarItem, coarse: boolean): boolean {
   return item.only === undefined || item.only === (coarse ? 'coarse' : 'fine');
 }
 
-function staysInline(item: ViewportToolbarItem, coarse: boolean): boolean {
-  return !coarse || item.kind === 'node' || item.pinned === true;
+function present(item: ViewportToolbarItem, coarse: boolean, phone: boolean): boolean {
+  if (!forPointer(item, coarse)) return false;
+  return !(phone && item.onPhone === 'omit');
+}
+
+function staysInline(item: ViewportToolbarItem, coarse: boolean, phone: boolean): boolean {
+  if (!coarse) return true;
+  // Checked before `pinned`, which is the point of it: a phone overrides a
+  // pin, and a pin does not override a phone.
+  if (phone && item.onPhone === 'collapse') return false;
+  return item.kind === 'node' || item.pinned === true;
 }
 
 /**
@@ -131,22 +175,30 @@ function staysInline(item: ViewportToolbarItem, coarse: boolean): boolean {
  * On a fine pointer nothing collapses: the result is the same flat sequence the
  * bar rendered before groups existed, which is what keeps the desktop layout
  * untouched.
+ *
+ * `phone` is a narrowing of `coarse`, never independent of it — a phone is
+ * always a coarse pointer, and passing `phone` alone would describe a device
+ * that does not exist. It exists as its own argument because the phone is the
+ * layout with no tool rail, so what deserves a place on its one strip is a
+ * different question from what deserves one on a tablet's.
  */
 export function planViewportToolbar(
   groups: readonly ViewportToolbarGroupSpec[],
-  coarse: boolean
+  coarse: boolean,
+  phone = false
 ): ViewportToolbarPlan {
   const inline: ViewportToolbarGroup[] = [];
   const overflow: ViewportToolbarOverflowGroup[] = [];
 
   for (const group of groups) {
-    const present: ViewportToolbarItem[] = [];
+    const items: ViewportToolbarItem[] = [];
     for (const entry of group.items) {
-      if (entry && forPointer(entry, coarse)) present.push(entry);
+      if (entry && present(entry, coarse, phone)) items.push(entry);
     }
-    const inlineItems = present.filter((item) => staysInline(item, coarse));
-    const overflowItems = present.filter(
-      (item): item is ViewportToolbarAction => item.kind === 'action' && !staysInline(item, coarse)
+    const inlineItems = items.filter((item) => staysInline(item, coarse, phone));
+    const overflowItems = items.filter(
+      (item): item is ViewportToolbarAction =>
+        item.kind === 'action' && !staysInline(item, coarse, phone)
     );
     if (inlineItems.length > 0) inline.push({ id: group.id, items: inlineItems });
     if (overflowItems.length > 0) overflow.push({ id: group.id, items: overflowItems });

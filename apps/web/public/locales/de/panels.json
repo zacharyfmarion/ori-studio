@@ -204,6 +204,7 @@
     "changeFoldedColor": "Farbe des gefalteten Modells ändern",
     "changeFoldedDisplayStyle": "Faltdarstellung ändern",
     "changeFoldedModel": "Gefaltetes Modell ändern",
+    "closeFoldedModels": "Gefaltete Modelle schließen",
     "commandFailed": "Befehl fehlgeschlagen",
     "couldNotOpenForEditing": "Dieses Faltmuster konnte nicht zur Bearbeitung geöffnet werden.",
     "couldNotOpenForEditingHint": "Wird schreibgeschützt angezeigt. Sie können es weiterhin ansehen, falten und exportieren.",

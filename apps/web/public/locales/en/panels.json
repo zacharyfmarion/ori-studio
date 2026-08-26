@@ -204,6 +204,7 @@
     "changeFoldedColor": "Change folded model color",
     "changeFoldedDisplayStyle": "Change folded display style",
     "changeFoldedModel": "Change folded model",
+    "closeFoldedModels": "Close folded models",
     "commandFailed": "Command failed",
     "couldNotOpenForEditing": "This crease pattern could not be opened for editing.",
     "couldNotOpenForEditingHint": "It is shown read-only. You can still view, fold, and export it.",

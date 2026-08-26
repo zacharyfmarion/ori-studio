@@ -260,3 +260,71 @@ describe('hasUnseenActiveMode', () => {
     ).toBe(false);
   });
 });
+
+/**
+ * The phone hands its one strip to the surface's own controls, so what a pin
+ * means there is a different question from what it means on a tablet.
+ *
+ * `phone` is always passed with `coarse`, never alone — a phone that reports a
+ * fine pointer is not a device.
+ */
+describe('planViewportToolbar on a phone', () => {
+  const shared: ViewportToolbarGroupSpec[] = [
+    {
+      id: 'zoom',
+      items: [
+        action('zoom-out', { pinned: true, onPhone: 'omit' }),
+        node('zoom-readout', { onPhone: 'omit' }),
+        action('zoom-in', { pinned: true, onPhone: 'omit' }),
+      ],
+    },
+    {
+      id: 'view',
+      items: [action('fit', { pinned: true, onPhone: 'collapse' }), action('pan')],
+    },
+    { id: 'favorites', items: [action('favorite-draw', { pinned: true })] },
+  ];
+
+  it('drops an omitted control from the bar and from the menu alike', () => {
+    const plan = planViewportToolbar(shared, true, true);
+    expect(plan.inline.map((group) => group.id)).not.toContain('zoom');
+    expect(plan.overflow.map((group) => group.id)).not.toContain('zoom');
+  });
+
+  /*
+   * The one that would silently take a control away. `pinned` and
+   * `onPhone: 'collapse'` disagree by construction, and the phone has to win —
+   * otherwise Fit stays on a bar that no longer has room for it.
+   */
+  it('collapses a pinned control the phone asked to collapse', () => {
+    const plan = planViewportToolbar(shared, true, true);
+    expect(plan.inline.flatMap((group) => ids(group.items))).not.toContain('fit');
+    expect(plan.overflow.flatMap((group) => ids(group.items))).toContain('fit');
+  });
+
+  it('leaves the surface its own pinned controls, which is the point', () => {
+    const plan = planViewportToolbar(shared, true, true);
+    expect(plan.inline.flatMap((group) => ids(group.items))).toEqual(['favorite-draw']);
+  });
+
+  // A tablet keeps its rail, so it keeps the view controls it always had.
+  it('changes nothing for a coarse pointer that is not a phone', () => {
+    const plan = planViewportToolbar(shared, true, false);
+    expect(plan.inline.flatMap((group) => ids(group.items))).toEqual([
+      'zoom-out',
+      'zoom-readout',
+      'zoom-in',
+      'fit',
+      'favorite-draw',
+    ]);
+    expect(plan.overflow.flatMap((group) => ids(group.items))).toEqual(['pan']);
+  });
+
+  // Nothing collapses under a fine pointer, so the phone fields are inert there
+  // rather than quietly emptying a desktop bar.
+  it('changes nothing for a fine pointer', () => {
+    const plan = planViewportToolbar(shared, false, false);
+    expect(plan.inline.flatMap((group) => ids(group.items))).toHaveLength(6);
+    expect(plan.overflow).toEqual([]);
+  });
+});

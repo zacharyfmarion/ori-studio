@@ -192,7 +192,11 @@
     "previous": "前の候補"
   },
   "cpToolPicker": {
+    "addFavorite": "{{tool}}をお気に入りに追加",
     "close": "ツール一覧を閉じる",
+    "favorites": "お気に入り",
+    "favoritesHint": "ここでの最初の{{limit}}個のお気に入りが下部ツールバーに表示されます。長押ししてドラッグすると並べ替えできます。",
+    "removeFavorite": "{{tool}}をお気に入りから削除",
     "title": "ツール",
     "trigger": "ツール"
   },

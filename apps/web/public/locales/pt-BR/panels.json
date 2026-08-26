@@ -208,6 +208,7 @@
     "changeFoldedColor": "Alterar cor do modelo dobrado",
     "changeFoldedDisplayStyle": "Alterar estilo de exibição dobrada",
     "changeFoldedModel": "Alterar modelo dobrado",
+    "closeFoldedModels": "Fechar modelos dobrados",
     "commandFailed": "Comando falhou",
     "couldNotOpenForEditing": "Não foi possível abrir este padrão de vincos para edição.",
     "couldNotOpenForEditingHint": "Exibido somente leitura. Você ainda pode visualizar, dobrar e exportar.",
