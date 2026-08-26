@@ -321,9 +321,23 @@ what `AGENTS.md` tells us not to do.
 `simple_example.osf` (four creases at ±90°) is the minimum case; a real
 3D-designed pattern is the honest one.
 
-1. **Both modes, both export themes, SVG and PNG.** The PNG path rasterizes the
-   same SVG, so the thing being checked is that `stroke-opacity` survives the
-   `<img>` → canvas step at all.
+**Already checked in the running app** (`simple_example.osf` opened through the
+real `openProject`, Export PNG dialog, light theme):
+
+- The row appears directly below "Line style", and is **absent** for a blank
+  classic CP — the gate fires both ways.
+- `color`: the three −90° mountains render `#ec4aa6` and the +90° valley
+  `#9d76f4`, the exact halfway blends toward `#d946ef`. The four borders stay
+  `#111417`.
+- `opacity`: the creases keep `#ff4d5d` / `#60a5fa` and carry
+  `stroke-opacity="0.500"`; the borders carry none.
+- Changing the dropdown redraws the preview immediately.
+
+What that leaves is everything a look has to settle:
+
+1. **Both export themes, and the PNG raster.** Only light-theme SVG was checked
+   above. The PNG path rasterizes the same string, so the open question is
+   narrowly whether `stroke-opacity` survives the `<img>` → canvas step.
 2. **Vertex dots.** §9 — do the round caps composite into visible dots at
    shared vertices in `opacity` mode? If yes, alpha-bucketed `<g opacity>`.
 3. **Opacity over the grid.** Turn on Show grid lines with `opacity` selected. A
