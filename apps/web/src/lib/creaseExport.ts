@@ -10,8 +10,17 @@ import {
   applyCpModelToFold,
   cpModelToFoldTransform,
   IDENTITY_CP_MODEL_TO_FOLD,
+  isClassicFoldAngle,
   type CpModelToFoldTransform,
 } from './creaseExportFold';
+// The fold-angle encoding is the canvas's, not a second one written in hex: see
+// `foldAngleRamp`'s own tests, which pin each mode to a single channel. The
+// import direction (`lib/` -> `cp-workspace/`) follows `nativeProjectFile.ts`.
+import { foldAngleInk } from '../cp-workspace/foldAngle/foldAngleRamp';
+import { parseCssColor } from '../cp-workspace/renderer/cssColor';
+import type { Rgba } from '../cp-workspace/renderer/types';
+import { degreesToFoldMagnitude } from './foldAngle';
+import { rgbColorToHex } from './rgbColor';
 import type {
   OristudioCpDocumentSnapshot,
   OristudioCpFoldedRenderSnapshot,
@@ -20,11 +29,13 @@ import type {
 import type { Point } from './geometry';
 import type { FoldedFigureSide } from './foldedFigureSides';
 import {
+  DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
   DEFAULT_ORISTUDIO_CP_LINE_STYLE,
   DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
   expandedModelBoundsFromPoints,
   orieditaGridLinesForModelBounds,
   visibleOrieditaGridMetadata,
+  type OristudioCpFoldAngleDisplay,
   type OristudioCpLineStyle,
 } from './creasePatternViewport';
 import { cpLineStyleDashPattern, cpLineStyleInk } from './oristudioCpLineStyle';
@@ -123,6 +134,13 @@ export interface CreaseExportOptions {
   /** Segment id to export, or null for the whole document (all patterns). */
   segmentId: number | null;
   lineStyle: OristudioCpLineStyle;
+  /**
+   * Which channel carries a non-180 fold angle, exactly as the View panel's own
+   * dropdown chooses it for the canvas. Does nothing for a pattern whose creases
+   * are all full folds, which is why the dialogs hide the control there — see
+   * `hasNonClassicCreases`.
+   */
+  foldAngleDisplay: OristudioCpFoldAngleDisplay;
   lineWidth: number;
   pointSize: number;
   includeUnassigned: boolean;
@@ -153,6 +171,7 @@ export const EMPTY_CREASE_EXPORT_CAPTION: CreaseExportCaption = {
 export const DEFAULT_CREASE_EXPORT_OPTIONS: CreaseExportOptions = {
   segmentId: null,
   lineStyle: DEFAULT_ORISTUDIO_CP_LINE_STYLE,
+  foldAngleDisplay: DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
   lineWidth: DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
   // Points are off by default for exports (they add visual noise to a CP image).
   pointSize: 0,
@@ -187,6 +206,15 @@ export interface CreaseExportPalette {
    * ruling, which is the one thing the grid must not do.
    */
   grid: string;
+  /**
+   * Hue a shallower crease shifts toward under the `color` fold-angle mode.
+   *
+   * The same value in both themes, which is not an oversight: `--fold-angle-anchor`
+   * is defined once at `:root` in `theme.css` with no per-theme override, so a
+   * single anchor here is the faithful transcription of the canvas rather than a
+   * shortcut. See `cp-workspace/foldAngle/foldAngleRamp.ts` for why magenta.
+   */
+  foldAngleAnchor: string;
   /** The "black" of the monochrome line styles. */
   monochromeInk: string;
   /** Its muted counterpart (the black-and-white style's valley). */
@@ -210,6 +238,7 @@ export const CREASE_EXPORT_PALETTES: Record<CreaseExportTheme, CreaseExportPalet
     // Light enough to read as ruling on the cream paper rather than as an
     // unassigned crease, which is the nearest thing to it on the page.
     grid: '#ccd3da',
+    foldAngleAnchor: '#d946ef',
     monochromeInk: '#000000',
     monochromeValley: '#a2a2a2',
     title: '#111417',
@@ -229,6 +258,7 @@ export const CREASE_EXPORT_PALETTES: Record<CreaseExportTheme, CreaseExportPalet
     unassigned: '#7c8894',
     point: '#e8edf2',
     grid: '#333c46',
+    foldAngleAnchor: '#d946ef',
     monochromeInk: '#f2f4f7',
     monochromeValley: '#8b949e',
     title: '#f2f5f8',
@@ -262,6 +292,14 @@ function isUnassigned(assignment: string): boolean {
 
 interface EdgeAppearance {
   stroke: string;
+  /**
+   * 1 for every classic crease, and under the `color` fold-angle mode. Only the
+   * `opacity` mode produces anything else, and it is emitted as SVG
+   * `stroke-opacity` rather than blended into {@link stroke} — creases draw over
+   * the facet fill, the grid, and whatever a reference image left behind, so a
+   * colour pre-mixed with the page paints the wrong colour over all of them.
+   */
+  strokeOpacity: number;
   dash: string;
 }
 
@@ -285,24 +323,94 @@ function edgeLineColor(assignment: string): string {
   }
 }
 
-// The ported line-style table (see lib/oristudioCpLineStyle), rendered with the
-// export palette: its monochrome ink and grey stand in for Oriedita's black and
-// GREY_10 so a dark export stays legible.
-function edgeAppearance(
+/**
+ * `|ρ|` in kernel magnitude units for a crease that is not a full fold, or
+ * `null` for anything the fold-angle encoding must leave alone.
+ *
+ * Three rules, each of which is a bug if dropped:
+ *
+ * - **Only `M` and `V` are creases.** `B` and `F` carry a fold angle of `0` by
+ *   construction (`defaultFoldAngle`, and the kernel writes 0 for borders), so
+ *   reading the angle alone would fade every sheet outline in the document to
+ *   the opacity floor.
+ * - **An absent angle is classic**, matching `foldAngleFromParts`, which reads an
+ *   absent magnitude as a full ±180 fold.
+ * - **±180 needs an epsilon.** A classic crease reaches FOLD through the kernel's
+ *   unit conversion and can arrive as `179.9999999`; see
+ *   {@link isClassicFoldAngle}.
+ */
+function nonClassicMagnitudeUnits(
   assignment: string,
+  angle: number | null | undefined
+): number | null {
+  if (assignment !== 'M' && assignment !== 'V') return null;
+  if (typeof angle !== 'number' || !Number.isFinite(angle)) return null;
+  if (isClassicFoldAngle(angle)) return null;
+  // Clamped rather than rejected: a hand-written file can carry |ρ| > 180, and a
+  // full fold is the safe reading of it. `degreesToFoldMagnitude` returns null
+  // outside 0..180, which would silently skip the crease instead.
+  return degreesToFoldMagnitude(Math.min(180, Math.abs(angle)));
+}
+
+/**
+ * Resolve one edge's stroke, dash and opacity — the line-style table first, then
+ * the fold-angle encoding on top of whatever ink it produced.
+ *
+ * Built once per artwork rather than called as a free function, so the palette
+ * colours are parsed into {@link Rgba} once instead of once per crease. The
+ * dialog rebuilds the whole artwork on every slider drag.
+ *
+ * The line-style half is the ported table (see lib/oristudioCpLineStyle),
+ * rendered with the export palette: its monochrome ink and grey stand in for
+ * Oriedita's black and GREY_10 so a dark export stays legible. The fold-angle
+ * half is {@link foldAngleInk}, the canvas's own encoder — so the two surfaces
+ * cannot drift. What differs is the starting ink: the export runs the same
+ * construction over its own palette, so an exported 90° mountain is not
+ * pixel-equal to the canvas's.
+ */
+function edgeAppearances(
   lineStyle: OristudioCpLineStyle,
+  display: OristudioCpFoldAngleDisplay,
   palette: CreaseExportPalette
-): EdgeAppearance {
-  const lineColor = edgeLineColor(assignment);
-  const ink = cpLineStyleInk(lineStyle, lineColor);
-  const stroke =
-    ink === 'black'
-      ? palette.monochromeInk
-      : ink === 'grey'
-        ? palette.monochromeValley
-        : assignmentColor(assignment, palette);
-  const pattern = cpLineStyleDashPattern(lineStyle, lineColor);
-  return { stroke, dash: pattern ? scaleDash(pattern) : '' };
+): (assignment: string, angle: number | null | undefined) => EdgeAppearance {
+  const anchor = parseCssColor(palette.foldAngleAnchor);
+  const parsed = new Map<string, Rgba | null>();
+  const toRgba = (hex: string): Rgba | null => {
+    const cached = parsed.get(hex);
+    if (cached !== undefined) return cached;
+    const rgba = parseCssColor(hex);
+    parsed.set(hex, rgba);
+    return rgba;
+  };
+
+  return (assignment, angle) => {
+    const lineColor = edgeLineColor(assignment);
+    const ink = cpLineStyleInk(lineStyle, lineColor);
+    const stroke =
+      ink === 'black'
+        ? palette.monochromeInk
+        : ink === 'grey'
+          ? palette.monochromeValley
+          : assignmentColor(assignment, palette);
+    const pattern = cpLineStyleDashPattern(lineStyle, lineColor);
+    const dash = pattern ? scaleDash(pattern) : '';
+
+    const magnitude = nonClassicMagnitudeUnits(assignment, angle);
+    const base = magnitude === null ? null : toRgba(stroke);
+    if (magnitude === null || base === null || anchor === null) {
+      return { stroke, strokeOpacity: 1, dash };
+    }
+    const encoded = foldAngleInk(base, magnitude, { display, anchor });
+    return {
+      stroke: rgbColorToHex({
+        red: encoded[0] * 255,
+        green: encoded[1] * 255,
+        blue: encoded[2] * 255,
+      }),
+      strokeOpacity: encoded[3],
+      dash,
+    };
+  };
 }
 
 function scaleDash(pattern: readonly number[]): string {
@@ -858,15 +966,21 @@ export function buildCreaseExportArtwork(
           .join('\n')
       : '';
 
+  const foldAngles = targetFold.edges_foldAngle;
+  const appearanceFor = edgeAppearances(options.lineStyle, options.foldAngleDisplay, palette);
   const lines = edges
     .map((edge, index) => {
       const assignment = assignments[index] ?? 'U';
       if (!options.includeUnassigned && isUnassigned(assignment)) return '';
-      const { stroke, dash } = edgeAppearance(assignment, options.lineStyle, palette);
+      const { stroke, strokeOpacity, dash } = appearanceFor(assignment, foldAngles?.[index]);
       const a = project(edge[0]);
       const b = project(edge[1]);
       const dashAttr = dash ? ` stroke-dasharray="${dash}"` : '';
-      return `  <line x1="${a.x.toFixed(2)}" y1="${a.y.toFixed(2)}" x2="${b.x.toFixed(2)}" y2="${b.y.toFixed(2)}" stroke="${stroke}" stroke-width="${strokeWidth.toFixed(2)}"${dashAttr} stroke-linecap="round"/>`;
+      // Omitted at full opacity, so a pattern of classic creases still serializes
+      // byte-for-byte what it did before fold angles reached the export.
+      const opacityAttr =
+        strokeOpacity < 1 ? ` stroke-opacity="${strokeOpacity.toFixed(3)}"` : '';
+      return `  <line x1="${a.x.toFixed(2)}" y1="${a.y.toFixed(2)}" x2="${b.x.toFixed(2)}" y2="${b.y.toFixed(2)}" stroke="${stroke}" stroke-width="${strokeWidth.toFixed(2)}"${opacityAttr}${dashAttr} stroke-linecap="round"/>`;
     })
     .filter(Boolean)
     .join('\n');

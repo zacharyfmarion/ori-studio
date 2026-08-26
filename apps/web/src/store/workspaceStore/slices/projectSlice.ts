@@ -92,6 +92,7 @@ import {
 import { OPENABLE_FILE_EXTENSIONS } from '../../../lib/fileDrop';
 import {
   clampOrieditaGridAngle,
+  DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
   DEFAULT_ORISTUDIO_CP_LINE_STYLE,
   DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
   DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
@@ -628,6 +629,9 @@ function defaultCreaseExportOptions(viewport: OristudioCpViewportOptions): Creas
   return {
     ...DEFAULT_CREASE_EXPORT_OPTIONS,
     lineStyle: viewport.lineStyle ?? DEFAULT_ORISTUDIO_CP_LINE_STYLE,
+    // So an export opens showing what the editor was showing, rather than
+    // offering the choice as if it had not already been made.
+    foldAngleDisplay: viewport.foldAngleDisplay ?? DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
     lineWidth: viewport.lineWidth ?? DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
     // The caption starts empty: a document is usually still called "Untitled"
     // when it is exported, and a placeholder title drawn into the image is

@@ -15,7 +15,13 @@ import {
   svgToPngCard,
   type CreaseExportFoldedFigureSettings,
 } from '../../lib/creaseExport';
-import { isFlatFoldableFold } from '../../lib/creaseExportFold';
+import { hasNonClassicCreases, isFlatFoldableFold } from '../../lib/creaseExportFold';
+import {
+  DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
+  ORISTUDIO_CP_FOLD_ANGLE_DISPLAYS,
+  type OristudioCpFoldAngleDisplay,
+} from '../../lib/creasePatternViewport';
+import { cpFoldAngleDisplayLabel } from '../../i18n/enumLabels';
 import { shareCardTitle } from '../../lib/shareCardText';
 import { useFoldedFigurePreview } from '../folded/useFoldedFigurePreview';
 import { readRememberedAuthor } from './cpShareService';
@@ -23,6 +29,13 @@ import { Button } from '../../components/ui/Button';
 import { ColorField } from '../../components/ui/ColorField';
 import { IconButton } from '../../components/ui/IconButton';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/Select';
 import { Toggle } from '../../components/ui/Toggle';
 import type { FoldedFigureSide } from '../../lib/foldedFigureSides';
 
@@ -42,6 +55,13 @@ import type { FoldedFigureSide } from '../../lib/foldedFigureSides';
  * earn a decision here, so they take `DEFAULT_CREASE_EXPORT_OPTIONS`. Title and author are
  * not controls at all — they are drawn *into* the card, through the same caption block
  * the export layout already lays out.
+ *
+ * Fold angle style is the one exception, and on a different footing. Line style is a
+ * choice between two pictures that are equally true; with no fold-angle encoding the card
+ * shows a pattern that *is not the pattern*, which is the same argument that makes the
+ * encoding unconditional on the canvas. It also appears only when the document has creases
+ * that are not full folds, so it adds nothing to the flat-pattern share this paragraph is
+ * about.
  */
 export function ShareLinkModal() {
   const { t } = useTranslation();
@@ -55,6 +75,9 @@ export function ShareLinkModal() {
   const [author, setAuthor] = useState('');
   const [showGrid, setShowGrid] = useState(false);
   const [showFolded, setShowFolded] = useState(false);
+  const [foldAngleDisplay, setFoldAngleDisplay] = useState<OristudioCpFoldAngleDisplay>(
+    DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY
+  );
   const [side, setSide] = useState<FoldedFigureSide>('Front0');
   const [frontColor, setFrontColor] = useState(DEFAULT_CREASE_EXPORT_FOLDED_FIGURE.frontColor);
   const [backColor, setBackColor] = useState(DEFAULT_CREASE_EXPORT_FOLDED_FIGURE.backColor);
@@ -68,6 +91,14 @@ export function ShareLinkModal() {
   useEffect(() => {
     if (!open) return;
     setAuthor(readRememberedAuthor());
+    // The card opens showing what the editor was showing. Read imperatively, like
+    // the remembered author beside it: this is a snapshot taken when the dialog
+    // opens, not a subscription — the component stays mounted between shares, so a
+    // `useState` initial value would freeze at whatever the app started with.
+    setFoldAngleDisplay(
+      useWorkspaceStore.getState().oristudioCpViewport.foldAngleDisplay ??
+        DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY
+    );
   }, [open]);
 
   useEffect(() => {
@@ -96,6 +127,19 @@ export function ShareLinkModal() {
     [draft]
   );
   const canFold = hasDocument && isFlat;
+
+  // Deliberately not `!isFlat`: a 0° crease is flat-foldable but is not a full fold,
+  // and the card draws it faded either way. See `hasNonClassicCreases`.
+  const hasFoldAngles = useMemo(
+    () =>
+      draft
+        ? hasNonClassicCreases(
+            draft.fold,
+            draft.segments.find((entry) => entry.id === draft.segmentId) ?? null
+          )
+        : false,
+    [draft]
+  );
 
   const foldedSettings: CreaseExportFoldedFigureSettings = useMemo(
     () => ({ side, frontColor, backColor, foldCase: 1 }),
@@ -131,6 +175,7 @@ export function ShareLinkModal() {
       {
         ...DEFAULT_CREASE_EXPORT_OPTIONS,
         segmentId: draft.segmentId,
+        foldAngleDisplay,
         showGrid: showGrid && draft.grid !== null,
         includeFoldedFigure: showFolded && folded.figure !== null,
         foldedFigure: foldedSettings,
@@ -143,7 +188,15 @@ export function ShareLinkModal() {
     );
     const page = composeCreaseExportSvg(artwork, EMPTY_CREASE_EXPORT_CAPTION);
     return { ...page, background: artwork.palette.canvas };
-  }, [draft, showGrid, showFolded, folded.figure, folded.transform, foldedSettings]);
+  }, [
+    draft,
+    foldAngleDisplay,
+    showGrid,
+    showFolded,
+    folded.figure,
+    folded.transform,
+    foldedSettings,
+  ]);
 
   // Exactly what the Worker will write into the OpenGraph tags — same helpers, so the
   // preview cannot promise a card the crawler never receives.
@@ -251,6 +304,33 @@ export function ShareLinkModal() {
             </label>
 
             <div className="share-link-modal__divider" />
+
+            {/* Only where there is an angle to encode; see `hasNonClassicCreases`. */}
+            {hasFoldAngles && (
+              <div className="share-link-modal__toggle-row">
+                <span>{t('dialogs:share.foldAngleDisplay', 'Fold angle style')}</span>
+                <Select
+                  value={foldAngleDisplay}
+                  onValueChange={(next) =>
+                    setFoldAngleDisplay(next as OristudioCpFoldAngleDisplay)
+                  }
+                >
+                  <SelectTrigger
+                    aria-label={t('dialogs:share.foldAngleDisplay', 'Fold angle style')}
+                    className="export-modal__select"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ORISTUDIO_CP_FOLD_ANGLE_DISPLAYS.map((display) => (
+                      <SelectItem key={display} value={display}>
+                        {cpFoldAngleDisplayLabel(t, display)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="share-link-modal__toggle-row">
               <span>

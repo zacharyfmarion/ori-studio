@@ -2520,7 +2520,9 @@
     "dialogs:export.showGrid": "0246699d921a",
     "dialogs:export.showGridNeedsCp": "0268d3bdab28",
     "dialogs:share.grid": "0246699d921a",
-    "dialogs:share.gridNeedsCp": "0268d3bdab28"
+    "dialogs:share.gridNeedsCp": "0268d3bdab28",
+    "dialogs:export.foldAngleDisplay": "192d0384d265",
+    "dialogs:share.foldAngleDisplay": "192d0384d265"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5043,7 +5045,9 @@
     "dialogs:export.showGrid": "0246699d921a",
     "dialogs:export.showGridNeedsCp": "0268d3bdab28",
     "dialogs:share.grid": "0246699d921a",
-    "dialogs:share.gridNeedsCp": "0268d3bdab28"
+    "dialogs:share.gridNeedsCp": "0268d3bdab28",
+    "dialogs:export.foldAngleDisplay": "192d0384d265",
+    "dialogs:share.foldAngleDisplay": "192d0384d265"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7566,7 +7570,9 @@
     "dialogs:export.showGrid": "0246699d921a",
     "dialogs:export.showGridNeedsCp": "0268d3bdab28",
     "dialogs:share.grid": "0246699d921a",
-    "dialogs:share.gridNeedsCp": "0268d3bdab28"
+    "dialogs:share.gridNeedsCp": "0268d3bdab28",
+    "dialogs:export.foldAngleDisplay": "192d0384d265",
+    "dialogs:share.foldAngleDisplay": "192d0384d265"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -10050,7 +10056,9 @@
     "dialogs:export.showGrid": "0246699d921a",
     "dialogs:export.showGridNeedsCp": "0268d3bdab28",
     "dialogs:share.grid": "0246699d921a",
-    "dialogs:share.gridNeedsCp": "0268d3bdab28"
+    "dialogs:share.gridNeedsCp": "0268d3bdab28",
+    "dialogs:export.foldAngleDisplay": "192d0384d265",
+    "dialogs:share.foldAngleDisplay": "192d0384d265"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -12534,7 +12542,9 @@
     "dialogs:export.showGrid": "0246699d921a",
     "dialogs:export.showGridNeedsCp": "0268d3bdab28",
     "dialogs:share.grid": "0246699d921a",
-    "dialogs:share.gridNeedsCp": "0268d3bdab28"
+    "dialogs:share.gridNeedsCp": "0268d3bdab28",
+    "dialogs:export.foldAngleDisplay": "192d0384d265",
+    "dialogs:share.foldAngleDisplay": "192d0384d265"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -15057,7 +15067,9 @@
     "dialogs:export.showGrid": "0246699d921a",
     "dialogs:export.showGridNeedsCp": "0268d3bdab28",
     "dialogs:share.grid": "0246699d921a",
-    "dialogs:share.gridNeedsCp": "0268d3bdab28"
+    "dialogs:share.gridNeedsCp": "0268d3bdab28",
+    "dialogs:export.foldAngleDisplay": "192d0384d265",
+    "dialogs:share.foldAngleDisplay": "192d0384d265"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -17580,7 +17592,9 @@
     "dialogs:export.showGrid": "0246699d921a",
     "dialogs:export.showGridNeedsCp": "0268d3bdab28",
     "dialogs:share.grid": "0246699d921a",
-    "dialogs:share.gridNeedsCp": "0268d3bdab28"
+    "dialogs:share.gridNeedsCp": "0268d3bdab28",
+    "dialogs:export.foldAngleDisplay": "192d0384d265",
+    "dialogs:share.foldAngleDisplay": "192d0384d265"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -20064,6 +20078,8 @@
     "dialogs:export.showGrid": "0246699d921a",
     "dialogs:export.showGridNeedsCp": "0268d3bdab28",
     "dialogs:share.grid": "0246699d921a",
-    "dialogs:share.gridNeedsCp": "0268d3bdab28"
+    "dialogs:share.gridNeedsCp": "0268d3bdab28",
+    "dialogs:export.foldAngleDisplay": "192d0384d265",
+    "dialogs:share.foldAngleDisplay": "192d0384d265"
   }
 }
