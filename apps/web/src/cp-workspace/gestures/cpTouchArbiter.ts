@@ -1,5 +1,5 @@
 /**
- * Who owns the crease-pattern canvas when more than one thing is touching it.
+ * Who owns the crease-pattern *surface* when more than one thing is touching it.
  *
  * The canvas' `pointerdown` used to take no `pointerId`, `isPrimary` or
  * `pointerType` filter at all, so a second finger re-entered the whole tool
@@ -14,7 +14,7 @@
  * branch of a 120-line handler. What it does *not* own is the rollback — taking
  * back what an aborted press started touches a dozen pieces of canvas-local
  * mutable state, and a function taking fifteen arguments would be worse than the
- * inlining. This module decides; the canvas acts.
+ * inlining. This module decides; each layer acts.
  *
  * The three rules, in the order they are applied:
  *
@@ -29,6 +29,20 @@
  *    reaches the tool chain. That last part matters as much as the first: if
  *    lifting one finger of a pinch resumed drawing with the other, the bug
  *    would just move.
+ *
+ * **The surface is not the canvas element**, and the difference is what
+ * {@link CpGestureOrigin} is for. Windows and images are grabbed through
+ * `CanvasObjectOverlay`, a sibling DOM layer that captures the pointer and never
+ * lets the press reach the canvas. While this arbiter was scoped to the canvas
+ * element, a finger landing there was invisible to it — so a pinch with one
+ * finger on a folded figure broke in *both* directions at once: the overlay
+ * dragged the window, knowing nothing of any second contact, and rule 2 handed
+ * the other finger to the tool chain because it looked like the only one on the
+ * surface. Two fingers, one dragging and one drawing, and nothing pinching.
+ *
+ * So contacts carry the layer they landed on, rule 3 counts them all, and the
+ * roll-back verdict names *which* layers have something to take back — the one
+ * that asked is not necessarily the one that loses a press.
  */
 import {
   contactCentroid,
@@ -57,14 +71,30 @@ export interface CpGesturePointer {
  */
 export type CpGestureAction = 'forward' | 'transform' | 'ignore';
 
+/**
+ * Which layer of the crease-pattern surface a contact landed on.
+ *
+ * Both take presses, both capture the pointer, and neither sees the other's
+ * events — so the only place their contacts meet is here.
+ */
+export type CpGestureOrigin =
+  /** The WebGL canvas: creases, tools, the camera. */
+  | 'canvas'
+  /** `CanvasObjectOverlay`: move/resize/rotate for windows, images, text. */
+  | 'overlay';
+
 export interface CpGestureDownVerdict {
   action: CpGestureAction;
   /**
-   * Roll back whatever the previously forwarded press started, before doing
-   * anything else with this event. True exactly when a press that was reaching
-   * the tool chain has just lost the surface.
+   * Layers holding a forwarded press that this event has just taken the surface
+   * from, and which must roll it back before anything else happens.
+   *
+   * A list rather than the boolean it replaces, because the layer that loses a
+   * press is not always the layer that asked: a finger landing on the canvas
+   * beside one already dragging a folded figure aborts the *overlay*. Empty for
+   * the overwhelmingly common case of nothing being in flight anywhere.
    */
-  abortInFlight: boolean;
+  abort: readonly CpGestureOrigin[];
 }
 
 export type CpGestureMoveVerdict =
@@ -105,14 +135,19 @@ interface Contact {
   id: number;
   coarse: boolean;
   role: ContactRole;
+  /** The layer this contact pressed on; see {@link CpGestureOrigin}. */
+  origin: CpGestureOrigin;
   x: number;
   y: number;
-  originX: number;
-  originY: number;
 }
 
 export interface CpTouchArbiter {
-  down(pointer: CpGesturePointer): CpGestureDownVerdict;
+  /**
+   * `origin` defaults to `canvas`, which is every call site that predates the
+   * overlay joining: with one layer in play the machine behaves exactly as it
+   * did when it was scoped to the canvas element.
+   */
+  down(pointer: CpGesturePointer, origin?: CpGestureOrigin): CpGestureDownVerdict;
   move(pointer: CpGesturePointer): CpGestureMoveVerdict;
   /** Handles `pointerup` and `pointercancel` alike — both end a contact. */
   up(pointer: CpGesturePointer): CpGestureUpVerdict;
@@ -151,22 +186,33 @@ export function createCpTouchArbiter(): CpTouchArbiter {
       : null;
   };
 
-  const add = (pointer: CpGesturePointer, role: ContactRole): Contact => {
+  const add = (
+    pointer: CpGesturePointer,
+    role: ContactRole,
+    origin: CpGestureOrigin
+  ): Contact => {
     const contact: Contact = {
       id: pointer.pointerId,
       coarse: isCoarsePointer(pointer.pointerType),
       role,
+      origin,
       x: pointer.clientX,
       y: pointer.clientY,
-      originX: pointer.clientX,
-      originY: pointer.clientY,
     };
     contacts.set(contact.id, contact);
     return contact;
   };
 
+  /** The layers among `losing` that have a forwarded press to take back. */
+  const abortList = (losing: readonly Contact[]): CpGestureOrigin[] => [
+    ...new Set(losing.map((contact) => contact.origin)),
+  ];
+
+  /** No layer loses anything — the shape of almost every verdict. */
+  const NOTHING_IN_FLIGHT: readonly CpGestureOrigin[] = [];
+
   return {
-    down(pointer: CpGesturePointer): CpGestureDownVerdict {
+    down(pointer: CpGesturePointer, origin: CpGestureOrigin = 'canvas'): CpGestureDownVerdict {
       const existing = contacts.get(pointer.pointerId);
       if (existing) {
         // A second button on the same physical pointer — a right-click while
@@ -175,7 +221,7 @@ export function createCpTouchArbiter(): CpTouchArbiter {
         existing.x = pointer.clientX;
         existing.y = pointer.clientY;
         if (existing.role === 'transform') rebase();
-        return { action: existing.role, abortInFlight: false };
+        return { action: existing.role, abort: NOTHING_IN_FLIGHT };
       }
 
       if (!isCoarsePointer(pointer.pointerType)) {
@@ -185,26 +231,26 @@ export function createCpTouchArbiter(): CpTouchArbiter {
         // flight as a finger does, and an iPad carries both a trackpad pointer
         // and a Pencil at once. A camera gesture is the only role with nothing
         // to take back, because it has touched no document state.
-        const preempted = inRole('forward').length > 0;
+        const abort = abortList(inRole('forward'));
         for (const contact of contacts.values()) contact.role = 'ignore';
         previous = null;
-        add(pointer, 'forward');
-        return { action: 'forward', abortInFlight: preempted };
+        add(pointer, 'forward', origin);
+        return { action: 'forward', abort };
       }
 
       if (inRole('forward').some((contact) => !contact.coarse)) {
         // Rule 1, the other half: a finger arriving while a Pencil or mouse is
         // down is a palm, and is inert for as long as it stays down.
-        add(pointer, 'ignore');
-        return { action: 'ignore', abortInFlight: false };
+        add(pointer, 'ignore', origin);
+        return { action: 'ignore', abort: NOTHING_IN_FLIGHT };
       }
 
       const transforming = inRole('transform');
       if (transforming.length > 0) {
         // A third finger joins the camera gesture rather than starting anything.
-        add(pointer, 'transform');
+        add(pointer, 'transform', origin);
         rebase();
-        return { action: 'transform', abortInFlight: false };
+        return { action: 'transform', abort: NOTHING_IN_FLIGHT };
       }
 
       const forwarded = inRole('forward');
@@ -213,18 +259,21 @@ export function createCpTouchArbiter(): CpTouchArbiter {
         // converts the gesture instead of starting a second one. The forwarded
         // contact is promoted rather than dropped, so lifting either finger
         // leaves the other panning — and neither resumes drawing.
+        //
+        // Whose press is promoted decides who rolls back, which is why `abort`
+        // is read off the contacts rather than assumed to be the caller: a
+        // finger landing on the canvas beside one already dragging a window
+        // aborts the overlay's drag, not anything of the canvas'.
+        const abort = abortList(forwarded);
         for (const contact of forwarded) contact.role = 'transform';
-        add(pointer, 'transform');
+        add(pointer, 'transform', origin);
         rebase();
-        return { action: 'transform', abortInFlight: true };
+        return { action: 'transform', abort };
       }
 
       // Rule 2: a lone finger draws, exactly as a mouse would.
-      add(pointer, 'forward');
-      return {
-        action: 'forward',
-        abortInFlight: false,
-      };
+      add(pointer, 'forward', origin);
+      return { action: 'forward', abort: NOTHING_IN_FLIGHT };
     },
 
     move(pointer: CpGesturePointer): CpGestureMoveVerdict {
