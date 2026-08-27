@@ -1121,11 +1121,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     });
   }
 
+  // Both branches end at `foldArtifactsFromFold`: simulation faces are built in
+  // JS (no flat-folding), which is what supports documents with multiple
+  // disconnected crease patterns, something the Rust flat-folder rejects. The
+  // difference is only where the crease pattern comes from, and — for a
+  // TreeMaker design, whose fold can be large — that the worker prepares it.
   async function computeFoldArtifacts(): Promise<FoldArtifacts | null> {
     if (get().oristudioCpDocument) {
-      // Editable crease patterns build simulation faces in JS (no flat-folding).
-      // This supports documents with multiple disconnected crease patterns,
-      // which the Rust flat-folder rejects.
       const fold = parseFoldProjection(await exportOristudioCpDocumentAsFold());
       if (!fold) return null;
       return foldArtifactsFromFold(fold);

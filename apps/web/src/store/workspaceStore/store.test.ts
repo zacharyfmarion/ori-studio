@@ -446,10 +446,7 @@ function foldArtifactsFromSnapshot(snapshot: TreeSnapshot): FoldArtifacts {
         order: 0,
       })),
     },
-    simulation_model: {
-      fold,
-      crease_params: [],
-    },
+    simulation_model: { fold },
   };
 }
 
@@ -485,13 +482,7 @@ function foldArtifactsFromFold(fold: FoldDocument): FoldArtifacts {
         order: index,
       })),
     },
-    simulation_model:
-      fold.faces_vertices.length > 0
-        ? {
-            fold,
-            crease_params: [],
-          }
-        : null,
+    simulation_model: fold.faces_vertices.length > 0 ? { fold } : null,
     simulation_model_error: fold.faces_vertices.length > 0 ? null : 'Simulation requires faces',
   };
 }

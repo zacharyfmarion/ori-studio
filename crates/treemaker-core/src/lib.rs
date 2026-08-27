@@ -651,6 +651,13 @@ pub struct FoldedBaseSnapshot {
 }
 
 /// Complete folded-form/export artifacts for UI and simulator consumers.
+///
+/// The triangulated simulation mesh is *not* here: it is built from `fold` by
+/// `packages/origami-simulator`, which is the only implementation of that step
+/// and the one the solver actually runs on. What survives is
+/// `simulation_model_error`, which answers a question only this engine can:
+/// whether TreeMaker has produced a complete enough crease pattern to simulate
+/// at all.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FoldArtifacts {
     pub fold: treemaker_fold::FoldDocument,
@@ -658,8 +665,6 @@ pub struct FoldArtifacts {
     pub folded_base: Option<FoldedBaseSnapshot>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub folded_base_error: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub simulation_model: Option<treemaker_fold::PreparedFoldModel>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub simulation_model_error: Option<String>,
 }
@@ -1329,16 +1334,6 @@ impl Tree {
         })
     }
 
-    /// Return a generic triangulated simulation model for the current crease pattern.
-    pub fn simulation_model(&self) -> Result<treemaker_fold::PreparedFoldModel> {
-        if self.cp_status() != CPStatus::HasFullCp {
-            return Err(TreeError::FoldArtifact(self.simulation_unavailable_error()));
-        }
-        let fold = self.to_fold_document()?;
-        treemaker_fold::prepare_simulation_model(&fold)
-            .map_err(|error| TreeError::FoldArtifact(error.to_string()))
-    }
-
     /// Return all fold-related artifacts used by UI, export, and simulation surfaces.
     pub fn fold_artifacts(&self) -> Result<FoldArtifacts> {
         let fold = self.to_fold_document()?;
@@ -1346,20 +1341,15 @@ impl Tree {
             Ok(snapshot) => (Some(snapshot), None),
             Err(error) => (None, Some(error.to_string())),
         };
-        let (simulation_model, simulation_model_error) = if self.cp_status() == CPStatus::HasFullCp
-        {
-            match treemaker_fold::prepare_simulation_model(&fold) {
-                Ok(model) => (Some(model), None),
-                Err(error) => (None, Some(error.to_string())),
-            }
-        } else {
-            (None, Some(self.simulation_unavailable_error()))
-        };
+        // Whether the mesh itself can be built is the simulator's question, and
+        // it answers it from `fold`. This one is ours: a partial crease pattern
+        // has nothing worth handing over.
+        let simulation_model_error =
+            (self.cp_status() != CPStatus::HasFullCp).then(|| self.simulation_unavailable_error());
         Ok(FoldArtifacts {
             fold,
             folded_base,
             folded_base_error,
-            simulation_model,
             simulation_model_error,
         })
     }
@@ -10242,15 +10232,9 @@ mod tests {
         assert_eq!(artifacts.fold.edges_vertices.len(), tree.creases.len());
         assert!(artifacts.folded_base.is_some());
         assert!(artifacts.folded_base_error.is_none());
-        assert!(
-            !artifacts
-                .simulation_model
-                .as_ref()
-                .unwrap()
-                .fold
-                .faces_vertices
-                .is_empty()
-        );
+        // The simulator triangulates `fold` itself; a full CP just has to arrive
+        // with faces and no unavailability reason attached.
+        assert!(!artifacts.fold.faces_vertices.is_empty());
         assert!(artifacts.simulation_model_error.is_none());
     }
 
@@ -10266,7 +10250,6 @@ mod tests {
 
         assert!(artifacts.folded_base.is_some());
         assert!(artifacts.folded_base_error.is_none());
-        assert!(artifacts.simulation_model.is_none());
         assert!(
             artifacts
                 .simulation_model_error

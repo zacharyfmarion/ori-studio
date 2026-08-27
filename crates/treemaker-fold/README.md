@@ -14,6 +14,5 @@ custom fields.
 - Assignment and fold-angle helpers.
 - Basic structural validation.
 - Edge/face adjacency construction.
-- Polygon triangulation for simulator-ready meshes.
 
 License: `MIT OR Apache-2.0`.

@@ -163,6 +163,11 @@ function buildImportedCreasePatternResult(
  * itself, so it only needs faces + M/V assignments. Because face inference is
  * per-region, this naturally supports documents containing several disconnected
  * crease patterns (which the Rust flat-folder cannot).
+ *
+ * This is the only place a simulation mesh is built. Both document kinds reach
+ * it — an editable crease pattern through `computeFoldArtifacts`, a TreeMaker
+ * design through the treemaker worker's `foldArtifacts` — so what the panel
+ * shows and what the solver runs on are prepared by the same code.
  */
 export function foldArtifactsFromFold(
   fold: FoldDocument,
@@ -174,7 +179,7 @@ export function foldArtifactsFromFold(
     fold: withTopology,
     folded_base: null,
     folded_base_error: null,
-    simulation_model: simulation.fold ? { fold: simulation.fold, crease_params: [] } : null,
+    simulation_model: simulation.fold ? { fold: simulation.fold } : null,
     simulation_model_error: simulation.error,
   };
 }

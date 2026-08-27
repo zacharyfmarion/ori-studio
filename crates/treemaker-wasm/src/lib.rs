@@ -125,10 +125,11 @@ struct ImportedFoldArtifacts {
     folded_base: Option<FoldedBaseSnapshot>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     folded_base_error: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    simulation_model: Option<treemaker_fold::PreparedFoldModel>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    simulation_model_error: Option<String>,
+    /// The same crease pattern with the flat-folder's inferred M/V assignments
+    /// substituted for the canonical ones, ready to be turned into a mesh by
+    /// `packages/origami-simulator`. Untriangulated: preparation happens once,
+    /// in the simulator package.
+    simulation_fold: FoldDocument,
 }
 
 #[wasm_bindgen]
@@ -179,17 +180,11 @@ pub fn flat_fold_artifacts(
         .copied()
         .map(treemaker_fold::FoldAngle::default_for_assignment)
         .collect();
-    let (simulation_model, simulation_model_error) =
-        match treemaker_fold::prepare_simulation_model(&simulation_fold) {
-            Ok(model) => (Some(model), None),
-            Err(error) => (None, Some(error.to_string())),
-        };
     let artifacts = ImportedFoldArtifacts {
         fold: fold_value,
         folded_base: Some(folded_base),
         folded_base_error: None,
-        simulation_model,
-        simulation_model_error,
+        simulation_fold,
     };
     let serializer = serde_wasm_bindgen::Serializer::json_compatible();
     artifacts.serialize(&serializer).map_err(to_js_value)
