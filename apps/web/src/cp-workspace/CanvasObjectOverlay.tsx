@@ -64,7 +64,19 @@ export interface CanvasObjectBoxUpdate {
 }
 
 type Drag =
-  | { kind: 'move'; id: string; startClient: Vec2; startCenter: Vec2; moved: boolean }
+  | {
+      kind: 'move';
+      id: string;
+      startClient: Vec2;
+      startCenter: Vec2;
+      /**
+       * What held the selection when this press landed, so a gesture that turns
+       * out to be a pinch can put it back. Only a body press selects, which is
+       * why only this variant carries it.
+       */
+      selectionBefore: string | null;
+      moved: boolean;
+    }
   | {
       kind: 'resize';
       id: string;
@@ -270,6 +282,9 @@ export function CanvasObjectOverlay({
         return;
       }
       if (!claimPress(event)) return;
+      // Selected on press, not on release: the outline has to be up while the
+      // object is being dragged. What makes that safe when the press turns out
+      // to be the first finger of a pinch is `selectionBefore` — see `abortDrag`.
       onSelect(object.id);
       onGestureStart?.(object.id);
       dragRef.current = {
@@ -277,10 +292,11 @@ export function CanvasObjectOverlay({
         id: object.id,
         startClient: { x: event.clientX, y: event.clientY },
         startCenter: { x: object.box.center.x, y: object.box.center.y },
+        selectionBefore: selectedId,
         moved: false,
       };
     },
-    [interactive, onSelect, onGestureStart]
+    [interactive, onSelect, onGestureStart, selectedId]
   );
 
   const handleResizeDown = useCallback(
@@ -401,15 +417,22 @@ export function CanvasObjectOverlay({
   );
 
   /**
-   * Put the object back where the gesture found it, because a camera gesture has
-   * claimed the surface — the second finger of a pinch landed, or a Pencil
-   * preempted the hand.
+   * Leave no trace of the press, because a camera gesture has claimed the
+   * surface — the second finger of a pinch landed, or a Pencil preempted the
+   * hand.
    *
    * Symmetrical with the canvas' `abortInFlightGesture`, and for the same
    * reason: a pinch that nudges a folded figure a few pixels every time is a
    * document edit nobody asked for. The gesture is dropped without committing,
    * so the store lands back on the value it started from with no history entry —
    * exactly what a cancelled gesture already did.
+   *
+   * **Selection is taken back too, and unlike the geometry it is taken back even
+   * when nothing moved.** Fingers of a pinch land tens of milliseconds apart, so
+   * the first one has already selected whatever it came down on — reported from
+   * a tablet as "it no longer moves the window, but it still selects it". A
+   * pinch is a camera gesture and should change nothing else, so the selection
+   * goes back to whatever held it, which is usually nothing.
    *
    * A crop drag is the one thing that cannot be restored: the crop rect lives
    * with the owner that applies it, and {@link TransformableCanvasObject} — all
@@ -419,16 +442,22 @@ export function CanvasObjectOverlay({
   const abortDrag = useCallback(() => {
     const drag = dragRef.current;
     dragRef.current = null;
-    if (!drag?.moved) return;
+    if (!drag) return;
     if (drag.kind === 'move') {
-      onUpdate(drag.id, { center: drag.startCenter });
-    } else if (drag.kind === 'rotate') {
+      if (drag.selectionBefore !== drag.id) onSelect(drag.selectionBefore);
+      if (drag.moved) onUpdate(drag.id, { center: drag.startCenter });
+      return;
+    }
+    // Resize and rotate never selected anything: their handles only exist on the
+    // object that already held the selection.
+    if (!drag.moved) return;
+    if (drag.kind === 'rotate') {
       onUpdate(drag.id, { rotation: drag.startRotation });
     } else if (!drag.crop) {
       const { center, width, height } = drag.startObject.box;
       onUpdate(drag.id, { center, width, height });
     }
-  }, [onUpdate]);
+  }, [onUpdate, onSelect]);
 
   useEffect(() => cpSurfaceGestures.onAbort('overlay', abortDrag), [abortDrag]);
 

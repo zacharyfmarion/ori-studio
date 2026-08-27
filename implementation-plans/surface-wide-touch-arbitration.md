@@ -49,6 +49,15 @@ Three consequences shape the API:
 The rules themselves are unchanged, and so is every single-pointer path: with
 one origin in play the state machine behaves exactly as it does today.
 
+**What "roll back" covers.** Found on a tablet against the first cut, which
+stopped the window moving but left it *selected*: fingers land tens of
+milliseconds apart, so the first has already selected whatever it came down on
+before the second makes the gesture a pinch. A press selects on `pointerdown`
+and must keep doing so — the outline has to be up while the object is dragged —
+so the overlay records what held the selection and restores it on abort. Unlike
+the geometry, this is **not** gated on the drag having moved: a pinch that
+starts as a still touch would otherwise leave the window selected.
+
 ## Affected Areas
 
 - `apps/web/src/cp-workspace/gestures/cpTouchArbiter.ts` — origins, abort and
@@ -71,6 +80,7 @@ one origin in play the state machine behaves exactly as it does today.
 - [x] Shared `cpSurfaceGestures` instance
 - [x] Canvas consumes the shared instance
 - [x] Overlay arbitrates presses and rolls back on abort
+- [x] Abort restores the selection too, gated on nothing (tablet-reported)
 - [x] Arbiter sequence tests cover cross-origin preemption
 - [x] Overlay tests cover "second finger cancels the drag"
 - [x] `npm run lint:web` / `typecheck:web` / `test:web`
