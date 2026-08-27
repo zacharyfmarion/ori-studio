@@ -39,8 +39,9 @@ Three things in the code today argue for opacity specifically:
 Naming follows `OristudioCpLineStyle`, which already uses `'color'`, so the two
 dropdowns read as siblings.
 
-- **`color`** (default) — today's diverging hue ramp. Unchanged.
-- **`opacity`** — alpha ramp, RGB untouched.
+- **`color`** — today's diverging hue ramp. Unchanged. (Was the default as this
+  shipped; see Open decisions, where that was later flipped.)
+- **`opacity`** — alpha ramp, RGB untouched. (Now the default.)
 
 **Two modes, not three.** A composed `color-and-opacity` is one line to
 implement, and it is the wrong line: hue-ramping *and* fading the same crease
@@ -202,9 +203,11 @@ schema change**, exactly as `lineStyle` does.
 One thing to handle that `lineStyle` currently does not: `nativeProjectFile.ts`
 casts `viewState.viewport` to `OristudioCpViewportOptions` without validating it,
 so a hand-edited or future-version file can deliver an unknown string. Normalise
-at the point of use — `foldAngleInk` falls back to `'color'` on anything it does
-not recognise — which covers the store being written from anywhere, not just from
-a file load, and costs one `default:` arm.
+at the point of use — `foldAngleInk` falls back to the declared default mode on
+anything it does not recognise — which covers the store being written from
+anywhere, not just from a file load, and costs one `default:` arm. That arm is
+pinned by test against `DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY` rather than
+hard-coded, which is what let the default flip later without leaving it behind.
 
 ## Affected Areas
 
@@ -261,7 +264,8 @@ a file load, and costs one `default:` arm.
 - [x] `buildStrokes` deps include the mode (switching repaints immediately)
 
 ### UI and storage
-- [x] `foldAngleDisplay` on `OristudioCpViewportOptions`, default `'color'`
+- [x] `foldAngleDisplay` on `OristudioCpViewportOptions` (shipped defaulting to
+      `'color'`; now `'opacity'` — see Open decisions)
 - [x] `Select` row in `CpViewControlsPanel`, above "Fold angle labels"
 - [x] `cpFoldAngleDisplayLabel` in `enumLabels.ts`
 - [x] `.osf` `viewState.viewport` round-trip, no schema change — plus the
@@ -307,7 +311,7 @@ rAF, so the WebGL canvas cannot be verified there.
 | R2 | Editing `applyFoldAngleRamp`'s pins to fit the new shape deletes a guard rather than satisfying it | The ramp is not touched at all. The mode lives in a new dispatcher with its own, stronger pin |
 | R3 | The mode is not in `buildStrokes` deps, so the dropdown appears dead until an unrelated invalidation | Explicit checklist item; a store-driven test that a mode change produces different stroke colours |
 | R4 | Vertex double-composite reads as dirt at every vertex | Browser check 2. Accept and document if it is mild; if not, the mode is worse than it looked and the floor rises |
-| R5 | A future/hand-edited `.osf` delivers an unknown mode string through the unvalidated `viewState.viewport` cast | `default:` arm in `foldAngleInk` falls back to `'color'`. Total, and covers non-file writes too |
+| R5 | A future/hand-edited `.osf` delivers an unknown mode string through the unvalidated `viewState.viewport` cast | `default:` arm in `foldAngleInk` falls back to the declared default mode. Total, and covers non-file writes too |
 | R6 | The two stroke builders drift per mode | Existing parity gate, extended per mode, with per-mode non-vacuity so a dead mode cannot pass trivially |
 
 ## Open decisions
@@ -322,9 +326,21 @@ rAF, so the WebGL canvas cannot be verified there.
   invisible coupling between two dropdowns is worse than the defect. Recommend
   leaving it to the explicit choice and documenting the interaction; revisit if
   it actually annoys.
-- **Default.** Stays `'color'`, so nothing changes for anyone who does not touch
-  the dropdown. If `opacity` turns out to read better on real patterns, flipping
-  the default is a one-line follow-up — worth deciding *after* looking, not now.
+- **Default.** ~~Stays `'color'`~~ — **resolved: flipped to `'opacity'`.** This
+  shipped with `'color'` as the default, on the reasoning that nothing should
+  change for anyone who does not touch the dropdown, and that flipping it was a
+  one-line follow-up worth deciding *after* looking at real patterns. That look
+  happened and `opacity` won, for the two reasons this plan already gave for
+  adding it: it is the only mode that keeps mountain and valley readable at every
+  angle, and the only one the monochrome line styles survive. Every surface that
+  offers the choice — View panel, export dialog, share card — seeds from
+  `DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY`, so the flip was the one constant
+  plus the `default:` arm below.
+
+  This also settles the **monochrome coupling** decision above without the
+  invisible coupling it warned against: the styles that the hue ramp contradicts
+  are now correct by default, because the default no longer spends hue. Picking
+  `color` explicitly still contradicts them, and still does so only on request.
 
 ## Out of scope, but worth naming
 

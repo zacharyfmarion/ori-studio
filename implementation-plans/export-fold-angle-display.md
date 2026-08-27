@@ -261,7 +261,8 @@ what `AGENTS.md` tells us not to do.
 ## Checklist
 
 ### Encoding
-- [x] `foldAngleDisplay` on `CreaseExportOptions`, default `'color'`
+- [x] `foldAngleDisplay` on `CreaseExportOptions`, inheriting the editor's
+      default (shipped `'color'`; now `'opacity'` — see Open decisions)
 - [x] `foldAngleAnchor` on both palettes (`#d946ef`), with the note on why it
       does not vary by theme
 - [x] `edgeAppearance` returns `strokeOpacity`; `stroke-opacity` emitted only
@@ -400,11 +401,14 @@ it presents as 35 failures in code the merge never touched.
   into an export is a real feature and probably a wanted one; it is text layout,
   label collision and a third control, and it does not belong in the same
   change.
-- **Default stays `'color'`,** inherited from the editor. `opacity` is arguably
-  the better *export* default — it is the mode that survives the monochrome line
-  styles, and an exported picture is more likely to be printed or embedded in a
-  black-and-white context than the canvas is. Worth deciding after browser
-  check 5, not now.
+- ~~**Default stays `'color'`,**~~ **resolved: `'opacity'`.** The argument this
+  entry made for it held up — `opacity` is the mode that survives the monochrome
+  line styles, and an exported picture is more likely to be printed or embedded
+  in a black-and-white context than the canvas is. It was decided one level up
+  rather than here: the export inherits the editor's mode, and the editor's
+  default flipped (`fold-angle-display-mode.md`, Open decisions), so the export
+  and share card followed with no change of their own. That inheritance is the
+  design working — one decision, three surfaces.
 - **Whether the Share modal gets a dropdown at all,** rather than silently
   following the editor's mode with no control. §7 argues for the dropdown and
   the request asks for it; the alternative is one fewer control in a modal that

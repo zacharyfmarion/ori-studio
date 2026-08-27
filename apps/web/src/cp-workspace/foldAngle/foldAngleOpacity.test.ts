@@ -2,7 +2,7 @@
  * The opacity encoding, and the mode dispatcher that chooses between it and the
  * hue ramp.
  *
- * Two things get pinned here that the hue ramp's own suite cannot pin alone:
+ * Three things get pinned here that the hue ramp's own suite cannot pin alone:
  *
  * - **Channel separation.** `applyFoldAngleRamp` never touches alpha (asserted
  *   in `foldAngleRamp.test.ts`); this asserts the mirror, that
@@ -14,6 +14,9 @@
  *   render as a full fold. `foldAngleRamp.test.ts` pins that by signature (the
  *   ramp takes no visibility argument); with a mode enum in play it needs
  *   saying directly, for every member.
+ * - **`opacity` is the default**, stated as behaviour: the mode every surface
+ *   opens in leaves RGB alone and spends alpha. Flipping the constant back
+ *   without a reason should fail here rather than only change what people see.
  *
  * The floor and ceiling are measured against every bundled theme canvas rather
  * than eyeballed — see the `FOLD_ANGLE_MIN_OPACITY` doc comment for why the
@@ -229,6 +232,21 @@ describe('foldAngleInk', () => {
         }
       }
     }
+  });
+
+  it('defaults to spending alpha, not hue', () => {
+    // The product decision, stated as behaviour rather than as the constant's
+    // value: a crease drawn by a surface that has not been told which mode to use
+    // keeps its own colour and fades. The two assertions below are the reason
+    // `opacity` is the default at all — direction stays readable at every angle,
+    // and a monochrome line style stays monochrome.
+    const magnitude = deg(20);
+    const inked = foldAngleInk(MOUNTAIN, magnitude, {
+      display: DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
+      anchor: ANCHOR,
+    });
+    expect(inked.slice(0, 3)).toEqual(MOUNTAIN.slice(0, 3));
+    expect(inked[3]).toBeLessThan(MOUNTAIN[3]);
   });
 
   it('falls back to the default mode on an unrecognised value', () => {
