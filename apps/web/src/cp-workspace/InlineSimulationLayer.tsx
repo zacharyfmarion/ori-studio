@@ -35,9 +35,9 @@ import {
 } from '../simulator/SimulatorViewport';
 import {
   useSimulatorRuntime,
-  webglRenderSupported,
   type SimulatorFrameView,
 } from '../simulator/useSimulatorRuntime';
+import { useWorkerGpuSupport } from '../simulator/workerGpuSupport';
 import { foldNeedsTriangulation } from '../simulator/canvas2dFrame';
 import { useSimulatorShortcuts } from '../simulator/useSimulatorShortcuts';
 import { registerSimulatorView } from '../simulator/simulatorViewRegistry';
@@ -258,8 +258,17 @@ function InlineSimulationWindow({
    * GL context, and the canvas-2D fallback cannot draw into a canvas that holds a
    * `bitmaprenderer` context — so without WebGL2 a window would show an empty box
    * with no explanation. Say so, and point at the workspace that can still run it.
+   *
+   * Asked of the worker, not the main thread: this window renders from a worker
+   * GL context, and on WebKitGTK the main thread reports WebGL2 that the worker
+   * does not have. Reading the main-thread answer is what made these windows
+   * open blank on Linux instead of showing the badge below.
+   *
+   * `null` means the probe has not replied yet, which is not the same as "no" —
+   * treating it as no would flash the badge at every user on every machine.
    */
-  const gpuAvailable = useMemo(() => webglRenderSupported(), []);
+  const gpuSupport = useWorkerGpuSupport();
+  const gpuAvailable = gpuSupport === true;
 
   // Where this window's fold sits. Held in a ref so a 60fps frame stream does
   // not re-render this component; the store copy is throttled below purely so
@@ -583,7 +592,7 @@ function InlineSimulationWindow({
           'Inline simulation. Drag to rotate.'
         )}
       />
-      {badgeStyle && !gpuAvailable && (
+      {badgeStyle && gpuSupport === false && (
         <span className="cp-inline-simulation__badge" style={badgeStyle}>
           {t(
             'panels:creasePattern.inlineSimulation.gpuUnavailable',

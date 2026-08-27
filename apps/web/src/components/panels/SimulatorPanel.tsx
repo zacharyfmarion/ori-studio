@@ -643,7 +643,7 @@ export function SimulatorPanel() {
         <div className="panel-body simulator-panel__body">
           <SimulatorViewport
             ref={viewportRef}
-            canvasKey={allowGpuRender ? "gl" : "2d"}
+            canvasKey={`${allowGpuRender ? "gl" : "2d"}:${runtime.canvasGeneration}`}
             onCanvasChange={setCanvasEl}
             interactive={loadState === "ready"}
             gpuActive={gpuActive}
