@@ -1,10 +1,18 @@
 /**
  * How a non-180 fold angle changes a crease's ink.
  *
- * A shallower crease shifts its hue toward a shared anchor: red mountains run
- * toward magenta, blue valleys toward violet. Hue is the one channel a 1px line
- * carries well, and this is a **hue rotation at roughly constant lightness** —
- * which is the whole difference from the wash ramp it replaces.
+ * Two modes, and {@link foldAngleInk} dispatches between them. **`opacity` is
+ * the default** — it spends alpha, leaving RGB alone, so a 20° mountain is
+ * still plain `--fold-mountain` red. That is what makes it the default: it is
+ * the only mode that keeps direction readable at every angle, and the only one
+ * the monochrome line styles survive. `color` is the alternative, and the rest
+ * of this comment is about it.
+ *
+ * Under `color`, a shallower crease shifts its hue toward a shared anchor: red
+ * mountains run toward magenta, blue valleys toward violet. Hue is the one
+ * channel a 1px line carries well, and this is a **hue rotation at roughly
+ * constant lightness** — which is the whole difference from the wash ramp it
+ * replaces.
  *
  * # Why not the obvious answers
  *
@@ -147,11 +155,11 @@ export function foldAngleInk(
   options: { display: OristudioCpFoldAngleDisplay; anchor: Rgba }
 ): Rgba {
   switch (options.display) {
-    case 'opacity':
-      return applyFoldAngleOpacity(ink, magnitudeUnits);
     case 'color':
-    default:
       return applyFoldAngleRamp(ink, magnitudeUnits, options.anchor);
+    case 'opacity':
+    default:
+      return applyFoldAngleOpacity(ink, magnitudeUnits);
   }
 }
 

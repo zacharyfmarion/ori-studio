@@ -124,7 +124,20 @@ export interface OristudioCpViewportOptions {
   pointSize?: number;
 }
 
-export const DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY: OristudioCpFoldAngleDisplay = 'color';
+/**
+ * The mode every fold-angle surface opens in — the View panel, the export
+ * dialog, and the share card all seed from here.
+ *
+ * `opacity`, for the reason it was added: it is the only mode that keeps
+ * mountain and valley readable at every angle, and the only one that survives
+ * the monochrome line styles without contradicting them. `color` spends hue on
+ * magnitude, so direction and magnitude compete for one channel and direction
+ * loses as the fold flattens.
+ *
+ * Whichever mode this names must also be the `default:` arm of `foldAngleInk`,
+ * which is pinned by test — see `cp-workspace/foldAngle/foldAngleRamp.ts`.
+ */
+export const DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY: OristudioCpFoldAngleDisplay = 'opacity';
 export const DEFAULT_ORISTUDIO_CP_LINE_STYLE: OristudioCpLineStyle = 'color';
 export const DEFAULT_ORISTUDIO_CP_LINE_WIDTH = 1;
 export const DEFAULT_ORISTUDIO_CP_POINT_SIZE = 1;
