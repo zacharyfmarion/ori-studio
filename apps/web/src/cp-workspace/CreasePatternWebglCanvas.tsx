@@ -36,10 +36,8 @@ import {
   segmentIntersectsConvexQuad,
 } from './picking/convexQuad';
 import { viewAlignedBoxCorners, type BoxCorners } from './tools/viewAlignedBox';
-import {
-  createCpTouchArbiter,
-  isCoarsePointer,
-} from './gestures/cpTouchArbiter';
+import { isCoarsePointer } from './gestures/cpTouchArbiter';
+import { cpSurfaceGestures } from './gestures/cpSurfaceGestures';
 import { applyPinchToCamera } from './gestures/pinchCamera';
 import type { GesturePoint, PinchTransform } from './gestures/pinchTransform';
 import { previewGroupsToStrokes, previewSegmentsToStrokes } from './renderer/previewStrokes';
@@ -2801,7 +2799,12 @@ export function CreasePatternWebglCanvas({
     // and the state machine are in `gestures/cpTouchArbiter`, unit-tested over
     // whole pointer sequences; what stays here is acting on its verdict, which
     // is the half that has to reach into a dozen pieces of gesture state.
-    const gestures = createCpTouchArbiter();
+    //
+    // Shared with `CanvasObjectOverlay` rather than owned here, because the
+    // overlay captures the presses that grab windows and images and this canvas
+    // never sees them — so a per-element arbiter counts one finger of a
+    // two-finger pinch and hands the other to the tool chain.
+    const gestures = cpSurfaceGestures;
 
     /**
      * Drop the live half of a crease-draw preview — the rubber band and the snap
@@ -2960,9 +2963,10 @@ export function CreasePatternWebglCanvas({
     };
 
     const onPointerDown = (e: PointerEvent) => {
-      const verdict = gestures.down(e);
-      if (verdict.abortInFlight) abortInFlightGesture();
-      if (verdict.action !== 'forward') {
+      // Rolls back whatever this press takes the surface from — this canvas'
+      // own in-flight gesture, or the overlay's — before it returns.
+      const action = gestures.down(e, 'canvas');
+      if (action !== 'forward') {
         // A camera contact, or a palm beside a Pencil. Either way it must never
         // reach the tool branches below — the bug this whole layer exists for was
         // a second finger re-entering them and drawing a crease.
@@ -3088,12 +3092,10 @@ export function CreasePatternWebglCanvas({
       canvas.setPointerCapture(e.pointerId);
     };
     const onPointerMove = (e: PointerEvent) => {
-      const verdict = gestures.move(e);
-      if (verdict.action === 'transform') {
-        applyPinch(verdict.transform, verdict.anchor);
-        return;
-      }
-      if (verdict.action === 'ignore') return;
+      // A camera sample reaches `applyPinch` through the transform sink, not
+      // from here — the overlay's contacts have to be able to drive it too.
+      const action = gestures.move(e);
+      if (action !== 'forward') return;
       // Adopt the modifier state the pointer reports, as upstream does on every
       // canvas mouseMoved (`Canvas.java:245`). Focus loss clears held modifiers
       // because no keyup will arrive, which is right — except when the key is
@@ -3218,7 +3220,7 @@ export function CreasePatternWebglCanvas({
       }
     };
     const onPointerUp = (e: PointerEvent) => {
-      if (gestures.up(e).action !== 'forward') {
+      if (gestures.up(e) !== 'forward') {
         // A camera contact lifting, or an inert one. The release routing below
         // must not run: it is what would box-select or commit a translation from
         // a gesture the tool chain never owned. Lifting one finger of a pinch
@@ -3473,6 +3475,12 @@ export function CreasePatternWebglCanvas({
         feedTool('cancel', 0, 0);
       }
     };
+    // This canvas owns the camera, so it takes every camera sample the surface
+    // produces — including ones measured from a contact the overlay captured.
+    const detachTransformSink = gestures.setTransformSink(applyPinch);
+    // And it is the canvas' own in-flight gesture that a press landing anywhere
+    // else on the surface has to take back.
+    const detachAbort = gestures.onAbort('canvas', abortInFlightGesture);
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('pointermove', onPointerMove);
     canvas.addEventListener('pointerup', onPointerUp);
@@ -3489,6 +3497,8 @@ export function CreasePatternWebglCanvas({
       // surface believe fingers were already on it (this effect re-runs on WebGL
       // context loss, which is exactly when nobody lifts anything).
       gestures.reset();
+      detachTransformSink();
+      detachAbort();
       canvas.removeEventListener('pointerdown', onPointerDown);
       canvas.removeEventListener('pointermove', onPointerMove);
       canvas.removeEventListener('pointerup', onPointerUp);

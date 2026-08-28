@@ -3,6 +3,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import type { CpOverlayView } from './CreasePatternWebglCanvas';
@@ -23,6 +24,8 @@ import {
   type Vec2,
 } from './annotations/annotationTransform';
 import { withShiftLatch } from './touchModifiers/shiftLatch';
+import { cpSurfaceGestures } from './gestures/cpSurfaceGestures';
+import type { CpGesturePointer } from './gestures/cpTouchArbiter';
 import type { TransformableCanvasObject } from './canvasObjects/transformableObject';
 
 /**
@@ -61,7 +64,19 @@ export interface CanvasObjectBoxUpdate {
 }
 
 type Drag =
-  | { kind: 'move'; id: string; startClient: Vec2; startCenter: Vec2; moved: boolean }
+  | {
+      kind: 'move';
+      id: string;
+      startClient: Vec2;
+      startCenter: Vec2;
+      /**
+       * What held the selection when this press landed, so a gesture that turns
+       * out to be a pinch can put it back. Only a body press selects, which is
+       * why only this variant carries it.
+       */
+      selectionBefore: string | null;
+      moved: boolean;
+    }
   | {
       kind: 'resize';
       id: string;
@@ -79,6 +94,61 @@ type Drag =
       center: Vec2;
       moved: boolean;
     };
+
+/**
+ * The contacts this overlay has reported down for and not yet reported up for,
+ * by pointer id.
+ *
+ * A map rather than a single slot for two reasons, both narrow and both ending
+ * in the same stuck state: a release whose press landed elsewhere can still fire
+ * on a polygon, and two fingers can land on this chrome at once (a body and a
+ * handle). Either would clear the wrong entry.
+ */
+type ContactRef = MutableRefObject<Map<number, CpGesturePointer>>;
+
+/**
+ * Take the press, and ask the surface whether it is ours to act on.
+ *
+ * The capture is unconditional and the drag is not. Even when a camera gesture
+ * wins, this contact is one of the fingers *driving* it: holding the pointer is
+ * what keeps its motion arriving here to be reported, and a pinch whose moving
+ * finger is the one on the window would otherwise measure nothing at all. What
+ * the verdict decides is only whether a drag starts.
+ *
+ * Outside the component on purpose. It reads a ref and module state and nothing
+ * else, and the handlers that call it are memoised — so were it defined in the
+ * body, adding a prop to it one day would go stale in a way nothing reports.
+ */
+function claimSurfacePress(
+  event: ReactPointerEvent<SVGElement>,
+  contactRef: ContactRef
+): boolean {
+  event.stopPropagation();
+  event.preventDefault();
+  event.currentTarget.setPointerCapture(event.pointerId);
+  contactRef.current.set(event.pointerId, {
+    pointerId: event.pointerId,
+    pointerType: event.pointerType,
+    clientX: event.clientX,
+    clientY: event.clientY,
+  });
+  return cpSurfaceGestures.down(event, 'overlay') === 'forward';
+}
+
+/** End a contact {@link claimSurfacePress} reported, and drop the capture. */
+function releaseSurfaceContact(
+  event: ReactPointerEvent<SVGElement>,
+  contactRef: ContactRef
+): void {
+  contactRef.current.delete(event.pointerId);
+  // Reported even for a pointer this overlay never claimed: the arbiter routes
+  // an unknown release the same way the canvas does, and a release whose press
+  // landed on another layer genuinely can arrive here.
+  cpSurfaceGestures.up(event);
+  if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  }
+}
 
 function objectCornersCss(
   object: TransformableCanvasObject,
@@ -145,6 +215,17 @@ export function CanvasObjectOverlay({
   // Live camera, subscribed directly so only this overlay re-renders per frame.
   const views = useCpOverlayViews();
   const dragRef = useRef<Drag | null>(null);
+  /**
+   * The contacts this overlay has reported to the surface arbiter and not yet
+   * reported the release of.
+   *
+   * Held so unmounting mid-gesture cannot strand one. A contact the arbiter
+   * still believes is down makes every later single touch look like the second
+   * finger of a pinch, so the canvas would stop drawing entirely — a leak that
+   * outlives the component that caused it, and the one failure here worth the
+   * bookkeeping.
+   */
+  const contactRef = useRef<Map<number, CpGesturePointer>>(new Map());
   // State rather than a ref: the wheel listener below has to re-attach when this
   // element arrives, which a ref would not tell anyone about.
   const [overlay, setOverlay] = useState<SVGSVGElement | null>(null);
@@ -183,11 +264,10 @@ export function CanvasObjectOverlay({
     [overlay, views]
   );
 
-  const beginCapture = (event: ReactPointerEvent<SVGElement>) => {
-    event.stopPropagation();
-    event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
+  const claimPress = (event: ReactPointerEvent<SVGElement>) =>
+    claimSurfacePress(event, contactRef);
+  const releaseContact = (event: ReactPointerEvent<SVGElement>) =>
+    releaseSurfaceContact(event, contactRef);
 
   const handleBodyDown = useCallback(
     (event: ReactPointerEvent<SVGPolygonElement>, object: TransformableCanvasObject) => {
@@ -201,7 +281,10 @@ export function CanvasObjectOverlay({
         onSelect(object.id);
         return;
       }
-      beginCapture(event);
+      if (!claimPress(event)) return;
+      // Selected on press, not on release: the outline has to be up while the
+      // object is being dragged. What makes that safe when the press turns out
+      // to be the first finger of a pinch is `selectionBefore` — see `abortDrag`.
       onSelect(object.id);
       onGestureStart?.(object.id);
       dragRef.current = {
@@ -209,10 +292,11 @@ export function CanvasObjectOverlay({
         id: object.id,
         startClient: { x: event.clientX, y: event.clientY },
         startCenter: { x: object.box.center.x, y: object.box.center.y },
+        selectionBefore: selectedId,
         moved: false,
       };
     },
-    [interactive, onSelect, onGestureStart]
+    [interactive, onSelect, onGestureStart, selectedId]
   );
 
   const handleResizeDown = useCallback(
@@ -222,7 +306,7 @@ export function CanvasObjectOverlay({
       handle: AnnotationResizeHandle
     ) => {
       if (!interactive || object.locked || event.button !== 0) return;
-      beginCapture(event);
+      if (!claimPress(event)) return;
       onGestureStart?.(object.id);
       dragRef.current = {
         kind: 'resize',
@@ -239,7 +323,7 @@ export function CanvasObjectOverlay({
   const handleRotateDown = useCallback(
     (event: ReactPointerEvent<SVGCircleElement>, object: TransformableCanvasObject) => {
       if (!interactive || object.locked || event.button !== 0) return;
-      beginCapture(event);
+      if (!claimPress(event)) return;
       onGestureStart?.(object.id);
       const pointer = pointerToObject(event, object.space);
       const angle = pointer
@@ -259,8 +343,12 @@ export function CanvasObjectOverlay({
 
   const handlePointerMove = useCallback(
     (event: ReactPointerEvent<SVGElement>, object: TransformableCanvasObject) => {
+      // Reported whether or not this overlay is dragging: while a camera gesture
+      // owns the surface this is where one of its fingers is, and the sample it
+      // produces goes straight to the canvas' camera.
+      const action = cpSurfaceGestures.move(event);
       const drag = dragRef.current;
-      if (!drag || !views) return;
+      if (action !== 'forward' || !drag || !views) return;
       if (drag.kind === 'move') {
         const dCss = { x: event.clientX - drag.startClient.x, y: event.clientY - drag.startClient.y };
         const dObject = overlayCssDeltaToModel(views[object.space], dCss);
@@ -310,18 +398,14 @@ export function CanvasObjectOverlay({
    */
   const handlePointerCancel = useCallback((event: ReactPointerEvent<SVGElement>) => {
     dragRef.current = null;
-    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
+    releaseContact(event);
   }, []);
 
   const handlePointerUp = useCallback(
     (event: ReactPointerEvent<SVGElement>) => {
       const drag = dragRef.current;
       dragRef.current = null;
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      }
+      releaseContact(event);
       if (drag?.moved) {
         onGestureCommit?.(
           drag.id,
@@ -331,6 +415,61 @@ export function CanvasObjectOverlay({
     },
     [onGestureCommit]
   );
+
+  /**
+   * Leave no trace of the press, because a camera gesture has claimed the
+   * surface — the second finger of a pinch landed, or a Pencil preempted the
+   * hand.
+   *
+   * Symmetrical with the canvas' `abortInFlightGesture`, and for the same
+   * reason: a pinch that nudges a folded figure a few pixels every time is a
+   * document edit nobody asked for. The gesture is dropped without committing,
+   * so the store lands back on the value it started from with no history entry —
+   * exactly what a cancelled gesture already did.
+   *
+   * **Selection is taken back too, and unlike the geometry it is taken back even
+   * when nothing moved.** Fingers of a pinch land tens of milliseconds apart, so
+   * the first one has already selected whatever it came down on — reported from
+   * a tablet as "it no longer moves the window, but it still selects it". A
+   * pinch is a camera gesture and should change nothing else, so the selection
+   * goes back to whatever held it, which is usually nothing.
+   *
+   * A crop drag is the one thing that cannot be restored: the crop rect lives
+   * with the owner that applies it, and {@link TransformableCanvasObject} — all
+   * this overlay ever sees — carries no trace of it. Dropped uncommitted, as
+   * `pointercancel` has always dropped it.
+   */
+  const abortDrag = useCallback(() => {
+    const drag = dragRef.current;
+    dragRef.current = null;
+    if (!drag) return;
+    if (drag.kind === 'move') {
+      if (drag.selectionBefore !== drag.id) onSelect(drag.selectionBefore);
+      if (drag.moved) onUpdate(drag.id, { center: drag.startCenter });
+      return;
+    }
+    // Resize and rotate never selected anything: their handles only exist on the
+    // object that already held the selection.
+    if (!drag.moved) return;
+    if (drag.kind === 'rotate') {
+      onUpdate(drag.id, { rotation: drag.startRotation });
+    } else if (!drag.crop) {
+      const { center, width, height } = drag.startObject.box;
+      onUpdate(drag.id, { center, width, height });
+    }
+  }, [onUpdate, onSelect]);
+
+  useEffect(() => cpSurfaceGestures.onAbort('overlay', abortDrag), [abortDrag]);
+
+  // A gesture that outlives the overlay would otherwise leave a contact the
+  // arbiter believes is still down. See `contactRef`.
+  useEffect(() => {
+    const contacts = contactRef.current;
+    return () => {
+      for (const contact of contacts.values()) cpSurfaceGestures.up(contact);
+      contacts.clear();
+    };
+  }, []);
 
   const selected = objects.find((object) => object.id === selectedId) ?? null;
 

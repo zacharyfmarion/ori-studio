@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { COARSE_POINTER_QUERY } from '../platform/pointerSurface';
 import { cpOverlayViewStore } from './cpOverlayViewStore';
 import { CanvasObjectOverlay } from './CanvasObjectOverlay';
+import type { CanvasObjectBoxUpdate } from './CanvasObjectOverlay';
+import { cpSurfaceGestures } from './gestures/cpSurfaceGestures';
 import type { TransformableCanvasObject } from './canvasObjects/transformableObject';
 import { resetShiftLatch, setShiftLatched } from './touchModifiers/shiftLatch';
 
@@ -25,6 +27,10 @@ let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
 beforeEach(() => {
+  // Module state shared with the canvas, so a contact left behind by one case
+  // would make the next one's first touch look like the second finger of a
+  // pinch — and every assertion after it meaningless.
+  cpSurfaceGestures.reset();
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
@@ -109,6 +115,212 @@ describe('CanvasObjectOverlay body interactivity', () => {
     expect(polygons.length).toBe(2);
     expect((polygons[0] as SVGPolygonElement).style.pointerEvents).toBe('none');
     expect((polygons[1] as SVGPolygonElement).style.pointerEvents).toBe('auto');
+  });
+});
+
+/*
+ * The reported bug: two-finger pinching with one finger resting on a folded
+ * figure dragged the figure instead of zooming. The overlay captures that press
+ * and the canvas never sees it, so before the surface arbiter existed neither
+ * layer could tell there were two fingers down at all.
+ *
+ * The canvas is not mounted here; `cpSurfaceGestures` is the contract between
+ * the two layers, so a press reported through it *is* the other finger landing.
+ */
+describe('CanvasObjectOverlay multi-touch', () => {
+  function touch(type: string, id: number, clientX: number, clientY: number): Event {
+    const event = new MouseEvent(type, { bubbles: true, button: 0, clientX, clientY });
+    Object.defineProperty(event, 'pointerId', { value: id });
+    Object.defineProperty(event, 'pointerType', { value: 'touch' });
+    return event;
+  }
+
+  function beginBodyDrag(
+    props: Partial<Parameters<typeof CanvasObjectOverlay>[0]> = {}
+  ): {
+    body: SVGPolygonElement;
+    patches: CanvasObjectBoxUpdate[];
+    commits: string[];
+    selected: (string | null)[];
+  } {
+    const patches: CanvasObjectBoxUpdate[] = [];
+    const commits: string[] = [];
+    const selected: (string | null)[] = [];
+    render({
+      onUpdate: (_id, patch) => patches.push(patch),
+      onGestureCommit: (_id, kind) => commits.push(kind),
+      onSelect: (id) => selected.push(id),
+      ...props,
+    });
+    const body = bodyPolygon();
+    if (!body) throw new Error('no body polygon');
+    const target = body as unknown as Record<string, unknown>;
+    target.setPointerCapture = () => {};
+    target.hasPointerCapture = () => false;
+    target.releasePointerCapture = () => {};
+
+    // The box is centred on (50, 50) under this file's identity camera.
+    act(() => {
+      body.dispatchEvent(touch('pointerdown', 1, 50, 50));
+      body.dispatchEvent(touch('pointermove', 1, 70, 50));
+    });
+    return { body, patches, commits, selected };
+  }
+
+  /** The second finger of a pinch, landing on the canvas beside the first. */
+  function secondFingerOnCanvas(): void {
+    act(() => {
+      cpSurfaceGestures.down(
+        { pointerId: 2, pointerType: 'touch', clientX: 200, clientY: 50 },
+        'canvas'
+      );
+    });
+  }
+
+  it('drags on one finger, as it always has', () => {
+    const { patches } = beginBodyDrag();
+    expect(patches.at(-1)?.center).toEqual({ x: 70, y: 50 });
+  });
+
+  it('puts the object back when a second finger lands', () => {
+    const { patches } = beginBodyDrag();
+    expect(patches.at(-1)?.center).toEqual({ x: 70, y: 50 });
+
+    secondFingerOnCanvas();
+
+    // Back to where the gesture found it. A pinch that nudges a figure a few
+    // pixels every time is a document edit nobody asked for.
+    expect(patches.at(-1)?.center).toEqual({ x: 50, y: 50 });
+  });
+
+  /*
+   * Reported from a tablet against the first cut of this fix: "it properly
+   * doesn't move the window, but it still *selects* the window". Fingers land
+   * tens of milliseconds apart, so the first one has already selected whatever
+   * it came down on by the time the second makes the gesture a pinch.
+   */
+  it('takes the selection back when a second finger lands', () => {
+    const { selected } = beginBodyDrag({ selectedId: null });
+    expect(selected).toEqual(['a']);
+
+    secondFingerOnCanvas();
+
+    expect(selected).toEqual(['a', null]);
+  });
+
+  it('takes the selection back even when the finger never moved', () => {
+    // The geometry roll-back is gated on `moved`; this one must not be, or a
+    // pinch that starts as a still touch leaves the window selected.
+    const selected: (string | null)[] = [];
+    render({ selectedId: null, onSelect: (id) => selected.push(id) });
+    const body = bodyPolygon();
+    if (!body) throw new Error('no body polygon');
+    const target = body as unknown as Record<string, unknown>;
+    target.setPointerCapture = () => {};
+    target.hasPointerCapture = () => false;
+    target.releasePointerCapture = () => {};
+
+    act(() => body.dispatchEvent(touch('pointerdown', 1, 50, 50)));
+    secondFingerOnCanvas();
+
+    expect(selected).toEqual(['a', null]);
+  });
+
+  it('restores whatever held the selection before, not just nothing', () => {
+    const { selected } = beginBodyDrag({
+      objects: [object('a'), object('b')],
+      selectedId: 'b',
+    });
+    expect(selected).toEqual(['a']);
+
+    secondFingerOnCanvas();
+
+    expect(selected).toEqual(['a', 'b']);
+  });
+
+  it('leaves an already-selected object selected', () => {
+    // Nothing to take back: the press did not change the selection, so undoing
+    // it would deselect an object the pinch never touched.
+    const { selected } = beginBodyDrag({ selectedId: 'a' });
+    secondFingerOnCanvas();
+    expect(selected).toEqual(['a']);
+  });
+
+  it('stops dragging for the rest of the gesture', () => {
+    const { body, patches } = beginBodyDrag();
+    secondFingerOnCanvas();
+    const afterAbort = patches.length;
+
+    act(() => {
+      body.dispatchEvent(touch('pointermove', 1, 120, 90));
+    });
+
+    expect(patches.length).toBe(afterAbort);
+  });
+
+  it('commits nothing, so the pinch leaves no undo entry', () => {
+    const { body, commits } = beginBodyDrag();
+    act(() => {
+      cpSurfaceGestures.down(
+        { pointerId: 2, pointerType: 'touch', clientX: 200, clientY: 50 },
+        'canvas'
+      );
+      body.dispatchEvent(touch('pointerup', 1, 120, 90));
+    });
+
+    expect(commits).toEqual([]);
+  });
+
+  it('refuses to start a drag while another finger is already down', () => {
+    const patches: CanvasObjectBoxUpdate[] = [];
+    const selected: (string | null)[] = [];
+    render({
+      onUpdate: (_id, patch) => patches.push(patch),
+      onSelect: (id) => selected.push(id),
+    });
+    const body = bodyPolygon();
+    if (!body) throw new Error('no body polygon');
+    const target = body as unknown as Record<string, unknown>;
+    target.setPointerCapture = () => {};
+    target.hasPointerCapture = () => false;
+    target.releasePointerCapture = () => {};
+
+    act(() => {
+      cpSurfaceGestures.down(
+        { pointerId: 2, pointerType: 'touch', clientX: 200, clientY: 50 },
+        'canvas'
+      );
+      body.dispatchEvent(touch('pointerdown', 1, 50, 50));
+      body.dispatchEvent(touch('pointermove', 1, 70, 50));
+    });
+
+    expect(patches).toEqual([]);
+    // Nor does it select: the second finger of a pinch is not a tap on a window.
+    expect(selected).toEqual([]);
+  });
+
+  it('keeps reporting its finger, so the pinch measures both', () => {
+    // The reason the press is captured even when the drag is refused. A pinch
+    // anchored by a thumb on the canvas moves only the finger on the window, and
+    // a contact the arbiter cannot see contributes no spread — so the gesture
+    // would pan and never zoom.
+    const samples: { scale: number }[] = [];
+    const detach = cpSurfaceGestures.setTransformSink((transform) => samples.push(transform));
+    try {
+      const { body } = beginBodyDrag();
+      act(() => {
+        cpSurfaceGestures.down(
+          { pointerId: 2, pointerType: 'touch', clientX: 90, clientY: 50 },
+          'canvas'
+        );
+        // Contacts at 70 and 90; this finger pulls out to 10, tripling the gap.
+        body.dispatchEvent(touch('pointermove', 1, 10, 50));
+      });
+
+      expect(samples.at(-1)?.scale).toBeCloseTo(4, 6);
+    } finally {
+      detach();
+    }
   });
 });
 
