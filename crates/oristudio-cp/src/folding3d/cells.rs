@@ -78,7 +78,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::fold_graph::FoldGraph;
+use crate::fold_graph::{FoldGraph, root};
 use crate::folding::{SubFace, prepare_subface_segments};
 use crate::folding3d::Fold3dTolerances;
 use crate::folding3d::census::Fold3dCensus;
@@ -419,32 +419,16 @@ fn maximal(sets: BTreeSet<Vec<usize>>) -> Vec<Vec<usize>> {
 /// what the arrangement will think it means.
 fn connected_components(segments: &[LineSegment]) -> Vec<Vec<LineSegment>> {
     let graph = FoldGraph::from_segments(segments, false);
-    let mut parent: Vec<usize> = (0..graph.points.len()).collect();
-    for line in &graph.lines {
-        let (a, b) = (root(&mut parent, line.begin), root(&mut parent, line.end));
-        if a != b {
-            parent[a.max(b)] = a.min(b);
-        }
-    }
-    let mut groups: BTreeMap<usize, Vec<LineSegment>> = BTreeMap::new();
-    for (index, line) in graph.lines.iter().enumerate() {
-        let Some(segment) = graph.segments.get(index) else {
-            continue;
-        };
-        groups
-            .entry(root(&mut parent, line.begin))
-            .or_default()
-            .push(segment.clone());
-    }
-    groups.into_values().collect()
-}
-
-fn root(parent: &mut [usize], mut node: usize) -> usize {
-    while parent[node] != node {
-        parent[node] = parent[parent[node]];
-        node = parent[node];
-    }
-    node
+    graph
+        .line_components()
+        .into_iter()
+        .map(|component| {
+            component
+                .into_iter()
+                .filter_map(|line| graph.segments.get(line).cloned())
+                .collect()
+        })
+        .collect()
 }
 
 #[cfg(test)]

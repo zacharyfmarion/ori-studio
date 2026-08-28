@@ -54,7 +54,7 @@ import { visibleCpDiagnosticEntries } from '../../../cp-workspace/diagnostics/vi
 import { foldedFigureUserAabb } from '../../../cp-workspace/adapters/cpFoldedToScene';
 import { cpSelectionSize, cpSvgToModel } from '../../../lib/creasePatternViewport';
 import type { Aabb } from '../../../cp-workspace/picking/lineHitIndex';
-import { foldArtifactsFromFold } from '../../../lib/creasePatternImport';
+import { foldArtifactsFromFold, warnIfFacesWereInferred } from '../../../lib/creasePatternImport';
 import {
   generatedCpLineage,
   markGeneratedCpLineageStale,
@@ -1123,12 +1123,20 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
   async function computeFoldArtifacts(): Promise<FoldArtifacts | null> {
     if (get().oristudioCpDocument) {
-      // Editable crease patterns build simulation faces in JS (no flat-folding).
-      // This supports documents with multiple disconnected crease patterns,
-      // which the Rust flat-folder rejects.
+      // No flat-folding on the simulate path: the interactive simulator folds
+      // the flat pattern itself, so it only needs faces plus M/V, and the Rust
+      // flat-folder walks a single connected face graph and rejects a document
+      // holding several crease patterns.
+      //
+      // Faces come from the kernel, including for those multi-pattern
+      // documents. `foldArtifactsFromFold` only infers its own when the export
+      // carries none, which now means the kernel judged the arrangement
+      // numerically untrustworthy rather than simply "not computed".
       const fold = parseFoldProjection(await exportOristudioCpDocumentAsFold());
       if (!fold) return null;
-      return foldArtifactsFromFold(fold);
+      const artifacts = foldArtifactsFromFold(fold);
+      warnIfFacesWereInferred(fold, artifacts.fold, 'simulate');
+      return artifacts;
     }
     const { api, treeHandle } = await requireActiveTree();
     return api.foldArtifacts(treeHandle);
