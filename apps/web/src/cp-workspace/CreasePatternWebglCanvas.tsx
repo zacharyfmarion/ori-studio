@@ -653,8 +653,19 @@ export interface CreasePatternWebglCanvasProps {
    * Report a sequence tool's live input (placed points + cursor, and picked +
    * hovered crease ids) so the controller can kernel-preview + highlight them; the
    * result comes back via `toolCommandPreviewSegments`.
+   *
+   * `lineIds` is *highlight only* — the kernel resolves creases from the points,
+   * so it never reaches the payload. `pickedLineIds` is the other thing: creases
+   * the tool has actually taken, which do go to the kernel as `line_ids`. A tool
+   * whose input is creases rather than points has no points to preview from, so
+   * without this the preview request is skipped entirely and the tool cannot see
+   * what the kernel would do with its picks.
    */
-  onToolPreviewInput: (points: readonly ModelPoint[], lineIds: readonly number[]) => void;
+  onToolPreviewInput: (
+    points: readonly ModelPoint[],
+    lineIds: readonly number[],
+    pickedLineIds?: readonly number[]
+  ) => void;
   /**
    * Report how many inputs the active tool has taken so far (0 when reset) — creases
    * for a `line-entity` tool, placed points for a `sequence` one — so the controller
@@ -2564,8 +2575,10 @@ export function CreasePatternWebglCanvas({
           if (lineId > 0 && !lines.includes(lineId)) {
             lines.push(lineId);
             setLinePickHighlight([...lines]);
-            // Both sources in: ask which of the two interactions this is.
-            if (lines.length === 2) liveRef.current.onToolPreviewInput([], [...lines]);
+            // Both sources in: ask which of the two interactions this is. The picks
+            // go on the third channel, which is the one that reaches the kernel —
+            // this tool previews from creases, and there are no points to send.
+            if (lines.length === 2) liveRef.current.onToolPreviewInput([], [], [...lines]);
           }
         } else {
           setLinePickHighlight(lineId > 0 && !lines.includes(lineId) ? [...lines, lineId] : [...lines]);
