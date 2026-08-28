@@ -1246,3 +1246,155 @@ fn angle_restricted_5_draws_nothing_when_the_release_collapses_onto_the_anchor()
     execute_command(&mut document, command).expect("command executes");
     assert!(document.crease_pattern.line_segments.is_empty());
 }
+
+/// The two parallel creases from `bisector_bug.osf`, at the coordinates that
+/// produced the runaway endpoint. Their determinant is float noise (~-1.6e-9)
+/// rather than a clean zero, which is exactly why the non-parallel arm's
+/// `find_intersection` returned a finite point instead of failing.
+fn parallel_sources_from_bug_report() -> (LineSegment, LineSegment) {
+    (
+        segment(
+            408.578_643_762_690_66,
+            549.999_999_999_999_1,
+            308.578_643_762_672_9,
+            650.0,
+            LineColor::Black0,
+        ),
+        segment(
+            250.0,
+            650.0,
+            343.933_982_822_021_1,
+            556.066_017_177_978_7,
+            LineColor::Black0,
+        ),
+    )
+}
+
+fn largest_coordinate(model: &CreasePatternModel) -> f64 {
+    model
+        .line_segments
+        .iter()
+        .flat_map(|s| [s.a, s.b])
+        .map(|p| p.x.abs().max(p.y.abs()))
+        .fold(0.0_f64, f64::max)
+}
+
+#[test]
+fn square_bisector_command_parallel_lines_never_emit_runaway_coordinates() {
+    // The reported bug: this committed a crease ending at ~3.4e14, far outside a
+    // sheet spanning x 250..1100, y -200..650.
+    let (first, second) = parallel_sources_from_bug_report();
+    let destination = segment(
+        408.578_643_762_690_66,
+        549.999_999_999_999_1,
+        350.0,
+        550.0,
+        LineColor::Black0,
+    );
+    let mut document = CreasePatternDocument {
+        crease_pattern: model_from_segments(&[first, second, destination]),
+        ..Default::default()
+    };
+    let before = largest_coordinate(&document.crease_pattern);
+
+    // Three ids is the *non-parallel* interaction. On parallel sources it is not a
+    // shape upstream can act on, so it is refused rather than approximated.
+    let command = CreasePatternCommand::new(OperationId::SquareBisector).with_payload(
+        CreasePatternCommandPayload {
+            line_ids: vec![1, 2, 3],
+            line_color: Some(LineColor::Red1),
+            ..Default::default()
+        },
+    );
+    assert!(execute_command(&mut document, command).is_err());
+    assert_eq!(largest_coordinate(&document.crease_pattern), before);
+}
+
+#[test]
+fn square_bisector_command_parallel_lines_take_the_indicator_whole() {
+    // Two ids, no destination: upstream's "click the purple indicator" arm.
+    let (first, second) = parallel_sources_from_bug_report();
+    let mut document = CreasePatternDocument {
+        crease_pattern: model_from_segments(&[first.clone(), second.clone()]),
+        ..Default::default()
+    };
+    let before = document.crease_pattern.line_segments.len();
+
+    let command = CreasePatternCommand::new(OperationId::SquareBisector).with_payload(
+        CreasePatternCommandPayload {
+            line_ids: vec![1, 2],
+            line_color: Some(LineColor::Red1),
+            ..Default::default()
+        },
+    );
+    execute_command(&mut document, command).expect("parallel indicator commits");
+
+    assert!(document.crease_pattern.line_segments.len() > before);
+    // The whole point: it lands on the paper, not at infinity.
+    assert!(largest_coordinate(&document.crease_pattern) < 1_000.0);
+    // And it is the same segment the standalone indicator reports, just recoloured.
+    let indicator = square_bisector_parallel_indicator(&document.crease_pattern, &first, &second)
+        .expect("parallel sources produce an indicator");
+    assert!(contains_segment_close(
+        &document.crease_pattern.line_segments,
+        indicator.a,
+        indicator.b,
+        LineColor::Red1,
+    ));
+}
+
+#[test]
+fn square_bisector_command_parallel_lines_cut_between_two_destinations() {
+    // Four ids: upstream's "two crossing destinations" arm.
+    let (first, second) = parallel_sources_from_bug_report();
+    let left = segment(300.0, 500.0, 300.0, 700.0, LineColor::Black0);
+    let right = segment(400.0, 500.0, 400.0, 700.0, LineColor::Black0);
+    let mut document = CreasePatternDocument {
+        crease_pattern: model_from_segments(&[first, second, left, right]),
+        ..Default::default()
+    };
+    let before = document.crease_pattern.line_segments.len();
+
+    let command = CreasePatternCommand::new(OperationId::SquareBisector).with_payload(
+        CreasePatternCommandPayload {
+            line_ids: vec![1, 2, 3, 4],
+            line_color: Some(LineColor::Red1),
+            ..Default::default()
+        },
+    );
+    execute_command(&mut document, command).expect("parallel two-destination cut executes");
+
+    assert!(document.crease_pattern.line_segments.len() > before);
+    assert!(largest_coordinate(&document.crease_pattern) < 1_000.0);
+}
+
+#[test]
+fn square_bisector_preview_offers_the_indicator_only_when_parallel() {
+    let (first, second) = parallel_sources_from_bug_report();
+    let crossing = segment(300.0, 500.0, 400.0, 700.0, LineColor::Black0);
+    let document = CreasePatternDocument {
+        crease_pattern: model_from_segments(&[first, second, crossing]),
+        ..Default::default()
+    };
+    let preview_for = |line_ids: Vec<usize>| {
+        preview_command(
+            &document,
+            CreasePatternCommand::new(OperationId::SquareBisector).with_payload(
+                CreasePatternCommandPayload {
+                    line_ids,
+                    ..Default::default()
+                },
+            ),
+        )
+        .expect("preview succeeds")
+    };
+
+    // Parallel sources: the purple affordance, which is also how the frontend
+    // tells which interaction it is in.
+    let parallel = preview_for(vec![1, 2]);
+    assert_eq!(parallel.segments.len(), 1);
+    assert_eq!(parallel.segments[0].color, LineColor::Purple8);
+
+    // Non-parallel sources show nothing until a destination is hovered.
+    assert!(preview_for(vec![1, 3]).segments.is_empty());
+}

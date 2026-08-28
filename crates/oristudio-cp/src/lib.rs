@@ -2477,23 +2477,85 @@ pub fn execute_command(
             )
         }
         OperationId::SquareBisector => {
-            if command.payload.line_ids.len() >= 3 {
+            if command.payload.line_ids.len() >= 2 {
                 let line_indices = required_line_indices(&command)?;
                 let first =
                     line_segment_for_operation(document, command.operation, line_indices[0])?;
                 let second =
                     line_segment_for_operation(document, command.operation, line_indices[1])?;
-                let destination =
-                    line_segment_for_operation(document, command.operation, line_indices[2])?;
-                usize::from(
-                    operations::construction::square_bisector_from_lines_to_destination(
-                        &mut document.crease_pattern,
+
+                // Upstream splits here on `checkIfParallel()`, and the two arms are
+                // different interactions, not two spellings of one. Taking the
+                // non-parallel arm on parallel input is what produced crease
+                // endpoints at ~3.4e14: it opens by intersecting the two sources,
+                // and `find_intersection` divides by their determinant, which for
+                // parallel lines is float noise rather than a clean zero.
+                if let Some(indicator) =
+                    operations::construction::square_bisector_parallel_indicator(
+                        &document.crease_pattern,
                         &first,
                         &second,
-                        &destination,
-                        active_line_color(&command),
-                    ),
-                )
+                    )
+                {
+                    // `MouseHandlerSquareBisector.release_select_destination_2L_P`:
+                    // either click the indicator to take it whole (two line ids, the
+                    // sources alone), or cut it between two crossing creases (four).
+                    match line_indices.len() {
+                        2 => usize::from(
+                            operations::construction::commit_square_bisector_parallel_indicator(
+                                &mut document.crease_pattern,
+                                &indicator,
+                                active_line_color(&command),
+                            ),
+                        ),
+                        len if len >= 4 => {
+                            let first_destination = line_segment_for_operation(
+                                document,
+                                command.operation,
+                                line_indices[2],
+                            )?;
+                            let second_destination = line_segment_for_operation(
+                                document,
+                                command.operation,
+                                line_indices[3],
+                            )?;
+                            usize::from(
+                                operations::construction::square_bisector_parallel_between_destinations(
+                                    &mut document.crease_pattern,
+                                    &indicator,
+                                    &first_destination,
+                                    &second_destination,
+                                    active_line_color(&command),
+                                ),
+                            )
+                        }
+                        _ => {
+                            return Err(CommandError::InvalidInput {
+                                operation: command.operation,
+                                message: "parallel sources need either no destination (take the \
+                                     indicator whole) or two crossing destinations"
+                                    .to_string(),
+                            });
+                        }
+                    }
+                } else if line_indices.len() >= 3 {
+                    let destination =
+                        line_segment_for_operation(document, command.operation, line_indices[2])?;
+                    usize::from(
+                        operations::construction::square_bisector_from_lines_to_destination(
+                            &mut document.crease_pattern,
+                            &first,
+                            &second,
+                            &destination,
+                            active_line_color(&command),
+                        ),
+                    )
+                } else {
+                    return Err(CommandError::InvalidInput {
+                        operation: command.operation,
+                        message: "non-parallel sources need a destination line".to_string(),
+                    });
+                }
             } else {
                 let points = required_points(&command, 4)?;
                 let (_, destination) = nearest_line_segment(
@@ -4451,6 +4513,24 @@ pub fn preview_command(
                 points[0],
                 &target_segment,
                 &perpendicular_segment,
+            ) {
+                preview.segments.push(indicator);
+            }
+        }
+        OperationId::SquareBisector if command.payload.line_ids.len() >= 2 => {
+            // Line mode, both sources picked. Parallel ones get the purple indicator
+            // upstream draws in `checkIfParallel`; the frontend needs it both to show
+            // the affordance and to tell that it is in the parallel interaction, where
+            // the next click either takes the indicator whole or starts naming two
+            // crossing destinations. Non-parallel sources preview nothing here, as
+            // upstream shows nothing until the destination is hovered.
+            let line_indices = required_line_indices(&command)?;
+            let first = line_segment_for_operation(document, command.operation, line_indices[0])?;
+            let second = line_segment_for_operation(document, command.operation, line_indices[1])?;
+            if let Some(indicator) = operations::construction::square_bisector_parallel_indicator(
+                &document.crease_pattern,
+                &first,
+                &second,
             ) {
                 preview.segments.push(indicator);
             }

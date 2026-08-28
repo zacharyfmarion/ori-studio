@@ -2546,7 +2546,17 @@ export function CreasePatternWebglCanvas({
         return;
       }
 
-      // mode === 'line': collect the 2nd source crease, then a destination crease.
+      // mode === 'line': collect the 2nd source crease, then destinations.
+      //
+      // *Which* destinations depends on the sources, because upstream splits into two
+      // different interactions after the second pick (`checkIfParallel`): non-parallel
+      // sources take one destination crease, parallel ones instead get a purple
+      // indicator you either take whole or cut between two crossing creases.
+      //
+      // The kernel owns that decision rather than this handler re-deciding it — it
+      // answers the two-source preview with the indicator when the sources are
+      // parallel and with nothing when they are not, and that is the only preview
+      // this tool emits in line mode, so the indicator's presence *is* the signal.
       const lineId = lineUnderCursor();
       const lines = state.lineIds;
       if (lines.length < 2) {
@@ -2554,17 +2564,54 @@ export function CreasePatternWebglCanvas({
           if (lineId > 0 && !lines.includes(lineId)) {
             lines.push(lineId);
             setLinePickHighlight([...lines]);
+            // Both sources in: ask which of the two interactions this is.
+            if (lines.length === 2) liveRef.current.onToolPreviewInput([], [...lines]);
           }
         } else {
           setLinePickHighlight(lineId > 0 && !lines.includes(lineId) ? [...lines, lineId] : [...lines]);
         }
-      } else if (kind === 'down') {
-        if (lineId > 0) {
-          liveRef.current.onToolCommit({ lineIds: [...lines, lineId] });
+        renderNow();
+        return;
+      }
+
+      // Held from the two-source preview and deliberately not re-requested as
+      // destinations are picked, so the indicator stays on screen to aim at.
+      const indicator = liveRef.current.toolCommandPreviewSegments[0] ?? null;
+      if (!indicator) {
+        // Non-parallel, or the preview has not landed yet. A click in that gap sends
+        // the three-id shape, which the kernel refuses on parallel sources rather
+        // than approximating — the failure is a rejected command, never bad geometry.
+        if (kind === 'down') {
+          if (lineId > 0) {
+            liveRef.current.onToolCommit({ lineIds: [...lines, lineId] });
+            reset();
+          }
+        } else {
+          setLinePickHighlight(lineId > 0 ? [...lines, lineId] : [...lines]);
+        }
+        renderNow();
+        return;
+      }
+
+      // Parallel: the indicator itself is a click target, and it wins over a crease
+      // under the cursor the way it does upstream (which tests it last, overwriting).
+      const onIndicator = snapToNearestSegment(raw, [indicator], hitTol) !== null;
+      const destinationHover = !onIndicator && lineId > 0 && !lines.includes(lineId);
+      if (kind === 'down') {
+        if (onIndicator) {
+          // Two ids, no destination: take the indicator whole.
+          liveRef.current.onToolCommit({ lineIds: [lines[0], lines[1]] });
           reset();
+        } else if (destinationHover) {
+          lines.push(lineId);
+          setLinePickHighlight([...lines]);
+          if (lines.length === 4) {
+            liveRef.current.onToolCommit({ lineIds: [...lines] });
+            reset();
+          }
         }
       } else {
-        setLinePickHighlight(lineId > 0 ? [...lines, lineId] : [...lines]);
+        setLinePickHighlight(destinationHover ? [...lines, lineId] : [...lines]);
       }
       renderNow();
     };
