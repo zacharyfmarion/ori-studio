@@ -1,6 +1,9 @@
 import type { FoldArtifacts, FoldDocument } from '../engine/types';
 import type { OristudioCpDocumentSnapshot } from '../engine/oristudioCpTypes';
-import { segmentationFoldArtifactsFromFold } from '../lib/creasePatternImport';
+import {
+  segmentationFoldArtifactsFromFold,
+  warnIfFacesWereInferred,
+} from '../lib/creasePatternImport';
 import { exportOristudioCpDocumentAsFold } from '../store/workspaceStore/oristudioCpRuntime';
 
 const COORD_QUANTIZE = 1e6;
@@ -94,6 +97,7 @@ export function ensureCpSegmentationArtifacts(
     const startedAt = performance.now();
     const fold = JSON.parse(await exportOristudioCpDocumentAsFold()) as FoldDocument;
     const artifacts = segmentationFoldArtifactsFromFold(fold);
+    warnIfFacesWereInferred(fold, artifacts.fold, 'cp-segmentation');
     cached = { fingerprint, artifacts };
     if (import.meta.env.DEV) {
        

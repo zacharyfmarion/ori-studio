@@ -298,6 +298,77 @@ fn fold_topology_matches_oriedita_wireframe_oracle() {
     }
 }
 
+/// The one place the FOLD export deliberately parts company with Oriedita.
+///
+/// Both cases above are single-component, so nothing there would notice this
+/// divergence — which is exactly why it is pinned here instead of left to be
+/// discovered. See PORTING.md and `FoldGraph::calculate_faces_per_component`.
+#[test]
+fn fold_topology_diverges_from_oriedita_only_for_disconnected_patterns() {
+    let Some(oracle) = io_oracle() else {
+        eprintln!("skipping Oriedita IO oracle test: ORIEDITA_IO_ORACLE is not set");
+        return;
+    };
+
+    // Two squares, each with both diagonals, 500 apart and sharing no point.
+    let square = |cy: f64| {
+        let centre = Point::new(0.0, cy);
+        let tl = Point::new(-200.0, cy + 200.0);
+        let tr = Point::new(200.0, cy + 200.0);
+        let br = Point::new(200.0, cy - 200.0);
+        let bl = Point::new(-200.0, cy - 200.0);
+        vec![
+            LineSegment::with_color(tl, tr, LineColor::Black0),
+            LineSegment::with_color(tr, br, LineColor::Black0),
+            LineSegment::with_color(br, bl, LineColor::Black0),
+            LineSegment::with_color(bl, tl, LineColor::Black0),
+            LineSegment::with_color(tl, centre, LineColor::Blue2),
+            LineSegment::with_color(tr, centre, LineColor::Red1),
+            LineSegment::with_color(centre, bl, LineColor::Blue2),
+            LineSegment::with_color(centre, br, LineColor::Blue2),
+        ]
+    };
+
+    let mut model = CreasePatternModel::default();
+    for segment in square(0.0).into_iter().chain(square(500.0)) {
+        model.add_line_segment(segment);
+    }
+
+    let mut args = vec![
+        "fold-topology-summary".to_string(),
+        model.line_segments.len().to_string(),
+    ];
+    push_segment_args(&mut args, &model.line_segments);
+    let oracle_args = args.iter().map(String::as_str).collect::<Vec<_>>();
+    let oracle_summary = run_oracle(&oracle, &oracle_args);
+
+    // Oriedita refuses the whole document: its Euler gate reads `F - E + V ==
+    // 2` as rounding damage, having no concept of a second sheet.
+    assert!(
+        oracle_summary.contains("topology|10|16|0|false"),
+        "expected Oriedita to emit no faces, got:\n{oracle_summary}"
+    );
+
+    // We run the same gate once per component and emit four faces per square.
+    let document = fold::export_fold_document(&model, None);
+    assert_eq!(document.vertices_coords.len(), 10);
+    assert_eq!(document.faces_vertices.len(), 8);
+
+    // Everything else still matches, so the divergence really is confined to
+    // the face list: same vertices, same edges, same order.
+    let geometry = |summary: &str| -> Vec<String> {
+        summary
+            .lines()
+            .filter(|line| line.starts_with("vertex|") || line.starts_with("edge|"))
+            .map(str::to_string)
+            .collect()
+    };
+    assert_eq!(
+        geometry(&fold_topology_summary(&model)),
+        geometry(&oracle_summary)
+    );
+}
+
 fn native_io_oracle() -> Option<PathBuf> {
     std::env::var("ORIEDITA_NATIVE_IO_ORACLE")
         .ok()

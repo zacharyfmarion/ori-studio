@@ -92,6 +92,30 @@ are unchanged:
   order it visits faces in, or any successful result changes; the folding oracle
   in `crates/oristudio-cp/tests/oriedita_folding_oracle.rs` is the gate.
 
+- **The FOLD export runs Oriedita's Euler gate per connected component.**
+  `FoldGraph::calculate_faces_per_component` re-runs the gate once per component
+  when the whole-document pass refuses, and emits the union of the faces. Upstream's
+  `FoldExporter.toFoldSave` writes faces only when `calculateFaces()` returns
+  true, and that ends in the gate at `PointSet.java:428-441`, whose own comment
+  reads a failure as damage: "something wrong caused by the rounding error and we
+  cannot possibly expect a valid folding result". But `F - E + V == 1` counts the
+  bounded faces of *one* connected arrangement — k components score k — and
+  Oriedita is a single-sheet editor, so a document holding two crease patterns
+  scores 2 and is refused as though it were rounding damage. Ori Studio's canvas
+  holds as many patterns as the user draws, and refusing them cost the whole
+  document its faces; the web then inferred its own, through a planarizer whose
+  vertex identity did not match the kernel's. Each component *is* a single sheet,
+  which is what the gate assumes, so this composes around
+  `FoldGraph::calculate_faces` rather than editing it — the same shape
+  `folding3d::cells` already uses. One component failing refuses the whole
+  document, so a present `faces_vertices` still means the arrangement was judged
+  sound rather than merely that part of it was. Nothing runs for a
+  single-component document, so the folding paths and every existing parity case
+  see byte-identical output;
+  `fold_topology_diverges_from_oriedita_only_for_disconnected_patterns` in
+  `crates/oristudio-cp/tests/oriedita_io_oracle.rs` pins the divergence against
+  the real `PointSet`, and asserts the vertices and edges still match exactly.
+
 - **A FOLD folded form is refused, not flattened.** `io::fold::import_fold_document`
   returns `IoError::FoldedForm` — engine code `fold_folded_form` — for a frame
   that declares `frame_classes: ["foldedForm"]`, and for any vertex further than

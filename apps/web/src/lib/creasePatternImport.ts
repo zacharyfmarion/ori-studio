@@ -189,6 +189,35 @@ export function foldArtifactsFromFold(
 }
 
 /**
+ * Report a live kernel document whose faces had to be inferred here.
+ *
+ * On the file-import path an absent `faces_vertices` is ordinary: `.cp` carries
+ * no faces and a `.fold` may be line-only, so inferring them is the whole job.
+ * On a document the kernel just exported it is a verdict — the kernel ran
+ * Oriedita's Euler check, once per connected component, and judged the
+ * arrangement numerically untrustworthy. Inferring faces anyway is the useful
+ * behaviour; doing it silently is not, because the geometry may be damaged in
+ * ways the simulation will not obviously show.
+ *
+ * Comparing before against after is what keeps this quiet in the normal cases:
+ * a document that simply has nothing enclosing a face — empty, or a few
+ * dangling creases — infers none either, and says nothing.
+ */
+export function warnIfFacesWereInferred(
+  exported: FoldDocument,
+  resolved: FoldArtifacts['fold'],
+  surface: string
+): void {
+  if (exported.faces_vertices?.length) return;
+  if (!resolved.faces_vertices?.length) return;
+  console.warn(
+    `[${surface}] the crease-pattern kernel supplied no faces, so they were inferred here. ` +
+      "Its arrangement failed Oriedita's Euler check, which upstream reads as rounding " +
+      'damage — the geometry may not fold as drawn.'
+  );
+}
+
+/**
  * Fold artifacts carrying only what crease-pattern *segmentation* needs — the
  * base fold with faces — and deliberately **not** the simulation model.
  *

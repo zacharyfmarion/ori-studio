@@ -54,5 +54,15 @@ describe('iguana_24 crease pattern', () => {
     expect(orphans).toEqual([]);
     expect(simulation.faces_vertices.length).toBeGreaterThan(0);
     expect(simulation.vertices_coords.every((coord) => coord.every(Number.isFinite))).toBe(true);
+
+    // A real pattern's inferred topology, pinned exactly. The invariant above
+    // says the result is self-consistent; this says it is the *same* result, so
+    // a change to how the planarizer identifies vertices or traces faces has to
+    // be looked at on a real file rather than only on the synthetic cases.
+    expect({
+      vertices: foldArtifacts.fold.vertices_coords.length,
+      edges: foldArtifacts.fold.edges_vertices.length,
+      faces: foldArtifacts.fold.faces_vertices.length,
+    }).toEqual({ vertices: 4566, edges: 7910, faces: 3375 });
   });
 });

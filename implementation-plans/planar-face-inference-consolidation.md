@@ -212,36 +212,36 @@ PR 2:
 
 ### PR 1 — web epsilon vertex identity
 
-- [ ] Replace `vertexId`'s string-key map with bucket + 3×3 probe + `EPSILON`
+- [x] Replace `vertexId`'s string-key map with bucket + 3×3 probe + `EPSILON`
       distance compare; lowest matching index wins
-- [ ] `BUCKET = 4 * EPSILON`
-- [ ] Leave `uniqueSorted` alone; note why in a comment so it is not "fixed" later
-- [ ] Focused test: square with `(+9.09e-15, −9.09e-15)` centre → one centre
+- [x] `BUCKET = 4 * EPSILON`
+- [x] Leave `uniqueSorted` alone; note why in a comment so it is not "fixed" later
+- [x] Focused test: square with `(+9.09e-15, −9.09e-15)` centre → one centre
       vertex, four triangles, zero orphaned M/V creases
-- [ ] Pin unchanged output on `iguana_24` (vertex count, order, face count)
-- [ ] `npm run lint:web && npm run typecheck:web && npm run test:web`
+- [x] Pin unchanged output on `iguana_24` (vertex count, order, face count)
+- [x] `npm run lint:web && npm run typecheck:web && npm run test:web`
 - [ ] Verify the reported file in the browser: Simulate tab **and** an inline
       simulation window both fold as one sheet
 
 ### PR 2 — kernel per-component faces
 
-- [ ] Lift `connected_components` / `root` into `fold_graph.rs`; `cells.rs` uses
+- [x] Lift `connected_components` / `root` into `fold_graph.rs`; `cells.rs` uses
       the lifted copy with no behaviour change
-- [ ] Return per-component line indices
-- [ ] Per-component face pass in `from_model_for_export`, remapping by replay
-- [ ] All-or-nothing gate: any component failing → no faces
-- [ ] Rebuild `line_face_borders` from the remapped faces
-- [ ] `calculate_faces` and `from_segments` unchanged — confirm by diff
-- [ ] Single-component export byte-identical (assert against a stored expectation)
-- [ ] Oracle divergence case: two disjoint squares, Oriedita `false` vs. our faces
-- [ ] `PORTING.md` entry
-- [ ] `cargo fmt --check && cargo clippy --workspace --all-targets -- -D warnings
+- [x] Return per-component line indices
+- [x] Per-component face pass in `from_model_for_export`, remapping by replay
+- [x] All-or-nothing gate: any component failing → no faces
+- [x] Rebuild `line_face_borders` from the remapped faces
+- [x] `calculate_faces` and `from_segments` unchanged — confirm by diff
+- [x] Single-component export byte-identical (assert against a stored expectation)
+- [x] Oracle divergence case: two disjoint squares, Oriedita `false` vs. our faces
+- [x] `PORTING.md` entry
+- [x] `cargo fmt --check && cargo clippy --workspace --all-targets -- -D warnings
       && cargo test --workspace`
-- [ ] Oriedita parity run (see `tools/oriedita-oracle/README.md`):
+- [x] Oriedita parity run (see `tools/oriedita-oracle/README.md`):
       `ORIEDITA_GEOMETRY_ORACLE=tools/oriedita-oracle/build/oriedita-geometry-oracle
       cargo test -p oristudio-cp --test oriedita_io_oracle`
-- [ ] `npm --workspace @treemaker/web run build:oristudio-cp-wasm`
-- [ ] Fix the stale flat-folder comment; add the live-document fallback warning
+- [x] `npm --workspace @treemaker/web run build:oristudio-cp-wasm`
+- [x] Fix the stale flat-folder comment; add the live-document fallback warning
 - [ ] Verify in the browser that the multi-CP document now takes the kernel path
       (`inferTopology` no longer runs — confirm, do not assume)
 

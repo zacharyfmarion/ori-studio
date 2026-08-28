@@ -524,6 +524,136 @@ fn fold_export_suppresses_faces_when_oriedita_euler_check_fails() {
     assert!(document.faces_edges.is_empty());
 }
 
+/// A square with both diagonals, offset vertically. The centre carries the
+/// rounding residue a drawn crease pattern really has — and carries it with a
+/// *negative* y, which is what a quantized vertex key spells differently from
+/// an exact zero.
+fn square_with_diagonals(cy: f64) -> Vec<(Point, Point, LineColor)> {
+    let tiny = 9.094947017729283e-15;
+    let centre = Point::new(tiny, cy - tiny);
+    let tl = Point::new(-200.0, cy + 200.0);
+    let tr = Point::new(200.0, cy + 200.0);
+    let br = Point::new(200.0, cy - 200.0);
+    let bl = Point::new(-200.0, cy - 200.0);
+    vec![
+        (tl, tr, LineColor::Black0),
+        (tr, br, LineColor::Black0),
+        (br, bl, LineColor::Black0),
+        (bl, tl, LineColor::Black0),
+        (tl, centre, LineColor::Blue2),
+        (tr, centre, LineColor::Red1),
+        (centre, bl, LineColor::Blue2),
+        (centre, br, LineColor::Blue2),
+    ]
+}
+
+fn model_of(lines: Vec<(Point, Point, LineColor)>) -> CreasePatternModel {
+    let mut model = CreasePatternModel::default();
+    for (a, b, color) in lines {
+        model.add_line(a, b, color);
+    }
+    model
+}
+
+#[test]
+fn fold_export_emits_faces_for_each_disconnected_crease_pattern() {
+    // Upstream's Euler gate is `F - E + V == 1`, which counts the bounded faces
+    // of *one* connected arrangement. Two patterns score 2 and were refused
+    // wholesale, so a document with two crease patterns exported no faces at
+    // all -- and the web fell back to inferring them itself.
+    let mut lines = square_with_diagonals(0.0);
+    lines.extend(square_with_diagonals(500.0));
+    let document = fold::export_fold_document(&model_of(lines), None);
+
+    // Five vertices per square: four corners and one centre. A centre that
+    // split in two would show up here as 11 or 12.
+    assert_eq!(document.vertices_coords.len(), 10);
+    assert_eq!(
+        document.faces_vertices,
+        vec![
+            vec![0, 1, 4],
+            vec![1, 2, 4],
+            vec![2, 3, 4],
+            vec![0, 4, 3],
+            vec![5, 6, 9],
+            vec![6, 7, 9],
+            vec![7, 8, 9],
+            vec![5, 9, 8],
+        ]
+    );
+    assert_eq!(document.faces_edges.len(), 8);
+}
+
+#[test]
+fn fold_export_of_one_pattern_is_unchanged_by_the_per_component_pass() {
+    // The per-component pass must not run when there is nothing to gain: a
+    // single pattern still takes Oriedita's path exactly, which is what the
+    // FOLD-export oracle pins.
+    let document = fold::export_fold_document(&model_of(square_with_diagonals(0.0)), None);
+
+    assert_eq!(document.vertices_coords.len(), 5);
+    assert_eq!(
+        document.faces_vertices,
+        vec![vec![0, 1, 4], vec![1, 2, 4], vec![2, 3, 4], vec![0, 4, 3]]
+    );
+}
+
+#[test]
+fn fold_export_refuses_every_face_when_one_component_fails_the_gate() {
+    // All-or-nothing. The fan below is the single-component arrangement that
+    // `fold_export_suppresses_faces_when_oriedita_euler_check_fails` pins as a
+    // gate failure; a square beside it must not rescue the document. Emitting
+    // the square's faces alone would break the contract callers read from a
+    // present `faces_vertices` -- that the arrangement was judged sound, not
+    // that part of it was.
+    let mut lines = square_with_diagonals(0.0);
+    for (a, b) in [
+        (
+            Point::new(-200.0, -700.0),
+            Point::new(-117.15728752538098, -500.0),
+        ),
+        (
+            Point::new(0.0, -500.0),
+            Point::new(-117.15728752538098, -500.0),
+        ),
+        (
+            Point::new(-200.0, -300.0),
+            Point::new(-117.15728752538098, -500.0),
+        ),
+        (
+            Point::new(-200.0, -700.0),
+            Point::new(0.0, -617.157287525381),
+        ),
+        (Point::new(0.0, -500.0), Point::new(0.0, -617.157287525381)),
+        (
+            Point::new(200.0, -700.0),
+            Point::new(0.0, -617.157287525381),
+        ),
+    ] {
+        lines.push((a, b, LineColor::Blue2));
+    }
+    let document = fold::export_fold_document(&model_of(lines), None);
+
+    assert!(document.faces_vertices.is_empty());
+    assert!(document.faces_edges.is_empty());
+}
+
+#[test]
+fn fold_export_ignores_a_component_that_bounds_no_face() {
+    // A stray crease is its own component and contributes nothing, rather than
+    // costing the document every face it does have.
+    let mut lines = square_with_diagonals(0.0);
+    lines.push((
+        Point::new(-500.0, -500.0),
+        Point::new(-400.0, -500.0),
+        LineColor::Black0,
+    ));
+    let document = fold::export_fold_document(&model_of(lines), None);
+
+    assert_eq!(document.vertices_coords.len(), 7);
+    assert_eq!(document.faces_vertices.len(), 4);
+}
+
 #[test]
 fn dxf_export_uses_oriedita_layers_and_coordinate_transform() {
     let mut model = CreasePatternModel::default();

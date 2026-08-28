@@ -2,7 +2,7 @@ use crate::geometry::{
     Epsilon, LineColor, LineSegment, Point, Polygon, angle, equal, find_line_symmetry_point,
 };
 use crate::model::CreasePatternModel;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct GraphLine {
@@ -99,7 +99,131 @@ impl FoldGraph {
         } else {
             model.line_segments.clone()
         };
-        Self::from_segments(&segments, true)
+        let mut graph = Self::from_segments(&segments, true);
+        if !graph.include_faces {
+            graph.calculate_faces_per_component();
+        }
+        graph
+    }
+
+    /// Faces for a document holding several disconnected crease patterns.
+    ///
+    /// **Ori Studio native — a deliberate divergence.** Upstream's
+    /// `FoldExporter.toFoldSave` writes faces only when `calculateFaces()`
+    /// returns true, and that ends in the Euler gate
+    /// (`PointSet.java:428-441`). Upstream reads a failure there as damage:
+    /// "something wrong caused by the rounding error and we cannot possibly
+    /// expect a valid folding result". But `F - E + V == 1` counts the bounded
+    /// faces of *one* connected arrangement — k components score k — and
+    /// Oriedita is a single-sheet editor, so a document holding two crease
+    /// patterns scores 2 and is refused as though it were rounding damage.
+    /// Ori Studio's canvas holds as many patterns as the user draws.
+    ///
+    /// So run the same gate once per component instead of once per document.
+    /// Each component *is* a single sheet, which is what the gate assumes, and
+    /// [`Self::calculate_faces`] is called unmodified — this composes around
+    /// the port rather than editing it, exactly as `folding3d::cells` already
+    /// does. Nothing here runs for a single-component document, so the folding
+    /// paths and the FOLD-export oracle see byte-identical output. See
+    /// PORTING.md.
+    ///
+    /// All-or-nothing: one component failing its own gate refuses the whole
+    /// document. A partial face set would break the contract every caller
+    /// actually relies on — that a present `faces_vertices` means the
+    /// arrangement was judged trustworthy, not merely that some of it was.
+    fn calculate_faces_per_component(&mut self) {
+        let components = self.line_components();
+        // One component already had its verdict, and it was no.
+        if components.len() < 2 {
+            return;
+        }
+
+        let mut faces = Vec::<Vec<usize>>::new();
+        for component in &components {
+            let segments: Vec<LineSegment> = component
+                .iter()
+                .filter_map(|&line| self.segments.get(line).cloned())
+                .collect();
+            let part = Self::from_segments(&segments, true);
+            if !part.include_faces {
+                return;
+            }
+            let to_global = self.local_points_of(component);
+            for face in &part.faces {
+                faces.push(
+                    face.iter()
+                        .filter_map(|&point| to_global.get(point).copied())
+                        .collect(),
+                );
+            }
+        }
+
+        let mut incidence = vec![Vec::<usize>::new(); self.points.len()];
+        for (index, face) in faces.iter().enumerate() {
+            for &point in face {
+                if let Some(entries) = incidence.get_mut(point) {
+                    entries.push(index);
+                }
+            }
+        }
+
+        self.faces = faces;
+        self.include_faces = true;
+        self.line_face_borders = self.line_face_borders_from_incidence(&incidence);
+    }
+
+    /// This graph's point ids for a component's sub-graph, indexed by the id
+    /// that sub-graph gave them.
+    ///
+    /// Derived by replay rather than by looking the coordinates up again.
+    /// [`Self::from_segments`] assigns ids in order of first appearance while
+    /// walking `segment.a` then `segment.b`, so doing the same walk over the
+    /// component's lines — which already carry *this* graph's ids — reproduces
+    /// that numbering exactly. Two vertex merges that disagreed would corrupt
+    /// the faces silently, and this cannot disagree because it is not a second
+    /// merge.
+    ///
+    /// Restricting to a subsequence also preserves the relative order of any
+    /// two points, which is what keeps the merge's lowest-id-wins tie-break
+    /// picking the same representative in both graphs.
+    fn local_points_of(&self, component: &[usize]) -> Vec<usize> {
+        let mut to_global = Vec::new();
+        let mut seen = HashMap::new();
+        for &line_index in component {
+            let Some(line) = self.lines.get(line_index) else {
+                continue;
+            };
+            for global in [line.begin, line.end] {
+                seen.entry(global).or_insert_with(|| {
+                    to_global.push(global);
+                    to_global.len() - 1
+                });
+            }
+        }
+        to_global
+    }
+
+    /// Line indices grouped into sets that share no endpoint, keyed by the
+    /// group's representative so the order is deterministic.
+    ///
+    /// Endpoints are compared through this graph's own vertex merge, so
+    /// "shares an endpoint" means what the arrangement thinks it means.
+    pub(crate) fn line_components(&self) -> Vec<Vec<usize>> {
+        let mut parent: Vec<usize> = (0..self.points.len()).collect();
+        for line in &self.lines {
+            let (a, b) = (root(&mut parent, line.begin), root(&mut parent, line.end));
+            if a != b {
+                parent[a.max(b)] = a.min(b);
+            }
+        }
+        let mut groups: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
+        for (index, line) in self.lines.iter().enumerate() {
+            groups
+                .entry(root(&mut parent, line.begin))
+                .or_default()
+                .push(index);
+        }
+        groups.into_values().collect()
     }
 
     pub(crate) fn from_segments(segments: &[LineSegment], calculate_faces: bool) -> Self {
@@ -625,6 +749,16 @@ impl VertexIndex {
 /// `face[k] == minimum`, which is exactly `position`, and cost `O(n^2)` getting
 /// there. Duplicate ids do not separate the two forms: both stop at the first
 /// slot holding the minimum.
+/// Union-find root with path halving, for [`FoldGraph::line_components`] and
+/// the face-level unions in `folding3d::cells`.
+pub(crate) fn root(parent: &mut [usize], mut node: usize) -> usize {
+    while parent[node] != node {
+        parent[node] = parent[parent[node]];
+        node = parent[node];
+    }
+    node
+}
+
 fn align_face(face: &mut [usize]) {
     let Some(minimum) = face.iter().copied().min() else {
         return;
