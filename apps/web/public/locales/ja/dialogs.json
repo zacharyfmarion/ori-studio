@@ -184,8 +184,8 @@
     },
     "acknowledgements": {
       "boxPleatingStudio": {
-        "detail": "ボックスプリーツによる作図手法は、蔡牧村 の Box Pleating Studio の Rust および WebAssembly への移植です。",
-        "title": "蔡牧村 と Box Pleating Studio"
+        "detail": "ボックスプリーツによる作図手法は、蔡牧村の Box Pleating Studio の Rust および WebAssembly への移植です。",
+        "title": "蔡牧村と Box Pleating Studio"
       },
       "explori": {
         "detail": "「22.5° を検索」の作図手法は、ツリーを ExplOri（22.5° の展開図を検索できるアーカイブ）に送信し、返された中で最も近い一致を表示します。",
