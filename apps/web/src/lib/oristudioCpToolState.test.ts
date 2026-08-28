@@ -196,25 +196,34 @@ describe('oristudio CP tool state', () => {
     });
   });
 
-  it('surfaces command errors against the active tool', () => {
+  it('leaves a tool ready to retry after a command error, without repeating it', () => {
+    // The toast owns the error text. This prompt answers "what do I do next", so
+    // a failed attempt clears what the tool collected and asks again — it must
+    // not park the tool in a phase that takes no input, which is what
+    // `webglActiveTool` gates on, nor echo the raw engine string over the canvas.
     const active = transitionOristudioCpToolState(IDLE_ORISTUDIO_CP_TOOL_STATE, {
       type: 'selectCommand',
       command: ready('DrawPoint'),
       editable: true,
     });
 
+    const afterError = transitionOristudioCpToolState(active, {
+      type: 'commandError',
+      message: 'candidate vanished',
+    });
+
+    expect(afterError).toEqual(active);
+    expect(afterError.phase).toBe('active');
+    expect(afterError.prompt).not.toContain('candidate vanished');
+  });
+
+  it('drops an inactive tool to idle on a command error', () => {
     expect(
-      transitionOristudioCpToolState(active, {
+      transitionOristudioCpToolState(IDLE_ORISTUDIO_CP_TOOL_STATE, {
         type: 'commandError',
         message: 'candidate vanished',
       })
-    ).toMatchObject({
-      activeActionId: null,
-      activeOperationId: 'DrawPoint',
-      phase: 'error',
-      prompt: 'Draw point: candidate vanished',
-      status: 'error',
-    });
+    ).toBe(IDLE_ORISTUDIO_CP_TOOL_STATE);
   });
 
   it('cancels active or blocked tools before falling through to selection clearing', () => {

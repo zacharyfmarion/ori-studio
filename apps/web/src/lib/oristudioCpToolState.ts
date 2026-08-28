@@ -70,14 +70,22 @@ export function transitionOristudioCpToolState(
       return IDLE_ORISTUDIO_CP_TOOL_STATE;
     case 'reset':
       return IDLE_ORISTUDIO_CP_TOOL_STATE;
+    // The toast owns the error text; this surface does not repeat it.
+    //
+    // This prompt answers "what do I do next", and hijacking it for a diagnosis
+    // put the *raw* engine string on screen — `humanizeError` runs on the toast
+    // path only — at unbounded length, wrapping over the canvas. It also left
+    // the tool in a phase that is not `active`, which is what `webglActiveTool`
+    // gates on, so the tool quietly stopped taking input and this line was the
+    // only clue why.
+    //
+    // A failed attempt now just clears what the tool had collected, exactly like
+    // a cancel: the toast says what went wrong, and the tool is ready to be tried
+    // again. `event.message` is left on the event because the callers already
+    // compute it; nothing reads it, and dropping it is a follow-up.
     case 'commandError':
       if (!state.activeOperationId) return IDLE_ORISTUDIO_CP_TOOL_STATE;
-      return {
-        ...state,
-        phase: 'error',
-        prompt: `${activeToolLabel(state)}: ${event.message}`,
-        status: 'error',
-      };
+      return resetActiveToolInput(state);
   }
 }
 

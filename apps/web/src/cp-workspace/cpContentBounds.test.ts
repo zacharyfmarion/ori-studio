@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cpContentBounds, type CpOverlayBox } from './cpContentBounds';
+import { cpContentBounds, cpSizingBounds, type CpOverlayBox } from './cpContentBounds';
 import { createCpImage } from './images/cpImage';
 import { foldedFigureUserAabb } from './adapters/cpFoldedToScene';
 import { IDENTITY_FOLDED_PLACEMENT } from '../engine/oristudioCpTypes';
@@ -203,6 +203,39 @@ describe('what the camera frames against', () => {
     expect(cpContentBounds({ lineSegments: [], modelToSvg })).toBeNull();
   });
 
+  it('skips non-finite coordinates instead of poisoning the extent', () => {
+    // A NaN compares false both ways, so without a guard it would leave the
+    // extent alone yet still mark the box as populated; an infinity would
+    // swallow it whole. Either way the camera fit that consumes this gets a
+    // meaningless answer.
+    for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      const bounds = cpContentBounds({
+        lineSegments: [crease, { a: { x: bad, y: bad }, b: { x: 5, y: 5 } }],
+        modelToSvg,
+      });
+      expect(bounds).toEqual({ minX: 0, minY: 0, maxX: 10, maxY: 10 });
+    }
+  });
+
+  it('is null when every placed point is non-finite', () => {
+    expect(
+      cpContentBounds({
+        lineSegments: [{ a: { x: Number.NaN, y: 0 }, b: { x: 1, y: Number.NaN } }],
+        modelToSvg,
+      })
+    ).toBeNull();
+  });
+
+  it('keeps a merely far-away point so fitting to view still frames it', () => {
+    // Only undrawable coordinates are rejected. A real but distant vertex is
+    // content, and dropping it here would hide it from "Fit to view".
+    const bounds = cpContentBounds({
+      lineSegments: [crease, { a: { x: 1e9, y: 1e9 }, b: { x: 1e9, y: 1e9 } }],
+      modelToSvg,
+    });
+    expect(bounds).toEqual({ minX: 0, minY: 0, maxX: 1e9, maxY: 1e9 });
+  });
+
   it('accounts for a rotated box by its corners', () => {
     // A window can be rotated; its footprint is the rotated extent, not the
     // unrotated one.
@@ -212,5 +245,63 @@ describe('what the camera frames against', () => {
       modelToSvg,
     });
     expect(bounds!.maxX).toBeCloseTo(Math.sqrt(2) * 10, 5);
+  });
+});
+
+describe('cpSizingBounds', () => {
+  /**
+   * A stand-in for a real pattern: creases tiling a 0..100 square, both
+   * directions. The crossing direction matters — it is what puts many samples on
+   * each extreme coordinate, which is the property that makes trimming inert on
+   * real content (a CP's paper edge carries a vertex for every crease meeting
+   * it). A one-directional fixture has two samples per extreme and would be
+   * trimmed away, which is a fact about the fixture, not about crease patterns.
+   */
+  const grid = (n = 50) => {
+    const at = (i: number) => (i / (n - 1)) * 100;
+    return [
+      ...Array.from({ length: n }, (_, i) => ({ a: { x: at(i), y: 0 }, b: { x: at(i), y: 100 } })),
+      ...Array.from({ length: n }, (_, i) => ({ a: { x: 0, y: at(i) }, b: { x: 100, y: at(i) } })),
+    ];
+  };
+
+  it('matches the raw bounds on a healthy pattern', () => {
+    // The trim must be inert on real content: a CP's edges carry many vertices
+    // at the same extreme, so discarding a few percent does not move it.
+    const lineSegments = grid();
+    expect(cpSizingBounds({ lineSegments, modelToSvg })).toEqual(
+      cpContentBounds({ lineSegments, modelToSvg })
+    );
+  });
+
+  it('ignores a stray far-away crease that would otherwise set the scale', () => {
+    const lineSegments = [...grid(), { a: { x: -3.4e14, y: 3.4e14 }, b: { x: -550, y: 550 } }];
+    // Framing still has to reach it...
+    expect(cpContentBounds({ lineSegments, modelToSvg })!.minX).toBe(-3.4e14);
+    // ...but sizing reads the same as if it were never drawn.
+    expect(cpSizingBounds({ lineSegments, modelToSvg })).toEqual(
+      cpContentBounds({ lineSegments: grid(), modelToSvg })
+    );
+  });
+
+  it('keeps an image at full extent rather than trimming it away', () => {
+    // Images are few and deliberately placed, so no percentile applies to them:
+    // a document's only reference image must not drop out of its own scale.
+    const bounds = cpSizingBounds({
+      lineSegments: grid(),
+      images: [imageAt(400, 400)],
+      modelToSvg,
+    });
+    expect(bounds!.maxX).toBe(410);
+    expect(bounds!.maxY).toBe(410);
+  });
+
+  it('falls back to the raw bounds when there are no creases to trim', () => {
+    const input = { lineSegments: [], overlayBoxes: [boxAt(0, 0)], modelToSvg };
+    expect(cpSizingBounds(input)).toEqual(cpContentBounds(input));
+  });
+
+  it('is null when nothing is placed', () => {
+    expect(cpSizingBounds({ lineSegments: [], modelToSvg })).toBeNull();
   });
 });

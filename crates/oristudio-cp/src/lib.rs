@@ -2477,23 +2477,71 @@ pub fn execute_command(
             )
         }
         OperationId::SquareBisector => {
-            if command.payload.line_ids.len() >= 3 {
+            if command.payload.line_ids.len() >= 2 {
                 let line_indices = required_line_indices(&command)?;
                 let first =
                     line_segment_for_operation(document, command.operation, line_indices[0])?;
                 let second =
                     line_segment_for_operation(document, command.operation, line_indices[1])?;
-                let destination =
-                    line_segment_for_operation(document, command.operation, line_indices[2])?;
-                usize::from(
-                    operations::construction::square_bisector_from_lines_to_destination(
-                        &mut document.crease_pattern,
-                        &first,
-                        &second,
-                        &destination,
-                        active_line_color(&command),
-                    ),
+
+                // Parallel sources are refused, and this is a **deliberate departure
+                // from upstream** rather than a gap. Read this before "finishing" it.
+                //
+                // Upstream splits here on `checkIfParallel()` into a second
+                // interaction: two parallel lines have no angle to bisect, so it
+                // offers the midline between them as a purple indicator you either
+                // take whole or cut between two crossing creases. Every piece of that
+                // is ported and oracle-tested — `square_bisector_parallel_indicator`,
+                // `commit_square_bisector_parallel_indicator`,
+                // `square_bisector_parallel_between_destinations` — and it was wired
+                // up here and then taken back out on purpose, because the behaviour
+                // it produces is not behaviour we want:
+                //
+                // - The midline runs through `fullExtendUntilHit`, which does not
+                //   stop at the creases it crosses. Upstream draws a ray straight
+                //   through the pattern and off the paper; ours did the same.
+                // - The two-destination arm intersects the indicator with each
+                //   destination *without checking either is non-parallel to it*.
+                //   Upstream's guard for that lives in `move_drag_select_destination_
+                //   2L_P`, a hover handler — UI-side, and not ported. So the kernel
+                //   function inherited the divide without its guard, and a
+                //   destination parallel to the midline divides by ~0 exactly the way
+                //   the original bug did. A real user file reached 8.2e12 this way.
+                //
+                // The port stays (it is parity-tested and describes what upstream
+                // does); it is just not reachable from the product. If you want it
+                // back, the two problems above are the price of admission.
+                if operations::construction::square_bisector_parallel_indicator(
+                    &document.crease_pattern,
+                    &first,
+                    &second,
                 )
+                .is_some()
+                {
+                    return Err(CommandError::InvalidInput {
+                        operation: command.operation,
+                        message: "Those two creases are parallel, so there is no angle between \
+                                  them to bisect. Pick two creases that meet."
+                            .to_string(),
+                    });
+                } else if line_indices.len() >= 3 {
+                    let destination =
+                        line_segment_for_operation(document, command.operation, line_indices[2])?;
+                    usize::from(
+                        operations::construction::square_bisector_from_lines_to_destination(
+                            &mut document.crease_pattern,
+                            &first,
+                            &second,
+                            &destination,
+                            active_line_color(&command),
+                        ),
+                    )
+                } else {
+                    return Err(CommandError::InvalidInput {
+                        operation: command.operation,
+                        message: "Pick a crease for the bisector to end on.".to_string(),
+                    });
+                }
             } else {
                 let points = required_points(&command, 4)?;
                 let (_, destination) = nearest_line_segment(

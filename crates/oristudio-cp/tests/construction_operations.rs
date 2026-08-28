@@ -1246,3 +1246,99 @@ fn angle_restricted_5_draws_nothing_when_the_release_collapses_onto_the_anchor()
     execute_command(&mut document, command).expect("command executes");
     assert!(document.crease_pattern.line_segments.is_empty());
 }
+
+/// The two parallel creases from `bisector_bug.osf`, at the coordinates that
+/// produced the runaway endpoint. Their determinant is float noise (~-1.6e-9)
+/// rather than a clean zero, which is exactly why the non-parallel arm's
+/// `find_intersection` returned a finite point instead of failing.
+fn parallel_sources_from_bug_report() -> (LineSegment, LineSegment) {
+    (
+        segment(
+            408.578_643_762_690_66,
+            549.999_999_999_999_1,
+            308.578_643_762_672_9,
+            650.0,
+            LineColor::Black0,
+        ),
+        segment(
+            250.0,
+            650.0,
+            343.933_982_822_021_1,
+            556.066_017_177_978_7,
+            LineColor::Black0,
+        ),
+    )
+}
+
+fn largest_coordinate(model: &CreasePatternModel) -> f64 {
+    model
+        .line_segments
+        .iter()
+        .flat_map(|s| [s.a, s.b])
+        .map(|p| p.x.abs().max(p.y.abs()))
+        .fold(0.0_f64, f64::max)
+}
+
+#[test]
+fn square_bisector_command_parallel_lines_never_emit_runaway_coordinates() {
+    // The reported bug: this committed a crease ending at ~3.4e14, far outside a
+    // sheet spanning x 250..1100, y -200..650.
+    let (first, second) = parallel_sources_from_bug_report();
+    let destination = segment(
+        408.578_643_762_690_66,
+        549.999_999_999_999_1,
+        350.0,
+        550.0,
+        LineColor::Black0,
+    );
+    let mut document = CreasePatternDocument {
+        crease_pattern: model_from_segments(&[first, second, destination]),
+        ..Default::default()
+    };
+    let before = largest_coordinate(&document.crease_pattern);
+    let creases_before = document.crease_pattern.line_segments.len();
+
+    // Every shape is refused, not just the one that used to divide by ~0. Upstream
+    // answers parallel sources with a second interaction; we deliberately do not —
+    // see the `SquareBisector` dispatch. Two ids was "take the indicator whole" and
+    // four was "cut it between two destinations", and both stay refused so neither
+    // can quietly come back through a payload the frontend no longer sends.
+    for line_ids in [vec![1, 2], vec![1, 2, 3], vec![1, 2, 3, 3]] {
+        let command = CreasePatternCommand::new(OperationId::SquareBisector).with_payload(
+            CreasePatternCommandPayload {
+                line_ids: line_ids.clone(),
+                line_color: Some(LineColor::Red1),
+                ..Default::default()
+            },
+        );
+        assert!(
+            execute_command(&mut document, command).is_err(),
+            "parallel sources with ids {line_ids:?} should be refused"
+        );
+        assert_eq!(largest_coordinate(&document.crease_pattern), before);
+        assert_eq!(document.crease_pattern.line_segments.len(), creases_before);
+    }
+}
+
+#[test]
+fn square_bisector_preview_never_offers_a_parallel_indicator() {
+    // The purple midline is upstream's affordance for the interaction we do not
+    // have, so previewing it would advertise a click that only ever errors.
+    let (first, second) = parallel_sources_from_bug_report();
+    let document = CreasePatternDocument {
+        crease_pattern: model_from_segments(&[first, second]),
+        ..Default::default()
+    };
+
+    let preview = preview_command(
+        &document,
+        CreasePatternCommand::new(OperationId::SquareBisector).with_payload(
+            CreasePatternCommandPayload {
+                line_ids: vec![1, 2],
+                ..Default::default()
+            },
+        ),
+    )
+    .expect("preview succeeds");
+    assert!(preview.segments.is_empty());
+}
