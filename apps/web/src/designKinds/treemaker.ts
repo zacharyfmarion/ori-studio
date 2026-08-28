@@ -90,8 +90,6 @@ export function createTreemakerSendToEdit(getClient: () => Promise<EngineClient>
     await api.buildCreasePattern(handle);
     const payload: SendToEditPayload = {
       text: await api.exportFold(handle),
-      // The engine's FOLD already uses the CP editor's crease convention, so no
-      // ORIPA-style 2<->3 swap is needed here (unlike box-pleat).
       format: 'fold',
       label: 'Sent design to Edit',
       filename: `${request.title || 'design'}.fold`,

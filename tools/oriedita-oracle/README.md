@@ -2,7 +2,7 @@
 
 This directory contains the staged headless oracle harness for the Oriedita
 port. It currently exposes geometry/model primitive commands, Stage 4
-import/export commands for Oriedita's ORH, OBJ, and DXF paths, and Stage 5
+import/export commands for Oriedita's CP, ORH, OBJ, and DXF paths, and Stage 5
 arrangement commands for `IntersectDivide`, `FoldLineSet` insertion splitting,
 delete-inside-line modes, and `BranchTrim`/`del_V` cleanup. Later stages should
 extend the same pattern for documents, operations, checks, and folding
@@ -78,8 +78,15 @@ built separately so the geometry oracle can remain dependency-light:
 tools/oriedita-oracle/build_native_io_oracle.sh
 ORIEDITA_NATIVE_IO_ORACLE=tools/oriedita-oracle/build/oriedita-native-io-oracle \
   cargo test -p oristudio-cp --test oriedita_io_oracle \
-    ori_import_and_export fold_root_import
+    ori_import_and_export fold_root_import cp_import
 ```
+
+`cp-import-summary` runs Oriedita's `CpImporter`, which is the only way to see
+the `.cp` line-type codes as upstream actually resolves them: the mapping is not
+written down in Oriedita at all, but assembled from the `fold` library's
+`CreasePatternReader` and `FoldImporter.getColor`. An inverted reader paired
+with an inverted writer round-trips its own files perfectly, so this mapping
+cannot be checked from inside the Rust crate — it needs the oracle.
 
 This wrapper also resolves the Java `fold` dependency used by Oriedita's
 `FoldImporter`. That importer rejects FOLD `file_frames` in the pinned
