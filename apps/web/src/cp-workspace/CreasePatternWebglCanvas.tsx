@@ -79,7 +79,12 @@ import {
 } from './tools/transformGhost';
 import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
 import type { CpImage } from './images/cpImage';
-import { cpContentBounds, cpSizingBounds } from './cpContentBounds';
+import {
+  cpContentBounds,
+  cpPlacedObjectBounds,
+  cpTrimmedCreaseBounds,
+  unionBounds,
+} from './cpContentBounds';
 import { cpSizingScales } from './cpSizingScales';
 import { cpPointsToScene, VERTEX_RADIUS_FACTOR } from './adapters/cpPointsToScene';
 import { createCpLineAppearanceResolver } from './adapters/cpLineStyle';
@@ -1130,9 +1135,24 @@ export function CreasePatternWebglCanvas({
   // What stroke/marker sizing measures against, which is deliberately *not*
   // `contentBounds` — see `cpSizingBounds`. Framing must include a far-flung
   // point; sizing must not let one set the scale for the whole canvas.
+  //
+  // Deliberately two memos rather than one `cpSizingBounds` call. The crease
+  // half walks every endpoint, and it depends on the geometry alone; the placed
+  // objects are a handful of boxes, but `images`, `overlayBoxes` and
+  // `foldedFigures` are rebuilt per render. Keying the expensive half on those
+  // ran it on every camera frame, which measured as ~45% of all JavaScript in a
+  // zoom profile — see `implementation-plans/cp-sizing-bounds-zoom-cost.md`.
+  const creaseSizingBounds = useMemo<UserBounds | null>(
+    () => cpTrimmedCreaseBounds(lineSegments, modelToSvg),
+    [lineSegments, modelToSvg]
+  );
   const sizingBounds = useMemo<UserBounds | null>(
-    () => cpSizingBounds({ lineSegments, images, overlayBoxes, foldedFigures, modelToSvg }),
-    [lineSegments, images, overlayBoxes, foldedFigures, modelToSvg]
+    () =>
+      unionBounds(
+        creaseSizingBounds,
+        cpPlacedObjectBounds({ images, overlayBoxes, foldedFigures, modelToSvg })
+      ),
+    [creaseSizingBounds, images, overlayBoxes, foldedFigures, modelToSvg]
   );
 
   // Spatial indices for click hit-testing. Points are indexed as zero-length

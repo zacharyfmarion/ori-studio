@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { cpContentBounds, cpSizingBounds, type CpOverlayBox } from './cpContentBounds';
+import {
+  cpContentBounds,
+  cpPlacedObjectBounds,
+  cpSizingBounds,
+  cpTrimmedCreaseBounds,
+  unionBounds,
+  type CpOverlayBox,
+} from './cpContentBounds';
 import { createCpImage } from './images/cpImage';
 import { foldedFigureUserAabb } from './adapters/cpFoldedToScene';
 import { IDENTITY_FOLDED_PLACEMENT } from '../engine/oristudioCpTypes';
@@ -303,5 +310,88 @@ describe('cpSizingBounds', () => {
 
   it('is null when nothing is placed', () => {
     expect(cpSizingBounds({ lineSegments: [], modelToSvg })).toBeNull();
+  });
+
+  it('keeps the finite endpoint of a half-unusable crease', () => {
+    // One endpoint being undrawable does not make the other one stop existing.
+    // Deliberately a tiny fixture: `floor(n * 0.02)` is 0 below 50 endpoints, so
+    // nothing is trimmed here and this isolates the filter from the percentile.
+    const lineSegments = [
+      { a: { x: 0, y: 0 }, b: { x: 10, y: 10 } },
+      { a: { x: Number.NaN, y: 0 }, b: { x: 40, y: 40 } },
+      { a: { x: 0, y: Number.POSITIVE_INFINITY }, b: { x: 50, y: 50 } },
+    ];
+    expect(cpSizingBounds({ lineSegments, modelToSvg })).toEqual({
+      minX: 0,
+      minY: 0,
+      maxX: 50,
+      maxY: 50,
+    });
+  });
+
+  it('reads the same through an axis-flipping transform', () => {
+    // Selecting in model space is only sound because `modelToSvg` cannot reorder
+    // an axis. A negative axis still cannot, so the result must simply come back
+    // mirrored rather than inside out. A screen-style flip about y=200 rather
+    // than plain negation, so a mirrored extreme is a distinct number from an
+    // unmirrored one at both ends.
+    const lineSegments = grid();
+    const flipY = (p: { x: number; y: number }) => ({ x: p.x, y: 200 - p.y });
+    expect(cpSizingBounds({ lineSegments, modelToSvg: flipY })).toEqual({
+      minX: 0,
+      minY: 100,
+      maxX: 100,
+      maxY: 200,
+    });
+  });
+
+  it('selects the same extremes a full sort would, over randomised input', () => {
+    // The quickselect replacing `Array.sort` is the part of this most able to be
+    // subtly wrong — off by one at the trim index, or wrong on ties. Pin it
+    // against the obvious implementation rather than against fixed expectations.
+    const reference = (values: number[]) => {
+      const sorted = [...values].sort((a, b) => a - b);
+      const drop = Math.floor(sorted.length * 0.02);
+      return { min: sorted[drop], max: sorted[sorted.length - 1 - drop] };
+    };
+
+    // A deterministic LCG: a seeded sequence keeps a failure reproducible.
+    let seed = 0x2f6e2b1;
+    const next = () => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed / 0x7fffffff;
+    };
+
+    for (const count of [1, 2, 3, 24, 25, 26, 50, 99, 100, 501]) {
+      for (const spread of [1, 1000]) {
+        // Heavy ties at both ends are the realistic shape (a paper edge carries
+        // many vertices at one coordinate) and the case a naive partition trips
+        // on, so bias towards them rather than sampling uniformly.
+        const xs = Array.from({ length: count }, () => {
+          const r = next();
+          if (r < 0.3) return 0;
+          if (r > 0.7) return spread;
+          return Math.round(r * spread);
+        });
+        const lineSegments = xs.map((x) => ({ a: { x, y: x }, b: { x, y: x } }));
+        const expected = reference([...xs, ...xs]);
+        const bounds = cpSizingBounds({ lineSegments, modelToSvg })!;
+        expect({ min: bounds.minX, max: bounds.maxX }).toEqual(expected);
+        expect({ min: bounds.minY, max: bounds.maxY }).toEqual(expected);
+      }
+    }
+  });
+
+  it('composes from the two halves the canvas memoises separately', () => {
+    // The canvas does not call `cpSizingBounds`; it calls the halves so it can
+    // key them on different deps. They must still add up to the same answer.
+    const lineSegments = grid();
+    const input = { lineSegments, images: [imageAt(400, 400)], modelToSvg };
+    expect(
+      unionBounds(
+        cpTrimmedCreaseBounds(lineSegments, modelToSvg),
+        cpPlacedObjectBounds({ images: [imageAt(400, 400)], modelToSvg })
+      )
+    ).toEqual(cpSizingBounds(input));
   });
 });
