@@ -653,8 +653,19 @@ export interface CreasePatternWebglCanvasProps {
    * Report a sequence tool's live input (placed points + cursor, and picked +
    * hovered crease ids) so the controller can kernel-preview + highlight them; the
    * result comes back via `toolCommandPreviewSegments`.
+   *
+   * `lineIds` is *highlight only* — the kernel resolves creases from the points,
+   * so it never reaches the payload. `pickedLineIds` is the other thing: creases
+   * the tool has actually taken, which do go to the kernel as `line_ids`. A tool
+   * whose input is creases rather than points has no points to preview from, so
+   * without this the request is skipped and the tool never sees what the kernel
+   * would do with its picks.
    */
-  onToolPreviewInput: (points: readonly ModelPoint[], lineIds: readonly number[]) => void;
+  onToolPreviewInput: (
+    points: readonly ModelPoint[],
+    lineIds: readonly number[],
+    pickedLineIds?: readonly number[]
+  ) => void;
   /**
    * Report how many inputs the active tool has taken so far (0 when reset) — creases
    * for a `line-entity` tool, placed points for a `sequence` one — so the controller
@@ -2546,11 +2557,19 @@ export function CreasePatternWebglCanvas({
         return;
       }
 
-      // mode === 'line': collect the 2nd source crease, then a destination crease.
+      // mode === 'line': collect the 2nd source crease, then destinations.
       //
-      // Only the non-parallel interaction. Parallel sources have no angle to bisect,
-      // and the kernel refuses them — see the `SquareBisector` dispatch for why that
-      // is a refusal rather than upstream's second interaction.
+      // How many destinations depends on the sources, because upstream splits into
+      // two interactions after the second pick (`checkIfParallel`). Sources that
+      // meet take one destination, for the bisector of the angle between them.
+      // Parallel sources have no angle, so upstream bisects them with the midline
+      // *between* them and asks for two creases crossing it, which become the new
+      // crease's two endpoints.
+      //
+      // The kernel decides which it is rather than this handler re-deciding it: it
+      // answers the two-source preview with the midline when they are parallel and
+      // with nothing when they are not, and that is the only preview this tool
+      // emits in line mode, so the midline's presence *is* the signal.
       const lineId = lineUnderCursor();
       const lines = state.lineIds;
       if (lines.length < 2) {
@@ -2558,17 +2577,36 @@ export function CreasePatternWebglCanvas({
           if (lineId > 0 && !lines.includes(lineId)) {
             lines.push(lineId);
             setLinePickHighlight([...lines]);
+            // Both sources in: ask which of the two interactions this is. The picks
+            // go on the third channel, the one that reaches the kernel — this tool
+            // previews from creases and has no points to send.
+            if (lines.length === 2) liveRef.current.onToolPreviewInput([], [], [...lines]);
           }
         } else {
           setLinePickHighlight(lineId > 0 && !lines.includes(lineId) ? [...lines, lineId] : [...lines]);
         }
-      } else if (kind === 'down') {
-        if (lineId > 0) {
-          liveRef.current.onToolCommit({ lineIds: [...lines, lineId] });
-          reset();
+        renderNow();
+        return;
+      }
+
+      // Held from the two-source preview and deliberately not re-requested as
+      // destinations are picked, so the midline stays on screen to aim at.
+      const parallel = liveRef.current.toolCommandPreviewSegments.length > 0;
+      // One destination when the sources meet, two when they do not. A click before
+      // the preview lands reads as non-parallel and sends three ids, which the
+      // kernel refuses with a message rather than approximating.
+      const wanted = parallel ? 4 : 3;
+      if (kind === 'down') {
+        if (lineId > 0 && !lines.includes(lineId)) {
+          lines.push(lineId);
+          setLinePickHighlight([...lines]);
+          if (lines.length === wanted) {
+            liveRef.current.onToolCommit({ lineIds: [...lines] });
+            reset();
+          }
         }
       } else {
-        setLinePickHighlight(lineId > 0 ? [...lines, lineId] : [...lines]);
+        setLinePickHighlight(lineId > 0 && !lines.includes(lineId) ? [...lines, lineId] : [...lines]);
       }
       renderNow();
     };
