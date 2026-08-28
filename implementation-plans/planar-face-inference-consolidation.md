@@ -220,8 +220,10 @@ PR 2:
       vertex, four triangles, zero orphaned M/V creases
 - [x] Pin unchanged output on `iguana_24` (vertex count, order, face count)
 - [x] `npm run lint:web && npm run typecheck:web && npm run test:web`
-- [ ] Verify the reported file in the browser: Simulate tab **and** an inline
-      simulation window both fold as one sheet
+- [x] Verify the reported file in the browser: Simulate tab **and** an inline
+      simulation window both fold as one sheet — status bar reads `5 vertices |
+      4 triangles` where it read `6 vertices | 4 triangles`, and all four faces
+      of the first square are edge-connected where two were
 
 ### PR 2 — kernel per-component faces
 
@@ -242,8 +244,19 @@ PR 2:
       cargo test -p oristudio-cp --test oriedita_io_oracle`
 - [x] `npm --workspace @treemaker/web run build:oristudio-cp-wasm`
 - [x] Fix the stale flat-folder comment; add the live-document fallback warning
-- [ ] Verify in the browser that the multi-CP document now takes the kernel path
-      (`inferTopology` no longer runs — confirm, do not assume)
+- [x] Verify in the browser that the multi-CP document now takes the kernel path
+      (`inferTopology` no longer runs — confirm, do not assume): the live
+      `ensureFoldArtifacts` returns 10 vertices and 8 faces, which is the kernel
+      export verbatim; inference would have produced 11 and 7.
+
+## Found while verifying, not fixed here
+
+An inline simulation window restored from a saved `.osf` always reports stale,
+so it opens badged "Out of date". Confirmed unrelated: the stored and recomputed
+fingerprints share the `cs1:` format but differ in hash, and the loaded
+document's `line_segments` are byte-identical to the file's — so
+`sourceFingerprintFor` sees exactly the input it saw before this work. Tracked
+separately.
 
 ## Risks and open decisions
 
