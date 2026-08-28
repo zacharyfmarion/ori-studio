@@ -61,8 +61,20 @@ export function cpContentBounds(input: CpContentBoundsInput): UserBounds | null 
   let maxY = -Infinity;
   let has = false;
 
-  /** Take in a point already in SVG user space. */
+  /**
+   * Take in a point already in SVG user space.
+   *
+   * Non-finite coordinates are skipped rather than folded in. A NaN comparison
+   * is false both ways so it would leave the running extent alone but still set
+   * `has`, and an infinity would swallow the whole box — either way every
+   * consumer of these bounds (the camera fit, and the stroke/marker sizing
+   * reference through it) gets a meaningless answer. Note this only rejects what
+   * cannot be *drawn*; a merely far-away point is real content and stays in, so
+   * fitting to view still frames it. Bounding the damage a far-away point can do
+   * to sizing is `cpSizingScales`' job, not this function's.
+   */
   const extendUser = (x: number, y: number) => {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
     if (x < minX) minX = x;
     if (y < minY) minY = y;
     if (x > maxX) maxX = x;
@@ -97,4 +109,77 @@ export function cpContentBounds(input: CpContentBoundsInput): UserBounds | null 
   }
 
   return has ? { minX, minY, maxX, maxY } : null;
+}
+
+/**
+ * Fraction of crease endpoints discarded from each end of each axis by
+ * {@link cpSizingBounds}.
+ *
+ * 2% is chosen from measurement, with headroom on both sides. On a real dense CP
+ * it is *exactly* a no-op — a crease pattern's paper edges carry many vertices
+ * at the same extreme coordinate, so trimming a few percent does not move the
+ * extreme at all (measured: 850 units at 0%, 0.5%, 1% and 2% alike, only moving
+ * at 5%). And the failure it exists for is far below it: a stray endpoint is one
+ * or two samples out of hundreds, ~0.2%.
+ */
+const SIZING_TRIM_FRACTION = 0.02;
+
+/** Span between the trimmed extremes of `values`, which this sorts in place. */
+function trimmedExtent(values: number[], fraction: number): { min: number; max: number } {
+  values.sort((a, b) => a - b);
+  const drop = Math.floor(values.length * fraction);
+  return { min: values[drop], max: values[values.length - 1 - drop] };
+}
+
+/**
+ * What the *stroke and marker sizing* reference scale is measured against.
+ *
+ * Deliberately not {@link cpContentBounds}. Those bounds answer "what must stay
+ * on screen", so they include every placed thing however far out it sits — that
+ * is the right answer for framing and the wrong one for sizing, because it lets
+ * a single bad coordinate set the scale for every stroke, marker and dot on the
+ * canvas. That is not hypothetical: Angle Bisector on two parallel lines divided
+ * by a ~1e-9 determinant and committed a crease ending at ~3.4e14, which drove
+ * the sizing reference to ~63x and buried the pattern under its own creases.
+ *
+ * So this answers a different question — "what scale is the *bulk* of the
+ * drawing at" — and is built to be unmoved by a few outlying points:
+ *
+ * - **Crease endpoints are trimmed** by {@link SIZING_TRIM_FRACTION}. They are
+ *   numerous, so a percentile is meaningful, and no individual one matters.
+ * - **Images, overlay boxes and folded figures are not.** There are a handful,
+ *   each deliberately placed, and each is a large piece of the picture; trimming
+ *   would let a document's only reference image drop out of its own scale.
+ *
+ * Falls back to {@link cpContentBounds} when there are no creases to trim.
+ */
+export function cpSizingBounds(input: CpContentBoundsInput): UserBounds | null {
+  const { lineSegments, modelToSvg } = input;
+  if (lineSegments.length === 0) return cpContentBounds(input);
+
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (const segment of lineSegments) {
+    for (const point of [segment.a, segment.b]) {
+      const u = modelToSvg(point);
+      if (!Number.isFinite(u.x) || !Number.isFinite(u.y)) continue;
+      xs.push(u.x);
+      ys.push(u.y);
+    }
+  }
+  if (xs.length === 0) return cpContentBounds(input);
+
+  const x = trimmedExtent(xs, SIZING_TRIM_FRACTION);
+  const y = trimmedExtent(ys, SIZING_TRIM_FRACTION);
+
+  // The non-crease kinds ride along untrimmed, via the shared enumeration so
+  // they cannot drift apart from the framing bounds' idea of what is placed.
+  const rest = cpContentBounds({ ...input, lineSegments: [] });
+
+  return {
+    minX: Math.min(x.min, rest?.minX ?? Infinity),
+    minY: Math.min(y.min, rest?.minY ?? Infinity),
+    maxX: Math.max(x.max, rest?.maxX ?? -Infinity),
+    maxY: Math.max(y.max, rest?.maxY ?? -Infinity),
+  };
 }

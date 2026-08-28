@@ -79,7 +79,8 @@ import {
 } from './tools/transformGhost';
 import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
 import type { CpImage } from './images/cpImage';
-import { cpContentBounds } from './cpContentBounds';
+import { cpContentBounds, cpSizingBounds } from './cpContentBounds';
+import { cpSizingScales } from './cpSizingScales';
 import { cpPointsToScene, VERTEX_RADIUS_FACTOR } from './adapters/cpPointsToScene';
 import { createCpLineAppearanceResolver } from './adapters/cpLineStyle';
 import { cpLineStyleDashPatterns } from '../lib/oristudioCpLineStyle';
@@ -179,39 +180,6 @@ const FALLBACK_CLEAR: Rgba = [0.157, 0.172, 0.204, 1];
 
 /** SVG editable crease width: `calc(var(--cp-line-width) * 1.5px)` in user units. */
 const CREASE_WIDTH_FACTOR = 1.5;
-
-/**
- * Crease width + markers are essentially constant screen size, but grow *very*
- * gently as you zoom in past the fit view so they don't read as thinning against
- * the expanding content. 0 = fully constant (thins relative to content), 1 =
- * full world-scaling (the old fattening). ~0.15 is a mild, crisp middle. The
- * growth is anchored at the fit zoom so it behaves the same for any CP scale.
- */
-const WIDTH_ZOOM_EXPONENT = 0.15;
-
-/**
- * How fast diagnostic markers and cursor decorations shrink when zoomed *out*
- * past the fit view. 0 = constant screen size, 1 = lockstep with the content.
- * These are affordances rather than content — a snap ring that shrank with the
- * paper would stop reading as a target — so they keep a partial shrink.
- */
-const MARKER_SHRINK_EXPONENT = 0.7;
-
-/**
- * How fast crease points and vertices shrink when zoomed *out* past the fit view.
- * 1 = lockstep with the content, so a vertex stays the same fraction of the
- * pattern at every zoom and the picture reads identically at any scale. Anything
- * below 1 makes vertices grow relative to the creases as you zoom out, which on a
- * dense CP turns the pattern into a field of dots. Sub-pixel dots then fade
- * rather than clamp (see the point program), which is what "shrink with the
- * pattern" means once a dot is asking for less than a pixel of ink.
- *
- * Note this rides `zoomRatio`, which is normalised against the whole document's
- * bounding box and so is meaningless on a sheet holding several patterns — there
- * it pins at 1 and dots keep their full size. Visibility is handled separately
- * by the crowding ramp below, which does not have that flaw.
- */
-const VERTEX_SHRINK_EXPONENT = 1;
 
 /** Point/vertex outline width in CSS px (SVG non-scaling stroke ~1.4). */
 const POINT_OUTLINE_CSS = 1.4;
@@ -1148,6 +1116,13 @@ export function CreasePatternWebglCanvas({
     () => cpContentBounds({ lineSegments, images, overlayBoxes, foldedFigures, modelToSvg }),
     [lineSegments, images, overlayBoxes, foldedFigures, modelToSvg]
   );
+  // What stroke/marker sizing measures against, which is deliberately *not*
+  // `contentBounds` — see `cpSizingBounds`. Framing must include a far-flung
+  // point; sizing must not let one set the scale for the whole canvas.
+  const sizingBounds = useMemo<UserBounds | null>(
+    () => cpSizingBounds({ lineSegments, images, overlayBoxes, foldedFigures, modelToSvg }),
+    [lineSegments, images, overlayBoxes, foldedFigures, modelToSvg]
+  );
 
   // Spatial indices for click hit-testing. Points are indexed as zero-length
   // segments so the same distance query applies (id = index + 1). Vertices are
@@ -1337,6 +1312,7 @@ export function CreasePatternWebglCanvas({
     grid,
     gridVisible,
     contentBounds,
+    sizingBounds,
     vertexSpacingModel,
     pointSize,
     hitIndex,
@@ -1655,17 +1631,18 @@ export function CreasePatternWebglCanvas({
       // without thinning against the expanding content. Markers additionally
       // shrink when zoomed out past fit so dense vertices don't dominate. Both
       // anchored at the fit zoom so they are scale-invariant.
-      const bounds = liveRef.current.contentBounds;
+      // `sizingBounds`, not `contentBounds`: a crease sitting far off screen
+      // must not change how the rest of the document draws. See `cpSizingBounds`.
+      const bounds = liveRef.current.sizingBounds;
       // Deliberately the *unrotated* fit: this is only a reference scale for
       // stroke/marker sizing, so passing `cam.rotation` here would make line
       // weight breathe as the view turns.
       const fitZoom = bounds ? fitUserCamera(bounds, viewport).zoom : cam.zoom;
-      const zoomRatio = cam.zoom / fitZoom;
-      const widthBoost = Math.pow(Math.max(zoomRatio, 1), WIDTH_ZOOM_EXPONENT);
-      const markerShrink = zoomRatio < 1 ? Math.pow(zoomRatio, MARKER_SHRINK_EXPONENT) : 1;
-      const markerScalePx = ratio * widthBoost * markerShrink;
-      const vertexShrink = zoomRatio < 1 ? Math.pow(zoomRatio, VERTEX_SHRINK_EXPONENT) : 1;
-      const pointScalePx = ratio * widthBoost * vertexShrink;
+      const { widthBoost, markerScalePx, pointScalePx } = cpSizingScales({
+        camZoom: cam.zoom,
+        fitZoom,
+        ratio,
+      });
       // How much of the on-screen gap between neighbouring vertices a dot eats
       // up. Both terms are CSS px, so this is a pure ratio: independent of
       // display density, of the document's coordinate scale, and of how far
