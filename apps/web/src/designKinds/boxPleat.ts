@@ -1,5 +1,4 @@
 import { Grid3x3 } from 'lucide-react';
-import { bpCpToEditorConvention } from '../lib/bpCreaseConvention';
 import { normalizeOrieditaGridSize } from '../lib/creasePatternViewport';
 import { boxPleatCpBounds, boxPleatPackingCircles } from '../lib/packingCircles';
 import { bpFlapRadius, sheet as toViewSheet } from '../engine/oristudioBpSnapshotMapper';
@@ -88,9 +87,12 @@ export function createBoxPleatSendToEdit(getClient: () => Promise<OristudioBpCli
     // Match BP Studio's Export CP defaults: keep the sheet orientation and
     // include auxiliary hinge creases (dropping them yields a sparse CP that
     // doesn't match BP Studio's export).
+    // No crease-convention translation on the way out: BP Studio's `.cp` codes
+    // are ORIPA's (`shared/types/cp.ts`), which is the same convention the CP
+    // kernel's importer reads.
     const cpText = await api.exportCp(handle, false, true, cpScale);
     const payload: SendToEditPayload = {
-      text: bpCpToEditorConvention(cpText),
+      text: cpText,
       format: 'cp',
       label: 'Sent BP to Edit',
       filename: 'box-pleat.cp',

@@ -54,11 +54,24 @@ pub fn export_cp_string(model: &CreasePatternModel) -> String {
     output
 }
 
+/// ORIPA's line-type codes, as Oriedita reads them.
+///
+/// Oriedita does not spell this mapping out itself: `CpImporter` delegates to
+/// the `io.github.oriedita:fold` library's `CreasePatternReader`, which turns
+/// the leading token into a `FoldEdgeAssignment` (`1` border, `2` mountain, `3`
+/// valley, anything else flat), and then hands it to `FoldImporter.getColor`,
+/// which is where mountain becomes `RED_1` and valley becomes `BLUE_2`.
+///
+/// **2 is the mountain and 3 is the valley**, and getting that backwards is not
+/// self-evident from a round trip: an inverted reader paired with an inverted
+/// writer reproduces its own files exactly and disagrees only with the rest of
+/// the ecosystem. `oriedita_io_oracle::cp_import_matches_oriedita_native_io_oracle`
+/// pins it against the real importer for that reason.
 pub fn cp_assignment_to_line_color(assignment: i32) -> Result<LineColor> {
     match assignment {
         1 => Ok(LineColor::Black0),
-        2 => Ok(LineColor::Blue2),
-        3 => Ok(LineColor::Red1),
+        2 => Ok(LineColor::Red1),
+        3 => Ok(LineColor::Blue2),
         4 => Ok(LineColor::Cyan3),
         other => Err(IoError::InvalidField {
             field: "cp_assignment",
@@ -67,11 +80,13 @@ pub fn cp_assignment_to_line_color(assignment: i32) -> Result<LineColor> {
     }
 }
 
+/// Inverse of [`cp_assignment_to_line_color`]; every colour Oriedita cannot
+/// spell in a `.cp` collapses to the auxiliary code, as `CpExporter` does.
 pub fn line_color_to_cp_assignment(line_color: LineColor) -> i32 {
     match line_color {
         LineColor::Black0 => 1,
-        LineColor::Blue2 => 2,
-        LineColor::Red1 => 3,
+        LineColor::Red1 => 2,
+        LineColor::Blue2 => 3,
         _ => 4,
     }
 }
