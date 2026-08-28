@@ -44,5 +44,5 @@ recomputes on every document edit, which is once per stroke while drawing.
 - [x] Split the canvas memo so the crease half keys on geometry alone
 - [x] Tests: quickselect matches a sort-based reference; axis-flipping transform;
       partially non-finite segments; existing trim semantics unchanged
-- [ ] `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`
+- [x] `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`
 - [ ] Re-profile a production build to confirm the sort is gone from the zoom path
