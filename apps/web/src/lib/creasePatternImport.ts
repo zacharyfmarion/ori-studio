@@ -85,6 +85,15 @@ interface NormalizedSegment {
 
 const EPSILON = 1e-8;
 
+/**
+ * Bucket edge for the vertex index in {@link splitSegments}, four times the
+ * merge radius so scanning the 3x3 neighbourhood always covers it.
+ *
+ * Mirrors the kernel's `VERTEX_BUCKET = Epsilon::POINT * 4.0`
+ * (`crates/oristudio-cp/src/fold_graph.rs`).
+ */
+const VERTEX_BUCKET = EPSILON * 4;
+
 export function isCreasePatternFilename(filename: string): boolean {
   return /\.(fold|cp|ori|orh)$/i.test(filename);
 }
@@ -656,20 +665,52 @@ function splitSegments(segments: NormalizedSegment[]): {
   collectIntersectionCuts(segments, cuts);
 
   const vertices: RawPoint[] = [];
-  const vertexKeys = new Map<string, number>();
+  const vertexBuckets = new Map<string, number[]>();
   const edgeMap = new Map<string, FoldAssignment>();
   // The source segment whose assignment survived the merge for each output
   // edge, so per-edge extension data (line colours) follows the crease type it
   // belongs to rather than an arbitrary coincident segment.
   const edgeSources = new Map<string, number>();
 
+  // Coincident endpoints merge by distance, not by a quantized key.
+  //
+  // The key this replaces was `toFixed(9)` per coordinate, and `toFixed` keeps
+  // the sign of a negative that rounds to zero: a centre vertex reached at t=1
+  // came out as exactly `0` (the arithmetic cancels), while the same centre
+  // reached at t=0 kept its raw `-9.09e-15`, giving `"0.000000000"` and
+  // `"-0.000000000"`. One vertex became two, 1.3e-14 apart, and the sheet tore
+  // between them. Any quantization has the same failure at every cell edge;
+  // zero is only where coordinates most often land.
+  //
+  // EPSILON rather than the kernel's much wider `Epsilon::POINT`: the emit loop
+  // below already drops a sub-edge shorter than EPSILON, so this file has
+  // always held that two points that close are one point. The index just
+  // disagreed with its own emitter.
   const vertexId = (point: RawPoint) => {
-    const key = `${roundKey(point.x)}:${roundKey(point.y)}`;
-    const existing = vertexKeys.get(key);
-    if (existing !== undefined) return existing;
+    const bx = Math.floor(point.x / VERTEX_BUCKET);
+    const by = Math.floor(point.y / VERTEX_BUCKET);
+    // Lowest match wins, so the result cannot depend on bucket iteration order.
+    // A non-finite coordinate matches nothing (every comparison against NaN is
+    // false) and is pushed as its own vertex, as it was before.
+    let found: number | undefined;
+    for (let dx = -1; dx <= 1; dx += 1) {
+      for (let dy = -1; dy <= 1; dy += 1) {
+        const bucket = vertexBuckets.get(`${bx + dx}:${by + dy}`);
+        if (!bucket) continue;
+        for (const candidate of bucket) {
+          if (!(distance(vertices[candidate]!, point) <= EPSILON)) continue;
+          found = found === undefined ? candidate : Math.min(found, candidate);
+        }
+      }
+    }
+    if (found !== undefined) return found;
+
     const id = vertices.length;
     vertices.push(point);
-    vertexKeys.set(key, id);
+    const key = `${bx}:${by}`;
+    const bucket = vertexBuckets.get(key);
+    if (bucket) bucket.push(id);
+    else vertexBuckets.set(key, [id]);
     return id;
   };
 
@@ -1051,6 +1092,11 @@ function projectParam(segment: NormalizedSegment, point: RawPoint): number {
   return ((point.x - segment.a.x) * dx + (point.y - segment.a.y) * dy) / lengthSq;
 }
 
+/**
+ * Not affected by the signed-zero split that `vertexId` had, despite also going
+ * through `toFixed`: these land in a `Set`, which compares with SameValueZero,
+ * so `+0` and `-0` already collapse to one entry.
+ */
 function uniqueSorted(values: number[]): number[] {
   return [...new Set(values.filter(inUnit).map(clamp01).map((value) => Number(value.toFixed(10))))]
     .sort((a, b) => a - b);
@@ -1082,10 +1128,6 @@ function cross(a: RawPoint, b: RawPoint): number {
 
 function distance(a: RawPoint, b: RawPoint): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
-}
-
-function roundKey(value: number): string {
-  return value.toFixed(9);
 }
 
 function inUnit(value: number): boolean {

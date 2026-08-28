@@ -202,6 +202,19 @@ describe('crease pattern import', () => {
     // at a crossing, so a broad phase that skipped a real pair — or that fed the
     // asymmetric intersection predicate its arguments in the wrong order — moves
     // these numbers.
+    //
+    // Vertex identity moves them too, which is why these went 192/99 and
+    // 606/396 to 190/101 and 590/411 when `vertexId` started merging by
+    // distance. A crossing is computed twice, once from each segment's
+    // parameterization, and the two results differ by float rounding — measured
+    // across both arrangements, by 1e-12 to 6.8e-11, three orders inside the
+    // 1e-8 merge radius. The `toFixed(9)` key merged most of those by luck and
+    // missed the ones whose spellings straddled a cell edge, leaving pinched
+    // vertex pairs that stopped faces from closing.
+    //
+    // cp(60) is the clearer evidence of which set is right: F - E + V was 2
+    // before and is 1 now, and 1 is what a connected arrangement of bounded
+    // faces owes. cp(30) satisfied it either way.
     const cp = (count: number) => {
       let seed = 987654321;
       const rand = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
@@ -223,8 +236,8 @@ describe('crease pattern import', () => {
       };
     };
 
-    expect(topology(cp(30))).toEqual({ vertices: 192, edges: 290, faces: 99 });
-    expect(topology(cp(60))).toEqual({ vertices: 606, edges: 1000, faces: 396 });
+    expect(topology(cp(30))).toEqual({ vertices: 190, edges: 290, faces: 101 });
+    expect(topology(cp(60))).toEqual({ vertices: 590, edges: 1000, faces: 411 });
   });
 
   /**
@@ -359,6 +372,122 @@ describe('crease pattern import', () => {
       return (assignment === 'M' || assignment === 'V') && facesPerEdge[index] !== 2;
     });
     expect(orphans).toEqual([]);
+  });
+});
+
+describe('coincident endpoints merge to one vertex', () => {
+  // A square with both diagonals, whose centre sits a rounding residue off the
+  // origin at (+9.09e-15, -9.09e-15) -- ordinary float noise from however the
+  // creases were constructed, and what a real drawn CP contains.
+  //
+  // The two creases *ending* at that centre reach it at t=1, where
+  // `-200 + (9.09e-15 - -200)` cancels to exactly 0 (the residue is below half
+  // an ulp of 200). The two *starting* there keep the raw value. Keyed on
+  // `toFixed(9)`, those spelled "0.000000000" and "-0.000000000" -- one vertex
+  // became two, and the sheet tore along the diagonal joining them, folding as
+  // two flaps hinged at a pair of isolated corners.
+  const TINY = 9.094947017729283e-15;
+
+  const squareWithDiagonals = (centre: [number, number]) =>
+    ({
+      vertices_coords: [
+        [-200, 200],
+        [200, 200],
+        [200, -200],
+        [-200, -200],
+        centre,
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+        [0, 4],
+        [1, 4],
+        [4, 3],
+        [4, 2],
+      ],
+      edges_assignment: ['B', 'B', 'B', 'B', 'V', 'M', 'V', 'V'],
+      edges_foldAngle: [0, 0, 0, 0, 180, -180, 180, 180],
+      faces_vertices: [],
+    }) as unknown as Parameters<typeof foldArtifactsFromFold>[0];
+
+  // Every sign combination, because the defect was sign-dependent: only a
+  // coordinate that is *negative* and rounds to zero printed the "-0" that
+  // split. (+tiny, -tiny) tore; (+tiny, +tiny) did not, which is why one CP in
+  // a document could break while its twin a few hundred units away was fine.
+  const centres: Array<[string, [number, number]]> = [
+    ['(+tiny, -tiny)', [TINY, -TINY]],
+    ['(+tiny, +tiny)', [TINY, TINY]],
+    ['(-tiny, -tiny)', [-TINY, -TINY]],
+    ['(-tiny, +tiny)', [-TINY, TINY]],
+    ['exactly (0, 0)', [0, 0]],
+  ];
+
+  it.each(centres)('centre at %s stays one vertex', (_label, centre) => {
+    const artifacts = foldArtifactsFromFold(squareWithDiagonals(centre));
+    expect(artifacts.simulation_model_error).toBeNull();
+
+    // Five vertices, not six: four corners and a single centre.
+    expect(artifacts.fold.vertices_coords).toHaveLength(5);
+    // Four triangles, not two plus a degenerate hexagon spanning a zero-width
+    // slit between duplicate centres.
+    expect(artifacts.fold.faces_vertices).toHaveLength(4);
+
+    const simulation = artifacts.simulation_model?.fold;
+    expect(simulation).toBeDefined();
+    if (!simulation) return;
+
+    // The invariant that actually catches the tear: a crease incident to
+    // anything but two faces is one the solver ignores and the renderer never
+    // draws. Both halves of the split diagonal were orphaned this way.
+    const facesPerEdge = simulation.edges_vertices.map(() => 0);
+    (simulation.faces_edges ?? []).forEach((faceEdges) => {
+      faceEdges.forEach((edge) => {
+        if (edge >= 0) facesPerEdge[edge] = (facesPerEdge[edge] ?? 0) + 1;
+      });
+    });
+    const orphans = simulation.edges_vertices.filter((_edge, index) => {
+      const assignment = simulation.edges_assignment?.[index];
+      return (assignment === 'M' || assignment === 'V') && facesPerEdge[index] !== 2;
+    });
+    expect(orphans).toEqual([]);
+  });
+
+  it('two disconnected patterns each fold as a whole sheet', () => {
+    // The reported document: two such squares in one file. The kernel declines
+    // to emit faces for a multi-component document (an Oriedita Euler gate), so
+    // this is the case that reaches the JS planarizer in the first place.
+    const shift = (fold: { vertices_coords: number[][] }, dy: number, base: number) => ({
+      vertices: fold.vertices_coords.map(([x, y]) => [x!, y! + dy]),
+      base,
+    });
+    const first = squareWithDiagonals([TINY, -TINY]) as unknown as {
+      vertices_coords: number[][];
+      edges_vertices: number[][];
+      edges_assignment: string[];
+      edges_foldAngle: number[];
+    };
+    const second = shift(first, 500, first.vertices_coords.length);
+    const fold = {
+      vertices_coords: [...first.vertices_coords, ...second.vertices],
+      edges_vertices: [
+        ...first.edges_vertices,
+        ...first.edges_vertices.map(([a, b]) => [a! + second.base, b! + second.base]),
+      ],
+      edges_assignment: [...first.edges_assignment, ...first.edges_assignment],
+      edges_foldAngle: [...first.edges_foldAngle, ...first.edges_foldAngle],
+      faces_vertices: [],
+    } as unknown as Parameters<typeof foldArtifactsFromFold>[0];
+
+    const artifacts = foldArtifactsFromFold(fold);
+    expect(artifacts.fold.vertices_coords).toHaveLength(10);
+    expect(artifacts.fold.faces_vertices).toHaveLength(8);
+
+    // Both squares are whole: each of the eight triangles shares an edge with
+    // another of its own square, and neither square is cut in half.
+    const simulation = artifacts.simulation_model?.fold;
+    expect(simulation?.faces_vertices).toHaveLength(8);
   });
 });
 
