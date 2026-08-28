@@ -2532,8 +2532,8 @@ pub fn execute_command(
                         _ => {
                             return Err(CommandError::InvalidInput {
                                 operation: command.operation,
-                                message: "parallel sources need either no destination (take the \
-                                     indicator whole) or two crossing destinations"
+                                message: "Those two creases are parallel. Click the indicator to \
+                                          take it whole, or two crossing creases to trim it."
                                     .to_string(),
                             });
                         }
@@ -2553,7 +2553,7 @@ pub fn execute_command(
                 } else {
                     return Err(CommandError::InvalidInput {
                         operation: command.operation,
-                        message: "non-parallel sources need a destination line".to_string(),
+                        message: "Pick a crease for the bisector to end on.".to_string(),
                     });
                 }
             } else {

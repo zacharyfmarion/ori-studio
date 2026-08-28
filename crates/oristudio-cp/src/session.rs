@@ -119,12 +119,23 @@ impl std::error::Error for EngineError {}
 
 impl From<CommandError> for EngineError {
     fn from(error: CommandError) -> Self {
-        let code = match error {
-            CommandError::UnsupportedOperation { .. } => "unsupported_operation",
-            CommandError::NotImplemented { .. } => "not_implemented",
-            CommandError::InvalidInput { .. } => "invalid_input",
-        };
-        Self::new(code, error.to_string())
+        match error {
+            // `InvalidInput` is the one arm whose message is written for the
+            // person holding the mouse — it names the selection the tool wanted.
+            // Its `Display` form prefixes that with the operation, which is right
+            // for a log and noise on screen, and the frontend has no humanising
+            // case for this code, so whatever goes in the envelope is what the
+            // user reads. Send the bare message.
+            CommandError::InvalidInput { message, .. } => Self::new("invalid_input", message),
+            CommandError::UnsupportedOperation { operation } => Self::new(
+                "unsupported_operation",
+                CommandError::UnsupportedOperation { operation }.to_string(),
+            ),
+            CommandError::NotImplemented { operation } => Self::new(
+                "not_implemented",
+                CommandError::NotImplemented { operation }.to_string(),
+            ),
+        }
     }
 }
 
