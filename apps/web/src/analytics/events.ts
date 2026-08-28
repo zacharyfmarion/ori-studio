@@ -185,6 +185,44 @@ export type CommandGroup =
   | 'help'
   | 'other';
 
+/**
+ * The canvas a context menu was raised on.
+ *
+ * The surface, not the panel component: `tree` covers both tree canvases,
+ * because they are one editor mounted twice and a menu opened on either is the
+ * same fact about the same code.
+ */
+export type ContextMenuSurface =
+  | 'crease-pattern'
+  | 'bp-packing'
+  | 'tree'
+  | 'design-tree'
+  | 'simulator';
+
+/**
+ * What the menu was raised *on*, coarsely.
+ *
+ * A closed vocabulary shared by every surface rather than each surface's own
+ * primitive names: the question these menus exist to answer is whether people
+ * right-click on things or on nothing, and one enum keeps that comparable
+ * across canvases. `'empty'` is the interesting one — a menu raised on empty
+ * space with a live selection is the flow this feature was built for.
+ */
+export type ContextMenuTargetKind =
+  | 'empty'
+  | 'selection'
+  | 'crease'
+  | 'point'
+  | 'circle'
+  | 'text'
+  | 'image'
+  | 'folded-figure'
+  | 'flap'
+  | 'river'
+  | 'sheet'
+  | 'node'
+  | 'edge';
+
 /** Where an error was surfaced, for `app error` bucketing. */
 export type AnalyticsErrorDomain =
   | 'bootstrap'
@@ -208,6 +246,21 @@ export const ANALYTICS_EVENTS = {
   appError: 'app error',
   analyticsPreferenceChanged: 'analytics preference changed',
   commandInvoked: 'command invoked',
+  /**
+   * A context menu was raised on a canvas.
+   *
+   * The *open* is the event, not the item picked: an item that is one of the
+   * app's commands already lands on `command invoked` at the `handleMenuAction`
+   * chokepoint, and firing a second event for the same press would double-count
+   * every verb these menus share with the menu bar. What the chokepoint cannot
+   * say is that the menu was opened at all — including the opens that closed
+   * again with nothing chosen, which is exactly the signal for whether the
+   * menus offer the right verbs.
+   *
+   * Carries `surface`, `target_kind`, `has_selection`, `source` (pointer /
+   * keyboard / touch), and a bucketed `item_count`.
+   */
+  contextMenuOpened: 'context menu opened',
   cpToolUsed: 'cp tool used',
   workspaceViewed: 'workspace viewed',
   creasePatternBuilt: 'crease pattern built',

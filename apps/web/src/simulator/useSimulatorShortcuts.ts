@@ -33,6 +33,63 @@ export interface SimulatorShortcutHandlers {
 /** Zoom step, matching the wheel's feel. */
 const ZOOM_STEP = 1.1;
 
+/**
+ * Run one simulator verb.
+ *
+ * Extracted from the executor below so the context menu can dispatch through the
+ * *same* switch rather than re-deriving which handler each id means. Two copies
+ * of this mapping is how a menu row and its own key binding end up doing
+ * different things — and the ids are the only names these verbs have, so there
+ * would be nothing to catch it.
+ */
+export function runSimulatorShortcut(
+  id: SimulatorShortcutId,
+  handlers: SimulatorShortcutHandlers,
+  foldStepPercent: number
+): void {
+  switch (id) {
+    case 'simulator.playPause':
+      handlers.playPause();
+      return;
+    case 'simulator.foldForward':
+      handlers.nudgeFold(foldStepPercent);
+      return;
+    case 'simulator.foldBackward':
+      handlers.nudgeFold(-foldStepPercent);
+      return;
+    case 'simulator.foldEnd':
+      handlers.setFoldPercent(100);
+      return;
+    case 'simulator.foldStart':
+      handlers.setFoldPercent(0);
+      return;
+    case 'simulator.replay':
+      handlers.replay();
+      return;
+    case 'simulator.resetView':
+      handlers.resetView();
+      return;
+    case 'simulator.zoomIn':
+      handlers.zoomBy(ZOOM_STEP);
+      return;
+    case 'simulator.zoomOut':
+      handlers.zoomBy(1 / ZOOM_STEP);
+      return;
+    case 'simulator.toggleFaces':
+      handlers.toggleSetting?.('showFaces');
+      return;
+    case 'simulator.toggleCreases':
+      handlers.toggleSetting?.('showEdges');
+      return;
+    case 'simulator.toggleHiddenLines':
+      handlers.toggleSetting?.('showHiddenLines');
+      return;
+    case 'simulator.toggleLighting':
+      handlers.toggleSetting?.('lighting');
+      return;
+  }
+}
+
 export function useSimulatorShortcuts(options: {
   /** Whether this simulation currently owns the keyboard. */
   active: boolean;
@@ -54,36 +111,8 @@ export function useSimulatorShortcuts(options: {
 
   useEffect(() => {
     if (!active) return;
-    return registerSimulatorShortcutExecutor((id: SimulatorShortcutId) => {
-      const handlers = handlersRef.current;
-      switch (id) {
-        case 'simulator.playPause':
-          return handlers.playPause();
-        case 'simulator.foldForward':
-          return handlers.nudgeFold(stepRef.current);
-        case 'simulator.foldBackward':
-          return handlers.nudgeFold(-stepRef.current);
-        case 'simulator.foldEnd':
-          return handlers.setFoldPercent(100);
-        case 'simulator.foldStart':
-          return handlers.setFoldPercent(0);
-        case 'simulator.replay':
-          return handlers.replay();
-        case 'simulator.resetView':
-          return handlers.resetView();
-        case 'simulator.zoomIn':
-          return handlers.zoomBy(ZOOM_STEP);
-        case 'simulator.zoomOut':
-          return handlers.zoomBy(1 / ZOOM_STEP);
-        case 'simulator.toggleFaces':
-          return handlers.toggleSetting?.('showFaces');
-        case 'simulator.toggleCreases':
-          return handlers.toggleSetting?.('showEdges');
-        case 'simulator.toggleHiddenLines':
-          return handlers.toggleSetting?.('showHiddenLines');
-        case 'simulator.toggleLighting':
-          return handlers.toggleSetting?.('lighting');
-      }
-    });
+    return registerSimulatorShortcutExecutor((id: SimulatorShortcutId) =>
+      runSimulatorShortcut(id, handlersRef.current, stepRef.current)
+    );
   }, [active]);
 }

@@ -251,31 +251,57 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
     [addImageFromFile]
   );
 
-  // Image-layer edits driven by the inspector: each records one undo entry.
+  // Annotation-layer edits, each recording one undo entry.
+  //
+  // Addressed **by id**, with the selected-* forms below expressed in terms of
+  // them. A caller that acts on a thing it has just selected — the context menu
+  // does exactly this, selecting what the right-click landed on and then
+  // building rows for it — cannot use the selected-* forms: they close over
+  // `selectedAnnotationId`, which is React state and still holds the *previous*
+  // selection for the rest of the tick. Taking the id is what makes "act on what
+  // was clicked" expressible at all.
+  const bringAnnotationToFront = useCallback(
+    (id: string) => {
+      const images = useWorkspaceStore.getState().oristudioCpAnnotations;
+      const maxZ = images.reduce((max, image) => Math.max(max, image.z), 0);
+      beginGesture();
+      updateAnnotation(id, { z: maxZ + 1 });
+      commitGesture(t('panels:creasePattern.bringImageToFront', 'Bring image to front'));
+    },
+    [updateAnnotation, beginGesture, commitGesture, t]
+  );
+
+  const sendAnnotationToBack = useCallback(
+    (id: string) => {
+      const images = useWorkspaceStore.getState().oristudioCpAnnotations;
+      const minZ = images.reduce((min, image) => Math.min(min, image.z), 0);
+      beginGesture();
+      updateAnnotation(id, { z: minZ - 1 });
+      commitGesture(t('panels:creasePattern.sendImageToBack', 'Send image to back'));
+    },
+    [updateAnnotation, beginGesture, commitGesture, t]
+  );
+
+  const deleteAnnotationById = useCallback(
+    (id: string) => {
+      beginGesture();
+      removeAnnotation(id);
+      commitGesture(t('panels:creasePattern.deleteImage', 'Delete image'));
+    },
+    [removeAnnotation, beginGesture, commitGesture, t]
+  );
+
   const bringSelectedImageToFront = useCallback(() => {
-    if (!selectedAnnotationId) return;
-    const images = useWorkspaceStore.getState().oristudioCpAnnotations;
-    const maxZ = images.reduce((max, image) => Math.max(max, image.z), 0);
-    beginGesture();
-    updateAnnotation(selectedAnnotationId, { z: maxZ + 1 });
-    commitGesture(t('panels:creasePattern.bringImageToFront', 'Bring image to front'));
-  }, [selectedAnnotationId, updateAnnotation, beginGesture, commitGesture, t]);
+    if (selectedAnnotationId) bringAnnotationToFront(selectedAnnotationId);
+  }, [selectedAnnotationId, bringAnnotationToFront]);
 
   const sendSelectedImageToBack = useCallback(() => {
-    if (!selectedAnnotationId) return;
-    const images = useWorkspaceStore.getState().oristudioCpAnnotations;
-    const minZ = images.reduce((min, image) => Math.min(min, image.z), 0);
-    beginGesture();
-    updateAnnotation(selectedAnnotationId, { z: minZ - 1 });
-    commitGesture(t('panels:creasePattern.sendImageToBack', 'Send image to back'));
-  }, [selectedAnnotationId, updateAnnotation, beginGesture, commitGesture, t]);
+    if (selectedAnnotationId) sendAnnotationToBack(selectedAnnotationId);
+  }, [selectedAnnotationId, sendAnnotationToBack]);
 
   const deleteSelectedImage = useCallback(() => {
-    if (!selectedAnnotationId) return;
-    beginGesture();
-    removeAnnotation(selectedAnnotationId);
-    commitGesture(t('panels:creasePattern.deleteImage', 'Delete image'));
-  }, [selectedAnnotationId, removeAnnotation, beginGesture, commitGesture, t]);
+    if (selectedAnnotationId) deleteAnnotationById(selectedAnnotationId);
+  }, [selectedAnnotationId, deleteAnnotationById]);
 
   // --- Inline text editing ---
 
@@ -450,6 +476,9 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
     bringSelectedImageToFront,
     sendSelectedImageToBack,
     deleteSelectedImage,
+    bringAnnotationToFront,
+    sendAnnotationToBack,
+    deleteAnnotationById,
     editingTextId,
     requestEditText,
     createTextAt,

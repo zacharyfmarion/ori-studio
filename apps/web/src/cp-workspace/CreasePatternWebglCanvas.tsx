@@ -105,6 +105,7 @@ import {
 import type { OristudioCpFoldedFigureEntry } from '../engine/oristudioCpTypes';
 import { useFolded3dOrbitFigures } from './folded/useFolded3dOrbitFigures';
 import type { CpContextMenuRequest } from './contextMenuTarget';
+import { cpHasSelection, cpRightClickOutcome } from './contextMenu/cpRightClick';
 import {
   cpGridLinesToStrokes,
   gridBoundsKey,
@@ -1370,6 +1371,12 @@ export function CreasePatternWebglCanvas({
     foldedFigures,
     foldedBounds,
           selectedLineSet,
+    // The raw id lists too, not just the line set: the right-button rule asks
+    // whether *anything* is selected, and points and circles are selections the
+    // line set cannot see.
+    selectedLineIds,
+    selectedPointIds,
+    selectedCircleIds,
     buildStrokes,
     buildPoints,
     onSelect,
@@ -3404,17 +3411,32 @@ export function CreasePatternWebglCanvas({
         clearPreview();
         const raw = clientToModel(e.clientX, e.clientY);
         if (eraseRuntime && raw) {
-          const figureId = !moved ? figureAt(e.clientX, e.clientY) : null;
-          if (cancelled) {
+          // The whole right-button rule — erase versus menu — is
+          // `cpRightClickOutcome`, so the trade against Oriedita's unconditional
+          // erase is stated and tested in one place rather than inferred from
+          // the shape of this branch.
+          const outcome = cpRightClickOutcome({
+            moved,
+            cancelled,
+            figureId: !moved ? figureAt(e.clientX, e.clientY) : null,
+            hasSelection: cpHasSelection({
+              lines: liveRef.current.selectedLineIds,
+              points: liveRef.current.selectedPointIds,
+              circles: liveRef.current.selectedCircleIds,
+            }),
+          });
+          if (outcome === 'cancel') {
             eraseRuntime.feed({ kind: 'cancel', point: raw });
-          } else if (figureId) {
-            // Right-*click* (no drag) over a folded figure opens its context menu
-            // instead of erasing; right-*drag* and clicks elsewhere still erase.
+          } else if (outcome === 'folded-figure-menu' || outcome === 'selection-menu') {
+            // The erase runtime is rolled back first either way: it took the
+            // press to claim the gesture, and a menu that leaves it armed feeds
+            // every later drag to a stale runtime (see `pointerRelease.ts`).
             eraseRuntime.feed({ kind: 'cancel', point: raw });
+            const figureId = outcome === 'folded-figure-menu' ? figureAt(e.clientX, e.clientY) : null;
             liveRef.current.onRequestContextMenu({
               clientX: e.clientX,
               clientY: e.clientY,
-              target: { kind: 'folded-figure', figureId },
+              target: figureId !== null ? { kind: 'folded-figure', figureId } : { kind: 'selection' },
             });
           } else {
             const out = eraseRuntime.feed({

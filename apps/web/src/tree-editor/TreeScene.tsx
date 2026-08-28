@@ -111,6 +111,19 @@ export interface TreeSceneProps {
    */
   onRendered: () => void;
   onEdgePointerDown: (event: PointerEvent<SVGGElement>, edgeId: number) => void;
+  /**
+   * Right-click, resolved to what it landed on.
+   *
+   * One prop rather than three, because the scene's job is only to say *what* —
+   * the surface decides whether that thing has a menu. `target` is `null` for
+   * empty canvas, which is a real answer here and not an absence: the empty-space
+   * menu is where the view toggles live.
+   */
+  onContextMenu?: (
+    target: { kind: 'vertex' | 'edge'; id: number } | null,
+    clientX: number,
+    clientY: number
+  ) => void;
   onVertexPointerDown: (event: PointerEvent<SVGCircleElement>, vertexId: number) => void;
 }
 
@@ -134,6 +147,7 @@ export const TreeScene = memo(function TreeScene({
   onRendered,
   onEdgePointerDown,
   onVertexPointerDown,
+  onContextMenu,
 }: TreeSceneProps) {
   useLayoutEffect(onRendered);
   const vertexById = new Map(tree.vertices.map((vertex) => [vertex.id, vertex] as const));
@@ -148,6 +162,15 @@ export const TreeScene = memo(function TreeScene({
       style={{ width: worldRect.width, height: worldRect.height }}
       role="img"
       aria-label={copy.canvas}
+      onContextMenu={
+        onContextMenu &&
+        ((event) => {
+          event.preventDefault();
+          // The root sees only presses that reached it, so a mark's own handler
+          // below has already claimed anything it covers.
+          onContextMenu(null, event.clientX, event.clientY);
+        })
+      }
     >
       <rect
         className={`tree-bounds ${classPrefix}-bounds`}
@@ -248,6 +271,14 @@ export const TreeScene = memo(function TreeScene({
             // actions live on the container.
             aria-label={copy.selectEdge(edge.id, lengths.format(edge.length))}
             onPointerDown={(event) => onEdgePointerDown(event, edge.id)}
+            onContextMenu={
+              onContextMenu &&
+              ((event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onContextMenu({ kind: 'edge', id: edge.id }, event.clientX, event.clientY);
+              })
+            }
           >
             <line
               className={[
@@ -331,6 +362,14 @@ export const TreeScene = memo(function TreeScene({
               // tree's keyboard nudge/delete live on the container.
               aria-label={copy.selectVertex(vertex.id, label, vertex.isLeaf)}
               onPointerDown={(event) => onVertexPointerDown(event, vertex.id)}
+              onContextMenu={
+                onContextMenu &&
+                ((event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onContextMenu({ kind: 'vertex', id: vertex.id }, event.clientX, event.clientY);
+                })
+              }
               {...{
                 [TREE_SCENE_ATTR.anchor]: 'node',
                 [TREE_SCENE_ATTR.p1]: vertex.id,

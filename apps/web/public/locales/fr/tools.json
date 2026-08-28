@@ -272,7 +272,21 @@
     "valley": "Ligne V",
     "yellow": "Ligne jaune"
   },
+  "simulator": {
+    "foldBackward": "Reculer le pliage",
+    "foldEnd": "Aller au plié",
+    "foldForward": "Avancer le pliage",
+    "foldStart": "Aller à plat",
+    "playPause": "Lecture / pause du pliage",
+    "replay": "Rejouer depuis le plat",
+    "resetView": "Réinitialiser la vue du simulateur",
+    "toggleCreases": "Lignes de pli",
+    "toggleFaces": "Faces",
+    "toggleHiddenLines": "Lignes cachées",
+    "toggleLighting": "Éclairage"
+  },
   "viewport": {
+    "contextMenu": "Ouvrir le menu contextuel",
     "fit": "Ajuster",
     "more": "Plus de commandes d'affichage",
     "pan": "Panoramique",

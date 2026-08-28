@@ -14,6 +14,13 @@
   "bpPacking": {
     "canvas": "Box Pleat packing canvas",
     "config": "Config",
+    "contextMenu": {
+      "nudge": "Nudge",
+      "nudgeDown": "Down",
+      "nudgeLeft": "Left",
+      "nudgeRight": "Right",
+      "nudgeUp": "Up"
+    },
     "diagonal": "Diagonal",
     "flapHeight": "H",
     "flapHeightAria": "Flap height",
@@ -206,6 +213,15 @@
     "changeFoldedModel": "Change folded model",
     "closeFoldedModels": "Close folded models",
     "commandFailed": "Command failed",
+    "contextMenu": {
+      "creaseType": "Crease type",
+      "delete": "Delete",
+      "diagnostics": "Diagnostics",
+      "editText": "Edit text",
+      "repair": "Repair",
+      "select": "Select",
+      "transform": "Transform"
+    },
     "couldNotOpenForEditing": "This crease pattern could not be opened for editing.",
     "couldNotOpenForEditingHint": "It is shown read-only. You can still view, fold, and export it.",
     "cropImage": "Crop image",
@@ -479,6 +495,14 @@
     "moveRight": "Move right",
     "rename": "Rename"
   },
+  "designTree": {
+    "contextMenu": {
+      "edgeTools": "Edge",
+      "nodeTools": "Node",
+      "select": "Select",
+      "strain": "Strain"
+    }
+  },
   "diagnostics": {
     "allConditionsFeasible": "All conditions feasible",
     "buildingCreasePattern": "Building crease pattern",
@@ -705,6 +729,11 @@
     "backendGpuTitle": "Solving on the GPU (WebGL2)",
     "canvasAriaLabel": "Origami folded-base simulator. Drag to rotate, scroll to zoom, double-click to reset view.",
     "canvasTitle": "Drag to rotate, scroll to zoom, double-click to reset view",
+    "contextMenu": {
+      "pause": "Pause",
+      "play": "Play",
+      "view": "View"
+    },
     "controls": "Simulation controls",
     "fold": "Fold",
     "foldPercent": "Fold percent",
@@ -809,5 +838,11 @@
     "textControls": "Text controls",
     "textStyle": "Text style",
     "underline": "Underline"
+  },
+  "treeEditor": {
+    "contextMenu": {
+      "addLeaf": "Add leaf here",
+      "deselect": "Deselect all"
+    }
   }
 }

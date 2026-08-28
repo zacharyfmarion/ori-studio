@@ -30,6 +30,7 @@ export type ViewportShortcutId =
   | 'viewport.cancel'
   | 'viewport.delete'
   | 'viewport.simulateSelectionInline'
+  | 'viewport.contextMenu'
   | 'viewport.solveAnglesPrevious'
   | 'viewport.solveAnglesNext'
   | 'viewport.solveAnglesApply';
@@ -418,6 +419,16 @@ const VIEWPORT_SHORTCUTS: ShortcutDefinition[] = [
   // selection. Claiming the pair would let an Oriedita user who moved "stop the
   // running fold" silently move "cancel what I am drawing" instead.
   viewportShortcut('viewport.cancel', 'Cancel / Deselect', { key: 'escape' }),
+  // The keyboard route to a context menu, on the two chords every desktop
+  // platform already uses for it. Without this the menus below are pointer-only
+  // — and a menu that is the *only* home for a verb (the tree canvas's "Add leaf
+  // here", the simulator's view toggles) would then be unreachable without a
+  // mouse. `contextmenu` is the dedicated key where a keyboard has one; Shift+F10
+  // is the equivalent everywhere else, including every Mac keyboard.
+  viewportShortcut('viewport.contextMenu', 'Open Context Menu', [
+    { key: 'contextmenu' },
+    { shift: true, key: 'f10' },
+  ]),
   // Delete is shared with `edit.delete` at global scope, which deletes creases.
   // Viewport scope resolves first, so this one is asked whether the *viewport*
   // owns the press — a selected canvas object, or a measurement to drop — and

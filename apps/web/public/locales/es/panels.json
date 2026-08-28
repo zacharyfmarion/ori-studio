@@ -14,6 +14,13 @@
   "bpPacking": {
     "canvas": "Lienzo de empaquetado de plegado en caja",
     "config": "Configuración",
+    "contextMenu": {
+      "nudge": "Desplazar",
+      "nudgeDown": "Abajo",
+      "nudgeLeft": "Izquierda",
+      "nudgeRight": "Derecha",
+      "nudgeUp": "Arriba"
+    },
     "diagonal": "Diagonal",
     "flapHeight": "H",
     "flapHeightAria": "Altura de la solapa",
@@ -210,6 +217,15 @@
     "changeFoldedModel": "Cambiar modelo plegado",
     "closeFoldedModels": "Cerrar modelos plegados",
     "commandFailed": "El comando falló",
+    "contextMenu": {
+      "creaseType": "Tipo de pliegue",
+      "delete": "Eliminar",
+      "diagnostics": "Diagnósticos",
+      "editText": "Editar texto",
+      "repair": "Reparar",
+      "select": "Seleccionar",
+      "transform": "Transformar"
+    },
     "couldNotOpenForEditing": "No se pudo abrir este patrón de pliegues para editarlo.",
     "couldNotOpenForEditingHint": "Se muestra en modo de solo lectura. Aún puedes verlo, plegarlo y exportarlo.",
     "cropImage": "Recortar imagen",
@@ -495,6 +511,14 @@
     "moveRight": "Mover a la derecha",
     "rename": "Cambiar el nombre"
   },
+  "designTree": {
+    "contextMenu": {
+      "edgeTools": "Arista",
+      "nodeTools": "Nodo",
+      "select": "Seleccionar",
+      "strain": "Tensión"
+    }
+  },
   "diagnostics": {
     "allConditionsFeasible": "Todas las condiciones son viables",
     "buildingCreasePattern": "Generando patrón de pliegues",
@@ -729,6 +753,11 @@
     "backendGpuTitle": "Resolviendo en la GPU (WebGL2)",
     "canvasAriaLabel": "Simulador de bases plegadas de origami. Arrastre para rotar, desplace para ampliar, haga doble clic para restablecer la vista.",
     "canvasTitle": "Arrastre para rotar, desplace para ampliar, haga doble clic para restablecer la vista",
+    "contextMenu": {
+      "pause": "Pausar",
+      "play": "Reproducir",
+      "view": "Vista"
+    },
     "controls": "Controles de simulación",
     "fold": "Plegar",
     "foldPercent": "Porcentaje de plegado",
@@ -834,5 +863,11 @@
     "textControls": "Controles de texto",
     "textStyle": "Estilo de texto",
     "underline": "Subrayado"
+  },
+  "treeEditor": {
+    "contextMenu": {
+      "addLeaf": "Añadir hoja aquí",
+      "deselect": "Deseleccionar todo"
+    }
   }
 }

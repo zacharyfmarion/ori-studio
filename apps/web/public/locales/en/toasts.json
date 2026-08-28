@@ -1,4 +1,8 @@
 {
+  "contextMenu": {
+    "failed": "That action could not be completed",
+    "failedDetail": "Nothing was changed. If it keeps happening, try reloading."
+  },
   "creasePattern": {
     "inlineSimulationCap": "Up to {{max}} simulation windows at once. Close one to open another.",
     "inlineSimulationRegionGone": "That region is no longer in the crease pattern, so this window cannot be rebuilt.",

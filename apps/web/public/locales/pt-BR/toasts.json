@@ -1,4 +1,8 @@
 {
+  "contextMenu": {
+    "failed": "Não foi possível concluir essa ação",
+    "failedDetail": "Nada foi alterado. Se continuar acontecendo, tente recarregar."
+  },
   "creasePattern": {
     "inlineSimulationCap": "Até {{max}} janelas de simulação por vez. Feche uma para abrir outra.",
     "inlineSimulationRegionGone": "Essa região não está mais no padrão de vincos, então esta janela não pode ser reconstruída.",

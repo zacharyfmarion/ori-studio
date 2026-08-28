@@ -256,7 +256,21 @@
     "valley": "线 V",
     "yellow": "线 黄色"
   },
+  "simulator": {
+    "foldBackward": "向后折叠",
+    "foldEnd": "跳到折好",
+    "foldForward": "向前折叠",
+    "foldStart": "跳到展平",
+    "playPause": "播放 / 暂停折叠",
+    "replay": "从展平重放",
+    "resetView": "重置模拟器视图",
+    "toggleCreases": "折线",
+    "toggleFaces": "面",
+    "toggleHiddenLines": "隐藏线",
+    "toggleLighting": "光照"
+  },
   "viewport": {
+    "contextMenu": "打开上下文菜单",
     "fit": "适应",
     "more": "更多视图控件",
     "pan": "平移",

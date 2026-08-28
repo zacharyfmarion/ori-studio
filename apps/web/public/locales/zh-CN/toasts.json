@@ -1,4 +1,8 @@
 {
+  "contextMenu": {
+    "failed": "无法完成该操作",
+    "failedDetail": "未做任何更改。如果反复出现，请尝试重新加载。"
+  },
   "creasePattern": {
     "inlineSimulationCap": "最多可同时打开 {{max}} 个模拟窗口。请先关闭一个再打开新的。",
     "inlineSimulationRegionGone": "该区域已不在折痕图中，因此无法重建此窗口。",
