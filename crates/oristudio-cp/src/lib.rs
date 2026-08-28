@@ -2484,60 +2484,46 @@ pub fn execute_command(
                 let second =
                     line_segment_for_operation(document, command.operation, line_indices[1])?;
 
-                // Upstream splits here on `checkIfParallel()`, and the two arms are
-                // different interactions, not two spellings of one. Taking the
-                // non-parallel arm on parallel input is what produced crease
-                // endpoints at ~3.4e14: it opens by intersecting the two sources,
-                // and `find_intersection` divides by their determinant, which for
-                // parallel lines is float noise rather than a clean zero.
-                if let Some(indicator) =
-                    operations::construction::square_bisector_parallel_indicator(
-                        &document.crease_pattern,
-                        &first,
-                        &second,
-                    )
+                // Parallel sources are refused, and this is a **deliberate departure
+                // from upstream** rather than a gap. Read this before "finishing" it.
+                //
+                // Upstream splits here on `checkIfParallel()` into a second
+                // interaction: two parallel lines have no angle to bisect, so it
+                // offers the midline between them as a purple indicator you either
+                // take whole or cut between two crossing creases. Every piece of that
+                // is ported and oracle-tested — `square_bisector_parallel_indicator`,
+                // `commit_square_bisector_parallel_indicator`,
+                // `square_bisector_parallel_between_destinations` — and it was wired
+                // up here and then taken back out on purpose, because the behaviour
+                // it produces is not behaviour we want:
+                //
+                // - The midline runs through `fullExtendUntilHit`, which does not
+                //   stop at the creases it crosses. Upstream draws a ray straight
+                //   through the pattern and off the paper; ours did the same.
+                // - The two-destination arm intersects the indicator with each
+                //   destination *without checking either is non-parallel to it*.
+                //   Upstream's guard for that lives in `move_drag_select_destination_
+                //   2L_P`, a hover handler — UI-side, and not ported. So the kernel
+                //   function inherited the divide without its guard, and a
+                //   destination parallel to the midline divides by ~0 exactly the way
+                //   the original bug did. A real user file reached 8.2e12 this way.
+                //
+                // The port stays (it is parity-tested and describes what upstream
+                // does); it is just not reachable from the product. If you want it
+                // back, the two problems above are the price of admission.
+                if operations::construction::square_bisector_parallel_indicator(
+                    &document.crease_pattern,
+                    &first,
+                    &second,
+                )
+                .is_some()
                 {
-                    // `MouseHandlerSquareBisector.release_select_destination_2L_P`:
-                    // either click the indicator to take it whole (two line ids, the
-                    // sources alone), or cut it between two crossing creases (four).
-                    match line_indices.len() {
-                        2 => usize::from(
-                            operations::construction::commit_square_bisector_parallel_indicator(
-                                &mut document.crease_pattern,
-                                &indicator,
-                                active_line_color(&command),
-                            ),
-                        ),
-                        len if len >= 4 => {
-                            let first_destination = line_segment_for_operation(
-                                document,
-                                command.operation,
-                                line_indices[2],
-                            )?;
-                            let second_destination = line_segment_for_operation(
-                                document,
-                                command.operation,
-                                line_indices[3],
-                            )?;
-                            usize::from(
-                                operations::construction::square_bisector_parallel_between_destinations(
-                                    &mut document.crease_pattern,
-                                    &indicator,
-                                    &first_destination,
-                                    &second_destination,
-                                    active_line_color(&command),
-                                ),
-                            )
-                        }
-                        _ => {
-                            return Err(CommandError::InvalidInput {
-                                operation: command.operation,
-                                message: "Those two creases are parallel. Click the indicator to \
-                                          take it whole, or two crossing creases to trim it."
-                                    .to_string(),
-                            });
-                        }
-                    }
+                    return Err(CommandError::InvalidInput {
+                        operation: command.operation,
+                        message: "Those two creases are parallel, so there is no angle between \
+                                  them to bisect. Pick two creases that meet."
+                            .to_string(),
+                    });
                 } else if line_indices.len() >= 3 {
                     let destination =
                         line_segment_for_operation(document, command.operation, line_indices[2])?;
@@ -4513,24 +4499,6 @@ pub fn preview_command(
                 points[0],
                 &target_segment,
                 &perpendicular_segment,
-            ) {
-                preview.segments.push(indicator);
-            }
-        }
-        OperationId::SquareBisector if command.payload.line_ids.len() >= 2 => {
-            // Line mode, both sources picked. Parallel ones get the purple indicator
-            // upstream draws in `checkIfParallel`; the frontend needs it both to show
-            // the affordance and to tell that it is in the parallel interaction, where
-            // the next click either takes the indicator whole or starts naming two
-            // crossing destinations. Non-parallel sources preview nothing here, as
-            // upstream shows nothing until the destination is hovered.
-            let line_indices = required_line_indices(&command)?;
-            let first = line_segment_for_operation(document, command.operation, line_indices[0])?;
-            let second = line_segment_for_operation(document, command.operation, line_indices[1])?;
-            if let Some(indicator) = operations::construction::square_bisector_parallel_indicator(
-                &document.crease_pattern,
-                &first,
-                &second,
             ) {
                 preview.segments.push(indicator);
             }

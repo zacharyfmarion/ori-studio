@@ -2119,17 +2119,10 @@ export function CreasePatternPanel() {
     [activeCpCommand?.operationId]
   );
   const handleWebglToolPreviewInput = useCallback(
-    (
-      points: readonly Point[],
-      highlightLineIds: readonly number[],
-      pickedLineIds: readonly number[] = []
-    ) => {
+    (points: readonly Point[], highlightLineIds: readonly number[]) => {
       const command = activeCpCommand;
-      // `highlightLineIds` are the hovered crease(s) — highlight only. The kernel
+      // The passed ids are the hovered crease(s) — highlight only. The kernel
       // resolves creases from the points, so its payload carries the selection.
-      // `pickedLineIds` are the creases a tool has actually *taken*, which do go
-      // to the kernel: a tool that picks creases rather than placing points has
-      // no points to preview from, and would otherwise never get a preview at all.
       const highlight = highlightLineIds
         .map((id) => editableCp?.crease_pattern.line_segments[id - 1])
         .filter((s): s is OristudioCpLineSegment => Boolean(s))
@@ -2138,7 +2131,7 @@ export function CreasePatternPanel() {
         setCpMeasureLivePoints([...points]);
         if (points.length === 0) setCpMeasureLiveValue(null);
       }
-      if (!command || (points.length === 0 && pickedLineIds.length === 0)) {
+      if (!command || points.length === 0) {
         webglPreviewRequestRef.current += 1;
         setWebglToolPreviewSegments([]);
         setWebglToolHighlightSegments(highlight);
@@ -2171,7 +2164,7 @@ export function CreasePatternPanel() {
       void previewOristudioCpCommand(
         command.operationId,
         buildCpCommandPayload(command, {
-          line_ids: pickedLineIds.length > 0 ? [...pickedLineIds] : oristudioCpSelection.lines,
+          line_ids: oristudioCpSelection.lines,
           circle_ids: oristudioCpSelection.circles,
           points: [...points],
         })

@@ -32,26 +32,15 @@ describe('toolPreviewSegments', () => {
     expect(only.crease).toEqual({ color: 'Blue2', foldMagnitude: undefined });
   });
 
-  it('never calls indicator geometry a crease, on any tool', () => {
-    // Fan rays, circle rings, the port's `Purple8` midline: drawn *about* the
-    // pattern, not into it. Stroking them as creases would claim they are ones,
-    // and would run them through crease rendering (fold-angle ink and the rest).
-    for (const operation of ['VertexMakeAngularlyFlatFoldable', 'DrawCreaseFree'] as const) {
-      const previews = toolPreviewSegments(
-        [segment('Orange4'), segment('Green6'), segment('Purple8'), segment('Cyan3')],
-        operation
-      );
-      expect(previews.every((preview) => preview.crease === undefined)).toBe(true);
-    }
-  });
-
-  it('keeps an indicator’s own colour, on its own field', () => {
-    // Upstream fixes these colours deliberately, and some indicators are click
-    // targets — Angle Bisector's parallel midline is aimed at, so in the active
-    // line colour it is indistinguishable from the pattern it sits in.
-    const [only] = toolPreviewSegments([segment('Purple8')], 'SquareBisector');
-    expect(only.indicator).toEqual({ color: 'Purple8' });
-    expect(only.crease).toBeUndefined();
+  it('leaves indicator geometry alone even on a crease-carrying tool', () => {
+    // A preview also carries things drawn *about* the pattern — fan rays, circle
+    // rings, the port's `Purple8` candidate indicators. Stroking those in a
+    // crease colour would claim they are creases.
+    const previews = toolPreviewSegments(
+      [segment('Orange4'), segment('Green6'), segment('Purple8'), segment('Cyan3')],
+      'VertexMakeAngularlyFlatFoldable'
+    );
+    expect(previews.every((preview) => preview.crease === undefined)).toBe(true);
   });
 
   it('handles an absent preview and an unknown tool', () => {

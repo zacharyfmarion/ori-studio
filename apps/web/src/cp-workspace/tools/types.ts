@@ -54,18 +54,6 @@ export interface ToolPreviewSegment {
    * the kernel's `LineColor` name, matching {@link CpLineAppearanceFor}'s input.
    */
   crease?: { color: string; foldMagnitude?: number };
-  /**
-   * Geometry drawn *about* the pattern rather than into it, in the fixed colour
-   * upstream gives it — the angle-system fan's `Orange4`/`Green6` rays, circle
-   * rings, Angle Bisector's `Purple8` parallel midline.
-   *
-   * Mutually exclusive with {@link crease}: this is explicitly *not* a crease, so
-   * it takes the colour and none of the crease rendering that goes with one. It
-   * has a colour of its own at all because some indicators are click targets —
-   * the parallel branch of Angle Bisector asks you to aim at its midline, and in
-   * the active line colour that is one more red line among hundreds.
-   */
-  indicator?: { color: string };
 }
 
 /** Live, uncommitted geometry the surface renders each frame. */

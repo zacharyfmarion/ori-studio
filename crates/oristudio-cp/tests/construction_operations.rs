@@ -1296,105 +1296,49 @@ fn square_bisector_command_parallel_lines_never_emit_runaway_coordinates() {
         ..Default::default()
     };
     let before = largest_coordinate(&document.crease_pattern);
+    let creases_before = document.crease_pattern.line_segments.len();
 
-    // Three ids is the *non-parallel* interaction. On parallel sources it is not a
-    // shape upstream can act on, so it is refused rather than approximated.
-    let command = CreasePatternCommand::new(OperationId::SquareBisector).with_payload(
-        CreasePatternCommandPayload {
-            line_ids: vec![1, 2, 3],
-            line_color: Some(LineColor::Red1),
-            ..Default::default()
-        },
-    );
-    assert!(execute_command(&mut document, command).is_err());
-    assert_eq!(largest_coordinate(&document.crease_pattern), before);
+    // Every shape is refused, not just the one that used to divide by ~0. Upstream
+    // answers parallel sources with a second interaction; we deliberately do not —
+    // see the `SquareBisector` dispatch. Two ids was "take the indicator whole" and
+    // four was "cut it between two destinations", and both stay refused so neither
+    // can quietly come back through a payload the frontend no longer sends.
+    for line_ids in [vec![1, 2], vec![1, 2, 3], vec![1, 2, 3, 3]] {
+        let command = CreasePatternCommand::new(OperationId::SquareBisector).with_payload(
+            CreasePatternCommandPayload {
+                line_ids: line_ids.clone(),
+                line_color: Some(LineColor::Red1),
+                ..Default::default()
+            },
+        );
+        assert!(
+            execute_command(&mut document, command).is_err(),
+            "parallel sources with ids {line_ids:?} should be refused"
+        );
+        assert_eq!(largest_coordinate(&document.crease_pattern), before);
+        assert_eq!(document.crease_pattern.line_segments.len(), creases_before);
+    }
 }
 
 #[test]
-fn square_bisector_command_parallel_lines_take_the_indicator_whole() {
-    // Two ids, no destination: upstream's "click the purple indicator" arm.
+fn square_bisector_preview_never_offers_a_parallel_indicator() {
+    // The purple midline is upstream's affordance for the interaction we do not
+    // have, so previewing it would advertise a click that only ever errors.
     let (first, second) = parallel_sources_from_bug_report();
-    let mut document = CreasePatternDocument {
-        crease_pattern: model_from_segments(&[first.clone(), second.clone()]),
-        ..Default::default()
-    };
-    let before = document.crease_pattern.line_segments.len();
-
-    let command = CreasePatternCommand::new(OperationId::SquareBisector).with_payload(
-        CreasePatternCommandPayload {
-            line_ids: vec![1, 2],
-            line_color: Some(LineColor::Red1),
-            ..Default::default()
-        },
-    );
-    execute_command(&mut document, command).expect("parallel indicator commits");
-
-    assert!(document.crease_pattern.line_segments.len() > before);
-    // The whole point: it lands on the paper, not at infinity.
-    assert!(largest_coordinate(&document.crease_pattern) < 1_000.0);
-    // And it is the same segment the standalone indicator reports, just recoloured.
-    let indicator = square_bisector_parallel_indicator(&document.crease_pattern, &first, &second)
-        .expect("parallel sources produce an indicator");
-    assert!(contains_segment_close(
-        &document.crease_pattern.line_segments,
-        indicator.a,
-        indicator.b,
-        LineColor::Red1,
-    ));
-}
-
-#[test]
-fn square_bisector_command_parallel_lines_cut_between_two_destinations() {
-    // Four ids: upstream's "two crossing destinations" arm.
-    let (first, second) = parallel_sources_from_bug_report();
-    let left = segment(300.0, 500.0, 300.0, 700.0, LineColor::Black0);
-    let right = segment(400.0, 500.0, 400.0, 700.0, LineColor::Black0);
-    let mut document = CreasePatternDocument {
-        crease_pattern: model_from_segments(&[first, second, left, right]),
-        ..Default::default()
-    };
-    let before = document.crease_pattern.line_segments.len();
-
-    let command = CreasePatternCommand::new(OperationId::SquareBisector).with_payload(
-        CreasePatternCommandPayload {
-            line_ids: vec![1, 2, 3, 4],
-            line_color: Some(LineColor::Red1),
-            ..Default::default()
-        },
-    );
-    execute_command(&mut document, command).expect("parallel two-destination cut executes");
-
-    assert!(document.crease_pattern.line_segments.len() > before);
-    assert!(largest_coordinate(&document.crease_pattern) < 1_000.0);
-}
-
-#[test]
-fn square_bisector_preview_offers_the_indicator_only_when_parallel() {
-    let (first, second) = parallel_sources_from_bug_report();
-    let crossing = segment(300.0, 500.0, 400.0, 700.0, LineColor::Black0);
     let document = CreasePatternDocument {
-        crease_pattern: model_from_segments(&[first, second, crossing]),
+        crease_pattern: model_from_segments(&[first, second]),
         ..Default::default()
     };
-    let preview_for = |line_ids: Vec<usize>| {
-        preview_command(
-            &document,
-            CreasePatternCommand::new(OperationId::SquareBisector).with_payload(
-                CreasePatternCommandPayload {
-                    line_ids,
-                    ..Default::default()
-                },
-            ),
-        )
-        .expect("preview succeeds")
-    };
 
-    // Parallel sources: the purple affordance, which is also how the frontend
-    // tells which interaction it is in.
-    let parallel = preview_for(vec![1, 2]);
-    assert_eq!(parallel.segments.len(), 1);
-    assert_eq!(parallel.segments[0].color, LineColor::Purple8);
-
-    // Non-parallel sources show nothing until a destination is hovered.
-    assert!(preview_for(vec![1, 3]).segments.is_empty());
+    let preview = preview_command(
+        &document,
+        CreasePatternCommand::new(OperationId::SquareBisector).with_payload(
+            CreasePatternCommandPayload {
+                line_ids: vec![1, 2],
+                ..Default::default()
+            },
+        ),
+    )
+    .expect("preview succeeds");
+    assert!(preview.segments.is_empty());
 }

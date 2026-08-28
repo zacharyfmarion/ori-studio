@@ -50,20 +50,16 @@ export function candidatePreviewGroups(
   armed: number | null = null
 ): PreviewStrokeGroup[] {
   if (segments.length === 0) return [];
-  const inkFor = (segment: ToolPreviewSegment): Rgba => {
-    // An indicator names a colour but is not a crease, so it takes the resolved
-    // ink and skips `foldAngleInk` — there is no fold to shade towards.
-    if (segment.indicator) return appearanceFor(segment.indicator.color).color;
-    return segment.crease
+  const inkFor = (segment: ToolPreviewSegment): Rgba =>
+    segment.crease
       ? foldAngleInk(
           appearanceFor(segment.crease.color).color,
           segment.crease.foldMagnitude,
           foldAngle
         )
       : fallback;
-  };
 
-  const named = segments.some((segment) => segment.crease ?? segment.indicator);
+  const named = segments.some((segment) => segment.crease);
   if (!named && armed === null) return [{ segments, color: fallback }];
 
   // A lone candidate is armed by definition: there is nothing to choose between,
