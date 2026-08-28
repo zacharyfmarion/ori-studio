@@ -13,8 +13,8 @@ use oristudio_cp::operations::construction::{
     make_vertex_flat_foldable_to_destination, mirror_selected_lines, parallel_draw,
     parallel_width_indicators, perpendicular_indicator, perpendicular_projection,
     square_bisector_from_lines_to_destination, square_bisector_from_points_to_destination,
-    square_bisector_parallel_between_destinations, square_bisector_parallel_indicator,
-    symmetric_draw,
+    square_bisector_parallel_between_destinations, square_bisector_parallel_destination_is_usable,
+    square_bisector_parallel_indicator, symmetric_draw,
 };
 use oristudio_cp::{
     CreasePatternCommand, CreasePatternCommandPayload, CreasePatternDocument, OperationId,
@@ -430,6 +430,7 @@ fn square_bisector_parallel_indicator_and_destination_commit() {
     assert!(square_bisector_parallel_between_destinations(
         &mut model,
         &indicator,
+        &second,
         &first_destination,
         &second_destination,
         LineColor::Red1,
@@ -440,6 +441,50 @@ fn square_bisector_parallel_indicator_and_destination_commit() {
         Point::new(1.0, 1.0),
         LineColor::Red1,
     ));
+}
+
+#[test]
+fn square_bisector_parallel_refuses_a_destination_parallel_to_the_bisector() {
+    // Upstream never reaches this: `move_drag_select_destination_2L_P` refuses to
+    // *offer* such a crease, so the commit can assume it away. That assumption is
+    // the whole hazard — a destination parallel to the indicator gets intersected
+    // with it, and `find_intersection` divides by a determinant that is float
+    // noise rather than a clean zero, so the answer comes back finite and vast.
+    let first = segment(-2.0, 0.0, 2.0, 0.0, LineColor::Black0);
+    let second = segment(-2.0, 2.0, 2.0, 2.0, LineColor::Black0);
+    let mut model = model_from_segments(&[first.clone(), second.clone()]);
+    let indicator = square_bisector_parallel_indicator(&model, &first, &second)
+        .expect("parallel sources produce an indicator");
+
+    // Horizontal, so parallel to both sources and to the midline between them.
+    let along = segment(-3.0, 0.5, 3.0, 0.5, LineColor::Black0);
+    let crossing = segment(1.0, -1.0, 1.0, 3.0, LineColor::Black0);
+    assert!(!square_bisector_parallel_destination_is_usable(
+        &second, &along
+    ));
+    assert!(square_bisector_parallel_destination_is_usable(
+        &second, &crossing
+    ));
+
+    let before = model.line_segments.len();
+    for (a, b) in [(&along, &crossing), (&crossing, &along), (&along, &along)] {
+        assert!(!square_bisector_parallel_between_destinations(
+            &mut model,
+            &indicator,
+            &second,
+            a,
+            b,
+            LineColor::Red1,
+        ));
+    }
+    assert_eq!(model.line_segments.len(), before);
+    let worst = model
+        .line_segments
+        .iter()
+        .flat_map(|s| [s.a, s.b])
+        .map(|p| p.x.abs().max(p.y.abs()))
+        .fold(0.0_f64, f64::max);
+    assert!(worst < 10.0, "a refused destination must not leak geometry");
 }
 
 #[test]
@@ -1298,12 +1343,10 @@ fn square_bisector_command_parallel_lines_never_emit_runaway_coordinates() {
     let before = largest_coordinate(&document.crease_pattern);
     let creases_before = document.crease_pattern.line_segments.len();
 
-    // Every shape is refused, not just the one that used to divide by ~0. Upstream
-    // answers parallel sources with a second interaction; we deliberately do not —
-    // see the `SquareBisector` dispatch. Two ids was "take the indicator whole" and
-    // four was "cut it between two destinations", and both stay refused so neither
-    // can quietly come back through a payload the frontend no longer sends.
-    for line_ids in [vec![1, 2], vec![1, 2, 3], vec![1, 2, 3, 3]] {
+    // Two ids is upstream's "take the indicator whole", which is deliberately not
+    // dispatched — that arm commits an unbounded ray. Three is the *non-parallel*
+    // shape. Both stay refused, and neither may leak geometry on the way out.
+    for line_ids in [vec![1, 2], vec![1, 2, 3]] {
         let command = CreasePatternCommand::new(OperationId::SquareBisector).with_payload(
             CreasePatternCommandPayload {
                 line_ids: line_ids.clone(),
@@ -1321,24 +1364,92 @@ fn square_bisector_command_parallel_lines_never_emit_runaway_coordinates() {
 }
 
 #[test]
-fn square_bisector_preview_never_offers_a_parallel_indicator() {
-    // The purple midline is upstream's affordance for the interaction we do not
-    // have, so previewing it would advertise a click that only ever errors.
+fn square_bisector_preview_offers_the_indicator_only_when_parallel() {
+    // The indicator is what the next two picks cut, so the surface has to be able
+    // to draw it; its presence is also how the surface tells the two interactions
+    // apart (one destination versus two).
     let (first, second) = parallel_sources_from_bug_report();
+    let crossing = segment(300.0, 500.0, 400.0, 700.0, LineColor::Black0);
     let document = CreasePatternDocument {
-        crease_pattern: model_from_segments(&[first, second]),
+        crease_pattern: model_from_segments(&[first, second, crossing]),
         ..Default::default()
     };
+    let preview_for = |line_ids: Vec<usize>| {
+        preview_command(
+            &document,
+            CreasePatternCommand::new(OperationId::SquareBisector).with_payload(
+                CreasePatternCommandPayload {
+                    line_ids,
+                    ..Default::default()
+                },
+            ),
+        )
+        .expect("preview succeeds")
+    };
 
-    let preview = preview_command(
-        &document,
-        CreasePatternCommand::new(OperationId::SquareBisector).with_payload(
+    let parallel = preview_for(vec![1, 2]);
+    assert_eq!(parallel.segments.len(), 1);
+    assert_eq!(parallel.segments[0].color, LineColor::Purple8);
+
+    // Non-parallel sources show nothing until a destination is hovered.
+    assert!(preview_for(vec![1, 3]).segments.is_empty());
+}
+
+#[test]
+fn square_bisector_command_parallel_lines_cut_between_two_destinations() {
+    // The arm we do dispatch: two parallel sources plus two creases that cross the
+    // midline between them, which become the new crease's endpoints. Bounded by
+    // construction, which is why this one is safe where "take it whole" is not.
+    let (first, second) = parallel_sources_from_bug_report();
+    let left = segment(300.0, 500.0, 300.0, 700.0, LineColor::Black0);
+    let right = segment(400.0, 500.0, 400.0, 700.0, LineColor::Black0);
+    let mut document = CreasePatternDocument {
+        crease_pattern: model_from_segments(&[first, second, left, right]),
+        ..Default::default()
+    };
+    let before = document.crease_pattern.line_segments.len();
+
+    let command = CreasePatternCommand::new(OperationId::SquareBisector).with_payload(
+        CreasePatternCommandPayload {
+            line_ids: vec![1, 2, 3, 4],
+            line_color: Some(LineColor::Red1),
+            ..Default::default()
+        },
+    );
+    execute_command(&mut document, command).expect("parallel two-destination cut executes");
+
+    assert!(document.crease_pattern.line_segments.len() > before);
+    assert!(largest_coordinate(&document.crease_pattern) < 1_000.0);
+}
+
+#[test]
+fn square_bisector_command_parallel_lines_reject_a_destination_along_the_bisector() {
+    // A destination parallel to the sources never crosses the midline. Upstream
+    // declines to offer it; we say so rather than dividing by its determinant.
+    let (first, second) = parallel_sources_from_bug_report();
+    // Same slope as the sources, so parallel to the midline too.
+    let along = segment(250.0, 700.0, 350.0, 600.0, LineColor::Black0);
+    let crossing = segment(300.0, 500.0, 300.0, 700.0, LineColor::Black0);
+    let mut document = CreasePatternDocument {
+        crease_pattern: model_from_segments(&[first, second, along, crossing]),
+        ..Default::default()
+    };
+    let before = largest_coordinate(&document.crease_pattern);
+    let creases_before = document.crease_pattern.line_segments.len();
+
+    for line_ids in [vec![1, 2, 3, 4], vec![1, 2, 4, 3]] {
+        let command = CreasePatternCommand::new(OperationId::SquareBisector).with_payload(
             CreasePatternCommandPayload {
-                line_ids: vec![1, 2],
+                line_ids: line_ids.clone(),
+                line_color: Some(LineColor::Red1),
                 ..Default::default()
             },
-        ),
-    )
-    .expect("preview succeeds");
-    assert!(preview.segments.is_empty());
+        );
+        assert!(
+            execute_command(&mut document, command).is_err(),
+            "a destination along the bisector should be refused, ids {line_ids:?}"
+        );
+        assert_eq!(largest_coordinate(&document.crease_pattern), before);
+        assert_eq!(document.crease_pattern.line_segments.len(), creases_before);
+    }
 }
