@@ -2,7 +2,7 @@
   "group": {
     "line_type": {
       "label": "線種",
-      "railLabel": "種類"
+      "railLabel": "線種"
     },
     "select_edit": {
       "label": "選択と編集",
@@ -136,7 +136,7 @@
       }
     },
     "cp_action_inward": {
-      "label": "うさぎの耳",
+      "label": "つまみ折り",
       "tooltip": "内向きの折り線",
       "disabledReason": "準備完了",
       "steps": {
@@ -156,7 +156,7 @@
     },
     "cp_action_symmetric_draw": {
       "label": "鏡映線",
-      "tooltip": "対称に描画",
+      "tooltip": "線を軸に線を反転",
       "disabledReason": "準備完了",
       "steps": {
         "0": "元の折り線を選択",
@@ -360,7 +360,7 @@
     },
     "cp_action_fish_bone_draw": {
       "label": "平行交互線",
-      "tooltip": "フィッシュボーン描画",
+      "tooltip": "均一の幅の段折りを描画",
       "disabledReason": "準備完了",
       "steps": {
         "0": "背骨の始点を選択",
@@ -622,8 +622,8 @@
       }
     },
     "cp_action_voronoi_create": {
-      "label": "Voronoi",
-      "tooltip": "シード点をクリックして Voronoi 図をプレビューし、コンテキストパネルから適用します",
+      "label": "ボロノイ図",
+      "tooltip": "シード点をクリックしてボロノイ図をプレビューし、コンテキストパネルから適用します",
       "disabledReason": "準備完了",
       "steps": {
         "0": "シード点をクリック"
@@ -700,7 +700,7 @@
     },
     "cp_action_foldable_line_draw": {
       "label": "折り可能線（フリー）",
-      "tooltip": "折り可能線を描画",
+      "tooltip": "折り可能線を描画するか、普通に線を描画",
       "disabledReason": "準備完了",
       "steps": {
         "0": "始点の頂点を選択",
@@ -808,7 +808,7 @@
     },
     "cp_action_axiom5": {
       "label": "公理 5",
-      "tooltip": "公理 5",
+      "tooltip": "指定の点を指定の線に移す、別の点を通る折り線を描画",
       "disabledReason": "準備完了",
       "steps": {
         "0": "対象の点を選択",
@@ -819,7 +819,7 @@
     },
     "cp_action_axiom7": {
       "label": "公理 7",
-      "tooltip": "公理 7",
+      "tooltip": "指定の点を指定の線に移す、別の線と垂直な折り線を描画",
       "disabledReason": "準備完了",
       "steps": {
         "0": "対象の点を選択",
@@ -994,8 +994,8 @@
       "disabledReason": "準備完了"
     },
     "cp_action_check4": {
-      "label": "Maekawa/BLB をチェック",
-      "tooltip": "Maekawa、角度、およびビッグ・リトル・ビッグ違反を見つけます",
+      "label": "前川定理/BLB をチェック",
+      "tooltip": "前川定理、角度、およびビッグ・リトル・ビッグ違反を見つけます",
       "disabledReason": "準備完了"
     },
     "cp_action_fix1": {
@@ -1652,7 +1652,7 @@
     },
     "voronoiAction": {
       "intro": {
-        "0": "点を選択して Voronoi パターンを描きます。"
+        "0": "点を選択してボロノイ図を描きます。"
       },
       "notes": {
         "0": "点を再度選択すると取り消されます。",
