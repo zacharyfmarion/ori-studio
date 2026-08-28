@@ -99,15 +99,25 @@ are unchanged:
   true, and that ends in the gate at `PointSet.java:428-441`, whose own comment
   reads a failure as damage: "something wrong caused by the rounding error and we
   cannot possibly expect a valid folding result". But `F - E + V == 1` counts the
-  bounded faces of *one* connected arrangement — k components score k — and
-  Oriedita is a single-sheet editor, so a document holding two crease patterns
-  scores 2 and is refused as though it were rounding damage. Ori Studio's canvas
-  holds as many patterns as the user draws, and refusing them cost the whole
-  document its faces; the web then inferred its own, through a planarizer whose
-  vertex identity did not match the kernel's. Each component *is* a single sheet,
-  which is what the gate assumes, so this composes around
-  `FoldGraph::calculate_faces` rather than editing it — the same shape
-  `folding3d::cells` already uses. One component failing refuses the whole
+  bounded faces of *one* connected arrangement — k components score k — so a
+  document holding two crease patterns scores 2, and its faces never reach the
+  file. Ours then cost the whole document its faces and the web inferred its own,
+  through a planarizer whose vertex identity did not match the kernel's.
+
+  Be careful not to overstate that gate, which is easy to do. Upstream does
+  **not** refuse such a document, and Oriedita's canvas holds disjoint patterns
+  perfectly well: `calculateFaces` returns early with `faces[]` and `numFaces`
+  intact — skipping only `findLineInFaceBorder()` — and
+  `WireFrame_Worker.setLineSegmentSet` (`:213`) calls it while discarding the
+  boolean. The faces exist upstream; the gate is a trust signal that exactly one
+  caller acts on, and that caller is the FOLD exporter. What upstream cannot do
+  with several patterns is *fold* them, because `getFacePositions` walks a dual
+  graph it assumes is connected (see the disconnected-fold-graph entry above).
+
+  Each component is a single connected arrangement, which is what the gate
+  assumes, so this composes around `FoldGraph::calculate_faces` rather than
+  editing it — the same shape `folding3d::cells` already uses. One component
+  failing refuses the whole
   document, so a present `faces_vertices` still means the arrangement was judged
   sound rather than merely that part of it was. Nothing runs for a
   single-component document, so the folding paths and every existing parity case
@@ -115,6 +125,18 @@ are unchanged:
   `fold_topology_diverges_from_oriedita_only_for_disconnected_patterns` in
   `crates/oristudio-cp/tests/oriedita_io_oracle.rs` pins the divergence against
   the real `PointSet`, and asserts the vertices and edges still match exactly.
+
+- **A failed Euler gate clears our faces; upstream keeps them.** *(Known gap, not
+  a decision — predates the per-component work above and is not relied on by it.)*
+  `FoldGraph::calculate_faces` sets `self.faces = Vec::new()` when the gate fails.
+  `PointSet.calculateFaces` instead returns early with `faces[]` and `numFaces`
+  populated, so a caller that ignores the boolean still has them, and
+  `WireFrame_Worker.setLineSegmentSet` (`:213`) is exactly such a caller. Upstream
+  therefore treats a failed gate as a warning; we turn it into a refusal. Every
+  current consumer of `include_faces` reads a false verdict as "no faces", so
+  nothing observable depends on the difference today — but it is a real
+  divergence, it is not recorded anywhere else, and a future caller that wants
+  upstream's behaviour will not find the faces where upstream would.
 
 - **A FOLD folded form is refused, not flattened.** `io::fold::import_fold_document`
   returns `IoError::FoldedForm` — engine code `fold_folded_form` — for a frame

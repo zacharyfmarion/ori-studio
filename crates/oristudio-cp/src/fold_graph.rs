@@ -108,24 +108,31 @@ impl FoldGraph {
 
     /// Faces for a document holding several disconnected crease patterns.
     ///
-    /// **Ori Studio native — a deliberate divergence.** Upstream's
-    /// `FoldExporter.toFoldSave` writes faces only when `calculateFaces()`
-    /// returns true, and that ends in the Euler gate
-    /// (`PointSet.java:428-441`). Upstream reads a failure there as damage:
-    /// "something wrong caused by the rounding error and we cannot possibly
-    /// expect a valid folding result". But `F - E + V == 1` counts the bounded
-    /// faces of *one* connected arrangement — k components score k — and
-    /// Oriedita is a single-sheet editor, so a document holding two crease
-    /// patterns scores 2 and is refused as though it were rounding damage.
-    /// Ori Studio's canvas holds as many patterns as the user draws.
+    /// **Ori Studio native — a deliberate divergence, in the exporter only.**
+    /// Upstream's `FoldExporter.toFoldSave` writes faces only when
+    /// `calculateFaces()` returns true, and that ends in the Euler gate
+    /// (`PointSet.java:428-441`), whose comment reads any non-1 as rounding
+    /// damage. But `F - E + V == 1` counts the bounded faces of *one* connected
+    /// arrangement — k components score k — so a document holding two crease
+    /// patterns scores 2, and its faces never reach the file.
+    ///
+    /// Note what upstream does **not** do, because it is easy to overstate this
+    /// gate: it does not refuse the document, and Oriedita's canvas holds
+    /// disjoint patterns perfectly well. `calculateFaces` returns early on that
+    /// path with `faces[]` and `numFaces` intact — it skips only
+    /// `findLineInFaceBorder()` — and `WireFrame_Worker.setLineSegmentSet`
+    /// (`:213`) calls it while discarding the boolean. The faces exist; the gate
+    /// is a trust signal that exactly one caller acts on, and that caller is the
+    /// FOLD exporter. What upstream *cannot* do with several patterns is fold
+    /// them: `getFacePositions` walks a dual graph it assumes is connected.
     ///
     /// So run the same gate once per component instead of once per document.
-    /// Each component *is* a single sheet, which is what the gate assumes, and
-    /// [`Self::calculate_faces`] is called unmodified — this composes around
-    /// the port rather than editing it, exactly as `folding3d::cells` already
-    /// does. Nothing here runs for a single-component document, so the folding
-    /// paths and the FOLD-export oracle see byte-identical output. See
-    /// PORTING.md.
+    /// Each component is a single connected arrangement, which is what the gate
+    /// assumes, and [`Self::calculate_faces`] is called unmodified — this
+    /// composes around the port rather than editing it, exactly as
+    /// `folding3d::cells` already does. Nothing here runs for a
+    /// single-component document, so the folding paths and the FOLD-export
+    /// oracle see byte-identical output. See PORTING.md.
     ///
     /// All-or-nothing: one component failing its own gate refuses the whole
     /// document. A partial face set would break the contract every caller
@@ -394,6 +401,13 @@ impl FoldGraph {
 
         let euler = faces.len() as isize - self.lines.len() as isize + self.points.len() as isize;
         let include_faces = euler == 1 || (euler - 1).abs() as f64 <= 0.005 * faces.len() as f64;
+        // Divergence, predating this line's current form: upstream keeps the
+        // faces here. `PointSet.calculateFaces` returns early with `faces[]` and
+        // `numFaces` intact, skipping only `findLineInFaceBorder()`, so a caller
+        // that ignores the boolean — `WireFrame_Worker.setLineSegmentSet` does —
+        // still gets them. Clearing them makes the gate a refusal rather than the
+        // signal it is upstream. Left as-is because every current consumer treats
+        // a false verdict as "no faces" anyway, but it is not parity.
         self.faces = if include_faces { faces } else { Vec::new() };
         self.line_face_borders = if include_faces {
             self.line_face_borders_from_incidence(&face_point_map)
