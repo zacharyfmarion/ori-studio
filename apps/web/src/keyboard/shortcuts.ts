@@ -1201,8 +1201,32 @@ function normalizeKey(key: string): string {
   }
 }
 
+/**
+ * A key as a *hint*, for a menu row or a settings table.
+ *
+ * The `default` arm only knows single characters and `F<n>`, so every other
+ * multi-character `KeyboardEvent.key` used to fall through as the raw
+ * lowercase name — the simulator's menu read "Shift+arrowleft". Everything the
+ * registry can bind, and everything a rebind can produce, is named here.
+ *
+ * Arrows are the glyphs rather than words. They are what every other
+ * application prints, they are the symbol on the key itself, and they keep a
+ * chord to one narrow column — "Shift+←" against "Shift+Arrow Left", in a
+ * right-aligned slot that sits beside a label. Plain text, so nothing needs a
+ * component: the same string works in a menu row, the settings table, and the
+ * conflict messages. The native macOS menu is unaffected — Tauri accelerators
+ * are built by `acceleratorKey` in `menus/nativeMenu.ts`, not by this.
+ */
 function displayKey(key: string): string {
   switch (key) {
+    case 'arrowleft':
+      return '←';
+    case 'arrowright':
+      return '→';
+    case 'arrowup':
+      return '↑';
+    case 'arrowdown':
+      return '↓';
     case 'delete':
       return 'Delete';
     case 'backspace':
@@ -1213,6 +1237,24 @@ function displayKey(key: string): string {
       return 'Enter';
     case 'space':
       return 'Space';
+    case 'tab':
+      return 'Tab';
+    case 'home':
+      return 'Home';
+    case 'end':
+      return 'End';
+    case 'pageup':
+      return 'Page Up';
+    case 'pagedown':
+      return 'Page Down';
+    case 'insert':
+      return 'Insert';
+    case 'capslock':
+      return 'Caps Lock';
+    // The dedicated context-menu key. "Menu" is what the keycap says; the glyph
+    // (☰) is not on every keyboard's key and reads as a hamburger elsewhere.
+    case 'contextmenu':
+      return 'Menu';
     case ',':
     case '.':
     case '/':
