@@ -135,6 +135,7 @@ import {
   creaseAnglePayloadDegrees,
   creaseAnglePreviewMagnitude,
   formatCreaseAngle,
+  isClassicCreaseAngle,
 } from '../../cp-workspace/foldAngle/activeCreaseAngle';
 import {
   FOLD_ANGLE_ANCHOR_FALLBACK,
@@ -2958,12 +2959,12 @@ export function CreasePatternPanel() {
               // open for runs of layer toggles. Both were wrong here, and both
               // shipped: the row showed a tick instead of a protractor and did
               // not close when tapped.
-              //
-              // The pen being off 180 is then not announced on the closed
-              // trigger, which `unseenWhenCollapsed` would have done — but that
-              // flag is for a *mode* that is silently on, and a value is not
-              // one. The label states it the moment the menu opens.
               opensDialog: true,
+              // A pen off 180 changes what every stroke does, and on a phone
+              // there is nothing else on screen that says so — the field is not
+              // rendered and the status readout is hidden outright. So the
+              // trigger carries it, the same way it carries an active pan.
+              unseenWhenCollapsed: !isClassicCreaseAngle(activeCpCreaseAngle),
               onSelect: () => setCreaseAnglePopoverOpen(true),
             },
           ],
