@@ -61,9 +61,10 @@ export interface CpCanvasCursorState {
   /**
    * The pointer is over something selectable — a crease, a point, a circle.
    *
-   * Only ever set in plain select mode, where a click selects what is under the
-   * cursor and nothing else on screen says so. A tool owns its own cursor and
-   * its own hover preview, so this stays false while one is active.
+   * Set only where a click would select what is under the cursor — which is not
+   * the same as "no tool is armed", since the canvas rests with Box Select
+   * armed. The canvas gates this on the tool's *click action* instead. A draw
+   * tool owns its own cursor and hover preview, so this stays false under one.
    */
   creaseHovered?: boolean;
 }

@@ -86,8 +86,13 @@ function props(): CreasePatternWebglCanvasProps {
     onBoxSelect: noop,
     onTranslateSelection: noop,
     resolveMoveSnap: (rawDelta) => ({ delta: rawDelta, snapLabel: null }),
-    activeToolInputMode: null,
-    activeToolOperationId: null,
+    // The **resting** configuration, not an empty one. The canvas rests with Box
+    // Select armed, so `activeToolInputMode` is `'drag-box'` and its click
+    // action is `select` — a fixture that said `null` here is what let the
+    // hover-cursor gate ship broken while this file stayed green.
+    activeToolInputMode: 'drag-box',
+    activeToolClickAction: 'select',
+    activeToolOperationId: 'CreaseSelect',
     panToolActive: false,
     wheelGesture: 'zoom',
     activeToolStepKinds: [],
@@ -96,7 +101,6 @@ function props(): CreasePatternWebglCanvasProps {
     onSnapDistanceChange: noop,
     activeToolLineCount: 0,
     activeToolRequireSnap: false,
-    activeToolClickAction: null,
     activeToolDualMirror: false,
     activeToolMeasureCreasePick: false,
     activeToolConverging: false,
@@ -269,6 +273,40 @@ describe('the canvas press pipeline the overlay hands presses back to', () => {
       expect(canvas.style.cursor).toBe('pointer');
 
       hover(clientOf(100, 180));
+      expect(canvas.style.cursor).toBe('');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('leaves the cursor to a draw tool, which owns its own hover feedback', () => {
+    // The other half of the gate. It is not "no tool armed" — the canvas rests
+    // with Box Select armed — it is "a click here would select", which a draw
+    // tool's click would not.
+    vi.useFakeTimers();
+    try {
+      act(() =>
+        root?.render(
+          <CreasePatternWebglCanvas
+            {...props()}
+            activeToolInputMode="drag-line"
+            activeToolClickAction={null}
+            activeToolOperationId="DrawCreaseFree"
+          />
+        )
+      );
+      const canvas = container!.querySelector('canvas')!;
+      act(() => {
+        canvas.dispatchEvent(
+          new PointerEvent('pointermove', {
+            pointerId: 1,
+            pointerType: 'mouse',
+            ...clientOf(100, 100),
+          })
+        );
+        vi.advanceTimersByTime(32);
+      });
+
       expect(canvas.style.cursor).toBe('');
     } finally {
       vi.useRealTimers();

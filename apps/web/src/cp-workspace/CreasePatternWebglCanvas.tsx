@@ -3208,12 +3208,19 @@ export function CreasePatternWebglCanvas({
             ? 'over'
             : 'none'
         );
-        // Plain select mode only — no tool is armed, so a click selects whatever
-        // is under the cursor and nothing else on screen says so. A tool has its
-        // own cursor and its own hover preview, and a drag in flight has already
-        // committed to what it is doing.
+        // Only where a click would select what is under the cursor.
+        //
+        // That is *not* the same as "no tool armed": the canvas rests with Box
+        // Select armed (`drag-box`), so gating on a null input mode showed the
+        // pointer nowhere at all. What the region-select family shares is the
+        // click action — Box Select and both lassos resolve to `select`, and
+        // their click selects the crease under the cursor exactly as the
+        // no-tool fallback does. A draw tool has its own cursor and its own
+        // hover preview, and a drag in flight has already committed to what it
+        // is doing.
         if (
-          liveRef.current.activeToolInputMode === null &&
+          (liveRef.current.activeToolInputMode === null ||
+            liveRef.current.activeToolClickAction === 'select') &&
           !movingSelection &&
           !selecting
         ) {
