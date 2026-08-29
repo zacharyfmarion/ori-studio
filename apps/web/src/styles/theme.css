@@ -101,6 +101,10 @@
   --fold-flat: #64c8c8;
   --fold-border: #111417;
   --fold-unassigned: #9aa4ad;
+  /* Selected creases and points: the theme's accent, unless that accent is
+     confusable with a fold colour -- red is mountain, blue is valley. One-dark's
+     accent is blue, so it overrides to its gold; see themes/applyTheme. */
+  --cp-selection: #e5c07b;
   /* Hue a shallower crease shifts toward: mountains run red -> magenta, valleys
      blue -> violet. Magenta is the only anchor where both halves take the short
      way round the wheel, so neither desaturates into grey. See

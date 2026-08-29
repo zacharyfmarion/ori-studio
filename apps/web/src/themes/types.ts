@@ -15,6 +15,24 @@ export interface ThemeTokens {
   'border.active': string;
   'status.danger': string;
   'status.success': string;
+  /**
+   * What a selected crease is painted, when `accent.primary` will not do.
+   *
+   * Selection is the theme's accent by default — that is the theme's own
+   * highlight colour and it should stay that way. This exists only for the themes
+   * whose accent is confusable with a fold: red is mountain and blue is valley,
+   * and since a crease's colour is the only thing that says which it is, a
+   * selected mountain painted accent-blue simply reads as a valley.
+   *
+   * So 11 of 23 themes omit this and keep their accent — gruvbox's orange, ayu's
+   * gold, dracula's purple, monokai's green. The 12 that set it are the ones
+   * whose accent lands within 28 degrees of hue of mountain or valley; each takes
+   * another colour from its *own* palette — mostly its gold, and a deep teal where
+   * the gold read as muddy against that theme's canvas.
+   *
+   * `selectionColor.test.ts` holds the line for both cases.
+   */
+  'selection.cp'?: string;
   'status.errorBg': string;
   'port.image': string;
   'port.float': string;
