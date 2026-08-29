@@ -1,6 +1,6 @@
 use crate::{
     AssignmentLabel, CandidateProgram, CompilerError, EdgeSelection, ExactSolveInput,
-    ExactSolvedGraph,
+    ExactSolvedGraph, ExactSolvedGraphStatus,
 };
 use serde_json::json;
 use treemaker_fold::{Assignment, FoldAngle, FoldDocument};
@@ -206,6 +206,78 @@ pub fn export_exact_solved_to_fold_json(
     )?)
 }
 
+/// Schema tag for the synthetic graph a pre-solve export goes through.
+/// Deliberately distinct from `exact_solve`'s own schema so a candidate graph
+/// is never mistaken for solver output.
+const CANDIDATE_GRAPH_SCHEMA: &str = "oristudio/cp-compiler/exact-solve-candidate-graph-v1";
+
+/// Export the candidate topology at its **pre-solve** coordinates.
+///
+/// Topology repair needs the detected graph as a FOLD document *before*
+/// `solve_exact` runs, so the user can look at it and edit it. Rather than a
+/// second exporter, this builds a synthetic [`ExactSolvedGraph`] whose
+/// `vertices_exact` are the candidate points and whose `edges_exact` are the
+/// selected spans' vertex pairs, then delegates to
+/// [`export_exact_solved_to_fold_document`]. One export codepath, so the
+/// pre-solve and post-solve documents cannot drift apart.
+pub fn export_candidate_to_fold_document(
+    input: &ExactSolveInput,
+) -> Result<FoldDocument, CompilerError> {
+    // Spans address vertices by id, but `vertices_exact` is positional, so the
+    // delegate's remap is correct only while `id == index`. That invariant is
+    // established by span/vertex id assignment and relied on across the
+    // compiler, but nothing in the type enforces it — check it here rather than
+    // silently exporting edges that point at the wrong coordinates.
+    for (index, vertex) in input.vertices.iter().enumerate() {
+        if vertex.id != index {
+            return Err(CompilerError::ExactExport(format!(
+                "candidate vertex at index {index} has id {}; export requires id == index",
+                vertex.id
+            )));
+        }
+    }
+
+    let candidate = ExactSolvedGraph {
+        schema: CANDIDATE_GRAPH_SCHEMA.to_owned(),
+        vertices_exact: input.vertices.iter().map(|vertex| vertex.point).collect(),
+        edges_exact: input
+            .selected_spans
+            .iter()
+            .map(|span| span.vertices)
+            .collect(),
+        movement_report: json!({
+            "status": "not_run",
+            "reason": "pre_solve_candidate",
+        }),
+        theorem_residual_report: json!({
+            "status": "not_run",
+            "reason": "pre_solve_candidate",
+        }),
+        // `ExactSolvedGraphStatus` has no "not run" member, and both `Solved`
+        // and `Ambiguous` assert the solver produced a solution — neither is
+        // true here. `Failed` is precisely what `solve_exact` itself reports
+        // whenever it hands back the *input* coordinates without solving them
+        // (`exact_solve::failed_graph`, and the preflight-blocked path), which
+        // is the same situation. So any consumer gating on `Solved` correctly
+        // refuses to treat this document as exact.
+        status: ExactSolvedGraphStatus::Failed,
+    };
+
+    let mut document = export_exact_solved_to_fold_document(input, &candidate)?;
+    document.frame_title = Some("candidate crease pattern".to_owned());
+    // Re-tag the provenance blob the delegate wrote: `source` is the field a
+    // reader keys on, and this geometry is the detector's candidate rather than
+    // a solver result.
+    if let Some(detector) = document
+        .extra
+        .get_mut("cp_detector")
+        .and_then(|value| value.as_object_mut())
+    {
+        detector.insert("source".to_owned(), json!("exact_solve_candidate"));
+    }
+    Ok(document)
+}
+
 fn fold_assignment(label: AssignmentLabel) -> Assignment {
     match label {
         AssignmentLabel::Boundary => Assignment::Boundary,
@@ -322,6 +394,105 @@ mod tests {
         assert_eq!(
             fold.extra["cp_detector"]["edge_ids"],
             serde_json::json!([0])
+        );
+    }
+
+    fn load_exact_solve_fixture(name: &str) -> ExactSolveInput {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/exact_solve")
+            .join(format!("{name}.json"));
+        let bytes = std::fs::read(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+        serde_json::from_slice(&bytes).unwrap_or_else(|e| panic!("parse {}: {e}", path.display()))
+    }
+
+    #[test]
+    fn exports_candidate_fixture_at_pre_solve_coordinates() {
+        let input = load_exact_solve_fixture("right_small_fork");
+        assert!(input.selected_spans.len() > 1, "fixture should have spans");
+
+        let fold = export_candidate_to_fold_document(&input).expect("candidate FOLD export");
+
+        // One FOLD edge per selected span, in span order.
+        assert_eq!(fold.edges_vertices.len(), input.selected_spans.len());
+
+        // Every exported endpoint sits exactly on the candidate point of the
+        // vertex its span names — nothing has been solved or moved.
+        for (edge, span) in fold.edges_vertices.iter().zip(&input.selected_spans) {
+            for (exported, candidate_id) in edge.iter().zip(span.vertices) {
+                let point = input.vertices[candidate_id].point;
+                assert_eq!(
+                    fold.vertices_coords[*exported],
+                    vec![point.x, point.y],
+                    "span {} endpoint {candidate_id}",
+                    span.id
+                );
+            }
+        }
+
+        // Assignments come from the spans' own labels.
+        let expected_assignments = input
+            .selected_spans
+            .iter()
+            .map(|span| fold_assignment(span.assignment_label()))
+            .collect::<Vec<_>>();
+        assert_eq!(fold.edges_assignment, expected_assignments);
+        for label in [
+            Assignment::Mountain,
+            Assignment::Valley,
+            Assignment::Boundary,
+        ] {
+            assert!(
+                expected_assignments.contains(&label),
+                "fixture should exercise {label:?}"
+            );
+        }
+
+        // The document says plainly that it is not solved.
+        assert_eq!(fold.extra["cp_detector"]["source"], "exact_solve_candidate");
+        assert_eq!(fold.extra["cp_detector"]["exact_status"], "failed");
+        assert_eq!(
+            fold.extra["cp_detector"]["exact_solve"]["movement_report"]["status"],
+            "not_run"
+        );
+    }
+
+    #[test]
+    fn candidate_export_matches_the_solved_exporter_at_identity() {
+        let input = load_exact_solve_fixture("right_small_fork");
+        let identity = ExactSolvedGraph {
+            schema: "test".to_owned(),
+            vertices_exact: input.vertices.iter().map(|vertex| vertex.point).collect(),
+            edges_exact: input
+                .selected_spans
+                .iter()
+                .map(|span| span.vertices)
+                .collect(),
+            movement_report: serde_json::json!({}),
+            theorem_residual_report: serde_json::json!({}),
+            status: ExactSolvedGraphStatus::Failed,
+        };
+
+        let candidate = export_candidate_to_fold_document(&input).expect("candidate FOLD export");
+        let solved =
+            export_exact_solved_to_fold_document(&input, &identity).expect("exact FOLD export");
+
+        assert_eq!(candidate.vertices_coords, solved.vertices_coords);
+        assert_eq!(candidate.edges_vertices, solved.edges_vertices);
+        assert_eq!(candidate.edges_assignment, solved.edges_assignment);
+        assert_eq!(candidate.edges_fold_angle, solved.edges_fold_angle);
+    }
+
+    #[test]
+    fn candidate_export_refuses_when_vertex_ids_are_not_indices() {
+        let mut input = load_exact_solve_fixture("right_small_fork");
+        input.vertices[3].id = 99;
+
+        let error = export_candidate_to_fold_document(&input)
+            .expect_err("id != index must not export silently");
+
+        assert!(
+            error.to_string().contains("id == index"),
+            "unexpected error: {error}"
         );
     }
 

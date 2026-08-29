@@ -329,6 +329,116 @@ pub fn cp_detect_decode_dense_output_bundle_with_source_image_line_evidence(
     to_js_value_via_json(&decoded)
 }
 
+/// Run the exact solver on an `ExactSolveInput`, returning the
+/// `ExactSolvedGraph`.
+///
+/// This is the repair seam: `oristudio_cp_compiler::solve_exact` is a pure
+/// function of its input, so the browser can take the `exact_solve_input`
+/// emitted in a detection's `compiler_report`, edit the candidate topology by
+/// hand, and hand it back here. No dense heads, no source image, no selection
+/// state is involved.
+///
+/// `options_json` may be empty, `"null"`, or a partial object; any field it
+/// omits keeps its `ExactSolveOptions::default()` value. An unrecognised field
+/// name is an error rather than a silent no-op.
+#[wasm_bindgen]
+pub fn cp_detect_solve_exact(input_json: &str, options_json: &str) -> Result<JsValue, JsValue> {
+    install_panic_hook();
+    let input = parse_exact_solve_input(input_json)?;
+    let options = parse_exact_solve_options(options_json)?;
+    let solved = oristudio_cp_compiler::solve_exact(&input, options);
+    to_js_value_via_json(&solved)
+}
+
+/// Solve, then export the result as a FOLD document at the solved coordinates —
+/// the same `export_exact_solved_to_fold_document` the detector's product path
+/// uses, so the browser does not re-implement it.
+///
+/// Returns `{ schema, solved, fold }`: one solve serves both the FOLD geometry
+/// and the `ExactSolvedGraph` status / movement report the repair UI reports
+/// on. Solves run 0.36s (easy p50) to 25s (timeout cap), so this exists
+/// specifically so a caller that needs both does not pay for two.
+#[wasm_bindgen]
+pub fn cp_detect_solve_exact_to_fold(
+    input_json: &str,
+    options_json: &str,
+) -> Result<JsValue, JsValue> {
+    install_panic_hook();
+    let input = parse_exact_solve_input(input_json)?;
+    let options = parse_exact_solve_options(options_json)?;
+    let solved = oristudio_cp_compiler::solve_exact(&input, options);
+    let document =
+        oristudio_cp_compiler::fold_export::export_exact_solved_to_fold_document(&input, &solved)
+            .map_err(to_js_compiler_error)?;
+
+    let mut payload = serde_json::Map::new();
+    payload.insert(
+        "schema".to_owned(),
+        serde_json::Value::String(SOLVE_EXACT_FOLD_SCHEMA.to_owned()),
+    );
+    payload.insert(
+        "solved".to_owned(),
+        serde_json::to_value(&solved).map_err(|error| js_error("js_value", error.to_string()))?,
+    );
+    payload.insert(
+        "fold".to_owned(),
+        serde_json::to_value(&document).map_err(|error| js_error("js_value", error.to_string()))?,
+    );
+    to_js_value_via_json(&serde_json::Value::Object(payload))
+}
+
+const SOLVE_EXACT_FOLD_SCHEMA: &str = "oristudio/cp-detect/solve-exact-fold-v1";
+
+fn parse_exact_solve_input(text: &str) -> Result<oristudio_cp_compiler::ExactSolveInput, JsValue> {
+    serde_json::from_str(text.trim())
+        .map_err(|error| js_error("invalid_exact_solve_input", error.to_string()))
+}
+
+fn parse_exact_solve_options(
+    text: &str,
+) -> Result<oristudio_cp_compiler::ExactSolveOptions, JsValue> {
+    exact_solve_options_from_json(text)
+        .map_err(|message| js_error("invalid_exact_solve_options", message))
+}
+
+/// `ExactSolveOptions` derives `Deserialize` without a blanket `default`, so
+/// most of its fields are mandatory in a plain `from_str`. The browser wants to
+/// override one knob (a per-vertex movement budget, a shorter timeout) and
+/// inherit the rest, so overrides are merged over the serialized defaults.
+///
+/// Kept `JsValue`-free so it is testable off-target; the wasm wrapper above
+/// turns the message into the shared error envelope.
+fn exact_solve_options_from_json(
+    text: &str,
+) -> Result<oristudio_cp_compiler::ExactSolveOptions, String> {
+    let defaults = oristudio_cp_compiler::ExactSolveOptions::default();
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return Ok(defaults);
+    }
+
+    let overrides = match serde_json::from_str(trimmed).map_err(|error| error.to_string())? {
+        serde_json::Value::Null => return Ok(defaults),
+        serde_json::Value::Object(map) => map,
+        _ => return Err("exact solve options must be a JSON object".to_owned()),
+    };
+
+    let serde_json::Value::Object(mut merged) =
+        serde_json::to_value(defaults).map_err(|error| error.to_string())?
+    else {
+        return Err("exact solve options did not serialize to an object".to_owned());
+    };
+    for (key, value) in overrides {
+        // `ExactSolveOptions` does not deny unknown fields, so without this a
+        // misspelled knob would deserialize cleanly and change nothing.
+        if !merged.contains_key(&key) {
+            return Err(format!("unknown exact solve option {key:?}"));
+        }
+        merged.insert(key, value);
+    }
+    serde_json::from_value(serde_json::Value::Object(merged)).map_err(|error| error.to_string())
+}
+
 #[wasm_bindgen]
 #[allow(clippy::too_many_arguments)]
 pub fn cp_detect_ablate_dense_outputs(
@@ -667,6 +777,16 @@ fn to_js_decode_error(error: oristudio_cp_detect::decode::DecodeError) -> JsValu
     js_error(code, error.to_string())
 }
 
+fn to_js_compiler_error(error: oristudio_cp_compiler::CompilerError) -> JsValue {
+    let code = match error {
+        oristudio_cp_compiler::CompilerError::Json(_) => "invalid_json",
+        oristudio_cp_compiler::CompilerError::MissingField(_) => "missing_field",
+        oristudio_cp_compiler::CompilerError::InvalidEntry { .. } => "invalid_entry",
+        oristudio_cp_compiler::CompilerError::ExactExport(_) => "exact_export",
+    };
+    js_error(code, error.to_string())
+}
+
 fn wasm_rectified_image(
     result: oristudio_cp_detect::rectify::RectifiedRgbaImage,
 ) -> Result<WasmRectifiedImage, JsValue> {
@@ -721,5 +841,58 @@ mod default_export_tests {
             super::cp_detect_default_line_evidence_source(),
             oristudio_cp_detect::defaults::DEFAULT_LINE_EVIDENCE_SOURCE
         );
+    }
+}
+
+#[cfg(test)]
+mod exact_solve_options_tests {
+    //! `JsValue` is unusable off-target, so these cover the parsing helper the
+    //! solve exports share rather than the exports themselves.
+    use super::exact_solve_options_from_json;
+    use oristudio_cp_compiler::ExactSolveOptions;
+
+    #[test]
+    fn empty_and_null_options_fall_back_to_defaults() {
+        let default = ExactSolveOptions::default();
+        assert_eq!(exact_solve_options_from_json(""), Ok(default));
+        assert_eq!(exact_solve_options_from_json("   "), Ok(default));
+        assert_eq!(exact_solve_options_from_json("null"), Ok(default));
+        assert_eq!(exact_solve_options_from_json("{}"), Ok(default));
+    }
+
+    #[test]
+    fn partial_options_override_only_the_named_fields() {
+        let default = ExactSolveOptions::default();
+        let parsed = exact_solve_options_from_json(
+            r#"{"max_vertex_movement": 0.1, "timeout_seconds": 5.0}"#,
+        )
+        .expect("partial options");
+
+        assert_eq!(parsed.max_vertex_movement, 0.1);
+        assert_eq!(parsed.timeout_seconds, 5.0);
+        // Everything else is inherited; the priors in particular must not be
+        // silently reset, since they are what keeps the solver from drifting to
+        // a nearby valid-but-wrong CP.
+        assert_eq!(parsed.movement_sigma, default.movement_sigma);
+        assert_eq!(
+            parsed.boundary_movement_sigma,
+            default.boundary_movement_sigma
+        );
+        assert_eq!(parsed.polish, default.polish);
+        assert_eq!(parsed.linear_solver, default.linear_solver);
+    }
+
+    #[test]
+    fn a_misspelled_option_is_an_error_rather_than_a_silent_no_op() {
+        let error = exact_solve_options_from_json(r#"{"max_vertex_moovement": 0.1}"#)
+            .expect_err("unknown option");
+        assert!(error.contains("max_vertex_moovement"), "{error}");
+    }
+
+    #[test]
+    fn non_object_options_are_rejected() {
+        assert!(exact_solve_options_from_json("[]").is_err());
+        assert!(exact_solve_options_from_json("7").is_err());
+        assert!(exact_solve_options_from_json("{oops}").is_err());
     }
 }

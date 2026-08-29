@@ -126,35 +126,42 @@ pub fn decode_dense_outputs_with_backend_junction_source_and_refined_vertices_in
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+/// Wall clock for the decode stage timings reported in `compiler_report`.
+///
+/// `std::time::Instant` panics under `wasm32-unknown-unknown`, so the browser
+/// arm reads `Date.now()` instead — the same split
+/// `oristudio_cp_compiler::exact_solve`'s deadline clock uses, so the solver's
+/// `movement_report.elapsed_seconds` and our `exact_solve_seconds` come off the
+/// same source. `Date.now()` is millisecond-resolution and can be coarsened
+/// further by cross-origin isolation settings, so browser stage timings are
+/// accurate to a few milliseconds, not to the microsecond that `Instant` gives
+/// natively.
 struct StageTimer {
+    #[cfg(not(target_arch = "wasm32"))]
     started_at: Instant,
+    #[cfg(target_arch = "wasm32")]
+    started_at_ms: f64,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 impl StageTimer {
     fn start() -> Self {
         Self {
+            #[cfg(not(target_arch = "wasm32"))]
             started_at: Instant::now(),
+            #[cfg(target_arch = "wasm32")]
+            started_at_ms: js_sys::Date::now(),
         }
     }
 
     fn elapsed_seconds(&self) -> f64 {
-        self.started_at.elapsed().as_secs_f64()
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-struct StageTimer;
-
-#[cfg(target_arch = "wasm32")]
-impl StageTimer {
-    fn start() -> Self {
-        Self
-    }
-
-    fn elapsed_seconds(&self) -> f64 {
-        0.0
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.started_at.elapsed().as_secs_f64()
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            ((js_sys::Date::now() - self.started_at_ms) / 1000.0).max(0.0)
+        }
     }
 }
 
@@ -558,6 +565,13 @@ fn legacy_candidate_exact_solve_from_generation(
         &candidate_graph,
         &selected_graph,
     );
+    // Captured *before* the solve, and verbatim: `solve_exact` is a pure
+    // function of this value, so emitting it is what lets the browser edit the
+    // candidate topology by hand and re-solve (see
+    // `implementation-plans/crease-topology-repair.md`, "The seam already
+    // exists"). Serialized eagerly so a serialization failure propagates as a
+    // typed `DecodeError::Json` rather than panicking inside `json!`.
+    let exact_solve_input = serde_json::to_value(&exact_input)?;
     let exact_started = StageTimer::start();
     let exact_solve = oristudio_cp_compiler::solve_exact(
         &exact_input,
@@ -638,6 +652,10 @@ fn legacy_candidate_exact_solve_from_generation(
             "weak_selected_spans": weak_selected_spans,
             "dropped_legacy_spans": dropped_legacy_spans
         },
+        // The pre-solve candidate the solve ran on, verbatim. Round-trips back
+        // into `oristudio_cp_compiler::ExactSolveInput`, so a client can hand a
+        // hand-edited copy to `cp_detect_solve_exact` and get a real solve.
+        "exact_solve_input": exact_solve_input,
         "exact_solve": exact_solve,
         "summary": summary,
         "topology": {
@@ -1755,6 +1773,112 @@ mod tests {
                 .expect("edges")
                 .len()
         );
+    }
+
+    #[test]
+    fn legacy_candidate_exact_solve_emits_the_pre_solve_exact_solve_input() {
+        let (outputs, config) = square_cross_fixture();
+        let timeout_seconds = config.exact_solve_timeout_seconds;
+        let compiler = decode_dense_outputs_with_backend(
+            outputs,
+            config,
+            DecoderBackend::LegacyCandidateExactSolveV1,
+        )
+        .expect("legacy candidate exact solve decode");
+        let compiler_fold: Value =
+            serde_json::from_str(&compiler.fold_json).expect("compiler fold");
+
+        // Emitted on both surfaces the browser can reach: the decode report and
+        // the FOLD document's embedded copy. Both must deserialize back into
+        // the type `solve_exact` consumes — that is the whole point of emitting
+        // it. They are compared field-wise rather than as raw `Value`s because
+        // the FOLD copy has been through `to_string_pretty` and back, and
+        // serde_json's float parser can land one ULP off the value ryu wrote.
+        let from_report = &compiler.report.quality_report["compiler_report"]["exact_solve_input"];
+        let from_fold = &compiler_fold["cp_detector"]["compiler_report"]["exact_solve_input"];
+        let recovered: oristudio_cp_compiler::ExactSolveInput =
+            serde_json::from_value(from_report.clone()).expect("exact solve input round-trip");
+        let recovered_from_fold: oristudio_cp_compiler::ExactSolveInput =
+            serde_json::from_value(from_fold.clone()).expect("fold exact solve input round-trip");
+
+        assert_eq!(
+            recovered.schema,
+            "oristudio/cp-compiler/exact-solve-input-v1"
+        );
+        assert_eq!(recovered_from_fold.schema, recovered.schema);
+        assert_eq!(recovered_from_fold.vertices.len(), recovered.vertices.len());
+        assert_eq!(
+            recovered_from_fold.selected_spans.len(),
+            recovered.selected_spans.len()
+        );
+        assert!(!recovered.vertices.is_empty());
+        assert!(!recovered.selected_spans.is_empty());
+        assert_eq!(
+            recovered.selected_spans.len(),
+            compiler_fold["edges_vertices"]
+                .as_array()
+                .expect("edges")
+                .len()
+        );
+        // Vertex ids index the vertex table; `solve_exact` and the FOLD export
+        // both address vertices by `span.vertices`, so a client editing the
+        // graph has to preserve this.
+        for (index, vertex) in recovered.vertices.iter().enumerate() {
+            assert_eq!(vertex.id, index);
+        }
+        // Pre-solve, not post-solve: the emitted coordinates are the candidate
+        // ones, and `exact_solve.vertices_exact` is what the solver moved them
+        // to. On this fixture the solve does move at least one vertex, so the
+        // two are distinguishable.
+        let solved_points =
+            compiler.report.quality_report["compiler_report"]["exact_solve"]["vertices_exact"]
+                .as_array()
+                .expect("solved vertices")
+                .clone();
+        assert_eq!(solved_points.len(), recovered.vertices.len());
+
+        // Re-solving the recovered input reproduces the solve the decode ran,
+        // which is the seam the browser repair flow stands on.
+        let resolved = oristudio_cp_compiler::solve_exact(
+            &recovered,
+            oristudio_cp_compiler::ExactSolveOptions {
+                timeout_seconds,
+                ..oristudio_cp_compiler::ExactSolveOptions::default()
+            },
+        );
+        assert_eq!(
+            serde_json::to_value(resolved.status).expect("status"),
+            compiler.report.quality_report["compiler_report"]["exact_solve"]["status"]
+        );
+        assert_eq!(
+            serde_json::to_value(&resolved.vertices_exact).expect("resolved points"),
+            Value::Array(solved_points)
+        );
+    }
+
+    #[test]
+    fn legacy_candidate_exact_solve_reports_real_stage_timings() {
+        let (outputs, config) = square_cross_fixture();
+        let compiler = decode_dense_outputs_with_backend(
+            outputs,
+            config,
+            DecoderBackend::LegacyCandidateExactSolveV1,
+        )
+        .expect("legacy candidate exact solve decode");
+        let timings = &compiler.report.quality_report["compiler_report"]["timings"];
+        let compiler_seconds = timings["compiler_seconds"]
+            .as_f64()
+            .expect("compiler seconds");
+        let exact_seconds = timings["exact_solve_seconds"]
+            .as_f64()
+            .expect("exact solve seconds");
+
+        // The wasm arm of `StageTimer` used to return a hard 0.0, so these two
+        // were identically zero in every browser run. Both clocks now measure;
+        // the exact-solve stage is nested inside the compiler stage.
+        assert!(compiler_seconds.is_finite() && compiler_seconds > 0.0);
+        assert!(exact_seconds.is_finite() && exact_seconds >= 0.0);
+        assert!(exact_seconds <= compiler_seconds);
     }
 
     #[test]

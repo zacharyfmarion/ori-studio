@@ -4,7 +4,9 @@
 //! coordinates that better satisfy geometric/origami constraints. It does not
 //! add or remove creases; topology selection belongs to the previous phase.
 
-use crate::candidate_graph::{CandidateCreaseBoundaryRole, CandidateVertex};
+use crate::candidate_graph::{
+    BoundaryReconstructionPolicy, CandidateCreaseBoundaryRole, CandidateVertex,
+};
 use crate::{
     AssignmentLabel, BoundaryModel, BoundarySide, CandidateCreaseSpan, CandidateCreaseSpanKind,
     CandidateGraphProvenance, CandidateSourceAdapter, CandidateVertexKind,
@@ -156,6 +158,43 @@ impl Default for ExactSolveOptions {
     }
 }
 
+/// [`ExactSolveOptions`] plus the set of vertices exempt from the
+/// `max_vertex_movement` budget.
+///
+/// The exemption is what lets a user-authored repair through: the movement
+/// budget is measured from the *input* coordinates, so a vertex the user
+/// deliberately dragged reads as a large drift and rejects the whole solve
+/// (`movement_budget_exceeded`), even though every other vertex is well inside
+/// the cap. Exempting that one vertex leaves the cap in force everywhere else,
+/// which is the point — the budget's job is to catch LM wandering off toward a
+/// nearby valid-but-wrong CP, and a blanket raise gives that up globally.
+///
+/// The set lives here rather than in [`ExactSolveOptions`] because
+/// `ExactSolveOptions` is `Copy` and is moved out of shared references across
+/// the workspace (e.g. `solve_exact(&input, args.options)` inside a `par_iter`
+/// closure in the replay binary); a heap-allocated field would break those
+/// call sites. `#[serde(flatten)]` keeps the JSON shape a superset of the
+/// options object, so a serialized `ExactSolveOptions` deserializes into this
+/// type unchanged and gains one optional `exempt_vertex_ids` key.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+pub struct ExactSolveOptionsWithExemptions {
+    #[serde(flatten)]
+    pub options: ExactSolveOptions,
+    /// Vertex ids excluded from the `max_vertex_movement` maximum. Empty by
+    /// default, in which case the budget behaves exactly as it always has.
+    #[serde(default)]
+    pub exempt_vertex_ids: BTreeSet<usize>,
+}
+
+impl From<ExactSolveOptions> for ExactSolveOptionsWithExemptions {
+    fn from(options: ExactSolveOptions) -> Self {
+        Self {
+            options,
+            exempt_vertex_ids: BTreeSet::new(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 struct ExactSolveDeadline {
     timeout_seconds: f64,
@@ -195,6 +234,28 @@ impl ExactSolveDeadline {
 }
 
 pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> ExactSolvedGraph {
+    solve_exact_inner(input, options, Rc::new(BTreeSet::new()))
+}
+
+/// [`solve_exact`] with a per-vertex movement-budget exemption set; see
+/// [`ExactSolveOptionsWithExemptions`]. With an empty exemption set this is
+/// [`solve_exact`].
+pub fn solve_exact_with_exemptions(
+    input: &ExactSolveInput,
+    options: &ExactSolveOptionsWithExemptions,
+) -> ExactSolvedGraph {
+    solve_exact_inner(
+        input,
+        options.options,
+        Rc::new(options.exempt_vertex_ids.clone()),
+    )
+}
+
+fn solve_exact_inner(
+    input: &ExactSolveInput,
+    options: ExactSolveOptions,
+    exempt_vertex_ids: Rc<BTreeSet<usize>>,
+) -> ExactSolvedGraph {
     let deadline = ExactSolveDeadline::start(options.timeout_seconds);
     let validation = validate_input(input);
     if !validation.is_empty() {
@@ -212,7 +273,7 @@ pub fn solve_exact(input: &ExactSolveInput, options: ExactSolveOptions) -> Exact
         );
     }
 
-    let model = SolveModel::new(input, options, deadline);
+    let model = SolveModel::new(input, options, deadline, exempt_vertex_ids);
     let initial_params = model.initial_params.clone();
     let before_points = model.points_from_params(&initial_params);
     let before = analyze_graph(input, &before_points, &model, &initial_params, options);
@@ -473,6 +534,10 @@ struct SolveModel {
     deadline: ExactSolveDeadline,
     timed_out: Rc<Cell<bool>>,
     provenance: CandidateGraphProvenance,
+    /// Vertices excluded from the `max_vertex_movement` maximum; see
+    /// [`ExactSolveOptionsWithExemptions`]. Shared rather than cloned so the
+    /// per-round polish copies of this model stay free.
+    exempt_vertex_ids: Rc<BTreeSet<usize>>,
 }
 
 impl SolveModel {
@@ -480,9 +545,20 @@ impl SolveModel {
         input: &ExactSolveInput,
         options: ExactSolveOptions,
         deadline: ExactSolveDeadline,
+        exempt_vertex_ids: Rc<BTreeSet<usize>>,
     ) -> Self {
         let mut params = Vec::new();
-        let corner_points = corner_points(&input.boundary);
+        let polygon = is_polygon_boundary(input);
+        let corner_points = if polygon {
+            polygon_corner_points(input)
+        } else {
+            corner_points(&input.boundary)
+        };
+        let side_segments = if polygon {
+            polygon_side_segments(input)
+        } else {
+            BTreeMap::new()
+        };
         let corner_ids = input
             .boundary
             .corners
@@ -503,7 +579,15 @@ impl SolveModel {
                 });
                 continue;
             }
-            if let Some(side) = vertex.boundary_side {
+            if let Some(&(origin, vector)) = side_segments.get(&vertex.id) {
+                let index = params.len();
+                params.push(segment_param(vertex.point, origin, vector));
+                vertex_params.push(VertexParameterization::PolyBoundary {
+                    index,
+                    origin,
+                    vector,
+                });
+            } else if let Some(side) = vertex.boundary_side {
                 let index = params.len();
                 params.push(side_coord(side, vertex.point));
                 vertex_params.push(VertexParameterization::Boundary { index, side });
@@ -561,6 +645,7 @@ impl SolveModel {
             deadline,
             timed_out: Rc::new(Cell::new(false)),
             provenance: input.provenance.clone(),
+            exempt_vertex_ids,
         }
     }
 
@@ -581,6 +666,14 @@ impl SolveModel {
             .map(|param| match *param {
                 VertexParameterization::Fixed { point } => point,
                 VertexParameterization::Boundary { index, side } => side_point(side, params[index]),
+                VertexParameterization::PolyBoundary {
+                    index,
+                    origin,
+                    vector,
+                } => Point2::new(
+                    origin.x + params[index] * vector.x,
+                    origin.y + params[index] * vector.y,
+                ),
                 VertexParameterization::Free { x_index, y_index } => Point2::new(
                     params[x_index].clamp(-0.25, 1.25),
                     params[y_index].clamp(-0.25, 1.25),
@@ -633,6 +726,20 @@ impl SolveModel {
                     let original = vertex
                         .boundary_side
                         .map_or(vertex.point.x, |side| side_coord(side, vertex.point));
+                    let weight = movement_weight(vertex.support, source_weight);
+                    push_residual(
+                        &mut residuals,
+                        &mut breakdown,
+                        ResidualFamily::BoundaryMovement,
+                        weight * (params[index] - original) / self.options.boundary_movement_sigma,
+                    );
+                }
+                VertexParameterization::PolyBoundary {
+                    index,
+                    origin,
+                    vector,
+                } => {
+                    let original = segment_param(vertex.point, origin, vector);
                     let weight = movement_weight(vertex.support, source_weight);
                     push_residual(
                         &mut residuals,
@@ -746,6 +853,11 @@ impl SolveModel {
                     add(row, index, weight / self.options.boundary_movement_sigma);
                     row += 1;
                 }
+                VertexParameterization::PolyBoundary { index, .. } => {
+                    let weight = movement_weight(vertex.support, source_weight);
+                    add(row, index, weight / self.options.boundary_movement_sigma);
+                    row += 1;
+                }
                 VertexParameterization::Free { x_index, y_index } => {
                     let sigma = movement_sigma(&self.cost_model, self.options, vertex.support);
                     let weight = movement_weight(vertex.support, source_weight);
@@ -818,6 +930,7 @@ impl SolveModel {
             .map(|param| match param {
                 VertexParameterization::Fixed { .. } => 0,
                 VertexParameterization::Boundary { .. } => 1,
+                VertexParameterization::PolyBoundary { .. } => 1,
                 VertexParameterization::Free { .. } => 2,
             })
             .sum::<usize>();
@@ -887,6 +1000,10 @@ impl SolveModel {
                         BoundarySide::Right | BoundarySide::Left => dy,
                     },
                 );
+            }
+            VertexParameterization::PolyBoundary { index, vector, .. } => {
+                // point = origin + t·vector, so d(point)/dt = vector.
+                add(row, index, dx * vector.x + dy * vector.y);
             }
             VertexParameterization::Free { x_index, y_index } => {
                 if params[x_index] > -0.25 && params[x_index] < 1.25 {
@@ -1249,9 +1366,24 @@ fn push_residual(
 
 #[derive(Debug, Clone)]
 enum VertexParameterization {
-    Fixed { point: Point2 },
-    Boundary { index: usize, side: BoundarySide },
-    Free { x_index: usize, y_index: usize },
+    Fixed {
+        point: Point2,
+    },
+    Boundary {
+        index: usize,
+        side: BoundarySide,
+    },
+    /// A boundary vertex on an arbitrary (non-axis-aligned) polygon side. The
+    /// single parameter is the position `t` along the segment `origin + t·vector`.
+    PolyBoundary {
+        index: usize,
+        origin: Point2,
+        vector: Point2,
+    },
+    Free {
+        x_index: usize,
+        y_index: usize,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -1377,6 +1509,13 @@ struct GraphAnalysis {
     max_kawasaki_residual_degrees: f64,
     max_carrier_residual: f64,
     max_vertex_movement: f64,
+    /// `max_vertex_movement` restricted to the vertices the caller did *not*
+    /// exempt — the value the movement budget is actually enforced against.
+    /// Equal to `max_vertex_movement` whenever the exemption set is empty,
+    /// which is every automatic solve. Not reported: `analysis_json` keeps
+    /// publishing the unrestricted maximum.
+    #[serde(skip)]
+    max_budgeted_vertex_movement: f64,
     mean_vertex_movement: f64,
     degenerate_edges: Vec<[usize; 2]>,
     unmodeled_crossings: Vec<[usize; 2]>,
@@ -1511,6 +1650,17 @@ fn analyze_graph(
         .map(|(vertex, point)| distance(vertex.point, *point))
         .collect::<Vec<_>>();
     let max_vertex_movement = movement.iter().copied().fold(0.0_f64, f64::max);
+    let max_budgeted_vertex_movement = if model.exempt_vertex_ids.is_empty() {
+        max_vertex_movement
+    } else {
+        input
+            .vertices
+            .iter()
+            .zip(&movement)
+            .filter(|(vertex, _)| !model.exempt_vertex_ids.contains(&vertex.id))
+            .map(|(_, moved)| *moved)
+            .fold(0.0_f64, f64::max)
+    };
     let mean_vertex_movement = if movement.is_empty() {
         0.0
     } else {
@@ -1530,11 +1680,167 @@ fn analyze_graph(
         max_kawasaki_residual_degrees,
         max_carrier_residual,
         max_vertex_movement,
+        max_budgeted_vertex_movement,
         mean_vertex_movement,
         degenerate_edges: degenerate_edges(input, points, options),
         unmodeled_crossings: unmodeled_crossings(input, points, options),
         boundary_failures: boundary_failures(input, points),
     }
+}
+
+const TOPOLOGY_DIAGNOSTICS_SCHEMA: &str = "oristudio/cp-compiler/topology-diagnostics-v1";
+
+/// Pre-solve topology findings for a candidate graph, split by whether the
+/// finding is a property of the *graph* or of its current *coordinates*.
+///
+/// The split is the point of this type. An unsolved candidate's Kawasaki
+/// residuals sit orders of magnitude above the flat-fold epsilon at nearly
+/// every interior vertex — that is what the solve is *for* — so the
+/// angle-dependent findings say nothing about whether the topology is right and
+/// make a useless repair worklist. The combinatorial findings survive moving
+/// the drawing around, and are what a user can act on.
+///
+/// Four of the six combinatorial fields (`odd_degree_vertices`,
+/// `degenerate_edges`, `unmodeled_crossings`, `boundary_failures`) are the gates
+/// `exact_solution_rejection_reasons` refuses on, so they double as "would the
+/// solver even accept this?". Maekawa is deliberately not one of those gates.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+pub struct TopologyDiagnostics {
+    pub schema: String,
+    /// Non-empty when the input is malformed enough that no analysis ran (a
+    /// span or corner referencing a missing vertex, or a vertex whose `id` is
+    /// not a valid index into `vertices`). Every other field is empty then.
+    pub blockers: Vec<String>,
+    pub combinatorial: CombinatorialTopologyFindings,
+    pub angle_dependent: AngleDependentTopologyFindings,
+    /// Per-vertex detail for the interior fold vertices the checks apply to,
+    /// in `vertices` order.
+    pub vertices: Vec<TopologyVertexDiagnostic>,
+}
+
+/// Findings that depend on the graph, not on where its vertices sit. Stable
+/// under a small change of coordinates, so they can be surfaced as a worklist
+/// while the user is still moving things.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+pub struct CombinatorialTopologyFindings {
+    /// Interior vertices with an odd number of incident folds — no flat-foldable
+    /// assignment exists. The highest-volume repair signal by a wide margin.
+    pub odd_degree_vertices: Vec<usize>,
+    /// Interior vertices with exactly two incident folds. Not an error on its
+    /// own; the repair is to dissolve the vertex and rejoin its two edges,
+    /// never to delete it.
+    pub degree_two_vertices: Vec<usize>,
+    /// Interior vertices where `|M - V| != 2` over a fully-assigned fan.
+    pub maekawa_failures: Vec<usize>,
+    /// Spans shorter than the degenerate-edge epsilon, as **vertex id pairs**.
+    /// One of these blocks the whole solve at preflight.
+    pub degenerate_edges: Vec<[usize; 2]>,
+    /// Pairs of non-boundary spans that cross without sharing a vertex, as
+    /// **span id pairs** (not vertex ids, unlike `degenerate_edges`). The
+    /// repair is to insert a vertex at the crossing.
+    pub unmodeled_crossings: Vec<[usize; 2]>,
+    /// Vertices whose boundary parameter has left its paper edge.
+    pub boundary_failures: Vec<usize>,
+}
+
+/// Findings that are a property of the current coordinates. On an unsolved
+/// candidate these are large by construction and say nothing about whether the
+/// topology is right.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+pub struct AngleDependentTopologyFindings {
+    pub max_kawasaki_residual_degrees: f64,
+    pub max_carrier_residual: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TopologyVertexDiagnostic {
+    pub vertex_id: usize,
+    pub degree: usize,
+    pub mountain_count: usize,
+    pub valley_count: usize,
+    pub unknown_count: usize,
+    /// `None` unless the fan has an even degree of at least four, where
+    /// Kawasaki applies.
+    pub kawasaki_residual_degrees: Option<f64>,
+    /// `None` while any incident crease is unassigned.
+    pub maekawa_residual: Option<usize>,
+}
+
+/// Analyze a candidate graph's topology without solving it.
+///
+/// Pure in `input`: it builds the same internal model and initial coordinates
+/// `solve_exact` would, and runs the same analysis pass that produces the
+/// solver's `before` report — so a finding here is the finding the solver will
+/// see. It never solves and never panics on malformed input (see
+/// [`TopologyDiagnostics::blockers`]). Measured 21 us at 36 spans to 171 us at
+/// 230 spans, release, native — cheap enough to run on every edit.
+pub fn analyze_candidate_topology(input: &ExactSolveInput) -> TopologyDiagnostics {
+    let blockers = topology_analysis_blockers(input);
+    if !blockers.is_empty() {
+        return TopologyDiagnostics {
+            schema: TOPOLOGY_DIAGNOSTICS_SCHEMA.to_owned(),
+            blockers,
+            ..TopologyDiagnostics::default()
+        };
+    }
+    let options = ExactSolveOptions::default();
+    let model = SolveModel::new(
+        input,
+        options,
+        ExactSolveDeadline::start(-1.0),
+        Rc::new(BTreeSet::new()),
+    );
+    let params = model.initial_params.clone();
+    let points = model.points_from_params(&params);
+    let analysis = analyze_graph(input, &points, &model, &params, options);
+    TopologyDiagnostics {
+        schema: TOPOLOGY_DIAGNOSTICS_SCHEMA.to_owned(),
+        blockers,
+        combinatorial: CombinatorialTopologyFindings {
+            odd_degree_vertices: analysis.odd_degree_vertices,
+            degree_two_vertices: analysis.degree_two_vertices,
+            maekawa_failures: analysis.maekawa_failures,
+            degenerate_edges: analysis.degenerate_edges,
+            unmodeled_crossings: analysis.unmodeled_crossings,
+            boundary_failures: analysis.boundary_failures,
+        },
+        angle_dependent: AngleDependentTopologyFindings {
+            max_kawasaki_residual_degrees: analysis.max_kawasaki_residual_degrees,
+            max_carrier_residual: analysis.max_carrier_residual,
+        },
+        vertices: analysis
+            .vertex_diagnostics
+            .into_iter()
+            .map(|vertex| TopologyVertexDiagnostic {
+                vertex_id: vertex.vertex_id,
+                degree: vertex.degree,
+                mountain_count: vertex.mountain_count,
+                valley_count: vertex.valley_count,
+                unknown_count: vertex.unknown_count,
+                kawasaki_residual_degrees: vertex.kawasaki_residual_degrees,
+                maekawa_residual: vertex.maekawa_residual,
+            })
+            .collect(),
+    }
+}
+
+/// `validate_input` plus the `id == index` invariant that `analyze_graph`
+/// indexes by. `solve_exact` gets the invariant for free from its callers;
+/// a hand-edited graph arriving through the public analysis does not, and
+/// indexing by an out-of-range `id` would panic.
+fn topology_analysis_blockers(input: &ExactSolveInput) -> Vec<String> {
+    let mut blockers = validate_input(input);
+    for (index, vertex) in input.vertices.iter().enumerate() {
+        if vertex.id >= input.vertices.len() {
+            blockers.push(format!(
+                "vertex at index {index} has out-of-range id {}",
+                vertex.id
+            ));
+        }
+    }
+    blockers.sort();
+    blockers.dedup();
+    blockers
 }
 
 #[derive(Debug, Clone)]
@@ -1652,7 +1958,7 @@ fn classify_status(
     if !after.degenerate_edges.is_empty()
         || !after.unmodeled_crossings.is_empty()
         || !after.boundary_failures.is_empty()
-        || after.max_vertex_movement > options.max_vertex_movement
+        || after.max_budgeted_vertex_movement > options.max_vertex_movement
     {
         return ExactSolvedGraphStatus::Failed;
     }
@@ -1685,7 +1991,7 @@ fn exact_solution_rejection_reasons(
     if candidate_status == ExactSolvedGraphStatus::Failed {
         reasons.push("candidate_status_failed".to_owned());
     }
-    if after.max_vertex_movement > options.max_vertex_movement {
+    if after.max_budgeted_vertex_movement > options.max_vertex_movement {
         reasons.push("movement_budget_exceeded".to_owned());
     }
     if after.odd_degree_vertices.len() > before.odd_degree_vertices.len() {
@@ -1872,7 +2178,13 @@ fn exact_solve_trace_json(
     let boundary_vertices = model
         .vertex_params
         .iter()
-        .filter(|param| matches!(param, VertexParameterization::Boundary { .. }))
+        .filter(|param| {
+            matches!(
+                param,
+                VertexParameterization::Boundary { .. }
+                    | VertexParameterization::PolyBoundary { .. }
+            )
+        })
         .count();
     let free_vertices = model
         .vertex_params
@@ -2027,6 +2339,49 @@ fn corner_points(boundary: &BoundaryModel) -> BTreeMap<usize, Point2> {
     points
 }
 
+fn is_polygon_boundary(input: &ExactSolveInput) -> bool {
+    input.boundary.reconstruction_policy == BoundaryReconstructionPolicy::Polygon
+}
+
+/// Polygon-policy corners: pinned to their input positions rather than the unit
+/// square.
+fn polygon_corner_points(input: &ExactSolveInput) -> BTreeMap<usize, Point2> {
+    input
+        .boundary
+        .corners
+        .iter()
+        .filter_map(|&id| input.vertices.get(id).map(|v| (id, v.point)))
+        .collect()
+}
+
+/// Polygon-policy side segments keyed by boundary-vertex id: `(origin, vector)`
+/// so the vertex slides along `origin + t·vector` between its two corners.
+fn polygon_side_segments(input: &ExactSolveInput) -> BTreeMap<usize, (Point2, Point2)> {
+    let mut segments = BTreeMap::new();
+    for side in &input.boundary.sides {
+        let (Some(a), Some(b)) = (
+            input.vertices.get(side.corner_vertices[0]),
+            input.vertices.get(side.corner_vertices[1]),
+        ) else {
+            continue;
+        };
+        let vector = Point2::new(b.point.x - a.point.x, b.point.y - a.point.y);
+        for &vertex_id in &side.contact_vertices {
+            segments.insert(vertex_id, (a.point, vector));
+        }
+    }
+    segments
+}
+
+/// Position `t` of `point` projected onto the segment `origin + t·vector`.
+fn segment_param(point: Point2, origin: Point2, vector: Point2) -> f64 {
+    let denom = vector.x * vector.x + vector.y * vector.y;
+    if denom <= 0.0 {
+        return 0.0;
+    }
+    ((point.x - origin.x) * vector.x + (point.y - origin.y) * vector.y) / denom
+}
+
 fn movement_sigma(cost_model: &CostModel, options: ExactSolveOptions, support: f64) -> f64 {
     let support_scale = 1.0 - support.clamp(0.0, 1.0) * 0.35;
     options
@@ -2138,6 +2493,11 @@ fn cross(left: Point2, right: Point2) -> f64 {
 }
 
 fn boundary_failures(input: &ExactSolveInput, points: &[Point2]) -> Vec<usize> {
+    let side_segments = if is_polygon_boundary(input) {
+        polygon_side_segments(input)
+    } else {
+        BTreeMap::new()
+    };
     input
         .vertices
         .iter()
@@ -2145,9 +2505,12 @@ fn boundary_failures(input: &ExactSolveInput, points: &[Point2]) -> Vec<usize> {
             let point = points[vertex.id];
             let failed = if input.boundary.corners.contains(&vertex.id) {
                 false
-            } else if vertex.boundary_side.is_some() {
-                side_coord(vertex.boundary_side.unwrap(), point) < -1e-6
-                    || side_coord(vertex.boundary_side.unwrap(), point) > 1.0 + 1e-6
+            } else if let Some(&(origin, vector)) = side_segments.get(&vertex.id) {
+                let t = segment_param(point, origin, vector);
+                !(-1e-6..=1.0 + 1e-6).contains(&t)
+            } else if let Some(side) = vertex.boundary_side {
+                let coord = side_coord(side, point);
+                !(-1e-6..=1.0 + 1e-6).contains(&coord)
             } else {
                 false
             };
@@ -2542,7 +2905,540 @@ mod tests {
         );
     }
 
+    /// The `right_small_fork` fixture's raster, used to talk about drift in the
+    /// pixels the plan's measurements are quoted in.
+    const FORK_IMAGE_SIZE: f64 = 1024.0;
+    /// An interior junction of `right_small_fork` whose 27px displacement the
+    /// default budget rejects. Verified below in both directions.
+    const FORK_MOVED_VERTEX: usize = 1;
+
+    #[test]
+    fn empty_exemption_set_reproduces_the_unexempted_solve_exactly() {
+        let input = load_fixture_input("right_small_fork");
+        let plain = solve_exact(&input, ExactSolveOptions::default());
+        let via_exemptions = solve_exact_with_exemptions(
+            &input,
+            &ExactSolveOptionsWithExemptions::from(ExactSolveOptions::default()),
+        );
+        assert_eq!(
+            plain.vertices_exact, via_exemptions.vertices_exact,
+            "an empty exemption set must be the solve that shipped"
+        );
+        assert_eq!(
+            comparable_solve_json(&plain),
+            comparable_solve_json(&via_exemptions),
+            "the whole report must match too, not just the coordinates"
+        );
+
+        // ...and that solve is still the committed golden, so the budget now
+        // reading a restricted maximum changed no accepted behavior.
+        let golden = load_golden_points("right_small_fork");
+        assert_eq!(plain.status, ExactSolvedGraphStatus::Solved);
+        assert!(plain.movement_report["accepted"].as_bool().unwrap_or(false));
+        let drift = max_golden_drift_px(&plain.vertices_exact, &golden, 1.0);
+        assert!(
+            drift < 1e-6,
+            "default solve drifted {drift} from the committed golden"
+        );
+    }
+
+    #[test]
+    fn options_json_deserializes_into_the_exemption_wrapper_unchanged() {
+        // The wasm solve entry point takes an options object as JSON; the
+        // flattened wrapper has to accept exactly what `ExactSolveOptions`
+        // serializes today, and default the exemption set to empty.
+        let options = ExactSolveOptions::default();
+        let json = serde_json::to_string(&options).expect("serialize options");
+        let parsed: ExactSolveOptionsWithExemptions =
+            serde_json::from_str(&json).expect("parse options as wrapper");
+        assert_eq!(parsed.options, options);
+        assert!(parsed.exempt_vertex_ids.is_empty());
+
+        let with_exemptions = ExactSolveOptionsWithExemptions {
+            options,
+            exempt_vertex_ids: BTreeSet::from([3, 11]),
+        };
+        let round_tripped: ExactSolveOptionsWithExemptions =
+            serde_json::from_str(&serde_json::to_string(&with_exemptions).expect("serialize"))
+                .expect("parse");
+        assert_eq!(round_tripped, with_exemptions);
+    }
+
+    #[test]
+    fn exempting_a_hand_moved_vertex_admits_a_solve_the_budget_rejects() {
+        // ~27px at the fixture's 1024px raster, well past the 0.010 (~10.2px)
+        // budget, which is measured from the *input* coordinates — so a
+        // deliberate user edit reads exactly like solver drift.
+        let displacement = 27.0 / FORK_IMAGE_SIZE;
+        let input = load_fixture_input("right_small_fork");
+        let golden = load_golden_points("right_small_fork");
+        let mut edited = input.clone();
+        edited.vertices[FORK_MOVED_VERTEX].point = Point2::new(
+            input.vertices[FORK_MOVED_VERTEX].point.x + displacement * 0.6,
+            input.vertices[FORK_MOVED_VERTEX].point.y - displacement * 0.8,
+        );
+
+        let rejected = solve_exact(&edited, ExactSolveOptions::default());
+        assert_eq!(rejected.status, ExactSolvedGraphStatus::Failed);
+        assert!(
+            rejection_reasons(&rejected).contains(&"movement_budget_exceeded".to_owned()),
+            "expected the budget to be the rejection, got {:?}",
+            rejection_reasons(&rejected)
+        );
+        assert_eq!(
+            rejected.vertices_exact[FORK_MOVED_VERTEX], edited.vertices[FORK_MOVED_VERTEX].point,
+            "a rejected solve hands the user's unsolved edit straight back"
+        );
+
+        let accepted = solve_exact_with_exemptions(
+            &edited,
+            &ExactSolveOptionsWithExemptions {
+                options: ExactSolveOptions::default(),
+                exempt_vertex_ids: BTreeSet::from([FORK_MOVED_VERTEX]),
+            },
+        );
+        assert_eq!(accepted.status, ExactSolvedGraphStatus::Solved);
+        assert!(
+            accepted.movement_report["accepted"]
+                .as_bool()
+                .unwrap_or(false)
+        );
+        // The edited vertex is pulled most of the way back to the golden
+        // (measured 7.45px of the 27px injected), and nothing else is dragged
+        // far by admitting it (measured 3.94px).
+        let moved_drift = distance(
+            accepted.vertices_exact[FORK_MOVED_VERTEX],
+            golden[FORK_MOVED_VERTEX],
+        ) * FORK_IMAGE_SIZE;
+        assert!(
+            moved_drift < 9.0,
+            "exempted vertex landed {moved_drift}px from the golden"
+        );
+        let others_drift = accepted
+            .vertices_exact
+            .iter()
+            .zip(&golden)
+            .enumerate()
+            .filter(|(index, _)| *index != FORK_MOVED_VERTEX)
+            .map(|(_, (solved, golden))| distance(*solved, *golden) * FORK_IMAGE_SIZE)
+            .fold(0.0_f64, f64::max);
+        assert!(
+            others_drift < 5.0,
+            "unexempted vertices drifted {others_drift}px from the golden"
+        );
+    }
+
+    #[test]
+    fn exempting_a_different_vertex_does_not_raise_the_budget() {
+        // The exemption removes vertices from the maximum; it must not act as
+        // a blanket raise for the vertex that actually broke the budget.
+        let displacement = 27.0 / FORK_IMAGE_SIZE;
+        let input = load_fixture_input("right_small_fork");
+        let mut edited = input.clone();
+        edited.vertices[FORK_MOVED_VERTEX].point = Point2::new(
+            input.vertices[FORK_MOVED_VERTEX].point.x + displacement * 0.6,
+            input.vertices[FORK_MOVED_VERTEX].point.y - displacement * 0.8,
+        );
+
+        let bystander = solve_exact_with_exemptions(
+            &edited,
+            &ExactSolveOptionsWithExemptions {
+                options: ExactSolveOptions::default(),
+                exempt_vertex_ids: BTreeSet::from([FORK_MOVED_VERTEX + 1]),
+            },
+        );
+        assert_eq!(bystander.status, ExactSolvedGraphStatus::Failed);
+        assert!(
+            rejection_reasons(&bystander).contains(&"movement_budget_exceeded".to_owned()),
+            "exempting an unrelated vertex must leave the budget in force, got {:?}",
+            rejection_reasons(&bystander)
+        );
+    }
+
+    #[test]
+    fn topology_analysis_flags_an_odd_degree_vertex() {
+        let mut input = maekawa_clean_four_ray_input(Point2::new(0.53, 0.50));
+        input.selected_spans.retain(|span| span.id != 7);
+        let diagnostics = analyze_candidate_topology(&input);
+        assert!(diagnostics.blockers.is_empty());
+        assert_eq!(diagnostics.combinatorial.odd_degree_vertices, vec![4]);
+        let junction = interior_vertex(&diagnostics, 4);
+        assert_eq!(junction.degree, 3);
+        // Kawasaki does not apply to an odd fan, so the angle-dependent view
+        // of this vertex is silent while the combinatorial one is not.
+        assert_eq!(junction.kawasaki_residual_degrees, None);
+    }
+
+    #[test]
+    fn topology_analysis_flags_a_degree_two_vertex() {
+        let mut input = maekawa_clean_four_ray_input(Point2::new(0.53, 0.50));
+        input
+            .selected_spans
+            .retain(|span| span.id != 6 && span.id != 7);
+        let diagnostics = analyze_candidate_topology(&input);
+        assert!(diagnostics.blockers.is_empty());
+        assert_eq!(diagnostics.combinatorial.degree_two_vertices, vec![4]);
+        assert!(
+            diagnostics.combinatorial.odd_degree_vertices.is_empty(),
+            "degree two is even; it must not also read as a parity failure"
+        );
+        assert_eq!(interior_vertex(&diagnostics, 4).degree, 2);
+    }
+
+    #[test]
+    fn topology_analysis_flags_a_maekawa_failure() {
+        let clean =
+            analyze_candidate_topology(&maekawa_clean_four_ray_input(Point2::new(0.53, 0.50)));
+        assert!(clean.combinatorial.maekawa_failures.is_empty());
+        assert_eq!(interior_vertex(&clean, 4).maekawa_residual, Some(0));
+
+        // M,V,M,V is |M - V| = 0, two away from the required 2.
+        let failing = analyze_candidate_topology(&four_ray_input(Point2::new(0.53, 0.50)));
+        assert_eq!(failing.combinatorial.maekawa_failures, vec![4]);
+        let junction = interior_vertex(&failing, 4);
+        assert_eq!(junction.degree, 4);
+        assert_eq!(junction.mountain_count, 2);
+        assert_eq!(junction.valley_count, 2);
+        assert_eq!(junction.unknown_count, 0);
+        assert_eq!(junction.maekawa_residual, Some(2));
+        assert!(
+            failing.combinatorial.odd_degree_vertices.is_empty(),
+            "Maekawa must fire on its own, not only alongside a parity failure"
+        );
+    }
+
+    #[test]
+    fn topology_analysis_flags_a_degenerate_edge() {
+        let mut input = maekawa_clean_four_ray_input(Point2::new(0.53, 0.50));
+        let center = input.vertices[4].point;
+        let twin = input.vertices.len();
+        input.vertices.push(vertex(
+            twin,
+            center,
+            CandidateVertexKind::InteriorJunction,
+            CandidateVertexMovementPolicy::Movable,
+            None,
+        ));
+        let span_id = input.selected_spans.len();
+        input.selected_spans.push(span(
+            span_id,
+            4,
+            twin,
+            AssignmentLabel::Mountain,
+            82,
+            &input.vertices,
+        ));
+
+        let diagnostics = analyze_candidate_topology(&input);
+        assert!(diagnostics.blockers.is_empty());
+        // Vertex ids, not span ids.
+        assert_eq!(diagnostics.combinatorial.degenerate_edges, vec![[4, twin]]);
+    }
+
+    #[test]
+    fn topology_analysis_flags_an_unmodeled_crossing() {
+        let mut input = base_square_input();
+        for point in [
+            Point2::new(0.2, 0.2),
+            Point2::new(0.8, 0.8),
+            Point2::new(0.2, 0.8),
+            Point2::new(0.8, 0.2),
+        ] {
+            let id = input.vertices.len();
+            input.vertices.push(vertex(
+                id,
+                point,
+                CandidateVertexKind::InteriorJunction,
+                CandidateVertexMovementPolicy::Movable,
+                None,
+            ));
+        }
+        let first = input.selected_spans.len();
+        input.selected_spans.push(span(
+            first,
+            4,
+            5,
+            AssignmentLabel::Mountain,
+            80,
+            &input.vertices,
+        ));
+        input.selected_spans.push(span(
+            first + 1,
+            6,
+            7,
+            AssignmentLabel::Valley,
+            81,
+            &input.vertices,
+        ));
+
+        let diagnostics = analyze_candidate_topology(&input);
+        assert!(diagnostics.blockers.is_empty());
+        // Span ids, not vertex ids — the two `[usize; 2]` fields differ.
+        assert_eq!(
+            diagnostics.combinatorial.unmodeled_crossings,
+            vec![[first, first + 1]]
+        );
+    }
+
+    #[test]
+    fn topology_analysis_flags_a_vertex_off_its_paper_edge() {
+        let mut input = maekawa_clean_four_ray_input(Point2::new(0.53, 0.50));
+        let stray = input.vertices.len();
+        input.vertices.push(vertex(
+            stray,
+            Point2::new(1.2, 0.0),
+            CandidateVertexKind::BoundaryContact,
+            CandidateVertexMovementPolicy::BoundaryOnly,
+            Some(BoundarySide::Top),
+        ));
+        let span_id = input.selected_spans.len();
+        input.selected_spans.push(span(
+            span_id,
+            stray,
+            4,
+            AssignmentLabel::Mountain,
+            83,
+            &input.vertices,
+        ));
+
+        let diagnostics = analyze_candidate_topology(&input);
+        assert!(diagnostics.blockers.is_empty());
+        assert_eq!(diagnostics.combinatorial.boundary_failures, vec![stray]);
+    }
+
+    #[test]
+    fn topology_analysis_blocks_on_a_span_referencing_a_missing_vertex() {
+        let mut input = maekawa_clean_four_ray_input(Point2::new(0.53, 0.50));
+        let span_id = input.selected_spans.len();
+        input.selected_spans.push(span_with_carrier(
+            span_id,
+            4,
+            99,
+            AssignmentLabel::Mountain,
+            84,
+            Point2::new(0.0, 1.0),
+            0.5,
+            &input.vertices,
+        ));
+
+        let diagnostics = analyze_candidate_topology(&input);
+        assert_eq!(diagnostics.blockers.len(), 1);
+        assert!(
+            diagnostics.blockers[0].contains("missing vertex 99"),
+            "unexpected blocker: {}",
+            diagnostics.blockers[0]
+        );
+        assert_eq!(
+            diagnostics.combinatorial,
+            CombinatorialTopologyFindings::default(),
+            "a blocked analysis must report nothing rather than something partial"
+        );
+    }
+
+    #[test]
+    fn topology_analysis_blocks_on_a_vertex_id_that_is_not_its_index() {
+        // `analyze_graph` indexes by `vertex.id`; a hand-edited graph that
+        // broke the id == index invariant must block, not panic.
+        let mut input = maekawa_clean_four_ray_input(Point2::new(0.53, 0.50));
+        input.vertices[4].id = 99;
+        let diagnostics = analyze_candidate_topology(&input);
+        assert!(
+            diagnostics
+                .blockers
+                .iter()
+                .any(|blocker| blocker.contains("out-of-range id 99")),
+            "unexpected blockers: {:?}",
+            diagnostics.blockers
+        );
+    }
+
+    #[test]
+    fn combinatorial_findings_survive_a_small_coordinate_perturbation() {
+        let input = defect_laden_input();
+        let base = analyze_candidate_topology(&input);
+        let moved = analyze_candidate_topology(&perturbed(&input));
+        assert!(base.blockers.is_empty() && moved.blockers.is_empty());
+
+        // Every combinatorial category is actually exercised, so the equality
+        // below is not vacuous.
+        assert!(!base.combinatorial.odd_degree_vertices.is_empty());
+        assert!(!base.combinatorial.degree_two_vertices.is_empty());
+        assert!(!base.combinatorial.maekawa_failures.is_empty());
+        assert!(!base.combinatorial.degenerate_edges.is_empty());
+        assert!(!base.combinatorial.unmodeled_crossings.is_empty());
+        assert_eq!(
+            base.combinatorial, moved.combinatorial,
+            "combinatorial findings must not depend on where the drawing sits"
+        );
+
+        // The angle-dependent ones are populated, and they do move — which is
+        // exactly why they are useless as a repair worklist on a candidate.
+        assert!(base.angle_dependent.max_kawasaki_residual_degrees > 0.0);
+        assert_ne!(
+            base.angle_dependent.max_kawasaki_residual_degrees,
+            moved.angle_dependent.max_kawasaki_residual_degrees
+        );
+        assert_ne!(
+            base.angle_dependent.max_carrier_residual,
+            moved.angle_dependent.max_carrier_residual
+        );
+    }
+
+    /// One graph carrying every combinatorial finding at once: a noisy
+    /// four-ray junction (Maekawa failure, non-zero Kawasaki), a crossing pair,
+    /// a two-segment chain through a degree-two vertex, and a coincident pair.
+    fn defect_laden_input() -> ExactSolveInput {
+        let mut input = four_ray_input(Point2::new(0.53, 0.50));
+        fn push_vertex(input: &mut ExactSolveInput, point: Point2) -> usize {
+            let id = input.vertices.len();
+            input.vertices.push(vertex(
+                id,
+                point,
+                CandidateVertexKind::InteriorJunction,
+                CandidateVertexMovementPolicy::Movable,
+                None,
+            ));
+            id
+        }
+        let crossing = [
+            push_vertex(&mut input, Point2::new(0.2, 0.2)),
+            push_vertex(&mut input, Point2::new(0.8, 0.8)),
+            push_vertex(&mut input, Point2::new(0.2, 0.8)),
+            push_vertex(&mut input, Point2::new(0.8, 0.2)),
+        ];
+        let chain = [
+            push_vertex(&mut input, Point2::new(0.05, 0.30)),
+            push_vertex(&mut input, Point2::new(0.10, 0.35)),
+            push_vertex(&mut input, Point2::new(0.15, 0.42)),
+        ];
+        let coincident = Point2::new(0.85, 0.05);
+        let twins = [
+            push_vertex(&mut input, coincident),
+            push_vertex(&mut input, coincident),
+        ];
+        for (a, b) in [
+            (crossing[0], crossing[1]),
+            (crossing[2], crossing[3]),
+            (chain[0], chain[1]),
+            (chain[1], chain[2]),
+            (twins[0], twins[1]),
+        ] {
+            let id = input.selected_spans.len();
+            input.selected_spans.push(span(
+                id,
+                a,
+                b,
+                AssignmentLabel::Mountain,
+                id,
+                &input.vertices,
+            ));
+        }
+        input
+    }
+
+    /// A small, smooth near-identity displacement of every vertex. It is a
+    /// function of the point alone, so coincident vertices stay coincident and
+    /// a degenerate edge stays degenerate.
+    fn perturbed(input: &ExactSolveInput) -> ExactSolveInput {
+        let mut moved = input.clone();
+        for vertex in &mut moved.vertices {
+            let point = vertex.point;
+            vertex.point = Point2::new(
+                point.x + 3e-4 * (7.0 * point.y + 0.4).sin(),
+                point.y + 3e-4 * (5.0 * point.x + 0.9).cos(),
+            );
+        }
+        moved
+    }
+
+    fn interior_vertex(
+        diagnostics: &TopologyDiagnostics,
+        vertex_id: usize,
+    ) -> &TopologyVertexDiagnostic {
+        diagnostics
+            .vertices
+            .iter()
+            .find(|vertex| vertex.vertex_id == vertex_id)
+            .unwrap_or_else(|| panic!("no diagnostic for vertex {vertex_id}"))
+    }
+
+    /// A solve's full report minus the one field that is wall-clock and so
+    /// differs between two runs of the same solve.
+    fn comparable_solve_json(solved: &ExactSolvedGraph) -> Value {
+        let mut value = serde_json::to_value(solved).expect("serialize solve");
+        if let Some(report) = value
+            .get_mut("movement_report")
+            .and_then(Value::as_object_mut)
+        {
+            report.remove("elapsed_seconds");
+        }
+        value
+    }
+
+    fn rejection_reasons(solved: &ExactSolvedGraph) -> Vec<String> {
+        solved.movement_report["rejection_reasons"]
+            .as_array()
+            .map(|reasons| {
+                reasons
+                    .iter()
+                    .filter_map(|reason| reason.as_str().map(str::to_owned))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    fn fixture_path(name: &str) -> std::path::PathBuf {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/exact_solve")
+            .join(name)
+    }
+
+    fn load_fixture_input(name: &str) -> ExactSolveInput {
+        let path = fixture_path(&format!("{name}.json"));
+        let bytes = std::fs::read(&path).expect("read fixture");
+        serde_json::from_slice(&bytes).expect("parse fixture")
+    }
+
+    fn load_golden_points(name: &str) -> Vec<Point2> {
+        let path = fixture_path(&format!("{name}.golden.json"));
+        let bytes = std::fs::read(&path).expect("read golden");
+        let golden: Value = serde_json::from_slice(&bytes).expect("parse golden");
+        golden["vertices"]
+            .as_array()
+            .expect("golden vertices")
+            .iter()
+            .map(|pair| {
+                Point2::new(
+                    pair[0].as_f64().unwrap_or(f64::NAN),
+                    pair[1].as_f64().unwrap_or(f64::NAN),
+                )
+            })
+            .collect()
+    }
+
+    fn max_golden_drift_px(solved: &[Point2], golden: &[Point2], image_size: f64) -> f64 {
+        solved
+            .iter()
+            .zip(golden)
+            .map(|(left, right)| distance(*left, *right) * image_size)
+            .fold(0.0_f64, f64::max)
+    }
+
     fn four_ray_input(center: Point2) -> ExactSolveInput {
+        four_ray_input_with_labels(
+            center,
+            [
+                AssignmentLabel::Mountain,
+                AssignmentLabel::Valley,
+                AssignmentLabel::Mountain,
+                AssignmentLabel::Valley,
+            ],
+        )
+    }
+
+    /// A single interior junction with one ray to each corner, ray `i` carrying
+    /// `labels[i]`.
+    fn four_ray_input_with_labels(center: Point2, labels: [AssignmentLabel; 4]) -> ExactSolveInput {
         let mut input = base_square_input();
         input.vertices.push(vertex(
             4,
@@ -2551,17 +3447,28 @@ mod tests {
             CandidateVertexMovementPolicy::Movable,
             None,
         ));
-        for (id, corner, label) in [
-            (4, 0, AssignmentLabel::Mountain),
-            (5, 1, AssignmentLabel::Valley),
-            (6, 2, AssignmentLabel::Mountain),
-            (7, 3, AssignmentLabel::Valley),
-        ] {
+        for (corner, label) in labels.into_iter().enumerate() {
+            let id = 4 + corner;
             input
                 .selected_spans
                 .push(span(id, 4, corner, label, id, &input.vertices));
         }
         input
+    }
+
+    /// [`four_ray_input_with_labels`] with a Maekawa-satisfying fan. The plain
+    /// [`four_ray_input`] fan is M,V,M,V — `|M - V| = 0`, so it is itself a
+    /// Maekawa failure and cannot be the baseline for one.
+    fn maekawa_clean_four_ray_input(center: Point2) -> ExactSolveInput {
+        four_ray_input_with_labels(
+            center,
+            [
+                AssignmentLabel::Mountain,
+                AssignmentLabel::Valley,
+                AssignmentLabel::Mountain,
+                AssignmentLabel::Mountain,
+            ],
+        )
     }
 
     fn assert_analytic_jacobian_matches_finite_difference(input: &ExactSolveInput) {
@@ -2612,7 +3519,12 @@ mod tests {
     }
 
     fn test_model(input: &ExactSolveInput, options: ExactSolveOptions) -> SolveModel {
-        SolveModel::new(input, options, ExactSolveDeadline::start(-1.0))
+        SolveModel::new(
+            input,
+            options,
+            ExactSolveDeadline::start(-1.0),
+            Rc::new(BTreeSet::new()),
+        )
     }
 
     fn central_finite_difference_jacobian(

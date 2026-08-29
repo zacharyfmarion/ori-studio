@@ -16,6 +16,7 @@ pub mod evidence;
 pub mod exact_probe;
 pub mod exact_solve;
 pub mod exactize;
+pub mod fold_exactize;
 pub mod fold_export;
 pub mod optimizer;
 pub mod repair;
@@ -41,8 +42,13 @@ pub use candidates::{
 pub use constraints::{ConstraintDiagnostics, ConstraintSeverity, VertexConstraintDiagnostic};
 pub use evidence::{EvidenceSource, Provenance};
 pub use exact_solve::{
-    DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS, ExactSolveOptions, LinearSolver, solve_exact,
+    AngleDependentTopologyFindings, CombinatorialTopologyFindings,
+    DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS, ExactSolveOptions, ExactSolveOptionsWithExemptions,
+    LinearSolver, TopologyDiagnostics, TopologyVertexDiagnostic, analyze_candidate_topology,
+    solve_exact, solve_exact_with_exemptions,
 };
+pub use fold_exactize::{ExactizeOutcome, ExactizeStatus, exactize_fold, exactize_fold_json};
+pub use fold_export::export_candidate_to_fold_document;
 pub use report::{CompilerReport, CompilerSummary};
 
 pub const COMPILER_BACKEND_ID: &str = "constraint_compiler_v1";

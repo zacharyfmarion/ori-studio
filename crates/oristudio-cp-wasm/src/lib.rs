@@ -222,6 +222,22 @@ pub fn export_fold_file(handle: u32, folded_handles: Vec<u32>) -> Result<String,
     with_session(|session| session.export_fold_file(handle, &folded_handles))
 }
 
+/// Snap a FOLD crease pattern to exactly flat-foldable geometry (topology and
+/// mountain/valley assignments fixed; only coordinates move), returning the
+/// exactized FOLD JSON. On any failure — unparseable FOLD, non-square paper, or a
+/// solve that can't clear CAMV's flat-foldability bar — the input JSON is
+/// returned verbatim, so callers can treat this as a transparent pass-through.
+/// `timeout_seconds` bounds the wall-clock solve budget (negative disables it;
+/// the solver is also iteration-capped).
+#[wasm_bindgen]
+pub fn exactize_fold(fold_json: &str, timeout_seconds: f64) -> String {
+    let options = oristudio_cp_compiler::ExactSolveOptions {
+        timeout_seconds,
+        ..Default::default()
+    };
+    oristudio_cp_compiler::exactize_fold_json(fold_json, options)
+}
+
 #[wasm_bindgen]
 pub fn export_ori(handle: u32) -> Result<String, JsValue> {
     with_session(|session| session.export_ori(handle))

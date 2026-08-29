@@ -3028,6 +3028,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+ "treemaker-core",
  "treemaker-flatfold",
  "treemaker-fold",
 ]
@@ -3038,6 +3039,7 @@ version = "0.2.1"
 dependencies = [
  "image",
  "imageproc",
+ "js-sys",
  "oristudio-cp-compiler",
  "oristudio-cp-eval",
  "rayon",
@@ -3065,6 +3067,7 @@ version = "0.2.1"
 dependencies = [
  "console_error_panic_hook",
  "js-sys",
+ "oristudio-cp-compiler",
  "oristudio-cp-detect",
  "oristudio-cp-detect-inspector",
  "serde",
@@ -3089,6 +3092,7 @@ version = "0.2.1"
 dependencies = [
  "js-sys",
  "oristudio-cp",
+ "oristudio-cp-compiler",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",

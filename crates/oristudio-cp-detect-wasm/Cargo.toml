@@ -21,6 +21,10 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 console_error_panic_hook.workspace = true
+# Already in the graph transitively via oristudio-cp-detect; named directly so
+# the browser can call `solve_exact` on a hand-edited `ExactSolveInput` without
+# a re-export shim in the detect crate.
+oristudio-cp-compiler.workspace = true
 oristudio-cp-detect.workspace = true
 oristudio-cp-detect-inspector = { path = "../oristudio-cp-detect-inspector" }
 js-sys.workspace = true

@@ -335,7 +335,13 @@ pub struct BoundarySideModel {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BoundaryReconstructionPolicy {
+    /// Corners pinned to the unit square; boundary vertices slide along the four
+    /// axis-aligned sides. The only policy the detection pipeline emits.
     LockedUnitSquareSortedContacts,
+    /// Corners pinned to their input positions (an arbitrary convex
+    /// quadrilateral); boundary vertices slide along the actual side segments.
+    /// Used for non-square paper (e.g. rectangular TreeMaker designs).
+    Polygon,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
