@@ -199,6 +199,14 @@
         "0": "点を選択"
       }
     },
+    "cp_action_vertex_insert_on_creases": {
+      "label": "頂点を挿入",
+      "tooltip": "クリックした点を通るすべての折り線を分割し、1 つの頂点で交わるようにします",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "折り線を交わらせたい位置をクリック"
+      }
+    },
     "cp_action_delete_point": {
       "label": "点を削除",
       "tooltip": "選択した頂点で交わる同色の折り線を統合します",

@@ -74,6 +74,9 @@
     "foldDirectionValleyDescription": "これらの未決定の折り線が谷折りだったことを記憶する",
     "from": "元",
     "index": "インデックス",
+    "insertVertex": {
+      "noCreaseThroughPoint": "この点を通る折り線がないため、挿入する頂点がありません。交点、または折り線上の点を狙ってください。"
+    },
     "instructions": "手順",
     "left": "左",
     "leftSegmentRatio": "左セグメントの比率",

@@ -374,6 +374,7 @@
     "measurePickSecondPoint": "두 번째 점 선택",
     "measurePickVertexPoint": "꼭짓점 선택",
     "measureSnapCrease": "접는 선",
+    "measureSnapCrossing": "교차점",
     "measureSnapFree": "자유",
     "measureSnapGrid": "격자",
     "measureSnapPoint": "점",

@@ -374,6 +374,7 @@
     "measurePickSecondPoint": "选择第二个点",
     "measurePickVertexPoint": "选择顶点",
     "measureSnapCrease": "折线",
+    "measureSnapCrossing": "交点",
     "measureSnapFree": "自由",
     "measureSnapGrid": "网格",
     "measureSnapPoint": "点",

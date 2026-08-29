@@ -199,6 +199,14 @@
         "0": "점 선택"
       }
     },
+    "cp_action_vertex_insert_on_creases": {
+      "label": "정점 삽입",
+      "tooltip": "클릭한 점을 지나는 모든 접힘선을 분할하여 한 정점에서 만나게 합니다",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "접힘선이 만나야 할 위치를 클릭"
+      }
+    },
     "cp_action_delete_point": {
       "label": "점 삭제",
       "tooltip": "선택한 정점에서 만나는 같은 색상의 접힘선 병합",

@@ -279,6 +279,24 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   ready('DrawPoint', 'Draw point', 'draw', 'circle-dot', 'MouseHandlerDrawPoint', {
     toolSteps: ['Pick point'],
   }),
+  // Ori Studio native, and deliberately next to Draw point because the pair is
+  // the whole distinction: Oriedita's `DRAW_POINT_14` resolves the *closest*
+  // crease and divides that one, so at a crossing it splits one crease and
+  // leaves the other whole. That is right for putting a reference point on a
+  // crease and wrong for a junction the graph is missing, where one 4-valent
+  // crossing costs four missing edges plus two extra ones and is one repair,
+  // not four.
+  ready(
+    'VertexInsertOnCreases',
+    'Insert vertex',
+    'draw',
+    'crosshair',
+    'OriStudioVertexInsertOnCreases',
+    {
+      toolSteps: ['Click where the creases should meet'],
+      tooltip: 'Split every crease through the clicked point so they meet at one vertex',
+    }
+  ),
   ready('DeletePoint', 'Delete point', 'select-edit', 'circle-x', 'MouseHandlerDeletePoint', {
     toolSteps: ['Pick vertex'],
     tooltip: 'Merge same-color creases meeting at the picked vertex',
@@ -1062,6 +1080,7 @@ export const ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS = [
   // reading as Oriedita's source map with our additions visible at the end, which
   // is the order the kernel's `OperationId` uses too.
   'SquareGenerate',
+  'VertexInsertOnCreases',
 ] as const;
 
 export type OristudioCpOperationId = (typeof ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS)[number];

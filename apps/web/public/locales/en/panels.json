@@ -393,6 +393,7 @@
     "measurePickSecondPoint": "Pick second point",
     "measurePickVertexPoint": "Pick vertex point",
     "measureSnapCrease": "crease",
+    "measureSnapCrossing": "crossing",
     "measureSnapFree": "free",
     "measureSnapGrid": "grid",
     "measureSnapPoint": "point",

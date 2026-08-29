@@ -78,6 +78,9 @@
     "foldDirectionValleyDescription": "Remember that these undecided creases folded as valleys",
     "from": "From",
     "index": "Index",
+    "insertVertex": {
+      "noCreaseThroughPoint": "No crease passes through this point, so there is no vertex to insert. Aim at a crossing, or at a point on a crease."
+    },
     "instructions": "Instructions",
     "left": "Left",
     "leftSegmentRatio": "Left segment ratio",

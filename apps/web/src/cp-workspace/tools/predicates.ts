@@ -114,6 +114,24 @@ export function isReflectSelectionOperation(operationId: OpId): boolean {
 }
 
 /**
+ * Tools whose point step also snaps to a *crossing* — a place two creases pass
+ * through and neither stops, which no existing snap target names because
+ * nothing is there yet.
+ *
+ * Only Insert vertex, and the list is short for a reason: the ordinary point
+ * snap is Oriedita's, and widening it for every drawing tool would be a
+ * divergence from upstream nobody asked for. This tool needs it because its
+ * kernel operation splits at the point it is handed, at 1e-4 model units, and
+ * its dominant case is a missed 4-valent crossing — the one junction that has
+ * no vertex, no grid point and no endpoint to aim at.
+ *
+ * See `nearestCpJunctionTarget` in `lib/creasePatternViewport`.
+ */
+export function snapsToCreaseCrossings(operationId: OpId): boolean {
+  return operationId === 'VertexInsertOnCreases';
+}
+
+/**
  * The crease transform tools (Oriedita `CREASE_MOVE_21` / `CREASE_COPY_22` and
  * their four-point variants), which preview the selection at its prospective
  * position while the gesture runs.

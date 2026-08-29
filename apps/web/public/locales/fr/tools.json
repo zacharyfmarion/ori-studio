@@ -82,6 +82,9 @@
     "foldDirectionValleyDescription": "Se souvenir que ces plis indécis étaient des plis vallée",
     "from": "De",
     "index": "Index",
+    "insertVertex": {
+      "noCreaseThroughPoint": "Aucun pli ne passe par ce point, il n’y a donc aucun sommet à insérer. Visez une intersection, ou un point situé sur un pli."
+    },
     "instructions": "Instructions",
     "left": "Gauche",
     "leftSegmentRatio": "Rapport du segment gauche",

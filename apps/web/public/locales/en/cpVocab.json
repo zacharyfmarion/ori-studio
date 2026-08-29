@@ -199,6 +199,14 @@
         "0": "Pick point"
       }
     },
+    "cp_action_vertex_insert_on_creases": {
+      "label": "Insert vertex",
+      "tooltip": "Split every crease through the clicked point so they meet at one vertex",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Click where the creases should meet"
+      }
+    },
     "cp_action_delete_point": {
       "label": "Delete Point",
       "tooltip": "Merge same-color creases meeting at the picked vertex",

@@ -103,6 +103,7 @@ import {
 import {
   cpVertexId,
   orieditaGridLinesForModelBounds,
+  type CpSnapTarget,
   type OristudioCpFoldAngleDisplay,
   type OristudioCpLineStyle,
   getOrieditaGridBasis,
@@ -649,7 +650,7 @@ export interface CreasePatternWebglCanvasProps {
     point: ModelPoint;
     snapped: boolean;
     /** What the point locked onto when it snapped; reported via {@link onToolSnapKind}. */
-    kind?: 'grid' | 'vertex' | 'point' | 'line';
+    kind?: CpSnapTarget['kind'];
   };
   /**
    * Snap a raw model draw point onto nearby geometry incl. creases (for crease
@@ -681,7 +682,7 @@ export interface CreasePatternWebglCanvasProps {
    * extra geometry scan. The measure tool uses it to say whether an endpoint is a
    * real vertex or a point that merely looks like one.
    */
-  onToolSnapKind: (kind: 'grid' | 'vertex' | 'point' | 'line' | null) => void;
+  onToolSnapKind: (kind: CpSnapTarget['kind'] | null) => void;
   /**
    * Kernel-computed candidate geometry for the active sequence tool -- what the
    * tool *would create*. Stroked in {@link toolPreviewColor}.

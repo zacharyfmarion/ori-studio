@@ -412,6 +412,7 @@
     "measurePickSecondPoint": "Choisir le second point",
     "measurePickVertexPoint": "Choisir le sommet",
     "measureSnapCrease": "pli",
+    "measureSnapCrossing": "intersection",
     "measureSnapFree": "libre",
     "measureSnapGrid": "grille",
     "measureSnapPoint": "point",

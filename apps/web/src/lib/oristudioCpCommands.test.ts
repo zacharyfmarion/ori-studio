@@ -300,6 +300,7 @@ describe('Ori Studio native operations', () => {
       'CreaseSetLineColor',
       'PropagateFoldAngles',
       'SquareGenerate',
+      'VertexInsertOnCreases',
       'VertexSolveFoldAngles',
     ]);
   });

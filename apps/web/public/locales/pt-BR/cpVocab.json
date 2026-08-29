@@ -199,6 +199,14 @@
         "0": "Escolha o ponto"
       }
     },
+    "cp_action_vertex_insert_on_creases": {
+      "label": "Inserir vértice",
+      "tooltip": "Dividir todos os vincos que passam pelo ponto clicado para que se encontrem em um único vértice",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Clique onde os vincos devem se encontrar"
+      }
+    },
     "cp_action_delete_point": {
       "label": "Excluir ponto",
       "tooltip": "Mesclar vincos da mesma cor que se encontram no vértice escolhido",

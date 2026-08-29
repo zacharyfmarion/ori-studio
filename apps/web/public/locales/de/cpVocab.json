@@ -199,6 +199,14 @@
         "0": "Punkt wählen"
       }
     },
+    "cp_action_vertex_insert_on_creases": {
+      "label": "Knoten einfügen",
+      "tooltip": "Alle Falten durch den angeklickten Punkt teilen, sodass sie sich in einem Knoten treffen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Dorthin klicken, wo sich die Falten treffen sollen"
+      }
+    },
     "cp_action_delete_point": {
       "label": "Punkt löschen",
       "tooltip": "Gleichfarbige Falten zusammenführen, die sich am gewählten Knoten treffen",

@@ -199,6 +199,14 @@
         "0": "Elige el punto"
       }
     },
+    "cp_action_vertex_insert_on_creases": {
+      "label": "Insertar vértice",
+      "tooltip": "Dividir todos los pliegues que pasan por el punto marcado para que se encuentren en un solo vértice",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Haz clic donde deban encontrarse los pliegues"
+      }
+    },
     "cp_action_delete_point": {
       "label": "Eliminar punto",
       "tooltip": "Fusionar los pliegues del mismo color que se encuentran en el vértice elegido",

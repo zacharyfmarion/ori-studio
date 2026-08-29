@@ -74,6 +74,9 @@
     "foldDirectionValleyDescription": "记住这些未定折痕原为谷折",
     "from": "从",
     "index": "索引",
+    "insertVertex": {
+      "noCreaseThroughPoint": "没有折痕经过此处，因此没有可插入的顶点。请对准交点，或折痕上的某一点。"
+    },
     "instructions": "说明",
     "left": "左",
     "leftSegmentRatio": "左段比率",

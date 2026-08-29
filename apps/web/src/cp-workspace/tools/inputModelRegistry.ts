@@ -129,6 +129,16 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   SymmetricDraw: { model: 'point-sequence', pointCount: 2, snapPerStep: ['crease', 'crease'] },
   UnselectLineIntersecting: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
   VertexDeleteOnCrease: { model: 'point-sequence', pointCount: 1, snapPerStep: ['point'] },
+  // Insert vertex: one click, and the kernel splits every crease through it.
+  //
+  // Free point snap and not 'crease', which looks like the obvious choice and is
+  // the wrong one. A crease step projects the cursor onto the *nearest* crease;
+  // the kernel asks "is this point on this crease" at 1e-4 model units and
+  // splits at the supplied point rather than at its own projection, so a
+  // perpendicular foot onto one crease lands well off the other and splits half
+  // a crossing. What makes the point exact is the junction snap layered on the
+  // point step — see `snapsToCreaseCrossings` in tools/predicates.
+  VertexInsertOnCreases: { model: 'point-sequence', pointCount: 1, snapPerStep: ['point'] },
   // Foldable Line: vertex → one of the previewed candidates. Two steps, not
   // Oriedita's three — each candidate is drawn to whatever stops it and carries
   // that line along, so the kernel no longer needs a click naming the crease to

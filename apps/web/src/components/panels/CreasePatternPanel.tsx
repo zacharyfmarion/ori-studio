@@ -91,6 +91,7 @@ import {
   emptyOristudioCpSelection,
   getCpVertexPoints,
   getOrieditaGridBasis,
+  nearestCpJunctionTarget,
   nearestCpSnapTarget,
   nearestOrieditaDrawPointTarget,
   ORIEDITA_PAPER_BOUNDS,
@@ -194,6 +195,7 @@ import {
   isSquareBisectorOperation,
   isVariablePointSequenceOperation,
   isWholeDocumentCpCommand,
+  snapsToCreaseCrossings,
   toolClickAction,
 } from '../../cp-workspace/tools/predicates';
 import {
@@ -261,6 +263,8 @@ function measureSnapLabel(t: TFunction, kind: CpSnapTarget['kind'] | null): stri
       return t('panels:creasePattern.measureSnapPoint', 'point');
     case 'line':
       return t('panels:creasePattern.measureSnapCrease', 'crease');
+    case 'crossing':
+      return t('panels:creasePattern.measureSnapCrossing', 'crossing');
     default:
       return t('panels:creasePattern.measureSnapFree', 'free');
   }
@@ -1727,7 +1731,12 @@ export function CreasePatternPanel() {
       toleranceModel: number
     ): { point: Point; snapped: boolean; kind?: CpSnapTarget['kind'] } => {
       if (!editableCp) return { point: rawPoint, snapped: false };
-      const target = nearestOrieditaDrawPointTarget(
+      // Insert vertex also snaps to crease crossings; every other tool keeps
+      // Oriedita's point snap exactly. See `snapsToCreaseCrossings`.
+      const nearestTarget = snapsToCreaseCrossings(activeCpCommand?.operationId)
+        ? nearestCpJunctionTarget
+        : nearestOrieditaDrawPointTarget;
+      const target = nearestTarget(
         editableCp,
         rawPoint,
         editableCpBounds,
@@ -1739,7 +1748,7 @@ export function CreasePatternPanel() {
       // the measure tool can say whether an endpoint is a real vertex or a free point.
       return { point: target?.point ?? rawPoint, snapped: target !== null, kind: target?.kind };
     },
-    [editableCp, editableCpBounds, oristudioCpViewport]
+    [activeCpCommand?.operationId, editableCp, editableCpBounds, oristudioCpViewport]
   );
 
   // Crease steps: snap the point onto the nearest crease (forcing line/vertex

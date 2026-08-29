@@ -31,9 +31,41 @@ clustered at 1px — rather than raw edge defects:
 Cumulative over easy+medium (n=173): ≤2 sites **61%**, ≤4 **82%**, ≤8 **94%**.
 
 So a typical repairable failure is **two repair sites — realistically 2–6 user
-actions**. If repair succeeds on that population, exact topology goes
-307/563 → ~480/563. **Hard is out of scope for hand repair**, and the UI says so
-rather than silently offering it.
+actions**.
+
+**Measured, not projected (Phase 3, `simulate_topology_repair`).** The harness
+derives the minimal edit set from ground truth, applies it, and re-solves — the
+ceiling a user who never errs would reach:
+
+| 563 samples | exact topology | recovered end-to-end |
+| --- | --- | --- |
+| V5 report | 307 | 220 |
+| harness baseline (same candidates, no benchmark gate) | 307 | 236 |
+| **after the derived repair** | **446** | **347** |
+| repaired graph judged *as a graph* | **541** | — |
+
+Easy+medium (n=423): topology 250 → 359, recovered 231 → **338**.
+
+Two corrections to earlier drafts of this plan:
+
+- **The ~480 projection was optimistic about the metric, not about the repair.**
+  541 of 563 repaired graphs *are* ground truth as graphs (541 of the 542
+  square-paper samples; the other 21 are non-square paper the square-only
+  pipeline cannot represent and which recover 0 either way). The 95-sample gap
+  to 446 is the strict metric's 2px vertex matching judging *unsolved*
+  coordinates.
+- **Hard is solver-bound, not repair-bound.** 131/140 hard repairs are
+  GT-identical, but **123/140 solves hit the 25 s cap**, so only 9 recover.
+  Raising the budget to 120 s on 40 correct-topology hard CPs took recovery
+  **3 → 16**. Hard still should not be offered for *hand* repair — its median is
+  12 sites — but the reason stated earlier (repair too large) is wrong at the
+  margin; the wall is the solve budget.
+
+Sensitivity (easy+medium, default 338): click jitter 1.5px costs 2, so this does
+**not** need pixel-perfect clicking; `--no-relabel` costs **45**, so verb 7 is
+load-bearing rather than a finisher; `--no-exemptions` *gains* 3, so the
+per-vertex movement exemption buys nothing for verbs 1–6 and its case rests on
+verb 8 alone.
 
 ## Approach
 
@@ -660,96 +692,100 @@ second live document. Land the tutorial on its own merits by re-applying bucket
 
 ### Phase 0 — seam and instrumentation (Rust only, no UI)
 
-- [ ] Make the pre-solve analysis public: `pub fn
+- [x] Make the pre-solve analysis public: `pub fn
       analyze_candidate_topology(&ExactSolveInput) -> TopologyDiagnostics`,
       splitting combinatorial findings (odd degree, dangling, non-collinear
       degree-2, Maekawa, degenerate edges, unmodeled crossings, boundary) from
       angle-dependent ones. Unit tests per finding. *Not on the v1 UI path — v1
       uses CAMV — but it is the right long-term authority and Phase 3 needs it.*
-- [ ] Add a per-vertex movement exemption to `ExactSolveOptions` so user-touched
+- [x] Add a per-vertex movement exemption to `ExactSolveOptions` so user-touched
       vertices escape `max_vertex_movement` without a blanket raise. Re-run the
       563-sample native pack to prove automatic behaviour is unchanged.
-- [ ] `ExactSolveInput` rebuild from current document geometry, via the
+- [x] `ExactSolveInput` rebuild from current document geometry, via the
       `fold_exactize` frame derivation. Guard the `id == index` invariant
       (established by `assign_span_ids`, `junction_carrier_v1.rs:1191-1195`;
       relied on at `candidate_graph.rs:1013` and `selection.rs:1708`; currently
       unasserted).
-- [ ] Export the pre-solve candidate as a FOLD document (a synthetic
+- [x] Export the pre-solve candidate as a FOLD document (a synthetic
       `ExactSolvedGraph` over candidate points reuses
       `export_exact_solved_to_fold_document` unchanged).
-- [ ] wasm: `cp_detect_solve_exact(input_json, options_json)` — a two-line
+- [x] wasm: `cp_detect_solve_exact(input_json, options_json)` — a two-line
       wrapper; every type already round-trips through JSON, as
       `replay_exact_solve_experiments.rs:421-427` proves.
-- [ ] Fix `StageTimer` on `wasm32` (`decode.rs:147-159`) — it returns 0.0 today,
+- [x] Fix `StageTimer` on `wasm32` (`decode.rs:147-159`) — it returns 0.0 today,
       so `compiler_seconds` and `exact_solve_seconds` are identically zero in
       every browser run.
-- [ ] Take the free 16%: split candidate spans at unmodeled crossings before the
-      solve, gated and measured on the native pack.
+- [ ] **Deferred.** Take the free 16%: split candidate spans at unmodeled
+      crossings before the solve, gated and measured on the native pack. Not a
+      dependency — the manual verb covers the same defect — so it was not worth
+      blocking Phase 0 on a full-pack run.
 
 ### Phase 1 — the repair flow
 
-- [ ] **Scoped check filter.** Model as a list of rules `{scope, suppress[]}`;
+- [x] **Scoped check filter.** Model as a list of rules `{scope, suppress[]}`;
       `camvIssuesVisible` (`lib/creasePatternViewport.ts:114,203`) becomes the
       document-wide rule. Apply at all three gates: `visibleEntries.ts:73-93`,
       `useCpDiagnosticList.ts:68-75` (the headline reads the **raw** result),
       `creasePatternSlice.ts:2094-2113` (the pre-fold warning bypasses the
       toggle). Predicate is rule-class **plus** the `violation_color` Maekawa
       test, never rule alone.
-- [ ] **`CpSuppressionRegion` as a third `CanvasAnnotation` kind.** Free from
+- [x] **`CpSuppressionRegion` as a third `CanvasAnnotation` kind.** Free from
       `AnnotationBase`: select / move / resize / rotate, model-space hit test,
       and **undo** (`types.ts:86-87`, `historySlice.ts:304`). Forbid `hidden`.
       Watch `annotationAspectLockPolicy` (`annotation.ts:48-50`).
-- [ ] **Two chip components**: `SuppressionRegionChip` (base; what the rail tool
+- [x] **Two chip components**: `SuppressionRegionChip` (base; what the rail tool
       creates; never shows Solve) and `SolveRegionChip` (renders the base,
       appends Solve). Discriminated by whether an `ExactSolveInput` attachment
       is present — data, not a geometric test that could flicker mid-edit. The
       chip is **always visible** and carries the hidden count.
-- [ ] **GPU fill.** Follow the image template (`reglRenderer.ts:299-303` +
+- [x] **GPU fill.** Follow the image template (`reglRenderer.ts:299-303` +
       `programs/imageProgram.ts`) with an explicit z-slot: grid → region →
       images → creases. Nothing in DOM can sit behind the creases.
-- [ ] **Creation tool** reusing `dragBoxTool.ts` with `inputMode: 'drag-box'`;
+- [x] **Creation tool** reusing `dragBoxTool.ts` with `inputMode: 'drag-box'`;
       register id + `ready(...)` + `inputModelRegistry.ts` entry; commit
       web-side via a third early return in `handleWebglToolCommit`. Also offer
       creation from the selection. Do not copy the text tool.
-- [ ] `.osf` persistence: a fourth per-kind array (`nativeProjectFile.ts:105,111`;
+- [x] `.osf` persistence: a fourth per-kind array (`nativeProjectFile.ts:105,111`;
       split `projectSlice.ts:1653-1655`, merged `:1152-1155`) plus a
       `lib/supersetFeatures.ts` entry. Additive — do not bump the schema
       version. Add to `cpContentBounds`'s `overlayBoxes`.
-- [ ] **Inspector cascade**: a fourth clause in
+- [x] **Inspector cascade**: a fourth clause in
       `CreasePatternPanel.tsx:3197-3231` and an amendment to the existing
       guards. Call this out in the PR.
-- [ ] `Crease Pattern ▸ Repair ▸ Exact Solve…`, beside `cp.fixInaccurate`,
+- [x] `Crease Pattern ▸ Repair ▸ Exact Solve…`, beside `cp.fixInaccurate`,
       scoped to a **pattern**; selection disambiguates. Gate modelled on
       `workspaceCapabilities.ts:915-920`. Two named stages; report the specific
       `rejection_reasons`; distinguish timeout on `movement_report.timed_out`;
       handle the no-`rejection_reasons` malformed-input shape; offer the partial
       from `attempted_moved_vertices`.
-- [ ] Detect adds the candidate beside the user's work via `import_add`, never
+- [x] Detect adds the candidate beside the user's work via `import_add`, never
       replacing — "Add as-is" likewise. Centre the addition when the target
       document is empty. Create the region and attach the rectified image
       (`opacity: 0.5`, `locked`, behind the creases, registered by
       `inset + u·(image_size − 2·inset)`).
-- [ ] Persist the solve-minimal `ExactSolveInput` projection as a superset
+- [x] Persist the solve-minimal `ExactSolveInput` projection as a superset
       feature; rebuild from current geometry at Solve time.
-- [ ] **Accept / Try again gate.** Accept deletes the region, restores full
+- [x] **Accept / Try again gate.** Accept deletes the region, restores full
       checking, and **keeps the source image**. Try again reverts to pre-solve
       coordinates with the region back in repair state. No per-class restore.
-- [ ] Undo across the Solve moves coordinates **and** region state in one
+- [x] Undo across the Solve moves coordinates **and** region state in one
       history entry. Test both directions.
-- [ ] Say plainly when a sample is out of hand-repair range (hard bucket, median
+- [x] Say plainly when a sample is out of hand-repair range (hard bucket, median
       11 sites, and the 25 s cap on essentially every hard solve).
 
 ### Phase 2 — the verbs
 
-- [ ] Verbs 1–8 above, in that order; stop and re-measure after 1–3, which cover
+- [x] Verbs 1–8 above, in that order; stop and re-measure after 1–3, which cover
       the large majority of sites.
 
 ### Phase 3 — measurement
 
-- [ ] A repair-simulation harness: apply the GT-derived minimal edit set to each
-      failed candidate, re-solve, and report recovered topology. This turns
-      "would repair work?" into a number without a human in the loop, and gates
-      the UI work on it.
+- [x] A repair-simulation harness — `crates/oristudio-cp-detect/src/bin/simulate_topology_repair.rs`.
+      Run on all 563 samples; results in the Goal section above.
+- [ ] **Follow-up the harness surfaced:** hard-bucket recovery is capped by the
+      25 s solve budget, not by repair size (123/140 hard solves time out;
+      3 → 16 of 40 at 120 s). Decide whether the product budget should scale
+      with pattern size.
 - [ ] A big-little-big residual family in `exact_solve.rs`, gated on the five
       fixture counts above going to zero and on a full-pack run showing no
       recovery regressions.

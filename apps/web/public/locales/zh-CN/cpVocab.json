@@ -199,6 +199,14 @@
         "0": "选取点"
       }
     },
+    "cp_action_vertex_insert_on_creases": {
+      "label": "插入顶点",
+      "tooltip": "分割经过所点击位置的所有折痕，使它们在同一个顶点相交",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "点击折痕应当相交的位置"
+      }
+    },
     "cp_action_delete_point": {
       "label": "删除点",
       "tooltip": "合并在所选顶点相交的同色折痕",

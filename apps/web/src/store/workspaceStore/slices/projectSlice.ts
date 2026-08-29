@@ -358,6 +358,13 @@ const SYNC_CP_LINE_SELECTION_AFTER_OPERATIONS = new Set<OristudioCpOperationId>(
   'UnselectLineIntersecting',
   'SelectLasso',
   'UnselectLasso',
+  // Not a selection tool, and here for the reason the sync exists: a split keeps
+  // both halves' `selected` flag, but only the first half keeps the *id* the
+  // store is holding — the second is appended at a new index the store has never
+  // seen. Left to the id filter below, selecting a crease and inserting a vertex
+  // on it would silently leave half of it selected, so a following Make Mountain
+  // would recolour half a crease.
+  'VertexInsertOnCreases',
 ]);
 
 const NON_MUTATING_CP_OPERATIONS = new Set<OristudioCpOperationId>([

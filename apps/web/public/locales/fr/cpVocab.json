@@ -199,6 +199,14 @@
         "0": "Choisissez un point"
       }
     },
+    "cp_action_vertex_insert_on_creases": {
+      "label": "Insérer un sommet",
+      "tooltip": "Diviser tous les plis passant par le point cliqué pour qu’ils se rejoignent en un seul sommet",
+      "disabledReason": "Prêt",
+      "steps": {
+        "0": "Cliquez à l’endroit où les plis doivent se rejoindre"
+      }
+    },
     "cp_action_delete_point": {
       "label": "Supprimer le point",
       "tooltip": "Fusionner les plis de même couleur se rejoignant au sommet choisi",
