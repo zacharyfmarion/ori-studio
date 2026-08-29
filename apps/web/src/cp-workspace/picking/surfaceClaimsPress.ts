@@ -4,10 +4,11 @@ import type { CpSelectHit } from '../CreasePatternWebglCanvas';
  * Whether a press that landed on a canvas object drawn *below* the creases
  * belongs to the crease-pattern surface instead of to that object.
  *
- * The question only arises for a reference image: it is drawn under the pattern
- * so you can trace over it, while its overlay body sits above the canvas and
- * takes the press first. Without this the surface under an image is unreachable
- * — no crease could be selected, erased or box-selected anywhere the image
+ * The question only arises for a canvas object you can see the pattern through:
+ * a reference image, drawn under the pattern so you can trace over it, or a text
+ * box, whose bounds are mostly empty. Either way the overlay body sits above the
+ * canvas and takes the press first. Without this the surface under one is
+ * unreachable — no crease could be selected, erased or box-selected anywhere it
  * covered, and pan did not work there either.
  *
  * Pure, and separate from the canvas, for the reason `cpPointerReleaseRoute`

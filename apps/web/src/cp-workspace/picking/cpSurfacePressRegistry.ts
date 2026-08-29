@@ -3,7 +3,7 @@
  * has no DOM path to it.
  *
  * The CP viewport stacks the WebGL canvas and the canvas-object overlay as
- * *siblings*, the overlay on top. So a press inside a reference image's box is
+ * *siblings*, the overlay on top. So a press inside a canvas object's box is
  * delivered to the overlay's body polygon and, under every propagation rule
  * there is, can never reach the canvas' own `pointerdown` listener — which is
  * where all crease picking lives. The overlay needs two things from the canvas
@@ -68,7 +68,7 @@ export interface CpSurfacePressHandle {
    * canvas only resolves that while it is receiving the hover — and it is not,
    * precisely because this layer is intercepting the events. Mirroring the
    * rendered style yielded a stale `default` over every crease drawn on top of
-   * a reference image.
+   * an object you can see the pattern through.
    *
    * So the answer is computed on demand from the same inputs the canvas' own
    * cursor uses. One hit test, and the claim verdict comes back folded in

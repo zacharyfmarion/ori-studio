@@ -21,9 +21,9 @@ function object(id: string): TransformableCanvasObject {
     locked: false,
     hidden: false,
     aspectLock: 'default-off',
-    // Above the creases, so the surface is never consulted — the default for
-    // every kind but a reference image.
-    paintedBehindCreases: false,
+    // Opaque and drawn over the pattern, so the surface is never consulted —
+    // a folded figure or an inline simulation window.
+    yieldsPressToCreases: false,
   };
 }
 
@@ -133,7 +133,7 @@ describe('CanvasObjectOverlay body interactivity', () => {
  * of it, while its overlay body sits above the canvas and is handed the press
  * first — so a crease drawn over an image was unselectable, and erase, pan and
  * marquee all died inside the image's box too. The fix is for a body flagged
- * `paintedBehindCreases` to ask the canvas whether the press is really the
+ * `yieldsPressToCreases` to ask the canvas whether the press is really the
  * surface's, and hand the native event over when it is.
  *
  * The canvas is not mounted here; `cpSurfacePressRegistry` is the whole contract
@@ -141,9 +141,9 @@ describe('CanvasObjectOverlay body interactivity', () => {
  * as this component can tell.
  */
 describe('CanvasObjectOverlay crease precedence', () => {
-  /** An object of the one kind the creases are painted over. */
+  /** An object you can see the crease pattern through — an image or a text box. */
   function image(id: string): TransformableCanvasObject {
-    return { ...object(id), paintedBehindCreases: true };
+    return { ...object(id), yieldsPressToCreases: true };
   }
 
   /**

@@ -98,18 +98,22 @@ describe('annotationAsTransformable', () => {
  * The companion assertion lives in `renderer/reglRendererLayerOrder.test.ts`,
  * which pins the draw order these answers claim to describe.
  */
-describe('which kinds the creases are painted over', () => {
+describe('which kinds yield a press to the crease under them', () => {
   it('yields a reference image, which is drawn under the creases to trace over', () => {
-    expect(annotationAsTransformable(image()).paintedBehindCreases).toBe(true);
+    expect(annotationAsTransformable(image()).yieldsPressToCreases).toBe(true);
   });
 
-  it('keeps a text box, which is a DOM layer above the canvas', () => {
+  it('yields a text box, whose bounds are mostly crease pattern you can see', () => {
+    // Not for the image's reason — a text box is painted *above* the creases —
+    // but for the same consequence: the box is far larger than the ink, so most
+    // of it is pattern the user is looking straight at and expects to click.
     const text = annotationAsTransformable(createTextAnnotation({ center: { x: 0, y: 0 } }));
-    expect(text.paintedBehindCreases).toBe(false);
+    expect(text.yieldsPressToCreases).toBe(true);
   });
 
-  it('keeps a folded figure, which draws after the creases it was folded from', () => {
-    expect(foldedFigureAsTransformable(foldedFigure())!.paintedBehindCreases).toBe(false);
+  it('keeps a folded figure, which is opaque and drawn over the pattern', () => {
+    // Nothing to see through, so nothing to yield to.
+    expect(foldedFigureAsTransformable(foldedFigure())!.yieldsPressToCreases).toBe(false);
   });
 });
 

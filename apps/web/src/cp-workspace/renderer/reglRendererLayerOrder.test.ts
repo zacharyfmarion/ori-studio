@@ -185,7 +185,7 @@ describe('reglRenderer layer order', () => {
 
   /**
    * Reference images are the one canvas-object kind the crease pattern is drawn
-   * *over*, and a pile of behaviour now rests on that: `paintedBehindCreases` in
+   * *over*, and a pile of behaviour now rests on that: `yieldsPressToCreases` in
    * `canvasObjects/transformableObject` makes an image yield its press to a
    * crease on top of it, on the premise asserted here. Invert this draw order
    * and that rule silently becomes backwards — the image would be occluding

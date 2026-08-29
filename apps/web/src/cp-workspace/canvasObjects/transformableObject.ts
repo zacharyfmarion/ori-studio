@@ -35,22 +35,25 @@ export interface TransformableCanvasObject {
   /** Whether resize keeps proportions, and whether Shift escapes that. */
   aspectLock: AspectLockPolicy;
   /**
-   * Whether the crease pattern is painted *over* this object.
+   * Whether a crease under this object's body outranks it for a press.
    *
-   * Pick order has to follow paint order, or the surface lies about what a click
-   * will do. Everything the overlay draws chrome for sits above the creases and
-   * rightly takes its own press — except a reference image, which is drawn
-   * underneath them precisely so you can trace over it (see
-   * `reglRenderer.render`). Leaving that kind to swallow every press inside its
-   * box made a crease drawn on top of an image unselectable, which is the bug
-   * this flag exists to fix.
+   * True for the kinds you can see the crease pattern *through*, where letting
+   * the body swallow the press means a visible crease is unclickable:
+   *
+   * - **Reference images**, drawn underneath the creases precisely so you can
+   *   trace over them (see `reglRenderer.render`).
+   * - **Text boxes**, whose bounds are mostly empty — the box is far larger than
+   *   the ink, so most of it is crease pattern you are looking straight at.
+   *
+   * False for folded figures and inline simulations, which are opaque and drawn
+   * over the pattern: there is no crease to see there, so nothing to yield to.
    *
    * Only the *body* yields. Resize and rotate handles are chrome — small,
    * deliberate, and drawn on top — and keep their press whatever is beneath, or
-   * an image under a dense pattern could not be sized at all. Same body-vs-handle
-   * split `inertBodyIds` already draws.
+   * an object over a dense pattern could not be sized at all. Same
+   * body-vs-handle split `inertBodyIds` already draws.
    */
-  paintedBehindCreases: boolean;
+  yieldsPressToCreases: boolean;
 }
 
 /** An annotation as the overlay sees it: a model-space box. */
@@ -69,9 +72,10 @@ export function annotationAsTransformable(
     locked: annotation.locked,
     hidden: annotation.hidden,
     aspectLock: annotationAspectLockPolicy(annotation),
-    // Images are drawn into the canvas below the creases; text boxes are their
-    // own DOM layer above it. The two annotation variants genuinely differ here.
-    paintedBehindCreases: annotation.kind === 'image',
+    // Both annotation variants yield, for different reasons: an image is drawn
+    // under the creases, a text box's bounds are mostly empty. Written per kind
+    // rather than as a bare `true` so a third variant has to state its own case.
+    yieldsPressToCreases: annotation.kind === 'image' || annotation.kind === 'text',
   };
 }
 
@@ -125,6 +129,6 @@ export function foldedFigureAsTransformable(
     aspectLock: 'always',
     // Folded figures draw after the creases, so they occlude the pattern they
     // were folded from and keep their press.
-    paintedBehindCreases: false,
+    yieldsPressToCreases: false,
   };
 }

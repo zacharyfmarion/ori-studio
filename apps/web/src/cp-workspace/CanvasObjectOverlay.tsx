@@ -115,12 +115,12 @@ type ContactRef = MutableRefObject<Map<number, CpGesturePointer>>;
  * The crease pattern, when this press is its business rather than the object's —
  * null when the object keeps it.
  *
- * Only asked for an object the creases are painted *over*, which in practice
- * means a reference image: it is drawn under the pattern so you can trace on top
- * of it, while its body polygon still sits above the canvas and is handed the
- * press first. That is why a crease drawn over an image used to be
- * unselectable — this layer took the press and the canvas' hit test never ran
- * at all.
+ * Only asked for an object you can see the crease pattern through — a reference
+ * image, drawn under the pattern so you can trace on top of it, or a text box,
+ * whose bounds are mostly empty. Either way the body polygon sits above the
+ * canvas and is handed the press first, which is why a crease crossing one used
+ * to be unselectable: this layer took the press and the canvas' hit test never
+ * ran at all.
  *
  * Nothing registered means no crease pattern is mounted, or WebGL was
  * unavailable; behaving exactly as before this existed is then the right answer.
@@ -129,7 +129,7 @@ function surfaceClaiming(
   event: ReactPointerEvent<SVGElement> | ReactMouseEvent<SVGElement>,
   object: TransformableCanvasObject
 ): CpSurfacePressHandle | null {
-  if (!object.paintedBehindCreases) return null;
+  if (!object.yieldsPressToCreases) return null;
   const surface = cpSurfacePress();
   return surface?.claimsPress(event.nativeEvent) ? surface : null;
 }
@@ -442,7 +442,7 @@ export function CanvasObjectOverlay({
    */
   const probeBodyCursor = useCallback(
     (event: ReactPointerEvent<SVGElement>, object: TransformableCanvasObject) => {
-      if (!object.paintedBehindCreases || dragRef.current) return;
+      if (!object.yieldsPressToCreases || dragRef.current) return;
       const sample = {
         id: object.id,
         clientX: event.clientX,

@@ -451,7 +451,7 @@ export function inlineSimulationAsTransformable(
     // there is no proportion to preserve. Shift locks it, as elsewhere.
     aspectLock: 'default-off',
     // A window is its own DOM layer above the canvas, so it keeps its press.
-    paintedBehindCreases: false,
+    yieldsPressToCreases: false,
   };
 }
 
