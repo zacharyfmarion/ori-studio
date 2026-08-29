@@ -128,6 +128,22 @@ pub struct CreasePatternCommandPayload {
     /// `Some(180.0)` and `None` both mean a classic crease.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fold_magnitude_degrees: Option<f64>,
+    /// The **active crease angle** a drawing command gives creases it creates,
+    /// in degrees, `0..=180`. Absent means classic, which is the default pen.
+    ///
+    /// Deliberately not [`Self::fold_magnitude_degrees`], which is
+    /// `CreaseSetFoldAngle`'s operand. One field says "set this on the lines I
+    /// named" and this one says "give this to whatever you draw"; a reader that
+    /// conflated them would apply the wrong one to the wrong set of creases.
+    ///
+    /// Consumed by `CreasePatternModel::pen_fold_magnitude`, which is stamped
+    /// at the one insertion path for a drawn crease
+    /// (`operations::arrangement::add_line_segment_like_worker`). Which
+    /// operations should send it is the *caller's* decision — the classical
+    /// bases and the flat-foldability tools deliberately do not, because their
+    /// creases are +/-180 by construction.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_fold_magnitude_degrees: Option<f64>,
     /// Optional model-space hit tolerance for point/line tools.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub selection_distance: Option<f64>,
@@ -1926,7 +1942,26 @@ pub fn operation_status(operation: OperationId) -> OperationStatus {
 }
 
 /// Dispatch a command against a crease-pattern document.
+///
+/// Arms the active crease angle for the dispatch and disarms it afterwards, on
+/// the error path as well as the success one. The wrapper exists because the
+/// obvious RAII guard cannot: it would have to hold the `&mut CreasePatternModel`
+/// that [`dispatch_command`]'s body needs for the whole dispatch. Owning the
+/// call from outside gets the same guarantee without touching the dispatch at
+/// all — see `CreasePatternModel::pen_fold_magnitude`.
 pub fn execute_command(
+    document: &mut CreasePatternDocument,
+    command: CreasePatternCommand,
+) -> Result<CommandResult> {
+    let pen = active_fold_magnitude(&command)?;
+    document.crease_pattern.pen_fold_magnitude = pen;
+    let result = dispatch_command(document, command);
+    document.crease_pattern.pen_fold_magnitude = None;
+    result
+}
+
+/// The command dispatch itself. Call [`execute_command`], which arms the pen.
+fn dispatch_command(
     document: &mut CreasePatternDocument,
     command: CreasePatternCommand,
 ) -> Result<CommandResult> {
@@ -4805,6 +4840,32 @@ fn rectangle_polygon(a: geometry::Point, b: geometry::Point) -> Polygon {
 
 fn active_line_color(command: &CreasePatternCommand) -> LineColor {
     command.payload.line_color.unwrap_or(LineColor::Red1)
+}
+
+/// The active crease angle this command draws with, validated.
+///
+/// `None` for the classic pen, which is both the default and what 180 degrees
+/// normalises to. An angle outside `0..=180` is a caller bug and is rejected
+/// rather than clamped, matching `CreaseSetFoldAngle`'s handling of its own
+/// operand — a pen silently snapped to a plausible neighbour would put an angle
+/// nobody asked for on every crease drawn until it was noticed.
+fn active_fold_magnitude(
+    command: &CreasePatternCommand,
+) -> Result<Option<geometry::FoldMagnitude>> {
+    match command.payload.active_fold_magnitude_degrees {
+        None => Ok(None),
+        Some(degrees) => {
+            let magnitude = geometry::FoldMagnitude::from_degrees(degrees).ok_or_else(|| {
+                CommandError::InvalidInput {
+                    operation: command.operation,
+                    message: format!("active fold magnitude {degrees} is outside 0..=180 degrees"),
+                }
+            })?;
+            // 180 is stored as "classic", so an explicit full fold and an absent
+            // pen land on the same state rather than two that behave alike.
+            Ok((!magnitude.is_full()).then_some(magnitude))
+        }
+    }
 }
 
 fn angle_system_divider(command: &CreasePatternCommand) -> i32 {
@@ -8687,5 +8748,231 @@ mod tests {
             (actual - expected).abs() < 1e-9,
             "expected {actual} to be within tolerance of {expected}"
         );
+    }
+
+    /// The active crease angle: the pen a drawing command gives creases it
+    /// creates. See `add_line_segment_like_worker`, which is where it lands.
+    mod active_crease_angle {
+        use super::*;
+
+        /// Draw from `a` to `b` in `color`, with the pen at `pen`.
+        fn draw(
+            document: &mut CreasePatternDocument,
+            a: (f64, f64),
+            b: (f64, f64),
+            color: LineColor,
+            pen: Option<f64>,
+        ) {
+            let mut payload = CreasePatternCommandPayload {
+                points: vec![Point::new(a.0, a.1), Point::new(b.0, b.1)],
+                line_color: Some(color),
+                ..Default::default()
+            };
+            payload.active_fold_magnitude_degrees = pen;
+            execute_command(
+                document,
+                CreasePatternCommand::new(OperationId::DrawCreaseFree).with_payload(payload),
+            )
+            .expect("the draw commits");
+        }
+
+        /// `|rho|` in degrees for every crease in the document, in id order.
+        fn magnitudes(document: &CreasePatternDocument) -> Vec<f64> {
+            document
+                .crease_pattern
+                .line_segments
+                .iter()
+                .filter(|segment| matches!(segment.color, LineColor::Red1 | LineColor::Blue2))
+                .map(|segment| {
+                    segment
+                        .fold_magnitude
+                        .map_or(180.0, geometry::FoldMagnitude::degrees)
+                })
+                .collect()
+        }
+
+        #[test]
+        fn a_drawn_crease_takes_the_pen() {
+            let mut document = CreasePatternDocument::default();
+            draw(
+                &mut document,
+                (-50.0, 0.0),
+                (50.0, 0.0),
+                LineColor::Red1,
+                Some(90.0),
+            );
+            assert_eq!(magnitudes(&document), vec![90.0]);
+        }
+
+        /// The pen is a *magnitude*; direction stays in the colour, so the same
+        /// pen on a valley is the same number with the other sign.
+        #[test]
+        fn the_pen_is_direction_free() {
+            let mut document = CreasePatternDocument::default();
+            draw(
+                &mut document,
+                (-50.0, 0.0),
+                (50.0, 0.0),
+                LineColor::Blue2,
+                Some(90.0),
+            );
+            let angle = model::crease_fold_angle(&document.crease_pattern.line_segments[0])
+                .expect("a valley carries an angle");
+            assert_close(angle, 90.0);
+        }
+
+        /// Borders and construction guides cannot fold, so the pen must not
+        /// reach them. `with_fold_magnitude` enforces this, and this is the test
+        /// that says the drawing path relies on it.
+        #[test]
+        fn the_pen_does_not_reach_edges_or_auxiliary_lines() {
+            for color in [LineColor::Black0, LineColor::Cyan3] {
+                let mut document = CreasePatternDocument::default();
+                draw(&mut document, (-50.0, 0.0), (50.0, 0.0), color, Some(90.0));
+                assert!(
+                    magnitudes(&document).is_empty(),
+                    "{color:?} is not a crease and must carry no angle"
+                );
+                assert!(
+                    document.crease_pattern.line_segments[0]
+                        .fold_magnitude
+                        .is_none(),
+                    "{color:?} was given a fold magnitude"
+                );
+            }
+        }
+
+        /// The reason the stamp sits *before* the intersection split rather than
+        /// after it. Crossing an existing classic crease splits that crease into
+        /// two new segments; they are new by any geometric identity, and a
+        /// stamp that could not tell them from the drawn line would retag a
+        /// crease the user never touched.
+        #[test]
+        fn a_crossed_crease_keeps_its_own_angle() {
+            let mut document = CreasePatternDocument::default();
+            draw(
+                &mut document,
+                (0.0, -50.0),
+                (0.0, 50.0),
+                LineColor::Red1,
+                None,
+            );
+            draw(
+                &mut document,
+                (-50.0, 0.0),
+                (50.0, 0.0),
+                LineColor::Blue2,
+                Some(90.0),
+            );
+
+            let mut found = magnitudes(&document);
+            found.sort_by(f64::total_cmp);
+            assert_eq!(
+                found,
+                vec![90.0, 90.0, 180.0, 180.0],
+                "the crossed mountain's two halves must stay classic while both \
+                 halves of the drawn valley take the pen"
+            );
+        }
+
+        /// A caller that already decided outranks the pen — an inherited angle,
+        /// a solver's answer. The pen fills a blank; it does not overwrite.
+        #[test]
+        fn a_segment_that_already_has_an_angle_keeps_it() {
+            let mut model = model::CreasePatternModel {
+                pen_fold_magnitude: geometry::FoldMagnitude::from_degrees(90.0),
+                ..Default::default()
+            };
+            let decided = geometry::LineSegment::with_color(
+                Point::new(-50.0, 0.0),
+                Point::new(50.0, 0.0),
+                LineColor::Red1,
+            )
+            .with_fold_magnitude(geometry::FoldMagnitude::from_degrees(45.0));
+
+            operations::arrangement::add_line_segment_like_worker(&mut model, &decided);
+
+            assert_close(
+                model.line_segments[0]
+                    .fold_magnitude
+                    .expect("the crease keeps its own angle")
+                    .degrees(),
+                45.0,
+            );
+        }
+
+        /// 180 is stored as "classic", so an explicit full fold and an absent
+        /// pen have to land on the same state rather than two that behave alike.
+        #[test]
+        fn a_full_fold_pen_is_classic() {
+            let mut document = CreasePatternDocument::default();
+            draw(
+                &mut document,
+                (-50.0, 0.0),
+                (50.0, 0.0),
+                LineColor::Red1,
+                Some(180.0),
+            );
+            assert!(
+                document.crease_pattern.line_segments[0]
+                    .fold_magnitude
+                    .is_none(),
+                "a 180-degree pen must normalise to classic, not store 180"
+            );
+        }
+
+        #[test]
+        fn an_out_of_range_pen_is_rejected() {
+            let mut document = CreasePatternDocument::default();
+            let mut payload = CreasePatternCommandPayload {
+                points: vec![Point::new(-50.0, 0.0), Point::new(50.0, 0.0)],
+                line_color: Some(LineColor::Red1),
+                ..Default::default()
+            };
+            payload.active_fold_magnitude_degrees = Some(200.0);
+            assert!(
+                execute_command(
+                    &mut document,
+                    CreasePatternCommand::new(OperationId::DrawCreaseFree).with_payload(payload),
+                )
+                .is_err(),
+                "a pen outside 0..=180 is a caller bug and must not be clamped"
+            );
+        }
+
+        /// The pen is command-scoped. A failed command must not leave one armed
+        /// for the next — which is what `execute_command`'s wrapper is for, and
+        /// the case an RAII guard inside the dispatch could not have covered.
+        #[test]
+        fn the_pen_is_disarmed_after_a_failed_command() {
+            let mut document = CreasePatternDocument::default();
+            let mut payload = CreasePatternCommandPayload {
+                // One point where two are required, so the dispatch `?`s out
+                // *after* the pen is armed.
+                points: vec![Point::new(0.0, 0.0)],
+                line_color: Some(LineColor::Red1),
+                ..Default::default()
+            };
+            payload.active_fold_magnitude_degrees = Some(90.0);
+            assert!(
+                execute_command(
+                    &mut document,
+                    CreasePatternCommand::new(OperationId::DrawCreaseFree).with_payload(payload),
+                )
+                .is_err(),
+                "two points are required"
+            );
+            assert_eq!(document.crease_pattern.pen_fold_magnitude, None);
+
+            // And the next command draws classic, which is what a leak would break.
+            draw(
+                &mut document,
+                (-50.0, 0.0),
+                (50.0, 0.0),
+                LineColor::Red1,
+                None,
+            );
+            assert_eq!(magnitudes(&document), vec![180.0]);
+        }
     }
 }

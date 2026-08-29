@@ -4,7 +4,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Check, MoreHorizontal } from 'lucide-react';
 import { MenuIconButton } from '../ui/MenuIconButton';
 import {
-  hasUnseenActiveMode,
+  hasUnseenActiveControl,
   viewportToolbarSlots,
   type ViewportToolbarAction,
   type ViewportToolbarOverflowGroup,
@@ -100,9 +100,10 @@ export function ViewportToolbarOverflowMenu({
       <MenuIconButton
         label={t('tools:viewport.more', 'More view controls')}
         icon={<MoreHorizontal size={14} />}
-        // Pressed while open, and while a mode it hides is switched on with
-        // nothing else on screen to say so.
-        isActive={open || hasUnseenActiveMode(groups)}
+        // Pressed while open, and while something it hides is in a state with
+        // nothing else on screen to say so — a mode switched on, or a value away
+        // from its default.
+        isActive={open || hasUnseenActiveControl(groups)}
       />
       <DropdownMenu.Portal>
         <DropdownMenu.Content

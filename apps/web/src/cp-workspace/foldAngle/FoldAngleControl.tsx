@@ -11,6 +11,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Chip } from '../../components/ui/Chip';
 import { FOLD_ANGLE_PRESETS, describeAffected } from './foldAngleActions';
 import { useFoldAngleSelection } from './useFoldAngleSelection';
 
@@ -43,24 +44,24 @@ export function FoldAngleControl() {
       </div>
       <div className="cp-context-panel__chips">
         {FOLD_ANGLE_PRESETS.map((preset) => (
-          <button
+          <Chip
             key={preset.id}
-            type="button"
-            className="cp-context-panel__chip"
             aria-label={preset.description}
             aria-pressed={summary.degrees === preset.degrees}
             onClick={() => void setDegrees(preset.degrees)}
           >
             {preset.label}
-          </button>
+          </Chip>
         ))}
         {/* Beside the presets rather than below them, because it answers the
             same question they do — how far does this fold — with "I have not
             decided". It keeps the direction; forgetting that too is the menu's
-            explicit ask. */}
-        <button
-          type="button"
-          className="cp-context-panel__chip"
+            explicit ask.
+
+            No `aria-pressed`: this is a verb that runs, not a choice that can be
+            the current one, and saying `false` would announce a selection that
+            is merely off. */}
+        <Chip
           aria-label={t(
             'tools:cpContext.foldAngleUnassignedDescription',
             'Leave the fold angle undecided, keeping mountain or valley'
@@ -68,7 +69,7 @@ export function FoldAngleControl() {
           onClick={() => void setUnassigned()}
         >
           {t('tools:cpContext.foldAngleUnassigned', 'Unassigned')}
-        </button>
+        </Chip>
       </div>
       <label className="cp-context-panel__field">
         <span>{t('tools:cpContext.foldAngleDegrees', 'Degrees')}</span>

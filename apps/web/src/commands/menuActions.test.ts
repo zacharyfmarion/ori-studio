@@ -96,6 +96,7 @@ function createDeps() {
       setOristudioCpSelection: vi.fn(),
       clearOristudioCpSelection: vi.fn(),
       requestOristudioCpAction: vi.fn(),
+      requestOristudioCpSurface: vi.fn(),
       executeOristudioCpCommand: vi.fn().mockResolvedValue(true),
       transformOristudioCpSelection: vi.fn().mockResolvedValue(true),
     },

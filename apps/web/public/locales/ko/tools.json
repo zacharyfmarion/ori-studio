@@ -200,6 +200,13 @@
     "title": "도구",
     "trigger": "도구"
   },
+  "creaseAngle": {
+    "close": "접는 선 각도 닫기",
+    "degrees": "접는 선 각도(도)",
+    "fieldTitle": "새로 그리는 산접기와 골접기에 적용되는 접기 각도",
+    "menuRow": "접는 선 각도: {{angle}}",
+    "title": "접는 선 각도"
+  },
   "divideMode": {
     "count": "개수",
     "countTitle": "선을 같은 크기로 분할합니다",

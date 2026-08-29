@@ -1304,6 +1304,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
     oristudioCpSelection: emptyOristudioCpSelection(),
     oristudioCpActionRequest: null,
+    oristudioCpSurfaceRequest: null,
     oristudioCpActiveToolId: null,
     oristudioCpActiveDiagnosticId: null,
     oristudioCpRevision: 0,
@@ -1964,12 +1965,25 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       set({ oristudioCpActionRequest: { id: previousId + 1, operationId } });
     },
 
+    requestOristudioCpSurface: (kind) => {
+      const previousId = get().oristudioCpSurfaceRequest?.id ?? 0;
+      set({ oristudioCpSurfaceRequest: { id: previousId + 1, kind } });
+    },
+
     setOristudioCpActiveToolId: (id) => set({ oristudioCpActiveToolId: id }),
 
     clearOristudioCpActionRequest: (id) =>
       set({
         oristudioCpActionRequest:
           get().oristudioCpActionRequest?.id === id ? null : get().oristudioCpActionRequest,
+      }),
+
+    // Clear-by-id, not clear-outright: a panel handling request N must not drop
+    // request N+1 that arrived while it was doing so.
+    clearOristudioCpSurfaceRequest: (id) =>
+      set({
+        oristudioCpSurfaceRequest:
+          get().oristudioCpSurfaceRequest?.id === id ? null : get().oristudioCpSurfaceRequest,
       }),
 
     setOristudioCpActiveDiagnostic: (oristudioCpActiveDiagnosticId) => {

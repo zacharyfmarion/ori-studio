@@ -170,6 +170,19 @@ export function getMenuBarDef(
       ],
     },
     {
+      // Placing something onto the canvas. Deliberately not `Import (Add)...`,
+      // which reads a crease pattern off disk and stays in File — Insert is
+      // about the canvas, File is about files.
+      //
+      // Every item is gated on an editable crease pattern, so `menuHasVisibleItems`
+      // drops the whole menu on the tree and box-pleat surfaces.
+      label: t('menu:menubar.insert', 'Insert'),
+      items: [
+        { type: 'action', id: 'insert.image', label: t('menu:insert.image', 'Image...') },
+        { type: 'action', id: 'insert.text', label: t('menu:insert.text', 'Text') },
+      ],
+    },
+    {
       label: t('menu:menubar.view', 'View'),
       items: [
         { type: 'action', id: 'view.design', label: t('menu:view.design', 'Design') },
@@ -203,6 +216,16 @@ export function getMenuBarDef(
     {
       label: t('menu:menubar.creasePattern', 'Crease Pattern'),
       items: [
+        // The pen, above the selection verbs, because it applies before you
+        // draw where those apply after. Here rather than only on the viewport
+        // bar so the chord has somewhere to be discovered.
+        {
+          type: 'action',
+          id: 'cp.setActiveCreaseAngle',
+          label: t('menu:cp.setActiveCreaseAngle', 'Set Crease Angle...'),
+          shortcut: shortcut('cp.setActiveCreaseAngle', resolution),
+        },
+        { type: 'separator' },
         {
           type: 'submenu',
           label: t('menu:cp.selectedLines', 'Selected Lines'),

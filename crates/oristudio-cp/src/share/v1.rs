@@ -577,6 +577,11 @@ fn assert_model_fields_are_handled(model: &CreasePatternModel) {
         aux_line_segments: _, // extension 0x0003
         texts: _,             // extension 0x0005
         grid: _,              // extension 0x0002
+        // Deliberately not carried. Not document state: it is armed by
+        // `execute_command` for the duration of one command and disarmed after,
+        // so it is `None` at every point a model could be encoded. A share link
+        // records what was drawn, not the pen that drew it.
+        pen_fold_magnitude: _,
     } = model;
 }
 

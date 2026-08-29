@@ -37,6 +37,7 @@
     "repair": "복구",
     "replaceLineType": "선택한 선 종류 교체...",
     "selectedLines": "선택한 선",
+    "setActiveCreaseAngle": "접는 선 각도 설정...",
     "toggleMountainValley": "산/골 전환",
     "transform": "선택 항목 변형",
     "transformFlipHorizontal": "좌우 뒤집기",
@@ -103,12 +104,17 @@
     "about": "Ori Studio 정보",
     "checkForUpdates": "업데이트 확인…"
   },
+  "insert": {
+    "image": "이미지...",
+    "text": "텍스트"
+  },
   "menubar": {
     "creasePattern": "전개도",
     "design": "디자인",
     "edit": "편집",
     "file": "파일",
     "help": "도움말",
+    "insert": "삽입",
     "view": "보기"
   },
   "optimize": {

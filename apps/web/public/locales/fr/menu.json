@@ -37,6 +37,7 @@
     "repair": "Réparer",
     "replaceLineType": "Remplacer le type de ligne sélectionné...",
     "selectedLines": "Lignes sélectionnées",
+    "setActiveCreaseAngle": "Définir l'angle de pli...",
     "toggleMountainValley": "Basculer montagne/vallée",
     "transform": "Transformer la sélection",
     "transformFlipHorizontal": "Retourner horizontalement",
@@ -103,12 +104,17 @@
     "about": "À propos d'Ori Studio",
     "checkForUpdates": "Rechercher des mises à jour…"
   },
+  "insert": {
+    "image": "Image...",
+    "text": "Texte"
+  },
   "menubar": {
     "creasePattern": "Patron de plis",
     "design": "Conception",
     "edit": "Édition",
     "file": "Fichier",
     "help": "Aide",
+    "insert": "Insertion",
     "view": "Affichage"
   },
   "optimize": {

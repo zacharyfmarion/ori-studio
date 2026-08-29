@@ -27,6 +27,7 @@ import {
   directionHintOptions,
   isDirectionHintActive,
 } from './directionHintActions';
+import { Chip } from '../../components/ui/Chip';
 import { useDirectionHintSelection } from './useDirectionHintSelection';
 
 export function DirectionHintControl() {
@@ -42,10 +43,8 @@ export function DirectionHintControl() {
       </div>
       <div className="cp-context-panel__chips">
         {directionHintOptions(t).map((option) => (
-          <button
+          <Chip
             key={option.id}
-            type="button"
-            className="cp-context-panel__chip"
             aria-label={option.description}
             // Nothing is pressed on a mixed selection — the same convention the
             // fold-angle group uses when its creases disagree, rather than
@@ -54,7 +53,7 @@ export function DirectionHintControl() {
             onClick={() => void setHint(option.change)}
           >
             {option.label}
-          </button>
+          </Chip>
         ))}
       </div>
       {/* The count stays visible when mixed rather than being replaced by it:

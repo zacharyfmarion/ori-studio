@@ -216,6 +216,13 @@
     "title": "Outils",
     "trigger": "Outils"
   },
+  "creaseAngle": {
+    "close": "Fermer l'angle de pli",
+    "degrees": "Angle de pli en degrés",
+    "fieldTitle": "Angle de pliage donné aux nouveaux plis montagne et vallée",
+    "menuRow": "Angle de pli : {{angle}}",
+    "title": "Angle de pli"
+  },
   "divideMode": {
     "count": "Nombre",
     "countTitle": "Diviser la ligne en parts égales",

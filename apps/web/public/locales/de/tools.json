@@ -208,6 +208,13 @@
     "title": "Werkzeuge",
     "trigger": "Werkzeuge"
   },
+  "creaseAngle": {
+    "close": "Faltwinkel schließen",
+    "degrees": "Faltwinkel in Grad",
+    "fieldTitle": "Faltwinkel für neue Berg- und Talfalten",
+    "menuRow": "Faltwinkel: {{angle}}",
+    "title": "Faltwinkel"
+  },
   "divideMode": {
     "count": "Anzahl",
     "countTitle": "Die Linie in gleiche Teile teilen",

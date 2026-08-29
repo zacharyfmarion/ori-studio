@@ -219,7 +219,7 @@ async function openBuilt(hotkeys: string): Promise<void> {
  * something it must leave alone.
  */
 const TWO_OFFERS_AND_A_DEAD_ROW = [
-  // Shift+A is Measure Angle's.
+  // Shift+A is Set Crease Angle's.
   'colRedAction=shift pressed A',
   // 5 is Zoom Out's second chord, which claims it unconditionally.
   'makeFlatFoldableAction=pressed 5',
@@ -272,9 +272,9 @@ describe('OrieditaImportDialog', () => {
     expect(rowFor('clearedAction')).toContain(
       'Left blank in Oriedita. Oriedita writes the same blank when a hotkey is reset to its default'
     );
-    // Shift+A is Measure Angle's here, so the user's own Mountain edit loses —
+    // Shift+A is Set Crease Angle's here, so the user's own Mountain edit loses —
     // and the row names the binding it would have taken the key from.
-    expect(rowFor('Mountain')).toContain('Would take this key away from Measure Angle.');
+    expect(rowFor('Mountain')).toContain('Would take this key away from Set Crease Angle.');
     expect(skipped.every((row) => row.includes(' — '))).toBe(true);
 
     expect(useShortcutStore.getState().overrides).toEqual({});
@@ -307,7 +307,7 @@ describe('OrieditaImportDialog', () => {
     expect(offer).toBeDefined();
     // The screen-reader name is where the displaced binding is stated, since the
     // note above it already says who answers the key first.
-    expect(offer?.getAttribute('aria-label')).toContain('Measure Angle');
+    expect(offer?.getAttribute('aria-label')).toContain('Set Crease Angle');
 
     await click(offer as HTMLButtonElement);
 
@@ -315,7 +315,7 @@ describe('OrieditaImportDialog', () => {
       'Mountain | crease-pattern — Replaces A | Shift+A',
     ]);
     expect(rowsUnder('Will be unbound')).toEqual([
-      'Measure Angle | Gives up this key to Mountain, and is left unassigned. | Shift+A',
+      'Set Crease Angle | Gives up this key to Mountain, and is left unassigned. | Shift+A',
     ]);
     expect(button('Apply').disabled).toBe(false);
     // Still nothing written: consent to unbind is not consent to import.
@@ -367,7 +367,7 @@ describe('OrieditaImportDialog', () => {
 
     expect(rowsUnder('Will be unbound')).toEqual([]);
     expect(rowsUnder('Will change')).toEqual([]);
-    expect(rowFor('Mountain')).toContain('Would take this key away from Measure Angle.');
+    expect(rowFor('Mountain')).toContain('Would take this key away from Set Crease Angle.');
   });
 
   it('applies exactly the rows it previewed, in a single persist', async () => {
@@ -385,7 +385,7 @@ describe('OrieditaImportDialog', () => {
     expect(overrides['cp.action.line-type.mountain']).toEqual([{ key: 'a', shift: true }]);
     // The displaced binding is unbound outright, not merely left at its default,
     // or the dispatcher would keep handing it the chord.
-    expect(overrides['cp.action.display-angle-between-three-points1']).toBeNull();
+    expect(overrides['cp.setActiveCreaseAngle']).toBeNull();
     // Nothing else: the archive's other mapped hotkey stayed blocked, and a row
     // the preview called skipped must never reach the store.
     expect(Object.keys(overrides)).toHaveLength(2);
@@ -398,7 +398,7 @@ describe('OrieditaImportDialog', () => {
     await click(button('Apply'));
 
     // A real keydown, not the plan's own chord fed back in: Shift+A reports the
-    // shifted character. Measure Angle held this key until the eviction, so a
+    // shifted character. Set Crease Angle held this key until the eviction, so a
     // binding that plans and applies but still runs the old action is exactly the
     // failure "Use anyway" would be lying about.
     const fired = pressAndSee(

@@ -203,15 +203,18 @@ describe('shortcut registry', () => {
     });
   });
 
-  it('keeps the mirror family on M and puts the measure tools on Shift+M / Shift+A', () => {
+  it('keeps the mirror family on M and puts the measure tools on Shift+M / Shift+N', () => {
     expect(getResolvedShortcut('cp.action.symmetric-draw')).toEqual({ key: 'm' });
     expect(getResolvedShortcut('cp.action.draw-crease-symmetric')).toEqual({ primary: true, key: 'm' });
     expect(getResolvedShortcut('cp.action.display-length-between-points1')).toEqual({
       key: 'm',
       shift: true,
     });
+    // The angle readout gave Shift+A up to the active crease angle, which is set
+    // between strokes rather than reached for to answer one question. It keeps a
+    // bare Shift+letter of its own rather than losing its chord.
     expect(getResolvedShortcut('cp.action.display-angle-between-three-points1')).toEqual({
-      key: 'a',
+      key: 'n',
       shift: true,
     });
     // The bare keys they shift stay with their own tools.
@@ -220,8 +223,16 @@ describe('shortcut registry', () => {
       /Shift\+M$/u
     );
     expect(shortcutLabelForAction('cp.action.display-angle-between-three-points1')).toMatch(
-      /Shift\+A$/u
+      /Shift\+N$/u
     );
+  });
+
+  // The pen: what angle the creases you draw next take. Distinct from
+  // `cp.action.crease-set-fold-angle` on Shift+F, which sets the angle on what
+  // is already selected — two moments, two chords.
+  it('binds the active crease angle to Shift+A', () => {
+    expect(getResolvedShortcut('cp.setActiveCreaseAngle')).toEqual({ key: 'a', shift: true });
+    expect(shortcutLabelForAction('cp.setActiveCreaseAngle')).toMatch(/Shift\+A$/u);
   });
 
   it('reports import diagnostics for follow-up mapping work', () => {
