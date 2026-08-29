@@ -6,6 +6,7 @@ import { cpOverlayViewStore } from './cpOverlayViewStore';
 import { CanvasObjectOverlay } from './CanvasObjectOverlay';
 import type { CanvasObjectBoxUpdate } from './CanvasObjectOverlay';
 import { cpSurfaceGestures } from './gestures/cpSurfaceGestures';
+import { registerCpSurfacePress } from './picking/cpSurfacePressRegistry';
 import type { TransformableCanvasObject } from './canvasObjects/transformableObject';
 import { resetShiftLatch, setShiftLatched } from './touchModifiers/shiftLatch';
 
@@ -20,11 +21,16 @@ function object(id: string): TransformableCanvasObject {
     locked: false,
     hidden: false,
     aspectLock: 'default-off',
+    // Opaque and drawn over the pattern, so the surface is never consulted —
+    // a folded figure or an inline simulation window.
+    yieldsPressToCreases: false,
   };
 }
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
+/** Unregister for a stub surface, so one case's canvas cannot leak into the next. */
+let detachSurface: (() => void) | null = null;
 
 beforeEach(() => {
   // Module state shared with the canvas, so a contact left behind by one case
@@ -44,6 +50,8 @@ afterEach(() => {
   container?.remove();
   root = null;
   container = null;
+  detachSurface?.();
+  detachSurface = null;
   vi.restoreAllMocks();
 });
 
@@ -115,6 +123,337 @@ describe('CanvasObjectOverlay body interactivity', () => {
     expect(polygons.length).toBe(2);
     expect((polygons[0] as SVGPolygonElement).style.pointerEvents).toBe('none');
     expect((polygons[1] as SVGPolygonElement).style.pointerEvents).toBe('auto');
+  });
+});
+
+/**
+ * Crease-over-image press precedence.
+ *
+ * A reference image is drawn *under* the crease pattern so you can trace on top
+ * of it, while its overlay body sits above the canvas and is handed the press
+ * first — so a crease drawn over an image was unselectable, and erase, pan and
+ * marquee all died inside the image's box too. The fix is for a body flagged
+ * `yieldsPressToCreases` to ask the canvas whether the press is really the
+ * surface's, and hand the native event over when it is.
+ *
+ * The canvas is not mounted here; `cpSurfacePressRegistry` is the whole contract
+ * between the two layers, so a stub registered through it *is* the canvas as far
+ * as this component can tell.
+ */
+describe('CanvasObjectOverlay crease precedence', () => {
+  /** An object you can see the crease pattern through — an image or a text box. */
+  function image(id: string): TransformableCanvasObject {
+    return { ...object(id), yieldsPressToCreases: true };
+  }
+
+  /**
+   * Register a stub surface and return what it was asked and told.
+   * `claims` decides every answer, standing in for "is a crease under here";
+   * `cursor` is what the canvas would show there when it does claim.
+   */
+  function stubSurface(claims: boolean, cursor = 'pointer') {
+    const asked: { clientX: number; clientY: number; button: number }[] = [];
+    const cursorAsked: { clientX: number; clientY: number }[] = [];
+    const pressed: PointerEvent[] = [];
+    detachSurface = registerCpSurfacePress({
+      claimsPress: (point) => {
+        asked.push({ clientX: point.clientX, clientY: point.clientY, button: point.button });
+        return claims;
+      },
+      press: (event) => {
+        pressed.push(event);
+      },
+      hoverCursor: (point) => {
+        cursorAsked.push({ clientX: point.clientX, clientY: point.clientY });
+        return claims ? cursor : null;
+      },
+    });
+    return { asked, cursorAsked, pressed };
+  }
+
+  function pressBody(
+    body: SVGPolygonElement,
+    init: PointerEventInit & { type?: string } = {}
+  ): void {
+    const { type = 'pointerdown', ...rest } = init;
+    const event = new MouseEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      clientX: 50,
+      clientY: 50,
+      ...rest,
+    });
+    Object.defineProperty(event, 'pointerId', { value: 1 });
+    Object.defineProperty(event, 'pointerType', { value: 'mouse' });
+    act(() => {
+      body.dispatchEvent(event);
+    });
+  }
+
+  /** Stub the capture API jsdom lacks, and report whether it was used. */
+  function trackCapture(body: SVGPolygonElement): { captured: number[] } {
+    const captured: number[] = [];
+    const target = body as unknown as Record<string, unknown>;
+    target.setPointerCapture = (id: number) => captured.push(id);
+    target.hasPointerCapture = () => false;
+    target.releasePointerCapture = () => {};
+    return { captured };
+  }
+
+  it('hands a press on a crease to the surface, selecting nothing', () => {
+    const { pressed } = stubSurface(true);
+    const selected: (string | null)[] = [];
+    render({ objects: [image('a')], selectedId: null, onSelect: (id) => selected.push(id) });
+    const body = bodyPolygon()!;
+    const { captured } = trackCapture(body);
+
+    pressBody(body);
+
+    expect(pressed).toHaveLength(1);
+    // Nothing else may happen: selecting would steal the canvas selection the
+    // crease is about to take, and capturing would keep the rest of the gesture
+    // on this layer instead of the canvas that now owns it.
+    expect(selected).toEqual([]);
+    expect(captured).toEqual([]);
+  });
+
+  it('reports no contact to the touch arbiter on the path it declines', () => {
+    // The subtle half. A contact reported by both layers leaves the arbiter
+    // believing a finger is still down, after which every later single touch
+    // looks like the second finger of a pinch and the canvas stops drawing —
+    // a leak that outlives the gesture that caused it.
+    stubSurface(true);
+    render({ objects: [image('a')], selectedId: null });
+    const body = bodyPolygon()!;
+    trackCapture(body);
+
+    pressBody(body);
+
+    // A fresh single touch must still read as a first finger, not a second.
+    expect(
+      cpSurfaceGestures.down(
+        { pointerId: 9, pointerType: 'touch', clientX: 10, clientY: 10 },
+        'canvas'
+      )
+    ).toBe('forward');
+  });
+
+  it('keeps a press on empty space, so the image stays selectable and movable', () => {
+    const { pressed } = stubSurface(false);
+    const selected: (string | null)[] = [];
+    render({ objects: [image('a')], selectedId: null, onSelect: (id) => selected.push(id) });
+    const body = bodyPolygon()!;
+    const { captured } = trackCapture(body);
+
+    pressBody(body);
+
+    expect(pressed).toEqual([]);
+    expect(selected).toEqual(['a']);
+    expect(captured).toEqual([1]);
+  });
+
+  it('never asks about an object the creases are drawn under', () => {
+    // The guard that text boxes, folded figures and inline simulations are
+    // untouched by any of this: they paint above the creases, so they keep every
+    // press without the surface being consulted at all.
+    const { asked, pressed } = stubSurface(true);
+    const selected: (string | null)[] = [];
+    render({ objects: [object('a')], selectedId: null, onSelect: (id) => selected.push(id) });
+    const body = bodyPolygon()!;
+    trackCapture(body);
+
+    pressBody(body);
+
+    expect(asked).toEqual([]);
+    expect(pressed).toEqual([]);
+    expect(selected).toEqual(['a']);
+  });
+
+  it('leaves the context menu to the crease under the pointer', () => {
+    stubSurface(true);
+    const menus: string[] = [];
+    render({
+      objects: [image('a')],
+      selectedId: null,
+      onContextMenu: (id) => menus.push(id),
+    });
+
+    pressBody(bodyPolygon()!, { type: 'contextmenu', button: 2 });
+
+    expect(menus).toEqual([]);
+  });
+
+  it('still opens the image context menu on empty space', () => {
+    // Why the secondary button asks the crease question rather than claiming
+    // outright: an unconditional claim would take this menu away entirely.
+    stubSurface(false);
+    const menus: string[] = [];
+    render({
+      objects: [image('a')],
+      selectedId: null,
+      onContextMenu: (id) => menus.push(id),
+    });
+
+    pressBody(bodyPolygon()!, { type: 'contextmenu', button: 2 });
+
+    expect(menus).toEqual(['a']);
+  });
+
+  it('does not toggle crop from a double-click aimed at a crease', () => {
+    stubSurface(true);
+    const selected: (string | null)[] = [];
+    render({
+      objects: [image('a')],
+      selectedId: null,
+      onSelect: (id) => selected.push(id),
+      canCrop: () => true,
+    });
+
+    pressBody(bodyPolygon()!, { type: 'dblclick' });
+
+    // Both underlying presses went to the canvas, so the image is not even
+    // selected — putting it into crop mode here would be a surprise.
+    expect(selected).toEqual([]);
+  });
+
+  /**
+   * The cursor is a promise about what a drag will do, so it has to answer the
+   * same question the press does. Reported after the press routing landed: the
+   * body still read "move" while hovering directly over a crease, which is the
+   * one thing a press there would not do.
+   */
+  describe('cursor', () => {
+    /** Run the queued animation frame the cursor probe books. */
+    function flushProbe(): void {
+      act(() => {
+        vi.advanceTimersByTime(32);
+      });
+    }
+
+    function hover(body: SVGPolygonElement): void {
+      const event = new MouseEvent('pointermove', {
+        bubbles: true,
+        clientX: 50,
+        clientY: 50,
+      });
+      Object.defineProperty(event, 'pointerId', { value: 1 });
+      Object.defineProperty(event, 'pointerType', { value: 'mouse' });
+      act(() => {
+        body.dispatchEvent(event);
+      });
+    }
+
+    beforeEach(() => {
+      // requestAnimationFrame is what the probe coalesces onto, so the fake
+      // clock has to drive it too.
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('shows the crease cursor where a press would go to the crease instead', () => {
+      // The reported bug: over a crease drawn on a reference image the body kept
+      // showing `move`, and the first fix only got as far as dropping it to
+      // `default` — because it mirrored the canvas' rendered style, which the
+      // canvas never updates while this overlay is intercepting the hover.
+      stubSurface(true, 'pointer');
+      render({ objects: [image('a')], selectedId: null });
+      const body = bodyPolygon()!;
+      expect(body.style.cursor).toBe('move');
+
+      hover(body);
+      flushProbe();
+
+      expect(body.style.cursor).toBe('pointer');
+    });
+
+    it('shows whatever else the canvas would, not just pointer', () => {
+      // A pan modifier held over an image is still a pan. The canvas answers
+      // with its own cursor, so this layer needs no rules of its own.
+      stubSurface(true, 'grab');
+      render({ objects: [image('a')], selectedId: null });
+      const body = bodyPolygon()!;
+
+      hover(body);
+      flushProbe();
+
+      expect(body.style.cursor).toBe('grab');
+    });
+
+    it('keeps the move cursor over empty space inside the image', () => {
+      stubSurface(false);
+      render({ objects: [image('a')], selectedId: null });
+      const body = bodyPolygon()!;
+
+      hover(body);
+      flushProbe();
+
+      expect(body.style.cursor).toBe('move');
+    });
+
+    it('never probes for an object drawn over the creases', () => {
+      // A text box or folded figure keeps every press, so its cursor is not in
+      // question and it must not pay for a hit test on every hover.
+      const { asked } = stubSurface(true);
+      render({ objects: [object('a')], selectedId: null });
+      const body = bodyPolygon()!;
+
+      hover(body);
+      flushProbe();
+
+      expect(asked).toEqual([]);
+      expect(body.style.cursor).toBe('move');
+    });
+
+    it('coalesces a burst of moves into one hit test', () => {
+      // A high-rate pointer reports far more often than the screen redraws, and
+      // the probe runs a hit test — which is cheap per frame and not per sample.
+      const { cursorAsked } = stubSurface(true);
+      render({ objects: [image('a')], selectedId: null });
+      const body = bodyPolygon()!;
+
+      for (let i = 0; i < 10; i++) hover(body);
+      flushProbe();
+
+      expect(cursorAsked).toHaveLength(1);
+    });
+
+    it('restores the move cursor when the pointer leaves', () => {
+      stubSurface(true);
+      render({ objects: [image('a')], selectedId: null });
+      const body = bodyPolygon()!;
+      hover(body);
+      flushProbe();
+      expect(body.style.cursor).toBe('pointer');
+
+      // `pointerleave` does not bubble, so React synthesizes it from the
+      // bubbling `pointerout` and the element being moved to.
+      const out = new MouseEvent('pointerout', {
+        bubbles: true,
+        relatedTarget: document.body,
+      });
+      Object.defineProperty(out, 'pointerId', { value: 1 });
+      Object.defineProperty(out, 'pointerType', { value: 'mouse' });
+      act(() => {
+        body.dispatchEvent(out);
+      });
+
+      expect(body.style.cursor).toBe('move');
+    });
+  });
+
+  it('keeps the handles live, so a selected image over a dense pattern can be sized', () => {
+    stubSurface(true);
+    render({ objects: [image('a')], selectedId: 'a' });
+
+    const handles = container?.querySelectorAll('rect') ?? [];
+    expect(handles.length).toBeGreaterThan(0);
+    for (const handle of handles) {
+      expect((handle as SVGRectElement).style.pointerEvents).toBe('auto');
+    }
   });
 });
 

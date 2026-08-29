@@ -34,6 +34,26 @@ export interface TransformableCanvasObject {
   hidden: boolean;
   /** Whether resize keeps proportions, and whether Shift escapes that. */
   aspectLock: AspectLockPolicy;
+  /**
+   * Whether a crease under this object's body outranks it for a press.
+   *
+   * True for the kinds you can see the crease pattern *through*, where letting
+   * the body swallow the press means a visible crease is unclickable:
+   *
+   * - **Reference images**, drawn underneath the creases precisely so you can
+   *   trace over them (see `reglRenderer.render`).
+   * - **Text boxes**, whose bounds are mostly empty — the box is far larger than
+   *   the ink, so most of it is crease pattern you are looking straight at.
+   *
+   * False for folded figures and inline simulations, which are opaque and drawn
+   * over the pattern: there is no crease to see there, so nothing to yield to.
+   *
+   * Only the *body* yields. Resize and rotate handles are chrome — small,
+   * deliberate, and drawn on top — and keep their press whatever is beneath, or
+   * an object over a dense pattern could not be sized at all. Same
+   * body-vs-handle split `inertBodyIds` already draws.
+   */
+  yieldsPressToCreases: boolean;
 }
 
 /** An annotation as the overlay sees it: a model-space box. */
@@ -52,6 +72,10 @@ export function annotationAsTransformable(
     locked: annotation.locked,
     hidden: annotation.hidden,
     aspectLock: annotationAspectLockPolicy(annotation),
+    // Both annotation variants yield, for different reasons: an image is drawn
+    // under the creases, a text box's bounds are mostly empty. Written per kind
+    // rather than as a bare `true` so a third variant has to state its own case.
+    yieldsPressToCreases: annotation.kind === 'image' || annotation.kind === 'text',
   };
 }
 
@@ -103,5 +127,8 @@ export function foldedFigureAsTransformable(
     locked: false,
     hidden: false,
     aspectLock: 'always',
+    // Folded figures draw after the creases, so they occlude the pattern they
+    // were folded from and keep their press.
+    yieldsPressToCreases: false,
   };
 }

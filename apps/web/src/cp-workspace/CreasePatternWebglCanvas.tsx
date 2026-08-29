@@ -12,7 +12,7 @@ import { readCssVarColor } from './renderer/cssColor';
 import { syncHeldModifiersFromEvent } from '../keyboard/heldModifiers';
 import { resolveWheelGesture, type WheelGesturePreference } from '../lib/wheelGesture';
 import { claimWheelBurst, forwardWheel } from '../lib/wheelBurst';
-import { cpCanvasCursor, usePanModifierHeld } from './cpCanvasCursor';
+import { cpCanvasCursor, isPanModifierHeld, usePanModifierHeld } from './cpCanvasCursor';
 import {
   cameraZoomForPercent,
   fitUserCamera,
@@ -30,6 +30,8 @@ import {
 } from './renderer/camera';
 import { registerCpCamera, type CpCameraHandle } from './renderer/cpCameraRegistry';
 import { LineHitIndex } from './picking/lineHitIndex';
+import { registerCpSurfacePress } from './picking/cpSurfacePressRegistry';
+import { surfaceClaimsPress } from './picking/surfaceClaimsPress';
 import {
   circleRingIntersectsConvexQuad,
   pointInConvexQuad,
@@ -920,6 +922,17 @@ export function CreasePatternWebglCanvas({
     'none'
   );
   const foldedOrbitPointerRef = useRef<'none' | 'over' | 'turning'>('none');
+  /**
+   * Whether something selectable is under the cursor, so a crease reads as
+   * clickable before you click it.
+   *
+   * Same shape and same reasoning as `foldedOrbitPointer` above: written from a
+   * pointer handler, so it is mirrored in a ref and only re-renders when the
+   * answer flips — which happens when the pointer crosses a crease's hit band,
+   * not on every sample.
+   */
+  const [creaseHovered, setCreaseHovered] = useState(false);
+  const creaseHoveredRef = useRef(false);
   // Cmd held offers a grab before the press, so the pan affordance is visible
   // rather than something you have to already know about.
   const panModifierHeld = usePanModifierHeld();
@@ -1812,6 +1825,51 @@ export function CreasePatternWebglCanvas({
       if (foldedOrbitPointerRef.current === next) return;
       foldedOrbitPointerRef.current = next;
       setFoldedOrbitPointer(next);
+    };
+
+    const applyCreaseHover = (next: boolean) => {
+      if (creaseHoveredRef.current === next) return;
+      creaseHoveredRef.current = next;
+      setCreaseHovered(next);
+    };
+    /**
+     * Whether a click would select what is under the cursor.
+     *
+     * Not "no tool is armed" — the canvas rests with Box Select armed, so that
+     * question is always answered no. What the region-select family shares is
+     * the click action. One predicate, because the hover cursor and the answer
+     * given to the overlay above must not disagree about it.
+     */
+    const clickSelectsUnderCursor = () =>
+      liveRef.current.activeToolInputMode === null ||
+      liveRef.current.activeToolClickAction === 'select';
+    /**
+     * Ask whether something selectable is under the cursor, at most once per
+     * frame.
+     *
+     * Coalesced because this is a hit test and a high-rate pointer reports
+     * several times per frame — the same rule the canvas-object overlay's cursor
+     * probe follows, and the one stated on `claimsPress`. A query costs ~2 µs on
+     * a 5k-crease pattern at fit zoom and ~500 µs in the worst case that can
+     * occur, which is affordable per frame and would not be per sample.
+     */
+    let creaseHoverFrame = 0;
+    let creaseHoverAt: { x: number; y: number } | null = null;
+    const probeCreaseHover = (clientX: number, clientY: number) => {
+      // Always the latest position: a frame booked three samples ago must answer
+      // for where the pointer is now, not where it was.
+      creaseHoverAt = { x: clientX, y: clientY };
+      if (creaseHoverFrame) return;
+      creaseHoverFrame = requestAnimationFrame(() => {
+        creaseHoverFrame = 0;
+        if (creaseHoverAt) applyCreaseHover(hitTest(creaseHoverAt.x, creaseHoverAt.y) !== null);
+      });
+    };
+    const clearCreaseHover = () => {
+      if (creaseHoverFrame) cancelAnimationFrame(creaseHoverFrame);
+      creaseHoverFrame = 0;
+      creaseHoverAt = null;
+      applyCreaseHover(false);
     };
 
     /**
@@ -3161,6 +3219,21 @@ export function CreasePatternWebglCanvas({
             ? 'over'
             : 'none'
         );
+        // Only where a click would select what is under the cursor.
+        //
+        // That is *not* the same as "no tool armed": the canvas rests with Box
+        // Select armed (`drag-box`), so gating on a null input mode showed the
+        // pointer nowhere at all. What the region-select family shares is the
+        // click action — Box Select and both lassos resolve to `select`, and
+        // their click selects the crease under the cursor exactly as the
+        // no-tool fallback does. A draw tool has its own cursor and its own
+        // hover preview, and a drag in flight has already committed to what it
+        // is doing.
+        if (clickSelectsUnderCursor() && !movingSelection && !selecting) {
+          probeCreaseHover(e.clientX, e.clientY);
+        } else {
+          clearCreaseHover();
+        }
       }
       if (orbiting) {
         // The pointer is captured, so a drag that leaves the figure keeps
@@ -3498,6 +3571,7 @@ export function CreasePatternWebglCanvas({
       // bit-identical to before touch existed.
       if (isCoarsePointer(e.pointerType)) return;
       if (!orbiting) setOrbitPointer('none');
+      clearCreaseHover();
       parkDrawPreview();
       renderNow();
     };
@@ -3520,6 +3594,50 @@ export function CreasePatternWebglCanvas({
     // And it is the canvas' own in-flight gesture that a press landing anywhere
     // else on the surface has to take back.
     const detachAbort = gestures.onAbort('canvas', abortInFlightGesture);
+    /**
+     * Publish this canvas' press pipeline for the canvas-object overlay, which
+     * sits above it as a sibling and so takes presses that were meant for the
+     * creases under a reference image.
+     *
+     * `claimsPress` runs the *same* `hitTest` `onPointerDown` runs — not a
+     * reimplementation. A second notion of "on a crease" would drift from this
+     * one, and the gap would be a ring around every crease where the overlay
+     * declines and the canvas picks nothing either.
+     */
+    const detachSurfacePress = registerCpSurfacePress({
+      claimsPress: (event) =>
+        surfaceClaimsPress({
+          button: event.button,
+          metaKey: event.metaKey,
+          panToolActive: liveRef.current.panToolActive,
+          hit: hitTest(event.clientX, event.clientY),
+        }),
+      press: onPointerDown,
+      /**
+       * What the overlay above should show, resolved here rather than read off
+       * this canvas' rendered style — see the note on the handle. While the
+       * pointer is over a reference image this canvas receives no hover at all,
+       * so its own cursor is not an answer to anything.
+       */
+      hoverCursor: (point) => {
+        const hit = hitTest(point.clientX, point.clientY);
+        const claimed = surfaceClaimsPress({
+          button: point.button,
+          metaKey: point.metaKey,
+          panToolActive: liveRef.current.panToolActive,
+          hit,
+        });
+        if (!claimed) return null;
+        return (
+          cpCanvasCursor({
+            panToolActive: liveRef.current.panToolActive,
+            panModifierHeld: point.metaKey || isPanModifierHeld(),
+            panDragging: false,
+            creaseHovered: hit !== null && clickSelectsUnderCursor(),
+          }) ?? 'default'
+        );
+      },
+    });
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('pointermove', onPointerMove);
     canvas.addEventListener('pointerup', onPointerUp);
@@ -3536,8 +3654,10 @@ export function CreasePatternWebglCanvas({
       // surface believe fingers were already on it (this effect re-runs on WebGL
       // context loss, which is exactly when nobody lifts anything).
       gestures.reset();
+      if (creaseHoverFrame) cancelAnimationFrame(creaseHoverFrame);
       detachTransformSink();
       detachAbort();
+      detachSurfacePress();
       canvas.removeEventListener('pointerdown', onPointerDown);
       canvas.removeEventListener('pointermove', onPointerMove);
       canvas.removeEventListener('pointerup', onPointerUp);
@@ -3842,6 +3962,7 @@ export function CreasePatternWebglCanvas({
     panDragging,
     foldedOrbitHovered: foldedOrbitPointer === 'over',
     foldedOrbitDragging: foldedOrbitPointer === 'turning',
+    creaseHovered,
   });
 
   return (
