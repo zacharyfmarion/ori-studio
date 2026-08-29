@@ -12,7 +12,12 @@
  * here, so none of them has to agree on the valid range or the classic
  * normalisation by hand.
  */
-import { degreesToFoldMagnitude } from '../../lib/foldAngle';
+import {
+  degreesToFoldMagnitude,
+  foldAngleFromParts,
+  foldDirectionOfSignedAngle,
+} from '../../lib/foldAngle';
+import type { OristudioCpFoldDirectionHint } from '../../engine/oristudioCpTypes';
 
 /**
  * The pen at rest.
@@ -31,23 +36,56 @@ export const DEFAULT_CREASE_ANGLE_DEGREES = 180;
  * Stated here as well, rather than relying on the round trip, so the field can
  * refuse an entry before it becomes a command — a rejected command surfaces as
  * a failed draw, which reads as a broken tool rather than a bad number.
+ *
+ * A *magnitude*, so unsigned. A typed `-45` is split by {@link parseCreaseAngle}
+ * before it reaches here.
  */
 export function isValidCreaseAngle(degrees: number): boolean {
   return Number.isFinite(degrees) && degrees >= 0 && degrees <= 180;
 }
 
+/** A typed angle, split into the two things a crease's fold state is made of. */
+export interface ParsedCreaseAngle {
+  /** `|ρ|` in degrees, `0..=180`. */
+  degrees: number;
+  /**
+   * The direction the sign named, or `null` when the entry carried no sign.
+   *
+   * **Only an explicit sign decides a direction**, which is the whole reason
+   * this is nullable rather than defaulting to valley for a bare `45`. Reading
+   * "no sign" as positive would mean every keystroke that sets an angle also
+   * flips you to valley, so there would be no way to change the angle while
+   * staying on mountain — the common case by far.
+   */
+  direction: OristudioCpFoldDirectionHint | null;
+}
+
 /**
- * Parse a typed angle, or `null` when it is not one.
+ * Parse a typed angle into its magnitude and, when signed, its direction.
  *
- * Blank is `null` rather than a default: a field the user has emptied has not
- * told us anything, and guessing 180 for it would silently discard a pen they
- * had set. The caller reverts to the live value instead.
+ * `-45` is "a 45° mountain" and `+45` is "a 45° valley", following the sign
+ * convention the rest of the app already reads — see
+ * {@link foldDirectionOfSignedAngle}, and the badges, which draw a mountain as
+ * `-45°`. So what you type is what the crease will be labelled.
+ *
+ * `null` for anything unusable. Blank is `null` rather than a default: a field
+ * the user has emptied has not told us anything, and guessing 180 for it would
+ * silently discard a pen they had set. The caller reverts to the live value.
  */
-export function parseCreaseAngle(input: string): number | null {
+export function parseCreaseAngle(input: string): ParsedCreaseAngle | null {
   const trimmed = input.trim();
   if (trimmed === '') return null;
   const parsed = Number(trimmed);
-  return isValidCreaseAngle(parsed) ? parsed : null;
+  if (!Number.isFinite(parsed)) return null;
+
+  const degrees = Math.abs(parsed);
+  if (!isValidCreaseAngle(degrees)) return null;
+
+  // The *text* decides whether a direction was stated, not the number: `-0`
+  // parses to a signless zero, and `Math.sign` cannot tell a typed `45` from a
+  // typed `+45` at all.
+  const signed = trimmed.startsWith('-') || trimmed.startsWith('+');
+  return { degrees, direction: signed ? foldDirectionOfSignedAngle(parsed) : null };
 }
 
 /**
@@ -89,18 +127,35 @@ export function creaseAnglePreviewMagnitude(degrees: number): number | undefined
 const DISPLAY_DECIMALS = 2;
 
 /**
- * The pen as it appears on the toolbar, e.g. `90°`.
+ * The pen as a signed angle — what the crease drawn next would be badged — or
+ * `null` when the active line type cannot fold at all.
  *
- * Unsigned, unlike `formatFoldAngle`, and that difference is deliberate: a
- * *crease's* angle is signed because the sign is what makes the colour
- * learnable, while the pen has no direction to show — the same 90 draws a
- * mountain or a valley depending on the active line type beside it.
+ * Through `foldAngleFromParts`, the function that already answers "what angle
+ * does this colour and magnitude mean", rather than a second reading of the
+ * sign convention. So the field, the crease it draws and the badge on that
+ * crease cannot disagree about which way `-45` points.
  */
-export function formatCreaseAngle(degrees: number): string {
-  return `${formatCreaseAngleValue(degrees)}°`;
+export function signedCreaseAngle(degrees: number, lineColor: string): number | null {
+  const units = degreesToFoldMagnitude(degrees);
+  if (units === null) return null;
+  return foldAngleFromParts(lineColor, units);
+}
+
+/**
+ * The pen as it appears on the toolbar, e.g. `-90°` while drawing mountains.
+ *
+ * Signed when `lineColor` names a crease, because the sign is half of what the
+ * pen sets and is now something you can type: a field that accepts `-45` and
+ * then displays `45` has quietly dropped the more surprising half of the entry.
+ * Unsigned without a colour, and on a line type that cannot fold — an edge has
+ * no direction to show.
+ */
+export function formatCreaseAngle(degrees: number, lineColor?: string): string {
+  return `${formatCreaseAngleValue(degrees, lineColor)}°`;
 }
 
 /** The same number without its degree sign, for the field while it is edited. */
-export function formatCreaseAngleValue(degrees: number): string {
-  return `${Number(degrees.toFixed(DISPLAY_DECIMALS))}`;
+export function formatCreaseAngleValue(degrees: number, lineColor?: string): string {
+  const signed = lineColor === undefined ? null : signedCreaseAngle(degrees, lineColor);
+  return `${Number((signed ?? degrees).toFixed(DISPLAY_DECIMALS))}`;
 }

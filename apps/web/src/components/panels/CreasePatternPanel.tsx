@@ -142,6 +142,8 @@ import {
   FOLD_ANGLE_ANCHOR_VAR,
   foldAngleInk,
 } from '../../cp-workspace/foldAngle/foldAngleRamp';
+import { creaseColorForFoldDirection } from '../../lib/foldAngle';
+import type { OristudioCpFoldDirectionHint } from '../../engine/oristudioCpTypes';
 import { CreaseAngleField } from '../../cp-workspace/foldAngle/CreaseAngleField';
 import { CreaseAnglePopover } from '../../cp-workspace/foldAngle/CreaseAnglePopover';
 import { useVertexSolve } from '../../cp-workspace/foldAngleSolve/useVertexSolve';
@@ -602,6 +604,26 @@ export function CreasePatternPanel() {
    */
   const [activeCpCreaseAngle, setActiveCpCreaseAngle] = useState(DEFAULT_CREASE_ANGLE_DEGREES);
   const [creaseAnglePopoverOpen, setCreaseAnglePopoverOpen] = useState(false);
+  /**
+   * Apply a typed crease angle: the magnitude always, and the line type when the
+   * entry named a direction with an explicit sign.
+   *
+   * Both halves, because a signed angle is a statement about the whole crease —
+   * `-45` is "a 45 degree mountain", and setting the magnitude while leaving the
+   * line type on valley would produce the crease the user did not ask for and
+   * badge it `+45` to prove it.
+   *
+   * Writes the *base* colour, not the effective one: the inversion the modifier
+   * key applies is a transient read of what the user chose, and typing an angle
+   * should not bake a held Control into the choice.
+   */
+  const applyCreaseAngleEntry = useCallback(
+    (degrees: number, direction: OristudioCpFoldDirectionHint | null) => {
+      setActiveCpCreaseAngle(degrees);
+      if (direction) setActiveCpLineColor(creaseColorForFoldDirection(direction));
+    },
+    []
+  );
   // The field the popover hangs off. A rect rather than the node, because that
   // is what `FloatingToolbar` anchors against.
   const creaseAngleAnchorRef = useRef<HTMLDivElement | null>(null);
@@ -2933,7 +2955,8 @@ export function CreasePatternPanel() {
               node: (
                 <CreaseAngleField
                   degrees={activeCpCreaseAngle}
-                  onChange={setActiveCpCreaseAngle}
+                  lineColor={effectiveCpLineColor}
+                  onChange={applyCreaseAngleEntry}
                   onOpenPopover={() => setCreaseAnglePopoverOpen(true)}
                   shortcutLabel={creaseAngleShortcutLabel}
                   anchorRef={(element) => {
@@ -2949,7 +2972,7 @@ export function CreasePatternPanel() {
               // Carries the live value, because on touch this row is the only
               // place the pen is visible at all.
               label: t('tools:creaseAngle.menuRow', 'Crease angle: {{angle}}', {
-                angle: formatCreaseAngle(activeCpCreaseAngle),
+                angle: formatCreaseAngle(activeCpCreaseAngle, effectiveCpLineColor),
               }),
               icon: <ProtractorIcon size={14} />,
               // Deliberately **no** `checked`. This row opens a control; it is
@@ -3439,7 +3462,8 @@ export function CreasePatternPanel() {
               {editableCp && creaseAnglePopoverOpen && (
                 <CreaseAnglePopover
                   degrees={activeCpCreaseAngle}
-                  onChange={setActiveCpCreaseAngle}
+                  lineColor={effectiveCpLineColor}
+                  onChange={applyCreaseAngleEntry}
                   onClose={() => setCreaseAnglePopoverOpen(false)}
                   anchorRef={creaseAngleAnchorRef}
                   boundaryRef={cpViewportRef}

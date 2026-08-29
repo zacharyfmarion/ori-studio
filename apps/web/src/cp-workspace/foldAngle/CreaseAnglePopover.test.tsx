@@ -35,7 +35,8 @@ afterEach(() => {
 function renderPopover({
   degrees = 180,
   anchored = true,
-}: { degrees?: number; anchored?: boolean } = {}) {
+  lineColor = 'Red1',
+}: { degrees?: number; anchored?: boolean; lineColor?: string } = {}) {
   const onChange = vi.fn();
   const onClose = vi.fn();
 
@@ -49,6 +50,7 @@ function renderPopover({
     root?.render(
       <CreaseAnglePopover
         degrees={degrees}
+        lineColor={lineColor}
         onChange={onChange}
         onClose={onClose}
         anchorRef={{ current: anchored ? anchor : null }}
@@ -122,8 +124,51 @@ describe('CreaseAnglePopover', () => {
     type('90');
     press('Enter');
 
-    expect(onChange).toHaveBeenCalledWith(90);
+    // No sign typed, so no direction asked for: the line type is left alone.
+    expect(onChange).toHaveBeenCalledWith(90, null);
     expect(onClose).toHaveBeenCalled();
+  });
+
+  /**
+   * The sign is the direction, following the convention the rest of the app
+   * reads — negative mountain, positive valley, the same way a mountain badges
+   * as `-45°`. So typing `-45` on a valley pen asks for a 45 degree *mountain*.
+   */
+  it('reads a typed sign as the fold direction', () => {
+    const { onChange } = renderPopover();
+    type('-45');
+    press('Enter');
+    expect(onChange).toHaveBeenCalledWith(45, 'Mountain');
+  });
+
+  it('reads an explicit plus as a valley', () => {
+    const { onChange } = renderPopover();
+    type('+45');
+    press('Enter');
+    expect(onChange).toHaveBeenCalledWith(45, 'Valley');
+  });
+
+  /**
+   * The reason only an *explicit* sign carries a direction. If a bare `45` meant
+   * valley, there would be no way to change the angle while staying on mountain
+   * — which is the common case by far.
+   */
+  it('leaves the direction alone for an unsigned entry', () => {
+    const { onChange } = renderPopover({ lineColor: 'Red1' });
+    type('45');
+    press('Enter');
+    expect(onChange).toHaveBeenCalledWith(45, null);
+  });
+
+  it('opens showing the sign the pen would give a crease', () => {
+    renderPopover({ degrees: 45, lineColor: 'Red1' });
+    expect(input().value).toBe('-45');
+  });
+
+  // An edge cannot fold, so there is no direction to show.
+  it('opens unsigned on a line type that cannot fold', () => {
+    renderPopover({ degrees: 45, lineColor: 'Black0' });
+    expect(input().value).toBe('45');
   });
 
   // The user opened this to set an angle. Putting the pen back to 180 because
@@ -165,7 +210,9 @@ describe('CreaseAnglePopover', () => {
       chip('90°').click();
     });
 
-    expect(onChange).toHaveBeenCalledWith(90);
+    // Magnitude only: a chip labelled `90°` must not also flip mountain to
+    // valley. The sign is typed, deliberately.
+    expect(onChange).toHaveBeenCalledWith(90, null);
     expect(onClose).toHaveBeenCalled();
   });
 

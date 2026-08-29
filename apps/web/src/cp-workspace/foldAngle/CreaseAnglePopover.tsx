@@ -38,12 +38,22 @@ import { IconButton } from '../../components/ui/IconButton';
 import { FloatingToolbar, type FloatingAnchorRect } from '../../components/ui/FloatingToolbar';
 import { FOLD_ANGLE_PRESETS } from './foldAngleActions';
 import { formatCreaseAngleValue, parseCreaseAngle } from './activeCreaseAngle';
+import type { OristudioCpFoldDirectionHint } from '../../engine/oristudioCpTypes';
 
 export interface CreaseAnglePopoverProps {
-  /** The live pen, in degrees. */
+  /** The live pen, in degrees (a magnitude). */
   degrees: number;
-  /** Apply a new pen. The popover closes itself after. */
-  onChange: (degrees: number) => void;
+  /**
+   * The active line type, so the input opens showing the sign the pen would
+   * give a crease — which is also what makes a signed entry discoverable.
+   */
+  lineColor: string;
+  /**
+   * Apply a new pen. The popover closes itself after. `direction` is set only
+   * when the entry carried an explicit sign, and asks for the line type to
+   * change with it.
+   */
+  onChange: (degrees: number, direction: OristudioCpFoldDirectionHint | null) => void;
   onClose: () => void;
   /**
    * The toolbar field to hang off. A ref rather than a rect, and measured here
@@ -68,6 +78,7 @@ function anchorRectOf(element: HTMLElement): FloatingAnchorRect {
 
 export function CreaseAnglePopover({
   degrees,
+  lineColor,
   onChange,
   onClose,
   anchorRef,
@@ -77,7 +88,7 @@ export function CreaseAnglePopover({
   const title = t('tools:creaseAngle.title', 'Crease angle');
   const inputRef = useRef<HTMLInputElement | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
-  const [draft, setDraft] = useState(() => formatCreaseAngleValue(degrees));
+  const [draft, setDraft] = useState(() => formatCreaseAngleValue(degrees, lineColor));
   /**
    * Where to hang, measured. `null` means "not measured yet" and is distinct
    * from `{ rect: null }`, which means "measured, and there is nothing to hang
@@ -159,7 +170,7 @@ export function CreaseAnglePopover({
     // A blank or out-of-range entry closes without changing the pen rather than
     // resetting it: the user opened this to set an angle, and silently putting
     // it back to 180 because they mistyped is the one outcome nobody wants.
-    if (parsed !== null) onChange(parsed);
+    if (parsed !== null) onChange(parsed.degrees, parsed.direction);
     onClose();
   };
 
@@ -218,7 +229,11 @@ export function CreaseAnglePopover({
             // closes this, not a selection that persists in the row.
             aria-pressed={degrees === preset.degrees}
             onClick={() => {
-              onChange(preset.degrees);
+              // Magnitude only. A chip says "this far", never "and the other
+              // way" — flipping mountain to valley on a press labelled `90°`
+              // would be a change nobody asked that chip for. The sign is
+              // typed, deliberately.
+              onChange(preset.degrees, null);
               onClose();
             }}
           >

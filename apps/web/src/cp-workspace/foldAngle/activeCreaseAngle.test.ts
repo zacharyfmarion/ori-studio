@@ -30,9 +30,36 @@ describe('isValidCreaseAngle', () => {
 });
 
 describe('parseCreaseAngle', () => {
-  it('reads a typed number', () => {
-    expect(parseCreaseAngle('90')).toBe(90);
-    expect(parseCreaseAngle('  45.5 ')).toBe(45.5);
+  it('reads a typed number as a magnitude with no direction', () => {
+    expect(parseCreaseAngle('90')).toEqual({ degrees: 90, direction: null });
+    expect(parseCreaseAngle('  45.5 ')).toEqual({ degrees: 45.5, direction: null });
+  });
+
+  /**
+   * The app's convention, and the FOLD spec's: negative mountain, positive
+   * valley. The same reading `foldAngleFromParts` gives a crease, which is why
+   * a mountain badges as `-45°` — so what you type is what you get labelled.
+   */
+  it('reads a sign as the fold direction', () => {
+    expect(parseCreaseAngle('-45')).toEqual({ degrees: 45, direction: 'Mountain' });
+    expect(parseCreaseAngle('+45')).toEqual({ degrees: 45, direction: 'Valley' });
+    expect(parseCreaseAngle(' -180 ')).toEqual({ degrees: 180, direction: 'Mountain' });
+  });
+
+  /**
+   * Only an *explicit* sign decides. Reading a bare `45` as positive would mean
+   * every angle change also flipped you to valley, leaving no way to restyle a
+   * mountain's angle — the common case.
+   */
+  it('does not invent a direction for an unsigned entry', () => {
+    expect(parseCreaseAngle('45')?.direction).toBeNull();
+    expect(parseCreaseAngle('0')?.direction).toBeNull();
+  });
+
+  // Zero folds neither way, so a sign on it names nothing.
+  it('gives zero no direction, signed or not', () => {
+    expect(parseCreaseAngle('-0')).toEqual({ degrees: 0, direction: null });
+    expect(parseCreaseAngle('+0')).toEqual({ degrees: 0, direction: null });
   });
 
   // Blank is "you told me nothing", not "use the default". Defaulting here
@@ -42,6 +69,31 @@ describe('parseCreaseAngle', () => {
     expect(parseCreaseAngle('   ')).toBeNull();
     expect(parseCreaseAngle('abc')).toBeNull();
     expect(parseCreaseAngle('200')).toBeNull();
+    expect(parseCreaseAngle('-200')).toBeNull();
+  });
+});
+
+describe('signed display', () => {
+  it('carries the sign the active line type implies', () => {
+    expect(formatCreaseAngle(45, 'Red1')).toBe('-45°');
+    expect(formatCreaseAngle(45, 'Blue2')).toBe('45°');
+  });
+
+  // An edge or an auxiliary line has no direction to show.
+  it('stays unsigned on a line type that cannot fold', () => {
+    expect(formatCreaseAngle(45, 'Black0')).toBe('45°');
+    expect(formatCreaseAngle(45)).toBe('45°');
+  });
+
+  /**
+   * The round trip that makes the feature discoverable: the field shows `-45`,
+   * so `-45` is evidently a thing you may type, and typing it back reproduces
+   * the same pen and direction.
+   */
+  it('round-trips through the parser', () => {
+    const shown = formatCreaseAngleValue(45, 'Red1');
+    expect(shown).toBe('-45');
+    expect(parseCreaseAngle(shown)).toEqual({ degrees: 45, direction: 'Mountain' });
   });
 });
 
