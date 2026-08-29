@@ -741,6 +741,14 @@
         "0": "点击文本位置"
       }
     },
+    "cp_action_check_suppression_region_create": {
+      "label": "抑制区域",
+      "tooltip": "拖出一个方框，停止报告框内选定的可折叠性检查",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "拖出方框圈定要停止检查的区域"
+      }
+    },
     "cp_action_draw_blintz": {
       "label": "坐垫基",
       "tooltip": "坐垫基",

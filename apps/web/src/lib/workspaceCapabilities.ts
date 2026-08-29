@@ -101,6 +101,7 @@ export type WorkspaceCapabilityId =
   | 'cp.deleteExtraVertices'
   | 'cp.deleteExtraVerticesIgnoreColor'
   | 'cp.fixInaccurate'
+  | 'cp.exactSolve'
   | 'cp.changeCircleColor'
   | 'cp.organizeCircles'
   | 'simulator.refresh';
@@ -135,6 +136,18 @@ export interface WorkspaceCapabilityInput {
   oristudioCpSelectedLineCount: number;
   oristudioCpSelectedPointCount: number;
   oristudioCpSelectedCircleCount: number;
+  /**
+   * How many patterns in the document carry an attached `ExactSolveInput` — i.e.
+   * how many the exact solver can be pointed at. One per check-suppression
+   * region that CP detection created; a hand-drawn region has no attachment and
+   * is not counted.
+   *
+   * Optional, and absent reads as zero, which disables `cp.exactSolve` with the
+   * "nothing to solve" reason. That is the correct state for a document that has
+   * had no detection run in it, and it is also what a caller that has not been
+   * taught to supply this yet gets — the menu entry is inert rather than wrong.
+   */
+  oristudioCpSolvablePatternCount?: number;
   /**
    * Whether the active design kind has something Delete would remove.
    *
@@ -210,6 +223,21 @@ export function getWorkspaceCapabilities(
     (input.hasEditableCreasePattern ||
       (treeMode && (input.creaseCount > 0 || input.facetCount > 0)));
   const hasSelectedCpLines = input.oristudioCpSelectedLineCount > 0;
+  const solvablePatternCount = input.oristudioCpSolvablePatternCount ?? 0;
+  // Scope is a *pattern* — the closed-boundary component — never the selection
+  // and never a region's box. Exact solve is one global constrained
+  // optimisation: Kawasaki couples every vertex through its fan and the boundary
+  // is pinned to the unit square, so on a fragment it would either refuse or
+  // silently move vertices shared with unselected geometry.
+  //
+  // Selection is therefore *disambiguation*, not extent, and only when there is
+  // something to disambiguate: after a detection is added beside the user's own
+  // work the document holds two paper squares, and a click has to say which one.
+  // With a single solvable pattern the selection is not consulted at all —
+  // requiring one there would be asking the user to state the only answer.
+  const canExactSolveCp = canEditCp && solvablePatternCount > 0;
+  const exactSolveNeedsDisambiguation =
+    canExactSolveCp && solvablePatternCount > 1 && !hasSelectedCpLines;
   const hasSelectedCpPoints = input.oristudioCpSelectedPointCount > 0;
   const hasSelectedCpCircles = input.oristudioCpSelectedCircleCount > 0;
   const hasSelectedCpLinesOrCircles = hasSelectedCpLines || hasSelectedCpCircles;
@@ -919,6 +947,26 @@ export function getWorkspaceCapabilities(
         ? hasSelectedCpLines
           ? t('common:capability.openInaccurateCreaseRepairSettings', 'Open inaccurate-crease repair settings for selected lines')
           : t('common:capability.selectCpLinesFirst', 'Select one or more crease-pattern lines first')
+        : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
+    ),
+    'cp.exactSolve': capability(
+      canExactSolveCp && !exactSolveNeedsDisambiguation,
+      t('common:capability.exactSolve', 'Exact Solve...'),
+      canEditCp
+        ? canExactSolveCp
+          ? exactSolveNeedsDisambiguation
+            ? t(
+                'common:capability.selectCreaseInPatternToSolve',
+                'Select a crease in the pattern you want to solve'
+              )
+            : t(
+                'common:capability.solveDetectedPatternExactly',
+                'Re-solve the detected pattern to exact coordinates'
+              )
+          : t(
+              'common:capability.detectCpBeforeExactSolve',
+              'Exact solve needs a detected crease pattern; run Detect CP from Image first'
+            )
         : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
     ),
     'cp.changeCircleColor': capability(

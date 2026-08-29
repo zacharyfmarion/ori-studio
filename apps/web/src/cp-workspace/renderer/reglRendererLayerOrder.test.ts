@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createCpSuppressionRegion } from '../annotations/suppressionRegion';
 import type {
   FillGeometry,
   FoldedGeometry,
@@ -56,6 +57,17 @@ vi.mock('./programs/fillProgram', () => ({ createFillProgram: () => mockProgram(
 vi.mock('./programs/markerProgram', () => ({ createMarkerProgram: () => mockProgram() }));
 vi.mock('./programs/wedgeProgram', () => ({ createWedgeProgram: () => mockProgram() }));
 vi.mock('./programs/imageProgram', () => ({ createImageProgram: () => mockProgram() }));
+// The region program has no `setData` — the renderer holds the region list and
+// hands it to `draw` — so it cannot be identified by its upload like the others.
+// It logs a fixed label instead.
+vi.mock('./programs/regionProgram', () => ({
+  createRegionProgram: () => ({
+    draw: () => {
+      drawLog.push('regions');
+    },
+    dispose: () => {},
+  }),
+}));
 
 const { createReglRenderer } = await import('./reglRenderer');
 
@@ -121,6 +133,10 @@ function folded(prefix: string): FoldedGeometry {
 function renderScene() {
   const renderer = createReglRenderer(document.createElement('canvas'));
   renderer.resize({ width: 100, height: 100, dpr: 1 });
+  renderer.setGrid(strokes('grid'));
+  renderer.setRegions([
+    createCpSuppressionRegion({ center: { x: 0, y: 0 }, width: 10, height: 10 }),
+  ]);
   renderer.setStrokes(strokes('creases'));
   renderer.setPoints(points('points'));
   renderer.setFolded(folded('folded'));
@@ -159,10 +175,30 @@ describe('reglRenderer layer order', () => {
    * placement, so they belong in the same band — splitting them across the point
    * layer would flip which one wins where two overlap.
    */
+  /**
+   * A check-suppression region is a *backdrop*: it says "the checks in here are
+   * being hidden", and it has to say that from underneath the creases it is
+   * hiding them for. Drawn any later it washes the pattern it exists to make
+   * readable — which is also the whole reason it is a GPU layer rather than a
+   * DOM box, since every DOM overlay on this surface sits above the canvas.
+   *
+   * The reference-image slot sits between these two and is not asserted here:
+   * an image only draws once its texture has decoded, and jsdom has no
+   * `createImageBitmap`, so it is unreachable from this harness.
+   */
+  it('draws suppression regions above the grid and below the creases', () => {
+    renderScene();
+
+    expect(drawLog.indexOf('regions')).toBeGreaterThan(drawLog.indexOf('grid'));
+    expect(drawLog.indexOf('regions')).toBeLessThan(drawLog.indexOf('creases'));
+  });
+
   it('keeps imported .fold forms in the same band, above the generated figures', () => {
     renderScene();
 
     expect(drawLog).toEqual([
+      'grid',
+      'regions',
       'creases',
       'points',
       'folded-fills',

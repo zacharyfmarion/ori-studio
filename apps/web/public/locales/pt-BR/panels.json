@@ -163,6 +163,62 @@
       "width": "Largura"
     }
   },
+  "cpChecks": {
+    "bigLittleBig": "Grande-pequeno-grande",
+    "kawasaki": "Kawasaki (ângulos)",
+    "maekawa": "Maekawa (paridade)",
+    "vertexClosure": "Fechamento do vértice"
+  },
+  "cpExactSolve": {
+    "hint": {
+      "geometry": "Normalmente menos de um segundo.",
+      "refinement": "É aqui que fica quase toda a espera — até cerca de 25 segundos."
+    },
+    "reason": {
+      "boundaryBroken": "A borda do papel não é um quadrado fechado, então a resolução não pôde começar. Conserte a borda e tente de novo.",
+      "boundaryWorse": "O resultado empurrou um vértice para fora da borda do papel, então não foi aplicado.",
+      "crossingsWorse": "O resultado deixou vincos se cruzando sem um vértice no encontro, então não foi aplicado. Adicione os vértices que faltam e resolva de novo.",
+      "degenerateEdges": "Um vinco tem as duas pontas no mesmo ponto, então a resolução não pôde começar. Apague-o, ou afaste uma das pontas, e tente de novo.",
+      "degenerateWorse": "O resultado reduziu um vinco a comprimento zero, então não foi aplicado.",
+      "malformedInput": "Os dados salvos do solucionador não correspondem a este padrão de vincos, então a resolução não pôde ser executada.",
+      "movedTooFar": "Tornar o padrão exato moveria um vértice além do permitido, então nada foi aplicado. Provavelmente alguma edição está longe de onde o vinco realmente fica.",
+      "noImprovement": "O solucionador não conseguiu melhorar o padrão recebido, então nada foi aplicado. A topologia provavelmente ainda precisa de reparo.",
+      "oddDegreeWorse": "O resultado deixou mais vértices com número ímpar de vincos do que havia no início, então não foi aplicado.",
+      "stillNotFoldable": "O resultado ainda quebra uma condição de dobradura, então não foi aplicado. Resolva os marcadores restantes e execute de novo.",
+      "timeout": "A resolução esgotou o tempo. Você pode ficar com o que ele conseguiu, ou reparar mais o padrão e tentar de novo."
+    },
+    "stage": {
+      "geometry": "Resolvendo a geometria",
+      "refinement": "Refinando até a precisão de dobra"
+    }
+  },
+  "cpRegion": {
+    "accept": "Aceitar",
+    "addRegion": "Adicionar região de supressão",
+    "bringToFront": "Trazer a região para frente",
+    "changeChecks": "Alterar verificações suprimidas",
+    "checksMenu": "Verificações suprimidas",
+    "controls": "Região de supressão de verificações",
+    "defaultLabel": "Região de supressão",
+    "delete": "Excluir região",
+    "hidden_one": "1 problema oculto",
+    "hidden_many": "{{count}} problemas ocultos",
+    "hidden_other": "{{count}} problemas ocultos",
+    "nothingSuppressed": "Todas as verificações ativas",
+    "sendToBack": "Enviar a região para trás",
+    "solve": "Resolver",
+    "solved_one": "Resolvido · 1 vértice movido < {{max}} px",
+    "solved_many": "Resolvido · {{count}} vértices movidos < {{max}} px",
+    "solved_other": "Resolvido · {{count}} vértices movidos < {{max}} px",
+    "solveFailed": "Não foi possível resolver — {{reason}}",
+    "solvePartial_one": "Resultado parcial · 1 vértice",
+    "solvePartial_many": "Resultado parcial · {{count}} vértices",
+    "solvePartial_other": "Resultado parcial · {{count}} vértices",
+    "solvingGeometry": "Resolvendo a geometria…",
+    "solvingRefining": "Refinando para a precisão de dobra…",
+    "suppressing": "Verificações desativadas: {{classes}}",
+    "tryAgain": "Tentar novamente"
+  },
   "cpViewControls": {
     "angle": "Ângulo",
     "camvIssues": "Problemas de dobrabilidade",
@@ -258,6 +314,9 @@
       "warningOther_many": "{{count}} avisos de {{label}}",
       "warningOther_other": "{{count}} avisos de {{label}}"
     },
+    "diagnosticsHidden_one": "1 problema oculto por um filtro",
+    "diagnosticsHidden_many": "{{count}} problemas ocultos por um filtro",
+    "diagnosticsHidden_other": "{{count}} problemas ocultos por um filtro",
     "display": "Exibição",
     "duplicateFoldedModelAction": "Duplicar modelo dobrado",
     "flipFoldedModel": "Virar modelo dobrado",

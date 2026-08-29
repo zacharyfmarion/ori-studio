@@ -741,6 +741,14 @@
         "0": "텍스트 위치 클릭"
       }
     },
+    "cp_action_check_suppression_region_create": {
+      "label": "검사 제외 영역",
+      "tooltip": "상자를 끌어 그 안에서 선택한 접힘 검사 보고를 중단합니다",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "검사를 중단할 영역을 상자로 끌어 지정합니다"
+      }
+    },
     "cp_action_draw_blintz": {
       "label": "블린츠 베이스",
       "tooltip": "블린츠 베이스",

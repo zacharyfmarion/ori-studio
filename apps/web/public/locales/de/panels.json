@@ -161,6 +161,59 @@
       "width": "Breite"
     }
   },
+  "cpChecks": {
+    "bigLittleBig": "Groß-klein-groß",
+    "kawasaki": "Kawasaki (Winkel)",
+    "maekawa": "Maekawa (Parität)",
+    "vertexClosure": "Knotenschluss"
+  },
+  "cpExactSolve": {
+    "hint": {
+      "geometry": "Meist unter einer Sekunde.",
+      "refinement": "Hier liegt der größte Teil der Wartezeit – bis zu etwa 25 Sekunden."
+    },
+    "reason": {
+      "boundaryBroken": "Der Papierrand ist kein geschlossenes Quadrat, deshalb konnte das Lösen nicht starten. Repariere den Rand und versuche es erneut.",
+      "boundaryWorse": "Das Ergebnis hat einen Knoten über den Papierrand hinausgeschoben und wurde deshalb nicht übernommen.",
+      "crossingsWorse": "Im Ergebnis kreuzen sich Faltlinien ohne Knoten am Schnittpunkt; es wurde deshalb nicht übernommen. Ergänze die fehlenden Knoten und löse erneut.",
+      "degenerateEdges": "Eine Faltlinie hat beide Enden am selben Punkt, deshalb konnte das Lösen nicht starten. Lösche sie oder ziehe ein Ende weg und versuche es erneut.",
+      "degenerateWorse": "Das Ergebnis hat eine Faltlinie auf Länge null zusammenfallen lassen und wurde deshalb nicht übernommen.",
+      "malformedInput": "Die gespeicherten Löserdaten passen nicht zu diesem Faltmuster, deshalb konnte nicht gelöst werden.",
+      "movedTooFar": "Das Muster exakt zu machen würde einen Knoten weiter verschieben als erlaubt, deshalb wurde nichts übernommen. Vermutlich liegt eine Änderung weit von der tatsächlichen Faltlinie entfernt.",
+      "noImprovement": "Der Löser konnte das übergebene Muster nicht verbessern, deshalb wurde nichts übernommen. Die Topologie muss höchstwahrscheinlich noch repariert werden.",
+      "oddDegreeWorse": "Das Ergebnis hinterlässt mehr Knoten mit einer ungeraden Anzahl Faltlinien als zu Beginn und wurde deshalb nicht übernommen.",
+      "stillNotFoldable": "Das Ergebnis verletzt weiterhin eine Faltbedingungs\u00adprüfung und wurde deshalb nicht übernommen. Arbeite die verbleibenden Marker ab und löse erneut.",
+      "timeout": "Die Zeit für das Lösen ist abgelaufen. Du kannst das bisher Erreichte übernehmen oder das Muster weiter reparieren und es erneut versuchen."
+    },
+    "stage": {
+      "geometry": "Geometrie wird gelöst",
+      "refinement": "Verfeinerung auf Faltgenauigkeit"
+    }
+  },
+  "cpRegion": {
+    "accept": "Übernehmen",
+    "addRegion": "Unterdrückungsbereich hinzufügen",
+    "bringToFront": "Bereich in den Vordergrund",
+    "changeChecks": "Unterdrückte Prüfungen ändern",
+    "checksMenu": "Unterdrückte Prüfungen",
+    "controls": "Bereich für unterdrückte Prüfungen",
+    "defaultLabel": "Unterdrückungsbereich",
+    "delete": "Bereich löschen",
+    "hidden_one": "1 Problem ausgeblendet",
+    "hidden_other": "{{count}} Probleme ausgeblendet",
+    "nothingSuppressed": "Alle Prüfungen aktiv",
+    "sendToBack": "Bereich in den Hintergrund",
+    "solve": "Lösen",
+    "solved_one": "Gelöst · 1 Knoten bewegt < {{max}} px",
+    "solved_other": "Gelöst · {{count}} Knoten bewegt < {{max}} px",
+    "solveFailed": "Konnte nicht gelöst werden — {{reason}}",
+    "solvePartial_one": "Teilergebnis · 1 Knoten",
+    "solvePartial_other": "Teilergebnis · {{count}} Knoten",
+    "solvingGeometry": "Geometrie wird gelöst…",
+    "solvingRefining": "Verfeinerung auf Faltgenauigkeit…",
+    "suppressing": "Prüfungen aus: {{classes}}",
+    "tryAgain": "Erneut versuchen"
+  },
   "cpViewControls": {
     "angle": "Winkel",
     "camvIssues": "Faltbarkeitsprobleme",
@@ -244,6 +297,8 @@
       "warningOther_one": "{{count}} {{label}}-Warnungen",
       "warningOther_other": "{{count}} {{label}}-Warnungen"
     },
+    "diagnosticsHidden_one": "1 Problem durch einen Filter ausgeblendet",
+    "diagnosticsHidden_other": "{{count}} Probleme durch einen Filter ausgeblendet",
     "display": "Anzeige",
     "duplicateFoldedModelAction": "Gefaltetes Modell duplizieren",
     "flipFoldedModel": "Gefaltetes Modell umdrehen",

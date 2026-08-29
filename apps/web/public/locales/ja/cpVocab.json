@@ -741,6 +741,14 @@
         "0": "テキストの位置をクリック"
       }
     },
+    "cp_action_check_suppression_region_create": {
+      "label": "抑制領域",
+      "tooltip": "ボックスをドラッグして、その内側で選択した折りたたみ検査の報告を止めます",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "検査を止める範囲をドラッグして囲みます"
+      }
+    },
     "cp_action_draw_blintz": {
       "label": "座布団の基本形",
       "tooltip": "座布団の基本形",

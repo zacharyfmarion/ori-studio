@@ -176,6 +176,16 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   LineSegmentDelete: { model: 'drag-box' },
   // The operation frame is a rubber-band rectangle (two corners), not a freeform path.
   OperationFrameCreate: { model: 'drag-box' },
+  // Check-suppression region: the same rubber-band rectangle, and the reason it
+  // needs nothing else. `drag-box` already routes press / move / release and
+  // hands back the box's corners, so the whole tool is this entry plus the
+  // commit — no `ActiveToolMode` member and no canvas branch, which is the cost
+  // the Text tool paid and the one this deliberately does not.
+  //
+  // View-aligned like every box but the operation frame's: the four corners the
+  // engine returns are the rectangle the user actually dragged on screen, which
+  // is what a rotated view should produce. See `isModelAlignedBoxOperation`.
+  CheckSuppressionRegionCreate: { model: 'drag-box' },
 
   // DRAG-PATH (§4.C)
   FlatFoldableCheck: { model: 'drag-path' },

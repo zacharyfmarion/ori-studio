@@ -9,6 +9,8 @@ import init, {
   cp_detect_manual_rectify_rgba,
   cp_detect_package_info,
   cp_detect_parse_model_manifest,
+  cp_detect_solve_exact,
+  cp_detect_solve_exact_to_fold,
 } from '../generated/oristudio-cp-detect-wasm/oristudio_cp_detect_wasm';
 import type {
   CpDetectDenseOutputs,
@@ -29,6 +31,10 @@ import {
   CP_DETECT_DEFAULT_JUNCTION_SOURCE,
   CP_DETECT_DEFAULT_LINE_EVIDENCE_SOURCE,
 } from '../engine/cpDetectTypes';
+import type {
+  CpExactSolveFoldResult,
+  CpExactSolvedGraph,
+} from '../engine/cpExactSolveTypes';
 import type { WasmErrorEnvelope } from '../engine/types';
 import {
   DEFAULT_CP_DETECT_MODEL_MANIFEST_URL,
@@ -356,6 +362,43 @@ const api = {
         runtime: inference.runtime,
       };
     });
+  },
+  /**
+   * Run the exact solver on an `ExactSolveInput`.
+   *
+   * In this worker rather than on the main thread because a solve is 0.36 s at
+   * the easy median and up to the 25 s cap on the hard bucket — synchronous
+   * inside wasm the whole time, so on the main thread it would freeze the canvas
+   * for the duration.
+   *
+   * It costs nothing to host here: the solver is a pure function of its input
+   * and reads no dense heads, no source image and no model, so this touches only
+   * `ensureWasmReady()` and never `loadOrt()` — the 22.6 MiB ONNX runtime that
+   * `CP_DETECT_RUNTIME_AVAILABLE` gates out of production builds stays out. Which
+   * matters, because unlike detection this path is meant to ship.
+   *
+   * `optionsJson` is a partial `ExactSolveOptions` object; omitted fields keep
+   * their defaults and an unrecognised name is an error rather than a silent
+   * no-op. Strings rather than objects because both sides already round-trip
+   * through JSON and comlink would otherwise structured-clone a large graph into
+   * an object the wasm boundary immediately re-serializes.
+   */
+  async solveExact(inputJson: string, optionsJson = ''): Promise<CpExactSolvedGraph> {
+    return call(() => cp_detect_solve_exact(inputJson, optionsJson) as CpExactSolvedGraph);
+  },
+  /**
+   * Solve, and export the result as a FOLD document at the solved coordinates.
+   *
+   * One solve serves both the geometry the document takes and the movement
+   * report the UI reports on. Separate from {@link solveExact} rather than
+   * folded into it because the stage-1 probe wants only the verdict, and paying
+   * for a FOLD export of a result that is about to be thrown away is the one
+   * cost the two-call split was supposed to avoid.
+   */
+  async solveExactToFold(inputJson: string, optionsJson = ''): Promise<CpExactSolveFoldResult> {
+    return call(
+      () => cp_detect_solve_exact_to_fold(inputJson, optionsJson) as CpExactSolveFoldResult
+    );
   },
   async ablateRectifiedFold(
     image: ImageData,

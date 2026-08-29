@@ -30,9 +30,13 @@
   grid-template-rows: auto minmax(300px, 1fr);
 }
 
-.cp-detect-modal__surface--crop,
-.cp-detect-modal__surface--review {
+.cp-detect-modal__surface--crop {
   grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+}
+
+/* One row more than crop: the review stage carries the verdict line too. */
+.cp-detect-modal__surface--review {
+  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
 }
 
 .cp-detect-modal__surface--detecting {
@@ -138,6 +142,32 @@
 
 .cp-detect-modal__spinner {
   animation: cp-detect-spin 0.9s linear infinite;
+}
+
+/* What the topology check found, and therefore what the primary button does.
+   Toned by outcome rather than always warning-coloured: an exactly-solved
+   detection is good news and must not read as a problem. */
+.cp-detect-modal__verdict {
+  padding: 6px 10px;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.45;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--border-default);
+  border-radius: 6px;
+}
+
+.cp-detect-modal__verdict[data-outcome='exact'] {
+  border-left-color: var(--status-success);
+}
+
+.cp-detect-modal__verdict[data-outcome='repairable'] {
+  border-left-color: var(--accent-primary);
+}
+
+.cp-detect-modal__verdict[data-outcome='impractical'] {
+  border-left-color: var(--status-warning);
 }
 
 .cp-detect-modal__crop-grid,

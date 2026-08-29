@@ -49,6 +49,8 @@
     "yes": "是"
   },
   "cpDetectImport": {
+    "addAsIs": "直接添加",
+    "addLabel": "添加检测到的折痕图",
     "ariaLabel": "从图像检测 CP",
     "busy": {
       "detecting": "正在运行模型",
@@ -63,23 +65,35 @@
     "detect": "检测",
     "detected": "已检测",
     "dropImageHere": "将图像拖放到此处",
-    "import": "导入",
     "inferred": "已推断",
     "mvChanges": "山折/谷折更改",
     "openImageTitle": "打开折痕图图像",
     "rectified": "已校正",
+    "regionLabel": "检测到的折痕图",
+    "repairLabel": "添加检测到的折痕图以便修复",
     "report": {
       "ambiguous": "不明确",
       "assignmentChange_other": "{{count}} 处分配更改",
       "assignmentChanges_other": "{{count}} 处分配更改",
       "compilerFallback": "编译器回退",
       "counts": "{{vertices}} 个顶点，{{edges}} 条边",
+      "solveTimedOut": "求解超时",
       "topologyMove_other": "{{count}} 处拓扑变动",
       "topologyMoves_other": "{{count}} 处拓扑变动"
     },
+    "reviewAndFix": "检查并修复",
     "runningModel": "正在运行模型",
+    "solveAndAdd": "求解并添加",
     "title": "从图像检测 CP",
-    "updateCrop": "更新裁剪"
+    "updateCrop": "更新裁剪",
+    "verdict": {
+      "blocked": "求解器无法读取该候选图，因此没有可手动修复的内容。你仍然可以直接添加它。",
+      "exact": "已精确求解。它会添加到你的作品旁边，文档的其余部分保持不变。",
+      "impractical_other": "尚未求解，有 {{count}} 处需要修复。这已超出手动修复的合理范围，因此直接添加。",
+      "repairable_other": "尚未求解，有 {{count}} 处需要修复。选择“检查并修复”会一并添加候选图、原始图像和一个检查抑制区域，方便你修复。",
+      "unflagged": "尚未求解，但没有标记出需要修复的地方，求解器是因为其他原因拒绝的。选择“检查并修复”会把原始图像放在候选图后面，方便对照。",
+      "unknown": "本次检测未提供拓扑检查，因此该折痕图只能直接添加。"
+    }
   },
   "export": {
     "allPatterns": "所有折痕图",
@@ -133,6 +147,7 @@
       "images": "图像",
       "inlineSimulations": "模拟窗口",
       "richText": "富文本格式",
+      "suppressionRegions": "检查抑制区域",
       "symmetry": "镜像对称",
       "unassignedCreases": "未指定折痕"
     },

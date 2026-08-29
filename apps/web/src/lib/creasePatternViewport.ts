@@ -1,3 +1,6 @@
+// `lib/` -> `cp-workspace/` for a type only, the direction `nativeProjectFile.ts`
+// and `supersetFeatures.ts` already take for the annotation kinds.
+import type { CpCheckClass } from '../cp-workspace/annotations/suppressionRegion';
 import type {
   OristudioCpDocumentSnapshot,
   OristudioCpGridMetadata,
@@ -112,6 +115,20 @@ export interface OristudioCpViewportOptions {
   snapToVertices: boolean;
   snapToLines: boolean;
   camvIssuesVisible?: boolean;
+  /**
+   * The **document-wide** check-suppression rule: which foldability classes are
+   * not reported anywhere in this document.
+   *
+   * The document default that suppression regions override —
+   * `cp-workspace/diagnostics/checkSuppression.ts` composes the two and owns the
+   * predicate. Absent or empty means everything is reported, so a file written
+   * before this existed reads as it always did.
+   *
+   * Distinct from {@link camvIssuesVisible}, which is not a per-class rule but
+   * the whole overlay's switch: with it off nothing is drawn regardless of what
+   * is listed here, which is exactly what it meant before.
+   */
+  suppressedCheckClasses?: readonly CpCheckClass[];
   /**
    * Numeric fold-angle badges on the canvas. **Labels only** — crease colour
    * always distinguishes a non-180 crease and is not gated by this.

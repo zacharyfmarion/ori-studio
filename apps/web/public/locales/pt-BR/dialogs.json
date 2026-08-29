@@ -49,6 +49,8 @@
     "yes": "Sim"
   },
   "cpDetectImport": {
+    "addAsIs": "Adicionar como está",
+    "addLabel": "Adicionar o padrão de vincos detectado",
     "ariaLabel": "Detectar CP a partir de imagem",
     "busy": {
       "detecting": "Executando o modelo",
@@ -63,11 +65,12 @@
     "detect": "Detectar",
     "detected": "Detectado",
     "dropImageHere": "Solte a imagem aqui",
-    "import": "Importar",
     "inferred": "Inferido",
     "mvChanges": "Alterações de M/V",
     "openImageTitle": "Abrir imagem de padrão de vincos",
     "rectified": "Retificado",
+    "regionLabel": "Padrão de vincos detectado",
+    "repairLabel": "Adicionar o padrão de vincos detectado para corrigir",
     "report": {
       "ambiguous": "ambíguo",
       "assignmentChange_one": "{{count}} alteração de atribuição",
@@ -78,6 +81,7 @@
       "assignmentChanges_other": "{{count}} alterações de atribuição",
       "compilerFallback": "recurso alternativo do compilador",
       "counts": "{{vertices}} vértices, {{edges}} arestas",
+      "solveTimedOut": "a resolução expirou",
       "topologyMove_one": "{{count}} movimento de topologia",
       "topologyMove_many": "{{count}} movimento de topologia",
       "topologyMove_other": "{{count}} movimento de topologia",
@@ -85,9 +89,23 @@
       "topologyMoves_many": "{{count}} movimentos de topologia",
       "topologyMoves_other": "{{count}} movimentos de topologia"
     },
+    "reviewAndFix": "Revisar e corrigir",
     "runningModel": "Executando o modelo",
+    "solveAndAdd": "Resolver e adicionar",
     "title": "Detectar CP a partir de imagem",
-    "updateCrop": "Atualizar recorte"
+    "updateCrop": "Atualizar recorte",
+    "verdict": {
+      "blocked": "O solucionador não conseguiu ler este grafo candidato, portanto não há nada para corrigir à mão. Você ainda pode adicioná-lo como está.",
+      "exact": "Resolvido exatamente. Ele é adicionado ao lado do seu trabalho e o resto do documento permanece intacto.",
+      "impractical_one": "Não resolvido, com 1 ponto para corrigir, mas esta execução está fora do alcance do conserto manual, então ela é adicionada como está.",
+      "impractical_many": "Não resolvido, com {{count}} pontos para corrigir. Isso está fora do alcance do conserto manual: corrigir tantos à mão não é prático, então o padrão é adicionado como está.",
+      "impractical_other": "Não resolvido, com {{count}} pontos para corrigir. Isso está fora do alcance do conserto manual: corrigir tantos à mão não é prático, então o padrão é adicionado como está.",
+      "repairable_one": "Não resolvido. 1 ponto para corrigir: Revisar e corrigir adiciona o candidato, a imagem de origem e uma região de supressão de verificações para você consertar.",
+      "repairable_many": "Não resolvido. {{count}} pontos para corrigir: Revisar e corrigir adiciona o candidato, a imagem de origem e uma região de supressão de verificações para você consertar.",
+      "repairable_other": "Não resolvido. {{count}} pontos para corrigir: Revisar e corrigir adiciona o candidato, a imagem de origem e uma região de supressão de verificações para você consertar.",
+      "unflagged": "Não resolvido, mas nada foi marcado para correção: o solucionador o rejeitou por outro motivo. Revisar e corrigir adiciona o candidato com a imagem de origem atrás para você comparar.",
+      "unknown": "Esta execução do detector não traz verificação de topologia, então o padrão só pode ser adicionado como está."
+    }
   },
   "export": {
     "allPatterns": "Todos os padrões",
@@ -143,6 +161,7 @@
       "images": "Imagens",
       "inlineSimulations": "Janelas de simulação",
       "richText": "Formatação de texto rico",
+      "suppressionRegions": "Regiões de supressão de verificações",
       "symmetry": "Simetria espelhada",
       "unassignedCreases": "Vincos não atribuídos"
     },

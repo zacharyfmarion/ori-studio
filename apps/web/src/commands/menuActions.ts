@@ -123,6 +123,7 @@ export const MENU_ACTION_IDS = [
   'cp.deleteExtraVertices',
   'cp.deleteExtraVerticesIgnoreColor',
   'cp.fixInaccurate',
+  'cp.exactSolve',
   'cp.changeCircleColor',
   'cp.organizeCircles',
   'help.about',
@@ -335,6 +336,23 @@ const VIEW_PANEL_ACTIONS: Partial<Record<MenuActionId, string>> = {
 export function isMenuActionId(id: string): id is MenuActionId {
   return (MENU_ACTION_IDS as readonly string[]).includes(id);
 }
+
+/**
+ * Asking the crease-pattern workspace to run an exact solve.
+ *
+ * A window event rather than a `WorkspaceCommands` method, for the same reason
+ * `file.detectCpImage` is one: what the command opens is a *surface* — the solve
+ * runs against the `ExactSolveInput` attached to a region, reports two stages
+ * while it works, and ends on an Accept / Try again gate — and none of that is
+ * store state the dispatcher could call into. The store owns documents; the CP
+ * workspace owns this flow.
+ *
+ * The chokepoint in {@link handleMenuAction} still sees the command, so the
+ * keyboard, the command palette and `command invoked` all work unchanged, and
+ * the `SolveRegionChip`'s button dispatches the same `MenuActionId` rather than
+ * owning a second path to the same thing.
+ */
+export const CP_EXACT_SOLVE_REQUEST_EVENT = 'ori-studio:cp-exact-solve';
 
 const OPEN_EXAMPLE_PREFIX = 'file.openExample:';
 
@@ -705,6 +723,13 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
       }
       case 'cp.organizeCircles':
         return deps.workspace.executeOristudioCpCommand('OrganizeCircles');
+      // Whether there is anything to solve is `cp.exactSolve`'s capability, and
+      // it is checked at the top of this handler like every other action's. The
+      // listener must still refuse a request with no solvable pattern, because
+      // `deps.capabilities` is optional and the chip dispatches this id too.
+      case 'cp.exactSolve':
+        window.dispatchEvent(new CustomEvent(CP_EXACT_SOLVE_REQUEST_EVENT));
+        return true;
       case 'help.about':
         deps.about?.();
         return true;

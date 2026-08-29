@@ -741,6 +741,14 @@
         "0": "Textposition anklicken"
       }
     },
+    "cp_action_check_suppression_region_create": {
+      "label": "Prüfungsfreier Bereich",
+      "tooltip": "Ziehe ein Rechteck auf, in dem die ausgewählten Faltbarkeitsprüfungen nicht mehr gemeldet werden",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Ziehe ein Rechteck über den Bereich, der nicht mehr geprüft werden soll"
+      }
+    },
     "cp_action_draw_blintz": {
       "label": "Blintz-Basis",
       "tooltip": "Blintz-Basis",

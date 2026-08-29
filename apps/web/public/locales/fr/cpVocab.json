@@ -741,6 +741,14 @@
         "0": "Cliquez sur la position du texte"
       }
     },
+    "cp_action_check_suppression_region_create": {
+      "label": "Zone de suppression",
+      "tooltip": "Tracez un rectangle pour cesser d’y signaler les vérifications de pliage sélectionnées",
+      "disabledReason": "Prêt",
+      "steps": {
+        "0": "Tracez un rectangle sur la zone à ne plus vérifier"
+      }
+    },
     "cp_action_draw_blintz": {
       "label": "Base blintz",
       "tooltip": "Base blintz",

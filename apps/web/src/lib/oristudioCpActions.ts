@@ -464,6 +464,13 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
     upstreamAction: 'textAction',
     upstreamMouseMode: 'TEXT',
   },
+  // No `upstreamMouseMode`: there is no Oriedita mouse mode to name, so leaving
+  // it unset is what keeps this tool out of the Oriedita hotkey import rather
+  // than offering a binding for a mode upstream does not have.
+  CheckSuppressionRegionCreate: {
+    label: 'Suppression Region',
+    upstreamAction: 'checkSuppressionRegionCreateAction',
+  },
   DrawBlintz: {
     upstreamAction: 'drawBlintzAction',
     upstreamMouseMode: 'DRAW_BLINTZ',

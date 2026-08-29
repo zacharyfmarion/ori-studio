@@ -163,6 +163,62 @@
       "width": "Anchura"
     }
   },
+  "cpChecks": {
+    "bigLittleBig": "Grande-pequeño-grande",
+    "kawasaki": "Kawasaki (ángulos)",
+    "maekawa": "Maekawa (paridad)",
+    "vertexClosure": "Cierre del vértice"
+  },
+  "cpExactSolve": {
+    "hint": {
+      "geometry": "Normalmente menos de un segundo.",
+      "refinement": "Aquí está casi toda la espera: hasta unos 25 segundos."
+    },
+    "reason": {
+      "boundaryBroken": "El borde del papel no es un cuadrado cerrado, así que no se pudo iniciar la resolución. Repara el borde e inténtalo de nuevo.",
+      "boundaryWorse": "El resultado empujó un vértice fuera del borde del papel, así que no se aplicó.",
+      "crossingsWorse": "El resultado dejó pliegues que se cruzan sin un vértice donde se encuentran, así que no se aplicó. Añade los vértices que faltan y vuelve a resolver.",
+      "degenerateEdges": "Un pliegue tiene ambos extremos en el mismo punto, así que no se pudo iniciar la resolución. Bórralo, o separa uno de sus extremos, e inténtalo de nuevo.",
+      "degenerateWorse": "El resultado redujo un pliegue a longitud cero, así que no se aplicó.",
+      "malformedInput": "Los datos guardados del solucionador no coinciden con este patrón de pliegues, así que no se pudo resolver.",
+      "movedTooFar": "Hacer exacto el patrón movería un vértice más allá de lo permitido, así que no se aplicó. Probablemente alguna edición esté lejos de donde realmente está el pliegue.",
+      "noImprovement": "El solucionador no pudo mejorar el patrón recibido, así que no se aplicó nada. Lo más probable es que la topología aún necesite reparación.",
+      "oddDegreeWorse": "El resultado dejó más vértices con un número impar de pliegues que al empezar, así que no se aplicó.",
+      "stillNotFoldable": "El resultado sigue incumpliendo una condición de plegado, así que no se aplicó. Resuelve los marcadores restantes y vuelve a intentarlo.",
+      "timeout": "Se agotó el tiempo de la resolución. Puedes quedarte con lo que llegó a calcular, o reparar más el patrón y volver a intentarlo."
+    },
+    "stage": {
+      "geometry": "Resolviendo la geometría",
+      "refinement": "Refinando a precisión de plegado"
+    }
+  },
+  "cpRegion": {
+    "accept": "Aceptar",
+    "addRegion": "Añadir región de supresión",
+    "bringToFront": "Traer la región al frente",
+    "changeChecks": "Cambiar comprobaciones suprimidas",
+    "checksMenu": "Comprobaciones suprimidas",
+    "controls": "Región de supresión de comprobaciones",
+    "defaultLabel": "Región de supresión",
+    "delete": "Eliminar región",
+    "hidden_one": "1 problema oculto",
+    "hidden_many": "{{count}} problemas ocultos",
+    "hidden_other": "{{count}} problemas ocultos",
+    "nothingSuppressed": "Todas las comprobaciones activas",
+    "sendToBack": "Enviar la región al fondo",
+    "solve": "Resolver",
+    "solved_one": "Resuelto · 1 vértice movido < {{max}} px",
+    "solved_many": "Resuelto · {{count}} vértices movidos < {{max}} px",
+    "solved_other": "Resuelto · {{count}} vértices movidos < {{max}} px",
+    "solveFailed": "No se pudo resolver — {{reason}}",
+    "solvePartial_one": "Resultado parcial · 1 vértice",
+    "solvePartial_many": "Resultado parcial · {{count}} vértices",
+    "solvePartial_other": "Resultado parcial · {{count}} vértices",
+    "solvingGeometry": "Resolviendo la geometría…",
+    "solvingRefining": "Refinando a la precisión de plegado…",
+    "suppressing": "Comprobaciones desactivadas: {{classes}}",
+    "tryAgain": "Reintentar"
+  },
   "cpViewControls": {
     "angle": "Ángulo",
     "camvIssues": "Problemas de plegabilidad",
@@ -258,6 +314,9 @@
       "warningOther_many": "{{count}} advertencias de {{label}}",
       "warningOther_other": "{{count}} advertencias de {{label}}"
     },
+    "diagnosticsHidden_one": "1 problema oculto por un filtro",
+    "diagnosticsHidden_many": "{{count}} problemas ocultos por un filtro",
+    "diagnosticsHidden_other": "{{count}} problemas ocultos por un filtro",
     "display": "Visualización",
     "duplicateFoldedModelAction": "Duplicar modelo plegado",
     "flipFoldedModel": "Voltear modelo plegado",

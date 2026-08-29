@@ -24,6 +24,7 @@
     "deleteLineType": "Ausgewählten Linientyp löschen...",
     "deleteSelectedLines": "Ausgewählte Linien löschen",
     "diagnostics": "Diagnose",
+    "exactSolve": "Exakt lösen...",
     "fix1": "Überlappungen reparieren",
     "fix2": "T-Verbindungen aufteilen",
     "fixInaccurate": "Ungenaue Falten korrigieren...",

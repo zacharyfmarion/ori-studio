@@ -4,6 +4,7 @@ import { createFillProgram } from './fillProgram';
 import { createImageProgram } from './imageProgram';
 import { createMarkerProgram } from './markerProgram';
 import { createPointProgram } from './pointProgram';
+import { createRegionProgram } from './regionProgram';
 import { createStrokeProgram } from './strokeProgram';
 import { createWedgeProgram } from './wedgeProgram';
 
@@ -47,6 +48,7 @@ const PROGRAMS: ReadonlyArray<readonly [string, (regl: Regl) => { dispose(): voi
   ['marker', (regl) => createMarkerProgram(regl)],
   ['wedge', (regl) => createWedgeProgram(regl)],
   ['image', (regl) => createImageProgram(regl)],
+  ['region', (regl) => createRegionProgram(regl)],
   [
     'fill',
     (regl) => {

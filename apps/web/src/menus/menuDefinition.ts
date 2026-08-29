@@ -255,6 +255,11 @@ export function getMenuBarDef(
             { type: 'action', id: 'cp.deleteExtraVertices', label: t('menu:cp.deleteExtraVertices', 'Delete Extra Vertices'), shortcut: shortcut('cp.deleteExtraVertices', resolution) },
             { type: 'action', id: 'cp.deleteExtraVerticesIgnoreColor', label: t('menu:cp.deleteExtraVerticesIgnoreColor', 'Delete Extra Vertices (Ignore Type)') },
             { type: 'action', id: 'cp.fixInaccurate', label: t('menu:cp.fixInaccurate', 'Fix Inaccurate Creases...') },
+            // Beside Fix Inaccurate Creases because it is its better-solver
+            // sibling: both take a pattern that is nearly right and make it
+            // exact. Fix Inaccurate snaps creases within a tolerance; this runs
+            // the constrained solve that makes Kawasaki hold to 1e-6.
+            { type: 'action', id: 'cp.exactSolve', label: t('menu:cp.exactSolve', 'Exact Solve...') },
           ],
         },
         {

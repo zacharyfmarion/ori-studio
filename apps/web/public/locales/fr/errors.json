@@ -21,6 +21,7 @@
     "foldProducedNothing": "Ces plis n’ont aucune forme pliée à plat à dessiner"
   },
   "cpDetectImport": {
+    "addFailed": "Le patron de plis détecté n'a pas pu être ajouté.",
     "canvasUnavailable": "Canvas 2D n’est pas disponible",
     "unsupportedImage": "Utilisez une image PNG, JPEG ou WebP."
   },

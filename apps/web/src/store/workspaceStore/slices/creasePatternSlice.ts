@@ -49,6 +49,10 @@ import {
 } from '../../../cp-workspace/canvasObjects/placeBesideCp';
 import { uprightRotationForView } from '../../../cp-workspace/annotations/annotationTransform';
 import { cpOverlayViewStore } from '../../../cp-workspace/cpOverlayViewStore';
+import {
+  cpCheckSuppressionRules,
+  partitionCpDiagnosticsBySuppression,
+} from '../../../cp-workspace/diagnostics/checkSuppression';
 import { countCpDiagnosticErrors } from '../../../cp-workspace/diagnostics/severity';
 import { visibleCpDiagnosticEntries } from '../../../cp-workspace/diagnostics/visibleEntries';
 import { foldedFigureUserAabb } from '../../../cp-workspace/adapters/cpFoldedToScene';
@@ -126,7 +130,10 @@ import type {
   WorkspaceSliceCreator,
   WorkspaceState,
 } from '../types';
-import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
+import {
+  allowedAnnotationUpdate,
+  type CanvasAnnotation,
+} from '../../../cp-workspace/annotations/annotation';
 import {
   foldedFigureHandleEpoch,
   releaseFoldedFigureHandle,
@@ -2095,13 +2102,29 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         let violationCount = 0;
         try {
           const camv = await runOristudioCpCheckCommand('CheckCamv');
+          // The scoped check filter applies here too. This is the one gate that
+          // calls the kernel directly, so it sees findings the canvas, the HUD
+          // and the marker layer have all agreed to hide — and warning about a
+          // class the user has declared does not apply to a region is how a
+          // suppressor becomes a nag instead of a tool.
+          //
+          // Only the per-class rules, deliberately: `camvIssuesVisible` is a
+          // *view* switch, and turning markers off must not silently disarm the
+          // pre-fold warning. The switch for that is `foldWarningEnabled`, which
+          // already guards this whole block.
+          const rules = cpCheckSuppressionRules(
+            get().oristudioCpViewport.suppressedCheckClasses,
+            get().oristudioCpAnnotations
+          );
           // Errors only. `CheckCamv` also emits `SpatialInteriorBorder` at
           // `warning` severity — "border with paper on both sides: the vertices
           // on it are not checked" — which is an observation about the check's
           // own coverage and not a violation of anything. Counting it here would
           // raise Oriedita's "continue to fold?" modal over a document with
           // nothing wrong with it, and report `had_violations` for it.
-          violationCount = countCpDiagnosticErrors(camv.diagnostic_entries);
+          violationCount = countCpDiagnosticErrors(
+            partitionCpDiagnosticsBySuppression(camv.diagnostic_entries ?? [], rules).visible
+          );
           track(ANALYTICS_EVENTS.foldabilityChecked, {
             source: 'pre-fold',
             had_violations: violationCount > 0,
@@ -3607,7 +3630,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     updateAnnotation: (id, patch) =>
       set({
         oristudioCpAnnotations: get().oristudioCpAnnotations.map((annotation) =>
-          annotation.id === id ? ({ ...annotation, ...patch } as typeof annotation) : annotation
+          annotation.id === id
+            ? // Filtered per kind: `AnnotationUpdate` is a union, so `hidden`
+              // typechecks against the image member no matter which annotation
+              // the id resolves to, and a hidden suppression region is the one
+              // state this design must not allow. See `allowedAnnotationUpdate`.
+              ({ ...annotation, ...allowedAnnotationUpdate(annotation, patch) } as typeof annotation)
+            : annotation
         ),
         dirty: true,
       }),

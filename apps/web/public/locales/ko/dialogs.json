@@ -49,6 +49,8 @@
     "yes": "예"
   },
   "cpDetectImport": {
+    "addAsIs": "그대로 추가",
+    "addLabel": "감지된 전개도 추가",
     "ariaLabel": "이미지에서 CP 감지",
     "busy": {
       "detecting": "모델 실행 중",
@@ -63,23 +65,35 @@
     "detect": "감지",
     "detected": "감지됨",
     "dropImageHere": "여기에 이미지를 놓으세요",
-    "import": "가져오기",
     "inferred": "추론됨",
     "mvChanges": "산/골 변경",
     "openImageTitle": "전개도 이미지 열기",
     "rectified": "보정됨",
+    "regionLabel": "감지된 전개도",
+    "repairLabel": "수정할 감지된 전개도 추가",
     "report": {
       "ambiguous": "모호함",
       "assignmentChange_other": "{{count}}개 할당 변경",
       "assignmentChanges_other": "{{count}}개 할당 변경",
       "compilerFallback": "컴파일러 대체",
       "counts": "정점 {{vertices}}개, 모서리 {{edges}}개",
+      "solveTimedOut": "솔버 시간 초과",
       "topologyMove_other": "{{count}}개 위상 이동",
       "topologyMoves_other": "{{count}}개 위상 이동"
     },
+    "reviewAndFix": "검토 후 수정",
     "runningModel": "모델 실행 중",
+    "solveAndAdd": "풀어서 추가",
     "title": "이미지에서 CP 감지",
-    "updateCrop": "자르기 업데이트"
+    "updateCrop": "자르기 업데이트",
+    "verdict": {
+      "blocked": "솔버가 이 후보 그래프를 읽지 못해 손으로 고칠 것이 없습니다. 그래도 그대로 추가할 수는 있습니다.",
+      "exact": "정확히 풀렸습니다. 작업물 옆에 추가되며 문서의 나머지 부분은 그대로 유지됩니다.",
+      "impractical_other": "아직 풀리지 않았고 수정할 곳이 {{count}}군데입니다. 손으로 고칠 수 있는 범위를 벗어나므로 그대로 추가합니다.",
+      "repairable_other": "아직 풀리지 않았습니다. 수정할 곳이 {{count}}군데입니다. 검토 후 수정을 선택하면 후보와 원본 이미지, 검사 억제 영역이 함께 추가됩니다.",
+      "unflagged": "아직 풀리지 않았지만 수정 대상으로 표시된 곳은 없습니다. 솔버가 다른 이유로 거부했습니다. 검토 후 수정을 선택하면 후보 뒤에 원본 이미지가 놓여 비교할 수 있습니다.",
+      "unknown": "이 감지 결과에는 위상 검사가 없어 전개도를 그대로 추가하는 것만 가능합니다."
+    }
   },
   "export": {
     "allPatterns": "모든 패턴",
@@ -133,6 +147,7 @@
       "images": "이미지",
       "inlineSimulations": "시뮬레이션 창",
       "richText": "리치 텍스트 서식",
+      "suppressionRegions": "검사 억제 영역",
       "symmetry": "거울 대칭",
       "unassignedCreases": "미할당 접는 선"
     },

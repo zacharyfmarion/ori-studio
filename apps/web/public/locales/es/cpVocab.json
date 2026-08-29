@@ -741,6 +741,14 @@
         "0": "Haz clic en la posición del texto"
       }
     },
+    "cp_action_check_suppression_region_create": {
+      "label": "Región de supresión",
+      "tooltip": "Arrastra un recuadro para dejar de informar dentro de él las comprobaciones de plegado seleccionadas",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Arrastra un recuadro sobre el área que dejará de comprobarse"
+      }
+    },
     "cp_action_draw_blintz": {
       "label": "Base blintz",
       "tooltip": "Base blintz",

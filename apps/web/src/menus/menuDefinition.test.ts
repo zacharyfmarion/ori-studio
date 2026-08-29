@@ -102,6 +102,7 @@ describe('web menu definition', () => {
       'cp.deleteExtraVertices',
       'cp.deleteExtraVerticesIgnoreColor',
       'cp.fixInaccurate',
+      'cp.exactSolve',
       'cp.changeCircleColor',
       'cp.organizeCircles',
     ]);

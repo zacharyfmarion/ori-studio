@@ -7,8 +7,15 @@ import { boxCornersModel } from './annotations/annotationTransform';
 import { foldedFigureUserAabb } from './adapters/cpFoldedToScene';
 
 /**
- * A placed box the WebGL renderer does not draw itself — a text annotation or an
- * inline simulation window. Both live on their own DOM layers.
+ * A placed box framing must include but that has no richer shape than its
+ * extent — a text annotation, an inline simulation window, or a
+ * check-suppression region.
+ *
+ * Not "a box the renderer does not draw", which is what this used to say: the
+ * first two live on DOM layers and a region is drawn in GL, and framing does not
+ * care which. What the kinds here share is that a rotated rectangle is the whole
+ * of their geometry, where a {@link CpImage} additionally carries a crop and a
+ * folded figure arrives already in user space.
  */
 export interface CpOverlayBox {
   center: ModelPoint;
@@ -48,7 +55,8 @@ export interface CpContentBoundsInput {
  * test, so it is enumerated.
  *
  * The kinds, as of now: creases, reference images, overlay boxes (text
- * annotations and inline simulation windows), and folded figures.
+ * annotations, inline simulation windows and check-suppression regions), and
+ * folded figures.
  *
  * Hidden content is excluded because it is not drawn; framing to include
  * something invisible would just look like the camera was wrong.

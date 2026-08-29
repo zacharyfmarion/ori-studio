@@ -159,6 +159,56 @@
       "width": "幅"
     }
   },
+  "cpChecks": {
+    "bigLittleBig": "大小大",
+    "kawasaki": "川崎（角度）",
+    "maekawa": "前川（偶奇）",
+    "vertexClosure": "頂点の閉合"
+  },
+  "cpExactSolve": {
+    "hint": {
+      "geometry": "通常は1秒以内です。",
+      "refinement": "待ち時間のほとんどはここです。最大で約25秒かかります。"
+    },
+    "reason": {
+      "boundaryBroken": "用紙の外周が閉じた正方形になっていないため、計算を開始できませんでした。外周を修復してからやり直してください。",
+      "boundaryWorse": "結果で頂点が用紙の外に出てしまったため、適用されませんでした。",
+      "crossingsWorse": "結果では折り線が頂点なしで交差したままのため、適用されませんでした。交差点に頂点を追加してからもう一度実行してください。",
+      "degenerateEdges": "折り線の両端が同じ点にあるため、計算を開始できませんでした。その折り線を削除するか、一方の端を離してからやり直してください。",
+      "degenerateWorse": "結果で折り線の長さが0になったため、適用されませんでした。",
+      "malformedInput": "保存されているソルバーデータがこの展開図と一致しないため、計算を実行できませんでした。",
+      "movedTooFar": "展開図を厳密にするには、許容範囲を超えて頂点を動かす必要があるため、適用されませんでした。編集した位置が実際の折り線から離れている可能性があります。",
+      "noImprovement": "与えられた展開図を改善できなかったため、何も適用されませんでした。位相の修正がまだ必要と思われます。",
+      "oddDegreeWorse": "結果では折り線の本数が奇数の頂点が元より増えたため、適用されませんでした。",
+      "stillNotFoldable": "結果が折りたたみ条件を満たさないため、適用されませんでした。残っているマーカーを解消してからもう一度実行してください。",
+      "timeout": "計算が時間切れになりました。途中結果を採用するか、展開図をさらに修正してからやり直してください。"
+    },
+    "stage": {
+      "geometry": "形状を計算中",
+      "refinement": "折り精度まで調整中"
+    }
+  },
+  "cpRegion": {
+    "accept": "適用",
+    "addRegion": "抑制領域を追加",
+    "bringToFront": "領域を最前面へ",
+    "changeChecks": "抑制するチェックを変更",
+    "checksMenu": "抑制するチェック",
+    "controls": "チェック抑制領域",
+    "defaultLabel": "抑制領域",
+    "delete": "領域を削除",
+    "hidden_other": "{{count}} 件の問題を非表示",
+    "nothingSuppressed": "すべてのチェックが有効",
+    "sendToBack": "領域を最背面へ",
+    "solve": "解く",
+    "solved_other": "解決 · 頂点 {{count}} 個が {{max}} px 未満移動",
+    "solveFailed": "解けませんでした — {{reason}}",
+    "solvePartial_other": "部分的な結果 · 頂点 {{count}} 個",
+    "solvingGeometry": "幾何を計算中…",
+    "solvingRefining": "折り精度まで調整中…",
+    "suppressing": "オフのチェック: {{classes}}",
+    "tryAgain": "再試行"
+  },
   "cpViewControls": {
     "angle": "角度",
     "camvIssues": "折り可能性の問題",
@@ -230,6 +280,7 @@
       "warningOne_other": "{{label}} 警告 {{count}} 件",
       "warningOther_other": "{{label}} 警告 {{count}} 件"
     },
+    "diagnosticsHidden_other": "フィルターにより {{count}} 件の問題を非表示",
     "display": "表示",
     "duplicateFoldedModelAction": "折り上がり図を複製",
     "flipFoldedModel": "折り上がり図を裏返す",

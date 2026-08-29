@@ -24,6 +24,7 @@
     "deleteLineType": "Delete Selected Line Type...",
     "deleteSelectedLines": "Delete Selected Lines",
     "diagnostics": "Diagnostics",
+    "exactSolve": "Exact Solve...",
     "fix1": "Repair Overlaps",
     "fix2": "Split T-junctions",
     "fixInaccurate": "Fix Inaccurate Creases...",

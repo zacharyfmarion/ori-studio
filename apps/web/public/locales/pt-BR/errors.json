@@ -21,6 +21,7 @@
     "foldProducedNothing": "Estes vincos não têm nenhuma forma dobrada em plano para desenhar"
   },
   "cpDetectImport": {
+    "addFailed": "Não foi possível adicionar o padrão de vincos detectado.",
     "canvasUnavailable": "Canvas 2D não está disponível",
     "unsupportedImage": "Use uma imagem PNG, JPEG ou WebP."
   },

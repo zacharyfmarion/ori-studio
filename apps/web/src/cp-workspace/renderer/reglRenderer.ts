@@ -1,13 +1,16 @@
 import createREGL from 'regl';
 import type { CpRenderFrame, CpRenderer } from './CpRenderer';
-import type { Viewport } from './types';
+import type { Rgba, Viewport } from './types';
 import type { CpImage } from '../images/cpImage';
+import type { CpSuppressionRegion } from '../annotations/suppressionRegion';
 import { createStrokeProgram } from './programs/strokeProgram';
 import { createPointProgram } from './programs/pointProgram';
 import { createFillProgram } from './programs/fillProgram';
 import { createMarkerProgram } from './programs/markerProgram';
 import { createWedgeProgram } from './programs/wedgeProgram';
 import { createImageProgram, type ImageDrawItem } from './programs/imageProgram';
+import { createRegionProgram, type RegionDrawItem } from './programs/regionProgram';
+import { readCssVarColor } from './cssColor';
 import { CP_GL_ATTRIBUTES, CP_REQUIRED_EXTENSION } from './webglSupport';
 
 // regl ships as a UMD module (`export = REGL`), so its instance type is reached
@@ -47,6 +50,27 @@ export interface ReglRendererOptions {
    */
   onContextRestored?: () => void;
 }
+
+/**
+ * Check-suppression regions take the theme's caution hue, which is what they
+ * mean: inside this box some checks are not being reported. Deliberately not
+ * `--accent-primary` — that is the selection colour on this surface, and a
+ * standing region washed in it would read as permanently selected — and not
+ * `--status-danger`, which the diagnostic markers already own.
+ *
+ * `--status-warning` is set by every theme (`themes/applyTheme` maps it from
+ * `port.color`), so the fallback below is only reached before the theme has been
+ * applied or under a test renderer with no stylesheet.
+ */
+const REGION_COLOR_VAR = '--status-warning';
+/** `#d7a85c`, the default dark theme's `--status-warning`. */
+const REGION_FALLBACK: Rgba = [0.843, 0.659, 0.361, 1];
+/** Wash alpha: a backdrop the creases stay legible over, not a highlight. */
+const REGION_FILL_ALPHA = 0.1;
+/** Border alpha: enough to give the box a definite edge at a hairline width. */
+const REGION_BORDER_ALPHA = 0.6;
+/** Border width in CSS px — constant screen size, like the grid and the frame. */
+const REGION_BORDER_CSS = 1;
 
 /** Decode an image `src` (data URL) to a GPU-ready bitmap, off the main thread. */
 async function decodeImageBitmap(src: string): Promise<ImageBitmap | null> {
@@ -104,6 +128,12 @@ export function createReglRenderer(
   const imageLoading = new Set<string>();
   let currentImages: readonly CpImage[] = [];
   let hasImages = false;
+  // Check-suppression regions: a translucent wash below the images, so a region
+  // backs both the creases it quiets and any image being traced over. No GPU
+  // resources beyond the program's shared quad.
+  const regions = createRegionProgram(regl);
+  let currentRegions: readonly CpSuppressionRegion[] = [];
+  let hasRegions = false;
   // The only two depth-ordered programs on this surface. A generated folded
   // figure's fills and creases are one painter-ordered stream that these two
   // draws split in half, so without a depth test a crease behind a face draws
@@ -161,6 +191,30 @@ export function createReglRenderer(
           rotation: image.rotation,
           crop: [image.crop.x, image.crop.y, image.crop.w, image.crop.h],
           opacity: image.opacity,
+        },
+      });
+    }
+    items.sort((a, b) => a.z - b.z);
+    return items.map((entry) => entry.item);
+  };
+
+  // Build the per-frame region draw list, sorted back-to-front by z like the
+  // images. There is no hidden check: `CpSuppressionRegion` forbids `hidden`, so
+  // a region is always on screen wherever it is suppressing. Degenerate and
+  // fully transparent boxes are skipped because they would draw nothing but
+  // still cost a draw call.
+  const buildRegionItems = (): RegionDrawItem[] => {
+    const items: { z: number; item: RegionDrawItem }[] = [];
+    for (const region of currentRegions) {
+      if (!(region.width > 0) || !(region.height > 0) || region.opacity <= 0) continue;
+      items.push({
+        z: region.z,
+        item: {
+          center: [region.center.x, region.center.y],
+          halfWidth: region.width / 2,
+          halfHeight: region.height / 2,
+          rotation: region.rotation,
+          opacity: region.opacity,
         },
       });
     }
@@ -236,6 +290,12 @@ export function createReglRenderer(
       }
     },
 
+    setRegions(next) {
+      if (disposed) return;
+      currentRegions = next;
+      hasRegions = next.length > 0;
+    },
+
     setImportedForms(folded) {
       if (disposed) return;
       hasImportedForms = folded !== null && (folded.fills.count > 0 || folded.strokes.count > 0);
@@ -295,6 +355,30 @@ export function createReglRenderer(
       // Grid sits behind everything as the coordinate backdrop.
       if (hasGrid) {
         gridStrokes.draw({ view: frame.view, viewport, widthPx: GRID_WIDTH_CSS * viewport.dpr });
+      }
+      // Check-suppression regions sit directly on the grid, under everything
+      // else they scope: the creases whose checks they silence *and* any
+      // reference image being traced over. A region is a backdrop, so it is the
+      // first thing drawn after the grid.
+      //
+      // Its colours are resolved here rather than uploaded with the geometry:
+      // one `getComputedStyle` read per frame that has regions at all, which
+      // costs nothing next to the unconditional one the clear colour already
+      // does, and buys a theme switch that needs no re-upload and no dependency
+      // on the call site remembering to re-run.
+      if (hasRegions) {
+        const items = buildRegionItems();
+        if (items.length > 0) {
+          const [r0, g0, b0] = readCssVarColor(canvas, REGION_COLOR_VAR, REGION_FALLBACK);
+          regions.draw({
+            view: frame.view,
+            viewport,
+            items,
+            fill: [r0, g0, b0, REGION_FILL_ALPHA],
+            border: [r0, g0, b0, REGION_BORDER_ALPHA],
+            borderWidthPx: REGION_BORDER_CSS * viewport.dpr,
+          });
+        }
       }
       // Reference images sit above the grid but below the creases (trace-over).
       if (hasImages) {
@@ -384,6 +468,7 @@ export function createReglRenderer(
       images.dispose();
       for (const texture of imageTextures.values()) texture.destroy();
       imageTextures.clear();
+      regions.dispose();
       foldedFills.dispose();
       foldedStrokes.dispose();
       importedFills.dispose();

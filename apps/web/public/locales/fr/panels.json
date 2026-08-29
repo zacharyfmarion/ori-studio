@@ -163,6 +163,62 @@
       "width": "Largeur"
     }
   },
+  "cpChecks": {
+    "bigLittleBig": "Grand-petit-grand",
+    "kawasaki": "Kawasaki (angles)",
+    "maekawa": "Maekawa (parité)",
+    "vertexClosure": "Fermeture du sommet"
+  },
+  "cpExactSolve": {
+    "hint": {
+      "geometry": "Généralement moins d’une seconde.",
+      "refinement": "C’est ici que se joue l’essentiel de l’attente : jusqu’à 25 secondes environ."
+    },
+    "reason": {
+      "boundaryBroken": "Le bord du papier n’est pas un carré fermé, la résolution n’a donc pas pu démarrer. Réparez le bord puis réessayez.",
+      "boundaryWorse": "Le résultat pousse un sommet hors du bord du papier : il n’a pas été appliqué.",
+      "crossingsWorse": "Le résultat laisse des plis qui se croisent sans sommet à leur intersection : il n’a pas été appliqué. Ajoutez les sommets manquants puis relancez la résolution.",
+      "degenerateEdges": "Un pli a ses deux extrémités au même point, la résolution n’a donc pas pu démarrer. Supprimez-le, ou écartez une extrémité, puis réessayez.",
+      "degenerateWorse": "Le résultat réduit un pli à une longueur nulle : il n’a pas été appliqué.",
+      "malformedInput": "Les données de solveur enregistrées ne correspondent pas à ce patron : la résolution n’a pas pu être lancée.",
+      "movedTooFar": "Rendre le patron exact déplacerait un sommet plus loin que ce que le solveur autorise : le résultat n’a pas été appliqué. Une modification est sans doute loin de l’emplacement réel du pli.",
+      "noImprovement": "Le solveur n’a pas pu améliorer le patron fourni : rien n’a été appliqué. La topologie a très probablement encore besoin d’être réparée.",
+      "oddDegreeWorse": "Le résultat laisse plus de sommets à nombre impair de plis qu’au départ : il n’a pas été appliqué.",
+      "stillNotFoldable": "Le résultat enfreint toujours une condition de pliage : il n’a pas été appliqué. Traitez les marqueurs restants puis relancez la résolution.",
+      "timeout": "La résolution a dépassé le temps imparti. Vous pouvez conserver ce qui a été calculé, ou réparer davantage le patron et réessayer."
+    },
+    "stage": {
+      "geometry": "Résolution de la géométrie",
+      "refinement": "Affinage à la précision de pliage"
+    }
+  },
+  "cpRegion": {
+    "accept": "Accepter",
+    "addRegion": "Ajouter une zone de suppression",
+    "bringToFront": "Mettre la zone au premier plan",
+    "changeChecks": "Modifier les vérifications supprimées",
+    "checksMenu": "Vérifications supprimées",
+    "controls": "Zone de suppression des vérifications",
+    "defaultLabel": "Zone de suppression",
+    "delete": "Supprimer la zone",
+    "hidden_one": "1 problème masqué",
+    "hidden_many": "{{count}} problèmes masqués",
+    "hidden_other": "{{count}} problèmes masqués",
+    "nothingSuppressed": "Toutes les vérifications actives",
+    "sendToBack": "Envoyer la zone à lʼarrière-plan",
+    "solve": "Résoudre",
+    "solved_one": "Résolu · 1 sommet déplacé < {{max}} px",
+    "solved_many": "Résolu · {{count}} sommets déplacés < {{max}} px",
+    "solved_other": "Résolu · {{count}} sommets déplacés < {{max}} px",
+    "solveFailed": "Résolution impossible — {{reason}}",
+    "solvePartial_one": "Résultat partiel · 1 sommet",
+    "solvePartial_many": "Résultat partiel · {{count}} sommets",
+    "solvePartial_other": "Résultat partiel · {{count}} sommets",
+    "solvingGeometry": "Résolution de la géométrie…",
+    "solvingRefining": "Affinage à la précision de pliage…",
+    "suppressing": "Vérifications désactivées : {{classes}}",
+    "tryAgain": "Réessayer"
+  },
   "cpViewControls": {
     "angle": "Angle",
     "camvIssues": "Problèmes de pliabilité",
@@ -258,6 +314,9 @@
       "warningOther_many": "{{count}} avertissements {{label}}",
       "warningOther_other": "{{count}} avertissements {{label}}"
     },
+    "diagnosticsHidden_one": "1 problème masqué par un filtre",
+    "diagnosticsHidden_many": "{{count}} problèmes masqués par un filtre",
+    "diagnosticsHidden_other": "{{count}} problèmes masqués par un filtre",
     "display": "Affichage",
     "duplicateFoldedModelAction": "Dupliquer le modèle plié",
     "flipFoldedModel": "Retourner le modèle plié",

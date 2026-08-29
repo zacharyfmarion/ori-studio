@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ImagePlus, Loader2, Play, RefreshCw, Upload, X } from 'lucide-react';
+import { ImagePlus, Loader2, Play, RefreshCw, Upload, Wrench, X } from 'lucide-react';
 import { track } from '../analytics';
 import type {
   CpDetectFoldResult,
@@ -22,6 +22,18 @@ import type {
 import { getFileService, type OpenBinaryFileResult } from '../platform/fileService';
 import { getCpDetectClient, cpDetectError } from '../store/workspaceStore/cpDetectRuntime';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import {
+  lastOristudioCpImportAddPlacement,
+  type OristudioCpModelBox,
+} from '../store/workspaceStore/oristudioCpRuntime';
+import { useLayoutStore } from '../store/layoutStore';
+import { cpCamera } from '../cp-workspace/renderer/cpCameraRegistry';
+import { bottomAnnotationZ, type CanvasAnnotation } from '../cp-workspace/annotations/annotation';
+import {
+  createCpSuppressionRegion,
+  DEFAULT_SUPPRESSED_CHECK_CLASSES,
+} from '../cp-workspace/annotations/suppressionRegion';
+import { createCpImage, IMAGE_JPEG_QUALITY } from '../cp-workspace/images/cpImage';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import './CpDetectImportModal.css';
@@ -45,6 +57,74 @@ interface SourceImage {
 
 const DETECT_IMAGE_SIZE = 1024;
 const DETECT_DECODER_BACKEND = 'legacy_candidate_exact_solve_v1' as const;
+
+/**
+ * `SYNTHETIC_RENDER_INSET_PX` — the border the detector's unit↔pixel mapping
+ * reserves (`candidate_generation/junction_carrier_v1.rs:23`), so the paper
+ * occupies pixels `[inset, image_size - inset]` and a unit coordinate `u` sits
+ * at `inset + u·(image_size - 2·inset)`. That is what makes the rectified image
+ * and the candidate graph register without any user alignment: they come out of
+ * the *same* rectification.
+ */
+const DETECT_PAPER_INSET_PX = 32;
+
+/**
+ * Above this many repair sites, say plainly that hand repair is not practical
+ * rather than offering it.
+ *
+ * From the measured V5 run (see `implementation-plans/crease-topology-repair.md`):
+ * over the 173 addressable easy+medium failures, 94% have ≤8 repair sites, while
+ * the hard bucket's median is 11 and its mean 36 — and a hard solve essentially
+ * always hits the 25 s cap even if the topology were fixed.
+ */
+const HAND_REPAIR_SITE_LIMIT = 8;
+
+/**
+ * Outward margin on the suppression region, as a fraction of the paper.
+ *
+ * The region has to contain the vertices *on* the paper edge — that is where a
+ * candidate's boundary Kawasaki fans live — and containment is an inclusive
+ * `<=` on floating-point coordinates that were arrived at by a different route
+ * than the box's own. A margin small enough to stay far inside `import_add`'s
+ * 100-unit gap makes that robust instead of exact-comparison luck.
+ */
+const REGION_PAPER_MARGIN_RATIO = 0.02;
+
+/** What "Add" does with the detected pattern. */
+type ImportMode = 'solveAndAdd' | 'reviewAndFix' | 'addAsIs';
+
+/**
+ * How the detected candidate came out, which is what the primary button offers.
+ *
+ * - `exact` — the pipeline's own `solve_exact` was accepted, so the FOLD it
+ *   produced is already at solved coordinates. Nothing to repair.
+ * - `repairable` — the solve was not accepted and the candidate carries a
+ *   workable number of repair sites.
+ * - `impractical` — too many sites to fix by hand, or the solver could not even
+ *   analyse the graph. "Add as-is" and say so.
+ */
+type CandidateOutcome = 'exact' | 'repairable' | 'impractical';
+
+interface CandidateTopology {
+  outcome: CandidateOutcome;
+  /**
+   * Distinct places a human would have to touch: interior vertices flagged by
+   * odd degree, Maekawa parity or a boundary failure (counted once each), plus
+   * degenerate edges and unmodelled crossings.
+   *
+   * `degree_two_vertices` is deliberately excluded — a degree-2 vertex is not an
+   * error on its own, and the repair for one is to dissolve it, never to delete.
+   */
+  repairSites: number;
+  /** The solver refused to analyse the graph at all (malformed input). */
+  blocked: boolean;
+  /** `rejection_reasons` verbatim; empty when the solve was accepted. */
+  rejectionReasons: string[];
+  /** From `movement_report.timed_out` — never by parsing a reason string. */
+  timedOut: boolean;
+  /** The pre-solve `ExactSolveInput`, carried to the region verbatim. */
+  solveInput: unknown;
+}
 const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
 const IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const QUAD_HANDLES: QuadHandle[] = ['top_left', 'top_right', 'bottom_right', 'bottom_left'];
@@ -202,33 +282,111 @@ export function CpDetectImportModal() {
     }
   }, [rectified, source]);
 
-  const importDetection = useCallback(async () => {
-    if (!detection || !source) return;
-    setBusy('importing');
-    setError(null);
-    try {
-      const filename = detectedFoldFilename(source.name);
-      const workspace = useWorkspaceStore.getState();
-      await workspace.loadCreasePatternText(detection.foldJson, { filename, path: null });
-      for (const operation of [
-        'Fix1',
-        'Fix2',
-        'Check1',
-        'Check2',
-        'Check3',
-        'Check4',
-        'FlatFoldableCheck',
-      ] as const) {
-        await useWorkspaceStore.getState().executeOristudioCpCommand(operation).catch(() => false);
+  const topology = useMemo(() => candidateTopology(detection), [detection]);
+
+  /**
+   * Add the detected pattern **beside** the user's work, never over it.
+   *
+   * This used to call `loadCreasePatternText`, which replaces the document — so
+   * detecting a crease pattern discarded whatever was open. Everything now goes
+   * through Import (Add): the kernel shifts the import clear of the existing
+   * pattern and divides it against nothing, so the candidate's topology arrives
+   * untouched and the user's own pattern is not edited at all.
+   *
+   * `reviewAndFix` additionally places the rectified source image and a
+   * check-suppression region over the added paper — see
+   * `implementation-plans/crease-topology-repair.md`.
+   */
+  const addDetection = useCallback(
+    async (mode: ImportMode) => {
+      if (!detection || !source) return;
+      setBusy('importing');
+      setError(null);
+      try {
+        const label =
+          mode === 'reviewAndFix'
+            ? t('dialogs:cpDetectImport.repairLabel', 'Add detected crease pattern to repair')
+            : t('dialogs:cpDetectImport.addLabel', 'Add detected crease pattern');
+        // Re-encoded before anything is merged, so a canvas failure aborts with
+        // the document still untouched rather than half a repair set up.
+        const underlay =
+          mode === 'reviewAndFix' && rectified
+            ? {
+                src: imageDataToDataUrl(rectified.image, t),
+                width: rectified.image.width,
+                height: rectified.image.height,
+              }
+            : null;
+        // Detect is reachable with no crease pattern open at all (it is gated
+        // only on "not busy"), and Import (Add) needs a document to add into.
+        await useWorkspaceStore.getState().ensureEditCreasePattern();
+        const beforeAnnotations = useWorkspaceStore.getState().oristudioCpAnnotations;
+        const merged = await useWorkspaceStore.getState().importAddOristudioCpText({
+          text: detection.foldJson,
+          format: 'fold',
+          filename: detectedFoldFilename(source.name),
+          label,
+        });
+        if (!merged) {
+          throw new Error(
+            useWorkspaceStore.getState().oristudioCpError ??
+              t('errors:cpDetectImport.addFailed', 'The detected crease pattern could not be added.')
+          );
+        }
+        const paper = lastOristudioCpImportAddPlacement()?.bounds ?? null;
+        if (underlay && paper) {
+          const store = useWorkspaceStore.getState();
+          const annotations = repairAnnotations(
+            paper,
+            underlay,
+            topology?.solveInput ?? null,
+            t('dialogs:cpDetectImport.regionLabel', 'Detected crease pattern'),
+            bottomAnnotationZ(beforeAnnotations)
+          );
+          for (const annotation of annotations) store.addAnnotation(annotation);
+          // A second, overlay-only history entry, so one undo takes the image
+          // and the region back off and a second undo takes the creases with
+          // them. Recorded after the adds because the store already holds the
+          // post-gesture layer by then.
+          store.recordAnnotationHistory(beforeAnnotations, label);
+          // The same event the rail tool fires, distinguished only by `source`:
+          // a region drawn by hand and one set up by a detection import are the
+          // same object doing two different jobs, and separating them is how we
+          // tell whether anyone found the tool.
+          track('cp suppression region created', { source: 'detect' });
+        }
+        useLayoutStore.getState().activateWorkspace('edit');
+        // One check, where this used to run seven. Two of those (`Fix1`, `Fix2`)
+        // *mutate*, and they now run over the **merged** document — they would
+        // silently edit the user's own creases, which is precisely what adding
+        // beside their work exists to stop. Of the five read-only ones only the
+        // last had any visible effect, since each overwrites `lastCommandResult`.
+        // The repair worklist itself is the always-on CAMV overlay, which the
+        // merge already scheduled.
+        await useWorkspaceStore
+          .getState()
+          .executeOristudioCpCommand('FlatFoldableCheck')
+          .catch(() => false);
+        // Last, so it wins over the check's own jump to its first issue: the
+        // import lands clear of the existing pattern, so without this the user
+        // sees the modal close and — as far as the viewport is concerned —
+        // nothing else happen. Best effort; a camera is only registered while an
+        // Edit canvas is mounted, and a canvas mounting fresh fits by itself.
+        if (paper) cpCamera()?.frameModelBounds(paper);
+        track('cp detect imported', {
+          mode,
+          outcome: topology?.outcome ?? 'unknown',
+          repair_sites: repairSiteBucket(topology),
+        });
+        setOpen(false);
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : String(caught));
+      } finally {
+        setBusy(null);
       }
-      track('cp detect imported');
-      setOpen(false);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
-    } finally {
-      setBusy(null);
-    }
-  }, [detection, source]);
+    },
+    [detection, rectified, source, t, topology]
+  );
 
   const onDrop = useCallback(
     (event: ReactDragEvent<HTMLDivElement>) => {
@@ -245,6 +403,7 @@ export function CpDetectImportModal() {
   const detectorWarnings = detection?.detectorReport.warnings ?? [];
   const compilerMetadata = useMemo(() => compilerReportMetadata(t, detection), [detection, t]);
   const compilerOverlay = useMemo(() => compilerPreviewOverlay(detection), [detection]);
+  const primaryMode = primaryImportMode(topology);
   const foldPreview = useMemo(
     () => (detection ? parseFoldPreview(detection.foldJson) : null),
     [detection]
@@ -364,14 +523,33 @@ export function CpDetectImportModal() {
                 <RefreshCw size={14} />
                 {t('dialogs:cpDetectImport.updateCrop', 'Update Crop')}
               </Button>
-              <Button size="sm" variant="primary" onClick={runDetection} disabled={!rectified || busy !== null}>
+              <Button size="sm" onClick={runDetection} disabled={!rectified || busy !== null}>
                 <Play size={14} />
                 {t('dialogs:cpDetectImport.detect', 'Detect')}
               </Button>
-              <Button size="sm" variant="primary" onClick={importDetection} disabled={!detection || busy !== null}>
-                <Upload size={14} />
-                {t('dialogs:cpDetectImport.import', 'Import')}
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => void addDetection(primaryMode)}
+                disabled={!detection || busy !== null}
+              >
+                {primaryMode === 'reviewAndFix' ? <Wrench size={14} /> : <Upload size={14} />}
+                {importModeLabel(t, primaryMode)}
               </Button>
+              {/* Always available, whatever the topology check says. */}
+              {primaryMode !== 'addAsIs' && (
+                <Button
+                  size="sm"
+                  onClick={() => void addDetection('addAsIs')}
+                  disabled={!detection || busy !== null}
+                >
+                  {importModeLabel(t, 'addAsIs')}
+                </Button>
+              )}
+            </div>
+
+            <div className="cp-detect-modal__verdict" data-outcome={topology?.outcome ?? 'unknown'}>
+              {verdictMessage(t, topology)}
             </div>
 
             <StatusRows status={status} error={error} />
@@ -423,6 +601,17 @@ export function CpDetectImportModal() {
               {compilerMetadata.map((item) => (
                 <span key={item}>{item}</span>
               ))}
+              {/* Why the pipeline's own solve did not land. A timeout is told
+                  apart on `movement_report.timed_out`, never by matching the
+                  reason string — that one embeds a formatted number. The
+                  rejection token itself is shown verbatim, like the
+                  classifications beside it. */}
+              {topology?.timedOut && (
+                <span>{t('dialogs:cpDetectImport.report.solveTimedOut', 'solve timed out')}</span>
+              )}
+              {topology && !topology.timedOut && topology.rejectionReasons[0] && (
+                <span>{topology.rejectionReasons[0]}</span>
+              )}
               {[...rectificationWarnings, ...detectorWarnings].map((warning, index) => (
                 <span key={`${warning.code}-${index}`}>{warning.code}</span>
               ))}
@@ -854,6 +1043,261 @@ function compilerReportMetadata(t: TFunction, detection: CpDetectFoldResult | nu
     items.push(...classifications);
   }
   return items;
+}
+
+/**
+ * The candidate's pre-solve topology, read out of the decode report.
+ *
+ * The source is `compiler_report.exact_solve.theorem_residual_report.before`,
+ * which is `analyze_graph` run on the **candidate** coordinates — the same pass
+ * `oristudio_cp_compiler::analyze_candidate_topology` wraps, so this is the
+ * compiler's own finding rather than a second implementation of it. It is
+ * already in every decode report, which is why no new wasm export is needed to
+ * decide what the primary button offers.
+ *
+ * Null when the report is not the exact-solve backend's (an older or fallback
+ * decode), in which case the modal offers "Add as-is" only.
+ */
+function candidateTopology(detection: CpDetectFoldResult | null): CandidateTopology | null {
+  const compilerReport = detectionCompilerReport(detection);
+  if (!compilerReport) return null;
+  const exactSolve = asRecord(compilerReport.exact_solve);
+  if (!exactSolve) return null;
+  const theorem = asRecord(exactSolve.theorem_residual_report);
+  const movement = asRecord(exactSolve.movement_report);
+  const solveInput = compilerReport.exact_solve_input ?? null;
+  const rejectionReasons = stringArray(asArray(theorem?.rejection_reasons));
+  const timedOut = movement?.timed_out === true;
+  const before = asRecord(theorem?.before);
+
+  // A malformed input returns `{status, blockers}` with no `before` and no
+  // `rejection_reasons` at all, so an empty reason list is not evidence of
+  // success — `accepted` is.
+  if (!before) {
+    return {
+      outcome: 'impractical',
+      repairSites: 0,
+      blocked: true,
+      rejectionReasons,
+      timedOut,
+      solveInput,
+    };
+  }
+
+  if (theorem?.accepted === true) {
+    return {
+      outcome: 'exact',
+      repairSites: 0,
+      blocked: false,
+      rejectionReasons: [],
+      timedOut: false,
+      solveInput,
+    };
+  }
+
+  const flagged = new Set<number>([
+    ...numericArray(asArray(before.odd_degree_vertices)),
+    ...numericArray(asArray(before.maekawa_failures)),
+    ...numericArray(asArray(before.boundary_failures)),
+  ]);
+  const repairSites =
+    flagged.size +
+    (asArray(before.degenerate_edges)?.length ?? 0) +
+    (asArray(before.unmodeled_crossings)?.length ?? 0);
+
+  return {
+    outcome: repairSites > HAND_REPAIR_SITE_LIMIT ? 'impractical' : 'repairable',
+    repairSites,
+    blocked: false,
+    rejectionReasons,
+    timedOut,
+    solveInput,
+  };
+}
+
+/** The mode the primary button runs. `null` topology means "Add as-is" only. */
+function primaryImportMode(topology: CandidateTopology | null): ImportMode {
+  if (!topology) return 'addAsIs';
+  switch (topology.outcome) {
+    case 'exact':
+      return 'solveAndAdd';
+    case 'repairable':
+      return 'reviewAndFix';
+    case 'impractical':
+      return 'addAsIs';
+  }
+}
+
+function importModeLabel(t: TFunction, mode: ImportMode): string {
+  switch (mode) {
+    case 'solveAndAdd':
+      return t('dialogs:cpDetectImport.solveAndAdd', 'Solve & Add');
+    case 'reviewAndFix':
+      return t('dialogs:cpDetectImport.reviewAndFix', 'Review & Fix');
+    case 'addAsIs':
+      return t('dialogs:cpDetectImport.addAsIs', 'Add as-is');
+  }
+}
+
+/**
+ * What the result screen says about the candidate, in one sentence.
+ *
+ * Every branch names what the user gets rather than what the compiler found —
+ * "hand repair is not practical at this size" is the whole point of the
+ * `impractical` bucket, and burying it in a count would defeat it.
+ */
+function verdictMessage(t: TFunction, topology: CandidateTopology | null): string {
+  if (!topology) {
+    return t(
+      'dialogs:cpDetectImport.verdict.unknown',
+      'This detector run reports no topology check, so the pattern can only be added as-is.'
+    );
+  }
+  if (topology.outcome === 'exact') {
+    return t(
+      'dialogs:cpDetectImport.verdict.exact',
+      'Exactly solved. Adding it beside your work leaves the rest of the document untouched.'
+    );
+  }
+  if (topology.blocked) {
+    return t(
+      'dialogs:cpDetectImport.verdict.blocked',
+      'The solver could not read this candidate graph, so there is nothing to repair by hand. You can still add it as-is.'
+    );
+  }
+  if (topology.repairSites === 0) {
+    // Combinatorially clean and still rejected: the graph is a valid crease
+    // pattern that is not *this* crease pattern. There is no marker worklist to
+    // work, so the source image behind the creases is the only tool — which is
+    // exactly what Review & Fix puts there.
+    return t(
+      'dialogs:cpDetectImport.verdict.unflagged',
+      'Not solved, but nothing is flagged for repair — the solver rejected it for another reason. Review & Fix adds the candidate with the source image behind it so you can compare.'
+    );
+  }
+  if (topology.outcome === 'impractical') {
+    return t('dialogs:cpDetectImport.verdict.impractical', {
+      count: topology.repairSites,
+      defaultValue_one:
+        'Not solved, with 1 place to repair — but this run is out of hand-repair range, so it is added as-is.',
+      defaultValue_other:
+        'Not solved, with {{count}} places to repair. That is out of hand-repair range: fixing this many by hand is not practical, so it is added as-is.',
+    });
+  }
+  return t('dialogs:cpDetectImport.verdict.repairable', {
+    count: topology.repairSites,
+    defaultValue_one:
+      'Not solved. 1 place to repair — Review & Fix adds the candidate, the source image and a check-suppression region so you can fix it.',
+    defaultValue_other:
+      'Not solved. {{count}} places to repair — Review & Fix adds the candidate, the source image and a check-suppression region so you can fix them.',
+  });
+}
+
+/**
+ * The two annotations "Review & Fix" places over the added candidate.
+ *
+ * `paper` is the added pattern's own paper square in document coordinates, which
+ * `import_add` decided — so both annotations follow the import wherever it
+ * landed, whether it was gapped beside the user's work or centred into a blank
+ * canvas.
+ *
+ * Registration needs no user alignment. The rectified image and the candidate
+ * come out of the same rectification, so the paper occupies image pixels
+ * `[inset, size - inset]`; the image box is therefore the paper scaled by
+ * `size / (size - 2·inset)` about the same centre, since the inset is symmetric.
+ */
+function repairAnnotations(
+  paper: OristudioCpModelBox,
+  imageSrc: { src: string; width: number; height: number },
+  solveInput: unknown,
+  label: string,
+  bottomZ: number
+): CanvasAnnotation[] {
+  const center = { x: (paper.minX + paper.maxX) / 2, y: (paper.minY + paper.maxY) / 2 };
+  const paperWidth = paper.maxX - paper.minX;
+  const paperHeight = paper.maxY - paper.minY;
+  const inset = 2 * DETECT_PAPER_INSET_PX;
+  const scale = imageSrc.width > inset ? imageSrc.width / (imageSrc.width - inset) : 1;
+  const margin = Math.max(paperWidth, paperHeight) * REGION_PAPER_MARGIN_RATIO;
+  return [
+    createCpImage({
+      src: imageSrc.src,
+      naturalWidth: imageSrc.width,
+      naturalHeight: imageSrc.height,
+      center,
+      width: paperWidth * scale,
+      height: paperHeight * scale,
+      // Locked so it never takes a click meant for the creases over it, and at
+      // half opacity so it reads as an underlay rather than as the drawing.
+      opacity: 0.5,
+      locked: true,
+      z: bottomZ - 1,
+    }),
+    createCpSuppressionRegion({
+      center,
+      width: paperWidth + 2 * margin,
+      height: paperHeight + 2 * margin,
+      suppress: DEFAULT_SUPPRESSED_CHECK_CLASSES,
+      label,
+      // Verbatim and unread here: its presence is what gives the region a Solve
+      // affordance, and only detection produces one.
+      solveInput,
+      z: bottomZ - 2,
+    }),
+  ];
+}
+
+/**
+ * Re-encode the rectified frame as the data URL a `CpImage` carries.
+ *
+ * JPEG, following the image layer's own import policy: the rectified frame is
+ * fully opaque (its padding is filled), and a 1024² PNG of a scanned crease
+ * pattern is several times the size for nothing.
+ */
+function imageDataToDataUrl(image: ImageData, t: TFunction): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const context = canvas.getContext('2d');
+  if (!context) {
+    throw new Error(t('errors:cpDetectImport.canvasUnavailable', 'Canvas 2D is unavailable'));
+  }
+  context.putImageData(image, 0, 0);
+  return canvas.toDataURL('image/jpeg', IMAGE_JPEG_QUALITY);
+}
+
+/**
+ * Repair-site count as an analytics bucket. Never the raw number: a per-sample
+ * count of anything measured off the user's own drawing is exactly what the
+ * privacy contract forbids sending.
+ */
+function repairSiteBucket(topology: CandidateTopology | null): string {
+  if (!topology) return 'unknown';
+  if (topology.blocked) return 'blocked';
+  const sites = topology.repairSites;
+  if (sites === 0) return '0';
+  if (sites <= 2) return '1-2';
+  if (sites <= 4) return '3-4';
+  if (sites <= HAND_REPAIR_SITE_LIMIT) return '5-8';
+  return '9+';
+}
+
+function detectionCompilerReport(
+  detection: CpDetectFoldResult | null
+): Record<string, unknown> | null {
+  const report = detection?.detectorReport.quality_report;
+  if (!report || typeof report !== 'object') return null;
+  return asRecord((report as { compiler_report?: unknown }).compiler_report);
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function asArray(value: unknown): unknown[] | undefined {
+  return Array.isArray(value) ? value : undefined;
 }
 
 function compilerOutputWasEmitted(compilerReport: unknown): boolean {

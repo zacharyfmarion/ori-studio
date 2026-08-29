@@ -24,6 +24,7 @@
     "deleteLineType": "選択した線種を削除...",
     "deleteSelectedLines": "選択した線を削除",
     "diagnostics": "診断",
+    "exactSolve": "厳密解を求める...",
     "fix1": "重なりを修復",
     "fix2": "T字接合を分割",
     "fixInaccurate": "不正確な折り線を修正...",

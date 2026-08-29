@@ -741,6 +741,14 @@
         "0": "Clique na posição do texto"
       }
     },
+    "cp_action_check_suppression_region_create": {
+      "label": "Região de supressão",
+      "tooltip": "Arraste um retângulo para parar de relatar dentro dele as verificações de dobradura selecionadas",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Arraste um retângulo sobre a área que deixará de ser verificada"
+      }
+    },
     "cp_action_draw_blintz": {
       "label": "Base blintz",
       "tooltip": "Base blintz",

@@ -159,6 +159,56 @@
       "width": "너비"
     }
   },
+  "cpChecks": {
+    "bigLittleBig": "큰-작은-큰",
+    "kawasaki": "가와사키(각도)",
+    "maekawa": "마에카와(패리티)",
+    "vertexClosure": "꼭짓점 닫힘"
+  },
+  "cpExactSolve": {
+    "hint": {
+      "geometry": "보통 1초 이내입니다.",
+      "refinement": "대기 시간의 대부분이 이 단계입니다. 최대 약 25초 걸립니다."
+    },
+    "reason": {
+      "boundaryBroken": "종이 가장자리가 닫힌 정사각형이 아니어서 계산을 시작할 수 없었습니다. 경계를 고친 뒤 다시 시도하세요.",
+      "boundaryWorse": "결과가 꼭짓점을 종이 밖으로 밀어내 적용되지 않았습니다.",
+      "crossingsWorse": "결과에서 접는 선들이 만나는 지점에 꼭짓점 없이 교차한 채로 남아 적용되지 않았습니다. 빠진 꼭짓점을 추가한 뒤 다시 계산하세요.",
+      "degenerateEdges": "접는 선의 양 끝이 같은 점에 있어 계산을 시작할 수 없었습니다. 해당 선을 삭제하거나 한쪽 끝을 옮긴 뒤 다시 시도하세요.",
+      "degenerateWorse": "결과가 접는 선 하나를 길이 0으로 만들어 적용되지 않았습니다.",
+      "malformedInput": "저장된 솔버 데이터가 이 전개도와 맞지 않아 계산을 실행할 수 없었습니다.",
+      "movedTooFar": "전개도를 정확하게 만들려면 허용된 범위보다 꼭짓점을 더 많이 움직여야 해서 적용되지 않았습니다. 어떤 편집이 실제 접는 선 위치에서 멀리 떨어져 있을 가능성이 큽니다.",
+      "noImprovement": "주어진 전개도를 개선하지 못해 아무것도 적용되지 않았습니다. 위상을 더 고쳐야 할 가능성이 높습니다.",
+      "oddDegreeWorse": "결과에서 접는 선 개수가 홀수인 꼭짓점이 처음보다 늘어나 적용되지 않았습니다.",
+      "stillNotFoldable": "결과가 여전히 접힘 조건을 위반해 적용되지 않았습니다. 남은 표시를 정리한 뒤 다시 계산하세요.",
+      "timeout": "계산 시간이 초과되었습니다. 진행된 부분을 그대로 쓰거나, 전개도를 더 고친 뒤 다시 시도할 수 있습니다."
+    },
+    "stage": {
+      "geometry": "형상 계산 중",
+      "refinement": "접기 정밀도로 다듬는 중"
+    }
+  },
+  "cpRegion": {
+    "accept": "적용",
+    "addRegion": "억제 영역 추가",
+    "bringToFront": "영역을 맨 앞으로",
+    "changeChecks": "억제할 검사 변경",
+    "checksMenu": "억제된 검사",
+    "controls": "검사 억제 영역",
+    "defaultLabel": "억제 영역",
+    "delete": "영역 삭제",
+    "hidden_other": "문제 {{count}}개 숨김",
+    "nothingSuppressed": "모든 검사 켜짐",
+    "sendToBack": "영역을 맨 뒤로",
+    "solve": "풀기",
+    "solved_other": "해결됨 · 꼭짓점 {{count}}개가 {{max}} px 미만 이동",
+    "solveFailed": "해결할 수 없음 — {{reason}}",
+    "solvePartial_other": "부분 결과 · 꼭짓점 {{count}}개",
+    "solvingGeometry": "기하 계산 중…",
+    "solvingRefining": "접기 정밀도로 정제 중…",
+    "suppressing": "꺼진 검사: {{classes}}",
+    "tryAgain": "다시 시도"
+  },
   "cpViewControls": {
     "angle": "각도",
     "camvIssues": "접힘 가능성 문제",
@@ -230,6 +280,7 @@
       "warningOne_other": "{{label}} 경고 {{count}}개",
       "warningOther_other": "{{label}} 경고 {{count}}개"
     },
+    "diagnosticsHidden_other": "필터로 문제 {{count}}개 숨김",
     "display": "표시",
     "duplicateFoldedModelAction": "접힌 모델 복제",
     "flipFoldedModel": "접힌 모델 뒤집기",

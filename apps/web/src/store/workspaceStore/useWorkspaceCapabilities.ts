@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { getWorkspaceCapabilities } from '../../lib/workspaceCapabilities';
 import { designKind, designKindForContext } from '../../designKinds';
 import { activeDesignTab } from './designTabs';
-import { historyCountForContext } from './capabilities';
+import { cpSolvablePatternCount, historyCountForContext } from './capabilities';
 import { useWorkspaceStore } from './store';
 
 export function useWorkspaceCapabilities() {
@@ -39,6 +39,9 @@ export function useWorkspaceCapabilities() {
   const oristudioCpSelectedCircleCount = useWorkspaceStore(
     (state) => state.oristudioCpSelection.circles.length
   );
+  // A number, so the selector is identity-stable and this does not re-render on
+  // every annotation edit — only when a solve attachment appears or leaves.
+  const oristudioCpSolvablePatternCount = useWorkspaceStore(cpSolvablePatternCount);
   const cpHistoryPastCount = useWorkspaceStore((state) => state.oristudioCpHistoryPast.length);
   const cpHistoryFutureCount = useWorkspaceStore((state) => state.oristudioCpHistoryFuture.length);
   // Asked of the active design kind rather than of box-pleat: one flag, every
@@ -92,6 +95,7 @@ export function useWorkspaceCapabilities() {
           oristudioCpSelectedLineCount,
           oristudioCpSelectedPointCount,
           oristudioCpSelectedCircleCount,
+          oristudioCpSolvablePatternCount,
           hasDeletableDesignSelection,
       canSaveDesign,
           historyPastCount,
@@ -119,6 +123,7 @@ export function useWorkspaceCapabilities() {
       oristudioCpSelectedCircleCount,
       oristudioCpSelectedLineCount,
       oristudioCpSelectedPointCount,
+      oristudioCpSolvablePatternCount,
       hasDeletableDesignSelection,
       canSaveDesign,
       historyFutureCount,

@@ -49,6 +49,8 @@
     "yes": "Yes"
   },
   "cpDetectImport": {
+    "addAsIs": "Add as-is",
+    "addLabel": "Add detected crease pattern",
     "ariaLabel": "Detect CP from image",
     "busy": {
       "detecting": "Running model",
@@ -63,11 +65,12 @@
     "detect": "Detect",
     "detected": "Detected",
     "dropImageHere": "Drop image here",
-    "import": "Import",
     "inferred": "Inferred",
     "mvChanges": "M/V changes",
     "openImageTitle": "Open Crease Pattern Image",
     "rectified": "Rectified",
+    "regionLabel": "Detected crease pattern",
+    "repairLabel": "Add detected crease pattern to repair",
     "report": {
       "ambiguous": "ambiguous",
       "assignmentChange_one": "{{count}} assignment change",
@@ -76,14 +79,27 @@
       "assignmentChanges_other": "{{count}} assignment changes",
       "compilerFallback": "compiler fallback",
       "counts": "{{vertices}} vertices, {{edges}} edges",
+      "solveTimedOut": "solve timed out",
       "topologyMove_one": "{{count}} topology move",
       "topologyMove_other": "{{count}} topology move",
       "topologyMoves_one": "{{count}} topology moves",
       "topologyMoves_other": "{{count}} topology moves"
     },
+    "reviewAndFix": "Review & Fix",
     "runningModel": "Running model",
+    "solveAndAdd": "Solve & Add",
     "title": "Detect CP from Image",
-    "updateCrop": "Update Crop"
+    "updateCrop": "Update Crop",
+    "verdict": {
+      "blocked": "The solver could not read this candidate graph, so there is nothing to repair by hand. You can still add it as-is.",
+      "exact": "Exactly solved. Adding it beside your work leaves the rest of the document untouched.",
+      "impractical_one": "Not solved, with 1 place to repair — but this run is out of hand-repair range, so it is added as-is.",
+      "impractical_other": "Not solved, with {{count}} places to repair. That is out of hand-repair range: fixing this many by hand is not practical, so it is added as-is.",
+      "repairable_one": "Not solved. 1 place to repair — Review & Fix adds the candidate, the source image and a check-suppression region so you can fix it.",
+      "repairable_other": "Not solved. {{count}} places to repair — Review & Fix adds the candidate, the source image and a check-suppression region so you can fix them.",
+      "unflagged": "Not solved, but nothing is flagged for repair — the solver rejected it for another reason. Review & Fix adds the candidate with the source image behind it so you can compare.",
+      "unknown": "This detector run reports no topology check, so the pattern can only be added as-is."
+    }
   },
   "export": {
     "allPatterns": "All patterns",
@@ -138,6 +154,7 @@
       "images": "Images",
       "inlineSimulations": "Simulation windows",
       "richText": "Rich text formatting",
+      "suppressionRegions": "Check-suppression regions",
       "symmetry": "Mirror symmetry",
       "unassignedCreases": "Unassigned creases"
     },

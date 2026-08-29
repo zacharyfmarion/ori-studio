@@ -161,6 +161,59 @@
       "width": "Width"
     }
   },
+  "cpChecks": {
+    "bigLittleBig": "Big-little-big",
+    "kawasaki": "Kawasaki (angles)",
+    "maekawa": "Maekawa (parity)",
+    "vertexClosure": "Vertex closure"
+  },
+  "cpExactSolve": {
+    "hint": {
+      "geometry": "Usually under a second.",
+      "refinement": "This is most of the wait — up to about 25 seconds."
+    },
+    "reason": {
+      "boundaryBroken": "The edge of the paper is not a closed square, so the solve could not start. Repair the boundary and try again.",
+      "boundaryWorse": "The answer pushed a vertex off the edge of the paper, so it was not applied.",
+      "crossingsWorse": "The answer left creases crossing with no vertex where they meet, so it was not applied. Add the missing vertices and solve again.",
+      "degenerateEdges": "A crease has both ends at the same point, so the solve could not start. Delete it, or move one end away, and try again.",
+      "degenerateWorse": "The answer collapsed a crease to zero length, so it was not applied.",
+      "malformedInput": "The saved solver data does not match this crease pattern, so the solve could not run.",
+      "movedTooFar": "Making the pattern exact would move a vertex further than the solver is allowed to, so it was not applied. An edit is probably far from where the crease actually lies.",
+      "noImprovement": "The solver could not improve on the pattern it was given, so nothing was applied. The topology most likely still needs repair.",
+      "oddDegreeWorse": "The answer left more vertices with an odd number of creases than it started with, so it was not applied.",
+      "stillNotFoldable": "The answer still breaks a foldability condition, so it was not applied. Work through the remaining markers and solve again.",
+      "timeout": "The solve ran out of time. You can take how far it got, or repair more of the pattern and try again."
+    },
+    "stage": {
+      "geometry": "Solving geometry",
+      "refinement": "Refining to fold precision"
+    }
+  },
+  "cpRegion": {
+    "accept": "Accept",
+    "addRegion": "Add suppression region",
+    "bringToFront": "Bring region to front",
+    "changeChecks": "Change suppressed checks",
+    "checksMenu": "Suppressed checks",
+    "controls": "Check suppression region",
+    "defaultLabel": "Suppression region",
+    "delete": "Delete region",
+    "hidden_one": "1 finding hidden",
+    "hidden_other": "{{count}} findings hidden",
+    "nothingSuppressed": "All checks on",
+    "sendToBack": "Send region to back",
+    "solve": "Solve",
+    "solved_one": "Solved · 1 vertex moved < {{max}} px",
+    "solved_other": "Solved · {{count}} vertices moved < {{max}} px",
+    "solveFailed": "Could not solve — {{reason}}",
+    "solvePartial_one": "Partial result · 1 vertex",
+    "solvePartial_other": "Partial result · {{count}} vertices",
+    "solvingGeometry": "Solving geometry…",
+    "solvingRefining": "Refining to fold precision…",
+    "suppressing": "Checks off: {{classes}}",
+    "tryAgain": "Try again"
+  },
   "cpViewControls": {
     "angle": "Angle",
     "camvIssues": "Foldability issues",
@@ -244,6 +297,8 @@
       "warningOther_one": "{{count}} {{label}} Warnings",
       "warningOther_other": "{{count}} {{label}} Warnings"
     },
+    "diagnosticsHidden_one": "1 finding hidden by a filter",
+    "diagnosticsHidden_other": "{{count}} findings hidden by a filter",
     "display": "Display",
     "duplicateFoldedModelAction": "Duplicate folded model",
     "flipFoldedModel": "Flip folded model",

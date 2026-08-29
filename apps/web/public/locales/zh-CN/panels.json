@@ -159,6 +159,56 @@
       "width": "宽度"
     }
   },
+  "cpChecks": {
+    "bigLittleBig": "大小大",
+    "kawasaki": "川崎（角度）",
+    "maekawa": "前川（奇偶）",
+    "vertexClosure": "顶点闭合"
+  },
+  "cpExactSolve": {
+    "hint": {
+      "geometry": "通常不到一秒。",
+      "refinement": "大部分等待时间在这一步，最长约 25 秒。"
+    },
+    "reason": {
+      "boundaryBroken": "纸张边界不是闭合的正方形，因此无法开始求解。请修复边界后重试。",
+      "boundaryWorse": "结果把一个顶点推到了纸张外面，因此未被应用。",
+      "crossingsWorse": "结果中仍有折痕相交却没有顶点，因此未被应用。请在交点处添加顶点后再次求解。",
+      "degenerateEdges": "有一条折痕的两端位于同一点，因此无法开始求解。请删除它，或将一端移开后重试。",
+      "degenerateWorse": "结果把一条折痕压缩成了零长度，因此未被应用。",
+      "malformedInput": "保存的求解器数据与该折痕图不匹配，因此无法运行求解。",
+      "movedTooFar": "要让折痕图变精确，需要把某个顶点移动得超出求解器允许的范围，因此未被应用。某处编辑可能离折痕的实际位置太远。",
+      "noImprovement": "求解器无法改进给定的折痕图，因此未应用任何结果。拓扑很可能仍需修复。",
+      "oddDegreeWorse": "结果中折痕数为奇数的顶点比原来更多，因此未被应用。",
+      "stillNotFoldable": "结果仍然违反可折叠条件，因此未被应用。请处理剩余的标记后再次求解。",
+      "timeout": "求解超时。你可以采用已完成的部分，或修复更多折痕图后重试。"
+    },
+    "stage": {
+      "geometry": "正在求解几何",
+      "refinement": "正在细化到折叠精度"
+    }
+  },
+  "cpRegion": {
+    "accept": "采用",
+    "addRegion": "添加抑制区域",
+    "bringToFront": "将区域移到最前",
+    "changeChecks": "更改抑制的检查",
+    "checksMenu": "抑制的检查",
+    "controls": "检查抑制区域",
+    "defaultLabel": "抑制区域",
+    "delete": "删除区域",
+    "hidden_other": "已隐藏 {{count}} 个问题",
+    "nothingSuppressed": "所有检查均已启用",
+    "sendToBack": "将区域移到最后",
+    "solve": "求解",
+    "solved_other": "已求解 · {{count}} 个顶点移动不足 {{max}} px",
+    "solveFailed": "无法求解 — {{reason}}",
+    "solvePartial_other": "部分结果 · {{count}} 个顶点",
+    "solvingGeometry": "正在求解几何…",
+    "solvingRefining": "正在精化到折叠精度…",
+    "suppressing": "已关闭的检查：{{classes}}",
+    "tryAgain": "重试"
+  },
   "cpViewControls": {
     "angle": "角度",
     "camvIssues": "可折叠性问题",
@@ -230,6 +280,7 @@
       "warningOne_other": "{{count}} 个 {{label}} 警告",
       "warningOther_other": "{{count}} 个 {{label}} 警告"
     },
+    "diagnosticsHidden_other": "筛选器已隐藏 {{count}} 个问题",
     "display": "显示",
     "duplicateFoldedModelAction": "复制折叠模型",
     "flipFoldedModel": "翻转折叠模型",

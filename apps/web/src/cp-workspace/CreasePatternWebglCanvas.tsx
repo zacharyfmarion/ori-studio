@@ -79,6 +79,7 @@ import {
 } from './tools/transformGhost';
 import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
 import type { CpImage } from './images/cpImage';
+import type { CpSuppressionRegion } from './annotations/suppressionRegion';
 import { cpContentBounds, cpSizingBounds } from './cpContentBounds';
 import { cpSizingScales } from './cpSizingScales';
 import { cpPointsToScene, VERTEX_RADIUS_FACTOR } from './adapters/cpPointsToScene';
@@ -165,6 +166,8 @@ const MAX_DPR = 2;
 
 /** Stable empty image list so the upload effect doesn't re-run on every render. */
 const EMPTY_IMAGES: readonly CpImage[] = [];
+/** The same, for regions — an absent prop must not look like a changed one. */
+const EMPTY_REGIONS: readonly CpSuppressionRegion[] = [];
 /**
  * The editable SVG canvas is transparent, so the colour behind it is the panel
  * body background (`--bg-primary`). Clearing the WebGL surface to the same
@@ -436,6 +439,17 @@ export interface CreasePatternWebglCanvasProps {
    * creases. Placement is in model coordinates.
    */
   images?: readonly CpImage[];
+  /**
+   * Check-suppression regions, drawn above the grid and below the reference
+   * images, so a region reads as backdrop to everything it contains.
+   *
+   * Drawn in GL rather than in DOM for one reason: every DOM layer this surface
+   * carries sits above the whole canvas, so nothing placed there can be *behind*
+   * the creases — and a wash painted over the creases would recolour the thing
+   * the user is trying to read. Their chips are DOM (`CpRegionLayer`); only the
+   * fill is here.
+   */
+  regions?: readonly CpSuppressionRegion[];
   /**
    * Boxes that live on their own DOM layer rather than being drawn here — text
    * annotations and inline simulation windows — folded into the framing bounds
@@ -811,6 +825,7 @@ export function CreasePatternWebglCanvas({
   lineSegments,
   geometry,
   images,
+  regions,
   overlayBoxes,
   framingKey,
   modelToSvg,
@@ -3666,6 +3681,15 @@ export function CreasePatternWebglCanvas({
     rendererRef.current?.setImages(images ?? EMPTY_IMAGES);
     renderNowRef.current();
   }, [images, rendererGeneration]);
+
+  // Suppression-region wash. No texture and no theme dependency: the renderer
+  // resolves the fill and border from the canvas element's own `--status-warning`
+  // once per frame, so a theme switch repaints on the next draw with nothing to
+  // re-upload and nothing here to remember.
+  useEffect(() => {
+    rendererRef.current?.setRegions(regions ?? EMPTY_REGIONS);
+    renderNowRef.current();
+  }, [regions, rendererGeneration]);
 
   // Every camera verb shares this: the camera is seeded lazily on the first draw,
   // so before then there is nothing to move and the verb is a no-op. Redraws once,

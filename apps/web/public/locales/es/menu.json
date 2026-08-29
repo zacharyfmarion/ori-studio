@@ -24,6 +24,7 @@
     "deleteLineType": "Eliminar tipo de línea seleccionado...",
     "deleteSelectedLines": "Eliminar líneas seleccionadas",
     "diagnostics": "Diagnósticos",
+    "exactSolve": "Resolución exacta...",
     "fix1": "Reparar solapamientos",
     "fix2": "Dividir uniones en T",
     "fixInaccurate": "Corregir pliegues imprecisos...",

@@ -1,4 +1,5 @@
 import type { CpImage } from '../images/cpImage';
+import type { CpSuppressionRegion } from '../annotations/suppressionRegion';
 import type {
   FillGeometry,
   FoldedGeometry,
@@ -51,6 +52,22 @@ export interface CpRenderer {
    * construction so the host can redraw.
    */
   setImages(images: readonly CpImage[]): void;
+  /**
+   * Set the check-suppression region layer (superset feature). Drawn between the
+   * grid and the reference images, so a region reads as backdrop to both the
+   * creases it quiets and any image being traced over — the whole reason it is a
+   * GPU layer at all, since every DOM overlay sits above the canvas.
+   *
+   * Style is not per-region and is not passed here: the renderer resolves the
+   * wash and border colours from the canvas's own theme custom properties as it
+   * draws, so a theme switch needs no re-upload and no call-site wiring. Only
+   * placement and per-region `opacity` come from this list.
+   *
+   * Cheap to call: no textures, no buffers, one draw per region. `hidden` is not
+   * honoured because {@link CpSuppressionRegion} forbids it — a suppressor you
+   * cannot see is the one state that design rules out.
+   */
+  setRegions(regions: readonly CpSuppressionRegion[]): void;
   /**
    * Imported `.fold` folded-form frames (fills + strokes in SVG user coordinates),
    * placed reference figures drawn with the folded figures. `null` clears them.

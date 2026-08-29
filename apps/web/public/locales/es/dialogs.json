@@ -49,6 +49,8 @@
     "yes": "Sí"
   },
   "cpDetectImport": {
+    "addAsIs": "Añadir tal cual",
+    "addLabel": "Añadir el patrón de pliegues detectado",
     "ariaLabel": "Detectar CP desde imagen",
     "busy": {
       "detecting": "Ejecutando el modelo",
@@ -63,11 +65,12 @@
     "detect": "Detectar",
     "detected": "Detectado",
     "dropImageHere": "Suelta la imagen aquí",
-    "import": "Importar",
     "inferred": "Inferido",
     "mvChanges": "Cambios M/V",
     "openImageTitle": "Abrir imagen de patrón de pliegues",
     "rectified": "Rectificado",
+    "regionLabel": "Patrón de pliegues detectado",
+    "repairLabel": "Añadir el patrón de pliegues detectado para repararlo",
     "report": {
       "ambiguous": "ambiguo",
       "assignmentChange_one": "{{count}} cambio de asignación",
@@ -78,6 +81,7 @@
       "assignmentChanges_other": "{{count}} cambios de asignación",
       "compilerFallback": "alternativa del compilador",
       "counts": "{{vertices}} vértices, {{edges}} aristas",
+      "solveTimedOut": "la resolución agotó el tiempo",
       "topologyMove_one": "{{count}} movimiento de topología",
       "topologyMove_many": "{{count}} movimiento de topología",
       "topologyMove_other": "{{count}} movimiento de topología",
@@ -85,9 +89,23 @@
       "topologyMoves_many": "{{count}} movimientos de topología",
       "topologyMoves_other": "{{count}} movimientos de topología"
     },
+    "reviewAndFix": "Revisar y corregir",
     "runningModel": "Ejecutando el modelo",
+    "solveAndAdd": "Resolver y añadir",
     "title": "Detectar CP desde imagen",
-    "updateCrop": "Actualizar recorte"
+    "updateCrop": "Actualizar recorte",
+    "verdict": {
+      "blocked": "El solucionador no pudo leer este grafo candidato, así que no hay nada que reparar a mano. Aun así puedes añadirlo tal cual.",
+      "exact": "Resuelto exactamente. Se añade junto a tu trabajo y deja intacto el resto del documento.",
+      "impractical_one": "Sin resolver, con 1 punto que reparar, pero esta detección queda fuera del alcance de la reparación manual, así que se añade tal cual.",
+      "impractical_many": "Sin resolver, con {{count}} puntos que reparar. Eso queda fuera del alcance de la reparación manual: arreglar tantos a mano no es práctico, así que se añade tal cual.",
+      "impractical_other": "Sin resolver, con {{count}} puntos que reparar. Eso queda fuera del alcance de la reparación manual: arreglar tantos a mano no es práctico, así que se añade tal cual.",
+      "repairable_one": "Sin resolver. 1 punto que reparar: Revisar y corregir añade el candidato, la imagen de origen y una región de supresión de comprobaciones para que puedas arreglarlo.",
+      "repairable_many": "Sin resolver. {{count}} puntos que reparar: Revisar y corregir añade el candidato, la imagen de origen y una región de supresión de comprobaciones para que puedas arreglarlos.",
+      "repairable_other": "Sin resolver. {{count}} puntos que reparar: Revisar y corregir añade el candidato, la imagen de origen y una región de supresión de comprobaciones para que puedas arreglarlos.",
+      "unflagged": "Sin resolver, pero no hay nada marcado para reparar: el solucionador lo rechazó por otro motivo. Revisar y corregir añade el candidato con la imagen de origen detrás para que puedas compararlos.",
+      "unknown": "Esta ejecución del detector no incluye comprobación de topología, así que el patrón solo puede añadirse tal cual."
+    }
   },
   "export": {
     "allPatterns": "Todos los patrones",
@@ -143,6 +161,7 @@
       "images": "Imágenes",
       "inlineSimulations": "Ventanas de simulación",
       "richText": "Formato de texto enriquecido",
+      "suppressionRegions": "Regiones de supresión de comprobaciones",
       "symmetry": "Simetría especular",
       "unassignedCreases": "Pliegues sin asignar"
     },

@@ -8,7 +8,8 @@ import type { OristudioCpFoldedFigureEntry } from '../../engine/oristudioCpTypes
 
 /**
  * The interaction contract for anything the CP surface lets you select, move,
- * resize and rotate: reference images, text boxes, and folded figures.
+ * resize and rotate: reference images, text boxes, check-suppression regions,
+ * and folded figures.
  *
  * These kinds do *not* share a data model — annotations live in the web-side
  * annotation layer while folded figures carry a kernel handle and fold status —
@@ -36,7 +37,16 @@ export interface TransformableCanvasObject {
   aspectLock: AspectLockPolicy;
 }
 
-/** An annotation as the overlay sees it: a model-space box. */
+/**
+ * An annotation as the overlay sees it: a model-space box.
+ *
+ * Kind-agnostic on purpose — it reads only the {@link AnnotationBase} fields
+ * plus the per-kind aspect policy — so a new annotation kind gets
+ * select/move/resize/rotate here with no change at all. The suppression region
+ * is the case that proved it: it joined the union and was transformable, and the
+ * one thing it needed was a deliberate answer from
+ * `annotationAspectLockPolicy`, which is now an exhaustive switch.
+ */
 export function annotationAsTransformable(
   annotation: CanvasAnnotation
 ): TransformableCanvasObject {

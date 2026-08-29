@@ -119,6 +119,7 @@ import { simulationFoldOf } from '../../../lib/creasePatternSegmentation';
 import {
   flattenTextAnnotations,
   isImageAnnotation,
+  isSuppressionRegionAnnotation,
   isTextAnnotation,
 } from '../../../cp-workspace/annotations/annotation';
 import {
@@ -1149,9 +1150,12 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     ...discardCpDocumentState(),
     oristudioCpDocument: documentState,
     oristudioCpLineage: nativeDocument.creasePattern.lineage,
+    // The file stores one array per annotation kind; the store holds one array
+    // for all of them, because z-order and selection are shared across kinds.
     oristudioCpAnnotations: [
       ...nativeDocument.creasePattern.images,
       ...nativeDocument.creasePattern.textAnnotations,
+      ...nativeDocument.creasePattern.suppressionRegions,
     ],
     oristudioCpSelectedAnnotationId: null,
     // Placement and provenance only. Each window's fold is rebuilt from the
@@ -1652,6 +1656,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       lineage: get().oristudioCpLineage ?? importedCpLineage(),
       images: get().oristudioCpAnnotations.filter(isImageAnnotation),
       textAnnotations: get().oristudioCpAnnotations.filter(isTextAnnotation),
+      suppressionRegions: get().oristudioCpAnnotations.filter(isSuppressionRegionAnnotation),
       inlineSimulations: get().oristudioCpInlineSimulations,
       // Carried through for the same reason the design writer carries them: a
       // project written by a newer build may hold designs this one has no
@@ -1673,6 +1678,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const warnings = collectExportLossWarnings(format, {
       images: get().oristudioCpAnnotations.filter(isImageAnnotation),
       richText: get().oristudioCpAnnotations.filter(isTextAnnotation),
+      suppressionRegions: get().oristudioCpAnnotations.filter(isSuppressionRegionAnnotation),
       inlineSimulations: get().oristudioCpInlineSimulations,
       lineSegments: get().oristudioCpDocument?.document.crease_pattern.line_segments ?? [],
       foldedFigures: get().oristudioCpFoldedFigures,

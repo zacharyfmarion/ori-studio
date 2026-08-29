@@ -741,6 +741,14 @@
         "0": "Click text position"
       }
     },
+    "cp_action_check_suppression_region_create": {
+      "label": "Suppression Region",
+      "tooltip": "Drag a box to stop reporting the selected foldability checks inside it",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Drag a box over the area to stop checking"
+      }
+    },
     "cp_action_draw_blintz": {
       "label": "Blintz base",
       "tooltip": "Blintz base",

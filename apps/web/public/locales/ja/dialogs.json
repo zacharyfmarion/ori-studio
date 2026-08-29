@@ -49,6 +49,8 @@
     "yes": "はい"
   },
   "cpDetectImport": {
+    "addAsIs": "そのまま追加",
+    "addLabel": "検出した展開図を追加",
     "ariaLabel": "画像から CP を検出",
     "busy": {
       "detecting": "モデルを実行中",
@@ -63,23 +65,35 @@
     "detect": "検出",
     "detected": "検出済み",
     "dropImageHere": "ここに画像をドロップ",
-    "import": "インポート",
     "inferred": "推論済み",
     "mvChanges": "山折り／谷折りの変更",
     "openImageTitle": "展開図の画像を開く",
     "rectified": "補正済み",
+    "regionLabel": "検出した展開図",
+    "repairLabel": "修正用に検出した展開図を追加",
     "report": {
       "ambiguous": "曖昧",
       "assignmentChange_other": "{{count}} 件の割り当て変更",
       "assignmentChanges_other": "{{count}} 件の割り当て変更",
       "compilerFallback": "コンパイラーのフォールバック",
       "counts": "{{vertices}} 頂点、{{edges}} 辺",
+      "solveTimedOut": "ソルバーがタイムアウト",
       "topologyMove_other": "{{count}} 件のトポロジー変更",
       "topologyMoves_other": "{{count}} 件のトポロジー変更"
     },
+    "reviewAndFix": "確認して修正",
     "runningModel": "モデルを実行中",
+    "solveAndAdd": "解いて追加",
     "title": "画像から CP を検出",
-    "updateCrop": "切り抜きを更新"
+    "updateCrop": "切り抜きを更新",
+    "verdict": {
+      "blocked": "ソルバーがこの候補グラフを読み取れなかったため、手作業で修正できる箇所はありません。そのまま追加することはできます。",
+      "exact": "厳密に解けました。作業中の図の隣に追加され、ドキュメントの他の部分はそのままです。",
+      "impractical_other": "未解決で、修正が必要な箇所は {{count}} 件です。手作業で直せる範囲を超えているため、そのまま追加します。",
+      "repairable_other": "未解決です。修正が必要な箇所は {{count}} 件です。確認して修正を選ぶと、候補・元画像・チェック抑制領域が追加され、修正できます。",
+      "unflagged": "未解決ですが、修正対象として指摘された箇所はありません。ソルバーは別の理由で棄却しています。確認して修正を選ぶと、候補の背後に元画像が配置され、見比べられます。",
+      "unknown": "この検出結果にはトポロジーチェックが含まれていないため、展開図はそのまま追加することしかできません。"
+    }
   },
   "export": {
     "allPatterns": "すべてのパターン",
@@ -133,6 +147,7 @@
       "images": "画像",
       "inlineSimulations": "シミュレーションウィンドウ",
       "richText": "リッチテキストの書式",
+      "suppressionRegions": "検査を抑制する領域",
       "symmetry": "鏡映対称",
       "unassignedCreases": "未割り当ての折り線"
     },

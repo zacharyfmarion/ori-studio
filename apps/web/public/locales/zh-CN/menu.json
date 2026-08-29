@@ -24,6 +24,7 @@
     "deleteLineType": "删除所选线型...",
     "deleteSelectedLines": "删除所选线",
     "diagnostics": "诊断",
+    "exactSolve": "精确求解...",
     "fix1": "修复重叠",
     "fix2": "拆分 T 型交点",
     "fixInaccurate": "修正不精确折痕...",
