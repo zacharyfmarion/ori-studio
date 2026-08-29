@@ -87,6 +87,33 @@ describe('cp-detect worker lifetime', () => {
     });
   });
 
+  it('turns an in-flight call into a rejection when the worker dies under it', async () => {
+    // The consumer side of the signal above, and the whole reason it exists: a
+    // wasm trap mid-inference leaves comlink with nothing to answer it, so the
+    // import dialog would sit on "Running model" with nothing ever ending it.
+    const runtime = await freshRuntime();
+    await runtime.getCpDetectClient();
+    const pending = runtime
+      .whileCpDetectClientAlive(new Promise<string>(() => {}))
+      .catch((error: unknown) => error);
+
+    FakeWorker.instances[0].dispatchEvent(new Event('error'));
+
+    await expect(pending).resolves.toMatchObject({ code: 'cp_detect' });
+  });
+
+  it('stops listening once the call it was guarding settles', async () => {
+    const runtime = await freshRuntime();
+    await runtime.getCpDetectClient();
+    await runtime.whileCpDetectClientAlive(Promise.resolve('done'));
+
+    // Nothing is waiting any more, so a later loss reaches no leftover listener.
+    const lost = vi.fn();
+    runtime.onCpDetectClientLost(lost);
+    runtime.releaseCpDetectClient();
+    expect(lost).toHaveBeenCalledOnce();
+  });
+
   it('announces a deliberate release the same way, with no failure', async () => {
     // A caller waiting on a request should not have to tell "the worker died"
     // from "we killed it" to know its answer is never coming.

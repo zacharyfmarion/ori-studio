@@ -7,6 +7,13 @@
  * answer. What it is *not* is a second copy of the solver's policy; every
  * judgement about what the result means lives in
  * {@link classifyCpExactSolve}.
+ *
+ * The bridge is a worker spawned for this solve and terminated in a `finally`
+ * (`cpExactSolveSession.ts`), which is what makes Stop immediate at every
+ * pattern size and what keeps a cancel from touching the detect worker's
+ * compiled ONNX session. A cancelled solve leaves the document exactly as it
+ * was, and that is not a rollback: this module never writes, and on every
+ * non-acceptance the solver returns the coordinates it was given anyway.
  */
 import { track } from '../analytics';
 import {
@@ -18,28 +25,28 @@ import {
   type CpExactSolveVerdict,
 } from '../analytics/events';
 import {
+  bindCpExactSolveRunStop,
   setCpExactSolveRunStage,
   withCpExactSolveRun,
   type CpExactSolveRunKind,
 } from './cpExactSolveRuns';
 import {
+  cpExactSolveCancellationAvailable,
+  injectedCpExactSolveSession,
+  isCpExactSolveCancelledError,
+  openCpExactSolveSession,
+  type CpExactSolveSession,
+  type CpExactSolver,
+} from './cpExactSolveSession';
+import {
   classifyCpExactSolve,
   primaryCpExactSolveReason,
-  type CpExactSolveFoldResult,
   type CpExactSolveOutcome,
   type CpExactSolveStage,
   type CpExactSolvedGraph,
 } from './cpExactSolveTypes';
 
-/**
- * The two bridge calls a solve needs. An interface rather than the worker client
- * itself so the staging logic is testable without comlink, a worker, or a
- * 43 MiB model directory.
- */
-export interface CpExactSolver {
-  solveExact(inputJson: string, optionsJson?: string): Promise<CpExactSolvedGraph>;
-  solveExactToFold(inputJson: string, optionsJson?: string): Promise<CpExactSolveFoldResult>;
-}
+export type { CpExactSolver } from './cpExactSolveSession';
 
 export interface CpExactSolveRunOptions {
   /**
@@ -88,7 +95,16 @@ export interface CpExactSolveRunOptions {
   run?: { kind: CpExactSolveRunKind; targetId: string };
   /** Fires as each stage begins, for the progress line. */
   onStage?: (stage: CpExactSolveStage) => void;
-  /** Overridden in tests; defaults to the CP-detect worker. */
+  /**
+   * Overridden in tests; defaults to a worker spawned for this solve alone.
+   *
+   * An injected solver belongs to the caller, so there is nothing here to
+   * terminate and the run is registered **un-cancellable**. That is the honest
+   * reading rather than a limitation to work around: a surface reads
+   * `cancellable` to decide whether to offer Stop, and offering it over a
+   * transport this module cannot reach is the dead button the whole degradation
+   * rule exists to prevent.
+   */
   solver?: () => Promise<CpExactSolver>;
 }
 
@@ -142,7 +158,22 @@ export async function runCpExactSolve(
 ): Promise<CpExactSolveResult> {
   const descriptor = options.run;
   if (!descriptor) return solveStaged(input, options, null);
-  return withCpExactSolveRun(descriptor, (live) => solveStaged(input, options, live.runId));
+  return withCpExactSolveRun(
+    { ...descriptor, cancellable: solveIsCancellable(options) },
+    (live) => solveStaged(input, options, live.runId)
+  );
+}
+
+/**
+ * Whether a run dispatched with these options could be stopped — asked before
+ * the transport is opened, because the registry needs it at dispatch and opening
+ * early would make a refused second press pay for a worker.
+ *
+ * It answers exactly what {@link CpExactSolveSession.stop} will be: a worker
+ * session can always be terminated, an injected solver never can.
+ */
+function solveIsCancellable(options: CpExactSolveRunOptions): boolean {
+  return options.solver === undefined && cpExactSolveCancellationAvailable();
 }
 
 async function solveStaged(
@@ -150,10 +181,32 @@ async function solveStaged(
   options: CpExactSolveRunOptions,
   runId: number | null
 ): Promise<CpExactSolveResult> {
+  // Opened and bound **before the first await**, so the run the registry has
+  // just published as cancellable is reachable by a Stop from the moment anyone
+  // could press one. `openCpExactSolveSession` is synchronous for exactly this.
+  const session = options.solver
+    ? injectedCpExactSolveSession(options.solver)
+    : openCpExactSolveSession();
+  if (runId !== null && session.stop) bindCpExactSolveRunStop(runId, session.stop);
+  try {
+    return await solveOnSession(input, options, runId, session);
+  } finally {
+    session.dispose();
+  }
+}
+
+async function solveOnSession(
+  input: unknown,
+  options: CpExactSolveRunOptions,
+  runId: number | null,
+  session: CpExactSolveSession
+): Promise<CpExactSolveResult> {
   const inputJson = typeof input === 'string' ? input : JSON.stringify(input);
   const startedAt = Date.now();
-  const solver = await (options.solver ?? defaultSolver)();
+  const solver = await session.solver;
+  let reached: CpExactSolveStage = 'geometry';
   const enterStage = (stage: CpExactSolveStage) => {
+    reached = stage;
     if (runId !== null) setCpExactSolveRunStage(runId, stage);
     options.onStage?.(stage);
   };
@@ -186,10 +239,20 @@ async function solveStaged(
       durationMs: elapsed(startedAt),
     });
   } catch (error) {
-    // A bridge failure is not one of the solver's endings — the solve did not
-    // reach a verdict — so it is reported and rethrown rather than folded into
-    // the outcome union, which would make "the worker died" look like a
-    // rejection the user could fix by editing.
+    // Neither ending is one of the solver's four verdicts — the solve did not
+    // reach one — so both are rethrown rather than folded into the outcome
+    // union, which would make "the worker died" and "the user pressed Stop" look
+    // like rejections they could fix by editing. They are told apart because
+    // they are different facts: one is a failure, the other is the feature
+    // working.
+    if (isCpExactSolveCancelledError(error)) {
+      track(ANALYTICS_EVENTS.cpDetectCancelled, {
+        kind: options.run?.kind,
+        stage: reached,
+        duration_ms_bucket: bucketCount(elapsed(startedAt), CP_EXACT_SOLVE_MS_BUCKETS),
+      });
+      throw error;
+    }
     track(ANALYTICS_EVENTS.cpExactSolveCompleted, {
       verdict: 'error' satisfies CpExactSolveVerdict,
       duration_ms_bucket: bucketCount(elapsed(startedAt), CP_EXACT_SOLVE_MS_BUCKETS),
@@ -314,55 +377,4 @@ function stageOptionsJson(
 function exemptVertexIds(ids: readonly number[] | undefined): number[] {
   if (!ids || ids.length === 0) return [];
   return [...new Set(ids)].sort((a, b) => a - b);
-}
-
-/**
- * The worker client, wrapped so a dead worker rejects instead of hanging.
- *
- * comlink's proxy settles only when the worker answers, so a worker that traps
- * mid-solve leaves the promise pending forever and the chip on "Refining to fold
- * precision…" with nothing ever ending it. `onCpDetectClientLost` is the signal
- * the runtime now publishes for exactly this; racing it turns the pending promise
- * into a rejection the surface can report.
- *
- * Imported dynamically so constructing this module does not pull the worker
- * module — and through it the ONNX runtime chunk — into unrelated bundles.
- */
-async function defaultSolver(): Promise<CpExactSolver> {
-  const { getCpDetectClient, onCpDetectClientLost } = await import(
-    '../store/workspaceStore/cpDetectRuntime'
-  );
-  const client = await getCpDetectClient();
-  const alive = <T>(pending: Promise<T>): Promise<T> =>
-    whileClientAlive(onCpDetectClientLost, pending);
-  return {
-    solveExact: (inputJson, optionsJson) => alive(client.solveExact(inputJson, optionsJson)),
-    solveExactToFold: (inputJson, optionsJson) =>
-      alive(client.solveExactToFold(inputJson, optionsJson)),
-  };
-}
-
-/**
- * Settle with `pending`, or reject as soon as the worker behind it is lost.
- *
- * Exported for its test. Both branches of the race have handlers attached by
- * `Promise.race` itself, so a `pending` that rejects after the loss has already
- * won does not surface as an unhandled rejection.
- */
-export function whileClientAlive<T>(
-  subscribe: (listener: (loss: { failure?: { message: string } }) => void) => () => void,
-  pending: Promise<T>
-): Promise<T> {
-  let unsubscribe: (() => void) | null = null;
-  const lost = new Promise<never>((_resolve, reject) => {
-    unsubscribe = subscribe((loss) => {
-      reject({
-        code: 'cp_detect',
-        message:
-          loss.failure?.message ??
-          'The crease-pattern detection worker stopped while the solve was running.',
-      });
-    });
-  });
-  return Promise.race([pending, lost]).finally(() => unsubscribe?.());
 }

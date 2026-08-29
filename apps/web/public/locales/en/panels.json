@@ -220,6 +220,8 @@
     "solvePartial_other": "Partial result · {{count}} vertices",
     "solvingGeometry": "Solving geometry…",
     "solvingRefining": "Refining to fold precision…",
+    "stop": "Stop",
+    "stopping": "Stopping…",
     "suppressing": "Checks off: {{classes}}",
     "tryAgain": "Try again",
     "tryAgainHistory": "Revert exact solve"

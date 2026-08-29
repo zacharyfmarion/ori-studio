@@ -16,6 +16,14 @@ export interface CpRegionSolveBinding {
    */
   stateFor: (regionId: string) => CpRegionSolveState | undefined;
   onSolve: (regionId: string) => void;
+  /**
+   * Stop this region's running solve.
+   *
+   * Whether it is *offered* is the state's `cancellable`, not this — a host can
+   * always service a stop request, but a particular run may be on a transport
+   * that cannot be reached.
+   */
+  onStop: (regionId: string) => void;
   onAccept: (regionId: string) => void;
   onTryAgain: (regionId: string) => void;
 }
@@ -99,6 +107,7 @@ export function CpRegionLayer({ container, solve }: CpRegionLayerProps) {
             {...base}
             state={solve.stateFor(region.id) ?? CP_REGION_SOLVE_IDLE}
             onSolve={() => solve.onSolve(region.id)}
+            onStop={() => solve.onStop(region.id)}
             onAccept={() => solve.onAccept(region.id)}
             onTryAgain={() => solve.onTryAgain(region.id)}
           />

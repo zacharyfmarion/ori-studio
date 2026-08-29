@@ -225,6 +225,8 @@
     "solvePartial_other": "Resultado parcial · {{count}} vértices",
     "solvingGeometry": "Resolvendo a geometria…",
     "solvingRefining": "Refinando para a precisão de dobra…",
+    "stop": "Parar",
+    "stopping": "Parando…",
     "suppressing": "Verificações desativadas: {{classes}}",
     "tryAgain": "Tentar novamente",
     "tryAgainHistory": "Reverter a solução exata"

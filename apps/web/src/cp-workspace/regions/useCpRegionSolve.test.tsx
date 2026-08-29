@@ -3,7 +3,12 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CP_EXACT_SOLVE_REQUEST_EVENT } from '../../commands/menuActions';
 import { runCpExactSolve, type CpExactSolver } from '../../engine/cpExactSolve';
-import { resetCpExactSolveRuns } from '../../engine/cpExactSolveRuns';
+import {
+  bindCpExactSolveRunStop,
+  resetCpExactSolveRuns,
+  withCpExactSolveRun,
+} from '../../engine/cpExactSolveRuns';
+import { CpExactSolveCancelledError } from '../../engine/cpExactSolveSession';
 import type {
   CpExactSolveMovementReport,
   CpExactSolvedGraph,
@@ -238,10 +243,61 @@ describe('useCpRegionSolve', () => {
     await settle(() => api.onSolve(REGION.id));
     // A live run is the readout, not a flag this hook keeps: the registry is
     // where the two stages are already recorded.
-    expect(api.stateFor(REGION.id)).toEqual({ status: 'solving', stage: 'geometry' });
+    expect(api.stateFor(REGION.id)).toEqual({
+      status: 'solving',
+      stage: 'geometry',
+      // Injected bridge, so there is no worker of ours to terminate — and the
+      // chip is told so rather than shown a Stop that reaches nothing.
+      cancellable: false,
+      stopping: false,
+    });
 
     await settle(release);
     expect(api.stateFor(REGION.id)).toMatchObject({ status: 'solved' });
+  });
+
+  it('passes the run’s stoppability through to the chip', async () => {
+    // The chip renders Stop from this and nothing else, so it has to be the
+    // registry's answer rather than a guess about the environment. Registered
+    // by hand because a genuinely cancellable run needs a real worker, which
+    // jsdom does not have.
+    let release = () => {};
+    const running = withCpExactSolveRun(
+      { kind: 'region', targetId: REGION.id, cancellable: true },
+      (live) => {
+        bindCpExactSolveRunStop(live.runId, () => undefined);
+        return new Promise<void>((resolve) => {
+          release = resolve;
+        });
+      }
+    );
+    await settle(() => undefined);
+
+    expect(api.stateFor(REGION.id)).toMatchObject({ status: 'solving', cancellable: true });
+
+    await settle(() => api.onStop(REGION.id));
+    expect(api.stateFor(REGION.id)).toMatchObject({ stopping: true });
+
+    release();
+    await running;
+  });
+
+  it('leaves the document untouched when the solve is stopped, and goes back to Solve', async () => {
+    // The whole contract of Stop: the run is abandoned before anything is
+    // placed, so there is nothing to revert — and nothing stale left on the chip
+    // either, because a cancelled run reached no verdict to report.
+    await settle(() => api.onSolve(REGION.id));
+    expect(api.stateFor(REGION.id)).toMatchObject({ status: 'solved' });
+    replaceLineSegments.mockClear();
+
+    solver = {
+      solveExact: () => Promise.reject(new CpExactSolveCancelledError()),
+      solveExactToFold: () => Promise.reject(new CpExactSolveCancelledError()),
+    };
+    await settle(() => api.onSolve(REGION.id));
+
+    expect(api.stateFor(REGION.id)).toBeUndefined();
+    expect(replaceLineSegments).not.toHaveBeenCalled();
   });
 
   it('writes the solved coordinates onto the region’s creases', async () => {

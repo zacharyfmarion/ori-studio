@@ -225,6 +225,8 @@
     "solvePartial_other": "Résultat partiel · {{count}} sommets",
     "solvingGeometry": "Résolution de la géométrie…",
     "solvingRefining": "Affinage à la précision de pliage…",
+    "stop": "Arrêter",
+    "stopping": "Arrêt…",
     "suppressing": "Vérifications désactivées : {{classes}}",
     "tryAgain": "Réessayer",
     "tryAgainHistory": "Annuler la résolution exacte"

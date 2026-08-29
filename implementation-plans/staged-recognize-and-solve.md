@@ -187,6 +187,21 @@ behaviour change in the *good* direction, but it means the staged path and the
 fused path are not equivalent. Either give the two stages a shared deadline, or
 adopt the larger budget deliberately and say so.
 
+**Decided: one shared budget, not two.** `timeoutSeconds` is the cap for the
+*whole* solve; stage 1 is given the total and stage 2 is given what stage 1 left
+(`remainingSolveBudget` in `engine/cpExactSolve.ts`). The larger budget was
+rejected because it would silently invalidate the 25 s figure every measurement
+in `crease-topology-repair.md` was taken against — the staged flow would then be
+solving patterns the 307/563 baseline never reached, and the two paths would
+disagree about what "timed out" means. Three cases, and the middle one is the
+trap: no total means neither stage names a timeout and both inherit the solver's
+default; a **negative** total disables the timeout and is passed through
+unchanged, because subtracting from it would turn "run to completion" into
+`0.0`, which means "time out immediately"; a non-negative total is spent down,
+floored at zero. A stage's spend is the **larger** of `movement_report.
+elapsed_seconds` and the wall clock here, so serialization, the comlink round
+trip and the JSON parse cannot accumulate into an overrun across the two stages.
+
 ### Cancellation
 
 Today there is none: `cpDetectCancelled` is declared at `analytics/events.ts:325`
@@ -218,6 +233,96 @@ checkpointed. On a 2,321-edge hard pattern that single step could exceed the
 fold plan's ~100 ms responsiveness bar. Measure before promising a sub-second
 cancel.
 
+#### Measured, and it picked shape 1
+
+**Method**, recorded because the instrumentation was temporary and was reverted:
+a `#[track_caller]` tick inside `SolveModel::timeout_reached()` so every
+checkpoint stamps an `Instant`, plus spans around `build_normal_equations`,
+`solve_lm_step` (and inside it: triplet assembly, COO→CSC, symbolic Cholesky,
+numeric Cholesky, triangular solve), `residuals_with_breakdown`, `analyze_graph`
+and `SolveModel::new`. **The reported latency is the max gap between consecutive
+ticks.** `ExactSolveOptions::default()` throughout (sparse backend, polish on),
+release build, Apple M1 Max, single-threaded. Instrumentation overhead ~1-3% of
+wall, so the gaps below read slightly high. Inputs: the committed fixtures under
+`crates/oristudio-cp-compiler/tests/fixtures/exact_solve/`, plus 23 patterns
+sampled across 150-2,906 spans from the native pack the 307/563 baseline was
+measured on.
+
+The worst gap between two of the solver's cancellation checkpoints is always one
+`solve_lm_step` — specifically the inner-loop checkpoint (`exact_solve.rs:1168`)
+to the outer-loop one (`:1147`) — and **94-97% of it is a single
+`nalgebra-sparse` Cholesky factorization** at `:1098`, which does no
+fill-reducing ordering (its own docs say so) and measures `L_nnz / n²` of
+**0.36-0.44 at every size** against 0.50 for a fully dense lower triangle, so the
+step is effectively O(n³). Fill ratio `L_nnz/A_nnz` grows 3.4x at n=66 to 40x at
+n=2,239. Nothing else comes close: `build_normal_equations` never exceeded 22 ms,
+`residuals_with_breakdown` 0.5 ms, `analyze_graph` 18.7 ms, the un-checkpointed
+preamble 19.4 ms and postamble 4.8 ms. Every one of those already sits inside the
+fold plan's discipline; the Cholesky alone does not.
+
+Native max gap, by size, and the browser figure at 1.30x (measured, wasm vs
+native on the same fixtures, tight across the range):
+
+| | params | native gap | browser gap | vs 100 ms |
+| --- | --- | --- | --- | --- |
+| easy p50 | 256 | ~2 ms | ~2.6 ms | 38x under |
+| medium p50 | 582 | ~18 ms | ~24 ms | 4x under |
+| medium p90 | 896 | ~70 ms | ~90 ms | **1.1x — none** |
+| hard p50 | 2 090 | ~0.5-2 s | ~0.7-2.9 s | 7-29x **over** |
+| hard max | 4 680 | ~7.8 s | ~10 s | 100x **over** |
+
+The bar is crossed at roughly **900-1,000 solver parameters (~450 spans)** in the
+browser — inside the product's own range, and worst on exactly the runs a Stop
+button exists for: the hard-bucket solves that burn the whole 25 s cap (123/140
+of them). A flag that answers in microseconds on a 0.4 s solve and ten seconds
+late on a 25 s one fails on its own use case, and closing that gap means
+replacing the factorization (AMD/METIS ordering, or `faer`'s supernodal
+Cholesky) — a solver-performance project, not a cancellation phase. Symbolic
+reuse via `refactor` would not help: it is 2-8% of the wall but 2-5% of *the
+gap* at the sizes that matter.
+
+So: **shape 1, the per-run solve-only worker**. `terminate()` is immediate at
+every size, and it needs no cross-origin isolation, so cancellation is available
+on the deployed origin and inside the packaged Tauri shell — where the
+`SharedArrayBuffer` flag would have shipped `cancellable: false`. The
+orphaned-promise bug is fixed where the plan said: settle first, then terminate
+(`engine/cpExactSolveSession.ts`).
+
+Two numbers the measurement report left open, now measured in the browser
+(dev server, Chrome, M1 Max):
+
+- **Per-run spawn: ~12 ms** warm (24 ms on the first, cold module fetch), from
+  `new Worker` to the first bridge answer — worker boot plus wasm instantiate.
+  Against a solve that is 0.36 s at the easy median, ~3% at the very fastest end.
+  It is cheap because the solve worker holds *only* the two bridge calls: it
+  never touches `loadOrt()`, so no compiled ONNX session and no 43 MiB model is
+  discarded by a cancel. The 2.48 MB `.wasm` asset is shared with the detect
+  worker rather than duplicated.
+- **Cancel latency, end to end**: `right_large_angel` (514 params) solves stage 1
+  in 345 ms; stopped at 50 ms and at 200 ms, the in-flight promise settles as
+  cancelled at 50 ms and 200 ms — not at 345 ms, and not never.
+
+Three things to carry forward, because each of them is a way to misread the
+table above:
+
+- **Cost is not a clean function of `n`.** 748 spans / 1,955 params measured
+  133 ms while 642 spans / 1,403 params measured 351 ms, because fill-in depends
+  on the CP's graph structure and not only on its size. So any future "safe below
+  N parameters" rule — a checkpoint-free fast path, a size gate on a progress
+  bar — needs real margin, not the crossing point read off this table.
+- **The wasm ratio was measured under Node's V8**, `--target nodejs`, not in a
+  browser worker. Chrome is the same engine, so the browser column is sound
+  there; **WebKit was not measured**, and the packaged desktop shell's WKWebView
+  could differ. It does not change the decision — `terminate()` is bounded on
+  every engine — but it would change any promise made about the *flag*.
+- **It was ambiguous under exactly one reading, and only that one.** Had Phase C's
+  cancel been scoped to the easy and medium buckets — which is where
+  `crease-topology-repair.md` scopes hand repair — the flag clears the bar at both
+  medians. But it would then have to publish `cancellable: false` above ~450
+  spans, i.e. be absent on precisely the runs long enough to want to cancel. The
+  flag is only competitive under a scope restriction the cancel feature itself
+  argues against.
+
 ### A latent bug to fix on the way
 
 `releaseCpDetectClient()` (`cpDetectRuntime.ts:37-41`) is called by nothing, and
@@ -239,6 +344,12 @@ instance of the same defect.
 - `apps/web/src/workers/cpDetectWorker.ts`, `store/workspaceStore/cpDetectRuntime.ts`
   — the recognize/solve split, run identity, dead-client handling.
 - `apps/web/src/engine/cpExactSolve.ts` — the shared solve, finally reachable.
+- `apps/web/src/workers/cpExactSolveWorker.ts`,
+  `apps/web/src/engine/cpExactSolveSession.ts` — the per-run transport Stop
+  terminates, and the settle-then-terminate rule that keeps a cancel from
+  orphaning the in-flight promise.
+- `apps/web/src/engine/cpExactSolveRuns.ts` — run identity, `cancellable`, and
+  the stop-handle table.
 - `apps/web/src/components/CpDetectImportModal.tsx` — the new stage machine and
   honest button labels.
 - `apps/web/src/cp-workspace/regions/` — the solve binding hook.
@@ -249,22 +360,46 @@ instance of the same defect.
 
 ### Phase A — the Rust split
 
-- [ ] Extract `recognize_from_generation` from `decode.rs:543-574` as a shared
+- [x] Extract `recognize_from_generation` from `decode.rs:543-574` as a shared
       private step; the solving tail consumes its output. Do this first and
-      alone, so the refactor is provably behaviour-preserving.
-- [ ] A parity test asserting recognize-then-solve is byte-identical to today's
+      alone, so the refactor is provably behaviour-preserving. *Its output is
+      `RecognizedCandidate`, a type whose whole point is having exactly one
+      constructor — so recognize-then-solve is literally recognize plus
+      `solve_exact` rather than a second pipeline kept in agreement by
+      convention.*
+- [x] A parity test asserting recognize-then-solve is byte-identical to today's
       fused decode on a committed fixture. This is what forecloses divergence,
       and it should fail loudly if the two paths ever drift.
-- [ ] `recognize_only` on `DecodeConfig`; one branch at `:575`. Emit
+      (`recognize_then_solve_is_byte_identical_to_the_fused_decode` — the seam,
+      the solve, and the exported geometry, all compared as canonicalized JSON
+      bytes so key order cannot masquerade as content.)
+- [x] `recognize_only` on `DecodeConfig`; one branch at `:570`. Emit
       `TopologyDiagnostics` into `compiler_report`, and the candidate FOLD via
-      `export_candidate_to_fold_document`.
-- [ ] Stop emitting `exact_solve_input` twice across the bridge.
-- [ ] Decide and document the deadline question: shared budget across the two
-      stages, or an explicitly larger one.
-- [ ] An options shape for `cp_detect_solve_exact` that accepts
+      `export_candidate_to_fold_document`. *A recognize-only result reports the
+      new `compiler_status` value `"recognized"` and **no** `exact_solve` block:
+      the four existing values all claim a solve reached a verdict, and this one
+      never started. It also reports no global verification, because verifying
+      candidate coordinates would flag exactly the residuals the solve exists to
+      remove.*
+- [x] Stop emitting `exact_solve_input` twice across the bridge. *The report copy
+      is the one that stays; the FOLD carries `exact_solve_input_location`
+      pointing at it, so a reader does not conclude there wasn't a seam.
+      Regression-guarded on both sides of the branch by
+      `the_pre_solve_exact_solve_input_crosses_the_bridge_once`.*
+- [x] Decide and document the deadline question: shared budget across the two
+      stages, or an explicitly larger one. *Shared — see "Decided: one shared
+      budget, not two" above. `remainingSolveBudget` is the rule, and its three
+      cases (absent / negative / non-negative) are the part that is easy to get
+      wrong.*
+- [x] An options shape for `cp_detect_solve_exact` that accepts
       `exempt_vertex_ids` — `ExactSolveOptionsWithExemptions` is already
       `#[serde(flatten)]`, so the JSON is a superset; the blocker is
-      `exact_solve_options_from_json` rejecting unknown keys.
+      `exact_solve_options_from_json` rejecting unknown keys. *Unknown keys are
+      still rejected — that was worth keeping, since a misspelled option
+      silently becoming a no-op is how a solve quietly stops honouring what the
+      caller asked for. `exempt_vertex_ids` is now simply one more known key, and
+      an id naming a vertex absent from the input is a hard error rather than a
+      silently ignored exemption.*
 
 ### Phase B — the frontend flow
 
@@ -309,9 +444,13 @@ instance of the same defect.
       `useCpRegionSolve` is now the listener, resolving the target the way the
       capability is gated — one solvable pattern is unambiguous, more than one is
       disambiguated by the selected crease.
-- [ ] **Expose the `ExactSolveInput` rebuild over the bridge.** A region solve
-      still runs on the *attachment*, so the user's repairs do not reach the
-      solver — which is the whole point of the flow.
+- [ ] **Deferred — expose the `ExactSolveInput` rebuild over the bridge.**
+      Deferred because the export is a Rust API-surface change in
+      `oristudio-cp-compiler` that nothing else in this plan needs, and shipping
+      the frontend flow behind it would have held the whole staged path on it.
+      A region solve therefore still runs on the *attachment*, so the user's
+      repairs do not reach the solver — which is the whole point of the flow, and
+      why this is the one item here that is a gap rather than a nicety.
       `fold_exactize::fold_to_exact_solve_input` already does exactly this
       (paper polygon by turn angle → similarity onto the unit square → map back
       into the input's frame) but it is **private, with no wasm export**, and
@@ -325,8 +464,35 @@ instance of the same defect.
 
 ### Phase C — cancellation, measured first
 
-- [ ] Measure the un-checkpointed sparse Cholesky step on a hard pattern against
-      the ~100 ms responsiveness bar. That number picks the mechanism.
-- [ ] Implement whichever it picks — a per-run solve-only worker, or the fold's
+- [x] Measure the un-checkpointed sparse Cholesky step on a hard pattern against
+      the ~100 ms responsiveness bar. That number picks the mechanism. *It picked
+      the worker; the table is under "Measured, and it picked shape 1" above.*
+- [x] Implement whichever it picks — a per-run solve-only worker, or the fold's
       cooperative `SharedArrayBuffer` flag — and fire `cpDetectCancelled`, which
       has been declared and dead since it was written.
+      *`workers/cpExactSolveWorker.ts` is the two-method worker;
+      `engine/cpExactSolveSession.ts` owns spawn, settle-then-terminate, and
+      `cpExactSolveCancellationAvailable`. `runCpExactSolve` opens the session
+      and binds it to the run **before its first await**, so a run published as
+      `cancellable` is reachable from the moment anything could press Stop, and
+      disposes it in a `finally`.*
+- [x] `cancellable` and `stopping` are now driven by the real transition:
+      `requestCpExactSolveStop` marks the run, then invokes the bound stop, and
+      the run's own `finally` clears it. The stop handles live in a side table in
+      `cpExactSolveRuns.ts` rather than on the run records, for the reason
+      `foldCancellation.ts` is separate from `oristudioCpFoldRuns`.
+- [x] Both surfaces offer it: the modal's solving row and the region chip's
+      solving state, each rendering the button **from the run's own
+      `cancellable`** so a solve on a transport nothing can reach shows the wait
+      and no button. The modal's `close()` gate is lifted for the one busy state
+      that can now be interrupted — closing during a solve stops it, which is
+      what "a running detection cannot be abandoned" was about.
+- [x] A cancelled solve leaves the document untouched, and that is structural
+      rather than a rollback: `runCpExactSolve` never writes, and both callers
+      abandon before the point where they would.
+- [ ] **Not done, and out of this phase's scope:** the un-checkpointed Cholesky
+      is still un-checkpointed. Stop does not need it, but the 25 s *deadline*
+      still cannot land inside one factorization, so a hard-bucket timeout still
+      overruns its budget by up to that gap. Fixing it is a fill-reducing
+      ordering or a different solver, and it belongs with the perf work in
+      `exact-solve-perf-profile`.

@@ -24,11 +24,13 @@
  *   which one is running, so the registry can be the single readout rather than
  *   every caller keeping its own copy alongside.
  *
- * `cancellable` is `false` for every run today and is here anyway, because the
- * affordance must be *absent* rather than dead when a run cannot be stopped —
- * the same rule folds follow in a browser without shared memory. Phase C decides
- * the mechanism (`implementation-plans/staged-recognize-and-solve.md`); until it
- * lands, `stopping` can be recorded but nothing acts on it.
+ * `cancellable` is asked once, at dispatch, because that is when the binding is
+ * made — and the affordance must be *absent* rather than dead when a run cannot
+ * be stopped, the same rule folds follow in a browser without shared memory. The
+ * transport is a worker this run owns and {@link requestCpExactSolveStop}
+ * terminates (`cpExactSolveSession.ts` records why that rather than the fold
+ * path's cooperative flag), and it is held in {@link stopHandles} rather than on
+ * the run record so that published run data stays data.
  *
  * A module-level registry rather than a store slice: this layer has no React and
  * no store dependency by design (`cpExactSolve.ts` is testable without comlink, a
@@ -67,10 +69,19 @@ export interface CpExactSolveRun {
   startedAt: number;
   /**
    * Whether this run could actually be stopped, decided at dispatch because that
-   * is when the binding would be made. False everywhere today; see the header.
+   * is when the binding is made — a run dispatched onto a transport that cannot
+   * be terminated stays un-stoppable for its whole life.
    */
   cancellable: boolean;
-  /** A stop has been requested for this run. Nothing acts on it yet. */
+  /**
+   * A stop has been requested for this run.
+   *
+   * True only between the request and the run's own `finally`, which with a
+   * terminated worker is a microtask or two — the rejection is delivered by
+   * {@link requestCpExactSolveStop} itself rather than at some later checkpoint.
+   * It exists so a surface that renders in that window says "Stopping…" instead
+   * of offering Stop a second time.
+   */
   stopping: boolean;
   /** Which half of the solve is running; null before the first stage begins. */
   stage: CpExactSolveStage | null;
@@ -100,6 +111,17 @@ const EMPTY: readonly CpExactSolveRun[] = [];
 let nextRunId = 1;
 let runs: readonly CpExactSolveRun[] = EMPTY;
 const listeners = new Set<() => void>();
+
+/**
+ * How to stop each live run, keyed by run id — the transport table.
+ *
+ * Separate from the run records for the reason `foldCancellation.ts` is separate
+ * from `oristudioCpFoldRuns`: the records are what surfaces read and re-render
+ * on, and a callable on them invites a caller to reach past
+ * {@link requestCpExactSolveStop} and stop a run without the state that says so.
+ * Cleared with the run.
+ */
+const stopHandles = new Map<number, () => void>();
 
 /**
  * Live runs, **oldest first** — which is execution order.
@@ -153,15 +175,39 @@ export function setCpExactSolveRunStage(runId: number, stage: CpExactSolveStage)
 }
 
 /**
- * Record a stop request against a live run.
+ * Bind a live run to the thing that can stop it.
  *
- * Recorded, not honoured: nothing reads `stopping` yet, because there is no
- * cancellation transport into the solver. Kept so the state the UI needs to show
- * ("stopping…", and the button disabled) has one home when Phase C lands, rather
- * than being invented at the call site then.
+ * Called by `runCpExactSolve` in the **same turn** the run is published, before
+ * its first `await`, so a run is never advertised as `cancellable` while nothing
+ * could yet act on a Stop. A run whose transport has no stop is simply never
+ * bound, and {@link requestCpExactSolveStop} refuses it.
  */
-export function requestCpExactSolveStop(runId: number): void {
-  replace(runId, { stopping: true });
+export function bindCpExactSolveRunStop(runId: number, stop: () => void): void {
+  if (runs.some((run) => run.runId === runId)) stopHandles.set(runId, stop);
+}
+
+/**
+ * Stop a live run, and record that it was asked for. Answers whether anything
+ * was actually reached.
+ *
+ * Both halves matter and they happen in this order. The flag is written first so
+ * that a surface re-rendering between the two shows "Stopping…" rather than an
+ * enabled Stop; the transport is then invoked, which rejects the in-flight bridge
+ * call and terminates the worker, so the run's own `finally` clears it. There is
+ * no third state where the request has been made and the run keeps going.
+ *
+ * `false` for a run that is not live, or one dispatched onto a transport that
+ * cannot be terminated. Surfaces should be asking `cancellable` before offering
+ * Stop — this is the backstop, and it must do nothing rather than lie.
+ */
+export function requestCpExactSolveStop(runId: number): boolean {
+  const run = runs.find((candidate) => candidate.runId === runId);
+  if (!run?.cancellable) return false;
+  const stop = stopHandles.get(runId);
+  if (!stop) return false;
+  if (!run.stopping) replace(runId, { stopping: true });
+  stop();
+  return true;
 }
 
 /**
@@ -180,7 +226,7 @@ export function requestCpExactSolveStop(runId: number): void {
  * refused press costs nothing.
  */
 export async function withCpExactSolveRun<T>(
-  descriptor: { kind: CpExactSolveRunKind; targetId: string },
+  descriptor: { kind: CpExactSolveRunKind; targetId: string; cancellable: boolean },
   run: (live: CpExactSolveRun) => Promise<T>
 ): Promise<T> {
   const existing = cpExactSolveRunFor(descriptor.targetId);
@@ -191,8 +237,8 @@ export async function withCpExactSolveRun<T>(
     kind: descriptor.kind,
     targetId: descriptor.targetId,
     startedAt: Date.now(),
-    // Asked once, at dispatch, because that is when the binding would be made.
-    cancellable: false,
+    // Asked once, at dispatch, because that is when the binding is made.
+    cancellable: descriptor.cancellable,
     stopping: false,
     stage: null,
   };
@@ -200,6 +246,7 @@ export async function withCpExactSolveRun<T>(
   try {
     return await run(live);
   } finally {
+    stopHandles.delete(live.runId);
     publish(runs.filter((candidate) => candidate.runId !== live.runId));
   }
 }
@@ -210,5 +257,6 @@ export async function withCpExactSolveRun<T>(
  */
 export function resetCpExactSolveRuns(): void {
   runs = EMPTY;
+  stopHandles.clear();
   nextRunId = 1;
 }

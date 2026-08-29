@@ -215,6 +215,8 @@
     "solvePartial_other": "部分的な結果 · 頂点 {{count}} 個",
     "solvingGeometry": "幾何を計算中…",
     "solvingRefining": "折り精度まで調整中…",
+    "stop": "中止",
+    "stopping": "中止しています…",
     "suppressing": "オフのチェック: {{classes}}",
     "tryAgain": "再試行",
     "tryAgainHistory": "厳密解を元に戻す"

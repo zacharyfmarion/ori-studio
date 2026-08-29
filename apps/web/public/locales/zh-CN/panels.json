@@ -215,6 +215,8 @@
     "solvePartial_other": "部分结果 · {{count}} 个顶点",
     "solvingGeometry": "正在求解几何…",
     "solvingRefining": "正在精化到折叠精度…",
+    "stop": "停止",
+    "stopping": "正在停止…",
     "suppressing": "已关闭的检查：{{classes}}",
     "tryAgain": "重试",
     "tryAgainHistory": "撤销精确求解"

@@ -148,6 +148,7 @@ describe('CpRegionLayer', () => {
     render({
       stateFor: () => undefined,
       onSolve: vi.fn(),
+      onStop: vi.fn(),
       onAccept: vi.fn(),
       onTryAgain: vi.fn(),
     });
@@ -174,6 +175,7 @@ describe('CpRegionLayer', () => {
     render({
       stateFor: () => ({ status: 'idle' }),
       onSolve,
+      onStop: vi.fn(),
       onAccept: vi.fn(),
       onTryAgain: vi.fn(),
     });

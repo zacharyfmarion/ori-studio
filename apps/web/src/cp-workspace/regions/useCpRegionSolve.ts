@@ -34,11 +34,14 @@ import type { TFunction } from 'i18next';
 import { CP_EXACT_SOLVE_REQUEST_EVENT } from '../../commands/menuActions';
 import { runCpExactSolve, type CpExactSolveRunOptions } from '../../engine/cpExactSolve';
 import {
+  cpExactSolveRunFor,
   cpExactSolveRunsSnapshot,
   isCpExactSolveBusyError,
+  requestCpExactSolveStop,
   subscribeCpExactSolveRuns,
   type CpExactSolveRunKind,
 } from '../../engine/cpExactSolveRuns';
+import { isCpExactSolveCancelledError } from '../../engine/cpExactSolveSession';
 import { cpExactSolveReasonLabel } from '../../engine/cpExactSolveMessages';
 import {
   primaryCpExactSolveReason,
@@ -168,6 +171,15 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
         // touched. Saying nothing is the honest response to a press that cost
         // nothing and changed nothing.
         if (isCpExactSolveBusyError(error)) return;
+        // Stop was pressed. The chip goes back to Solve, and the record is
+        // *cleared* rather than left showing whatever the previous attempt said:
+        // nothing was written — the solve is abandoned before `place` — so idle
+        // is the true state, and a stale "Could not solve" over it would be a
+        // verdict on a run that never reached one.
+        if (isCpExactSolveCancelledError(error)) {
+          write(regionId, null);
+          return;
+        }
         failed(bridgeFailureLabel(latest.current.t, error));
         return;
       }
@@ -238,6 +250,20 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
   );
 
   /**
+   * Stop this region's solve.
+   *
+   * Reads the live run rather than holding a handle: the registry is the single
+   * record of what is running and how it can be stopped, and a second copy here
+   * could disagree with the `cancellable` the chip rendered its button from.
+   * The rejection that follows is handled in `solveRegion` above — this call
+   * writes no state of its own.
+   */
+  const onStop = useCallback((regionId: string) => {
+    const run = cpExactSolveRunFor(regionId);
+    if (run) requestCpExactSolveStop(run.runId);
+  }, []);
+
+  /**
    * Keep the result: the region goes away and full checking comes back.
    *
    * **The source image stays.** It is still the best thing to compare the solved
@@ -302,6 +328,10 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
           status: 'solving',
           // The registry names the solver's stages; the chip names the waits.
           stage: run.stage === 'refinement' ? 'refining' : 'geometry',
+          // Passed through, never assumed: the chip must not offer Stop for a
+          // run nothing can reach.
+          cancellable: run.cancellable,
+          stopping: run.stopping,
         };
       }
       return currentRecord(records, regionId, revision)?.state;
@@ -313,10 +343,11 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
     () => ({
       stateFor,
       onSolve,
+      onStop,
       onAccept: (regionId: string) => void onAccept(regionId),
       onTryAgain: (regionId: string) => void onTryAgain(regionId),
     }),
-    [onAccept, onSolve, onTryAgain, stateFor]
+    [onAccept, onSolve, onStop, onTryAgain, stateFor]
   );
 }
 

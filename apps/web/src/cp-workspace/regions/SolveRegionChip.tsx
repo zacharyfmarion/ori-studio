@@ -50,7 +50,19 @@ export type CpRegionSolveStage = 'geometry' | 'refining';
  */
 export type CpRegionSolveState =
   | { status: 'idle' }
-  | { status: 'solving'; stage: CpRegionSolveStage }
+  | {
+      status: 'solving';
+      stage: CpRegionSolveStage;
+      /**
+       * Whether this run can actually be stopped — read from the run registry,
+       * never assumed. False renders no Stop at all rather than a disabled one,
+       * the same rule that gives a region without a solve binding the base chip:
+       * a control that does nothing is worse than an absent one.
+       */
+      cancellable: boolean;
+      /** A stop is already on its way. Near-instant, so rarely seen; see below. */
+      stopping: boolean;
+    }
   | { status: 'solved'; movedVertices: number; maxMovementPx: number }
   | { status: 'failed'; reason: string; partialMovedVertices?: number };
 
@@ -74,6 +86,11 @@ export interface SolveRegionChipProps extends Omit<SuppressionRegionChipProps, '
   state: CpRegionSolveState;
   /** Run (or re-run) the exact solve on this region's attachment. */
   onSolve: () => void;
+  /**
+   * Stop the running solve. Nothing lands: the solve is abandoned before it can
+   * write, so there is no revert and the region stays exactly as it was.
+   */
+  onStop: () => void;
   /** Keep the solved coordinates: the region goes away, checking comes back. */
   onAccept: () => void;
   /**
@@ -87,6 +104,7 @@ export interface SolveRegionChipProps extends Omit<SuppressionRegionChipProps, '
 export function SolveRegionChip({
   state,
   onSolve,
+  onStop,
   onAccept,
   onTryAgain,
   ...base
@@ -96,6 +114,7 @@ export function SolveRegionChip({
       <SolveAffordance
         state={state}
         onSolve={onSolve}
+        onStop={onStop}
         onAccept={onAccept}
         onTryAgain={onTryAgain}
       />
@@ -106,11 +125,13 @@ export function SolveRegionChip({
 function SolveAffordance({
   state,
   onSolve,
+  onStop,
   onAccept,
   onTryAgain,
 }: {
   state: CpRegionSolveState;
   onSolve: () => void;
+  onStop: () => void;
   onAccept: () => void;
   onTryAgain: () => void;
 }) {
@@ -132,11 +153,26 @@ function SolveAffordance({
       // done" are different sentences and the wait is p50 0.4 s on an easy sample
       // and 3.5 s on a medium one.
       return (
-        <span className="cp-region-chip__status" style={STATUS_STYLE} role="status">
-          {state.stage === 'geometry'
-            ? t('panels:cpRegion.solvingGeometry', 'Solving geometry…')
-            : t('panels:cpRegion.solvingRefining', 'Refining to fold precision…')}
-        </span>
+        <>
+          <span className="cp-region-chip__status" style={STATUS_STYLE} role="status">
+            {state.stage === 'geometry'
+              ? t('panels:cpRegion.solvingGeometry', 'Solving geometry…')
+              : t('panels:cpRegion.solvingRefining', 'Refining to fold precision…')}
+          </span>
+          {/* The wait this is for is the long one: a hard pattern spends the
+              whole 25 s budget, and the measurement behind the mechanism
+              (`cpExactSolveSession.ts`) is why Stop is immediate there rather
+              than seconds late. `stopping` is a real transition and not
+              decoration, but terminating settles the call in the same turn, so
+              it is normally too brief to see. */}
+          {state.cancellable && (
+            <Button size="sm" variant="secondary" onClick={onStop} disabled={state.stopping}>
+              {state.stopping
+                ? t('panels:cpRegion.stopping', 'Stopping…')
+                : t('panels:cpRegion.stop', 'Stop')}
+            </Button>
+          )}
+        </>
       );
 
     case 'solved':

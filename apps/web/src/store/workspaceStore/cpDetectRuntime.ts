@@ -14,8 +14,9 @@
  *
  * - **Drop the dead client**, so the *next* call spawns a replacement.
  * - **Announce the loss**, so calls already in flight can stop waiting. That is
- *   what {@link onCpDetectClientLost} is for; `runCpExactSolve` uses it to turn a
- *   promise that will never settle into a rejection the UI can report.
+ *   what {@link onCpDetectClientLost} is for, and {@link whileCpDetectClientAlive}
+ *   is how a caller consumes it: a promise that will never settle becomes a
+ *   rejection the UI can report.
  */
 import { wrap, type Remote } from 'comlink';
 import type { WasmErrorEnvelope } from '../../engine/types';
@@ -51,6 +52,34 @@ export function onCpDetectClientLost(listener: LossListener): () => void {
   return () => {
     lossListeners.delete(listener);
   };
+}
+
+/**
+ * Settle with `pending`, or reject as soon as the detect worker behind it goes
+ * away.
+ *
+ * comlink's proxy settles only when the worker answers, so a worker that traps
+ * mid-inference leaves the promise pending forever and the import dialog on
+ * "Running model" with nothing ever ending it. Racing the loss signal turns that
+ * into an error the surface can show.
+ *
+ * Both branches of the race have handlers attached by `Promise.race` itself, so
+ * a `pending` that rejects after the loss has already won does not surface as an
+ * unhandled rejection.
+ */
+export function whileCpDetectClientAlive<T>(pending: Promise<T>): Promise<T> {
+  let unsubscribe: (() => void) | null = null;
+  const lost = new Promise<never>((_resolve, reject) => {
+    unsubscribe = onCpDetectClientLost((loss) => {
+      reject({
+        code: 'cp_detect',
+        message:
+          loss.failure?.message ??
+          'The crease-pattern detection worker stopped while it was running.',
+      } satisfies WasmErrorEnvelope);
+    });
+  });
+  return Promise.race([pending, lost]).finally(() => unsubscribe?.());
 }
 
 function announceLoss(loss: CpDetectClientLoss): void {

@@ -215,6 +215,8 @@
     "solvePartial_other": "부분 결과 · 꼭짓점 {{count}}개",
     "solvingGeometry": "기하 계산 중…",
     "solvingRefining": "접기 정밀도로 정제 중…",
+    "stop": "중지",
+    "stopping": "중지하는 중…",
     "suppressing": "꺼진 검사: {{classes}}",
     "tryAgain": "다시 시도",
     "tryAgainHistory": "정확한 해 되돌리기"

@@ -31,7 +31,17 @@ import {
   isSuppressionRegionAnnotation,
   type CanvasAnnotation,
 } from '../cp-workspace/annotations/annotation';
+import {
+  bindCpExactSolveRunStop,
+  cpExactSolveRunFor,
+  resetCpExactSolveRuns,
+  withCpExactSolveRun,
+  type CpExactSolveRunKind,
+} from '../engine/cpExactSolveRuns';
+import { CpExactSolveCancelledError } from '../engine/cpExactSolveSession';
 import type { CpExactSolveOutcome } from '../engine/cpExactSolveTypes';
+
+type RunDescriptor = { kind: CpExactSolveRunKind; targetId: string };
 
 const storeActions = {
   ensureEditCreasePattern: vi.fn(async () => undefined),
@@ -77,6 +87,7 @@ const detectClient = {
 
 vi.mock('../store/workspaceStore/cpDetectRuntime', () => ({
   getCpDetectClient: async () => detectClient,
+  whileCpDetectClientAlive: <T,>(pending: Promise<T>) => pending,
   cpDetectError: (error: unknown) => ({
     code: 'cp_detect',
     message: error instanceof Error ? error.message : String(error),
@@ -410,6 +421,108 @@ describe('CpDetectImportModal recognize-then-solve', () => {
     await reachReviewStage();
     expect(bodyText()).toContain('Refining to fold precision');
   });
+});
+
+describe('CpDetectImportModal stopping the solve', () => {
+  /**
+   * Hold the solve open under a **real** registry entry.
+   *
+   * The mock stands in for `runCpExactSolve`'s bridge, not for its bookkeeping:
+   * the run is registered and bound exactly as the real one does it, so the Stop
+   * button the modal renders is driven by the same `cancellable` a real solve
+   * publishes, and pressing it goes through `requestCpExactSolveStop` for real.
+   */
+  function holdSolveOpen(cancellable = true): void {
+    runCpExactSolve.mockImplementation((_input: unknown, options: { run: RunDescriptor }) =>
+      withCpExactSolveRun(
+        { ...options.run, cancellable },
+        (live) =>
+          new Promise((_resolve, reject) => {
+            if (cancellable) {
+              bindCpExactSolveRunStop(live.runId, () => reject(new CpExactSolveCancelledError()));
+            }
+          })
+      )
+    );
+  }
+
+  beforeEach(() => {
+    resetCpExactSolveRuns();
+    detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(0)));
+  });
+
+  it('offers Stop while the solve runs, and a stop leaves the candidate exactly as recognized', async () => {
+    holdSolveOpen();
+    await reachReviewStage();
+
+    // While it runs there is no terminal button at all — nothing to decide yet.
+    expect(bodyText()).toContain('Solving geometry');
+    expect(button('Review & Fix')).toBeNull();
+
+    click('Stop');
+    await settle();
+
+    expect(bodyText()).toMatch(/You stopped the solve, so nothing was changed/);
+    // The unsolved candidate is still there and still repairable; what is absent
+    // is Add, because no solve was accepted and there is no solved FOLD.
+    expect(button('Review & Fix')).not.toBeNull();
+    expect(button('Add as-is')).not.toBeNull();
+    expect(button('Add')).toBeNull();
+    // A stop is not an error, and must not leave one on screen.
+    expect(document.querySelector('.cp-detect-modal__error')).toBeNull();
+  });
+
+  it('reports the stop as a cancel on the import, not as a solver verdict', async () => {
+    holdSolveOpen();
+    await reachReviewStage();
+    click('Stop');
+    await settle();
+
+    click('Add as-is');
+    await settle();
+
+    const imported = track.mock.calls.find(([name]) => name === 'cp detect imported');
+    expect(imported?.[1]).toMatchObject({ outcome: 'cancelled' });
+  });
+
+  it('offers no Stop for a run nothing can reach', async () => {
+    // The honest-degradation rule, at this surface: the wait is still named, and
+    // there is no button rather than a dead one.
+    holdSolveOpen(false);
+    await reachReviewStage();
+
+    expect(bodyText()).toContain('Solving geometry');
+    expect(button('Stop')).toBeNull();
+  });
+
+  it('lets the dialog be closed during a solve, by stopping it', async () => {
+    // The gate this removes: `close()` refused while busy, so a running
+    // detection could not be abandoned at all.
+    holdSolveOpen();
+    await reachReviewStage();
+
+    const closeButton = document.querySelector<HTMLButtonElement>('button[aria-label="Close"]');
+    expect(closeButton?.disabled).toBe(false);
+    act(() => closeButton?.click());
+    await settle();
+
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(cpExactSolveRunFor(runTargetId())).toBeUndefined();
+  });
+
+  it('keeps the dialog shut during a solve it cannot stop', async () => {
+    holdSolveOpen(false);
+    await reachReviewStage();
+
+    expect(
+      document.querySelector<HTMLButtonElement>('button[aria-label="Close"]')?.disabled
+    ).toBe(true);
+  });
+
+  function runTargetId(): string {
+    const call = runCpExactSolve.mock.calls.at(-1) as [unknown, { run: RunDescriptor }] | undefined;
+    return call?.[1].run.targetId ?? '';
+  }
 });
 
 describe('CpDetectImportModal failure reporting', () => {

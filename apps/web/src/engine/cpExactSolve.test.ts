@@ -3,17 +3,17 @@
  * what stops the second one from happening.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  remainingSolveBudget,
-  runCpExactSolve,
-  whileClientAlive,
-  type CpExactSolver,
-} from './cpExactSolve';
+import { remainingSolveBudget, runCpExactSolve, type CpExactSolver } from './cpExactSolve';
 import {
   cpExactSolveRunFor,
   isCpExactSolveBusyError,
+  requestCpExactSolveStop,
   resetCpExactSolveRuns,
 } from './cpExactSolveRuns';
+import {
+  CpExactSolveCancelledError,
+  isCpExactSolveCancelledError,
+} from './cpExactSolveSession';
 import type {
   CpExactSolveFoldResult,
   CpExactSolveMovementReport,
@@ -317,27 +317,102 @@ describe('run identity', () => {
   });
 });
 
-describe('whileClientAlive', () => {
-  it('rejects when the worker is lost, instead of waiting on a promise that never settles', async () => {
-    let announce: (loss: { failure?: { message: string } }) => void = () => {};
-    const subscribe = (listener: (loss: { failure?: { message: string } }) => void) => {
-      announce = listener;
-      return () => {};
-    };
-
-    const raced = whileClientAlive(subscribe, new Promise<string>(() => {}));
-    announce({ failure: { message: 'The worker stopped unexpectedly.' } });
-
-    await expect(raced).rejects.toMatchObject({
-      code: 'cp_detect',
-      message: 'The worker stopped unexpectedly.',
+describe('cancellability, as published to the surface that offers Stop', () => {
+  it('marks an injected-solver run un-cancellable, because there is nothing here to stop', async () => {
+    // The degradation rule: a surface reads `cancellable` to decide whether to
+    // render Stop at all, and this transport belongs to the caller. Saying yes
+    // would be a button that does nothing.
+    const fake = solver(ACCEPTED);
+    let seen: boolean | null = null;
+    fake.solveExact.mockImplementation(async () => {
+      seen = cpExactSolveRunFor('region-1')?.cancellable ?? null;
+      return graph(ACCEPTED);
     });
+
+    await runCpExactSolve(
+      { vertices: [] },
+      { solver: async () => fake, run: { kind: 'region', targetId: 'region-1' } }
+    );
+
+    expect(seen).toBe(false);
   });
 
-  it('unsubscribes once the call settles', async () => {
-    const unsubscribe = vi.fn();
-    await whileClientAlive(() => unsubscribe, Promise.resolve('done'));
-    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  it('refuses a stop against a run whose transport cannot be reached', async () => {
+    let releaseFirst = () => {};
+    const fake = solver(ACCEPTED);
+    fake.solveExact.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseFirst = () => resolve(graph(ACCEPTED));
+        })
+    );
+
+    const running = runCpExactSolve(
+      { vertices: [] },
+      { solver: async () => fake, run: { kind: 'region', targetId: 'region-1' } }
+    );
+    await vi.waitFor(() => expect(cpExactSolveRunFor('region-1')).toBeDefined());
+
+    const live = cpExactSolveRunFor('region-1');
+    expect(live).toBeDefined();
+    expect(requestCpExactSolveStop(live?.runId ?? 0)).toBe(false);
+    // Refused, and refused *silently in the state too* — a run reported as
+    // stopping that then finishes normally is the lie this guards against.
+    expect(cpExactSolveRunFor('region-1')?.stopping).toBe(false);
+
+    releaseFirst();
+    await running;
+  });
+});
+
+describe('a stopped solve', () => {
+  /** A session whose `stop` rejects the in-flight call, as terminate does. */
+  function stoppableSolver() {
+    let reject: (error: unknown) => void = () => {};
+    const fake: CpExactSolver = {
+      solveExact: () =>
+        new Promise((_resolve, fail) => {
+          reject = fail;
+        }),
+      solveExactToFold: () => new Promise(() => {}),
+    };
+    return { fake, stop: () => reject(new CpExactSolveCancelledError()) };
+  }
+
+  it('rejects with the cancellation, clears the run, and applies nothing', async () => {
+    const { fake, stop } = stoppableSolver();
+    const running = runCpExactSolve(
+      { vertices: [] },
+      { solver: async () => fake, run: { kind: 'region', targetId: 'region-1' } }
+    ).catch((error: unknown) => error);
+    await vi.waitFor(() => expect(cpExactSolveRunFor('region-1')).toBeDefined());
+
+    stop();
+    const settled = await running;
+
+    expect(isCpExactSolveCancelledError(settled)).toBe(true);
+    expect(cpExactSolveRunFor('region-1')).toBeUndefined();
+  });
+
+  it('reports the cancel as a cancel, never as a solver verdict', async () => {
+    // `cp exact solve completed` counts the four endings the solver reaches, and
+    // a stopped run reached none of them. Counting it there would put "the user
+    // pressed Stop" in the feature's failure rate.
+    const { fake, stop } = stoppableSolver();
+    const running = runCpExactSolve(
+      { vertices: [] },
+      { solver: async () => fake, run: { kind: 'detect-import', targetId: 'detect-1' } }
+    ).catch(() => undefined);
+    await vi.waitFor(() => expect(cpExactSolveRunFor('detect-1')).toBeDefined());
+
+    stop();
+    await running;
+
+    expect(track).toHaveBeenCalledTimes(1);
+    const [name, properties] = track.mock.calls[0];
+    expect(name).toBe('cp detect cancelled');
+    expect(properties).toMatchObject({ kind: 'detect-import', stage: 'geometry' });
+    expect(String(properties.duration_ms_bucket)).toMatch(/^(<=|>)\d+$/u);
   });
 });
 

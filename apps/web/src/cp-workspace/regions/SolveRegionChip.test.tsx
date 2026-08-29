@@ -37,6 +37,7 @@ function renderChip(
   state: CpRegionSolveState,
   handlers: {
     onSolve?: () => void;
+    onStop?: () => void;
     onAccept?: () => void;
     onTryAgain?: () => void;
   } = {}
@@ -50,6 +51,7 @@ function renderChip(
           hiddenCount={0}
           state={state}
           onSolve={handlers.onSolve ?? NOOP}
+          onStop={handlers.onStop ?? NOOP}
           onAccept={handlers.onAccept ?? NOOP}
           onTryAgain={handlers.onTryAgain ?? NOOP}
           onSelect={NOOP}
@@ -120,7 +122,7 @@ describe('SolveRegionChip', () => {
   });
 
   it('names the stage rather than showing a spinner', () => {
-    renderChip({ status: 'solving', stage: 'geometry' });
+    renderChip({ status: 'solving', stage: 'geometry', cancellable: false, stopping: false });
     expect(chip().textContent).toContain('Solving geometry');
     // Stage 1 fails fast; stage 2 is up to six accepted refinement rounds, so
     // they are different waits and get different sentences. Nothing solve-shaped
@@ -128,8 +130,37 @@ describe('SolveRegionChip', () => {
     // a running solve has no reason to take away.
     expect(() => button('Solve')).toThrow();
 
-    renderChip({ status: 'solving', stage: 'refining' });
+    renderChip({ status: 'solving', stage: 'refining', cancellable: false, stopping: false });
     expect(chip().textContent).toContain('Refining to fold precision');
+  });
+
+  it('offers Stop only for a run that can actually be stopped', () => {
+    // The degradation rule, at the surface: a solve dispatched onto a transport
+    // nothing can reach shows the wait and no button, rather than a Stop that
+    // writes into nothing.
+    const onStop = vi.fn();
+    renderChip({ status: 'solving', stage: 'geometry', cancellable: false, stopping: false });
+    expect(() => button('Stop')).toThrow();
+
+    renderChip(
+      { status: 'solving', stage: 'refining', cancellable: true, stopping: false },
+      { onStop }
+    );
+    act(() => button('Stop').click());
+    expect(onStop).toHaveBeenCalledTimes(1);
+  });
+
+  it('says the stop is on its way rather than offering it twice', () => {
+    const onStop = vi.fn();
+    renderChip(
+      { status: 'solving', stage: 'geometry', cancellable: true, stopping: true },
+      { onStop }
+    );
+
+    const stopping = button('Stopping…');
+    expect(stopping.hasAttribute('disabled')).toBe(true);
+    act(() => stopping.click());
+    expect(onStop).not.toHaveBeenCalled();
   });
 
   it('becomes a two-button gate once it has solved', () => {

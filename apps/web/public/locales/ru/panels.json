@@ -230,6 +230,8 @@
     "solvePartial_other": "Частичный результат · вершин: {{count}}",
     "solvingGeometry": "Решение геометрии…",
     "solvingRefining": "Уточнение до точности складывания…",
+    "stop": "Остановить",
+    "stopping": "Остановка…",
     "suppressing": "Проверки отключены: {{classes}}",
     "tryAgain": "Повторить",
     "tryAgainHistory": "Отменить точное решение"

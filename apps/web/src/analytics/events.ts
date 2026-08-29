@@ -322,6 +322,17 @@ export const ANALYTICS_EVENTS = {
   cpDetectStarted: 'cp detect started',
   cpDetectCompleted: 'cp detect completed',
   cpDetectImported: 'cp detect imported',
+  /**
+   * A run the user stopped, on any of the three surfaces that start one.
+   *
+   * Deliberately **not** a sixth `verdict` on `cp exact solve completed`: that
+   * event counts the four endings the solver reaches, and a stopped run reached
+   * none of them — folding it in would put "the user pressed Stop" inside the
+   * feature's failure rate. Carries `kind` (which surface), `stage` (how far it
+   * got) and a bucketed wall time, which together answer the question the
+   * mechanism was chosen for: are people stopping the long hard-bucket solves,
+   * or the short ones.
+   */
   cpDetectCancelled: 'cp detect cancelled',
   foldSimulationRun: 'fold simulation run',
   foldedFormExported: 'folded form exported',

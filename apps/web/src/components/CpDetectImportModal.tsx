@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ImagePlus, Loader2, Play, RefreshCw, Upload, Wrench, X } from 'lucide-react';
+import { ImagePlus, Loader2, Play, RefreshCw, Square, Upload, Wrench, X } from 'lucide-react';
 import { track } from '../analytics';
 import {
   cpDetectCompilerReport,
@@ -22,11 +22,14 @@ import {
   type CpDetectRectifiedImage,
 } from '../engine/cpDetectTypes';
 import { runCpExactSolve } from '../engine/cpExactSolve';
+import { requestCpExactSolveStop } from '../engine/cpExactSolveRuns';
+import { isCpExactSolveCancelledError } from '../engine/cpExactSolveSession';
 import {
   cpExactSolveReasonLabel,
   cpExactSolveStageHint,
   cpExactSolveStageLabel,
 } from '../engine/cpExactSolveMessages';
+import { useCpExactSolveRun } from '../hooks/useCpExactSolveRun';
 import {
   primaryCpExactSolveReason,
   type CpExactSolveMovedVertex,
@@ -34,7 +37,11 @@ import {
   type CpExactSolveStage,
 } from '../engine/cpExactSolveTypes';
 import { getFileService, type OpenBinaryFileResult } from '../platform/fileService';
-import { getCpDetectClient, cpDetectError } from '../store/workspaceStore/cpDetectRuntime';
+import {
+  cpDetectError,
+  getCpDetectClient,
+  whileCpDetectClientAlive,
+} from '../store/workspaceStore/cpDetectRuntime';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import {
   lastOristudioCpImportAddPlacement,
@@ -169,6 +176,16 @@ type SolvePhase =
   /** Recognized, and the solve was deliberately not run. */
   | { kind: 'not_attempted' }
   | { kind: 'solving'; stage: CpExactSolveStage }
+  /**
+   * The user stopped the solve.
+   *
+   * Its own phase rather than a return to `not_attempted`, because the two are
+   * different facts and the screen has to say which: `not_attempted` means the
+   * topology was flagged and solving would have been wasted, which is a sentence
+   * about the candidate. This one is a sentence about a choice, and it must not
+   * report "0 places to repair" as the reason the solve did not run.
+   */
+  | { kind: 'cancelled' }
   /** The solver reached a verdict. `fold` is non-null only when it accepted. */
   | { kind: 'settled'; outcome: CpExactSolveOutcome; fold: Record<string, unknown> | null }
   /**
@@ -210,6 +227,26 @@ export function CpDetectImportModal() {
    * if the previous solve were somehow still live, so each press gets its own.
    */
   const solveCountRef = useRef(0);
+  /**
+   * The run registry's key for the solve on screen, so Stop can name it.
+   *
+   * State rather than the ref above because the Stop affordance renders from it:
+   * whether a run *can* be stopped is the registry's answer, and this is how the
+   * modal asks for its own run rather than assuming there is exactly one.
+   */
+  const [solveTargetId, setSolveTargetId] = useState<string | null>(null);
+  const solveRun = useCpExactSolveRun(solveTargetId);
+
+  /**
+   * Stop the running solve.
+   *
+   * Addressed by run id through the registry, which is also where `cancellable`
+   * came from — so the button that renders and the run that is stopped cannot be
+   * two different things.
+   */
+  const stopSolve = useCallback(() => {
+    if (solveRun) requestCpExactSolveStop(solveRun.runId);
+  }, [solveRun]);
 
   useEffect(() => {
     const onOpen = () => setOpen(true);
@@ -223,7 +260,7 @@ export function CpDetectImportModal() {
     setBusy((current) => current ?? 'loading_model');
     setError(null);
     getCpDetectClient()
-      .then((client) => client.verifyModelAssets())
+      .then((client) => whileCpDetectClientAlive(client.verifyModelAssets()))
       .then((manifest) => {
         if (!cancelled) setModelManifest(manifest);
       })
@@ -268,17 +305,32 @@ export function CpDetectImportModal() {
     setRectified(null);
     setRecognition(null);
     setPhase(NOT_ATTEMPTED);
+    setSolveTargetId(null);
     setError(null);
     setDragging(null);
     setDropActive(false);
     setPreviewOverlays(DEFAULT_PREVIEW_OVERLAYS);
   }, []);
 
+  /**
+   * Whether leaving is possible right now.
+   *
+   * Every busy state but one is a short call the dialog has no way to interrupt.
+   * A solve is the exception — it is the long wait, up to the whole 25 s budget,
+   * and now the one thing here that *can* be stopped — so closing during it
+   * stops it instead of being refused. That gate was the reason a running
+   * detection could not be abandoned at all.
+   */
+  const canClose = busy === null || (busy === 'solving' && solveRun?.cancellable === true);
+
   const close = useCallback(() => {
-    if (busy) return;
+    if (!canClose) return;
+    // Stopped before the state is cleared, so the solve's own rejection lands on
+    // a session that is already gone rather than writing a phase into it.
+    if (busy === 'solving') stopSolve();
     setOpen(false);
     resetSession();
-  }, [busy, resetSession]);
+  }, [busy, canClose, resetSession, stopSolve]);
 
   const loadImageFile = useCallback(async (file: OpenBinaryFileResult) => {
     const nextSource = await sourceImageFromFile(file, t);
@@ -294,7 +346,9 @@ export function CpDetectImportModal() {
 
     const client = await getCpDetectClient();
     setBusy('rectifying');
-    const auto = await client.autoRectifyImage(nextSource.image, DETECT_IMAGE_SIZE);
+    const auto = await whileCpDetectClientAlive(
+      client.autoRectifyImage(nextSource.image, DETECT_IMAGE_SIZE)
+    );
     setRectified(auto);
     setQuad(auto.report.detected_source_quad ?? auto.report.source_quad);
   }, [t]);
@@ -343,7 +397,11 @@ export function CpDetectImportModal() {
     setPreviewOverlays(DEFAULT_PREVIEW_OVERLAYS);
     try {
       const client = await getCpDetectClient();
-      setRectified(await client.manualRectifyImage(source.image, quad, DETECT_IMAGE_SIZE));
+      setRectified(
+        await whileCpDetectClientAlive(
+          client.manualRectifyImage(source.image, quad, DETECT_IMAGE_SIZE)
+        )
+      );
     } catch (caught) {
       setError(cpDetectError(caught).message);
     } finally {
@@ -371,6 +429,7 @@ export function CpDetectImportModal() {
       setPhase({ kind: 'solving', stage: 'geometry' });
       solveCountRef.current += 1;
       const targetId = `cp-detect-import:${solveCountRef.current}`;
+      setSolveTargetId(targetId);
       try {
         const result = await runCpExactSolve(recognized.solveInput, {
           timeoutSeconds: recognized.solve.budget?.totalSeconds,
@@ -380,6 +439,14 @@ export function CpDetectImportModal() {
         setPhase({ kind: 'settled', outcome: result.outcome, fold: result.fold });
         publishDetectionResult(source, recognized, foldJsonOf(result.fold) ?? recognized.foldJson);
       } catch (caught) {
+        // Stop is not a failure, and must not leave an error line behind saying
+        // it was. The candidate is exactly what it was before the solve started
+        // — nothing here writes — so the screen goes back to offering it.
+        if (isCpExactSolveCancelledError(caught)) {
+          setPhase({ kind: 'cancelled' });
+          publishDetectionResult(source, recognized, recognized.foldJson);
+          return;
+        }
         setError(cpDetectError(caught).message);
         setPhase({ kind: 'errored' });
         publishDetectionResult(source, recognized, recognized.foldJson);
@@ -411,10 +478,16 @@ export function CpDetectImportModal() {
     let recognized: CpDetectRecognizeResult;
     try {
       const client = await getCpDetectClient();
-      recognized = await client.recognizeRectifiedFold(rectified.image, {
-        decoderBackend: DETECT_DECODER_BACKEND,
-        junctionSource: 'dense-model',
-      });
+      // Raced against the worker's loss signal, because comlink's proxy settles
+      // only when the worker answers: a wasm trap or an OOM mid-inference would
+      // otherwise leave this dialog on "Running model" with nothing ever ending
+      // it. The solve below has its own transport and its own version of this.
+      recognized = await whileCpDetectClientAlive(
+        client.recognizeRectifiedFold(rectified.image, {
+          decoderBackend: DETECT_DECODER_BACKEND,
+          junctionSource: 'dense-model',
+        })
+      );
       setRecognition(recognized);
       track('cp detect completed', { succeeded: true });
     } catch (caught) {
@@ -620,7 +693,7 @@ export function CpDetectImportModal() {
             <h2>{t('dialogs:cpDetectImport.title', 'Detect CP from Image')}</h2>
             {source && <p>{source.name}</p>}
           </div>
-          <IconButton title={t('common:close', 'Close')} size="sm" onClick={close} disabled={busy !== null}>
+          <IconButton title={t('common:close', 'Close')} size="sm" onClick={close} disabled={!canClose}>
             <X size={15} />
           </IconButton>
         </header>
@@ -760,6 +833,22 @@ export function CpDetectImportModal() {
                   <span className="cp-detect-modal__solving-hint">
                     {cpExactSolveStageHint(t, phase.stage)}
                   </span>
+                  {/* Rendered from the run's own `cancellable`, so a solve on a
+                      transport nothing can reach shows the wait and no button
+                      rather than a Stop that does nothing. */}
+                  {solveRun?.cancellable && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={stopSolve}
+                      disabled={solveRun.stopping}
+                    >
+                      <Square size={13} />
+                      {solveRun.stopping
+                        ? t('dialogs:cpDetectImport.stopping', 'Stopping…')
+                        : t('dialogs:cpDetectImport.stopSolve', 'Stop')}
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -1343,6 +1432,9 @@ function availableImportModes(
     return { primary: 'add', secondary: [] };
   }
   if (topology.blocked) return { primary: 'addAsIs', secondary: [] };
+  // A stopped solve lands in the same place a failed one does, and for the same
+  // reason: there is an unsolved candidate and two honest things to do with it.
+  // `add` is not among them — no solve was accepted, so there is no solved FOLD.
   return {
     primary: 'reviewAndFix',
     secondary: hasPartial ? ['addPartial', 'addAsIs'] : ['addAsIs'],
@@ -1443,6 +1535,9 @@ function verdictTone(topology: CandidateTopology | null, phase: SolvePhase): str
   if (!topology) return 'unknown';
   if (phase.kind === 'solving') return 'solving';
   if (phase.kind === 'settled' && phase.outcome.kind === 'solved') return 'exact';
+  // A stop is not a failure and is not toned like one: the user asked for it,
+  // and the candidate underneath is exactly as repairable as it was.
+  if (phase.kind === 'cancelled') return 'repairable';
   if (phase.kind === 'settled' || phase.kind === 'errored') return 'failed';
   return topology.blocked ? 'blocked' : 'repairable';
 }
@@ -1479,6 +1574,12 @@ function verdictMessage(
     return t(
       'dialogs:cpDetectImport.verdict.exact',
       'Exactly solved. Adding it beside your work leaves the rest of the document untouched.'
+    );
+  }
+  if (phase.kind === 'cancelled') {
+    return t(
+      'dialogs:cpDetectImport.verdict.cancelled',
+      'You stopped the solve, so nothing was changed — this is the pattern exactly as it was recognized. Review & Fix adds it with the source image behind it and keeps the solver data, so you can solve it again in the document.'
     );
   }
   if (phase.kind === 'settled' || phase.kind === 'errored') {
@@ -1622,6 +1723,8 @@ function importOutcome(topology: CandidateTopology | null, phase: SolvePhase): s
       return 'recognized';
     case 'solving':
       return 'solving';
+    case 'cancelled':
+      return 'cancelled';
     case 'errored':
       return 'error';
     case 'settled':

@@ -220,6 +220,8 @@
     "solvePartial_other": "Teilergebnis · {{count}} Knoten",
     "solvingGeometry": "Geometrie wird gelöst…",
     "solvingRefining": "Verfeinerung auf Faltgenauigkeit…",
+    "stop": "Stoppen",
+    "stopping": "Wird gestoppt…",
     "suppressing": "Prüfungen aus: {{classes}}",
     "tryAgain": "Erneut versuchen",
     "tryAgainHistory": "Exakte Lösung zurücknehmen"

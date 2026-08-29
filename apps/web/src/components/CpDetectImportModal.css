@@ -188,6 +188,14 @@
   font-weight: 400;
 }
 
+/* Pushed to the end of the row so Stop reads as the action beside the progress
+   sentence rather than as the last words of it. The row's own `font-weight: 600`
+   would otherwise inherit into the control. */
+.cp-detect-modal__solving .ui-button {
+  margin-left: auto;
+  font-weight: 500;
+}
+
 .cp-detect-modal__crop-grid,
 .cp-detect-modal__review-grid {
   display: grid;

@@ -2686,7 +2686,12 @@
     "dialogs:cpDetectImport.verdict.afterFailure": "c681666255cd",
     "dialogs:cpDetectImport.verdict.solving": "ff3cad5bb2a1",
     "dialogs:cpDetectImport.verdict.timeoutPartial_one": "cebb769b99d3",
-    "dialogs:cpDetectImport.verdict.timeoutPartial_other": "78a583e10fd2"
+    "dialogs:cpDetectImport.verdict.timeoutPartial_other": "78a583e10fd2",
+    "panels:cpRegion.stop": "cae7d57bc067",
+    "panels:cpRegion.stopping": "bbe8574175ab",
+    "dialogs:cpDetectImport.stopping": "bbe8574175ab",
+    "dialogs:cpDetectImport.stopSolve": "cae7d57bc067",
+    "dialogs:cpDetectImport.verdict.cancelled": "c5921c5b94a5"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5375,7 +5380,12 @@
     "dialogs:cpDetectImport.verdict.afterFailure": "c681666255cd",
     "dialogs:cpDetectImport.verdict.solving": "ff3cad5bb2a1",
     "dialogs:cpDetectImport.verdict.timeoutPartial_one": "cebb769b99d3",
-    "dialogs:cpDetectImport.verdict.timeoutPartial_other": "78a583e10fd2"
+    "dialogs:cpDetectImport.verdict.timeoutPartial_other": "78a583e10fd2",
+    "panels:cpRegion.stop": "cae7d57bc067",
+    "panels:cpRegion.stopping": "bbe8574175ab",
+    "dialogs:cpDetectImport.stopping": "bbe8574175ab",
+    "dialogs:cpDetectImport.stopSolve": "cae7d57bc067",
+    "dialogs:cpDetectImport.verdict.cancelled": "c5921c5b94a5"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8064,7 +8074,12 @@
     "dialogs:cpDetectImport.verdict.afterFailure": "c681666255cd",
     "dialogs:cpDetectImport.verdict.solving": "ff3cad5bb2a1",
     "dialogs:cpDetectImport.verdict.timeoutPartial_one": "cebb769b99d3",
-    "dialogs:cpDetectImport.verdict.timeoutPartial_other": "78a583e10fd2"
+    "dialogs:cpDetectImport.verdict.timeoutPartial_other": "78a583e10fd2",
+    "panels:cpRegion.stop": "cae7d57bc067",
+    "panels:cpRegion.stopping": "bbe8574175ab",
+    "dialogs:cpDetectImport.stopping": "bbe8574175ab",
+    "dialogs:cpDetectImport.stopSolve": "cae7d57bc067",
+    "dialogs:cpDetectImport.verdict.cancelled": "c5921c5b94a5"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -10704,7 +10719,12 @@
     "dialogs:cpDetectImport.addPartial": "249863b26898",
     "dialogs:cpDetectImport.verdict.afterFailure": "c681666255cd",
     "dialogs:cpDetectImport.verdict.solving": "ff3cad5bb2a1",
-    "dialogs:cpDetectImport.verdict.timeoutPartial_other": "78a583e10fd2"
+    "dialogs:cpDetectImport.verdict.timeoutPartial_other": "78a583e10fd2",
+    "panels:cpRegion.stop": "cae7d57bc067",
+    "panels:cpRegion.stopping": "bbe8574175ab",
+    "dialogs:cpDetectImport.stopping": "bbe8574175ab",
+    "dialogs:cpDetectImport.stopSolve": "cae7d57bc067",
+    "dialogs:cpDetectImport.verdict.cancelled": "c5921c5b94a5"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -13344,7 +13364,12 @@
     "dialogs:cpDetectImport.addPartial": "249863b26898",
     "dialogs:cpDetectImport.verdict.afterFailure": "c681666255cd",
     "dialogs:cpDetectImport.verdict.solving": "ff3cad5bb2a1",
-    "dialogs:cpDetectImport.verdict.timeoutPartial_other": "78a583e10fd2"
+    "dialogs:cpDetectImport.verdict.timeoutPartial_other": "78a583e10fd2",
+    "panels:cpRegion.stop": "cae7d57bc067",
+    "panels:cpRegion.stopping": "bbe8574175ab",
+    "dialogs:cpDetectImport.stopping": "bbe8574175ab",
+    "dialogs:cpDetectImport.stopSolve": "cae7d57bc067",
+    "dialogs:cpDetectImport.verdict.cancelled": "c5921c5b94a5"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -16033,7 +16058,12 @@
     "dialogs:cpDetectImport.verdict.afterFailure": "c681666255cd",
     "dialogs:cpDetectImport.verdict.solving": "ff3cad5bb2a1",
     "dialogs:cpDetectImport.verdict.timeoutPartial_one": "cebb769b99d3",
-    "dialogs:cpDetectImport.verdict.timeoutPartial_other": "78a583e10fd2"
+    "dialogs:cpDetectImport.verdict.timeoutPartial_other": "78a583e10fd2",
+    "panels:cpRegion.stop": "cae7d57bc067",
+    "panels:cpRegion.stopping": "bbe8574175ab",
+    "dialogs:cpDetectImport.stopping": "bbe8574175ab",
+    "dialogs:cpDetectImport.stopSolve": "cae7d57bc067",
+    "dialogs:cpDetectImport.verdict.cancelled": "c5921c5b94a5"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -18722,7 +18752,12 @@
     "dialogs:cpDetectImport.verdict.afterFailure": "c681666255cd",
     "dialogs:cpDetectImport.verdict.solving": "ff3cad5bb2a1",
     "dialogs:cpDetectImport.verdict.timeoutPartial_one": "cebb769b99d3",
-    "dialogs:cpDetectImport.verdict.timeoutPartial_other": "78a583e10fd2"
+    "dialogs:cpDetectImport.verdict.timeoutPartial_other": "78a583e10fd2",
+    "panels:cpRegion.stop": "cae7d57bc067",
+    "panels:cpRegion.stopping": "bbe8574175ab",
+    "dialogs:cpDetectImport.stopping": "bbe8574175ab",
+    "dialogs:cpDetectImport.stopSolve": "cae7d57bc067",
+    "dialogs:cpDetectImport.verdict.cancelled": "c5921c5b94a5"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -21362,6 +21397,11 @@
     "dialogs:cpDetectImport.addPartial": "249863b26898",
     "dialogs:cpDetectImport.verdict.afterFailure": "c681666255cd",
     "dialogs:cpDetectImport.verdict.solving": "ff3cad5bb2a1",
-    "dialogs:cpDetectImport.verdict.timeoutPartial_other": "78a583e10fd2"
+    "dialogs:cpDetectImport.verdict.timeoutPartial_other": "78a583e10fd2",
+    "panels:cpRegion.stop": "cae7d57bc067",
+    "panels:cpRegion.stopping": "bbe8574175ab",
+    "dialogs:cpDetectImport.stopping": "bbe8574175ab",
+    "dialogs:cpDetectImport.stopSolve": "cae7d57bc067",
+    "dialogs:cpDetectImport.verdict.cancelled": "c5921c5b94a5"
   }
 }
