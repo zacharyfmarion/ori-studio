@@ -385,52 +385,52 @@ defaults, then `i18n:extract` → translate all 8 locales → `i18n:stamp` →
       warnings`, `cargo test --workspace`
 
 ### Crease angle — web
-- [ ] Mirror the payload field in `oristudioCpTypes.ts`
-- [ ] `activeCreaseAngle.ts` with validation + label, unit tested
-- [ ] Keep-classic set + `cpCommandUsesActiveCreaseAngle` in
+- [x] Mirror the payload field in `oristudioCpTypes.ts`
+- [x] `activeCreaseAngle.ts` with validation + label, unit tested
+- [x] Keep-classic set + `cpCommandUsesActiveCreaseAngle` in
       `oristudioCpCommands.ts`, with a test asserting the five bases, the three
       flat-foldable tools and `LengthenCreaseSameColor` are excluded while
       `DrawCreaseFree` / `DrawCreaseAngleRestricted` / `SymmetricDraw` are not
-- [ ] `activeCpCreaseAngle` panel state; send it from
+- [x] `activeCpCreaseAngle` panel state; send it from
       `cpCommandPayloadDefaults` under the new predicate
-- [ ] `CreaseAngleField.tsx` + the fine/coarse toolbar entries, with a test that
+- [x] `CreaseAngleField.tsx` + the fine/coarse toolbar entries, with a test that
       the coarse row reaches the overflow menu and carries `opensDialog`
-- [ ] `CreaseAnglePopover.tsx`: anchored frame with the centred fallback, Tab
+- [x] `CreaseAnglePopover.tsx`: anchored frame with the centred fallback, Tab
       order input → chips, Enter commits, Escape closes, focus restored to
       wherever it came from
-- [ ] Rebuild the CP wasm bridge —
+- [x] Rebuild the CP wasm bridge —
       `npm --workspace @treemaker/web run build:oristudio-cp-wasm`
 
 ### Shortcut
-- [ ] Move `a1Action` to `'shift N'`; rewrite the measure comment block
-- [ ] Add the `cp.setActiveCreaseAngle` menu shortcut on `{ shift, key: 'a' }`
-- [ ] Rewrite the obsolete "Shift+A belongs to a1Action" comment on
+- [x] Move `a1Action` to `'shift N'`; rewrite the measure comment block
+- [x] Add the `cp.setActiveCreaseAngle` menu shortcut on `{ shift, key: 'a' }`
+- [x] Rewrite the obsolete "Shift+A belongs to a1Action" comment on
       `OriStudioSetFoldAngle`
-- [ ] Confirm `shortcuts.test.ts` catches a duplicate chord across
+- [x] Confirm `shortcuts.test.ts` catches a duplicate chord across
       `MENU_SHORTCUTS` and `ORIEDITA_DEFAULTS`; add the case if not
-- [ ] Wired through `handleMenuAction` → `requestOristudioCpSurface`, not a
+- [x] Wired through `handleMenuAction` → `requestOristudioCpSurface`, not a
       panel `keydown` listener
 
 ### Surface-request channel
-- [ ] `oristudioCpSurfaceRequest` + `requestOristudioCpSurface(kind)` in
+- [x] `oristudioCpSurfaceRequest` + `requestOristudioCpSurface(kind)` in
       `creasePatternSlice.ts` / `types.ts`, id-bump and clear-by-id
-- [ ] One panel effect switching on `kind`, with a test that the same request
+- [x] One panel effect switching on `kind`, with a test that the same request
       twice in a row fires twice
 
 ### Insert menu
-- [ ] Remove the `image` group from `viewportGroups`; keep the file input
-- [ ] Add the Insert menu, two action ids, two capability ids
-- [ ] `insert.text` → `requestOristudioCpAction('Text')`
-- [ ] `insert.image` → `requestOristudioCpSurface('insert-image')`
-- [ ] `Import (Add)...` left untouched in the File menu
-- [ ] Menu hides entirely outside a CP surface — extend
+- [x] Remove the `image` group from `viewportGroups`; keep the file input
+- [x] Add the Insert menu, two action ids, two capability ids
+- [x] `insert.text` → `requestOristudioCpAction('Text')`
+- [x] `insert.image` → `requestOristudioCpSurface('insert-image')`
+- [x] `Import (Add)...` left untouched in the File menu
+- [x] Menu hides entirely outside a CP surface — extend
       `menuDefinition.test.ts`
 
 ### i18n and validation
-- [ ] `i18n:extract`, translate 8 locales, `i18n:stamp`, `i18n:check`
-- [ ] `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`
-- [ ] `npm run check:desktop`; confirm Insert appears in the native macOS menu
-- [ ] Browser verification: set 90° via `Shift+A`, draw with Draw Line, Angle
+- [x] `i18n:extract`, translate 8 locales, `i18n:stamp`, `i18n:check`
+- [x] `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`
+- [x] `npm run check:desktop`; confirm Insert appears in the native macOS menu
+- [x] Browser verification: set 90° via `Shift+A`, draw with Draw Line, Angle
       Restricted Line and Reflect Across Creases, and confirm the fold-angle
       badges (`CpFoldAngleLayer`) read 90 on all three; confirm a crossed
       classic crease still reads 180; confirm Bird base still draws entirely at

@@ -23,6 +23,7 @@
  * at, and pointing at nothing is worse than not pointing.
  */
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -108,13 +109,33 @@ export function CreaseAnglePopover({
     return () => window.removeEventListener('resize', measure);
   }, [anchorRef, boundaryRef]);
 
+  /**
+   * Focus the input the moment it exists.
+   *
+   * A callback ref, not a mount effect, because the input is **two deferrals
+   * away** from this component's first render and neither is ours to see: the
+   * layout effect above has not measured yet on pass one, and `FloatingPortal`
+   * mounts its portal node in an effect of its own, so the anchored body only
+   * appears on a later pass still. A `useEffect(..., [])` therefore ran against
+   * a null ref and silently did nothing — Shift+A opened the popover with focus
+   * left on whatever opened it, and typing went nowhere.
+   *
+   * A callback ref fires exactly when the node attaches, whichever pass that
+   * turns out to be, so it is also indifferent to the modal path (no portal)
+   * versus the anchored one. Counting passes would have to be right twice.
+   */
+  const focusOnAttach = useCallback((node: HTMLInputElement | null) => {
+    inputRef.current = node;
+    if (!node) return;
+    node.focus();
+    node.select();
+  }, []);
+
   // Opened by a chord that can fire from anywhere — a canvas, the rail, another
   // field — so there is no fixed trigger to hand focus back to. Remember what
   // had it and restore that, rather than assuming.
   useEffect(() => {
     const restoreTo = document.activeElement;
-    inputRef.current?.focus();
-    inputRef.current?.select();
     return () => {
       if (restoreTo instanceof HTMLElement && restoreTo.isConnected) restoreTo.focus();
     };
@@ -174,7 +195,7 @@ export function CreaseAnglePopover({
         </IconButton>
       </div>
       <input
-        ref={inputRef}
+        ref={focusOnAttach}
         type="text"
         inputMode="decimal"
         className="crease-angle-popover__input"
