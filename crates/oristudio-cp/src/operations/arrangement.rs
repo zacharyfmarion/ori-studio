@@ -271,9 +271,35 @@ pub fn divide_line_segment_with_new_lines(
 }
 
 /// Oriedita `CreasePattern_Worker.addLineSegment` line-only insertion path.
+///
+/// # The active crease angle is stamped here
+///
+/// This is the one insertion path for a *drawn* crease — every draw site in
+/// `construction`, `generators`, `point`, `transform` and `native::square`
+/// funnels through it — which makes it the only place a per-draw pen can be
+/// applied once instead of at forty call sites.
+///
+/// It is also the only place where doing so is *correct*, and that is down to
+/// the ordering below. The segment is appended **before**
+/// [`divide_line_segment_with_new_lines`] splits it against everything it
+/// crosses, and a split copies the whole struct through
+/// `LineSegment::with_coordinates`. So the drawn line's pieces inherit the pen,
+/// while an existing crease it crosses is split into pieces that keep *their*
+/// magnitude. Stamping after the division — or reconstructing "what is new"
+/// from a before/after diff — would retag the halves of a crossed classic
+/// crease, since those are new segments by any geometric identity.
+///
+/// A segment that arrives carrying its own magnitude keeps it: a caller that
+/// has already decided (an inherited angle, a solver's answer) outranks the pen.
+/// `with_fold_magnitude` is separately a no-op on borders and auxiliary lines,
+/// so no angle can be smuggled onto a line that cannot carry one.
 pub fn add_line_segment_like_worker(model: &mut CreasePatternModel, segment: &LineSegment) {
     let original_end = model.line_segments.len();
-    model.add_line_segment(segment.clone());
+    let drawn = match model.pen_fold_magnitude {
+        Some(pen) if segment.fold_magnitude.is_none() => segment.with_fold_magnitude(Some(pen)),
+        _ => segment.clone(),
+    };
+    model.add_line_segment(drawn);
     divide_line_segment_with_new_lines(model, original_end, original_end + 1);
 }
 

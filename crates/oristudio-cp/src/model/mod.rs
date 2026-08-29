@@ -481,6 +481,24 @@ pub struct CreasePatternModel {
     pub texts: Vec<TextElement>,
     #[serde(default)]
     pub grid: GridMetadata,
+    /// The active crease angle a drawing command gives the creases it creates.
+    ///
+    /// **Command-scoped, and not part of the model.** It is `None` at rest, set
+    /// only by the guard in `execute_command` for the duration of one command,
+    /// and read only by
+    /// [`crate::operations::arrangement::add_line_segment_like_worker`]. Because
+    /// it is always `None` outside a command, the derived `PartialEq` stays
+    /// honest for parity comparisons and `#[serde(skip)]` costs nothing.
+    ///
+    /// `pub` like every other field, which costs nothing here: `execute_command`
+    /// overwrites the pen before it dispatches, so a value set from outside is
+    /// never observed by an operation. Keeping it public also keeps
+    /// `..Default::default()` working for callers building a model literal, and
+    /// keeps `share::v1`'s exhaustive destructure — the guard that stops a new
+    /// model field being silently dropped from a share link — compiling, so the
+    /// decision for this field is recorded there rather than hidden behind `..`.
+    #[serde(skip)]
+    pub pen_fold_magnitude: Option<FoldMagnitude>,
 }
 
 impl CreasePatternModel {
