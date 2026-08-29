@@ -401,8 +401,13 @@ share of this to prop pass-through, with all behaviour in the modules above.
 
 - [x] Pin the image layer below the creases in `reglRendererLayerOrder.test.ts`
       (the one band it did not previously assert), so property 1 cannot regress.
-- [x] Add `paintedBehindCreases` to `TransformableCanvasObject` and set it in all
-      three adapters.
+- [x] Add `yieldsPressToCreases` to `TransformableCanvasObject` and set it in all
+      three adapters. (Shipped as `paintedBehindCreases` and renamed when text
+      joined: that name was the *reason* for one kind rather than the rule, and
+      is a plain lie on text, which is painted above the creases.)
+- [x] Extend it to text boxes. Not for the image's reason — a text box's bounds
+      are simply far larger than its ink, so most of the box is pattern the user
+      is looking straight at.
 - [x] Add `surfaceClaimsPress` taking a `CpSelectHit | null` (never coordinates
       and a radius — see F5), with the F6 truth-table test.
 - [x] Add `cpSurfacePressRegistry`; register from the canvas beside the camera.
@@ -416,25 +421,30 @@ share of this to prop pass-through, with all behaviour in the modules above.
 - [x] Document what `claimsPress` costs in the registry's module doc, and the
       rule that follows: one call per press or per frame, never per sample.
 - [x] Make the body cursor answer the same question as the press — probed on
-      hover, coalesced to one hit test per frame, mirroring the canvas' cursor.
-- [x] Validate: `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`
-      (1736 passing). Both new seams mutation-checked: cutting the canvas
-      registration fails all four F2 cases, stubbing its hit test fails exactly
-      the two that assert on crease proximity, and making the overlay never
-      consult the surface fails four F1 cases.
-- [ ] Browser-verify the A/B from "Measured" above — same crease, inside and
-      outside the image box — plus erase, pan, marquee, drag-move, resize and
-      rotate over a dense pattern, on mouse and on touch. Dragging the image
-      body from a gap between creases is part of this pass, not a separate
-      affordance (see "Decided against" above).
+      hover, coalesced to one hit test per frame.
+- [x] Give the canvas a `pointer` cursor over anything selectable, ranked below
+      every pan and orbit affordance.
+- [x] Have the overlay **ask** the canvas for that cursor rather than mirror
+      `canvas.style.cursor`. Mirroring is circular — the canvas only resolves
+      that style while it is receiving the hover, and it never receives one over
+      an image, because this overlay is intercepting exactly those events.
+- [x] Validate: `npm run lint:web`, `npm run typecheck:web`, `npm run i18n:check`
+      and the full web suite (5003 tests). Every seam mutation-checked: cutting
+      the canvas registration fails all four F2 cases; stubbing its hit test
+      fails exactly the two asserting on crease proximity; making the overlay
+      never consult the surface fails four F1 cases; restoring the stale cursor
+      mirror fails four more.
+- [x] Browser-verified by the author, who found two defects this pass had missed:
+      the hover cursor never appeared at all, and then appeared everywhere except
+      over an image. Both are fixed and both now have tests that fail against the
+      shipped bug.
 
-      **Not done, and the one thing left.** The in-app browser pane had no
-      viewport for this session (`window.innerWidth === 0` while hidden, so
-      Dockview never sized the panel and the canvas stayed 0×0). The iOS
-      Simulator does give real WebKit at a real size and confirmed ordinary
-      crease selection by touch still works — but a reference image can only be
-      added by dropping a file on the viewport, which is not a gesture that
-      exists there.
+      Worth recording how they were found, because three rounds of re-reading the
+      code found nothing — every link was individually correct. What located them
+      was reading runtime values out of the React fiber in a real browser
+      (`activeToolInputMode` was `'drag-box'`, not `null`; `rafScheduled` was 0).
+      The agent could not reproduce either: the in-app browser pane had no
+      viewport and suspends `requestAnimationFrame`, which the probe depends on.
 
 ## Notes for whoever picks this up
 
@@ -455,3 +465,12 @@ share of this to prop pass-through, with all behaviour in the modules above.
   it has to, or an image over a sparse pattern could not be moved at all. Start
   the marquee outside the image and drag in. Call it out in the PR rather than
   letting it be discovered.
+- **The canvas has no "no tool armed" state.** It rests with Box Select armed, so
+  `activeToolInputMode` is `'drag-box'` and gating anything on `=== null` is dead
+  code — that is exactly how the hover cursor shipped doing nothing. What the
+  region-select family shares is the click action `'select'`. A canvas test
+  fixture that says `null` describes a state the product is never in.
+
+## Shipped as
+
+[PR #321](https://github.com/zacharyfmarion/ori-studio/pull/321).
