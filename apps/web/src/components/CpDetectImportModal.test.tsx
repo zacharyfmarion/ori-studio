@@ -276,12 +276,30 @@ describe('CpDetectImportModal primary action', () => {
     expect(bodyText()).toMatch(/Exactly solved/);
   });
 
-  it('refuses to offer hand repair past the practical site limit, and says so', async () => {
+  /**
+   * There is no site count at which repair stops being offered.
+   *
+   * An earlier version refused past eight sites as "not practical". That was
+   * wrong in both directions: the alternative to this feature is tracing the
+   * entire pattern by hand, so a 13-site repair is a large saving; and the
+   * fallback it steered people to — adding the candidate unsolved — leaves ~4°
+   * of Kawasaki error at every vertex, which is the defect the feature exists
+   * to remove. The harness agrees: hard-bucket repairs came out 131/140
+   * identical to ground truth.
+   */
+  it('offers hand repair at any site count, however large', async () => {
+    detectClient.detectRectifiedFold.mockResolvedValue(detection(unsolvedReport(37)));
+    await reachReviewStage();
+    expect(button('Review & Fix')).not.toBeNull();
+    expect(bodyText()).toMatch(/37 places to repair/);
+    expect(bodyText()).not.toMatch(/not practical|out of hand-repair range/);
+  });
+
+  it('keeps Add as-is available as a secondary, and says what it costs', async () => {
     detectClient.detectRectifiedFold.mockResolvedValue(detection(unsolvedReport(11)));
     await reachReviewStage();
-    expect(button('Review & Fix')).toBeNull();
     expect(button('Add as-is')).not.toBeNull();
-    expect(bodyText()).toMatch(/not practical/);
+    expect(bodyText()).toMatch(/every angle approximate/);
   });
 
   it('reports the solver’s own rejection, and a timeout as a timeout', async () => {
@@ -420,5 +438,63 @@ describe('CpDetectImportModal add', () => {
       outcome: 'repairable',
       repair_sites: '5-8',
     });
+  });
+});
+
+/**
+ * Closing the modal has to forget the image.
+ *
+ * It used to clear only the error and the drop highlight, so the second open
+ * came back to the first image, its crop and its detection — a file you picked
+ * looked like it had been ignored. Nothing else in the suite would catch it,
+ * because every other test opens the modal exactly once.
+ */
+describe('CpDetectImportModal session reset', () => {
+  it('starts from the file picker after a successful add', async () => {
+    await reachReviewStage();
+    expect(button('Detect')).not.toBeNull();
+
+    click('Review & Fix');
+    await settle();
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('ori-studio:detect-cp-image'));
+    });
+    await settle();
+
+    // The upload stage offers Choose Image and nothing derived from an image.
+    expect(button('Choose Image')).not.toBeNull();
+    expect(button('Detect')).toBeNull();
+    expect(button('Review & Fix')).toBeNull();
+  });
+
+  it('starts from the file picker after being closed', async () => {
+    await reachReviewStage();
+    expect(button('Detect')).not.toBeNull();
+
+    // IconButton puts its `title` on `aria-label` and renders the visible one
+    // in a tooltip, so the attribute to match is aria-label.
+    const dismiss = [...document.querySelectorAll('button')].find(
+      (element) => element.getAttribute('aria-label') === 'Close'
+    );
+    if (!dismiss) throw new Error('no close button');
+    act(() => dismiss.click());
+    await settle();
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('ori-studio:detect-cp-image'));
+    });
+    await settle();
+
+    expect(button('Choose Image')).not.toBeNull();
+    expect(button('Detect')).toBeNull();
+  });
+
+  it('releases the source object URL rather than holding it for the session', async () => {
+    await reachReviewStage();
+    click('Review & Fix');
+    await settle();
+
+    expect(globalThis.URL.revokeObjectURL).toHaveBeenCalledWith('blob:source');
   });
 });

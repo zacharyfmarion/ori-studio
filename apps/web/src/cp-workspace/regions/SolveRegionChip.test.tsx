@@ -36,7 +36,6 @@ const REGION = createCpSuppressionRegion({
 function renderChip(
   state: CpRegionSolveState,
   handlers: {
-    expanded?: boolean;
     onSolve?: () => void;
     onAccept?: () => void;
     onTryAgain?: () => void;
@@ -48,7 +47,6 @@ function renderChip(
         <SolveRegionChip
           region={REGION}
           container={container}
-          expanded={handlers.expanded ?? false}
           hiddenCount={0}
           state={state}
           onSolve={handlers.onSolve ?? NOOP}
@@ -56,11 +54,9 @@ function renderChip(
           onTryAgain={handlers.onTryAgain ?? NOOP}
           onSelect={NOOP}
           onToggleCheckClass={NOOP}
-          onOpacity={NOOP}
+          onMove={NOOP}
           onGestureStart={NOOP}
           onGestureCommit={NOOP}
-          onBringToFront={NOOP}
-          onSendToBack={NOOP}
           onDelete={NOOP}
         />
       </TooltipProvider>
@@ -106,15 +102,18 @@ describe('SolveRegionChip', () => {
     renderChip({ status: 'idle' });
 
     // Composition, not replacement: the suppression summary is still what the
-    // region says about itself.
+    // region says about itself, and the base chip's controls are still on the
+    // bar beside the solve ones.
     expect(chip().textContent).toContain('Detected candidate');
     expect(chip().textContent).toContain('Kawasaki (angles)');
     expect(chip().textContent).toContain('Solve');
+    expect(document.querySelector('button[aria-label="Suppressed checks"]')).not.toBeNull();
+    expect(document.querySelector('button[aria-label="Delete region"]')).not.toBeNull();
   });
 
   it('offers Solve without being selected', () => {
     const onSolve = vi.fn();
-    renderChip({ status: 'idle' }, { expanded: false, onSolve });
+    renderChip({ status: 'idle' }, { onSolve });
 
     act(() => button('Solve').click());
     expect(onSolve).toHaveBeenCalledTimes(1);
@@ -124,8 +123,10 @@ describe('SolveRegionChip', () => {
     renderChip({ status: 'solving', stage: 'geometry' });
     expect(chip().textContent).toContain('Solving geometry');
     // Stage 1 fails fast; stage 2 is up to six accepted refinement rounds, so
-    // they are different waits and get different sentences.
-    expect(chip().querySelectorAll('button').length).toBe(1); // the summary only
+    // they are different waits and get different sentences. Nothing solve-shaped
+    // is pressable meanwhile — what is left are the suppression controls, which
+    // a running solve has no reason to take away.
+    expect(() => button('Solve')).toThrow();
 
     renderChip({ status: 'solving', stage: 'refining' });
     expect(chip().textContent).toContain('Refining to fold precision');

@@ -97,12 +97,9 @@
     "verdict": {
       "blocked": "Le solveur n'a pas pu lire ce graphe candidat : il n'y a donc rien à corriger à la main. Vous pouvez tout de même l'ajouter tel quel.",
       "exact": "Résolu exactement. Il est ajouté à côté de votre travail et le reste du document reste intact.",
-      "impractical_one": "Non résolu, avec 1 endroit à corriger, mais cette détection dépasse la portée d'une correction manuelle : elle est donc ajoutée telle quelle.",
-      "impractical_many": "Non résolu, avec {{count}} endroits à corriger. Cela dépasse la portée d'une correction manuelle : en corriger autant à la main n'est pas réaliste, le patron est donc ajouté tel quel.",
-      "impractical_other": "Non résolu, avec {{count}} endroits à corriger. Cela dépasse la portée d'une correction manuelle : en corriger autant à la main n'est pas réaliste, le patron est donc ajouté tel quel.",
-      "repairable_one": "Non résolu. 1 endroit à corriger : Vérifier et corriger ajoute le candidat, l'image source et une région de suppression des vérifications pour vous permettre de le corriger.",
+      "repairable_one": "Non résolu — 1 endroit à réparer. « Vérifier et corriger » ajoute le candidat avec l’image source derrière, pour le corriger puis le résoudre.",
       "repairable_many": "Non résolu. {{count}} endroits à corriger : Vérifier et corriger ajoute le candidat, l'image source et une région de suppression des vérifications pour vous permettre de les corriger.",
-      "repairable_other": "Non résolu. {{count}} endroits à corriger : Vérifier et corriger ajoute le candidat, l'image source et une région de suppression des vérifications pour vous permettre de les corriger.",
+      "repairable_other": "Non résolu — {{count}} endroits à réparer. « Vérifier et corriger » ajoute le candidat avec l’image source derrière, pour les corriger puis résoudre. L’ajouter tel quel laisse tous les angles approximatifs.",
       "unflagged": "Non résolu, mais rien n'est signalé à corriger : le solveur l'a rejeté pour une autre raison. Vérifier et corriger ajoute le candidat avec l'image source derrière lui pour vous permettre de comparer.",
       "unknown": "Cette détection ne fournit aucune vérification de topologie : le patron ne peut être ajouté que tel quel."
     }

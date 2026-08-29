@@ -267,33 +267,32 @@ describe('useCpRegions', () => {
     expect(annotations()[0]).toBe(text);
   });
 
-  it('records one entry for a stacking change and one for a delete', () => {
-    seed([boxAt(0, 0, 'r1'), boxAt(4, 4, 'r2', { z: 7 })]);
+  it('records one entry for a delete', () => {
+    seed([boxAt(0, 0, 'r1'), boxAt(4, 4, 'r2')]);
     mount();
 
-    act(() => api.bringRegionToFront('r1'));
-    expect((annotations()[0] as CpSuppressionRegion).z).toBe(8);
-    act(() => api.sendRegionToBack('r1'));
-    expect((annotations()[0] as CpSuppressionRegion).z).toBe(-1);
     act(() => api.removeRegion('r1'));
 
     expect(annotations().map((annotation) => annotation.id)).toEqual(['r2']);
-    expect(historyLength()).toBe(3);
+    expect(historyLength()).toBe(1);
   });
 
-  it('collapses a whole opacity drag into one undo entry', () => {
+  it('collapses a whole chip drag into one undo entry', () => {
     seed([boxAt(0, 0, 'r1')]);
     mount();
 
     act(() => {
       api.beginGesture();
-      api.setRegionOpacity('r1', 0.8);
-      api.setRegionOpacity('r1', 0.6);
-      api.setRegionOpacity('r1', 0.4);
-      api.commitGesture('Adjust opacity');
+      api.moveRegion('r1', { x: 1, y: 0 });
+      api.moveRegion('r1', { x: 2, y: 1 });
+      api.moveRegion('r1', { x: 3, y: 2 });
+      api.commitGesture('Move region');
     });
 
-    expect((annotations()[0] as CpSuppressionRegion).opacity).toBeCloseTo(0.4);
+    // The move is the region's own gesture rather than the shared overlay's: a
+    // region's body takes no pointer events, so the creases inside it stay
+    // editable and the chip is the handle.
+    expect((annotations()[0] as CpSuppressionRegion).center).toEqual({ x: 3, y: 2 });
     expect(historyLength()).toBe(1);
   });
 

@@ -1,13 +1,13 @@
 import { type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Check, EyeOff, ListChecks, SquareDashed } from 'lucide-react';
-import { FloatingToolbar } from '../../components/ui/FloatingToolbar';
+import { Check, EyeOff, ListChecks, SquareDashed, Trash2 } from 'lucide-react';
+import { IconButton } from '../../components/ui/IconButton';
 import { MenuIconButton } from '../../components/ui/MenuIconButton';
-import { resolveCpViewportCanvas } from '../cpViewportCanvas';
-import { useCanvasObjectAnchor } from '../canvasObjects/useCanvasObjectAnchor';
-import { AnnotationActions } from '../AnnotationActions';
+import { CpRegionChipBar } from './CpRegionChipBar';
+import { useCpRegionChipDrag } from './useCpRegionChipDrag';
 import { cpCheckClassLabel } from '../diagnostics/checkSuppression';
+import type { Vec2 } from '../annotations/annotationTransform';
 import {
   CP_CHECK_CLASSES,
   type CpCheckClass,
@@ -15,10 +15,10 @@ import {
 } from '../annotations/suppressionRegion';
 
 /**
- * The chip a check-suppression region wears: what it is, what it silences, and
+ * The bar a check-suppression region wears: what it is, what it silences, and
  * **how many findings that is costing right now**.
  *
- * # Why it is always on screen
+ * # Why it is always on screen, and why all of it is
  *
  * Every other inspector in this app appears only while its object is selected,
  * and this one deliberately breaks that rule. A region *hides information*, and a
@@ -28,9 +28,28 @@ import {
  * works if it is there to read. It is also why the region type forbids `hidden`:
  * the chip is the region's visible half.
  *
- * Selecting the region expands the same pill with the controls that change it —
- * the class list and the shared {@link AnnotationActions}. Collapsed, the pill is
- * a button that selects, so the chip is its own way in.
+ * The controls follow the same rule rather than waiting for a selection. There
+ * is no collapsed state: the class list, the delete and (on `SolveRegionChip`)
+ * Solve are on the bar whenever the region is. Splitting them out cost a click
+ * to reach anything and, worse, made the visible half of a suppressor smaller
+ * than the thing it was suppressing.
+ *
+ * # Why the bar spans the region
+ *
+ * It is a title bar, not a pill floating nearby — see {@link CpRegionChipBar}
+ * and {@link regionChipPlacement}. That is not only cosmetic: the region's body
+ * takes no pointer events, so that creases *inside* it stay editable, which
+ * leaves this bar as the only thing that selects or moves the region. A handle
+ * has to look attached to what it moves.
+ *
+ * # What is deliberately not here
+ *
+ * Opacity and stacking order — the rest of the shared {@link AnnotationActions}
+ * set. Those exist for reference images, where "which one is on top" and "how
+ * strongly does it show through the creases" are real questions. A suppression
+ * region is a filter with a fixed, faint fill; neither control says anything
+ * about what it does, and both crowded out the ones that do. Delete is composed
+ * directly here instead.
  *
  * # Why there is no Solve button here, ever
  *
@@ -41,12 +60,6 @@ import {
  * component rather than a conditional inside this one, because suppression and
  * solve share no invariant and merging them would put a state machine into a
  * component whose job is a label and four checkboxes.
- *
- * Anchored by {@link useCanvasObjectAnchor}, which subscribes to the camera here
- * rather than in the panel, so the chip stays glued to its box through a pan
- * while the (huge) panel does not re-render. {@link CpImageInspector} is the
- * template for the rest, `wheelTarget` included: without it a scroll over the
- * chip zooms the page instead of the pattern.
  */
 
 /**
@@ -56,23 +69,23 @@ import {
  * way, so the rules move to a `.cp-region-chip*` block unchanged whenever someone
  * touches `theme.css` next; the class names below are already in place for it.
  */
-const SUMMARY_BASE: CSSProperties = {
+const SUMMARY_STYLE: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: 6,
-  maxWidth: 260,
-  padding: '2px 4px',
-  border: '1px solid transparent',
-  borderRadius: 6,
-  background: 'transparent',
+  // Takes the slack and gives it back first: the bar is as wide as its region,
+  // which on a small one is not wide enough for everything. The controls keep
+  // their size and the prose ellipsizes, because a truncated label still says
+  // which region this is while a clipped button says nothing at all.
+  flex: '1 1 auto',
+  minWidth: 0,
+  overflow: 'hidden',
   color: 'var(--text-secondary)',
   fontSize: 11,
   lineHeight: 1.4,
   textAlign: 'left',
   whiteSpace: 'nowrap',
 };
-
-const SUMMARY_BUTTON: CSSProperties = { ...SUMMARY_BASE, cursor: 'pointer' };
 
 const LABEL_STYLE: CSSProperties = {
   color: 'var(--text-primary)',
@@ -97,27 +110,36 @@ const HIDDEN_STYLE: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: 3,
+  // Outside the shrinking summary on purpose: this is the safety affordance, so
+  // it is the last thing on the bar that may be ellipsized away.
+  flex: '0 0 auto',
   color: 'var(--status-warning)',
+};
+
+/** Pinned right, and never squeezed — every child is a control. */
+const CONTROLS_STYLE: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 4,
+  flex: '0 0 auto',
+  marginLeft: 'auto',
 };
 
 export interface SuppressionRegionChipProps {
   region: CpSuppressionRegion;
   /** Element the canvas is positioned against — see {@link useCanvasObjectAnchor}. */
   container: HTMLElement | null;
-  /** Selected: the controls that change the region join the summary. */
-  expanded: boolean;
   /** Findings this region alone is hiding. See `useCpRegions`. */
   hiddenCount: number;
   onSelect: () => void;
   onToggleCheckClass: (cpCheckClass: CpCheckClass) => void;
-  onOpacity: (value: number) => void;
+  /** Write a new centre during a bar drag. Unbracketed — see `useCpRegions`. */
+  onMove: (center: Vec2) => void;
   onGestureStart: () => void;
   onGestureCommit: (label: string) => void;
-  onBringToFront: () => void;
-  onSendToBack: () => void;
   onDelete: () => void;
   /**
-   * Appended after everything else — the slot `SolveRegionChip` composes into.
+   * Appended before the controls — the slot `SolveRegionChip` composes into.
    * Nothing else should use it; a second consumer means a third chip component.
    */
   children?: ReactNode;
@@ -126,22 +148,23 @@ export interface SuppressionRegionChipProps {
 export function SuppressionRegionChip({
   region,
   container,
-  expanded,
   hiddenCount,
   onSelect,
   onToggleCheckClass,
-  onOpacity,
+  onMove,
   onGestureStart,
   onGestureCommit,
-  onBringToFront,
-  onSendToBack,
   onDelete,
   children,
 }: SuppressionRegionChipProps) {
   const { t } = useTranslation();
-  // Subscribed here, not in the panel: this pill re-renders per camera frame so
-  // it tracks its box, while the panel does not.
-  const anchorRect = useCanvasObjectAnchor(region, 'model', container);
+  const drag = useCpRegionChipDrag({
+    center: region.center,
+    onSelect,
+    onMove,
+    onGestureStart,
+    onGestureCommit,
+  });
 
   const label = region.label ?? t('panels:cpRegion.defaultLabel', 'Suppression region');
   const classList = region.suppress.map((cpCheckClass) => cpCheckClassLabel(t, cpCheckClass));
@@ -160,14 +183,27 @@ export function SuppressionRegionChip({
         })
       : null;
 
-  const summaryContent = (
-    <>
-      <SquareDashed size={12} aria-hidden="true" />
-      <span className="cp-region-chip__label" style={LABEL_STYLE}>
-        {label}
-      </span>
-      <span className="cp-region-chip__classes" style={CLASSES_STYLE}>
-        {suppressionText}
+  return (
+    <CpRegionChipBar
+      box={region}
+      container={container}
+      ariaLabel={t('panels:cpRegion.controls', 'Check suppression region')}
+      drag={drag}
+    >
+      {/*
+        A span, never a button. The whole bar is the affordance now — it selects
+        on press and moves on drag — so a button inside it would be a second,
+        smaller target for something the surface around it already does, and its
+        own press handling would have to be excluded from the drag.
+      */}
+      <span className="cp-region-chip__summary" style={SUMMARY_STYLE} title={suppressionText}>
+        <SquareDashed size={12} aria-hidden="true" />
+        <span className="cp-region-chip__label" style={LABEL_STYLE}>
+          {label}
+        </span>
+        <span className="cp-region-chip__classes" style={CLASSES_STYLE}>
+          {suppressionText}
+        </span>
       </span>
       {hiddenText !== null && (
         <span className="cp-region-chip__hidden" style={HIDDEN_STYLE}>
@@ -175,55 +211,19 @@ export function SuppressionRegionChip({
           {hiddenText}
         </span>
       )}
-    </>
-  );
-
-  return (
-    <FloatingToolbar
-      anchorRect={anchorRect}
-      boundary={container}
-      wheelTarget={resolveCpViewportCanvas}
-      className="cp-region-chip"
-      ariaLabel={t('panels:cpRegion.controls', 'Check suppression region')}
-    >
-      {/*
-        A button while collapsed and a plain span while expanded. Not a disabled
-        button — the same argument `NoticeChip` makes: once the controls are on
-        screen, re-selecting is not an action the chip still offers, and a dead
-        button reads as one that is temporarily unavailable.
-      */}
-      {expanded ? (
-        <span className="cp-region-chip__summary" style={SUMMARY_BASE} title={suppressionText}>
-          {summaryContent}
-        </span>
-      ) : (
-        <button
-          type="button"
-          className="cp-region-chip__summary"
-          style={SUMMARY_BUTTON}
-          title={suppressionText}
-          onClick={onSelect}
+      <span className="cp-region-chip__controls" style={CONTROLS_STYLE}>
+        {children}
+        <CheckClassMenu suppress={region.suppress} onToggle={onToggleCheckClass} />
+        <IconButton
+          size="sm"
+          variant="toolbar"
+          title={t('panels:cpRegion.delete', 'Delete region')}
+          onClick={onDelete}
         >
-          {summaryContent}
-        </button>
-      )}
-      {expanded && (
-        <>
-          <span className="floating-toolbar__separator" />
-          <CheckClassMenu suppress={region.suppress} onToggle={onToggleCheckClass} />
-          <AnnotationActions
-            opacity={region.opacity}
-            onOpacity={onOpacity}
-            onGestureStart={onGestureStart}
-            onGestureCommit={onGestureCommit}
-            onBringToFront={onBringToFront}
-            onSendToBack={onSendToBack}
-            onDelete={onDelete}
-          />
-        </>
-      )}
-      {children}
-    </FloatingToolbar>
+          <Trash2 size={14} />
+        </IconButton>
+      </span>
+    </CpRegionChipBar>
   );
 }
 

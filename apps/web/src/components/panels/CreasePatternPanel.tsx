@@ -961,15 +961,33 @@ export function CreasePatternPanel() {
     ]
   );
   /**
-   * Every body the overlay must leave alone, from both kinds that have an
-   * interior of their own: a focused simulation window orbits its solver, a
-   * focused 3D folded figure orbits its camera. At most one of the two is ever
-   * non-empty — `takeCanvasSelection` makes the two focuses exclusive — but the
-   * overlay takes one set, so they are merged here rather than at the call site.
+   * Every body the overlay must leave alone.
+   *
+   * Two of the three kinds here are *conditionally* inert, because they have an
+   * interior of their own that takes drags once focused: a focused simulation
+   * window orbits its solver, a focused 3D folded figure orbits its camera. At
+   * most one of those two is ever non-empty — `takeCanvasSelection` makes the
+   * focuses exclusive — but the overlay takes one set, so they are merged here
+   * rather than at the call site.
+   *
+   * A suppression region is **unconditionally** inert, which is the difference
+   * worth understanding. Its interior is not its own content at all: what is
+   * under a region is the crease pattern, and the region is a wash drawn behind
+   * it. So there is no state in which its body polygon should take a pointer —
+   * an interactive body means every click inside the box selects the region and
+   * the creases it is drawn over cannot be picked, drawn on, or dragged, which
+   * is exactly the state the repair flow needs. Regions stay movable through
+   * their chip, which is the drag handle, and resizable through the selection
+   * handles — `inertBodyIds` disables the body alone and leaves both.
    */
   const inertBodyIds = useMemo(
-    () => new Set([...inlineSimulations.inertBodyIds, ...folded.inertBodyIds]),
-    [inlineSimulations.inertBodyIds, folded.inertBodyIds]
+    () =>
+      new Set([
+        ...inlineSimulations.inertBodyIds,
+        ...folded.inertBodyIds,
+        ...regionAnnotations.map((region) => region.id),
+      ]),
+    [inlineSimulations.inertBodyIds, folded.inertBodyIds, regionAnnotations]
   );
   const isFoldedFigureId = useCallback(
     (id: string) => folded.transformableObjects.some((object) => object.id === id),

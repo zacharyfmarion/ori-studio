@@ -33,9 +33,17 @@ function keepTauriFrontendDistPath(): Plugin {
   };
 }
 
+/**
+ * ONNX Runtime's JS entry point — the only one of the three ids below that is a
+ * *module* rather than an asset URL, and so the only one the dev-time dependency
+ * optimizer has anything to say about. Named because {@link ORT_RUNTIME_IDS} and
+ * `optimizeDeps.include` must not be able to drift apart.
+ */
+const ORT_JS_ENTRY = 'onnxruntime-web/webgpu';
+
 /** Everything `workers/cpDetectWorker.ts` imports from ONNX Runtime. */
 const ORT_RUNTIME_IDS = new Set([
-  'onnxruntime-web/webgpu',
+  ORT_JS_ENTRY,
   'onnxruntime-web/ort-wasm-simd-threaded.asyncify.mjs?url',
   'onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url',
 ]);
@@ -387,6 +395,45 @@ export default defineConfig({
   define: {
     __APP_COMMIT__: JSON.stringify(appCommit()),
     __SENTRY_RELEASE__: JSON.stringify(sentryRelease()),
+  },
+  /**
+   * Pre-bundle ONNX Runtime at dev-server start instead of the first time the
+   * detector runs.
+   *
+   * Dev-only, and purely cosmetic — but the cosmetic failure is bad: opening
+   * "Detect CP from Image…" turned the page white and reloaded it, which reads
+   * as a crash rather than as a build step. What actually happened is in the dev
+   * server log:
+   *
+   *     ✨ new dependencies optimized: onnxruntime-web/webgpu
+   *     ✨ optimized dependencies changed. reloading
+   *
+   * Vite's dependency *scanner* is what missed it, and the reason is worth
+   * knowing before adding anything else to this list. The scanner walks the
+   * module graph from the HTML entry, following both static and dynamic
+   * `import()`s — it finds `@tauri-apps/plugin-updater` and the rest of the lazy
+   * platform imports perfectly well (verified: a forced re-optimize from a cold
+   * cache lists all four). What it cannot follow is `new Worker(new URL(…))`,
+   * which is a constructor call and not an import, so nothing inside
+   * `src/workers/` is ever scanned. ORT is imported *there*, and only there.
+   *
+   * So the rule this entry stands for is narrower than "lazy deps go here": it
+   * is **bare specifiers imported by a worker**. Of those there are exactly two
+   * — this and `comlink` — and `comlink` is also imported from `engines/`, on
+   * the main graph, so the scanner already has it. Adding deps the scanner
+   * finds on its own would only cost cold-start time.
+   *
+   * The pre-bundle itself is close to free — measured at ~1.45s for the whole
+   * dependency set with or without it, because ORT ships pre-built ESM and the
+   * 129 MB it occupies in `node_modules` is nearly all `.wasm`, which is an
+   * asset and not a dep. What lands in `.vite/deps` is 157 KB of glue.
+   *
+   * Dev-only by construction: `optimizeDeps` is the dev server's, and the
+   * production build still stubs this same id out through
+   * {@link dropUnreachableOrtRuntime}.
+   */
+  optimizeDeps: {
+    include: [ORT_JS_ENTRY],
   },
   // `cpDetectWorker.ts` is a worker, and Vite builds workers through their own
   // plugin container seeded from `worker.plugins` alone — a plugin registered

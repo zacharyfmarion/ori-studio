@@ -535,11 +535,55 @@ fn default_candidate_generation_options(
     generation_options
 }
 
+/// Everything the pre-solve half of the candidate exact-solve backend
+/// produces, and the only value the solving tail is allowed to start from.
+///
+/// The point of the type is that it has **one** constructor
+/// ([`recognize_from_generation`]). Recognize-only and recognize-then-solve are
+/// then not two pipelines that have to be kept in agreement — the second is
+/// literally the first plus [`oristudio_cp_compiler::solve_exact`] — so they
+/// cannot drift apart by editing one and forgetting the other. The parity test
+/// `recognize_then_solve_is_byte_identical_to_the_fused_decode` is what fails
+/// if that ever stops being true.
+struct RecognizedCandidate {
+    /// Started at the top of recognition, so `compiler_seconds` covers the same
+    /// span on both paths (the solve, when it runs, is nested inside it).
+    compiler_started: StageTimer,
+    context: CandidateExactSolveContext,
+    candidate_strategy: &'static str,
+    weak_threshold: f32,
+    candidate_graph: oristudio_cp_compiler::CandidateGraph,
+    selection: oristudio_cp_compiler::selection::CandidateSelection,
+    selected_span_set: BTreeSet<usize>,
+    exact_input: oristudio_cp_compiler::ExactSolveInput,
+    /// `exact_input` serialized *before* any solve, verbatim.
+    exact_solve_input: serde_json::Value,
+}
+
 fn legacy_candidate_exact_solve_from_generation(
     config: DecodeConfig,
     generation: crate::candidate_generation::CandidateGenerationOutput,
     context: CandidateExactSolveContext,
 ) -> Result<DecodedFold, DecodeError> {
+    let recognized = recognize_from_generation(generation, context)?;
+    // The one branch. Everything above it is shared by construction.
+    if config.recognize_only {
+        return recognized_candidate_fold(&config, recognized);
+    }
+    solve_recognized_candidate(&config, recognized)
+}
+
+/// Recognize a candidate crease pattern: generate, select, finalize
+/// assignments, and build the `ExactSolveInput` a solve would run on. No solve.
+///
+/// Takes no `DecodeConfig` because it needs none — every knob it would read was
+/// already consumed by candidate generation, and the only config the solving
+/// tail adds is `exact_solve_timeout_seconds`. Threading an unused parameter
+/// through would just be a `-D warnings` failure waiting to be silenced.
+fn recognize_from_generation(
+    generation: crate::candidate_generation::CandidateGenerationOutput,
+    context: CandidateExactSolveContext,
+) -> Result<RecognizedCandidate, DecodeError> {
     let compiler_started = StageTimer::start();
     let weak_threshold = generation.low_threshold;
     let candidate_strategy = generation.strategy.id();
@@ -572,6 +616,34 @@ fn legacy_candidate_exact_solve_from_generation(
     // exists"). Serialized eagerly so a serialization failure propagates as a
     // typed `DecodeError::Json` rather than panicking inside `json!`.
     let exact_solve_input = serde_json::to_value(&exact_input)?;
+    Ok(RecognizedCandidate {
+        compiler_started,
+        context,
+        candidate_strategy,
+        weak_threshold,
+        candidate_graph,
+        selection,
+        selected_span_set,
+        exact_input,
+        exact_solve_input,
+    })
+}
+
+fn solve_recognized_candidate(
+    config: &DecodeConfig,
+    recognized: RecognizedCandidate,
+) -> Result<DecodedFold, DecodeError> {
+    let RecognizedCandidate {
+        compiler_started,
+        context,
+        candidate_strategy,
+        weak_threshold,
+        candidate_graph,
+        selection,
+        selected_span_set,
+        exact_input,
+        exact_solve_input,
+    } = recognized;
     let exact_started = StageTimer::start();
     let exact_solve = oristudio_cp_compiler::solve_exact(
         &exact_input,
@@ -592,21 +664,8 @@ fn legacy_candidate_exact_solve_from_generation(
     );
     let candidate_clean = verification_clean(&final_verification);
     let summary = exact_export_summary(&exact_input);
-    let weak_selected_spans = exact_input
-        .selected_spans
-        .iter()
-        .filter(|span| {
-            span.source_kind == oristudio_cp_compiler::CandidateCreaseSourceKind::LegacyLowThreshold
-        })
-        .count();
-    let dropped_legacy_spans = candidate_graph
-        .crease_candidates
-        .iter()
-        .filter(|span| {
-            span.source_kind == oristudio_cp_compiler::CandidateCreaseSourceKind::LegacySelected
-                && !selected_span_set.contains(&span.id)
-        })
-        .count();
+    let weak_selected_spans = weak_selected_span_count(&exact_input);
+    let dropped_legacy_spans = dropped_legacy_span_count(&candidate_graph, &selected_span_set);
     let moved_vertices = exact_moved_vertex_count(&exact_solve);
     let compiler_seconds = compiler_started.elapsed_seconds();
     let compiler_report = serde_json::json!({
@@ -691,7 +750,10 @@ fn legacy_candidate_exact_solve_from_generation(
             "candidate_strategy".to_owned(),
             serde_json::json!(candidate_strategy),
         );
-        detector_object.insert("compiler_report".to_owned(), compiler_report.clone());
+        detector_object.insert(
+            "compiler_report".to_owned(),
+            fold_compiler_report(&compiler_report),
+        );
     }
     let topology_changed =
         weak_selected_spans > 0 || dropped_legacy_spans > 0 || moved_vertices > 0;
@@ -723,6 +785,250 @@ fn legacy_candidate_exact_solve_from_generation(
             quality_report,
         },
     })
+}
+
+/// Status reported when `recognize_only` stopped the pipeline before the solve.
+///
+/// Deliberately not one of `compiler_status`'s four values: `"failed"` and
+/// `"ambiguous"` both claim a solve reached a verdict, and this one never
+/// started. A reader that does not know the token must not mistake it for a
+/// solved pattern, which is why it is a new word rather than `"valid"`.
+const RECOGNIZED_STATUS: &str = "recognized";
+
+/// The recognize-only ending: export the candidate at its pre-solve
+/// coordinates, say what is wrong with its topology, and stop.
+///
+/// No solve is attempted and **no `exact_solve` block is emitted**. Emitting
+/// one — which is what `exact_solve_timeout_seconds: 0.0` would have produced —
+/// would report `status: "failed"` with timeout rejection reasons and so label
+/// a candidate that was never attempted as one that failed. `solve.attempted`
+/// states the distinction positively, so a reader is not left inferring it from
+/// a missing key.
+fn recognized_candidate_fold(
+    config: &DecodeConfig,
+    recognized: RecognizedCandidate,
+) -> Result<DecodedFold, DecodeError> {
+    let RecognizedCandidate {
+        compiler_started,
+        context,
+        candidate_strategy,
+        weak_threshold,
+        candidate_graph,
+        selection,
+        selected_span_set,
+        exact_input,
+        exact_solve_input,
+    } = recognized;
+    // The candidate export self-identifies: `frame_title = "candidate crease
+    // pattern"` and `cp_detector.source = "exact_solve_candidate"` rather than
+    // `"exact_solve"`. That discriminator is what a client should read, not the
+    // absence of a solve block.
+    let mut fold_document =
+        oristudio_cp_compiler::fold_export::export_candidate_to_fold_document(&exact_input)?;
+    let topology_diagnostics = oristudio_cp_compiler::analyze_candidate_topology(&exact_input);
+    let summary = exact_export_summary(&exact_input);
+    let weak_selected_spans = weak_selected_span_count(&exact_input);
+    let dropped_legacy_spans = dropped_legacy_span_count(&candidate_graph, &selected_span_set);
+    let compiler_seconds = compiler_started.elapsed_seconds();
+    let compiler_report = serde_json::json!({
+        "backend": "legacy_candidate_exact_solve_v1",
+        "candidate_strategy": candidate_strategy,
+        "junction_source": context.junction_source,
+        "compiler_architecture": "v2",
+        "mode": "candidate_generation_beam_selection_recognize_only",
+        "legacy_dependency": false,
+        "stage_ids": [
+            "candidate_generation",
+            "candidate_graph_beam_selection",
+            "topology_diagnostics",
+            "candidate_fold_export"
+        ],
+        "timings": {
+            "compiler_seconds": compiler_seconds
+        },
+        "output": {
+            "selected": "recognized_candidate",
+            "reason": "recognize_only: exported at pre-solve candidate coordinates; the exact solve was not attempted",
+            "verified": false
+        },
+        // Global verification describes a *solved* export. Running it over
+        // candidate coordinates would report the residuals the solve exists to
+        // remove, so a recognize-only result reports no verification rather
+        // than a misleading one.
+        "final_verification_scope": {
+            "run_oristudio_checks": false,
+            "run_flat_folder": false,
+            "reason": "recognize_only stops before the solve, so there is no solved export to verify"
+        },
+        "candidate_graph": {
+            "report": candidate_graph.report,
+            "provenance": candidate_graph.provenance,
+            "legacy_low_threshold": weak_threshold
+        },
+        "evidence": context.evidence_report,
+        "refined_vertices": context.refined_vertex_report,
+        "selection": {
+            "report": selection.report,
+            "weak_selected_spans": weak_selected_spans,
+            "dropped_legacy_spans": dropped_legacy_spans
+        },
+        // The pre-solve candidate, verbatim and in the same place the fused
+        // path puts it. Round-trips back into
+        // `oristudio_cp_compiler::ExactSolveInput`, so a client hands a
+        // hand-edited copy to `cp_detect_solve_exact` and gets a real solve.
+        "exact_solve_input": exact_solve_input,
+        // The repair worklist. Combinatorial findings survive moving the
+        // drawing around and are what a user can act on; the angle-dependent
+        // ones are large by construction on an unsolved candidate and say
+        // nothing about whether the topology is right.
+        "topology_diagnostics": topology_diagnostics,
+        "solve": solve_not_attempted_report(config),
+        "summary": summary,
+        "topology": {
+            "enabled": true,
+            "source": "candidate_graph_beam_selection",
+            "accepted_moves": [],
+            "weak_selected_spans": weak_selected_spans,
+            "dropped_legacy_spans": dropped_legacy_spans,
+            "ambiguous": false
+        },
+        "assignments": {
+            "enabled": false,
+            "reason": "assignment_solver_not_promoted_in_product_route",
+            "solved": false,
+            "ambiguous": false,
+            "exhausted_budget": false,
+            "cost": 0.0,
+            "decisions": []
+        }
+    });
+    if let Some(detector_object) = fold_document
+        .extra
+        .entry("cp_detector".to_owned())
+        .or_insert_with(|| serde_json::json!({}))
+        .as_object_mut()
+    {
+        detector_object.insert(
+            "decoder_backend".to_owned(),
+            serde_json::json!(DecoderBackend::LegacyCandidateExactSolveV1.id()),
+        );
+        detector_object.insert(
+            "candidate_strategy".to_owned(),
+            serde_json::json!(candidate_strategy),
+        );
+        detector_object.insert(
+            "compiler_report".to_owned(),
+            fold_compiler_report(&compiler_report),
+        );
+    }
+    let quality_report = serde_json::json!({
+        "decoder_backend": DecoderBackend::LegacyCandidateExactSolveV1.id(),
+        "junction_source": context.junction_source,
+        "candidate_strategy": candidate_strategy,
+        "refined_vertices": context.refined_vertex_report,
+        "compiler_report": compiler_report
+    });
+    Ok(DecodedFold {
+        fold_json: serde_json::to_string_pretty(&fold_document)?,
+        report: DecodeReport {
+            status: RECOGNIZED_STATUS.to_owned(),
+            decoder_backend: DecoderBackend::LegacyCandidateExactSolveV1,
+            image_size: config.image_size,
+            threshold: config.threshold,
+            line_count: summary.edges,
+            carrier_count: exact_input.selected_spans.len(),
+            vertex_count: summary.vertices,
+            edge_count: summary.edges,
+            border_edge_count: summary.border_edges,
+            interior_edge_count: summary.interior_edges,
+            // Nothing was verified and nothing was repaired. A warning here
+            // would be about the candidate's residuals, which
+            // `topology_diagnostics` reports properly.
+            warnings: Vec::new(),
+            repair_actions: Vec::new(),
+            quality_report,
+        },
+    })
+}
+
+/// The solve the recognize-only path did not run, and the budget the caller
+/// owes it.
+///
+/// **The staged flow keeps the same total wall-clock budget as today's fused
+/// solve** — the measured 307/563 baseline was measured against that cap, and
+/// "25 s max" is what the product promises. Rust cannot enforce that on its
+/// own: `solve_exact` builds its deadline from the `timeout_seconds` of the
+/// call it is in, so two separate `cp_detect_solve_exact` calls are two
+/// independent deadlines with no shared clock between them. What Rust can do is
+/// publish the number, so the caller budgets against the same value the fused
+/// path used instead of hardcoding one.
+///
+/// The caller's rule, then: spend `total_seconds` across *all* solve calls for
+/// this candidate. `runCpExactSolve` makes two — give stage 1 `total_seconds`
+/// and stage 2 `total_seconds` minus stage 1's elapsed wall. A negative
+/// `total_seconds` disables the timeout and must be passed through unchanged
+/// rather than clamped, because zero means "time out immediately".
+fn solve_not_attempted_report(config: &DecodeConfig) -> serde_json::Value {
+    serde_json::json!({
+        "attempted": false,
+        "reason": "recognize_only",
+        "budget": {
+            "total_seconds": config.exact_solve_timeout_seconds,
+            "spent_seconds": 0.0,
+            "policy": "shared_total_across_staged_solve_calls"
+        }
+    })
+}
+
+fn weak_selected_span_count(input: &oristudio_cp_compiler::ExactSolveInput) -> usize {
+    input
+        .selected_spans
+        .iter()
+        .filter(|span| {
+            span.source_kind == oristudio_cp_compiler::CandidateCreaseSourceKind::LegacyLowThreshold
+        })
+        .count()
+}
+
+fn dropped_legacy_span_count(
+    candidate_graph: &oristudio_cp_compiler::CandidateGraph,
+    selected_span_set: &BTreeSet<usize>,
+) -> usize {
+    candidate_graph
+        .crease_candidates
+        .iter()
+        .filter(|span| {
+            span.source_kind == oristudio_cp_compiler::CandidateCreaseSourceKind::LegacySelected
+                && !selected_span_set.contains(&span.id)
+        })
+        .count()
+}
+
+/// The compiler report as the FOLD document carries it: everything except the
+/// pre-solve `ExactSolveInput`.
+///
+/// That blob is the bulk of a detection payload — 39 K / 108 K / 252 K on the
+/// measured fixtures — and it used to cross the wasm bridge **twice**, once in
+/// `report.quality_report` and once again inside the `fold_json` *string*, up
+/// to ~0.5 MB duplicated per detection. The report copy is the one that stays:
+/// it is where the browser already reads it from
+/// (`CpDetectImportModal.tsx`'s `detectionCompilerReport`), and it is the copy
+/// that has not been through `to_string_pretty` and back, which matters for a
+/// value whose entire purpose is to deserialize into `ExactSolveInput` again.
+///
+/// The key is replaced rather than dropped, so a reader looking in the FOLD
+/// finds out where it went instead of concluding the detection had no seam.
+fn fold_compiler_report(compiler_report: &serde_json::Value) -> serde_json::Value {
+    let mut trimmed = compiler_report.clone();
+    if let Some(object) = trimmed.as_object_mut()
+        && object.remove("exact_solve_input").is_some()
+    {
+        object.insert(
+            "exact_solve_input_location".to_owned(),
+            serde_json::json!("report.quality_report.compiler_report.exact_solve_input"),
+        );
+    }
+    trimmed
 }
 
 pub(crate) fn apply_refined_vertex_evidence_override(
@@ -1788,28 +2094,19 @@ mod tests {
         let compiler_fold: Value =
             serde_json::from_str(&compiler.fold_json).expect("compiler fold");
 
-        // Emitted on both surfaces the browser can reach: the decode report and
-        // the FOLD document's embedded copy. Both must deserialize back into
-        // the type `solve_exact` consumes — that is the whole point of emitting
-        // it. They are compared field-wise rather than as raw `Value`s because
-        // the FOLD copy has been through `to_string_pretty` and back, and
-        // serde_json's float parser can land one ULP off the value ryu wrote.
+        // Emitted **once**, in the decode report, and it must deserialize back
+        // into the type `solve_exact` consumes — that is the whole point of
+        // emitting it. The FOLD document used to carry a second copy inside its
+        // `fold_json` string; see
+        // `the_pre_solve_exact_solve_input_crosses_the_bridge_once` for why it
+        // no longer does.
         let from_report = &compiler.report.quality_report["compiler_report"]["exact_solve_input"];
-        let from_fold = &compiler_fold["cp_detector"]["compiler_report"]["exact_solve_input"];
         let recovered: oristudio_cp_compiler::ExactSolveInput =
             serde_json::from_value(from_report.clone()).expect("exact solve input round-trip");
-        let recovered_from_fold: oristudio_cp_compiler::ExactSolveInput =
-            serde_json::from_value(from_fold.clone()).expect("fold exact solve input round-trip");
 
         assert_eq!(
             recovered.schema,
             "oristudio/cp-compiler/exact-solve-input-v1"
-        );
-        assert_eq!(recovered_from_fold.schema, recovered.schema);
-        assert_eq!(recovered_from_fold.vertices.len(), recovered.vertices.len());
-        assert_eq!(
-            recovered_from_fold.selected_spans.len(),
-            recovered.selected_spans.len()
         );
         assert!(!recovered.vertices.is_empty());
         assert!(!recovered.selected_spans.is_empty());
@@ -1854,6 +2151,236 @@ mod tests {
             serde_json::to_value(&resolved.vertices_exact).expect("resolved points"),
             Value::Array(solved_points)
         );
+    }
+
+    /// The test that forecloses divergence between the staged and fused paths,
+    /// and the reason `recognize_from_generation` exists as a shared step
+    /// rather than as a convention.
+    ///
+    /// `recognize_only` lets the browser put the recognized creases on screen,
+    /// let the user repair them, and solve afterwards. That is only sound while
+    /// the candidate the staged path hands to `solve_exact` is the candidate
+    /// the fused path solved. So: the seam byte for byte, the solve byte for
+    /// byte, and the exported geometry byte for byte. If this ever fails, the
+    /// staged flow is solving something the 307/563 baseline never measured,
+    /// and it should fail loudly rather than drift quietly.
+    ///
+    /// Byte comparisons go through `to_string` of a `serde_json::Value` on both
+    /// sides so the two are in the same canonical form: `Value`'s map is a
+    /// `BTreeMap` here (no `preserve_order` feature), while a struct serializes
+    /// in declaration order, so comparing a struct's JSON against a stored
+    /// `Value`'s would compare key orders rather than content.
+    #[test]
+    fn recognize_then_solve_is_byte_identical_to_the_fused_decode() {
+        let (outputs, config) = solvable_cross_fixture();
+        let timeout_seconds = config.exact_solve_timeout_seconds;
+        let fused = decode_dense_outputs_with_backend(
+            outputs,
+            config.clone(),
+            DecoderBackend::LegacyCandidateExactSolveV1,
+        )
+        .expect("fused decode");
+        let recognized = decode_dense_outputs_with_backend(
+            outputs,
+            DecodeConfig {
+                recognize_only: true,
+                ..config
+            },
+            DecoderBackend::LegacyCandidateExactSolveV1,
+        )
+        .expect("recognize-only decode");
+
+        // 1. The seam is the same value. Everything below rests on this one.
+        let fused_seam = &fused.report.quality_report["compiler_report"]["exact_solve_input"];
+        let staged_seam = &recognized.report.quality_report["compiler_report"]["exact_solve_input"];
+        assert!(fused_seam.is_object(), "fused decode emitted no seam");
+        assert_eq!(json_bytes(staged_seam), json_bytes(fused_seam));
+
+        // 2. Solving that seam reproduces the fused solve exactly. Same input,
+        //    same options, and `solve_exact` is a pure function of the two.
+        //    Verified on a fixture where the solve has real work to do — see
+        //    `solvable_cross_fixture` for why the 64 px one will not do.
+        let staged_input: oristudio_cp_compiler::ExactSolveInput =
+            serde_json::from_value(staged_seam.clone()).expect("staged seam round-trip");
+        let staged_solve = oristudio_cp_compiler::solve_exact(
+            &staged_input,
+            oristudio_cp_compiler::ExactSolveOptions {
+                timeout_seconds,
+                ..oristudio_cp_compiler::ExactSolveOptions::default()
+            },
+        );
+        let fused_solve = &fused.report.quality_report["compiler_report"]["exact_solve"];
+        assert!(
+            fused_solve["movement_report"]["trace"]["vertex_parameters"]["free"]
+                .as_u64()
+                .expect("free vertex parameters")
+                > 0,
+            "fixture pins every vertex, so this asserts nothing about the solve"
+        );
+        assert_eq!(
+            json_bytes(&without_solve_wall_clock(
+                &serde_json::to_value(&staged_solve).expect("staged solve value")
+            )),
+            json_bytes(&without_solve_wall_clock(fused_solve))
+        );
+
+        // 3. And the document the user ends up with is the same document. The
+        //    two `fold_json`s are not comparable whole — the fused one embeds a
+        //    compiler report carrying wall-clock timings — so this compares the
+        //    geometry, which is what the staged path must not change.
+        let staged_fold = serde_json::to_value(
+            oristudio_cp_compiler::fold_export::export_exact_solved_to_fold_document(
+                &staged_input,
+                &staged_solve,
+            )
+            .expect("staged fold export"),
+        )
+        .expect("staged fold value");
+        let fused_fold: Value = serde_json::from_str(&fused.fold_json).expect("fused fold");
+        for key in ["vertices_coords", "edges_vertices", "edges_assignment"] {
+            assert!(fused_fold[key].is_array(), "fused fold has no {key}");
+            assert_eq!(
+                json_bytes(&staged_fold[key]),
+                json_bytes(&fused_fold[key]),
+                "{key} diverged between the staged and fused paths"
+            );
+        }
+
+        // 4. The recognize-only result is not a solve that failed. It carries
+        //    the candidate at pre-solve coordinates, self-identified, with no
+        //    `exact_solve` block to be misread as a verdict.
+        let recognized_fold: Value =
+            serde_json::from_str(&recognized.fold_json).expect("recognized fold");
+        assert_eq!(recognized_fold["frame_title"], "candidate crease pattern");
+        assert_eq!(
+            recognized_fold["cp_detector"]["source"],
+            "exact_solve_candidate"
+        );
+        assert!(
+            recognized.report.quality_report["compiler_report"]
+                .get("exact_solve")
+                .is_none(),
+            "recognize-only emitted an exact_solve block"
+        );
+    }
+
+    #[test]
+    fn recognize_only_reports_topology_diagnostics_and_an_unattempted_solve() {
+        let (outputs, config) = solvable_cross_fixture();
+        let timeout_seconds = config.exact_solve_timeout_seconds;
+        let recognized = decode_dense_outputs_with_backend(
+            outputs,
+            DecodeConfig {
+                recognize_only: true,
+                ..config
+            },
+            DecoderBackend::LegacyCandidateExactSolveV1,
+        )
+        .expect("recognize-only decode");
+        let compiler_report = &recognized.report.quality_report["compiler_report"];
+
+        assert_eq!(recognized.report.status, "recognized");
+        assert_eq!(
+            compiler_report["mode"],
+            "candidate_generation_beam_selection_recognize_only"
+        );
+        assert_eq!(
+            compiler_report["output"]["selected"],
+            "recognized_candidate"
+        );
+
+        // The worklist, as the type the compiler owns rather than as loose
+        // JSON: a client deserializes it back into `TopologyDiagnostics`.
+        let diagnostics: oristudio_cp_compiler::TopologyDiagnostics =
+            serde_json::from_value(compiler_report["topology_diagnostics"].clone())
+                .expect("topology diagnostics round-trip");
+        assert_eq!(
+            diagnostics.schema,
+            "oristudio/cp-compiler/topology-diagnostics-v1"
+        );
+        assert!(
+            diagnostics.blockers.is_empty(),
+            "candidate was too malformed to analyze: {:?}",
+            diagnostics.blockers
+        );
+
+        // Not attempted, and said so positively rather than by omission. This
+        // is the distinction `exact_solve_timeout_seconds: 0.0` would have
+        // destroyed: that path runs the solver and reports a *failure*.
+        assert_eq!(compiler_report["solve"]["attempted"], false);
+        assert_eq!(compiler_report["solve"]["reason"], "recognize_only");
+        assert_eq!(
+            compiler_report["solve"]["budget"]["total_seconds"]
+                .as_f64()
+                .expect("solve budget"),
+            timeout_seconds,
+            "the staged flow must be handed the same total budget the fused solve had"
+        );
+        assert!(compiler_report.get("exact_solve").is_none());
+        assert!(compiler_report.get("final_verification").is_none());
+        assert!(recognized.report.warnings.is_empty());
+        assert!(recognized.report.repair_actions.is_empty());
+    }
+
+    /// Regression guard for the duplicated seam.
+    ///
+    /// `exact_solve_input` used to be emitted twice per detection — in
+    /// `report.quality_report` and again inside the `fold_json` string — up to
+    /// ~0.5 MB duplicated across the wasm bridge. The report copy is the one
+    /// that stays.
+    #[test]
+    fn the_pre_solve_exact_solve_input_crosses_the_bridge_once() {
+        let (outputs, config) = square_cross_fixture();
+        for recognize_only in [false, true] {
+            let decoded = decode_dense_outputs_with_backend(
+                outputs,
+                DecodeConfig {
+                    recognize_only,
+                    ..config.clone()
+                },
+                DecoderBackend::LegacyCandidateExactSolveV1,
+            )
+            .expect("decode");
+            let fold: Value = serde_json::from_str(&decoded.fold_json).expect("fold");
+            let in_fold = &fold["cp_detector"]["compiler_report"];
+
+            assert!(
+                decoded.report.quality_report["compiler_report"]["exact_solve_input"].is_object(),
+                "recognize_only={recognize_only}: the report lost the seam"
+            );
+            assert!(
+                in_fold.get("exact_solve_input").is_none(),
+                "recognize_only={recognize_only}: the FOLD document carries a second copy"
+            );
+            // The FOLD is otherwise the same report, and it says where the seam
+            // went so a reader does not conclude there wasn't one.
+            assert_eq!(
+                in_fold["exact_solve_input_location"],
+                "report.quality_report.compiler_report.exact_solve_input"
+            );
+            assert_eq!(
+                in_fold["mode"],
+                decoded.report.quality_report["compiler_report"]["mode"]
+            );
+        }
+    }
+
+    fn json_bytes(value: &Value) -> String {
+        serde_json::to_string(value).expect("json bytes")
+    }
+
+    /// `movement_report.elapsed_seconds` measures the wall clock of the run
+    /// that produced it, so it is the single field two runs of the same solve
+    /// cannot agree on. Blanked on both sides before comparison — and the
+    /// pointer is asserted to exist, so a rename cannot silently turn this into
+    /// a comparison that skips a field which genuinely diverged.
+    fn without_solve_wall_clock(solve: &Value) -> Value {
+        let mut normalized = solve.clone();
+        let elapsed = normalized
+            .pointer_mut("/movement_report/elapsed_seconds")
+            .expect("solve report should carry movement_report.elapsed_seconds");
+        *elapsed = Value::Null;
+        normalized
     }
 
     #[test]
@@ -2054,6 +2581,73 @@ mod tests {
         for y in 0..size {
             assignment_logits[2 * pixels + y * size] = 8.0;
             assignment_logits[2 * pixels + y * size + size - 1] = 8.0;
+        }
+
+        (
+            DenseOutputs::from_legacy_heads(
+                line_logits,
+                junction_logits,
+                assignment_logits,
+                non_crease_logits,
+                line_style_logits,
+                boundary_contact_logits,
+            ),
+            DecodeConfig {
+                image_size: size as u32,
+                threshold: 0.65,
+                carrier_extent_padding_px: size as f32,
+                ..DecodeConfig::default()
+            },
+        )
+    }
+
+    /// The same drawing as [`square_cross_fixture`], rasterized at 256 px.
+    ///
+    /// Scale is the whole point. The decoder's default merge radii and vertex
+    /// distances are tuned for the 1024 px product input, and at 64 px they
+    /// swallow the centre junction entirely: `square_cross_fixture` decodes to
+    /// four corner vertices and five spans, every vertex pinned, so the solve
+    /// runs with **zero** free parameters. A parity test on that fixture would
+    /// pass even if the two paths handed `solve_exact` different options,
+    /// because there would be nothing for the options to change.
+    ///
+    /// At 256 px the same cross survives: 9 vertices, 12 spans, one free
+    /// interior vertex and four boundary parameters, so the solver actually
+    /// runs. Still ~10 ms.
+    fn solvable_cross_fixture() -> (DenseOutputs<'static>, DecodeConfig) {
+        let size = 256usize;
+        let last = size - 1;
+        let mid = size / 2;
+        let pixels = size * size;
+        let line_logits = Box::leak(vec![-8.0; pixels].into_boxed_slice());
+        let junction_logits = Box::leak(vec![-8.0; pixels].into_boxed_slice());
+        let assignment_logits = Box::leak(vec![-4.0; pixels * 4].into_boxed_slice());
+        let non_crease_logits = Box::leak(vec![-8.0; pixels].into_boxed_slice());
+        let line_style_logits = Box::leak(vec![-4.0; pixels * 4].into_boxed_slice());
+        let boundary_contact_logits = Box::leak(vec![-8.0; pixels].into_boxed_slice());
+
+        draw_line(line_logits, size, (mid, 0), (mid, last), 8.0);
+        draw_line(line_logits, size, (0, mid), (last, mid), 8.0);
+        draw_line(line_logits, size, (0, 0), (last, 0), 8.0);
+        draw_line(line_logits, size, (last, 0), (last, last), 8.0);
+        draw_line(line_logits, size, (0, last), (last, last), 8.0);
+        draw_line(line_logits, size, (0, 0), (0, last), 8.0);
+        junction_logits[mid * size + mid] = 8.0;
+        boundary_contact_logits[mid] = 8.0;
+        boundary_contact_logits[last * size + mid] = 8.0;
+        boundary_contact_logits[mid * size] = 8.0;
+        boundary_contact_logits[mid * size + last] = 8.0;
+        for y in 0..size {
+            assignment_logits[y * size + mid] = 8.0;
+        }
+        for x in 0..size {
+            assignment_logits[pixels + mid * size + x] = 8.0;
+            assignment_logits[2 * pixels + x] = 8.0;
+            assignment_logits[2 * pixels + last * size + x] = 8.0;
+        }
+        for y in 0..size {
+            assignment_logits[2 * pixels + y * size] = 8.0;
+            assignment_logits[2 * pixels + y * size + last] = 8.0;
         }
 
         (

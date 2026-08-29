@@ -1,3 +1,4 @@
+import type { Vec2 } from '../annotations/annotationTransform';
 import type { CpCheckClass } from '../annotations/suppressionRegion';
 import { useCpRegions } from './useCpRegions';
 import { SuppressionRegionChip } from './SuppressionRegionChip';
@@ -50,10 +51,10 @@ export interface CpRegionLayerProps {
  * findings**. The chip carries the count of what it hides, which is the safety
  * affordance the whole scoped-filter design rests on.
  *
- * Structurally simpler than the text layer, though, because each chip is a
- * `FloatingToolbar` that portals itself to `body`: there is no positioned wrapper
- * here and no `zIndex` to pick, so the layer is a plain fragment and costs
- * nothing wherever it is mounted in the tree.
+ * Structurally simpler than the text layer, though, because each chip portals
+ * itself to `body`: there is no positioned wrapper here and no `zIndex` to pick,
+ * so the layer is a plain fragment and costs nothing wherever it is mounted in
+ * the tree.
  *
  * It takes only what the panel uniquely owns — the element the canvas is
  * positioned against — and reads everything else from {@link useCpRegions}, the
@@ -66,9 +67,7 @@ export function CpRegionLayer({ container, solve }: CpRegionLayerProps) {
     regions,
     selectRegion,
     toggleRegionCheckClass,
-    setRegionOpacity,
-    bringRegionToFront,
-    sendRegionToBack,
+    moveRegion,
     removeRegion,
     beginGesture,
     commitGesture,
@@ -76,23 +75,19 @@ export function CpRegionLayer({ container, solve }: CpRegionLayerProps) {
 
   return (
     <>
-      {regions.map(({ region, selected, hiddenCount, solvable }) => {
+      {regions.map(({ region, hiddenCount, solvable }) => {
         const base = {
           region,
           container,
-          expanded: selected,
           hiddenCount,
           onSelect: () => selectRegion(region.id),
           onToggleCheckClass: (cpCheckClass: CpCheckClass) =>
             toggleRegionCheckClass(region.id, cpCheckClass),
-          onOpacity: (value: number) => setRegionOpacity(region.id, value),
+          onMove: (center: Vec2) => moveRegion(region.id, center),
           onGestureStart: beginGesture,
-          // The label comes from whoever opened the gesture — `AnnotationActions`
-          // already names its own opacity drag, and a second name for the same
-          // control would only make the undo list disagree with the image case.
+          // The label comes from whoever opened the gesture, so the one thing
+          // that knows what the drag was names it.
           onGestureCommit: commitGesture,
-          onBringToFront: () => bringRegionToFront(region.id),
-          onSendToBack: () => sendRegionToBack(region.id),
           onDelete: () => removeRegion(region.id),
         };
         if (!solvable || !solve) {

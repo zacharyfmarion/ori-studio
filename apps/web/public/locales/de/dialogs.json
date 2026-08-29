@@ -93,10 +93,8 @@
     "verdict": {
       "blocked": "Der Solver konnte diesen Kandidatengraphen nicht lesen, es gibt also nichts von Hand zu korrigieren. Unverändert hinzufügen ist weiterhin möglich.",
       "exact": "Exakt gelöst. Es wird neben deiner Arbeit eingefügt; der Rest des Dokuments bleibt unverändert.",
-      "impractical_one": "Nicht gelöst, mit 1 zu korrigierenden Stelle, aber dieser Lauf liegt außerhalb der Reichweite einer Korrektur von Hand und wird deshalb unverändert hinzugefügt.",
-      "impractical_other": "Nicht gelöst, mit {{count}} zu korrigierenden Stellen. Das liegt außerhalb der Reichweite einer Korrektur von Hand: so viele von Hand zu beheben ist nicht praktikabel, deshalb wird unverändert hinzugefügt.",
-      "repairable_one": "Nicht gelöst. 1 Stelle zu korrigieren: Prüfen und korrigieren fügt den Kandidaten, das Quellbild und einen Bereich zur Prüfungsunterdrückung hinzu, damit du sie beheben kannst.",
-      "repairable_other": "Nicht gelöst. {{count}} Stellen zu korrigieren: Prüfen und korrigieren fügt den Kandidaten, das Quellbild und einen Bereich zur Prüfungsunterdrückung hinzu, damit du sie beheben kannst.",
+      "repairable_one": "Nicht gelöst – 1 Stelle zu reparieren. „Prüfen & korrigieren“ fügt den Kandidaten mit dem Quellbild dahinter ein, damit Sie ihn korrigieren und lösen können.",
+      "repairable_other": "Nicht gelöst – {{count}} Stellen zu reparieren. „Prüfen & korrigieren“ fügt den Kandidaten mit dem Quellbild dahinter ein, damit Sie sie korrigieren und lösen können. Unverändert hinzugefügt bleiben alle Winkel ungenau.",
       "unflagged": "Nicht gelöst, aber nichts ist zur Korrektur markiert: der Solver hat es aus einem anderen Grund abgelehnt. Prüfen und korrigieren fügt den Kandidaten mit dem Quellbild dahinter ein, damit du vergleichen kannst.",
       "unknown": "Dieser Erkennungslauf enthält keine Topologieprüfung, daher kann das Muster nur unverändert hinzugefügt werden."
     }

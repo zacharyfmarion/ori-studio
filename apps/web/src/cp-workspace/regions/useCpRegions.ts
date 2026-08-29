@@ -9,12 +9,16 @@
  *
  * It also owns the undo protocol for chip-driven edits. `preGestureRef` holds the
  * annotation list as it stood before a gesture began, and every mutation here is
- * bracketed by begin/commit so a whole opacity drag is one entry rather than
+ * bracketed by begin/commit so a whole drag of the chip is one entry rather than
  * forty — the same invariant `useCpAnnotations` keeps for images and text, and
  * kept separately for the same reason it is kept at all: it is only checkable
- * when the code that depends on it is in one place. The two never interleave —
- * the shared selection overlay drives move/resize/rotate through
- * `useCpAnnotations`, and nothing here touches a box's transform.
+ * when the code that depends on it is in one place.
+ *
+ * {@link UseCpRegionActions.moveRegion} is the one transform here, and it exists
+ * because a region's *body* takes no pointer events: the creases inside it have
+ * to stay editable, so the shared selection overlay never sees a move for one and
+ * the chip carries the gesture instead. Resize and rotate still come from that
+ * overlay's handles through `useCpAnnotations`, as they do for every other kind.
  */
 import { useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -40,8 +44,6 @@ import { visibleCpDiagnostics } from '../diagnostics/visibleEntries';
 /** One region, plus everything its chip has to say about it. */
 export interface CpRegionView {
   region: CpSuppressionRegion;
-  /** Whether this region currently holds the canvas-object selection. */
-  selected: boolean;
   /**
    * Findings this region alone is hiding — see {@link cpRegionHiddenCounts}.
    *
@@ -75,12 +77,14 @@ export interface UseCpRegionActions {
   addRegion: (input: CreateCpSuppressionRegionInput) => CpSuppressionRegion;
   /** Flip one check class on a region, as one undo entry. */
   toggleRegionCheckClass: (id: string, cpCheckClass: CpCheckClass) => void;
-  /** Set a region's opacity. Bracket it yourself — see {@link beginGesture}. */
-  setRegionOpacity: (id: string, opacity: number) => void;
-  bringRegionToFront: (id: string) => void;
-  sendRegionToBack: (id: string) => void;
+  /**
+   * Set a region's centre — the chip's drag. Deliberately unbracketed: a drag is
+   * one gesture and forty samples, so the caller opens {@link beginGesture} on
+   * the first one that moves and closes it once, on release.
+   */
+  moveRegion: (id: string, center: { x: number; y: number }) => void;
   removeRegion: (id: string) => void;
-  /** Snapshot before a multi-step edit (an opacity drag), so it undoes as one. */
+  /** Snapshot before a multi-step edit (a chip drag), so it undoes as one. */
   beginGesture: () => void;
   /** Close the snapshot opened by {@link beginGesture} under `label`. */
   commitGesture: (label: string) => void;
@@ -236,33 +240,12 @@ export function useCpRegionActions(): UseCpRegionActions {
     [beginGesture, commitGesture, updateAnnotation, t]
   );
 
-  // Unbracketed on purpose: the opacity slider is a drag, and `AnnotationActions`
-  // opens the gesture on its first input and closes it on the native `change`.
-  const setRegionOpacity = useCallback(
-    (id: string, opacity: number) => updateAnnotation(id, { opacity }),
+  // Unbracketed on purpose: a chip drag is one gesture and forty samples, and
+  // `useCpRegionChipDrag` opens the snapshot on the first sample that actually
+  // moves and closes it on release.
+  const moveRegion = useCallback(
+    (id: string, center: { x: number; y: number }) => updateAnnotation(id, { center }),
     [updateAnnotation]
-  );
-
-  const bringRegionToFront = useCallback(
-    (id: string) => {
-      const previous = useWorkspaceStore.getState().oristudioCpAnnotations;
-      const top = previous.reduce((max, annotation) => Math.max(max, annotation.z), 0);
-      beginGesture();
-      updateAnnotation(id, { z: top + 1 });
-      commitGesture(t('panels:cpRegion.bringToFront', 'Bring region to front'));
-    },
-    [beginGesture, commitGesture, updateAnnotation, t]
-  );
-
-  const sendRegionToBack = useCallback(
-    (id: string) => {
-      const previous = useWorkspaceStore.getState().oristudioCpAnnotations;
-      const bottom = previous.reduce((min, annotation) => Math.min(min, annotation.z), 0);
-      beginGesture();
-      updateAnnotation(id, { z: bottom - 1 });
-      commitGesture(t('panels:cpRegion.sendToBack', 'Send region to back'));
-    },
-    [beginGesture, commitGesture, updateAnnotation, t]
   );
 
   const removeRegion = useCallback(
@@ -279,9 +262,7 @@ export function useCpRegionActions(): UseCpRegionActions {
       selectRegion,
       addRegion,
       toggleRegionCheckClass,
-      setRegionOpacity,
-      bringRegionToFront,
-      sendRegionToBack,
+      moveRegion,
       removeRegion,
       beginGesture,
       commitGesture,
@@ -289,12 +270,10 @@ export function useCpRegionActions(): UseCpRegionActions {
     [
       addRegion,
       beginGesture,
-      bringRegionToFront,
       commitGesture,
+      moveRegion,
       removeRegion,
       selectRegion,
-      sendRegionToBack,
-      setRegionOpacity,
       toggleRegionCheckClass,
     ]
   );
@@ -303,7 +282,10 @@ export function useCpRegionActions(): UseCpRegionActions {
 export function useCpRegions(): UseCpRegions {
   const actions = useCpRegionActions();
   const annotations = useWorkspaceStore((state) => state.oristudioCpAnnotations);
-  const selectedAnnotationId = useWorkspaceStore((state) => state.oristudioCpSelectedAnnotationId);
+  // Selection is deliberately *not* read here. A chip carries the same controls
+  // whether or not its region holds it — a suppressor's visible half must not
+  // shrink — so subscribing would re-render every chip on a selection change to
+  // produce identical DOM.
   const camvResult = useWorkspaceStore((state) => state.oristudioCpCamvResult);
   const lastCommandResult = useWorkspaceStore(
     (state) => state.oristudioCpDocument?.lastCommandResult ?? null
@@ -333,11 +315,10 @@ export function useCpRegions(): UseCpRegions {
     const counts = cpRegionHiddenCounts(unfilteredEntries, documentSuppress, annotations);
     return found.map((region) => ({
       region,
-      selected: region.id === selectedAnnotationId,
       hiddenCount: counts.get(region.id) ?? 0,
       solvable: hasAttachedSolveInput(region),
     }));
-  }, [annotations, documentSuppress, selectedAnnotationId, unfilteredEntries]);
+  }, [annotations, documentSuppress, unfilteredEntries]);
 
   return useMemo(() => ({ ...actions, regions }), [actions, regions]);
 }

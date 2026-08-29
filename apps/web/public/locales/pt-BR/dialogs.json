@@ -97,12 +97,9 @@
     "verdict": {
       "blocked": "O solucionador não conseguiu ler este grafo candidato, portanto não há nada para corrigir à mão. Você ainda pode adicioná-lo como está.",
       "exact": "Resolvido exatamente. Ele é adicionado ao lado do seu trabalho e o resto do documento permanece intacto.",
-      "impractical_one": "Não resolvido, com 1 ponto para corrigir, mas esta execução está fora do alcance do conserto manual, então ela é adicionada como está.",
-      "impractical_many": "Não resolvido, com {{count}} pontos para corrigir. Isso está fora do alcance do conserto manual: corrigir tantos à mão não é prático, então o padrão é adicionado como está.",
-      "impractical_other": "Não resolvido, com {{count}} pontos para corrigir. Isso está fora do alcance do conserto manual: corrigir tantos à mão não é prático, então o padrão é adicionado como está.",
-      "repairable_one": "Não resolvido. 1 ponto para corrigir: Revisar e corrigir adiciona o candidato, a imagem de origem e uma região de supressão de verificações para você consertar.",
+      "repairable_one": "Não resolvido — 1 local para reparar. “Revisar e corrigir” adiciona o candidato com a imagem de origem atrás, para você corrigir e resolver.",
       "repairable_many": "Não resolvido. {{count}} pontos para corrigir: Revisar e corrigir adiciona o candidato, a imagem de origem e uma região de supressão de verificações para você consertar.",
-      "repairable_other": "Não resolvido. {{count}} pontos para corrigir: Revisar e corrigir adiciona o candidato, a imagem de origem e uma região de supressão de verificações para você consertar.",
+      "repairable_other": "Não resolvido — {{count}} locais para reparar. “Revisar e corrigir” adiciona o candidato com a imagem de origem atrás, para você corrigir e resolver. Adicioná-lo como está deixa todos os ângulos aproximados.",
       "unflagged": "Não resolvido, mas nada foi marcado para correção: o solucionador o rejeitou por outro motivo. Revisar e corrigir adiciona o candidato com a imagem de origem atrás para você comparar.",
       "unknown": "Esta execução do detector não traz verificação de topologia, então o padrão só pode ser adicionado como está."
     }

@@ -65,10 +65,22 @@ export interface ReglRendererOptions {
 const REGION_COLOR_VAR = '--status-warning';
 /** `#d7a85c`, the default dark theme's `--status-warning`. */
 const REGION_FALLBACK: Rgba = [0.843, 0.659, 0.361, 1];
-/** Wash alpha: a backdrop the creases stay legible over, not a highlight. */
-const REGION_FILL_ALPHA = 0.1;
-/** Border alpha: enough to give the box a definite edge at a hairline width. */
-const REGION_BORDER_ALPHA = 0.6;
+/**
+ * The border carries the region; the fill only tints it.
+ *
+ * A region is a *scope marker* over work the user is still editing — creases get
+ * drawn, picked and dragged inside one — so the thing it must communicate is
+ * "this boundary, here", not "this area is filled in". At the wash alpha this
+ * started on the fill was the loud part and read as a highlight over the pattern,
+ * so the split is deliberately lopsided: a fill low enough to be a tint you stop
+ * noticing while working, and a border strong enough that the extent is still
+ * unambiguous with the fill barely visible.
+ *
+ * Both are alphas over the same theme hue, so a theme still owns the colour.
+ */
+const REGION_FILL_ALPHA = 0.04;
+/** See above: with the fill this light, the border is what states the extent. */
+const REGION_BORDER_ALPHA = 0.85;
 /** Border width in CSS px — constant screen size, like the grid and the frame. */
 const REGION_BORDER_CSS = 1;
 

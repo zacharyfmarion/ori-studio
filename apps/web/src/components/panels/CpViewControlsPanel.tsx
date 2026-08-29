@@ -78,7 +78,7 @@ export function CpViewControlsPanel() {
           {/* The document-wide check-suppression rule. The master toggle above
               keeps meaning exactly what it always meant — with it off nothing is
               drawn, and every class row below reads off with it. */}
-          <CheckClassRows
+          <CheckClassSection
             overlayVisible={camvVisible}
             suppressed={viewport.suppressedCheckClasses}
             onSuppressedChange={(next) => setViewportOption('suppressedCheckClasses', next)}
@@ -330,6 +330,57 @@ function LineStyleRow({
  * representation of it. Turning the overlay back on restores the class list the
  * user had.
  */
+/**
+ * The per-class rules, folded away behind a disclosure like the grid's.
+ *
+ * Four rows is enough to push everything below them off the fold, and the
+ * master "Foldability issues" toggle above is the control almost everyone
+ * wants — the classes are for the case where you need one theorem quiet while
+ * the rest keep working. Collapsed by default for the same reason
+ * {@link GridSettingsSection} is, and built the same way so the two disclosures
+ * behave identically.
+ */
+function CheckClassSection({
+  overlayVisible,
+  suppressed,
+  onSuppressedChange,
+}: {
+  overlayVisible: boolean;
+  suppressed: readonly CpCheckClass[] | undefined;
+  onSuppressedChange: (next: readonly CpCheckClass[]) => void;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="grid-settings" data-open={open || undefined}>
+      <button
+        type="button"
+        className="grid-settings__toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <ChevronRight size={14} className="grid-settings__chevron" aria-hidden="true" />
+        <span>
+          {t('panels:cpViewControls.moreFoldabilitySettings', 'More foldability settings')}
+        </span>
+      </button>
+      {open && (
+        <div
+          className="grid-settings__body"
+          role="group"
+          aria-label={t('panels:cpViewControls.foldabilityChecks', 'Foldability checks')}
+        >
+          <CheckClassRows
+            overlayVisible={overlayVisible}
+            suppressed={suppressed}
+            onSuppressedChange={onSuppressedChange}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CheckClassRows({
   overlayVisible,
   suppressed,

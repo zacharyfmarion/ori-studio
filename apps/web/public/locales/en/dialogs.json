@@ -93,10 +93,8 @@
     "verdict": {
       "blocked": "The solver could not read this candidate graph, so there is nothing to repair by hand. You can still add it as-is.",
       "exact": "Exactly solved. Adding it beside your work leaves the rest of the document untouched.",
-      "impractical_one": "Not solved, with 1 place to repair — but this run is out of hand-repair range, so it is added as-is.",
-      "impractical_other": "Not solved, with {{count}} places to repair. That is out of hand-repair range: fixing this many by hand is not practical, so it is added as-is.",
-      "repairable_one": "Not solved. 1 place to repair — Review & Fix adds the candidate, the source image and a check-suppression region so you can fix it.",
-      "repairable_other": "Not solved. {{count}} places to repair — Review & Fix adds the candidate, the source image and a check-suppression region so you can fix them.",
+      "repairable_one": "Not solved — 1 place to repair. Review & Fix adds the candidate with the source image behind it, so you can fix it and solve.",
+      "repairable_other": "Not solved — {{count}} places to repair. Review & Fix adds the candidate with the source image behind it, so you can fix them and solve. Adding it as-is instead leaves every angle approximate.",
       "unflagged": "Not solved, but nothing is flagged for repair — the solver rejected it for another reason. Review & Fix adds the candidate with the source image behind it so you can compare.",
       "unknown": "This detector run reports no topology check, so the pattern can only be added as-is."
     }

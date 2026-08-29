@@ -153,11 +153,20 @@ describe('reglRenderer suppression regions', () => {
     expect(props?.border.slice(0, 3)).toEqual([0.843, 0.659, 0.361]);
   });
 
-  it('washes at a low alpha and borders at a high one, from the same hue', () => {
+  /**
+   * The border states the extent; the fill only tints. Pinned as a ratio rather
+   * than two magic numbers, because the ratio is the design decision — a region
+   * is a scope marker over creases the user is still editing, so a fill that
+   * creeps back up towards the border is the regression that matters, and it
+   * would pass any "fill is low" bound that leaves room to tune.
+   */
+  it('tints far more faintly than it borders, from the same hue', () => {
     const props = renderRegions([region()]);
 
-    expect(props?.fill[3]).toBeLessThan(0.2);
-    expect(props?.border[3]).toBeGreaterThan(props?.fill[3] ?? 1);
+    const fillAlpha = props?.fill[3] ?? 1;
+    const borderAlpha = props?.border[3] ?? 0;
+    expect(fillAlpha).toBeLessThan(0.06);
+    expect(borderAlpha).toBeGreaterThan(10 * fillAlpha);
     expect(props?.fill.slice(0, 3)).toEqual(props?.border.slice(0, 3));
   });
 

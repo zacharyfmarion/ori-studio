@@ -69,17 +69,6 @@ const DETECT_DECODER_BACKEND = 'legacy_candidate_exact_solve_v1' as const;
 const DETECT_PAPER_INSET_PX = 32;
 
 /**
- * Above this many repair sites, say plainly that hand repair is not practical
- * rather than offering it.
- *
- * From the measured V5 run (see `implementation-plans/crease-topology-repair.md`):
- * over the 173 addressable easy+medium failures, 94% have ≤8 repair sites, while
- * the hard bucket's median is 11 and its mean 36 — and a hard solve essentially
- * always hits the 25 s cap even if the topology were fixed.
- */
-const HAND_REPAIR_SITE_LIMIT = 8;
-
-/**
  * Outward margin on the suppression region, as a fraction of the paper.
  *
  * The region has to contain the vertices *on* the paper edge — that is where a
@@ -98,12 +87,20 @@ type ImportMode = 'solveAndAdd' | 'reviewAndFix' | 'addAsIs';
  *
  * - `exact` — the pipeline's own `solve_exact` was accepted, so the FOLD it
  *   produced is already at solved coordinates. Nothing to repair.
- * - `repairable` — the solve was not accepted and the candidate carries a
- *   workable number of repair sites.
- * - `impractical` — too many sites to fix by hand, or the solver could not even
- *   analyse the graph. "Add as-is" and say so.
+ * - `repairable` — the solve was not accepted. Repair is offered **whatever the
+ *   site count is**. An earlier draft refused past a threshold on the grounds
+ *   that a large repair "is not practical", which was wrong twice over: the
+ *   alternative to this feature is tracing the whole pattern by hand, so 13
+ *   sites is a large saving rather than a burden; and the fallback it pushed
+ *   people to — adding the candidate unsolved — hands them ~4° of Kawasaki
+ *   error at every vertex, i.e. exactly the defect the feature exists to
+ *   remove. The measurement agrees: hard-bucket repairs came out 131/140
+ *   identical to ground truth, and what capped their recovery was the 25 s
+ *   solve budget, not the size of the repair.
+ * - `blocked` — the solver could not analyse the graph at all, so there is no
+ *   candidate to attach and nothing to repair against. The only honest option.
  */
-type CandidateOutcome = 'exact' | 'repairable' | 'impractical';
+type CandidateOutcome = 'exact' | 'repairable' | 'blocked';
 
 interface CandidateTopology {
   outcome: CandidateOutcome;
@@ -183,12 +180,38 @@ export function CpDetectImportModal() {
     };
   }, [source?.url]);
 
+  /**
+   * Forget the picked image and everything derived from it.
+   *
+   * Closing used to clear only `error` and `dropActive`, so reopening the modal
+   * came back to the previous image, crop and detection — a second detection
+   * looked like it had silently ignored the file picker. It also held the
+   * source blob and a 1024x1024 rectified `ImageData` alive for the whole
+   * session, for a dialog that is shut.
+   *
+   * `modelManifest` deliberately survives: it is the expensive asset
+   * verification, and the effect above is keyed on its absence, so clearing it
+   * would re-verify on every open.
+   */
+  const resetSession = useCallback(() => {
+    setSource((previous) => {
+      if (previous?.url) URL.revokeObjectURL(previous.url);
+      return null;
+    });
+    setQuad(null);
+    setRectified(null);
+    setDetection(null);
+    setError(null);
+    setDragging(null);
+    setDropActive(false);
+    setPreviewOverlays(DEFAULT_PREVIEW_OVERLAYS);
+  }, []);
+
   const close = useCallback(() => {
     if (busy) return;
     setOpen(false);
-    setError(null);
-    setDropActive(false);
-  }, [busy]);
+    resetSession();
+  }, [busy, resetSession]);
 
   const loadImageFile = useCallback(async (file: OpenBinaryFileResult) => {
     const nextSource = await sourceImageFromFile(file, t);
@@ -379,13 +402,16 @@ export function CpDetectImportModal() {
           repair_sites: repairSiteBucket(topology),
         });
         setOpen(false);
+        // Same reset as `close`: a successful add ends the session, so the next
+        // open starts at the file picker rather than on the pattern just added.
+        resetSession();
       } catch (caught) {
         setError(caught instanceof Error ? caught.message : String(caught));
       } finally {
         setBusy(null);
       }
     },
-    [detection, rectified, source, t, topology]
+    [detection, rectified, resetSession, source, t, topology]
   );
 
   const onDrop = useCallback(
@@ -1075,7 +1101,7 @@ function candidateTopology(detection: CpDetectFoldResult | null): CandidateTopol
   // success — `accepted` is.
   if (!before) {
     return {
-      outcome: 'impractical',
+      outcome: 'blocked',
       repairSites: 0,
       blocked: true,
       rejectionReasons,
@@ -1106,7 +1132,8 @@ function candidateTopology(detection: CpDetectFoldResult | null): CandidateTopol
     (asArray(before.unmodeled_crossings)?.length ?? 0);
 
   return {
-    outcome: repairSites > HAND_REPAIR_SITE_LIMIT ? 'impractical' : 'repairable',
+    // No threshold: any number of sites is repairable. See `CandidateOutcome`.
+    outcome: 'repairable',
     repairSites,
     blocked: false,
     rejectionReasons,
@@ -1123,7 +1150,7 @@ function primaryImportMode(topology: CandidateTopology | null): ImportMode {
       return 'solveAndAdd';
     case 'repairable':
       return 'reviewAndFix';
-    case 'impractical':
+    case 'blocked':
       return 'addAsIs';
   }
 }
@@ -1142,9 +1169,9 @@ function importModeLabel(t: TFunction, mode: ImportMode): string {
 /**
  * What the result screen says about the candidate, in one sentence.
  *
- * Every branch names what the user gets rather than what the compiler found —
- * "hand repair is not practical at this size" is the whole point of the
- * `impractical` bucket, and burying it in a count would defeat it.
+ * Every branch names what the user gets rather than what the compiler found.
+ * The site count is **information, not a verdict**: it tells you how much work
+ * you are taking on, and never withholds the option.
  */
 function verdictMessage(t: TFunction, topology: CandidateTopology | null): string {
   if (!topology) {
@@ -1175,21 +1202,12 @@ function verdictMessage(t: TFunction, topology: CandidateTopology | null): strin
       'Not solved, but nothing is flagged for repair — the solver rejected it for another reason. Review & Fix adds the candidate with the source image behind it so you can compare.'
     );
   }
-  if (topology.outcome === 'impractical') {
-    return t('dialogs:cpDetectImport.verdict.impractical', {
-      count: topology.repairSites,
-      defaultValue_one:
-        'Not solved, with 1 place to repair — but this run is out of hand-repair range, so it is added as-is.',
-      defaultValue_other:
-        'Not solved, with {{count}} places to repair. That is out of hand-repair range: fixing this many by hand is not practical, so it is added as-is.',
-    });
-  }
   return t('dialogs:cpDetectImport.verdict.repairable', {
     count: topology.repairSites,
     defaultValue_one:
-      'Not solved. 1 place to repair — Review & Fix adds the candidate, the source image and a check-suppression region so you can fix it.',
+      'Not solved — 1 place to repair. Review & Fix adds the candidate with the source image behind it, so you can fix it and solve.',
     defaultValue_other:
-      'Not solved. {{count}} places to repair — Review & Fix adds the candidate, the source image and a check-suppression region so you can fix them.',
+      'Not solved — {{count}} places to repair. Review & Fix adds the candidate with the source image behind it, so you can fix them and solve. Adding it as-is instead leaves every angle approximate.',
   });
 }
 
@@ -1278,8 +1296,9 @@ function repairSiteBucket(topology: CandidateTopology | null): string {
   if (sites === 0) return '0';
   if (sites <= 2) return '1-2';
   if (sites <= 4) return '3-4';
-  if (sites <= HAND_REPAIR_SITE_LIMIT) return '5-8';
-  return '9+';
+  if (sites <= 8) return '5-8';
+  if (sites <= 16) return '9-16';
+  return '17+';
 }
 
 function detectionCompilerReport(

@@ -5,7 +5,10 @@ import { TooltipProvider } from '../../components/ui/Tooltip';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { cpOverlayViewStore } from '../cpOverlayViewStore';
 import type { CanvasAnnotation } from '../annotations/annotation';
-import { createCpSuppressionRegion } from '../annotations/suppressionRegion';
+import {
+  createCpSuppressionRegion,
+  type CpSuppressionRegion,
+} from '../annotations/suppressionRegion';
 import { createTextAnnotation } from '../annotations/textAnnotation';
 import { CpRegionLayer, type CpRegionSolveBinding } from './CpRegionLayer';
 
@@ -63,6 +66,30 @@ function chips(): HTMLElement[] {
   return [...document.querySelectorAll<HTMLElement>('[role="toolbar"]')];
 }
 
+/** A pointer event jsdom will deliver — it has no `PointerEvent` of its own. */
+function pointer(type: string, clientX: number, clientY: number): Event {
+  const event = new MouseEvent(type, { bubbles: true, button: 0, clientX, clientY });
+  Object.defineProperty(event, 'pointerId', { value: 1 });
+  Object.defineProperty(event, 'pointerType', { value: 'mouse' });
+  return event;
+}
+
+/** jsdom implements no pointer capture, and the bar takes one on every drag. */
+function stubPointerCapture(element: Element): void {
+  const target = element as unknown as Record<string, unknown>;
+  target.setPointerCapture = () => {};
+  target.hasPointerCapture = () => false;
+  target.releasePointerCapture = () => {};
+}
+
+function regionById(id: string): CpSuppressionRegion {
+  const found = useWorkspaceStore
+    .getState()
+    .oristudioCpAnnotations.find((annotation) => annotation.id === id);
+  if (!found) throw new Error(`no region ${id}`);
+  return found as CpSuppressionRegion;
+}
+
 beforeEach(() => {
   cpOverlayViewStore.set({
     model: { origin: [100, 100], ex: [400, 0], ey: [0, 400] },
@@ -103,14 +130,17 @@ describe('CpRegionLayer', () => {
     expect(chips()).toHaveLength(0);
   });
 
-  it('expands only the selected region', () => {
+  it('gives every chip the full control set, selected or not', () => {
     seed([box('alpha', 0.4), box('beta', 0.7)], 'beta');
     render();
 
-    // One class menu, on the selected chip.
-    expect(document.querySelectorAll('button[aria-label="Suppressed checks"]')).toHaveLength(1);
-    const expanded = chips().find((chip) => chip.textContent?.includes('beta'));
-    expect(expanded?.querySelector('input[type="range"]')).not.toBeNull();
+    // Two of each: a region's controls do not wait for a selection, because a
+    // suppressor's visible half must not be smaller than what it suppresses.
+    expect(document.querySelectorAll('button[aria-label="Suppressed checks"]')).toHaveLength(2);
+    expect(document.querySelectorAll('button[aria-label="Delete region"]')).toHaveLength(2);
+    // And nothing from the image toolbar's half of the shared actions.
+    expect(document.querySelectorAll('input[type="range"]')).toHaveLength(0);
+    expect(document.querySelectorAll('button[aria-label="Bring to front"]')).toHaveLength(0);
   });
 
   it('gives the Solve chip only to a region carrying an attachment', () => {
@@ -156,20 +186,62 @@ describe('CpRegionLayer', () => {
     expect(onSolve).toHaveBeenCalledWith('beta');
   });
 
-  it('selects the region a collapsed chip belongs to', () => {
+  it('selects the region whose chip was pressed', () => {
     seed([box('alpha', 0.35), box('beta', 0.7)]);
     render();
 
     const beta = chips().find((chip) => chip.textContent?.includes('beta'));
-    act(() => beta?.querySelector<HTMLButtonElement>('button.cp-region-chip__summary')?.click());
+    if (!beta) throw new Error('no chip for beta');
+    stubPointerCapture(beta);
+    act(() => beta.dispatchEvent(pointer('pointerdown', 400, 150)));
     expect(useWorkspaceStore.getState().oristudioCpSelectedAnnotationId).toBe('beta');
+  });
+
+  /**
+   * The gesture the region's body can no longer take.
+   *
+   * A region sits over the creases being repaired, so its body is inert and
+   * clicks fall through to them — which leaves the chip as the only handle. Both
+   * halves are asserted together because they are one rule: the bar drags, the
+   * controls on it do not.
+   */
+  it('moves the region on a chip drag, as one undo entry — but not from its delete button', () => {
+    seed([box('alpha', 0.5)]);
+    render();
+
+    const bar = chips()[0];
+    stubPointerCapture(bar);
+    act(() => {
+      bar.dispatchEvent(pointer('pointerdown', 300, 200));
+      bar.dispatchEvent(pointer('pointermove', 380, 200));
+      bar.dispatchEvent(pointer('pointermove', 500, 240));
+      bar.dispatchEvent(pointer('pointerup', 500, 240));
+    });
+
+    // 200 CSS px along x and 40 down, through a camera of 400 px per model unit.
+    expect(regionById('alpha').center).toEqual({ x: 1, y: 0.6 });
+    // One entry for the whole drag, not one per sample.
+    expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(1);
+
+    const remove = document.querySelector<HTMLButtonElement>('button[aria-label="Delete region"]');
+    if (!remove) throw new Error('the delete button did not render');
+    stubPointerCapture(remove);
+    act(() => {
+      remove.dispatchEvent(pointer('pointerdown', 600, 200));
+      bar.dispatchEvent(pointer('pointermove', 700, 300));
+      bar.dispatchEvent(pointer('pointerup', 700, 300));
+    });
+
+    // Still where the drag left it: a press on a control is that control's.
+    expect(regionById('alpha').center).toEqual({ x: 1, y: 0.6 });
+    expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(1);
   });
 
   it('deletes through the store, as one undo entry', () => {
     seed([box('alpha', 0.5)], 'alpha');
     render();
 
-    const remove = document.querySelector<HTMLButtonElement>('button[aria-label="Delete"]');
+    const remove = document.querySelector<HTMLButtonElement>('button[aria-label="Delete region"]');
     act(() => remove?.click());
 
     expect(useWorkspaceStore.getState().oristudioCpAnnotations).toHaveLength(0);

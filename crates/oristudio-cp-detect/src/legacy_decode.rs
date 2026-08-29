@@ -88,6 +88,29 @@ pub struct DecodeConfig {
     /// `None` keeps the production default (`line_threshold.max(0.50)`).
     #[serde(default)]
     pub junction_peak_threshold: Option<f32>,
+    /// Stop after recognition: export the detected candidate at its pre-solve
+    /// coordinates with its topology diagnostics, and do not run the exact
+    /// solve.
+    ///
+    /// The staged flow needs the recognized creases on screen *before* a solve
+    /// that can take 25 s starts, and needs a candidate the user can repair
+    /// before it runs at all (see
+    /// `implementation-plans/staged-recognize-and-solve.md`). Only the
+    /// candidate exact-solve backend has a solve to stop before; every other
+    /// backend ignores this.
+    ///
+    /// This is the first *mode* on a config that is otherwise entirely
+    /// thresholds and radii, so it is named for where it stops rather than for
+    /// what it skips.
+    ///
+    /// Deliberately **not** expressible as `exact_solve_timeout_seconds: 0.0`.
+    /// That is documented above as timing out immediately and would almost
+    /// produce recognize-only output, but it still pays `SolveModel::new` and
+    /// returns `status: "failed"` with timeout rejection reasons — labelling a
+    /// candidate that was never attempted as one that failed, which is the
+    /// exact distinction this flag exists to draw.
+    #[serde(default)]
+    pub recognize_only: bool,
 }
 
 impl Default for DecodeConfig {
@@ -125,6 +148,7 @@ impl Default for DecodeConfig {
             junction_cluster_keep_rule: crate::evidence_extract::JunctionClusterKeepRule::default(),
             exact_solve_timeout_seconds: default_exact_solve_timeout_seconds(),
             junction_peak_threshold: None,
+            recognize_only: false,
         }
     }
 }

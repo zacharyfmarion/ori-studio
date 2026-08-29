@@ -6,8 +6,8 @@ type Regl = ReturnType<typeof createREGL>;
 type Buffer = ReturnType<Regl['buffer']>;
 
 /**
- * Check-suppression regions: a translucent wash plus a hairline border, drawn as
- * one rotatable quad per region in crease-pattern *model* coordinates.
+ * Check-suppression regions: a faint tint plus a hairline border, drawn as one
+ * rotatable quad per region in crease-pattern *model* coordinates.
  *
  *   modelPoint = center + R(rotation) * (corner * size)
  *   devicePoint = origin + modelPoint.x * ex + modelPoint.y * ey
@@ -114,7 +114,12 @@ export interface RegionDrawProps {
   view: ViewTransform;
   viewport: Viewport;
   items: readonly RegionDrawItem[];
-  /** Wash colour, straight alpha. Shared by every region: the style is not per-region. */
+  /**
+   * Interior tint, straight alpha. Shared by every region: the style is not
+   * per-region. Expected to be far weaker than {@link RegionDrawProps.border} —
+   * a region sits under creases the user is still editing, so the border is what
+   * states its extent (see `REGION_FILL_ALPHA` in `reglRenderer`).
+   */
   fill: Rgba;
   /** Border colour, straight alpha. */
   border: Rgba;

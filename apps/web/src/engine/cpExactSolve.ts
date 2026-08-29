@@ -174,9 +174,13 @@ function elapsed(startedAt: number): number {
  * an unrecognised name is a hard error on the other side rather than a silent
  * no-op — so this deliberately spells only the two knobs staging depends on.
  *
- * Notably absent: `exempt_vertex_ids`. `solve_exact_with_exemptions` exists in
- * the compiler, but `cp_detect_solve_exact` parses plain `ExactSolveOptions`, so
- * passing the set would be rejected as an unknown option. See the report.
+ * Notably absent: `exempt_vertex_ids`. It is now *accepted* — Phase A widened
+ * `cp_detect_solve_exact` to parse `ExactSolveOptionsWithExemptions`, whose
+ * `#[serde(flatten)]` makes the JSON a strict superset — but staging has no
+ * hand-moved vertices to exempt, and an empty set is exactly `solve_exact`.
+ * Wiring the repair flow's exemptions through is Phase B; note that the bridge
+ * rejects an id naming no vertex in the input (`unknown_exempt_vertex_id`),
+ * because ids are not indices.
  */
 function stageOptionsJson(timeoutSeconds: number | undefined, polish: boolean): string {
   const overrides: Record<string, unknown> = { polish };

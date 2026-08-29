@@ -23,8 +23,8 @@ import {
  * pattern" test, which runs continuously and can flicker mid-edit, exactly when
  * it must not.
  *
- * The solve affordance shows whether or not the region is selected, unlike the
- * suppression controls. It is the primary thing to do with a freshly detected
+ * Like everything else on the bar, the solve affordance shows whether or not the
+ * region is selected. It is the primary thing to do with a freshly detected
  * candidate, and — for the post-solve gate especially — a result waiting to be
  * accepted must not be able to sit unseen behind a selection the user has moved
  * on from.

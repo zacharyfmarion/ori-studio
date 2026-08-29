@@ -1,6 +1,7 @@
 //! `wasm-bindgen` wrapper around `oristudio-cp-detect`.
 
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 use std::sync::Once;
 use wasm_bindgen::prelude::*;
 
@@ -269,6 +270,18 @@ pub fn cp_detect_decode_dense_output_bundle_with_junction_source(
     to_js_value_via_json(&decoded)
 }
 
+/// The product decode path.
+///
+/// This is the only decode export the browser calls — `DEFAULT_LINE_EVIDENCE_SOURCE`
+/// is `"source-image"` and `cpDetectWorker.ts` branches on that first — which is
+/// why `recognize_only` is here and on none of the other three.
+///
+/// `recognize_only` is a trailing `Option<bool>`, so wasm-bindgen makes it an
+/// omittable JS argument: every existing call site keeps its current meaning
+/// (recognize *and* solve). Passing `true` stops after recognition and returns
+/// the candidate crease pattern without spending up to 25 s solving topology the
+/// user may be about to repair. The candidate self-identifies —
+/// `cp_detector.source` is `"exact_solve_candidate"` rather than `"exact_solve"`.
 #[wasm_bindgen]
 #[allow(clippy::too_many_arguments)]
 pub fn cp_detect_decode_dense_output_bundle_with_source_image_line_evidence(
@@ -283,6 +296,7 @@ pub fn cp_detect_decode_dense_output_bundle_with_source_image_line_evidence(
     rgba: &[u8],
     width: u32,
     height: u32,
+    recognize_only: Option<bool>,
 ) -> Result<JsValue, JsValue> {
     install_panic_hook();
     if width != image_size || height != image_size {
@@ -318,6 +332,9 @@ pub fn cp_detect_decode_dense_output_bundle_with_source_image_line_evidence(
                     oristudio_cp_detect::decode::DecodeConfig::default()
                         .exact_solve_timeout_seconds,
                 ),
+                // Omitted from JS is `false`: recognize *and* solve, which is
+                // what every caller got before this argument existed.
+                recognize_only: recognize_only.unwrap_or(false),
                 ..oristudio_cp_detect::decode::DecodeConfig::default()
             },
             backend,
@@ -341,12 +358,17 @@ pub fn cp_detect_decode_dense_output_bundle_with_source_image_line_evidence(
 /// `options_json` may be empty, `"null"`, or a partial object; any field it
 /// omits keeps its `ExactSolveOptions::default()` value. An unrecognised field
 /// name is an error rather than a silent no-op.
+///
+/// It may additionally carry `exempt_vertex_ids` — the ids of vertices the user
+/// moved by hand, which are then excluded from the `max_vertex_movement` budget.
+/// Without it a repaired vertex reads as a large drift and rejects the whole
+/// solve, so this is what makes hand-repair reachable at all; see
+/// [`oristudio_cp_compiler::ExactSolveOptionsWithExemptions`].
 #[wasm_bindgen]
 pub fn cp_detect_solve_exact(input_json: &str, options_json: &str) -> Result<JsValue, JsValue> {
     install_panic_hook();
-    let input = parse_exact_solve_input(input_json)?;
-    let options = parse_exact_solve_options(options_json)?;
-    let solved = oristudio_cp_compiler::solve_exact(&input, options);
+    let (input, options) = parse_exact_solve_request(input_json, options_json)?;
+    let solved = oristudio_cp_compiler::solve_exact_with_exemptions(&input, &options);
     to_js_value_via_json(&solved)
 }
 
@@ -358,15 +380,17 @@ pub fn cp_detect_solve_exact(input_json: &str, options_json: &str) -> Result<JsV
 /// and the `ExactSolvedGraph` status / movement report the repair UI reports
 /// on. Solves run 0.36s (easy p50) to 25s (timeout cap), so this exists
 /// specifically so a caller that needs both does not pay for two.
+///
+/// `options_json` takes the same shape as [`cp_detect_solve_exact`], including
+/// `exempt_vertex_ids`.
 #[wasm_bindgen]
 pub fn cp_detect_solve_exact_to_fold(
     input_json: &str,
     options_json: &str,
 ) -> Result<JsValue, JsValue> {
     install_panic_hook();
-    let input = parse_exact_solve_input(input_json)?;
-    let options = parse_exact_solve_options(options_json)?;
-    let solved = oristudio_cp_compiler::solve_exact(&input, options);
+    let (input, options) = parse_exact_solve_request(input_json, options_json)?;
+    let solved = oristudio_cp_compiler::solve_exact_with_exemptions(&input, &options);
     let document =
         oristudio_cp_compiler::fold_export::export_exact_solved_to_fold_document(&input, &solved)
             .map_err(to_js_compiler_error)?;
@@ -389,6 +413,37 @@ pub fn cp_detect_solve_exact_to_fold(
 
 const SOLVE_EXACT_FOLD_SCHEMA: &str = "oristudio/cp-detect/solve-exact-fold-v1";
 
+/// The shared front half of both solve exports: parse the input, parse the
+/// options, and reject an exemption set that cannot do what it claims.
+fn parse_exact_solve_request(
+    input_json: &str,
+    options_json: &str,
+) -> Result<
+    (
+        oristudio_cp_compiler::ExactSolveInput,
+        oristudio_cp_compiler::ExactSolveOptionsWithExemptions,
+    ),
+    JsValue,
+> {
+    let input = parse_exact_solve_input(input_json)?;
+    let options = parse_exact_solve_options(options_json)?;
+    let unknown = unknown_exempt_vertex_ids(
+        input.vertices.iter().map(|vertex| vertex.id),
+        &options.exempt_vertex_ids,
+    );
+    if !unknown.is_empty() {
+        return Err(js_error(
+            "unknown_exempt_vertex_id",
+            format!(
+                "exempt_vertex_ids names {} vertex id(s) absent from the solve input: {}",
+                unknown.len(),
+                summarize_ids(&unknown)
+            ),
+        ));
+    }
+    Ok((input, options))
+}
+
 fn parse_exact_solve_input(text: &str) -> Result<oristudio_cp_compiler::ExactSolveInput, JsValue> {
     serde_json::from_str(text.trim())
         .map_err(|error| js_error("invalid_exact_solve_input", error.to_string()))
@@ -396,7 +451,7 @@ fn parse_exact_solve_input(text: &str) -> Result<oristudio_cp_compiler::ExactSol
 
 fn parse_exact_solve_options(
     text: &str,
-) -> Result<oristudio_cp_compiler::ExactSolveOptions, JsValue> {
+) -> Result<oristudio_cp_compiler::ExactSolveOptionsWithExemptions, JsValue> {
     exact_solve_options_from_json(text)
         .map_err(|message| js_error("invalid_exact_solve_options", message))
 }
@@ -406,12 +461,21 @@ fn parse_exact_solve_options(
 /// override one knob (a per-vertex movement budget, a shorter timeout) and
 /// inherit the rest, so overrides are merged over the serialized defaults.
 ///
+/// The parsed type is `ExactSolveOptionsWithExemptions` rather than
+/// `ExactSolveOptions` because its `#[serde(flatten)]` makes the JSON a strict
+/// superset: every options object that parsed before still parses, to the same
+/// options, and `exempt_vertex_ids` is now one more accepted key rather than the
+/// unknown-option error it used to be. That is the whole difference — a solve
+/// with an empty exemption set is `solve_exact`.
+///
 /// Kept `JsValue`-free so it is testable off-target; the wasm wrapper above
 /// turns the message into the shared error envelope.
 fn exact_solve_options_from_json(
     text: &str,
-) -> Result<oristudio_cp_compiler::ExactSolveOptions, String> {
-    let defaults = oristudio_cp_compiler::ExactSolveOptions::default();
+) -> Result<oristudio_cp_compiler::ExactSolveOptionsWithExemptions, String> {
+    let defaults = oristudio_cp_compiler::ExactSolveOptionsWithExemptions::from(
+        oristudio_cp_compiler::ExactSolveOptions::default(),
+    );
     let trimmed = text.trim();
     if trimmed.is_empty() {
         return Ok(defaults);
@@ -429,14 +493,48 @@ fn exact_solve_options_from_json(
         return Err("exact solve options did not serialize to an object".to_owned());
     };
     for (key, value) in overrides {
-        // `ExactSolveOptions` does not deny unknown fields, so without this a
-        // misspelled knob would deserialize cleanly and change nothing.
+        // Neither options type denies unknown fields, and `#[serde(flatten)]`
+        // swallows leftovers outright, so without this a misspelled knob would
+        // deserialize cleanly and change nothing.
         if !merged.contains_key(&key) {
             return Err(format!("unknown exact solve option {key:?}"));
         }
         merged.insert(key, value);
     }
     serde_json::from_value(serde_json::Value::Object(merged)).map_err(|error| error.to_string())
+}
+
+/// Exempt ids naming no vertex in the input, in ascending order.
+///
+/// The movement budget matches on `CandidateVertex::id`, not on position within
+/// `vertices`, so an id that names nothing is not a harmless no-op: it leaves
+/// the budget in force over the vertex the user actually moved, and the solve
+/// comes back `movement_budget_exceeded` with nothing pointing at the cause.
+/// That is the same reasoning that makes a misspelled option an error above,
+/// and the likeliest way to hit it is passing array indices instead of ids.
+fn unknown_exempt_vertex_ids(
+    known_vertex_ids: impl IntoIterator<Item = usize>,
+    exempt_vertex_ids: &BTreeSet<usize>,
+) -> Vec<usize> {
+    let known = known_vertex_ids.into_iter().collect::<BTreeSet<_>>();
+    exempt_vertex_ids.difference(&known).copied().collect()
+}
+
+/// Bounded rendering of an id list for an error message: a pattern can carry
+/// thousands of vertices and the message is read by a human.
+fn summarize_ids(ids: &[usize]) -> String {
+    const SHOWN: usize = 8;
+    let head = ids
+        .iter()
+        .take(SHOWN)
+        .map(usize::to_string)
+        .collect::<Vec<_>>()
+        .join(", ");
+    if ids.len() > SHOWN {
+        format!("{head}, … ({} more)", ids.len() - SHOWN)
+    } else {
+        head
+    }
 }
 
 #[wasm_bindgen]
@@ -849,15 +947,19 @@ mod exact_solve_options_tests {
     //! `JsValue` is unusable off-target, so these cover the parsing helper the
     //! solve exports share rather than the exports themselves.
     use super::exact_solve_options_from_json;
-    use oristudio_cp_compiler::ExactSolveOptions;
+    use oristudio_cp_compiler::{ExactSolveOptions, ExactSolveOptionsWithExemptions};
+    use std::collections::BTreeSet;
+
+    fn defaults() -> ExactSolveOptionsWithExemptions {
+        ExactSolveOptionsWithExemptions::from(ExactSolveOptions::default())
+    }
 
     #[test]
     fn empty_and_null_options_fall_back_to_defaults() {
-        let default = ExactSolveOptions::default();
-        assert_eq!(exact_solve_options_from_json(""), Ok(default));
-        assert_eq!(exact_solve_options_from_json("   "), Ok(default));
-        assert_eq!(exact_solve_options_from_json("null"), Ok(default));
-        assert_eq!(exact_solve_options_from_json("{}"), Ok(default));
+        assert_eq!(exact_solve_options_from_json(""), Ok(defaults()));
+        assert_eq!(exact_solve_options_from_json("   "), Ok(defaults()));
+        assert_eq!(exact_solve_options_from_json("null"), Ok(defaults()));
+        assert_eq!(exact_solve_options_from_json("{}"), Ok(defaults()));
     }
 
     #[test]
@@ -868,18 +970,18 @@ mod exact_solve_options_tests {
         )
         .expect("partial options");
 
-        assert_eq!(parsed.max_vertex_movement, 0.1);
-        assert_eq!(parsed.timeout_seconds, 5.0);
+        assert_eq!(parsed.options.max_vertex_movement, 0.1);
+        assert_eq!(parsed.options.timeout_seconds, 5.0);
         // Everything else is inherited; the priors in particular must not be
         // silently reset, since they are what keeps the solver from drifting to
         // a nearby valid-but-wrong CP.
-        assert_eq!(parsed.movement_sigma, default.movement_sigma);
+        assert_eq!(parsed.options.movement_sigma, default.movement_sigma);
         assert_eq!(
-            parsed.boundary_movement_sigma,
+            parsed.options.boundary_movement_sigma,
             default.boundary_movement_sigma
         );
-        assert_eq!(parsed.polish, default.polish);
-        assert_eq!(parsed.linear_solver, default.linear_solver);
+        assert_eq!(parsed.options.polish, default.polish);
+        assert_eq!(parsed.options.linear_solver, default.linear_solver);
     }
 
     #[test]
@@ -894,5 +996,110 @@ mod exact_solve_options_tests {
         assert!(exact_solve_options_from_json("[]").is_err());
         assert!(exact_solve_options_from_json("7").is_err());
         assert!(exact_solve_options_from_json("{oops}").is_err());
+    }
+
+    #[test]
+    fn exempt_vertex_ids_are_accepted_and_default_to_empty() {
+        // Empty is what makes the widening invisible to callers that never ask
+        // for it: `solve_exact_with_exemptions` with an empty set is
+        // `solve_exact`.
+        assert!(
+            exact_solve_options_from_json(r#"{"polish": false}"#)
+                .expect("options without exemptions")
+                .exempt_vertex_ids
+                .is_empty()
+        );
+
+        let parsed =
+            exact_solve_options_from_json(r#"{"polish": false, "exempt_vertex_ids": [11, 3, 3]}"#)
+                .expect("options with exemptions");
+        assert_eq!(parsed.exempt_vertex_ids, BTreeSet::from([3, 11]));
+        assert!(!parsed.options.polish);
+        assert_eq!(
+            parsed.options.max_vertex_movement,
+            ExactSolveOptions::default().max_vertex_movement
+        );
+    }
+
+    #[test]
+    fn exempt_vertex_ids_alone_leaves_every_option_at_its_default() {
+        let parsed = exact_solve_options_from_json(r#"{"exempt_vertex_ids": [7]}"#)
+            .expect("exemptions only");
+        assert_eq!(parsed.options, ExactSolveOptions::default());
+        assert_eq!(parsed.exempt_vertex_ids, BTreeSet::from([7]));
+    }
+
+    #[test]
+    fn a_fully_serialized_options_object_still_parses_unchanged() {
+        // The parse now runs through `#[serde(flatten)]`, which buffers every
+        // field as an untyped `Content` before typing it. This is the guard that
+        // the detour costs nothing: a serialized `ExactSolveOptions` — every
+        // field, every numeric shape — must come back equal to what went in.
+        let options = ExactSolveOptions {
+            max_vertex_movement: 0.25,
+            patience: 7,
+            polish: false,
+            linear_solver: oristudio_cp_compiler::LinearSolver::Dense,
+            ..ExactSolveOptions::default()
+        };
+        let text = serde_json::to_string(&options).expect("serialize options");
+
+        let parsed = exact_solve_options_from_json(&text).expect("full options");
+        assert_eq!(parsed.options, options);
+        assert!(parsed.exempt_vertex_ids.is_empty());
+    }
+
+    #[test]
+    fn an_integer_literal_still_reaches_a_float_field() {
+        // JSON has one number type and `JSON.stringify(5.0)` is `"5"`, so the
+        // browser routinely sends integers for `f64` knobs. Flattened
+        // deserialization must not start rejecting them.
+        let parsed = exact_solve_options_from_json(r#"{"timeout_seconds": 5, "patience": 12}"#)
+            .expect("integer literals");
+        assert_eq!(parsed.options.timeout_seconds, 5.0);
+        assert_eq!(parsed.options.patience, 12);
+    }
+
+    #[test]
+    fn a_misspelled_exemption_key_is_still_an_error() {
+        let error = exact_solve_options_from_json(r#"{"exempt_vertex_id": [3]}"#)
+            .expect_err("near-miss key");
+        assert!(error.contains("exempt_vertex_id"), "{error}");
+    }
+}
+
+#[cfg(test)]
+mod exempt_vertex_id_tests {
+    use super::{summarize_ids, unknown_exempt_vertex_ids};
+    use std::collections::BTreeSet;
+
+    #[test]
+    fn ids_present_in_the_input_are_accepted() {
+        assert!(
+            unknown_exempt_vertex_ids([0, 1, 2, 9], &BTreeSet::from([0, 9])).is_empty(),
+            "ids that name real vertices are not unknown"
+        );
+        assert!(unknown_exempt_vertex_ids([0, 1], &BTreeSet::new()).is_empty());
+        // No vertices and no exemptions is the ordinary no-op solve.
+        assert!(unknown_exempt_vertex_ids([], &BTreeSet::new()).is_empty());
+    }
+
+    #[test]
+    fn ids_absent_from_the_input_are_reported() {
+        // Vertex ids are not indices, so a caller that sends positions instead
+        // of ids gets told rather than silently losing the exemption.
+        assert_eq!(
+            unknown_exempt_vertex_ids([10, 11, 12], &BTreeSet::from([0, 11, 4])),
+            vec![0, 4]
+        );
+    }
+
+    #[test]
+    fn the_id_list_in_a_message_is_bounded() {
+        assert_eq!(summarize_ids(&[3, 11]), "3, 11");
+        assert_eq!(
+            summarize_ids(&(0..10).collect::<Vec<_>>()),
+            "0, 1, 2, 3, 4, 5, 6, 7, … (2 more)"
+        );
     }
 }
