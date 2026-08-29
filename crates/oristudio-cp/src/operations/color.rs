@@ -68,11 +68,47 @@ pub fn make_edge(model: &mut CreasePatternModel, indices: &[usize]) -> usize {
 }
 
 /// Oriedita `CREASE_MAKE_AUX_60` selected-line mutation.
+///
+/// # An unassigned crease converts, and upstream has no opinion on that
+///
+/// Upstream gates this on `LineColor.isFoldingLine()` — `Black0 | Red1 | Blue2`
+/// — applied by `BoxSelectLinesStepNode` to what the drag box may pick up. Over
+/// the colours Oriedita's UI can actually produce, that predicate and *"not
+/// already an auxiliary line"* pick out the **same set**: every line is either a
+/// folding line or one of `Cyan3..=Grey10`. The second reading is the gate's
+/// purpose — it is `MouseHandlerCreaseMakeMountain`'s `!= RED_1` in the shape
+/// this handler needs — and the two come apart on exactly one colour,
+/// `LineColor::None`, which upstream declares and no handler ever reaches.
+///
+/// Here it is a first-class state ([`crate::operations::native::unassign`]), so
+/// the literal spelling made "Make Auxiliary" a **silent no-op** on an
+/// unassigned crease. The menu item is enabled by selection alone
+/// (`workspaceCapabilities.ts` asks only "are lines selected"), so the user got
+/// no message either — the same defect, in the same shape, that
+/// [`crate::operations::native::unassign::make_unassigned`] was widened to
+/// remove.
+///
+/// Parity is untouched: no upstream-reachable colour changes hands, so
+/// `foldline-make-aux` in `tests/oriedita_operations_oracle.rs` asks the same
+/// cases and gets the same answers. That oracle could not have caught this
+/// anyway — it reimplements the predicate over colours a Java `FoldLineSet` can
+/// hold, so the one colour that matters here is unreachable from it.
+///
+/// An **already-auxiliary** line still declines, and that silence is a different
+/// thing from the defect above: the postcondition is "this line is auxiliary",
+/// which `Orange4` — the colour [`crate::operations::construction`] authors by
+/// default — already satisfies. Zero is then the honest count rather than a
+/// refusal, which is the law
+/// `unassign::tests::zero_means_the_state_already_holds` pins for its own verbs.
+///
+/// [`crate::geometry::LineSegment::with_line_color`] drops the direction hint on
+/// the way out, so a crease unassigned *keeping* its direction cannot smuggle
+/// one onto a line that no longer folds.
 pub fn make_aux(model: &mut CreasePatternModel, indices: &[usize]) -> usize {
     let lines: Vec<_> = indices
         .iter()
         .filter_map(|index| model.line_segments.get(*index))
-        .filter(|segment| segment.color.is_folding_line())
+        .filter(|segment| can_become_aux(segment.color))
         .cloned()
         .collect();
 
@@ -96,6 +132,14 @@ pub fn make_aux(model: &mut CreasePatternModel, indices: &[usize]) -> usize {
     }
 
     changed
+}
+
+/// Everything Oriedita's `isFoldingLine()` gate admits, plus the one undecided
+/// state upstream has no handler to reach. Kept here rather than on
+/// [`LineColor`], which is a 1:1 port of the Java enum and has no member for
+/// this. See [`make_aux`] for why the widening is parity-neutral.
+const fn can_become_aux(color: LineColor) -> bool {
+    color.is_folding_line() || matches!(color, LineColor::None)
 }
 
 /// Oriedita `REPLACE_LINE_TYPE_SELECT_72` mutation over explicit line indices.

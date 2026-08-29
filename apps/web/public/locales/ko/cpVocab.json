@@ -610,7 +610,7 @@
     },
     "cp_action_crease_make_aux": {
       "label": "보조선으로 지정",
-      "tooltip": "선택한 접힘선을 보조선으로 변환",
+      "tooltip": "선택한 선을 보조선으로 변환",
       "disabledReason": "준비됨"
     },
     "cp_action_operation_frame_create": {

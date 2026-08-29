@@ -610,7 +610,7 @@
     },
     "cp_action_crease_make_aux": {
       "label": "Definir como auxiliar",
-      "tooltip": "Converter linhas de dobra selecionadas em linhas auxiliares",
+      "tooltip": "Converter as linhas selecionadas em linhas auxiliares",
       "disabledReason": "Pronto"
     },
     "cp_action_operation_frame_create": {

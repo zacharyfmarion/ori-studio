@@ -217,6 +217,32 @@ are unchanged:
   handler's final `else`: removed and re-added unchanged, which is upstream's
   own behaviour for every colour outside the cycle.
 
+- **Make Auxiliary also converts an unassigned crease.**
+  `MouseHandlerCreaseMakeAux` gates on `LineColor.isFoldingLine()` — `Black0 |
+  Red1 | Blue2` — via `BoxSelectLinesStepNode`. Over the colours Oriedita's UI
+  can produce, that predicate and *"not already an auxiliary line"* are the same
+  set: every line is either a folding line or one of `Cyan3..=Grey10`. The second
+  reading is the gate's purpose — it is `MouseHandlerCreaseMakeMountain`'s
+  `!= RED_1` in the shape this handler needs — and the two differ on exactly
+  `LineColor::None`, which upstream declares and no handler reaches. So
+  `operations::color::make_aux` admits it, and an already-auxiliary line is now
+  the only thing the gate turns away.
+
+  This is the third colour gate that could not see our unassigned state, and it
+  failed the way the other two did: the menu item is enabled by selection alone,
+  so "Make Auxiliary" on an unassigned crease did nothing and said nothing.
+  Declining an *aux* line is not the same silence — the postcondition "this line
+  is auxiliary" already holds there, so zero is the honest count, which is the
+  law `unassign`'s `zero_means_the_state_already_holds` pins for its own verbs.
+
+  Parity is untouched: no upstream-reachable colour changes hands, so the
+  `foldline-make-aux` case in
+  `crates/oristudio-cp/tests/oriedita_operations_oracle.rs` asks the same
+  questions and gets the same answers. That oracle could not have caught this in
+  either direction — it reimplements the predicate over colours a Java
+  `FoldLineSet` can hold, so the one colour at issue is unreachable from it.
+  `crates/oristudio-cp/tests/color_operations.rs` covers the widened half.
+
 ### Folding search coverage
 
 The layer-ordering search is ported whole, and this section exists to say which

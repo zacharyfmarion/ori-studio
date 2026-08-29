@@ -1,4 +1,4 @@
-use oristudio_cp::geometry::{LineColor, LineSegment, Point};
+use oristudio_cp::geometry::{FoldDirection, LineColor, LineSegment, Point};
 use oristudio_cp::model::{CreasePatternModel, CustomLineType};
 use oristudio_cp::operations::color::{
     advance_line_type, alternate_mountain_valley_along, alternate_mountain_valley_crossing,
@@ -6,6 +6,7 @@ use oristudio_cp::operations::color::{
     make_mountain, replace_line_type_for_indices, replace_selected_line_type,
     set_line_color_for_indices, toggle_mountain_valley,
 };
+use oristudio_cp::operations::native::unassign::make_unassigned_keeping_direction;
 
 #[test]
 fn set_line_color_for_indices_changes_non_aux_lines_in_place() {
@@ -68,6 +69,97 @@ fn make_aux_deletes_folding_lines_and_appends_cyan_replacements() {
         Point::new(0.0, 1.0),
         Point::new(1.0, 1.0),
         LineColor::Cyan3,
+    );
+}
+
+/// **The reported bug.** Upstream's `isFoldingLine()` gate is `Black0 | Red1 |
+/// Blue2`, so an unassigned crease — a state Oriedita's UI cannot produce — fell
+/// through it and "Make Auxiliary" did nothing, silently, on a menu item that
+/// only checks whether anything is selected.
+#[test]
+fn make_aux_converts_an_unassigned_crease() {
+    let mut model = CreasePatternModel::default();
+    model.add_line(Point::new(0.0, 0.0), Point::new(1.0, 0.0), LineColor::None);
+
+    let changed = make_aux(&mut model, &[0]);
+
+    assert_eq!(changed, 1);
+    assert_eq!(model.line_segments.len(), 1);
+    assert_segment(
+        &model.line_segments[0],
+        Point::new(0.0, 0.0),
+        Point::new(1.0, 0.0),
+        LineColor::Cyan3,
+    );
+}
+
+/// A crease unassigned *keeping* its direction is still unassigned, and it must
+/// not carry the remembered direction onto a line that no longer folds.
+#[test]
+fn make_aux_drops_the_direction_hint_of_an_unassigned_crease() {
+    let mut model = CreasePatternModel::default();
+    model.add_line(Point::new(0.0, 0.0), Point::new(1.0, 0.0), LineColor::Red1);
+    assert_eq!(make_unassigned_keeping_direction(&mut model, &[0]), 1);
+    assert_eq!(
+        model.line_segments[0].fold_direction_hint,
+        Some(FoldDirection::Mountain)
+    );
+
+    assert_eq!(make_aux(&mut model, &[0]), 1);
+
+    assert_eq!(model.line_segments[0].color, LineColor::Cyan3);
+    assert_eq!(model.line_segments[0].fold_direction_hint, None);
+}
+
+/// The gate widened by exactly one colour. Every aux colour still declines —
+/// upstream declines them too, and unlike the unassigned case the postcondition
+/// ("this line is auxiliary") already holds, so zero is the honest count.
+#[test]
+fn make_aux_still_declines_lines_that_are_already_auxiliary() {
+    let aux = [
+        LineColor::Cyan3,
+        LineColor::Orange4,
+        LineColor::Magenta5,
+        LineColor::Green6,
+        LineColor::Yellow7,
+        LineColor::Purple8,
+        LineColor::Other9,
+        LineColor::Grey10,
+    ];
+    let mut model = CreasePatternModel::default();
+    for (index, color) in aux.iter().enumerate() {
+        let offset = index as f64;
+        model.add_line(Point::new(offset, 0.0), Point::new(offset, 10.0), *color);
+    }
+    let before = model.line_segments.clone();
+    let indices: Vec<usize> = (0..aux.len()).collect();
+
+    assert_eq!(make_aux(&mut model, &indices), 0);
+
+    assert_eq!(model.line_segments, before);
+}
+
+/// A mixed selection is the realistic one, and the count has to name only the
+/// lines that moved.
+#[test]
+fn make_aux_counts_only_the_lines_it_reaches() {
+    let mut model = CreasePatternModel::default();
+    model.add_line(Point::new(0.0, 0.0), Point::new(1.0, 0.0), LineColor::Red1);
+    model.add_line(Point::new(0.0, 1.0), Point::new(1.0, 1.0), LineColor::None);
+    model.add_line(
+        Point::new(0.0, 2.0),
+        Point::new(1.0, 2.0),
+        LineColor::Black0,
+    );
+    model.add_line(Point::new(0.0, 3.0), Point::new(1.0, 3.0), LineColor::Cyan3);
+
+    // Red1, the unassigned crease and the border move; the aux line does not.
+    assert_eq!(make_aux(&mut model, &[0, 1, 2, 3]), 3);
+    assert!(
+        model
+            .line_segments
+            .iter()
+            .all(|segment| segment.color == LineColor::Cyan3)
     );
 }
 
