@@ -12,7 +12,7 @@ import { readCssVarColor } from './renderer/cssColor';
 import { syncHeldModifiersFromEvent } from '../keyboard/heldModifiers';
 import { resolveWheelGesture, type WheelGesturePreference } from '../lib/wheelGesture';
 import { claimWheelBurst, forwardWheel } from '../lib/wheelBurst';
-import { cpCanvasCursor, usePanModifierHeld } from './cpCanvasCursor';
+import { cpCanvasCursor, isPanModifierHeld, usePanModifierHeld } from './cpCanvasCursor';
 import {
   cameraZoomForPercent,
   fitUserCamera,
@@ -1833,6 +1833,17 @@ export function CreasePatternWebglCanvas({
       setCreaseHovered(next);
     };
     /**
+     * Whether a click would select what is under the cursor.
+     *
+     * Not "no tool is armed" — the canvas rests with Box Select armed, so that
+     * question is always answered no. What the region-select family shares is
+     * the click action. One predicate, because the hover cursor and the answer
+     * given to the overlay above must not disagree about it.
+     */
+    const clickSelectsUnderCursor = () =>
+      liveRef.current.activeToolInputMode === null ||
+      liveRef.current.activeToolClickAction === 'select';
+    /**
      * Ask whether something selectable is under the cursor, at most once per
      * frame.
      *
@@ -3218,12 +3229,7 @@ export function CreasePatternWebglCanvas({
         // no-tool fallback does. A draw tool has its own cursor and its own
         // hover preview, and a drag in flight has already committed to what it
         // is doing.
-        if (
-          (liveRef.current.activeToolInputMode === null ||
-            liveRef.current.activeToolClickAction === 'select') &&
-          !movingSelection &&
-          !selecting
-        ) {
+        if (clickSelectsUnderCursor() && !movingSelection && !selecting) {
           probeCreaseHover(e.clientX, e.clientY);
         } else {
           clearCreaseHover();
@@ -3607,6 +3613,30 @@ export function CreasePatternWebglCanvas({
           hit: hitTest(event.clientX, event.clientY),
         }),
       press: onPointerDown,
+      /**
+       * What the overlay above should show, resolved here rather than read off
+       * this canvas' rendered style — see the note on the handle. While the
+       * pointer is over a reference image this canvas receives no hover at all,
+       * so its own cursor is not an answer to anything.
+       */
+      hoverCursor: (point) => {
+        const hit = hitTest(point.clientX, point.clientY);
+        const claimed = surfaceClaimsPress({
+          button: point.button,
+          metaKey: point.metaKey,
+          panToolActive: liveRef.current.panToolActive,
+          hit,
+        });
+        if (!claimed) return null;
+        return (
+          cpCanvasCursor({
+            panToolActive: liveRef.current.panToolActive,
+            panModifierHeld: point.metaKey || isPanModifierHeld(),
+            panDragging: false,
+            creaseHovered: hit !== null && clickSelectsUnderCursor(),
+          }) ?? 'default'
+        );
+      },
     });
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('pointermove', onPointerMove);

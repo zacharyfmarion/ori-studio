@@ -279,6 +279,36 @@ describe('the canvas press pipeline the overlay hands presses back to', () => {
     }
   });
 
+  /**
+   * What the overlay above asks for when the pointer is over a reference image,
+   * where this canvas receives no hover of its own. It must be *computed*, not
+   * read off this canvas' rendered style — that style is only ever resolved from
+   * hovers this canvas receives, so over an image it is stale by construction.
+   */
+  it('answers what cursor to show at a point it is not itself hovering', () => {
+    mount();
+    const surface = cpSurfacePress()!;
+
+    expect(surface.hoverCursor({ button: 0, metaKey: false, ...clientOf(100, 100) })).toBe(
+      'pointer'
+    );
+    // Empty space: the press belongs to the object, so the canvas offers nothing
+    // and the object keeps its own move cursor.
+    expect(
+      surface.hoverCursor({ button: 0, metaKey: false, ...clientOf(100, 180) })
+    ).toBeNull();
+  });
+
+  it('offers its pan cursor over an image, where a modifier still pans', () => {
+    mount();
+    const surface = cpSurfacePress()!;
+
+    // Meta claims the press wherever it lands, so the answer is the pan
+    // affordance rather than the crease one — even directly over a crease.
+    expect(surface.hoverCursor({ button: 0, metaKey: true, ...clientOf(100, 100) })).toBe('grab');
+    expect(surface.hoverCursor({ button: 0, metaKey: true, ...clientOf(100, 180) })).toBe('grab');
+  });
+
   it('leaves the cursor to a draw tool, which owns its own hover feedback', () => {
     // The other half of the gate. It is not "no tool armed" — the canvas rests
     // with Box Select armed — it is "a click here would select", which a draw

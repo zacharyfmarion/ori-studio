@@ -59,6 +59,22 @@ export interface CpSurfacePressHandle {
    * gives the polygon on a touch or pen press.
    */
   press(event: PointerEvent): void;
+  /**
+   * The cursor the canvas would show at this point, or null when the press there
+   * belongs to the object rather than to the surface.
+   *
+   * Exists because the obvious alternative does not work: a layer above the
+   * canvas cannot read the canvas' *rendered* cursor and mirror it, since the
+   * canvas only resolves that while it is receiving the hover — and it is not,
+   * precisely because this layer is intercepting the events. Mirroring the
+   * rendered style yielded a stale `default` over every crease drawn on top of
+   * a reference image.
+   *
+   * So the answer is computed on demand from the same inputs the canvas' own
+   * cursor uses. One hit test, and the claim verdict comes back folded in
+   * rather than needing a second call to {@link claimsPress}.
+   */
+  hoverCursor(point: CpSurfacePressPoint): string | null;
 }
 
 let current: CpSurfacePressHandle | null = null;

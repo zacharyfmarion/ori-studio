@@ -431,13 +431,14 @@ export function CanvasObjectOverlay({
 
   /**
    * Keep the body's cursor honest while hovering an object the creases are drawn
-   * on top of: `move` only where a press would actually move it, and whatever
-   * the canvas is showing where the press would go to the canvas instead.
+   * on top of: `move` only where a press would actually move it, and what the
+   * canvas would show where the press would go to the canvas instead.
    *
-   * The canvas' own cursor is mirrored rather than guessed. It is the layer that
-   * would take the press, it already resolves this correctly (`grab` while a pan
-   * modifier is held, nothing in plain select mode), and reading its inline
-   * style is a property read, not a layout one.
+   * The canvas is *asked* rather than mirrored. Reading its rendered
+   * `style.cursor` looks equivalent and is not: the canvas only resolves that
+   * while it is receiving the hover, and it is not receiving this one — this
+   * overlay is on top of it. Mirroring gave a stale `default` over every crease
+   * drawn on a reference image, which is the whole case this exists for.
    */
   const probeBodyCursor = useCallback(
     (event: ReactPointerEvent<SVGElement>, object: TransformableCanvasObject) => {
@@ -459,15 +460,13 @@ export function CanvasObjectOverlay({
         const probe = cursorProbeRef.current;
         cursorProbeRef.current = null;
         if (!probe) return;
-        const claims =
-          cpSurfacePress()?.claimsPress({ button: 0, ...probe }) ?? false;
-        setYieldedCursor(
-          claims ? { id: probe.id, cursor: siblingCanvas()?.style.cursor || 'default' } : null
-        );
+        // Null means the press there is this object's, so it keeps `move`.
+        const cursor = cpSurfacePress()?.hoverCursor({ button: 0, ...probe }) ?? null;
+        setYieldedCursor(cursor ? { id: probe.id, cursor } : null);
       });
       cursorProbeRef.current = { frame, ...sample };
     },
-    [siblingCanvas]
+    []
   );
 
   /** Drop the yielded cursor when the pointer leaves, so re-entry starts clean. */

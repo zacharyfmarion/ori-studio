@@ -148,19 +148,27 @@ describe('CanvasObjectOverlay crease precedence', () => {
 
   /**
    * Register a stub surface and return what it was asked and told.
-   * `claims` decides every answer, standing in for "is a crease under here".
+   * `claims` decides every answer, standing in for "is a crease under here";
+   * `cursor` is what the canvas would show there when it does claim.
    */
-  function stubSurface(claims: boolean) {
+  function stubSurface(claims: boolean, cursor = 'pointer') {
     const asked: { clientX: number; clientY: number; button: number }[] = [];
+    const cursorAsked: { clientX: number; clientY: number }[] = [];
     const pressed: PointerEvent[] = [];
     detachSurface = registerCpSurfacePress({
       claimsPress: (point) => {
         asked.push({ clientX: point.clientX, clientY: point.clientY, button: point.button });
         return claims;
       },
-      press: (event) => pressed.push(event),
+      press: (event) => {
+        pressed.push(event);
+      },
+      hoverCursor: (point) => {
+        cursorAsked.push({ clientX: point.clientX, clientY: point.clientY });
+        return claims ? cursor : null;
+      },
     });
-    return { asked, pressed };
+    return { asked, cursorAsked, pressed };
   }
 
   function pressBody(
@@ -346,8 +354,12 @@ describe('CanvasObjectOverlay crease precedence', () => {
       vi.useRealTimers();
     });
 
-    it('drops the move cursor where a press would go to the crease instead', () => {
-      stubSurface(true);
+    it('shows the crease cursor where a press would go to the crease instead', () => {
+      // The reported bug: over a crease drawn on a reference image the body kept
+      // showing `move`, and the first fix only got as far as dropping it to
+      // `default` — because it mirrored the canvas' rendered style, which the
+      // canvas never updates while this overlay is intercepting the hover.
+      stubSurface(true, 'pointer');
       render({ objects: [image('a')], selectedId: null });
       const body = bodyPolygon()!;
       expect(body.style.cursor).toBe('move');
@@ -355,7 +367,20 @@ describe('CanvasObjectOverlay crease precedence', () => {
       hover(body);
       flushProbe();
 
-      expect(body.style.cursor).toBe('default');
+      expect(body.style.cursor).toBe('pointer');
+    });
+
+    it('shows whatever else the canvas would, not just pointer', () => {
+      // A pan modifier held over an image is still a pan. The canvas answers
+      // with its own cursor, so this layer needs no rules of its own.
+      stubSurface(true, 'grab');
+      render({ objects: [image('a')], selectedId: null });
+      const body = bodyPolygon()!;
+
+      hover(body);
+      flushProbe();
+
+      expect(body.style.cursor).toBe('grab');
     });
 
     it('keeps the move cursor over empty space inside the image', () => {
@@ -386,14 +411,14 @@ describe('CanvasObjectOverlay crease precedence', () => {
     it('coalesces a burst of moves into one hit test', () => {
       // A high-rate pointer reports far more often than the screen redraws, and
       // the probe runs a hit test — which is cheap per frame and not per sample.
-      const { asked } = stubSurface(true);
+      const { cursorAsked } = stubSurface(true);
       render({ objects: [image('a')], selectedId: null });
       const body = bodyPolygon()!;
 
       for (let i = 0; i < 10; i++) hover(body);
       flushProbe();
 
-      expect(asked).toHaveLength(1);
+      expect(cursorAsked).toHaveLength(1);
     });
 
     it('restores the move cursor when the pointer leaves', () => {
@@ -402,7 +427,7 @@ describe('CanvasObjectOverlay crease precedence', () => {
       const body = bodyPolygon()!;
       hover(body);
       flushProbe();
-      expect(body.style.cursor).toBe('default');
+      expect(body.style.cursor).toBe('pointer');
 
       // `pointerleave` does not bubble, so React synthesizes it from the
       // bubbling `pointerout` and the element being moved to.
