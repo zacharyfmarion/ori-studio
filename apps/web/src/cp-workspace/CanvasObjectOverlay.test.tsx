@@ -20,6 +20,9 @@ function object(id: string): TransformableCanvasObject {
     locked: false,
     hidden: false,
     aspectLock: 'default-off',
+    // Above the creases, so the surface is never consulted — the default for
+    // every kind but a reference image.
+    paintedBehindCreases: false,
   };
 }
 

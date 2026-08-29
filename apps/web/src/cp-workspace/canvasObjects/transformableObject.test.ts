@@ -89,6 +89,30 @@ describe('annotationAsTransformable', () => {
   });
 });
 
+/**
+ * Pick order follows paint order, and this is where each kind declares which
+ * side of the creases it is drawn on. Getting one wrong is silent: the object
+ * keeps working, it just takes (or yields) presses it should not — which is
+ * exactly how a crease drawn over a reference image became unselectable.
+ *
+ * The companion assertion lives in `renderer/reglRendererLayerOrder.test.ts`,
+ * which pins the draw order these answers claim to describe.
+ */
+describe('which kinds the creases are painted over', () => {
+  it('yields a reference image, which is drawn under the creases to trace over', () => {
+    expect(annotationAsTransformable(image()).paintedBehindCreases).toBe(true);
+  });
+
+  it('keeps a text box, which is a DOM layer above the canvas', () => {
+    const text = annotationAsTransformable(createTextAnnotation({ center: { x: 0, y: 0 } }));
+    expect(text.paintedBehindCreases).toBe(false);
+  });
+
+  it('keeps a folded figure, which draws after the creases it was folded from', () => {
+    expect(foldedFigureAsTransformable(foldedFigure())!.paintedBehindCreases).toBe(false);
+  });
+});
+
 describe('foldedFigureAsTransformable', () => {
   it('projects to a user-space box that is always proportional', () => {
     const object = foldedFigureAsTransformable(foldedFigure())!;

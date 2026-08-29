@@ -34,6 +34,23 @@ export interface TransformableCanvasObject {
   hidden: boolean;
   /** Whether resize keeps proportions, and whether Shift escapes that. */
   aspectLock: AspectLockPolicy;
+  /**
+   * Whether the crease pattern is painted *over* this object.
+   *
+   * Pick order has to follow paint order, or the surface lies about what a click
+   * will do. Everything the overlay draws chrome for sits above the creases and
+   * rightly takes its own press — except a reference image, which is drawn
+   * underneath them precisely so you can trace over it (see
+   * `reglRenderer.render`). Leaving that kind to swallow every press inside its
+   * box made a crease drawn on top of an image unselectable, which is the bug
+   * this flag exists to fix.
+   *
+   * Only the *body* yields. Resize and rotate handles are chrome — small,
+   * deliberate, and drawn on top — and keep their press whatever is beneath, or
+   * an image under a dense pattern could not be sized at all. Same body-vs-handle
+   * split `inertBodyIds` already draws.
+   */
+  paintedBehindCreases: boolean;
 }
 
 /** An annotation as the overlay sees it: a model-space box. */
@@ -52,6 +69,9 @@ export function annotationAsTransformable(
     locked: annotation.locked,
     hidden: annotation.hidden,
     aspectLock: annotationAspectLockPolicy(annotation),
+    // Images are drawn into the canvas below the creases; text boxes are their
+    // own DOM layer above it. The two annotation variants genuinely differ here.
+    paintedBehindCreases: annotation.kind === 'image',
   };
 }
 
@@ -103,5 +123,8 @@ export function foldedFigureAsTransformable(
     locked: false,
     hidden: false,
     aspectLock: 'always',
+    // Folded figures draw after the creases, so they occlude the pattern they
+    // were folded from and keep their press.
+    paintedBehindCreases: false,
   };
 }
