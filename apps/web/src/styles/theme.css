@@ -6610,16 +6610,22 @@ button.cp-folded-figure-toolbar__notice:hover {
   color: var(--text-primary);
 }
 
+/* Fills whichever frame it is in. The width belongs to the *frame*, not the
+   body: anchored, the pill sizes itself (below); as a modal, the document is
+   already `min(360px, 100vw - 24px)` and a body with a width of its own left the
+   form huddled in the corner of it. */
 .crease-angle-popover {
   display: grid;
   gap: var(--space-2);
-  width: 208px;
-  padding: var(--space-2);
+  width: 100%;
+  padding: var(--space-3);
 }
 
 /* The floating frame is a `FloatingToolbar` pill, which is laid out for a row of
-   icon buttons; this body is a small form, so it takes the padding back. */
+   icon buttons; this body is a small form, so it takes the padding back and
+   states the width the pill has no content-based reason to pick. */
 .crease-angle-popover__floating {
+  width: 232px;
   padding: 0;
 }
 

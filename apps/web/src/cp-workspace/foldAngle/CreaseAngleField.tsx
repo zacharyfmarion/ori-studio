@@ -15,6 +15,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronUp } from 'lucide-react';
+import { useSelectAllOnClick } from '../../components/ui/useSelectAllOnClick';
 import {
   formatCreaseAngle,
   formatCreaseAngleValue,
@@ -44,6 +45,7 @@ export function CreaseAngleField({
   // Null while idle, so the field tracks the pen; a string while editing, so a
   // half-typed number is not overwritten from under the cursor.
   const [draft, setDraft] = useState<string | null>(null);
+  const selectAllOnClick = useSelectAllOnClick();
 
   const label = t('tools:creaseAngle.title', 'Crease angle');
   const openLabel = shortcutLabel ? `${label} (${shortcutLabel})` : label;
@@ -77,10 +79,13 @@ export function CreaseAngleField({
         value={draft ?? formatCreaseAngle(degrees)}
         onFocus={(event) => {
           // Drop the degree sign while editing so the field holds a plain
-          // number, and select it so typing replaces the angle outright.
+          // number, and select it so typing replaces the angle outright. That
+          // covers Tab; a *click* needs `useSelectAllOnClick` as well, because
+          // the mouseup that follows would otherwise collapse this to a caret.
           setDraft(formatCreaseAngleValue(degrees));
           event.currentTarget.select();
         }}
+        {...selectAllOnClick}
         onChange={(event) => setDraft(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === 'Enter') {

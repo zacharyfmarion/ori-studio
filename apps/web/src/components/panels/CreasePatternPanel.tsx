@@ -12,8 +12,8 @@ import {
   ListChecks,
   Loader2,
   Origami,
-  Spline,
 } from 'lucide-react';
+import { ProtractorIcon } from '../ui/ProtractorIcon';
 import {
   registerCpActionShortcutExecutor,
   registerViewportShortcutExecutor,
@@ -135,7 +135,6 @@ import {
   creaseAnglePayloadDegrees,
   creaseAnglePreviewMagnitude,
   formatCreaseAngle,
-  isClassicCreaseAngle,
 } from '../../cp-workspace/foldAngle/activeCreaseAngle';
 import {
   FOLD_ANGLE_ANCHOR_FALLBACK,
@@ -2951,14 +2950,20 @@ export function CreasePatternPanel() {
               label: t('tools:creaseAngle.menuRow', 'Crease angle: {{angle}}', {
                 angle: formatCreaseAngle(activeCpCreaseAngle),
               }),
-              icon: <Spline size={14} />,
-              // Without this the menu's focus restore lands after the popover's
-              // own, and it opens with focus on the trigger behind it.
+              icon: <ProtractorIcon size={14} />,
+              // Deliberately **no** `checked`. This row opens a control; it is
+              // not a mode you switch. `OverflowItem` reads any `checked` at all
+              // as "this is a mode" and renders a `CheckboxItem`, which swaps
+              // the icon for a tick and cancels the select so the menu stays
+              // open for runs of layer toggles. Both were wrong here, and both
+              // shipped: the row showed a tick instead of a protractor and did
+              // not close when tapped.
+              //
+              // The pen being off 180 is then not announced on the closed
+              // trigger, which `unseenWhenCollapsed` would have done — but that
+              // flag is for a *mode* that is silently on, and a value is not
+              // one. The label states it the moment the menu opens.
               opensDialog: true,
-              // A pen that is not at 180 changes what every draw does and shows
-              // nowhere else once the field is gone, so it lights the trigger.
-              checked: !isClassicCreaseAngle(activeCpCreaseAngle),
-              unseenWhenCollapsed: true,
               onSelect: () => setCreaseAnglePopoverOpen(true),
             },
           ],
