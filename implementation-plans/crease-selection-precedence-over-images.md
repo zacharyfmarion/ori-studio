@@ -384,28 +384,40 @@ share of this to prop pass-through, with all behaviour in the modules above.
 
 ## Checklist
 
-- [ ] Pin the image layer below the creases in `reglRendererLayerOrder.test.ts`
-      (the one band it does not currently assert), so property 1 cannot regress.
-- [ ] Add `paintedBehindCreases` to `TransformableCanvasObject` and set it in all
+- [x] Pin the image layer below the creases in `reglRendererLayerOrder.test.ts`
+      (the one band it did not previously assert), so property 1 cannot regress.
+- [x] Add `paintedBehindCreases` to `TransformableCanvasObject` and set it in all
       three adapters.
-- [ ] Add `surfaceClaimsPress` taking a `CpSelectHit | null` (never coordinates
+- [x] Add `surfaceClaimsPress` taking a `CpSelectHit | null` (never coordinates
       and a radius — see F5), with the F6 truth-table test.
-- [ ] Add `cpSurfacePressRegistry`; register from the canvas beside the camera.
-      `claimsPress` must call the same `hitTest` closure `onPointerDown` uses.
-- [ ] Decline + hand over in `handleBodyDown`, with the F1 cases in
+- [x] Add `cpSurfacePressRegistry`; register from the canvas beside the camera.
+      `claimsPress` calls the same `hitTest` closure `onPointerDown` uses.
+- [x] Decline + hand over in `handleBodyDown`, with the F1 cases in
       `CanvasObjectOverlay.test.tsx`.
-- [ ] Extend the same rule to `onContextMenu` and `onDoubleClick`.
-- [ ] Add `CreasePatternWebglCanvas.press.test.tsx` for F2 — registered on
+- [x] Extend the same rule to `onContextMenu` and `onDoubleClick`.
+- [x] Add `CreasePatternWebglCanvas.press.test.tsx` for F2 — registered on
       mount, cleared on unmount, `claimsPress` true on a crease and false in
       empty space.
-- [ ] Document the per-frame prohibition in the registry's module doc: this may
+- [x] Document the per-frame prohibition in the registry's module doc: this may
       be called on `pointerdown` and never from a per-frame handler.
-- [ ] Validate: `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`.
+- [x] Validate: `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`
+      (1736 passing). Both new seams mutation-checked: cutting the canvas
+      registration fails all four F2 cases, stubbing its hit test fails exactly
+      the two that assert on crease proximity, and making the overlay never
+      consult the surface fails four F1 cases.
 - [ ] Browser-verify the A/B from "Measured" above — same crease, inside and
       outside the image box — plus erase, pan, marquee, drag-move, resize and
       rotate over a dense pattern, on mouse and on touch. Dragging the image
       body from a gap between creases is part of this pass, not a separate
       affordance (see "Decided against" above).
+
+      **Not done, and the one thing left.** The in-app browser pane had no
+      viewport for this session (`window.innerWidth === 0` while hidden, so
+      Dockview never sized the panel and the canvas stayed 0×0). The iOS
+      Simulator does give real WebKit at a real size and confirmed ordinary
+      crease selection by touch still works — but a reference image can only be
+      added by dropping a file on the viewport, which is not a gesture that
+      exists there.
 
 ## Notes for whoever picks this up
 
