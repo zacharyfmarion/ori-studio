@@ -146,8 +146,12 @@ const ORIEDITA_DEFAULTS: Record<string, string> = {
   colCyanAction: 'F', // Auxiliary
   // Ori Studio addition: no Oriedita equivalent, because Oriedita creases are
   // always a full +/-180. Shift+F sits in the same left-hand family as the line
-  // types it complements and leaves A/S/D/F untouched. (Shift+A was the first
-  // choice but belongs to a1Action, the three-point angle readout.)
+  // types it complements and leaves A/S/D/F untouched.
+  //
+  // This is the *selection* verb — set the angle on what is selected. Its
+  // sibling is `cp.setActiveCreaseAngle` in MENU_SHORTCUTS, the pen: what an
+  // angle the creases you are about to draw. Two chords because they are two
+  // moments, not two ways of saying one thing.
   OriStudioSetFoldAngle: 'shift F',
 
   // -- Draw / construct --------------------------------------------------
@@ -186,11 +190,17 @@ const ORIEDITA_DEFAULTS: Record<string, string> = {
   // empty for both). `l1Action` / `a1Action` are the two visible measure tools'
   // upstream identities — the other three measure operations are hidden from the
   // UI. Length takes Shift+M so the mirror family keeps the bare key (M mirror
-  // line, Ctrl+M reflect), and angle takes the matching Shift+A. These are the
-  // app's first bare Shift+letter chords; the dispatcher records `shift` on every
-  // event, so M and Shift+M (and A and Shift+A) stay distinct.
+  // line, Ctrl+M reflect). The dispatcher records `shift` on every event, so M
+  // and Shift+M stay distinct.
+  //
+  // The angle readout had the matching Shift+A, and gave it up: the active
+  // crease angle is a thing you set *between* strokes, dozens of times in a
+  // transcription session, where the three-point readout is something you reach
+  // for to answer one question. The pairing was tidy but it was not paying for
+  // the better key. Shift+N is free, and `N` is otherwise unclaimed here, so the
+  // readout keeps a bare Shift+letter of its own.
   l1Action: 'shift M',
-  a1Action: 'shift A',
+  a1Action: 'shift N',
 
   // -- Mountain / valley -------------------------------------------------
   senbun_henkan2Action: 'C', // flip M/V of the selection
@@ -272,6 +282,18 @@ const MENU_SHORTCUTS: ShortcutDefinition[] = [
     { primary: true, shift: true, key: 'v' },
     'v_del_allAction'
   ),
+  // The pen: what angle the creases you draw next take. Here rather than in
+  // ORIEDITA_DEFAULTS because that table is keyed by Oriedita `upstreamAction`
+  // and drives CP *tool* actions — this arms no tool and has no kernel
+  // operation, it opens a control. Going through a menu id also makes it
+  // focus-independent and picks up the `command invoked` analytics event that
+  // `handleMenuAction` already emits.
+  //
+  // Shift+A took this from `a1Action`; see the note there for why.
+  menuShortcut('cp.setActiveCreaseAngle', 'Set Crease Angle', 'Crease Pattern', {
+    shift: true,
+    key: 'a',
+  }),
 ];
 
 function simulatorShortcut(

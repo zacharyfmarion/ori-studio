@@ -64,6 +64,22 @@ describe('web menu definition', () => {
     ]);
   });
 
+  it('offers canvas placement from the Insert menu, and leaves Import in File', () => {
+    const menus = getMenuBarDef();
+    const insertMenu = menus.find((menu) => menu.label === 'Insert');
+
+    expect(insertMenu ? actionIdsFor(insertMenu.items) : undefined).toEqual([
+      'insert.image',
+      'insert.text',
+    ]);
+
+    // Import (Add) reads a crease pattern off disk, which is a File verb.
+    // Insert is about what goes onto the canvas, and listing one action in two
+    // menus is how the two drift apart.
+    const fileMenu = menus.find((menu) => menu.label === 'File');
+    expect(fileMenu ? actionIdsFor(fileMenu.items) : []).toContain('file.importAdd');
+  });
+
   it('exposes about from the Help menu', () => {
     const helpMenu = getMenuBarDef().find((menu) => menu.label === 'Help');
     const actionIds = helpMenu ? actionIdsFor(helpMenu.items) : undefined;
@@ -76,6 +92,9 @@ describe('web menu definition', () => {
     const actionIds = cpMenu ? actionIdsFor(cpMenu.items) : undefined;
 
     expect(actionIds).toEqual([
+      // The pen, before the selection verbs: it applies to what you draw next,
+      // where everything below applies to what is already selected.
+      'cp.setActiveCreaseAngle',
       'cp.deleteSelectedLines',
       'cp.changeCreaseType',
       'cp.advanceCreaseType',

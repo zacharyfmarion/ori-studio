@@ -1150,6 +1150,19 @@ export interface OristudioCpCommandPayload {
    * direction lives in the line colour. Omitted means "make classic".
    */
   fold_magnitude_degrees?: number;
+  /**
+   * The **active crease angle** a drawing command gives the creases it creates,
+   * in degrees, `0..=180`. Omitted means classic, which is the default pen.
+   *
+   * Deliberately not `fold_magnitude_degrees` above, which is
+   * `CreaseSetFoldAngle`'s operand: one says "set this on the lines I named",
+   * this one says "give this to whatever you draw".
+   *
+   * Which operations receive it is `cpCommandUsesActiveCreaseAngle`'s call, not
+   * every drawing command's — the classical bases and the flat-foldability
+   * tools are ±180 by construction.
+   */
+  active_fold_magnitude_degrees?: number;
   selection_distance?: number;
   /**
    * Model-space tolerance for closing `FlatFoldableCheck`'s boundary loop.

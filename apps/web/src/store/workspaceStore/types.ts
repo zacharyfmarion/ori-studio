@@ -127,6 +127,29 @@ export interface OristudioCpActionRequest {
   operationId: OristudioCpOperationId;
 }
 
+/**
+ * Something the mounted crease-pattern panel must do that is *not* a kernel
+ * operation, and so has no {@link OristudioCpOperationId} to ask for.
+ *
+ * Both current members are UI the panel owns and nothing else can reach: the
+ * image picker closes over the viewport rect and overlay view it places an
+ * image against, and the crease-angle popover anchors to a control on the
+ * panel's own toolbar. One channel with a `kind` rather than one store field per
+ * errand, because a second near-identical request/clear/id-bump trio is the
+ * shape that drifts.
+ */
+export type OristudioCpSurfaceRequestKind = 'insert-image' | 'crease-angle';
+
+export interface OristudioCpSurfaceRequest {
+  /**
+   * Bumped per request, and the reason this is not a boolean: asking twice in a
+   * row has to fire twice. "Insert image, cancel the picker, insert image" is
+   * an ordinary thing to do, and an idempotent flag would ignore the second ask.
+   */
+  id: number;
+  kind: OristudioCpSurfaceRequestKind;
+}
+
 
 /**
  * What the share modal is working on: one crease pattern, resolved to a codec payload
@@ -691,6 +714,7 @@ export interface CreasePatternSliceState {
   creaseColorMode: CreaseColorMode;
   oristudioCpSelection: OristudioCpSelection;
   oristudioCpActionRequest: OristudioCpActionRequest | null;
+  oristudioCpSurfaceRequest: OristudioCpSurfaceRequest | null;
   /**
    * The crease-pattern tool the user last selected, persisted so it survives
    * panel remounts (e.g. switching to the Simulate workspace and back).
@@ -888,8 +912,10 @@ export interface CreasePatternSliceActions {
    */
   claimCanvasForCreaseSelection: () => void;
   requestOristudioCpAction: (operationId: OristudioCpOperationId) => void;
+  requestOristudioCpSurface: (kind: OristudioCpSurfaceRequestKind) => void;
   setOristudioCpActiveToolId: (id: OristudioCpActionId | null) => void;
   clearOristudioCpActionRequest: (id: number) => void;
+  clearOristudioCpSurfaceRequest: (id: number) => void;
   setOristudioCpActiveDiagnostic: (id: string | null) => void;
   foldOristudioCpDocument: (options?: {
     startingFaceId?: number;

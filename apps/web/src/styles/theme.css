@@ -6517,6 +6517,166 @@ button.cp-folded-figure-toolbar__notice:hover {
   outline: none;
 }
 
+/* The active crease angle: an editable readout plus a caret that opens the
+   popover. Sized and styled off `__rotation-input` beside it, because the two
+   are the same kind of control and reading as a pair is the point. */
+.crease-angle-field {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.crease-angle-field__input {
+  height: 28px;
+  /* Sized to the widest reachable value: `-` is impossible here (a magnitude is
+     unsigned), so `180°` plus two decimals is the ceiling. */
+  width: 48px;
+  padding: 0 1px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  /* `font` shorthand for the family (inputs default to the system UI font),
+     then the toolbar's control size. */
+  font: inherit;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.crease-angle-field__input:hover {
+  border-color: var(--border-default);
+}
+
+.crease-angle-field__input:focus,
+.crease-angle-field__input:focus-visible {
+  border-color: var(--accent-primary);
+  background: var(--bg-surface);
+  outline: none;
+}
+
+/* A pen off 180 changes what every stroke does, so it is not allowed to look
+   like an idle readout. The accent is on the number rather than a badge beside
+   it: the value *is* the state. */
+.crease-angle-field[data-angled] .crease-angle-field__input {
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+
+.crease-angle-field__caret {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Explicit, because the UA button padding would otherwise defeat centering
+     on a bespoke icon button this small. */
+  padding: 0;
+  width: 16px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.crease-angle-field__caret:hover {
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+
+.crease-angle-popover {
+  display: grid;
+  gap: var(--space-2);
+  width: 208px;
+  padding: var(--space-2);
+}
+
+/* The floating frame is a `FloatingToolbar` pill, which is laid out for a row of
+   icon buttons; this body is a small form, so it takes the padding back. */
+.crease-angle-popover__floating {
+  padding: 0;
+}
+
+.crease-angle-popover__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.crease-angle-popover__input {
+  width: 100%;
+  height: 28px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.crease-angle-popover__input:focus,
+.crease-angle-popover__input:focus-visible {
+  border-color: var(--accent-primary);
+  outline: none;
+}
+
+.crease-angle-popover__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* `--bg-surface` / `--bg-secondary`, not the `--surface-raised` /
+   `--surface-base` that `.cp-context-panel__chip` reaches for: those two are on
+   `themeTokens.test.ts`'s KNOWN_MISSING list — theme.css never defines them, so
+   the browser drops the declaration and the chip falls back to transparent.
+   Copying that would have shipped a fourth silently-dead rule. */
+.crease-angle-popover__chip {
+  padding: 2px 7px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.crease-angle-popover__chip:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+/* Tab lands here, so the ring has to be visible — this row is the whole reason
+   the popover is keyboard-first. */
+.crease-angle-popover__chip:focus-visible {
+  border-color: var(--accent-primary);
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+  color: var(--text-primary);
+}
+
+.crease-angle-popover__chip[aria-pressed='true'] {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary);
+  color: var(--bg-secondary);
+}
+
+.crease-angle-popover__hint {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
+  line-height: 1.35;
+}
+
 .viewport-toolbar__zoom-button:hover,
 .viewport-toolbar__dropdown-item:hover {
   background: var(--bg-surface);

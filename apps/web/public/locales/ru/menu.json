@@ -37,6 +37,7 @@
     "repair": "Исправление",
     "replaceLineType": "Заменить выбранный тип линии...",
     "selectedLines": "Выбранные линии",
+    "setActiveCreaseAngle": "Задать угол складки...",
     "toggleMountainValley": "Переключить гора/долина",
     "transform": "Преобразовать выделение",
     "transformFlipHorizontal": "Отразить по горизонтали",
@@ -103,12 +104,17 @@
     "about": "О программе Ori Studio",
     "checkForUpdates": "Проверить обновления…"
   },
+  "insert": {
+    "image": "Изображение...",
+    "text": "Текст"
+  },
   "menubar": {
     "creasePattern": "Паттерн складок",
     "design": "Дизайн",
     "edit": "Правка",
     "file": "Файл",
     "help": "Справка",
+    "insert": "Вставка",
     "view": "Вид"
   },
   "optimize": {

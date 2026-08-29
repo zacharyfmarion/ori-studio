@@ -358,7 +358,6 @@
       "replay": "Вернуть в плоское состояние",
       "setUpright": "Задать верх"
     },
-    "insertImage": "Вставить изображение...",
     "linesCount_one": "{{count}} линия",
     "linesCount_few": "{{count}} линии",
     "linesCount_many": "{{count}} линий",

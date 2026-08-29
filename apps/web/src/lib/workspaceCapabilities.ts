@@ -103,6 +103,9 @@ export type WorkspaceCapabilityId =
   | 'cp.fixInaccurate'
   | 'cp.changeCircleColor'
   | 'cp.organizeCircles'
+  | 'cp.setActiveCreaseAngle'
+  | 'insert.image'
+  | 'insert.text'
   | 'simulator.refresh';
 
 export interface WorkspaceCapability {
@@ -935,6 +938,34 @@ export function getWorkspaceCapabilities(
       t('common:capability.organizeCircles', 'Organize Circles'),
       canEditCp
         ? t('common:capability.pruneZeroRadiusCircles', 'Prune invalid zero-radius circles')
+        : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
+    ),
+    // Insert places something onto the crease-pattern canvas, so the whole menu
+    // is gated on there being one. `menuHasVisibleItems` then drops the top-level
+    // Insert entry outside a CP surface, the way Design and Crease Pattern
+    // already vanish.
+    'insert.image': capability(
+      canEditCp,
+      t('common:capability.insertImage', 'Image...'),
+      canEditCp
+        ? t('common:capability.placeReferenceImage', 'Place a reference image on the crease pattern')
+        : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
+    ),
+    'insert.text': capability(
+      canEditCp,
+      t('common:capability.insertText', 'Text'),
+      canEditCp
+        ? t('common:capability.placeTextBox', 'Place a text box on the crease pattern')
+        : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
+    ),
+    'cp.setActiveCreaseAngle': capability(
+      canEditCp,
+      t('common:capability.setActiveCreaseAngle', 'Set Crease Angle...'),
+      canEditCp
+        ? t(
+            'common:capability.chooseAngleForNewCreases',
+            'Choose the fold angle new mountain and valley creases take'
+          )
         : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
     ),
     'simulator.refresh': capability(
