@@ -601,8 +601,12 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   ),
   ready('CreaseMakeAux', 'Make auxiliary', 'color', 'scan-line', 'MouseHandlerCreaseMakeAux', {
     placement: 'menu',
-    selectionRequirement: 'selected folding lines',
-    tooltip: 'Convert selected folding lines to auxiliary lines',
+    // Not "folding lines", which is upstream's gate spelled literally and was
+    // wrong here: an unassigned crease is not one, and this silently declined it
+    // until `operations::color::make_aux` widened. A line already auxiliary is
+    // the only thing left that declines.
+    selectionRequirement: 'selected non-auxiliary lines',
+    tooltip: 'Convert selected lines to auxiliary lines',
   }),
   ready('OperationFrameCreate', 'Operation frame', 'transform', 'frame', 'MouseHandlerOperationFrameCreate', {
     // Hidden per Zach — CP export is handled differently here, so the frame isn't

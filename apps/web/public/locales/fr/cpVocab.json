@@ -610,7 +610,7 @@
     },
     "cp_action_crease_make_aux": {
       "label": "Définir comme auxiliaire",
-      "tooltip": "Convertir les lignes de pliage sélectionnées en lignes auxiliaires",
+      "tooltip": "Convertir les lignes sélectionnées en lignes auxiliaires",
       "disabledReason": "Prêt"
     },
     "cp_action_operation_frame_create": {
