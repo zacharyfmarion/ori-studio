@@ -3,6 +3,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
   type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
@@ -27,6 +28,10 @@ import { withShiftLatch } from './touchModifiers/shiftLatch';
 import { cpSurfaceGestures } from './gestures/cpSurfaceGestures';
 import type { CpGesturePointer } from './gestures/cpTouchArbiter';
 import type { TransformableCanvasObject } from './canvasObjects/transformableObject';
+import {
+  cpSurfacePress,
+  type CpSurfacePressHandle,
+} from './picking/cpSurfacePressRegistry';
 
 /**
  * DOM overlay for direct-manipulating canvas objects — reference images, text
@@ -105,6 +110,29 @@ type Drag =
  * handle). Either would clear the wrong entry.
  */
 type ContactRef = MutableRefObject<Map<number, CpGesturePointer>>;
+
+/**
+ * The crease pattern, when this press is its business rather than the object's —
+ * null when the object keeps it.
+ *
+ * Only asked for an object the creases are painted *over*, which in practice
+ * means a reference image: it is drawn under the pattern so you can trace on top
+ * of it, while its body polygon still sits above the canvas and is handed the
+ * press first. That is why a crease drawn over an image used to be
+ * unselectable — this layer took the press and the canvas' hit test never ran
+ * at all.
+ *
+ * Nothing registered means no crease pattern is mounted, or WebGL was
+ * unavailable; behaving exactly as before this existed is then the right answer.
+ */
+function surfaceClaiming(
+  event: ReactPointerEvent<SVGElement> | ReactMouseEvent<SVGElement>,
+  object: TransformableCanvasObject
+): CpSurfacePressHandle | null {
+  if (!object.paintedBehindCreases) return null;
+  const surface = cpSurfacePress();
+  return surface?.claimsPress(event.nativeEvent) ? surface : null;
+}
 
 /**
  * Take the press, and ask the surface whether it is ours to act on.
@@ -272,6 +300,24 @@ export function CanvasObjectOverlay({
   const handleBodyDown = useCallback(
     (event: ReactPointerEvent<SVGPolygonElement>, object: TransformableCanvasObject) => {
       if (!interactive || object.locked) return;
+      // Before anything else, including the arbiter: the creases are drawn over
+      // this object, and this press landed on one of them (or is a pan, which
+      // nothing may claim). Hand the *native* event over — the canvas calls
+      // `preventDefault()` on it and takes capture for the real pointer id,
+      // which is what redirects the rest of the gesture there, overriding the
+      // implicit capture a touch or pen press gives this polygon.
+      //
+      // Nothing else may happen on this path. No selection, no capture, and in
+      // particular no contact reported to the touch arbiter: the canvas reports
+      // its own with origin 'canvas', and two layers reporting one press would
+      // leave the arbiter believing a finger is still down — after which every
+      // later touch looks like the second finger of a pinch and the canvas
+      // stops drawing entirely.
+      const surface = surfaceClaiming(event, object);
+      if (surface) {
+        surface.press(event.nativeEvent);
+        return;
+      }
       // Only the primary button drags. A secondary press selects and lets the
       // context menu open: starting a move here would capture the pointer, and
       // the release that dismisses the menu lands outside this element — leaving
@@ -541,12 +587,25 @@ export function CanvasObjectOverlay({
             onPointerCancel={handlePointerCancel}
             onContextMenu={(event) => {
               if (!interactive || object.locked || !onContextMenu) return;
+              // A right-click on a crease drawn over this object belongs to the
+              // crease — the press that preceded this already went to the canvas
+              // and armed its erase. All that is left here is to swallow the
+              // browser's native menu, which the canvas' own `contextmenu`
+              // listener would have done had the event reached it.
+              if (surfaceClaiming(event, object)) {
+                event.preventDefault();
+                return;
+              }
               event.preventDefault();
               event.stopPropagation();
               onContextMenu(object.id, event.clientX, event.clientY);
             }}
             onDoubleClick={(event) => {
               if (!interactive || object.locked) return;
+              // Both underlying presses went to the canvas, so this object is
+              // not even selected. Toggling its crop mode or opening its editor
+              // from a double-click aimed at a crease would be a surprise.
+              if (surfaceClaiming(event, object)) return;
               event.stopPropagation();
               onSelect(object.id);
               if (canCrop?.(object.id)) setCropMode((mode) => !mode);

@@ -40,18 +40,26 @@ export interface SurfacePressInput {
  *
  * The rule, in full:
  *
- * - **Secondary button** — erase, and the crease context menu. Unclaimable by
- *   design upstream, so it outranks the object exactly as it outranks an active
- *   tool.
- * - **Middle button**, **Meta**, or the **hand tool** — pan. Same reasoning: a
- *   pan that stopped working over part of the canvas is a pan that is broken.
+ * - **Middle button**, **Meta**, or the **hand tool** — pan, whatever is
+ *   underneath. Upstream makes pan unclaimable by design (`Canvas.java`'s
+ *   handler `Feature` enum has no BUTTON_2, so every tool declines it), and a
+ *   pan that stops working over part of the canvas is a pan that is broken.
+ *   Nothing is lost: the overlay's own middle/Meta behaviour was only to select.
  * - **Anything pickable under the pointer** — a crease, a point or a circle.
- *   This is the case the bug was reported for.
+ *   This is the case the bug was reported for, and it applies to the secondary
+ *   button as much as the primary: right-clicking a crease over an image erases
+ *   that crease.
  *
- * Everything else is the object's: a primary press on empty space inside the
- * image's box selects and drags the image. That is what keeps an image movable,
- * and it is why a marquee cannot be *started* inside one (start it outside and
- * drag in).
+ * Everything else is the object's: a press on empty space inside the image's box
+ * selects and drags it, and a *right* press there still opens the image's own
+ * context menu. That last one is why the secondary button asks the same question
+ * as the primary instead of claiming outright — an unconditional claim would
+ * take the image's context menu away with nothing put in its place.
+ *
+ * Two consequences worth being deliberate about. A marquee cannot be *started*
+ * on empty space inside an image (start it outside and drag in), and neither can
+ * a right-drag box erase — both because that press has to remain the image's, or
+ * an image over a sparse pattern could not be moved at all.
  *
  * @remarks **May be called on `pointerdown` and never from a per-frame handler.**
  * `hit` comes from a `LineHitIndex.query`, which falls back to a scan over every
@@ -62,7 +70,6 @@ export interface SurfacePressInput {
  * not undo that by wiring this to hover.
  */
 export function surfaceClaimsPress(input: SurfacePressInput): boolean {
-  if (input.button === 2 || input.button === 1) return true;
-  if (input.metaKey || input.panToolActive) return true;
+  if (input.button === 1 || input.metaKey || input.panToolActive) return true;
   return input.hit !== null;
 }

@@ -29,8 +29,19 @@ describe('surfaceClaimsPress', () => {
     expect(surfaceClaimsPress({ ...objectPress, hit: { kind: 'circle', id: 1 } })).toBe(true);
   });
 
-  it('claims the secondary button, so erase reaches the creases under an image', () => {
-    expect(surfaceClaimsPress({ ...objectPress, button: 2 })).toBe(true);
+  it('claims a secondary press on a crease, so erase reaches creases over an image', () => {
+    expect(surfaceClaimsPress({ ...objectPress, button: 2, hit: { kind: 'line', id: 6 } })).toBe(
+      true
+    );
+  });
+
+  it('leaves a secondary press on empty space, so the image keeps its context menu', () => {
+    // The secondary button asks the same question as the primary rather than
+    // claiming outright. Claiming it unconditionally would be the upstream-parity
+    // answer for erase — but it would take the image's own context menu away with
+    // nothing put in its place, and the floating inspector only appears once the
+    // image is already selected.
+    expect(surfaceClaimsPress({ ...objectPress, button: 2 })).toBe(false);
   });
 
   it('claims the middle button, Meta and the hand tool, so pan never dies over an image', () => {
@@ -39,11 +50,11 @@ describe('surfaceClaimsPress', () => {
     expect(surfaceClaimsPress({ ...objectPress, panToolActive: true })).toBe(true);
   });
 
-  it('claims erase and pan even on empty space', () => {
-    // These outrank the object the way they outrank an active tool upstream:
-    // unclaimable by design. A right-drag box-erase that started on blank paper
-    // inside an image box has to erase, not move the image.
-    expect(surfaceClaimsPress({ ...objectPress, button: 2, hit: null })).toBe(true);
+  it('claims pan even on empty space, where the object would otherwise take it', () => {
+    // Pan is unclaimable by design upstream — no tool may decline it — and it is
+    // no more claimable by a reference image. Nothing is lost either way: the
+    // overlay's own middle-button and Meta behaviour was only to select.
+    expect(surfaceClaimsPress({ ...objectPress, button: 1, hit: null })).toBe(true);
     expect(surfaceClaimsPress({ ...objectPress, panToolActive: true, hit: null })).toBe(true);
   });
 });

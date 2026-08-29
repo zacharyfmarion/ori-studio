@@ -22,17 +22,32 @@
  * when no crease pattern is open or WebGL was unavailable: the overlay then
  * behaves as it did before this existed.
  */
+/**
+ * What {@link CpSurfacePressHandle.claimsPress} reads, which is less than a
+ * `PointerEvent`. Widened deliberately: `contextmenu` and `dblclick` have to ask
+ * the same question about the same point, and both arrive as plain `MouseEvent`s
+ * — so narrowing this to `PointerEvent` would force those two call sites to
+ * either cast or reimplement the rule.
+ */
+export interface CpSurfacePressPoint {
+  button: number;
+  metaKey: boolean;
+  clientX: number;
+  clientY: number;
+}
+
 export interface CpSurfacePressHandle {
   /**
    * Whether this press belongs to the surface rather than to the object whose
    * body it landed on. See `surfaceClaimsPress` for the rule.
    *
-   * **Call on `pointerdown` only.** It runs the canvas' hit test, which is
+   * **Call on `pointerdown` (and the `contextmenu` / `dblclick` that follow one)
+   * — never from a per-frame handler.** It runs the canvas' hit test, which is
    * sub-microsecond at a working zoom but degrades to a scan over every segment
    * when zoomed out on a dense pattern (~1.85 ms at 50k creases). Once per press
    * that is free; per frame it is a quarter of the budget.
    */
-  claimsPress(event: PointerEvent): boolean;
+  claimsPress(point: CpSurfacePressPoint): boolean;
   /**
    * Run the canvas' own press pipeline for an event delivered to another layer.
    *
