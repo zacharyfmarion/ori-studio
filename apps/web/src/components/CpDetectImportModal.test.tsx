@@ -225,10 +225,16 @@ function solvedOutcome(): CpExactSolveOutcome {
   return {
     kind: 'solved',
     stage: 'refinement',
-    status: 'solved',
     movedVertices: [],
     maxMovement: 0.0004,
     elapsedSeconds: 1.2,
+    residuals: {
+      maxKawasakiDegreesBefore: 0.8,
+      maxKawasakiDegreesAfter: 0,
+      oddDegreeVerticesBefore: 0,
+      oddDegreeVerticesAfter: 0,
+    },
+    polishAdopted: true,
   };
 }
 
@@ -242,6 +248,31 @@ function solvedFold() {
     edges_vertices: [[0, 1]],
     edges_assignment: ['M'],
     cp_detector: { source: 'exact_solve' },
+  };
+}
+
+/**
+ * `mid-solve_2.osf`'s ending: accepted, kept, and not exact. Three odd-degree
+ * vertices went in and three came out — those are structurally unfoldable at any
+ * coordinates, which is why the answer is repair rather than a longer solve.
+ */
+function ambiguousOutcome(): CpExactSolveOutcome {
+  return {
+    ...(solvedOutcome() as Extract<CpExactSolveOutcome, { kind: 'solved' }>),
+    kind: 'ambiguous',
+    // The moves are the *only* record of this geometry: `runCpExactSolve` returns
+    // no `fold` for an ambiguous acceptance, so the improved offer is built from
+    // these or it is not offered at all.
+    movedVertices: [
+      { vertex_id: 7, before: { x: 1, y: 1 }, after: { x: 0.9, y: 0.95 }, movement: 0.11 },
+    ],
+    residuals: {
+      maxKawasakiDegreesBefore: 14.367,
+      maxKawasakiDegreesAfter: 0.00747,
+      oddDegreeVerticesBefore: 3,
+      oddDegreeVerticesAfter: 3,
+    },
+    polishAdopted: false,
   };
 }
 
@@ -362,7 +393,53 @@ describe('CpDetectImportModal recognize-then-solve', () => {
     // button under two names was the whole complaint about the old screen.
     expect(button('Add as-is')).toBeNull();
     expect(button('Solve & Add')).toBeNull();
-    expect(bodyText()).toMatch(/Exactly solved/);
+    expect(bodyText()).toMatch(/now meets the foldability check/);
+  });
+
+  /**
+   * The reading `mid-solve_2.osf` broke. An accepted solve at `status: Ambiguous`
+   * moved Kawasaki 14.367° -> 0.00747° — a 1,900x improvement — and still sat
+   * ~7,500x above the editor's own 1e-6° bar, so all 70 angle markers survived.
+   * The screen said "Exactly solved" and offered one button called Add.
+   */
+  it('does not present an ambiguous solve as a finished one', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(0)));
+    // `fold: null`, as the runner really returns for this ending — the exactly
+    // solved document is the one thing an ambiguous solve does not produce.
+    runCpExactSolve.mockResolvedValue(solveResult(ambiguousOutcome(), null));
+    await reachReviewStage();
+
+    // The numbers, because they are the only way to tell a 1,900x improvement
+    // that still fails from a solve that did nothing.
+    expect(bodyText()).toMatch(/14\.4°/);
+    expect(bodyText()).toMatch(/0\.007°/);
+    expect(bodyText()).toMatch(/odd number of creases/);
+    expect(bodyText()).not.toMatch(/now meets the foldability check/);
+
+    // Repair leads, because that is what an odd-degree vertex needs. The improved
+    // coordinates stay on offer under a name that says what they are — never as a
+    // plain "Add", which promises the one thing they do not deliver.
+    expect(button('Review & Fix')).not.toBeNull();
+    expect(button('Add improved result')).not.toBeNull();
+    expect(button('Add')).toBeNull();
+  });
+
+  it('adds the improved result at the coordinates the solve reached', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(0)));
+    runCpExactSolve.mockResolvedValue(solveResult(ambiguousOutcome(), null));
+    await reachReviewStage();
+    click('Add improved result');
+    await settle();
+
+    const [{ text }] = storeActions.importAddOristudioCpText.mock.calls[0] as unknown as [
+      { text: string },
+    ];
+    // Mapped through `vertex_original_ids` like the partial is: id 7 is index 1,
+    // and nothing else moves.
+    expect(JSON.parse(text).vertices_coords).toEqual([
+      [0, 0],
+      [0.9, 0.95],
+    ]);
   });
 
   /**

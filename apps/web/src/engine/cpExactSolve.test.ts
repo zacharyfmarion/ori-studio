@@ -17,20 +17,24 @@ import {
 import type {
   CpExactSolveFoldResult,
   CpExactSolveMovementReport,
+  CpExactSolveStatus,
   CpExactSolvedGraph,
 } from './cpExactSolveTypes';
 
 const track = vi.hoisted(() => vi.fn());
 vi.mock('../analytics', () => ({ track }));
 
-function graph(movement_report: CpExactSolveMovementReport): CpExactSolvedGraph {
+function graph(
+  movement_report: CpExactSolveMovementReport,
+  status: CpExactSolveStatus = movement_report.accepted ? 'solved' : 'failed'
+): CpExactSolvedGraph {
   return {
     schema: 'oristudio/cp-compiler/exact-solved-graph-v1',
     vertices_exact: [],
     edges_exact: [],
     movement_report,
     theorem_residual_report: {},
-    status: movement_report.accepted ? 'solved' : 'failed',
+    status,
   };
 }
 
@@ -56,17 +60,18 @@ const FOLD = { vertices_coords: [[0, 0]], edges_vertices: [] };
 
 function solver(
   stage1: CpExactSolveMovementReport,
-  stage2: CpExactSolveMovementReport = stage1
+  stage2: CpExactSolveMovementReport = stage1,
+  statuses: { stage1?: CpExactSolveStatus; stage2?: CpExactSolveStatus } = {}
 ): CpExactSolver & {
   solveExact: ReturnType<typeof vi.fn>;
   solveExactToFold: ReturnType<typeof vi.fn>;
 } {
   return {
-    solveExact: vi.fn(async () => graph(stage1)),
+    solveExact: vi.fn(async () => graph(stage1, statuses.stage1)),
     solveExactToFold: vi.fn(
       async (): Promise<CpExactSolveFoldResult> => ({
         schema: 'oristudio/cp-detect/solve-exact-fold-v1',
-        solved: graph(stage2),
+        solved: graph(stage2, statuses.stage2),
         fold: FOLD,
       })
     ),
@@ -107,6 +112,46 @@ describe('runCpExactSolve', () => {
     expect(stages).toEqual(['geometry']);
     expect(fake.solveExactToFold).not.toHaveBeenCalled();
     expect(run.outcome).toMatchObject({ kind: 'rejected', stage: 'geometry' });
+  });
+
+  it('still enters refinement when geometry lands ambiguous', async () => {
+    // Stage 1 runs with polish off and equilibrates against the detected
+    // positions, so `ambiguous` is its normal good ending — it is stage 2 that
+    // closes the gap to fold precision. Gating the second call on `solved`
+    // rather than on acceptance would skip refinement on exactly the runs that
+    // need it, which is the trap splitting the two kinds introduces.
+    const stages: string[] = [];
+    const fake = solver(ACCEPTED, ACCEPTED, { stage1: 'ambiguous' });
+
+    const run = await runCpExactSolve(
+      { vertices: [] },
+      { solver: async () => fake, onStage: (stage) => stages.push(stage) }
+    );
+
+    expect(stages).toEqual(['geometry', 'refinement']);
+    expect(run.outcome.kind).toBe('solved');
+  });
+
+  it('hands back no fold when refinement is accepted but not exact', async () => {
+    // Real, improved geometry sits behind this — the outcome carries the moves
+    // — but it fails every foldability check the input failed, so it must not
+    // arrive through the field an exact solve uses.
+    const fake = solver(ACCEPTED, ACCEPTED, { stage2: 'ambiguous' });
+
+    const run = await runCpExactSolve({ vertices: [] }, { solver: async () => fake });
+
+    expect(run.outcome).toMatchObject({ kind: 'ambiguous', stage: 'refinement' });
+    expect(run.fold).toBeNull();
+  });
+
+  it('counts an ambiguous solve under its own verdict, not as solved', async () => {
+    const fake = solver(ACCEPTED, ACCEPTED, { stage2: 'ambiguous' });
+    await runCpExactSolve({ vertices: [] }, { solver: async () => fake });
+
+    expect(track).toHaveBeenLastCalledWith(
+      'cp exact solve completed',
+      expect.objectContaining({ verdict: 'ambiguous', reason: 'above_fold_precision' })
+    );
   });
 
   it('runs geometry with polish off and refinement with it on', async () => {

@@ -40,6 +40,7 @@ import {
 } from './cpExactSolveSession';
 import {
   classifyCpExactSolve,
+  isCpExactSolveAccepted,
   primaryCpExactSolveReason,
   type CpExactSolveOutcome,
   type CpExactSolveStage,
@@ -111,12 +112,19 @@ export interface CpExactSolveRunOptions {
 export interface CpExactSolveResult {
   outcome: CpExactSolveOutcome;
   /**
-   * The FOLD document at the solved coordinates, or null when there is nothing
-   * to apply.
+   * The FOLD document at the **exactly** solved coordinates, or null.
    *
    * Null on every non-acceptance, and that is not a gap: the solver returns the
    * *input* coordinates whenever it does not accept, so a FOLD from a rejected
    * run would be the document the user already has, dressed up as a result.
+   *
+   * Also null on an `ambiguous` acceptance, and that one **is** a judgement.
+   * There is real improved geometry behind it — the outcome carries the moves —
+   * but it is geometry that fails every foldability check the input failed, and
+   * handing it back through the same field an exact solve uses is how it gets
+   * applied as the answer. A caller that wants to offer it can, deliberately,
+   * from `outcome.movedVertices`; the way it is offered is the caller's to
+   * design, the same way a timeout's partial is.
    */
   fold: Record<string, unknown> | null;
   /** Wall time across both stages, measured here rather than in the solver. */
@@ -219,7 +227,11 @@ async function solveOnSession(
       stageOptionsJson(options, options.timeoutSeconds, false)
     );
     const geometryOutcome = classifyCpExactSolve(geometry, 'geometry');
-    if (geometryOutcome.kind !== 'solved') {
+    // Acceptance, not exactness. Stage 1 runs without polish and equilibrates
+    // against the detected positions, so `ambiguous` is its *normal* good
+    // ending — gating the refinement stage on `solved` would skip the stage
+    // that exists to close that gap, on exactly the runs that need it.
+    if (!isCpExactSolveAccepted(geometryOutcome)) {
       return complete({ outcome: geometryOutcome, fold: null, durationMs: elapsed(startedAt) });
     }
 
@@ -239,7 +251,7 @@ async function solveOnSession(
       durationMs: elapsed(startedAt),
     });
   } catch (error) {
-    // Neither ending is one of the solver's four verdicts — the solve did not
+    // Neither ending is one of the solver's five verdicts — the solve did not
     // reach one — so both are rethrown rather than folded into the outcome
     // union, which would make "the worker died" and "the user pressed Stop" look
     // like rejections they could fix by editing. They are told apart because
@@ -334,7 +346,7 @@ function verdictOf(outcome: CpExactSolveOutcome): CpExactSolveVerdict {
  * moved nothing that was kept.
  */
 function movedVertexCount(outcome: CpExactSolveOutcome): number {
-  if (outcome.kind === 'solved') return outcome.movedVertices.length;
+  if (isCpExactSolveAccepted(outcome)) return outcome.movedVertices.length;
   if (outcome.kind === 'timeout') return outcome.partialMovedVertices.length;
   return 0;
 }

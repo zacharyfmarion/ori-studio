@@ -20,11 +20,11 @@ const recording = ((key: string, defaultValue?: string) => {
 }) as unknown as TFunction;
 
 describe('cpExactSolveReasonLabel', () => {
-  it('gives all eleven endings a distinct sentence', () => {
+  it('gives all twelve endings a distinct sentence', () => {
     const sentences = CP_EXACT_SOLVE_REASONS.map((reason) => cpExactSolveReasonLabel(t, reason));
 
-    expect(sentences).toHaveLength(11);
-    expect(new Set(sentences).size).toBe(11);
+    expect(sentences).toHaveLength(12);
+    expect(new Set(sentences).size).toBe(12);
     for (const sentence of sentences) expect(sentence.length).toBeGreaterThan(20);
   });
 
@@ -32,8 +32,8 @@ describe('cpExactSolveReasonLabel', () => {
     keys.length = 0;
     for (const reason of CP_EXACT_SOLVE_REASONS) cpExactSolveReasonLabel(recording, reason);
 
-    expect(keys).toHaveLength(11);
-    expect(new Set(keys).size).toBe(11);
+    expect(keys).toHaveLength(12);
+    expect(new Set(keys).size).toBe(12);
     for (const key of keys) expect(key.startsWith('panels:cpExactSolve.reason.')).toBe(true);
   });
 
@@ -64,6 +64,18 @@ describe('cpExactSolveReasonLabel', () => {
 
   it('offers the partial rather than only reporting the clock on a timeout', () => {
     expect(cpExactSolveReasonLabel(t, 'timeout')).toContain('how far it got');
+  });
+
+  it('does not claim nothing was applied on the one ending that was accepted', () => {
+    // `above_fold_precision` sits in the same table as the gate rejections but
+    // means the opposite thing about the solver's verdict: it accepted. Reusing
+    // their "so it was not applied" phrasing would make an accepted solve read
+    // as a refusal, and points the user at an undo that does not exist.
+    const sentence = cpExactSolveReasonLabel(t, 'above_fold_precision');
+
+    expect(sentence).not.toMatch(/not applied|nothing was applied|could not start/u);
+    expect(sentence).toContain('foldability check');
+    expect(sentence).toContain('solve again');
   });
 });
 

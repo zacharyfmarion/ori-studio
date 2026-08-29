@@ -300,6 +300,7 @@ fn solve_exact_inner(
             &initial_breakdown,
             &initial_breakdown,
             &counters,
+            &PolishOutcome::not_run("preflight_blocked"),
         );
         let theorem_residual_report = theorem_report(
             &before,
@@ -349,8 +350,18 @@ fn solve_exact_inner(
     // ~1e-4 precision tolerance. Re-anchor the priors to the accepted stage-1
     // solution and re-solve with tightened theorem sigmas. Runs only when the
     // stage-1 candidate would be accepted, so failure paths are untouched.
+    let mut polish_outcome = PolishOutcome::default();
     let (final_params, termination, evaluations, objective, polish_adopted) = 'polish: {
-        if !options.polish || final_params.is_empty() || model.timeout_reached() {
+        if !options.polish {
+            polish_outcome.stop_reason = "disabled";
+            break 'polish (final_params, termination, evaluations, objective, false);
+        }
+        if final_params.is_empty() {
+            polish_outcome.stop_reason = "no_parameters";
+            break 'polish (final_params, termination, evaluations, objective, false);
+        }
+        if model.timeout_reached() {
+            polish_outcome.stop_reason = "timed_out";
             break 'polish (final_params, termination, evaluations, objective, false);
         }
         let stage1_points = model.points_from_params(&final_params);
@@ -366,19 +377,26 @@ fn solve_exact_inner(
         )
         .is_empty();
         if !stage1_accepted {
+            polish_outcome.stop_reason = "stage1_rejected";
             break 'polish (final_params, termination, evaluations, objective, false);
         }
         let mut current_params = final_params.clone();
         let mut current_kawasaki = stage1_after.max_kawasaki_residual_degrees;
         let mut polish_evaluations = 0usize;
         let mut rounds_adopted = 0usize;
+        polish_outcome.stop_reason = "max_rounds";
+        polish_outcome.kawasaki_before_degrees = Some(current_kawasaki);
+        polish_outcome.kawasaki_after_degrees = Some(current_kawasaki);
         for _round in 0..options.polish_rounds {
             if model.timeout_reached() {
+                polish_outcome.stop_reason = "timed_out";
                 break;
             }
             if current_kawasaki <= options.polish_target_kawasaki_degrees {
+                polish_outcome.stop_reason = "target_reached";
                 break;
             }
+            polish_outcome.rounds_attempted += 1;
             let polish_model = model.reanchored_for_polish(&current_params);
             let polish_start_energy = residual_energy(&polish_model.residuals_for(&current_params));
             let (polished_params, _polish_termination, polish_round_evaluations, _obj, _counters) =
@@ -404,15 +422,27 @@ fn solve_exact_inner(
                 polish_final_energy,
                 options,
             );
-            let improved = polish_rejections.is_empty()
-                && polished_after.max_kawasaki_residual_degrees <= current_kawasaki;
+            let kawasaki_improved =
+                polished_after.max_kawasaki_residual_degrees <= current_kawasaki;
+            let improved = polish_rejections.is_empty() && kawasaki_improved;
             if !improved {
+                // Reporting only: record what this round would have reached and
+                // why it was thrown away, so a silently-refused polish is
+                // legible in `movement_report`. See [`PolishOutcome`].
+                polish_outcome.stop_reason = "round_refused";
+                polish_outcome.refused_round = Some(PolishRefusal {
+                    kawasaki_degrees: polished_after.max_kawasaki_residual_degrees,
+                    kawasaki_regressed: !kawasaki_improved,
+                    rejection_reasons: polish_rejections,
+                });
                 break;
             }
             current_params = polished_params;
             current_kawasaki = polished_after.max_kawasaki_residual_degrees;
             polish_evaluations += polish_round_evaluations;
             rounds_adopted += 1;
+            polish_outcome.rounds_adopted = rounds_adopted;
+            polish_outcome.kawasaki_after_degrees = Some(current_kawasaki);
         }
         if rounds_adopted == 0 {
             break 'polish (final_params, termination, evaluations, objective, false);
@@ -497,6 +527,7 @@ fn solve_exact_inner(
         &accepted_breakdown,
         &candidate_breakdown,
         &counters,
+        &polish_outcome,
     );
     let theorem_residual_report = theorem_report(
         &before,
@@ -1979,6 +2010,106 @@ fn classify_status(
     }
 }
 
+/// What the polish stage did, for reporting only.
+///
+/// A refused polish used to be invisible: the only trace was the *absence* of a
+/// `+polish(rounds=N)` suffix on the termination string, and the rejection
+/// reasons computed for the refused round were dropped on the floor. On a real
+/// detected pattern those reasons are the whole story — e.g. a round that would
+/// have taken Kawasaki from 7.5e-3 deg to 8e-4 deg, refused with
+/// `["candidate_status_failed", "degenerate_edges_worsened",
+/// "movement_budget_exceeded"]`, because reaching that residual meant collapsing
+/// a close vertex pair into a degenerate edge and blowing the movement budget.
+///
+/// This struct records that, and nothing else: it never influences which
+/// candidate is adopted, accepted, or reported as solved.
+///
+/// **The gates that produce those reasons are correct — do not loosen them to
+/// "let polish through".** Two independent facts say so. First, a round that
+/// worsens degenerate edges corrupts the pattern; adopting it trades a
+/// foldability error for a geometry error. Second, and decisively: the editor's
+/// foldability checker (CAMV) compares its degree-valued angle sums against
+/// `Epsilon::FLAT` (`oristudio_cp::geometry::Epsilon`, `FACTOR * 1e-4` = `1e-6`
+/// degrees). On the pattern above, the refused polish would have reached `~8e-4`
+/// degrees — still ~800x above that bar, so adopting it would have corrupted the
+/// pattern *and* cleared none of its 70 violations. A candidate that needs
+/// topology repair cannot be polished into foldability; repair it first.
+#[derive(Debug, Clone)]
+struct PolishOutcome {
+    /// Why polishing stopped, or why it never started. One of: `not_run`,
+    /// `disabled`, `preflight_blocked`, `no_parameters`, `timed_out`,
+    /// `stage1_rejected`, `target_reached`, `round_refused`, `max_rounds`.
+    stop_reason: &'static str,
+    rounds_attempted: usize,
+    rounds_adopted: usize,
+    /// Max Kawasaki residual (degrees) of the stage-1 candidate polish started
+    /// from. `None` when polish never got far enough to measure it.
+    kawasaki_before_degrees: Option<f64>,
+    /// Max Kawasaki residual (degrees) after the adopted rounds. Equal to
+    /// `kawasaki_before_degrees` when no round was adopted.
+    kawasaki_after_degrees: Option<f64>,
+    /// The first round that was computed and then refused, if any.
+    refused_round: Option<PolishRefusal>,
+}
+
+/// A polish round that was computed, judged, and rejected.
+#[derive(Debug, Clone)]
+struct PolishRefusal {
+    /// Max Kawasaki residual (degrees) this round *would* have reached. This is
+    /// the number that makes the refusal legible: it is normally much better
+    /// than what was kept, which is exactly why the refusal needs explaining.
+    kawasaki_degrees: f64,
+    /// True when the round was refused only because it made Kawasaki worse, in
+    /// which case `rejection_reasons` is empty.
+    kawasaki_regressed: bool,
+    /// Reasons from [`exact_solution_rejection_reasons`], verbatim.
+    rejection_reasons: Vec<String>,
+}
+
+impl Default for PolishOutcome {
+    fn default() -> Self {
+        Self::not_run("not_run")
+    }
+}
+
+impl PolishOutcome {
+    fn not_run(stop_reason: &'static str) -> Self {
+        Self {
+            stop_reason,
+            rounds_attempted: 0,
+            rounds_adopted: 0,
+            kawasaki_before_degrees: None,
+            kawasaki_after_degrees: None,
+            refused_round: None,
+        }
+    }
+
+    fn ran(&self) -> bool {
+        self.rounds_attempted > 0
+    }
+}
+
+fn polish_report_json(polish: &PolishOutcome, options: ExactSolveOptions) -> Value {
+    json!({
+        "enabled": options.polish,
+        "ran": polish.ran(),
+        "stop_reason": polish.stop_reason,
+        "rounds_attempted": polish.rounds_attempted,
+        "rounds_adopted": polish.rounds_adopted,
+        "max_rounds": options.polish_rounds,
+        "target_kawasaki_degrees": options.polish_target_kawasaki_degrees,
+        "kawasaki_before_degrees": polish.kawasaki_before_degrees.map(round12),
+        "kawasaki_after_degrees": polish.kawasaki_after_degrees.map(round12),
+        "refused_round": polish.refused_round.as_ref().map(|refusal| {
+            json!({
+                "kawasaki_degrees": round12(refusal.kawasaki_degrees),
+                "kawasaki_regressed": refusal.kawasaki_regressed,
+                "rejection_reasons": refusal.rejection_reasons,
+            })
+        }),
+    })
+}
+
 fn exact_solution_rejection_reasons(
     before: &GraphAnalysis,
     after: &GraphAnalysis,
@@ -2046,6 +2177,7 @@ fn movement_report(
     accepted_breakdown: &ResidualBreakdown,
     candidate_breakdown: &ResidualBreakdown,
     counters: &SolveCounterSnapshot,
+    polish: &PolishOutcome,
 ) -> Value {
     let moved_vertices = input
         .vertices
@@ -2118,6 +2250,7 @@ fn movement_report(
         "max_vertex_movement_budget": options.max_vertex_movement,
         "moved_vertices": moved_vertices,
         "attempted_moved_vertices": attempted_moved_vertices,
+        "polish": polish_report_json(polish, options),
         "trace": exact_solve_trace_json(
             input,
             model,
@@ -2523,6 +2656,12 @@ fn round6(value: f64) -> f64 {
     (value * 1_000_000.0).round() / 1_000_000.0
 }
 
+/// Polish-stage Kawasaki residuals live around 1e-3 to 1e-7 degrees, where
+/// [`round6`] would quantise the interesting digits (or flatten them to zero).
+fn round12(value: f64) -> f64 {
+    (value * 1e12).round() / 1e12
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2614,6 +2753,124 @@ mod tests {
                 .unwrap()
                 .contains("polish"),
             "polish stage should be recorded in the termination string"
+        );
+    }
+
+    /// CAMV's flatness tolerance, the bar the editor's foldability checker
+    /// actually applies (`Epsilon::FLAT`, in degrees). Any Kawasaki residual
+    /// above this still reads as an "Incorrect angles" violation in the editor.
+    const CAMV_FLAT_EPSILON_DEGREES: f64 = 1e-6;
+
+    #[test]
+    fn polish_report_records_adopted_rounds() {
+        let input = four_ray_input(Point2::new(0.505, 0.50));
+        let solved = solve_exact(&input, ExactSolveOptions::default());
+        let polish = &solved.movement_report["polish"];
+        assert!(polish["enabled"].as_bool().unwrap());
+        assert!(polish["ran"].as_bool().unwrap());
+        assert!(
+            polish["rounds_adopted"].as_u64().unwrap() > 0,
+            "an adopted polish must report its round count, got {polish}"
+        );
+        assert!(polish["refused_round"].is_null());
+        let before = polish["kawasaki_before_degrees"].as_f64().unwrap();
+        let after = polish["kawasaki_after_degrees"].as_f64().unwrap();
+        assert!(
+            after < before,
+            "adopted rounds should tighten Kawasaki ({after} vs {before})"
+        );
+        assert!(
+            solved.movement_report["termination"]
+                .as_str()
+                .unwrap()
+                .contains("polish"),
+            "the termination string and the polish report must agree"
+        );
+    }
+
+    #[test]
+    fn polish_report_records_why_a_refused_round_was_refused() {
+        // Same fixture as the adopted case, with the movement budget pinned to
+        // what stage 1 already spent. Stage 1 still passes (the gate is a strict
+        // `>`), but every polish round has to move further to tighten Kawasaki,
+        // so the first one is computed and then thrown away.
+        let input = four_ray_input(Point2::new(0.505, 0.50));
+        let stage1_only = solve_exact(
+            &input,
+            ExactSolveOptions {
+                polish: false,
+                ..ExactSolveOptions::default()
+            },
+        );
+        assert!(stage1_only.movement_report["accepted"].as_bool().unwrap());
+        // The reported movement is rounded to 6 decimals, so add back more than
+        // that rounding can hide to keep stage 1 comfortably inside the budget.
+        // A polish round needs orders of magnitude more room than this slack.
+        let budget = stage1_only.movement_report["max_vertex_movement"]
+            .as_f64()
+            .unwrap()
+            + 1e-6;
+
+        let solved = solve_exact(
+            &input,
+            ExactSolveOptions {
+                max_vertex_movement: budget,
+                ..ExactSolveOptions::default()
+            },
+        );
+        assert!(
+            solved.movement_report["accepted"].as_bool().unwrap(),
+            "stage 1 must still be accepted, or this fixture is testing the wrong refusal"
+        );
+        assert!(
+            !solved.movement_report["termination"]
+                .as_str()
+                .unwrap()
+                .contains("polish"),
+            "no round was adopted, so the termination string carries no polish suffix -- \
+             which is exactly why the report has to say more"
+        );
+
+        let polish = &solved.movement_report["polish"];
+        assert!(polish["ran"].as_bool().unwrap());
+        assert_eq!(polish["stop_reason"], "round_refused");
+        assert_eq!(polish["rounds_attempted"], 1);
+        assert_eq!(polish["rounds_adopted"], 0);
+        assert_eq!(
+            polish["kawasaki_before_degrees"], polish["kawasaki_after_degrees"],
+            "nothing was adopted, so the kept residual is the stage-1 residual"
+        );
+
+        let refused = &polish["refused_round"];
+        assert!(
+            !refused["kawasaki_regressed"].as_bool().unwrap(),
+            "this round was refused by the gates, not for making Kawasaki worse"
+        );
+        let reasons = refused["rejection_reasons"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|reason| reason.as_str().unwrap().to_owned())
+            .collect::<Vec<_>>();
+        assert!(
+            reasons.contains(&"movement_budget_exceeded".to_owned()),
+            "the refusal reasons must survive into the report, got {reasons:?}"
+        );
+
+        let would_have_reached = refused["kawasaki_degrees"].as_f64().unwrap();
+        let kept = polish["kawasaki_after_degrees"].as_f64().unwrap();
+        assert!(
+            would_have_reached < kept,
+            "the refused round was better on Kawasaki alone ({would_have_reached} vs {kept}) -- \
+             that gap is the thing the report exists to explain"
+        );
+        // The fact that stops someone "fixing" this by loosening the gate: the
+        // refused round is still far above the checker's bar, so adopting it
+        // would corrupt geometry and clear no violation. See [`PolishOutcome`].
+        assert!(
+            would_have_reached > CAMV_FLAT_EPSILON_DEGREES,
+            "a refused round that already cleared CAMV would change this argument; \
+             got {would_have_reached} vs {CAMV_FLAT_EPSILON_DEGREES}"
         );
     }
 

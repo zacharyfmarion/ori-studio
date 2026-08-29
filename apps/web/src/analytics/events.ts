@@ -186,13 +186,27 @@ export type CpExactSolveStage = 'geometry' | 'refinement';
  * `malformed` is the shape with no `rejection_reasons` key at all: the solver
  * refused before running and reported `{status: "not_run", blockers: [...]}`, so
  * a UI reading only the reasons array would show "no reason".
+ *
+ * `ambiguous` is separate from `solved` because the two were the same number
+ * until they weren't, and the difference is the feature's real success rate: the
+ * solver accepted the answer but declined to call it exact, so the pattern still
+ * fails the foldability check and the user still has repair work. Counted as
+ * `solved` it made a run that cleared none of a file's seventy angle errors look
+ * like a win.
  */
-export type CpExactSolveVerdict = 'solved' | 'rejected' | 'timeout' | 'malformed' | 'error';
+export type CpExactSolveVerdict =
+  | 'solved'
+  | 'ambiguous'
+  | 'rejected'
+  | 'timeout'
+  | 'malformed'
+  | 'error';
 
 /**
- * The solver's `rejection_reasons` vocabulary, verbatim, plus the two shapes that
- * carry no token — `timeout`, whose reason is a formatted string, and
- * `malformed_input`, which has no reasons key.
+ * The solver's `rejection_reasons` vocabulary, verbatim, plus the three endings
+ * that carry no token — `timeout`, whose reason is a formatted string,
+ * `malformed_input`, which has no reasons key, and `above_fold_precision`, which
+ * is not a rejection at all but the explanation an `ambiguous` verdict needs.
  *
  * Sent as an enum because it is one: nine fixed tokens the compiler writes. The
  * blocker *messages* accompanying a malformed input are prose containing span
@@ -209,7 +223,8 @@ export type CpExactSolveRejectionReason =
   | 'boundary_failures_worsened'
   | 'objective_not_improved'
   | 'timeout'
-  | 'malformed_input';
+  | 'malformed_input'
+  | 'above_fold_precision';
 
 /**
  * What the user did with a finished solve.

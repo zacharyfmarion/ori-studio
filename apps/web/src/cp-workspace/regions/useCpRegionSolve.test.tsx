@@ -11,6 +11,7 @@ import {
 import { CpExactSolveCancelledError } from '../../engine/cpExactSolveSession';
 import type {
   CpExactSolveMovementReport,
+  CpExactSolveTheoremReport,
   CpExactSolvedGraph,
 } from '../../engine/cpExactSolveTypes';
 import type { OristudioCpLineSegment } from '../../engine/oristudioCpTypes';
@@ -20,6 +21,7 @@ import { createCpSuppressionRegion } from '../annotations/suppressionRegion';
 import { createCpImage } from '../images/cpImage';
 import type { CpRegionSolveBinding } from './CpRegionLayer';
 import { useCpRegionSolve } from './useCpRegionSolve';
+import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
 
 /**
  * The solve binding: what each verb does to the document, what it records in
@@ -34,6 +36,19 @@ import { useCpRegionSolve } from './useCpRegionSolve';
 
 const track = vi.hoisted(() => vi.fn());
 vi.mock('../../analytics', () => ({ track }));
+
+/**
+ * The toast is the result: a solve takes seconds and the user is watching the
+ * creases, not the chip. So what it *says* is under test here, not just that one
+ * fired — "Solved" over an editor still showing 70 angle markers is the single
+ * most misleading thing this flow can do.
+ */
+const toast = vi.hoisted(() => ({
+  success: vi.fn(),
+  warning: vi.fn(),
+  error: vi.fn(),
+}));
+vi.mock('sonner', () => ({ toast }));
 
 const ACCEPTED: CpExactSolveMovementReport = {
   timed_out: false,
@@ -65,22 +80,42 @@ const TIMED_OUT: CpExactSolveMovementReport = {
   ],
 };
 
-function graph(report: CpExactSolveMovementReport): CpExactSolvedGraph {
+/**
+ * The theorem report `mid-solve_2.osf` came back with: accepted, `Ambiguous`,
+ * Kawasaki 14.367° -> 0.00747° (a 1,900x improvement, and still ~7,500x above
+ * the editor's own 1e-6° bar), three odd-degree vertices in and three out.
+ */
+const AMBIGUOUS_RESIDUALS: CpExactSolveTheoremReport = {
+  before: { max_kawasaki_residual_degrees: 14.367, odd_degree_vertices: [12, 41, 77] },
+  after: { max_kawasaki_residual_degrees: 0.00747, odd_degree_vertices: [12, 41, 77] },
+};
+
+function graph(
+  report: CpExactSolveMovementReport,
+  theorem: CpExactSolveTheoremReport = {}
+): CpExactSolvedGraph {
   return {
     schema: 'oristudio/cp-compiler/exact-solved-graph-v1',
     vertices_exact: [],
     edges_exact: [],
     movement_report: report,
-    theorem_residual_report: {},
-    status: report.accepted ? 'solved' : 'failed',
+    theorem_residual_report: theorem,
+    // `accepted` and `status` are two different questions and the solver answers
+    // both: a run can be kept and still not be exact, which is what a theorem
+    // report carrying odd-degree vertices means here.
+    status: report.accepted ? (theorem.after ? 'ambiguous' : 'solved') : 'failed',
   };
 }
 
 /** A bridge that answers both stages with `report`, after `gate` settles. */
-function bridge(report: CpExactSolveMovementReport, gate?: Promise<void>): CpExactSolver {
+function bridge(
+  report: CpExactSolveMovementReport,
+  gate?: Promise<void>,
+  theorem?: CpExactSolveTheoremReport
+): CpExactSolver {
   const answer = async () => {
     if (gate) await gate;
-    return graph(report);
+    return graph(report, theorem);
   };
   return {
     solveExact: answer,
@@ -151,6 +186,7 @@ describe('useCpRegionSolve', () => {
   let root: Root;
   let api: CpRegionSolveBinding;
   let replaceLineSegments: ReturnType<typeof vi.fn>;
+  let setSelection: ReturnType<typeof vi.fn>;
   let solver: CpExactSolver;
 
   function Probe() {
@@ -162,6 +198,7 @@ describe('useCpRegionSolve', () => {
   }
 
   function seed(annotations: CanvasAnnotation[] = [IMAGE, REGION]): void {
+    setSelection = vi.fn();
     replaceLineSegments = vi.fn(async (_ids: number[], segments: OristudioCpLineSegment[]) => {
       // Stands in for the kernel round trip: the store bumps the revision and
       // records one history entry carrying the previous document *and* the
@@ -188,6 +225,7 @@ describe('useCpRegionSolve', () => {
       oristudioCpRevision: 1,
       oristudioCpCamvResult: null,
       replaceOristudioCpLineSegments: replaceLineSegments,
+      setOristudioCpSelection: setSelection,
     } as unknown as Partial<ReturnType<typeof useWorkspaceStore.getState>>);
   }
 
@@ -213,6 +251,9 @@ describe('useCpRegionSolve', () => {
   beforeEach(() => {
     resetCpExactSolveRuns();
     track.mockClear();
+    toast.success.mockClear();
+    toast.warning.mockClear();
+    toast.error.mockClear();
     solver = bridge(ACCEPTED);
     host = document.createElement('div');
     document.body.appendChild(host);
@@ -314,7 +355,80 @@ describe('useCpRegionSolve', () => {
       movedVertices: 1,
       // 0.001 of a paper edge, on the 1024 px ruler the sentence uses.
       maxMovementPx: 1.024,
+      // `status: Solved` with no theorem report to qualify it — so the chip is
+      // told the solver's own verdict and nothing more. See `solveCompletion`.
+      completion: 'exact',
+      residuals: null,
     });
+  });
+
+  /**
+   * The bug this whole split came from. `mid-solve_2.osf` was accepted with
+   * `status: Ambiguous` at 0.00747° — a 1,900x improvement that still left all
+   * 70 "Incorrect angles" markers standing — and the chip said "Solved".
+   *
+   * The coordinates still land: an ambiguous solve is *accepted*, so it takes
+   * the same placement path. What must differ is every sentence about it.
+   */
+  it('places an ambiguous solve, and does not call it solved', async () => {
+    solver = bridge(ACCEPTED, undefined, AMBIGUOUS_RESIDUALS);
+    await solve();
+
+    expect(replaceLineSegments).toHaveBeenCalledTimes(1);
+    expect(api.stateFor(REGION.id)).toMatchObject({
+      status: 'solved',
+      completion: 'unfoldable',
+      residuals: {
+        maxKawasakiDegreesBefore: 14.367,
+        maxKawasakiDegreesAfter: 0.00747,
+        oddDegreeVerticesAfter: 3,
+      },
+    });
+  });
+
+  it('says what the solve did, in the numbers, rather than "Solved"', async () => {
+    solver = bridge(ACCEPTED, undefined, AMBIGUOUS_RESIDUALS);
+    await solve();
+
+    // A warning, not a success: the user is looking at the creases, and this
+    // toast is the only place a 1,900x improvement that still fails is told
+    // apart from a no-op.
+    expect(toast.success).not.toHaveBeenCalled();
+    const [headline, options] = toast.warning.mock.calls[0];
+    expect(headline).toBe('Improved, but this pattern cannot fold flat');
+    // Odd degree first — it is the cause no amount of re-solving clears.
+    expect(options.description.startsWith('3 vertices still have an odd number of creases')).toBe(
+      true
+    );
+    expect(options.description).toContain('14.4°');
+    expect(options.description).toContain('0.007°');
+    expect(options.description).toContain('Accept anyway');
+  });
+
+  it('keeps the success toast for a solve that really did finish', async () => {
+    await solve();
+
+    expect(toast.warning).not.toHaveBeenCalled();
+    const [headline, options] = toast.success.mock.calls[0];
+    expect(headline).toBe('Solved');
+    expect(options.description).toContain('now meets the foldability check');
+  });
+
+  /**
+   * A solve rewrites every crease in the pattern, and the mutation helper
+   * derives the selection from what the kernel replaced — so without this the
+   * user is handed the whole pattern selected and the selection toolbar opens
+   * on top of the region's own chip. Nothing was aimed at, so nothing is
+   * selected.
+   */
+  it('leaves nothing selected, so the selection toolbar does not cover the chip', async () => {
+    await solve();
+
+    expect(setSelection).toHaveBeenCalledTimes(1);
+    // Against the shared constructor, not a literal: the selection has five
+    // kinds and a hand-written three would pass while leaving faces and texts
+    // selected.
+    expect(setSelection.mock.calls[0][0]).toEqual(emptyOristudioCpSelection());
   });
 
   it('records the coordinates and the region state in one history entry', async () => {

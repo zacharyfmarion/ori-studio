@@ -167,6 +167,14 @@
   border-left-color: var(--accent-primary);
 }
 
+/* An accepted solve that did not reach foldable precision. Warning rather than
+   success, because the preview beside it looks solved while every angle marker
+   would survive — and rather than `failed`, because nothing failed: the
+   coordinates are real and they are better. */
+.cp-detect-modal__verdict[data-outcome='improved'] {
+  border-left-color: var(--status-warning);
+}
+
 .cp-detect-modal__verdict[data-outcome='failed'] {
   border-left-color: var(--status-warning);
 }

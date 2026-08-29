@@ -5,6 +5,13 @@ import {
   SuppressionRegionChip,
   type SuppressionRegionChipProps,
 } from './SuppressionRegionChip';
+import {
+  cpSolveCompletionChipLine,
+  cpSolveCompletionDetail,
+  cpSolveIsExactVerdict,
+  cpSolveMeetsFoldabilityCheck,
+  type CpSolveCompletionFacts,
+} from './solveCompletion';
 
 /**
  * A suppression region that also carries an attached `ExactSolveInput`, and so
@@ -63,7 +70,21 @@ export type CpRegionSolveState =
       /** A stop is already on its way. Near-instant, so rarely seen; see below. */
       stopping: boolean;
     }
-  | { status: 'solved'; movedVertices: number; maxMovementPx: number }
+  /**
+   * The solver accepted an answer and it has been written onto the creases.
+   *
+   * `status: 'solved'` is the **transport** state — coordinates landed, and there
+   * is a gate to clear — not a claim that the pattern is done. What it completed
+   * *to* is `completion`, and only `exact` may be presented as success: an
+   * accepted-but-ambiguous solve is a real improvement (14.367° -> 0.00747° on
+   * the file this split came from) that still fails every foldability check it
+   * failed before.
+   */
+  | ({
+      status: 'solved';
+      movedVertices: number;
+      maxMovementPx: number;
+    } & CpSolveCompletionFacts)
   | { status: 'failed'; reason: string; partialMovedVertices?: number };
 
 /** The shared no-solve-yet state, so callers need not allocate one per render. */
@@ -81,6 +102,16 @@ const STATUS_STYLE: CSSProperties = {
 
 /** Same reasoning as the chip's hidden count: a preset-written token, not a guess. */
 const FAILED_STYLE: CSSProperties = { ...STATUS_STYLE, color: 'var(--status-danger)' };
+
+/**
+ * A solve that landed and did not finish the job.
+ *
+ * Warning rather than danger: nothing went wrong, the coordinates are genuinely
+ * better and they are on the creases. What it must not be is the neutral
+ * {@link STATUS_STYLE} that `exact` uses, because at a glance those two states
+ * would be the same state.
+ */
+const INCOMPLETE_STYLE: CSSProperties = { ...STATUS_STYLE, color: 'var(--status-warning)' };
 
 export interface SolveRegionChipProps extends Omit<SuppressionRegionChipProps, 'children'> {
   state: CpRegionSolveState;
@@ -175,28 +206,40 @@ function SolveAffordance({
         </>
       );
 
-    case 'solved':
+    case 'solved': {
+      // Two questions, and they disagree in the middle: whether the *check* will
+      // pass decides the tone and the sentence, whether the *solver* called the
+      // answer exact decides which button is primary. Collapsing them would
+      // either tint an accepted exact solve as a problem, or push a user into
+      // repair for a pattern with nothing flagged to repair.
+      const clean = cpSolveMeetsFoldabilityCheck(state.completion);
+      const exact = cpSolveIsExactVerdict(state.completion);
       return (
         <>
-          <span className="cp-region-chip__status" style={STATUS_STYLE} role="status">
-            {t('panels:cpRegion.solved', {
-              count: state.movedVertices,
-              // Rounded **up**, so the sentence stays true: a 0.42 px worst case
-              // reads "< 1 px", never "< 0.4 px" that a later measurement could
-              // contradict.
-              max: Math.max(1, Math.ceil(state.maxMovementPx)),
-              defaultValue_one: 'Solved · 1 vertex moved < {{max}} px',
-              defaultValue_other: 'Solved · {{count}} vertices moved < {{max}} px',
-            })}
+          <span
+            className="cp-region-chip__status"
+            style={clean ? STATUS_STYLE : INCOMPLETE_STYLE}
+            role="status"
+            // The chip cannot wrap, so the compact line is what fits and the full
+            // sentence — with both residuals in it — is one hover away. The toast
+            // carries the same sentence for anyone who never hovers.
+            title={clean ? undefined : cpSolveCompletionDetail(t, state)}
+          >
+            {cpSolveCompletionChipLine(t, state)}
           </span>
-          <Button size="sm" variant="secondary" onClick={onTryAgain}>
+          <Button size="sm" variant={exact ? 'secondary' : 'primary'} onClick={onTryAgain}>
             {t('panels:cpRegion.tryAgain', 'Try again')}
           </Button>
-          <Button size="sm" variant="primary" onClick={onAccept}>
-            {acceptLabel}
+          {/* Still offered, and still the same verb: the coordinates really are
+              better, so keeping them is a legitimate choice. What changes is that
+              it stops being the recommended one and stops being called a plain
+              Accept, which over an unfoldable pattern reads as "this is done". */}
+          <Button size="sm" variant={exact ? 'primary' : 'secondary'} onClick={onAccept}>
+            {exact ? acceptLabel : t('panels:cpRegion.acceptAnyway', 'Accept anyway')}
           </Button>
         </>
       );
+    }
 
     case 'failed':
       return (

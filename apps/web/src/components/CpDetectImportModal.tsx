@@ -31,11 +31,19 @@ import {
 } from '../engine/cpExactSolveMessages';
 import { useCpExactSolveRun } from '../hooks/useCpExactSolveRun';
 import {
+  isCpExactSolveAccepted,
   primaryCpExactSolveReason,
   type CpExactSolveMovedVertex,
   type CpExactSolveOutcome,
   type CpExactSolveStage,
 } from '../engine/cpExactSolveTypes';
+import {
+  cpSolveCompletion,
+  cpSolveCompletionDetail,
+  cpSolveCompletionFacts,
+  cpSolveIsExactVerdict,
+  cpSolveMeetsFoldabilityCheck,
+} from '../cp-workspace/regions/solveCompletion';
 import { getFileService, type OpenBinaryFileResult } from '../platform/fileService';
 import {
   cpDetectError,
@@ -115,8 +123,13 @@ const REGION_PAPER_MARGIN_RATIO = 0.02;
  * & Add" promised an action that had already happened inside the decode, and was
  * byte-identical to "Add as-is" beside it.
  *
- * - `add` — the *solved* FOLD. Offered only after a solve this modal ran and the
- *   solver accepted. It is plain **Add** because there is nothing left to do.
+ * - `add` — the *solved* FOLD, from a solve the solver called exact. It is plain
+ *   **Add** because there is nothing left to do.
+ * - `addImproved` — the candidate with the moves from a solve the solver
+ *   **accepted but did not call exact** written in. Real, better coordinates
+ *   that still fail the foldability check, so offering them as "Add" would
+ *   promise the one thing they do not deliver. Built here rather than taken from
+ *   `CpExactSolveResult.fold`, which is deliberately null for this ending.
  * - `reviewAndFix` — the candidate, plus the rectified image and a
  *   check-suppression region carrying the `ExactSolveInput`, so the pattern can
  *   be repaired and solved in the document.
@@ -126,7 +139,7 @@ const REGION_PAPER_MARGIN_RATIO = 0.02;
  * - `addAsIs` — the candidate, untouched. Only offered where the pattern is
  *   **genuinely unsolved**, never as a second name for a solve that succeeded.
  */
-type ImportMode = 'add' | 'reviewAndFix' | 'addPartial' | 'addAsIs';
+type ImportMode = 'add' | 'addImproved' | 'reviewAndFix' | 'addPartial' | 'addAsIs';
 
 /**
  * What the recognize report says about the candidate's **graph**.
@@ -521,14 +534,34 @@ export function CpDetectImportModal() {
   const partialFoldJson = useMemo(
     () =>
       recognition && phase.kind === 'settled' && phase.outcome.kind === 'timeout'
-        ? foldJsonWithPartialSolve(recognition.foldJson, phase.outcome.partialMovedVertices)
+        ? foldJsonWithMovedVertices(recognition.foldJson, phase.outcome.partialMovedVertices)
+        : null,
+    [phase, recognition]
+  );
+
+  /**
+   * The improved-but-not-exact document, built here because the runner will not
+   * hand one over.
+   *
+   * `CpExactSolveResult.fold` is deliberately null on an `ambiguous` acceptance:
+   * that field is the *exactly* solved document, and returning improved geometry
+   * through it is how improved geometry gets applied as the answer. The moves are
+   * on the outcome, and offering them is the caller's design decision — which is
+   * this, and it is the same construction the timeout partial uses, because the
+   * two cases are the same shape: real coordinates from a real run that the
+   * solver would not sign off as exact.
+   */
+  const improvedFoldJson = useMemo(
+    () =>
+      recognition && phase.kind === 'settled' && phase.outcome.kind === 'ambiguous'
+        ? foldJsonWithMovedVertices(recognition.foldJson, phase.outcome.movedVertices)
         : null,
     [phase, recognition]
   );
 
   const importModes = useMemo(
-    () => availableImportModes(topology, phase, partialFoldJson !== null),
-    [partialFoldJson, phase, topology]
+    () => availableImportModes(topology, phase, partialFoldJson !== null, improvedFoldJson !== null),
+    [improvedFoldJson, partialFoldJson, phase, topology]
   );
   const primaryMode = importModes.primary;
 
@@ -548,7 +581,13 @@ export function CpDetectImportModal() {
   const addDetection = useCallback(
     async (mode: ImportMode) => {
       if (!recognition || !source) return;
-      const foldJson = importFoldJson(mode, recognition, phase, partialFoldJson);
+      const foldJson = importFoldJson(
+        mode,
+        recognition,
+        phase,
+        partialFoldJson,
+        improvedFoldJson
+      );
       if (!foldJson) return;
       setBusy('importing');
       setError(null);
@@ -638,7 +677,17 @@ export function CpDetectImportModal() {
         setBusy(null);
       }
     },
-    [partialFoldJson, phase, recognition, rectified, resetSession, source, t, topology]
+    [
+      improvedFoldJson,
+      partialFoldJson,
+      phase,
+      recognition,
+      rectified,
+      resetSession,
+      source,
+      t,
+      topology,
+    ]
   );
 
   const onDrop = useCallback(
@@ -820,6 +869,10 @@ export function CpDetectImportModal() {
                 topology,
                 phase,
                 partialVertices: partialVertexCount(phase, partialFoldJson),
+                // So the sentence never offers a button that is not on the row
+                // above it: the improved result needs a solved FOLD, and a solve
+                // that produced none has nothing to add.
+                canAddImproved: importModes.secondary.includes('addImproved'),
               })}
               {/* The solver's two stages, named. They behave nothing alike —
                   geometry fails fast and is a fraction of the wall, refinement is
@@ -1425,11 +1478,20 @@ function candidateTopology(recognition: CpDetectRecognizeResult): CandidateTopol
 function availableImportModes(
   topology: CandidateTopology | null,
   phase: SolvePhase,
-  hasPartial: boolean
+  hasPartial: boolean,
+  hasImproved: boolean
 ): { primary: ImportMode | null; secondary: ImportMode[] } {
   if (!topology || phase.kind === 'solving') return { primary: null, secondary: [] };
   if (phase.kind === 'settled' && phase.outcome.kind === 'solved' && phase.fold) {
     return { primary: 'add', secondary: [] };
+  }
+  // Accepted, kept, and not exact. It may be added — the coordinates are real
+  // and better — but it may not be the recommended one-word answer: it did not
+  // reach foldable precision, and the usual cause is topology only the user can
+  // fix. So repair leads and the improved result stays on offer beside it, under
+  // a name that says what it is.
+  if (phase.kind === 'settled' && phase.outcome.kind === 'ambiguous' && hasImproved) {
+    return { primary: 'reviewAndFix', secondary: ['addImproved', 'addAsIs'] };
   }
   if (topology.blocked) return { primary: 'addAsIs', secondary: [] };
   // A stopped solve lands in the same place a failed one does, and for the same
@@ -1445,6 +1507,8 @@ function importModeLabel(t: TFunction, mode: ImportMode): string {
   switch (mode) {
     case 'add':
       return t('dialogs:cpDetectImport.add', 'Add');
+    case 'addImproved':
+      return t('dialogs:cpDetectImport.addImproved', 'Add improved result');
     case 'reviewAndFix':
       return t('dialogs:cpDetectImport.reviewAndFix', 'Review & Fix');
     case 'addPartial':
@@ -1459,11 +1523,16 @@ function importFoldJson(
   mode: ImportMode,
   recognition: CpDetectRecognizeResult,
   phase: SolvePhase,
-  partialFoldJson: string | null
+  partialFoldJson: string | null,
+  improvedFoldJson: string | null
 ): string | null {
   switch (mode) {
     case 'add':
       return phase.kind === 'settled' ? foldJsonOf(phase.fold) : null;
+    // Not `phase.fold`: the runner returns that only for an exact solve, on
+    // purpose. This is the candidate with the accepted moves written in.
+    case 'addImproved':
+      return improvedFoldJson;
     case 'addPartial':
       return partialFoldJson;
     case 'reviewAndFix':
@@ -1477,13 +1546,20 @@ function foldJsonOf(fold: Record<string, unknown> | null): string | null {
 }
 
 /**
- * The candidate FOLD with a timed-out solve's partial coordinates written in.
+ * The candidate FOLD with a run's coordinates written into it.
  *
- * On a timeout the solver returns the coordinates it was *given* and reports the
- * work it did in `attempted_moved_vertices` — a median of ~448 entries — so this
- * is the only place that partial solution exists. Every one of those is a real
- * coordinate from a real run; what did not happen is the acceptance gate, and
- * the button that adds this says "partial" for exactly that reason.
+ * One construction, two callers, because they are the same situation: geometry a
+ * real run produced that the modal cannot get as a solved FOLD.
+ *
+ * - **A timeout** returns the coordinates it was *given* and reports the work it
+ *   did in `attempted_moved_vertices` — a median of ~448 entries — so this is
+ *   the only place that partial solution exists.
+ * - **An ambiguous acceptance** is withheld by `runCpExactSolve` on purpose: its
+ *   `fold` is the *exactly* solved document, and improved-but-not-foldable
+ *   geometry returned through that field is how it gets applied as the answer.
+ *
+ * Either way the coordinates are real and what did not happen is a claim about
+ * them, which is why the buttons that add these say "partial" and "improved".
  *
  * The mapping is exact rather than positional. `cp_detector.vertex_original_ids`
  * is written by the same exporter that renumbered the vertices
@@ -1492,7 +1568,7 @@ function foldJsonOf(fold: Record<string, unknown> | null): string | null {
  * such list or the arrays disagree, so a shape change drops the offer instead of
  * scattering coordinates onto the wrong vertices.
  */
-function foldJsonWithPartialSolve(
+function foldJsonWithMovedVertices(
   foldJson: string,
   partial: readonly CpExactSolveMovedVertex[]
 ): string | null {
@@ -1534,7 +1610,14 @@ function partialVertexCount(phase: SolvePhase, partialFoldJson: string | null): 
 function verdictTone(topology: CandidateTopology | null, phase: SolvePhase): string {
   if (!topology) return 'unknown';
   if (phase.kind === 'solving') return 'solving';
-  if (phase.kind === 'settled' && phase.outcome.kind === 'solved') return 'exact';
+  if (phase.kind === 'settled' && isCpExactSolveAccepted(phase.outcome)) {
+    // The tone follows the *check*, not the acceptance: an ambiguous solve leaves
+    // the preview looking solved while every angle marker survives, and a green
+    // border over that is the screen agreeing with the wrong reading.
+    return cpSolveMeetsFoldabilityCheck(cpSolveCompletion(phase.outcome))
+      ? 'exact'
+      : 'improved';
+  }
   // A stop is not a failure and is not toned like one: the user asked for it,
   // and the candidate underneath is exactly as repairable as it was.
   if (phase.kind === 'cancelled') return 'repairable';
@@ -1561,7 +1644,13 @@ function verdictMessage(
     topology,
     phase,
     partialVertices,
-  }: { topology: CandidateTopology | null; phase: SolvePhase; partialVertices: number | null }
+    canAddImproved,
+  }: {
+    topology: CandidateTopology | null;
+    phase: SolvePhase;
+    partialVertices: number | null;
+    canAddImproved: boolean;
+  }
 ): string {
   if (!topology) return '';
   if (phase.kind === 'solving') {
@@ -1570,11 +1659,32 @@ function verdictMessage(
       'Nothing is flagged in the topology, so the solve is running. Below is what was recognized — the creases move into place when it lands.'
     );
   }
-  if (phase.kind === 'settled' && phase.outcome.kind === 'solved') {
-    return t(
-      'dialogs:cpDetectImport.verdict.exact',
-      'Exactly solved. Adding it beside your work leaves the rest of the document untouched.'
-    );
+  if (phase.kind === 'settled' && isCpExactSolveAccepted(phase.outcome)) {
+    // The same four completion sentences the region chip uses, because they are
+    // statements about one solve and two surfaces describing it differently is
+    // how they drift apart. Only the closing clause is this modal's own — it
+    // names buttons that exist here and nowhere else.
+    const facts = cpSolveCompletionFacts(phase.outcome);
+    const detail = cpSolveCompletionDetail(t, facts);
+    // The closing clause names buttons, so it follows the *solver's* verdict —
+    // the same thing `availableImportModes` branches on. Following the check
+    // instead would send a user to a Review & Fix that is not on the screen.
+    return `${detail} ${
+      cpSolveIsExactVerdict(facts.completion)
+        ? t(
+            'dialogs:cpDetectImport.verdict.exact',
+            'Adding it beside your work leaves the rest of the document untouched.'
+          )
+        : canAddImproved
+          ? t(
+              'dialogs:cpDetectImport.verdict.improved',
+              'Review & Fix adds it with the source image behind it and keeps the solver data, so you can repair what is left and solve again — or add the improved result as it stands.'
+            )
+          : t(
+              'dialogs:cpDetectImport.verdict.improvedNoFold',
+              'Review & Fix adds it with the source image behind it and keeps the solver data, so you can repair what is left and solve again.'
+            )
+    }`;
   }
   if (phase.kind === 'cancelled') {
     return t(

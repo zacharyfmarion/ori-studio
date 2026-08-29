@@ -25,6 +25,24 @@ let container: HTMLDivElement;
 let root: Root;
 
 const NOOP = () => {};
+
+/**
+ * The figures from `test_files/detect-cp/mid-solve_2.osf`: a 1,900x Kawasaki
+ * improvement that still sat ~7,500x above the editor's own 1e-6° bar.
+ */
+const RESIDUALS = {
+  maxKawasakiDegreesBefore: 14.367,
+  maxKawasakiDegreesAfter: 0.00747,
+  oddDegreeVerticesBefore: 3,
+  oddDegreeVerticesAfter: 0,
+};
+
+/** A solve that reached foldable precision — the one ending that says "Solved". */
+const EXACT = {
+  completion: 'exact',
+  residuals: { ...RESIDUALS, maxKawasakiDegreesAfter: 0, oddDegreeVerticesBefore: 0 },
+} as const;
+
 const REGION = createCpSuppressionRegion({
   center: { x: 0.5, y: 0.5 },
   width: 1,
@@ -77,6 +95,13 @@ function button(label: string): HTMLButtonElement {
     (candidate) => candidate.textContent === label
   );
   if (!found) throw new Error(`no button labelled ${label}`);
+  return found;
+}
+
+/** The chip's own status readout, so its `title` can be read as well as its text. */
+function status(): HTMLElement {
+  const found = chip().querySelector<HTMLElement>('.cp-region-chip__status');
+  if (!found) throw new Error('the chip rendered no status line');
   return found;
 }
 
@@ -167,7 +192,7 @@ describe('SolveRegionChip', () => {
     const onAccept = vi.fn();
     const onTryAgain = vi.fn();
     renderChip(
-      { status: 'solved', movedVertices: 45, maxMovementPx: 0.42 },
+      { status: 'solved', movedVertices: 45, maxMovementPx: 0.42, ...EXACT },
       { onAccept, onTryAgain }
     );
 
@@ -181,8 +206,86 @@ describe('SolveRegionChip', () => {
   });
 
   it('agrees with itself on one moved vertex', () => {
-    renderChip({ status: 'solved', movedVertices: 1, maxMovementPx: 2.1 });
+    renderChip({ status: 'solved', movedVertices: 1, maxMovementPx: 2.1, ...EXACT });
     expect(chip().textContent).toContain('Solved · 1 vertex moved < 3 px');
+  });
+
+  /**
+   * The regression this half of the chip exists for. `status: 'solved'` means the
+   * coordinates landed, not that the pattern is done — an accepted-but-ambiguous
+   * solve on `mid-solve_2.osf` improved Kawasaki 1,900x and left all 70 angle
+   * markers standing, under a chip that said "Solved".
+   */
+  it('reports what an ambiguous solve actually did, rather than "Solved"', () => {
+    renderChip({
+      status: 'solved',
+      movedVertices: 45,
+      maxMovementPx: 0.42,
+      completion: 'improved',
+      residuals: RESIDUALS,
+    });
+
+    const line = status();
+    expect(line.textContent).toBe('Improved · worst angle 14.4° → 0.007°');
+    expect(line.textContent).not.toContain('Solved');
+    // The chip cannot wrap, so the numbers it cannot fit are one hover away.
+    expect(line.title).toContain('0.000001°');
+  });
+
+  it('names the odd-degree cause first, and counts the repair sites', () => {
+    renderChip({
+      status: 'solved',
+      movedVertices: 45,
+      maxMovementPx: 0.42,
+      completion: 'unfoldable',
+      residuals: { ...RESIDUALS, oddDegreeVerticesAfter: 3 },
+    });
+
+    expect(status().textContent).toBe('Not foldable · 3 vertices to repair');
+    expect(status().title.startsWith('3 vertices still have an odd number of creases')).toBe(true);
+  });
+
+  it('keeps Accept reachable but stops it being the recommended answer', () => {
+    const onAccept = vi.fn();
+    const onTryAgain = vi.fn();
+    renderChip(
+      {
+        status: 'solved',
+        movedVertices: 45,
+        maxMovementPx: 0.42,
+        completion: 'improved',
+        residuals: RESIDUALS,
+      },
+      { onAccept, onTryAgain }
+    );
+
+    // The coordinates are genuinely better, so keeping them stays a real choice —
+    // it simply stops being called a plain Accept and stops being primary.
+    expect(() => button('Accept')).toThrow();
+    act(() => button('Accept anyway').click());
+    expect(onAccept).toHaveBeenCalledTimes(1);
+    expect(button('Accept anyway').className).not.toContain('ui-button--primary');
+    expect(button('Try again').className).toContain('ui-button--primary');
+
+    act(() => button('Try again').click());
+    expect(onTryAgain).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the button emphasis alone when only the check disagrees', () => {
+    // `approximate` is the solver calling it solved at a residual the editor's
+    // own 1e-6° bar still flags. Nothing combinatorial is wrong, so there is
+    // nothing to send the user back to repair — the sentence carries the news,
+    // the buttons do not change.
+    renderChip({
+      status: 'solved',
+      movedVertices: 45,
+      maxMovementPx: 0.42,
+      completion: 'approximate',
+      residuals: { ...RESIDUALS, maxKawasakiDegreesAfter: 5e-4 },
+    });
+
+    expect(button('Accept').className).toContain('ui-button--primary');
+    expect(status().textContent).toContain('worst angle');
   });
 
   it('reports the specific refusal, and offers a retry rather than a revert', () => {

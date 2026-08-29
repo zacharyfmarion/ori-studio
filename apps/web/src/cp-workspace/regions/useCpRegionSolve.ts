@@ -27,6 +27,7 @@
  * away. The *live* half comes from `cpExactSolveRuns` instead, which is where the
  * two stages are already recorded.
  */
+import { toast } from 'sonner';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -44,10 +45,19 @@ import {
 import { isCpExactSolveCancelledError } from '../../engine/cpExactSolveSession';
 import { cpExactSolveReasonLabel } from '../../engine/cpExactSolveMessages';
 import {
+  isCpExactSolveAccepted,
   primaryCpExactSolveReason,
   type CpExactSolveMovedVertex,
   type CpExactSolveOutcome,
 } from '../../engine/cpExactSolveTypes';
+import {
+  cpSolveCompletionDetail,
+  cpSolveCompletionFacts,
+  cpSolveCompletionHeadline,
+  cpSolveIsExactVerdict,
+  cpSolveMeetsFoldabilityCheck,
+  type CpSolveCompletionFacts,
+} from './solveCompletion';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { isSuppressionRegionAnnotation } from '../annotations/annotation';
 import {
@@ -56,6 +66,7 @@ import {
 } from '../annotations/suppressionRegion';
 import type { CpRegionSolveBinding } from './CpRegionLayer';
 import type { CpRegionSolveState } from './SolveRegionChip';
+import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
 import {
   cpRegionPatternLines,
   solvedRegionSegments,
@@ -145,13 +156,21 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
       const region = solvableRegion(regionId);
       if (!region) return;
       const owned = ownedLines(region);
-      const failed = (reason: string) =>
+      // The chip holds the detail; the toast is the "it finished" signal, because
+      // a solve can take seconds and the user is looking at the creases, not at
+      // a bar above them. Every terminal outcome gets exactly one.
+      const failed = (reason: string) => {
         write(regionId, {
           state: { status: 'failed', reason },
           revision: useWorkspaceStore.getState().oristudioCpRevision,
           owned,
           partial: null,
         });
+        toast.error(
+          latest.current.t('toasts:cpRegionSolve.failed', 'Could not solve this pattern'),
+          { id: `cp-region-solve-${regionId}`, description: reason }
+        );
+      };
       if (owned.lineIds.length === 0) {
         failed(placementRefusalLabel(latest.current.t, 'no_pattern'));
         return;
@@ -198,9 +217,22 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
           // partial is an *offer*. Accept is what takes it.
           partial: outcome.partialMovedVertices,
         });
+        toast.warning(
+          latest.current.t('toasts:cpRegionSolve.timedOut', 'The solve ran out of time'),
+          {
+            id: `cp-region-solve-${regionId}`,
+            description: latest.current.t(
+              'toasts:cpRegionSolve.timedOutDetail',
+              'It got partway — accept how far it got, or keep editing and try again.'
+            ),
+          }
+        );
         return;
       }
-      if (outcome.kind !== 'solved') {
+      // Acceptance, not exactness. `ambiguous` is an accepted answer whose
+      // coordinates are real and better, so it takes this path and *not* the
+      // failure one — what differs is every sentence said about it below.
+      if (!isCpExactSolveAccepted(outcome)) {
         const reason = primaryCpExactSolveReason(outcome);
         failed(
           reason
@@ -215,16 +247,19 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
         failed(placementRefusalLabel(latest.current.t, placed.refusal));
         return;
       }
+      const facts = cpSolveCompletionFacts(outcome);
       write(regionId, {
         state: {
           status: 'solved',
           movedVertices: outcome.movedVertices.length,
           maxMovementPx: outcome.maxMovement * PAPER_EDGE_PX,
+          ...facts,
         },
         revision: useWorkspaceStore.getState().oristudioCpRevision,
         owned,
         partial: null,
       });
+      completionToast(latest.current.t, regionId, facts);
     },
     [write]
   );
@@ -384,9 +419,17 @@ async function place(
 ): Promise<{ ok: true } | { ok: false; refusal: CpRegionSolvePlacementRefusal }> {
   const placement = solvedRegionSegments(owned.segments, moved);
   if (!placement.ok) return placement;
-  await useWorkspaceStore
-    .getState()
-    .replaceOristudioCpLineSegments(owned.lineIds, placement.segments, label);
+  const store = useWorkspaceStore.getState();
+  await store.replaceOristudioCpLineSegments(owned.lineIds, placement.segments, label);
+  // Drop the selection the mutation left behind.
+  //
+  // `applyOristudioCpLineMutation` derives the selection from the document the
+  // kernel hands back (`projectSlice.ts:789`), and a replace marks what it
+  // replaced — which is right for a transform the user aimed at a selection, and
+  // wrong here: a solve rewrites every crease in the pattern, so the user is
+  // handed all ~99 of them selected and the selection toolbar opens on top of
+  // the region's own chip. Nothing was aimed at, so nothing should be selected.
+  store.setOristudioCpSelection(emptyOristudioCpSelection());
   return { ok: true };
 }
 
@@ -450,6 +493,45 @@ function removeRegionKeepingImage(regionId: string, label: string): void {
   const before = store.oristudioCpAnnotations;
   store.removeAnnotation(regionId);
   store.recordAnnotationHistory([...before], label);
+}
+
+/**
+ * The one toast an accepted solve gets, saying what it actually did.
+ *
+ * A solve takes seconds and the user is watching the creases, not a chip — so
+ * the toast is the moment the result is read, and "Solved" over an editor that
+ * still shows 70 angle markers is the single most misleading thing this flow can
+ * say. It is a `success` only when the pattern will now pass the check the user
+ * is looking at; every other ending is a `warning` carrying the before/after
+ * figures, because a 1,900x improvement that still fails is indistinguishable
+ * from a no-op unless the numbers are on screen.
+ *
+ * The action clause is appended here rather than in `solveCompletion` because it
+ * names *this* surface's buttons; the modal offers different ones for the same
+ * four endings.
+ */
+function completionToast(t: TFunction, regionId: string, facts: CpSolveCompletionFacts): void {
+  const detail = cpSolveCompletionDetail(t, facts);
+  const clean = cpSolveMeetsFoldabilityCheck(facts.completion);
+  // The same two-predicate split the chip renders from, so the toast never names
+  // a button under a label the chip is not showing: tone follows the check, the
+  // action clause follows the solver's verdict.
+  const action = cpSolveIsExactVerdict(facts.completion)
+    ? t(
+        'toasts:cpRegionSolve.solvedAction',
+        'Accept to keep it, or Try again to go back and change the topology.'
+      )
+    : t(
+        'toasts:cpRegionSolve.incompleteAction',
+        'Try again to repair the topology and solve again, or Accept anyway to keep these coordinates.'
+      );
+  const headline = cpSolveCompletionHeadline(t, facts.completion);
+  const options = {
+    id: `cp-region-solve-${regionId}`,
+    description: `${detail} ${action}`,
+  };
+  if (clean) toast.success(headline, options);
+  else toast.warning(headline, options);
 }
 
 function solveLabel(t: TFunction): string {

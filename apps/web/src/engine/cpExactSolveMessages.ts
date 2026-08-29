@@ -96,7 +96,17 @@ export function cpExactSolveReasonLabel(t: TFunction, reason: CpExactSolveReason
         'The solver could not improve on the pattern it was given, so nothing was applied. The topology most likely still needs repair.'
       );
 
-    // --- The two endings the solver writes no token for. --------------------
+    // --- The three endings the solver writes no token for. ------------------
+    // `above_fold_precision` is the odd one out: the solve was *accepted*, so
+    // this sentence must not say "it was not applied" the way the gate reasons
+    // above do. What it says instead is the fact the user cannot see — the
+    // pattern moved and still fails the same checks — and the one action that
+    // changes that.
+    case 'above_fold_precision':
+      return t(
+        'panels:cpExactSolve.reason.aboveFoldPrecision',
+        'The solve moved the creases much closer to foldable, but not close enough for the pattern to pass the foldability check. Repair the remaining markers — a vertex with an odd number of creases can never be solved, only fixed — and solve again.'
+      );
     case 'timeout':
       return t(
         'panels:cpExactSolve.reason.timeout',
