@@ -27,11 +27,6 @@ import {
 export interface CreaseAngleFieldProps {
   degrees: number;
   /**
-   * The active line type, so the readout can carry the sign the pen would give
-   * a crease. Signed only when this can fold; an edge has no direction.
-   */
-  lineColor: string;
-  /**
    * Apply a new pen. `direction` is set only when the entry carried an explicit
    * sign, and asks for the line type to change with it.
    */
@@ -46,7 +41,6 @@ export interface CreaseAngleFieldProps {
 
 export function CreaseAngleField({
   degrees,
-  lineColor,
   onChange,
   onOpenPopover,
   shortcutLabel,
@@ -87,13 +81,13 @@ export function CreaseAngleField({
           'tools:creaseAngle.fieldTitle',
           'Fold angle given to new mountain and valley creases'
         )}
-        value={draft ?? formatCreaseAngle(degrees, lineColor)}
+        value={draft ?? formatCreaseAngle(degrees)}
         onFocus={(event) => {
           // Drop the degree sign while editing so the field holds a plain
           // number, and select it so typing replaces the angle outright. That
           // covers Tab; a *click* needs `useSelectAllOnClick` as well, because
           // the mouseup that follows would otherwise collapse this to a caret.
-          setDraft(formatCreaseAngleValue(degrees, lineColor));
+          setDraft(formatCreaseAngleValue(degrees));
           event.currentTarget.select();
         }}
         {...selectAllOnClick}

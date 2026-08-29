@@ -44,11 +44,6 @@ export interface CreaseAnglePopoverProps {
   /** The live pen, in degrees (a magnitude). */
   degrees: number;
   /**
-   * The active line type, so the input opens showing the sign the pen would
-   * give a crease — which is also what makes a signed entry discoverable.
-   */
-  lineColor: string;
-  /**
    * Apply a new pen. The popover closes itself after. `direction` is set only
    * when the entry carried an explicit sign, and asks for the line type to
    * change with it.
@@ -78,7 +73,6 @@ function anchorRectOf(element: HTMLElement): FloatingAnchorRect {
 
 export function CreaseAnglePopover({
   degrees,
-  lineColor,
   onChange,
   onClose,
   anchorRef,
@@ -88,7 +82,7 @@ export function CreaseAnglePopover({
   const title = t('tools:creaseAngle.title', 'Crease angle');
   const inputRef = useRef<HTMLInputElement | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
-  const [draft, setDraft] = useState(() => formatCreaseAngleValue(degrees, lineColor));
+  const [draft, setDraft] = useState(() => formatCreaseAngleValue(degrees));
   /**
    * Where to hang, measured. `null` means "not measured yet" and is distinct
    * from `{ rect: null }`, which means "measured, and there is nothing to hang

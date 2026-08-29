@@ -12,11 +12,7 @@
  * here, so none of them has to agree on the valid range or the classic
  * normalisation by hand.
  */
-import {
-  degreesToFoldMagnitude,
-  foldAngleFromParts,
-  foldDirectionOfSignedAngle,
-} from '../../lib/foldAngle';
+import { degreesToFoldMagnitude, foldDirectionOfSignedAngle } from '../../lib/foldAngle';
 import type { OristudioCpFoldDirectionHint } from '../../engine/oristudioCpTypes';
 
 /**
@@ -127,35 +123,22 @@ export function creaseAnglePreviewMagnitude(degrees: number): number | undefined
 const DISPLAY_DECIMALS = 2;
 
 /**
- * The pen as a signed angle — what the crease drawn next would be badged — or
- * `null` when the active line type cannot fold at all.
+ * The pen as it appears on the toolbar, e.g. `90°`.
  *
- * Through `foldAngleFromParts`, the function that already answers "what angle
- * does this colour and magnitude mean", rather than a second reading of the
- * sign convention. So the field, the crease it draws and the badge on that
- * crease cannot disagree about which way `-45` points.
- */
-export function signedCreaseAngle(degrees: number, lineColor: string): number | null {
-  const units = degreesToFoldMagnitude(degrees);
-  if (units === null) return null;
-  return foldAngleFromParts(lineColor, units);
-}
-
-/**
- * The pen as it appears on the toolbar, e.g. `-90°` while drawing mountains.
+ * **Unsigned**, though {@link parseCreaseAngle} accepts a sign. The two are not
+ * inconsistent: the pen *is* a magnitude, and the direction it pairs with is the
+ * active line type, which the rail already shows a whole row of. A sign here
+ * would restate the rail in a second place, and the readout is 48px on a bar
+ * that is already too wide.
  *
- * Signed when `lineColor` names a crease, because the sign is half of what the
- * pen sets and is now something you can type: a field that accepts `-45` and
- * then displays `45` has quietly dropped the more surprising half of the entry.
- * Unsigned without a colour, and on a line type that cannot fold — an edge has
- * no direction to show.
+ * So `-45` is a shortcut for two settings at once — set 45, switch to mountain —
+ * rather than a value the field holds. What it changes is visible on the rail.
  */
-export function formatCreaseAngle(degrees: number, lineColor?: string): string {
-  return `${formatCreaseAngleValue(degrees, lineColor)}°`;
+export function formatCreaseAngle(degrees: number): string {
+  return `${formatCreaseAngleValue(degrees)}°`;
 }
 
 /** The same number without its degree sign, for the field while it is edited. */
-export function formatCreaseAngleValue(degrees: number, lineColor?: string): string {
-  const signed = lineColor === undefined ? null : signedCreaseAngle(degrees, lineColor);
-  return `${Number((signed ?? degrees).toFixed(DISPLAY_DECIMALS))}`;
+export function formatCreaseAngleValue(degrees: number): string {
+  return `${Number(degrees.toFixed(DISPLAY_DECIMALS))}`;
 }

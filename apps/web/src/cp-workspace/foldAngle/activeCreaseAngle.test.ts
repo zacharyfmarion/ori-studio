@@ -73,27 +73,17 @@ describe('parseCreaseAngle', () => {
   });
 });
 
-describe('signed display', () => {
-  it('carries the sign the active line type implies', () => {
-    expect(formatCreaseAngle(45, 'Red1')).toBe('-45°');
-    expect(formatCreaseAngle(45, 'Blue2')).toBe('45°');
-  });
-
-  // An edge or an auxiliary line has no direction to show.
-  it('stays unsigned on a line type that cannot fold', () => {
-    expect(formatCreaseAngle(45, 'Black0')).toBe('45°');
+/**
+ * The readout is a magnitude even though the input accepts a sign, and that
+ * asymmetry is deliberate: the pen is a magnitude, its direction is the active
+ * line type, and the rail already shows a whole row of that. A sign typed here
+ * is a shortcut for two settings at once, not a value the field goes on to hold.
+ */
+describe('the readout stays unsigned', () => {
+  it('shows a magnitude whatever direction was typed to reach it', () => {
+    expect(parseCreaseAngle('-45')).toEqual({ degrees: 45, direction: 'Mountain' });
     expect(formatCreaseAngle(45)).toBe('45°');
-  });
-
-  /**
-   * The round trip that makes the feature discoverable: the field shows `-45`,
-   * so `-45` is evidently a thing you may type, and typing it back reproduces
-   * the same pen and direction.
-   */
-  it('round-trips through the parser', () => {
-    const shown = formatCreaseAngleValue(45, 'Red1');
-    expect(shown).toBe('-45');
-    expect(parseCreaseAngle(shown)).toEqual({ degrees: 45, direction: 'Mountain' });
+    expect(formatCreaseAngleValue(45)).toBe('45');
   });
 });
 

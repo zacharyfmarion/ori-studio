@@ -2955,7 +2955,6 @@ export function CreasePatternPanel() {
               node: (
                 <CreaseAngleField
                   degrees={activeCpCreaseAngle}
-                  lineColor={effectiveCpLineColor}
                   onChange={applyCreaseAngleEntry}
                   onOpenPopover={() => setCreaseAnglePopoverOpen(true)}
                   shortcutLabel={creaseAngleShortcutLabel}
@@ -2972,7 +2971,7 @@ export function CreasePatternPanel() {
               // Carries the live value, because on touch this row is the only
               // place the pen is visible at all.
               label: t('tools:creaseAngle.menuRow', 'Crease angle: {{angle}}', {
-                angle: formatCreaseAngle(activeCpCreaseAngle, effectiveCpLineColor),
+                angle: formatCreaseAngle(activeCpCreaseAngle),
               }),
               icon: <ProtractorIcon size={14} />,
               // Deliberately **no** `checked`. This row opens a control; it is
@@ -3462,7 +3461,6 @@ export function CreasePatternPanel() {
               {editableCp && creaseAnglePopoverOpen && (
                 <CreaseAnglePopover
                   degrees={activeCpCreaseAngle}
-                  lineColor={effectiveCpLineColor}
                   onChange={applyCreaseAngleEntry}
                   onClose={() => setCreaseAnglePopoverOpen(false)}
                   anchorRef={creaseAngleAnchorRef}

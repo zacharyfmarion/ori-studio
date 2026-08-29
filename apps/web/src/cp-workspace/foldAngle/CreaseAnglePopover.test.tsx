@@ -35,8 +35,7 @@ afterEach(() => {
 function renderPopover({
   degrees = 180,
   anchored = true,
-  lineColor = 'Red1',
-}: { degrees?: number; anchored?: boolean; lineColor?: string } = {}) {
+}: { degrees?: number; anchored?: boolean } = {}) {
   const onChange = vi.fn();
   const onClose = vi.fn();
 
@@ -50,7 +49,6 @@ function renderPopover({
     root?.render(
       <CreaseAnglePopover
         degrees={degrees}
-        lineColor={lineColor}
         onChange={onChange}
         onClose={onClose}
         anchorRef={{ current: anchored ? anchor : null }}
@@ -154,20 +152,16 @@ describe('CreaseAnglePopover', () => {
    * — which is the common case by far.
    */
   it('leaves the direction alone for an unsigned entry', () => {
-    const { onChange } = renderPopover({ lineColor: 'Red1' });
+    const { onChange } = renderPopover();
     type('45');
     press('Enter');
     expect(onChange).toHaveBeenCalledWith(45, null);
   });
 
-  it('opens showing the sign the pen would give a crease', () => {
-    renderPopover({ degrees: 45, lineColor: 'Red1' });
-    expect(input().value).toBe('-45');
-  });
-
-  // An edge cannot fold, so there is no direction to show.
-  it('opens unsigned on a line type that cannot fold', () => {
-    renderPopover({ degrees: 45, lineColor: 'Black0' });
+  // The input accepts a sign; the readout does not carry one back. The pen is a
+  // magnitude, and the direction it pairs with is on the rail.
+  it('opens showing the magnitude, unsigned', () => {
+    renderPopover({ degrees: 45 });
     expect(input().value).toBe('45');
   });
 
