@@ -49,8 +49,10 @@
     "yes": "Sim"
   },
   "cpDetectImport": {
+    "add": "Adicionar",
     "addAsIs": "Adicionar como está",
     "addLabel": "Adicionar o padrão de vincos detectado",
+    "addPartial": "Adicionar resultado parcial",
     "ariaLabel": "Detectar CP a partir de imagem",
     "busy": {
       "detecting": "Executando o modelo",
@@ -91,17 +93,19 @@
     },
     "reviewAndFix": "Revisar e corrigir",
     "runningModel": "Executando o modelo",
-    "solveAndAdd": "Resolver e adicionar",
     "title": "Detectar CP a partir de imagem",
     "updateCrop": "Atualizar recorte",
     "verdict": {
+      "afterFailure": "“Revisar e corrigir” adiciona o candidato com a imagem de origem atrás e mantém os dados do solucionador, para você corrigir e resolver de novo.",
       "blocked": "O solucionador não conseguiu ler este grafo candidato, portanto não há nada para corrigir à mão. Você ainda pode adicioná-lo como está.",
       "exact": "Resolvido exatamente. Ele é adicionado ao lado do seu trabalho e o resto do documento permanece intacto.",
-      "repairable_one": "Não resolvido — 1 local para reparar. “Revisar e corrigir” adiciona o candidato com a imagem de origem atrás, para você corrigir e resolver.",
-      "repairable_many": "Não resolvido. {{count}} pontos para corrigir: Revisar e corrigir adiciona o candidato, a imagem de origem e uma região de supressão de verificações para você consertar.",
-      "repairable_other": "Não resolvido — {{count}} locais para reparar. “Revisar e corrigir” adiciona o candidato com a imagem de origem atrás, para você corrigir e resolver. Adicioná-lo como está deixa todos os ângulos aproximados.",
-      "unflagged": "Não resolvido, mas nada foi marcado para correção: o solucionador o rejeitou por outro motivo. Revisar e corrigir adiciona o candidato com a imagem de origem atrás para você comparar.",
-      "unknown": "Esta execução do detector não traz verificação de topologia, então o padrão só pode ser adicionado como está."
+      "repairable_one": "Reconhecido, com 1 local para reparar — por isso a resolução não foi executada: ela gastaria todo o tempo disponível em uma geometria que você vai mudar. “Revisar e corrigir” adiciona o candidato com a imagem de origem atrás, para você corrigir e resolver.",
+      "repairable_many": "Reconhecido, com {{count}} locais para reparar — por isso a resolução não foi executada: ela gastaria todo o tempo disponível em uma geometria que você vai mudar. “Revisar e corrigir” adiciona o candidato com a imagem de origem atrás, para você corrigir e resolver. Adicioná-lo como está deixa todos os ângulos aproximados.",
+      "repairable_other": "Reconhecido, com {{count}} locais para reparar — por isso a resolução não foi executada: ela gastaria todo o tempo disponível em uma geometria que você vai mudar. “Revisar e corrigir” adiciona o candidato com a imagem de origem atrás, para você corrigir e resolver. Adicioná-lo como está deixa todos os ângulos aproximados.",
+      "solving": "Nada foi sinalizado na topologia, então a resolução está em andamento. Abaixo está o que foi reconhecido — os vincos se ajustam quando ela terminar.",
+      "timeoutPartial_one": "Ele havia colocado 1 vértice no lugar antes de o tempo acabar, e você pode adicionar esse resultado parcial em vez do candidato bruto.",
+      "timeoutPartial_many": "Ele havia colocado {{count}} vértices no lugar antes de o tempo acabar, e você pode adicionar esse resultado parcial em vez do candidato bruto.",
+      "timeoutPartial_other": "Ele havia colocado {{count}} vértices no lugar antes de o tempo acabar, e você pode adicionar esse resultado parcial em vez do candidato bruto."
     }
   },
   "export": {

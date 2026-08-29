@@ -194,6 +194,8 @@
   },
   "cpRegion": {
     "accept": "Aceitar",
+    "acceptHistory": "Aceitar a solução exata",
+    "acceptPartialHistory": "Aceitar a solução exata parcial",
     "addRegion": "Adicionar região de supressão",
     "changeChecks": "Alterar verificações suprimidas",
     "checksMenu": "Verificações suprimidas",
@@ -205,18 +207,27 @@
     "hidden_other": "{{count}} problemas ocultos",
     "move": "Mover região",
     "nothingSuppressed": "Todas as verificações ativas",
+    "placement": {
+      "frameUnrecognized": "A resposta resolvida não coincide com os vincos desta região, então nada foi alterado. Os dados salvos do solucionador pertencem a outro padrão.",
+      "noPattern": "Não há vincos dentro desta região, então não há nada a resolver. Mova a região sobre o padrão detectado e tente de novo.",
+      "paperNotSquare": "Os vincos desta região não abrangem mais uma folha quadrada, então a resposta resolvida não pôde ser posicionada. Girar o padrão ou remover parte da borda do papel causa isso."
+    },
     "solve": "Resolver",
     "solved_one": "Resolvido · 1 vértice movido < {{max}} px",
     "solved_many": "Resolvido · {{count}} vértices movidos < {{max}} px",
     "solved_other": "Resolvido · {{count}} vértices movidos < {{max}} px",
+    "solveError": "Não foi possível executar a solução — {{message}}",
+    "solveErrorUnknown": "Não foi possível executar a solução.",
     "solveFailed": "Não foi possível resolver — {{reason}}",
+    "solveHistory": "Solução exata",
     "solvePartial_one": "Resultado parcial · 1 vértice",
     "solvePartial_many": "Resultado parcial · {{count}} vértices",
     "solvePartial_other": "Resultado parcial · {{count}} vértices",
     "solvingGeometry": "Resolvendo a geometria…",
     "solvingRefining": "Refinando para a precisão de dobra…",
     "suppressing": "Verificações desativadas: {{classes}}",
-    "tryAgain": "Tentar novamente"
+    "tryAgain": "Tentar novamente",
+    "tryAgainHistory": "Reverter a solução exata"
   },
   "cpViewControls": {
     "angle": "Ângulo",

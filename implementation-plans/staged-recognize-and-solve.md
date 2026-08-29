@@ -268,23 +268,60 @@ instance of the same defect.
 
 ### Phase B — the frontend flow
 
-- [ ] Worker + runtime: separate `recognize` and `solve` calls; run identity on
+- [x] Worker + runtime: separate `recognize` and `solve` calls; run identity on
       the `withFoldInFlight` / `oristudioCpFoldRuns` model.
-- [ ] Fix the dead-client hang: pass `observe` to `attachWorkerDiagnostics` and
-      actually call `releaseCpDetectClient`.
-- [ ] Modal stage machine: `recognized → solving → solved | failed`, showing the
+- [x] Fix the dead-client hang: pass `observe` to `attachWorkerDiagnostics` and
+      actually call `releaseCpDetectClient`. The crash path calls it — one
+      `loseClient` serves both, so a crash and a deliberate reset cannot behave
+      differently. It stays out of surface teardown deliberately: it discards the
+      compiled ONNX session over the 43 MiB model, so closing the import dialog
+      must not call it.
+- [x] Honour the published budget: `runCpExactSolve` gives stage 1
+      `total_seconds` and stage 2 what stage 1 left, so the staged flow keeps the
+      fused path's cap rather than 2x it. A negative total passes through
+      unchanged — it disables the timeout, and `0.0` means "immediately".
+- [x] Modal stage machine: `recognized → solving → solved | failed`, showing the
       unsolved creases while the solve runs. Buttons say what they do —
       **Add** after a successful solve, **Add as-is** only where the pattern is
       genuinely unsolved, **Review & Fix** whenever there is anything to repair
-      (no site threshold — see `crease-topology-repair.md`).
-- [ ] One solve implementation in a hook beside `cp-workspace/regions/`, reached
-      by both the modal and the chip.
-- [ ] Pass the `CpRegionSolveBinding` from `CreasePatternPanel` into
+      (no site threshold — see `crease-topology-repair.md`). The gate on solving
+      at all is `topology_diagnostics.combinatorial`: a flagged candidate is
+      handed to the user, never to the solver. A timeout additionally offers
+      **Add partial result** — the `attempted_moved_vertices` coordinates mapped
+      onto the candidate through `cp_detector.vertex_original_ids`, which is the
+      only place that partial solution exists.
+- [x] One solve implementation in a hook beside `cp-workspace/regions/`, reached
+      by both the modal and the chip. *Landed one level down from the wording:
+      the shared implementation is `engine/cpExactSolve.runCpExactSolve`, which
+      owns the stage split, the run registry and the budget rule.
+      `useCpRegionSolve` is the region-scoped binding over it — it rebuilds an
+      `ExactSolveInput` from a region's current document geometry — and the modal
+      calls `runCpExactSolve` directly, because until the import lands there is
+      no region and no document geometry to rebuild from. Both paths therefore
+      run the same solve; only the input differs, which is the point.*
+- [x] Pass the `CpRegionSolveBinding` from `CreasePatternPanel` into
       `CpRegionLayer`, making `SolveRegionChip` reachable. Add a test that fails
       if the prop is dropped — the current gap typechecks cleanly because the
-      prop is optional.
-- [ ] Verify `Crease Pattern ▸ Repair ▸ Exact Solve…` is wired end to end, or
-      wire it.
+      prop is optional. (`components/panels/regionWiring.test.tsx`.)
+- [x] Verify `Crease Pattern ▸ Repair ▸ Exact Solve…` is wired end to end, or
+      wire it. It was dead: the action dispatched
+      `CP_EXACT_SOLVE_REQUEST_EVENT` and **nothing listened**.
+      `useCpRegionSolve` is now the listener, resolving the target the way the
+      capability is gated — one solvable pattern is unambiguous, more than one is
+      disambiguated by the selected crease.
+- [ ] **Expose the `ExactSolveInput` rebuild over the bridge.** A region solve
+      still runs on the *attachment*, so the user's repairs do not reach the
+      solver — which is the whole point of the flow.
+      `fold_exactize::fold_to_exact_solve_input` already does exactly this
+      (paper polygon by turn angle → similarity onto the unit square → map back
+      into the input's frame) but it is **private, with no wasm export**, and
+      `oristudio_cp_wasm::exactize_fold` is not a substitute: it fuses the solve,
+      applies its own adoption gate, and reports no movement, no stages and no
+      exemptions, so routing through it would be the second solve implementation
+      this plan exists to prevent. `cp-workspace/regions/regionSolveGeometry.ts`
+      stands in meanwhile — it places the answer under one stated hypothesis
+      (unit square, shift and uniform scale) and **refuses rather than guesses**
+      when the creases do not confirm it. It goes away with the export.
 
 ### Phase C — cancellation, measured first
 

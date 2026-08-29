@@ -3,7 +3,17 @@
  * what stops the second one from happening.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { runCpExactSolve, type CpExactSolver } from './cpExactSolve';
+import {
+  remainingSolveBudget,
+  runCpExactSolve,
+  whileClientAlive,
+  type CpExactSolver,
+} from './cpExactSolve';
+import {
+  cpExactSolveRunFor,
+  isCpExactSolveBusyError,
+  resetCpExactSolveRuns,
+} from './cpExactSolveRuns';
 import type {
   CpExactSolveFoldResult,
   CpExactSolveMovementReport,
@@ -65,6 +75,7 @@ function solver(
 
 beforeEach(() => {
   track.mockClear();
+  resetCpExactSolveRuns();
 });
 
 describe('runCpExactSolve', () => {
@@ -105,13 +116,11 @@ describe('runCpExactSolve', () => {
     const fake = solver(ACCEPTED);
     await runCpExactSolve({ vertices: [] }, { solver: async () => fake, timeoutSeconds: 12 });
 
-    expect(JSON.parse(fake.solveExact.mock.calls[0][1] as string)).toEqual({
+    expect(JSON.parse(fake.solveExact.mock.calls[0][1] as string)).toMatchObject({
       polish: false,
-      timeout_seconds: 12,
     });
-    expect(JSON.parse(fake.solveExactToFold.mock.calls[0][1] as string)).toEqual({
+    expect(JSON.parse(fake.solveExactToFold.mock.calls[0][1] as string)).toMatchObject({
       polish: true,
-      timeout_seconds: 12,
     });
   });
 
@@ -122,6 +131,7 @@ describe('runCpExactSolve', () => {
     await runCpExactSolve({ vertices: [] }, { solver: async () => fake });
 
     expect(JSON.parse(fake.solveExact.mock.calls[0][1] as string)).toEqual({ polish: false });
+    expect(JSON.parse(fake.solveExactToFold.mock.calls[0][1] as string)).toEqual({ polish: true });
   });
 
   it('sends the same input JSON to both stages', async () => {
@@ -166,6 +176,168 @@ describe('runCpExactSolve', () => {
     await expect(runCpExactSolve({}, { solver: async () => fake })).rejects.toMatchObject({
       code: 'cp_detect',
     });
+  });
+});
+
+describe('the shared budget across the two stages', () => {
+  function stageTimeouts(fake: ReturnType<typeof solver>): [unknown, unknown] {
+    const parse = (json: unknown) => (JSON.parse(json as string) as Record<string, unknown>)
+      .timeout_seconds;
+    return [parse(fake.solveExact.mock.calls[0][1]), parse(fake.solveExactToFold.mock.calls[0][1])];
+  }
+
+  it('gives stage 2 what stage 1 left, not another full budget', async () => {
+    // The divergence this exists to close: two bridge calls are two independent
+    // deadlines, so handing each `timeoutSeconds` would let the staged flow run
+    // for 2x the cap every measurement was taken against.
+    const fake = solver({ ...ACCEPTED, elapsed_seconds: 4 });
+    await runCpExactSolve({ vertices: [] }, { solver: async () => fake, timeoutSeconds: 25 });
+
+    expect(stageTimeouts(fake)).toEqual([25, 21]);
+  });
+
+  it('floors the remainder at zero rather than going negative', async () => {
+    // Negative means "no timeout", so an overrun must not be allowed to turn
+    // into an unbounded second stage.
+    const fake = solver({ ...ACCEPTED, elapsed_seconds: 30 });
+    await runCpExactSolve({ vertices: [] }, { solver: async () => fake, timeoutSeconds: 25 });
+
+    expect(stageTimeouts(fake)).toEqual([25, 0]);
+  });
+
+  it('passes a negative total through to both stages unchanged', async () => {
+    // `-1` disables the deadline. Subtracting from it, or clamping it to 0,
+    // would silently mean "time out immediately".
+    const fake = solver({ ...ACCEPTED, elapsed_seconds: 4 });
+    await runCpExactSolve({ vertices: [] }, { solver: async () => fake, timeoutSeconds: -1 });
+
+    expect(stageTimeouts(fake)).toEqual([-1, -1]);
+  });
+
+  it('bills stage 1 on the solver clock, which works under wasm', () => {
+    expect(remainingSolveBudget(25, 4)).toBe(21);
+    expect(remainingSolveBudget(25, 25)).toBe(0);
+    expect(remainingSolveBudget(undefined, 4)).toBeUndefined();
+    expect(remainingSolveBudget(-1, 4)).toBe(-1);
+    expect(remainingSolveBudget(0, 0)).toBe(0);
+  });
+});
+
+describe('exempt_vertex_ids', () => {
+  it('reaches both stages, deduplicated and ascending', async () => {
+    const fake = solver(ACCEPTED);
+    await runCpExactSolve(
+      { vertices: [] },
+      { solver: async () => fake, exemptVertexIds: [11, 3, 3] }
+    );
+
+    expect(JSON.parse(fake.solveExact.mock.calls[0][1] as string)).toMatchObject({
+      exempt_vertex_ids: [3, 11],
+    });
+    expect(JSON.parse(fake.solveExactToFold.mock.calls[0][1] as string)).toMatchObject({
+      exempt_vertex_ids: [3, 11],
+    });
+  });
+
+  it('sends no key at all when there is nothing to exempt', async () => {
+    // An empty set is exactly `solve_exact`, so an automatic solve's options stay
+    // byte-identical to what they were before exemptions existed.
+    const fake = solver(ACCEPTED);
+    await runCpExactSolve({ vertices: [] }, { solver: async () => fake, exemptVertexIds: [] });
+
+    expect(JSON.parse(fake.solveExact.mock.calls[0][1] as string)).toEqual({ polish: false });
+  });
+});
+
+describe('run identity', () => {
+  it('registers the run for its duration and reports the stage it is on', async () => {
+    const seen: (string | null)[] = [];
+    const fake = solver(ACCEPTED);
+    fake.solveExact.mockImplementation(async () => {
+      seen.push(cpExactSolveRunFor('region-1')?.stage ?? null);
+      return graph(ACCEPTED);
+    });
+
+    const run = runCpExactSolve(
+      { vertices: [] },
+      { solver: async () => fake, run: { kind: 'region', targetId: 'region-1' } }
+    );
+    await run;
+
+    expect(seen).toEqual(['geometry']);
+    expect(cpExactSolveRunFor('region-1')).toBeUndefined();
+  });
+
+  it('refuses a second solve for the same target instead of queueing it silently', async () => {
+    // One worker, one comlink queue: the second call would sit behind the first
+    // for the whole of its budget, showing "Solving…" having not started.
+    let releaseFirst = () => {};
+    const fake = solver(ACCEPTED);
+    fake.solveExact.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseFirst = () => resolve(graph(ACCEPTED));
+        })
+    );
+
+    const first = runCpExactSolve(
+      { vertices: [] },
+      { solver: async () => fake, run: { kind: 'region', targetId: 'region-1' } }
+    );
+    await vi.waitFor(() => expect(cpExactSolveRunFor('region-1')).toBeDefined());
+
+    const second = runCpExactSolve(
+      { vertices: [] },
+      { solver: async () => fake, run: { kind: 'region', targetId: 'region-1' } }
+    ).catch((error) => error);
+
+    expect(isCpExactSolveBusyError(await second)).toBe(true);
+    releaseFirst();
+    await first;
+  });
+
+  it('clears the run when the solve throws', async () => {
+    const fake = solver(ACCEPTED);
+    fake.solveExact.mockRejectedValueOnce(new Error('boom'));
+
+    await expect(
+      runCpExactSolve(
+        { vertices: [] },
+        { solver: async () => fake, run: { kind: 'command', targetId: 'region-2' } }
+      )
+    ).rejects.toThrow('boom');
+    expect(cpExactSolveRunFor('region-2')).toBeUndefined();
+  });
+
+  it('runs unregistered when no run descriptor is given', async () => {
+    const fake = solver(ACCEPTED);
+    await runCpExactSolve({ vertices: [] }, { solver: async () => fake });
+
+    expect(cpExactSolveRunFor('region-1')).toBeUndefined();
+  });
+});
+
+describe('whileClientAlive', () => {
+  it('rejects when the worker is lost, instead of waiting on a promise that never settles', async () => {
+    let announce: (loss: { failure?: { message: string } }) => void = () => {};
+    const subscribe = (listener: (loss: { failure?: { message: string } }) => void) => {
+      announce = listener;
+      return () => {};
+    };
+
+    const raced = whileClientAlive(subscribe, new Promise<string>(() => {}));
+    announce({ failure: { message: 'The worker stopped unexpectedly.' } });
+
+    await expect(raced).rejects.toMatchObject({
+      code: 'cp_detect',
+      message: 'The worker stopped unexpectedly.',
+    });
+  });
+
+  it('unsubscribes once the call settles', async () => {
+    const unsubscribe = vi.fn();
+    await whileClientAlive(() => unsubscribe, Promise.resolve('done'));
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 });
 

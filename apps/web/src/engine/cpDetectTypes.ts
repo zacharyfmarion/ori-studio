@@ -9,7 +9,16 @@ export type CpDetectStatus =
   | 'ambiguous'
   | 'outside_supported_envelope'
   | 'outside_v1_envelope'
-  | 'failed';
+  | 'failed'
+  /**
+   * The decode stopped before the exact solve, at the caller's request.
+   *
+   * Deliberately its own word rather than one of the five above: every one of
+   * those describes a solve that reached a verdict, and this one never started.
+   * The Rust side is `RECOGNIZED_STATUS` (`decode.rs`), and the same reasoning
+   * is written out there.
+   */
+  | 'recognized';
 
 export type CpDetectExecutionProvider = 'auto' | 'webgpu' | 'wasm';
 export type CpDetectJunctionSource = 'dense-model' | 'line-arrangement' | 'vertex-refiner-v3';
@@ -280,6 +289,109 @@ export interface CpDetectDecodeReport {
   } & Record<string, unknown>;
 }
 
+/**
+ * `cp_detector.source` on an exported FOLD: **which coordinates it carries**.
+ *
+ * This is the discriminator, and it is written by the exporter that produced the
+ * document (`fold_export.rs`) rather than inferred from what the report does or
+ * does not contain. `"exact_solve"` is a solved pattern; `"exact_solve_candidate"`
+ * is the recognized candidate at its pre-solve coordinates, which look plausible
+ * and are up to several degrees out at every interior vertex.
+ */
+export type CpDetectCandidateSource = 'exact_solve' | 'exact_solve_candidate';
+
+/**
+ * The wall-clock budget for solving this candidate, published by the recognize
+ * path because Rust cannot enforce it.
+ *
+ * `solve_exact` builds its deadline from the `timeout_seconds` of the call it is
+ * in, so two `cp_detect_solve_exact` calls are two independent deadlines. The
+ * caller therefore owes the rule: **spend `totalSeconds` across every solve call
+ * for one candidate**, not per call. `runCpExactSolve` implements it.
+ *
+ * A negative `totalSeconds` disables the timeout and must be passed through
+ * unchanged rather than clamped — `0` means "time out immediately", so clamping
+ * would turn "no limit" into "no time at all".
+ */
+export interface CpDetectSolveBudget {
+  totalSeconds: number;
+  spentSeconds: number;
+  /** `"shared_total_across_staged_solve_calls"`. Carried so a change is visible. */
+  policy: string;
+}
+
+/** A decode that ran the exact solve, said so by the report itself. */
+export interface CpDetectSolveAttempted {
+  attempted: true;
+}
+
+/** A decode that stopped before the solve, said so by the report itself. */
+export interface CpDetectSolveNotAttempted {
+  attempted: false;
+  /** `compiler_report.solve.reason` — `"recognize_only"` today. */
+  reason: string;
+  /** Null only if the report omits the budget block, which current Rust never does. */
+  budget: CpDetectSolveBudget | null;
+}
+
+/**
+ * Whether the exact solve ran, as a positive statement in both directions.
+ *
+ * The distinction this exists to draw is **"never attempted" versus "attempted
+ * and failed"**, and neither is expressed by the absence of a key: the
+ * recognize path writes `compiler_report.solve.attempted: false`, and the fused
+ * path writes a whole `compiler_report.exact_solve` block. A reader that tested
+ * for a missing `exact_solve` would report an older decoder backend, a
+ * serialization change, or a stale wasm bridge as "not solved yet".
+ */
+export type CpDetectSolveState = CpDetectSolveAttempted | CpDetectSolveNotAttempted;
+
+/**
+ * `TopologyDiagnostics` (`oristudio-cp-compiler`), verbatim.
+ *
+ * Snake_case because it is the wire shape and not a re-derivation of it, the
+ * same convention `CpExactSolvedGraph` follows.
+ *
+ * The split is the point of the type. `combinatorial` findings are properties of
+ * the *graph* and survive moving the drawing around, so they make a repair
+ * worklist; `angle_dependent` findings are properties of the current
+ * *coordinates*, and on an unsolved candidate they are large by construction —
+ * that is what the solve is for — so they say nothing about whether the topology
+ * is right.
+ */
+export interface CpDetectTopologyDiagnostics {
+  schema: string;
+  /** Non-empty when the input was malformed enough that no analysis ran. */
+  blockers: string[];
+  combinatorial: {
+    odd_degree_vertices: number[];
+    degree_two_vertices: number[];
+    maekawa_failures: number[];
+    /** Vertex id pairs. */
+    degenerate_edges: [number, number][];
+    /** Span id pairs — not vertex ids, unlike `degenerate_edges`. */
+    unmodeled_crossings: [number, number][];
+    boundary_failures: number[];
+  };
+  angle_dependent: {
+    max_kawasaki_residual_degrees: number;
+    max_carrier_residual: number;
+  };
+  vertices: CpDetectTopologyVertexDiagnostic[];
+}
+
+export interface CpDetectTopologyVertexDiagnostic {
+  vertex_id: number;
+  degree: number;
+  mountain_count: number;
+  valley_count: number;
+  unknown_count: number;
+  /** Null unless the fan has an even degree of at least four. */
+  kawasaki_residual_degrees: number | null;
+  /** Null while any incident crease is unassigned. */
+  maekawa_residual: number | null;
+}
+
 export interface CpDetectFoldResult {
   status: CpDetectStatus;
   foldJson: string;
@@ -289,6 +401,135 @@ export interface CpDetectFoldResult {
   lineEvidenceSource?: CpDetectLineEvidenceSource;
   vertexRefiner?: CpDetectVertexRefinerRunSummary | null;
   runtime?: CpDetectRuntimeInfo;
+  /**
+   * Always `{ attempted: true }` on this path — the fused decode solves.
+   *
+   * Optional so every existing construction of this type still typechecks, and
+   * narrowed to the attempted arm so that a {@link CpDetectRecognizeResult} is
+   * **not** structurally assignable to a `CpDetectFoldResult`. That is the whole
+   * reason the field is here: the two results carry the same fields with
+   * different meanings, and without a conflicting property a recognized
+   * candidate could be handed to any consumer expecting solved geometry.
+   */
+  solve?: CpDetectSolveAttempted;
+}
+
+/**
+ * A decode that stopped after recognition, with the seam a later solve needs.
+ *
+ * Not an extension of {@link CpDetectFoldResult}, on purpose. `foldJson` here is
+ * the *candidate* crease pattern — real topology at approximate coordinates —
+ * and every consumer of a detection result has to know which of the two it
+ * holds, so the type system is where that is settled rather than a comment.
+ */
+export interface CpDetectRecognizeResult {
+  status: 'recognized';
+  /** The candidate crease pattern, at pre-solve coordinates. */
+  foldJson: string;
+  detectorReport: CpDetectDecodeReport;
+  manifest: CpDetectModelManifest;
+  junctionSource?: CpDetectJunctionSource;
+  lineEvidenceSource?: CpDetectLineEvidenceSource;
+  runtime?: CpDetectRuntimeInfo;
+  /** Read from the FOLD's own `cp_detector.source`; always the candidate value here. */
+  candidateSource: CpDetectCandidateSource;
+  solve: CpDetectSolveNotAttempted;
+  /**
+   * `compiler_report.exact_solve_input` — the **one** copy of the seam that
+   * crosses the bridge, and a whole `ExactSolveInput` by value.
+   *
+   * `unknown` rather than a mirrored struct: nothing on this side reads its
+   * fields, it round-trips back to `cp_detect_solve_exact` verbatim, and a typed
+   * copy would be a second definition of a large Rust struct with nothing
+   * checking that it still matches.
+   */
+  solveInput: unknown;
+  /** `compiler_report.topology_diagnostics`; null if the report omits it. */
+  topologyDiagnostics: CpDetectTopologyDiagnostics | null;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+/** The compiler's report inside a decode report, or null on another backend. */
+export function cpDetectCompilerReport(
+  report: CpDetectDecodeReport | null | undefined
+): Record<string, unknown> | null {
+  return asRecord(report?.quality_report?.compiler_report);
+}
+
+/**
+ * What the decode did about the solve, or null when the report does not say.
+ *
+ * Null is a real answer and not a stand-in for "no": a decoder backend that
+ * writes neither statement has told us nothing, and the caller decides whether
+ * that is tolerable. The worker's `recognizeRectifiedFold` treats it as a
+ * contract violation.
+ */
+export function cpDetectSolveState(
+  report: CpDetectDecodeReport | null | undefined
+): CpDetectSolveState | null {
+  const compilerReport = cpDetectCompilerReport(report);
+  if (!compilerReport) return null;
+  const solve = asRecord(compilerReport.solve);
+  if (solve?.attempted === false) {
+    const budget = asRecord(solve.budget);
+    return {
+      attempted: false,
+      reason: typeof solve.reason === 'string' ? solve.reason : 'unspecified',
+      budget: budget ? cpDetectSolveBudget(budget) : null,
+    };
+  }
+  if (solve?.attempted === true) return { attempted: true };
+  // The fused path writes no `solve` block; the whole `exact_solve` result *is*
+  // its positive statement that a solve ran.
+  if (compilerReport.exact_solve !== undefined) return { attempted: true };
+  return null;
+}
+
+function cpDetectSolveBudget(budget: Record<string, unknown>): CpDetectSolveBudget {
+  return {
+    totalSeconds: typeof budget.total_seconds === 'number' ? budget.total_seconds : 0,
+    spentSeconds: typeof budget.spent_seconds === 'number' ? budget.spent_seconds : 0,
+    policy: typeof budget.policy === 'string' ? budget.policy : '',
+  };
+}
+
+/** The pre-solve `ExactSolveInput`, or null when the report carries none. */
+export function cpDetectSolveInput(report: CpDetectDecodeReport | null | undefined): unknown {
+  return cpDetectCompilerReport(report)?.exact_solve_input ?? null;
+}
+
+/** The repair worklist, or null when the report carries none. */
+export function cpDetectTopologyDiagnostics(
+  report: CpDetectDecodeReport | null | undefined
+): CpDetectTopologyDiagnostics | null {
+  const diagnostics = asRecord(cpDetectCompilerReport(report)?.topology_diagnostics);
+  return diagnostics ? (diagnostics as unknown as CpDetectTopologyDiagnostics) : null;
+}
+
+/**
+ * `cp_detector.source` from an exported FOLD, or null when it says nothing.
+ *
+ * Costs a parse of the whole document — up to ~250 KB on a hard pattern — to
+ * read one string. Worth it: this is the exporter's own statement of which
+ * coordinates it wrote, and the alternative (reading the report's shape) is the
+ * inference the recognize/solve split exists to remove. It is also paid once per
+ * detection, against a pipeline whose other stages are an ONNX forward pass and
+ * a solve of up to 25 s.
+ */
+export function cpDetectCandidateSourceFromFold(foldJson: string): CpDetectCandidateSource | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(foldJson);
+  } catch {
+    return null;
+  }
+  const source = asRecord(asRecord(parsed)?.cp_detector)?.source;
+  return source === 'exact_solve' || source === 'exact_solve_candidate' ? source : null;
 }
 
 export interface CpDetectVertexRefinerRunSummary {

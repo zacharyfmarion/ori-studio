@@ -192,6 +192,8 @@
   },
   "cpRegion": {
     "accept": "Übernehmen",
+    "acceptHistory": "Exakte Lösung übernehmen",
+    "acceptPartialHistory": "Teilergebnis der exakten Lösung übernehmen",
     "addRegion": "Unterdrückungsbereich hinzufügen",
     "changeChecks": "Unterdrückte Prüfungen ändern",
     "checksMenu": "Unterdrückte Prüfungen",
@@ -202,16 +204,25 @@
     "hidden_other": "{{count}} Probleme ausgeblendet",
     "move": "Bereich verschieben",
     "nothingSuppressed": "Alle Prüfungen aktiv",
+    "placement": {
+      "frameUnrecognized": "Die Lösung passt nicht zu den Falten in diesem Bereich, deshalb wurde nichts geändert. Die gespeicherten Solver-Daten gehören zu einem anderen Faltmuster.",
+      "noPattern": "In diesem Bereich liegen keine Falten, es gibt also nichts zu lösen. Schiebe den Bereich über das erkannte Faltmuster und versuche es erneut.",
+      "paperNotSquare": "Die Falten in diesem Bereich umspannen kein quadratisches Blatt mehr, deshalb ließ sich die Lösung nicht platzieren. Das Faltmuster zu drehen oder einen Teil der Papierkante zu löschen führt dazu."
+    },
     "solve": "Lösen",
     "solved_one": "Gelöst · 1 Knoten bewegt < {{max}} px",
     "solved_other": "Gelöst · {{count}} Knoten bewegt < {{max}} px",
+    "solveError": "Die Lösung konnte nicht ausgeführt werden — {{message}}",
+    "solveErrorUnknown": "Die Lösung konnte nicht ausgeführt werden.",
     "solveFailed": "Konnte nicht gelöst werden — {{reason}}",
+    "solveHistory": "Exakt lösen",
     "solvePartial_one": "Teilergebnis · 1 Knoten",
     "solvePartial_other": "Teilergebnis · {{count}} Knoten",
     "solvingGeometry": "Geometrie wird gelöst…",
     "solvingRefining": "Verfeinerung auf Faltgenauigkeit…",
     "suppressing": "Prüfungen aus: {{classes}}",
-    "tryAgain": "Erneut versuchen"
+    "tryAgain": "Erneut versuchen",
+    "tryAgainHistory": "Exakte Lösung zurücknehmen"
   },
   "cpViewControls": {
     "angle": "Winkel",

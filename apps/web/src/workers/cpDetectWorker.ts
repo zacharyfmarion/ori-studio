@@ -20,6 +20,7 @@ import type {
   CpDetectInferenceResult,
   CpDetectJunctionSource,
   CpDetectLineEvidenceSource,
+  CpDetectRecognizeResult,
   CpDetectRuntimeInfo,
   CpDetectModelManifest,
   CpDetectQuad,
@@ -30,6 +31,10 @@ import type {
 import {
   CP_DETECT_DEFAULT_JUNCTION_SOURCE,
   CP_DETECT_DEFAULT_LINE_EVIDENCE_SOURCE,
+  cpDetectCandidateSourceFromFold,
+  cpDetectSolveInput,
+  cpDetectSolveState,
+  cpDetectTopologyDiagnostics,
 } from '../engine/cpDetectTypes';
 import type {
   CpExactSolveFoldResult,
@@ -331,35 +336,86 @@ const api = {
   ): Promise<CpDetectInferenceResult> {
     return call(() => denseInferenceForImage(image, options));
   },
+  /**
+   * Recognize **and** solve, in one call — the original fused decode.
+   *
+   * Kept because it is still the right shape wherever the caller has nothing to
+   * do between the two halves and no interest in the candidate: the stage
+   * inspector, an ablation run, any batch consumer. What it must not be used for
+   * is a user-facing flow that wants to show the recognized creases while the
+   * solve runs, or to let the user repair the topology first — that is
+   * `recognizeRectifiedFold` below, followed by `runCpExactSolve`.
+   */
   async detectRectifiedFold(
     image: ImageData,
     options: CpDetectWorkerRunOptions = {}
   ): Promise<CpDetectFoldResult> {
     return call(async () => {
-      const requestedJunctionSource = options.junctionSource ?? CP_DETECT_DEFAULT_JUNCTION_SOURCE;
-      const lineEvidenceSource = resolveLineEvidenceSource(options.lineEvidenceSource);
-      const inference = await denseInferenceForImage(image, options);
-      const requestedDecodeJunctionSource: CpDetectJunctionSource =
-        requestedJunctionSource === 'line-arrangement'
-          ? 'line-arrangement'
-          : 'dense-model';
-      const decoded = decodeFoldFromDenseOutputs(
-        image,
-        inference.outputs,
-        inference.manifest,
-        options,
-        requestedDecodeJunctionSource,
-        lineEvidenceSource
-      );
-      const junctionSource = detectedJunctionSource(decoded.report, requestedDecodeJunctionSource);
+      const decoded = await decodeRectifiedImage(image, options, false);
       return {
         status: decoded.report.status,
         foldJson: decoded.fold_json,
         detectorReport: decoded.report,
-        manifest: inference.manifest,
-        junctionSource,
-        lineEvidenceSource,
-        runtime: inference.runtime,
+        manifest: decoded.manifest,
+        junctionSource: decoded.junctionSource,
+        lineEvidenceSource: decoded.lineEvidenceSource,
+        runtime: decoded.runtime,
+        solve: { attempted: true },
+      };
+    });
+  },
+  /**
+   * Recognize only: generate, select, and export the candidate crease pattern
+   * **without** solving it.
+   *
+   * The half of detection that is fast and always worth having. The solve behind
+   * it is 0.36 s at the easy median but hits the 25 s cap on essentially every
+   * hard pattern, and on a candidate whose topology is visibly broken every one
+   * of those seconds is spent on geometry the user is about to change. So this
+   * returns in inference time plus a few hundred microseconds of analysis, and
+   * hands back three things the caller needs to decide what happens next: the
+   * candidate FOLD, the `ExactSolveInput` a later solve runs on, and the
+   * combinatorial topology findings that say whether it is worth solving at all.
+   *
+   * The result is checked against its own contract before it is returned, rather
+   * than trusted. `recognize_only` is a trailing optional argument on one wasm
+   * export, and `apps/web/src/generated/` is a build output that no test and no
+   * typecheck can catch as stale — so a bridge built before Phase A would ignore
+   * the flag, silently solve, and return a *solved* pattern that this function
+   * promises is a candidate. That is exactly the failure that must not be quiet.
+   */
+  async recognizeRectifiedFold(
+    image: ImageData,
+    options: CpDetectWorkerRunOptions = {}
+  ): Promise<CpDetectRecognizeResult> {
+    return call(async () => {
+      const decoded = await decodeRectifiedImage(image, options, true);
+      const solve = cpDetectSolveState(decoded.report);
+      const candidateSource = cpDetectCandidateSourceFromFold(decoded.fold_json);
+      if (decoded.report.status !== 'recognized' || !solve || solve.attempted) {
+        throw recognizeContractError(
+          `the decoder reported status "${decoded.report.status}" with solve ${
+            solve ? `attempted=${String(solve.attempted)}` : 'unstated'
+          }`
+        );
+      }
+      if (candidateSource !== 'exact_solve_candidate') {
+        throw recognizeContractError(
+          `the exported FOLD identifies as "${candidateSource ?? 'unknown'}" rather than "exact_solve_candidate"`
+        );
+      }
+      return {
+        status: 'recognized',
+        foldJson: decoded.fold_json,
+        detectorReport: decoded.report,
+        manifest: decoded.manifest,
+        junctionSource: decoded.junctionSource,
+        lineEvidenceSource: decoded.lineEvidenceSource,
+        runtime: decoded.runtime,
+        candidateSource,
+        solve,
+        solveInput: cpDetectSolveInput(decoded.report),
+        topologyDiagnostics: cpDetectTopologyDiagnostics(decoded.report),
       };
     });
   },
@@ -463,13 +519,73 @@ type WasmDecodedFold = {
   report: CpDetectFoldResult['detectorReport'];
 };
 
+interface DecodedRectifiedImage extends WasmDecodedFold {
+  manifest: CpDetectModelManifest;
+  junctionSource: CpDetectJunctionSource;
+  lineEvidenceSource: CpDetectLineEvidenceSource;
+  runtime?: CpDetectRuntimeInfo;
+}
+
+/**
+ * Inference plus decode, shared by the fused and recognize-only entry points.
+ *
+ * One function rather than two, for the same reason `recognize_from_generation`
+ * is one function on the Rust side: recognize-only is *the fused path minus the
+ * solve*, and the only construction under which the two cannot drift is the one
+ * where the second is literally the first plus a flag.
+ */
+async function decodeRectifiedImage(
+  image: ImageData,
+  options: CpDetectWorkerRunOptions,
+  recognizeOnly: boolean
+): Promise<DecodedRectifiedImage> {
+  const requestedJunctionSource = options.junctionSource ?? CP_DETECT_DEFAULT_JUNCTION_SOURCE;
+  const lineEvidenceSource = resolveLineEvidenceSource(options.lineEvidenceSource);
+  const inference = await denseInferenceForImage(image, options);
+  const requestedDecodeJunctionSource: CpDetectJunctionSource =
+    requestedJunctionSource === 'line-arrangement' ? 'line-arrangement' : 'dense-model';
+  const decoded = decodeFoldFromDenseOutputs(
+    image,
+    inference.outputs,
+    inference.manifest,
+    options,
+    requestedDecodeJunctionSource,
+    lineEvidenceSource,
+    recognizeOnly
+  );
+  return {
+    ...decoded,
+    manifest: inference.manifest,
+    junctionSource: detectedJunctionSource(decoded.report, requestedDecodeJunctionSource),
+    lineEvidenceSource,
+    runtime: inference.runtime,
+  };
+}
+
+/**
+ * The recognize path got something other than a recognized candidate back.
+ *
+ * A hard error rather than a downgrade to the fused result, because the caller
+ * asked for a candidate to repair and would otherwise be handed solved geometry
+ * under a type that says it is unsolved.
+ */
+function recognizeContractError(detail: string): WasmErrorEnvelope {
+  return {
+    code: 'cp_detect_recognize_contract',
+    message:
+      `Recognize-only was requested but ${detail}. The generated wasm bridge is probably ` +
+      'stale — rebuild it with `npm --workspace @treemaker/web run build:oristudio-cp-detect-wasm`.',
+  };
+}
+
 function decodeFoldFromDenseOutputs(
   image: ImageData,
   outputs: CpDetectDenseOutputs,
   manifest: CpDetectModelManifest,
   options: CpDetectWorkerRunOptions = {},
   junctionSource: CpDetectJunctionSource = 'dense-model',
-  lineEvidenceSource: CpDetectLineEvidenceSource = 'source-image'
+  lineEvidenceSource: CpDetectLineEvidenceSource = 'source-image',
+  recognizeOnly = false
 ): WasmDecodedFold {
   const decoderBackend = options.decoderBackend ?? 'legacy_v2_decoder';
   const outputBundle = Object.fromEntries(
@@ -490,9 +606,18 @@ function decodeFoldFromDenseOutputs(
         'null',
         imageDataBytes(image),
         image.width,
-        image.height
+        image.height,
+        recognizeOnly
       ) as WasmDecodedFold,
       lineEvidenceSource
+    );
+  }
+  // Only the product export takes `recognize_only`; the other two would ignore
+  // it and solve. Refusing is the whole point — a silent solve here would return
+  // a solved pattern under the recognize result's type.
+  if (recognizeOnly) {
+    throw new Error(
+      `Recognize-only is available on the source-image line-evidence path only, not "${lineEvidenceSource}"`
     );
   }
   if (junctionSource === 'line-arrangement') {

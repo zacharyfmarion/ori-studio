@@ -1,20 +1,26 @@
 /**
- * What the detect modal does with a finished detection.
+ * What the detect modal does between recognition and a finished pattern.
  *
- * Two things are load-bearing here and neither has a type-level backstop:
+ * Four things are load-bearing here and none has a type-level backstop:
  *
- * 1. **It must never replace the document.** This path used to call
+ * 1. **The solve is the modal's, not the decode's.** Detection recognizes;
+ *    whether to solve is a decision made here, out of the recognize report's
+ *    combinatorial findings. A regression that solves everything again looks
+ *    identical on screen until you time it.
+ * 2. **The budget is the caller's obligation.** `runCpExactSolve` must be handed
+ *    the published `solve.budget.total_seconds`, or the staged flow silently gets
+ *    twice the cap every measurement in `crease-topology-repair.md` assumed.
+ * 3. **Buttons say what they do.** "Add" only after a solve that landed, "Add
+ *    as-is" only where the pattern is genuinely unsolved, "Review & Fix" at any
+ *    site count whatsoever.
+ * 4. **It must never replace the document.** This path used to call
  *    `loadCreasePatternText`, so detecting a crease pattern discarded whatever
- *    was open. The tests therefore also assert that action is *not* called — a
- *    regression would otherwise pass every other check in the suite.
- * 2. **The primary button is chosen by the compiler's own topology finding**,
- *    read out of `compiler_report.exact_solve.theorem_residual_report.before`.
- *    Nothing else in the app reads that path, so nothing else would notice it
- *    moving.
+ *    was open. The tests assert that action is *not* called — a regression would
+ *    otherwise pass every other check in the suite.
  *
- * The store, the layout store, the camera and the detect worker are all mocked:
- * the subject is which store calls the modal makes with which arguments, and the
- * real ones answer none of them under jsdom anyway.
+ * The store, the layout store, the camera, the detect worker and the solver are
+ * all mocked: the subject is which calls the modal makes with which arguments,
+ * and the real ones answer none of them under jsdom anyway.
  */
 
 import { act } from 'react';
@@ -25,6 +31,7 @@ import {
   isSuppressionRegionAnnotation,
   type CanvasAnnotation,
 } from '../cp-workspace/annotations/annotation';
+import type { CpExactSolveOutcome } from '../engine/cpExactSolveTypes';
 
 const storeActions = {
   ensureEditCreasePattern: vi.fn(async () => undefined),
@@ -65,7 +72,7 @@ const detectClient = {
   verifyModelAssets: vi.fn(async () => manifest()),
   autoRectifyImage: vi.fn(async () => rectifiedImage()),
   manualRectifyImage: vi.fn(async () => rectifiedImage()),
-  detectRectifiedFold: vi.fn(async () => detection(unsolvedReport(2))),
+  recognizeRectifiedFold: vi.fn(async () => recognition(diagnostics(2))),
 };
 
 vi.mock('../store/workspaceStore/cpDetectRuntime', () => ({
@@ -87,11 +94,24 @@ vi.mock('../platform/fileService', () => ({
   }),
 }));
 
+/**
+ * The shared solve, stubbed at its own seam.
+ *
+ * Mocked rather than driven through a fake worker because the staging under test
+ * is *when* this is called and *with what* — the two-stage split, the budget
+ * arithmetic and the run registry are `cpExactSolve.ts`'s own tests.
+ */
+const runCpExactSolve = vi.fn();
+vi.mock('../engine/cpExactSolve', () => ({
+  runCpExactSolve: (...args: unknown[]) => runCpExactSolve(...args),
+}));
+
 import { TooltipProvider } from './ui/Tooltip';
 import { CpDetectImportModal } from './CpDetectImportModal';
 
 const IMAGE_SIZE = 1024;
 const PAPER_SIZE = 400;
+const BUDGET_SECONDS = 25;
 
 function manifest() {
   return { id: 'test-model' } as never;
@@ -123,57 +143,99 @@ function quad() {
   };
 }
 
-/** A `theorem_residual_report` whose solve was accepted: nothing to repair. */
-function solvedReport() {
-  return {
-    accepted: true,
-    rejection_reasons: [],
-    before: { odd_degree_vertices: [], maekawa_failures: [] },
-  };
-}
-
 /**
- * A rejected solve carrying `sites` odd-degree vertices — the dominant repair
- * signal, and the only one that needs to vary here.
+ * `topology_diagnostics.combinatorial` carrying `sites` odd-degree vertices —
+ * the dominant repair signal, and the only one that needs to vary here.
  */
-function unsolvedReport(sites: number) {
+function diagnostics(sites: number, blockers: string[] = []) {
   return {
-    accepted: false,
-    rejection_reasons: ['candidate_status_failed'],
-    before: {
+    schema: 'oristudio/cp-topology-diagnostics/v1',
+    blockers,
+    combinatorial: {
       odd_degree_vertices: Array.from({ length: sites }, (_, index) => index),
-      maekawa_failures: [],
       // Deliberately large: a degree-2 vertex is not an error on its own, so it
       // must not be counted as a repair site.
       degree_two_vertices: Array.from({ length: 40 }, (_, index) => 900 + index),
+      maekawa_failures: [],
       degenerate_edges: [],
       unmodeled_crossings: [],
       boundary_failures: [],
     },
+    angle_dependent: { max_kawasaki_residual_degrees: 4.25, max_carrier_residual: 0.002 },
+    vertices: [],
   };
 }
 
-function detection(theorem: unknown, solveInput: unknown = { schema: 'exact-solve-input-v1' }) {
+/** The candidate FOLD: two vertices, one edge, and the id map a partial needs. */
+function candidateFold() {
+  return JSON.stringify({
+    vertices_coords: [
+      [0, 0],
+      [1, 1],
+    ],
+    edges_vertices: [[0, 1]],
+    edges_assignment: ['M'],
+    cp_detector: { source: 'exact_solve_candidate', vertex_original_ids: [4, 7] },
+  });
+}
+
+function recognition(
+  topologyDiagnostics: unknown,
+  solveInput: unknown = { schema: 'exact-solve-input-v1' }
+) {
   return {
-    status: 'ok',
-    foldJson: JSON.stringify({ vertices_coords: [], edges_vertices: [] }),
+    status: 'recognized',
+    foldJson: candidateFold(),
     detectorReport: {
+      status: 'recognized',
       decoder_backend: 'legacy_candidate_exact_solve_v1',
       vertex_count: 12,
       edge_count: 20,
       warnings: [],
-      quality_report: {
-        compiler_report: {
-          output: { selected: 'compiled' },
-          exact_solve_input: solveInput,
-          exact_solve: {
-            theorem_residual_report: theorem,
-            movement_report: { timed_out: false },
-          },
-        },
+      quality_report: { compiler_report: { output: { selected: 'recognized_candidate' } } },
+    },
+    manifest: manifest(),
+    candidateSource: 'exact_solve_candidate',
+    solve: {
+      attempted: false,
+      reason: 'recognize_only',
+      budget: {
+        totalSeconds: BUDGET_SECONDS,
+        spentSeconds: 0,
+        policy: 'shared_total_across_staged_solve_calls',
       },
     },
+    solveInput,
+    topologyDiagnostics,
   } as never;
+}
+
+function solvedOutcome(): CpExactSolveOutcome {
+  return {
+    kind: 'solved',
+    stage: 'refinement',
+    status: 'solved',
+    movedVertices: [],
+    maxMovement: 0.0004,
+    elapsedSeconds: 1.2,
+  };
+}
+
+/** The solved FOLD the modal adds — distinguishable from the candidate. */
+function solvedFold() {
+  return {
+    vertices_coords: [
+      [0, 0],
+      [0.5, 0.5],
+    ],
+    edges_vertices: [[0, 1]],
+    edges_assignment: ['M'],
+    cp_detector: { source: 'exact_solve' },
+  };
+}
+
+function solveResult(outcome: CpExactSolveOutcome, fold: Record<string, unknown> | null = null) {
+  return { outcome, fold, durationMs: 1200 };
 }
 
 let root: Root | null = null;
@@ -228,7 +290,8 @@ beforeEach(() => {
   storeActions.oristudioCpAnnotations = [];
   storeActions.oristudioCpError = null;
   storeActions.importAddOristudioCpText.mockResolvedValue(true);
-  detectClient.detectRectifiedFold.mockResolvedValue(detection(unsolvedReport(2)));
+  detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(2)));
+  runCpExactSolve.mockResolvedValue(solveResult(solvedOutcome(), solvedFold()));
   placement = { bounds: { minX: -200, minY: -200, maxX: 200, maxY: 200 } };
 
   // jsdom has no canvas backend, and this component decodes an image, reads it
@@ -260,20 +323,216 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('CpDetectImportModal primary action', () => {
-  it('offers Review & Fix for a rejected solve with a workable number of repair sites', async () => {
+/**
+ * The decision the whole staging exists to make.
+ *
+ * A candidate with a broken graph costs up to 25 s to solve and the answer is
+ * thrown away the moment the user edits it — 123 of 140 hard solves spend the
+ * whole cap. So the flagged case must never reach the solver.
+ */
+describe('CpDetectImportModal recognize-then-solve', () => {
+  it('does not solve a candidate with repair sites, and offers to repair it', async () => {
     await reachReviewStage();
+
+    expect(runCpExactSolve).not.toHaveBeenCalled();
     expect(button('Review & Fix')).not.toBeNull();
-    // Available in every case, beside the primary.
     expect(button('Add as-is')).not.toBeNull();
     expect(bodyText()).toMatch(/2 places to repair/);
+    expect(bodyText()).toMatch(/the solve was not run/);
   });
 
-  it('offers Solve & Add when the pipeline already solved the candidate', async () => {
-    detectClient.detectRectifiedFold.mockResolvedValue(detection(solvedReport()));
+  it('solves a clean candidate itself, and lands on Add', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(0)));
     await reachReviewStage();
-    expect(button('Solve & Add')).not.toBeNull();
+
+    expect(runCpExactSolve).toHaveBeenCalledTimes(1);
+    expect(button('Add')).not.toBeNull();
+    // Never beside a solve that landed: the pattern is not unsolved, and one
+    // button under two names was the whole complaint about the old screen.
+    expect(button('Add as-is')).toBeNull();
+    expect(button('Solve & Add')).toBeNull();
     expect(bodyText()).toMatch(/Exactly solved/);
+  });
+
+  /**
+   * The budget rule Rust cannot enforce. `solve_exact` builds its deadline from
+   * the `timeout_seconds` of the call it is in, so the published total has to be
+   * handed over for `runCpExactSolve` to divide between its two stages.
+   */
+  it('hands the solver the published total budget, not a per-stage one', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(0)));
+    await reachReviewStage();
+
+    const [input, options] = runCpExactSolve.mock.calls[0] as [unknown, Record<string, unknown>];
+    expect(input).toEqual({ schema: 'exact-solve-input-v1' });
+    expect(options.timeoutSeconds).toBe(BUDGET_SECONDS);
+    expect(options.run).toEqual({ kind: 'detect-import', targetId: expect.any(String) });
+  });
+
+  /**
+   * The recognized creases go on screen while the solve runs, rather than a
+   * spinner over an opaque call — and the two stages are named, because they are
+   * an order of magnitude apart and only one of them can fail.
+   */
+  it('shows the recognized creases and the named stage while solving', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(0)));
+    let release: ((value: unknown) => void) | null = null;
+    runCpExactSolve.mockImplementation((_input: unknown, options: { onStage?: (s: string) => void }) => {
+      options.onStage?.('geometry');
+      return new Promise((resolve) => {
+        release = resolve;
+      });
+    });
+
+    await reachReviewStage();
+    expect(bodyText()).toContain('Solving geometry');
+    expect(document.querySelector('.cp-detect-modal__fold-line')).not.toBeNull();
+    // Nothing to decide yet, so nothing is offered.
+    expect(button('Add')).toBeNull();
+    expect(button('Review & Fix')).toBeNull();
+
+    await act(async () => {
+      release?.(solveResult(solvedOutcome(), solvedFold()));
+    });
+    await settle();
+    expect(bodyText()).not.toContain('Solving geometry');
+    expect(button('Add')).not.toBeNull();
+  });
+
+  it('names the refinement stage when the solver reaches it', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(0)));
+    runCpExactSolve.mockImplementation((_input: unknown, options: { onStage?: (s: string) => void }) => {
+      options.onStage?.('geometry');
+      options.onStage?.('refinement');
+      return new Promise(() => {});
+    });
+
+    await reachReviewStage();
+    expect(bodyText()).toContain('Refining to fold precision');
+  });
+});
+
+describe('CpDetectImportModal failure reporting', () => {
+  it('explains a rejection in the solver’s own terms and offers repair', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(0)));
+    runCpExactSolve.mockResolvedValue(
+      solveResult({
+        kind: 'rejected',
+        stage: 'geometry',
+        status: 'failed',
+        reasons: ['movement_budget_exceeded'],
+        elapsedSeconds: 0.4,
+      })
+    );
+    await reachReviewStage();
+
+    expect(bodyText()).toMatch(/further than the solver is allowed to/);
+    expect(bodyText()).toContain('movement_budget_exceeded');
+    expect(button('Review & Fix')).not.toBeNull();
+    expect(button('Add as-is')).not.toBeNull();
+    expect(button('Add')).toBeNull();
+  });
+
+  /**
+   * A timeout is told apart on the `timed_out` boolean, never by matching the
+   * reason string — that one embeds a formatted number.
+   */
+  it('reports a timeout as a timeout, and offers the partial it reached', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(0)));
+    runCpExactSolve.mockResolvedValue(
+      solveResult({
+        kind: 'timeout',
+        stage: 'refinement',
+        partialMovedVertices: [
+          { vertex_id: 7, before: { x: 1, y: 1 }, after: { x: 0.75, y: 0.8 }, movement: 0.3 },
+        ],
+        partialMaxMovement: 0.3,
+        timeoutSeconds: BUDGET_SECONDS,
+        elapsedSeconds: BUDGET_SECONDS,
+      })
+    );
+    await reachReviewStage();
+
+    expect(bodyText()).toContain('solve timed out');
+    expect(bodyText()).toMatch(/ran out of time/);
+    expect(bodyText()).toMatch(/moved 1 vertex into place/);
+    expect(button('Add partial result')).not.toBeNull();
+  });
+
+  /**
+   * The partial's coordinates are mapped through `cp_detector
+   * .vertex_original_ids`, not by position — the exporter renumbers vertices, so
+   * a positional write would scatter them onto the wrong ones.
+   */
+  it('adds the partial at the coordinates the solver reached', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(0)));
+    runCpExactSolve.mockResolvedValue(
+      solveResult({
+        kind: 'timeout',
+        stage: 'refinement',
+        partialMovedVertices: [
+          { vertex_id: 7, before: { x: 1, y: 1 }, after: { x: 0.75, y: 0.8 }, movement: 0.3 },
+        ],
+        partialMaxMovement: 0.3,
+        timeoutSeconds: BUDGET_SECONDS,
+        elapsedSeconds: BUDGET_SECONDS,
+      })
+    );
+    await reachReviewStage();
+    click('Add partial result');
+    await settle();
+
+    const [{ text }] = storeActions.importAddOristudioCpText.mock.calls[0] as unknown as [
+      { text: string },
+    ];
+    // Vertex id 7 is index 1 in `vertex_original_ids`, and only that one moves.
+    expect(JSON.parse(text).vertices_coords).toEqual([
+      [0, 0],
+      [0.75, 0.8],
+    ]);
+  });
+
+  /**
+   * A malformed input returns `{status: "not_run", blockers: [...]}` with no
+   * `rejection_reasons` key at all, so there is no token to print — only a
+   * sentence. A reader that showed the reason list alone would show nothing.
+   */
+  it('says something when the solver could not read the input at all', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(0)));
+    runCpExactSolve.mockResolvedValue(
+      solveResult({ kind: 'malformed', stage: 'geometry', blockerCount: 3 })
+    );
+    await reachReviewStage();
+
+    expect(bodyText()).toMatch(/does not match this crease pattern/);
+    expect(button('Review & Fix')).not.toBeNull();
+    expect(button('Add partial result')).toBeNull();
+  });
+
+  /**
+   * A dead worker is not one of the solver's endings, so it must not be reported
+   * as a rejection the user could fix by editing.
+   */
+  it('reports a solve that could not run, without calling it a rejection', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(0)));
+    runCpExactSolve.mockRejectedValue(new Error('the detection worker stopped'));
+    await reachReviewStage();
+
+    expect(bodyText()).toContain('the detection worker stopped');
+    expect(button('Review & Fix')).not.toBeNull();
+    expect(button('Add')).toBeNull();
+  });
+
+  it('falls back to Add as-is when the graph is blocked, and never solves it', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(
+      recognition(diagnostics(0, ['selected span references missing vertex']))
+    );
+    await reachReviewStage();
+
+    expect(runCpExactSolve).not.toHaveBeenCalled();
+    expect(button('Review & Fix')).toBeNull();
+    expect(button('Add as-is')).not.toBeNull();
+    expect(bodyText()).toMatch(/could not read this candidate graph/);
   });
 
   /**
@@ -288,57 +547,12 @@ describe('CpDetectImportModal primary action', () => {
    * identical to ground truth.
    */
   it('offers hand repair at any site count, however large', async () => {
-    detectClient.detectRectifiedFold.mockResolvedValue(detection(unsolvedReport(37)));
+    detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(37)));
     await reachReviewStage();
+
     expect(button('Review & Fix')).not.toBeNull();
     expect(bodyText()).toMatch(/37 places to repair/);
     expect(bodyText()).not.toMatch(/not practical|out of hand-repair range/);
-  });
-
-  it('keeps Add as-is available as a secondary, and says what it costs', async () => {
-    detectClient.detectRectifiedFold.mockResolvedValue(detection(unsolvedReport(11)));
-    await reachReviewStage();
-    expect(button('Add as-is')).not.toBeNull();
-    expect(bodyText()).toMatch(/every angle approximate/);
-  });
-
-  it('reports the solver’s own rejection, and a timeout as a timeout', async () => {
-    await reachReviewStage();
-    expect(bodyText()).toContain('candidate_status_failed');
-
-    const timedOut = detection(unsolvedReport(2)) as unknown as {
-      detectorReport: {
-        quality_report: { compiler_report: { exact_solve: { movement_report: unknown } } };
-      };
-    };
-    timedOut.detectorReport.quality_report.compiler_report.exact_solve.movement_report = {
-      timed_out: true,
-    };
-    detectClient.detectRectifiedFold.mockResolvedValue(timedOut as never);
-    click('Detect');
-    await settle();
-
-    expect(bodyText()).toContain('solve timed out');
-    expect(bodyText()).not.toContain('candidate_status_failed');
-  });
-
-  it('says so when a rejected candidate has nothing flagged to repair', async () => {
-    detectClient.detectRectifiedFold.mockResolvedValue(detection(unsolvedReport(0)));
-    await reachReviewStage();
-    // Still Review & Fix: with no marker worklist the source image underlay is
-    // the only tool, and that is what this mode adds.
-    expect(button('Review & Fix')).not.toBeNull();
-    expect(bodyText()).toMatch(/nothing is flagged for repair/);
-    expect(bodyText()).not.toMatch(/0 places to repair/);
-  });
-
-  it('falls back to Add as-is when the solver could not read the candidate graph', async () => {
-    detectClient.detectRectifiedFold.mockResolvedValue(
-      detection({ status: 'failed', blockers: ['span references missing vertex'] })
-    );
-    await reachReviewStage();
-    expect(button('Review & Fix')).toBeNull();
-    expect(bodyText()).toMatch(/could not read this candidate graph/);
   });
 });
 
@@ -355,6 +569,18 @@ describe('CpDetectImportModal add', () => {
     );
     // No annotations on this path: the underlay and the region belong to repair.
     expect(storeActions.addAnnotation).not.toHaveBeenCalled();
+  });
+
+  it('adds the solved document after a solve, not the candidate it started from', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(0)));
+    await reachReviewStage();
+    click('Add');
+    await settle();
+
+    const [{ text }] = storeActions.importAddOristudioCpText.mock.calls[0] as unknown as [
+      { text: string },
+    ];
+    expect(JSON.parse(text)).toEqual(solvedFold());
   });
 
   it('never runs the mutating fixes, which would now edit the user’s own creases', async () => {
@@ -392,6 +618,8 @@ describe('CpDetectImportModal add', () => {
     // sitting exactly on it is inside.
     expect(region.width).toBeGreaterThan(PAPER_SIZE);
     expect(region.suppress).toEqual(['kawasaki', 'bigLittleBig']);
+    // Straight off the recognize result, so the region's Solve runs on the same
+    // seam the modal's own solve would have.
     expect(region.solveInput).toEqual({ schema: 'exact-solve-input-v1' });
     expect(region.hidden).toBe(false);
     // Behind everything already on the layer, so neither swallows a click meant
@@ -427,17 +655,70 @@ describe('CpDetectImportModal add', () => {
     expect(storeActions.addAnnotation).not.toHaveBeenCalled();
   });
 
-  it('sends a bucketed repair-site count, never the raw number', async () => {
-    detectClient.detectRectifiedFold.mockResolvedValue(detection(unsolvedReport(6)));
+  it('sends a bucketed repair-site count and the staged outcome, never a raw count', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(6)));
     await reachReviewStage();
     click('Review & Fix');
     await settle();
 
     expect(track).toHaveBeenCalledWith('cp detect imported', {
       mode: 'reviewAndFix',
-      outcome: 'repairable',
+      outcome: 'recognized',
       repair_sites: '5-8',
     });
+  });
+
+  it('reports a solved add as solved', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(0)));
+    await reachReviewStage();
+    click('Add');
+    await settle();
+
+    expect(track).toHaveBeenCalledWith('cp detect imported', {
+      mode: 'add',
+      outcome: 'solved',
+      repair_sites: '0',
+    });
+  });
+});
+
+/**
+ * The `ori-studio:cp-detect-result` event is what
+ * `scripts/cp-detect/benchmark-browser-vs-oracle.mjs` reads, and it compares the
+ * published fold against an oracle. Publishing the candidate the instant it
+ * exists would have quietly turned every browser-vs-oracle number into a
+ * candidate-coordinate number.
+ */
+describe('CpDetectImportModal result event', () => {
+  it('publishes the solved fold once the solve lands', async () => {
+    detectClient.recognizeRectifiedFold.mockResolvedValue(recognition(diagnostics(0)));
+    const seen: unknown[] = [];
+    const listen = (event: Event) => seen.push((event as CustomEvent).detail);
+    window.addEventListener('ori-studio:cp-detect-result', listen);
+    try {
+      await reachReviewStage();
+    } finally {
+      window.removeEventListener('ori-studio:cp-detect-result', listen);
+    }
+
+    expect(seen).toHaveLength(1);
+    const detail = seen[0] as { detection: { foldJson: string } };
+    expect(JSON.parse(detail.detection.foldJson)).toEqual(solvedFold());
+  });
+
+  it('publishes the candidate when the solve was not run', async () => {
+    const seen: unknown[] = [];
+    const listen = (event: Event) => seen.push((event as CustomEvent).detail);
+    window.addEventListener('ori-studio:cp-detect-result', listen);
+    try {
+      await reachReviewStage();
+    } finally {
+      window.removeEventListener('ori-studio:cp-detect-result', listen);
+    }
+
+    expect(seen).toHaveLength(1);
+    const detail = seen[0] as { detection: { foldJson: string } };
+    expect(detail.detection.foldJson).toBe(candidateFold());
   });
 });
 

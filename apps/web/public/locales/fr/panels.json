@@ -194,6 +194,8 @@
   },
   "cpRegion": {
     "accept": "Accepter",
+    "acceptHistory": "Accepter la résolution exacte",
+    "acceptPartialHistory": "Accepter la résolution exacte partielle",
     "addRegion": "Ajouter une zone de suppression",
     "changeChecks": "Modifier les vérifications supprimées",
     "checksMenu": "Vérifications supprimées",
@@ -205,18 +207,27 @@
     "hidden_other": "{{count}} problèmes masqués",
     "move": "Déplacer la région",
     "nothingSuppressed": "Toutes les vérifications actives",
+    "placement": {
+      "frameUnrecognized": "La réponse résolue ne correspond pas aux plis de cette région, rien n’a donc été modifié. Les données du solveur enregistrées appartiennent à un autre patron.",
+      "noPattern": "Cette région ne contient aucun pli, il n’y a donc rien à résoudre. Déplacez la région sur le patron détecté puis réessayez.",
+      "paperNotSquare": "Les plis de cette région ne couvrent plus une feuille carrée : la réponse résolue n’a pas pu être placée. Faire pivoter le patron ou supprimer une partie du bord du papier produit cet effet."
+    },
     "solve": "Résoudre",
     "solved_one": "Résolu · 1 sommet déplacé < {{max}} px",
     "solved_many": "Résolu · {{count}} sommets déplacés < {{max}} px",
     "solved_other": "Résolu · {{count}} sommets déplacés < {{max}} px",
+    "solveError": "Impossible de lancer la résolution — {{message}}",
+    "solveErrorUnknown": "Impossible de lancer la résolution.",
     "solveFailed": "Résolution impossible — {{reason}}",
+    "solveHistory": "Résolution exacte",
     "solvePartial_one": "Résultat partiel · 1 sommet",
     "solvePartial_many": "Résultat partiel · {{count}} sommets",
     "solvePartial_other": "Résultat partiel · {{count}} sommets",
     "solvingGeometry": "Résolution de la géométrie…",
     "solvingRefining": "Affinage à la précision de pliage…",
     "suppressing": "Vérifications désactivées : {{classes}}",
-    "tryAgain": "Réessayer"
+    "tryAgain": "Réessayer",
+    "tryAgainHistory": "Annuler la résolution exacte"
   },
   "cpViewControls": {
     "angle": "Angle",

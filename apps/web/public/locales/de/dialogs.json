@@ -49,8 +49,10 @@
     "yes": "Ja"
   },
   "cpDetectImport": {
+    "add": "Hinzufügen",
     "addAsIs": "Unverändert hinzufügen",
     "addLabel": "Erkanntes Faltmuster hinzufügen",
+    "addPartial": "Teilergebnis hinzufügen",
     "ariaLabel": "CP aus Bild erkennen",
     "busy": {
       "detecting": "Modell wird ausgeführt",
@@ -87,16 +89,17 @@
     },
     "reviewAndFix": "Prüfen und korrigieren",
     "runningModel": "Modell wird ausgeführt",
-    "solveAndAdd": "Lösen und hinzufügen",
     "title": "CP aus Bild erkennen",
     "updateCrop": "Zuschnitt aktualisieren",
     "verdict": {
+      "afterFailure": "„Prüfen und korrigieren“ fügt den Kandidaten mit dem Quellbild dahinter ein und behält die Solver-Daten, damit Sie ihn korrigieren und erneut lösen können.",
       "blocked": "Der Solver konnte diesen Kandidatengraphen nicht lesen, es gibt also nichts von Hand zu korrigieren. Unverändert hinzufügen ist weiterhin möglich.",
       "exact": "Exakt gelöst. Es wird neben deiner Arbeit eingefügt; der Rest des Dokuments bleibt unverändert.",
-      "repairable_one": "Nicht gelöst – 1 Stelle zu reparieren. „Prüfen & korrigieren“ fügt den Kandidaten mit dem Quellbild dahinter ein, damit Sie ihn korrigieren und lösen können.",
-      "repairable_other": "Nicht gelöst – {{count}} Stellen zu reparieren. „Prüfen & korrigieren“ fügt den Kandidaten mit dem Quellbild dahinter ein, damit Sie sie korrigieren und lösen können. Unverändert hinzugefügt bleiben alle Winkel ungenau.",
-      "unflagged": "Nicht gelöst, aber nichts ist zur Korrektur markiert: der Solver hat es aus einem anderen Grund abgelehnt. Prüfen und korrigieren fügt den Kandidaten mit dem Quellbild dahinter ein, damit du vergleichen kannst.",
-      "unknown": "Dieser Erkennungslauf enthält keine Topologieprüfung, daher kann das Muster nur unverändert hinzugefügt werden."
+      "repairable_one": "Erkannt, mit 1 zu reparierenden Stelle – die Lösung wurde deshalb nicht ausgeführt: Sie hätte ihr ganzes Zeitbudget für Geometrie verbraucht, die Sie gleich ändern. „Prüfen und korrigieren“ fügt den Kandidaten mit dem Quellbild dahinter ein, damit Sie ihn korrigieren und lösen können.",
+      "repairable_other": "Erkannt, mit {{count}} zu reparierenden Stellen – die Lösung wurde deshalb nicht ausgeführt: Sie hätte ihr ganzes Zeitbudget für Geometrie verbraucht, die Sie gleich ändern. „Prüfen und korrigieren“ fügt den Kandidaten mit dem Quellbild dahinter ein, damit Sie sie korrigieren und lösen können. Unverändert hinzugefügt bleiben alle Winkel ungenau.",
+      "solving": "In der Topologie ist nichts markiert, daher läuft die Lösung. Unten sehen Sie, was erkannt wurde – die Falten rücken an ihre Plätze, sobald sie fertig ist.",
+      "timeoutPartial_one": "Der Solver hatte 1 Ecke an ihren Platz gerückt, bevor die Zeit ablief; Sie können dieses Teilergebnis statt des rohen Kandidaten hinzufügen.",
+      "timeoutPartial_other": "Der Solver hatte {{count}} Ecken an ihre Plätze gerückt, bevor die Zeit ablief; Sie können dieses Teilergebnis statt des rohen Kandidaten hinzufügen."
     }
   },
   "export": {

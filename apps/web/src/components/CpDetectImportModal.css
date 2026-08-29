@@ -144,7 +144,7 @@
   animation: cp-detect-spin 0.9s linear infinite;
 }
 
-/* What the topology check found, and therefore what the primary button does.
+/* Where the staged flow has got to, and therefore what the buttons offer.
    Toned by outcome rather than always warning-coloured: an exactly-solved
    detection is good news and must not read as a problem. */
 .cp-detect-modal__verdict {
@@ -162,12 +162,30 @@
   border-left-color: var(--status-success);
 }
 
-.cp-detect-modal__verdict[data-outcome='repairable'] {
+.cp-detect-modal__verdict[data-outcome='repairable'],
+.cp-detect-modal__verdict[data-outcome='solving'] {
   border-left-color: var(--accent-primary);
 }
 
-.cp-detect-modal__verdict[data-outcome='impractical'] {
+.cp-detect-modal__verdict[data-outcome='failed'] {
   border-left-color: var(--status-warning);
+}
+
+/* The running solve, named by stage. Inside the verdict block rather than a row
+   of its own, so the surface's grid template does not change with it. */
+.cp-detect-modal__solving {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin-top: 6px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.cp-detect-modal__solving-hint {
+  color: var(--text-secondary);
+  font-weight: 400;
 }
 
 .cp-detect-modal__crop-grid,

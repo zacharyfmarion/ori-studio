@@ -190,6 +190,8 @@
   },
   "cpRegion": {
     "accept": "적용",
+    "acceptHistory": "정확한 해 적용",
+    "acceptPartialHistory": "정확한 해의 부분 결과 적용",
     "addRegion": "억제 영역 추가",
     "changeChecks": "억제할 검사 변경",
     "checksMenu": "억제된 검사",
@@ -199,14 +201,23 @@
     "hidden_other": "문제 {{count}}개 숨김",
     "move": "영역 이동",
     "nothingSuppressed": "모든 검사 켜짐",
+    "placement": {
+      "frameUnrecognized": "풀린 결과가 이 영역의 접는 선과 맞지 않아 아무것도 바꾸지 않았습니다. 저장된 솔버 데이터는 다른 전개도의 것입니다.",
+      "noPattern": "이 영역 안에 접는 선이 없어 풀 것이 없습니다. 영역을 감지된 전개도 위로 옮긴 뒤 다시 시도하세요.",
+      "paperNotSquare": "이 영역의 접는 선이 더 이상 정사각형 종이를 덮지 않아 풀린 결과를 배치할 수 없었습니다. 전개도를 회전하거나 종이 가장자리 일부를 지우면 이렇게 됩니다."
+    },
     "solve": "풀기",
     "solved_other": "해결됨 · 꼭짓점 {{count}}개가 {{max}} px 미만 이동",
+    "solveError": "풀이를 실행할 수 없습니다 — {{message}}",
+    "solveErrorUnknown": "풀이를 실행할 수 없습니다.",
     "solveFailed": "해결할 수 없음 — {{reason}}",
+    "solveHistory": "정확한 해 풀기",
     "solvePartial_other": "부분 결과 · 꼭짓점 {{count}}개",
     "solvingGeometry": "기하 계산 중…",
     "solvingRefining": "접기 정밀도로 정제 중…",
     "suppressing": "꺼진 검사: {{classes}}",
-    "tryAgain": "다시 시도"
+    "tryAgain": "다시 시도",
+    "tryAgainHistory": "정확한 해 되돌리기"
   },
   "cpViewControls": {
     "angle": "각도",

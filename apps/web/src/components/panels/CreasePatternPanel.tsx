@@ -156,6 +156,7 @@ import {
 import { useCpAnnotations } from '../../cp-workspace/annotations/useCpAnnotations';
 import { CpRegionLayer } from '../../cp-workspace/regions/CpRegionLayer';
 import { useCpRegionActions } from '../../cp-workspace/regions/useCpRegions';
+import { useCpRegionSolve } from '../../cp-workspace/regions/useCpRegionSolve';
 import { cpSuppressionBoxFromCommitPoints } from '../../cp-workspace/regions/suppressionBox';
 import { CpContextToolPanel, cpLineTypeStatusLabel } from './CpContextToolPanel';
 import {
@@ -719,6 +720,10 @@ export function CreasePatternPanel() {
   // costs a pass over every diagnostic and which nothing on this path reads;
   // `CpRegionLayer` is the one consumer of that.
   const regionActions = useCpRegionActions();
+  // How a region's solve is run and settled, and the one listener behind
+  // `Crease Pattern ▸ Repair ▸ Exact Solve…`. A hook rather than state here: the
+  // panel decides that a solve binding is mounted, not what one does.
+  const regionSolve = useCpRegionSolve();
   // Which floating toolbar owns the corner. `selectedImage` narrows by kind and
   // is null for a region, so it cannot answer this — and a selected region
   // expands its chip into a toolbar the others must stand down for.
@@ -3254,11 +3259,15 @@ export function CreasePatternPanel() {
                     there are no regions, and each chip portals itself, so an
                     empty document pays a hook and no DOM.
 
-                    No `solve` binding yet: whether a region *can* be solved is
-                    its attachment, but whether this host can service one is that
-                    prop, and the Exact Solve command does not exist. Absent, an
-                    attached region gets the base chip rather than a dead button. */}
-                <CpRegionLayer container={toolbarContainer} />
+                    The `solve` binding is what makes `SolveRegionChip` reachable
+                    at all: the layer picks it on `solvable && solve`, so an
+                    attached region without this prop silently gets the base chip
+                    and the repair flow dead-ends with no way to solve. The prop
+                    is optional — deliberately, since a host that cannot service a
+                    solve should show no button rather than a dead one — so
+                    dropping it again would typecheck cleanly. `regionWiring.test`
+                    is what fails instead. */}
+                <CpRegionLayer container={toolbarContainer} solve={regionSolve} />
                 {webglOverlayView && canvasObjects.length > 0 && (
                   <CanvasObjectOverlay
                     objects={canvasObjects}

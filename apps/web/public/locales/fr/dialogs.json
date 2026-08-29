@@ -49,8 +49,10 @@
     "yes": "Oui"
   },
   "cpDetectImport": {
+    "add": "Ajouter",
     "addAsIs": "Ajouter tel quel",
     "addLabel": "Ajouter le patron de plis détecté",
+    "addPartial": "Ajouter le résultat partiel",
     "ariaLabel": "Détecter le CP depuis une image",
     "busy": {
       "detecting": "Exécution du modèle",
@@ -91,17 +93,19 @@
     },
     "reviewAndFix": "Vérifier et corriger",
     "runningModel": "Exécution du modèle",
-    "solveAndAdd": "Résoudre et ajouter",
     "title": "Détecter le CP depuis une image",
     "updateCrop": "Mettre à jour le recadrage",
     "verdict": {
+      "afterFailure": "« Vérifier et corriger » ajoute le candidat avec l’image source derrière et conserve les données du solveur, pour le corriger puis le résoudre à nouveau.",
       "blocked": "Le solveur n'a pas pu lire ce graphe candidat : il n'y a donc rien à corriger à la main. Vous pouvez tout de même l'ajouter tel quel.",
       "exact": "Résolu exactement. Il est ajouté à côté de votre travail et le reste du document reste intact.",
-      "repairable_one": "Non résolu — 1 endroit à réparer. « Vérifier et corriger » ajoute le candidat avec l’image source derrière, pour le corriger puis le résoudre.",
-      "repairable_many": "Non résolu. {{count}} endroits à corriger : Vérifier et corriger ajoute le candidat, l'image source et une région de suppression des vérifications pour vous permettre de les corriger.",
-      "repairable_other": "Non résolu — {{count}} endroits à réparer. « Vérifier et corriger » ajoute le candidat avec l’image source derrière, pour les corriger puis résoudre. L’ajouter tel quel laisse tous les angles approximatifs.",
-      "unflagged": "Non résolu, mais rien n'est signalé à corriger : le solveur l'a rejeté pour une autre raison. Vérifier et corriger ajoute le candidat avec l'image source derrière lui pour vous permettre de comparer.",
-      "unknown": "Cette détection ne fournit aucune vérification de topologie : le patron ne peut être ajouté que tel quel."
+      "repairable_one": "Reconnu, avec 1 endroit à réparer — la résolution n’a donc pas été lancée : elle aurait dépensé tout son budget sur une géométrie que vous allez modifier. « Vérifier et corriger » ajoute le candidat avec l’image source derrière, pour le corriger puis le résoudre.",
+      "repairable_many": "Reconnu, avec {{count}} endroits à réparer — la résolution n’a donc pas été lancée : elle aurait dépensé tout son budget sur une géométrie que vous allez modifier. « Vérifier et corriger » ajoute le candidat avec l’image source derrière, pour les corriger puis résoudre. L’ajouter tel quel laisse tous les angles approximatifs.",
+      "repairable_other": "Reconnu, avec {{count}} endroits à réparer — la résolution n’a donc pas été lancée : elle aurait dépensé tout son budget sur une géométrie que vous allez modifier. « Vérifier et corriger » ajoute le candidat avec l’image source derrière, pour les corriger puis résoudre. L’ajouter tel quel laisse tous les angles approximatifs.",
+      "solving": "Rien n'est signalé dans la topologie, la résolution est donc en cours. Ci-dessous, ce qui a été reconnu : les plis se mettent en place quand elle aboutit.",
+      "timeoutPartial_one": "Le solveur avait mis 1 sommet en place avant l’expiration du délai, et vous pouvez ajouter ce résultat partiel plutôt que le candidat brut.",
+      "timeoutPartial_many": "Le solveur avait mis {{count}} sommets en place avant l’expiration du délai, et vous pouvez ajouter ce résultat partiel plutôt que le candidat brut.",
+      "timeoutPartial_other": "Le solveur avait mis {{count}} sommets en place avant l’expiration du délai, et vous pouvez ajouter ce résultat partiel plutôt que le candidat brut."
     }
   },
   "export": {

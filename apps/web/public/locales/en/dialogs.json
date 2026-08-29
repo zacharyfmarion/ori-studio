@@ -49,8 +49,10 @@
     "yes": "Yes"
   },
   "cpDetectImport": {
+    "add": "Add",
     "addAsIs": "Add as-is",
     "addLabel": "Add detected crease pattern",
+    "addPartial": "Add partial result",
     "ariaLabel": "Detect CP from image",
     "busy": {
       "detecting": "Running model",
@@ -87,16 +89,17 @@
     },
     "reviewAndFix": "Review & Fix",
     "runningModel": "Running model",
-    "solveAndAdd": "Solve & Add",
     "title": "Detect CP from Image",
     "updateCrop": "Update Crop",
     "verdict": {
+      "afterFailure": "Review & Fix adds the candidate with the source image behind it and keeps the solver data, so you can repair it and solve again.",
       "blocked": "The solver could not read this candidate graph, so there is nothing to repair by hand. You can still add it as-is.",
       "exact": "Exactly solved. Adding it beside your work leaves the rest of the document untouched.",
-      "repairable_one": "Not solved — 1 place to repair. Review & Fix adds the candidate with the source image behind it, so you can fix it and solve.",
-      "repairable_other": "Not solved — {{count}} places to repair. Review & Fix adds the candidate with the source image behind it, so you can fix them and solve. Adding it as-is instead leaves every angle approximate.",
-      "unflagged": "Not solved, but nothing is flagged for repair — the solver rejected it for another reason. Review & Fix adds the candidate with the source image behind it so you can compare.",
-      "unknown": "This detector run reports no topology check, so the pattern can only be added as-is."
+      "repairable_one": "Recognized, with 1 place to repair — so the solve was not run: it would have spent its whole budget on geometry you are about to change. Review & Fix adds the candidate with the source image behind it, so you can fix it and solve.",
+      "repairable_other": "Recognized, with {{count}} places to repair — so the solve was not run: it would have spent its whole budget on geometry you are about to change. Review & Fix adds the candidate with the source image behind it, so you can fix them and solve. Adding it as-is instead leaves every angle approximate.",
+      "solving": "Nothing is flagged in the topology, so the solve is running. Below is what was recognized — the creases move into place when it lands.",
+      "timeoutPartial_one": "It had moved 1 vertex into place before the clock ran out, and you can add that partial result instead of the raw candidate.",
+      "timeoutPartial_other": "It had moved {{count}} vertices into place before the clock ran out, and you can add that partial result instead of the raw candidate."
     }
   },
   "export": {

@@ -12,13 +12,27 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ImagePlus, Loader2, Play, RefreshCw, Upload, Wrench, X } from 'lucide-react';
 import { track } from '../analytics';
-import type {
-  CpDetectFoldResult,
-  CpDetectModelManifest,
-  CpDetectPoint,
-  CpDetectQuad,
-  CpDetectRectifiedImage,
+import {
+  cpDetectCompilerReport,
+  type CpDetectDecodeReport,
+  type CpDetectModelManifest,
+  type CpDetectPoint,
+  type CpDetectQuad,
+  type CpDetectRecognizeResult,
+  type CpDetectRectifiedImage,
 } from '../engine/cpDetectTypes';
+import { runCpExactSolve } from '../engine/cpExactSolve';
+import {
+  cpExactSolveReasonLabel,
+  cpExactSolveStageHint,
+  cpExactSolveStageLabel,
+} from '../engine/cpExactSolveMessages';
+import {
+  primaryCpExactSolveReason,
+  type CpExactSolveMovedVertex,
+  type CpExactSolveOutcome,
+  type CpExactSolveStage,
+} from '../engine/cpExactSolveTypes';
 import { getFileService, type OpenBinaryFileResult } from '../platform/fileService';
 import { getCpDetectClient, cpDetectError } from '../store/workspaceStore/cpDetectRuntime';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -38,7 +52,14 @@ import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import './CpDetectImportModal.css';
 
-type BusyState = 'loading_model' | 'opening' | 'rectifying' | 'detecting' | 'importing' | null;
+type BusyState =
+  | 'loading_model'
+  | 'opening'
+  | 'rectifying'
+  | 'detecting'
+  | 'solving'
+  | 'importing'
+  | null;
 type QuadHandle = keyof CpDetectQuad;
 type ModalStage = 'upload' | 'crop' | 'detecting' | 'review';
 type PreviewOverlayKey = 'inferred' | 'assignments';
@@ -79,31 +100,37 @@ const DETECT_PAPER_INSET_PX = 32;
  */
 const REGION_PAPER_MARGIN_RATIO = 0.02;
 
-/** What "Add" does with the detected pattern. */
-type ImportMode = 'solveAndAdd' | 'reviewAndFix' | 'addAsIs';
+/**
+ * What the pressed button adds to the document.
+ *
+ * Each one names the **coordinates it lands**, because that is the only thing
+ * that differs between them and the previous set of labels got it wrong: "Solve
+ * & Add" promised an action that had already happened inside the decode, and was
+ * byte-identical to "Add as-is" beside it.
+ *
+ * - `add` — the *solved* FOLD. Offered only after a solve this modal ran and the
+ *   solver accepted. It is plain **Add** because there is nothing left to do.
+ * - `reviewAndFix` — the candidate, plus the rectified image and a
+ *   check-suppression region carrying the `ExactSolveInput`, so the pattern can
+ *   be repaired and solved in the document.
+ * - `addPartial` — the candidate with a timed-out solve's partial coordinates
+ *   written in. Real coordinates from a real run that simply did not clear the
+ *   acceptance gate before the clock did.
+ * - `addAsIs` — the candidate, untouched. Only offered where the pattern is
+ *   **genuinely unsolved**, never as a second name for a solve that succeeded.
+ */
+type ImportMode = 'add' | 'reviewAndFix' | 'addPartial' | 'addAsIs';
 
 /**
- * How the detected candidate came out, which is what the primary button offers.
+ * What the recognize report says about the candidate's **graph**.
  *
- * - `exact` — the pipeline's own `solve_exact` was accepted, so the FOLD it
- *   produced is already at solved coordinates. Nothing to repair.
- * - `repairable` — the solve was not accepted. Repair is offered **whatever the
- *   site count is**. An earlier draft refused past a threshold on the grounds
- *   that a large repair "is not practical", which was wrong twice over: the
- *   alternative to this feature is tracing the whole pattern by hand, so 13
- *   sites is a large saving rather than a burden; and the fallback it pushed
- *   people to — adding the candidate unsolved — hands them ~4° of Kawasaki
- *   error at every vertex, i.e. exactly the defect the feature exists to
- *   remove. The measurement agrees: hard-bucket repairs came out 131/140
- *   identical to ground truth, and what capped their recovery was the 25 s
- *   solve budget, not the size of the repair.
- * - `blocked` — the solver could not analyse the graph at all, so there is no
- *   candidate to attach and nothing to repair against. The only honest option.
+ * Read from `topology_diagnostics.combinatorial`: findings that are properties
+ * of the graph and survive moving the drawing around. `angle_dependent` is
+ * deliberately ignored — on an unsolved candidate the Kawasaki residual is
+ * around 4° at every interior vertex by construction, which is what the solve is
+ * for, so it says nothing about whether the topology is right.
  */
-type CandidateOutcome = 'exact' | 'repairable' | 'blocked';
-
 interface CandidateTopology {
-  outcome: CandidateOutcome;
   /**
    * Distinct places a human would have to touch: interior vertices flagged by
    * odd degree, Maekawa parity or a boundary failure (counted once each), plus
@@ -111,17 +138,47 @@ interface CandidateTopology {
    *
    * `degree_two_vertices` is deliberately excluded — a degree-2 vertex is not an
    * error on its own, and the repair for one is to dissolve it, never to delete.
+   *
+   * There is **no threshold** on this number. An earlier draft refused repair
+   * past eight sites as "not practical", which was wrong twice over: the
+   * alternative to this feature is tracing the whole pattern by hand, so 13
+   * sites is a large saving rather than a burden; and the fallback it pushed
+   * people to — adding the candidate unsolved — hands them that same ~4° of
+   * error at every vertex. The measurement agrees: hard-bucket repairs came out
+   * 131/140 identical to ground truth, and what capped their recovery was the
+   * solve budget, not the size of the repair.
    */
   repairSites: number;
-  /** The solver refused to analyse the graph at all (malformed input). */
+  /**
+   * There is nothing to solve and nothing to repair against: the analysis was
+   * blocked by a malformed graph, or the report carried no `ExactSolveInput` at
+   * all. Both leave exactly one honest option, which is to add it as-is.
+   */
   blocked: boolean;
-  /** `rejection_reasons` verbatim; empty when the solve was accepted. */
-  rejectionReasons: string[];
-  /** From `movement_report.timed_out` — never by parsing a reason string. */
-  timedOut: boolean;
-  /** The pre-solve `ExactSolveInput`, carried to the region verbatim. */
-  solveInput: unknown;
 }
+
+/**
+ * How far the staged flow has got, once recognition has landed.
+ *
+ * The three-way split at the top is the point of this whole change. A candidate
+ * whose topology is visibly broken never reaches `solving`, because solving it
+ * would spend the entire budget — up to 25 s, and 123 of 140 hard solves spend
+ * all of it — on geometry the user is about to change.
+ */
+type SolvePhase =
+  /** Recognized, and the solve was deliberately not run. */
+  | { kind: 'not_attempted' }
+  | { kind: 'solving'; stage: CpExactSolveStage }
+  /** The solver reached a verdict. `fold` is non-null only when it accepted. */
+  | { kind: 'settled'; outcome: CpExactSolveOutcome; fold: Record<string, unknown> | null }
+  /**
+   * The solve could not run at all — a dead worker, not one of the solver's
+   * endings. Separate from `settled` so a bridge failure is never reported as a
+   * rejection the user could fix by editing.
+   */
+  | { kind: 'errored' };
+
+const NOT_ATTEMPTED: SolvePhase = { kind: 'not_attempted' };
 const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
 const IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const QUAD_HANDLES: QuadHandle[] = ['top_left', 'top_right', 'bottom_right', 'bottom_left'];
@@ -136,7 +193,8 @@ export function CpDetectImportModal() {
   const [source, setSource] = useState<SourceImage | null>(null);
   const [quad, setQuad] = useState<CpDetectQuad | null>(null);
   const [rectified, setRectified] = useState<CpDetectRectifiedImage | null>(null);
-  const [detection, setDetection] = useState<CpDetectFoldResult | null>(null);
+  const [recognition, setRecognition] = useState<CpDetectRecognizeResult | null>(null);
+  const [phase, setPhase] = useState<SolvePhase>(NOT_ATTEMPTED);
   const [modelManifest, setModelManifest] = useState<CpDetectModelManifest | null>(null);
   const [busy, setBusy] = useState<BusyState>(null);
   const [error, setError] = useState<string | null>(null);
@@ -144,6 +202,14 @@ export function CpDetectImportModal() {
   const [dropActive, setDropActive] = useState(false);
   const [previewOverlays, setPreviewOverlays] = useState<PreviewOverlayState>(DEFAULT_PREVIEW_OVERLAYS);
   const sourceImageRef = useRef<HTMLImageElement>(null);
+  /**
+   * Distinguishes one detection's solve from the next one's in the run registry.
+   *
+   * The registry refuses a second run for the same `targetId` rather than
+   * queueing it invisibly. A constant id would therefore make a re-detect throw
+   * if the previous solve were somehow still live, so each press gets its own.
+   */
+  const solveCountRef = useRef(0);
 
   useEffect(() => {
     const onOpen = () => setOpen(true);
@@ -200,7 +266,8 @@ export function CpDetectImportModal() {
     });
     setQuad(null);
     setRectified(null);
-    setDetection(null);
+    setRecognition(null);
+    setPhase(NOT_ATTEMPTED);
     setError(null);
     setDragging(null);
     setDropActive(false);
@@ -221,7 +288,8 @@ export function CpDetectImportModal() {
     });
     setQuad(null);
     setRectified(null);
-    setDetection(null);
+    setRecognition(null);
+    setPhase(NOT_ATTEMPTED);
     setPreviewOverlays(DEFAULT_PREVIEW_OVERLAYS);
 
     const client = await getCpDetectClient();
@@ -270,7 +338,8 @@ export function CpDetectImportModal() {
     if (!source || !quad) return;
     setBusy('rectifying');
     setError(null);
-    setDetection(null);
+    setRecognition(null);
+    setPhase(NOT_ATTEMPTED);
     setPreviewOverlays(DEFAULT_PREVIEW_OVERLAYS);
     try {
       const client = await getCpDetectClient();
@@ -282,30 +351,113 @@ export function CpDetectImportModal() {
     }
   }, [quad, source]);
 
+  /**
+   * Run the exact solve on a recognized candidate, in the two stages it has.
+   *
+   * The shared implementation, not a second one: `runCpExactSolve` is the same
+   * call the region chip's Solve makes, and it owns the parts that must not be
+   * re-derived per surface — the stage split, the run registry, and the budget
+   * rule. **The budget is the caller's obligation** and this is where it is met:
+   * `solve_exact` builds its deadline from the `timeout_seconds` of the call it
+   * is in, so two calls would otherwise be two independent deadlines and the
+   * staged path would quietly get twice the fused path's cap. Handing over the
+   * published `budget.total_seconds` is what keeps the total whole; a negative
+   * total passes through unchanged, because it disables the timeout and `0`
+   * means "time out immediately".
+   */
+  const solveRecognized = useCallback(
+    async (recognized: CpDetectRecognizeResult) => {
+      setBusy('solving');
+      setPhase({ kind: 'solving', stage: 'geometry' });
+      solveCountRef.current += 1;
+      const targetId = `cp-detect-import:${solveCountRef.current}`;
+      try {
+        const result = await runCpExactSolve(recognized.solveInput, {
+          timeoutSeconds: recognized.solve.budget?.totalSeconds,
+          run: { kind: 'detect-import', targetId },
+          onStage: (stage) => setPhase({ kind: 'solving', stage }),
+        });
+        setPhase({ kind: 'settled', outcome: result.outcome, fold: result.fold });
+        publishDetectionResult(source, recognized, foldJsonOf(result.fold) ?? recognized.foldJson);
+      } catch (caught) {
+        setError(cpDetectError(caught).message);
+        setPhase({ kind: 'errored' });
+        publishDetectionResult(source, recognized, recognized.foldJson);
+      } finally {
+        setBusy(null);
+      }
+    },
+    [source]
+  );
+
+  /**
+   * Detect: **recognize, then decide whether solving is worth it.**
+   *
+   * The two halves used to be one opaque wasm call that always solved, so a
+   * candidate with a missing junction still paid the full solve budget before
+   * the user saw anything at all. Recognition returns in inference time plus a
+   * few hundred microseconds of graph analysis, and its combinatorial findings
+   * are enough to answer the only question that matters here: is this graph
+   * worth handing to the solver, or is it worth handing to the user?
+   */
   const runDetection = useCallback(async () => {
     if (!rectified) return;
     setBusy('detecting');
     setError(null);
+    setRecognition(null);
+    setPhase(NOT_ATTEMPTED);
     // Image→CP funnel start. No image data or filename is ever sent.
     track('cp detect started');
+    let recognized: CpDetectRecognizeResult;
     try {
       const client = await getCpDetectClient();
-      const nextDetection = await client.detectRectifiedFold(rectified.image, {
+      recognized = await client.recognizeRectifiedFold(rectified.image, {
         decoderBackend: DETECT_DECODER_BACKEND,
         junctionSource: 'dense-model',
       });
-      setDetection(nextDetection);
-      publishDetectionResult(source, nextDetection);
+      setRecognition(recognized);
       track('cp detect completed', { succeeded: true });
     } catch (caught) {
       setError(cpDetectError(caught).message);
       track('cp detect completed', { succeeded: false });
-    } finally {
       setBusy(null);
+      return;
     }
-  }, [rectified, source]);
+    const topology = candidateTopology(recognized);
+    if (topology.blocked || topology.repairSites > 0) {
+      publishDetectionResult(source, recognized, recognized.foldJson);
+      setBusy(null);
+      return;
+    }
+    await solveRecognized(recognized);
+  }, [rectified, solveRecognized, source]);
 
-  const topology = useMemo(() => candidateTopology(detection), [detection]);
+  const topology = useMemo(
+    () => (recognition ? candidateTopology(recognition) : null),
+    [recognition]
+  );
+
+  /**
+   * The timed-out solve's partial coordinates, as a FOLD ready to add.
+   *
+   * Computed rather than promised: the mapping needs `cp_detector
+   * .vertex_original_ids`, so this returns null when the export carries none and
+   * the button is then not offered at all. An offer that cannot be honoured is
+   * worse than no offer.
+   */
+  const partialFoldJson = useMemo(
+    () =>
+      recognition && phase.kind === 'settled' && phase.outcome.kind === 'timeout'
+        ? foldJsonWithPartialSolve(recognition.foldJson, phase.outcome.partialMovedVertices)
+        : null,
+    [phase, recognition]
+  );
+
+  const importModes = useMemo(
+    () => availableImportModes(topology, phase, partialFoldJson !== null),
+    [partialFoldJson, phase, topology]
+  );
+  const primaryMode = importModes.primary;
 
   /**
    * Add the detected pattern **beside** the user's work, never over it.
@@ -322,7 +474,9 @@ export function CpDetectImportModal() {
    */
   const addDetection = useCallback(
     async (mode: ImportMode) => {
-      if (!detection || !source) return;
+      if (!recognition || !source) return;
+      const foldJson = importFoldJson(mode, recognition, phase, partialFoldJson);
+      if (!foldJson) return;
       setBusy('importing');
       setError(null);
       try {
@@ -345,7 +499,7 @@ export function CpDetectImportModal() {
         await useWorkspaceStore.getState().ensureEditCreasePattern();
         const beforeAnnotations = useWorkspaceStore.getState().oristudioCpAnnotations;
         const merged = await useWorkspaceStore.getState().importAddOristudioCpText({
-          text: detection.foldJson,
+          text: foldJson,
           format: 'fold',
           filename: detectedFoldFilename(source.name),
           label,
@@ -362,7 +516,7 @@ export function CpDetectImportModal() {
           const annotations = repairAnnotations(
             paper,
             underlay,
-            topology?.solveInput ?? null,
+            recognition.solveInput,
             t('dialogs:cpDetectImport.regionLabel', 'Detected crease pattern'),
             bottomAnnotationZ(beforeAnnotations)
           );
@@ -398,7 +552,7 @@ export function CpDetectImportModal() {
         if (paper) cpCamera()?.frameModelBounds(paper);
         track('cp detect imported', {
           mode,
-          outcome: topology?.outcome ?? 'unknown',
+          outcome: importOutcome(topology, phase),
           repair_sites: repairSiteBucket(topology),
         });
         setOpen(false);
@@ -411,7 +565,7 @@ export function CpDetectImportModal() {
         setBusy(null);
       }
     },
-    [detection, rectified, resetSession, source, t, topology]
+    [partialFoldJson, phase, recognition, rectified, resetSession, source, t, topology]
   );
 
   const onDrop = useCallback(
@@ -425,19 +579,28 @@ export function CpDetectImportModal() {
     [busy, chooseDroppedImage, modelManifest]
   );
 
+  const report = recognition?.detectorReport ?? null;
   const rectificationWarnings = rectified?.report.warnings ?? [];
-  const detectorWarnings = detection?.detectorReport.warnings ?? [];
-  const compilerMetadata = useMemo(() => compilerReportMetadata(t, detection), [detection, t]);
-  const compilerOverlay = useMemo(() => compilerPreviewOverlay(detection), [detection]);
-  const primaryMode = primaryImportMode(topology);
-  const foldPreview = useMemo(
-    () => (detection ? parseFoldPreview(detection.foldJson) : null),
-    [detection]
-  );
+  const detectorWarnings = report?.warnings ?? [];
+  const compilerMetadata = useMemo(() => compilerReportMetadata(t, report), [report, t]);
+  const compilerOverlay = useMemo(() => compilerPreviewOverlay(report), [report]);
+  /**
+   * What the preview draws: the solved pattern once there is one, and the
+   * recognized candidate at every other moment — including *while the solve
+   * runs*, which is the point. The user watches the creases that were found
+   * rather than a spinner over an opaque call, and sees them settle when the
+   * solve lands.
+   */
+  const foldPreview = useMemo(() => {
+    if (!recognition) return null;
+    const solved = phase.kind === 'settled' ? phase.fold : null;
+    return solved ? foldPreviewOf(solved) : parseFoldPreview(recognition.foldJson);
+  }, [phase, recognition]);
   const stage: ModalStage =
-    busy === 'detecting' ? 'detecting' : detection ? 'review' : source ? 'crop' : 'upload';
+    busy === 'detecting' ? 'detecting' : recognition ? 'review' : source ? 'crop' : 'upload';
   const canChooseImage = modelManifest !== null && busy === null;
-  const status = busy ? busyLabel(t, busy) : null;
+  // The solve has its own row, which names the stage rather than saying "busy".
+  const status = busy && busy !== 'solving' ? busyLabel(t, busy) : null;
   const togglePreviewOverlay = useCallback((key: PreviewOverlayKey) => {
     setPreviewOverlays((previous) => ({ ...previous, [key]: !previous[key] }));
   }, []);
@@ -553,29 +716,52 @@ export function CpDetectImportModal() {
                 <Play size={14} />
                 {t('dialogs:cpDetectImport.detect', 'Detect')}
               </Button>
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => void addDetection(primaryMode)}
-                disabled={!detection || busy !== null}
-              >
-                {primaryMode === 'reviewAndFix' ? <Wrench size={14} /> : <Upload size={14} />}
-                {importModeLabel(t, primaryMode)}
-              </Button>
-              {/* Always available, whatever the topology check says. */}
-              {primaryMode !== 'addAsIs' && (
+              {/* No terminal button while the solve runs: there is no decision to
+                  offer yet, and a button that adds an about-to-change pattern is
+                  the same trap as a "Solve & Add" that does not solve. */}
+              {primaryMode && (
                 <Button
                   size="sm"
-                  onClick={() => void addDetection('addAsIs')}
-                  disabled={!detection || busy !== null}
+                  variant="primary"
+                  onClick={() => void addDetection(primaryMode)}
+                  disabled={busy !== null}
                 >
-                  {importModeLabel(t, 'addAsIs')}
+                  {primaryMode === 'reviewAndFix' ? <Wrench size={14} /> : <Upload size={14} />}
+                  {importModeLabel(t, primaryMode)}
                 </Button>
               )}
+              {importModes.secondary.map((mode) => (
+                <Button
+                  key={mode}
+                  size="sm"
+                  onClick={() => void addDetection(mode)}
+                  disabled={busy !== null}
+                >
+                  {importModeLabel(t, mode)}
+                </Button>
+              ))}
             </div>
 
-            <div className="cp-detect-modal__verdict" data-outcome={topology?.outcome ?? 'unknown'}>
-              {verdictMessage(t, topology)}
+            <div className="cp-detect-modal__verdict" data-outcome={verdictTone(topology, phase)}>
+              {verdictMessage(t, {
+                topology,
+                phase,
+                partialVertices: partialVertexCount(phase, partialFoldJson),
+              })}
+              {/* The solver's two stages, named. They behave nothing alike —
+                  geometry fails fast and is a fraction of the wall, refinement is
+                  79-96% of it — so one spinner for both would be a lie about how
+                  long is left. Inside the verdict rather than beside it, so the
+                  surface's row template is unchanged. */}
+              {phase.kind === 'solving' && (
+                <div className="cp-detect-modal__solving" role="status">
+                  <Loader2 size={14} className="cp-detect-modal__spinner" />
+                  <span>{cpExactSolveStageLabel(t, phase.stage)}</span>
+                  <span className="cp-detect-modal__solving-hint">
+                    {cpExactSolveStageHint(t, phase.stage)}
+                  </span>
+                </div>
+              )}
             </div>
 
             <StatusRows status={status} error={error} />
@@ -607,37 +793,35 @@ export function CpDetectImportModal() {
         )}
 
         {stage !== 'upload' &&
-          (modelManifest || rectificationWarnings.length > 0 || detectorWarnings.length > 0 || detection) && (
+          (modelManifest || rectificationWarnings.length > 0 || detectorWarnings.length > 0 || report) && (
             <div className="cp-detect-modal__report">
               {modelManifest && <span>{modelManifest.id}</span>}
-              {detection && (
+              {report && (
                 <span>
                   {t('dialogs:cpDetectImport.report.counts', '{{vertices}} vertices, {{edges}} edges', {
-                    vertices: detection.detectorReport.vertex_count,
-                    edges: detection.detectorReport.edge_count,
+                    vertices: report.vertex_count,
+                    edges: report.edge_count,
                   })}
                 </span>
               )}
-              {detection && (
-                <span>
-                  {detection.detectorReport.quality_report?.candidate_strategy ??
-                    detection.detectorReport.decoder_backend}
-                </span>
+              {report && (
+                <span>{report.quality_report?.candidate_strategy ?? report.decoder_backend}</span>
               )}
               {compilerMetadata.map((item) => (
                 <span key={item}>{item}</span>
               ))}
-              {/* Why the pipeline's own solve did not land. A timeout is told
-                  apart on `movement_report.timed_out`, never by matching the
-                  reason string — that one embeds a formatted number. The
-                  rejection token itself is shown verbatim, like the
-                  classifications beside it. */}
-              {topology?.timedOut && (
+              {/* Why the solve did not land, in the solver's own vocabulary. A
+                  timeout is told apart by `classifyCpExactSolve` reading the
+                  `movement_report.timed_out` **boolean** — never by matching the
+                  reason string, which embeds a formatted number. A malformed
+                  input carries no `rejection_reasons` key at all and so has no
+                  token to print here; the verdict above says what happened. */}
+              {phase.kind === 'settled' && phase.outcome.kind === 'timeout' && (
                 <span>{t('dialogs:cpDetectImport.report.solveTimedOut', 'solve timed out')}</span>
               )}
-              {topology && !topology.timedOut && topology.rejectionReasons[0] && (
-                <span>{topology.rejectionReasons[0]}</span>
-              )}
+              {phase.kind === 'settled' &&
+                phase.outcome.kind === 'rejected' &&
+                phase.outcome.reasons[0] && <span>{phase.outcome.reasons[0]}</span>}
               {[...rectificationWarnings, ...detectorWarnings].map((warning, index) => (
                 <span key={`${warning.code}-${index}`}>{warning.code}</span>
               ))}
@@ -911,7 +1095,13 @@ function quadPolygon(quad: CpDetectQuad): string {
     .join(' ');
 }
 
-function busyLabel(t: TFunction, busy: Exclude<BusyState, null>): string {
+/**
+ * `'solving'` is excluded rather than given a case: the solve names the stage it
+ * is in (`cpExactSolveStageLabel`), and a generic "Solving" beside that would
+ * either duplicate it or contradict it. The exclusion is what makes the omission
+ * a type error if this is ever called for that state.
+ */
+function busyLabel(t: TFunction, busy: Exclude<BusyState, null | 'solving'>): string {
   switch (busy) {
     case 'loading_model':
       return t('dialogs:cpDetectImport.busy.loadingModel', 'Checking detector model');
@@ -930,13 +1120,28 @@ function detectedFoldFilename(name: string): string {
   return `${name.replace(/\.[^.]+$/, '') || 'detected-cp'}.fold`;
 }
 
-function publishDetectionResult(source: SourceImage | null, detection: CpDetectFoldResult): void {
+/**
+ * Announce the finished pattern on `window`, once per detection.
+ *
+ * Fired at the **terminal** state rather than the moment recognition lands, so
+ * `foldJson` is what the user is being offered: the solved document where a
+ * solve landed, and the candidate everywhere else. `scripts/cp-detect/
+ * benchmark-browser-vs-oracle.mjs` drives this modal and reads exactly these two
+ * fields off `detail.detection`, and it compares the fold against an oracle — so
+ * publishing the pre-solve candidate the instant it exists would have quietly
+ * made every browser-vs-oracle number a candidate-coordinate number.
+ */
+function publishDetectionResult(
+  source: SourceImage | null,
+  recognition: CpDetectRecognizeResult,
+  foldJson: string
+): void {
   window.dispatchEvent(
     new CustomEvent('ori-studio:cp-detect-result', {
       detail: {
         sourceName: source?.name ?? null,
         sourcePath: source?.path ?? null,
-        detection,
+        detection: { ...recognition, foldJson },
       },
     })
   );
@@ -944,30 +1149,43 @@ function publishDetectionResult(source: SourceImage | null, detection: CpDetectF
 
 function parseFoldPreview(foldJson: string): FoldPreviewData | null {
   try {
-    const fold = JSON.parse(foldJson) as {
-      vertices_coords?: [number, number][];
-      edges_vertices?: [number, number][];
-      edges_assignment?: string[];
-      cp_detector?: {
-        edge_ids?: unknown[];
-        edge_source?: unknown[];
-        edge_provenance?: unknown[];
-        assignment_confidence?: unknown[];
-      };
-    };
-    if (!Array.isArray(fold.vertices_coords) || !Array.isArray(fold.edges_vertices)) return null;
-    return {
-      vertices: fold.vertices_coords,
-      edges: fold.edges_vertices,
-      assignments: fold.edges_assignment ?? [],
-      edgeIds: numericArray(fold.cp_detector?.edge_ids),
-      edgeSources: stringArray(fold.cp_detector?.edge_source),
-      edgeProvenance: stringMatrix(fold.cp_detector?.edge_provenance),
-      assignmentConfidence: numericArray(fold.cp_detector?.assignment_confidence),
-    };
+    return foldPreviewOf(JSON.parse(foldJson));
   } catch {
     return null;
   }
+}
+
+/**
+ * The preview's view of a FOLD document, from an already-parsed one.
+ *
+ * Split from {@link parseFoldPreview} because the solved document arrives from
+ * the solver as an object, and re-serializing it only to parse it straight back
+ * would be a round trip through a quarter of a megabyte of JSON for nothing.
+ */
+function foldPreviewOf(value: unknown): FoldPreviewData | null {
+  const fold = value as {
+    vertices_coords?: [number, number][];
+    edges_vertices?: [number, number][];
+    edges_assignment?: string[];
+    cp_detector?: {
+      edge_ids?: unknown[];
+      edge_source?: unknown[];
+      edge_provenance?: unknown[];
+      assignment_confidence?: unknown[];
+    };
+  } | null;
+  if (!fold || !Array.isArray(fold.vertices_coords) || !Array.isArray(fold.edges_vertices)) {
+    return null;
+  }
+  return {
+    vertices: fold.vertices_coords,
+    edges: fold.edges_vertices,
+    assignments: fold.edges_assignment ?? [],
+    edgeIds: numericArray(fold.cp_detector?.edge_ids),
+    edgeSources: stringArray(fold.cp_detector?.edge_source),
+    edgeProvenance: stringMatrix(fold.cp_detector?.edge_provenance),
+    assignmentConfidence: numericArray(fold.cp_detector?.assignment_confidence),
+  };
 }
 
 function assignmentClass(assignment: string | undefined): string {
@@ -1004,12 +1222,10 @@ function stringMatrix(value: unknown[] | undefined): string[][] {
   return value.map((item) => stringArray(Array.isArray(item) ? item : undefined));
 }
 
-function compilerPreviewOverlay(detection: CpDetectFoldResult | null): CompilerPreviewOverlay {
+function compilerPreviewOverlay(report: CpDetectDecodeReport | null): CompilerPreviewOverlay {
   const assignmentEdgeIds = new Set<number>();
-  const report = detection?.detectorReport.quality_report;
-  if (!report || typeof report !== 'object') return { assignmentEdgeIds };
-  const compilerReport = (report as { compiler_report?: unknown }).compiler_report;
-  if (!compilerReport || typeof compilerReport !== 'object') return { assignmentEdgeIds };
+  const compilerReport = cpDetectCompilerReport(report);
+  if (!compilerReport) return { assignmentEdgeIds };
   if (!compilerOutputWasEmitted(compilerReport)) return { assignmentEdgeIds };
   const decisions = (compilerReport as { assignments?: { decisions?: unknown[] } }).assignments?.decisions ?? [];
   for (const decision of decisions) {
@@ -1023,11 +1239,9 @@ function compilerPreviewOverlay(detection: CpDetectFoldResult | null): CompilerP
   return { assignmentEdgeIds };
 }
 
-function compilerReportMetadata(t: TFunction, detection: CpDetectFoldResult | null): string[] {
-  const report = detection?.detectorReport.quality_report;
-  if (!report || typeof report !== 'object') return [];
-  const compilerReport = (report as { compiler_report?: unknown }).compiler_report;
-  if (!compilerReport || typeof compilerReport !== 'object') return [];
+function compilerReportMetadata(t: TFunction, report: CpDetectDecodeReport | null): string[] {
+  const compilerReport = cpDetectCompilerReport(report);
+  if (!compilerReport) return [];
   const emitted = compilerOutputWasEmitted(compilerReport);
   const data = compilerReport as {
     output?: { selected?: string };
@@ -1072,119 +1286,221 @@ function compilerReportMetadata(t: TFunction, detection: CpDetectFoldResult | nu
 }
 
 /**
- * The candidate's pre-solve topology, read out of the decode report.
+ * The candidate's topology, from the recognize report's own analysis.
  *
- * The source is `compiler_report.exact_solve.theorem_residual_report.before`,
- * which is `analyze_graph` run on the **candidate** coordinates — the same pass
- * `oristudio_cp_compiler::analyze_candidate_topology` wraps, so this is the
- * compiler's own finding rather than a second implementation of it. It is
- * already in every decode report, which is why no new wasm export is needed to
- * decide what the primary button offers.
+ * `topology_diagnostics` is `oristudio_cp_compiler::analyze_candidate_topology`
+ * run on the `ExactSolveInput` — the compiler's finding, not a second
+ * implementation of it — and it is the whole reason recognition can decide
+ * whether solving is worth it: it costs a few hundred microseconds where the
+ * solve it replaces costs up to 25 seconds.
  *
- * Null when the report is not the exact-solve backend's (an older or fallback
- * decode), in which case the modal offers "Add as-is" only.
+ * A report carrying no diagnostics reads as `{repairSites: 0}` and so goes to
+ * the solver. That is the honest default: no evidence of a broken graph is not
+ * evidence of one, and refusing to solve on a missing field would turn a
+ * serialization change into "this pattern needs repair".
  */
-function candidateTopology(detection: CpDetectFoldResult | null): CandidateTopology | null {
-  const compilerReport = detectionCompilerReport(detection);
-  if (!compilerReport) return null;
-  const exactSolve = asRecord(compilerReport.exact_solve);
-  if (!exactSolve) return null;
-  const theorem = asRecord(exactSolve.theorem_residual_report);
-  const movement = asRecord(exactSolve.movement_report);
-  const solveInput = compilerReport.exact_solve_input ?? null;
-  const rejectionReasons = stringArray(asArray(theorem?.rejection_reasons));
-  const timedOut = movement?.timed_out === true;
-  const before = asRecord(theorem?.before);
-
-  // A malformed input returns `{status, blockers}` with no `before` and no
-  // `rejection_reasons` at all, so an empty reason list is not evidence of
-  // success — `accepted` is.
-  if (!before) {
-    return {
-      outcome: 'blocked',
-      repairSites: 0,
-      blocked: true,
-      rejectionReasons,
-      timedOut,
-      solveInput,
-    };
+function candidateTopology(recognition: CpDetectRecognizeResult): CandidateTopology {
+  const diagnostics = recognition.topologyDiagnostics;
+  // No seam to hand the solver is the same dead end as an unreadable graph: the
+  // region's Solve affordance keys on the attachment's presence, so without one
+  // there is nothing to repair *against* either.
+  if (recognition.solveInput === null || recognition.solveInput === undefined) {
+    return { repairSites: 0, blocked: true };
   }
+  if (!diagnostics) return { repairSites: 0, blocked: false };
+  if (diagnostics.blockers.length > 0) return { repairSites: 0, blocked: true };
 
-  if (theorem?.accepted === true) {
-    return {
-      outcome: 'exact',
-      repairSites: 0,
-      blocked: false,
-      rejectionReasons: [],
-      timedOut: false,
-      solveInput,
-    };
-  }
-
+  const combinatorial = diagnostics.combinatorial;
   const flagged = new Set<number>([
-    ...numericArray(asArray(before.odd_degree_vertices)),
-    ...numericArray(asArray(before.maekawa_failures)),
-    ...numericArray(asArray(before.boundary_failures)),
+    ...combinatorial.odd_degree_vertices,
+    ...combinatorial.maekawa_failures,
+    ...combinatorial.boundary_failures,
   ]);
-  const repairSites =
-    flagged.size +
-    (asArray(before.degenerate_edges)?.length ?? 0) +
-    (asArray(before.unmodeled_crossings)?.length ?? 0);
-
   return {
-    // No threshold: any number of sites is repairable. See `CandidateOutcome`.
-    outcome: 'repairable',
-    repairSites,
+    repairSites:
+      flagged.size + combinatorial.degenerate_edges.length + combinatorial.unmodeled_crossings.length,
     blocked: false,
-    rejectionReasons,
-    timedOut,
-    solveInput,
   };
 }
 
-/** The mode the primary button runs. `null` topology means "Add as-is" only. */
-function primaryImportMode(topology: CandidateTopology | null): ImportMode {
-  if (!topology) return 'addAsIs';
-  switch (topology.outcome) {
-    case 'exact':
-      return 'solveAndAdd';
-    case 'repairable':
-      return 'reviewAndFix';
-    case 'blocked':
-      return 'addAsIs';
+/**
+ * Which buttons the terminal state earns, and which is primary.
+ *
+ * The rule the old screen broke: **a button names what it does**. So `add` is
+ * offered only where a solve this modal ran was accepted and produced a
+ * document, `addAsIs` only where the pattern is genuinely unsolved, and
+ * `reviewAndFix` wherever there is anything to repair — at **any** site count,
+ * with no threshold. While the solve is running there is no decision to offer,
+ * so there is no button at all.
+ */
+function availableImportModes(
+  topology: CandidateTopology | null,
+  phase: SolvePhase,
+  hasPartial: boolean
+): { primary: ImportMode | null; secondary: ImportMode[] } {
+  if (!topology || phase.kind === 'solving') return { primary: null, secondary: [] };
+  if (phase.kind === 'settled' && phase.outcome.kind === 'solved' && phase.fold) {
+    return { primary: 'add', secondary: [] };
   }
+  if (topology.blocked) return { primary: 'addAsIs', secondary: [] };
+  return {
+    primary: 'reviewAndFix',
+    secondary: hasPartial ? ['addPartial', 'addAsIs'] : ['addAsIs'],
+  };
 }
 
 function importModeLabel(t: TFunction, mode: ImportMode): string {
   switch (mode) {
-    case 'solveAndAdd':
-      return t('dialogs:cpDetectImport.solveAndAdd', 'Solve & Add');
+    case 'add':
+      return t('dialogs:cpDetectImport.add', 'Add');
     case 'reviewAndFix':
       return t('dialogs:cpDetectImport.reviewAndFix', 'Review & Fix');
+    case 'addPartial':
+      return t('dialogs:cpDetectImport.addPartial', 'Add partial result');
     case 'addAsIs':
       return t('dialogs:cpDetectImport.addAsIs', 'Add as-is');
   }
 }
 
+/** The FOLD a mode adds, or null when the state cannot produce one. */
+function importFoldJson(
+  mode: ImportMode,
+  recognition: CpDetectRecognizeResult,
+  phase: SolvePhase,
+  partialFoldJson: string | null
+): string | null {
+  switch (mode) {
+    case 'add':
+      return phase.kind === 'settled' ? foldJsonOf(phase.fold) : null;
+    case 'addPartial':
+      return partialFoldJson;
+    case 'reviewAndFix':
+    case 'addAsIs':
+      return recognition.foldJson;
+  }
+}
+
+function foldJsonOf(fold: Record<string, unknown> | null): string | null {
+  return fold ? JSON.stringify(fold) : null;
+}
+
 /**
- * What the result screen says about the candidate, in one sentence.
+ * The candidate FOLD with a timed-out solve's partial coordinates written in.
  *
- * Every branch names what the user gets rather than what the compiler found.
- * The site count is **information, not a verdict**: it tells you how much work
- * you are taking on, and never withholds the option.
+ * On a timeout the solver returns the coordinates it was *given* and reports the
+ * work it did in `attempted_moved_vertices` — a median of ~448 entries — so this
+ * is the only place that partial solution exists. Every one of those is a real
+ * coordinate from a real run; what did not happen is the acceptance gate, and
+ * the button that adds this says "partial" for exactly that reason.
+ *
+ * The mapping is exact rather than positional. `cp_detector.vertex_original_ids`
+ * is written by the same exporter that renumbered the vertices
+ * (`fold_export.rs`), and the ids in the movement report index
+ * `ExactSolveInput.vertices` — the same space. Null when the export carries no
+ * such list or the arrays disagree, so a shape change drops the offer instead of
+ * scattering coordinates onto the wrong vertices.
  */
-function verdictMessage(t: TFunction, topology: CandidateTopology | null): string {
-  if (!topology) {
+function foldJsonWithPartialSolve(
+  foldJson: string,
+  partial: readonly CpExactSolveMovedVertex[]
+): string | null {
+  if (partial.length === 0) return null;
+  let fold: { vertices_coords?: unknown; cp_detector?: { vertex_original_ids?: unknown } } | null;
+  try {
+    fold = JSON.parse(foldJson) as typeof fold;
+  } catch {
+    return null;
+  }
+  const coords = fold?.vertices_coords;
+  const originalIds = fold?.cp_detector?.vertex_original_ids;
+  if (!Array.isArray(coords) || !Array.isArray(originalIds)) return null;
+  if (coords.length !== originalIds.length) return null;
+
+  const indexOfVertex = new Map<number, number>();
+  originalIds.forEach((id, index) => {
+    if (typeof id === 'number') indexOfVertex.set(id, index);
+  });
+  const moved = coords.map((point) => (Array.isArray(point) ? [...point] : point));
+  let applied = 0;
+  for (const vertex of partial) {
+    const index = indexOfVertex.get(vertex.vertex_id);
+    if (index === undefined) continue;
+    moved[index] = [vertex.after.x, vertex.after.y];
+    applied += 1;
+  }
+  if (applied === 0) return null;
+  return JSON.stringify({ ...fold, vertices_coords: moved });
+}
+
+/** How many of the partial's vertices the offer actually carries, or null. */
+function partialVertexCount(phase: SolvePhase, partialFoldJson: string | null): number | null {
+  if (!partialFoldJson || phase.kind !== 'settled' || phase.outcome.kind !== 'timeout') return null;
+  return phase.outcome.partialMovedVertices.length;
+}
+
+/** Tone for the verdict's left border. Presentation only. */
+function verdictTone(topology: CandidateTopology | null, phase: SolvePhase): string {
+  if (!topology) return 'unknown';
+  if (phase.kind === 'solving') return 'solving';
+  if (phase.kind === 'settled' && phase.outcome.kind === 'solved') return 'exact';
+  if (phase.kind === 'settled' || phase.kind === 'errored') return 'failed';
+  return topology.blocked ? 'blocked' : 'repairable';
+}
+
+/**
+ * What the review screen says about the candidate, in one short paragraph.
+ *
+ * Every branch names what the user gets rather than what the compiler found, and
+ * the site count is **information, not a verdict** — it says how much work you
+ * are taking on and never withholds the option.
+ *
+ * The failure sentences are not written here. `cpExactSolveReasonLabel` is the
+ * one table that turns the solver's nine `rejection_reasons` tokens plus its two
+ * unspelt endings into sentences, and it is shared with the region chip on
+ * purpose: two surfaces explaining the same refusal in two different ways is how
+ * they drift.
+ */
+function verdictMessage(
+  t: TFunction,
+  {
+    topology,
+    phase,
+    partialVertices,
+  }: { topology: CandidateTopology | null; phase: SolvePhase; partialVertices: number | null }
+): string {
+  if (!topology) return '';
+  if (phase.kind === 'solving') {
     return t(
-      'dialogs:cpDetectImport.verdict.unknown',
-      'This detector run reports no topology check, so the pattern can only be added as-is.'
+      'dialogs:cpDetectImport.verdict.solving',
+      'Nothing is flagged in the topology, so the solve is running. Below is what was recognized — the creases move into place when it lands.'
     );
   }
-  if (topology.outcome === 'exact') {
+  if (phase.kind === 'settled' && phase.outcome.kind === 'solved') {
     return t(
       'dialogs:cpDetectImport.verdict.exact',
       'Exactly solved. Adding it beside your work leaves the rest of the document untouched.'
     );
+  }
+  if (phase.kind === 'settled' || phase.kind === 'errored') {
+    const reason = phase.kind === 'settled' ? primaryCpExactSolveReason(phase.outcome) : null;
+    return [
+      reason ? cpExactSolveReasonLabel(t, reason) : null,
+      partialVertices === null
+        ? null
+        : t('dialogs:cpDetectImport.verdict.timeoutPartial', {
+            count: partialVertices,
+            defaultValue_one:
+              'It had moved 1 vertex into place before the clock ran out, and you can add that partial result instead of the raw candidate.',
+            defaultValue_other:
+              'It had moved {{count}} vertices into place before the clock ran out, and you can add that partial result instead of the raw candidate.',
+          }),
+      t(
+        'dialogs:cpDetectImport.verdict.afterFailure',
+        'Review & Fix adds the candidate with the source image behind it and keeps the solver data, so you can repair it and solve again.'
+      ),
+    ]
+      .filter((part): part is string => part !== null)
+      .join(' ');
   }
   if (topology.blocked) {
     return t(
@@ -1192,22 +1508,12 @@ function verdictMessage(t: TFunction, topology: CandidateTopology | null): strin
       'The solver could not read this candidate graph, so there is nothing to repair by hand. You can still add it as-is.'
     );
   }
-  if (topology.repairSites === 0) {
-    // Combinatorially clean and still rejected: the graph is a valid crease
-    // pattern that is not *this* crease pattern. There is no marker worklist to
-    // work, so the source image behind the creases is the only tool — which is
-    // exactly what Review & Fix puts there.
-    return t(
-      'dialogs:cpDetectImport.verdict.unflagged',
-      'Not solved, but nothing is flagged for repair — the solver rejected it for another reason. Review & Fix adds the candidate with the source image behind it so you can compare.'
-    );
-  }
   return t('dialogs:cpDetectImport.verdict.repairable', {
     count: topology.repairSites,
     defaultValue_one:
-      'Not solved — 1 place to repair. Review & Fix adds the candidate with the source image behind it, so you can fix it and solve.',
+      'Recognized, with 1 place to repair — so the solve was not run: it would have spent its whole budget on geometry you are about to change. Review & Fix adds the candidate with the source image behind it, so you can fix it and solve.',
     defaultValue_other:
-      'Not solved — {{count}} places to repair. Review & Fix adds the candidate with the source image behind it, so you can fix them and solve. Adding it as-is instead leaves every angle approximate.',
+      'Recognized, with {{count}} places to repair — so the solve was not run: it would have spent its whole budget on geometry you are about to change. Review & Fix adds the candidate with the source image behind it, so you can fix them and solve. Adding it as-is instead leaves every angle approximate.',
   });
 }
 
@@ -1301,22 +1607,26 @@ function repairSiteBucket(topology: CandidateTopology | null): string {
   return '17+';
 }
 
-function detectionCompilerReport(
-  detection: CpDetectFoldResult | null
-): Record<string, unknown> | null {
-  const report = detection?.detectorReport.quality_report;
-  if (!report || typeof report !== 'object') return null;
-  return asRecord((report as { compiler_report?: unknown }).compiler_report);
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-function asArray(value: unknown): unknown[] | undefined {
-  return Array.isArray(value) ? value : undefined;
+/**
+ * How the pattern being added came out, as a fixed token.
+ *
+ * The four solver endings pass through under their own names, so the funnel can
+ * be read as intended-vs-landed: `recognized` is a candidate the modal chose not
+ * to solve, and it is the number that says whether staging is earning its keep.
+ */
+function importOutcome(topology: CandidateTopology | null, phase: SolvePhase): string {
+  if (!topology) return 'unknown';
+  if (topology.blocked) return 'blocked';
+  switch (phase.kind) {
+    case 'not_attempted':
+      return 'recognized';
+    case 'solving':
+      return 'solving';
+    case 'errored':
+      return 'error';
+    case 'settled':
+      return phase.outcome.kind;
+  }
 }
 
 function compilerOutputWasEmitted(compilerReport: unknown): boolean {

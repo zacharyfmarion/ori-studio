@@ -49,8 +49,10 @@
     "yes": "Sí"
   },
   "cpDetectImport": {
+    "add": "Añadir",
     "addAsIs": "Añadir tal cual",
     "addLabel": "Añadir el patrón de pliegues detectado",
+    "addPartial": "Añadir resultado parcial",
     "ariaLabel": "Detectar CP desde imagen",
     "busy": {
       "detecting": "Ejecutando el modelo",
@@ -91,17 +93,19 @@
     },
     "reviewAndFix": "Revisar y corregir",
     "runningModel": "Ejecutando el modelo",
-    "solveAndAdd": "Resolver y añadir",
     "title": "Detectar CP desde imagen",
     "updateCrop": "Actualizar recorte",
     "verdict": {
+      "afterFailure": "«Revisar y corregir» añade el candidato con la imagen de origen detrás y conserva los datos del solucionador, para que puedas repararlo y volver a resolverlo.",
       "blocked": "El solucionador no pudo leer este grafo candidato, así que no hay nada que reparar a mano. Aun así puedes añadirlo tal cual.",
       "exact": "Resuelto exactamente. Se añade junto a tu trabajo y deja intacto el resto del documento.",
-      "repairable_one": "Sin resolver: 1 lugar que reparar. «Revisar y corregir» añade el candidato con la imagen de origen detrás, para que puedas corregirlo y resolverlo.",
-      "repairable_many": "Sin resolver. {{count}} puntos que reparar: Revisar y corregir añade el candidato, la imagen de origen y una región de supresión de comprobaciones para que puedas arreglarlos.",
-      "repairable_other": "Sin resolver: {{count}} lugares que reparar. «Revisar y corregir» añade el candidato con la imagen de origen detrás, para que puedas corregirlos y resolverlo. Añadirlo tal cual deja todos los ángulos aproximados.",
-      "unflagged": "Sin resolver, pero no hay nada marcado para reparar: el solucionador lo rechazó por otro motivo. Revisar y corregir añade el candidato con la imagen de origen detrás para que puedas compararlos.",
-      "unknown": "Esta ejecución del detector no incluye comprobación de topología, así que el patrón solo puede añadirse tal cual."
+      "repairable_one": "Reconocido, con 1 lugar que reparar, así que la resolución no se ejecutó: habría gastado todo su tiempo en una geometría que estás a punto de cambiar. «Revisar y corregir» añade el candidato con la imagen de origen detrás, para que puedas corregirlo y resolverlo.",
+      "repairable_many": "Reconocido, con {{count}} lugares que reparar, así que la resolución no se ejecutó: habría gastado todo su tiempo en una geometría que estás a punto de cambiar. «Revisar y corregir» añade el candidato con la imagen de origen detrás, para que puedas corregirlos y resolverlo. Añadirlo tal cual deja todos los ángulos aproximados.",
+      "repairable_other": "Reconocido, con {{count}} lugares que reparar, así que la resolución no se ejecutó: habría gastado todo su tiempo en una geometría que estás a punto de cambiar. «Revisar y corregir» añade el candidato con la imagen de origen detrás, para que puedas corregirlos y resolverlo. Añadirlo tal cual deja todos los ángulos aproximados.",
+      "solving": "No hay nada marcado en la topología, así que la resolución está en marcha. Abajo se muestra lo reconocido: los pliegues se colocarán en su sitio cuando termine.",
+      "timeoutPartial_one": "Había colocado 1 vértice en su sitio antes de agotarse el tiempo, y puedes añadir ese resultado parcial en lugar del candidato sin resolver.",
+      "timeoutPartial_many": "Había colocado {{count}} vértices en su sitio antes de agotarse el tiempo, y puedes añadir ese resultado parcial en lugar del candidato sin resolver.",
+      "timeoutPartial_other": "Había colocado {{count}} vértices en su sitio antes de agotarse el tiempo, y puedes añadir ese resultado parcial en lugar del candidato sin resolver."
     }
   },
   "export": {
