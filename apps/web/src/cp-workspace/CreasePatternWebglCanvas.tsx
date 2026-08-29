@@ -30,6 +30,8 @@ import {
 } from './renderer/camera';
 import { registerCpCamera, type CpCameraHandle } from './renderer/cpCameraRegistry';
 import { LineHitIndex } from './picking/lineHitIndex';
+import { registerCpSurfacePress } from './picking/cpSurfacePressRegistry';
+import { surfaceClaimsPress } from './picking/surfaceClaimsPress';
 import {
   circleRingIntersectsConvexQuad,
   pointInConvexQuad,
@@ -3520,6 +3522,26 @@ export function CreasePatternWebglCanvas({
     // And it is the canvas' own in-flight gesture that a press landing anywhere
     // else on the surface has to take back.
     const detachAbort = gestures.onAbort('canvas', abortInFlightGesture);
+    /**
+     * Publish this canvas' press pipeline for the canvas-object overlay, which
+     * sits above it as a sibling and so takes presses that were meant for the
+     * creases under a reference image.
+     *
+     * `claimsPress` runs the *same* `hitTest` `onPointerDown` runs — not a
+     * reimplementation. A second notion of "on a crease" would drift from this
+     * one, and the gap would be a ring around every crease where the overlay
+     * declines and the canvas picks nothing either.
+     */
+    const detachSurfacePress = registerCpSurfacePress({
+      claimsPress: (event) =>
+        surfaceClaimsPress({
+          button: event.button,
+          metaKey: event.metaKey,
+          panToolActive: liveRef.current.panToolActive,
+          hit: hitTest(event.clientX, event.clientY),
+        }),
+      press: onPointerDown,
+    });
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('pointermove', onPointerMove);
     canvas.addEventListener('pointerup', onPointerUp);
@@ -3538,6 +3560,7 @@ export function CreasePatternWebglCanvas({
       gestures.reset();
       detachTransformSink();
       detachAbort();
+      detachSurfacePress();
       canvas.removeEventListener('pointerdown', onPointerDown);
       canvas.removeEventListener('pointermove', onPointerMove);
       canvas.removeEventListener('pointerup', onPointerUp);
