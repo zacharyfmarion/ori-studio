@@ -58,14 +58,28 @@ export interface CpCanvasCursorState {
   foldedOrbitHovered?: boolean;
   /** An orbit drag is in progress, which keeps the closed hand while it leaves the figure. */
   foldedOrbitDragging?: boolean;
+  /**
+   * The pointer is over something selectable — a crease, a point, a circle.
+   *
+   * Only ever set in plain select mode, where a click selects what is under the
+   * cursor and nothing else on screen says so. A tool owns its own cursor and
+   * its own hover preview, so this stays false while one is active.
+   */
+  creaseHovered?: boolean;
 }
 
 /**
  * The cursor to apply, or `undefined` to leave it to CSS and the active tool.
  */
-export function cpCanvasCursor(state: CpCanvasCursorState): 'grab' | 'grabbing' | undefined {
+export function cpCanvasCursor(
+  state: CpCanvasCursorState
+): 'grab' | 'grabbing' | 'pointer' | undefined {
   if (state.panDragging || state.foldedOrbitDragging) return 'grabbing';
   if (state.panToolActive || state.panModifierHeld) return 'grab';
   if (state.foldedOrbitHovered) return 'grab';
+  // Last, so every pan and orbit affordance outranks it: those describe what a
+  // press will *do*, and a crease under the cursor does not change that a
+  // Cmd-drag pans.
+  if (state.creaseHovered) return 'pointer';
   return undefined;
 }

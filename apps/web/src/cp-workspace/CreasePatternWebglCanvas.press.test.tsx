@@ -243,6 +243,38 @@ describe('the canvas press pipeline the overlay hands presses back to', () => {
     expect(cpSurfacePress()?.claimsPress(pressAt(clientOf(100, 180)))).toBe(false);
   });
 
+  /**
+   * The cursor half of the same question. Wiring-level rather than a unit test
+   * of `cpCanvasCursor`, because what breaks silently is the chain from the
+   * pointer handler through the probe to the rendered style — not the pure
+   * function, which has its own tests.
+   */
+  it('points at a crease under the cursor, and only at a crease', () => {
+    vi.useFakeTimers();
+    try {
+      mount();
+      const canvas = container!.querySelector('canvas')!;
+      const hover = (point: { clientX: number; clientY: number }) => {
+        act(() => {
+          canvas.dispatchEvent(
+            new PointerEvent('pointermove', { pointerId: 1, pointerType: 'mouse', ...point })
+          );
+          // The probe coalesces onto an animation frame, so nothing has been
+          // asked until one runs.
+          vi.advanceTimersByTime(32);
+        });
+      };
+
+      hover(clientOf(100, 100));
+      expect(canvas.style.cursor).toBe('pointer');
+
+      hover(clientOf(100, 180));
+      expect(canvas.style.cursor).toBe('');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('uses the canvas own hit radius, not a second one of its own', () => {
     // A few pixels off the crease still counts as on it: `CP_LINE_HIT_MIN_CSS`
     // floors the line radius at 8 CSS px so a crease stays clickable. If
