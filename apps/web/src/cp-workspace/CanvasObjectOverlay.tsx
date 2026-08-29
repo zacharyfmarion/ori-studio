@@ -257,9 +257,51 @@ export function CanvasObjectOverlay({
   // State rather than a ref: the wheel listener below has to re-attach when this
   // element arrives, which a ref would not tell anyone about.
   const [overlay, setOverlay] = useState<SVGSVGElement | null>(null);
+  // The canvas this overlay is mounted over. Resolved as a sibling rather than
+  // through `resolveCpViewportCanvas`, which the portaled toolbars need: this
+  // overlay is mounted next to its own canvas and can name it exactly.
+  const siblingCanvas = useCallback(
+    () => overlay?.parentElement?.querySelector('canvas') ?? null,
+    [overlay]
+  );
   // Crop mode (croppable objects only): handles adjust the crop rect.
   const [cropMode, setCropMode] = useState(false);
   useEffect(() => setCropMode(false), [selectedId]);
+
+  /**
+   * The body currently showing the *surface's* cursor instead of its own move
+   * cursor, because the pointer is over a crease drawn on top of it.
+   *
+   * State rather than an imperative `style.cursor` write, even though this
+   * updates from a pointer handler: React re-applies the polygon's inline style
+   * on every camera frame, so a direct write would be silently reverted the next
+   * time the view moved. It only changes when the answer flips — crossing onto
+   * or off a crease — so the extra renders are a handful per second at most,
+   * against an overlay that already re-renders per camera frame.
+   */
+  const [yieldedCursor, setYieldedCursor] = useState<{ id: string; cursor: string } | null>(null);
+  /**
+   * The pending cursor probe, coalesced to at most one per animation frame.
+   *
+   * Bounding it matters because the probe is a hit test, and a high-rate pointer
+   * reports far more often than the screen redraws. One per frame costs tens of
+   * microseconds at a working zoom and stays under a millisecond in the worst
+   * case measured (50k creases at 0.1× zoom) — see `surfaceClaimsPress`.
+   */
+  const cursorProbeRef = useRef<{
+    frame: number;
+    id: string;
+    clientX: number;
+    clientY: number;
+    metaKey: boolean;
+  } | null>(null);
+  useEffect(
+    () => () => {
+      if (cursorProbeRef.current) cancelAnimationFrame(cursorProbeRef.current.frame);
+      cursorProbeRef.current = null;
+    },
+    []
+  );
 
   // Escape steps back one level: exit crop mode if cropping, else deselect.
   // Deselect via empty-canvas click is handled by the canvas background path
@@ -386,6 +428,54 @@ export function CanvasObjectOverlay({
     },
     [interactive, pointerToObject, onGestureStart]
   );
+
+  /**
+   * Keep the body's cursor honest while hovering an object the creases are drawn
+   * on top of: `move` only where a press would actually move it, and whatever
+   * the canvas is showing where the press would go to the canvas instead.
+   *
+   * The canvas' own cursor is mirrored rather than guessed. It is the layer that
+   * would take the press, it already resolves this correctly (`grab` while a pan
+   * modifier is held, nothing in plain select mode), and reading its inline
+   * style is a property read, not a layout one.
+   */
+  const probeBodyCursor = useCallback(
+    (event: ReactPointerEvent<SVGElement>, object: TransformableCanvasObject) => {
+      if (!object.paintedBehindCreases || dragRef.current) return;
+      const sample = {
+        id: object.id,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        metaKey: event.metaKey,
+      };
+      const pending = cursorProbeRef.current;
+      // A probe is already queued for this frame; it should answer for wherever
+      // the pointer ended up, not where it was when the frame was booked.
+      if (pending) {
+        Object.assign(pending, sample);
+        return;
+      }
+      const frame = requestAnimationFrame(() => {
+        const probe = cursorProbeRef.current;
+        cursorProbeRef.current = null;
+        if (!probe) return;
+        const claims =
+          cpSurfacePress()?.claimsPress({ button: 0, ...probe }) ?? false;
+        setYieldedCursor(
+          claims ? { id: probe.id, cursor: siblingCanvas()?.style.cursor || 'default' } : null
+        );
+      });
+      cursorProbeRef.current = { frame, ...sample };
+    },
+    [siblingCanvas]
+  );
+
+  /** Drop the yielded cursor when the pointer leaves, so re-entry starts clean. */
+  const handlePointerLeave = useCallback(() => {
+    if (cursorProbeRef.current) cancelAnimationFrame(cursorProbeRef.current.frame);
+    cursorProbeRef.current = null;
+    setYieldedCursor(null);
+  }, []);
 
   const handlePointerMove = useCallback(
     (event: ReactPointerEvent<SVGElement>, object: TransformableCanvasObject) => {
@@ -521,13 +611,8 @@ export function CanvasObjectOverlay({
 
   // The interactive polygons/handles capture pointer events, which would
   // otherwise swallow the wheel and stop the canvas zooming while the cursor is
-  // over an object. Resolved as a sibling rather than through
-  // `resolveCpViewportCanvas`, which the portaled toolbars need: this overlay is
-  // mounted next to its own canvas and can name it exactly.
-  useWheelPassthrough(
-    overlay,
-    useCallback(() => overlay?.parentElement?.querySelector('canvas'), [overlay])
-  );
+  // over an object.
+  useWheelPassthrough(overlay, siblingCanvas);
 
   if (!views) return null;
 
@@ -558,6 +643,7 @@ export function CanvasObjectOverlay({
         const isSelected = object.id === selectedId;
         const cropping = isSelected && cropMode && (canCrop?.(object.id) ?? false);
         const bodyInert = inertBodyIds?.has(object.id) ?? false;
+        const yieldsCursor = yieldedCursor?.id === object.id;
         return (
           <polygon
             key={object.id}
@@ -578,11 +664,17 @@ export function CanvasObjectOverlay({
             strokeDasharray={cropping ? '4 3' : undefined}
             style={{
               pointerEvents: interactive && !object.locked && !bodyInert ? 'auto' : 'none',
-              cursor: interactive && !bodyInert ? 'move' : 'default',
+              // `move` is a promise that a drag here moves this object, so it has
+              // to come off wherever the press would go to the creases instead.
+              cursor: !interactive || bodyInert ? 'default' : yieldsCursor ? yieldedCursor.cursor : 'move',
               vectorEffect: 'non-scaling-stroke',
             }}
             onPointerDown={(event) => handleBodyDown(event, object)}
-            onPointerMove={(event) => handlePointerMove(event, object)}
+            onPointerMove={(event) => {
+              probeBodyCursor(event, object);
+              handlePointerMove(event, object);
+            }}
+            onPointerLeave={handlePointerLeave}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerCancel}
             onContextMenu={(event) => {

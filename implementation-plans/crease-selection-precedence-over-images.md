@@ -212,30 +212,34 @@ existing cost now paid in the case that currently short-circuits. A claimed pres
 runs two queries rather than one (`claimsPress`, then `onPointerDown`'s own),
 which is still once per click.
 
-Measured in the dev build (Chromium, mean of 2000 queries):
+Measured in the dev build (Chromium), with the tolerance **derived from the zoom
+by the real radius law** rather than chosen — that distinction turned out to
+matter, see below:
 
-| segments | tol ≈ 1 (normal zoom) | tol ≈ 50 | tol ≈ 400 (fit zoom, dense CP) |
+| creases | fit zoom (1.75×) | 0.25× | 0.1× (far out) |
 | --- | --- | --- | --- |
-| 1,000 | 0.4 µs | 36 µs | 34 µs |
-| 10,000 | 0.3 µs | 218 µs | 355 µs |
-| 50,000 | 0.4 µs | 258 µs | **1,850 µs** |
+| 5,000 | 2.4 µs | 11.2 µs | 53.7 µs |
+| 20,000 | 11.2 µs | 61.6 µs | 193 µs |
+| 50,000 | 29.7 µs | 87.1 µs | 496 µs |
 
-At a working zoom a query is sub-microsecond at any CP size. The tail is
-`LineHitIndex.query`'s `cellsToScan > this.all.length → linearQuery` fallback
-([lineHitIndex.ts:89](../apps/web/src/cp-workspace/picking/lineHitIndex.ts:89)),
-which degrades to a scan over every segment when the tolerance is large relative
-to the cell size — that is, zoomed out on a dense pattern, which is exactly the
-tracing case. **Once per press, 1.85 ms is imperceptible. Sixty times a second
-it is a quarter of the frame budget.**
+Tens of microseconds at any working zoom, and under a millisecond in the worst
+case that can actually occur. `LineHitIndex.query` does have a
+`cellsToScan > this.all.length → linearQuery` fallback
+([lineHitIndex.ts:89](../apps/web/src/cp-workspace/picking/lineHitIndex.ts:89))
+that scans every segment, but reaching it needs a tolerance far larger than the
+radius law produces: `cpHitRadiusModel` derives the tolerance from the zoom, so
+even at 0.1× on a 400-unit sheet it is ~54 model units.
 
-So the rule this change has to respect, and the reason the hover idea below was
-cut:
+> **Correction.** The first draft of this plan reported 1,850 µs and cut the
+> hover work below on the strength of it. That figure came from pairing 50,000
+> segments with a 400-model-unit tolerance — the entire span of the sheet, which
+> no zoom produces. Benchmark the input the code actually receives, not a
+> plausible-looking one.
 
-> `claimsPress` may be called on `pointerdown`. It must never be called from
-> `pointermove`, `pointerover`, or anything else that fires per frame.
-
-Worth stating in the module doc, because the natural next idea — forwarding hover
-so the cursor is right — is exactly the thing that breaks it.
+The budget is therefore comfortable for `pointerdown`, and comfortable for one
+call per animation frame. What it does not support is a call per *pointer
+sample*: a high-rate pointer reports several times per frame, so hover work
+coalesces onto `requestAnimationFrame` rather than running per event.
 
 ## Affected Areas
 
@@ -267,27 +271,38 @@ Also rejected: re-enabling the body once the image is selected. It reinstates
 the reported bug in the state where the user is most likely to be clicking
 creases — right after placing the image.
 
-## Decided against: forwarding hover as well as presses
+## The cursor over an image
 
-The tempting follow-on is to forward `pointermove` too, so the cursor and any
-hover preview react to the crease under an image rather than to the image. It
-costs a lot and buys nothing:
+`cursor: move` on the body is a promise that a drag here moves the object, so it
+has to answer the same question the press does. It did not: after the press
+routing landed, the body still read `move` while hovering directly over a crease,
+which is the one thing a press there would *not* do.
 
-- **Cost.** It puts a `LineHitIndex.query` on a per-frame path — up to 1.85 ms
-  each, see Performance — in the only modes that currently do *zero* hit-testing
-  on hover.
-- **Benefit.** None that exists today. Every hover branch in the canvas'
-  `onPointerMove` requires a non-null `activeToolInputMode`, and in every mode
-  where the overlay is interactive that mode is null: either no tool is active,
-  or the tool is `CreaseSelect`, whose `line-click-mutate` input model has no
-  engine and resolves to idle. Whenever a tool *does* hover,
-  `annotationsInteractive` is already false and the polygon is already
-  `pointer-events: none`, so hover already passes through.
+The body now probes the surface on hover, for `paintedBehindCreases` objects
+only, and shows the canvas' own cursor where the press would go to the canvas
+instead. Two things keep that affordable and stable:
 
-The residual is cosmetic: the polygon keeps `cursor: move` over the whole image
-box, so over a crease the cursor now slightly under-promises what a press will
-do. Left as-is deliberately — there is no way to resolve it without the
-per-frame hit test.
+- **Coalesced to one probe per animation frame.** The probe is a hit test and a
+  high-rate pointer reports several times per frame; the numbers in Performance
+  are per frame, not per sample.
+- **React state, not an imperative `style.cursor` write.** The overlay
+  re-renders on every camera frame and re-applies the polygon's inline style, so
+  a direct write is silently reverted the next time the view moves. The state
+  only changes when the answer flips — crossing onto or off a crease — so the
+  extra renders are a handful per second at most.
+
+The canvas' cursor is mirrored rather than guessed: it is the layer that would
+take the press, it already resolves this correctly (`grab` while a pan modifier
+is held, nothing in plain select mode), and reading its inline style is a
+property read rather than a layout one.
+
+No hover *preview* is forwarded, and none is missing. Every hover branch in the
+canvas' `onPointerMove` requires a non-null `activeToolInputMode`, and in every
+mode where the overlay is interactive that mode is null: either no tool is
+active, or the tool is `CreaseSelect`, whose `line-click-mutate` input model has
+no engine and resolves to idle. Whenever a tool *does* hover,
+`annotationsInteractive` is already false and the polygon is already
+`pointer-events: none`, so hover already passes through.
 
 ## Testing
 
@@ -398,8 +413,10 @@ share of this to prop pass-through, with all behaviour in the modules above.
 - [x] Add `CreasePatternWebglCanvas.press.test.tsx` for F2 — registered on
       mount, cleared on unmount, `claimsPress` true on a crease and false in
       empty space.
-- [x] Document the per-frame prohibition in the registry's module doc: this may
-      be called on `pointerdown` and never from a per-frame handler.
+- [x] Document what `claimsPress` costs in the registry's module doc, and the
+      rule that follows: one call per press or per frame, never per sample.
+- [x] Make the body cursor answer the same question as the press — probed on
+      hover, coalesced to one hit test per frame, mirroring the canvas' cursor.
 - [x] Validate: `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`
       (1736 passing). Both new seams mutation-checked: cutting the canvas
       registration fails all four F2 cases, stubbing its hit test fails exactly

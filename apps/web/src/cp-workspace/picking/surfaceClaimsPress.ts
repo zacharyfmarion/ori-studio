@@ -61,13 +61,12 @@ export interface SurfacePressInput {
  * a right-drag box erase — both because that press has to remain the image's, or
  * an image over a sparse pattern could not be moved at all.
  *
- * @remarks **May be called on `pointerdown` and never from a per-frame handler.**
- * `hit` comes from a `LineHitIndex.query`, which falls back to a scan over every
- * segment when the tolerance is large relative to the cell size — i.e. zoomed
- * out on a dense pattern, the normal tracing view. Measured at ~1.85 ms for 50k
- * segments: nothing once per click, a quarter of the frame budget at 60 Hz. The
- * canvas' own `pointermove` deliberately does no hit testing in select mode; do
- * not undo that by wiring this to hover.
+ * @remarks **Once per press, or at most once per animation frame — never once
+ * per pointer sample.** `hit` comes from a `LineHitIndex.query`, measured at
+ * ~2 µs on a 5k-crease pattern at fit zoom and ~500 µs in the worst case that
+ * can occur (50k creases at 0.1× zoom). That is comfortable per frame and not
+ * per sample, since a high-rate pointer reports several times per frame — which
+ * is why the overlay's hover probe coalesces onto `requestAnimationFrame`.
  */
 export function surfaceClaimsPress(input: SurfacePressInput): boolean {
   if (input.button === 1 || input.metaKey || input.panToolActive) return true;

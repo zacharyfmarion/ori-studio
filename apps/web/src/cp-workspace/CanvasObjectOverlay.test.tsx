@@ -309,6 +309,117 @@ describe('CanvasObjectOverlay crease precedence', () => {
     expect(selected).toEqual([]);
   });
 
+  /**
+   * The cursor is a promise about what a drag will do, so it has to answer the
+   * same question the press does. Reported after the press routing landed: the
+   * body still read "move" while hovering directly over a crease, which is the
+   * one thing a press there would not do.
+   */
+  describe('cursor', () => {
+    /** Run the queued animation frame the cursor probe books. */
+    function flushProbe(): void {
+      act(() => {
+        vi.advanceTimersByTime(32);
+      });
+    }
+
+    function hover(body: SVGPolygonElement): void {
+      const event = new MouseEvent('pointermove', {
+        bubbles: true,
+        clientX: 50,
+        clientY: 50,
+      });
+      Object.defineProperty(event, 'pointerId', { value: 1 });
+      Object.defineProperty(event, 'pointerType', { value: 'mouse' });
+      act(() => {
+        body.dispatchEvent(event);
+      });
+    }
+
+    beforeEach(() => {
+      // requestAnimationFrame is what the probe coalesces onto, so the fake
+      // clock has to drive it too.
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('drops the move cursor where a press would go to the crease instead', () => {
+      stubSurface(true);
+      render({ objects: [image('a')], selectedId: null });
+      const body = bodyPolygon()!;
+      expect(body.style.cursor).toBe('move');
+
+      hover(body);
+      flushProbe();
+
+      expect(body.style.cursor).toBe('default');
+    });
+
+    it('keeps the move cursor over empty space inside the image', () => {
+      stubSurface(false);
+      render({ objects: [image('a')], selectedId: null });
+      const body = bodyPolygon()!;
+
+      hover(body);
+      flushProbe();
+
+      expect(body.style.cursor).toBe('move');
+    });
+
+    it('never probes for an object drawn over the creases', () => {
+      // A text box or folded figure keeps every press, so its cursor is not in
+      // question and it must not pay for a hit test on every hover.
+      const { asked } = stubSurface(true);
+      render({ objects: [object('a')], selectedId: null });
+      const body = bodyPolygon()!;
+
+      hover(body);
+      flushProbe();
+
+      expect(asked).toEqual([]);
+      expect(body.style.cursor).toBe('move');
+    });
+
+    it('coalesces a burst of moves into one hit test', () => {
+      // A high-rate pointer reports far more often than the screen redraws, and
+      // the probe runs a hit test — which is cheap per frame and not per sample.
+      const { asked } = stubSurface(true);
+      render({ objects: [image('a')], selectedId: null });
+      const body = bodyPolygon()!;
+
+      for (let i = 0; i < 10; i++) hover(body);
+      flushProbe();
+
+      expect(asked).toHaveLength(1);
+    });
+
+    it('restores the move cursor when the pointer leaves', () => {
+      stubSurface(true);
+      render({ objects: [image('a')], selectedId: null });
+      const body = bodyPolygon()!;
+      hover(body);
+      flushProbe();
+      expect(body.style.cursor).toBe('default');
+
+      // `pointerleave` does not bubble, so React synthesizes it from the
+      // bubbling `pointerout` and the element being moved to.
+      const out = new MouseEvent('pointerout', {
+        bubbles: true,
+        relatedTarget: document.body,
+      });
+      Object.defineProperty(out, 'pointerId', { value: 1 });
+      Object.defineProperty(out, 'pointerType', { value: 'mouse' });
+      act(() => {
+        body.dispatchEvent(out);
+      });
+
+      expect(body.style.cursor).toBe('move');
+    });
+  });
+
   it('keeps the handles live, so a selected image over a dense pattern can be sized', () => {
     stubSurface(true);
     render({ objects: [image('a')], selectedId: 'a' });

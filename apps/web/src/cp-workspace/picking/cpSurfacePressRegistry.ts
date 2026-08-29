@@ -41,11 +41,12 @@ export interface CpSurfacePressHandle {
    * Whether this press belongs to the surface rather than to the object whose
    * body it landed on. See `surfaceClaimsPress` for the rule.
    *
-   * **Call on `pointerdown` (and the `contextmenu` / `dblclick` that follow one)
-   * — never from a per-frame handler.** It runs the canvas' hit test, which is
-   * sub-microsecond at a working zoom but degrades to a scan over every segment
-   * when zoomed out on a dense pattern (~1.85 ms at 50k creases). Once per press
-   * that is free; per frame it is a quarter of the budget.
+   * **Call once per press, or at most once per animation frame — never once per
+   * pointer sample.** It runs the canvas' hit test: ~2 µs on a 5k-crease pattern
+   * at fit zoom, ~500 µs in the worst case that can occur (50k creases at 0.1×
+   * zoom). Fine per press and per frame; a high-rate pointer reports several
+   * times per frame, so the overlay's hover probe coalesces onto
+   * `requestAnimationFrame` rather than calling this per event.
    */
   claimsPress(point: CpSurfacePressPoint): boolean;
   /**
