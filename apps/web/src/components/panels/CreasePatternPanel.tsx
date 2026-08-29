@@ -133,9 +133,15 @@ import { CpFoldAngleLayer } from '../../cp-workspace/foldAngle/CpFoldAngleLayer'
 import {
   DEFAULT_CREASE_ANGLE_DEGREES,
   creaseAnglePayloadDegrees,
+  creaseAnglePreviewMagnitude,
   formatCreaseAngle,
   isClassicCreaseAngle,
 } from '../../cp-workspace/foldAngle/activeCreaseAngle';
+import {
+  FOLD_ANGLE_ANCHOR_FALLBACK,
+  FOLD_ANGLE_ANCHOR_VAR,
+  foldAngleInk,
+} from '../../cp-workspace/foldAngle/foldAngleRamp';
 import { CreaseAngleField } from '../../cp-workspace/foldAngle/CreaseAngleField';
 import { CreaseAnglePopover } from '../../cp-workspace/foldAngle/CreaseAnglePopover';
 import { useVertexSolve } from '../../cp-workspace/foldAngleSolve/useVertexSolve';
@@ -2003,18 +2009,48 @@ export function CreasePatternPanel() {
   // only 4 of the 34 crease-drawing operations carry that group, so the other 30
   // (Angle Restricted Line among them) previewed accent-blue and then committed
   // in the crease colour.
+  // A crease is a colour *and* a fold angle, so the preview ink has to resolve
+  // both. It used to resolve only the colour, which was complete while every
+  // crease was a full fold and stopped being so when the active crease angle
+  // arrived: dragging with the pen at 90 showed a flat 180 stroke and then
+  // committed a 90 crease, which is precisely the mismatch this memo exists to
+  // prevent.
+  //
+  // Through `foldAngleInk`, the same entry point the document's stroke builder
+  // uses, so a candidate follows the View panel's fold-angle display mode rather
+  // than inventing a second appearance for the same fact. And gated on
+  // `cpCommandUsesActiveCreaseAngle` — the predicate that decides the *payload* —
+  // so a tool whose creases are 180 by construction (the classical bases, the
+  // vertex-completion tools) previews flat because it commits flat.
   const toolPreviewColor = useMemo(() => {
     const operationId = activeCpCommand?.operationId;
+    if (!cpCommandUsesActiveLineColor(operationId)) {
+      return readCssVarColor(document.documentElement, '--accent-primary', [0.4, 0.6, 1, 1] as const);
+    }
     // `resolveCpToolLineColor`, not the active colour directly: Square can
     // override it, and the payload resolves through the same function.
-    return cpCommandUsesActiveLineColor(operationId)
-      ? resolveCpLineColor(
-          resolveCpToolLineColor(operationId, cpToolOptions, effectiveCpLineColor),
-          mode,
-          document.documentElement
-        )
-      : readCssVarColor(document.documentElement, '--accent-primary', [0.4, 0.6, 1, 1] as const);
-  }, [activeCpCommand?.operationId, cpToolOptions, effectiveCpLineColor, mode]);
+    const ink = resolveCpLineColor(
+      resolveCpToolLineColor(operationId, cpToolOptions, effectiveCpLineColor),
+      mode,
+      document.documentElement
+    );
+    if (!cpCommandUsesActiveCreaseAngle(operationId)) return ink;
+    return foldAngleInk(ink, creaseAnglePreviewMagnitude(activeCpCreaseAngle), {
+      display: oristudioCpViewport.foldAngleDisplay ?? DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
+      anchor: readCssVarColor(
+        document.documentElement,
+        FOLD_ANGLE_ANCHOR_VAR,
+        FOLD_ANGLE_ANCHOR_FALLBACK
+      ),
+    });
+  }, [
+    activeCpCommand?.operationId,
+    cpToolOptions,
+    effectiveCpLineColor,
+    mode,
+    activeCpCreaseAngle,
+    oristudioCpViewport.foldAngleDisplay,
+  ]);
 
   // The active tool's WebGL routing from its declarative steps: a drag mode; a
   // click-based `sequence` with a per-step kind (free point vs picked crease); or

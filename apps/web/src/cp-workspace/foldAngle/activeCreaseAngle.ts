@@ -8,9 +8,11 @@
  * know whether the user is drawing a mountain or a valley.
  *
  * React-free and store-free (AGENTS.md > "Panel components"): the toolbar field,
- * the popover and the payload builder all resolve through here, so none of them
- * has to agree on the valid range or the classic normalisation by hand.
+ * the popover, the payload builder and the tool-preview ink all resolve through
+ * here, so none of them has to agree on the valid range or the classic
+ * normalisation by hand.
  */
+import { degreesToFoldMagnitude } from '../../lib/foldAngle';
 
 /**
  * The pen at rest.
@@ -65,6 +67,22 @@ export function creaseAnglePayloadDegrees(degrees: number): number | undefined {
 /** Whether the pen is at a full fold, and so changes nothing about drawing. */
 export function isClassicCreaseAngle(degrees: number): boolean {
   return creaseAnglePayloadDegrees(degrees) === undefined;
+}
+
+/**
+ * The pen in the kernel's storage units, for `foldAngleInk` — or `undefined`
+ * for a classic crease, which every display mode returns by identity.
+ *
+ * Defined *through* {@link creaseAnglePayloadDegrees} rather than beside it, and
+ * that is the whole point: the tool preview shades a fold exactly when the
+ * command payload sends one. Two independent expressions of "is the pen doing
+ * anything" is how a preview and its commit drift apart, which is the bug this
+ * is here to prevent rather than a style preference.
+ */
+export function creaseAnglePreviewMagnitude(degrees: number): number | undefined {
+  const payload = creaseAnglePayloadDegrees(degrees);
+  if (payload === undefined) return undefined;
+  return degreesToFoldMagnitude(payload) ?? undefined;
 }
 
 /** Decimal places a crease-angle readout keeps. Matches `formatFoldAngle`. */

@@ -139,12 +139,31 @@ tools, not flat-foldability constructions.
 draws `Black0` lines, which the kernel's "folding crease only" condition already
 skips, and in `'active'` mode taking the pen is the wanted behaviour.
 
-**Previews do not get the pen.** `preview_command`
-([lib.rs:3974](crates/oristudio-cp/src/lib.rs:3974)) takes the same payload but
-takes `&CreasePatternDocument` and builds its candidate segments on its own
-path, never through `add_line_segment_like_worker` — so a preview line still
-draws classic while the pen is at 90°. That is a follow-up, listed below, not a
-V1 gap: the committed crease is correct and its badge appears immediately.
+**Previews get the pen from the surface, not the kernel** — fixed after the
+first browser pass, where a 90° drag drew a flat 180° stroke and then committed
+a 90° crease.
+
+`preview_command` ([lib.rs:3974](crates/oristudio-cp/src/lib.rs:3974)) is not
+the seam: it takes `&CreasePatternDocument` and builds its candidates on its own
+path, never through `add_line_segment_like_worker`. The seam is
+`toolPreviewColor` in the panel, which is the single fallback ink for "the
+crease the active tool would draw" — used by the drag path
+([CreasePatternWebglCanvas.tsx:3687](apps/web/src/cp-workspace/CreasePatternWebglCanvas.tsx:3687))
+and, as `candidatePreviewGroups`' `fallback`, by the kernel-sequence path too.
+
+It resolved only the *colour* half of the active crease. That was complete while
+every crease was a full fold and stopped being so when the pen arrived, so it now
+passes the ink through `foldAngleInk` — the same entry point the document's
+stroke builder uses, so a candidate follows the View panel's fold-angle display
+mode instead of inventing a second appearance for one fact.
+
+Gated on `cpCommandUsesActiveCreaseAngle`, the predicate that decides the
+*payload*, which extends the invariant that memo already documented ("what you
+see while dragging is what gets committed") to the second half of the crease. A
+tool whose creases are ±180 by construction previews flat because it commits
+flat. `creaseAnglePreviewMagnitude` is defined *through*
+`creaseAnglePayloadDegrees` so the two cannot disagree about whether the pen is
+doing anything.
 
 No wasm-bridge signature change is needed — the payload is deserialized whole
 (`from_js`) — but the bridge **must be rebuilt**, since a body-only kernel edit
@@ -440,9 +459,6 @@ defaults, then `i18n:extract` → translate all 8 locales → `i18n:stamp` →
 
 - Persist the pen across sessions, and/or round-trip it through `.osf`
   document metadata the way the Oriedita active line colour is restored.
-- Make the tool preview show the pen angle, so a 90° preview is
-  distinguishable from a classic one before commit
-  (`toolPreviewSegments.ts`).
 - Consider whether `viewport-status-readout`
   ([CreasePatternPanel.tsx:3353](apps/web/src/components/panels/CreasePatternPanel.tsx:3353)),
   which already reports the active line type, should also report the pen angle

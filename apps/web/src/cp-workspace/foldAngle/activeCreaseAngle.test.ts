@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_CREASE_ANGLE_DEGREES,
   creaseAnglePayloadDegrees,
+  creaseAnglePreviewMagnitude,
   formatCreaseAngle,
   formatCreaseAngleValue,
   isClassicCreaseAngle,
   isValidCreaseAngle,
   parseCreaseAngle,
 } from './activeCreaseAngle';
+import { degreesToFoldMagnitude } from '../../lib/foldAngle';
 import {
   cpCommandUsesActiveCreaseAngle,
   cpCommandUsesActiveLineColor,
@@ -66,6 +68,33 @@ describe('isClassicCreaseAngle', () => {
     expect(isClassicCreaseAngle(180)).toBe(true);
     expect(isClassicCreaseAngle(90)).toBe(false);
     expect(isClassicCreaseAngle(0)).toBe(false);
+  });
+});
+
+describe('creaseAnglePreviewMagnitude', () => {
+  it('converts to the kernel storage units the ink ramp reads', () => {
+    expect(creaseAnglePreviewMagnitude(90)).toBe(degreesToFoldMagnitude(90));
+    expect(creaseAnglePreviewMagnitude(0)).toBe(0);
+  });
+
+  it('is undefined for a full fold, which every display mode passes through', () => {
+    expect(creaseAnglePreviewMagnitude(180)).toBeUndefined();
+  });
+
+  /**
+   * The property the preview fix is actually about, and the reason this is
+   * derived from `creaseAnglePayloadDegrees` rather than written beside it: the
+   * stroke shades a fold exactly when the command sends one. Two independent
+   * answers to "is the pen doing anything" is how a preview and its commit
+   * drift apart — which is the bug that shipped, where a 90° drag drew flat and
+   * then committed a 90° crease.
+   */
+  it('shades exactly when the payload sends an angle', () => {
+    for (const degrees of [0, 22.5, 45, 90, 135, 179.9, 180, 200, Number.NaN]) {
+      const sends = creaseAnglePayloadDegrees(degrees) !== undefined;
+      const shades = creaseAnglePreviewMagnitude(degrees) !== undefined;
+      expect(shades, `pen at ${degrees}`).toBe(sends);
+    }
   });
 });
 

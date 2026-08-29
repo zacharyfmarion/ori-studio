@@ -45,6 +45,10 @@ import type { GesturePoint, PinchTransform } from './gestures/pinchTransform';
 import { previewGroupsToStrokes, previewSegmentsToStrokes } from './renderer/previewStrokes';
 import { candidatePreviewGroups } from './adapters/candidatePreviewGroups';
 import {
+  FOLD_ANGLE_ANCHOR_FALLBACK,
+  FOLD_ANGLE_ANCHOR_VAR,
+} from './foldAngle/foldAngleRamp';
+import {
   type FoldedGeometry,
   type MarkerGeometry,
   type ModelPoint,
@@ -178,9 +182,6 @@ const EMPTY_IMAGES: readonly CpImage[] = [];
  * variable keeps the two renderers visually identical when toggling.
  */
 const CANVAS_BG_VAR = '--bg-primary';
-/** Hue a shallower fold shifts toward; see `foldAngle/foldAngleRamp.ts`. */
-const FOLD_ANGLE_ANCHOR_VAR = '--fold-angle-anchor';
-const FOLD_ANGLE_ANCHOR_FALLBACK: Rgba = [0.851, 0.275, 0.937, 1];
 
 /** Fallback if the CSS variable is missing (roughly a neutral dark panel). */
 const FALLBACK_CLEAR: Rgba = [0.157, 0.172, 0.204, 1];
