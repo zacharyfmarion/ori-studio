@@ -220,8 +220,6 @@
     "close": "Cerrar ángulo de pliegue",
     "degrees": "Ángulo de pliegue en grados",
     "fieldTitle": "Ángulo de plegado que reciben los nuevos pliegues de monte y valle",
-    "hintAngled": "Los nuevos pliegues de monte y valle toman este ángulo.",
-    "hintClassic": "Los nuevos pliegues de monte y valle se pliegan planos.",
     "menuRow": "Ángulo de pliegue: {{angle}}",
     "title": "Ángulo de pliegue"
   },

@@ -220,8 +220,6 @@
     "close": "Fermer l'angle de pli",
     "degrees": "Angle de pli en degrés",
     "fieldTitle": "Angle de pliage donné aux nouveaux plis montagne et vallée",
-    "hintAngled": "Les nouveaux plis montagne et vallée prennent cet angle.",
-    "hintClassic": "Les nouveaux plis montagne et vallée se plient à plat.",
     "menuRow": "Angle de pli : {{angle}}",
     "title": "Angle de pli"
   },

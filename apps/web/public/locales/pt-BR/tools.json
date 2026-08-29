@@ -220,8 +220,6 @@
     "close": "Fechar ângulo do vinco",
     "degrees": "Ângulo do vinco em graus",
     "fieldTitle": "Ângulo de dobra dado aos novos vincos de monte e vale",
-    "hintAngled": "Novos vincos de monte e vale recebem este ângulo.",
-    "hintClassic": "Novos vincos de monte e vale dobram totalmente.",
     "menuRow": "Ângulo do vinco: {{angle}}",
     "title": "Ângulo do vinco"
   },

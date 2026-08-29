@@ -206,6 +206,54 @@
   padding: 0;
 }
 
+/* A pill-shaped quick pick; see components/ui/Chip.tsx. Everything but the
+   padding and type scale is shared, which is what the size variants leave
+   alone. */
+.ui-chip {
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  /* Transparent, which is what these chips have always rendered as: the rule
+     this replaces asked for `--surface-raised`, a token theme.css never defines,
+     so the browser dropped the declaration. Stated rather than inherited by
+     accident. */
+  background: transparent;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.ui-chip:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+/* Chips are ordinary tab stops — the crease-angle popover is keyboard-first and
+   Tab lands here — so the ring has to be visible. */
+.ui-chip:focus-visible {
+  border-color: var(--accent-primary);
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+  color: var(--text-primary);
+}
+
+/* `--bg-secondary`, not the `--surface-base` the old rule named: that token does
+   not exist either, so the pressed chip was drawing grey text on a blue fill. */
+.ui-chip[aria-pressed='true'] {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary);
+  color: var(--bg-secondary);
+}
+
+.ui-chip--sm {
+  padding: 2px 7px;
+  font-size: 0.66rem;
+}
+
+.ui-chip--md {
+  padding: 6px 12px;
+  font-size: 0.78rem;
+}
+
 /*
  * A primary button and its caret sharing one outline. The halves stay separate
  * buttons (see SplitButton), so the seam is made by flattening the edges that
@@ -5980,28 +6028,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   gap: 4px;
 }
 
-.cp-context-panel__chip {
-  padding: 2px 7px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 999px;
-  background: var(--surface-raised);
-  color: var(--text-secondary);
-  font-size: 0.66rem;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-}
-
-.cp-context-panel__chip:hover {
-  border-color: var(--accent-primary);
-  color: var(--text-primary);
-}
-
-.cp-context-panel__chip[aria-pressed='true'] {
-  border-color: var(--accent-primary);
-  background: var(--accent-primary);
-  color: var(--surface-base);
-}
-
 .cp-context-panel__measure-kinds {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -6632,49 +6658,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-}
-
-/* `--bg-surface` / `--bg-secondary`, not the `--surface-raised` /
-   `--surface-base` that `.cp-context-panel__chip` reaches for: those two are on
-   `themeTokens.test.ts`'s KNOWN_MISSING list — theme.css never defines them, so
-   the browser drops the declaration and the chip falls back to transparent.
-   Copying that would have shipped a fourth silently-dead rule. */
-.crease-angle-popover__chip {
-  padding: 2px 7px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 999px;
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-  font-size: 0.66rem;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-}
-
-.crease-angle-popover__chip:hover {
-  border-color: var(--accent-primary);
-  color: var(--text-primary);
-}
-
-/* Tab lands here, so the ring has to be visible — this row is the whole reason
-   the popover is keyboard-first. */
-.crease-angle-popover__chip:focus-visible {
-  border-color: var(--accent-primary);
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 1px;
-  color: var(--text-primary);
-}
-
-.crease-angle-popover__chip[aria-pressed='true'] {
-  border-color: var(--accent-primary);
-  background: var(--accent-primary);
-  color: var(--bg-secondary);
-}
-
-.crease-angle-popover__hint {
-  margin: 0;
-  color: var(--text-tertiary);
-  font-size: 0.66rem;
-  line-height: 1.35;
 }
 
 .viewport-toolbar__zoom-button:hover,

@@ -212,8 +212,6 @@
     "close": "Faltwinkel schließen",
     "degrees": "Faltwinkel in Grad",
     "fieldTitle": "Faltwinkel für neue Berg- und Talfalten",
-    "hintAngled": "Neue Berg- und Talfalten erhalten diesen Winkel.",
-    "hintClassic": "Neue Berg- und Talfalten werden flach gefaltet.",
     "menuRow": "Faltwinkel: {{angle}}",
     "title": "Faltwinkel"
   },

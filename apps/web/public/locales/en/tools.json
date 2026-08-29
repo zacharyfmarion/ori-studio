@@ -212,8 +212,6 @@
     "close": "Close crease angle",
     "degrees": "Crease angle in degrees",
     "fieldTitle": "Fold angle given to new mountain and valley creases",
-    "hintAngled": "New mountain and valley creases take this angle.",
-    "hintClassic": "New mountain and valley creases fold flat.",
     "menuRow": "Crease angle: {{angle}}",
     "title": "Crease angle"
   },

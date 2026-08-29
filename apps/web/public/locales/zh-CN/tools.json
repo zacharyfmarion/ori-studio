@@ -204,8 +204,6 @@
     "close": "关闭折痕角度",
     "degrees": "折痕角度（度）",
     "fieldTitle": "新的山折线和谷折线所采用的折叠角度",
-    "hintAngled": "新的山折线和谷折线将采用此角度。",
-    "hintClassic": "新的山折线和谷折线将完全折平。",
     "menuRow": "折痕角度：{{angle}}",
     "title": "折痕角度"
   },

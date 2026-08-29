@@ -33,14 +33,11 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
+import { Chip } from '../../components/ui/Chip';
 import { IconButton } from '../../components/ui/IconButton';
 import { FloatingToolbar, type FloatingAnchorRect } from '../../components/ui/FloatingToolbar';
 import { FOLD_ANGLE_PRESETS } from './foldAngleActions';
-import {
-  formatCreaseAngleValue,
-  isClassicCreaseAngle,
-  parseCreaseAngle,
-} from './activeCreaseAngle';
+import { formatCreaseAngleValue, parseCreaseAngle } from './activeCreaseAngle';
 
 export interface CreaseAnglePopoverProps {
   /** The live pen, in degrees. */
@@ -210,10 +207,12 @@ export function CreaseAnglePopover({
       />
       <div className="crease-angle-popover__chips">
         {FOLD_ANGLE_PRESETS.map((preset) => (
-          <button
+          <Chip
             key={preset.id}
-            type="button"
-            className="crease-angle-popover__chip"
+            // Bigger than the dense context-panel rows: here a chip is the
+            // primary target rather than a detail beside a field, and it is a
+            // Tab stop the keyboard path is built around.
+            size="md"
             // `aria-pressed`, so the chip announces whether it is the pen now.
             // The presets are not a radio group: picking one is an action that
             // closes this, not a selection that persists in the row.
@@ -224,20 +223,9 @@ export function CreaseAnglePopover({
             }}
           >
             {preset.label}
-          </button>
+          </Chip>
         ))}
       </div>
-      <p className="crease-angle-popover__hint">
-        {isClassicCreaseAngle(degrees)
-          ? t(
-              'tools:creaseAngle.hintClassic',
-              'New mountain and valley creases fold flat.'
-            )
-          : t(
-              'tools:creaseAngle.hintAngled',
-              'New mountain and valley creases take this angle.'
-            )}
-      </p>
     </div>
   );
 

@@ -66,7 +66,7 @@ function input(): HTMLInputElement {
 }
 
 function chips(): HTMLButtonElement[] {
-  return [...document.querySelectorAll<HTMLButtonElement>('.crease-angle-popover__chip')];
+  return [...document.querySelectorAll<HTMLButtonElement>('.crease-angle-popover__chips .ui-chip')];
 }
 
 function chip(label: string): HTMLButtonElement {
