@@ -170,6 +170,11 @@ export function SimulatorViewControlsPanel() {
             checked={settings.lighting}
             onChange={(checked) => setSetting('lighting', checked)}
           />
+          <ToggleRow
+            label={t('panels:simulatorViewControls.viewCube', 'View cube')}
+            checked={settings.showViewCube}
+            onChange={(checked) => setSetting('showViewCube', checked)}
+          />
         </Section>
 
         {/*

@@ -777,7 +777,8 @@
     "style": "样式",
     "stylePaper": "纸张",
     "styleXray": "X 射线",
-    "valley": "谷折"
+    "valley": "谷折",
+    "viewCube": "视图立方体"
   },
   "textAnnotation": {
     "addText": "添加文本",

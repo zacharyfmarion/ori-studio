@@ -848,7 +848,8 @@
     "style": "Стиль",
     "stylePaper": "Бумага",
     "styleXray": "Просвет",
-    "valley": "Долина"
+    "valley": "Долина",
+    "viewCube": "Куб вида"
   },
   "textAnnotation": {
     "addText": "Добавить текст",

@@ -777,7 +777,8 @@
     "style": "スタイル",
     "stylePaper": "紙",
     "styleXray": "X線",
-    "valley": "谷"
+    "valley": "谷",
+    "viewCube": "ビューキューブ"
   },
   "textAnnotation": {
     "addText": "テキストを追加",

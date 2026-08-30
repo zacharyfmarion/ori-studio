@@ -823,7 +823,8 @@
     "style": "Estilo",
     "stylePaper": "Papel",
     "styleXray": "Raios X",
-    "valley": "Vale"
+    "valley": "Vale",
+    "viewCube": "Cubo de visualização"
   },
   "textAnnotation": {
     "addText": "Adicionar texto",

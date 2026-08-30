@@ -130,6 +130,18 @@ describe('SimulatorPanel', () => {
     expect(cube?.getAttribute('data-interactive')).toBe('true');
   });
 
+  it('drops the cube when the options pane turns it off', async () => {
+    const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
+    await flushSimulator();
+    expect(rendered.querySelector('.simulator-view-cube')).not.toBeNull();
+
+    act(() => {
+      useWorkspaceStore.getState().setSimulatorSetting('showViewCube', false);
+    });
+
+    expect(rendered.querySelector('.simulator-view-cube')).toBeNull();
+  });
+
   it('keeps the cube out of the way while there is nothing to look at', () => {
     const rendered = renderPanel({});
 

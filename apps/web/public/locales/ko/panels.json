@@ -777,7 +777,8 @@
     "style": "스타일",
     "stylePaper": "종이",
     "styleXray": "엑스레이",
-    "valley": "골"
+    "valley": "골",
+    "viewCube": "뷰 큐브"
   },
   "textAnnotation": {
     "addText": "텍스트 추가",

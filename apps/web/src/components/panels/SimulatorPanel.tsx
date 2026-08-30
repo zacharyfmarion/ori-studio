@@ -650,7 +650,7 @@ export function SimulatorPanel() {
             viewSettings={viewSettings}
             // This is the surface with room for one. `.simulator-panel__body` is
             // the positioned container it anchors to; see the prop.
-            viewCube
+            viewCube={viewSettings.showViewCube}
             highlights={highlights}
             pushCamera={pushCamera}
             pushRenderSettings={pushRenderSettings}
