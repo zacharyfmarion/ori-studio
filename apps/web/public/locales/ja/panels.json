@@ -712,7 +712,16 @@
     "stepSimulationUnavailable": "ステップシミュレーションを利用できません。",
     "strain": "ひずみ {{value}}",
     "title": "シミュレーター",
-    "unavailable": "シミュレーターを利用できません"
+    "unavailable": "シミュレーターを利用できません",
+    "viewCube": {
+      "back": "後",
+      "bottom": "下",
+      "front": "前",
+      "label": "ビューキューブ",
+      "left": "左",
+      "right": "右",
+      "top": "上"
+    }
   },
   "simulatorExport": {
     "png": "PNG 画像",

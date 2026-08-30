@@ -712,7 +712,16 @@
     "stepSimulationUnavailable": "단계 시뮬레이션을 사용할 수 없습니다.",
     "strain": "장력 {{value}}",
     "title": "시뮬레이터",
-    "unavailable": "시뮬레이터 사용 불가"
+    "unavailable": "시뮬레이터 사용 불가",
+    "viewCube": {
+      "back": "뒤",
+      "bottom": "아래",
+      "front": "앞",
+      "label": "뷰 큐브",
+      "left": "왼쪽",
+      "right": "오른쪽",
+      "top": "위"
+    }
   },
   "simulatorExport": {
     "png": "PNG 이미지",

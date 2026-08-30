@@ -2614,10 +2614,15 @@
     "tools:creaseAngle.close": "ad996e41bbca",
     "tools:creaseAngle.degrees": "7e2c2d6b575f",
     "tools:creaseAngle.fieldTitle": "5f757eb0eb49",
-    "tools:creaseAngle.hintAngled": "5c54a88bcb36",
-    "tools:creaseAngle.hintClassic": "16a66b991fe2",
     "tools:creaseAngle.menuRow": "8462657ee10f",
-    "tools:creaseAngle.title": "dea2983492e7"
+    "tools:creaseAngle.title": "dea2983492e7",
+    "panels:simulator.viewCube.back": "76900f1bfd16",
+    "panels:simulator.viewCube.bottom": "479ad21ac909",
+    "panels:simulator.viewCube.front": "a61759020289",
+    "panels:simulator.viewCube.label": "e86443774f1c",
+    "panels:simulator.viewCube.left": "58eb9032e3bb",
+    "panels:simulator.viewCube.right": "883361d5d682",
+    "panels:simulator.viewCube.top": "d5cdfcf7ff75"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5234,10 +5239,15 @@
     "tools:creaseAngle.close": "ad996e41bbca",
     "tools:creaseAngle.degrees": "7e2c2d6b575f",
     "tools:creaseAngle.fieldTitle": "5f757eb0eb49",
-    "tools:creaseAngle.hintAngled": "5c54a88bcb36",
-    "tools:creaseAngle.hintClassic": "16a66b991fe2",
     "tools:creaseAngle.menuRow": "8462657ee10f",
-    "tools:creaseAngle.title": "dea2983492e7"
+    "tools:creaseAngle.title": "dea2983492e7",
+    "panels:simulator.viewCube.back": "76900f1bfd16",
+    "panels:simulator.viewCube.bottom": "479ad21ac909",
+    "panels:simulator.viewCube.front": "a61759020289",
+    "panels:simulator.viewCube.label": "e86443774f1c",
+    "panels:simulator.viewCube.left": "58eb9032e3bb",
+    "panels:simulator.viewCube.right": "883361d5d682",
+    "panels:simulator.viewCube.top": "d5cdfcf7ff75"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7854,10 +7864,15 @@
     "tools:creaseAngle.close": "ad996e41bbca",
     "tools:creaseAngle.degrees": "7e2c2d6b575f",
     "tools:creaseAngle.fieldTitle": "5f757eb0eb49",
-    "tools:creaseAngle.hintAngled": "5c54a88bcb36",
-    "tools:creaseAngle.hintClassic": "16a66b991fe2",
     "tools:creaseAngle.menuRow": "8462657ee10f",
-    "tools:creaseAngle.title": "dea2983492e7"
+    "tools:creaseAngle.title": "dea2983492e7",
+    "panels:simulator.viewCube.back": "76900f1bfd16",
+    "panels:simulator.viewCube.bottom": "479ad21ac909",
+    "panels:simulator.viewCube.front": "a61759020289",
+    "panels:simulator.viewCube.label": "e86443774f1c",
+    "panels:simulator.viewCube.left": "58eb9032e3bb",
+    "panels:simulator.viewCube.right": "883361d5d682",
+    "panels:simulator.viewCube.top": "d5cdfcf7ff75"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -10431,10 +10446,15 @@
     "tools:creaseAngle.close": "ad996e41bbca",
     "tools:creaseAngle.degrees": "7e2c2d6b575f",
     "tools:creaseAngle.fieldTitle": "5f757eb0eb49",
-    "tools:creaseAngle.hintAngled": "5c54a88bcb36",
-    "tools:creaseAngle.hintClassic": "16a66b991fe2",
     "tools:creaseAngle.menuRow": "8462657ee10f",
-    "tools:creaseAngle.title": "dea2983492e7"
+    "tools:creaseAngle.title": "dea2983492e7",
+    "panels:simulator.viewCube.back": "76900f1bfd16",
+    "panels:simulator.viewCube.bottom": "479ad21ac909",
+    "panels:simulator.viewCube.front": "a61759020289",
+    "panels:simulator.viewCube.label": "e86443774f1c",
+    "panels:simulator.viewCube.left": "58eb9032e3bb",
+    "panels:simulator.viewCube.right": "883361d5d682",
+    "panels:simulator.viewCube.top": "d5cdfcf7ff75"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -13008,10 +13028,15 @@
     "tools:creaseAngle.close": "ad996e41bbca",
     "tools:creaseAngle.degrees": "7e2c2d6b575f",
     "tools:creaseAngle.fieldTitle": "5f757eb0eb49",
-    "tools:creaseAngle.hintAngled": "5c54a88bcb36",
-    "tools:creaseAngle.hintClassic": "16a66b991fe2",
     "tools:creaseAngle.menuRow": "8462657ee10f",
-    "tools:creaseAngle.title": "dea2983492e7"
+    "tools:creaseAngle.title": "dea2983492e7",
+    "panels:simulator.viewCube.back": "76900f1bfd16",
+    "panels:simulator.viewCube.bottom": "479ad21ac909",
+    "panels:simulator.viewCube.front": "a61759020289",
+    "panels:simulator.viewCube.label": "e86443774f1c",
+    "panels:simulator.viewCube.left": "58eb9032e3bb",
+    "panels:simulator.viewCube.right": "883361d5d682",
+    "panels:simulator.viewCube.top": "d5cdfcf7ff75"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -15628,10 +15653,15 @@
     "tools:creaseAngle.close": "ad996e41bbca",
     "tools:creaseAngle.degrees": "7e2c2d6b575f",
     "tools:creaseAngle.fieldTitle": "5f757eb0eb49",
-    "tools:creaseAngle.hintAngled": "5c54a88bcb36",
-    "tools:creaseAngle.hintClassic": "16a66b991fe2",
     "tools:creaseAngle.menuRow": "8462657ee10f",
-    "tools:creaseAngle.title": "dea2983492e7"
+    "tools:creaseAngle.title": "dea2983492e7",
+    "panels:simulator.viewCube.back": "76900f1bfd16",
+    "panels:simulator.viewCube.bottom": "479ad21ac909",
+    "panels:simulator.viewCube.front": "a61759020289",
+    "panels:simulator.viewCube.label": "e86443774f1c",
+    "panels:simulator.viewCube.left": "58eb9032e3bb",
+    "panels:simulator.viewCube.right": "883361d5d682",
+    "panels:simulator.viewCube.top": "d5cdfcf7ff75"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -18248,10 +18278,15 @@
     "tools:creaseAngle.close": "ad996e41bbca",
     "tools:creaseAngle.degrees": "7e2c2d6b575f",
     "tools:creaseAngle.fieldTitle": "5f757eb0eb49",
-    "tools:creaseAngle.hintAngled": "5c54a88bcb36",
-    "tools:creaseAngle.hintClassic": "16a66b991fe2",
     "tools:creaseAngle.menuRow": "8462657ee10f",
-    "tools:creaseAngle.title": "dea2983492e7"
+    "tools:creaseAngle.title": "dea2983492e7",
+    "panels:simulator.viewCube.back": "76900f1bfd16",
+    "panels:simulator.viewCube.bottom": "479ad21ac909",
+    "panels:simulator.viewCube.front": "a61759020289",
+    "panels:simulator.viewCube.label": "e86443774f1c",
+    "panels:simulator.viewCube.left": "58eb9032e3bb",
+    "panels:simulator.viewCube.right": "883361d5d682",
+    "panels:simulator.viewCube.top": "d5cdfcf7ff75"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -20825,9 +20860,14 @@
     "tools:creaseAngle.close": "ad996e41bbca",
     "tools:creaseAngle.degrees": "7e2c2d6b575f",
     "tools:creaseAngle.fieldTitle": "5f757eb0eb49",
-    "tools:creaseAngle.hintAngled": "5c54a88bcb36",
-    "tools:creaseAngle.hintClassic": "16a66b991fe2",
     "tools:creaseAngle.menuRow": "8462657ee10f",
-    "tools:creaseAngle.title": "dea2983492e7"
+    "tools:creaseAngle.title": "dea2983492e7",
+    "panels:simulator.viewCube.back": "76900f1bfd16",
+    "panels:simulator.viewCube.bottom": "479ad21ac909",
+    "panels:simulator.viewCube.front": "a61759020289",
+    "panels:simulator.viewCube.label": "e86443774f1c",
+    "panels:simulator.viewCube.left": "58eb9032e3bb",
+    "panels:simulator.viewCube.right": "883361d5d682",
+    "panels:simulator.viewCube.top": "d5cdfcf7ff75"
   }
 }

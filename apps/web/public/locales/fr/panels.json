@@ -756,7 +756,16 @@
     "stepSimulationUnavailable": "Simulation de l'étape indisponible.",
     "strain": "Tension {{value}}",
     "title": "Simulateur",
-    "unavailable": "Simulateur indisponible"
+    "unavailable": "Simulateur indisponible",
+    "viewCube": {
+      "back": "Arrière",
+      "bottom": "Dessous",
+      "front": "Avant",
+      "label": "Cube de vue",
+      "left": "Gauche",
+      "right": "Droite",
+      "top": "Dessus"
+    }
   },
   "simulatorExport": {
     "png": "Image PNG",

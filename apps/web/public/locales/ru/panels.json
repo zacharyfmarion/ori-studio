@@ -780,7 +780,16 @@
     "stepSimulationUnavailable": "Симуляция шага недоступна.",
     "strain": "Натяжение {{value}}",
     "title": "Симулятор",
-    "unavailable": "Симулятор недоступен"
+    "unavailable": "Симулятор недоступен",
+    "viewCube": {
+      "back": "Сзади",
+      "bottom": "Снизу",
+      "front": "Спереди",
+      "label": "Куб вида",
+      "left": "Слева",
+      "right": "Справа",
+      "top": "Сверху"
+    }
   },
   "simulatorExport": {
     "png": "Изображение PNG",

@@ -732,7 +732,16 @@
     "stepSimulationUnavailable": "Schrittsimulation nicht verfügbar.",
     "strain": "Dehnung {{value}}",
     "title": "Simulator",
-    "unavailable": "Simulator nicht verfügbar"
+    "unavailable": "Simulator nicht verfügbar",
+    "viewCube": {
+      "back": "Hinten",
+      "bottom": "Unten",
+      "front": "Vorne",
+      "label": "Ansichtswürfel",
+      "left": "Links",
+      "right": "Rechts",
+      "top": "Oben"
+    }
   },
   "simulatorExport": {
     "png": "PNG-Bild",

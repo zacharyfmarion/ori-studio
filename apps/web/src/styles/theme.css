@@ -4654,6 +4654,92 @@ button.cp-folded-figure-toolbar__notice:hover {
   cursor: grabbing;
 }
 
+/*
+  The view cube.
+
+  An ordinary CSS 3D cube: the scene carries one `matrix3d` written per orbit
+  frame, and the browser does the culling, the hit testing and the hover. No
+  `perspective` on purpose — drei renders its gizmo through an orthographic
+  camera, and this follows it.
+
+  Deliberately without a `z-index`: `.simulator-panel__empty` is positioned,
+  comes later in the DOM and has none either, so a loading or errored panel
+  covers the cube by document order rather than by a number either could drift.
+*/
+.simulator-view-cube {
+  --view-cube-size: 76px;
+  --view-cube-half: calc(var(--view-cube-size) / 2);
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  width: var(--view-cube-size);
+  height: var(--view-cube-size);
+  /* The cube's box is square; only its faces are the cube. Everything else in
+     the corner has to reach the canvas behind. */
+  pointer-events: none;
+}
+
+.simulator-view-cube__scene {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.simulator-view-cube__face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  margin: 0;
+  /* A UA button's own padding survives `display: grid` and pushes the label off
+     centre; see the icon buttons, which need the same. */
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  appearance: none;
+  background: color-mix(in srgb, var(--bg-elevated) 90%, transparent);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.56rem;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  place-items: center;
+  backface-visibility: hidden;
+  cursor: pointer;
+  pointer-events: none;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+/*
+  Only a face that is both live and turned toward the eye takes a press. The
+  browser already declines to hit-test what `backface-visibility` stops it
+  painting; `data-hidden` states it as well, because a click landing on the face
+  behind would snap to the opposite view, and because jsdom has no backfaces.
+*/
+.simulator-view-cube[data-interactive] .simulator-view-cube__face[data-hidden='false'] {
+  pointer-events: auto;
+}
+
+.simulator-view-cube__face:hover,
+.simulator-view-cube__face:focus-visible {
+  border-color: color-mix(in srgb, var(--accent-primary) 60%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 28%, var(--bg-elevated));
+  color: var(--text-primary);
+}
+
+.simulator-view-cube__face:focus-visible {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .simulator-view-cube__face {
+    transition: none;
+  }
+}
+
 .simulator-view-settings {
   flex: 1 1 auto;
   justify-content: flex-end;

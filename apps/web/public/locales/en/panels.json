@@ -732,7 +732,16 @@
     "stepSimulationUnavailable": "Step simulation unavailable.",
     "strain": "Strain {{value}}",
     "title": "Simulator",
-    "unavailable": "Simulator unavailable"
+    "unavailable": "Simulator unavailable",
+    "viewCube": {
+      "back": "Back",
+      "bottom": "Bottom",
+      "front": "Front",
+      "label": "View cube",
+      "left": "Left",
+      "right": "Right",
+      "top": "Top"
+    }
   },
   "simulatorExport": {
     "png": "PNG image",
