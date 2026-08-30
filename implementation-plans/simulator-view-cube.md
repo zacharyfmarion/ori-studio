@@ -211,8 +211,8 @@ path, and the two window surfaces on the Edit canvas.
 
 ### Phase 1 — camera maths
 
-- [ ] `simulatorViewLookingFrom(view, direction)` in `lib/simulatorOrbit.ts`
-- [ ] Tests: each of the 6 axis directions round-trips through
+- [x] `simulatorViewLookingFrom(view, direction)` in `lib/simulatorOrbit.ts`
+- [x] Tests: each of the 6 axis directions round-trips through
       `viewRotation(...)` row 2 to < 1e-12; the default view recovers
       `(π/4, −0.955)`; screen-up is world `+Y` for the four side views; yaw is
       kept at the poles; `zoom` and `orient` survive; a non-identity `orient`
@@ -220,51 +220,78 @@ path, and the two window surfaces on the Edit canvas.
 
 ### Phase 2 — the cube
 
-- [ ] `viewCubeGeometry.ts`: the 6-face table (normal, label key, CSS face
+- [x] `viewCubeGeometry.ts`: the 6-face table (normal, label key, CSS face
       transform) and `viewCubeMatrix3d(view)`
-- [ ] Tests: the CSS matrix is orthonormal with det +1 at the default view, both
+- [x] Tests: the CSS matrix is orthonormal with det +1 at the default view, both
       poles, and with a non-identity `orient`; the default view's matrix pinned
-- [ ] `SimulatorViewCube.tsx`: 6 face divs in a `preserve-3d` container, an
-      imperative `setView` handle, hover state, `onSnap(direction)`
-- [ ] `viewCubeTween.ts` + tests: duration from the angle, clamped; shortest-path
+- [x] `SimulatorViewCube.tsx`: 6 face divs in a `preserve-3d` container, an
+      imperative `setView` handle, hover state, `onSnap(direction)`. Hover is
+      pure CSS in the end — no React state was needed for it
+- [x] `viewCubeTween.ts` + tests: duration from the angle, clamped; shortest-path
       yaw interpolation; endpoints exact
-- [ ] Component test: clicking Top calls `onSnap` with `(0, 1, 0)`; hover marks
-      the face; the container carries a `matrix3d`
-- [ ] CSS in `theme.css`: 76px cube, bottom-left, ~14px inset, theme tokens,
+- [x] Component test: clicking Top calls `onSnap` with `(0, 1, 0)`; the face
+      behind is not pressable; the container carries a `matrix3d`
+- [x] CSS in `theme.css`: 76px cube, bottom-left, ~14px inset, theme tokens,
       `pointer-events` only on the cube itself, reduced-motion branch
-- [ ] i18n: six face labels under `panels:simulator.viewCube.*`, plus an
+- [x] i18n: six face labels under `panels:simulator.viewCube.*`, plus an
       `aria-label` for the cube and one per face
 
 ### Phase 3 — wiring
 
-- [ ] `applyView` in `SimulatorViewport`, with every existing mutation routed
+- [x] `applyView` in `SimulatorViewport`, with every existing mutation routed
       through it and the tween cancelled there
-- [ ] `viewCube` prop, cube ref, `pushView` update; `SimulatorPanel` opts in
-- [ ] `SimulatorPanel.test.tsx`: the cube renders in the Simulate panel;
-      `InlineSimulationLayer` and `Folded3dWindowLayer` do not get one
-- [ ] Analytics: `simulator view cube snapped`, property `face` as an enum of the
+- [x] `viewCube` prop, cube ref, `pushView` update; `SimulatorPanel` opts in
+- [x] `SimulatorPanel.test.tsx`: the cube renders in the Simulate panel and
+      the viewport omits it unless a surface asks. The snap's *behaviour* is
+      tested in `SimulatorViewport.test.tsx` instead, with a hand-driven rAF —
+      the panel test tried to reach it through `prefers-reduced-motion` and a
+      stubbed `matchMedia` broke eight unrelated tests, since jsdom has none and
+      the app's theme listener then called into the stub
+- [x] Analytics: `simulator view cube snapped`, property `face` as an enum of the
       six labels (no coordinates — see the privacy contract)
-- [ ] `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`,
+- [x] `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`,
       `npm --workspace @treemaker/web run i18n:check`
 
 ### Phase 4 — optional: a settings toggle
 
-- [ ] `showViewCube: boolean` on `SimulatorSettings`, defaulting to `true`
+- [x] `showViewCube: boolean` on `SimulatorSettings`, defaulting to `true`
       (`normalizeSimulatorSettings` already backfills defaults, so stored
       settings are safe)
-- [ ] Toggle row in `SimulatorViewControlsPanel`, in the same section as Faces /
+- [x] Toggle row in `SimulatorViewControlsPanel`, in the same section as Faces /
       Crease lines / Lighting
 
 ### Phase 5 — edges and corners, for full drei parity
 
-- [ ] 12 edge and 8 corner hotspots, invisible until hovered, snapping to their
+- [x] 12 edge and 8 corner hotspots, invisible until hovered, snapping to their
       diagonal directions — `simulatorViewLookingFrom` already handles any unit
-      direction, so this is DOM and CSS only
-- [ ] The corner at `(1, 1, −1)` reproduces `DEFAULT_SIMULATOR_VIEW` exactly
+      direction, so this was DOM and CSS only. Built as a 3×3 grid *inside* each
+      face rather than as drei's floating boxes outside the cube, which would be
+      six more faces apiece in CSS. **Not optional in the end:** the browser pass
+      found that faces alone make the cube a dead end — from an exact face-on
+      view every other face is edge-on, so pressing Front left nothing but Front
+      clickable until you dragged
+- [x] The corner at `(1, 1, −1)` reproduces `DEFAULT_SIMULATOR_VIEW` exactly
 
-### Browser pass (Zach)
+### Browser pass
 
-Everything above is tool-verifiable and does not wait on this. What to look at:
+Steps 1, 2, 3 and 5 were checked during the build, against a crease pattern drawn
+through the real editor rather than an injected fixture — an interior vertex near
+one corner, so all four creases differ in length and the picture pins the
+orientation including any mirroring.
+
+**Step 2 passed**, which is the one that mattered: from Top the fold is oriented
+exactly as the crease-pattern canvas draws it, short red mountain to the top-left
+corner and three blue valleys to the others. Step 5 passed too — Set upright left
+the picture where it was, the cube followed, and Top still returned to the
+paper's normal.
+
+Of step 4, Top, Front and a corner were pressed, not all six. Step 6 was not
+raced: a snap lasts 120–500ms and each browser-tool call costs longer than that,
+so cancellation is covered by the unit test instead — it drives rAF by hand, and
+removing the `cancelSnap()` from the drag handler fails it. Step 7 was not
+exercised; that the other two surfaces get no cube is a unit test.
+
+Worth a look, then:
 
 1. Open a fold in the Simulate workspace. The cube sits bottom-left and turns
    with the model as you drag.
@@ -272,7 +299,8 @@ Everything above is tool-verifiable and does not wait on this. What to look at:
    canvas draws it** — same left/right, same up/down. This is the handedness
    check; a mirrored result means `B` is wrong.
 3. Read the labels at several angles. Any face reading backwards means the
-   determinant sign is wrong.
+   determinant sign is wrong. (Checked square-on from Front and at the opening
+   view; more angles would not hurt.)
 4. Click each of the six faces. The model should turn the short way and land
    upright, never upside down.
 5. Press **Set upright** on a standing model, then use the cube. It should tilt
