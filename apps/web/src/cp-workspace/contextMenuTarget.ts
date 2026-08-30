@@ -16,6 +16,16 @@ export type CpContextTarget =
    * empty space beside the selection mean the same thing.
    */
   | { kind: 'selection' }
+  /**
+   * Blank paper: nothing selected, and nothing under the cursor that erasing
+   * would act on. Raised so the menu can offer "put something here".
+   *
+   * Carries the **model** point, not just the client one, because that is what
+   * the verbs behind it need: a text box is placed at a model coordinate, and a
+   * client point would have to be re-projected by whoever received it — through
+   * a camera that may have moved by then.
+   */
+  | { kind: 'blank'; modelPoint: { x: number; y: number } }
   | { kind: 'empty' };
 
 /** A canvas request to open a context menu at viewport coordinates for `target`. */

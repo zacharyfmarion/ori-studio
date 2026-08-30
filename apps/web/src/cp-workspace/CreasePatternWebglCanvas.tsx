@@ -3415,6 +3415,10 @@ export function CreasePatternWebglCanvas({
           // `cpRightClickOutcome`, so the trade against Oriedita's unconditional
           // erase is stated and tested in one place rather than inferred from
           // the shape of this branch.
+          // Asked once and shared: `cpRightClickOutcome` needs to know whether
+          // erasing would act here, and the erase branch below needs the hit
+          // itself. Hit-testing twice would let the two disagree.
+          const clickHit = !moved ? hitTest(e.clientX, e.clientY) : null;
           const outcome = cpRightClickOutcome({
             moved,
             cancelled,
@@ -3424,19 +3428,29 @@ export function CreasePatternWebglCanvas({
               points: liveRef.current.selectedPointIds,
               circles: liveRef.current.selectedCircleIds,
             }),
+            // The erase question, not the hit question — see `cpRightClick`.
+            // `eraseHit` acts on lines and circles only, so a point under the
+            // cursor leaves the press free for the blank menu.
+            erasableUnderCursor: clickHit?.kind === 'line' || clickHit?.kind === 'circle',
           });
           if (outcome === 'cancel') {
             eraseRuntime.feed({ kind: 'cancel', point: raw });
-          } else if (outcome === 'folded-figure-menu' || outcome === 'selection-menu') {
-            // The erase runtime is rolled back first either way: it took the
-            // press to claim the gesture, and a menu that leaves it armed feeds
-            // every later drag to a stale runtime (see `pointerRelease.ts`).
+          } else if (outcome !== 'erase') {
+            // The erase runtime is rolled back first, whichever menu this is: it
+            // took the press to claim the gesture, and a menu that leaves it
+            // armed feeds every later drag to a stale runtime (see
+            // `pointerRelease.ts`).
             eraseRuntime.feed({ kind: 'cancel', point: raw });
             const figureId = outcome === 'folded-figure-menu' ? figureAt(e.clientX, e.clientY) : null;
             liveRef.current.onRequestContextMenu({
               clientX: e.clientX,
               clientY: e.clientY,
-              target: figureId !== null ? { kind: 'folded-figure', figureId } : { kind: 'selection' },
+              target:
+                figureId !== null
+                  ? { kind: 'folded-figure', figureId }
+                  : outcome === 'blank-menu'
+                    ? { kind: 'blank', modelPoint: raw }
+                    : { kind: 'selection' },
             });
           } else {
             const out = eraseRuntime.feed({
@@ -3449,7 +3463,7 @@ export function CreasePatternWebglCanvas({
               liveRef.current.onEraseBox(out.commit.points ?? []);
             } else {
               // Right-click (degenerate box): erase the primitive under the cursor.
-              eraseHit(hitTest(e.clientX, e.clientY));
+              eraseHit(clickHit);
             }
           }
         }

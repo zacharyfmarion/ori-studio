@@ -3456,7 +3456,10 @@ export function CreasePatternPanel() {
                   onChange={(event) => {
                     const file = event.target.files?.[0];
                     event.target.value = '';
-                    if (file) void addImageFromFile(file, null);
+                    // A placement parked by whoever opened the picker, or null
+                    // for the viewport centre. The right-click menu parks the
+                    // point it was raised at; the Insert menu parks nothing.
+                    if (file) void addImageFromFile(file, annotations.consumePendingImagePoint());
                   }}
                 />
               )}

@@ -218,6 +218,8 @@
       "delete": "Löschen",
       "diagnostics": "Diagnose",
       "editText": "Text bearbeiten",
+      "insertImage": "Bild einfügen…",
+      "insertText": "Text einfügen",
       "repair": "Reparieren",
       "select": "Auswählen",
       "transform": "Transformieren"

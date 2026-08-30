@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 import type { ContextMenuItem } from '../../components/ui/contextMenuTypes';
 import {
+  contextMenuActionItem,
   contextMenuActionItems,
   contextMenuActionSubmenu,
   menuActionLabelIndex,
@@ -28,6 +29,7 @@ import {
 /** What the right-click landed on, once the canvas has resolved it. */
 export type CpContextMenuTarget =
   | { kind: 'selection' }
+  | { kind: 'blank' }
   | { kind: 'circle' }
   | { kind: 'text' }
   | { kind: 'image' };
@@ -46,6 +48,18 @@ export interface CpContextMenuDeps {
     remove: () => void;
     /** Text only: start an inline edit. Moves focus, so it defers the close. */
     edit?: () => void;
+  };
+  /**
+   * Putting something on blank paper, at the point that was clicked.
+   *
+   * Bound rather than derived because *where* is the whole difference between
+   * these and the Insert menu's own entries. The menu bar has no click point, so
+   * its Text arms the tool for the next one and its Image lands in the middle of
+   * the viewport; here both go exactly where the cursor was.
+   */
+  insert?: {
+    image: () => void;
+    text: () => void;
   };
 }
 
@@ -154,6 +168,67 @@ export function cpSelectionMenuItems(deps: CpContextMenuDeps): ContextMenuItem[]
     ...contextMenuActionItems(['cp.deleteSelectedLines'], action, labels).map(
       (item): ContextMenuItem => (item.kind === 'action' ? { ...item, danger: true } : item)
     ),
+  ]);
+}
+
+/**
+ * A command's row, relabelled and rebound for this surface.
+ *
+ * Keeps everything the capability decides — whether the row appears at all,
+ * whether it is enabled, and the sentence explaining why not — and replaces
+ * only the two things a context menu legitimately owns: what the row *says* and
+ * what the press *does*.
+ *
+ * That split is the whole reason the insert rows can live here. Their
+ * availability is exactly the Insert menu's ("an editable crease pattern"), so
+ * deriving it is right and re-deriving it would be a second source of truth.
+ * Their wording is not: "Image..." and "Text" read correctly under a menu
+ * *titled* Insert and read as nothing in particular on their own. And their
+ * effect is not either — see {@link CpContextMenuDeps.insert}.
+ */
+function rebound(
+  item: ContextMenuItem | null,
+  label: string,
+  onSelect: () => void
+): ContextMenuItem | null {
+  if (!item || item.kind !== 'action') return item;
+  return { ...item, label, onSelect };
+}
+
+/**
+ * Rows for blank paper: nothing selected, nothing erasable under the cursor.
+ *
+ * Reached only where a right-click used to do nothing at all (see
+ * `cpRightClick`), so everything here is new capability rather than a
+ * replacement for something.
+ *
+ * Insert leads because "put something here" is what a right-click on empty
+ * paper means; the two rows below it are the document-wide verbs that still
+ * make sense with nothing selected. Deliberately short — a menu raised on
+ * nothing should not read like a menu raised on something.
+ */
+export function cpBlankCanvasMenuItems(deps: CpContextMenuDeps): ContextMenuItem[] {
+  const { t, action } = deps;
+  const labels = menuActionLabelIndex(action.t);
+  const insert = deps.insert;
+
+  return pruneContextMenuItems([
+    insert
+      ? rebound(
+          contextMenuActionItem('insert.image', action, labels),
+          t('panels:creasePattern.contextMenu.insertImage', 'Insert image…'),
+          insert.image
+        )
+      : null,
+    insert
+      ? rebound(
+          contextMenuActionItem('insert.text', action, labels),
+          t('panels:creasePattern.contextMenu.insertText', 'Insert text'),
+          insert.text
+        )
+      : null,
+    { kind: 'separator' },
+    ...contextMenuActionItems(['edit.paste', 'edit.selectAll'], action, labels),
   ]);
 }
 

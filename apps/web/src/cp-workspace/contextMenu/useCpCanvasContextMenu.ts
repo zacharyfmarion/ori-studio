@@ -7,6 +7,7 @@ import {
   useContextMenuController,
   type ContextMenuController,
 } from '../../menus/context/useContextMenuController';
+import { handleMenuAction } from '../../commands/menuActions';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { isTextAnnotation, type CanvasAnnotation } from '../annotations/annotation';
 import type { FoldedFigureActionDeps } from '../folded/foldedFigureActions';
@@ -15,6 +16,7 @@ import type { CpContextMenuRequest } from '../contextMenuTarget';
 import { cpHasSelection } from './cpRightClick';
 import {
   cpAnnotationMenuItems,
+  cpBlankCanvasMenuItems,
   cpSelectionMenuItems,
   type CpContextMenuDeps,
 } from './cpContextMenuItems';
@@ -46,6 +48,10 @@ export interface UseCpCanvasContextMenuOptions {
     bringAnnotationToFront: (id: string) => void;
     sendAnnotationToBack: (id: string) => void;
     deleteAnnotationById: (id: string) => void;
+    /** Place a text box at a model point and open it for editing. */
+    createTextAt: (modelPoint: { x: number; y: number }) => void;
+    /** Park where the next picked image should land, in client coordinates. */
+    setPendingImagePoint: (client: { x: number; y: number } | null) => void;
   };
   /** Take the canvas selection for this object, whichever kind owns it. */
   selectCanvasObject: (id: string | null) => void;
@@ -145,6 +151,41 @@ export function useCpCanvasContextMenu(
         openFoldedFigureMenu(target.figureId, clientX, clientY);
         return;
       }
+      if (target.kind === 'blank') {
+        const modelPoint = target.modelPoint;
+        controller.request({
+          clientX,
+          clientY,
+          targetKind: 'empty',
+          // The canvas raises this target only with nothing selected.
+          hasSelection: false,
+          build: () =>
+            cpBlankCanvasMenuItems({
+              ...menuDeps(),
+              insert: {
+                image: () => {
+                  // Park the placement, *then* dispatch the ordinary command.
+                  // Going through `handleMenuAction` is what keeps this on the
+                  // analytics chokepoint and inside the capability gate; the
+                  // parked point is the only thing that differs from the Insert
+                  // menu, and the picker's `change` handler consumes it.
+                  annotations.setPendingImagePoint({ x: clientX, y: clientY });
+                  void handleMenuAction('insert.image');
+                },
+                text: () => {
+                  // Not `handleMenuAction('insert.text')`: that *arms the text
+                  // tool* so the next canvas click places a box, which is right
+                  // for a menu with no click point and wrong for one raised at
+                  // a point. Placing directly means this row does not reach the
+                  // chokepoint — `context menu opened` is what measures it.
+                  controller.deferFocus();
+                  annotations.createTextAt(modelPoint);
+                },
+              },
+            }),
+        });
+        return;
+      }
       if (target.kind !== 'selection') return;
       controller.request({
         clientX,
@@ -156,7 +197,7 @@ export function useCpCanvasContextMenu(
         build: () => cpSelectionMenuItems(menuDeps()),
       });
     },
-    [controller, menuDeps, openFoldedFigureMenu]
+    [annotations, controller, menuDeps, openFoldedFigureMenu]
   );
 
   const onCanvasObjectContextMenu = useCallback(

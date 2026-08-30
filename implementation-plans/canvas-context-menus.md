@@ -28,19 +28,35 @@ Resolution:
 
 | Gesture | Behaviour |
 | --- | --- |
-| Right-click, **nothing selected** | Erase, exactly as today (upstream parity preserved) |
-| Right-click, **something selected** | Context menu for the selection |
 | Right-**drag** | Erase box, always — unchanged |
 | Right-click on a folded figure | That figure's menu — unchanged |
+| Right-click, **something selected** | Context menu for the selection |
+| Right-click over an **erasable** primitive | Erase, exactly as today (upstream parity preserved) |
+| Right-click on **blank paper** | The insert menu (see below) |
 
-This keeps the parity path intact for the dominant erase workflow (you erase
-things that are not selected) and costs nothing to discover: the user who has
-just selected creases is the user looking for verbs to apply to them.
+The selection row keeps the parity path intact for the dominant erase workflow
+(you erase things that are not selected) and costs nothing to discover: the user
+who has just selected creases is the user looking for verbs to apply to them.
 
 The cost, stated plainly: the same gesture has two outcomes depending on
 selection state. Mitigations — the menu opens only on a right-*click*, never a
 drag, so an erase drag can never be interrupted; and `Escape` / click-away
 dismisses without side effects.
+
+### 1b. Blank paper costs no parity at all
+
+Upstream's right-click reaches `deleteSingleLineOrCircle`, so it only ever *does*
+something when a line or a circle is under the cursor. On blank paper it already
+consumes the press and shows nothing. So the blank-paper menu takes only the
+presses erase would have wasted.
+
+`erasableUnderCursor` is phrased as the *erase* question ("would erasing do
+anything") rather than the hit question ("is anything under the cursor"), and
+that distinction is load-bearing: a **point** is pickable but not erasable, so a
+right-click on a vertex is free for the menu too. Naming it after erase is what
+keeps the two in step — if erasing ever learns a new target, the flag has to
+learn it as well, and `cpRightClick.test.ts` asserts the property directly:
+whenever erasing would act, the outcome is never `blank-menu`.
 
 ### 2. Menu content is derived, never re-declared
 
@@ -135,11 +151,32 @@ Bring to Front / Send to Back, Delete.
 it; it moves onto the shared controller so it inherits analytics and error
 handling.
 
-**Empty space (with a selection).** Deselect All, Paste, Select All,
-Diagnostics, Repair (Repair Overlaps, Split T-junctions, Delete Extra Vertices),
-Build Crease Pattern.
+**Blank paper (nothing selected, nothing erasable under the cursor).** Insert
+image… / Insert text, then Paste and Select All.
 
-**Empty space (no selection).** No menu — erase, as today.
+Both insert rows are *placement-aware*, which is the whole difference between
+them and the Insert menu they borrow their gating from. The menu bar has no
+click point: its Text arms the tool so the next canvas click places a box, and
+its Image lands in the middle of the viewport. Here both go exactly where the
+cursor was.
+
+Two consequences worth stating:
+
+- **Image still dispatches `insert.image` through `handleMenuAction`**, so it
+  stays on the analytics chokepoint and inside the capability gate. The picker
+  breaks the call in half — the caller that knows the point only opens a dialog,
+  and the file arrives later on `change` — so the point is *parked*
+  (`setPendingImagePoint`) and consumed by the picker's handler. Cleared on
+  read, so a cancelled dialog cannot drop the next image at a stale point.
+- **Text does not**, because `insert.text` means "arm the tool" and this means
+  "put one here" — dispatching it would both place a box and arm the tool. So
+  this row is invisible to `command invoked`; `context menu opened` is what
+  measures it.
+
+The rows are relabelled ("Insert image…", not the bar's "Image..."), because the
+bar's wording reads correctly under a menu *titled* Insert and reads as nothing
+in particular on its own. Gating and the disabled reason are still derived —
+that is the part that must not drift.
 
 ### Box-pleat packing canvas — `BpPackingPanel.tsx`
 

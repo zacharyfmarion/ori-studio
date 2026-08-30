@@ -222,6 +222,8 @@
       "delete": "Excluir",
       "diagnostics": "Diagnósticos",
       "editText": "Editar texto",
+      "insertImage": "Inserir imagem…",
+      "insertText": "Inserir texto",
       "repair": "Reparar",
       "select": "Selecionar",
       "transform": "Transformar"

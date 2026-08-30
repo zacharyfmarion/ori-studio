@@ -214,6 +214,8 @@
       "delete": "删除",
       "diagnostics": "诊断",
       "editText": "编辑文本",
+      "insertImage": "插入图片…",
+      "insertText": "插入文本",
       "repair": "修复",
       "select": "选择",
       "transform": "变换"

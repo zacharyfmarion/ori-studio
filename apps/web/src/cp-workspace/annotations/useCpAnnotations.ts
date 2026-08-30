@@ -78,6 +78,18 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
    */
   const preGestureAnnotationsRef = useRef<readonly CanvasAnnotation[] | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement | null>(null);
+  /**
+   * Where the next picked image should land, in client coordinates.
+   *
+   * A parked value rather than an argument, because the picker breaks the call
+   * in half: the caller that knows the point (a right-click on blank paper)
+   * only opens a file dialog, and the file arrives later on the input's
+   * `change`. Nothing in between carries a point.
+   *
+   * `null` means "wherever the picker defaults to", which is the viewport
+   * centre — the Insert menu's own behaviour, unchanged.
+   */
+  const pendingImagePointRef = useRef<{ x: number; y: number } | null>(null);
 
   const beginGesture = useCallback(() => {
     preGestureAnnotationsRef.current = useWorkspaceStore.getState().oristudioCpAnnotations;
@@ -250,6 +262,32 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
     },
     [addImageFromFile]
   );
+
+  /**
+   * Park a placement for the image the user is about to pick.
+   *
+   * Set immediately before whatever opens the picker — the caller does not have
+   * to be the thing that opens it, which is what lets the context menu keep
+   * dispatching `insert.image` through `handleMenuAction` (and so through the
+   * analytics chokepoint) instead of reaching for the file input itself.
+   */
+  const setPendingImagePoint = useCallback((client: { x: number; y: number } | null) => {
+    pendingImagePointRef.current = client;
+  }, []);
+
+  /**
+   * Take the parked placement, clearing it.
+   *
+   * Cleared on read so a placement can never outlive the pick it was set for: a
+   * cancelled dialog would otherwise leave the point armed and drop the *next*
+   * image, inserted from the menu bar, at a spot the user last right-clicked
+   * minutes ago.
+   */
+  const consumePendingImagePoint = useCallback(() => {
+    const point = pendingImagePointRef.current;
+    pendingImagePointRef.current = null;
+    return point;
+  }, []);
 
   // Annotation-layer edits, each recording one undo entry.
   //
@@ -471,6 +509,8 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
     canCrop,
     imageFileInputRef,
     addImageFromFile,
+    setPendingImagePoint,
+    consumePendingImagePoint,
     handleViewportDragOver,
     handleViewportDrop,
     bringSelectedImageToFront,

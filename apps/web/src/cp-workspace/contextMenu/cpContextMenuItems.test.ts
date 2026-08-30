@@ -3,7 +3,12 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ContextMenuItem } from '../../components/ui/contextMenuTypes';
 import type { WorkspaceCapabilities, WorkspaceCapabilityId } from '../../lib/workspaceCapabilities';
 import { getMenuBarDef, type MenuItemDef } from '../../menus/menuDefinition';
-import { cpAnnotationMenuItems, cpCircleMenuItems, cpSelectionMenuItems } from './cpContextMenuItems';
+import {
+  cpAnnotationMenuItems,
+  cpBlankCanvasMenuItems,
+  cpCircleMenuItems,
+  cpSelectionMenuItems,
+} from './cpContextMenuItems';
 
 const t = ((_key: string, defaultValue?: string) => defaultValue ?? _key) as unknown as TFunction;
 
@@ -104,6 +109,73 @@ describe('cpSelectionMenuItems', () => {
     if (mountain && mountain.kind === 'action') mountain.onSelect();
 
     expect(run).toHaveBeenCalledWith('cp.makeMountain');
+  });
+});
+
+describe('cpBlankCanvasMenuItems', () => {
+  const insert = { image: vi.fn(), text: vi.fn() };
+
+  it('leads with the two insert verbs, then the document-wide ones', () => {
+    const items = cpBlankCanvasMenuItems({ ...deps(), insert });
+
+    expect(ids(items)).toEqual([
+      'insert.image',
+      'insert.text',
+      '---',
+      'edit.paste',
+      'edit.selectAll',
+    ]);
+  });
+
+  it('carries the verb in the label, which the menu bar does not have to', () => {
+    // The bar's own wording is "Image..." / "Text", which reads correctly under
+    // a menu *titled* Insert and as nothing in particular on its own.
+    const items = cpBlankCanvasMenuItems({ ...deps(), insert });
+    const labels = items.flatMap((item) => ('label' in item ? [item.label] : []));
+
+    expect(labels.slice(0, 2)).toEqual(['Insert image…', 'Insert text']);
+  });
+
+  it('still takes its gating from the capability, not from the label', () => {
+    const items = cpBlankCanvasMenuItems({
+      ...deps({ 'insert.image': { enabled: false } }),
+      insert,
+    });
+    const image = items.find((item) => 'id' in item && item.id === 'insert.image');
+
+    expect(image).toMatchObject({ disabled: true, hint: 'insert.image' });
+  });
+
+  it('hides an insert row the context hides entirely', () => {
+    const items = cpBlankCanvasMenuItems({
+      ...deps({ 'insert.image': { visible: false } }),
+      insert,
+    });
+
+    expect(ids(items)).not.toContain('insert.image');
+    expect(items[0]?.kind).not.toBe('separator');
+  });
+
+  it('binds each insert row to the placement-aware action', () => {
+    const image = vi.fn();
+    const text = vi.fn();
+    const items = cpBlankCanvasMenuItems({ ...deps(), insert: { image, text } });
+
+    for (const item of items) {
+      if (item.kind === 'action' && item.id === 'insert.image') item.onSelect();
+      if (item.kind === 'action' && item.id === 'insert.text') item.onSelect();
+    }
+
+    expect(image).toHaveBeenCalledOnce();
+    expect(text).toHaveBeenCalledOnce();
+  });
+
+  it('renders only the shared rows without the insert bindings', () => {
+    // A caller that cannot place (none today) still gets a usable menu rather
+    // than two rows that do nothing.
+    const items = cpBlankCanvasMenuItems(deps());
+
+    expect(ids(items)).toEqual(['edit.paste', 'edit.selectAll']);
   });
 });
 

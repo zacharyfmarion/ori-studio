@@ -2,12 +2,26 @@ import { describe, expect, it } from 'vitest';
 import { cpHasSelection, cpRightClickOutcome, type CpRightClickState } from './cpRightClick';
 
 function state(overrides: Partial<CpRightClickState> = {}): CpRightClickState {
-  return { moved: false, cancelled: false, figureId: null, hasSelection: false, ...overrides };
+  return {
+    moved: false,
+    cancelled: false,
+    figureId: null,
+    hasSelection: false,
+    erasableUnderCursor: false,
+    ...overrides,
+  };
 }
 
 describe('cpRightClickOutcome', () => {
-  it('erases when nothing is selected — the upstream gesture, unchanged', () => {
-    expect(cpRightClickOutcome(state())).toBe('erase');
+  it('erases over an erasable primitive with nothing selected — upstream, unchanged', () => {
+    expect(cpRightClickOutcome(state({ erasableUnderCursor: true }))).toBe('erase');
+  });
+
+  it('raises the blank menu on empty paper, where erasing would do nothing', () => {
+    // The whole justification for taking this press: upstream's right-click is
+    // `deleteSingleLineOrCircle`, so with nothing erasable under the cursor it
+    // consumes the click and shows nothing.
+    expect(cpRightClickOutcome(state())).toBe('blank-menu');
   });
 
   it('raises the selection menu when the pattern has a selection', () => {
@@ -32,6 +46,39 @@ describe('cpRightClickOutcome', () => {
 
   it('raises a folded figure menu with nothing selected', () => {
     expect(cpRightClickOutcome(state({ figureId: 'figure-1' }))).toBe('folded-figure-menu');
+  });
+
+  it('erases on a drag across blank paper', () => {
+    // Right-drag is the erase *box*, which starts on blank paper by definition —
+    // so the blank menu must never take a drag.
+    expect(cpRightClickOutcome(state({ moved: true }))).toBe('erase');
+  });
+
+  it('prefers the selection menu over the blank menu', () => {
+    expect(cpRightClickOutcome(state({ hasSelection: true }))).toBe('selection-menu');
+  });
+
+  it('prefers a folded figure over the blank menu', () => {
+    expect(cpRightClickOutcome(state({ figureId: 'figure-1' }))).toBe('folded-figure-menu');
+  });
+
+  it('never takes a press that erase would act on', () => {
+    // The parity guarantee, stated as a property over the whole input space:
+    // whenever erasing would do something, the outcome is `erase` — no menu can
+    // swallow a press upstream would have deleted with.
+    for (const moved of [false, true]) {
+      for (const hasSelection of [false, true]) {
+        for (const figureId of [null, 'figure-1']) {
+          const outcome = cpRightClickOutcome(
+            state({ moved, hasSelection, figureId, erasableUnderCursor: true })
+          );
+          // A selection or a figure legitimately outranks erase on a *click* —
+          // those were already true before the blank menu existed. What must
+          // never happen is the blank menu taking one.
+          expect(outcome).not.toBe('blank-menu');
+        }
+      }
+    }
   });
 
   it('cancels ahead of every other outcome', () => {

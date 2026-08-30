@@ -214,6 +214,8 @@
       "delete": "削除",
       "diagnostics": "診断",
       "editText": "テキストを編集",
+      "insertImage": "画像を挿入…",
+      "insertText": "テキストを挿入",
       "repair": "修復",
       "select": "選択",
       "transform": "変換"
