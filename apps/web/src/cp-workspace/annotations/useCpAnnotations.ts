@@ -55,6 +55,21 @@ export interface UseCpAnnotationsOptions {
  * lands as a single undo entry. That invariant is only checkable if the code
  * that depends on it is in one place.
  */
+/**
+ * Where a picked or dropped image should land, in **client** coordinates.
+ *
+ * `anchor` is what separates the gestures. A drop and the Insert menu put the
+ * image under the cursor / in the middle of the view — those mean "here-ish".
+ * The canvas context menu means "start it here", so it asks for `'top-left'`
+ * and the box's corner lands on the point, matching a placed paste.
+ */
+export interface CpImagePlacement {
+  x: number;
+  y: number;
+  /** Defaults to `'center'`, which is every pre-existing caller's behaviour. */
+  anchor?: 'center' | 'top-left';
+}
+
 export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsOptions) {
   const { t } = useTranslation();
   const annotations = useWorkspaceStore((state) => state.oristudioCpAnnotations);
@@ -89,7 +104,7 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
    * `null` means "wherever the picker defaults to", which is the viewport
    * centre — the Insert menu's own behaviour, unchanged.
    */
-  const pendingImagePointRef = useRef<{ x: number; y: number } | null>(null);
+  const pendingImagePointRef = useRef<CpImagePlacement | null>(null);
 
   const beginGesture = useCallback(() => {
     preGestureAnnotationsRef.current = useWorkspaceStore.getState().oristudioCpAnnotations;
@@ -169,17 +184,17 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
 
   // Import an image file and add it as a reference image, placed at the given
   // client point (or the view center) and sized to ~half the view. Shared by the
-  // drop handler and the Insert-image button.
+  // drop handler, the Insert-image button, and the canvas context menu.
   const addImageFromFile = useCallback(
-    async (file: File, client: { x: number; y: number } | null) => {
+    async (file: File, placement: CpImagePlacement | null) => {
       const rect = viewportRef.current?.getBoundingClientRect();
       try {
         const source = await importImageFile(file);
         let center = { x: 0.5, y: 0.5 };
         let targetExtent = 1;
         if (overlayView && rect) {
-          const cssPoint = client
-            ? { x: client.x - rect.left, y: client.y - rect.top }
+          const cssPoint = placement
+            ? { x: placement.x - rect.left, y: placement.y - rect.top }
             : { x: rect.width / 2, y: rect.height / 2 };
           const model = overlayCssToModel(overlayView, cssPoint);
           if (model) center = model;
@@ -193,6 +208,26 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
           source.naturalHeight,
           targetExtent
         );
+        const rotation = uprightRotationForView(overlayView);
+        // A drop and the Insert menu put the image *under the cursor* / in the
+        // middle of the view, which is what those gestures mean. The context
+        // menu means "start it here", so its corner goes on the point instead —
+        // the same rule as a placed paste.
+        //
+        // Rotated through the box's own angle rather than offset in model axes:
+        // the image is squared to the screen, so under a turned view its visual
+        // top-left is not its model-space minimum corner.
+        if (placement?.anchor === 'top-left') {
+          const radians = (rotation * Math.PI) / 180;
+          const cos = Math.cos(radians);
+          const sin = Math.sin(radians);
+          const halfX = width / 2;
+          const halfY = height / 2;
+          center = {
+            x: center.x + halfX * cos - halfY * sin,
+            y: center.y + halfX * sin + halfY * cos,
+          };
+        }
         const images = useWorkspaceStore.getState().oristudioCpAnnotations;
         const topZ = images.reduce((max, image) => Math.max(max, image.z), 0);
         addAnnotation(
@@ -205,7 +240,7 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
             height,
             // Square to the screen it was dropped on. Centre and extent above
             // already go through the overlay view, so they need no adjustment.
-            rotation: uprightRotationForView(overlayView),
+            rotation,
             z: topZ + 1,
           })
         );
@@ -271,8 +306,8 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
    * dispatching `insert.image` through `handleMenuAction` (and so through the
    * analytics chokepoint) instead of reaching for the file input itself.
    */
-  const setPendingImagePoint = useCallback((client: { x: number; y: number } | null) => {
-    pendingImagePointRef.current = client;
+  const setPendingImagePoint = useCallback((placement: CpImagePlacement | null) => {
+    pendingImagePointRef.current = placement;
   }, []);
 
   /**

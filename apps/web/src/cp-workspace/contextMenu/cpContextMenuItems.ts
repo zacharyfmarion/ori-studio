@@ -61,6 +61,15 @@ export interface CpContextMenuDeps {
     image: () => void;
     text: () => void;
   };
+  /**
+   * Paste with the clicked point as the destination.
+   *
+   * Same reasoning as {@link CpContextMenuDeps.insert}: a keyboard paste has
+   * nowhere to aim, so it cascades diagonally off the copy origin; a right-click
+   * does, so the pasted bounding box's top-left lands under the cursor. Absent
+   * leaves the row dispatching the ordinary command.
+   */
+  pasteAt?: () => void;
 }
 
 /**
@@ -188,11 +197,12 @@ export function cpSelectionMenuItems(deps: CpContextMenuDeps): ContextMenuItem[]
  */
 function rebound(
   item: ContextMenuItem | null,
-  label: string,
-  onSelect: () => void
+  onSelect: () => void,
+  /** Omitted keeps the menu bar's wording, which is usually the right one. */
+  label?: string
 ): ContextMenuItem | null {
   if (!item || item.kind !== 'action') return item;
-  return { ...item, label, onSelect };
+  return { ...item, label: label ?? item.label, onSelect };
 }
 
 /**
@@ -216,19 +226,21 @@ export function cpBlankCanvasMenuItems(deps: CpContextMenuDeps): ContextMenuItem
     insert
       ? rebound(
           contextMenuActionItem('insert.image', action, labels),
-          t('panels:creasePattern.contextMenu.insertImage', 'Insert image…'),
-          insert.image
+          insert.image,
+          t('panels:creasePattern.contextMenu.insertImage', 'Insert image…')
         )
       : null,
     insert
       ? rebound(
           contextMenuActionItem('insert.text', action, labels),
-          t('panels:creasePattern.contextMenu.insertText', 'Insert text'),
-          insert.text
+          insert.text,
+          t('panels:creasePattern.contextMenu.insertText', 'Insert text')
         )
       : null,
     { kind: 'separator' },
-    ...contextMenuActionItems(['edit.paste', 'edit.selectAll'], action, labels),
+    // Paste keeps its derived label and gate; only the destination changes.
+    rebound(contextMenuActionItem('edit.paste', action, labels), deps.pasteAt ?? (() => {})),
+    ...contextMenuActionItems(['edit.selectAll'], action, labels),
   ]);
 }
 

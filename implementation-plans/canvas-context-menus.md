@@ -160,6 +160,19 @@ click point: its Text arms the tool so the next canvas click places a box, and
 its Image lands in the middle of the viewport. Here both go exactly where the
 cursor was.
 
+**All three rows anchor by the top-left corner**, not the centre. A drop and the
+Insert menu mean "here-ish" and centre on the cursor; a right-click menu means
+"start it here", so the pasted bounding box's top-left and the image's top-left
+corner land on the point. `placeCpLineSegmentsAt` reads top-left as
+`(minX, minY)` because model y increases *downward* — `ORIEDITA_PAPER_CORNERS`
+labels `(minX, minY)` "paper top left", and reading it the other way would drop a
+paste a full bounding-box height above the cursor. The image offset is rotated
+through the box's own angle, since the image is squared to the *screen* and under
+a turned view its visual top-left is not its model-space minimum corner.
+
+Text is the exception: it still centres on the point, because `createTextAt` is
+also the Text tool's click-to-place and changing it would move that gesture too.
+
 Two consequences worth stating:
 
 - **Image still dispatches `insert.image` through `handleMenuAction`**, so it

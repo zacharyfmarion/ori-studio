@@ -10,6 +10,7 @@ import {
 import { handleMenuAction } from '../../commands/menuActions';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { isTextAnnotation, type CanvasAnnotation } from '../annotations/annotation';
+import type { CpImagePlacement } from '../annotations/useCpAnnotations';
 import type { FoldedFigureActionDeps } from '../folded/foldedFigureActions';
 import { foldedFigureMenuItemsWith } from '../folded/foldedFigureMenuItems';
 import type { CpContextMenuRequest } from '../contextMenuTarget';
@@ -50,8 +51,8 @@ export interface UseCpCanvasContextMenuOptions {
     deleteAnnotationById: (id: string) => void;
     /** Place a text box at a model point and open it for editing. */
     createTextAt: (modelPoint: { x: number; y: number }) => void;
-    /** Park where the next picked image should land, in client coordinates. */
-    setPendingImagePoint: (client: { x: number; y: number } | null) => void;
+    /** Park where and how the next picked image should land. */
+    setPendingImagePoint: (placement: CpImagePlacement | null) => void;
   };
   /** Take the canvas selection for this object, whichever kind owns it. */
   selectCanvasObject: (id: string | null) => void;
@@ -169,7 +170,13 @@ export function useCpCanvasContextMenu(
                   // analytics chokepoint and inside the capability gate; the
                   // parked point is the only thing that differs from the Insert
                   // menu, and the picker's `change` handler consumes it.
-                  annotations.setPendingImagePoint({ x: clientX, y: clientY });
+                  // `top-left`, not the default centre: the menu means "start
+                  // it here", the same rule the paste row below follows.
+                  annotations.setPendingImagePoint({
+                    x: clientX,
+                    y: clientY,
+                    anchor: 'top-left',
+                  });
                   void handleMenuAction('insert.image');
                 },
                 text: () => {
@@ -181,6 +188,14 @@ export function useCpCanvasContextMenu(
                   controller.deferFocus();
                   annotations.createTextAt(modelPoint);
                 },
+              },
+              // The pasted bounding box's top-left lands on the click, the same
+              // anchoring as the image above. Called directly rather than via
+              // `handleMenuAction`, because a destination cannot travel through
+              // an id — the cost is that this row is invisible to
+              // `command invoked`, which `context menu opened` covers.
+              pasteAt: () => {
+                void useWorkspaceStore.getState().pasteClipboard(modelPoint);
               },
             }),
         });
