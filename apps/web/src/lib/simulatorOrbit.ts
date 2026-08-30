@@ -124,4 +124,70 @@ export function setUprightView(view: SimulatorOrbitView): SimulatorOrbitView {
   };
 }
 
+/* --------------------------------------------------------------------------
+ * Which way we are looking from
+ * ----------------------------------------------------------------------- */
+
+/** A unit direction in the renderer's world: Y is the flat paper's normal. */
+export type SimulatorViewDirection = readonly [number, number, number];
+
+/** Row-major `m · v`. */
+function transformVec3(m: Mat3, v: SimulatorViewDirection): SimulatorViewDirection {
+  return [
+    m[0] * v[0] + m[1] * v[1] + m[2] * v[2],
+    m[3] * v[0] + m[4] * v[1] + m[5] * v[2],
+    m[6] * v[0] + m[7] * v[1] + m[8] * v[2],
+  ];
+}
+
+/**
+ * Below this, a direction is on the yaw axis and yaw has nothing left to name.
+ * Squared distance from the pole, so no root is taken to compare it.
+ */
+const POLE_EPSILON = 1e-9;
+
+/**
+ * The view that looks at the model from `direction`, keeping everything else.
+ *
+ * The inverse of {@link setUprightView}'s question: that one is handed an up and
+ * solves for the pole, this one is handed an eye direction and solves for the
+ * angles. It is what a view cube's faces are wired to, and it works for any unit
+ * direction, not only the six axes — the corner `(1, 1, −1)/√3` reproduces
+ * `DEFAULT_SIMULATOR_VIEW` exactly.
+ *
+ * `viewRotation`'s row 2 *is* the eye direction (see `viewDepthAxis`), so this
+ * is an inversion of that row rather than a fresh construction:
+ *
+ * ```
+ * row 2 = (−sin p · sin y,  cos p,  sin p · cos y)
+ * ```
+ *
+ * with `orient` folded in first — the stored rotation multiplies on the right of
+ * the camera, so requiring `row2(C · O) = n` gives `row2(C)ᵀ = O · n`.
+ *
+ * ## The sign of the hypotenuse is load-bearing
+ *
+ * `(−p, y + π)` names the *same* eye direction as `(p, y)` and negates the up
+ * row: same viewpoint, model upside down. Taking the negative root picks
+ * `p ∈ [−π, 0]`, which is the branch this app's camera already lives on —
+ * `DEFAULT_SIMULATOR_VIEW` is at −0.955 and {@link UPRIGHT_PITCH} at −π/2 — and
+ * it puts screen-up on world `+Y` for all four side-on views.
+ *
+ * On the yaw axis itself the yaw is free, so the current one is kept: a snap to
+ * Top or Bottom must not also spin the paper about the direction you are
+ * looking down.
+ */
+export function simulatorViewLookingFrom(
+  view: SimulatorOrbitView,
+  direction: SimulatorViewDirection
+): SimulatorOrbitView {
+  const target = view.orient ? transformVec3(view.orient, direction) : direction;
+  const flat = Math.hypot(target[0], target[2]);
+  return {
+    ...view,
+    yaw: flat < POLE_EPSILON ? view.yaw : Math.atan2(target[0], -target[2]),
+    pitch: Math.atan2(-flat, target[1]),
+  };
+}
+
 
