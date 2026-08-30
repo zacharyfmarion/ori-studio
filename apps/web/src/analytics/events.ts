@@ -246,6 +246,16 @@ export const ANALYTICS_EVENTS = {
   // it, so a low count means standing models are rarer than assumed rather than
   // that the verb is hard to find.
   modelUprightSet: 'model upright set',
+  /**
+   * A view cube face was pressed. `face` is one of the six names, which is a
+   * fixed enum and says nothing about the design — where the camera *was* is a
+   * measured value about someone's model and stays out, as it does for
+   * {@link ANALYTICS_EVENTS.modelUprightSet}.
+   *
+   * The question is which faces anyone actually uses: if it is only Top, the
+   * cube is doing the job a "view from above" button would do more cheaply.
+   */
+  simulatorViewCubeSnapped: 'simulator view cube snapped',
   foldedFigureRehydrated: 'folded figure rehydrated',
   creasePatternShared: 'crease pattern shared',
   shareLinkCopied: 'share link copied',

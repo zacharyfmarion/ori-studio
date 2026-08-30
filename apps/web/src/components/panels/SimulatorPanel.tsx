@@ -648,6 +648,9 @@ export function SimulatorPanel() {
             interactive={loadState === "ready"}
             gpuActive={gpuActive}
             viewSettings={viewSettings}
+            // This is the surface with room for one. `.simulator-panel__body` is
+            // the positioned container it anchors to; see the prop.
+            viewCube
             highlights={highlights}
             pushCamera={pushCamera}
             pushRenderSettings={pushRenderSettings}

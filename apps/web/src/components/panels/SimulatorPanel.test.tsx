@@ -116,6 +116,29 @@ describe('SimulatorPanel', () => {
     expect(trigger?.disabled).toBe(false);
   });
 
+  it('offers a view cube, turned to the camera before its first paint', async () => {
+    const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
+    await flushSimulator();
+
+    const cube = rendered.querySelector('.simulator-view-cube');
+    expect(cube).not.toBeNull();
+    // The cube has no opening view of its own — the viewport points it at the
+    // live camera as the handle attaches — so an unset transform here would mean
+    // the cube renders square-on until the user drags.
+    const scene = cube?.querySelector<HTMLElement>('.simulator-view-cube__scene');
+    expect(scene?.style.transform).toMatch(/^matrix3d\(/);
+    expect(cube?.getAttribute('data-interactive')).toBe('true');
+  });
+
+  it('keeps the cube out of the way while there is nothing to look at', () => {
+    const rendered = renderPanel({});
+
+    expect(rendered.querySelector('.simulator-view-cube')?.getAttribute('data-interactive')).toBeNull();
+    const faces = rendered.querySelectorAll<HTMLButtonElement>('.simulator-view-cube__face');
+    expect(faces).toHaveLength(6);
+    expect(Array.from(faces).every((face) => face.disabled)).toBe(true);
+  });
+
   it('does not offer an export with nothing to draw', () => {
     // Rendered with no fold artifacts, so the panel never reaches "ready". An
     // enabled control here would open a dialog and then fail.

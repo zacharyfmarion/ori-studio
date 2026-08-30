@@ -30,12 +30,14 @@ function render(interactive = true) {
         ref={(value) => {
           handle = value;
         }}
-        initialView={OPENING}
         interactive={interactive}
         onSnap={onSnap}
       />
     );
   });
+  // The cube has no camera of its own: the viewport points it at `viewRef` as
+  // the handle attaches, and this stands in for that.
+  act(() => handle?.setView(OPENING));
 }
 
 function faces(): HTMLButtonElement[] {
