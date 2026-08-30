@@ -38,7 +38,7 @@ const BORDER_ASSIGNMENT = 'B';
  * two coordinate axes with the largest extent so bounds/boundary/thumbnails read
  * the actual planar layout. Returned in ascending index order for determinism.
  */
-export function flatPlaneAxes(fold: FoldDocument): [number, number] {
+function flatPlaneAxes(fold: FoldDocument): [number, number] {
   const coords = fold.vertices_coords ?? [];
   const min = [Infinity, Infinity, Infinity];
   const max = [-Infinity, -Infinity, -Infinity];
@@ -54,8 +54,33 @@ export function flatPlaneAxes(fold: FoldDocument): [number, number] {
   return [byExtent[0]!, byExtent[1]!].sort((a, b) => a - b) as [number, number];
 }
 
-function planePoint(coord: number[] | undefined, axes: [number, number]): Point {
-  return { x: coord?.[axes[0]] ?? 0, y: coord?.[axes[1]] ?? 0 };
+/** Reads one of a fold's vertices as a point in crease-pattern model space. */
+export type FlatPlaneReader = (coord: number[] | undefined) => Point;
+
+/**
+ * Read a flat fold's vertices back into crease-pattern model space.
+ *
+ * The one place that knows how a fold's coordinates relate to the document's,
+ * and the reason it is one place: the mapping is **not** the identity for a
+ * simulation fold, and stating that four times over in index arithmetic is how
+ * three of those four came to state it wrongly.
+ *
+ * A base fold is already model space (`[x, y]`, y-down like the canvas). A
+ * simulation fold has been through `prepareFoldModel`, whose
+ * `normalizePoint([x, y]) = [x, 0, −y]` lifts the sheet into the XZ plane and
+ * **negates y on the way** — because `MeshRenderer` draws through a reflecting
+ * view and the model has to arrive reflected to come out reading correctly.
+ * So reading such a fold back means negating again.
+ *
+ * Callers get a reader rather than an axis pair so the sign cannot be dropped by
+ * indexing the coordinate directly, which is what every call site used to do.
+ */
+export function flatPlaneReader(fold: FoldDocument): FlatPlaneReader {
+  const axes = flatPlaneAxes(fold);
+  // The XZ plane is the lift's signature: nothing else in this app produces a
+  // fold whose paper spans X and Z, so it is exactly the case to undo.
+  const sign = axes[0] === 0 && axes[1] === 2 ? -1 : 1;
+  return (coord) => ({ x: coord?.[axes[0]] ?? 0, y: sign * (coord?.[axes[1]] ?? 0) });
 }
 
 /** The fold document the simulator actually prepares for a document. */
@@ -118,7 +143,7 @@ export function simulationFacesForSegment(
 ): number[] {
   const faces = simulationFold.faces_vertices ?? [];
   const coords = simulationFold.vertices_coords ?? [];
-  const axes = flatPlaneAxes(simulationFold);
+  const readPoint = flatPlaneReader(simulationFold);
   const { minX, minY, maxX, maxY } = segment.bounds;
   const kept: number[] = [];
   for (let faceIndex = 0; faceIndex < faces.length; faceIndex += 1) {
@@ -127,7 +152,7 @@ export function simulationFacesForSegment(
     let sumX = 0;
     let sumY = 0;
     for (const vertex of face) {
-      const point = planePoint(coords[vertex], axes);
+      const point = readPoint(coords[vertex]);
       sumX += point.x;
       sumY += point.y;
     }
@@ -230,11 +255,11 @@ export function segmentFoldDocument(fold: FoldDocument): CpSegment[] {
     else groups.set(root, [faceIndex]);
   }
 
-  const axes = flatPlaneAxes(fold);
+  const readPoint = flatPlaneReader(fold);
   const segments: CpSegment[] = [];
   for (const faceIndices of groups.values()) {
-    const boundary = traceBoundaryRings(fold, faceIndices, axes);
-    const bounds = boundsOfFaces(fold, faceIndices, axes);
+    const boundary = traceBoundaryRings(fold, faceIndices, readPoint);
+    const bounds = boundsOfFaces(fold, faceIndices, readPoint);
     segments.push({ id: 0, faceIndices, boundary, bounds });
   }
 
@@ -284,7 +309,7 @@ export function buildAssignmentByKey(fold: FoldDocument): Map<string, string> {
 function boundsOfFaces(
   fold: FoldDocument,
   faceIndices: number[],
-  axes: [number, number]
+  readPoint: FlatPlaneReader
 ): SegmentBounds {
   const coords = fold.vertices_coords ?? [];
   const faces = fold.faces_vertices ?? [];
@@ -296,8 +321,7 @@ function boundsOfFaces(
     for (const vertex of faces[faceIndex] ?? []) {
       const coord = coords[vertex];
       if (!coord) continue;
-      const x = coord[axes[0]] ?? 0;
-      const y = coord[axes[1]] ?? 0;
+      const { x, y } = readPoint(coord);
       if (x < minX) minX = x;
       if (y < minY) minY = y;
       if (x > maxX) maxX = x;
@@ -315,7 +339,7 @@ function boundsOfFaces(
 function traceBoundaryRings(
   fold: FoldDocument,
   faceIndices: number[],
-  axes: [number, number]
+  readPoint: FlatPlaneReader
 ): Point[][] {
   const faces = fold.faces_vertices ?? [];
   const coords = fold.vertices_coords ?? [];
@@ -350,7 +374,7 @@ function traceBoundaryRings(
 
   const rings: Point[][] = [];
   const visitedEdges = new Set<string>();
-  const toPoint = (vertex: number): Point => planePoint(coords[vertex], axes);
+  const toPoint = (vertex: number): Point => readPoint(coords[vertex]);
 
   for (const start of adjacency.keys()) {
     const neighbors = adjacency.get(start) ?? [];
@@ -529,7 +553,7 @@ export function cpThumbnailSvg(
   const padding = options.padding ?? 6;
   const coords = fold.vertices_coords ?? [];
   const faces = fold.faces_vertices ?? [];
-  const axes = flatPlaneAxes(fold);
+  const readPoint = flatPlaneReader(fold);
   const assignmentByKey = buildAssignmentByKey(fold);
   const background = options.background
     ? `<rect width="${size}" height="${size}" fill="${options.background}"/>`
@@ -554,7 +578,7 @@ export function cpThumbnailSvg(
   const offsetX = padding + ((size - padding * 2) - (maxX - minX) * scale) / 2;
   const offsetY = padding + ((size - padding * 2) - (maxY - minY) * scale) / 2;
   const project = (vertex: number): [number, number] => {
-    const p = planePoint(coords[vertex], axes);
+    const p = readPoint(coords[vertex]);
     const x = offsetX + (p.x - minX) * scale;
     // No y flip: FOLD coordinates are already y-down, matching SVG (see
     // `foldProjector`). Flipping here turned every thumbnail upside down

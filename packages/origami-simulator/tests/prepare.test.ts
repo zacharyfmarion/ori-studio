@@ -16,9 +16,12 @@ describe('prepareFoldModel', () => {
 
     expect(prepared.vertexCount).toBe(4);
     expect(prepared.faceCount).toBe(2);
+    // The lift: paper into the XZ plane, flat in Y, and FOLD y **negated** —
+    // see `normalizePoint`. Vertex 2 is (1, 1), the only fixture corner off both
+    // axes, so it is the one that can tell a sign error from a coincidence.
+    expect(Array.from(prepared.positions.slice(6, 9))).toEqual([1, 0, -1]);
     expect(prepared.positions[1]).toBe(0);
-    expect(prepared.positions[2]).toBe(0);
-    expect(prepared.positions[5]).toBe(0);
+    expect(prepared.positions[4]).toBe(0);
     expect(prepared.edgesAssignment[4]).toBe('M');
     expect(prepared.edgesFoldAngle[4]).toBe(-180);
     expect(prepared.creaseParams).toHaveLength(1);

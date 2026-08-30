@@ -19,8 +19,41 @@ export function normalizeAssignment(value: unknown): FoldAssignment {
     : 'U';
 }
 
+/**
+ * Lift a FOLD coordinate into the renderer's world: the sheet lies in the XZ
+ * plane, so world **Y** is the flat paper's normal and the axis the orbit camera
+ * spins about.
+ *
+ * A 2-component coordinate lifts to `[x, 0, −y]`, and the **negation is
+ * load-bearing**. Two facts meet here:
+ *
+ * 1. Every FOLD this app produces is **y-down**, because that is the crease
+ *    pattern canvas's own model space (`userCameraToView` sends model +y to
+ *    device +y). TreeMaker converts on the way out — `to_fold_document` emits
+ *    `paper_height − y` — so its exports land in the same space rather than in
+ *    the y-up one a reader might assume from the FOLD spec.
+ * 2. `MeshRenderer`'s view transform is a **reflection**: `viewRotation` has
+ *    determinant −1 at every angle (see `webgl/camera.ts`), so the picture it
+ *    draws is the mirror of the true view.
+ *
+ * Lifted as `[x, 0, y]` — upstream Origami Simulator's spelling, which is right
+ * for the right-handed THREE.js camera it draws through — a y-down sheet comes
+ * out flipped: a crease running to the canvas's top-right corner runs to the
+ * bottom-right on screen. Negating cancels the reflection, and it is the same
+ * cancellation a 3D folded figure already makes with `toSimBasis`
+ * (`(x, y, z) → (x, z, −y)`, whose flat case is exactly this) — so the two
+ * surfaces now place the same sheet the same way up.
+ *
+ * The paper's two tones and the mountain/valley sense do not ride on this sign:
+ * `prepareSimulationFold` re-derives every face's winding from the lifted
+ * coordinates and pairs it with a matching fold-angle sign, both downstream of
+ * here.
+ *
+ * A 3-component coordinate is passed through: it already names a plane, and
+ * which one is the file's business.
+ */
 export function normalizePoint(coord: number[]): [number, number, number] {
-  if (coord.length === 2) return [coord[0] ?? 0, 0, coord[1] ?? 0];
+  if (coord.length === 2) return [coord[0] ?? 0, 0, -(coord[1] ?? 0)];
   return [coord[0] ?? 0, coord[1] ?? 0, coord[2] ?? 0];
 }
 
