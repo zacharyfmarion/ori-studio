@@ -271,6 +271,30 @@ describe('SimulatorViewport view cube', () => {
     expect(lastView().zoom).toBe(zoomed);
   });
 
+  it('turns the model when the cube itself is dragged', () => {
+    // End to end through the real gesture, not the cube's mock of it: a drag on
+    // the cube has to reach the camera exactly as a drag on the canvas does.
+    render(true, undefined, true);
+    const front = Array.from(
+      host?.querySelectorAll<HTMLButtonElement>('.simulator-view-cube__spot--face') ?? []
+    ).find((spot) => spot.textContent === 'Front');
+    expect(front).toBeDefined();
+
+    const send = (type: string, x: number, y: number) =>
+      act(() => {
+        front?.dispatchEvent(
+          new PointerEvent(type, { pointerId: 3, clientX: x, clientY: y, bubbles: true })
+        );
+      });
+    send('pointerdown', 200, 200);
+    send('pointermove', 260, 200);
+    send('pointerup', 260, 200);
+
+    // Dragging right lowers the yaw, the same way and by the same amount as on
+    // the canvas — 60px at the shared sensitivity.
+    expect(lastView().yaw).toBeCloseTo(DEFAULT_SIMULATOR_VIEW.yaw - 0.6, 12);
+  });
+
   it('is off unless a surface asks for it', () => {
     render(true);
 

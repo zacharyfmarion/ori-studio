@@ -29,6 +29,24 @@ export interface SimulatorOrbitPoint {
   y: number;
 }
 
+/**
+ * Turning the model by dragging, as three verbs.
+ *
+ * A surface that offers the gesture supplies pointer positions and nothing else:
+ * where the drag started from, how sensitive it is, and where the resulting view
+ * goes all belong to whoever owns the camera. Two surfaces drive one of these —
+ * the simulator canvas and the view cube floating over it — and they are not the
+ * same gesture in DOM terms, which is exactly why the part they *do* share is
+ * passed across rather than written twice.
+ */
+export interface SimulatorOrbitGesture {
+  /** A drag has started at this point. Cancels anything already moving. */
+  begin: (point: SimulatorOrbitPoint) => void;
+  /** The pointer is here now. Ignored unless a drag is in flight. */
+  move: (point: SimulatorOrbitPoint) => void;
+  end: () => void;
+}
+
 export const SIMULATOR_ORBIT_SENSITIVITY = 0.01;
 
 /**

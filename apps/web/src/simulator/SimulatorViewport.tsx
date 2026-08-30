@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   type PointerEvent as ReactPointerEvent,
   type Ref,
@@ -32,6 +33,8 @@ import {
   setUprightView,
   simulatorViewLookingFrom,
   simulatorWheelZoomFactor,
+  type SimulatorOrbitDrag,
+  type SimulatorOrbitGesture,
   type SimulatorOrbitView as SimulatorView,
   type SimulatorViewDirection,
 } from "../lib/simulatorOrbit";
@@ -290,13 +293,10 @@ export function SimulatorViewport({
   const viewCubeRef = useRef<SimulatorViewCubeHandle | null>(null);
   // The rAF of a view cube snap in flight, or null. See `applyView`.
   const snapRef = useRef<number | null>(null);
-  const dragRef = useRef<{
-    pointerId: number;
-    x: number;
-    y: number;
-    yaw: number;
-    pitch: number;
-  } | null>(null);
+  // Which pointer the canvas is following. The angles it drags from live on the
+  // gesture below, which the view cube drives too.
+  const dragRef = useRef<{ pointerId: number } | null>(null);
+  const orbitOriginRef = useRef<SimulatorOrbitDrag | null>(null);
   // Read synchronously by the pointer and draw handlers, which must not see a
   // stale closure mid-gesture.
   const gpuActiveRef = useRef(gpuActive);
@@ -632,36 +632,63 @@ export function SimulatorViewport({
     [resetView, setUpright, zoomBy, drawCurrentFrame, presentBitmap, applyView]
   );
 
+  /**
+   * The orbit itself, as three verbs rather than three pointer handlers.
+   *
+   * The canvas and the view cube both turn the model by dragging, and they are
+   * not the same gesture in DOM terms — the canvas owns its element outright,
+   * while the cube has to tell a drag from a press and keep its own capture on
+   * whichever face was grabbed. What they *do* share is all of this: the origin,
+   * the sensitivity, the perf counters and where the result goes. Passing the
+   * verbs across means the second surface inherits every one of those rather
+   * than growing a near-copy that slowly disagrees.
+   */
+  const orbit = useMemo<SimulatorOrbitGesture>(
+    () => ({
+      begin: (point) => {
+        // Before the angles below are read, not after: a drag that began
+        // mid-snap must start from where the model is now and own it from there.
+        cancelSnap();
+        // A drag is the unit the orbit readout reports on; see
+        // `beginOrbitGesture`.
+        beginOrbitGesture(perfSurface);
+        orbitOriginRef.current = {
+          x: point.x,
+          y: point.y,
+          yaw: viewRef.current.yaw,
+          pitch: viewRef.current.pitch,
+        };
+      },
+      move: (point) => {
+        const origin = orbitOriginRef.current;
+        if (!origin) return;
+        // Counted before the push, so the log compares pointer input against
+        // messages sent rather than against itself. They are equal today —
+        // nothing coalesces — which is the baseline any fix has to move.
+        recordOrbitMove();
+        applyView(nextSimulatorOrbitView(viewRef.current, origin, point));
+      },
+      end: () => {
+        if (!orbitOriginRef.current) return;
+        orbitOriginRef.current = null;
+        // The line lands once the backlog drains, which is the measurement: how
+        // long the fold keeps moving after the pointer stopped.
+        endOrbitGesture();
+      },
+    }),
+    [applyView, cancelSnap, perfSurface]
+  );
+
   const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     if (!interactiveRef.current) return;
-    // Before the angles below are read, not after: a drag that began mid-snap
-    // must start from where the model is now and own it from there.
-    cancelSnap();
     event.currentTarget.setPointerCapture(event.pointerId);
-    // A drag is the unit the orbit readout reports on; see `beginOrbitGesture`.
-    beginOrbitGesture(perfSurface);
-    dragRef.current = {
-      pointerId: event.pointerId,
-      x: event.clientX,
-      y: event.clientY,
-      yaw: viewRef.current.yaw,
-      pitch: viewRef.current.pitch,
-    };
+    dragRef.current = { pointerId: event.pointerId };
+    orbit.begin({ x: event.clientX, y: event.clientY });
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    // Counted before the push, so the log compares pointer input against
-    // messages sent rather than against itself. They are equal today — nothing
-    // coalesces — which is the baseline any fix has to move.
-    recordOrbitMove();
-    applyView(
-      nextSimulatorOrbitView(viewRef.current, drag, {
-        x: event.clientX,
-        y: event.clientY,
-      })
-    );
+    if (dragRef.current?.pointerId !== event.pointerId) return;
+    orbit.move({ x: event.clientX, y: event.clientY });
   };
 
   const handlePointerEnd = (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -670,9 +697,7 @@ export function SimulatorViewport({
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
     dragRef.current = null;
-    // The line lands once the backlog drains, which is the measurement: how long
-    // the fold keeps moving after the pointer stopped.
-    endOrbitGesture();
+    orbit.end();
   };
 
   // Zoom, as a native listener rather than an `onWheel` prop.
@@ -734,6 +759,7 @@ export function SimulatorViewport({
           ref={attachViewCube}
           interactive={interactive}
           onSnap={snapToDirection}
+          orbit={orbit}
         />
       )}
     </>

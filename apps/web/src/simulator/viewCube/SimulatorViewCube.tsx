@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useImperativeHandle, useRef, type Ref } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  type PointerEvent as ReactPointerEvent,
+  type Ref,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -7,7 +14,11 @@ import {
   visibleViewCubeFaces,
   type ViewCubeFaceId,
 } from './viewCubeGeometry';
-import type { SimulatorOrbitView, SimulatorViewDirection } from '../../lib/simulatorOrbit';
+import type {
+  SimulatorOrbitGesture,
+  SimulatorOrbitView,
+  SimulatorViewDirection,
+} from '../../lib/simulatorOrbit';
 import { track } from '../../analytics';
 import { ANALYTICS_EVENTS } from '../../analytics/events';
 
@@ -41,11 +52,27 @@ export interface SimulatorViewCubeHandle {
 
 export interface SimulatorViewCubeProps {
   ref?: Ref<SimulatorViewCubeHandle>;
-  /** Whether the faces accept clicks (false while loading or errored). */
+  /** Whether the faces accept presses (false while loading or errored). */
   interactive: boolean;
   /** A face was chosen: look at the model from here. */
   onSnap: (direction: SimulatorViewDirection, face: ViewCubeFaceId) => void;
+  /**
+   * Turning the model by dragging — the same gesture the canvas behind offers,
+   * so a drag that starts on the cube is the drag it would have been anywhere
+   * else. Grabbing the cube and turning it is what most people try first.
+   */
+  orbit: SimulatorOrbitGesture;
 }
+
+/**
+ * How far the pointer may travel and still be a press, in CSS pixels.
+ *
+ * A press and a drag begin identically here, so one of them has to be decided
+ * late. Nothing is turned until the pointer has passed this, and once it has,
+ * the press that would otherwise follow on release is swallowed — a drag that
+ * ends over the Top face must not also snap to Top.
+ */
+const DRAG_SLOP_PX = 3;
 
 /**
  * Face names, as literal `t()` calls so the i18n extractor can see them.
@@ -70,7 +97,7 @@ function faceLabel(t: TFunction, id: ViewCubeFaceId): string {
   }
 }
 
-export function SimulatorViewCube({ ref, interactive, onSnap }: SimulatorViewCubeProps) {
+export function SimulatorViewCube({ ref, interactive, onSnap, orbit }: SimulatorViewCubeProps) {
   const { t } = useTranslation();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<HTMLDivElement | null>(null);
@@ -78,6 +105,11 @@ export function SimulatorViewCube({ ref, interactive, onSnap }: SimulatorViewCub
   // Compared before writing, so the six `data-hidden` attributes are touched
   // when a face crosses the horizon rather than on every frame of a drag.
   const visibleRef = useRef<number | null>(null);
+  const dragRef = useRef<{ pointerId: number; x: number; y: number; turned: boolean } | null>(
+    null
+  );
+  // Set when a drag ends, and cleared by the press it swallows.
+  const swallowPressRef = useRef(false);
 
   const applyView = useCallback((view: SimulatorOrbitView) => {
     const scene = sceneRef.current;
@@ -91,6 +123,53 @@ export function SimulatorViewCube({ ref, interactive, onSnap }: SimulatorViewCub
   }, []);
 
   useImperativeHandle(ref, () => ({ setView: applyView }), [applyView]);
+
+  /*
+   * Turning the cube.
+   *
+   * The handlers sit on the root, which takes no pointer events itself — they
+   * run on what bubbles up from a face. That is deliberate: a drag can only
+   * start on a face that is actually facing you, so the empty corners of the
+   * cube's box stay the canvas's to press.
+   *
+   * Capture goes on the pressed face rather than on the root for the same
+   * reason. A `pointer-events: none` element is a poor capture target, and the
+   * face is what the gesture is on anyway; capturing it is what lets the drag
+   * carry on out over the canvas and back.
+   */
+  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!interactive) return;
+    const face = event.target as Element;
+    face.setPointerCapture?.(event.pointerId);
+    dragRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      turned: false,
+    };
+    // Begun on the press, not on the first move past the slop: this is also what
+    // stops a snap that is still animating, and it fixes the angles the drag
+    // turns from before anything can move them.
+    orbit.begin({ x: event.clientX, y: event.clientY });
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (!drag.turned) {
+      if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < DRAG_SLOP_PX) return;
+      drag.turned = true;
+    }
+    orbit.move({ x: event.clientX, y: event.clientY });
+  };
+
+  const handlePointerEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    swallowPressRef.current = drag.turned;
+    orbit.end();
+  };
 
   // A wheel over the cube would otherwise reach the page rather than the canvas
   // behind it, and a trackpad pinch — reported as ctrl+wheel — would zoom the
@@ -109,6 +188,10 @@ export function SimulatorViewCube({ ref, interactive, onSnap }: SimulatorViewCub
       ref={rootRef}
       className="simulator-view-cube"
       data-interactive={interactive || undefined}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerEnd}
+      onPointerCancel={handlePointerEnd}
       role="group"
       aria-label={t('panels:simulator.viewCube.label', 'View cube')}
     >
@@ -124,6 +207,11 @@ export function SimulatorViewCube({ ref, interactive, onSnap }: SimulatorViewCub
           >
             {face.spots.map((spot, cell) => {
               const press = () => {
+                // A drag that happened to end over a face is not a press on it.
+                if (swallowPressRef.current) {
+                  swallowPressRef.current = false;
+                  return;
+                }
                 // Counted here rather than by the caller, because this is the
                 // only place that knows *which* region was pressed: the viewport
                 // above sees a direction, which by then could have come from

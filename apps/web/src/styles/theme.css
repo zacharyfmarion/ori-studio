@@ -4667,11 +4667,20 @@ button.cp-folded-figure-toolbar__notice:hover {
   covers the cube by document order rather than by a number either could drift.
 */
 .simulator-view-cube {
-  --view-cube-size: 76px;
+  --view-cube-size: 62px;
   --view-cube-half: calc(var(--view-cube-size) / 2);
   position: absolute;
-  bottom: 16px;
-  left: 16px;
+  /*
+    Inset far enough that a *turned* cube still clears the pane.
+
+    The box is one edge square, but the cube inside it is not: a corner sits
+    √3/2 of an edge from the centre, so at the worst angle the silhouette
+    overhangs the box by (√3 − 1)/2 ≈ 0.37 of an edge on every side — 23px at
+    this size. Anything less than that as an inset and some rotation clips on
+    the pane edge or lands on the transport bar below.
+  */
+  bottom: 34px;
+  left: 30px;
   width: var(--view-cube-size);
   height: var(--view-cube-size);
   /* The cube's box is square; only its faces are the cube. Everything else in
@@ -4722,6 +4731,9 @@ button.cp-folded-figure-toolbar__notice:hover {
   place-items: center;
   cursor: pointer;
   pointer-events: none;
+  /* The cube is dragged to turn the model, so the browser must not read that as
+     a pan or a page zoom — the same reason the canvas behind it sets this. */
+  touch-action: none;
   transition:
     background-color 120ms ease,
     color 120ms ease;

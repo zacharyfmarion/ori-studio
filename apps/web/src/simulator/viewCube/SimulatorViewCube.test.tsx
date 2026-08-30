@@ -3,7 +3,11 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { SimulatorViewCube, type SimulatorViewCubeHandle } from './SimulatorViewCube';
 import type { ViewCubeFaceId } from './viewCubeGeometry';
-import { simulatorViewLookingFrom, type SimulatorViewDirection } from '../../lib/simulatorOrbit';
+import {
+  simulatorViewLookingFrom,
+  type SimulatorOrbitGesture,
+  type SimulatorViewDirection,
+} from '../../lib/simulatorOrbit';
 
 /**
  * The cube's DOM contract.
@@ -21,6 +25,7 @@ const OPENING = { yaw: Math.PI / 4, pitch: -0.955, zoom: 1.4 };
 let root: Root | null = null;
 let host: HTMLDivElement | null = null;
 let onSnap: Mock<Snap>;
+let orbit: { [K in keyof SimulatorOrbitGesture]: Mock<SimulatorOrbitGesture[K]> };
 let handle: SimulatorViewCubeHandle | null = null;
 
 function render(interactive = true) {
@@ -32,6 +37,7 @@ function render(interactive = true) {
         }}
         interactive={interactive}
         onSnap={onSnap}
+        orbit={orbit}
       />
     );
   });
@@ -77,10 +83,20 @@ beforeEach(() => {
   document.body.appendChild(host);
   root = createRoot(host);
   onSnap = vi.fn<Snap>();
+  orbit = { begin: vi.fn(), move: vi.fn(), end: vi.fn() };
   handle = null;
+  // jsdom implements no pointer capture, and a drag on a face takes it.
+  const element = HTMLElement.prototype as unknown as Record<string, unknown>;
+  element.setPointerCapture = () => {};
+  element.hasPointerCapture = () => false;
+  element.releasePointerCapture = () => {};
 });
 
 afterEach(() => {
+  const element = HTMLElement.prototype as unknown as Record<string, unknown>;
+  delete element.setPointerCapture;
+  delete element.hasPointerCapture;
+  delete element.releasePointerCapture;
   act(() => root?.unmount());
   host?.remove();
   root = null;
@@ -162,6 +178,73 @@ describe('SimulatorViewCube', () => {
     const tabbable = spots('Front').filter((spot) => spot.tabIndex !== -1);
     expect(tabbable).toHaveLength(1);
     expect(tabbable[0]?.textContent).toBe('Front');
+  });
+
+  /** Press, move through the given offsets, release — all on one face. */
+  function drag(label: string, ...offsets: Array<[number, number]>) {
+    const target = faceButton(label);
+    const send = (type: string, x: number, y: number) =>
+      act(() => {
+        target.dispatchEvent(
+          new PointerEvent(type, { pointerId: 7, clientX: x, clientY: y, bubbles: true })
+        );
+      });
+    send('pointerdown', 100, 100);
+    for (const [dx, dy] of offsets) send('pointermove', 100 + dx, 100 + dy);
+    const [lastX, lastY] = offsets.at(-1) ?? [0, 0];
+    send('pointerup', 100 + lastX, 100 + lastY);
+  }
+
+  it('turns the model when the cube is dragged', () => {
+    // What most people try first, and what the cube did nothing about until now.
+    render();
+
+    drag('Front', [40, 0], [80, 12]);
+
+    expect(orbit.begin).toHaveBeenCalledWith({ x: 100, y: 100 });
+    expect(orbit.move.mock.calls).toEqual([[{ x: 140, y: 100 }], [{ x: 180, y: 112 }]]);
+    expect(orbit.end).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not also snap to the face a drag ended on', () => {
+    // Press and drag start identically, so the press has to be decided late: a
+    // turn that finishes over Front must not then jump the camera to Front.
+    render();
+
+    drag('Front', [40, 0]);
+    act(() => faceButton('Front').click());
+
+    expect(onSnap).not.toHaveBeenCalled();
+  });
+
+  it('still snaps when the pointer barely moved', () => {
+    // A press is never perfectly still. Under the slop it is a press.
+    render();
+
+    drag('Top', [1, -1]);
+    act(() => faceButton('Top').click());
+
+    expect(orbit.move).not.toHaveBeenCalled();
+    expect(onSnap).toHaveBeenCalledWith([0, 1, 0], 'top');
+  });
+
+  it('swallows only the press the drag earned', () => {
+    // The flag is cleared by the press it eats, so the *next* one gets through.
+    render();
+
+    drag('Front', [40, 0]);
+    act(() => faceButton('Front').click());
+    act(() => faceButton('Front').click());
+
+    expect(onSnap).toHaveBeenCalledTimes(1);
+  });
+
+  it('takes no drag while the simulation is not ready', () => {
+    render(false);
+
+    drag('Front', [40, 0]);
+
+    expect(orbit.begin).not.toHaveBeenCalled();
   });
 
   it('keeps a trackpad pinch off the page', () => {
