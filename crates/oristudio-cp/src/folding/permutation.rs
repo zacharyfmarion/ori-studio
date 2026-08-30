@@ -1794,7 +1794,6 @@ impl ChainPermutationGenerator {
     }
 
     /// Return to the first valid permutation.
-
     pub fn reset(&mut self) {
         self.count = 0;
         self.lock_remain = self.lock_count;
