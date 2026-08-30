@@ -171,14 +171,14 @@ describe('SimulatorViewport view cube', () => {
     }
   }
 
-  function faces(): HTMLButtonElement[] {
-    return Array.from(host?.querySelectorAll('.simulator-view-cube__face') ?? []);
-  }
-
+  /** A face's own middle cell — the one that snaps to the face itself. */
   function press(label: string) {
-    const face = faces().find((element) => element.textContent === label);
-    expect(face, label).toBeDefined();
-    act(() => face?.click());
+    const spots = Array.from(
+      host?.querySelectorAll<HTMLButtonElement>('.simulator-view-cube__spot--face') ?? []
+    );
+    const spot = spots.find((element) => element.textContent === label);
+    expect(spot, label).toBeDefined();
+    act(() => spot?.click());
   }
 
   /** The camera the viewport most recently pushed. */

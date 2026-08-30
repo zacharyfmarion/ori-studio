@@ -146,9 +146,9 @@ describe('SimulatorPanel', () => {
     const rendered = renderPanel({});
 
     expect(rendered.querySelector('.simulator-view-cube')?.getAttribute('data-interactive')).toBeNull();
-    const faces = rendered.querySelectorAll<HTMLButtonElement>('.simulator-view-cube__face');
-    expect(faces).toHaveLength(6);
-    expect(Array.from(faces).every((face) => face.disabled)).toBe(true);
+    const spots = rendered.querySelectorAll<HTMLButtonElement>('.simulator-view-cube__spot');
+    expect(spots).toHaveLength(54);
+    expect(Array.from(spots).every((spot) => spot.disabled)).toBe(true);
   });
 
   it('does not offer an export with nothing to draw', () => {

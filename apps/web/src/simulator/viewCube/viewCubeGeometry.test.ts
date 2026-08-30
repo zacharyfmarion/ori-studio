@@ -103,6 +103,53 @@ describe('the view cube transform', () => {
     expect(parts.slice(12)).toEqual([0, 0, 0, 1]);
   });
 
+  it('sets each face’s own axes consistently', () => {
+    // `right × down = direction` on every face. The spots are built from these
+    // by arithmetic, so a transposed or negated axis here would quietly aim four
+    // of a face's eight neighbours at the wrong viewpoints.
+    for (const face of VIEW_CUBE_FACES) {
+      const [rx, ry, rz] = face.right;
+      const [dx, dy, dz] = face.down;
+      // `+ 0` normalizes the signed zeros the products throw off; −0 and 0 are
+      // the same axis and `toEqual` is the only thing that disagrees.
+      const cross = [ry * dz - rz * dy, rz * dx - rx * dz, rx * dy - ry * dx].map((v) => v + 0);
+      expect(cross, face.id).toEqual([...face.direction]);
+    }
+  });
+
+  it('offers the 26 viewpoints, nine at a time', () => {
+    const seen = new Map<string, string>();
+    for (const face of VIEW_CUBE_FACES) {
+      expect(face.spots, face.id).toHaveLength(9);
+      for (const spot of face.spots) {
+        expect(Math.hypot(...spot.direction), face.id).toBeCloseTo(1, 12);
+        seen.set(
+          spot.direction.map((axis) => axis.toFixed(6)).join(','),
+          spot.kind
+        );
+      }
+    }
+    // 6 faces + 12 edges + 8 corners, each named by however many faces touch it.
+    const kinds = [...seen.values()];
+    expect(kinds.filter((kind) => kind === 'face')).toHaveLength(6);
+    expect(kinds.filter((kind) => kind === 'edge')).toHaveLength(12);
+    expect(kinds.filter((kind) => kind === 'corner')).toHaveLength(8);
+  });
+
+  it('reaches the opening view from a corner spot', () => {
+    // The simulator opens on the (1, 1, −1) diagonal, so one of the corners has
+    // to *be* that viewpoint — otherwise the view the app starts at is the one
+    // the cube cannot return to.
+    const root = 1 / Math.sqrt(3);
+    const opening = VIEW_CUBE_FACES.flatMap((face) => face.spots).find(
+      (spot) =>
+        Math.abs(spot.direction[0] - root) < 1e-9 &&
+        Math.abs(spot.direction[1] - root) < 1e-9 &&
+        Math.abs(spot.direction[2] + root) < 1e-9
+    );
+    expect(opening?.kind).toBe('corner');
+  });
+
   it('names each face once, with unit directions', () => {
     expect(VIEW_CUBE_FACES).toHaveLength(6);
     expect(new Set(VIEW_CUBE_FACES.map((face) => face.id)).size).toBe(6);

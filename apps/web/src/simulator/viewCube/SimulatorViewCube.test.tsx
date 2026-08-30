@@ -40,14 +40,29 @@ function render(interactive = true) {
   act(() => handle?.setView(OPENING));
 }
 
-function faces(): HTMLButtonElement[] {
+/** The six face panels, which carry the label and the visibility state. */
+function faces(): HTMLElement[] {
   return Array.from(host?.querySelectorAll('.simulator-view-cube__face') ?? []);
 }
 
-function face(label: string): HTMLButtonElement {
+function face(label: string): HTMLElement {
   const found = faces().find((element) => element.textContent === label);
   expect(found, `a face labelled ${label}`).toBeDefined();
-  return found as HTMLButtonElement;
+  return found as HTMLElement;
+}
+
+/** A face's own middle cell — the one that snaps to the face itself. */
+function faceButton(label: string): HTMLButtonElement {
+  const button = face(label).querySelector<HTMLButtonElement>(
+    '.simulator-view-cube__spot--face'
+  );
+  expect(button, `a button on the ${label} face`).not.toBeNull();
+  return button as HTMLButtonElement;
+}
+
+/** A face's nine cells, in reading order from its top-left. */
+function spots(label: string): HTMLButtonElement[] {
+  return Array.from(face(label).querySelectorAll('.simulator-view-cube__spot'));
 }
 
 function visibleLabels(): string[] {
@@ -83,7 +98,7 @@ describe('SimulatorViewCube', () => {
   it('reports the direction the pressed face looks from', () => {
     render();
 
-    act(() => face('Top').click());
+    act(() => faceButton('Top').click());
 
     expect(onSnap).toHaveBeenCalledWith([0, 1, 0], 'top');
   });
@@ -115,10 +130,38 @@ describe('SimulatorViewCube', () => {
   it('takes no press while the simulation is not ready', () => {
     render(false);
 
-    act(() => face('Top').click());
+    act(() => faceButton('Top').click());
 
     expect(onSnap).not.toHaveBeenCalled();
     expect(host?.querySelector('.simulator-view-cube')?.getAttribute('data-interactive')).toBeNull();
+  });
+
+  it('offers a face’s eight neighbours alongside it', () => {
+    // A face-on view leaves every other face edge-on, so faces alone would make
+    // the cube a dead end: press Front and nothing but Front is clickable until
+    // you drag. Its own corners and edges are the way out.
+    render();
+
+    const cells = spots('Front');
+    expect(cells).toHaveLength(9);
+    // Reading order from the face's top-left, so its top-left cell is the
+    // front-top-left corner of the cube.
+    const root = 1 / Math.sqrt(3);
+    act(() => cells[0]?.click());
+    const direction = onSnap.mock.calls.at(-1)?.[0] ?? [0, 0, 0];
+    expect(direction[0]).toBeCloseTo(-root, 12);
+    expect(direction[1]).toBeCloseTo(root, 12);
+    expect(direction[2]).toBeCloseTo(-root, 12);
+  });
+
+  it('keeps the eight out of the keyboard’s way', () => {
+    // Six stops in the tab order, not fifty-four. They are redundant with
+    // dragging, and the six faces are what a keyboard user actually needs.
+    render();
+
+    const tabbable = spots('Front').filter((spot) => spot.tabIndex !== -1);
+    expect(tabbable).toHaveLength(1);
+    expect(tabbable[0]?.textContent).toBe('Front');
   });
 
   it('keeps a trackpad pinch off the page', () => {

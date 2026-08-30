@@ -4689,15 +4689,30 @@ button.cp-folded-figure-toolbar__notice:hover {
 .simulator-view-cube__face {
   position: absolute;
   inset: 0;
+  /* Three by three: the middle cell is the face, the four beside it are the
+     cube's edges and the four in the corners its corners — the 26 viewpoints
+     drei offers as little floating boxes, which in CSS would be six more faces
+     apiece. It also means the face you are looking at always offers its own
+     neighbours, so a face-on view is never a dead end. */
+  display: grid;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--bg-elevated) 90%, transparent);
+  backface-visibility: hidden;
+  pointer-events: none;
+  transition: background-color 120ms ease;
+}
+
+.simulator-view-cube__spot {
   display: grid;
   margin: 0;
   /* A UA button's own padding survives `display: grid` and pushes the label off
      centre; see the icon buttons, which need the same. */
   padding: 0;
-  border: 1px solid var(--border-subtle);
-  border-radius: 3px;
+  border: 0;
   appearance: none;
-  background: color-mix(in srgb, var(--bg-elevated) 90%, transparent);
+  background: transparent;
   color: var(--text-secondary);
   font-family: inherit;
   font-size: 0.56rem;
@@ -4705,7 +4720,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   letter-spacing: 0.09em;
   text-transform: uppercase;
   place-items: center;
-  backface-visibility: hidden;
   cursor: pointer;
   pointer-events: none;
   transition:
@@ -4714,28 +4728,43 @@ button.cp-folded-figure-toolbar__notice:hover {
 }
 
 /*
-  Only a face that is both live and turned toward the eye takes a press. The
-  browser already declines to hit-test what `backface-visibility` stops it
-  painting; `data-hidden` states it as well, because a click landing on the face
-  behind would snap to the opposite view, and because jsdom has no backfaces.
+  A spot takes a press only on a face that is both live and turned toward the
+  eye. The browser already declines to hit-test what `backface-visibility` stops
+  it painting; `data-hidden` states it as well, because a press landing on the
+  face behind would snap to the opposite view, and because jsdom has no
+  backfaces.
 */
-.simulator-view-cube[data-interactive] .simulator-view-cube__face[data-hidden='false'] {
+.simulator-view-cube[data-interactive] .simulator-view-cube__face[data-hidden='false']
+  .simulator-view-cube__spot {
   pointer-events: auto;
 }
 
-.simulator-view-cube__face:hover,
-.simulator-view-cube__face:focus-visible {
+/* An edge or corner lights only itself; the middle lights the whole face, which
+   is how drei's reads — the face is the target, not a ninth of it. */
+.simulator-view-cube__spot:hover {
+  background: color-mix(in srgb, var(--accent-primary) 34%, transparent);
+}
+
+.simulator-view-cube__face:has(.simulator-view-cube__spot--face:hover),
+.simulator-view-cube__face:has(.simulator-view-cube__spot--face:focus-visible) {
   border-color: color-mix(in srgb, var(--accent-primary) 60%, transparent);
   background: color-mix(in srgb, var(--accent-primary) 28%, var(--bg-elevated));
+}
+
+.simulator-view-cube__spot--face:hover,
+.simulator-view-cube__spot--face:focus-visible {
+  /* The face behind it is already lit; the label only has to keep up. */
+  background: transparent;
   color: var(--text-primary);
 }
 
-.simulator-view-cube__face:focus-visible {
+.simulator-view-cube__spot:focus-visible {
   outline: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .simulator-view-cube__face {
+  .simulator-view-cube__face,
+  .simulator-view-cube__spot {
     transition: none;
   }
 }

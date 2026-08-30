@@ -12,6 +12,28 @@ import type { SimulatorOrbitView, SimulatorViewDirection } from '../../lib/simul
 
 export type ViewCubeFaceId = 'front' | 'back' | 'left' | 'right' | 'top' | 'bottom';
 
+export type ViewCubeSpotKind = 'face' | 'edge' | 'corner';
+
+/**
+ * One of a face's nine hit regions, in reading order from its top-left.
+ *
+ * The middle one is the face; the four beside it are the cube's edges and the
+ * four in the corners its corners — the same 26 viewpoints drei's `GizmoViewcube`
+ * offers, reached the way a CSS cube can offer them. drei floats little boxes
+ * outside the cube for these, which is natural in a 3D scene and would be six
+ * more faces each here.
+ *
+ * It also fixes something faces alone cannot. From an exact face-on view the
+ * other five faces are edge-on or behind, so with faces alone the cube is a dead
+ * end: press Front once and nothing but Front is clickable until you drag. The
+ * face you *are* looking at always offers its own eight neighbours.
+ */
+export interface ViewCubeSpot {
+  kind: ViewCubeSpotKind;
+  /** The eye direction to snap to. Unit length. */
+  direction: SimulatorViewDirection;
+}
+
 export interface ViewCubeFace {
   id: ViewCubeFaceId;
   /**
@@ -25,9 +47,71 @@ export interface ViewCubeFace {
    * lives in one place in the stylesheet rather than being baked in here.
    */
   transform: string;
+  /**
+   * Where the face's own right and down lie in the renderer's world — what the
+   * {@link transform} above does to the face's local axes, stated rather than
+   * re-derived, so {@link ViewCubeFace.spots} is arithmetic instead of matrix
+   * work. `right × down = direction` on every face, which is what the test
+   * checks and what makes a transcription error fail rather than skew.
+   */
+  right: SimulatorViewDirection;
+  down: SimulatorViewDirection;
+  /** The nine hit regions, in reading order from the face's top-left. */
+  spots: readonly ViewCubeSpot[];
 }
 
 const HALF = 'translateZ(var(--view-cube-half))';
+
+/** The nine cells' offsets from the face centre, in reading order. */
+const CELLS: ReadonlyArray<readonly [down: number, right: number]> = [
+  [-1, -1],
+  [-1, 0],
+  [-1, 1],
+  [0, -1],
+  [0, 0],
+  [0, 1],
+  [1, -1],
+  [1, 0],
+  [1, 1],
+];
+
+/**
+ * A face's nine spots: its own direction, tilted toward each neighbour.
+ *
+ * The direction for a cell is the face normal plus one step along each axis the
+ * cell is offset on, normalized — so the middle cell is the face itself, an edge
+ * cell is the 45° between two faces, and a corner cell the (1,1,1) diagonal
+ * between three. Exactly the 26 directions drei's hotspots name.
+ */
+function facesSpots(
+  direction: SimulatorViewDirection,
+  right: SimulatorViewDirection,
+  down: SimulatorViewDirection
+): ViewCubeSpot[] {
+  return CELLS.map(([dy, dx]) => {
+    const raw: [number, number, number] = [
+      direction[0] + dx * right[0] + dy * down[0],
+      direction[1] + dx * right[1] + dy * down[1],
+      direction[2] + dx * right[2] + dy * down[2],
+    ];
+    const length = Math.hypot(...raw);
+    const steps = Math.abs(dx) + Math.abs(dy);
+    return {
+      kind: steps === 0 ? 'face' : steps === 1 ? 'edge' : 'corner',
+      direction: [raw[0] / length, raw[1] / length, raw[2] / length] as SimulatorViewDirection,
+    };
+  });
+}
+
+function viewCubeFace(
+  id: ViewCubeFaceId,
+  transform: string,
+  direction: SimulatorViewDirection,
+  right: SimulatorViewDirection,
+  down: SimulatorViewDirection
+): ViewCubeFace {
+  return { id, direction, transform, right, down, spots: facesSpots(direction, right, down) };
+}
 
 /**
  * The six faces, in the order they are painted.
@@ -44,12 +128,12 @@ const HALF = 'translateZ(var(--view-cube-half))';
  * coordinate convention. Ours is the paper's.
  */
 export const VIEW_CUBE_FACES: readonly ViewCubeFace[] = [
-  { id: 'front', direction: [0, 0, -1], transform: HALF },
-  { id: 'back', direction: [0, 0, 1], transform: `rotateY(180deg) ${HALF}` },
-  { id: 'right', direction: [1, 0, 0], transform: `rotateY(90deg) ${HALF}` },
-  { id: 'left', direction: [-1, 0, 0], transform: `rotateY(-90deg) ${HALF}` },
-  { id: 'top', direction: [0, 1, 0], transform: `rotateX(90deg) ${HALF}` },
-  { id: 'bottom', direction: [0, -1, 0], transform: `rotateX(-90deg) ${HALF}` },
+  viewCubeFace('front', HALF, [0, 0, -1], [1, 0, 0], [0, -1, 0]),
+  viewCubeFace('back', `rotateY(180deg) ${HALF}`, [0, 0, 1], [-1, 0, 0], [0, -1, 0]),
+  viewCubeFace('right', `rotateY(90deg) ${HALF}`, [1, 0, 0], [0, 0, 1], [0, -1, 0]),
+  viewCubeFace('left', `rotateY(-90deg) ${HALF}`, [-1, 0, 0], [0, 0, -1], [0, -1, 0]),
+  viewCubeFace('top', `rotateX(90deg) ${HALF}`, [0, 1, 0], [1, 0, 0], [0, 0, -1]),
+  viewCubeFace('bottom', `rotateX(-90deg) ${HALF}`, [0, -1, 0], [1, 0, 0], [0, 0, 1]),
 ];
 
 /**

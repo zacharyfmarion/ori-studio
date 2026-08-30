@@ -74,7 +74,7 @@ export function SimulatorViewCube({ ref, interactive, onSnap }: SimulatorViewCub
   const { t } = useTranslation();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<HTMLDivElement | null>(null);
-  const faceRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const faceRefs = useRef<Array<HTMLDivElement | null>>([]);
   // Compared before writing, so the six `data-hidden` attributes are touched
   // when a face crosses the horizon rather than on every frame of a drag.
   const visibleRef = useRef<number | null>(null);
@@ -114,25 +114,54 @@ export function SimulatorViewCube({ ref, interactive, onSnap }: SimulatorViewCub
     >
       <div ref={sceneRef} className="simulator-view-cube__scene">
         {VIEW_CUBE_FACES.map((face, index) => (
-          <button
+          <div
             key={face.id}
-            type="button"
             ref={(element) => {
               faceRefs.current[index] = element;
             }}
             className="simulator-view-cube__face"
             style={{ transform: face.transform }}
-            disabled={!interactive}
-            onClick={() => {
-              // Counted here rather than by the caller, because this is the only
-              // place that knows a *face* was pressed: the viewport above sees a
-              // direction, which by then could have come from anywhere.
-              track(ANALYTICS_EVENTS.simulatorViewCubeSnapped, { face: face.id });
-              onSnap(face.direction, face.id);
-            }}
           >
-            {faceLabel(t, face.id)}
-          </button>
+            {face.spots.map((spot, cell) => {
+              const press = () => {
+                // Counted here rather than by the caller, because this is the
+                // only place that knows *which* region was pressed: the viewport
+                // above sees a direction, which by then could have come from
+                // anywhere.
+                track(ANALYTICS_EVENTS.simulatorViewCubeSnapped, {
+                  face: face.id,
+                  region: spot.kind,
+                });
+                onSnap(spot.direction, face.id);
+              };
+              // The middle cell is the face, and carries its name. The eight
+              // around it are pointer affordances only: they are redundant with
+              // dragging, and 48 more stops in the tab order would cost every
+              // keyboard user far more than they give.
+              return spot.kind === 'face' ? (
+                <button
+                  key={cell}
+                  type="button"
+                  className="simulator-view-cube__spot simulator-view-cube__spot--face"
+                  disabled={!interactive}
+                  onClick={press}
+                >
+                  {faceLabel(t, face.id)}
+                </button>
+              ) : (
+                <button
+                  key={cell}
+                  type="button"
+                  aria-hidden
+                  tabIndex={-1}
+                  data-kind={spot.kind}
+                  className="simulator-view-cube__spot"
+                  disabled={!interactive}
+                  onClick={press}
+                />
+              );
+            })}
+          </div>
         ))}
       </div>
     </div>
