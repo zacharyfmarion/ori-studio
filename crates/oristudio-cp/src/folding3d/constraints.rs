@@ -304,6 +304,7 @@ pub fn build_constraints(
         .collect();
 
     let creases = crease_slots(placement, index);
+    let slack = tolerances.distance_relative * placement.span;
     for group in &lines.groups {
         let chords: Vec<&Crease> = group
             .lines
@@ -315,7 +316,9 @@ pub fn build_constraints(
         }
         for i in 0..chords.len() {
             for j in (i + 1)..chords.len() {
-                chord_pair(chords[i], chords[j], index, &seeded, tolerances, &mut out);
+                chord_pair(
+                    chords[i], chords[j], index, &seeded, tolerances, slack, &mut out,
+                );
             }
         }
     }
@@ -482,7 +485,14 @@ fn frame_for(origin: Vec3, direction: Vec3) -> Frame {
 /// defence in depth rather than a tested path.
 fn extents_overlap(a: &Crease, b: &Crease, slack: f64) -> bool {
     let shift = dot(sub(b.frame.origin, a.frame.origin), a.frame.direction);
-    let (lo, hi) = (b.span.0 + shift, b.span.1 + shift);
+    // `b.span` is b's extent in B'S OWN frame, so it has to be projected into a's
+    // before it can be compared against `a.span`. Without the `sign`, two creases
+    // whose canonical directions are antiparallel have b's interval used reversed,
+    // and the gate then admits or rejects the wrong chord pairs — which decides
+    // whether a condition is emitted at all.
+    let sign = dot(b.frame.direction, a.frame.direction);
+    let (first, second) = (b.span.0 * sign + shift, b.span.1 * sign + shift);
+    let (lo, hi) = (first.min(second), first.max(second));
     a.span.0.max(lo) + slack < a.span.1.min(hi)
 }
 
@@ -507,9 +517,10 @@ fn chord_pair(
     index: &PlaneIndex,
     seeded: &BTreeMap<(usize, usize), bool>,
     tolerances: Fold3dTolerances,
+    slack: f64,
     out: &mut Fold3dConstraints,
 ) {
-    if !extents_overlap(first, second, 0.0) {
+    if !extents_overlap(first, second, slack) {
         return;
     }
     // Two chords that share an endpoint meet there and cannot cross.

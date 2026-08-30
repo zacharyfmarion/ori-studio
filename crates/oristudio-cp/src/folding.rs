@@ -1,6 +1,6 @@
 mod additional_estimation;
 mod combination;
-mod permutation;
+pub mod permutation;
 mod quad_tree;
 
 use crate::fold_graph::{FacePositions, FoldGraph, FoldGraphError};
@@ -4813,6 +4813,35 @@ impl HierarchyTable {
             relations,
         }
     }
+}
+
+/// Oriedita's setup-time `removeMode` AEA round, over a caller-supplied subface
+/// set rather than a [`SubFaceConfiguration`].
+///
+/// This exists for `folding3d`, whose subfaces are built by `cells.rs` and by the
+/// coupling scaffolding and never pass through `configure_subfaces`. The flat
+/// path reaches the same code through [`run_additional_estimation_remove`]; the
+/// two differ only in how the face-id lists are obtained, so this is a call site,
+/// not a second algorithm, and nothing here is reachable from a flat caller.
+///
+/// Returns the closed hierarchy and prunes `conditions` in place. Errors —
+/// including `Contradiction` — are the caller's to route: on the 3D side a
+/// contradiction between synthetic coupling scaffolding and a determination is
+/// not a statement about the user's paper, so `folding3d` discards the pass
+/// rather than promoting it to a verdict.
+pub(crate) fn close_hierarchy_with_removal(
+    hierarchy: &InitialHierarchy,
+    subface_face_ids: Vec<Vec<usize>>,
+    conditions: &mut EquivalenceConditionSet,
+) -> Result<InitialHierarchy, AdditionalEstimationError> {
+    let mut table = HierarchyTable::from_initial(hierarchy);
+    additional_estimation::AdditionalEstimation::new(subface_face_ids).run_with_removal(
+        &mut table,
+        &mut conditions.triple_conditions,
+        &mut conditions.quadruple_conditions,
+        0,
+    )?;
+    Ok(table.into_initial_hierarchy(hierarchy.faces_total))
 }
 
 fn run_additional_estimation(

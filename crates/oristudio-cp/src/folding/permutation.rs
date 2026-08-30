@@ -622,6 +622,12 @@ impl WorkerOverlapEnumerator {
         self
     }
 
+    /// Re-bound an already-built enumerator. For a clone used as a dry run rather
+    /// than as the answer; see `Fold3dOrderEnumerator::lookahead`.
+    pub fn set_iteration_budget(&mut self, budget: u64) {
+        self.iteration_budget = Some(budget);
+    }
+
     pub fn valid_count(&self) -> usize {
         self.valid_count
     }
@@ -1014,13 +1020,36 @@ impl From<PermutationError> for SubFaceSearchError {
     }
 }
 
+/// An [`EquivalenceCondition`] whose four faces are already resolved to 1-based
+/// positions in the owning subface's `face_ids`.
+///
+/// The penetration checks run once per condition per permutation tested, and
+/// every one of those four faces has to be turned into a permutation digit.
+/// Resolving them through a `HashMap<usize, _>` at that point put half of the
+/// solve's CPU in SipHash; resolving them once in [`SubFacePermutationSearch::set_guide_map`]
+/// leaves the hot loops doing nothing but array indexing.
+#[derive(Debug, Clone, Copy)]
+struct LocalEquivalenceCondition {
+    a: usize,
+    b: usize,
+    c: usize,
+    d: usize,
+}
+
 #[derive(Debug, Clone)]
 pub struct SubFacePermutationSearch {
     face_ids: Vec<usize>,
-    face_id_map: HashMap<usize, usize>,
+    /// Dense global-to-local map: `face_id_slots[face_id - face_id_base]` is the
+    /// 1-based position of that face in [`Self::face_ids`], or 0 for a face
+    /// outside this subface. Upstream's `faceIdMapArray`, which is likewise a
+    /// dense array rather than a map.
+    face_id_base: usize,
+    face_id_slots: Vec<usize>,
     generator: ChainPermutationGenerator,
-    triple_conditions: HashMap<usize, Vec<EquivalenceCondition>>,
-    quadruple_conditions: Vec<EquivalenceCondition>,
+    /// Indexed by 0-based local face position, so bucket `i` holds the
+    /// conditions upstream keys by the global id `face_ids[i]`.
+    triple_conditions: Vec<Vec<LocalEquivalenceCondition>>,
+    quadruple_conditions: Vec<LocalEquivalenceCondition>,
     /// Oriedita `SubFace.cg`: the excess-permutation accelerator, created once
     /// the generator passes 2000 permutations and retired by
     /// [`Self::clear_temp_guide`] / [`Self::reset_permutation_generator`].
@@ -1035,9 +1064,10 @@ impl SubFacePermutationSearch {
         let face_count = face_ids.len();
         Self {
             face_ids,
-            face_id_map: HashMap::new(),
+            face_id_base: 0,
+            face_id_slots: Vec::new(),
             generator: ChainPermutationGenerator::new(face_count),
-            triple_conditions: HashMap::new(),
+            triple_conditions: Vec::new(),
             quadruple_conditions: Vec::new(),
             combination: None,
             combination_total: 0,
@@ -1125,7 +1155,7 @@ impl SubFacePermutationSearch {
             {
                 match CombinationGenerator::new(
                     &self.face_ids,
-                    &self.face_id_map,
+                    &self.global_face_id_map(),
                     &self.equivalence_conditions(),
                     &self.u_equivalence_conditions(),
                     table,
@@ -1189,11 +1219,12 @@ impl SubFacePermutationSearch {
     /// Oriedita `SubFace.getEquivalenceConditions()`: this subface's 3ECs,
     /// ordered by where their `a` face sits in the subface's face list.
     fn equivalence_conditions(&self) -> Vec<EquivalenceCondition> {
-        self.face_ids
+        // Bucket `i` is the one upstream keys by `face_ids[i]`, so walking the
+        // buckets in order is walking `face_ids` in order.
+        self.triple_conditions
             .iter()
-            .filter_map(|face_id| self.triple_conditions.get(face_id))
             .flatten()
-            .copied()
+            .map(|condition| self.to_global(*condition))
             .collect()
     }
 
@@ -1203,7 +1234,11 @@ impl SubFacePermutationSearch {
     /// and the penetration check folds a minimum, so sorting a copy here is
     /// equivalent.
     fn u_equivalence_conditions(&self) -> Vec<EquivalenceCondition> {
-        let mut conditions = self.quadruple_conditions.clone();
+        let mut conditions: Vec<EquivalenceCondition> = self
+            .quadruple_conditions
+            .iter()
+            .map(|condition| self.to_global(*condition))
+            .collect();
         conditions.sort_by_key(|condition| (condition.a, condition.b, condition.c, condition.d));
         conditions
     }
@@ -1230,10 +1265,7 @@ impl SubFacePermutationSearch {
         conditions: Option<&EquivalenceConditionSet>,
     ) -> Result<(), PermutationError> {
         let face_count = self.face_ids.len();
-        self.face_id_map.clear();
-        for (index, face_id) in self.face_ids.iter().enumerate() {
-            self.face_id_map.insert(*face_id, index + 1);
-        }
+        self.build_face_id_slots();
 
         self.generator = ChainPermutationGenerator::new(face_count);
         // Upstream reuses the generator built in `setNumDigits` and only ever
@@ -1278,19 +1310,21 @@ impl SubFacePermutationSearch {
         }
 
         self.triple_conditions.clear();
+        self.triple_conditions.resize_with(face_count, Vec::new);
         self.quadruple_conditions.clear();
         if let Some(conditions) = conditions {
+            // `to_local` is upstream's locality filter and the resolution in one
+            // pass: it returns `None` for exactly the conditions `fastContains`
+            // rejected, because a face outside this subface has no local
+            // position to resolve to.
             for condition in &conditions.triple_conditions {
-                if self.fast_contains(*condition) {
-                    self.triple_conditions
-                        .entry(condition.a)
-                        .or_default()
-                        .push(*condition);
+                if let Some(local) = self.to_local(*condition) {
+                    self.triple_conditions[local.a - 1].push(local);
                 }
             }
             for condition in &conditions.quadruple_conditions {
-                if self.fast_contains(*condition) {
-                    self.quadruple_conditions.push(*condition);
+                if let Some(local) = self.to_local(*condition) {
+                    self.quadruple_conditions.push(local);
                 }
             }
         }
@@ -1299,11 +1333,73 @@ impl SubFacePermutationSearch {
         Ok(())
     }
 
-    fn fast_contains(&self, condition: EquivalenceCondition) -> bool {
-        self.face_id_map.contains_key(&condition.a)
-            && self.face_id_map.contains_key(&condition.b)
-            && self.face_id_map.contains_key(&condition.c)
-            && self.face_id_map.contains_key(&condition.d)
+    /// Rebuild [`Self::face_id_slots`] from [`Self::face_ids`].
+    ///
+    /// A subface never holds the same face twice — `configure_subfaces`
+    /// enumerates `face_polygons` positions, the 3D coupling subfaces
+    /// `sort_unstable().dedup()`, and `Builder::localise` maps injectively — so
+    /// the last-write-wins of the map this replaces is not reachable, and a
+    /// local position identifies its face uniquely.
+    fn build_face_id_slots(&mut self) {
+        self.face_id_slots.clear();
+        let (Some(min), Some(max)) = (
+            self.face_ids.iter().min().copied(),
+            self.face_ids.iter().max().copied(),
+        ) else {
+            self.face_id_base = 0;
+            return;
+        };
+        self.face_id_base = min;
+        self.face_id_slots.resize(max - min + 1, 0);
+        for (index, face_id) in self.face_ids.iter().enumerate() {
+            self.face_id_slots[face_id - min] = index + 1;
+        }
+    }
+
+    /// The global-id form of [`Self::face_id_slots`], which is what
+    /// [`CombinationGenerator`] still keys off. Built on demand rather than
+    /// stored: the accelerator is only reached once a subface has run past
+    /// [`COMBINATION_GENERATOR_THRESHOLD`] permutations, so this is off the hot
+    /// path, and keeping it as a field would put a `HashMap` back into every
+    /// clone of every subface.
+    fn global_face_id_map(&self) -> HashMap<usize, usize> {
+        self.face_ids
+            .iter()
+            .enumerate()
+            .map(|(index, face_id)| (*face_id, index + 1))
+            .collect()
+    }
+
+    /// The 1-based position of `face_id` in this subface, or `None` when the
+    /// face is not part of it.
+    fn local_face(&self, face_id: usize) -> Option<usize> {
+        let slot = face_id.checked_sub(self.face_id_base)?;
+        match self.face_id_slots.get(slot).copied() {
+            Some(0) | None => None,
+            Some(local) => Some(local),
+        }
+    }
+
+    fn to_local(&self, condition: EquivalenceCondition) -> Option<LocalEquivalenceCondition> {
+        Some(LocalEquivalenceCondition {
+            a: self.local_face(condition.a)?,
+            b: self.local_face(condition.b)?,
+            c: self.local_face(condition.c)?,
+            d: self.local_face(condition.d)?,
+        })
+    }
+
+    /// The inverse of [`Self::to_local`]. The combination generator keys its
+    /// constraints off local positions but orders them by global id, so it takes
+    /// the conditions back in upstream's form.
+    fn to_global(&self, condition: LocalEquivalenceCondition) -> EquivalenceCondition {
+        let global = |local: usize| self.face_ids[local - 1];
+        EquivalenceCondition {
+            a: global(condition.a),
+            b: global(condition.b),
+            c: global(condition.c),
+            d: global(condition.d),
+        }
     }
 
     fn inconsistent_digits_request(
@@ -1366,13 +1462,10 @@ impl SubFacePermutationSearch {
             let Some(local) = self.generator.permutation_at(i) else {
                 continue;
             };
-            let Some(face_id) = local
+            let Some(conditions) = local
                 .checked_sub(1)
-                .and_then(|index| self.face_ids.get(index))
+                .and_then(|index| self.triple_conditions.get(index))
             else {
-                continue;
-            };
-            let Some(conditions) = self.triple_conditions.get(face_id) else {
                 continue;
             };
             for condition in conditions {
@@ -1384,11 +1477,15 @@ impl SubFacePermutationSearch {
         min
     }
 
-    fn penetration_condition_digit(&self, condition: EquivalenceCondition, digit: usize) -> usize {
-        let Some(first) = self.face_id_to_permutation_digit(condition.b) else {
+    fn penetration_condition_digit(
+        &self,
+        condition: LocalEquivalenceCondition,
+        digit: usize,
+    ) -> usize {
+        let Some(first) = self.generator.locate(condition.b) else {
             return 1000;
         };
-        let Some(second) = self.face_id_to_permutation_digit(condition.d) else {
+        let Some(second) = self.generator.locate(condition.d) else {
             return 1000;
         };
         if first < digit && digit < second {
@@ -1405,17 +1502,21 @@ impl SubFacePermutationSearch {
         min
     }
 
-    fn u_penetration_condition_digit(&self, condition: EquivalenceCondition, min: usize) -> usize {
-        let Some(a) = self.face_id_to_permutation_digit(condition.a) else {
+    fn u_penetration_condition_digit(
+        &self,
+        condition: LocalEquivalenceCondition,
+        min: usize,
+    ) -> usize {
+        let Some(a) = self.generator.locate(condition.a) else {
             return min;
         };
-        let Some(b) = self.face_id_to_permutation_digit(condition.b) else {
+        let Some(b) = self.generator.locate(condition.b) else {
             return min;
         };
-        let Some(c) = self.face_id_to_permutation_digit(condition.c) else {
+        let Some(c) = self.generator.locate(condition.c) else {
             return min;
         };
-        let Some(d) = self.face_id_to_permutation_digit(condition.d) else {
+        let Some(d) = self.generator.locate(condition.d) else {
             return min;
         };
 
@@ -1426,11 +1527,6 @@ impl SubFacePermutationSearch {
             return d;
         }
         min
-    }
-
-    fn face_id_to_permutation_digit(&self, face_id: usize) -> Option<usize> {
-        let local = self.face_id_map.get(&face_id)?;
-        self.generator.locate(*local)
     }
 }
 
@@ -1698,6 +1794,7 @@ impl ChainPermutationGenerator {
     }
 
     /// Return to the first valid permutation.
+
     pub fn reset(&mut self) {
         self.count = 0;
         self.lock_remain = self.lock_count;
