@@ -155,6 +155,13 @@ export const VIEW_CUBE_FACES: readonly ViewCubeFace[] = [
  */
 const CUBE_BASIS: Mat3 = [1, 0, 0, 0, 1, 0, 0, 0, -1];
 
+/**
+ * Below this much of itself turned toward the eye, a face is edge-on. Far under
+ * one device pixel of width on a cube this size, and far over the ~1e-16 a
+ * reconstructed axis view leaves behind.
+ */
+const EDGE_ON_EPSILON = 1e-9;
+
 /** CSS puts +y down; maths puts it up. Applied on both sides of the rotation. */
 const CSS_Y_FLIP: Mat3 = [1, 0, 0, 0, -1, 0, 0, 0, 1];
 
@@ -200,6 +207,12 @@ export function viewCubeTransform(view: SimulatorOrbitView): string {
  * enough to be worth stating outright rather than inheriting. It also gives the
  * component something to assert in jsdom, which has no layout and so no
  * backfaces at all.
+ *
+ * Edge-on counts as hidden, and the tolerance is not decoration. Snap to a face
+ * and the other four stand exactly side-on, where the dot product is zero up to
+ * a rounding error whose *sign* is arbitrary — so a strict `> 0` reported four
+ * faces of zero width as pressable, differently each time, and the mask stopped
+ * meaning anything a reader could check.
  */
 export function visibleViewCubeFaces(view: SimulatorOrbitView): number {
   const eye = viewDepthAxis(viewRotation(view.yaw, view.pitch, view.orient));
@@ -207,7 +220,7 @@ export function visibleViewCubeFaces(view: SimulatorOrbitView): number {
   VIEW_CUBE_FACES.forEach((face, index) => {
     const facing =
       face.direction[0] * eye[0] + face.direction[1] * eye[1] + face.direction[2] * eye[2];
-    if (facing > 0) mask |= 1 << index;
+    if (facing > EDGE_ON_EPSILON) mask |= 1 << index;
   });
   return mask;
 }

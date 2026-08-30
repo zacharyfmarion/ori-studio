@@ -74,16 +74,29 @@ describe('the view cube transform', () => {
     expect(visible.sort()).toEqual(['front', 'right', 'top']);
   });
 
-  it('shows exactly the face that was snapped to, and its two neighbours', () => {
+  it('shows only the face that was snapped to', () => {
+    // The other five stand exactly edge-on or behind. Their dot products are
+    // zero up to a rounding error of arbitrary sign, so a strict `> 0` here
+    // reported a different set of zero-width faces as pressable on every snap.
     for (const face of VIEW_CUBE_FACES) {
       const snapped = simulatorViewLookingFrom(VIEWS[0]!, face.direction);
-      const mask = visibleViewCubeFaces(snapped);
-      const index = VIEW_CUBE_FACES.indexOf(face);
-      const opposite = VIEW_CUBE_FACES.findIndex((other) =>
-        other.direction.every((axis, i) => axis === -face.direction[i]!)
-      );
-      expect((mask & (1 << index)) !== 0, `${face.id} faces the eye`).toBe(true);
-      expect((mask & (1 << opposite)) !== 0, `${face.id}'s opposite is hidden`).toBe(false);
+      const visible = VIEW_CUBE_FACES.filter(
+        (_, index) => (visibleViewCubeFaces(snapped) & (1 << index)) !== 0
+      ).map((candidate) => candidate.id);
+      expect(visible, face.id).toEqual([face.id]);
+    }
+  });
+
+  it('shows the same after an upright, where the arithmetic is not exact', () => {
+    // With an `orient` in play nothing lands on a clean zero, which is where the
+    // sign of the noise was actually observed to flip.
+    const upright = setUprightView({ yaw: 1.2, pitch: 0.3, zoom: 2.5 });
+    for (const face of VIEW_CUBE_FACES) {
+      const snapped = simulatorViewLookingFrom(upright, face.direction);
+      const visible = VIEW_CUBE_FACES.filter(
+        (_, index) => (visibleViewCubeFaces(snapped) & (1 << index)) !== 0
+      ).map((candidate) => candidate.id);
+      expect(visible, face.id).toEqual([face.id]);
     }
   });
 
