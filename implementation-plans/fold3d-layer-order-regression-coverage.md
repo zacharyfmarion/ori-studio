@@ -105,6 +105,13 @@ unless their authors explicitly permit redistribution"). Whatever lands needs a
 per-file provenance note naming the author and the permission, so the rights claim
 is auditable later rather than remembered.
 
+Known provenance:
+
+| fixture | author | permission |
+| --- | --- | --- |
+| `540-level-0` | [hayashi-stl](https://github.com/hayashi-stl) — an Ori Studio contributor (PR #308) | granted by the repo owner |
+| the other eight | repo owner, authored for debugging | own work |
+
 ### Part 2 — what the tests assert
 
 Three tiers, cheapest first. Only the second and third are new ideas; the first is
