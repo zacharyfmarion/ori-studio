@@ -20,8 +20,9 @@ Three facts, all measured during the investigation in
   `ORISTUDIO_NON_FLAT_CORPUS_DIR` was unset, the harness skipped loudly and
   correctly, and nobody noticed — while six files were tuned against by hand. When
   it was finally pointed at the 108 files already on disk it produced the decisive
-  result in one run: **22 → 26 ordered models, zero regressions**, failure set a
-  strict subset. That is the check that separates "fixed the examples" from
+  result in one run: **22 of 27 admitted models ordered before, 27 of 28 after**,
+  zero regressions, failure set a strict subset with `airplane.fold` the only
+  holdout either way. That is the check that separates "fixed the examples" from
   "fixed the bug", and it was one `export` away the whole time.
 - **Nothing sweeps `starting_face_id` on the 3D path.** The only sweeps in the
   suite are `[1, 0]` inside the *flat* oracle tests. Every single defect found in
@@ -92,6 +93,13 @@ Home: `tests/fixtures/fold-angle-3d/` already exists for exactly this and carrie
 19 KB README. Either extend it or add a `layer-order/` subdirectory — the README
 convention matters more than the directory.
 
+**Not committable, and worth naming so nobody re-litigates it.** The two Naoki
+Terao models — `hex pleated pangolin` and `hex head 2` — stay in the private
+corpus. They are the best out-of-sample evidence in the investigation (the
+pangolin went 372 ms to 42 ms with no regression, and `hex head 2` is the one
+model whose `NoLayerOrder` appears to be *true*), and none of that can be pinned
+by a committed test. That is an argument for Part 4, not for committing them.
+
 **Provenance file.** `tests/corpus/README.md` states the rule ("not committed
 unless their authors explicitly permit redistribution"). Whatever lands needs a
 per-file provenance note naming the author and the permission, so the rights claim
@@ -114,6 +122,15 @@ The layer ordering exists as a property of the folded state; the starting face o
 selects which face the placement walk pins, so a face-dependent verdict is always a
 solver defect. Every bug found here violated it, and it is the single cheapest
 gate against the whole class.
+
+**(b2) Necessity, which nothing checks and which this investigation needed.**
+Three fixes were written, measured as load-bearing, and later found to be dead
+weight once a fourth landed — two of them were also misreadings of a deliberate
+upstream mechanism. Nothing surfaced that; it took a hand-built ablation matrix
+run specifically because someone asked. Worth considering a documented ablation
+procedure rather than a test: for each opt-in divergence from an upstream port,
+record the model that justifies it, and fail review if that model no longer needs
+it. A test cannot express this, but a checklist item in the porting docs can.
 
 **(c) Rotation equivariance — the categorical one.**
 Apply a random rotation to the placement, re-derive the constraint set, and assert
