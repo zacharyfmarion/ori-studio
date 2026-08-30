@@ -130,9 +130,12 @@ describe('symmetry preservation', () => {
     ];
     const [x1, y1, z1] = at(1);
     const [x3, y3, z3] = at(3);
-    // Mirroring across x=y swaps the in-plane axes and preserves height.
-    expect(Math.abs(x1 - z3)).toBeLessThan(1e-5);
-    expect(Math.abs(z1 - x3)).toBeLessThan(1e-5);
+    // The lift sends FOLD `(x, y)` to world `(x, 0, −y)`, so the pattern's
+    // `x = y` diagonal is the world map `(a, b, c) -> (−c, b, −a)`: it still
+    // swaps the in-plane axes and preserves height, but each swap picks up the
+    // lift's sign.
+    expect(Math.abs(x1 + z3)).toBeLessThan(1e-5);
+    expect(Math.abs(z1 + x3)).toBeLessThan(1e-5);
     expect(Math.abs(y1 - y3)).toBeLessThan(1e-5);
   });
 

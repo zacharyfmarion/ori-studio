@@ -1,7 +1,7 @@
 import type { FoldDocument } from '../engine/types';
 import {
   buildSegmentFold,
-  flatPlaneAxes,
+  flatPlaneReader,
   type CpSegment,
 } from './creasePatternSegmentation';
 import { escapeXml } from './xmlEscape';
@@ -540,14 +540,13 @@ export interface CreaseExportProjector {
 
 export function foldProjector(fold: FoldDocument): CreaseExportProjector {
   const coords = fold.vertices_coords ?? [];
-  const axes = flatPlaneAxes(fold);
+  const readPoint = flatPlaneReader(fold);
   let minU = Infinity;
   let minV = Infinity;
   let maxU = -Infinity;
   let maxV = -Infinity;
   for (const coord of coords) {
-    const u = coord[axes[0]] ?? 0;
-    const v = coord[axes[1]] ?? 0;
+    const { x: u, y: v } = readPoint(coord);
     if (u < minU) minU = u;
     if (v < minV) minV = v;
     if (u > maxU) maxU = u;
@@ -569,18 +568,18 @@ export function foldProjector(fold: FoldDocument): CreaseExportProjector {
   const offsetY = (CP_SIZE - height) / 2;
   const projectPoint = (point: { x: number; y: number }) => ({
     x: offsetX + (point.x - minU) * scale,
-    // No y flip: FOLD coordinates are already y-down, matching SVG. Both
+    // No y flip: model coordinates are already y-down, matching SVG. Both
     // producers agree — the CP editor's model space is y-down (see
     // `cpModelToSvg`, which does not flip), and the
     // TreeMaker engine converts its internal y-up vertices on the way out
     // (`to_fold_document` emits `paper_height - loc.y`). Flipping here mirrored
-    // every exported image relative to the editor.
+    // every exported image relative to the editor. `flatPlaneReader` is what
+    // guarantees the input really is model space: a simulation fold reaches
+    // here lifted *and* negated, and reading its z raw would mirror the export
+    // just as surely.
     y: offsetY + (point.y - minV) * scale,
   });
-  const project = (vertex: number) => {
-    const coord = coords[vertex];
-    return projectPoint({ x: coord?.[axes[0]] ?? 0, y: coord?.[axes[1]] ?? 0 });
-  };
+  const project = (vertex: number) => projectPoint(readPoint(coords[vertex]));
   return { project, projectPoint, scale, contentTop: offsetY, contentHeight: height };
 }
 
@@ -892,7 +891,7 @@ function creaseExportGridSvg(
 ): string {
   const { transform } = source;
   if (!Number.isFinite(transform.scale) || transform.scale === 0) return '';
-  const axes = flatPlaneAxes(fold);
+  const readPoint = flatPlaneReader(fold);
   const coords = fold.vertices_coords ?? [];
   if (coords.length === 0) return '';
 
@@ -903,7 +902,7 @@ function creaseExportGridSvg(
     y: (point.y - transform.offsetY) / transform.scale,
   });
   const bounds = expandedModelBoundsFromPoints(
-    coords.map((coord) => toModel({ x: coord[axes[0]] ?? 0, y: coord[axes[1]] ?? 0 })),
+    coords.map((coord) => toModel(readPoint(coord))),
     0
   );
 
@@ -926,10 +925,7 @@ function creaseExportGridSvg(
   // Clip it to the sheet's own outline rather than to a box: paper is not
   // necessarily rectangular, and on a hexagon a box leaves ruling floating in
   // the corners with nothing under it.
-  const projectVertex = (vertex: number) => {
-    const coord = coords[vertex];
-    return projectPoint({ x: coord?.[axes[0]] ?? 0, y: coord?.[axes[1]] ?? 0 });
-  };
+  const projectVertex = (vertex: number) => projectPoint(readPoint(coords[vertex]));
   const outline = foldOutlineLoops(fold)
     .map(
       (loop) =>

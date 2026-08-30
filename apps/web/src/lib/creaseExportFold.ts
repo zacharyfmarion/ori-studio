@@ -13,7 +13,7 @@ import {
 import { emptyOristudioCpSelection } from './creasePatternViewport';
 import {
   buildSegmentFold,
-  flatPlaneAxes,
+  flatPlaneReader,
   pointInSegment,
   pointOnSegmentBoundary,
   type CpSegment,
@@ -206,13 +206,8 @@ export function cpModelToFoldTransform(
   fold: FoldDocument,
   document: OristudioCpDocumentSnapshot
 ): CpModelToFoldTransform {
-  const axes = flatPlaneAxes(fold);
-  const foldBounds = boundsOf(
-    (fold.vertices_coords ?? []).map((coord) => ({
-      x: coord[axes[0]] ?? 0,
-      y: coord[axes[1]] ?? 0,
-    }))
-  );
+  const readPoint = flatPlaneReader(fold);
+  const foldBounds = boundsOf((fold.vertices_coords ?? []).map(readPoint));
   const modelBounds = boundsOf(
     document.crease_pattern.line_segments
       .filter((line) => isOrieditaFoldableLineColor(line.color))

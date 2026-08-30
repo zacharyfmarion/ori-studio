@@ -1,14 +1,65 @@
 import { describe, expect, it } from 'vitest';
+import { normalizePoint, prepareFoldModel } from '@treemaker/origami-simulator';
 import type { FoldArtifacts, FoldDocument } from '../engine/types';
 import {
   buildSegmentFold,
   buildSegmentSimulationFold,
+  flatPlaneReader,
   pointInSegment,
   resolveCpSegments,
   segmentFoldDocument,
   segmentThumbnailSvg,
   simulationFacesForSegment,
 } from './creasePatternSegmentation';
+
+describe('flatPlaneReader', () => {
+  const MODEL: number[][] = [
+    [0, 0],
+    [300, 0],
+    [300, 120],
+    [40, 200],
+  ];
+
+  it('leaves a base fold alone: it is already model space', () => {
+    const read = flatPlaneReader({ vertices_coords: MODEL } as unknown as FoldDocument);
+    expect(MODEL.map(read)).toEqual([
+      { x: 0, y: 0 },
+      { x: 300, y: 0 },
+      { x: 300, y: 120 },
+      { x: 40, y: 200 },
+    ]);
+  });
+
+  it('undoes the simulator lift, sign and all', () => {
+    // The property the whole module rests on, and the one that broke: a
+    // simulation fold's vertices must read back as the crease pattern's own
+    // coordinates. Run through the real `prepareFoldModel` rather than a
+    // hand-lifted fixture, so the two cannot drift apart.
+    const prepared = prepareFoldModel({
+      vertices_coords: MODEL,
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+        [0, 2],
+      ],
+      edges_assignment: ['B', 'B', 'B', 'B', 'M'],
+      faces_vertices: [
+        [0, 1, 2],
+        [0, 2, 3],
+      ],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+    const lifted = prepared.fold.vertices_coords as number[][];
+    // Lifted really does mean lifted — otherwise the assertion below is vacuous.
+    expect(lifted[2]).toEqual(normalizePoint(MODEL[2]!));
+    expect(lifted[2]![2]).toBe(-120);
+
+    const read = flatPlaneReader({ vertices_coords: lifted } as unknown as FoldDocument);
+    expect(lifted.map(read)).toEqual(MODEL.map(([x, y]) => ({ x, y })));
+  });
+});
 
 function unitSquare(offsetX: number, baseVertex: number): {
   coords: number[][];
@@ -267,8 +318,11 @@ describe('regions are of the crease pattern, not of the simulation mesh', () => 
     const [a, b] = base.faces_vertices!;
     return {
       ...base,
-      // Paper in X-Z, as the simulator's folds are.
-      vertices_coords: base.vertices_coords!.map(([x, y]) => [x, 0, y]),
+      // Lifted by the real `normalizePoint`, not a transcription of it: the
+      // whole point of this test is that the bridge from a region to the mesh
+      // survives that lift, and a fixture spelling it out by hand would keep
+      // passing after the lift changed under it.
+      vertices_coords: base.vertices_coords!.map((coord) => normalizePoint(coord)),
       faces_vertices: [
         [a![0]!, a![1]!, a![2]!],
         [a![0]!, a![2]!, a![3]!],

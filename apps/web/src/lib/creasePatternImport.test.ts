@@ -350,8 +350,13 @@ describe('crease pattern import', () => {
 
     // Vertex 5 and its two halves are gone, replaced by one mountain diagonal.
     expect(simulation.vertices_coords).toHaveLength(5);
-    const centre = simulation.vertices_coords.findIndex(([x, , z]) => x === 0 && z === 0);
-    const corner = simulation.vertices_coords.findIndex(([x, , z]) => x === 200 && z === 200);
+    // Named in the *fold's* coordinates, not the simulation's: `normalizePoint`
+    // lifts `(x, y)` to `(x, 0, −y)`, so a literal `z` here would name the
+    // opposite corner — which is exactly what a hard-coded 200 did.
+    const vertexAt = (x: number, y: number) =>
+      simulation.vertices_coords.findIndex(([vx, , vz]) => vx === x && vz === -y);
+    const centre = vertexAt(0, 0);
+    const corner = vertexAt(200, 200);
     const diagonal = simulation.edges_vertices.findIndex(
       ([a, b]) => (a === centre && b === corner) || (a === corner && b === centre)
     );

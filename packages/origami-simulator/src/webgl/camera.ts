@@ -58,6 +58,29 @@ export const IDENTITY_MAT3: Mat3 = [1, 0, 0, 0, 1, 0, 0, 0, 1];
  * `orient` is an optional model rotation applied **before** the camera, so yaw
  * spins about `orientᵀ · Y` rather than about world Y. Identity by default,
  * which reproduces the original transform exactly.
+ *
+ * ## This is a reflection, not a rotation
+ *
+ * Its determinant is **−1** at every yaw and pitch — at `(0, 0)` it is the plain
+ * y/z swap `[[1,0,0],[0,0,1],[0,1,0]]`, whose rows are a *left*-handed basis
+ * (`right × up = −eye`). Upstream draws through THREE.js, whose camera basis is
+ * right-handed, so this is a port divergence and everything downstream of it
+ * either cancels the reflection or inherits it.
+ *
+ * Two consequences, both relied on by callers:
+ *
+ * - **The picture is mirrored.** A model has to be handed to this camera
+ *   reflected to come out reading correctly. `normalizePoint`'s 2D lift and
+ *   `folded3dMesh.ts`'s `toSimBasis` are each that reflection for their own
+ *   surface, and a change to one without the other puts them out of step.
+ * - **`gl_FrontFacing` is inverted** relative to THREE's `FrontSide`:
+ *   `sign(screen winding) = −sign(n · eyeDir)`, so a triangle whose right-hand
+ *   normal points *toward* the eye is drawn with `u_backColor`. A folded figure
+ *   winds about `−paperFrontNormal` for exactly this reason.
+ *
+ * Straightening the basis is not a local change: it would flip both of those at
+ * once for both surfaces, and it would change what `pitch` means — which is
+ * document state, stored per folded figure in `.osf`.
  */
 export function viewRotation(yaw: number, pitch: number, orient: Mat3 = IDENTITY_MAT3): Mat3 {
   const cy = Math.cos(yaw);

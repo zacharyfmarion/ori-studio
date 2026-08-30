@@ -69,6 +69,10 @@ export {
   type ProjectedVertices,
   type ProjectVerticesOptions,
 } from './webgl/camera.js';
+// The 2D lift, exported because the app both undoes it (`flatPlaneReader`) and
+// builds fixtures that must agree with it. Two transcriptions of a sign is one
+// too many.
+export { normalizePoint } from './geometry.js';
 export { GpuMath, detectWebGlSupport } from './gpuMath.js';
 export { OrigamiModel } from './model.js';
 export { ORIGAMI_SIMULATOR_UPSTREAM } from './provenance.js';
