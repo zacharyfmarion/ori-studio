@@ -57,7 +57,7 @@ use crate::folding::AdditionalEstimationError;
 use crate::folding::{
     EquivalenceCondition, EquivalenceConditionSet, FOLD_3D_ITERATION_BUDGET, HierarchyRelation,
     InitialHierarchy, PermutationError, SubFace, WorkerOverlapEnumerator, WorkerOverlapSearchError,
-    validate_initial_hierarchy,
+    close_hierarchy_with_removal, validate_initial_hierarchy,
 };
 use crate::folding3d::Fold3dTolerances;
 use crate::folding3d::cells::{CellError, CellIndex, cell_index};
@@ -67,6 +67,18 @@ use crate::folding3d::constraints::{
 };
 use crate::folding3d::placement::Placement3d;
 use crate::folding3d::planes::{PlaneId, PlaneIndex};
+
+/// Outer iterations [`Fold3dOrderEnumerator::lookahead`]'s dry run may spend.
+///
+/// Four orders of magnitude below [`FOLD_3D_ITERATION_BUDGET`], because the two
+/// answer different questions. That budget bounds a *verdict* about the user's
+/// crease pattern and must not cut a genuine solve short. This one bounds a
+/// *button's enabled state*, where the fallback answer — "no further solution" —
+/// is both conservative and the one an exhausted probe already produces.
+///
+/// The margin is measured, not chosen by taste: the largest probe that ever
+/// terminated across the sweeps was 157 outer iterations.
+const FOLD_3D_LOOKAHEAD_BUDGET: u64 = 10_000;
 
 /// One ordering variable: two coplanar faces whose footprints overlap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -371,7 +383,7 @@ impl Fold3dOrderEnumerator {
     fn lookahead(components: &[ComponentSolver]) -> bool {
         components
             .iter()
-            .any(|component| component.has_next() && component.clone().step().unwrap_or(false))
+            .any(|component| component.has_next() && component.probe_next().unwrap_or(false))
     }
 
     /// Move to the next solution, wrapping to the first when exhausted.
@@ -527,6 +539,17 @@ impl ComponentSolver {
             });
         }
         Ok(out)
+    }
+
+    /// [`Fold3dOrderEnumerator::lookahead`]'s dry run: is another solution
+    /// actually reachable? Bounded, because nothing waits on the answer except a
+    /// button label.
+    fn probe_next(&self) -> Result<bool, Fold3dOrderError> {
+        let mut probe = self.clone();
+        probe
+            .enumerator
+            .set_iteration_budget(FOLD_3D_LOOKAHEAD_BUDGET);
+        probe.step()
     }
 
     fn has_next(&self) -> bool {
@@ -1015,6 +1038,8 @@ impl Builder {
             });
         }
 
+        let hierarchy = close_component_hierarchy(&subfaces, hierarchy, &mut conditions)?;
+
         Ok(ComponentInput {
             global_faces: self.global_faces.clone(),
             variables: self.variables,
@@ -1022,6 +1047,47 @@ impl Builder {
             hierarchy,
             conditions,
         })
+    }
+}
+
+/// Run Oriedita's setup-time `removeMode` additional-estimation round over the
+/// component, exactly as `overlap_enumerator_from_segments` does for the flat
+/// path, and hand the search the closed hierarchy instead of the raw seeds.
+///
+/// **This is a speed change that must not become an answer change.** The pass is
+/// the flat path's, but the input is not: this component's quadruple conditions
+/// include one synthetic condition per coupling, over four faces that only the
+/// coupling's synthetic subface holds, and its initial hierarchy carries the four
+/// cross-slot cut relations that scaffold that subface. Those cuts are a
+/// tie-break, not geometry, so an `AdditionalEstimationError::Contradiction`
+/// raised while closing over them says the scaffolding disagrees with itself —
+/// **not** that the user's paper admits no stacking. Promoting it to a verdict
+/// would trade the false negative this pass exists to remove for a new one, so
+/// the pass is discarded on contradiction and the search runs on the raw seeds
+/// exactly as it does today. Only a cancel escapes.
+fn close_component_hierarchy(
+    subfaces: &[SubFace],
+    hierarchy: InitialHierarchy,
+    conditions: &mut EquivalenceConditionSet,
+) -> Result<InitialHierarchy, Fold3dOrderError> {
+    let face_ids: Vec<Vec<usize>> = subfaces
+        .iter()
+        .map(|subface| subface.face_ids.clone())
+        .collect();
+    // The pass prunes in place, so a discarded run must not leave a half-pruned
+    // condition set behind: a condition `run_with_removal` dropped is implied by
+    // a closure we are about to throw away.
+    let mut candidate = conditions.clone();
+    match close_hierarchy_with_removal(&hierarchy, face_ids, &mut candidate) {
+        Ok(closed) => {
+            *conditions = candidate;
+            Ok(closed)
+        }
+        Err(AdditionalEstimationError::Cancelled) => Err(Fold3dOrderError::Cancelled),
+        Err(AdditionalEstimationError::Setup(setup)) if setup.is_cancelled() => {
+            Err(Fold3dOrderError::Cancelled)
+        }
+        Err(_) => Ok(hierarchy),
     }
 }
 
