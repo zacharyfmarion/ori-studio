@@ -166,7 +166,7 @@ struct Row {
     cross_plane_groups: usize,
 }
 
-const ROWS: [Row; 7] = [
+const ROWS: [Row; 8] = [
     Row {
         name: "hinge_90",
         faces: 2,
@@ -199,6 +199,20 @@ const ROWS: [Row; 7] = [
         non_adjacent: 15,
         full_fold_pairs: 13,
         // A flat document couples no planes, because it has only one.
+        cross_plane_groups: 0,
+    },
+    Row {
+        name: "hole_vertex_90",
+        faces: 6,
+        planes: 6,
+        topological_classes: 6,
+        // No two faces of a ring folded this way share a plane, so there is
+        // nothing to order. The fixture earns its place on the loop gap, not
+        // here — but the row is recorded so a change that starts producing
+        // overlap on it is a failure rather than a surprise.
+        census: 0,
+        non_adjacent: 0,
+        full_fold_pairs: 0,
         cross_plane_groups: 0,
     },
     Row {

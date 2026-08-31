@@ -1505,6 +1505,89 @@ fn a_sheet_with_a_hole_in_it_folds() {
     );
 }
 
+/// The reported file, folded.
+///
+/// `holed_sheet_spiral.ori` is the crease pattern the hole bug was reported on:
+/// a 400x400 sheet with a 50x100 window cut out of it and a spiral of creases
+/// running into the window from three sides. Before the hole stopped being
+/// traced as paper it aborted with `SameParityAdjacentFaces`, naming a crease
+/// three segments away from the window.
+///
+/// The solution count is pinned rather than described. `treemaker-flatfold` —
+/// the Flat-Folder port, which has filtered hole faces since it landed — reads
+/// the same one from the same geometry, so the number is a cross-check between
+/// two independent solvers rather than a recording of whatever this one did.
+#[test]
+fn the_reported_holed_sheet_folds_with_one_layer_ordering() {
+    let doc = ori::import_ori_json(include_str!(
+        "../../../tests/fixtures/oriedita/holed_sheet_spiral.ori"
+    ))
+    .expect("import the fixture");
+    let segments = doc.crease_pattern.line_segments;
+    assert_eq!(segments.len(), 83);
+
+    let wireframe = estimate_wireframe_from_segments(&segments, 1)
+        .expect("the arrangement traces")
+        .expect("and has faces");
+    assert_eq!(
+        wireframe.faces.len(),
+        34,
+        "34 faces of paper; the 35th region the arrangement traces is the window"
+    );
+
+    let mut session = FoldingEstimateSession::new(&segments, 1);
+    session
+        .folding_estimated(EstimationOrder::Order5)
+        .expect("the reported sheet folds");
+    assert_eq!(session.estimate().outcome, FoldOutcome::Solved);
+    assert_eq!(
+        session.estimate().discovered_fold_cases,
+        1,
+        "exactly one layer ordering, which treemaker-flatfold reads too"
+    );
+    assert!(
+        !session.estimate().find_another_overlap_valid,
+        "and no other, so the count is the whole answer rather than a prefix"
+    );
+}
+
+/// A window that sits astride the fold line.
+///
+/// `holed_frame_collinear.ori` is a picture frame folded along one diagonal that
+/// the window interrupts, so the fold line arrives as **two collinear crease
+/// segments** with the hole between them. That is the shape whose dual graph
+/// gains a cycle around the hole while every crease axis stays on one line —
+/// the holonomy is the identity for any angle, which is why it folds at 180 here
+/// and why its 3D twin is admitted at any angle in `folding3d.rs`.
+///
+/// It is also the smallest document that reaches the loop-gap check at all:
+/// two faces, two joins, one independent cycle, and no interior vertex.
+#[test]
+fn a_window_astride_the_fold_line_folds() {
+    let doc = ori::import_ori_json(include_str!(
+        "../../../tests/fixtures/oriedita/holed_frame_collinear.ori"
+    ))
+    .expect("import the fixture");
+    let segments = doc.crease_pattern.line_segments;
+    assert_eq!(segments.len(), 10);
+
+    let wireframe = estimate_wireframe_from_segments(&segments, 1)
+        .expect("the arrangement traces")
+        .expect("and has faces");
+    assert_eq!(
+        wireframe.faces.len(),
+        2,
+        "one face either side of the fold line, and no filled window"
+    );
+
+    let mut session = FoldingEstimateSession::new(&segments, 1);
+    session
+        .folding_estimated(EstimationOrder::Order5)
+        .expect("a frame folded across its window folds");
+    assert_eq!(session.estimate().outcome, FoldOutcome::Solved);
+    assert_eq!(session.estimate().discovered_fold_cases, 1);
+}
+
 /// The control, and the reason the test above is about the hole rather than
 /// about that particular sheet: fill the hole in with paper — same outline, same
 /// fold line, now continuous — and the answer is the same.

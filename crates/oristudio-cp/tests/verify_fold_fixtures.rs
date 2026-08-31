@@ -237,6 +237,27 @@ const FOLD_ANGLE_3D: &[Fixture] = &[
         indeterminate: 0,
     },
     Fixture {
+        name: "hole_vertex_90",
+        vertices: 20,
+        edges: 26,
+        faces: 6,
+        full_folds: 0,
+        non_classic: 6,
+        // The only committed fixture with more than one: 90 on the four valleys
+        // and arccos(1/3) on the two mountains. Every other one here is 90
+        // throughout, which is the angle Spike B measured to discriminate least.
+        distinct_magnitudes: 2,
+        flat_violations: 0,
+        // Zero, and that is the point of the fixture rather than a gap in it.
+        // Every vertex touches the hole rim or the paper rim, so
+        // `is_interior_vertex` declines all of them and the closure check
+        // examines nothing. The loop gap is the only thing judging this model.
+        spatial_vertices: 0,
+        closure_failures: 0,
+        self_intersections: 0,
+        indeterminate: 0,
+    },
+    Fixture {
         name: "box_90",
         vertices: 13,
         edges: 23,

@@ -65,7 +65,7 @@ struct Expected {
     outcome: Fold3dOutcome,
 }
 
-const ADMITTED: [Expected; 5] = [
+const ADMITTED: [Expected; 6] = [
     Expected {
         name: "hinge_90",
         faces: 2,
@@ -73,6 +73,17 @@ const ADMITTED: [Expected; 5] = [
         // A tree dual graph: the loop gap has nothing to be a maximum over, and
         // this is the only fixture here with no placement self-check at all.
         non_tree: 0,
+        outcome: Fold3dOutcome::Folded,
+    },
+    Expected {
+        name: "hole_vertex_90",
+        faces: 6,
+        spatial: 0,
+        // One, and it is the cycle around the hole. On every other fixture here
+        // the non-tree edges close a contractible cycle that per-vertex closure
+        // already forced; this one has no interior vertex at all, so the loop
+        // gap is measuring the only condition there is.
+        non_tree: 1,
         outcome: Fold3dOutcome::Folded,
     },
     Expected {
