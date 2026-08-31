@@ -583,6 +583,53 @@ fn a_ring_places_and_is_judged_by_the_loop_gap() {
     }
 }
 
+/// A holed sheet that **is** foldable in 3D, all the way through.
+///
+/// The counterpart to `a_ring_places_and_is_judged_by_the_loop_gap`, which shows
+/// the refusal. This shows the admission, and it is the case the whole change is
+/// for: a sheet with a window in it, folded on a line the window sits astride,
+/// so the two crease segments share an axis and the holonomy around the hole is
+/// the identity.
+///
+/// `non_tree_edges == 1` is the assertion that matters. The dual graph has one
+/// independent cycle and it is the one that goes around the hole, so the zero
+/// below is a measurement rather than the vacuous zero a tree would report.
+#[test]
+fn a_holed_sheet_whose_hole_cycle_closes_is_admitted() {
+    let border = |ax: f64, ay: f64, bx: f64, by: f64| {
+        LineSegment::with_color(Point::new(ax, ay), Point::new(bx, by), LineColor::Black0)
+    };
+    let mut segments = vec![
+        border(-200.0, -200.0, 50.0, -200.0),
+        border(50.0, -200.0, 200.0, -200.0),
+        border(200.0, -200.0, 200.0, 200.0),
+        border(200.0, 200.0, 50.0, 200.0),
+        border(50.0, 200.0, -200.0, 200.0),
+        border(-200.0, 200.0, -200.0, -200.0),
+        border(50.0, -50.0, 100.0, -50.0),
+        border(100.0, -50.0, 100.0, 50.0),
+        border(100.0, 50.0, 50.0, 50.0),
+        border(50.0, 50.0, 50.0, -50.0),
+    ];
+    for (ax, ay, bx, by) in [(50.0, -200.0, 50.0, -50.0), (50.0, 50.0, 50.0, 200.0)] {
+        segments.push(
+            LineSegment::with_color(Point::new(ax, ay), Point::new(bx, by), LineColor::Blue2)
+                .with_fold_magnitude(FoldMagnitude::from_degrees(90.0)),
+        );
+    }
+
+    let admitted = admit(&segments, 1).expect("a holed sheet with a closing hole cycle");
+    assert_eq!(
+        admitted.placement.loop_gap.non_tree_edges, 1,
+        "the cycle around the hole is the one independent consistency condition, \
+         so the gap below is measured rather than vacuous"
+    );
+    assert_eq!(
+        admitted.placement.loop_gap.offset, 0.0,
+        "two crease segments on one axis compose to the identity around the hole"
+    );
+}
+
 /// The loop-gap bar is a gate, not a report.
 ///
 /// **No simply connected fixture reaches this**: on a disk a closed loop follows

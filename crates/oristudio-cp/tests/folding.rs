@@ -1442,3 +1442,89 @@ fn a_snapshot_without_an_outcome_reads_back_as_not_attempted() {
         serde_json::from_value(value).expect("deserialize without outcome");
     assert_eq!(restored.outcome, FoldOutcome::NotAttempted);
 }
+
+// --- holes in the sheet -----------------------------------------------------
+
+/// A 400x400 sheet with a 50x100 rectangular hole, folded in half on `x = 50`.
+///
+/// Reduced from the file that reported the bug
+/// (`research/2026-08-31-holes-in-the-folding-pipeline.md`) to the smallest
+/// shape that reproduces it: the hole's left edge lies on the fold line, so two
+/// creases run from the outer boundary to the hole and the paper region is
+/// simply connected. Physically, a sheet with a window in it, book-folded.
+fn holed_sheet_segments() -> Vec<LineSegment> {
+    let mut segments = Vec::new();
+    for (ax, ay, bx, by) in [
+        (-200.0, -200.0, 50.0, -200.0),
+        (50.0, -200.0, 200.0, -200.0),
+        (200.0, -200.0, 200.0, 200.0),
+        (200.0, 200.0, 50.0, 200.0),
+        (50.0, 200.0, -200.0, 200.0),
+        (-200.0, 200.0, -200.0, -200.0),
+        // The hole.
+        (50.0, -50.0, 100.0, -50.0),
+        (100.0, -50.0, 100.0, 50.0),
+        (100.0, 50.0, 50.0, 50.0),
+        (50.0, 50.0, 50.0, -50.0),
+    ] {
+        segments.push(segment(ax, ay, bx, by, LineColor::Black0));
+    }
+    for (ax, ay, bx, by) in [(50.0, -200.0, 50.0, -50.0), (50.0, 50.0, 50.0, 200.0)] {
+        segments.push(segment(ax, ay, bx, by, LineColor::Blue2));
+    }
+    segments
+}
+
+/// The reported bug, end to end.
+///
+/// Before the hole was dropped this aborted with `SameParityAdjacentFaces`,
+/// naming a crease that had nothing to do with the hole: the hole face joined
+/// the dual graph as a hub, made it non-bipartite, and the BFS carried the wrong
+/// parity outward from there.
+#[test]
+fn a_sheet_with_a_hole_in_it_folds() {
+    let segments = holed_sheet_segments();
+
+    let wireframe = estimate_wireframe_from_segments(&segments, 1)
+        .expect("the arrangement traces")
+        .expect("and has faces");
+    assert_eq!(
+        wireframe.faces.len(),
+        2,
+        "one paper face either side of the fold line; the hole is not paper"
+    );
+
+    let mut session = FoldingEstimateSession::new(&segments, 1);
+    session
+        .folding_estimated(EstimationOrder::Order5)
+        .expect("a holed sheet folds");
+    assert_eq!(session.estimate().outcome, FoldOutcome::Solved);
+    assert!(
+        session.estimate().discovered_fold_cases >= 1,
+        "the layer search found no ordering"
+    );
+}
+
+/// The control, and the reason the test above is about the hole rather than
+/// about that particular sheet: fill the hole in with paper — same outline, same
+/// fold line, now continuous — and the answer is the same.
+///
+/// This is the comparison that could not be made before. Filling the hole is
+/// exactly what `calculate_faces` used to do on its own, and the filled sheet
+/// folded; the open one aborted.
+#[test]
+fn the_same_sheet_with_the_hole_filled_in_folds_the_same_way() {
+    let inside =
+        |point: Point| (49.0..=101.0).contains(&point.x) && (-51.0..=51.0).contains(&point.y);
+    let mut segments: Vec<LineSegment> = holed_sheet_segments()
+        .into_iter()
+        .filter(|line| !(inside(line.a) && inside(line.b)))
+        .collect();
+    segments.push(segment(50.0, -50.0, 50.0, 50.0, LineColor::Blue2));
+
+    let mut session = FoldingEstimateSession::new(&segments, 1);
+    session
+        .folding_estimated(EstimationOrder::Order5)
+        .expect("the control folds");
+    assert_eq!(session.estimate().outcome, FoldOutcome::Solved);
+}
