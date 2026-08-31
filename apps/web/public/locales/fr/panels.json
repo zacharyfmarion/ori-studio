@@ -764,8 +764,7 @@
       "label": "Cube de vue",
       "left": "Gauche",
       "right": "Droite",
-      "rollLeft": "Pivoter la vue vers la gauche",
-      "rollRight": "Pivoter la vue vers la droite",
+      "roll": "Pivoter la vue",
       "top": "Dessus"
     }
   },

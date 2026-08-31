@@ -321,57 +321,121 @@ describe('SimulatorViewCube', () => {
     expect(orbit.begin).not.toHaveBeenCalled();
   });
 
-  /** The pair of quarter-turn arrows above the cube. */
-  function rollRow(): HTMLElement {
-    const row = host?.querySelector<HTMLElement>('.simulator-view-cube__roll');
-    expect(row).not.toBeNull();
-    return row as HTMLElement;
+  /** The roll ring: the circle through the corners of the square face. */
+  function ring(): SVGSVGElement {
+    const svg = host?.querySelector<SVGSVGElement>('.simulator-view-cube__ring');
+    expect(svg).not.toBeNull();
+    return svg as SVGSVGElement;
   }
 
-  function rollButtons(): HTMLButtonElement[] {
-    return Array.from(rollRow().querySelectorAll('button'));
+  function ringHit(): SVGCircleElement {
+    return ring().querySelector('.simulator-view-cube__ring-hit') as SVGCircleElement;
   }
 
-  it('offers the roll arrows only square-on to a face', () => {
-    // Anywhere else the picture is already at an angle, so there is no obvious
-    // "which way up" to step through — and the cube itself is still worth
-    // pressing. Face on, it is not, which is the whole reason these exist.
+  /** How far round the mark is, in degrees clockwise from straight up. */
+  function markDegrees(): number {
+    const mark = ring().querySelector('.simulator-view-cube__ring-mark')
+      ?.parentElement as unknown as SVGGElement;
+    const match = /rotate\(([-\d.]+)\)/.exec(mark?.getAttribute('transform') ?? '');
+    return match ? Number(match[1]) : Number.NaN;
+  }
+
+  /**
+   * Grab the ring at a point measured from its centre, in client pixels.
+   *
+   * jsdom gives every element a zero-sized box at the origin, so the component's
+   * one layout read lands on (0, 0) — which is exactly the centre these offsets
+   * are relative to.
+   */
+  function grabRing(...points: Array<[number, number]>) {
+    const hit = ringHit();
+    const send = (type: string, [x, y]: [number, number]) =>
+      act(() => {
+        hit.dispatchEvent(
+          new PointerEvent(type, { pointerId: 5, clientX: x, clientY: y, bubbles: true })
+        );
+      });
+    send('pointerdown', points[0] ?? [0, 0]);
+    for (const point of points.slice(1)) send('pointermove', point);
+    send('pointerup', points.at(-1) ?? [0, 0]);
+  }
+
+  it('offers the ring only square-on to a face', () => {
+    // At any other angle the picture is already tilted and a circle drawn round
+    // the cube would not sit on anything. Shift and drag still rolls from there.
     render();
-    expect(rollRow().dataset.available).toBe('false');
+    expect(ring().dataset.available).toBe('false');
 
     act(() => handle?.setView(simulatorViewLookingFrom(OPENING, [0, 0, -1])));
-    expect(rollRow().dataset.available).toBe('true');
+    expect(ring().dataset.available).toBe('true');
 
-    // An edge view shows two faces, so it is not square-on to either.
-    const root = 1 / Math.sqrt(2);
-    act(() => handle?.setView(simulatorViewLookingFrom(OPENING, [root, 0, -root])));
-    expect(rollRow().dataset.available).toBe('false');
+    const half = 1 / Math.sqrt(2);
+    act(() => handle?.setView(simulatorViewLookingFrom(OPENING, [half, 0, -half])));
+    expect(ring().dataset.available).toBe('false');
   });
 
-  it('rolls a quarter turn each way', () => {
+  it('puts the mark straight up at rest, and turns it clockwise with the roll', () => {
     render();
-    act(() => handle?.setView(simulatorViewLookingFrom(OPENING, [0, 0, -1])));
+    expect(markDegrees()).toBe(0);
 
-    const [left, right] = rollButtons();
-    act(() => left?.click());
-    expect(onRoll).toHaveBeenLastCalledWith(-Math.PI / 2);
-    act(() => right?.click());
-    expect(onRoll).toHaveBeenLastCalledWith(Math.PI / 2);
+    act(() => handle?.setView({ ...OPENING, roll: Math.PI / 2 }));
+
+    expect(markDegrees()).toBeCloseTo(90, 3);
   });
 
-  it('does not read an arrow press as a drag on the cube', () => {
-    // The arrows sit inside the root, whose pointer handlers turn the model.
-    // Without the guard, pressing one would begin an orbit under the button.
+  it('rolls to wherever the ring is grabbed', () => {
+    // Absolute, not a delta: the mark goes where you grab and follows from
+    // there, which is what a ring affords.
     render();
     act(() => handle?.setView(simulatorViewLookingFrom(OPENING, [0, 0, -1])));
+
+    // Straight right of centre is a quarter turn clockwise.
+    grabRing([10, 0]);
+    expect(onRoll).toHaveBeenCalledWith(Math.PI / 2);
+
+    // Straight up is zero, and straight down is a half turn.
+    grabRing([0, -10]);
+    expect(onRoll).toHaveBeenLastCalledWith(0);
+    grabRing([0, 10]);
+    expect(Math.abs(onRoll.mock.calls.at(-1)?.[0] ?? 0)).toBeCloseTo(Math.PI, 12);
+  });
+
+  it('follows the pointer along the ring', () => {
+    render();
+    act(() => handle?.setView(simulatorViewLookingFrom(OPENING, [0, 0, -1])));
+
+    grabRing([0, -10], [10, 0], [0, 10]);
+
+    const seen = onRoll.mock.calls.map(([roll]) => roll);
+    expect(seen[0]).toBeCloseTo(0, 12);
+    expect(seen[1]).toBeCloseTo(Math.PI / 2, 12);
+    expect(Math.abs(seen[2] ?? 0)).toBeCloseTo(Math.PI, 12);
+  });
+
+  it('does not read a grab on the ring as a turn of the cube', () => {
+    // The ring sits inside the root, whose handlers turn the model. Without the
+    // stop, grabbing it would begin an orbit underneath.
+    render();
+    act(() => handle?.setView(simulatorViewLookingFrom(OPENING, [0, 0, -1])));
+
+    grabRing([10, 0]);
+
+    expect(orbit.begin).not.toHaveBeenCalled();
+  });
+
+  it('nudges the roll from the keyboard', () => {
+    // The ring is the only roll control on the cube, so it has to be reachable
+    // without a pointer.
+    render();
+    act(() => handle?.setView({ ...OPENING, roll: 0.5 }));
 
     act(() => {
-      rollButtons()[0]?.dispatchEvent(
-        new PointerEvent('pointerdown', { pointerId: 9, bubbles: true })
+      ringHit().dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })
       );
     });
 
-    expect(orbit.begin).not.toHaveBeenCalled();
+    expect(onRoll).toHaveBeenCalledWith(0.5 + Math.PI / 12);
   });
 
   it('rolls rather than orbits while Shift is held', () => {

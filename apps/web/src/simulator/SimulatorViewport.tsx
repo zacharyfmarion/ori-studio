@@ -487,26 +487,34 @@ export function SimulatorViewport({
     [applyView, pushView]
   );
 
-  /** Turn to look at the model from `direction`, keeping any roll. */
+  /**
+   * Turn to look at the model from `direction`, and stand the picture back up.
+   *
+   * The roll goes with it. A named viewpoint should be one view rather than a
+   * family of them, and a Top that came back at whatever angle the last roll
+   * left would give the cube no way home — the ring can only be reached square
+   * on to a face, so a view rolled from a corner would otherwise be stuck.
+   */
   const snapToDirection = useCallback(
     (direction: SimulatorViewDirection) => {
-      tweenView(simulatorViewLookingFrom(viewRef.current, direction));
+      tweenView({ ...simulatorViewLookingFrom(viewRef.current, direction), roll: 0 });
     },
     [tweenView]
   );
 
   /**
-   * Spin the picture a quarter turn about the line of sight.
+   * Spin the picture about the line of sight, to an absolute angle.
    *
    * The eye does not move — see the package's `viewRotationFor` for why that is
    * exact — so this is the one control that changes which way up the model is
-   * drawn without changing what you are looking at.
+   * drawn without changing what you are looking at. Applied rather than tweened:
+   * it is driven by a drag, and a drag has to answer the hand at once.
    */
-  const rollBy = useCallback(
-    (delta: number) => {
-      tweenView({ ...viewRef.current, roll: (viewRef.current.roll ?? 0) + delta });
+  const setRoll = useCallback(
+    (roll: number) => {
+      applyView({ ...viewRef.current, roll });
     },
-    [tweenView]
+    [applyView]
   );
 
   // A snap outliving its surface would call into a torn-down worker session.
@@ -791,7 +799,7 @@ export function SimulatorViewport({
           ref={attachViewCube}
           interactive={interactive}
           onSnap={snapToDirection}
-          onRoll={rollBy}
+          onRoll={setRoll}
           orbit={orbit}
         />
       )}

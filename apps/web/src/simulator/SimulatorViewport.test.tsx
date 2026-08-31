@@ -260,6 +260,46 @@ describe('SimulatorViewport view cube', () => {
     expect(lastView().pitch).toBe(stopped);
   });
 
+  it('stands the picture back up when a face is pressed', () => {
+    // A named viewpoint is one view, not a family of them. It also has to be:
+    // the ring can only be reached square-on to a face, so a view rolled from a
+    // corner would have no way home if a snap kept the roll.
+    render(true, undefined, true);
+    const front = Array.from(
+      host?.querySelectorAll<HTMLButtonElement>('.simulator-view-cube__spot--face') ?? []
+    ).find((spot) => spot.getAttribute('aria-label') === 'Front');
+
+    // Roll it well away from upright, then snap.
+    act(() => {
+      // Shift on the *press*: the mode is fixed there, so setting it only on
+      // the move would make this an ordinary orbit and prove nothing.
+      front?.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          pointerId: 8,
+          clientX: 0,
+          clientY: 0,
+          shiftKey: true,
+          bubbles: true,
+        })
+      );
+      front?.dispatchEvent(
+        new PointerEvent('pointermove', {
+          pointerId: 8,
+          clientX: 90,
+          clientY: 0,
+          shiftKey: true,
+          bubbles: true,
+        })
+      );
+    });
+    expect(lastView().roll, 'the drag rolled it first').toBeCloseTo(0.9, 6);
+
+    press('Front');
+    runFrames(40);
+
+    expect(lastView().roll).toBe(0);
+  });
+
   it('keeps the zoom a snap was made at', () => {
     render(true, undefined, true);
     pinch(-100);

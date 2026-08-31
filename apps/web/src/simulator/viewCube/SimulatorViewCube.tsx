@@ -3,10 +3,10 @@ import {
   useEffect,
   useImperativeHandle,
   useRef,
+  type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   type Ref,
 } from 'react';
-import { RotateCcw, RotateCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -57,8 +57,8 @@ export interface SimulatorViewCubeProps {
   interactive: boolean;
   /** A face was chosen: look at the model from here. */
   onSnap: (direction: SimulatorViewDirection, face: ViewCubeFaceId) => void;
-  /** Spin the picture about the line of sight by this many radians. */
-  onRoll: (delta: number) => void;
+  /** Spin the picture about the line of sight to this angle, in radians. */
+  onRoll: (roll: number) => void;
   /**
    * Turning the model by dragging — the same gesture the canvas behind offers,
    * so a drag that starts on the cube is the drag it would have been anywhere
@@ -67,8 +67,18 @@ export interface SimulatorViewCubeProps {
   orbit: SimulatorOrbitGesture;
 }
 
-/** A quarter turn, which is what the arrows are for. */
-const ROLL_STEP = Math.PI / 2;
+/** How far an arrow key nudges the roll ring. */
+const ROLL_KEY_STEP = Math.PI / 12;
+
+/**
+ * The ring's radius, in its own 100-unit box.
+ *
+ * Exactly half the box, so the circle passes through the corners of the square
+ * face — the svg is sized `√2` times the cube's edge, which is what makes "50"
+ * here the circumscribing circle rather than an approximation of it. Its stroke
+ * and its dot spill past the box, hence `overflow: visible` in the stylesheet.
+ */
+const RING_RADIUS = 50;
 
 /**
  * How far the pointer may travel and still be a press, in CSS pixels.
@@ -124,24 +134,42 @@ export function SimulatorViewCube({
   const swallowPressRef = useRef(false);
   // The viewpoint currently lit, so the previous one can be put out.
   const litRef = useRef<string | null>(null);
-  const rollRowRef = useRef<HTMLDivElement | null>(null);
+  const ringRef = useRef<SVGSVGElement | null>(null);
+  const ringMarkRef = useRef<SVGGElement | null>(null);
+  const ringHitRef = useRef<SVGCircleElement | null>(null);
+  // Where the ring is centred on screen, read once when a drag starts rather
+  // than per move: the cube does not move under the pointer, and this is the
+  // only layout read the component makes.
+  const ringDragRef = useRef<{ pointerId: number; x: number; y: number } | null>(null);
+  // The roll the ring is showing, so a key press can nudge from it.
+  const rollRef = useRef(0);
 
   const applyView = useCallback((view: SimulatorOrbitView) => {
     const scene = sceneRef.current;
     if (scene) scene.style.transform = viewCubeTransform(view);
+
+    // The mark tracks every change, not only the ones that move a face across
+    // the horizon — a roll moves it and moves nothing else. So this sits above
+    // the early return below rather than after it.
+    const roll = view.roll ?? 0;
+    rollRef.current = roll;
+    const degrees = (roll * 180) / Math.PI;
+    ringMarkRef.current?.setAttribute('transform', `rotate(${degrees.toFixed(3)})`);
+    ringHitRef.current?.setAttribute('aria-valuenow', String(Math.round(degrees)));
+
     const visible = visibleViewCubeFaces(view);
     if (visible === visibleRef.current) return;
     visibleRef.current = visible;
     faceRefs.current.forEach((face, index) => {
       if (face) face.dataset.hidden = (visible & (1 << index)) === 0 ? 'true' : 'false';
     });
-    // The roll arrows are offered only square-on to a face, which is exactly
-    // when one face is turned toward the eye and the other five are edge-on or
-    // behind — so the mask having a single bit *is* the test. Anywhere else the
-    // picture is already at an angle and "which way up" has no obvious answer to
-    // step through.
+    // The ring is offered only square-on to a face, which is exactly when one
+    // face is turned toward the eye and the other five are edge-on or behind —
+    // so the mask having a single bit *is* the test. At any other angle the
+    // picture is already tilted and a circle drawn round the cube would not sit
+    // on anything; Shift and drag still rolls from wherever you are.
     const squareOn = visible !== 0 && (visible & (visible - 1)) === 0;
-    if (rollRowRef.current) rollRowRef.current.dataset.available = String(squareOn);
+    if (ringRef.current) ringRef.current.dataset.available = String(squareOn);
   }, []);
 
   useImperativeHandle(ref, () => ({ setView: applyView }), [applyView]);
@@ -172,6 +200,66 @@ export function SimulatorViewCube({
     litRef.current = viewpoint;
     if (viewpoint) set(viewpoint, true);
   }, []);
+
+  /**
+   * The roll the pointer is asking for: the angle from the ring's centre out to
+   * it, measured clockwise from straight up.
+   *
+   * Absolute rather than a delta, so the mark goes where you grab and follows
+   * the pointer from there — which is what a ring affords, and it means a press
+   * anywhere on it is already a meaningful answer.
+   */
+  const rollTowardPointer = useCallback(
+    (event: { clientX: number; clientY: number }) => {
+      const centre = ringDragRef.current;
+      if (!centre) return;
+      // atan2(dx, −dy): zero straight up, growing clockwise, which is the sense
+      // `rollRotation` turns the picture in.
+      onRoll(Math.atan2(event.clientX - centre.x, centre.y - event.clientY));
+    },
+    [onRoll]
+  );
+
+  const handleRingPointerDown = (event: ReactPointerEvent<SVGCircleElement>) => {
+    if (!interactive) return;
+    // Stop it reaching the root, whose handlers would read the same press as the
+    // start of a turn of the cube.
+    event.stopPropagation();
+    const box = event.currentTarget.getBoundingClientRect();
+    ringDragRef.current = {
+      pointerId: event.pointerId,
+      x: box.left + box.width / 2,
+      y: box.top + box.height / 2,
+    };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    rollTowardPointer(event);
+  };
+
+  const handleRingPointerMove = (event: ReactPointerEvent<SVGCircleElement>) => {
+    if (ringDragRef.current?.pointerId !== event.pointerId) return;
+    event.stopPropagation();
+    rollTowardPointer(event);
+  };
+
+  const handleRingPointerEnd = (event: ReactPointerEvent<SVGCircleElement>) => {
+    if (ringDragRef.current?.pointerId !== event.pointerId) return;
+    event.stopPropagation();
+    ringDragRef.current = null;
+    track(ANALYTICS_EVENTS.simulatorViewRolled, { input: 'ring' });
+  };
+
+  const handleRingKeyDown = (event: ReactKeyboardEvent<SVGCircleElement>) => {
+    const step =
+      event.key === 'ArrowRight' || event.key === 'ArrowUp'
+        ? ROLL_KEY_STEP
+        : event.key === 'ArrowLeft' || event.key === 'ArrowDown'
+          ? -ROLL_KEY_STEP
+          : 0;
+    if (!step) return;
+    event.preventDefault();
+    track(ANALYTICS_EVENTS.simulatorViewRolled, { input: 'key' });
+    onRoll(rollRef.current + step);
+  };
 
   /*
    * Turning the cube.
@@ -258,42 +346,49 @@ export function SimulatorViewCube({
       aria-label={t('panels:simulator.viewCube.label', 'View cube')}
     >
       {/*
-        Quarter turns about the line of sight, shown only square-on to a face.
-        Autodesk's ViewCube puts these above the cube for the same reason: face
-        on, the cube itself has nothing left to press that would change which way
-        up you are looking, and this is the one thing still worth asking for.
+        The roll ring: the circle through the corners of the square face, with a
+        mark showing which way up the picture is. Shown only square-on to a face,
+        where the cube itself has nothing left to press that would change that.
+
+        Drawn in its own 100-unit box centred on the origin, so the radius is
+        literally half of it and the svg's own size — `√2` cube edges — is what
+        makes the circle circumscribe the face.
       */}
-      <div
-        ref={rollRowRef}
-        className="simulator-view-cube__roll"
+      <svg
+        ref={ringRef}
+        className="simulator-view-cube__ring"
         data-available="false"
+        viewBox="-50 -50 100 100"
         aria-hidden={!interactive}
       >
-        <button
-          type="button"
-          className="simulator-view-cube__roll-button"
-          aria-label={t('panels:simulator.viewCube.rollLeft', 'Rotate view left')}
-          disabled={!interactive}
-          onClick={() => {
-            track(ANALYTICS_EVENTS.simulatorViewRolled, { direction: 'ccw' });
-            onRoll(-ROLL_STEP);
-          }}
-        >
-          <RotateCcw size={11} />
-        </button>
-        <button
-          type="button"
-          className="simulator-view-cube__roll-button"
-          aria-label={t('panels:simulator.viewCube.rollRight', 'Rotate view right')}
-          disabled={!interactive}
-          onClick={() => {
-            track(ANALYTICS_EVENTS.simulatorViewRolled, { direction: 'cw' });
-            onRoll(ROLL_STEP);
-          }}
-        >
-          <RotateCw size={11} />
-        </button>
-      </div>
+        <circle className="simulator-view-cube__ring-track" r={RING_RADIUS} />
+        {/* Rotated rather than repositioned: one attribute per frame, and the
+            mark's own shape stays put in its group. */}
+        <g ref={ringMarkRef} transform="rotate(0)">
+          <circle className="simulator-view-cube__ring-mark" cy={-RING_RADIUS} r={4} />
+        </g>
+        {/*
+          The hit target, last so it takes the press, and `pointer-events: stroke`
+          so only the band of the ring is grabbable — the cube inside it stays
+          pressable, which is the whole reason this is a ring and not a disc.
+        */}
+        <circle
+          ref={ringHitRef}
+          className="simulator-view-cube__ring-hit"
+          r={RING_RADIUS}
+          role="slider"
+          tabIndex={interactive ? 0 : -1}
+          aria-label={t('panels:simulator.viewCube.roll', 'Roll the view')}
+          aria-valuemin={-180}
+          aria-valuemax={180}
+          aria-valuenow={0}
+          onPointerDown={handleRingPointerDown}
+          onPointerMove={handleRingPointerMove}
+          onPointerUp={handleRingPointerEnd}
+          onPointerCancel={handleRingPointerEnd}
+          onKeyDown={handleRingKeyDown}
+        />
+      </svg>
       <div ref={sceneRef} className="simulator-view-cube__scene">
         {VIEW_CUBE_FACES.map((face, index) => (
           <div

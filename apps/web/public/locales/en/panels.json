@@ -740,8 +740,7 @@
       "label": "View cube",
       "left": "Left",
       "right": "Right",
-      "rollLeft": "Rotate view left",
-      "rollRight": "Rotate view right",
+      "roll": "Roll the view",
       "top": "Top"
     }
   },

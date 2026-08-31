@@ -2624,8 +2624,7 @@
     "panels:simulator.viewCube.right": "883361d5d682",
     "panels:simulator.viewCube.top": "d5cdfcf7ff75",
     "panels:simulatorViewControls.viewCube": "e86443774f1c",
-    "panels:simulator.viewCube.rollLeft": "99a582a039cb",
-    "panels:simulator.viewCube.rollRight": "e67a3a48e74c"
+    "panels:simulator.viewCube.roll": "e221d9c288cc"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5252,8 +5251,7 @@
     "panels:simulator.viewCube.right": "883361d5d682",
     "panels:simulator.viewCube.top": "d5cdfcf7ff75",
     "panels:simulatorViewControls.viewCube": "e86443774f1c",
-    "panels:simulator.viewCube.rollLeft": "99a582a039cb",
-    "panels:simulator.viewCube.rollRight": "e67a3a48e74c"
+    "panels:simulator.viewCube.roll": "e221d9c288cc"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -7880,8 +7878,7 @@
     "panels:simulator.viewCube.right": "883361d5d682",
     "panels:simulator.viewCube.top": "d5cdfcf7ff75",
     "panels:simulatorViewControls.viewCube": "e86443774f1c",
-    "panels:simulator.viewCube.rollLeft": "99a582a039cb",
-    "panels:simulator.viewCube.rollRight": "e67a3a48e74c"
+    "panels:simulator.viewCube.roll": "e221d9c288cc"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -10465,8 +10462,7 @@
     "panels:simulator.viewCube.right": "883361d5d682",
     "panels:simulator.viewCube.top": "d5cdfcf7ff75",
     "panels:simulatorViewControls.viewCube": "e86443774f1c",
-    "panels:simulator.viewCube.rollLeft": "99a582a039cb",
-    "panels:simulator.viewCube.rollRight": "e67a3a48e74c"
+    "panels:simulator.viewCube.roll": "e221d9c288cc"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -13050,8 +13046,7 @@
     "panels:simulator.viewCube.right": "883361d5d682",
     "panels:simulator.viewCube.top": "d5cdfcf7ff75",
     "panels:simulatorViewControls.viewCube": "e86443774f1c",
-    "panels:simulator.viewCube.rollLeft": "99a582a039cb",
-    "panels:simulator.viewCube.rollRight": "e67a3a48e74c"
+    "panels:simulator.viewCube.roll": "e221d9c288cc"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -15678,8 +15673,7 @@
     "panels:simulator.viewCube.right": "883361d5d682",
     "panels:simulator.viewCube.top": "d5cdfcf7ff75",
     "panels:simulatorViewControls.viewCube": "e86443774f1c",
-    "panels:simulator.viewCube.rollLeft": "99a582a039cb",
-    "panels:simulator.viewCube.rollRight": "e67a3a48e74c"
+    "panels:simulator.viewCube.roll": "e221d9c288cc"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -18306,8 +18300,7 @@
     "panels:simulator.viewCube.right": "883361d5d682",
     "panels:simulator.viewCube.top": "d5cdfcf7ff75",
     "panels:simulatorViewControls.viewCube": "e86443774f1c",
-    "panels:simulator.viewCube.rollLeft": "99a582a039cb",
-    "panels:simulator.viewCube.rollRight": "e67a3a48e74c"
+    "panels:simulator.viewCube.roll": "e221d9c288cc"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -20891,7 +20884,6 @@
     "panels:simulator.viewCube.right": "883361d5d682",
     "panels:simulator.viewCube.top": "d5cdfcf7ff75",
     "panels:simulatorViewControls.viewCube": "e86443774f1c",
-    "panels:simulator.viewCube.rollLeft": "99a582a039cb",
-    "panels:simulator.viewCube.rollRight": "e67a3a48e74c"
+    "panels:simulator.viewCube.roll": "e221d9c288cc"
   }
 }

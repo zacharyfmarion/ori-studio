@@ -740,8 +740,7 @@
       "label": "Ansichtswürfel",
       "left": "Links",
       "right": "Rechts",
-      "rollLeft": "Ansicht nach links drehen",
-      "rollRight": "Ansicht nach rechts drehen",
+      "roll": "Ansicht drehen",
       "top": "Oben"
     }
   },
