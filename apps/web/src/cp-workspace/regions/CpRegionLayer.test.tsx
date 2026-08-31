@@ -66,6 +66,19 @@ function chips(): HTMLElement[] {
   return [...document.querySelectorAll<HTMLElement>('[role="toolbar"]')];
 }
 
+/**
+ * The chip belonging to one region, found by the label in its accessible name.
+ *
+ * The bar renders no prose, so this is what tells two of them apart — which is
+ * the same thing a keyboard user has to go on, and the reason `label` still
+ * exists at all now that no span shows it.
+ */
+function chipFor(label: string): HTMLElement {
+  const found = chips().find((chip) => chip.getAttribute('aria-label')?.endsWith(`: ${label}`));
+  if (!found) throw new Error(`no chip for ${label}`);
+  return found;
+}
+
 /** A pointer event jsdom will deliver — it has no `PointerEvent` of its own. */
 function pointer(type: string, clientX: number, clientY: number): Event {
   const event = new MouseEvent(type, { bubbles: true, button: 0, clientX, clientY });
@@ -120,8 +133,13 @@ describe('CpRegionLayer', () => {
 
     // Always visible is the whole point of the kind: nothing here is selected.
     expect(chips()).toHaveLength(2);
-    expect(chips().map((chip) => chip.textContent).join(' ')).toContain('alpha');
-    expect(chips().map((chip) => chip.textContent).join(' ')).toContain('beta');
+    // By accessible name, not by text: the bar carries no prose, so this is the
+    // only thing that tells two stacked regions apart — for a screen reader as
+    // much as for this assertion.
+    expect(chips().map((chip) => chip.getAttribute('aria-label'))).toEqual([
+      'Check suppression region: alpha',
+      'Check suppression region: beta',
+    ]);
   });
 
   it('renders nothing before the viewport has laid out', () => {
@@ -153,10 +171,8 @@ describe('CpRegionLayer', () => {
       onTryAgain: vi.fn(),
     });
 
-    const plain = chips().find((chip) => chip.textContent?.includes('plain'));
-    const detected = chips().find((chip) => chip.textContent?.includes('detected'));
-    expect(plain?.textContent).not.toContain('Solve');
-    expect(detected?.textContent).toContain('Solve');
+    expect(chipFor('plain').textContent).not.toContain('Solve');
+    expect(chipFor('detected').textContent).toContain('Solve');
   });
 
   it('withholds Solve when the host cannot service one, rather than showing a dead button', () => {
@@ -180,8 +196,7 @@ describe('CpRegionLayer', () => {
       onTryAgain: vi.fn(),
     });
 
-    const beta = chips().find((chip) => chip.textContent?.includes('beta'));
-    const solve = [...(beta?.querySelectorAll<HTMLButtonElement>('button') ?? [])].find(
+    const solve = [...chipFor('beta').querySelectorAll<HTMLButtonElement>('button')].find(
       (button) => button.textContent === 'Solve'
     );
     act(() => solve?.click());
@@ -192,8 +207,7 @@ describe('CpRegionLayer', () => {
     seed([box('alpha', 0.35), box('beta', 0.7)]);
     render();
 
-    const beta = chips().find((chip) => chip.textContent?.includes('beta'));
-    if (!beta) throw new Error('no chip for beta');
+    const beta = chipFor('beta');
     stubPointerCapture(beta);
     act(() => beta.dispatchEvent(pointer('pointerdown', 400, 150)));
     expect(useWorkspaceStore.getState().oristudioCpSelectedAnnotationId).toBe('beta');

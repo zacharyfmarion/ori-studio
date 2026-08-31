@@ -51,8 +51,14 @@ export const REGION_CHIP_GAP = 2;
  * and a bar that honoured that width would be an unclickable smear. Below this
  * the bar stops matching the region and stays usable instead, which is the same
  * trade `toolbarMaxWidth`'s `min` makes at the other end.
+ *
+ * The floor is set by the widest control row the bar ever holds, which is the
+ * solved-but-not-exact state: "Try again" and "Accept anyway" beside the image
+ * menu, the checks menu and delete. Buttons do not ellipsize, so a floor that
+ * did not fit them would push them outside the bar's own background rather than
+ * shrink them — the hidden count is the only thing here that gives way.
  */
-export const REGION_CHIP_MIN_WIDTH = 180;
+export const REGION_CHIP_MIN_WIDTH = 300;
 
 export interface RegionChipPlacement {
   /** Viewport CSS px. */

@@ -56,7 +56,9 @@ import {
   cpSolveCompletionHeadline,
   cpSolveIsExactVerdict,
   cpSolveMeetsFoldabilityCheck,
+  cpSolveMovementSentence,
   type CpSolveCompletionFacts,
+  type CpSolveMovement,
 } from './solveCompletion';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { isSuppressionRegionAnnotation } from '../annotations/annotation';
@@ -221,10 +223,16 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
           latest.current.t('toasts:cpRegionSolve.timedOut', 'The solve ran out of time'),
           {
             id: `cp-region-solve-${regionId}`,
-            description: latest.current.t(
-              'toasts:cpRegionSolve.timedOutDetail',
-              'It got partway — accept how far it got, or keep editing and try again.'
-            ),
+            // The count is here rather than on the chip because the chip no
+            // longer carries prose, and it is the figure that decides whether
+            // the partial is worth accepting at all.
+            description: latest.current.t('toasts:cpRegionSolve.timedOutDetail', {
+              count: outcome.partialMovedVertices.length,
+              defaultValue_one:
+                'It had placed 1 vertex — accept how far it got, or keep editing and try again.',
+              defaultValue_other:
+                'It had placed {{count}} vertices — accept how far it got, or keep editing and try again.',
+            }),
           }
         );
         return;
@@ -248,18 +256,17 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
         return;
       }
       const facts = cpSolveCompletionFacts(outcome);
+      const movement = {
+        movedVertices: outcome.movedVertices.length,
+        maxMovementPx: outcome.maxMovement * PAPER_EDGE_PX,
+      };
       write(regionId, {
-        state: {
-          status: 'solved',
-          movedVertices: outcome.movedVertices.length,
-          maxMovementPx: outcome.maxMovement * PAPER_EDGE_PX,
-          ...facts,
-        },
+        state: { status: 'solved', ...movement, ...facts },
         revision: useWorkspaceStore.getState().oristudioCpRevision,
         owned,
         partial: null,
       });
-      completionToast(latest.current.t, regionId, facts);
+      completionToast(latest.current.t, regionId, facts, movement);
     },
     [write]
   );
@@ -315,14 +322,15 @@ export function useCpRegionSolve(options: UseCpRegionSolveOptions = {}): CpRegio
       if (record?.partial && record.partial.length > 0) {
         const placed = await place(record.owned, record.partial, partialLabel(latest.current.t));
         if (!placed.ok) {
-          write(regionId, {
-            ...record,
-            state: {
-              status: 'failed',
-              reason: placementRefusalLabel(latest.current.t, placed.refusal),
-            },
-            partial: null,
-          });
+          // Toasted like every other refusal. It used to be the one ending whose
+          // only surface was the chip's own sentence, which meant that once the
+          // chip stopped carrying prose it would have failed in silence.
+          const reason = placementRefusalLabel(latest.current.t, placed.refusal);
+          write(regionId, { ...record, state: { status: 'failed', reason }, partial: null });
+          toast.error(
+            latest.current.t('toasts:cpRegionSolve.failed', 'Could not solve this pattern'),
+            { id: `cp-region-solve-${regionId}`, description: reason }
+          );
           return;
         }
       }
@@ -510,9 +518,20 @@ function removeRegionKeepingImage(regionId: string, label: string): void {
  * names *this* surface's buttons; the modal offers different ones for the same
  * four endings.
  */
-function completionToast(t: TFunction, regionId: string, facts: CpSolveCompletionFacts): void {
-  const detail = cpSolveCompletionDetail(t, facts);
+function completionToast(
+  t: TFunction,
+  regionId: string,
+  facts: CpSolveCompletionFacts,
+  movement: CpSolveMovement
+): void {
   const clean = cpSolveMeetsFoldabilityCheck(facts.completion);
+  // The movement figures ride along only where the detail has no numbers of its
+  // own — that is the `exact` ending, whose sentence is otherwise qualitative.
+  // Every other ending already quotes the residuals that matter more.
+  const detail =
+    facts.completion === 'exact'
+      ? `${cpSolveCompletionDetail(t, facts)} ${cpSolveMovementSentence(t, movement)}`
+      : cpSolveCompletionDetail(t, facts);
   // The same two-predicate split the chip renders from, so the toast never names
   // a button under a label the chip is not showing: tone follows the check, the
   // action clause follows the solver's verdict.

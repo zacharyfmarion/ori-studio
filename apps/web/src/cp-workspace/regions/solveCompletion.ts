@@ -223,42 +223,20 @@ export interface CpSolveMovement {
 }
 
 /**
- * The compact status line, for a chip that cannot wrap.
+ * How much the solve actually moved, as a sentence.
  *
- * Each ending leads with the fact that decides what to do next, and the full
- * {@link cpSolveCompletionDetail} goes in the element's `title`. The moved-vertex
- * count is only shown for `exact`: everywhere else "45 vertices moved" is the
- * least useful true thing available, because the question is no longer how much
- * moved but whether it was enough.
+ * Only worth saying for an `exact` ending. Everywhere else "45 vertices moved"
+ * is the least useful true thing available, because the question is no longer
+ * how much moved but whether it was enough — and there
+ * {@link cpSolveCompletionDetail} already quotes the residuals that answer it.
  */
-export function cpSolveCompletionChipLine(
-  t: TFunction,
-  state: CpSolveCompletionFacts & CpSolveMovement
-): string {
-  const { completion, residuals } = state;
-  if (completion === 'exact') {
-    return t('panels:cpRegion.solved', {
-      count: state.movedVertices,
-      // Rounded **up**, so the sentence stays true: a 0.42 px worst case reads
-      // "< 1 px", never "< 0.4 px" that a later measurement could contradict.
-      max: Math.max(1, Math.ceil(state.maxMovementPx)),
-      defaultValue_one: 'Solved · 1 vertex moved < {{max}} px',
-      defaultValue_other: 'Solved · {{count}} vertices moved < {{max}} px',
-    });
-  }
-  if (completion === 'unfoldable' && residuals) {
-    return t('panels:cpRegion.solvedUnfoldable', {
-      count: residuals.oddDegreeVerticesAfter,
-      defaultValue_one: 'Not foldable · 1 vertex to repair',
-      defaultValue_other: 'Not foldable · {{count}} vertices to repair',
-    });
-  }
-  if (residuals) {
-    return t('panels:cpRegion.solvedImproved', {
-      before: formatSolveAngleDegrees(residuals.maxKawasakiDegreesBefore),
-      after: formatSolveAngleDegrees(residuals.maxKawasakiDegreesAfter),
-      defaultValue: 'Improved · worst angle {{before}}° → {{after}}°',
-    });
-  }
-  return t('panels:cpRegion.solvedNotExact', 'Improved · not foldable yet');
+export function cpSolveMovementSentence(t: TFunction, movement: CpSolveMovement): string {
+  return t('panels:cpRegion.completion.movementDetail', {
+    count: movement.movedVertices,
+    // Rounded **up**, so the sentence stays true: a 0.42 px worst case reads
+    // "< 1 px", never "< 0.4 px" that a later measurement could contradict.
+    max: Math.max(1, Math.ceil(movement.maxMovementPx)),
+    defaultValue_one: 'It moved 1 vertex, by under {{max}} px.',
+    defaultValue_other: 'It moved {{count}} vertices, each by under {{max}} px.',
+  });
 }

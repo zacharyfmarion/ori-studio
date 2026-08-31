@@ -25,7 +25,7 @@ import { classifyCpExactSolve, isCpExactSolveAccepted } from '../../engine/cpExa
 import {
   CP_FOLDABILITY_CHECK_EPSILON_DEGREES,
   cpSolveCompletion,
-  cpSolveCompletionChipLine,
+  cpSolveMovementSentence,
   cpSolveCompletionDetail,
   cpSolveCompletionFacts,
   cpSolveCompletionHeadline,
@@ -224,47 +224,19 @@ describe('cpSolveCompletionDetail', () => {
   });
 });
 
-describe('cpSolveCompletionChipLine', () => {
-  const movement = { movedVertices: 45, maxMovementPx: 0.42 };
-
-  it('keeps the moved-vertex line for an exact solve', () => {
-    const line = cpSolveCompletionChipLine(t, {
-      completion: 'exact',
-      residuals: residuals(),
-      ...movement,
-    });
-    // Rounded up, so the claim stays true: 0.42 px reads "< 1 px".
-    expect(line).toBe('Solved · 45 vertices moved < 1 px');
+describe('cpSolveMovementSentence', () => {
+  it('rounds the worst movement up, so the claim it makes stays true', () => {
+    // 0.42 px reads "under 1 px", never "under 0.4 px" that a later measurement
+    // could contradict.
+    expect(cpSolveMovementSentence(t, { movedVertices: 45, maxMovementPx: 0.42 })).toBe(
+      'It moved 45 vertices, each by under 1 px.'
+    );
   });
 
-  it('reports the angle move rather than the vertex count once it is not exact', () => {
-    // "45 vertices moved" is the least useful true thing available here: the
-    // question stopped being how much moved and became whether it was enough.
-    const line = cpSolveCompletionChipLine(t, {
-      completion: 'improved',
-      residuals: residuals(),
-      ...movement,
-    });
-    expect(line).toBe('Improved · worst angle 14.4° → 0.007°');
-    expect(line).not.toContain('45');
-  });
-
-  it('counts the repair sites for an unfoldable pattern', () => {
-    const line = cpSolveCompletionChipLine(t, {
-      completion: 'unfoldable',
-      residuals: residuals({ oddDegreeVerticesAfter: 3 }),
-      ...movement,
-    });
-    expect(line).toBe('Not foldable · 3 vertices to repair');
-  });
-
-  it('still refuses to say Solved with no figures at all', () => {
-    const line = cpSolveCompletionChipLine(t, {
-      completion: 'improved',
-      residuals: null,
-      ...movement,
-    });
-    expect(line).toBe('Improved · not foldable yet');
+  it('agrees with itself on one moved vertex', () => {
+    expect(cpSolveMovementSentence(t, { movedVertices: 1, maxMovementPx: 2.1 })).toBe(
+      'It moved 1 vertex, by under 3 px.'
+    );
   });
 });
 
@@ -375,9 +347,5 @@ describe('mid-solve_2.osf, end to end from the solver payload', () => {
     // sentence leads, it does not replace it.
     expect(detail).toContain('from 14.4° to 0.007°');
     expect(detail).toContain('below 0.000001°');
-
-    expect(
-      cpSolveCompletionChipLine(t, { ...facts, movedVertices: 45, maxMovementPx: 0.42 })
-    ).toBe('Not foldable · 3 vertices to repair');
   });
 });

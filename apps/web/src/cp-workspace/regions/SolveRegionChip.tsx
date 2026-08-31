@@ -1,17 +1,12 @@
 import { type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Loader2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import {
   SuppressionRegionChip,
   type SuppressionRegionChipProps,
 } from './SuppressionRegionChip';
-import {
-  cpSolveCompletionChipLine,
-  cpSolveCompletionDetail,
-  cpSolveIsExactVerdict,
-  cpSolveMeetsFoldabilityCheck,
-  type CpSolveCompletionFacts,
-} from './solveCompletion';
+import { cpSolveIsExactVerdict, type CpSolveCompletionFacts } from './solveCompletion';
 
 /**
  * A suppression region that also carries an attached `ExactSolveInput`, and so
@@ -90,28 +85,30 @@ export type CpRegionSolveState =
 /** The shared no-solve-yet state, so callers need not allocate one per render. */
 export const CP_REGION_SOLVE_IDLE: CpRegionSolveState = { status: 'idle' };
 
-const STATUS_STYLE: CSSProperties = {
+/**
+ * The running-solve indicator: a spinner, not a sentence.
+ *
+ * Every other thing this component had to say now goes to a toast, which has
+ * room for it — but "a solve is running" is the one state a toast cannot carry,
+ * because it is not an event, it is a condition that lasts up to 25 s. It also
+ * cannot be left to the Stop button: `cancellable: false` renders no Stop, and
+ * without this the chip would then be indistinguishable from idle for the whole
+ * wait.
+ *
+ * So it stays, as the smallest thing that is not prose. The stage it is in is
+ * the element's accessible name and its tooltip rather than text on the bar —
+ * "Solving geometry…" and "Refining to fold precision…" are worth having, and
+ * are not worth 140 px of a 200 px bar.
+ *
+ * The rotation is `.cp-panel__spinner`, which already exists in `theme.css` with
+ * its keyframe; only the layout is inline, like the rest of this stage.
+ */
+const SPINNER_STYLE: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
-  gap: 4,
-  fontSize: 11,
-  lineHeight: 1.4,
-  whiteSpace: 'nowrap',
+  flex: '0 0 auto',
   color: 'var(--text-secondary)',
 };
-
-/** Same reasoning as the chip's hidden count: a preset-written token, not a guess. */
-const FAILED_STYLE: CSSProperties = { ...STATUS_STYLE, color: 'var(--status-danger)' };
-
-/**
- * A solve that landed and did not finish the job.
- *
- * Warning rather than danger: nothing went wrong, the coordinates are genuinely
- * better and they are on the creases. What it must not be is the neutral
- * {@link STATUS_STYLE} that `exact` uses, because at a glance those two states
- * would be the same state.
- */
-const INCOMPLETE_STYLE: CSSProperties = { ...STATUS_STYLE, color: 'var(--status-warning)' };
 
 export interface SolveRegionChipProps extends Omit<SuppressionRegionChipProps, 'children'> {
   state: CpRegionSolveState;
@@ -178,17 +175,25 @@ function SolveAffordance({
         </Button>
       );
 
-    case 'solving':
-      // Named stages, not a spinner: stage 1 fails fast and stage 2 is up to six
+    case 'solving': {
+      // The stage is still named — stage 1 fails fast and stage 2 is up to six
       // individually-accepted refinement rounds, so "still working" and "nearly
-      // done" are different sentences and the wait is p50 0.4 s on an easy sample
-      // and 3.5 s on a medium one.
+      // done" really are different states — but it is named in the accessible
+      // name, not in 140 px of bar.
+      const stage =
+        state.stage === 'geometry'
+          ? t('panels:cpRegion.solvingGeometry', 'Solving geometry…')
+          : t('panels:cpRegion.solvingRefining', 'Refining to fold precision…');
       return (
         <>
-          <span className="cp-region-chip__status" style={STATUS_STYLE} role="status">
-            {state.stage === 'geometry'
-              ? t('panels:cpRegion.solvingGeometry', 'Solving geometry…')
-              : t('panels:cpRegion.solvingRefining', 'Refining to fold precision…')}
+          <span
+            className="cp-region-chip__spinner cp-panel__spinner"
+            style={SPINNER_STYLE}
+            role="status"
+            aria-label={stage}
+            title={stage}
+          >
+            <Loader2 size={13} aria-hidden="true" />
           </span>
           {/* The wait this is for is the long one: a hard pattern spends the
               whole 25 s budget, and the measurement behind the mechanism
@@ -205,28 +210,15 @@ function SolveAffordance({
           )}
         </>
       );
+    }
 
     case 'solved': {
-      // Two questions, and they disagree in the middle: whether the *check* will
-      // pass decides the tone and the sentence, whether the *solver* called the
-      // answer exact decides which button is primary. Collapsing them would
-      // either tint an accepted exact solve as a problem, or push a user into
-      // repair for a pattern with nothing flagged to repair.
-      const clean = cpSolveMeetsFoldabilityCheck(state.completion);
+      // Whether the *solver* called the answer exact is what decides which button
+      // is primary. The tone this used to carry as well now belongs to the toast,
+      // which is where the sentence went.
       const exact = cpSolveIsExactVerdict(state.completion);
       return (
         <>
-          <span
-            className="cp-region-chip__status"
-            style={clean ? STATUS_STYLE : INCOMPLETE_STYLE}
-            role="status"
-            // The chip cannot wrap, so the compact line is what fits and the full
-            // sentence — with both residuals in it — is one hover away. The toast
-            // carries the same sentence for anyone who never hovers.
-            title={clean ? undefined : cpSolveCompletionDetail(t, state)}
-          >
-            {cpSolveCompletionChipLine(t, state)}
-          </span>
           <Button size="sm" variant={exact ? 'secondary' : 'primary'} onClick={onTryAgain}>
             {t('panels:cpRegion.tryAgain', 'Try again')}
           </Button>
@@ -242,22 +234,10 @@ function SolveAffordance({
     }
 
     case 'failed':
+      // The reason is the toast's, and only the toast's — it is a sentence, and
+      // `useCpRegionSolve` raises one for every ending that reaches this state.
       return (
         <>
-          <span className="cp-region-chip__status" style={FAILED_STYLE} role="status">
-            {t('panels:cpRegion.solveFailed', 'Could not solve — {{reason}}', {
-              reason: state.reason,
-            })}
-          </span>
-          {state.partialMovedVertices !== undefined && (
-            <span className="cp-region-chip__status" style={STATUS_STYLE}>
-              {t('panels:cpRegion.solvePartial', {
-                count: state.partialMovedVertices,
-                defaultValue_one: 'Partial result · 1 vertex',
-                defaultValue_other: 'Partial result · {{count}} vertices',
-              })}
-            </span>
-          )}
           {/* Retry, not "Try again": the document is unchanged on every
               non-acceptance — the solver hands back the input coordinates — so
               there is nothing to revert, and offering a revert would imply the

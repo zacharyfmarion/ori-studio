@@ -28,6 +28,15 @@ import type { CpRegionChipDragHandlers } from './useCpRegionChipDrag';
  * height independent of the width, which is what makes the measurement below
  * safe.
  *
+ * **The font size is set here, on the bar, and not on each text child.**
+ * `.floating-toolbar` supplies colour and shape but no `font-size`, and nothing
+ * above it does either — not `.cp-region-chip`, which has no stylesheet at all,
+ * and not `html`/`body`/`#root` — so a child that does not name its own size
+ * inherits the UA default and renders 16px beside its 11px siblings. That is not
+ * hypothetical: `.cp-tool-option__header` records the same inheritance shipping
+ * as a measured 39% size regression, and the hidden-findings count on this bar
+ * did it again. Setting it once here is what stops the next child repeating it.
+ *
  * Body-portaled like every other canvas toolbar, so it escapes transformed
  * Dockview ancestors — which is also why the wheel has to be forwarded by hand:
  * a scroll over the bar has no DOM path to the canvas it is hovering over, and
@@ -102,6 +111,10 @@ export function CpRegionChipBar({
           width: `${placement.width}px`,
           flexWrap: 'nowrap',
           gap: 6,
+          // See the note above. Buttons are unaffected either way — `.ui-control--sm`
+          // sizes in `rem`, so it is anchored to the root and not to this bar.
+          fontSize: 11,
+          lineHeight: 1.4,
           // The bar *is* the region's handle — see `useCpRegionChipDrag`.
           cursor: 'move',
           // A drag on the bar must not also scroll or select: `touch-action`

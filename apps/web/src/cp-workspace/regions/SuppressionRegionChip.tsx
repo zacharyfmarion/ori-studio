@@ -1,7 +1,8 @@
 import { type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Check, EyeOff, ListChecks, SquareDashed, Trash2 } from 'lucide-react';
+import { Check, EyeOff, ListChecks, Trash2 } from 'lucide-react';
 import { IconButton } from '../../components/ui/IconButton';
 import { MenuIconButton } from '../../components/ui/MenuIconButton';
 import { CpRegionChipBar } from './CpRegionChipBar';
@@ -15,8 +16,8 @@ import {
 } from '../annotations/suppressionRegion';
 
 /**
- * The bar a check-suppression region wears: what it is, what it silences, and
- * **how many findings that is costing right now**.
+ * The bar a check-suppression region wears: **how many findings it is hiding
+ * right now**, and the controls that change that.
  *
  * # Why it is always on screen, and why all of it is
  *
@@ -33,6 +34,18 @@ import {
  * Solve are on the bar whenever the region is. Splitting them out cost a click
  * to reach anything and, worse, made the visible half of a suppressor smaller
  * than the thing it was suppressing.
+ *
+ * # Why there is no prose on it
+ *
+ * The bar is as wide as its region, and a region is usually the size of a sheet
+ * of paper at whatever zoom the user is working at — which is routinely under
+ * 200 px. It carried a name, a "Checks off: …" list and a solve status sentence,
+ * and at ordinary zoom all three were already ellipsized to nothing while the
+ * buttons they were competing with stayed put. So the bar keeps the one number
+ * that cannot be recovered from anywhere else, and everything else moved to the
+ * surface that has room for a sentence: the solve's outcome is a toast, the
+ * suppressed classes are ticks inside the menu that sets them, and the region's
+ * name is the bar's accessible name.
  *
  * # Why the bar spans the region
  *
@@ -69,35 +82,6 @@ import {
  * way, so the rules move to a `.cp-region-chip*` block unchanged whenever someone
  * touches `theme.css` next; the class names below are already in place for it.
  */
-const SUMMARY_STYLE: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 6,
-  // Takes the slack and gives it back first: the bar is as wide as its region,
-  // which on a small one is not wide enough for everything. The controls keep
-  // their size and the prose ellipsizes, because a truncated label still says
-  // which region this is while a clipped button says nothing at all.
-  flex: '1 1 auto',
-  minWidth: 0,
-  overflow: 'hidden',
-  color: 'var(--text-secondary)',
-  fontSize: 11,
-  lineHeight: 1.4,
-  textAlign: 'left',
-  whiteSpace: 'nowrap',
-};
-
-const LABEL_STYLE: CSSProperties = {
-  color: 'var(--text-primary)',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-};
-
-const CLASSES_STYLE: CSSProperties = {
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-};
-
 /**
  * The hidden count wears the theme's warning hue rather than muted text.
  *
@@ -105,14 +89,22 @@ const CLASSES_STYLE: CSSProperties = {
  * and dark; `--text-warning` is defined nowhere in this app and would silently
  * resolve to its fallback — the mistake `.cp-folded-figure-toolbar__notice`
  * records having made.
+ *
+ * It is now the bar's only flexible item, so it is also the only thing that can
+ * absorb a narrow region — hence `1 1 auto` and the ellipsis. It shrinks last
+ * and never disappears: the controls beside it are buttons, and a clipped button
+ * says nothing at all while a truncated count still says findings are hidden
+ * here. The size comes from the bar (see `CpRegionChipBar`), not from here.
  */
 const HIDDEN_STYLE: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: 3,
-  // Outside the shrinking summary on purpose: this is the safety affordance, so
-  // it is the last thing on the bar that may be ellipsized away.
-  flex: '0 0 auto',
+  flex: '1 1 auto',
+  minWidth: 0,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
   color: 'var(--status-warning)',
 };
 
@@ -124,6 +116,19 @@ const CONTROLS_STYLE: CSSProperties = {
   flex: '0 0 auto',
   marginLeft: 'auto',
 };
+
+/**
+ * The bar's accessible name: the region's own label when it has one.
+ *
+ * This is where `label` lives now that no span renders it. Not a demotion — a
+ * bar with two icon buttons and a number needs a name more than one carrying its
+ * own title did, and it is what tells two stacked regions apart for anyone
+ * reading by keyboard or by test.
+ */
+function chipAriaLabel(t: TFunction, region: CpSuppressionRegion): string {
+  const generic = t('panels:cpRegion.controls', 'Check suppression region');
+  return region.label ? `${generic}: ${region.label}` : generic;
+}
 
 export interface SuppressionRegionChipProps {
   region: CpSuppressionRegion;
@@ -166,14 +171,6 @@ export function SuppressionRegionChip({
     onGestureCommit,
   });
 
-  const label = region.label ?? t('panels:cpRegion.defaultLabel', 'Suppression region');
-  const classList = region.suppress.map((cpCheckClass) => cpCheckClassLabel(t, cpCheckClass));
-  const suppressionText =
-    classList.length === 0
-      ? t('panels:cpRegion.nothingSuppressed', 'All checks on')
-      : t('panels:cpRegion.suppressing', 'Checks off: {{classes}}', {
-          classes: classList.join(', '),
-        });
   const hiddenText =
     hiddenCount > 0
       ? t('panels:cpRegion.hidden', {
@@ -187,30 +184,26 @@ export function SuppressionRegionChip({
     <CpRegionChipBar
       box={region}
       container={container}
-      ariaLabel={t('panels:cpRegion.controls', 'Check suppression region')}
+      ariaLabel={chipAriaLabel(t, region)}
       drag={drag}
     >
       {/*
-        A span, never a button. The whole bar is the affordance now — it selects
-        on press and moves on drag — so a button inside it would be a second,
-        smaller target for something the surface around it already does, and its
-        own press handling would have to be excluded from the drag.
+        A span, never a button. The whole bar is the affordance — it selects on
+        press and moves on drag — so a button here would be a second, smaller
+        target for something the surface around it already does, and its own
+        press handling would have to be excluded from the drag.
+
+        Rendered even at zero, as an empty spacer, so the controls stay pinned
+        right and do not jump left the moment a solve clears the last finding.
       */}
-      <span className="cp-region-chip__summary" style={SUMMARY_STYLE} title={suppressionText}>
-        <SquareDashed size={12} aria-hidden="true" />
-        <span className="cp-region-chip__label" style={LABEL_STYLE}>
-          {label}
-        </span>
-        <span className="cp-region-chip__classes" style={CLASSES_STYLE}>
-          {suppressionText}
-        </span>
+      <span className="cp-region-chip__hidden" style={HIDDEN_STYLE}>
+        {hiddenText !== null && (
+          <>
+            <EyeOff size={11} aria-hidden="true" />
+            {hiddenText}
+          </>
+        )}
       </span>
-      {hiddenText !== null && (
-        <span className="cp-region-chip__hidden" style={HIDDEN_STYLE}>
-          <EyeOff size={11} aria-hidden="true" />
-          {hiddenText}
-        </span>
-      )}
       <span className="cp-region-chip__controls" style={CONTROLS_STYLE}>
         {children}
         <CheckClassMenu suppress={region.suppress} onToggle={onToggleCheckClass} />

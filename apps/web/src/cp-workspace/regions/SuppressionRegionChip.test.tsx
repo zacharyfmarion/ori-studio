@@ -11,6 +11,7 @@ import {
   type CpSuppressionRegion,
 } from '../annotations/suppressionRegion';
 import { SuppressionRegionChip } from './SuppressionRegionChip';
+import { REGION_CHIP_MIN_WIDTH } from './regionChipPlacement';
 
 /**
  * The base chip: what it says, the controls it carries, and the three rules that
@@ -144,13 +145,15 @@ afterEach(() => {
 });
 
 describe('SuppressionRegionChip', () => {
-  it('shows itself without being selected, naming what it silences', () => {
+  it('shows itself without being selected, and names the region accessibly', () => {
     renderChip({});
 
     // The whole point of the kind: an unselected suppressor is still visible.
-    expect(chip().textContent).toContain('Suppression region');
-    expect(chip().textContent).toContain('Kawasaki (angles)');
-    expect(chip().textContent).toContain('Big-little-big');
+    expect(chip()).not.toBeNull();
+    // The bar is as wide as its region and a region is usually a sheet of paper
+    // at working zoom, so it carries no prose — but it still has to be tellable
+    // from the one stacked next to it, and that is its accessible name.
+    expect(chip().getAttribute('aria-label')).toBe('Check suppression region');
   });
 
   it('carries the hidden count, and says nothing when there is none', () => {
@@ -164,22 +167,36 @@ describe('SuppressionRegionChip', () => {
     expect(chip().textContent).not.toContain('hidden');
   });
 
-  it('says so when a region has been emptied rather than looking like it suppresses nothing named', () => {
-    renderChip({ region: region({ suppress: [] }) });
-    expect(chip().textContent).toContain('All checks on');
+  it('is the only text on the bar: the count, and nothing else', () => {
+    // The suppressed classes used to be spelled out here and were ellipsized to
+    // nothing at any working zoom while the buttons they competed with stayed
+    // put. They live in the menu that sets them now.
+    renderChip({ hiddenCount: 4 });
+    expect(chip().textContent?.trim()).toBe('4 findings hidden');
   });
 
-  it('prefers the region label over the default', () => {
+  it('gives its size to the bar, so a child cannot inherit the browser default', () => {
+    // `.floating-toolbar` supplies no font-size and neither does anything above
+    // it, so a text child that names none renders at 16px beside its 11px
+    // siblings. That shipped once here and once on `.cp-tool-option__header`.
+    renderChip({ hiddenCount: 4 });
+    expect(chip().style.fontSize).toBe('11px');
+  });
+
+  it('puts the region label in the accessible name, since nothing renders it', () => {
     renderChip({ region: region({ label: 'Detected candidate' }) });
-    expect(chip().textContent).toContain('Detected candidate');
-    expect(chip().textContent).not.toContain('Suppression region');
+    expect(chip().getAttribute('aria-label')).toBe(
+      'Check suppression region: Detected candidate'
+    );
+    expect(chip().textContent).not.toContain('Detected candidate');
   });
 
   it('spans the region rather than sizing to its own content', () => {
     // The region is the unit square under this file's camera: model 0→1 maps to
-    // CSS 100→300, so its box is 200 px wide at viewport x=100.
+    // CSS 100→300, so its box is 200 px wide at viewport x=100. That is under
+    // the floor, so the bar widens to it and keeps the region's left edge.
     renderChip({});
-    expect(chip().style.width).toBe('200px');
+    expect(chip().style.width).toBe(`${REGION_CHIP_MIN_WIDTH}px`);
     expect(chip().style.left).toBe('100px');
   });
 
