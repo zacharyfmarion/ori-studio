@@ -16,6 +16,13 @@ import {
  * otherwise handle — not letting a click through to the face behind — is the
  * thing this file has to assert. `data-hidden` is that statement, and it is why
  * the mask is computed rather than left to CSS.
+ *
+ * The corollary is that nothing about *size* can be tested here, and one thing
+ * worth testing lives there: the nine cells must be equal thirds of their face,
+ * which a `1fr` track does not guarantee because it will not shrink below its
+ * content. jsdom loads no stylesheet at all — `getComputedStyle` returns empty
+ * strings — so an assertion about it would pass whatever the rule said. It is
+ * checked in the browser instead; see the `minmax(0, 1fr)` note in `theme.css`.
  */
 
 type Snap = (direction: SimulatorViewDirection, face: ViewCubeFaceId) => void;

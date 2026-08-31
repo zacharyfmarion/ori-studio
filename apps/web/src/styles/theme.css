@@ -4702,9 +4702,17 @@ button.cp-folded-figure-toolbar__notice:hover {
      cube's edges and the four in the corners its corners — the 26 viewpoints
      drei offers as little floating boxes, which in CSS would be six more faces
      apiece. It also means the face you are looking at always offers its own
-     neighbours, so a face-on view is never a dead end. */
+     neighbours, so a face-on view is never a dead end.
+
+     `minmax(0, 1fr)`, not `1fr`: a `1fr` track will not shrink below its
+     content, so the label in the middle cell widened its own column and the
+     outer two absorbed the shortfall. That made the corner cells 12px on FRONT
+     and 19px on TOP — the same viewpoint, a different size on each face, which
+     is not what the corner of a cube looks like. The floor of zero takes the
+     label out of the track sizing, so every cell is exactly a third and the lit
+     corner is congruent across all three faces that meet there. */
   display: grid;
-  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  grid-template: repeat(3, minmax(0, 1fr)) / repeat(3, minmax(0, 1fr));
   border: 1px solid var(--border-subtle);
   border-radius: 3px;
   background: color-mix(in srgb, var(--bg-elevated) 90%, transparent);
@@ -4731,6 +4739,12 @@ button.cp-folded-figure-toolbar__notice:hover {
   place-items: center;
   cursor: pointer;
   pointer-events: none;
+  /* The label is wider than the third of a face it is centred in, and now says
+     so instead of stretching its column. It overhangs symmetrically onto the two
+     cells beside it, which are transparent, so the face still reads as one word
+     across the middle. */
+  overflow: visible;
+  white-space: nowrap;
   /* The cube is dragged to turn the model, so the browser must not read that as
      a pan or a page zoom — the same reason the canvas behind it sets this. */
   touch-action: none;
