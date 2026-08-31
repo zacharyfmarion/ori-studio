@@ -52,5 +52,5 @@ measures the hole cycle.
 - [x] Phase 1 — hole filter in `calculate_faces`, with unit tests
 - [x] Phase 2 — flat + 3D integration coverage on holed sheets
 - [x] Phase 3 — name the failure: interior-cut parity abort, cleared-faces no-op
-- [ ] Phase 4 — frontend: stop stranding a failed folded figure
+- [x] Phase 4 — frontend: stop stranding a failed folded figure
 - [ ] Phase 5 — validate (fmt, clippy, workspace tests, web checks) and run the app

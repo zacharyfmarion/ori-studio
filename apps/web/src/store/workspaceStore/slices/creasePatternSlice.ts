@@ -2395,21 +2395,24 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           completed('halted');
           return discardFoldedFigureDraftQuietly(figureId, selectionBeforeFold);
         }
+        // The draft goes, and the selection comes back — the same cleanup a stop
+        // gets, because the debris is the same. `figureId` names a figure this
+        // call created moments ago and never filled in; leaving it behind as a
+        // permanent `status: 'error'` row put a dead entry in the folded-models
+        // menu, aimed the folded-figure verbs at it, and serialised it into the
+        // saved `.osf` — for a fold that produced nothing. It also took the
+        // user's crease selection with it, which is the part that costs work:
+        // the draft claimed the canvas selection when it was inserted, and
+        // nothing gave it back unless the fold was cancelled.
+        //
+        // `discardFoldedFigureDraft` is the shape of this, but it writes an
+        // `invalid_operation` envelope; the engine's own code is what
+        // `humanizeError` needs to pick the right sentence, so the report is
+        // written here.
         const normalized = engineError(error);
-        set({
-          oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) =>
-            figure.id === figureId
-              ? {
-                  ...figure,
-                  status: 'error',
-                  error: normalized.message,
-                }
-              : figure
-          ),
-          oristudioCpError: normalized.message,
-          error: normalized,
-        });
         completed('error');
+        discardFoldedFigureDraftQuietly(figureId, selectionBeforeFold);
+        set({ oristudioCpError: normalized.message, error: normalized });
         return false;
       }
     },
