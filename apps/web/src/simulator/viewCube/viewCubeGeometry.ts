@@ -1,4 +1,9 @@
-import { multiplyMat3, viewDepthAxis, viewRotation, type Mat3 } from '@treemaker/origami-simulator';
+import {
+  multiplyMat3,
+  viewDepthAxis,
+  viewRotationFor,
+  type Mat3,
+} from '@treemaker/origami-simulator';
 import type { SimulatorOrbitView, SimulatorViewDirection } from '../../lib/simulatorOrbit';
 
 /**
@@ -208,9 +213,24 @@ const CSS_Y_FLIP: Mat3 = [1, 0, 0, 0, -1, 0, 0, 0, 1];
  * than the paper — which is the point of having chosen one. The way back to the
  * paper's own frame is the view reset, which drops the orientation.
  */
+/**
+ * The camera the cube is drawn by: everything except the model's own
+ * orientation.
+ *
+ * Roll is in — a rolled view has to roll the cube with it, or the cube stops
+ * describing the picture. `orient` is out, for the reason set out in
+ * {@link viewCubeRotation}. Built here once so the two functions that need it
+ * cannot drift apart on which fields they take.
+ */
+function cubeCamera(view: SimulatorOrbitView): Mat3 {
+  return viewRotationFor({ ...view, orient: undefined });
+}
+
 export function viewCubeRotation(view: SimulatorOrbitView): Mat3 {
-  const camera = viewRotation(view.yaw, view.pitch);
-  return multiplyMat3(CSS_Y_FLIP, multiplyMat3(multiplyMat3(camera, CUBE_BASIS), CSS_Y_FLIP));
+  return multiplyMat3(
+    CSS_Y_FLIP,
+    multiplyMat3(multiplyMat3(cubeCamera(view), CUBE_BASIS), CSS_Y_FLIP)
+  );
 }
 
 /** Decimal places kept in the CSS string: 4e-5 px of error on a 76px cube. */
@@ -251,9 +271,9 @@ export function viewCubeTransform(view: SimulatorOrbitView): string {
  * meaning anything a reader could check.
  */
 export function visibleViewCubeFaces(view: SimulatorOrbitView): number {
-  // Without `orient`, matching {@link viewCubeRotation}: the faces are the
-  // camera frame's, so which of them face the eye is asked in that frame too.
-  const eye = viewDepthAxis(viewRotation(view.yaw, view.pitch));
+  // The same camera the cube is drawn by, so the faces reported as facing the
+  // eye are the ones actually painted toward it.
+  const eye = viewDepthAxis(cubeCamera(view));
   let mask = 0;
   VIEW_CUBE_FACES.forEach((face, index) => {
     const facing =

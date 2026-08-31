@@ -81,7 +81,9 @@ export function beginFoldedFigureOrbit(
   camera: FoldedFigureCamera,
   point: SimulatorOrbitPoint
 ): SimulatorOrbitDrag {
-  return { x: point.x, y: point.y, yaw: camera.yaw, pitch: camera.pitch };
+  // A figure has no roll of its own: its camera is document state and the
+  // `.osf` record has no slot for one, so a drag here can only ever orbit.
+  return { x: point.x, y: point.y, yaw: camera.yaw, pitch: camera.pitch, roll: 0 };
 }
 
 /**

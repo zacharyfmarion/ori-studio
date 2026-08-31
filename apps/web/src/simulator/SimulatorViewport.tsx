@@ -30,11 +30,13 @@ import {
 import {
   clampSimulatorZoom,
   nextSimulatorOrbitView,
+  nextSimulatorRollView,
   setUprightView,
   simulatorViewLookingFrom,
   simulatorWheelZoomFactor,
   type SimulatorOrbitDrag,
   type SimulatorOrbitGesture,
+  type SimulatorOrbitMode,
   type SimulatorOrbitView as SimulatorView,
   type SimulatorViewDirection,
 } from "../lib/simulatorOrbit";
@@ -297,6 +299,9 @@ export function SimulatorViewport({
   // gesture below, which the view cube drives too.
   const dragRef = useRef<{ pointerId: number } | null>(null);
   const orbitOriginRef = useRef<SimulatorOrbitDrag | null>(null);
+  // Fixed when the drag begins, so letting the modifier go halfway through does
+  // not turn a roll into an orbit under the user's hand.
+  const orbitModeRef = useRef<SimulatorOrbitMode>('orbit');
   // Read synchronously by the pointer and draw handlers, which must not see a
   // stale closure mid-gesture.
   const gpuActiveRef = useRef(gpuActive);
@@ -454,16 +459,15 @@ export function SimulatorViewport({
   );
 
   /**
-   * Turn to look at the model from `direction`, over about a quarter second.
+   * Move the camera to `to` over about a quarter second.
    *
    * The animation is the camera's, not the cube's: it moves `viewRef` on every
    * frame, so the fold, the cube and the readouts all follow one motion rather
    * than the cube animating and the model jumping.
    */
-  const snapToDirection = useCallback(
-    (direction: SimulatorViewDirection) => {
+  const tweenView = useCallback(
+    (to: SimulatorView) => {
       const from = viewRef.current;
-      const to = simulatorViewLookingFrom(from, direction);
       const reducedMotion =
         typeof window !== 'undefined' &&
         window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -481,6 +485,28 @@ export function SimulatorViewport({
       snapRef.current = requestAnimationFrame(step);
     },
     [applyView, pushView]
+  );
+
+  /** Turn to look at the model from `direction`, keeping any roll. */
+  const snapToDirection = useCallback(
+    (direction: SimulatorViewDirection) => {
+      tweenView(simulatorViewLookingFrom(viewRef.current, direction));
+    },
+    [tweenView]
+  );
+
+  /**
+   * Spin the picture a quarter turn about the line of sight.
+   *
+   * The eye does not move — see the package's `viewRotationFor` for why that is
+   * exact — so this is the one control that changes which way up the model is
+   * drawn without changing what you are looking at.
+   */
+  const rollBy = useCallback(
+    (delta: number) => {
+      tweenView({ ...viewRef.current, roll: (viewRef.current.roll ?? 0) + delta });
+    },
+    [tweenView]
   );
 
   // A snap outliving its surface would call into a torn-down worker session.
@@ -645,18 +671,20 @@ export function SimulatorViewport({
    */
   const orbit = useMemo<SimulatorOrbitGesture>(
     () => ({
-      begin: (point) => {
+      begin: (point, mode = 'orbit') => {
         // Before the angles below are read, not after: a drag that began
         // mid-snap must start from where the model is now and own it from there.
         cancelSnap();
         // A drag is the unit the orbit readout reports on; see
         // `beginOrbitGesture`.
         beginOrbitGesture(perfSurface);
+        orbitModeRef.current = mode;
         orbitOriginRef.current = {
           x: point.x,
           y: point.y,
           yaw: viewRef.current.yaw,
           pitch: viewRef.current.pitch,
+          roll: viewRef.current.roll ?? 0,
         };
       },
       move: (point) => {
@@ -666,7 +694,11 @@ export function SimulatorViewport({
         // messages sent rather than against itself. They are equal today —
         // nothing coalesces — which is the baseline any fix has to move.
         recordOrbitMove();
-        applyView(nextSimulatorOrbitView(viewRef.current, origin, point));
+        applyView(
+          orbitModeRef.current === 'roll'
+            ? nextSimulatorRollView(viewRef.current, origin, point)
+            : nextSimulatorOrbitView(viewRef.current, origin, point)
+        );
       },
       end: () => {
         if (!orbitOriginRef.current) return;
@@ -683,7 +715,7 @@ export function SimulatorViewport({
     if (!interactiveRef.current) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     dragRef.current = { pointerId: event.pointerId };
-    orbit.begin({ x: event.clientX, y: event.clientY });
+    orbit.begin({ x: event.clientX, y: event.clientY }, event.shiftKey ? 'roll' : 'orbit');
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -759,6 +791,7 @@ export function SimulatorViewport({
           ref={attachViewCube}
           interactive={interactive}
           onSnap={snapToDirection}
+          onRoll={rollBy}
           orbit={orbit}
         />
       )}

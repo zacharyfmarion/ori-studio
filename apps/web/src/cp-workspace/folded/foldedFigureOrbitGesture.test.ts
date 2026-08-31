@@ -55,6 +55,9 @@ describe('orbit', () => {
       y: 20,
       yaw: DEFAULT_FOLDED_3D_CAMERA.yaw,
       pitch: DEFAULT_FOLDED_3D_CAMERA.pitch,
+      // A figure has no roll: its camera is document state and the `.osf` record
+      // has no slot for one, so a drag here can only orbit.
+      roll: 0,
     });
   });
 

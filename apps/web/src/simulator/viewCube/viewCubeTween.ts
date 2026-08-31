@@ -1,4 +1,4 @@
-import { viewDepthAxis, viewRotation } from '@treemaker/origami-simulator';
+import { viewDepthAxis, viewRotationFor } from '@treemaker/origami-simulator';
 import { normalizeAngle, type SimulatorOrbitView } from '../../lib/simulatorOrbit';
 
 /**
@@ -21,7 +21,7 @@ const MIN_DURATION_MS = 120;
 const MAX_DURATION_MS = 500;
 
 function eyeDirection(view: SimulatorOrbitView): readonly [number, number, number] {
-  return viewDepthAxis(viewRotation(view.yaw, view.pitch, view.orient));
+  return viewDepthAxis(viewRotationFor(view));
 }
 
 /**
@@ -35,8 +35,13 @@ export function viewCubeSnapDurationMs(from: SimulatorOrbitView, to: SimulatorOr
   const a = eyeDirection(from);
   const b = eyeDirection(to);
   const dot = Math.min(1, Math.max(-1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]));
-  const seconds = Math.acos(dot) / TURN_RATE;
-  return Math.min(MAX_DURATION_MS, Math.max(MIN_DURATION_MS, seconds * 1000));
+  // The larger of the two turns, because a roll moves the eye not at all: timed
+  // on the eye alone, a quarter roll would take the floor and flick round.
+  const swept = Math.max(
+    Math.acos(dot),
+    Math.abs(normalizeAngle((to.roll ?? 0) - (from.roll ?? 0)))
+  );
+  return Math.min(MAX_DURATION_MS, Math.max(MIN_DURATION_MS, (swept / TURN_RATE) * 1000));
 }
 
 /** Ease in and out, so the turn starts and stops rather than jerking. */
@@ -47,8 +52,9 @@ function ease(t: number): number {
 /**
  * The view a fraction `progress` of the way from `from` to `to`.
  *
- * Both angles take the short way round: yaw wraps, and a pitch dragged past ±π
- * would otherwise unwind the long way. At `progress >= 1` this is `to` itself,
+ * All three angles take the short way round: yaw wraps, a pitch dragged past ±π
+ * would otherwise unwind the long way, and a roll of −170° to 170° is a 20° step
+ * rather than a 340° one. At `progress >= 1` this is `to` itself,
  * exactly — the tween must land on the view that was asked for and not near it,
  * or a snap would leave the camera a rounding error off every named viewpoint.
  */
@@ -59,9 +65,12 @@ export function viewCubeSnapAt(
 ): SimulatorOrbitView {
   if (progress >= 1) return to;
   const t = ease(Math.max(0, progress));
+  const fromRoll = from.roll ?? 0;
+  const toRoll = to.roll ?? 0;
   return {
     ...to,
     yaw: from.yaw + normalizeAngle(to.yaw - from.yaw) * t,
     pitch: from.pitch + normalizeAngle(to.pitch - from.pitch) * t,
+    roll: fromRoll + normalizeAngle(toRoll - fromRoll) * t,
   };
 }

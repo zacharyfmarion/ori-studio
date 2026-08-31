@@ -2,6 +2,7 @@ import {
   multiplyMat3,
   transposeMat3,
   viewRotation,
+  viewRotationFor,
   type Mat3,
 } from '@treemaker/origami-simulator';
 
@@ -15,6 +16,15 @@ export interface SimulatorOrbitView {
    * turntable both surfaces have always been.
    */
   orient?: Mat3;
+  /**
+   * Rotation about the line of sight, in radians. Absent means none.
+   *
+   * The third degree of freedom, and the one yaw and pitch cannot reach: they
+   * move the eye over a sphere, which says where you look from and leaves no say
+   * in which way up the picture lands. See the package's `viewRotationFor` for
+   * why spinning it cannot disturb the viewpoint.
+   */
+  roll?: number;
 }
 
 export interface SimulatorOrbitDrag {
@@ -22,7 +32,17 @@ export interface SimulatorOrbitDrag {
   y: number;
   yaw: number;
   pitch: number;
+  roll: number;
 }
+
+/**
+ * What a drag is doing to the camera.
+ *
+ * `orbit` moves the eye over the model; `roll` spins the picture about the line
+ * of sight and leaves the eye exactly where it is. They are the same gesture
+ * with a modifier held, so they are one mode rather than two gestures.
+ */
+export type SimulatorOrbitMode = 'orbit' | 'roll';
 
 export interface SimulatorOrbitPoint {
   x: number;
@@ -40,8 +60,13 @@ export interface SimulatorOrbitPoint {
  * passed across rather than written twice.
  */
 export interface SimulatorOrbitGesture {
-  /** A drag has started at this point. Cancels anything already moving. */
-  begin: (point: SimulatorOrbitPoint) => void;
+  /**
+   * A drag has started at this point. Cancels anything already moving.
+   *
+   * The mode is fixed here rather than read per move, so a modifier let go
+   * halfway through does not turn a roll into an orbit mid-gesture.
+   */
+  begin: (point: SimulatorOrbitPoint, mode?: SimulatorOrbitMode) => void;
   /** The pointer is here now. Ignored unless a drag is in flight. */
   move: (point: SimulatorOrbitPoint) => void;
   end: () => void;
@@ -88,6 +113,25 @@ export function nextSimulatorOrbitView(
   };
 }
 
+/**
+ * Spin the picture about the line of sight, without moving the eye.
+ *
+ * Horizontal travel only, at the same sensitivity as a yaw: the gesture is a
+ * sideways sweep, and letting vertical travel in as well would make a roll
+ * impossible to do cleanly by hand. Rightward is clockwise, so the model follows
+ * the hand.
+ */
+export function nextSimulatorRollView(
+  view: SimulatorOrbitView,
+  drag: SimulatorOrbitDrag,
+  point: SimulatorOrbitPoint
+): SimulatorOrbitView {
+  return {
+    ...view,
+    roll: normalizeAngle(drag.roll + (point.x - drag.x) * SIMULATOR_ORBIT_SENSITIVITY),
+  };
+}
+
 export function normalizeAngle(value: number): number {
   const fullTurn = Math.PI * 2;
   return ((((value + Math.PI) % fullTurn) + fullTurn) % fullTurn) - Math.PI;
@@ -131,11 +175,16 @@ export const UPRIGHT_PITCH = -Math.PI / 2;
  * `p' = UPRIGHT_PITCH` with `y'` free, leaving `R' = Pitch(p')⁻¹·T`.
  */
 export function setUprightView(view: SimulatorOrbitView): SimulatorOrbitView {
-  const total = viewRotation(view.yaw, view.pitch, view.orient);
+  const total = viewRotationFor(view);
   return {
     ...view,
     yaw: 0,
     pitch: UPRIGHT_PITCH,
+    // Any roll is absorbed into the orientation below rather than kept beside
+    // it. `total` is the whole rotation including roll, so zeroing it here is
+    // what keeps the promise that the picture does not move — leaving it set
+    // would apply the same spin twice.
+    roll: 0,
     // Transpose rather than a general inverse: a rotation's transpose *is* its
     // inverse, exactly, with no division to lose precision to.
     orient: multiplyMat3(transposeMat3(viewRotation(0, UPRIGHT_PITCH)), total),

@@ -6,6 +6,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type Ref,
 } from 'react';
+import { RotateCcw, RotateCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -56,6 +57,8 @@ export interface SimulatorViewCubeProps {
   interactive: boolean;
   /** A face was chosen: look at the model from here. */
   onSnap: (direction: SimulatorViewDirection, face: ViewCubeFaceId) => void;
+  /** Spin the picture about the line of sight by this many radians. */
+  onRoll: (delta: number) => void;
   /**
    * Turning the model by dragging — the same gesture the canvas behind offers,
    * so a drag that starts on the cube is the drag it would have been anywhere
@@ -63,6 +66,9 @@ export interface SimulatorViewCubeProps {
    */
   orbit: SimulatorOrbitGesture;
 }
+
+/** A quarter turn, which is what the arrows are for. */
+const ROLL_STEP = Math.PI / 2;
 
 /**
  * How far the pointer may travel and still be a press, in CSS pixels.
@@ -97,7 +103,13 @@ function faceLabel(t: TFunction, id: ViewCubeFaceId): string {
   }
 }
 
-export function SimulatorViewCube({ ref, interactive, onSnap, orbit }: SimulatorViewCubeProps) {
+export function SimulatorViewCube({
+  ref,
+  interactive,
+  onSnap,
+  onRoll,
+  orbit,
+}: SimulatorViewCubeProps) {
   const { t } = useTranslation();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<HTMLDivElement | null>(null);
@@ -112,6 +124,7 @@ export function SimulatorViewCube({ ref, interactive, onSnap, orbit }: Simulator
   const swallowPressRef = useRef(false);
   // The viewpoint currently lit, so the previous one can be put out.
   const litRef = useRef<string | null>(null);
+  const rollRowRef = useRef<HTMLDivElement | null>(null);
 
   const applyView = useCallback((view: SimulatorOrbitView) => {
     const scene = sceneRef.current;
@@ -122,6 +135,13 @@ export function SimulatorViewCube({ ref, interactive, onSnap, orbit }: Simulator
     faceRefs.current.forEach((face, index) => {
       if (face) face.dataset.hidden = (visible & (1 << index)) === 0 ? 'true' : 'false';
     });
+    // The roll arrows are offered only square-on to a face, which is exactly
+    // when one face is turned toward the eye and the other five are edge-on or
+    // behind — so the mask having a single bit *is* the test. Anywhere else the
+    // picture is already at an angle and "which way up" has no obvious answer to
+    // step through.
+    const squareOn = visible !== 0 && (visible & (visible - 1)) === 0;
+    if (rollRowRef.current) rollRowRef.current.dataset.available = String(squareOn);
   }, []);
 
   useImperativeHandle(ref, () => ({ setView: applyView }), [applyView]);
@@ -168,6 +188,8 @@ export function SimulatorViewCube({ ref, interactive, onSnap, orbit }: Simulator
    */
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!interactive) return;
+    // The arrows are buttons in their own right; a press on one is not a drag.
+    if ((event.target as HTMLElement).closest('.simulator-view-cube__roll')) return;
     const face = event.target as Element;
     face.setPointerCapture?.(event.pointerId);
     dragRef.current = {
@@ -179,7 +201,10 @@ export function SimulatorViewCube({ ref, interactive, onSnap, orbit }: Simulator
     // Begun on the press, not on the first move past the slop: this is also what
     // stops a snap that is still animating, and it fixes the angles the drag
     // turns from before anything can move them.
-    orbit.begin({ x: event.clientX, y: event.clientY });
+    orbit.begin(
+      { x: event.clientX, y: event.clientY },
+      event.shiftKey ? 'roll' : 'orbit'
+    );
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -232,6 +257,43 @@ export function SimulatorViewCube({ ref, interactive, onSnap, orbit }: Simulator
       role="group"
       aria-label={t('panels:simulator.viewCube.label', 'View cube')}
     >
+      {/*
+        Quarter turns about the line of sight, shown only square-on to a face.
+        Autodesk's ViewCube puts these above the cube for the same reason: face
+        on, the cube itself has nothing left to press that would change which way
+        up you are looking, and this is the one thing still worth asking for.
+      */}
+      <div
+        ref={rollRowRef}
+        className="simulator-view-cube__roll"
+        data-available="false"
+        aria-hidden={!interactive}
+      >
+        <button
+          type="button"
+          className="simulator-view-cube__roll-button"
+          aria-label={t('panels:simulator.viewCube.rollLeft', 'Rotate view left')}
+          disabled={!interactive}
+          onClick={() => {
+            track(ANALYTICS_EVENTS.simulatorViewRolled, { direction: 'ccw' });
+            onRoll(-ROLL_STEP);
+          }}
+        >
+          <RotateCcw size={11} />
+        </button>
+        <button
+          type="button"
+          className="simulator-view-cube__roll-button"
+          aria-label={t('panels:simulator.viewCube.rollRight', 'Rotate view right')}
+          disabled={!interactive}
+          onClick={() => {
+            track(ANALYTICS_EVENTS.simulatorViewRolled, { direction: 'cw' });
+            onRoll(ROLL_STEP);
+          }}
+        >
+          <RotateCw size={11} />
+        </button>
+      </div>
       <div ref={sceneRef} className="simulator-view-cube__scene">
         {VIEW_CUBE_FACES.map((face, index) => (
           <div

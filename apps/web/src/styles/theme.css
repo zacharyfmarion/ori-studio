@@ -4669,6 +4669,7 @@ button.cp-folded-figure-toolbar__notice:hover {
 .simulator-view-cube {
   --view-cube-size: 62px;
   --view-cube-half: calc(var(--view-cube-size) / 2);
+  --view-cube-roll-row: 20px;
   position: absolute;
   /*
     Inset far enough that a *turned* cube still clears the pane.
@@ -4682,7 +4683,10 @@ button.cp-folded-figure-toolbar__notice:hover {
   bottom: 34px;
   left: 30px;
   width: var(--view-cube-size);
-  height: var(--view-cube-size);
+  /* Room for the roll arrows above the cube. Upward only: the clearance argument
+     above is about the left and bottom edges, and there is nothing but canvas
+     over the cube. */
+  height: calc(var(--view-cube-size) + var(--view-cube-roll-row));
   /* The cube's box is square; only its faces are the cube. Everything else in
      the corner has to reach the canvas behind. */
   pointer-events: none;
@@ -4690,9 +4694,73 @@ button.cp-folded-figure-toolbar__notice:hover {
 
 .simulator-view-cube__scene {
   position: absolute;
-  inset: 0;
+  /* Pinned to the bottom of the box, so the arrow row above changes the box's
+     height without moving the cube. */
+  bottom: 0;
+  left: 0;
+  width: var(--view-cube-size);
+  height: var(--view-cube-size);
   transform-style: preserve-3d;
   will-change: transform;
+}
+
+/*
+  Quarter turns about the line of sight, offered only square-on to a face.
+
+  Above the cube rather than on it, which is where Autodesk's ViewCube puts the
+  same pair: face on, the cube itself has nothing left to press that would change
+  which way up you are looking. `data-available` is written by the component from
+  the same visible-face mask the cube already keeps — one bit set means one face
+  square-on.
+*/
+.simulator-view-cube__roll {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  width: var(--view-cube-size);
+  height: var(--view-cube-roll-row);
+  justify-content: space-between;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.simulator-view-cube__roll[data-available='true'] {
+  opacity: 1;
+}
+
+.simulator-view-cube[data-interactive] .simulator-view-cube__roll[data-available='true'] {
+  pointer-events: auto;
+}
+
+.simulator-view-cube__roll-button {
+  display: grid;
+  width: var(--view-cube-roll-row);
+  height: var(--view-cube-roll-row);
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  appearance: none;
+  background: color-mix(in srgb, var(--bg-elevated) 90%, transparent);
+  color: var(--text-secondary);
+  place-items: center;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.simulator-view-cube__roll-button:hover,
+.simulator-view-cube__roll-button:focus-visible {
+  border-color: color-mix(in srgb, var(--accent-primary) 60%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 28%, var(--bg-elevated));
+  color: var(--text-primary);
+}
+
+.simulator-view-cube__roll-button:focus-visible {
+  outline: none;
 }
 
 .simulator-view-cube__face {
@@ -4817,6 +4885,8 @@ button.cp-folded-figure-toolbar__notice:hover {
 @media (prefers-reduced-motion: reduce) {
   .simulator-view-cube__face,
   .simulator-view-cube__label,
+  .simulator-view-cube__roll,
+  .simulator-view-cube__roll-button,
   .simulator-view-cube__spot {
     transition: none;
   }

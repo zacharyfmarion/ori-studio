@@ -1,4 +1,4 @@
-import { fitExtent, viewRotation } from "@treemaker/origami-simulator";
+import { fitExtent, viewRotationFor } from "@treemaker/origami-simulator";
 import type {
   CreaseDash,
   FoldDocument as SimulatorFoldDocument,
@@ -323,7 +323,7 @@ function projectPositions(
   // The same matrix the GPU path is handed, rather than a sixth transcription of
   // the yaw/pitch products — a machine without WebGL2 draws through here, and
   // "the fallback is the same view" has to be structural, not remembered.
-  const m = viewRotation(view.yaw, view.pitch, view.orient);
+  const m = viewRotationFor(view);
 
   for (let index = 0; index < positions.length; index += 3) {
     const dx = (positions[index] ?? 0) - center.x;

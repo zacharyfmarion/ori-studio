@@ -720,6 +720,8 @@
       "label": "视图立方体",
       "left": "左",
       "right": "右",
+      "rollLeft": "向左旋转视图",
+      "rollRight": "向右旋转视图",
       "top": "上"
     }
   },

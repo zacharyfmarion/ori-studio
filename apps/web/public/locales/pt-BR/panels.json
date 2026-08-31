@@ -764,6 +764,8 @@
       "label": "Cubo de visualização",
       "left": "Esquerda",
       "right": "Direita",
+      "rollLeft": "Girar a vista para a esquerda",
+      "rollRight": "Girar a vista para a direita",
       "top": "Cima"
     }
   },

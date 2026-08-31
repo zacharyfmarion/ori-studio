@@ -5,7 +5,7 @@ import {
   type SimulatorOrbitView,
   type SimulatorViewDirection,
 } from './simulatorOrbit';
-import { viewRotation } from '@treemaker/origami-simulator';
+import { viewRotation, viewRotationFor } from '@treemaker/origami-simulator';
 
 /**
  * Looking at the model from a named direction.
@@ -19,13 +19,13 @@ import { viewRotation } from '@treemaker/origami-simulator';
 
 /** Where the eye is, under a whole view. */
 function eyeDirection(view: SimulatorOrbitView): SimulatorViewDirection {
-  const m = viewRotation(view.yaw, view.pitch, view.orient);
+  const m = viewRotationFor(view);
   return [m[6], m[7], m[8]];
 }
 
 /** The model direction drawn straight up the screen — row 1, read across. */
 function screenUpAxis(view: SimulatorOrbitView): SimulatorViewDirection {
-  const m = viewRotation(view.yaw, view.pitch, view.orient);
+  const m = viewRotationFor(view);
   return [m[3], m[4], m[5]];
 }
 
@@ -91,6 +91,14 @@ describe('looking from a direction', () => {
     const start: SimulatorOrbitView = { yaw: 1.234, pitch: -0.7, zoom: 1 };
     expect(simulatorViewLookingFrom(start, [0, 1, 0]).yaw).toBe(start.yaw);
     expect(simulatorViewLookingFrom(start, [0, -1, 0]).yaw).toBe(start.yaw);
+  });
+
+  it('leaves any roll alone: it is not the eye either', () => {
+    // Roll spins the picture about the line of sight, so it says nothing about
+    // where you are looking from. A snap that wiped it would undo a deliberate
+    // choice for no reason.
+    const rolled: SimulatorOrbitView = { yaw: 1, pitch: -0.8, zoom: 1, roll: 0.9 };
+    expect(simulatorViewLookingFrom(rolled, [0, 0, -1]).roll).toBe(0.9);
   });
 
   it('keeps zoom and orientation, which are not the eye', () => {

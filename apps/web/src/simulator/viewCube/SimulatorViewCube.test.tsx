@@ -32,6 +32,7 @@ const OPENING = { yaw: Math.PI / 4, pitch: -0.955, zoom: 1.4 };
 let root: Root | null = null;
 let host: HTMLDivElement | null = null;
 let onSnap: Mock<Snap>;
+let onRoll: Mock<(delta: number) => void>;
 let orbit: { [K in keyof SimulatorOrbitGesture]: Mock<SimulatorOrbitGesture[K]> };
 let handle: SimulatorViewCubeHandle | null = null;
 let litCell: HTMLElement | null = null;
@@ -45,6 +46,7 @@ function render(interactive = true) {
         }}
         interactive={interactive}
         onSnap={onSnap}
+        onRoll={onRoll}
         orbit={orbit}
       />
     );
@@ -110,6 +112,7 @@ beforeEach(() => {
   document.body.appendChild(host);
   root = createRoot(host);
   onSnap = vi.fn<Snap>();
+  onRoll = vi.fn<(delta: number) => void>();
   orbit = { begin: vi.fn(), move: vi.fn(), end: vi.fn() };
   handle = null;
   litCell = null;
@@ -272,7 +275,7 @@ describe('SimulatorViewCube', () => {
 
     drag('Front', [40, 0], [80, 12]);
 
-    expect(orbit.begin).toHaveBeenCalledWith({ x: 100, y: 100 });
+    expect(orbit.begin).toHaveBeenCalledWith({ x: 100, y: 100 }, 'orbit');
     expect(orbit.move.mock.calls).toEqual([[{ x: 140, y: 100 }], [{ x: 180, y: 112 }]]);
     expect(orbit.end).toHaveBeenCalledTimes(1);
   });
@@ -316,6 +319,78 @@ describe('SimulatorViewCube', () => {
     drag('Front', [40, 0]);
 
     expect(orbit.begin).not.toHaveBeenCalled();
+  });
+
+  /** The pair of quarter-turn arrows above the cube. */
+  function rollRow(): HTMLElement {
+    const row = host?.querySelector<HTMLElement>('.simulator-view-cube__roll');
+    expect(row).not.toBeNull();
+    return row as HTMLElement;
+  }
+
+  function rollButtons(): HTMLButtonElement[] {
+    return Array.from(rollRow().querySelectorAll('button'));
+  }
+
+  it('offers the roll arrows only square-on to a face', () => {
+    // Anywhere else the picture is already at an angle, so there is no obvious
+    // "which way up" to step through — and the cube itself is still worth
+    // pressing. Face on, it is not, which is the whole reason these exist.
+    render();
+    expect(rollRow().dataset.available).toBe('false');
+
+    act(() => handle?.setView(simulatorViewLookingFrom(OPENING, [0, 0, -1])));
+    expect(rollRow().dataset.available).toBe('true');
+
+    // An edge view shows two faces, so it is not square-on to either.
+    const root = 1 / Math.sqrt(2);
+    act(() => handle?.setView(simulatorViewLookingFrom(OPENING, [root, 0, -root])));
+    expect(rollRow().dataset.available).toBe('false');
+  });
+
+  it('rolls a quarter turn each way', () => {
+    render();
+    act(() => handle?.setView(simulatorViewLookingFrom(OPENING, [0, 0, -1])));
+
+    const [left, right] = rollButtons();
+    act(() => left?.click());
+    expect(onRoll).toHaveBeenLastCalledWith(-Math.PI / 2);
+    act(() => right?.click());
+    expect(onRoll).toHaveBeenLastCalledWith(Math.PI / 2);
+  });
+
+  it('does not read an arrow press as a drag on the cube', () => {
+    // The arrows sit inside the root, whose pointer handlers turn the model.
+    // Without the guard, pressing one would begin an orbit under the button.
+    render();
+    act(() => handle?.setView(simulatorViewLookingFrom(OPENING, [0, 0, -1])));
+
+    act(() => {
+      rollButtons()[0]?.dispatchEvent(
+        new PointerEvent('pointerdown', { pointerId: 9, bubbles: true })
+      );
+    });
+
+    expect(orbit.begin).not.toHaveBeenCalled();
+  });
+
+  it('rolls rather than orbits while Shift is held', () => {
+    render();
+    const target = faceButton('Front');
+
+    act(() => {
+      target.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          pointerId: 4,
+          clientX: 100,
+          clientY: 100,
+          shiftKey: true,
+          bubbles: true,
+        })
+      );
+    });
+
+    expect(orbit.begin).toHaveBeenCalledWith({ x: 100, y: 100 }, 'roll');
   });
 
   it('keeps a trackpad pinch off the page', () => {

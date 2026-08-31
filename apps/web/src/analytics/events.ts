@@ -256,6 +256,15 @@ export const ANALYTICS_EVENTS = {
    * cube is doing the job a "view from above" button would do more cheaply.
    */
   simulatorViewCubeSnapped: 'simulator view cube snapped',
+  /**
+   * A quarter turn about the line of sight, from the view cube's arrows.
+   * `direction` is `cw` or `ccw` and says nothing about the design.
+   *
+   * Only the arrows are counted, not the Shift-drag beside them — an orbit drag
+   * is not counted either, and a per-frame event would be noise. The question is
+   * whether anyone finds the control at all.
+   */
+  simulatorViewRolled: 'simulator view rolled',
   foldedFigureRehydrated: 'folded figure rehydrated',
   creasePatternShared: 'crease pattern shared',
   shareLinkCopied: 'share link copied',
